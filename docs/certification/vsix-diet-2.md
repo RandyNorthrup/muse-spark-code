@@ -391,3 +391,41 @@ The restored 46-test VSIX unit file passes (27.10 s). Changed-file ESLint
 and formatting pass. Knip first correctly reported the new child test as
 unregistered; adding its exact path as an explicit entry restores analysis
 without an ignore or rule change.
+
+### FIXVSIX2 final gate receipt
+
+Repair commits: `d4369577` (P2), `7e46ce07` (P1). Both hooks ran
+ESLint/Prettier and staged Gitleaks successfully; no leaks. No review residual.
+
+All on Kubuntu, directly in this worktree, one tooling run at a time:
+
+- 78 distinct unit tests pass in three complete files:
+  `vsixPackaging.test.mjs` (46), `uiTextRegions.test.mjs` (7), `l10n.test.ts` (25).
+  The restored VSIX suite passes again after its red drill. P2's separate
+  fresh-checkout run passed all 45 then-existing tests without `dist/`.
+- Automatic native Node package checks: 34 VSIX + 15 actual ACP tarball
+  module tests pass, including callable regressions through both loaders.
+- Five-project typecheck; changed-file ESLint/Prettier; plain Knip; jscpd
+  (zero clones); localization (14 tables, 164 strings, 590 files, zero problems);
+  host API (332 APIs, 31 importers, 25 built-ins, 61 variables, zero problems);
+  dpdm cycles; all production size/split/global/notices gates exit 0.
+- `npm run package` and `npm run package:acp` exit 0, including the unchanged
+  size cap, exec schema and exact staged VSIX/ACP localization checks.
+- Actual ZIP member inventory is unchanged. All 27 browser members and
+  37 other checked members (helpers, manifest translations, walkthrough,
+  licences/notices, eager parsers/recorder and both archives) are byte-identical
+  to the reviewed package. Browser JavaScript also matches the unpacked build.
+  Every actual ACP tarball file matches its staged bytes. The source archiver
+  still has its exact post-drill restoration SHA-256 recorded above.
+
+Final universal VSIX **2,033,170 bytes**, **219,630 bytes
+headroom** (target ≥150,000; cap 2,252,800). ACP **951,319 bytes**.
+Activation **447,145 bytes**, byte-identical.
+
+Final VSIX SHA-256: `1cd12d473cdbb1a72899c0db89cabc3f400cf54ee15ed3aba9a27b94f176a737`.
+Final ACP SHA-256: `05eda977a395d50b009c3192612fc41985f634a040f82feff4282f17b680d7bd`.
+
+Full aggregate quality/coverage, installed-editor activation and other-platform
+certification remain the lead's integrated release checks, as the rig brief
+requires. No gate threshold, ignore, timeout, skip or dependency was changed.
+No merge, rebase, push, network, live or paid model call was made.

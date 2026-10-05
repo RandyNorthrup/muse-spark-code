@@ -6831,7 +6831,7 @@ guard widening, paid/live call, merge, push or rebase; 90-minute repair box.
 
 - [x] Repair P2, run the complete suite without checkout build output, drill.
 - [x] Repair P1, compare every packaged module and callable regression, drill.
-- [ ] Run scoped static/build/package gates and record sizes and receipts.
+- [x] Run scoped static/build/package gates and record sizes and receipts.
 
 - [x] Reproduce the 0.14.0 universal VSIX with the checksum-verified published
       helper and rank every member by compressed bytes. Keep the 2,252,800-byte cap.
@@ -18216,6 +18216,16 @@ joined with M57, M58 and PR #49's sign-in
 
 ## 7. Gates
 
+**FIXVSIX2 scoped certification (2026-10-05).** RVMVSIX2 P1 and P2 are
+fixed. All 78 owning unit tests and 49 native packaged-module tests pass,
+with declared-export, private-reader and absent-dist red drills restored
+byte-exact. Typecheck, scoped lint/format, Knip, duplication, localization,
+host API, cycles, production caps and both package commands exit 0.
+Universal VSIX is 2,033,170 bytes, with 219,630 bytes headroom; activation
+is byte-identical. The rig brief reserves aggregate quality/coverage and
+installed-editor/platform certification for the lead. No gate is weakened.
+Receipts: `docs/certification/vsix-diet-2.md`.
+
 **VSIXDIET2 scoped certification (2026-10-05).** This lane's explicit shared
 rules prohibit aggregate `npm run quality`/full-test runs and reserve coverage
 and installed-editor/platform certification for the lead. Its required scoped
@@ -19339,6 +19349,12 @@ before a repaired one loads (2026-09-30).
 | `test/harness/index.html` (`isActiveDescendantList`), printed by `scripts/a11y.mjs` | The accessibility gate exempts axe's `scrollable-region-focusable` | The composer's `/` and `@` lists follow WAI-ARIA's combobox pattern: the box keeps the focus and moves `aria-activedescendant` through the listbox's options, and `Composer.tsx` scrolls the active option into view, so the list is keyboard operable (WCAG 2.1.1) without being a Tab stop. axe cannot see activedescendant-driven scrolling. The exemption holds only for a region that contains a listbox whose id is in the `aria-controls` of a focused or focusable element whose active descendant is one of that listbox's options; drills show a plain scrollable region and a listbox no control drives are still reported, and removing the exemption reports the composer's list again. Every exempt element is printed under its own "Exempt:" heading and counted. No `tabindex` was added to the list. | 2026-10-04 |
 
 ## 9. Security assumptions and accepted residual risk
+
+- **FIXVSIX2 / RVMVSIX2 (resolved).** P1's native-import export loss and P2's
+  checkout-dist test prerequisite are fixed and drilled. No P2/P3 review
+  residual remains. The existing integrated-release quality/platform checks
+  remain with the lead under this rig's explicit scoped-gate rule (§7); this
+  local repair does not claim installed-editor or cross-platform certification.
 
 - **M91-E-M74 (lane E, SoL-Pi rule 5).** M74's automatic compaction and its
   hidden follow-ups are not built (Q-M74). So M91 certifies only the
