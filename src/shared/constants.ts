@@ -859,6 +859,11 @@ export const FIND_FILES_GLOB = '**/*'
 // `/review …` in the prompt. The command and its keywords are commands, like
 // the slash names: they read the same in every language.
 export const REVIEW_SLASH_COMMAND = 'review'
+// `/legal …` in the prompt (M97, PLAN.md D76). Bare it scans the whole
+// workspace under the configured header policy; words after it name an
+// explicit file subset. A command, like the slash names: the same in every
+// language.
+export const LEGAL_SLASH_COMMAND = 'legal'
 export const REVIEW_KEYWORDS = { security: 'security', branch: 'branch', commit: 'commit' } as const
 /** The security preset: injection, secrets, authentication, unsafe APIs. */
 export const REVIEW_FOCUSES = ['general', 'security'] as const
@@ -1309,6 +1314,9 @@ export const MODEL_API_TOOLS = {
   recallOutput: 'recall_output',
   // M69 (PLAN.md D49, M44b): one public HTTPS page, read by the extension itself.
   webFetch: 'web_fetch',
+  // M97 (PLAN.md D76): the deterministic read-only legal scan. A read in
+  // every mode; never a write, a shell command or an install.
+  legalScan: 'legal_scan',
 } as const
 // --- Web fetch (M69, PLAN.md D49; the network-safety design of M44b) ---
 //
@@ -2418,6 +2426,10 @@ export const IDE_MCP_PATH = '/mcp'
 export const IDE_MCP_LOOPBACK_HOST = '127.0.0.1'
 export const IDE_MCP_TOKEN_BYTES = 32
 export const IDE_MCP_TOOL_DIAGNOSTICS = 'getDiagnostics'
+// The read-only legal scan on the `ide` session server for Muse Code (M97,
+// PLAN.md D76): `mcp__ide__legalScan` in its items, the same deterministic
+// scan as the Model API backend's native `legal_scan`.
+export const IDE_LEGAL_SCAN_TOOL = 'legalScan'
 // MCP tool annotations (2025-06-18 schema): the `ide` server's web fetch
 // changes nothing but reaches the open internet, so Muse Code must not treat
 // it as a read-only tool (M69).

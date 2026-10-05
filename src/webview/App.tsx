@@ -15,6 +15,7 @@ import {
   type EffortLevel,
   GOAL_SLASH_COMMAND,
   HANDOFF_SLASH_COMMAND,
+  LEGAL_SLASH_COMMAND,
   LOOP_SLASH_COMMAND,
   type GoalCommandVerb,
   MUSE_DELEGATION_ENABLED,
@@ -29,6 +30,7 @@ import {
   type ReviewRequest,
   reviewRequestSchema,
 } from '../shared/reviewCommand'
+import { parseLegalPrompt } from '../shared/legalCommand'
 import { editorContextLabel } from '../shared/editorContext'
 import { effortAt, effortIndex, effortLabel, effortLevelsFor } from '../shared/effort'
 import { parseGoalPrompt, requiresObjective } from '../shared/goalCommand'
@@ -178,6 +180,8 @@ const GOAL_PROMPT_START = `/${GOAL_SLASH_COMMAND} `
 const LOOP_PROMPT_START = `/${LOOP_SLASH_COMMAND} `
 // What choosing `/review` leaves: the command, ready for what to review (M70).
 const REVIEW_PROMPT_START = `/${REVIEW_SLASH_COMMAND} `
+// What choosing `/legal` leaves: the command, ready for a file subset (M97).
+const LEGAL_PROMPT_START = `/${LEGAL_SLASH_COMMAND} `
 // What choosing `/handoff` leaves in the prompt: the command, ready for the goal (M74).
 const HANDOFF_PROMPT_START = `/${HANDOFF_SLASH_COMMAND} `
 const GATED_STATUSES = new Set(['noCli', 'installing', 'signedOut', 'signingIn', 'error'])
@@ -300,6 +304,9 @@ function promptStartFor(action: PaletteAction): string | undefined {
     }
     case 'startReview': {
       return REVIEW_PROMPT_START
+    }
+    case 'startLegalScan': {
+      return LEGAL_PROMPT_START
     }
     case 'startHandoff': {
       return HANDOFF_PROMPT_START
@@ -552,6 +559,22 @@ export function App({
     },
     [dispatch, newLocalId, postMessage],
   )
+  // `/legal …` and the palette's legal row (M97): the host runs the
+  // deterministic scan and answers with the report (lane W renders it), so
+  // no card is submitted. The parse is total over the schema, so the input
+  // always posts as parsed.
+  const onLegalScan = useCallback(
+    (text: string): boolean => {
+      const input = parseLegalPrompt(text)
+      if (input === undefined) {
+        return false
+      }
+      postMessage({ type: 'requestLegalScan', input })
+      setIsPinnedToEnd(true)
+      return true
+    },
+    [postMessage],
+  )
   const onSubmit = useCallback(() => {
     const current = store.getState()
     if (!canSend(current)) {
@@ -574,6 +597,12 @@ export function App({
       if (onReview(review, text)) {
         dispatch({ type: 'draftChanged', draft: '' })
       }
+      return
+    }
+    // `/legal …` (M97): a deterministic scan, its report rendered by lane W.
+    // Not a legal command (options, overlong words) falls through to a message.
+    if (onLegalScan(text)) {
+      dispatch({ type: 'draftChanged', draft: '' })
       return
     }
     // `/goal …` is a command to the backend, not a message (M45): no card.
@@ -653,7 +682,7 @@ export function App({
     })
     // The reader's own message always lands in view (M15).
     setIsPinnedToEnd(true)
-  }, [store, dispatch, newLocalId, postMessage, onGoalCommand, onReview, onHandoff])
+  }, [store, dispatch, newLocalId, postMessage, onGoalCommand, onReview, onLegalScan, onHandoff])
   const onDismissEditorContext = useCallback(() => {
     dispatch({ type: 'editorContextDismissed' })
   }, [dispatch])
@@ -1480,6 +1509,12 @@ export function App({
         case 'startReview': {
           // The prompt becomes `/review ` for what to review (M70).
           dispatch({ type: 'draftChanged', draft: REVIEW_PROMPT_START })
+          closeOverlay()
+          break
+        }
+        case 'startLegalScan': {
+          // The prompt becomes `/legal ` for a file subset (M97).
+          dispatch({ type: 'draftChanged', draft: LEGAL_PROMPT_START })
           closeOverlay()
           break
         }

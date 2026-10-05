@@ -298,6 +298,7 @@ describe('buildPalette', () => {
       '/compact',
       '/handoff',
       '/goal',
+      '/legal',
       '/export',
       'Export session log…',
       'Export session as JSON…',
@@ -499,6 +500,7 @@ describe('slashCommandsOf', () => {
       'compact',
       'handoff',
       'goal',
+      'legal',
       'export',
       'clear',
       'logout',
@@ -520,6 +522,18 @@ describe('slashCommandsOf', () => {
     expect(commands.find((command) => command.name === 'goal')?.action).toEqual({
       type: 'startGoal',
     })
+    // M97: /legal readies the prompt for a file subset, on both backends.
+    expect(commands.find((command) => command.name === 'legal')).toMatchObject({
+      detail: 'Scan the workspace for licensing, attribution and header findings',
+      action: { type: 'startLegalScan' },
+    })
+    for (const backend of ['museCode', 'modelApi', undefined] as const) {
+      expect(
+        slashCommandsOf(buildPalette({ ...context, backend })).some(
+          (command) => command.name === 'legal',
+        ),
+      ).toBe(true)
+    }
     expect(commands.find((command) => command.name === 'acme:deploy')?.action).toEqual({
       type: 'insertSkill',
       selector: 'acme:deploy',
