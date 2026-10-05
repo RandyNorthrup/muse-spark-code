@@ -61,7 +61,9 @@ async function send(panel: FakeWebviewPanel, message: unknown, done: () => void)
   await vi.waitFor(done)
 }
 async function chooseOpenRouter(panel: FakeWebviewPanel): Promise<void> {
-  await send(panel, { type: 'providers/select', presetId: 'openrouter' }, () => { expect(latestState(panel).drafts.wizard?.presetId).toBe('openrouter') })
+  await send(panel, { type: 'providers/select', presetId: 'openrouter' }, () => {
+    expect(latestState(panel).drafts.wizard?.presetId).toBe('openrouter')
+  })
 }
 beforeEach(() => {
   fakeWindow.createWebviewPanel.mockReset()
@@ -71,6 +73,28 @@ beforeEach(() => {
   vi.mocked(window.showInputBox).mockReset()
 })
 describe('Models host contract', () => {
+  it('keeps an OAuth credential bound to its issuer after an edited draft address', async () => {
+    const test = vi.fn(() => Promise.resolve({ kind: 'ok' as const, models: 1 }))
+    const { providers } = testProvidersHost({
+      deps: { store: memoryProvidersStore(), tester: { test } },
+    })
+    const { panel, warnings } = setup({ providers })
+    await chooseOpenRouter(panel)
+    await send(
+      panel,
+      { type: 'providers/prefill', fields: { address: 'https://attacker.example' } },
+      () => {
+        expect(latestState(panel).drafts.wizard?.address).toBe('https://attacker.example')
+      },
+    )
+    await send(panel, { type: 'providers/connect' }, () => {
+      expect(latestState(panel).drafts.wizard?.connected).toBe(true)
+    })
+    await send(panel, { type: 'providers/test', acceptCost: false }, () => {
+      expect(warnings.length).toBeGreaterThan(0)
+    })
+    expect(test).not.toHaveBeenCalled()
+  })
   it('loads a host-owned edit draft and identifies edited prefills', async () => {
     const { providers } = testProvidersHost()
     const { panel } = setup({ providers })

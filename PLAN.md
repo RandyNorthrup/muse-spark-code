@@ -15351,6 +15351,15 @@ before a repaired one loads (2026-09-30).
   Remaining risk is credential/setup availability, not credential exfiltration;
   the origin dispatch guard remains mandatory. Follow-up: cross-window drills
   with the final store seam and explicit repair when an OS-store rollback fails.
+- **K-release-base merge:** local `origin/main` at `a95f24cf` conflicts in
+  release/build files, every manifest translation, extension and constants.
+  Merge was aborted; lead must reconcile the release base on integration.
+  This preserves the lane and both sides' behavior rather than choosing a
+  side wholesale. Full certification stays open.
+- **K-hook verification:** ignored Husky wrapper was missing; an early
+  commit proceeded despite lint errors. `npm run prepare` regenerated the
+  local `sh -e` wrapper with the same configured hook path. No bypass was
+  used. Require the closing commit's positive lint/Gitleaks receipt.
 - **K-final-runtime:** live setup/OAuth/discovery, unsaved-draft scan
   cancellation, four themes, pseudo-locale and 320px remain integration gates.
   Focused host tests do not certify those surfaces. Final evidence and merge

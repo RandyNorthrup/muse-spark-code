@@ -35,6 +35,7 @@ import type {
 } from '../providers/providerPorts'
 import type { ProvidersHost } from '../providers/providersHost'
 import type { WizardSaveOutcome } from '../providers/wizardSave'
+import { OPENROUTER_ORIGIN } from '../providers/openRouter'
 
 // Edit operations extend M's initial contract; their strict shapes carry no
 // credential. M's repair can adopt these variants in the shared schema.
@@ -248,8 +249,9 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
       const saved = state.providers.find((entry) => entry.id === providerId)
       const draft = state.drafts.wizard?.presetId === providerId ? state.drafts.wizard : undefined
       for (const model of models) {
-        const knownPrice: ModelRow['priceNote'] = model.inputPerMillion === undefined ? 'unpriced' : 'priced'
-        const priceNote = model.isLocal ? 'local' : (model.isFree ? 'free' : knownPrice)
+        const knownPrice: ModelRow['priceNote'] =
+          model.inputPerMillion === undefined ? 'unpriced' : 'priced'
+        const priceNote = model.isLocal ? 'local' : model.isFree ? 'free' : knownPrice
         if (model.family !== undefined) {
           families.set(`${providerId}/${model.id}`, model.family)
         }
@@ -327,17 +329,21 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
     state.models.sort((left, right) => {
       let order = left.ref.localeCompare(right.ref)
       switch (state.sort.key) {
-        case 'context':
+        case 'context': {
           order = (left.contextTokens ?? 0) - (right.contextTokens ?? 0)
           break
-        case 'input-price':
+        }
+        case 'input-price': {
           order = (left.inputPerMillion ?? Infinity) - (right.inputPerMillion ?? Infinity)
           break
-        case 'output-price':
+        }
+        case 'output-price': {
           order = (left.outputPerMillion ?? Infinity) - (right.outputPerMillion ?? Infinity)
           break
-        case 'name':
+        }
+        case 'name': {
           break
+        }
       }
       return state.sort.direction === 'asc' ? order : -order
     })
@@ -490,7 +496,13 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
             ? connection?.key
             : await providers.promptForKey({ ...preset, origin: new URL(entry.address).origin })
         if (secret !== undefined && !isDisposed) {
-          credentials.set(id ?? 'wizard', { secret, origin: new URL(entry.address).origin })
+          credentials.set(id ?? 'wizard', {
+            secret,
+            origin:
+              message.type === 'providers/connect'
+                ? OPENROUTER_ORIGIN
+                : new URL(entry.address).origin,
+          })
           draft.keyPresent = true
           draft.keyShapeOk = true
           draft.connected = message.type === 'providers/connect'
@@ -522,7 +534,9 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
           tested = await providers.testCredential(entry, secret)
         }
         let status: ProviderTest['status'] = tested.kind === 'ok' ? 'ok' : 'failed'
-        if (tested.kind === 'paid') { status = 'needs-cost' }
+        if (tested.kind === 'paid') {
+          status = 'needs-cost'
+        }
         const test = {
           status,
           ...(tested.kind === 'ok' && { modelCount: tested.models }),

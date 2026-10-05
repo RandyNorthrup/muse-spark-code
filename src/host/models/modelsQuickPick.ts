@@ -135,7 +135,7 @@ export async function runAddProviderQuickPick(
       }
     }
     if (credential === undefined) {
-      const pasted = await providers.promptForKey(preset)
+      const pasted = await providers.promptForKey({ ...preset, origin: new URL(address).origin })
       if (pasted === undefined) {
         return undefined
       }
