@@ -1,0 +1,181 @@
+"""Offline Sublime API doubles; no real credentials or model calls."""
+
+import importlib.util
+import os
+import subprocess
+import sys
+import types
+import unittest
+from pathlib import Path
+from unittest.mock import patch
+
+
+class WindowCommand:
+    def __init__(self, window):
+        self.window = window
+
+
+settings = {
+    "command": ["agent with spaces", "--backend", "musecode"],
+    "opener": ["browser"],
+}
+errors = []
+scheduled = []
+sys.modules["sublime"] = types.SimpleNamespace(
+    load_settings=lambda _name: settings,
+    error_message=errors.append,
+    set_timeout=lambda callback: callback(),
+    set_timeout_async=scheduled.append,
+)
+sys.modules["sublime_plugin"] = types.SimpleNamespace(
+    WindowCommand=WindowCommand, EventListener=object
+)
+spec = importlib.util.spec_from_file_location(
+    "muse_spark", Path(__file__).parents[1] / "muse_spark.py"
+)
+muse = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(muse)
+
+
+class Process:
+    stopped = False
+
+    def poll(self):
+        return 0 if self.stopped else None
+
+    def terminate(self):
+        self.stopped = True
+
+    def wait(self):
+        return 1
+
+
+class ShimTests(unittest.TestCase):
+    def setUp(self):
+        errors.clear()
+        scheduled.clear()
+        muse._processes.clear()
+        self.window = types.SimpleNamespace(
+            id=lambda: 1, folders=lambda: ["/workspace with spaces"]
+        )
+        self.url = "http://127.0.0.1:41234/#k=test-launch"
+
+    def test_fragment_launch_only(self):
+        self.assertTrue(muse.valid_launch_url(self.url))
+        self.assertTrue(muse.valid_launch_url("http://[::1]:41234/#k=test-launch"))
+        for url in (
+            "http://localhost:41234/#k=test-launch",
+            "http://127.0.0.1.evil:41234/#k=test-launch",
+            "http://127.0.0.1:0/#k=test-launch",
+            "http://127.0.0.1:65536/#k=test-launch",
+            "http://127.0.0.1:41234/?k=test-launch",
+            self.url + "\n",
+            self.url + "&token=value",
+            None,
+        ):
+            self.assertFalse(muse.valid_launch_url(url))
+
+    def test_real_child_environment(self):
+        with patch.dict(
+            os.environ,
+            {
+                "M104_API_KEY": "test-sentinel",
+                "OPENAI_KEY": "test-sentinel",
+                "m104_api_key": "test-sentinel",
+            },
+        ):
+            result = subprocess.run(
+                [
+                    sys.executable,
+                    "-c",
+                    "import os; assert not any(k.upper().endswith('_API_KEY') or k == 'OPENAI_KEY' for k in os.environ)",
+                ],
+                env=muse.clean_environment(),
+                check=False,
+            )
+            self.assertEqual(result.returncode, 0)
+            self.assertEqual(os.environ["M104_API_KEY"], "test-sentinel")
+
+    def test_companion_argv_sanitized_and_duplicate_refused(self):
+        child = Process()
+        with patch.object(muse.subprocess, "Popen", return_value=child) as spawn:
+            with patch.dict(os.environ, {"M104_API_KEY": "test-sentinel"}):
+                muse.MusePanelCommand(self.window).run()
+            args, kwargs = spawn.call_args
+            self.assertEqual(args[0], [*settings["command"], "panel", "--companion"])
+            self.assertEqual(kwargs["cwd"], "/workspace with spaces")
+            self.assertNotIn("M104_API_KEY", kwargs["env"])
+            self.assertFalse(kwargs["shell"])
+            self.assertEqual(kwargs["stderr"], subprocess.DEVNULL)
+            muse.MusePanelCommand(self.window).run()
+            self.assertEqual(spawn.call_count, 1)
+            self.assertEqual(errors, ["EPANEL_LAUNCH"])
+
+    def test_browser_opens_only_safe_fragment(self):
+        with patch.object(muse.subprocess, "Popen", return_value=Process()) as spawn:
+            muse.MusePanelCommand(self.window).run(url=self.url)
+            self.assertEqual(spawn.call_args.args[0], ["browser", self.url])
+            muse.MusePanelCommand(self.window).run(url="file:///private")
+            self.assertEqual(spawn.call_count, 1)
+
+    def test_stop_and_window_close_are_isolated(self):
+        first, other = Process(), Process()
+        muse._processes.update({1: first, 2: other})
+        muse.MuseLifecycle().on_pre_close_window(self.window)
+        self.assertTrue(first.stopped)
+        self.assertFalse(other.stopped)
+        muse.MuseStopCommand(self.window).run()
+        muse.plugin_unloaded()
+        self.assertTrue(other.stopped)
+        self.assertEqual(muse._processes, {})
+
+    def test_no_workspace_or_invalid_command_refused(self):
+        with patch.object(muse.subprocess, "Popen") as spawn:
+            muse.MusePanelCommand(
+                types.SimpleNamespace(id=lambda: 1, folders=list)
+            ).run()
+            with patch.dict(settings, {"command": "shell text"}):
+                muse.MusePanelCommand(self.window).run()
+            self.assertEqual(spawn.call_count, 0)
+            self.assertEqual(errors, ["EPANEL_LAUNCH", "EPANEL_LAUNCH"])
+
+    def test_launch_failure_does_not_print_paths_or_url(self):
+        with patch.object(muse.subprocess, "Popen", side_effect=OSError(self.url)):
+            muse.MusePanelCommand(self.window).run(url=self.url)
+        self.assertEqual(errors, ["EPANEL_LAUNCH"])
+        self.assertEqual(muse._processes, {})
+
+    def test_exit_reports_failure_and_preserves_new_process(self):
+        child, new = Process(), Process()
+        with patch.object(muse.subprocess, "Popen", return_value=child):
+            muse.MusePanelCommand(self.window).run()
+        scheduled[0]()
+        self.assertEqual(errors, ["EPANEL_EXIT"])
+        self.assertEqual(muse._processes, {})
+        muse._processes[1] = new
+        muse._watch(1, child)
+        self.assertIs(muse._processes[1], new)
+        self.assertEqual(errors, ["EPANEL_EXIT"])
+
+    def test_invalid_opener_refused(self):
+        with patch.object(muse.subprocess, "Popen") as spawn:
+            with patch.dict(settings, {"opener": "shell text"}):
+                muse.MusePanelCommand(self.window).run(url=self.url)
+            self.assertEqual(spawn.call_count, 0)
+
+    def test_stop_failure_retains_ownership_for_retry(self):
+        child = Process()
+        muse._processes[1] = child
+        with patch.object(
+            child, "terminate", side_effect=OSError("private profile path")
+        ):
+            muse.MuseStopCommand(self.window).run()
+        self.assertIs(muse._processes[1], child)
+        self.assertEqual(errors, ["EPANEL_STOP"])
+        muse.MuseStopCommand(self.window).run()
+        self.assertTrue(child.stopped)
+        self.assertNotIn(1, muse._processes)
+
+
+if __name__ == "__main__":
+    unittest.main()
