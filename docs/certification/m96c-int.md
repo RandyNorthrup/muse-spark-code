@@ -69,7 +69,19 @@ callbacks at X2; do not infer accounting or retirement from the scheduler.
 
 ## Remaining integration evidence
 
-T2/V merge, interface verification and final scoped gate receipts follow
+The first merge is `c0552443`, with hooks enabled (lint/format and Gitleaks
+passed). `m96c/t2fix` at `515b805d` conflicts only at the introductory M96c
+paragraph in PLAN. Keep both the integration scope and T2's cancellation/
+annotation correction record. The T2 §7 proof also survives. No source,
+test or localization conflict occurs; S's final scheduler, helper and
+regression files remain byte-identical to `m96c/sqfix` after the merge.
+
+T2's three complete owned files pass 21/21 directly on macmini against the
+final S board and shared test helper, including cancellation, journal
+acknowledgement, local dependency defaults, atomic edge refusal and frozen
+orchestrator/worker declarations.
+
+V merge, interface verification and final scoped gate receipts follow
 in the next checkpoint. Full `npm run quality`, native Windows/Linux
 containment, installed-editor/golden/live acceptance and final production
 team/runner bundle certification remain lead/X2 work under the rig brief.
