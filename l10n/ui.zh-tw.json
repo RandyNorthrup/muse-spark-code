@@ -780,6 +780,7 @@
   "modelApiBackendNotice": "此對話在 Meta Model API 上執行，並使用延伸模組本身的工具（讀取、編輯、寫入、搜尋、列出、shell）。其工作階段會保存在此工作區的延伸模組儲存空間中。",
   "installOrKeyDetail": "Muse Code CLI 為此延伸模組代管對話；沒有它，您仍可使用 Meta Model API 金鑰。",
   "compactionDone": "上下文已壓縮",
+  "contextWindowFull": "上下文視窗已滿：/compact 或 /handoff",
   "sessionBudgetStopped": "已停止：下一個要求（約 {estimate}）將超出階段預算 {cap}（已使用 {spent}）。該要求未傳送。",
   "sessionBudgetStoreUnavailable": "無法讀取或儲存階段支出記錄。在記錄可用之前，無法傳送新要求。",
   "sessionBudgetLegacyFeesUnknown": "對話支出尚未完全驗證。請等待待處理要求完成，或開始新對話以使用支出上限。",

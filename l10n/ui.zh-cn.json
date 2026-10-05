@@ -780,6 +780,7 @@
   "modelApiBackendNotice": "此对话在 Meta Model API 上运行，使用扩展自带的工具（读取、编辑、写入、搜索、列出、shell）。其会话保存在此工作区的扩展存储中。",
   "installOrKeyDetail": "Muse Code CLI 为此扩展托管对话；没有它，你仍可以使用 Meta Model API 密钥。",
   "compactionDone": "上下文已压缩",
+  "contextWindowFull": "上下文窗口已满：/compact 或 /handoff",
   "sessionBudgetStopped": "已停止：下一个请求（约 {estimate}）将超出会话预算 {cap}（已使用 {spent}）。该请求未发送。",
   "sessionBudgetStoreUnavailable": "无法读取或保存会话支出记录。在记录可用之前，无法发送新请求。",
   "sessionBudgetLegacyFeesUnknown": "对话支出尚未完全核实。请等待待处理请求完成，或开始新对话以使用支出上限。",

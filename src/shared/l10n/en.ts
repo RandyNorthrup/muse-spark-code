@@ -1141,6 +1141,7 @@ export const EN = {
   installOrKeyDetail:
     'The Muse Code CLI hosts conversations for this extension; without it you can still use a Meta Model API key.',
   compactionDone: 'Context compacted',
+  contextWindowFull: 'Context window full: /compact or /handoff',
   // The Model API session budget (M82): a request that cannot fit is not
   // sent, and the turn's cost is shown against the cap afterwards.
   sessionBudgetStopped:

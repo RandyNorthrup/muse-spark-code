@@ -804,6 +804,7 @@
   "modelApiBackendNotice": "Diese Unterhaltung läuft über die Meta Model API mit den eigenen Tools der Erweiterung (Lesen, Bearbeiten, Schreiben, Suchen, Auflisten, Shell). Ihre Sitzungen werden im Erweiterungsspeicher dieses Arbeitsbereichs aufbewahrt.",
   "installOrKeyDetail": "Die Muse Code-CLI hostet die Unterhaltungen für diese Erweiterung; ohne sie können Sie weiterhin einen Schlüssel für die Meta Model API verwenden.",
   "compactionDone": "Kontext komprimiert",
+  "contextWindowFull": "Kontextfenster voll: /compact oder /handoff",
   "sessionBudgetStopped": "Angehalten: Die nächste Anfrage (ca. {estimate}) würde das Sitzungsbudget von {cap} überschreiten ({spent} verbraucht). Sie wurde nicht gesendet.",
   "sessionBudgetStoreUnavailable": "Das Ausgabenprotokoll der Sitzung konnte nicht gelesen oder gespeichert werden. Bis es verfügbar ist, kann keine neue Anfrage gesendet werden.",
   "sessionBudgetLegacyFeesUnknown": "Die Ausgaben der Unterhaltung sind nicht vollständig bestätigt. Warten Sie auf ausstehende Anfragen oder starten Sie eine neue Unterhaltung, um ein Ausgabenlimit zu verwenden.",

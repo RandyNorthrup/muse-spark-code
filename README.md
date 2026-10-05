@@ -718,6 +718,18 @@ conversation in Plan mode stays in Plan.
 Automatic compaction, the hidden follow-up and memory flush are not
 built: only manual `/handoff` is available.
 
+When a Model API turn fills its context window, it reports **Context window
+full: /compact or /handoff**. Ordinary requests are refused locally only when
+their lower input estimate exceeds the full window; a high upper estimate
+still lets the provider decide. Quota and billing failures keep their own errors.
+Manual `/compact` remains available after that refusal. Context pressure
+and text-file read budgets use the selected model's supplied window, with
+each dispatched attempt retaining its admitted window and format. The documented
+Muse window applies only to verified legacy Muse ids without a registry resolver;
+an authoritative missing row stays unknown. Provider
+registry wiring must supply each BYO model's window; Ollama needs its loaded
+`num_ctx`, rather than its trained maximum. No automatic retry is added here.
+
 Handoff runs on the Model API backend only: on Muse Code the command says
 so, where Muse Code compacts its own conversations. It starts from the
 main conversation, never a side chat.

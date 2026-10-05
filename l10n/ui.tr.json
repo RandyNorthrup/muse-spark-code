@@ -804,6 +804,7 @@
   "modelApiBackendNotice": "Bu konuşma, uzantının kendi araçlarıyla (okuma, düzenleme, yazma, arama, listeleme, kabuk) Meta Model API üzerinde çalışır. Oturumları bu çalışma alanının uzantı depolama alanında tutulur.",
   "installOrKeyDetail": "Bu uzantının konuşmalarını Muse Code CLI barındırır; o olmadan da bir Meta Model API anahtarı kullanabilirsiniz.",
   "compactionDone": "Bağlam sıkıştırıldı",
+  "contextWindowFull": "Bağlam penceresi dolu: /compact veya /handoff",
   "sessionBudgetStopped": "Durduruldu: sonraki istek (yaklaşık {estimate}), {cap} tutarındaki oturum bütçesini aşardı (kullanılan {spent}). Gönderilmedi.",
   "sessionBudgetStoreUnavailable": "Oturum harcama kaydı okunamadı veya kaydedilemedi. Kayıt kullanılabilir olana kadar yeni bir istek gönderilemez.",
   "sessionBudgetLegacyFeesUnknown": "Konuşmanın harcamaları tam olarak doğrulanmadı. Bekleyen isteklerin bitmesini bekleyin veya harcama sınırı kullanmak için yeni bir konuşma başlatın.",

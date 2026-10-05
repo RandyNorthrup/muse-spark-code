@@ -15694,11 +15694,34 @@ receipts remain the lead's checks under the rig brief.
   classified overflow (from lane O). The M75 arm is frozen before it runs.
 - **Lane O — context overflow** (item 6, item 13's budget scaling).
   A pure `providers/overflow.ts` with Pi's per-format patterns (429 and rate
-  limits never count) and the two silent-overflow signals; the model's
+  limits and quota/billing failures never count) and the two silent-overflow signals; the model's
   `contextTokens` replaces the fixed window; until C2 lands the user sees
-  "Context window full: /compact or /handoff"; a pre-request check against
-  window minus reserve. `read_file`'s character budget scales with
+  "Context window full: /compact or /handoff"; a pre-request lower-bound check
+  against the full window. `read_file`'s character budget scales with
   `contextTokens`.
+
+  **Lane O status (2026-10-05, win11):** implement the pure per-format
+  classifier and classified engine event, reject 429/rate-limit errors,
+  detect the two completed-reply usage signals, and protect ordinary sends
+  with lower-bound admission against the selected full window, never the
+  dollar-budget upper estimate. Read pressure, model-list limits, compaction's
+  pressure and the read-file budget from the injected model row; leave
+  compaction exempt from the ordinary-send fence. Only the named verified
+  legacy Muse ids retain their documented window when no resolver is installed;
+  an authoritative missing row stays unknown. Keep the final check after key
+  retrieval, then retain that attempt's window/format for pressure, completion,
+  error classification and the recovery event. RVM101O's four findings are the
+  scope of FIXM101O, with individual failing regressions and byte-exact drills.
+  The base lacks the M95
+  registry/client integration: the new `contextModel` dependency is its
+  owned integration seam, not proof of reachable BYO dispatch. Keep the
+  classifier implementation in core context, used by the lazy engine, with the requested
+  `providers/overflow.ts` public facade, to preserve D6's provider-core
+  isolation. C2 owns automatic recovery; E owns real overflow-text captures.
+  No dependency, paid/live call or native wire parser is added. Tests,
+  restored guard drills, provider eligibility and gates are recorded in
+  `docs/certification/m101-o.md`.
+
 - **Lane T — tool and packing correctness** (items 4, 8, 9, 12, 13, 14, 15,
   18, 20, 21). 4. The packed placeholder trims the tail from its front and always keeps
   the final line (the exit code) when it fits. 8. Tool calls in a cut-short reply are answered with an error, never run
@@ -15787,6 +15810,16 @@ those UI surfaces or tests, so the integrator must repair the two files and
 rerun them. No assertion, test filter, threshold, timeout
 or gate setting is changed here; the imported sweep retains the failing
 receipt. See `docs/certification/m101-c1.md` for final results.
+**M101-O composed-read validation residual (2026-10-05, win11).** A newly
+drafted host/transcript assertion failed after a fixture-path repair and a
+transcript assertion repair. Stop that assertion path under the common
+brief's two-fix rule; the abandoned draft added no skip or change to an
+established test. The budget function and its real `executeTool('read_file')`
+call pass and fire red when either guard is removed. The host's model-to-tool
+budget injection is present and reviewed; its additional composed transcript
+assertion remains for integration. M95 registry/client wiring, E's actual
+overflow captures and C2's recovery remain prerequisites outside this lane.
+Full quality and release certification remain the integrator's checks.
 
 **M95INT final whole-chain rerun — deferred under the 120-minute rig brief.**
 The final 548-page rerun still returns 1: `dark/models-pick` has one selected
@@ -16422,6 +16455,23 @@ before a repaired one loads (2026-09-30).
   define a distinct command-result contract if standalone command success
   needs exit 0, and certify that contract before claiming product support;
   C2's in-turn compaction retains real response/ledger evidence.
+- **FIXM101O / RVM101O (2026-10-05, win11).** All four assigned findings
+  are fixed: lower input admission against the full window, quota/billing/
+  credit vetoes across formats, attempt-owned admitted metadata, and the
+  exact legacy Muse fallback only without a resolver. No assigned P1/P2/P3
+  remains. Regressions and byte-exact drills: `docs/certification/m101-o.md`.
+  Existing integration prerequisites remain named: **FIXM101O-REGISTRY**
+  (BYO registry/client dispatch remains unwired; safe while no BYO session
+  dispatches, follow-up: supply authoritative rows and certify dispatch),
+  **FIXM101O-CAPTURES** (fake 8k proof and canonical errors certify local
+  logic, not native overflow receipts; safe without a new native parser,
+  follow-up: lane E's counted captures), **FIXM101O-RECOVERY** (manual recovery
+  stays explicit; safe without an automatic billed retry, follow-up: C2's
+  guarded recovery), and **FIXM101O-COMPOSED-READ** (the real tool regression
+  proves clipping but the additional composed transcript assertion is still
+  open; safe with existing helper/tool tests, follow-up: integration fixture
+  repair under §7). Full quality and the platform matrix remain the lead's
+  gates under the rig brief; the shared engine changes also serve ACP/headless.
 
 - **FIXM95P (2026-10-05):** all thirteen assigned RVM95A findings
   (1, 2, 4–8, 12–15, 18, 19) are repaired with regressions and deliberate

@@ -780,6 +780,7 @@
   "modelApiBackendNotice": "이 대화는 확장 자체 도구(읽기, 편집, 쓰기, 검색, 목록, 셸)를 사용하여 Meta Model API에서 실행됩니다. 세션은 이 작업 영역의 확장 저장소에 보관됩니다.",
   "installOrKeyDetail": "Muse Code CLI가 이 확장의 대화를 호스팅합니다. CLI가 없어도 Meta Model API 키를 사용할 수 있습니다.",
   "compactionDone": "컨텍스트가 압축됨",
+  "contextWindowFull": "컨텍스트 창이 가득 찼습니다: /compact 또는 /handoff",
   "sessionBudgetStopped": "중지됨: 다음 요청(약 {estimate})이 세션 예산 {cap}을(를) 초과합니다(사용 {spent}). 전송되지 않았습니다.",
   "sessionBudgetStoreUnavailable": "세션 지출 기록을 읽거나 저장할 수 없습니다. 기록을 사용할 수 있을 때까지 새 요청을 전송할 수 없습니다.",
   "sessionBudgetLegacyFeesUnknown": "대화의 지출이 완전히 검증되지 않았습니다. 대기 중인 요청이 끝날 때까지 기다리거나 지출 한도를 사용하려면 새 대화를 시작하세요.",

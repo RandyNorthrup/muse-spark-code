@@ -1241,6 +1241,14 @@ export const TOKENS_PER_MILLION = 1_000_000
 // dev.meta.ai/docs/models: every Muse Spark model has this window; the
 // output cap is well under the documented 131,072 maximum.
 export const MODEL_API_CONTEXT_WINDOW = 1_048_576
+/** Verified legacy ids only; an installed registry resolver always owns its rows. */
+export const MODEL_API_LEGACY_CONTEXT_MODELS: readonly string[] = [
+  'muse-spark-1.1',
+  'muse-spark-1.2',
+  'muse-spark-1.3',
+  'muse-spark-1.2-contributor',
+  'muse-spark-1.3-contributor',
+]
 export const MODEL_API_MAX_OUTPUT_TOKENS = 32_768
 // M101 C1: keep whole recent turns; summaries and the tail scale down for small windows.
 export const NO_COMPACTABLE_HISTORY = 'no_compactable_history'
@@ -1248,6 +1256,11 @@ export const COMPACTION_TAIL_MAX_TOKENS = 20_000
 export const COMPACTION_TAIL_WINDOW_FRACTION = 0.08
 export const COMPACTION_SUMMARY_MAX_TOKENS = 8192
 export const COMPACTION_SUMMARY_WINDOW_FRACTION = 0.05
+// M101 admission uses the lane's lower byte estimate, never the dollar-budget upper estimate.
+export const MODEL_API_CONTEXT_BYTES_PER_TOKEN = 4
+export const MODEL_API_SILENT_OVERFLOW_FRACTION = 99 / 100
+// A read uses at most half a window in characters (about one eighth in ordinary text tokens).
+export const READ_FILE_CONTEXT_CHAR_FRACTION = 1 / 2
 // A turn that ran this long earns a notification when it ends while the
 // VS Code window is unfocused (M82): shorter turns answer before the user
 // looks away.

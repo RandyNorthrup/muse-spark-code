@@ -852,6 +852,7 @@
   "modelApiBackendNotice": "Ta rozmowa działa na Meta Model API z własnymi narzędziami rozszerzenia (odczyt, edycja, zapis, wyszukiwanie, lista, powłoka). Jej sesje są przechowywane w magazynie rozszerzenia dla tego obszaru roboczego.",
   "installOrKeyDetail": "Interfejs CLI Muse Code obsługuje rozmowy tego rozszerzenia; bez niego nadal możesz użyć klucza Meta Model API.",
   "compactionDone": "Skompaktowano kontekst",
+  "contextWindowFull": "Okno kontekstu jest pełne: /compact lub /handoff",
   "sessionBudgetStopped": "Zatrzymano: następne żądanie (ok. {estimate}) przekroczyłoby budżet sesji {cap} (wykorzystano {spent}). Nie zostało wysłane.",
   "sessionBudgetStoreUnavailable": "Nie można odczytać ani zapisać rejestru wydatków sesji. Do czasu jego udostępnienia nie można wysłać nowego żądania.",
   "sessionBudgetLegacyFeesUnknown": "Wydatki rozmowy nie są w pełni zweryfikowane. Poczekaj na zakończenie oczekujących żądań lub rozpocznij nową rozmowę, aby korzystać z limitu wydatków.",

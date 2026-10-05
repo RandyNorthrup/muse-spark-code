@@ -780,6 +780,7 @@
   "modelApiBackendNotice": "この会話は、拡張機能独自のツール (読み取り、編集、書き込み、検索、一覧、シェル) を使用して Meta Model API で実行されます。セッションはこのワークスペースの拡張機能ストレージに保存されます。",
   "installOrKeyDetail": "Muse Code CLI がこの拡張機能の会話をホストします。CLI がなくても、Meta Model API キーを使用できます。",
   "compactionDone": "コンテキストを圧縮しました",
+  "contextWindowFull": "コンテキストウィンドウがいっぱいです: /compact または /handoff",
   "sessionBudgetStopped": "停止しました: 次のリクエスト (約 {estimate}) がセッション予算 {cap} を超えます (使用済み {spent})。送信されませんでした。",
   "sessionBudgetStoreUnavailable": "セッションの支出台帳を読み取りまたは保存できませんでした。台帳が利用可能になるまで新しいリクエストを送信できません。",
   "sessionBudgetLegacyFeesUnknown": "会話の支出は完全には確認されていません。保留中のリクエストが完了するまで待つか、支出上限を使用するために新しい会話を開始してください。",
