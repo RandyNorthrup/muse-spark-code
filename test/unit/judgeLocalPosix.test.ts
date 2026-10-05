@@ -14,6 +14,7 @@ const rig = vi.hoisted(() => ({
 }))
 vi.mock('node:fs/promises', () => ({
   readFile: vi.fn((file: string) => {
+    if (file.endsWith('/status')) return Promise.resolve('Uid:\t1000\t1000\t1000\t1000\n')
     if (file.endsWith('/tcp') || file.endsWith('/tcp6')) {
       rig.tableReads++
       const address = rig.family === 'IPv6' ? '00000000000000000000000001000000' : '0100007F'
@@ -33,8 +34,10 @@ vi.mock('node:fs/promises', () => ({
   }),
   readdir: vi.fn((file: string) => {
     if (file === '/proc')
-      return Promise.resolve(rig.fault === 'multiple' ? ['4242', '4343'] : ['4242'])
-    return rig.fault === 'hidden'
+      return Promise.resolve(
+        ['multiple', 'nondumpable'].includes(rig.fault) ? ['4242', '4343'] : ['4242'],
+      )
+    return rig.fault === 'hidden' || (rig.fault === 'nondumpable' && file.includes('/4343/'))
       ? Promise.reject(Object.assign(new Error('hidden'), { code: 'EACCES' }))
       : Promise.resolve(['7'])
   }),
@@ -50,7 +53,12 @@ vi.mock('node:fs/promises', () => ({
   realpath: vi.fn((file: string) =>
     Promise.resolve(rig.fault === 'redirect' ? '/redirected' : file),
   ),
-  stat: vi.fn(() => Promise.resolve({ uid: 1000 })),
+  stat: vi.fn(() => Promise.resolve({ uid: rig.fault === 'nondumpable' ? 0 : 1000 })),
+}))
+// Installation anchors have their own native and mountinfo/statfs tests. These
+// fixtures isolate the existing cross-platform tuple/generation protocol.
+vi.mock('../../src/core/judge/local/linuxVolume', () => ({
+  verifyLinuxInstallation: vi.fn(() => Promise.resolve()),
 }))
 vi.mock('node:child_process', () => {
   const execFile = vi.fn()
@@ -163,7 +171,7 @@ describe.each(['linux', 'darwin'] as const)(
   },
 )
 describe('M98 J2 Linux namespace and ownership evidence', () => {
-  it.each(['namespace', 'hidden', 'inode-change', 'start-time'])(
+  it.each(['namespace', 'hidden', 'nondumpable', 'inode-change', 'start-time'])(
     'refuses %s without trusting visibility',
     async (fault) => {
       const f = fixture('linux')

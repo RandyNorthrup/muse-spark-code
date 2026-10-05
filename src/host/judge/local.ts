@@ -21,6 +21,7 @@ import {
   type PosixPeerDependencies,
   type PosixPeerInstallation,
 } from '../../core/judge/local/posixPeer'
+import { createLinuxPeerDependencies } from '../../core/judge/local/linuxPeer'
 
 export interface LocalJudgeHostDependencies extends Omit<LocalJudgeDependencies, 'verifyPeer'> {
   /** Host posture from the existing network/remote-host policy. Unknown refuses proof. */
@@ -51,13 +52,14 @@ export function createHostLocalJudge(deps: LocalJudgeHostDependencies): JudgeRun
       signal.throwIfAborted()
       if (process.platform !== 'win32') {
         const installed = deps.posixRuntimeInstallation?.()
-        if (
-          !installed ||
-          !deps.posixLifecycle ||
-          installed.modelDirectory !== installation.modelDirectory
-        )
+        const lifecycle =
+          deps.posixLifecycle ??
+          (process.platform === 'linux'
+            ? createLinuxPeerDependencies(await deps.peerHelper(process.platform))
+            : undefined)
+        if (!installed || !lifecycle || installed.modelDirectory !== installation.modelDirectory)
           throw new Error('unverified-platform')
-        return await posixPeer(socket, installed, deps.posixLifecycle, signal)
+        return await posixPeer(socket, installed, lifecycle, signal)
       }
       const helper = await deps.peerHelper(process.platform)
       const installed = deps.runtimeInstallation()

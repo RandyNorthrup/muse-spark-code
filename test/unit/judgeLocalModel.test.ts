@@ -1,8 +1,9 @@
 import { createHash } from 'node:crypto'
-import { mkdir, mkdtemp, readFile, rename, rm, symlink, writeFile } from 'node:fs/promises'
+import { mkdir, mkdtemp, readFile, rename, rm, symlink, writeFile, chmod } from 'node:fs/promises'
 import path from 'node:path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import * as fileIdentity from '../../src/core/fs/fileIdentity'
+import * as linuxVolume from '../../src/core/judge/local/linuxVolume'
 import { verifyDiskModel } from '../../src/core/judge/local/model'
 import capture from './fixtures/localJudgeCapture.json'
 
@@ -19,8 +20,8 @@ async function diskModel() {
   roots.push(root)
   const manifestDir = path.join(root, 'manifests/registry.ollama.ai/library/test')
   const blobs = path.join(root, 'blobs')
-  await mkdir(manifestDir, { recursive: true })
-  await mkdir(blobs)
+  await mkdir(manifestDir, { recursive: true, mode: 0o755 })
+  await mkdir(blobs, { mode: 0o755 })
   const content = Buffer.from('synthetic weights in a test fixture')
   const digest = createHash('sha256').update(content).digest('hex')
   const blob = {
@@ -37,8 +38,8 @@ async function diskModel() {
   )
   const manifestPath = path.join(manifestDir, 'latest')
   const blobPath = path.join(blobs, `sha256-${digest}`)
-  await writeFile(manifestPath, manifest)
-  await writeFile(blobPath, content)
+  await writeFile(manifestPath, manifest, { mode: 0o644 })
+  await writeFile(blobPath, content, { mode: 0o644 })
   const tags = {
     models: [{ name: 'test:latest', digest: createHash('sha256').update(manifest).digest('hex') }],
   }
@@ -46,6 +47,41 @@ async function diskModel() {
 }
 
 describe('M98-2j captured model provenance', () => {
+  it.skipIf(process.platform !== 'linux').each(['manifest', 'blob', 'ancestor'])(
+    'refuses writable Linux %s model material before hashing',
+    async (scope) => {
+      const fixture = await diskModel()
+      let file = fixture.blobPath
+      if (scope === 'manifest') file = fixture.manifestPath
+      else if (scope === 'ancestor') file = path.dirname(fixture.blobPath)
+      await chmod(file, 0o777)
+      await expect(verifyDiskModel(fixture.tags, 'test:latest', fixture.root)).rejects.toThrow(
+        'unverified-installation',
+      )
+    },
+  )
+  it.skipIf(process.platform !== 'linux').each(['root', 'manifest', 'blob', 'snapshot'])(
+    'refuses a nonlocal Linux %s scope through the disk verifier',
+    async (scope) => {
+      const fixture = await diskModel()
+      const actual = linuxVolume.verifyLinuxLocalVolume
+      let blobChecks = 0
+      vi.spyOn(linuxVolume, 'verifyLinuxLocalVolume').mockImplementation(async (file, signal) => {
+        if (file === fixture.blobPath) blobChecks++
+        if (
+          (scope === 'root' && file === fixture.root) ||
+          (scope === 'manifest' && file === fixture.manifestPath) ||
+          (scope === 'blob' && file === fixture.blobPath) ||
+          (scope === 'snapshot' && file === fixture.blobPath && blobChecks > 2)
+        )
+          throw new Error('unverified-model-volume')
+        await actual(file, signal)
+      })
+      await expect(verifyDiskModel(fixture.tags, 'test:latest', fixture.root)).rejects.toThrow(
+        'unverified-model-volume',
+      )
+    },
+  )
   it('records the real served digest as the digest of the captured manifest', () => {
     const actual = capture.tags.models.find((model) => model.name === capture.chat.model)
     expect(actual?.digest).toBe('0edcdef34593eac1aa2be9c7d06c432dcf81945adca5eca2f27662c18f168ba0')
@@ -154,7 +190,7 @@ describe('M98-2j captured model provenance', () => {
     )
     await writeFile(fixture.manifestPath, bytes)
     fixture.tags.models[0]!.digest = createHash('sha256').update(bytes).digest('hex')
-    await writeFile(templatePath, Buffer.alloc(template.length))
+    await writeFile(templatePath, Buffer.alloc(template.length), { mode: 0o644 })
     const sample = fileIdentity.statIdentity
     let weightReads = 0
     vi.spyOn(fileIdentity, 'statIdentity').mockImplementation(async (file) => {

@@ -9,6 +9,14 @@ export const LOCAL_JUDGE_RECOMMENDATIONS = [
     requiresCalibrationForAuto: false,
   },
   {
+    model: 'tev1:0.8b',
+    technique: 'systemone',
+    downloadBytes: 811_856_202,
+    recommended: false,
+    evidence: 'docs/certification/m98p2-j.md#linux-native',
+    requiresCalibrationForAuto: true,
+  },
+  {
     model: 'qwen3:4b-instruct-2507-q4_K_M',
     technique: 'logprob',
     downloadBytes: 2_497_293_803,

@@ -9,6 +9,8 @@ happened, not what was planned; superseded entries are kept.
 
 ### Added
 
+- **Linux local judge proofs (M98 2j).** Native pidfd leases, vetted installation roots and local mount checks, with bounded Ollama receipts; runtime/package assembly remains pending.
+
 - **Local judge design spike (M98-2j).** A test-only pinned loopback
   transport, Windows per-connection process verification and manifest/blob
   hashing, with adversarial fixtures and free Ollama latency receipts.

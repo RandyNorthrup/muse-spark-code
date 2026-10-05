@@ -13,6 +13,7 @@ import {
 } from '../../../shared/constants'
 import { handleIdentity, sameFile, statIdentity } from '../../fs/fileIdentity'
 import { isSameLocalFileMetadata } from './snapshot'
+import { verifyLinuxAnchor, verifyLinuxLocalVolume } from './linuxVolume'
 
 const hex = z
   .string()
@@ -72,9 +73,20 @@ export async function verifyDiskModel(
   const served = matching[0]
   if (!served) throw new Error('unverified-model-digest')
   const root = await realpath(directory)
+  const volumeSignal = signal ?? new AbortController().signal
+  const getUid = process.getuid
+  const uid = getUid?.()
+  const anchor = async (file: string) => {
+    if (process.platform !== 'linux') return
+    if (uid === undefined) throw new Error('unverified-platform')
+    await verifyLinuxAnchor(file, uid, 'file', volumeSignal, root)
+  }
+  if (process.platform === 'linux') await verifyLinuxLocalVolume(root, volumeSignal)
   const [name, tag] = model.split(':', 2)
   if (!name || !tag) throw new Error('unverified-model-name')
   const manifestFile = await exactPath(root, `manifests/registry.ollama.ai/library/${name}/${tag}`)
+  if (process.platform === 'linux') await verifyLinuxLocalVolume(manifestFile, volumeSignal)
+  await anchor(manifestFile)
   const manifestHandle = await open(manifestFile, 'r')
   const opened: FileHandle[] = []
   const held: { handle: FileHandle; file: string; before: BigIntStats; digest: string }[] = []
@@ -93,6 +105,8 @@ export async function verifyDiskModel(
     for (const blob of [manifest.config, ...manifest.layers]) {
       signal?.throwIfAborted()
       const blobPath = await exactPath(root, `blobs/${blob.digest.replace(':', '-')}`)
+      if (process.platform === 'linux') await verifyLinuxLocalVolume(blobPath, volumeSignal)
+      await anchor(blobPath)
       const handle = await open(blobPath, 'r')
       opened.push(handle)
       const before = await handleIdentity(handle)
@@ -119,6 +133,8 @@ export async function verifyDiskModel(
       const actual = await blobDigest(handle, signal)
       const after = await handleIdentity(handle)
       const named = await statIdentity(file)
+      if (process.platform === 'linux') await verifyLinuxLocalVolume(file, volumeSignal)
+      await anchor(file)
       if (
         actual !== digest ||
         !isSameLocalFileMetadata(before, after) ||
@@ -132,6 +148,8 @@ export async function verifyDiskModel(
     if (!weightBytes || !bytes.equals(await readFile(manifestFile)))
       throw new Error('unverified-manifest')
     const final = await handleIdentity(manifestHandle)
+    if (process.platform === 'linux') await verifyLinuxLocalVolume(manifestFile, volumeSignal)
+    await anchor(manifestFile)
     if (
       !sameFile(initial, final) ||
       initial.size !== final.size ||

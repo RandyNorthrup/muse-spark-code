@@ -8,6 +8,7 @@ import type { Socket } from 'node:net'
 import { promisify } from 'node:util'
 import { z } from 'zod'
 import { LOCAL_JUDGE_MAX_RESPONSE_BYTES, LOCAL_JUDGE_TIMEOUT_MS } from '../../../shared/constants'
+import { verifyLinuxInstallation } from './linuxVolume'
 
 const execute = promisify(execFile)
 // Fixed /proc ABI fields and address encoding, not inference tunables.
@@ -125,12 +126,21 @@ async function linuxSocket(
   for (const pid of pids) {
     signal.throwIfAborted()
     let files: string[]
+    let hasExpectedUid = false
     try {
+      // proc directory ownership changes for nondumpable tasks. The status UID
+      // fields identify same-user tasks even then; their hidden fds must refuse.
+      const status = await readFile(`/proc/${pid}/status`, 'utf8')
+      const uids = /^Uid:\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)$/m.exec(status)
+      if (!uids) throw new Error('unverified-process-owner')
+      hasExpectedUid = uids.slice(1).some((value) => Number(value) === uid)
+      if (!hasExpectedUid) continue
       files = await readdir(`/proc/${pid}/fd`)
     } catch (error: unknown) {
       if (error instanceof Error && 'code' in error && error.code === 'ENOENT') continue
       const owner = await stat(`/proc/${pid}`)
-      if (owner.uid === uid) throw new Error('unverified-hidden-owner', { cause: error })
+      if (hasExpectedUid || owner.uid === uid)
+        throw new Error('unverified-hidden-owner', { cause: error })
       continue
     }
     if (await hasSocketDescriptor(pid, files, inode)) owners.push(Number(pid))
@@ -202,6 +212,7 @@ export async function posixPeer(
     )
       throw new Error('unverified-runtime')
     if (installed.platform === 'linux') {
+      await verifyLinuxInstallation(installed, signal)
       for (const namespace of ['net', 'user', 'mnt']) {
         if (
           (await readlink(`/proc/${String(identity.pid)}/ns/${namespace}`)) !==
