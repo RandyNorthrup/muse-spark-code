@@ -51,7 +51,9 @@ export function teamPathMatcher(
  * The caller's bounded compiler caps brace expansion before this proof. */
 function isPatternContained(rule: string, pattern: string): boolean {
   if (rule === pattern) return true
-  if (!pattern.includes('[')) {
+  // Simple classes can coexist with alternatives. Literal class braces,
+  // commas or an initial ] need the compiler's full grammar; keep the lease.
+  if (!/\[(?:[!^]?\]|[^\]]*[,{}])/.test(pattern)) {
     const brace = /\{([^{}]*,[^{}]*)\}/.exec(pattern)
     if (brace !== null)
       return (brace[1] ?? '')

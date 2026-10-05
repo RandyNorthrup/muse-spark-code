@@ -53,9 +53,15 @@ function parse(text: string): Document {
     }
     // Partial release parsing must never leave released bullets under the
     // previous Unreleased context. Unsupported ATX/setext headings refuse.
-    if (/^\s*##(?:\s|$)/.test(line) || /^\s*(?:-{3,}|={3,})\s*$/.test(line))
-      document.unsupportedHeading ??= line
     const category = /^### (.+)$/.exec(line)?.[1]
+    if (
+      /^\s*##(?:\s|$)/.test(line) ||
+      /^\s*(?:-{3,}|={3,})\s*$/.test(line) ||
+      (release !== '' &&
+        /^\s*#{1,6}(?:\s|$)/.test(line) &&
+        (category === undefined || /^(?:\[|v?\d+\.\d+|Unreleased(?:\s|$))/i.test(category)))
+    )
+      document.unsupportedHeading ??= line
     if (release !== '' && category !== undefined) {
       section = category
       document.sections.push({ release, name: section, start: index })
@@ -65,7 +71,7 @@ function parse(text: string): Document {
     let end = index + 1
     while (
       end < lines.length &&
-      !/^\s*##(?:\s|$)/.test(lines[end] ?? '') &&
+      !/^\s*#{1,6}(?:\s|$)/.test(lines[end] ?? '') &&
       (/^\s+\S/.test(lines[end] ?? '') ||
         ((lines[end] ?? '') === '' && /^\s+\S/.test(lines[end + 1] ?? '')))
     )

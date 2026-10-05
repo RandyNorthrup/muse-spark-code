@@ -92,6 +92,11 @@ describe('team CHANGELOG merge', () => {
       '  ## [1.0.0]',
       '## [1.0.0] ###',
       '1.0.0\n-----',
+      '# 1.0.0',
+      '# Release 1.0.0',
+      '### [1.0.0]',
+      '### Unreleased',
+      '#### [1.0.0]',
     ]) {
       const unsupported = base.replace('## [1.0.0]', () => heading)
       const rewritten = unsupported.replace('Released note.', 'Rewritten released history.')

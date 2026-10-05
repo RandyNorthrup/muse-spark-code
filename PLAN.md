@@ -19798,7 +19798,7 @@ on macmini. Hooked local commits are checkpoints for the lead; full quality
 and assembled S/K/Q/T2/X2 certification remain the lead's required gates.
 Review-repair receipts are in `docs/certification/m96c-c.md`. Final focused
 checks pass on macmini: 52/52 owned cases (including real Git under the
-unchanged default deadline), all listed static/build gates, and 22 distinct
+unchanged default deadline), all listed static/build gates, and 25 distinct
 byte-exact restored guard drills. No RVM96CC finding is deferred.
 
 **MG69 merged-source proof (2026-10-02).** Kubuntu passes 49 owning/merged

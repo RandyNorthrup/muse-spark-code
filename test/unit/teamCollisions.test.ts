@@ -262,6 +262,7 @@ describe('team collision leases', () => {
       'l10n/ui.??.json',
       'l10n/ui.[a-z][a-z].json',
       'l10n/{ui.fr.json,ui.en.json}',
+      'l10n/{ui.[a-z][a-z].json,ui.en.json}',
       'package.nls.*.json',
       'locales/fr/**/*.json',
       'locales/{fr,en}/**/*.json',
