@@ -7,6 +7,17 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+### Added
+
+- **Team workspaces and integration (M96 lane I).** `src/core/team/` holds the
+  `agents/<role>/<task-id>` workspaces on the Best-of-N infrastructure
+  (shared clones with no remote, scratch copies for read-only workers, the
+  end-of-task commit and fetch), the ref fence (the worker git guard, the
+  read-only shell list, the credential-free environment, the `agents/` ref
+  check), the per-file three-way merge with `git merge-file` (conflicts with
+  markers, protected paths, `write-paths`, Undo merge), and review-before-merge
+  with the reviewer pick that differs from every author.
+
 ## [0.12.1] - 2026-10-04
 
 ### Changed
