@@ -48,7 +48,9 @@
       "execScanUsage",
       "wireFormats.responses",
       "wireFormats.chat",
-      "wireFormats.anthropic"
+      "wireFormats.anthropic",
+      "contextMeterUnderOne",
+      "diffTallyLines"
     ],
     "cs": [
       "providerFilters.cloud",
