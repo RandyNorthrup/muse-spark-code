@@ -462,6 +462,8 @@ export const PLUGIN_HOOK_TIMEOUT_MS = 30_000
 export const PLUGIN_NODE_MINIMUM = '22.18.0'
 export const PLUGIN_CHILD_MAX_HEAP_MB = 256
 export const PLUGIN_RESPONSE_MAX_BYTES = 64 * 1024
+// How long `node --version` / `bun --version` may take before the runtime counts as absent.
+export const PLUGIN_RUNTIME_PROBE_TIMEOUT_MS = 15_000
 export const HOOK_FORBIDDEN_ENV_NAMES: ReadonlySet<string> = new Set([
   'AWS_ACCESS_KEY_ID',
   'AWS_SECRET_ACCESS_KEY',
