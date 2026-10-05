@@ -21,7 +21,7 @@ const SECRET = /ghp_[A-Za-z0-9]{36}/g
 function report(extra) {
   appendFileSync(
     'fake-report.jsonl',
-    `${JSON.stringify({ command, args, env: process.env, pid: process.pid, ...extra })}\n`,
+    `${JSON.stringify({ command, args, env: process.env, pid: process.pid, isSignalReady: ['SIGINT', 'SIGTERM'].every((signal) => process.listenerCount(signal) > 0), ...extra })}\n`,
   )
 }
 
@@ -83,11 +83,13 @@ function applyEdits(cwd) {
 
 async function runExec() {
   const key = await readKeyLine()
+  // The first report is the parent's readiness barrier: signals must already
+  // be handled when it observes this line, even under coverage contention.
+  if (part.hang) hang()
   report({ keyLine: key })
   if (part.stderr !== undefined) process.stderr.write(part.stderr.replaceAll('{key}', () => key))
   if (part.flood !== undefined) process.stdout.write('x'.repeat(part.flood))
   if (part.hang) {
-    hang()
     return
   }
   applyEdits(args[args.indexOf('--cwd') + 1])
@@ -107,11 +109,11 @@ function scanAndExit(key, mode) {
 
 async function runScan() {
   const key = await readKeyLine()
-  report({ keyLine: key, file: args[0] })
   const mode = part.mode ?? 'real'
+  if (mode === 'hang') hang()
+  report({ keyLine: key, file: args[0] })
   switch (mode) {
     case 'hang': {
-      hang()
       break
     }
     case 'exit2': {

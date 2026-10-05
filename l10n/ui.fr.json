@@ -2318,6 +2318,7 @@
   "paidDailyStop": "Arrêter jusqu’à demain",
   "paidDailyRaisePrompt": "Saisissez la limite d’aujourd’hui en USD (0.50–500), suffisante pour les réservations en attente.",
   "legalExplainPaid": "Expliquer les constats (payant)",
+  "paidLegalExplanationName": "Expliquer les constats",
   "legalExplainConsent": "Expliquer ces constats avec {model}, facturé à votre clé Model API au tarif {price}. L’abonnement ne paie rien. Seuls les identifiants des constats, catégories, gravités et licences reconnues sont envoyés ; aucun code, chemin ni extrait.",
   "legalExplainConfirm": "Explication Model API facultative : {price}. Chaque utilisation demande un accord et partage le budget quotidien.",
   "legalExplainUnavailable": "Activez les explications juridiques payantes dans Compte et utilisation et enregistrez une clé Model API."

@@ -2767,6 +2767,7 @@ export const EN = {
   paidDailyRaisePrompt:
     'Enter today’s limit in USD (0.50–500), enough for the pending reservations.',
   legalExplainPaid: 'Explain findings (paid)',
+  paidLegalExplanationName: 'Explain findings',
   legalExplainConsent: expandText(
     'Explain these findings on {model}, ~23 ~04 key at {price}. The ~56 pays none. Only finding IDs, categories, severity and recognized ~07 IDs are sent; no source, paths or excerpts.',
   ),

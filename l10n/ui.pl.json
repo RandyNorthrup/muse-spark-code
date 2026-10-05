@@ -2414,6 +2414,7 @@
   "paidDailyStop": "Wstrzymaj do jutra",
   "paidDailyRaisePrompt": "Wpisz dzisiejszy limit w USD (0.50–500), wystarczający na oczekujące rezerwacje.",
   "legalExplainPaid": "Wyjaśnij wyniki (płatne)",
+  "paidLegalExplanationName": "Wyjaśnij wyniki",
   "legalExplainConsent": "Wyjaśnij wyniki przez {model}, rozliczane kluczem Model API według {price}. Subskrypcja nie pokrywa kosztów. Wysyłane są tylko ID wyników, kategorie, waga i rozpoznane licencje; bez kodu, ścieżek i fragmentów.",
   "legalExplainConfirm": "Opcjonalne wyjaśnienie Model API: {price}. Każde użycie wymaga zgody i korzysta ze wspólnego budżetu dziennego.",
   "legalExplainUnavailable": "Włącz płatne wyjaśnienia prawne w koncie i użyciu oraz zapisz klucz Model API."

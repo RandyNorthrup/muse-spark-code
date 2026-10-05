@@ -2126,6 +2126,7 @@
   "paidDailyStop": "내일까지 중지",
   "paidDailyRaisePrompt": "대기 중인 예약을 충족하는 오늘의 USD 한도를 입력하세요(0.50–500).",
   "legalExplainPaid": "검사 결과 설명 (유료)",
+  "paidLegalExplanationName": "검사 결과 설명",
   "legalExplainConsent": "{model}로 결과를 설명하며 Model API 키에 {price} 요금이 청구됩니다. 구독은 비용을 부담하지 않습니다. 결과 ID, 분류, 심각도와 인식된 라이선스 ID만 전송하며 소스, 경로와 발췌문은 보내지 않습니다.",
   "legalExplainConfirm": "선택 사항인 Model API 설명: {price}. 사용할 때마다 동의를 요청하며 일일 유료 예산을 공유합니다.",
   "legalExplainUnavailable": "계정 및 사용량에서 유료 법률 설명을 켜고 Model API 키를 먼저 저장하세요."

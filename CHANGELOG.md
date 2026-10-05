@@ -7,6 +7,10 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+- Fix the duplicate paid marker on legal-explanation toggles; align quality
+  fixtures with window-scoped registry settings, signal readiness and lossless
+  VSIX localization packaging.
+
 - Keep ACP package guard fixtures aligned with lossless localization packaging and assert plural values in the emitted tarball.
 
 - Add opt-in, priced legal explanations through the shared D78 daily reservation/settlement ledger, with bounded technical input, no tools/retries and retained unknown liability.

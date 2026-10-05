@@ -586,10 +586,20 @@ describe('buildPalette: paid features (M33, PLAN.md D30)', () => {
     expect(paidRows(buildPalette(context))).toEqual([])
   })
 
-  it('offers the key’s images and voice on the Muse Code backend when a key is stored (M44)', () => {
+  it('offers the key’s images, voice and legal explanation on Muse Code (M44, M97)', () => {
     const rows = paidRows(buildPalette({ ...context, isKeyStored: true }))
     // Web search is Muse Code's own there, on the subscription.
-    expect(rows.map((row) => row.id)).toEqual(['paid:imageGeneration', 'paid:voice'])
+    // FIN2's explanation uses the stored Model API key on either backend.
+    expect(rows.map((row) => row.id)).toEqual([
+      'paid:imageGeneration',
+      'paid:voice',
+      'paid:legalExplanation',
+    ])
+    expect(rows.at(-1)).toMatchObject({
+      label: 'Explain findings (paid)',
+      widget: { kind: 'toggle', isOn: false },
+      action: { type: 'setPaidFeature', feature: 'legalExplanation', isOn: true },
+    })
   })
 
   it('offers each paid feature as a toggle naming its price on the Model API backend', () => {
@@ -642,6 +652,13 @@ describe('buildPalette: paid features (M33, PLAN.md D30)', () => {
           'muse-spark-1.3-contributor: $0.100 input, $0.002 cached input, $0.200 output per million tokens; 3 attempts with up to 20 requests each, including retries.',
         { kind: 'toggle', isOn: false },
         { type: 'setPaidFeature', feature: 'bestOfN', isOn: true },
+      ],
+      [
+        'Explain findings (paid)',
+        'muse-spark-1.1, muse-spark-1.2, muse-spark-1.3: $1.250/1M input, $0.150/1M cached input, $4.250/1M output tokens\n' +
+          'muse-spark-1.2-contributor, muse-spark-1.3-contributor: $0.100/1M input, $0.002/1M cached input, $0.200/1M output tokens',
+        { kind: 'toggle', isOn: false },
+        { type: 'setPaidFeature', feature: 'legalExplanation', isOn: true },
       ],
     ])
   })

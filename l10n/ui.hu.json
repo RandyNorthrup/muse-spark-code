@@ -2222,6 +2222,7 @@
   "paidDailyStop": "Leállítás holnapig",
   "paidDailyRaisePrompt": "Adja meg a mai USD-korlátot (0.50–500), amely fedezi a függő foglalásokat.",
   "legalExplainPaid": "Találatok magyarázata (fizetős)",
+  "paidLegalExplanationName": "Találatok magyarázata",
   "legalExplainConsent": "A találatok magyarázata a(z) {model} modellel, a Model API-kulcsot terhelve: {price}. Az előfizetés nem fizeti. Csak a találatok azonosítóit, kategóriáját, súlyosságát és felismert licenceit küldjük el; kódot, elérési utat és részletet nem.",
   "legalExplainConfirm": "Választható Model API-magyarázat: {price}. Minden használat engedélyt kér, és a közös napi keretet terheli.",
   "legalExplainUnavailable": "Engedélyezze a fizetős jogi magyarázatokat a fiók és használat panelen, és mentse a Model API-kulcsot."

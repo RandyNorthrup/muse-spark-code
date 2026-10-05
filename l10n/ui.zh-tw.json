@@ -2126,6 +2126,7 @@
   "paidDailyStop": "停止至明天",
   "paidDailyRaisePrompt": "請輸入足以涵蓋待處理預留的今日美元上限（0.50–500）。",
   "legalExplainPaid": "解釋檢查結果（付費）",
+  "paidLegalExplanationName": "解釋檢查結果",
   "legalExplainConsent": "使用 {model} 解釋這些結果，按 {price} 向您的 Model API 金鑰計費。訂閱不負擔費用。僅傳送結果識別碼、類別、嚴重程度和已識別的授權條款識別碼；不傳送原始碼、路徑或摘錄。",
   "legalExplainConfirm": "選用 Model API 解釋：{price}。每次使用皆徵求同意，並共用每日付費預算。",
   "legalExplainUnavailable": "請先在帳戶與用量中啟用付費法律解釋，並儲存 Model API 金鑰。"

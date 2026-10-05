@@ -245,7 +245,7 @@ export function paidFeatureName(feature: PaidFeature): string {
     subagents: UI_TEXT.paidSubagentsName,
     autoReviewer: UI_TEXT.paidAutoReviewerName,
     bestOfN: UI_TEXT.paidBestOfNName,
-    legalExplanation: UI_TEXT.legalExplainPaid,
+    legalExplanation: UI_TEXT.paidLegalExplanationName,
   }
   return names[feature]
 }

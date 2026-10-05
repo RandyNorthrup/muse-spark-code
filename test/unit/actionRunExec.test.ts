@@ -700,6 +700,9 @@ describe('the owner run (G18, G20, G24)', PROCESS_SUITE, () => {
     })
     const running = runProposal(run.input)
     await until(() => fakeReports(run.paths).some((line) => line['command'] === 'scan-secrets'))
+    expect(
+      fakeReports(run.paths).find((line) => line['command'] === 'scan-secrets')?.['isSignalReady'],
+    ).toBe(true)
     return { run, running }
   }
 
@@ -844,6 +847,7 @@ describe('the owner run (G18, G20, G24)', PROCESS_SUITE, () => {
         const run = await preparedRun(layout, { mode: 'review', exec: { hang: true } })
         const running = runProposal(run.input)
         await until(() => fakeReports(run.paths).length > 0)
+        expect(fakeReports(run.paths)[0]?.['isSignalReady']).toBe(true)
         run.test.send(signal)
         const report = await running
         await run.test.owner.cleanup()
@@ -870,6 +874,7 @@ describe('the owner run (G18, G20, G24)', PROCESS_SUITE, () => {
       })
       const running = runProposal(run.input)
       await until(() => fakeReports(run.paths).length > 0)
+      expect(fakeReports(run.paths)[0]?.['isSignalReady']).toBe(true)
       run.test.send('SIGTERM')
       await until(() => fakeReports(run.paths).some((line) => line['signal'] === 'SIGTERM'))
       const repeated = Date.now()
@@ -884,6 +889,7 @@ describe('the owner run (G18, G20, G24)', PROCESS_SUITE, () => {
       })
       const fastRun = runProposal(fast.input)
       await until(() => fakeReports(fast.paths).length > 0)
+      expect(fakeReports(fast.paths)[0]?.['isSignalReady']).toBe(true)
       const stopped = Date.now()
       fast.test.send('SIGINT')
       const killed = await fastRun

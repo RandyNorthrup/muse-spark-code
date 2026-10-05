@@ -2222,6 +2222,7 @@
   "paidDailyStop": "Bis morgen stoppen",
   "paidDailyRaisePrompt": "Heutiges Limit in USD (0.50–500) eingeben, ausreichend für die ausstehenden Reservierungen.",
   "legalExplainPaid": "Befunde erklären (kostenpflichtig)",
+  "paidLegalExplanationName": "Befunde erklären",
   "legalExplainConsent": "Diese Befunde mit {model} erklären; Ihr Model-API-Schlüssel wird zu {price} belastet. Das Abo zahlt nichts. Gesendet werden nur Befund-IDs, Kategorien, Schweregrad und erkannte Lizenz-IDs, keine Quellen, Pfade oder Auszüge.",
   "legalExplainConfirm": "Optionale Model-API-Erklärung: {price}. Jede Nutzung fragt nach Zustimmung und nutzt das gemeinsame Tagesbudget.",
   "legalExplainUnavailable": "Aktivieren Sie kostenpflichtige Rechtserklärungen unter Konto und Nutzung und speichern Sie einen Model-API-Schlüssel."

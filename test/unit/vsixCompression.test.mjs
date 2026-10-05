@@ -2,6 +2,7 @@ import { spawnSync } from 'node:child_process'
 import { mkdirSync, mkdtempSync, readFileSync, rmSync } from 'node:fs'
 import path from 'node:path'
 import { describe, expect, it } from 'vitest'
+import { unpackUiTable } from '../../src/shared/l10n/packed'
 
 const PYTHON = ['python3', 'python', 'py'].find(
   (candidate) => spawnSync(candidate, ['--version']).status === 0,
@@ -17,6 +18,9 @@ describe('VSIX maximum compression', () => {
     mkdirSync(path.resolve('temp'), { recursive: true })
     const dir = mkdtempSync(path.resolve('temp/m97-vsix-'))
     const archive = path.join(dir, 'fixture.vsix')
+    // Indexed packaging requires every English leaf, including whole plural
+    // objects. Use a complete real table rather than the old three-key stub.
+    const translatedFile = path.resolve('l10n/ui.cs.json')
     try {
       const made = python([
         '-c',
@@ -31,11 +35,12 @@ with ZipFile(sys.argv[1], 'w', compression=ZIP_DEFLATED) as z:
     z.writestr(entry, b'content' * 10000, compress_type=ZIP_DEFLATED)
     z.writestr('extension/LICENSE', b'license terms')
     ui = json.dumps({'title': 'Žluťoučký kůň', 'paragraph': 'two  spaces', 'forms': {'one': 'one ' + '{' + 'n}', 'other': 'other ' + '{' + 'n}'}}, ensure_ascii=False, indent=2).encode()
-    z.writestr('extension/l10n/ui.cs.json', ui)
+    z.writestr('extension/l10n/ui.cs.json', open(sys.argv[2], 'rb').read())
     z.writestr('extension/package.nls.cs.json', ui)
     z.writestr('extension/dist/legal-data/provenance.json', ui)
 `,
         archive,
+        translatedFile,
       ])
       expect(made.status, made.stderr).toBe(0)
       const run = spawnSync(process.execPath, ['scripts/compress-vsix.mjs', archive], {
@@ -51,9 +56,11 @@ with ZipFile(sys.argv[1]) as z:
     assert z.namelist() == ['extension/tool', 'extension/LICENSE', 'extension/l10n/ui.cs.json', 'extension/package.nls.cs.json', 'extension/dist/legal-data/provenance.json']
     expected = {'title': 'Žluťoučký kůň', 'paragraph': 'two  spaces', 'forms': {'one': 'one ' + '{' + 'n}', 'other': 'other ' + '{' + 'n}'}}
     pretty = json.dumps(expected, ensure_ascii=False, indent=2).encode()
-    for name in ['extension/l10n/ui.cs.json', 'extension/package.nls.cs.json']:
-        assert json.loads(z.read(name)) == expected
-        assert len(z.read(name)) < len(pretty)
+    assert json.loads(z.read('extension/package.nls.cs.json')) == expected
+    assert len(z.read('extension/package.nls.cs.json')) < len(pretty)
+    packed = json.loads(z.read('extension/l10n/ui.cs.json'))
+    assert packed['format'] == 1
+    assert len(z.read('extension/l10n/ui.cs.json')) < len(open(sys.argv[2], 'rb').read())
     assert z.read('extension/dist/legal-data/provenance.json') == pretty
     assert z.comment == b'archive comment'
     assert z.read('extension/tool') == b'content' * 10000
@@ -61,10 +68,15 @@ with ZipFile(sys.argv[1]) as z:
     assert z.getinfo('extension/tool').external_attr == 0o100755 << 16
     assert z.getinfo('extension/tool').date_time == (2026, 10, 4, 12, 0, 0)
     assert z.testzip() is None
+    print(json.dumps(packed, ensure_ascii=False))
 `,
         archive,
+        translatedFile,
       ])
       expect(checked.status, checked.stderr).toBe(0)
+      expect(unpackUiTable(JSON.parse(checked.stdout))).toEqual(
+        JSON.parse(readFileSync(translatedFile, 'utf8')),
+      )
     } finally {
       rmSync(dir, { recursive: true, force: true })
     }

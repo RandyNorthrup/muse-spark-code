@@ -2222,6 +2222,7 @@
   "paidDailyStop": "Yarına kadar durdur",
   "paidDailyRaisePrompt": "Bekleyen ayırmalara yetecek bugünkü USD sınırını girin (0.50–500).",
   "legalExplainPaid": "Bulguları açıkla (ücretli)",
+  "paidLegalExplanationName": "Bulguları açıkla",
   "legalExplainConsent": "Bulguları {model} ile açıklayın; Model API anahtarınıza {price} üzerinden ücret yansır. Abonelik ödemez. Yalnızca bulgu kimlikleri, kategoriler, önem dereceleri ve tanınan lisans kimlikleri gönderilir; kaynak, yol veya alıntı gönderilmez.",
   "legalExplainConfirm": "İsteğe bağlı Model API açıklaması: {price}. Her kullanım onay ister ve ortak günlük bütçeyi kullanır.",
   "legalExplainUnavailable": "Hesap ve kullanım bölümünde ücretli hukuki açıklamaları etkinleştirip Model API anahtarını kaydedin."

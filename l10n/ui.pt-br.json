@@ -2318,6 +2318,7 @@
   "paidDailyStop": "Parar até amanhã",
   "paidDailyRaisePrompt": "Informe o limite de hoje em USD (0.50–500), suficiente para as reservas pendentes.",
   "legalExplainPaid": "Explicar resultados (pago)",
+  "paidLegalExplanationName": "Explicar resultados",
   "legalExplainConsent": "Explicar estes resultados com {model}, cobrando da sua chave Model API a tarifa {price}. A assinatura não paga. Somente IDs dos resultados, categorias, gravidade e licenças reconhecidas são enviados; nenhum código, caminho ou trecho.",
   "legalExplainConfirm": "Explicação opcional da Model API: {price}. Cada uso pede consentimento e compartilha o orçamento diário.",
   "legalExplainUnavailable": "Ative explicações jurídicas pagas em Conta e uso e salve uma chave Model API."

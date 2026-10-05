@@ -2318,6 +2318,7 @@
   "paidDailyStop": "Detener hasta mañana",
   "paidDailyRaisePrompt": "Introduzca el límite de hoy en USD (0.50–500), suficiente para las reservas pendientes.",
   "legalExplainPaid": "Explicar hallazgos (de pago)",
+  "paidLegalExplanationName": "Explicar hallazgos",
   "legalExplainConsent": "Explicar estos hallazgos con {model}, facturado a su clave Model API a {price}. La suscripción no lo paga. Solo se envían identificadores de hallazgos, categorías, gravedad y licencias reconocidas; ningún código, ruta ni fragmento.",
   "legalExplainConfirm": "Explicación opcional de Model API: {price}. Cada uso pide consentimiento y comparte el presupuesto diario.",
   "legalExplainUnavailable": "Active las explicaciones legales de pago en Cuenta y uso y guarde una clave Model API."

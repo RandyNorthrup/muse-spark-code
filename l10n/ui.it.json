@@ -2318,6 +2318,7 @@
   "paidDailyStop": "Sospendi fino a domani",
   "paidDailyRaisePrompt": "Inserisci il limite di oggi in USD (0.50–500), sufficiente per le riserve in attesa.",
   "legalExplainPaid": "Spiega i risultati (a pagamento)",
+  "paidLegalExplanationName": "Spiega i risultati",
   "legalExplainConsent": "Spiega questi risultati con {model}, addebitando alla chiave Model API la tariffa {price}. L’abbonamento non paga. Si inviano solo identificatori dei risultati, categorie, gravità e licenze riconosciute; nessun codice, percorso o estratto.",
   "legalExplainConfirm": "Spiegazione Model API facoltativa: {price}. Ogni utilizzo chiede il consenso e condivide il budget giornaliero.",
   "legalExplainUnavailable": "Abilita le spiegazioni legali a pagamento in Account e utilizzo e salva una chiave Model API."

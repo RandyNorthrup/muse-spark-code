@@ -15274,3 +15274,16 @@ Zed, Xcode, Neovim, Emacs, Sublime and companion hosts invoking the runtime;
 none of the scan, registry admission or explanation engine imports vscode.
 The native JCEF/WebView2/SWT adapters remain their existing M64/M65 milestones,
 not claimed as implemented by M97.
+
+**M97 FIN3 quality closure (2026-10-05, before implementation).** Repair the
+five failures on `7114f12e` without changing timeouts, adding retries or
+removing tests. The fake Action agent must install signal handlers before its
+readiness report. Manifest scope expectations must retain the interactive
+registry's window scope, and both paid palettes must include FIN2's explicit
+legal explanation. Give the shared explanation name its own translated base
+label so the palette's paid template adds its marker once. The VSIX fixture
+must supply a complete translated table and verify every indexed string and
+plural form alongside unchanged archive bytes/metadata and malformed-input
+refusal. Run full quality on the finished local head; record its actual exit,
+tail and any deliberately failing drills in `docs/certification/m97.md`.
+No push, merge, rebase, paid/live model call or gate weakening is authorized.

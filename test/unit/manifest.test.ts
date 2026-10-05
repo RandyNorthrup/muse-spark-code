@@ -122,9 +122,12 @@ describe('package.json manifest', () => {
       { scope?: string }
     >
     for (const key of Object.keys(SETTING_DEFAULTS)) {
+      // FIN2's disclosed registry lookup is a per-window offline choice;
+      // paid explanation and budget settings remain machine-scoped (D15).
+      const workspaceScope = key === 'legalRegistryLookups' ? 'window' : undefined
       const expected = (MACHINE_SCOPED_SETTINGS as readonly string[]).includes(key)
         ? 'machine'
-        : undefined
+        : workspaceScope
       expect(properties[`${SETTINGS_SECTION}.${key}`]?.scope, key).toBe(expected)
     }
     expect(manifest.capabilities.untrustedWorkspaces.supported).toBe('limited')

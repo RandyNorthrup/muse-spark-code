@@ -2414,6 +2414,7 @@
   "paidDailyStop": "Zastavit do zítřka",
   "paidDailyRaisePrompt": "Zadejte dnešní limit v USD (0.50–500), který pokryje čekající rezervace.",
   "legalExplainPaid": "Vysvětlit nálezy (placené)",
+  "paidLegalExplanationName": "Vysvětlit nálezy",
   "legalExplainConsent": "Vysvětlit nálezy pomocí {model}, účtováno klíči Model API za {price}. Předplatné nic nehradí. Odesílají se jen ID nálezů, kategorie, závažnost a rozpoznané licence; žádný kód, cesty ani úryvky.",
   "legalExplainConfirm": "Volitelné vysvětlení Model API: {price}. Každé použití žádá souhlas a sdílí denní rozpočet.",
   "legalExplainUnavailable": "Zapněte placená právní vysvětlení v účtu a využití a nejprve uložte klíč Model API."
