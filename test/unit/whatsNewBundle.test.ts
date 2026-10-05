@@ -134,7 +134,8 @@ describe('the shipped What’s New bundle', () => {
     const bundled = readFileSync(built.file, 'utf8')
     const table = readFileSync(path.join(built.folder, 'uiText.js'), 'utf8')
     expect(bundled).toMatch(/require\("\.\/uiText\.js"\)/)
-    for (const words of [UI_TEXT.whatsNewTitle, UI_TEXT.whatsNewUnavailable]) {
+    // ASCII-only words: esbuild writes other characters as escapes.
+    for (const words of [UI_TEXT.whatsNewNotesInEnglish, UI_TEXT.whatsNewFullChangelog]) {
       expect(table).toContain(words)
       expect(bundled).not.toContain(words)
     }
