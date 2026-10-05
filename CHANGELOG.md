@@ -9,6 +9,20 @@ happened, not what was planned; superseded entries are kept.
 
 ### Added
 
+- **A live receipt workflow for the GitHub Action (M80 LA).**
+  `.github/workflows/action-live.yml` runs the real Action, on the agent
+  package packed from the same commit, against one open same-repository pull
+  request with the `MUSE_MODEL_API_KEY` secret: the contributor model, a hard
+  $0.25 budget, read-only permissions and no comment. Only the repository
+  owner can start it, by hand, on the default branch; it has no other
+  trigger. `test/action/la-check.mjs` judges the run and the step summary
+  records the receipt. It has not run yet.
+- **The first live Action receipt (M80 LA) passed** on 2026-10-05, in
+  [run 37249121568](https://github.com/RandyNorthrup/muse-spark-code/actions/runs/37249121568).
+  The real Action, with the real key, reviewed pull request #114 on the
+  contributor model. It completed in 5 requests for $0.001668, and neither key
+  shape appeared in the log or the artifacts. The package was an unsigned
+  candidate; registry-path support still waits on LR after a release.
 - **Browser check** (M81, PLAN.md D49). After a web change the model can
   open a page of your local dev server in a headless browser, optionally
   click and type through up to eight steps, and read back the console
@@ -87,9 +101,30 @@ happened, not what was planned; superseded entries are kept.
   block it does not read, or when `MODEL_TEXT` holds a key no source file
   of `dist/extension.js` reads; the code intelligence and web fetch
   bundles' tests check that neither carries any key or value of `MODEL_TEXT`.
+- Releases reuse verified universal CI packages when the successful own-repository
+  PR, merge-queue or main CI build has exactly the tag's source tree, with recorded
+  SHA-256/version checks and 30-day retention; tag-push misses run the full gates.
+- Manual release recovery uses the same verified staging path while preserving
+  the earlier run's original bytes; invalid recovery and cancelled runs cannot publish.
 
 ### Fixed
 
+- A blocked M80 `v0` tag update now reports that an administrator must move it,
+  while preserving the four release channels' outcomes. Updates require a
+  fast-forward; the release guide documents the administrator's recovery command.
+- **CI reliability: flaky tests no longer race a deadline.**
+  The Model API host's fork, Auto reviewer and two-host budget tests, the
+  Action's signal tests (G18) and the headless deadline test (D9) failed now
+  and then on slow runners. Each now waits for the event it tests: a settled
+  parent turn, a held request, published claims, the fake agent's ready
+  line, a held response. Tests only; the product is unchanged.
+- **CI reliability: the accessibility gate keeps each page focused.**
+  Headless Chrome did not keep a window's focus, so on a loaded machine the
+  `slash-commands` page's `/` menu closed while axe scanned it and was
+  reported as `scrollable-region-focusable` on `:root`. Each page now runs
+  with Chrome's focus emulation and is scanned only once its scenario is
+  ready (a page not ready in 10 s fails); no rule or exemption changed.
+  Tooling only.
 - **A cancelled browser check no longer leaves its folder behind (M81).** A Stop, lost admission or the deadline while the folder is still being created now removes the folder when it finishes arriving, and a folder whose creation fails part way is removed at once; the M81 bullet already promised the profile deleted afterwards. A normal run still removes it exactly once.
 
 ## [0.12.1] - 2026-10-04

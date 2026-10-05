@@ -3305,6 +3305,10 @@ test variant (`muse-spark-code-acp-test-<version>.tgz`, whose bin is
 `dist/exec-test-launcher.js`). The test variant is never released.
 `.github/workflows/action-check.yml` runs the Action against it with a
 scripted fake Meta API: no key and no spend.
+`.github/workflows/action-live.yml` is the one live check (receipt LA): the
+repository owner starts it by hand to run the real Action, on the product
+package from the same commit, against one pull request, with the real key,
+the contributor model and a hard $0.25 budget.
 
 See the [ACP guide](docs/acp.md), the [CI guide](docs/ci.md) and the
 [M80 record](docs/certification/m80.md) for tests, deliberate breaks, platform
@@ -3506,7 +3510,23 @@ The seven required checks keep their names on both tiers (CONTRIBUTING.md,
 "CI tiers and required checks").
 
 A tag `v1.2.3` runs `release.yml`. It checks that the tag matches the
-manifest and is on `main`, runs the same build, creates a GitHub Release with
+manifest and is on `main`, reuses successful own-repository CI artifacts only
+when their recorded checkout tree equals the tag tree and all package versions
+and SHA-256 hashes match, or runs the same full build on any miss. CI retains
+the packages, inventories and source-tree receipt for 30 days;
+`scripts/release-reuse.mjs` records, finds and verifies these release inputs.
+The owner can force a rebuild with Actions variable `RELEASE_FORCE_REBUILD=true`.
+Successful pull-request, merge-queue (`merge_group`) and main-push CI runs qualify
+by their recorded checkout tree. Manual recovery on a version tag keeps
+`artifacts_run_id`: the earlier Release build is validated, and its original
+bytes pass through the same verification/staging job. Invalid recovery stops;
+cancelled runs cannot publish. Older builds without a receipt retain inventory,
+manifest and download-integrity checks; see the recovery guide for that limit.
+An M80 `v0` tag update blocked by the release-tags ruleset is reported separately
+as **admin move required**, preserving the release channels' outcomes. The
+[release guide](docs/RELEASING.md#signing-and-the-prepared-m80-hooks) documents
+the administrator's fast-forward recovery; the ruleset stays in place.
+The workflow creates a GitHub Release with
 that `.vsix`, the ACP tarball, both inventories and `SHA256SUMS`, with the
 CHANGELOG section as its notes and package provenance attestations. The same
 VSIX goes to the Marketplace (publisher `RandyNorthrup`) and Open VSX; the same

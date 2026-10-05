@@ -3225,9 +3225,10 @@ describe('ModelApiSession: session budget (M82)', () => {
         pair.firstWatched.session.sendTurn([{ type: 'text', text: 'first host' }]),
         pair.secondWatched.session.sendTurn([{ type: 'text', text: 'second host' }]),
       ])
-      await vi.waitFor(() => {
-        expect(barrier.state()).toMatchObject({ plans: 2, claims: 2, failures: [] })
-      })
+      // Both real reservations publish before either returns; a turn that ends
+      // first (a refusal or a failed claim) fails the assertion below at once.
+      await Promise.race([barrier.published.promise, firstDone, secondDone])
+      expect(barrier.state()).toMatchObject({ plans: 2, claims: 2, failures: [] })
       await Promise.all([firstDone, secondDone])
       expect(pair.first.api.responseBodies()).toEqual([])
       expect(pair.second.api.responseBodies()).toEqual([])
@@ -3399,12 +3400,20 @@ describe('ModelApiSession: session budget (M82)', () => {
     async (firstCap) => {
       const pair = await sharedBudgetHosts(`two-host-held-${String(firstCap)}`, 0.1, firstCap)
       const held = Promise.withResolvers<undefined>()
-      pair.first.api.script({ text: 'first host', hold: held.promise })
+      const requested = Promise.withResolvers<undefined>()
+      pair.first.api.script({
+        text: 'first host',
+        hold: held.promise,
+        onRequest: () => {
+          requested.resolve(undefined)
+        },
+      })
       try {
         await pair.firstWatched.session.sendTurn([{ type: 'text', text: 'first host' }])
-        await vi.waitFor(() => {
-          expect(pair.first.api.responseBodies()).toHaveLength(1)
-        })
+        // The fake records the actual POST before holding it; a turn refused
+        // before sending ends instead, and the assertion below fails at once.
+        await Promise.race([requested.promise, pair.firstWatched.turnDone()])
+        expect(pair.first.api.responseBodies()).toHaveLength(1)
         await pair.secondWatched.session.sendTurn([{ type: 'text', text: 'later capped host' }])
         await pair.secondWatched.turnDone()
         expect(pair.second.api.responseBodies()).toEqual([])
@@ -6996,10 +7005,12 @@ async function completePaidChild(
     { text: 'First child task done.' },
     { text: 'Parent done.' },
   )
-  const finished = watchSessionTurns(session).turnDone()
-  await session.sendTurn([{ type: 'text', text: 'delegate' }])
-  // A ready child can precede its parent's durable settlement and terminal event.
-  await finished
+  const { events } = watchSessionTurns(session)
+  const { turnId } = await session.sendTurn([{ type: 'text', text: 'delegate' }])
+  // The child's terminal event is forwarded and can precede the parent's own,
+  // durable settlement included: wait for the parent's turn and every child's.
+  await session.settled()
+  expect(events).toContainEqual(expect.objectContaining({ type: 'turnCompleted', turnId }))
   await waitForChildReady(t, session)
   return t.api.responseBodies().length
 }
@@ -15289,11 +15300,11 @@ describe('ModelApiSession: the Auto reviewer (M78, PLAN.md D49)', () => {
     const finished = turnDone()
     try {
       await session.sendTurn([{ type: 'text', text: 'run the tests' }])
-      await vi.waitFor(() => {
-        expect(reviewerBodies(t)).toHaveLength(1)
-        expect(commandsRun(t)).toEqual(['npm test'])
-      })
+      // The turn's end, not a deadline: admission, review and settlement all
+      // write the real journal first. A refusal still fails the asserts below.
       await finished
+      expect(reviewerBodies(t)).toHaveLength(1)
+      expect(commandsRun(t)).toEqual(['npm test'])
       expect(hasApprovalCard(events)).toBe(false)
       expect(t.paidUses.filter((use) => use.feature === 'autoReviewer')).toEqual([
         { feature: 'autoReviewer', units: 1 },
