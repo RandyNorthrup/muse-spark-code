@@ -5,6 +5,11 @@
 // mandatory licenses, and an exception changes the analysis — both shapes
 // are preserved for the compatibility reader.
 
+import {
+  LEGAL_TEXT_MAX_CHARS,
+  LEGAL_HEADER_LINE_WINDOW,
+  LEGAL_FINDINGS_MAX,
+} from '../../shared/constants'
 import { canonicalExceptionId, canonicalLicenseId, isDeprecatedLicenseId } from './data'
 
 /** One license entry in an expression, with its recognition state. */
@@ -33,7 +38,8 @@ export type SpdxExpression =
   | { readonly ok: true; readonly root: SpdxNode; readonly licenses: readonly SpdxLicenseNode[] }
   | { readonly ok: false; readonly error: string }
 
-const CUSTOM_PREFIX = /^(documentref-|licenseref-)/i
+const CUSTOM_PREFIX =
+  /^(?:LicenseRef-[A-Za-z0-9.-]+|DocumentRef-[A-Za-z0-9.-]+:LicenseRef-[A-Za-z0-9.-]+)$/i
 
 type Token =
   | { readonly kind: 'open' | 'close' }
@@ -43,12 +49,16 @@ type Token =
 const ID_START = /[A-Za-z0-9]/
 const ID_PART = /[A-Za-z0-9.+:-]/
 
+function isOperator(value: string): value is 'AND' | 'OR' | 'WITH' {
+  return ['AND', 'OR', 'WITH'].includes(value)
+}
+
 function tokenize(text: string): { readonly tokens: readonly Token[]; readonly error?: string } {
   const tokens: Token[] = []
   let index = 0
   while (index < text.length) {
     const char = text[index] ?? ''
-    if (char === ' ' || char === '\t' || char === '\n' || char === '\r') {
+    if ([' ', '\t', '\n', '\r'].includes(char)) {
       index += 1
       continue
     }
@@ -68,7 +78,7 @@ function tokenize(text: string): { readonly tokens: readonly Token[]; readonly e
         end += 1
       }
       const value = text.slice(index, end)
-      if (value === 'AND' || value === 'OR' || value === 'WITH') {
+      if (isOperator(value)) {
         tokens.push({ kind: 'operator', value })
       } else {
         tokens.push({ kind: 'id', value })
@@ -84,20 +94,6 @@ function tokenize(text: string): { readonly tokens: readonly Token[]; readonly e
 class ExpressionParser {
   private position = 0
   constructor(private readonly tokens: readonly Token[]) {}
-
-  parse(): SpdxNode | string {
-    if (this.tokens.length === 0) {
-      return 'Empty license expression'
-    }
-    const root = this.parseOr()
-    if (typeof root === 'string') {
-      return root
-    }
-    if (this.position < this.tokens.length) {
-      return 'Unexpected text after the expression'
-    }
-    return root
-  }
 
   private peek(): Token | undefined {
     return this.tokens[this.position]
@@ -150,10 +146,10 @@ class ExpressionParser {
     }
     this.position += 1
     const exceptionId = exceptionToken.value
-    const known = canonicalExceptionId(exceptionId) !== undefined
+    const isKnown = canonicalExceptionId(exceptionId) !== undefined
     return {
       kind: 'license',
-      license: { ...primary.license, exception: { id: exceptionId, known } },
+      license: { ...primary.license, exception: { id: exceptionId, known: isKnown } },
     }
   }
 
@@ -181,11 +177,21 @@ class ExpressionParser {
     }
     return 'Unexpected operator without a license beside it'
   }
+  parse(): SpdxNode | string {
+    if (this.tokens.length === 0) {
+      return 'Empty license expression'
+    }
+    const root = this.parseOr()
+    if (typeof root === 'string') {
+      return root
+    }
+    return this.position < this.tokens.length ? 'Unexpected text after the expression' : root
+  }
 }
 
 function recognizeLicense(raw: string): SpdxLicenseNode {
-  const plus = raw.endsWith('+')
-  const id = plus ? raw.slice(0, -1) : raw
+  const isPlus = raw.endsWith('+')
+  const id = (isPlus && raw.slice(0, -1)) || raw
   if (CUSTOM_PREFIX.test(id)) {
     return {
       id,
@@ -201,17 +207,16 @@ function recognizeLicense(raw: string): SpdxLicenseNode {
     id,
     canonicalId,
     custom: false,
-    deprecated: canonicalId === undefined ? false : isDeprecatedLicenseId(canonicalId),
-    plus,
+    deprecated: canonicalId !== undefined && isDeprecatedLicenseId(canonicalId),
+    plus: isPlus,
     exception: undefined,
   }
 }
 
 function collectLicenses(root: SpdxNode): SpdxLicenseNode[] {
-  if (root.kind === 'license') {
-    return [root.license]
-  }
-  return root.children.flatMap(collectLicenses)
+  return root.kind === 'license'
+    ? [root.license]
+    : root.children.flatMap((child) => collectLicenses(child))
 }
 
 /**
@@ -222,6 +227,15 @@ function collectLicenses(root: SpdxNode): SpdxLicenseNode[] {
  */
 export function parseSpdxExpression(text: string): SpdxExpression {
   const trimmed = text.trim()
+  if (trimmed.length > LEGAL_TEXT_MAX_CHARS)
+    return { ok: false, error: 'License expression exceeds the text bound' }
+  let depth = 0
+  for (const char of trimmed) {
+    if (char === '(') depth += 1
+    else if (char === ')') depth -= 1
+    if (depth > LEGAL_HEADER_LINE_WINDOW)
+      return { ok: false, error: 'License expression nesting exceeds the bound' }
+  }
   if (trimmed === '') {
     return { ok: false, error: 'Empty license expression' }
   }
@@ -229,12 +243,24 @@ export function parseSpdxExpression(text: string): SpdxExpression {
   if (error !== undefined) {
     return { ok: false, error }
   }
+  if (
+    tokens.some(
+      (token) =>
+        token.kind === 'id' &&
+        ((/^(documentref-|licenseref-)/i.test(token.value) && !CUSTOM_PREFIX.test(token.value)) ||
+          (!CUSTOM_PREFIX.test(token.value) &&
+            !/^[A-Za-z0-9][A-Za-z0-9.-]*\+?$/.test(token.value))),
+    )
+  )
+    return { ok: false, error: 'Malformed license identifier' }
+
   const parser = new ExpressionParser(tokens)
   const root = parser.parse()
-  if (typeof root === 'string') {
-    return { ok: false, error: root }
-  }
-  return { ok: true, root, licenses: collectLicenses(root) }
+  if (typeof root !== 'string' && alternativeCount(root) > LEGAL_FINDINGS_MAX)
+    return { ok: false, error: 'License expression alternatives exceed the bound' }
+  return typeof root === 'string'
+    ? { ok: false, error: root }
+    : { ok: true, root, licenses: collectLicenses(root) }
 }
 
 /**
@@ -244,15 +270,27 @@ export function parseSpdxExpression(text: string): SpdxExpression {
  * ids. The compatibility reader treats an alternative as a choice.
  */
 export function orAlternatives(root: SpdxNode): readonly (readonly string[])[] {
-  if (root.kind === 'or') {
-    return root.children.map((child) => alternativeIds(child))
+  if (root.kind === 'license') return [[root.license.canonicalId ?? root.license.id]]
+  if (root.kind === 'or')
+    return root.children.flatMap((child) => orAlternatives(child)).slice(0, LEGAL_FINDINGS_MAX)
+  let alternatives: readonly (readonly string[])[] = [[]]
+  const listed1 = root.children
+  for (const child of listed1) {
+    const choices = orAlternatives(child)
+    if (alternatives.length * choices.length > LEGAL_FINDINGS_MAX)
+      return [collectLicenses(root).map((license) => license.canonicalId ?? license.id)]
+    alternatives = alternatives.flatMap((left) => choices.map((right) => [...left, ...right]))
   }
-  return [alternativeIds(root)]
+  return alternatives
 }
 
-function alternativeIds(node: SpdxNode): readonly string[] {
-  if (node.kind === 'license') {
-    return [node.license.canonicalId ?? node.license.id]
+function alternativeCount(node: SpdxNode): number {
+  if (node.kind === 'license') return 1
+  let count = node.kind === 'or' ? 0 : 1
+  for (const child of node.children) {
+    const childCount = alternativeCount(child)
+    count = node.kind === 'or' ? count + childCount : count * childCount
+    if (count > LEGAL_FINDINGS_MAX) return count
   }
-  return node.children.flatMap(alternativeIds)
+  return count
 }

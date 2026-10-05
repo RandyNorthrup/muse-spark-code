@@ -10,15 +10,18 @@
       "files": [
         {
           "path": "spdxLicenseIds.json",
-          "sha256": "2e45ab65c2a1e4fbda9862ac01cfda5fac25a4ce5d37536052638c483db965ba"
+          "sha256": "683a7a26958f8c36d37a5ed4981456809c580254883201b3e104ede7631aec75",
+          "sourceSha256": "2e45ab65c2a1e4fbda9862ac01cfda5fac25a4ce5d37536052638c483db965ba"
         },
         {
           "path": "spdxLicenseIdsDeprecated.json",
-          "sha256": "29c9e630daa0adc09dec96ddeb6f81d1046210e81824bebda6486250450fb130"
+          "sha256": "ba5e5cdaacf350a453f6c5104dbe73920f346298b7ec1063822eb3ef4f01dd9c",
+          "sourceSha256": "29c9e630daa0adc09dec96ddeb6f81d1046210e81824bebda6486250450fb130"
         }
       ],
       "license": "CC0-1.0",
-      "attribution": "Shinnosuke Watanabe. Identifier data only (CC0 public-domain dedication); the license texts the identifiers name keep their own terms and are not vendored here."
+      "attribution": "Shinnosuke Watanabe. Identifier data only (CC0 public-domain dedication); the license texts the identifiers name keep their own terms and are not vendored here.",
+      "modifications": "JSON whitespace normalized by Prettier; identifier values unchanged."
     },
     {
       "name": "spdx-exceptions",
@@ -29,15 +32,18 @@
       "files": [
         {
           "path": "spdxExceptions.json",
-          "sha256": "26144efbe0f61f41b0f8751e266b8b828ac53eb3f28f9041620442892228e92b"
+          "sha256": "26144efbe0f61f41b0f8751e266b8b828ac53eb3f28f9041620442892228e92b",
+          "sourceSha256": "26144efbe0f61f41b0f8751e266b8b828ac53eb3f28f9041620442892228e92b"
         },
         {
           "path": "spdxExceptionsDeprecated.json",
-          "sha256": "bf84cb52b5bc8e2b1e6b4341765204d23b7bbce74b06ae8aec1cfee7f76faa24"
+          "sha256": "5d0d586e71213ea62ad3bea970b10d3111d050035ecfbb65206d9490b8ae549a",
+          "sourceSha256": "bf84cb52b5bc8e2b1e6b4341765204d23b7bbce74b06ae8aec1cfee7f76faa24"
         }
       ],
       "license": "CC-BY-3.0",
-      "attribution": "The Linux Foundation, Kyle E. Mitchell. Used under CC-BY-3.0 with this attribution preserved; exception identifiers only, not the exception texts."
+      "attribution": "The Linux Foundation, Kyle E. Mitchell. Used under CC-BY-3.0 with this attribution preserved; exception identifiers only, not the exception texts.",
+      "modifications": "JSON whitespace normalized by Prettier; identifier values unchanged."
     }
   ]
 }

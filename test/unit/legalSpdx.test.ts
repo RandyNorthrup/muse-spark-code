@@ -101,6 +101,17 @@ describe('parseSpdxExpression', () => {
     expect(plus?.id).toBe('GPL-2.0')
   })
 
+  it('bounds expression length, depth and combinatorial alternatives', () => {
+    expect(parseSpdxExpression('('.repeat(100) + 'MIT' + ')'.repeat(100)).ok).toBe(false)
+    expect(parseSpdxExpression('MIT'.repeat(1000)).ok).toBe(false)
+    expect(
+      parseSpdxExpression(Array.from({ length: 10 }, () => '(MIT OR GPL-3.0-only)').join(' AND '))
+        .ok,
+    ).toBe(false)
+    for (const text of ['MIT:', 'MIT++', 'LicenseRef-', 'DocumentRef-x', 'LicenseRef-x+'])
+      expect(parseSpdxExpression(text).ok).toBe(false)
+  })
+
   it('keeps unrecognized identifiers visible instead of guessing', () => {
     const unknown = okExpression('Foo-1.0').licenses[0]
     expect(unknown?.canonicalId).toBeUndefined()
@@ -143,7 +154,15 @@ describe('orAlternatives', () => {
 
 describe('pinned SPDX data', () => {
   it('covers the common identifiers and exceptions', () => {
-    for (const id of ['MIT', 'Apache-2.0', 'GPL-3.0-only', 'BSD-3-Clause', 'LGPL-2.1-only', 'MPL-2.0']) {
+    const listed1 = [
+      'MIT',
+      'Apache-2.0',
+      'GPL-3.0-only',
+      'BSD-3-Clause',
+      'LGPL-2.1-only',
+      'MPL-2.0',
+    ]
+    for (const id of listed1) {
       expect(SPDX_LICENSE_IDS.has(id)).toBe(true)
     }
     expect(SPDX_LICENSE_IDS.size).toBeGreaterThan(500)
@@ -165,13 +184,17 @@ describe('pinned SPDX data', () => {
     expect(SPDX_DATA_VERSION.length).toBeLessThanOrEqual(LEGAL_VERSION_MAX_CHARS)
     const provenance = spdxProvenance()
     expect(provenance.dataVersion).toBe(SPDX_DATA_VERSION)
-    for (const dataset of provenance.datasets) {
+    const listed2 = provenance.datasets
+    for (const dataset of listed2) {
       expect(dataset.sourceUrl).toMatch(/^https:\/\//)
       expect(dataset.vendoredOn).toMatch(/^\d{4}-\d{2}-\d{2}$/)
       expect(dataset.license).not.toBe('')
       expect(dataset.attribution).not.toBe('')
-      for (const file of dataset.files) {
-        const bytes = readFileSync(new URL(`../../src/core/legal/data/${file.path}`, import.meta.url))
+      const listed3 = dataset.files
+      for (const file of listed3) {
+        const bytes = readFileSync(
+          new URL(`../../src/core/legal/data/${file.path}`, import.meta.url),
+        )
         expect(createHash('sha256').update(bytes).digest('hex')).toBe(file.sha256)
       }
     }
