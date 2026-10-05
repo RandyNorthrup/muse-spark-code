@@ -13,6 +13,12 @@ happened, not what was planned; superseded entries are kept.
   Cline discovery exercises both POSIX and Windows path handling on every OS.
   Deferred-bundle checks load their in-memory builds without requiring stale
   or pre-existing files in `dist`.
+- Cline hook quoting is checked through native PowerShell on Windows and the
+  POSIX shell on Unix, without requiring a Windows Bash installation.
+- Fake-only headless tests recognize MinGit's verified GNU Bash `sh.exe`, and
+  missing-browser-chunk checks accept Windows filesystem error paths.
+- Fake-child plugin dispatch fixtures use drive-qualified plugin paths on
+  Windows while retaining native-platform parsing and containment checks.
 
 ## [0.14.0] - 2026-10-05
 

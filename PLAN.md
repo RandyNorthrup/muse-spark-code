@@ -18166,6 +18166,20 @@ The first full scan also hits the unchanged five-second restore-lease deadline
 in checkpoint restore; that entire file then passes in isolation. These
 limits are recorded, with no green full-run or exact-CI-version claim until
 the required receipts exist.
+The continued scan finds one more foreign-shell fixture:
+`importHookSources.test.ts` starts Bash for a POSIX quoting case on Windows.
+Use each OS's actual shell and generated command, and assert the complete
+literal path and absence of command substitution on both branches.
+The complete scan additionally exposes a missing Bash-name dependency in
+the headless fixture and a POSIX-only missing-chunk error-path assertion.
+Git's installed `sh.exe` on this rig identifies itself as GNU Bash 5.3.15;
+admit that existing binary only after verifying it is Bash, keep executing
+the actual fake-only headless/workflow fixtures, and normalize filesystem
+separators while retaining the missing-file and failed-stat assertions.
+The last shard also exposes four fake-child plugin dispatch cases whose
+POSIX plugin paths are parsed with the real Windows platform. Give those
+fixtures a drive-qualified root on Windows, retaining native-platform
+parsing and all cap, grant-stripping and containment assertions.
 
 **TRAIN14B Judge activation fixture stop (2026-10-05).** Full quality is
 explicitly authorized by this rig brief. Its aggregate unit run exposes a
