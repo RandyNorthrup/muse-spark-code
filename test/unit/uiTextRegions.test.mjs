@@ -17,21 +17,37 @@ import {
 
 import { removeFolder } from './helpers/temporaryFolders'
 
-const built = { textSource: '', folder: '' }
+const built = { textSource: '', folder: '', browserSource: '' }
 beforeAll(async () => {
   built.folder = mkdtempSync(path.join(tmpdir(), 'muse-regional-english-'))
-  for (const region of [{ name: undefined, output: 'dist/uiText.js' }, ...UI_TEXT_REGIONS]) {
-    await build({
+  // One parallel batch: these builds are independent, and running them one
+  // after another made the suite slow enough to time out under a loaded
+  // full run. The browser build feeds the inline round-trip test below.
+  const regions = [{ name: undefined, output: 'dist/uiText.js' }, ...UI_TEXT_REGIONS]
+  const [browser] = await Promise.all([
+    build({
       entryPoints: ['src/shared/l10n/en.ts'],
       bundle: true,
+      write: false,
       minify: true,
-      outfile: path.join(built.folder, path.basename(region.output)),
-      platform: 'node',
+      platform: 'browser',
       format: 'cjs',
-      target: 'node20.18',
-      plugins: [regionalUiText(region.name)],
-    })
-  }
+      plugins: [compactBrowserEnglish],
+    }),
+    ...regions.map((region) =>
+      build({
+        entryPoints: ['src/shared/l10n/en.ts'],
+        bundle: true,
+        minify: true,
+        outfile: path.join(built.folder, path.basename(region.output)),
+        platform: 'node',
+        format: 'cjs',
+        target: 'node20.18',
+        plugins: [regionalUiText(region.name)],
+      }),
+    ),
+  ])
+  built.browserSource = browser.outputFiles[0].text
   const result = await build({
     entryPoints: ['src/shared/l10n/text.ts'],
     bundle: true,
@@ -149,18 +165,9 @@ describe('regional Node English fallback', () => {
   })
 })
 
-it('round-trips every browser English key, value and plural form inline', async () => {
-  const result = await build({
-    entryPoints: ['src/shared/l10n/en.ts'],
-    bundle: true,
-    write: false,
-    minify: true,
-    platform: 'browser',
-    format: 'cjs',
-    plugins: [compactBrowserEnglish],
-  })
+it('round-trips every browser English key, value and plural form inline', () => {
   const module = { exports: {} }
-  vm.runInNewContext(result.outputFiles[0].text, { module, exports: module.exports })
+  vm.runInNewContext(built.browserSource, { module, exports: module.exports })
   expect(module.exports.EN).toEqual(EN)
   expect(JSON.stringify(module.exports.EN)).toBe(JSON.stringify(EN))
 })
