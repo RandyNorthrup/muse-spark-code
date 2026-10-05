@@ -3147,6 +3147,14 @@ export const REPORT_ERROR_CODE_MAX_CHARS = 64
 export const REPORT_FRAME_PATH_MAX_CHARS = 260
 // A scrubbed stack past this many frames adds noise, not diagnosis.
 export const REPORT_STACK_MAX_FRAMES = 16
+// --- Report journal storage (M93 lane R, PLAN.md D72) ---
+//
+// The flight recorder's per-window journals and activation markers live in a
+// folder of this name under ExtensionContext.globalStorageUri, never Settings
+// Sync or workspace storage. Lane P reads the journals for the report draft.
+export const REPORT_STORAGE_DIR = 'reports'
+// A version string is a dotted triple, never a sentence.
+export const REPORT_VERSION_MAX_CHARS = 32
 // The panel keeps its conversation in VS Code's webview state so the crash
 // screen's Reload, or a panel moved to another window, comes back with it:
 // saved at most this often while it changes, and at once before a reload.
