@@ -33,6 +33,14 @@ import { type QuoteIntent, QuoteMenu } from './QuoteMenu'
 import { MarkdownView } from './MarkdownView'
 import { ReasoningRow } from './ReasoningRow'
 import { StatusLine } from './StatusLine'
+import {
+  TeamMergeCard,
+  TeamPlanCard,
+  TeamReportRow,
+  TeamSwitchRow,
+  TeamWaitingCard,
+  type TeamCardActions,
+} from './TeamCards'
 import { ToolRow, type ToolRowProps } from './ToolRow'
 import { UserShellRow } from './UserShellRow'
 import { WorkflowRunView } from './WorkflowRun'
@@ -109,6 +117,12 @@ export interface TranscriptProps {
   readonly onQuote?: ((intent: QuoteIntent) => void) | undefined
   readonly onCopyQuote?: (() => void) | undefined
   readonly onCloseQuoteMenu?: (() => void) | undefined
+  /**
+   * The team's waiting and merge cards' answers (M96 lane U2); absent
+   * where the host takes none (history, single-model mode): the cards read
+   * only then.
+   */
+  readonly teamActions?: TeamCardActions | undefined
 }
 
 type RewindChoice = 'fork' | 'conversation' | 'restore' | 'rewind' | 'restoreBoth' | 'forkRewind'
@@ -838,6 +852,7 @@ function TranscriptList(props: TranscriptProps) {
     onQuote,
     onCopyQuote,
     onCloseQuoteMenu,
+    teamActions,
   } = props
   const openers = useMemo(() => turnOpeners(entries), [entries])
   const quoteMenuFor = (entryId: string): ReactNode =>
@@ -945,6 +960,30 @@ function TranscriptList(props: TranscriptProps) {
       }
       case 'workflow': {
         return <WorkflowRow key={entry.id} entry={entry} />
+      }
+      case 'teamPlan': {
+        return <TeamPlanCard key={entry.id} entry={entry} />
+      }
+      case 'teamSwitch': {
+        return <TeamSwitchRow key={entry.id} entry={entry} />
+      }
+      case 'teamWaiting': {
+        return (
+          <TeamWaitingCard key={entry.id} entry={entry} onAnswer={teamActions?.onAnswerWaiting} />
+        )
+      }
+      case 'teamMerge': {
+        return (
+          <TeamMergeCard
+            key={entry.id}
+            entry={entry}
+            onDecide={teamActions?.onDecideMerge}
+            onReviewDiff={teamActions?.onReviewDiff}
+          />
+        )
+      }
+      case 'teamReport': {
+        return <TeamReportRow key={entry.id} entry={entry} />
       }
       case 'notice': {
         if (onNoticeAction !== undefined && entry.actions !== undefined) {

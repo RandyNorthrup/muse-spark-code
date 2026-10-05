@@ -58,6 +58,7 @@ import type { BestOfNRun } from '../../shared/bestOfN'
 import type { BoardRow } from '../../shared/sessionBoard'
 import type { SessionRow } from '../../shared/sessions'
 import type { AccountFacts, SubscriptionUsage, UsageInsights } from '../../shared/usage'
+import type { TeamWorkerLabel } from '../../shared/teamView'
 import { goalStatusLabel, toolLabel } from '../toolPresentation'
 import { backgroundRun } from '../toolDetails'
 import type {
@@ -3057,6 +3058,8 @@ export interface WaitingApproval {
   readonly entryId: string
   readonly toolName: string
   readonly approval: PendingApproval
+  /** A worker's own approval: the card's role-agent-task label (M96 lane U2). */
+  readonly teamWorker?: TeamWorkerLabel | undefined
 }
 
 /** The approvals waiting, oldest first: the order their rows stand in. */
@@ -3066,7 +3069,12 @@ export function waitingApprovals(
   const waiting: WaitingApproval[] = []
   for (const entry of transcript) {
     if (entry.kind === 'tool' && entry.approval !== undefined) {
-      waiting.push({ entryId: entry.id, toolName: entry.tool, approval: entry.approval })
+      waiting.push({
+        entryId: entry.id,
+        toolName: entry.tool,
+        approval: entry.approval,
+        teamWorker: entry.teamWorker,
+      })
     }
   }
   return waiting

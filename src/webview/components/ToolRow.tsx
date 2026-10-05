@@ -35,6 +35,7 @@ import {
 } from '../toolPresentation'
 import { ExpandChevron } from './icons'
 import { QuestionCard, type QuestionCardProps } from './QuestionCard'
+import { TeamWorkerLabel } from './TeamCards'
 import { Clipped, DiffTable } from './ToolBlocks'
 import {
   GoalBody,
@@ -568,6 +569,7 @@ function ToolRowView({
           {images}
         </div>
       ) : null}
+      {entry.teamWorker === undefined ? null : <TeamWorkerLabel worker={entry.teamWorker} />}
       {entry.approval === undefined ? null : (
         // The card itself waits in the dock above the composer (D26).
         <div className="tool-outcome approval-docked">{UI_TEXT.approvalDockedNote}</div>
