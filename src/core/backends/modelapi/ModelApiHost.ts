@@ -2729,6 +2729,7 @@ export class ModelApiSession implements AgentSession {
    */
   private isWebSearchOffered(): boolean {
     return (
+      !this.deps.client.hasPaidDailyBudget &&
       this.currentBudgetCap() <= 0 &&
       this.active?.isWebSearchAllowed === true &&
       this.deps.isPaidFeatureOn('webSearch')
@@ -2745,7 +2746,7 @@ export class ModelApiSession implements AgentSession {
     if (!this.deps.isPaidFeatureOn('webSearch')) {
       return false
     }
-    if (this.currentBudgetCap() > 0) {
+    if (this.currentBudgetCap() > 0 || this.deps.client.hasPaidDailyBudget) {
       this.emit({
         type: 'backendNotice',
         level: 'warning',
@@ -2892,7 +2893,19 @@ export class ModelApiSession implements AgentSession {
       }
       this.deps.admitResponseAttempt?.(keyDigest)
     }
+    let paidFeature = this.deps.admitResponseAttempt?.paidFeature
+    if (this.isSubagent) paidFeature = 'subagents'
+    else if (this.active?.confirmedRequest !== undefined) paidFeature ??= 'scheduledPrompts'
+    let paidEstimatedInputTokens: number | undefined
+    if (
+      this.deps.client.hasPaidDailyBudget &&
+      (paidFeature !== undefined || directBudget !== undefined)
+    ) {
+      paidEstimatedInputTokens = estimateInput(requestParts(body), undefined).inputTokens
+    }
     return Object.assign(guard, {
+      ...(paidFeature !== undefined && { paidFeature }),
+      ...(paidEstimatedInputTokens !== undefined && { paidEstimatedInputTokens }),
       onRequestStarted: () => {
         if (this.isSubagent && this.childTaskGrant !== undefined) {
           this.childTaskGrant.remainingAttempts -= 1

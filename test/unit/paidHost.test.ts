@@ -38,13 +38,18 @@ function memento(data: Map<string, unknown>) {
 function paidWithSettings(
   data: Map<string, unknown>,
   enabled: readonly PaidFeature[],
-  options: { workspace?: Map<string, unknown>; canRemember?: () => boolean } = {},
+  options: {
+    workspace?: Map<string, unknown>
+    canRemember?: () => boolean
+    defaultOn?: boolean
+  } = {},
 ) {
   const settings = new Set(enabled)
   const paid = createPaidFeatures({
     globalState: memento(data),
     workspaceState: memento(options.workspace ?? new Map<string, unknown>()),
     isSettingOn: (feature) => settings.has(feature),
+    isDefaultOn: () => options.defaultOn === true,
     isKeyStored: () => true,
     canRememberPaidUse: options.canRemember ?? (() => true),
     log: new FakeLogOutputChannel(),
@@ -73,7 +78,7 @@ function answerWith(title: string | undefined): void {
 /** What the popup says for one use: its question and its detail. */
 async function details(request: Parameters<typeof askPaidUse>[0]) {
   answerWith(undefined)
-  await askPaidUse(request, true)
+  await askPaidUse(request, true, 5)
   const call = vi.mocked(confirmModal).mock.calls.at(-1)
   return { title: call?.[0], detail: call?.[1]?.detail ?? '' }
 }
@@ -166,6 +171,8 @@ describe('the paid-use popup (M58)', () => {
     const search = await details({ feature: 'webSearch' })
     expect(search.title).toBe(UI_TEXT.paidUseWebSearchTitle)
     expect(search.detail).toContain('$2.50 per 1,000 searches')
+    expect(search.detail).toContain('$5.00')
+    expect(search.detail).toContain('Tab')
     const voice = await details({ feature: 'voice' })
     expect(voice.title).toBe(UI_TEXT.paidUseVoiceTitle)
     expect(voice.detail).toContain('$0.18 per hour of audio')
@@ -192,6 +199,40 @@ describe('the paid-use popup (M58)', () => {
 })
 
 describe('Allow always in this workspace (M58)', () => {
+  it('withdraws a default-on feature grant after OFF, even if the default is restored later', async () => {
+    const { paid, settings } = paidWithSettings(new Map(), ['imageGeneration'], { defaultOn: true })
+    const image = {
+      feature: 'imageGeneration',
+      kind: 'generate',
+      path: 'art.png',
+      sources: [],
+      prompt: 'A tree',
+    } as const
+    answerWith(UI_TEXT.paidAllowAlways)
+    await paid.consent.allows(image)
+    expect(paid.consent.isRemembered('imageGeneration')).toBe(true)
+    settings.delete('imageGeneration')
+    await paid.gate.review()
+    settings.add('imageGeneration')
+    expect(paid.consent.isRemembered('imageGeneration')).toBe(false)
+  })
+  it('default availability cannot revive a subagent grant under an old tariff', async () => {
+    const data = new Map<string, unknown>([
+      [GLOBAL_STATE_KEYS.subagentPriceAcceptance, 'old-price'],
+    ])
+    const workspace = new Map<string, unknown>([
+      [WORKSPACE_STATE_KEYS.paidWorkspaceGrants, { subagents: 0 }],
+    ])
+    const { paid } = paidWithSettings(data, ['subagents'], { workspace, defaultOn: true })
+    expect(paid.gate.isOn('subagents')).toBe(true)
+    expect(paid.consent.isRemembered('subagents')).toBe(false)
+    answerWith(UI_TEXT.paidAllowAlways)
+    await expect(paid.consent.allows({ feature: 'subagents', task: TASK })).resolves.toBe(true)
+    expect(data.get(GLOBAL_STATE_KEYS.subagentPriceAcceptance)).toBe(
+      SUBAGENT_PRICE_ACCEPTANCE_VERSION,
+    )
+    expect(paid.consent.isRemembered('subagents')).toBe(true)
+  })
   it('asks once, then remembers the feature in this workspace only', async () => {
     const data = new Map<string, unknown>([[GLOBAL_STATE_KEYS.paidConfirmations, ['webSearch']]])
     const workspace = new Map<string, unknown>()

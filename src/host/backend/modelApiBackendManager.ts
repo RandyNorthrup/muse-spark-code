@@ -19,7 +19,7 @@ import type {
   ModelApiHostDeps,
   ModelApiPaidHooks,
 } from '../../core/backends/modelapi/ModelApiHost'
-import type { ResponseAttemptGuard } from '../../core/backends/modelapi/client'
+import type { ResponseAttemptGuard, ModelApiClientDeps } from '../../core/backends/modelapi/client'
 import type { OwnedSessionBudgetScope } from '../../core/backends/modelapi/sessionBudget'
 import type { SessionStore } from '../../core/backends/modelapi/sessionStore'
 import type { ScheduleStore } from '../../shared/schedule'
@@ -55,6 +55,7 @@ import {
 } from './modelApiBundle'
 
 export interface ModelApiBackendManagerDeps extends ModelApiPaidHooks {
+  readonly reservePaidRequest?: ModelApiClientDeps['reservePaidRequest']
   readonly log: Logger
   readonly getApiKey: () => Promise<string | undefined>
   readonly workspaceRoot: string | undefined
@@ -244,6 +245,9 @@ export class ModelApiBackendManager {
       uiText: UI_TEXT,
       uiLocale: uiLocale(),
       client: {
+        ...(this.deps.reservePaidRequest !== undefined && {
+          reservePaidRequest: this.deps.reservePaidRequest,
+        }),
         fetch: this.deps.fetch,
         ...(this.deps.streamIdleMs !== undefined && { streamIdleMs: this.deps.streamIdleMs }),
         baseUrl: MODEL_API_BASE_URL,
@@ -398,6 +402,7 @@ export class ModelApiBackendManager {
             admitRequest(keyDigest)
           },
           {
+            paidFeature: 'bestOfN' as const,
             onRequestStarted: () => {
               admitRequest.onRequestStarted?.()
             },

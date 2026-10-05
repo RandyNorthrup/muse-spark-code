@@ -9,6 +9,19 @@ happened, not what was planned; superseded entries are kept.
 
 ### Changed
 
+- **Enhancements available out of the box (D78).** Model API observation
+  packing, trusted configured hooks and per-reply usage are on by default.
+  Paid images, Auto review, child agents, schedules and explicit best-of-N
+  are available by default; their first use still asks with the price and
+  shared daily budget. Explicit false settings stay off. Interactive extras
+  share a machine-scoped $5/day cap (`paidDailyBudgetUsd`, $0.50–$500), with
+  durable cross-window reservations, fail-closed storage, and a shared
+  raise-for-today or stop-until-tomorrow choice. Hosted search and Muse Voice
+  remain refused under a finite cap until billing bounds are verified.
+  Free OS dictation stays the default (`dictationEngine`); ordinary turns
+  still use one model. Repo-map prompt injection remains off pending Q11's
+  paired evaluation. Tab's separate budget, Muse Code, ACP and headless
+  policies are unchanged.
 - **Tiered CI, ready for a merge queue.** The full gate now runs as parallel
   jobs:
   - the static gates on all three platforms;

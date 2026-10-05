@@ -16,6 +16,18 @@
 import { forms } from './forms'
 
 export const EN = {
+  paidDailyBudgetLine:
+    'Shared daily budget for interactive paid extras: {budget}. Tab has its own separate budget.',
+  paidDailyLedgerUnavailable:
+    'Daily paid budget reached: its ledger is unreadable, incomplete, or cannot admit this request. No paid request was sent.',
+  paidDailyStopped: 'Paid extras are stopped until tomorrow.',
+  paidDailyReached: 'Daily paid budget reached',
+  paidDailyReachedDetail:
+    'Today’s limit is {budget}. This request and existing reservations need {needed}. Raise the limit for today, or stop paid extras until tomorrow.',
+  paidDailyRaise: 'Raise for today',
+  paidDailyStop: 'Stop until tomorrow',
+  paidDailyRaisePrompt:
+    'Enter today’s limit in USD (0.50–500), enough for the pending reservations.',
   untitledConversation: 'Untitled',
   crashTitle: 'The panel hit an error',
   crashDetail: 'Reload rebuilds the panel; the conversation is kept by the host.',
@@ -429,7 +441,7 @@ export const EN = {
   hooksTitleModelApi: 'Model API hooks',
   hooksWarning: 'Hooks run through your shell, outside Muse Code’s sandbox and approvals',
   hooksModelApiWarning:
-    'Hooks run through your shell outside tool approvals. Turn on museSpark.modelApiHooks only after reviewing these sources.',
+    'Hooks are on by default in trusted workspaces and run through your shell outside tool approvals. Review these sources before trusting the workspace; without a hooks file, nothing runs.',
   hooksProject: 'Project hooks',
   hooksProjectFile: '.muse/hooks.json',
   hooksProjectNone: 'This workspace has no .muse/hooks.json.',
@@ -1017,13 +1029,13 @@ export const EN = {
   sessionBudgetLegacyFeesUnknown:
     'The conversation’s spending is not fully verified. Wait for pending requests to finish, or start a new conversation to use a spend cap.',
   sessionBudgetSearchUnavailable:
-    'Web search is unavailable while the session spend cap is on: its billed query count has no verified limit. Turn the cap off to allow web search.',
+    'Web search is unavailable under a finite spend cap: its billed query count has no verified limit. Ordinary chat and free web fetch remain available.',
   sessionBudgetRetryUnavailable:
     'The previous request may have been billed. Its full reservation was kept; send a new prompt to retry with a fresh allowance.',
   sessionBudgetUnknownCharge:
     'Usage was not verified. {amount} remains reserved as a possible charge; this is not a confirmed bill.',
   sessionBudgetVoiceUnavailable:
-    'Muse Voice is unavailable while the session spend cap is on: its billed audio duration has no verified bound. Turn the cap off to allow paid voice, or use system dictation.',
+    'Muse Voice is unavailable under a finite spend cap: its billed audio duration has no verified bound. Use free system dictation.',
   sessionBudgetVoiceContextChanged:
     'Muse Voice stopped because the conversation or its permissions changed. Start a new recording in the current conversation.',
   sessionBudgetUnpriced:

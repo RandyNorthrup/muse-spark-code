@@ -5,6 +5,23 @@ to Meta's Muse Spark model. This page says what leaves your machine, where it
 goes, and what stays local. It is written for the extension's users; the
 security notes for contributors are in `PLAN.md` §9.
 
+Interactive Model API extras are available by default, but require paid-use
+consent before spending. The popup names the price and shared daily budget.
+Availability sends no paid request by itself. Images send your image prompt
+and selected source images; Auto reviews send the current request, proposed
+action and bounded recent tool arguments; child agents, scheduled prompts
+and explicit best-of-N attempts send their own conversation context and tool
+outputs to Meta. Hosted search would send model-written queries, and Muse
+Voice would send microphone audio, but both transports remain refused under
+the finite daily cap until their billing bounds are verified. Free OS
+dictation remains the default. Explicit false settings stay off.
+
+The local daily extras journal stores dollar reservations, settlements and
+today's override under global extension storage (`paid-daily`). All windows,
+workspaces and keys in this profile share it; it stores no prompts or keys
+and sends nothing. Failed or unreadable storage refuses spending. Tab's
+independent $1/day journal is excluded. ACP and headless policies are unchanged.
+
 ## What the extension sends, and to whom
 
 - **Your prompts, attachments and mentioned files.** Everything you type into
@@ -90,7 +107,7 @@ security notes for contributors are in `PLAN.md` §9.
   the panel announces this, and local history still keeps the original bytes.
   Media read by a tool in a stopped or failed turn is removed from later
   replay; the next request gets a path-only explanation instead of its bytes.
-- **Auto reviewer (Model API, off by default).** With
+- **Auto reviewer (Model API, available by default).** With
   `museSpark.modelApiAutoReviewer` enabled and its paid-use popup accepted,
   a separate request to Meta judges an eligible tool call. It includes your
   latest message, earlier tool names and arguments from that turn, the proposed
@@ -126,7 +143,7 @@ security notes for contributors are in `PLAN.md` §9.
   without allow-once and shared-panel sessions are never reviewed. Busy,
   timeout and breaker fallbacks leave the card; host exit recreates the
   side session.
-- **Best-of-N (Model API, off by default).** After its paid-use popup names
+- **Best-of-N (Model API, available by default).** After its paid-use popup names
   N and the request ceiling, the same prompt runs in separate local Git
   worktrees. Each attempt sends its conversation and tool outputs to Meta
   under the confirmed key. Worktrees and comparison snapshots remain local;
@@ -168,7 +185,7 @@ security notes for contributors are in `PLAN.md` §9.
   prefix, which carries nothing of yours. Web fetch
   is free: it is not Meta's paid web search. The log names the host and the
   outcome, never the path, the query or the page.
-- **Hooks on the Model API backend (off by default).** With
+- **Hooks on the Model API backend (on by default, inert without configured hooks).** With
   `museSpark.modelApiHooks` on, the hook commands in Muse Code's settings
   run on your machine as you, outside the agent's sandbox. That means your
   administrator's, yours and the project's `.muse/hooks.json`. Each hook
