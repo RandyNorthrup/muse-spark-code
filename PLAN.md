@@ -193,6 +193,18 @@ deprecated). Webview controls are hand-built on VS Code CSS theme variables.
 - Contributor-tier models are opt-in behind a dialog quoting Meta's training
   wording; off by default; blocked when the workspace setting
   `museSpark.confidentialWorkspace` is true.
+  RVAUDIT round 2 (2026-10-04): enforce this at each send, steer, review,
+  queued/timed dispatch and resume, after pending confirmations and setup;
+  configuration changes retire contributor sessions. Diagnostic events and
+  notices use the shared redactor at the panel boundary, with backend failure
+  reasons redacted before stream/storage; MCP details use the same redactor.
+  CLI log failures use fixed-word helpers, including skill activation output.
+  Acceptance and rig red drills: `docs/certification/docs-truth-audit-0120.md`.
+  PR #116 integration with M87 (2026-10-04): retain both confidentiality
+  admission and in-flight revert guards, and extend the same panel boundary
+  to queued-edit refusal reasons. Tasks-tab failures continue through its
+  notice branch. Regression and merge receipts stay in that certification
+  record; regenerate screenshots and the host API inventory from this tree.
 - Secret scanning (gitleaks) in pre-commit and CI; `npm audit --audit-level=high`
   in `security:audit`; semgrep locally in `security:sast` (part of `npm run
 quality`) and as a CI job.
@@ -217,29 +229,45 @@ quality`) and as a CI job.
 
 ### D6 — Bundle budgets (Phase 6)
 
-| Artifact                   | Budget (minified, uncompressed)                                                                                                                                                                                                                                                                                                                      |
-| -------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `dist/extension.js`        | ≤ 600 KiB (the M7 Model API client fit without raising it; the activation bundle since M57)                                                                                                                                                                                                                                                          |
-| `dist/modelApi.js`         | ≤ 475 KiB (M57: the Model API backend, loaded when it first starts; revisited after M77/M78/M82 at 402.8 KiB, see Q-M78b; M91 brought it to 486.1 KiB, and the hook and MCP-form runtime and the imported records' reader moved out took it to 463.7 KiB, 2026-10-05: the cap held)                                                                  |
-| `dist/review.js`           | ≤ 50 KiB (M70: git's material, the review turn's text, the Plan-mode hold and edit review; 40.8 KiB when split)                                                                                                                                                                                                                                      |
-| `dist/searchWorker.js`     | ≤ 50 KiB                                                                                                                                                                                                                                                                                                                                             |
-| `dist/pageWorker.js`       | ≤ 300 KiB (M69: web fetch's page converter, parse5 and its parts, on a worker started for each page; 212.3 KiB when split)                                                                                                                                                                                                                           |
-| `dist/webview/main.js`     | ≤ 900 KiB including React, the markdown renderer and highlight.js (one bundle)                                                                                                                                                                                                                                                                       |
-| `.vsix`                    | ≤ 2200 KiB compressed (2026-10-03, M77/M78/M82 cohort: 1,938,910 bytes with its four lazy bundles; +15%, rounded up to 25 KiB; was 1850 KiB from REL's 1,633,017 bytes; `check-vsix-size.mjs` in the package job)                                                                                                                                    |
-| `dist/acp.js`              | ≤ 850 KiB (the ACP agent, installed once, never loaded by VS Code; 713.2 KiB when set, see below)                                                                                                                                                                                                                                                    |
-| `dist/planMarkdown.js`     | ≤ 150 KiB (M79: the plan reader, the panel's Markdown parser, loaded on the first plan action; 139.0 KiB with the brief writer)                                                                                                                                                                                                                      |
-| `dist/checkpointStore.js`  | ≤ 225 KiB (M72: synchronous checkpoint factory and legacy reader; measured 187.0 KiB plus 15%, rounded up to 25 KiB)                                                                                                                                                                                                                                 |
-| `dist/uiText.js`           | ≤ 125 KiB (shared English fallback for Node bundles; 2026-10-04: measured 104.9 KiB plus 15%, rounded up to 25 KiB; was 100 KiB from 72.7 KiB on the build-only baseline; lazy, so activation is unchanged)                                                                                                                                          |
-| `dist/sessionBoard.js`     | ≤ 75 KiB (M78b: first board/best-of-N action; measured 61.0 KiB plus 15%, rounded up to 25 KiB)                                                                                                                                                                                                                                                      |
-| `dist/reviewer.js`         | ≤ 75 KiB (M78b: paid Auto review after consent; measured 55.2 KiB plus 15%, rounded up to 25 KiB)                                                                                                                                                                                                                                                    |
-| `dist/foreignHooks.js`     | ≤ 100 KiB (M91 lane W: the adapters for hooks imported from other agents, lane P's contracts and engine, loaded the first time a session holding one runs a hook; measured 64.9 KiB, 68.0 KiB with lane X's Cline contract; 2026-10-05: 85.7 KiB once the imported records' reader moved in from `dist/modelApi.js`, plus 15%, rounded up to 25 KiB) |
-| `dist/hookRuntime.js`      | ≤ 100 KiB (M91: the hook and MCP-form runtime, lane E's spark-hooks.json reader and dispatcher, lane H's typed handlers and lane M's form checks, moved out of `dist/modelApi.js` and loaded on first use; measured 67.1 KiB on 2026-10-05, plus 15%, rounded up to 25 KiB)                                                                          |
-| `dist/agentImport.js`      | ≤ 150 KiB (M83: import scan, converters, file access, native UI and smol-toml, loaded on first import; M91 lane I's readers for every agent's hooks: 147.7 KiB on 2026-10-04 (175 KiB then), 126.5 KiB on the integrated branch on 2026-10-05, plus 15%, rounded up to 25 KiB)                                                                       |
-| `dist/bundledSkills.js`    | ≤ 50 KiB (M89: the bundled skills installer for Muse Code, loaded on first install, removal or offer; 22.6 KiB when split, plus 15%, rounded up to 25 KiB)                                                                                                                                                                                           |
-| `dist/codeIntel.js`        | ≤ 100 KiB (2026-10-03: code intelligence's `ide` answers, loaded on the first call; measured 80.3 KiB plus 15%, rounded up to 25 KiB)                                                                                                                                                                                                                |
-| `dist/voice.js`            | ≤ 50 KiB (2026-10-03: both voice engines' drivers, loaded on the first recording; measured 34.5 KiB plus 15%, rounded up to 25 KiB)                                                                                                                                                                                                                  |
-| `dist/museCodeReviewer.js` | ≤ 75 KiB (M90: the Auto reviewer on Muse Code, its side session and approvals with M78's reviewer core, loaded on the first review; measured 45.4 KiB plus 15%, rounded up to 25 KiB)                                                                                                                                                                |
-| `dist/extensionHooks.js`   | ≤ 75 KiB (M91 E: both-backend window hooks, loaded on first use; Kubuntu measured 48.8 KiB plus 15%, rounded up to 25 KiB)                                                                                                                                                                                                                           |
+| Artifact                   | Budget (minified, uncompressed)                                                                                                                                                                                                                                                                                                                                                                        |
+| -------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `dist/extension.js`        | ≤ 600 KiB (the M7 Model API client fit without raising it; the activation bundle since M57)                                                                                                                                                                                                                                                                                                            |
+| `dist/modelApi.js`         | ≤ 475 KiB (M57: the Model API backend, loaded when it first starts; revisited after M77/M78/M82 at 402.8 KiB, see Q-M78b; M91 brought it to 486.1 KiB, and moving the hook and MCP-form runtime and the imported records' reader out took it to 463.7 KiB, 466.8 KiB on 0.13.0, 2026-10-05: the cap held)                                                                                              |
+| `dist/review.js`           | ≤ 50 KiB (M70: git's material, the review turn's text, the Plan-mode hold and edit review; 40.8 KiB when split)                                                                                                                                                                                                                                                                                        |
+| `dist/searchWorker.js`     | ≤ 50 KiB                                                                                                                                                                                                                                                                                                                                                                                               |
+| `dist/pageWorker.js`       | ≤ 300 KiB (M69: web fetch's page converter, parse5 and its parts, on a worker started for each page; 212.3 KiB when split)                                                                                                                                                                                                                                                                             |
+| `dist/webview/main.js`     | ≤ 900 KiB including React, Markdown and highlighting; all transitively eager ESM chunks count                                                                                                                                                                                                                                                                                                          |
+| `.vsix`                    | ≤ 2200 KiB compressed (2026-10-03, M77/M78/M82 cohort: 1,938,910 bytes with its four lazy bundles; +15%, rounded up to 25 KiB; was 1850 KiB from REL's 1,633,017 bytes; `check-vsix-size.mjs` in the package job)                                                                                                                                                                                      |
+| `dist/acp.js`              | ≤ 850 KiB (the ACP agent, installed once, never loaded by VS Code; 713.2 KiB when set, see below)                                                                                                                                                                                                                                                                                                      |
+| `dist/planMarkdown.js`     | ≤ 150 KiB (M79: the plan reader, the panel's Markdown parser, loaded on the first plan action; 139.0 KiB with the brief writer)                                                                                                                                                                                                                                                                        |
+| `dist/checkpointStore.js`  | ≤ 225 KiB (M72: synchronous checkpoint factory and legacy reader; measured 187.0 KiB plus 15%, rounded up to 25 KiB)                                                                                                                                                                                                                                                                                   |
+| `dist/uiText.js`           | ≤ 150 KiB (shared English fallback for Node bundles; 2026-10-04: measured 104.9 KiB plus 15%, rounded up to 25 KiB; 2026-10-05, M91's strings on 0.13.0: 126.5 KiB, plus 15%, rounded up to 25 KiB; lazy, so activation is unchanged)                                                                                                                                                                  |
+| `dist/sessionBoard.js`     | ≤ 75 KiB (M78b: first board/best-of-N action; measured 61.0 KiB plus 15%, rounded up to 25 KiB)                                                                                                                                                                                                                                                                                                        |
+| `dist/reviewer.js`         | ≤ 75 KiB (M78b: paid Auto review after consent; measured 55.2 KiB plus 15%, rounded up to 25 KiB)                                                                                                                                                                                                                                                                                                      |
+| `dist/foreignHooks.js`     | ≤ 100 KiB (M91 lane W: the adapters for hooks imported from other agents, lane P's contracts and engine, loaded the first time a session holding one runs a hook; measured 64.9 KiB, 68.0 KiB with lane X's Cline contract, 85.7 KiB once the imported records' reader moved in from `dist/modelApi.js`; 2026-10-05 on 0.13.0's shared `dist/validation.js`: 65.4 KiB, plus 15%, rounded up to 25 KiB) |
+| `dist/hookRuntime.js`      | ≤ 50 KiB (M91: the hook and MCP-form runtime, lane E's spark-hooks.json reader and dispatcher, lane H's typed handlers and lane M's form checks, moved out of `dist/modelApi.js` and loaded when a spark-hooks.json exists, a typed handler runs or a server asks for a form; 67.1 KiB when split out, 41.7 KiB on 0.13.0's shared `dist/validation.js` (2026-10-05), plus 15%, rounded up to 25 KiB)  |
+| `dist/agentImport.js`      | ≤ 125 KiB (M83: import scan, converters, file access, native UI and smol-toml, loaded on first import; M91 lane I's readers for every agent's hooks: 147.7 KiB on 2026-10-04, 108.1 KiB on 0.13.0's shared `dist/validation.js` on 2026-10-05, within the unchanged budget)                                                                                                                            |
+| `dist/bundledSkills.js`    | ≤ 50 KiB (M89: the bundled skills installer for Muse Code, loaded on first install, removal or offer; 22.6 KiB when split, plus 15%, rounded up to 25 KiB)                                                                                                                                                                                                                                             |
+| `dist/codeIntel.js`        | ≤ 100 KiB (2026-10-03: code intelligence's `ide` answers, loaded on the first call; measured 80.3 KiB plus 15%, rounded up to 25 KiB)                                                                                                                                                                                                                                                                  |
+| `dist/voice.js`            | ≤ 50 KiB (2026-10-03: both voice engines' drivers, loaded on the first recording; measured 34.5 KiB plus 15%, rounded up to 25 KiB)                                                                                                                                                                                                                                                                    |
+| `dist/museCodeReviewer.js` | ≤ 75 KiB (M90: the Auto reviewer on Muse Code, its side session and approvals with M78's reviewer core, loaded on the first review; measured 45.4 KiB plus 15%, rounded up to 25 KiB)                                                                                                                                                                                                                  |
+| `dist/extensionHooks.js`   | ≤ 75 KiB (M91 E: both-backend window hooks, loaded on first use; Kubuntu measured 48.8 KiB plus 15%, rounded up to 25 KiB)                                                                                                                                                                                                                                                                             |
+| `dist/browserCheck.js`     | ≤ 75 KiB (M81: the browser check's pipe, run, proxy, canaries and processes, loaded on the first check; 50.5 KiB after A1's first review round plus 15%, rounded up to 25 KiB)                                                                                                                                                                                                                         |
+| `dist/browserRuntime.js`   | ≤ 50 KiB (M81 A1: the browser check runtime's pin, download, ZIP reader and store, loaded only to prepare it; 37.2 KiB plus 15%, rounded up to 25 KiB)                                                                                                                                                                                                                                                 |
+| `dist/whatsNew.js`         | ≤ 50 KiB (M99, D79: What's New's renderer, content schema and tab, loaded on the first page or notice; measured 34.8 KiB plus 15%, rounded up to 25 KiB)                                                                                                                                                                                                                                               |
+| `dist/whatsNew.json`       | ≤ 40 KiB raw (M99, D79: newest two releases' full notes and the newest earlier Highlights when needed; hard content cap independent of VSIX compression)                                                                                                                                                                                                                                               |
+| `dist/webview/whatsNew.js` | ≤ 25 KiB (M99: What's New's page script, which only passes clicks back; 0.7 KiB when made, plus 15%, rounded up to 25 KiB)                                                                                                                                                                                                                                                                             |
+
+**TRAIN13B (2026-10-05):** `dist/validation.js` shares only the used
+Node zod/mini runtime exports (40,416 bytes measured; new 50 KiB cap by
+the existing rule). Browser/integration parsers stay inline. All Node
+consumers, including ACP and workers, ship it beside their bundles; the
+split and host-global gates enforce separation and API completeness.
+The six deferred chat surfaces use ESM chunks under dist/webview/chunks.
+The unchanged 900 KiB startup cap includes every transitively eager chunk;
+optional JavaScript has a new 50 KiB total cap (38.6 KiB measured plus
+15%, rounded by D6). Chunk reachability, lazy placement and packaging are
+guarded; stale chunks are cleared before a build. Existing caps are unchanged.
 
 `npm run build` prints bundle sizes; `scripts/check-bundle-size.mjs` holds their
 numbers and fails over budget or when a bundle is missing. The compressed VSIX
@@ -282,6 +310,50 @@ M70c also keeps `dist/review.js` lazy with its 50 KiB cap and checks its shared
 table import. Current M70c build: extension 522.6/600 KiB, Model API 331.9/400,
 review 41.0/50, checkpoint store 113.3/225, UI text 77.5/100, ACP 711.8/850;
 focused proof in `docs/certification/m70.md`.
+
+**Amendment (M81, 2026-10-01): the browser check is a bundle of its own.**
+On the release candidate `dist/extension.js` was 592.3 KiB of its 600 and
+`dist/modelApi.js` 398.7 of its 400. The browser check's runner (the CDP
+pipe, the run, its processes, 37.8 KiB with the zod/mini it parses with)
+loads from `dist/browserCheck.js` on the first check, through the checkpoint
+store's loader pattern; activation keeps the loader, the `ide` tool and the
+modal, and the Model API bundle the tool's definition, placement and text.
+It uses the shared English table like the other Node bundles, and the split
+gate keeps the runner out of the other three. With the shared table and M81:
+extension 529.6, Model API 335.6, checkpoint store 122.1, ACP agent 719.0,
+English table 74.7 KiB ([`docs/certification/m81.md`](docs/certification/m81.md)).
+After the RV81 fixes (the policy reads, the target watch, the bounds) the
+browser bundle is 44.5 KiB of its unchanged 50, extension 531.2, Model API
+336.8.
+
+**Amendment (M81 A1, 2026-10-02): the runtime's acquisition is a second
+lazy bundle.** Design spec v4 §9.1 holds `dist/browserCheck.js` at its 50
+KiB with the owned proxy, the canaries and the two lifetimes (49.8 KiB),
+and moves the runtime's acquisition (the pin's schema, the download, the
+bounded ZIP reader, hashing, staging and publication) into
+`dist/browserRuntime.js`, required by the activation bundle's adapter only
+when a runtime is prepared or verified, for a check and for the Download
+command alike. Measured 37.2 KiB minified; its cap is
+25 × ceil(1.15 × 37.2 / 25) = 50 KiB. The split gate requires the
+acquisition modules in that bundle and in no other, and neither browser
+bundle may carry or load the English table (both return closed failures
+only). To fit, the browser check's tunables that `constants.ts` declared
+with initializers esbuild cannot drop moved to
+`src/shared/browserCheckConstants.ts` (no imports), which `constants.ts`
+re-exports: one source of truth still, imported directly by the browser
+modules.
+
+**Amendment (M81 A1 review round 1, 2026-10-02): `dist/browserCheck.js`
+gets the repo's rule.** The round's fixes (each canary phase on fixture
+ports of its own, the admitted-CONNECT record, the loopback-aware negative
+probes, the upstream answer's head bound, lifetime ends keeping their kind)
+built it to 50.5 KiB (51,671 bytes), over the 50 KiB spec v4 §9.1 had held
+it to. No module in it is off the check's path (the pipe, the run, the
+proxy, the canaries, the page and the processes, the leftover sweep
+included, all run on every check), so there was no honest split; the cap
+is set by the rule: 25 × ceil(1.15 × 50.5 / 25) = 75 KiB. No code was
+minified or moved to fit ([`docs/certification/m81.md`](docs/certification/m81.md),
+"v4 A1: review round 1").
 
 **Amendment (M57, 2026-09-27): the Model API backend is a bundle of its own.**
 At 0.9.0 `dist/extension.js` was 596.8 KiB of its 600 KiB, and
@@ -574,6 +646,21 @@ Manual / Edit automatically / Auto to `denyUnmatched` (M2 behaviour) and only
 Plan and Bypass differ. Flipping the constant is an M4 change with its own
 live verification of each mode.
 
+**Correction (2026-10-04, musecode-write-asks).** The Plan row above did
+not hold either. `denyUnmatched` denies what no rule matches, and Muse
+Code's own profile allows file-tool writes, so Plan on Muse Code refuses
+commands and protected writes (`.git`, `.muse`, `.agents`: raised, then
+`resolvedBy: policy`) but its `write_file` and `edit_file` still write
+without asking: inside the workspace with the sandbox, anywhere without it
+(forced tool calls through a loopback stand-in for the provider, 0 model
+calls, docs/certification/musecode-write-asks.md). Meta's permissions page
+says in-workspace `write_file` and `edit_file` writes "still pass in any
+mode". MSP cannot select Muse Code's Read-only profile (1.4.2 has no
+`session/setPermissionProfile`; the `next` SDK site lists one,
+experimental and select-only; our #43 asks for it). The Modes menu and the
+README now say what Plan does on Muse Code instead of "plans before
+editing".
+
 **Correction (2026-10-03, D69).** The Auto row above did not hold under
 `muse serve`: the LLM approval judge `muse --help` names runs only in the
 CLI's interactive and `exec` commands, so serve's `onRequest` skips only the
@@ -746,6 +833,81 @@ setting drops the host so the next message respawns it (a notice says so).
 Caveat from the CLI docs, kept in the README: without the sandbox Muse
 Code's file tools may write outside the workspace, so the approval modes
 matter more.
+
+**Update (2026-10-04, musecode-write-asks).** A live check by the
+protect-agent-folders lane found Muse Code 1.4.2, in Manual with the
+sandbox off, writing `.claude/settings.json` and a file outside the
+workspace without any approval. The findings, with forced tool calls
+through a loopback stand-in for the provider (0 model calls) and Meta's
+docs (docs/certification/musecode-write-asks.md):
+
+- The caveat understated it. Meta's permissions page: `--disable-sandbox`
+  "also removes workspace confinement from the file tools, so write_file
+  and edit_file can write anywhere on the filesystem", and Muse Code asks
+  for none of those writes, in Manual, Auto or Plan. With the sandbox they
+  fail ("absolute path is outside the workspace"), a temp-folder target
+  included. Either way only `.git`, `.muse` and `.agents` ask; in-workspace
+  writes "still pass in any mode", so `.claude/settings.json` is written
+  unasked with or without the sandbox. "Approval prompts still apply", the
+  old notice's line, was true only for commands.
+- Nothing lets a client add ask rules. MSP is "select, never create"
+  (`session/start.config` admits only `mcpServers`; the experimental
+  `session/setPermissionProfile` on the `next` site says "there is no
+  inline-rule member and none may be added"); `muse serve` takes posture
+  flags only (no `--permission-profile`, no `--approval-judge`); the
+  documented settings key is `permissions.default_profile` (built-in
+  profiles; custom ones are undocumented, and the binary's own startup text
+  says that without the sandbox "permission-profile filesystem …
+  restrictions remain recorded but are not enforced"); managed policy
+  (`execution.permission_profiles`, `execution.tool_rules`) is a
+  machine-wide administrator plane; hooks (a PreToolUse block) live in the
+  user's settings file, a managed hooks file or the repository's
+  `.muse/hooks.json`. The extension writes none of those (D17: it never
+  writes the CLI's settings).
+- #26 is not reliably fixed in 1.4.2-R4684.1, so the sandbox cannot stay
+  on for a profile workspace. On the owner's machine a sandboxed
+  `powershell` call in a workspace under `C:\Users\<user>` (and under
+  `%TEMP%`) printed the workspace as its location in about 5 s. On the
+  freshly set-up Windows 11 rig, in the interactive session, the same call
+  first failed with "ACL publication lock
+  Global\TbhWindowsSandboxAclPublication: timed out … after 120000 ms":
+  Muse Code's background read worker (1.4.0's "Root:Read … through an
+  optional background worker") held that lock for about 70 minutes while it
+  granted the sandbox group read access to the profile's top-level entries,
+  ending "refresh-partial". After it ended, the call in a profile workspace
+  never finished, twice (8 minutes each); a workspace outside the profile
+  (`C:\mcwrite-probe-ws`) ran in place throughout. (Runs over SSH, session
+  0, hung or failed with "The pipe has been ended" and are not counted.)
+
+Decisions (the lead's brief: keep the sandbox on wherever it can work,
+warn honestly where it cannot):
+
+- **`auto` stays as it was.** A version gate (keep the sandbox for 1.4.2 in
+  a profile workspace) was built and drilled, then dropped on the rig's
+  evidence: it would leave fresh setups with commands that hang without a
+  message. The sandbox stays on everywhere else, as before; no rule or
+  setting of Muse Code can narrow the switch-off to a precise exception.
+  The extension changes no ACL.
+- **The sandbox-off warning.** Whenever the host runs without the sandbox,
+  for either reason, the first Muse Code conversation of the window gets a
+  warning: the file tools can write anywhere the account can, without
+  asking in any mode, Plan included; commands run as the user with the
+  user's network; approval still covers commands and `.git`, `.muse`,
+  `.agents`; a workspace outside the profile keeps the sandbox. The
+  posture carries `isUnsupportedWorkspace`, and the wrong-folder warning
+  (now "may start in the PowerShell folder … or never finish") stays for
+  `muse` forced in a profile workspace.
+- **The preparing notice.** A shell failure carrying the lock text says
+  the sandbox is still being prepared and to try again later, and offers no
+  setup (the setup has run).
+- **Diagnostics** adds `muse code file writes:` (workspace only, or
+  anywhere without asking).
+- **Upstream** (draft 07): ask before file-tool writes outside the
+  workspace roots when the shell sandbox is off (or keep the file tools'
+  confinement independent of the shell sandbox), let a client select the
+  Read-only profile for Plan (#43), protect other agents' configuration
+  folders or let users name protected paths; and, on #26, the 1.4.2
+  results above.
 
 ### D8 — Attachments live in the host; images are validated by header parsing
 
@@ -3099,27 +3261,28 @@ after wave 5's others because it waits for PR #32, and D50's M85 comes
 last, after M73, M75, M76 and M78 that it builds on, and after the
 owner's TypeSafe key for its capture.
 
-| Wave                       | Milestone | What                                                                                                                   | Backends                              | Who has it                              | Size |
-| -------------------------- | --------- | ---------------------------------------------------------------------------------------------------------------------- | ------------------------------------- | --------------------------------------- | ---- |
-| 1 Correct code             | M68       | Verify loop: diagnostics after edits, format on edit, check commands, edit-then-run                                    | API full; MC diagnostics and guidance | OpenCode, Aider, Crush, SoL-Pi          | M    |
-|                            | M67       | Code intelligence tools from VS Code's language services, and a repo map                                               | both (MC through `ide`)               | Aider, OpenCode, Zed, Claude Code (LSP) | M    |
-|                            | M69       | Web fetch (folds in M44b)                                                                                              | API native; MC through `ide`          | Claude Code, Codex, OpenCode            | S    |
-| 2 Review and ship          | M70       | Review: `/review` presets, a review pane with per-hunk accept/reject and line comments to the agent, a security preset | both                                  | Codex, Zed, Kilo, T3 Code, Claude Code  | L    |
-|                            | M71       | Git and PRs: commit message, commit, push, open a PR, PR status per conversation, a conversation in a worktree         | both                                  | T3 Code, OpenCode, Codex, Claude Code   | M    |
-|                            | M72       | Turn checkpoints with untracked files; restore files, conversation, or both; redo                                      | both                                  | T3 Code, Cline, Gemini CLI, OpenCode    | M    |
-| 3 Long tasks, fewer tokens | M75       | Paired efficiency evaluation with capability floors and held-out tasks, built first                                    | API                                   | SoL-Pi, Claude Code plugin evals        | M    |
-|                            | M73       | Observation packing with `recall_output`, and a savings ledger, once its M75 run passes                                | API                                   | SoL-Pi                                  | S    |
-|                            | M74       | Automatic compaction when a todo item completes, a memory flush before compaction, `/handoff` to a new conversation    | API                                   | SoL-Pi, OpenClaw, Amp                   | M    |
-| 4 More agents, safely      | M77       | Session board across conversations and worktrees; best-of-N with diff comparison                                       | both (best-of-N on API)               | Cursor, Kilo, T3 Code, Codex, Zed       | L    |
-|                            | M79       | Plans as files: save the approved plan, implement it in a fresh context                                                | both                                  | Codex, Factory, Cline                   | S    |
-|                            | M76       | Custom agents in Markdown; built-in Explore and Second-opinion agents, and M70's Reviewer in the same format           | API; MC reads its own                 | Claude Code, Codex, OpenCode, Amp       | M    |
-|                            | M78       | Auto made safe: command rules with tests, permission profiles, an Auto reviewer                                        | API                                   | Codex, OpenCode, Gemini CLI             | M    |
-| 5 Connect                  | M81       | Browser check: open the dev server, screenshot and console back to the model                                           | API; MC through `ide`                 | Cursor, Codex, Claude Code              | M    |
-|                            | M82       | Notifications, usage per reply, a session budget cap, cache savings                                                    | both (cost and cache on API)          | Claude Code, OpenClaw, T3 Code, Codex   | S    |
-|                            | M83       | Import from Claude Code, Codex and Cursor: MCP servers, hooks, agents, commands (extends M30)                          | both                                  | Codex `/import`, Junie                  | S    |
-|                            | M84       | Session export and import as JSON, and a local share file                                                              | both (import resumes on API)          | OpenCode, Codex, Amp                    | S    |
-|                            | M80       | Headless run and a GitHub Action for review and fix, through the ACP agent's package                                   | API; MC                               | Codex, Claude Code, OpenCode            | M    |
-| 6 Experimental (D50)       | M85       | TypeSafe assist: skill and agent suggestion, an advisory Auto risk score, relevance and grading once measured          | API                                   | TypeSafe cookbook                       | M    |
+| Wave                       | Milestone | What                                                                                                                                       | Backends                              | Who has it                              | Size |
+| -------------------------- | --------- | ------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------- | --------------------------------------- | ---- |
+| 1 Correct code             | M68       | Verify loop: diagnostics after edits, format on edit, check commands, edit-then-run                                                        | API full; MC diagnostics and guidance | OpenCode, Aider, Crush, SoL-Pi          | M    |
+|                            | M67       | Code intelligence tools from VS Code's language services, and a repo map                                                                   | both (MC through `ide`)               | Aider, OpenCode, Zed, Claude Code (LSP) | M    |
+|                            | M69       | Web fetch (folds in M44b)                                                                                                                  | API native; MC through `ide`          | Claude Code, Codex, OpenCode            | S    |
+| 2 Review and ship          | M70       | Review: `/review` presets, a review pane with per-hunk accept/reject and line comments to the agent, a security preset                     | both                                  | Codex, Zed, Kilo, T3 Code, Claude Code  | L    |
+|                            | M71       | Git and PRs: commit message, commit, push, open a PR, PR status per conversation, a conversation in a worktree                             | both                                  | T3 Code, OpenCode, Codex, Claude Code   | M    |
+|                            | M72       | Turn checkpoints with untracked files; restore files, conversation, or both; redo                                                          | both                                  | T3 Code, Cline, Gemini CLI, OpenCode    | M    |
+| 3 Long tasks, fewer tokens | M75       | Paired efficiency evaluation with capability floors and held-out tasks, built first                                                        | API                                   | SoL-Pi, Claude Code plugin evals        | M    |
+|                            | M73       | Observation packing with `recall_output`, and a savings ledger, once its M75 run passes                                                    | API                                   | SoL-Pi                                  | S    |
+|                            | M74       | Automatic compaction when a todo item completes, a memory flush before compaction, `/handoff` to a new conversation                        | API                                   | SoL-Pi, OpenClaw, Amp                   | M    |
+| 4 More agents, safely      | M77       | Session board across conversations and worktrees; best-of-N with diff comparison                                                           | both (best-of-N on API)               | Cursor, Kilo, T3 Code, Codex, Zed       | L    |
+|                            | M79       | Plans as files: save the approved plan, implement it in a fresh context                                                                    | both                                  | Codex, Factory, Cline                   | S    |
+|                            | M76       | Custom agents in Markdown; built-in Explore and Second-opinion agents, and M70's Reviewer in the same format                               | API; MC reads its own                 | Claude Code, Codex, OpenCode, Amp       | M    |
+|                            | M78       | Auto made safe: command rules with tests, permission profiles, an Auto reviewer                                                            | API                                   | Codex, OpenCode, Gemini CLI             | M    |
+| 5 Connect                  | M81       | Browser check: open the dev server, screenshot and console back to the model                                                               | API; MC through `ide`                 | Cursor, Codex, Claude Code              | M    |
+|                            | M82       | Notifications, usage per reply, a session budget cap, cache savings                                                                        | both (cost and cache on API)          | Claude Code, OpenClaw, T3 Code, Codex   | S    |
+|                            | M83       | Import from Claude Code, Codex and Cursor: MCP servers, hooks, agents, commands (extends M30)                                              | both                                  | Codex `/import`, Junie                  | S    |
+|                            | M84       | Session export and import as JSON, and a local share file                                                                                  | both (import resumes on API)          | OpenCode, Codex, Amp                    | S    |
+|                            | M80       | Headless run and a GitHub Action for review and fix, through the ACP agent's package                                                       | API; MC                               | Codex, Claude Code, OpenCode            | M    |
+| 6 Experimental (D50)       | M85       | TypeSafe assist: skill and agent suggestion, an advisory Auto risk score, relevance and grading once measured                              | API                                   | TypeSafe cookbook                       | M    |
+| 7 Security hardening       | M92       | Muse Gadgets SDK tokens (`mgst_…`) redacted from logs and transcripts and counted by `scan-secrets` (lane M92a; owner-approved 2026-10-04) | both (log, export, headless scan)     | muse-gadget-sdk installer pattern       | S    |
 
 **Not taken.**
 
@@ -4411,6 +4574,72 @@ on the package's shared `scripts/` (Bash, PowerShell and Python helpers),
 - **Requirements stay the package's.** The delivery helpers need Python 3;
   the README says so, and a missing Python is the script's own error.
 
+### D78 — Enhancements available out of the box (owner, 2026-10-04)
+
+The owner chose: "On, ask once first — active out of the box and visible.
+Before the first charge it asks once (Allow / Allow always / Not now)
+showing the price and a daily budget. Nothing is spent without that one yes."
+This supersedes D48's off-by-default clause for interactive VS Code Model
+API extras. It preserves paid badges, rows, tally, revocable per-workspace
+"always", and paid-use consent in Bypass. Allow once still authorizes one
+use; subsequent uses ask unless "always" was chosen. Existing explicit
+false settings remain false. Default-on availability needs no startup price
+dialog; an explicit OFF-to-ON change still confirms its price.
+
+Observation packing (M73's passing M75 run), hooks (inert without a file,
+trusted workspace only), and reply usage default on. Web search, images,
+Muse Voice availability, Auto reviewer, subagents, schedules and best-of-N
+default on for Model API. Free OS dictation remains the selected engine.
+Best-of-N stays an explicit separate action: an ordinary turn runs one
+model; no setting multiplies every turn's cost.
+
+Interactive extras share `museSpark.paidDailyBudgetUsd`, machine scoped,
+USD 5 by default, USD 0.50–500. Reuse M82's durable claim journal under
+global extension storage, one local-calendar-day scope across windows and
+keys. Reserve before dispatch; recheck synchronously at send; settle known
+usage, refund known nonsends, retain uncertain liability. Unreadable or
+incomplete storage refuses spending. At the cap offer raise for today or
+stop until tomorrow; a raise is shared on disk and expires with the day.
+M94 Tab's USD 1/day ledger remains independent; Tab does not enter this
+extras journal. M94 is not present in this lane's base tree.
+
+M82 already refuses hosted search and Muse Voice under a finite cap: no
+captured hard query bound or billed-duration receipt exists. Preserve those
+refusals under the daily cap rather than inventing a wire limit. Availability
+is visible, but those two transports remain refused pending verified bounds.
+Muse Code's existing explicit paid opt-ins, confidential-workspace policy,
+ACP flags and headless explicit flag plus hard budget remain unchanged.
+
+No request prefix, tool description or golden fixture changes are authorized.
+Packing stays request-local and sticky; hooks-off bodies must stay exact.
+M91 is absent from this base; run its golden requests after lead integration.
+No live evaluation is authorized. Q11 repo-map default stays off: next run
+must add a repo-map-only M75 arm versus baseline on the same twelve paired
+tasks, seven accept and five held-out (floors 6/7 and 4/5 on both arms),
+`muse-spark-1.3-contributor`, fixed 1,024-token map, identical other flags,
+and the existing USD 0.50 bound. Record input/cache/output tokens, total
+cost, latency and engagement before deciding whether to flip Q11.
+
+DEFAULTS acceptance: manifest and fallback defaults agree; explicit false
+survives; trusted hooks only; first-use consent precedes fetch; daily claims
+refuse over-cap, corrupt storage and concurrent overspend; price and daily
+cap are localized; request bodies and single-model turns remain unchanged.
+Reuse `paidFeatures`, `paidConsent`, `sessionBudgetJournal` and the final
+HTTP admission guard. Evidence: `docs/certification/defaults.md`.
+
+FIXDEF review follow-up (2026-10-04): a committed daily Stop must survive
+every pending raise, including a delayed atomic replacement. Use a separate
+monotonic day marker; never remove it when raising the numeric cap. Pass the
+request's cancellation through daily admission, refund nonsends, and reject
+late dialog answers/publications. Offer packed recall only when the request
+contains a packed observation, preserving unused packing's whole request and
+cache key. Keep setting state separate from backend availability so changing
+backends cannot withdraw accepted prices or workspace grants. Correct the
+Best-of-N overview. Each finding needs a Kubuntu regression/red drill.
+Search's proposed one-search bound and voice's proposed 180-second bound
+require verified server/billing contracts, not invented wire fields or a
+recorder timer alone; live calls remain outside this lane's authorization.
+
 ### D69 — Auto on Muse Code: an extension-side reviewer (M90, 2026-10-03)
 
 The owner reported clicking as many approvals in Auto as in Manual on the
@@ -4717,6 +4946,176 @@ The step 1 captures are in `docs/certification/m91.md`.
   `.github/copilot`, `.devin`, `.windsurf`, `.kiro` and `.clinerules`. They
   hold hooks and MCP servers that those agents run outside our sandbox. This
   ships early as its own fix (`fix/protect-agent-folders`, 2026-10-04).
+
+### D79 — What's New after an update (M99, 2026-10-04)
+
+The owner asked (2026-10-04): "after the app updates it opens a whats new/
+changelog in whatever editor so the users can take advantage of any changes
+we make". His standing ruling: enhancements are on by default.
+
+- **When it shows.** On activation the running version is compared, by
+  semver precedence (prereleases included), with the newest version What's
+  New ran for (`globalState` key `museSpark.whatsNewLastSeenVersion`,
+  registered with `setKeysForSync`, so a page seen on one machine is not
+  shown again on another).
+  - No stored version and no sign of earlier use: a fresh install. The
+    version is recorded and nothing shows; the walkthrough and onboarding
+    cover new users.
+  - No stored version but signs of earlier use (any stored global key, a
+    remembered last session in the workspace, or the extension's global
+    storage folder, all read before activation writes anything): an upgrade
+    from a version before this feature. Without this, everyone updating to
+    the release that brings What's New would be taken for a new user and
+    never see it. Its page starts at the newest release with Highlights.
+  - A newer version: an upgrade, shown once. The same version or an older one
+    (a downgrade): nothing, and the newer record stays, so going back up shows
+    nothing again.
+  - It shows on the extension's first activation after the update (its view,
+    a command, a restored tab). The manifest gains no `onStartupFinished`:
+    activating the 550 KiB bundle in every window to announce an update is not
+    worth the startup cost.
+- **One window.** Several windows activate together after an update. The
+  window whose exclusive create (`open(…, 'wx')`) of
+  `<global storage>/whats-new/<version>.claim` succeeds shows it; the others
+  see the file and stay quiet. Chosen over a claim in `globalState` re-read
+  after a delay: the file system's exclusive create is atomic on one machine,
+  while `globalState`'s propagation between windows has no ordering guarantee
+  (two windows can each read the other's claim last, and neither shows it).
+  A claim that cannot be written (read-only storage) lets that window show
+  it, logged: a second tab is better than none. Keep the zero-byte claims of
+  other versions: an older window must not delete a newer window's claim
+  (nor a newer one delete an older window's still-active claim), allowing
+  another activation to show that version a second time.
+- **When in the window.** Some seconds after activation
+  (`WHATS_NEW_SETTLE_MS`), and then only while no conversation runs a turn
+  and no document was edited for `WHATS_NEW_QUIET_MS` (checked every
+  `WHATS_NEW_IDLE_POLL_MS`). The tab opens with `preserveFocus`, so the
+  keyboard stays where it was. A pending notification's answer is ignored
+  after disposal, so it cannot reopen a tab or write settings in that window.
+- **Page or notice (the rule).** An update whose releases (every one after
+  the version updated from, up to the running one) include one with a
+  `### Highlights` list opens the page. Otherwise (a patch of fixes only) a
+  quiet notification, "Muse Spark Code updated to x.y.z", offers **What's
+  New** (the page for those releases) and **Don't show again** (the setting
+  off). The choice is by content, not by version arithmetic; the changelog
+  guard below makes every minor or major release carry Highlights.
+- **What it shows.** A webview editor tab, "What's New in Muse Spark Code":
+  every fork the compatibility docs list has webviews, where
+  `markdown.showPreview` is not universal. For each release, newest first:
+  its Highlights (each may carry a **Try it** button) and then its shipped notes.
+  The footer links the full CHANGELOG and the README on GitHub and carries a
+  **Don't show on updates** box bound to the setting.
+- **Try it.** A Highlight ends with `<!-- try: command <id> -->` or
+  `<!-- try: setting <id> -->` (an HTML comment: invisible on GitHub, the
+  Marketplace and VS Code's changelog tab). The build fails on an id the
+  manifest does not contribute, in `[Unreleased]` too (so the change that
+  adds one fails, not the release); the page renders a button only for a
+  command in `COMMAND_IDS` or a setting in `SETTING_DEFAULTS`. The page sends
+  an index into the host's list of the buttons it rendered, never an id, so
+  nothing else can run. (A second check at click time was dropped in review:
+  that list holds only allowed entries, so it could never fire, and its red
+  drill proved it.)
+- **Content.** Built at build time from CHANGELOG.md
+  (`scripts/lib/whatsNewContent.mjs`, mdast with GFM) into
+  `dist/whatsNew.json`: released sections only (`[Unreleased]` never), as a
+  tree of text-only parts read through a zod schema before use. Raw HTML never
+  becomes markup (comments are dropped, other tags kept as their literal
+  text); pictures are their alt text; relative links point at the repository;
+  links with a scheme other than http or https are kept as text. The build
+  validates every release and `[Unreleased]`, but ships full notes for only
+  the newest two releases (`FULL_NOTES_RELEASES`, build-time constant in the
+  generator). Eight releases measured 177,802 bytes; two cover the current
+  release and its immediate predecessor within a hard 40 KiB raw content
+  budget. If neither has Highlights, retain the newest earlier Highlights
+  with its notes omitted. Older upgrades still have those Highlights and
+  the full-changelog link; older details live at that link. The size gate
+  rejects both missing content and content one byte over the budget.
+- **Security.** Strict CSP (`default-src 'none'`, the stylesheet from the
+  webview origin, one script by nonce, no inline style); every piece of text
+  escaped on the host; links carry their address for keyboards and screen
+  readers, but the page sends their index and the host opens its own copy
+  through `vscode.env.openExternal`.
+- **Setting and command.** `museSpark.showWhatsNewOnUpdate` (boolean,
+  default `true`, machine-scoped: the manifest test allows only machine or
+  window scope, and a page that opens by itself is the user's choice, never a
+  repository's). **Muse Spark: What's New** opens the current version's page
+  at any time (back to the newest release with Highlights), and the panel's
+  palette lists it under Support.
+- **Light.** The renderer, schema and tab are `dist/whatsNew.js` (D6, ≤ 50
+  KiB), required on the first page or notice; the page script is
+  `dist/webview/whatsNew.js` (≤ 25 KiB) with no package and no display
+  table. Activation carries only the version check, the claim and the loader.
+- **Language.** The page's own words are in all 14 tables; the release notes
+  stay English (CHANGELOG.md is written in English), marked `lang="en"`, and
+  a line says so in other languages.
+- **Release process.** A minor or major release's CHANGELOG section must
+  carry `### Highlights` with 1 to 5 bullets (3 to 5 recommended), and no
+  release being made may have more than 5; the changelog-version test fails
+  otherwise (`docs/RELEASING.md`). Older releases are taken as written
+  (0.10.0 has ten).
+
+### D70 — (reserved for M91 hooks; on another branch, 2026-10-04)
+
+### D71 — Muse Gadgets: help build them, never become one (M92, 2026-10-04)
+
+The owner asked whether Meta's Muse Gadgets (gadgets.muse.ai,
+github.com/facebookincubator/muse-gadget-sdk, Apache 2.0) belong in the
+extension "to make programming and working with devices easier", and approved
+the scope below on 2026-10-04.
+
+**What the SDK is (checked 2026-10-04):**
+
+- **ESP32 SDK:** firmware on ESP-IDF 6.0.1 for about 17 boards. Build with
+  `idf.py build`; flash and watch with `idf.py -p <port> flash monitor`
+  (Ctrl-] ends the monitor), or `tools/board.sh BOARD …`. The per-user SDK
+  token is set in menuconfig as `CONFIG_GADGET_SDK_TOKEN`, which lands in
+  `sdkconfig` and is compiled into the firmware. Pairing goes over BLE with
+  the Muse phone app; after that the device reaches Muse's cloud over Wi-Fi.
+- **Linux SDK:** a Python service (`/opt/musegadget`) installed with
+  `install.sh --sdk-token mgst_…`. It gives the Muse assistant `system.run`,
+  `file.read`, `file.write` and `device.health` on that machine, with the
+  installing account's rights. `musegadget send-user-msg "…"` posts to the
+  user's Muse chat.
+- **Built for coding agents already:** each SDK folder ships an `AGENTS.md`
+  (setup, build, flash), and `skills/` holds 50+ community `SKILL.md` device
+  skills.
+- **The token** matches `^mgst_[A-Za-z0-9_-]{42}[AEIMQUYcgkosw048]$` (the
+  installer's own check).
+
+**Decisions:**
+
+- **No re-implementation.** In a trusted clone of the SDK, Muse Code already
+  reads its `AGENTS.md`. The extension adds only what that file can't give.
+- **Tokens are secrets.** `mgst_` tokens join the shared redaction table, and
+  so the logs, transcripts and `scan-secrets` (M92a). Every existing secret
+  warning covers them too.
+- **Device commands are bounded.** A monitor never exits by itself. The shell
+  tool's `timeout_ms` (≤ `SHELL_MAX_TIMEOUT_MS`) must return the output it
+  captured, with `isTimedOut`, and must end the whole process tree on all three
+  OSes, so that "flash, then capture N seconds of serial output" is one tool
+  call (M92b). A dedicated device tool is added only if that proof fails.
+- **Optional bundled skill.** A `muse_gadgets` skill (D68's bundled source) for
+  gadget work outside the SDK repo:
+  - Windows specifics: COM ports, `export.ps1`;
+  - the bounded-monitor pattern;
+  - token handling: the user types the token into menuconfig or the installer
+    in their own terminal, never into chat;
+  - a pointer to the SDK's `AGENTS.md`.
+
+  It is off unless `museSpark.bundledSkills` is on, like D68's. The skill is
+  first-party, so it does not live in the vendored package: `VENDOR.json`
+  pins the third-party bytes and the sync script owns that folder, so the
+  extension reads a small `first-party-skills/` folder beside `vendor/` as a
+  second `bundled` root through the same bounded loader (lowest precedence,
+  shadowed by a project or personal skill with the same id, same setting).
+  The Muse Code installer is unchanged: it copies the vendored package only.
+
+- **Phone ping as a recipe, not a feature.** The docs show a `Stop` or
+  `Notification` hook that runs `musegadget send-user-msg` (M91's events).
+  The extension ships no gadget code.
+- **Never a gadget.** The extension never installs, configures or recommends
+  the Linux gadget service on a development machine. That service lets the
+  cloud assistant run any command there; README and the skill say so.
 
 ## 3. Open questions (need the owner)
 
@@ -5049,6 +5448,24 @@ cached: "0.15", currency: "USD" }`, `isDefault`, `isActive`, `releaseDate`.
   extension must track the child PID and kill the tree on dispose.
 
 ## 6. Milestones
+
+### TRAIN13B — Release-train size recovery and complete Kubuntu gate (2026-10-05)
+
+- [x] Confirm both checkpoint test files pass in the cleared normal temporary directory.
+- [x] Defer Account & usage, Agent map, best-of-N, board, history and review UI until opened, with accessible loading/cancellation, ESM chunks and startup-transitive size/split/packaging guards. Keep the 900 KiB startup cap and at least 20 KiB headroom.
+- [x] Share the Node bundles’ used zod/mini exports in one guarded runtime beside uiText; browser and integration builds retain their inline parser. Ship that runtime in the VSIX and both ACP packages. Keep every existing cap; give only the new measured artifact its D6 measured-plus-15%-rounded-to-25-KiB cap.
+- [x] Stage the VSIX in the worktree, minify its JSON without changing source tables, check shipped localization bytes, and use a concise marketplace README linking the complete repository guide. Ship Unreleased and the newest two released changelog sections with a full-history link; retain the complete source changelog. Preserve privacy, skills, helpers and every runtime feature. Test exclusions against actual package collection.
+- [x] Measure with the real universal helper extracted from the 0.12.1 release asset (119,342 compressed bytes), then run full quality and the unchanged VSIX gate. Drill new guards, restore byte-exact, update train certification/result and the reviewable PR description. Local hook-on commits only; no merge, push, paid or live model call. The specific brief authorizes full quality and read-only release-asset retrieval despite common.md’s ordinary lane limits.
+
+### DEFAULTS — Available enhancements and interactive daily paid admission (D78)
+
+Scope and acceptance are in D78. The existing paid gate and consent remain
+canonical; the daily adapter reuses M82's journal, while the final HTTP
+guard reserves and settles only interactive extras. No new dependency,
+wire shape or prompt text. Separate `dictationEngine` selection preserves
+the free system default. Test/quality evidence lives in
+`docs/certification/defaults.md`. M91 golden fixtures and M94 Tab are not
+in this base; their integrated-tree proof remains the lead's next step.
 
 Every milestone carries the same certification checklist (§6.0) plus its own
 acceptance criteria. **A milestone is not complete until its checklist passes.**
@@ -6295,6 +6712,27 @@ merged through pull request #7 from `hardening/m26-platform`, shipped in
   signing credentials created.
 
 ### M27 — The tree kill's orphans (D25)
+
+**DEFLAKE2 follow-up (2026-10-04, scoped gates verified):** PR #115's Windows
+shard failed while starting PowerShell to compile the M50 MCP launcher.
+Both M27 and M50 still compile through `Add-Type` under the existing
+20-second process deadline; the reported error lacks termination metadata.
+Remove PowerShell startup/module discovery from their shared build path by
+invoking Windows' .NET Framework C# compiler directly, keeping source-digest
+caching, atomic publication, self-tests and the unchanged deadline. Prove a
+forced PowerShell compile-start failure is avoided for both helpers and run
+real Windows compile/process suites. Preserve compiler diagnostics and
+termination details on failures. Record the precise evidence and any limits
+in `docs/certification/mcp-job-flake.md`; scoped lane gates run on Win11,
+with aggregate quality and hosted CI left to the lead per the lane rules.
+Win11 passed 80 tests across six owned helper/MCP/shell suites, with two
+existing platform skips. Both deliberate regressions fired and the source
+was restored SHA-256-exact. All five compiler projects, scoped lint/format,
+dead code, duplication, localization, host API and production build passed;
+the extension is 553.1 KiB under its unchanged 600 KiB cap. The initial
+CI termination reason remains unavailable; the dependency on PowerShell
+compile startup is removed for both helpers, and future native compiler
+failures include diagnostics and exit/signal/killed metadata.
 
 **JOBFLAKE follow-up (2026-10-03, scoped gates verified):** hosted Windows failures in
 PRs #96 and #89 hid the helper's preparation error and kept its failed
@@ -11838,15 +12276,119 @@ the obsolete bootstrap/reservation/paid policy wording below with v4's policy.
 
 ### M81 — Browser check (D49)
 
+**Status 2026-10-02: lane A1 of design spec v4 built on
+`feature/m81-browser`** (`docs/certification/m81.md`, "v4: lane A1"). The
+owner reversed "no bundled browser": the check runs Google's Chrome for
+Testing headless shell, pinned per release, behind an owned proxy (D-B1(b)).
+Built: the closed failure union (lead ruling v4-M1, first commit); the
+proxy boundary (plain HTTP to implicit loopback or explicit hosts, CONNECT
+only to explicit hosts, auth stripping, bounds); the resolver map; the
+canaries in three phases with the restart tripwire; the two lifetimes
+(preparation 15 minutes, check 60 seconds); the runtime store in
+`dist/browserRuntime.js` (pin, consent from the host, download, bounded ZIP,
+hashes, receipt, publication, verified winner, per-check recheck); the
+`browserCheckRuntime` setting and the Download command; release and weekly
+pin checks. Captured on the Kubuntu, Mac mini (Intel) and Win11 rigs,
+including the forced network-service restart; drilled guard by guard.
+Open, the lead's: A2 (Linux namespace, a later lane); the disposable-CI
+controls of spec §7 (planted policy, synthetic identities, mTLS, DoH, the
+G2 N/N calibration, Windows ambient-auth calibration); a mac-arm64 run (the
+Mac mini is Intel); the Download command's VS Code UI run; the aggregate
+quality gate on the final tree. The record that follows is the superseded
+system-browser design, kept as history.
+
+Review fix 2026-10-04: folder cleanup survives cancellation during creation.
+
+**Status 2026-10-01 (superseded by A1): built and certified** (`docs/certification/m81.md`),
+ported from the 2026-09-28 draft (`b51c5f4c`) and largely rebuilt on the
+release candidate; the independent review RV81 (one P1, four P2) fixed the
+same day, each with a test and a red drill. Decisions taken while building:
+
+- **Two blocks beyond loopback, and a watch.** The Fetch domain is enabled
+  on the browser target, not the page, so it pauses every request of every
+  target (the page, frames in other processes, dedicated and service
+  workers, each redirect leg; probed on Chrome 150, Edge 154 and the
+  154 headless shell), and fails each one that is not http(s) to an
+  allowed host. What Fetch cannot see (a WebSocket handshake, a
+  preconnect, the browser's own traffic) goes to a proxy that does not
+  exist (`--proxy-server=http://127.0.0.1:9`), bypassed only for
+  loopback and the allowed hosts; `<-loopback>` removes Chrome's implicit
+  bypass, which includes link-local 169.254.0.0/16. WebRTC may not send
+  UDP outside the proxy. Every target is watched (RV81): the browser and
+  each target it attaches auto-attach every target they start
+  (`waitForDebuggerOnStart`, flattened), and each is held until its
+  Network events (and Fetch, where it has the domain; a worker does not)
+  are on; one whose watch cannot be set up, or one past
+  `BROWSER_CHECK_MAX_TARGETS` (64), is never let run. A WebSocket or
+  WebTransport beyond the allowed hosts from any of them, or any answer
+  from beyond (a response, a redirect), stops the check and returns
+  nothing from the page.
+- **Refused under a managed proxy policy (RV81).** Mandatory policy
+  outranks the command line, so before any browser starts the check reads
+  where Chrome and Edge keep it (Windows: HKLM and HKCU
+  `SOFTWARE\Policies\Google\Chrome` and `…\Microsoft\Edge`, both registry
+  views, through `reg.exe`; Linux: every file in the Chrome, Chromium and
+  Edge `managed` folders; macOS: the machine's and the user's forced
+  preferences in `/Library/Managed Preferences`, through `plutil`), and
+  refuses with a translated reason, starting nothing, if any policy named
+  Proxy… or a cloud management enrollment token (also its token file on
+  Linux and macOS) is there, or if a location that exists cannot be read.
+  Recommended policy ranks below the command line and is not read. Every
+  location is read for both browsers, whichever was found.
+- **One modal, one scope (RV81).** On Muse Code an open modal is shared
+  only by a call of the same URL and the same widening and allowed hosts,
+  and the setting is read again after the answer: a call whose scope
+  changed meanwhile opens nothing.
+- **An ended check sends nothing more (RV81).** A deadline, a Stop, a leak
+  or a dead pipe closes the CDP connection at once, rejecting every call
+  still waiting, before the browser's kill is awaited; each step checks
+  the connection first.
+- **Bounds on what the page controls (RV81).** A CDP message's whole
+  length is checked against 32 MiB before it is joined or parsed; the URLs
+  of requests in flight are kept per session, cut to 500 characters,
+  dropped when the request finishes or fails, and at most
+  `BROWSER_CHECK_MAX_TRACKED_REQUESTS` (512) at once.
+- **Names are never looked up.** Loopback is `localhost`, 127.0.0.0/8 or
+  `[::1]` as the URL parser writes them; any other name, including one
+  that resolves to loopback, is beyond loopback until the user widens it.
+  The draft's DNS recheck is dropped: it sent page-chosen names to the
+  resolver and raced the request.
+- **Widening.** The machine-scoped `museSpark.browserCheckExtraHosts`
+  takes plain host names or addresses only (no port, path, wildcard or
+  list separator, since each also goes into the proxy bypass list). A
+  card widens one call: on the Model API a host beyond loopback and the
+  setting always gets a card, Bypass included, unless the user chose
+  "Always allow" for that host on one in this session; on Muse Code the
+  extension's modal names the host. Plan and Restricted Mode refuse the
+  check; it is a `network` tool, judged per host like web fetch.
+- **The screenshot** reaches the Model API model as `read_file`'s images
+  do (D47: a user message after the round), not as function output.
+  Muse Code gets text only until a capture shows otherwise (rule 13).
+- **Lifetime.** A check that ends by itself asks the browser to close,
+  then kills it; a deadline, a Stop, a leak or the window closing kills it
+  at once with everything it started (`processTree.killTree`). When the
+  window itself dies, the browser exits with its pipe (drilled on Linux
+  and Windows).
+- **Its own bundle**, `dist/browserCheck.js` (D6 amendment), and the shared
+  English table (`dist/uiText.js`) taken in as its prerequisite.
+- **Left out:** console errors of frames in other processes and of
+  workers (their requests are gated, and their failed ones listed); a
+  bundled browser.
+
 - **Goal.** The model sees its web change working.
 - **Scope.**
-  - A tool that opens a local URL in a headless browser: the system
-    Chrome or Edge over CDP, with no bundled browser.
+  - A tool that opens a local URL in a headless browser over CDP:
+    amended 2026-10-02 (design spec v4, the owner's decision reversing "no
+    bundled browser"), Google's Chrome for Testing headless shell pinned
+    per release and downloaded after consent, not the system Chrome or
+    Edge.
     - CDP over `--remote-debugging-pipe`, never an open port, and a
-      temporary profile, never the user's.
-    - Requests to anything but loopback are blocked, so a page cannot
-      reach the intranet or a metadata address and hand back what it
-      found.
+      fresh private profile, never the user's.
+    - All traffic goes to the check's own proxy, which passes plain HTTP
+      to loopback and widened hosts only, so a page cannot reach the
+      intranet or a metadata address and hand back what it found;
+      `https`/WebSocket tunnels only to a widened host (opaque: residual
+      in §9).
   - It returns a screenshot (image input), the console errors and failed
     requests.
   - It can click or type through a small action list.
@@ -11858,9 +12400,15 @@ the obsolete bootstrap/reservation/paid policy wording below with v4's policy.
   gets the console and failed requests as text.
 - **Acceptance.** No debugging port is opened; a request beyond loopback
   is blocked unless the user widened it; the user's profile is never used.
+  A1 (spec v4): the runtime is the pin's, verified; every canary phase
+  holds or the check refuses; a network-service restart refuses; open
+  until captured on disposable CI: spec §7's unsafe positive controls.
 - **Tests.** A local fixture page with a console error and a failed
-  request; drills for the loopback block and the pipe.
-- **Size.** M.
+  request; drills for the loopback block and the pipe. A1: the proxy, the
+  canaries, the lifetimes, the store and ZIP reader on real folders, the
+  live suite on the pinned runtime, one red drill per guard
+  (`docs/certification/m81.md`).
+- **Size.** M (A1: L).
 
 ### M82 — Awareness and budgets (D49)
 
@@ -14563,6 +15111,67 @@ for RVM91X's seven P1 findings and four of its P2s.
   An allow never grants. A session's dispose kills its children on all
   three platforms. The foreignHooks bundle stays within its D6 budget.
 
+### M99 — What's New after an update (D79)
+
+**Status 2026-10-04: built on `feature/m99-whats-new`; record in
+`docs/certification/m99.md`.** Activation's side is
+`src/host/whatsNew/whatsNew.ts` (the check, the claim, the wait for a quiet
+window, the loader) over `src/core/whatsNew/whatsNewVersions.ts` (semver,
+the install or upgrade decision, the releases a page shows, page or notice).
+`dist/whatsNew.js` is `whatsNewEntry.ts`, `whatsNewPanel.ts` (the tab and
+its messages) and `whatsNewHtml.ts` (the page, the Try it allow list) over
+`src/core/whatsNew/whatsNewContent.ts` (the schema).
+
+- **Goal.** After an update the user sees what changed and can try it, once,
+  in one window, without losing focus or interrupting a turn.
+- **Scope.** D79: the content generator in `npm run build`; the update
+  check, claim and timing; the page, its script and stylesheet; the setting,
+  the command and the palette item; the changelog guard; strings in all 14
+  tables; README, RELEASING, CHANGELOG (with this release's Highlights), the
+  host API record, this plan and `docs/certification/m99.md`.
+- **Acceptance.**
+  1. A fresh install records its version and shows nothing.
+  2. An upgrade shows the page once, in the background, after the window
+     settles; the next activation of that version shows nothing.
+  3. Of several windows activating together, exactly one shows it.
+  4. The same version or a downgrade shows nothing, keeping the newer record.
+  5. The setting off shows nothing (the version is still recorded).
+  6. A fixes-only patch shows the notification; **What's New** opens the
+     page, **Don't show again** turns the setting off.
+  7. Nothing shows while a turn runs or within `WHATS_NEW_QUIET_MS` of an
+     edit.
+  8. A Try it for a command or setting the extension does not contribute
+     fails the build, is never rendered, and is refused if asked for.
+  9. The page has its CSP with the load's nonce, escapes the notes, and opens
+     links through `openExternal` from the host's own list.
+  10. `dist/whatsNew.js` and the page script are not in `dist/extension.js`;
+      the page script carries no package or display table.
+  11. The generator keeps released sections only (`[Unreleased]` excluded)
+      and splits them at their headings.
+  12. A minor release without Highlights fails the changelog test.
+  13. The shipped content keeps only the newest two releases' full notes,
+      plus the newest earlier Highlights when needed; upgrades from before
+      that window still show Highlights and the full-changelog link.
+      `dist/whatsNew.json` has a hard 40 KiB raw budget, red-drilled, and the
+      packaged VSIX is compared with main `bf77aabe` on the same rig.
+- **Tests.** `whatsNewVersions`, `whatsNewContent` (the generator),
+  `whatsNewHtml` (with axe in jsdom), `whatsNewPanel`, `whatsNew`,
+  `whatsNewPage`, `whatsNewBundle` (the shipped bundle against a stand-in
+  `vscode`), `changelogVersion`, `manifest`, `settings`, `App`; each guard
+  red-drilled on a rig.
+- **Gates.** The full quality gate; D6 budgets with the two new rows; the
+  bundle-split gate's new entries; check-l10n; host API.
+- **Certification checklist.**
+  - [x] Acceptance 1–12 with tests and drills (`docs/certification/m99.md`).
+  - [x] Strings in all 14 tables (check-l10n 0 problems).
+  - [x] Full quality gate on Kubuntu at `b23e1181`, exit 0 (m99.md).
+  - [x] Acceptance 13 and FIXM99 review fixes at `696ec15d`: JSON 34,410
+        bytes, hard 40 KiB cap, 282 targeted tests passed, drills fired
+        (win11; m99.md).
+  - [x] Local Windows VSIX 2,102,696 bytes, within 2200 KiB, +36,468 bytes
+        versus main `bf77aabe` on the same rig (without the macOS helper).
+  - [ ] Universal VSIX within its 2200 KiB budget (hosted CI package job).
+
 ### M41 — Install Muse Code from the panel (folded into M55)
 
 **Status 2026-09-25: folded into M55 (D36); built there (PR #43, merged
@@ -14873,6 +15482,112 @@ joined with M57, M58 and PR #49's sign-in
   before sign-in; the key never in a frame, an argument, the environment
   or the log; every gate green.
 
+### M92 — Muse Gadgets support (D71)
+
+- **Goal.** Firmware and device work with Muse Spark Code is safe, with tokens
+  never leaked, and practical, with bounded flash and monitor runs, without
+  duplicating the SDK's own agent guide.
+- **Scope.**
+  - **M92a, tokens:** `src/core/redact.ts` and its consumers; the existing
+    secret warnings; tests; CHANGELOG Security; README, SECURITY.md and
+    PRIVACY where they list secret kinds.
+  - **M92b, bounded runs:** a proof, on Windows, macOS and Linux with fakes,
+    that a timed-out shell command returns its captured output and leaves no
+    process behind (a fake never-ending "monitor" that prints, then sleeps,
+    with a child process). Fix the shell tool only where the proof fails.
+  - **M92c, skill:** `muse_gadgets` in the bundled source (D68's vendor
+    layout, or a first-party folder beside it), the model-facing text, and
+    strings in all 14 tables if any UI names it.
+  - **M92d, docs:** a README "Muse Gadgets" section (what helps, the phone-ping
+    hook recipe after M91, and the never-a-gadget warning); CHANGELOG; this
+    plan.
+  - **M92e, secret guards (lead decision 2026-10-05, approved scope "robust
+    and feature rich"):** the M92a lane found no prompt, commit or shell
+    secret warning anywhere, so M92e builds the three asked-for guards on the
+    ONE shared detection table (`src/core/redact.ts`, no second pattern
+    list):
+    - a prompt holding a detected secret is held before sending: the panel
+      shows a dialog (Send anyway / Edit) and the transcript card carries the
+      redacted text. The host scans a plain composer send, posts
+      `secretPromptDetected` with the redacted text instead of starting the
+      turn, and only sends on with an explicit `secretAccepted` re-post. The
+      browser scans through the same pure table in `src/shared/redact.ts`
+      without importing host or core code. The session store keeps the raw text once the user
+      accepts (resume needs it); the panel transcript, extension logs and
+      extension-rendered exports never hold it. Native CLI session logs
+      remain raw backend records, as the export guide states. Slash-command, review, goal, handoff, loop and
+      `!`-command sends are out of scope: only the plain-message path warns.
+    - the commit guard is skipped: no commit-writing path exists. `git.ts`
+      only runs git, best-of-N snapshots with `write-tree` explicitly without
+      a commit, and review only reads messages and diffs. The user commits
+      outside the extension by definition; a `git commit` the agent proposes
+      as a shell command meets the shell guard.
+    - a shell command holding a detected secret requires explicit approval
+      before execution on the Model API backend: the engine settles it `secretDetected` (no allow-rule or session-rule
+      auto-allow, no Auto reviewer, no session choice, no hook auto-allow),
+      and the controller scrubs every approval card before the panel (the
+      value shown redacted, a secret note, all non-once approve choices
+      dropped) on both backends. The Auto reviewer on Muse Code never sees
+      one (`isReviewableApproval` excludes them). An explicit user approval
+      still runs the command as proposed. Model API Bypass asks too. Muse
+      Code Bypass can execute without an approval event; see the named §9
+      residual, RVM92E-BYPASS-MUSE.
+- **RVM92E corrections (2026-10-04, FIXM92E).** Fix all four P1s and
+  the prompt concurrency, explicit resend and approval-note P2s with failing
+  regressions and byte-exact red drills. The pure shared detection table must
+  also run before the browser creates a user card and when it replays history;
+  place its existing implementation in `src/shared/redact.ts`, keeping the
+  `src/core/redact.ts` entry for existing consumers. Persist redacted draft
+  recovery and redact Markdown content and its filename. Keep all pending
+  sends by local id; Send anyway sends the held text, attachments and reference
+  without consuming a newer composer draft. Scrub every reviewer fallback,
+  redact whole stage lines and omit standing-prefix metadata, remove every
+  non-once approve choice, and propagate update notes. Model API secret shell
+  calls ask in Bypass too, while forbids and denied modes still deny.
+  Muse Code Bypass cannot be intercepted when the CLI sends no approval;
+  record that named redesign residual in §9 and narrow the public claim.
+  The duplication gate also exposes copied M92 secret-dialog boot setup;
+  replace that owned test setup with an initialized UI store, preserving all
+  assertions and the zero-duplication threshold.
+- **Acceptance.**
+  1. A valid `mgst_` token is redacted everywhere the shared table applies, and
+     `scan-secrets` counts it. Near-misses (wrong last character or length,
+     embedded in a word, hyphen-glued overlength runs) are not matched as
+     gadget tokens.
+  2. A shell command with `timeout_ms` that never exits returns its captured
+     output with `isTimedOut: true`, and its process tree is gone afterwards,
+     on all three OSes.
+  3. With bundled skills on, `/muse_gadgets` is listed and loads; with them
+     off, it isn't.
+  4. README states what the extension does and doesn't do with gadgets, with
+     the security warning.
+  5. A prompt holding a detected secret warns before sending (Send anyway /
+     Edit); the transcript card shows the redacted text either way.
+  6. A shell command holding a detected secret shows its card with the value
+     redacted and a secret note and offers no standing approve choice. On
+     Model API it is never auto-approved by an allow rule, a session rule,
+     a hook or the Auto reviewer; on Muse Code every emitted approval is
+     scrubbed and excluded from the reviewer (CLI admission residual in §9).
+- **Tests.** Unit tests for each item, each red-drilled. M92b's process-tree
+  proof runs on the three rigs (targeted files only). No hardware, network or
+  model call is needed.
+- **Gates.** The full quality gate, check-l10n, host-API, VSIX size.
+- **Security.** A token never appears in a fixture literal (fixtures are built
+  at runtime). The skill tells the user to enter tokens themselves. Nothing
+  installs or talks to gadget services. M92e adds no pattern list: every
+  guard reads the one shared table.
+- **Certification checklist.**
+  - [x] M92a: redaction, consumers and warnings, with drills
+        (`docs/certification/m92.md`)
+  - [x] M92b: bounded-run proof (Windows here, macOS/Linux on the rigs;
+        no shell fix needed)
+  - [x] M92c: bundled skill listed, loaded and toggled
+  - [x] M92d: README, CHANGELOG and this record (the phone-ping hook
+        recipe waits on M91)
+  - [x] M92e: prompt and shell secret guards, with drills
+        (`docs/certification/m92.md`); the commit guard skipped, no
+        commit-writing path exists
+
 ## 7. Gates
 
 **FIXM91P4 lane-scope deferrals (2026-10-04, not gate exceptions).** The required
@@ -14905,6 +15620,60 @@ budgets and reruns the production build and full quality gate before landing.
 No cap, threshold, ignore or rule level changed.
 
 **Resolved in integration (lane W, 2026-10-04, accepted by the lead).** The import bundle's cap is 175 KiB under the D6 rule (147.7 KiB measured, plus 15%, rounded up to 25 KiB); see the D6 table.
+**TRAIN13B (2026-10-05).** The owner authorizes recovering the two size
+failures and running the complete quality gate directly on Kubuntu within
+120 minutes. No cap, threshold, skip or user-facing feature may be weakened.
+The earlier TRAIN13 budget stop is historical; current receipts go in the
+same train certification record.
+
+**TRAIN13 release train (2026-10-04, Kubuntu).** Merge the six reviewed
+branches in the owner's order with two-parent commits, preserving all PR
+heads. Resolve only integration breakage; retain D78, D79 and D71 with all
+existing decisions and milestones. Consolidate Unreleased into one Highlights
+list of at most five bullets and the Added/Changed/Fixed/Security sections;
+released sections remain byte-identical to `main-sync`. Regenerate notices,
+the host API inventory and exec schemas. Verify the shared M92 detection table
+still feeds #116's host-to-webview diagnostics and confidential admission,
+then run full `npm run quality` once and the unchanged 2200 KiB VSIX gate.
+A size-budget failure stops this lane and is reported without changing a cap.
+The first combined gate exposed the missing M99 palette tip and stale eager-recall/request-order assertions after D78. Add the tip in every language; bind the concurrency test to parent/child identity and assert recall is absent until packing. Match the monitor probe to the existing MCP Linux zombie check and retain proof that it recognizes a live process. The corrected full run passes static gates and 7,758 tests, but two unchanged checkpoint tests fail under the shared `/tmp` quota (`EDQUOT`); coverage and downstream gates are unverified. The separate build gate fails on webview main (928,507 bytes against 921,600); a private Linux VSIX measurement also fails (2,330,538 against 2,252,800 bytes), without the universal macOS helper. Stop implementation at those budget failures as the brief requires. No cap, timeout, test skip or gate is changed. Quota recovery, full certification and package reduction remain deferred to the lead. Hooks stay on; no push, rebase, live model or paid call. Current evidence and any outstanding gate are in `docs/certification/train-0.13.0.md`.
+
+**MRG116 bounded merge lane (2026-10-04).** The rig brief requires merging
+`main-sync` (M87) into PR #116 with scoped owning tests and static/build
+checks. Its shared rules prohibit this lane from running full quality or
+the full test suite, assigning those checks to the lead. Full quality,
+coverage, accessibility and installed-editor/platform acceptance therefore
+remain required after integration; no gate or threshold is changed.
+Conflict resolutions, generated material, redaction drills and the observed
+Kubuntu results are recorded in `docs/certification/docs-truth-audit-0120.md`.
+
+**MG87c merge (2026-10-04): main's activation diet into M81.** The browser
+check's model text sits by reader under D6's 2026-10-03 rule: `MODEL_TEXT`
+for what activation reads, `MODEL_API_MODEL_TEXT` for the three words only
+the Model API backend says; the refusal table reads them by name. Activation
+is 572.6 of 600 KiB. The shipped-bundle text test allows words a bundle's own
+blocks share with `MODEL_TEXT`, with four red drills. See
+`docs/certification/mg87c.md`.
+
+**MG87b merge (2026-10-04), source proof and explicit deferrals.** Merge `origin/main`
+into M81 while retaining all main bundles, budgets, translations and
+permission behavior. Browser results join M78's live policy fence; best-of-N
+attempts receive no window browser check. The lane runs targeted static
+gates and Kubuntu tests, with hooks on and no origin push; full quality
+remains the lead's gate. Kubuntu passes 7,105 tests; final integration and
+fixture runs pass 672 and 19 tests. Activation is 610.2 KiB against 600: the
+brief assigns its correction to the activation-diet lane. Focused accessibility
+has two missing Chrome results, so no complete browser pass is claimed.
+See `docs/certification/mg87b.md` for resolutions, drills and gate evidence.
+
+**DEFLAKE2 bounded-lane result (2026-10-04).** Direct Win11 owning tests
+and the required static/build gates passed; two deliberate regressions
+failed and were restored byte-exact. The rig brief prohibits integration
+merges/pushes, and `common.md` forbids aggregate quality/full-unit runs in
+this shared lane. Full quality, aggregate coverage, accessibility and the
+hosted Windows recheck remain the lead's gates. No gate or deadline was
+weakened. Evidence: `docs/certification/mcp-job-flake.md`.
+
 **RELFAST3 bounded-lane result (2026-10-04).** Fresh Windows compilers,
 dead-code, duplication, localization, host API, production build, actionlint
 and scoped formatting pass; the fixture's two ESLint style findings are fixed
@@ -14960,6 +15729,12 @@ Blocker for the owner: GitHub's documentation offers merge queues only in
 organization-owned repositories, and this one is user-owned. Until that is
 settled, PRs keep the full tier and no check is weaker than before. Record:
 `docs/certification/ciflow.md`.
+
+**FIXM92E lane boundary (2026-10-04).** The rig brief and shared lane
+rules prohibit aggregate quality/full unit runs and merging in this worktree.
+Use focused owning tests and the required static gates/build, with hooks on;
+full quality, coverage, cross-platform and hosted checks remain the lead's
+integration gate. No gate configuration changes.
 
 **MG69 merged-source proof (2026-10-02).** Kubuntu passes 49 owning/merged
 files (2,056 tests; two existing Windows-only cases platform-skipped), all
@@ -15338,6 +16113,14 @@ Every lint or scanner suppression (`eslint-disable`, `@ts-expect-error`, `nosemg
 | `src/runtime/main.ts`, `exitHeadless`                        | `eslint-disable-next-line unicorn/no-process-exit`   | A standalone headless command owns its process. It must end within the deadline/grace/force bounds even if a pipe or late backend setup never closes, including usage errors. Writes remain async and bounded before exit.                                                                                                                                                                                                                                                                                                                                             | 2026-10-02 |
 | `src/runtime/exec/execClient.ts`, constructor session router | Reflection of SDK 1.4.0's private `builder.handlers` | The SDK's constructor-installed session router validates a closed union before custom notification parsers, dropping future variants. This headless instance uses `request()` and no active-session helpers; remove only its single constructor handler after validating the exact descriptor `client-session-update-router`. The SDK's original builder and public handler/request/connection APIs remain in use. Structural checking fails closed if this pinned seam changes; real JSON-RPC and real-engine tests cover it. No dependency or SDK source is patched. | 2026-10-02 |
 
+**M81 accepted residuals (lead decision, 2026-10-04).** The §7 positive
+controls that change a test machine (planted Chrome policies including G8 DoH,
+G11's synthetic client certificate and test CA, G5/G6's synthetic Windows and
+GSSAPI sign-ins, G4's permissive-proxy control, and G2/G9/G10/G12's reference
+positives) are not built: a safety classifier stopped them, and they are not
+routed around it. Each guard is isolated by its unit and live drills; only the
+real-machine calibration is missing. Details: `docs/certification/m81.md`.
+
 **REL signing decisions (2026-10-02).** The extension relies on the VS Code
 Marketplace's signing of published extensions and does not self-sign the VSIX:
 no new signing credentials or alternate package bytes. GitHub/Open VSX assets
@@ -15376,25 +16159,30 @@ before a repaired one loads (2026-09-30).
 | `src/host/skills/bundledSkills.ts`              | `value is BundledSkillsBundle` (`isBundledSkillsBundle`, a type predicate) | M89: `require` of `dist/bundledSkills.js` returns `unknown`; the guard checks that `bundledSkillsStatus`, `installBundledSkills` and `removeBundledSkills` are functions, not their parameter and result types, which are trusted because entry, loader and package come from one source tree and one build. `bundledSkillsInstall.test.ts` builds the actual entry as `scripts/build.mjs` does, requires it through the loader, installs and removes through it, and refuses a malformed module. | 2026-10-03 |
 | `src/host/review/reviewBundle.ts`               | `value is ReviewBundle`                                                    | Checks the factory function from the same build and package; its signature is trusted as described above and the real built module is exercised.                                                                                                                                                                                                                                                                                                                                                  | 2026-09-30 |
 
-| File                                        | Construct                                                                 | Reason                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 | Added      |
-| ------------------------------------------- | ------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
-| `src/host/backend/toolIo.ts`                | `nosemgrep` on `spawn`, in `startProcess` (`detect-child-process`)        | The command line is the tool's payload by design: the user approved it on a card, and it runs through PowerShell / bash as an argument array, never a shell string. The comment moved with the call into `startProcess` (M72, 2026-09-30), which catches `spawn`'s synchronous throw and reports an unstarted shell; no suppression was added.                                                                                                                                                                                                                                         | 2026-09-22 |
-| `src/host/backend/searchWorker.ts`          | `nosemgrep` on `new RegExp(pattern)` (`detect-non-literal-regexp`)        | The model's search pattern is evaluated on a worker thread that `toolIo.searchOnWorker` terminates at `SEARCH_TIMEOUT_MS`, and the pattern is capped at `SEARCH_PATTERN_MAX_LENGTH`; a runaway match cannot hang the host.                                                                                                                                                                                                                                                                                                                                                             | 2026-09-22 |
-| `src/host/voice/dictationHost.ts`           | `nosemgrep` on two `spawn` calls (`detect-child-process`)                 | The dictation and capture helpers' command lines are fixed by `helperLocation.ts` (Windows PowerShell under `%SystemRoot%` with a bundled script, or the bundled macOS binary with VS Code's own app name (`--app-name`)); M35's Linux recorder is `arecord` or `parec` found by absolute path on PATH, with fixed arguments. Argument arrays; no user, model or workspace input reaches them.                                                                                                                                                                                         | 2026-09-25 |
-| `native/darwin/Dictation.swift`             | `unsafeBitCast(symbol, to: SetDisclaim.self)`                             | `responsibility_spawnattrs_setdisclaim` is a private libsystem call with no header, so it is resolved with `dlsym` and cast to its C signature, `int (posix_spawnattr_t *, int)`, the one Chromium and Qt declare (M28). A missing symbol is handled before the cast (the helper then asks as before); the signature has been stable since macOS 10.14.                                                                                                                                                                                                                                | 2026-09-23 |
-| `src/host/backend/shellJob.ts`              | `catch { }` in the join statement each Windows command starts with        | A command whose job cannot be joined (the assembly removed since the self-test, a policy change) must still run as it would without one; its kill then finds no job, logs that, and falls back to taskkill and the sweep (M27), so the failure is reported where it matters.                                                                                                                                                                                                                                                                                                           | 2026-09-23 |
-| `test/unit/App.test.tsx`                    | `as unknown as Selection` (four stubs)                                    | jsdom offers no usable `Selection`; the quote-menu tests stub the two members the code reads (`toString`, `anchorNode`) and nothing else, so a structural cast is the honest shape. Test-only.                                                                                                                                                                                                                                                                                                                                                                                         | 2026-09-23 |
-| `scripts/capture-themes.mjs`                | `nosemgrep` on `spawn` (`detect-child-process`)                           | A developer script (M37): it starts the VS Code build `@vscode/test-electron` downloaded, with its own fixed arguments, as an argument array with no shell. Nothing from a user, the model or a workspace reaches it, and it never ships.                                                                                                                                                                                                                                                                                                                                              | 2026-09-24 |
-| `scripts/sast.mjs`                          | `nosemgrep` on two `spawnSync` calls (`detect-child-process`)             | The SAST gate's own launcher (M40): it runs `semgrep` or the semgrep executable found in a Python's user Scripts folder, and asks the interpreters in a fixed list (`python`, `python3`, `py`) where that folder is. Every command and argument is the script's own, passed as an argument array with no shell; nothing from a user, the model or a workspace reaches them, and the script never ships.                                                                                                                                                                                | 2026-09-25 |
-| `src/host/backend/mcpProcess.ts`            | `nosemgrep` on `spawn` (`detect-child-process`)                           | A stdio MCP server the user configured in Muse Code's own settings file (M50, D42), started only in a trusted workspace: its command found by absolute path (D24), its arguments passed as an array. A `.cmd`/`.bat` launcher goes through `cmd.exe /d /v:off /s /c` with every part quoted and `"`, `%` and line breaks refused. Nothing the model writes reaches the command line.                                                                                                                                                                                                   | 2026-09-25 |
-| `src/host/backend/mcpJobLaunch.ts`          | `nosemgrep` on `spawn` (`detect-child-process`)                           | On Windows M50 starts only its compiled C# executable in extension storage, with no arguments. The configured command, arguments and allowlisted environment are in a private encoded environment value; C# removes it and builds the server's exact environment before `CreateProcessW`. The server is assigned to its job before its first instruction. Since M56 the launcher's C# ships as `native/windows/MuseSparkMcpLauncher.cs` and the shared `MuseSparkMcpJob.cs`, is read by `jobSourceReader`, and compiles to an executable named by its source's digest (`jobBuild.ts`). | 2026-09-26 |
-| `test/unit/helpers/fakeMcpOrphan.mjs`       | `nosemgrep` on `spawn` (`detect-child-process`)                           | The M50 Windows regression fixture starts only this Node with its own fixed file to test an MCP server whose child outlives it. The child self-exits after 12 seconds; no model or workspace input reaches its command line, and the fixture never ships.                                                                                                                                                                                                                                                                                                                              | 2026-09-25 |
-| `src/host/backend/modelApiBundle.ts`        | `value is ModelApiBundle` (`isModelApiBundle`, a type predicate)          | `require` of `dist/modelApi.js` returns `unknown`; the guard checks that `createModelApiHost` is a function, but not its parameter and result types, which no run-time check can see. Both bundles come from one source tree in one `npm run build` and ship in one package, this module types the factory on both sides, and `modelApiBundle.test.ts` builds the real bundle and runs a turn through it (M57).                                                                                                                                                                        | 2026-09-27 |
-| `src/host/codeIntel/languageServices.ts`    | `Reflect.get(edit, '_allEntries')`, an undocumented member                | VS Code's `WorkspaceEdit` API lists only text edits (`entries()`, and `size` counts them), so a rename that also moves or creates files looks plain. The internal `_allEntries()` (1.99.0 to 1.139.0) lists every entry with its `_type`; it is read as `unknown` and parsed with zod, and a missing member or a changed shape answers `unknown`, which refuses the rename rather than applying half of it (M67). `languageServices.test.ts` and the integration suite cover both.                                                                                                     | 2026-09-28 |
-| `src/runtime/main.ts`                       | `nosemgrep` on `spawn` (`detect-child-process`)                           | The ACP agent's `login` (M63, D62) runs `muse login` in the user's terminal the way the agent starts `muse serve`: the command is the CLI `MuseCodeBackendManager.resolveLaunch` found (the install layout, `PATH`, or an absolute `--muse-binary` that must exist, D1a, D4), the arguments its launcher's fixed prefix and `MUSE_LOGIN_ARGS`, passed as an array with no shell. Nothing from an editor, the model or a workspace reaches it. Found by the first local SAST run on PR #32's code (2026-09-27).                                                                         | 2026-09-27 |
-| `src/webview/components/HeartbeatTrace.tsx` | `eslint-disable-next-line unicorn/prefer-path2d` on the tick segment path | The beam draws a new 0.5 px segment at its current position every 6 ms tick; a reused `Path2D` would freeze the beam at its first segment. The suppression covers only this `beginPath`, with the reason inline.                                                                                                                                                                                                                                                                                                                                                                       | 2026-10-04 |
-| -------------------------------------       | ------------------------------------------------------------------        | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
-| `test/unit/verifyEditor.test.ts`            | `as unknown as` on five `vscode` stubs                                    | The `vscode` mock has no `TextDocument`, `TextEditor`, `Diagnostic`, `TextEdit` or `WorkspaceConfiguration` classes; the M68 verify editor's tests stub only the members it reads (a document's `uri`, `isDirty`, `eol`, `getText`, `offsetAt`; an editor's `document.uri`; a diagnostic's severity, range start, message and source; an edit's range and text; a configuration's `get`), so a structural cast is the honest shape. Test-only.                                                                                                                                         | 2026-09-28 |
+| File                                        | Construct                                                                    | Reason                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 | Added      |
+| ------------------------------------------- | ---------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
+| `src/host/backend/toolIo.ts`                | `nosemgrep` on `spawn`, in `startProcess` (`detect-child-process`)           | The command line is the tool's payload by design: the user approved it on a card, and it runs through PowerShell / bash as an argument array, never a shell string. The comment moved with the call into `startProcess` (M72, 2026-09-30), which catches `spawn`'s synchronous throw and reports an unstarted shell; no suppression was added.                                                                                                                                                                                                                                         | 2026-09-22 |
+| `src/host/backend/searchWorker.ts`          | `nosemgrep` on `new RegExp(pattern)` (`detect-non-literal-regexp`)           | The model's search pattern is evaluated on a worker thread that `toolIo.searchOnWorker` terminates at `SEARCH_TIMEOUT_MS`, and the pattern is capped at `SEARCH_PATTERN_MAX_LENGTH`; a runaway match cannot hang the host.                                                                                                                                                                                                                                                                                                                                                             | 2026-09-22 |
+| `src/host/voice/dictationHost.ts`           | `nosemgrep` on two `spawn` calls (`detect-child-process`)                    | The dictation and capture helpers' command lines are fixed by `helperLocation.ts` (Windows PowerShell under `%SystemRoot%` with a bundled script, or the bundled macOS binary with VS Code's own app name (`--app-name`)); M35's Linux recorder is `arecord` or `parec` found by absolute path on PATH, with fixed arguments. Argument arrays; no user, model or workspace input reaches them.                                                                                                                                                                                         | 2026-09-25 |
+| `native/darwin/Dictation.swift`             | `unsafeBitCast(symbol, to: SetDisclaim.self)`                                | `responsibility_spawnattrs_setdisclaim` is a private libsystem call with no header, so it is resolved with `dlsym` and cast to its C signature, `int (posix_spawnattr_t *, int)`, the one Chromium and Qt declare (M28). A missing symbol is handled before the cast (the helper then asks as before); the signature has been stable since macOS 10.14.                                                                                                                                                                                                                                | 2026-09-23 |
+| `src/host/backend/shellJob.ts`              | `catch { }` in the join statement each Windows command starts with           | A command whose job cannot be joined (the assembly removed since the self-test, a policy change) must still run as it would without one; its kill then finds no job, logs that, and falls back to taskkill and the sweep (M27), so the failure is reported where it matters.                                                                                                                                                                                                                                                                                                           | 2026-09-23 |
+| `test/unit/App.test.tsx`                    | `as unknown as Selection` (four stubs)                                       | jsdom offers no usable `Selection`; the quote-menu tests stub the two members the code reads (`toString`, `anchorNode`) and nothing else, so a structural cast is the honest shape. Test-only.                                                                                                                                                                                                                                                                                                                                                                                         | 2026-09-23 |
+| `scripts/capture-themes.mjs`                | `nosemgrep` on `spawn` (`detect-child-process`)                              | A developer script (M37): it starts the VS Code build `@vscode/test-electron` downloaded, with its own fixed arguments, as an argument array with no shell. Nothing from a user, the model or a workspace reaches it, and it never ships.                                                                                                                                                                                                                                                                                                                                              | 2026-09-24 |
+| `scripts/sast.mjs`                          | `nosemgrep` on two `spawnSync` calls (`detect-child-process`)                | The SAST gate's own launcher (M40): it runs `semgrep` or the semgrep executable found in a Python's user Scripts folder, and asks the interpreters in a fixed list (`python`, `python3`, `py`) where that folder is. Every command and argument is the script's own, passed as an argument array with no shell; nothing from a user, the model or a workspace reaches them, and the script never ships.                                                                                                                                                                                | 2026-09-25 |
+| `src/host/backend/mcpProcess.ts`            | `nosemgrep` on `spawn` (`detect-child-process`)                              | A stdio MCP server the user configured in Muse Code's own settings file (M50, D42), started only in a trusted workspace: its command found by absolute path (D24), its arguments passed as an array. A `.cmd`/`.bat` launcher goes through `cmd.exe /d /v:off /s /c` with every part quoted and `"`, `%` and line breaks refused. Nothing the model writes reaches the command line.                                                                                                                                                                                                   | 2026-09-25 |
+| `src/host/backend/mcpJobLaunch.ts`          | `nosemgrep` on `spawn` (`detect-child-process`)                              | On Windows M50 starts only its compiled C# executable in extension storage, with no arguments. The configured command, arguments and allowlisted environment are in a private encoded environment value; C# removes it and builds the server's exact environment before `CreateProcessW`. The server is assigned to its job before its first instruction. Since M56 the launcher's C# ships as `native/windows/MuseSparkMcpLauncher.cs` and the shared `MuseSparkMcpJob.cs`, is read by `jobSourceReader`, and compiles to an executable named by its source's digest (`jobBuild.ts`). | 2026-09-26 |
+| `test/unit/helpers/fakeMcpOrphan.mjs`       | `nosemgrep` on `spawn` (`detect-child-process`)                              | The M50 Windows regression fixture starts only this Node with its own fixed file to test an MCP server whose child outlives it. The child self-exits after 12 seconds; no model or workspace input reaches its command line, and the fixture never ships.                                                                                                                                                                                                                                                                                                                              | 2026-09-25 |
+| `src/host/backend/modelApiBundle.ts`        | `value is ModelApiBundle` (`isModelApiBundle`, a type predicate)             | `require` of `dist/modelApi.js` returns `unknown`; the guard checks that `createModelApiHost` is a function, but not its parameter and result types, which no run-time check can see. Both bundles come from one source tree in one `npm run build` and ship in one package, this module types the factory on both sides, and `modelApiBundle.test.ts` builds the real bundle and runs a turn through it (M57).                                                                                                                                                                        | 2026-09-27 |
+| `src/host/codeIntel/languageServices.ts`    | `Reflect.get(edit, '_allEntries')`, an undocumented member                   | VS Code's `WorkspaceEdit` API lists only text edits (`entries()`, and `size` counts them), so a rename that also moves or creates files looks plain. The internal `_allEntries()` (1.99.0 to 1.139.0) lists every entry with its `_type`; it is read as `unknown` and parsed with zod, and a missing member or a changed shape answers `unknown`, which refuses the rename rather than applying half of it (M67). `languageServices.test.ts` and the integration suite cover both.                                                                                                     | 2026-09-28 |
+| `src/runtime/main.ts`                       | `nosemgrep` on `spawn` (`detect-child-process`)                              | The ACP agent's `login` (M63, D62) runs `muse login` in the user's terminal the way the agent starts `muse serve`: the command is the CLI `MuseCodeBackendManager.resolveLaunch` found (the install layout, `PATH`, or an absolute `--muse-binary` that must exist, D1a, D4), the arguments its launcher's fixed prefix and `MUSE_LOGIN_ARGS`, passed as an array with no shell. Nothing from an editor, the model or a workspace reaches it. Found by the first local SAST run on PR #32's code (2026-09-27).                                                                         | 2026-09-27 |
+| `src/webview/components/HeartbeatTrace.tsx` | `eslint-disable-next-line unicorn/prefer-path2d` on the tick segment path    | The beam draws a new 0.5 px segment at its current position every 6 ms tick; a reused `Path2D` would freeze the beam at its first segment. The suppression covers only this `beginPath`, with the reason inline.                                                                                                                                                                                                                                                                                                                                                                       | 2026-10-04 |
+| -------------------------------------       | ------------------------------------------------------------------           | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
+| `test/unit/verifyEditor.test.ts`            | `as unknown as` on five `vscode` stubs                                       | The `vscode` mock has no `TextDocument`, `TextEditor`, `Diagnostic`, `TextEdit` or `WorkspaceConfiguration` classes; the M68 verify editor's tests stub only the members it reads (a document's `uri`, `isDirty`, `eol`, `getText`, `offsetAt`; an editor's `document.uri`; a diagnostic's severity, range start, message and source; an edit's range and text; a configuration's `get`), so a structural cast is the honest shape. Test-only.                                                                                                                                         | 2026-09-28 |
+| `src/core/browser/canaries.ts`              | `nosemgrep` on a plain WebSocket URL (`detect-insecure-websocket`)           | Canary C2 (M81 A1, design spec v4 §7): the probe page opens a plain WebSocket to a reserved `.invalid` nonce name so that its CONNECT can be seen refused at the check's own proxy; it never connects and nothing is sent over it. Canary C5w (review round 1): a plain WebSocket to a loopback host the user did not widen, at the phase's own fixture port, refused the same way.                                                                                                                                                                                                    | 2026-10-02 |
+| `src/host/browser/browserProcess.ts`        | `nosemgrep` on `spawn` (`detect-child-process`)                              | The browser check (M81 A1, D49) starts only the pinned Chrome for Testing headless shell at the absolute path the runtime bundle verified against `browserRuntime.json` in the extension's own storage (never PATH, a system browser or a workspace file), its identity read again just before, as an argument array with no shell: the fixed flags of `BROWSER_LAUNCH_FLAGS`, the check's own proxy endpoint and profile, and a projected environment. The model's URL and steps go over the CDP pipe, never on the command line.                                                     | 2026-10-02 |
+| `src/host/browser/browserProcess.ts`        | `nosemgrep` on `execFile` (`detect-child-process`)                           | The tree kill of the check's own browser on Windows: `taskkill.exe` by its absolute path under `SystemRoot` with `/PID <the browser's pid> /T /F`, an argument array, no shell. POSIX kills the browser's own process group instead.                                                                                                                                                                                                                                                                                                                                                   | 2026-10-02 |
+| `src/host/browser/browserChecks.ts`         | `value is BrowserCheckBundle` (`isBrowserCheckBundle`, a type predicate)     | `require` of `dist/browserCheck.js` returns `unknown`; the guard checks that `runBrowserCheck` is a function, not its parameter and result types. Entry, loader and package come from one source tree and one `npm run build` (M81, the checkpoint store's pattern); the real runner is exercised against real browsers by `browserCheckLive.test.ts`, and a missing or malformed bundle refuses the check and is read again later.                                                                                                                                                    | 2026-10-01 |
+| `src/host/browser/browserChecks.ts`         | `value is BrowserRuntimeBundle` (`isBrowserRuntimeBundle`, a type predicate) | `require` of `dist/browserRuntime.js` returns `unknown`; the guard checks that `prepareRuntime` is a function. The same build, pattern and refusal as the check's bundle (M81 A1); the real store is exercised end to end by `runtimeStore.test.ts` on real folders and by the rigs' runs of the built bundles.                                                                                                                                                                                                                                                                        | 2026-10-02 |
 
 | File                             | Construct                                                                      | Reason                                                                                                                                                                                                                                                                                                      | Added      |
 | -------------------------------- | ------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
@@ -15446,7 +16234,12 @@ before a repaired one loads (2026-09-30).
   guard that cannot start fails as its source fails. Follow-up: one Win11
   VM run of a Copilot and a Cline guard, and the live check in M91's plan.
 
-- **M91-W-knip-constants (dead-code gate).** knip 6.38.0 records no export
+- **M91-W-knip-constants (dead-code gate). Resolved by
+  `fix/knip-constants` (`5b3f2614`, 0.14.0 batch):** `execSchema.test.ts`'s
+  `Object.entries(constants)` marked every export used, and knip's defaults
+  left namespace imports unchecked; the fix imports by name and turns on
+  knip's namespace checks, and planted value and type drills exit 1. The
+  record as found: knip 6.38.0 recorded no export
   of `src/shared/constants.ts` at all. `--trace-export` finds none of them,
   `WINDOWS_POWERSHELL_COMMAND_ARGS` included, while it traces
   `ModelApiHost.ts` (461 KB) and `paid.ts`. oxc-parser reads the file with
@@ -15455,9 +16248,8 @@ before a repaired one loads (2026-09-30).
   `vi.mock` tests aside changes nothing. Drill W22: an unused export there
   leaves knip at exit 0; the same export in `paid.ts` exits 1.
 
-  Safe for now: a dead constant costs bytes, not behaviour, and each lane
-  checks its constants by search, as lane 0 did. Follow-up: a separate lane
-  finds the cause and re-runs W22 until knip exits 1.
+  It was safe meanwhile: a dead constant costs bytes, not behaviour, and
+  each lane checked its constants by search, as lane 0 did.
 
 - **M91 lane P source qualifications (RVM91P3).** The adapters remain unwired
   in this lane. `blockOperation: true` on an unsupported blocking stdin is an
@@ -15509,6 +16301,23 @@ before a repaired one loads (2026-09-30).
   foreign-record boundary above. Follow-up W/X: invoke sourceEntry.path as
   a path under live canonical scope and workspace trust checks immediately
   before spawning, and prove the real Unix and Windows execution paths.
+- **M92e-COMMIT-STAGED (architectural skip, 2026-10-04):** the extension
+  has no dedicated commit-writing path. A model's `git commit` goes through
+  the shell-command guard, which scans the command text and does not inspect
+  staged contents. Safe within the current contract, which claims no staged
+  diff refusal; users commit outside the extension and the skill prohibits
+  token-bearing files. Follow-up: staged-diff refusal if a native commit flow
+  is introduced (the review explicitly permitted this skip).
+
+- **RVM92E-BYPASS-MUSE (P2, 2026-10-04):** Muse Code in Bypass receives
+  `allowAll` and may execute a secret-bearing shell command without emitting
+  an approval. The extension cannot inspect an event it never receives.
+  Changing that requires redesigning CLI execution admission or disabling
+  Bypass, beyond this lane's files and the instruction not to widen guards.
+  Model API Bypass is fixed to ask; every emitted CLI approval is scrubbed
+  and offers only one-time approval. Safe for the current explicit Bypass
+  contract, with the exception stated in README/CHANGELOG. Follow-up: lead
+  decision on CLI admission/BYPASS support before claiming universal asks.
 
 - Code intelligence (M67) shows what VS Code's language services say. A
   result located outside the workspace is left out and a hover defined only
@@ -15528,6 +16337,22 @@ before a repaired one loads (2026-09-30).
   auto-approves outside the mode the user selected; the one automatic answer
   is "Edit automatically" allowing a plain file write once (D24), never a
   protected write, an escalation or a command.
+- Muse Code's unasked file writes (musecode-write-asks, D12 update). Muse
+  Code 1.4.2 raises an approval only for file writes to `.git`, `.muse` and
+  `.agents`; every other file-tool write runs without one in every mode,
+  Plan included, and without the sandbox that reaches any path the user can
+  write. The extension cannot add rules over MSP and does not write Muse
+  Code's settings or the repository's hooks file to add a PreToolUse block.
+  Mitigations: the sandbox stays on wherever it works (every workspace but
+  a Windows profile one, #26), the panel warns once per window when it is
+  off, Diagnostics says where the file tools can write, and the docs say
+  what Plan does on Muse Code and that a workspace outside the profile
+  keeps the sandbox. Residual, accepted until Muse Code changes: in the
+  workspace, a prompt-injected turn can write other agents' configuration
+  (`.claude/settings.json`) unasked in any mode; with the sandbox off
+  (`off`, or `auto` in a Windows profile workspace, which is most Windows
+  workspaces) it can write anywhere the user can, the Auto reviewer's
+  Plan-mode side session included before its cancellation lands.
 - The Model API backend (M7) executes tools in-process. The controls (D24):
   path confinement by canonical path (links and junctions resolved, Windows
   reinterpreted names refused), protected writes that always ask, per-call
@@ -15536,9 +16361,70 @@ before a repaired one loads (2026-09-30).
   confirmed once in a remote window. Residual risk: a file swapped for a link
   between the check and the write (a local attacker already inside the
   workspace); the check runs immediately before each operation.
+- Other coding agents' folders and files (2026-10-04,
+  `docs/certification/protect-agent-folders.md`): `.claude`, `.codex`,
+  `.cursor`, `.gemini`, `.github/hooks`, `.github/copilot`, `.devin`,
+  `.windsurf`, `.kiro`, `.clinerules`, `.amp`, `.opencode`, `.continue` and
+  `.roo` hold hooks, MCP servers, plugins and settings that those agents
+  run outside our approvals, and `.mcp.json`, `opencode.json` and
+  `opencode.jsonc` name MCP servers they start, so all are protected writes
+  (D24) like `.muse`. The instruction files (`AGENTS.md`, `CLAUDE.md`,
+  `GEMINI.md`, `.cursorrules`, `.windsurfrules`, `.roomodes`,
+  `.clinerules`, `.github/copilot-instructions.md`) run nothing, but they
+  are protected too: they steer the next agent that reads them, so an
+  instruction a prompt injection plants there persists after the
+  conversation (prompt-injection persistence). Roo Code's and Continue's
+  paths are from their documentation (Roo: `.roomodes` at the root,
+  `.roo/rules*`, `.roo/mcp.json`; Continue: `.continue/rules`,
+  `.continue/mcpServers`; both start stdio MCP servers as local commands).
+  Residual risks: (1) a shell command, an MCP tool or a Best-of-N attempt in
+  its own worktree can still write there; the extension does not parse
+  commands for paths, so the command's own card (every mode but Bypass,
+  unless a rule or the Auto reviewer allows it) is the control; (2) on Muse
+  Code the CLI decides which writes ask. The extension judges every Muse
+  Code `fileAccess` write it is asked about by the same list, on the
+  absolute path Muse Code names (captured 2026-10-04: `\\?\C:\…\.muse\hooks.json`),
+  so one outside the workspace counts too: it is shown as protected, Edit
+  automatically and the M90 reviewer never answer it, and its card drops
+  Muse Code's standing "Always allow" choices. A workspace inside a
+  protected folder makes every such write ask, which only asks more. What
+  Muse Code writes without asking never reaches the extension: the same
+  capture, with the sandbox off (the extension's posture for a workspace
+  under the user's profile) and in Manual, wrote `.claude/settings.json`
+  and a file outside the workspace with no approval. That is Muse Code's
+  policy, to be raised upstream; (3)
+  names matched by pattern rather than exactly are not protected: Roo's
+  `.roorules-<mode>` fallback and Copilot's
+  `.github/instructions/*.instructions.md`.
 - Programs are started by absolute path (D24): git, bash and PowerShell from
   absolute `PATH` entries, the CLI from its install layout or an absolute
   `museBinaryPath`; git never runs in Restricted Mode.
+- The browser check (M81 A1, D49; design spec v4) runs the page's own code
+  in Google's Chrome for Testing headless shell, the version this release
+  pins, downloaded only after consent, verified by length and SHA-256 with a
+  bounded ZIP reader and checked again before each check, over the
+  debugging pipe, in a fresh private profile. Its traffic goes to the
+  check's own proxy on 127.0.0.1 (the command line's, Chrome's implicit
+  loopback bypass subtracted, and the private context's): plain HTTP only to
+  loopback or a widened host, sign-in challenges and credentials stripped
+  both ways, CONNECT only to a widened host. The browser's resolver rule
+  fails every name but the loopback literals (traced on Linux: no query for
+  a page's, an ICE server's or a `.local` name; the same names queried with
+  the rule removed). The check's canaries, in default, page and audit
+  phases, must show the route, the stripping, WebRTC and WebTransport held,
+  and a network-service restart refuses the check. Residual risk: `https`
+  and WebSocket tunnels to a widened host are opaque to the proxy, and the
+  site there may use the machine's account (Windows integrated sign-in
+  especially); this is the browser's own construction checked at runtime,
+  not an OS or kernel boundary (A2, a Linux namespace, is a later lane);
+  the network service runs with the pin's own sandbox settings. A window
+  that dies mid-check leaves its check folder under the extension's
+  storage, swept by a later check once its owner process is gone. The page
+  runs as any page in a browser does; the check does not make the user's
+  dev server safer.
+- The `ide` server's browser check widens to a host beyond loopback only
+  with the user's answer in the extension's modal; a Model API check only
+  with a card for that host (Bypass included) or an "always" chosen on one.
 - Ending a stopped command on Windows (M27): each command runs in a job
   object, so everything it starts ends with it. Residual risk where no job
   can be made (Constrained Language Mode, which forbids `Add-Type`; the log

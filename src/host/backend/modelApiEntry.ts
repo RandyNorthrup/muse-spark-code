@@ -7,6 +7,7 @@
 // bundle's table before it builds anything. The English fallback remains
 // available when this backend is loaded outside the extension.
 
+import path from 'node:path'
 import { ModelApiClient } from '../../core/backends/modelapi/client'
 import type { ExtensionHookDefinition } from '../../core/backends/modelapi/extensionHooks'
 import {
@@ -16,16 +17,36 @@ import {
 } from '../../core/backends/modelapi/hooks'
 import { McpServerPool } from '../../core/backends/modelapi/mcp/pool'
 import { ModelApiHost } from '../../core/backends/modelapi/ModelApiHost'
+import { SPARK_HOOKS_SEGMENTS } from '../../shared/constants'
 import { setUiText } from '../../shared/l10n/text'
 import type { ModelApiBundleDeps } from './modelApiBundle'
 
 /**
+ * Whether a spark-hooks.json exists, user's or project's, in a trusted
+ * workspace: only then do its readers' bundles load (M91, D6). Hooks are on
+ * by default (D78), so a session without the file never loads them. One byte
+ * at most is read; the readers confine and check the file themselves.
+ */
+async function hasSparkHooksFile(sources: HookLoadDeps): Promise<boolean> {
+  if (!sources.isWorkspaceTrusted()) return false
+  const files = [
+    path.join(path.dirname(sources.settingsPath), SPARK_HOOKS_SEGMENTS.user[1]),
+    path.join(sources.workspaceRoot, ...SPARK_HOOKS_SEGMENTS.project),
+  ]
+  for (const file of files) {
+    if ((await sources.io.readFile(file, 0)) !== undefined) return true
+  }
+  return false
+}
+
+/**
  * Hooks imported in another agent's format, read by the adapters' own bundle
- * (dist/foreignHooks.js, M91 lane W) only when hooks are on. A bundle that
- * cannot load leaves them out and says so in the log, as an unreadable file
- * does.
+ * (dist/foreignHooks.js, M91 lane W) when a spark-hooks.json exists. A bundle
+ * that cannot load leaves them out and says so in the log, as an unreadable
+ * file does.
  */
 async function loadForeignHooks(sources: HookLoadDeps): Promise<readonly HookDefinition[]> {
+  if (!(await hasSparkHooksFile(sources))) return []
   let entry
   try {
     entry = await import('../../core/backends/modelapi/foreignHooksEntry.js')
@@ -38,6 +59,7 @@ async function loadForeignHooks(sources: HookLoadDeps): Promise<readonly HookDef
 
 /** spark-hooks.json's extension-event hooks, read by the hook runtime (M91). */
 async function loadSparkHooks(sources: HookLoadDeps): Promise<readonly ExtensionHookDefinition[]> {
+  if (!(await hasSparkHooksFile(sources))) return []
   let entry
   try {
     entry = await import('../../core/backends/modelapi/hookRuntimeEntry.js')

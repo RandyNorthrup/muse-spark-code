@@ -325,6 +325,26 @@ describe('showMcpServers on the Model API backend (M50)', () => {
     })
   })
 
+  it('redacts failed MCP connection detail in the picker', async () => {
+    const secret = `ghp_${'a'.repeat(36)}`
+    const t = harness({
+      settings: FIVE_SERVERS,
+      modelApi: {
+        snapshot: {
+          ...LIVE,
+          servers: LIVE.servers.map((server) => ({
+            ...server,
+            state: { status: 'failed', reason: `connection failed: ${secret}` },
+          })),
+        },
+      },
+    })
+    await showMcpServers(t.deps)
+    const detail = t.picks[0]?.items.find((item) => item.id === 'server:docs')?.detail
+    expect(detail).toContain('connection failed: [redacted]')
+    expect(detail).not.toContain(secret)
+  })
+
   it('says a server starts with the next message before any has, and that none load after a fault', async () => {
     const before = harness({ settings: FIVE_SERVERS, modelApi: { snapshot: undefined } })
     await showMcpServers(before.deps)

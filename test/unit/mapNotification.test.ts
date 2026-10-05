@@ -612,3 +612,13 @@ describe('mapNotification: the M46 capture', () => {
     })
   })
 })
+
+it('redacts failed-turn diagnostics before MSP event subscribers receive them', () => {
+  const secret = `ghp_${'a'.repeat(36)}`
+  const mapped = mapNotification({
+    method: 'turn/completed',
+    params: { sessionId: 's1', turnId: 't1', terminal: 'failed', reason: secret },
+  })
+  expect(mapped).toMatchObject({ event: { type: 'turnCompleted', reason: '[redacted]' } })
+  expect(JSON.stringify(mapped)).not.toContain(secret)
+})

@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { scrubSecretApproval } from '../../src/core/agent/approvalSecrets'
 import type { AgentEvent, ItemSnapshot } from '../../src/shared/agentEvents'
 import { UI_TEXT } from '../../src/shared/constants'
 import type { AttachmentSummary, HostToWebviewMessage } from '../../src/shared/protocol'
@@ -4074,5 +4075,202 @@ describe('uiReducer: share files read-only (M84)', () => {
     const other = host({ type: 'historyLoaded', sessionId: 'old', items: [], todos: [] })
     expect(reduceAll([imported, other]).isImported).toBe(false)
     expect(uiReducer(reduceAll([imported]), { type: 'conversationCleared' }).isImported).toBe(false)
+  })
+})
+
+describe('uiReducer: the secret-prompt hold (M92e, PLAN.md D71)', () => {
+  // Built at runtime: no secret-shaped literal sits in the repository.
+  const text = `deploy with sk-${'k'.repeat(24)} now`
+  const redacted = 'deploy with [redacted] now'
+  const submit = {
+    type: 'submitted',
+    localId: 'l1',
+    text,
+    attachments: [],
+    contextLabel: undefined,
+  } as const
+  const held = host({ type: 'secretPromptDetected', localId: 'l1', redactedText: redacted })
+
+  it('redacts the first card and persisted draft recovery before the host hold (RVM92E P1)', () => {
+    const secret = `mgst_${'A'.repeat(42)}A`
+    const state = reduceAll([
+      { type: 'draftChanged', draft: `use ${secret}` },
+      { ...submit, text: `use ${secret}` },
+    ])
+    expect(state.transcript[0]).toMatchObject({ text: 'use [redacted]' })
+    expect(JSON.stringify(webviewStateOf(state, true)).includes(secret)).toBe(false)
+  })
+
+  it('redacts accepted user history on replay and persistence (RVM92E P1)', () => {
+    const secret = `mgst_${'A'.repeat(42)}A`
+    const state = reduceAll([
+      host({
+        type: 'historyLoaded',
+        sessionId: 's1',
+        todos: [],
+        items: [{ itemId: 'u1', kind: 'userMessage', status: 'completed', text: `use ${secret}` }],
+      }),
+    ])
+    expect(state.transcript[0]).toMatchObject({ text: 'use [redacted]' })
+    expect(JSON.stringify(webviewStateOf(state, true)).includes(secret)).toBe(false)
+  })
+
+  it('keeps a valid older hold after another send and preserves the newer draft (RVM92E P2)', () => {
+    const chip = { id: 'img1', name: 'first.png', mediaType: 'image/png', sizeBytes: 1 }
+    const reference = { intent: 'reply', role: 'assistant', entryId: 'e1', text: 'why?' } as const
+    const state = reduceAll([
+      { type: 'draftChanged', draft: text },
+      { ...submit, attachments: [chip], reference },
+      { type: 'draftChanged', draft: 'second send' },
+      { ...submit, localId: 'l2', text: 'second send' },
+      { type: 'draftChanged', draft: 'newer draft' },
+      held,
+    ])
+    expect(state.secretPrompt).toMatchObject({
+      draft: text,
+      redactedText: redacted,
+      attachments: [chip],
+      reference,
+    })
+    expect(state.draft).toBe('newer draft')
+    expect(state.pendingSendDraft?.localId).toBe('l2')
+    expect(state.unsentAttachments['l1']).toBeUndefined()
+    expect(state.transcript.map((entry) => entry.id)).toEqual(['l2'])
+  })
+
+  it('queues two valid secret holds instead of replacing the first warning (RVM92E P2)', () => {
+    const twice = reduceAll([
+      { type: 'draftChanged', draft: text },
+      submit,
+      { type: 'draftChanged', draft: text + ' again' },
+      { ...submit, localId: 'l2', text: text + ' again' },
+      held,
+      host({ type: 'secretPromptDetected', localId: 'l2', redactedText: redacted + ' again' }),
+    ])
+    expect(twice.secretPrompt?.draft).toBe(text)
+    const next = uiReducer(twice, { type: 'secretPromptDismissed' })
+    expect(next.secretPrompt?.draft).toBe(text + ' again')
+    expect(uiReducer(next, { type: 'secretPromptDismissed' }).secretPrompt).toBeUndefined()
+  })
+
+  it('drops holds and pending raw drafts when another session replaces the conversation', () => {
+    const armed = reduceAll([
+      { type: 'draftChanged', draft: text },
+      submit,
+      held,
+      { type: 'draftChanged', draft: 'another pending send' },
+      { ...submit, localId: 'l2', text: 'another pending send' },
+    ])
+    const replaced = reduceAll(
+      [host({ type: 'historyLoaded', sessionId: 'other', todos: [], items: [] })],
+      armed,
+    )
+    expect(replaced.secretPrompt).toBeUndefined()
+    expect(replaced.secretPromptQueue).toEqual([])
+    expect(replaced.pendingSendDrafts).toEqual({})
+    expect(replaced.pendingSendDraft).toBeUndefined()
+  })
+
+  it('returns hidden held attachments to the composer when Edit dismisses an older hold', () => {
+    const chip = { id: 'img1', name: 'first.png', mediaType: 'image/png', sizeBytes: 1 }
+    const armed = reduceAll([
+      { type: 'draftChanged', draft: text },
+      { ...submit, attachments: [chip] },
+      { type: 'draftChanged', draft: 'newer draft' },
+      held,
+    ])
+    expect(armed.attachments).toEqual([])
+    const edited = uiReducer(armed, { type: 'secretPromptDismissed' })
+    expect(edited.attachments).toEqual([chip])
+    expect(edited.draft).toBe('newer draft')
+  })
+
+  it('removes the optimistic card, restores the draft and arms Send anyway', () => {
+    const state = reduceAll([{ type: 'draftChanged', draft: text }, submit, held])
+    expect(state.transcript).toEqual([])
+    expect(state.draft).toBe(text)
+    expect(state.secretPrompt).toMatchObject({ draft: text, redactedText: redacted })
+    expect(state.announcement?.text).toBe(UI_TEXT.secretPromptTitle)
+  })
+
+  it('shows the redacted text on the accepted resend', () => {
+    const state = reduceAll([
+      { type: 'draftChanged', draft: text },
+      submit,
+      held,
+      {
+        type: 'submitted',
+        localId: 'l2',
+        isSecretResend: true,
+        text,
+        attachments: [],
+        contextLabel: undefined,
+      },
+    ])
+    expect(state.secretPrompt).toBeUndefined()
+    expect(state.transcript).toEqual([
+      { kind: 'user', seq: 2, id: 'l2', text: redacted, status: 'pending', attachments: [] },
+    ])
+  })
+
+  it('scans a changed draft again instead of reusing the arm', () => {
+    const state = reduceAll([
+      { type: 'draftChanged', draft: text },
+      submit,
+      held,
+      { type: 'draftChanged', draft: 'something else' },
+      {
+        type: 'submitted',
+        localId: 'l2',
+        text: 'something else',
+        attachments: [],
+        contextLabel: undefined,
+      },
+    ])
+    expect(state.secretPrompt?.draft).toBe(text)
+    expect(state.transcript[0]).toMatchObject({ id: 'l2', text: 'something else' })
+  })
+
+  it('ignores a hold for a send it does not know', () => {
+    const before = reduceAll([{ type: 'draftChanged', draft: text }, submit])
+    const after = reduceAll([
+      { type: 'draftChanged', draft: text },
+      submit,
+      host({ type: 'secretPromptDetected', localId: 'other', redactedText: redacted }),
+    ])
+    expect(after).toEqual(before)
+  })
+
+  it('dismissing the dialog keeps the restored draft and refocuses the composer', () => {
+    const armed = reduceAll([{ type: 'draftChanged', draft: text }, submit, held])
+    const state = uiReducer(armed, { type: 'secretPromptDismissed' })
+    expect(state.secretPrompt).toBeUndefined()
+    expect(state.draft).toBe(text)
+    expect(state.focusRequests).toBe(armed.focusRequests + 1)
+    expect(uiReducer(state, { type: 'secretPromptDismissed' })).toBe(state)
+  })
+
+  it('restores the reference chip with the draft', () => {
+    const reference = { intent: 'reply', role: 'assistant', entryId: 'e1', text: 'why?' } as const
+    const state = reduceAll([{ type: 'draftChanged', draft: text }, { ...submit, reference }, held])
+    expect(state.reference).toEqual(reference)
+  })
+})
+
+describe('uiReducer: secret approval updates (RVM92E P2)', () => {
+  it('shows the note when an update first detects a secret', () => {
+    const state = reduceAll([
+      agent(SHELL_APPROVAL),
+      agent(
+        scrubSecretApproval({
+          type: 'approvalUpdated',
+          approvalId: SHELL_APPROVAL.approvalId,
+          requirementId: SHELL_APPROVAL.requirementId,
+          subject: { kind: 'shell', command: `echo sk-${'k'.repeat(24)}` },
+          availableChoices: SHELL_APPROVAL.availableChoices,
+        }),
+      ),
+    ])
+    expect(waitingApprovals(state.transcript)[0]?.approval.note).toBe(UI_TEXT.approvalSecretNote)
   })
 })

@@ -12,19 +12,28 @@
 import { existsSync, readFileSync } from 'node:fs'
 
 const HOST_BUNDLES = [
+  'dist/validation.js',
   'dist/extension.js',
   'dist/modelApi.js',
   'dist/review.js',
   'dist/sessionBoard.js',
   'dist/reviewer.js',
+  // M91: the imported hooks' adapters, the hook and MCP-form runtime, and
+  // the window's extension hook runner.
+  'dist/foreignHooks.js',
+  'dist/hookRuntime.js',
+  'dist/extensionHooks.js',
   'dist/planMarkdown.js',
   'dist/checkpointStore.js',
+  'dist/browserCheck.js',
+  'dist/browserRuntime.js',
   'dist/agentImport.js',
   'dist/bundledSkills.js',
   'dist/codeIntel.js',
   'dist/voice.js',
   'dist/webFetch.js',
   'dist/museCodeReviewer.js',
+  'dist/whatsNew.js',
   'dist/searchWorker.js',
   'dist/pageWorker.js',
 ]

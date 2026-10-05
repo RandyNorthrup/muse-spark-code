@@ -8,6 +8,7 @@ import { createRequire } from 'node:module'
 import vm from 'node:vm'
 import { beforeAll, describe, expect, it } from 'vitest'
 import * as z from 'zod/mini'
+import type * as validation from '../../src/shared/validationEntry'
 
 const metafileSchema = z.looseObject({
   outputs: z.record(
@@ -34,6 +35,30 @@ function inputs(name: string): string[] {
 }
 
 describe('deferred cohort bundles', () => {
+  it('uses the real shared parser for boundary checks without inlining it in Node bundles', () => {
+    const require = createRequire(path.resolve('dist/validation.js'))
+    const parser: typeof validation = require(path.resolve('dist/validation.js'))
+    expect(parser.object({ value: parser.string() }).safeParse({ value: 1 }).success).toBe(false)
+    expect(parser.object({ value: parser.string() }).safeParse({ value: 'captured' }).success).toBe(
+      true,
+    )
+    for (const name of [
+      'extension',
+      'modelApi',
+      'browserCheck',
+      'browserRuntime',
+      'whatsNew',
+      'checkpointStore',
+      'pageWorker',
+      'searchWorker',
+    ]) {
+      expect(inputs(name).filter((file) => file.startsWith('node_modules/zod/v4/mini/'))).toEqual(
+        [],
+      )
+      expect(readFileSync(`dist/${name}.js`, 'utf8')).toContain('./validation.js')
+    }
+  })
+
   it('loads the activation entry without requiring either action bundle', () => {
     const entry = path.resolve('dist/extension.js')
     expect(readFileSync(entry, 'utf8')).toContain('./sessionBoard.js')
@@ -125,7 +150,10 @@ describe('deferred cohort bundles', () => {
     }
     // The runners themselves: their fixed diagnostics live only in the runtime.
     const runtime = readFileSync('dist/hookRuntime.js', 'utf8')
-    for (const text of ['hook input exceeds limit', 'http hook runner is unavailable']) {
+    for (const text of [
+      'spark-hooks.json exceeds the session handler limit',
+      'http hook runner is unavailable',
+    ]) {
       expect(session).not.toContain(text)
       expect(runtime).toContain(text)
     }

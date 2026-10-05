@@ -16,6 +16,18 @@
 import { forms } from './forms'
 
 export const EN = {
+  paidDailyBudgetLine:
+    'Shared daily budget for interactive paid extras: {budget}. Tab has its own separate budget.',
+  paidDailyLedgerUnavailable:
+    'Daily paid budget reached: its ledger is unreadable, incomplete, or cannot admit this request. No paid request was sent.',
+  paidDailyStopped: 'Paid extras are stopped until tomorrow.',
+  paidDailyReached: 'Daily paid budget reached',
+  paidDailyReachedDetail:
+    'Today’s limit is {budget}. This request and existing reservations need {needed}. Raise the limit for today, or stop paid extras until tomorrow.',
+  paidDailyRaise: 'Raise for today',
+  paidDailyStop: 'Stop until tomorrow',
+  paidDailyRaisePrompt:
+    'Enter today’s limit in USD (0.50–500), enough for the pending reservations.',
   untitledConversation: 'Untitled',
   crashTitle: 'The panel hit an error',
   crashDetail: 'Reload rebuilds the panel; the conversation is kept by the host.',
@@ -28,8 +40,10 @@ export const EN = {
     'This conversation was too long to keep in the panel across the reload; open it from History to see all of it.',
   linkOutsideWorkspace: 'Links to files outside the workspace are not opened from the transcript.',
   emptyStateHint: 'Type /model to pick the right tool for the job.',
-  // Windows binds Ctrl+Alt+Esc (Ctrl+Esc opens Start there; M26, D29).
-  composerPlaceholder: 'ctrl esc (ctrl alt esc on Windows) to focus or unfocus Muse',
+  // macOS binds Cmd+Esc; Windows binds Ctrl+Alt+Esc (Ctrl+Esc opens Start
+  // there; M26, D29).
+  composerPlaceholder:
+    'ctrl esc (cmd esc on macOS, ctrl alt esc on Windows) to focus or unfocus Muse',
   // Shown while a turn runs: Enter then steers the running turn.
   composerQueuePlaceholder: 'Queue another message…',
   queuedLabel: 'Queued',
@@ -195,6 +209,7 @@ export const EN = {
     usageCommand: 'Show account usage.',
     costCommand: 'Show this conversation’s token totals.',
     log: 'Open output log.',
+    whatsNew: 'Open this version’s release highlights and full notes.',
     issue: 'Report an issue.',
     docs: 'Open the Muse Code documentation.',
     mcpServers: 'What Muse Code connects to; sign in to a server.',
@@ -525,7 +540,7 @@ export const EN = {
   hooksTitleModelApi: 'Model API hooks',
   hooksWarning: 'Hooks run through your shell, outside Muse Code’s sandbox and approvals',
   hooksModelApiWarning:
-    'Hooks run through your shell outside tool approvals. Turn on museSpark.modelApiHooks only after reviewing these sources.',
+    'Hooks are on by default in trusted workspaces and run through your shell outside tool approvals. Review these sources before trusting the workspace; without a hooks file, nothing runs.',
   hooksProject: 'Project hooks',
   hooksProjectFile: '.muse/hooks.json',
   hooksProjectNone: 'This workspace has no .muse/hooks.json.',
@@ -826,6 +841,96 @@ export const EN = {
   webFetchMoved:
     'The page redirected to {location}, on another host. Muse can fetch it in a new call, which asks again.',
   webFetchRestrictedMode: 'Web fetch is off in Restricted Mode. Trust the workspace to use it.',
+  // M81 (PLAN.md D49): the browser check. Before each check Muse Code asks
+  // the extension for; the second sentence when the host is beyond loopback.
+  browserCheckConfirmTitle: 'Muse Code wants to open {url} in a headless browser',
+  browserCheckConfirmDetail:
+    'The page loads in a fresh private browser profile that is deleted afterwards. All its traffic goes through the extension’s own proxy, which lets through only plain http to this computer and the hosts in museSpark.browserCheckExtraHosts.',
+  browserCheckConfirmDetailWiden:
+    '{host} is not this computer. Allowing lets this one check reach it, over https and WebSockets too. That traffic is encrypted, so the extension cannot inspect it, and a site there may sign in as you with this computer’s account (on Windows in particular).',
+  // M81 A1: the question before the browser check's runtime is downloaded,
+  // the Download command's progress and outcome.
+  browserRuntimeConsentTitle: 'Download the browser for browser checks ({size})?',
+  browserRuntimeConsentDetail:
+    'Muse Spark Code will download Google’s Chrome for Testing headless shell {version} ({size}) from storage.googleapis.com and keep it in {location}. It is used only for browser checks, and each new version an extension update pins is downloaded again. Set museSpark.browserCheckRuntime to download to stop asking, or to off to turn the browser check off.',
+  browserRuntimeDownload: 'Download',
+  browserRuntimeNotNow: 'Not now',
+  browserRuntimePreparing: 'Getting the browser check’s browser ready…',
+  browserRuntimeReady: 'The browser check’s browser {version} is ready.',
+  // The Model API row: what the check found, then each entry under its count.
+  browserCheckDone: 'Checked {url}: {errors}, {failed}, {blocked}',
+  browserCheckConsoleErrors: forms({
+    one: '{count} console error',
+    other: '{count} console errors',
+  }),
+  browserCheckFailedRequests: forms({
+    one: '{count} failed request',
+    other: '{count} failed requests',
+  }),
+  browserCheckBlockedRequests: forms({
+    one: '{count} request blocked beyond this computer',
+    other: '{count} requests blocked beyond this computer',
+  }),
+  // Why a check did not happen or did not finish.
+  browserCheckUrlRefused:
+    'Only an http:// or https:// address with a plain host name or IP address, and no user name or password, can be opened.',
+  browserCheckInvalidArguments:
+    'The browser check was asked for with arguments that are not valid, so nothing was opened.',
+  // The runtime's preparation (M81 A1): why no verified browser was ready.
+  browserCheckRuntimeMissing:
+    'The browser check’s browser is not installed and could not be downloaded now. Check the connection and try again.',
+  browserCheckRuntimeUnsupported:
+    'The browser check is not available on this computer. It supports Windows x64, Linux x64 and macOS.',
+  browserCheckRuntimeOutdated:
+    'The browser check’s browser is more than 45 days old. Update Muse Spark Code to use the browser check again.',
+  browserCheckRuntimeIntegrity:
+    'The browser check’s browser does not match the version this extension pins, so it was not started.',
+  browserCheckRuntimeBlocked:
+    'This computer did not allow the browser check’s browser to run (application control or code signing).',
+  browserCheckRuntimeDeclined:
+    'The browser check’s browser was not downloaded, so nothing was opened.',
+  browserCheckPreparationTimedOut:
+    'Getting the browser check’s browser ready took longer than {duration}, so it stopped.',
+  browserCheckScopeChanged:
+    'The hosts the browser check may reach changed while it was getting ready, so nothing was opened. Ask again to check with the new hosts.',
+  browserCheckNotOffered:
+    'The browser check is no longer available here (workspace trust, the permission mode, the network setting or the runtime setting changed), so nothing was opened.',
+  // Its confinement: nothing from the page is shown after any of these.
+  browserCheckLaunch: 'The browser check’s browser could not be started.',
+  browserCheckUnrecognized:
+    'The browser check stopped: the browser did not match the exact version and setup it expects.',
+  browserCheckProfile:
+    'The browser check stopped: it could not set up a fresh private browser profile.',
+  browserCheckRouteUnconfirmed:
+    'The browser check stopped: it could not confirm that the page’s traffic goes only through its own proxy.',
+  browserCheckResolverUnconfirmed:
+    'The browser check stopped: it could not confirm that the browser looks up no host names itself.',
+  browserCheckSignIn:
+    'The browser check stopped: in its own test, a sign-in challenge or credential got past its proxy.',
+  browserCheckWebrtc:
+    'The browser check stopped: it could not confirm that WebRTC stays inside its proxy.',
+  browserCheckTransport:
+    'The browser check stopped: it could not confirm that WebTransport is refused.',
+  browserCheckUnverifiable:
+    'The browser check stopped: it could not run one of its own confinement tests on this computer (for example, it found no network address to test against).',
+  browserCheckUnwatchable:
+    'The browser check stopped: the page started a frame or worker it could not watch.',
+  browserCheckAuditFailed:
+    'The browser check discarded the page’s results: its tests after the page ran did not pass.',
+  browserCheckRestartObserved:
+    'The browser check discarded the page’s results: the browser’s network service restarted during the check.',
+  // The page run.
+  browserCheckBrowserFailed: 'The browser stopped responding during the check.',
+  browserCheckPageFailed: 'The page did not load ({error}).',
+  browserCheckPageFailedUnknown: 'The page did not load.',
+  browserCheckPageBlocked:
+    'The page did not load: it went to an address beyond this computer, which the browser check blocks.',
+  browserCheckTimedOut: 'The browser check did not finish within {duration}.',
+  browserCheckNoElement: 'No element on the page matches {selector}, or it takes no text.',
+  browserCheckLeaked:
+    'The page reached, or tried to reach, beyond this computer in a way the check cannot block, so the browser check was stopped and returned nothing.',
+  browserCheckRestrictedMode:
+    'The browser check is off in Restricted Mode. Trust the workspace to use it.',
   // Observation packing (M73): a recall_output row's heading above the
   // recalled text (shown as it was), and why a recall read nothing back.
   packRecalled: 'Recalled characters {start} to {end} of {total} from packed output {id}',
@@ -868,6 +973,17 @@ export const EN = {
   approvalUseTool: 'Muse wants to use {action}',
   /** A web fetch on the Model API backend (M69): {action} is the URL, shown as code. */
   approvalFetch: 'Muse wants to fetch {action}',
+  /**
+   * A browser check on the Model API backend (M81): {action} is the URL. The
+   * second when its host is beyond loopback and the setting: allowing it
+   * widens the check to that host.
+   */
+  approvalBrowserCheck: 'Muse wants to open {action} in a headless browser',
+  approvalBrowserCheckWiden:
+    'Muse wants to open {action} in a headless browser, beyond this computer',
+  // M81 A1: what widening a host also allows, shown under that card.
+  approvalBrowserCheckWidenResidual:
+    'Allowing also lets this check reach the host over https and WebSockets. That traffic is encrypted, so the extension cannot inspect it, and a site there may sign in as you with this computer’s account (on Windows in particular).',
   // {paths} is the list of images an edit starts from, shown as code.
   approvalImageSources: 'Starting from {paths}',
   // M67: a rename's card names a few of its files ({files}) and counts the rest.
@@ -1288,13 +1404,13 @@ export const EN = {
   sessionBudgetLegacyFeesUnknown:
     'The conversation’s spending is not fully verified. Wait for pending requests to finish, or start a new conversation to use a spend cap.',
   sessionBudgetSearchUnavailable:
-    'Web search is unavailable while the session spend cap is on: its billed query count has no verified limit. Turn the cap off to allow web search.',
+    'Web search is unavailable under a finite spend cap: its billed query count has no verified limit. Ordinary chat and free web fetch remain available.',
   sessionBudgetRetryUnavailable:
     'The previous request may have been billed. Its full reservation was kept; send a new prompt to retry with a fresh allowance.',
   sessionBudgetUnknownCharge:
     'Usage was not verified. {amount} remains reserved as a possible charge; this is not a confirmed bill.',
   sessionBudgetVoiceUnavailable:
-    'Muse Voice is unavailable while the session spend cap is on: its billed audio duration has no verified bound. Turn the cap off to allow paid voice, or use system dictation.',
+    'Muse Voice is unavailable under a finite spend cap: its billed audio duration has no verified bound. Use free system dictation.',
   sessionBudgetVoiceContextChanged:
     'Muse Voice stopped because the conversation or its permissions changed. Start a new recording in the current conversation.',
   sessionBudgetUnpriced:
@@ -1390,8 +1506,12 @@ export const EN = {
   planOpenFailed: 'Could not open the plan',
   sideChatSessionOnly: 'This side chat can open only side-chat conversations.',
   renameFailed: 'Could not rename the conversation',
-  sandboxOffProfileNotice:
-    "This workspace is under your user profile, where Muse Code's Windows sandbox cannot run commands, so this window runs shell commands without the sandbox, directly as you. Approval prompts still apply. Setting: museSpark.shellSandbox.",
+  sandboxOffProfileWarning:
+    "Muse Code's Windows sandbox cannot reliably run commands in a workspace under your user profile, so this window runs Muse Code without its OS sandbox. Its file tools can then write anywhere your account can, outside this workspace too, without asking in any mode, Plan included, and its commands run directly as you, with your network. Approval still covers its commands and writes to .git, .muse and .agents. A workspace outside your user profile keeps the sandbox. Setting: museSpark.shellSandbox.",
+  sandboxOffSettingWarning:
+    'museSpark.shellSandbox is off, so Muse Code runs without its OS sandbox in this window. Its file tools can then write anywhere your account can, outside this workspace too, without asking in any mode, Plan included, and its commands run directly as you, with your network. Approval still covers its commands and writes to .git, .muse and .agents.',
+  sandboxPreparingNotice:
+    "Muse Code's Windows sandbox is still being prepared, so this command did not run. After its setup, Muse Code gives the sandbox read access to your files once, in the background, and that can take a while on a large user profile. Try again in a few minutes. Setting: museSpark.shellSandbox.",
   rulesFileNoWorkspace: 'Open a folder first; AGENTS.md lives in the workspace root.',
   rulesFileExists: 'AGENTS.md already exists in this workspace; opening it.',
   rulesFileCreated: 'AGENTS.md created. Muse reads it as project rules from the next conversation.',
@@ -1530,7 +1650,7 @@ export const EN = {
     'Workspace trusted: Muse will load its rules, skills and memory from the next message.',
   sandboxRestartNotice:
     'A Muse Code setting changed; Muse Code restarts with it on the next message and continues this conversation.',
-  sandboxProfileNotice: String.raw`This workspace is under your user profile, which Muse Code's Windows sandbox cannot enter: shell commands will start in the PowerShell folder instead of the project. File reads and edits are unaffected. A workspace outside C:\Users runs commands in place.`,
+  sandboxProfileNotice: String.raw`This workspace is under your user profile, where Muse Code's Windows sandbox may not run commands: they can start in the PowerShell folder instead of the project, or never finish. File reads and edits are unaffected. A workspace outside C:\Users runs commands in place.`,
   // Label groups keyed by id (they were records in constants.ts before M40).
   permissionModes: {
     manual: 'Manual',
@@ -1547,12 +1667,14 @@ export const EN = {
   // and under `muse serve` Auto skips only the commands Muse Code judges
   // simple, with no safety-check judge (D69); the panel's reviewer checks the
   // rest while its setting is on (museCodeReviewedAutoDetail). The Model API
-  // backend has no safety-check judge behind Auto either.
+  // backend has no safety-check judge behind Auto either; its paid Auto
+  // reviewer (M78) checks commands no rule settles while it is on
+  // (modelApiReviewedAutoDetail).
   permissionModeDetails: {
     manual: 'Muse will ask before running commands; Muse Code edits workspace files without asking',
     acceptEdits:
       'On Muse Code, the same as Manual: Muse Code edits workspace files without asking and asks before running commands',
-    plan: 'Muse will explore the code and present a plan before editing',
+    plan: 'Muse plans first; Muse Code refuses commands, but its file tools can still edit files without asking',
     auto: 'Muse Code runs the commands it judges simple without asking and asks before the rest',
     bypassPermissions: 'Muse will edit files and run commands without asking',
   },
@@ -1561,8 +1683,11 @@ export const EN = {
   modelApiPermissionModeDetails: {
     manual: 'Muse will ask for approval before each edit and each command',
     acceptEdits: 'Muse will edit files without asking and ask before running commands',
+    plan: 'Muse will explore the code and present a plan before editing',
     auto: 'Muse will edit files without asking, except protected files, and ask before commands',
   },
+  modelApiReviewedAutoDetail:
+    'Muse will edit files without asking, except protected files; a paid reviewer may allow some commands once, and you are asked about the rest',
   effortLevels: {
     minimal: 'Minimal',
     low: 'Low',
@@ -1603,6 +1728,9 @@ export const EN = {
     mcp__ide__editImage: 'Edit image',
     // The extension's web fetch for Muse Code, through the ide server (M69).
     mcp__ide__webFetch: 'Fetch page',
+    // The browser check on the Model API backend and for Muse Code (M81).
+    browser_check: 'Browser check',
+    mcp__ide__browserCheck: 'Browser check',
     // Muse Code's own tools (M43): captured live 2026-09-25, the rest named
     // from the CLI's tool list (PLAN.md D36).
     read_memory: 'Read memory',
@@ -1862,10 +1990,38 @@ export const EN = {
     'a folder of that name exists that Muse Spark did not install, so it was left alone',
   bundledSkillsUnavailable:
     'The bundled skills installer could not be loaded; reinstall the extension and reload the window. The log has the details.',
+  // What's New after an update (M99, PLAN.md D79): the page's own words (the
+  // release notes stay English), the notice after a fixes-only patch, and its
+  // buttons. {version}, {from}, {to}: versions such as 0.13.0; {date}: a
+  // release's date in the display language.
+  whatsNewTitle: 'What’s New in Muse Spark Code',
+  whatsNewVersion: 'You’re on version {version}.',
+  whatsNewUpdatedFrom: 'Updated from {from} to {to}.',
+  whatsNewReleased: 'Released {date}',
+  whatsNewHighlights: 'Highlights',
+  whatsNewTryIt: 'Try it',
+  whatsNewOpenSetting: 'Open the setting',
+  whatsNewNotesInEnglish: 'The release notes are in English.',
+  whatsNewNoNotes: 'No release notes ship with version {version}.',
+  whatsNewFullChangelog: 'Full changelog on GitHub',
+  whatsNewReadme: 'README on GitHub',
+  whatsNewHideOnUpdate: 'Don’t show on updates',
+  whatsNewUpdatedNotice: 'Muse Spark Code updated to {version}.',
+  whatsNewOpen: 'What’s New',
+  whatsNewDontShowAgain: 'Don’t show again',
+  whatsNewUnavailable:
+    'What’s New could not be loaded; reinstall the extension and reload the window. The log has the details.',
   // The conversation's notices (they were English literals in the controller).
   notSignedInReason: 'Sign in before sending a message.',
   noWorkspaceReason: 'Open a folder first; Muse works inside a workspace.',
   nothingToSendReason: 'Type a message or attach an image first.',
+  // M92e (PLAN.md D71): a prompt holding a detected secret, held before
+  // sending. The transcript card shows the redacted text either way.
+  secretPromptTitle: 'This prompt contains a secret',
+  secretPromptDetail:
+    'A secret was detected. The transcript shows it redacted. Send it anyway, or go back and edit the prompt.',
+  secretPromptSendAnyway: 'Send anyway',
+  secretPromptEdit: 'Edit prompt',
   nothingToCompact: 'Nothing to compact yet.',
   // {reason}: the backend's own id for why, such as `noop`.
   nothingToCompactReason: 'Nothing to compact ({reason}).',
@@ -2078,16 +2234,16 @@ export const EN = {
     calculating: 'Calculating…',
     composing: 'Composing…',
   },
-  // The getting-started tips (M8): the default keybindings, named for both
-  // platforms since the webview does not know which one it runs on (M26,
+  // The getting-started tips (M8): the default keybindings, named for each
+  // platform since the webview does not know which one it runs on (M26,
   // D29), and what each does.
   onboardingShortcuts: {
-    focus: 'Ctrl+Esc (Ctrl+Alt+Esc on Windows)',
+    focus: 'Ctrl+Esc (Cmd+Esc on macOS, Ctrl+Alt+Esc on Windows)',
     palette: '/',
     cycleMode: 'Shift+Tab',
     mentionSelection: 'Alt+K',
     mentionFile: '@',
-    newTab: 'Ctrl+Shift+Esc (Ctrl+Shift+Alt+Esc on Windows)',
+    newTab: 'Ctrl+Shift+Esc (Cmd+Shift+Esc on macOS, Ctrl+Shift+Alt+Esc on Windows)',
     dictation: 'Ctrl+D',
     // M46.
     shell: '!',
@@ -2481,6 +2637,10 @@ export const EN = {
   approvalAskRuleNote: 'Your command rule asks about this command every time.',
   // {why}: the rule's own justification, as the user wrote it.
   approvalAskRuleWhy: 'Your command rule asks about this command every time: {why}',
+  // M92e (PLAN.md D71): a shell command holding a detected secret. The card
+  // shows the value redacted, and no allow rule approves it on its own.
+  approvalSecretNote:
+    'This command contains a detected secret, shown redacted. It always asks: no allow rule approves it on its own.',
   // Who answered a call no card was shown for (the row's "Decided" line).
   autoReviewerResolver: 'Auto reviewer',
   commandRuleResolver: 'Command rule',
@@ -2499,7 +2659,7 @@ export const EN = {
   // The paid feature (D48): its name, confirmation, popup and tally.
   paidAutoReviewerName: 'Auto reviewer',
   paidConfirmAutoReviewer:
-    'In Auto mode on the Model API backend, a separate model call judges each risky action that no rule settles, and runs it without asking when it looks safe. It never allows a forbidden command, a command your rules ask about, a protected write or a paid call, and when it declines or fails, you decide. Each review is billed to your Model API key at the conversation model’s token rates:\n{price}\nEvery review asks first, unless you allow reviews always in this workspace.',
+    'In Auto mode on the Model API backend, a separate model call judges each plain shell command or MCP tool call that would ask and that no rule or permission profile settles, and runs it without asking when it looks safe. It never allows a forbidden command, a command your rules ask about, a protected write or a paid call, and when it declines or fails, you decide. Each review is billed to your Model API key at the conversation model’s token rates:\n{price}\nEvery review asks first, unless you allow reviews always in this workspace.',
   // {tool}: the tool the reviewed call is for; {action}: its command line or arguments.
   paidUseAutoReviewerTitle: 'Let the Auto reviewer judge this {tool} call?',
   paidUseAutoReviewerDetail:

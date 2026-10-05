@@ -2807,8 +2807,11 @@ li:focus-within > .row-actions .row-actions-button,
   align-items: baseline;
 }
 
+/* A shortcut named for every platform wraps within half the row, so its
+   description keeps room for its longest word. */
 .onboarding-list kbd {
-  flex-shrink: 0;
+  flex: 0 1 auto;
+  max-width: 50%;
   min-width: 2em;
   text-align: center;
 }

@@ -1,0 +1,89 @@
+{
+  "schemaVersion": 1,
+  "version": "154.0.8037.92",
+  "revision": "1689415",
+  "publication": {
+    "version": "154.0.8037.92",
+    "channel": "Stable",
+    "sources": [
+      "https://chromiumdash.appspot.com/fetch_releases?channel=Stable&platform=Windows&num=200",
+      "https://chromiumdash.appspot.com/fetch_releases?channel=Stable&platform=Linux&num=200",
+      "https://chromiumdash.appspot.com/fetch_releases?channel=Stable&platform=Mac&num=200"
+    ],
+    "platformTimes": {
+      "Windows": 1790706643713,
+      "Linux": 1790706629983,
+      "Mac": 1790706647592
+    },
+    "publishedAtMs": 1790706629983,
+    "publishedAt": "2026-09-29T18:30:29.983Z"
+  },
+  "storage": {
+    "origin": "https://storage.googleapis.com",
+    "pathPrefix": "/chrome-for-testing-public/"
+  },
+  "platforms": {
+    "win64": {
+      "url": "https://storage.googleapis.com/chrome-for-testing-public/154.0.8037.92/win64/chrome-headless-shell-win64.zip",
+      "archiveBytes": 120822223,
+      "archiveSha256": "3ac2561f02d9d87aadc0399d00b9002d718a4c365624fa67db9e7bfaf6b1a568",
+      "entryCount": 288,
+      "extractedBytes": 284904014,
+      "executable": "chrome-headless-shell-win64/chrome-headless-shell.exe",
+      "executableBytes": 212425216,
+      "executableSha256": "798971a4fb66ed219f2cae1e6a0e97ad68a2e935d5e140d7150745b063dea65b",
+      "executableEntries": ["chrome-headless-shell-win64/chrome-headless-shell.exe"]
+    },
+    "linux64": {
+      "url": "https://storage.googleapis.com/chrome-for-testing-public/154.0.8037.92/linux64/chrome-headless-shell-linux64.zip",
+      "archiveBytes": 120477194,
+      "archiveSha256": "636aa5c79f2693632e9921b8bbb050038ba11672e02346c06c20f991aed096f9",
+      "entryCount": 287,
+      "extractedBytes": 273953147,
+      "executable": "chrome-headless-shell-linux64/chrome-headless-shell",
+      "executableBytes": 197868872,
+      "executableSha256": "7c141b276aacc74fe51f06986345fb0dbce0e3756413746fb18541b878c17706",
+      "executableEntries": [
+        "chrome-headless-shell-linux64/chrome-headless-shell",
+        "chrome-headless-shell-linux64/libEGL.so",
+        "chrome-headless-shell-linux64/libGLESv2.so",
+        "chrome-headless-shell-linux64/libvk_swiftshader.so",
+        "chrome-headless-shell-linux64/libvulkan.so.1"
+      ]
+    },
+    "mac-x64": {
+      "url": "https://storage.googleapis.com/chrome-for-testing-public/154.0.8037.92/mac-x64/chrome-headless-shell-mac-x64.zip",
+      "archiveBytes": 104748425,
+      "archiveSha256": "a54292aaacbb77f76f6ef47558e7c51ab884044e0adacca315567f83c060bcc4",
+      "entryCount": 16,
+      "extractedBytes": 209388579,
+      "executable": "chrome-headless-shell-mac-x64/chrome-headless-shell",
+      "executableBytes": 185611176,
+      "executableSha256": "a5fa24efa06900a95a8da50daeab9cdb845a4195eea8deb4be9f3b097f27e8b4",
+      "executableEntries": [
+        "chrome-headless-shell-mac-x64/chrome-headless-shell",
+        "chrome-headless-shell-mac-x64/libEGL.dylib",
+        "chrome-headless-shell-mac-x64/libGLESv2.dylib",
+        "chrome-headless-shell-mac-x64/libvk_swiftshader.dylib",
+        "chrome-headless-shell-mac-x64/libvulkan.dylib"
+      ]
+    },
+    "mac-arm64": {
+      "url": "https://storage.googleapis.com/chrome-for-testing-public/154.0.8037.92/mac-arm64/chrome-headless-shell-mac-arm64.zip",
+      "archiveBytes": 99221129,
+      "archiveSha256": "77da14e75d7f2568e6f7898d3df7cdc6faac74b15e903b2c9d486ebb6ca9b929",
+      "entryCount": 16,
+      "extractedBytes": 205161619,
+      "executable": "chrome-headless-shell-mac-arm64/chrome-headless-shell",
+      "executableBytes": 169403440,
+      "executableSha256": "c50c0bb97ff41124ce9a725710c9ba015b234e0ffa74d108219c34e1bf5cc336",
+      "executableEntries": [
+        "chrome-headless-shell-mac-arm64/chrome-headless-shell",
+        "chrome-headless-shell-mac-arm64/libEGL.dylib",
+        "chrome-headless-shell-mac-arm64/libGLESv2.dylib",
+        "chrome-headless-shell-mac-arm64/libvk_swiftshader.dylib",
+        "chrome-headless-shell-mac-arm64/libvulkan.dylib"
+      ]
+    }
+  }
+}

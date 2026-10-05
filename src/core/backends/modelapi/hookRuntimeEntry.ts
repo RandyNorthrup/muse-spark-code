@@ -6,9 +6,10 @@
 // - lane H's typed handlers (http, mcp_tool, prompt and agent);
 // - lane M's checks on an MCP server's form request and on the answer to it.
 //
-// Hooks are off by default and a form is rare, so most sessions never load
-// it. dist/modelApi.js keeps the modules' types, field builders and
-// constants; esbuild leaves out what only this entry reaches.
+// It loads only when a spark-hooks.json exists, a typed handler runs or a
+// server asks for a form, so most sessions never load it. dist/modelApi.js
+// keeps the modules' types, field builders and constants; esbuild leaves out
+// what only this entry reaches.
 
 export { dispatchExtensionHooks, loadSparkHookDefinitions } from './extensionHooks'
 export { runTypedHandler } from './hookHandlers'

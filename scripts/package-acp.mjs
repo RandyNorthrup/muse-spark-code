@@ -36,6 +36,7 @@ const BUNDLES = [
   'hookRuntime.js',
   'uiText.js',
   'extensionHooks.js',
+  'validation.js',
   'searchWorker.js',
   'pageWorker.js',
 ]

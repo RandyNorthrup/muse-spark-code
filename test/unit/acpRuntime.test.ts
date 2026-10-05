@@ -44,7 +44,13 @@ import { displayLanguage } from '../../src/runtime/locale'
 import { paidGrantFile } from '../../src/runtime/paidGrants'
 import { stderrLogger } from '../../src/runtime/stderrLog'
 import { webReadable } from '../../src/runtime/webStreams'
-import { FILE_REFUSAL_MODEL_TEXT, SECRET_KEYS, UI_TEXT } from '../../src/shared/constants'
+import {
+  FILE_REFUSAL_MODEL_TEXT,
+  SECRET_KEYS,
+  UI_TEXT,
+  PAID_FEATURES,
+} from '../../src/shared/constants'
+import { watchSessionTurns } from './helpers/sessionTurns'
 import { memorySecrets } from './helpers/fakes'
 import { FAKE_MODEL_API_KEY, fakeModelApi } from './helpers/fakeModelApi'
 import { buildModelApiBundle } from './helpers/modelApiBundle'
@@ -629,6 +635,38 @@ describe('createRuntimeBackend', () => {
     expect(log.error).toHaveBeenCalledWith(
       expect.stringContaining(`The Model API bundle ${path.join(empty, 'modelApi.js')}`),
     )
+  })
+
+  it('D78 keeps ACP extras off without flags and omits the VS Code reply usage display', async () => {
+    const secrets = memorySecrets()
+    secrets.values.set(SECRET_KEYS.modelApiKey, KEY)
+    const api = fakeModelApi()
+    const runtime = backend({ backend: 'modelApi' }, secrets, {}, dist.folder, api.fetch)
+    try {
+      for (const feature of PAID_FEATURES) expect(runtime.paid.isOn(feature)).toBe(false)
+      const root = folder()
+      const host = await runtime.backend.hostFor(root)
+      const session = await host.startSession({
+        workspaceRoot: root,
+        modelId: 'muse-spark-1.3',
+        approvalMode: 'onRequest',
+      })
+      const watched = watchSessionTurns(session)
+      const done = watched.turnDone()
+      await session.sendTurn([{ type: 'text', text: 'Reply OK' }])
+      await done
+      expect(api.responseBodies()).toHaveLength(1)
+      expect(
+        watched.events.filter(
+          (event) =>
+            event.type === 'itemUpdated' &&
+            event.item.kind === 'agentMessage' &&
+            event.item.usage !== undefined,
+        ),
+      ).toEqual([])
+    } finally {
+      await runtime.close()
+    }
   })
 
   it('shares edit notices for native workspace aliases without joining distinct directories', async () => {

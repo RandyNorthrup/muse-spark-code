@@ -154,10 +154,10 @@ function duplicateKeys(text) {
 }
 
 /** The parsed JSON file, or undefined with the reason added to `problems`. */
-function readJson(file, problems) {
+function readJson(file, problems, root = repoRoot) {
   let value
   try {
-    const text = readFileSync(path.join(repoRoot, file), 'utf8')
+    const text = readFileSync(path.join(root, file), 'utf8')
     value = JSON.parse(text)
     for (const key of duplicateKeys(text))
       problems.push(`${file}: "${key}" is named twice in one object; JSON keeps only the last`)
@@ -481,6 +481,39 @@ function checkLoadOrder(problems) {
   return files.length
 }
 
+// Package-time compaction must keep every translated value byte-for-byte
+// after JSON parsing. Validate staged data with the same strict source schema.
+function checkPackaged(root, l10n, untranslatedFor, strings, problems) {
+  const files = [
+    MANIFEST,
+    MANIFEST_STRINGS,
+    ...l10n.TABLE_LOCALES.flatMap((locale) => [
+      `${l10n.TABLE_DIRECTORY}/${l10n.tableFileName(locale)}`,
+      `package.nls.${locale}.json`,
+    ]),
+  ]
+  for (const file of files) {
+    const shipped = readJson(file, problems, root)
+    const source = readJson(file, problems)
+    if (JSON.stringify(shipped) !== JSON.stringify(source))
+      problems.push(`packaged ${file}: differs from source`)
+    if (file === MANIFEST || file === MANIFEST_STRINGS) continue
+    const locale =
+      TABLE_FILE.exec(path.basename(file))?.[1] ??
+      MANIFEST_TRANSLATION.exec(path.basename(file))?.[1]
+    const isUi = file.startsWith(`${l10n.TABLE_DIRECTORY}/`)
+    problems.push(
+      ...l10n
+        .tableProblems(isUi ? l10n.EN : strings, shipped, {
+          ...(locale !== undefined && { locale }),
+          isStrict: true,
+          untranslated: untranslatedFor(isUi ? 'ui' : 'manifest', locale ?? 'en'),
+        })
+        .map((problem) => `packaged ${file}: ${problem}`),
+    )
+  }
+}
+
 async function main() {
   const problems = []
   let l10n
@@ -505,6 +538,13 @@ async function main() {
   const tables = checkTables(l10n, untranslatedFor, problems)
   const manifestKeys = checkManifest(l10n, untranslatedFor, strings, problems)
   const sources = checkLoadOrder(problems)
+  if (process.argv[2] === '--packaged') {
+    if (process.argv.length !== 4)
+      throw new Error('--packaged requires exactly one stage directory')
+    checkPackaged(path.resolve(process.argv[3]), l10n, untranslatedFor, strings, problems)
+  } else if (process.argv.length !== 2) {
+    throw new Error('Unknown localization gate arguments')
+  }
   for (const problem of problems) {
     console.log(problem)
   }
