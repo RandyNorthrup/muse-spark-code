@@ -17,14 +17,16 @@ import {
   type VerifySummary,
 } from '../../../shared/agentEvents'
 import {
+  type CheckCommandSetting,
   CODE_INTEL_TOOLS,
+  FILE_REFUSAL_MODEL_TEXT,
   IMAGE_EXTENSIONS,
   LIST_FILES_DEFAULT_LIMIT,
   MAX_DOCUMENT_BYTES,
   MAX_IMAGE_BYTES,
+  MODEL_API_MODEL_TEXT,
   MODEL_API_SUBAGENT_TOOLS,
   MODEL_API_TOOLS,
-  MODEL_TEXT,
   PDF_EXTENSION,
   PDF_MEDIA_TYPE,
   READ_FILE_DEFAULT_LIMIT,
@@ -40,7 +42,6 @@ import {
   TOOL_OUTPUT_CLIP_MARKER,
   TOOL_OUTPUT_ELIDED_MARKER,
   TOOL_OUTPUT_MAX_CHARS,
-  type CheckCommandSetting,
   UI_TEXT,
   VERIFY_TOOLS,
 } from '../../../shared/constants'
@@ -913,7 +914,7 @@ async function formatWritten(
 
 /** The model's result line, and the note when the formatter changed the file. */
 function editedLine(line: string, isFormatted: boolean): string {
-  return isFormatted ? `${line}. ${MODEL_TEXT.formattedAfterEdit}` : line
+  return isFormatted ? `${line}. ${MODEL_API_MODEL_TEXT.formattedAfterEdit}` : line
 }
 
 /**
@@ -961,17 +962,17 @@ function visualKindOf(relative: string): 'pdf' | 'image' | undefined {
 function pdfOutcome(relative: string, bytes: Uint8Array): ToolOutcome {
   if (!isPdf(bytes)) {
     return failure(
-      `${relative} ${MODEL_TEXT.notPdf}`,
+      `${relative} ${MODEL_API_MODEL_TEXT.notPdf}`,
       fill(UI_TEXT.toolReadPdfInvalid, { path: relative }),
     )
   }
   const pageCount = pdfPageCount(bytes)
-  const output = fill(MODEL_TEXT.readPdf, {
+  const output = fill(MODEL_API_MODEL_TEXT.readPdf, {
     path: relative,
     pages:
       pageCount === undefined
-        ? MODEL_TEXT.pagesUnknown
-        : fill(MODEL_TEXT.pagesKnown, { count: String(pageCount) }),
+        ? MODEL_API_MODEL_TEXT.pagesUnknown
+        : fill(MODEL_API_MODEL_TEXT.pagesKnown, { count: String(pageCount) }),
     bytes: String(bytes.byteLength),
   })
   const visiblePages =
@@ -1005,11 +1006,11 @@ function imageOutcome(relative: string, bytes: Uint8Array): ToolOutcome {
   const info = readImageInfo(bytes)
   if (info === undefined) {
     return failure(
-      `${relative} ${MODEL_TEXT.notImage}`,
+      `${relative} ${MODEL_API_MODEL_TEXT.notImage}`,
       fill(UI_TEXT.toolReadImageInvalid, { path: relative }),
     )
   }
-  const output = fill(MODEL_TEXT.readImage, {
+  const output = fill(MODEL_API_MODEL_TEXT.readImage, {
     path: relative,
     mediaType: info.mediaType,
     width: String(info.width),
@@ -1119,7 +1120,7 @@ async function readFile(
     return failure(resolved.reason)
   }
   if (isDenied(resolved, context)) {
-    return failure(`${resolved.relative} ${MODEL_TEXT.pathDeniedByPolicy}`)
+    return failure(`${resolved.relative} ${MODEL_API_MODEL_TEXT.pathDeniedByPolicy}`)
   }
   // Every outcome from here on, a failure included, comes from the file.
   const touched: TouchedFiles = {
@@ -1183,7 +1184,7 @@ async function located(
   if (isDenied(resolved, context)) {
     return {
       ok: false,
-      outcome: failure(`${resolved.relative} ${MODEL_TEXT.pathDeniedByPolicy}`),
+      outcome: failure(`${resolved.relative} ${MODEL_API_MODEL_TEXT.pathDeniedByPolicy}`),
     }
   }
   if (
@@ -1191,7 +1192,7 @@ async function located(
     (resolved.absolute !== context.approvedTarget.absolute ||
       resolved.checkedAbsolute !== context.approvedTarget.checkedAbsolute)
   ) {
-    return { ok: false, outcome: failure(MODEL_TEXT.pathChangedAfterApproval) }
+    return { ok: false, outcome: failure(FILE_REFUSAL_MODEL_TEXT.pathChangedAfterApproval) }
   }
   const before = await context.io.readFile(resolved.checkedAbsolute, resolved.checkedAbsolute)
   return {
@@ -1217,7 +1218,7 @@ function editRefusal(
   // Writing under an editor's unsaved changes makes VS Code ask which to keep.
   return context.io.hasUnsavedChanges(file.absolute) ||
     context.io.hasUnsavedChanges(file.checkedAbsolute)
-    ? failure(`${file.relative} ${MODEL_TEXT.fileHasUnsavedChanges}`)
+    ? failure(`${file.relative} ${FILE_REFUSAL_MODEL_TEXT.fileHasUnsavedChanges}`)
     : undefined
 }
 
@@ -1228,7 +1229,7 @@ function writeAdmission(target: FormatTarget, context: ToolContext): () => void 
       context.io.hasUnsavedChanges(target.absolute) ||
       context.io.hasUnsavedChanges(target.checkedAbsolute)
     )
-      throw new Error(`${target.relative} ${MODEL_TEXT.fileHasUnsavedChanges}`)
+      throw new Error(`${target.relative} ${FILE_REFUSAL_MODEL_TEXT.fileHasUnsavedChanges}`)
     context.assertCanWrite?.(target)
   }
 }
@@ -1281,7 +1282,7 @@ async function writeFile(
   }
   // Claude Code's rule: a file is replaced only as the model last saw it (D27).
   if (context.seen.get(absolute) !== fingerprint(before)) {
-    return failure(`${relative} ${MODEL_TEXT.fileChangedSinceRead}`)
+    return failure(`${relative} ${MODEL_API_MODEL_TEXT.fileChangedSinceRead}`)
   }
   // The file keeps its BOM, its line breaks and its final line break (D27).
   const shape = shapeOf(before)

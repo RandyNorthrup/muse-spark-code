@@ -3342,8 +3342,10 @@ activation and an ordinary Model API turn load neither implementation.
 Both receive the current display language. These bundles each have a 75 KiB
 cap; the activation and Model API caps stay 600/400 KiB. Code intelligence's
 answers for Muse Code's `ide` tools load on the first call from
-`dist/codeIntel.js` (100 KiB cap), and both voice engines' drivers on the
-first recording from `dist/voice.js` (50 KiB cap); the tool list and the
+`dist/codeIntel.js` (100 KiB cap), both voice engines' drivers on the
+first recording from `dist/voice.js` (50 KiB cap), and the window's web
+fetch (each hop's checks and pins, the transport, the decoders) on the
+first fetch from `dist/webFetch.js` (75 KiB cap); the tool lists and the
 microphone's availability stay at activation. The Auto reviewer on Muse
 Code (its side session, what follows a review, and the Model API reviewer's
 core it reuses) loads on the first review from `dist/museCodeReviewer.js`
@@ -3481,7 +3483,23 @@ The seven required checks keep their names on both tiers (CONTRIBUTING.md,
 "CI tiers and required checks").
 
 A tag `v1.2.3` runs `release.yml`. It checks that the tag matches the
-manifest and is on `main`, runs the same build, creates a GitHub Release with
+manifest and is on `main`, reuses successful own-repository CI artifacts only
+when their recorded checkout tree equals the tag tree and all package versions
+and SHA-256 hashes match, or runs the same full build on any miss. CI retains
+the packages, inventories and source-tree receipt for 30 days;
+`scripts/release-reuse.mjs` records, finds and verifies these release inputs.
+The owner can force a rebuild with Actions variable `RELEASE_FORCE_REBUILD=true`.
+Successful pull-request, merge-queue (`merge_group`) and main-push CI runs qualify
+by their recorded checkout tree. Manual recovery on a version tag keeps
+`artifacts_run_id`: the earlier Release build is validated, and its original
+bytes pass through the same verification/staging job. Invalid recovery stops;
+cancelled runs cannot publish. Older builds without a receipt retain inventory,
+manifest and download-integrity checks; see the recovery guide for that limit.
+An M80 `v0` tag update blocked by the release-tags ruleset is reported separately
+as **admin move required**, preserving the release channels' outcomes. The
+[release guide](docs/RELEASING.md#signing-and-the-prepared-m80-hooks) documents
+the administrator's fast-forward recovery; the ruleset stays in place.
+The workflow creates a GitHub Release with
 that `.vsix`, the ACP tarball, both inventories and `SHA256SUMS`, with the
 CHANGELOG section as its notes and package provenance attestations. The same
 VSIX goes to the Marketplace (publisher `RandyNorthrup`) and Open VSX; the same

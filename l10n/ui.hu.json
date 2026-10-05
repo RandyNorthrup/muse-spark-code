@@ -494,6 +494,7 @@
   "webFetchProxyRefused": "Egy proxy vagy más köztes gép {status} választ adott ahelyett, hogy biztonságosan csatlakozott volna ide: {address} ({host}). Semmi sem lett beolvasva.",
   "webFetchUnreachable": "{host} nem érhető el a(z) {address} címen. ({detail})",
   "webFetchNetwork": "A kérés sikertelen: {detail}",
+  "webFetchUnavailable": "Az oldalak lekérését nem sikerült betölteni, ezért semmit sem kért le; telepítse újra a bővítményt, és töltse be újra az ablakot. A részletek a naplóban vannak.",
   "webFetchMoved": "Az oldal ide irányított át: {location}, egy másik gazdagépre. A Muse egy új hívással lekérheti, amely újra rákérdez.",
   "webFetchRestrictedMode": "Az oldalak lekérése korlátozott módban ki van kapcsolva. A használatához jelölje megbízhatónak a munkaterületet.",
   "packRecalled": "Visszaolvasva a(z) {id} becsomagolt kimenet {start}–{end}. karaktere (összesen {total})",

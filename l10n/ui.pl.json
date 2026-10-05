@@ -514,6 +514,7 @@
   "webFetchProxyRefused": "Serwer proxy lub inny komputer po drodze odpowiedział {status}, zamiast bezpiecznie połączyć się z {address} ({host}). Nic nie odczytano.",
   "webFetchUnreachable": "Nie można połączyć się z {host} pod adresem {address}. ({detail})",
   "webFetchNetwork": "Żądanie nie powiodło się: {detail}",
+  "webFetchUnavailable": "Nie udało się wczytać pobierania stron, więc nic nie pobrano; zainstaluj ponownie rozszerzenie i przeładuj okno. Szczegóły są w dzienniku.",
   "webFetchMoved": "Strona przekierowała do {location}, na innego hosta. Muse może pobrać ją nowym wywołaniem, które zapyta ponownie.",
   "webFetchRestrictedMode": "Pobieranie stron jest wyłączone w trybie ograniczonym. Aby go użyć, uznaj obszar roboczy za zaufany.",
   "packRecalled": "Odczytano ponownie znaki od {start} do {end} z {total} ze spakowanego wyjścia {id}",

@@ -5,6 +5,7 @@
 # per OS merged before the unchanged thresholds apply, the accessibility and
 # integration runs, the macOS helper and the universal packages. The required
 # check names come from the `required` aggregate below on both tiers.
+# Releases can reuse these exact-tree packages after verifying the CI receipt.
 #
 # Every job has a timeout and every checkout leaves no token in the git
 # config (`persist-credentials: false`): no job here pushes (M26, PLAN.md D29).
@@ -340,6 +341,7 @@ jobs:
             extension/dist/uiText.js \
             extension/dist/sessionBoard.js extension/dist/reviewer.js \
             extension/dist/codeIntel.js extension/dist/voice.js extension/dist/museCodeReviewer.js \
+            extension/dist/webFetch.js \
             extension/dist/webview/main.js extension/dist/webview/main.css; do
             if ! grep -Fxq -- "$entry" <<< "$listing"; then
               echo "::error::$entry is missing from the .vsix" >&2
@@ -352,6 +354,7 @@ jobs:
           name: muse-spark-code-vsix
           path: '*.vsix'
           if-no-files-found: error
+          retention-days: 30
       # The ACP agent's npm package (M63, PLAN.md D62), from the same
       # production build `npm run package` just ran.
       - run: node scripts/package-acp.mjs
@@ -392,6 +395,7 @@ jobs:
           name: muse-spark-code-acp
           path: dist/muse-spark-code-acp-*.tgz
           if-no-files-found: error
+          retention-days: 30
       - name: CycloneDX inventories for shipped bundles and native runtime dependencies
         run: node scripts/release-sbom.mjs
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
@@ -399,6 +403,16 @@ jobs:
           name: muse-spark-code-sboms
           path: dist/sbom/*.cdx.json
           if-no-files-found: error
+          retention-days: 30
+      - name: record the actual checkout tree and release asset hashes
+        id: source
+        run: node scripts/release-reuse.mjs record
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: source-tree-${{ steps.source.outputs.tree }}
+          path: dist/release-build.json
+          if-no-files-found: error
+          retention-days: 30
 
   secrets:
     name: gitleaks
