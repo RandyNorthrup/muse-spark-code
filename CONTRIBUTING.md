@@ -106,6 +106,13 @@ Use this order for a candidate branch:
   reads `src/webview/styles.css` and fails when any selector with an
   `animation` or `transition` is not set to none in the closing
   reduced-motion block. A new animation adds its selector there.
+- Refresh the README's screenshots with `npm run readme:shots`, which
+  renders each image in `scripts/readme-shots.json` from its harness
+  scenario at its declared theme, size and language. `readme:shots --list`
+  prints the mapping with any gap (a README image with no entry, or an
+  entry the README never shows); `--only <name,...>` retakes some images
+  and `--out <dir>` writes them elsewhere, so preview in `temp/` before
+  overwriting the committed `media/readme/`.
 - No new dependency without a reason in the pull request and a
   compatibility check; no suppressed lint rule or `any` without an inline
   reason and a row in PLAN.md §8.

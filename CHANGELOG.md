@@ -93,6 +93,12 @@ happened, not what was planned; superseded entries are kept.
     0–200. Seven step-summary forms each in Russian, French and Brazilian
     Portuguese now show the actual count; German forms may still omit it
     when English does.
+- `npm run readme:shots` refreshes the README's screenshots from the UI
+  harness: `scripts/readme-shots.json` declares each image's scenario,
+  theme, size and language (`languages.png` renders `usage` in German),
+  with `--list` printing the mapping and its gaps, `--only <name,...>`
+  retaking some images and `--out <dir>` previewing elsewhere. The banner
+  stays rendered by `scripts/render-images.mjs`.
 
 ### Changed
 

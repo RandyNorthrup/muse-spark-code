@@ -928,6 +928,7 @@
     "watch": "node scripts/build.mjs --watch",
     "harness:shots": "node scripts/harness-shots.mjs",
     "harness:pseudo": "node scripts/pseudo-l10n.mjs",
+    "readme:shots": "node scripts/readme-shots.mjs",
     "test:a11y": "node scripts/a11y.mjs",
     "check:l10n": "node scripts/check-l10n.mjs",
     "check:host-api": "node scripts/check-host-api.mjs",
