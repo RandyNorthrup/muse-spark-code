@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest'
+import { toSnapshot, wireItemSchema } from '../../src/core/backends/musecode/sessionRecords'
 import { parseHostToWebviewMessage, parseWebviewToHostMessage } from '../../src/shared/protocol'
 import { testSettings } from './helpers/fakes'
+import { USER_SHELL_COMPLETED } from './helpers/m46Capture'
+import { PLAN_REPLY_COMPLETED, PLAN_USER_ITEM } from './helpers/m79Capture'
 
 describe('parseWebviewToHostMessage', () => {
   it.each([
@@ -75,6 +78,15 @@ describe('parseWebviewToHostMessage', () => {
     ['requestHandoff without a goal', { type: 'requestHandoff', requestId: 'h1' }],
     ['confirmHandoff', { type: 'confirmHandoff', requestId: 'h1', brief: 'Goal: x.' }],
     ['cancelHandoff', { type: 'cancelHandoff', requestId: 'h1' }],
+    ['openTasksTab', { type: 'hostAction', action: 'openTasksTab' }],
+    [
+      'withdrawQueued',
+      { type: 'withdrawQueued', localId: 'l2', turnId: 't2', userMessageId: 'backend-u2' },
+    ],
+    [
+      'withdrawQueued without a user item id',
+      { type: 'withdrawQueued', localId: 'l2', turnId: 't2' },
+    ],
   ])('accepts %s', (_label, message) => {
     expect(parseWebviewToHostMessage(message)).toEqual({ ok: true, message })
   })
@@ -142,6 +154,18 @@ describe('parseWebviewToHostMessage', () => {
     ['handoff without a request id', { type: 'requestHandoff', goal: 'Ship it' }],
     ['handoff confirm without the brief', { type: 'confirmHandoff', requestId: 'h1' }],
     ['handoff cancel without a request id', { type: 'cancelHandoff' }],
+    ['withdraw without its card', { type: 'withdrawQueued', turnId: 't2' }],
+    ['withdraw with an empty card id', { type: 'withdrawQueued', localId: '', turnId: 't2' }],
+    ['withdraw without its turn', { type: 'withdrawQueued', localId: 'l2' }],
+    ['withdraw with an empty turn', { type: 'withdrawQueued', localId: 'l2', turnId: '' }],
+    [
+      'withdraw with an empty user item id',
+      { type: 'withdrawQueued', localId: 'l2', turnId: 't2', userMessageId: '' },
+    ],
+    [
+      'withdraw with a numeric user item id',
+      { type: 'withdrawQueued', localId: 'l2', turnId: 't2', userMessageId: 2 },
+    ],
   ])('rejects %s', (_label, input) => {
     const result = parseWebviewToHostMessage(input)
     expect(result.ok).toBe(false)
@@ -204,6 +228,47 @@ describe('parseHostToWebviewMessage', () => {
       { type: 'turnAccepted', localId: 'l', turnId: 't', userMessageId: 'backend-u' },
     ],
     ['sendFailed', { type: 'sendFailed', localId: 'l', reason: 'no' }],
+    [
+      'queued turnAccepted',
+      { type: 'turnAccepted', localId: 'l', turnId: 't', disposition: 'queued' },
+    ],
+    [
+      'turnAccepted with a disposition the wire adds later',
+      { type: 'turnAccepted', localId: 'l', turnId: 't', disposition: 'deferred' },
+    ],
+    ['queuedWithdrawn', { type: 'queuedWithdrawn', localId: 'l2', attachmentsKept: true }],
+    ['queuedWithdrawn without its images', { type: 'queuedWithdrawn', localId: 'l2' }],
+    ['withdrawRefused', { type: 'withdrawRefused', localId: 'l2', reason: 'too late' }],
+    [
+      'messageAdmitted',
+      { type: 'agentEvent', event: { type: 'messageAdmitted', userMessageId: 'backend-u2' } },
+    ],
+    [
+      'an item with its recorded time',
+      {
+        type: 'agentEvent',
+        event: {
+          type: 'itemCompleted',
+          item: {
+            itemId: 'u1',
+            kind: 'userMessage',
+            status: 'completed',
+            text: 'hi',
+            recordedAt: '2026-09-25T19:13:49.136845Z',
+          },
+        },
+      },
+    ],
+    [
+      'an item whose recorded time does not parse, kept as it came',
+      {
+        type: 'agentEvent',
+        event: {
+          type: 'itemCompleted',
+          item: { itemId: 'u1', kind: 'userMessage', status: 'completed', recordedAt: 'soon' },
+        },
+      },
+    ],
     ['goalCommandResult', { type: 'goalCommandResult', requestId: 'g1', accepted: false }],
     [
       'handoffReady',
@@ -317,7 +382,55 @@ describe('parseHostToWebviewMessage', () => {
       { type: 'handoffReady', requestId: 'h1', brief: 'Goal: x.' },
     ],
     ['handoff result without acceptance', { type: 'handoffCommandResult', requestId: 'h1' }],
+    [
+      'turnAccepted with a numeric disposition',
+      { type: 'turnAccepted', localId: 'l', turnId: 't', disposition: 1 },
+    ],
+    ['queuedWithdrawn without its card', { type: 'queuedWithdrawn', attachmentsKept: true }],
+    ['queuedWithdrawn with an empty card id', { type: 'queuedWithdrawn', localId: '' }],
+    [
+      'queuedWithdrawn with images kept as a word',
+      { type: 'queuedWithdrawn', localId: 'l2', attachmentsKept: 'yes' },
+    ],
+    ['withdrawRefused without its reason', { type: 'withdrawRefused', localId: 'l2' }],
+    [
+      'withdrawRefused with an empty card id',
+      { type: 'withdrawRefused', localId: '', reason: 'x' },
+    ],
+    [
+      'messageAdmitted without its user item id',
+      { type: 'agentEvent', event: { type: 'messageAdmitted' } },
+    ],
+    [
+      'messageAdmitted with an empty user item id',
+      { type: 'agentEvent', event: { type: 'messageAdmitted', userMessageId: '' } },
+    ],
+    [
+      'an item with a numeric recorded time',
+      {
+        type: 'agentEvent',
+        event: {
+          type: 'itemCompleted',
+          item: { itemId: 'u1', kind: 'userMessage', status: 'completed', recordedAt: 1 },
+        },
+      },
+    ],
   ])('rejects %s', (_label, input) => {
     expect(parseHostToWebviewMessage(input).ok).toBe(false)
+  })
+
+  it('carries the recorded time of captured Muse Code items through to the webview (rule 13)', () => {
+    for (const frame of [USER_SHELL_COMPLETED.item, PLAN_USER_ITEM, PLAN_REPLY_COMPLETED.item]) {
+      const item = toSnapshot(wireItemSchema.parse(frame))
+      expect(item.recordedAt).toBe(frame.recordedAt)
+      const parsed = parseHostToWebviewMessage({
+        type: 'agentEvent',
+        event: { type: 'itemCompleted', item },
+      })
+      expect(parsed).toMatchObject({
+        ok: true,
+        message: { event: { item: { recordedAt: frame.recordedAt } } },
+      })
+    }
   })
 })

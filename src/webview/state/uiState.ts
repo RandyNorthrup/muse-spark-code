@@ -60,16 +60,20 @@ import type { SessionRow } from '../../shared/sessions'
 import type { AccountFacts, SubscriptionUsage, UsageInsights } from '../../shared/usage'
 import { goalStatusLabel, toolLabel } from '../toolPresentation'
 import { backgroundRun } from '../toolDetails'
-import type {
-  ChildTranscript,
-  ContextSummary,
-  NoticeLevel,
-  OutputRef,
-  PendingApproval,
-  PendingQuestion,
-  TranscriptEntry,
-  UsageSummary,
-  WorkflowChild,
+import {
+  type ChildTranscript,
+  type ContextSummary,
+  hasImageAttachment,
+  type NoticeLevel,
+  type OutputRef,
+  type PendingApproval,
+  type PendingQuestion,
+  QUEUED_DISPOSITION,
+  recordedAtMs,
+  STEERED_DISPOSITION,
+  type TranscriptEntry,
+  type UsageSummary,
+  type WorkflowChild,
 } from './transcriptEntries'
 
 export type {
@@ -272,6 +276,11 @@ export interface UiState {
   readonly lastCompletedTurnId: string | undefined
   /** Promoted-steer turn corrections received before their local card is accepted. */
   readonly pendingReplayTurns: Readonly<Record<string, string>>
+  /**
+   * User items a request read before their card was accepted (M87): the late
+   * acceptance marks the card sent, never queued. At most one per pending card.
+   */
+  readonly admittedMessageIds: readonly string[]
   readonly usage: UsageSummary | undefined
   readonly context: ContextSummary | undefined
   /** undefined until the host answered `readUsage` for this window. */
@@ -376,6 +385,8 @@ export type UiAction =
       readonly contextLabel: string | undefined
       /** What the message replies to or quotes (M17); absent for a plain send. */
       readonly reference?: ChatReference | undefined
+      /** When it was sent (M87): the card's time until the host's arrives. */
+      readonly at?: number | undefined
     }
   /** The composer now replies to an output or quotes a passage (M17). */
   | { readonly type: 'referenceSet'; readonly reference: ChatReference }
@@ -478,6 +489,7 @@ export const initialUiState: UiState = {
   activeTurnId: undefined,
   lastCompletedTurnId: undefined,
   pendingReplayTurns: {},
+  admittedMessageIds: [],
   usage: undefined,
   context: undefined,
   usageReport: undefined,
@@ -995,6 +1007,7 @@ function entryFor(item: ItemSnapshot, at: number, seq: number): TranscriptEntry 
         citations: item.citations,
         usage: item.usage,
         costUsd: item.costUsd,
+        atMs: recordedAtMs(item.recordedAt),
       }
     }
     case 'reasoning': {
@@ -1043,6 +1056,7 @@ function mergeItem(entry: TranscriptEntry, item: ItemSnapshot, at: number): Tran
         citations: item.citations ?? entry.citations,
         usage: item.usage ?? entry.usage,
         costUsd: item.costUsd ?? entry.costUsd,
+        atMs: recordedAtMs(item.recordedAt) ?? entry.atMs,
       }
     }
     case 'reasoning': {
@@ -1203,12 +1217,14 @@ function settleAll(entries: readonly TranscriptEntry[], at: number): readonly Tr
  * not record.
  */
 function replayedUserEntry(item: ItemSnapshot, seq: number, isPlanTurn = false): TranscriptEntry {
+  const atMs = recordedAtMs(item.recordedAt)
   return {
     kind: 'user',
     id: item.itemId,
     seq,
     text: item.text ?? '',
     status: 'sent',
+    ...(atMs !== undefined && { atMs }),
     attachments: (item.attachments ?? []).map((attachment, index) => ({
       id: `${item.itemId}:${String(index)}`,
       name: attachment.name ?? attachment.mediaType,
@@ -1361,6 +1377,15 @@ function childOwnerOf(state: UiState, turnId: string | undefined): SubagentEntry
       )
 }
 
+/**
+ * A reply that arrives live shows the moment it began arriving until the
+ * backend's recorded time comes with its completion (M87). A row read back
+ * from history takes only the recorded time: no other time stands in.
+ */
+function withArrivalTime(entry: TranscriptEntry, at: number): TranscriptEntry {
+  return entry.kind === 'assistant' && entry.atMs === undefined ? { ...entry, atMs: at } : entry
+}
+
 function upsertEntry(
   entries: readonly TranscriptEntry[],
   item: ItemSnapshot,
@@ -1370,7 +1395,58 @@ function upsertEntry(
   const isKnown = entries.some((entry) => entry.id === item.itemId)
   return isKnown
     ? updateEntry(entries, item.itemId, (entry) => stampCompletion(mergeItem(entry, item, at), seq))
-    : [...entries, stampCompletion(mergeItem(entryFor(item, at, seq), item, at), seq)]
+    : [
+        ...entries,
+        stampCompletion(withArrivalTime(mergeItem(entryFor(item, at, seq), item, at), at), seq),
+      ]
+}
+
+/**
+ * Muse Code's own record of a message sent from this panel (M87): the live
+ * path shows the card, not the item, so the card takes the item's recorded
+ * time. The card is the one the item names exactly (its replay id, or the
+ * item it took a time from before); failing that, the first card of the
+ * item's turn with its text that no item has named yet, which then keeps
+ * the item's id. One item stamps one card: two equal messages in a turn
+ * keep their own times (the review of lane C). A time that does not parse
+ * changes nothing.
+ */
+function withRecordedUserTime(state: UiState, item: ItemSnapshot): UiState {
+  const atMs = recordedAtMs(item.recordedAt)
+  if (atMs === undefined) {
+    return state
+  }
+  const exact = state.transcript.find(
+    (entry) =>
+      entry.kind === 'user' &&
+      (entry.replayItemId === item.itemId || entry.recordedItemId === item.itemId),
+  )
+  const card =
+    exact ??
+    state.transcript.find(
+      (entry) =>
+        entry.kind === 'user' &&
+        entry.replayItemId === undefined &&
+        entry.recordedItemId === undefined &&
+        item.turnId !== undefined &&
+        entry.turnId === item.turnId &&
+        entry.text === item.text,
+    )
+  if (card?.kind !== 'user') {
+    return state
+  }
+  const recordedItemId = card.replayItemId === undefined ? item.itemId : card.recordedItemId
+  if (card.atMs === atMs && card.recordedItemId === recordedItemId) {
+    return state
+  }
+  return {
+    ...state,
+    transcript: updateEntry(state.transcript, card.id, (entry) =>
+      entry.kind === 'user'
+        ? { ...entry, atMs, ...(recordedItemId !== undefined && { recordedItemId }) }
+        : entry,
+    ),
+  }
 }
 
 function ownersOf(childId: string, entries: readonly TranscriptEntry[]): Record<string, string> {
@@ -1450,6 +1526,9 @@ function claimStrays(state: UiState, childId: string): UiState {
 }
 
 function applyItem(state: UiState, item: ItemSnapshot, at: number): UiState {
+  if (item.kind === USER_MESSAGE_KIND) {
+    return withRecordedUserTime(state, item)
+  }
   if (HIDDEN_ITEM_KINDS.has(item.kind)) {
     return state
   }
@@ -1519,6 +1598,24 @@ function withToolEntry(
   return { ...state, transcript }
 }
 
+type UserEntry = Extract<TranscriptEntry, { kind: 'user' }>
+
+/**
+ * Queued cards the model now has (M87, PLAN.md D66): their turn started, the
+ * message reached a request, or the turn it joined ended. They read as sent,
+ * and Edit is no longer offered.
+ */
+function admitQueued(
+  transcript: readonly TranscriptEntry[],
+  isAdmitted: (entry: UserEntry) => boolean,
+): readonly TranscriptEntry[] {
+  const isQueued = (entry: TranscriptEntry): entry is UserEntry =>
+    entry.kind === 'user' && entry.status === 'queued' && isAdmitted(entry)
+  return transcript.some((entry) => isQueued(entry))
+    ? transcript.map((entry) => (isQueued(entry) ? { ...entry, status: 'sent' } : entry))
+    : transcript
+}
+
 /** A turn of the conversation ended (M25 settles the rows it left behind). */
 function completeTurn(
   state: UiState,
@@ -1546,7 +1643,13 @@ function completeTurn(
       activeTurnId: undefined,
       lastCompletedTurnId: event.turnId,
       strayItems: without(state.strayItems, event.turnId),
-      transcript: [...settleAll(state.transcript, at), ...failure],
+      transcript: [
+        ...settleAll(
+          admitQueued(state.transcript, (entry) => entry.turnId === event.turnId),
+          at,
+        ),
+        ...failure,
+      ],
     },
     turnAnnouncement(event.terminal, event.reason),
   )
@@ -1560,6 +1663,7 @@ function applyAgentEvent(state: UiState, event: AgentEvent, at: number): UiState
             ...state,
             activeTurnId: event.turnId,
             strayItems: without(state.strayItems, event.turnId),
+            transcript: admitQueued(state.transcript, (entry) => entry.turnId === event.turnId),
           }
         : state
     }
@@ -1595,11 +1699,18 @@ function applyAgentEvent(state: UiState, event: AgentEvent, at: number): UiState
         if (card.turnId !== undefined && activeTurnId === card.turnId) {
           activeTurnId = event.turnId === state.lastCompletedTurnId ? undefined : event.turnId
         }
+        // A steer the turn ended without waits as a queued turn of its own (M87).
         return {
           ...state,
           activeTurnId,
           transcript: updateEntry(state.transcript, card.id, (entry) =>
-            entry.kind === 'user' ? { ...entry, turnId: event.turnId } : entry,
+            entry.kind === 'user'
+              ? {
+                  ...entry,
+                  turnId: event.turnId,
+                  ...(entry.status === 'queued' && { disposition: QUEUED_DISPOSITION }),
+                }
+              : entry,
           ),
         }
       }
@@ -1821,6 +1932,29 @@ function applyAgentEvent(state: UiState, event: AgentEvent, at: number): UiState
       // The host confirms the resulting composer state / skill list itself.
       return state
     }
+    case 'messageAdmitted': {
+      // A steered or queued message reached a request (M87): its card is sent.
+      const transcript = admitQueued(
+        state.transcript,
+        (entry) => entry.replayItemId === event.userMessageId,
+      )
+      if (transcript !== state.transcript) {
+        return { ...state, transcript }
+      }
+      // Before its card's acceptance (the ack can trail the request): kept,
+      // so the acceptance marks the card sent (the review of lane C).
+      const pendingCount = state.transcript.filter(
+        (entry) => entry.kind === 'user' && entry.status === 'pending',
+      ).length
+      return pendingCount === 0 || state.admittedMessageIds.includes(event.userMessageId)
+        ? state
+        : {
+            ...state,
+            admittedMessageIds: [...state.admittedMessageIds, event.userMessageId].slice(
+              -pendingCount,
+            ),
+          }
+    }
     case 'turnWithdrawn': {
       // Only the message that will never run is marked (D26); the running
       // turn keeps its rows and its Stop.
@@ -1887,6 +2021,7 @@ function withPendingCard(
     readonly contextLabel?: string | undefined
     readonly reference?: ChatReference | undefined
     readonly isPlanTurn?: boolean
+    readonly at?: number | undefined
   },
 ): UiState {
   return {
@@ -1908,6 +2043,7 @@ function withPendingCard(
         ...(card.contextLabel !== undefined && { contextLabel: card.contextLabel }),
         ...(card.reference !== undefined && { referenceLabel: referenceLabel(card.reference) }),
         ...(card.isPlanTurn === true && { isPlanTurn: true }),
+        ...(card.at !== undefined && { atMs: card.at }),
       },
     ],
   }
@@ -1963,6 +2099,7 @@ function clearedConversation(state: UiState): UiState {
     childOwners: {},
     strayItems: {},
     pendingReplayTurns: {},
+    admittedMessageIds: [],
     unsentAttachments: {},
     pendingSendDraft: undefined,
     attachmentsToRelease: [],
@@ -2381,6 +2518,7 @@ function applyHostMessage(state: UiState, message: HostToWebviewMessage, at: num
             activeTurnId: message.activeTurnId,
             lastCompletedTurnId: undefined,
             pendingReplayTurns: {},
+            admittedMessageIds: [],
             usage: isSameSession ? state.usage : undefined,
             context: isSameSession ? state.context : undefined,
             outputPages: {},
@@ -2419,11 +2557,25 @@ function applyHostMessage(state: UiState, message: HostToWebviewMessage, at: num
         (entry) =>
           entry.kind === 'user' && entry.status === 'pending' && entry.id !== message.localId,
       ).length
+      // Queued or steered (M87): the model does not have it yet, unless its
+      // turn already started or finished before this acceptance arrived.
+      const { disposition } = message
+      const isAdmitted =
+        message.userMessageId !== undefined &&
+        state.admittedMessageIds.includes(message.userMessageId)
+      const isQueued =
+        !isFinished &&
+        !isAdmitted &&
+        (disposition === STEERED_DISPOSITION ||
+          (disposition === QUEUED_DISPOSITION && turnId !== state.activeTurnId))
       return {
         ...state,
         activeTurnId: isFinished ? state.activeTurnId : turnId,
         strayItems: without(state.strayItems, turnId),
         pendingReplayTurns: boundedReplayTurns(pending, pendingCount),
+        admittedMessageIds: isAdmitted
+          ? state.admittedMessageIds.filter((id) => id !== message.userMessageId)
+          : state.admittedMessageIds,
         unsentAttachments: without(state.unsentAttachments, message.localId),
         pendingSendDraft:
           state.pendingSendDraft?.localId === message.localId ? undefined : state.pendingSendDraft,
@@ -2431,8 +2583,10 @@ function applyHostMessage(state: UiState, message: HostToWebviewMessage, at: num
           entry.kind === 'user'
             ? {
                 ...entry,
-                status: 'sent',
+                status: isQueued ? 'queued' : 'sent',
                 turnId,
+                atMs: entry.atMs ?? at,
+                ...(disposition !== undefined && { disposition }),
                 ...(message.userMessageId !== undefined && { replayItemId: message.userMessageId }),
               }
             : entry,
@@ -2532,6 +2686,35 @@ function applyHostMessage(state: UiState, message: HostToWebviewMessage, at: num
         },
         message.reason,
       )
+    }
+    case 'queuedWithdrawn': {
+      // A queued message taken back (M87, PLAN.md D66): its card goes and its
+      // text returns to the composer, alone in an empty box, else first with
+      // a blank line before the draft, so no draft is lost. Its images came
+      // back before this, as `attachmentAdded`.
+      const card = state.transcript.find((entry) => entry.id === message.localId)
+      if (card?.kind !== 'user') {
+        return state
+      }
+      const withdrawn: UiState = {
+        ...state,
+        transcript: state.transcript.filter((entry) => entry !== card),
+        draft: state.draft === '' ? card.text : `${card.text}\n\n${state.draft}`,
+        draftRevision: state.draftRevision + 1,
+        focusRequests: state.focusRequests + 1,
+      }
+      // Images the backend kept no bytes of (Muse Code) do not come back (M87):
+      // the text does, and a notice says the pictures must be attached again.
+      return message.attachmentsKept === true || !hasImageAttachment(card.attachments)
+        ? withdrawn
+        : announce(
+            withNotice(withdrawn, 'warning', UI_TEXT.queuedImagesNotReturned),
+            UI_TEXT.queuedImagesNotReturned,
+          )
+    }
+    case 'withdrawRefused': {
+      // Not taken back (M87): the card stays, and the reason is said.
+      return announce(withNotice(state, 'warning', message.reason), message.reason)
     }
     case 'agentEvent': {
       return applyAgentEvent(state, message.event, at)

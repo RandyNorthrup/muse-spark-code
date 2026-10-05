@@ -13,12 +13,37 @@ export const EXTENSION_QUALIFIED_ID = `${EXTENSION_PUBLISHER}.${EXTENSION_NAME}`
 // Contribution point ids (package.json `contributes`).
 export const CHAT_VIEW_ID = 'museSpark.chatView'
 export const CHAT_PANEL_VIEW_TYPE = 'museSpark.chatPanel'
+export const TASKS_PANEL_VIEW_TYPE = 'museSpark.tasksPanel'
+export const TASKS_MOVE_TO_WINDOW_COMMAND = 'workbench.action.moveEditorToNewWindow'
 // `contributes.walkthroughs[0].id`, opened as `<publisher>.<name>#<id>`.
 export const WALKTHROUGH_ID = 'museSpark.gettingStarted'
 export const WALKTHROUGH_QUALIFIED_ID = `${EXTENSION_QUALIFIED_ID}#${WALKTHROUGH_ID}`
+// M87 F: radial menu geometry, shared by the pure layout and its renderer.
+// Since 2026-10-04 (the owner) each item is one blue pill holding its icon
+// and its label, every pill the same size, in a fan with no goo.
+export const GOOEY_MENU = {
+  /** A pill's height, the old bubble's; its ends are half circles. */
+  pillHeight: 40,
+  edgePadding: 8,
+  /** Between the fan's pills at rest. */
+  gap: 20,
+  /** The least room from the origin to a pill: clears a 26 px control centred there. */
+  reach: 16,
+  /** How much farther the fan's middle reaches than its ends: the arc. */
+  bow: 32,
+  /**
+   * The narrowest panel the whole fan must fit (the owner's narrow-view
+   * rule): every pill's width is this less the padding and the bow.
+   */
+  narrowPanel: 320,
+  /** Each pill starts its scale-in this long after the one before it. */
+  staggerMs: 30,
+} as const
+
 export const COMMAND_IDS = {
   openInSidebar: 'museSpark.openInSidebar',
   openInNewTab: 'museSpark.openInNewTab',
+  openTasks: 'museSpark.openTasks',
   focusInput: 'museSpark.focusInput',
   insertMentionReference: 'museSpark.insertMentionReference',
   toggleFocusView: 'museSpark.toggleFocusView',
@@ -2369,6 +2394,8 @@ export const CHOICE_STEERING_NOTE =
 export const HARNESS_NOTE_TAG = 'harness_note'
 // Collapsed tool bodies show this many lines before "Show more".
 export const OUTPUT_PREVIEW_LINES = 12
+/** Shell IN/OUT previews share a compact five-line limit (M87). */
+export const IO_PREVIEW_LINES = 5
 // And at most this many characters (M39): one line of minified output can
 // be megabytes, which the line count alone would render whole.
 export const OUTPUT_PREVIEW_CHARS = 2000
@@ -2377,6 +2404,21 @@ export const OUTPUT_PAGE_BYTES = 256 * 1024
 // The spinner line under the last row changes its verb this often while a
 // turn runs (the verbs are `UI_TEXT.statusVerbs`).
 export const STATUS_VERB_INTERVAL_MS = 4000
+// The working line's heart-monitor beam (M87, D66): a canvas port of Vahid's
+// HTML5 Canvas Heart Monitor (CodePen MWvmvd, MIT; written fresh). The beam
+// advances this far every tick, so the 100-unit box sweeps in about 1.2 s —
+// slower than the reference's 0.6 s, which reads as frantic at this size.
+export const HEARTBEAT_BEAM_TICK_MS = 6
+export const HEARTBEAT_BEAM_STEP_PX = 0.5
+// The beam's trail: the last this-many ticks of its path are drawn, fading
+// from opaque at the beam to nothing (100 ticks = half a sweep, 0.6 s). Nothing
+// older is drawn, so the wave exists only where the beam has just been.
+export const HEARTBEAT_BEAM_TRAIL_TICKS = 100
+// Beam width in CSS pixels.
+export const HEARTBEAT_BEAM_LINE_WIDTH_PX = 1.5
+// At most this many fixed ticks run per animation frame; excess time is
+// dropped so a stalled frame never replays its debt as a burst.
+export const HEARTBEAT_BEAM_MAX_TICKS_PER_FRAME = 8
 export const MILLISECONDS_PER_SECOND = 1000
 export const SECONDS_PER_MINUTE = 60
 export const USAGE_COUNTDOWN_REFRESH_MS = MILLISECONDS_PER_SECOND * SECONDS_PER_MINUTE
@@ -3976,6 +4018,8 @@ export const EVAL_COST_DECIMALS = 4
 
 // What the user reads, in the display language (PLAN.md D33).
 export { UI_TEXT } from './l10n/text'
+// Inclusive integer range used to check whether a locale's `one` needs a count.
+export const L10N_PLURAL_SAMPLE_MAX = 200
 // The JSON script element the host writes into each webview's HTML with
 // `{ locale, table }`, read before the first render (D33).
 export const WEBVIEW_L10N_ELEMENT_ID = 'muse-l10n'

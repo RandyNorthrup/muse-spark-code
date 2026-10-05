@@ -6,18 +6,21 @@ import type { ReactNode } from 'react'
 
 export interface MenuOptionProps {
   readonly id: string
+  readonly tip?: string | undefined
   readonly isActive: boolean
   readonly onHover: () => void
   readonly onSelect: () => void
   readonly children: ReactNode
 }
 
-export function MenuOption({ id, isActive, onHover, onSelect, children }: MenuOptionProps) {
+export function MenuOption({ id, tip, isActive, onHover, onSelect, children }: MenuOptionProps) {
   return (
     <li
       id={id}
       role="option"
       aria-selected={isActive}
+      title={tip}
+      aria-describedby={tip === undefined ? undefined : `${id}-tip`}
       className={isActive ? 'menu-item menu-item-active' : 'menu-item'}
       onMouseEnter={onHover}
       onMouseDown={(event) => {
@@ -26,6 +29,11 @@ export function MenuOption({ id, isActive, onHover, onSelect, children }: MenuOp
       onClick={onSelect}
     >
       {children}
+      {tip === undefined ? null : (
+        <span id={`${id}-tip`} className="sr-only" aria-hidden="true">
+          {tip}
+        </span>
+      )}
     </li>
   )
 }
