@@ -16,6 +16,7 @@
 !dist/pageWorker.js
 !dist/webview/main.js
 !dist/webview/main.css
+!dist/providerCatalog.json
 !media/icon.svg
 !media/icon.png
 !resources/walkthrough/**
@@ -35,3 +36,5 @@
 !THIRD_PARTY_NOTICES.txt
 !docs/PRIVACY.md
 !vendor/high-quality-projects-skill/**
+!vendor/models-dev/LICENSE
+!vendor/models-dev/VENDOR.json
