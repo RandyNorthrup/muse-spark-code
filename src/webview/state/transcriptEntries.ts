@@ -324,7 +324,12 @@ const itemEntrySchema = z.object({
   text: z.optional(z.string()),
 })
 
-const errorEntrySchema = z.object({ kind: z.literal('error'), id: z.string(), text: z.string() })
+const errorEntrySchema = z.object({
+  kind: z.literal('error'),
+  id: z.string(),
+  text: z.string(),
+  errorKind: z.optional(z.string()),
+})
 
 export type NoticeLevel = (typeof NOTICE_LEVELS)[number]
 

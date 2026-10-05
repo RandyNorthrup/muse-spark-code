@@ -2179,5 +2179,27 @@
   "ollamaMissingFinal": "Ollama가 최종 답변 없이 스트림을 닫았습니다.",
   "ollamaMalformedFrame": "잘못된 Ollama 스트림 프레임입니다.",
   "ollamaStreamLimit": "Ollama가 스트림 크기 또는 항목 수 제한을 초과했습니다.",
-  "ollamaFinishReason": "Ollama가 \"{reason}\" 사유로 종료되었습니다."
+  "ollamaFinishReason": "Ollama가 \"{reason}\" 사유로 종료되었습니다.",
+  "planUi": {
+    "chatGptMark": "ChatGPT 요금제 사용 중",
+    "providerMark": "{provider} 요금제 사용 중",
+    "manage": "사용량 관리",
+    "noticeTitle": "ChatGPT 요금제를 사용하고 있습니다",
+    "noticeDetail": "이 요청은 ChatGPT Plus 또는 Pro 요금제로 처리됩니다. 기존 사용 한도를 공유하며 새로운 한도를 추가하지 않습니다.",
+    "credits": "ChatGPT 설정에서 앱의 크레딧 사용을 허용하면 요금제 한도에 도달한 후 요청이 해당 크레딧을 소모할 수 있습니다. 사용량 관리에서 한도와 크레딧 설정을 확인하세요.",
+    "understood": "확인",
+    "limitTitle": "ChatGPT 요금제 사용 한도에 도달했습니다",
+    "limitDetail": "한도가 초기화될 때까지 기다리거나 API 키를 사용하는 모델을 선택하세요. 초기화 시간은 제공되지 않았습니다. 결제 방식 변경은 직접 선택해야 합니다.",
+    "chooseModel": "다른 모델 선택",
+    "usageHeading": "요금제 사용량",
+    "usageDetail": "요금제 요청은 제공업체의 한도 또는 크레딧을 사용하며 이 앱의 달러 지출 한도에 포함되지 않습니다. 남은 한도와 초기화 시간은 여기에서 확인할 수 없습니다.",
+    "requests": "요청 수",
+    "reportedTokens": "보고된 토큰",
+    "estimatedTokens": "추정 토큰",
+    "unknownTokens": "토큰 사용량을 알 수 없는 요청",
+    "tokenCounts": "입력 {input} · 출력 {output} · 요청: {requests}",
+    "reduced": "제한된 기능",
+    "aiContent": "AI가 생성한 콘텐츠는 부정확할 수 있습니다. Copilot은 자체 규칙을 추가하고 AI 크레딧을 사용합니다. 사용량이 보고되지 않으면 토큰 수는 추정치입니다.",
+    "reportContent": "유해 콘텐츠 신고"
+  }
 }

@@ -3109,14 +3109,14 @@ describe('App BYO picker and setup (M95)', () => {
     })
   })
 
-  it('confirms the finished setup once, then manages and dismisses', () => {
+  it('confirms the finished setup once, then manages and dismisses', async () => {
     const postMessage = renderReady()
     deliver({
       type: 'setupComplete',
       provider: 'OpenRouter',
       model: 'openrouter/deepseek/deepseek-v3',
     })
-    expect(screen.getByRole('status')).toHaveTextContent('OpenRouter')
+    expect(await screen.findByRole('status')).toHaveTextContent('OpenRouter')
     expect(screen.getByRole('status')).toHaveTextContent('openrouter/deepseek/deepseek-v3')
     fireEvent.click(screen.getByRole('button', { name: 'Manage providers' }))
     expect(postMessage).toHaveBeenLastCalledWith({ type: 'hostAction', action: 'manageModels' })

@@ -60,6 +60,7 @@ import type { SessionRow } from '../../shared/sessions'
 import type {
   AccountFacts,
   ProviderUsageRow,
+  PlanUsageRow,
   SubscriptionUsage,
   UsageInsights,
 } from '../../shared/usage'
@@ -99,6 +100,7 @@ export interface UsageReport {
   readonly insights: { readonly day: UsageInsights; readonly week: UsageInsights } | undefined
   /** This window's tallies per BYO provider (M95); undefined until one is used. */
   readonly providers: readonly ProviderUsageRow[] | undefined
+  readonly plans?: readonly PlanUsageRow[] | undefined
 }
 
 /**
@@ -1646,6 +1648,7 @@ function completeTurn(
             kind: 'error',
             id: `error:${event.turnId}`,
             text: event.reason ?? event.errorKind ?? UI_TEXT.turnFailed,
+            ...(event.errorKind !== undefined && { errorKind: event.errorKind }),
           },
         ]
       : []
@@ -2455,6 +2458,7 @@ function applyHostMessage(state: UiState, message: HostToWebviewMessage, at: num
           account: message.account,
           insights: message.insights,
           providers: message.providers === undefined ? undefined : [...message.providers],
+          plans: message.plans,
         },
       }
     }

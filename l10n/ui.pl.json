@@ -2425,5 +2425,27 @@
   "ollamaMissingFinal": "Ollama zamknęła strumień bez końcowej odpowiedzi.",
   "ollamaMalformedFrame": "Nieprawidłowa ramka strumienia Ollama.",
   "ollamaStreamLimit": "Ollama przekroczyła limit rozmiaru strumienia lub liczby elementów.",
-  "ollamaFinishReason": "Ollama zakończyła działanie z powodu „{reason}”."
+  "ollamaFinishReason": "Ollama zakończyła działanie z powodu „{reason}”.",
+  "planUi": {
+    "chatGptMark": "Korzystanie z planu ChatGPT",
+    "providerMark": "Korzystanie z planu {provider}",
+    "manage": "Zarządzaj użyciem",
+    "noticeTitle": "Korzystasz ze swojego planu ChatGPT",
+    "noticeDetail": "Te żądania pokrywa Twój plan ChatGPT Plus lub Pro. Korzystają ze wspólnego istniejącego limitu i nie dodają nowego.",
+    "credits": "Jeśli w ustawieniach ChatGPT zezwolisz aplikacjom na używanie kredytów, żądania mogą je zużywać po osiągnięciu limitu planu. W zarządzaniu użyciem sprawdź limity i ustawienia kredytów.",
+    "understood": "Rozumiem",
+    "limitTitle": "Osiągnięto limit użycia planu ChatGPT",
+    "limitDetail": "Poczekaj na odnowienie limitu lub wybierz model z kluczem API. Nie podano czasu odnowienia. Zmiana rozliczeń wymaga Twojego wyboru.",
+    "chooseModel": "Wybierz inny model",
+    "usageHeading": "Użycie planu",
+    "usageDetail": "Żądania planu zużywają limit lub kredyty dostawcy i nie wliczają się do limitu dolarowego tej aplikacji. Pozostały limit i czas odnowienia nie są tu dostępne.",
+    "requests": "Żądania",
+    "reportedTokens": "Zgłoszone tokeny",
+    "estimatedTokens": "Szacowane tokeny",
+    "unknownTokens": "Żądania o nieznanym użyciu tokenów",
+    "tokenCounts": "{input} wejściowych · {output} wyjściowych · żądania: {requests}",
+    "reduced": "Ograniczone możliwości",
+    "aiContent": "Treści generowane przez AI mogą być niedokładne. Copilot dodaje własne reguły i używa Twoich kredytów AI; liczby tokenów są szacunkowe, gdy użycie nie jest zgłaszane.",
+    "reportContent": "Zgłoś szkodliwe treści"
+  }
 }

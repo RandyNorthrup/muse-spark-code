@@ -2261,5 +2261,27 @@
   "ollamaMissingFinal": "Ollama hat den Stream ohne abschließende Antwort geschlossen.",
   "ollamaMalformedFrame": "Fehlerhaftes Ollama-Stream-Frame.",
   "ollamaStreamLimit": "Ollama hat das Limit für Streamgröße oder Elemente überschritten.",
-  "ollamaFinishReason": "Ollama wurde mit dem Grund „{reason}“ beendet."
+  "ollamaFinishReason": "Ollama wurde mit dem Grund „{reason}“ beendet.",
+  "planUi": {
+    "chatGptMark": "ChatGPT-Abo wird verwendet",
+    "providerMark": "Abo von {provider} wird verwendet",
+    "manage": "Nutzung verwalten",
+    "noticeTitle": "Du verwendest dein ChatGPT-Abo",
+    "noticeDetail": "Diese Anfragen werden über dein ChatGPT-Plus- oder Pro-Abo abgerechnet. Sie nutzen dein bestehendes Kontingent und fügen kein weiteres hinzu.",
+    "credits": "Wenn du Apps in den ChatGPT-Einstellungen die Nutzung von Guthaben erlaubst, können Anfragen nach Erreichen des Abo-Limits dieses Guthaben verbrauchen. Prüfe Limits und Guthabeneinstellungen unter Nutzung verwalten.",
+    "understood": "Verstanden",
+    "limitTitle": "Nutzungslimit des ChatGPT-Abos erreicht",
+    "limitDetail": "Warte auf die Erneuerung deines Kontingents oder wähle ein Modell mit API-Schlüssel. Es wurde kein Zeitpunkt dafür angegeben. Eine Änderung der Abrechnung erfordert deine Auswahl.",
+    "chooseModel": "Anderes Modell wählen",
+    "usageHeading": "Abo-Nutzung",
+    "usageDetail": "Abo-Anfragen nutzen das Kontingent oder Guthaben des Anbieters und zählen nicht zum Dollar-Limit dieser App. Restkontingent und Erneuerungszeit sind hier nicht verfügbar.",
+    "requests": "Anfragen",
+    "reportedTokens": "Gemeldete Token",
+    "estimatedTokens": "Geschätzte Token",
+    "unknownTokens": "Anfragen mit unbekannter Token-Nutzung",
+    "tokenCounts": "{input} Eingabe · {output} Ausgabe · Anfragen: {requests}",
+    "reduced": "Eingeschränkte Funktionen",
+    "aiContent": "KI-generierte Inhalte können ungenau sein. Copilot fügt eigene Regeln hinzu und nutzt deine KI-Guthaben; Token-Zahlen sind Schätzungen, wenn keine Nutzung gemeldet wird.",
+    "reportContent": "Schädliche Inhalte melden"
+  }
 }

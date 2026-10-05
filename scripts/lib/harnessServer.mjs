@@ -96,6 +96,17 @@ export const SCENARIOS = [
   'usage-api',
   // M95: Account & usage with per-provider rows and key usage.
   'usage-providers',
+  // M95b shared plan surfaces and their 320 px layouts.
+  'plan-chatgpt',
+  'plan-notice',
+  'plan-notice-narrow',
+  'plan-limit',
+  'plan-limit-narrow',
+  'plan-usage',
+  'plan-usage-narrow',
+  'plan-key',
+  'copilot-plan',
+  'copilot-plan-narrow',
   'reply-usage',
   'banner',
   'jump',
@@ -234,6 +245,10 @@ export function serveRepo(repoRoot) {
  * scrollbars headless Chrome otherwise hides, as its check measures one.
  */
 export const SIZED_SCENARIOS = {
+  'plan-notice-narrow': { width: 320, ready: '#chatgpt-plan-title' },
+  'plan-limit-narrow': { width: 320, ready: '#chatgpt-plan-title' },
+  'plan-usage-narrow': { width: 320, ready: '#usage-title' },
+  'copilot-plan-narrow': { width: 320, ready: '.copilot-note' },
   'share-narrow': { width: 320, ready: '[role="dialog"]' },
   'chat-menu-narrow': { width: 320, ready: '[role="menu"]' },
   'chat-tool-menu-narrow': { width: 320, ready: '[role="menu"]' },

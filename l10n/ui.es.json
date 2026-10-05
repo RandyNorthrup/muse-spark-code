@@ -2343,5 +2343,27 @@
   "ollamaMissingFinal": "Ollama cerró el flujo sin una respuesta final.",
   "ollamaMalformedFrame": "Trama del flujo de Ollama mal formada.",
   "ollamaStreamLimit": "Ollama superó el límite de tamaño del flujo o de elementos.",
-  "ollamaFinishReason": "Ollama terminó con el motivo «{reason}»."
+  "ollamaFinishReason": "Ollama terminó con el motivo «{reason}».",
+  "planUi": {
+    "chatGptMark": "Usando el plan de ChatGPT",
+    "providerMark": "Usando el plan de {provider}",
+    "manage": "Gestionar uso",
+    "noticeTitle": "Estás usando tu plan de ChatGPT",
+    "noticeDetail": "Tu plan ChatGPT Plus o Pro cubre estas solicitudes. Comparten tu cuota actual y no añaden una cuota nueva.",
+    "credits": "Si permites que las aplicaciones usen créditos en la configuración de ChatGPT, las solicitudes pueden gastar esos créditos al alcanzar el límite del plan. Gestiona el uso para revisar los límites y los ajustes de créditos.",
+    "understood": "Entendido",
+    "limitTitle": "Se alcanzó el límite de uso del plan de ChatGPT",
+    "limitDetail": "Espera a que se restablezca tu cuota o elige un modelo con clave API. No se proporcionó una hora de restablecimiento. Cambiar la facturación requiere tu elección.",
+    "chooseModel": "Elegir otro modelo",
+    "usageHeading": "Uso del plan",
+    "usageDetail": "Las solicitudes del plan consumen la cuota o los créditos del proveedor y no cuentan para el límite en dólares de esta aplicación. La cuota restante y la hora de restablecimiento no están disponibles aquí.",
+    "requests": "Solicitudes",
+    "reportedTokens": "Tokens informados",
+    "estimatedTokens": "Tokens estimados",
+    "unknownTokens": "Solicitudes con uso de tokens desconocido",
+    "tokenCounts": "{input} de entrada · {output} de salida · solicitudes: {requests}",
+    "reduced": "Funciones reducidas",
+    "aiContent": "El contenido generado por IA puede ser inexacto. Copilot añade sus propias reglas y usa tus créditos de IA; los recuentos de tokens son estimaciones cuando no se informa del uso.",
+    "reportContent": "Denunciar contenido dañino"
+  }
 }

@@ -2261,5 +2261,27 @@
   "ollamaMissingFinal": "Az Ollama végső válasz nélkül lezárta az adatfolyamot.",
   "ollamaMalformedFrame": "Hibás Ollama-adatfolyamkeret.",
   "ollamaStreamLimit": "Az Ollama túllépte az adatfolyam méret- vagy elemszámkorlátját.",
-  "ollamaFinishReason": "Az Ollama ezzel az indokkal fejeződött be: „{reason}”."
+  "ollamaFinishReason": "Az Ollama ezzel az indokkal fejeződött be: „{reason}”.",
+  "planUi": {
+    "chatGptMark": "ChatGPT-előfizetés használata",
+    "providerMark": "{provider}-előfizetés használata",
+    "manage": "Használat kezelése",
+    "noticeTitle": "A ChatGPT-előfizetését használja",
+    "noticeDetail": "Ezeket a kéréseket a ChatGPT Plus vagy Pro előfizetése fedezi. A meglévő keretén osztoznak, és nem adnak új keretet.",
+    "credits": "Ha a ChatGPT beállításaiban engedélyezi az alkalmazásoknak a kreditek használatát, a kérések az előfizetési korlát elérése után ezeket a krediteket költhetik. A használat kezelésénél ellenőrizze a korlátokat és a kreditbeállításokat.",
+    "understood": "Értem",
+    "limitTitle": "Elérte a ChatGPT-előfizetés használati korlátját",
+    "limitDetail": "Várja meg a keret megújulását, vagy válasszon API-kulcsos modellt. A megújulás időpontja nem áll rendelkezésre. A számlázás módosításához az Ön választása szükséges.",
+    "chooseModel": "Másik modell választása",
+    "usageHeading": "Előfizetés használata",
+    "usageDetail": "Az előfizetéses kérések a szolgáltató keretét vagy kreditjeit használják, és nem számítanak bele az alkalmazás dolláros korlátjába. A fennmaradó keret és a megújulás időpontja itt nem érhető el.",
+    "requests": "Kérések",
+    "reportedTokens": "Jelentett tokenek",
+    "estimatedTokens": "Becsült tokenek",
+    "unknownTokens": "Ismeretlen tokenhasználatú kérések",
+    "tokenCounts": "{input} bemeneti · {output} kimeneti · kérések: {requests}",
+    "reduced": "Korlátozott képességek",
+    "aiContent": "Az AI által létrehozott tartalom pontatlan lehet. A Copilot saját szabályokat ad hozzá és az Ön AI-kreditjeit használja; a tokenszámok becslések, ha a használat nincs jelentve.",
+    "reportContent": "Káros tartalom jelentése"
+  }
 }
