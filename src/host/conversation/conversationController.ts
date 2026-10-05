@@ -67,7 +67,12 @@ import type {
 import type { ReviewMaterial } from '../../core/review/reviewMaterial'
 import { isPrivateFileName } from '../../shared/privateFiles'
 import { isGitReview, type ReviewRequest } from '../../shared/reviewCommand'
-import type { LegalScanInput, LegalScanResult, LegalScanRunner } from '../../shared/legal'
+import type {
+  LegalScanInput,
+  LegalScanReportMessage,
+  LegalScanResult,
+  LegalScanRunner,
+} from '../../shared/legal'
 import { FifoLimiter } from '../../core/fifoLimiter'
 import { textFileDisplay } from '../../shared/textFileDisplay'
 import { type EditorContext, editorContextText } from '../../core/editorContext'
@@ -5695,7 +5700,7 @@ export class ConversationController {
         type: 'legalScanReport',
         requestId: `legal-${String(this.legalScanSequence)}`,
         result,
-      })
+      } satisfies LegalScanReportMessage)
     } catch (error: unknown) {
       if (isDropped()) {
         this.deps.log.info('Legal scan dropped: the conversation moved on')

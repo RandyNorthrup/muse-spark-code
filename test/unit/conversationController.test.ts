@@ -13269,22 +13269,27 @@ interface LegalSetupOptions extends Omit<
   /** The scan throws this instead of answering. */
   readonly scanError?: Error
   readonly withoutScanner?: boolean
+  /** The hold without the scan: still unavailable, never half-held. */
+  readonly holdOnly?: boolean
 }
 
 function legalSetup(options: LegalSetupOptions = {}) {
   const inputs: LegalScanInput[] = []
-  const { scanGate, scanError, withoutScanner, ...rest } = options
+  const { scanGate, scanError, withoutScanner, holdOnly, ...rest } = options
   const t = setup({
     ...rest,
-    ...(withoutScanner !== true && {
-      legalScan: async (input: LegalScanInput) => {
-        inputs.push(input)
-        await scanGate
-        if (scanError !== undefined) {
-          throw scanError
-        }
-        return emptyLegalResult()
-      },
+    ...(withoutScanner !== true &&
+      holdOnly !== true && {
+        legalScan: async (input: LegalScanInput) => {
+          inputs.push(input)
+          await scanGate
+          if (scanError !== undefined) {
+            throw scanError
+          }
+          return emptyLegalResult()
+        },
+      }),
+    ...((withoutScanner !== true || holdOnly === true) && {
       createLegalHold: (holdDeps) => new PlanModeHold(holdDeps),
     }),
   })
@@ -13336,28 +13341,29 @@ describe('ConversationController: legal scan (M97)', () => {
     expect(legalReports(t).map((report) => report.requestId)).toEqual(['legal-1', 'legal-2'])
   })
 
-  it('refuses without a scanner, saying the bundle is unavailable', async () => {
-    const t = legalSetup({ withoutScanner: true })
-    await t.controller.handle({ type: 'requestLegalScan', input: {} })
-    expect(t.inputs).toHaveLength(0)
-    expect(legalReports(t)).toHaveLength(0)
-    expect(legalNotices(t).at(-1)).toEqual({
-      type: 'notice',
-      level: 'warning',
+  // A refused scan reads nothing and reports nothing: the panel says why.
+  it.each([
+    {
+      name: 'without a scanner, saying the bundle is unavailable',
+      options: { withoutScanner: true },
       text: UI_TEXT.legalScanUnavailable,
-    })
-  })
-
-  it('refuses in an untrusted workspace before reading anything', async () => {
-    const t = legalSetup({ isWorkspaceTrusted: false })
+    },
+    {
+      name: 'half a scanner: the hold without the scan is unavailable',
+      options: { holdOnly: true },
+      text: UI_TEXT.legalScanUnavailable,
+    },
+    {
+      name: 'in an untrusted workspace before reading anything',
+      options: { isWorkspaceTrusted: false },
+      text: UI_TEXT.legalScanUntrusted,
+    },
+  ])('refuses $name', async ({ options, text }) => {
+    const t = legalSetup(options)
     await t.controller.handle({ type: 'requestLegalScan', input: {} })
     expect(t.inputs).toHaveLength(0)
     expect(legalReports(t)).toHaveLength(0)
-    expect(legalNotices(t).at(-1)).toEqual({
-      type: 'notice',
-      level: 'warning',
-      text: UI_TEXT.legalScanUntrusted,
-    })
+    expect(legalNotices(t).at(-1)).toEqual({ type: 'notice', level: 'warning', text })
   })
 
   it('starts one scan at a time: a second scan waits its turn', async () => {
@@ -13414,16 +13420,16 @@ describe('ConversationController: legal scan (M97)', () => {
     })
   })
 
-  it('scans a live Model API conversation with no hold to take', async () => {
-    const t = legalSetup({ backendKind: 'modelApi' })
-    await liveLegalConversation(t)
-    await t.controller.handle({ type: 'requestLegalScan', input: {} })
-    expect(legalReports(t)).toHaveLength(1)
-    expect(legalApprovalModes(t)).toHaveLength(0)
-  })
-
-  it('leaves an already-Plan conversation alone: nothing to put back', async () => {
-    const t = legalSetup({ backendKind: 'museCode', initialPermissionMode: 'plan' })
+  // No hold to take, nothing to put back: a live Model API conversation,
+  // and a Muse Code one already in Plan mode.
+  it.each([
+    { name: 'a live Model API conversation', options: { backendKind: 'modelApi' as const } },
+    {
+      name: 'an already-Plan conversation',
+      options: { backendKind: 'museCode' as const, initialPermissionMode: 'plan' as const },
+    },
+  ])('scans $name with no hold to take', async ({ options }) => {
+    const t = legalSetup(options)
     await liveLegalConversation(t)
     await t.controller.handle({ type: 'requestLegalScan', input: {} })
     expect(legalReports(t)).toHaveLength(1)

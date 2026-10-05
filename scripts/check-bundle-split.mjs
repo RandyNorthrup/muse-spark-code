@@ -108,6 +108,9 @@ const LAZY_ONLY = [
   'goals.ts',
   'hooks.ts',
   'instructions.ts',
+  // M97: the native `legal_scan` tool's Model API side (read-only, like the
+  // code intelligence reads above): offered only with lane S's scanner.
+  'legalScanTool.ts',
   'mediaBudget.ts',
   'memoryTools.ts',
   'modelCallHooks.ts',

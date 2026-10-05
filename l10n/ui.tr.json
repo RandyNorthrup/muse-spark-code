@@ -1865,5 +1865,10 @@
   "legalFixable": "Düzeltilebilir",
   "legalNotFixable": "Yalnızca öneri",
   "legalEvidenceLabel": "Kanıt: {evidence}",
-  "legalConfidenceLabel": "Güven: {confidence}"
+  "legalConfidenceLabel": "Güven: {confidence}",
+  "legalScanItem": "/legal",
+  "legalScanItemDetail": "Çalışma alanını lisans, atıf ve başlık bulguları için tarayın",
+  "legalScanBusy": "Yasal tarama, mevcut tur bittiğinde başlar.",
+  "legalScanUntrusted": "Yasal tarama çalışma alanını okur, ancak Kısıtlı Mod buna izin vermez. Kullanmak için çalışma alanına güvenin.",
+  "legalScanPlanModeNotice": "Bu yasal tarama, çalışma alanını okurken konuşmayı Planlama modunda tutar ve bittiğinde önceki izin modunuz geri gelir."
 }

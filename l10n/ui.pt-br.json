@@ -1932,5 +1932,10 @@
   "legalFixable": "Corrigível",
   "legalNotFixable": "Apenas recomendação",
   "legalEvidenceLabel": "Evidência: {evidence}",
-  "legalConfidenceLabel": "Confiança: {confidence}"
+  "legalConfidenceLabel": "Confiança: {confidence}",
+  "legalScanItem": "/legal",
+  "legalScanItemDetail": "Verificar o workspace quanto a achados de licenciamento, atribuição e cabeçalhos",
+  "legalScanBusy": "A verificação legal começa quando o turno atual terminar.",
+  "legalScanUntrusted": "A verificação legal lê o workspace, o que o modo restrito não permite. Confie no workspace para usá-la.",
+  "legalScanPlanModeNotice": "Esta verificação legal mantém a conversa no modo Planejar enquanto lê o workspace, e o modo de permissão que você usava volta quando ela terminar."
 }

@@ -1999,5 +1999,10 @@
   "legalFixable": "Opravitelné",
   "legalNotFixable": "Pouze doporučení",
   "legalEvidenceLabel": "Důkaz: {evidence}",
-  "legalConfidenceLabel": "Jistota: {confidence}"
+  "legalConfidenceLabel": "Jistota: {confidence}",
+  "legalScanItem": "/legal",
+  "legalScanItemDetail": "Zkontrolovat pracovní prostor z hlediska licencí, uvedení autorů a nálezů v hlavičkách",
+  "legalScanBusy": "Právní kontrola začne, až skončí aktuální kolo.",
+  "legalScanUntrusted": "Právní kontrola čte pracovní prostor, což omezený režim neumožňuje. Chcete-li ji použít, označte pracovní prostor jako důvěryhodný.",
+  "legalScanPlanModeNotice": "Tato právní kontrola drží konverzaci v režimu Plán, zatímco čte pracovní prostor, a po jejím skončení se vrátí režim oprávnění, který jste měli."
 }

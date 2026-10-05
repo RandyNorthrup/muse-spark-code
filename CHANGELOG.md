@@ -45,6 +45,23 @@ happened, not what was planned; superseded entries are kept.
   research, cost/privacy boundaries, implementation lanes and certification
   requirements. The command is planned; this change adds no product code.
 
+### Added
+
+- **`/legal` runs the read-only legal scan on both backends (M97, lane B).**
+  The prompt and the slash palette offer `/legal` for the whole workspace or
+  a named file subset; the host runs the deterministic scanner and posts the
+  report (rendered by lane W), never starting a backend, a model turn, a
+  write, a command or an install. The Model API backend offers a native
+  `legal_scan` tool (a read in every mode) and Muse Code gets
+  `mcp__ide__legalScan` on the `ide` server; both refuse write/exec attempts
+  through strict arguments, honour workspace trust and cancellation, and
+  validate the result. On a live Muse Code conversation the scan holds Plan
+  mode through M70's hold (restored only while it still owns it). A bundled
+  `legal` skill ships beside the pinned upstream package through D68's
+  loading/install mechanism; a user skill with the same name shadows only
+  its text. The scanner itself arrives with lanes S/R; until then the scan
+  refuses with the installed unavailable words.
+
 ## [0.12.1] - 2026-10-04
 
 ### Changed

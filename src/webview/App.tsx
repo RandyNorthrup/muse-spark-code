@@ -31,6 +31,7 @@ import {
   reviewRequestSchema,
 } from '../shared/reviewCommand'
 import { parseLegalPrompt } from '../shared/legalCommand'
+import type { LegalScanRequestMessage } from '../shared/legal'
 import { editorContextLabel } from '../shared/editorContext'
 import { effortAt, effortIndex, effortLabel, effortLevelsFor } from '../shared/effort'
 import { parseGoalPrompt, requiresObjective } from '../shared/goalCommand'
@@ -569,7 +570,7 @@ export function App({
       if (input === undefined) {
         return false
       }
-      postMessage({ type: 'requestLegalScan', input })
+      postMessage({ type: 'requestLegalScan', input } satisfies LegalScanRequestMessage)
       setIsPinnedToEnd(true)
       return true
     },

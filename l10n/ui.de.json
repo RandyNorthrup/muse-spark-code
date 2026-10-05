@@ -1865,5 +1865,10 @@
   "legalFixable": "Behebbar",
   "legalNotFixable": "Nur Empfehlung",
   "legalEvidenceLabel": "Beleg: {evidence}",
-  "legalConfidenceLabel": "Verlässlichkeit: {confidence}"
+  "legalConfidenceLabel": "Verlässlichkeit: {confidence}",
+  "legalScanItem": "/legal",
+  "legalScanItemDetail": "Den Arbeitsbereich auf Lizenzen, Zuschreibungen und Header-Funde prüfen",
+  "legalScanBusy": "Ein Legal-Scan beginnt, sobald der aktuelle Durchgang beendet ist.",
+  "legalScanUntrusted": "Der Legal-Scan liest den Arbeitsbereich, was der eingeschränkte Modus nicht erlaubt. Vertrauen Sie dem Arbeitsbereich, um ihn zu nutzen.",
+  "legalScanPlanModeNotice": "Dieser Legal-Scan hält die Unterhaltung im Modus „Planen“, während er den Arbeitsbereich liest, und Ihr bisheriger Berechtigungsmodus kehrt zurück, wenn er endet."
 }

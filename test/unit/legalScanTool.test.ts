@@ -3,9 +3,25 @@
 // cancellation rechecked per call, and a validated result.
 
 import { describe, expect, it, vi } from 'vitest'
-import type { LegalScanResult } from '../../src/shared/legal'
+import type { LegalFinding, LegalScanResult } from '../../src/shared/legal'
 import { LEGAL_RESULT_VERSION } from '../../src/shared/constants'
 import { ideLegalScanTools, type IdeLegalScanDeps } from '../../src/host/ide/legalScanTool'
+
+function finding(): LegalFinding {
+  return {
+    id: 'license/package',
+    severity: 'should-fix',
+    category: 'dependencyLicense',
+    packageName: 'left-pad',
+    packageVersion: '1.3.0',
+    licenseExpression: 'WTFPL',
+    evidenceSource: 'The bundled license table.',
+    confidence: 1,
+    explanation: 'The dependency declares a license outside the allowlist.',
+    recommendation: 'Replace the dependency or add an exception.',
+    fixable: false,
+  }
+}
 
 function result(): LegalScanResult {
   return {
@@ -16,7 +32,7 @@ function result(): LegalScanResult {
     distribution: 'The workspace ships as a VS Code extension.',
     exclusions: [],
     incompleteChecks: [],
-    findings: [],
+    findings: [finding()],
   }
 }
 
