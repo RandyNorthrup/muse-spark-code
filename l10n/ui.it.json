@@ -2196,7 +2196,8 @@
       "id": "Un identificativo del fornitore, mai \"meta\"",
       "modelRef": "Un riferimento al modello",
       "outputCap": "Il limite di output supera la finestra di contesto",
-      "customLimits": "I modelli personalizzati richiedono finestre di contesto e limiti di output"
+      "customLimits": "I modelli personalizzati richiedono finestre di contesto e limiti di output",
+      "compat": "Le opzioni di compatibilità valgono solo per un server personalizzato"
     },
     "descriptions": {
       "openai": "API Responses di OpenAI con modelli GPT",

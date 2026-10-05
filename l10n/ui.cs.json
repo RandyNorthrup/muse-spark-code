@@ -2273,7 +2273,8 @@
       "id": "ID poskytovatele, nikdy \"meta\"",
       "modelRef": "Odkaz na model",
       "outputCap": "Limit výstupu překračuje kontextové okno",
-      "customLimits": "Vlastní modely vyžadují kontextová okna a limity výstupu"
+      "customLimits": "Vlastní modely vyžadují kontextová okna a limity výstupu",
+      "compat": "Možnosti kompatibility platí pouze pro vlastní server"
     },
     "descriptions": {
       "openai": "OpenAI Responses API s modely GPT",

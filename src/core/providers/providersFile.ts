@@ -51,6 +51,36 @@ const modelLimitsSchema = z
     }),
   )
 
+/**
+ * Compatibility overrides for a custom server (M101 BYO 14): the wire
+ * shape its format's defaults misdescribe. Strict: an unknown key is a
+ * typo that would send the wrong shape, so it refuses the entry instead
+ * of stripping it.
+ */
+const customCompatSchema = z.strictObject({
+  outputCapParam: z.optional(
+    z.enum(['max_output_tokens', 'max_completion_tokens', 'max_tokens', 'maxOutputTokens', 'num_predict']),
+  ),
+  toolChoice: z.optional(z.enum(['auto', 'omit', 'string-only'])),
+  sendsParallelToolCalls: z.optional(z.boolean()),
+  reasoningField: z.optional(
+    z.enum([
+      'encrypted',
+      'reasoning',
+      'reasoning_content',
+      'reasoning_details',
+      'thoughtSignature',
+      'thinking',
+      'content-list',
+      'none',
+    ]),
+  ),
+  reasoningReplay: z.optional(z.enum(['same-model', 'none'])),
+  usageOnFinishChunk: z.optional(z.boolean()),
+  usageNeedsOptIn: z.optional(z.boolean()),
+})
+export type CustomCompat = z.infer<typeof customCompatSchema>
+
 /** One configured provider. */
 export const providerEntrySchema = z
   .object({
@@ -68,6 +98,8 @@ export const providerEntrySchema = z
     models: z.array(z.string()),
     // Required for every chosen custom model; retained across save/reload.
     modelLimits: z.optional(z.record(z.string(), modelLimitsSchema)),
+    // Compatibility overrides for a custom server's wire shape (BYO 14).
+    compat: z.optional(customCompatSchema),
     // Pinned favourites, first in the composer's picker.
     pinned: z.optional(z.array(z.string())),
     // User-entered prices by model id (`source: 'user'` when read).
@@ -88,6 +120,11 @@ export const providerEntrySchema = z
         ),
       { error: () => UI_TEXT.providerText.schema.customLimits },
     ),
+  )
+  .check(
+    z.refine((entry) => entry.compat === undefined || entry.preset === 'custom', {
+      error: () => UI_TEXT.providerText.schema.compat,
+    }),
   )
 export type ProviderEntry = z.infer<typeof providerEntrySchema>
 

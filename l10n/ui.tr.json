@@ -2119,7 +2119,8 @@
       "id": "Sağlayıcı kimliği, \"meta\" olamaz",
       "modelRef": "Model başvurusu",
       "outputCap": "Çıktı sınırı bağlam penceresini aşıyor",
-      "customLimits": "Özel modeller için bağlam pencereleri ve çıktı sınırları gereklidir"
+      "customLimits": "Özel modeller için bağlam pencereleri ve çıktı sınırları gereklidir",
+      "compat": "Uyumluluk seçenekleri yalnızca özel bir sunucu için geçerlidir"
     },
     "descriptions": {
       "openai": "GPT modelleriyle OpenAI Responses API",

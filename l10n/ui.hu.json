@@ -2119,7 +2119,8 @@
       "id": "Szolgáltatóazonosító, soha nem \"meta\"",
       "modelRef": "Modellhivatkozás",
       "outputCap": "A kimeneti korlát meghaladja a kontextusablakot",
-      "customLimits": "Az egyéni modellekhez kontextusablak és kimeneti korlát szükséges"
+      "customLimits": "Az egyéni modellekhez kontextusablak és kimeneti korlát szükséges",
+      "compat": "A kompatibilitási beállítások csak egyéni kiszolgálóra vonatkoznak"
     },
     "descriptions": {
       "openai": "OpenAI Responses API GPT-modellekkel",

@@ -5,6 +5,7 @@ import { describe, expect, it } from 'vitest'
 import {
   azureOrigin,
   buildOpenRouterAuthUrl,
+  customQuirksFor,
   listedPresets,
   OPENROUTER_ATTRIBUTION,
   OPENROUTER_PRIVACY_CHOICES,
@@ -140,7 +141,11 @@ describe('the preset table', () => {
   })
 
   it('reads quirks from the preset over its format defaults', () => {
-    expect(quirksOf(preset('openai'))).toEqual(FORMAT_QUIRKS.responses)
+    // M101 BYO 5: OpenAI adds its documented server_error past the responses table.
+    expect(quirksOf(preset('openai'))).toEqual({
+      ...FORMAT_QUIRKS.responses,
+      retry: { ...FORMAT_QUIRKS.responses.retry, errorKinds: ['server_error'] },
+    })
     expect(quirksOf(preset('openrouter')).reasoningField).toBe('reasoning_details')
     expect(quirksOf(preset('deepseek')).reasoningField).toBe('reasoning_content')
     expect(quirksOf(preset('gemini')).reasoningField).toBe('thoughtSignature')
@@ -151,6 +156,26 @@ describe('the preset table', () => {
       expect(quirksOf(candidate).neverSendEmptyTools).toBe(true)
       expect(quirksOf(candidate).keepToolsWithHistory).toBe(true)
     }
+  })
+
+  it('resolves custom-server quirks from format defaults plus compat (M101 BYO 14)', () => {
+    expect(customQuirksFor('chat', undefined)).toEqual(FORMAT_QUIRKS.chat)
+    expect(
+      customQuirksFor('chat', {
+        toolChoice: 'string-only',
+        sendsParallelToolCalls: false,
+        outputCapParam: 'max_tokens',
+      }),
+    ).toEqual({
+      ...FORMAT_QUIRKS.chat,
+      toolChoice: 'string-only',
+      sendsParallelToolCalls: false,
+      outputCapParam: 'max_tokens',
+    })
+    // Overrides never leak across servers: a bare custom server keeps Zed's defaults.
+    expect(customQuirksFor('chat', undefined).sendsParallelToolCalls).toBe(
+      FORMAT_QUIRKS.chat.sendsParallelToolCalls,
+    )
   })
 
   it('builds Azure origins from resource names only', () => {

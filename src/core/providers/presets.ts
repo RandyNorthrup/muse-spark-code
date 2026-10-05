@@ -13,7 +13,7 @@
 import { ZAI_KEY_PATTERN } from '../../shared/constants'
 import { fill, UI_TEXT } from '../../shared/l10n/text'
 import { RETRY_TABLES, type RetryTables } from '../../shared/retryPolicy'
-import type { ProviderFormat } from './providersFile'
+import type { CustomCompat, ProviderFormat } from './providersFile'
 
 /** The panel's filter chips (D74): Cloud, On this computer, Aggregator. */
 export type PresetCategory = 'cloud' | 'local' | 'aggregator' | 'custom'
@@ -216,6 +216,18 @@ export interface ProviderPreset {
 /** A preset's effective quirks: its format's defaults plus its overrides. */
 export function quirksOf(preset: ProviderPreset): FormatQuirks {
   return { ...FORMAT_QUIRKS[preset.format], ...preset.quirks }
+}
+
+/**
+ * A custom server's effective quirks (M101 BYO 14): its chosen format's
+ * defaults plus its stored compatibility overrides. Presets keep their own
+ * quirks; overrides ride only on `custom` entries.
+ */
+export function customQuirksFor(
+  format: ProviderFormat,
+  compat: CustomCompat | undefined,
+): FormatQuirks {
+  return { ...FORMAT_QUIRKS[format], ...compat }
 }
 
 // The presets. Origins, headers, key shapes, key tests and quirks are from

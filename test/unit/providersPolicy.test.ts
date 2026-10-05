@@ -378,6 +378,49 @@ describe('providersFile', () => {
     expect(await readProvidersFile(filePath)).toEqual({ ok: true, file: valid })
   })
 
+  it('keeps compatibility overrides on custom servers and refuses them elsewhere (M101 BYO 14)', async () => {
+    dir = await mkdtemp(path.join(tmpdir(), 'providers-'))
+    const filePath = path.join(dir, 'custom.json')
+    const compat = {
+      outputCapParam: 'max_tokens',
+      toolChoice: 'string-only',
+      sendsParallelToolCalls: false,
+    }
+    const custom = {
+      ...entry,
+      id: 'custom',
+      preset: 'custom',
+      models: ['unknown'],
+      modelLimits: { unknown: { contextTokens: 32_768, outputTokens: 4096 } },
+      compat,
+    }
+    expect(await writeProvidersFileAtomic(filePath, { v: 1, providers: [custom] })).toEqual({
+      ok: true,
+    })
+    expect(await readProvidersFile(filePath)).toEqual({
+      ok: true,
+      file: { v: 1, providers: [custom] },
+    })
+    // Overrides ride only on custom entries.
+    expect(
+      await writeProvidersFileAtomic(filePath, { v: 1, providers: [{ ...entry, compat }] }),
+    ).toMatchObject({ ok: false, reason: 'invalid' })
+    // An unknown override is a typo that would send the wrong shape: refused.
+    expect(
+      await writeProvidersFileAtomic(filePath, {
+        v: 1,
+        providers: [{ ...custom, compat: { ...compat, paralellToolCalls: false } }],
+      }),
+    ).toMatchObject({ ok: false, reason: 'invalid' })
+    // A value outside the wire's vocabulary is refused too.
+    expect(
+      await writeProvidersFileAtomic(filePath, {
+        v: 1,
+        providers: [{ ...custom, compat: { toolChoice: 'sometimes' } }],
+      }),
+    ).toMatchObject({ ok: false, reason: 'invalid' })
+  })
+
   it('requires explicit custom limits for model ids matching inherited properties', async () => {
     dir = await mkdtemp(path.join(tmpdir(), 'providers-'))
     for (const modelId of ['toString', 'constructor']) {

@@ -2625,6 +2625,7 @@ export const EN = {
       modelRef: 'A model reference',
       outputCap: 'Output cap exceeds context window',
       customLimits: 'Custom models require context windows and output caps',
+      compat: 'Compatibility overrides apply only to a custom server',
     },
     descriptions: {
       openai: 'OpenAI Responses API with GPT models',

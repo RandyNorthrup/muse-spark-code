@@ -2042,7 +2042,8 @@
       "id": "提供者 ID，不能是 \"meta\"",
       "modelRef": "模型參照",
       "outputCap": "輸出上限超過上下文視窗",
-      "customLimits": "自訂模型需要上下文視窗和輸出上限"
+      "customLimits": "自訂模型需要上下文視窗和輸出上限",
+      "compat": "相容性選項僅適用於自訂伺服器"
     },
     "descriptions": {
       "openai": "使用 GPT 模型的 OpenAI Responses API",

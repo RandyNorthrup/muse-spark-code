@@ -2042,7 +2042,8 @@
       "id": "プロバイダーID。「meta」は使用できません",
       "modelRef": "モデル参照",
       "outputCap": "出力上限がコンテキストウィンドウを超えています",
-      "customLimits": "カスタムモデルにはコンテキストウィンドウと出力上限が必要です"
+      "customLimits": "カスタムモデルにはコンテキストウィンドウと出力上限が必要です",
+      "compat": "互換性オプションはカスタムサーバーにのみ適用されます"
     },
     "descriptions": {
       "openai": "GPTモデルを利用するOpenAI Responses API",
