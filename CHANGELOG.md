@@ -63,6 +63,13 @@ happened, not what was planned; superseded entries are kept.
 
 ### Changed
 
+- **M100's paired-device plan now states connectivity prerequisites.** Manual
+  address entry bypasses discovery only; routing and explicitly authorized
+  inbound access are still required. D80, acceptance B/K and the research
+  record specify blocked/unreachable setup recovery, standard-user/default-
+  firewall and explicit-deny cases, and per-rig listener/permission evidence.
+  Devices and mDNS stay off by default as an explicit security exception to
+  enhancements-on. Documentation only; no pairing or remote execution ships.
 - Keep paid HTTP clients in the existing Model API bundle until first use; compress production Node English text and packaged UI tables without changing their decoded values or size budgets.
 
 ### Fixed

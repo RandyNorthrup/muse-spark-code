@@ -5214,7 +5214,189 @@ and the two hook points.
   fields. Each VS Code release's notes are checked for it, and §3 holds it as
   a watch item (Q-M94d).
 
+### D80 — Link devices on the LAN, with each device owning its work (M100, 2026-10-04)
+
+The owner, 2026-10-04: "we should plan out multi device orchistration ie we
+have the extension open on multiple devices on the same network and you can
+link and orchistrate". His Windows PC, Kubuntu VM, Mac mini and Windows 11 VM
+are the first qualification set. This is a plan, not a shipped capability.
+Sources, dependency revisions and the review lessons are recorded in
+`docs/certification/m100-research.md`.
+
+**Build on D74/M95 and D75/M96/M96c.** M95 owns provider clients, model
+identity, credentials, prices and sign-ins. M96 owns roles, worker policy,
+isolated working copies, the board, scheduler, process journal and merge
+queue. M100 adds authenticated device pools and a remote attempt adapter to
+those facilities. It does not build M96d's machine coordinator, election,
+cross-window locks or singleton sharing. The following ten decisions define
+the first delivery:
+
+1. **Explicit, mutual, revocable pairing.** Devices starts off, machine-scoped.
+   The user chooses **Pair device** on both machines. Each generates a
+   per-pair key locally in SecretStorage and exchanges a public invitation
+   (QR, or its copyable text) containing its public certificate, fingerprint,
+   address, protocol version and bounded invitation validity. Both users confirm the peer fingerprint
+   against the other screen before either side enables its listener. There
+   is no unauthenticated network bootstrap port and no trust on first contact.
+   The invitation is not a bearer credential; copying it cannot prove
+   possession of the private key. Short numeric-code pairing waits for a
+   reviewed standard PAKE implementation, not a home-made code-to-key scheme.
+   **Unlink** revokes this pair locally, closes its connections and removes
+   its private key; another pair is unaffected. A changed key needs pairing
+   again. Offline peer revocation cannot recall already admitted work.
+2. **Discovery supplies addresses, never trust.** Manual address entry bypasses
+   discovery only. Connectivity still needs a route to the chosen private
+   interface/address and explicitly authorized inbound access to the actual
+   listening application and TCP port, including on the owner's VM networks.
+   Setup identifies that application, interface/address and port, and explains
+   Windows Defender Firewall prompts/policy, macOS application firewall
+   approval and Linux host firewall rules. A standard user may need an
+   administrator's narrowly scoped allow rule; notifications, an OS prompt or
+   local approval may be unavailable or restricted by policy. No prompt-free
+   or administrator-free connectivity is promised. A failed connection shows
+   **Blocked or unreachable**, without claiming a timeout proves a firewall
+   denial: verify the selected interface, route, address/port and receiver
+   offer; inspect the OS permission/firewall policy, approve only the intended
+   listener or ask the administrator for scoped access, then retry the same
+   paired identity. Keep unresolved attempt ownership and spending uncertainty;
+   reconnect still reconciles before resume. Optional mDNS is
+   off by default and only advertises an opaque service id, port and protocol
+   version while a paired receiver is enabled. It broadcasts no account,
+   repository, model, task or stable device name. Spoofed discovery cannot
+   replace the saved peer pin. No global discovery, relay, UPnP, port scan,
+   automatic firewall change or internet rendezvous is added.
+3. **Pinned mutual TLS, on a chosen interface.** One bounded, versioned
+   protocol over TLS 1.3, using Node's TLS implementation, with client and
+   server certificates checked against the exact per-pair pins. Certificate
+   verification stays on; no application message before mutual authentication,
+   no early data or session resumption, and revocation is checked on every request, including an
+   existing connection. Bind only the chosen loopback or private LAN address,
+   never a wildcard; allow RFC 1918 and IPv6 ULA, refuse public and metadata
+   destinations, redirects and proxy routing. Resolve and check every address
+   again and connect to the checked address. Protocol mismatch refuses work
+   with an upgrade message. Time, byte, connection and queue caps apply before
+   parsing, then zod validates every message and artifact manifest. A new
+   service port exists only after local pairing and explicit **Offer lanes**.
+4. **A device offers scoped execution, with its own credentials.** Its user
+   maps an opaque repository id to a locally selected trusted repository and
+   chooses roles/models, worker and process caps, heavy-check slots, token
+   and spend caps, and whether it offers checks, lanes, or both. The offer
+   contains capability and availability summaries, not provider definitions,
+   endpoints, credentials, login labels or personal paths. Workers use M96's
+   `own-branch` isolated copies in that device's storage (shared clones, not
+   a network-shared `.git`), or read-only snapshots; remote `in-place` is
+   refused. Checks are that device's approved M68/M96c commands, not arbitrary
+   command strings sent by the peer. Muse Code and external CLIs sign in on
+   that device; M95 engine requests use only its locally stored keys.
+5. **The orchestrating window keeps the board.** A device is another lane
+   pool in M96's scheduler, with platform/toolchain labels, role/model entries
+   and advertised caps. One explicitly selected receiver window represents
+   each device in the first delivery. Caps bound that window's offered pool,
+   not every process or duplicate editor on the machine; other windows remain
+   M96's advisory hints. Receiver incarnations are distinct: no listener
+   takeover, election or automatic resubmission into another window. Selection
+   meets the board/role/entry caps with the target's admission and local load
+   guard. Routing names the pair, pool and entry as well as M95's canonical
+   model identity; equal provider ids on different devices never share an
+   auth owner. The target atomically owns its slots, write-set and resource leases;
+   those leases are never exported or reclaimed by the orchestrator. M96's
+   board still orders overlapping planned writes and dependencies across its
+   managed tasks. No cross-device MCP proxy or singleton lease is offered.
+6. **Git carries results; the orchestrator integrates.** Both users approve
+   the repository mapping and the exact base snapshot. The receiver must have
+   that base or explicitly import its bounded Git bundle; dirty tracked files
+   need a separate snapshot preview, and ignored files are excluded. At
+   retirement its host commits the lane's result in its own repository, then
+   returns a bounded base-to-head Git bundle over the paired transport. The
+   orchestrator imports it into a quarantine repository, validates objects,
+   ancestry, path/mode changes, size and expected base/head, then installs only
+   the task's namespaced branch. An optional user-configured pushed ref uses
+   the receiver host's own Git authentication and an exact remote/ref grant;
+   workers still cannot push. No peer can update the orchestrator's `HEAD`,
+   index, working tree, hooks or merge rules. M96c reviews, stages, checks and
+   lands the whole final snapshot under its existing approval. Remote checks
+   are attributed to their device and bound to tree, check and toolchain
+   identities; a peer's reported pass alone never authorizes a merge.
+7. **Disconnect pauses ownership, never duplicates it.** The source journals
+   a dispatch intent before sending; the receiver journals admission and
+   launch intent before starting. Pair, receiver incarnation, board, task and
+   attempt identify the dispatch; retries with the same identity return the
+   recorded outcome, never another launch. Lost acknowledgements, sleep,
+   partition or orchestrator reload pause the queue and keep the attempt's
+   occupancy and uncertain spend counted. After either side detects loss,
+   it admits no new work; a receiver pauses at the next controlled boundary.
+   An already admitted tool or request may finish and incur cost. On reconnect,
+   reconcile durable records first, then ask **Resume queue**; paid work asks
+   locally again. Only the receiver's locally observed retirement can settle
+   its attempt, including all tool processes; an unproved descendant cannot
+   be retired by its direct parent's exit. A timer, RPC failure, missing endpoint, PID/start-time check
+   or user assertion never releases it. An unresolved launch stays blocked
+   and its copy quarantined, even after reboot or journal damage; retained
+   tombstones prevent replay after cleanup. M96's **Hand off anyway** is not
+   offered for distributed tasks. No reassignment while the old attempt is
+   uncertain, and no network-wide exactly-once or instant-stop claim.
+8. **Permissions and paid consent belong to the executing device.** Pairing
+   authenticates a peer, not its authority to run a task. Every admission meets
+   the sender's role/mode ceiling with the receiver's repository grant,
+   role/tools, workspace trust, protected paths and current approval policy.
+   A remote Bypass or ordinary approval does not widen any of these. Existing
+   user grants on the receiver can allow ordinary work; forwarding approvals
+   to the orchestrator is deferred until an explicit receiver-side grant and
+   per-action binding are designed. D48's paid gate, price acceptance and
+   per-use popup remain on the receiver, including Bypass; no pairing grant,
+   worker grant or subscription substitutes for them. A waiting prompt appears
+   as **Waiting for approval on <device>**. Trust loss, unlink or a narrowed
+   offer blocks new admissions and retires existing work through local rules.
+9. **Privacy and costs are per device.** Setup names exactly which repository
+   snapshot, task brief and result go to which device, and which model/vendor
+   receives its context. No full chat, memory, skills, auth files, environment
+   or log directory is synchronized. Needed role guidance is an approved
+   bounded task input; the receiver uses its own skills and MCP configuration.
+   Contributor/training and confidential-workspace refusals meet both sides'
+   policies. Reports and logs are bounded and scrubbed on both ends, rendered
+   as untrusted data, and never grant tools or open remote links automatically.
+   Each device bills its own subscriptions/keys and holds its own D78/M82
+   reservations and uncertain liabilities. The map labels device, model,
+   payer kind and known/estimated/uncertain usage. Each paid use keeps M96's
+   composer badge, paid transcript row and PaidUsage tally on the receiver,
+   with attributed usage on the source. Pairing/discovery cost no
+   model call; there is no fleet budget ledger or transfer of spending grants.
+   Shared vendor accounts can share upstream quotas: device caps do not create
+   independent subscription entitlements or a global hard spend guarantee.
+10. **Devices lives in the Agent map, and stays out of ordinary chat.** Reuse
+    M95's Models & Agents panel and M96's map, with a **Devices** section:
+    Pair, manual address, discovery switch, fingerprint, offered roles/models,
+    caps, local/connected/paused/offline/uncertain/incompatible status,
+    Blocked or unreachable setup with recovery instructions, last
+    observation, waiting approvals, task branches, Pause offers and Unlink.
+    Status is an observation, never a safety proof. Task rows show their device
+    and route; caps can only narrow already running work at its next boundary.
+    With Devices off or no paired/approved offer, nothing is discovered,
+    listened for, loaded or injected into a model request, and no extra section
+    appears. The explicit Pair command opens setup. Pairing does not turn the
+    team on: D75's distinct-loaded-model, Solo and conversation-boundary rules
+    still apply. Manually requested check-only use is separate from chat and
+    starts no model or hidden team. Requests and first-send timing for existing
+    single-device/single-model users stay unchanged.
+
+**Supported first:** local desktop extension hosts on Windows, Linux and
+macOS, with the extension open on each device. VS Code stores SecretStorage
+on the client even for a remote extension host; Remote SSH/Tunnels, WSL,
+containers, web editors and standalone/headless receivers therefore wait
+for separate host/key-location qualification. No daemon, cloud control plane,
+VPN installer, SSH credential manager or remote filesystem is added. M96d
+remains a separate prerequisite only for a future machine-wide guarantee.
+
 ## 3. Open questions (need the owner)
+
+- **Q-M100 — Optional expansion after the paired desktop slice.** Short-code
+  PAKE, remote-host key placement, approval forwarding, persistent receivers,
+  VPN/public-address routes and machine-wide caps need their own design and
+  qualification. Defaults: public QR/text exchange with fingerprint checks,
+  local desktop windows, receiver-local approvals, chosen private LAN address,
+  one offered window's caps. M100's lane 0 must settle the certificate/QR
+  implementation, bounded protocol constants and durable journal retention
+  before implementation; uncertain records have no time-based deletion.
 
 - **M80 accepted rulings (2026-10-02):** memory/stdin CI key, explicit paid
   flag/hard cap, required real Action receipt, and hosted-search refusal are
@@ -15588,6 +15770,109 @@ milestone is planned against it:
 
 Until then nothing is built for it.
 
+### M100 — Paired devices as lane pools (D80, planned)
+
+**Status 2026-10-05: documentation only on `feature/m100-multi-device`.**
+Independent RVM100 review passed with no P1; its one P2 connectivity promise
+is corrected in D80, acceptance B/K and `m100-research.md`. **Devices and mDNS
+off by default** is a deliberate security exception to the owner's
+enhancements-on ruling: listening on the network and sending repository
+context need an explicit local choice.
+Implementation starts after the dependency contracts and lane 0's security
+review are accepted. No pairing, listener, discovery or remote execution is
+implemented or certified by this record.
+
+- **Goal.** The owner explicitly links his four LAN devices, offers a bounded
+  pool from each open extension, delegates independent lanes and checks from
+  one board, and receives reviewable Git branches without moving credentials
+  or giving a peer merge authority.
+- **Depends on.** D74/M95's registry, provider-local auth/prices and panel;
+  D75/M96's roles, tools, isolated copies, paid policy and process journal;
+  M96c's board, retirement, check identity and merge queue. Reuse M96c's SSH
+  runners for existing runner-only installations; M100 supplies another
+  authenticated execution adapter, not a replacement SSH stack. D78's paid
+  ledger remains local to each device. No dependency on shipping M96d's
+  machine coordinator, and no fleet-wide cap or singleton claim without it.
+- **First slice.** Manual public-invitation pairing, pinned TLS, one offered
+  desktop window per device, scoped check-only work, then role lanes and
+  quarantine-to-branch results. QR rendering and optional mDNS follow on the
+  same trust contract. Both invitation paths must be available before M100 is
+  called complete. Paid/model drills require a later explicit authorization;
+  this plan authorizes none. Short numeric codes, unattended services,
+  approval forwarding and ACP/headless pairing remain Q-M100.
+- **Lanes and file ownership.** These are future implementation/review lanes;
+  this documentation task launches none. One integration branch; lane 0
+  settles contracts first, P and T follow, E then S/G, U against fakes after
+  lane 0, and I last. Security and concurrency lanes receive independent
+  Codex/Claude review; the lead serializes shared-file regions and integrates.
+
+  | Lane                  | Owns                                                                                                                                                                                                                                                                  | Review focus                                                                                                                                                                                                                           |
+  | --------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+  | 0 Contracts/strings   | New `src/shared/devices.ts`; Devices regions of `src/shared/modelsPanel.ts`, protocol and constants; `DEVICE_MODEL_TEXT` with declared lazy readers; runtime English keys, all 14 `l10n/ui.*.json`, `package.nls*.json`; contract tests                               | Strict versioned zod envelopes, all resource caps, no credential/provider/command payload, translations; TLS/certificate/QR dependency choice with exact pins, peers/audit/notices; reviewed trust and durable-state design before P/T |
+  | P Pairing/storage     | New `src/core/devices/pairing.ts` and `grants.ts`; `src/host/devices/deviceSecrets.ts`, `deviceStore.ts`, pairing UI adapter; owning pairing/storage tests                                                                                                            | Public QR/text invites, bilateral fingerprints, key possession, revocation, storage failures, nonsync state and execution-host location; no unauthenticated bootstrap                                                                  |
+  | T Transport/discovery | New `src/host/devices/deviceTransport.ts` and `deviceDiscovery.ts`; portable address/protocol logic under `src/core/devices/`; transport/discovery tests                                                                                                              | Exact peer pins and mutual TLS on the floor, no early data/resumption bypass, interface/DNS restrictions, optional minimal mDNS, pre-parse bounds, no proxy or credential forwarding                                                   |
+  | E Execution/journal   | New `src/host/devices/deviceReceiver.ts`, `src/core/devices/attemptJournal.ts`; adapter regions calling existing M96 worker/check admission, retirement and process journal; owning execution/recovery tests                                                          | Grant intersection, local approval/paid enforcement, prelaunch durability, deduplication, surviving children, disconnect boundaries, uncertain occupancy/debt; no second scheduler implementation                                      |
+  | S Board adapter       | New `src/core/team/remotePool.ts`, `src/host/devices/devicePool.ts`; device routing/status regions of M96 board, scheduler, roster and check runner selection; owning scheduler tests                                                                                 | Target/source caps, fair ordering, stale receiver/attempt events, no automatic reassignment, distinct-model readiness, unchanged Solo/single-model goldens; no cross-process lease release                                             |
+  | G Git results         | New `src/host/devices/deviceArtifacts.ts`; reuse M77 snapshot/confinement and M96c staging/merge helpers through adapter regions; temporary-repository tests                                                                                                          | Approved base and exact tree/check identity, bounded bundle quarantine, namespace/ref/path/mode confinement, no hooks/filters/config execution on import, optional exact pushed-ref grant, workers never push or merge                 |
+  | U Devices UI          | Devices view under `src/webview/models/sections/agents/`, map/task device regions, host message handlers, styles and harness cases; owning UI tests                                                                                                                   | Setup, status/caps, paused/uncertain recovery, device-local prompts, revoke, focus/keyboard, 320px, pseudo-locale and four themes; no changes shown to a Devices-off user                                                              |
+  | I Integration/docs    | Lazy `src/host/devices/deviceEntry.ts`/bundle loader; command/activation regions, `package.json`, build/split/size/host-globals/notices/packaging gates, knip/dpdm entries; README, PRIVACY, SECURITY, CHANGELOG, PLAN, host API record, `docs/certification/m100.md` | Installed desktop/floor behavior, package includes lazy assets, exact gate-fire receipts, source-to-result chain and model-attempt accounting, no support claims ahead of certification                                                |
+
+- **Acceptance and red drills.** Each row requires a real failing test on an
+  intentional guard break, byte-exact restored source SHA-256, then a passing
+  run recorded in `docs/certification/m100.md`. These are planned tests, not
+  receipts from this documentation lane.
+
+  | Proof                             | Test and deliberate break                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
+  | --------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+  | A Pairing and revocation          | Wrong/swapped fingerprint, one side not confirmed, replayed/expired invitation, copied public invite without private key, changed pin, missing SecretStorage, unlink while connected and old TLS tickets. Remove each possession/pin/grant check separately; unauthorized connections or work must fail. Pair-key corruption fails closed; re-pair does not settle old tasks.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
+  | B Address and transport boundary  | Spoofed mDNS, malicious DNS rebinding, IPv4-mapped IPv6, metadata/public destinations, wildcard bind, proxy environment, certificate mismatch, no client certificate, old protocol, invalid/oversize/slow frames and floods. Bypass the pin, bind or byte/queue guard separately; tests must fail. Separately test multicast blocked with a routed private path and authorized inbound TCP: manual entry connects without discovery. Inbound access blocked by standard-user/default-firewall policy (no allow rule or unavailable prompt), explicit OS/firewall deny and missing-route cases show Blocked or unreachable and admit no work. Removing the failure/admission guard must fail; failed connect/retry retains existing ownership and uncertain spend.                                                                                                                                                                                   |
+  | C Caps and ownership              | Concurrent dispatches contend for the final worker/check slot; local work already occupies it; a delegating parent would exhaust child capacity. Meet role, entry, board, device-offer, process, load and paid caps. Remove target admission or retained uncertain occupancy; count must exceed the cap and fail. Unrelated receiver windows are explicitly outside the machine-wide guarantee.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
+  | D No duplicate dispatch           | Drop the admission reply and resend the same attempt; duplicate/reordered events, changed payload under the same id, receiver restart/new incarnation, full logout/runtime-folder loss, delayed terminal reply and replay after cleanup. Remove journal-before-start or idempotence separately; a launch counter must detect the second start. Corrupt or unwritable durable state refuses dispatch and never recreates an empty success.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
+  | E Sleep, partition and retirement | Freeze a live receiver, saturate a live endpoint, remove its pathname, blackhole the connection, disconnect after launch-before-confirmation, survive direct-parent exit with a descendant, ignore cancellation and give a mistaken user "stopped" answer. Advance every timeout: no release, duplication, reassignment or merge. Deliberately release on timeout/primary exit/cancel acknowledgement; each test fails. Reconnect reconciles the original attempt; orphan/native uncertainty stays blocked.                                                                                                                                                                                                                                                                                                                                                                                                                                         |
+  | F Approval and paid boundaries    | Sender Bypass versus receiver Manual/Plan, protected write, trust revoked during admission, changed role/offer, missing target key, local paid gate off, local Deny, altered price/model/credential and forged approval/settlement. Omit the receiver intersection or paid popup independently; denied work must reach a forbidden-call spy and fail. No provider secret reaches protocol, child args/environment, fixtures, log or artifact.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
+  | G Git and exact checked bytes     | Wrong repo/base/head, forged ref, extra parents/objects, traversal, symlink/junction escape, executable-mode change, oversized/decompression-heavy pack, Git config/hooks/filters sentinel, dirty source snapshot and results from an old attempt. Checks read the admitted final tree with exact check/toolchain identity; altered blobs or a false peer pass cannot land. Remove quarantine/ref/tree binding separately; tests fail. The peer never writes the source checkout.                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
+  | H Privacy and accounting          | Insert fake secret/path/email/prompt sentinels in optional fields, errors, logs and report output; no discovery or support export contains them. Inspect both disks and all frames. Duplicate settlement, lost reply, reboot, uncertain request and shared-vendor quota all preserve per-device liability and never credit twice. Disable allowlisting/scrub/idempotent settlement separately; tests fail.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
+  | J No new work for ordinary users  | Devices off, no pair or no approved offer: absolute zero device activity except an explicit setup action. Solo and D75 single-model conversations: unchanged byte-exact request/MSP goldens and no conversation-triggered SecretStorage read, DNS/socket/discovery, module load, model probe or first-send wait; explicitly enabled receiver/status activity is accounted separately. Add a chat-start probe or remote roster note; the golden/zero-traffic test fails. Explicit check-only use starts no model.                                                                                                                                                                                                                                                                                                                                                                                                                                    |
+  | K UI and installed hosts          | Full keyboard pairing/QR-text fallback, cap edits, waiting remote approval, offline/uncertain recovery, unlink, all four themes, 320px and pseudo-locale. Separately from multicast-blocked success, exercise standard-user/default-firewall and explicit-deny setup on the four rigs, recording each actual default-policy outcome. When denied or unreachable, Blocked or unreachable names the listener/interface/address/port and usable OS/admin recovery, never promises prompt-free/admin-free access, never changes the firewall, and retains unresolved attempts/debt through retry. Record the actual listening application/TCP port, OS permissions/policy and authorization needed on each rig. Break a message schema/focus label/status/recovery mapping; owning tests/a11y fail. Qualify local VS Code 1.99/current on Windows PC, Kubuntu VM, Mac mini and Windows 11 VM; a remote-host window refuses Offer lanes with its reason. |
+
+- **Steps and certification.** Lane 0 records a reviewed pairing/transport
+  threat model and durable dispatch/settlement ordering, including the exact
+  scope of retirement proofs. P/T/E use fake backends, real local TLS peers,
+  temporary repositories and owned child processes first. Check-only then
+  runs on two machines; S/G add lanes, review and a returned branch; U/I
+  finish the four-device installed test. Record versions, execution/storage
+  locations, OS/interface/firewall facts, dispatch/tree/ref/check identities,
+  retained liabilities, packet privacy, measured sizes and all red/restored
+  receipts. Protocol frames are this product's own designed/captured exchange;
+  any new Muse Code, provider or external-agent field still needs AGENTS rule
+  13's capture, workspace and counted attempts. No guessed upstream schema.
+- **Gates.** Scoped typecheck, lint, formatting, deadcode, duplication,
+  localization, host API and production build in each implementation lane;
+  meaningful owning tests, max three files/workers per rig run. The lead runs
+  §6.0 and all §7 gates, `npm run quality`, coverage, integration, a11y,
+  secrets/SAST/audit and packaged-host checks on the exact joined tree. No
+  threshold, ignore or permission waiver is introduced. Real-model/paid
+  certification, if separately authorized, records every attempt and actual
+  spend; the default certification is fake-only and costs no inference.
+- **Size.** Pairing, TLS, QR, discovery, journal and artifact code load only
+  through proposed `dist/devices.js` at the first explicit Devices action;
+  the Devices browser view is lazy too. Use Node built-ins, the shared English
+  fallback and a separately declared `DEVICE_MODEL_TEXT` block. Existing D6
+  caps stay fixed, including activation 600 KiB, Model API 475 KiB, checkpoint
+  store 225 KiB and webview main 900 KiB. The new host bundle has a planning
+  target of at most 100 KiB, not a measured or granted budget; lane 0/I must
+  measure it and record the D6 budget before shipping. Split-gate drills prove
+  that activation/Model API/ACP bundles contain no receiver or crypto/QR code,
+  and a missing lazy asset refuses Devices without breaking chat. Measure
+  memory, journal/artifact disk caps and idle CPU/network on the four rigs.
+- **Security and docs.** D80's threat table in `m100-research.md` is a required
+  review input. README documents actual tested commands/settings, pairing,
+  caps and device-local sign-ins/costs, firewall/manual-address help, pause and
+  unresolved recovery; PRIVACY covers transferred context and discovery;
+  SECURITY covers peer compromise and revocation limits; CHANGELOG names the
+  delivered slice. None describes future behavior as supported. Single-device
+  requests, gates, secrets and Meta's unofficial product name stay unchanged.
+
 ### M41 — Install Muse Code from the panel (folded into M55)
 
 **Status 2026-09-25: folded into M55 (D36); built there (PR #43, merged
@@ -16051,6 +16336,21 @@ fixture runs pass 672 and 19 tests. Activation is 610.2 KiB against 600: the
 brief assigns its correction to the activation-diet lane. Focused accessibility
 has two missing Chrome results, so no complete browser pass is claimed.
 See `docs/certification/mg87b.md` for resolutions, drills and gate evidence.
+
+**M100 planning lane (2026-10-04).** The rig brief restricts changes to
+PLAN and `docs/certification/m100-research.md`, forbids full quality/unit
+runs and main integration, and requires a local normal-hook commit. Scoped
+checks and their actual outcomes are in that research record. Runtime tests,
+gate-fire and four-device certification are future M100 delivery work; the
+lead retains the unchanged full quality gate on the joined tree. No product
+gate is waived or weakened by committing this plan.
+
+**M100 review correction (FIXM100, 2026-10-05).** The follow-up brief authorizes
+the D80/acceptance/research correction, its Unreleased changelog entry and a
+local merge of the already-fetched `origin/main`, keeping both sides and
+renumbering nothing. Only changed-document formatting/Markdown checks and
+normal commit hooks run here; full quality remains the lead's joined-tree
+gate. The research record separates these receipts from runtime certification.
 
 **DEFLAKE2 bounded-lane result (2026-10-04).** Direct Win11 owning tests
 and the required static/build gates passed; two deliberate regressions
