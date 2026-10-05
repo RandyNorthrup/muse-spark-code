@@ -270,6 +270,8 @@ const storedSessionFields = {
       backgroundTaskId: z.optional(z.string()),
     }),
   ),
+  // Each item keeps its optional `recordedAt` (M87, PLAN.md D66): the time the
+  // host stamped on a user message or reply; a file saved before has none.
   transcript: z.array(
     z.object({
       turnId: z.string(),

@@ -194,7 +194,13 @@ describe('Muse Code backend against a real child process', { timeout: TEST_TIMEO
     // M46 asks for `userShell` too: the panel's `!` commands.
     expect(host.info.grantedCapabilities).toEqual(['sessionMcp', 'sessionListStream', 'userShell'])
     expect(backend.isRunning).toBe(true)
-    expect(log.warn).not.toHaveBeenCalled()
+    // The harness runs `off` (no OS sandbox), so the one warning is the
+    // sandbox-off line (musecode-write-asks); a clean start warns of nothing else.
+    expect(log.warn.mock.calls).toEqual([
+      [
+        'Without the sandbox, Muse Code’s file tools can write outside the workspace without asking',
+      ],
+    ])
     expect(await backend.ensureHost()).toBe(host)
   })
 
@@ -326,6 +332,42 @@ describe('Muse Code backend against a real child process', { timeout: TEST_TIMEO
     await until(() => t.events.some((event) => event.type === 'turnStarted'))
     await t.session.cancel()
     expect(await turn.done()).toMatchObject({ type: 'turnCompleted', terminal: 'cancelled' })
+  })
+
+  it('takes a queued message back with turn/unqueue, and answers too late once one launched (M87)', async () => {
+    const { manager: backend } = manager()
+    const host = await backend.ensureHost()
+    const t = await openSession(host)
+    const running = t.start('slow')
+    await running.submission
+    await until(() => t.events.some((event) => event.type === 'turnStarted'))
+    const queued = await t.session.sendTurn([{ type: 'text', text: 'never sent' }])
+    expect(queued.disposition).toBe('queued')
+    const queuedRef = { turnId: queued.turnId, userMessageId: undefined, disposition: 'queued' }
+    await expect(t.session.withdrawQueued(queuedRef)).resolves.toEqual({
+      status: 'withdrawn',
+      images: undefined,
+    })
+    await until(() =>
+      t.events.some((event) => event.type === 'turnWithdrawn' && event.turnId === queued.turnId),
+    )
+    // The next one launches when the slow turn ends; taking it back then is too late.
+    const next = await t.session.sendTurn([{ type: 'text', text: 'after' }])
+    expect(next.disposition).toBe('queued')
+    await t.session.cancel()
+    await running.done()
+    await until(() =>
+      t.events.some((event) => event.type === 'turnStarted' && event.turnId === next.turnId),
+    )
+    await expect(t.session.withdrawQueued({ ...queuedRef, turnId: next.turnId })).resolves.toEqual({
+      status: 'tooLate',
+    })
+    await until(() =>
+      t.events.some((event) => event.type === 'turnCompleted' && event.turnId === next.turnId),
+    )
+    expect(
+      t.events.some((event) => event.type === 'turnStarted' && event.turnId === queued.turnId),
+    ).toBe(false)
   })
 
   it('reports subagents with their child sessions and a backgrounded tool call (M14)', async () => {

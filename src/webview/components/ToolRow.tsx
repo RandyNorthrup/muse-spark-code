@@ -8,6 +8,7 @@
 
 import { memo, type ReactNode, useEffect, useMemo, useRef, useState } from 'react'
 import {
+  IO_PREVIEW_LINES,
   PATCH_DOCUMENT_MAX_PAGES,
   TOOL_STATUS_IN_PROGRESS,
   TOOL_STATUS_INTERRUPTED,
@@ -33,7 +34,8 @@ import {
   type ToolPresentation,
   writtenContent,
 } from '../toolPresentation'
-import { ExpandChevron } from './icons'
+import { ExpandChevron, FileIcon, RewindIcon } from './icons'
+import { type GooeyItem, useRowMenu } from './GooeyMenu'
 import { QuestionCard, type QuestionCardProps } from './QuestionCard'
 import { Clipped, DiffTable } from './ToolBlocks'
 import {
@@ -67,6 +69,11 @@ export interface ToolRowProps {
   readonly onClarifyQuestion: QuestionCardProps['onClarify']
   /** Edit review (M5): the stored patch of a completed edit-family item in the diff editor. */
   readonly onOpenEditDiff: (itemId: string, outputRef: string) => void
+  /**
+   * The edit's Revert in the row's menu (M87, D66 item 17), after the host's
+   * confirmation; absent where nothing may write the workspace's files.
+   */
+  readonly onRevertEdit?: ((itemId: string, outputRef: string) => void) | undefined
   /** The row's path: the file at its change (M16). */
   readonly onOpenFile: (path: string, range: LineRange | undefined) => void
   /** A search result's page (M43), opened as a reply's links are. */
@@ -166,13 +173,18 @@ function ShellBody({
       {command === undefined ? null : (
         <div className="shell-box">
           <span className="shell-label">{UI_TEXT.inLabel}</span>
-          <pre className="tool-pre">{command}</pre>
+          <Clipped text={command} className="shell-out" previewLines={IO_PREVIEW_LINES} />
         </div>
       )}
       {output === '' ? null : (
         <div className="shell-box">
           <span className="shell-label">{UI_TEXT.outLabel}</span>
-          <Clipped text={output} className="shell-out" onOpen={onOpen} />
+          <Clipped
+            text={output}
+            className="shell-out"
+            onOpen={onOpen}
+            previewLines={IO_PREVIEW_LINES}
+          />
         </div>
       )}
       {(run?.isRunning === true || entry.isBackground) && entry.status === 'inProgress' ? (
@@ -353,6 +365,7 @@ function ToolRowView({
   onCancelQuestion,
   onClarifyQuestion,
   onOpenEditDiff,
+  onRevertEdit,
   onOpenFile,
   onOpenLink,
   onRefuseLink,
@@ -413,6 +426,44 @@ function ToolRowView({
       : () => {
           onOpenEditDiff(entry.id, reviewRef.id)
         }
+  const items: GooeyItem[] =
+    presentation.body !== 'shell' && entry.output === '' && entry.outputRef === undefined
+      ? []
+      : [
+          {
+            id: 'output',
+            label: UI_TEXT.rowOpenOutput,
+            icon: <FileIcon />,
+            onSelect: () => {
+              menu.close()
+              openOutput()
+            },
+          },
+        ]
+  if (openReview !== undefined) {
+    items.push({
+      id: 'review',
+      label: UI_TEXT.diffTallyReview,
+      icon: <RewindIcon />,
+      onSelect: () => {
+        menu.close()
+        openReview()
+      },
+    })
+  }
+  // Not while a turn runs: it may be writing the same file (the host refuses it too).
+  if (reviewRef !== undefined && onRevertEdit !== undefined && !isRunning) {
+    items.push({
+      id: 'revert',
+      label: UI_TEXT.rowRevertEdit,
+      icon: <RewindIcon />,
+      onSelect: () => {
+        menu.close()
+        onRevertEdit(entry.id, reviewRef.id)
+      },
+    })
+  }
+  const menu = useRowMenu(items, UI_TEXT.messageActions, quoteMenu)
   let body: ReactNode
   switch (presentation.body) {
     case 'shell': {
@@ -509,8 +560,9 @@ function ToolRowView({
       data-status={entry.status}
       data-entry-id={entry.id}
       data-role="tool"
+      {...menu.rowProps}
     >
-      <div className="tool-header">
+      <div className="tool-header" inert={menu.isOpen}>
         <button
           type="button"
           className="tool-toggle"
@@ -563,7 +615,7 @@ function ToolRowView({
         </div>
       ) : null}
       {isOpen ? (
-        <div className="tool-body">
+        <div className="tool-body" inert={menu.isOpen}>
           {body}
           {images}
         </div>
@@ -597,6 +649,7 @@ function ToolRowView({
           {questionOutcomeText(entry.questionOutcome)}
         </div>
       )}
+      {menu.menu}
       {quoteMenu}
     </li>
   )

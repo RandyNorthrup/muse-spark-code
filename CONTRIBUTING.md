@@ -60,9 +60,11 @@ Use this order for a candidate branch:
    proof. A printed success line without the process exit status is not a
    gate result.
 
-- Run `npm run quality` and make it green. It runs every gate: formatting,
-  ESLint (zero warnings), stylelint, type checks, dead-code and cycle
-  detection, duplication, unit tests with coverage thresholds, the
+- Run `npm run quality` and make it green. It runs every local gate except
+  the VS Code integration tests (`npm run test:integration`, run by
+  `npm run quality:ci` and CI): formatting, ESLint (zero warnings),
+  stylelint, the PowerShell lint, type checks, the localization and host-API
+  checks, dead-code and cycle detection, duplication, unit tests with coverage thresholds, the
   production build with bundle budgets and the bundle split, `npm audit`,
   the accessibility gate, secret scanning and semgrep. CI's full tier runs
   the gates on Ubuntu, Windows and macOS, the complete accessibility gate on
@@ -86,7 +88,37 @@ Use this order for a candidate branch:
   nobody captured says so in a comment.
 - Update `CHANGELOG.md` (Keep a Changelog, under `Unreleased`), the README
   where behaviour changed, and `docs/PRIVACY.md` when anything new leaves
-  the machine.
+  the machine. A change users should try can add a bullet to the section's
+  `### Highlights` list, which What's New shows after the update (at most 5
+  per release; `docs/RELEASING.md` has the form and the `<!-- try: … -->`
+  button).
+
+- A visible change gets a harness scenario (`test/harness/index.html`, its
+  name listed in `scripts/lib/harnessServer.mjs` beside the related one),
+  rendered with `npm run harness:shots -- <names>` (`--theme=dark`, `light`,
+  `hc-dark` or `hc-light`; `--lang=pseudo` for clipping) and checked with
+  `node scripts/a11y.mjs <names>` in the four themes. The M87 scenarios:
+  `context-meter`, `context-meter-warning`, `context-meter-full`,
+  `palette-tips`, `slash-tips`, `stop-running`, `tool-io`,
+  `tool-io-expanded`, `status-heartbeat`, `status-heartbeat-narrow`,
+  `steps-summary`, `steps-summary-open`, `todo-collapsed`, `tasks-tab`,
+  `tasks-tab-ended`, `tasks-tab-plain`, `message-time`, `queued-menu`,
+  `queued-menu-edit`, `diff-tally`, `chat-menu`, `chat-menu-narrow`,
+  `chat-tool-menu` and `chat-tool-menu-narrow`. A scenario named `-narrow`
+  that needs a true 320 px viewport says so and is opened at that width by
+  both scripts. Scenarios drive the real App through the fake host's
+  messages; none mounts a component on its own.
+- Motion respects `prefers-reduced-motion`: `test/unit/reducedMotion.test.ts`
+  reads `src/webview/styles.css` and fails when any selector with an
+  `animation` or `transition` is not set to none in the closing
+  reduced-motion block. A new animation adds its selector there.
+- Refresh the README's screenshots with `npm run readme:shots`, which
+  renders each image in `scripts/readme-shots.json` from its harness
+  scenario at its declared theme, size and language. `readme:shots --list`
+  prints the mapping with any gap (a README image with no entry, or an
+  entry the README never shows); `--only <name,...>` retakes some images
+  and `--out <dir>` writes them elsewhere, so preview in `temp/` before
+  overwriting the committed `media/readme/`.
 - No new dependency without a reason in the pull request and a
   compatibility check; no suppressed lint rule or `any` without an inline
   reason and a row in PLAN.md §8.
@@ -97,7 +129,8 @@ Use this order for a candidate branch:
   configured check.
 - `main` is protected: changes land through a pull request with the CI
   checks green, it cannot be force-pushed or deleted, and release tags
-  (`v*`) cannot be moved or deleted.
+  (`v*`) cannot be moved or deleted, except by a repository admin (both
+  rulesets let the Admin role bypass them).
 
 ## CI tiers and required checks
 
@@ -172,10 +205,11 @@ never a literal in the code:
   does not carry it: one object is carried whole, and `npm run build` fails a
   `MODEL_TEXT` key that no file of `dist/extension.js` reads, a block found in
   a shipped bundle that is not among its declared readers, and a new block
-  that `scripts/check-bundle-split.mjs` does not guard. The Model API and review bundles carry no English table at all
-  (they install the activation bundle's before they run, and `npm run build`
-  fails if one comes back): a lazily loaded bundle that reads `UI_TEXT`
-  must do the same in its factory.
+  that `scripts/check-bundle-split.mjs` does not guard. No checked Node bundle carries the English table itself: each
+  loads the shared `dist/uiText.js`, and `npm run build` fails if one
+  duplicates `en.ts` or stops loading it. Each lazily loaded bundle keeps its
+  own language state, so one that reads `UI_TEXT` must install the caller's
+  table in its factory.
 
 `npm run check:l10n` checks all of this. It fails a key missing from a
 translation, a changed `{slot}`, a wrong set of plural forms, and a

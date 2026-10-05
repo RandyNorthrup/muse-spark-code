@@ -56,6 +56,11 @@ import type { MemoryWrites } from '../../memory/memoryStore'
 import { isPdf, pdfPageCount } from '../../pdf'
 import { fingerprint } from '../../verify/fingerprint'
 import { WEB_FETCH_DESCRIPTION, WEB_FETCH_PARAMETERS } from '../../web/webFetchDefinition'
+import {
+  BROWSER_CHECK_DESCRIPTION,
+  BROWSER_CHECK_PARAMETERS,
+  BROWSER_CHECK_REQUIRED,
+} from '../../browser/browserTool'
 import { confineWorkspacePath } from '../../workspacePath'
 import { compileGlob, GLOB_LIMITS } from './globLimits'
 import type { GlobLimits } from './glob'
@@ -369,10 +374,16 @@ export interface EditFormatter {
 /** What a conditional write did (M68): wrote the file, or found it changed and left it. */
 export type ConditionalWrite = 'written' | 'changed'
 
-/** A PDF or an image `read_file` read whole for the model to see (M54, PLAN.md D47). */
+/**
+ * A PDF or an image for the model to see, in a user message after the
+ * round's outputs (M54, PLAN.md D47): one `read_file` read whole, or the
+ * browser check's screenshot (M81).
+ */
 export interface VisibleFile {
-  /** Workspace-relative, as the model named it. */
-  readonly path: string
+  /** The model's line before it: what it is and where it came from. */
+  readonly lead: string
+  /** The model's line in its place when the round ended before it was sent. */
+  readonly notDelivered: string
   readonly part: ImagePart | DocumentPart
 }
 
@@ -457,6 +468,9 @@ const TOOL_CLASSES: Readonly<Record<string, ToolClass>> = {
   [VERIFY_TOOLS.runChecks]: 'interactive',
   // M69 (PLAN.md D49): a network tool, asked per host.
   [MODEL_API_TOOLS.webFetch]: 'network',
+  // M81 (PLAN.md D49): it starts a browser that reaches the page's host, so
+  // it asks per host as web fetch does; Plan refuses it.
+  [MODEL_API_TOOLS.browserCheck]: 'network',
   // M67 (PLAN.md D49): the language services read, in every mode; a rename is an edit.
   [CODE_INTEL_TOOLS.findDefinition]: 'read',
   [CODE_INTEL_TOOLS.findReferences]: 'read',
@@ -538,6 +552,8 @@ export interface ToolDefinitionOptions {
   readonly checks?: readonly CheckCommandSetting[]
   /** Web fetch, trusted workspaces only, when the host has a fetch (M69, PLAN.md D49). */
   readonly hasWebFetch?: boolean
+  /** The browser check, trusted workspaces only, when the host can run one (M81, PLAN.md D49). */
+  readonly hasBrowserCheck?: boolean
   /** The code intelligence tools, while VS Code's language services are at hand (M67). */
   readonly hasCodeIntel?: boolean
 }
@@ -744,6 +760,16 @@ export function toolDefinitions(
     ...(options.hasPackedRecall === true ? [RECALL_TOOL_DEFINITION] : []),
     ...(options.hasWebFetch === true
       ? [define(MODEL_API_TOOLS.webFetch, WEB_FETCH_DESCRIPTION, WEB_FETCH_PARAMETERS, ['url'])]
+      : []),
+    ...(options.hasBrowserCheck === true
+      ? [
+          define(
+            MODEL_API_TOOLS.browserCheck,
+            BROWSER_CHECK_DESCRIPTION,
+            BROWSER_CHECK_PARAMETERS,
+            BROWSER_CHECK_REQUIRED,
+          ),
+        ]
       : []),
     ...(options.hasCodeIntel === true
       ? MODEL_API_CODE_INTEL_DEFINITIONS.map((tool) =>
@@ -958,6 +984,14 @@ function visualKindOf(relative: string): 'pdf' | 'image' | undefined {
   return Object.hasOwn(IMAGE_EXTENSIONS, extension) ? 'image' : undefined
 }
 
+/** The model's lines around a file `read_file` read (M54). */
+function readFileLines(relative: string): Pick<VisibleFile, 'lead' | 'notDelivered'> {
+  return {
+    lead: fill(MODEL_API_MODEL_TEXT.toolFileFollows, { path: relative }),
+    notDelivered: fill(MODEL_API_MODEL_TEXT.toolFileNotDelivered, { path: relative }),
+  }
+}
+
 /** The PDF, checked by its header, for the model to read whole (M54). */
 function pdfOutcome(relative: string, bytes: Uint8Array): ToolOutcome {
   if (!isPdf(bytes)) {
@@ -988,7 +1022,7 @@ function pdfOutcome(relative: string, bytes: Uint8Array): ToolOutcome {
     output,
     visibleOutput,
     visibleFile: {
-      path: relative,
+      ...readFileLines(relative),
       part: {
         type: 'file',
         base64Data: Buffer.from(bytes).toString('base64'),
@@ -1028,7 +1062,7 @@ function imageOutcome(relative: string, bytes: Uint8Array): ToolOutcome {
     output,
     visibleOutput,
     visibleFile: {
-      path: relative,
+      ...readFileLines(relative),
       part: {
         type: 'image',
         base64Data: Buffer.from(bytes).toString('base64'),

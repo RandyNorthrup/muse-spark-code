@@ -17,6 +17,7 @@ import { ideCodeIntelTools } from '../../src/host/ide/codeIntelTools'
 import {
   CODE_INTEL_BUNDLE_FILE,
   CODE_INTEL_MODEL_TEXT,
+  FILE_REFUSAL_MODEL_TEXT,
   IDE_MCP_SERVER_INFO,
   MODEL_TEXT,
 } from '../../src/shared/constants'
@@ -75,7 +76,10 @@ describe('codeIntelLoader', () => {
 
 describe('the shipped code intelligence bundle', () => {
   // It reads CODE_INTEL_MODEL_TEXT and FILE_REFUSAL_MODEL_TEXT only.
-  shippedTextCases(built, CODE_INTEL_MODEL_TEXT.codeIntelNoSymbolNamed)
+  shippedTextCases(built, CODE_INTEL_MODEL_TEXT.codeIntelNoSymbolNamed, [
+    CODE_INTEL_MODEL_TEXT,
+    FILE_REFUSAL_MODEL_TEXT,
+  ])
 
   it.each(['findDefinition', 'renameSymbol'])(
     'answers %s from the bundle as the source does',

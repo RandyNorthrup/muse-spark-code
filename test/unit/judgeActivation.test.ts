@@ -4,7 +4,6 @@ import { runInNewContext } from 'node:vm'
 import { build } from 'esbuild'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type * as vscode from 'vscode'
-import { isJudgeEngineOn } from '../../src/core/judge/engine'
 import { createPaidFeatures } from '../../src/host/paid/paidHost'
 import {
   JUDGE_ENGINES,
@@ -30,7 +29,7 @@ function isActivationSettingOn(feature: PaidFeature, settings: ExtensionSettings
   const source = readFileSync(new URL('../../src/extension.ts', import.meta.url), 'utf8')
   const paidAt = source.indexOf('const paid = createPaidFeatures(')
   const start = source.indexOf('isSettingOn:', paidAt)
-  const end = source.indexOf('isKeyStored:', start)
+  const end = source.indexOf('isAvailable:', start)
   if (paidAt === -1 || start < paidAt || end <= start) {
     throw new Error('activation paid callback not found')
   }
@@ -39,7 +38,6 @@ function isActivationSettingOn(feature: PaidFeature, settings: ExtensionSettings
     currentSettings: () => settings,
     JUDGE_ENGINES,
     PAID_FEATURE_SETTINGS,
-    isJudgeEngineOn,
   })
   if (typeof value !== 'boolean') {
     throw new TypeError('activation paid callback did not return a boolean')
@@ -47,7 +45,11 @@ function isActivationSettingOn(feature: PaidFeature, settings: ExtensionSettings
   return value
 }
 
-function paidAtActivation(settings: ExtensionSettings, isKeyStored = false) {
+function paidAtActivation(
+  settings: ExtensionSettings,
+  isKeyStored = false,
+  explicitlyEnabled?: PaidFeature,
+) {
   const stored = new Map<string, unknown>()
   const state = {
     get: (key: string) => stored.get(key),
@@ -60,6 +62,7 @@ function paidAtActivation(settings: ExtensionSettings, isKeyStored = false) {
     globalState: state,
     workspaceState: state,
     isSettingOn: (feature) => isActivationSettingOn(feature, settings),
+    isDefaultOn: (feature) => feature !== explicitlyEnabled,
     isKeyStored: () => isKeyStored,
     canRememberPaidUse: () => true,
     log: new FakeLogOutputChannel(),
@@ -96,7 +99,11 @@ describe('judge activation routing', () => {
   it('declining an unrelated Model API price leaves the judge selection alone', async () => {
     const { update } = mockJudgePaidConfiguration()
     vi.mocked(confirmModal).mockResolvedValue(undefined)
-    const paid = paidAtActivation({ ...SETTING_DEFAULTS, modelApiImageGeneration: true }, true)
+    const paid = paidAtActivation(
+      { ...SETTING_DEFAULTS, modelApiImageGeneration: true },
+      true,
+      'imageGeneration',
+    )
     await paid.gate.review()
     expect(confirmModal).toHaveBeenCalledTimes(1)
     expect(update).toHaveBeenCalledExactlyOnceWith('modelApiImageGeneration', false, 1)

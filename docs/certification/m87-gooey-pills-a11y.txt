@@ -1,0 +1,19 @@
+# M87 gooey pills: axe on Kubuntu (scripts/a11y.mjs, rig browser, dev build), 2026-10-04
+## This branch as committed (pre-existing tool-chevron target-size, fixed in m87/l0 78909aab)
+  hc-light/chat-tool-menu: li[data-entry-id="sh1"] > .tool-header > .tool-chevron
+  hc-light/chat-tool-menu: li[data-entry-id="sh1"] > .tool-header > .tool-chevron[aria-label="Show or hide the details"]
+  hc-light/chat-tool-menu: li[data-entry-id="wr1"] > .tool-header > .tool-chevron
+  hc-light/chat-tool-menu: li[data-entry-id="wr1"] > .tool-header > .tool-chevron[aria-label="Show or hide the details"]
+a11y en exit=1
+a11y pseudo exit=1
+a11y: 16 pages (4 scenarios × 4 themes, in pseudo), 1 rules violated on 12 elements, 0 rules undecided on 0 elements, 0 exempt, 0 pages without a result
+a11y: 28 pages (7 scenarios × 4 themes), 1 rules violated on 12 elements, 0 rules undecided on 0 elements, 0 exempt, 0 pages without a result
+build exit=0
+rig=kubuntu slot=pills snapshot=08af6d99 base=/home/randy/gates/base-de88faa864aa36e8
+## With m87/l0's one-line .tool-header box-sizing fix applied temporarily
+rig=kubuntu slot=pills snapshot=3225f356 base=/home/randy/gates/base-de88faa864aa36e8
+build exit=0
+a11y: 28 pages (7 scenarios × 4 themes), 0 rules violated on 0 elements, 0 rules undecided on 0 elements, 0 exempt, 0 pages without a result
+a11y en exit=0
+a11y: 16 pages (4 scenarios × 4 themes, in pseudo), 0 rules violated on 0 elements, 0 rules undecided on 0 elements, 0 exempt, 0 pages without a result
+a11y pseudo exit=0

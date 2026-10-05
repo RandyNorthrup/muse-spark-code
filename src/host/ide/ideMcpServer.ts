@@ -18,6 +18,7 @@ import {
   mcpRequestKeys,
   type McpTool,
 } from '../../core/mcp'
+import { redactSecrets } from '../../core/redact'
 import {
   CLI_OUTPUT_MAX_BYTES,
   HTTP_STATUS,
@@ -206,7 +207,7 @@ export class IdeMcpServer {
     })
     // Errors after the listen (a socket fault) are logged, never thrown at the host.
     server.on('error', (error) => {
-      this.log.error(`IDE tool server error: ${error.message}`)
+      this.log.error(`IDE tool server error: ${redactSecrets(error.message)}`)
     })
     const address = server.address()
     if (address === null || typeof address === 'string') {

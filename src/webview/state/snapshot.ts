@@ -8,6 +8,7 @@
 // reducer's `surfaceState`).
 
 import * as z from 'zod/mini'
+import { redactSecrets } from '../../shared/redact'
 import { sessionGoalSchema, todoItemSchema } from '../../shared/agentEvents'
 import { WEBVIEW_SNAPSHOT_VERSION, WEBVIEW_STATE_MAX_CHARS } from '../../shared/constants'
 import { chatReferenceSchema } from '../../shared/protocol'
@@ -73,11 +74,17 @@ function snapshotOf(state: UiState): UiSnapshot {
     context: state.context,
     sequence: state.sequence,
     localSequence: state.localSequence,
-    draft: state.draft,
+    draft: redactSecrets(state.draft),
     reference: state.reference,
     lastCompletedTurnId: state.lastCompletedTurnId,
     pendingReplayTurns: state.pendingReplayTurns,
-    pendingSendDraft: state.pendingSendDraft,
+    pendingSendDraft:
+      state.pendingSendDraft === undefined
+        ? undefined
+        : {
+            ...state.pendingSendDraft,
+            text: redactSecrets(state.pendingSendDraft.text),
+          },
     draftRevision: state.draftRevision,
   }
 }
@@ -144,7 +151,9 @@ export function restoredUiState(raw: unknown): UiState {
     return {
       ...base,
       title: saved.title,
-      transcript: saved.transcript,
+      transcript: saved.transcript.map((entry) =>
+        entry.kind === 'user' ? { ...entry, text: redactSecrets(entry.text) } : entry,
+      ),
       childTranscripts: saved.childTranscripts,
       childOwners: childOwnersOf(saved),
       todos: saved.todos,
@@ -153,11 +162,17 @@ export function restoredUiState(raw: unknown): UiState {
       context: saved.context,
       sequence: saved.sequence,
       localSequence: saved.localSequence,
-      draft: saved.draft,
+      draft: redactSecrets(saved.draft),
       reference: saved.reference,
       lastCompletedTurnId: saved.lastCompletedTurnId,
       pendingReplayTurns: saved.pendingReplayTurns ?? {},
-      pendingSendDraft: saved.pendingSendDraft,
+      pendingSendDraft:
+        saved.pendingSendDraft === undefined
+          ? undefined
+          : {
+              ...saved.pendingSendDraft,
+              text: redactSecrets(saved.pendingSendDraft.text),
+            },
       draftRevision: saved.draftRevision ?? 0,
       pendingRestore: { sessionId: saved.sessionId, isTranscriptOmitted: false },
     }

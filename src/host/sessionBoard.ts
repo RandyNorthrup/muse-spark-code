@@ -18,6 +18,7 @@ import {
   type PendingPrompts,
 } from '../core/sessionBoard'
 import { parseWorktreeList } from '../core/worktrees'
+import { redactSecrets } from '../core/redact'
 import type { BoardRow } from '../shared/sessionBoard'
 import type { BestOfNRun } from '../shared/bestOfN'
 import {
@@ -78,7 +79,7 @@ async function readWorktrees(deps: SessionBoardDeps): Promise<readonly BoardWork
     const git = await metadataGit(deps.runGit, workspaceRoot)
     porcelain = await git(WORKTREE_LIST_ARGS, GIT_WORKTREE_TIMEOUT_MS)
   } catch (error: unknown) {
-    const detail = error instanceof Error ? error.message : String(error)
+    const detail = redactSecrets(error instanceof Error ? error.message : String(error))
     deps.log.warn(`The session board could not list worktrees: ${detail}`)
     return []
   }

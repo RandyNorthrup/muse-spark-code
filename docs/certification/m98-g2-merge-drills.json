@@ -1,0 +1,69 @@
+{
+  "review": "RVM98G2",
+  "rig": "macmini",
+  "snapshot": "32ef706f",
+  "drills": [
+    {
+      "id": "G2-3-cancel",
+      "file": "src/runtime/judge/mcp.ts",
+      "mutation": {
+        "from": "cancelledNotificationSchema.safeParse(JSON.parse(line)).success",
+        "to": "true"
+      },
+      "expected": "ignores malformed cancellation envelope",
+      "files": ["test/unit/judgeMcp.test.ts"],
+      "baseline": {
+        "exit": 0,
+        "tests": 48,
+        "failed": []
+      },
+      "red": {
+        "exit": 1,
+        "tests": 48,
+        "failed": [
+          "judge MCP stdio ignores malformed cancellation envelope: {\"jsonrpc\":\"1.0\",\"method\":\"notifications/cancelled\",\"params\":{\"requestId\":1}}",
+          "judge MCP stdio ignores malformed cancellation envelope: {\"method\":\"notifications/cancelled\",\"params\":{\"requestId\":1}}",
+          "judge MCP stdio ignores malformed cancellation envelope: {\"jsonrpc\":\"2.0\",\"id\":2,\"method\":\"notifications/cancelled\",\"params\":{\"requestId\":1}}",
+          "judge MCP stdio ignores malformed cancellation envelope: {\"jsonrpc\":\"2.0\",\"id\":null,\"method\":\"notifications/cancelled\",\"params\":{\"requestId\":1}}"
+        ]
+      },
+      "restored": {
+        "exit": 0,
+        "tests": 48,
+        "failed": []
+      },
+      "beforeSha256": "fe755f9fb7c55da43a270fdf9602af48685be0716a0f3f67591516e176c9a8e1",
+      "restoredSha256": "fe755f9fb7c55da43a270fdf9602af48685be0716a0f3f67591516e176c9a8e1"
+    },
+    {
+      "id": "G2-merge-schema",
+      "file": "src/runtime/judge/mcp.ts",
+      "mutation": {
+        "from": "required: ['state', 'questions']",
+        "to": "required: ['questions']"
+      },
+      "expected": "keeps the advertised input schema exactly equal",
+      "files": ["test/unit/judgeMcp.test.ts"],
+      "baseline": {
+        "exit": 0,
+        "tests": 48,
+        "failed": []
+      },
+      "red": {
+        "exit": 1,
+        "tests": 48,
+        "failed": [
+          "judge MCP stdio keeps the advertised input schema exactly equal to the canonical request schema",
+          "judge MCP stdio initializes and lists only the bounded read-only advisory tool without inference"
+        ]
+      },
+      "restored": {
+        "exit": 0,
+        "tests": 48,
+        "failed": []
+      },
+      "beforeSha256": "fe755f9fb7c55da43a270fdf9602af48685be0716a0f3f67591516e176c9a8e1",
+      "restoredSha256": "fe755f9fb7c55da43a270fdf9602af48685be0716a0f3f67591516e176c9a8e1"
+    }
+  ]
+}

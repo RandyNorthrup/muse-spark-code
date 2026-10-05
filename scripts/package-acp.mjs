@@ -34,6 +34,7 @@ const BUNDLES = [
   'reviewer.js',
   'judge.js',
   'uiText.js',
+  'validation.js',
   'searchWorker.js',
   'pageWorker.js',
 ]

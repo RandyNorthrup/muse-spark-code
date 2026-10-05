@@ -2,9 +2,10 @@
 // The rows of Muse Code's own tools (M43, PLAN.md D36). Every argument and
 // result below is the shape Muse Code 1.3.0 sent on 2026-09-25
 // (docs/certification/m43.md), trimmed to what the row reads.
-import { fireEvent, screen, within } from '@testing-library/react'
+import { fireEvent, render, screen, within } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
-import { renderTranscript, tool } from './helpers/transcriptFixtures'
+import { Clipped } from '../../src/webview/components/ToolBlocks'
+import { renderSteps, renderTranscript, tool, userShell } from './helpers/transcriptFixtures'
 
 const GOAL = {
   session_id: 's',
@@ -37,12 +38,94 @@ function openRow(label: string): HTMLElement {
   if (row === null) {
     throw new Error(`no row ${label}`)
   }
-  const toggle = within(row).queryAllByRole('button', { expanded: false })[0]
-  if (toggle !== undefined) {
+  const toggle = row.querySelector('.tool-toggle[aria-expanded="false"]')
+  if (toggle !== null) {
     fireEvent.click(toggle)
   }
   return row
 }
+
+describe('shell previews (M87)', () => {
+  const lines = 'first\nsecond\nthird\nfourth\nfifth\nsixth'
+
+  it('joins tool IN and OUT, clips each at five lines, and expands them independently', () => {
+    renderTranscript([
+      tool({ tool: 'powershell', args: JSON.stringify({ command: lines }), output: lines }),
+    ])
+    const row = openRow('PowerShell')
+    const boxes = row.querySelectorAll<HTMLElement>(':scope .shell > .shell-box')
+    expect(boxes).toHaveLength(2)
+    for (const box of boxes) {
+      expect(box.querySelector('pre')?.textContent).toBe('first\nsecond\nthird\nfourth\nfifth')
+      expect(within(box).getByRole('button', { name: 'Show more', expanded: false })).toBeTruthy()
+    }
+    fireEvent.click(within(boxes[0]!).getByRole('button', { name: 'Show more' }))
+    expect(boxes[0]!.querySelector('pre')?.textContent).toBe(lines)
+    expect(
+      within(boxes[0]!).getByRole('button', { name: 'Show less', expanded: true }),
+    ).toBeTruthy()
+    expect(boxes[1]!.querySelector('pre')?.textContent).not.toContain('sixth')
+    fireEvent.click(within(boxes[0]!).getByRole('button', { name: 'Show less' }))
+    expect(
+      within(boxes[0]!).getByRole('button', { name: 'Show more', expanded: false }),
+    ).toBeTruthy()
+  })
+
+  it('gives user commands the same two previews and opens full output in the editor', () => {
+    const props = renderTranscript([userShell({ command: lines, output: lines })])
+    const boxes = document.querySelectorAll<HTMLElement>('.user-shell .shell > .shell-box')
+    expect(boxes).toHaveLength(2)
+    expect(within(boxes[0]!).getByText('IN')).toBeTruthy()
+    expect(within(boxes[1]!).getByText('OUT')).toBeTruthy()
+    for (const box of boxes) {
+      expect(box.querySelector('pre')?.textContent).toBe('first\nsecond\nthird\nfourth\nfifth')
+      fireEvent.click(within(box).getByRole('button', { name: 'Show more', expanded: false }))
+      expect(box.querySelector('pre')?.textContent).toBe(lines)
+    }
+    fireEvent.keyDown(within(boxes[1]!).getByTitle('Click to open the output in an editor'), {
+      key: 'Enter',
+    })
+    expect(props.onOpenOutput).toHaveBeenCalledWith('u', 'You ran', lines, undefined)
+  })
+
+  it('shows user IN before any output arrives without an empty OUT part', () => {
+    renderTranscript([userShell({ command: lines, output: '', status: 'inProgress' })])
+    const boxes = document.querySelectorAll<HTMLElement>('.user-shell .shell > .shell-box')
+    expect(boxes).toHaveLength(1)
+    expect(within(boxes[0]!).getByText('IN')).toBeTruthy()
+    expect(within(boxes[0]!).queryByText('OUT')).toBeNull()
+  })
+
+  it('keeps the 2,000-character cap on a shell command', () => {
+    renderTranscript([
+      tool({ tool: 'powershell', args: JSON.stringify({ command: 'x'.repeat(2001) }) }),
+    ])
+    const row = openRow('PowerShell')
+    expect(row.querySelector(':scope .shell pre')?.textContent).toBe(`${'x'.repeat(2000)}…`)
+    fireEvent.click(within(row).getByRole('button', { name: 'Show more', expanded: false }))
+    expect(row.querySelector(':scope .shell pre')?.textContent).toBe('x'.repeat(2001))
+  })
+
+  it('keeps other outputs at twelve lines and toggles accessible expanded state', () => {
+    const text = Array.from({ length: 13 }, (_, index) => `line ${String(index + 1)}`).join('\n')
+    const { container } = render(<Clipped text={text} className="tool-output" />)
+    expect(container.querySelector('pre')?.textContent.split('\n')).toHaveLength(12)
+    fireEvent.click(screen.getByRole('button', { name: 'Show more', expanded: false }))
+    expect(container.querySelector('pre')?.textContent).toBe(text)
+    expect(screen.getByRole('button', { name: 'Show less', expanded: true })).toBeTruthy()
+  })
+
+  it('shows no toggle for exactly five shell lines or 2,000 characters', () => {
+    renderTranscript([
+      tool({
+        tool: 'powershell',
+        args: JSON.stringify({ command: 'x'.repeat(2000) }),
+        output: '1\n2\n3\n4\n5',
+      }),
+    ])
+    expect(within(openRow('PowerShell')).queryByRole('button', { name: 'Show more' })).toBeNull()
+  })
+})
 
 describe('memory rows (M43)', () => {
   it('shows the note saved, where it lives, and the path beside the label', () => {
@@ -224,7 +307,7 @@ describe('web search rows (M43)', () => {
   })
 
   it('says a search found nothing, and shows any other result as text', () => {
-    renderTranscript([
+    renderSteps([
       tool({
         id: 'w1',
         tool: 'web_search',
@@ -363,7 +446,7 @@ describe('pictures a tool read or made (M43)', () => {
 
   it('shows a loaded picture, opens its file on click, and says why one failed', () => {
     const onOpenFile = vi.fn()
-    renderTranscript(
+    renderSteps(
       [
         tool({
           id: 'i1',

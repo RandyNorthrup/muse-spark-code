@@ -1,5 +1,6 @@
 import {
   type ReactNode,
+  lazy,
   useCallback,
   useEffect,
   useLayoutEffect,
@@ -34,14 +35,14 @@ import { effortAt, effortIndex, effortLabel, effortLevelsFor } from '../shared/e
 import { parseGoalPrompt, requiresObjective } from '../shared/goalCommand'
 import { parseHandoffPrompt } from '../shared/handoff'
 import { parseLoopPrompt } from '../core/backends/modelapi/schedules'
-import { fill, formatPercent, templateParts } from '../shared/l10n/text'
+import { fill, templateParts } from '../shared/l10n/text'
 import {
   availablePermissionModes,
   nextPermissionMode,
   permissionModeDetail,
 } from '../shared/permissionModes'
 import { paidFeatureName, paidFeaturePrice, usablePaidFeatures } from '../shared/paid'
-import { buildPalette, formatTokenWindow, type PaletteAction } from '../shared/palette'
+import { buildPalette, type PaletteAction } from '../shared/palette'
 import { type SlashCommand, slashCommandsOf } from '../shared/slashCommands'
 import type {
   ChatReference,
@@ -52,20 +53,16 @@ import type {
   WebviewToHostMessage,
 } from '../shared/protocol'
 import type { ApprovalDecisionInput } from './components/ApprovalCard'
-import { AgentMap } from './components/AgentMap'
 import { ApprovalDock } from './components/ApprovalDock'
 import { Composer, type ImageData, type SlashPaletteSlot } from './components/Composer'
+import { DiffTally } from './components/DiffTally'
 import { EffortSlider } from './components/EffortSlider'
 import { EmptyState } from './components/EmptyState'
 import { GoalPanel } from './components/GoalPanel'
 import { SchedulePanel } from './components/SchedulePanel'
 import { Header } from './components/Header'
-import { HistoryDialog } from './components/HistoryDialog'
-import { ReviewPane } from './components/ReviewPane'
-import { SessionBoardDialog } from './components/SessionBoardDialog'
-import { BestOfNDialog } from './components/BestOfNDialog'
-import { UsageDialog } from './components/UsageDialog'
 import { HandoffDialog } from './components/HandoffDialog'
+import { SecretPromptDialog } from './components/SecretPromptDialog'
 import { ShareView } from './components/ShareView'
 import { AddContextIcon, ExpandChevron, UploadIcon } from './components/icons'
 import { modeIcon } from './components/modeIcons'
@@ -73,7 +70,8 @@ import { Palette, type PaletteKeys, type PaletteView } from './components/Palett
 import { type MenuEntry, PopoverMenu } from './components/PopoverMenu'
 import { SignIn } from './components/SignIn'
 import { TodoPanel } from './components/TodoPanel'
-import { Transcript } from './components/Transcript'
+import { type QueuedCardRef, Transcript } from './components/Transcript'
+import { diffTally } from './diffTally'
 import { type ErrorReporter, webviewErrorReport } from './errorReport'
 import { createUiStore, listenToHost, type UiStore } from './state/store'
 import { hasFileAttachment } from './state/transcriptEntries'
@@ -97,6 +95,32 @@ import {
 } from './state/uiState'
 import { isChildRunning } from './workflowDetails'
 import type { QuoteIntent } from './components/QuoteMenu'
+import { DeferredSurface } from './components/DeferredSurface'
+
+const HistoryDialog = lazy(async () => {
+  const module = await import('./components/HistoryDialog')
+  return { default: module.HistoryDialog }
+})
+const SessionBoardDialog = lazy(async () => {
+  const module = await import('./components/SessionBoardDialog')
+  return { default: module.SessionBoardDialog }
+})
+const AgentMap = lazy(async () => {
+  const module = await import('./components/AgentMap')
+  return { default: module.AgentMap }
+})
+const UsageDialog = lazy(async () => {
+  const module = await import('./components/UsageDialog')
+  return { default: module.UsageDialog }
+})
+const BestOfNDialog = lazy(async () => {
+  const module = await import('./components/BestOfNDialog')
+  return { default: module.BestOfNDialog }
+})
+const ReviewPane = lazy(async () => {
+  const module = await import('./components/ReviewPane')
+  return { default: module.ReviewPane }
+})
 
 export interface AppProps {
   readonly postMessage: (message: WebviewToHostMessage) => void
@@ -185,7 +209,6 @@ const ATTACH_UPLOAD = 'upload'
 const ATTACH_CONTEXT = 'context'
 const MENTION_TRIGGER = '@'
 const WHITESPACE_END = /\s$/
-const PERCENT = 100
 /** How far from the end the transcript still counts as "at the end" (M15). */
 const SCROLL_END_SLACK_PX = 24
 
@@ -203,16 +226,6 @@ export function modelLabelFor(state: UiState): string {
   }
   const effort = state.isThinkingEnabled ? effortLabel(state.effort) : UI_TEXT.thinkingOff
   return `${state.model.modelId} ${effort}`
-}
-
-/** "12% context" once the host has reported usage against a known window. */
-export function contextLabelFor(state: UiState): string | undefined {
-  const { context } = state
-  if (context?.windowTokens === undefined || context.windowTokens === 0) {
-    return undefined
-  }
-  const percent = Math.round((context.usedTokens / context.windowTokens) * PERCENT)
-  return fill(UI_TEXT.contextPercent, { percent: formatPercent(percent) })
 }
 
 /**
@@ -247,20 +260,6 @@ function paidBadgeFor(
             features: always.map((feature) => paidFeatureName(feature)).join(', '),
           })}`,
   }
-}
-
-/** Tooltip detail for the context indicator, which compacts on click (M14). */
-function contextTitleFor(state: UiState): string | undefined {
-  const { context } = state
-  if (context?.windowTokens === undefined) {
-    return undefined
-  }
-  const detail = fill(UI_TEXT.contextDetail, {
-    used: formatTokenWindow(context.usedTokens),
-    window: formatTokenWindow(context.windowTokens),
-    pressure: context.pressure,
-  })
-  return `${detail} · ${UI_TEXT.contextCompactTitle}`
 }
 
 /** The "+" menu's rows, built when it opens so they are in the installed table. */
@@ -331,9 +330,11 @@ export function App({
   const [isInstallConfirmOpen, setIsInstallConfirmOpen] = useState(false)
   const [selectedAgentId, setSelectedAgentId] = useState<string | undefined>(undefined)
   const canBypass = state.settings?.allowDangerouslySkipPermissions ?? false
-  // The Auto reviewer on Muse Code (M90), as its setting says.
+  // The Auto reviewer on Muse Code (M90), as its setting says, and the paid
+  // one on the Model API (M78), on with its price accepted.
   const hasMuseCodeReviewer =
     state.settings?.museCodeAutoReviewer ?? SETTING_DEFAULTS.museCodeAutoReviewer
+  const hasModelApiReviewer = state.paid.features.includes('autoReviewer')
 
   // The transcript follows new entries while the reader is at its end; once
   // they scroll up it holds still and offers a jump to the newest (M15).
@@ -642,6 +643,8 @@ export function App({
       attachments: current.attachments,
       contextLabel: editorContext === undefined ? undefined : editorContextLabel(editorContext),
       reference: current.reference,
+      // The card shows when it was sent until the host's recorded time arrives (D66).
+      at: now(),
     })
     postMessage({
       type: 'sendMessage',
@@ -653,7 +656,39 @@ export function App({
     })
     // The reader's own message always lands in view (M15).
     setIsPinnedToEnd(true)
-  }, [store, dispatch, newLocalId, postMessage, onGoalCommand, onReview, onHandoff])
+  }, [store, dispatch, newLocalId, now, postMessage, onGoalCommand, onReview, onHandoff])
+  // Send exactly the payload the dialog previewed. The composer may now
+  // hold a newer draft, different chips or a different reference.
+  const onSecretPromptSendAnyway = useCallback(() => {
+    const current = store.getState()
+    const held = current.secretPrompt
+    if (held === undefined || current.auth.status !== 'signedIn') return
+    const localId = newLocalId()
+    const text = held.draft.trim()
+    dispatch({
+      type: 'submitted',
+      localId,
+      text,
+      isSecretResend: true,
+      at: now(),
+      attachments: held.attachments,
+      contextLabel: held.contextLabel,
+      ...(held.reference !== undefined && { reference: held.reference }),
+    })
+    postMessage({
+      type: 'sendMessage',
+      localId,
+      text,
+      secretAccepted: true,
+      attachmentIds: held.attachments.map((attachment) => attachment.id),
+      includeEditorContext: held.contextLabel !== undefined,
+      ...(held.reference !== undefined && { reference: held.reference }),
+    })
+    setIsPinnedToEnd(true)
+  }, [store, dispatch, newLocalId, now, postMessage])
+  const onSecretPromptDismiss = useCallback(() => {
+    dispatch({ type: 'secretPromptDismissed' })
+  }, [dispatch])
   const onDismissEditorContext = useCallback(() => {
     dispatch({ type: 'editorContextDismissed' })
   }, [dispatch])
@@ -665,6 +700,7 @@ export function App({
         readonly role: string
         readonly text: string
         readonly epoch: number
+        readonly origin: { readonly x: number; readonly y: number }
       }
     | undefined
   >(undefined)
@@ -695,13 +731,23 @@ export function App({
       const element = anchor instanceof Element ? anchor : anchor?.parentElement
       const row = element?.closest<HTMLElement>('[data-entry-id]') ?? null
       const entryId = row?.dataset['entryId']
-      if (text === '' || row === null || entryId === undefined) {
+      // A right-click on another row than the one holding the text is not a
+      // quote of it (the review of F2, P1); the gaps between rows still are.
+      const target = event.target instanceof Element ? event.target : null
+      const clickedRow = target?.closest('[data-entry-id]') ?? null
+      if (
+        text === '' ||
+        row === null ||
+        entryId === undefined ||
+        (clickedRow !== null && clickedRow !== row)
+      ) {
         return
       }
       event.preventDefault()
       setQuoteMenu({
         entryId,
         role: row.dataset['role'] ?? 'assistant',
+        origin: { x: event.clientX, y: event.clientY },
         text,
         epoch: store.getState().attachmentEpoch,
       })
@@ -813,6 +859,30 @@ export function App({
     },
     [postMessage],
   )
+  // An edit row's Revert (M87, D66 item 17): the host confirms before it writes.
+  const onRevertEdit = useCallback(
+    (itemId: string, outputRef: string) => {
+      postMessage({ type: 'revertEdit', itemId, outputRef })
+    },
+    [postMessage],
+  )
+  // Edit on a queued card (M87, PLAN.md D66): the host takes the message back
+  // under the ids it gave the card, or says it already reached the model.
+  const onEditQueued = useCallback(
+    ({ localId, turnId, userMessageId }: QueuedCardRef) => {
+      postMessage({
+        type: 'withdrawQueued',
+        localId,
+        turnId,
+        ...(userMessageId !== undefined && { userMessageId }),
+      })
+    },
+    [postMessage],
+  )
+  // The task list in an editor tab the user can move into its own window (M87).
+  const onOpenTasksTab = useCallback(() => {
+    postMessage({ type: 'hostAction', action: 'openTasksTab' })
+  }, [postMessage])
   const onOpenFile = useCallback(
     (filePath: string, range: LineRange | undefined) => {
       postMessage({ type: 'openFile', path: filePath, ...range })
@@ -1398,7 +1468,8 @@ export function App({
         }
         case 'openSettings':
         case 'openKeybindings':
-        case 'openLog': {
+        case 'openLog':
+        case 'showWhatsNew': {
           postMessage({ type: 'hostAction', action: action.type })
           closeOverlay()
           break
@@ -1596,15 +1667,20 @@ export function App({
       availablePermissionModes(canBypass).map((mode) => ({
         id: mode,
         label: UI_TEXT.permissionModes[mode],
-        detail: permissionModeDetail(mode, state.auth.backend, hasMuseCodeReviewer),
+        detail: permissionModeDetail(mode, state.auth.backend, {
+          museCode: hasMuseCodeReviewer,
+          modelApi: hasModelApiReviewer,
+        }),
         icon: modeIcon(mode),
         isChecked: mode === state.permissionMode,
       })),
-    [canBypass, state.permissionMode, state.auth.backend, hasMuseCodeReviewer],
+    [canBypass, state.permissionMode, state.auth.backend, hasMuseCodeReviewer, hasModelApiReviewer],
   )
   const agents = agentsOf(state)
   // The approvals waiting, docked above the composer (D26).
   const waiting = useMemo(() => waitingApprovals(state.transcript), [state.transcript])
+  // The conversation's edits added up (M87): no row until one lands.
+  const tally = useMemo(() => diffTally(state.transcript), [state.transcript])
   const backgroundTasks = backgroundTasksOf(state)
   // A workflow's agents are agents too (M47): the header's pill counts them.
   const workflows = workflowsOf(state)
@@ -1740,6 +1816,10 @@ export function App({
           canStopUserShell={state.auth.backend === 'modelApi'}
           onApply={state.isImported ? undefined : onApply}
           onOpenEditDiff={onOpenEditDiff}
+          // Imported history (M84) is someone else's: nothing in it writes the workspace.
+          onRevertEdit={
+            state.isImported || state.sessionId === undefined ? undefined : onRevertEdit
+          }
           onOpenFile={onOpenFile}
           onRefuseLink={onRefuseLink}
           onFork={state.sessionId === undefined || !state.canEditSessions ? undefined : onFork}
@@ -1772,9 +1852,13 @@ export function App({
           onSavePlan={onSavePlan}
           onImplementPlan={state.isSideChat ? undefined : onImplementPlan}
           quoteMenuEntryId={quoteMenu?.entryId}
+          quoteMenuOrigin={quoteMenu?.origin}
           onQuote={onQuote}
           onCopyQuote={onCopyQuote}
           onCloseQuoteMenu={onCloseQuoteMenu}
+          onEditQueued={onEditQueued}
+          // A Model API steer waits for the next request; Muse Code's reaches the turn at once.
+          canEditSteered={state.auth.backend === 'modelApi'}
         />
       </>
     )
@@ -1967,6 +2051,7 @@ export function App({
   const isOtherModalOpen =
     overlay === 'usage' ||
     overlay === 'agents' ||
+    overlay === 'bestOfN' ||
     reviewPane !== null ||
     isInstallConfirmOpen ||
     state.share !== undefined
@@ -1982,9 +2067,20 @@ export function App({
         onCancel={onHandoffCancel}
       />
     )
+  // M92e: the secret dialog waits behind any other modal (as the handoff
+  // dialog does), and holds the composer inert while it shows.
+  const secretPromptDialog =
+    isOtherModalOpen || state.secretPrompt === undefined ? null : (
+      <SecretPromptDialog
+        redactedText={state.secretPrompt.redactedText}
+        onSendAnyway={onSecretPromptSendAnyway}
+        onEdit={onSecretPromptDismiss}
+      />
+    )
   // Behind a modal nothing takes focus or clicks (M25): the modal traps Tab,
   // the rest of the panel is inert.
-  const isModalOpen = isOtherModalOpen || state.handoff !== undefined
+  const isModalOpen =
+    isOtherModalOpen || state.handoff !== undefined || state.secretPrompt !== undefined
 
   return (
     <div className="app">
@@ -2008,14 +2104,19 @@ export function App({
           onOpenAgents={onOpenAgents}
           onOpenSideChat={canOpenSideChat ? onOpenSideChat : undefined}
         />
-        {history}
-        {board}
-        {bestOfN}
+        <DeferredSurface onClose={closeOverlay} isModal={false}>
+          {history}
+          {board}
+        </DeferredSurface>
       </div>
-      {usageDialog}
+      <DeferredSurface onClose={closeOverlay}>
+        {usageDialog}
+        {agentMap}
+        {reviewPane}
+        {bestOfN}
+      </DeferredSurface>
       {handoffDialog}
-      {agentMap}
-      {reviewPane}
+      {secretPromptDialog}
       {state.share === undefined ? null : (
         <ShareView
           title={state.share.title}
@@ -2050,6 +2151,9 @@ export function App({
           </button>
         ) : null}
       </main>
+      {/* Review waits for M70's review pane (PR #69), which main does not have yet (D66). */}
+      {/* Review opens M70's pane on the same edits (D66 item 10). */}
+      <DiffTally counts={tally} onReview={openReviewPane} />
       <GoalPanel
         key={state.sessionId}
         goal={state.goal}
@@ -2073,7 +2177,7 @@ export function App({
         onCancel={onScheduleCancel}
         onEnable={onScheduleEnable}
       />
-      <TodoPanel items={state.todos} isInert={isModalOpen} />
+      <TodoPanel items={state.todos} isInert={isModalOpen} onOpenInTab={onOpenTasksTab} />
       {isBodyGated ? null : (
         <ApprovalDock waiting={waiting} onDecide={onDecide} isInert={isModalOpen} />
       )}
@@ -2087,8 +2191,7 @@ export function App({
           isRunning={isRunning}
           modelLabel={modelLabelFor(state)}
           permissionMode={state.permissionMode}
-          contextLabel={contextLabelFor(state)}
-          contextTitle={contextTitleFor(state)}
+          context={state.context}
           paidBadge={paidBadgeFor(state)}
           onOpenUsage={onOpenUsage}
           focusRequests={state.focusRequests}

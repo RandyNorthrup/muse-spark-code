@@ -18,7 +18,8 @@ import {
   UI_TEXT,
   WORKSPACE_STATE_KEYS,
 } from '../../shared/constants'
-import { fill, formatUsd } from '../../shared/l10n/text'
+import { fill, formatUsd as formatBudgetUsd } from '../../shared/l10n/text'
+import { formatUsd } from '../../core/usage/insights'
 import {
   autoReviewPrice,
   modelApiPaidTier,
@@ -51,6 +52,9 @@ export interface PaidFeaturesDeps {
   readonly workspaceState: MementoLike
   /** Whether the feature's setting is on, as the settings reader validated it. */
   readonly isSettingOn: (feature: PaidFeature) => boolean
+  readonly isAvailable?: (feature: PaidFeature) => boolean
+  readonly isDefaultOn?: (feature: PaidFeature) => boolean
+  readonly dailyBudgetUsd?: () => number | undefined
   /** Whether a Model API key is stored, as last read (M44). */
   readonly isKeyStored: () => boolean
   /** A trusted workspace with a folder open: "always" is offered and kept only there. */
@@ -83,11 +87,10 @@ function confirmationDetail(feature: PaidFeature): string {
     const budget = dailyBudgetSchema.safeParse(
       vscode.workspace.getConfiguration(SETTINGS_SECTION).get('paidDailyBudgetUsd'),
     )
-    // The shared D78 setting arrives with FIXDEF. Until then (or for an
-    // invalid hand edit), show zero; no charge is enabled by this formatter.
+    // Invalid hand edits show zero; this formatter enables no charge.
     return fill(details.judge, {
       price: paidFeaturePrice(feature),
-      budget: formatUsd(budget.success ? budget.data : 0, 2),
+      budget: formatBudgetUsd(budget.success ? budget.data : 0, 2),
     })
   }
   return fill(details[feature], { price: paidFeaturePrice(feature) })
@@ -111,6 +114,7 @@ async function isTurnOnConfirmed(feature: PaidFeature): Promise<boolean> {
 export async function askPaidUse(
   request: PaidUseRequest,
   canRemember: boolean,
+  dailyBudgetUsd?: number,
 ): Promise<PaidUseAnswer> {
   // No verified price, nothing to accept (M48, M78): refused before any popup.
   if (
@@ -131,7 +135,13 @@ export async function askPaidUse(
   const deny: vscode.MessageItem = { title: UI_TEXT.paidDeny, isCloseAffordance: true }
   const answer = await vscode.window.showWarningMessage(
     title,
-    { modal: true, detail },
+    {
+      modal: true,
+      detail:
+        dailyBudgetUsd === undefined
+          ? detail
+          : `${detail}\n\n${fill(UI_TEXT.paidDailyBudgetLine, { budget: formatUsd(dailyBudgetUsd) })}`,
+    },
     ...(canRemember ? [once, always, deny] : [once, deny]),
   )
   if (answer === once) {
@@ -162,6 +172,8 @@ export function createPaidFeatures(deps: PaidFeaturesDeps): PaidFeatures {
   }
   const gate = new PaidFeatureGate({
     isSettingOn: deps.isSettingOn,
+    ...(deps.isAvailable !== undefined && { isAvailable: deps.isAvailable }),
+    ...(deps.isDefaultOn !== undefined && { isDefaultOn: deps.isDefaultOn }),
     setSetting: async (feature, isOn) => {
       // The judge's switch is the engine enum, not a boolean (M98, PLAN.md
       // D77): turning it off parks it at `off`, turning it on restores `auto`.
@@ -204,11 +216,26 @@ export function createPaidFeatures(deps: PaidFeaturesDeps): PaidFeatures {
       return new Set(
         PAID_FEATURES.filter(
           (feature) =>
-            grants[feature] !== undefined && grants[feature] === generationOf(generations, feature),
+            grants[feature] !== undefined &&
+            grants[feature] === generationOf(generations, feature) &&
+            (feature !== 'subagents' ||
+              deps.globalState.get(GLOBAL_STATE_KEYS.subagentPriceAcceptance) ===
+                SUBAGENT_PRICE_ACCEPTANCE_VERSION),
         ),
       )
     },
     writeGrants: async (grants) => {
+      if (grants.has('subagents')) {
+        await deps.globalState.update(
+          GLOBAL_STATE_KEYS.subagentPriceAcceptance,
+          SUBAGENT_PRICE_ACCEPTANCE_VERSION,
+        )
+      }
+      // A default-on feature's first "always" accepted its price too. Keep
+      // that acceptance so turning it off invalidates this generation (D78).
+      await deps.globalState.update(GLOBAL_STATE_KEYS.paidConfirmations, [
+        ...new Set([...readAccepted(), ...grants]),
+      ])
       const generations = readGenerations()
       await deps.workspaceState.update(
         WORKSPACE_STATE_KEYS.paidWorkspaceGrants,
@@ -217,7 +244,7 @@ export function createPaidFeatures(deps: PaidFeaturesDeps): PaidFeatures {
         ),
       )
     },
-    ask: askPaidUse,
+    ask: (request, canRemember) => askPaidUse(request, canRemember, deps.dailyBudgetUsd?.()),
     log: deps.log,
   })
   const usage = new PaidUsage(deps.log)

@@ -238,6 +238,46 @@ function logLevel(command: ReturnType<typeof parseCommandLine>): LogLevel {
 
 async function main(): Promise<number> {
   const command = parseCommandLine(process.argv.slice(2))
+  if (command.command === 'judge') {
+    const { runJudgeCommand } = await import('./judge/commands')
+    const controller = new AbortController()
+    const stop = () => {
+      controller.abort()
+    }
+    const stdout = createFdWriter(process.stdout.fd, stop)
+    const stderr = createFdWriter(process.stderr.fd, stop)
+    process.on('SIGINT', stop)
+    process.on('SIGTERM', stop)
+    try {
+      // Z supplies real available source/B/CS/H adapters here at integration.
+      // Missing dependencies refuse explicitly; no chat backend or ACP connection.
+      const code = await runJudgeCommand(
+        command,
+        { stdin: process.stdin, stdout, stderr },
+        {
+          initialize: async (signal) => {
+            await loadUiTable({
+              language: displayLanguage(
+                process.env,
+                new Intl.DateTimeFormat().resolvedOptions().locale,
+              ),
+              readExtensionFile: (segments) =>
+                readFile(path.join(packageRoot, ...segments), 'utf8'),
+              log: stderrLogger((line) => {
+                stderr.write(`${redactWhole(line, [])}\n`)
+              }, 'warn'),
+            })
+            signal.throwIfAborted()
+          },
+        },
+        controller.signal,
+      )
+      exitHeadless(code, stdout.queuedBytes > 0 || stderr.queuedBytes > 0)
+    } finally {
+      process.off('SIGINT', stop)
+      process.off('SIGTERM', stop)
+    }
+  }
   if (command.command === 'invalid' && command.exitCode === EXEC_EXIT.usage) {
     const stderr = createFdWriter(process.stderr.fd, () => {
       /* A usage error already owns exit 2; a closed pipe cannot turn it into success. */

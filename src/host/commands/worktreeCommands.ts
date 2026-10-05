@@ -17,6 +17,7 @@ import {
   worktreeFolder,
   worktreeRemoveArgs,
 } from '../../core/worktrees'
+import { redactSecrets } from '../../core/redact'
 import { GIT_WORKTREE_TIMEOUT_MS, UI_TEXT } from '../../shared/constants'
 import { fill } from '../../shared/l10n/text'
 import type { Logger } from '../logger'
@@ -62,7 +63,7 @@ function gitMessage(error: unknown): string {
     .split(LINE_BREAK)
     .map((line) => line.trim())
     .filter((line) => line !== '' && !line.startsWith(COMMAND_FAILED))
-  return lines.join(' ') || text
+  return redactSecrets(lines.join(' ') || text)
 }
 
 /** The repository the workspace is in, or undefined after saying why there is none. */

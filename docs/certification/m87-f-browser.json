@@ -1,0 +1,301 @@
+[
+  {
+    "width": 320,
+    "theme": "dark",
+    "bounds": [
+      {
+        "label": "Copy",
+        "x": 272,
+        "y": 626.84375,
+        "right": 312,
+        "bottom": 666.84375
+      },
+      {
+        "label": "Ask about this",
+        "x": 196,
+        "y": 550.84375,
+        "right": 236,
+        "bottom": 590.84375
+      },
+      {
+        "label": "Comment on this",
+        "x": 272,
+        "y": 474.84375,
+        "right": 312,
+        "bottom": 514.84375
+      }
+    ],
+    "colors": {
+      "foreground": "rgb(255, 255, 255)",
+      "background": "rgb(2, 110, 193)",
+      "border": "rgba(255, 255, 255, 0.1)"
+    },
+    "keyboard": "pass",
+    "errors": []
+  },
+  {
+    "width": 320,
+    "theme": "light",
+    "bounds": [
+      {
+        "label": "Copy",
+        "x": 272,
+        "y": 626.84375,
+        "right": 312,
+        "bottom": 666.84375
+      },
+      {
+        "label": "Ask about this",
+        "x": 196,
+        "y": 550.84375,
+        "right": 236,
+        "bottom": 590.84375
+      },
+      {
+        "label": "Comment on this",
+        "x": 272,
+        "y": 474.84375,
+        "right": 312,
+        "bottom": 514.84375
+      }
+    ],
+    "colors": {
+      "foreground": "rgb(255, 255, 255)",
+      "background": "rgb(2, 88, 168)",
+      "border": "rgba(0, 0, 0, 0.1)"
+    },
+    "keyboard": "pass",
+    "errors": []
+  },
+  {
+    "width": 320,
+    "theme": "hc-dark",
+    "bounds": [
+      {
+        "label": "Copy",
+        "x": 272,
+        "y": 626.84375,
+        "right": 312,
+        "bottom": 666.84375
+      },
+      {
+        "label": "Ask about this",
+        "x": 196,
+        "y": 550.84375,
+        "right": 236,
+        "bottom": 590.84375
+      },
+      {
+        "label": "Comment on this",
+        "x": 272,
+        "y": 474.84375,
+        "right": 312,
+        "bottom": 514.84375
+      }
+    ],
+    "colors": {
+      "foreground": "rgb(255, 255, 255)",
+      "background": "rgb(0, 0, 0)",
+      "border": "rgb(111, 195, 223)"
+    },
+    "keyboard": "pass",
+    "errors": []
+  },
+  {
+    "width": 320,
+    "theme": "hc-light",
+    "bounds": [
+      {
+        "label": "Copy",
+        "x": 272,
+        "y": 626.84375,
+        "right": 312,
+        "bottom": 666.84375
+      },
+      {
+        "label": "Ask about this",
+        "x": 196,
+        "y": 550.84375,
+        "right": 236,
+        "bottom": 590.84375
+      },
+      {
+        "label": "Comment on this",
+        "x": 272,
+        "y": 474.84375,
+        "right": 312,
+        "bottom": 514.84375
+      }
+    ],
+    "colors": {
+      "foreground": "rgb(255, 255, 255)",
+      "background": "rgb(15, 74, 133)",
+      "border": "rgb(15, 74, 133)"
+    },
+    "keyboard": "pass",
+    "errors": []
+  },
+  {
+    "width": 690,
+    "theme": "dark",
+    "bounds": [
+      {
+        "label": "Copy",
+        "x": 642,
+        "y": 570.84375,
+        "right": 682,
+        "bottom": 610.84375
+      },
+      {
+        "label": "Ask about this",
+        "x": 566,
+        "y": 494.84375,
+        "right": 606,
+        "bottom": 534.84375
+      },
+      {
+        "label": "Comment on this",
+        "x": 642,
+        "y": 418.84375,
+        "right": 682,
+        "bottom": 458.84375
+      }
+    ],
+    "colors": {
+      "foreground": "rgb(255, 255, 255)",
+      "background": "rgb(2, 110, 193)",
+      "border": "rgba(255, 255, 255, 0.1)"
+    },
+    "keyboard": "pass",
+    "errors": []
+  },
+  {
+    "width": 690,
+    "theme": "light",
+    "bounds": [
+      {
+        "label": "Copy",
+        "x": 642,
+        "y": 570.84375,
+        "right": 682,
+        "bottom": 610.84375
+      },
+      {
+        "label": "Ask about this",
+        "x": 566,
+        "y": 494.84375,
+        "right": 606,
+        "bottom": 534.84375
+      },
+      {
+        "label": "Comment on this",
+        "x": 642,
+        "y": 418.84375,
+        "right": 682,
+        "bottom": 458.84375
+      }
+    ],
+    "colors": {
+      "foreground": "rgb(255, 255, 255)",
+      "background": "rgb(2, 88, 168)",
+      "border": "rgba(0, 0, 0, 0.1)"
+    },
+    "keyboard": "pass",
+    "errors": []
+  },
+  {
+    "width": 690,
+    "theme": "hc-dark",
+    "bounds": [
+      {
+        "label": "Copy",
+        "x": 642,
+        "y": 570.84375,
+        "right": 682,
+        "bottom": 610.84375
+      },
+      {
+        "label": "Ask about this",
+        "x": 566,
+        "y": 494.84375,
+        "right": 606,
+        "bottom": 534.84375
+      },
+      {
+        "label": "Comment on this",
+        "x": 642,
+        "y": 418.84375,
+        "right": 682,
+        "bottom": 458.84375
+      }
+    ],
+    "colors": {
+      "foreground": "rgb(255, 255, 255)",
+      "background": "rgb(0, 0, 0)",
+      "border": "rgb(111, 195, 223)"
+    },
+    "keyboard": "pass",
+    "errors": []
+  },
+  {
+    "width": 690,
+    "theme": "hc-light",
+    "bounds": [
+      {
+        "label": "Copy",
+        "x": 642,
+        "y": 570.84375,
+        "right": 682,
+        "bottom": 610.84375
+      },
+      {
+        "label": "Ask about this",
+        "x": 566,
+        "y": 494.84375,
+        "right": 606,
+        "bottom": 534.84375
+      },
+      {
+        "label": "Comment on this",
+        "x": 642,
+        "y": 418.84375,
+        "right": 682,
+        "bottom": 458.84375
+      }
+    ],
+    "colors": {
+      "foreground": "rgb(255, 255, 255)",
+      "background": "rgb(15, 74, 133)",
+      "border": "rgb(15, 74, 133)"
+    },
+    "keyboard": "pass",
+    "errors": []
+  },
+  {
+    "mode": "reduced",
+    "safety": {
+      "animation": "none",
+      "filter": "none",
+      "borderStyle": "solid",
+      "borderWidth": "1px"
+    }
+  },
+  {
+    "mode": "forced",
+    "safety": {
+      "animation": "gooey-burst",
+      "filter": "none",
+      "borderStyle": "solid",
+      "borderWidth": "1px"
+    }
+  },
+  {
+    "mode": "forced-reduced",
+    "safety": {
+      "animation": "none",
+      "filter": "none",
+      "borderStyle": "solid",
+      "borderWidth": "1px"
+    }
+  }
+]

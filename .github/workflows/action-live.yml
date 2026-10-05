@@ -1,0 +1,235 @@
+# M80 LA (PLAN.md D65, docs/ci.md "Evidence and troubleshooting"): the live
+# receipt of the real Action. `package` packs the product agent package from
+# this exact commit with the production build and `scripts/package-acp.mjs`,
+# as build.yml's release packages job does. `live` runs the composite Action
+# from ./action on that package against one open same-repository pull request,
+# with the repository secret MUSE_MODEL_API_KEY, the contributor model and a
+# hard $0.25 budget. It posts no comment and pushes nothing.
+#
+# Only the repository owner starts it, by hand, on the default branch. It has
+# no other trigger, so no fork, bot or pull request event can reach the key.
+# The key is the Action's model-api-key input and nothing else: the Action
+# gives it to its run step alone, whose launcher deletes the variable before
+# any child starts (D65), and GitHub masks it in every log. No other step
+# receives it and nothing here prints it. Every checkout persists no
+# credentials. The startup traps and the token sentinel are W's
+# (action-check.yml); test/action/la-check.mjs judges the run.
+name: Action live receipt
+
+on:
+  workflow_dispatch:
+    inputs:
+      pr-number:
+        description: An open same-repository pull request for the Action to review
+        required: true
+        type: number
+      mode:
+        description: review (plan mode, no edits) or text (fix mode, a text patch at most; images stay off)
+        required: true
+        default: review
+        type: choice
+        options:
+          - review
+          - text
+
+permissions:
+  contents: read
+
+# One paid run at a time; a second dispatch waits instead of cancelling it.
+concurrency:
+  group: action-live
+  cancel-in-progress: false
+
+jobs:
+  package:
+    name: product agent package
+    if: >-
+      github.event_name == 'workflow_dispatch' &&
+      github.actor == github.repository_owner &&
+      github.triggering_actor == github.repository_owner &&
+      github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    outputs:
+      commit: ${{ steps.record.outputs.commit }}
+      name: ${{ steps.record.outputs.name }}
+      sha256: ${{ steps.record.outputs.sha256 }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run package:acp
+      - name: record the product package
+        id: record
+        run: |
+          set -euo pipefail
+          mapfile -t packages < <(ls dist/muse-spark-code-acp-*.tgz)
+          test "${#packages[@]}" -eq 1
+          product="${packages[0]}"
+          sha="$(sha256sum "$product" | cut -d' ' -f1)"
+          {
+            echo "commit=$(git rev-parse HEAD)"
+            echo "name=$(basename "$product")"
+            echo "sha256=$sha"
+          } >> "$GITHUB_OUTPUT"
+          echo "- product agent package: $(basename "$product") $sha (commit $(git rev-parse HEAD))" >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: muse-spark-code-acp-live
+          path: dist/muse-spark-code-acp-*.tgz
+          if-no-files-found: error
+          retention-days: 30
+
+  live:
+    name: LA (real key, contributor model, $0.25 cap)
+    needs: package
+    if: >-
+      github.event_name == 'workflow_dispatch' &&
+      github.actor == github.repository_owner &&
+      github.triggering_actor == github.repository_owner &&
+      github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      pull-requests: read
+    # Joined here, not spelled out, as in W: the reviewed diff may hold this
+    # file, and a literal in it would ride into the model's input.
+    env:
+      LA_SENTINEL: ${{ format('M80LA-SENTINEL-{0}', 'fabricated-token') }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          path: action-src
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: muse-spark-code-acp-live
+          path: ${{ runner.temp }}/candidate
+      - name: the package is this commit's, and startup traps are planted
+        id: setup
+        env:
+          PACKAGE_COMMIT: ${{ needs.package.outputs.commit }}
+          PACKAGE_NAME: ${{ needs.package.outputs.name }}
+          PACKAGE_SHA256: ${{ needs.package.outputs.sha256 }}
+        run: |
+          set -euo pipefail
+          test "$(git -C action-src rev-parse HEAD)" = "$PACKAGE_COMMIT"
+          candidate="$RUNNER_TEMP/candidate/$PACKAGE_NAME"
+          test "$(find "$RUNNER_TEMP/candidate" -type f | wc -l)" -eq 1
+          test -f "$candidate"
+          sha="$(sha256sum "$candidate" | cut -d' ' -f1)"
+          test "$sha" = "$PACKAGE_SHA256"
+          traps="$RUNNER_TEMP/la-traps"
+          mkdir -p "$traps"
+          printf ': > "%s/fired-bash-env"\n' "$traps" > "$traps/bash-env.sh"
+          printf ': > "%s/fired-env"\n' "$traps" > "$traps/env.sh"
+          printf 'require("node:fs").writeFileSync(require("node:path").join(%s, "fired-node-options-" + process.pid), "")\n' "$(node -p 'JSON.stringify(process.argv[1])' "$traps")" > "$traps/trap.cjs"
+          {
+            echo "candidate=$candidate"
+            echo "sha256=$sha"
+            echo "traps=$traps"
+            echo "action-tree=$(git -C action-src rev-parse HEAD:action)"
+          } >> "$GITHUB_OUTPUT"
+      - name: LA
+        id: la
+        uses: ./action-src/action
+        env:
+          BASH_ENV: ${{ steps.setup.outputs.traps }}/bash-env.sh
+          ENV: ${{ steps.setup.outputs.traps }}/env.sh
+          NODE_OPTIONS: --require ${{ steps.setup.outputs.traps }}/trap.cjs
+          GITHUB_TOKEN: ${{ env.LA_SENTINEL }}
+          GH_TOKEN: ${{ env.LA_SENTINEL }}
+        with:
+          model-api-key: ${{ secrets.MUSE_MODEL_API_KEY }}
+          max-budget-usd: '0.25'
+          mode: ${{ inputs.mode == 'text' && 'fix' || 'review' }}
+          image-generation: 'false'
+          model: muse-spark-1.3-contributor
+          allow-contributor-models: 'true'
+          timeout-minutes: '10'
+          pr-number: ${{ inputs.pr-number }}
+          path: pr-live
+          post-comment: 'false'
+          upload-artifacts: 'true'
+          agent-package: ${{ steps.setup.outputs.candidate }}
+          agent-package-sha256: ${{ steps.setup.outputs.sha256 }}
+      - name: receipt summary
+        if: always() && steps.setup.outcome == 'success'
+        env:
+          LA_COMMIT: ${{ needs.package.outputs.commit }}
+          LA_ACTION_TREE: ${{ steps.setup.outputs.action-tree }}
+          LA_PACKAGE_NAME: ${{ needs.package.outputs.name }}
+          LA_PACKAGE_SHA256: ${{ steps.setup.outputs.sha256 }}
+          LA_PR: ${{ inputs.pr-number }}
+          LA_MODE: ${{ inputs.mode }}
+          LA_OUTCOME: ${{ steps.la.outcome }}
+          LA_STATUS: ${{ steps.la.outputs.status }}
+          LA_EXIT_CODE: ${{ steps.la.outputs.exit-code }}
+          LA_REQUESTS: ${{ steps.la.outputs.requests }}
+          LA_COST: ${{ steps.la.outputs.cost-usd }}
+          LA_COST_UPPER: ${{ steps.la.outputs.cost-is-upper-bound }}
+          LA_IMAGES: ${{ steps.la.outputs.images }}
+          LA_IMAGE_ATTEMPTS: ${{ steps.la.outputs.image-attempts }}
+          LA_IMAGES_UNCERTAIN: ${{ steps.la.outputs.images-uncertain }}
+          LA_PAID_UNCERTAIN: ${{ steps.la.outputs.paid-uncertain-usd }}
+          LA_DIFF_TRUNCATED: ${{ steps.la.outputs.diff-truncated }}
+          LA_PATCH_PATH: ${{ steps.la.outputs.patch-path }}
+          LA_PATCH_WITHHELD: ${{ steps.la.outputs.patch-withheld }}
+          LA_ARTIFACT: ${{ steps.la.outputs.artifact-name }}
+          LA_RESULT: ${{ steps.la.outputs.result-path }}
+        run: |
+          set -u
+          {
+            echo "### M80 LA receipt"
+            echo ""
+            echo "| Field | Value |"
+            echo "| --- | --- |"
+            echo "| commit | \`$LA_COMMIT\` |"
+            echo "| action/ tree | \`$LA_ACTION_TREE\` |"
+            echo "| package | \`$LA_PACKAGE_NAME\` (unsigned candidate) |"
+            echo "| package SHA-256 | \`$LA_PACKAGE_SHA256\` |"
+            echo "| pull request | #$LA_PR |"
+            echo "| mode | $LA_MODE |"
+            echo "| model, budget, deadline | muse-spark-1.3-contributor, \$0.25, 10 min |"
+            echo "| step outcome | $LA_OUTCOME |"
+            echo "| status | ${LA_STATUS:-none} |"
+            echo "| exit-code | ${LA_EXIT_CODE:-none} |"
+            echo "| requests | ${LA_REQUESTS:-none} |"
+            echo "| cost-usd | ${LA_COST:-none} (upper bound: ${LA_COST_UPPER:-n/a}) |"
+            echo "| images, attempts, uncertain | ${LA_IMAGES:-none}, ${LA_IMAGE_ATTEMPTS:-none}, ${LA_IMAGES_UNCERTAIN:-none} |"
+            echo "| paid-uncertain-usd | ${LA_PAID_UNCERTAIN:-none} |"
+            echo "| diff-truncated | ${LA_DIFF_TRUNCATED:-none} |"
+            echo "| patch | ${LA_PATCH_PATH:+published} ${LA_PATCH_WITHHELD:+withheld: $LA_PATCH_WITHHELD} |"
+            echo "| artifact | ${LA_ARTIFACT:-none} |"
+            if [ -n "$LA_RESULT" ] && [ -f "$LA_RESULT" ]; then
+              jq -r '"| result model, stop | \(.model // "none"), \(.stopReason // "none") |",
+                "| tokens in, out, cached, reasoning | \(.usage.inputTokens), \(.usage.outputTokens), \(.usage.cachedTokens), \(.usage.reasoningTokens) |",
+                "| USD settled, uncertain, reserved, total | \(.usage.costUsd.settled), \(.usage.costUsd.uncertain), \(.usage.costUsd.reserved), \(.usage.costUsd.total) |",
+                "| ledger cap, breach | \(.ledger.capUsd), \(.ledger.breach) |",
+                "| limits | budget \(.limits.budgetUsd), requests \(.limits.maxRequests), \(.limits.timeoutSeconds) s |",
+                "| duration | \(.durationMs) ms |"' "$LA_RESULT"
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+      - name: check LA (completed, within the cap, no trap, sentinel or key shape in the outputs)
+        if: always() && steps.setup.outcome == 'success'
+        env:
+          LA_MODE: ${{ inputs.mode }}
+          LA_OUT_DIR: ${{ steps.la.outputs.out-dir }}
+          LA_STATUS: ${{ steps.la.outputs.status }}
+          LA_EXIT_CODE: ${{ steps.la.outputs.exit-code }}
+          LA_REQUESTS: ${{ steps.la.outputs.requests }}
+          LA_COST: ${{ steps.la.outputs.cost-usd }}
+          LA_IMAGES: ${{ steps.la.outputs.images }}
+          LA_IMAGE_ATTEMPTS: ${{ steps.la.outputs.image-attempts }}
+          LA_PATCH_PATH: ${{ steps.la.outputs.patch-path }}
+          LA_TRAP_DIR: ${{ steps.setup.outputs.traps }}
+        run: node action-src/test/action/la-check.mjs
