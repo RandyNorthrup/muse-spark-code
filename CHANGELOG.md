@@ -7,6 +7,14 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+### Added
+
+- M103 lane D's portable maker project detector and catalogue gate: bounded,
+  read-only project markers select relevant bundled maker skills, while
+  ordinary workspaces keep the existing catalogue and request text. Optional
+  Raspberry Pi facts use the OS model file and bounded, credential-free
+  `vcgencmd` probes. Host integration follows in M103's wiring lane.
+
 ### Fixed
 
 - **The README's "What's new" section matches the release again.** 0.12.1 and

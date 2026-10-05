@@ -185,6 +185,35 @@ export interface CheckCommandSetting {
   readonly timeoutSeconds?: number
 }
 
+// M103 lane D: maker-detect bounds. Detection only offers checks; it never runs them.
+export const MAKER_DETECT_MAX_FILES = 256
+export const MAKER_DETECT_MAX_BYTES = 8 * 1024
+export const MAKER_DETECT_MAX_DEPTH = 4
+export const MAKER_PI_MODEL_PATH = '/proc/device-tree/model'
+export const MAKER_PI_COMMAND_PATHS = ['/usr/bin/vcgencmd', '/opt/vc/bin/vcgencmd'] as const
+export const MAKER_PI_COMMAND_TIMEOUT_MS = 2000
+export const MAKER_PROJECT_KINDS = [
+  'platformio',
+  'esp-idf',
+  'arduino',
+  'micropython',
+  'circuitpython',
+  'pico-sdk',
+  'zephyr',
+  'esphome',
+  'ros2',
+  'klipper',
+  'marlin',
+  'gcode',
+  'openscad',
+  'cadquery',
+  'kicad',
+  'wokwi',
+  'renode',
+  'gazebo',
+  'raspberry-pi',
+] as const
+
 // Whether shell commands run inside Muse Code's OS sandbox. `auto` keeps the
 // sandbox except where it is known not to work: Windows workspaces under the
 // user's profile (PLAN.md D12, verified live 2026-09-22). `off` runs commands
