@@ -1,4 +1,5 @@
 {
+  "companionLaunchFailed": "Nem sikerült megnyitni a panelt. Térjen vissza a szerkesztőbe, és nyissa meg újra a Muse Spark Code-ot egy új indítási hivatkozásért.",
   "untitledConversation": "Névtelen",
   "crashTitle": "Hiba történt a panelen",
   "crashDetail": "Az Újratöltés újraépíti a panelt; a beszélgetést a gazdafolyamat megőrzi.",

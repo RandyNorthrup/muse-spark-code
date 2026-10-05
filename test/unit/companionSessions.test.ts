@@ -4,7 +4,7 @@ import { CompanionSessions } from '../../src/runtime/companion/sessions'
 afterEach(() => vi.useRealTimers())
 
 describe('companion launch codes', () => {
-  it('mints independent 256-bit codes and cookies, burns once, and permits a fresh window', () => {
+  it('mints independent 256-bit codes and tokens, burns once, and permits a fresh window', () => {
     const sessions = new CompanionSessions(1000, 2000, 2)
     const code = sessions.issue()
     const session = sessions.exchange(code)!
@@ -19,7 +19,7 @@ describe('companion launch codes', () => {
     expect(fresh).not.toBe(code)
     expect(sessions.exchange(fresh)).toBeDefined()
   })
-  it('refuses launch codes and cookies exactly at expiry', () => {
+  it('refuses launch codes and tokens exactly at expiry', () => {
     vi.useFakeTimers()
     const sessions = new CompanionSessions(1000, 2000, 2)
     const session = sessions.exchange(sessions.issue())!

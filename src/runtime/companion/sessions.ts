@@ -7,7 +7,7 @@ export interface CompanionSession {
   readonly expiresAt: number
 }
 
-/** Per-start memory only. Codes expire, burn before dispatch, and never become cookies. */
+/** Per-start memory only. Codes expire, burn before dispatch, and mint independent bearers. */
 export class CompanionSessions {
   private readonly codes = new Map<string, number>()
   private readonly sessions = new Map<string, CompanionSession>()

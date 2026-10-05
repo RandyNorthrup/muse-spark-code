@@ -8,7 +8,7 @@ import {
   readJson,
   isSameSecret,
   secureHeaders,
-  sessionCookie,
+  sessionBearer,
   singleHeader,
 } from '../../src/runtime/companion/guard'
 
@@ -69,14 +69,23 @@ describe('companion guard', () => {
       ),
     ).toBe(false)
   })
-  it('refuses missing or ambiguous cookies while allowing unrelated cookies', () => {
-    expect(sessionCookie(request([]))).toBeUndefined()
+  it('accepts only one exact bearer header and ignores ambient cookies', () => {
+    expect(sessionBearer(request([]))).toBeUndefined()
     expect(
-      sessionCookie(request(['Cookie', 'muse_panel=one', 'Cookie', 'muse_panel=two'])),
+      sessionBearer(request(['Authorization', 'Bearer ab', 'Authorization', 'Bearer cd'])),
     ).toBeUndefined()
-    expect(sessionCookie(request(['Cookie', 'muse_panel=one; muse_panel=two']))).toBeUndefined()
-    expect(sessionCookie(request(['Cookie', 'unrelated=value; muse_panel=one']))).toBe('one')
-    expect(sessionCookie(request(['Cookie', 'other_muse_panel=one']))).toBeUndefined()
+    for (const value of [
+      'Bearer ab; Bearer cd',
+      'Basic ab',
+      'bearer ab',
+      'Bearer ab cd',
+      'Bearer zz',
+    ])
+      expect(sessionBearer(request(['Authorization', value]))).toBeUndefined()
+    expect(sessionBearer(request(['Cookie', 'muse_panel=ab']))).toBeUndefined()
+    expect(sessionBearer(request(['Authorization', 'Bearer ab', 'Cookie', 'muse_panel=cd']))).toBe(
+      'ab',
+    )
   })
   it('rejects duplicate custom headers and compares secrets including length', () => {
     expect(

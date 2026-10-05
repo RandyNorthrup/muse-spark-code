@@ -43,7 +43,7 @@ export async function startPanel(
   }
   const renderPage = vi.fn(
     (nonce: string) =>
-      `<!doctype html><html><head><meta name="viewport" content="width=device-width, initial-scale=1"></head><body><script nonce="${nonce}" src="/assets/client.js"></script></body></html>`,
+      `<!doctype html><html><head><meta name="viewport" content="width=device-width, initial-scale=1"><link rel="stylesheet" href="/assets/client.css"></head><body><script nonce="${nonce}" src="/assets/client.js"></script></body></html>`,
   )
   const server = await startCompanionServer({
     handler,
@@ -59,6 +59,10 @@ export async function startPanel(
     },
     assets: new Map([
       [
+        '/assets/client.css',
+        { content: 'body { --companion-loaded: yes; }', contentType: 'text/css' },
+      ],
+      [
         '/assets/client.js',
         { content: 'window.panelLoaded = true', contentType: 'text/javascript' },
       ],
@@ -70,7 +74,7 @@ export async function startPanel(
   return { ...server, handler, listeners, stop, renderPage }
 }
 
-export function headers(panel: Pick<Panel, 'url'>, cookie?: string): string[] {
+export function headers(panel: Pick<Panel, 'url'>, token?: string): string[] {
   const origin = new URL(panel.url).origin
   return [
     'Host',
@@ -83,7 +87,7 @@ export function headers(panel: Pick<Panel, 'url'>, cookie?: string): string[] {
     '1',
     'Content-Type',
     'application/json',
-    ...(cookie === undefined ? [] : ['Cookie', cookie]),
+    ...(token === undefined ? [] : ['Authorization', `Bearer ${token}`]),
   ]
 }
 
@@ -126,7 +130,7 @@ export async function login(panel: Panel): Promise<string> {
   const code = new URLSearchParams(new URL(panel.launchUrl()).hash.slice(1)).get('k')
   const result = await call(panel, '/session', 'POST', JSON.stringify({ code }))
   if (result.status !== 200) throw new Error(`login failed: ${result.body}`)
-  const cookie = result.headers['set-cookie']?.[0]?.split(';', 1)[0]
-  if (cookie === undefined) throw new Error('login cookie absent')
-  return cookie
+  const token = result.headers.authorization?.slice('Bearer '.length)
+  if (token === undefined) throw new Error('login token absent')
+  return token
 }

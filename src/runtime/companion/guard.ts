@@ -32,14 +32,9 @@ export function isSameOrigin(
   )
 }
 
-export function sessionCookie(request: IncomingMessage): string | undefined {
-  const cookie = singleHeader(request, 'cookie')
-  if (cookie === undefined) return undefined
-  const values = cookie
-    .split(';')
-    .map((part) => part.trim())
-    .filter((part) => part.startsWith('muse_panel='))
-  return values.length === 1 ? values[0]?.slice('muse_panel='.length) : undefined
+export function sessionBearer(request: IncomingMessage): string | undefined {
+  const authorization = singleHeader(request, 'authorization')
+  return authorization === undefined ? undefined : /^Bearer ([a-f\d]+)$/.exec(authorization)?.[1]
 }
 
 /** Applied before dispatch, including refusals and static assets. Never enable CORS. */

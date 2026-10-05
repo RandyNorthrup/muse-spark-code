@@ -19,8 +19,8 @@ function holdUntilAbort(panel: Panel) {
   })
   return () => signal
 }
-function stream(panel: Panel, cookie: string) {
-  const outgoing = request(new URL('/events', panel.url), { headers: headers(panel, cookie) })
+function stream(panel: Panel, token: string) {
+  const outgoing = request(new URL('/events', panel.url), { headers: headers(panel, token) })
   const ready = new Promise<IncomingMessage>((resolve, reject) => {
     outgoing.once('response', resolve)
     outgoing.once('error', reject)
@@ -48,7 +48,7 @@ describe('companion lifecycle and SSE', () => {
     const panel = await tracked({}, '::1')
     expect(new URL(panel.url).hostname).toBe('[::1]')
     expect(await call(panel, '/')).toHaveProperty('status', 200)
-    expect(await login(panel)).toMatch(/^muse_panel=/)
+    expect(await login(panel)).toMatch(/^[a-f\d]{64}$/)
   })
   it.each([0, -1, 1.5, NaN, Infinity])('refuses invalid limits %s', async (idleTimeoutMs) => {
     await expect(startPanel({ idleTimeoutMs })).rejects.toThrow('EPANEL_LIMITS')
@@ -72,24 +72,24 @@ describe('companion lifecycle and SSE', () => {
   })
   it('renews idle on authenticated activity', async () => {
     const panel = await tracked({ idleTimeoutMs: 250 })
-    const cookie = await login(panel)
+    const token = await login(panel)
     await new Promise((resolve) => setTimeout(resolve, 150))
-    await call(panel, '/', 'GET', undefined, headers(panel, cookie))
+    await call(panel, '/', 'GET', undefined, headers(panel, token))
     await new Promise((resolve) => setTimeout(resolve, 150))
-    expect(await call(panel, '/', 'GET', undefined, headers(panel, cookie))).toHaveProperty(
+    expect(await call(panel, '/', 'GET', undefined, headers(panel, token))).toHaveProperty(
       'status',
       200,
     )
   })
   it('streams validated events once, refuses duplicate streams, then unsubscribes on disconnect', async () => {
     const panel = await tracked()
-    const cookie = await login(panel)
-    const live = stream(panel, cookie)
+    const token = await login(panel)
+    const live = stream(panel, token)
     const response = await live.ready
     expect(response.statusCode).toBe(200)
     expect(response.headers['content-type']).toBe('text/event-stream')
     const received = streamText(response)
-    expect(await call(panel, '/events', 'GET', undefined, headers(panel, cookie))).toHaveProperty(
+    expect(await call(panel, '/events', 'GET', undefined, headers(panel, token))).toHaveProperty(
       'status',
       403,
     )
@@ -105,15 +105,15 @@ describe('companion lifecycle and SSE', () => {
     })
     expect(panel.listeners.size).toBe(0)
     emit({ kind: 'event', text: 'late' })
-    const fresh = stream(panel, cookie)
+    const fresh = stream(panel, token)
     const second = await fresh.ready
     second.destroy()
     fresh.outgoing.destroy()
   })
   it('keeps a fast stream alive after a large valid frame crosses the Node high-water mark', async () => {
     const panel = await tracked({ maxEventBytes: 200_000 })
-    const cookie = await login(panel)
-    const live = stream(panel, cookie)
+    const token = await login(panel)
+    const live = stream(panel, token)
     const response = await live.ready
     const received = streamText(response)
     const emit = panel.listeners.values().next().value!
@@ -134,8 +134,8 @@ describe('companion lifecycle and SSE', () => {
     ['over-cap event', { kind: 'event', text: 'x'.repeat(257) }],
   ])('disconnects on %s without sending that event', async (_name, message) => {
     const panel = await tracked()
-    const cookie = await login(panel)
-    const live = stream(panel, cookie)
+    const token = await login(panel)
+    const live = stream(panel, token)
     const response = await live.ready
     const received = streamText(response)
     const ended = new Promise<void>((resolve) => response.once('end', resolve))
@@ -146,11 +146,11 @@ describe('companion lifecycle and SSE', () => {
     expect(received()).not.toContain('synthetic-secret')
     expect(panel.stop).toHaveBeenCalledTimes(1)
   })
-  it('requires exact Origin and cookie for events', async () => {
+  it('requires exact Origin and token for events', async () => {
     const panel = await tracked()
-    const cookie = await login(panel)
+    const token = await login(panel)
     expect(await call(panel, '/events')).toHaveProperty('status', 401)
-    const base = headers(panel, cookie)
+    const base = headers(panel, token)
     expect(
       await call(panel, '/events', 'GET', undefined, [...base.slice(0, 2), ...base.slice(4)]),
     ).toHaveProperty('status', 403)
@@ -166,23 +166,23 @@ describe('companion lifecycle and SSE', () => {
   })
   it('validates the POST SSE body before subscribing', async () => {
     const panel = await tracked()
-    const cookie = await login(panel)
+    const token = await login(panel)
     const bad = await call(
       panel,
       '/events',
       'POST',
       '{"apiKey":"synthetic-private"}',
-      headers(panel, cookie),
+      headers(panel, token),
     )
     expect(bad.status).toBe(400)
     expect(panel.handler.subscribe).not.toHaveBeenCalled()
   })
-  it('refuses a cookie that expires while the request body is arriving', async () => {
+  it('refuses a token that expires while the request body is arriving', async () => {
     const panel = await tracked({ sessionTtlMs: 100 })
-    const cookie = await login(panel)
+    const token = await login(panel)
     const outgoing = request(new URL('/post', panel.url), {
       method: 'POST',
-      headers: [...headers(panel, cookie), 'Content-Length', '15'],
+      headers: [...headers(panel, token), 'Content-Length', '15'],
     })
     const reply = new Promise<number>((resolve, reject) => {
       outgoing.once('response', (response) => {
@@ -197,35 +197,35 @@ describe('companion lifecycle and SSE', () => {
     expect(await reply).toBe(401)
     expect(panel.handler.post).not.toHaveBeenCalled()
   })
-  it('expires cookies and terminates their SSE subscriptions', async () => {
+  it('expires tokens and terminates their SSE subscriptions', async () => {
     const panel = await tracked({ sessionTtlMs: 200 })
-    const cookie = await login(panel)
-    const live = stream(panel, cookie)
+    const token = await login(panel)
+    const live = stream(panel, token)
     const response = await live.ready
     response.resume()
     await new Promise<void>((resolve) => response.once('end', resolve))
     expect(panel.stop).toHaveBeenCalledTimes(1)
     expect(
-      await call(panel, '/post', 'POST', '{"kind":"ping"}', headers(panel, cookie)),
+      await call(panel, '/post', 'POST', '{"kind":"ping"}', headers(panel, token)),
     ).toHaveProperty('status', 401)
   })
   it('aborts a stuck handler at request deadline and hides private errors', async () => {
     const panel = await tracked({ requestTimeoutMs: 100 })
-    const cookie = await login(panel)
+    const token = await login(panel)
     const signal = holdUntilAbort(panel)
     await expect(
-      call(panel, '/post', 'POST', '{"kind":"ping"}', headers(panel, cookie)),
+      call(panel, '/post', 'POST', '{"kind":"ping"}', headers(panel, token)),
     ).rejects.toThrow()
     expect(signal()?.aborted).toBe(true)
   })
   it('aborts active calls and closes SSE on shutdown, releasing subscriptions once', async () => {
     const panel = await tracked()
-    const cookie = await login(panel)
-    const live = stream(panel, cookie)
+    const token = await login(panel)
+    const live = stream(panel, token)
     const response = await live.ready
     response.resume()
     const signal = holdUntilAbort(panel)
-    const pending = call(panel, '/post', 'POST', '{"kind":"ping"}', headers(panel, cookie))
+    const pending = call(panel, '/post', 'POST', '{"kind":"ping"}', headers(panel, token))
     const failed = expect(pending).rejects.toThrow()
     await vi.waitFor(() => {
       expect(signal()).toBeDefined()

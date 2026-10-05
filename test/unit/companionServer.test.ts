@@ -12,14 +12,14 @@ describe('companion HTTP server', () => {
     expect(anonymous.body).toContain("'X-Muse-Panel': '1'")
     expect(value.renderPage).not.toHaveBeenCalled()
     expect(await call(value, '/assets/client.js')).toHaveProperty('status', 401)
-    const cookie = await login(value)
-    const page = await call(value, '/', 'GET', undefined, headers(value, cookie))
+    const token = await login(value)
+    const page = await call(value, '/', 'GET', undefined, headers(value, token))
     expect(page.status).toBe(200)
     const nonce = /nonce="([^"]+)"/.exec(page.body)?.[1] ?? ''
     expect(nonce).toMatch(/^[a-f\d]{64}$/)
     expect(page.headers['content-security-policy']).toContain(`script-src 'nonce-${nonce}'`)
     expect(
-      await call(value, '/assets/client.js', 'GET', undefined, headers(value, cookie)),
+      await call(value, '/assets/client.js', 'GET', undefined, headers(value, token)),
     ).toHaveProperty('body', 'window.panelLoaded = true')
     for (const path of [
       '/assets/../tokenFile.ts',
@@ -27,13 +27,13 @@ describe('companion HTTP server', () => {
       '/assets/client.js?key=anything',
       '/.env',
     ]) {
-      expect(await call(value, path, 'GET', undefined, headers(value, cookie))).toHaveProperty(
+      expect(await call(value, path, 'GET', undefined, headers(value, token))).toHaveProperty(
         'status',
         404,
       )
     }
   })
-  it('exchanges a code once, issues HttpOnly Strict cookies, and refuses replay or a cookie as a code', async () => {
+  it('exchanges a code once for a memory bearer without cookies and refuses replay or a bearer as a code', async () => {
     const value = await panel()
     const launch = value.launchUrl()
     expect(new URL(launch).search).toBe('')
@@ -41,14 +41,14 @@ describe('companion HTTP server', () => {
     const code = new URLSearchParams(new URL(launch).hash.slice(1)).get('k')
     const first = await call(value, '/session', 'POST', JSON.stringify({ code }))
     expect(first.status).toBe(200)
-    expect(first.headers['set-cookie']?.[0]).toMatch(
-      /^muse_panel=[a-f\d]{64}; HttpOnly; SameSite=Strict; Path=\/$/,
-    )
+    expect(first.headers.authorization).toMatch(/^Bearer [a-f\d]{64}$/)
+    expect(first.headers['set-cookie']).toBeUndefined()
+    expect(first.body).not.toContain(first.headers.authorization?.slice('Bearer '.length))
     expect(await call(value, '/session', 'POST', JSON.stringify({ code }))).toHaveProperty(
       'status',
       403,
     )
-    const id = first.headers['set-cookie']?.[0]?.split(';', 1)[0]?.split('=', 2)[1]
+    const id = first.headers.authorization?.slice('Bearer '.length)
     expect(await call(value, '/session', 'POST', JSON.stringify({ code: id }))).toHaveProperty(
       'status',
       403,
@@ -59,21 +59,21 @@ describe('companion HTTP server', () => {
   })
   it('validates messages before one controller dispatch and sanitizes handler errors', async () => {
     const value = await panel()
-    const cookie = await login(value)
+    const token = await login(value)
     expect(
-      await call(value, '/post', 'POST', '{"kind":"ping"}', headers(value, cookie)),
+      await call(value, '/post', 'POST', '{"kind":"ping"}', headers(value, token)),
     ).toHaveProperty('status', 202)
     expect(value.handler.post).toHaveBeenCalledTimes(1)
     expect(value.handler.post.mock.calls[0]?.[0]).toEqual({ kind: 'ping' })
     for (const body of ['{}', '{"kind":"ping","apiKey":"synthetic-private"}', '{']) {
-      expect(await call(value, '/post', 'POST', body, headers(value, cookie))).toHaveProperty(
+      expect(await call(value, '/post', 'POST', body, headers(value, token))).toHaveProperty(
         'status',
         400,
       )
     }
     expect(value.handler.post).toHaveBeenCalledTimes(1)
     value.handler.post.mockRejectedValueOnce(new Error('synthetic private account or path'))
-    const failed = await call(value, '/post', 'POST', '{"kind":"ping"}', headers(value, cookie))
+    const failed = await call(value, '/post', 'POST', '{"kind":"ping"}', headers(value, token))
     expect(failed.status).toBe(500)
     expect(failed.body).toBe('{"error":"EPANEL_HANDLER"}')
   })
@@ -99,26 +99,27 @@ describe('companion HTTP server', () => {
     ['duplicate custom header', (base: string[]) => [...base, 'X-Muse-Panel', '1']],
   ])('refuses %s before controller dispatch', async (_name, mutate) => {
     const value = await panel()
-    const cookie = await login(value)
+    const token = await login(value)
     const result = await call(
       value,
       '/post',
       'POST',
       '{"kind":"ping"}',
-      mutate(headers(value, cookie)),
+      mutate(headers(value, token)),
     )
     // Node rejects malformed HTTP/1.1 without Host before our handler runs.
     expect(result.status).toBe(_name === 'missing Host' ? 400 : 403)
     expect(value.handler.post).not.toHaveBeenCalled()
   })
-  it('requires a valid unambiguous cookie and never accepts a bearer in its place', async () => {
+  it('requires a valid unambiguous bearer and never accepts cookies or URL credentials', async () => {
     const value = await panel()
-    const cookie = await login(value)
+    const token = await login(value)
     const cases = [
       headers(value),
-      headers(value, 'muse_panel=wrong'),
-      headers(value, `${cookie}; ${cookie}`),
-      [...headers(value, cookie), 'Cookie', cookie],
+      headers(value, 'wrong'),
+      headers(value, `${token}; ${token}`),
+      [...headers(value, token), 'Authorization', `Bearer ${token}`],
+      [...headers(value), 'Cookie', `muse_panel=${token}`],
       [...headers(value), 'Authorization', 'Bearer synthetic-token'],
     ]
     for (const supplied of cases)
@@ -127,11 +128,15 @@ describe('companion HTTP server', () => {
         401,
       )
     expect(value.handler.post).not.toHaveBeenCalled()
+    expect(await call(value, `/post?token=${token}`, 'POST', '{"kind":"ping"}')).toHaveProperty(
+      'status',
+      401,
+    )
   })
   it('caps declared and chunked bodies, refuses forms and invalid UTF-8 before dispatch', async () => {
     const value = await panel()
-    const cookie = await login(value)
-    const normal = headers(value, cookie)
+    const token = await login(value)
+    const normal = headers(value, token)
     expect(
       await call(value, '/post', 'POST', ' '.repeat(257), [...normal, 'Content-Length', '257']),
     ).toHaveProperty('status', 400)
@@ -154,13 +159,13 @@ describe('companion HTTP server', () => {
   })
   it('refuses preflight and wrong methods and emits no CORS headers on success or refusal', async () => {
     const value = await panel()
-    const cookie = await login(value)
+    const token = await login(value)
     const results = [
       await call(value, '/'),
-      await call(value, '/post', 'POST', '{"kind":"ping"}', headers(value, cookie)),
+      await call(value, '/post', 'POST', '{"kind":"ping"}', headers(value, token)),
       await call(value, '/post', 'OPTIONS'),
       await call(value, '/session', 'DELETE'),
-      await call(value, '/missing', 'GET', undefined, headers(value, cookie)),
+      await call(value, '/missing', 'GET', undefined, headers(value, token)),
     ]
     expect(results.map((result) => result.status)).toEqual([200, 202, 405, 405, 404])
     for (const result of results) {

@@ -1,4 +1,5 @@
 {
+  "companionLaunchFailed": "패널을 열 수 없습니다. 편집기로 돌아가 Muse Spark Code를 다시 열어 새 실행 링크를 받으세요.",
   "untitledConversation": "제목 없음",
   "crashTitle": "패널에서 오류가 발생했습니다",
   "crashDetail": "다시 로드하면 패널이 다시 빌드됩니다. 대화는 호스트에 보존됩니다.",

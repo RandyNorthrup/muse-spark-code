@@ -3,7 +3,7 @@ import { createServer, type IncomingMessage, type ServerResponse } from 'node:ht
 import * as z from 'zod/mini'
 import { HTTP_STATUS, IDE_MCP_LOOPBACK_HOST, IDE_MCP_TOKEN_BYTES } from '../../shared/constants'
 import { CompanionEvents } from './events'
-import { isSameOrigin, readJson, secureHeaders, sessionCookie, singleHeader } from './guard'
+import { isSameOrigin, readJson, secureHeaders, sessionBearer, singleHeader } from './guard'
 import { launchPage } from './page'
 import { CompanionSessions, type CompanionSession } from './sessions'
 
@@ -130,13 +130,14 @@ export async function startCompanionServer<Input, Output>(
       reply(response, HTTP_STATUS.forbidden, 'EPANEL_HEADER')
       return
     }
-    const session = sessions.get(sessionCookie(request))
+    const session = sessions.get(sessionBearer(request))
+    const asset = request.method === 'GET' ? options.assets.get(request.url ?? '') : undefined
     if (
       session === undefined &&
       request.url !== '/' &&
       !(request.url === '/session' && request.method === 'POST')
     ) {
-      reply(response, HTTP_STATUS.unauthorized, 'EPANEL_COOKIE')
+      reply(response, HTTP_STATUS.unauthorized, 'EPANEL_BEARER')
       return
     }
     if (request.method === 'GET') {
@@ -147,7 +148,6 @@ export async function startCompanionServer<Input, Output>(
       } else if (session !== undefined && request.url === '/events') {
         openEvents(session, response)
       } else {
-        const asset = options.assets.get(request.url ?? '')
         if (asset === undefined) {
           reply(response, HTTP_STATUS.notFound, 'EPANEL_PATH')
           return
@@ -188,14 +188,12 @@ export async function startCompanionServer<Input, Output>(
           reply(response, HTTP_STATUS.forbidden, 'EPANEL_LAUNCH')
           return
         }
-        response.setHeader(
-          'Set-Cookie',
-          `muse_panel=${created.id}; HttpOnly; SameSite=Strict; Path=/`,
-        )
-        reply(response, HTTP_STATUS.ok)
+        response.setHeader('Authorization', `Bearer ${created.id}`)
+        response.writeHead(HTTP_STATUS.ok, { 'Content-Type': 'text/html; charset=utf-8' })
+        response.end(options.renderPage(nonce))
       } else if (session !== undefined) {
         if (sessions.get(session.id) === undefined) {
-          reply(response, HTTP_STATUS.unauthorized, 'EPANEL_COOKIE')
+          reply(response, HTTP_STATUS.unauthorized, 'EPANEL_BEARER')
           return
         }
         if (request.url === '/events') {

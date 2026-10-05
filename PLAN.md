@@ -15414,6 +15414,16 @@ logged.
 
 ### M104 — Every editor, every feature (D84)
 
+Lane C review remediation (FIXM104C, 2026-10-05): replace host-wide cookies
+with one-use fragment launch codes exchanged for independent per-window
+bearers held only in page memory. Every privileged request, including the
+fetch-based event stream, carries Authorization and retains exact Host/Origin,
+Fetch-Metadata and CSP checks. Packaged assets require the bearer too.
+Regression coverage must prove no credential reaches another loopback service,
+two windows have independent streams, two runtimes cannot overwrite credentials,
+and rejected launches show localized accessible reopen guidance. Evidence and
+byte-exact red drills belong in `docs/certification/m104-c.md`.
+
 **M104 is split** because it is large: a foundation and seven parallel
 parts. All of them build against the MHP v1 contract frozen at the end of
 lane A's first step.
@@ -15455,7 +15465,7 @@ lane A's first step.
 | 0 (lead) | MHP v1 skeleton: method table, zod schemas, capability names, error codes, version range; feature registry skeleton (F1–F56)                                                                                                                                                     | `src/shared/hostApi/**`, `src/shared/hostApi/features.ts`                                                                                                         | `src/shared/constants.ts` (MHP block)                                            | day 0                       |
 | A        | VS Code adapter: `HostServices` implemented with `vscode`; `extension.ts` composes from it; the 24 `vscode` files moved to `src/host/vscode/**`; behaviour unchanged                                                                                                             | `src/host/vscode/**`, `src/host/compose/**`, `src/extension.ts`                                                                                                   | `scripts/check-host-api.mjs` (new allowed roots)                                 | after 0                     |
 | B        | Runtime panel: `panel --stdio` and `--companion`; controller registry; ACP sessions on the controller (re-basing `src/acp/agent.ts` on the registry); settings and storage stores                                                                                                | `src/runtime/panel/**`, `src/runtime/settingsStore.ts`, `src/acp/**`                                                                                              | `src/runtime/main.ts`, `src/runtime/cliArgs.ts` (the `panel` and `lsp` commands) | after 0                     |
-| C        | Companion server: launch code, cookie, Host/Origin/Fetch-Metadata guard, SSE, CSP, static assets, idle exit; shared token-file module                                                                                                                                            | `src/runtime/companion/**`, `src/runtime/tokenFile.ts` (moved from `judge/`, coordinated with the M98 owner)                                                      | —                                                                                | after 0                     |
+| C        | Companion server: launch code, memory bearer, Host/Origin/Fetch-Metadata guard, SSE, CSP, static assets, idle exit; shared token-file module                                                                                                                                     | `src/runtime/companion/**`, `src/runtime/tokenFile.ts` (moved from `judge/`, coordinated with the M98 owner)                                                      | —                                                                                | after 0                     |
 | D        | UI: the three bridges; `main.tsx`, Tasks and What's New on the bridge; `--muse-*` tokens (M61.3); React fallbacks (Confirm, Picker, Input, Toasts, StatusStrip, SettingsPage, Walkthrough, DiffPage, TerminalOutput); manager pages for skills, MCP, hooks, memory and worktrees | `src/webview/bridges/**`, `src/webview/fallbacks/**`, `src/webview/main.tsx`, `src/webview/whatsNew/main.ts`, `src/webview/tokens.css`, `src/host/ui/pageHtml.ts` | `src/webview/styles.css` (variables only), `l10n/*` (new keys, all 15 tables)    | after 0                     |
 | E        | JetBrains plugin (M104b)                                                                                                                                                                                                                                                         | `hosts/jetbrains/**`                                                                                                                                              | —                                                                                | after the contract freeze   |
 | F        | Visual Studio extension (M104c)                                                                                                                                                                                                                                                  | `hosts/visualstudio/**`                                                                                                                                           | —                                                                                | after the contract freeze   |
@@ -15499,7 +15509,7 @@ lane A's first step.
      - a wrong `Host`;
      - a foreign `Origin`, including a Playwright page served from another
        port that tries a form POST, a fetch, an EventSource and a WebSocket;
-     - a missing cookie or a missing custom header;
+     - a missing bearer or a missing custom header;
      - a replayed launch code;
      - a non-loopback bind;
      - an over-cap body.
@@ -15592,6 +15602,15 @@ lane A's first step.
 ---
 
 ## 7. Gates
+
+**FIXM104C (2026-10-05).** The lane brief/common resource rule reserves full
+`npm run quality` and aggregate coverage/editor certification for the lead.
+This lane runs all five typechecks, scoped ESLint/Prettier, dead-code,
+duplication, localization, host API and production build checks, plus every
+owning transport/token test file and byte-exact red drills on rigs. The
+pre-existing generated host inventory is lane J's write; an inventory mismatch
+remains open rather than ignored or weakened. Receipts and exact outcomes are
+in `docs/certification/m104-c.md`. No full-quality success is claimed here.
 
 **TRAIN13B (2026-10-05).** The owner authorizes recovering the two size
 failures and running the complete quality gate directly on Kubuntu within
@@ -16170,6 +16189,15 @@ before a repaired one loads (2026-09-30).
 | `test/harness/index.html` (`isActiveDescendantList`), printed by `scripts/a11y.mjs` | The accessibility gate exempts axe's `scrollable-region-focusable` | The composer's `/` and `@` lists follow WAI-ARIA's combobox pattern: the box keeps the focus and moves `aria-activedescendant` through the listbox's options, and `Composer.tsx` scrolls the active option into view, so the list is keyboard operable (WCAG 2.1.1) without being a Tab stop. axe cannot see activedescendant-driven scrolling. The exemption holds only for a region that contains a listbox whose id is in the `aria-controls` of a focused or focusable element whose active descendant is one of that listbox's options; drills show a plain scrollable region and a listbox no control drives are still reported, and removing the exemption reports the composer's list again. Every exempt element is printed under its own "Exempt:" heading and counted. No `tabindex` was added to the list. | 2026-10-04 |
 
 ## 9. Security assumptions and accepted residual risk
+
+- **M104-C companion boundary (FIXM104C, 2026-10-05):** other local users
+  and services on other loopback ports are in scope. Per-window bearers never
+  become cookies, URL parameters, persistent browser storage or asset content;
+  exact Host/Origin/Fetch-Metadata checks and no CORS remain required.
+  Packaged assets also require the bearer. Same-user processes remain outside
+  the boundary because they can inspect process memory and read owner-only
+  token files. Follow-up: the lead qualifies the composed runtime and editor
+  routes; lane transport evidence does not establish editor support.
 
 - **M92e-COMMIT-STAGED (architectural skip, 2026-10-04):** the extension
   has no dedicated commit-writing path. A model's `git commit` goes through

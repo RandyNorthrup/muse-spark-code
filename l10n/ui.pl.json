@@ -1,4 +1,5 @@
 {
+  "companionLaunchFailed": "Nie udało się otworzyć panelu. Wróć do edytora i ponownie otwórz Muse Spark Code, aby uzyskać nowy link uruchomienia.",
   "untitledConversation": "Bez tytułu",
   "crashTitle": "W panelu wystąpił błąd",
   "crashDetail": "Ponowne załadowanie odbudowuje panel; rozmowę przechowuje host.",

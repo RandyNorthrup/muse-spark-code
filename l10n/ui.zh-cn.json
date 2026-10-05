@@ -1,4 +1,5 @@
 {
+  "companionLaunchFailed": "无法打开面板。请返回编辑器并重新打开 Muse Spark Code，以获取新的启动链接。",
   "untitledConversation": "未命名",
   "crashTitle": "面板出错了",
   "crashDetail": "重新加载会重建面板；对话由扩展主机保留。",
