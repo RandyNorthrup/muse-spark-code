@@ -36,6 +36,10 @@ happened, not what was planned; superseded entries are kept.
   handle multiple conflict hunks, and return conflicts to the task copy for
   rework. Executable modes survive merge/Undo, and completed review provenance
   enforces a different-model requirement.
+- **The README's "What's new" section matches the release again.** 0.12.1 and
+  0.13.0 shipped with the README still headed "What's new in 0.12.0". It now
+  describes 0.13.0, the Marketplace README carries the same section, and a
+  test fails any release whose README section does not name its version.
 
 ## [0.13.0] - 2026-10-05
 
