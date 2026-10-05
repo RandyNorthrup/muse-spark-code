@@ -17,22 +17,105 @@ happened, not what was planned; superseded entries are kept.
   owner can start it, by hand, on the default branch; it has no other
   trigger. `test/action/la-check.mjs` judges the run and the step summary
   records the receipt. It has not run yet.
+- **The first live Action receipt (M80 LA) passed** on 2026-10-05, in
+  [run 37249121568](https://github.com/RandyNorthrup/muse-spark-code/actions/runs/37249121568).
+  The real Action, with the real key, reviewed pull request #114 on the
+  contributor model. It completed in 5 requests for $0.001668, and neither key
+  shape appeared in the log or the artifacts. The package was an unsigned
+  candidate; registry-path support still waits on LR after a release.
+- **Panel polish (M87).** The owner's panel requests of 2026-10-03 (PLAN.md
+  D66).
+  - **A context meter** replaces the composer's "12% context": a ring that
+    fills with the share of the context window used, the whole percent
+    (rounded down) inside it, the warning colour from 70 % and the error
+    colour from 90 %. Its name and tooltip give the tokens, the window and
+    the backend's pressure word; a click still compacts.
+  - **Steps fold under one summary row.** In the default view a run of two
+    or more finished steps reads, for example, "Edited 2 files, ran a
+    command, and read 3 files" and opens in place. A failure is named with
+    its dot, a step waiting on you never folds and a running one stays
+    below. Focus view folds under the same summary.
+  - **Message times** on hover and keyboard focus: the time alone for
+    today, otherwise the date and time, the full date in the tooltip. Muse
+    Code's come from its recorded times; the Model API now stores a time
+    with each message and reply (older sessions show none).
+  - **Edit a queued message** from its ⋯ menu: it leaves the queue (Muse
+    Code's `turn/unqueue`; the Model API's queue, or a steer no request has
+    read yet) and returns to the prompt box above any draft. One that
+    already reached the model stays, with a notice; a Muse Code steer's menu
+    says it was delivered.
+  - **A diff tally** above the goal and task panes, such as "8 files
+    changed +313 −96": the conversation's edits added up, each file once.
+    It is not `git diff`, so shell commands' and your own changes are not
+    counted. Its **Review** opens the review pane on the same edits.
+  - **The tasks pane** collapses to two lines. **Open in a tab** (or **Open
+    Tasks in a Tab**) mirrors the list in a read-only editor tab that
+    rebuilds after its webview reloads and says when its conversation
+    closes; where VS Code has the command (its built-in
+    `workbench.action.moveEditorToNewWindow`), **Move into new window**
+    moves it into a window of its own. Acceptance in native VS Code is
+    still open.
+  - **One radial menu for the chat.** Right-click a row, press Shift+F10 or
+    the Menu key, or use its one ⋯: each action is one crisp blue pill, its
+    icon then its name, every pill the same size (the owner's requests of
+    2026-10-04), in a fan beside the pointer or ⋯ that stays whole inside
+    panels as narrow as 320 px; the pills scale in one after another. A message
+    has fork and the Rewind group's second burst, queued Edit; a reply Copy
+    response and Reply to this output; a restore Redo; a tool Open output;
+    a landed edit Review and **Revert** (Revert asks first and is not
+    offered while a turn runs; it rechecks the session and turn through
+    patch loading, file preparation and every write or delete, a turn
+    started meanwhile refuses it, and no send overlaps its file I/O). A
+    label longer than its pill ends in an ellipsis, with the whole label
+    as its name and tooltip; an unavailable note is
+    the same pill, opaque, with a dimmed icon. Selected text keeps its
+    Copy, Ask about this and Comment on this menu, in the same pills. Arrow
+    keys, Home/End, Enter/Space and Escape work as in any menu; reduced
+    motion shows the pills in place, and forced colours draws bordered
+    pills.
+  - **Tips** on every row of the palette and the `/` list: a skill's own
+    description, or "Run the _name_ skill." for one without.
+  - **Rows and the status line.** A shell row's IN and OUT are one bordered
+    block, five lines each with its own Show more (your `!` rows too). The
+    working line leads with a small looping circle-pattern mark (after
+    Inclushe's "circle pattern animation lighten", CodePen OPWreWR, MIT,
+    written fresh with no pointer tracking), then the verb, in a box as wide as
+    the longest verb so nothing moves when it changes, and a heartbeat
+    trace whose beam draws the P/QRS/T shape itself and leaves only a fading
+    trail; under reduced motion both stand still. Stop turns red on hover
+    and focus.
+  - **One centred chat column** (the owner's requests of 2026-10-04). The
+    transcript (queued messages and the working line included), the diff
+    tally, the goal, task and schedule panes, the approval dock and the
+    composer share one column, at most 760 px wide with its side gutters,
+    so their edges line up at every width; a wide panel centres it, the
+    transcript's scrollbar no longer shifts it, and a narrow panel keeps
+    the full width.
+  - **Even approval buttons.** "Always allow …" and "Allow once" are the
+    same height (28 px), one line each; the fill alone tells approving from
+    rejecting. A label longer than the card ends in an ellipsis with the
+    full text in its tooltip, and in a narrow card the choices stack, each
+    as wide as the card.
+  - **A shorter model pill.** Its fill is 20 px tall instead of 26 px, the
+    open-file chip's height, inside the same 26 px click target.
+  - **Narrow panels.** The composer's controls stay on one row at one
+    height: square icon buttons, the mode button as its icon alone, and a
+    model pill that shortens. An open-file chip that no longer fits moves
+    to its own row below the controls.
+  - **Plural counts.** The localization gate requires `{count}` in a
+    language's `one` form when it also covers an integer other than 1 in
+    0–200. Seven step-summary forms each in Russian, French and Brazilian
+    Portuguese now show the actual count; German forms may still omit it
+    when English does.
+- `npm run readme:shots` refreshes the README's screenshots from the UI
+  harness: `scripts/readme-shots.json` declares each image's scenario,
+  theme, size and language (`languages.png` renders `usage` in German),
+  with `--list` printing the mapping and its gaps, `--only <name,...>`
+  retaking some images and `--out <dir>` previewing elsewhere. The banner
+  stays rendered by `scripts/render-images.mjs`.
 
 ### Changed
 
-- **Enhancements available out of the box (D78).** Model API observation
-  packing, trusted configured hooks and per-reply usage are on by default.
-  Paid images, Auto review, child agents, schedules and explicit best-of-N
-  are available by default; their first use still asks with the price and
-  shared daily budget. Explicit false settings stay off. Interactive extras
-  share a machine-scoped $5/day cap (`paidDailyBudgetUsd`, $0.50–$500), with
-  durable cross-window reservations, fail-closed storage, and a shared
-  raise-for-today or stop-until-tomorrow choice. Hosted search and Muse Voice
-  remain refused under a finite cap until billing bounds are verified.
-  Free OS dictation stays the default (`dictationEngine`); ordinary turns
-  still use one model. Repo-map prompt injection remains off pending Q11's
-  paired evaluation. Tab's separate budget, Muse Code, ACP and headless
-  policies are unchanged.
 - **Tiered CI, ready for a merge queue.** The full gate now runs as parallel
   jobs:
   - the static gates on all three platforms;
@@ -68,16 +151,21 @@ happened, not what was planned; superseded entries are kept.
   SHA-256/version checks and 30-day retention; tag-push misses run the full gates.
 - Manual release recovery uses the same verified staging path while preserving
   the earlier run's original bytes; invalid recovery and cancelled runs cannot publish.
+- **Enhancements available out of the box (D78).** Model API observation
+  packing, trusted configured hooks and per-reply usage are on by default.
+  Paid images, Auto review, child agents, schedules and explicit best-of-N
+  are available by default; their first use still asks with the price and
+  shared daily budget. Explicit false settings stay off. Interactive extras
+  share a machine-scoped $5/day cap (`paidDailyBudgetUsd`, $0.50–$500), with
+  durable cross-window reservations, fail-closed storage, and a shared
+  raise-for-today or stop-until-tomorrow choice. Hosted search and Muse Voice
+  remain refused under a finite cap until billing bounds are verified.
+  Free OS dictation stays the default (`dictationEngine`); ordinary turns
+  still use one model. Repo-map prompt injection remains off pending Q11's
+  paired evaluation. Tab's separate budget, Muse Code, ACP and headless
+  policies are unchanged.
 
 ### Fixed
-
-- **Interactive extras preserve consent and daily Stop (D78, FIXDEF).** A
-  delayed raise cannot clear another window's Stop until tomorrow. Cancelling
-  budget admission refunds unsent requests and rejects late dialog answers
-  and limit publication. Backend switches preserve accepted prices and
-  workspace Always grants. Unused observation packing keeps the original
-  request tools and cache key; recall is offered with packed observations.
-  The Best-of-N overview now agrees with its default availability.
 
 - A blocked M80 `v0` tag update now reports that an administrator must move it,
   while preserving the four release channels' outcomes. Updates require a
@@ -88,6 +176,20 @@ happened, not what was planned; superseded entries are kept.
   and then on slow runners. Each now waits for the event it tests: a settled
   parent turn, a held request, published claims, the fake agent's ready
   line, a held response. Tests only; the product is unchanged.
+- **CI reliability: the accessibility gate keeps each page focused.**
+  Headless Chrome did not keep a window's focus, so on a loaded machine the
+  `slash-commands` page's `/` menu closed while axe scanned it and was
+  reported as `scrollable-region-focusable` on `:root`. Each page now runs
+  with Chrome's focus emulation and is scanned only once its scenario is
+  ready (a page not ready in 10 s fails); no rule or exemption changed.
+  Tooling only.
+- **Interactive extras preserve consent and daily Stop (D78, FIXDEF).** A
+  delayed raise cannot clear another window's Stop until tomorrow. Cancelling
+  budget admission refunds unsent requests and rejects late dialog answers
+  and limit publication. Backend switches preserve accepted prices and
+  workspace Always grants. Unused observation packing keeps the original
+  request tools and cache key; recall is offered with packed observations.
+  The Best-of-N overview now agrees with its default availability.
 
 ## [0.12.1] - 2026-10-04
 

@@ -161,7 +161,8 @@ export function ApprovalCard({ approval, toolName, onDecide }: ApprovalCardProps
             className={
               choice.decision.startsWith('approved') ? 'button-primary' : 'button-secondary'
             }
-            title={choice.rulePreview}
+            // A label longer than the card ellipsizes; the title keeps it whole.
+            title={choice.rulePreview ?? choice.label}
             disabled={isLocked}
             onClick={() => {
               const { sourceIndex } = approval.requirementId

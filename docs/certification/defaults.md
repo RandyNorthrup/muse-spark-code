@@ -247,3 +247,45 @@ Enabling either transport safely therefore requires lead-supplied captured
 contracts or separately authorized research/live evidence. Existing explicit
 refusal and the free system dictation choice remain visible in README; these
 two paid transports are an external blocker, not certified usable features.
+
+### FIXDEF integration evidence
+
+Feature commit `3db0ef3758a0bece6df6c9a5650d4c06d7b175e8` passed the installed
+pre-commit hooks: scoped ESLint/Prettier and staged Gitleaks (27,174 bytes,
+no leaks). Integrated current local `origin/main` at
+`244d5905a94e3e5cd2b30659aa584649bc207663`, preserving M87 and D78. PLAN,
+README, code and all translations merged cleanly. The one conflict was the
+generated host-API inventory: regenerated from both features with the
+canonical `check:host-api -- --write` command, 283 APIs and zero problems.
+The prescribed changelog-rebase.py preserved main's released sections and
+the branch's two Unreleased additions, without dropping either feature.
+
+Kubuntu integrated static snapshot
+`e3d16a614cceee3bdf14a75b8633914a1fa393d9` passed all five typecheck projects,
+scoped ESLint, knip, jscpd (0 clones), localization (14 tables, 123 manifest
+strings, 435 source files; 0 problems), host API (283 APIs; 0 problems) and
+the production build's size, split, global and notices checks. Observed
+runtime: Node v24.18.0, npm 12.0.1. Knip's existing `vendor/**` configuration
+hint remains non-failing; no gate configuration changed.
+
+| Integrated bundle | KiB / unchanged cap |
+| ----------------- | ------------------- |
+| Extension         | 568.3 / 600         |
+| Model API         | 429.8 / 475         |
+| Checkpoint store  | 109.3 / 225         |
+| Webview           | 888.9 / 900         |
+| ACP               | 787.8 / 850         |
+
+Kubuntu integrated test snapshot `a3159c6c` passed **841 tests in fourteen
+whole files**, with no skipped or name-filtered tests: paidDailyBudget,
+paidHost, paidFeatures, settings, modelApiHost, modelApiClient, modelApiHooks,
+modelCallHooks, modelApiPacking, sessionBudgetJournal, acpRuntime, execRun,
+bestOfNManager and scheduledRunConfirmation. These receipts bind executable
+and configuration files; later certification text records the receipts.
+
+M91 golden files remain absent from this integrated tree; no golden was
+rewritten. Next lead actions: review the five repairs and seven red/restored
+drills, run full quality plus actual VS Code/platform/hosted gates on the
+reviewed tree, integrate M91's goldens and M94's independent Tab ledger, and
+supply verified search/voice billing contracts before enabling those finite-cap
+transports. No live call, public push or release certification occurred here.

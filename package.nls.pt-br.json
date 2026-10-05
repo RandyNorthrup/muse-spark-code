@@ -8,6 +8,7 @@
   "command.category": "Muse Spark",
   "command.openInSidebar.title": "Abrir na Barra Lateral",
   "command.openInNewTab.title": "Abrir em Nova Guia",
+  "command.openTasks.title": "Abrir tarefas em uma aba",
   "command.focusInput.title": "Alternar Foco",
   "command.insertMentionReference.title": "Inserir @-Menção da Seleção",
   "command.toggleFocusView.title": "Alternar Exibição de Foco",

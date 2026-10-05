@@ -199,7 +199,18 @@ src/shared/l10n/**    the English table (en.ts), fill/plural/Intl helpers, the
 l10n/                 translated tables (ui.<language>.json) and the names the
                       localization gate lets stay English
 package.nls.json      the manifest's text (commands, settings, walkthrough)
-src/webview/**        React 19 app (browser project, own tsconfig)
+src/webview/**        React 19 app (browser project, own tsconfig);
+                      TasksApp is the tasks tab's read-only document (M87),
+                      mounted by main.tsx for `data-surface="tasks"` and
+                      speaking only shared/tasksProtocol; the tab itself is
+                      host/views/tasksPanel (a WebviewPanel behind the
+                      controller's TasksTabPort, no serializer, no composer);
+                      stepSummary.ts names a folded run of steps;
+                      components/GooeyMenu.tsx is the one radial menu (and
+                      useRowMenu, each row's ⋯ opener) over gooeyLayout.ts's
+                      pure geometry for its fanned column of labelled
+                      pills; diffTally.ts and
+                      components/DiffTally.tsx add up the conversation's edits
 native/windows/**     dictate.ps1, the Windows dictation helper; capture.ps1,
                       Muse Voice's recorder; the job helpers' C#
                       (MuseSparkJob.cs, MuseSparkMcpLauncher.cs and the

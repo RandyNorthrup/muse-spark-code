@@ -8,6 +8,7 @@
   "command.category": "Muse Spark",
   "command.openInSidebar.title": "Открыть на боковой панели",
   "command.openInNewTab.title": "Открыть в новой вкладке",
+  "command.openTasks.title": "Открыть задачи во вкладке",
   "command.focusInput.title": "Переключить фокус",
   "command.insertMentionReference.title": "Вставить @-упоминание выделенного фрагмента",
   "command.toggleFocusView.title": "Переключить режим фокусировки",
