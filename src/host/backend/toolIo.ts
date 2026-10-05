@@ -742,6 +742,15 @@ export function createToolIo(deps: ToolIoDeps): ToolIo {
         maxOutputBytes: HOOK_OUTPUT_MAX_BYTES,
       })
     },
+    async runHookHttp(url, payload, signal) {
+      // dispatchHooks and hookHandlers enforce this too. Keep the adapter
+      // bounded when it is called directly, before any request goes out.
+      if (Buffer.byteLength(payload) > HOOK_STDIN_MAX_BYTES) {
+        throw new RangeError('Hook http payload exceeds the input cap')
+      }
+      const hooks = await import('../web/webFetchEntry.js')
+      return await hooks.postHookPayload(url, payload, signal)
+    },
   }
 }
 

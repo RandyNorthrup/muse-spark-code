@@ -512,6 +512,7 @@ const ATTENTION_EVENTS: ReadonlySet<AgentEvent['type']> = new Set([
   'turnCompleted',
   'approvalRequested',
   'questionRequested',
+  'elicitationRequested',
 ])
 /** Session/model actions must stop as soon as sign-out is announced in any panel. */
 const AUTH_REQUIRED_SESSION_ACTIONS: ReadonlySet<ConversationMessage['type']> = new Set([
@@ -524,6 +525,7 @@ const AUTH_REQUIRED_SESSION_ACTIONS: ReadonlySet<ConversationMessage['type']> = 
   'exportConversation',
   'decideApproval',
   'answerQuestion',
+  'elicitationAnswer',
   'clarifyQuestion',
   'moveToBackground',
   'rewindConversation',
@@ -2428,6 +2430,32 @@ export class ConversationController {
     this.notice('info', promptSettledText(error.reason))
     if (error.reason === 'gone') {
       this.post({ type: 'promptDropped', ...prompt })
+    }
+  }
+
+  /** An elicitation form's answer (M91 lane M): accept, decline or cancel. */
+  private async answerElicitation(
+    message: Extract<ConversationMessage, { type: 'elicitationAnswer' }>,
+  ): Promise<void> {
+    const { session } = this
+    if (session === undefined) {
+      return
+    }
+    const settle = session.settleElicitation
+    if (settle === undefined) {
+      this.notice('error', UI_TEXT.elicitationExpired)
+      return
+    }
+    try {
+      const reply =
+        message.action === 'accept'
+          ? { kind: 'accepted' as const, values: { ...message.values } }
+          : { kind: message.action === 'decline' ? ('declined' as const) : ('cancelled' as const) }
+      await settle.call(session, message.elicitationId, reply)
+    } catch (error: unknown) {
+      // A refused answer unlocks the form, as a refused question answer
+      // does (M25): the user fixes the named field and sends again.
+      this.notice('error', `${UI_TEXT.answerNotAccepted}: ${describe(error)}`)
     }
   }
 
@@ -7871,13 +7899,13 @@ export class ConversationController {
         )
         break
       }
+      case 'withdrawQueued': {
+        await this.withdrawQueued(message)
+        break
+      }
       case 'runManualHook': {
         const result = await this.deps.runManualHook?.(message.name)
         if (result === undefined) this.notice('warning', UI_TEXT.hooksNotRunnable)
-        break
-      }
-      case 'withdrawQueued': {
-        await this.withdrawQueued(message)
         break
       }
       case 'cancelTurn': {
@@ -7922,6 +7950,10 @@ export class ConversationController {
       }
       case 'answerQuestion': {
         await this.answerQuestion(message)
+        break
+      }
+      case 'elicitationAnswer': {
+        await this.answerElicitation(message)
         break
       }
       case 'cancelQuestion': {

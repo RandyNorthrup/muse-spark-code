@@ -712,7 +712,7 @@ describe('Windsurf hooks', () => {
     })
   })
 
-  it('reads the hooks file and converts prompts, answers and worktrees', () => {
+  it('reads the hooks file, converts prompts and answers, and waits on worktrees', () => {
     const hooks = readWindsurfHooks(
       JSON.stringify({
         hooks: {
@@ -730,7 +730,8 @@ describe('Windsurf hooks', () => {
     expect(hooks?.map((hook) => convertWindsurfHook(hook))).toMatchObject([
       { ok: true, value: { event: 'UserPromptSubmit' } },
       { ok: true, value: { event: 'Stop', group: { async: true } } },
-      { ok: true, value: { event: 'WorktreeCreate' } },
+      // WorktreeCreate is an extension event: M91b routes imports there.
+      { ok: false, reason: 'unsupported' },
     ])
     expect(readWindsurfHooks('not json')).toBeUndefined()
   })

@@ -1655,6 +1655,8 @@
   "usagePaidTabCostToday": "Dnes: {cost}",
   "usagePaidTabCostWindow": "Toto okno: {cost}",
   "usagePaidTabBudget": "Denní rozpočet: {budget}",
+  "paidHookModelDailyBudget": "Sdílený denní rozpočet placených funkcí: {budget}.",
+  "hookModelPaidOff": "Hooky modelu jsou vypnuté. Zapněte museSpark.modelApiHookModels, aby se hooky prompt a agent mohly ptát modelu.",
   "boardTitle": "Přehled relací",
   "boardUnavailable": "Přehled relací a funkci Best of N se nepodařilo načíst. Přeinstalujte rozšíření a zkuste to znovu.",
   "boardEmpty": "Zatím žádné konverzace. Začněte odesláním zprávy.",

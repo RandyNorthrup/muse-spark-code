@@ -248,6 +248,7 @@ interface Scan {
    * `[features]`) are read before its hooks, from the same text.
    */
   readonly reads: Map<string, Promise<SourceRead>>
+  readonly unreadableHookSources: Set<AgentImportSource>
 }
 
 type SourceRead =
@@ -417,16 +418,12 @@ async function isConfined(
   if (!canReadOrigin(scan, origin)) {
     return false
   }
-  if (origin === 'user' && !scan.input.isWorkspaceTrusted()) {
-    const file = await scan.input.io.realPath(absolutePath)
-    const roots =
-      scan.input.workspaceRoots?.() ??
-      (scan.input.workspaceRoot === undefined ? [] : [scan.input.workspaceRoot])
-    for (const workspace of roots) {
-      const canonical = await scan.input.io.realPath(workspace)
-      if (resolveWorkspacePath(canonical, file, scan.input.platform).ok) return false
-    }
-  }
+  if (
+    origin === 'user' &&
+    !scan.input.isWorkspaceTrusted() &&
+    (await isInOpenWorkspace(scan, absolutePath))
+  )
+    return false
   const root = scan.input.workspaceRoot
   if (origin === 'user' || root === undefined) {
     return origin === 'user'
@@ -668,6 +665,7 @@ async function collectHooks(
   origin: ImportOrigin,
   file: string,
   isOff: boolean,
+  source: 'claudeCode' | 'codex' = 'claudeCode',
 ): Promise<void> {
   const text = await readText(scan, file, origin)
   if (text === undefined) {
@@ -675,49 +673,27 @@ async function collectHooks(
   }
   const hooks = readClaudeHooks(text)
   if (hooks === undefined) {
-    scan.warnings.push(`is not a readable settings file, skipped`)
+    scan.warnings.push(
+      source === 'codex'
+        ? 'is not a readable Codex hooks file, skipped'
+        : 'is not a readable settings file, skipped',
+    )
     return
   }
   const switched = withSwitches(hooks, { isOff })
   for (const hook of switched) {
     const base = {
-      source: 'claudeCode',
+      source,
       origin,
       label: hook.event,
       originPath: file,
     } as const
-    const converted = convertHook(hook)
-    if (converted.ok || converted.reason !== 'unmapped') {
+    const converted = source === 'codex' ? convertCodexHook(hook) : convertHook(hook)
+    if (source === 'codex' || converted.ok || converted.reason !== 'unmapped') {
       addHook(scan, base, converted, origin === 'user' ? 'settings' : 'hooks')
       continue
     }
     addHook(scan, base, convertClaudeSparkHook(hook), sparkFileOf(origin))
-  }
-}
-
-async function collectCodexHooks(
-  scan: Scan,
-  origin: ImportOrigin,
-  file: string,
-  isOff: boolean,
-): Promise<void> {
-  const text = await readText(scan, file, origin)
-  if (text === undefined) {
-    return
-  }
-  const hooks = readClaudeHooks(text)
-  if (hooks === undefined) {
-    scan.warnings.push(`is not a readable Codex hooks file, skipped`)
-    return
-  }
-  const switched = withSwitches(hooks, { isOff })
-  for (const hook of switched) {
-    addHook(
-      scan,
-      { source: 'codex', origin, label: hook.event, originPath: file },
-      convertCodexHook(hook),
-      origin === 'user' ? 'settings' : 'hooks',
-    )
   }
 }
 
@@ -821,12 +797,21 @@ function addUnknownFormat(
 async function switchTexts(
   scan: Scan,
   files: readonly { readonly file: string; readonly origin: ImportOrigin }[],
+  source: AgentImportSource,
 ): Promise<readonly string[]> {
   const texts: string[] = []
   for (const { file, origin } of files) {
-    const text = await readText(scan, file, origin)
-    if (text !== undefined) {
-      texts.push(text)
+    const read = await readSource(scan, file, origin)
+    if (read.status === 'failed') {
+      scan.unreadableHookSources.add(source)
+    } else if (read.status === 'text') {
+      // A malformed switch file is unknown too, rather than an absent switch.
+      if (
+        (source === 'codex' ? readCodexConfig(read.text) : readClaudeHooks(read.text)) === undefined
+      ) {
+        scan.unreadableHookSources.add(source)
+      }
+      texts.push(read.text)
     }
   }
   return texts
@@ -850,6 +835,7 @@ async function collectGeminiHooks(
   origin: ImportOrigin,
   file: string,
   switches: HookSwitches,
+  sequential: ReadonlySet<string>,
 ): Promise<void> {
   const text = await readText(scan, file, origin)
   if (text === undefined) {
@@ -861,7 +847,6 @@ async function collectGeminiHooks(
     return
   }
   const hooks = withSwitches(read, switches)
-  const sequential = geminiSequentialEvents(hooks)
   collectForeignHooks(scan, {
     source: 'gemini',
     origin,
@@ -918,12 +903,24 @@ async function collectCopilotHooks(
   switch (read.status) {
     case 'ok': {
       const switched = withSwitches(read.hooks, { isOff: options.isOff })
-      for (const hook of switched) {
-        const flavor = copilotFlavorOf(hook.event, read.isVersioned, options.isSettingsBlock)
+      const converted = switched.map((hook) =>
+        convertCopilotHook(
+          hook,
+          copilotFlavorOf(hook.event, read.isVersioned, options.isSettingsBlock),
+        ),
+      )
+      // Inline hooks are strict in Copilot. Conservatively refuse all siblings
+      // when any entry cannot be validated and represented here.
+      const isRefuseBlock =
+        options.isSettingsBlock &&
+        converted.some((entry) => !entry.ok && entry.reason !== 'disabled')
+      for (const [index, hook] of switched.entries()) {
+        const entry = converted[index]
+        if (entry === undefined) continue
         addHook(
           scan,
           { source: 'copilot', origin, label: hook.event, originPath: file },
-          convertCopilotHook(hook, flavor),
+          isRefuseBlock && entry.ok ? { ok: false, reason: 'field', field: 'hooks' } : entry,
           sparkFileOf(origin),
         )
       }
@@ -1127,9 +1124,14 @@ async function collectClineHooks(
       continue
     }
     const isOn = await isClineScriptOn(scan, file)
-    if (isOn !== undefined) {
-      addHook(scan, base, convertClineHook(classified.sourceEvent, file, isOn), sparkFileOf(origin))
+    if (isOn === undefined) continue
+    const rechecked = await checkClineScript(scan, file, origin)
+    if (rechecked !== 'ok') {
+      if (rechecked === 'refused')
+        add(scan, { ...base, kind: 'hook', target: { kind: 'none', reason: 'outside' } })
+      continue
     }
+    addHook(scan, base, convertClineHook(classified.sourceEvent, file, isOn), sparkFileOf(origin))
   }
 }
 
@@ -1452,7 +1454,7 @@ async function scanClaudeCode(scan: Scan, isProjectRead: boolean): Promise<void>
     await collectClaudeState(scan, p.join(stateDir, names.stateFile))
   }
   // `disableAllHooks` anywhere in this scan keeps every Claude Code hook off.
-  const settingsTexts = await switchTexts(scan, settingsFiles)
+  const settingsTexts = await switchTexts(scan, settingsFiles, 'claudeCode')
   const isOff = settingsTexts.some((text) => hasDisableAllHooks(text))
   if (configDir !== undefined) {
     await collectHooks(scan, 'user', p.join(configDir, names.userSettingsFile), isOff)
@@ -1509,18 +1511,22 @@ async function scanCodex(scan: Scan, isProjectRead: boolean): Promise<void> {
   const root = input.workspaceRoot
   const projectDir = root === undefined || !isProjectRead ? undefined : p.join(root, names.dir)
   // `[features] hooks = false` in either layer keeps every Codex hook off.
-  const configTexts = await switchTexts(scan, [
-    ...(home === undefined
-      ? []
-      : [{ file: p.join(home, names.configFile), origin: 'user' as const }]),
-    ...(projectDir === undefined
-      ? []
-      : [{ file: p.join(projectDir, names.configFile), origin: 'project' as const }]),
-  ])
+  const configTexts = await switchTexts(
+    scan,
+    [
+      ...(home === undefined
+        ? []
+        : [{ file: p.join(home, names.configFile), origin: 'user' as const }]),
+      ...(projectDir === undefined
+        ? []
+        : [{ file: p.join(projectDir, names.configFile), origin: 'project' as const }]),
+    ],
+    'codex',
+  )
   const isOff = configTexts.some((text) => isCodexHooksOff(text))
   if (home !== undefined) {
     await collectCodexConfigFile(scan, 'user', p.join(home, names.configFile), isOff)
-    await collectCodexHooks(scan, 'user', p.join(home, names.hooksFile), isOff)
+    await collectHooks(scan, 'user', p.join(home, names.hooksFile), isOff, 'codex')
     await collectMarkdown(scan, {
       source: 'codex',
       origin: 'user',
@@ -1535,7 +1541,7 @@ async function scanCodex(scan: Scan, isProjectRead: boolean): Promise<void> {
     return
   }
   await collectCodexConfigFile(scan, 'project', p.join(projectDir, names.configFile), isOff)
-  await collectCodexHooks(scan, 'project', p.join(projectDir, names.hooksFile), isOff)
+  await collectHooks(scan, 'project', p.join(projectDir, names.hooksFile), isOff, 'codex')
 }
 
 async function scanCursor(scan: Scan, isProjectRead: boolean): Promise<void> {
@@ -1587,9 +1593,11 @@ async function scanGemini(scan: Scan, isProjectRead: boolean): Promise<void> {
       ? []
       : [{ file: p.join(root, names.dir, names.settingsFile), origin: 'project' as const }]),
   ]
-  const switches = mergedGeminiSwitches(await switchTexts(scan, files))
+  const texts = await switchTexts(scan, files, 'gemini')
+  const switches = mergedGeminiSwitches(texts)
+  const sequential = geminiSequentialEvents(texts.flatMap((text) => readClaudeHooks(text) ?? []))
   for (const { file, origin } of files) {
-    await collectGeminiHooks(scan, origin, file, switches)
+    await collectGeminiHooks(scan, origin, file, switches, sequential)
   }
 }
 
@@ -1617,7 +1625,7 @@ async function scanCopilot(scan: Scan, isProjectRead: boolean): Promise<void> {
     ...projectSettings,
   ]
   // `disableAllHooks` in a settings file skips every hook from every source.
-  const settingsTexts = await switchTexts(scan, settings)
+  const settingsTexts = await switchTexts(scan, settings, 'copilot')
   const isOff = settingsTexts.some((text) => hasDisableAllHooks(text))
   const hooksFile =
     (isSettingsBlock: boolean) =>
@@ -1734,6 +1742,7 @@ export async function scanAgentImports(input: ImportScanInput): Promise<ImportSc
     taken: new Set(),
     nextSuffix: new Map(),
     reads: new Map(),
+    unreadableHookSources: new Set(),
   }
   const isProjectRead = await shouldReadProject(scan)
   const scanners: Readonly<Record<AgentImportSource, typeof scanCodex>> = {
@@ -1757,10 +1766,16 @@ export async function scanAgentImports(input: ImportScanInput): Promise<ImportSc
       if (!exposures.has(candidate.originPath))
         exposures.set(candidate.originPath, importExposure(candidate.originPath, input))
       const sourceExposure = await exposures.get(candidate.originPath)
+      if (!canReadOrigin(scan, candidate.origin)) continue
+      const isOutsideScript =
+        candidate.source === 'cline' && candidate.origin === 'user' && sourceExposure !== 'personal'
+      const isUnknownSwitch =
+        candidate.kind === 'hook' && scan.unreadableHookSources.has(candidate.source)
       candidates.push({
         ...candidate,
         sourceExposure,
-        ...(sourceExposure === undefined && {
+        ...(isUnknownSwitch && { target: { kind: 'none', reason: 'unreadable' } as const }),
+        ...((sourceExposure === undefined || isOutsideScript) && {
           target: { kind: 'none', reason: 'outside' } as const,
         }),
       })
@@ -2196,6 +2211,40 @@ async function planCandidate(builder: PlanBuilder, candidate: ImportCandidate): 
       if (refusal !== undefined) {
         skip(builder, candidate, refusal)
         return
+      }
+      if (candidate.source === 'cline') {
+        try {
+          if (candidate.origin === 'project') {
+            const root = builder.destinations.workspaceRoot
+            const confined =
+              root === undefined
+                ? undefined
+                : await confineWorkspacePath(
+                    root,
+                    candidate.originPath,
+                    builder.destinations.platform,
+                    builder.state.io,
+                  )
+            if (confined?.ok !== true) {
+              skip(builder, candidate, 'outside')
+              return
+            }
+          }
+          const current = await importExposure(candidate.originPath, {
+            ...builder.destinations,
+            io: builder.state.io,
+          })
+          if (
+            current === undefined ||
+            (candidate.origin === 'user' ? current !== 'personal' : current === 'personal')
+          ) {
+            skip(builder, candidate, 'outside')
+            return
+          }
+        } catch {
+          skip(builder, candidate, 'unreadable')
+          return
+        }
       }
       const block = builder.hooks[target.file]
       block[target.hook.event] = [...(block[target.hook.event] ?? []), target.hook.group]

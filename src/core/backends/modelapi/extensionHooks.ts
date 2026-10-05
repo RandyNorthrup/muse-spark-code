@@ -250,6 +250,11 @@ function sparkHandler(
   if (depth > 0 && value.async === true) {
     return 'onFailure cannot be asynchronous'
   }
+  // Lane H's typed handlers run on the five Muse Code events Claude Code
+  // allows them on; an extension event takes a command (M91 lane W).
+  if (value.type !== 'command') {
+    return 'handler type must be command'
+  }
   if (value.onFailure !== undefined) {
     if (depth >= HOOK_ON_FAILURE_MAX_DEPTH) {
       return 'onFailure exceeds three levels'

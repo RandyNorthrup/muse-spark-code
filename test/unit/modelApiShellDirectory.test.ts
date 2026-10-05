@@ -332,7 +332,9 @@ async function runTurn(harness: ShellHarness, text: string): Promise<void> {
 }
 
 /** The row the panel shows for a finished tool call, by call order. */
-function toolRows(harness: ShellHarness): { tool: string | undefined; visibleOutput: string | undefined }[] {
+function toolRows(
+  harness: ShellHarness,
+): { tool: string | undefined; visibleOutput: string | undefined }[] {
   return harness.events.flatMap((event) => {
     return event.type !== 'itemCompleted' || event.item.kind !== 'toolCall'
       ? []

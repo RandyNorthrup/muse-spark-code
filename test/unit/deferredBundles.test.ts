@@ -111,11 +111,33 @@ describe('deferred cohort bundles', () => {
     }
   })
 
+  it('keeps the hook and MCP-form runtime out of the session bundle (M91)', () => {
+    const session = readFileSync('dist/modelApi.js', 'utf8')
+    expect(session).toContain('./hookRuntime.js')
+    expect(inputs('modelApi')).not.toContain('src/core/backends/modelapi/hookRuntimeEntry.ts')
+    for (const file of [
+      'src/core/backends/modelapi/hookRuntimeEntry.ts',
+      'src/core/backends/modelapi/extensionHooks.ts',
+      'src/core/backends/modelapi/hookHandlers.ts',
+      'src/core/backends/modelapi/mcp/elicitation.ts',
+    ]) {
+      expect(inputs('hookRuntime')).toContain(file)
+    }
+    // The runners themselves: their fixed diagnostics live only in the runtime.
+    const runtime = readFileSync('dist/hookRuntime.js', 'utf8')
+    for (const text of ['hook input exceeds limit', 'http hook runner is unavailable']) {
+      expect(session).not.toContain(text)
+      expect(runtime).toContain(text)
+    }
+  })
+
   it.each([
     ['extension', 'src/host/bestOfN/bestOfNManager.ts', 'on its first action'],
     ['modelApi', 'src/core/backends/modelapi/reviewerEntry.ts', 'on its first action'],
     // M91 lane W: the imported hooks' adapters, required on first use.
     ['modelApi', 'src/core/backends/modelapi/hookFormats/engine.ts', 'on its first action'],
+    // M91: the hook and MCP-form runtime, required on first use.
+    ['modelApi', 'src/core/backends/modelapi/hookRuntimeEntry.ts', 'on its first action'],
     // Split out of activation on 2026-10-03 (PLAN.md D6).
     ['extension', 'src/core/codeIntel/codeIntelQuery.ts', 'on the first code intelligence call'],
     ['extension', 'src/core/voice/museVoice.ts', 'on the first recording'],

@@ -1768,6 +1768,36 @@ body {
   color: var(--vscode-foreground);
 }
 
+/* MCP elicitation form (M91 lane M): the question card's own controls, with
+   full-row inputs for narrow panels and errors in the theme's error colour. */
+.elicitation-input {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.elicitation-field {
+  min-width: 0;
+  margin-inline: 0;
+  padding-inline: 0;
+  border: 0;
+}
+
+.elicitation-field legend,
+.elicitation-field .question-choice-label {
+  overflow-wrap: anywhere;
+}
+
+.elicitation-note {
+  color: var(--vscode-descriptionForeground);
+  font-size: 0.9em;
+}
+
+.elicitation-error {
+  color: var(--vscode-foreground);
+  font-size: 0.9em;
+  font-weight: 600;
+}
+
 /* --- todo panel --- */
 
 /* The goal strip (M45) is the same box, above the task list; both in the

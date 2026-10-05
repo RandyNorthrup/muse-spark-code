@@ -2236,6 +2236,10 @@ export const EN = {
   usagePaidTabCostToday: 'Today: {cost}',
   usagePaidTabCostWindow: 'This window: {cost}',
   usagePaidTabBudget: 'Daily budget: {budget}',
+  // A prompt or agent hook refused while museSpark.modelApiHookModels is off.
+  hookModelPaidOff:
+    'Model hooks are off. Turn on museSpark.modelApiHookModels to let prompt and agent hooks ask the model.',
+  paidHookModelDailyBudget: 'Shared daily paid budget: {budget}.',
   // The session board (M77, PLAN.md D49).
   boardTitle: 'Session board',
   boardUnavailable:

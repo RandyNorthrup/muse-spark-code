@@ -7,6 +7,16 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+### Fixed
+
+- M91's unwired Gemini hook adapters translate established native arguments
+  and explicitly refuse unsupported blocking calls. Tool-selection whitelists
+  survive `ANY` without forcing a call. Captured nested arguments and saved
+  vendor scripts now have data-dependent checks; certification claims are
+  limited to the evidence actually checked. Model packets validate their
+  captured shapes, tool patches preserve full original arguments, ignored
+  lifecycle controls retain observations, and Notification retains details.
+
 ### Added
 
 - **M91 lane E wiring, in progress.** Trusted, opt-in `spark-hooks.json`
@@ -96,6 +106,43 @@ happened, not what was planned; superseded entries are kept.
     one. The Hooks picker lists both hook files for each scope and which
     backend runs each, and the panel marks a reply a MessageDisplay hook
     rewrote, with the original one click away.
+  - **Lane H:** the four new hook handler types. `http` (user files only,
+    HTTPS, machine-scoped `museSpark.hookHttpAllowedHosts`, no redirects);
+    `mcp_tool` (a configured MCP server's tool, through its own approval
+    card); `prompt` and `agent` on the Model API (a paid model call each,
+    allowed by default, first charge asks once, tallied apart); `prompt`
+    and `agent` have a reusable hidden Muse Code side-session runner with
+    a subscription notice (dispatch awaits lane R). The session budget
+    applies; shared daily-budget wiring awaits the defaults lane. Every answer parses like a command's:
+    refuse, narrow or add context only. `command` is unchanged.
+  - **Lane M:** MCP elicitation in form mode on the Model API backend. The
+    MCP client declares the `elicitation` capability (`form` only) and
+    answers a server's `elicitation/create` with a form in the panel — or
+    through the ACP client's own form — as accept (validated against the
+    server's schema), decline or cancel. A request outside the spec's
+    restricted subset, and URL-mode flows, are declined with a reason and
+    never rendered. A timeout, a stopped turn or a closed panel cancels;
+    nothing auto-accepts, in Bypass either. Values are never logged and
+    reach no transcript or export beyond the server's own result. The
+    Elicitation hook may decline or cancel (a user hook may answer) and
+    ElicitationResult observes with field names and the action only, through
+    a narrow seam until lane E wires the dispatch.
+  - **Integration (lane W, 2026-10-05).**
+    - A hook imported onto one of the extension events is not imported yet,
+      and the preview says why in the user's language: "weaker" where the
+      source can block (Gemini BeforeToolSelection, Kiro PreTaskExec),
+      otherwise "not supported". M91b routes them, and Amp and OpenCode
+      plugin dispatch moves to M91b with them.
+    - Lanes E, H and M's runtime (the spark-hooks.json reader and
+      dispatcher, the typed handlers, the form checks) loads from its own
+      bundle, `dist/hookRuntime.js`, and the imported records' reader from
+      `dist/foreignHooks.js`. `dist/modelApi.js` went from 486.1 KiB to
+      463.7 KiB, under its 475 KiB cap.
+    - The format adapters' dotted paths never reach an object's prototype
+      (semgrep's prototype-pollution-loop finding).
+    - The localization check fails when a JSON file names a key twice in one
+      object: a stale `config.modelApiHooks.description` in ko, pt-br and
+      zh-tw had been hiding the new one.
 
 - **Tab completions (M94, PLAN.md D73).** On by default, with its status
   item visible at startup and its completion engine loaded on first use.
@@ -283,6 +330,16 @@ happened, not what was planned; superseded entries are kept.
   the earlier run's original bytes; invalid recovery and cancelled runs cannot publish.
 
 ### Fixed
+
+- **M91 import review, round 3:** unreadable source switches refuse hooks;
+  Copilot inline settings refuse siblings together; Cline script references
+  are checked again after awaits and during planning, quoted as literal paths
+  for Unix and PowerShell, and retain their 30-second bound. Nonexact tool
+  matchers and Gemini lifecycle filters refuse visibly, Gemini sequential
+  policy spans user and project settings, Cursor requires version 1 and
+  uses the adapter's source-event contract, and universal Copilot regexes
+  remain supported. Truncated or normalized MCP identities are refused.
+  Kiro Manual is refused until its adapter has a row.
 
 - A blocked M80 `v0` tag update now reports that an administrator must move it,
   while preserving the four release channels' outcomes. Updates require a

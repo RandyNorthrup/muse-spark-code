@@ -14,6 +14,7 @@
 //   CH:707), and a guard that could not run fails as its source fails.
 //
 // No answer grants: lane P never produces an allow, and hooks.ts strips one.
+// The records' reader loads here too, so dist/modelApi.js does not carry it.
 
 import { Buffer } from 'node:buffer'
 import path from 'node:path'
@@ -47,6 +48,8 @@ import {
   type HookDefinition,
   type HookEvent,
 } from './hooks'
+
+export { loadForeignHookDefinitions } from './hooks'
 
 export interface ForeignHookAdapterDeps {
   readonly workspaceRoot: string
@@ -131,11 +134,12 @@ function powerShellCommand(
   if (!isPowerShell) {
     return undefined
   }
-  const script =
-    spec.format === 'cline' ? `& '${hook.command.replaceAll("'", "''")}'` : hook.command
-  const encoded = Buffer.from(`${WINDOWS_POWERSHELL_UTF8_PREAMBLE}${script}`, 'utf16le').toString(
-    'base64',
-  )
+  // Lane I writes a Cline script's Windows command as PowerShell already:
+  // `& '<path>'`, its quotes doubled.
+  const encoded = Buffer.from(
+    `${WINDOWS_POWERSHELL_UTF8_PREAMBLE}${hook.command}`,
+    'utf16le',
+  ).toString('base64')
   const command = [
     POWERSHELL,
     ...WINDOWS_POWERSHELL_COMMAND_ARGS.filter((arg) => arg !== '-Command'),
@@ -276,6 +280,14 @@ class ForeignHooks implements ForeignHookAdapter {
       )
       if (result.exitCode === 0 && answer.status === 'failed') {
         answer = { ...answer, systemMessage: fill(UI_TEXT.hookAdapterUnreadable, { format: name }) }
+      }
+    } else if (result.kind === 'refused' && result.blockOperation === true) {
+      // Lane P: a blocking source event whose input cannot be built refuses
+      // the operation it guards (m91-p.md, RVM91P3), whatever its crash rule.
+      return {
+        status: 'blocked',
+        reason: result.reason,
+        systemMessage: fill(UI_TEXT.hookAdapterFailClosed, { format: name }),
       }
     } else if (format === 'copilot' && result.kind === 'timeout') {
       // Copilot: "Timeouts are fail-open for every event, including

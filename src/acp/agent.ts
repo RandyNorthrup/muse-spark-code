@@ -71,7 +71,14 @@ import {
   untrustedStartMode,
 } from '../shared/permissionModes'
 import { type AcpPaidUse, paidUseAnswer, paidUseOptions } from './paid'
-import { formAnswers, questionForm, questionsText } from './questions'
+import {
+  elicitationSchema,
+  elicitationText,
+  formAnswers,
+  parseElicitationResult,
+  questionForm,
+  questionsText,
+} from './questions'
 import {
   approvalToolCall,
   decidedChoice,
@@ -134,6 +141,7 @@ export interface AcpAgentDeps {
 
 type ApprovalRequest = Extract<AgentEvent, { type: 'approvalRequested' }>
 type QuestionRequest = Extract<AgentEvent, { type: 'questionRequested' }>
+type ElicitationRequest = Extract<AgentEvent, { type: 'elicitationRequested' }>
 type TurnCompleted = Extract<AgentEvent, { type: 'turnCompleted' }>
 
 interface PendingPrompt {
@@ -314,6 +322,10 @@ class AcpSession {
         void this.ask(event)
         return
       }
+      case 'elicitationRequested': {
+        void this.askElicitation(event)
+        return
+      }
       case 'turnCompleted': {
         this.finishTurn(event)
         return
@@ -436,6 +448,77 @@ class AcpSession {
       this.deps.log[level](
         `ACP session ${this.sessionId}: approval ${event.approvalId}: ${failureForLog(error)}`,
       )
+    }
+  }
+
+  /**
+   * An MCP server's elicitation form (M91 lane M) through the client's own
+   * form path: the client's answer settles the session's form, validated
+   * against the server's schema there. Without forms the turn carries on
+   * and the request is cancelled; a failed form cancels it too, never
+   * answering by a guess.
+   */
+  private async askElicitation(event: ElicitationRequest): Promise<void> {
+    const pending = this.pending
+    const settle = this.session.settleElicitation
+    const message = `${fill(UI_TEXT.elicitationTitle, { server: event.server })}\n${event.message}`
+    try {
+      if (settle === undefined || this.clientCapabilities.elicitation?.form == null) {
+        this.send({
+          sessionUpdate: 'agent_message_chunk',
+          content: { type: 'text', text: elicitationText(message, event.fields) },
+        })
+      } else {
+        const request: CreateElicitationRequest = {
+          sessionId: this.sessionId,
+          mode: 'form',
+          message,
+          requestedSchema: elicitationSchema(event.fields),
+        }
+        const response = await this.client.request('elicitation/create', request)
+        if (!this.isCurrentPrompt(pending)) {
+          return
+        }
+        const parsed = parseElicitationResult(response)
+        if (parsed?.action === 'accept') {
+          try {
+            await settle.call(this.session, event.elicitationId, {
+              kind: 'accepted',
+              values: { ...parsed.content },
+            })
+          } catch {
+            // The session refused the content: cancel instead of hanging
+            // on a form nobody else will answer.
+            if (this.isCurrentPrompt(pending)) {
+              await settle.call(this.session, event.elicitationId, { kind: 'cancelled' })
+            }
+          }
+          return
+        }
+        await settle.call(this.session, event.elicitationId, {
+          kind: parsed?.action === 'decline' ? 'declined' : 'cancelled',
+        })
+        return
+      }
+      if (this.isCurrentPrompt(pending)) {
+        try {
+          await settle?.call(this.session, event.elicitationId, { kind: 'cancelled' })
+        } catch {
+          // A timeout may already have settled the form. Never surface the
+          // client's error text or turn that race into an unhandled promise.
+          this.deps.log.info('ACP elicitation was already settled')
+        }
+      }
+    } catch {
+      this.deps.log.warn(`ACP session ${this.sessionId}: elicitation ${event.elicitationId} failed`)
+      // A form that failed is cancelled, so the tool call goes on without the answer.
+      if (this.isCurrentPrompt(pending)) {
+        try {
+          await settle?.call(this.session, event.elicitationId, { kind: 'cancelled' })
+        } catch {
+          this.deps.log.info('ACP elicitation was already settled')
+        }
+      }
     }
   }
 

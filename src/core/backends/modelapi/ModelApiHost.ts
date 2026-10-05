@@ -12,6 +12,8 @@ import { homedir, tmpdir } from 'node:os'
 import type {
   AgentEvent,
   ApprovalSubject,
+  ElicitationField,
+  ElicitationReply,
   ItemSnapshot,
   QuestionAnswer,
   TodoItem,
@@ -40,6 +42,7 @@ import {
   GOAL_STATUS,
   type GoalCommandVerb,
   HOOK_MAX_STOP_CONTINUATIONS,
+  HOOK_MODEL_READ_TOOLS,
   HOOK_NOTIFICATION_DELAY_MS,
   HOOK_ON_FAILURE_MAX_DEPTH,
   HOOK_SESSION_END_TIMEOUT_MS,
@@ -47,6 +50,7 @@ import {
   HTTP_TOO_MANY_REQUESTS,
   HTTP_UNAUTHORIZED,
   IDE_MCP_SERVER_NAME,
+  MCP_ELICITATION_TIMEOUT_MS,
   ISO_DATE_LENGTH,
   MAX_ENCODED_MEDIA_CHARS,
   MAX_MODEL_API_TEXT_ATTACHMENT_BYTES,
@@ -213,8 +217,12 @@ import {
 } from './codeIntelCalls'
 import type { PermissionSettings } from '../../permissionSettings'
 import { ReviewBreaker } from './autoReviewer'
-import type { reviewPaidCall as ReviewPaidCall } from './reviewerEntry'
+import type {
+  runHookModelTurn as RunHookModelTurn,
+  reviewPaidCall as ReviewPaidCall,
+} from './reviewerEntry'
 import type { createForeignHookAdapter as CreateForeignHookAdapter } from './foreignHooksEntry'
+import type * as HookRuntime from './hookRuntimeEntry'
 import {
   type ConfirmedModelRequest,
   MissingApiKeyError,
@@ -248,6 +256,7 @@ import {
   toolMatcherNames,
 } from './hooks'
 import { postModelCallFields, preModelCallFields } from './modelCallHooks'
+import type { HookMcpOutcome, HookModelTurn, HookModelDailyBudget } from './hookHandlers'
 import { ObservationPack, estimatePackTokens } from './observationPack'
 import { nextScheduleFire } from './schedules'
 import {
@@ -267,7 +276,6 @@ import {
   afterAgentThoughtFields,
   beforeToolSelectionFields,
   createFileChangedThrottle,
-  dispatchExtensionHooks,
   emptyExtensionDispatch,
   extensionHookPayload,
   fileChangedFields,
@@ -295,7 +303,20 @@ import {
 } from './reviewer'
 import { MediaBudget } from './mediaBudget'
 import { mcpFunctionDefinition, mcpFunctionName } from './mcp/functions'
-import type { McpPoolSnapshot, McpToolRef, McpToolSource } from './mcp/pool'
+import {
+  ALLOW_ELICITATION_SEAM,
+  describeElicitationForLog,
+  type ElicitationHookSeam,
+  elicitationFieldNames,
+  type ElicitationOutcome,
+} from './mcp/elicitation'
+import type {
+  McpElicitationHandler,
+  McpElicitationRequest,
+  McpPoolSnapshot,
+  McpToolRef,
+  McpToolSource,
+} from './mcp/pool'
 import { isMemoryTool, placeMemoryCall, runMemoryCall, type PlacedMemoryCall } from './memoryTools'
 
 import {
@@ -421,6 +442,13 @@ export interface ModelApiPaidHooks {
   readonly noteSubagentUsage: (modelId: string, usage: SubagentUsage) => void
   /** One Auto reviewer call's tokens (M78): billed apart from the conversation. */
   readonly noteReviewerUsage: (modelId: string, usage: SubagentUsage) => void
+  /**
+   * One M91 prompt/agent hook run's tokens (D70): billed apart from the
+   * conversation, on the hookModels tally line. Optional until the host
+   * wires it: without it, runs are still counted, but no cost settles.
+   */
+  readonly noteHookModelUsage?: ((modelId: string, usage: SubagentUsage) => void) | undefined
+  readonly hookModelDailyBudget?: HookModelDailyBudget | undefined
 }
 
 export interface ModelApiHostDeps extends ModelApiPaidHooks {
@@ -497,10 +525,26 @@ export interface ModelApiHostDeps extends ModelApiPaidHooks {
   readonly loadExtensionHooks?: () => Promise<readonly ExtensionHookDefinition[]>
   /** Machine hook opt-in is checked again for every dispatch. */
   readonly isHooksEnabled?: (() => boolean) | undefined
+  /**
+   * M91 http hooks (D70): `museSpark.hookHttpAllowedHosts`, read at every
+   * dispatch. Absent means empty: no http hook runs. Optional until the host
+   * wires the setting.
+   */
+  readonly hookHttpAllowedHosts?: (() => readonly string[]) | undefined
+  /** The workspace sandbox's network posture, re-read before each HTTP hook. */
+  readonly isHookNetworkAllowed?: (() => boolean) | undefined
   /** Tests can shorten the six-second Notification delay without waiting. */
   readonly hookNotificationDelayMs?: number | undefined
+  /** Tests can shorten the elicitation form's wait without waiting. */
+  readonly elicitationTimeoutMs?: number | undefined
   /** The MCP servers of Muse Code's settings (M50, PLAN.md D42), closed with the host. */
   readonly mcpServers?: McpToolSource | undefined
+  /**
+   * The Elicitation and ElicitationResult hook runs (M91, PLAN.md D70).
+   * Lane E owns the dispatch; until it lands, the default proceeds every
+   * request to the form. Tests inject a fake here.
+   */
+  readonly elicitationHooks?: ElicitationHookSeam | undefined
   /**
    * The extension's own IDE tools (`getDiagnostics`), offered in process as
    * `mcp__ide__<tool>`, the names Muse Code sessions see them by (M50).
@@ -792,6 +836,12 @@ type QuestionReply =
   | { readonly kind: 'cancelled' }
   | { readonly kind: 'clarified'; readonly text: string }
 
+/** How an elicitation form settled (M91 lane M): accept, decline or cancel. */
+type ElicitationContent =
+  | { readonly kind: 'accepted'; readonly content: Readonly<Record<string, unknown>> }
+  | { readonly kind: 'declined' }
+  | { readonly kind: 'cancelled' }
+
 /**
  * A tool's result. A shell call the user moved to the background (M46)
  * answers the model at once and carries the command's own end.
@@ -1009,6 +1059,8 @@ const FORWARDED_CHILD_EVENTS: ReadonlySet<AgentEvent['type']> = new Set([
   'approvalRequested',
   'approvalUpdated',
   'approvalResolved',
+  'elicitationRequested',
+  'elicitationSettled',
 ])
 const IDLE = 'idle'
 const RUNNING = 'running'
@@ -1850,6 +1902,19 @@ export class ModelApiSession implements AgentSession {
   >()
   private readonly pendingQuestions = new Map<string, Pending<QuestionReply>>()
   /**
+   * Elicitation forms waiting on the user (M91 lane M): the fields the
+   * answer is validated against, and the server that asked, so a refusal
+   * can name the field without ever holding a value.
+   */
+  private readonly pendingElicitations = new Map<
+    string,
+    {
+      readonly pending: Pending<ElicitationContent>
+      readonly fields: readonly ElicitationField[]
+      readonly server: string
+    }
+  >()
+  /**
    * Shell calls running in the foreground, by row: what moves each to the
    * background (M46, PLAN.md D39).
    */
@@ -2167,6 +2232,17 @@ export class ModelApiSession implements AgentSession {
   }
 
   /**
+   * The hook and MCP-form runtime (dist/hookRuntime.js, M91, D6): lane E's
+   * dispatcher, lane H's typed handlers and lane M's form checks, loaded the
+   * first time this session needs one. A bundle that cannot load rejects,
+   * and each caller fails its own safe way: a hook is skipped and logged, a
+   * form is refused, never accepted.
+   */
+  private async hookRuntime(): Promise<typeof HookRuntime> {
+    return await import('./hookRuntimeEntry.js')
+  }
+
+  /**
    * A call's arguments as its PreToolUse hooks see them. A rename also names
    * the files it would write (M67), planned only when a hook would run and
    * the mode allows the edit at all; the call then writes that same plan
@@ -2216,6 +2292,7 @@ export class ModelApiSession implements AgentSession {
     const adapter = hooks.some((hook) => hook.foreign !== undefined)
       ? await this.foreignHookAdapter()
       : undefined
+    const runHookHttp = this.deps.io.runHookHttp?.bind(this.deps.io)
     const result = await dispatchHooks(
       hooks,
       event,
@@ -2233,6 +2310,60 @@ export class ModelApiSession implements AgentSession {
       signal,
       (warning) => {
         this.deps.log.warn(`Model API hooks: ${warning}`)
+      },
+      // M91 typed handlers (D70, lane H): the http POST over the host's
+      // pinned path when wired, the MCP tool call through its own approval
+      // path, the allowlist setting, and the trust posture re-checked at
+      // every run. Absent runners skip their handlers. The runner itself
+      // loads with the hook runtime on the first typed handler.
+      {
+        runTyped: async (...args) => {
+          const runtime = await this.hookRuntime()
+          return await runtime.runTypedHandler(...args)
+        },
+        ...(runHookHttp !== undefined && {
+          httpPost: async (url, payload, hookSignal) => {
+            this.noteProcessRan()
+            return await runHookHttp(url, payload, hookSignal)
+          },
+        }),
+        callMcpTool: async (server, tool, argsJson, hookSignal) => {
+          this.noteProcessRan()
+          return await this.runHookMcpTool(server, tool, argsJson, hookSignal)
+        },
+        runModelTurn: async (input, hookSignal) => {
+          this.noteProcessRan()
+          return await this.runHookModelTurn(
+            input.kind,
+            input.system,
+            input.user,
+            event,
+            hookSignal,
+          )
+        },
+        httpAllowlist: () => this.deps.hookHttpAllowedHosts?.() ?? [],
+        isNetworkAllowed: () =>
+          this.deps.isWorkspaceTrusted() && this.deps.isHookNetworkAllowed?.() === true,
+        isHookModelsOn: () => this.deps.isPaidFeatureOn('hookModels'),
+        allowsHookModelUse: (request) =>
+          this.deps.allowsPaidUse(
+            {
+              feature: 'hookModels',
+              event: request.event,
+              kind: request.kind,
+              modelId: request.modelId,
+              ...(this.deps.hookModelDailyBudget !== undefined && {
+                dailyBudgetUsd: this.deps.hookModelDailyBudget.capUsd(),
+              }),
+            },
+            false,
+            this.askingSessionId,
+          ),
+        noteHookModelRun: () => {
+          this.deps.notePaidUse('hookModels', 1)
+        },
+        noteHookModelUsage: this.deps.noteHookModelUsage,
+        modelId: this.modelId,
       },
       adapter,
       foreignContext,
@@ -2325,8 +2456,17 @@ export class ModelApiSession implements AgentSession {
     if (hooks.length === 0) {
       return undefined
     }
+    let runtime: typeof HookRuntime
+    try {
+      runtime = await this.hookRuntime()
+    } catch {
+      this.deps.log.warn(
+        `Model API extension hooks: ${event}: the hook runtime could not be loaded; no hook ran`,
+      )
+      return emptyExtensionDispatch()
+    }
     const runHook = this.deps.io.runHook?.bind(this.deps.io)
-    const result = await dispatchExtensionHooks({
+    const result = await runtime.dispatchExtensionHooks({
       hooks,
       event,
       payload: extensionHookPayload(event, this.extensionHookContext(turnId), fields),
@@ -4194,9 +4334,24 @@ export class ModelApiSession implements AgentSession {
     question: { readonly card: ApprovalSubject } | { readonly paid: PaidUseRequest },
     requiresUserApproval = false,
     judgement?: PermissionJudgement,
+    // A hook's own helper call (M91 mcp_tool): the judgement, the trust
+    // check and the card are the tool's own, but no hook fires for it and
+    // the Auto reviewer does not judge it, so a hook can never approve or
+    // review itself into a loop.
+    isHookHelperCall = false,
   ): Promise<ApprovalOutcome> {
     const canReview = judgement?.isReviewable !== false
-    const hook = await this.permissionRequestHook(call, signal)
+    const hook: HookDispatch = isHookHelperCall
+      ? {
+          blockedReason: undefined,
+          contexts: [],
+          messages: [],
+          updatedInput: undefined,
+          forceApproval: false,
+          stopReason: undefined,
+          approvalDecision: undefined,
+        }
+      : await this.permissionRequestHook(call, signal)
     if (hook.blockedReason !== undefined) {
       return { isApproved: false, feedback: hook.blockedReason, deniedByHook: true }
     }
@@ -4228,7 +4383,7 @@ export class ModelApiSession implements AgentSession {
       return { isApproved: true, feedback: undefined }
     }
     let review: ReviewedAsk | undefined
-    if (!requiresUserApproval && judgement.isReviewable) {
+    if (!requiresUserApproval && !isHookHelperCall && judgement.isReviewable) {
       review = await this.autoReview(call, query, signal)
       signal.throwIfAborted()
       judgement = this.permissions.judge(query, this.policy())
@@ -4327,6 +4482,27 @@ export class ModelApiSession implements AgentSession {
    * before. A decline, an unreadable answer, a failure and the breaker all
    * come back as an ask with the reason; only the user's Stop throws.
    */
+  private paidModelObservers(turnId: string) {
+    return {
+      keyed: (request: Omit<CreateResponseBody, 'prompt_cache_key' | 'prompt_cache_retention'>) =>
+        this.keyed(request),
+      guard: (body: CreateResponseBody, budget: DirectResponseBudget) =>
+        this.responseAttemptGuard(body, budget),
+      isCountedUsage,
+      abortError: () => new AbortedError(),
+      isRefused: (error: unknown) =>
+        error instanceof ModelApiError &&
+        (error.status === HTTP_STATUS.badRequest || error.status === HTTP_TOO_MANY_REQUESTS),
+      emit: (event: AgentEvent) => {
+        this.emit(event)
+      },
+      record: (item: ItemSnapshot, isStarted: boolean) => {
+        if (isStarted) this.recordTranscript(turnId, item)
+        else this.rerecordTranscript(item)
+      },
+    }
+  }
+
   private async autoReview(
     call: FunctionCallItem,
     query: PermissionQuery,
@@ -4405,20 +4581,7 @@ export class ModelApiSession implements AgentSession {
         breaker: this.reviewBreaker,
         userRequest: this.lastUserText(),
         recentCalls: this.recentCalls(turnId),
-        keyed: (request) => this.keyed(request),
-        guard: (body, budget) => this.responseAttemptGuard(body, budget),
-        isCountedUsage,
-        abortError: () => new AbortedError(),
-        isRefused: (error) =>
-          error instanceof ModelApiError &&
-          (error.status === HTTP_STATUS.badRequest || error.status === HTTP_TOO_MANY_REQUESTS),
-        emit: (event) => {
-          this.emit(event)
-        },
-        record: (item, isStarted) => {
-          if (isStarted) this.recordTranscript(turnId, item)
-          else this.rerecordTranscript(item)
-        },
+        ...this.paidModelObservers(turnId),
       },
       call.name,
       action,
@@ -4540,6 +4703,176 @@ export class ModelApiSession implements AgentSession {
     }
     pending.resolve(reply)
     return Promise.resolve()
+  }
+
+  /**
+   * One MCP server's `elicitation/create` during this session's tool call
+   * (M91 lane M, form mode only): the Elicitation hooks run first, then the
+   * form asks the user. Never auto-accepts, in any approval mode: without
+   * an answer there is no accept. A timeout, a stopped turn or a closed
+   * session settles it as a cancel. Values are validated against the
+   * server's schema and reach only the server's own result: they are never
+   * logged, and no event carries them.
+   */
+  private async runElicitation(
+    itemId: string,
+    request: McpElicitationRequest,
+  ): Promise<ElicitationOutcome> {
+    const { server, params, signal } = request
+    // Already parsed at the connection's boundary (rule 7); parsed again
+    // for use here. A refusal throws to the connection's error answer.
+    const forms = await this.hookRuntime()
+    const parsed = forms.parseElicitationParams(params)
+    const seam =
+      this.deps.isHooksEnabled?.() === false
+        ? ALLOW_ELICITATION_SEAM
+        : (this.deps.elicitationHooks ?? ALLOW_ELICITATION_SEAM)
+    const checked = forms.validateElicitationSchema(parsed.requestedSchema)
+    if (!checked.ok) {
+      this.deps.log.warn(`MCP server ${server} elicitation declined: ${checked.reason}`)
+      return await this.finishElicitation(server, [], 'decline')
+    }
+    const fields = checked.fields
+    const fieldNames = elicitationFieldNames(fields)
+    const isStopped = () => signal.aborted
+    if (isStopped() || this.pendingElicitations.size > 0) {
+      return await this.finishElicitation(server, fieldNames, 'cancel')
+    }
+    const verdict = await seam.fireElicitation({
+      server,
+      message: parsed.message,
+      fieldNames: [...fieldNames],
+      requiredNames: fields.filter((field) => field.required).map((field) => field.name),
+    })
+    if (isStopped() || this.pendingElicitations.size > 0) {
+      return await this.finishElicitation(server, fieldNames, 'cancel')
+    }
+    if (verdict.decision === 'decline' || verdict.decision === 'cancel') {
+      if (verdict.decision === 'decline' && verdict.reason !== undefined) {
+        this.emit({
+          type: 'backendNotice',
+          level: 'info',
+          text: fill(UI_TEXT.elicitationDeclinedByHook, { server, reason: verdict.reason }),
+        })
+      }
+      return await this.finishElicitation(server, fieldNames, verdict.decision)
+    }
+    if (verdict.decision === 'answer') {
+      if (verdict.source !== 'user') {
+        this.deps.log.warn(`MCP server ${server} elicitation: a project hook's answer is refused`)
+        return await this.finishElicitation(server, fieldNames, 'decline')
+      }
+      const values = verdict.values ?? {}
+      const answered = forms.validateElicitationValues(fields, values)
+      if (!answered.ok) {
+        this.deps.log.warn(
+          `MCP server ${server} elicitation: a hook's answer does not fit the schema and is refused`,
+        )
+        return await this.finishElicitation(server, fieldNames, 'decline')
+      }
+      this.emit({
+        type: 'backendNotice',
+        level: 'info',
+        text: fill(UI_TEXT.elicitationAnsweredByHook, { server }),
+      })
+      return await this.finishElicitation(server, fieldNames, 'accept', answered.content)
+    }
+    const elicitationId = this.deps.newId()
+    const reply = await this.waitForElicitation(
+      elicitationId,
+      server,
+      itemId,
+      parsed.message,
+      fields,
+      signal,
+    )
+    this.pendingElicitations.delete(elicitationId)
+    const refusalAction = reply.kind === 'declined' ? 'decline' : 'cancel'
+    const action = reply.kind === 'accepted' ? 'accept' : refusalAction
+    this.emit({ type: 'elicitationSettled', elicitationId, action })
+    return reply.kind === 'accepted'
+      ? await this.finishElicitation(server, fieldNames, 'accept', reply.content)
+      : await this.finishElicitation(server, fieldNames, action)
+  }
+
+  /**
+   * The form's wait: shown in the panel until it is answered, and in the
+   * ACP agent through its form path. Invalid answers are refused with the
+   * field named, and the wait goes on; the timeout and any stop cancel it.
+   */
+  private async waitForElicitation(
+    elicitationId: string,
+    server: string,
+    itemId: string,
+    message: string,
+    fields: readonly ElicitationField[],
+    signal: AbortSignal,
+  ): Promise<ElicitationContent> {
+    const timer = setTimeout(() => {
+      this.pendingElicitations.get(elicitationId)?.pending.resolve({ kind: 'cancelled' })
+    }, this.deps.elicitationTimeoutMs ?? MCP_ELICITATION_TIMEOUT_MS)
+    try {
+      // Pending before it is shown, as an approval card is: an answer given
+      // as the form arrives must find it (the live sweep, 2026-09-27).
+      return await waitFor<ElicitationContent>(signal, (pending) => {
+        this.pendingElicitations.set(elicitationId, { pending, fields, server })
+        this.emit({
+          type: 'elicitationRequested',
+          elicitationId,
+          server,
+          message,
+          fields: fields.map((field) => ({ ...field })),
+          itemId,
+        })
+      })
+    } catch {
+      return { kind: 'cancelled' }
+    } finally {
+      clearTimeout(timer)
+    }
+  }
+
+  /**
+   * The ElicitationResult hook run (observation) and the server's answer. A
+   * project hook sees the field names and the action only, never values.
+   */
+  private async finishElicitation(
+    server: string,
+    fieldNames: readonly string[],
+    action: ElicitationOutcome['action'],
+    content?: Readonly<Record<string, unknown>>,
+  ): Promise<ElicitationOutcome> {
+    const seam =
+      this.deps.isHooksEnabled?.() === false
+        ? ALLOW_ELICITATION_SEAM
+        : (this.deps.elicitationHooks ?? ALLOW_ELICITATION_SEAM)
+    await seam.fireElicitationResult({ server, fieldNames: [...fieldNames], action })
+    this.deps.log.info(describeElicitationForLog(server, fieldNames, action))
+    return action === 'accept' ? { action, content: { ...content } } : { action }
+  }
+
+  /** Settles a waiting elicitation form with `reply`. */
+  private async settleElicitationForm(
+    elicitationId: string,
+    reply: ElicitationReply,
+  ): Promise<void> {
+    const found = this.pendingElicitations.get(elicitationId)
+    if (found === undefined) {
+      throw new Error(UI_TEXT.elicitationExpired)
+    }
+    if (reply.kind !== 'accepted') {
+      found.pending.resolve(reply)
+      return
+    }
+    // Loaded already: the form's own schema was checked with it.
+    const { validateElicitationValues } = await this.hookRuntime()
+    const checked = validateElicitationValues(found.fields, reply.values)
+    if (!checked.ok) {
+      throw new Error(
+        fill(UI_TEXT.elicitationInvalid, { field: checked.refusal.field, server: found.server }),
+      )
+    }
+    found.pending.resolve({ kind: 'accepted', content: checked.content })
   }
 
   /**
@@ -5383,8 +5716,216 @@ export class ModelApiSession implements AgentSession {
     }
   }
 
+  /**
+   * An M91 mcp_tool handler's call (D70, lane H): the tool on its configured
+   * MCP server, through that tool's own approval path. The policy judgement,
+   * the trust check and the approval card are the tool's own; the helper
+   * call fires no hook and skips the Auto reviewer, so a hook can never
+   * approve or review itself into a loop. A colliding plain name that is not
+   * this server's tool is missing, never another server's tool.
+   */
+  private async runHookMcpTool(
+    server: string,
+    tool: string,
+    argsJson: string,
+    signal: AbortSignal,
+  ): Promise<HookMcpOutcome> {
+    const servers = this.deps.mcpServers
+    if (servers === undefined) {
+      return { kind: 'missing' }
+    }
+    const candidate = mcpFunctionName(server, tool, new Set())
+    const ref = servers.find(candidate)
+    if (ref?.server !== server || ref.tool !== tool) {
+      return { kind: 'missing' }
+    }
+    if (!this.deps.isWorkspaceTrusted()) {
+      return { kind: 'denied' }
+    }
+    const call: FunctionCallItem = {
+      type: 'function_call',
+      call_id: this.deps.newId(),
+      name: candidate,
+      arguments: argsJson,
+    }
+    const query: PermissionQuery = {
+      toolName: candidate,
+      toolClass: 'mcp',
+      isReadOnly: ref.isReadOnly,
+    }
+    const judgement = this.permissions.judge(query, this.policy())
+    if (judgement.verdict === 'deny') return { kind: 'denied' }
+    const approval =
+      judgement.verdict === 'allow'
+        ? { isApproved: true }
+        : await this.askApproval(
+            this.deps.newId(),
+            call,
+            signal,
+            query,
+            { card: { kind: 'tool', toolName: candidate } },
+            false,
+            undefined,
+            true,
+          )
+    if (!approval.isApproved) {
+      return { kind: 'denied' }
+    }
+    signal.throwIfAborted()
+    if (
+      !this.deps.isWorkspaceTrusted() ||
+      this.permissions.judge(query, this.policy()).verdict === 'deny'
+    ) {
+      return { kind: 'denied' }
+    }
+    const outcome = await servers.call(candidate, argsJson, signal)
+    return {
+      kind: 'called',
+      text: outcome.output,
+      isError: outcome.failureReason !== undefined,
+    }
+  }
+
+  /**
+   * An M91 agent handler's read-only tools (D70, lane H): read, grep, list
+   * and code intelligence. No writes, no shell, no web; rename is not
+   * offered. Whatever is off (code intelligence without the service) is
+   * simply absent.
+   */
+  private hookModelTools(): readonly FunctionToolDefinition[] {
+    return toolDefinitions(this.deps.platform, {
+      hasShell: false,
+      hasSkills: false,
+      isSubagent: true,
+      hasCodeIntel: this.deps.codeIntel !== undefined,
+    }).filter((tool) => HOOK_MODEL_READ_TOOLS.has(tool.name))
+  }
+
+  /** One read-only tool call of a hook's agent turn; any other name is refused. */
+  private fileToolContext(signal: AbortSignal) {
+    return {
+      workspaceRoot: this.deps.workspaceRoot,
+      platform: this.deps.platform,
+      io: this.toolWrites()?.io ?? this.deps.io,
+      signal,
+      seen: this.seenFiles,
+      files: this.policy().files,
+    }
+  }
+
+  private async executeHookModelTool(
+    name: string,
+    argsJson: string,
+    signal: AbortSignal,
+  ): Promise<string> {
+    if (!HOOK_MODEL_READ_TOOLS.has(name)) {
+      throw new Error(`the hook model call cannot use ${name}`)
+    }
+    const intelTool = codeIntelToolOf(name)
+    if (intelTool !== undefined && intelTool !== 'renameSymbol') {
+      if (this.deps.codeIntel === undefined) {
+        throw new Error(`the hook model call cannot use ${name}`)
+      }
+      const outcome = await this.readCode(
+        intelTool,
+        { type: 'function_call', call_id: this.deps.newId(), name, arguments: argsJson },
+        signal,
+      )
+      return outcome.output
+    }
+    const context = this.fileToolContext(signal)
+    const outcome = await executeTool(name, argsJson, {
+      ...context,
+      assertCanWrite: () => {
+        throw new AbortedError()
+      },
+    })
+    return outcome.output
+  }
+
+  /**
+   * An M91 prompt/agent handler's own model call (D70, lane H): one attempt,
+   * no retry, hooks off, on the hookModels tally line apart from the
+   * conversation. The paid gate and popup already allowed this run; the row
+   * keeps it loud.
+   */
+  private async runHookModelTurn(
+    kind: 'prompt' | 'agent',
+    system: string,
+    user: string,
+    event: string,
+    signal: AbortSignal,
+  ): Promise<HookModelTurn> {
+    const modelId = this.modelId
+    const active = this.active
+    const policy = this.policy()
+    const isCurrent = () =>
+      !this.isDisposed &&
+      !signal.aborted &&
+      this.active === active &&
+      this.modelId === modelId &&
+      this.deps.isWorkspaceTrusted() &&
+      this.deps.isPaidFeatureOn('hookModels') &&
+      this.policy() === policy
+    const [keyDigest, budgetScope] = await unlessStopped(
+      Promise.all([this.deps.client.currentKeyDigest(), this.ownedBudgetScope()]),
+      signal,
+    )
+    if (
+      !isCurrent() ||
+      (budgetScope === undefined && this.deps.sessionBudgetUsd() !== 0) ||
+      budgetScope?.isStillAllowed(keyDigest) === false
+    ) {
+      throw new Error('the hook model call could not start')
+    }
+    let runHookModel: typeof RunHookModelTurn
+    try {
+      const entry = await import('./reviewerEntry.js')
+      if (typeof entry.runHookModelTurn !== 'function') {
+        throw new TypeError('Invalid hook model export')
+      }
+      runHookModel = entry.runHookModelTurn
+    } catch {
+      if (signal.aborted) throw new AbortedError()
+      this.deps.log.warn('The hook model bundle could not be loaded')
+      throw new Error('the hook model bundle could not be loaded')
+    }
+    if (!isCurrent()) throw new AbortedError()
+    // The run is tallied when the gate allowed it; the request observer below
+    // counts its attempts for the client's own budget, nothing more.
+    const turnId = this.active?.turnId ?? this.turnIds.at(-1) ?? this.sessionId
+    return await runHookModel(
+      {
+        deps: this.deps,
+        tools: kind === 'agent' ? this.hookModelTools() : [],
+        executeReadOnlyTool: async (name, argsJson, toolSignal) =>
+          await this.executeHookModelTool(name, argsJson, toolSignal),
+        ...this.paidModelObservers(turnId),
+      },
+      { kind, system, user },
+      event,
+      turnId,
+      signal,
+      {
+        modelId,
+        keyDigest,
+        isStillAllowed: () =>
+          isCurrent() &&
+          (budgetScope === undefined
+            ? this.deps.sessionBudgetUsd() === 0
+            : budgetScope.isStillAllowed(keyDigest)),
+        onRequestStarted: () => {
+          // Hook runs are counted by the consenting dispatcher.
+        },
+      },
+      budgetScope,
+      isCurrent,
+    )
+  }
+
   /** The IDE tool in process, or the MCP server's tool over its connection (M50). */
   private async performExternal(
+    itemId: string,
     external: ExternalTool,
     call: FunctionCallItem,
     signal: AbortSignal,
@@ -5398,7 +5939,11 @@ export class ModelApiSession implements AgentSession {
       return toolFailure(`${call.name} ${MODEL_API_MODEL_TEXT.mcpToolUnavailable}`)
     }
     this.noteProcessRan()
-    const outcome = await servers.call(call.name, call.arguments, signal)
+    // This call's elicitations are answered in this session (M91 lane M),
+    // with the form under this tool's row. Never auto-accepted: the route
+    // only asks, in every approval mode.
+    const route: McpElicitationHandler = (request) => this.runElicitation(itemId, request)
+    const outcome = await servers.call(call.name, call.arguments, signal, route)
     return {
       output: outcome.output,
       visibleOutput: outcome.visibleOutput,
@@ -6463,7 +7008,7 @@ export class ModelApiSession implements AgentSession {
   ): Promise<Performed> {
     const external = this.externalTool(call.name)
     if (external !== undefined) {
-      return { outcome: await this.performExternal(external, call, signal) }
+      return { outcome: await this.performExternal(itemId, external, call, signal) }
     }
     if (isSubagentTool(call.name)) {
       return { outcome: await this.runSubagentTool(call, signal, childGrant) }
@@ -6522,12 +7067,7 @@ export class ModelApiSession implements AgentSession {
         const formatter = this.formatter(assertCanWrite)
         return {
           outcome: await executeTool(call.name, call.arguments, {
-            workspaceRoot: this.deps.workspaceRoot,
-            platform: this.deps.platform,
-            io: this.toolWrites()?.io ?? this.deps.io,
-            signal,
-            seen: this.seenFiles,
-            files: this.policy().files,
+            ...this.fileToolContext(signal),
             assertCanWrite,
             ...(approvedTarget !== undefined && { approvedTarget }),
             ...(formatter !== undefined && { formatter }),
@@ -10195,7 +10735,7 @@ export class ModelApiSession implements AgentSession {
 
   // --- AgentSession ---
 
-  /** A proven host-origin write: aliases reread instead of retaining old fingerprints. */
+  /** A file changed outside the agent (M91 lane E): FileChanged, debounced and capped. */
   private async noteFileChanged(
     relativePath: string,
     reason: 'external-edit' | 'watcher',
@@ -10234,6 +10774,7 @@ export class ModelApiSession implements AgentSession {
     return this.hookReplies.get(turnId)
   }
 
+  /** A proven host-origin write: aliases reread instead of retaining old fingerprints. */
   public noteExternalEdit(file: EditedFile): void {
     if (this.isDisposed) {
       return
@@ -10560,6 +11101,22 @@ export class ModelApiSession implements AgentSession {
   /** Decline the prompt (M16): the tool resolves with no answers and tells the model so. */
   public cancelQuestions(userInputId: string): Promise<void> {
     return this.settleQuestion(userInputId, { kind: 'cancelled' })
+  }
+
+  /**
+   * Settles an elicitation form (M91 lane M): accept with validated values,
+   * or decline or cancel. An answer outside the requested schema is refused,
+   * and the form stays open; answering a settled form reports it as gone.
+   */
+  public settleElicitation(elicitationId: string, reply: ElicitationReply): Promise<void> {
+    if (!this.pendingElicitations.has(elicitationId)) {
+      for (const child of this.children.values()) {
+        if (child.session.pendingElicitations.has(elicitationId)) {
+          return child.session.settleElicitation(elicitationId, reply)
+        }
+      }
+    }
+    return this.settleElicitationForm(elicitationId, reply)
   }
 
   /** Explain instead of choosing (M46): the tool returns the text, as Muse Code's clarify does. */
@@ -11308,6 +11865,10 @@ export class ModelApiHost implements AgentHost {
 
   public constructor(private readonly deps: ModelApiHostDeps) {
     this.workspaceEdits = deps.workspaceEdits ?? new WorkspaceEdits()
+    // Elicitations outside any tool call have no session to ask: they are
+    // declined, and the pool declares the capability while this stands
+    // (M91 lane M). Each call carries its own session's route instead.
+    deps.mcpServers?.setElicitationHandler?.(() => Promise.resolve({ action: 'decline' as const }))
   }
 
   private async requireAccountId(): Promise<string> {

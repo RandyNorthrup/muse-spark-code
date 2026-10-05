@@ -1835,6 +1835,9 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     confirmContributorModel: isContributorModelAllowed,
     hookSettingsPath: museSettingsPath(museConfig()),
     isHooksEnabled: () => currentSettings().modelApiHooks,
+    hookHttpAllowedHosts: () => currentSettings().hookHttpAllowedHosts,
+    isHookNetworkAllowed: () =>
+      isIdeWebFetchOffered(vscode.workspace.isTrusted, currentSettings().sandboxNetwork),
     // Sessions survive the window (PLAN.md D14) in the workspace storage
     // directory; no folder open, no storage, no persistence.
     store:
@@ -1935,6 +1938,10 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     },
     noteReviewerUsage: (modelId, usage) => {
       paid.usage.addReviewerUsage(modelId, usage)
+    },
+    // M91 prompt/agent hook runs (D70): settled on the hookModels tally line.
+    noteHookModelUsage: (modelId, usage) => {
+      paid.usage.addHookModelUsage(modelId, usage)
     },
     // The command rules and permission profiles (M78), read at each call.
     permissionSettings: () => permissionSettingsOf(currentSettings()),

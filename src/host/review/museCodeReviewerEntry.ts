@@ -8,6 +8,17 @@
 import type { UiText } from '../../shared/l10n/en'
 import { setUiText } from '../../shared/l10n/text'
 import { MuseCodeReviewer, type MuseCodeReviewerDeps } from './museCodeReviewer'
+import { MuseCodeHookModels, type MuseCodeHookModelDeps } from './museCodeHookModels'
+
+/** One hidden hook session per window, in the existing Muse Code helper bundle. */
+export function createMuseCodeHookModels(
+  deps: MuseCodeHookModelDeps,
+  table: UiText,
+  locale: string,
+): MuseCodeHookModels {
+  setUiText(table, locale)
+  return new MuseCodeHookModels(deps)
+}
 
 /** The window's reviewer: one side session and one queue for every conversation. */
 export function createMuseCodeReviewer(

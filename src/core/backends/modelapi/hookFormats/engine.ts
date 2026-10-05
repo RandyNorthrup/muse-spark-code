@@ -30,26 +30,47 @@ import {
 import { applyTransform, toolClassOf, type TransformResult } from './transforms'
 
 const EVENT_NAME_SOURCE = '@event'
+// Path segments that reach or replace an object's prototype. A dotted path
+// holding one reads nothing and writes nothing (M91 lane W, semgrep
+// prototype-pollution-loop): the tables never name one, and a hook's output
+// that carries one is data, never a route to Object.prototype.
+const UNSAFE_PATH_KEYS: ReadonlySet<string> = new Set(['__proto__', 'constructor', 'prototype'])
+
+/** The record's own value at `key`; inherited and prototype keys read as absent. */
+function ownValue(value: unknown, key: string): unknown {
+  return !UNSAFE_PATH_KEYS.has(key) && isRecord(value) && Object.hasOwn(value, key)
+    ? value[key]
+    : undefined
+}
 
 export function pathValue(root: unknown, dotted: string): unknown {
   let current: unknown = root
   for (const key of dotted.split('.')) {
-    if (!isRecord(current)) return undefined
-    current = current[key]
+    const next = ownValue(current, key)
+    if (next === undefined) return undefined
+    current = next
   }
   return current
 }
 
-function setPath(target: Record<string, unknown>, dotted: string, item: unknown): void {
+/** Whether no segment of `dotted` names a prototype key. */
+export function isSafePath(dotted: string): boolean {
+  return dotted.split('.').every((key) => !UNSAFE_PATH_KEYS.has(key))
+}
+
+/** Sets `dotted` on `target`; an unsafe path writes nothing (`isSafePath`). */
+export function setPath(target: Record<string, unknown>, dotted: string, item: unknown): void {
+  if (!isSafePath(dotted)) return
   const keys = dotted.split('.')
   const last = keys.pop()
   if (last === undefined) return
   let current = target
   for (const key of keys) {
-    const next = current[key]
+    const next = ownValue(current, key)
     if (isRecord(next)) current = next
     else {
-      const created: Record<string, unknown> = {}
+      // A null prototype: the record built for stdin inherits nothing.
+      const created: Record<string, unknown> = Object.create(null) as Record<string, unknown>
       current[key] = created
       current = created
     }
@@ -121,11 +142,16 @@ function fieldResult(
   options: AdapterOptions | undefined,
 ): TransformResult {
   const candidate = sourceValue(spec, row, payload)
-  return applyTransform(spec.transform ?? 'copy', candidate, {
+  const result = applyTransform(spec.transform ?? 'copy', candidate, {
     payload,
     options,
     toolNames: row.toolNames,
   })
+  return result.kind === 'value' &&
+    spec.schema !== undefined &&
+    !spec.schema.safeParse(result.value).success
+    ? { kind: 'refused', reason: 'invalid source shape' }
+    : result
 }
 
 export function buildStdin(
@@ -142,15 +168,28 @@ export function buildStdin(
   const gated = contract.gate?.(payload, options)
   if (gated !== undefined) return gated
   const { row } = selection
+  const isBlocking =
+    row.result.blockCodes.length > 0 ||
+    row.result.blockFrom !== undefined ||
+    row.result.invalid === 'block' ||
+    row.result.otherExit === 'block' ||
+    row.result.rules.some((rule) => rule.kind === 'veto')
+  const refuse = (reason: string): ForeignStdinResult => ({
+    outcome: 'refused',
+    reason,
+    ...(isBlocking && { blockOperation: true }),
+  })
   const stdin: Record<string, unknown> = {}
   for (const spec of [...contract.common, ...row.fields]) {
     const result = fieldResult(spec, row, payload, options)
     const where = `${contract.vendor} ${row.vendor}: ${spec.to}`
-    if (result.kind === 'refused')
-      return { outcome: 'refused', reason: `${where}: ${result.reason}` }
+    if (result.kind === 'refused') return refuse(`${where}: ${result.reason}`)
     if (result.kind === 'absent') {
-      if (spec.required === true) return { outcome: 'refused', reason: `${where} is required` }
-    } else setPath(stdin, spec.to, result.value)
+      if (spec.required === true) return refuse(`${where} is required`)
+    } else {
+      if (!isSafePath(spec.to)) return refuse(`${where}: unsafe path`)
+      setPath(stdin, spec.to, result.value)
+    }
   }
   return { outcome: 'run', stdin: JSON.stringify(stdin) }
 }
@@ -249,7 +288,7 @@ function collect(
       if (typeof replaced === 'string' || isRecord(replaced))
         answer = { ...answer, replacement: { target: rule.target, value: replaced } }
     } else if (rule.kind === 'custom') {
-      const result = rule.apply(output)
+      const result = rule.apply(output, options)
       if (!result.ok) return { status: 'failed', reason: `${spec.label}: ${result.reason}` }
       answer = { ...answer, ...result.answer }
     }

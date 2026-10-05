@@ -59,7 +59,7 @@ const BUNDLES = {
   modelApi: { output: 'dist/modelApi.js', metafile: 'dist/meta/modelApi.json' },
   acp: { output: 'dist/acp.js', metafile: 'dist/meta-acp/acp.json' },
 }
-const DEFERRED_ONLY = ['reviewerEntry.ts']
+const DEFERRED_ONLY = ['reviewerEntry.ts', 'hookModelEntry.ts']
 // M91 lane W: the adapters for hooks imported in another agent's format (lane
 // P's contracts and engine), dist/foreignHooks.js, loaded the first time a
 // session holding one runs a hook.
@@ -77,6 +77,12 @@ const FOREIGN_HOOKS_ONLY = [
   'hookFormats/contracts/vscode.ts',
   'hookFormats/contracts/windsurf.ts',
 ]
+// M91: the hook and MCP-form runtime, dist/hookRuntime.js (lane E's
+// spark-hooks.json reader and dispatcher, lane H's typed handlers, lane M's
+// form checks), loaded the first time a session needs one of them. The
+// modules it re-exports stay LAZY_ONLY: dist/modelApi.js keeps their types,
+// field builders and constants, and esbuild leaves the runners out of it.
+const HOOK_RUNTIME_ONLY = ['hookRuntimeEntry.ts']
 // Files of type declarations only, which no bundle carries: lane P's contract
 // shapes, read by the adapters' compiler and never at run time.
 const TYPES_ONLY = new Set(['hookFormats/contract.ts'])
@@ -107,6 +113,11 @@ const DEFERRED = [
     metafile: 'dist/meta/foreignHooks.json',
     files: FOREIGN_HOOKS_ONLY.map((name) => `${MODEL_API_DIR}/${name}`),
   },
+  {
+    output: 'dist/hookRuntime.js',
+    metafile: 'dist/meta/hookRuntime.json',
+    files: HOOK_RUNTIME_ONLY.map((name) => `${MODEL_API_DIR}/${name}`),
+  },
 ]
 
 // The backend's files the activation bundle may carry, each with its reason.
@@ -136,6 +147,7 @@ const LAZY_ONLY = [
   'glob.ts',
   'goals.ts',
   'hooks.ts',
+  'hookHandlers.ts',
   'extensionHooks.ts',
   'instructions.ts',
   'mediaBudget.ts',
@@ -156,6 +168,9 @@ const LAZY_ONLY = [
   'verifyLoop.ts',
   'verifyTools.ts',
   'mcp/connection.ts',
+  // M91-M: MCP forms' types and log text load with the backend; their checks
+  // load with dist/hookRuntime.js, and the browser reuses value validation.
+  'mcp/elicitation.ts',
   'mcp/functions.ts',
   'mcp/http.ts',
   'mcp/pool.ts',
@@ -195,6 +210,7 @@ for (const name of onDisk) {
     Number(lazy.has(name)) +
     Number(DEFERRED_ONLY.includes(name)) +
     Number(FOREIGN_HOOKS_ONLY.includes(name)) +
+    Number(HOOK_RUNTIME_ONLY.includes(name)) +
     Number(TYPES_ONLY.has(name)) +
     Number(UNBUNDLED.has(name))
   if (lists !== 1) {
@@ -208,6 +224,7 @@ for (const name of [
   ...lazy,
   ...DEFERRED_ONLY,
   ...FOREIGN_HOOKS_ONLY,
+  ...HOOK_RUNTIME_ONLY,
   ...TYPES_ONLY,
   ...UNBUNDLED,
 ]) {
@@ -592,6 +609,12 @@ const TEXT_BLOCKS = [
     block: 'TAB_MODEL_TEXT',
     sentinels: ['tabSystem', 'tabUserTemplate'],
     readers: ['dist/tab.js'],
+  },
+  {
+    block: 'HOOK_MODEL_TEXT',
+    sentinels: ['hookPromptRole', 'hookAgentRole', 'hookAnswer'],
+    // Lane H's prompt and agent handlers run from the hook runtime (M91).
+    readers: ['dist/hookRuntime.js'],
   },
   {
     block: 'MODEL_API_MODEL_TEXT',

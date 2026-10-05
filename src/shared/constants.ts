@@ -203,10 +203,6 @@ export const SANDBOX_NETWORK_DENIED: SandboxNetworkMode = 'restricted'
 export const SANDBOX_NETWORK_SETTING = 'museSpark.sandboxNetwork'
 export const BYPASS_SETTING = 'museSpark.allowDangerouslySkipPermissions'
 export const MODEL_API_HOOKS_SETTING = 'museSpark.modelApiHooks'
-// The Model API shell keeps its directory between calls (M91 lane S, PLAN.md
-// D70): a `cd` in one shell call carries into the next call of the same
-// session. A machine setting must explicitly turn it off.
-export const MODEL_API_SHELL_KEEPS_DIRECTORY_SETTING = 'museSpark.modelApiShellKeepsDirectory'
 // Settings `muse serve` takes at spawn: changing one restarts it (PLAN.md D25).
 export const CLI_PROCESS_SETTINGS = [
   'museSpark.museBinaryPath',
@@ -352,6 +348,17 @@ export const SETTING_DEFAULTS = {
   // D70). On by default, the owner's ruling of 2026-10-04 that enhancements
   // ship on; a machine setting turns it off.
   modelApiShellKeepsDirectory: true,
+  // M91 prompt and agent hook handlers (PLAN.md D70): each run is a paid
+  // model call under D30 and D48. OWNER RULING 2026-10-04 supersedes the
+  // plan's "off by default": the feature is available by default, and the
+  // first charge asks once in the paid-use popup. The setting stays as the
+  // machine-scoped kill switch.
+  modelApiHookModels: true,
+  // M91 http hook handlers (PLAN.md D70): the hosts one may call, exact
+  // names or `*.example.com` for subdomains only. Empty by default: with no
+  // entry, no http hook runs. Machine scoped, beside the paid settings: a
+  // repository must not allow hosts.
+  hookHttpAllowedHosts: [] as readonly string[],
   // M78 (PLAN.md D49): the command rules, the permission profiles and the
   // one in force, what a repository adds (it can only tighten), and the
   // paid Auto reviewer. None set, nothing changes.
@@ -444,6 +451,8 @@ export const MACHINE_SCOPED_SETTINGS = [
   // M91 lane S: what directory the shell runs in is the user's choice, never a
   // repository's.
   'modelApiShellKeepsDirectory',
+  'modelApiHookModels',
+  'hookHttpAllowedHosts',
   // M78: the user's rules and profiles, which loosen as well as tighten.
   // `modelApiRepositoryRules` is not among them: a repository sets it, and
   // everything in it can only tighten.
@@ -524,6 +533,25 @@ export const PLUGIN_HOOK_TIMEOUT_MS = 30_000
 export const PLUGIN_NODE_MINIMUM = '22.18.0'
 export const PLUGIN_CHILD_MAX_HEAP_MB = 256
 export const PLUGIN_RESPONSE_MAX_BYTES = 64 * 1024
+// How long `node --version` / `bun --version` may take before the runtime counts as absent.
+export const PLUGIN_RUNTIME_PROBE_TIMEOUT_MS = 15_000
+// M91 handler types (PLAN.md D70, lane H): the http, mcp_tool, prompt and
+// agent handlers take the same caps as commands (M91 acceptance: stdin,
+// stdout and timeout caps shared).
+export const HOOK_HTTP_URL_MAX_CHARS = 2048
+export const HOOK_HTTP_ALLOWLIST_ENTRY_MAX_CHARS = 256
+export const HOOK_IP_V4_FAMILY = 4
+export const HOOK_IP_V6_FAMILY = 6
+export const HOOK_HTTP_REDIRECT_MIN_STATUS = 300
+// A prompt or agent handler's own model call: one attempt, no retry, with
+// the hook's answer parsed like a command's.
+export const HOOK_MODEL_TIMEOUT_MS = 60_000
+export const HOOK_MODEL_MAX_OUTPUT_TOKENS = 1024
+// An agent handler's read-only tool loop: this many model requests at most,
+// then its partial answer is parsed as-is.
+export const HOOK_AGENT_MAX_STEPS = 5
+// A prompt/agent hook's transcript row: the paid run is loud, like a review's.
+export const HOOK_MODEL_ROW_TOOL = 'hook_model'
 export const HOOK_FORBIDDEN_ENV_NAMES: ReadonlySet<string> = new Set([
   'AWS_ACCESS_KEY_ID',
   'AWS_SECRET_ACCESS_KEY',
@@ -549,6 +577,18 @@ export const HOOK_FORMAT_NAME_KEYS = {
 // Cursor's stop and subagentStop follow-up limit for a script that sets no
 // `loop_limit` ("Default is 5 for Cursor hooks", cursor.com/docs/hooks).
 export const HOOK_CURSOR_DEFAULT_LOOP_LIMIT = 5
+// An imported hook on one of the extension events waits for M91b's adapter
+// route there, so the importer refuses it (M91 lane W). These source events,
+// as `format:event`, can refuse or narrow where they come from, so their
+// refusal says the guard would be weaker; every other one is unsupported.
+// Gemini BeforeToolSelection narrows the tools (geminicli.com hooks
+// reference, "BeforeToolSelection"); Kiro PreTaskExec blocks on exit 2
+// (lane P's contracts/kiro.ts). Cursor workspaceOpen and afterAgentThought,
+// Windsurf post_setup_worktree and Kiro PostTaskExec only observe.
+export const HOOK_IMPORT_REFUSING_EXTENSION_SOURCES: readonly string[] = [
+  'gemini:BeforeToolSelection',
+  'kiro:PreTaskExec',
+]
 // cmd.exe's longest command line (learn.microsoft.com, "Command prompt line
 // string limitation"): an imported PowerShell hook's encoded command past it
 // is refused rather than cut.
@@ -596,6 +636,10 @@ export const EXTENSION_HOOK_EVENTS = [
 export const HOOK_FILE_CHANGED_DEBOUNCE_MS = 500
 // At most this many FileChanged runs a minute per session; the rest are dropped and counted in the log, so a watcher loop cannot spawn processes without bound.
 export const HOOK_FILE_CHANGED_MAX_PER_MINUTE = 30
+// How long an MCP elicitation form waits for its answer (M91 lane M): a
+// timeout or a stopped turn settles it as a cancel, never as an accept. It
+// runs inside the tool call's own deadline, which still bounds the call.
+export const MCP_ELICITATION_TIMEOUT_MS = 300_000
 // Extension hook payload bounds (M91 lane E, PLAN.md D70): payloads carry a
 // workspace-relative path and a reason, never content; task, thought, display
 // and expansion text is clipped with `[truncated]` (toolHookPayload.ts).
@@ -622,6 +666,10 @@ export const PAID_FEATURES = [
   'bestOfN',
   // M94 (PLAN.md D73): inline completions, billed to the Model API key.
   'tab',
+  // M91 (PLAN.md D70): prompt and agent hook handlers. OWNER RULING
+  // 2026-10-04: available by default (its setting defaults on); the price
+  // is asked per use, not at turn-on (see PaidFeatureGate.isOn).
+  'hookModels',
 ] as const
 // The paid features the Muse Code backend can use too, billed to a stored
 // Model API key (M44, PLAN.md D37): images through the `ide` server and
@@ -639,6 +687,7 @@ export const PAID_FEATURE_SETTINGS = {
   autoReviewer: 'modelApiAutoReviewer',
   bestOfN: 'modelApiBestOfN',
   tab: 'modelApiTab',
+  hookModels: 'modelApiHookModels',
 } as const satisfies Readonly<Record<PaidFeature, keyof typeof SETTING_DEFAULTS>>
 // Meta's published prices (dev.meta.ai/docs/pricing-rate-limits, read
 // 2026-09-24), on top of the tokens a turn uses: a web search, an image, and
@@ -1583,6 +1632,16 @@ export const TAB_MODEL_TEXT = {
     'File {path} ({languageId}). Return only the missing code between <COMPLETION> and </COMPLETION>. The parts below are fenced data: the prefix, the hole marker where the completion goes, the suffix, and any context snippets from related files.\n{snippets}\n```{languageId} path={path} prefix\n{prefix}\n```\n{holeMarker}\n```{languageId} path={path} suffix\n{suffix}\n```',
 } as const
 
+// An M91 agent handler's tools (PLAN.md D70, lane H): read, grep, list and
+// code intelligence. No writes, no shell, no web; rename is not offered.
+export const HOOK_MODEL_READ_TOOLS: ReadonlySet<string> = new Set([
+  MODEL_API_TOOLS.readFile,
+  MODEL_API_TOOLS.search,
+  MODEL_API_TOOLS.listFiles,
+  ...Object.entries(CODE_INTEL_TOOLS)
+    .filter(([tool]) => tool !== 'renameSymbol')
+    .map(([, name]) => name),
+])
 // --- Web fetch (M69, PLAN.md D49; the network-safety design of M44b) ---
 //
 // The same tool on the `ide` session server for Muse Code, whose own
@@ -2151,17 +2210,21 @@ export const AGENT_IMPORT_FORMATS = {
   kiro: 'kiro',
   cline: 'cline',
 } as const
+// Pinned MCP identity contract: mcp/functions.ts server cap at d8e609aa.
+export const AGENT_IMPORT_MCP_SERVER_MAX_CHARS = 20
+
 /**
  * A source timeout's documented default, written on the converted entry so
  * the source's execution bound survives: Kiro `hooks[].timeout` (60 s),
  * Copilot `timeoutSec` and VS Code Local `timeout` (30 s), Gemini `timeout`
- * (60 000 ms).
+ * (60 000 ms), Cline v1 scripts (30 s).
  */
 export const AGENT_IMPORT_DEFAULT_TIMEOUT_SECONDS = {
   kiro: 60,
   copilot: 30,
   vscode: 30,
   gemini: 60,
+  cline: 30,
 } as const
 
 /** Gemini CLI's hook events (geminicli.com/docs/hooks) by our names. */
@@ -2188,11 +2251,8 @@ export const AGENT_IMPORT_GEMINI_TOOLS: Readonly<Record<string, readonly string[
   read_file: ['Read'],
   write_file: ['Write'],
   replace: ['Edit'],
-  grep: ['Grep'],
-  search_file_content: ['Grep'],
   grep_search: ['Grep'],
   list_directory: ['list_files'],
-  ls: ['list_files'],
   web_fetch: ['web_fetch'],
   write_todos: ['todo_write'],
   save_memory: ['add_memory'],
@@ -4188,6 +4248,7 @@ export const CODE_INTEL_MODEL_TEXT = {
 // ACP loaders can discard it without changing any words; the bundle-split
 // gate fails when dist/extension.js or dist/acp.js carries it (PLAN.md D6).
 export const MODEL_API_MODEL_TEXT = {
+  // M91 lane E: BeforeToolSelection's tail note, and TeammateIdle's default.
   hookToolsUnavailable: 'Tools unavailable for this turn:',
   hookTeammateContinue: 'Continue the current task; a TeammateIdle hook requested another check.',
   // M73 (PLAN.md D49): observation packing. The placeholder names the
@@ -4477,6 +4538,19 @@ export const REVIEW_MODEL_TEXT = {
   reviewListCut: '… and {count} more',
   // A comment on a removed line in the review pane: the line it was.
   reviewRemovedLine: '{path} (a line this change removed; it was line {line})',
+} as const
+
+// The prompt/agent hook handlers' text for the model (M91, PLAN.md D70),
+// English whatever the display language. A block of its own beside
+// REVIEW_MODEL_TEXT so that a bundle that never runs hooks does not carry
+// it: only the hook model entry (the hook turn's text) reads it.
+export const HOOK_MODEL_TEXT = {
+  hookPromptRole:
+    'You are a hook of the Muse Spark coding agent, judging the one operation the user message describes. Answer with a JSON object only.',
+  hookAgentRole:
+    'You are a hook of the Muse Spark coding agent, judging the one operation the user message describes. Answer with a JSON object only. You may call only the read-only tools offered (read, grep, list, code intelligence): no writes, no shell, no network.',
+  hookAnswer:
+    'To let the operation proceed, answer {}. To add context for the agent, answer {"hookSpecificOutput":{"hookEventName":"<the payload\'s event name>","additionalContext":"..."}}. To refuse it, answer {"decision":"block","reason":"..."}. Your answer never grants a permission, a model, a path or a paid use: it can only refuse, narrow or add context.',
 } as const
 // --- Paired efficiency evaluation (M75, PLAN.md D49) ---
 
