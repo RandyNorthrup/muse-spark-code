@@ -12,17 +12,31 @@ import { HTTP_STATUS, OAUTH_LOOPBACK_TIMEOUT_MS, UI_TEXT } from '../../shared/co
 const LOOPBACK_HOST = '127.0.0.1'
 const CALLBACK_PATH = '/callback'
 
+/**
+ * What the provider's callback carried (M101 BYO 12): the code plus every
+ * callback parameter, so a sign-in that answers with more than a code
+ * (ChatGPT's plan sign-in) keeps what it needs for the exchange and the
+ * refresh. The waiter takes no abort signal: a token refresh runs outside
+ * the turn's abort, and stopping a turn must never break a sign-in.
+ */
+export interface OAuthCallback {
+  /** The `code` the exchange sends. */
+  readonly code: string
+  /** Every query parameter the callback carried, including `code`. */
+  readonly params: Readonly<Record<string, string>>
+}
+
 export interface OAuthLoopback {
   /** The host the server is bound to (always 127.0.0.1). */
   readonly bindHost: string
   /** The redirect URI to register (`http://127.0.0.1:<port>/callback`). */
   readonly redirectUri: string
   /**
-   * The provider's code, once. Rejects on a wrong `state`, a provider
+   * The provider's callback, once. Rejects on a wrong `state`, a provider
    * refusal, the ten-minute end, or `close`. The server is closed however
    * this settles.
    */
-  waitForCode(): Promise<string>
+  waitForCode(): Promise<OAuthCallback>
   /** Stops listening; a pending `waitForCode` rejects. Idempotent. */
   close(): void
 }
@@ -42,12 +56,12 @@ export async function startOAuthLoopback(
   timeoutMs: number = OAUTH_LOOPBACK_TIMEOUT_MS,
 ): Promise<OAuthLoopback> {
   const server: Server = createServer()
-  let settle: ((code: string) => void) | undefined
+  let settle: ((callback: OAuthCallback) => void) | undefined
   let rejectWait: ((error: Error) => void) | undefined
   let isSettled = false
   let timer: ReturnType<typeof setTimeout> | undefined
 
-  const finish = (outcome: { readonly code: string } | { readonly error: Error }): void => {
+  const finish = (outcome: { readonly callback: OAuthCallback } | { readonly error: Error }): void => {
     if (isSettled) {
       return
     }
@@ -56,9 +70,12 @@ export async function startOAuthLoopback(
       clearTimeout(timer)
       timer = undefined
     }
+    // No keep-alive connection survives the one use: without this a
+    // browser-held socket answers the next callback as already settled.
+    server.closeAllConnections()
     server.close()
-    if ('code' in outcome) {
-      settle?.(outcome.code)
+    if ('callback' in outcome) {
+      settle?.(outcome.callback)
     } else {
       rejectWait?.(outcome.error)
     }
@@ -67,6 +84,18 @@ export async function startOAuthLoopback(
   }
 
   server.on('request', (request: IncomingMessage, response: ServerResponse) => {
+    // The settle destroys every connection, so it waits until this answer
+    // has flushed; a socket that dies first still settles the waiter.
+    const settleOnceAnswered = (outcome:
+      | { readonly callback: OAuthCallback }
+      | { readonly error: Error }): void => {
+      response.once('finish', () => {
+        finish(outcome)
+      })
+      response.once('close', () => {
+        finish(outcome)
+      })
+    }
     if (isSettled) {
       answer(response, HTTP_STATUS.badRequest, UI_TEXT.oauthCallbackDone)
       return
@@ -85,23 +114,27 @@ export async function startOAuthLoopback(
     const refused = url.searchParams.get('error')
     if (refused !== null) {
       const detail = url.searchParams.get('error_description') ?? refused
-      finish({ error: new Error(`The provider refused the connection: ${detail}`) })
       answer(response, HTTP_STATUS.badRequest, UI_TEXT.oauthCallbackDone)
+      settleOnceAnswered({ error: new Error(`The provider refused the connection: ${detail}`) })
       return
     }
     if (url.searchParams.get('state') !== state) {
-      finish({ error: new Error('The callback carried the wrong state') })
       answer(response, HTTP_STATUS.badRequest, UI_TEXT.oauthCallbackDone)
+      settleOnceAnswered({ error: new Error('The callback carried the wrong state') })
       return
     }
     const code = url.searchParams.get('code')
     if (code === null || code === '') {
-      finish({ error: new Error('The callback carried no code') })
       answer(response, HTTP_STATUS.badRequest, UI_TEXT.oauthCallbackDone)
+      settleOnceAnswered({ error: new Error('The callback carried no code') })
       return
     }
-    finish({ code })
+    const params: Record<string, string> = {}
+    url.searchParams.forEach((value, name) => {
+      params[name] = value
+    })
     answer(response, HTTP_STATUS.ok, UI_TEXT.oauthCallbackDone)
+    settleOnceAnswered({ callback: { code, params } })
   })
 
   await new Promise<void>((resolve, reject) => {
@@ -122,7 +155,7 @@ export async function startOAuthLoopback(
     bindHost: LOOPBACK_HOST,
     redirectUri,
     waitForCode: () =>
-      new Promise<string>((resolve, reject) => {
+      new Promise<OAuthCallback>((resolve, reject) => {
         if (isSettled) {
           reject(new Error('The OAuth callback already settled'))
           return

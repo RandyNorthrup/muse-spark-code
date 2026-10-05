@@ -27,7 +27,7 @@ function loopback(code: string): OAuthLoopback {
   return {
     bindHost: '127.0.0.1',
     redirectUri: 'http://127.0.0.1:9/callback',
-    waitForCode: () => Promise.resolve(code),
+    waitForCode: () => Promise.resolve({ code, params: { code } }),
     close: () => undefined,
   }
 }

@@ -102,7 +102,7 @@ export async function connectOpenRouterAccount(
           redirectUri,
         }),
       )
-      code = await server.waitForCode()
+      code = (await server.waitForCode()).code
     } finally {
       server.close()
     }
