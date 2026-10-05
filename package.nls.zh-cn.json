@@ -122,5 +122,6 @@
   "config.legalHeaderPolicy.description": "用于法律扫描的版权与 SPDX 头检查：必需标记每个缺少匹配头的项目自有源文件，可选仅标记与检测到的项目风格或其 REUSE 声明相矛盾的头，关闭则跳过头检查。默认为可选；生成的文件始终排除在外。",
   "config.legalHeaderPolicy.enumDescriptions.required": "每个项目自有源文件都需要匹配的版权与 SPDX 头。",
   "config.legalHeaderPolicy.enumDescriptions.optional": "仅与检测到的项目风格或其 REUSE 声明相矛盾的头才算作发现。默认值。",
-  "config.legalHeaderPolicy.enumDescriptions.off": "跳过头检查；报告中会说明。"
+  "config.legalHeaderPolicy.enumDescriptions.off": "跳过头检查；报告中会说明。",
+  "command.legalScan.title": "法律扫描"
 }

@@ -2358,7 +2358,7 @@ export const EN = {
   // number; every refusal names why no write happened.
   legalReportFindings: 'Legal findings',
   legalFixSelect: 'Fix {id}',
-  legalSelectedCount: '{count} selected',
+  legalSelectedCount: forms({ one: '{count} selected', other: '{count} selected' }),
   legalFixAllSafe: 'Fix all safe ones',
   legalPreviewFixes: 'Preview fixes',
   legalFixPreviewTitle: 'Fix preview',

@@ -122,5 +122,6 @@
   "config.legalHeaderPolicy.description": "Copyright- und SPDX-Headerprüfungen für den Legal-Scan: „Erforderlich“ meldet jede projekteigene Quelldatei ohne passenden Header, „Optional“ nur einen Header, der dem erkannten Projektstil oder seinen REUSE-Angaben widerspricht, und „Aus“ überspringt die Headerprüfungen. Standard ist „Optional“; generierte Dateien sind immer ausgenommen.",
   "config.legalHeaderPolicy.enumDescriptions.required": "Jede projekteigene Quelldatei braucht einen passenden Copyright- und SPDX-Header.",
   "config.legalHeaderPolicy.enumDescriptions.optional": "Nur ein Header, der dem erkannten Projektstil oder seinen REUSE-Angaben widerspricht, ist ein Befund. Die Standardeinstellung.",
-  "config.legalHeaderPolicy.enumDescriptions.off": "Headerprüfungen werden übersprungen; der Bericht weist darauf hin."
+  "config.legalHeaderPolicy.enumDescriptions.off": "Headerprüfungen werden übersprungen; der Bericht weist darauf hin.",
+  "command.legalScan.title": "Legal-Scan"
 }

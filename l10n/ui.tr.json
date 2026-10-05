@@ -1881,7 +1881,10 @@
   "legalScanNoDistribution": "Tarama tamamlanamadı, bu nedenle dağıtım varsayılmadı.",
   "legalReportFindings": "Yasal bulgular",
   "legalFixSelect": "{id} öğesini düzelt",
-  "legalSelectedCount": "{count} seçili",
+  "legalSelectedCount": {
+    "one": "{count} seçili",
+    "other": "{count} seçili"
+  },
   "legalFixAllSafe": "Tüm güvenli olanları düzelt",
   "legalPreviewFixes": "Düzeltmeleri önizle",
   "legalFixPreviewTitle": "Düzeltme önizlemesi",

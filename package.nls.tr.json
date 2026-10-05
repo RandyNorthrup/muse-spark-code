@@ -122,5 +122,6 @@
   "config.legalHeaderPolicy.description": "Yasal tarama için telif hakkı ve SPDX başlığı denetimleri: gerekli, eşleşen başlığı olmayan her projeye ait kaynak dosyayı işaretler, isteğe bağlı yalnızca algılanan proje stiliyle veya REUSE bildirimleriyle çelişen başlığı işaretler, kapalı ise başlık denetimlerini atlar. Varsayılan isteğe bağlıdır; oluşturulan dosyalar her zaman hariç tutulur.",
   "config.legalHeaderPolicy.enumDescriptions.required": "Projeye ait her kaynak dosyanın eşleşen bir telif hakkı ve SPDX başlığı olmalıdır.",
   "config.legalHeaderPolicy.enumDescriptions.optional": "Yalnızca algılanan proje stiliyle veya REUSE bildirimleriyle çelişen başlık bulgudur. Varsayılan değer.",
-  "config.legalHeaderPolicy.enumDescriptions.off": "Başlık denetimleri atlanır; rapor bunu belirtir."
+  "config.legalHeaderPolicy.enumDescriptions.off": "Başlık denetimleri atlanır; rapor bunu belirtir.",
+  "command.legalScan.title": "Yasal tarama"
 }

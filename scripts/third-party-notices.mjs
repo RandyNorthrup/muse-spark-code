@@ -32,6 +32,7 @@ const METAFILE_DIR = path.join('dist', 'meta')
 const ACP_METAFILES = [
   path.join('dist', 'meta-acp', 'acp.json'),
   path.join(METAFILE_DIR, 'modelApi.json'),
+  path.join(METAFILE_DIR, 'legalScan.json'),
   path.join(METAFILE_DIR, 'reviewer.json'),
   path.join(METAFILE_DIR, 'searchWorker.json'),
   path.join(METAFILE_DIR, 'pageWorker.json'),
@@ -190,6 +191,12 @@ const metafiles =
     : ACP_METAFILES
 const problems = []
 const packages = shippedPackageDirs(metafiles).map((dir) => describePackage(dir, problems))
+packages.push({
+  name: 'SPDX identifier data (spdx-license-ids 3.0.24; spdx-exceptions 2.5.0)',
+  licence: 'CC0-1.0 / CC-BY-3.0',
+  url: 'https://github.com/kemitchell/spdx-exceptions.json',
+  text: normalise(readFileSync('src/core/legal/data/NOTICE.md', 'utf8')),
+})
 if (acpOutput === undefined) {
   packages.push({
     name: 'high-quality-projects-skill',

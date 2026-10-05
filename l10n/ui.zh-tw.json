@@ -1814,7 +1814,9 @@
   "legalScanNoDistribution": "掃描未完成，因此未假設任何散佈。",
   "legalReportFindings": "法律問題",
   "legalFixSelect": "修復 {id}",
-  "legalSelectedCount": "已選取 {count} 項",
+  "legalSelectedCount": {
+    "other": "已選取 {count} 項"
+  },
   "legalFixAllSafe": "修復所有安全的項目",
   "legalPreviewFixes": "預覽修復",
   "legalFixPreviewTitle": "修復預覽",

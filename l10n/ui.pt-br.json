@@ -1948,7 +1948,11 @@
   "legalScanNoDistribution": "A verificação não foi concluída, portanto nenhuma distribuição foi presumida.",
   "legalReportFindings": "Achados legais",
   "legalFixSelect": "Corrigir {id}",
-  "legalSelectedCount": "{count} selecionados",
+  "legalSelectedCount": {
+    "one": "{count} selecionado",
+    "many": "{count} selecionados",
+    "other": "{count} selecionados"
+  },
   "legalFixAllSafe": "Corrigir todos os seguros",
   "legalPreviewFixes": "Prévia das correções",
   "legalFixPreviewTitle": "Prévia da correção",

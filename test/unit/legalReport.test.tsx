@@ -73,7 +73,7 @@ const RESULT: LegalScanResult = {
   dataVersion: '2026-10-04',
   scope: '',
   distribution: 'source checkout, undistributed',
-  exclusions: [],
+  exclusions: ['dist/generated.js'],
   incompleteChecks: ['private registry names were not queried'],
   findings: [HEADER, LICENSE_PROJECT, DEP_BLOCKED, OUTSIDE],
 }
@@ -132,6 +132,9 @@ describe('the legal report (M97 lane W)', () => {
   it('opens on the host report with the disclaimer, evidence and fixability', () => {
     const { postMessage, dialog } = openReport()
     expect(within(dialog).getByText(UI_TEXT.legalScanDisclaimer)).toBeDefined()
+    expect(within(dialog).getByText('Distribution: source checkout, undistributed')).toBeDefined()
+    expect(within(dialog).getByText('Excluded: dist/generated.js')).toBeDefined()
+    expect(within(dialog).getAllByText('Confidence: 90%')).toHaveLength(2)
     expect(within(dialog).getByText('4 findings')).toBeDefined()
     expect(within(dialog).getByText(UI_TEXT.legalSeverities.blocker)).toBeDefined()
     expect(within(dialog).getByText('The file has no copyright header.')).toBeDefined()

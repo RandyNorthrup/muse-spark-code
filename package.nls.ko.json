@@ -122,5 +122,6 @@
   "config.legalHeaderPolicy.description": "법률 검사를 위한 저작권 및 SPDX 헤더 검사: 필수 값은 일치하는 헤더가 없는 모든 프로젝트 소유 소스 파일을 표시하고, 선택 값은 감지된 프로젝트 스타일이나 REUSE 선언에 어긋나는 헤더만 표시하며, 끄기 값은 헤더 검사를 건너뜁니다. 기본값은 선택이며, 생성된 파일은 항상 제외됩니다.",
   "config.legalHeaderPolicy.enumDescriptions.required": "프로젝트 소유의 모든 소스 파일에는 일치하는 저작권 및 SPDX 헤더가 필요합니다.",
   "config.legalHeaderPolicy.enumDescriptions.optional": "감지된 프로젝트 스타일이나 REUSE 선언에 어긋나는 헤더만 발견 사항입니다. 기본값입니다.",
-  "config.legalHeaderPolicy.enumDescriptions.off": "헤더 검사를 건너뜁니다. 보고서에 그 사실이 표시됩니다."
+  "config.legalHeaderPolicy.enumDescriptions.off": "헤더 검사를 건너뜁니다. 보고서에 그 사실이 표시됩니다.",
+  "command.legalScan.title": "법률 검사"
 }

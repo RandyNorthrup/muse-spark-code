@@ -63,6 +63,33 @@ function manager(workspaceRoot: string | undefined) {
 }
 
 describe('ModelApiBackendManager', () => {
+  it('forwards the scanner only to the workspace host, never a best-of-N worktree', async () => {
+    const create = vi.spyOn(modelApiEntry, 'createModelApiHost')
+    const api = fakeModelApi()
+    const legalScan = vi.fn(() => Promise.reject(new Error('scan not requested')))
+    const manager = new ModelApiBackendManager(
+      fakeManagerDeps(api, new FakeLogOutputChannel(), {
+        workspaceRoot: '/ws',
+        store: undefined,
+        legalScan,
+        bundlePath: 'src/host/backend/modelApiEntry.ts',
+        loadBundle: () => modelApiEntry,
+      }),
+    )
+    try {
+      await manager.ensureHost()
+      expect(create.mock.calls.at(-1)?.[0].host.legalScan).toBe(legalScan)
+      const attempt = await manager.buildAttemptHost('/ws-trial', () => undefined)
+      expect(create.mock.calls.at(-1)?.[0].host.legalScan).toBeUndefined()
+      await attempt.close()
+      expect(api.responseBodies()).toEqual([])
+      expect(legalScan).not.toHaveBeenCalled()
+    } finally {
+      await manager.dispose()
+      create.mockRestore()
+    }
+  })
+
   it('holds a manual revert across lazy startup and a same-id replacement without creating an own round', async () => {
     const m = manager('/ws')
     const entered = Promise.withResolvers<undefined>()

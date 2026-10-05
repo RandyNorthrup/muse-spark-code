@@ -122,5 +122,6 @@
   "config.legalHeaderPolicy.description": "Kontrole nagłówków praw autorskich i SPDX na potrzeby kontroli prawnej: wymagane zgłasza każdy własny plik źródłowy bez pasującego nagłówka, opcjonalne tylko nagłówek sprzeczny z wykrytym stylem projektu lub jego deklaracjami REUSE, a wyłączone pomija kontrole nagłówków. Domyślnie opcjonalne; pliki generowane są zawsze wykluczone.",
   "config.legalHeaderPolicy.enumDescriptions.required": "Każdy własny plik źródłowy potrzebuje pasującego nagłówka praw autorskich i SPDX.",
   "config.legalHeaderPolicy.enumDescriptions.optional": "Ustaleniem jest tylko nagłówek sprzeczny z wykrytym stylem projektu lub jego deklaracjami REUSE. Wartość domyślna.",
-  "config.legalHeaderPolicy.enumDescriptions.off": "Kontrole nagłówków są pomijane; raport to odnotowuje."
+  "config.legalHeaderPolicy.enumDescriptions.off": "Kontrole nagłówków są pomijane; raport to odnotowuje.",
+  "command.legalScan.title": "Kontrola prawna"
 }

@@ -122,5 +122,6 @@
   "config.legalHeaderPolicy.description": "Comprobaciones de encabezados de copyright y SPDX para el análisis legal: obligatorio marca cada archivo fuente propio sin encabezado correspondiente, opcional solo un encabezado que contradiga el estilo detectado del proyecto o sus declaraciones REUSE, y desactivado omite estas comprobaciones. Opcional es el valor predeterminado; los archivos generados siempre se excluyen.",
   "config.legalHeaderPolicy.enumDescriptions.required": "Cada archivo fuente propio necesita un encabezado de copyright y SPDX correspondiente.",
   "config.legalHeaderPolicy.enumDescriptions.optional": "Solo un encabezado que contradiga el estilo detectado del proyecto o sus declaraciones REUSE es un hallazgo. El valor predeterminado.",
-  "config.legalHeaderPolicy.enumDescriptions.off": "Las comprobaciones de encabezados se omiten; el informe lo indica."
+  "config.legalHeaderPolicy.enumDescriptions.off": "Las comprobaciones de encabezados se omiten; el informe lo indica.",
+  "command.legalScan.title": "Análisis legal"
 }

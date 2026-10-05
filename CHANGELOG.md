@@ -47,20 +47,26 @@ happened, not what was planned; superseded entries are kept.
 
 ### Added
 
-- **`/legal` runs the read-only legal scan on both backends (M97, lane B).**
-  The prompt and the slash palette offer `/legal` for the whole workspace or
-  a named file subset; the host runs the deterministic scanner and posts the
-  report (rendered by lane W), never starting a backend, a model turn, a
-  write, a command or an install. The Model API backend offers a native
-  `legal_scan` tool (a read in every mode) and Muse Code gets
-  `mcp__ide__legalScan` on the `ide` server; both refuse write/exec attempts
-  through strict arguments, honour workspace trust and cancellation, and
-  validate the result. On a live Muse Code conversation the scan holds Plan
-  mode through M70's hold (restored only while it still owns it). A bundled
-  `legal` skill ships beside the pinned upstream package through D68's
-  loading/install mechanism; a user skill with the same name shadows only
-  its text. The scanner itself arrives with lanes S/R; until then the scan
-  refuses with the installed unavailable words.
+- **Integrated the M97 legal-scan candidate.** `/legal`, its slash-palette
+  action, the native Model API tool, Muse Code's read-only `ide` tool and the
+  ACP package's top-level `legal` command now load the real scanner from
+  `dist/legalScan.js`. Manifests/locks, local license evidence, distribution
+  notices, SPDX expressions, headers and asset/source provenance are examined
+  without a model, network, writes, builds or installs. The report shows
+  distribution assumptions and exclusions, with localized percentage formatting.
+  The Model API manager forwards the scanner only to its workspace host.
+- Packaged the pinned SPDX identifier data, provenance and attribution in the
+  VSIX and ACP package, and added a 150 KiB lazy-scanner cap from the lane-S
+  measurement plus D6's margin. Existing caps are unchanged. Regenerated
+  third-party notices and the host API record from the integrated build.
+- Added the translated command-palette contribution and real-scanner adapter
+  regressions. Fixed merged duplicate constants, an optional-options test type
+  and incomplete logger doubles without weakening gates.
+- Documented the candidate's limits. The selected-fix applier, requested
+  Markdown export, scanner-prose translations, enrichment consent/network
+  review, optional explanations and installed/Windows certification remain
+  open. Headless uses top-level `legal` and treats `should-fix` as exit 1;
+  JSON still needs the disclaimer field. The scan is not a legal certificate.
 
 ## [0.12.1] - 2026-10-04
 

@@ -231,6 +231,11 @@
         "command": "museSpark.removeBundledSkills",
         "title": "%command.removeBundledSkills.title%",
         "category": "%command.category%"
+      },
+      {
+        "command": "museSpark.legalScan",
+        "title": "%command.legalScan.title%",
+        "category": "%command.category%"
       }
     ],
     "keybindings": [
@@ -322,6 +327,10 @@
         },
         {
           "command": "museSpark.stopBackgroundTasks",
+          "when": "activeWebviewPanelId == 'museSpark.chatPanel' || view.museSpark.chatView.visible"
+        },
+        {
+          "command": "museSpark.legalScan",
           "when": "activeWebviewPanelId == 'museSpark.chatPanel' || view.museSpark.chatView.visible"
         }
       ],
@@ -969,7 +978,7 @@
     "quality": "run-s quality:gates test:a11y security:secrets security:sast",
     "quality:ci": "run-s quality:gates test:a11y test:integration",
     "vscode:prepublish": "npm run build",
-    "package": "vsce package --no-dependencies",
+    "package": "vsce package --no-dependencies && node scripts/compress-vsix.mjs",
     "package:acp": "node scripts/build.mjs --production && node scripts/exec-schema.mjs --check && node scripts/package-acp.mjs",
     "images": "node scripts/render-images.mjs",
     "prepare": "husky",

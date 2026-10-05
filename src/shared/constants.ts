@@ -23,6 +23,7 @@ export const COMMAND_IDS = {
   insertMentionReference: 'museSpark.insertMentionReference',
   toggleFocusView: 'museSpark.toggleFocusView',
   toggleThinking: 'museSpark.toggleThinking',
+  legalScan: 'museSpark.legalScan',
   setUpSandbox: 'museSpark.setUpSandbox',
   showLogs: 'museSpark.showLogs',
   diagnostics: 'museSpark.diagnostics',

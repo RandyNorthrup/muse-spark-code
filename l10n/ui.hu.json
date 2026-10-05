@@ -1881,7 +1881,10 @@
   "legalScanNoDistribution": "A vizsgálat nem fejeződött be, ezért nincs feltételezett terjesztés.",
   "legalReportFindings": "Jogi megállapítások",
   "legalFixSelect": "{id} javítása",
-  "legalSelectedCount": "{count} kiválasztva",
+  "legalSelectedCount": {
+    "one": "{count} kiválasztva",
+    "other": "{count} kiválasztva"
+  },
   "legalFixAllSafe": "Az összes biztonságos javítása",
   "legalPreviewFixes": "Javítások előnézete",
   "legalFixPreviewTitle": "Javítási előnézet",

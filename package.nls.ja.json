@@ -122,5 +122,6 @@
   "config.legalHeaderPolicy.description": "ライセンススキャン向けの著作権・SPDX ヘッダーチェック: 必須は対応するヘッダーのないプロジェクト所有のソースファイルすべてを指摘し、任意は検出したプロジェクト様式や REUSE 宣言に反するヘッダーのみを指摘し、オフはヘッダーチェックを省略します。既定は任意で、生成ファイルは常に除外されます。",
   "config.legalHeaderPolicy.enumDescriptions.required": "プロジェクト所有の各ソースファイルに対応する著作権・SPDX ヘッダーが必要です。",
   "config.legalHeaderPolicy.enumDescriptions.optional": "検出したプロジェクト様式や REUSE 宣言に反するヘッダーのみが検出事項です。既定値です。",
-  "config.legalHeaderPolicy.enumDescriptions.off": "ヘッダーチェックを省略します。レポートにその旨を記載します。"
+  "config.legalHeaderPolicy.enumDescriptions.off": "ヘッダーチェックを省略します。レポートにその旨を記載します。",
+  "command.legalScan.title": "ライセンススキャン"
 }

@@ -302,6 +302,12 @@ const BUNDLED_SKILLS = {
 // The Model API backend keeps its own copy of code intelligence.
 const ON_FIRST_USE = [
   {
+    output: 'dist/legalScan.js',
+    metafile: 'dist/meta/legalScan.json',
+    use: 'the first legal scan',
+    files: ['src/host/ide/legalScanEntry.ts'],
+  },
+  {
     output: 'dist/codeIntel.js',
     metafile: 'dist/meta/codeIntel.json',
     use: 'the first code intelligence call',
@@ -498,11 +504,15 @@ const legalScannerFiles = existsSync('src/core/legal')
       .map((name) => `src/core/legal/${String(name).split(path.sep).join('/')}`)
       .filter((name) => name.endsWith('.ts'))
   : []
+const legalScanInputs = inputsOf(ON_FIRST_USE[0])
 for (const file of legalScannerFiles) {
-  if (activation.has(file)) {
-    problems.push(
-      `${BUNDLES.activation.output} carries ${file}, which loads only with the legal scan`,
-    )
+  // finding.ts exports only an erased type; the barrel can also be erased.
+  if (!legalScanInputs.has(file) && !['index.ts', 'finding.ts'].includes(path.basename(file)))
+    problems.push(`dist/legalScan.js no longer carries ${file}`)
+  for (const bundle of [BUNDLES.activation, BUNDLES.modelApi, BUNDLES.acp]) {
+    if (inputsOf(bundle).has(file)) {
+      problems.push(`${bundle.output} carries ${file}, which loads only with the legal scan`)
+    }
   }
 }
 

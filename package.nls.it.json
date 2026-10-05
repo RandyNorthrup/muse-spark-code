@@ -122,5 +122,6 @@
   "config.legalHeaderPolicy.description": "Controlli delle intestazioni di copyright e SPDX per l’analisi legale: obbligatorio segnala ogni file sorgente del progetto senza intestazione corrispondente, facoltativo solo un’intestazione che contraddice lo stile rilevato del progetto o le sue dichiarazioni REUSE, e disattivato ignora questi controlli. Il valore predefinito è facoltativo; i file generati sono sempre esclusi.",
   "config.legalHeaderPolicy.enumDescriptions.required": "Ogni file sorgente del progetto deve avere un’intestazione di copyright e SPDX corrispondente.",
   "config.legalHeaderPolicy.enumDescriptions.optional": "Solo un’intestazione che contraddice lo stile rilevato del progetto o le sue dichiarazioni REUSE è un rilievo. Il valore predefinito.",
-  "config.legalHeaderPolicy.enumDescriptions.off": "I controlli delle intestazioni vengono ignorati; il rapporto lo segnala."
+  "config.legalHeaderPolicy.enumDescriptions.off": "I controlli delle intestazioni vengono ignorati; il rapporto lo segnala.",
+  "command.legalScan.title": "Analisi legale"
 }

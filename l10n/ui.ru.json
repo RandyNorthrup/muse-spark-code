@@ -2015,7 +2015,12 @@
   "legalScanNoDistribution": "Сканирование не завершено, поэтому распространение не предполагалось.",
   "legalReportFindings": "Юридические замечания",
   "legalFixSelect": "Исправить {id}",
-  "legalSelectedCount": "Выбрано: {count}",
+  "legalSelectedCount": {
+    "one": "Выбрано: {count}",
+    "few": "Выбрано: {count}",
+    "many": "Выбрано: {count}",
+    "other": "Выбрано: {count}"
+  },
   "legalFixAllSafe": "Исправить все безопасные",
   "legalPreviewFixes": "Предпросмотр исправлений",
   "legalFixPreviewTitle": "Предпросмотр исправления",

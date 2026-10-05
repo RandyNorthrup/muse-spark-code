@@ -2015,7 +2015,12 @@
   "legalScanNoDistribution": "Skanowanie nie zostało ukończone, więc nie przyjęto żadnej dystrybucji.",
   "legalReportFindings": "Ustalenia prawne",
   "legalFixSelect": "Napraw {id}",
-  "legalSelectedCount": "Wybrano: {count}",
+  "legalSelectedCount": {
+    "one": "Wybrano: {count}",
+    "few": "Wybrano: {count}",
+    "many": "Wybrano: {count}",
+    "other": "Wybrano: {count}"
+  },
   "legalFixAllSafe": "Napraw wszystkie bezpieczne",
   "legalPreviewFixes": "Podgląd poprawek",
   "legalFixPreviewTitle": "Podgląd poprawki",

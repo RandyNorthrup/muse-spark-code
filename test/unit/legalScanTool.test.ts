@@ -48,7 +48,7 @@ function deps(overrides?: Partial<IdeLegalScanDeps>): {
         calls.push(input)
         return Promise.resolve(result())
       },
-      log: { info: vi.fn(), warn: vi.fn(), error: vi.fn() },
+      log: { trace: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() },
       ...overrides,
     },
     calls,
@@ -141,6 +141,7 @@ describe('ideLegalScanTools', () => {
     const errors: unknown[] = []
     const { deps: offered } = deps({
       log: {
+        trace: vi.fn(),
         info: vi.fn(),
         warn: vi.fn(),
         error: (...args: unknown[]) => void errors.push(args),

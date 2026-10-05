@@ -122,5 +122,6 @@
   "config.legalHeaderPolicy.description": "用於法律掃描的版權與 SPDX 標頭檢查：必要會標記每個缺少相符標頭的專案自有原始檔，選用僅標記與偵測到的專案風格或其 REUSE 聲明相矛盾的標頭，關閉則略過標頭檢查。預設為選用；產生的檔案一律排除。",
   "config.legalHeaderPolicy.enumDescriptions.required": "每個專案自有原始檔都需要相符的版權與 SPDX 標頭。",
   "config.legalHeaderPolicy.enumDescriptions.optional": "僅與偵測到的專案風格或其 REUSE 聲明相矛盾的標頭才算發現。預設值。",
-  "config.legalHeaderPolicy.enumDescriptions.off": "略過標頭檢查；報告中會說明。"
+  "config.legalHeaderPolicy.enumDescriptions.off": "略過標頭檢查；報告中會說明。",
+  "command.legalScan.title": "法律掃描"
 }

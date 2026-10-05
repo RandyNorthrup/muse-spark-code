@@ -71,6 +71,8 @@ const BUNDLED_SKILLS_ENTRY = 'src/host/skills/bundledSkillsEntry.ts'
 const BUNDLED_SKILLS_OUTFILE = 'dist/bundledSkills.js'
 const CHECKPOINT_STORE_ENTRY = 'src/host/checkpoints/checkpointStoreEntry.ts'
 const CHECKPOINT_STORE_OUTFILE = 'dist/checkpointStore.js'
+const LEGAL_SCAN_ENTRY = 'src/host/ide/legalScanEntry.ts'
+const LEGAL_SCAN_OUTFILE = 'dist/legalScan.js'
 const CODE_INTEL_ENTRY = 'src/host/ide/codeIntelEntry.ts'
 const CODE_INTEL_OUTFILE = 'dist/codeIntel.js'
 const VOICE_ENTRY = 'src/host/voice/voiceEntry.ts'
@@ -288,6 +290,17 @@ const acpOptions = {
 }
 
 /** @type {import('esbuild').BuildOptions} */
+const legalScanOptions = {
+  ...common,
+  plugins: [sharedUiText],
+  entryPoints: [LEGAL_SCAN_ENTRY],
+  outfile: LEGAL_SCAN_OUTFILE,
+  platform: 'node',
+  format: 'cjs',
+  target: HOST_NODE_TARGET,
+}
+
+/** @type {import('esbuild').BuildOptions} */
 const uiTextOptions = {
   ...common,
   entryPoints: [UI_TEXT_ENTRY],
@@ -353,6 +366,7 @@ if (isWatch) {
     esbuild.context(agentImportOptions),
     esbuild.context(bundledSkillsOptions),
     esbuild.context(codeIntelOptions),
+    esbuild.context(legalScanOptions),
     esbuild.context(voiceOptions),
     esbuild.context(webFetchOptions),
     esbuild.context(museCodeReviewerOptions),
@@ -375,6 +389,7 @@ if (isWatch) {
     agentImport: esbuild.build(agentImportOptions),
     bundledSkills: esbuild.build(bundledSkillsOptions),
     codeIntel: esbuild.build(codeIntelOptions),
+    legalScan: esbuild.build(legalScanOptions),
     voice: esbuild.build(voiceOptions),
     webFetch: esbuild.build(webFetchOptions),
     museCodeReviewer: esbuild.build(museCodeReviewerOptions),
@@ -410,6 +425,7 @@ if (isWatch) {
   reportSize(AGENT_IMPORT_OUTFILE)
   reportSize(BUNDLED_SKILLS_OUTFILE)
   reportSize(CODE_INTEL_OUTFILE)
+  reportSize(LEGAL_SCAN_OUTFILE)
   reportSize(VOICE_OUTFILE)
   reportSize(WEB_FETCH_OUTFILE)
   reportSize(MUSE_CODE_REVIEWER_OUTFILE)

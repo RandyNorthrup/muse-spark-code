@@ -1,1 +1,1 @@
-module.exports = 2
+export const value = 2

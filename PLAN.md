@@ -234,6 +234,7 @@ quality`) and as a CI job.
 | `dist/reviewer.js`         | ≤ 75 KiB (M78b: paid Auto review after consent; measured 55.2 KiB plus 15%, rounded up to 25 KiB)                                                                                                                 |
 | `dist/agentImport.js`      | ≤ 125 KiB (M83: import scan, converters, file access, native UI and smol-toml, loaded on first import)                                                                                                            |
 | `dist/bundledSkills.js`    | ≤ 50 KiB (M89: the bundled skills installer for Muse Code, loaded on first install, removal or offer; 22.6 KiB when split, plus 15%, rounded up to 25 KiB)                                                        |
+| `dist/legalScan.js`        | ≤ 150 KiB (M97 integration proposal before wiring: lane S shared-English probe 130,608 bytes; +15%, rounded up to 25 KiB; real adapter and Plan hold measured at delivery)                                        |
 | `dist/codeIntel.js`        | ≤ 100 KiB (2026-10-03: code intelligence's `ide` answers, loaded on the first call; measured 80.3 KiB plus 15%, rounded up to 25 KiB)                                                                             |
 | `dist/voice.js`            | ≤ 50 KiB (2026-10-03: both voice engines' drivers, loaded on the first recording; measured 34.5 KiB plus 15%, rounded up to 25 KiB)                                                                               |
 | `dist/museCodeReviewer.js` | ≤ 75 KiB (M90: the Auto reviewer on Muse Code, its side session and approvals with M78's reviewer core, loaded on the first review; measured 45.4 KiB plus 15%, rounded up to 25 KiB)                             |
@@ -13829,7 +13830,7 @@ joined with M57, M58 and PR #49's sign-in
   before sign-in; the key never in a frame, an argument, the environment
   or the log; every gate green.
 
-### M97 — Read-only legal scan, then selected fixes (D76, planned)
+### M97 — Read-only legal scan, then selected fixes (D76, integrated candidate; certification incomplete)
 
 - **Goal.** Both backends offer an evidence-based legal/licensing and header
   hygiene report without modifying the project; the user can then authorize
@@ -13920,10 +13921,17 @@ joined with M57, M58 and PR #49's sign-in
   commands/settings only after each documented invocation succeeds; update
   README, ACP guide, PRIVACY, CHANGELOG and certification together. This planning
   commit documents the decision, not availability of a new product command.
+- **Integration status (2026-10-04, lane I, macmini).** S/B/R/W merged in
+  order with their intent retained; real lazy scanner, native manager wiring,
+  packaging/data notices and report metadata integrated. Aggregate receipts and
+  acceptance gaps are in `docs/certification/m97.md`. Selected-fix application,
+  Markdown export, scanner-prose translations, registry consent/network review,
+  optional explanations and installed/Windows checks remain open; no full M97
+  delivery or compliance certification is claimed.
 - **Certification checklist.**
   - [x] Owner request, D76 design, lanes and source-grounded research recorded.
   - [ ] Acceptance 1–10, each with its failing drill and passing receipt.
-  - [ ] Optional registry shapes captured; SPDX data provenance/terms pinned.
+  - [x] Optional registry shapes captured; SPDX data provenance/terms pinned.
   - [ ] Muse Code explanation read-only confinement proved, or explicitly refused.
   - [ ] Final-tree rig/full-quality, a11y, package/bundle and installed-host gates.
   - [ ] Delivered commands, costs, limits and privacy documented from real runs.
@@ -13961,6 +13969,24 @@ Blocker for the owner: GitHub's documentation offers merge queues only in
 organization-owned repositories, and this one is user-owned. Until that is
 settled, PRs keep the full tier and no check is weaker than before. Record:
 `docs/certification/ciflow.md`.
+
+**M97 package compression (lane I, before changing the package script).**
+The universal VSIX initially measures 2,260,558 bytes, 7,758 bytes above the
+unchanged 2,252,800-byte cap. A maximum-DEFLATE probe preserves every archive
+entry's uncompressed bytes and measures 2,249,578 bytes. The package command
+will recompress its own VSIX through Python's standard-library `zipfile`
+(maximum level), preserving paths, metadata and content; no npm dependency is
+added and no cap changes. Red/green archive-content tests certify the step.
+Python is already required for this repository's semgrep tooling. Duplicate
+raw SPDX arrays need not ship separately: the lazy bundle contains all pinned
+identifier data, and each package retains its notice/provenance.
+
+**M97 integration deferral (2026-10-04).** Lane S's current English scanner
+prose is a named delivery blocker under AGENTS rule 5; a passing localization
+inventory does not prove that prose was translated. No rule, threshold or
+ignore is changed. Other M97 acceptance gaps are named in §9 and the aggregate
+certification record. Full quality and package receipts are recorded there on
+the integrated tree; an open checklist item stays open until its receipt exists.
 
 **M97 planning lane (2026-10-04).** Documentation only; its brief forbids this
 lane's aggregate quality run and delegates it to the lead. Changed Markdown,
@@ -14591,6 +14617,28 @@ before a repaired one loads (2026-09-30).
   repository admin bypasses both for direct pushes and releases, and every
   bypass is logged by GitHub. A moved tag, as with 0.5.2, is then a
   deliberate bypass rather than a habit.
+
+**M97 candidate residuals (2026-10-04; see `docs/certification/m97.md`).**
+These are unresolved delivery/security gaps, not accepted legal conclusions:
+
+- I-R1: scanner-generated findings, labels and incomplete/error prose remain
+  English; all 14 report-control translations do not close AGENTS rule 5.
+- I-R2: the fix applier is unavailable. No production edit/patch preview,
+  ownership check, per-patch admission or partial-failure rescan is certified.
+- I-R3: requested Markdown export and a disclaimer in JSON/tool reports are
+  missing; text/panel disclaimers alone do not satisfy D76.
+- I-R4: enrichment lacks prior exact-query consent/private-name disclosure and
+  needs D43 proxy/TLS/public-address review. Offline scans make no such request.
+- I-R5: no bounded optional explanation or paid-use/confinement receipt exists;
+  normal tool use in a coding turn retains that backend's ordinary billing.
+- I-R6: installed VSIX on both backends, Windows reparse/path checks, zoom,
+  pseudo-locale visuals and cross-platform hosted receipts remain outstanding
+  unless an explicit receipt is added to the aggregate certification record.
+- I-R7: runtime command/exit contract differs: top-level `legal --format json`
+  rather than reserved `exec legal-scan --json`; complete should-fix takes exit 1.
+- I-R8: current scanner recognizes pinned identifiers and heuristic license
+  titles, not a complete license-text matching corpus or full legal analysis.
+  Static readers cannot resolve arbitrary build logic, linkage or stale artifacts.
 
 ## 10. Definition of done and release records
 

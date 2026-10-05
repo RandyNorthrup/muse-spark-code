@@ -37,14 +37,12 @@ export const legalFixEvidenceSchema = z.strictObject({
   id: idSchema,
   digest: digestSchema,
 })
-export type LegalFixEvidence = z.infer<typeof legalFixEvidenceSchema>
 
 /** One guarded file's identity with its content hash at preview time. */
 export const legalFixFileHashSchema = z.strictObject({
   path: pathSchema,
   hash: digestSchema,
 })
-export type LegalFixFileHash = z.infer<typeof legalFixFileHashSchema>
 
 /**
  * What the host stores under a preview id (and what crosses the wire
@@ -73,7 +71,6 @@ export const legalFixScanMetaSchema = z.strictObject({
   dataVersion: z.string().check(z.minLength(1), z.maxLength(LEGAL_VERSION_MAX_CHARS)),
   scope: z.string().check(z.maxLength(LEGAL_PATH_MAX_CHARS)),
 })
-export type LegalFixScanMeta = z.infer<typeof legalFixScanMetaSchema>
 
 /**
  * The webview asks the host to preview fixes for exactly these findings:

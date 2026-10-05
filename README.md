@@ -1825,7 +1825,7 @@ palette with a filter box of its own. Its groups:
 Type a letter after the `/` and the palette gives way to a flat list of slash
 commands narrowed as you type: `/agents`, `/changes`, `/clear`, `/compact`,
 `/config`, `/cost`, `/export`, `/goal`, `/handoff`, `/hooks`, `/logout`, `/mcp`,
-`/memory`, `/model`, `/permissions`, `/resume`, `/review`,
+`/legal`, `/memory`, `/model`, `/permissions`, `/resume`, `/review`,
 `/security-review`, `/usage`, `/loop` (Model API backend),
 and the session's skills. Names that start with your letters come first. Up
 and Down move, `Enter` runs a command (a skill, `/goal`, `/review` or `/handoff`
@@ -2620,6 +2620,45 @@ What stays in English:
 | Model API: file tools            | Text and images up to 10 MiB, PDFs up to 32 MB; the search tool skips files over 1 MiB                                                                                                                                                                          |
 | Opened tool outputs              | 16 MiB each; the latest 20, and 32 million characters together                                                                                                                                                                                                  |
 
+## Legal scan (M97)
+
+`/legal` runs a deterministic, local licensing and copyright/header scan in
+an open, trusted workspace. The slash palette offers the same action.
+`/legal src/index.ts` limits per-file header checks; project licenses,
+dependencies and distribution remain workspace-wide facts. The workspace
+setting `museSpark.legalHeaderPolicy` accepts `required`, `optional` (the
+default) and `off`; it does not invent ownership or update old years.
+
+The scanner reads existing manifests, locks, installed metadata, licenses,
+notices, bundle inventories and provenance across npm/pnpm/Yarn, Python,
+Cargo, Go, Maven/Gradle, NuGet, Composer and Ruby gems. It runs no model,
+package manager, build, shell command, hook, formatter or installation and
+makes no network request. It costs nothing and requires no account. A live
+conversation temporarily holds Plan mode only while the scan owns that hold.
+The same scanner serves the Model API's `legal_scan` and Muse Code's
+`mcp__ide__legalScan`; tool results requested during a normal model turn can
+travel to Meta with that turn and use its ordinary billing.
+
+The report groups evidence by severity and retains exclusions, uncertainty,
+recommendations and fixability. A recognized SPDX identifier or a low finding
+count does not establish legal compliance. Missing locks or license data,
+dynamic metadata, binary files, links, stale artifacts and bounded-out input
+remain incomplete. Identifier matching is pinned; license-text recognition is
+heuristic. **Not legal advice; for distribution decisions consult a lawyer.**
+
+This integrated candidate still has delivery gaps: the selected-fix preview
+names paths and checks stale bytes, but confirmation refuses because the fix
+applier is unavailable; it changes no files. Requested Markdown export,
+registry consent in the panel and bounded model explanations are not delivered.
+Scanner explanations remain English, although the report controls and setting
+are translated in all 14 languages. Installed-VSIX and Windows receipts are
+pending. See [the certification record](docs/certification/m97.md) for the
+acceptance gaps and measured gates; M97 is not fully certified.
+
+The ACP package also provides a separate, offline headless `legal` command;
+see [its guide](docs/acp.md#deterministic-legal-scan-m97). This is distinct
+from a model-backed `exec` prompt and never performs automatic fixes.
+
 ## Commands and keybindings
 
 | Command                                             | Default keybinding                                                                   | What it does                                                                                                                                                                                      |
@@ -3282,6 +3321,13 @@ are recorded in [the M78 certification](docs/certification/m78.md).
 | `npm run package`                         | `vsce package --no-dependencies` (after `vscode:prepublish` runs `npm run build`) → `.vsix`; it carries the macOS helper only if `bash native/darwin/build.sh` built it first, on a Mac                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
 | `npm run package:acp`                     | Production build, the committed exec schemas checked against `execProtocol.ts` (`scripts/exec-schema.mjs --check`), then `scripts/package-acp.mjs` → `dist/muse-spark-code-acp-<version>.tgz`, the ACP agent's npm package (`docs/acp.md`), with its own third-party notices                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
 | `npm run clean`                           | Remove `dist/` and `coverage/`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
+
+The VSIX package step uses Python's standard-library `zipfile` to apply maximum
+DEFLATE compression after `vsce` creates the archive. Python 3 (`python3`,
+`python` or `py`) is required, as for the semgrep toolchain. The step preserves
+entry paths, metadata and uncompressed bytes; the 2200 KiB budget stays fixed.
+The legal scanner's pinned data is embedded in its lazy bundle, with separate
+notice/provenance files in both packages.
 
 **Tests.** Unit tests (`test/unit/**`) run under vitest with `vscode` aliased
 to `test/unit/mocks/vscode.ts` and webview components under jsdom; the fakes

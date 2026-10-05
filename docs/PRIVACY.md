@@ -5,6 +5,32 @@ to Meta's Muse Spark model. This page says what leaves your machine, where it
 goes, and what stays local. It is written for the extension's users; the
 security notes for contributors are in `PLAN.md` §9.
 
+## Legal scan (M97 candidate)
+
+An explicit `/legal` request stays local: the deterministic scanner reads a
+bounded workspace snapshot and starts no model, backend, auth, shell command,
+package manager, hook, formatter or build. The report is held in the panel;
+scan does not save it to a file. The headless `legal` command writes a report
+only with an explicit `--out` destination. Reports can identify local paths,
+package names/versions, source URLs and bounded evidence excerpts. Known
+credential formats and email values are scrubbed; other identifying text may
+remain, so treat exported reports as workspace information.
+
+The Model API native tool and Muse Code's authenticated loopback `ide` tool
+use the same scanner. When a model requests the tool in a normal coding turn,
+the scrubbed findings become a tool result and can be sent to Meta under that
+backend's existing terms and billing. Running the panel's deterministic scan
+itself makes no paid call. Optional explanations and the selected-fix applier
+are unavailable in this candidate; the fix preview refuses confirmation.
+
+The headless registry reader is a separate, explicit opt-in implementation:
+it queries only npm and PyPI, sends package names and versions, returns bounded
+metadata and keeps no persistent registry cache. It does not upload source or
+use a stored API key. Exact prior query-list consent, private package-name
+disclosure, proxy/TLS posture and public-address admission remain release
+blockers; leaving enrichment off makes no registry request. This feature does
+not certify that a repository, license choice or distribution is legal.
+
 ## What the extension sends, and to whom
 
 - **Your prompts, attachments and mentioned files.** Everything you type into

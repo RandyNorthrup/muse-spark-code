@@ -1948,7 +1948,11 @@
   "legalScanNoDistribution": "L’analyse ne s’est pas terminée, donc aucune distribution n’a été supposée.",
   "legalReportFindings": "Constats juridiques",
   "legalFixSelect": "Corriger {id}",
-  "legalSelectedCount": "{count} sélectionnés",
+  "legalSelectedCount": {
+    "one": "{count} sélectionné",
+    "many": "{count} sélectionnés",
+    "other": "{count} sélectionnés"
+  },
   "legalFixAllSafe": "Corriger tous les sûrs",
   "legalPreviewFixes": "Aperçu des corrections",
   "legalFixPreviewTitle": "Aperçu de la correction",

@@ -13,8 +13,7 @@
 import { UI_TEXT } from '../../shared/constants'
 import { lazyBundleLoader } from '../lazyBundle'
 import type { Logger } from '../logger'
-import type { LegalScanRunner } from '../../shared/legal'
-import type { PlanModeHold, PlanModeHoldDeps } from '../../core/review/planModeHold'
+import type * as LegalScanEntry from './legalScanEntry'
 
 /**
  * The scanner bundle's exports: lane 0's contract in and out, and the
@@ -23,8 +22,8 @@ import type { PlanModeHold, PlanModeHoldDeps } from '../../core/review/planModeH
  * live conversation unheld.
  */
 export interface LegalScanBundle {
-  readonly runLegalScan: LegalScanRunner
-  readonly createHold: (deps: PlanModeHoldDeps) => PlanModeHold
+  readonly runLegalScan: typeof LegalScanEntry.runLegalScan
+  readonly createHold: typeof LegalScanEntry.createHold
 }
 
 /** Whether a required module exports the scan and the hold. */

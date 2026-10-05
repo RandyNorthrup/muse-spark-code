@@ -1814,7 +1814,9 @@
   "legalScanNoDistribution": "スキャンが完了しなかったため、配布の前提はありません。",
   "legalReportFindings": "法的所見",
   "legalFixSelect": "{id} を修正",
-  "legalSelectedCount": "{count} 件選択中",
+  "legalSelectedCount": {
+    "other": "{count} 件選択中"
+  },
   "legalFixAllSafe": "安全なものをすべて修正",
   "legalPreviewFixes": "修正をプレビュー",
   "legalFixPreviewTitle": "修正プレビュー",

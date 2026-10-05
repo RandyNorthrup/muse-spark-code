@@ -1814,7 +1814,9 @@
   "legalScanNoDistribution": "검사가 완료되지 않아 배포를 가정하지 않았습니다.",
   "legalReportFindings": "법적 소견",
   "legalFixSelect": "{id} 수정",
-  "legalSelectedCount": "{count}개 선택됨",
+  "legalSelectedCount": {
+    "other": "{count}개 선택됨"
+  },
   "legalFixAllSafe": "안전한 항목 모두 수정",
   "legalPreviewFixes": "수정 내용 미리 보기",
   "legalFixPreviewTitle": "수정 미리 보기",

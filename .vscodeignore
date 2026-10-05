@@ -8,6 +8,9 @@
 !dist/review.js
 !dist/agentImport.js
 !dist/bundledSkills.js
+!dist/legalScan.js
+!src/core/legal/data/NOTICE.md
+!src/core/legal/data/provenance.json
 !dist/codeIntel.js
 !dist/voice.js
 !dist/webFetch.js

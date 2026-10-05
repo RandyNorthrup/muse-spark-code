@@ -1881,7 +1881,10 @@
   "legalScanNoDistribution": "Der Scan wurde nicht abgeschlossen, daher wurde keine Verbreitung angenommen.",
   "legalReportFindings": "Rechtliche Befunde",
   "legalFixSelect": "{id} beheben",
-  "legalSelectedCount": "{count} ausgewählt",
+  "legalSelectedCount": {
+    "one": "{count} ausgewählt",
+    "other": "{count} ausgewählt"
+  },
   "legalFixAllSafe": "Alle sicheren beheben",
   "legalPreviewFixes": "Korrekturen vorschauen",
   "legalFixPreviewTitle": "Korrekturvorschau",

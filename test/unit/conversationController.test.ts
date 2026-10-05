@@ -13261,7 +13261,7 @@ function emptyLegalResult(): LegalScanResult {
 }
 
 interface LegalSetupOptions extends Omit<
-  Parameters<typeof setup>[0],
+  NonNullable<Parameters<typeof setup>[0]>,
   'legalScan' | 'createLegalHold'
 > {
   /** The scan waits here, so a test can act mid-scan. */

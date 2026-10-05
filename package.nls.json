@@ -122,5 +122,6 @@
   "config.legalHeaderPolicy.description": "Copyright and SPDX header checks for the legal scan: required flags every project-owned source file without a matching header, optional flags only a header that contradicts the detected project style or its REUSE declarations, and off skips header checks. Default optional; generated files are always excluded.",
   "config.legalHeaderPolicy.enumDescriptions.required": "Every project-owned source file needs a matching copyright and SPDX header.",
   "config.legalHeaderPolicy.enumDescriptions.optional": "Only a header that contradicts the detected project style or its REUSE declarations is a finding. The default.",
-  "config.legalHeaderPolicy.enumDescriptions.off": "Header checks are skipped; the report says so."
+  "config.legalHeaderPolicy.enumDescriptions.off": "Header checks are skipped; the report says so.",
+  "command.legalScan.title": "Legal scan"
 }

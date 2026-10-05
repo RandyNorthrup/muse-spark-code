@@ -2015,7 +2015,12 @@
   "legalScanNoDistribution": "Skenování se nedokončilo, takže nebyla předpokládána žádná distribuce.",
   "legalReportFindings": "Právní nálezy",
   "legalFixSelect": "Opravit {id}",
-  "legalSelectedCount": "{count} vybráno",
+  "legalSelectedCount": {
+    "one": "{count} vybráno",
+    "few": "{count} vybráno",
+    "many": "{count} vybráno",
+    "other": "{count} vybráno"
+  },
   "legalFixAllSafe": "Opravit všechny bezpečné",
   "legalPreviewFixes": "Zobrazit náhled oprav",
   "legalFixPreviewTitle": "Náhled oprav",

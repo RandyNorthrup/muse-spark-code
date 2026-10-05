@@ -160,7 +160,7 @@ function findingLines(finding: LegalFinding): string[] {
     fill(UI_TEXT.legalEvidenceLabel, {
       evidence: finding.evidenceExcerpt ?? finding.evidenceSource,
     }),
-    `${fill(UI_TEXT.legalConfidenceLabel, { confidence: formatPercent(finding.confidence) })} - ${fixable}`,
+    `${fill(UI_TEXT.legalConfidenceLabel, { confidence: formatPercent(finding.confidence * 100) })} - ${fixable}`,
   ]
 }
 

@@ -122,5 +122,6 @@
   "config.legalHeaderPolicy.description": "Verificações de cabeçalhos de copyright e SPDX para a verificação legal: obrigatório sinaliza cada arquivo-fonte próprio sem cabeçalho correspondente, opcional apenas um cabeçalho que contradiga o estilo detectado do projeto ou suas declarações REUSE, e desativado ignora essas verificações. O padrão é opcional; arquivos gerados são sempre excluídos.",
   "config.legalHeaderPolicy.enumDescriptions.required": "Cada arquivo-fonte próprio precisa de um cabeçalho de copyright e SPDX correspondente.",
   "config.legalHeaderPolicy.enumDescriptions.optional": "Apenas um cabeçalho que contradiga o estilo detectado do projeto ou suas declarações REUSE é um achado. O padrão.",
-  "config.legalHeaderPolicy.enumDescriptions.off": "As verificações de cabeçalhos são ignoradas; o relatório informa isso."
+  "config.legalHeaderPolicy.enumDescriptions.off": "As verificações de cabeçalhos são ignoradas; o relatório informa isso.",
+  "command.legalScan.title": "Verificação legal"
 }

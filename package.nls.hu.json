@@ -122,5 +122,6 @@
   "config.legalHeaderPolicy.description": "Szerzői jogi és SPDX-fejlécek ellenőrzése a jogi ellenőrzéshez: kötelező jelöli a megfelelő fejléc nélküli minden saját forrásfájlt, választható csak az észlelt projektstílussal vagy REUSE-nyilatkozataival ellentétes fejlécet, kikapcsolt állapotban pedig kihagyja a fejlécellenőrzést. Alapértelmezett a választható; a generált fájlok mindig ki vannak zárva.",
   "config.legalHeaderPolicy.enumDescriptions.required": "Minden saját forrásfájlnak megfelelő szerzői jogi és SPDX-fejlécre van szüksége.",
   "config.legalHeaderPolicy.enumDescriptions.optional": "Csak az észlelt projektstílussal vagy REUSE-nyilatkozataival ellentétes fejléc számít megállapításnak. Az alapértelmezett érték.",
-  "config.legalHeaderPolicy.enumDescriptions.off": "A fejlécellenőrzés kimarad; a jelentés ezt jelzi."
+  "config.legalHeaderPolicy.enumDescriptions.off": "A fejlécellenőrzés kimarad; a jelentés ezt jelzi.",
+  "command.legalScan.title": "Jogi ellenőrzés"
 }

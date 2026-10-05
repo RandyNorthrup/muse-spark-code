@@ -29,6 +29,7 @@ import type { ContextIo } from '../../core/context/contextFiles'
 import type { BundledSkillsSource } from '../../core/context/skills'
 import type { LanguageServiceHost } from '../../core/codeIntel/languageService'
 import type { McpTool } from '../../core/mcp'
+import type { LegalScanRunner } from '../../shared/legal'
 import type { MemoryStore } from '../../core/memory/memoryStore'
 import type { PermissionSettings } from '../../core/permissionSettings'
 import type { WebFetcher } from '../../core/web/webFetch'
@@ -108,6 +109,7 @@ export interface ModelApiBackendManagerDeps extends ModelApiPaidHooks {
   readonly webFetch?: WebFetcher | undefined
   /** VS Code's language services, for the code intelligence tools (M67). */
   readonly codeIntel?: LanguageServiceHost | undefined
+  readonly legalScan?: LegalScanRunner | undefined
   /** `museSpark.modelApiRepoMap`, read per turn (M67). */
   readonly isRepoMapInPrompt?: (() => boolean) | undefined
   /** `museSpark.modelApiObservationPacking`, read when a conversation starts or resumes (M73). */
@@ -149,6 +151,7 @@ interface HostVariant {
   readonly permissionSettings: ModelApiBackendManagerDeps['permissionSettings']
   readonly webFetch: ModelApiBackendManagerDeps['webFetch']
   readonly codeIntel: ModelApiBackendManagerDeps['codeIntel']
+  readonly legalScan: ModelApiBackendManagerDeps['legalScan']
   readonly isRepoMapInPrompt: ModelApiBackendManagerDeps['isRepoMapInPrompt']
   readonly io: ToolIo
   readonly budgetScope?: OwnedSessionBudgetScope | undefined
@@ -286,6 +289,7 @@ export class ModelApiBackendManager {
         ideTools: variant.ideTools,
         webFetch: variant.webFetch,
         codeIntel: variant.codeIntel,
+        legalScan: variant.legalScan,
         isRepoMapInPrompt: variant.isRepoMapInPrompt,
         observationPacking: this.deps.isObservationPackingOn,
         allowsPaidUse: variant.allowsPaidUse,
@@ -321,6 +325,7 @@ export class ModelApiBackendManager {
       permissionSettings: this.deps.permissionSettings,
       webFetch: this.deps.webFetch,
       codeIntel: this.deps.codeIntel,
+      legalScan: this.deps.legalScan,
       isRepoMapInPrompt: this.deps.isRepoMapInPrompt,
       io: this.deps.io,
       store: this.deps.store,
@@ -377,6 +382,7 @@ export class ModelApiBackendManager {
         permissionSettings: this.deps.permissionSettings,
         webFetch: undefined,
         codeIntel: undefined,
+        legalScan: undefined,
         isRepoMapInPrompt: undefined,
         io: {
           ...this.deps.io,
