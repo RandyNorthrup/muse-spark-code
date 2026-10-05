@@ -937,6 +937,7 @@
     "offline": "Desconectada",
     "busy": "Todas as vagas ocupadas",
     "testFailed": "Falha no autoteste da máquina",
+    "commandTooLong": "O comando do executor Windows excede o limite de comprimento da linha de comando do processo. Encurte o comando de configuração ou a verificação.",
     "hostKeyNotice": "Conecte uma vez pelo seu terminal para verificar e confiar nesta chave de host: {fingerprint}.",
     "inputHangNotice": "O shell remoto aguardou entrada. Use o invólucro de tarefa agendada e teste novamente.",
     "environmentNotice": "Somente estes nomes de variáveis de ambiente são transmitidos. Credenciais são sempre excluídas.",

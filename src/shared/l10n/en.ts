@@ -1310,6 +1310,8 @@ export const EN = {
     offline: 'Offline',
     busy: 'All slots busy',
     testFailed: 'Runner self-test failed',
+    commandTooLong:
+      'The Windows runner command exceeds the process command-line limit. Shorten the setup command or check.',
     hostKeyNotice:
       'Connect once from your own terminal to verify and trust this host key: {fingerprint}.',
     inputHangNotice:

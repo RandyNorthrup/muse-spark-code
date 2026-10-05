@@ -937,6 +937,7 @@
     "offline": "Desconectada",
     "busy": "Todos los turnos ocupados",
     "testFailed": "Falló la autoprueba de la máquina",
+    "commandTooLong": "El comando del ejecutor de Windows supera el límite de longitud de la línea de comandos del proceso. Acorta el comando de configuración o la comprobación.",
     "hostKeyNotice": "Conéctate una vez desde tu terminal para verificar y confiar en esta clave de host: {fingerprint}.",
     "inputHangNotice": "La consola remota esperaba entrada. Usa el envoltorio de tarea programada y vuelve a probar.",
     "environmentNotice": "Solo se transmiten estos nombres de variables de entorno. Las credenciales siempre se excluyen.",

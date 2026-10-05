@@ -937,6 +937,7 @@
     "offline": "Déconnectée",
     "busy": "Tous les créneaux occupés",
     "testFailed": "Échec de l’autotest de la machine",
+    "commandTooLong": "La commande de l’exécuteur Windows dépasse la longueur maximale de la ligne de commande du processus. Raccourcissez la commande de configuration ou de vérification.",
     "hostKeyNotice": "Connectez-vous une fois depuis votre terminal pour vérifier et approuver cette clé d’hôte : {fingerprint}.",
     "inputHangNotice": "Le shell distant attendait une entrée. Utilisez l’enveloppe de tâche planifiée et réessayez.",
     "environmentNotice": "Seuls ces noms de variables d’environnement sont transmis. Les identifiants secrets sont toujours exclus.",

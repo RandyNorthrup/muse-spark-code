@@ -895,6 +895,7 @@
     "offline": "离线",
     "busy": "所有槽位繁忙",
     "testFailed": "运行机器自检失败",
+    "commandTooLong": "Windows 运行器命令超出了进程命令行长度限制。请缩短设置命令或检查命令。",
     "hostKeyNotice": "请先从自己的终端连接一次，验证并信任此主机密钥：{fingerprint}。",
     "inputHangNotice": "远程终端等待输入。请使用计划任务包装器后重新测试。",
     "environmentNotice": "仅传递这些环境变量名。凭据始终被排除。",

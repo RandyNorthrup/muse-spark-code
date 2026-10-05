@@ -18492,6 +18492,16 @@ Each repair requires a failing regression and a byte-exact restored red
 drill in `docs/certification/m96c-c.md`. The rig brief forbids merges,
 rebases, pushes and full quality runs; focused gates run directly on macmini.
 
+**Lane O review repair (FIXM96CO, 2026-10-05).** Address RVM96CO findings
+1–7: destination-OS scoped validation/quoting with final-command guards;
+self-contained persistent clones; per-child snapshot retirement accounting;
+owner-checked cache lock cleanup after retirement with a recorded expiry;
+raw-byte output prefix checks and incremental UTF-8 decoding; translated
+Windows command-line refusal before dispatch (including native launch lines);
+and the PowerShell job statement separator plus a native parser/run test.
+Regressions and byte-exact red drills are recorded in `docs/certification/m96c-o.md`.
+No dependency, paid call, remote connection, or guard widening is authorized.
+
 **Status 2026-10-04: planned, round 3 (redesign), amended in round 4 for
 Codex's third review (`RVM96C3`: three P1, five P2, one P3).** This milestone
 builds
@@ -19864,6 +19874,17 @@ checks pass on macmini: 52/52 owned cases (including real Git under the
 unchanged default deadline), all listed static/build gates, and 25 distinct
 byte-exact restored guard drills. No RVM96CC finding is deferred.
 
+**FIXM96CO rig validation (2026-10-05).** The lane brief forbids full
+`quality` and full test suites on the shared rig; the lead runs those after
+integration. Owned files are checked directly on macmini in batches of at
+most three Vitest files, plus typecheck, lint, formatting, knip, duplication,
+localization and build gates. The host API record still fails only on the
+six base Node import-count changes already assigned to X2 (buffer 27→28,
+crypto 32→34, fs 24→25, fs/promises 34→36, path 65→68, zlib 1→2).
+Its gate is unchanged; X2 must regenerate and review its owned record before
+full quality. Native Windows parser/runtime certification is explicitly
+pending in §9 and `docs/certification/m96c-o.md`.
+
 **MG69 merged-source proof (2026-10-02).** Kubuntu passes 49 owning/merged
 files (2,056 tests; two existing Windows-only cases platform-skipped), all
 five compiler projects and every required static gate. Both review and import
@@ -20338,6 +20359,26 @@ insensitive Linux mount); K supplies complete fresh canonical-repository hint
 snapshots; Q uses the landing routine and final tested blobs. Lexical path
 identity is not filesystem permission or symlink authority. Standalone
 collision tests do not certify these host-owned seams or the assembled team.
+
+- **FIXM96CO / RVM96CO native Windows certification pending.** Findings
+  1–7 have regression fixes; macmini has no PowerShell parser or Windows
+  kernel. The real-parser test
+  `parses the helper and keeps Initialize-RunnerJob separate from argument assignment`
+  runs only when PowerShell is installed, and
+  `runs setup and checks through the native job branch and publishes the exit marker`
+  is Windows-guarded. Source/fake-transport checks cannot certify native
+  Windows execution. Safe for integration review because no Windows
+  support claim is made; the lead must run `runnerHelperNative.test.ts` on
+  Windows before runner certification. Details are in `docs/certification/m96c-o.md`.
+- **FIXM96CO cache-creator supervisor loss.** Creation leases record the
+  run owner and expiry; timeout cleanup runs in the surviving supervisor
+  after process-group/job retirement and only clears its own lease. A
+  supervisor killed independently can leave a lease, even past its expiry.
+  Expiry alone cannot prove descendants stopped, so later work stays busy
+  instead of stealing it. Follow-up: native retirement-backed recovery
+  before any automatic reclamation; use a fresh user-selected runner root
+  after manually retiring a lost supervisor. This retains exclusion and
+  never silently permits concurrent setup.
 
 - Code intelligence (M67) shows what VS Code's language services say. A
   result located outside the workspace is left out and a hover defined only

@@ -895,6 +895,7 @@
     "offline": "離線",
     "busy": "所有槽位忙碌",
     "testFailed": "執行機器自我測試失敗",
+    "commandTooLong": "Windows 執行器命令超出處理程序命令列長度限制。請縮短設定命令或檢查命令。",
     "hostKeyNotice": "請先從自己的終端機連線一次，驗證並信任此主機金鑰：{fingerprint}。",
     "inputHangNotice": "遠端殼層等待輸入。請使用排程工作包裝器後重新測試。",
     "environmentNotice": "只傳遞這些環境變數名稱。一律排除認證資訊。",

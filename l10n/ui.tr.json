@@ -916,6 +916,7 @@
     "offline": "Çevrimdışı",
     "busy": "Tüm yuvalar meşgul",
     "testFailed": "Makinenin öz sınaması başarısız",
+    "commandTooLong": "Windows çalıştırıcı komutu, işlem komut satırı uzunluğu sınırını aşıyor. Kurulum komutunu veya denetimi kısaltın.",
     "hostKeyNotice": "Bu sunucu anahtarını doğrulamak ve güvenilir saymak için kendi terminalinizden bir kez bağlanın: {fingerprint}.",
     "inputHangNotice": "Uzak kabuk girdi bekledi. Zamanlanmış görev sarmalayıcısını kullanıp yeniden test edin.",
     "environmentNotice": "Yalnızca bu ortam değişkeni adları aktarılır. Kimlik bilgileri her zaman dışlanır.",

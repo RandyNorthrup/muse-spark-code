@@ -937,6 +937,7 @@
     "offline": "Disconnessa",
     "busy": "Tutti gli slot occupati",
     "testFailed": "Autotest della macchina non riuscito",
+    "commandTooLong": "Il comando del runner Windows supera il limite di lunghezza della riga di comando del processo. Accorcia il comando di configurazione o il controllo.",
     "hostKeyNotice": "Connettiti una volta dal tuo terminale per verificare e approvare questa chiave host: {fingerprint}.",
     "inputHangNotice": "La shell remota attendeva un input. Usa l’involucro dell’attività pianificata e riprova.",
     "environmentNotice": "Vengono passati solo questi nomi di variabili d’ambiente. Le credenziali sono sempre escluse.",

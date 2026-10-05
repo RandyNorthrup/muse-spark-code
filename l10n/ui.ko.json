@@ -895,6 +895,7 @@
     "offline": "오프라인",
     "busy": "모든 슬롯 사용 중",
     "testFailed": "실행 머신 자체 테스트 실패",
+    "commandTooLong": "Windows 실행기 명령이 프로세스 명령줄 길이 제한을 초과합니다. 설정 명령 또는 검사를 줄이세요.",
     "hostKeyNotice": "자신의 터미널에서 한 번 연결하여 이 호스트 키를 확인하고 신뢰하세요: {fingerprint}.",
     "inputHangNotice": "원격 셸이 입력을 기다렸습니다. 예약 작업 래퍼를 사용하여 다시 테스트하세요.",
     "environmentNotice": "지정한 환경 변수 이름만 전달합니다. 자격 증명은 항상 제외됩니다.",

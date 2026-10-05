@@ -916,6 +916,7 @@
     "offline": "Kapcsolat nélkül",
     "busy": "Minden hely foglalt",
     "testFailed": "A gép öntesztje sikertelen",
+    "commandTooLong": "A Windows-futtató parancsa meghaladja a folyamat parancssorának hosszkorlátját. Rövidítse le a beállítási parancsot vagy az ellenőrzést.",
     "hostKeyNotice": "Csatlakozzon egyszer a saját termináljáról a gazdagép kulcsának ellenőrzéséhez és elfogadásához: {fingerprint}.",
     "inputHangNotice": "A távoli parancsértelmező bemenetre várt. Használja az ütemezett feladat burkolóját, és teszteljen újra.",
     "environmentNotice": "Csak ezek a környezeti változónevek kerülnek átadásra. A hitelesítő adatok mindig kizártak.",
