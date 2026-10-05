@@ -4811,6 +4811,25 @@ we make". His standing ruling: enhancements are on by default.
   otherwise (`docs/RELEASING.md`). Older releases are taken as written
   (0.10.0 has ten).
 
+**STAR — a quiet GitHub star line (owner, 2026-10-05).** Use the same
+sentence, "Enjoying Muse Spark Code? A star on GitHub helps other people
+find it.", linked to `https://github.com/RandyNorthrup/muse-spark-code`,
+near the top of the GitHub and packaged Marketplace/Open VSX READMEs, in
+the What's New footer, and in the Getting Started welcome markdown and
+step description. Translate the footer and manifest description in all
+14 languages. Reuse `PageWriter.link` and the host's indexed
+`openExternal` handler, with escaped display text and unchanged CSP.
+**No prompts, no panel line:** Marketplace users can discover the
+repository without interrupting work or growing the crowded chat bundle.
+Activation gains no imports or bytes. Acceptance: the staged and actual
+VSIX README retain the line; the footer renders escaped, translated text
+and opens only its indexed repository URL; the welcome step retains its
+existing guidance; localization, manifest, scoped tests and bundle caps
+pass. Remove the packaged README line and footer separately to prove the
+tests fail, restore byte-exact, then rerun. Lane checks replace full quality
+only for this handoff; the release lead owns full quality after integration.
+Evidence: `docs/certification/star-line.md`.
+
 ### D70 — (reserved for M91 hooks; on another branch, 2026-10-04)
 
 ### D71 — Muse Gadgets: help build them, never become one (M92, 2026-10-04)
@@ -14759,6 +14778,14 @@ joined with M57, M58 and PR #49's sign-in
         commit-writing path exists
 
 ## 7. Gates
+
+**STAR lane (2026-10-05).** The owner's lane brief requires scoped tests,
+typecheck, lint, localization/manifest checks, bundle budgets and an actual
+VSIX README inspection, with removal drills and hooks enabled. It expressly
+assigns full `npm run quality` to the release lead after integration; this
+lane does not run it or weaken any gate. The generic delivery validator's
+ledger-format check remains deferred for this established plan format.
+Current receipts: `docs/certification/star-line.md`.
 
 **TRAIN13B (2026-10-05).** The owner authorizes recovering the two size
 failures and running the complete quality gate directly on Kubuntu within

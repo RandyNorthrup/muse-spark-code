@@ -7,6 +7,12 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+### Added
+
+- A quiet GitHub star link in the GitHub and Marketplace/Open VSX READMEs,
+  What's New footer and Getting Started welcome step, with the footer and
+  step description translated in all 14 languages.
+
 ### Fixed
 
 - **The README's "What's new" section matches the release again.** 0.12.1 and

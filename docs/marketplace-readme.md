@@ -20,6 +20,8 @@ Available on Windows, macOS and Linux, with English and 14 translated languages.
 Unofficial. Not affiliated with or endorsed by Meta. “Muse Spark” and “Muse
 Code” are Meta trademarks. You bring your own credentials.
 
+[Enjoying Muse Spark Code? A star on GitHub helps other people find it.](https://github.com/RandyNorthrup/muse-spark-code)
+
 ## What's new in 0.13.0
 
 - **Browser checks on local web changes** (see [Browser check](https://github.com/RandyNorthrup/muse-spark-code#browser-check)).

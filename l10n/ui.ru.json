@@ -1400,6 +1400,7 @@
   "whatsNewNoNotes": "Версия {version} поставляется без примечаний к выпуску.",
   "whatsNewFullChangelog": "Полный список изменений на GitHub",
   "whatsNewReadme": "README на GitHub",
+  "whatsNewStarGithub": "Нравится Muse Spark Code? Звезда на GitHub поможет другим людям его найти.",
   "whatsNewHideOnUpdate": "Не показывать после обновлений",
   "whatsNewUpdatedNotice": "Muse Spark Code обновлён до версии {version}.",
   "whatsNewOpen": "Что нового",

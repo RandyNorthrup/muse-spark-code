@@ -1318,6 +1318,7 @@
   "whatsNewNoNotes": "{version} sürümü sürüm notları içermiyor.",
   "whatsNewFullChangelog": "GitHub’da tam değişiklik günlüğü",
   "whatsNewReadme": "GitHub’da README",
+  "whatsNewStarGithub": "Muse Spark Code hoşunuza gidiyor mu? GitHub’da bir yıldız vermeniz, başkalarının da onu keşfetmesine yardımcı olur.",
   "whatsNewHideOnUpdate": "Güncellemelerde gösterme",
   "whatsNewUpdatedNotice": "Muse Spark Code {version} sürümüne güncellendi.",
   "whatsNewOpen": "Yenilikler",

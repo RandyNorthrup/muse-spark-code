@@ -78,7 +78,7 @@
   "walkthrough.gettingStarted.title": "Introducción a Muse Spark",
   "walkthrough.gettingStarted.description": "Muse Spark de Meta como agente de codificación en VS Code: abra el panel, inicie sesión y converse sobre su código.",
   "walkthrough.gettingStarted.step.welcome.title": "Su agente de codificación",
-  "walkthrough.gettingStarted.step.welcome.description": "Muse Spark lee sus archivos, los edita y ejecuta comandos según el modo de permisos que elija, y sigue las reglas de AGENTS.md y las aptitudes del área de trabajo cuando esta es de confianza.",
+  "walkthrough.gettingStarted.step.welcome.description": "Muse Spark lee sus archivos, los edita y ejecuta comandos según el modo de permisos que elija, y sigue las reglas de AGENTS.md y las aptitudes del área de trabajo cuando esta es de confianza.\n\n[¿Te gusta Muse Spark Code? Una estrella en GitHub ayuda a que otras personas lo descubran.](https://github.com/RandyNorthrup/muse-spark-code)",
   "walkthrough.gettingStarted.step.open.title": "Abrir el panel",
   "walkthrough.gettingStarted.step.open.description": "Haga clic en el icono de Muse Spark en la barra de actividades, o presione Ctrl+Mayús+Alt+Escape en Windows, Cmd+Mayús+Escape en macOS o Ctrl+Mayús+Escape en Linux para abrir una conversación en una pestaña del editor.\n[Abrir Muse Spark](command:museSpark.openInSidebar)",
   "walkthrough.gettingStarted.step.signIn.title": "Iniciar sesión",

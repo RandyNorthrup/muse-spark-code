@@ -78,7 +78,7 @@
   "walkthrough.gettingStarted.title": "Első lépések a Muse Sparkkal",
   "walkthrough.gettingStarted.description": "A Meta Muse Spark modellje kódoló ügynökként a VS Code-ban: nyissa meg a panelt, jelentkezzen be, és beszélgessen a kódjáról.",
   "walkthrough.gettingStarted.step.welcome.title": "Az Ön kódoló ügynöke",
-  "walkthrough.gettingStarted.step.welcome.description": "A Muse Spark beolvassa a fájljait, az Ön által választott engedélyezési módban szerkeszti őket és futtat parancsokat, és követi a munkaterület AGENTS.md szabályait és képességeit, miután megbízott a munkaterületben.",
+  "walkthrough.gettingStarted.step.welcome.description": "A Muse Spark beolvassa a fájljait, az Ön által választott engedélyezési módban szerkeszti őket és futtat parancsokat, és követi a munkaterület AGENTS.md szabályait és képességeit, miután megbízott a munkaterületben.\n\n[Tetszik a Muse Spark Code? Egy GitHub-csillag segít másoknak is felfedezni.](https://github.com/RandyNorthrup/muse-spark-code)",
   "walkthrough.gettingStarted.step.open.title": "A panel megnyitása",
   "walkthrough.gettingStarted.step.open.description": "Kattintson a Muse Spark ikonra a tevékenységsávon, vagy szerkesztőablak-lapon megnyíló beszélgetéshez nyomja le a Ctrl+Shift+Alt+Escape (Windows), a Cmd+Shift+Escape (macOS) vagy a Ctrl+Shift+Escape (Linux) billentyűkombinációt.\n[Muse Spark megnyitása](command:museSpark.openInSidebar)",
   "walkthrough.gettingStarted.step.signIn.title": "Bejelentkezés",

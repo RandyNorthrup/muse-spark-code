@@ -1318,6 +1318,7 @@
   "whatsNewNoNotes": "A(z) {version} verzióhoz nem tartoznak kiadási megjegyzések.",
   "whatsNewFullChangelog": "Teljes változásnapló a GitHubon",
   "whatsNewReadme": "README a GitHubon",
+  "whatsNewStarGithub": "Tetszik a Muse Spark Code? Egy GitHub-csillag segít másoknak is felfedezni.",
   "whatsNewHideOnUpdate": "Ne jelenjen meg frissítéskor",
   "whatsNewUpdatedNotice": "A Muse Spark Code frissült a(z) {version} verzióra.",
   "whatsNewOpen": "Újdonságok",

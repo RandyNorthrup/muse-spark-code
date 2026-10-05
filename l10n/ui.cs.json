@@ -1400,6 +1400,7 @@
   "whatsNewNoNotes": "Verze {version} nemá žádné poznámky k vydání.",
   "whatsNewFullChangelog": "Úplný seznam změn na GitHubu",
   "whatsNewReadme": "README na GitHubu",
+  "whatsNewStarGithub": "Používáte Muse Spark Code rádi? Hvězdička na GitHubu ho pomůže objevit i ostatním.",
   "whatsNewHideOnUpdate": "Nezobrazovat po aktualizacích",
   "whatsNewUpdatedNotice": "Muse Spark Code byl aktualizován na verzi {version}.",
   "whatsNewOpen": "Novinky",

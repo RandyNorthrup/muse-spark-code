@@ -78,7 +78,7 @@
   "walkthrough.gettingStarted.title": "Muse Spark を使ってみる",
   "walkthrough.gettingStarted.description": "VS Code のコーディング エージェントとしての Meta の Muse Spark: パネルを開き、サインインして、コードについてチャットします。",
   "walkthrough.gettingStarted.step.welcome.title": "あなたのコーディング エージェント",
-  "walkthrough.gettingStarted.step.welcome.description": "Muse Spark はファイルを読み取り、選択した権限モードの下でファイルを編集してコマンドを実行し、ワークスペースが信頼されると、ワークスペースの AGENTS.md のルールとスキルに従います。",
+  "walkthrough.gettingStarted.step.welcome.description": "Muse Spark はファイルを読み取り、選択した権限モードの下でファイルを編集してコマンドを実行し、ワークスペースが信頼されると、ワークスペースの AGENTS.md のルールとスキルに従います。\n\n[Muse Spark Code は気に入りましたか？GitHub でスターを付けると、ほかの人にも見つけてもらいやすくなります。](https://github.com/RandyNorthrup/muse-spark-code)",
   "walkthrough.gettingStarted.step.open.title": "パネルを開く",
   "walkthrough.gettingStarted.step.open.description": "アクティビティ バーの Muse Spark アイコンをクリックします。エディター タブで会話を開くには、Windows では Ctrl+Shift+Alt+Escape、macOS では Cmd+Shift+Escape、Linux では Ctrl+Shift+Escape を押します。\n[Muse Spark を開く](command:museSpark.openInSidebar)",
   "walkthrough.gettingStarted.step.signIn.title": "サインイン",

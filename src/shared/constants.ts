@@ -621,6 +621,7 @@ export const OUTPUT_CHANNEL_SCHEME = 'output'
 export const WHATS_NEW_CHANGELOG_URL =
   'https://github.com/RandyNorthrup/muse-spark-code/blob/main/CHANGELOG.md'
 export const WHATS_NEW_README_URL = 'https://github.com/RandyNorthrup/muse-spark-code#readme'
+export const WHATS_NEW_REPOSITORY_URL = 'https://github.com/RandyNorthrup/muse-spark-code'
 // The markup its script reads is in src/shared/whatsNewPage.ts.
 
 // Content-Security-Policy nonce: 24 random bytes encode to 32 base64url chars.

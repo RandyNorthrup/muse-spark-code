@@ -1277,6 +1277,7 @@
   "whatsNewNoNotes": "版本 {version} 未附带发行说明。",
   "whatsNewFullChangelog": "GitHub 上的完整更新日志",
   "whatsNewReadme": "GitHub 上的 README",
+  "whatsNewStarGithub": "喜欢 Muse Spark Code 吗？在 GitHub 上点个星标，能帮助更多人发现它。",
   "whatsNewHideOnUpdate": "更新后不显示",
   "whatsNewUpdatedNotice": "Muse Spark Code 已更新到 {version}。",
   "whatsNewOpen": "新功能",

@@ -78,7 +78,7 @@
   "walkthrough.gettingStarted.title": "开始使用 Muse Spark",
   "walkthrough.gettingStarted.description": "将 Meta 的 Muse Spark 作为 VS Code 中的编程代理：打开面板、登录，然后就你的代码展开对话。",
   "walkthrough.gettingStarted.step.welcome.title": "你的编程代理",
-  "walkthrough.gettingStarted.step.welcome.description": "Muse Spark 会读取你的文件，按你选择的权限模式编辑文件和运行命令，并在工作区受信任后遵循工作区的 AGENTS.md 规则和技能。",
+  "walkthrough.gettingStarted.step.welcome.description": "Muse Spark 会读取你的文件，按你选择的权限模式编辑文件和运行命令，并在工作区受信任后遵循工作区的 AGENTS.md 规则和技能。\n\n[喜欢 Muse Spark Code 吗？在 GitHub 上点个星标，能帮助更多人发现它。](https://github.com/RandyNorthrup/muse-spark-code)",
   "walkthrough.gettingStarted.step.open.title": "打开面板",
   "walkthrough.gettingStarted.step.open.description": "单击活动栏中的 Muse Spark 图标；或者按 Ctrl+Shift+Alt+Escape（Windows）、Cmd+Shift+Escape（macOS）或 Ctrl+Shift+Escape（Linux），在编辑器标签页中打开对话。\n[打开 Muse Spark](command:museSpark.openInSidebar)",
   "walkthrough.gettingStarted.step.signIn.title": "登录",

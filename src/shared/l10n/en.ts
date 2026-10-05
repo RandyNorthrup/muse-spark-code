@@ -1860,6 +1860,7 @@ export const EN = {
   whatsNewNoNotes: 'No release notes ship with version {version}.',
   whatsNewFullChangelog: 'Full changelog on GitHub',
   whatsNewReadme: 'README on GitHub',
+  whatsNewStarGithub: 'Enjoying Muse Spark Code? A star on GitHub helps other people find it.',
   whatsNewHideOnUpdate: 'Don’t show on updates',
   whatsNewUpdatedNotice: 'Muse Spark Code updated to {version}.',
   whatsNewOpen: 'What’s New',
