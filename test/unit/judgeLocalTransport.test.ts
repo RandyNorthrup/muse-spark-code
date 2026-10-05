@@ -4,9 +4,16 @@ import { createServer } from 'node:http'
 import { createServer as rawServer, type Server, Socket } from 'node:net'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { localEndpoint, requestLocal } from '../../src/core/judge/local/transport'
-import { LOCAL_JUDGE_MAX_RESPONSE_BYTES } from '../../src/shared/constants'
+import {
+  JUDGE_REQUEST_TIMEOUT_MS,
+  LOCAL_JUDGE_MAX_RESPONSE_BYTES,
+} from '../../src/shared/constants'
 
 const servers: Server[] = []
+async function exceededVerifierDeadline(): Promise<never> {
+  await delay(1000, undefined, { ref: false })
+  throw new Error('verifier-exceeded-deadline')
+}
 afterEach(async () => {
   for (const server of servers.splice(0)) {
     await new Promise<void>((resolve) =>
@@ -200,5 +207,86 @@ describe('M98-2j pinned transport', () => {
     await expect(
       requestLocal({ address: '127.0.0.1', port }, '/api/tags', () => Promise.resolve()),
     ).rejects.toThrow('unverified-port')
+  })
+
+  it.each(['cancel', 'deadline'])(
+    'bounds a stalled verifier on %s and sends zero bytes',
+    async (stop) => {
+      let bytes = 0
+      const endpoint = await listen(
+        rawServer((socket) =>
+          socket.on('data', (chunk: Buffer) => {
+            bytes += chunk.length
+          }),
+        ),
+      )
+      const controller = new AbortController()
+      const operation = requestLocal(
+        endpoint,
+        '/api/chat',
+        () => {
+          if (stop === 'cancel') controller.abort()
+          return new Promise<void>(() => {
+            /* deliberately stalled test verifier */
+          })
+        },
+        'private-state',
+        { signal: controller.signal, timeoutMs: 20 },
+      )
+      const bounded = Promise.race([operation, exceededVerifierDeadline()])
+      try {
+        await expect(bounded).rejects.toThrow(
+          stop === 'cancel' ? 'local-cancelled' : 'local-timeout',
+        )
+      } finally {
+        controller.abort()
+        try {
+          await operation
+        } catch {
+          /* rejection was asserted above; settle cleanup */
+        }
+      }
+      expect(bytes).toBe(0)
+    },
+  )
+
+  it('refuses pre-cancelled and invalid deadlines without opening a socket', async () => {
+    const controller = new AbortController()
+    controller.abort()
+    const verify = vi.fn(() => Promise.resolve())
+    await expect(
+      requestLocal({ address: '127.0.0.1', port: 1 }, '/api/chat', verify, 'state', {
+        signal: controller.signal,
+      }),
+    ).rejects.toThrow()
+    for (const timeoutMs of [0, NaN, 1.5, JUDGE_REQUEST_TIMEOUT_MS + 1])
+      await expect(
+        requestLocal({ address: '127.0.0.1', port: 1 }, '/api/chat', verify, 'state', {
+          timeoutMs,
+        }),
+      ).rejects.toThrow('invalid-local-deadline')
+    expect(verify).not.toHaveBeenCalled()
+  })
+
+  it('ignores environment proxy traps and makes no proxy connection', async () => {
+    let proxyRequests = 0
+    const proxy = await listen(
+      createServer((_incoming, response) => {
+        proxyRequests++
+        response.end('{}')
+      }),
+    )
+    const target = await listen(createServer((_incoming, response) => response.end('{}')))
+    vi.stubEnv('HTTP_PROXY', `http://127.0.0.1:${String(proxy.port)}`)
+    vi.stubEnv('HTTPS_PROXY', `http://127.0.0.1:${String(proxy.port)}`)
+    vi.stubEnv('ALL_PROXY', `http://127.0.0.1:${String(proxy.port)}`)
+    try {
+      expect(
+        await requestLocal(target, '/api/chat', () => Promise.resolve(), 'private-state'),
+      ).toEqual({})
+      expect(proxyRequests).toBe(0)
+    } finally {
+      vi.unstubAllEnvs()
+    }
   })
 })

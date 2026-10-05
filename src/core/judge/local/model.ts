@@ -40,12 +40,29 @@ async function exactPath(root: string, relative: string): Promise<string> {
   return expected
 }
 
+async function blobDigest(handle: FileHandle, signal: AbortSignal | undefined): Promise<string> {
+  const hash = createHash('sha256')
+  const stream = handle.createReadStream({
+    autoClose: false,
+    start: 0,
+    highWaterMark: LOCAL_JUDGE_HASH_CHUNK_BYTES,
+  })
+  for await (const chunk of stream) {
+    signal?.throwIfAborted()
+    if (!Buffer.isBuffer(chunk)) throw new Error('unverified-blob-bytes')
+    hash.update(chunk)
+  }
+  return `sha256:${hash.digest('hex')}`
+}
+
 /** Hash actual bytes, including the weights, rather than trusting filenames. */
 export async function verifyDiskModel(
   tags: unknown,
   model: string,
   directory: string,
+  signal?: AbortSignal,
 ): Promise<{ digest: string; weightBytes: number }> {
+  signal?.throwIfAborted()
   if (!/^[a-z\d][a-z\d._-]*:[a-z\d][a-z\d._-]*$/i.test(model)) {
     throw new Error('unverified-model-name')
   }
@@ -58,6 +75,7 @@ export async function verifyDiskModel(
   if (!name || !tag) throw new Error('unverified-model-name')
   const manifestFile = await exactPath(root, `manifests/registry.ollama.ai/library/${name}/${tag}`)
   const manifestHandle = await open(manifestFile, 'r')
+  const opened: FileHandle[] = []
   const held: { handle: FileHandle; file: string; before: BigIntStats; digest: string }[] = []
   try {
     const initial = await handleIdentity(manifestHandle)
@@ -72,21 +90,15 @@ export async function verifyDiskModel(
     const manifest = manifestSchema.parse(decoded)
     let weightBytes = 0
     for (const blob of [manifest.config, ...manifest.layers]) {
+      signal?.throwIfAborted()
       const blobPath = await exactPath(root, `blobs/${blob.digest.replace(':', '-')}`)
       const handle = await open(blobPath, 'r')
+      opened.push(handle)
       const before = await handleIdentity(handle)
       held.push({ handle, file: blobPath, before, digest: blob.digest })
       if (!before.isFile() || before.size !== BigInt(blob.size))
         throw new Error('unverified-blob-size')
-      const hash = createHash('sha256')
-      const stream = handle.createReadStream({
-        autoClose: false,
-        highWaterMark: LOCAL_JUDGE_HASH_CHUNK_BYTES,
-      })
-      for await (const chunk of stream) {
-        if (!Buffer.isBuffer(chunk)) throw new Error('unverified-blob-bytes')
-        hash.update(chunk)
-      }
+      const digest = await blobDigest(handle, signal)
       const after = await handleIdentity(handle)
       const named = await statIdentity(blobPath)
       if (
@@ -96,7 +108,7 @@ export async function verifyDiskModel(
         before.size !== named.size ||
         before.mtimeNs !== after.mtimeNs ||
         before.size !== after.size ||
-        `sha256:${hash.digest('hex')}` !== blob.digest
+        digest !== blob.digest
       )
         throw new Error('unverified-blob-digest')
       await exactPath(root, `blobs/${blob.digest.replace(':', '-')}`)
@@ -107,19 +119,11 @@ export async function verifyDiskModel(
     for (const { handle, file, before, digest } of held) {
       // Windows may cache metadata while a reader holds the file open. Rehash
       // from offset zero as well; timestamps alone cannot prove unchanged bytes.
-      const hash = createHash('sha256')
-      const stream = handle.createReadStream({
-        autoClose: false,
-        start: 0,
-        highWaterMark: LOCAL_JUDGE_HASH_CHUNK_BYTES,
-      })
-      for await (const chunk of stream) {
-        if (!Buffer.isBuffer(chunk)) throw new Error('unverified-blob-bytes')
-        hash.update(chunk)
-      }
+      const actual = await blobDigest(handle, signal)
       const after = await handleIdentity(handle)
       const named = await statIdentity(file)
       if (
+        actual !== digest ||
         !sameFile(before, after) ||
         !sameFile(before, named) ||
         before.size !== after.size ||
@@ -128,8 +132,7 @@ export async function verifyDiskModel(
         before.mtimeNs !== named.mtimeNs ||
         before.ctimeNs !== after.ctimeNs ||
         before.ctimeNs !== named.ctimeNs ||
-        (await realpath(file)) !== file ||
-        `sha256:${hash.digest('hex')}` !== digest
+        (await realpath(file)) !== file
       )
         throw new Error('unverified-blob-snapshot')
     }
@@ -143,10 +146,11 @@ export async function verifyDiskModel(
     ) {
       throw new Error('unverified-manifest')
     }
+    signal?.throwIfAborted()
     return { digest: served.digest, weightBytes }
   } finally {
     try {
-      await Promise.all(held.map(({ handle }) => handle.close()))
+      await Promise.all(opened.map((handle) => handle.close()))
     } finally {
       await manifestHandle.close()
     }

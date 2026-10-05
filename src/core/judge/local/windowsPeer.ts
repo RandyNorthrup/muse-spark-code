@@ -1,6 +1,7 @@
 import { execFile } from 'node:child_process'
 import path from 'node:path'
 import { promisify } from 'node:util'
+import { realpath } from 'node:fs/promises'
 import type { Socket } from 'node:net'
 import { z } from 'zod'
 import {
@@ -23,8 +24,13 @@ const identitySchema = z.strictObject({
 type PeerIdentity = z.infer<typeof identitySchema>
 const execute = promisify(execFile)
 
-/** The test-only helper holds a process handle and double-reads the TCP row. */
-export async function windowsPeer(helper: string, socket: Socket): Promise<PeerIdentity> {
+/** The native helper holds a process handle and double-reads the TCP row. */
+export async function windowsPeer(
+  helper: string,
+  socket: Socket,
+  signal?: AbortSignal,
+): Promise<PeerIdentity> {
+  signal?.throwIfAborted()
   if (
     process.platform !== 'win32' ||
     !socket.remoteAddress ||
@@ -49,10 +55,31 @@ export async function windowsPeer(helper: string, socket: Socket): Promise<PeerI
       maxBuffer: LOCAL_JUDGE_MAX_RESPONSE_BYTES,
       // No credential environment goes to the helper.
       env: { SystemRoot: process.env['SystemRoot'] },
+      signal,
     },
   )
   const decoded: unknown = JSON.parse(stdout)
   return identitySchema.parse(decoded)
+}
+
+/** Canonical model roots on fixed NTFS only; UNC/mapped drives are unverified. */
+export async function windowsModelDirectory(
+  helper: string,
+  directory: string,
+  signal: AbortSignal,
+): Promise<void> {
+  signal.throwIfAborted()
+  if (process.platform !== 'win32' || path.resolve(directory) !== (await realpath(directory)))
+    throw new Error('unverified-model-root')
+  const { stdout } = await execute(helper, ['root', directory], {
+    windowsHide: true,
+    timeout: LOCAL_JUDGE_TIMEOUT_MS,
+    maxBuffer: LOCAL_JUDGE_MAX_RESPONSE_BYTES,
+    env: { SystemRoot: process.env['SystemRoot'] },
+    signal,
+  })
+  const decoded: unknown = JSON.parse(stdout)
+  z.strictObject({ local: z.literal(true) }).parse(decoded)
 }
 
 /** Compare process generation as well as PID; a retained TTL proves nothing. */

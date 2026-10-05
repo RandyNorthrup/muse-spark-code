@@ -1,4 +1,4 @@
-// M98-2j test-only C# 5 helper. No shell, credentials or request content.
+// M98-2j C# 5 helper. No shell, credentials or request content.
 // Read the established SERVER row for the client's reversed four-tuple.
 using System;
 using System.Collections.Generic;
@@ -99,6 +99,15 @@ public static class LocalJudgePeer {
 
   public static int Main(string[] args) {
     try {
+      if (args.Length == 2 && args[0] == "root") {
+        string root = Path.GetFullPath(args[1]);
+        var drive = new DriveInfo(Path.GetPathRoot(root));
+        if (!Directory.Exists(root) || root.StartsWith(@"\\")
+          || drive.DriveType != DriveType.Fixed || drive.DriveFormat != "NTFS") return 1;
+        // The caller compares realpath as well to refuse junction components.
+        Console.Write("{\"local\":true}");
+        return 0;
+      }
       if (args.Length != 4) return 1;
       IPAddress local = IPAddress.Parse(args[0]), remote = IPAddress.Parse(args[2]);
       if (!IPAddress.IsLoopback(local) || !IPAddress.IsLoopback(remote)) return 1;

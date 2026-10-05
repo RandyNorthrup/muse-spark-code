@@ -1,4 +1,4 @@
-// Design spike only: owning tests are the only callers (PLAN.md M98-2j).
+// Pinned local transport: each request owns one socket and no reconnect.
 import { lookup } from 'node:dns/promises'
 import { once } from 'node:events'
 import { request } from 'node:http'
@@ -12,6 +12,7 @@ import {
   LOCAL_JUDGE_HTTP_OK,
   LOCAL_JUDGE_MIN_PORT,
   LOCAL_JUDGE_MAX_PORT,
+  JUDGE_REQUEST_TIMEOUT_MS,
 } from '../../../shared/constants'
 
 function isLoopback(address: string): boolean {
@@ -46,10 +47,15 @@ export async function localEndpoint(
 /** No pool or reconnect. The verifier runs before even an HTTP header is sent. */
 export async function requestLocal(
   endpoint: { address: string; port: number },
-  route: '/api/tags' | '/api/chat',
+  route: '/api/tags' | '/api/chat' | '/api/ps' | '/v1/systemone',
   verify: (socket: Socket) => Promise<void>,
   body?: string,
+  options: { signal?: AbortSignal; timeoutMs?: number } = {},
 ): Promise<unknown> {
+  options.signal?.throwIfAborted()
+  const timeoutMs = options.timeoutMs ?? LOCAL_JUDGE_TIMEOUT_MS
+  if (!Number.isSafeInteger(timeoutMs) || timeoutMs < 1 || timeoutMs > JUDGE_REQUEST_TIMEOUT_MS)
+    throw new Error('invalid-local-deadline')
   if (!isLoopback(endpoint.address)) throw new Error('unverified-address')
   if (
     !Number.isSafeInteger(endpoint.port) ||
@@ -72,7 +78,9 @@ export async function requestLocal(
   })
   const deadline = setTimeout(() => {
     socket.destroy(new Error('local-timeout'))
-  }, LOCAL_JUDGE_TIMEOUT_MS)
+  }, timeoutMs)
+  const abort = () => socket.destroy(new Error('local-cancelled'))
+  options.signal?.addEventListener('abort', abort, { once: true })
   // Cover errors while the asynchronous OS/disk verifier is running, too.
   let fault: Error | undefined
   socket.on('error', (error) => {
@@ -83,7 +91,20 @@ export async function requestLocal(
     if (socket.remoteAddress !== endpoint.address || !isLoopback(socket.localAddress ?? '')) {
       throw new Error('unverified-tuple')
     }
-    await verify(socket)
+    // A slow verifier cannot keep the transport alive after cancellation/expiry.
+    let closed: (() => void) | undefined
+    const stopped = new Promise<never>((_resolve, reject) => {
+      closed = () => {
+        reject(fault ?? new Error('unverified-closed'))
+      }
+      socket.once('close', closed)
+    })
+    try {
+      await Promise.race([verify(socket), stopped])
+    } finally {
+      if (closed) socket.removeListener('close', closed)
+    }
+    options.signal?.throwIfAborted()
     if (fault || socket.destroyed || !socket.writable || socket.readableEnded) {
       throw fault ?? new Error('unverified-closed')
     }
@@ -125,6 +146,7 @@ export async function requestLocal(
     })
   } finally {
     clearTimeout(deadline)
+    options.signal?.removeEventListener('abort', abort)
     socket.destroy()
   }
 }

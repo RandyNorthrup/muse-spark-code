@@ -9,7 +9,7 @@ import { z } from 'zod'
 const execute = promisify(execFile)
 
 export async function compilePeer(): Promise<string> {
-  const source = path.resolve('test/unit/helpers/localJudgePeer.cs')
+  const source = path.resolve('native/windows/MuseSparkLocalJudgePeer.cs')
   const digest = createHash('sha256')
     .update(await readFile(source))
     .digest('hex')
