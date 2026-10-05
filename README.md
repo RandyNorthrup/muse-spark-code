@@ -3711,6 +3711,9 @@ with the arguments its header gives.
 **Quality gates.** Every gate fails the build rather than printing, and each
 was seen to fail on a deliberate break before being trusted; the records are
 in [`docs/certification/`](docs/certification/), one file per milestone.
+The [M98-2j local judge spike](docs/certification/m98-2j-spike.md) contains
+test-only transport/provenance prototypes and free-loopback measurements.
+It adds no local judge setting or runtime selection to the product.
 Accessibility is a gate too: every screen the harness shows passes axe-core's
 WCAG 2.2 AA rules in Light Modern, Dark Modern and both High Contrast themes
 (PLAN.md D32); CI's full tier runs it once, on Linux. So is localization

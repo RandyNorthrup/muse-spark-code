@@ -384,24 +384,25 @@ Functions, variables, classes, enums and members declared in `@types/vscode`; th
 | `workspace.textDocuments`                                                            | `src/extension.ts`                                                                                                                                                                                                                                                                                                                           |
 | `workspace.workspaceFolders`                                                         | `src/extension.ts`, `src/host/agentImportHost.ts`, `src/host/cliFeatures.ts`                                                                                                                                                                                                                                                                 |
 
-## Node built-ins the host imports (25)
+## Node built-ins the host imports (26)
 
 | Module                 | Files |
 | ---------------------- | ----- |
 | `node:buffer`          | 38    |
-| `node:child_process`   | 12    |
-| `node:crypto`          | 41    |
+| `node:child_process`   | 15    |
+| `node:crypto`          | 44    |
 | `node:dgram`           | 1     |
 | `node:dns`             | 1     |
-| `node:dns/promises`    | 3     |
-| `node:fs`              | 31    |
-| `node:fs/promises`     | 41    |
-| `node:http`            | 5     |
+| `node:dns/promises`    | 4     |
+| `node:events`          | 1     |
+| `node:fs`              | 33    |
+| `node:fs/promises`     | 45    |
+| `node:http`            | 6     |
 | `node:https`           | 1     |
 | `node:module`          | 2     |
-| `node:net`             | 7     |
-| `node:os`              | 8     |
-| `node:path`            | 78    |
+| `node:net`             | 11    |
+| `node:os`              | 9     |
+| `node:path`            | 82    |
 | `node:process`         | 1     |
 | `node:stream`          | 14    |
 | `node:stream/promises` | 2     |
@@ -409,7 +410,7 @@ Functions, variables, classes, enums and members declared in `@types/vscode`; th
 | `node:timers/promises` | 3     |
 | `node:tls`             | 1     |
 | `node:url`             | 3     |
-| `node:util`            | 6     |
+| `node:util`            | 9     |
 | `node:vm`              | 1     |
 | `node:worker_threads`  | 4     |
 | `node:zlib`            | 2     |

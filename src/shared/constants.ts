@@ -4787,3 +4787,15 @@ export const WEBVIEW_L10N_ELEMENT_ID = 'muse-l10n'
 export const WINDOWS_POWERSHELL_TERMINAL_PATH = String.raw`\System32\WindowsPowerShell\v1.0\powershell.exe`
 // The login / TUI terminal's shell off Windows (PLAN.md D25): POSIX syntax, always there.
 export const POSIX_TERMINAL_SHELL = '/bin/sh'
+// M98-2j: test-only local transport/provenance spike; no shipped reader.
+export const LOCAL_JUDGE_TIMEOUT_MS = 30_000
+export const LOCAL_JUDGE_MAX_RESPONSE_BYTES = 65_536
+export const LOCAL_JUDGE_MAX_MODELS = 100
+export const LOCAL_JUDGE_MAX_LAYERS = 32
+export const LOCAL_JUDGE_DIGEST_HEX_LENGTH = 64
+export const LOCAL_JUDGE_MIN_PORT = 1
+export const LOCAL_JUDGE_MAX_PORT = 65_535
+export const LOCAL_JUDGE_IPV4_FAMILY = 4
+export const LOCAL_JUDGE_DEFAULT_PORT = 80
+export const LOCAL_JUDGE_HTTP_OK = 200
+export const LOCAL_JUDGE_HASH_CHUNK_BYTES = 1_048_576

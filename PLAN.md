@@ -16451,6 +16451,25 @@ joined with M57, M58 and PR #49's sign-in
     that is never confidential and never auto-selected. The build follows
     the spike's verdict, starting from D77's carried design: the pinned
     `node:net` transport, provenance, consented pulls and `tev1:4b`.
+    **Windows spike lane (2026-10-05).** `docs/certification/m98-2j-spike.md`
+    records the verdict and free-call ledger. Prototype modules in
+    `src/core/judge/local/` are reachable only through owning tests, with the
+    reviewed Windows TCP-table helper in `test/unit/helpers/`. They ship no
+    runtime entry, settings or automatic selection. Test the connection's
+    reversed four-tuple before writing HTTP, process creation identity,
+    installed executable and on-disk manifest/blob digests, then the named
+    reconnect, replacement, PID-reuse, address-family and forwarding cases.
+    Linux and macOS designs remain unverified on this Windows rig. No model
+    pulls, credential reads or paid calls; at most 59 free inference attempts.
+    **Spike result:** outcome (a) is feasible on the recorded native Windows
+    installation: each content socket's exact peer, binary fingerprint and
+    local manifest/blob bytes were verified before HTTP. 27 free inference
+    attempts completed (26 with the complete transport proof); at most 56
+    Ollama HTTP requests including metadata. The runtime install and model
+    mutation assumptions are explicit in the certification. The authenticated
+    self-SSH fixture could not run without existing authentication; Linux,
+    macOS and installed-extension execution remain unverified. This is a
+    test-only design result, not a shipped local engine or automatic selection.
 - **Gates.**
   - The lead runs the full `npm run quality` and the required CI checks on
     the final integrated tree. Lane tests and builds run on the rigs; local
@@ -16855,6 +16874,16 @@ No dependency, host contract, paid guard or bundle cap changes.
 
 ##### 2j — Local judge after the parallel spike
 
+- **FIXM98J2 review repair (2026-10-05).** Reject SystemOne score legends
+  that change the ordered request criteria and expected scores inconsistent
+  with their probability distribution, allowing only floating-point error.
+  Repair the spike's promoted Windows-helper evidence link. Prove both
+  findings with regressions and byte-exact red drills. On win11, rerun
+  native IPv4/IPv6 ownership and attempt real process-generation/PID-reuse
+  and CPU-only latency receipts, with at most four free local inference
+  attempts and no pull/removal. Record any uncertified item by name in the
+  lane receipt and section 9; other platform sources remain with their lanes.
+
 - **Scope.** Adopt the spike's reviewed result, not a cached listener probe
   or this lane's guess. CPU-only is the product assumption; `tev1:4b` is
   recommended, or a captured local general model of at least 3B with
@@ -17013,6 +17042,16 @@ required injected dependencies. Cursor's registration list excludes all five
 blocking events, even if a future neutral-output parser were to accept them.
 
 ## 7. Gates
+
+**M98P2INT round-4 bounded integration (2026-10-05).** The explicit rig
+brief authorizes four ordered no-ff merges (J2fix, J3-linux, J3-macos, FUfix),
+lazy J/FU assembly and native packaging, owning unit/native files in batches
+of at most three, and the scoped gates named in the brief. No main merge,
+push, aggregate quality/full suite or local/live/paid model call is authorized.
+The local source remains opt-in; each use remains inactive without its own
+paired and borrowed-golden evidence. Existing bundle and VSIX caps remain
+unchanged; record the known package overage for the lead/VSIXDIET2. Full
+quality, coverage, installed-source and release receipts remain lead gates.
 
 **M98P2INT round-3 package-budget deferral (2026-10-05).** The required
 H/GH merges and their M91 ancestry fit all existing JavaScript bundle caps
@@ -17197,6 +17236,40 @@ merges/pushes, and `common.md` forbids aggregate quality/full-unit runs in
 this shared lane. Full quality, aggregate coverage, accessibility and the
 hosted Windows recheck remain the lead's gates. No gate or deadline was
 weakened. Evidence: `docs/certification/mcp-job-flake.md`.
+**FIXM98J2 bounded repair delegation (2026-10-05).** The rig brief
+authorizes hook-on local commits after owning tests and red/restored drills,
+scoped lint/format and typechecks. Run the common final scoped checks
+directly on win11, never full quality/full tests, merge, rebase or push.
+The lead retains integrated quality, packaging and installed-host gates;
+the stale host-API generated record remains Z's existing handoff.
+
+**FIXM98J2 native certification deferral.** The completed review repairs
+have four full red/restore/green receipts and 144 passing Windows unit
+tests. Qwen's three free CPU calls returned below the unchanged request
+deadline. The native PID opt-in test passed a real exit/near-PID fixture
+and fired its liveness mutation, but restored reruns failed the allocation
+precondition twice. Its strict bound remains and the path stops under the
+common retry rule: `WIN-PID-REPEATABILITY` in section 9 is an incomplete
+certification drill, not a waived native support gate. The opt-in test and
+positive/failed receipts remain for a reviewed repeatable fixture; no
+product/native guard or portable quality configuration is changed.
+
+**M98-2j bounded spike delegation (2026-10-05).** The rig brief authorizes
+hook-on local commits after owning tests and deliberate failing drills,
+scoped lint/format and typecheck, with the final dead-code, duplication,
+localization, host API and production-build receipt. It prohibits a full
+quality or full test run here; the lead runs full quality on the integrated
+tree. No gate, threshold or ignore changes for this test-only spike.
+
+**M98-2j lane receipt.** The owning 47 tests, free probe, 17 failing/restored
+drills, all five typechecks, scoped ESLint/Prettier, plain knip, duplication,
+localization, host API and production build pass on win11. The host API
+snapshot is refreshed for the prototypes' Node imports (including
+`node:events`); it also resolves the pre-existing FIXM98J snapshot deferral
+below, recording paidHost's twelfth API call and judge's crypto import.
+This is a generated source record, not a new VS Code API or host policy.
+Full integrated quality/coverage/a11y and installed-host checks remain the
+lead's delegated gates. See `docs/certification/m98-2j-spike.md`.
 
 **M98P2PLAN documentation-only lane (2026-10-05).** The explicit rig brief
 limits changes to PLAN and the phase-2 planning receipt and requires only
@@ -18003,6 +18076,48 @@ before a repaired one loads (2026-09-30).
   and offers only one-time approval. Safe for the current explicit Bypass
   contract, with the exception stated in README/CHANGELOG. Follow-up: lead
   decision on CLI admission/BYPASS support before claiming universal asks.
+- **FIXM98J2 / WIN-PID-REPEATABILITY (2026-10-05).** A real process exit
+  and new PID eight away passed the held-handle refusal; ignoring the native
+  exit signal made the intended assertion fail. Source restoration matched
+  SHA-256, but two restored runs reached only PID distances 44 and 28 against
+  the unchanged at-most-16 fixture precondition. This is an incomplete drill,
+  not repeatable platform certification; the bounded allocator path stops
+  under the common retry rule. No native generation/liveness guard changes
+  and no local source is product-wired. Follow-up: a reviewed repeatable
+  native fixture and complete red/green installed-source receipt.
+
+- **FIXM98J2 / CPU-TEV (2026-10-05).** The three returned free CPU calls
+  certify one-token qwen transport/provenance latency on win11, all below
+  the unchanged 60-second request deadline and all with reported GPU
+  residence zero. They do not certify `tev1:4b` CPU SystemOne latency or a
+  population percentile. Automatic qwen selection still requires calibration;
+  no CPU speed recommendation for tev is added. Follow-up: a separately
+  bounded/consented tev CPU receipt and installed-source latency under Z.
+
+- **FIXM98J2 / WIN-INSTALLED (RVM98J2, 2026-10-05).** The repaired
+  source and headless native receipts do not certify transport inside an
+  installed extension or complete runtime assembly. The product exposes no
+  local-judge runtime yet; an unregistered factory is not a support claim.
+  Z must register/package the native helper and vetted install/update anchors,
+  supply the complete model token counter and model wording, install language
+  state, run exact installed-host execution and borrowed request goldens,
+  refresh the host-API snapshot and close aggregate quality/package gates.
+- **FIXM98J2 / WIN-SSH (RVM98J2, 2026-10-05).** Authenticated self-SSH
+  forwarding remains uncaptured. Real same-user relay refusal and exact
+  per-socket tuple/executable/generation checks passed; no relay exception
+  or confidential/unverified bypass is added. Follow-up: an authenticated
+  loopback SSH fixture through the assembled installed source on win11.
+- **FIXM98J2 / COMMON-MODEL-LIFETIME (RVM98J2, 2026-10-05).** Retained
+  blob handles and snapshot revalidation prove the bytes checked before
+  dispatch, not immutable weights during inference. Arbitrary same-user
+  code injection is outside that proof. The narrow advisory claim stays;
+  no peer/hash TTL is permitted. A stronger claim needs a separately reviewed
+  immutable-file/runtime-lifetime design and real replacement drills.
+- **FIXM98J2 / POSIX-NATIVE (RVM98J2, 2026-10-05).** This Windows lane
+  neither implements nor certifies Linux/macOS native lifetime, volume,
+  installation and transport. Missing native evidence fails closed and
+  Windows receipts are not inherited. M98J3L/M98J3M own their platform files
+  and installed native receipts; Z incorporates those before support.
 
 - Code intelligence (M67) shows what VS Code's language services say. A
   result located outside the workspace is left out and a hover defined only

@@ -29,6 +29,14 @@ happened, not what was planned; superseded entries are kept.
 - Passive judge settings accept `separate` and `both`, with a machine-scoped
   separate-source identifier. Defaults remain `auto` with no separate source;
   configuration alone cannot enable an unverified or unmeasured source.
+- **Local judge design spike (M98-2j).** A test-only pinned loopback
+  transport, Windows per-connection process verification and manifest/blob
+  hashing, with adversarial fixtures and free Ollama latency receipts.
+  Nothing selects or runs a local judge in the product; the certification
+  records the verification scope and remaining platform work.
+  Windows follow-up receipts measure CPU-only qwen latency and real
+  exit/near-PID refusal; repeatable PID-fixture certification remains open.
+
 - **Muse Judge contract and strings (M98 lane 0, PLAN.md D77).** New
   `src/core/judge/schema.ts` (zod request/answer/`muse` schemas, bounds,
   labels, option letters, log summary); the named judge limits in
@@ -513,6 +521,19 @@ happened, not what was planned; superseded entries are kept.
 ### Fixed
 
 - What’s New has a localized tip in the palette and slash-command list, alongside the panel’s other actions.
+- Local SystemOne score answers now refuse changed criteria legends and
+  scores inconsistent with their returned probability distribution. The
+  Windows spike's native-helper evidence link follows its promoted source.
+
+- **Muse Judge (M98, RVM98J).** Boolean action arguments hash correctly;
+  retried actions reject stale callbacks and fences; complete prompt batches
+  fit the measured context; choice and score tokens must be one character.
+  Explicit `same` honors the user's selection below the automatic readiness
+  floor, logprob metadata matches the shared contract, and top-1 estimates
+  correctly report partial evidence. Startup excludes the judge from legacy
+  paid price review and loads no judge schema. The first-charge wording in
+  every language says ask once and shows the shared daily budget. No judge
+  runs yet; the first-charge consent hookup remains lane U's work.
 
 - Secret prompts are redacted on their first transcript card, history replay, saved draft recovery and Markdown export (including filenames). Delayed warnings survive a later send; Send anyway resends the held text, attachments and reference while preserving newer typing.
 
