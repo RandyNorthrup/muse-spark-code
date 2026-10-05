@@ -172,6 +172,10 @@ src/host/**           VS Code adapters (views, conversation, backend managers,
                       the first fetch),
                       the Auto reviewer on Muse Code (dist/museCodeReviewer.js,
                       loaded on the first review),
+                      the report dialog's handler and export paths
+                      (dist/report.js, loaded on the first report; M93) beside
+                      the window's flight recorder (support/: its journal and
+                      markers and the dialog's facts, loaded at activation),
                       What's New after an update (whatsNew/: the check and
                       claim at activation; the page in dist/whatsNew.js,
                       loaded on the first page or notice, its content
@@ -215,14 +219,16 @@ src/core/**           backend-agnostic logic; must not import `vscode`
                       it never opens because tools run them, the checkpoint
                       restore plan, the paired efficiency evaluation,
                       observation packing, Tab's context windows, requests,
-                      filters, typing-through cache, scheduler and spend)
+                      filters, typing-through cache, scheduler and spend, the flight recorder policy
+                      and problem report builder and second scrub)
 src/acp/**            the ACP agent (D62): the ACP side of a session and the
                       translation of the engine's events; must not import
                       `vscode`
 src/runtime/exec/**   headless arguments/protocol/egress, stdin key/scanner,
                       bounded lifecycle, ACP client/tap and per-attempt ledger
 src/runtime/**        the agent's process: arguments, backends outside VS Code,
-                      the OS credential store (D61), `auth` and `login`
+                      the OS credential store (D61), `auth`, `login` and
+                      `report` (M93)
 src/shared/**         constants + zod protocol shared by host and webview
 src/shared/l10n/**    the English table (en.ts), fill/plural/Intl helpers, the
                       table checks and the list of translated languages

@@ -202,6 +202,38 @@ happened, not what was planned; superseded entries are kept.
     - **The plugin host** loads from its own bundle, `dist/pluginHooks.js`,
       the first time a plugin hook runs.
 
+- **Report a problem (M93, PLAN.md D72).** `Muse Spark: Report a Problem`,
+  the palette's Support item, "Report this" on recorded error rows and
+  notices, and the crash screen open one dialog that builds a scrubbed report
+  locally. No chat, sign-in, backend, model call or network request is needed,
+  and nothing is sent by the extension.
+  - **A flight recorder, not a log.** Each window keeps a bounded journal of
+    facts under VS Code's global storage (7 days, 256 KiB a journal, pruned
+    at start, append and read): a fixed event kind, a known error class or
+    the word `unknown`, the versions, and stack frames inside the shipped
+    bundles only. No prompt, code, file content, model output, tool text,
+    message, path, id or credential is ever written. Links and unexpected
+    files are refused.
+  - **The exact draft first.** The dialog shows the final scrubbed text,
+    lists every item in it (each removable), takes an optional description
+    and warns that it can still disclose something. Copy, Save, the
+    prefilled GitHub new-issue page (copy plus the empty form past 2,000
+    encoded characters) and, where VS Code has it, its own issue reporter
+    all export that same sealed text; a change after the preview re-previews
+    instead.
+  - **After a crash**, the next activation offers once: "Muse Spark Code
+    stopped unexpectedly last time — report it?" A second live window is
+    never taken for a crash.
+  - **Headless.** `muse-spark-code-acp report` prints the same scrubbed
+    report from the agent's own journal, starting nothing; in ACP mode the
+    agent records its own failures there without touching ACP stdout.
+  - **Windows reports.** UNC and extended Windows paths are scrubbed,
+    including quoted paths with spaces. Workspace/home replacements accept
+    equivalent Windows case and separators; extended paths retain verified
+    package stack frames. Windows link, open-file pruning and CRLF export
+    checks are recorded in `docs/certification/m93.md`. The dialog's section
+    switches now have enough room for Windows native checkbox targets.
+
 ### Changed
 
 - **M100's paired-device plan now states connectivity prerequisites.** Manual

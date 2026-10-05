@@ -48,6 +48,10 @@ import type {
   MentionItem,
   ModelOption,
   NoticeAction,
+  ReportDraftItem,
+  ReportEventRef,
+  ReportExportChannel,
+  ReportExportReason,
   ReviewFile,
   SettingsSnapshot,
   SignInMethod,
@@ -142,6 +146,39 @@ export interface SharePreview {
   readonly modelId: string
   readonly redacted: boolean
   readonly items: readonly ItemSnapshot[]
+}
+
+/** What the last export attempt answered, in the host's fixed words (M93 lane W). */
+export interface ReportExportStatus {
+  readonly via: ReportExportChannel
+  readonly ok: boolean
+  /** The over-long draft, copied with a paste note; rides only on an opened issue page. */
+  readonly issueFallback?: boolean | undefined
+  readonly reason?: ReportExportReason | undefined
+}
+
+/** The report-a-problem preview dialog's state (M93 lane W). */
+export interface ReportDialogState {
+  /** The host's dialog session this draft belongs to (one per open). */
+  readonly session: number
+  /** Which of the dialog's choices the draft answers; 0 is the opening draft. */
+  readonly revision: number
+  /** The description the draft was built with, echoed by the host. */
+  readonly description: string
+  readonly includeFacts: boolean
+  readonly includeEvents: boolean
+  /** Every item the draft contains that the user can remove. */
+  readonly items: readonly ReportDraftItem[]
+  /** Lane P's exact final draft: the preview shows `text` byte-identical. */
+  readonly title: string
+  readonly text: string
+  /** The draft's seal, carried back by the export. */
+  readonly hash: string
+  /** The VS Code reporter action shows only while its command exists. */
+  readonly canUseVscodeReporter: boolean
+  readonly recordingUnavailable: boolean
+  /** The last export attempt's answer; cleared by the next draft. */
+  readonly exportStatus: ReportExportStatus | undefined
 }
 
 export interface OutputPage {
@@ -407,6 +444,18 @@ export interface UiState {
   /** A local share file open read-only (M84); undefined when none is open. */
   readonly share: SharePreview | undefined
   /**
+   * The report-a-problem preview (M93 lane W): lane P's sealed draft as the
+   * host built it, with the removable items it contains. Undefined while
+   * the dialog is closed; never saved (the journal outlives the panel, and
+   * the command reads it again after a reload).
+   */
+  readonly report: ReportDialogState | undefined
+  /**
+   * The newest report session the user closed (0 for none): a draft still on
+   * its way for it, or for an older one, never reopens the dialog.
+   */
+  readonly closedReportSession: number
+  /**
    * The conversation in the transcript holds imported history (M84, the
    * host's `historyLoaded`): its code blocks offer Copy, never Insert or Apply.
    */
@@ -511,6 +560,8 @@ export type UiAction =
   | { readonly type: 'reviewHunkReverting'; readonly key: string }
   /** The × (or Escape, or the backdrop) on the share-file modal (M84). */
   | { readonly type: 'shareClosed' }
+  /** Cancel (or Escape, the × or the backdrop) on the report dialog (M93 lane W). */
+  | { readonly type: 'reportClosed' }
 
 export const initialUiState: UiState = {
   pendingApprovalResolutions: [],
@@ -593,6 +644,8 @@ export const initialUiState: UiState = {
   pendingRestore: undefined,
   pendingClearEchoes: 0,
   share: undefined,
+  report: undefined,
+  closedReportSession: 0,
   isImported: false,
 }
 
@@ -955,6 +1008,7 @@ function withNotice(
   text: string,
   redoRestoreId?: string,
   actions?: readonly NoticeAction[],
+  reportRef?: ReportEventRef,
 ): UiState {
   const localSequence = state.localSequence + 1
   const repeatIndex =
@@ -976,6 +1030,7 @@ function withNotice(
         ...(redoRestoreId !== undefined && { redoRestoreId }),
         ...(actions !== undefined && actions.length > 0 && { actions }),
         ...(repeatCount !== undefined && { repeatCount }),
+        ...(reportRef !== undefined && { reportRef }),
       },
     ],
   }
@@ -1715,6 +1770,7 @@ function completeTurn(
   state: UiState,
   event: Extract<AgentEvent, { type: 'turnCompleted' }>,
   at: number,
+  reportRef: ReportEventRef | undefined,
 ): UiState {
   const child = childOwnerOf(state, event.turnId)
   if (child?.childSessionId !== undefined) {
@@ -1728,6 +1784,7 @@ function completeTurn(
             kind: 'error',
             id: `error:${event.turnId}`,
             text: event.reason ?? event.errorKind ?? UI_TEXT.turnFailed,
+            ...(reportRef !== undefined && { reportRef }),
           },
         ]
       : []
@@ -1749,7 +1806,12 @@ function completeTurn(
   )
 }
 
-function applyAgentEvent(state: UiState, event: AgentEvent, at: number): UiState {
+function applyAgentEvent(
+  state: UiState,
+  event: AgentEvent,
+  at: number,
+  reportRef?: ReportEventRef,
+): UiState {
   switch (event.type) {
     case 'turnStarted': {
       return childOwnerOf(state, event.turnId) === undefined
@@ -1781,7 +1843,7 @@ function applyAgentEvent(state: UiState, event: AgentEvent, at: number): UiState
       return transcript === state.transcript ? state : { ...state, transcript }
     }
     case 'turnCompleted': {
-      return completeTurn(state, event, at)
+      return completeTurn(state, event, at, reportRef)
     }
     case 'userMessageTurnChanged': {
       const card = state.transcript.findLast(
@@ -2905,7 +2967,7 @@ function applyHostMessage(state: UiState, message: HostToWebviewMessage, at: num
       )
     }
     case 'agentEvent': {
-      return applyAgentEvent(state, message.event, at)
+      return applyAgentEvent(state, message.event, at, message.reportRef)
     }
     case 'modelList': {
       return { ...state, models: message.models }
@@ -2965,6 +3027,7 @@ function applyHostMessage(state: UiState, message: HostToWebviewMessage, at: num
         message.text,
         message.redoRestoreId,
         message.actions,
+        message.reportRef,
       )
       return announce(
         message.level === 'error'
@@ -2972,6 +3035,47 @@ function applyHostMessage(state: UiState, message: HostToWebviewMessage, at: num
           : noticed,
         message.level === 'info' ? undefined : message.text,
       )
+    }
+    case 'reportDraft': {
+      // The preview dialog's draft (M93 lane W): shown byte-identical, so a
+      // fresh draft clears the last export's answer. Opening moves focus
+      // into the dialog (the app watches `report`); an update while typing
+      // must not steal it, so nothing is announced here — the dialog's own
+      // status line reads export outcomes out. A draft for a session the user
+      // closed (or an older one), or for an older choice than the one shown,
+      // arrived late: it is dropped, never reopening or rewinding the dialog.
+      const shown = state.report
+      if (
+        message.session <= state.closedReportSession ||
+        (shown !== undefined &&
+          (message.session < shown.session ||
+            (message.session === shown.session && message.revision < shown.revision)))
+      ) {
+        return state
+      }
+      const { type: _draft, ...draft } = message
+      return { ...state, report: { ...draft, exportStatus: undefined } }
+    }
+    case 'reportExported': {
+      // An export attempt's answer in fixed words (M93 lane W): shown on
+      // the dialog's status line. An answer for a closed dialog, another
+      // session or a draft no longer on screen is dropped: it is not about
+      // what the dialog shows.
+      if (state.report?.session !== message.session || state.report.hash !== message.hash) {
+        return state
+      }
+      return {
+        ...state,
+        report: {
+          ...state.report,
+          exportStatus: {
+            via: message.via,
+            ok: message.ok,
+            issueFallback: message.issueFallback,
+            reason: message.reason,
+          },
+        },
+      }
     }
     case 'outputPage': {
       const key = outputPageKey(message.itemId, message.outputRef)
@@ -3321,6 +3425,13 @@ export function uiReducer(state: UiState, action: UiAction): UiState {
     }
     case 'shareClosed': {
       return { ...state, share: undefined }
+    }
+    case 'reportClosed': {
+      return {
+        ...state,
+        report: undefined,
+        closedReportSession: Math.max(state.closedReportSession, state.report?.session ?? 0),
+      }
     }
     case 'conversationCleared': {
       return {

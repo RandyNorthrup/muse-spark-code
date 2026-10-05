@@ -2192,6 +2192,11 @@ body {
   min-height: 24px;
 }
 
+.report-check input {
+  margin: 0;
+  cursor: pointer;
+}
+
 .git-files summary:focus-visible,
 .git-check input:focus-visible,
 .git-pr-title:focus-visible {
@@ -2573,6 +2578,71 @@ body {
 }
 
 .handoff-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 8px 0 4px;
+}
+
+/* The report-a-problem preview dialog (M93 lane W): the description field,
+its section switches, the removable items, the exact final draft and the
+export row. Long lines wrap so the dialog holds a 320 px panel. */
+.report-label {
+  display: block;
+  margin: 8px 0 6px;
+}
+
+.report-description {
+  box-sizing: border-box;
+  width: 100%;
+}
+
+.report-warning,
+.report-note {
+  margin: 6px 0;
+  color: var(--vscode-descriptionForeground);
+  font-size: 0.9em;
+}
+
+.report-sections {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 8px 0;
+}
+
+/* Each switch at least 24 px tall, so its checkbox has a 24 px target's
+   room (WCAG 2.5.8), as the question options do. */
+.report-check {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 24px;
+  cursor: pointer;
+}
+
+.report-items {
+  margin: 0 0 8px;
+  padding-left: 1.5em;
+}
+
+.report-items li {
+  overflow-wrap: break-word;
+}
+
+.report-preview {
+  box-sizing: border-box;
+  width: 100%;
+  font-family: var(--vscode-editor-font-family, monospace);
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+}
+
+.report-status {
+  margin: 8px 0 4px;
+}
+
+.report-actions {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;

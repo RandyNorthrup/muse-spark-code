@@ -134,6 +134,11 @@
         "category": "%command.category%"
       },
       {
+        "command": "museSpark.reportProblem",
+        "title": "%command.reportProblem.title%",
+        "category": "%command.category%"
+      },
+      {
         "command": "museSpark.newConversation",
         "title": "%command.newConversation.title%",
         "category": "%command.category%"

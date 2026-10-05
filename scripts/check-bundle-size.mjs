@@ -96,6 +96,15 @@ const BUDGETS = [
   { path: 'dist/museCodeReviewer.js', budgetKiB: 75 },
   // M91 E: both-backend hooks, 45.4 KiB + 15%, rounded up to 25 KiB.
   { path: 'dist/extensionHooks.js', budgetKiB: 75 },
+  // The report dialog (M93): the builder, its second scrub, the export paths
+  // and the handler, loaded on the first open. 63.6 KiB when split out (its
+  // own zod), plus 15%, rounded up to 25 KiB (PLAN.md D6).
+  { path: 'dist/report.js', budgetKiB: 75 },
+  // The flight recorder's journal (M93), loaded just after activation or at
+  // the first failure: 51.3 KiB when split out (the journal, its policy and
+  // the shared protocol it validates against), plus 15%, rounded up to 25 KiB
+  // (PLAN.md D6).
+  { path: 'dist/recorder.js', budgetKiB: 75 },
   // What's New (M99, PLAN.md D79), loaded on the first page or notice: the
   // page's renderer, its content schema (zod's mini parser) and its tab.
   // 34.8 KiB when split out, plus 15%, rounded up to 25 KiB.

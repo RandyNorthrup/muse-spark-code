@@ -51,6 +51,10 @@
 //   dist/extension.js or missing from dist/whatsNew.js; or its page script,
 //   dist/webview/whatsNew.js, carries any package, the display table or
 //   constants.ts, or no longer carries the page script.
+// - the report dialog (M93: the builder, its second scrub, the export paths
+//   and the handler) or the flight recorder's journal (its policy and frame
+//   mapping) is in dist/extension.js, or missing from dist/report.js or
+//   dist/recorder.js. The ACP agent bundles both itself.
 // - a model text block beside MODEL_TEXT (MODEL_API_, CODE_INTEL_,
 //   CHECKPOINT_, AGENT_IMPORT_, GIT_, REVIEW_, WEB_FETCH_, EXEC_,
 //   AUTO_REVIEWER_MODEL_TEXT) is
@@ -489,6 +493,33 @@ const ON_FIRST_USE = [
       'src/host/review/museCodeReviewerEntry.ts',
       'src/host/review/museCodeReviewer.ts',
       'src/core/backends/modelapi/autoReviewer.ts',
+    ],
+  },
+  // The report dialog (M93, PLAN.md D72), split out from the start.
+  {
+    output: 'dist/report.js',
+    metafile: 'dist/meta/report.json',
+    use: 'the first report dialog',
+    files: [
+      'src/host/support/reportEntry.ts',
+      'src/host/conversation/reportProblemHandler.ts',
+      'src/host/support/reportProblem.ts',
+      'src/core/support/problemReport.ts',
+    ],
+  },
+  // The flight recorder's journal (M93, PLAN.md D6, D72): activation keeps
+  // only the front that answers and queues; the journal, its policy and the
+  // frame mapping load just after activation or at the first failure.
+  {
+    output: 'dist/recorder.js',
+    metafile: 'dist/meta/recorder.json',
+    use: 'the journal, just after activation',
+    files: [
+      'src/host/support/recorderEntry.ts',
+      'src/host/support/reportJournal.ts',
+      'src/host/support/hostFrames.ts',
+      'src/core/support/flightRecorder.ts',
+      'src/core/support/journalEvents.ts',
     ],
   },
   // What's New (M99, D79): activation keeps the update check, the claim and
@@ -1047,12 +1078,11 @@ for (const file of nodeMetafiles) {
   }
 }
 for (const input of validationReaders) {
-  const source = ts.createSourceFile(
-    input,
-    readFileSync(input, 'utf8'),
-    ts.ScriptTarget.Latest,
-    true,
-  )
+  const text = readFileSync(input, 'utf8')
+  // A file that never names the module has no alias to check; parsing every
+  // source input made this the slowest part of the check.
+  if (!text.includes('zod/mini')) continue
+  const source = ts.createSourceFile(input, text, ts.ScriptTarget.Latest)
   const aliases = new Set()
   for (const statement of source.statements) {
     if (

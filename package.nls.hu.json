@@ -16,6 +16,7 @@
   "command.setUpSandbox.title": "Shell-homokozó beállítása",
   "command.showLogs.title": "Naplók megjelenítése",
   "command.diagnostics.title": "Diagnosztika",
+  "command.reportProblem.title": "Hiba jelentése",
   "command.newConversation.title": "Új beszélgetés",
   "command.signOut.title": "Kijelentkezés",
   "command.openInTerminal.title": "Megnyitás terminálban",

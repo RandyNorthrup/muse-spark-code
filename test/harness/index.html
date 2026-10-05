@@ -4142,6 +4142,82 @@
             'Could not switch model: Muse Code did not answer session/setModel within 60 s',
           )
         },
+        // --- M93 lane W: report a problem — a recorded failure's row and
+        // the preview dialog over the host's sealed draft ---
+        report: () => {
+          send({
+            type: 'notice',
+            level: 'error',
+            text: 'Muse Code exited before the turn began.',
+            reportRef: { kind: 'backendExit', entryIndex: 3 },
+          })
+          send({
+            type: 'reportDraft',
+            session: 1,
+            revision: 0,
+            description: '',
+            includeFacts: true,
+            includeEvents: true,
+            items: [
+              { kind: 'facts', label: 'Support facts' },
+              { kind: 'event', eventIndex: 2, label: 'toolCallFailed · 45 seconds ago' },
+              { kind: 'event', eventIndex: 3, label: 'backendExit · 2 minutes ago' },
+            ],
+            title: 'Problem report: Muse Spark 0.12.1 on linux',
+            text: [
+              'Muse Spark problem report',
+              '',
+              'Support facts:',
+              'extension: 0.12.1',
+              'vscode: 1.99.0',
+              'node: 22.20.4',
+              'platform: linux',
+              'backend: museCode',
+              'cli: found (version 1.4.2); signed in: yes',
+              'stored model api key: no; META_API_KEY in environment: no',
+              'shell sandbox: sandboxed',
+              'settings (names only): museSpark.backend',
+              '',
+              'Recent events (2):',
+              '- 45s ago toolCallFailed TypeError',
+              '  dist/extension.js:2:41723',
+              '- 2m ago backendExit exited',
+            ].join('\n'),
+            hash: '0'.repeat(64),
+            canUseVscodeReporter: true,
+            recordingUnavailable: false,
+          })
+          later(400, () => {
+            const boxes = [...document.querySelectorAll('.report-check input')].map((input) =>
+              input.getBoundingClientRect(),
+            )
+            if (boxes.length !== 2) throw new Error('Report section checkboxes are missing')
+            const centers = boxes.map((box) => box.top + box.height / 2)
+            if (centers[1] - centers[0] < 24) {
+              throw new Error('Report section checkboxes need 24 px between their centers')
+            }
+          })
+        },
+        // The runners open this one in a real 320 px viewport (the dialog's
+        // backdrop is fixed to the viewport, so a narrow body would not test it).
+        'report-narrow': () => {
+          if (window.innerWidth !== 320) {
+            throw new Error('report-narrow requires a 320 px viewport')
+          }
+          steps['report']()
+          // A refused clipboard, stated on the dialog: the preview stays, so
+          // its text can still be copied by hand.
+          later(200, () =>
+            send({
+              type: 'reportExported',
+              session: 1,
+              hash: '0'.repeat(64),
+              via: 'copy',
+              ok: false,
+              reason: 'copyFailed',
+            }),
+          )
+        },
         // --- M84: a share file open read-only: Copy on its code, no Insert or Apply ---
         share: () => {
           send({

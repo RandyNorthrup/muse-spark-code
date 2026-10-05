@@ -16,6 +16,7 @@
   "command.setUpSandbox.title": "Configurar Área Restrita do Shell",
   "command.showLogs.title": "Mostrar Logs",
   "command.diagnostics.title": "Diagnóstico",
+  "command.reportProblem.title": "Relatar um problema",
   "command.newConversation.title": "Nova Conversa",
   "command.signOut.title": "Sair",
   "command.openInTerminal.title": "Abrir no Terminal",

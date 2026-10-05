@@ -936,6 +936,50 @@ export const EN = {
   logoutItem: '/logout',
   openLog: 'Open output log',
   reportIssue: 'Report an issue…',
+  // Report a problem (M93, PLAN.md D72): the crash offer, the report
+  // dialog's labels and actions, and the export outcomes. The preview shows
+  // exactly what Copy, Save and the issue page carry.
+  reportCrashOffer: 'Muse Spark Code stopped unexpectedly last time — report it?',
+  reportCrashAction: 'Report a problem',
+  reportCrashDismiss: 'Not now',
+  reportThisAction: 'Report this',
+  reportTitle: 'Report a problem',
+  reportDescriptionLabel: 'What were you doing when it happened?',
+  reportIncludeFacts: 'Include support facts',
+  reportIncludeEvents: 'Include recent events',
+  reportPreviewLabel: 'Preview',
+  reportCopyAction: 'Copy report',
+  reportOpenIssueAction: 'Open issue page',
+  reportSaveAction: 'Save to a file',
+  reportVscodeReporterAction: 'Use the VS Code issue reporter',
+  reportCancelAction: 'Cancel',
+  reportCopied: 'The report was copied to the clipboard.',
+  reportCopyFailed: 'The report could not be copied. Copy it from the preview instead.',
+  reportSaved: 'The report was saved.',
+  reportSaveFailed: 'The report could not be saved.',
+  reportBuildFailed: 'The report could not be built.',
+  reportUrlTooLong:
+    'The report is too long to open in a browser address. Copy it instead, then paste it into the new-issue form.',
+  reportRecordingUnavailable:
+    'Event recording was unavailable, so this report has no recent events.',
+  reportDescriptionWarning:
+    'Review the scrubbed preview before sharing. Your description can still disclose confidential information; do not include passwords or keys.',
+  reportVscodeReporterNote:
+    'The VS Code issue reporter adds its own data, may search GitHub for similar issues, and controls sign-in and submission.',
+  // Report a problem (M93 lane W): the preview dialog's item list, its
+  // export outcomes and its updating state. Item labels stay identifiers
+  // (an event kind, a relative age), so the preview matches the export.
+  reportItemsLabel: 'What this report contains',
+  reportRemoveItem: 'Remove {item}',
+  reportFactsItem: 'Support facts',
+  reportEventItem: '{kind} · {age}',
+  reportUpdating: 'Updating the preview…',
+  reportStaleDraft:
+    'The report changed while exporting. The preview below is current — export again.',
+  reportIssueOpened: 'The issue page was opened in the browser.',
+  reportIssueOpenFailed: 'The issue page could not be opened. Copy the report instead.',
+  reportVscodeReporterOpened: 'The VS Code issue reporter was opened.',
+  reportVscodeReporterFailed: 'The VS Code issue reporter could not be opened.',
   openDocs: 'Muse Code documentation',
   modelListLabel: 'Models',
   thinkingOff: 'No thinking',
@@ -2280,6 +2324,7 @@ export const EN = {
     '  {command} auth set|status|clear  Store, check or remove the Meta Model API key',
     '  {command} exec [options] <prompt>  Run one headless turn',
     '  {command} scan-secrets <file> [--key-stdin]  Count likely secrets in one file (prints only the number)',
+    '  {command} report [options]  Print a scrubbed problem report (starts no backend, opens no browser)',
     'Options:',
     '  --backend museCode|modelApi      Who pays: Muse Code (the default) or the Model API key',
     '  --trust-workspace                Load the folder’s rules, skills and memory',
@@ -2296,6 +2341,20 @@ export const EN = {
   // name. Lane E adds it to the usage above with the command.
   acpUsageSetup:
     '  {command} --trust-workspace setup [--maintenance]  Run the Setup hooks and exit',
+  // Report a problem headless (M93 lane A, PLAN.md D72): `report --help`
+  // and bad report arguments print this on stderr, never the report itself.
+  // {command}: the executable's name. <file> and <text> stay as typed.
+  reportUsage: [
+    'Usage:',
+    '  {command} report [--out <file>] [--description <text>] [--no-facts] [--no-events]',
+    '  Prints the scrubbed problem report to stdout, or writes it to <file> with --out.',
+    '  Starts no backend, signs in nowhere, and opens no browser.',
+    'Options:',
+    '  --out <file>         Write the report to a file instead of stdout',
+    '  --description <text>  What was happening, in your own words',
+    '  --no-facts           Leave the support facts out',
+    '  --no-events          Leave the recent events out',
+  ].join('\n'),
   // M80 (PLAN.md D65): the headless exec and scan-secrets commands.
   execBudgetRequired: 'Model API requires --max-budget-usd.',
   execNumberInvalid: 'Invalid number or limit; the USD budget accepts at most six decimal places.',

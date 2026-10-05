@@ -7,7 +7,6 @@
 import {
   type EffortLevel,
   type ExportFormat,
-  ISSUES_URL,
   HOOK_RUN_SLASH_COMMAND,
   MUSE_DOCS_URL,
   type PaidFeature,
@@ -77,6 +76,8 @@ export type PaletteAction =
   /** "Open share file…" (M84): a portable JSON file read-only in the panel. */
   | { readonly type: 'openShareFile' }
   | { readonly type: 'openLog' }
+  /** "Report an issue…" (M93, PLAN.md D72): the scrubbed report's preview, never a bare link. */
+  | { readonly type: 'openReport' }
   /** "What's New" (M99): the release notes of this version in an editor tab. */
   | { readonly type: 'showWhatsNew' }
   | { readonly type: 'openExternal'; readonly url: string }
@@ -691,11 +692,7 @@ export function buildPalette(context: PaletteContext): readonly PaletteGroup[] {
       items: [
         { id: 'log', label: UI_TEXT.openLog, action: { type: 'openLog' } },
         { id: 'whatsNew', label: UI_TEXT.whatsNewOpen, action: { type: 'showWhatsNew' } },
-        {
-          id: 'issue',
-          label: UI_TEXT.reportIssue,
-          action: { type: 'openExternal', url: ISSUES_URL },
-        },
+        { id: 'issue', label: UI_TEXT.reportIssue, action: { type: 'openReport' } },
         {
           id: 'docs',
           label: UI_TEXT.openDocs,

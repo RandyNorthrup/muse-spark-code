@@ -16,6 +16,7 @@
   "command.setUpSandbox.title": "設定 Shell 沙箱",
   "command.showLogs.title": "顯示記錄",
   "command.diagnostics.title": "診斷",
+  "command.reportProblem.title": "回報問題",
   "command.newConversation.title": "新增對話",
   "command.signOut.title": "登出",
   "command.openInTerminal.title": "在終端機中開啟",

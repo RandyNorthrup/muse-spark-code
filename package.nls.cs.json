@@ -16,6 +16,7 @@
   "command.setUpSandbox.title": "Nastavit sandbox pro shell",
   "command.showLogs.title": "Zobrazit protokoly",
   "command.diagnostics.title": "Diagnostika",
+  "command.reportProblem.title": "Nahlásit problém",
   "command.newConversation.title": "Nová konverzace",
   "command.signOut.title": "Odhlásit se",
   "command.openInTerminal.title": "Otevřít v terminálu",

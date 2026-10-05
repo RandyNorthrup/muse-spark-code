@@ -55,6 +55,7 @@ export const COMMAND_IDS = {
   setUpSandbox: 'museSpark.setUpSandbox',
   showLogs: 'museSpark.showLogs',
   diagnostics: 'museSpark.diagnostics',
+  reportProblem: 'museSpark.reportProblem',
   newConversation: 'museSpark.newConversation',
   signOut: 'museSpark.signOut',
   openInTerminal: 'museSpark.openInTerminal',
@@ -153,6 +154,9 @@ export const VSCODE_COMMANDS = {
   openKeybindings: 'workbench.action.openGlobalKeybindings',
   diff: 'vscode.diff',
   openWalkthrough: 'workbench.action.openWalkthrough',
+  // VS Code's own issue reporter (M93, D72): offered after our preview, with
+  // the supported title and body prefill only.
+  openIssueReporter: 'workbench.action.openIssueReporter',
   // A folder in a window of its own (M32's new worktree).
   openFolder: 'vscode.openFolder',
   // The document's formatter's edits (M68, format on edit).
@@ -4101,6 +4105,195 @@ export const WEBVIEW_ERROR_MESSAGE_MAX_CHARS = 1000
 export const WEBVIEW_ERROR_STACK_MAX_CHARS = 4000
 export const WEBVIEW_ERROR_LOG_LIMIT = 10
 export const WEBVIEW_ERROR_WINDOW_MS = 60_000
+// --- Report a problem (M93, PLAN.md D72) ---
+//
+// The crash-safe support workflow's bounds: a versioned, bounded journal,
+// never the conversation. Lane R records into them, lane P builds the
+// exported draft from them; they are tunables, not settings.
+// The journal's version; a record of any other version is discarded.
+export const REPORT_JOURNAL_VERSION = 1
+// A record older than this is pruned at startup, append and report read.
+export const REPORT_JOURNAL_MAX_AGE_MS = 7 * MILLISECONDS_PER_DAY
+// The journal file past this (UTF-8 bytes) drops its oldest entries first.
+export const REPORT_JOURNAL_MAX_BYTES = 256 * 1024
+// One entry past this is refused: an event is fixed fields plus bounded frames.
+export const REPORT_JOURNAL_ENTRY_MAX_BYTES = 4 * 1024
+// The report carries at most this many of the last valid entries by default.
+export const REPORT_RECENT_EVENT_COUNT = 50
+// The encoded new-issue URL past this falls back to copy plus a paste note.
+export const REPORT_ISSUE_URL_MAX_CHARS = 2000
+// The unfilled page the over-long fallback opens; the extension never posts to it itself.
+export const REPORT_ISSUE_NEW_URL = `${ISSUES_URL}/new`
+// A user-written description past this is cut with an ellipsis: it rides the
+// encoded URL, so an unbounded one always takes the fallback path.
+export const REPORT_DESCRIPTION_MAX_CHARS = 2000
+// The journal's fixed event kinds: host failures and webview failures alike.
+export const REPORT_EVENT_KINDS = [
+  'activationFailed',
+  'backendExit',
+  'toolCallFailed',
+  'windowError',
+  'unhandledRejection',
+  'reactBoundary',
+  'errorNotice',
+] as const
+export type ReportEventKind = (typeof REPORT_EVENT_KINDS)[number]
+// What the webview may post to the host: its own failures only, never host kinds.
+export const REPORT_WEBVIEW_ERROR_KINDS = [
+  'windowError',
+  'unhandledRejection',
+  'reactBoundary',
+] as const
+export type ReportWebviewErrorKind = (typeof REPORT_WEBVIEW_ERROR_KINDS)[number]
+// A short known code, or this fixed word when the code is not known.
+export const REPORT_UNKNOWN_ERROR_CODE = 'unknown'
+// Muse Code's process ended by itself, with no signal named (M93).
+export const REPORT_EXIT_CODE = 'exited'
+// An error code is a short token (an errno, an exit word), never a sentence.
+export const REPORT_ERROR_CODE_MAX_CHARS = 64
+// A verified package-relative frame path; absolute roots never enter the file.
+export const REPORT_FRAME_PATH_MAX_CHARS = 260
+// A scrubbed stack past this many frames adds noise, not diagnosis.
+export const REPORT_STACK_MAX_FRAMES = 16
+// --- Report journal storage (M93 lane R, PLAN.md D72) ---
+//
+// The flight recorder's per-window journals and activation markers live in a
+// folder of this name under ExtensionContext.globalStorageUri, never Settings
+// Sync or workspace storage. Lane P reads the journals for the report draft.
+export const REPORT_STORAGE_DIR = 'reports'
+// Journal/marker bytes are private to the operating-system user.
+export const REPORT_STORAGE_FILE_MODE = 0o600
+// A storage inode has only its owned name; hard links can redirect appends.
+// A number, compared as BigInt where it is read: an exported BigInt here
+// breaks vitest's shared module cache for every suite that imports this file.
+export const REPORT_STORAGE_LINK_COUNT = 1
+// A journal pruned because it passed REPORT_JOURNAL_MAX_BYTES drops to this
+// (M93): the next whole-journal rewrite is then about 64 KiB of appends away,
+// not the very next append, while no journal ever stays past the cap.
+export const REPORT_JOURNAL_PRUNE_TARGET_BYTES = 192 * 1024
+// A version string is a dotted triple, never a sentence.
+export const REPORT_VERSION_MAX_CHARS = 32
+// The JavaScript error classes a failure may be named by: all the webview
+// can vouch for, so its bundle carries only these (PLAN.md D6).
+export const REPORT_ERROR_CLASSES: ReadonlySet<string> = new Set([
+  'Error',
+  'TypeError',
+  'RangeError',
+  'ReferenceError',
+  'SyntaxError',
+  'URIError',
+  'EvalError',
+  'AggregateError',
+  'AbortError',
+  'TimeoutError',
+])
+// Local diagnostic vocabulary, never arbitrary caller or backend text. It
+// repeats REPORT_ERROR_CLASSES rather than spreading it: a spread would keep
+// this whole set in every bundle that reads the classes (the owning test
+// checks that every class is here).
+export const REPORT_ERROR_CODES: ReadonlySet<string> = new Set([
+  REPORT_UNKNOWN_ERROR_CODE,
+  'Error',
+  'TypeError',
+  'RangeError',
+  'ReferenceError',
+  'SyntaxError',
+  'URIError',
+  'EvalError',
+  'AggregateError',
+  'AbortError',
+  'TimeoutError',
+  'EACCES',
+  'EADDRINUSE',
+  'EADDRNOTAVAIL',
+  'EAGAIN',
+  'EBADF',
+  'EBUSY',
+  'ECANCELED',
+  'ECONNABORTED',
+  'ECONNREFUSED',
+  'ECONNRESET',
+  'EEXIST',
+  'EFAULT',
+  'EFBIG',
+  'EHOSTUNREACH',
+  'EINTR',
+  'EINVAL',
+  'EIO',
+  'EISDIR',
+  'ELOOP',
+  'EMFILE',
+  'ENAMETOOLONG',
+  'ENETDOWN',
+  'ENETUNREACH',
+  'ENFILE',
+  'ENOENT',
+  'ENOMEM',
+  'ENOSPC',
+  'ENOSYS',
+  'ENOTDIR',
+  'ENOTEMPTY',
+  'ENOTSUP',
+  'EPERM',
+  'EPIPE',
+  'EROFS',
+  'ETIMEDOUT',
+  'EXDEV',
+  'E2BIG',
+  // The ACP agent's own failure sites (M93): fixed words, one per site.
+  'updateNotSent',
+  'skillsUnavailable',
+  'permissionRequestFailed',
+  'approvalWithoutDenial',
+  'questionFailed',
+  // How Muse Code's process ended when nobody asked it to (M93): a non-zero
+  // exit, or the signal that ended it.
+  REPORT_EXIT_CODE,
+  'SIGTERM',
+  'SIGKILL',
+  'SIGINT',
+  'SIGHUP',
+  'SIGABRT',
+  'SIGSEGV',
+  'SIGBUS',
+  'SIGILL',
+])
+// Exact JavaScript files shipped in the VSIX (.vscodeignore), verified by the
+// owning test. Register new bundles before retaining their stack frames.
+export const REPORT_PACKAGE_FRAME_PATHS: ReadonlySet<string> = new Set([
+  'dist/extension.js',
+  'dist/uiText.js',
+  'dist/modelApi.js',
+  'dist/sessionBoard.js',
+  'dist/reviewer.js',
+  'dist/planMarkdown.js',
+  'dist/review.js',
+  'dist/agentImport.js',
+  'dist/bundledSkills.js',
+  'dist/checkpointStore.js',
+  'dist/codeIntel.js',
+  'dist/voice.js',
+  'dist/webFetch.js',
+  'dist/museCodeReviewer.js',
+  'dist/searchWorker.js',
+  'dist/pageWorker.js',
+  'dist/webview/main.js',
+  'dist/report.js',
+  'dist/recorder.js',
+  'dist/browserCheck.js',
+  'dist/browserRuntime.js',
+  'dist/validation.js',
+  'dist/whatsNew.js',
+  'dist/webview/whatsNew.js',
+])
+// One window journals at most this many failures in REPORT_RECORD_WINDOW_MS
+// (M93): a render or reconnect loop cannot turn every frame into a disk
+// write. Past it, failures go unrecorded until the window moves on.
+export const REPORT_RECORD_LIMIT = 20
+export const REPORT_RECORD_WINDOW_MS = 60_000
+// dist/report.js (M93, PLAN.md D6): the report dialog's builder, scrub,
+// export paths and handler, loaded on the first open.
+export const REPORT_BUNDLE_FILE = 'report.js'
 // The panel keeps its conversation in VS Code's webview state so the crash
 // screen's Reload, or a panel moved to another window, comes back with it:
 // saved at most this often while it changes, and at once before a reload.

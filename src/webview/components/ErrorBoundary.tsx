@@ -10,6 +10,14 @@ export interface ErrorBoundaryProps {
   readonly onReload: () => void
   /** The render error, for the host's log (M39). */
   readonly onError: (error: unknown) => void
+  /**
+   * "Report a problem" on the crash screen (M93 lane W): hands the render
+   * failure to the report workflow with no row text. Absent, the screen
+   * offers only the reload.
+   */
+  readonly onReportProblem?: (() => void) | undefined
+  /** What the crash screen shows above itself (M93: the report dialog, while it is open). */
+  readonly crashOverlay?: ReactNode
   readonly children: ReactNode
 }
 
@@ -50,9 +58,19 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
               <button type="button" className="button-primary" onClick={this.props.onReload}>
                 {UI_TEXT.crashReload}
               </button>
+              {this.props.onReportProblem === undefined ? null : (
+                <button
+                  type="button"
+                  className="button-secondary"
+                  onClick={this.props.onReportProblem}
+                >
+                  {UI_TEXT.reportCrashAction}
+                </button>
+              )}
             </div>
           </section>
         </main>
+        {this.props.crashOverlay}
       </div>
     )
   }

@@ -16,6 +16,7 @@
   "command.setUpSandbox.title": "设置 Shell 沙盒",
   "command.showLogs.title": "显示日志",
   "command.diagnostics.title": "诊断",
+  "command.reportProblem.title": "报告问题",
   "command.newConversation.title": "新建对话",
   "command.signOut.title": "退出登录",
   "command.openInTerminal.title": "在终端中打开",

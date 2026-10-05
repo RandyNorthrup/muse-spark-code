@@ -63,7 +63,7 @@ dist/sessionBoard.js, dist/reviewer.js, dist/foreignHooks.js, dist/hookRuntime.j
 dist/pluginHooks.js, dist/planMarkdown.js, dist/checkpointStore.js,
 dist/review.js, dist/agentImport.js, dist/conversationGit.js, dist/codeIntel.js, dist/voice.js, dist/webFetch.js,
 dist/museCodeReviewer.js, dist/browserCheck.js, dist/browserRuntime.js, dist/bundledSkills.js,
-dist/whatsNew.js, dist/uiText.js, dist/validation.js, dist/searchWorker.js, dist/pageWorker.js,
+dist/whatsNew.js, dist/report.js, dist/recorder.js, dist/uiText.js, dist/validation.js, dist/searchWorker.js, dist/pageWorker.js,
 dist/webview/main.js, its ESM chunks, dist/webview/main.css, dist/webview/whatsNew.js and dist/webview/whatsNew.css)
 include code from the packages below, each under its own licence,
 reproduced here as the package ships it. The vendored

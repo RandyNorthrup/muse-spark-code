@@ -243,3 +243,17 @@ Kubuntu logs and byte-exact drill receipts remain in ignored `temp/train14/`.
 The lane runs sixteen deliberate mutations in total, all red then restored;
 imported branch receipts are labeled separately. The final local work completes
 inside the 100-minute time box.
+
+## Round 2 — TRAIN14B (2026-10-05, Kubuntu)
+
+The rig brief authorizes this completed train's full quality run and reads of
+the checksum-listed 0.13.0 VSIX. Earlier round-one exclusions above remain
+historical. Local hook-on commits preserve all branch heads; unready m94/kw
+and ci/refresh-badges are left for the lead. No push, rebase or paid/live call.
+
+### Ordered joins
+
+| Source                | Head     | Conflicts and resolution                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
+| --------------------- | -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| origin-main / PR #121 | 8c894b60 | CHANGELOG: union only Unreleased Fixed notes, retaining released bytes. Merge 5a929caa; README/changelog/What's New suites: 17 passed.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| M91 + M91b            | 10080407 | 21 files: union Tab/hook paid features, consent, tally, translations, model-text guards and cycle roots; keep held-project trust in Best-of-N, packed translation validation and duplicate-key checks. Regenerate notices and host API. Remove unused runtime import. Merge 90e1fc3d; five typecheck projects, localization (0 problems), 147 focused tests passed. Restore the original shared-English 125-KiB cap, closing the provisional exception. Production activation 628,114 bytes exceeds its cap pending the authorized startup repair; other measured core bundles: Model API 482,079, English 49,169, ACP 837,886. |

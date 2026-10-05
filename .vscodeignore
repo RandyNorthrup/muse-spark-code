@@ -26,6 +26,8 @@
 !dist/validation.js
 !dist/searchWorker.js
 !dist/pageWorker.js
+!dist/report.js
+!dist/recorder.js
 !dist/webview/main.js
 !dist/webview/chunks/*.js
 !dist/webview/main.css

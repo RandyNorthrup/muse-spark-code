@@ -129,6 +129,8 @@ import {
   TEXT_ATTACHMENT_EXTENSIONS,
   TEXT_FILE_DISPLAY_MARKER,
   UNSUPPORTED_BINARY_ATTACHMENT_EXTENSIONS,
+  REPORT_UNKNOWN_ERROR_CODE,
+  type ReportEventKind,
   UI_TEXT,
   USER_SHELL_ITEM_KIND,
   USER_SHELL_SANDBOX_FAILURE_MARKER,
@@ -153,6 +155,8 @@ import type {
   MentionItem,
   ModelOption,
   NoticeAction,
+  ReportEventRef,
+  ReportWebviewError,
   ReviewFile,
   SkillOption,
 } from '../../shared/protocol'
@@ -223,6 +227,28 @@ import {
   readTransferDocument,
   type SessionTransferFiles,
 } from './sessionImport'
+import type { ReportDataSource, ReportProblemMessage } from './reportProblemHandler'
+import type { ReportEditorIo } from '../support/reportProblem'
+import type * as ReportBundle from '../support/reportEntry'
+
+/**
+ * Report a problem (M93, PLAN.md D72) as a surface sees it: the dialog's
+ * facts and journal, and the recorder's two ways in. Recording writes facts
+ * (a fixed kind, a known code, package frames), never the text a row shows.
+ */
+export interface ConversationReports {
+  readonly source: ReportDataSource
+  /** The editor's clipboard, browser, save picker and issue reporter for the exports. */
+  readonly io: ReportEditorIo
+  /** Journals the webview's scrubbed failure (the recorder bounds how many). */
+  readonly recordWebviewError: (error: ReportWebviewError) => void
+  /**
+   * Journals one failure as facts (a fixed kind and a code the recorder
+   * checks against its vocabulary); the sanitized reference a row then
+   * carries, or undefined when nothing was recorded.
+   */
+  readonly record: (kind: ReportEventKind, code: string) => ReportEventRef | undefined
+}
 
 /**
  * One subscription on the current host (list stream, usage stream),
@@ -421,6 +447,12 @@ export interface ConversationDeps {
   readonly exports: ConversationExports
   /** Session import and share files (M84, PLAN.md D49): pick a JSON file, confirm the import. */
   readonly transferFiles: SessionTransferFiles
+  /**
+   * Report a problem (M93, PLAN.md D72): the flight recorder's side for this
+   * surface. Undefined where no recorder could start; the dialog then says
+   * plainly that it did not work, and failures go unrecorded.
+   */
+  readonly reports?: ConversationReports | undefined
   /** Saved plans (M79); undefined without a workspace folder. */
   readonly plans: PlanFiles | undefined
   /** The palette's paid-feature toggles (M33, PLAN.md D30): on asks for the price first. */
@@ -543,6 +575,8 @@ export interface UsageInsightsReport {
 const IDLE_STATUS = 'idle'
 const NOOP_STATUS = 'noop'
 const CANCELLED_STATUS = 'cancelled'
+// A tool call that ended in failure, on both backends (M93: journalled as a fact).
+const FAILED_ITEM_STATUS = 'failed'
 // `session/compact` rejects with this reason before the first turn has run
 // (verified live 2026-09-21); it is "nothing to do", not a failure.
 const MISSING_RUN_REASON = 'missing_run'
@@ -1215,6 +1249,9 @@ export class ConversationController {
    * waiting in the dialog. One at a time; a new conversation drops it.
    */
   private pendingHandoff: PendingHandoff | undefined
+  /** Report a problem (M93): the dialog's handler, one per surface, loaded with dist/report.js. */
+  private reportHandler:
+    Promise<{ handle: (message: ReportProblemMessage) => Promise<void> }> | undefined
   /**
    * Messages of this session accepted as queued or steered that may still be
    * taken back (M87, PLAN.md D66), by their card's local id: the only ids an
@@ -1370,14 +1407,21 @@ export class ConversationController {
 
   /**
    * Says `text` in the panel only: for a failure already logged in more
-   * detail. A file restore's notice carries its Redo (M72).
+   * detail. A file restore's notice carries its Redo (M72). An error is
+   * journalled as a fact (M93, D72), never its text, and its row offers
+   * "Report this" with the sanitized reference.
    */
   private say(level: NoticeLevel, text: string, redoRestoreId?: string): void {
+    const reportRef =
+      level === 'error'
+        ? this.deps.reports?.record('errorNotice', REPORT_UNKNOWN_ERROR_CODE)
+        : undefined
     this.post({
       type: 'notice',
       level,
       text,
       ...(redoRestoreId !== undefined && { redoRestoreId }),
+      ...(reportRef !== undefined && { reportRef }),
     })
   }
 
@@ -1895,11 +1939,32 @@ export class ConversationController {
   }
 
   /** An event as the webview sees it, plus the unread mark. */
+  /**
+   * The failures a session's events show, journalled as facts (M93, D72): a
+   * failed turn (its error row then offers "Report this" with the returned
+   * reference) and a failed tool call. Nothing else of the event is kept;
+   * the event itself goes to the panel unchanged.
+   */
+  private observeFailure(event: AgentEvent): ReportEventRef | undefined {
+    const reports = this.deps.reports
+    if (reports === undefined) {
+      return undefined
+    }
+    if (event.type === 'turnCompleted' && event.terminal === 'failed') {
+      return reports.record('errorNotice', event.errorKind ?? REPORT_UNKNOWN_ERROR_CODE)
+    }
+    if (event.type === 'itemCompleted' && event.item.status === FAILED_ITEM_STATUS) {
+      reports.record('toolCallFailed', REPORT_UNKNOWN_ERROR_CODE)
+    }
+    return undefined
+  }
+
   private forward(event: AgentEvent): void {
     if (event.type === 'textDelta') {
       this.queueDelta(event)
       return
     }
+    const reportRef = this.observeFailure(event)
     if (
       (event.type === 'approvalRequested' || event.type === 'questionRequested') &&
       event.isReplayed !== undefined
@@ -1908,7 +1973,7 @@ export class ConversationController {
       delete shown.isReplayed
       this.post({ type: 'agentEvent', event: shown })
     } else {
-      this.post({ type: 'agentEvent', event })
+      this.post({ type: 'agentEvent', event, ...(reportRef !== undefined && { reportRef }) })
     }
     if (ATTENTION_EVENTS.has(event.type)) {
       this.deps.surface.markUnread()
@@ -7780,6 +7845,68 @@ export class ConversationController {
   }
 
   /**
+   * Report a problem (M93, PLAN.md D72): the preview dialog's messages. They
+   * need no sign-in and start no session: the dialog builds from the journal
+   * and local facts alone. A webview failure is journalled here directly;
+   * the dialog's handler loads with dist/report.js on first use.
+   */
+  private async handleReportMessage(message: ReportProblemMessage): Promise<void> {
+    const reports = this.deps.reports
+    if (reports === undefined) {
+      // No recorder could start in this window: nothing to record or build from.
+      if (message.type !== 'reportWebviewError') {
+        this.deps.log.warn('Report a problem has no flight recorder in this window')
+        this.notice('error', UI_TEXT.actionFailed)
+      }
+      return
+    }
+    if (message.type === 'reportWebviewError') {
+      reports.recordWebviewError(message)
+      return
+    }
+    let handler: { handle: (message: ReportProblemMessage) => Promise<void> }
+    try {
+      handler = await this.reportProblemHandler(reports)
+    } catch (error: unknown) {
+      this.reportHandler = undefined
+      this.deps.log.error(`The report bundle could not be loaded: ${describe(error)}`)
+      this.notice('error', UI_TEXT.actionFailed)
+      return
+    }
+    await handler.handle(message)
+  }
+
+  private reportProblemHandler(reports: ConversationReports): Promise<{
+    handle: (message: ReportProblemMessage) => Promise<void>
+  }> {
+    this.reportHandler ??= (async () => {
+      const bundle: typeof ReportBundle = await import('../support/reportEntry')
+      if (typeof bundle.createReportProblemHandler !== 'function') {
+        throw new TypeError('The report bundle does not export its handler factory')
+      }
+      return bundle.createReportProblemHandler(
+        {
+          post: (posted) => {
+            this.post(posted)
+          },
+          noticeError: (text) => {
+            this.notice('error', text)
+          },
+          log: this.deps.log,
+          source: reports.source,
+          io: reports.io,
+          onReportWebviewError: (error) => {
+            reports.recordWebviewError(error)
+          },
+        },
+        UI_TEXT,
+        uiLocale(),
+      )
+    })()
+    return this.reportHandler
+  }
+
+  /**
    * "Import session…" (M84, PLAN.md D49): a picked export file resumed as a
    * new conversation on the Model API backend, on the user's own model, in a
    * mode that asks (`adopt` applies it, as on every later opening).
@@ -8612,6 +8739,13 @@ export class ConversationController {
         await this.git.createPullRequest(message)
         break
       }
+      case 'openReport':
+      case 'updateReport':
+      case 'exportReport':
+      case 'reportWebviewError': {
+        await this.handleReportMessage(message)
+        break
+      }
     }
   }
 
@@ -9033,6 +9167,14 @@ export class ConversationController {
         this.accountStopsInFlight -= 1
       }
     }
+  }
+
+  /**
+   * `Muse Spark: Report a Problem` (M93): the same dialog the panel's entry
+   * points open, built from the journal; nothing about the conversation.
+   */
+  public async openReport(): Promise<void> {
+    await this.handleReportMessage({ type: 'openReport' })
   }
 
   /**

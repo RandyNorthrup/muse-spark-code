@@ -50,6 +50,7 @@ import type {
   ChatReference,
   LineRange,
   NoticeAction,
+  ReportEventRef,
   ReviewFile,
   SignInMethod,
   WebviewToHostMessage,
@@ -65,6 +66,7 @@ import { GoalPanel } from './components/GoalPanel'
 import { SchedulePanel } from './components/SchedulePanel'
 import { Header } from './components/Header'
 import { HandoffDialog } from './components/HandoffDialog'
+import { ReportDialogHost } from './components/ReportDialog'
 import { SecretPromptDialog } from './components/SecretPromptDialog'
 import { ShareView } from './components/ShareView'
 import { AddContextIcon, ExpandChevron, UploadIcon } from './components/icons'
@@ -1426,6 +1428,17 @@ export function App({
     },
     [store, dispatch, postMessage],
   )
+  // "Report this" on a recorded failure (M93 lane W): the row's
+  // sanitized event reference opens the report workflow, never its text.
+  const onReportProblem = useCallback(
+    (_entryId: string, ref: ReportEventRef) => {
+      postMessage({ type: 'openReport', ref })
+    },
+    [postMessage],
+  )
+  const onReportClosed = useCallback(() => {
+    dispatch({ type: 'reportClosed' })
+  }, [dispatch])
   // A Muse Code fault's way on (D26): the header's New conversation, or a
   // restart the host runs.
   const onNoticeAction = useCallback(
@@ -1585,6 +1598,12 @@ export function App({
         case 'showWhatsNew': {
           postMessage({ type: 'hostAction', action: action.type })
           closeOverlay()
+          break
+        }
+        case 'openReport': {
+          // The same dialog every entry point opens (M93): the host builds it.
+          closeOverlay()
+          postMessage({ type: 'openReport' })
           break
         }
         case 'signOut': {
@@ -1977,6 +1996,7 @@ export function App({
           }
           onRedo={state.checkpoints.canRestore ? onRedo : undefined}
           onNoticeAction={onNoticeAction}
+          onReportProblem={onReportProblem}
           restoreNote={restoreNoteOf(state)}
           conversationNote={
             state.sessionId !== undefined && !state.canEditSessions
@@ -2192,8 +2212,11 @@ export function App({
     reviewPane !== null ||
     isInstallConfirmOpen ||
     state.share !== undefined
+  // The report dialog (M93) keeps the same policy: it waits for those, and a
+  // brief that arrives while it is open waits for it in turn, so two modals
+  // never share the panel and the open one keeps focus.
   const handoffDialog =
-    isOtherModalOpen || state.handoff === undefined ? null : (
+    isOtherModalOpen || state.report !== undefined || state.handoff === undefined ? null : (
       <HandoffDialog
         goal={state.handoff.goal}
         todos={state.handoff.todos}
@@ -2204,10 +2227,25 @@ export function App({
         onCancel={onHandoffCancel}
       />
     )
+  // The report-a-problem preview (M93 lane W): the sealed draft the host
+  // built, shown byte-identical, one modal at a time (above), and over the
+  // crash screen too (main.tsx renders the same host there, so a render
+  // failure keeps its way on). Keyed by the host's session: a new dialog
+  // starts its own count of choices.
+  const reportDialog =
+    isOtherModalOpen || state.report === undefined ? null : (
+      <ReportDialogHost
+        key={state.report.session}
+        report={state.report}
+        postMessage={postMessage}
+        onClose={onReportClosed}
+      />
+    )
   // M92e: the secret dialog waits behind any other modal (as the handoff
-  // dialog does), and holds the composer inert while it shows.
+  // dialog does), and holds the composer inert while it shows; it and the
+  // report dialog never share the panel either (M93).
   const secretPromptDialog =
-    isOtherModalOpen || state.secretPrompt === undefined ? null : (
+    isOtherModalOpen || state.report !== undefined || state.secretPrompt === undefined ? null : (
       <SecretPromptDialog
         redactedText={state.secretPrompt.redactedText}
         onSendAnyway={onSecretPromptSendAnyway}
@@ -2217,7 +2255,10 @@ export function App({
   // Behind a modal nothing takes focus or clicks (M25): the modal traps Tab,
   // the rest of the panel is inert.
   const isModalOpen =
-    isOtherModalOpen || state.handoff !== undefined || state.secretPrompt !== undefined
+    isOtherModalOpen ||
+    state.handoff !== undefined ||
+    state.secretPrompt !== undefined ||
+    state.report !== undefined
 
   return (
     <div className="app">
@@ -2254,6 +2295,7 @@ export function App({
       </DeferredSurface>
       {handoffDialog}
       {secretPromptDialog}
+      {reportDialog}
       {state.share === undefined ? null : (
         <ShareView
           title={state.share.title}

@@ -372,8 +372,10 @@ independent $1/day journal is excluded. ACP and headless policies are unchanged.
     (and confirm that run, unless you allowed scheduled prompts always in
     this workspace); a due prompt never runs on its own.
 
-The extension itself has **no telemetry**, no analytics, no crash reporting
-and no hosted server of its own. It contacts Meta when you send a message,
+The extension itself has **no telemetry**, no analytics, no automatic crash
+reporting and no hosted server of its own. **Report a problem** contacts
+nothing: it builds a draft that leaves only through an export you choose
+(see [Reporting a problem](#reporting-a-problem)). It contacts Meta when you send a message,
 sign in, dictate with Muse Voice, use a paid feature, run a scheduled prompt
 with **Run now**, or open a panel while signed in (to list models; that request
 carries no message). **Install Muse Code** downloads Meta's installer from
@@ -676,6 +678,9 @@ hands it and what its tools read or run, the same way the extension does:
   certificate settings do not apply to it.
 - **The log** goes to stderr, which the editor shows or keeps as its agent
   log; keys and tokens are redacted.
+- **Problem reports**: the agent's failure journals, in `reports/` under
+  that data folder, and `muse-spark-code-acp report` are described under
+  [Reporting a problem](#reporting-a-problem).
 - The folder's rules, skills, custom agents and memory are read only with
   `--trust-workspace` (the agent runs no subagents, so no agent is ever
   offered or sent); contributor-tier models are listed only with
@@ -684,6 +689,109 @@ hands it and what its tools read or run, the same way the extension does:
   it in the editor's prompt, which names the price (Allow once, Allow
   always in this workspace with `--trust-workspace`, or Deny).
   It has no telemetry either.
+
+## Reporting a problem
+
+**Muse Spark: Report a Problem** (M93) builds a bug report on your machine.
+The panel reaches the same dialog from the palette's **Report an issue…**,
+from **Report this** on a recorded error notice or failed turn, and from
+**Report a problem** on the panel's crash screen. The extension never posts
+or uploads the report and calls no network service or model for it; there
+is no telemetry and no GitHub access.
+
+- **The flight recorder.** Each VS Code window keeps its own journal in the
+  extension's global storage, `reports/journal-<window>.jsonl`, with an
+  activation marker, `reports/marker-<window>.json`, beside it. Neither is
+  in Settings Sync or in the workspace's storage. In a remote window the
+  extension, and so the journal, lives on the remote host. A journal keeps
+  records for 7 days and at most 256 KiB, oldest removed first. It is pruned
+  when the extension starts, at each new record and each time a report reads
+  it, so an editor you have closed cannot prune its journal until you use it
+  again. A window records at most 20 failures a minute.
+- **What is recorded:** activation failures (once the recorder has started),
+  Muse Code process exits nobody asked for, failed turns, failed tool calls,
+  the error notices the panel shows, and the panel's own window errors,
+  unhandled promise rejections and render failures. For those the panel
+  sends only the kind, a known error class and frames inside its own
+  bundle.
+- **What a record holds:** a fixed event kind (`activationFailed`,
+  `backendExit`, `toolCallFailed`, `windowError`, `unhandledRejection`,
+  `reactBoundary`, `errorNotice`); a code from a fixed vocabulary
+  (JavaScript error class names, errno names such as `ENOENT`, Muse Code
+  exit signals such as `SIGKILL` or the word `exited`, the ACP agent's
+  fixed failure words) or the word `unknown`; the extension and host
+  versions; sometimes the backend; and stack frames inside the extension's
+  shipped bundles only (`dist/extension.js:2:345`). Never prompts, code,
+  file contents, model output, tool arguments or results, command text,
+  messages, absolute paths, URLs, session ids or credentials.
+  - Records are scrubbed and validated before they are written and again
+    when they are read; a torn or tampered line is skipped.
+  - Symbolic links, hard links and unexpected files in the folder are
+    refused.
+  - If storage fails, the window stops recording with one warning in the
+    log, and its report says that recording was unavailable.
+- **The crash offer.** The marker is set just after the extension starts
+  (when its recorder loads) and cleared when it shuts down normally. At the
+  next start, a marker left by a window whose process is gone is removed,
+  and the extension offers once: "Muse Spark Code stopped unexpectedly last
+  time — report it?" (**Report a problem** or **Not now**). The marker is
+  gone, so a dismissal is remembered. A second window that is still running
+  is never taken for a crash. The offer cannot tell a crash from a forced
+  exit (a killed process, a power loss), and it cannot see a failure before
+  the recorder has loaded. The extension starts when the panel opens or a
+  command runs, so the offer appears then.
+- **The dialog** has a description field, which warns that what you write
+  can still disclose confidential information (the description is never
+  kept in the journal); switches for **Include support facts** and
+  **Include recent events**; a list of every item in the report, each with
+  **Remove**; and a read-only preview of the exact final text.
+  - Support facts: the extension, VS Code and Node versions, the platform,
+    the backend and shell-sandbox settings, whether the Muse Code CLI was
+    found and the version its installer recorded, whether it is signed in
+    (from the credential file's structure only: no account lookup, no CLI
+    started), whether a Model API key is stored and whether `META_API_KEY`
+    is set (yes or no only), and the names, never the values, of the Muse
+    Spark settings you changed.
+  - Recent events: up to the last 50, with relative ages ("3m ago").
+  - Building the report starts no session, signs in nowhere and runs no
+    workspace command.
+- **A second scrub** runs over the whole final draft, the title and your
+  description included: workspace roots become `<workspace>` and the home
+  folder `~` (on Windows in any letter case, with either separator and in
+  the extended `\\?\` spelling); other user paths, Windows network (UNC)
+  paths, e-mail addresses, IPv4 and IPv6 addresses,
+  URL query strings, fragments and credentials, your login and machine
+  names, and every secret pattern the extension's redactor knows are
+  removed.
+- **The exports** all use the exact previewed text. A change after the
+  preview builds a new preview instead of exporting.
+  - **Copy report** puts the report on the clipboard.
+  - **Open issue page** opens this repository's GitHub new-issue page in
+    your browser with the title and body filled in. When the encoded
+    address would pass 2,000 characters, the report is copied instead and
+    the empty new-issue form opens, with an instruction to paste. If that
+    copy fails, nothing opens and the dialog says so.
+  - **Save to a file** writes the report to a file you pick.
+  - **Use the VS Code issue reporter**, where VS Code has it, opens VS
+    Code's own reporter with the title and body. VS Code adds its own data,
+    may search GitHub for similar issues, and controls sign-in and
+    submission, so what it sends is not only the previewed text.
+- Opening the browser hands the draft to GitHub under your account. The
+  clipboard's history, a saved file and the browser's history are outside
+  the recorder's retention.
+- **The agent for other editors.** `muse-spark-code-acp report` builds the
+  same kind of scrubbed report from the agent's own journals, in
+  `reports/` under the data folder named above, kept under the same
+  policy. It prints the report, or writes it to a file with `--out`. It
+  starts no backend, signs in nowhere, opens no browser, makes no network or
+  model call, and creates or consumes no activation marker. While the agent
+  serves an editor it records its own failures there as fixed words
+  (`updateNotSent`, `skillsUnavailable`, `permissionRequestFailed`,
+  `approvalWithoutDenial`, `questionFailed`) with no frames, and it never
+  writes report text to the editor's ACP channel. Its report names no VS
+  Code version (`none (standalone agent)`), gives the backend and sandbox as
+  `auto`, and lists no setting names; a credential store it cannot read
+  counts as no stored key.
 
 ## Your choices
 

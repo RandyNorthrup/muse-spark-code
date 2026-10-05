@@ -44,6 +44,7 @@
       "handoffItem",
       "agentImportSourceCursor",
       "noticeRepeatBadge",
+      "reportEventItem",
       "reviewItem",
       "execUsage",
       "execScanUsage",

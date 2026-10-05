@@ -45,6 +45,7 @@ import {
   ConversationController,
   restartConversationBackends,
   type ConversationDeps,
+  type ConversationReports,
   type LastSession,
   type PickedFile,
   type SessionMemory,
@@ -15117,5 +15118,130 @@ describe('ConversationController: the Auto reviewer on Muse Code (M90, PLAN.md D
     expect(
       JSON.stringify(t.surface.posted.findLast((message) => message.type === 'sessionList')),
     ).not.toContain(sideSession)
+  })
+})
+
+/** The controller over `t`'s deps, with a recorder that keeps what it was told. */
+function withReports(
+  t: ReturnType<typeof setup>,
+  readFacts: () => Promise<unknown> = () => Promise.reject(new TypeError('no facts here')),
+) {
+  const recorded: (readonly [string, string])[] = []
+  const recordWebviewError = vi.fn()
+  let sequence = 0
+  const reports: ConversationReports = {
+    source: {
+      readFacts,
+      readJournal: () => Promise.resolve({ entries: [], recordingUnavailable: false }),
+      readScrub: () => ({ workspaceRoots: [], homeDir: '', extraLiterals: [] }),
+      nowMs: () => NOW,
+      canUseVscodeReporter: () => Promise.resolve(false),
+    },
+    io: {
+      writeClipboard: () => Promise.reject(new Error('unused')),
+      openExternal: () => Promise.resolve(false),
+      saveText: () => Promise.resolve(false),
+      openIssueReporter: () => Promise.reject(new Error('unused')),
+    },
+    recordWebviewError,
+    record: (kind, code) => {
+      recorded.push([kind, code])
+      const ref = { kind, entryIndex: sequence }
+      sequence += 1
+      return ref
+    },
+  }
+  const controller = new ConversationController({ ...t.deps, reports })
+  return { controller, recorded, recordWebviewError }
+}
+
+describe('report a problem wiring (M93, PLAN.md D72)', () => {
+  it('journals an error notice as a fact and gives its row the reference, never the text', async () => {
+    const t = setup()
+    const { controller, recorded } = withReports(t)
+    await controller.openReport()
+    expect(recorded).toEqual([['errorNotice', 'unknown']])
+    expect(t.surface.posted).toContainEqual({
+      type: 'notice',
+      level: 'error',
+      text: UI_TEXT.actionFailed,
+      reportRef: { kind: 'errorNotice', entryIndex: 0 },
+    })
+    controller.dispose()
+  })
+
+  it('journals a failed turn and hands its error row the reference', async () => {
+    const t = setup()
+    const { controller, recorded } = withReports(t)
+    await controller.handle({ type: 'sendMessage', localId: 'l1', text: 'hi', attachmentIds: [] })
+    t.server.notify('turn/started', { sessionId: 's1', turnId: 't1', viewCursor: 'v' })
+    await settle()
+    controller.hostExited({ description: 'signal SIGKILL', isExpected: false, isPersistent: false })
+    expect(recorded[0]).toEqual(['errorNotice', 'unknown'])
+    expect(t.surface.posted).toContainEqual({
+      type: 'agentEvent',
+      event: expect.objectContaining({ type: 'turnCompleted', turnId: 't1', terminal: 'failed' }),
+      reportRef: { kind: 'errorNotice', entryIndex: 0 },
+    })
+    controller.dispose()
+  })
+
+  it('says plainly that it did not work in a window with no recorder', async () => {
+    const t = setup()
+    await t.controller.openReport()
+    await t.controller.handle({
+      type: 'reportWebviewError',
+      kind: 'windowError',
+      source: 'window',
+      code: 'unknown',
+      frames: [],
+    })
+    expect(t.surface.posted.filter((message) => message.type === 'notice')).toEqual([
+      { type: 'notice', level: 'error', text: UI_TEXT.actionFailed },
+    ])
+  })
+
+  it('journals the scrubbed webview failure without loading the report bundle', async () => {
+    const t = setup()
+    const { controller, recordWebviewError } = withReports(t)
+    await controller.handle({
+      type: 'reportWebviewError',
+      kind: 'windowError',
+      source: 'window',
+      code: 'TypeError',
+      frames: [],
+    })
+    expect(recordWebviewError).toHaveBeenCalledWith(
+      expect.objectContaining({ kind: 'windowError', source: 'window', code: 'TypeError' }),
+    )
+    controller.dispose()
+  })
+
+  it('opens the dialog from the command, with no sign-in or session started', async () => {
+    const t = setup({ status: 'signedOut' })
+    const { controller, recorded } = withReports(t, () =>
+      Promise.resolve({
+        extensionVersion: '0.12.1',
+        vscodeVersion: '1.99.0',
+        nodeVersion: '22.20.4',
+        platform: 'linux',
+        backend: 'auto',
+        sandbox: 'auto',
+        cliFound: false,
+        cliSignIn: false,
+        hasStoredApiKey: false,
+        hasEnvironmentApiKey: false,
+        settingNames: [],
+      }),
+    )
+    const authCalls = t.auth.calls.length
+    await controller.openReport()
+    expect(recorded).toEqual([])
+    expect(t.surface.posted).toContainEqual(
+      expect.objectContaining({ type: 'reportDraft', session: 1, revision: 0 }),
+    )
+    expect(t.server.requestsFor('session/start')).toHaveLength(0)
+    expect(t.auth.calls).toHaveLength(authCalls)
+    controller.dispose()
   })
 })

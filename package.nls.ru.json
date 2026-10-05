@@ -16,6 +16,7 @@
   "command.setUpSandbox.title": "Настроить песочницу оболочки",
   "command.showLogs.title": "Показать журналы",
   "command.diagnostics.title": "Диагностика",
+  "command.reportProblem.title": "Сообщить о проблеме",
   "command.newConversation.title": "Новая беседа",
   "command.signOut.title": "Выйти",
   "command.openInTerminal.title": "Открыть в терминале",

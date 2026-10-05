@@ -11,7 +11,10 @@
 // voice's drivers (M9/M35, loaded on the first recording), the window's web
 // fetch (M69, loaded on the first fetch) and the Auto reviewer on Muse Code
 // (M90, loaded on the first review), What's New (M99: the page's renderer,
-// content schema and tab, loaded on the first page or notice), the webview,
+// content schema and tab, loaded on the first page or notice), the report
+// dialog (M93: the builder, its second scrub, the export paths and the
+// handler, loaded on the first open; dist/report.js) and its flight recorder
+// (the journal, loaded just after activation; dist/recorder.js), the webview,
 // What's New's page script, and (in dev mode) the integration tests with
 // esbuild. It first writes What's New's content, dist/whatsNew.json, from
 // CHANGELOG.md (scripts/lib/whatsNewContent.mjs); a Try it naming a command
@@ -124,6 +127,10 @@ const WHATS_NEW_ENTRY = 'src/host/whatsNew/whatsNewEntry.ts'
 const WHATS_NEW_OUTFILE = 'dist/whatsNew.js'
 const SEARCH_WORKER_ENTRY = 'src/host/backend/searchWorker.ts'
 const SEARCH_WORKER_OUTFILE = 'dist/searchWorker.js'
+const REPORT_ENTRY = 'src/host/support/reportEntry.ts'
+const REPORT_OUTFILE = 'dist/report.js'
+const RECORDER_ENTRY = 'src/host/support/recorderEntry.ts'
+const RECORDER_OUTFILE = 'dist/recorder.js'
 const PAGE_WORKER_ENTRY = 'src/host/web/pageWorker.ts'
 const PAGE_WORKER_OUTFILE = 'dist/pageWorker.js'
 const WEBVIEW_ENTRY = 'src/webview/main.tsx'
@@ -160,6 +167,8 @@ const sharedUiText = {
   },
 }
 
+// Each deferred entry's bundle: the board and best-of-N (M77), the paid Auto
+// reviewer (M78), the report dialog and the flight recorder (M93).
 // Share the used mini-parser API across Node bundles; browsers and integration
 // test bundles still inline it. The split gate checks every runtime member.
 /** @type {import('esbuild').Plugin} */
@@ -175,6 +184,8 @@ const sharedValidation = {
 
 // Keep dynamic imports dynamic: these entries run only on their first action.
 const DEFERRED_OUTFILES = new Map([
+  [path.resolve(REPORT_ENTRY), REPORT_OUTFILE],
+  [path.resolve(RECORDER_ENTRY), RECORDER_OUTFILE],
   [path.resolve(SESSION_BOARD_ENTRY), SESSION_BOARD_OUTFILE],
   [path.resolve(REVIEWER_ENTRY), REVIEWER_OUTFILE],
   [path.resolve(FOREIGN_HOOKS_ENTRY), FOREIGN_HOOKS_OUTFILE],
@@ -189,7 +200,7 @@ const deferredCohort = {
     build.onResolve(
       {
         filter:
-          /\/(?:sessionBoardEntry|reviewerEntry|foreignHooksEntry|hookRuntimeEntry|pluginHooksEntry|webFetchEntry)(?:\.[jt]s)?$/,
+          /\/(?:sessionBoardEntry|reviewerEntry|foreignHooksEntry|hookRuntimeEntry|pluginHooksEntry|webFetchEntry|reportEntry|recorderEntry)(?:\.[jt]s)?$/,
       },
       (args) => {
         if (args.kind !== 'dynamic-import') return
@@ -277,6 +288,33 @@ const reviewOptions = {
   plugins: [sharedUiText, sharedValidation],
   entryPoints: [REVIEW_ENTRY],
   outfile: REVIEW_OUTFILE,
+  platform: 'node',
+  format: 'cjs',
+  target: HOST_NODE_TARGET,
+}
+
+// The report dialog's bundle (M93) takes the editor's clipboard, browser and
+// save picker as a parameter: it imports no `vscode`, which is not external
+// there, so a stray import fails this build.
+/** @type {import('esbuild').BuildOptions} */
+const reportOptions = {
+  ...common,
+  plugins: [sharedUiText, sharedValidation],
+  entryPoints: [REPORT_ENTRY],
+  outfile: REPORT_OUTFILE,
+  platform: 'node',
+  format: 'cjs',
+  target: HOST_NODE_TARGET,
+}
+
+// The flight recorder's journal (M93), loaded just after activation or at
+// the first failure; it reads no `vscode`, so a stray import fails here.
+/** @type {import('esbuild').BuildOptions} */
+const recorderOptions = {
+  ...common,
+  plugins: [sharedUiText, sharedValidation],
+  entryPoints: [RECORDER_ENTRY],
+  outfile: RECORDER_OUTFILE,
   platform: 'node',
   format: 'cjs',
   target: HOST_NODE_TARGET,
@@ -571,6 +609,8 @@ if (isWatch) {
     esbuild.context(webFetchOptions),
     esbuild.context(museCodeReviewerOptions),
     esbuild.context(extensionHooksOptions),
+    esbuild.context(reportOptions),
+    esbuild.context(recorderOptions),
     esbuild.context(whatsNewOptions),
     esbuild.context(uiTextOptions),
     esbuild.context(validationOptions),
@@ -604,6 +644,8 @@ if (isWatch) {
     webFetch: esbuild.build(webFetchOptions),
     museCodeReviewer: esbuild.build(museCodeReviewerOptions),
     extensionHooks: esbuild.build(extensionHooksOptions),
+    report: esbuild.build(reportOptions),
+    recorder: esbuild.build(recorderOptions),
     whatsNew: esbuild.build(whatsNewOptions),
     uiText: esbuild.build(uiTextOptions),
     validation: esbuild.build(validationOptions),
@@ -649,6 +691,8 @@ if (isWatch) {
   reportSize(WEB_FETCH_OUTFILE)
   reportSize(MUSE_CODE_REVIEWER_OUTFILE)
   reportSize(EXTENSION_HOOKS_OUTFILE)
+  reportSize(REPORT_OUTFILE)
+  reportSize(RECORDER_OUTFILE)
   reportSize(WHATS_NEW_OUTFILE)
   reportSize(WHATS_NEW_CONTENT_OUTFILE)
   reportSize(UI_TEXT_OUTFILE)

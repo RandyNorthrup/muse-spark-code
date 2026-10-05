@@ -16,6 +16,7 @@
   "command.setUpSandbox.title": "Configura la sandbox della shell",
   "command.showLogs.title": "Mostra log",
   "command.diagnostics.title": "Diagnostica",
+  "command.reportProblem.title": "Segnala un problema",
   "command.newConversation.title": "Nuova conversazione",
   "command.signOut.title": "Disconnetti",
   "command.openInTerminal.title": "Apri nel terminale",

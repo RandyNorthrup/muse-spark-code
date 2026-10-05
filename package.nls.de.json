@@ -16,6 +16,7 @@
   "command.setUpSandbox.title": "Shell-Sandbox einrichten",
   "command.showLogs.title": "Protokolle anzeigen",
   "command.diagnostics.title": "Diagnose",
+  "command.reportProblem.title": "Problem melden",
   "command.newConversation.title": "Neue Unterhaltung",
   "command.signOut.title": "Abmelden",
   "command.openInTerminal.title": "Im Terminal öffnen",
