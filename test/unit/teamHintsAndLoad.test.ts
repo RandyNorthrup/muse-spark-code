@@ -1,4 +1,5 @@
-import { mkdtemp, readFile, realpath, rm, stat, writeFile } from 'node:fs/promises'
+import { chmod, mkdtemp, readFile, realpath, rm, stat, writeFile } from 'node:fs/promises'
+import type * as fsPromises from 'node:fs/promises'
 import os from 'node:os'
 import path from 'node:path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
@@ -15,7 +16,16 @@ import { WINDOWS_POWERSHELL_COMMAND_ARGS } from '../../src/shared/constants'
 import { createOrphanRecovery, type OrphanObservation } from '../../src/host/team/orphanRecovery'
 
 const directories: string[] = []
+const permissionState = vi.hoisted(() => ({ ignoresChmod: false }))
+vi.mock('node:fs/promises', async (importOriginal) => {
+  const actual = await importOriginal<typeof fsPromises>()
+  const chmod: typeof actual.chmod = async (target, mode) => {
+    if (!permissionState.ignoresChmod) await actual.chmod(target, mode)
+  }
+  return { ...actual, chmod }
+})
 afterEach(async () => {
+  permissionState.ignoresChmod = false
   vi.useRealTimers()
   for (const directory of directories.splice(0))
     await rm(directory, { recursive: true, force: true })
@@ -34,7 +44,7 @@ async function hintFixture() {
     const hints = createWindowHints({
       directory,
       instanceId: id,
-      platform: 'linux',
+      platform: process.platform,
       freshMs: 60_000,
       writeMs: 10_000,
       maxHintBytes: 8192,
@@ -206,6 +216,31 @@ describe('M96 K advisory hints', () => {
     await hints.dispose()
     expect(disabled).toHaveBeenCalledTimes(1)
   })
+
+  if (process.platform !== 'win32') {
+    it('refuses forged hints and publication when successful chmod leaves permissive bits', async () => {
+      const f = await hintFixture()
+      const other = f.make()
+      const mine = f.make()
+      const forged = path.join(f.directory, `${other.id}.json`)
+      await writeFile(forged, JSON.stringify({ ...hintState, instanceId: other.id, at: 100_000 }))
+      await chmod(f.directory, 0o777)
+      permissionState.ignoresChmod = true
+      expect(await mine.hints.check({ ...intent, exclusiveServers: ['browser'] })).toBe('continue')
+      expect(f.question).not.toHaveBeenCalled()
+      expect(f.disabled).toHaveBeenCalledTimes(1)
+      const publisher = f.make()
+      await publisher.hints.publish(hintState)
+      await expect(readFile(path.join(f.directory, `${publisher.id}.json`))).rejects.toMatchObject({
+        code: 'ENOENT',
+      })
+      expect(f.disabled).toHaveBeenCalledTimes(2)
+      const information = await stat(f.directory)
+      expect(information.mode & 0o777).toBe(0o777)
+      await mine.hints.dispose()
+      await publisher.hints.dispose()
+    })
+  }
 })
 
 describe('M96 K load sampler', () => {
@@ -219,6 +254,7 @@ describe('M96 K load sampler', () => {
       windowMs: 30_000,
       freeMemoryMin: 2 * 1024 ** 3,
       now: () => now,
+      monotonicNow: () => now,
       readCpuTimes: () => [{ user, idle, nice: 0, sys: 0, irq: 0 }],
       readFreeMemory: () => 4 * 1024 ** 3,
       changed: vi.fn(),
@@ -253,6 +289,37 @@ describe('M96 K load sampler', () => {
     available = 100
     expect(guard.sample().isHostBusy).toBe(false)
     expect(guard.isHostBusy()).toBe(false)
+  })
+
+  it('keeps sustained CPU protection through a backward wall-clock adjustment', () => {
+    let wall = 86_400_000
+    let elapsed = 0
+    let user = 0
+    const guard = createLoadGuard({
+      sampleMs: 5000,
+      cpuHigh: 0.85,
+      windowMs: 30_000,
+      freeMemoryMin: 100,
+      now: () => wall,
+      monotonicNow: () => elapsed,
+      readCpuTimes: () => [{ user, idle: 0, nice: 0, sys: 0, irq: 0 }],
+      readFreeMemory: () => 100,
+      changed: vi.fn(),
+    })
+    guard.sample()
+    elapsed = 5000
+    user += 100
+    expect(guard.sample().isHostBusy).toBe(false)
+    wall = 0
+    for (elapsed = 10_000; elapsed <= 30_000; elapsed += 5000) {
+      user += 100
+      const sample = guard.sample()
+      expect(sample.cpuUsage).toBe(1)
+      expect(sample.isHostBusy).toBe(elapsed === 30_000)
+    }
+    elapsed = 60_000
+    user += 100
+    expect(guard.sample().isHostBusy).toBe(true)
   })
 })
 

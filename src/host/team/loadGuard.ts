@@ -22,12 +22,15 @@ export function createLoadGuard(options: {
   readonly windowMs: number
   readonly freeMemoryMin: number
   readonly now: () => number
+  /** Elapsed admission time is independent of the wall clock used in the sample. */
+  readonly monotonicNow?: () => number
   readonly readCpuTimes?: () => readonly CpuTimes[]
   readonly readFreeMemory?: () => number
   readonly changed: (sample: TeamLoadSample) => void
 }) {
   const cpuTimes = options.readCpuTimes ?? (() => cpus().map((cpu) => cpu.times))
   const freeMemory = options.readFreeMemory ?? freemem
+  const monotonicNow = options.monotonicNow ?? (() => performance.now())
   let previous: readonly CpuTimes[] | undefined
   let previousAt: number | undefined
   let highSince: number | undefined
@@ -36,6 +39,7 @@ export function createLoadGuard(options: {
   const total = (cpu: CpuTimes) => cpu.user + cpu.nice + cpu.sys + cpu.idle + cpu.irq
   const sample = (): TeamLoadSample => {
     const at = options.now()
+    const elapsedAt = monotonicNow()
     const current = cpuTimes()
     let cpuUsage: number | undefined
     if (previous?.length === current.length && current.length > 0) {
@@ -53,9 +57,12 @@ export function createLoadGuard(options: {
       }
       if (isValid && elapsed > 0) cpuUsage = Math.max(0, Math.min(1, 1 - idle / elapsed))
     }
-    if (previousAt !== undefined && at < previousAt) highSince = undefined
+    if (previousAt !== undefined && elapsedAt < previousAt) {
+      highSince = undefined
+      previousAt = elapsedAt
+    }
     if (cpuUsage !== undefined && cpuUsage > options.cpuHigh) {
-      highSince ??= previousAt ?? at
+      highSince ??= previousAt ?? elapsedAt
     } else {
       highSince = undefined
     }
@@ -66,10 +73,10 @@ export function createLoadGuard(options: {
       freeMemory: available,
       isHostBusy:
         available < options.freeMemoryMin ||
-        (highSince !== undefined && at - highSince >= options.windowMs),
+        (highSince !== undefined && elapsedAt - highSince >= options.windowMs),
     }
     previous = current
-    previousAt = at
+    previousAt = elapsedAt
     options.changed(latest)
     return latest
   }

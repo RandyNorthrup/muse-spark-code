@@ -1,0 +1,61 @@
+[
+  {
+    "drill": "stdin-error",
+    "source": "src/host/team/processLifetime.ts",
+    "test": "test/unit/teamNativeLifetime.test.ts",
+    "exitCode": 1,
+    "before": "a820b4b53e6690e6ed62f0aa6071d4d3ce28232bb79b713e71c418c755d1b60a",
+    "after": "a820b4b53e6690e6ed62f0aa6071d4d3ce28232bb79b713e71c418c755d1b60a",
+    "failures": [
+      "FAIL  test/unit/teamNativeLifetime.test.ts > M96 K real native lifetime > rejects MSP writes to closed stdin without an unhandled pipe error",
+      "AssertionError: expected 0 to be greater than 0"
+    ]
+  },
+  {
+    "drill": "end-retry",
+    "source": "src/host/team/processLifetime.ts",
+    "test": "test/unit/teamProcessLifetime.test.ts",
+    "exitCode": 1,
+    "before": "a820b4b53e6690e6ed62f0aa6071d4d3ce28232bb79b713e71c418c755d1b60a",
+    "after": "a820b4b53e6690e6ed62f0aa6071d4d3ce28232bb79b713e71c418c755d1b60a",
+    "failures": [
+      "FAIL  test/unit/teamProcessLifetime.test.ts > M96 K launcher contract > retries a failed end-record write after storage recovers"
+    ]
+  },
+  {
+    "drill": "unreadable-launch",
+    "source": "src/host/team/processLifetime.ts",
+    "test": "test/unit/teamNativeLifetime.test.ts",
+    "exitCode": 1,
+    "before": "a820b4b53e6690e6ed62f0aa6071d4d3ce28232bb79b713e71c418c755d1b60a",
+    "after": "a820b4b53e6690e6ed62f0aa6071d4d3ce28232bb79b713e71c418c755d1b60a",
+    "failures": [
+      "FAIL  test/unit/teamNativeLifetime.test.ts > M96 K real native lifetime > warns about malformed launch payloads at startup and preserves all foreign bytes",
+      "AssertionError: expected [ Array(1) ] to deeply equal [ \u2026(2) ]"
+    ]
+  },
+  {
+    "drill": "chmod-verification",
+    "source": "src/host/team/windowHints.ts",
+    "test": "test/unit/teamHintsAndLoad.test.ts",
+    "exitCode": 1,
+    "before": "054a7b7404ea4249a56a002c7f56e2fe793a4ca81c7920936a382243a76ebf63",
+    "after": "054a7b7404ea4249a56a002c7f56e2fe793a4ca81c7920936a382243a76ebf63",
+    "failures": [
+      "FAIL  test/unit/teamHintsAndLoad.test.ts > M96 K advisory hints > refuses forged hints and publication when successful chmod leaves permissive bits",
+      "AssertionError: expected \"vi.fn()\" to not be called at all, but actually been called 2 times"
+    ]
+  },
+  {
+    "drill": "monotonic-load",
+    "source": "src/host/team/loadGuard.ts",
+    "test": "test/unit/teamHintsAndLoad.test.ts",
+    "exitCode": 1,
+    "before": "d8940f22b32ad68a8269d68b8d91d645ac3b88c6743794a1a18149baaca10740",
+    "after": "d8940f22b32ad68a8269d68b8d91d645ac3b88c6743794a1a18149baaca10740",
+    "failures": [
+      "FAIL  test/unit/teamHintsAndLoad.test.ts > M96 K load sampler > keeps sustained CPU protection through a backward wall-clock adjustment",
+      "AssertionError: expected false to be true // Object.is equality"
+    ]
+  }
+]

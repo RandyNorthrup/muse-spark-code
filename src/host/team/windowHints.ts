@@ -1,4 +1,4 @@
-import { chmod, mkdir, readFile, readdir, rm } from 'node:fs/promises'
+import { chmod, mkdir, readFile, readdir, rm, stat } from 'node:fs/promises'
 import path from 'node:path'
 import { homedir } from 'node:os'
 import { setTimeout as delay } from 'node:timers/promises'
@@ -39,6 +39,7 @@ async function secureNativeWindowsDirectory(directory: string): Promise<void> {
 }
 
 const OWNER_DIRECTORY_MODE = 0o700
+const DIRECTORY_PERMISSION_MASK = 0o777
 const countSchema = z.number().check(z.int(), z.nonnegative())
 const hintSchema = z.strictObject({
   instanceId: z.uuid(),
@@ -125,6 +126,14 @@ export function createWindowHints(options: {
       await (options.secureWindowsDirectory ?? secureNativeWindowsDirectory)(directory)
     } else {
       await chmod(directory, OWNER_DIRECTORY_MODE)
+      const information = await stat(directory)
+      const getuid = process.getuid
+      if (
+        !information.isDirectory() ||
+        information.uid !== getuid?.() ||
+        (information.mode & DIRECTORY_PERMISSION_MASK) !== OWNER_DIRECTORY_MODE
+      )
+        throw new Error('TEAM_HINT_MODE_UNVERIFIED')
     }
   }
   const readFresh = async (): Promise<readonly WindowHint[]> => {

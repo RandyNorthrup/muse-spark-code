@@ -6,7 +6,7 @@ import path from 'node:path'
 import { setTimeout as delay } from 'node:timers/promises'
 import { build } from 'esbuild'
 import * as z from 'zod/mini'
-import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest'
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import { jobSourceReader } from '../../src/host/backend/jobSource'
 import { createNativeOrphanDriver, createOrphanRecovery } from '../../src/host/team/orphanRecovery'
 import {
@@ -169,6 +169,29 @@ describe('M96 K real native lifetime', () => {
     expect(records[0]?.confirmation).toBeDefined()
     await host.close()
   })
+  it('rejects MSP writes to closed stdin without an unhandled pipe error', async () => {
+    const f = await fixture()
+    const child = await f.lifetime.launch(
+      f.request(
+        String.raw`require('node:fs').closeSync(0);process.stdout.write('READY\n');setTimeout(()=>{},20000)`,
+      ),
+    )
+    await new Promise<void>((resolve) => {
+      child.child.stdout.once('data', () => {
+        resolve()
+      })
+    })
+    vi.spyOn(f.lifetime, 'launch').mockResolvedValueOnce(child)
+    await expect(
+      startTeamMuseCodeHost({
+        lifetime: f.lifetime,
+        request: f.request(''),
+        extensionVersion: 'test',
+        log: { trace: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() },
+      }),
+    ).rejects.toMatchObject({ code: 'EPIPE' })
+    expect(child.child.stdin.listenerCount('error')).toBeGreaterThan(0)
+  })
   it('preserves the real command exit code through its native container', async () => {
     const f = await fixture()
     const launched = await f.lifetime.launch(f.request('setTimeout(()=>process.exit(7),700)'))
@@ -189,7 +212,7 @@ describe('M96 K real native lifetime', () => {
     expect(end).toEqual({ childExited: true, descendants: 'proved' })
     expect(await f.lifetime.recoveryRecords(f.journal)).toEqual([])
   })
-  it('reconciles foreign journals before startup returns and preserves all foreign bytes', async () => {
+  it('warns about malformed launch payloads at startup and preserves all foreign bytes', async () => {
     const f = await fixture()
     const child = await f.lifetime.launch(f.request('setTimeout(()=>{},20000)'))
     const record = path.join(
@@ -202,6 +225,17 @@ describe('M96 K real native lifetime', () => {
     const original = await readFile(record)
     const broken = path.join(path.dirname(record), 'damaged.json')
     await writeFile(broken, '{broken')
+    const malformed = path.join(path.dirname(record), 'launch-damaged.json')
+    const damaged: unknown = JSON.parse(original.toString('utf8'))
+    const envelope = z
+      .object({ owner: z.unknown(), value: z.record(z.string(), z.unknown()) })
+      .parse(damaged)
+    const malformedBytes = JSON.stringify({
+      version: 1,
+      owner: envelope.owner,
+      value: { ...envelope.value, confirmation: { pid: 'broken' } },
+    })
+    await writeFile(malformed, malformedBytes)
     const owner = createWindowIdentity(Date.now())
     const journal = createTeamJournal({
       storageDirectory: f.directory,
@@ -220,11 +254,12 @@ describe('M96 K real native lifetime', () => {
     })
     stops.push(() => started.lifetime.dispose())
     expect(started.records.map((row) => row.id)).toEqual([child.launchId])
-    expect(started.unreadable).toEqual([broken])
+    expect(started.unreadable).toEqual([broken, malformed])
     if (process.platform !== 'win32')
       expect(started.orphans.map((row) => row.launchId)).toContain(child.launchId)
     expect(await readFile(record)).toEqual(original)
     expect(await readFile(broken, 'utf8')).toBe('{broken')
+    expect(await readFile(malformed, 'utf8')).toBe(malformedBytes)
   })
   it('runs marked child at below-normal priority with intent and OS confirmation on disk', async () => {
     const f = await fixture()

@@ -65,6 +65,9 @@ export async function startTeamMuseCodeHost(options: {
   const incoming = async function* () {
     for await (const chunk of child.stdout) yield z.string().parse(chunk)
   }
+  child.stdin.on('error', () => {
+    // The write callback rejects the request; Node also emits the same pipe error.
+  })
   const connection = new Connection({
     incoming: incoming(),
     write: (chunk) =>
@@ -128,10 +131,12 @@ export async function startNativeTeamLifetime(options: {
   const driver = await createNativeTeamProcessDriver(options)
   const lifetime = createTeamProcessLifetime({ ...options, driver })
   const records: TeamLaunchRecord[] = []
-  for (const journal of foreign.journals) records.push(...(await lifetime.recoveryRecords(journal)))
+  const unreadable = [...foreign.unreadable]
+  for (const journal of foreign.journals)
+    records.push(...(await lifetime.recoveryRecords(journal, unreadable)))
   const recovery = createOrphanRecovery(createNativeOrphanDriver())
   const orphans = await recovery.find(records)
-  return { lifetime, recovery, orphans, records, unreadable: foreign.unreadable }
+  return { lifetime, recovery, orphans, records, unreadable: [...new Set(unreadable)] }
 }
 
 const confirmationSchema = z.strictObject({
@@ -184,7 +189,7 @@ export interface TeamProcessDriver {
 export interface TeamProcessLifetime {
   launch(request: TeamLaunchRequest): Promise<ContainedTeamChild & { readonly launchId: string }>
   dispose(): Promise<readonly Retirement[]>
-  recoveryRecords(journal: TeamJournal): Promise<readonly TeamLaunchRecord[]>
+  recoveryRecords(journal: TeamJournal, unreadable?: string[]): Promise<readonly TeamLaunchRecord[]>
 }
 
 /** Constructed only by the lazy team host; construction itself launches nothing. */
@@ -238,7 +243,11 @@ export function createTeamProcessLifetime(options: {
               await save({ ...record, confirmation, end })
               return end
             })()
-            endTail = saved
+            // Preserve a successful outcome, but let persistence retry after a rejected write.
+            endTail = (async () => {
+              const [outcome] = await Promise.allSettled([saved])
+              return outcome.status === 'fulfilled' ? outcome.value : undefined
+            })()
             return saved
           }
           const ended = (async () => {
@@ -294,12 +303,13 @@ export function createTeamProcessLifetime(options: {
           : { childExited: false, descendants: 'uncertain' },
       )
     },
-    async recoveryRecords(journal) {
+    async recoveryRecords(journal, unreadable) {
       const records: TeamLaunchRecord[] = []
       const names = await journal.names()
       for (const name of names) {
         if (!name.startsWith('launch-')) continue
         const result = await journal.read(name, launchSchema)
+        if (result.kind === 'broken') unreadable?.push(result.file)
         if (result.kind === 'record' && result.value.end?.descendants !== 'proved') {
           records.push(result.value)
         }

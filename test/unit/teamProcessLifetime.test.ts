@@ -329,6 +329,29 @@ describe('M96 K launcher contract', () => {
     await lifetime.dispose()
   })
 
+  it('retries a failed end-record write after storage recovers', async () => {
+    const f = await fixture()
+    const real = driver('uncertain', 'linuxScope')
+    const lifetime = createTeamProcessLifetime({
+      journal: f.journal,
+      driver: {
+        launch(r, id) {
+          return {
+            ...real.launch(r, id),
+            retire: () => Promise.resolve({ childExited: true, descendants: 'proved' }),
+          }
+        },
+      },
+      isHostBusy: () => false,
+    })
+    const child = await lifetime.launch(request)
+    vi.spyOn(f.journal, 'write').mockRejectedValueOnce(new Error('transient-end-write'))
+    await expect(child.ended).rejects.toThrow('transient-end-write')
+    expect(await child.retire()).toEqual({ childExited: true, descendants: 'proved' })
+    expect(await lifetime.recoveryRecords(f.journal)).toEqual([])
+    expect(await lifetime.dispose()).toEqual([{ childExited: true, descendants: 'proved' }])
+  })
+
   it('keeps a failed confirmation child available to dispose when retirement is uncertain', async () => {
     const f = await fixture()
     const real = driver('uncertain')

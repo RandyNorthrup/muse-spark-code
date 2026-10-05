@@ -16644,6 +16644,22 @@ live) and the controller filters its id as well.
 
 ### M96 — Agent roles and the team (D75)
 
+**Lane K review corrections (FIXM96K, 2026-10-05).** Fix all seven RVM96K
+findings within K's existing lifetime, journal, hints/load modules and tests.
+Before each POSIX retirement signal, compare the live group leader's PID,
+OS start identity and launch marker with the persisted confirmation; on Linux
+also recheck its cgroup and the named scope where available. If any check
+cannot prove ownership, leave the launch uncertain for recovery and do not
+signal. Hold POSIX commands behind a private launch pipe until confirmation
+has been captured and journalled, so short commands cannot exit before it.
+Absorb MSP stdin error events while preserving write callback rejection;
+allow end-record persistence retries after failure; collect broken launch
+payload paths in startup's unreadable list; verify POSIX hint directory mode
+and owner after chmod; use monotonic elapsed time for sustained CPU load.
+Each finding gets a regression and a byte-exact restored red drill in
+`docs/certification/m96-k.md`. No dependency, guard widening, live/paid call,
+product wiring or other lane's source change is part of this correction.
+
 **Status 2026-10-04: planned on `feature/m96-agent-roles` from main
 `1e93c67c`.** The plan is D75 (with its decisions on the open questions),
 M96b, M96c and this section. The research is
