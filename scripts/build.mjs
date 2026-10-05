@@ -81,6 +81,8 @@ const SEARCH_WORKER_OUTFILE = 'dist/searchWorker.js'
 const PAGE_WORKER_ENTRY = 'src/host/web/pageWorker.ts'
 const PAGE_WORKER_OUTFILE = 'dist/pageWorker.js'
 const WEBVIEW_ENTRY = 'src/webview/main.tsx'
+// The Models & Agents panel's own app (M95 lane M), beside the chat.
+const MODELS_WEBVIEW_ENTRY = 'src/webview/models/models.tsx'
 const WEBVIEW_OUTDIR = 'dist/webview'
 const ACP_ENTRY = 'src/runtime/main.ts'
 const ACP_OUTFILE = 'dist/acp.js'
@@ -300,7 +302,7 @@ const pageWorkerOptions = {
 /** @type {import('esbuild').BuildOptions} */
 const webviewOptions = {
   ...common,
-  entryPoints: [WEBVIEW_ENTRY],
+  entryPoints: [WEBVIEW_ENTRY, MODELS_WEBVIEW_ENTRY],
   outdir: WEBVIEW_OUTDIR,
   platform: 'browser',
   format: 'iife',
@@ -405,5 +407,7 @@ if (isWatch) {
   reportSize(PAGE_WORKER_OUTFILE)
   reportSize(path.join(WEBVIEW_OUTDIR, 'main.js'))
   reportSize(path.join(WEBVIEW_OUTDIR, 'main.css'))
+  reportSize(path.join(WEBVIEW_OUTDIR, 'models.js'))
+  reportSize(path.join(WEBVIEW_OUTDIR, 'models.css'))
   reportSize(ACP_OUTFILE)
 }

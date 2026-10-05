@@ -8,11 +8,26 @@
 import { fireEvent, render, screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 import { UI_TEXT } from '../../src/shared/constants'
-import type { ModelsPanelState, PanelToHostMessage } from '../../src/shared/modelsPanel'
+import { fill } from '../../src/shared/l10n/text'
+import type {
+  ImportPreview,
+  ModelsPanelState,
+  ModelsWizardStep,
+  PanelToHostMessage,
+} from '../../src/shared/modelsPanel'
 import { ModelsSection } from '../../src/webview/models/ModelsSection'
 import { ProvidersSection } from '../../src/webview/models/ProvidersSection'
 import type { SectionProps } from '../../src/webview/models/sections'
-import { makeDraft, makeProvider, makeRow, makeState } from './modelsPanelFixtures'
+import { Wizard } from '../../src/webview/models/Wizard'
+import {
+  makeDraft,
+  makeKeyUsage,
+  makeProvider,
+  makeRow,
+  makeState,
+  makeSuggestion,
+  makeTest,
+} from './modelsPanelFixtures'
 
 function props(
   state: ModelsPanelState,
@@ -121,7 +136,7 @@ describe('ProvidersSection', () => {
               wizard: makeDraft({
                 step: 'test',
                 presetId: 'openrouter',
-                test: { status: 'needs-cost', costUsd: 0.000002 },
+                test: makeTest({ status: 'needs-cost', costUsd: 0.000002 }),
               }),
             },
           }),
@@ -179,20 +194,7 @@ describe('ProvidersSection', () => {
         edits: {},
         wizard: makeDraft({ step: 'suggestions', presetId: 'ollama', auth: 'none' }),
       },
-      suggestions: [
-        {
-          kind: 'defaultModel',
-          modelRef: 'ollama/qwen3:8b',
-          reason: 'The cheapest tool-calling model.',
-          accepted: false,
-        },
-        {
-          kind: 'sessionBudget',
-          usd: 2.5,
-          reason: 'From your recent sessions.',
-          accepted: false,
-        },
-      ],
+      suggestions: [makeSuggestion('defaultModel'), makeSuggestion('sessionBudget')],
     })
     render(<ProvidersSection {...props(state, post, { wizardOpen: true })} />)
     const acceptButtons = screen.getAllByRole('button', { name: UI_TEXT.suggestionAccept })
@@ -253,14 +255,35 @@ function fail(message: string): never {
     expect(post).toHaveBeenCalledWith({ type: 'providers/save', useNow: true })
   })
 
-  it('previews an import as a diff with every provider needing a key', () => {
+  it('shows a stored key bound to its origin and the key usage', () => {
     const post = vi.fn()
     const state = makeState({
-      importPreview: {
-        providers: [{ id: 'openrouter', label: 'OpenRouter', address: 'https://openrouter.ai' }],
-        errors: [],
-      },
+      providers: [
+        makeProvider({
+          id: 'openrouter',
+          presetId: 'openrouter',
+          label: 'OpenRouter',
+          auth: 'apiKey',
+          key: { state: 'stored', origin: 'https://openrouter.ai' },
+          keyUsage: makeKeyUsage(),
+        }),
+      ],
     })
+    render(<ProvidersSection {...props(state, post)} />)
+    expect(
+      screen.getByText(fill(UI_TEXT.keyBoundState, { origin: 'https://openrouter.ai' })),
+    ).toBeDefined()
+    expect(screen.getByText(UI_TEXT.usageKeyUsage)).toBeDefined()
+    expect(screen.getByText(UI_TEXT.usageRemaining)).toBeDefined()
+  })
+
+  it('previews an import as a diff with every provider needing a key', () => {
+    const post = vi.fn()
+    const preview: ImportPreview = {
+      providers: [{ id: 'openrouter', label: 'OpenRouter', address: 'https://openrouter.ai' }],
+      errors: [],
+    }
+    const state = makeState({ importPreview: preview })
     render(<ProvidersSection {...props(state, post, { importOpen: true })} />)
     expect(screen.getByText(UI_TEXT.providerImportPreviewTitle)).toBeDefined()
     expect(screen.getByText(UI_TEXT.importUntrusted)).toBeDefined()
@@ -275,6 +298,42 @@ function fail(message: string): never {
       json: '',
       confirmed: true,
     })
+  })
+})
+
+describe('Wizard', () => {
+  // Every step renders its own screen (M95 acceptance 18: the harness
+  // covers each state; this pins the step switch underneath it).
+  const steps: ReadonlyArray<{ readonly step: ModelsWizardStep; readonly marker: string }> = [
+    { step: 'pick-provider', marker: UI_TEXT.wizardPickProvider },
+    { step: 'configure', marker: 'https://openrouter.ai' },
+    { step: 'credential', marker: UI_TEXT.enterKey },
+    { step: 'test', marker: UI_TEXT.testConnection },
+    { step: 'models', marker: UI_TEXT.providerFields.models },
+    { step: 'privacy', marker: UI_TEXT.privacyNoRetention },
+    { step: 'suggestions', marker: UI_TEXT.suggestDefaultModel },
+    { step: 'confirm', marker: UI_TEXT.saveProvider },
+    { step: 'done', marker: UI_TEXT.saveAndUseNow },
+  ]
+
+  it('renders every step', () => {
+    for (const { step, marker } of steps) {
+      const { unmount } = render(
+        <Wizard
+          panelState={makeState({
+            models: [makeRow()],
+            totalModels: 1,
+            suggestions: [makeSuggestion('defaultModel')],
+          })}
+          draft={makeDraft({ step, presetId: 'openrouter', blockers: [] })}
+          post={vi.fn()}
+          onNavigateModels={vi.fn()}
+          onClose={vi.fn()}
+        />,
+      )
+      expect(screen.getByText(marker)).toBeDefined()
+      unmount()
+    }
   })
 })
 

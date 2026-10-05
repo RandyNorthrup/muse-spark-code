@@ -29,10 +29,18 @@ describe('panelUiReducer', () => {
     expect(panelUiReducer(open, { type: 'toggle-import' }).importOpen).toBe(false)
   })
 
+  it('keeps the local pick step until the host draft arrives', () => {
+    const open = panelUiReducer(INITIAL_PANEL_UI, { type: 'open-wizard' })
+    const kept = panelUiReducer(open, { type: 'host-state', state: makeState() })
+    expect(kept.wizardOpen).toBe(true)
+    expect(kept.wizardHasDraft).toBe(false)
+  })
+
   it('closes the wizard when the host clears the draft, and keeps it otherwise', () => {
-    const open = { ...INITIAL_PANEL_UI, wizardOpen: true }
+    const open = { ...INITIAL_PANEL_UI, wizardOpen: true, wizardHasDraft: true }
     const closed = panelUiReducer(open, { type: 'host-state', state: makeState() })
     expect(closed.wizardOpen).toBe(false)
+    expect(closed.wizardHasDraft).toBe(true)
     const kept = panelUiReducer(
       { ...INITIAL_PANEL_UI, wizardOpen: true },
       {

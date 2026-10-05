@@ -9,7 +9,9 @@ import { fill, formatUsd, plural } from '../../shared/l10n/text'
 import type {
   ModelsPanelState,
   PanelDraft,
+  PrefillFields,
   ProviderState,
+  ProviderTest,
 } from '../../shared/modelsPanel'
 import { InlineError } from './components/InlineError'
 import { KeyState } from './components/KeyState'
@@ -24,7 +26,7 @@ function TestLine({ provider, onTest }: {
 }) {
   // Declining the paid check only puts it away; the next Test asks again.
   const [costDismissed, setCostDismissed] = useState(false)
-  const test = provider.test
+  const test: ProviderTest = provider.test
   if (test.status === 'testing') {
     return (
       <p className="models-hint" role="status">
@@ -111,7 +113,7 @@ function EditForm({ draft, editId, onSave, onCancel, onPrefill }: {
   readonly editId: string
   readonly onSave: () => void
   readonly onCancel: () => void
-  readonly onPrefill: (fields: { readonly address?: string }) => void
+  readonly onPrefill: (fields: PrefillFields) => void
 }) {
   return (
     <div className="models-edit-form">
@@ -143,6 +145,27 @@ function EditForm({ draft, editId, onSave, onCancel, onPrefill }: {
       </div>
     </div>
   )
+}
+
+/**
+ * The pick step before the host's draft arrives: local only, with nothing
+ * to save. Cancelling here writes nothing anywhere.
+ */
+const PICK_DRAFT: PanelDraft = {
+  step: 'pick-provider',
+  auth: 'apiKey',
+  keyPresent: false,
+  keyShapeOk: false,
+  connected: false,
+  costAccepted: false,
+  models: [],
+  privacy: 'zdr',
+  providerOrder: [],
+  allowFallbacks: true,
+  privateConfirmed: false,
+  privateAsked: false,
+  errors: [],
+  blockers: ['Pick a provider first.'],
 }
 
 function ProviderRow({ provider, panelState, props }: {
@@ -323,7 +346,10 @@ function ImportPane({ panelState, post, onClose }: {
 
 export function ProvidersSection(props: SectionProps) {
   const { panelState, post, wizardOpen, importOpen, dispatch } = props
-  const wizard = panelState.drafts.wizard
+  // The pick step is local: before the host's draft arrives (right after
+  // `providers/select`, or while the wizard just opened) the panel shows
+  // the pick step from this draft, which carries nothing to save.
+  const wizard: PanelDraft = panelState.drafts.wizard ?? PICK_DRAFT
   return (
     <section aria-label={UI_TEXT.providersSectionTitle}>
       <h2>{UI_TEXT.providersSectionTitle}</h2>
@@ -348,7 +374,7 @@ export function ProvidersSection(props: SectionProps) {
           <ProviderRow key={provider.id} provider={provider} panelState={panelState} props={props} />
         ))}
       </ul>
-      {wizardOpen && wizard !== undefined && (
+      {wizardOpen && (
         <Wizard
           panelState={panelState}
           draft={wizard}

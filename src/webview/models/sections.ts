@@ -45,18 +45,23 @@ export interface PanelSectionDef {
 function reduceProviders(state: PanelUiState, action: PanelUiAction): PanelUiState {
   switch (action.type) {
     case 'open-wizard': {
+      // The pick step is local (no draft yet): it survives host states
+      // until the host's draft arrives, and closes when that draft goes
+      // (saved or cancelled) after it was seen.
       return { ...state, wizardOpen: true }
     }
     case 'close-wizard': {
-      return { ...state, wizardOpen: false }
+      return { ...state, wizardOpen: false, wizardHasDraft: false }
     }
     case 'toggle-import': {
       return { ...state, importOpen: !state.importOpen }
     }
     case 'host-state': {
+      const hasDraft = action.state.drafts.wizard !== undefined
       return {
         ...state,
-        wizardOpen: state.wizardOpen && action.state.drafts.wizard !== undefined,
+        wizardHasDraft: state.wizardHasDraft || hasDraft,
+        wizardOpen: state.wizardOpen && (hasDraft || !state.wizardHasDraft),
         importOpen: state.importOpen && action.state.importPreview !== undefined,
       }
     }

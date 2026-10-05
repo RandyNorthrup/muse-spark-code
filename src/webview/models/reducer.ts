@@ -14,6 +14,8 @@ export interface PanelHighlight {
 export interface PanelUiState {
   readonly section: ModelsPanelSection
   readonly wizardOpen: boolean
+  /** The host has sent a wizard draft since the wizard opened. */
+  readonly wizardHasDraft: boolean
   readonly importOpen: boolean
   readonly highlighted: PanelHighlight | undefined
 }
@@ -33,6 +35,7 @@ export type PanelUiAction =
 export const INITIAL_PANEL_UI: PanelUiState = {
   section: 'providers',
   wizardOpen: false,
+  wizardHasDraft: false,
   importOpen: false,
   highlighted: undefined,
 }

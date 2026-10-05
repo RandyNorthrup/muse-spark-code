@@ -9,10 +9,13 @@ import { useState } from 'react'
 import { UI_TEXT } from '../../shared/constants'
 import { fill, formatUsd, plural } from '../../shared/l10n/text'
 import type {
+  ModelsCustomFormat,
   ModelsPanelState,
+  ModelsPrivacy,
   PanelDraft,
   PanelToHostMessage,
   PresetCard,
+  TickScope,
 } from '../../shared/modelsPanel'
 import { CostNotice } from './components/CostNotice'
 import { InlineError } from './components/InlineError'
@@ -137,7 +140,7 @@ function ConfigureStep({ panelState, draft, post, onClose }: Omit<WizardProps, '
     readonly azureResource?: string | undefined
     readonly deployment?: string | undefined
     readonly loopbackPort?: number | undefined
-    readonly customFormat?: 'chat' | 'responses' | 'anthropic' | undefined
+    readonly customFormat?: ModelsCustomFormat | undefined
   }): void => {
     post({ type: 'providers/prefill', fields: patch })
   }
@@ -368,9 +371,10 @@ function WizardModelsStep({
 }: Omit<WizardProps, 'onNavigateModels'>) {
   const rows = panelState.models.filter((row) => row.providerId === draft.presetId)
   const toggle = (ref: string): void => {
+    const scope: TickScope = { scope: 'wizard' }
     post({
       type: 'models/tick',
-      scope: { scope: 'wizard' },
+      scope,
       ref,
       ticked: !draft.models.includes(ref),
     })
@@ -404,19 +408,23 @@ function WizardModelsStep({
 
 function PrivacyStep({ panelState, draft, post, onClose }: Omit<WizardProps, 'onNavigateModels'>) {
   const preset = presetOf(panelState, draft)
-  const choices = [
+  const choices: ReadonlyArray<{
+    readonly value: ModelsPrivacy
+    readonly label: string
+    readonly detail: string
+  }> = [
     {
-      value: 'zdr' as const,
+      value: 'zdr',
       label: UI_TEXT.privacyNoRetention,
       detail: UI_TEXT.privacyNoRetentionDetail,
     },
     {
-      value: 'no-training' as const,
+      value: 'no-training',
       label: UI_TEXT.privacyNoTraining,
       detail: UI_TEXT.privacyNoTrainingDetail,
     },
     {
-      value: 'any' as const,
+      value: 'any',
       label: UI_TEXT.privacyAnyProvider,
       detail: UI_TEXT.privacyAnyDetail,
     },

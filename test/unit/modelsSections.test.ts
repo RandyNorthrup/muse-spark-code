@@ -42,8 +42,9 @@ describe('MODEL_SECTIONS', () => {
       section: 'models',
     })
     expect(navigated).toBe(INITIAL_PANEL_UI)
-    // A host state with no draft or preview closes both overlays.
-    const open = { ...INITIAL_PANEL_UI, wizardOpen: true, importOpen: true }
+    // A host state with no draft or preview closes both overlays (once a
+    // draft was seen; the local pick step survives until it arrives).
+    const open = { ...INITIAL_PANEL_UI, wizardOpen: true, wizardHasDraft: true, importOpen: true }
     const closed = providers.reduceSection(open, { type: 'host-state', state: makeState() })
     expect(closed.wizardOpen).toBe(false)
     expect(closed.importOpen).toBe(false)

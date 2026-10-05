@@ -6,8 +6,12 @@ import type {
   ModelRow,
   ModelsPanelState,
   PanelDraft,
+  PanelSuggestion,
   PresetCard,
+  ProviderKeyUsage,
   ProviderState,
+  ProviderTest,
+  SuggestionKind,
 } from '../../src/shared/modelsPanel'
 
 export const OLLAMA_PRESET: PresetCard = {
@@ -49,7 +53,7 @@ export function makeProvider(overrides: Partial<ProviderState> = {}): ProviderSt
     format: 'ollama',
     auth: 'none',
     key: { state: 'missing' },
-    test: { status: 'untested' },
+    test: makeTest(),
     models: ['ollama/qwen3:8b'],
     pinned: [],
     ...overrides,
@@ -80,6 +84,25 @@ export function makeRow(overrides: Partial<ModelRow> = {}): ModelRow {
     },
     ...overrides,
   }
+}
+
+export function makeTest(overrides: Partial<ProviderTest> = {}): ProviderTest {
+  return { status: 'untested', ...overrides }
+}
+
+export function makeKeyUsage(overrides: Partial<ProviderKeyUsage> = {}): ProviderKeyUsage {
+  return { dayUsd: 1.2, monthUsd: 3.4, limitUsd: 10, remainingUsd: 6.6, ...overrides }
+}
+
+export function makeSuggestion(kind: SuggestionKind): PanelSuggestion {
+  return kind === 'defaultModel'
+    ? {
+        kind,
+        modelRef: 'ollama/qwen3:8b',
+        reason: 'The cheapest tool-calling model.',
+        accepted: false,
+      }
+    : { kind, usd: 2.5, reason: 'From your recent sessions.', accepted: false }
 }
 
 export function makeDraft(overrides: Partial<PanelDraft> = {}): PanelDraft {

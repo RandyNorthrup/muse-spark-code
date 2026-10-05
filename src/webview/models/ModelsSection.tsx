@@ -6,7 +6,7 @@
 
 import { UI_TEXT } from '../../shared/constants'
 import { fill, formatNumber, formatUsd, plural } from '../../shared/l10n/text'
-import type { ModelRow, ModelSort } from '../../shared/modelsPanel'
+import type { ModelPriceNote, ModelRow, ModelSort } from '../../shared/modelsPanel'
 import { Badge, type BadgeKind } from './components/Badge'
 import { DataTable, type DataColumn } from './components/DataTable'
 import { FilterBar } from './components/FilterBar'
@@ -15,8 +15,8 @@ import type { SectionProps } from './sections'
 
 const NUM_CTX_OPTIONS = [32768, 65536, 131072]
 
-function PriceNote({ row }: { readonly row: ModelRow }) {
-  switch (row.priceNote) {
+function PriceNote({ priceNote }: { readonly priceNote: ModelPriceNote }) {
+  switch (priceNote) {
     case 'unpriced': {
       return <span>{UI_TEXT.modelUnpriced}</span>
     }
@@ -121,7 +121,7 @@ export function ModelsSection({ panelState, post, highlightedItem }: SectionProp
               {row.priceNote === 'priced'
                 ? (row.inputPerMillion !== undefined ? formatUsd(row.inputPerMillion, 2) : '—')
                 : (
-                  <PriceNote row={row} />
+                  <PriceNote priceNote={row.priceNote} />
                 )}
             </span>,
             <span key="output">
