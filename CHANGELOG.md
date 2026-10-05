@@ -9,6 +9,16 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- M101 lane P2 (Pi/SoL-Pi upstream sync): long-context tiers reprice cached
+  reads and writes, and 1-hour cache writes settle at their own price.
+  The shared retry classifier refuses known quota codes and excessive
+  `Retry-After` waits; provider transport binding remains pending.
+  One-shot OAuth callbacks retain every parameter and destroy keep-alive
+  connections on settlement. Custom servers accept validated compatibility
+  overrides. Session saves coalesce into one in-flight write plus the latest;
+  parallel save failures are observed immediately while other sessions drain.
+  History listing validates headers without replay/transcript validation.
+
 - M95 integration shares the Node validation runtime and the provider-setup
   schema, so Models host stays within its existing size budget. Account & usage
   loads on demand with a dismissible loading modal. Chat's unchanged startup
@@ -2913,15 +2923,7 @@ The first community fix, and the README brought up to date with the panel.
   rendered from the shipped panel by the UI harness (`npm run
   harness:shots`) and say so; the 0.1.1 captures are gone.
 
-- M101 lane P2 (Pi/SoL-Pi upstream sync): long-context tiers reprice cached
-  reads and writes too, and 1-hour cache writes settle at their own price
-  instead of the 5-minute one; quota errors are never retried on any
-  provider, and a `Retry-After` past 60 seconds fails at once naming the
-  wait; the one-shot OAuth callback returns every callback parameter and
-  destroys keep-alive connections on settle; custom servers accept strict
-  compatibility overrides for their wire shape; rapid session saves
-  coalesce into one in-flight write plus the latest, and the history lists
-  headers without parsing every session whole.
+
 
 ## [0.5.1] - 2026-09-23
 

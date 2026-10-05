@@ -15709,6 +15709,15 @@ its sections 1–2 (harness), "BYO n" its section 3 (providers).
   budget; coalesced session saves and listing without full parses. Files:
   `priceCard.ts`, `presets.ts`, the catalogue sync script, `oauthLoopback.ts`,
   `fileSessionStore.ts`, the retry constants.
+- **FIXM101P2 review repair scope (2026-10-05).** RVM101P2 findings 1–7:
+  observe save rejections at creation; classify normalized spend/quota codes;
+  preserve and validate custom compat at host import/export; finish the strict
+  subset rewrite and gate codec requests through `supportsStrictTools`; reject
+  malformed grammar types; repair scoped lint/format and release notes. Every
+  fix gets a regression and byte-exact red drill in `docs/certification/m101-p2.md`.
+  No dependency, live call, guard widening or unrelated refactor. The base has
+  no per-model strict capability; its integration binding must be a named
+  residual. Full quality runs belong to the lead under this lane brief.
 - **Lane P2 status (2026-10-05).** Done: BYO 5 (shared retry tables in
   `FormatQuirks`, quota never retried, `Retry-After` over 60 s fails naming
   the wait), BYO 6 (1-hour writes settled disjointly, tier cache rates,

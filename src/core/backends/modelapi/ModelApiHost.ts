@@ -10125,7 +10125,7 @@ export class ModelApiHost implements AgentHost {
   /** What the store holds for this workspace, kept current as sessions change. */
   private readonly stored = new Map<string, StoredSessionHeader>()
   private readonly listListeners = new Set<(event: SessionListEvent) => void>()
-  /** Saves run one after another; failures are logged, and strict callers also see them. */
+  /** Drains parallel session writers; failures are logged and strict callers also see them. */
   private saving: Promise<void> = Promise.resolve()
   /**
    * Each session's save state (M101 BYO 16): saves for one session run one
@@ -10231,6 +10231,10 @@ export class ModelApiHost implements AgentHost {
     const covered = new Promise<void>((resolve, reject) => {
       state.waiters.push({ sequence, resolve, reject })
     })
+    // Observe before starting the writer: another session can fail while
+    // the global drain still waits on an earlier session. Strict callers
+    // retain the original rejection; the drain always settles successfully.
+    const observed = Promise.allSettled([covered])
     if (!state.running) {
       state.running = true
       void this.runSessionSaves(sessionId, store)
@@ -10243,11 +10247,7 @@ export class ModelApiHost implements AgentHost {
         // A failed save never breaks the drain; the write logged it, and
         // strict callers saw the failure on their own promise.
       }
-      try {
-        await covered
-      } catch {
-        // As above: logged by the write, seen by strict callers.
-      }
+      await observed
     })()
     return covered
   }
