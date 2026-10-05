@@ -16700,6 +16700,11 @@ against the original grammars. No grammar, feature, notice or cap is removed.
 Emit browser modules as UTF-8, matching the HTML and module transport, so
 English punctuation does not expand into repeated six-byte Unicode escapes.
 
+L's successful tasks without a merge use `done`; add that outcome to both
+existing validated ledger contracts so stored results round-trip into history.
+History currently has no production callers to update for its required time
+zone; A's next review round remains separate.
+
 **Lane F review correction (FIXM96F, 2026-10-05).** Address all 15 P2
 findings in `RVM96F.report.md` within the seven lane-F core modules and
 their tests: D75 tool groups and cap vocabulary; numeric and daily-budget

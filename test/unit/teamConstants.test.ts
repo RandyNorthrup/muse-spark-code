@@ -603,6 +603,7 @@ describe('team schemas', () => {
       branch: undefined,
     }
     expect(teamLedgerTaskRowSchema.parse(readOnly).taskId).toBe('review-task')
+    expect(teamLedgerTaskRowSchema.parse({ ...readOnly, outcome: 'done' }).outcome).toBe('done')
     refuses(teamLedgerTaskRowSchema, { ...row, taskId: '' })
     refuses(teamLedgerTaskRowSchema, { ...row, taskId: undefined })
     refuses(teamLedgerTaskRowSchema, { ...row, taskId: 1 })
@@ -768,6 +769,8 @@ describe('team strings', () => {
       'usageLimit',
       'unavailable',
       'reset',
+      'usageLimited',
+      'notStaffed',
     ])
     for (const slot of ['{price}', '{ceiling}', '{budget}']) {
       expect(EN.teamPaidDetail).toContain(slot)

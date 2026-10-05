@@ -163,6 +163,20 @@ happened, not what was planned; superseded entries are kept.
   dynamic imports, with all shipped chunks inside the existing aggregate
   webview budget and the existing nonce policy.
 
+### Fixed
+
+- **Team pipelines and history hardenings (lane L, review RVM96A).** A
+  step result whose kind does not belong to the step is refused, so a bare
+  `work-done` can never stand in for the review's findings or the check's
+  pass/fail. Round limits are positive integers in full definitions and
+  project narrowings alike (fractional bounds no longer load). Token totals
+  count input plus output only: cached input and reasoning output are
+  subsets, never added again. `Today` totals use the caller's local calendar
+  day in the injected time zone. Rows and filters carry per-agent identity
+  with per-agent totals. `done` (a success needing no merge) is counted
+  separately from `merged`. CSV export prefixes formula-opening cells
+  (`= + - @`, tab, carriage return) with a single quote.
+
 ## [0.12.1] - 2026-10-04
 
 ### Changed

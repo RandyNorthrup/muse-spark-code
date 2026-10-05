@@ -50,6 +50,7 @@ export type TeamLedgerStatus = (typeof teamLedgerStatuses)[number]
 
 /** The terminal outcome, kept with the row once the task ends. */
 export const teamLedgerOutcomes = [
+  'done',
   'merged',
   'discarded',
   'failed',

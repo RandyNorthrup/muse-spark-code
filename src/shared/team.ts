@@ -184,6 +184,7 @@ export type TeamTaskState = z.infer<typeof teamTaskStateSchema>
 // What the ledger records a task's end as (D75). Only the orchestrator's
 // `merge` writes to the user's tree from a worker's branch.
 export const teamLedgerOutcomes = [
+  'done',
   'merged',
   'discarded',
   'failed',

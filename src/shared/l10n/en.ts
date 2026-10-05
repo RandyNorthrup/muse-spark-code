@@ -1300,13 +1300,13 @@ export const EN = {
   // Why a task moved entries; one not listed here is shown as it came.
   teamSwitchReasons: {
     cap: 'cap reached',
-    rateLimited: 'rate limited',
-    usageLimited: 'usage limit',
-    reset: 'reset',
-    unavailable: 'unavailable',
-    notStaffed: 'not staffed',
     concurrency: 'no free slot',
+    rateLimited: 'rate limited',
     usageLimit: 'usage limit',
+    unavailable: 'unavailable',
+    reset: 'reset',
+    usageLimited: 'usage limit',
+    notStaffed: 'not staffed',
   },
   teamWaitingTitle: 'Waiting for you',
   teamWaitingQueue: 'Queue it',

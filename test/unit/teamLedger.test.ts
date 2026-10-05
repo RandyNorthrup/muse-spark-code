@@ -80,6 +80,14 @@ function openLedger(directory: string, windowId = 'window-a', nowMs = 1_000_000)
 }
 
 describe('teamLedger', () => {
+  it('round-trips successful tasks that need no merge as done', async () => {
+    const directory = await ledgerDir()
+    const ledger = openLedger(directory)
+    await ledger.record(taskRecord('research-done', { status: 'finished', outcome: 'done' }))
+    await ledger.flush()
+    const restored = await openLedger(directory).read()
+    expect(TeamLedger.latestByTask(restored.rows).get('research-done')?.outcome).toBe('done')
+  })
   it('does not lose a pending row when publication fails, and surfaces unreadable storage', async () => {
     const directory = await ledgerDir()
     const ledger = openLedger(directory)
