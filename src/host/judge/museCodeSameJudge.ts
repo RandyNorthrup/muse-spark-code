@@ -11,24 +11,21 @@
 // The judge runs in the background and is never awaited. No `vscode` import.
 
 import type { AgentSession, StartSessionOptions, TurnPart } from '../../core/agent/agentBackend'
-import { type JudgeEntryStore, type JudgeReadyOutcome } from '../../core/judge/entries'
 import { type JudgeQuestion } from '../../core/judge/judge'
-import { planJudgeBatches } from '../../core/judge/prompt'
 import type { AgentEvent } from '../../shared/agentEvents'
-import {
-  JUDGE_ADVISORY_THRESHOLD,
-  JUDGE_MAX_STATE_TOKENS,
-  JUDGE_REQUEST_TIMEOUT_MS,
-  THINKING_OFF_EFFORT,
-} from '../../shared/constants'
+import { THINKING_OFF_EFFORT } from '../../shared/constants'
 import { checkStandingAllowRules } from '../../core/judge/same/allowRules'
 import { settleBatch } from '../../core/judge/same/answers'
-import { type JudgeResultCache } from '../../core/judge/same/resultCache'
-import { runJudgeInBackground } from '../../core/judge/same/scheduler'
+import {
+  commitSettledAnswers,
+  judgeHeldAction,
+  type PlannedJudgeBatch,
+  type SameJudgeRunnerDeps,
+} from '../../core/judge/same/batches'
 import { isJudgeTurnItemAllowed, judgeSessionOptions } from '../../core/judge/same/sessionSpec'
-import { judgePromptWording, judgeStandaloneTurn } from '../../core/judge/same/wording'
+import { judgeStandaloneTurn } from '../../core/judge/same/wording'
 
-export interface MuseCodeJudgeDeps {
+export interface MuseCodeJudgeDeps extends SameJudgeRunnerDeps {
   /** `host.startSession`: the side session joins the conversation's host. */
   readonly startSession: (options: StartSessionOptions) => Promise<AgentSession>
   /** The CLI's user-level settings text, undefined when the file is missing. */
@@ -37,24 +34,12 @@ export interface MuseCodeJudgeDeps {
   readonly makeTempRoot: () => Promise<string>
   /** Removes the batch's folder after, even on failure. */
   readonly removeTempRoot: (root: string) => Promise<void>
-  readonly entries: JudgeEntryStore
-  readonly cache: JudgeResultCache
   /** Told each side session's id as it starts: no History lists it. */
   readonly onSideSession: (sessionId: string) => void
   /** A failure as the log may name it (never the CLI's own words). */
   readonly describeFailure: (error: unknown) => string
   readonly logInfo: (message: string) => void
   readonly logWarn: (message: string) => void
-  /** The conversation's own model: the side session never names another. */
-  readonly modelId: string
-  readonly timeoutMs?: number | undefined
-  readonly advisoryThreshold?: number | undefined
-  /**
-   * The token joystick lane J's over-context backstop reads: the model's own
-   * counter, provided by the wiring.
-   */
-  readonly measureTokens: (text: string) => number
-  readonly onError: (error: unknown) => void
 }
 
 /** One held action to judge: its latch entry plus the judged state. */
@@ -69,25 +54,6 @@ const STARTED_DISPOSITION = 'started'
 const COMPLETED_TERMINAL = 'completed'
 const COMPLETED_STATUS = 'completed'
 const AGENT_MESSAGE = 'agentMessage'
-
-function groupByKind(questions: readonly JudgeQuestion[]): JudgeQuestion[][] {
-  const groups: JudgeQuestion[][] = []
-  for (const question of questions) {
-    const group = groups.find((candidate) => candidate[0]?.kind === question.kind)
-    if (group === undefined) {
-      groups.push([question])
-    } else {
-      group.push(question)
-    }
-  }
-  return groups
-}
-
-interface BatchTurn {
-  readonly questions: JudgeQuestion[]
-  readonly user: string
-  readonly questionIds: readonly string[]
-}
 
 /** What one batch turn said: its first completed reply and how it ended. */
 interface TrackedTurn {
@@ -190,60 +156,13 @@ function awaitBatchReply(
 }
 
 export class MuseCodeSameJudge {
-  private readonly timeoutMs: number
-  private readonly advisoryThreshold: number
-  private readonly measureTokens: (text: string) => number
-
-  public constructor(private readonly deps: MuseCodeJudgeDeps) {
-    this.timeoutMs = deps.timeoutMs ?? JUDGE_REQUEST_TIMEOUT_MS
-    this.advisoryThreshold = deps.advisoryThreshold ?? JUDGE_ADVISORY_THRESHOLD
-    this.measureTokens = deps.measureTokens
-  }
-
-  private planBatches(job: MuseCodeJudgeJob): BatchTurn[] {
-    const wording = judgePromptWording()
-    const planned: BatchTurn[] = []
-    for (const group of groupByKind(job.questions)) {
-      // One batch shares one stated response, which carries a single answer
-      // shape: questions split by kind, never the state.
-      const plan = planJudgeBatches({
-        stateText: job.stateText,
-        questions: group,
-        wording,
-        maxQuestionsPerBatch: group.length,
-        contextTokenLimit: JUDGE_MAX_STATE_TOKENS,
-        measureTokens: this.measureTokens,
-      })
-      if (plan.refused !== undefined) {
-        throw new Error(`judge batch refused: ${plan.refused}`)
-      }
-      for (const batch of plan.batches) {
-        const questions = batch.questionIds.map((id) => {
-          const question = group.find((candidate) => candidate.id === id)
-          if (question === undefined) {
-            throw new Error('judge batch planned an unknown question')
-          }
-          return question
-        })
-        planned.push({ questions, user: batch.user, questionIds: batch.questionIds })
-      }
-    }
-    return planned
-  }
-
-  private judgeBatch(job: MuseCodeJudgeJob, batch: BatchTurn): void {
-    runJudgeInBackground(
-      async (signal) => {
-        await this.runBatch(job, batch, signal)
-      },
-      { timeoutMs: this.timeoutMs, onError: this.deps.onError },
-    )
-  }
+  public constructor(private readonly deps: MuseCodeJudgeDeps) {}
 
   private async runBatch(
     job: MuseCodeJudgeJob,
-    batch: BatchTurn,
+    batch: PlannedJudgeBatch,
     signal: AbortSignal,
+    tuning: { advisoryThreshold: number },
   ): Promise<void> {
     const failed = (why: string): void => {
       this.deps.entries.settle(job.entryKey, 'failed')
@@ -293,22 +212,18 @@ export class MuseCodeSameJudge {
           questionIds: batch.questionIds,
           replyText: reply,
           model: this.deps.modelId,
-          advisoryThreshold: this.advisoryThreshold,
+          advisoryThreshold: tuning.advisoryThreshold,
         })
-        if (settled.status !== 'answered') {
-          failed(`its reply did not parse: ${settled.failure}`)
-          return
-        }
-        const outcome: JudgeReadyOutcome = settled.outcome
-        // A consumed or discarded key settles false: the late result is
-        // dropped, and only a live entry's answers reach the memory-only cache.
-        if (this.deps.entries.settle(job.entryKey, outcome)) {
-          this.deps.cache.set(job.entryKey, {
-            outcome,
-            model: this.deps.modelId,
-            answers: settled.answers,
-          })
-        }
+        commitSettledAnswers({
+          entries: this.deps.entries,
+          cache: this.deps.cache,
+          entryKey: job.entryKey,
+          model: this.deps.modelId,
+          settled,
+          onFailure: (failure) => {
+            failed(`its reply did not parse: ${failure}`)
+          },
+        })
       } finally {
         tracked.stop()
       }
@@ -345,28 +260,21 @@ export class MuseCodeSameJudge {
    * rejects, never waits on the caller.
    */
   public judge(job: MuseCodeJudgeJob): void {
-    const cached = this.deps.cache.get(job.entryKey)
-    if (cached !== undefined) {
-      // A consumed or discarded key settles false: the late result is dropped.
-      this.deps.entries.settle(job.entryKey, cached.outcome)
-      return
-    }
+    // The user-settings allow-rule check runs before any batch: a rule that
+    // lands while earlier batches run stops the later ones at their own check
+    // in runBatch.
     const allowed = checkStandingAllowRules(this.deps.readSettingsText())
     if (!allowed.allowed) {
       this.deps.entries.settle(job.entryKey, 'failed')
       this.deps.logInfo(`The Muse Code judge stays off: ${allowed.reason}`)
       return
     }
-    let batches: BatchTurn[]
-    try {
-      batches = this.planBatches(job)
-    } catch (error: unknown) {
-      this.deps.entries.settle(job.entryKey, 'failed')
-      this.deps.onError(error)
-      return
-    }
-    for (const batch of batches) {
-      this.judgeBatch(job, batch)
-    }
+    judgeHeldAction({
+      runner: this.deps,
+      entryKey: job.entryKey,
+      stateText: job.stateText,
+      questions: job.questions,
+      runBatch: (batch, tuning, signal) => this.runBatch(job, batch, signal, tuning),
+    })
   }
 }

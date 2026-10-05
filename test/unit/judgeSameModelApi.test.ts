@@ -6,8 +6,21 @@
 
 import { describe, expect, it, vi } from 'vitest'
 import type { CreateResponseBody } from '../../src/core/backends/modelapi/schemas'
-import { JudgeEntryStore } from '../../src/core/judge/entries'
-import { ModelApiSameJudge, type ModelApiJudgeDeps } from '../../src/host/judge/modelApiSameJudge'
+import {
+  judgeAgain,
+  judgeJob,
+  judgeOnce,
+  SpyJudgeStore,
+  startJudgeEntry,
+  untilJudgeSettled,
+} from './helpers/judgeSameRig'
+import {
+  ModelApiSameJudge,
+  type ModelApiJudgeDeps,
+  type ModelApiJudgeSource,
+  type ModelApiJudgeTransport,
+  type ModelApiSideResponse,
+} from '../../src/host/judge/modelApiSameJudge'
 import { JudgeResultCache } from '../../src/core/judge/same/resultCache'
 import { redactSecrets } from '../../src/core/redact'
 
@@ -38,19 +51,8 @@ function mainBody(): CreateResponseBody {
   }
 }
 
-class SpyStore extends JudgeEntryStore {
-  public readonly settled: { key: string; outcome: string }[] = []
-  public override settle(key: string, outcome: 'caution' | 'none' | 'failed'): boolean {
-    const wasApplied = super.settle(key, outcome)
-    if (wasApplied) {
-      this.settled.push({ key, outcome })
-    }
-    return wasApplied
-  }
-}
-
 interface Rig {
-  readonly entries: SpyStore
+  readonly entries: SpyJudgeStore
   readonly cache: JudgeResultCache
   readonly errors: unknown[]
   readonly sent: CreateResponseBody[]
@@ -62,36 +64,33 @@ function setup(options: {
   readonly main?: CreateResponseBody | undefined
   readonly prefixTokens?: number | undefined
   readonly send?:
-    | ((
-        body: CreateResponseBody,
-        signal: AbortSignal,
-      ) => Promise<{ text: string; inputTokens: number; outputTokens: number }>)
-    | undefined
+    ((body: CreateResponseBody, signal: AbortSignal) => Promise<ModelApiSideResponse>) | undefined
 }): Rig {
-  const entries = new SpyStore()
+  const entries = new SpyJudgeStore()
   const cache = new JudgeResultCache()
   const errors: unknown[] = []
   const sent: CreateResponseBody[] = []
   const main = options.main ?? mainBody()
-  const transport =
+  const source: ModelApiJudgeSource = {
+    readMainBody: () => main,
+    keyPrefix: () => 'muse-abc123',
+    prefixTokens: () => options.prefixTokens ?? 4357,
+  }
+  const innerSend =
     options.send ??
-    vi.fn((_body: CreateResponseBody, _signal: AbortSignal) =>
+    ((_body: CreateResponseBody, _signal: AbortSignal) =>
       Promise.resolve({
         text: options.reply ?? '{"answer":"yes","confidence":95}',
         inputTokens: 10,
         outputTokens: 5,
-      }),
-    )
+      }))
+  const transport: ModelApiJudgeTransport = { send: innerSend }
   const sending = vi.fn(async (body: CreateResponseBody, signal: AbortSignal) => {
     sent.push(body)
-    return await transport(body, signal)
+    return await transport.send(body, signal)
   })
   const deps: ModelApiJudgeDeps = {
-    source: {
-      readMainBody: () => main,
-      keyPrefix: () => 'muse-abc123',
-      prefixTokens: () => options.prefixTokens ?? 4357,
-    },
+    source,
     transport: { send: sending },
     entries,
     cache,
@@ -106,28 +105,13 @@ function setup(options: {
   return { entries, cache, errors, sent, judge: new ModelApiSameJudge(deps) }
 }
 
-function startKey(entries: JudgeEntryStore): string {
-  return entries.start({
+function startKey(entries: SpyJudgeStore): string {
+  return startJudgeEntry(entries, {
     backend: 'model-api',
-    sessionId: 's1',
     turnId: 't1',
     tool: 'run_shell',
     args: { command: 'rm -rf /tmp/x' },
   })
-}
-
-async function untilSettled(entries: SpyStore, key: string): Promise<string> {
-  const deadline = Date.now() + 5000
-  for (;;) {
-    const found = entries.settled.find((entry) => entry.key === key)
-    if (found !== undefined) {
-      return found.outcome
-    }
-    if (Date.now() > deadline) {
-      throw new Error('the judge never settled')
-    }
-    await new Promise((resolve) => setTimeout(resolve, 10))
-  }
 }
 
 const NOUL = { id: 'risk', kind: 'noul' as const, text: 'Is deleting this risky?' }
@@ -137,8 +121,9 @@ describe('ModelApiSameJudge', () => {
     const rig = setup({})
     const before = structuredClone(mainBody())
     const key = startKey(rig.entries)
-    rig.judge.judge({ entryKey: key, stateText: 'rm -rf /tmp/x', questions: [NOUL] })
-    expect(await untilSettled(rig.entries, key)).toBe('caution')
+    expect(await judgeOnce(rig.judge, rig.entries, judgeJob(key, 'rm -rf /tmp/x', [NOUL]))).toBe(
+      'caution',
+    )
     expect(rig.sent).toHaveLength(1)
     const sent = rig.sent[0]
     if (sent === undefined) {
@@ -157,8 +142,7 @@ describe('ModelApiSameJudge', () => {
   it('settles none on a safe answer, changing no verdict', async () => {
     const rig = setup({ reply: '{"answer":"no","confidence":99}' })
     const key = startKey(rig.entries)
-    rig.judge.judge({ entryKey: key, stateText: 'ls', questions: [NOUL] })
-    expect(await untilSettled(rig.entries, key)).toBe('none')
+    expect(await judgeOnce(rig.judge, rig.entries, judgeJob(key, 'ls', [NOUL]))).toBe('none')
   })
 
   it('sends standalone when redaction changes the prefix', async () => {
@@ -166,8 +150,7 @@ describe('ModelApiSameJudge', () => {
     const secret = { ...main, instructions: 'key: LLM_abcdefghijklmnop' }
     const rig = setup({ main: secret })
     const key = startKey(rig.entries)
-    rig.judge.judge({ entryKey: key, stateText: 'x', questions: [NOUL] })
-    expect(await untilSettled(rig.entries, key)).toBe('caution')
+    expect(await judgeOnce(rig.judge, rig.entries, judgeJob(key, 'x', [NOUL]))).toBe('caution')
     const sent = rig.sent[0]
     if (sent === undefined) {
       throw new Error('no side request sent')
@@ -182,32 +165,26 @@ describe('ModelApiSameJudge', () => {
     const rig = setup({ prefixTokens: 10 })
     const key = startKey(rig.entries)
     rig.judge.judge({ entryKey: key, stateText: 'x', questions: [NOUL] })
-    await untilSettled(rig.entries, key)
+    await untilJudgeSettled(rig.entries, key)
     expect(rig.sent[0]?.input).toHaveLength(1)
   })
 
   it('refuses a model switch without sending', async () => {
     const rig = setup({ main: { ...mainBody(), model: 'someone-else' } })
     const key = startKey(rig.entries)
-    rig.judge.judge({ entryKey: key, stateText: 'x', questions: [NOUL] })
-    expect(await untilSettled(rig.entries, key)).toBe('failed')
+    expect(await judgeOnce(rig.judge, rig.entries, judgeJob(key, 'x', [NOUL]))).toBe('failed')
     expect(rig.sent).toHaveLength(0)
     expect(rig.cache.get(key)).toBeUndefined()
   })
 
   it('drops a result that arrives after its fence', async () => {
-    const gate = Promise.withResolvers<{
-      text: string
-      inputTokens: number
-      outputTokens: number
-    }>()
+    const gate = Promise.withResolvers<ModelApiSideResponse>()
     const release = gate.resolve
     const rig = setup({
       send: (_body, _signal) => gate.promise,
     })
     const key = startKey(rig.entries)
-    rig.judge.judge({ entryKey: key, stateText: 'x', questions: [NOUL] })
-    await new Promise((resolve) => setTimeout(resolve, 50))
+    await judgeAgain(rig.judge, judgeJob(key, 'x', [NOUL]))
     // The fence reads first and consumes the entry.
     expect(rig.entries.readLatch(key)).toBeUndefined()
     release({ text: '{"answer":"yes","confidence":95}', inputTokens: 1, outputTokens: 1 })
@@ -219,13 +196,11 @@ describe('ModelApiSameJudge', () => {
   it('settles a repeated action from the cache without sending', async () => {
     const rig = setup({})
     const key = startKey(rig.entries)
-    rig.judge.judge({ entryKey: key, stateText: 'x', questions: [NOUL] })
-    expect(await untilSettled(rig.entries, key)).toBe('caution')
+    expect(await judgeOnce(rig.judge, rig.entries, judgeJob(key, 'x', [NOUL]))).toBe('caution')
     expect(rig.sent).toHaveLength(1)
     // The fence consumed the entry but the outcome stays cached.
     expect(rig.entries.readLatch(key)).toBe('caution')
-    rig.judge.judge({ entryKey: key, stateText: 'x', questions: [NOUL] })
-    await new Promise((resolve) => setTimeout(resolve, 50))
+    await judgeAgain(rig.judge, judgeJob(key, 'x', [NOUL]))
     expect(rig.sent).toHaveLength(1)
     expect(rig.entries.settled.filter((entry) => entry.key === key)).toHaveLength(1)
   })
@@ -233,8 +208,7 @@ describe('ModelApiSameJudge', () => {
   it('settles failed on an unparseable reply and caches nothing', async () => {
     const rig = setup({ reply: 'maybe, ask me again' })
     const key = startKey(rig.entries)
-    rig.judge.judge({ entryKey: key, stateText: 'x', questions: [NOUL] })
-    expect(await untilSettled(rig.entries, key)).toBe('failed')
+    expect(await judgeOnce(rig.judge, rig.entries, judgeJob(key, 'x', [NOUL]))).toBe('failed')
     expect(rig.cache.get(key)).toBeUndefined()
   })
 
@@ -243,8 +217,7 @@ describe('ModelApiSameJudge', () => {
       send: () => Promise.reject(new Error('network down')),
     })
     const key = startKey(rig.entries)
-    rig.judge.judge({ entryKey: key, stateText: 'x', questions: [NOUL] })
-    expect(await untilSettled(rig.entries, key)).toBe('failed')
+    expect(await judgeOnce(rig.judge, rig.entries, judgeJob(key, 'x', [NOUL]))).toBe('failed')
     expect(rig.errors).toHaveLength(1)
   })
 })

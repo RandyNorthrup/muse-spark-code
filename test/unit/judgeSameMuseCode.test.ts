@@ -6,13 +6,19 @@
 // change. Fast unit tests run on fakes; the frame test runs the real
 // MuseCodeHost over the in-memory MSP transport.
 
-import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import path from 'node:path'
 import { afterAll, describe, expect, it, vi } from 'vitest'
 import { MuseCodeHost } from '../../src/core/backends/musecode/MuseCodeHost'
 import { failureForLog } from '../../src/core/backends/musecode/logText'
-import { JudgeEntryStore } from '../../src/core/judge/entries'
+import {
+  judgeAgain,
+  judgeJob,
+  judgeOnce,
+  SpyJudgeStore,
+  startJudgeEntry,
+  trackTempRoots,
+  untilJudgeSettled,
+} from './helpers/judgeSameRig'
 import { MuseCodeSameJudge, type MuseCodeJudgeDeps } from '../../src/host/judge/museCodeSameJudge'
 import { JudgeResultCache } from '../../src/core/judge/same/resultCache'
 import type { AgentEvent } from '../../src/shared/agentEvents'
@@ -36,39 +42,13 @@ afterAll(async () => {
   await Promise.all(folders.map((folder) => removeFolder(folder)))
 })
 
-class SpyStore extends JudgeEntryStore {
-  public readonly settled: { key: string; outcome: string }[] = []
-  public override settle(key: string, outcome: 'caution' | 'none' | 'failed'): boolean {
-    const wasApplied = super.settle(key, outcome)
-    if (wasApplied) {
-      this.settled.push({ key, outcome })
-    }
-    return wasApplied
-  }
-}
-
-function startKey(entries: JudgeEntryStore): string {
-  return entries.start({
+function startKey(entries: SpyJudgeStore): string {
+  return startJudgeEntry(entries, {
     backend: 'muse-code',
-    sessionId: 's1',
     turnId: 't1',
     tool: 'run_shell',
     args: { command: 'rm -rf /tmp/x' },
   })
-}
-
-async function untilSettled(entries: SpyStore, key: string): Promise<string> {
-  const deadline = Date.now() + 8000
-  for (;;) {
-    const found = entries.settled.find((entry) => entry.key === key)
-    if (found !== undefined) {
-      return found.outcome
-    }
-    if (Date.now() > deadline) {
-      throw new Error('the judge never settled')
-    }
-    await new Promise((resolve) => setTimeout(resolve, 10))
-  }
 }
 
 function itemCompleted(
@@ -86,7 +66,7 @@ function turnCompleted(turnId: string): Extract<AgentEvent, { type: 'turnComplet
 }
 
 interface FakeRig {
-  readonly entries: SpyStore
+  readonly entries: SpyJudgeStore
   readonly cache: JudgeResultCache
   readonly errors: unknown[]
   readonly warnings: string[]
@@ -104,14 +84,13 @@ interface FakeRig {
 }
 
 function fakeSetup(): FakeRig {
-  const entries = new SpyStore()
+  const entries = new SpyJudgeStore()
   const cache = new JudgeResultCache()
   const errors: unknown[] = []
   const warnings: string[] = []
   const infos: string[] = []
   const host = new FakeAgentHost()
   const sessions: FakeAgentSession[] = []
-  const removed: string[] = []
   const sideIds: string[] = []
   // Live bindings the deps close over: the returned rig mutates these, never
   // a copy.
@@ -156,19 +135,13 @@ function fakeSetup(): FakeRig {
     })
     return Promise.resolve(session)
   })
+  const roots = trackTempRoots(folders)
+  const removed = roots.removed
   const deps: MuseCodeJudgeDeps = {
     startSession: (options) => host.startSession(options),
     readSettingsText: () => mutable.settingsText,
-    makeTempRoot: () => {
-      const folder = mkdtempSync(path.join(tmpdir(), 'muse-judge-'))
-      folders.push(folder)
-      return Promise.resolve(folder)
-    },
-    removeTempRoot: (root) => {
-      removed.push(root)
-      rmSync(root, { recursive: true, force: true })
-      return Promise.resolve()
-    },
+    makeTempRoot: roots.makeTempRoot,
+    removeTempRoot: roots.removeTempRoot,
     entries,
     cache,
     onSideSession: (sessionId) => {
@@ -231,8 +204,9 @@ describe('MuseCodeSameJudge on fakes', () => {
   it('judges in a hidden session and deletes its folder after', async () => {
     const rig = fakeSetup()
     const key = startKey(rig.entries)
-    rig.judge.judge({ entryKey: key, stateText: 'rm -rf /tmp/x', questions: [NOUL] })
-    expect(await untilSettled(rig.entries, key)).toBe('caution')
+    expect(await judgeOnce(rig.judge, rig.entries, judgeJob(key, 'rm -rf /tmp/x', [NOUL]))).toBe(
+      'caution',
+    )
     expect(rig.host.startSession).toHaveBeenCalledTimes(1)
     const options = rig.host.startSession.mock.calls[0]?.[0]
     expect(options?.modelId).toBe(MODEL)
@@ -268,10 +242,27 @@ describe('MuseCodeSameJudge on fakes', () => {
     })
     // The choice batch cannot answer from the noul reply: both settle, each
     // in its own session.
-    await untilSettled(rig.entries, key)
+    await untilJudgeSettled(rig.entries, key)
     expect(rig.host.startSession).toHaveBeenCalledTimes(2)
     const roots = rig.host.startSession.mock.calls.map((call) => call[0].workspaceRoot)
     expect(new Set(roots).size).toBe(2)
+    expect(rig.removed).toHaveLength(2)
+  })
+
+  it('starts a fresh session per call, never holding one across calls', async () => {
+    const rig = fakeSetup()
+    const first = startKey(rig.entries)
+    rig.judge.judge({ entryKey: first, stateText: 'x', questions: [NOUL] })
+    expect(await untilJudgeSettled(rig.entries, first)).toBe('caution')
+    const second = startJudgeEntry(rig.entries, {
+      backend: 'muse-code',
+      turnId: 't2',
+      tool: 'run_shell',
+      args: { command: 'ls' },
+    })
+    rig.judge.judge({ entryKey: second, stateText: 'y', questions: [NOUL] })
+    expect(await untilJudgeSettled(rig.entries, second)).toBe('caution')
+    expect(rig.host.startSession).toHaveBeenCalledTimes(2)
     expect(rig.removed).toHaveLength(2)
   })
 
@@ -286,8 +277,7 @@ describe('MuseCodeSameJudge on fakes', () => {
       },
     })
     const key = startKey(rig.entries)
-    rig.judge.judge({ entryKey: key, stateText: 'x', questions: [NOUL] })
-    expect(await untilSettled(rig.entries, key)).toBe('failed')
+    expect(await judgeOnce(rig.judge, rig.entries, judgeJob(key, 'x', [NOUL]))).toBe('failed')
     expect(rig.host.startSession).not.toHaveBeenCalled()
     expect(rig.removed).toEqual([])
     expect(rig.infos).toHaveLength(1)
@@ -297,8 +287,7 @@ describe('MuseCodeSameJudge on fakes', () => {
     const rig = fakeSetup()
     rig.emitToolItem = true
     const key = startKey(rig.entries)
-    rig.judge.judge({ entryKey: key, stateText: 'x', questions: [NOUL] })
-    expect(await untilSettled(rig.entries, key)).toBe('failed')
+    expect(await judgeOnce(rig.judge, rig.entries, judgeJob(key, 'x', [NOUL]))).toBe('failed')
     const session = rig.sessions[0]
     if (session === undefined) {
       throw new Error('no side session started')
@@ -336,12 +325,10 @@ describe('MuseCodeSameJudge on fakes', () => {
   it('settles a repeated action from the cache without a session', async () => {
     const rig = fakeSetup()
     const key = startKey(rig.entries)
-    rig.judge.judge({ entryKey: key, stateText: 'x', questions: [NOUL] })
-    expect(await untilSettled(rig.entries, key)).toBe('caution')
+    expect(await judgeOnce(rig.judge, rig.entries, judgeJob(key, 'x', [NOUL]))).toBe('caution')
     expect(rig.host.startSession).toHaveBeenCalledTimes(1)
     expect(rig.entries.readLatch(key)).toBe('caution')
-    rig.judge.judge({ entryKey: key, stateText: 'x', questions: [NOUL] })
-    await new Promise((resolve) => setTimeout(resolve, 50))
+    await judgeAgain(rig.judge, judgeJob(key, 'x', [NOUL]))
     expect(rig.host.startSession).toHaveBeenCalledTimes(1)
   })
 })
@@ -395,24 +382,17 @@ describe('MuseCodeSameJudge over MSP frames', () => {
         status: 'accepted',
       }))
     }
-    const entries = new SpyStore()
+    const entries = new SpyJudgeStore()
     const cache = new JudgeResultCache()
     const errors: unknown[] = []
     const sideIds: string[] = []
-    const removed: string[] = []
+    const roots = trackTempRoots(folders)
+    const removed = roots.removed
     const judge = new MuseCodeSameJudge({
       startSession: (options) => host.startSession(options),
       readSettingsText: () => undefined,
-      makeTempRoot: () => {
-        const folder = mkdtempSync(path.join(tmpdir(), 'muse-judge-'))
-        folders.push(folder)
-        return Promise.resolve(folder)
-      },
-      removeTempRoot: (root) => {
-        removed.push(root)
-        rmSync(root, { recursive: true, force: true })
-        return Promise.resolve()
-      },
+      makeTempRoot: roots.makeTempRoot,
+      removeTempRoot: roots.removeTempRoot,
       entries,
       cache,
       onSideSession: (sessionId) => {
@@ -445,16 +425,17 @@ describe('MuseCodeSameJudge over MSP frames', () => {
     // Its turn carries only the standalone prompt, using no tools.
     const turns = handle.server.requestsFor('turn/start')
     expect(turns).toHaveLength(1)
-    const input = turns[0]?.params['input']
-    const first: unknown = Array.isArray(input) ? input[0] : undefined
-    const text =
-      typeof first === 'object' &&
-      first !== null &&
-      'text' in first &&
-      typeof first.text === 'string'
-        ? first.text
-        : ''
-    expect(text).toContain('Use no tools.')
+    const seen: unknown = turns.at(0)?.params['input']
+    const parts = Array.isArray(seen) ? seen : []
+    const said = parts
+      .filter(
+        (part: unknown): part is { text: unknown } =>
+          typeof part === 'object' && part !== null && 'text' in part,
+      )
+      .map((part) => part.text)
+      .filter((text): text is string => typeof text === 'string')
+    expect(said).toHaveLength(1)
+    expect(said.join('\n')).toContain('Use no tools.')
     // The main session is untouched: no turn, no mode change, still listed.
     expect(
       handle.server

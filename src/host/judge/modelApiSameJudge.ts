@@ -9,22 +9,18 @@
 // the side body keeps the conversation's model. No `vscode` import.
 
 import type { CreateResponseBody, InputItem } from '../../core/backends/modelapi/schemas'
-import { type JudgeEntryStore, type JudgeReadyOutcome } from '../../core/judge/entries'
 import { type JudgeQuestion } from '../../core/judge/judge'
-import { planJudgeBatches } from '../../core/judge/prompt'
 import { selectTechnique, type ModelJudgeCapability } from '../../core/judge/techniques'
-import {
-  JUDGE_ADVISORY_THRESHOLD,
-  JUDGE_MAX_STATE_TOKENS,
-  JUDGE_MIN_CACHED_PREFIX_TOKENS,
-  JUDGE_REQUEST_TIMEOUT_MS,
-} from '../../shared/constants'
+import { JUDGE_MIN_CACHED_PREFIX_TOKENS } from '../../shared/constants'
 import { type CachedPrefix } from '../../core/backends/modelapi/promptCache'
+import {
+  commitSettledAnswers,
+  judgeHeldAction,
+  type PlannedJudgeBatch,
+  type SameJudgeRunnerDeps,
+} from '../../core/judge/same/batches'
 import { settleBatch } from '../../core/judge/same/answers'
-import { type JudgeResultCache } from '../../core/judge/same/resultCache'
-import { runJudgeInBackground } from '../../core/judge/same/scheduler'
 import { planSideRequest } from '../../core/judge/same/sideRequest'
-import { judgePromptWording } from '../../core/judge/same/wording'
 
 /** ModelApiHost's own request builder, as the adapter reads it (lane S seam). */
 export interface ModelApiJudgeSource {
@@ -57,11 +53,9 @@ export interface ModelApiJudgeTransport {
   send(body: CreateResponseBody, signal: AbortSignal): Promise<ModelApiSideResponse>
 }
 
-export interface ModelApiJudgeDeps {
+export interface ModelApiJudgeDeps extends SameJudgeRunnerDeps {
   readonly source: ModelApiJudgeSource
   readonly transport: ModelApiJudgeTransport
-  readonly entries: JudgeEntryStore
-  readonly cache: JudgeResultCache
   /** Secret redaction (redactSecrets): redaction runs before anything remote. */
   readonly redact: (text: string) => string
   /**
@@ -70,17 +64,7 @@ export interface ModelApiJudgeDeps {
    * always states (Muse Spark refuses while reasoning; lane 2e captures).
    */
   readonly capability?: ModelJudgeCapability | undefined
-  /** The conversation's own model: the side body never names another. */
-  readonly modelId: string
-  readonly timeoutMs?: number | undefined
   readonly minPrefixTokens?: number | undefined
-  readonly advisoryThreshold?: number | undefined
-  /**
-   * The token joystick lane J's over-context backstop reads: the model's own
-   * counter, provided by the wiring.
-   */
-  readonly measureTokens: (text: string) => number
-  readonly onError: (error: unknown) => void
 }
 
 /** One held action to judge: its latch entry plus the judged state. */
@@ -103,74 +87,20 @@ function tailMessage(text: string): InputItem {
   }
 }
 
-function groupByKind(questions: readonly JudgeQuestion[]): JudgeQuestion[][] {
-  const groups: JudgeQuestion[][] = []
-  for (const question of questions) {
-    const group = groups.find((candidate) => candidate[0]?.kind === question.kind)
-    if (group === undefined) {
-      groups.push([question])
-    } else {
-      group.push(question)
-    }
-  }
-  return groups
-}
-
 export class ModelApiSameJudge {
-  private readonly timeoutMs: number
   private readonly minPrefixTokens: number
-  private readonly advisoryThreshold: number
-  private readonly measureTokens: (text: string) => number
 
   public constructor(private readonly deps: ModelApiJudgeDeps) {
-    this.timeoutMs = deps.timeoutMs ?? JUDGE_REQUEST_TIMEOUT_MS
     this.minPrefixTokens = deps.minPrefixTokens ?? JUDGE_MIN_CACHED_PREFIX_TOKENS
-    this.advisoryThreshold = deps.advisoryThreshold ?? JUDGE_ADVISORY_THRESHOLD
-    this.measureTokens = deps.measureTokens
   }
 
-  private planBatches(job: ModelApiJudgeJob) {
-    const wording = judgePromptWording()
-    const planned: { questions: JudgeQuestion[]; user: string; questionIds: readonly string[] }[] =
-      []
-    for (const group of groupByKind(job.questions)) {
-      // One batch shares one stated response, which carries a single answer
-      // shape: questions split by kind, never the state.
-      const plan = planJudgeBatches({
-        stateText: job.stateText,
-        questions: group,
-        wording,
-        maxQuestionsPerBatch: group.length,
-        contextTokenLimit: JUDGE_MAX_STATE_TOKENS,
-        measureTokens: this.measureTokens,
-      })
-      if (plan.refused !== undefined) {
-        throw new Error(`judge batch refused: ${plan.refused}`)
-      }
-      for (const batch of plan.batches) {
-        const questions = batch.questionIds.map((id) => {
-          const question = group.find((candidate) => candidate.id === id)
-          if (question === undefined) {
-            throw new Error('judge batch planned an unknown question')
-          }
-          return question
-        })
-        planned.push({ questions, user: batch.user, questionIds: batch.questionIds })
-      }
-    }
-    return planned
-  }
-
-  private judgeBatch(
-    job: ModelApiJudgeJob,
-    batch: { questions: JudgeQuestion[]; user: string; questionIds: readonly string[] },
-  ): void {
-    runJudgeInBackground(
-      async (signal) => {
-        await this.runBatch(job, batch, signal)
-      },
-      { timeoutMs: this.timeoutMs, onError: this.deps.onError },
-    )
+  /** One job's batches, bound to their background runs. */
+  private batchRunner(job: ModelApiJudgeJob) {
+    return (
+      batch: PlannedJudgeBatch,
+      tuning: { advisoryThreshold: number },
+      signal: AbortSignal,
+    ): Promise<void> => this.runBatch(job, batch, signal, tuning)
   }
 
   private standaloneBody(main: CreateResponseBody, tail: InputItem): CreateResponseBody {
@@ -197,8 +127,9 @@ export class ModelApiSameJudge {
 
   private async runBatch(
     job: ModelApiJudgeJob,
-    batch: { questions: JudgeQuestion[]; user: string; questionIds: readonly string[] },
+    batch: PlannedJudgeBatch,
     signal: AbortSignal,
+    tuning: { advisoryThreshold: number },
   ): Promise<void> {
     const settleFailed = (): void => {
       this.deps.entries.settle(job.entryKey, 'failed')
@@ -246,24 +177,18 @@ export class ModelApiSameJudge {
       questionIds: batch.questionIds,
       replyText: response.text,
       model: this.deps.modelId,
-      advisoryThreshold: this.advisoryThreshold,
+      advisoryThreshold: tuning.advisoryThreshold,
       reservedCostUsd: job.reservedCostUsd,
       settledCostUsd: job.settledCostUsd,
     })
-    if (settled.status !== 'answered') {
-      settleFailed()
-      return
-    }
-    const outcome: JudgeReadyOutcome = settled.outcome
-    // A consumed or discarded key settles false: the late result is dropped,
-    // and only a live entry's answers reach the memory-only cache.
-    if (this.deps.entries.settle(job.entryKey, outcome)) {
-      this.deps.cache.set(job.entryKey, {
-        outcome,
-        model: this.deps.modelId,
-        answers: settled.answers,
-      })
-    }
+    commitSettledAnswers({
+      entries: this.deps.entries,
+      cache: this.deps.cache,
+      entryKey: job.entryKey,
+      model: this.deps.modelId,
+      settled,
+      onFailure: settleFailed,
+    })
   }
 
   /**
@@ -272,22 +197,12 @@ export class ModelApiSameJudge {
    * rejects, never waits on the caller.
    */
   public judge(job: ModelApiJudgeJob): void {
-    const cached = this.deps.cache.get(job.entryKey)
-    if (cached !== undefined) {
-      // A consumed or discarded key settles false: the late result is dropped.
-      this.deps.entries.settle(job.entryKey, cached.outcome)
-      return
-    }
-    let batches: { questions: JudgeQuestion[]; user: string; questionIds: readonly string[] }[]
-    try {
-      batches = this.planBatches(job)
-    } catch (error: unknown) {
-      this.deps.entries.settle(job.entryKey, 'failed')
-      this.deps.onError(error)
-      return
-    }
-    for (const batch of batches) {
-      this.judgeBatch(job, batch)
-    }
+    judgeHeldAction({
+      runner: this.deps,
+      entryKey: job.entryKey,
+      stateText: job.stateText,
+      questions: job.questions,
+      runBatch: this.batchRunner(job),
+    })
   }
 }
