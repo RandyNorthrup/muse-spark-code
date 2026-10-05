@@ -1353,6 +1353,15 @@ export const CONTEXT_PRESSURE_MEDIUM = 0.7
 export const CONTEXT_PRESSURE_HIGH = 0.9
 // A turn stops after this many model calls (tool rounds) to bound a loop.
 export const MODEL_API_MAX_TOOL_ROUNDS = 50
+// Tool parameter schemas convert to a constrained-decoding grammar on
+// servers that take one (llama.cpp, SoL-Pi #59/#65; M101 item 24): nested
+// past this, a schema trips the check. Past the current toolset's nesting
+// (ask_user's selection mode is the deepest), deeper is a tripwire, not a
+// grammar proof. The byte budget beside it is a regression tripwire on the
+// emitted toolset's size, not the upstream grammar limit, which stays a
+// residual until a live capture names it.
+export const TOOL_SCHEMA_MAX_DEPTH = 12
+export const TOOL_SCHEMA_JSON_BUDGET_BYTES = 32_768
 // The in-process tools (Claude Code's set, MSP's names where they exist so
 // the transcript rows render identically).
 export const MODEL_API_TOOLS = {

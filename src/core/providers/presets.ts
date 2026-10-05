@@ -113,6 +113,13 @@ export interface FormatQuirks {
    * so every provider retries its own failures and never its quota.
    */
   readonly retry: RetryTables
+  /**
+   * The server takes `strict: true` tool schemas (M101 item 24): OpenAI
+   * and Azure's constrained decoding. Off everywhere else until a wire
+   * capture proves it, including llama.cpp (its grammar limit bounds what
+   * converts) and Meta (the canonical body keeps `strict: false`).
+   */
+  readonly supportsStrictTools: boolean
 }
 
 /** The five formats' defaults; presets override per provider. */
@@ -132,6 +139,7 @@ export const FORMAT_QUIRKS: Record<ProviderFormat, FormatQuirks> = {
     neverSendEmptyTools: true,
     keepToolsWithHistory: true,
     retry: RETRY_TABLES.responses,
+    supportsStrictTools: false,
   },
   chat: {
     outputCapParam: 'max_completion_tokens',
@@ -145,6 +153,7 @@ export const FORMAT_QUIRKS: Record<ProviderFormat, FormatQuirks> = {
     neverSendEmptyTools: true,
     keepToolsWithHistory: true,
     retry: RETRY_TABLES.chat,
+    supportsStrictTools: false,
   },
   anthropic: {
     outputCapParam: 'max_tokens',
@@ -158,6 +167,7 @@ export const FORMAT_QUIRKS: Record<ProviderFormat, FormatQuirks> = {
     neverSendEmptyTools: true,
     keepToolsWithHistory: true,
     retry: RETRY_TABLES.anthropic,
+    supportsStrictTools: false,
   },
   gemini: {
     outputCapParam: 'maxOutputTokens',
@@ -171,6 +181,7 @@ export const FORMAT_QUIRKS: Record<ProviderFormat, FormatQuirks> = {
     neverSendEmptyTools: true,
     keepToolsWithHistory: true,
     retry: RETRY_TABLES.gemini,
+    supportsStrictTools: false,
   },
   ollama: {
     outputCapParam: 'num_predict',
@@ -184,6 +195,7 @@ export const FORMAT_QUIRKS: Record<ProviderFormat, FormatQuirks> = {
     neverSendEmptyTools: true,
     keepToolsWithHistory: true,
     retry: RETRY_TABLES.ollama,
+    supportsStrictTools: false,
   },
 }
 
@@ -257,6 +269,8 @@ const OPENAI_PRESET: ProviderPreset = {
   quirks: {
     // OpenAI's documented retryable envelope error, past the format's statuses.
     retry: { ...RETRY_TABLES.responses, errorKinds: ['server_error'] },
+    // OpenAI's constrained decoding takes strict tool schemas.
+    supportsStrictTools: true,
   },
   wireCapture: true,
 }
@@ -278,7 +292,10 @@ const AZURE_PRESET: ProviderPreset = {
   },
   keyTest: { kind: 'paid-token' },
   modelsList: { path: '/openai/v1/models', priceSource: 'catalogue' },
-  quirks: {},
+  quirks: {
+    // Azure OpenAI's constrained decoding takes strict tool schemas.
+    supportsStrictTools: true,
+  },
   wireCapture: false,
 }
 

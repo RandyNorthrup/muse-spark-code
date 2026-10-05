@@ -59,7 +59,13 @@ const modelLimitsSchema = z
  */
 const customCompatSchema = z.strictObject({
   outputCapParam: z.optional(
-    z.enum(['max_output_tokens', 'max_completion_tokens', 'max_tokens', 'maxOutputTokens', 'num_predict']),
+    z.enum([
+      'max_output_tokens',
+      'max_completion_tokens',
+      'max_tokens',
+      'maxOutputTokens',
+      'num_predict',
+    ]),
   ),
   toolChoice: z.optional(z.enum(['auto', 'omit', 'string-only'])),
   sendsParallelToolCalls: z.optional(z.boolean()),
@@ -78,6 +84,7 @@ const customCompatSchema = z.strictObject({
   reasoningReplay: z.optional(z.enum(['same-model', 'none'])),
   usageOnFinishChunk: z.optional(z.boolean()),
   usageNeedsOptIn: z.optional(z.boolean()),
+  supportsStrictTools: z.optional(z.boolean()),
 })
 export type CustomCompat = z.infer<typeof customCompatSchema>
 

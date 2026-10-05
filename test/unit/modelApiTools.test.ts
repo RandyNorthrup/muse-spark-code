@@ -21,7 +21,9 @@ import {
   SEARCH_MAX_HITS,
   TOOL_OUTPUT_ELIDED_MARKER,
   TOOL_OUTPUT_MAX_CHARS,
+  TOOL_SCHEMA_JSON_BUDGET_BYTES,
 } from '../../src/shared/constants'
+import { isToolSchemaGrammarSafe, withStrictTools } from '../../src/core/backends/modelapi/schemas'
 import { memoryToolIo } from './helpers/fakeToolIo'
 
 const ROOT = '/ws'
@@ -481,6 +483,41 @@ describe('toolDefinitions / classifyTool', () => {
     expect(child).not.toContain('ask_user')
     expect(child).not.toContain('todo_write')
     expect(child).toContain('read_file')
+  })
+})
+
+describe('strict tool schemas and grammar safety (M101 item 24)', () => {
+  it('flags function tools strict only where the model takes it', () => {
+    const definitions = toolDefinitions('linux')
+    expect(definitions.length).toBeGreaterThan(0)
+    // Off returns the same definitions: the canonical body stays strict:false.
+    expect(withStrictTools(definitions, false)).toBe(definitions)
+    const strict = withStrictTools(definitions, true)
+    expect(strict).not.toBe(definitions)
+    for (const tool of strict) {
+      expect(tool.strict).toBe(true)
+    }
+    expect(definitions.every((tool) => !tool.strict)).toBe(true)
+  })
+
+  it('keeps every emitted parameter schema grammar-safe and small', () => {
+    const definitions = toolDefinitions('linux')
+    for (const tool of definitions) {
+      expect(isToolSchemaGrammarSafe(tool.parameters)).toBe(true)
+    }
+    const bytes = Buffer.byteLength(JSON.stringify(definitions), 'utf8')
+    expect(bytes).toBeLessThan(TOOL_SCHEMA_JSON_BUDGET_BYTES)
+  })
+
+  it('refuses references, combinators and unknown types', () => {
+    expect(isToolSchemaGrammarSafe({ $ref: '#/$defs/x' })).toBe(false)
+    expect(isToolSchemaGrammarSafe({ oneOf: [{ type: 'string' }] })).toBe(false)
+    expect(isToolSchemaGrammarSafe({ type: 'object', properties: { d: { $ref: '#/x' } } })).toBe(
+      false,
+    )
+    expect(isToolSchemaGrammarSafe({ type: 'wizard' })).toBe(false)
+    expect(isToolSchemaGrammarSafe({ type: 'object', properties: {} })).toBe(true)
+    expect(isToolSchemaGrammarSafe({ type: 'array', items: { type: 'string' } })).toBe(true)
   })
 })
 

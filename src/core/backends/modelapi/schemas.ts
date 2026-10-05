@@ -7,6 +7,7 @@
 
 import * as z from 'zod/mini'
 import type { PromptCacheRetention } from '../../../shared/constants'
+import { TOOL_SCHEMA_MAX_DEPTH } from '../../../shared/constants'
 import { webResultSchema } from '../../../shared/webResults'
 
 /** A source the reply cites (`url_citation`, search-grounding); offsets are not used. */
@@ -337,7 +338,88 @@ export interface FunctionToolDefinition {
   readonly name: string
   readonly description: string
   readonly parameters: Record<string, unknown>
-  readonly strict: false
+  // False everywhere the canonical body goes (Meta included); true only
+  // where the model's quirks say `supportsStrictTools` (M101 item 24), set
+  // through `withStrictTools`, never by hand.
+  readonly strict: boolean
+}
+
+/**
+ * Flags function tools strict where the model takes it (M101 item 24);
+ * search tools pass through. Off returns the same definitions, so the
+ * canonical body (and the golden bytes) stays `strict: false` where the
+ * quirk is off.
+ */
+export function withStrictTools(
+  tools: readonly ToolDefinition[],
+  shouldUseStrict: boolean,
+): readonly ToolDefinition[] {
+  return shouldUseStrict
+    ? tools.map((tool) => (tool.type === 'function' ? { ...tool, strict: true } : tool))
+    : tools
+}
+
+/** JSON-schema keywords no constrained-decoding grammar takes (llama.cpp server, SoL-Pi #59/#65). */
+const GRAMMAR_UNSAFE_KEYS: ReadonlySet<string> = new Set([
+  '$ref',
+  '$defs',
+  'definitions',
+  'oneOf',
+  'anyOf',
+  'allOf',
+  'not',
+  'if',
+  'then',
+  'else',
+  'dependentSchemas',
+  'patternProperties',
+  'propertyNames',
+  'contains',
+])
+
+/** The primitive types a constrained-decoding grammar converts. */
+const GRAMMAR_SAFE_TYPES: ReadonlySet<string> = new Set([
+  'object',
+  'array',
+  'string',
+  'integer',
+  'number',
+  'boolean',
+  'null',
+])
+
+/**
+ * Whether a tool parameter schema converts to a constrained-decoding
+ * grammar (M101 item 24): known primitive types only, no references or
+ * combinators, bounded depth. Structural, not a byte limit: the byte
+ * budget beside it is a regression tripwire, and the exact upstream
+ * grammar limit stays a residual until a live capture names it.
+ */
+export function isToolSchemaGrammarSafe(node: unknown, depth = 0): boolean {
+  if (depth > TOOL_SCHEMA_MAX_DEPTH) {
+    return false
+  }
+  if (
+    node === null ||
+    typeof node === 'string' ||
+    typeof node === 'number' ||
+    typeof node === 'boolean'
+  ) {
+    return true
+  }
+  if (typeof node !== 'object') {
+    return false
+  }
+  if (Array.isArray(node)) {
+    return node.every((item: unknown) => isToolSchemaGrammarSafe(item, depth + 1))
+  }
+  const entries: readonly [string, unknown][] = Object.entries(node)
+  return entries.every(
+    ([key, value]) =>
+      !GRAMMAR_UNSAFE_KEYS.has(key) &&
+      (key !== 'type' || typeof value !== 'string' || GRAMMAR_SAFE_TYPES.has(value)) &&
+      isToolSchemaGrammarSafe(value, depth + 1),
+  )
 }
 
 /** Meta's hosted search (search-grounding, M33): the model decides when to search. */

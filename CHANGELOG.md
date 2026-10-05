@@ -2913,6 +2913,16 @@ The first community fix, and the README brought up to date with the panel.
   rendered from the shipped panel by the UI harness (`npm run
   harness:shots`) and say so; the 0.1.1 captures are gone.
 
+- M101 lane P2 (Pi/SoL-Pi upstream sync): long-context tiers reprice cached
+  reads and writes too, and 1-hour cache writes settle at their own price
+  instead of the 5-minute one; quota errors are never retried on any
+  provider, and a `Retry-After` past 60 seconds fails at once naming the
+  wait; the one-shot OAuth callback returns every callback parameter and
+  destroys keep-alive connections on settle; custom servers accept strict
+  compatibility overrides for their wire shape; rapid session saves
+  coalesce into one in-flight write plus the latest, and the history lists
+  headers without parsing every session whole.
+
 ## [0.5.1] - 2026-09-23
 
 A docs-only patch, and the first release the workflow published to the

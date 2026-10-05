@@ -15709,6 +15709,19 @@ its sections 1–2 (harness), "BYO n" its section 3 (providers).
   budget; coalesced session saves and listing without full parses. Files:
   `priceCard.ts`, `presets.ts`, the catalogue sync script, `oauthLoopback.ts`,
   `fileSessionStore.ts`, the retry constants.
+- **Lane P2 status (2026-10-05).** Done: BYO 5 (shared retry tables in
+  `FormatQuirks`, quota never retried, `Retry-After` over 60 s fails naming
+  the wait), BYO 6 (1-hour writes settled disjointly, tier cache rates,
+  dearest-write reservations; lane I wires the host lookup and
+  `StoredUsage.cacheWriteTokens`), BYO 12 (every callback parameter,
+  `closeAllConnections`; refresh-outside-abort is a constraint on the
+  not-yet-built M95b refresh), BYO 14 (strict custom-server compat
+  overrides), BYO 16 (latest-wins save queue, header-only listing), item 24
+  (per-format `supportsStrictTools`, `withStrictTools`, grammar-safety
+  check; schema-subset rewrite and codec wiring are lanes T/P1). Scope
+  change: BYO 10 and BYO 15 moved to M95 lane N; the host price lookup,
+  `insights.ts`, `sessionBudget.ts`, `shared/paid.ts` and `effort.ts` are
+  lane I's. Record: `docs/certification/m101-p2.md`.
 - **Lane E — evaluation.** Live checks on the contributor model in an empty
   workspace: one `/compact` and one budgeted goal round, reading
   `cached_tokens` (about 4 model calls) to confirm items 1–3; Meta's overflow

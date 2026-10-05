@@ -178,6 +178,17 @@ describe('the preset table', () => {
     )
   })
 
+  it('gates strict tool schemas per capable server (M101 item 24)', () => {
+    expect(quirksOf(preset('openai')).supportsStrictTools).toBe(true)
+    expect(quirksOf(preset('azure')).supportsStrictTools).toBe(true)
+    for (const id of ['xai', 'anthropic', 'gemini', 'openrouter', 'ollama', 'llamacpp', 'custom']) {
+      expect(quirksOf(preset(id)).supportsStrictTools).toBe(false)
+    }
+    // A custom server claims it only through its compatibility overrides.
+    expect(customQuirksFor('chat', { supportsStrictTools: true }).supportsStrictTools).toBe(true)
+    expect(customQuirksFor('chat', undefined).supportsStrictTools).toBe(false)
+  })
+
   it('builds Azure origins from resource names only', () => {
     expect(azureOrigin('my-resource')).toBe('https://my-resource.openai.azure.com/openai/v1')
     expect(azureOrigin('  My-Resource  ')).toBe('https://my-resource.openai.azure.com/openai/v1')
