@@ -4317,17 +4317,25 @@ completed, ≈ $0.0010; plus a free local run on the Kubuntu rig):
   - xAI and Z.ai accept the parameter and drop it silently.
   - Anthropic, Muse Spark, current Gemini models, Mistral and Groq refuse
     it. Muse Spark is a reasoning model with no `none` effort.
-- **Local works on CPU.** On a 40-item labelled destructive-command set:
+- **Local works on CPU, and a GPU makes it about 10× faster with the same
+  answers.** On a 40-item labelled destructive-command set (Kubuntu CPU;
+  Win11 VM, GTX 1080 Ti):
 
-  | Engine                               | Accuracy | Brier | Warm latency                 |
-  | ------------------------------------ | -------: | ----: | ---------------------------- |
-  | `tev1:4b` (Ollama, CPU)              |    0.975 | 0.030 | 3.1 s per state              |
-  | Jev 1.13 (OpenRouter)                |    0.975 | 0.023 | 2.1 s for all 40 in one call |
-  | `tev1:0.8b` (Ollama, CPU)            |    0.750 | 0.176 | 0.67 s                       |
-  | `llama3.2:1b` logprobs (Ollama, CPU) |    0.475 | 0.278 | 0.26 s                       |
+  | Engine                                          | Accuracy | Brier | Warm latency                 |
+  | ----------------------------------------------- | -------: | ----: | ---------------------------- |
+  | `tev1:4b` (Ollama, GPU)                         |    0.975 | 0.031 | 0.30 s per state             |
+  | `tev1:4b` (Ollama, CPU)                         |    0.975 | 0.030 | 3.1 s per state              |
+  | Jev 1.13 (OpenRouter)                           |    0.975 | 0.023 | 2.1 s for all 40 in one call |
+  | `qwen3:4b-instruct-2507` logprobs (Ollama, GPU) |    0.925 | 0.071 | 0.10 s                       |
+  | `llama3.2:3b` logprobs (Ollama, GPU)            |    0.925 | 0.066 | 0.06 s                       |
+  | `tev1:0.8b` (Ollama, CPU)                       |    0.750 | 0.176 | 0.67 s                       |
+  | `qwen3:1.7b` logprobs (Ollama, GPU)             |    0.550 | 0.433 | 0.05 s                       |
+  | `llama3.2:1b` logprobs (Ollama, CPU)            |    0.475 | 0.278 | 0.26 s                       |
 
-  The 1B general model answered "no" to 39 of 40, so a small general model
-  is not a judge.
+  General models of 2B and below answered "no" to nearly everything; at 3–4B
+  they reach 0.925, with confident errors. `tev1:4b` stays the recommended
+  default on both CPU and GPU: it is the most accurate and best calibrated,
+  and its one miss sat near 0.5.
 
 - **Confidence and scores do not transfer between engines.** Jev's
   confidence formula differs from Ollama's `1 − H/ln N`. Jev and `tev1:4b`
@@ -4434,8 +4442,10 @@ Decisions:
     logged as one line, with no content.
     1. **Local, free and private.** A verified-loopback runtime already has a
        recommended decision model installed. The list holds only models with
-       a calibration receipt: `tev1:4b` today. `nimble` and `clef-flash`
-       join once measured, and `tev1:0.8b` never does (accuracy 0.75).
+       a calibration receipt: `tev1:4b` today, measured on CPU and GPU.
+       `nimble` and `clef-flash` join once measured. A general model such as
+       `qwen3:4b-instruct-2507` joins only when its calibrated profile
+       matches `tev1:4b`'s Brier. `tev1:0.8b` never joins (accuracy 0.75).
        Branch 1 uses the local engine with no question. A one-time notice
        (once per machine) says which model is judging, that it is free and
        stays on this machine, and links to the settings.
@@ -4503,10 +4513,16 @@ Decisions:
        wraps;
      - requests use `node:http` directly, no proxy (D74).
   2. **List** the installed models and mark the decision-capable ones.
-     Recommend `tev1:4b` (4.5 GB; accuracy 0.975 and Brier 0.030 on the
-     probe set; about 3 s per state on CPU). Offer `tev1:0.8b` (0.8 GB,
-     0.67 s) only with its measured warning (accuracy 0.75). Do not
-     recommend a general model under about 7B for the logprob route.
+     - Recommend `tev1:4b`: 4.5 GB; accuracy 0.975 and Brier 0.030 on the
+       probe set; about 3 s per state on CPU and 0.3 s on a GPU.
+     - Offer `qwen3:4b-instruct-2507` (2.5 GB, logprob route, 0.10 s on a
+       GPU) as the measured second choice: accuracy 0.925 with confident
+       errors. It joins `auto`'s list only once its calibrated Brier on the
+       M75 set reaches `tev1:4b`'s.
+     - Offer `tev1:0.8b` (0.8 GB, 0.67 s) only with its measured warning
+       (accuracy 0.75).
+     - Do not recommend a general model under about 3B. `qwen3:1.7b` and
+       `llama3.2:1b` answered "no" to nearly everything.
   3. **Pull** only on an explicit click, after showing the model's download
      size and licence. Never auto-install, never bundle weights in the VSIX,
      never start or install a runtime.
@@ -4707,11 +4723,14 @@ Decisions:
     the owner's "untested" label for that route;
   - the direct TypeSafe route stays labelled untested until a TypeSafe key
     exists.
-- **GPU.** The plan assumes CPU-only local inference. A GPU (the Win11 VM's
-  GTX 1080 Ti in the lab) changes:
-  - latency: a 4B decision model should go from about 3 s to well under a
-    second per state, to be measured;
-  - calibration: the batch runs go from about an hour to minutes per model.
+- **GPU.** The plan assumes CPU-only local inference. A GPU (measured on the
+  Win11 VM's GTX 1080 Ti in the lab) changes:
+  - **latency:** `tev1:4b` dropped from 3.1 s to 0.30 s per state warm, and
+    from 2.0 s to 0.56 s for three questions over one state, with the same
+    answers. A 1,750-token prompt is processed 38–40× faster. That makes
+    per-unit lint over a large tree practical;
+  - **calibration:** the batch runs go from about an hour to minutes per
+    model.
 
   It changes no decision. The product's local engine stays loopback-only on
   the user's own machine. The rigs are development infrastructure.
@@ -14446,7 +14465,9 @@ joined with M57, M58 and PR #49's sign-in
   - [x] Logprob capability of the 12 providers and Muse Spark probed live
         (30 attempts, ≈ $0.0010); Jev through OpenRouter tested; local CPU
         baseline on Kubuntu.
-  - [ ] Local latency and calibration on the GPU rig (Win11 VM, GTX 1080 Ti).
+  - [x] Local latency and calibration on the GPU rig (Win11 VM, GTX 1080 Ti):
+        `tev1:4b` 0.975 and Brier 0.031 at 0.30 s per state; four models
+        measured, `tev1:4b` kept as the recommended default.
   - [ ] Acceptance 1–12, each with its failing drill and passing receipt.
   - [ ] Captures for llama.cpp, LM Studio and each preset's judge capability;
         Cloudflare when a key exists.

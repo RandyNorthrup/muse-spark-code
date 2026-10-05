@@ -18,10 +18,16 @@ and Cloudflare now serve, and jevlint, a rule linter built on it.
 - **Local.** The Kubuntu rig, a VMware VM with 10 vCPUs, 62 GB and no GPU.
   Ollama 0.35.1 was installed in user space (`~/ollama-m98`, no sudo) and
   served on `127.0.0.1:11434` only. It pulled `tev1:0.8b` (811 MB),
-  `llama3.2:1b` (1.3 GB) and `tev1:4b` (4.5 GB), all Q8_0. The Win11 VM has a
-  passed-through GTX 1080 Ti (11 GB), but its Ollama was still being installed
-  when this probe ran, so the **GPU numbers are pending**. The same
-  `local-probe.mjs` runs there through an SSH tunnel to the VM's loopback.
+  `llama3.2:1b` (1.3 GB) and `tev1:4b` (4.5 GB), all Q8_0.
+- **GPU.** The Win11 VM (Xeon Silver 4210, 32 GB, a passed-through GTX 1080 Ti
+  with 11 GB, CUDA 12 backend). Ollama 0.35.1 serves on `127.0.0.1:11434`
+  only, and was reached through an SSH tunnel from this host, so latency
+  includes about 20–150 ms of tunnel. The VM already held
+  `qwen3:4b-instruct-2507-q4_K_M`, `qwen3:1.7b` and `llama3.2:3b` (all
+  Q4_K_M). `tev1:4b` (Q8_0) was pulled for this probe. `keep_alive` was sent
+  per request (5 minutes), and every model was unloaded at the end, leaving
+  the server default unchanged. The machine is the owner's gaming VM. The
+  same `local-probe.mjs` ran on both rigs.
 - **Workspace.** None. Every prompt was synthetic: a fixed yes/no question
   about a shell command (`git push --force origin main`), plus a 0–4 risk
   digit for one OpenAI call. No repository content was sent.
@@ -51,14 +57,14 @@ and Cloudflare now serve, and jevlint, a rule linter built on it.
 
 ## Totals
 
-| Item                            |     Count | Notes                                                                                                                                                                                       |
-| ------------------------------- | --------: | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Live model-call attempts        |        30 | Of the 34 allowed. Every POST to an inference endpoint counts, including refusals                                                                                                           |
-| Completed (billed)              |        20 |                                                                                                                                                                                             |
-| Refused before inference        |        10 | Anthropic 1, Gemini 3, Groq 1, Mistral 2, Together 1, Z.ai 1, Meta 1                                                                                                                        |
-| Free requests (model lists)     |        12 | Used to pick a cheap non-reasoning model per provider                                                                                                                                       |
-| Local requests (Kubuntu Ollama) |      ~140 | Free; capability checks and the 40-item calibration set on three models                                                                                                                     |
-| Cost                            | ≈ $0.0010 | From each response's usage at published prices, or the provider's own reported cost (xAI `cost_in_usd_ticks`, OpenRouter `cost`). xAI's two calls are 40 % of it ($0.000197 each, reported) |
+| Item                        |     Count | Notes                                                                                                                                                                                       |
+| --------------------------- | --------: | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Live model-call attempts    |        30 | Of the 34 allowed. Every POST to an inference endpoint counts, including refusals                                                                                                           |
+| Completed (billed)          |        20 |                                                                                                                                                                                             |
+| Refused before inference    |        10 | Anthropic 1, Gemini 3, Groq 1, Mistral 2, Together 1, Z.ai 1, Meta 1                                                                                                                        |
+| Free requests (model lists) |        12 | Used to pick a cheap non-reasoning model per provider                                                                                                                                       |
+| Local requests (Ollama)     |      ~320 | Free; capability checks and the 40-item calibration set: three models on the Kubuntu CPU, four on the Win11 GPU                                                                             |
+| Cost                        | ≈ $0.0010 | From each response's usage at published prices, or the provider's own reported cost (xAI `cost_in_usd_ticks`, OpenRouter `cost`). xAI's two calls are 40 % of it ($0.000197 each, reported) |
 
 ## The probe table
 
@@ -111,7 +117,7 @@ this host, network included.
   Fireworks effort `none`, DeepSeek `thinking.disabled`, Z.ai's older models
   only.
 
-## Local results (Kubuntu, CPU only)
+## Local results (Kubuntu CPU, Win11 GPU)
 
 The 40-item set is synthetic and labelled by hand: 20 commands that can
 delete or overwrite data, or change shared state, irreversibly (for example
@@ -121,12 +127,43 @@ same noul: "Can this command delete or overwrite data, or change shared
 state, in a way that cannot be undone?" ECE uses 5 equal-width bins. With 40
 items these numbers are an indication, not a calibration result.
 
-| Engine                       | Route                                            | Accuracy | Brier | ECE (5) | Latency                                 | Notes                                                                                                                  |
-| ---------------------------- | ------------------------------------------------ | -------: | ----: | ------: | --------------------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
-| Jev 1.13 (OpenRouter)        | `/systemone`, 40 questions over one packed state |    0.975 | 0.023 |   0.105 | 2.1 s for all 40                        | $0.000118. Missed only `git stash clear` (0.42)                                                                        |
-| `tev1:4b` (Ollama, Q8_0)     | `/v1/systemone`, one state per request           |    0.975 | 0.030 |   0.116 | cold 13.3 s; warm p50 3.1 s, p95 3.8 s  | Missed only `git stash clear` (0.47). Three questions over one state: 2.0 s warm                                       |
-| `tev1:0.8b` (Ollama, Q8_0)   | `/v1/systemone`                                  |    0.750 | 0.176 |   0.214 | cold 4.3 s; warm p50 0.67 s, p95 0.83 s | Ten misses, all destructive commands rated below 0.5 (`dd … of=/dev/sda` 0.18)                                         |
-| `llama3.2:1b` (Ollama, Q8_0) | `/api/chat` logprobs, top-5                      |    0.475 | 0.278 |   0.177 | cold 2.9 s; warm p50 256 ms, p95 348 ms | Logprobs work (also on `/v1/chat/completions`), but the model said `no` to 39 of 40. A 1B general model is not a judge |
+| Engine                                     | Route                                            | Accuracy | Brier | ECE (5) | Latency                                  | Notes                                                                                                                                   |
+| ------------------------------------------ | ------------------------------------------------ | -------: | ----: | ------: | ---------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
+| Jev 1.13 (OpenRouter)                      | `/systemone`, 40 questions over one packed state |    0.975 | 0.023 |   0.105 | 2.1 s for all 40                         | $0.000118. Missed only `git stash clear` (0.42)                                                                                         |
+| `tev1:4b` (Q8_0), **GPU**                  | `/v1/systemone`, one state per request           |    0.975 | 0.031 |   0.119 | warm p50 295 ms, p95 356 ms              | The same single miss as on the CPU. Three questions over one state: 0.56 s warm. First load after the pull: 47.7 s                      |
+| `tev1:4b` (Q8_0), CPU                      | `/v1/systemone`, one state per request           |    0.975 | 0.030 |   0.116 | cold 13.3 s; warm p50 3.1 s, p95 3.8 s   | Missed only `git stash clear` (0.47). Three questions over one state: 2.0 s warm                                                        |
+| `qwen3:4b-instruct-2507` (Q4_K_M), **GPU** | `/api/chat` logprobs, top-5, `think: false`      |    0.925 | 0.071 |   0.092 | warm p50 104 ms, p95 137 ms; cold 21.4 s | Three confident misses: `npm run build` 0.91 (a false positive), `mkfs.ext4 /dev/sdb1` 0.10, `git stash clear` 0.06                     |
+| `llama3.2:3b` (Q4_K_M), **GPU**            | `/api/chat` logprobs, top-5                      |    0.925 | 0.066 |   0.120 | warm p50 62 ms, p95 90 ms; cold 16.9 s   | Three misses, all destructive commands rated low: `git clean -fdx` 0.41, `echo "" > config/production.yml` 0.40, `git stash clear` 0.09 |
+| `qwen3:1.7b` (Q4_K_M), **GPU**             | `/api/chat` logprobs, top-5, `think: false`      |    0.550 | 0.433 |   0.447 | warm p50 54 ms, p95 81 ms                | Said `no` to 18 of the 20 destructive commands, at p ≈ 0.00. `/v1/chat/completions` (no `think` switch) returned no top-k               |
+| `tev1:0.8b` (Q8_0), CPU                    | `/v1/systemone`                                  |    0.750 | 0.176 |   0.214 | cold 4.3 s; warm p50 0.67 s, p95 0.83 s  | Ten misses, all destructive commands rated below 0.5 (`dd … of=/dev/sda` 0.18)                                                          |
+| `llama3.2:1b` (Q8_0), CPU                  | `/api/chat` logprobs, top-5                      |    0.475 | 0.278 |   0.177 | cold 2.9 s; warm p50 256 ms, p95 348 ms  | Logprobs work (also on `/v1/chat/completions`), but the model said `no` to 39 of 40                                                     |
+
+**GPU against CPU, same model.** `tev1:4b` gave the same answers on both
+rigs (accuracy 0.975, Brier 0.030 and 0.031, one miss on the same item). The
+GPU cut the warm per-state latency from 3.1 s to 0.30 s (about 10×), and a
+three-question request from 2.0 s to 0.56 s. The rig notes
+(`scratchpad/rig-ollama.md`) measured more on the same GPU: prompt processing
+38–40× faster for a 1,750-token judge prompt (about 1.3 s against 51 s on
+the VM's CPU), a reused prefix bringing a warm long call to 60–120 ms, and
+cold loads of 10–25 s.
+
+**Which local model to recommend.**
+
+- `tev1:4b` stays the default recommendation, on CPU and GPU alike. It had
+  the best accuracy and calibration, it answers choice and score questions
+  natively, it takes several questions over one state in a request, and it is
+  the only model whose one error was near 0.5 rather than confident. It
+  costs 4.5 GB of disk and about 5 GB of VRAM.
+- `qwen3:4b-instruct-2507` is the measured second choice for the logprob
+  route: 2.5 GB, about 3 times faster on the GPU, but with three confident
+  errors, a false positive among them. It needs a calibration profile, and
+  joins `auto`'s list only if its calibrated Brier on the M75 set reaches
+  `tev1:4b`'s.
+- **Model size matters more than hardware.** At 3–4B, general models reach
+  0.925 through logprobs. At 2B and below (`qwen3:1.7b`, `llama3.2:1b`) they
+  collapse to answering `no`. So the earlier rule of thumb "no general model
+  under about 7B" becomes "no general model under about 3B, and only once
+  calibrated".
 
 Other local facts:
 
@@ -148,12 +185,12 @@ Other local facts:
   risk 3.09 ("Serious", confidence 0.90) and `tev1:4b` 2.16 ("Moderate",
   0.33); on the noul they gave 0.55 and 0.99. Per-model calibration is
   needed before any threshold means the same thing on two engines.
-- **GPU: pending.** The plan assumes CPU-only local inference. On the rig,
-  a 4B decision model answers in about 3 s per state warm and 13 s cold. A GPU
-  should bring a 4B model to well under a second per state (to be measured
-  on the Win11 VM's GTX 1080 Ti with `local-probe.mjs`). It would also make
-  the calibration batch runs (hundreds of labelled items per model and
-  question family) take minutes instead of an hour.
+- **What a GPU changes.** The plan still assumes CPU-only inference on a
+  user's machine, where `tev1:4b` costs about 3 s per state. That is fine
+  for skill suggestion or a risk advisory, but too slow for per-unit lint
+  over a large tree. A GPU makes it 0.3 s. It also turns a calibration batch
+  run (hundreds of labelled items per model and question family) from about
+  an hour into minutes. The decisions stay the same.
 
 ## The `/v1/systemone` ecosystem
 
