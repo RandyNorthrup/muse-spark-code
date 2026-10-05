@@ -1,6 +1,7 @@
 // Shapes captured on win11, Ollama 0.35.1; see m98-2j-spike.md.
 import { createHash } from 'node:crypto'
-import { open, readFile, realpath } from 'node:fs/promises'
+import { open, readFile, realpath, type FileHandle } from 'node:fs/promises'
+import type { BigIntStats } from 'node:fs'
 import path from 'node:path'
 import { z } from 'zod'
 import {
@@ -57,6 +58,7 @@ export async function verifyDiskModel(
   if (!name || !tag) throw new Error('unverified-model-name')
   const manifestFile = await exactPath(root, `manifests/registry.ollama.ai/library/${name}/${tag}`)
   const manifestHandle = await open(manifestFile, 'r')
+  const held: { handle: FileHandle; file: string; before: BigIntStats; digest: string }[] = []
   try {
     const initial = await handleIdentity(manifestHandle)
     if (!initial.isFile() || initial.size > BigInt(LOCAL_JUDGE_MAX_RESPONSE_BYTES)) {
@@ -72,36 +74,64 @@ export async function verifyDiskModel(
     for (const blob of [manifest.config, ...manifest.layers]) {
       const blobPath = await exactPath(root, `blobs/${blob.digest.replace(':', '-')}`)
       const handle = await open(blobPath, 'r')
-      try {
-        const before = await handleIdentity(handle)
-        if (!before.isFile() || before.size !== BigInt(blob.size))
-          throw new Error('unverified-blob-size')
-        const hash = createHash('sha256')
-        const stream = handle.createReadStream({
-          autoClose: false,
-          highWaterMark: LOCAL_JUDGE_HASH_CHUNK_BYTES,
-        })
-        for await (const chunk of stream) {
-          if (!Buffer.isBuffer(chunk)) throw new Error('unverified-blob-bytes')
-          hash.update(chunk)
-        }
-        const after = await handleIdentity(handle)
-        const named = await statIdentity(blobPath)
-        if (
-          !sameFile(before, after) ||
-          !sameFile(before, named) ||
-          before.mtimeNs !== named.mtimeNs ||
-          before.size !== named.size ||
-          before.mtimeNs !== after.mtimeNs ||
-          before.size !== after.size ||
-          `sha256:${hash.digest('hex')}` !== blob.digest
-        )
-          throw new Error('unverified-blob-digest')
-        await exactPath(root, `blobs/${blob.digest.replace(':', '-')}`)
-        if (blob.mediaType === 'application/vnd.ollama.image.model') weightBytes += blob.size
-      } finally {
-        await handle.close()
+      const before = await handleIdentity(handle)
+      held.push({ handle, file: blobPath, before, digest: blob.digest })
+      if (!before.isFile() || before.size !== BigInt(blob.size))
+        throw new Error('unverified-blob-size')
+      const hash = createHash('sha256')
+      const stream = handle.createReadStream({
+        autoClose: false,
+        highWaterMark: LOCAL_JUDGE_HASH_CHUNK_BYTES,
+      })
+      for await (const chunk of stream) {
+        if (!Buffer.isBuffer(chunk)) throw new Error('unverified-blob-bytes')
+        hash.update(chunk)
       }
+      const after = await handleIdentity(handle)
+      const named = await statIdentity(blobPath)
+      if (
+        !sameFile(before, after) ||
+        !sameFile(before, named) ||
+        before.mtimeNs !== named.mtimeNs ||
+        before.size !== named.size ||
+        before.mtimeNs !== after.mtimeNs ||
+        before.size !== after.size ||
+        `sha256:${hash.digest('hex')}` !== blob.digest
+      )
+        throw new Error('unverified-blob-digest')
+      await exactPath(root, `blobs/${blob.digest.replace(':', '-')}`)
+      if (blob.mediaType === 'application/vnd.ollama.image.model') weightBytes += blob.size
+    }
+    // Every hash belongs to the same overlapping lifetime. An earlier blob
+    // must still be the original, unchanged file after the LAST blob is hashed.
+    for (const { handle, file, before, digest } of held) {
+      // Windows may cache metadata while a reader holds the file open. Rehash
+      // from offset zero as well; timestamps alone cannot prove unchanged bytes.
+      const hash = createHash('sha256')
+      const stream = handle.createReadStream({
+        autoClose: false,
+        start: 0,
+        highWaterMark: LOCAL_JUDGE_HASH_CHUNK_BYTES,
+      })
+      for await (const chunk of stream) {
+        if (!Buffer.isBuffer(chunk)) throw new Error('unverified-blob-bytes')
+        hash.update(chunk)
+      }
+      const after = await handleIdentity(handle)
+      const named = await statIdentity(file)
+      if (
+        !sameFile(before, after) ||
+        !sameFile(before, named) ||
+        before.size !== after.size ||
+        before.size !== named.size ||
+        before.mtimeNs !== after.mtimeNs ||
+        before.mtimeNs !== named.mtimeNs ||
+        before.ctimeNs !== after.ctimeNs ||
+        before.ctimeNs !== named.ctimeNs ||
+        (await realpath(file)) !== file ||
+        `sha256:${hash.digest('hex')}` !== digest
+      )
+        throw new Error('unverified-blob-snapshot')
     }
     if (!weightBytes || !bytes.equals(await readFile(manifestFile)))
       throw new Error('unverified-manifest')
@@ -115,6 +145,10 @@ export async function verifyDiskModel(
     }
     return { digest: served.digest, weightBytes }
   } finally {
-    await manifestHandle.close()
+    try {
+      await Promise.all(held.map(({ handle }) => handle.close()))
+    } finally {
+      await manifestHandle.close()
+    }
   }
 }

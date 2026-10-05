@@ -1,0 +1,11 @@
+[
+  {
+    "guard": "coherent blob snapshot",
+    "file": "src/core/judge/local/model.ts",
+    "test": "refuses blobs that never matched in one consistent snapshot",
+    "mutation": "remove final digest/identity revalidation of held blobs",
+    "exit": 1,
+    "before": "997d57328d3e86b3727b60d3c78f84e2d3167520db76a5ee132d1802ce9889d6",
+    "after": "997d57328d3e86b3727b60d3c78f84e2d3167520db76a5ee132d1802ce9889d6"
+  }
+]
