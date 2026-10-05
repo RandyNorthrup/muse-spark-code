@@ -1,0 +1,39 @@
+npm notice run muse-spark-code@0.12.1 npx
+npm notice run 'vitest' run test/unit/teamHintsAndLoad.test.ts --maxWorkers=3 --testTimeout=120000
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - ESM syntax in a file loaded as CommonJS (vitest.config.ts:1:1). Use a `.mjs` extension or set `"type": "module"` in the closest package.json
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+
+ RUN  v5.0.2 /home/randy/lanes/FIXM96K
+
+ ❯ test/unit/teamHintsAndLoad.test.ts (11 tests | 1 failed) 91ms
+   ❯ M96 K load sampler (3)
+     × keeps sustained CPU protection through a backward wall-clock adjustment 9ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  test/unit/teamHintsAndLoad.test.ts > M96 K load sampler > keeps sustained CPU protection through a backward wall-clock adjustment
+AssertionError: expected false to be true // Object.is equality
+
+- Expected
++ Received
+
+- true
++ false
+
+ ❯ test/unit/teamHintsAndLoad.test.ts:318:33
+    316|       const sample = guard.sample()
+    317|       expect(sample.cpuUsage).toBe(1)
+    318|       expect(sample.isHostBusy).toBe(elapsed === 30_000)
+       |                                 ^
+    319|     }
+    320|     elapsed = 60_000
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 10 passed (11)
+   Start at  10:38:17
+   Duration  863ms (transform 48%, import 20%, setup 19%, tests 13%, worker 1%)
+

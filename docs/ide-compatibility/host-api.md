@@ -380,28 +380,30 @@ Functions, variables, classes, enums and members declared in `@types/vscode`; th
 | `workspace.textDocuments`                                                            | `src/extension.ts`                                                                                                                                                                                                                                                                                                                           |
 | `workspace.workspaceFolders`                                                         | `src/extension.ts`, `src/host/agentImportHost.ts`, `src/host/cliFeatures.ts`                                                                                                                                                                                                                                                                 |
 
-## Node built-ins the host imports (24)
+## Node built-ins the host imports (26)
 
 | Module                 | Files |
 | ---------------------- | ----- |
-| `node:buffer`          | 28    |
-| `node:child_process`   | 9     |
-| `node:crypto`          | 36    |
+| `node:buffer`          | 31    |
+| `node:child_process`   | 12    |
+| `node:crypto`          | 44    |
+| `node:dgram`           | 1     |
 | `node:dns`             | 1     |
-| `node:dns/promises`    | 1     |
+| `node:dns/promises`    | 2     |
 | `node:events`          | 1     |
-| `node:fs`              | 25    |
-| `node:fs/promises`     | 37    |
-| `node:http`            | 5     |
+| `node:fs`              | 30    |
+| `node:fs/promises`     | 45    |
+| `node:http`            | 7     |
 | `node:https`           | 1     |
 | `node:module`          | 2     |
-| `node:net`             | 3     |
-| `node:os`              | 8     |
-| `node:path`            | 69    |
-| `node:process`         | 1     |
-| `node:stream`          | 10    |
+| `node:net`             | 7     |
+| `node:os`              | 11    |
+| `node:path`            | 76    |
+| `node:process`         | 3     |
+| `node:stream`          | 13    |
+| `node:stream/promises` | 2     |
 | `node:string_decoder`  | 1     |
-| `node:timers/promises` | 3     |
+| `node:timers/promises` | 6     |
 | `node:tls`             | 1     |
 | `node:url`             | 3     |
 | `node:util`            | 4     |

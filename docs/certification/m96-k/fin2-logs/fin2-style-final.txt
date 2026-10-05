@@ -1,0 +1,5 @@
+test/unit/teamNativeLifetime.test.ts 861ms
+test/unit/teamSettlement.test.ts 290ms (unchanged)
+docs/certification/m96-k.md 892ms (unchanged)
+Checking formatting...
+All matched files use Prettier code style!

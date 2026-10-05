@@ -1,0 +1,23 @@
+
+> muse-spark-code@0.12.1 typecheck
+> run-s typecheck:host typecheck:webview typecheck:unit typecheck:e2e typecheck:integration
+
+
+> muse-spark-code@0.12.1 typecheck:host
+> tsc -p tsconfig.json --noEmit
+
+
+> muse-spark-code@0.12.1 typecheck:webview
+> tsc -p src/webview/tsconfig.json --noEmit
+
+
+> muse-spark-code@0.12.1 typecheck:unit
+> tsc -p test/unit/tsconfig.json --noEmit
+
+
+> muse-spark-code@0.12.1 typecheck:e2e
+> tsc -p test/e2e/tsconfig.json --noEmit
+
+
+> muse-spark-code@0.12.1 typecheck:integration
+> tsc -p test/integration/tsconfig.json --noEmit

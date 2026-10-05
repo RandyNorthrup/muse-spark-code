@@ -17870,6 +17870,75 @@ caps pass. The inherited shared host API inventory remains lead-owned
 wiring acceptance stay open. Evidence: `docs/certification/m96-b.md` and
 `docs/certification/m96-b-round3-drills.json`.
 
+#### Final K review corrections (FIXM96K4, 2026-10-05)
+
+Fix all five RVM96K3 findings, with no dependency or product-wiring change.
+Marker text is discovery information only: signals require the journal's
+recorded PID, kernel start, executable path and UID, re-proved immediately
+before dispatch. macOS reads libproc identity and separately projects only the
+launch marker from same-UID KERN_PROCARGS2 environment entries, following the
+M98 J vetted helper pattern. Invalid scan entries cannot hide valid candidates.
+Missing legacy identity and unrecorded descendants
+remain uncertain and cannot grant signal authority. Retirement never awaits
+an unowned primary. Windows hint ACL proof belongs to the opened object whose
+bytes are consumed; END suppresses STOP and bounds the wait for helper close.
+Damaged foreign journal directories warn and discovery continues. Native Mac
+argv-only-marker coverage runs here; Windows native cases remain gated for
+Win11 integration. Each fix has a full-file regression and SHA-256 restored
+red drill in docs/certification/m96-k.md. The rig brief prohibits aggregate
+quality, merge, rebase and push; individual requested gates run on this rig.
+
+#### Round-3 redesign: process ownership (REDM96K, 2026-10-05)
+
+Replace K's separate signal guards with one ownership module. Every signal
+re-reads PID, OS start identity, group and the launch marker (or an exact
+journal identity). A foreign group's marked member never authorizes that
+group: prove its leader first, otherwise signal only individually proved
+members and report the unowned leader. Linux individual signals use a private,
+credential-free Python standard-library helper with `pidfd_open` and
+`pidfd_send_signal`; if that facility cannot be used, signalling fails closed.
+Linux groups are enumerated and their proved members signalled by pidfd rather
+than a reusable negative PID. macOS retains its named final syscall interval;
+Windows retains its nonce-bound native job control channel, with an optional
+pre-resume callback in the shared suspended launcher (existing callers keep
+the original entry). K persists the child's kernel start identity while it is
+suspended, then sends GO. STOP uses a duplicated process handle; ending the
+primary closes the inner job. A failed STOP is reported and can be retried.
+
+One launch object owns `spawning → confirming → released → retiring → ended`.
+Disposal changes that object before any await, closes a held launch through
+its private control channel, and forbids release after closure, including
+while confirmation persistence is pending. Each retirement invocation retries
+the native operation with fresh ownership; no rejected native promise is
+cached. Confirmation and kill-grace deadlines use monotonic time.
+
+Hints are read through an opened, no-follow descriptor. Its fstat must prove
+a regular file, current UID, no group/other write, and one link on POSIX;
+Windows retains verified owner ACLs. Unsafe files disable hints; atomic
+publication replaces an inode rather than reusing it. Recovery and the end
+writer share one launch schema enforcing proof/container/child-exit invariants.
+Malformed filenames and records become unreadable warnings while valid foreign
+records remain recoverable and byte-exact. K's seven round-1 and seven round-2
+findings get named regressions and SHA-256 restored red drills in
+`docs/certification/m96-k.md`. No live/paid calls, merge, push, dependencies,
+gate changes or other lane's product wiring are authorized in this rig task.
+
+**Lane K review corrections (FIXM96K, 2026-10-05).** Fix all seven RVM96K
+findings within K's existing lifetime, journal, hints/load modules and tests.
+Before each POSIX retirement signal, compare the live group leader's PID,
+OS start identity and launch marker with the persisted confirmation; on Linux
+also recheck its cgroup and the named scope where available. If any check
+cannot prove ownership, leave the launch uncertain for recovery and do not
+signal. Hold POSIX commands behind a private launch pipe until confirmation
+has been captured and journalled, so short commands cannot exit before it.
+Absorb MSP stdin error events while preserving write callback rejection;
+allow end-record persistence retries after failure; collect broken launch
+payload paths in startup's unreadable list; verify POSIX hint directory mode
+and owner after chmod; use monotonic elapsed time for sustained CPU load.
+Each finding gets a regression and a byte-exact restored red drill in
+`docs/certification/m96-k.md`. No dependency, guard widening, live/paid call,
+product wiring or other lane's source change is part of this correction.
+
 **Status 2026-10-04: planned on `feature/m96-agent-roles` from main
 `1e93c67c`.** The plan is D75 (with its decisions on the open questions),
 M96b, M96c and this section. The research is
@@ -22142,6 +22211,44 @@ before a repaired one loads (2026-09-30).
   and offers only one-time approval. Safe for the current explicit Bypass
   contract, with the exception stated in README/CHANGELOG. Follow-up: lead
   decision on CLI admission/BYPASS support before claiming universal asks.
+- **M96 K / FIXM96K, `K-retirement-ownership-unproved` (2026-10-05).**
+  RVM96K's seven findings are fixed, with regressions and restored red drills
+  in `docs/certification/m96-k.md`; none is deferred. A gone, changed or
+  unreadable POSIX group leader (including changed Linux cgroup/scope), or
+  an unavailable Windows native control channel, denies automatic group or
+  container signaling. FIXM96K4 requires the journal's recorded PID/start/path/
+  UID identity: marker-only survivors are warnings and never signal authority.
+  The uncertain launch remains journalled for user recovery. This can leave
+  descendants running, but protects unrelated processes and never supplies
+  descendant proof or permission to reuse the old copy. Follow-up: integration
+  must surface these retained records through U2's existing recovery actions;
+  the native certification lead owns control-loss/platform receipts.
+- **M96 K, `K-signal-final-interval`.** The required live identity and Linux
+  membership checks run immediately before every retirement signal. REDM96K
+  replaces Linux PID signals with pidfds opened before the final identity
+  sample; absence of the kernel/Python facility fails closed. Windows STOP
+  uses a duplicated kernel process handle. macOS process/group signals and
+  Linux named-scope control still have the documented interval between proof
+  and the separate control syscall. The native certification lead owns those
+  remaining platform receipts. Unproved ownership refuses group/container
+  signaling; only an exact recorded process identity may authorize a signal,
+  and the uncertain launch remains recoverable.
+
+- **M96 K / FIXM96K4, `K-unrecorded-process-identity`.** RVM96K3's five
+  findings are fixed; none is deferred. A legacy record without executable/UID,
+  a descendant without its own recorded identity, or a primary that changes
+  executable after its durable confirmation cannot grant individual Stop
+  authority, even with the launch marker. POSIX post-release identity refresh
+  is persisted before retirement uses it; a failed refresh leaves uncertainty.
+  Retirement returns the unowned PID and disposal never awaits that primary.
+  Safe for now: no unrelated process is signalled and no descendant proof or
+  copy-reuse permission is invented. Follow-up: integration surfaces the
+  warning and native owners certify Windows ACL/job execution and record any
+  descendant identities before offering individual Stop actions. The isolated
+  macOS libproc helper uses /usr/bin/python3's standard library, as K's Linux
+  pidfd lane does; unavailable native access/runtime fails closed. Native
+  packaging can replace that transport with M98 J's compiled helper without
+  weakening the identity or environment-source requirements.
 
 - Code intelligence (M67) shows what VS Code's language services say. A
   result located outside the workspace is left out and a hover defined only

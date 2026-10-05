@@ -60,6 +60,17 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- M96 team launcher foundations now prove process ownership at each signal,
+  use stable Linux pidfds, cancel held launches during disposal, retry failed
+  retirement, and use monotonic deadlines. Advisory hints validate the opened
+  inode; damaged recovery records warn without hiding valid launches. Product
+  wiring and Windows runtime certification remain part of M96 integration.
+- M96 team recovery now uses recorded process identity rather than marker text;
+  macOS reads libproc and a separate environment projection. Retirement avoids
+  waiting for unowned processes, Windows hints consume the ACL-verified handle,
+  Windows END waits for helper closure without another STOP, and damaged foreign
+  journal directories warn without hiding valid launches.
+
 - M96's team view validators and paid-team pricing load from the existing
   team bundle on use. Ordinary startup discards unused role tables and shares
   identical scalar validators and paid-usage settlement code. Paid questions
@@ -614,7 +625,6 @@ happened, not what was planned; superseded entries are kept.
   (it wrote `.claude/settings.json` that way in a live check with its
   sandbox off); the extension cannot stop a write it is never asked
   about.
-
 ## [0.12.1] - 2026-10-04
 
 ### Changed

@@ -1,0 +1,172 @@
+npm notice run muse-spark-code@0.12.1 npx
+npm notice run 'vitest' run test/unit/teamProcessLifetime.test.ts --maxWorkers=3 --testTimeout=120000
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - ESM syntax in a file loaded as CommonJS (vitest.config.ts:1:1). Use a `.mjs` extension or set `"type": "module"` in the closest package.json
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+
+ RUN  v5.0.2 /home/randy/lanes/REDM96K
+
+(node:3296412) PromiseRejectionHandledWarning: Promise rejection was handled asynchronously (rejection id: 241)
+(Use `node --trace-warnings ...` to show where the warning was created)
+ ❯ test/unit/teamProcessLifetime.test.ts (21 tests | 2 failed) 661ms
+   ❯ M96 K launcher contract (16)
+     × journals a later proved retirement and never downgrades it to uncertain 55ms
+     × retries a failed end-record write after storage recovers 46ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  test/unit/teamProcessLifetime.test.ts > M96 K launcher contract > journals a later proved retirement and never downgrades it to uncertain
+$ZodError: [
+  {
+    "code": "custom",
+    "path": [],
+    "message": "TEAM_RETIREMENT_PROOF_INVALID"
+  }
+]
+ ❯ Module.fn node_modules/zod/v4/core/parse.js:17:18
+ ❯ _.parse node_modules/zod/v4/mini/schemas.js:20:22
+ ❯ src/host/team/processLifetime.ts:305:40
+    303|             const saved = (async () => {
+    304|               const previous = await previousTail
+    305|               const end = launchSchema.parse({ ...record, confirmation…
+       |                                        ^
+    306|               if (end === undefined) throw new Error('TEAM_RETIREMENT_…
+    307|               if (previous?.descendants === 'proved') return previous
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯
+
+ FAIL  test/unit/teamProcessLifetime.test.ts > M96 K launcher contract > retries a failed end-record write after storage recovers
+Error: transient-end-write
+ ❯ test/unit/teamProcessLifetime.test.ts:465:56
+    463|     })
+    464|     const child = await lifetime.launch(request)
+    465|     vi.spyOn(f.journal, 'write').mockRejectedValueOnce(new Error('tran…
+       |                                                        ^
+    466|     await expect(child.ended).rejects.toThrow('transient-end-write')
+    467|     expect(await child.retire()).toEqual({ childExited: true, descenda…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/2]⎯
+
+⎯⎯⎯⎯⎯⎯ Unhandled Errors ⎯⎯⎯⎯⎯⎯
+
+Vitest caught 4 unhandled errors during the test run.
+This might cause false positive tests. Resolve unhandled errors to make sure your tests are not affected.
+
+⎯⎯⎯⎯ Unhandled Rejection ⎯⎯⎯⎯⎯
+$ZodError: [
+  {
+    "code": "custom",
+    "path": [],
+    "message": "TEAM_RETIREMENT_PROOF_INVALID"
+  }
+]
+ ❯ Module.fn node_modules/zod/v4/core/parse.js:17:18
+ ❯ _.parse node_modules/zod/v4/mini/schemas.js:20:22
+ ❯ src/host/team/processLifetime.ts:305:40
+    303|             const saved = (async () => {
+    304|               const previous = await previousTail
+    305|               const end = launchSchema.parse({ ...record, confirmation…
+       |                                        ^
+    306|               if (end === undefined) throw new Error('TEAM_RETIREMENT_…
+    307|               if (previous?.descendants === 'proved') return previous
+ ❯ processTicksAndRejections node:internal/process/task_queues:104:5
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
+Serialized Error: { _zod: { def: [ { code: 'custom', path: [], message: 'TEAM_RETIREMENT_PROOF_INVALID' } ], constr: 'Function<$ZodError>', traits: { constructor: 'Function<Set>', has: 'Function<has>', add: 'Function<add>', delete: 'Function<delete>', difference: 'Function<difference>', clear: 'Function<clear>', entries: 'Function<entries>', forEach: 'Function<forEach>', intersection: 'Function<intersection>', isSubsetOf: 'Function<isSubsetOf>', isSupersetOf: 'Function<isSupersetOf>', isDisjointFrom: 'Function<isDisjointFrom>', size: 1, symmetricDifference: 'Function<symmetricDifference>', union: 'Function<union>', values: 'Function<values>', keys: 'Function<values>' }, message: '[
+  {
+    "code": "custom",
+    "path": [],
+    "message": "TEAM_RETIREMENT_PROOF_INVALID"
+  }
+]' }, issues: [ { code: 'custom', path: [], message: 'TEAM_RETIREMENT_PROOF_INVALID' } ] }
+This error originated in "test/unit/teamProcessLifetime.test.ts" test file. It doesn't mean the error was thrown inside the file itself, but while it was running.
+The last test to run before this error was "rejects descendant proof from a process group". This means either:
+- the error was thrown while Vitest was running this test, or
+- the error was thrown after the test completed, and this was the most recent test at that point.
+
+⎯⎯⎯⎯ Unhandled Rejection ⎯⎯⎯⎯⎯
+$ZodError: [
+  {
+    "code": "custom",
+    "path": [],
+    "message": "TEAM_RETIREMENT_PROOF_INVALID"
+  }
+]
+ ❯ Module.fn node_modules/zod/v4/core/parse.js:17:18
+ ❯ _.parse node_modules/zod/v4/mini/schemas.js:20:22
+ ❯ src/host/team/processLifetime.ts:305:40
+    303|             const saved = (async () => {
+    304|               const previous = await previousTail
+    305|               const end = launchSchema.parse({ ...record, confirmation…
+       |                                        ^
+    306|               if (end === undefined) throw new Error('TEAM_RETIREMENT_…
+    307|               if (previous?.descendants === 'proved') return previous
+ ❯ processTicksAndRejections node:internal/process/task_queues:104:5
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
+Serialized Error: { _zod: { def: [ { code: 'custom', path: [], message: 'TEAM_RETIREMENT_PROOF_INVALID' } ], constr: 'Function<$ZodError>', traits: { constructor: 'Function<Set>', has: 'Function<has>', add: 'Function<add>', delete: 'Function<delete>', difference: 'Function<difference>', clear: 'Function<clear>', entries: 'Function<entries>', forEach: 'Function<forEach>', intersection: 'Function<intersection>', isSubsetOf: 'Function<isSubsetOf>', isSupersetOf: 'Function<isSupersetOf>', isDisjointFrom: 'Function<isDisjointFrom>', size: 1, symmetricDifference: 'Function<symmetricDifference>', union: 'Function<union>', values: 'Function<values>', keys: 'Function<values>' }, message: '[
+  {
+    "code": "custom",
+    "path": [],
+    "message": "TEAM_RETIREMENT_PROOF_INVALID"
+  }
+]' }, issues: [ { code: 'custom', path: [], message: 'TEAM_RETIREMENT_PROOF_INVALID' } ] }
+This error originated in "test/unit/teamProcessLifetime.test.ts" test file. It doesn't mean the error was thrown inside the file itself, but while it was running.
+The last test to run before this error was "rejects descendant proof from a process group". This means either:
+- the error was thrown while Vitest was running this test, or
+- the error was thrown after the test completed, and this was the most recent test at that point.
+
+⎯⎯⎯⎯ Unhandled Rejection ⎯⎯⎯⎯⎯
+$ZodError: [
+  {
+    "code": "custom",
+    "path": [],
+    "message": "TEAM_RETIREMENT_PROOF_INVALID"
+  }
+]
+ ❯ Module.fn node_modules/zod/v4/core/parse.js:17:18
+ ❯ _.parse node_modules/zod/v4/mini/schemas.js:20:22
+ ❯ src/host/team/processLifetime.ts:305:40
+    303|             const saved = (async () => {
+    304|               const previous = await previousTail
+    305|               const end = launchSchema.parse({ ...record, confirmation…
+       |                                        ^
+    306|               if (end === undefined) throw new Error('TEAM_RETIREMENT_…
+    307|               if (previous?.descendants === 'proved') return previous
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
+Serialized Error: { _zod: { def: [ { code: 'custom', path: [], message: 'TEAM_RETIREMENT_PROOF_INVALID' } ], constr: 'Function<$ZodError>', traits: { constructor: 'Function<Set>', has: 'Function<has>', add: 'Function<add>', delete: 'Function<delete>', difference: 'Function<difference>', clear: 'Function<clear>', entries: 'Function<entries>', forEach: 'Function<forEach>', intersection: 'Function<intersection>', isSubsetOf: 'Function<isSubsetOf>', isSupersetOf: 'Function<isSupersetOf>', isDisjointFrom: 'Function<isDisjointFrom>', size: 1, symmetricDifference: 'Function<symmetricDifference>', union: 'Function<union>', values: 'Function<values>', keys: 'Function<values>' }, message: '[
+  {
+    "code": "custom",
+    "path": [],
+    "message": "TEAM_RETIREMENT_PROOF_INVALID"
+  }
+]' }, issues: [ { code: 'custom', path: [], message: 'TEAM_RETIREMENT_PROOF_INVALID' } ] }
+This error originated in "test/unit/teamProcessLifetime.test.ts" test file. It doesn't mean the error was thrown inside the file itself, but while it was running.
+The last test to run before this error was "journals a later proved retirement and never downgrades it to uncertain". This means either:
+- the error was thrown while Vitest was running this test, or
+- the error was thrown after the test completed, and this was the most recent test at that point.
+
+⎯⎯⎯⎯ Unhandled Rejection ⎯⎯⎯⎯⎯
+Error: transient-end-write
+ ❯ test/unit/teamProcessLifetime.test.ts:465:56
+    463|     })
+    464|     const child = await lifetime.launch(request)
+    465|     vi.spyOn(f.journal, 'write').mockRejectedValueOnce(new Error('tran…
+       |                                                        ^
+    466|     await expect(child.ended).rejects.toThrow('transient-end-write')
+    467|     expect(await child.retire()).toEqual({ childExited: true, descenda…
+ ❯ node_modules/vitest/dist/chunks/run.C5UmxDPh.js:2783:20
+
+This error originated in "test/unit/teamProcessLifetime.test.ts" test file. It doesn't mean the error was thrown inside the file itself, but while it was running.
+The last test to run before this error was "retries a failed end-record write after storage recovers". This means either:
+- the error was thrown while Vitest was running this test, or
+- the error was thrown after the test completed, and this was the most recent test at that point.
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
+
+
+ Test Files  1 failed (1)
+      Tests  2 failed | 19 passed (21)
+     Errors  4 errors
+   Start at  12:50:45
+   Duration  1.61s (tests 45%, transform 33%, import 13%, setup 9%)
