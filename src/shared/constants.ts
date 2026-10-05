@@ -479,9 +479,9 @@ export const PAID_FEATURES = [
 ] as const
 // The paid features the Muse Code backend can use too, billed to a stored
 // Model API key (M44, PLAN.md D37): images through the `ide` server and
-// Muse Voice. Web search is not among them: Muse Code searches on the
-// subscription with its own tool.
-export const MUSE_CODE_PAID_FEATURES = ['imageGeneration', 'voice'] as const
+// Muse Voice, and key-billed team tasks through the extension (M96).
+// Muse Code's own web search runs on its subscription.
+export const MUSE_CODE_PAID_FEATURES = ['imageGeneration', 'voice', 'teamWorkers'] as const
 export type PaidFeature = (typeof PAID_FEATURES)[number]
 /** Each feature's setting, relative to the `museSpark` section. */
 export const PAID_FEATURE_SETTINGS = {
@@ -4302,6 +4302,8 @@ export const TEAM_TASK_MAX_REQUESTS_WRITER_ROLES = ['engineering', 'qa'] as cons
 // on usage at most this often, and when the task ends, so partial usage
 // survives a crash (D75).
 export const TEAM_LEDGER_FLUSH_MS = 2000
+/** Failed periodic publications retry exponentially, capped at one minute. */
+export const TEAM_LEDGER_RETRY_MAX_MS = 60_000
 // An exclusive resource's lease (D75): a request for a held resource waits
 // up to this long, then answers "resource busy". An exclusive MCP server's
 // lease also ends after this long idle, counted from the last call's

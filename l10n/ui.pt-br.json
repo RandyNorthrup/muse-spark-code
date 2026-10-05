@@ -1348,10 +1348,12 @@
   "usagePaidBestOfNIncluded": "Estimativa dos tokens informados: {cost}",
   "paidTeamWorkersName": "Agentes da equipe",
   "paidTeamWorkerRates": "{model}: {input} por milhão de tokens de entrada, {cached} de entrada em cache e {output} de saída; até {tokens} tokens por tarefa.",
+  "paidTeamWorkerUnpriced": "O preço é desconhecido; até {tokens} tokens por tarefa. Aplicam-se limites diários de tokens.",
+  "paidTeamWorkerTokenBudget": "Limite diário compartilhado de tokens da equipe: {tokens} tokens.",
   "paidTeamWorkerLine": "{role} em {model}: {rates}",
   "paidTeamWorkerBudget": "Orçamento diário compartilhado da equipe: {budget}.",
   "paidTeamWorkersTitle": "Aprovar tarefas pagas da equipe?",
-  "paidTeamWorkersDetail": "{tasks}\n\nCobrança na sua chave da Model API. O custo real depende dos tokens usados. “Permitir uma vez” vale apenas para estas tarefas.",
+  "paidTeamWorkersDetail": "{tasks}\n\nCobrado na sua chave de API do provedor de cada tarefa. O custo real depende dos tokens usados. Permitir uma vez cobre apenas estas tarefas.",
   "paidConfirmTeamWorkers": "Tarefas da equipe rodam em modelos cobrados na sua chave da Model API. {price} A primeira chamada de delegação que iniciar tarefas de chave pede aprovação em todos os modos de permissão, inclusive o modo Ignorar permissões, a menos que você sempre permita agentes da equipe neste espaço de trabalho. Tarefas de assinatura e locais não são usos pagos. O custo real depende dos tokens usados; outras ferramentas pagas custam mais.",
   "usagePaidTeamTasks": {
     "one": "{count} tarefa da equipe",

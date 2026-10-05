@@ -41,7 +41,7 @@ describe('teamCeilings', () => {
     ).toBe(12)
   })
 
-  it('takes the lowest of provider, hard and machine ceilings, never below 1', () => {
+  it('takes the lowest of provider, hard and machine ceilings, including zero', () => {
     const source = {
       kind: 'engine' as const,
       providerRpm: 3000,
@@ -73,7 +73,33 @@ describe('teamCeilings', () => {
         machineLimit: 20,
       }),
     ).toBe(20)
-    expect(computeTeamCeiling({ ...source, machineLimit: 0 })).toBe(1)
+    expect(computeTeamCeiling({ ...source, machineLimit: 0 })).toBe(0)
+  })
+
+  it('F03 preserves a provider-derived zero ceiling', () => {
+    expect(
+      computeTeamCeiling({
+        kind: 'engine',
+        providerRpm: 0,
+        providerTpm: 1000,
+        workerRpm: 6,
+        workerTpm: 100,
+        machineLimit: 20,
+      }),
+    ).toBe(0)
+  })
+
+  it('F04 enforces each known provider limit when the other is absent', () => {
+    const source = {
+      kind: 'engine' as const,
+      providerRpm: 15,
+      providerTpm: undefined,
+      workerRpm: 6,
+      workerTpm: 100,
+      machineLimit: 20,
+    }
+    expect(computeTeamCeiling(source)).toBe(2)
+    expect(computeTeamCeiling({ ...source, providerRpm: undefined, providerTpm: 300 })).toBe(2)
   })
 
   it('ceilings are per agent kind: Muse Code sessions and external agents', () => {

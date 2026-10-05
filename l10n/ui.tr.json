@@ -1310,10 +1310,12 @@
   "usagePaidBestOfNIncluded": "Bildirilen token tahmini: {cost}",
   "paidTeamWorkersName": "Ekip çalışanları",
   "paidTeamWorkerRates": "{model}: milyon giriş tokeni için {input}, önbelleğe alınmış giriş için {cached}, çıkış için {output}; görev başına en fazla {tokens} token.",
+  "paidTeamWorkerUnpriced": "Fiyat bilinmiyor; görev başına en fazla {tokens} token. Günlük token sınırları geçerlidir.",
+  "paidTeamWorkerTokenBudget": "Takımın paylaşılan günlük token üst sınırı: {tokens} token.",
   "paidTeamWorkerLine": "{model} üzerinde {role}: {rates}",
   "paidTeamWorkerBudget": "Paylaşılan günlük ekip bütçesi: {budget}.",
   "paidTeamWorkersTitle": "Ekibin ücretli görevlerini onaylıyor musunuz?",
-  "paidTeamWorkersDetail": "{tasks}\n\nÜcret Model API anahtarınıza yansıtılır. Gerçek maliyet kullanılan token sayısına bağlıdır. “Bir kez izin ver” yalnızca bu görevler için geçerlidir.",
+  "paidTeamWorkersDetail": "{tasks}\n\nHer görevin sağlayıcısına ait API anahtarınız üzerinden faturalandırılır. Gerçek maliyet kullanılan tokenlara bağlıdır. Bir kez izin ver yalnızca bu görevleri kapsar.",
   "paidConfirmTeamWorkers": "Ekip görevleri, Model API anahtarınıza ücretlendirilen modellerde çalışır. {price} Bu çalışma alanında ekip çalışanlarına her zaman izin vermediğiniz sürece, anahtar ücretli görevleri başlatan ilk temsilci çağrısı, İzinleri atla dahil her izin modunda onay ister. Abonelik ve yerel görevler ücretli kullanım değildir. Gerçek maliyet kullanılan token sayısına bağlıdır; diğer ücretli araçlar ek ücrete tabidir.",
   "usagePaidTeamTasks": {
     "one": "{count} ekip görevi",

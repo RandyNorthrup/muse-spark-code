@@ -1386,10 +1386,12 @@
   "usagePaidBestOfNIncluded": "Szacunkowy koszt zgłoszonych tokenów: {cost}",
   "paidTeamWorkersName": "Agenci zespołu",
   "paidTeamWorkerRates": "{model}: {input} za tokeny wejściowe, {cached} za tokeny wejściowe z pamięci podręcznej i {output} za tokeny wyjściowe na milion tokenów; maksymalnie {tokens} tokenów na zadanie.",
+  "paidTeamWorkerUnpriced": "Cena jest nieznana; maksymalnie {tokens} tokenów na zadanie. Obowiązują dzienne limity tokenów.",
+  "paidTeamWorkerTokenBudget": "Wspólny dzienny limit tokenów zespołu: {tokens} tokenów.",
   "paidTeamWorkerLine": "{role} na {model}: {rates}",
   "paidTeamWorkerBudget": "Wspólny dzienny budżet zespołu: {budget}.",
   "paidTeamWorkersTitle": "Zatwierdzić płatne zadania zespołu?",
-  "paidTeamWorkersDetail": "{tasks}\n\nOpłata zostanie naliczona z Twojego klucza Model API. Rzeczywisty koszt zależy od liczby użytych tokenów. „Zezwól raz” dotyczy tylko tych zadań.",
+  "paidTeamWorkersDetail": "{tasks}\n\nOpłaty obciążają Twój klucz API u dostawcy każdego zadania. Rzeczywisty koszt zależy od użytych tokenów. Zezwól raz obejmuje tylko te zadania.",
   "paidConfirmTeamWorkers": "Zadania zespołu działają na modelach rozliczanych z Twojego klucza Model API. {price} Pierwsze wywołanie delegowania, które uruchamia zadania rozliczane z klucza, wymaga zgody w każdym trybie uprawnień, także w trybie Bypass, chyba że zawsze zezwolisz na agentów zespołu w tym obszarze roboczym. Zadania subskrypcyjne i lokalne nie są płatnym użyciem. Rzeczywisty koszt zależy od liczby użytych tokenów; inne płatne narzędzia kosztują dodatkowo.",
   "usagePaidTeamTasks": {
     "one": "{count} zadanie zespołu",

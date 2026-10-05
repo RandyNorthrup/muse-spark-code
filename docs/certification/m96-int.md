@@ -329,3 +329,20 @@ be certified by this record. This rig also lacks the compiled macOS helper,
 so the **universal** VSIX is unverified; the Windows package proof does
 not include it. Neither residual marks M96 shipped. Full quality remains
 the lead's gate, as explicitly required by this rig brief.
+
+## Round 3a — final lane A merge
+
+2026-10-05, Windows 11 rig, starting at `46f3e700`. Integrated
+`m96/afix2` at `273a9131` with `--no-ff`. Five conflicts preserve both
+intents: union PLAN and CHANGELOG records; keep L's `done` round-trip test
+and A's ledger regressions; keep the central team constants and add A's
+bounded retry constant once; apply A's absent/partial provider-limit fix
+using the canonical `TEAM_ORCHESTRATOR_HEADROOM` constant.
+
+All nine complete lane-A/adjacent suites pass: pool/admission/ceilings 42,
+meter/claims/ledger 59, workers-paid/features/consent 44. Host API and notices
+are regenerated. The unchanged production build passes every cap, split,
+host-global and notice check. Activation after this merge is 613,036 bytes;
+the startup relocation and universal packaging proof follow below. A's
+record retains its fired regression drills and live-cap adapter prerequisite;
+this merge does not implement round 3b's production wiring.

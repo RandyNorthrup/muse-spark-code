@@ -2,7 +2,7 @@
 // the owner named come first. Fake agents report scripted usage, 429s and
 // usage-limit errors.
 
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it } from 'vitest'
 import {
   TEAM_TASKS_PER_TURN_DEFAULT,
   TEAM_USAGE_LIMIT_COOLDOWN_MS,
@@ -11,6 +11,7 @@ import {
   answerExhausted,
   buildHandoffBrief,
   formatSwitchRow,
+  formatTeamAmount,
   nextLocalMidnightMs,
   noteTeamFailure,
   notStaffedText,
@@ -34,6 +35,13 @@ import {
   scriptedClassifier,
   selectionSnapshot,
 } from './helpers/teamFakes'
+
+import { EN } from '../../src/shared/l10n/en'
+import { setUiText } from '../../src/shared/l10n/text'
+
+afterEach(() => {
+  setUiText(EN, 'en')
+})
 
 const DAY_CAP = { measure: 'tokens', window: 'day', amount: 10_000 } as const
 
@@ -492,5 +500,38 @@ describe('teamPool: Default and headroom', () => {
     expect(pick.kind).toBe('selected')
     if (pick.kind !== 'selected') throw new Error('unreachable')
     expect(pick.entry.id).toBe('eng-2')
+  })
+})
+
+describe('review repairs', () => {
+  it('F07 cooldowns only lengthen across both failure kinds', () => {
+    const marks = new TeamAgentMarks()
+    marks.markUsageLimit('a', 100_000)
+    marks.markRateLimited('a', 1000)
+    expect(marks.at('a', 2000)).toEqual({ kind: 'usageLimit', untilMs: 100_000 })
+    marks.markRateLimited('a', 200_000)
+    marks.markUsageLimit('a', 3000)
+    expect(marks.at('a', 100_001)).toEqual({ kind: 'rateLimited', untilMs: 200_000 })
+    expect(marks.at('a', 200_000)).toBeUndefined()
+  })
+
+  it('F11 formats spend caps with the installed currency locale', () => {
+    setUiText(EN, 'de')
+    const expected = new Intl.NumberFormat('de', {
+      style: 'currency',
+      currency: 'USD',
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    }).format(1234.56)
+    expect(formatTeamAmount('spendUsd', 1234.56)).toBe(expected)
+    expect(
+      switchReasonText({
+        reason: 'cap',
+        measure: 'spendUsd',
+        window: 'day',
+        amount: 1234.56,
+        used: 1234.56,
+      }),
+    ).toContain(expected)
   })
 })

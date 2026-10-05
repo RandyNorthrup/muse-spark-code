@@ -2015,11 +2015,14 @@ export const EN = {
   paidTeamWorkersName: 'Team workers',
   paidTeamWorkerRates:
     '{model}: {input} input, {cached} cached input, {output} output per million tokens; up to {tokens} tokens per task.',
+  paidTeamWorkerUnpriced:
+    'The price is unknown; up to {tokens} tokens per task. Daily token limits apply.',
+  paidTeamWorkerTokenBudget: 'Shared daily team token ceiling: {tokens} tokens.',
   paidTeamWorkerLine: '{role} on {model}: {rates}',
   paidTeamWorkerBudget: 'Shared daily team budget: {budget}.',
   paidTeamWorkersTitle: 'Approve paid team tasks?',
   paidTeamWorkersDetail:
-    '{tasks}\n\nBilled to your Model API key. Actual cost depends on tokens used. Allow once covers these tasks only.',
+    '{tasks}\n\nBilled to your API key for each task’s provider. Actual cost depends on tokens used. Allow once covers these tasks only.',
   paidConfirmTeamWorkers:
     'Team tasks run on models billed to your Model API key. {price} The first delegate call that starts key tasks asks for approval in every permission mode, including Bypass, unless you allow team workers always in this workspace. Subscription and local tasks are not paid uses. Actual cost depends on tokens used; other paid tools cost extra.',
   usagePaidTeamTasks: forms({ one: '{count} team task', other: '{count} team tasks' }),

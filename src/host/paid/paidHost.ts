@@ -113,7 +113,7 @@ export async function askPaidUse(
   if (request.feature === 'bestOfN' && modelApiPaidTier(request.modelId) === undefined) {
     return 'deny'
   }
-  const { title, detail } = paidUseQuestion(request)
+  const { title, detail } = await paidUseQuestion(request)
   const once: vscode.MessageItem = { title: UI_TEXT.allowOnce }
   const always: vscode.MessageItem = { title: UI_TEXT.paidAllowAlways }
   const deny: vscode.MessageItem = { title: UI_TEXT.paidDeny, isCloseAffordance: true }

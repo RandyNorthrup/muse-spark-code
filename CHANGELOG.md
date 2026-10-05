@@ -69,6 +69,24 @@ happened, not what was planned; superseded entries are kept.
 - **The M96 round-4 plan remains the plan of record.** Lane 0 and R keep
   the approved descendant-retirement, recovery and separate team-host rules.
 
+- **M96 second-review ledger repairs:** retention preserves concurrent and
+  later usage settlements, takeover refuses a stale durable snapshot, and
+  persistence strips unapproved fields, including nested private content.
+  Team price questions identify provider/tariff, quote Meta rates only for
+  verified Meta tariffs, and use unknown-price token ceilings otherwise;
+  provider-key billing text has translations in all 14 languages. The
+  integration adapter must refresh entry caps immediately before dispatch.
+
+- **M96 review repairs:** computed worker ceilings preserve zero and partial
+  provider limits; cooldowns only lengthen, and spend caps use the UI locale.
+  Ledger publications and resets serialize with generation acknowledgements;
+  timer failures log fixed words and retry with bounded backoff. Resets count
+  later settlement deltas, and retention consults every day's task state.
+  Paid team consent scopes Always to provider/model/tariff; unpriced popups
+  show task/day token ceilings, with translations in all 14 languages. Key-billed
+  team work is available in the Muse Code paid-feature list. The integration
+  host must supply scoped grant persistence before offering team Always.
+
 - **M96 lane A, round 4:** uncertain descendants retain worker and shell slots;
   replacement admission needs spare capacity. Pool budgets include the first
   request and throttle recovery respects lowered ceilings. Recovery requires

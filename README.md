@@ -2493,8 +2493,13 @@ machine-scoped, so a repository cannot turn one on.
 
 Team workers default on for a runnable team of distinct models. They ask in
 this paid-use popup before the first charge, with the models, task ceilings
-and daily budget. Single-model activation asks no team question. The M96 team
-feature remains unavailable until its integration is complete.
+and daily budget. Each task identifies its provider and tariff. Meta rates
+are quoted only for a matching verified Meta tariff; other providers or
+unverified tariffs state that the price is unknown and name the task and
+daily token ceilings. Billing uses each task provider's API key.
+Always is scoped to the provider, model and price tier that was approved;
+a different model asks again. Single-model activation asks no team question.
+The M96 team feature remains unavailable until its integration is complete.
 
 **Every paid use then asks first, in a popup**, in every permission mode,
 Bypass included. The popup names what is about to be billed and its price,

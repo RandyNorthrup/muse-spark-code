@@ -27,8 +27,30 @@ vi.mock('node:fs/promises', async (importOriginal) => ({
   ...(await importOriginal<typeof filesystem>()),
 }))
 
+import { FakeLogOutputChannel } from './helpers/fakes'
+
+const realSetTimeout = setTimeout
+const realClearTimeout = clearTimeout
+
+async function publicationWithin(promise: Promise<void>): Promise<void> {
+  let timer: ReturnType<typeof setTimeout> | undefined
+  try {
+    await Promise.race([
+      promise,
+      new Promise<never>((_resolve, reject) => {
+        timer = realSetTimeout(() => {
+          reject(new Error('Publication did not answer'))
+        }, 2000)
+      }),
+    ])
+  } finally {
+    if (timer !== undefined) realClearTimeout(timer)
+  }
+}
+
 const directories: string[] = []
 afterEach(async () => {
+  vi.useRealTimers()
   vi.restoreAllMocks()
   for (const directory of directories.splice(0)) {
     await rm(directory, { recursive: true, force: true })
@@ -75,8 +97,19 @@ function openLedger(directory: string, windowId = 'window-a', nowMs = 1_000_000)
     windowId,
     now: () => nowMs,
     flushMs: 2000,
+    log: new FakeLogOutputChannel(),
     retentionDays: 30,
   })
+}
+
+async function lifetimeInput(ledger: TeamLedger, taskId: string, atMs: number): Promise<number> {
+  const { rows } = await ledger.read()
+  const meter = new TeamMeter({ rows: () => ledgerMeterRows(rows), openReservations: () => [] })
+  return meter.used(
+    'eng-1',
+    { measure: 'inputTokens', window: 'lifetime' },
+    { taskId, dayKey: teamDayKey(atMs) },
+  ).value
 }
 
 describe('teamLedger', () => {
@@ -87,6 +120,334 @@ describe('teamLedger', () => {
     await ledger.flush()
     const restored = await openLedger(directory).read()
     expect(TeamLedger.latestByTask(restored.rows).get('research-done')?.outcome).toBe('done')
+  })
+  it('A2-F01 retention drains a concurrent usage update before publishing its rollup', async () => {
+    const directory = await ledgerDir()
+    const nowMs = new Date(2026, 9, 5).getTime()
+    const startMs = nowMs - 40 * 86_400_000
+    const ledger = openLedger(directory, 'window-a', nowMs)
+    const record = taskRecord('retention-race', {
+      startMs,
+      status: 'finished',
+      usage: { ...ZERO_TEAM_METER_USAGE, inputTokens: 100, tasks: 1 },
+    })
+    await ledger.record(record)
+    const pruning = ledger.prune()
+    const updating = ledger.record({
+      ...record,
+      usage: { ...record.usage, inputTokens: 300 },
+    })
+    await Promise.all([pruning, updating])
+    await ledger.flush()
+    for (const reader of [ledger, openLedger(directory, 'window-a', nowMs)]) {
+      expect(await lifetimeInput(reader, record.taskId, nowMs)).toBe(300)
+      const { rows } = await reader.read()
+      expect(sumTeamTotals(ledgerMeterRows(rows), { dayKey: undefined }).tokens).toBe(300)
+    }
+  })
+
+  it.each([
+    { before: 100, after: 300, estimated: false },
+    { before: 300, after: 100, estimated: true },
+  ])('A2-F01 a post-retention settlement supersedes its old rollup (%j)', async (usage) => {
+    const directory = await ledgerDir()
+    const nowMs = new Date(2026, 9, 5).getTime()
+    const record = taskRecord('late-settlement', {
+      startMs: nowMs - 40 * 86_400_000,
+      status: 'finished',
+      estimated: usage.estimated,
+      usage: { ...ZERO_TEAM_METER_USAGE, inputTokens: usage.before },
+    })
+    const ledger = openLedger(directory, 'window-a', nowMs)
+    await ledger.record(record)
+    await ledger.prune()
+    await ledger.record({
+      ...record,
+      estimated: false,
+      usage: { ...record.usage, inputTokens: usage.after },
+    })
+    await ledger.flush()
+    const reader = openLedger(directory, 'window-a', nowMs)
+    expect(await lifetimeInput(reader, record.taskId, nowMs)).toBe(usage.after)
+    const { rows } = await reader.read()
+    expect(sumTeamTotals(ledgerMeterRows(rows), { dayKey: undefined }).tokens).toBe(usage.after)
+    expect(ledgerMeterRows(rows).every((row) => !row.estimated)).toBe(true)
+    await reader.prune()
+    expect(await lifetimeInput(reader, record.taskId, nowMs)).toBe(usage.after)
+  })
+
+  it.each(['finished', 'running'] as const)(
+    'A2-F02 refuses a stale takeover snapshot after a durable %s update',
+    async (status) => {
+      const directory = await ledgerDir()
+      const owner = openLedger(directory)
+      const record = taskRecord('stale-takeover', {
+        usage: { ...ZERO_TEAM_METER_USAGE, inputTokens: 100 },
+      })
+      await owner.record(record)
+      const recovery = openLedger(directory, 'window-b')
+      const original = await recovery.read()
+      const stale = TeamLedger.latestByTask(original.rows).get(record.taskId)
+      if (stale === undefined) throw new Error('Missing active snapshot')
+      await owner.record({ ...record, status, usage: { ...record.usage, inputTokens: 300 } })
+      await owner.flush()
+      expect(
+        await recovery.markInterrupted(stale, stale.usage, false, {
+          kind: 'userTakeover',
+          ownerId: 'window-a',
+        }),
+      ).toBe(false)
+      const { rows } = await recovery.read()
+      expect(TeamLedger.latestByTask(rows).get(record.taskId)?.status).toBe(status)
+      expect(sumTeamTotals(ledgerMeterRows(rows), { dayKey: undefined }).tokens).toBe(300)
+    },
+  )
+
+  it('A2-F02 checks takeover after an already queued local completion publishes', async () => {
+    const directory = await ledgerDir()
+    const ledger = openLedger(directory)
+    const record = taskRecord('local-takeover')
+    await ledger.record(record)
+    const original = await ledger.read()
+    const stale = TeamLedger.latestByTask(original.rows).get(record.taskId)
+    if (stale === undefined) throw new Error('Missing active snapshot')
+    const finishing = ledger.record({
+      ...record,
+      status: 'finished',
+      usage: { ...record.usage, inputTokens: 300 },
+    })
+    const recovering = ledger.markInterrupted(stale, stale.usage, false, undefined)
+    await finishing
+    expect(await recovering).toBe(false)
+    expect(await lifetimeInput(ledger, record.taskId, record.startMs)).toBe(300)
+  })
+
+  it('A2-F03 persists only approved fields from enriched records, including nested objects', async () => {
+    const directory = await ledgerDir()
+    const ledger = openLedger(directory)
+    const marker = 'private-content-outside-the-brief'
+    const record = taskRecord('enriched')
+    const enriched = {
+      ...record,
+      prompt: marker,
+      fileContent: marker,
+      usage: { ...record.usage, fileContent: marker },
+      settings: [{ name: 'effort', value: 'high', prompt: marker }],
+      links: { transcript: 'task/transcript', fileContent: marker },
+      lease: { ...record.lease, prompt: marker },
+    }
+    await ledger.record(enriched)
+    await ledger.flush()
+    const file = path.join(directory, 'window-a', `team-${teamDayKey(record.startMs)}.jsonl`)
+    const stored = await readFile(file, 'utf8')
+    expect(stored).not.toContain(marker)
+    const { rows } = await openLedger(directory).read()
+    expect(TeamLedger.latestByTask(rows).get(record.taskId)?.links.transcript).toBe(
+      'task/transcript',
+    )
+  })
+
+  it.each([false, true])(
+    'F02 serializes multi-day flushes and failed retries (failure=%s)',
+    async (fail) => {
+      const directory = await ledgerDir()
+      const ledger = openLedger(directory)
+      const day = teamDayKey(1_000_000)
+      const next = teamDayKey(1_000_000 + 86_400_000)
+      await ledger.record(taskRecord('race', { dayKey: day }))
+      await ledger.record(
+        taskRecord('race', { dayKey: day, usage: { ...ZERO_TEAM_METER_USAGE, inputTokens: 200 } }),
+      )
+      await ledger.record(
+        taskRecord('race', { dayKey: next, usage: { ...ZERO_TEAM_METER_USAGE, inputTokens: 50 } }),
+      )
+      const blocked = Promise.withResolvers<undefined>()
+      const entered = Promise.withResolvers<undefined>()
+      const real = await vi.importActual<typeof filesystem>('node:fs/promises')
+      vi.spyOn(filesystem, 'open').mockImplementationOnce(async (...args) => {
+        entered.resolve(undefined)
+        await blocked.promise
+        if (fail) throw new Error('Older append failed')
+        return await real.open(...args)
+      })
+      const older = (async () => {
+        try {
+          await ledger.flush()
+        } catch {
+          expect(fail).toBe(true)
+        }
+      })()
+      await entered.promise
+      const newer = ledger.record(
+        taskRecord('race', {
+          dayKey: next,
+          status: 'finished',
+          usage: { ...ZERO_TEAM_METER_USAGE, inputTokens: 75 },
+        }),
+      )
+      blocked.resolve(undefined)
+      await Promise.all([older, newer])
+      await ledger.flush()
+      const read = await ledger.read()
+      expect(TeamLedger.latestByTask(read.rows).get('race')?.status).toBe('finished')
+      expect(sumTeamTotals(ledgerMeterRows(read.rows), { dayKey: undefined }).tokens).toBe(275)
+    },
+  )
+
+  it('F05 a reset retains later settlement from an already running task across reload and retention', async () => {
+    const directory = await ledgerDir()
+    const nowMs = new Date(2026, 9, 5).getTime()
+    const startMs = nowMs - 40 * 86_400_000
+    const ledger = openLedger(directory, 'window-a', nowMs)
+    await ledger.record(
+      taskRecord('continuing', {
+        startMs,
+        usage: { ...ZERO_TEAM_METER_USAGE, inputTokens: 100, tasks: 1 },
+      }),
+    )
+    await ledger.record(
+      resetLedgerRow({
+        workspaceId: 'ws',
+        entryId: 'eng-1',
+        window: 'lifetime',
+        clearedEntryId: 'eng-1',
+        startMs: startMs + 1,
+      }),
+    )
+    await ledger.record(
+      taskRecord('continuing', {
+        startMs,
+        status: 'finished',
+        usage: { ...ZERO_TEAM_METER_USAGE, inputTokens: 300, tasks: 1 },
+      }),
+    )
+    const check = async (reader: TeamLedger) => {
+      expect(await lifetimeInput(reader, 'continuing', nowMs)).toBe(200)
+    }
+    await check(openLedger(directory, 'window-a', nowMs))
+    await ledger.prune()
+    await check(openLedger(directory, 'window-a', nowMs))
+  })
+
+  it('F05 Reset never captures settlement arriving while its baseline is read', async () => {
+    const directory = await ledgerDir()
+    const startMs = new Date(2026, 9, 5).getTime()
+    const ledger = openLedger(directory, 'window-a', startMs)
+    await ledger.record(
+      taskRecord('during-reset', {
+        startMs,
+        usage: { ...ZERO_TEAM_METER_USAGE, inputTokens: 100 },
+      }),
+    )
+    const entered = Promise.withResolvers<undefined>()
+    const resume = Promise.withResolvers<undefined>()
+    const real = await vi.importActual<typeof filesystem>('node:fs/promises')
+    vi.spyOn(filesystem, 'readFile').mockImplementationOnce(async (...args) => {
+      entered.resolve(undefined)
+      await resume.promise
+      return await real.readFile(...args)
+    })
+    const reset = ledger.record(
+      resetLedgerRow({
+        workspaceId: 'ws',
+        entryId: 'eng-1',
+        window: 'lifetime',
+        clearedEntryId: 'eng-1',
+        startMs: startMs + 1,
+      }),
+    )
+    await entered.promise
+    const settled = ledger.record(
+      taskRecord('during-reset', {
+        startMs,
+        status: 'finished',
+        usage: { ...ZERO_TEAM_METER_USAGE, inputTokens: 300 },
+      }),
+    )
+    resume.resolve(undefined)
+    await Promise.all([reset, settled])
+    expect(await lifetimeInput(ledger, 'during-reset', startMs)).toBe(200)
+  })
+
+  it('F08 retention uses the task state across days and expires every old brief', async () => {
+    const directory = await ledgerDir()
+    const nowMs = new Date(2026, 9, 5).getTime()
+    const oldMs = nowMs - 40 * 86_400_000
+    const ledger = openLedger(directory, 'window-a', nowMs)
+    await ledger.record(
+      taskRecord('overnight', {
+        startMs: oldMs,
+        dayKey: teamDayKey(oldMs),
+        usage: { ...ZERO_TEAM_METER_USAGE, inputTokens: 100 },
+      }),
+    )
+    await ledger.record(
+      taskRecord('overnight', {
+        startMs: oldMs,
+        dayKey: teamDayKey(oldMs + 86_400_000),
+        status: 'finished',
+        usage: { ...ZERO_TEAM_METER_USAGE, inputTokens: 200 },
+      }),
+    )
+    expect(await ledger.prune()).toEqual({ rolled: 2, removed: 2 })
+    const read = await ledger.read()
+    expect(read.rows.every((row) => row.brief === '' && !isTeamLedgerActive(row.status))).toBe(true)
+    expect(sumTeamTotals(ledgerMeterRows(read.rows), { dayKey: undefined }).tokens).toBe(300)
+  })
+
+  it('F06 timer publication failures are logged and retried with bounded backoff', async () => {
+    const directory = await ledgerDir()
+    vi.useFakeTimers()
+    const log = new FakeLogOutputChannel()
+    const ledger = new TeamLedger({
+      directory,
+      workspaceId: 'ws',
+      windowId: 'window-a',
+      now: Date.now,
+      flushMs: 2000,
+      retentionDays: 30,
+      log,
+    })
+    await ledger.record(taskRecord('timer'))
+    await ledger.record(
+      taskRecord('timer', { usage: { ...ZERO_TEAM_METER_USAGE, inputTokens: 100 } }),
+    )
+    const real = await vi.importActual<typeof filesystem>('node:fs/promises')
+    const open = vi.spyOn(filesystem, 'open')
+    for (let i = 0; i < 7; i += 1)
+      open.mockRejectedValueOnce(new Error('Private account/path failure'))
+    const flush = vi.spyOn(ledger, 'flush')
+    ledger.start()
+    for (const [index, delay] of [2000, 4000, 8000, 16_000, 32_000, 60_000, 60_000].entries()) {
+      const logged = Promise.withResolvers<undefined>()
+      log.warn.mockImplementationOnce(() => {
+        logged.resolve(undefined)
+      })
+      await vi.advanceTimersByTimeAsync(delay - 1)
+      expect(flush).toHaveBeenCalledTimes(index)
+      await vi.advanceTimersByTimeAsync(1)
+      await publicationWithin(logged.promise)
+      await vi.advanceTimersByTimeAsync(0)
+    }
+    expect(open).toHaveBeenCalledTimes(7)
+    expect(log.warn).toHaveBeenCalledTimes(7)
+    expect(JSON.stringify(log.warn.mock.calls)).not.toContain('Private account/path')
+    const written = Promise.withResolvers<undefined>()
+    open.mockImplementationOnce(async (...args) => {
+      const handle = await real.open(...args)
+      const append = handle.appendFile.bind(handle)
+      vi.spyOn(handle, 'appendFile').mockImplementationOnce(async (...writeArgs) => {
+        await append(...writeArgs)
+        written.resolve(undefined)
+      })
+      return handle
+    })
+    await vi.advanceTimersByTimeAsync(60_000)
+    await publicationWithin(written.promise)
+    await ledger.dispose()
+    expect(vi.getTimerCount()).toBe(0)
+    const read = await ledger.read()
+    expect(TeamLedger.latestByTask(read.rows).get('timer')?.usage.inputTokens).toBe(100)
   })
   it('does not lose a pending row when publication fails, and surfaces unreadable storage', async () => {
     const directory = await ledgerDir()
@@ -164,6 +525,9 @@ describe('teamLedger', () => {
     if (taken === undefined) throw new Error('missing takeover')
     expect(TeamLedger.latestByTask([taken, latest]).get('live')?.status).toBe('interrupted')
     expect(ledgerMeterRows([taken, latest])[0]?.usage).toEqual(taken.usage)
+    const takeoverRollup = { ...taken, kind: 'totals' as const, sourceTaskId: taken.taskId }
+    expect(ledgerMeterRows([latest, takeoverRollup])[0]?.usage).toEqual(taken.usage)
+    expect(ledgerMeterRows([takeoverRollup, latest])[0]?.usage).toEqual(taken.usage)
   })
 
   it('refuses foreign-owner writes, another workspace and path traversal before publication', async () => {
@@ -414,6 +778,7 @@ describe('teamLedger', () => {
       windowId: 'window-a',
       now: () => 1_000_000 - 40 * 24 * 60 * 60 * 1000,
       flushMs: 2000,
+      log: new FakeLogOutputChannel(),
       retentionDays: 30,
     })
     await old.record(
@@ -451,6 +816,7 @@ describe('teamLedger', () => {
       windowId: 'window-a',
       now: () => 1_000_000,
       flushMs: 2000,
+      log: new FakeLogOutputChannel(),
       retentionDays: 0,
     })
     await ledger.record(taskRecord('task-1'))
@@ -489,6 +855,7 @@ describe('teamLedger', () => {
       windowId: 'window-a',
       now: () => nowMs,
       flushMs: 60_000,
+      log: new FakeLogOutputChannel(),
       retentionDays: 30,
     })
     const dayKey = teamDayKey(1_000_000)

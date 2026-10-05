@@ -16683,6 +16683,17 @@ live) and the controller filters its id as well.
 
 ### M96 — Agent roles and the team (D75)
 
+**M96INT round 3a (2026-10-05, Windows 11 rig).** Merge lane A's final
+review head `273a9131` with both integration and repair intents preserved.
+Compare production activation metafiles with the pre-M96 main source, then
+move M96's eager implementation behind existing lazy loaders until startup
+growth is at most 4,096 bytes. Keep ordinary activation/Model API/ACP graphs
+free of team runtime modules and all seven request goldens byte-identical;
+add and fire a guard naming the deferred startup modules. Build the universal
+VSIX using the published 0.13.0 macOS helper and record its bytes against
+2,252,800. Run lane A and moved-module suites plus the scoped static/build
+gates; round 3b integrations and full quality remain with the lead.
+
 **M96INT round 2 (2026-10-05, Windows 11 rig).** Integrate T/W/I/U2/L
 review branches in that order, retaining round 1's lazy boundary. Resolve
 the W/I environment seam through I's canonical helper, retaining W's safe
@@ -16753,6 +16764,28 @@ completed review's model provenance. Under the lead's finding-24 ruling,
 derive all files before landing any. Each finding receives a failing regression
 and SHA-256-verified guard drill in `docs/certification/m96-i.md`. Local focused
 gates run on macmini; full quality and integration remain the lead's gate.
+
+**FIXM96A2 second-review repairs (2026-10-05).** Repair RVM96A2
+A2-F01–F04 in lane A: drain pending usage inside retention's publication
+queue and let later source settlements supersede their old same-owner
+rollups; revalidate the current durable snapshot before takeover; persist only
+schema-approved fields; and identify provider/tariff in price questions,
+quoting Meta rates only for a matching verified Meta tariff. Other tariffs
+use the existing unknown-price, token-ceiling path and provider-key billing
+text. Each repair gets a failing regression and byte-exact red drill in
+`docs/certification/m96-a.md`. A2-U01's live entry-cap wiring is an explicit
+integration prerequisite, documented there and in §9; other lanes are not
+wired here. No new dependency, paid/live call or widened guard.
+
+**FIXM96A review repairs (2026-10-05).** Address RVM96C F01–F11 inside
+lane A: model/provider/tariff-scoped consent, serialized generation-aware
+ledger publication and bounded redacted retries, zero/partial ceilings,
+reset baselines for continuing tasks, monotonic cooldowns, cross-day
+retention, honest translated token ceilings, the key-paid feature list,
+and locale currency formatting. Regression tests and byte-exact red drills
+are recorded in `docs/certification/m96-a.md`. The rig brief forbids full
+quality and integration merges here; the lead owns those checks. No new
+dependency or live/paid call.
 
 **Status 2026-10-04: planned on `feature/m96-agent-roles` from main
 `1e93c67c`.** The plan is D75 (with its decisions on the open questions),
@@ -20028,6 +20061,14 @@ the guarded Windows junction cases remain the lead's certification work under
 the rig brief. See `docs/certification/m96-i.md`; §9 names the remaining
 platform validation and existing filesystem atomicity assumptions.
 
+**FIXM96A/FIXM96A2 focused rig certification (2026-10-05).** The rig brief explicitly
+forbids full quality and integration merges in this repair lane. Its complete
+owned/adjacent test files, typechecks, changed-file lint/format, localization,
+host API, dead-code, duplication and production build run directly on macmini.
+The lead retains the full quality matrix, editor/UI and live integration
+certification; no rule, threshold, ignore or timeout is weakened. Record:
+`docs/certification/m96-a.md`.
+
 **MG69 merged-source proof (2026-10-02).** Kubuntu passes 49 owning/merged
 files (2,056 tests; two existing Windows-only cases platform-skipped), all
 five compiler projects and every required static gate. Both review and import
@@ -20580,6 +20621,39 @@ before a repaired one loads (2026-09-30).
   nonce-only script policy remain enforced. This pass certifies UI and
   internal protocol behavior with fakes, not model calls or host-side
   merge enforcement (`docs/certification/m96-u2.md`).
+
+- **FIXM96A2 A2-U01 — live entry-cap integration prerequisite.**
+  `checkAndReserve` captures `request.caps`; only budgets refresh directly.
+  Before enabling team dispatch, the production D78 adapter's
+  `TeamReservationJournal.claim` must return a `TeamBudgetClaim.check` that
+  reads current caps by workspace/sending-entry id on every invocation and
+  checks both original and current caps, refusing removed/disabled entries.
+  Lane W's `engineWorker.ts` calls the returned `check()` immediately before
+  send with no await between; nonsent refusals/errors refund the claim.
+  Certify immutable replacement from 10,000 to 8,000 during a 9,000-token
+  claim and before final dispatch, with zero sends and durable refunds.
+  Safe for now: no production team dispatcher/adapter is present and team
+  dispatch is unavailable. Follow-up and exact call sites are under
+  **Integration requirements** in `docs/certification/m96-a.md`.
+  Lane K must also exclude further foreign-owner publication before recovery;
+  the ledger recheck serializes its own window and cannot lock another process.
+  A2-F01–F04 themselves are repaired; none is deferred.
+
+- **FIXM96A integration prerequisite — scoped team consent persistence.**
+  RVM96C F01–F11 are repaired in lane A; none is deferred. Lane T must supply
+  `PaidUseConsentDeps.readTeamGrants/writeTeamGrants` from workspace state,
+  invalidate scopes with the D78 price/setting generation, and provide the
+  provider/tariff identity and current shared day token ceiling. Until those
+  stores are injected, team consent offers only Once/Deny and ignores legacy
+  feature-wide team grants. This is safe while the existing readiness and
+  durable-journal prerequisites keep team dispatch unavailable, and it still
+  asks per use if a caller enables readiness without a scoped store. Ordinary
+  grants cannot authorize another model. Follow-up: wire and certify these
+  stores and an accessible scoped-grant revoke action with the team host
+  before enabling Always in integration. Legacy
+  private reset markers without a usage baseline keep their old clearing
+  semantics; every new Reset persists its baseline. No shipped team ledger
+  exists to migrate. Record: `docs/certification/m96-a.md`.
 
 - Code intelligence (M67) shows what VS Code's language services say. A
   result located outside the workspace is left out and a hover defined only

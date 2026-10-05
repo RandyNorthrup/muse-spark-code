@@ -1272,10 +1272,12 @@
   "usagePaidBestOfNIncluded": "보고된 토큰 예상 비용: {cost}",
   "paidTeamWorkersName": "팀 워커",
   "paidTeamWorkerRates": "{model}: 입력 토큰 100만 개당 {input}, 캐시된 입력 {cached}, 출력 {output}; 작업당 최대 {tokens}개 토큰.",
+  "paidTeamWorkerUnpriced": "가격을 알 수 없습니다. 작업당 최대 {tokens}개 토큰입니다. 일일 토큰 한도가 적용됩니다.",
+  "paidTeamWorkerTokenBudget": "팀 공통 일일 토큰 한도: {tokens}개 토큰.",
   "paidTeamWorkerLine": "{model}의 {role}: {rates}",
   "paidTeamWorkerBudget": "공유 팀 일일 예산: {budget}.",
   "paidTeamWorkersTitle": "팀 유료 작업을 승인하시겠습니까?",
-  "paidTeamWorkersDetail": "{tasks}\n\nModel API 키로 요금이 청구됩니다. 실제 비용은 사용한 토큰 수에 따라 달라집니다. “한 번 허용”은 이 작업들에만 적용됩니다.",
+  "paidTeamWorkersDetail": "{tasks}\n\n각 작업 제공업체의 API 키로 청구됩니다. 실제 비용은 사용한 토큰에 따라 달라집니다. 한 번 허용은 이 작업들에만 적용됩니다.",
   "paidConfirmTeamWorkers": "팀 작업은 Model API 키로 청구되는 모델에서 실행됩니다. {price} 이 작업 영역에서 팀 워커를 항상 허용하지 않는 한, 키 청구 작업을 시작하는 첫 번째 위임 호출은 권한 우회를 포함한 모든 권한 모드에서 승인을 요청합니다. 구독 및 로컬 작업은 유료 사용이 아닙니다. 실제 비용은 사용한 토큰에 따라 달라지고 다른 유료 도구는 별도로 청구됩니다.",
   "usagePaidTeamTasks": {
     "other": "팀 작업 {count}건"

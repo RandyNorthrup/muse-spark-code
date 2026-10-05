@@ -1310,10 +1310,12 @@
   "usagePaidBestOfNIncluded": "Jelentett tokenek becsült költsége: {cost}",
   "paidTeamWorkersName": "Csapatügynökök",
   "paidTeamWorkerRates": "{model}: {input} bemenetért, {cached} gyorsítótárazott bemenetért és {output} kimenetért egymillió tokenenként; feladatonként legfeljebb {tokens} token.",
+  "paidTeamWorkerUnpriced": "Az ár ismeretlen; feladatonként legfeljebb {tokens} token. A napi tokenkorlátok érvényesek.",
+  "paidTeamWorkerTokenBudget": "A csapat közös napi tokenkorlátja: {tokens} token.",
   "paidTeamWorkerLine": "{role} ezen: {model}: {rates}",
   "paidTeamWorkerBudget": "Megosztott napi csapatkeret: {budget}.",
   "paidTeamWorkersTitle": "Jóváhagyja a csapat fizetős feladatait?",
-  "paidTeamWorkersDetail": "{tasks}\n\nA díjat a Model API-kulcsára számlázzák. A tényleges költség a felhasznált tokenektől függ. Az „Engedélyezés egyszer” csak ezekre a feladatokra érvényes.",
+  "paidTeamWorkersDetail": "{tasks}\n\nMinden feladat díját az adott szolgáltatónál használt API-kulcsára számlázzuk. A tényleges költség a felhasznált tokenektől függ. Az egyszeri engedélyezés csak ezekre a feladatokra érvényes.",
   "paidConfirmTeamWorkers": "A csapatfeladatok a Model API-kulcsára számlázott modelleken futnak. {price} Az első delegálási hívás, amely kulcsos feladatokat indít, minden engedélyezési módban jóváhagyást igényel, a Bypass módban is, hacsak nem engedélyezi mindig a csapatügynököket ebben a munkaterületen. Az előfizetéses és helyi feladatok nem fizetős használatok. A tényleges költség a felhasznált tokenektől függ; a többi fizetős eszköz többe kerül.",
   "usagePaidTeamTasks": {
     "one": "{count} csapatfeladat",

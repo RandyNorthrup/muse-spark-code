@@ -75,6 +75,51 @@ function meterWith(rows: TeamMeterRow[]): { meter: TeamMeter } {
 }
 
 describe('teamMeter', () => {
+  it('F05 reset baselines count only later deltas for continuing tasks in each window', () => {
+    const startMs = new Date(2026, 9, 5).getTime()
+    for (const window of ['day', 'lifetime'] as const) {
+      const initial = taskRow('eng-1', 'continuing', 100, 50, {
+        startMs,
+        dayKey: teamDayKey(startMs),
+      })
+      const reset: TeamMeterRow = {
+        ...initial,
+        kind: 'reset',
+        taskId: 'reset',
+        startMs: startMs + 1,
+        clearedWindow: window,
+        clearedEntryId: 'eng-1',
+        usage: ZERO_TEAM_METER_USAGE,
+        clearedUsage: [
+          {
+            entryId: initial.entryId,
+            taskId: initial.taskId,
+            dayKey: initial.dayKey,
+            usage: initial.usage,
+          },
+        ],
+      }
+      const rows = [
+        { ...initial, usage: usage({ inputTokens: 300, outputTokens: 150, tasks: 1 }) },
+        reset,
+      ]
+      const meter = meterWith(rows).meter
+      const scope = { taskId: initial.taskId, dayKey: initial.dayKey }
+      expect(meter.used('eng-1', { measure: 'tokens', window }, scope).value).toBe(300)
+      expect(meter.used('eng-1', { measure: 'inputTokens', window }, scope).value).toBe(200)
+      expect(meter.used('eng-1', { measure: 'outputTokens', window }, scope).value).toBe(100)
+      expect(meter.used('eng-1', { measure: 'tasks', window }, scope).value).toBe(0)
+      expect(meter.used('eng-1', { measure: 'tokens', window: 'task' }, scope).value).toBe(450)
+      rows.push({
+        ...initial,
+        dayKey: teamDayKey(startMs + 86_400_000),
+        usage: usage({ inputTokens: 200 }),
+      })
+      expect(meter.used('eng-1', { measure: 'tokens', window: 'lifetime' }, scope).value).toBe(
+        window === 'lifetime' ? 500 : 650,
+      )
+    }
+  })
   it('accounting after a switch: each part charges the entry that sent it, labelled reported', () => {
     // Three requests on entry 1 (3,000 + 4,000 + 2,000) and two on entry 2 (5,000 + 1,000).
     const rows = [

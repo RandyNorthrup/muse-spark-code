@@ -1310,10 +1310,12 @@
   "usagePaidBestOfNIncluded": "Gemeldete Tokenschätzung: {cost}",
   "paidTeamWorkersName": "Team-Agenten",
   "paidTeamWorkerRates": "{model}: {input} für Eingabe, {cached} für zwischengespeicherte Eingabe und {output} für Ausgabe je Million Token; höchstens {tokens} Token pro Aufgabe.",
+  "paidTeamWorkerUnpriced": "Der Preis ist unbekannt; bis zu {tokens} Token pro Aufgabe. Es gelten tägliche Tokenlimits.",
+  "paidTeamWorkerTokenBudget": "Gemeinsames tägliches Tokenlimit des Teams: {tokens} Token.",
   "paidTeamWorkerLine": "{role} auf {model}: {rates}",
   "paidTeamWorkerBudget": "Gemeinsames Team-Tagesbudget: {budget}.",
   "paidTeamWorkersTitle": "Kostenpflichtige Team-Aufgaben genehmigen?",
-  "paidTeamWorkersDetail": "{tasks}\n\nAbrechnung über Ihren Model-API-Schlüssel. Die tatsächlichen Kosten hängen von den verwendeten Token ab. „Einmal zulassen“ gilt nur für diese Aufgaben.",
+  "paidTeamWorkersDetail": "{tasks}\n\nAbrechnung über Ihren API-Schlüssel beim Anbieter der jeweiligen Aufgabe. Die tatsächlichen Kosten hängen von den verwendeten Token ab. „Einmal zulassen“ gilt nur für diese Aufgaben.",
   "paidConfirmTeamWorkers": "Team-Aufgaben laufen auf Modellen, die Ihrem Model-API-Schlüssel berechnet werden. {price} Der erste Delegate-Aufruf, der Schlüssel-Aufgaben startet, erfordert in jedem Berechtigungsmodus eine Genehmigung, auch in Bypass, es sei denn, Sie lassen Team-Agenten in diesem Arbeitsbereich immer zu. Abonnement- und lokale Aufgaben sind keine kostenpflichtigen Nutzungen. Die tatsächlichen Kosten hängen von den verwendeten Token ab; andere kostenpflichtige Tools kosten zusätzlich.",
   "usagePaidTeamTasks": {
     "one": "{count} Team-Aufgabe",
