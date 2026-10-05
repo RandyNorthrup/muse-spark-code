@@ -7,6 +7,8 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+- Record the complete M97 quality pass on `c8c3cfd8` on macmini, closing the
+  local aggregate receipt with every gate unchanged.
 - Fix the duplicate paid marker on legal-explanation toggles; align quality
   fixtures with window-scoped registry settings, signal readiness, controlled
   deadline boundaries and lossless VSIX localization packaging.

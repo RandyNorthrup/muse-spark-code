@@ -14708,21 +14708,21 @@ Unresolved items remain delivery/security gaps, not accepted legal conclusions:
   analysis; static readers cannot resolve arbitrary build logic or linkage.
 - I-R9 — **closed; owner: M97FIN.** Merge `242a47f2` incorporates all 20
   finished S/W findings from `aa181639`; combined targeted suites pass.
-- I-R10 — **latest-head aggregate pending; owner: FIN3/lead.** Full
-  `npm run quality` on `62e881ad` exits 0 in 1,559.97 seconds on macmini:
+- I-R10 — **local aggregate closed; owner: FIN4/lead.** Full
+  `npm run quality` on `c8c3cfd8` exits 0 in 1,523.55 seconds on macmini:
   385 test files / 7,406 tests, coverage above all unchanged thresholds,
   every production bundle/split/notices gate, audit, 460 general accessibility
   pages, 96 native Chromium legal checks and 24 legal WCAG pages, history
   scanning with no leaks, and 529 SAST rules / 771 targets with zero findings.
   Existing 4/60 test skips, 48 a11y exemptions and the reviewed audit exception
   are unchanged; no new exemption, retry or raised deadline was used. Five
-  original failures and two additional timing races are repaired and their
-  guards proved in `docs/certification/m97.md`. The documentation-head repeat
-  on `21676725` exits 1 on two different timing fixtures (reviewer journal
-  polling and deep HTML parsing). Both owning files pass 576 tests after
-  repairs; recursive traversal still fails at the original depth. The latest
-  head needs a complete repeat, which exceeds the brief's remaining 90-minute
-  time box. The earlier pass is historical, not a latest-head claim.
+  original failures and four additional timing fixtures are repaired and their
+  guards proved in `docs/certification/m97.md`. The earlier pass on `62e881ad`
+  and failed documentation-head repeat on `21676725` remain historical
+  receipts. FIN4's first complete attempt on the repaired source head includes
+  reviewer turn completion and full-depth traversal assertions and passes every
+  stage; no further code change or mutation drill was needed. The exact exit
+  metadata and aggregate security tail are recorded in the certification file.
   Platform/live release receipts remain separate requirements.
 
 ## 10. Definition of done and release records
