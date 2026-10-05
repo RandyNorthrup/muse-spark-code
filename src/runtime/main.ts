@@ -7,7 +7,7 @@
 import { spawn } from 'node:child_process'
 import { randomBytes } from 'node:crypto'
 import { readFileSync } from 'node:fs'
-import { open, readFile } from 'node:fs/promises'
+import { open, readFile, writeFile } from 'node:fs/promises'
 import { homedir } from 'node:os'
 import path from 'node:path'
 import process from 'node:process'
@@ -22,6 +22,9 @@ import {
   EXEC_EXIT,
   EXEC_SCAN_TIMEOUT_MS,
   EXEC_FORCE_WRITE_MS,
+  EXEC_STOP_GRACE_MS,
+  LEGAL_EXIT,
+  LEGAL_SCAN_TIMEOUT_MS,
   SETTING_DEFAULTS,
   UI_TEXT,
 } from '../shared/constants'
@@ -29,7 +32,7 @@ import type { SecretStore } from '../host/auth/credentialStore'
 import { fill } from '../shared/l10n/text'
 import { authClear, type AuthCommandDeps, authSet, authStatus, login } from './authCommands'
 import { createRuntimeBackend } from './backends'
-import { parseCommandLine, type ServeOptions } from './cliArgs'
+import { isHeadlessCommand, parseCommandLine, type ServeOptions } from './cliArgs'
 import { readSecretLine } from './hiddenInput'
 import { credentialStoreName, keyringSecretStore } from './keyStore'
 import { takeCredentials } from './credentialVariables'
@@ -43,8 +46,20 @@ import { createFdWriter } from './exec/fdWriter'
 import { createExecLogger, redactWhole } from './exec/execOutput'
 import { runExec } from './exec/runExec'
 import { runSecretScan } from './exec/scanSecrets'
+import { loadLegalScanner } from './legal/legalScanner'
+import { runLegalCommand } from './legal/runLegal'
 
 const EXIT_FAILED = 1
+/** The headless deadlines beside exec's own (M97 lane R: the workspace scan). */
+const HEADLESS_FIXED_TIMEOUT_MS = {
+  'scan-secrets': EXEC_SCAN_TIMEOUT_MS,
+  legal: LEGAL_SCAN_TIMEOUT_MS,
+} as const
+/** What a headless command answers when its own wiring fails (D76: 2 for the scan). */
+const HEADLESS_WIRING_EXIT = {
+  'scan-secrets': EXEC_EXIT.usage,
+  legal: LEGAL_EXIT.incomplete,
+} as const
 // Credential variables leave the agent's own environment before anything
 // starts a process; only Muse Code's processes get them back (rule 8).
 const museCodeCredentials = takeCredentials(process.env)
@@ -246,16 +261,20 @@ async function main(): Promise<number> {
     const isFlushed = await stderr.flush(EXEC_FORCE_WRITE_MS)
     exitHeadless(EXEC_EXIT.usage, !isFlushed)
   }
-  if (command.command === 'exec' || command.command === 'scan-secrets') {
+  if (isHeadlessCommand(command)) {
     const closed = () => {
       lifecycle.latch({ kind: 'output_closed' })
     }
     const stdout = createFdWriter(process.stdout.fd, closed)
     const stderr = createFdWriter(process.stderr.fd, closed)
     const now = () => performance.timeOrigin + performance.now()
+    const headlessTimeoutMs =
+      command.command === 'exec'
+        ? command.options.timeoutMs
+        : HEADLESS_FIXED_TIMEOUT_MS[command.command]
     const lifecycle = createLifecycle({
       processStartMs: performance.timeOrigin,
-      timeoutMs: command.command === 'exec' ? command.options.timeoutMs : EXEC_SCAN_TIMEOUT_MS,
+      timeoutMs: headlessTimeoutMs,
       now,
       setTimer: (ms, callback) => {
         const timer = setTimeout(callback, ms)
@@ -313,6 +332,44 @@ async function main(): Promise<number> {
           return headlessCode
         }
       }
+      // The reserved read-only scan (M97 lane R): no backend, no auth, no
+      // model. stdout carries only the rendered report; every other word
+      // goes to stderr, as the sign-in commands' own output does.
+      if (command.command === 'legal') {
+        try {
+          const outcome = await lifecycle.race(
+            runLegalCommand({
+              options: command.options,
+              deps: {
+                scan: (scanInput) =>
+                  loadLegalScanner({ distDir }).scan({
+                    workspaceRoot: process.cwd(),
+                    input: scanInput,
+                    signal: lifecycle.signal,
+                  }),
+                fetch: globalThis.fetch.bind(globalThis),
+                writeFile: (file, data) => writeFile(file, data, 'utf8'),
+                signal: lifecycle.signal,
+              },
+            }),
+          )
+          if (outcome.out !== '') stdout.write(outcome.out)
+          if (outcome.err !== '') stderr.write(`${outcome.err}\n`)
+          const [outFlushed, errFlushed] = await Promise.all([
+            stdout.flush(EXEC_STOP_GRACE_MS),
+            stderr.flush(EXEC_STOP_GRACE_MS),
+          ])
+          headlessCode =
+            outFlushed && errFlushed && !lifecycle.signal.aborted
+              ? outcome.exitCode
+              : LEGAL_EXIT.incomplete
+          return headlessCode
+        } catch (error: unknown) {
+          log.error(error instanceof Error ? error.message : String(error))
+          headlessCode = LEGAL_EXIT.incomplete
+          return headlessCode
+        }
+      }
       headlessCode = await runExec(lifecycle, {
         options: command.options,
         version: packageVersion(),
@@ -338,7 +395,8 @@ async function main(): Promise<number> {
     } catch (error: unknown) {
       log.error(error instanceof Error ? (error.stack ?? error.message) : String(error))
       await stderr.flush(lifecycle.remainingGraceMs())
-      headlessCode = command.command === 'scan-secrets' ? EXEC_EXIT.usage : EXEC_EXIT.internal
+      headlessCode =
+        command.command === 'exec' ? EXEC_EXIT.internal : HEADLESS_WIRING_EXIT[command.command]
       return headlessCode
     } finally {
       if (command.command === 'scan-secrets')

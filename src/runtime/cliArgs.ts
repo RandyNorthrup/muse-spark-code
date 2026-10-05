@@ -17,6 +17,7 @@ import {
 } from '../shared/constants'
 import { fill } from '../shared/l10n/text'
 import { parseExec, type ExecOptions } from './exec/execArgs'
+import { parseLegalArgs, type LegalOptions } from './legal/legalArgs'
 
 export interface ServeOptions {
   /** Which account pays; chosen here, never guessed (D62). */
@@ -37,10 +38,24 @@ export interface ServeOptions {
 export type RuntimeCommand =
   | { readonly command: 'exec'; readonly options: ExecOptions }
   | { readonly command: 'scan-secrets'; readonly file: string; readonly keyFromStdin: boolean }
+  | { readonly command: 'legal'; readonly options: LegalOptions }
   | { readonly command: 'serve'; readonly options: ServeOptions }
   | { readonly command: 'login'; readonly options: ServeOptions }
   | { readonly command: 'authSet' | 'authStatus' | 'authClear' | 'help' | 'version' }
   | { readonly command: 'invalid'; readonly reason: string; readonly exitCode?: number }
+
+/** The commands that own their process with no backend and no sign-in. */
+export type HeadlessCommand = Extract<
+  RuntimeCommand,
+  { command: 'exec' | 'scan-secrets' | 'legal' }
+>
+
+const HEADLESS_COMMANDS: ReadonlySet<string> = new Set(['exec', 'scan-secrets', 'legal'])
+
+/** Whether the command runs headless, before any prompt parsing or sign-in. */
+export function isHeadlessCommand(command: RuntimeCommand): command is HeadlessCommand {
+  return HEADLESS_COMMANDS.has(command.command)
+}
 
 /** `auth set|status|clear`: the key's three commands (D61). */
 function authCommand(name: string | undefined): 'authSet' | 'authStatus' | 'authClear' | undefined {
@@ -75,6 +90,7 @@ function paidFeaturesOf(values: Readonly<Record<string, unknown>>): AcpPaidFeatu
 
 export function parseCommandLine(argv: readonly string[]): RuntimeCommand {
   if (argv[0] === 'exec' || argv[0] === 'scan-secrets') return parseHeadless(argv)
+  if (argv[0] === 'legal') return parseLegalCommand(argv)
   let parsed: ReturnType<typeof parseCommandLineStrictly>
   try {
     parsed = parseCommandLineStrictly(argv)
@@ -176,6 +192,38 @@ function parseHeadless(argv: readonly string[]): RuntimeCommand {
     const parsed = parseExec(options, positionals)
     return parsed.ok
       ? { command: 'exec', options: parsed.options }
+      : { command: 'invalid', reason: parsed.reason, exitCode: 2 }
+  } catch (error: unknown) {
+    return {
+      command: 'invalid',
+      reason: error instanceof Error ? error.message : String(error),
+      exitCode: 2,
+    }
+  }
+}
+
+/**
+ * The reserved read-only scan (M97 lane R): `legal` never reaches prompt
+ * parsing, starts no backend and touches no credential store. Unknown flags
+ * are usage errors, as for the other headless commands.
+ */
+function parseLegalCommand(argv: readonly string[]): RuntimeCommand {
+  try {
+    const { values, positionals } = parseArgs({
+      args: argv.slice(1),
+      allowPositionals: true,
+      strict: true,
+      options: {
+        format: { type: 'string' },
+        out: { type: 'string' },
+        registry: { type: 'boolean' },
+        help: { type: 'boolean', short: 'h' },
+      },
+    })
+    if (values.help === true) return { command: 'help' }
+    const parsed = parseLegalArgs(values, positionals)
+    return parsed.ok
+      ? { command: 'legal', options: parsed.options }
       : { command: 'invalid', reason: parsed.reason, exitCode: 2 }
   } catch (error: unknown) {
     return {
