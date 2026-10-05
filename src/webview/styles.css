@@ -3121,6 +3121,25 @@ body {
   gap: 6px;
 }
 
+.team-node-actions button,
+.team-card-actions button {
+  min-width: 24px;
+  min-height: 24px;
+  padding: 4px 6px;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+}
+
+.team-merge-details {
+  margin: 2px 0;
+  overflow-wrap: anywhere;
+}
+
+.team-merge-details ul {
+  margin: 2px 0;
+  padding-left: 16px;
+}
+
 .team-card-note {
   margin: 2px 0;
   font-size: 0.85em;

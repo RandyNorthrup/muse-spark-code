@@ -1820,5 +1820,22 @@
   "agentImportIgnoredToTracked": "Git에서 무시하는 파일을 추적하는 파일로 복사하게 됩니다",
   "agentImportEditPrompt": "변환한 항목을 {path}에서 저장하지 않은 편집으로 열어 검토하고 저장하시겠습니까? 그 경로에만 저장하고 다른 파일에는 저장하지 마십시오.",
   "agentImportEditAction": "파일 편집 및 열기",
-  "agentImportPreviewLegacyKey": "파일이 이전 `mcp_servers` 키를 사용합니다. 이 항목을 추가할 때 이름을 `mcpServers`로 바꾸세요. 둘 다 있으면 Muse Code는 어느 것도 로드하지 않습니다."
+  "agentImportPreviewLegacyKey": "파일이 이전 `mcp_servers` 키를 사용합니다. 이 항목을 추가할 때 이름을 `mcpServers`로 바꾸세요. 둘 다 있으면 Muse Code는 어느 것도 로드하지 않습니다.",
+  "teamWorkerMerged": "병합됨",
+  "teamWorkerDiscarded": "폐기됨",
+  "teamRunningOf": "{amount}개 중 {used}개 실행 중",
+  "teamWorkerFinished": "팀 작업 {task}: {status}.",
+  "teamTreeKeyboardHint": "화살표 키로 이동합니다. F2로 작업에 초점을 맞추고 왼쪽과 오른쪽 키로 선택하며 Escape로 항목에 돌아갑니다.",
+  "teamMergeAffectedFiles": "영향받는 파일",
+  "teamMergeProtectedPaths": "보호된 경로",
+  "teamMergeConflictPaths": "충돌 경로",
+  "teamMergeDetailsMissing": "파일 세부 정보를 사용할 수 없습니다. 새 병합 카드를 요청하기 전에 차이를 검토하세요.",
+  "teamMergeReviewVerdict": "검토 결과",
+  "teamMergeNoPaths": "없음",
+  "teamRunningCount": {
+    "other": "{count}개 실행 중"
+  },
+  "teamMergeMorePaths": {
+    "other": "외 {count}개"
+  }
 }

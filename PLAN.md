@@ -16991,6 +16991,18 @@ next`, the exhausted policy and the queue, the meters, reservations and
   10. **Lane L:** the pipelines and the ledger's history queries.
   11. **Lanes U1 and U2:** the Roles section and the tree, the cards and
       the usage rows, in the harness and the accessibility gate.
+      U2's RVM96B correction pass (2026-10-05) fixes findings 13–23:
+      host-confirmed/terminal card decisions, one keyboard entry point with
+      reachable actions and focus recovery, explicit running states, polite
+      completion summaries, a validated `clearTeamTree` message, target sizes
+      in all four themes, a true 320 px harness, localized names/statuses,
+      bounded affected/protected/conflict paths and review details on merge
+      cards, and dynamically imported tree/cards. Browser ES module chunks
+      retain the aggregate 900 KiB budget; the bundle graph must prove the
+      UI modules absent from the initial static dependency closure. Shared
+      boundary schemas and the synchronous reducer remain available for
+      validation before any team UI loads. Tests and byte-exact red drills
+      are recorded in `docs/certification/m96-u2.md`; no paid/live calls.
   12. **Lane X:** the wiring, the bundles, the docs and the full gate.
   13. **The rubric's evaluation (end).** The orchestrator, on the
       contributor model, sees each fixture task with a **Full team**
@@ -20221,6 +20233,17 @@ before a repaired one loads (2026-09-30).
 | `test/harness/index.html` (`isActiveDescendantList`), printed by `scripts/a11y.mjs` | The accessibility gate exempts axe's `scrollable-region-focusable` | The composer's `/` and `@` lists follow WAI-ARIA's combobox pattern: the box keeps the focus and moves `aria-activedescendant` through the listbox's options, and `Composer.tsx` scrolls the active option into view, so the list is keyboard operable (WCAG 2.1.1) without being a Tab stop. axe cannot see activedescendant-driven scrolling. The exemption holds only for a region that contains a listbox whose id is in the `aria-controls` of a focused or focusable element whose active descendant is one of that listbox's options; drills show a plain scrollable region and a listbox no control drives are still reported, and removing the exemption reports the composer's list again. Every exempt element is printed under its own "Exempt:" heading and counted. No `tabindex` was added to the list. | 2026-10-04 |
 
 ## 9. Security assumptions and accepted residual risk
+
+- **M96 U2, RVM96B corrections (2026-10-05).** Findings 13–23 are fixed;
+  no finding in this lane is deferred. Older merge rows without affected
+  files or protected-path details remain readable but cannot approve a
+  merge. Lanes T/A/W must fill the new internal UI fields and send
+  `clearTeamTree` when the team is removed. Shared Zod schemas and the
+  synchronous reducer stay in the initial browser graph to validate every
+  message; TeamTree and TeamCards do not. The aggregate 900 KiB cap and
+  nonce-only script policy remain enforced. This pass certifies UI and
+  internal protocol behavior with fakes, not model calls or host-side
+  merge enforcement (`docs/certification/m96-u2.md`).
 
 - Code intelligence (M67) shows what VS Code's language services say. A
   result located outside the workspace is left out and a hover defined only

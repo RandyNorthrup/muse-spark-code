@@ -308,6 +308,7 @@ const teamWaitingEntrySchema = z.object({
   id: z.string(),
   status: z.string(),
   ...teamWaitingFields,
+  teamDecision: z.optional(z.string()),
 })
 
 const teamMergeEntrySchema = z.object({
@@ -315,6 +316,7 @@ const teamMergeEntrySchema = z.object({
   id: z.string(),
   status: z.string(),
   ...teamMergeFields,
+  teamDecision: z.optional(z.string()),
 })
 
 const teamReportEntrySchema = z.object({

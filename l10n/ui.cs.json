@@ -2021,5 +2021,28 @@
   "agentImportIgnoredToTracked": "tím by se soubor ignorovaný Gitem zkopíroval do sledovaného souboru",
   "agentImportEditPrompt": "Otevřít převedené položky v {path} jako neuloženou úpravu ke kontrole a uložení? Uložte ji pouze do této cesty, nikdy do jiného souboru.",
   "agentImportEditAction": "Upravit a otevřít soubor",
-  "agentImportPreviewLegacyKey": "Soubor používá starý klíč `mcp_servers`. Při přidávání těchto položek jej přejmenujte na `mcpServers`: když jsou přítomny oba, Muse Code nenačte ani jeden."
+  "agentImportPreviewLegacyKey": "Soubor používá starý klíč `mcp_servers`. Při přidávání těchto položek jej přejmenujte na `mcpServers`: když jsou přítomny oba, Muse Code nenačte ani jeden.",
+  "teamWorkerMerged": "sloučeno",
+  "teamWorkerDiscarded": "zahozeno",
+  "teamRunningOf": "{used} z {amount} běží",
+  "teamWorkerFinished": "Týmový úkol {task}: {status}.",
+  "teamTreeKeyboardHint": "Pohybujte se šipkami. F2 zaměří akce; Vlevo a Vpravo vyberou akci; Escape vrátí zaměření na položku.",
+  "teamMergeAffectedFiles": "Dotčené soubory",
+  "teamMergeProtectedPaths": "Chráněné cesty",
+  "teamMergeConflictPaths": "Konfliktní cesty",
+  "teamMergeDetailsMissing": "Podrobnosti souborů nejsou k dispozici. Před vyžádáním nové karty sloučení zkontrolujte rozdíly.",
+  "teamMergeReviewVerdict": "Výsledek kontroly",
+  "teamMergeNoPaths": "Žádné",
+  "teamRunningCount": {
+    "one": "{count} běží",
+    "few": "{count} běží",
+    "many": "{count} běží",
+    "other": "{count} běží"
+  },
+  "teamMergeMorePaths": {
+    "one": "a ještě {count}",
+    "few": "a ještě {count}",
+    "many": "a ještě {count}",
+    "other": "a ještě {count}"
+  }
 }

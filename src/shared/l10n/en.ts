@@ -1216,6 +1216,21 @@ export const EN = {
   // delegation, switch, waiting-for-you and merge cards, the worker label's
   // group excluded (it splices technical names), and the Usage Team section.
   teamTreeLabel: 'Team',
+  teamWorkerMerged: 'merged',
+  teamWorkerDiscarded: 'discarded',
+  teamRunningOf: '{used} of {amount} running',
+  teamWorkerFinished: 'Team task {task}: {status}.',
+  teamTreeKeyboardHint:
+    'Use arrow keys to move. F2 focuses actions; Left and Right choose an action; Escape returns to the item.',
+  teamMergeAffectedFiles: 'Affected files',
+  teamMergeProtectedPaths: 'Protected paths',
+  teamMergeConflictPaths: 'Conflict paths',
+  teamMergeDetailsMissing:
+    'File details are unavailable. Review the diff before requesting a new merge card.',
+  teamMergeReviewVerdict: 'Review verdict',
+  teamMergeNoPaths: 'None',
+  teamRunningCount: forms({ one: '{count} running', other: '{count} running' }),
+  teamMergeMorePaths: forms({ one: 'and {count} more', other: 'and {count} more' }),
   teamOrchestrator: 'Orchestrator',
   teamOrchestratorDefault: 'Default',
   teamOrchestratorOverride: 'Override',

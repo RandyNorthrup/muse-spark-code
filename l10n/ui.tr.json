@@ -1887,5 +1887,24 @@
   "agentImportIgnoredToTracked": "bu, Git tarafından yok sayılan bir dosyayı izlenen bir dosyaya kopyalar",
   "agentImportEditPrompt": "Dönüştürülen girdiler {path} içinde inceleyip kaydetmeniz için kaydedilmemiş bir düzenleme olarak açılsın mı? Yalnızca bu yola kaydedin, asla başka bir dosyaya kaydetmeyin.",
   "agentImportEditAction": "Dosyayı düzenle ve aç",
-  "agentImportPreviewLegacyKey": "Dosya eski `mcp_servers` anahtarını kullanıyor. Bunları eklerken adını `mcpServers` olarak değiştirin: ikisi birden olduğunda Muse Code hiçbirini yüklemez."
+  "agentImportPreviewLegacyKey": "Dosya eski `mcp_servers` anahtarını kullanıyor. Bunları eklerken adını `mcpServers` olarak değiştirin: ikisi birden olduğunda Muse Code hiçbirini yüklemez.",
+  "teamWorkerMerged": "birleştirildi",
+  "teamWorkerDiscarded": "atıldı",
+  "teamRunningOf": "{amount} içinden {used} çalışıyor",
+  "teamWorkerFinished": "Ekip görevi {task}: {status}.",
+  "teamTreeKeyboardHint": "Ok tuşlarıyla ilerleyin. F2 eylemlere odaklanır; Sol ve Sağ bir eylem seçer; Escape öğeye döner.",
+  "teamMergeAffectedFiles": "Etkilenen dosyalar",
+  "teamMergeProtectedPaths": "Korunan yollar",
+  "teamMergeConflictPaths": "Çakışan yollar",
+  "teamMergeDetailsMissing": "Dosya ayrıntıları kullanılamıyor. Yeni bir birleştirme kartı istemeden önce farkları inceleyin.",
+  "teamMergeReviewVerdict": "İnceleme sonucu",
+  "teamMergeNoPaths": "Yok",
+  "teamRunningCount": {
+    "one": "{count} çalışıyor",
+    "other": "{count} çalışıyor"
+  },
+  "teamMergeMorePaths": {
+    "one": "ve {count} daha",
+    "other": "ve {count} daha"
+  }
 }

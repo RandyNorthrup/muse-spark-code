@@ -6,7 +6,7 @@
 // it takes the tree and its actions as props and loads nothing itself, so
 // in single-model mode it never renders and no team bundle is needed.
 
-import { useRef, useState, type KeyboardEvent, type ReactNode } from 'react'
+import { useEffect, useRef, useState, type KeyboardEvent, type ReactNode } from 'react'
 import { TEAM_TREE_TYPEAHEAD_MS, UI_TEXT } from '../../shared/constants'
 import { fill, formatNumber, plural } from '../../shared/l10n/text'
 import { formatTokenWindow } from '../../shared/palette'
@@ -14,6 +14,7 @@ import type { TeamEntry, TeamRole, TeamTreeData, TeamWorker } from '../../shared
 import { formatUsd } from '../../core/usage/insights'
 import { formatDurationMs } from '../agentFormat'
 import { teamEntryStateLabel, type TeamMergeDecision } from './TeamCards'
+import { isRunningTeamWorker, teamTaskCount, teamWorkerStatusLabel } from '../state/teamEntries'
 
 /** What the tree's buttons ask the host to do (lanes T/A/W answer). */
 export interface TeamTreeActions {
@@ -31,17 +32,6 @@ export interface TeamTreeProps {
   /** Absent where the host takes no action (history): the tree reads only. */
   readonly actions?: TeamTreeActions | undefined
 }
-
-/** A status after which Stop reaches nothing (lane A names these). */
-const TERMINAL_WORKER_STATUSES: ReadonlySet<string> = new Set([
-  'done',
-  'completed',
-  'merged',
-  'discarded',
-  'failed',
-  'cancelled',
-  'capped',
-])
 
 /** A finished worker whose branch still waits for the merge card. */
 const FINISHED_WORKER_STATUSES: ReadonlySet<string> = new Set(['done', 'completed'])
@@ -61,7 +51,7 @@ function EstimatedBadge() {
 function WorkerMeta({ worker }: { readonly worker: TeamWorker }) {
   const tokens = tokensOf(worker)
   const meta = [
-    worker.status,
+    teamWorkerStatusLabel(worker.status),
     worker.elapsedMs === undefined ? undefined : formatDurationMs(worker.elapsedMs),
     tokens === undefined
       ? undefined
@@ -90,13 +80,13 @@ function WorkerNode({
   readonly group: WorkerGroup
   readonly actions: TeamTreeActions | undefined
 }) {
-  const isTerminal = TERMINAL_WORKER_STATUSES.has(worker.status)
+  const isRunning = group === 'entry' && isRunningTeamWorker(worker.status)
   const canMerge = group === 'unmerged' || FINISHED_WORKER_STATUSES.has(worker.status)
   return (
     <div className="team-node-body">
       <span className="team-node-title" dir="auto">
         <span
-          className={isTerminal ? 'agent-dot agent-dot-done' : 'agent-dot agent-dot-running'}
+          className={isRunning ? 'agent-dot agent-dot-running' : 'agent-dot agent-dot-done'}
           aria-hidden="true"
         />
         {worker.brief}
@@ -110,6 +100,7 @@ function WorkerNode({
       {actions === undefined ? null : (
         <div className="team-node-actions">
           <button
+            tabIndex={-1}
             type="button"
             className="tool-more"
             onClick={() => {
@@ -118,8 +109,9 @@ function WorkerNode({
           >
             {UI_TEXT.teamOpenTranscript}
           </button>
-          {!isTerminal && group !== 'unmerged' ? (
+          {isRunning ? (
             <button
+              tabIndex={-1}
               type="button"
               className="tool-more"
               onClick={() => {
@@ -131,6 +123,7 @@ function WorkerNode({
           ) : null}
           {group === 'entry' || group === 'unmerged' ? (
             <button
+              tabIndex={-1}
               type="button"
               className="tool-more"
               onClick={() => {
@@ -143,6 +136,7 @@ function WorkerNode({
           {canMerge && group !== 'queued' && group !== 'interrupted' ? (
             <>
               <button
+                tabIndex={-1}
                 type="button"
                 className="tool-more"
                 onClick={() => {
@@ -152,6 +146,7 @@ function WorkerNode({
                 {UI_TEXT.teamMergeAction}
               </button>
               <button
+                tabIndex={-1}
                 type="button"
                 className="tool-more"
                 onClick={() => {
@@ -210,7 +205,7 @@ function EntryNode({
   return (
     <div className="team-node-body">
       <span className="team-node-title" dir="auto">
-        {entry.model ?? fill(UI_TEXT.teamEntryUntitled, { number: index })}
+        {entry.model ?? fill(UI_TEXT.teamEntryUntitled, { number: formatNumber(index) })}
         {' · '}
         {entry.provider} · {entry.payKind}
       </span>
@@ -246,6 +241,7 @@ function EntryNode({
       {actions === undefined ? null : (
         <div className="team-node-actions">
           <button
+            tabIndex={-1}
             type="button"
             className="tool-more"
             onClick={() => {
@@ -291,7 +287,7 @@ function groupNodes(
       id: groupId,
       parentId: `team-role:${role.id}`,
       level: 3,
-      label: `${title}, ${String(workers.length)}`,
+      label: `${title}, ${formatNumber(workers.length)}`,
       expandable: true,
       body: (
         <div className="team-node-body">
@@ -303,46 +299,11 @@ function groupNodes(
       id: `team-task:${worker.taskId}`,
       parentId: groupId,
       level: 4,
-      label: `${worker.brief}, ${role.name}, ${worker.status}`,
+      label: `${worker.brief}, ${role.name}, ${teamWorkerStatusLabel(worker.status)}`,
       expandable: false,
       body: <WorkerNode worker={worker} group={group} actions={actions} />,
     })),
   ]
-}
-
-/** A status after which the pill's dot rests (lane A names these). */
-function isRunningWork(status: string): boolean {
-  return !TERMINAL_WORKER_STATUSES.has(status)
-}
-
-/** Every task node under the root: entry workers, queued, unmerged, interrupted. */
-export function teamTaskCount(tree: TeamTreeData): number {
-  return tree.roles.reduce(
-    (total, role) =>
-      total +
-      role.entries.reduce((sum, entry) => sum + entry.workers.length, 0) +
-      role.queued.length +
-      role.unmerged.length +
-      role.interrupted.length,
-    0,
-  )
-}
-
-function runningWorkers(workers: readonly TeamWorker[]): number {
-  return workers.filter((worker) => isRunningWork(worker.status)).length
-}
-
-/** The pill's running count: every task node not yet terminal. */
-export function teamRunningTaskCount(tree: TeamTreeData): number {
-  return tree.roles.reduce(
-    (total, role) =>
-      total +
-      role.entries.reduce((sum, entry) => sum + runningWorkers(entry.workers), 0) +
-      runningWorkers(role.queued) +
-      runningWorkers(role.unmerged) +
-      runningWorkers(role.interrupted),
-    0,
-  )
 }
 
 function buildNodes(tree: TeamTreeData, actions: TeamTreeActions | undefined): FlatNode[] {
@@ -380,6 +341,7 @@ function buildNodes(tree: TeamTreeData, actions: TeamTreeActions | undefined): F
           {actions === undefined ? null : (
             <div className="team-node-actions">
               <button
+                tabIndex={-1}
                 type="button"
                 className="tool-more"
                 onClick={() => {
@@ -417,6 +379,7 @@ function buildNodes(tree: TeamTreeData, actions: TeamTreeActions | undefined): F
           {actions === undefined ? null : (
             <div className="team-node-actions">
               <button
+                tabIndex={-1}
                 type="button"
                 className="tool-more"
                 onClick={() => {
@@ -432,16 +395,20 @@ function buildNodes(tree: TeamTreeData, actions: TeamTreeActions | undefined): F
     })
     for (const [position, entry] of role.entries.entries()) {
       const entryId = `team-entry:${role.id}:${entry.id}`
-      const entryLabel = entry.model ?? fill(UI_TEXT.teamEntryUntitled, { number: position + 1 })
+      const entryLabel =
+        entry.model ?? fill(UI_TEXT.teamEntryUntitled, { number: formatNumber(position + 1) })
       const running =
         entry.concurrentMax === undefined
-          ? `${String(entry.running)} running`
-          : `${String(entry.running)} of ${String(entry.concurrentMax)} running`
+          ? plural(UI_TEXT.teamRunningCount, entry.running)
+          : fill(UI_TEXT.teamRunningOf, {
+              used: formatNumber(entry.running),
+              amount: formatNumber(entry.concurrentMax),
+            })
       nodes.push({
         id: entryId,
         parentId: roleId,
         level: 3,
-        label: `${role.name}, entry ${String(position + 1)}, ${entryLabel}, ${entry.provider}, ${running}${entry.state === 'ready' ? '' : `, ${teamEntryStateLabel(entry.state)}`}`,
+        label: `${role.name}, ${fill(UI_TEXT.teamEntryUntitled, { number: formatNumber(position + 1) })}, ${entryLabel}, ${entry.provider}, ${running}${entry.state === 'ready' ? '' : `, ${teamEntryStateLabel(entry.state)}`}`,
         expandable: entry.workers.length > 0,
         body: <EntryNode entry={entry} index={position + 1} actions={actions} />,
       })
@@ -450,7 +417,7 @@ function buildNodes(tree: TeamTreeData, actions: TeamTreeActions | undefined): F
           id: `team-task:${worker.taskId}`,
           parentId: entryId,
           level: 4,
-          label: `${worker.brief}, ${role.name}, ${entryLabel}, ${worker.status}`,
+          label: `${worker.brief}, ${role.name}, ${entryLabel}, ${teamWorkerStatusLabel(worker.status)}`,
           expandable: false,
           body: <WorkerNode worker={worker} group="entry" actions={actions} />,
         })
@@ -479,6 +446,7 @@ export function TeamTree({ tree, actions }: TeamTreeProps) {
   const [focusId, setFocusId] = useState('team-root')
   const elements = useRef(new Map<string, HTMLDivElement | null>())
   const typeahead = useRef({ text: '', at: 0 })
+  const focusWithin = useRef(false)
   const visible = nodes.filter((node) => {
     let parentId = node.parentId
     while (parentId !== undefined) {
@@ -489,6 +457,12 @@ export function TeamTree({ tree, actions }: TeamTreeProps) {
     }
     return true
   })
+  const activeId = visible.some((node) => node.id === focusId) ? focusId : 'team-root'
+  useEffect(() => {
+    if (activeId !== focusId && focusWithin.current) {
+      elements.current.get(activeId)?.focus()
+    }
+  }, [activeId, focusId])
   const focus = (id: string) => {
     setFocusId(id)
     elements.current.get(id)?.focus()
@@ -496,6 +470,27 @@ export function TeamTree({ tree, actions }: TeamTreeProps) {
   const childrenOf = (id: string) =>
     nodes.filter((node) => node.parentId === id).map((node) => node.id)
   const onKeyDown = (event: KeyboardEvent, node: FlatNode) => {
+    const target = event.target
+    if (target instanceof HTMLButtonElement) {
+      const buttons = [...(elements.current.get(node.id)?.querySelectorAll('button') ?? [])]
+      const index = buttons.indexOf(target)
+      if (event.key === 'Escape') {
+        event.preventDefault()
+        focus(node.id)
+      } else if (event.key === 'ArrowRight' || event.key === 'ArrowLeft') {
+        event.preventDefault()
+        buttons[index + (event.key === 'ArrowRight' ? 1 : -1)]?.focus()
+      }
+      return
+    }
+    if (event.key === 'F2') {
+      const button = elements.current.get(node.id)?.querySelector('button')
+      if (button !== null && button !== undefined) {
+        event.preventDefault()
+        button.focus()
+      }
+      return
+    }
     const index = visible.findIndex((candidate) => candidate.id === node.id)
     switch (event.key) {
       case 'ArrowDown': {
@@ -575,18 +570,32 @@ export function TeamTree({ tree, actions }: TeamTreeProps) {
     }
   }
   return (
-    <div className="team-tree" role="tree" aria-label={UI_TEXT.teamTreeLabel}>
+    <div
+      className="team-tree"
+      role="tree"
+      aria-label={UI_TEXT.teamTreeLabel}
+      aria-description={UI_TEXT.teamTreeKeyboardHint}
+      onFocusCapture={() => {
+        focusWithin.current = true
+      }}
+      onBlurCapture={(event) => {
+        if (event.relatedTarget !== null && !event.currentTarget.contains(event.relatedTarget)) {
+          focusWithin.current = false
+        }
+      }}
+    >
       {visible.map((node) => (
         <div
           key={node.id}
           ref={(element) => {
-            elements.current.set(node.id, element)
+            if (element === null) elements.current.delete(node.id)
+            else elements.current.set(node.id, element)
           }}
           role="treeitem"
           aria-level={node.level}
           aria-expanded={node.expandable ? expanded.has(node.id) : undefined}
           aria-label={node.label}
-          tabIndex={node.id === focusId ? 0 : -1}
+          tabIndex={node.id === activeId ? 0 : -1}
           className="team-node"
           data-level={node.level}
           onKeyDown={(event) => {

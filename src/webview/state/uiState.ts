@@ -72,7 +72,14 @@ import type {
   UsageSummary,
   WorkflowChild,
 } from './transcriptEntries'
-import { mergeTeamEntry, teamEntryForItem } from './teamEntries'
+import {
+  mergeTeamEntry,
+  teamEntryForItem,
+  teamWorkers,
+  isRunningTeamWorker,
+  isFinishedTeamWorker,
+  teamWorkerStatusLabel,
+} from './teamEntries'
 
 export type {
   ChildTranscript,
@@ -2333,7 +2340,39 @@ function applyHostMessage(state: UiState, message: HostToWebviewMessage, at: num
     }
     case 'teamTree': {
       // The ledger's live view (M96 lane U2): the tree replaces wholesale.
-      return { ...state, teamTree: message.tree }
+      const before = new Map(
+        (state.teamTree === undefined ? [] : teamWorkers(state.teamTree)).map((worker) => [
+          worker.taskId,
+          worker.status,
+        ]),
+      )
+      const finished = teamWorkers(message.tree).filter((worker) => {
+        const previous = before.get(worker.taskId)
+        return (
+          previous !== undefined &&
+          isRunningTeamWorker(previous) &&
+          isFinishedTeamWorker(worker.status)
+        )
+      })
+      const finishedById = new Map(finished.map((worker) => [worker.taskId, worker]))
+      const summaries = Array.from(finishedById.values(), (worker) =>
+        fill(UI_TEXT.teamWorkerFinished, {
+          task: worker.brief,
+          status: teamWorkerStatusLabel(worker.status),
+        }),
+      )
+      return announce(
+        { ...state, teamTree: message.tree },
+        summaries.length === 0 ? undefined : summaries.join(' '),
+      )
+    }
+    case 'clearTeamTree': {
+      return {
+        ...state,
+        teamTree: undefined,
+        usageReport:
+          state.usageReport === undefined ? undefined : { ...state.usageReport, team: undefined },
+      }
     }
     case 'sharePreview': {
       return {

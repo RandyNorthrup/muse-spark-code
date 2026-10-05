@@ -1820,5 +1820,22 @@
   "agentImportIgnoredToTracked": "Gitで無視されたファイルを追跡対象のファイルにコピーすることになります",
   "agentImportEditPrompt": "変換した項目を {path} に未保存の編集として開き、確認して保存しますか？保存先はそのパスだけにし、別のファイルには保存しないでください。",
   "agentImportEditAction": "ファイルを編集して開く",
-  "agentImportPreviewLegacyKey": "ファイルは古い `mcp_servers` キーを使用しています。これらを追加するときに `mcpServers` に名前を変更してください。両方あると Muse Code はどちらも読み込みません。"
+  "agentImportPreviewLegacyKey": "ファイルは古い `mcp_servers` キーを使用しています。これらを追加するときに `mcpServers` に名前を変更してください。両方あると Muse Code はどちらも読み込みません。",
+  "teamWorkerMerged": "マージ済み",
+  "teamWorkerDiscarded": "破棄済み",
+  "teamRunningOf": "{amount} 件中 {used} 件が実行中",
+  "teamWorkerFinished": "チームのタスク {task}：{status}。",
+  "teamTreeKeyboardHint": "矢印キーで移動します。F2 で操作にフォーカスし、左右キーで操作を選択、Escape で項目に戻ります。",
+  "teamMergeAffectedFiles": "影響を受けるファイル",
+  "teamMergeProtectedPaths": "保護されたパス",
+  "teamMergeConflictPaths": "競合するパス",
+  "teamMergeDetailsMissing": "ファイルの詳細を取得できません。差分を確認してから、新しいマージカードを要求してください。",
+  "teamMergeReviewVerdict": "レビュー結果",
+  "teamMergeNoPaths": "なし",
+  "teamRunningCount": {
+    "other": "{count} 件が実行中"
+  },
+  "teamMergeMorePaths": {
+    "other": "ほか {count} 件"
+  }
 }

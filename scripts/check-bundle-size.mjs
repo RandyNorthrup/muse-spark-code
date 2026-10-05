@@ -3,7 +3,7 @@
 // mirrors them) and change only with a CHANGELOG entry. Exits 1 when any production artifact exceeds
 // its budget or is missing.
 
-import { existsSync, statSync } from 'node:fs'
+import { existsSync, readFileSync, statSync } from 'node:fs'
 
 const BYTES_PER_KIB = 1024
 
@@ -71,7 +71,16 @@ for (const { path, budgetKiB } of BUDGETS) {
     console.log(`MISS ${path}: not built (budget ${budgetKiB} KiB)`)
     continue
   }
-  const sizeKiB = statSync(path).size / BYTES_PER_KIB
+  // ESM splitting must not turn the existing webview cap into a main-only
+  // cap: count every emitted JS chunk once, including lazy team UI.
+  const webviewOutputs =
+    path === 'dist/webview/main.js'
+      ? Object.keys(JSON.parse(readFileSync('dist/meta/webview.json', 'utf8')).outputs).filter(
+          (output) => output.endsWith('.js'),
+        )
+      : [path]
+  const sizeKiB =
+    webviewOutputs.reduce((total, output) => total + statSync(output).size, 0) / BYTES_PER_KIB
   const status = sizeKiB <= budgetKiB ? 'ok  ' : 'OVER'
   if (sizeKiB > budgetKiB) {
     hasFailure = true

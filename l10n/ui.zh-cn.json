@@ -1820,5 +1820,22 @@
   "agentImportIgnoredToTracked": "这会将 Git 忽略的文件复制到受跟踪的文件中",
   "agentImportEditPrompt": "将转换后的条目在 {path} 中作为未保存的编辑打开，以供检查和保存？请只保存到该路径，切勿保存到其他文件。",
   "agentImportEditAction": "编辑并打开文件",
-  "agentImportPreviewLegacyKey": "该文件使用旧版 `mcp_servers` 键。添加这些条目时请将其重命名为 `mcpServers`：两者同时存在时 Muse Code 都不会加载。"
+  "agentImportPreviewLegacyKey": "该文件使用旧版 `mcp_servers` 键。添加这些条目时请将其重命名为 `mcpServers`：两者同时存在时 Muse Code 都不会加载。",
+  "teamWorkerMerged": "已合并",
+  "teamWorkerDiscarded": "已丢弃",
+  "teamRunningOf": "{amount} 个中有 {used} 个正在运行",
+  "teamWorkerFinished": "团队任务 {task}：{status}。",
+  "teamTreeKeyboardHint": "使用方向键移动。F2 聚焦操作，左右键选择操作，Escape 返回项目。",
+  "teamMergeAffectedFiles": "受影响的文件",
+  "teamMergeProtectedPaths": "受保护的路径",
+  "teamMergeConflictPaths": "冲突路径",
+  "teamMergeDetailsMissing": "文件详情不可用。请先查看差异，再请求新的合并卡片。",
+  "teamMergeReviewVerdict": "审查结论",
+  "teamMergeNoPaths": "无",
+  "teamRunningCount": {
+    "other": "{count} 个正在运行"
+  },
+  "teamMergeMorePaths": {
+    "other": "以及另外 {count} 个"
+  }
 }

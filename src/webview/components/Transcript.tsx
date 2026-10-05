@@ -8,7 +8,16 @@
 // only the row it changes. The rows carry no alert roles: the app's single
 // live region reads failures and turn ends out once (M25).
 
-import { memo, type ReactNode, useDeferredValue, useMemo, useRef, useState } from 'react'
+import {
+  lazy,
+  Suspense,
+  memo,
+  type ReactNode,
+  useDeferredValue,
+  useMemo,
+  useRef,
+  useState,
+} from 'react'
 import type { CitationSummary, QuestionAnswer } from '../../shared/agentEvents'
 import { UI_TEXT } from '../../shared/constants'
 import { fill, plural } from '../../shared/l10n/text'
@@ -33,18 +42,16 @@ import { type QuoteIntent, QuoteMenu } from './QuoteMenu'
 import { MarkdownView } from './MarkdownView'
 import { ReasoningRow } from './ReasoningRow'
 import { StatusLine } from './StatusLine'
-import {
-  TeamMergeCard,
-  TeamPlanCard,
-  TeamReportRow,
-  TeamSwitchRow,
-  TeamWaitingCard,
-  type TeamCardActions,
-} from './TeamCards'
+import type { TeamCardActions } from './TeamCards'
 import { ToolRow, type ToolRowProps } from './ToolRow'
 import { UserShellRow } from './UserShellRow'
 import { WorkflowRunView } from './WorkflowRun'
 import { PaidBadge } from './PaidBadge'
+
+const TeamCard = lazy(async () => {
+  const module = await import('./TeamCards')
+  return { default: module.TeamCard }
+})
 
 export interface TranscriptProps {
   readonly entries: readonly TranscriptEntry[]
@@ -973,29 +980,16 @@ function TranscriptList(props: TranscriptProps) {
       case 'workflow': {
         return <WorkflowRow key={entry.id} entry={entry} />
       }
-      case 'teamPlan': {
-        return <TeamPlanCard key={entry.id} entry={entry} />
-      }
-      case 'teamSwitch': {
-        return <TeamSwitchRow key={entry.id} entry={entry} />
-      }
-      case 'teamWaiting': {
-        return (
-          <TeamWaitingCard key={entry.id} entry={entry} onAnswer={teamActions?.onAnswerWaiting} />
-        )
-      }
-      case 'teamMerge': {
-        return (
-          <TeamMergeCard
-            key={entry.id}
-            entry={entry}
-            onDecide={teamActions?.onDecideMerge}
-            onReviewDiff={teamActions?.onReviewDiff}
-          />
-        )
-      }
+      case 'teamPlan':
+      case 'teamSwitch':
+      case 'teamWaiting':
+      case 'teamMerge':
       case 'teamReport': {
-        return <TeamReportRow key={entry.id} entry={entry} />
+        return (
+          <Suspense key={entry.id} fallback={null}>
+            <TeamCard entry={entry} actions={teamActions} />
+          </Suspense>
+        )
       }
       case 'subagent':
       case 'item':

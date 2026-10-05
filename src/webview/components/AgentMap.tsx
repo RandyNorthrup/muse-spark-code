@@ -6,7 +6,7 @@
 // settings file says about delegation and workflows is noted, with the file
 // a click away; the extension never edits it.
 
-import { useState } from 'react'
+import { lazy, Suspense, useState } from 'react'
 import {
   SUBAGENT_CLOSED,
   SUBAGENT_RESULT_READY,
@@ -30,7 +30,13 @@ import { describeTool } from '../toolPresentation'
 import { agentStatusLabel, formatDurationMs } from '../agentFormat'
 import { workflowName, workflowTriggerText } from '../workflowDetails'
 import { Modal } from './Modal'
-import { teamTaskCount, TeamTree, type TeamTreeActions } from './TeamTree'
+import type { TeamTreeActions } from './TeamTree'
+import { teamTaskCount } from '../state/teamEntries'
+
+const TeamTree = lazy(async () => {
+  const module = await import('./TeamTree')
+  return { default: module.TeamTree }
+})
 import { WorkflowRunView } from './WorkflowRun'
 import { PaidBadge } from './PaidBadge'
 
@@ -471,7 +477,7 @@ export function AgentMap({
       {selected === undefined ? (
         <>
           {subtitle === undefined ? null : <p className="usage-row-meta">{subtitle}</p>}
-          <div className="agent-tree">
+          <div className="agent-tree" tabIndex={team === undefined ? undefined : 0}>
             <div className="agent-node agent-node-main">
               <span className="agent-node-title">{title}</span>
               <span className="agent-node-meta">{mainMeta}</span>
@@ -495,7 +501,9 @@ export function AgentMap({
               <h3 className="team-tree-heading">
                 {UI_TEXT.teamTreeLabel} · {plural(UI_TEXT.teamTasksCount, teamTaskCount(team))}
               </h3>
-              <TeamTree tree={team} actions={teamActions} />
+              <Suspense fallback={null}>
+                <TeamTree tree={team} actions={teamActions} />
+              </Suspense>
             </>
           )}
           {workflows.length === 0 ? null : (

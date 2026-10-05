@@ -2021,5 +2021,28 @@
   "agentImportIgnoredToTracked": "spowodowałoby to skopiowanie pliku ignorowanego przez Git do pliku śledzonego",
   "agentImportEditPrompt": "Otworzyć przekonwertowane wpisy w {path} jako niezapisaną zmianę do przejrzenia i zapisania? Zapisz ją tylko pod tą ścieżką, nigdy w innym pliku.",
   "agentImportEditAction": "Edytuj i otwórz plik",
-  "agentImportPreviewLegacyKey": "Plik używa starego klucza `mcp_servers`. Zmień jego nazwę na `mcpServers`, dodając te wpisy: Muse Code nie wczytuje żadnego, gdy oba są obecne."
+  "agentImportPreviewLegacyKey": "Plik używa starego klucza `mcp_servers`. Zmień jego nazwę na `mcpServers`, dodając te wpisy: Muse Code nie wczytuje żadnego, gdy oba są obecne.",
+  "teamWorkerMerged": "scalono",
+  "teamWorkerDiscarded": "odrzucono",
+  "teamRunningOf": "{used} z {amount} w toku",
+  "teamWorkerFinished": "Zadanie zespołu {task}: {status}.",
+  "teamTreeKeyboardHint": "Poruszaj się strzałkami. F2 wybiera działania; Lewo i Prawo wybierają działanie; Escape wraca do elementu.",
+  "teamMergeAffectedFiles": "Zmieniane pliki",
+  "teamMergeProtectedPaths": "Chronione ścieżki",
+  "teamMergeConflictPaths": "Ścieżki z konfliktami",
+  "teamMergeDetailsMissing": "Szczegóły plików są niedostępne. Sprawdź różnice przed zażądaniem nowej karty scalania.",
+  "teamMergeReviewVerdict": "Wynik przeglądu",
+  "teamMergeNoPaths": "Brak",
+  "teamRunningCount": {
+    "one": "{count} w toku",
+    "few": "{count} w toku",
+    "many": "{count} w toku",
+    "other": "{count} w toku"
+  },
+  "teamMergeMorePaths": {
+    "one": "i jeszcze {count}",
+    "few": "i jeszcze {count}",
+    "many": "i jeszcze {count}",
+    "other": "i jeszcze {count}"
+  }
 }

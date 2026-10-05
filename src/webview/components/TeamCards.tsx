@@ -5,7 +5,8 @@
 // from the task, never from worker text (threat T8).
 
 import { useState } from 'react'
-import { UI_TEXT } from '../../shared/constants'
+import { TEAM_MERGE_DETAILS_SHOWN, UI_TEXT } from '../../shared/constants'
+import { formatNumber, plural } from '../../shared/l10n/text'
 import type { TeamWorkerLabel } from '../../shared/teamView'
 import type { TranscriptEntry } from '../state/uiState'
 
@@ -121,9 +122,8 @@ export function TeamWaitingCard({
   /** Absent where the host takes no answer (history): the card reads only. */
   readonly onAnswer?: TeamCardActions['onAnswerWaiting'] | undefined
 }) {
-  // The choice sent to the host: the card locks on it until the host's
-  // next update replaces the row, as a decided approval card does (M25).
-  const [pending, setPending] = useState<TeamWaitingChoice | undefined>(undefined)
+  // A full host update settles this local request, including a refusal.
+  const [pending, setPending] = useState<TeamWaitingEntry | undefined>(undefined)
   if (onAnswer === undefined) {
     return (
       <li className="activity activity-team-waiting" data-status={entry.status}>
@@ -136,6 +136,8 @@ export function TeamWaitingCard({
       </li>
     )
   }
+  const isLocked =
+    entry.status !== 'inProgress' || entry.teamDecision !== undefined || pending === entry
   const answer = onAnswer
   return (
     <li className="activity activity-team-waiting" data-status={entry.status}>
@@ -151,10 +153,9 @@ export function TeamWaitingCard({
             key={choice}
             type="button"
             className="tool-more"
-            disabled={pending !== undefined}
-            aria-disabled={pending !== undefined && pending !== choice}
+            disabled={isLocked}
             onClick={() => {
-              setPending(choice)
+              setPending(entry)
               answer(entry.waitingId, choice)
             }}
           >
@@ -163,6 +164,34 @@ export function TeamWaitingCard({
         ))}
       </div>
     </li>
+  )
+}
+
+function MergeDetails({
+  label,
+  paths,
+}: {
+  readonly label: string
+  readonly paths: readonly string[] | undefined
+}) {
+  if (paths === undefined) return null
+  const remaining = paths.length - TEAM_MERGE_DETAILS_SHOWN
+  return (
+    <div className="team-merge-details">
+      <span>{label}</span>
+      {paths.length === 0 ? (
+        <span>{UI_TEXT.teamMergeNoPaths}</span>
+      ) : (
+        <ul aria-label={label}>
+          {paths.slice(0, TEAM_MERGE_DETAILS_SHOWN).map((path, index) => (
+            <li key={`${String(index)}:${path}`} dir="auto">
+              {path}
+            </li>
+          ))}
+          {remaining > 0 ? <li>{plural(UI_TEXT.teamMergeMorePaths, remaining)}</li> : null}
+        </ul>
+      )}
+    </div>
   )
 }
 
@@ -177,12 +206,15 @@ export function TeamMergeCard({
   readonly onDecide?: TeamCardActions['onDecideMerge'] | undefined
   readonly onReviewDiff?: TeamCardActions['onReviewDiff'] | undefined
 }) {
-  const [pending, setPending] = useState<TeamMergeDecision | undefined>(undefined)
+  const [pending, setPending] = useState<TeamMergeEntry | undefined>(undefined)
+  const isLocked =
+    entry.status !== 'inProgress' || entry.teamDecision !== undefined || pending === entry
+  const hasDetails = entry.affectedFiles !== undefined && entry.protectedPaths !== undefined
   const decide =
     onDecide === undefined
       ? undefined
       : (decision: TeamMergeDecision) => {
-          setPending(decision)
+          setPending(entry)
           onDecide(entry.taskId, decision)
         }
   // A reviewed merge needs no badge; the other states name themselves.
@@ -198,12 +230,22 @@ export function TeamMergeCard({
         {[
           entry.brief,
           entry.branch,
-          entry.filesChanged === undefined ? undefined : String(entry.filesChanged),
+          entry.filesChanged === undefined ? undefined : formatNumber(entry.filesChanged),
           reviewText,
         ]
           .filter((part) => part !== undefined)
           .join(' · ')}
       </span>
+      <MergeDetails label={UI_TEXT.teamMergeAffectedFiles} paths={entry.affectedFiles} />
+      <MergeDetails label={UI_TEXT.teamMergeProtectedPaths} paths={entry.protectedPaths} />
+      <MergeDetails label={UI_TEXT.teamMergeConflictPaths} paths={entry.conflictPaths} />
+      {entry.reviewVerdict === undefined ? null : (
+        <p className="team-card-note" dir="auto">
+          {UI_TEXT.teamMergeReviewVerdict}: {entry.reviewVerdict}
+        </p>
+      )}
+      <MergeDetails label={UI_TEXT.reviewFindingsLabel} paths={entry.reviewerFindings} />
+      {hasDetails ? null : <p className="team-card-note">{UI_TEXT.teamMergeDetailsMissing}</p>}
       {entry.branchMoved === true ? (
         <p className="team-card-note">{UI_TEXT.teamMergeBranchMoved}</p>
       ) : null}
@@ -217,7 +259,9 @@ export function TeamMergeCard({
               <button
                 type="button"
                 className="tool-more"
-                disabled={pending !== undefined}
+                disabled={
+                  isLocked || !hasDetails || entry.branchMoved === true || entry.conflicted === true
+                }
                 onClick={() => {
                   decide('merge')
                 }}
@@ -227,7 +271,7 @@ export function TeamMergeCard({
               <button
                 type="button"
                 className="tool-more"
-                disabled={pending !== undefined}
+                disabled={isLocked}
                 onClick={() => {
                   decide('discard')
                 }}
@@ -264,4 +308,38 @@ export function TeamReportRow({ entry }: { readonly entry: TeamReportEntry }) {
       </span>
     </li>
   )
+}
+
+/** One lazy transcript entry point; the caller supplies only team rows. */
+export function TeamCard({
+  entry,
+  actions,
+}: {
+  readonly entry:
+    TeamPlanEntry | TeamSwitchEntry | TeamWaitingEntry | TeamMergeEntry | TeamReportEntry
+  readonly actions: TeamCardActions | undefined
+}) {
+  switch (entry.kind) {
+    case 'teamPlan': {
+      return <TeamPlanCard entry={entry} />
+    }
+    case 'teamSwitch': {
+      return <TeamSwitchRow entry={entry} />
+    }
+    case 'teamWaiting': {
+      return <TeamWaitingCard entry={entry} onAnswer={actions?.onAnswerWaiting} />
+    }
+    case 'teamMerge': {
+      return (
+        <TeamMergeCard
+          entry={entry}
+          onDecide={actions?.onDecideMerge}
+          onReviewDiff={actions?.onReviewDiff}
+        />
+      )
+    }
+    case 'teamReport': {
+      return <TeamReportRow entry={entry} />
+    }
+  }
 }

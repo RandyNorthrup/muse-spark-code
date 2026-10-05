@@ -2021,5 +2021,28 @@
   "agentImportIgnoredToTracked": "это скопировало бы игнорируемый Git файл в отслеживаемый",
   "agentImportEditPrompt": "Открыть преобразованные записи в {path} как несохранённую правку для проверки и сохранения? Сохраняйте её только по этому пути, никогда в другой файл.",
   "agentImportEditAction": "Изменить и открыть файл",
-  "agentImportPreviewLegacyKey": "Файл использует устаревший ключ `mcp_servers`. При добавлении этих записей переименуйте его в `mcpServers`: если есть оба, Muse Code не загружает ни один."
+  "agentImportPreviewLegacyKey": "Файл использует устаревший ключ `mcp_servers`. При добавлении этих записей переименуйте его в `mcpServers`: если есть оба, Muse Code не загружает ни один.",
+  "teamWorkerMerged": "объединено",
+  "teamWorkerDiscarded": "отброшено",
+  "teamRunningOf": "{used} из {amount} в работе",
+  "teamWorkerFinished": "Задача команды {task}: {status}.",
+  "teamTreeKeyboardHint": "Перемещайтесь стрелками. F2 переводит фокус на действия; Влево и Вправо выбирают действие; Escape возвращает к элементу.",
+  "teamMergeAffectedFiles": "Затронутые файлы",
+  "teamMergeProtectedPaths": "Защищённые пути",
+  "teamMergeConflictPaths": "Пути с конфликтами",
+  "teamMergeDetailsMissing": "Сведения о файлах недоступны. Просмотрите различия перед запросом новой карточки слияния.",
+  "teamMergeReviewVerdict": "Итог проверки",
+  "teamMergeNoPaths": "Нет",
+  "teamRunningCount": {
+    "one": "{count} выполняется",
+    "few": "{count} выполняются",
+    "many": "{count} выполняются",
+    "other": "{count} выполняются"
+  },
+  "teamMergeMorePaths": {
+    "one": "и ещё {count}",
+    "few": "и ещё {count}",
+    "many": "и ещё {count}",
+    "other": "и ещё {count}"
+  }
 }

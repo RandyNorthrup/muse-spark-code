@@ -1887,5 +1887,24 @@
   "agentImportIgnoredToTracked": "ez Git által figyelmen kívül hagyott fájlt másolna egy követett fájlba",
   "agentImportEditPrompt": "Megnyitja az átalakított bejegyzéseket itt: {path}, nem mentett módosításként, ellenőrzésre és mentésre? Csak erre az útvonalra mentse, soha ne másik fájlba.",
   "agentImportEditAction": "Fájl szerkesztése és megnyitása",
-  "agentImportPreviewLegacyKey": "A fájl az elavult `mcp_servers` kulcsot használja. Ezek hozzáadásakor nevezze át `mcpServers` névre: ha mindkettő jelen van, a Muse Code egyiket sem tölti be."
+  "agentImportPreviewLegacyKey": "A fájl az elavult `mcp_servers` kulcsot használja. Ezek hozzáadásakor nevezze át `mcpServers` névre: ha mindkettő jelen van, a Muse Code egyiket sem tölti be.",
+  "teamWorkerMerged": "egyesítve",
+  "teamWorkerDiscarded": "elvetve",
+  "teamRunningOf": "{used} / {amount} fut",
+  "teamWorkerFinished": "Csapatfeladat {task}: {status}.",
+  "teamTreeKeyboardHint": "A nyílbillentyűkkel mozoghat. Az F2 a műveletekre vált; a Bal és Jobb választ; az Escape visszatér az elemhez.",
+  "teamMergeAffectedFiles": "Érintett fájlok",
+  "teamMergeProtectedPaths": "Védett útvonalak",
+  "teamMergeConflictPaths": "Ütköző útvonalak",
+  "teamMergeDetailsMissing": "A fájlrészletek nem érhetők el. Új egyesítési kártya kérése előtt tekintse át a különbségeket.",
+  "teamMergeReviewVerdict": "Ellenőrzés eredménye",
+  "teamMergeNoPaths": "Nincs",
+  "teamRunningCount": {
+    "one": "{count} fut",
+    "other": "{count} fut"
+  },
+  "teamMergeMorePaths": {
+    "one": "és még {count}",
+    "other": "és még {count}"
+  }
 }

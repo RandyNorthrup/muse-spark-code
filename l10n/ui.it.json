@@ -1954,5 +1954,26 @@
   "agentImportIgnoredToTracked": "questo copierebbe un file ignorato da Git in un file tracciato",
   "agentImportEditPrompt": "Aprire le voci convertite in {path} come modifica non salvata da controllare e salvare? Salvarla solo in quel percorso, mai in un altro file.",
   "agentImportEditAction": "Modifica e apri il file",
-  "agentImportPreviewLegacyKey": "Il file usa la vecchia chiave `mcp_servers`. Rinominala in `mcpServers` quando aggiungi questi: Muse Code non carica nessuna delle due se sono presenti entrambe."
+  "agentImportPreviewLegacyKey": "Il file usa la vecchia chiave `mcp_servers`. Rinominala in `mcpServers` quando aggiungi questi: Muse Code non carica nessuna delle due se sono presenti entrambe.",
+  "teamWorkerMerged": "unito",
+  "teamWorkerDiscarded": "scartato",
+  "teamRunningOf": "{used} di {amount} in esecuzione",
+  "teamWorkerFinished": "Attività del team {task}: {status}.",
+  "teamTreeKeyboardHint": "Usa le frecce per spostarti. F2 seleziona le azioni; Sinistra e Destra scelgono un’azione; Esc torna alla voce.",
+  "teamMergeAffectedFiles": "File interessati",
+  "teamMergeProtectedPaths": "Percorsi protetti",
+  "teamMergeConflictPaths": "Percorsi in conflitto",
+  "teamMergeDetailsMissing": "I dettagli dei file non sono disponibili. Esamina le differenze prima di richiedere una nuova scheda di unione.",
+  "teamMergeReviewVerdict": "Esito della revisione",
+  "teamMergeNoPaths": "Nessuno",
+  "teamRunningCount": {
+    "one": "{count} in esecuzione",
+    "many": "{count} in esecuzione",
+    "other": "{count} in esecuzione"
+  },
+  "teamMergeMorePaths": {
+    "one": "e {count} in più",
+    "many": "e {count} in più",
+    "other": "e {count} in più"
+  }
 }

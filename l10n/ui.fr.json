@@ -1954,5 +1954,26 @@
   "agentImportIgnoredToTracked": "cela copierait un fichier ignoré par Git dans un fichier suivi",
   "agentImportEditPrompt": "Ouvrir les entrées converties dans {path} comme modification non enregistrée à vérifier et enregistrer ? Enregistrez-la uniquement à cet emplacement, jamais dans un autre fichier.",
   "agentImportEditAction": "Modifier et ouvrir le fichier",
-  "agentImportPreviewLegacyKey": "Le fichier utilise l’ancienne clé `mcp_servers`. Renommez-la en `mcpServers` en ajoutant ceux-ci : Muse Code ne charge ni l’une ni l’autre quand les deux sont présentes."
+  "agentImportPreviewLegacyKey": "Le fichier utilise l’ancienne clé `mcp_servers`. Renommez-la en `mcpServers` en ajoutant ceux-ci : Muse Code ne charge ni l’une ni l’autre quand les deux sont présentes.",
+  "teamWorkerMerged": "fusionné",
+  "teamWorkerDiscarded": "abandonné",
+  "teamRunningOf": "{used} sur {amount} en cours",
+  "teamWorkerFinished": "Tâche d’équipe {task} : {status}.",
+  "teamTreeKeyboardHint": "Utilisez les flèches pour naviguer. F2 cible les actions ; Gauche et Droite choisissent une action ; Échap revient à l’élément.",
+  "teamMergeAffectedFiles": "Fichiers concernés",
+  "teamMergeProtectedPaths": "Chemins protégés",
+  "teamMergeConflictPaths": "Chemins en conflit",
+  "teamMergeDetailsMissing": "Les détails des fichiers sont indisponibles. Vérifiez les différences avant de demander une nouvelle carte de fusion.",
+  "teamMergeReviewVerdict": "Verdict de la revue",
+  "teamMergeNoPaths": "Aucun",
+  "teamRunningCount": {
+    "one": "{count} en cours",
+    "many": "{count} en cours",
+    "other": "{count} en cours"
+  },
+  "teamMergeMorePaths": {
+    "one": "et {count} de plus",
+    "many": "et {count} de plus",
+    "other": "et {count} de plus"
+  }
 }

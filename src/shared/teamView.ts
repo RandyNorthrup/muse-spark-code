@@ -176,6 +176,12 @@ export const teamMergeFields = {
   brief: z.string(),
   branch: z.string(),
   filesChanged: z.optional(z.number()),
+  /** Absent in older rows; an approval needs both lists, even when empty. */
+  affectedFiles: z.optional(z.readonly(z.array(z.string()))),
+  protectedPaths: z.optional(z.readonly(z.array(z.string()))),
+  conflictPaths: z.optional(z.readonly(z.array(z.string()))),
+  reviewVerdict: z.optional(z.string()),
+  reviewerFindings: z.optional(z.readonly(z.array(z.string()))),
   review: z.enum(TEAM_MERGE_REVIEWS),
   branchMoved: z.optional(z.boolean()),
   conflicted: z.optional(z.boolean()),

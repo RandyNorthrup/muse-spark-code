@@ -239,3 +239,59 @@ describe('team wire fields', () => {
     expect(parsed.kind === 'tool' && parsed.teamWorker?.agentLabel).toBe('Codex')
   })
 })
+
+describe('RVM96B boundary regressions', () => {
+  it('13 preserves the confirmed decision through mapping, partial updates and saved-state validation', () => {
+    const source = item({
+      kind: 'teamWaiting',
+      status: 'inProgress',
+      teamWaiting: { waitingId: 'w1', roleId: 'qa' },
+      teamDecision: 'queue',
+    })
+    const mapped = teamEntryForItem(source)
+    expect(mapped).toMatchObject({ teamDecision: 'queue' })
+    expect(transcriptEntrySchema.parse(mapped)).toMatchObject({ teamDecision: 'queue' })
+    expect(
+      mergeTeamEntry(mapped!, item({ kind: 'teamWaiting', status: 'inProgress' })),
+    ).toMatchObject({ teamDecision: 'queue' })
+  })
+
+  it('22 carries merge approval details through both validated boundaries', () => {
+    const details = {
+      affectedFiles: ['src/a.ts'],
+      protectedPaths: ['.muse/team.json'],
+      conflictPaths: ['src/a.ts'],
+      reviewVerdict: 'fail',
+      reviewerFindings: ['P1: wrong output'],
+    }
+    const mapped = teamEntryForItem(
+      item({
+        kind: 'teamMerge',
+        teamMerge: {
+          taskId: 't1',
+          roleId: 'engineering',
+          brief: 'Fix',
+          branch: 'agents/t1',
+          review: 'reviewed',
+          ...details,
+        },
+      }),
+    )
+    expect(transcriptEntrySchema.parse(mapped)).toMatchObject(details)
+    expect(
+      itemSnapshotSchema.safeParse({
+        itemId: 'bad',
+        kind: 'teamMerge',
+        status: 'inProgress',
+        teamMerge: {
+          taskId: 't1',
+          roleId: 'engineering',
+          brief: 'Fix',
+          branch: 'agents/t1',
+          review: 'reviewed',
+          affectedFiles: [42],
+        },
+      }).success,
+    ).toBe(false)
+  })
+})

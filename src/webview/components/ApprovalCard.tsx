@@ -5,13 +5,16 @@
 // every stage of a multi-command line (M25).
 // A paid call never gets a card: the host's paid-use popup asks (M58).
 
-import { useEffect, useRef, useState } from 'react'
+import { lazy, Suspense, useEffect, useRef, useState } from 'react'
 import type { ApprovalStage, RequirementRef } from '../../shared/agentEvents'
 import { MODEL_API_SUBAGENT_TOOLS, UI_TEXT, WEB_FETCH_SUBJECT_KIND } from '../../shared/constants'
 import { fill, templateParts } from '../../shared/l10n/text'
 import type { TeamWorkerLabel } from '../../shared/teamView'
 import type { PendingApproval } from '../state/uiState'
-import { TeamWorkerLabel as TeamWorkerLabelView } from './TeamCards'
+const TeamWorkerLabelView = lazy(async () => {
+  const module = await import('./TeamCards')
+  return { default: module.TeamWorkerLabel }
+})
 
 export interface ApprovalDecisionInput {
   readonly approvalId: string
@@ -117,7 +120,11 @@ export function ApprovalCard({ approval, toolName, worker, onDecide }: ApprovalC
       // which a stray Enter would then make).
       tabIndex={-1}
     >
-      {worker === undefined ? null : <TeamWorkerLabelView worker={worker} />}
+      {worker === undefined ? null : (
+        <Suspense fallback={null}>
+          <TeamWorkerLabelView worker={worker} />
+        </Suspense>
+      )}
       <div className="approval-title">
         {templateParts(title).map((part, index) =>
           typeof part === 'string' ? part : <code key={String(index)}>{subject}</code>,

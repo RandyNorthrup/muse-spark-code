@@ -1002,8 +1002,8 @@
   </head>
   <body>
     <div id="root"></div>
-    <script src="../../dist/webview/main.js"></script>
-    <script>
+    <script type="module">
+      import '../../dist/webview/main.js'
       // Scripting errors and dropped host messages are written into the page
       // so a screenshot shows them instead of a silent empty state.
       // A scenario that throws fails the accessibility gate (a11y.mjs), which
@@ -1908,6 +1908,8 @@
           later(300, () => document.querySelector('.agents-pill')?.click())
         },
         'team-tree-320': () => {
+          document.documentElement.style.width = '320px'
+          document.body.style.width = '320px'
           steps['team-tree']()
         },
         'team-cards': () => {
@@ -1973,6 +1975,16 @@
                 brief: 'Add the retry',
                 branch: 'agents/engineering/t3',
                 filesChanged: 4,
+                affectedFiles: [
+                  'src/retry.ts',
+                  'test/retry.test.ts',
+                  '.muse/team.json',
+                  'README.md',
+                ],
+                protectedPaths: ['.muse/team.json'],
+                conflictPaths: ['src/retry.ts'],
+                reviewVerdict: 'changes requested',
+                reviewerFindings: ['P2: preserve the user edit'],
                 review: 'same-model',
                 branchMoved: true,
               },

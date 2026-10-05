@@ -1954,5 +1954,26 @@
   "agentImportIgnoredToTracked": "isso copiaria um arquivo ignorado pelo Git para um arquivo rastreado",
   "agentImportEditPrompt": "Abrir as entradas convertidas em {path} como uma edição não salva para revisar e salvar? Salve-a somente nesse caminho, nunca em outro arquivo.",
   "agentImportEditAction": "Editar e abrir o arquivo",
-  "agentImportPreviewLegacyKey": "O arquivo usa a chave antiga `mcp_servers`. Renomeie-a para `mcpServers` ao adicionar estes: o Muse Code não carrega nenhuma quando as duas estão presentes."
+  "agentImportPreviewLegacyKey": "O arquivo usa a chave antiga `mcp_servers`. Renomeie-a para `mcpServers` ao adicionar estes: o Muse Code não carrega nenhuma quando as duas estão presentes.",
+  "teamWorkerMerged": "mesclado",
+  "teamWorkerDiscarded": "descartado",
+  "teamRunningOf": "{used} de {amount} em execução",
+  "teamWorkerFinished": "Tarefa da equipe {task}: {status}.",
+  "teamTreeKeyboardHint": "Use as setas para navegar. F2 foca as ações; Esquerda e Direita escolhem uma ação; Escape volta ao item.",
+  "teamMergeAffectedFiles": "Arquivos afetados",
+  "teamMergeProtectedPaths": "Caminhos protegidos",
+  "teamMergeConflictPaths": "Caminhos em conflito",
+  "teamMergeDetailsMissing": "Os detalhes dos arquivos estão indisponíveis. Revise as diferenças antes de solicitar um novo cartão de mesclagem.",
+  "teamMergeReviewVerdict": "Resultado da revisão",
+  "teamMergeNoPaths": "Nenhum",
+  "teamRunningCount": {
+    "one": "{count} em execução",
+    "many": "{count} em execução",
+    "other": "{count} em execução"
+  },
+  "teamMergeMorePaths": {
+    "one": "e mais {count}",
+    "many": "e mais {count}",
+    "other": "e mais {count}"
+  }
 }

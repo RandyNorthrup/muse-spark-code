@@ -80,6 +80,8 @@ function mergeEntry(overrides: Partial<TeamMergeEntry> = {}): TeamMergeEntry {
     brief: 'Add the retry',
     branch: 'agents/engineering/t3',
     filesChanged: 4,
+    affectedFiles: ['src/retry.ts'],
+    protectedPaths: [],
     review: 'reviewed',
     ...overrides,
   }
@@ -200,7 +202,7 @@ describe('TeamReportRow', () => {
 describe('worker label', () => {
   const worker = { roleId: 'engineering', agentLabel: 'Codex', taskId: 't3' }
 
-  it('labels a worker’s own approval with role, agent and task', () => {
+  it('labels a worker’s own approval with role, agent and task', async () => {
     setup()
     const waiting: WaitingApproval = {
       entryId: 'row-a1',
@@ -219,16 +221,16 @@ describe('worker label', () => {
       teamWorker: worker,
     }
     render(<ApprovalDock waiting={[waiting]} onDecide={vi.fn()} />)
-    expect(screen.getByText('engineering · Codex · t3')).toBeDefined()
+    expect(await screen.findByText('engineering · Codex · t3')).toBeDefined()
   })
 
-  it('draws the label from the task, never from worker text', () => {
+  it('draws the label from the task, never from worker text', async () => {
     setup()
     render(<TeamWorkerLabel worker={worker} />)
-    expect(screen.getByText('engineering · Codex · t3')).toBeDefined()
+    expect(await screen.findByText('engineering · Codex · t3')).toBeDefined()
   })
 
-  it('labels a worker’s own question row', () => {
+  it('labels a worker’s own question row', async () => {
     setup()
     render(
       <ToolRow
@@ -276,7 +278,7 @@ describe('worker label', () => {
         quoteMenu={null}
       />,
     )
-    expect(screen.getByText('engineering · Codex · t3')).toBeDefined()
+    expect(await screen.findByText('engineering · Codex · t3')).toBeDefined()
   })
 })
 
@@ -286,5 +288,94 @@ describe('team label fallbacks', () => {
     expect(teamEntryStateLabel('quantum')).toBe('quantum')
     expect(teamEntryStateLabel('capped')).toBe('capped')
     expect(teamSwitchReasonLabel('cap')).toBe('cap reached')
+  })
+})
+
+describe('RVM96B card regressions', () => {
+  it('13 locks terminal and host-confirmed cards after remount', () => {
+    setup()
+    const onAnswer = vi.fn()
+    const onDecide = vi.fn()
+    const { rerender } = render(
+      <TeamWaitingCard entry={{ ...waitingEntry, status: 'completed' }} onAnswer={onAnswer} />,
+    )
+    expect(screen.getByRole('button', { name: 'Queue it' }).hasAttribute('disabled')).toBe(true)
+    rerender(
+      <TeamWaitingCard entry={{ ...waitingEntry, teamDecision: 'self' }} onAnswer={onAnswer} />,
+    )
+    fireEvent.click(screen.getByRole('button', { name: 'Queue it' }))
+    expect(onAnswer).not.toHaveBeenCalled()
+    rerender(<TeamMergeCard entry={mergeEntry({ status: 'completed' })} onDecide={onDecide} />)
+    expect(screen.getByRole('button', { name: 'Merge' }).hasAttribute('disabled')).toBe(true)
+    rerender(<TeamMergeCard entry={mergeEntry({ teamDecision: 'discard' })} onDecide={onDecide} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Merge' }))
+    expect(onDecide).not.toHaveBeenCalled()
+  })
+
+  it('13 unlocks a refused request on the host’s same-id update, retaining locks on ordinary rerenders', () => {
+    setup()
+    const onAnswer = vi.fn()
+    const onDecide = vi.fn()
+    const { rerender } = render(<TeamWaitingCard entry={waitingEntry} onAnswer={onAnswer} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Queue it' }))
+    rerender(<TeamWaitingCard entry={waitingEntry} onAnswer={onAnswer} />)
+    expect(screen.getByRole('button', { name: 'Queue it' }).hasAttribute('disabled')).toBe(true)
+    rerender(
+      <TeamWaitingCard
+        entry={{ ...waitingEntry, reasonText: 'Request refused; choose again' }}
+        onAnswer={onAnswer}
+      />,
+    )
+    expect(screen.getByRole('button', { name: 'Queue it' }).hasAttribute('disabled')).toBe(false)
+    fireEvent.click(screen.getByRole('button', { name: 'Main agent does it' }))
+    expect(onAnswer).toHaveBeenLastCalledWith('wait-1', 'self')
+    const first = mergeEntry()
+    rerender(<TeamMergeCard entry={first} onDecide={onDecide} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Merge' }))
+    expect(screen.getByRole('button', { name: 'Discard' }).hasAttribute('disabled')).toBe(true)
+    rerender(<TeamMergeCard entry={{ ...first }} onDecide={onDecide} />)
+    expect(screen.getByRole('button', { name: 'Discard' }).hasAttribute('disabled')).toBe(false)
+  })
+
+  it('22 shows bounded affected, protected and conflict paths with review details', () => {
+    setup()
+    const paths = Array.from({ length: 12 }, (_, index) => `src/file-${String(index)}.ts`)
+    render(
+      <TeamMergeCard
+        entry={mergeEntry({
+          affectedFiles: paths,
+          protectedPaths: ['.muse/team.json'],
+          conflictPaths: ['src/conflict.ts'],
+          reviewVerdict: 'changes requested',
+          reviewerFindings: ['P1: preserve the user edit'],
+        })}
+      />,
+    )
+    const affected = within(screen.getByRole('list', { name: 'Affected files' }))
+    expect(affected.getAllByRole('listitem')).toHaveLength(11)
+    expect(affected.getByText('and 2 more')).toBeDefined()
+    expect(affected.queryByText('src/file-10.ts')).toBeNull()
+    expect(
+      within(screen.getByRole('list', { name: 'Protected paths' })).getByText('.muse/team.json'),
+    ).toBeDefined()
+    expect(
+      within(screen.getByRole('list', { name: 'Conflict paths' })).getByText('src/conflict.ts'),
+    ).toBeDefined()
+    expect(screen.getByText('Review verdict: changes requested')).toBeDefined()
+    expect(screen.getByText('P1: preserve the user edit')).toBeDefined()
+  })
+
+  it('22 refuses merge when approval details are missing or the branch is conflicted/moved', () => {
+    setup()
+    const onDecide = vi.fn()
+    const { rerender } = render(
+      <TeamMergeCard entry={mergeEntry({ affectedFiles: undefined })} onDecide={onDecide} />,
+    )
+    fireEvent.click(screen.getByRole('button', { name: 'Merge' }))
+    expect(onDecide).not.toHaveBeenCalled()
+    for (const overrides of [{ branchMoved: true }, { conflicted: true }]) {
+      rerender(<TeamMergeCard entry={mergeEntry(overrides)} onDecide={onDecide} />)
+      expect(screen.getByRole('button', { name: 'Merge' }).hasAttribute('disabled')).toBe(true)
+    }
   })
 })

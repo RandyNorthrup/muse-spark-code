@@ -1887,5 +1887,24 @@
   "agentImportIgnoredToTracked": "dadurch würde eine von Git ignorierte Datei in eine versionierte Datei kopiert",
   "agentImportEditPrompt": "Konvertierte Einträge in {path} als ungespeicherte Änderung zum Prüfen und Speichern öffnen? Speichern Sie sie nur unter diesem Pfad, nie in einer anderen Datei.",
   "agentImportEditAction": "Datei bearbeiten und öffnen",
-  "agentImportPreviewLegacyKey": "Die Datei verwendet den veralteten Schlüssel `mcp_servers`. Benennen Sie ihn in `mcpServers` um, wenn Sie diese hinzufügen: Muse Code lädt keinen von beiden, wenn beide vorhanden sind."
+  "agentImportPreviewLegacyKey": "Die Datei verwendet den veralteten Schlüssel `mcp_servers`. Benennen Sie ihn in `mcpServers` um, wenn Sie diese hinzufügen: Muse Code lädt keinen von beiden, wenn beide vorhanden sind.",
+  "teamWorkerMerged": "zusammengeführt",
+  "teamWorkerDiscarded": "verworfen",
+  "teamRunningOf": "{used} von {amount} aktiv",
+  "teamWorkerFinished": "Teamaufgabe {task}: {status}.",
+  "teamTreeKeyboardHint": "Mit den Pfeiltasten navigieren. F2 fokussiert Aktionen; Links und Rechts wählen eine Aktion; Escape kehrt zum Eintrag zurück.",
+  "teamMergeAffectedFiles": "Betroffene Dateien",
+  "teamMergeProtectedPaths": "Geschützte Pfade",
+  "teamMergeConflictPaths": "Konfliktpfade",
+  "teamMergeDetailsMissing": "Dateidetails fehlen. Prüfen Sie den Diff, bevor Sie eine neue Zusammenführungskarte anfordern.",
+  "teamMergeReviewVerdict": "Prüfergebnis",
+  "teamMergeNoPaths": "Keine",
+  "teamRunningCount": {
+    "one": "{count} aktiv",
+    "other": "{count} aktiv"
+  },
+  "teamMergeMorePaths": {
+    "one": "und {count} mehr",
+    "other": "und {count} mehr"
+  }
 }

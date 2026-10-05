@@ -21,6 +21,20 @@ happened, not what was planned; superseded entries are kept.
   section, and the header pill counts team tasks. With one model the panel
   is exactly today's: no team UI loads or changes requests.
 
+### Fixed
+
+- **Team UI review corrections (RVM96B, findings 13–23).** Completed and
+  host-confirmed cards remain locked after replay; a refused request can
+  be answered again. The tree has one Tab stop with keyboard-accessible
+  actions and recovers from a removed focused task. Queued/interrupted
+  work no longer looks running; completions produce a polite summary, and
+  the host can explicitly remove the team view. Team buttons meet target
+  sizes in all four themes, the narrow harness is truly 320 px, and known
+  statuses and entry names are localized. Merge cards show bounded file,
+  protected-path, conflict and review details. Tree/cards load through
+  dynamic imports, with all shipped chunks inside the existing aggregate
+  webview budget and the existing nonce policy.
+
 ## [0.12.1] - 2026-10-04
 
 ### Changed

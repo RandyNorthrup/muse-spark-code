@@ -725,6 +725,7 @@ const hostToWebviewMessageSchema = z.discriminatedUnion('type', [
     type: z.literal('teamTree'),
     tree: teamTreeSchema,
   }),
+  z.object({ type: z.literal('clearTeamTree') }),
   // A subagent's own transcript for the Agent map (M14).
   z.object({
     type: z.literal('childTranscript'),
