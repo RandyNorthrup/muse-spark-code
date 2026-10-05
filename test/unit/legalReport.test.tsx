@@ -78,33 +78,33 @@ const RESULT: LegalScanResult = {
   findings: [HEADER, LICENSE_PROJECT, DEP_BLOCKED, OUTSIDE],
 }
 
-const SCAN_META = { ruleVersion: '1', dataVersion: '2026-10-04', scope: '' }
+const SCAN_META = { scanId: 'r1', ruleVersion: '1', dataVersion: '2026-10-04', scope: '' }
 
-function deliver(data: HostToWebviewMessage) {
+function deliver(message: HostToWebviewMessage) {
+  const event = new MessageEvent('message', { data: message })
   act(() => {
-    window.dispatchEvent(new MessageEvent('message', { data }))
+    window.dispatchEvent(event)
   })
 }
 
 function renderReady() {
   const postMessage = vi.fn<(message: WebviewToHostMessage) => void>()
   let ids = 0
-  render(
-    <App
-      postMessage={postMessage}
-      newLocalId={() => {
-        ids += 1
-        return `local-${String(ids)}`
-      }}
-    />,
-  )
-  deliver({
-    type: 'init',
-    emptyStateHint: 'hint',
-    composerPlaceholder: 'placeholder',
-    settings: testSettings,
-  })
-  deliver({ type: 'authState', status: 'signedIn' })
+  const nextId = () => {
+    ids += 1
+    return `local-${String(ids)}`
+  }
+  render(<App postMessage={postMessage} newLocalId={nextId} />)
+  const boot: readonly HostToWebviewMessage[] = [
+    {
+      type: 'init',
+      emptyStateHint: 'hint',
+      composerPlaceholder: 'placeholder',
+      settings: testSettings,
+    },
+    { type: 'authState', status: 'signedIn' },
+  ]
+  for (const message of boot) deliver(message)
   return postMessage
 }
 
@@ -126,6 +126,39 @@ const SNAPSHOT: LegalFixSnapshot = {
   fileHashes: [{ path: 'src/a.ts', hash: 'a'.repeat(64) }],
   workspacePath: '/ws',
   permissionMode: 'manual',
+}
+
+function selectHeader(dialog: HTMLElement) {
+  fireEvent.click(within(dialog).getByLabelText('Fix header/1/1'))
+  fireEvent.click(within(dialog).getByRole('button', { name: UI_TEXT.legalPreviewFixes }))
+}
+function showPreview(
+  over: Partial<Extract<HostToWebviewMessage, { type: 'legalFixPreview' }>> = {},
+) {
+  deliver({
+    type: 'legalFixPreview',
+    previewId: 'p1',
+    snapshot: SNAPSHOT,
+    eligible: [HEADER.id],
+    excluded: [],
+    paths: ['src/a.ts'],
+    patches: [{ path: 'src/a.ts', diff: '+// verified header' }],
+    ...over,
+  })
+}
+function expectSelection(
+  postMessage: ReturnType<typeof renderReady>,
+  findings: readonly LegalFinding[],
+) {
+  expect(posted(postMessage, 'requestLegalFix')).toEqual([
+    {
+      type: 'requestLegalFix',
+      requestId: 'local-1',
+      scan: SCAN_META,
+      findings,
+      includeProjectLicense: false,
+    },
+  ])
 }
 
 describe('the legal report (M97 lane W)', () => {
@@ -169,14 +202,7 @@ describe('the legal report (M97 lane W)', () => {
     fireEvent.click(within(dialog).getByLabelText('Fix header/1/1'))
     expect(within(dialog).getByText('1 selected')).toBeDefined()
     fireEvent.click(within(dialog).getByRole('button', { name: UI_TEXT.legalPreviewFixes }))
-    expect(posted(postMessage, 'requestLegalFix')).toEqual([
-      {
-        type: 'requestLegalFix',
-        scan: SCAN_META,
-        findings: [HEADER],
-        includeProjectLicense: false,
-      },
-    ])
+    expectSelection(postMessage, [HEADER])
   })
 
   it('fixes all safe ones without the unfixable or the project license', () => {
@@ -185,6 +211,7 @@ describe('the legal report (M97 lane W)', () => {
     const [request] = posted(postMessage, 'requestLegalFix')
     expect(request).toEqual({
       type: 'requestLegalFix',
+      requestId: 'local-1',
       scan: SCAN_META,
       // The outside-workspace lead is fixable, so it is selected too; the
       // host keeps it out of the batch with its reason.
@@ -198,27 +225,14 @@ describe('the legal report (M97 lane W)', () => {
     fireEvent.click(within(dialog).getByLabelText('Fix license/1/1'))
     expect(within(dialog).getByLabelText(UI_TEXT.legalFixSeparateConfirm)).toBeDefined()
     fireEvent.click(within(dialog).getByRole('button', { name: UI_TEXT.legalPreviewFixes }))
-    expect(posted(postMessage, 'requestLegalFix')).toEqual([
-      {
-        type: 'requestLegalFix',
-        scan: SCAN_META,
-        findings: [LICENSE_PROJECT],
-        includeProjectLicense: false,
-      },
-    ])
+    expectSelection(postMessage, [LICENSE_PROJECT])
   })
 
   it('shows the host preview with its files and exclusions, and confirms exactly it', () => {
     const { postMessage, dialog } = openReport()
-    fireEvent.click(within(dialog).getByLabelText('Fix header/1/1'))
-    fireEvent.click(within(dialog).getByRole('button', { name: UI_TEXT.legalPreviewFixes }))
-    deliver({
-      type: 'legalFixPreview',
-      previewId: 'p1',
-      snapshot: SNAPSHOT,
-      eligible: ['header/1/1'],
+    selectHeader(dialog)
+    showPreview({
       excluded: [{ id: 'dep/1/1', reason: 'notFixable' }],
-      paths: ['src/a.ts'],
     })
     expect(within(dialog).getByText(UI_TEXT.legalFixPreviewTitle)).toBeDefined()
     expect(within(dialog).getByText('src/a.ts')).toBeDefined()
@@ -231,13 +245,9 @@ describe('the legal report (M97 lane W)', () => {
 
   it('shows a refused preview in words', () => {
     const { dialog } = openReport()
-    fireEvent.click(within(dialog).getByLabelText('Fix header/1/1'))
-    fireEvent.click(within(dialog).getByRole('button', { name: UI_TEXT.legalPreviewFixes }))
-    deliver({
-      type: 'legalFixPreview',
-      previewId: 'p1',
+    selectHeader(dialog)
+    showPreview({
       eligible: [],
-      excluded: [],
       paths: [],
       refusal: 'workspaceUntrusted',
     })
@@ -246,16 +256,8 @@ describe('the legal report (M97 lane W)', () => {
 
   it('shows a stale outcome after confirming the preview, with a rescan hint', () => {
     const { dialog } = openReport()
-    fireEvent.click(within(dialog).getByLabelText('Fix header/1/1'))
-    fireEvent.click(within(dialog).getByRole('button', { name: UI_TEXT.legalPreviewFixes }))
-    deliver({
-      type: 'legalFixPreview',
-      previewId: 'p1',
-      snapshot: SNAPSHOT,
-      eligible: ['header/1/1'],
-      excluded: [],
-      paths: ['src/a.ts'],
-    })
+    selectHeader(dialog)
+    showPreview({})
     fireEvent.click(within(dialog).getByRole('button', { name: UI_TEXT.legalFixApply }))
     // The file changed between the preview and the confirm: refuse, rescan.
     deliver({
@@ -304,16 +306,8 @@ describe('the legal report (M97 lane W)', () => {
 
   it('drops a stale preview when a new scan answers', () => {
     const { dialog } = openReport()
-    fireEvent.click(within(dialog).getByLabelText('Fix header/1/1'))
-    fireEvent.click(within(dialog).getByRole('button', { name: UI_TEXT.legalPreviewFixes }))
-    deliver({
-      type: 'legalFixPreview',
-      previewId: 'p1',
-      snapshot: SNAPSHOT,
-      eligible: ['header/1/1'],
-      excluded: [],
-      paths: ['src/a.ts'],
-    })
+    selectHeader(dialog)
+    showPreview({})
     expect(within(dialog).getByText(UI_TEXT.legalFixPreviewTitle)).toBeDefined()
     deliver({ type: 'legalScanReport', requestId: 'r2', result: RESULT })
     const again = screen.getByRole('dialog', { name: UI_TEXT.legalScanTitle })
@@ -340,6 +334,7 @@ describe('the legal report state', () => {
         type: 'legalFixPreview',
         previewId: 'p1',
         snapshot: SNAPSHOT,
+        patches: [{ path: 'src/a.ts', diff: '+// verified header' }],
         eligible: ['header/1/1'],
         excluded: [],
         paths: ['src/a.ts'],
@@ -363,5 +358,78 @@ describe('the legal report state', () => {
     const cleared = uiReducer(opened, { type: 'conversationCleared' })
     expect(cleared.legalReport).toBeUndefined()
     expect(cleared.legalFixPreview).toBeUndefined()
+  })
+})
+
+describe('RVM97SW report regressions', () => {
+  it('F9 renders package coordinates, license and scan assumptions', () => {
+    const postMessage = renderReady()
+    deliver({
+      type: 'legalScanReport',
+      requestId: 'r1',
+      result: { ...RESULT, scope: 'src', exclusions: ['generated/a.ts'] },
+    })
+    expect(screen.getByText('leftpad@1.0.0')).toBeDefined()
+    expect(screen.getByText('GPL-3.0-only')).toBeDefined()
+    expect(screen.getByText('src')).toBeDefined()
+    expect(screen.getByText('Distribution: source checkout, undistributed')).toBeDefined()
+    expect(screen.getByText('Excluded: generated/a.ts')).toBeDefined()
+    expect(posted(postMessage, 'confirmLegalFix')).toEqual([])
+  })
+
+  it('F8 closing the report returns keyboard focus to the composer', () => {
+    renderReady()
+    const composer = screen.getByLabelText('Message Muse')
+    composer.focus()
+    deliver({ type: 'legalScanReport', requestId: 'r1', result: RESULT })
+    fireEvent.click(screen.getByRole('button', { name: UI_TEXT.questionCancel }))
+    expect(document.activeElement).toBe(composer)
+  })
+
+  it('F7 report and incoming handoff have only one modal owner', () => {
+    renderReady()
+    deliver({ type: 'sessionInfo', modelId: 'muse-spark-1.3', sessionId: 's1' })
+    const composer = screen.getByLabelText('Message Muse')
+    fireEvent.change(composer, { target: { value: '/handoff Ship it' } })
+    fireEvent.keyDown(composer, { key: 'Enter' })
+    deliver({ type: 'handoffCommandResult', requestId: 'handoff:local-1:1', accepted: true })
+    deliver({ type: 'legalScanReport', requestId: 'r1', result: RESULT })
+    deliver({ type: 'handoffReady', requestId: 'handoff:local-1:1', brief: 'Ship it', todos: [] })
+    expect(document.querySelectorAll('[aria-modal="true"]')).toHaveLength(1)
+    fireEvent.click(screen.getByRole('button', { name: UI_TEXT.questionCancel }))
+    expect(screen.getByLabelText(UI_TEXT.handoffDialogBody)).toBeDefined()
+    expect(document.querySelectorAll('[aria-modal="true"]')).toHaveLength(1)
+  })
+
+  it('F6 selection changes and pending previews cannot confirm old work', () => {
+    const { postMessage, dialog } = openReport()
+    selectHeader(dialog)
+    showPreview({
+      requestId: 'local-1',
+      previewId: 'old-p1',
+    })
+    fireEvent.click(within(dialog).getByLabelText('Fix header/1/1'))
+    fireEvent.click(within(dialog).getByLabelText('Fix license/1/1'))
+    expect(within(dialog).queryByRole('button', { name: UI_TEXT.legalFixApply })).toBeNull()
+    fireEvent.click(within(dialog).getByRole('button', { name: UI_TEXT.legalPreviewFixes }))
+    expect(within(dialog).queryByRole('button', { name: UI_TEXT.legalFixApply })).toBeNull()
+    showPreview({
+      requestId: 'local-1',
+      previewId: 'late-old-p1',
+    })
+    expect(within(dialog).queryByRole('button', { name: UI_TEXT.legalFixApply })).toBeNull()
+    expect(posted(postMessage, 'confirmLegalFix')).toEqual([])
+  })
+
+  it('F4 apply becomes unavailable immediately after the first confirmation', () => {
+    const { postMessage, dialog } = openReport()
+    selectHeader(dialog)
+    showPreview({
+      requestId: 'local-1',
+    })
+    const button = within(dialog).getByRole('button', { name: UI_TEXT.legalFixApply })
+    fireEvent.click(button)
+    fireEvent.click(button)
+    expect(posted(postMessage, 'confirmLegalFix')).toHaveLength(1)
   })
 })

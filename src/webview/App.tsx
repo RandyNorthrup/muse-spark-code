@@ -860,9 +860,13 @@ export function App({
       if (report === undefined) {
         return
       }
+      const requestId = newLocalId()
+      dispatch({ type: 'legalFixRequested', requestId })
       postMessage({
         type: 'requestLegalFix',
+        requestId,
         scan: {
+          scanId: report.requestId,
           ruleVersion: report.result.ruleVersion,
           dataVersion: report.result.dataVersion,
           scope: report.result.scope,
@@ -871,7 +875,7 @@ export function App({
         includeProjectLicense: isProjectLicenseIncluded,
       })
     },
-    [postMessage, store],
+    [postMessage, store, dispatch, newLocalId],
   )
   const onConfirmLegalFix = useCallback(
     (previewId: string) => {
@@ -2061,7 +2065,7 @@ export function App({
       />
     )
   const handoffDialog =
-    isOtherModalOpen || state.handoff === undefined ? null : (
+    isOtherModalOpen || legalReport !== null || state.handoff === undefined ? null : (
       <HandoffDialog
         goal={state.handoff.goal}
         todos={state.handoff.todos}

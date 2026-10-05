@@ -17,7 +17,7 @@ import {
 import type { LegalFinding, LegalScanResult } from '../../shared/legal'
 import type { LegalFixPreviewMessage, LegalFixResultMessage } from '../../shared/legalFix'
 import type { LineRange } from '../../shared/protocol'
-import { fill, plural } from '../../shared/l10n/text'
+import { fill, plural, formatNumber } from '../../shared/l10n/text'
 import { linkTarget } from '../links'
 import { Modal } from './Modal'
 
@@ -115,6 +115,19 @@ function FindingRow({
         </code>
       </p>
       {locationLine(location, target, range, onOpenFile)}
+      {finding.packageName === undefined ? null : (
+        <p className="legal-meta" dir="auto">
+          <code>
+            {finding.packageName}
+            {finding.packageVersion === undefined ? '' : `@${finding.packageVersion}`}
+          </code>
+        </p>
+      )}
+      {finding.licenseExpression === undefined ? null : (
+        <p className="legal-meta" dir="auto">
+          <code>{finding.licenseExpression}</code>
+        </p>
+      )}
       <p className="legal-text" dir="auto">
         {finding.explanation}
       </p>
@@ -125,7 +138,7 @@ function FindingRow({
         {fill(UI_TEXT.legalEvidenceLabel, { evidence: finding.evidenceSource })}
       </p>
       <p className="legal-meta">
-        {fill(UI_TEXT.legalConfidenceLabel, { confidence: finding.confidence })}
+        {fill(UI_TEXT.legalConfidenceLabel, { confidence: formatNumber(finding.confidence) })}
       </p>
       {finding.evidenceExcerpt === undefined ? null : (
         <pre className="legal-excerpt" dir="auto">
@@ -227,6 +240,7 @@ export function LegalReport({
 
   const toggle = (id: string, isChecked: boolean) => {
     setShowsNothingSelected(false)
+    setFlow('select')
     setSelected(isChecked ? [...selected, id] : selected.filter((candidate) => candidate !== id))
   }
   const requestPreview = (findings: readonly LegalFinding[], isProjectLicenseIncluded: boolean) => {
@@ -257,6 +271,17 @@ export function LegalReport({
       <div className="legal-report">
         <p className="legal-disclaimer">{UI_TEXT.legalScanDisclaimer}</p>
         <p className="legal-summary">{summary}</p>
+        <p className="legal-meta" dir="auto">
+          {result.scope}
+        </p>
+        <p className="legal-meta" dir="auto">
+          {fill(UI_TEXT.legalDistributionLine, { distribution: result.distribution })}
+        </p>
+        {result.exclusions.length === 0 ? null : (
+          <p className="legal-meta" dir="auto">
+            {fill(UI_TEXT.legalExclusionsLine, { exclusions: result.exclusions.join(', ') })}
+          </p>
+        )}
         {result.incompleteChecks.length === 0 ? null : (
           <p className="legal-meta">
             {fill(UI_TEXT.legalScanIncomplete, { checks: result.incompleteChecks.join(', ') })}
@@ -277,10 +302,10 @@ export function LegalReport({
               return (
                 <section
                   key={severity}
-                  aria-label={`${UI_TEXT.legalSeverities[severity]}: ${String(group.length)}`}
+                  aria-label={`${UI_TEXT.legalSeverities[severity]}: ${formatNumber(group.length)}`}
                 >
                   <h3 className="legal-group-heading">
-                    {UI_TEXT.legalSeverities[severity]} · {String(group.length)}
+                    {UI_TEXT.legalSeverities[severity]} · {formatNumber(group.length)}
                   </h3>
                   <ul className="legal-findings">
                     {group.map((finding) => (
@@ -303,7 +328,7 @@ export function LegalReport({
         {isPlan || result.findings.length === 0 ? null : (
           <div className="legal-actions">
             <p className="legal-meta" role="status">
-              {fill(UI_TEXT.legalSelectedCount, { count: selected.length })}
+              {fill(UI_TEXT.legalSelectedCount, { count: formatNumber(selected.length) })}
             </p>
             {isSeparateConfirmationNeeded ? (
               <div className="legal-select">
@@ -313,6 +338,7 @@ export function LegalReport({
                   checked={separateConfirm}
                   onChange={(event) => {
                     setSeparateConfirm(event.target.checked)
+                    setFlow('select')
                   }}
                 />
                 <label htmlFor="legal-separate-confirm">{UI_TEXT.legalFixSeparateConfirm}</label>
@@ -385,11 +411,17 @@ export function LegalReport({
                     </ul>
                   </>
                 )}
+                {preview.patches?.map((patch) => (
+                  <pre key={patch.path} className="legal-excerpt" dir="auto">
+                    {patch.diff}
+                  </pre>
+                ))}
                 {preview.eligible.length === 0 ? null : (
                   <div className="legal-buttons">
                     <button
                       type="button"
                       className="button-primary"
+                      disabled={flow !== 'preview' || (preview.patches?.length ?? 0) === 0}
                       onClick={() => {
                         setFlow('done')
                         onConfirm(preview.previewId)
