@@ -12,7 +12,7 @@
 // the streamed chunks (whole calls, fragments, parallel calls, usage on
 // the finish chunk or on a `choices: []` chunk). Fields the wire later
 // adds to a reasoning detail survive replay; unknown finish reasons
-// complete the turn.
+// end incomplete with their original reason retained.
 //
 // The codec is a pure function of its inputs: no clock, no random ids, keys
 // in a fixed order, so requests n and n+1 of a session share every earlier
@@ -1112,13 +1112,16 @@ export class ChatStreamDecoder {
       }
     }
     const usage = this.canonicalUsage()
+    const base = {
+      id: this.responseId ?? 'chat-response',
+      model: this.responseModel ?? this.model,
+      output: this.outputItems(),
+      ...(usage !== undefined && { usage }),
+    }
     if (this.streamError !== undefined) {
       const response: ResponseObject = {
-        id: this.responseId ?? 'chat-response',
+        ...base,
         status: 'failed',
-        model: this.responseModel ?? this.model,
-        output: this.outputItems(),
-        ...(usage !== undefined && { usage }),
         error: {
           ...(this.streamError.code !== undefined && { code: this.streamError.code }),
           message: this.streamError.message,
@@ -1129,11 +1132,8 @@ export class ChatStreamDecoder {
     }
     if (this.finishReason === 'length' || this.finishReason === undefined) {
       const response: ResponseObject = {
-        id: this.responseId ?? 'chat-response',
+        ...base,
         status: 'incomplete',
-        model: this.responseModel ?? this.model,
-        output: this.outputItems(),
-        ...(usage !== undefined && { usage }),
         incomplete_details: {
           reason: this.finishReason === 'length' ? 'max_output_tokens' : 'stream_ended',
         },
@@ -1143,23 +1143,27 @@ export class ChatStreamDecoder {
     }
     if (this.finishReason === 'content_filter') {
       const response: ResponseObject = {
-        id: this.responseId ?? 'chat-response',
+        ...base,
         status: 'failed',
-        model: this.responseModel ?? this.model,
-        output: this.outputItems(),
-        ...(usage !== undefined && { usage }),
         error: { code: 'content_filter', message: UI_TEXT.turnFailed },
       }
       events.push({ type: 'response.failed', response })
       return this.finished(events, response)
     }
-    const response: ResponseObject = {
-      id: this.responseId ?? 'chat-response',
-      status: 'completed',
-      model: this.responseModel ?? this.model,
-      output: this.outputItems(),
-      ...(usage !== undefined && { usage }),
+    if (
+      this.finishReason !== 'stop' &&
+      this.finishReason !== 'tool_calls' &&
+      this.finishReason !== 'eos'
+    ) {
+      const response: ResponseObject = {
+        ...base,
+        status: 'incomplete',
+        incomplete_details: { reason: this.finishReason },
+      }
+      events.push({ type: 'response.incomplete', response })
+      return this.finished(events, response)
     }
+    const response: ResponseObject = { ...base, status: 'completed' }
     events.push({ type: 'response.completed', response })
     return this.finished(events, response)
   }

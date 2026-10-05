@@ -17,6 +17,7 @@ import {
   decodeChatStream,
   encodeChatRequest,
   readChatReasoning,
+  type ChatEncodeOptions,
   type ChatPresetQuirks,
 } from '../../src/core/backends/modelapi/codecs/chat'
 import type {
@@ -446,28 +447,22 @@ describe('chat codec request goldens', () => {
   })
 })
 
+function encodedOpenRouterTurns(options?: ChatEncodeOptions) {
+  const encode = (file: string) => {
+    const { body, model } = bodyFromCapture(frameOf('openrouter', file).requestBody, OPENROUTER)
+    return encodeChatRequest(body, model, OPENROUTER, options)
+  }
+  return { one: encode('04-tool-call-stream.json'), two: encode('05-tool-result-stream.json') }
+}
+
 describe('chat codec prefix stability', () => {
   it('keeps every earlier native byte when the session grows', () => {
-    const first = frameOf('openrouter', '04-tool-call-stream.json')
-    const second = frameOf('openrouter', '05-tool-result-stream.json')
-    const turnOne = bodyFromCapture(first.requestBody, OPENROUTER)
-    const turnTwo = bodyFromCapture(second.requestBody, OPENROUTER)
-    const one = encodeChatRequest(turnOne.body, turnOne.model, OPENROUTER)
-    const two = encodeChatRequest(turnTwo.body, turnTwo.model, OPENROUTER)
+    const { one, two } = encodedOpenRouterTurns()
     expect(two.body.messages.slice(0, 2)).toEqual(one.body.messages)
   })
 
   it('moves only the rolling breakpoint when caching', () => {
-    const first = frameOf('openrouter', '04-tool-call-stream.json')
-    const second = frameOf('openrouter', '05-tool-result-stream.json')
-    const turnOne = bodyFromCapture(first.requestBody, OPENROUTER)
-    const turnTwo = bodyFromCapture(second.requestBody, OPENROUTER)
-    const one = encodeChatRequest(turnOne.body, turnOne.model, OPENROUTER, {
-      cacheBreakpoints: 'anthropic',
-    })
-    const two = encodeChatRequest(turnTwo.body, turnTwo.model, OPENROUTER, {
-      cacheBreakpoints: 'anthropic',
-    })
+    const { one, two } = encodedOpenRouterTurns({ cacheBreakpoints: 'anthropic' })
     expect(two.body.messages[0]).toEqual(one.body.messages[0])
     const earlier = recordField(one.body.messages[1], 'user message')
     const later = recordField(two.body.messages[1], 'user message')
@@ -1032,21 +1027,26 @@ describe('chat codec guards', () => {
     expect(limitedStream.feed(frame)).toMatchObject([{ type: 'error', code: 'stream_limit' }])
   })
 
-  it('caps arguments accumulated across captured fragments', () => {
-    const decoder = new ChatStreamDecoder('m', OPENROUTER, { ...CHAT_LIMITS, argumentBytes: 16 })
-    const frame = frameOf('openrouter', '04-tool-call-stream.json')
-    const events = frame.payloads.flatMap((payload) => decoder.feed(payload))
-    expect(events).toContainEqual(expect.objectContaining({ type: 'error', code: 'stream_limit' }))
-    expect(decoder.finish().response.status).toBe('failed')
-  })
-
-  it('caps the number of decoded output items', () => {
-    const decoder = new ChatStreamDecoder('m', OPENROUTER, { ...CHAT_LIMITS, outputItems: 1 })
-    const frame = frameOf('openrouter', '04-tool-call-stream.json')
-    const events = frame.payloads.flatMap((payload) => decoder.feed(payload))
-    expect(events).toContainEqual(expect.objectContaining({ type: 'error', code: 'stream_limit' }))
-    expect(decoder.finish().response.status).toBe('failed')
-  })
+  for (const { title, limits } of [
+    {
+      title: 'caps arguments accumulated across captured fragments',
+      limits: { ...CHAT_LIMITS, argumentBytes: 16 },
+    },
+    {
+      title: 'caps the number of decoded output items',
+      limits: { ...CHAT_LIMITS, outputItems: 1 },
+    },
+  ]) {
+    it(title, () => {
+      const decoder = new ChatStreamDecoder('m', OPENROUTER, limits)
+      const frame = frameOf('openrouter', '04-tool-call-stream.json')
+      const events = frame.payloads.flatMap((payload) => decoder.feed(payload))
+      expect(events).toContainEqual(
+        expect.objectContaining({ type: 'error', code: 'stream_limit' }),
+      )
+      expect(decoder.finish().response.status).toBe('failed')
+    })
+  }
 
   it('decodes the captured error envelopes for every chat preset', () => {
     for (const [provider, file] of [
@@ -1420,6 +1420,20 @@ describe('chat codec guards', () => {
     const filtered = new ChatStreamDecoder('m', GROQ, CHAT_LIMITS)
     filtered.feed({ choices: [{ finish_reason: 'content_filter' }] })
     expect(filtered.finish().response.status).toBe('failed')
+  })
+
+  it('preserves unfamiliar finish reasons as incomplete', () => {
+    for (const reason of ['abort', 'error', 'future_stop_reason']) {
+      const decoder = new ChatStreamDecoder('m', GROQ, CHAT_LIMITS)
+      decoder.feed({ choices: [{ delta: { content: 'partial' }, finish_reason: reason }] })
+      const result = decoder.finish()
+      expect(result.response).toMatchObject({
+        status: 'incomplete',
+        incomplete_details: { reason },
+      })
+      expect(textOf(result.response)).toBe('partial')
+      expect(result.events.at(-1)?.type).toBe('response.incomplete')
+    }
   })
 
   it('streams incrementally to the same events as the batch helper', () => {
