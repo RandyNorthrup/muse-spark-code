@@ -8,8 +8,8 @@
 //
 // PowerShell reaches the Win32 job calls through a small C# type, compiled
 // once per machine into the extension's storage (named by the source's
-// digest) and loaded by each command. Where that is impossible (Constrained
-// Language Mode forbids `Add-Type` and loading an assembly), the self-test
+// digest) by .NET's compiler and loaded by each command. Where that is
+// impossible (Constrained Language Mode forbids loading an assembly), the self-test
 // fails, the log says so, and commands run as before, their kill falling
 // back to taskkill and the orphan sweep (`processTree.ts`).
 
@@ -46,7 +46,7 @@ export interface ShellJobDeps {
   readonly log: (message: string) => void
   /** A helper's whole C# (`jobSource.ts`), read when the helper is first built. */
   readonly readJobSource: (helper: JobHelper) => Promise<string>
-  /** `execFile` for Windows PowerShell; tests stand in the compiler. */
+  /** `execFile` for the compiler and self-test; tests stand them in. */
   readonly run?: RunProgram
 }
 
@@ -62,7 +62,8 @@ async function isPresent(file: string): Promise<boolean> {
 const ASSEMBLY: JobBuild = {
   stem: `${SHELL_JOB_TYPE_NAME}-`,
   extension: '.dll',
-  addTypeOptions: '-OutputType Library',
+  outputType: 'library',
+  references: [],
   label: 'shell job assembly',
   isPresent,
 }
@@ -78,7 +79,7 @@ async function prepare(deps: ShellJobDeps): Promise<string | undefined> {
     const csharp = await deps.readJobSource('shellJob')
     const assembly = path.join(deps.storageDir, SHELL_JOB_FOLDER, shellJobAssemblyName(csharp))
     if (!(await isPresent(assembly))) {
-      await compileJob(ASSEMBLY, assembly, csharp, deps.systemRoot, run)
+      await compileJob(ASSEMBLY, assembly, csharp, deps.systemRoot, deps.run)
       await removeStaleJobs(ASSEMBLY, assembly, deps.log)
     }
     // Loading the type and joining a job, as a command does, proves both

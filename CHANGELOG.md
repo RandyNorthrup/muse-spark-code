@@ -9,46 +9,135 @@ happened, not what was planned; superseded entries are kept.
 
 ### Added
 
-- **Report-a-problem builder and export paths (M93 lane P, PLAN.md D72).**
-  The scrubbed report builder (`src/core/support/report.ts`) takes only
-  allowlisted values — versions, platform, backend, sign-in/key booleans,
-  sandbox posture, setting names and the flight recorder's fact records —
-  runs a second scrub with the shared redaction table over the final draft,
-  and seals the previewed draft with its SHA-256 so any change after the
-  preview invalidates the export. The host paths
-  (`src/host/support/reportProblem.ts`) open the prefilled GitHub new-issue
-  page within the 2,000-character encoded-URL cap (falling back to copy plus
-  the unfilled form), copy to the clipboard, or save to a picked file, each
-  with a clear failure message. The extension never sends anything itself.
-- **Report-a-problem preview UI (M93 lane W, PLAN.md D72).** The panel's
-  preview dialog lists every item the report will contain (each removable),
-  shows lane P's final draft byte-identical, and exports through its paths
-  with the on-screen draft's seal — any change since the preview
-  re-previews instead of exporting, and failures are stated plainly on the
-  dialog. Entry points: error rows and notices that carry a recorded
-  failure's sanitized reference (never row text), and the render-failure
-  screen; the webview↔host transport carries bounded identifiers only.
-  Includes the `report`/`report-narrow` harness scenarios.
-- **Headless problem report and ACP error observer (M93 lane A, PLAN.md D72).**
-  `muse-spark-code-acp report` prints the scrubbed problem report from local,
-  capped recorder data only — no backend, sign-in, model or network — to
-  stdout, or writes its exact bytes with `--out` (exits 0 printed/saved, 1
-  not built/written, 2 bad arguments; `docs/acp.md` documents the command).
-  In ACP mode the agent observes its own failures into the runtime journal as
-  fixed kind-plus-code facts, without changing ACP stdout.
-
-### Fixed
-
-- **M93 support-recorder review corrections.** Failure codes and stack files
-  use fixed vocabularies, including read-time revalidation. Native journal and
-  marker storage refuses filesystem redirects and bounds corrupt-file reads;
-  cleanup preserves live writers, repairs malformed/torn bytes, and prunes age
-  and size on actual appends. Read failures expose unavailable recording, and
-  normal shutdown clears its marker after recording fails. The description
-  warning now asks users to inspect the scrubbed preview in all 14 languages.
-  The aggregate on-disk retention budget remains an explicit redesign residual
-  (PLAN §9, FIXM93R-R7); the merged report and individual journals stay bounded.
-  This lane does not register or certify the complete report workflow.
+- **Report a problem (M93, PLAN.md D72).** `Muse Spark: Report a Problem`,
+  the palette's Support item, "Report this" on recorded error rows and
+  notices, and the crash screen open one dialog that builds a scrubbed report
+  locally. No chat, sign-in, backend, model call or network request is needed,
+  and nothing is sent by the extension.
+  - **A flight recorder, not a log.** Each window keeps a bounded journal of
+    facts under VS Code's global storage (7 days, 256 KiB a journal, pruned
+    at start, append and read): a fixed event kind, a known error class or
+    the word `unknown`, the versions, and stack frames inside the shipped
+    bundles only. No prompt, code, file content, model output, tool text,
+    message, path, id or credential is ever written. Links and unexpected
+    files are refused.
+  - **The exact draft first.** The dialog shows the final scrubbed text,
+    lists every item in it (each removable), takes an optional description
+    and warns that it can still disclose something. Copy, Save, the
+    prefilled GitHub new-issue page (copy plus the empty form past 2,000
+    encoded characters) and, where VS Code has it, its own issue reporter
+    all export that same sealed text; a change after the preview re-previews
+    instead.
+  - **After a crash**, the next activation offers once: "Muse Spark Code
+    stopped unexpectedly last time — report it?" A second live window is
+    never taken for a crash.
+  - **Headless.** `muse-spark-code-acp report` prints the same scrubbed
+    report from the agent's own journal, starting nothing; in ACP mode the
+    agent records its own failures there without touching ACP stdout.
+- **A live receipt workflow for the GitHub Action (M80 LA).**
+  `.github/workflows/action-live.yml` runs the real Action, on the agent
+  package packed from the same commit, against one open same-repository pull
+  request with the `MUSE_MODEL_API_KEY` secret: the contributor model, a hard
+  $0.25 budget, read-only permissions and no comment. Only the repository
+  owner can start it, by hand, on the default branch; it has no other
+  trigger. `test/action/la-check.mjs` judges the run and the step summary
+  records the receipt. It has not run yet.
+- **The first live Action receipt (M80 LA) passed** on 2026-10-05, in
+  [run 37249121568](https://github.com/RandyNorthrup/muse-spark-code/actions/runs/37249121568).
+  The real Action, with the real key, reviewed pull request #114 on the
+  contributor model. It completed in 5 requests for $0.001668, and neither key
+  shape appeared in the log or the artifacts. The package was an unsigned
+  candidate; registry-path support still waits on LR after a release.
+- **Panel polish (M87).** The owner's panel requests of 2026-10-03 (PLAN.md
+  D66).
+  - **A context meter** replaces the composer's "12% context": a ring that
+    fills with the share of the context window used, the whole percent
+    (rounded down) inside it, the warning colour from 70 % and the error
+    colour from 90 %. Its name and tooltip give the tokens, the window and
+    the backend's pressure word; a click still compacts.
+  - **Steps fold under one summary row.** In the default view a run of two
+    or more finished steps reads, for example, "Edited 2 files, ran a
+    command, and read 3 files" and opens in place. A failure is named with
+    its dot, a step waiting on you never folds and a running one stays
+    below. Focus view folds under the same summary.
+  - **Message times** on hover and keyboard focus: the time alone for
+    today, otherwise the date and time, the full date in the tooltip. Muse
+    Code's come from its recorded times; the Model API now stores a time
+    with each message and reply (older sessions show none).
+  - **Edit a queued message** from its ⋯ menu: it leaves the queue (Muse
+    Code's `turn/unqueue`; the Model API's queue, or a steer no request has
+    read yet) and returns to the prompt box above any draft. One that
+    already reached the model stays, with a notice; a Muse Code steer's menu
+    says it was delivered.
+  - **A diff tally** above the goal and task panes, such as "8 files
+    changed +313 −96": the conversation's edits added up, each file once.
+    It is not `git diff`, so shell commands' and your own changes are not
+    counted. Its **Review** opens the review pane on the same edits.
+  - **The tasks pane** collapses to two lines. **Open in a tab** (or **Open
+    Tasks in a Tab**) mirrors the list in a read-only editor tab that
+    rebuilds after its webview reloads and says when its conversation
+    closes; where VS Code has the command (its built-in
+    `workbench.action.moveEditorToNewWindow`), **Move into new window**
+    moves it into a window of its own. Acceptance in native VS Code is
+    still open.
+  - **One radial menu for the chat.** Right-click a row, press Shift+F10 or
+    the Menu key, or use its one ⋯: each action is one crisp blue pill, its
+    icon then its name, every pill the same size (the owner's requests of
+    2026-10-04), in a fan beside the pointer or ⋯ that stays whole inside
+    panels as narrow as 320 px; the pills scale in one after another. A message
+    has fork and the Rewind group's second burst, queued Edit; a reply Copy
+    response and Reply to this output; a restore Redo; a tool Open output;
+    a landed edit Review and **Revert** (Revert asks first and is not
+    offered while a turn runs; it rechecks the session and turn through
+    patch loading, file preparation and every write or delete, a turn
+    started meanwhile refuses it, and no send overlaps its file I/O). A
+    label longer than its pill ends in an ellipsis, with the whole label
+    as its name and tooltip; an unavailable note is
+    the same pill, opaque, with a dimmed icon. Selected text keeps its
+    Copy, Ask about this and Comment on this menu, in the same pills. Arrow
+    keys, Home/End, Enter/Space and Escape work as in any menu; reduced
+    motion shows the pills in place, and forced colours draws bordered
+    pills.
+  - **Tips** on every row of the palette and the `/` list: a skill's own
+    description, or "Run the _name_ skill." for one without.
+  - **Rows and the status line.** A shell row's IN and OUT are one bordered
+    block, five lines each with its own Show more (your `!` rows too). The
+    working line leads with a small looping circle-pattern mark (after
+    Inclushe's "circle pattern animation lighten", CodePen OPWreWR, MIT,
+    written fresh with no pointer tracking), then the verb, in a box as wide as
+    the longest verb so nothing moves when it changes, and a heartbeat
+    trace whose beam draws the P/QRS/T shape itself and leaves only a fading
+    trail; under reduced motion both stand still. Stop turns red on hover
+    and focus.
+  - **One centred chat column** (the owner's requests of 2026-10-04). The
+    transcript (queued messages and the working line included), the diff
+    tally, the goal, task and schedule panes, the approval dock and the
+    composer share one column, at most 760 px wide with its side gutters,
+    so their edges line up at every width; a wide panel centres it, the
+    transcript's scrollbar no longer shifts it, and a narrow panel keeps
+    the full width.
+  - **Even approval buttons.** "Always allow …" and "Allow once" are the
+    same height (28 px), one line each; the fill alone tells approving from
+    rejecting. A label longer than the card ends in an ellipsis with the
+    full text in its tooltip, and in a narrow card the choices stack, each
+    as wide as the card.
+  - **A shorter model pill.** Its fill is 20 px tall instead of 26 px, the
+    open-file chip's height, inside the same 26 px click target.
+  - **Narrow panels.** The composer's controls stay on one row at one
+    height: square icon buttons, the mode button as its icon alone, and a
+    model pill that shortens. An open-file chip that no longer fits moves
+    to its own row below the controls.
+  - **Plural counts.** The localization gate requires `{count}` in a
+    language's `one` form when it also covers an integer other than 1 in
+    0–200. Seven step-summary forms each in Russian, French and Brazilian
+    Portuguese now show the actual count; German forms may still omit it
+    when English does.
+- `npm run readme:shots` refreshes the README's screenshots from the UI
+  harness: `scripts/readme-shots.json` declares each image's scenario,
+  theme, size and language (`languages.png` renders `usage` in German),
+  with `--list` printing the mapping and its gaps, `--only <name,...>`
+  retaking some images and `--out <dir>` previewing elsewhere. The banner
+  stays rendered by `scripts/render-images.mjs`.
 
 ### Changed
 
@@ -82,6 +171,31 @@ happened, not what was planned; superseded entries are kept.
   block it does not read, or when `MODEL_TEXT` holds a key no source file
   of `dist/extension.js` reads; the code intelligence and web fetch
   bundles' tests check that neither carries any key or value of `MODEL_TEXT`.
+- Releases reuse verified universal CI packages when the successful own-repository
+  PR, merge-queue or main CI build has exactly the tag's source tree, with recorded
+  SHA-256/version checks and 30-day retention; tag-push misses run the full gates.
+- Manual release recovery uses the same verified staging path while preserving
+  the earlier run's original bytes; invalid recovery and cancelled runs cannot publish.
+
+### Fixed
+
+- **CI reliability:** Windows MCP and shell job helpers compile directly with the .NET compiler, avoiding PowerShell startup and module discovery under load; failures retain compiler diagnostics and termination details.
+- A blocked M80 `v0` tag update now reports that an administrator must move it,
+  while preserving the four release channels' outcomes. Updates require a
+  fast-forward; the release guide documents the administrator's recovery command.
+- **CI reliability: flaky tests no longer race a deadline.**
+  The Model API host's fork, Auto reviewer and two-host budget tests, the
+  Action's signal tests (G18) and the headless deadline test (D9) failed now
+  and then on slow runners. Each now waits for the event it tests: a settled
+  parent turn, a held request, published claims, the fake agent's ready
+  line, a held response. Tests only; the product is unchanged.
+- **CI reliability: the accessibility gate keeps each page focused.**
+  Headless Chrome did not keep a window's focus, so on a loaded machine the
+  `slash-commands` page's `/` menu closed while axe scanned it and was
+  reported as `scrollable-region-focusable` on `:root`. Each page now runs
+  with Chrome's focus emulation and is scanned only once its scenario is
+  ready (a page not ready in 10 s fails); no rule or exemption changed.
+  Tooling only.
 
 ## [0.12.1] - 2026-10-04
 
@@ -1282,11 +1396,6 @@ happened, not what was planned; superseded entries are kept.
   runs development-extension integration there, weekly and by hand.
 
 ### Changed
-
-- Documented D72/M93's approved Report a problem plan: crash-safe local
-  recording, exact draft preview, user-controlled exports and standalone ACP
-  report, with VS Code 1.99 prefill research and its separate privacy boundary.
-  This is planning documentation; commands and recording are not implemented.
 
 - **The diagnostics tool reads a file no editor shows.** VS Code's language
   servers report only on files an editor shows (TypeScript and JSON,

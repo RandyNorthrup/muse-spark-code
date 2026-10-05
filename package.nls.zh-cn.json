@@ -8,6 +8,7 @@
   "command.category": "Muse Spark",
   "command.openInSidebar.title": "在侧边栏中打开",
   "command.openInNewTab.title": "在新标签页中打开",
+  "command.openTasks.title": "在标签页中打开任务",
   "command.focusInput.title": "切换焦点",
   "command.insertMentionReference.title": "为所选内容插入 @ 提及",
   "command.toggleFocusView.title": "切换专注视图",

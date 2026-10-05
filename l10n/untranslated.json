@@ -46,7 +46,9 @@
       "agentImportSourceCursor",
       "exportThenRunSkipped",
       "execUsage",
-      "execScanUsage"
+      "execScanUsage",
+      "contextMeterUnderOne",
+      "diffTallyLines"
     ],
     "cs": [
       "groupModel",

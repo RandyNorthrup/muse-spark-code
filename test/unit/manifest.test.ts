@@ -354,6 +354,100 @@ describe('packaging (M26)', () => {
     expect(build).toContain('plutil -replace "$VERSION_KEY" -string "$VERSION" "$PLIST"')
     expect(build).toContain('launchctl plist __TEXT,__info_plist "$OUTPUT"')
   })
+
+  it('keeps exact-tree reuse behind tag checks and preserves full-build fallback (RELFAST)', () => {
+    const release = read('.github', 'workflows', 'release.yml')
+    const reuse = release.split('\n  reuse:\n', 2)[1]!.split('\n  build:\n', 1)[0]!
+    const build = release.split('\n  build:\n', 2)[1]!.split('\n  release:\n', 1)[0]!
+    const publish = release.split('\n  release:\n', 2)[1]!.split('\n  publish:\n', 1)[0]!
+    expect(reuse).toContain('needs: verify')
+    expect(reuse).toContain('actions: read')
+    expect(count(release, /^ {6}actions: read$/gm)).toBe(5)
+    expect(reuse).toContain('FORCE_REBUILD: ${{ vars.RELEASE_FORCE_REBUILD }}')
+    expect(count(reuse, /run-id: \$\{\{ steps.lookup.outputs.run-id \}\}/g)).toBe(4)
+    expect(count(reuse, /github-token: \$\{\{ github.token \}\}/g)).toBe(4)
+    expect(count(reuse, /uses: actions\/download-artifact@[a-f\d]{40}/g)).toBe(4)
+    for (const id of ['receipt', 'vsix', 'acp', 'sboms']) {
+      expect(reuse).toContain(`steps.${id}.outcome == 'success'`)
+    }
+    expect(reuse).toContain('node scripts/release-reuse.mjs verify reused')
+    expect(reuse).toContain("echo 'reused=false'")
+    expect(reuse).toContain('Full rebuild: a CI artifact download failed.')
+    expect(count(reuse, /if: steps.check.outputs.reused == 'true'/g)).toBe(3)
+    expect(build).toContain('needs: [verify, reuse]')
+    expect(build).toContain("github.event_name == 'push' && needs.reuse.outputs.reused != 'true'")
+    expect(build).toContain('uses: ./.github/workflows/build.yml')
+    expect(publish).toContain('needs: [verify, reuse, build]')
+    expect(publish).toContain(
+      "if: ${{ !cancelled() && needs.verify.result == 'success' && needs.reuse.result == 'success' && (needs.reuse.outputs.reused == 'true' || needs.build.result == 'success') }}",
+    )
+    const ci = read('.github', 'workflows', 'build.yml')
+    expect(ci).toContain('run: node scripts/release-reuse.mjs record')
+    expect(ci).toContain('name: source-tree-${{ steps.source.outputs.tree }}')
+    expect(count(ci, /retention-days: 30/g)).toBe(4)
+  })
+  it('keeps manual recovery on the shared verified staging path and never rebuilds it (RELFAST2)', () => {
+    const release = read('.github', 'workflows', 'release.yml')
+    const reuse = release.split('\n  reuse:\n', 2)[1]!.split('\n  build:\n', 1)[0]!
+    const publishers = release.split('\n  release:\n', 2)[1]!
+    expect(release).toContain('workflow_dispatch:\n    inputs:\n      artifacts_run_id:')
+    expect(release).toContain("if: github.event_name == 'workflow_dispatch'")
+    expect(release).toContain('if [ "${GITHUB_REF_TYPE}" != tag ]')
+    expect(reuse).toContain('RECOVERY_RUN_ID: ${{ inputs.artifacts_run_id }}')
+    expect(reuse).toContain("steps.lookup.outputs.legacy-recovery != 'true'")
+    expect(reuse).toContain(
+      "steps.receipt.outcome == 'success' || steps.lookup.outputs.legacy-recovery == 'true'",
+    )
+    expect(reuse).toContain('SOURCE_TREE: ${{ steps.lookup.outputs.tree }}')
+    expect(reuse).toContain('LEGACY_RECOVERY: ${{ steps.lookup.outputs.legacy-recovery }}')
+    expect(reuse).toContain(
+      "echo '::error::Recovery download failed; preserve the original bytes.' >&2\n              exit 1",
+    )
+    expect(count(publishers, /run-id: \$\{\{ github.run_id \}\}/g)).toBe(6)
+    expect(count(publishers, /github-token: \$\{\{ github.token \}\}/g)).toBe(6)
+    expect(publishers).not.toContain('inputs.artifacts_run_id')
+  })
+  it('blocks every release publisher and tag mover after cancellation (RELFAST2)', () => {
+    const release = read('.github', 'workflows', 'release.yml')
+    expect(release).not.toContain('always()')
+    for (const job of ['build', 'release', 'publish', 'openvsx', 'npm', 'summary']) {
+      const body = release.split(`\n  ${job}:\n`, 2)[1]!.split(/\n {2}[a-z]+:\n/, 1)[0]!
+      expect(body, job).toContain('if: ${{ !cancelled()')
+    }
+  })
+
+  it('starts the live Action receipt by the owner’s hand only, under a hard cap (M80 LA)', () => {
+    const live = read('.github', 'workflows', 'action-live.yml')
+    // The one trigger: no pull request, push, comment or schedule reaches the key.
+    const triggers = live.split('\non:\n', 2)[1]!.split('\npermissions:\n', 1)[0]!
+    expect(triggers.match(/^ {2}\S.*$/gm)).toEqual(['  workflow_dispatch:'])
+    const ownerGate = [
+      "github.event_name == 'workflow_dispatch' &&",
+      'github.actor == github.repository_owner &&',
+      'github.triggering_actor == github.repository_owner &&',
+      "github.ref == format('refs/heads/{0}', github.event.repository.default_branch)",
+    ].join('\n      ')
+    expect(count(live, /^ {4}runs-on: /gm)).toBe(2)
+    expect(live.split(ownerGate).length - 1).toBe(2)
+    expect(count(live, /^ {4}timeout-minutes: \d+$/gm)).toBe(2)
+    expect(count(live, /^ {6}- uses: actions\/checkout@/gm)).toBe(
+      count(live, /^ {10}persist-credentials: false$/gm),
+    )
+    expect(live).not.toMatch(/:\s*write\b/)
+    // The key is the Action's input and nothing else's.
+    expect(live.match(/secrets\.\w+/g)).toEqual(['secrets.MUSE_MODEL_API_KEY'])
+    expect(live).toMatch(/^ {10}model-api-key: \$\{\{ secrets\.MUSE_MODEL_API_KEY \}\}$/m)
+    for (const input of [
+      "max-budget-usd: '0.25'",
+      'model: muse-spark-1.3-contributor',
+      "allow-contributor-models: 'true'",
+      "image-generation: 'false'",
+      "post-comment: 'false'",
+      "timeout-minutes: '10'",
+    ]) {
+      expect(live).toContain(`\n          ${input}\n`)
+    }
+  })
 })
 
 describe('tiered CI (CIFLOW)', () => {

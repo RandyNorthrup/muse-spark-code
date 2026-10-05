@@ -3,6 +3,7 @@
 // English instead of showing broken text; the l10n gate
 // (`scripts/check-l10n.mjs`) runs them strictly on every table it ships.
 
+import { L10N_PLURAL_SAMPLE_MAX } from '../constants'
 import { isPluralForms, type PluralCategory, type PluralForms } from './forms'
 
 const SLOT = /\{(\w+)\}/g
@@ -48,9 +49,9 @@ function stringProblems(
   english: string,
   value: string,
   options: CheckOptions,
+  expected: readonly string[] = slotsOf(english),
 ): readonly string[] {
   const problems: string[] = []
-  const expected = slotsOf(english)
   const found = slotsOf(value)
   if (!isSameList(expected, found)) {
     problems.push(
@@ -82,6 +83,11 @@ function formsProblems(
     return [`${key}: plural forms expected (an object with "other")`]
   }
   const problems: string[] = []
+  const pluralRules = new Intl.PluralRules(options.locale)
+  const hasOtherOneCounts = Array.from(
+    { length: L10N_PLURAL_SAMPLE_MAX + 1 },
+    (_, count) => count,
+  ).some((count) => count !== 1 && pluralRules.select(count) === 'one')
   // Parsed JSON: the category keys are checked, their values are not yet.
   const forms: Readonly<Record<string, unknown>> = value
   // An allowlisted entry may keep every form in English.
@@ -95,16 +101,21 @@ function formsProblems(
       problems.push(`${formKey}: text expected`)
       continue
     }
-    // Each form is checked like a string against its English form, or
-    // `other` for a category English lacks: every slot kept (Russian's
-    // `one` also covers 21, so it cannot drop `{count}`), and strictly the
-    // code spans, the bold markers and no English left behind.
+    // Keep each English form's slots and markup. A locale's `one` can also
+    // cover 0 or 21, so it needs the number even if English says "a file".
     const englishForm =
       Object.entries(english).find(([name]) => name === category)?.[1] ?? english.other
-    problems.push(...stringProblems(formKey, englishForm, text, formOptions(formKey)))
+    const englishSlots = slotsOf(englishForm)
+    const expectedSlots =
+      category === 'one' && hasOtherOneCounts && !englishSlots.includes('count')
+        ? [...englishSlots, 'count'].toSorted(byText)
+        : englishSlots
+    problems.push(
+      ...stringProblems(formKey, englishForm, text, formOptions(formKey), expectedSlots),
+    )
   }
   if (options.isStrict) {
-    const categories: readonly PluralCategory[] = new Intl.PluralRules(options.locale)
+    const categories: readonly PluralCategory[] = pluralRules
       .resolvedOptions()
       .pluralCategories.toSorted(byText)
     const found = Object.keys(forms).toSorted(byText)
