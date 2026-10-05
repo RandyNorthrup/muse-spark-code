@@ -379,6 +379,76 @@ instead.
   stops carrying one of them, or when a file of the folder is on neither the
   lazy list nor the allowed list above.
 
+**Amendment (2026-10-03, the third strike; current numbers 2026-10-04):
+activation stops carrying what only lazily loaded bundles use.** Three PRs
+in a row (#89, #78, #87) each had to split code out because
+`dist/extension.js` crossed its 600 KiB, and main with M70 stood at
+590.6 KiB with M87, M71 and M81 still to land. Under the owner's
+three-tries rule this is fixed once, structurally, on
+`perf/activation-diet`, since merged with main (M70, #88, #89, #98–#106).
+The budget stays 600 KiB; text and code move. Proof, drills and the full
+table are in
+[`docs/certification/activation-diet.md`](docs/certification/activation-diet.md).
+
+- **Measured** (production build, KiB, main with M70 → this branch):
+  `dist/extension.js` 590.6 → 552.6 (−38.0, 47.4 under the budget);
+  `dist/modelApi.js` 430.1 → 426.3; `dist/checkpointStore.js`
+  135.7 → 109.1; `dist/agentImport.js` 115.6 → 88.8; `dist/codeIntel.js`
+  76.9 → 54.6; `dist/reviewer.js` 54.6 → 28.8;
+  `dist/museCodeReviewer.js` 42.7 → 16.9; `dist/acp.js` 800.9 → 786.5;
+  `dist/webFetch.js` new, 46.7 of 75; the review, the session board, the
+  plan reader, voice, the bundled skills, the workers and the webview
+  unchanged (the English table and the webview +0.1 for one new string).
+- **Model text by reader.** `MODEL_TEXT` is one object, and esbuild cannot
+  tree-shake an object by key: every bundle that read any key carried all
+  of it. It now holds the 65 keys a source file of `dist/extension.js`
+  reads. The rest moved, word for word (a scripted comparison of all 329
+  keys and values with main's), to blocks that only their readers import:
+  `MODEL_API_MODEL_TEXT` (135 keys: the Model API backend's goal, file,
+  media, agent, MCP, permission-profile, observation-packing and
+  verify-loop text), `CODE_INTEL_MODEL_TEXT` (45: the code intelligence
+  answers and refusals, `dist/codeIntel.js` and `dist/modelApi.js`),
+  `WEB_FETCH_MODEL_TEXT` (42: the fetch's frame and every failure),
+  `CHECKPOINT_MODEL_TEXT` (4), `AGENT_IMPORT_MODEL_TEXT` (3),
+  `EXEC_MODEL_TEXT` (3: a headless run's attached files, `dist/acp.js`
+  only), `AUTO_REVIEWER_MODEL_TEXT` (3: `dist/reviewer.js` and
+  `dist/museCodeReviewer.js`), and `FILE_REFUSAL_MODEL_TEXT` (2:
+  `fileHasUnsavedChanges` and `pathChangedAfterApproval`, read at
+  activation and by the lazy file tools alike, so a bundle that reads only
+  these does not carry `MODEL_TEXT`). `REVIEW_MODEL_TEXT` (27, M70) is
+  unchanged. One key is new: `webFetchUnavailable`.
+- **Code intelligence**: main's own split (PR #89 amendment below,
+  `dist/codeIntel.js` at 100 KiB) replaced this lane's first one, which was
+  dropped in the merge; its answers now carry no `MODEL_TEXT` (76.9 →
+  54.6 KiB).
+- **The window's web fetch is a bundle of its own.**
+  `src/host/web/webFetchEntry.ts` builds to `dist/webFetch.js`: the fetch
+  (`core/web/webFetch.ts`), each hop's checks and pins, the pinned
+  transport, the decoders and `WEB_FETCH_MODEL_TEXT`, 23.1 KiB of
+  activation. `webFetchBundle.ts` requires it through `lazyBundle.ts` on the
+  first fetch on either backend or the first URL Muse Code's `webFetch`
+  checks; creating the fetcher loads nothing, and `approvalHost` moved to
+  `core/web/hostName.ts` so the tool names the host without the checks. A
+  bundle that cannot load fails that fetch as a refused fetch fails (kind
+  `unavailable`, `webFetchUnavailable` for the model and the row, in all 14
+  tables); Muse Code's call is refused before any modal; the log has the
+  cause and the next use tries again. The Model API backend keeps its own
+  URL checks, the ACP agent its own fetch. Budget 75 KiB (46.7 measured
+  plus 15 %, rounded up to 25 KiB). `src/core/export/sessionTransfer.ts`,
+  the brief's other candidate, stays: the target was met without it.
+- **The guard** (`scripts/check-bundle-split.mjs`, in `npm run build`): a
+  text block's sentinel keys must be in every bundle declared to read it
+  and in none of the other shipped bundles (all 18 in the production
+  metafiles, lazy ones and the webview included, after the review found
+  activation and the ACP agent alone were checked); a block that
+  `constants.ts` declares without an entry fails; `FILE_REFUSAL_MODEL_TEXT`
+  is pinned to its two keys; and a key of `MODEL_TEXT` that no source file
+  of `dist/extension.js` reads fails, which keeps lazy text from growing
+  back. The code intelligence and web fetch bundles' tests check that
+  neither carries any key or value of `MODEL_TEXT`. Drills: four on the
+  first cut, R1–R5 for the review's findings, W1–W7 for the web fetch
+  split; each failed and was reverted.
+
 **Amendment (M79, 2026-09-28): the plan reader is a bundle of its own.**
 Reading a plan with the panel's own Markdown grammar (PR #53 review) takes
 `mdast-util-from-markdown`, `micromark-extension-gfm` and `mdast-util-gfm`:
@@ -13758,6 +13828,14 @@ joined with M57, M58 and PR #49's sign-in
 
 ## 7. Gates
 
+**MG87c merge (2026-10-04): main's activation diet into M81.** The browser
+check's model text sits by reader under D6's 2026-10-03 rule: `MODEL_TEXT`
+for what activation reads, `MODEL_API_MODEL_TEXT` for the three words only
+the Model API backend says; the refusal table reads them by name. Activation
+is 572.6 of 600 KiB. The shipped-bundle text test allows words a bundle's own
+blocks share with `MODEL_TEXT`, with four red drills. See
+`docs/certification/mg87c.md`.
+
 **MG87b merge (2026-10-04), source proof and explicit deferrals.** Merge `origin/main`
 into M81 while retaining all main bundles, budgets, translations and
 permission behavior. Browser results join M78's live policy fence; best-of-N
@@ -13768,6 +13846,38 @@ fixture runs pass 672 and 19 tests. Activation is 610.2 KiB against 600: the
 brief assigns its correction to the activation-diet lane. Focused accessibility
 has two missing Chrome results, so no complete browser pass is claimed.
 See `docs/certification/mg87b.md` for resolutions, drills and gate evidence.
+
+**CIFLOW — tiered CI and merge queue (owner request, 2026-10-04).** The owner
+said it took "like 4 40 minute checks just to get a release cut": the full
+three-OS gate ran on each PR push, again after each refresh from `main`, and
+again in the release. He approved a GitHub merge queue plus tiered CI. PRs
+run a fast Ubuntu tier: the static gates, the production build, every
+unit/e2e test, gitleaks and semgrep, in about 12 minutes or less. The merge
+group runs the full tier once, on the commit that becomes `main`, in an
+estimated 10–15 minutes; Windows quality alone took 38m23s in run 37211362498. The full tier runs:
+
+- the static gates on all three OSes;
+- four coverage shards per OS, merged before the unchanged 90/85/90/90
+  thresholds apply;
+- the a11y harness once, on Ubuntu;
+- integration on Linux and Windows;
+- the macOS helper and the universal packages.
+
+An aggregate job produces the seven required names on both tiers. Lead
+review found and fixed two defects:
+
+- **gitleaks on `merge_group`.** The gitleaks action exits 1 on that event,
+  so every queue entry would have failed. The queue now runs the pinned,
+  checksum-checked CLI over the history that lands.
+- **No interlock.** Nothing stopped PRs taking the fast tier with no queue
+  behind it, so they would have merged with no full gate. PRs now get the
+  fast tier only after the maintainer sets `CI_MERGE_QUEUE=on`, once the
+  ruleset has the queue.
+
+Blocker for the owner: GitHub's documentation offers merge queues only in
+organization-owned repositories, and this one is user-owned. Until that is
+settled, PRs keep the full tier and no check is weaker than before. Record:
+`docs/certification/ciflow.md`.
 
 **MG69 merged-source proof (2026-10-02).** Kubuntu passes 49 owning/merged
 files (2,056 tests; two existing Windows-only cases platform-skipped), all

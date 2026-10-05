@@ -12,6 +12,7 @@
 !dist/bundledSkills.js
 !dist/codeIntel.js
 !dist/voice.js
+!dist/webFetch.js
 !dist/museCodeReviewer.js
 !dist/uiText.js
 !dist/searchWorker.js

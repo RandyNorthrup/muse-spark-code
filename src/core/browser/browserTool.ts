@@ -192,34 +192,39 @@ type FixedFailure = Exclude<
 >
 /** A UI key whose English is one string (no plural forms). */
 type UiStringKey = { [K in keyof UiText]: UiText[K] extends string ? K : never }[keyof UiText]
-type RefusalKey = keyof typeof MODEL_TEXT & UiStringKey
 
 // Every closed failure (browserRun.ts) has its own words; no free text from
-// the browser, the OS or the network reaches the model or the row.
-const FIXED_REFUSALS: Readonly<Record<FixedFailure, RefusalKey>> = {
-  runtimeMissing: 'browserCheckRuntimeMissing',
-  runtimeUnsupported: 'browserCheckRuntimeUnsupported',
-  runtimeOutdated: 'browserCheckRuntimeOutdated',
-  runtimeIntegrity: 'browserCheckRuntimeIntegrity',
-  runtimeBlocked: 'browserCheckRuntimeBlocked',
-  runtimeDeclined: 'browserCheckRuntimeDeclined',
-  scopeChanged: 'browserCheckScopeChanged',
-  notOffered: 'browserCheckNotOffered',
-  launch: 'browserCheckLaunch',
-  unrecognized: 'browserCheckUnrecognized',
-  profile: 'browserCheckProfile',
-  routeUnconfirmed: 'browserCheckRouteUnconfirmed',
-  resolverUnconfirmed: 'browserCheckResolverUnconfirmed',
-  signIn: 'browserCheckSignIn',
-  webrtc: 'browserCheckWebrtc',
-  transport: 'browserCheckTransport',
-  unverifiable: 'browserCheckUnverifiable',
-  unwatchable: 'browserCheckUnwatchable',
-  auditFailed: 'browserCheckAuditFailed',
-  restartObserved: 'browserCheckRestartObserved',
-  pageBlocked: 'browserCheckPageBlocked',
-  leaked: 'browserCheckLeaked',
-  browserFailed: 'browserCheckBrowserFailed',
+// the browser, the OS or the network reaches the model or the row. The
+// model's words are read by name, so the bundle-split gate sees each key read
+// at activation (PLAN.md D6); the row's are looked up when the failure is
+// worded, in the display language installed then.
+const FIXED_REFUSALS: Readonly<Record<FixedFailure, readonly [string, UiStringKey]>> = {
+  runtimeMissing: [MODEL_TEXT.browserCheckRuntimeMissing, 'browserCheckRuntimeMissing'],
+  runtimeUnsupported: [MODEL_TEXT.browserCheckRuntimeUnsupported, 'browserCheckRuntimeUnsupported'],
+  runtimeOutdated: [MODEL_TEXT.browserCheckRuntimeOutdated, 'browserCheckRuntimeOutdated'],
+  runtimeIntegrity: [MODEL_TEXT.browserCheckRuntimeIntegrity, 'browserCheckRuntimeIntegrity'],
+  runtimeBlocked: [MODEL_TEXT.browserCheckRuntimeBlocked, 'browserCheckRuntimeBlocked'],
+  runtimeDeclined: [MODEL_TEXT.browserCheckRuntimeDeclined, 'browserCheckRuntimeDeclined'],
+  scopeChanged: [MODEL_TEXT.browserCheckScopeChanged, 'browserCheckScopeChanged'],
+  notOffered: [MODEL_TEXT.browserCheckNotOffered, 'browserCheckNotOffered'],
+  launch: [MODEL_TEXT.browserCheckLaunch, 'browserCheckLaunch'],
+  unrecognized: [MODEL_TEXT.browserCheckUnrecognized, 'browserCheckUnrecognized'],
+  profile: [MODEL_TEXT.browserCheckProfile, 'browserCheckProfile'],
+  routeUnconfirmed: [MODEL_TEXT.browserCheckRouteUnconfirmed, 'browserCheckRouteUnconfirmed'],
+  resolverUnconfirmed: [
+    MODEL_TEXT.browserCheckResolverUnconfirmed,
+    'browserCheckResolverUnconfirmed',
+  ],
+  signIn: [MODEL_TEXT.browserCheckSignIn, 'browserCheckSignIn'],
+  webrtc: [MODEL_TEXT.browserCheckWebrtc, 'browserCheckWebrtc'],
+  transport: [MODEL_TEXT.browserCheckTransport, 'browserCheckTransport'],
+  unverifiable: [MODEL_TEXT.browserCheckUnverifiable, 'browserCheckUnverifiable'],
+  unwatchable: [MODEL_TEXT.browserCheckUnwatchable, 'browserCheckUnwatchable'],
+  auditFailed: [MODEL_TEXT.browserCheckAuditFailed, 'browserCheckAuditFailed'],
+  restartObserved: [MODEL_TEXT.browserCheckRestartObserved, 'browserCheckRestartObserved'],
+  pageBlocked: [MODEL_TEXT.browserCheckPageBlocked, 'browserCheckPageBlocked'],
+  leaked: [MODEL_TEXT.browserCheckLeaked, 'browserCheckLeaked'],
+  browserFailed: [MODEL_TEXT.browserCheckBrowserFailed, 'browserCheckBrowserFailed'],
 }
 
 /** Why a check did not happen or did not finish, for the model and for the row. */
@@ -267,8 +272,8 @@ export function browserRefusal(failure: BrowserFailure): BrowserRefusal {
       return { model: MODEL_TEXT.browserCheckCancelled, user: UI_TEXT.toolStopped }
     }
     default: {
-      const key = FIXED_REFUSALS[failure.kind]
-      return { model: MODEL_TEXT[key], user: UI_TEXT[key] }
+      const [model, key] = FIXED_REFUSALS[failure.kind]
+      return { model, user: UI_TEXT[key] }
     }
   }
 }

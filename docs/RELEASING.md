@@ -7,11 +7,21 @@ lanes do not push, tag, release, or call paid services.
 
 ## Artifacts and channels
 
-The build produces one universal VSIX, including the macOS helper compiled on
-macOS, and `muse-spark-code-acp-X.Y.Z.tgz`. The same VSIX goes to GitHub,
+CI's full tier produces one universal VSIX, including the macOS helper
+compiled on macOS, and `muse-spark-code-acp-X.Y.Z.tgz`. The full tier runs in
+the merge queue, on manual runs, in the release workflow's own build, and on
+every PR until the merge queue is on; a fast PR run builds no packages
+(CONTRIBUTING.md, "CI tiers"). The same VSIX goes to GitHub,
 the VS Code Marketplace, and Open VSX. The same ACP tarball goes to GitHub
 and npm. A package made locally without the macOS helper is not that universal
 release artifact.
+
+npm history: 0.10.0's npm step failed on a path bug, and 0.10.1's and
+0.11.0's failed with `EOTP` (the stored token could not bypass the account's
+2FA). On 2026-10-04 the owner minted a 7-day bypass-2FA token, 0.11.0's npm
+job was re-run with it and reached npm, and npm trusted publishing was set up
+for the package (see [npm trusted publishing](#npm-trusted-publishing)). From
+0.12.0 the npm job uses no token.
 
 GitHub also carries `SHA256SUMS` (the standard `sha256sum` format) and two
 CycloneDX inventories: `muse-spark-code.cdx.json` and
@@ -19,8 +29,10 @@ CycloneDX inventories: `muse-spark-code.cdx.json` and
 packages, both inventories and, once M80 lands, its schemas. Pinned
 `actions/attest-build-provenance` attests every file `SHA256SUMS` lists. The release
 job alone receives `attestations: write`; it and the npm job receive
-`id-token: write`. npm uses `npm publish --provenance`, while still receiving
-`NODE_AUTH_TOKEN` from the environment's `NPM_TOKEN`.
+`id-token: write`. npm publishes by trusted publishing: the job installs npm
+11.21.0 (trusted publishing needs 11.5.1 or newer; Node 22 bundles npm 10)
+and runs `npm publish --provenance` with no token, npm exchanging the job's
+OIDC identity for a one-time publish credential.
 
 The SBOM generator runs `npm sbom --sbom-format cyclonedx --package-lock-only
 --include=dev --include=optional`, then selects the dependency versions whose
@@ -95,7 +107,7 @@ else.
 | GitHub Release exists but its job failed after creation                     | Rerun failed jobs with the same artifacts. Existing assets are downloaded and verified before any missing assets are uploaded; no `--clobber`. This also handles a partial asset upload.                                                                                                          |
 | GitHub published; Marketplace failed; other registries published or skipped | Fix Marketplace PAT/transport; rerun failed jobs. An ambiguous prior publish is accepted only after the gallery download matches.                                                                                                                                                                 |
 | GitHub published; Open VSX failed; other registries published or skipped    | Fix `OVSX_PAT`/namespace permissions/transport; rerun failed jobs. Namespace lookup/create and publishing have bounded network retries; an existing version requires the file hash match.                                                                                                         |
-| GitHub published; npm failed; other registries published or skipped         | Fix `NPM_TOKEN`, OTP policy or provenance permissions; rerun failed jobs. A prior successful upload requires matching `dist.integrity`.                                                                                                                                                           |
+| GitHub published; npm failed; other registries published or skipped         | Check the package's trusted publisher (below) and the job's `id-token: write`; rerun failed jobs. A prior successful upload requires matching `dist.integrity`.                                                                                                                                   |
 | Several registries failed                                                   | Fix each cause and rerun failed jobs together; successful channels remain published and the final summary covers all four.                                                                                                                                                                        |
 | A registry says `skipped-no-secret`                                         | Add its token in the tag-only `marketplace` environment, then rerun that specific registry job via its job ID in the Actions API (or owner tooling that supports rerunning a job); rerun the summary after the job completes. Rerunning only failed jobs will not rerun a successful skipped job. |
 | Hash/integrity mismatch, or original artifacts expired                      | Stop. Identify which bytes were published. Issue a new version after owner review; never move the version tag or overwrite registry bytes.                                                                                                                                                        |
@@ -106,22 +118,20 @@ Use the job from the original run, not another release. Verify the new run
 attempt's channel summary; the API reruns the job and its dependents. See
 [GitHub's rerun-job API](https://docs.github.com/en/rest/actions/workflow-runs#re-run-a-job).
 
-## npm EOTP and ownership
+## npm trusted publishing
 
-`EOTP` means the token/account requires an OTP that CI cannot supply. Retries
-do not fix it. The owner has two supported fixes:
+Set up on 2026-10-04 in the package's npm settings (`muse-spark-code-acp` →
+Settings → Trusted Publisher): GitHub Actions, `RandyNorthrup/muse-spark-code`,
+workflow `release.yml`, environment `marketplace`, allowed actions `npm
+publish` (and `npm stage publish`, always allowed). A run of any other
+workflow, branch environment or repository cannot publish. The release job
+needs no npm secret, so there is no token to expire, leak or hit `EOTP`.
 
-1. Create a granular npm access token allowed to publish this package with
-   **Bypass 2FA** enabled. Put it in the tag-only `marketplace` environment's
-   `NPM_TOKEN`; maintain its expiry and package scope. This is an interim
-   fix: npm plans to remove direct publishing with granular tokens in
-   January 2027; prefer trusted publishing for the durable setup. See
-   [npm's token policy](https://docs.npmjs.com/about-access-tokens/).
-2. Once the package exists, configure npm trusted publishing for this GitHub
-   repository and `release.yml` (and the applicable environment). Review that
-   setup before changing token handling. Until then, keep `NODE_AUTH_TOKEN`:
-   `--provenance` by itself does not grant permission to publish. See
-   [npm's trusted-publisher guide](https://docs.npmjs.com/trusted-publishers/).
+If the npm job fails: confirm the trusted publisher still lists exactly those
+values (changing any of them needs a new connection, which needs the owner's
+2FA), that the job still has `id-token: write` and runs in the `marketplace`
+environment, and that the job's npm is 11.5.1 or newer. A bypass-2FA token is
+no fallback: npm removes their direct publishing around January 2027.
 
 No token, OTP policy, trusted publisher or namespace ownership was changed by
 the REL implementation lane. The existing 0.10.1 release record already proves

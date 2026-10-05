@@ -1,8 +1,9 @@
 # A version tag (v1.2.3) runs the shared build, then publishes its universal
 # VSIX, ACP tarball, CycloneDX inventories and SHA256SUMS on GitHub with
 # CHANGELOG notes and package attestations. The identical packages go to
-# Marketplace/Open VSX/npm when the tag-only `marketplace` environment has
-# VSCE_PAT/OVSX_PAT/NPM_TOKEN. Registry reruns require matching bytes/SRI;
+# Marketplace/Open VSX when the tag-only `marketplace` environment has
+# VSCE_PAT/OVSX_PAT, and to npm by trusted publishing (OIDC, no token).
+# Registry reruns require matching bytes/SRI;
 # network retries are bounded. The final summary reports every channel,
 # including missing-secret skips, and fails any failed channel.
 # Recovery, npm auth and signing decisions: docs/RELEASING.md.
@@ -17,6 +18,14 @@ name: Release
 on:
   push:
     tags: ['v[0-9]+.[0-9]+.[0-9]+']
+  # Recovery (2026-10-04): run on a version tag with the id of an earlier
+  # release run whose build passed, to publish that run's tested packages
+  # without building them again. The tag checks still run first.
+  workflow_dispatch:
+    inputs:
+      artifacts_run_id:
+        description: An earlier Release run on this tag whose build passed (its packages are published)
+        required: true
 
 permissions:
   contents: read
@@ -32,6 +41,13 @@ jobs:
         with:
           fetch-depth: 0
           persist-credentials: false
+      - name: a manual run is on a version tag
+        if: github.event_name == 'workflow_dispatch'
+        run: |
+          if [ "${GITHUB_REF_TYPE}" != tag ]; then
+            echo "::error::run the recovery on a version tag, not ${GITHUB_REF_TYPE} ${GITHUB_REF_NAME}" >&2
+            exit 1
+          fi
       - name: tag matches the manifest version
         run: |
           version="$(jq -r .version package.json)"
@@ -52,6 +68,7 @@ jobs:
 
   build:
     needs: verify
+    if: github.event_name == 'push'
     # Same-repository reusable workflow: GITHUB_TOKEN reaches it on its own;
     # no other secret is passed (least privilege). A job that calls a
     # reusable workflow takes no timeout-minutes; build.yml's jobs set theirs.
@@ -59,13 +76,15 @@ jobs:
 
   release:
     name: GitHub Release
-    needs: build
+    needs: [verify, build]
+    if: ${{ !cancelled() && needs.verify.result == 'success' && (needs.build.result == 'success' || (github.event_name == 'workflow_dispatch' && needs.build.result == 'skipped')) }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
       contents: write
       id-token: write
       attestations: write
+      actions: read
     outputs:
       outcome: ${{ steps.outcome.outputs.outcome }}
     steps:
@@ -77,14 +96,20 @@ jobs:
           node-version: 22
       - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
+          run-id: ${{ inputs.artifacts_run_id }}
+          github-token: ${{ inputs.artifacts_run_id != '' && github.token || '' }}
           name: muse-spark-code-vsix
           path: release
       - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
+          run-id: ${{ inputs.artifacts_run_id }}
+          github-token: ${{ inputs.artifacts_run_id != '' && github.token || '' }}
           name: muse-spark-code-acp
           path: release
       - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
+          run-id: ${{ inputs.artifacts_run_id }}
+          github-token: ${{ inputs.artifacts_run_id != '' && github.token || '' }}
           name: muse-spark-code-sboms
           path: release
       - run: npm ci --ignore-scripts --no-audit
@@ -127,7 +152,11 @@ jobs:
   publish:
     name: Marketplace publish
     needs: release
+    if: ${{ !cancelled() && needs.release.result == 'success' }}
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      actions: read
     timeout-minutes: 10
     # The token lives in this environment, which only version tags may
     # deploy to (a `v*` tag policy): no branch run, and no other job, can
@@ -152,6 +181,8 @@ jobs:
           node-version: 22
       - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
+          run-id: ${{ inputs.artifacts_run_id }}
+          github-token: ${{ inputs.artifacts_run_id != '' && github.token || '' }}
           name: muse-spark-code-vsix
           path: release
       - name: skipped without VSCE_PAT
@@ -174,7 +205,11 @@ jobs:
   openvsx:
     name: Open VSX publish
     needs: release
+    if: ${{ !cancelled() && needs.release.result == 'success' }}
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      actions: read
     timeout-minutes: 10
     # Its own job, so either registry failing leaves the other published;
     # the token lives in the same tag-only environment as VSCE_PAT.
@@ -192,6 +227,8 @@ jobs:
           node-version: 22
       - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
+          run-id: ${{ inputs.artifacts_run_id }}
+          github-token: ${{ inputs.artifacts_run_id != '' && github.token || '' }}
           name: muse-spark-code-vsix
           path: release
       - name: skipped without OVSX_PAT
@@ -212,18 +249,22 @@ jobs:
   npm:
     name: npm publish (ACP agent)
     needs: release
+    if: ${{ !cancelled() && needs.release.result == 'success' }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    # Only the publish job can request the OIDC identity for npm provenance.
+    # npm trusted publishing (OIDC, 2026-10-04): npm trusts this workflow file in
+    # this environment to publish muse-spark-code-acp, so no npm token is stored
+    # anywhere. Only this job can request the OIDC identity, which also signs the
+    # provenance.
     permissions:
       contents: read
       id-token: write
-    # The same tag-only environment as the other registries' tokens.
+      actions: read
+    # The same tag-only environment as the other registries' tokens; npm's
+    # trusted publisher names it, so a run outside it cannot publish.
     environment: marketplace
-    env:
-      HAS_NPM_TOKEN: ${{ secrets.NPM_TOKEN != '' }}
     outputs:
-      outcome: ${{ steps.skipped.outputs.outcome || steps.published.outputs.outcome }}
+      outcome: ${{ steps.published.outputs.outcome }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -234,22 +275,20 @@ jobs:
           registry-url: https://registry.npmjs.org
       - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
+          run-id: ${{ inputs.artifacts_run_id }}
+          github-token: ${{ inputs.artifacts_run_id != '' && github.token || '' }}
           name: muse-spark-code-acp
           path: release
-      - name: skipped without NPM_TOKEN
-        id: skipped
-        if: env.HAS_NPM_TOKEN != 'true'
-        run: echo 'outcome=skipped-no-secret' >> "$GITHUB_OUTPUT"
+      # Trusted publishing needs npm 11.5.1 or newer; Node 22 bundles npm 10.
+      # Pinned to the last npm 11, with no install scripts.
+      - name: npm with trusted publishing
+        run: npm install --global npm@11.21.0 --ignore-scripts --no-audit --no-fund
       - name: install the verification tools without install scripts
-        if: env.HAS_NPM_TOKEN == 'true'
         run: npm ci --ignore-scripts --no-audit
       # The packed tarball as it is: no install, no script of any package. The
       # leading ./ matters: npm reads `release/x.tgz` as a GitHub owner/repo.
       - name: publish muse-spark-code-acp to npm
         id: published
-        if: env.HAS_NPM_TOKEN == 'true'
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: node scripts/publish-registry.mjs npm release/muse-spark-code-acp-*.tgz
 
   summary:

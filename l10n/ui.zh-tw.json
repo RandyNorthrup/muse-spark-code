@@ -420,6 +420,7 @@
   "webFetchProxyRefused": "Proxy 或途中的其他電腦回應了 {status}，而不是安全地連線到 {address}（{host}）。未讀取任何內容。",
   "webFetchUnreachable": "無法在 {address} 連線到 {host}。（{detail}）",
   "webFetchNetwork": "要求失敗：{detail}",
+  "webFetchUnavailable": "無法載入網頁擷取功能，因此未擷取任何內容；請重新安裝擴充功能並重新載入視窗。記錄中有詳細資訊。",
   "webFetchMoved": "網頁重新導向到另一部主機上的 {location}。Muse 可以透過新的呼叫擷取它，屆時會再次詢問。",
   "webFetchRestrictedMode": "限制模式下網頁擷取已關閉。信任此工作區即可使用。",
   "browserCheckConfirmTitle": "Muse Code 想要在無頭瀏覽器中開啟 {url}",

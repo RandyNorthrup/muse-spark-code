@@ -9,6 +9,113 @@ happened, not what was planned; superseded entries are kept.
 
 ### Added
 
+- **Browser check** (M81, PLAN.md D49). After a web change the model can
+  open a page of your local dev server in a headless browser, optionally
+  click and type through up to eight steps, and read back the console
+  errors and the failed requests; on the Model API backend it also sees a
+  screenshot (`browser_check`). Muse Code gets the same check as text
+  through the extension's `ide` server (`mcp__ide__browserCheck`),
+  confirmed in the extension's own dialog before every call.
+  - **The browser** is Google's Chrome for Testing headless shell, one
+    version pinned by each release (154.0.8037.92, r1689415), for Windows
+    x64, Linux x64 and macOS (Intel and Apple silicon). The first check asks
+    before downloading it (about 100 to 120 MB from
+    `storage.googleapis.com`) into the extension's storage; the new
+    machine-scoped `museSpark.browserCheckRuntime` (`ask`, `download`,
+    `off`) can download it without asking or turn the check off. The
+    archive and the browser are checked against the pin's lengths and
+    SHA-256 by a bounded ZIP reader before anything runs, and the browser
+    again before each check; getting it ready has its own 15 minutes, the
+    check its 60 seconds after. A pin serves for 45 days after Google
+    published it; then the check refuses until an update pins a newer one,
+    and the release and a weekly job fail when the pin is past that, or
+    more than 14 days behind the newest Stable. A **Download Browser Check
+    Runtime** command is contributed for getting it ahead of a check.
+  - **Where a page may go.** All its traffic goes to the check's own proxy
+    on 127.0.0.1, Chrome's loopback exception removed, the same proxy on
+    the page's private context: plain `http` to this computer and to the
+    hosts you widened, with sign-in challenges and credentials taken out;
+    `https` and WebSockets only to a widened host, passed encrypted and
+    unread (a site there may sign in with this computer's account, which
+    the card and the setting now say). The browser looks up no names
+    itself. The check's own tests run before, between and after the page
+    in the same browser (routing, sign-in stripping, WebRTC, WebTransport,
+    and a network-service restart), and any that fails returns nothing from
+    the page. Over the debugging pipe, never a network port, in a fresh
+    private profile deleted afterwards. Only you widen it, in the
+    machine-scoped `museSpark.browserCheckExtraHosts` or on a card or in the
+    dialog for one check; never the model. Every failure is one of a fixed
+    set of reasons, in your language.
+- The browser check ships as two bundles of its own: `dist/browserCheck.js`
+  (the pipe, the run, the proxy and its tests; 50.5 KiB, budget 75 KiB),
+  loaded on the first check, and `dist/browserRuntime.js` (getting and
+  verifying the browser; 37.2 KiB, budget 50 KiB), loaded only to prepare
+  it. Each budget is the measured size plus 15%, rounded up to 25 KiB.
+  - **Refusals and Stop:** a runtime the OS refuses to run reads as blocked whether the refusal is thrown or arrives after the spawn returned; a Stop or lost admission during teardown refuses the page instead of returning its report; and the release pin gate fails a pin dated in the future, as the check itself does.
+  - **Restore notes it:** a turn that ran a browser check is marked as having run a process, so restoring it says that what the page made a local server change is not undone (M86).
+  - **Main integration:** browser output obeys the live permission-policy fence; best-of-N attempts have no window browser check. Widening cards retain their session choice in Bypass, and visual reads use the relocated Model API text constants.
+
+### Changed
+
+- **Tiered CI, ready for a merge queue.** The full gate now runs as parallel
+  jobs:
+  - the static gates on all three platforms;
+  - the unit/e2e tests in four coverage shards per platform, merged before
+    the unchanged thresholds apply;
+  - the accessibility harness once, on Ubuntu;
+  - integration on Ubuntu and Windows;
+  - the macOS helper and the universal packages.
+
+  A `merge_group` run checks the commit that will land. Once the maintainer
+  turns on the queue and sets `CI_MERGE_QUEUE=on`, pull requests run only a
+  fast Ubuntu tier: the static gates, the build, every test, gitleaks and
+  semgrep. Until then every pull request keeps the full tier. The seven
+  required check names and the release artifacts are unchanged. In a merge
+  group, gitleaks runs its pinned, checksum-checked CLI, because the gitleaks
+  action refuses that event.
+- **The extension loads less at startup**: `dist/extension.js` is
+  552.6 KiB, down from 590.6 KiB, under its unchanged 600 KiB budget
+  (PLAN.md D6, 2026-10-03 and 2026-10-04). Model text that only a lazily
+  loaded bundle or the ACP agent reads is no longer carried at activation
+  (same words, in blocks by reader), and the window's web fetch loads with
+  its own bundle, `dist/webFetch.js` (budget 75 KiB), on the first fetch; if
+  it cannot load, that fetch fails with the reason ("Web fetch could not be
+  loaded", in all 14 languages) and the next one tries again. The lazily
+  loaded bundles shrink too (the Model API backend, the checkpoint store,
+  the import, code intelligence and both reviewers by 4 to 27 KiB each).
+  `npm run build` now fails when a shipped bundle carries a model-text
+  block it does not read, or when `MODEL_TEXT` holds a key no source file
+  of `dist/extension.js` reads; the code intelligence and web fetch
+  bundles' tests check that neither carries any key or value of `MODEL_TEXT`.
+
+### Fixed
+
+- **A cancelled browser check no longer leaves its folder behind (M81).** A Stop, lost admission or the deadline while the folder is still being created now removes the folder when it finishes arriving, and a folder whose creation fails part way is removed at once; the M81 bullet already promised the profile deleted afterwards. A normal run still removes it exactly once.
+
+## [0.12.1] - 2026-10-04
+
+### Changed
+
+- **The ACP agent's npm page has a proper README**: a banner, badges, a
+  short pitch, install, a quick start for Zed, JetBrains, Neovim, Emacs and
+  JupyterLab, headless `exec` and the GitHub Action, backends and cost,
+  privacy, and links, all with absolute links. The detailed guide stays at
+  `docs/acp.md`. The package also gets a clearer description, editor
+  keywords, the repository homepage and the donate link.
+
+### Fixed
+
+- **A release can no longer lose its CHANGELOG section.** 0.12.0's first
+  release run passed every check and then stopped, because the CHANGELOG at
+  its tag had no `[0.12.0]` section (a merge dropped the heading). A test
+  now fails any change whose `package.json` version has no
+  `## [x.y.z]` section, so a release PR catches it in minutes; a release
+  run can also publish an earlier run's tested packages without rebuilding.
+
+## [0.12.0] - 2026-10-04
+
+### Added
+
 - **Auto rules, permission profiles and an optional paid reviewer (M78).**
   Standing command rules include executable examples; repository rules only
   tighten them. Complex commands ask, native language-service reads obey file
@@ -180,9 +287,11 @@ happened, not what was planned; superseded entries are kept.
     scan-secrets <file>` counts likely secrets in one file and prints only
     the number.
   - **The Action:** `action/` reviews, or proposes a fix for, a
-    same-repository pull request on GitHub-hosted runners under the same hard
-    budget. Forks, bots, `pull_request_target` and commenters outside the
-    repository's members are refused before anything is installed; the agent
+    same-repository pull request on GitHub-hosted runners (a private
+    repository may also use a self-hosted one, with a warning) under the
+    same hard budget. Forks, bots, `pull_request_target` and commenters
+    outside the repository's members are refused before anything is
+    installed; the agent
     is installed before checkout and verified against its npm provenance (a
     candidate tarball is pinned by digest and labelled unsigned); the key
     reaches only exec and the secret scanner, over stdin. It posts one sticky
@@ -195,7 +304,8 @@ happened, not what was planned; superseded entries are kept.
     on the exact reviewed head, refusing an unexpected or oversized artifact.
     Every Git step runs with no hooks, filters, fsmonitor, signer or
     credential helper, and refuses any repository configuration a fresh
-    clone does not carry. npm releases now carry provenance.
+    clone does not carry. It installs the agent from npm with its
+    provenance checked, or a pinned candidate tarball.
   - Acceptance on hosted runners and with a real key is still pending.
 - **Bundled workflow assets (M89 vendor lane).** Ship the byte-exact
   high-quality-projects-skill v0.7.0 workflows, shared helpers, templates and
@@ -220,7 +330,10 @@ happened, not what was planned; superseded entries are kept.
   once (Install / Not now, remembered), a newer vendored release offers
   Update once, and **Remove Bundled Skills from Muse Code** removes only the
   marked copy and the links into it. `museSpark.bundledSkills` (on by
-  default, machine-scoped) turns them off. The installer is its own lazily
+  default, machine-scoped) turns off the Model API source and the offer; an
+  installed Muse Code copy stays until Remove, and the Model API backend,
+  which reads the same personal skills folder, lists it as your own skills
+  meanwhile. The installer is its own lazily
   loaded bundle, `dist/bundledSkills.js` (22.6 KiB; budget 50 KiB in
   PLAN.md D6), so `dist/extension.js` grows by 4.8 KiB (576.8 to 581.6 KiB).
   Strings in all 14 languages.
@@ -237,8 +350,9 @@ happened, not what was planned; superseded entries are kept.
   context is not excluded) and History never lists it; it is started again
   after Muse Code exits, restarts or closes it, after a timeout, busy fallback
   or tool activity, for another model, and every ten reviews. Native tools
-  cannot be disabled through the SDK: any item other than an agent message
-  or reasoning cancels the review and shows the generic failure card. A
+  cannot be disabled through the SDK: any item other than the prompt's echo,
+  Muse Code's reminder agents, reasoning or the reply cancels the review and
+  shows the generic failure card. A
   command covered by an always-allow rule could run in the empty folder
   before cancellation lands. On
   ALLOW the approval is answered *Allow once* (never an "always" choice) for
@@ -297,51 +411,6 @@ happened, not what was planned; superseded entries are kept.
     Revert) are the new `dist/review.js` (43.1 KiB, budget 50), required the
     first time one is used; a module that cannot be loaded refuses the review
     with `reviewUnavailable` and the log has the cause.
-- **Browser check** (M81, PLAN.md D49). After a web change the model can
-  open a page of your local dev server in a headless browser, optionally
-  click and type through up to eight steps, and read back the console
-  errors and the failed requests; on the Model API backend it also sees a
-  screenshot (`browser_check`). Muse Code gets the same check as text
-  through the extension's `ide` server (`mcp__ide__browserCheck`),
-  confirmed in the extension's own dialog before every call.
-  - **The browser** is Google's Chrome for Testing headless shell, one
-    version pinned by each release (154.0.8037.92, r1689415), for Windows
-    x64, Linux x64 and macOS (Intel and Apple silicon). The first check asks
-    before downloading it (about 100 to 120 MB from
-    `storage.googleapis.com`) into the extension's storage; the new
-    machine-scoped `museSpark.browserCheckRuntime` (`ask`, `download`,
-    `off`) can download it without asking or turn the check off. The
-    archive and the browser are checked against the pin's lengths and
-    SHA-256 by a bounded ZIP reader before anything runs, and the browser
-    again before each check; getting it ready has its own 15 minutes, the
-    check its 60 seconds after. A pin serves for 45 days after Google
-    published it; then the check refuses until an update pins a newer one,
-    and the release and a weekly job fail when the pin is past that, or
-    more than 14 days behind the newest Stable. A **Download Browser Check
-    Runtime** command is contributed for getting it ahead of a check.
-  - **Where a page may go.** All its traffic goes to the check's own proxy
-    on 127.0.0.1, Chrome's loopback exception removed, the same proxy on
-    the page's private context: plain `http` to this computer and to the
-    hosts you widened, with sign-in challenges and credentials taken out;
-    `https` and WebSockets only to a widened host, passed encrypted and
-    unread (a site there may sign in with this computer's account, which
-    the card and the setting now say). The browser looks up no names
-    itself. The check's own tests run before, between and after the page
-    in the same browser (routing, sign-in stripping, WebRTC, WebTransport,
-    and a network-service restart), and any that fails returns nothing from
-    the page. Over the debugging pipe, never a network port, in a fresh
-    private profile deleted afterwards. Only you widen it, in the
-    machine-scoped `museSpark.browserCheckExtraHosts` or on a card or in the
-    dialog for one check; never the model. Every failure is one of a fixed
-    set of reasons, in your language.
-- The browser check ships as two bundles of its own: `dist/browserCheck.js`
-  (the pipe, the run, the proxy and its tests; 50.5 KiB, budget 75 KiB),
-  loaded on the first check, and `dist/browserRuntime.js` (getting and
-  verifying the browser; 37.2 KiB, budget 50 KiB), loaded only to prepare
-  it. Each budget is the measured size plus 15%, rounded up to 25 KiB.
-  - **Refusals and Stop:** a runtime the OS refuses to run reads as blocked whether the refusal is thrown or arrives after the spawn returned; a Stop or lost admission during teardown refuses the page instead of returning its report; and the release pin gate fails a pin dated in the future, as the check itself does.
-  - **Restore notes it:** a turn that ran a browser check is marked as having run a process, so restoring it says that what the page made a local server change is not undone (M86).
-  - **Main integration:** browser output obeys the live permission-policy fence; best-of-N attempts have no window browser check. Widening cards retain their session choice in Bypass, and visual reads use the relocated Model API text constants.
 
 ### Changed
 
@@ -367,7 +436,11 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
-- **A cancelled browser check no longer leaves its folder behind (M81).** A Stop, lost admission or the deadline while the folder is still being created now removes the folder when it finishes arriving, and a folder whose creation fails part way is removed at once; the M81 bullet already promised the profile deleted afterwards. A normal run still removes it exactly once.
+- **The ACP agent is on npm.** `muse-spark-code-acp` 0.11.0 reached npm on
+  2026-10-04, and releases from 0.12.0 publish there by npm trusted
+  publishing (OIDC from `release.yml`), with no stored npm token. Before
+  that every release's npm step failed: 0.10.0 on a path bug, 0.10.1 and
+  0.11.0 because the token could not bypass the account's 2FA (`EOTP`).
 - Edit rows no longer load their diffs while a turn runs on Muse Code (0.11.0): a long turn's reads queued past 60 s and held up approvals. A row loads when you open it or once the turn ends, which also retries a read that failed.
 - Two windows starting turn checkpoints in one conversation at once no longer fail when one briefly holds the other's lock (0.11.0).
 - Windows commands retry job helper preparation after a failed first build or self-test instead of keeping the fallback for the whole session (0.11.0).

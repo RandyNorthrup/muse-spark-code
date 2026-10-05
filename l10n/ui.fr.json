@@ -440,6 +440,7 @@
   "webFetchProxyRefused": "Un proxy ou une autre machine intermédiaire a répondu {status} au lieu de se connecter de façon sécurisée à {address} ({host}). Rien n’a été lu.",
   "webFetchUnreachable": "{host} est injoignable à l’adresse {address}. ({detail})",
   "webFetchNetwork": "La requête a échoué : {detail}",
+  "webFetchUnavailable": "La récupération de pages n’a pas pu être chargée : rien n’a donc été récupéré ; réinstallez l’extension et rechargez la fenêtre. Le journal contient les détails.",
   "webFetchMoved": "La page a redirigé vers {location}, sur un autre hôte. Muse peut la récupérer par un nouvel appel, qui redemandera.",
   "webFetchRestrictedMode": "La récupération de pages est désactivée en mode restreint. Faites confiance à l’espace de travail pour l’utiliser.",
   "browserCheckConfirmTitle": "Muse Code souhaite ouvrir {url} dans un navigateur sans interface",

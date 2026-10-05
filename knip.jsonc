@@ -37,6 +37,8 @@
     // path on its first use (D6, 2026-10-03).
     "src/host/ide/codeIntelEntry.ts",
     "src/host/voice/voiceEntry.ts",
+    // The window's web fetch (M69), required by path on the first fetch (D6, 2026-10-04).
+    "src/host/web/webFetchEntry.ts",
     // The Auto reviewer on Muse Code (M90), required on the first review.
     "src/host/review/museCodeReviewerEntry.ts",
     "src/host/backend/searchWorker.ts",

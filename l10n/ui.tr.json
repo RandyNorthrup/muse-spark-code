@@ -430,6 +430,7 @@
   "webFetchProxyRefused": "Bir proxy veya aradaki başka bir makine, {address} ({host}) adresine güvenli bağlanmak yerine {status} ile yanıt verdi. Hiçbir şey okunmadı.",
   "webFetchUnreachable": "{host}, {address} adresinde erişilemedi. ({detail})",
   "webFetchNetwork": "İstek başarısız oldu: {detail}",
+  "webFetchUnavailable": "Sayfa getirme yüklenemedi, bu yüzden hiçbir şey getirilmedi; uzantıyı yeniden yükleyin ve pencereyi yeniden yükleyin. Ayrıntılar günlükte.",
   "webFetchMoved": "Sayfa, başka bir ana bilgisayardaki {location} adresine yönlendirdi. Muse onu yeniden soran yeni bir çağrıyla getirebilir.",
   "webFetchRestrictedMode": "Kısıtlı Modda sayfa getirme kapalıdır. Kullanmak için çalışma alanına güvenin.",
   "browserCheckConfirmTitle": "Muse Code, {url} adresini başsız bir tarayıcıda açmak istiyor",

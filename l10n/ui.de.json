@@ -430,6 +430,7 @@
   "webFetchProxyRefused": "Ein Proxy oder ein anderer Rechner dazwischen antwortete mit {status}, statt eine sichere Verbindung zu {address} ({host}) herzustellen. Es wurde nichts gelesen.",
   "webFetchUnreachable": "{host} war unter {address} nicht erreichbar. ({detail})",
   "webFetchNetwork": "Die Anfrage ist fehlgeschlagen: {detail}",
+  "webFetchUnavailable": "Das Abrufen von Seiten konnte nicht geladen werden, daher wurde nichts abgerufen; installieren Sie die Erweiterung neu und laden Sie das Fenster neu. Details stehen im Protokoll.",
   "webFetchMoved": "Die Seite leitete zu {location} weiter, auf einen anderen Host. Muse kann sie mit einem neuen Aufruf abrufen, der erneut fragt.",
   "webFetchRestrictedMode": "Das Abrufen von Seiten ist im eingeschränkten Modus aus. Vertrauen Sie dem Arbeitsbereich, um es zu nutzen.",
   "browserCheckConfirmTitle": "Muse Code möchte {url} in einem Headless-Browser öffnen",

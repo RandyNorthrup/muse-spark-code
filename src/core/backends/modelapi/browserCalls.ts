@@ -9,7 +9,7 @@ import { randomBytes } from 'node:crypto'
 import {
   BROWSER_CHECK_MARKER_BYTES,
   MAX_IMAGE_BYTES,
-  MODEL_TEXT,
+  MODEL_API_MODEL_TEXT,
   PNG_MEDIA_TYPE,
   UI_TEXT,
 } from '../../../shared/constants'
@@ -35,7 +35,7 @@ export function browserCheckRefused(refusal: BrowserRefusal): ToolOutcome {
 /** The check refused in Restricted Mode. */
 export function browserCheckRestricted(): ToolOutcome {
   return browserCheckRefused({
-    model: MODEL_TEXT.browserCheckRestrictedMode,
+    model: MODEL_API_MODEL_TEXT.browserCheckRestrictedMode,
     user: UI_TEXT.browserCheckRestrictedMode,
   })
 }
@@ -64,8 +64,8 @@ export function browserCheckOutcome(url: string, result: BrowserCheckResult): To
     output,
     visibleOutput,
     visibleFile: {
-      lead: fill(MODEL_TEXT.browserCheckScreenshotLead, { url }),
-      notDelivered: fill(MODEL_TEXT.browserCheckScreenshotLost, { url }),
+      lead: fill(MODEL_API_MODEL_TEXT.browserCheckScreenshotLead, { url }),
+      notDelivered: fill(MODEL_API_MODEL_TEXT.browserCheckScreenshotLost, { url }),
       part: {
         type: 'image',
         base64Data: Buffer.from(screenshot.png).toString('base64'),

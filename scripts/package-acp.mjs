@@ -47,7 +47,11 @@ const JOB_SOURCES = [
 ]
 const NATIVE_DEPENDENCY = '@napi-rs/keyring'
 const PACKAGE_NAME = 'muse-spark-code-acp'
-const README = path.join('docs', 'acp.md')
+// The package's landing page (docs/npm-readme.md): npm renders
+// GitHub-flavoured Markdown but does not resolve relative links or images,
+// so every link and image in that file is absolute. docs/acp.md stays the
+// detailed guide and is linked from the landing page instead.
+const README = path.join('docs', 'npm-readme.md')
 const NOTICES = 'THIRD_PARTY_NOTICES.txt'
 const SCHEMAS = ['exec-result-v1.schema.json', 'exec-event-v1.schema.json']
 
@@ -108,12 +112,31 @@ const agentManifest = {
   name: PACKAGE_NAME,
   version: manifest.version,
   description:
-    'Muse Spark Code (Unofficial) for ACP editors and headless runs. Not endorsed by Meta.',
+    "Muse Spark Code (Unofficial) brings Meta's Muse Spark to ACP editors and headless runs. Not endorsed by Meta.",
   license: manifest.license,
-  homepage: `${manifest.repository.url.replace(/\.git$/, '')}/blob/main/docs/acp.md`,
+  homepage: `${manifest.repository.url.replace(/\.git$/, '')}#readme`,
   repository: manifest.repository,
   bugs: manifest.bugs,
-  keywords: ['muse spark', 'muse code', 'agent client protocol', 'acp', 'coding agent'],
+  // The root package.json has no `author`, so none is claimed here. `funding`
+  // reuses the root manifest's donate link when it names one.
+  ...(typeof manifest.sponsor?.url === 'string' && { funding: manifest.sponsor.url }),
+  keywords: [
+    'muse spark',
+    'muse code',
+    'agent client protocol',
+    'acp',
+    'coding agent',
+    'zed',
+    'jetbrains',
+    'neovim',
+    'emacs',
+    'jupyter',
+    'ai',
+    'agent',
+    'cli',
+    'meta',
+    'llm',
+  ],
   bin: { [PACKAGE_NAME]: 'dist/acp.js' },
   files: ['dist', 'native', 'l10n', 'schemas', 'README.md', 'LICENSE', NOTICES],
   engines: { node: manifest.engines.node },
