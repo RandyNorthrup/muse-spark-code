@@ -1982,5 +1982,12 @@
     "labels": {
       "custom": "自定义服务器"
     }
-  }
+  },
+  "anthropicCodecError": "Anthropic 无法处理此请求。",
+  "anthropicCodecPdfUnsupported": "Anthropic 模型不支持 PDF 输入。",
+  "anthropicCodecImageInvalid": "Anthropic 图像必须使用受支持图像类型的 base64 数据 URL。",
+  "anthropicCodecToolArgumentsInvalid": "Anthropic 工具参数必须是 JSON 对象。",
+  "anthropicCodecEffortUnsupported": "Anthropic 不支持此推理级别。",
+  "anthropicCodecEmptyTurn": "Anthropic 至少需要一条消息。",
+  "anthropicCodecLimitExceeded": "Anthropic 响应超出了一个解码限制。"
 }

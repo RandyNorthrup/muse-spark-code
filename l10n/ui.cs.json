@@ -2204,5 +2204,12 @@
     "labels": {
       "custom": "Vlastní server"
     }
-  }
+  },
+  "anthropicCodecError": "Anthropic nemohl zpracovat tento požadavek.",
+  "anthropicCodecPdfUnsupported": "Modely Anthropic nepodporují vstup ve formátu PDF.",
+  "anthropicCodecImageInvalid": "Obrázky pro Anthropic musí používat datovou URL v base64 s podporovaným typem obrázku.",
+  "anthropicCodecToolArgumentsInvalid": "Argumenty nástroje Anthropic musí být objekt JSON.",
+  "anthropicCodecEffortUnsupported": "Anthropic tuto úroveň uvažování nepodporuje.",
+  "anthropicCodecEmptyTurn": "Anthropic vyžaduje alespoň jednu zprávu.",
+  "anthropicCodecLimitExceeded": "Odpověď Anthropic překročila limit dekódování."
 }

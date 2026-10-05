@@ -1982,5 +1982,12 @@
     "labels": {
       "custom": "自訂伺服器"
     }
-  }
+  },
+  "anthropicCodecError": "Anthropic 無法處理此請求。",
+  "anthropicCodecPdfUnsupported": "Anthropic 模型不支援 PDF 輸入。",
+  "anthropicCodecImageInvalid": "Anthropic 圖片必須使用支援圖片類型的 base64 資料 URL。",
+  "anthropicCodecToolArgumentsInvalid": "Anthropic 工具參數必須是 JSON 物件。",
+  "anthropicCodecEffortUnsupported": "Anthropic 不支援此推理等級。",
+  "anthropicCodecEmptyTurn": "Anthropic 至少需要一則訊息。",
+  "anthropicCodecLimitExceeded": "Anthropic 回應超出了一個解碼限制。"
 }

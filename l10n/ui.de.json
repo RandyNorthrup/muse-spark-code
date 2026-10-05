@@ -2056,5 +2056,12 @@
     "labels": {
       "custom": "Eigener Server"
     }
-  }
+  },
+  "anthropicCodecError": "Anthropic konnte diese Anfrage nicht verarbeiten.",
+  "anthropicCodecPdfUnsupported": "PDF-Eingaben werden von Anthropic-Modellen nicht unterstützt.",
+  "anthropicCodecImageInvalid": "Bilder für Anthropic müssen eine Base64-Daten-URL mit einem unterstützten Bildtyp verwenden.",
+  "anthropicCodecToolArgumentsInvalid": "Werkzeugargumente für Anthropic müssen ein JSON-Objekt sein.",
+  "anthropicCodecEffortUnsupported": "Diese Denkintensität wird von Anthropic nicht unterstützt.",
+  "anthropicCodecEmptyTurn": "Anthropic benötigt mindestens eine Nachricht.",
+  "anthropicCodecLimitExceeded": "Die Antwort von Anthropic hat ein Dekodierungslimit überschritten."
 }

@@ -2130,5 +2130,12 @@
     "labels": {
       "custom": "Server personalizzato"
     }
-  }
+  },
+  "anthropicCodecError": "Anthropic non ha potuto elaborare questa richiesta.",
+  "anthropicCodecPdfUnsupported": "I modelli Anthropic non supportano gli input PDF.",
+  "anthropicCodecImageInvalid": "Le immagini per Anthropic devono usare un URL dati base64 con un tipo di immagine supportato.",
+  "anthropicCodecToolArgumentsInvalid": "Gli argomenti degli strumenti Anthropic devono essere un oggetto JSON.",
+  "anthropicCodecEffortUnsupported": "Anthropic non supporta questo livello di ragionamento.",
+  "anthropicCodecEmptyTurn": "Anthropic richiede almeno un messaggio.",
+  "anthropicCodecLimitExceeded": "La risposta di Anthropic ha superato un limite di decodifica."
 }

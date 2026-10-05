@@ -2056,5 +2056,12 @@
     "labels": {
       "custom": "Egyéni kiszolgáló"
     }
-  }
+  },
+  "anthropicCodecError": "Az Anthropic nem tudta feldolgozni ezt a kérést.",
+  "anthropicCodecPdfUnsupported": "Az Anthropic modellek nem támogatják a PDF-bemenetet.",
+  "anthropicCodecImageInvalid": "Az Anthropic képekhez támogatott képtípusú base64 adat-URL szükséges.",
+  "anthropicCodecToolArgumentsInvalid": "Az Anthropic eszközargumentumainak JSON-objektumnak kell lenniük.",
+  "anthropicCodecEffortUnsupported": "Az Anthropic nem támogatja ezt a gondolkodási szintet.",
+  "anthropicCodecEmptyTurn": "Az Anthropic legalább egy üzenetet igényel.",
+  "anthropicCodecLimitExceeded": "Az Anthropic válasza túllépte a dekódolási korlátot."
 }

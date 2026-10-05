@@ -105,12 +105,17 @@ describe('deferred cohort bundles', () => {
     // Split out of activation on 2026-10-03 (PLAN.md D6).
     ['extension', 'src/core/codeIntel/codeIntelQuery.ts', 'on the first code intelligence call'],
     ['extension', 'src/core/voice/museVoice.ts', 'on the first recording'],
+    // M95: membership injection must fail in every parent bundle.
+    ['extension', 'src/core/backends/modelapi/codecs/anthropic.ts', 'in dist/providers.js'],
+    ['modelApi', 'src/core/backends/modelapi/codecs/anthropic.ts', 'in dist/providers.js'],
+    ['acp', 'src/core/backends/modelapi/codecs/anthropic.ts', 'in dist/providers.js'],
+    ['pageWorker', 'src/core/backends/modelapi/codecs/future.ts', 'in dist/providers.js'],
     // M90: the Auto reviewer on Muse Code, required on the first review.
     ['extension', 'src/host/review/museCodeReviewer.ts', 'on the first review'],
   ])(
     'fires the %s split guard for %s and restores its metafile byte-exact',
     (name, source, use) => {
-      const file = `dist/meta/${name}.json`
+      const file = `dist/${name === 'acp' ? 'meta-acp' : 'meta'}/${name}.json`
       const original = readFileSync(file)
       const hash = createHash('sha256').update(original).digest('hex')
       const meta = metafileSchema.parse(JSON.parse(original.toString('utf8')))

@@ -29,6 +29,10 @@ happened, not what was planned; superseded entries are kept.
   supported captured replay shape. Checked-in exact request bytes cover first
   turns, signed tool loops, user images, packed output and compaction; session
   growth preserves every earlier content entry and stable request field.
+- Harden the pending Anthropic provider codec: bound stream accumulation,
+  reject malformed deltas, preserve cache-write usage and TTL counts, apply
+  rolling cache breakpoints, and translate local errors. Native request
+  goldens and the codec bundle exclusion guard cover the review regressions.
 
 ## [0.12.1] - 2026-10-04
 

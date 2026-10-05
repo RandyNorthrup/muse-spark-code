@@ -1,0 +1,61 @@
+{
+  "path": "/v1/messages",
+  "headers": {
+    "anthropic-version": "2023-06-01"
+  },
+  "body": {
+    "model": "claude-sonnet-5-5",
+    "max_tokens": 256,
+    "system": [
+      {
+        "type": "text",
+        "text": "You are a capture assistant. Call get_time, then answer briefly.",
+        "cache_control": {
+          "type": "ephemeral",
+          "ttl": "5m"
+        }
+      }
+    ],
+    "messages": [
+      {
+        "role": "user",
+        "content": [
+          {
+            "type": "text",
+            "text": "Summary of the session so far: asked for UTC, got 12:00.",
+            "cache_control": {
+              "type": "ephemeral",
+              "ttl": "5m"
+            }
+          }
+        ]
+      }
+    ],
+    "tools": [
+      {
+        "name": "get_time",
+        "description": "Returns the current time in the given IANA time zone.",
+        "input_schema": {
+          "type": "object",
+          "properties": {
+            "timezone": {
+              "type": "string",
+              "description": "An IANA time zone such as UTC."
+            }
+          },
+          "required": ["timezone"]
+        }
+      }
+    ],
+    "tool_choice": {
+      "type": "auto"
+    },
+    "stream": true,
+    "thinking": {
+      "type": "adaptive"
+    },
+    "output_config": {
+      "effort": "high"
+    }
+  }
+}

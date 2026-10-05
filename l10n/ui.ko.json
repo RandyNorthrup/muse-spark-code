@@ -1982,5 +1982,12 @@
     "labels": {
       "custom": "사용자 지정 서버"
     }
-  }
+  },
+  "anthropicCodecError": "Anthropic이 이 요청을 처리하지 못했습니다.",
+  "anthropicCodecPdfUnsupported": "Anthropic 모델은 PDF 입력을 지원하지 않습니다.",
+  "anthropicCodecImageInvalid": "Anthropic 이미지에는 지원되는 이미지 형식의 base64 데이터 URL을 사용해야 합니다.",
+  "anthropicCodecToolArgumentsInvalid": "Anthropic 도구 인수는 JSON 객체여야 합니다.",
+  "anthropicCodecEffortUnsupported": "Anthropic은 이 추론 수준을 지원하지 않습니다.",
+  "anthropicCodecEmptyTurn": "Anthropic에는 메시지가 하나 이상 필요합니다.",
+  "anthropicCodecLimitExceeded": "Anthropic 응답이 디코딩 한도를 초과했습니다."
 }

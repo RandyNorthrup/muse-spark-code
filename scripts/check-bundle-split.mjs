@@ -152,7 +152,8 @@ for (const name of onDisk) {
   const lists =
     Number(ACTIVATION_ALLOWED.has(name)) +
     Number(lazy.has(name)) +
-    Number(DEFERRED_ONLY.includes(name))
+    Number(DEFERRED_ONLY.includes(name)) +
+    Number(name.startsWith('codecs/'))
   if (lists !== 1) {
     problems.push(
       `${MODEL_API_DIR}/${name} is on ${lists === 0 ? 'neither list' : 'both lists'} in scripts/check-bundle-split.mjs`,
@@ -459,6 +460,23 @@ for (const bundle of ON_FIRST_USE) {
     }
     if (!inputs.has(file)) {
       problems.push(`${bundle.output} no longer carries ${file}`)
+    }
+  }
+}
+
+// M95: codecs belong exclusively to the separate providers bundle. Check
+// every emitted JS output, including future bundles and new codec files.
+for (const directory of ['dist/meta', 'dist/meta-acp']) {
+  for (const name of readdirSync(directory)) {
+    if (!name.endsWith('.json')) continue
+    const { outputs } = JSON.parse(readFileSync(path.join(directory, name), 'utf8'))
+    for (const [output, bundle] of Object.entries(outputs)) {
+      if (output === 'dist/providers.js' || !output.endsWith('.js')) continue
+      for (const input of Object.keys(bundle.inputs)) {
+        if (input.startsWith(`${MODEL_API_DIR}/codecs/`)) {
+          problems.push(`${output} carries ${input}, which loads only in dist/providers.js`)
+        }
+      }
     }
   }
 }

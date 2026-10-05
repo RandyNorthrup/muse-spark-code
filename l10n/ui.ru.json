@@ -2204,5 +2204,12 @@
     "labels": {
       "custom": "Собственный сервер"
     }
-  }
+  },
+  "anthropicCodecError": "Anthropic не удалось обработать этот запрос.",
+  "anthropicCodecPdfUnsupported": "Модели Anthropic не поддерживают ввод PDF.",
+  "anthropicCodecImageInvalid": "Изображения для Anthropic должны использовать URL данных base64 с поддерживаемым типом изображения.",
+  "anthropicCodecToolArgumentsInvalid": "Аргументы инструментов Anthropic должны быть объектом JSON.",
+  "anthropicCodecEffortUnsupported": "Anthropic не поддерживает этот уровень рассуждений.",
+  "anthropicCodecEmptyTurn": "Anthropic требуется хотя бы одно сообщение.",
+  "anthropicCodecLimitExceeded": "Ответ Anthropic превысил ограничение декодирования."
 }

@@ -1,0 +1,96 @@
+{
+  "path": "/v1/messages",
+  "headers": {
+    "anthropic-version": "2023-06-01",
+    "anthropic-beta": "thinking-binding-controls-2026-08-01"
+  },
+  "body": {
+    "model": "claude-sonnet-5-5",
+    "max_tokens": 256,
+    "system": [
+      {
+        "type": "text",
+        "text": "You are a capture assistant. Call get_time, then answer briefly.",
+        "cache_control": {
+          "type": "ephemeral",
+          "ttl": "5m"
+        }
+      }
+    ],
+    "messages": [
+      {
+        "role": "user",
+        "content": [
+          {
+            "type": "text",
+            "text": "What time is it in UTC? Call get_time."
+          }
+        ]
+      },
+      {
+        "role": "assistant",
+        "content": [
+          {
+            "type": "thinking",
+            "thinking": "",
+            "signature": "test-signature-bytes"
+          },
+          {
+            "type": "tool_use",
+            "id": "toolu_01test",
+            "name": "get_time",
+            "input": {
+              "timezone": "UTC"
+            },
+            "caller": {
+              "type": "direct"
+            }
+          }
+        ]
+      },
+      {
+        "role": "user",
+        "content": [
+          {
+            "type": "tool_result",
+            "tool_use_id": "toolu_01test",
+            "content": "{\"timezone\":\"UTC\",\"time\":\"2026-10-04T12:00:00Z\"}",
+            "cache_control": {
+              "type": "ephemeral",
+              "ttl": "5m"
+            }
+          }
+        ]
+      }
+    ],
+    "tools": [
+      {
+        "name": "get_time",
+        "description": "Returns the current time in the given IANA time zone.",
+        "input_schema": {
+          "type": "object",
+          "properties": {
+            "timezone": {
+              "type": "string",
+              "description": "An IANA time zone such as UTC."
+            }
+          },
+          "required": ["timezone"]
+        }
+      }
+    ],
+    "tool_choice": {
+      "type": "auto"
+    },
+    "stream": true,
+    "thinking": {
+      "type": "adaptive",
+      "block_binding": {
+        "prefix_mismatch_behavior": "drop_block"
+      }
+    },
+    "output_config": {
+      "effort": "high"
+    }
+  }
+}

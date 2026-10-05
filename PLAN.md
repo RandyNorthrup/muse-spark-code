@@ -13912,6 +13912,20 @@ owner gave keys for (`docs/certification/m95-captures.md`: 46 model-call
 attempts, 44 billed, about $0.07). No code yet; implementation starts after
 the lead's review.**
 
+- **FIXM95A review repair (2026-10-05).** Lane A repairs RVM95AO findings
+  3, 4 (Anthropic), 5, 6, 7, 11 and 13 (Anthropic): codecs may occur only
+  in `dist/providers.js`; decoding caps frames, arguments, items and total
+  stream with named constants; malformed known deltas fail; captured cache
+  writes and TTL counts survive canonical usage; system plus the rolling
+  last message block carry breakpoints; goldens use native ids; locally
+  authored errors read the installed UI table. No new dependencies or live
+  calls. Focused tests and byte-exact red drills are recorded in
+  `docs/certification/m95-a.md`. The local `m95/pfix` price contract counts
+  fresh + read + written input, with disjoint write counters retained for
+  settlement; `cache_write_tokens` is total written and
+  `cache_write_tokens_1h` is its one-hour subset (five-minute writes are the
+  difference). The remote `kubuntu/m95/pfix` ref is absent on this rig.
+
 - **Goal.** A user adds any listed provider, or a compatible server of their
   own, in the Models & Agents panel in under a minute, and every harness
   feature then works on its models: tools and approvals, hooks, checkpoints, `then_run`,
@@ -14911,6 +14925,12 @@ classifies/wires the provider codec under D74's lazy-bundle contract, reruns
 the build and combined full quality, and records certification before
 release. `docs/certification/m95-g.md` records the failed build and the
 separately run later build checks; no successful full-build claim is made.
+**FIXM95A gate delegation (2026-10-05).** The owner's rig brief expressly
+forbids a full `quality` / full-test run and integration merges in this
+lane. Local focused suites, five-project typecheck, scoped lint/format,
+localization, host API, knip, duplication, cycles and production build run
+here; the lead must run full quality on the integrated tree. No threshold,
+ignore or rule is weakened. `docs/certification/m95-a.md` records results.
 
 **MG69 merged-source proof (2026-10-02).** Kubuntu passes 49 owning/merged
 files (2,056 tests; two existing Windows-only cases platform-skipped), all
@@ -15379,6 +15399,26 @@ before a repaired one loads (2026-09-30).
   then add replay and exact-byte regressions before enabling it. The review
   finding is fixed by the lead-approved explicit-refusal option; the media
   capability remains unavailable, with no new live/paid calls in this lane.
+- **M95 / RVM95AO-4-SSE — upstream Anthropic SSE buffering (FIXM95A,
+  2026-10-05).** The Anthropic decoder caps complete-frame bytes, argument
+  bytes, item bytes/count, stream bytes and frame count. Its input seam is
+  already-parsed `SseEvent`s: the shared `parseSse` reader can still retain
+  an unterminated line/event before the decoder sees it. Safe for this lane
+  only because no shipped entry imports the Anthropic codec (the bundle
+  exclusion gate proves that). Lane T must bound the byte source and SSE
+  pending line/event before providers are wired; this is a release blocker,
+  not an accepted risk for a configured provider. No shared parser/transport
+  redesign in this owned-file repair. Evidence and guard drills:
+  `docs/certification/m95-a.md`.
+
+- **M95 / RVM95AO-A-LIVE — preserved-thinking beta and rolling breakpoint
+  receipts (FIXM95A, 2026-10-05).** Existing counted frames are replayed,
+  and deterministic request goldens prove placement and prefix bytes
+  (rolling markers excepted). No capture exercises the `drop_block` beta
+  after a packing swap or the new rolling marker through this codec. Safe
+  while the codec is unwired; the owner's counted step-13 live receipts
+  remain required before release. This lane is explicitly forbidden from
+  making paid/live calls.
 
 - Code intelligence (M67) shows what VS Code's language services say. A
   result located outside the workspace is left out and a hover defined only

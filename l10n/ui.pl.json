@@ -2204,5 +2204,12 @@
     "labels": {
       "custom": "Serwer niestandardowy"
     }
-  }
+  },
+  "anthropicCodecError": "Anthropic nie mógł przetworzyć tego żądania.",
+  "anthropicCodecPdfUnsupported": "Modele Anthropic nie obsługują danych wejściowych PDF.",
+  "anthropicCodecImageInvalid": "Obrazy dla Anthropic muszą używać adresu URL danych base64 z obsługiwanym typem obrazu.",
+  "anthropicCodecToolArgumentsInvalid": "Argumenty narzędzi Anthropic muszą być obiektem JSON.",
+  "anthropicCodecEffortUnsupported": "Anthropic nie obsługuje tego poziomu rozumowania.",
+  "anthropicCodecEmptyTurn": "Anthropic wymaga co najmniej jednej wiadomości.",
+  "anthropicCodecLimitExceeded": "Odpowiedź Anthropic przekroczyła limit dekodowania."
 }
