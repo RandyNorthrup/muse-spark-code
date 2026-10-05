@@ -93,6 +93,7 @@ const PAGE_WORKER_OUTFILE = 'dist/pageWorker.js'
 const WEBVIEW_ENTRY = 'src/webview/main.tsx'
 // The Models & Agents panel's own app (M95 lane M), beside the chat.
 const MODELS_WEBVIEW_ENTRY = 'src/webview/models/models.tsx'
+const USAGE_WEBVIEW_ENTRY = 'src/webview/usage/usage.tsx'
 const WEBVIEW_OUTDIR = 'dist/webview'
 const ACP_ENTRY = 'src/runtime/main.ts'
 const ACP_OUTFILE = 'dist/acp.js'
@@ -367,6 +368,14 @@ const webviewOptions = {
   jsx: 'automatic',
 }
 
+// D82's fallback: a third shared entry re-cut chunks and added 3.1 KiB to
+// chat startup. Build usage independently to keep that startup byte-stable.
+const usageWebviewOptions = {
+  ...webviewOptions,
+  entryPoints: { usage: USAGE_WEBVIEW_ENTRY },
+  splitting: false,
+}
+
 function listIntegrationTests() {
   return readdirSync(INTEGRATION_TEST_DIR, { recursive: true })
     .map(String)
@@ -417,10 +426,12 @@ if (isWatch) {
     esbuild.context(searchWorkerOptions),
     esbuild.context(pageWorkerOptions),
     esbuild.context(webviewOptions),
+    esbuild.context(usageWebviewOptions),
   ])
   await Promise.all(contexts.map((ctx) => ctx.watch()))
   console.log('watching for changes…')
 } else {
+  const webview = Promise.all([esbuild.build(webviewOptions), esbuild.build(usageWebviewOptions)])
   const shipped = {
     extension: esbuild.build(hostOptions),
     modelApi: esbuild.build(modelApiOptions),
@@ -441,7 +452,7 @@ if (isWatch) {
     validation: esbuild.build(validationOptions),
     searchWorker: esbuild.build(searchWorkerOptions),
     pageWorker: esbuild.build(pageWorkerOptions),
-    webview: esbuild.build(webviewOptions),
+    webview,
   }
   const acp = esbuild.build(acpOptions)
   const builds = [...Object.values(shipped), acp]
@@ -452,7 +463,14 @@ if (isWatch) {
   if (isProduction) {
     mkdirSync(METAFILE_DIR, { recursive: true })
     for (const [name, build] of Object.entries(shipped)) {
-      const { metafile } = await build
+      const result = await build
+      const metafile =
+        name === 'webview'
+          ? {
+              inputs: { ...result[0].metafile.inputs, ...result[1].metafile.inputs },
+              outputs: { ...result[0].metafile.outputs, ...result[1].metafile.outputs },
+            }
+          : result.metafile
       writeFileSync(path.join(METAFILE_DIR, `${name}.json`), JSON.stringify(metafile))
     }
     mkdirSync(ACP_METAFILE_DIR, { recursive: true })
@@ -483,6 +501,8 @@ if (isWatch) {
   reportSize(path.join(WEBVIEW_OUTDIR, 'main.css'))
   reportSize(path.join(WEBVIEW_OUTDIR, 'models.js'))
   reportSize(path.join(WEBVIEW_OUTDIR, 'models.css'))
+  reportSize(path.join(WEBVIEW_OUTDIR, 'usage.js'))
+  reportSize(path.join(WEBVIEW_OUTDIR, 'usage.css'))
   reportSize(PROVIDER_CATALOG_OUTFILE)
   reportSize(ACP_OUTFILE)
 }

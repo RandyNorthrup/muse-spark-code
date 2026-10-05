@@ -118,6 +118,12 @@ function providersReport(): Partial<UsageDialogProps> {
 }
 
 describe('UsageDialog', () => {
+  it('opens the usage page through the injected host callback', () => {
+    const onOpenUsagePage = vi.fn()
+    renderDialog({ onOpenUsagePage })
+    fireEvent.click(screen.getByRole('button', { name: 'Open usage page' }))
+    expect(onOpenUsagePage).toHaveBeenCalledOnce()
+  })
   it('names an installer terminal failure while the Model API stays available', () => {
     renderDialog({
       auth: {

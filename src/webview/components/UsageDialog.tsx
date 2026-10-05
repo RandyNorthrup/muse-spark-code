@@ -66,6 +66,8 @@ export interface UsageDialogProps {
   readonly onForgetPaidUse: () => void
   readonly now: () => number
   readonly onOpenExternal: (url: string) => void
+  /** The chat's existing bridge supplies openUsagePage (editor wiring lane). */
+  readonly onOpenUsagePage?: () => void
   readonly onClose: () => void
 }
 
@@ -625,6 +627,7 @@ export function UsageDialog({
   onForgetPaidUse,
   now,
   onOpenExternal,
+  onOpenUsagePage,
   onClose,
 }: UsageDialogProps) {
   const [confirmInstall, setConfirmInstall] = useState(false)
@@ -713,6 +716,14 @@ export function UsageDialog({
   }
   return (
     <Modal title={UI_TEXT.usageLabel} titleId="usage-title" onClose={onClose}>
+      <button
+        type="button"
+        className="button-secondary"
+        disabled={onOpenUsagePage === undefined}
+        onClick={onOpenUsagePage}
+      >
+        {UI_TEXT.openUsagePage}
+      </button>
       {body}
       {auth.status === 'signedIn' ? (
         <div className="usage-setup">
