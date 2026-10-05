@@ -400,6 +400,47 @@ including key/stdout. It prints only match count: 0 clean, 10 found, 2 input/err
 timeout/cancelled. It never prints a match, path excerpt or secret. It catches
 known patterns and the exact key literal, not every unknown secret.
 
+## Report a problem (M93)
+
+`muse-spark-code-acp report` prints the same scrubbed problem report the
+extension previews, without starting anything (run here on Linux as
+`node dist/acp.js report` after `npm run build:dev`; exit 0, the draft on
+stdout, nothing on stderr):
+
+```text
+muse-spark-code-acp report [--out <file>] [--description <text>] [--no-facts] [--no-events]
+```
+
+It starts no backend, signs in nowhere, opens no browser and makes no
+network or model call: it reads only the local recorder journal beside the
+agent's sessions and gathers allowlisted local facts (versions, platform,
+CLI presence from file discovery, sign-in/key booleans). The report prints
+to stdout, or its exact bytes go to `<file>` with `--out` (stdout then stays
+empty, so a script captures exactly the draft). `--no-facts` and
+`--no-events` leave those sections out. Exits: 0 printed or saved, 1 the
+report could not be built or written, 2 bad arguments. A journal that was
+never written reads as no recent events; one that is oversize, corrupt or
+from another version reads as "event recording was unavailable" — a
+tampered journal can never become an arbitrary attachment.
+
+In ACP mode the agent observes its own failures into that same journal as
+fixed kind-plus-code facts (never messages, stacks, paths, prompts or
+session ids). Observing never changes what the editor sees on stdout.
+
+The journal lives in the agent's data folder:
+`%LOCALAPPDATA%\Muse Spark Code\problem-report-journal.json` on Windows,
+`~/Library/Application Support/Muse Spark Code/problem-report-journal.json`
+on macOS, `$XDG_DATA_HOME/muse-spark-code/problem-report-journal.json` (or
+`~/.local/share/muse-spark-code/…`) on Linux.
+
+Two honest limits of the standalone draft: outside VS Code there is no
+editor version to name, so the `vscode` fact carries the agent's own version
+to keep the draft's allowlisted shape; and a credential store or journal the
+process cannot read reads as absent or unavailable rather than failing the
+report. Anything typed into `--description` is capped and scrubbed with the
+shared redaction table, but like shell history it still passes through the
+terminal — keep secrets out of it.
+
 Read [the complete CLI/CI guide](https://github.com/RandyNorthrup/muse-spark-code/blob/main/docs/ci.md)
 for all options, limits, conditional billing theorem, Action lifecycle and
 workflow templates. Schemas ship as `schemas/exec-result-v1.schema.json`

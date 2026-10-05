@@ -4,6 +4,7 @@
 
 import { parseArgs } from 'node:util'
 import {
+  ACP_AGENT_NAME,
   ACP_BACKENDS,
   ACP_DEFAULT_BACKEND,
   ACP_PAID_FEATURES,
@@ -34,9 +35,21 @@ export interface ServeOptions {
   readonly isVerbose: boolean
 }
 
+/** What `report` prints: the scrubbed draft as text, or its exact bytes in a file. */
+export interface ReportOptions {
+  /** Write the report to this file instead of stdout; undefined prints it. */
+  readonly out: string | undefined
+  /** What was happening, in the user's own words (capped and scrubbed by the builder). */
+  readonly description: string
+  /** Section switches: the user can leave items out before anyone reads them. */
+  readonly includeFacts: boolean
+  readonly includeEvents: boolean
+}
+
 export type RuntimeCommand =
   | { readonly command: 'exec'; readonly options: ExecOptions }
   | { readonly command: 'scan-secrets'; readonly file: string; readonly keyFromStdin: boolean }
+  | { readonly command: 'report'; readonly options: ReportOptions }
   | { readonly command: 'serve'; readonly options: ServeOptions }
   | { readonly command: 'login'; readonly options: ServeOptions }
   | { readonly command: 'authSet' | 'authStatus' | 'authClear' | 'help' | 'version' }
@@ -75,6 +88,7 @@ function paidFeaturesOf(values: Readonly<Record<string, unknown>>): AcpPaidFeatu
 
 export function parseCommandLine(argv: readonly string[]): RuntimeCommand {
   if (argv[0] === 'exec' || argv[0] === 'scan-secrets') return parseHeadless(argv)
+  if (argv[0] === 'report') return parseReport(argv.slice(1))
   let parsed: ReturnType<typeof parseCommandLineStrictly>
   try {
     parsed = parseCommandLineStrictly(argv)
@@ -184,6 +198,43 @@ function parseHeadless(argv: readonly string[]): RuntimeCommand {
       exitCode: 2,
     }
   }
+}
+
+/** `report [options]`: the standalone problem report (M93 lane A, PLAN.md D72). */
+function parseReport(argv: readonly string[]): RuntimeCommand {
+  try {
+    const { values, positionals } = parseArgs({
+      args: [...argv],
+      allowPositionals: true,
+      strict: true,
+      options: {
+        out: { type: 'string' },
+        description: { type: 'string' },
+        'no-facts': { type: 'boolean' },
+        'no-events': { type: 'boolean' },
+        help: { type: 'boolean', short: 'h' },
+      },
+    })
+    if (values.help === true) return { command: 'help' }
+    if (positionals.length > 0 || values.out === '') {
+      return { command: 'invalid', reason: reportUsage(), exitCode: 2 }
+    }
+    return {
+      command: 'report',
+      options: {
+        out: values.out,
+        description: values.description ?? '',
+        includeFacts: values['no-facts'] !== true,
+        includeEvents: values['no-events'] !== true,
+      },
+    }
+  } catch {
+    return { command: 'invalid', reason: reportUsage(), exitCode: 2 }
+  }
+}
+
+function reportUsage(): string {
+  return fill(UI_TEXT.reportUsage, { command: ACP_AGENT_NAME })
 }
 
 function parseCommandLineStrictly(argv: readonly string[]) {

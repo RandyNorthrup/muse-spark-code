@@ -6,8 +6,8 @@
 
 import { spawn } from 'node:child_process'
 import { randomBytes } from 'node:crypto'
-import { readFileSync } from 'node:fs'
-import { open, readFile } from 'node:fs/promises'
+import { existsSync, readdirSync, readFileSync } from 'node:fs'
+import { mkdir, open, readFile, rename, writeFile } from 'node:fs/promises'
 import { homedir } from 'node:os'
 import path from 'node:path'
 import process from 'node:process'
@@ -22,6 +22,7 @@ import {
   EXEC_EXIT,
   EXEC_SCAN_TIMEOUT_MS,
   EXEC_FORCE_WRITE_MS,
+  SECRET_KEYS,
   SETTING_DEFAULTS,
   UI_TEXT,
 } from '../shared/constants'
@@ -30,6 +31,8 @@ import { fill } from '../shared/l10n/text'
 import { authClear, type AuthCommandDeps, authSet, authStatus, login } from './authCommands'
 import { createRuntimeBackend } from './backends'
 import { parseCommandLine, type ServeOptions } from './cliArgs'
+import { storeErrorCode } from '../host/backend/storeErrors'
+import { appendReportJournalEntry, reportJournalPath, runReportCommand } from './reportCommand'
 import { readSecretLine } from './hiddenInput'
 import { credentialStoreName, keyringSecretStore } from './keyStore'
 import { takeCredentials } from './credentialVariables'
@@ -140,6 +143,30 @@ async function readBoundedFile(
   }
 }
 
+/** The report journal's bytes, or undefined when none was ever written. Other failures throw. */
+async function readJournalBytes(file: string): Promise<Uint8Array | undefined> {
+  try {
+    return await readFile(file)
+  } catch (error: unknown) {
+    if (storeErrorCode(error) === 'ENOENT') {
+      return undefined
+    }
+    throw error
+  }
+}
+
+/** A whole-file write through a temporary file plus rename, beside the target. */
+async function writeJournalBytes(file: string, bytes: Uint8Array): Promise<void> {
+  const temporary = `${file}.tmp-${String(process.pid)}`
+  await writeFile(temporary, bytes)
+  await rename(temporary, file)
+}
+
+/** Where this agent's ACP error observer records facts-only entries (M93 lane A, D72). */
+function journalPath(): string {
+  return reportJournalPath({ platform: process.platform, env: process.env, homeDir: homedir() })
+}
+
 function authDeps(): AuthCommandDeps {
   return {
     secrets,
@@ -219,6 +246,20 @@ async function serve(options: ServeOptions, log: Logger): Promise<number> {
     defaultCwd: process.cwd(),
     paid: runtime.paid,
     log,
+    reportError: (fact) => {
+      // Facts-only observation for `report` (M93 lane A, D72): it never
+      // touches ACP stdout, and a failed journal write never reaches the session.
+      void appendReportJournalEntry({
+        journalPath: journalPath(),
+        entry: fact,
+        nowMs: Date.now(),
+        readBytes: readJournalBytes,
+        writeBytes: writeJournalBytes,
+        ensureDir: async (directory) => {
+          await mkdir(directory, { recursive: true })
+        },
+      })
+    },
   })
   const connection = agent.connect(
     ndJsonStream(Writable.toWeb(process.stdout), webReadable(process.stdin)),
@@ -387,6 +428,65 @@ async function main(): Promise<number> {
     }
     case 'authClear': {
       return await authClear(authDeps())
+    }
+    case 'report': {
+      // No backend, no auth flow and no model startup: only local, capped
+      // recorder data and allowlisted local facts (M93 lane A, D72).
+      const homeDir = homedir()
+      return await runReportCommand({
+        options: command.options,
+        version: packageVersion(),
+        nodeVersion: process.version,
+        platform: process.platform,
+        pathEntries: (process.env['PATH'] ?? '').split(path.delimiter),
+        homeDir,
+        localAppData: process.platform === 'win32' ? process.env['LOCALAPPDATA'] : undefined,
+        xdgConfigHome: process.env['XDG_CONFIG_HOME'],
+        museBinaryPath: '',
+        fileExists: (file) => {
+          try {
+            return existsSync(file)
+          } catch {
+            return false
+          }
+        },
+        readTextFile: (file): string | undefined => {
+          try {
+            return readFileSync(file, 'utf8')
+          } catch {
+            return undefined
+          }
+        },
+        listDirectory: (directory) => {
+          try {
+            return readdirSync(directory)
+          } catch {
+            return []
+          }
+        },
+        hasEnvironmentApiKey: 'META_API_KEY' in process.env,
+        readStoredKeyPresence: async () => {
+          try {
+            const stored = await secrets.get(SECRET_KEYS.modelApiKey)
+            return stored !== undefined && stored !== ''
+          } catch {
+            // A store that cannot be read reads no (documented in docs/acp.md).
+            return false
+          }
+        },
+        nowMs: Date.now(),
+        journalPath: journalPath(),
+        readJournal: readJournalBytes,
+        writeStdout: (text) => {
+          writeLine(process.stdout, text)
+        },
+        writeOutFile: async (file, text) => {
+          await writeFile(file, text, 'utf8')
+        },
+        printError: (line) => {
+          writeLine(process.stderr, line)
+        },
+      })
     }
     case 'version': {
       writeLine(process.stdout, packageVersion())

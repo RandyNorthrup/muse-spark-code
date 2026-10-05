@@ -29,6 +29,13 @@ happened, not what was planned; superseded entries are kept.
   failure's sanitized reference (never row text), and the render-failure
   screen; the webview↔host transport carries bounded identifiers only.
   Includes the `report`/`report-narrow` harness scenarios.
+- **Headless problem report and ACP error observer (M93 lane A, PLAN.md D72).**
+  `muse-spark-code-acp report` prints the scrubbed problem report from local,
+  capped recorder data only — no backend, sign-in, model or network — to
+  stdout, or writes its exact bytes with `--out` (exits 0 printed/saved, 1
+  not built/written, 2 bad arguments; `docs/acp.md` documents the command).
+  In ACP mode the agent observes its own failures into the runtime journal as
+  fixed kind-plus-code facts, without changing ACP stdout.
 
 ### Changed
 
