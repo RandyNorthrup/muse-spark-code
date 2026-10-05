@@ -197,7 +197,12 @@ Enabled commits use the repository's lint-staged ESLint/Prettier and staged
 Gitleaks commands through a worktree-local hook, with only `--no-stash`
 added to honor the lane's never-stash rule. No hook, scanner rule or machine
 configuration is disabled or changed. Merge hooks passed (3.44 MB scanned,
-no leaks); final assembly hook/restoration receipts follow after observation.
+no leaks). Assembly **`db0ed643`** passed scoped ESLint/Prettier and staged
+Gitleaks (49.99 KB scanned, no leaks). After those hooks, all five source
+restoration hashes, all 47 final artifact hashes and both actual archive
+hashes still match the recorded receipts; the worktree was clean. This
+closeout changes only this certification record, with its formatting,
+whitespace and enabled hooks checked at commit time.
 The full aggregate quality, coverage/a11y, hosted and installed-platform
 certification remain lead gates under the explicit brief. No future-round
 source, hook, lint, local judge, use, panel or embedding lane was implemented.
