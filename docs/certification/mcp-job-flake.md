@@ -130,3 +130,28 @@ accessibility and hosted CI remain the lead's certification. No gate,
 threshold or rule was weakened. There is no new command, setting or script
 requiring a README update. The changelog records CI reliability. No new
 escape hatch needs a PLAN.md section 8 row.
+
+## Rig hook recovery
+
+The initial source commit is `1dfeed61`. It completed without hook output:
+the rig's repository configuration already pointed to `.husky/_`, but this
+worktree lacked the generated wrapper directory. No bypass flag was used.
+That environment gap was discovered immediately after the commit.
+
+Recreated the ignored, worktree-local `h`/`pre-commit` wrapper from the
+installed Husky package, preserving the existing Git configuration and
+tracked hook. The rig's portable Git/gitleaks tools already existed under
+`C:/Users/randy/gates/tools`; PATH is supplied only to the invoking process,
+with Husky enabled. No machine/user setting or global install changed.
+
+Verified the exact source commit independently:
+
+- `npx.cmd lint-staged --diff=2e341e4c..1dfeed61 --concurrent 1`: exit 0;
+  the existing hook's ESLint/Prettier tasks processed all seven TypeScript
+  and four documentation files. No source/index changes remained.
+- `gitleaks git --redact --no-banner --log-opts=2e341e4c..1dfeed61`: exit 0;
+  one commit, 17,091 bytes scanned, no leaks found.
+- The production source SHA-256 remained the drill-restoration hash above.
+
+This receipt follows as a separate documentation commit through the normal
+configured pre-commit hook; the first commit's history is preserved.
