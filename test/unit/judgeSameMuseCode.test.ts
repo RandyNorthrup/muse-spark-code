@@ -1,0 +1,471 @@
+// Lane M98-S: the Muse Code host adapter (PLAN.md M98 acceptance item 5).
+// A fresh hidden session per batch (never M90's or the main one), in its own
+// empty temporary folder deleted after, in Plan with no MCP servers; the
+// judge stays off on standing always-allow rules; the M90 item guard cancels
+// on tool items; late results are dropped; the main session's frames never
+// change. Fast unit tests run on fakes; the frame test runs the real
+// MuseCodeHost over the in-memory MSP transport.
+
+import { mkdtempSync, rmSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import path from 'node:path'
+import { afterAll, describe, expect, it, vi } from 'vitest'
+import { MuseCodeHost } from '../../src/core/backends/musecode/MuseCodeHost'
+import { failureForLog } from '../../src/core/backends/musecode/logText'
+import { JudgeEntryStore } from '../../src/core/judge/entries'
+import { MuseCodeSameJudge, type MuseCodeJudgeDeps } from '../../src/host/judge/museCodeSameJudge'
+import { JudgeResultCache } from '../../src/core/judge/same/resultCache'
+import type { AgentEvent } from '../../src/shared/agentEvents'
+import { FakeAgentHost, FakeAgentSession } from './helpers/fakeAgent'
+import { FakeLogOutputChannel } from './helpers/fakes'
+import { fakeMspHost, type FakeHostHandle } from './helpers/fakeMsp'
+import {
+  reviewLeadFrames,
+  reviewReplyFrames,
+  reviewTurnCompleted,
+  reviewTurnStarted,
+  sideSessionStarted,
+} from './helpers/reviewerCapture'
+import { removeFolder } from './helpers/temporaryFolders'
+
+const MODEL = 'muse-spark-1.3-contributor'
+const NOUL = { id: 'risk', kind: 'noul' as const, text: 'Is deleting this risky?' }
+const folders: string[] = []
+
+afterAll(async () => {
+  await Promise.all(folders.map((folder) => removeFolder(folder)))
+})
+
+class SpyStore extends JudgeEntryStore {
+  public readonly settled: { key: string; outcome: string }[] = []
+  public override settle(key: string, outcome: 'caution' | 'none' | 'failed'): boolean {
+    const wasApplied = super.settle(key, outcome)
+    if (wasApplied) {
+      this.settled.push({ key, outcome })
+    }
+    return wasApplied
+  }
+}
+
+function startKey(entries: JudgeEntryStore): string {
+  return entries.start({
+    backend: 'muse-code',
+    sessionId: 's1',
+    turnId: 't1',
+    tool: 'run_shell',
+    args: { command: 'rm -rf /tmp/x' },
+  })
+}
+
+async function untilSettled(entries: SpyStore, key: string): Promise<string> {
+  const deadline = Date.now() + 8000
+  for (;;) {
+    const found = entries.settled.find((entry) => entry.key === key)
+    if (found !== undefined) {
+      return found.outcome
+    }
+    if (Date.now() > deadline) {
+      throw new Error('the judge never settled')
+    }
+    await new Promise((resolve) => setTimeout(resolve, 10))
+  }
+}
+
+function itemCompleted(
+  turnId: string,
+  item: Record<string, unknown>,
+): Extract<AgentEvent, { type: 'itemCompleted' }> {
+  return {
+    type: 'itemCompleted',
+    item: { itemId: `${turnId}-item`, kind: 'agentMessage', status: 'completed', turnId, ...item },
+  }
+}
+
+function turnCompleted(turnId: string): Extract<AgentEvent, { type: 'turnCompleted' }> {
+  return { type: 'turnCompleted', turnId, terminal: 'completed' }
+}
+
+interface FakeRig {
+  readonly entries: SpyStore
+  readonly cache: JudgeResultCache
+  readonly errors: unknown[]
+  readonly warnings: string[]
+  readonly infos: string[]
+  readonly host: FakeAgentHost
+  readonly sessions: FakeAgentSession[]
+  readonly removed: string[]
+  readonly sideIds: string[]
+  readonly judge: MuseCodeSameJudge
+  settingsText: string | undefined
+  replyText: string
+  emitToolItem: boolean
+  autoReply: boolean
+  flush: () => void
+}
+
+function fakeSetup(): FakeRig {
+  const entries = new SpyStore()
+  const cache = new JudgeResultCache()
+  const errors: unknown[] = []
+  const warnings: string[] = []
+  const infos: string[] = []
+  const host = new FakeAgentHost()
+  const sessions: FakeAgentSession[] = []
+  const removed: string[] = []
+  const sideIds: string[] = []
+  // Live bindings the deps close over: the returned rig mutates these, never
+  // a copy.
+  const mutable = {
+    settingsText: undefined as string | undefined,
+    replyText: '{"answer":"yes","confidence":95}',
+    emitToolItem: false,
+    autoReply: true,
+  }
+  const pending: (() => void)[] = []
+  const flush = (): void => {
+    for (const emit of pending.splice(0)) {
+      emit()
+    }
+  }
+  host.startSession.mockImplementation((options) => {
+    const session = new FakeAgentSession(`side-${String(sessions.length + 1)}`, options.modelId)
+    sessions.push(session)
+    session.sendTurn.mockImplementation(() => {
+      const submission = { turnId: `turn-${String(sessions.length)}`, disposition: 'started' }
+      const emit = (): void => {
+        if (mutable.emitToolItem) {
+          session.emit(
+            itemCompleted(submission.turnId, {
+              kind: 'toolCall',
+              tool: 'run_shell',
+              status: 'inProgress',
+            }),
+          )
+        }
+        session.emit(
+          itemCompleted(submission.turnId, { kind: 'userMessage', text: 'prompt' }),
+          itemCompleted(submission.turnId, { kind: 'agentMessage', text: mutable.replyText }),
+          turnCompleted(submission.turnId),
+        )
+      }
+      pending.push(emit)
+      if (mutable.autoReply) {
+        queueMicrotask(flush)
+      }
+      return Promise.resolve(submission)
+    })
+    return Promise.resolve(session)
+  })
+  const deps: MuseCodeJudgeDeps = {
+    startSession: (options) => host.startSession(options),
+    readSettingsText: () => mutable.settingsText,
+    makeTempRoot: () => {
+      const folder = mkdtempSync(path.join(tmpdir(), 'muse-judge-'))
+      folders.push(folder)
+      return Promise.resolve(folder)
+    },
+    removeTempRoot: (root) => {
+      removed.push(root)
+      rmSync(root, { recursive: true, force: true })
+      return Promise.resolve()
+    },
+    entries,
+    cache,
+    onSideSession: (sessionId) => {
+      sideIds.push(sessionId)
+    },
+    describeFailure: failureForLog,
+    logInfo: (message) => {
+      infos.push(message)
+    },
+    logWarn: (message) => {
+      warnings.push(message)
+    },
+    modelId: MODEL,
+    timeoutMs: 4000,
+    measureTokens: (text) => text.length,
+    onError: (error) => {
+      errors.push(error)
+    },
+  }
+  return {
+    entries,
+    cache,
+    errors,
+    warnings,
+    infos,
+    host,
+    sessions,
+    removed,
+    sideIds,
+    judge: new MuseCodeSameJudge(deps),
+    get settingsText() {
+      return mutable.settingsText
+    },
+    set settingsText(value: string | undefined) {
+      mutable.settingsText = value
+    },
+    get replyText() {
+      return mutable.replyText
+    },
+    set replyText(value: string) {
+      mutable.replyText = value
+    },
+    get emitToolItem() {
+      return mutable.emitToolItem
+    },
+    set emitToolItem(value: boolean) {
+      mutable.emitToolItem = value
+    },
+    get autoReply() {
+      return mutable.autoReply
+    },
+    set autoReply(value: boolean) {
+      mutable.autoReply = value
+    },
+    flush,
+  }
+}
+
+describe('MuseCodeSameJudge on fakes', () => {
+  it('judges in a hidden session and deletes its folder after', async () => {
+    const rig = fakeSetup()
+    const key = startKey(rig.entries)
+    rig.judge.judge({ entryKey: key, stateText: 'rm -rf /tmp/x', questions: [NOUL] })
+    expect(await untilSettled(rig.entries, key)).toBe('caution')
+    expect(rig.host.startSession).toHaveBeenCalledTimes(1)
+    const options = rig.host.startSession.mock.calls[0]?.[0]
+    expect(options?.modelId).toBe(MODEL)
+    expect(options?.approvalMode).toBe('denyUnmatched')
+    expect(options !== undefined && 'mcpServers' in options).toBe(false)
+    expect(options?.workspaceRoot.startsWith(tmpdir())).toBe(true)
+    const session = rig.sessions[0]
+    if (session === undefined) {
+      throw new Error('no side session started')
+    }
+    const sent = session.sendTurn.mock.calls[0]?.[0] ?? []
+    expect(sent).toHaveLength(1)
+    expect(sent[0]?.type).toBe('text')
+    if (sent[0]?.type !== 'text') {
+      throw new Error('no text turn sent')
+    }
+    expect(sent[0].text).toContain('Use no tools.')
+    expect(rig.sideIds).toEqual([session.sessionId])
+    expect(session.setReasoningEffort).toHaveBeenCalledWith('none')
+    expect(session.dispose).toHaveBeenCalled()
+    expect(rig.removed).toEqual([options?.workspaceRoot])
+    expect(rig.cache.get(key)?.outcome).toBe('caution')
+    expect(rig.errors).toEqual([])
+  })
+
+  it('starts a fresh session per batch, never reusing one', async () => {
+    const rig = fakeSetup()
+    const key = startKey(rig.entries)
+    rig.judge.judge({
+      entryKey: key,
+      stateText: 'x',
+      questions: [NOUL, { id: 'pick', kind: 'choice', text: 'Pick.', options: ['Aye', 'Nay'] }],
+    })
+    // The choice batch cannot answer from the noul reply: both settle, each
+    // in its own session.
+    await untilSettled(rig.entries, key)
+    expect(rig.host.startSession).toHaveBeenCalledTimes(2)
+    const roots = rig.host.startSession.mock.calls.map((call) => call[0].workspaceRoot)
+    expect(new Set(roots).size).toBe(2)
+    expect(rig.removed).toHaveLength(2)
+  })
+
+  it('stays off on standing always-allow rules without starting anything', async () => {
+    const rig = fakeSetup()
+    rig.settingsText = JSON.stringify({
+      schema_version: 1,
+      permissions: {
+        schema_version: 1,
+        default_profile: 'open',
+        profiles: { open: { filesystem: { mode: 'write' }, network: { mode: 'enabled' } } },
+      },
+    })
+    const key = startKey(rig.entries)
+    rig.judge.judge({ entryKey: key, stateText: 'x', questions: [NOUL] })
+    expect(await untilSettled(rig.entries, key)).toBe('failed')
+    expect(rig.host.startSession).not.toHaveBeenCalled()
+    expect(rig.removed).toEqual([])
+    expect(rig.infos).toHaveLength(1)
+  })
+
+  it('cancels on a tool item and deletes the folder', async () => {
+    const rig = fakeSetup()
+    rig.emitToolItem = true
+    const key = startKey(rig.entries)
+    rig.judge.judge({ entryKey: key, stateText: 'x', questions: [NOUL] })
+    expect(await untilSettled(rig.entries, key)).toBe('failed')
+    const session = rig.sessions[0]
+    if (session === undefined) {
+      throw new Error('no side session started')
+    }
+    expect(session.cancel).toHaveBeenCalled()
+    expect(session.dispose).toHaveBeenCalled()
+    expect(rig.removed).toHaveLength(1)
+    expect(rig.cache.get(key)).toBeUndefined()
+  })
+
+  it('drops a result that arrives after its fence', async () => {
+    const rig = fakeSetup()
+    rig.autoReply = false
+    const key = startKey(rig.entries)
+    rig.judge.judge({ entryKey: key, stateText: 'x', questions: [NOUL] })
+    await vi.waitFor(() => {
+      expect(rig.sessions).toHaveLength(1)
+    })
+    // The fence reads first and consumes the entry, before any reply lands.
+    expect(rig.entries.readLatch(key)).toBeUndefined()
+    rig.flush()
+    // The batch runs to completion afterwards: disposed, folder gone.
+    const session = rig.sessions[0]
+    if (session === undefined) {
+      throw new Error('no side session started')
+    }
+    await vi.waitFor(() => {
+      expect(session.dispose).toHaveBeenCalled()
+    })
+    expect(rig.entries.settled).toEqual([])
+    expect(rig.cache.get(key)).toBeUndefined()
+    expect(rig.removed).toHaveLength(1)
+  })
+
+  it('settles a repeated action from the cache without a session', async () => {
+    const rig = fakeSetup()
+    const key = startKey(rig.entries)
+    rig.judge.judge({ entryKey: key, stateText: 'x', questions: [NOUL] })
+    expect(await untilSettled(rig.entries, key)).toBe('caution')
+    expect(rig.host.startSession).toHaveBeenCalledTimes(1)
+    expect(rig.entries.readLatch(key)).toBe('caution')
+    rig.judge.judge({ entryKey: key, stateText: 'x', questions: [NOUL] })
+    await new Promise((resolve) => setTimeout(resolve, 50))
+    expect(rig.host.startSession).toHaveBeenCalledTimes(1)
+  })
+})
+
+describe('MuseCodeSameJudge over MSP frames', () => {
+  it('carries only the standalone prompt and leaves the main session alone', async () => {
+    const handle: FakeHostHandle = fakeMspHost()
+    const log = new FakeLogOutputChannel()
+    const host = new MuseCodeHost(handle.host, log)
+    handle.server.handle('session/start', (params) =>
+      sideSessionStarted(
+        `started-${String(handle.server.requestsFor('session/start').length)}`,
+        params['workspaceRoot'],
+        params['modelId'],
+      ),
+    )
+    const main = await host.startSession({
+      workspaceRoot: '/ws',
+      modelId: MODEL,
+      approvalMode: 'onRequest',
+    })
+    const startsBefore = handle.server.requestsFor('session/start').length
+    handle.server.handle('session/setReasoningEffort', (params) => ({
+      commandId: params['commandId'],
+      status: 'accepted',
+    }))
+    handle.server.handle('turn/start', (params) => {
+      const turnId = 'jt-1'
+      const started = reviewTurnStarted(params['commandId'], turnId)
+      setTimeout(() => {
+        for (const frame of [
+          ...reviewLeadFrames(String(params['sessionId']), turnId, ''),
+          ...reviewReplyFrames(
+            String(params['sessionId']),
+            turnId,
+            '{"answer":"no","confidence":99}',
+          ),
+        ]) {
+          handle.server.notify(frame.method, frame.params)
+        }
+        handle.server.notify(
+          'turn/completed',
+          reviewTurnCompleted(String(params['sessionId']), turnId),
+        )
+      }, 10)
+      return started
+    })
+    for (const method of ['turn/cancel', 'task/stopAll']) {
+      handle.server.handle(method, (params) => ({
+        commandId: params['commandId'],
+        status: 'accepted',
+      }))
+    }
+    const entries = new SpyStore()
+    const cache = new JudgeResultCache()
+    const errors: unknown[] = []
+    const sideIds: string[] = []
+    const removed: string[] = []
+    const judge = new MuseCodeSameJudge({
+      startSession: (options) => host.startSession(options),
+      readSettingsText: () => undefined,
+      makeTempRoot: () => {
+        const folder = mkdtempSync(path.join(tmpdir(), 'muse-judge-'))
+        folders.push(folder)
+        return Promise.resolve(folder)
+      },
+      removeTempRoot: (root) => {
+        removed.push(root)
+        rmSync(root, { recursive: true, force: true })
+        return Promise.resolve()
+      },
+      entries,
+      cache,
+      onSideSession: (sessionId) => {
+        sideIds.push(sessionId)
+      },
+      describeFailure: failureForLog,
+      logInfo: () => undefined,
+      logWarn: () => undefined,
+      modelId: MODEL,
+      timeoutMs: 5000,
+      measureTokens: (text) => text.length,
+      onError: (error) => {
+        errors.push(error)
+      },
+    })
+    const key = startKey(entries)
+    judge.judge({ entryKey: key, stateText: 'ls /tmp', questions: [NOUL] })
+    await vi.waitFor(() => {
+      expect(entries.settled.find((entry) => entry.key === key)?.outcome).toBe('none')
+    })
+    // One fresh judge session besides the main one, with Plan and no servers.
+    const starts = handle.server.requestsFor('session/start')
+    expect(starts).toHaveLength(startsBefore + 1)
+    const params = starts.at(-1)?.params ?? {}
+    expect(params['modelId']).toBe(MODEL)
+    expect(params['approvalMode']).toBe('denyUnmatched')
+    expect(params['config']).toBeUndefined()
+    const workspaceRoot = params['workspaceRoot']
+    expect(typeof workspaceRoot === 'string' && workspaceRoot !== '/ws').toBe(true)
+    // Its turn carries only the standalone prompt, using no tools.
+    const turns = handle.server.requestsFor('turn/start')
+    expect(turns).toHaveLength(1)
+    const input = turns[0]?.params['input']
+    const first: unknown = Array.isArray(input) ? input[0] : undefined
+    const text =
+      typeof first === 'object' &&
+      first !== null &&
+      'text' in first &&
+      typeof first.text === 'string'
+        ? first.text
+        : ''
+    expect(text).toContain('Use no tools.')
+    // The main session is untouched: no turn, no mode change, still listed.
+    expect(
+      handle.server
+        .requestsFor('turn/start')
+        .filter((request) => request.params['sessionId'] === main.sessionId),
+    ).toEqual([])
+    expect(sideIds).toHaveLength(1)
+    expect(sideIds[0]).not.toBe(main.sessionId)
+    expect(removed).toHaveLength(1)
+    expect(errors).toEqual([])
+    main.dispose()
+    await host.close()
+  })
+})
