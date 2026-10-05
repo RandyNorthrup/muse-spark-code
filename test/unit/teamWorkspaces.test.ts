@@ -83,6 +83,24 @@ async function commitWorkerEdit(
   })
 }
 
+async function expectLinkedStorageRefused(
+  fixture: TaskWorkspace,
+  linkType: 'dir' | 'junction',
+): Promise<void> {
+  const { root, workspace } = fixture
+  const storage = path.join(root, '..', 'storage')
+  const outside = path.join(root, '..', 'outside')
+  await mkdir(path.join(outside, path.basename(workspace.folder)), { recursive: true })
+  const sentinel = path.join(outside, path.basename(workspace.folder), 'sentinel')
+  await writeFile(sentinel, 'safe')
+  await rename(path.join(storage, 'agents'), path.join(storage, 'original-agents'))
+  await symlink(outside, path.join(storage, 'agents'), linkType)
+  await expect(removeTeamWorkspace(runGit, root, storage, workspace.folder)).rejects.toMatchObject({
+    code: 'workspaceFailed',
+  })
+  expect(await readFile(sentinel, 'utf8')).toBe('safe')
+}
+
 describe('resolveBaseCommit', () => {
   it('is HEAD on a clean tree', async () => {
     const { root, head } = await teamFixtureRepo(runGit)
@@ -340,22 +358,10 @@ describe('removeTeamWorkspace', () => {
   })
 
   it('refuses a replaced storage ancestor without deleting the outside sentinel', async () => {
-    const { root, workspace } = await taskWorkspace('linked')
-    const storage = path.join(root, '..', 'storage')
-    const outside = path.join(root, '..', 'outside')
-    await mkdir(path.join(outside, path.basename(workspace.folder)), { recursive: true })
-    const sentinel = path.join(outside, path.basename(workspace.folder), 'sentinel')
-    await writeFile(sentinel, 'safe')
-    await rename(path.join(storage, 'agents'), path.join(storage, 'original-agents'))
-    await symlink(
-      outside,
-      path.join(storage, 'agents'),
+    await expectLinkedStorageRefused(
+      await taskWorkspace('linked'),
       process.platform === 'win32' ? 'junction' : 'dir',
     )
-    await expect(
-      removeTeamWorkspace(runGit, root, storage, workspace.folder),
-    ).rejects.toMatchObject({ code: 'workspaceFailed' })
-    expect(await readFile(sentinel, 'utf8')).toBe('safe')
   })
 
   it('unlinks a replaced copy instead of following it', async () => {
@@ -375,18 +381,7 @@ describe('removeTeamWorkspace', () => {
     if (process.platform !== 'win32') {
       return
     }
-    const { root, workspace } = await taskWorkspace('junction')
-    const storage = path.join(root, '..', 'storage')
-    const outside = path.join(root, '..', 'junction-target')
-    await mkdir(path.join(outside, path.basename(workspace.folder)), { recursive: true })
-    const sentinel = path.join(outside, path.basename(workspace.folder), 'sentinel')
-    await writeFile(sentinel, 'safe')
-    await rename(path.join(storage, 'agents'), path.join(storage, 'original-agents'))
-    await symlink(outside, path.join(storage, 'agents'), 'junction')
-    await expect(
-      removeTeamWorkspace(runGit, root, storage, workspace.folder),
-    ).rejects.toMatchObject({ code: 'workspaceFailed' })
-    expect(await readFile(sentinel, 'utf8')).toBe('safe')
+    await expectLinkedStorageRefused(await taskWorkspace('junction'), 'junction')
   })
 
   it('keeps an unmerged task until this runs', async () => {

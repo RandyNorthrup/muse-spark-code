@@ -23,7 +23,10 @@ export interface TeamRefusal {
 export type RefFenceVerdict =
   { readonly allowed: true } | ({ readonly allowed: false } & TeamRefusal)
 
-function refused(command: string, reason: string): RefFenceVerdict {
+function refused(
+  command: string,
+  reason: string,
+): Extract<RefFenceVerdict, { readonly allowed: false }> {
   return { allowed: false, command, reason }
 }
 
@@ -315,6 +318,8 @@ const WRITE_OPTIONS = new Set([
   '--output',
   '-o',
   '-w',
+  '-O',
+  '-p',
   '--lost-found',
   '--ext-diff',
   '--textconv',
@@ -331,7 +336,11 @@ function checkGitOptions(rest: readonly string[], command: string): RefFenceVerd
       continue
     }
     const name = token.split('=', 1)[0] ?? token
-    if (WRITE_OPTIONS.has(name)) {
+    if (
+      WRITE_OPTIONS.has(name) ||
+      (name.startsWith('--') && [...WRITE_OPTIONS].some((option) => option.startsWith(name))) ||
+      ['-w', '-o', '-O'].some((option) => token.startsWith(option))
+    ) {
       return refused(command, 'refusedOption')
     }
   }
@@ -344,12 +353,11 @@ function checkGitOptions(rest: readonly string[], command: string): RefFenceVerd
 
 /**
  * One entry of the read-only command list (the shape lane 0's
- * `TEAM_READ_ONLY_COMMANDS` fills): the executable, an optional git-style
- * subcommand, and the entry's own refused options.
+ * `TEAM_READ_ONLY_COMMANDS` fills): an exact Git argv shape and the
+ * entry's own refused options.
  */
 export interface ReadOnlyCommandEntry {
   readonly command: string
-  readonly subcommand?: string | undefined
   /** Exact arguments after the executable, supplied by the trusted host. */
   readonly argv: readonly string[]
   readonly refusedOptions?: readonly string[] | undefined
@@ -367,7 +375,7 @@ export function classifyReadOnlyShellCommand(
   command: string,
   options: ReadOnlyShellOptions,
 ):
-  | RefFenceVerdict
+  | Extract<RefFenceVerdict, { readonly allowed: false }>
   | { readonly allowed: true; readonly executable: string; readonly args: readonly string[] } {
   const shape = commandShape(command, options.platform === 'win32' ? 'powershell' : 'bash')
   if (!shape.isPlain) {

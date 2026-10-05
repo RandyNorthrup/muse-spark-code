@@ -11,6 +11,8 @@ import type { ReviewPick } from './reviewerPick'
 export interface ReviewGateState {
   /** The branch head a review already covered, if any. */
   readonly reviewedHead: string | undefined
+  /** Provenance of the completed review, never the next available reviewer. */
+  readonly reviewedBy?: (ReviewPick & { readonly head: string }) | undefined
   /** The branch's current head. */
   readonly branchHead: string
   /** The pick for this branch, if any reviewer has headroom. */
@@ -36,7 +38,13 @@ export type ReviewGateVerdict =
 
 export function reviewGate(state: ReviewGateState): ReviewGateVerdict {
   if (state.reviewedHead !== undefined && state.reviewedHead === state.branchHead) {
-    return { ok: true, review: 'current' }
+    const reviewedBy = state.reviewedBy?.head === state.reviewedHead ? state.reviewedBy : undefined
+    if (!state.requireDifferentModel || reviewedBy?.sameModel === false) {
+      return { ok: true, review: 'current' }
+    }
+    if (reviewedBy?.sameModel === true) {
+      return { ok: false, reason: 'sameModelRefused' }
+    }
   }
   const reviewer = state.reviewer
   if (reviewer === undefined) {

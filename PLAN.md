@@ -5458,10 +5458,12 @@ summary, files?, checks?, sources?, questions?, next? }`. `blocked`
     - Before writing, it repeats M77's take checks: canonical targets, no
       path through a link out of the workspace, protected paths (D24) asked
       in every mode, and the ref fence clean.
-  - **Conflicts.** A file whose merge conflicts is written with conflict
-    markers, and the answer lists it. The orchestrator resolves it by
-    editing, as its own edit under its mode, or delegates a rework with
-    `continue`.
+  - **Conflicts (FIXM96I, lead ruling for RVM96B finding 24).** Every
+    file is derived before landing. A conflict returns `rework`, with
+    markers in the task's own branch copy; no file from that attempt lands
+    in the user's tree. The task resolves it through `continue` and the
+    new head is reviewed again. A missing or stale task copy refuses the
+    operation without writing the user's tree.
   - **The user's approval point.** Every merge is a card in the
     transcript, with the files, the review's verdict, conflicts and
     protected paths.
@@ -5487,8 +5489,8 @@ summary, files?, checks?, sources?, questions?, next? }`. `blocked`
     - Undeclared overlaps are predicted with trial merges as the changes
       grow, and the `delegate` answer warns at submission.
     - The merge queue orders the landings and tests each merged result. A
-      conflict is reworked in the task's branch by default, or written with
-      markers when the orchestrator asks for that.
+      conflict is reworked in the task's branch; lane I offers only
+      `rework` and never lands markers in the user's tree.
 - **Pipelines.** Saved flows that the orchestrator or the user starts. On
   the scheduler's board (Scheduler and traffic), a pipeline is a template of
   dependent tasks. The integration flow's **Full** setting runs the same
@@ -6976,10 +6978,10 @@ serve` and every worker session in it, after a confirmation that
       - The branch's whole change is reviewed again before the task
         rejoins the queue.
       - The user's tree never receives conflict markers.
-    - **`markers`.** D75's behaviour: the file is written with markers
-      into the user's tree, for the orchestrator to resolve. A JSON table
-      or a changelog never gets markers: its conflict always goes back as
-      a rework.
+    - **`markers`.** Not offered by lane I (lead ruling for RVM96B
+      finding 24). Its merge offers only `rework`; markers remain in the
+      task copy. Any future explicit markers mode needs a separate owner
+      decision before implementation.
   - **Never untested.** **Land without checks** is offered on the landing
     card only, and it asks in every mode, Bypass included.
   - **Landing: one at a time in the window, under git's own lock.**
@@ -17261,7 +17263,9 @@ next`, the exhausted policy and the queue, the meters, reservations and
       - The merge is a per-file three-way merge into the working tree that
         keeps the tree's own uncommitted changes. It makes no commit and
         changes no ref, and runs no repository program.
-      - A conflict is written with markers and listed.
+      - A conflict is listed and returned as `rework`, with markers in the
+        task branch copy. No file from the conflicted attempt lands in the
+        user's tree (lead ruling, RVM96B finding 24).
       - A file outside the role's `write-paths` is refused at the merge.
       - The merge card asks in Manual, Edit automatically and Auto; in
         Bypass it shows the card and can be followed; Plan refuses it.
@@ -19794,6 +19798,17 @@ joined with M57, M58 and PR #49's sign-in
 
 ## 7. Gates
 
+**FIXM96I local repair proof (2026-10-05).** RVM96B findings 1–12 and 24
+are fixed in lane I with 165 passing owning cases and 26 SHA-256-exact
+restored guard drills. Five compiler projects, changed-file ESLint/Prettier,
+deadcode, duplication (zero clones), localization, host API and production
+build pass on macmini. The duplication gate caught repeated test setup and
+was fixed with test-local shared fixtures; the host API record's two Node
+import counts were regenerated. No gate or budget changed. Full quality and
+the guarded Windows junction cases remain the lead's certification work under
+the rig brief. See `docs/certification/m96-i.md`; §9 names the remaining
+platform validation and existing filesystem atomicity assumptions.
+
 **MG69 merged-source proof (2026-10-02).** Kubuntu passes 49 owning/merged
 files (2,056 tests; two existing Windows-only cases platform-skipped), all
 five compiler projects and every required static gate. Both review and import
@@ -20237,6 +20252,20 @@ before a repaired one loads (2026-09-30).
 | `test/harness/index.html` (`isActiveDescendantList`), printed by `scripts/a11y.mjs` | The accessibility gate exempts axe's `scrollable-region-focusable` | The composer's `/` and `@` lists follow WAI-ARIA's combobox pattern: the box keeps the focus and moves `aria-activedescendant` through the listbox's options, and `Composer.tsx` scrolls the active option into view, so the list is keyboard operable (WCAG 2.1.1) without being a Tab stop. axe cannot see activedescendant-driven scrolling. The exemption holds only for a region that contains a listbox whose id is in the `aria-controls` of a focused or focusable element whose active descendant is one of that listbox's options; drills show a plain scrollable region and a listbox no control drives are still reported, and removing the exemption reports the composer's list again. Every exempt element is printed under its own "Exempt:" heading and counted. No `tabindex` was added to the list. | 2026-10-04 |
 
 ## 9. Security assumptions and accepted residual risk
+
+- **FIXM96I / RVM96B (2026-10-05):** findings 1–12 and 24 are repaired,
+  with no scoped finding deferred. Named validation residual **I-Windows**:
+  junction regressions are platform guarded and cannot execute on macmini;
+  the same no-follow ancestor logic is exercised with POSIX links here,
+  and the lead must run the owning files on Windows before certification.
+  Named platform residual **I-path-race**: canonical checks run at every
+  ancestor immediately before writes/deletes, but portable Node path APIs
+  cannot atomically pin the whole ancestor chain against a hostile local
+  process swapping it between check and operation. This is the existing
+  D24 filesystem assumption, not an accepted bypass with a link already
+  present. Follow-up: the integration lane's process exclusion and future
+  descriptor-relative filesystem primitives; never weaken containment.
+  Full `npm run quality` remains the lead's gate as the rig brief requires.
 
 - Code intelligence (M67) shows what VS Code's language services say. A
   result located outside the workspace is left out and a hover defined only

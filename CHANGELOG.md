@@ -24,7 +24,11 @@ happened, not what was planned; superseded entries are kept.
   exact arguments and trusted Git execution; worker environments cannot
   restore Git helpers or SSH agents. Cleanup refuses linked storage parents,
   task publication uses atomic ref compare-and-swap, untracked source enters
-  the worker base, and ignored scratch writes count as breaches.
+  the worker base, and ignored scratch writes count as breaches. Merges
+  re-read live task refs, validate every path ancestor, honour charter globs,
+  handle multiple conflict hunks, and return conflicts to the task copy for
+  rework. Executable modes survive merge/Undo, and completed review provenance
+  enforces a different-model requirement.
 
 ## [0.12.1] - 2026-10-04
 

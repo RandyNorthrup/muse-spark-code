@@ -31,6 +31,57 @@ describe('reviewGate', () => {
     ).toEqual({ ok: true, review: 'current' })
   })
 
+  it('refuses a current same-model review even when the next reviewer differs', () => {
+    expect(
+      reviewGate(
+        state({
+          reviewedHead: 'head-2',
+          reviewedBy: { head: 'head-2', entryId: 'old', modelId: 'm-a', sameModel: true },
+          reviewer: { entryId: 'next', modelId: 'm-b', sameModel: false },
+          requireDifferentModel: true,
+        }),
+      ),
+    ).toEqual({ ok: false, reason: 'sameModelRefused' })
+  })
+
+  it('requires provenance for a current review under a different-model policy', () => {
+    expect(
+      reviewGate(
+        state({
+          reviewedHead: 'head-2',
+          reviewer: { entryId: 'next', modelId: 'm-b', sameModel: false },
+          requireDifferentModel: true,
+        }),
+      ),
+    ).toMatchObject({ ok: false, reason: 'needsReview' })
+  })
+
+  it('does not reuse different-model provenance from another reviewed head', () => {
+    expect(
+      reviewGate(
+        state({
+          reviewedHead: 'head-2',
+          reviewedBy: { head: 'head-1', entryId: 'old', modelId: 'm-b', sameModel: false },
+          reviewer: { entryId: 'next', modelId: 'm-b', sameModel: false },
+          requireDifferentModel: true,
+        }),
+      ),
+    ).toMatchObject({ ok: false, reason: 'needsReview' })
+  })
+
+  it('accepts a completed different-model review regardless of the next pick', () => {
+    expect(
+      reviewGate(
+        state({
+          reviewedHead: 'head-2',
+          reviewedBy: { head: 'head-2', entryId: 'old', modelId: 'm-b', sameModel: false },
+          reviewer: { entryId: 'next', modelId: 'm-a', sameModel: true },
+          requireDifferentModel: true,
+        }),
+      ),
+    ).toEqual({ ok: true, review: 'current' })
+  })
+
   it('refuses an unreviewed branch while a reviewer has headroom', () => {
     expect(
       reviewGate(state({ reviewer: { entryId: 'r1', modelId: 'm-b', sameModel: false } })),

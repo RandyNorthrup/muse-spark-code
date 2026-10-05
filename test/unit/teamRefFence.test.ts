@@ -203,6 +203,26 @@ describe('classifyReadOnlyShellCommand', () => {
     ).toMatchObject({ reason: 'refusedOption' })
   })
 
+  it.each([
+    ['diff', '--out=canary'],
+    ['diff', '--output=canary'],
+    ['grep', '-Ocat', 'pattern'],
+    ['hash-object', '-w', 'tracked.txt'],
+    ['-p', 'log', '--oneline'],
+  ])('refuses write/program options in exact argv %s', (...args: string[]) => {
+    expect(shell(`git ${args.join(' ')}`, [{ command: 'git', argv: args }]).allowed).toBe(false)
+  })
+
+  it('requires a resolved absolute trusted Git path', () => {
+    expect(
+      classifyReadOnlyShellCommand('git log --oneline', {
+        platform: process.platform,
+        readOnly: READ_ONLY,
+        trustedGitPath: 'git',
+      }).allowed,
+    ).toBe(false)
+  })
+
   it('runs the ref guard under an exact list entry', () => {
     expect(shell('git push', [{ command: 'git', argv: ['push'] }])).toMatchObject({
       reason: 'gitRemote',
