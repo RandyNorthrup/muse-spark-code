@@ -195,6 +195,8 @@ export const HOST_ACTIONS = [
    * of its own. The conversation controller answers it itself.
    */
   'openTasksTab',
+  /** M102: the shared Usage & cost page. */
+  'openUsagePage',
   /** The bundled skills' offer for Muse Code (M89, PLAN.md D68): Install, Update, Not now. */
   'installBundledSkills',
   'updateBundledSkills',
@@ -409,6 +411,7 @@ const webviewToHostMessageSchema = z.discriminatedUnion('type', [
   // Editor resources dropped onto the composer (`text/uri-list`).
   z.object({ type: z.literal('droppedUris'), uris: z.array(z.string()) }),
   z.object({ type: z.literal('hostAction'), action: z.enum(HOST_ACTIONS) }),
+  z.strictObject({ type: z.literal('openUsagePage') }),
   // Approval card: one of the request's `availableChoices`.
   z.object({
     type: z.literal('decideApproval'),

@@ -2331,6 +2331,29 @@ export const HEARTBEAT_BEAM_MAX_TICKS_PER_FRAME = 8
 export const MILLISECONDS_PER_SECOND = 1000
 export const SECONDS_PER_MINUTE = 60
 export const USAGE_COUNTDOWN_REFRESH_MS = MILLISECONDS_PER_SECOND * SECONDS_PER_MINUTE
+
+// M102 / D82: machine-local usage history, independent of spend ledgers.
+export const USAGE_JOURNAL_VERSION = 1
+export const USAGE_FOLDER = 'usage'
+export const USAGE_VERSION_FOLDER = 'v1'
+export const USAGE_DAYS_FOLDER = 'days'
+export const USAGE_ROLLUPS_FOLDER = 'rollups'
+export const USAGE_ROLLUP_LOCK = 'rollup.lock'
+export const USAGE_DETAIL_DAYS = 30
+export const USAGE_HISTORY_DAYS_DEFAULT = 365
+export const USAGE_HISTORY_DAYS_MIN = 30
+export const USAGE_HISTORY_DAYS_MAX = 1825
+export const USAGE_RECORD_MAX_BYTES = 4096
+export const USAGE_LABEL_MAX_CHARS = 256
+export const USAGE_ID_MAX_CHARS = 128
+export const USAGE_HEADER_MAX_CHARS = 64
+export const USAGE_STALE_MS = 15 * 60 * 1000
+export const USAGE_COMPANION_IDLE_MS = 30 * 60 * 1000
+export const USAGE_ROLLUP_LOCK_STALE_MS = 5 * 60 * 1000
+// Eleven upper edges plus the overflow bucket: twelve log-scale latency buckets.
+export const USAGE_HISTOGRAM_EDGES_MS = [
+  125, 250, 500, 1000, 2000, 4000, 8000, 16_000, 32_000, 64_000, 128_000,
+] as const
 export const MINUTES_PER_HOUR = 60
 export const HOURS_PER_DAY = 24
 export const DAYS_PER_WEEK = 7
