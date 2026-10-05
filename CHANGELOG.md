@@ -7,6 +7,13 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+### Fixed
+
+- Windows CI hook fixtures now use the platform their captured paths describe;
+  Cline discovery exercises both POSIX and Windows path handling on every OS.
+  Deferred-bundle checks load their in-memory builds without requiring stale
+  or pre-existing files in `dist`.
+
 ## [0.14.0] - 2026-10-05
 
 ### Highlights

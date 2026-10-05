@@ -18149,6 +18149,24 @@ joined with M57, M58 and PR #49's sign-in
 
 ## 7. Gates
 
+**CIFIX14W Windows hosted-CI repair (2026-10-05).** Reproduce all four unit
+and process-e2e shards on the Windows 11 rig, in the rig brief's bounded
+three-file batches with V8 coverage, then repeat the complete suite twice
+after repairs. Correct foreign-platform fixtures with explicit path/platform
+semantics and make in-memory bundle tests independent of existing `dist`.
+Check the real PowerShell directory case before deciding whether product
+changes are needed. Run the Windows integration suite using local VS Code
+downloads only; network, live models, timeout increases and gate changes are
+prohibited. Exact receipts and any unavailable checks belong in
+`docs/certification/cifix14-windows.md`.
+The shared rules prohibit the aggregate `quality` command; scoped gates and
+the expressly requested full tests run instead. The rig's Node is 24.21.0,
+not CI's Node 22, and only installed VS Code 1.139.1 is available offline.
+The first full scan also hits the unchanged five-second restore-lease deadline
+in checkpoint restore; that entire file then passes in isolation. These
+limits are recorded, with no green full-run or exact-CI-version claim until
+the required receipts exist.
+
 **TRAIN14B Judge activation fixture stop (2026-10-05).** Full quality is
 explicitly authorized by this rig brief. Its aggregate unit run exposes a
 legacy Judge activation fixture that omits D78’s default callback. The field
