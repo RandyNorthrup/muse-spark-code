@@ -554,6 +554,64 @@ describe('ModelApiClient', () => {
     expect(api.requests.filter((request) => request.path === '/responses')).toHaveLength(4 + 5)
   })
 
+  it('never retries quota errors, whatever the status (M101 BYO 5)', async () => {
+    const { api, client, sleeps } = setup()
+    api.script({
+      httpError: {
+        status: 429,
+        body: {
+          error: {
+            message: 'You exceeded your current quota, please check your plan and billing details.',
+            type: 'rate_limit_error',
+            code: 'insufficient_quota',
+          },
+        },
+      },
+    })
+    await expect(
+      collect(client.streamResponse(body, new AbortController().signal)),
+    ).rejects.toMatchObject({
+      name: 'ModelApiError',
+      status: 429,
+      code: 'insufficient_quota',
+    })
+    expect(api.requests.filter((request) => request.path === '/responses')).toHaveLength(1)
+    expect(sleeps).toEqual([])
+  })
+
+  it('fails at once on a Retry-After past the cap, naming the wait (M101 BYO 5)', async () => {
+    const { api, client, sleeps } = setup()
+    api.script({
+      httpError: {
+        status: 429,
+        retryAfter: '120',
+        body: { error: { message: 'slow down', type: 'rate_limit_error' } },
+      },
+    })
+    await expect(collect(client.streamResponse(body, new AbortController().signal))).rejects.toThrow(
+      'wait 120 s before retrying, past the 60 s limit',
+    )
+    expect(api.requests.filter((request) => request.path === '/responses')).toHaveLength(1)
+    expect(sleeps).toEqual([])
+  })
+
+  it('still retries at exactly the Retry-After cap (M101 BYO 5)', async () => {
+    const { api, client, sleeps } = setup()
+    api.script(
+      {
+        httpError: {
+          status: 429,
+          retryAfter: '60',
+          body: { error: { message: 'slow down', type: 'rate_limit_error' } },
+        },
+      },
+      { text: 'finally' },
+    )
+    const events = await collect(client.streamResponse(body, new AbortController().signal))
+    expect(events.at(-1)?.type).toBe('response.completed')
+    expect(sleeps).toEqual([60_000])
+  })
+
   it('checks a child grant after a fresh key read before every HTTP retry', async () => {
     const api = fakeModelApi()
     const log = new FakeLogOutputChannel()

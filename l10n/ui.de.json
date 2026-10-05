@@ -767,6 +767,7 @@
   "allowSessionPrefix": "In dieser Sitzung immer zulassen:",
   "reject": "Ablehnen",
   "modelApiStalled": "Die Model API hat {seconds} s lang nichts gesendet, daher wurde die Antwort beendet; senden Sie die Nachricht erneut, um es noch einmal zu versuchen",
+  "modelApiRetryAfterTooLong": "Der Anbieter wollte {wait} s bis zum Wiederholen warten, mehr als das Limit von {cap} s, daher wurde die Anfrage nicht wiederholt.",
   "queuedTurnDropped": "Nicht gesendet: „Anhalten“ hat die eingereihten Nachrichten verworfen",
   "compactionStopped": "die Komprimierung wurde angehalten",
   "compactionStoppedNotice": "Komprimierung angehalten; die Unterhaltung ist unverändert.",

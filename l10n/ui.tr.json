@@ -767,6 +767,7 @@
   "allowSessionPrefix": "Bu oturumda her zaman izin ver:",
   "reject": "Reddet",
   "modelApiStalled": "Model API {seconds} sn boyunca hiçbir şey göndermedi, bu yüzden yanıt sonlandırıldı; yeniden denemek için mesajı tekrar gönderin",
+  "modelApiRetryAfterTooLong": "Sağlayıcı, yeniden denemeden önce {wait} sn beklemeyi istedi; bu, {cap} sn sınırını aştığı için istek yeniden denenmedi.",
   "queuedTurnDropped": "Gönderilmedi: Durdur düğmesi kuyruktaki mesajları temizledi",
   "compactionStopped": "sıkıştırma durduruldu",
   "compactionStoppedNotice": "Sıkıştırma durduruldu; konuşma olduğu gibi kaldı.",

@@ -12,6 +12,7 @@
 
 import { ZAI_KEY_PATTERN } from '../../shared/constants'
 import { fill, UI_TEXT } from '../../shared/l10n/text'
+import { RETRY_TABLES, type RetryTables } from '../../shared/retryPolicy'
 import type { ProviderFormat } from './providersFile'
 
 /** The panel's filter chips (D74): Cloud, On this computer, Aggregator. */
@@ -107,6 +108,11 @@ export interface FormatQuirks {
   readonly neverSendEmptyTools: true
   /** Compaction keeps the turn's tools with `tool_choice: auto`. */
   readonly keepToolsWithHistory: true
+  /**
+   * Retry classification per format (M101 BYO 5): the shared retry tables,
+   * so every provider retries its own failures and never its quota.
+   */
+  readonly retry: RetryTables
 }
 
 /** The five formats' defaults; presets override per provider. */
@@ -125,6 +131,7 @@ export const FORMAT_QUIRKS: Record<ProviderFormat, FormatQuirks> = {
     ],
     neverSendEmptyTools: true,
     keepToolsWithHistory: true,
+    retry: RETRY_TABLES.responses,
   },
   chat: {
     outputCapParam: 'max_completion_tokens',
@@ -137,6 +144,7 @@ export const FORMAT_QUIRKS: Record<ProviderFormat, FormatQuirks> = {
     cachedUsageFields: ['prompt_tokens_details.cached_tokens'],
     neverSendEmptyTools: true,
     keepToolsWithHistory: true,
+    retry: RETRY_TABLES.chat,
   },
   anthropic: {
     outputCapParam: 'max_tokens',
@@ -149,6 +157,7 @@ export const FORMAT_QUIRKS: Record<ProviderFormat, FormatQuirks> = {
     cachedUsageFields: ['cache_read_input_tokens', 'cache_creation_input_tokens'],
     neverSendEmptyTools: true,
     keepToolsWithHistory: true,
+    retry: RETRY_TABLES.anthropic,
   },
   gemini: {
     outputCapParam: 'maxOutputTokens',
@@ -161,6 +170,7 @@ export const FORMAT_QUIRKS: Record<ProviderFormat, FormatQuirks> = {
     cachedUsageFields: ['cachedContentTokenCount'],
     neverSendEmptyTools: true,
     keepToolsWithHistory: true,
+    retry: RETRY_TABLES.gemini,
   },
   ollama: {
     outputCapParam: 'num_predict',
@@ -173,6 +183,7 @@ export const FORMAT_QUIRKS: Record<ProviderFormat, FormatQuirks> = {
     cachedUsageFields: ['prompt_eval_cached_count'],
     neverSendEmptyTools: true,
     keepToolsWithHistory: true,
+    retry: RETRY_TABLES.ollama,
   },
 }
 
@@ -231,7 +242,10 @@ const OPENAI_PRESET: ProviderPreset = {
   },
   keyTest: { kind: 'models-list' },
   modelsList: { path: '/v1/models', priceSource: 'catalogue' },
-  quirks: {},
+  quirks: {
+    // OpenAI's documented retryable envelope error, past the format's statuses.
+    retry: { ...RETRY_TABLES.responses, errorKinds: ['server_error'] },
+  },
   wireCapture: true,
 }
 

@@ -743,6 +743,7 @@
   "allowSessionPrefix": "このセッションでは常に許可:",
   "reject": "拒否",
   "modelApiStalled": "Model API から {seconds} 秒間何も送られてこなかったため、応答を終了しました。再試行するにはメッセージをもう一度送信してください",
+  "modelApiRetryAfterTooLong": "プロバイダーが再試行の前に {wait} 秒の待機を求めましたが、上限の {cap} 秒を超えているため、要求は再試行されませんでした。",
   "queuedTurnDropped": "未送信: 停止によりキュー内のメッセージがクリアされました",
   "compactionStopped": "圧縮は停止されました",
   "compactionStoppedNotice": "圧縮を停止しました。会話は元のままです。",

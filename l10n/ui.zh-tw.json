@@ -743,6 +743,7 @@
   "allowSessionPrefix": "在此工作階段中一律允許：",
   "reject": "拒絕",
   "modelApiStalled": "Model API 在 {seconds} 秒內沒有傳送任何內容，因此已結束回覆；請再次傳送訊息以重試",
+  "modelApiRetryAfterTooLong": "提供者要求在重試前等候 {wait} 秒，超過了 {cap} 秒的上限，因此未重試該要求。",
   "queuedTurnDropped": "未傳送：「停止」已清除排入佇列的訊息",
   "compactionStopped": "壓縮已停止",
   "compactionStoppedNotice": "壓縮已停止；對話維持原狀。",

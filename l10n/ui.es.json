@@ -791,6 +791,7 @@
   "allowSessionPrefix": "Permitir siempre en esta sesión:",
   "reject": "Rechazar",
   "modelApiStalled": "Model API no envió nada durante {seconds} s, así que se terminó la respuesta; vuelva a enviar el mensaje para reintentarlo",
+  "modelApiRetryAfterTooLong": "El proveedor pidió esperar {wait} s antes de reintentar, más que el límite de {cap} s, por lo que la solicitud no se reintentó.",
   "queuedTurnDropped": "No enviado: Detener borró los mensajes en cola",
   "compactionStopped": "se detuvo la compactación",
   "compactionStoppedNotice": "Compactación detenida; la conversación sigue como estaba.",

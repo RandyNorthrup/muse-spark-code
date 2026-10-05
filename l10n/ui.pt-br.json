@@ -791,6 +791,7 @@
   "allowSessionPrefix": "Sempre permitir nesta sessão:",
   "reject": "Rejeitar",
   "modelApiStalled": "A Model API não enviou nada por {seconds} s, então a resposta foi encerrada; envie a mensagem novamente para tentar de novo",
+  "modelApiRetryAfterTooLong": "O provedor pediu para aguardar {wait} s antes de tentar de novo, acima do limite de {cap} s, então a solicitação não foi repetida.",
   "queuedTurnDropped": "Não enviada: Parar limpou as mensagens da fila",
   "compactionStopped": "a compactação foi interrompida",
   "compactionStoppedNotice": "Compactação interrompida; a conversa está como estava.",

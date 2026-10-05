@@ -743,6 +743,7 @@
   "allowSessionPrefix": "在此会话中始终允许：",
   "reject": "拒绝",
   "modelApiStalled": "Model API 在 {seconds} 秒内没有发送任何内容，因此回复已结束；请再次发送消息以重试",
+  "modelApiRetryAfterTooLong": "提供商要求在重试前等待 {wait} 秒，超过了 {cap} 秒的上限，因此未重试该请求。",
   "queuedTurnDropped": "未发送：“停止”清除了排队的消息",
   "compactionStopped": "压缩已停止",
   "compactionStoppedNotice": "压缩已停止；对话保持原样。",

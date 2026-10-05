@@ -1280,8 +1280,9 @@ export type PromptCacheRetention = (typeof PROMPT_CACHE_RETENTIONS)[number]
 // dev.meta.ai/docs/error-handling: 429 and the server errors are retryable
 // with exponential backoff and jitter, honouring Retry-After; 3–5 attempts.
 // A 504 is not: the guide says to stream instead, which every long request
-// here already does.
-export const MODEL_API_RETRYABLE_STATUSES: ReadonlySet<number> = new Set([429, 500, 502, 503])
+// here already does. The per-format status tables moved into the shared
+// retry policy (M101 BYO 5); the providers bundle carries them in
+// `FormatQuirks`.
 // A stream that ends with an `error` event of these codes (the instance shut
 // down or was overloaded mid-reply) is retried whole, as the guide says.
 export const MODEL_API_RETRYABLE_STREAM_CODES: ReadonlySet<string> = new Set([

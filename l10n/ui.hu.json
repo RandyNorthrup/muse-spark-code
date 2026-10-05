@@ -767,6 +767,7 @@
   "allowSessionPrefix": "Mindig engedélyezve ebben a munkamenetben:",
   "reject": "Elutasítás",
   "modelApiStalled": "A Model API {seconds} mp-ig semmit sem küldött, ezért a válasz lezárult; az újrapróbáláshoz küldje el ismét az üzenetet",
+  "modelApiRetryAfterTooLong": "A szolgáltató {wait} mp várakozást kért az újrapróbálkozás előtt, ami meghaladja a {cap} mp-es korlátot, ezért a kérés nem lett újrapróbálva.",
   "queuedTurnDropped": "Nincs elküldve: a Leállítás törölte a sorba állított üzeneteket",
   "compactionStopped": "a tömörítés leállt",
   "compactionStoppedNotice": "A tömörítés leállt; a beszélgetés változatlan.",

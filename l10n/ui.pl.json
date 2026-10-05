@@ -815,6 +815,7 @@
   "allowSessionPrefix": "Zawsze zezwalaj w tej sesji:",
   "reject": "Odrzuć",
   "modelApiStalled": "Model API nic nie wysłał przez {seconds} s, więc odpowiedź została zakończona; wyślij wiadomość ponownie, aby ponowić próbę",
+  "modelApiRetryAfterTooLong": "Dostawca poprosił o odczekanie {wait} s przed ponowieniem, powyżej limitu {cap} s, więc żądanie nie zostało ponowione.",
   "queuedTurnDropped": "Nie wysłano: zatrzymanie wyczyściło wiadomości w kolejce",
   "compactionStopped": "kompaktowanie zostało zatrzymane",
   "compactionStoppedNotice": "Zatrzymano kompaktowanie; rozmowa pozostała bez zmian.",

@@ -791,6 +791,7 @@
   "allowSessionPrefix": "Consenti sempre in questa sessione:",
   "reject": "Rifiuta",
   "modelApiStalled": "La Model API non ha inviato nulla per {seconds} s, quindi la risposta è stata terminata; invia di nuovo il messaggio per riprovare",
+  "modelApiRetryAfterTooLong": "Il provider ha chiesto di attendere {wait} s prima di riprovare, oltre il limite di {cap} s, quindi la richiesta non è stata ripetuta.",
   "queuedTurnDropped": "Non inviato: Arresta ha svuotato i messaggi in coda",
   "compactionStopped": "la compattazione è stata interrotta",
   "compactionStoppedNotice": "Compattazione interrotta; la conversazione è invariata.",
