@@ -50,9 +50,6 @@ happened, not what was planned; superseded entries are kept.
 - A blocked M80 `v0` tag update now reports that an administrator must move it,
   while preserving the four release channels' outcomes. Updates require a
   fast-forward; the release guide documents the administrator's recovery command.
-
-### Fixed
-
 - **CI reliability: flaky tests no longer race a deadline.**
   The Model API host's fork, Auto reviewer and two-host budget tests, the
   Action's signal tests (G18) and the headless deadline test (D9) failed now
