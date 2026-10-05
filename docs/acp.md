@@ -212,17 +212,18 @@ Creator's ACP Client, sublime-acp, Devin Desktop's custom agents).
 
 ## Interactive ACP options
 
-| Argument                               | Effect                                                                                                                  |
-| -------------------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
-| `--backend museCode\|modelApi`         | Which backend, and so who pays (default `museCode`)                                                                     |
-| `--trust-workspace`                    | Load the folder's rules, skills and memory, as Muse Code's own flag does. Without it the folder is treated as untrusted |
-| `--muse-binary <path>`                 | The Muse Code CLI to run; by default the agent looks where the VS Code extension looks                                  |
-| `--shell-sandbox auto\|muse\|off`      | Muse Code's shell sandbox, as the extension's `museSpark.shellSandbox` setting                                          |
-| `--allow-dangerously-skip-permissions` | Offer the Bypass permissions mode                                                                                       |
-| `--allow-contributor-models`           | List contributor-tier models, whose content Meta may train on; they are hidden otherwise                                |
-| `--web-search`                         | Offer paid web search (Model API backend only); each prompt asks in the editor first, naming the price                  |
-| `--image-generation`                   | Offer paid image generation (Model API backend only); each image asks in the editor first, naming the price             |
-| `--verbose`                            | Log every detail to stderr (the editor's agent log)                                                                     |
+| Argument                               | Effect                                                                                                                            |
+| -------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
+| `--backend museCode\|modelApi`         | Which backend, and so who pays (default `museCode`)                                                                               |
+| `--trust-workspace`                    | Load the folder's rules, skills and memory, as Muse Code's own flag does. Without it the folder is treated as untrusted           |
+| `--muse-binary <path>`                 | The Muse Code CLI to run; by default the agent looks where the VS Code extension looks                                            |
+| `--shell-sandbox auto\|muse\|off`      | Muse Code's shell sandbox, as the extension's `museSpark.shellSandbox` setting                                                    |
+| `--allow-dangerously-skip-permissions` | Offer the Bypass permissions mode                                                                                                 |
+| `--allow-contributor-models`           | List contributor-tier models, whose content Meta may train on; they are hidden otherwise                                          |
+| `--web-search`                         | Offer paid web search (Model API backend only); each prompt asks in the editor first, naming the price                            |
+| `--image-generation`                   | Offer paid image generation (Model API backend only); each image asks in the editor first, naming the price                       |
+| `--no-auto-compaction`                 | Disable automatic compaction in the shared Model API core (also accepted by exec); production is awaiting evaluation and inactive |
+| `--verbose`                            | Log every detail to stderr (the editor's agent log)                                                                               |
 
 ## What the editor sees
 

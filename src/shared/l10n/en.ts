@@ -1141,6 +1141,8 @@ export const EN = {
   installOrKeyDetail:
     'The Muse Code CLI hosts conversations for this extension; without it you can still use a Meta Model API key.',
   compactionDone: 'Context compacted',
+  autoCompactionAwaitingEvaluation: 'Automatic compaction is awaiting evaluation and is inactive.',
+  autoCompactionFailed: 'Automatic compaction failed; continuing with the original context.',
   contextWindowFull: 'Context window full: /compact or /handoff',
   // The Model API session budget (M82): a request that cannot fit is not
   // sent, and the turn's cost is shown against the cap afterwards.
@@ -1811,6 +1813,7 @@ export const EN = {
     '  --allow-contributor-models       List contributor-tier models (Meta may train on their content)',
     '  --web-search                     Offer paid web search (Model API backend; its price is asked first)',
     '  --image-generation               Offer paid image generation (Model API backend; its price is asked first)',
+    '  --no-auto-compaction             Disable automatic compaction',
     '  --verbose                        Log every detail on stderr',
     '  --help, --version',
   ].join('\n'),

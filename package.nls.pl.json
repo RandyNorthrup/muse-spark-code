@@ -125,5 +125,6 @@
   "command.addModelProvider.title": "Dodaj dostawcę modeli…",
   "config.suggestedProvider.description": "Obszar roboczy może zasugerować jeden preset dostawcy modeli według id; panel proponuje otwarcie Modeli i agentów z tym presetem. Pusty nie sugeruje nic. Obszar roboczy nie może ustawić adresu ani poświadczenia.",
   "walkthrough.gettingStarted.step.ownModel.title": "Zacznij od własnego modelu",
-  "walkthrough.gettingStarted.step.ownModel.description": "Brak subskrypcji Muse lub klucza API Meta? Dodaj własnego dostawcę modeli — OpenRouter, Anthropic, OpenAI albo serwer lokalny — i wybierz model.\n[Zacznij od własnego modelu](command:museSpark.startWithOwnModel)"
+  "walkthrough.gettingStarted.step.ownModel.description": "Brak subskrypcji Muse lub klucza API Meta? Dodaj własnego dostawcę modeli — OpenRouter, Anthropic, OpenAI albo serwer lokalny — i wybierz model.\n[Zacznij od własnego modelu](command:museSpark.startWithOwnModel)",
+  "config.modelApiAutoCompaction.description": "Automatycznie kompaktuj długie rozmowy Model API. Domyślnie włączone, ale nieaktywne do zaliczenia oceny porównawczej. Każde dodatkowe płatne wywołanie wymaga zgody na cenę i dzienny budżet."
 }

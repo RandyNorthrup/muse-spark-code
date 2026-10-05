@@ -125,5 +125,6 @@
   "command.addModelProvider.title": "Modellszolgáltató hozzáadása…",
   "config.suggestedProvider.description": "Egy munkaterület legfeljebb egy modellszolgáltató-előbeállítást javasolhat azonosító alapján; a panel felajánlja a Modellek és ügynökök megnyitását ezzel az előbeállítással. Üresen semmit sem javasol. A munkaterület nem adhat meg címet vagy hitelesítő adatot.",
   "walkthrough.gettingStarted.step.ownModel.title": "Kezdje saját modellel",
-  "walkthrough.gettingStarted.step.ownModel.description": "Nincs Muse-előfizetése vagy Meta API-kulcsa? Adjon hozzá saját modellszolgáltatót — OpenRouter, Anthropic, OpenAI vagy helyi kiszolgáló — és válasszon modellt.\n[Kezdés saját modellel](command:museSpark.startWithOwnModel)"
+  "walkthrough.gettingStarted.step.ownModel.description": "Nincs Muse-előfizetése vagy Meta API-kulcsa? Adjon hozzá saját modellszolgáltatót — OpenRouter, Anthropic, OpenAI vagy helyi kiszolgáló — és válasszon modellt.\n[Kezdés saját modellel](command:museSpark.startWithOwnModel)",
+  "config.modelApiAutoCompaction.description": "Hosszú Model API beszélgetések automatikus tömörítése. Alapértelmezés szerint bekapcsolva, de sikeres páros értékelésig inaktív. Minden további fizetős híváshoz az ár és a napi keret jóváhagyása szükséges."
 }

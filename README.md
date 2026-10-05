@@ -715,8 +715,29 @@ character) starts in a mode that asks, Manual (Plan when that is your
 starting mode), and the panel names the mode. A handoff from a
 conversation in Plan mode stays in Plan.
 
-Automatic compaction, the hidden follow-up and memory flush are not
-built: only manual `/handoff` is available.
+Automatic compaction, its exact todo continuation and the memory flush are
+implemented in the shared Model API engine, but **awaiting evaluation and
+inactive**. `museSpark.modelApiAutoCompaction` defaults to `true`; set it to
+`false` to turn the mechanism off. ACP and headless use the same core and
+accept `--no-auto-compaction`. Muse Code continues to compact itself.
+
+Once a current M75 pair passes and the shared paid gate/ledger is connected,
+compaction is considered inside your turn after a settled tool batch. A
+registered todo completion can trigger it when the expected token saving
+repays the summary call, cache-write premium and carried debt. Cost decisions
+require at least 50% context occupancy and two ordinary requests since the
+last compaction. At 90% occupancy, protection bypasses those economic guards;
+a classified overflow gets at most one automatic compact-and-retry per turn.
+The first paid charge requires the shared price/daily-budget consent, and
+every attempt is tallied. Stop and final account/key/budget checks still apply.
+
+The memory flush writes a labelled, untrusted host snapshot through the
+ordinary memory permission path: Manual asks; Plan and Restricted Mode refuse
+the write while compaction can continue. The next request restores the exact
+host todo list and goal as data, including completed items. It adds no separate
+model call to guess the list. An unsuccessful summary keeps the existing
+conversation; failed or refused automatic work clears economic debt. Production remains inactive until lane E records
+both 0.75 capability floors and actual compaction evidence in its M75 pair.
 
 When a Model API turn fills its context window, it reports **Context window
 full: /compact or /handoff**. Ordinary requests are refused locally only when
@@ -728,7 +749,8 @@ each dispatched attempt retaining its admitted window and format. The documented
 Muse window applies only to verified legacy Muse ids without a registry resolver;
 an authoritative missing row stays unknown. Provider
 registry wiring must supply each BYO model's window; Ollama needs its loaded
-`num_ctx`, rather than its trained maximum. No automatic retry is added here.
+`num_ctx`, rather than its trained maximum. Automatic recovery remains inactive
+until the evaluation and paid-admission requirements above are satisfied.
 
 Handoff runs on the Model API backend only: on Muse Code the command says
 so, where Muse Code compacts its own conversations. It starts from the
@@ -2810,7 +2832,7 @@ All settings live under `museSpark.*`; changes apply to open panels
 immediately. The settings that choose what runs and what is billed
 (`initialPermissionMode`, `backend`, `shellSandbox`, `sandboxNetwork`,
 `allowDangerouslySkipPermissions`, `museBinaryPath`, `environmentVariables`,
-`modelApiHooks`, `modelApiRepoMap`, `modelApiObservationPacking`,
+`modelApiHooks`, `modelApiRepoMap`, `modelApiObservationPacking`, `modelApiAutoCompaction`,
 `modelApiPromptCacheRetention`, `turnCheckpoints`, `bundledSkills`,
 the verify loop's `checkCommands`, `formatOnEdit` and `diagnosticsAfterEdits`,
 `modelApiSessionBudgetUsd` and the six paid features, `modelApiWebSearch`,
@@ -2853,6 +2875,7 @@ Bypass at once.
 | `environmentVariables`            | `[]`        | `{ name, value }` pairs for the Muse Code process and the terminals that run the CLI (Open in Terminal, MCP sign-in, `muse logout`); an `XDG_CONFIG_HOME` here is where the extension looks for the CLI's sign-in and settings too. Never put API keys here; use Sign in. Changing it restarts the host                                                                                                                                                                                                                                                                                                                                                 |
 | `modelApiRepoMap`                 | `false`     | Put a [repo map](#code-intelligence) in the Model API backend's instructions in a trusted workspace: the workspace's most used files and definitions, made once per conversation in about 1,000 tokens, which every request then carries (billed to your key). Machine-scoped                                                                                                                                                                                                                                                                                                                                                                           |
 | `modelApiObservationPacking`      | `false`     | [Observation packing](#observation-packing-model-api) on the Model API backend: a tool output over 8,000 characters rides whole for two requests, then as a short placeholder, and the model pages it back with `recall_output`. Read when a conversation starts or is reopened. Machine-scoped                                                                                                                                                                                                                                                                                                                                                         |
+| `modelApiAutoCompaction`          | `true`      | Automatic Model API compaction; awaiting evaluation and inactive until the M75 pair and shared paid admission are certified. Set false to opt out. Machine-scoped                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
 | `turnCheckpoints`                 | `true`      | Records the model’s own file-tool writes for **Restore files to here** and Redo while each file still holds exactly what the model left. Commands, hooks, MCP tools, your edits and other windows’ writes are never undone. Requires a connected Model API session, git and confirmed process safety; copies stay in extension storage, outside the workspace’s `.git`. Off in Restricted Mode. Machine-scoped                                                                                                                                                                                                                                          |
 | `bundledSkills`                   | `true`      | The [bundled skills](#bundled-skills) (`project_setup`, `feature_delivery`, `quality_retrofit`): a skill source on the Model API backend, after the project's and your own, and the one-time install offer for Muse Code. Off removes them from the Model API catalogue at once; an install for Muse Code stays until **Remove Bundled Skills from Muse Code**. Machine-scoped                                                                                                                                                                                                                                                                          |
 | `diagnosticsAfterEdits`           | `true`      | [Checking edits](#checking-edits): after each round of edits the Model API model gets the edited files' errors and warnings from VS Code's language servers; Muse Code is told to read them itself. Machine-scoped                                                                                                                                                                                                                                                                                                                                                                                                                                      |

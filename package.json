@@ -884,6 +884,12 @@
           "default": true,
           "description": "%config.museCodeAutoReviewer.description%",
           "scope": "machine"
+        },
+        "museSpark.modelApiAutoCompaction": {
+          "type": "boolean",
+          "default": true,
+          "description": "%config.modelApiAutoCompaction.description%",
+          "scope": "machine"
         }
       }
     },

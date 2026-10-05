@@ -134,6 +134,7 @@ const DEFAULTS: ServeOptions = {
   allowsContributorModels: false,
   paidFeatures: [],
   isVerbose: false,
+  autoCompaction: true,
 }
 
 function fakeKeyring() {
@@ -206,6 +207,7 @@ describe('parseCommandLine', () => {
         shellSandbox: 'off',
         canBypass: true,
         allowsContributorModels: true,
+        autoCompaction: true,
         paidFeatures: ['webSearch', 'imageGeneration'],
         isVerbose: true,
       },

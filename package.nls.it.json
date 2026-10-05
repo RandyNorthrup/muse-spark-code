@@ -125,5 +125,6 @@
   "command.addModelProvider.title": "Aggiungi un provider di modelli…",
   "config.suggestedProvider.description": "Un’area di lavoro può suggerire un solo preset di provider di modelli tramite id; il pannello offre di aprire Modelli e agenti con quel preset. Vuoto non suggerisce nulla. Un’area di lavoro non può impostare un indirizzo né una credenziale.",
   "walkthrough.gettingStarted.step.ownModel.title": "Inizia con il tuo modello",
-  "walkthrough.gettingStarted.step.ownModel.description": "Nessun abbonamento Muse o chiave API Meta? Aggiungi il tuo provider di modelli — OpenRouter, Anthropic, OpenAI o un server locale — e scegli un modello.\n[Inizia con il tuo modello](command:museSpark.startWithOwnModel)"
+  "walkthrough.gettingStarted.step.ownModel.description": "Nessun abbonamento Muse o chiave API Meta? Aggiungi il tuo provider di modelli — OpenRouter, Anthropic, OpenAI o un server locale — e scegli un modello.\n[Inizia con il tuo modello](command:museSpark.startWithOwnModel)",
+  "config.modelApiAutoCompaction.description": "Compattare automaticamente le conversazioni lunghe di Model API. Attivo per impostazione predefinita, ma inattivo fino al superamento di una valutazione abbinata. Ogni chiamata aggiuntiva a pagamento richiede il consenso al prezzo e al budget giornaliero."
 }

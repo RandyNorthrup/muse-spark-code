@@ -125,5 +125,6 @@
   "command.addModelProvider.title": "Modellanbieter hinzufügen…",
   "config.suggestedProvider.description": "Ein Arbeitsbereich kann genau eine Modellanbieter-Vorlage per ID vorschlagen; das Panel bietet an, Modelle & Agenten mit dieser Vorlage zu öffnen. Leer schlägt nichts vor. Ein Arbeitsbereich kann keine Adresse und keine Anmeldedaten festlegen.",
   "walkthrough.gettingStarted.step.ownModel.title": "Mit eigenem Modell starten",
-  "walkthrough.gettingStarted.step.ownModel.description": "Kein Muse-Abonnement und kein Meta-API-Schlüssel? Fügen Sie Ihren eigenen Modellanbieter hinzu — OpenRouter, Anthropic, OpenAI oder einen lokalen Server — und wählen Sie ein Modell.\n[Mit eigenem Modell starten](command:museSpark.startWithOwnModel)"
+  "walkthrough.gettingStarted.step.ownModel.description": "Kein Muse-Abonnement und kein Meta-API-Schlüssel? Fügen Sie Ihren eigenen Modellanbieter hinzu — OpenRouter, Anthropic, OpenAI oder einen lokalen Server — und wählen Sie ein Modell.\n[Mit eigenem Modell starten](command:museSpark.startWithOwnModel)",
+  "config.modelApiAutoCompaction.description": "Lange Model-API-Unterhaltungen automatisch komprimieren. Standardmäßig aktiviert, aber bis zu einer erfolgreichen gepaarten Auswertung inaktiv. Jeder zusätzliche kostenpflichtige Aufruf erfordert die Zustimmung zu Preis und Tagesbudget."
 }

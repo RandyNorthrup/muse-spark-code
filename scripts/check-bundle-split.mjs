@@ -117,6 +117,7 @@ const LAZY_ONLY = [
   'modelCallHooks.ts',
   // M73: observation packing's store, its placeholder and recall_output.
   'observationPack.ts',
+  'autoCompact.ts',
   'permissions.ts',
   'promptCache.ts',
   // The built-in Reviewer's prompt and tool list (M70).

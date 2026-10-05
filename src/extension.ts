@@ -1685,6 +1685,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     codeIntel: languageServices,
     isRepoMapInPrompt: () => currentSettings().modelApiRepoMap,
     isObservationPackingOn: () => currentSettings().modelApiObservationPacking,
+    isAutoCompactionOn: () => currentSettings().modelApiAutoCompaction,
     allowsPaidUse: async (request, requiresAsking) =>
       await paid.consent.allows(request, requiresAsking),
     isPaidUseRemembered: (feature) => paid.consent.isRemembered(feature),

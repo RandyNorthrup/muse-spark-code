@@ -17,6 +17,11 @@ import type {
 } from '../../../shared/agentEvents'
 import {
   AGENT_SOURCE_LABELS,
+  IS_AUTO_COMPACTION_EVALUATED,
+  AUTO_COMPACTION_MEMORY_PATH_PREFIX,
+  MODEL_API_PRICES_PER_MILLION,
+  TOKENS_PER_MILLION,
+  SETTING_DEFAULTS,
   AUTH_REQUIRED_ERROR_KIND,
   AUTO_REVIEW_ROW_TOOL,
   AUTO_REVIEWER_RECENT_CALLS,
@@ -276,6 +281,12 @@ import {
 } from './reviewer'
 import { MediaBudget } from './mediaBudget'
 import { classifyContextOverflow } from '../../context/overflow'
+import {
+  AutoCompact,
+  measureAutoCompactRequest,
+  type AutoCompactModel,
+  type AutoCompactDecision,
+} from './autoCompact'
 import type {
   ContextModel,
   ContextOverflowEvent,
@@ -410,6 +421,32 @@ export interface ModelApiPaidHooks {
 
 export interface ModelApiHostDeps extends ModelApiPaidHooks {
   readonly client: ModelApiClient
+  readonly autoCompaction?: (() => boolean) | undefined
+  /** Lane E's bounded evaluation override; production uses the certified latch. */
+  readonly autoCompactionEvaluated?: (() => boolean) | undefined
+  readonly autoCompactModel?: ((modelId: string) => AutoCompactModel | undefined) | undefined
+  /** D78 owns price/budget consent and the ledger; absence fails closed. */
+  readonly admitAutoCompaction?:
+    | ((request: {
+        readonly sessionId: string
+        readonly turnId: string
+        readonly modelId: string
+        readonly model: AutoCompactModel
+        readonly decision: AutoCompactDecision
+        readonly signal: AbortSignal
+      }) => Promise<
+        | {
+            readonly guard: ResponseAttemptGuard
+            /** Once per dispatched attempt, including uncertain/failed attempts. */
+            readonly settle: (
+              modelId: string,
+              usage: Usage | undefined,
+              outcome: 'returned' | 'uncertain' | 'rate-limited',
+            ) => void
+          }
+        | undefined
+      >)
+    | undefined
   /** M95 registry seam until its client wiring lands on this base. */
   readonly compactionModel?:
     | ((modelId: string) =>
@@ -725,6 +762,7 @@ interface ActiveTurn {
   checkpoint?: TurnCheckpoint | undefined
   /** It started a process, or one of the conversation's ran in the background (M86, spec 8). */
   ranProcesses: boolean
+  didRecoverOverflow?: boolean
 }
 
 interface HookToolResult {
@@ -1841,7 +1879,15 @@ export class ModelApiSession implements AgentSession {
   }
   private active: ActiveTurn | undefined
   /** The actual sent prefix, including media omissions and sticky packed placeholders. */
-  private compactionPrefix: { readonly body: CreateResponseBody } | undefined
+  private compactionPrefix:
+    | {
+        readonly body: CreateResponseBody
+        readonly turnIds: readonly string[]
+        contextTokens?: number
+      }
+    | undefined
+  private readonly autoCompact = new AutoCompact()
+  private didReportCompactionEvaluation = false
   /** Each file as the model last read or wrote it, for `write_file`'s check (D27). */
   private readonly seenFiles = new Map<string, string>()
   /** Each edited file's diagnostics at its last check, to say what changed (M68). */
@@ -1911,6 +1957,7 @@ export class ModelApiSession implements AgentSession {
    */
   private sendingModelId: string | undefined
   private sendingContextModel: ContextModel | undefined
+  private isSendingCompaction = false
   /** Turns and compactions still running, by id: a closing window waits for them to save (M82). */
   private readonly unsettled = new Map<number, Promise<void>>()
   private workCount = 0
@@ -2497,6 +2544,7 @@ export class ModelApiSession implements AgentSession {
     this.openReservation = undefined
     this.sendingModelId = undefined
     this.sendingContextModel = undefined
+    this.isSendingCompaction = false
     if (reservation === undefined) {
       await this.budgetWrites
       return
@@ -2915,9 +2963,10 @@ export class ModelApiSession implements AgentSession {
   ): ResponseAttemptGuard {
     const reservation = directBudget === undefined ? this.openReservation : undefined
     const guard: ResponseAttemptGuard = (keyDigest) => {
+      this.isSendingCompaction = isCompaction
       // Compaction must remain reachable even when ordinary turns no longer fit (D49).
       this.sendingContextModel =
-        this.compacting === undefined
+        !isCompaction && this.compacting === undefined
           ? this.assertContextFits(body)
           : contextModelFor(this.deps, body.model)
       if (this.isHostClosing() || this.isDisposed) {
@@ -2997,7 +3046,11 @@ export class ModelApiSession implements AgentSession {
     return Object.assign(guard, {
       onRequestStarted: () => {
         if (!isCompaction && directBudget === undefined) {
-          this.compactionPrefix = { body: structuredClone(body) }
+          this.compactionPrefix = {
+            body: structuredClone(body),
+            turnIds: this.replay.map((entry) => entry.turnId),
+          }
+          this.autoCompact.noteRequest()
         }
         if (this.isSubagent && this.childTaskGrant !== undefined) {
           this.childTaskGrant.remainingAttempts -= 1
@@ -3198,6 +3251,9 @@ export class ModelApiSession implements AgentSession {
       cachedTokens: usage.input_tokens_details?.cached_tokens ?? 0,
     }
     const sentModelId = this.sendingModelId ?? this.modelId
+    if (!this.isSendingCompaction && this.compactionPrefix?.body.model === sentModelId) {
+      this.compactionPrefix.contextTokens = usage.input_tokens + usage.output_tokens
+    }
     const hasKnownPrice = modelApiPaidTier(sentModelId) !== undefined
     const costUsd = estimateCostUsd(billable, sentModelId)
     const nextUsage = {
@@ -4292,6 +4348,7 @@ export class ModelApiSession implements AgentSession {
       return { output: `Error: ${reason}`, visibleOutput: reason, failureReason: reason }
     }
     this.todos = parsed.data.items
+    this.autoCompact.noteTodos(this.todos)
     this.emit({ type: 'todoChanged', items: [...this.todos] })
     const summary = `${String(this.todos.length)} tasks`
     return { output: summary, visibleOutput: summary }
@@ -8308,10 +8365,26 @@ export class ModelApiSession implements AgentSession {
       try {
         streamed = await this.streamOnce(turn.turnId, signal, round, turn.confirmedRequest)
       } catch (error: unknown) {
-        if (!isAbortRequested(signal)) {
-          turn.modelFailure = error
+        if (!isAbortRequested(signal)) turn.modelFailure = error
+        if (
+          error instanceof ContextOverflowError &&
+          !turn.didRecoverOverflow &&
+          !isAbortRequested(signal)
+        ) {
+          turn.didRecoverOverflow = true
+          if (await this.maybeAutoCompact(turn, true)) {
+            this.deps.onContextOverflow?.({
+              sessionId: this.sessionId,
+              turnId: turn.turnId,
+              modelId: error.modelId,
+              kind: error.kind,
+              contextTokens: error.contextTokens,
+            })
+            streamed = await this.streamOnce(turn.turnId, signal, round, turn.confirmedRequest)
+          } else throw error
+        } else {
+          throw error
         }
-        throw error
       }
       const { calls, goalCommandRevision, postContexts } = streamed
       if (isAbortRequested(signal)) {
@@ -8463,6 +8536,8 @@ export class ModelApiSession implements AgentSession {
         this.dropUndeliveredMedia(turn.turnId)
         return
       }
+      this.autoCompact.noteToolWork()
+      await this.maybeAutoCompact(turn)
     }
     // Input accepted during the last permitted round still needs a request
     // that sees it. Steered messages belonged to this turn, so run them
@@ -8555,6 +8630,7 @@ export class ModelApiSession implements AgentSession {
     // What a stopped turn left for its round is not checked in this one (M68).
     this.ledger.beginTurn()
     this.active = turn
+    if (!queued.isGoalWake) this.autoCompact.newUserTask()
     // A message of the user's puts them back in the loop: the Auto reviewer
     // may answer again (M78). A goal's wake is not one.
     if (!queued.isGoalWake) {
@@ -8663,6 +8739,18 @@ export class ModelApiSession implements AgentSession {
       // The Reviewer never searches (M70): nothing to ask about.
       turn.isWebSearchAllowed =
         !this.isReviewing() && (await this.webSearchConsent(turn.abort.signal))
+      if (
+        this.deps.autoCompaction?.() === true &&
+        !(this.deps.autoCompactionEvaluated?.() ?? IS_AUTO_COMPACTION_EVALUATED) &&
+        !this.didReportCompactionEvaluation
+      ) {
+        this.didReportCompactionEvaluation = true
+        this.emit({
+          type: 'backendNotice',
+          level: 'info',
+          text: UI_TEXT.autoCompactionAwaitingEvaluation,
+        })
+      }
       await this.loop(turn)
     } catch (error: unknown) {
       if (turn.abort.signal.aborted) {
@@ -8822,10 +8910,30 @@ export class ModelApiSession implements AgentSession {
   }
 
   /** The summary uses turns' shared HTTP/stream retry budget and re-reserves each attempt. */
+  private collectedUsage(event: StreamEvent): Usage | undefined {
+    switch (event.type) {
+      case 'response.completed':
+      case 'response.failed':
+      case 'response.incomplete': {
+        return event.response.usage != null && isCountedUsage(event.response.usage)
+          ? event.response.usage
+          : undefined
+      }
+      default: {
+        return undefined
+      }
+    }
+  }
+
   private async collectText(
     makeBody: () => CreateResponseBody,
     signal: AbortSignal,
     extraAdmission?: ResponseAttemptGuard,
+    settleExtra?: (
+      modelId: string,
+      usage: Usage | undefined,
+      outcome: 'returned' | 'uncertain' | 'rate-limited',
+    ) => void,
   ): Promise<{
     readonly body: CreateResponseBody
     readonly text: string
@@ -8846,6 +8954,12 @@ export class ModelApiSession implements AgentSession {
         const chargedGoalId = isGoalActive(this.goal) ? this.goal.goal_id : undefined
         let text = ''
         let response: ResponseObject | undefined
+        const attemptState: { didSend: boolean; isRateLimited: boolean; usage: Usage | undefined } =
+          {
+            didSend: false,
+            isRateLimited: false,
+            usage: undefined,
+          }
         const reservation = this.sending(body)
         const admitAttempt = this.responseAttemptGuard(body, undefined, true)
         const guarded: ResponseAttemptGuard = Object.assign(
@@ -8856,6 +8970,7 @@ export class ModelApiSession implements AgentSession {
           },
           {
             onRequestStarted: () => {
+              attemptState.didSend = true
               admitAttempt.onRequestStarted?.()
               extraAdmission?.onRequestStarted?.()
             },
@@ -8865,6 +8980,17 @@ export class ModelApiSession implements AgentSession {
           body,
           signal,
           (notice) => {
+            if (attemptState.didSend) {
+              settleExtra?.(
+                body.model,
+                attemptState.usage,
+                notice.reason.startsWith(`HTTP ${String(HTTP_TOO_MANY_REQUESTS)}:`)
+                  ? 'rate-limited'
+                  : 'uncertain',
+              )
+              attemptState.didSend = false
+              attemptState.usage = undefined
+            }
             this.allowRateLimitedRetry(notice)
             this.emit({
               type: 'turnRetry',
@@ -8883,13 +9009,27 @@ export class ModelApiSession implements AgentSession {
           for await (const event of responseStream) {
             if (reservation !== undefined) reservation.hasStarted = true
             if (event.type === 'response.completed') response = event.response
+            attemptState.usage = this.collectedUsage(event) ?? attemptState.usage
             text += this.collectedText(event, chargedGoalId)
           }
         } catch (error: unknown) {
+          attemptState.isRateLimited =
+            error instanceof ModelApiError && error.status === HTTP_TOO_MANY_REQUESTS
           this.noteRequestRefusal(reservation, error)
           throw error
         } finally {
-          await this.endRequest()
+          try {
+            if (attemptState.didSend) {
+              const outcome = attemptState.usage === undefined ? 'uncertain' : 'returned'
+              settleExtra?.(
+                body.model,
+                attemptState.usage,
+                attemptState.isRateLimited ? 'rate-limited' : outcome,
+              )
+            }
+          } finally {
+            await this.endRequest()
+          }
         }
         if (response === undefined) {
           throw new ModelApiError(
@@ -9019,10 +9159,198 @@ export class ModelApiSession implements AgentSession {
   }
 
   /** C2 may call this at its settled boundary without the manual PreCompact hook. */
+  private autoCompactModel(): AutoCompactModel {
+    const supplied = this.deps.autoCompactModel?.(this.modelId)
+    if (this.deps.autoCompactModel !== undefined)
+      return supplied ?? { pricing: { kind: 'unpriced' } }
+    const tier = modelApiPaidTier(this.modelId)
+    if (tier === undefined) return { pricing: { kind: 'unpriced' } }
+    const card = MODEL_API_PRICES_PER_MILLION[tier]
+    return {
+      pricing: {
+        kind: 'priced',
+        card: {
+          input: card.input / TOKENS_PER_MILLION,
+          cachedInput: card.cachedInput / TOKENS_PER_MILLION,
+          output: card.output / TOKENS_PER_MILLION,
+          source: 'catalogue',
+        },
+      },
+    }
+  }
+
+  /** An automatic flush is host data through the ordinary memory tool policy. */
+  private async flushCompactionMemory(turn: ActiveTurn): Promise<void> {
+    if (this.deps.memory === undefined) return
+    const call: FunctionCallItem = {
+      type: 'function_call',
+      call_id: this.deps.newId(),
+      name: MODEL_API_TOOLS.addMemory,
+      arguments: JSON.stringify({
+        scope: PROJECT_MEMORY_SCOPE,
+        path: `${AUTO_COMPACTION_MEMORY_PATH_PREFIX}${this.deps.newId()}.md`,
+        content: `${MODEL_API_MODEL_TEXT.autoCompactionMemory}\n${JSON.stringify({
+          todos: this.todos,
+          goal: this.goal,
+          files: this.compactionFiles(),
+          previousSummary: this.replay.find((entry) => entry.turnId === COMPACTION_TURN_ID)?.item,
+        })}`,
+      }),
+    }
+    this.replay.push({ turnId: turn.turnId, item: call })
+    await this.runCall(turn.turnId, call, turn.abort.signal, this.goalCommandRevision)
+  }
+
+  /** Inside the active turn only; economics never prevent near-window protection. */
+  private async maybeAutoCompact(turn: ActiveTurn, isOverflow = false): Promise<boolean> {
+    if (
+      !(this.deps.autoCompaction?.() ?? SETTING_DEFAULTS.modelApiAutoCompaction) ||
+      !(this.deps.autoCompactionEvaluated?.() ?? IS_AUTO_COMPACTION_EVALUATED) ||
+      this.active !== turn ||
+      this.isReviewing() ||
+      this.isSubagent ||
+      isAbortRequested(turn.abort.signal) ||
+      !this.hasCompactableHistory()
+    )
+      return false
+    if (
+      this.replay.every(
+        ({ item }) =>
+          item.type !== 'function_call_output' &&
+          (!isMessageItem(item) || item.role !== 'assistant'),
+      )
+    )
+      return false
+    const sent = this.compactionPrefix
+    const window = contextModelFor(this.deps, this.modelId)?.contextTokens
+    if (
+      window === undefined ||
+      sent?.body.model !== this.modelId ||
+      sent.turnIds.length !== sent.body.input.length
+    )
+      return false
+    const kept = new Set(this.compactionTail(window).map((entry) => entry.turnId))
+    const measured = measureAutoCompactRequest(sent.body, sent.turnIds, kept)
+    if (measured === undefined) return false
+    const summaryBudget = Math.max(
+      1,
+      Math.min(
+        COMPACTION_SUMMARY_MAX_TOKENS,
+        Math.floor(window * COMPACTION_SUMMARY_WINDOW_FRACTION),
+      ),
+    )
+    const previousSummary = this.replay.find((entry) => entry.turnId === COMPACTION_TURN_ID)
+    const previousTokens =
+      previousSummary === undefined
+        ? summaryBudget
+        : Math.ceil(
+            Buffer.byteLength(JSON.stringify(previousSummary.item)) /
+              MODEL_API_CONTEXT_BYTES_PER_TOKEN,
+          )
+    const summaryTokens = this.autoCompact.summaryTokens ?? previousTokens
+    const model = this.autoCompactModel()
+    const decision = this.autoCompact.decide(
+      {
+        ...model,
+        ...measured,
+        contextTokens: Math.max(measured.contextTokens, sent.contextTokens ?? 0),
+        windowTokens: window,
+        summaryTokens,
+        summaryInputTokens: measured.contextTokens,
+        cachedTokens: 0,
+        summaryOutputTokens: Math.min(summaryBudget, summaryTokens),
+        summaryRequests: 2,
+      },
+      isOverflow,
+    )
+    if (decision === undefined) return false
+    const revision = this.modelRevision
+    const goalRevision = this.goalCommandRevision
+    const todos = this.todos.map((todo) => ({ ...todo }))
+    const ledger = { hasFailed: false }
+    try {
+      const admission = await this.deps.admitAutoCompaction?.({
+        sessionId: this.askingSessionId,
+        turnId: turn.turnId,
+        modelId: this.modelId,
+        model,
+        decision,
+        signal: turn.abort.signal,
+      })
+      const assertCurrent = () => {
+        turn.abort.signal.throwIfAborted()
+        if (
+          this.active !== turn ||
+          revision !== this.modelRevision ||
+          goalRevision !== this.goalCommandRevision ||
+          !(this.deps.autoCompaction?.() ?? SETTING_DEFAULTS.modelApiAutoCompaction) ||
+          !(this.deps.autoCompactionEvaluated?.() ?? IS_AUTO_COMPACTION_EVALUATED)
+        )
+          throw new AbortedError()
+      }
+      assertCurrent()
+      if (admission === undefined) {
+        this.autoCompact.failed()
+        return false
+      }
+      const guard: ResponseAttemptGuard = Object.assign(
+        (keyDigest: string | undefined) => {
+          assertCurrent()
+          admission.guard(keyDigest)
+        },
+        { onRequestStarted: () => admission.guard.onRequestStarted?.() },
+      )
+      await this.flushCompactionMemory(turn)
+      assertCurrent()
+      const settle: typeof admission.settle = (...args) => {
+        try {
+          admission.settle(...args)
+        } catch (error: unknown) {
+          ledger.hasFailed = true
+          throw error
+        }
+      }
+      const outcome = await this.runCompaction(turn.abort.signal, guard, false, settle)
+      assertCurrent()
+      if (outcome.status !== ACCEPTED) {
+        this.autoCompact.failed()
+        return false
+      }
+      this.todos = todos
+      this.emit({ type: 'todoChanged', items: [...todos] })
+      this.replay.push({
+        turnId: turn.turnId,
+        item: {
+          type: 'message',
+          role: 'user',
+          content: [
+            {
+              type: 'input_text',
+              text: `${MODEL_API_MODEL_TEXT.autoCompactionFollowup}\n${JSON.stringify({ todos, goal: this.goal })}`,
+            },
+          ],
+        },
+      })
+      this.autoCompact.succeeded(decision, this.autoCompact.summaryTokens ?? summaryTokens)
+      return true
+    } catch (error: unknown) {
+      this.autoCompact.failed()
+      if (ledger.hasFailed) throw new Error(UI_TEXT.sessionBudgetStoreUnavailable, { cause: error })
+      if (isAbortRequested(turn.abort.signal) || error instanceof AbortedError) throw error
+      this.emit({ type: 'backendNotice', level: 'warning', text: UI_TEXT.autoCompactionFailed })
+      return false
+    }
+  }
+
   private async runCompaction(
     signal: AbortSignal,
     extraAdmission?: ResponseAttemptGuard,
     isSummaryFork = false,
+    settleExtra?: (
+      modelId: string,
+      usage: Usage | undefined,
+      outcome: 'returned' | 'uncertain' | 'rate-limited',
+    ) => void,
   ): Promise<CompactOutcome> {
     if (!this.hasCompactableHistory(isSummaryFork)) {
       return { status: NOOP, reason: NO_COMPACTABLE_HISTORY }
@@ -9035,7 +9363,10 @@ export class ModelApiSession implements AgentSession {
       // decisions together, with no await between this projection and reservation.
       const modelId = this.modelId
       const model = this.deps.compactionModel?.(modelId)
-      const windowTokens = model?.contextTokens ?? MODEL_API_CONTEXT_WINDOW
+      const windowTokens =
+        model?.contextTokens ??
+        contextModelFor(this.deps, modelId)?.contextTokens ??
+        MODEL_API_CONTEXT_WINDOW
       const canReplayReasoning =
         model === undefined
           ? modelId.startsWith(MODEL_API_MODEL_PREFIX)
@@ -9059,7 +9390,7 @@ export class ModelApiSession implements AgentSession {
           : model.quirks.keepToolsWithHistory && model.capabilities.toolCalling
       const canReuse =
         canUseTools &&
-        extraAdmission === undefined &&
+        !isSummaryFork &&
         shouldKeepTools &&
         (prefix === undefined ||
           prefix.body.tools.every((tool) => tool.type !== MODEL_API_WEB_SEARCH_TOOL))
@@ -9092,12 +9423,17 @@ export class ModelApiSession implements AgentSession {
       })
       return { ...reserved, max_output_tokens: Math.min(reserved.max_output_tokens, summaryBudget) }
     }
-    let collected = await this.collectText(() => makeBody(true), signal, extraAdmission)
+    let collected = await this.collectText(
+      () => makeBody(true),
+      signal,
+      extraAdmission,
+      settleExtra,
+    )
     if (
       collected.body.tools.length > 0 &&
       collected.response.output.some((item) => isFunctionCallItem(item))
     ) {
-      collected = await this.collectText(() => makeBody(false), signal, extraAdmission)
+      collected = await this.collectText(() => makeBody(false), signal, extraAdmission, settleExtra)
     }
     if (collected.response.output.some((item) => isFunctionCallItem(item)))
       throw new Error(UI_TEXT.compactionToolCall)
@@ -9123,6 +9459,11 @@ export class ModelApiSession implements AgentSession {
       ...tail,
     )
     this.compactionPrefix = undefined
+    this.autoCompact.noteSummary(
+      Math.ceil(
+        Buffer.byteLength(JSON.stringify(this.replay[0]?.item)) / MODEL_API_CONTEXT_BYTES_PER_TOKEN,
+      ),
+    )
     this.packing?.reset()
     this.appendHookContexts(COMPACTION_TURN_ID, collected.contexts)
     const item: ItemSnapshot = {
@@ -9695,6 +10036,11 @@ export class ModelApiSession implements AgentSession {
   }
 
   public setModel(modelId: string): Promise<void> {
+    if (this.modelId !== modelId) {
+      // Economic debt uses the selected tariff's units; paid ledger liability remains owned by D78.
+      this.autoCompact.failed()
+      this.autoCompact.newUserTask()
+    }
     this.modelId = modelId
     this.modelRevision += 1
     // Another model may count the same request differently (M82).
@@ -10067,6 +10413,7 @@ export class ModelApiSession implements AgentSession {
       throw new Error(UI_TEXT.planWaitForTurn)
     }
     this.todos = [...items]
+    this.autoCompact.noteTodos(this.todos)
     this.emit({ type: 'todoChanged', items: [...this.todos] })
     this.touch()
   }
@@ -10292,6 +10639,7 @@ export class ModelApiSession implements AgentSession {
     this.effort = stored.effort
     this.name = stored.name
     this.todos = [...stored.todos]
+    this.autoCompact.noteTodos(this.todos)
     this.goal = this.isSideChat ? undefined : stored.goal
     this.firstPrompt = stored.firstPrompt
     this.forkedFrom = stored.forkedFrom

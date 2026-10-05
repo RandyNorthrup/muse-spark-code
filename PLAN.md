@@ -5249,12 +5249,12 @@ budget, a loud tally) is the consent contract this question waited for.
 M101 lane C2 builds the items below under it, with SoL-Pi's corrected cost
 model (D81.4); the design notes below still bind it.
 
-The handoff repair does not complete automatic compaction, memory flush or
-the hidden todo follow-up. The lead must choose the billable-call/consent
-contract before implementing them. Until then they stay unimplemented and
-off; no background or hidden paid call is authorised by a setting draft.
+The following design originated before the owner selected consent. D81.3
+now supplies that contract; M101 C2 implements the mechanism with production
+inactive pending evaluation and shared D78 integration. No setting draft alone
+authorizes a hidden paid call.
 
-Minimal completion design, pending that choice:
+Minimal completion design under D81.3:
 
 1. Reuse the existing Model API tool-loop boundary after a completed todo
    transition and the existing context/usage and compaction primitives.
@@ -5277,7 +5277,9 @@ Minimal completion design, pending that choice:
    accept/held-out tasks before running it, exercise todo preservation,
    provenance, memory refusals and Stop, and require actual compaction
    evidence as well as both 0.75 capability floors. Only a passing current
-   pair permits an off-by-default production setting. Record paid attempts,
+   pair permits production activation; D81.3 supersedes the original
+   off-by-default setting with a default-on setting behind the evaluation latch.
+   Record paid attempts,
    known/unknown usage, source hashes and the incomplete inventory honestly.
 
 ## 4. Architecture
@@ -11258,36 +11260,35 @@ integration tests, a production build with a real `node_modules` and
   `/compact`.
 - **Scope.**
   - Compaction is considered when a todo item completes. It uses
-    SoL-Pi's cache economics with Meta's cache-write to cache-read price
-    ratio, and always compacts near the window.
-  - A hidden follow-up asks the model to restate its todo list.
+    SoL-Pi's cache economics with the selected model's cache-write/read
+    prices (measured re-prefill time for local models), and compacts near
+    the window independently of the economic decision.
+  - A hidden follow-up restores the full exact todo list and current goal
+    from authoritative host data, never a model guess.
   - A memory flush before compaction (OpenClaw). It is a memory write,
     so it asks in Manual and is refused in Plan and Restricted Mode, and
     notes drawn from untrusted content stay labelled as untrusted.
     Compaction summaries keep that label too.
   - `/handoff` starts a new conversation from a distilled brief (Amp).
 - **Backends.** Model API. Muse Code compacts itself.
-- **Gate.** Automatic compaction and the hidden follow-up are as for
-  M73: they land with a passing M75 run, and only then get their setting,
-  off by default. `/handoff` is the user's own command, so it ships
+- **Gate (D81.3 supersedes the original default).** The automatic setting
+  exists and defaults on, but the production latch remains inactive until
+  its current paired M75 run passes and shared D78 admission is connected. `/handoff` is the user's own command, so it ships
   without that gate; M79 reuses its path.
 - **Acceptance.** Compaction never drops the todo list or an untrusted
   label; `/handoff` shows the brief before the new conversation starts.
 - **Tests.** The fake Model API across a compaction, and its M75 run.
 - **Size.** M.
-- **Built: `/handoff` only** (certification `docs/certification/m74.md`).
-- **Not built: automatic compaction, the hidden todo follow-up and the
-  memory flush** (RV74 finding 2). No code, setting or path for any of
-  them exists. They are blocked, not put off: the Gate above lets
-  compaction and the follow-up land only with a passing M75 run, and the
-  flush runs before a compaction. M75 is now built with its baseline, but
-  no paired M74 compaction run has passed; and Q-M74 (§3) is open: the
-  owner has not chosen the billable-call and consent contract for a
-  model call the extension would make outside the user's own turn. So
-  the Acceptance ("compaction never drops the todo list or an untrusted
-  label") and the Tests ("the fake Model API across a compaction, and its
-  M75 run") are not met, and M74 is not complete. `/handoff` ships
-  without the gate, as the Gate says.
+- **Built:** manual `/handoff` and the C1/C2 compaction mechanism. C2's
+  automatic trigger, memory flush and authoritative todo continuation are
+  implemented (2026-10-05, `docs/certification/m101-c2.md`) but production is
+  inactive, awaiting the current M75 pair and shared D78 admission wiring.
+- **Remaining certification:** lane E's frozen current M75 compaction pair,
+  with both 0.75 floors and real compaction evidence; connecting the missing
+  shared D78 admission/ledger in this base; combined provider registry and
+  platform integration. Q-M74 is resolved by D81.3; consent is no longer an
+  owner question. The production latch remains false, so M74 is not yet
+  certified complete. Manual `/handoff` and `/compact` remain available.
 - **Decisions taken for `/handoff`:**
   - One owned operation per handoff, reserved before any preparation
     await; its session and the conversation's generation stay current
@@ -15692,6 +15693,42 @@ receipts remain the lead's checks under the rig brief.
   Mode refuse, untrusted labels kept); the D78 gate and ledger for every
   call; Stop honoured; one guarded automatic compact-and-retry on a
   classified overflow (from lane O). The M75 arm is frozen before it runs.
+  **Lane C2 implementation contract (2026-10-05, kubuntu).** One pure
+  decision/state module measures only the last dispatched request, prices the
+  retained context's write premium plus summary input/output and request fees,
+  and carries/retires debt. Only registered unfinished-to-completed transitions
+  teach its request horizon; cost decisions require the occupancy floor and
+  two dispatched ordinary requests since compaction. Near-window and classified
+  overflow bypass those economic guards, but never consent, Stop or M82 fences.
+  A failed attempt clears debt and waits for real tool work or new user input.
+  Memory flush is a deterministic, explicitly untrusted host snapshot of exact
+  todos, goal, file metadata and the previous real summary through add_memory's
+  existing permission/MemoryStore path; it adds no separate model request.
+  The hidden continuation restores the full exact todo list and goal from host
+  data as a trailing replay entry; it never adopts generated todos.
+
+  This branch lacks D78 (confirmed by C1's record and the paid implementation),
+  so no second gate is invented. An injected automatic-compaction admission
+  returns the shared gate's actual-send guard and per-attempt usage/uncertainty
+  settlement port; absent/declined admission refuses all extra dispatch. Panel,
+  ACP and headless share this same core and fail-closed dependency. The setting
+  defaults on, but IS_AUTO_COMPACTION_EVALUATED stays false and reports awaiting
+  evaluation. Lane E may inject evaluation admission into its bounded trace
+  harness; production flips the named constant only after a current frozen M75
+  pair with real compaction evidence and both 0.75 floors, and after connecting
+  D78 admission/ledger in ModelApiBackendManager for every runtime. No live
+  call is authorized in C2. The local time path requires measured seconds per
+  prefill/read/output token; absent measurements allow only near-window safety.
+
+  **C2 mechanism built, 2026-10-05.** The overflow lane is merged in
+  `68ca19f5`. Economics, owned boundary/recovery, per-attempt admission and
+  settlement, memory policy, full exact todo restoration, all-editor options
+  and translated awaiting-evaluation notice are implemented. All 22 deliberate
+  mutations produce assertion failures and restore byte-exact; final gate and
+  importing-suite receipts live in `docs/certification/m101-c2.md`. The M75 pair
+  and absent shared D78/registry binding keep production inactive; the milestone
+  checkbox remains open until those integration receipts exist.
+
 - **Lane O — context overflow** (item 6, item 13's budget scaling).
   A pure `providers/overflow.ts` with Pi's per-format patterns (429 and rate
   limits and quota/billing failures never count) and the two silent-overflow signals; the model's
@@ -15795,6 +15832,26 @@ receipts remain the lead's checks under the rig brief.
   - [ ] Provider × item table complete; full gate green
 
 ## 7. Gates
+
+**M101 C2 imported-suite baseline deferral (2026-10-05, kubuntu).**
+The 373-file importing inventory (plus two related document/build suites)
+passes 7,653 tests after updating ACP's exact awaiting-evaluation notice
+and CLI default-option expectations. Five unchanged files retain 27 failed
+assertions and one beforeAll packaging failure: execStdio's 22 missing
+validation-bundle fixture assertions, execTestLauncher's missing validation
+fixture setup, ChatViewProvider/chatPanel's four stale module-script
+assertions, and handoffDialog's deferred Account & usage assertion. They
+reproduce on merged base `68ca19f5` with all 14 changed tracked source/test
+inputs restored to that base, then restored byte-exact to the final lane.
+The six launcher scenarios never start because their fixture setup fails;
+existing platform skips remain. The initial scan also encounters the generic
+live file, whose two existing opt-in tests stay skipped; it is excluded from
+the corrected authorized inventory. Zero live/paid attempts. No skips,
+filters, timeout/threshold changes or assertion weakening are introduced.
+The integrator owns these unrelated repairs and the full/platform quality
+wrapper, which the rig common brief expressly prohibits this lane from
+running. Receipts and activation prerequisites are in
+`docs/certification/m101-c2.md`.
 
 **M101 C1 imported-suite baseline deferral (2026-10-05, kubuntu).**
 The scoped static gates and owning suites pass. The required imported sweep
@@ -16442,6 +16499,19 @@ before a repaired one loads (2026-09-30).
 
 ## 9. Security assumptions and accepted residual risk
 
+- **M101C2 integration prerequisites (2026-10-05, kubuntu):** the automatic
+  mechanism, settled boundary, once-per-turn overflow recovery, memory policy,
+  full exact todo continuation and all-editor options are built and tested.
+  The actual 0.12.1 base still lacks the shared D78 price/daily-budget gate,
+  paid row/badge/tally adapter and M95 host/client registry binding; missing
+  admission fails closed. No second gate is invented. Lane E must certify
+  the current frozen M75 pair, bind the real adapters in both panel and runtime
+  managers, then flip `IS_AUTO_COMPACTION_EVALUATED` from false to true.
+  The shared release-candidate branch `integrate/m72-on-24ff` is absent;
+  its requested merge fails with “not something we can merge”. There is no
+  origin remote, and the rig brief forbids merging main or changing remotes.
+  The lead integrates from the local branch. No push, rebase or fabricated
+  release/live/editor support claim. See `docs/certification/m101-c2.md`.
 - **FIXM101C1 / RVM101C1:** all six assigned P2 findings are repaired with
   owning regressions and byte-exact restored red drills in
   `docs/certification/m101-c1.md`; no assigned P1/P2/P3 is deferred. ACP and

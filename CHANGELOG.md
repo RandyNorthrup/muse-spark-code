@@ -9,6 +9,14 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- The Model API engine now has automatic compaction economics, settled-tool
+  boundary decisions, and one classified overflow recovery attempt per turn.
+  Memory snapshots use existing permission checks and retain untrusted labels;
+  the hidden continuation restores exact host todos and the goal. The machine
+  setting defaults on, with an ACP/headless opt-out, but production reports
+  awaiting evaluation and stays inactive until its M75 pair passes and shared
+  D78 paid admission/ledger wiring is available. Missing admission fails closed.
+
 - Compaction keeps media removed by Stop out of its request and resolves the
   selected model's capabilities after hooks. File snapshots report successful
   effective tool results. Final-admission refusal rolls back unsent summary
@@ -31,8 +39,8 @@ happened, not what was planned; superseded entries are kept.
   window and format through completion and failure. Quota and billing failures
   keep their actual errors; only verified legacy Muse ids inherit the Muse
   window when no registry resolver is installed. Manual compaction remains
-  available and rate limits keep their existing retry path. BYO registry wiring and automatic recovery remain
-  integration work.
+  available and rate limits keep their existing retry path. BYO registry wiring and certified production activation of automatic
+  recovery remain integration work.
 
 - M95 integration shares the Node validation runtime and the provider-setup
   schema, so Models host stays within its existing size budget. Account & usage

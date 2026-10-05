@@ -125,5 +125,6 @@
   "command.addModelProvider.title": "Add Model Provider…",
   "config.suggestedProvider.description": "A workspace may suggest one model-provider preset by id; the panel offers to open Models & Agents with that preset chosen. Empty suggests nothing. A workspace cannot set an address or a credential.",
   "walkthrough.gettingStarted.step.ownModel.title": "Start with your own model",
-  "walkthrough.gettingStarted.step.ownModel.description": "No Muse subscription or Meta API key? Add your own model provider — OpenRouter, Anthropic, OpenAI or a local server — and pick a model.\n[Start with your own model](command:museSpark.startWithOwnModel)"
+  "walkthrough.gettingStarted.step.ownModel.description": "No Muse subscription or Meta API key? Add your own model provider — OpenRouter, Anthropic, OpenAI or a local server — and pick a model.\n[Start with your own model](command:museSpark.startWithOwnModel)",
+  "config.modelApiAutoCompaction.description": "Automatically compact long Model API conversations. Defaults on, but remains inactive until a paired evaluation passes. Additional paid calls require consent to the price and daily budget."
 }

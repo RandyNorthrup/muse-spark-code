@@ -125,5 +125,6 @@
   "command.addModelProvider.title": "モデルプロバイダーを追加…",
   "config.suggestedProvider.description": "ワークスペースはモデルプロバイダーのプリセットを ID で 1 件だけ提案できます。パネルはそのプリセットで「モデルとエージェント」を開くことを提案します。空の場合は何も提案しません。ワークスペースはアドレスや資格情報を設定できません。",
   "walkthrough.gettingStarted.step.ownModel.title": "自分のモデルで始める",
-  "walkthrough.gettingStarted.step.ownModel.description": "Muse サブスクリプションも Meta API キーもありませんか？自分のモデルプロバイダー (OpenRouter、Anthropic、OpenAI、ローカルサーバー) を追加してモデルを選んでください。\n[自分のモデルで始める](command:museSpark.startWithOwnModel)"
+  "walkthrough.gettingStarted.step.ownModel.description": "Muse サブスクリプションも Meta API キーもありませんか？自分のモデルプロバイダー (OpenRouter、Anthropic、OpenAI、ローカルサーバー) を追加してモデルを選んでください。\n[自分のモデルで始める](command:museSpark.startWithOwnModel)",
+  "config.modelApiAutoCompaction.description": "Model API の長い会話を自動でコンパクションします。既定ではオンですが、対照評価に合格するまでは無効です。追加の有料呼び出しには、価格と日次予算への同意が必要です。"
 }
