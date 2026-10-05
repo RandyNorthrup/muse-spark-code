@@ -852,6 +852,7 @@
   "modelApiBackendNotice": "Tato konverzace běží na Meta Model API s vlastními nástroji rozšíření (čtení, úprava, zápis, hledání, výpis, shell). Její relace jsou uloženy v úložišti rozšíření tohoto pracovního prostoru.",
   "installOrKeyDetail": "Konverzace pro toto rozšíření hostuje Muse Code CLI; bez něj můžete stále použít klíč Meta Model API.",
   "compactionDone": "Kontext zkomprimován",
+  "contextWindowFull": "Kontextové okno je plné: /compact nebo /handoff",
   "sessionBudgetStopped": "Zastaveno: další požadavek (asi {estimate}) by překročil rozpočet relace {cap} (využito {spent}). Nebyl odeslán.",
   "sessionBudgetStoreUnavailable": "Záznam výdajů relace nelze přečíst nebo uložit. Dokud nebude dostupný, nelze odeslat nový požadavek.",
   "sessionBudgetLegacyFeesUnknown": "Výdaje konverzace nejsou plně ověřeny. Počkejte na dokončení čekajících požadavků, nebo začněte novou konverzaci pro použití limitu výdajů.",

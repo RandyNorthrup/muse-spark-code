@@ -264,6 +264,12 @@ import {
   reviewerToolRefusal,
 } from './reviewer'
 import { MediaBudget } from './mediaBudget'
+import { classifyContextOverflow, contextInputLimit } from '../../context/overflow'
+import type {
+  ContextModel,
+  ContextOverflowEvent,
+  ContextOverflowKind,
+} from '../../providers/overflow'
 import { mcpFunctionDefinition, mcpFunctionName } from './mcp/functions'
 import type { McpPoolSnapshot, McpToolRef, McpToolSource } from './mcp/pool'
 import { isMemoryTool, placeMemoryCall, runMemoryCall, type PlacedMemoryCall } from './memoryTools'
@@ -393,6 +399,10 @@ export interface ModelApiPaidHooks {
 
 export interface ModelApiHostDeps extends ModelApiPaidHooks {
   readonly client: ModelApiClient
+  /** Registry row plus preset format; absent preserves the known bare Muse window. */
+  readonly contextModel?: ((modelId: string) => ContextModel | undefined) | undefined
+  /** Classified engine event for the later C2 recovery; this lane never retries overflow. */
+  readonly onContextOverflow?: ((event: ContextOverflowEvent) => void) | undefined
   readonly workspaceRoot: string
   readonly platform: NodeJS.Platform
   readonly io: ToolIo
@@ -1044,6 +1054,32 @@ class RetryableStreamError extends Error {
   ) {
     super(message)
     this.name = 'RetryableStreamError'
+  }
+}
+
+class ContextOverflowError extends Error {
+  public constructor(
+    public readonly kind: ContextOverflowKind,
+    public readonly modelId: string,
+  ) {
+    super(UI_TEXT.contextWindowFull)
+    this.name = 'ContextOverflowError'
+  }
+}
+
+/** No Meta fallback for a BYO model with an unknown or invalid window. */
+function contextModelFor(deps: ModelApiHostDeps, modelId: string): ContextModel | undefined {
+  const row =
+    deps.contextModel?.(modelId) ??
+    (!modelId.includes('/') && modelId.startsWith(MODEL_API_MODEL_PREFIX)
+      ? { format: 'responses', contextTokens: MODEL_API_CONTEXT_WINDOW }
+      : undefined)
+  if (row === undefined) return undefined
+  const window = row.contextTokens
+  return {
+    format: row.format,
+    contextTokens:
+      window !== undefined && Number.isSafeInteger(window) && window > 0 ? window : undefined,
   }
 }
 
@@ -2834,6 +2870,8 @@ export class ModelApiSession implements AgentSession {
   ): ResponseAttemptGuard {
     const reservation = directBudget === undefined ? this.openReservation : undefined
     const guard: ResponseAttemptGuard = (keyDigest) => {
+      // Compaction must remain reachable even when ordinary turns no longer fit (D49).
+      if (this.compacting === undefined) this.assertContextFits(body)
       if (this.isHostClosing() || this.isDisposed) {
         this.active?.abort.abort()
         this.compacting?.abort()
@@ -3221,12 +3259,28 @@ export class ModelApiSession implements AgentSession {
   }
 
   private noteContext(usedTokens: number): void {
+    const windowTokens = contextModelFor(
+      this.deps,
+      this.sendingModelId ?? this.modelId,
+    )?.contextTokens
+    if (windowTokens === undefined) return
     this.emit({
       type: 'contextUsage',
       usedTokens,
-      windowTokens: MODEL_API_CONTEXT_WINDOW,
-      pressure: pressureFor(usedTokens, MODEL_API_CONTEXT_WINDOW),
+      windowTokens,
+      pressure: pressureFor(usedTokens, windowTokens),
     })
+  }
+
+  /** Conservative UTF-8 admission includes instructions, tools and the projected replay. */
+  private assertContextFits(body: CreateResponseBody): void {
+    const window = contextModelFor(this.deps, body.model)?.contextTokens
+    if (
+      window !== undefined &&
+      estimateInput(requestParts(body), undefined).inputTokens > contextInputLimit(window)
+    ) {
+      throw new ContextOverflowError('preflight', body.model)
+    }
   }
 
   /** The streamed item's tracking entry, created on first sight. */
@@ -3548,6 +3602,7 @@ export class ModelApiSession implements AgentSession {
     // nor shown to the hooks; the body sent is reserved afresh below, since
     // what it carries can change while the hooks run.
     await this.refreshBudgetSpend()
+    this.assertContextFits(this.body())
     await this.beforeModelCall(turnId, this.budgeted(this.body()), requestId, attempt, step, signal)
     const requiredAfterPreHook = this.requiredMcpFailure(this.deps.mcpServers?.snapshot())
     if (requiredAfterPreHook !== undefined) {
@@ -3601,12 +3656,42 @@ export class ModelApiSession implements AgentSession {
           undefined,
         )
       }
+      const model = contextModelFor(this.deps, body.model)
+      const usage = final.usage
+      const overflow =
+        usage !== undefined && usage !== null && isCountedUsage(usage)
+          ? classifyContextOverflow({
+              format: model?.format,
+              contextTokens: model?.contextTokens,
+              response: {
+                completed: final.status === COMPLETED,
+                inputTokens: usage.input_tokens,
+                outputTokens: usage.output_tokens,
+              },
+            })
+          : undefined
+      if (overflow !== undefined) {
+        this.noteUsage(usage, chargedGoalId)
+        throw new ContextOverflowError(overflow, body.model)
+      }
       this.markReadFileMediaDelivered(turnId, body.input)
       wasFitted = this.commitFittedReplay(requestReplay, body.input)
       this.markOutputMediaDelivered(requestReplay, body.input)
       calls = this.adoptOutput(turnId, final, open, chargedGoalId)
     } catch (error: unknown) {
       this.noteRequestRefusal(reservation, error)
+      const model = contextModelFor(this.deps, body.model)
+      if (
+        !signal.aborted &&
+        error instanceof ModelApiError &&
+        classifyContextOverflow({
+          format: model?.format,
+          contextTokens: model?.contextTokens,
+          error,
+        }) !== undefined
+      ) {
+        throw new ContextOverflowError('error', body.model)
+      }
       throw error
     } finally {
       await this.endRequest()
@@ -5746,6 +5831,7 @@ export class ModelApiSession implements AgentSession {
             workspaceRoot: this.deps.workspaceRoot,
             platform: this.deps.platform,
             io: this.toolWrites()?.io ?? this.deps.io,
+            contextTokens: contextModelFor(this.deps, this.modelId)?.contextTokens,
             signal,
             seen: this.seenFiles,
             files: this.policy().files,
@@ -8529,6 +8615,16 @@ export class ModelApiSession implements AgentSession {
         reason = error instanceof ChildTaskRefusedError ? error.visible : describe(error)
         if (error instanceof ChildTaskRefusedError) {
           errorKind = `subagent_${error.kind}`
+        } else if (error instanceof ContextOverflowError) {
+          reason = UI_TEXT.contextWindowFull
+          errorKind = 'context_overflow'
+          this.deps.onContextOverflow?.({
+            sessionId: this.sessionId,
+            turnId: turn.turnId,
+            modelId: error.modelId,
+            kind: error.kind,
+            contextTokens: contextModelFor(this.deps, error.modelId)?.contextTokens,
+          })
         } else {
           errorKind = isAuthFailure(error) ? AUTH_REQUIRED_ERROR_KIND : MODEL_API_ERROR_KIND
         }
@@ -10512,7 +10608,7 @@ export class ModelApiHost implements AgentHost {
       .map((id) => ({
         modelId: id,
         displayLabel: id,
-        contextLimit: MODEL_API_CONTEXT_WINDOW,
+        contextLimit: contextModelFor(this.deps, id)?.contextTokens,
         isDefault: id === DEFAULT_MODEL_ID,
         isActive: id === active,
       }))

@@ -31,6 +31,7 @@ import {
   PDF_MEDIA_TYPE,
   READ_FILE_DEFAULT_LIMIT,
   READ_FILE_MAX_LINE_CHARS,
+  READ_FILE_CONTEXT_CHAR_FRACTION,
   SEARCH_MAX_CANDIDATES,
   SEARCH_MAX_FILE_BYTES,
   SEARCH_MAX_HITS,
@@ -312,6 +313,8 @@ export interface TurnEnd {
 }
 
 export interface ToolContext {
+  /** Selected model's context window, supplied by the engine (M101). */
+  readonly contextTokens?: number | undefined
   readonly workspaceRoot: string
   readonly platform: NodeJS.Platform
   readonly io: ToolIo
@@ -755,10 +758,21 @@ export function toolDefinitions(
 
 // --- helpers ---
 
-function clip(text: string): string {
-  return text.length > TOOL_OUTPUT_MAX_CHARS
-    ? `${text.slice(0, TOOL_OUTPUT_MAX_CHARS)}${TOOL_OUTPUT_CLIP_MARKER}`
-    : text
+/** Keep the Muse cap; smaller loaded windows leave room for the prompt and replay (M101). */
+export function readFileCharacterBudget(contextTokens: number | undefined): number {
+  return contextTokens === undefined || !Number.isSafeInteger(contextTokens) || contextTokens <= 0
+    ? TOOL_OUTPUT_MAX_CHARS
+    : Math.max(
+        1,
+        Math.min(
+          TOOL_OUTPUT_MAX_CHARS,
+          Math.floor(contextTokens * READ_FILE_CONTEXT_CHAR_FRACTION),
+        ),
+      )
+}
+
+function clip(text: string, maxChars = TOOL_OUTPUT_MAX_CHARS): string {
+  return text.length > maxChars ? `${text.slice(0, maxChars)}${TOOL_OUTPUT_CLIP_MARKER}` : text
 }
 
 const LAST_BMP_CODE_POINT = 0xff_ff
@@ -1149,10 +1163,11 @@ async function readFile(
   const remaining = lines.length - (start + shown.length)
   const tail = remaining > 0 ? `\n[${String(remaining)} more lines]` : ''
   const body = `Read text file \`${resolved.relative}\`.\n${shown.join('\n')}${tail}`
+  const maxChars = readFileCharacterBudget(context.contextTokens)
   // A refused read leaves no trace: the host forgets `seen` with the outcome.
   return {
-    output: clip(body),
-    visibleOutput: clip(body),
+    output: clip(body, maxChars),
+    visibleOutput: clip(body, maxChars),
     touched: { ...touched, seen: resolved.absolute },
   }
 }

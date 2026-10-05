@@ -1242,6 +1242,11 @@ export const TOKENS_PER_MILLION = 1_000_000
 // output cap is well under the documented 131,072 maximum.
 export const MODEL_API_CONTEXT_WINDOW = 1_048_576
 export const MODEL_API_MAX_OUTPUT_TOKENS = 32_768
+// M101: leave output space even on small loaded windows; silent empty replies near full are overflow.
+export const MODEL_API_CONTEXT_RESERVE_FRACTION = 1 / 4
+export const MODEL_API_SILENT_OVERFLOW_FRACTION = 99 / 100
+// A read uses at most half a window in characters (about one eighth in ordinary text tokens).
+export const READ_FILE_CONTEXT_CHAR_FRACTION = 1 / 2
 // A turn that ran this long earns a notification when it ends while the
 // VS Code window is unfocused (M82): shorter turns answer before the user
 // looks away.

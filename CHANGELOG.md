@@ -9,6 +9,13 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- Model API turns recognize context overflow and show “Context window full:
+  /compact or /handoff”. Context pressure, request admission and text-file
+  read budgets follow the selected model's supplied window. Ordinary sends
+  leave output space; manual compaction remains available. Rate limits keep
+  their existing retry path. BYO registry wiring and automatic recovery remain
+  integration work.
+
 - M95 integration shares the Node validation runtime and the provider-setup
   schema, so Models host stays within its existing size budget. Account & usage
   loads on demand with a dismissible loading modal. Chat's unchanged startup

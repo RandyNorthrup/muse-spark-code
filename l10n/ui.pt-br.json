@@ -828,6 +828,7 @@
   "modelApiBackendNotice": "Esta conversa é executada na Meta Model API com as ferramentas próprias da extensão (ler, editar, gravar, pesquisar, listar, shell). As sessões dela são mantidas no armazenamento da extensão deste espaço de trabalho.",
   "installOrKeyDetail": "A CLI do Muse Code hospeda as conversas desta extensão; sem ela, você ainda pode usar uma chave da Meta Model API.",
   "compactionDone": "Contexto compactado",
+  "contextWindowFull": "Janela de contexto cheia: /compact ou /handoff",
   "sessionBudgetStopped": "Interrompido: a próxima solicitação (cerca de {estimate}) ultrapassaria o orçamento de sessão de {cap} ({spent} usados). Ela não foi enviada.",
   "sessionBudgetStoreUnavailable": "Não foi possível ler ou salvar o registro de gastos da sessão. Nenhuma nova solicitação pode ser enviada até que ele esteja disponível.",
   "sessionBudgetLegacyFeesUnknown": "Os gastos da conversa não foram totalmente verificados. Aguarde as solicitações pendentes terminarem ou inicie uma nova conversa para usar um limite de gastos.",
