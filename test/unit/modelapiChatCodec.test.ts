@@ -86,6 +86,29 @@ function arrayField(value: unknown, what: string): unknown[] {
   return value
 }
 
+/** Mutates captured call identity fields; all remaining wire bytes stay captured. */
+function withoutCapturedCallFields(
+  payloads: readonly unknown[],
+  fields: readonly string[],
+): unknown[] {
+  return payloads.map((payload) => {
+    if (typeof payload !== 'object' || payload === null) return payload
+    const chunk = recordField(payload, 'chunk')
+    const choices = arrayField(chunk['choices'] ?? [], 'choices').map((value) => {
+      const choice = recordField(value, 'choice')
+      if (choice['delta'] == null) return choice
+      const delta = recordField(choice['delta'], 'delta')
+      if (!Array.isArray(delta['tool_calls'])) return choice
+      const calls = delta['tool_calls'].map((value) => {
+        const call = recordField(value, 'call')
+        return Object.fromEntries(Object.entries(call).filter(([key]) => !fields.includes(key)))
+      })
+      return { ...choice, delta: { ...delta, tool_calls: calls } }
+    })
+    return { ...chunk, choices }
+  })
+}
+
 // --- preset quirks under test (lane P's `presets.ts` will own these values) ---
 
 const OPENROUTER: ChatPresetQuirks = {
@@ -651,6 +674,7 @@ describe('chat codec stream decoding', () => {
     expect(reasoningTextOf(decoded.response)).toBe(
       replayTextOf('fireworks', '04-tool-result-stream.json'),
     )
+    expect(callsOf(decoded.response)[0]?.arguments).toBe('{\n"timezone": "UTC"\n}')
     expect(decoded.response.usage).toEqual({
       input_tokens: 1522,
       output_tokens: 37,
@@ -1306,25 +1330,29 @@ describe('chat codec guards', () => {
     }
   })
 
-  it('drops invalid usage and clamps cached past input', () => {
+  it('drops invalid usage and impossible captured cache counts without settling cost', () => {
     const bad = new ChatStreamDecoder('m', GROQ, CHAT_LIMITS)
     bad.feed({ choices: [], usage: { prompt_tokens: -1, completion_tokens: 5, total_tokens: 4 } })
     expect(bad.finish().response.usage).toBeUndefined()
-    const clamped = new ChatStreamDecoder('m', GROQ, CHAT_LIMITS)
-    clamped.feed({
-      choices: [],
-      usage: {
-        prompt_tokens: 10,
-        completion_tokens: 5,
-        prompt_tokens_details: { cached_tokens: 99 },
-      },
-    })
-    expect(clamped.finish().response.usage).toEqual({
-      input_tokens: 10,
-      output_tokens: 5,
-      total_tokens: 15,
-      input_tokens_details: { cached_tokens: 10 },
-    })
+    const frame = frameOf('openrouter', '04-tool-call-stream.json')
+    for (const field of ['cached_tokens', 'cache_write_tokens']) {
+      const payloads = frame.payloads.map((payload) => {
+        if (typeof payload !== 'object' || payload === null) return payload
+        const chunk = recordField(payload, 'chunk')
+        if (chunk['usage'] == null) return payload
+        const usage = recordField(chunk['usage'], 'usage')
+        const details = recordField(usage['prompt_tokens_details'], 'cache details')
+        return {
+          ...chunk,
+          usage: { ...usage, prompt_tokens_details: { ...details, [field]: 1523 } },
+        }
+      })
+      const decoded = decodeChatStream(payloads, 'm', OPENROUTER, CHAT_LIMITS)
+      expect(decoded.response.status).toBe('completed')
+      expect(decoded.response.usage, field).toBeUndefined()
+      expect(decoded.providerCostUsd, field).toBeUndefined()
+      expect(decoded.events.at(-1)).not.toHaveProperty('response.usage')
+    }
   })
 
   it('merges fragments by index, truncating floats, with an appearance fallback', () => {
@@ -1363,6 +1391,7 @@ describe('chat codec guards', () => {
   it('groups parallel calls that carry no index in appearance order', () => {
     const decoder = new ChatStreamDecoder('m', GROQ, CHAT_LIMITS)
     decoder.feed({
+      id: 'response-one',
       choices: [
         {
           delta: {
@@ -1373,6 +1402,7 @@ describe('chat codec guards', () => {
       ],
     })
     decoder.feed({
+      id: 'response-one',
       choices: [
         {
           delta: {
@@ -1384,22 +1414,128 @@ describe('chat codec guards', () => {
     })
     const calls = callsOf(decoder.finish().response)
     expect(calls.map((call) => [call.call_id, call.name, call.arguments])).toEqual([
-      ['chat-call-0', 'a', '{"x":1}'],
-      ['chat-call-1', 'b', '{"x":2}'],
+      ['chat-call-response-one-0', 'a', '{"x":1}'],
+      ['chat-call-response-one-1', 'b', '{"x":2}'],
     ])
   })
 
-  it('skips sentinels, blanks, garbage and non-chunks', () => {
+  it('skips sentinels, blanks, keep-alives and unrelated additions', () => {
     const decoder = new ChatStreamDecoder('m', GROQ, CHAT_LIMITS)
     expect(decoder.feed('[DONE]')).toEqual([])
     expect(decoder.feed('')).toEqual([])
-    expect(decoder.feed('not json')).toEqual([])
+    expect(decoder.feed(': OPENROUTER PROCESSING')).toEqual([])
     expect(decoder.feed(42)).toEqual([])
-    expect(decoder.feed({ choices: [{ delta: { content: 42 } }] })).toEqual([])
     expect(decoder.feed({ object: 'list', data: [] })).toEqual([])
     decoder.feed({ choices: [{ delta: { content: 'hi' } }] })
     const done = decoder.finish()
     expect(textOf(done.response)).toBe('hi')
+  })
+
+  it('fails corrupt known captured chunks and malformed JSON with a named error', () => {
+    const frame = frameOf('openrouter', '04-tool-call-stream.json')
+    for (const corruption of ['content', 'model', 'json']) {
+      let hasChanged = false
+      const payloads = frame.payloads.map((payload) => {
+        if (hasChanged || typeof payload !== 'object' || payload === null) return payload
+        const chunk = recordField(payload, 'chunk')
+        const choice = recordField(arrayField(chunk['choices'], 'choices')[0], 'choice')
+        const delta = recordField(choice['delta'], 'delta')
+        if (delta['tool_calls'] === undefined) return payload
+        hasChanged = true
+        if (corruption === 'json') return JSON.stringify(chunk).slice(0, -1)
+        return corruption === 'model'
+          ? { ...chunk, model: 42 }
+          : { ...chunk, choices: [{ ...choice, delta: { ...delta, content: 42 } }] }
+      })
+      expect(hasChanged).toBe(true)
+      const decoded = decodeChatStream(payloads, 'm', OPENROUTER, CHAT_LIMITS)
+      expect(decoded.response).toMatchObject({
+        status: 'failed',
+        error: { code: 'malformed_chunk' },
+      })
+      expect(decoded.events).toContainEqual(
+        expect.objectContaining({ type: 'error', code: 'malformed_chunk' }),
+      )
+      expect(decoded.events.at(-1)?.type).toBe('response.failed')
+    }
+  })
+
+  it('clears earlier accounting when a later known chunk is corrupt', () => {
+    const decoder = new ChatStreamDecoder('m', OPENROUTER, CHAT_LIMITS)
+    decoder.feed({ choices: [], usage: { prompt_tokens: 10, completion_tokens: 5, cost: 1 } })
+    decoder.feed({ choices: [{ delta: { content: 42 } }] })
+    const result = decoder.finish()
+    expect(result.response.status).toBe('failed')
+    expect(result.response.usage).toBeUndefined()
+    expect(result.providerCostUsd).toBeUndefined()
+  })
+
+  it('refuses ambiguous indexless continuations and anonymous calls without a response id', () => {
+    const decoder = new ChatStreamDecoder('m', GROQ, CHAT_LIMITS)
+    decoder.feed({ choices: [{ delta: { tool_calls: [{ id: 'one' }, { id: 'two' }] } }] })
+    expect(
+      decoder.feed({ choices: [{ delta: { tool_calls: [{ function: { arguments: '{}' } }] } }] }),
+    ).toMatchObject([{ type: 'error', code: 'ambiguous_tool_call' }])
+    expect(decoder.finish().response.status).toBe('failed')
+    const anonymous = new ChatStreamDecoder('m', GROQ, CHAT_LIMITS)
+    expect(
+      anonymous.feed({ choices: [{ delta: { tool_calls: [{ function: { name: 'a' } }] } }] }),
+    ).toMatchObject([{ type: 'error', code: 'missing_response_id' }])
+    expect(anonymous.finish().response.status).toBe('failed')
+  })
+
+  it('reconnects captured indexless continuations whose native id appears only once', () => {
+    const payloads = withoutCapturedCallFields(
+      frameOf('openrouter', '04-tool-call-stream.json').payloads,
+      ['index'],
+    )
+    const decoded = decodeChatStream(payloads, 'm', OPENROUTER, CHAT_LIMITS)
+    expect(decoded.response.status).toBe('completed')
+    expect(callsOf(decoded.response)).toMatchObject([
+      {
+        call_id: 'chatcmpl-tool-b14640ae3beaf9d7',
+        name: 'get_time',
+        arguments: '{"timezone":"UTC"}',
+      },
+    ])
+    expect(callsOf(decoded.response)).toHaveLength(1)
+  })
+
+  it('keeps synthetic ids unique across captured responses and earlier result bytes stable', () => {
+    const frame = frameOf('mistral', '02-tool-call-stream.json')
+    const withoutIds = withoutCapturedCallFields(frame.payloads, ['id'])
+    const first = decodeChatStream(withoutIds, 'm', MISTRAL, CHAT_LIMITS)
+    const secondPayloads = withoutIds.map((payload) => {
+      if (typeof payload !== 'object' || payload === null) return payload
+      const chunk = recordField(payload, 'chunk')
+      const choices = arrayField(chunk['choices'], 'choices').map((value) => {
+        const choice = recordField(value, 'choice')
+        const delta = recordField(choice['delta'], 'delta')
+        const calls = arrayField(delta['tool_calls'] ?? [], 'calls').map((value) => {
+          const call = recordField(value, 'call')
+          return {
+            ...call,
+            function: { ...recordField(call['function'], 'function'), name: 'read_file' },
+          }
+        })
+        return { ...choice, delta: { ...delta, tool_calls: calls } }
+      })
+      return { ...chunk, id: `${String(chunk['id'])}-next`, choices }
+    })
+    const second = decodeChatStream(secondPayloads, 'm', MISTRAL, CHAT_LIMITS)
+    const earlier = callsOf(first.response)[0]
+    const later = callsOf(second.response)[0]
+    if (earlier === undefined || later === undefined) throw new Error('capture has no call')
+    expect(earlier.call_id).not.toBe(later.call_id)
+    expect(earlier.call_id).toContain(first.response.id)
+    expect(later.call_id).toContain(second.response.id)
+    const body = tinyBody({
+      input: [earlier, { type: 'function_call_output', call_id: earlier.call_id, output: 'saved' }],
+    })
+    const before = encodeChatRequest(body, 'm', MISTRAL).body.messages
+    const after = encodeChatRequest({ ...body, input: [...body.input, later] }, 'm', MISTRAL).body
+      .messages
+    expect(JSON.stringify(after.slice(0, before.length))).toBe(JSON.stringify(before))
   })
 
   it('splits think blocks out of answer text, unclosed ones too', () => {

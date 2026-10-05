@@ -528,7 +528,7 @@ function nativeReasoning(
 
 const chatToolCallSchema = z.object({
   index: z.optional(z.number()),
-  id: z.optional(z.string()),
+  id: z.optional(z.nullable(z.string())),
   type: z.optional(z.string()),
   function: z.optional(
     z.nullable(
@@ -637,7 +637,7 @@ interface DecodedCall {
 
 interface ChatToolCallDelta {
   readonly index?: number | undefined
-  readonly id?: string | undefined
+  readonly id?: string | null | undefined
   readonly function?:
     | {
         readonly name?: string | null | undefined
@@ -690,7 +690,6 @@ export class ChatStreamDecoder {
   private contentPending = ''
   private isThinking = false
   private calls: DecodedCall[] = []
-  private anonCount = 0
   private order: ('reasoning' | 'message' | 'calls')[] = []
   private usageRaw: ChatUsageWire | undefined
   private costRaw: number | undefined
@@ -706,8 +705,10 @@ export class ChatStreamDecoder {
     this.limits = limits
   }
 
-  private limitError(): StreamEvent[] {
-    this.streamError = { code: 'stream_limit', message: UI_TEXT.turnFailed }
+  private fail(code: string): StreamEvent[] {
+    this.streamError = { code, message: UI_TEXT.turnFailed }
+    this.usageRaw = undefined
+    this.costRaw = undefined
     return [{ type: 'error', ...this.streamError }]
   }
 
@@ -859,29 +860,34 @@ export class ChatStreamDecoder {
   }
 
   /**
-   * Merges one `tool_calls` entry by its `index` (a float truncates), with
-   * an appearance-order fallback where the index is missing: the drill in
-   * `docs/certification/m95-h.md` breaks exactly this fallback.
+   * Merges by native index, then native id. An unnamed/indexless/idless
+   * continuation can reconnect only while one call is unambiguous.
    */
-  private takeToolCall(call: ChatToolCallDelta, events: StreamEvent[]): boolean {
+  private takeToolCall(call: ChatToolCallDelta, events: StreamEvent[]): string | undefined {
     const index = call.index
     let key: string | number
     if (typeof index === 'number' && Number.isFinite(index)) {
       key = Math.trunc(index)
-    } else if (call.id !== undefined && this.calls.some((candidate) => candidate.id === call.id)) {
-      key =
-        this.calls.find((candidate) => candidate.id === call.id)?.key ??
-        `anon-${String(this.anonCount)}`
+    } else if (call.id != null) {
+      key = this.calls.find((candidate) => candidate.id === call.id)?.key ?? call.id
+    } else if (!call.function?.name && this.calls.length > 0) {
+      const soleCall = this.calls.length === 1 ? this.calls[0] : undefined
+      if (soleCall === undefined) {
+        return 'ambiguous_tool_call'
+      }
+      key = soleCall.key
     } else {
-      key = `anon-${String(this.anonCount)}`
-      this.anonCount += 1
+      key = `anon-${String(this.calls.length)}`
     }
     let entry = this.calls.find((candidate) => candidate.key === key)
     if (entry === undefined) {
+      if (call.id == null && this.responseId === undefined) {
+        return 'missing_response_id'
+      }
       entry = {
         key,
-        id: call.id ?? `chat-call-${String(this.calls.length)}`,
-        syntheticId: call.id === undefined,
+        id: call.id ?? `chat-call-${this.responseId ?? ''}-${String(this.calls.length)}`,
+        syntheticId: call.id == null,
         name: call.function?.name ?? '',
         args: '',
         argumentBytes: 0,
@@ -890,7 +896,7 @@ export class ChatStreamDecoder {
       this.calls.push(entry)
       this.noteOrder('calls')
     }
-    if (entry.syntheticId && call.id !== undefined) {
+    if (entry.syntheticId && call.id != null) {
       entry.id = call.id
       entry.syntheticId = false
     }
@@ -902,7 +908,7 @@ export class ChatStreamDecoder {
     if (typeof fragment === 'string' && fragment !== '') {
       const bytes = new TextEncoder().encode(fragment).byteLength
       if (entry.argumentBytes + bytes > this.limits.argumentBytes) {
-        return false
+        return 'stream_limit'
       }
       entry.argumentBytes += bytes
       entry.args += fragment
@@ -919,7 +925,7 @@ export class ChatStreamDecoder {
       entry.added = true
       events.push({ type: 'response.output_item.added', item: callItemOf(entry) })
     }
-    return true
+    return undefined
   }
 
   /**
@@ -952,12 +958,12 @@ export class ChatStreamDecoder {
     if (validCount(total) === undefined) {
       return undefined
     }
-    let cached = validCount(raw.prompt_tokens_details?.cached_tokens)
-    if (cached !== undefined) {
-      cached = Math.min(cached, input)
-    }
+    const cached = validCount(raw.prompt_tokens_details?.cached_tokens)
     const reasoning = validCount(raw.completion_tokens_details?.reasoning_tokens ?? undefined)
     const written = validCount(raw.prompt_tokens_details?.cache_write_tokens)
+    if ((cached !== undefined && cached > input) || (written !== undefined && written > input)) {
+      return undefined
+    }
     const usage = {
       input_tokens: input,
       output_tokens: output,
@@ -985,28 +991,36 @@ export class ChatStreamDecoder {
     const bytes = new TextEncoder().encode(wire).byteLength
     this.streamBytes += bytes
     if (bytes > this.limits.frameBytes || this.streamBytes > this.limits.streamBytes) {
-      return this.limitError()
+      return this.fail('stream_limit')
     }
     let raw: unknown = payload
     if (typeof raw === 'string') {
       const trimmed = raw.trim()
-      if (trimmed === '' || trimmed === '[DONE]') {
+      if (trimmed === '' || trimmed === '[DONE]' || trimmed.startsWith(':')) {
         return events
       }
       try {
         raw = JSON.parse(trimmed)
       } catch {
-        return events
+        return this.fail('malformed_chunk')
       }
     }
     if (typeof raw !== 'object' || raw === null) {
+      return events
+    }
+    if (
+      !('choices' in raw) &&
+      !('usage' in raw) &&
+      !('error' in raw) &&
+      (!('object' in raw) || (raw.object !== 'chat.completion.chunk' && raw.object !== 'error'))
+    ) {
       return events
     }
     let chunk: ChatChunk
     try {
       chunk = chatChunkSchema.parse(raw)
     } catch {
-      return events
+      return this.fail('malformed_chunk')
     }
     const error = readStreamError(chunk)
     if (error !== undefined) {
@@ -1076,15 +1090,16 @@ export class ChatStreamDecoder {
       }
       if (delta.tool_calls !== undefined && delta.tool_calls !== null) {
         for (const call of delta.tool_calls) {
-          if (!this.takeToolCall(call, events)) {
-            return this.limitError()
+          const failure = this.takeToolCall(call, events)
+          if (failure !== undefined) {
+            return this.fail(failure)
           }
         }
       }
     }
     return this.calls.length + Number(this.textAdded) + Number(this.reasoningAdded) >
       this.limits.outputItems
-      ? this.limitError()
+      ? this.fail('stream_limit')
       : events
   }
 

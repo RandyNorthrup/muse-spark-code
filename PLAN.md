@@ -13879,6 +13879,18 @@ live) and the controller filters its id as well.
 
 ### M95 — Bring-your-own model providers (D74)
 
+**Chat review fixes (FIXM95H, 2026-10-05).** Resolve RVM95RH findings
+1–7 within the Chat codec and its tests/goldens: impossible cache usage
+stays unknown (no provider-cost settlement); corrupt known chunks fail
+explicitly; native index/id identity reconnects unambiguous indexless
+continuations, and synthetic call ids include the response id and ordinal;
+image understanding follows the injected model vision capability (a
+translated refusal otherwise); completed hosted-search history becomes
+plain text without a hosted declaration; packed-output and compaction
+requests gain checked-in byte goldens. Each fix has a regression and a
+byte-exact-restored red drill in `docs/certification/m95-h.md`. No dependency,
+paid/live call or guard widening. Bundle registration remains lane W's work.
+
 **Status 2026-10-04: planned on `feature/m95-byo-providers` from main
 `1e93c67c`; research in `docs/certification/m95-research.md`. Step 13's
 wire captures were recorded 2026-10-04 for the twelve cloud presets the

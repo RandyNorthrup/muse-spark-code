@@ -7,6 +7,12 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+### Fixed
+
+- The M95 Chat codec keeps impossible cache accounting unknown, fails
+  corrupt response chunks, and preserves tool-call identity across fragments
+  and responses, including Fireworks' captured nullable continuation IDs.
+
 ## [0.12.1] - 2026-10-04
 
 ### Changed
