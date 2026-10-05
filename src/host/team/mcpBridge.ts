@@ -49,7 +49,7 @@ import {
   IDE_MCP_TOKEN_BYTES,
   JSON_RPC_ERRORS,
   MCP_PROTOCOL_VERSION,
-  MODEL_TEXT,
+  MODEL_API_MODEL_TEXT,
 } from '../../shared/constants'
 import type { Logger } from '../logger'
 import { isSameLoopbackSecret, listenLoopback, readLoopbackBody } from '../mcpLoopback'
@@ -235,10 +235,10 @@ export class TeamMcpBridge {
     try {
       args = argsJson.trim() === '' ? {} : JSON.parse(argsJson)
     } catch {
-      return this.refused(MODEL_TEXT.mcpArgumentsNotObject)
+      return this.refused(MODEL_API_MODEL_TEXT.mcpArgumentsNotObject)
     }
     if (!bridgeArgumentsSchema.safeParse(args).success) {
-      return this.refused(MODEL_TEXT.mcpArgumentsNotObject)
+      return this.refused(MODEL_API_MODEL_TEXT.mcpArgumentsNotObject)
     }
     if (this.closed || this.callers.get(caller.id) !== live) {
       return this.refused('The team bridge is closed')

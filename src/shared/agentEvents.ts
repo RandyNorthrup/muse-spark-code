@@ -190,6 +190,14 @@ export const itemSnapshotFields = {
   verifySummary: z.optional(verifySummarySchema),
   /** `toolCall` of an edit with `then_run` (M68): the command's result beside the edit's. */
   thenRun: z.optional(thenRunResultSchema),
+  /**
+   * When the item was recorded (M87, PLAN.md D66), an RFC 3339 string: MSP
+   * `Item.recordedAt` as captured on `userMessage`, `agentMessage` and
+   * `userShell` items (M46, M79), or the Model API host's own stamp. Kept as
+   * the string it came as: a time that does not parse costs the time where
+   * it is read, never the item.
+   */
+  recordedAt: z.optional(z.string()),
 } as const
 
 const itemSnapshotSchema = z.object(itemSnapshotFields)
@@ -393,6 +401,11 @@ const agentEventSchema = z.discriminatedUnion('type', [
     requirementId: requirementRefSchema,
     subject: approvalSubjectSchema,
     availableChoices: z.array(approvalChoiceSchema),
+    /**
+     * Why the card asks beyond the mode. The CLI sends none; the controller
+     * sets the secret note here too when it scrubs one in (M92e).
+     */
+    note: z.optional(z.string()),
   }),
   z.object({
     type: z.literal('approvalResolved'),
@@ -428,6 +441,10 @@ const agentEventSchema = z.discriminatedUnion('type', [
   // (`turn/unqueued`) or Stop cleared the queue. Only its message is marked;
   // the running turn, if any, runs on.
   z.object({ type: z.literal('turnWithdrawn'), turnId: z.string(), reason: z.string() }),
+  // A queued or steered message reached a request (M87, PLAN.md D66): from
+  // now on the model has it, so it can no longer be withdrawn. Named by the
+  // user item id its acceptance gave (`turnAccepted.userMessageId`).
+  z.object({ type: z.literal('messageAdmitted'), userMessageId: z.string().check(z.minLength(1)) }),
   // The two below are the controller's, never forwarded (PLAN.md D26): live
   // delivery dropped events, so the transcript is reloaded from the host...
   z.object({ type: z.literal('viewGap') }),

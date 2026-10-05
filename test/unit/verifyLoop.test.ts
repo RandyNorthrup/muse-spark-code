@@ -605,9 +605,9 @@ describe('workspace writes and verify grants', () => {
     },
   )
 
-  it.each([0, 1])(
-    'shares pre-format invalidation between parent and siblings (writer request %s)',
-    async (writerIndex) => {
+  it.each(['subagent', 'parent'])(
+    'shares pre-format invalidation between parent and siblings (%s writes)',
+    async (writer) => {
       const firstChecks = Promise.withResolvers<undefined>()
       const nextChecks = Promise.withResolvers<undefined>()
       const nextWrite = Promise.withResolvers<undefined>()
@@ -645,25 +645,40 @@ describe('workspace writes and verify grants', () => {
         await vi.waitFor(() => {
           expect(t.api.responseBodies()).toHaveLength(4)
         })
-        t.api.script(
-          ...Array.from({ length: 3 }, (_, index) =>
-            index === writerIndex
-              ? {
-                  calls: [writeCall('scripts/check.js', 'new script\n')],
-                  hold: nextWrite.promise,
-                }
-              : { calls: [RUN_CHECKS], hold: nextChecks.promise },
-          ),
-          { text: 'done' },
-        )
+        let writerRequest: string | undefined
+        const nextRound = Array.from({ length: 3 }, () => {
+          const reply: {
+            calls: ScriptedCall[]
+            hold: Promise<undefined>
+            onRequest: () => void
+          } = {
+            calls: [RUN_CHECKS],
+            hold: nextChecks.promise,
+            onRequest: () => {
+              const text = userText(t.api.responseBodies().at(-1))
+              const isChild = text.includes(MODEL_API_MODEL_TEXT.subagentObjective)
+              // Admission can change arrival order: bind the write to its
+              // session, still exercising a parent and a sibling writer.
+              if (!(writerRequest === undefined && isChild === (writer === 'subagent'))) {
+                return
+              }
+
+              writerRequest = text
+              reply.calls = [writeCall('scripts/check.js', 'new script\n')]
+              reply.hold = nextWrite.promise
+            },
+          }
+          return reply
+        })
+        t.api.script(...nextRound, { text: 'done' })
         firstChecks.resolve(undefined)
         await vi.waitFor(() => {
           expect(t.api.responseBodies()).toHaveLength(7)
           expect(t.io.shellCalls).toHaveLength(3)
         })
-        const writerRequest = userText(t.api.responseBodies()[4 + writerIndex])
-        expect(writerRequest.includes(MODEL_API_MODEL_TEXT.subagentObjective)).toBe(
-          writerIndex === 0,
+        expect(writerRequest).toBeDefined()
+        expect(writerRequest?.includes(MODEL_API_MODEL_TEXT.subagentObjective)).toBe(
+          writer === 'subagent',
         )
         // All three sessions hold their own grant before one writes.
         nextWrite.resolve(undefined)
@@ -906,7 +921,10 @@ describe('the verify loop after a round of edits (Model API)', () => {
       new ShellEntryError('the checkpoint failed'),
     )
     expect(userText(next)).toContain(
-      fill(MODEL_TEXT.checkNotRun, { name: 'lint', reason: MODEL_TEXT.checkSkipRefused }),
+      fill(MODEL_API_MODEL_TEXT.checkNotRun, {
+        name: 'lint',
+        reason: MODEL_API_MODEL_TEXT.checkSkipRefused,
+      }),
     )
     expect(userText(next)).not.toContain('lint: failed')
     expect(completedRows(events, 'edit_file')[0]?.thenRun?.outcome).not.toBe('failed')
@@ -919,7 +937,10 @@ describe('the verify loop after a round of edits (Model API)', () => {
     await turn()
     expect(t.io.shellCalls).toEqual([])
     expect(userText(t.api.responseBodies()[1])).toContain(
-      fill(MODEL_TEXT.checkNotRun, { name: 'lint', reason: MODEL_TEXT.checkSkipUnsafePath }),
+      fill(MODEL_API_MODEL_TEXT.checkNotRun, {
+        name: 'lint',
+        reason: MODEL_TEXT.checkSkipUnsafePath,
+      }),
     )
     expect(completedRows(events, 'verify_edits')[0]?.verifySummary?.checks).toEqual([
       { name: 'lint', outcome: 'notRun', skip: 'unsafePath' },
@@ -988,7 +1009,10 @@ describe('an automatic check takes the shell tool’s permission path, per mode'
     expect(completedRows(events, 'verify_edits')).toEqual([])
     const [, checksOutput] = outputs(t.api.responseBodies()[1])
     expect(checksOutput).toContain(
-      fill(MODEL_TEXT.checkNotRun, { name: 'lint', reason: MODEL_TEXT.checkSkipRefused }),
+      fill(MODEL_API_MODEL_TEXT.checkNotRun, {
+        name: 'lint',
+        reason: MODEL_API_MODEL_TEXT.checkSkipRefused,
+      }),
     )
     expect(completedRows(events, 'run_checks')[0]?.verifySummary?.checks).toEqual([
       { name: 'lint', outcome: 'notRun', skip: 'refused' },
@@ -1009,7 +1033,9 @@ describe('an automatic check takes the shell tool’s permission path, per mode'
     expect(t.io.shellCalls).toEqual([])
     // The diagnostics still come; the checks are left out.
     expect(completedRows(events, 'verify_edits')[0]?.verifySummary?.checks).toEqual([])
-    expect(outputs(t.api.responseBodies()[1])[1]).toContain(MODEL_TEXT.checkSkipRestricted)
+    expect(outputs(t.api.responseBodies()[1])[1]).toContain(
+      MODEL_API_MODEL_TEXT.checkSkipRestricted,
+    )
   })
 
   it('"Always allow in this session" holds for the check, and only for the check', async () => {
@@ -1045,7 +1071,10 @@ describe('an automatic check takes the shell tool’s permission path, per mode'
     expect(cards).toHaveLength(1)
     expect(t.io.shellCalls).toEqual([])
     expect(userText(t.api.responseBodies()[1])).toContain(
-      fill(MODEL_TEXT.checkNotRun, { name: 'lint', reason: MODEL_TEXT.checkSkipRejected }),
+      fill(MODEL_API_MODEL_TEXT.checkNotRun, {
+        name: 'lint',
+        reason: MODEL_API_MODEL_TEXT.checkSkipRejected,
+      }),
     )
   })
 })
@@ -1172,7 +1201,7 @@ describe('then_run: one call, two results', () => {
       output: '',
     })
     expect(outputs(rejected.api.responseBodies()[1])[0]).toContain(
-      fill(MODEL_API_MODEL_TEXT.thenRunNotRun, { reason: MODEL_TEXT.checkSkipRejected }),
+      fill(MODEL_API_MODEL_TEXT.thenRunNotRun, { reason: MODEL_API_MODEL_TEXT.checkSkipRejected }),
     )
 
     const restricted = setup({ isDiagnosticsOn: false, isTrusted: false })
@@ -1204,7 +1233,7 @@ describe('then_run: one call, two results', () => {
     await turn()
     expect(t.io.shellCalls).toEqual([])
     expect(outputs(t.api.responseBodies()[1])[0]).toContain(
-      fill(MODEL_API_MODEL_TEXT.thenRunNotRun, { reason: MODEL_TEXT.checkSkipChanged }),
+      fill(MODEL_API_MODEL_TEXT.thenRunNotRun, { reason: MODEL_API_MODEL_TEXT.checkSkipChanged }),
     )
   })
 
@@ -1220,7 +1249,7 @@ describe('then_run: one call, two results', () => {
     expect(t.io.files.get(`${ROOT}/src/a.ts`)).toBe('const a =  2\n')
     expect(t.io.shellCalls.map((call) => call.command)).toEqual(['npm test'])
     const [output] = outputs(t.api.responseBodies()[1])
-    expect(output).toContain(`edited src/a.ts. ${MODEL_TEXT.formattedAfterEdit}`)
+    expect(output).toContain(`edited src/a.ts. ${MODEL_API_MODEL_TEXT.formattedAfterEdit}`)
     // The row's diff is the formatted result.
     expect(completedRows(events, 'edit_file')[0]?.visibleOutput).toContain('+const a =  2')
     expect(t.formatCalls).toEqual([`${ROOT}/src/a.ts`])
@@ -1331,8 +1360,8 @@ describe('the user’s hooks see then_run and the checks as shell calls', () => 
       detail: 'no tests on main',
       output: '',
     })
-    const reason = fill(MODEL_TEXT.checkDetail, {
-      reason: MODEL_TEXT.checkSkipHookDenied,
+    const reason = fill(MODEL_API_MODEL_TEXT.checkDetail, {
+      reason: MODEL_API_MODEL_TEXT.checkSkipHookDenied,
       detail: 'no tests on main',
     })
     expect(outputs(t.api.responseBodies()[1])[0]).toContain(
@@ -1489,10 +1518,10 @@ describe('the user’s hooks see then_run and the checks as shell calls', () => 
       [{ name: 'lint', outcome: 'failed' }],
     ])
     expect(userText(t.api.responseBodies()[1])).toContain(
-      fill(MODEL_TEXT.checkNotRun, {
+      fill(MODEL_API_MODEL_TEXT.checkNotRun, {
         name: 'lint',
-        reason: fill(MODEL_TEXT.checkDetail, {
-          reason: MODEL_TEXT.checkSkipHookDenied,
+        reason: fill(MODEL_API_MODEL_TEXT.checkDetail, {
+          reason: MODEL_API_MODEL_TEXT.checkSkipHookDenied,
           detail: 'not now',
         }),
       }),
@@ -1761,9 +1790,11 @@ describe('what reaches a check and the editor (the M68 review)', () => {
     await turn()
     expect(t.diagnosticsCalls).toEqual([])
     expect(t.formatCalls).toEqual([])
-    const reason = fill(MODEL_TEXT.verifyUncheckedCodeLoading, { file: 'eslint.config.js' })
+    const reason = fill(MODEL_API_MODEL_TEXT.verifyUncheckedCodeLoading, {
+      file: 'eslint.config.js',
+    })
     expect(userText(t.api.responseBodies()[2])).toContain(
-      fill(MODEL_TEXT.verifyFileUnchecked, { path: 'src/a.ts', reason }),
+      fill(MODEL_API_MODEL_TEXT.verifyFileUnchecked, { path: 'src/a.ts', reason }),
     )
     expect(completedRows(events, 'verify_edits').map((row) => row.verifySummary)).toEqual([
       { files: ['eslint.config.js'], unchecked: 1, checks: [] },
@@ -1789,9 +1820,9 @@ describe('what reaches a check and the editor (the M68 review)', () => {
       unchecked: 1,
     })
     expect(userText(t.api.responseBodies()[1])).toContain(
-      fill(MODEL_TEXT.verifyFileUnchecked, {
+      fill(MODEL_API_MODEL_TEXT.verifyFileUnchecked, {
         path: 'src/f8.ts',
-        reason: fill(MODEL_TEXT.verifyUncheckedTooMany, { count: '8' }),
+        reason: fill(MODEL_API_MODEL_TEXT.verifyUncheckedTooMany, { count: '8' }),
       }),
     )
   })
@@ -1808,12 +1839,12 @@ describe('what reaches a check and the editor (the M68 review)', () => {
     await turn()
     const next = userText(t.api.responseBodies()[1])
     expect(next).toContain(
-      fill(MODEL_TEXT.verifyFileUnchecked, {
+      fill(MODEL_API_MODEL_TEXT.verifyFileUnchecked, {
         path: 'src/a.ts',
-        reason: MODEL_TEXT.verifyUncheckedNoReport,
+        reason: MODEL_API_MODEL_TEXT.verifyUncheckedNoReport,
       }),
     )
-    expect(next).not.toContain(fill(MODEL_TEXT.verifyFileClean, { path: 'src/a.ts' }))
+    expect(next).not.toContain(fill(MODEL_API_MODEL_TEXT.verifyFileClean, { path: 'src/a.ts' }))
     expect(completedRows(events, 'verify_edits')[0]?.verifySummary).toEqual({
       files: ['src/a.ts'],
       unchecked: 1,
@@ -1836,7 +1867,7 @@ describe('what reaches a check and the editor (the M68 review)', () => {
     message = 'second'
     t.api.script({ calls: [editCall('2', '3')] }, { text: 'ok' })
     await started.turn('again')
-    const changed = fill(MODEL_TEXT.verifyFileChanges, { added: '1', fixed: '1' })
+    const changed = fill(MODEL_API_MODEL_TEXT.verifyFileChanges, { added: '1', fixed: '1' })
     expect(userText(t.api.responseBodies().at(-1))).not.toContain(changed)
     message = 'third'
     t.api.script({ calls: [editCall('3', '4')] }, { text: 'ok' })
@@ -1876,7 +1907,9 @@ describe('what reaches a check and the editor (the M68 review)', () => {
     await turn()
     expect(io.files.get(`${ROOT}/src/a.ts`)).toBe('const a = 2\n')
     expect(completedRows(events, 'edit_file')[0]?.status).toBe('completed')
-    expect(outputs(t.api.responseBodies()[1])[0]).not.toContain(MODEL_TEXT.formattedAfterEdit)
+    expect(outputs(t.api.responseBodies()[1])[0]).not.toContain(
+      MODEL_API_MODEL_TEXT.formattedAfterEdit,
+    )
     expect(logLines(t.log).join('\n')).toContain(
       'Format on edit could not write src/a.ts; the edit stays as written: disk full',
     )
