@@ -17,3 +17,7 @@ vendor/
 # always expands arrays; prettier would collapse them and break the byte
 # comparison).
 test/fixtures/golden-requests/
+
+# M91 saved vendor sources, kept byte-exact: code cites them by line
+# (cline-hooks-901d1b5c97.md:157), and reformatting would move those lines.
+test/fixtures/hookFormats/docs/*.md
