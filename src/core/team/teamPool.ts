@@ -312,7 +312,12 @@ export interface TeamSelectionSnapshot {
   /** Used amount for an entry's cap: ledger rows in the window plus open reservations. */
   readonly usedByEntryCap: (entryId: string, cap: TeamCap) => number
   /** The task's first request, reserved before it is sent (tokens and spend). */
-  readonly firstRequest: { readonly tokens: number; readonly spendUsd: number }
+  readonly firstRequest: {
+    readonly tokens: number
+    readonly inputTokens: number
+    readonly outputTokens: number
+    readonly spendUsd: number
+  }
   /** Per-agent running limits: each agent's ceiling, lowered where the user did. */
   readonly agentLimit: (agentKey: string) => number
   /** Installed, signed in, key present, provider reachable. */
@@ -355,10 +360,14 @@ function firstRequestAmount(
   firstRequest: TeamSelectionSnapshot['firstRequest'],
 ): number {
   switch (measure) {
-    case 'tokens':
-    case 'inputTokens':
-    case 'outputTokens': {
+    case 'tokens': {
       return firstRequest.tokens
+    }
+    case 'inputTokens': {
+      return firstRequest.inputTokens
+    }
+    case 'outputTokens': {
+      return firstRequest.outputTokens
     }
     case 'spendUsd': {
       return firstRequest.spendUsd

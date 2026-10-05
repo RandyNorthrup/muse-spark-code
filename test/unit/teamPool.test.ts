@@ -466,6 +466,24 @@ describe('teamPool: Default and headroom', () => {
     }
   })
 
+  it('input and output headroom use their own first-request allowances', () => {
+    for (const measure of ['inputTokens', 'outputTokens'] as const) {
+      const pool = rolePool('engineering', [
+        poolEntry('entry', keyAgent({ key: 'meta' }), [{ measure, window: 'day', amount: 1000 }]),
+      ])
+      const snapshot = selectionSnapshot({
+        firstTokens: 1500,
+        firstInputTokens: 900,
+        firstOutputTokens: 600,
+      })
+      expect(selectTeamEntry(pool, snapshot, TEAM_ROLE_TASKS_PER_TURN_DEFAULT).kind).toBe(
+        'selected',
+      )
+      const used = { ...snapshot, usedByEntryCap: () => 500 }
+      expect(selectTeamEntry(pool, used, TEAM_ROLE_TASKS_PER_TURN_DEFAULT).kind).toBe('exhausted')
+    }
+  })
+
   it('an unavailable agent is skipped, and a hook refusal is recorded as exhausted', () => {
     const { pool } = twoEntryPool()
     const pick = selectTeamEntry(

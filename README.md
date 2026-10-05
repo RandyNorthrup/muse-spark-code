@@ -2483,6 +2483,11 @@ names the price first; declining it turns the setting back off, and turning
 a setting off means the next time asks again. The settings are
 machine-scoped, so a repository cannot turn one on.
 
+Team workers default on for a runnable team of distinct models. They ask in
+this paid-use popup before the first charge, with the models, task ceilings
+and daily budget. Single-model activation asks no team question. The M96 team
+feature remains unavailable until its integration is complete.
+
 **Every paid use then asks first, in a popup**, in every permission mode,
 Bypass included. The popup names what is about to be billed and its price,
 and offers three answers:

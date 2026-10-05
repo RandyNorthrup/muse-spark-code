@@ -5,6 +5,7 @@ import { describe, expect, it } from 'vitest'
 import {
   checkAndReserve,
   sumTeamTotals,
+  settleTeamReservation,
   teamDayKey,
   TeamMeter,
   ZERO_TEAM_METER_USAGE,
@@ -15,6 +16,25 @@ import { resetLedgerRow } from '../../src/host/team/teamLedger'
 import { FakeTeamJournal } from './helpers/teamFakes'
 
 const DAY = teamDayKey(1_000_000)
+const REQUEST = {
+  workspaceId: 'ws',
+  entryId: 'eng-1',
+  agentKey: 'opus',
+  taskId: 'task-1',
+  tokens: 9000,
+  inputTokens: 9000,
+  outputTokens: 0,
+  spendUsd: 0.5,
+  dayKey: DAY,
+  startMs: 1_000_000,
+  budgets: () => ({
+    paidDailyBudgetUsd: 50,
+    teamDailyBudgetUsd: 50,
+    teamDailyBudgetTokens: 25_000_000,
+    workspaceDailyBudgetUsd: 50,
+    workspaceDailyBudgetTokens: 25_000_000,
+  }),
+} as const
 
 function usage(partial: Partial<TeamMeterUsage>): TeamMeterUsage {
   return { ...ZERO_TEAM_METER_USAGE, ...partial }
@@ -191,17 +211,11 @@ describe('teamMeter', () => {
     const journal = new FakeTeamJournal()
     const meter = new TeamMeter({ rows: () => [], openReservations: () => [] })
     const admitted = await checkAndReserve(meter, journal, {
-      workspaceId: 'ws',
-      entryId: 'eng-1',
-      agentKey: 'opus',
-      taskId: 'task-1',
+      ...REQUEST,
       caps: [{ measure: 'tokens', window: 'day', amount: 10_000 }],
-      tokens: 9000,
-      spendUsd: 0.5,
-      dayKey: DAY,
     })
     expect(admitted.ok).toBe(true)
-    expect(journal.calls).toEqual(['reserve'])
+    expect(journal.calls).toEqual(['claim', 'check'])
 
     // The open reservation counts, so a second request past the cap is refused and reserves nothing.
     const metered = new TeamMeter({
@@ -209,41 +223,46 @@ describe('teamMeter', () => {
       openReservations: () => [
         {
           id: 'res-1',
+          dayKey: DAY,
+          startMs: 1_000_000,
           workspaceId: 'ws',
           entryId: 'eng-1',
           agentKey: 'opus',
           taskId: 'task-1',
           tokens: 9000,
+          inputTokens: 9000,
+          outputTokens: 0,
           spendUsd: 0.5,
         },
       ],
     })
     const refused = await checkAndReserve(metered, journal, {
-      workspaceId: 'ws',
-      entryId: 'eng-1',
-      agentKey: 'opus',
-      taskId: 'task-1',
+      ...REQUEST,
       caps: [{ measure: 'tokens', window: 'day', amount: 10_000 }],
       tokens: 2000,
+      inputTokens: 2000,
       spendUsd: 0.1,
-      dayKey: DAY,
     })
     expect(refused.ok).toBe(false)
     if (refused.ok) throw new Error('unreachable')
     expect(refused.used).toBe(9000)
-    expect(journal.calls).toEqual(['reserve'])
+    expect(journal.calls).toEqual(['claim', 'check'])
 
     // Reported usage settles the reservation; a sent request with no usage keeps its liability.
     if (!admitted.ok) throw new Error('unreachable')
-    await journal.settle(admitted.reservation.id, {
+    await settleTeamReservation(journal, admitted.reservation.id, {
       kind: 'reported',
       tokens: 8500,
+      inputTokens: 8500,
+      outputTokens: 0,
       spendUsd: 0.45,
     })
-    await journal.settle('res-1', { kind: 'unknown' })
-    expect(journal.calls).toEqual(['reserve', 'settle:reported', 'settle:unknown'])
+    // A different request without reported usage keeps its whole reservation.
+    const unknown = await journal.claim({ ...admitted.reservation, taskId: 'unknown' })
+    await settleTeamReservation(journal, unknown.reservation.id, { kind: 'unknown' })
+    expect(journal.calls).toContain('settle:liability')
     const open = await journal.open()
-    expect(open.map((held) => held.id)).toContain('res-1')
+    expect(open.map((held) => held.id)).toEqual([unknown.reservation.id])
   })
 
   it('two windows reserve against the same day headroom, and only one is admitted', async () => {
@@ -253,41 +272,35 @@ describe('teamMeter', () => {
     const openOf = () =>
       held.map((r) => ({
         id: r.id,
+        dayKey: DAY,
+        startMs: 1_000_000,
         workspaceId: 'ws',
         entryId: 'eng-1',
         agentKey: 'opus',
         taskId: 'a',
         tokens: 9000,
+        inputTokens: 9000,
+        outputTokens: 0,
         spendUsd: 0.5,
       }))
     const windowA = new TeamMeter({ rows: emptyScope, openReservations: openOf })
     const windowB = new TeamMeter({ rows: emptyScope, openReservations: openOf })
     const caps = [{ measure: 'tokens' as const, window: 'day' as const, amount: 10_000 }]
     const first = await checkAndReserve(windowA, journal, {
-      workspaceId: 'ws',
-      entryId: 'eng-1',
-      agentKey: 'opus',
+      ...REQUEST,
       taskId: 'a',
       caps,
-      tokens: 9000,
-      spendUsd: 0.5,
-      dayKey: DAY,
     })
     expect(first.ok).toBe(true)
     if (!first.ok) throw new Error('unreachable')
     held.push({ id: first.reservation.id })
     const second = await checkAndReserve(windowB, journal, {
-      workspaceId: 'ws',
-      entryId: 'eng-1',
-      agentKey: 'opus',
+      ...REQUEST,
       taskId: 'b',
       caps,
-      tokens: 9000,
-      spendUsd: 0.5,
-      dayKey: DAY,
     })
     expect(second.ok).toBe(false)
-    expect(journal.calls).toEqual(['reserve'])
+    expect(journal.calls).toEqual(['claim', 'check'])
   })
 
   it('team totals keep estimated, hook-added and paid-tool lines apart', () => {
@@ -315,6 +328,76 @@ describe('teamMeter', () => {
       estimatedTokens: 3000,
       hookTokens: 200,
       paidToolTokens: 50,
+    })
+  })
+
+  it('an old open liability stays in lifetime and its own day, while reset never refunds it', async () => {
+    const journal = new FakeTeamJournal()
+    const reservation = await journal.claim({
+      workspaceId: 'ws',
+      entryId: 'eng-1',
+      agentKey: 'meta',
+      taskId: 'old',
+      tokens: 9000,
+      inputTokens: 9000,
+      outputTokens: 0,
+      spendUsd: 0.5,
+      startMs: 1_000_000,
+      dayKey: DAY,
+    })
+    const held = await journal.open()
+    const next = teamDayKey(1_000_000 + 86_400_000)
+    const reset: TeamMeterRow = {
+      ...taskRow('eng-1', 'reset', 0, 0),
+      kind: 'reset',
+      clearedWindow: 'lifetime',
+      clearedEntryId: 'eng-1',
+      startMs: 1_000_001,
+    }
+    const meter = new TeamMeter({ rows: () => [reset], openReservations: () => held })
+    expect(
+      meter.used('eng-1', { measure: 'tokens', window: 'day' }, { taskId: 'new', dayKey: next })
+        .value,
+    ).toBe(0)
+    expect(
+      meter.used(
+        'eng-1',
+        { measure: 'tokens', window: 'lifetime' },
+        { taskId: 'new', dayKey: next },
+      ).value,
+    ).toBe(9000)
+    expect(
+      meter.used('eng-1', { measure: 'tokens', window: 'day' }, { taskId: 'old', dayKey: DAY })
+        .value,
+    ).toBe(9000)
+    const durable = await journal.lookupByClaimId(reservation.reservation.id)
+    expect(durable?.outcome).toBeUndefined()
+  })
+
+  it('open input and output liabilities count their own components', async () => {
+    const journal = new FakeTeamJournal()
+    await journal.claim({
+      workspaceId: 'ws',
+      entryId: 'eng-1',
+      agentKey: 'meta',
+      taskId: 'task',
+      tokens: 9000,
+      inputTokens: 8000,
+      outputTokens: 1000,
+      spendUsd: 0.5,
+      startMs: 1_000_000,
+      dayKey: DAY,
+    })
+    const held = await journal.open()
+    const meter = new TeamMeter({ rows: () => [], openReservations: () => held })
+    const scope = { taskId: 'task', dayKey: DAY }
+    expect(meter.used('eng-1', { measure: 'inputTokens', window: 'day' }, scope)).toEqual({
+      value: 8000,
+      estimated: true,
+    })
+    expect(meter.used('eng-1', { measure: 'outputTokens', window: 'day' }, scope)).toEqual({
+      value: 1000,
+      estimated: true,
     })
   })
 })

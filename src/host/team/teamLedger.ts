@@ -1,7 +1,7 @@
 // The team ledger (M96 lane A, PLAN.md D75): the durable record behind the
 // Agent map's live and history views. Every delegation is one row, kept per
 // workspace beside the session store, in an append-only file per local day.
-// Writes are atomic single appends (one window's flush lands whole), reads
+// Each window writes only its own folder; reads
 // take the latest row per task, and a crashed writer's partial tail line is
 // skipped, never fatal. Rows flush at state changes and at least every
 // TEAM_LEDGER_FLUSH_MS, so partial usage survives a crash; files older than
@@ -13,8 +13,9 @@
 // (AGENTS rule 7), and the meter reads rows through teamMeter's structural
 // view. No `vscode` here.
 
-import { appendFile, mkdir, readdir, readFile, rm } from 'node:fs/promises'
+import { mkdir, open, readdir, readFile, rm } from 'node:fs/promises'
 import path from 'node:path'
+import { storeErrorCode } from '../backend/storeErrors'
 import * as z from 'zod/mini'
 import { redactSecrets } from '../../core/redact'
 import {
@@ -30,6 +31,7 @@ import {
   TEAM_LEDGER_FILE_PREFIX,
   TEAM_LEDGER_FILE_SUFFIX,
   TEAM_LEDGER_LINE_MAX_BYTES,
+  UI_TEXT,
 } from '../../shared/constants'
 
 /** A task's live state (D75): active until one of the inactive states. */
@@ -81,6 +83,11 @@ const teamLinksSchema = z.object({
   findings: z.optional(z.string()),
 })
 
+const ownerIdSchema = z.string().check(z.regex(/^[A-Za-z0-9_-]+$/))
+const dayKeySchema = z.string().check(z.regex(/^\d{4}-\d{2}-\d{2}$/))
+const recoveryDecisionSchema = z.object({ kind: z.literal('userTakeover'), ownerId: ownerIdSchema })
+export type TeamRecoveryDecision = z.infer<typeof recoveryDecisionSchema>
+
 const teamLeaseSchema = z.object({
   holder: z.string(),
   sinceMs: z.number(),
@@ -102,7 +109,7 @@ export const teamLedgerRowSchema = z.object({
   branch: z.optional(z.string()),
   brief: z.string(),
   reasonCode: z.string(),
-  dayKey: z.string(),
+  dayKey: dayKeySchema,
   startMs: z.number(),
   endMs: z.optional(z.number()),
   status: z.enum(teamLedgerStatuses),
@@ -113,6 +120,8 @@ export const teamLedgerRowSchema = z.object({
   lease: teamLeaseSchema,
   continuedFrom: z.optional(z.string()),
   interruptedMaybeOpen: z.optional(z.boolean()),
+  recoveryDecision: z.optional(recoveryDecisionSchema),
+  sourceTaskId: z.optional(z.string()),
   clearedWindow: z.optional(z.nullable(z.enum(['task', 'day', 'lifetime']))),
   clearedEntryId: z.optional(z.string()),
 })
@@ -125,7 +134,7 @@ export type TeamLedgerRecord = Omit<TeamLedgerRow, 'version' | 'dayKey'> & {
 }
 
 export interface TeamLedgerDeps {
-  /** The workspace's ledger directory, beside the session store. */
+  /** Workspace root; owned daily files live beneath <directory>/<windowId>/. */
   readonly directory: string
   readonly workspaceId: string
   /** This window's instance id: the lease holder its rows carry. */
@@ -179,23 +188,29 @@ export class TeamLedger {
   public static latestByTask(rows: readonly TeamLedgerRow[]): Map<string, TeamLedgerRow> {
     const latest = new Map<string, TeamLedgerRow>()
     for (const row of rows) {
-      latest.set(row.taskId, row)
+      const kept = latest.get(row.taskId)
+      // A takeover supersedes its source even when folder order puts the source last.
+      if (kept?.recoveryDecision?.ownerId !== row.lease.holder) latest.set(row.taskId, row)
     }
     return latest
   }
 
-  private pending: string[] = []
+  private readonly pending = new Map<string, string[]>()
   private readonly lastStatus = new Map<string, TeamLedgerStatus>()
   private timer: NodeJS.Timeout | undefined
   /** Serialises flushes: one window's append lands whole. */
   private flushing: Promise<void> = Promise.resolve()
 
-  public constructor(private readonly deps: TeamLedgerDeps) {}
+  private readonly ownedDirectory: string
+
+  public constructor(private readonly deps: TeamLedgerDeps) {
+    this.ownedDirectory = path.join(deps.directory, ownerIdSchema.parse(deps.windowId))
+  }
 
   private async readOne(name: string): Promise<TeamLedgerRead> {
     const rows: TeamLedgerRow[] = []
     let skippedLines = 0
-    const text = await readFile(path.join(this.deps.directory, name), 'utf8')
+    const text = await readFile(path.join(this.ownedDirectory, name), 'utf8')
     for (const line of text.split('\n')) {
       if (line === '') {
         continue
@@ -208,19 +223,6 @@ export class TeamLedger {
       }
     }
     return { rows, skippedLines }
-  }
-
-  private dayKeyOfLines(lines: readonly string[]): string | undefined {
-    const firstLine = lines[0]
-    if (firstLine === undefined) {
-      return undefined
-    }
-    try {
-      const first = JSON.parse(firstLine) as { dayKey?: unknown }
-      return typeof first.dayKey === 'string' ? first.dayKey : undefined
-    } catch {
-      return undefined
-    }
   }
 
   /** One append once every append queued before it has settled. */
@@ -237,8 +239,15 @@ export class TeamLedger {
   private async appendLines(dayKey: string, lines: readonly string[]): Promise<void> {
     const text = lines.join('')
     await this.queued(async () => {
-      await mkdir(this.deps.directory, { recursive: true })
-      await appendFile(fileFor(this.deps.directory, dayKey), text, 'utf8')
+      await mkdir(this.ownedDirectory, { recursive: true })
+      const file = await open(fileFor(this.ownedDirectory, dayKeySchema.parse(dayKey)), 'a')
+      try {
+        // Separate a previous crashed writer's partial tail from the next whole row.
+        await file.appendFile(`\n${text}`, 'utf8')
+        await file.sync()
+      } finally {
+        await file.close()
+      }
     })
   }
 
@@ -273,9 +282,17 @@ export class TeamLedger {
     if (!parsed.success) {
       throw new Error(`Team ledger row is invalid: ${z.prettifyError(parsed.error)}`)
     }
+    if (
+      parsed.data.workspaceId !== this.deps.workspaceId ||
+      (parsed.data.kind === 'task' && parsed.data.lease.holder !== this.deps.windowId)
+    ) {
+      throw new Error(UI_TEXT.sessionBudgetStoreUnavailable)
+    }
     const previous = this.lastStatus.get(parsed.data.taskId)
     this.lastStatus.set(parsed.data.taskId, parsed.data.status)
-    this.pending.push(line)
+    const lines = this.pending.get(parsed.data.dayKey) ?? []
+    lines.push(line)
+    this.pending.set(parsed.data.dayKey, lines)
     if (previous === undefined || previous !== parsed.data.status) {
       await this.flush()
     }
@@ -283,12 +300,19 @@ export class TeamLedger {
 
   /** Appends everything pending in one atomic append. */
   public async flush(): Promise<void> {
-    if (this.pending.length === 0) {
-      return
+    const batches = [...this.pending]
+    this.pending.clear()
+    for (const [index, [dayKey, lines]] of batches.entries()) {
+      try {
+        await this.appendLines(dayKey, lines)
+      } catch (error: unknown) {
+        // Failed publication retains every unacknowledged batch for retry.
+        for (const [pendingDay, pendingLines] of batches.slice(index)) {
+          this.pending.set(pendingDay, [...pendingLines, ...(this.pending.get(pendingDay) ?? [])])
+        }
+        throw error
+      }
     }
-    const lines = this.pending
-    this.pending = []
-    await this.appendLines(this.dayKeyOfLines(lines) ?? teamDayKey(this.deps.now()), lines)
   }
 
   /**
@@ -299,34 +323,27 @@ export class TeamLedger {
   public async read(): Promise<TeamLedgerRead> {
     const rows: TeamLedgerRow[] = []
     let skippedLines = 0
-    let names: string[]
-    try {
-      names = await readdir(this.deps.directory)
-    } catch {
-      return { rows, skippedLines }
+    // Legacy shared files remain readable but are never written or pruned.
+    const roots = [this.deps.directory]
+    const owners = await ledgerNames(this.deps.directory)
+    for (const item of owners) {
+      if (item.isDirectory() && ownerIdSchema.safeParse(item.name).success)
+        roots.push(path.join(this.deps.directory, item.name))
     }
-    for (const name of names.toSorted(compareFileNames)) {
-      if (dayKeyOfFile(name) === undefined) {
-        continue
-      }
-      let text: string
-      try {
-        text = await readFile(path.join(this.deps.directory, name), 'utf8')
-      } catch {
-        continue
-      }
-      for (const line of text.split('\n')) {
-        if (line === '') {
-          continue
-        }
-        // A crashed writer's partial tail never parses: skip it, never fail.
-        const parsed = safeParseLine(line)
-        if (parsed === undefined) {
-          skippedLines += 1
-        } else {
-          rows.push(parsed)
-          if (parsed.kind === 'task') {
-            this.lastStatus.set(parsed.taskId, parsed.status)
+    for (const directory of roots) {
+      const names = await ledgerNames(directory)
+      const sorted = names.toSorted((left, right) => compareFileNames(left.name, right.name))
+      for (const item of sorted) {
+        if (!item.isFile() || dayKeyOfFile(item.name) === undefined) continue
+        const text = await readFile(path.join(directory, item.name), 'utf8')
+        for (const line of text.split('\n')) {
+          if (line === '') continue
+          const parsed = safeParseLine(line)
+          if (parsed === undefined) skippedLines += 1
+          else {
+            rows.push(parsed)
+            if (parsed.kind === 'task' && parsed.lease.holder === this.deps.windowId)
+              this.lastStatus.set(parsed.taskId, parsed.status)
           }
         }
       }
@@ -337,16 +354,22 @@ export class TeamLedger {
   /**
    * Marks a task interrupted after its window died, with its partial usage:
    * appends a terminal snapshot only while the latest row is still active.
-   * `maybeOpen` says the holder window's hint is still fresh, so that
-   * window may still be open.
+   * A foreign owner needs the explicit Take over decision. Hints never
+   * authorize recovery. The source remains byte-exact; this window appends
+   * its own snapshot and records the decision as a decision, not proof.
    */
   public async markInterrupted(
     latest: TeamLedgerRow,
     usage: TeamMeterUsage,
     isEstimated: boolean,
-    isMaybeOpen: boolean,
+    decision: TeamRecoveryDecision | undefined,
   ): Promise<boolean> {
-    if (latest.kind !== 'task' || !isTeamLedgerActive(latest.status)) {
+    if (
+      latest.kind !== 'task' ||
+      !isTeamLedgerActive(latest.status) ||
+      (latest.lease.holder !== this.deps.windowId &&
+        (decision?.kind !== 'userTakeover' || decision.ownerId !== latest.lease.holder))
+    ) {
       return false
     }
     await this.record({
@@ -357,7 +380,7 @@ export class TeamLedger {
       outcome: 'interrupted',
       usage,
       estimated: isEstimated,
-      interruptedMaybeOpen: isMaybeOpen,
+      ...(decision !== undefined && { recoveryDecision: decision }),
       lease: { holder: this.deps.windowId, sinceMs: this.deps.now() },
     })
     return true
@@ -372,11 +395,13 @@ export class TeamLedger {
     if (this.deps.retentionDays <= 0) {
       return { rolled: 0, removed: 0 }
     }
+    await this.flush()
     const cutoff = teamDayKey(this.deps.now() - this.deps.retentionDays * MILLISECONDS_PER_DAY)
     let names: string[]
     try {
-      names = await readdir(this.deps.directory)
-    } catch {
+      names = await readdir(this.ownedDirectory)
+    } catch (error: unknown) {
+      if (storeErrorCode(error) !== 'ENOENT') throw error
       return { rolled: 0, removed: 0 }
     }
     let rolled = 0
@@ -387,6 +412,12 @@ export class TeamLedger {
         continue
       }
       const { rows } = await this.readOne(name)
+      if (
+        Array.from(TeamLedger.latestByTask(rows), ([, row]) => row).some(
+          (row) => row.kind === 'task' && isTeamLedgerActive(row.status),
+        )
+      )
+        continue
       // Rollups keep their old day (day caps never reread them) but live in
       // today's file, so removing the old file loses nothing.
       const lines = Array.from(rollUp(rows), (rollup) => toLedgerLine(rollup))
@@ -394,7 +425,7 @@ export class TeamLedger {
         await this.appendLines(teamDayKey(this.deps.now()), lines)
         rolled += lines.length
       }
-      await rm(path.join(this.deps.directory, name), { force: true })
+      await rm(path.join(this.ownedDirectory, name), { force: true })
       removed += 1
     }
     await this.flush()
@@ -439,118 +470,56 @@ function toLedgerLine(record: TeamLedgerRecord): string {
   return line
 }
 
-/** Rolls pruned task rows into one totals row per entry and day. */
+/** One deterministic rollup per terminal delegation preserves reset boundaries.
+ * Repeating a prune after an interrupted removal writes the same identities.
+ */
 function rollUp(rows: readonly TeamLedgerRow[]): TeamLedgerRecord[] {
-  const sums = new Map<
-    string,
-    {
-      readonly entryId: string
-      readonly agentKey: string
-      readonly roleId: string
-      readonly modelId: string
-      readonly provider: string
-      readonly billing: TeamLedgerRow['billing']
-      readonly dayKey: string
-      usage: TeamMeterUsage
-      estimated: boolean
-      startMs: number
-    }
-  >()
-  for (const row of rows) {
-    if (row.kind !== 'task') {
-      continue
-    }
-    const key = `${row.entryId}\n${row.dayKey}`
-    const kept = sums.get(key)
-    const usage = row.usage
-    if (kept === undefined) {
-      sums.set(key, {
-        entryId: row.entryId,
-        agentKey: row.agentKey,
-        roleId: row.roleId,
-        modelId: row.modelId,
-        provider: row.provider,
-        billing: row.billing,
-        dayKey: row.dayKey,
-        usage: { ...usage },
-        estimated: row.estimated,
-        startMs: row.startMs,
-      })
-    } else {
-      kept.usage = addUsage(kept.usage, usage)
-      kept.estimated ||= row.estimated
-      kept.startMs = Math.min(kept.startMs, row.startMs)
-    }
-  }
-  return Array.from(sums.values(), (sum) => makeTotalsRow(sum))
+  return Array.from(TeamLedger.latestByTask(rows), ([, row]) => row).map((row) =>
+    row.kind === 'task'
+      ? {
+          ...row,
+          kind: 'totals',
+          sourceTaskId: row.taskId,
+          taskId: `totals:${row.taskId}:${row.entryId}:${row.dayKey}`,
+          brief: '',
+          links: {},
+          reasonCode: 'retention',
+        }
+      : row,
+  )
 }
 
-function makeTotalsRow(sum: {
-  readonly entryId: string
-  readonly agentKey: string
-  readonly roleId: string
-  readonly modelId: string
-  readonly provider: string
-  readonly billing: TeamLedgerRow['billing']
-  readonly dayKey: string
-  readonly usage: TeamMeterUsage
-  readonly estimated: boolean
-  readonly startMs: number
-}): TeamLedgerRecord {
-  return {
-    kind: 'totals' as const,
-    taskId: `totals:${sum.entryId}:${sum.dayKey}`,
-    workspaceId: '',
-    roleId: sum.roleId,
-    entryId: sum.entryId,
-    agentKey: sum.agentKey,
-    modelId: sum.modelId,
-    provider: sum.provider,
-    billing: sum.billing,
-    settings: [],
-    workspaceMode: 'read-only' as const,
-    brief: '',
-    reasonCode: 'retention',
-    dayKey: sum.dayKey,
-    startMs: sum.startMs,
-    status: 'finished' as const,
-    outcome: undefined,
-    usage: sum.usage,
-    estimated: sum.estimated,
-    links: {},
-    lease: { holder: '', sinceMs: sum.startMs },
-  }
-}
-
-function addUsage(left: TeamMeterUsage, right: TeamMeterUsage): TeamMeterUsage {
-  return {
-    inputTokens: left.inputTokens + right.inputTokens,
-    cachedInputTokens: left.cachedInputTokens + right.cachedInputTokens,
-    outputTokens: left.outputTokens + right.outputTokens,
-    reasoningTokens: left.reasoningTokens + right.reasoningTokens,
-    calls: left.calls + right.calls,
-    costUsd: left.costUsd + right.costUsd,
-    tasks: left.tasks + right.tasks,
-    hookTokens: left.hookTokens + right.hookTokens,
-    paidToolTokens: left.paidToolTokens + right.paidToolTokens,
+async function ledgerNames(directory: string) {
+  try {
+    return await readdir(directory, { withFileTypes: true })
+  } catch (error: unknown) {
+    if (storeErrorCode(error) === 'ENOENT') return []
+    throw error
   }
 }
 
 /** A ledger read as the meter's source: task and totals rows in meter shape. */
 export function ledgerMeterRows(rows: readonly TeamLedgerRow[]): TeamMeterRow[] {
-  return rows
-    .filter((row) => row.kind === 'task' || row.kind === 'totals')
-    .map((row) => ({
-      kind: row.kind as 'task' | 'totals',
-      entryId: row.entryId,
-      agentKey: row.agentKey,
-      roleId: row.roleId,
-      taskId: row.taskId,
-      dayKey: row.dayKey,
-      startMs: row.startMs,
-      usage: row.usage,
-      estimated: row.estimated,
-    }))
+  const latest = new Map<string, TeamLedgerRow>()
+  for (const row of rows) {
+    const key = `${row.workspaceId}\n${row.entryId}\n${row.dayKey}\n${row.sourceTaskId ?? row.taskId}`
+    const kept = latest.get(key)
+    if (kept?.recoveryDecision?.ownerId !== row.lease.holder) latest.set(key, row)
+  }
+  return Array.from(latest, ([, row]) => row).map((row) => ({
+    kind: row.kind,
+    entryId: row.entryId,
+    agentKey: row.agentKey,
+    roleId: row.roleId,
+    taskId: row.sourceTaskId ?? row.taskId,
+    dayKey: row.dayKey,
+    startMs: row.startMs,
+    usage: row.usage,
+    estimated: row.estimated,
+    ...(row.clearedWindow !== undefined &&
+      row.clearedWindow !== null && { clearedWindow: row.clearedWindow }),
+    ...(row.clearedEntryId !== undefined && { clearedEntryId: row.clearedEntryId }),
+  }))
 }
 
 /** A reset marker: kept in the ledger with its time and what it cleared. */

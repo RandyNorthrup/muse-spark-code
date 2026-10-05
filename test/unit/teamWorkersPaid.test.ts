@@ -4,8 +4,8 @@
 // shared daily budget; unpriced entries say the price is unknown.
 
 import { describe, expect, it } from 'vitest'
-import { PaidUsage } from '../../src/core/paid/paidFeatures'
-import { paidUseQuestion } from '../../src/core/paid/paidConsent'
+import { PaidFeatureGate, PaidUsage } from '../../src/core/paid/paidFeatures'
+import { PaidUseConsent, paidUseQuestion } from '../../src/core/paid/paidConsent'
 import { DEFAULT_MODEL_ID } from '../../src/shared/constants'
 import {
   listedPaidFeatures,
@@ -19,6 +19,75 @@ import {
 import { FakeLogOutputChannel } from './helpers/fakes'
 
 describe('teamWorkers paid use (M96)', () => {
+  it('single-model activation asks nothing; a runnable team asks in the first paid-use popup', async () => {
+    let isReady = false
+    let isEnabled = true
+    let confirmations = 0
+    let uses = 0
+    const gate = new PaidFeatureGate({
+      isSettingOn: (feature) => feature === 'teamWorkers' && isEnabled,
+      isTeamAvailable: () => isReady,
+      setSetting: (_feature, on) => {
+        isEnabled = on
+        return Promise.resolve()
+      },
+      readAccepted: () => new Set(),
+      writeAccepted: () => Promise.resolve(),
+      confirm: () => {
+        confirmations += 1
+        return Promise.resolve(true)
+      },
+      isWindowFocused: () => true,
+      log: new FakeLogOutputChannel(),
+    })
+    await gate.review()
+    expect(confirmations).toBe(0)
+    expect(gate.isOn('teamWorkers')).toBe(false)
+    expect(gate.features()).toEqual([])
+    isReady = true
+    await gate.review()
+    expect(confirmations).toBe(0)
+    expect(gate.isOn('teamWorkers')).toBe(true)
+    const consent = new PaidUseConsent({
+      isOn: (feature) => gate.isOn(feature),
+      canRemember: () => true,
+      readGrants: () => new Set(),
+      writeGrants: () => Promise.resolve(),
+      ask: () => {
+        uses += 1
+        return Promise.resolve('once')
+      },
+      log: new FakeLogOutputChannel(),
+    })
+    const request = {
+      feature: 'teamWorkers',
+      tasks: [{ role: 'engineering', modelId: DEFAULT_MODEL_ID, taskCeilingTokens: 400_000 }],
+      dailyBudgetUsd: 50,
+    } as const
+    expect(await consent.allows(request)).toBe(true)
+    expect(uses).toBe(1)
+    isReady = false
+    expect(await consent.allows(request)).toBe(false)
+    expect(uses).toBe(1)
+    isReady = true
+    isEnabled = false
+    expect(await consent.allows(request)).toBe(false)
+  })
+
+  it('team workers stay unavailable without a host readiness dependency', async () => {
+    const gate = new PaidFeatureGate({
+      isSettingOn: () => true,
+      setSetting: () => Promise.resolve(),
+      readAccepted: () => new Set(['teamWorkers']),
+      writeAccepted: () => Promise.resolve(),
+      confirm: () => Promise.resolve(true),
+      isWindowFocused: () => false,
+      log: new FakeLogOutputChannel(),
+    })
+    expect(gate.isOn('teamWorkers')).toBe(false)
+    await gate.review()
+  })
+
   it('counts started tasks as unknown until reported usage settles them', () => {
     const usage = new PaidUsage(new FakeLogOutputChannel())
     usage.add('teamWorkers', 2)

@@ -9,7 +9,7 @@
 // charged to the entry that sent it: rows carry their sending entry, and the
 // meter sums rows, never the task's current entry. No `vscode` here.
 
-import { MILLISECONDS_PER_MINUTE } from '../../shared/constants'
+import { MILLISECONDS_PER_MINUTE, UI_TEXT } from '../../shared/constants'
 import type { TeamMeasure, TeamWindow } from './teamPool'
 
 /** One task's (or rollup's) usage, by kind, with its provenance. */
@@ -79,32 +79,129 @@ export function teamDayKey(atMs: number): string {
 /** One open reservation: estimated input plus the whole output allowance. */
 export interface TeamReservation {
   readonly id: string
+  readonly dayKey: string
+  readonly startMs: number
   readonly workspaceId: string
   readonly entryId: string
   readonly agentKey: string
   readonly taskId: string
   readonly tokens: number
+  readonly inputTokens: number
+  readonly outputTokens: number
   readonly spendUsd: number
 }
 
-/**
- * The team's own scope of M82's journal, one per workspace, whatever
- * conversation or window started the task. Every admission reads the whole
- * scope, so two windows never pass a cap together. (Lane K hosts the
- * durable journal; tests stand in a fake. Never a fake in production code.)
+type TeamClaimUsage = Pick<TeamReservation, 'tokens' | 'inputTokens' | 'outputTokens' | 'spendUsd'>
+
+/** A durable outcome replaces the reservation; liability retains its whole bound. */
+export type TeamClaimOutcome =
+  | (TeamClaimUsage & { readonly kind: 'reported' | 'liability' })
+  | {
+      readonly kind: 'refunded'
+      readonly tokens: 0
+      readonly inputTokens: 0
+      readonly outputTokens: 0
+      readonly spendUsd: 0
+    }
+
+export interface TeamClaimRecord {
+  readonly reservation: TeamReservation
+  readonly outcome?: TeamClaimOutcome
+}
+
+/** Current limits, read again synchronously just before dispatch. Zero is a hard stop. */
+export interface TeamDailyBudgets {
+  readonly paidDailyBudgetUsd: number
+  readonly teamDailyBudgetUsd: number
+  readonly teamDailyBudgetTokens: number
+  readonly workspaceDailyBudgetUsd: number
+  readonly workspaceDailyBudgetTokens: number
+}
+
+export type TeamClaimAdmission =
+  | { readonly ok: true }
+  | {
+      readonly ok: false
+      readonly measure: TeamMeasure
+      readonly window: TeamWindow
+      readonly used: number
+      readonly amount: number
+      readonly scope?: 'paid' | 'team' | 'workspace'
+    }
+
+export interface TeamClaimLimits {
+  readonly budgets: TeamDailyBudgets
+  readonly caps: readonly {
+    readonly measure: TeamMeasure
+    readonly window: TeamWindow
+    readonly amount: number
+  }[]
+}
+
+export interface TeamBudgetClaim {
+  readonly reservation: TeamReservation
+  /** Like D78's claim.check: reads ALL durable intents/outcomes, with no await before dispatch.
+   * Includes this claim; entry caps include historical ledger use without counting it twice.
+   * Missing/corrupt storage, a closed claim or an obsolete day throws and sends nothing.
+   */
+  check(limits: TeamClaimLimits): TeamClaimAdmission
+}
+
+/** Injected D78 adapter, hosted by integration; no production stand-in.
+ * Each request publishes one permanent intent before check. All windows/workspaces
+ * share paid/team totals; entry caps are workspace-scoped. Outcomes are durable
+ * before acknowledgement, identical retries succeed, conflicting retries throw.
  */
 export interface TeamReservationJournal {
-  /** Written before the request is sent; a request that does not fit is not sent. */
-  reserve(reservation: Omit<TeamReservation, 'id'>): Promise<TeamReservation>
+  claim(reservation: Omit<TeamReservation, 'id'>): Promise<TeamBudgetClaim>
   settle(
     id: string,
-    outcome:
-      | { readonly kind: 'reported'; readonly tokens: number; readonly spendUsd: number }
-      | { readonly kind: 'unknown' }
-      | { readonly kind: 'nonsent' },
+    outcome: Exclude<TeamClaimOutcome, { readonly kind: 'refunded' }>,
   ): Promise<void>
-  /** Every reservation still open in the scope. */
-  open(): Promise<readonly TeamReservation[]>
+  /** Only a known nonsent claim is refunded; retained intents are never removed. */
+  refund(id: string): Promise<void>
+  lookupByClaimId(id: string): Promise<TeamClaimRecord | undefined>
+  /** Atomically persist max(candidate, latest), across windows and restarts. */
+  latestDay(candidate: string): Promise<string>
+}
+
+/** Restart-safe settlement: no new reservation, double charge, or lost refund. */
+export async function settleTeamReservation(
+  journal: TeamReservationJournal,
+  id: string,
+  outcome:
+    | (TeamClaimUsage & { readonly kind: 'reported' })
+    | { readonly kind: 'unknown' }
+    | { readonly kind: 'nonsent' },
+): Promise<void> {
+  const claim = await journal.lookupByClaimId(id)
+  if (claim?.reservation.id !== id) throw new Error(UI_TEXT.sessionBudgetStoreUnavailable)
+  let next: TeamClaimOutcome
+  if (outcome.kind === 'nonsent')
+    next = { kind: 'refunded', tokens: 0, inputTokens: 0, outputTokens: 0, spendUsd: 0 }
+  else if (outcome.kind === 'unknown')
+    next = {
+      kind: 'liability',
+      tokens: claim.reservation.tokens,
+      inputTokens: claim.reservation.inputTokens,
+      outputTokens: claim.reservation.outputTokens,
+      spendUsd: claim.reservation.spendUsd,
+    }
+  else next = outcome
+  if (claim.outcome !== undefined) {
+    if (
+      claim.outcome.kind !== next.kind ||
+      claim.outcome.tokens !== next.tokens ||
+      claim.outcome.inputTokens !== next.inputTokens ||
+      claim.outcome.outputTokens !== next.outputTokens ||
+      claim.outcome.spendUsd !== next.spendUsd
+    ) {
+      throw new Error(UI_TEXT.sessionBudgetStoreUnavailable)
+    }
+    return
+  }
+  if (next.kind === 'refunded') await journal.refund(id)
+  else await journal.settle(id, next)
 }
 
 /** What the meter reads: ledger rows in the window, and open reservations. */
@@ -139,12 +236,16 @@ function usageAmount(measure: TeamMeasure, usage: TeamMeterUsage): number {
   }
 }
 
-function reservationAmount(measure: TeamMeasure, reservation: TeamReservation): number {
+function reservationAmount(measure: TeamMeasure, reservation: TeamClaimUsage): number {
   switch (measure) {
-    case 'tokens':
-    case 'inputTokens':
-    case 'outputTokens': {
+    case 'tokens': {
       return reservation.tokens
+    }
+    case 'inputTokens': {
+      return reservation.inputTokens
+    }
+    case 'outputTokens': {
+      return reservation.outputTokens
     }
     case 'spendUsd': {
       return reservation.spendUsd
@@ -236,6 +337,9 @@ export class TeamMeter {
       if (reservation.entryId !== entryId) {
         continue
       }
+      if (cap.window === 'day' && reservation.dayKey !== scope.dayKey) {
+        continue
+      }
       if (cap.window === 'task' && reservation.taskId !== scope.taskId) {
         continue
       }
@@ -296,50 +400,31 @@ export function sumTeamTotals(
   return { tokens, costUsd, tasks, estimatedTokens, hookTokens, paidToolTokens }
 }
 
-/**
- * Checks every cap of an entry against one estimate, then reserves it in
- * the journal: the reservation is written before the request is sent, so
- * admission never depends on a flush. A request that does not fit reserves
- * nothing and is not sent.
+/** Publish the request's claim, then check the complete durable scope.
+ * A local preflight avoids known failures; it is never the final admission.
+ * Call the returned check synchronously at dispatch, with no await in between;
+ * if it refuses, refund the nonsent claim. Limits are read anew on every check.
  */
 export async function checkAndReserve(
   meter: TeamMeter,
   journal: TeamReservationJournal,
-  request: {
-    readonly workspaceId: string
-    readonly entryId: string
-    readonly agentKey: string
-    readonly taskId: string
-    readonly caps: readonly {
-      readonly measure: TeamMeasure
-      readonly window: TeamWindow
-      readonly amount: number
-    }[]
-    readonly tokens: number
-    readonly spendUsd: number
-    readonly dayKey: string
+  request: Omit<TeamReservation, 'id'> & {
+    readonly caps: TeamClaimLimits['caps']
+    readonly budgets: () => TeamDailyBudgets
   },
 ): Promise<
-  | { readonly ok: true; readonly reservation: TeamReservation }
+  | Extract<TeamClaimAdmission, { readonly ok: false }>
   | {
-      readonly ok: false
-      readonly measure: TeamMeasure
-      readonly window: TeamWindow
-      readonly used: number
-      readonly amount: number
+      readonly ok: true
+      readonly reservation: TeamReservation
+      readonly check: () => TeamClaimAdmission
     }
 > {
+  const dayKey = await journal.latestDay(request.dayKey)
   for (const cap of request.caps) {
-    const reading = meter.used(request.entryId, cap, {
-      taskId: request.taskId,
-      dayKey: request.dayKey,
-    })
-    let want = request.tokens
-    if (cap.measure === 'spendUsd') {
-      want = request.spendUsd
-    } else if (cap.measure === 'tasks') {
-      want = 1
-    }
+    const reading = meter.used(request.entryId, cap, { taskId: request.taskId, dayKey })
+    // Tasks are counted at delegation admission, not again on every request.
+    const want = reservationAmount(cap.measure, request)
     if (reading.value + want > cap.amount) {
       return {
         ok: false,
@@ -350,13 +435,28 @@ export async function checkAndReserve(
       }
     }
   }
-  const reservation = await journal.reserve({
+  const claim = await journal.claim({
     workspaceId: request.workspaceId,
     entryId: request.entryId,
     agentKey: request.agentKey,
     taskId: request.taskId,
     tokens: request.tokens,
+    inputTokens: request.inputTokens,
+    outputTokens: request.outputTokens,
     spendUsd: request.spendUsd,
+    startMs: request.startMs,
+    dayKey,
   })
-  return { ok: true, reservation }
+  const check = () => claim.check({ caps: request.caps, budgets: request.budgets() })
+  try {
+    const admitted = check()
+    if (!admitted.ok) {
+      await journal.refund(claim.reservation.id)
+      return admitted
+    }
+    return { ok: true, reservation: claim.reservation, check }
+  } catch (error: unknown) {
+    await journal.refund(claim.reservation.id)
+    throw error
+  }
 }
