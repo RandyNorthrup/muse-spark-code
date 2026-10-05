@@ -102,5 +102,75 @@
     "exit": 1,
     "failed": ["\u00d7 rejects malformed questions and limits instead of guessing 5ms"],
     "restore": "byte-exact"
+  },
+  {
+    "finding": 5,
+    "file": "src/extension.ts",
+    "sha256": "9ab37d856be34cc8c5285f90454e3836b99418d25af92127b3eda50ed9290c6f",
+    "exit": 1,
+    "failed": [
+      "\u00d7 does not ask or disable a subscription-only judge at startup with auto 29ms",
+      "\u00d7 does not ask or disable a subscription-only judge at startup with same 13ms",
+      "\u00d7 does not ask or disable a subscription-only judge at startup with off 16ms",
+      "\u00d7 declining an unrelated Model API price leaves the judge selection alone 12ms"
+    ],
+    "restore": "byte-exact"
+  },
+  {
+    "finding": "8-wording",
+    "file": "src/shared/l10n/en.ts",
+    "sha256": "02e54b3385d01a301794bb9139dfc2caa6133c264d4a94c10ff72880be52b11e",
+    "exit": 1,
+    "failed": [
+      "\u00d7 asks once before the first charge and fills the shared daily budget 13ms",
+      "\u00d7 shows zero rather than an invalid shared daily budget (undefined) 4ms",
+      "\u00d7 shows zero rather than an invalid shared daily budget (12.5) 2ms",
+      "\u00d7 shows zero rather than an invalid shared daily budget (NaN) 2ms",
+      "\u00d7 shows zero rather than an invalid shared daily budget (Infinity) 2ms",
+      "\u00d7 shows zero rather than an invalid shared daily budget (-1) 2ms"
+    ],
+    "restore": "byte-exact"
+  },
+  {
+    "finding": "8-fill",
+    "file": "src/host/paid/paidHost.ts",
+    "sha256": "602d5a7cf16fa48750bffa398bbf6b67d31bd14d93e3994055824138d465b87b",
+    "exit": 1,
+    "failed": [
+      "\u00d7 asks once before the first charge and fills the shared daily budget 10ms",
+      "\u00d7 shows zero rather than an invalid shared daily budget (undefined) 3ms",
+      "\u00d7 shows zero rather than an invalid shared daily budget (12.5) 2ms",
+      "\u00d7 shows zero rather than an invalid shared daily budget (NaN) 2ms",
+      "\u00d7 shows zero rather than an invalid shared daily budget (Infinity) 2ms",
+      "\u00d7 shows zero rather than an invalid shared daily budget (-1) 2ms"
+    ],
+    "restore": "byte-exact"
+  },
+  {
+    "finding": "8-valid",
+    "file": "src/host/paid/paidHost.ts",
+    "sha256": "602d5a7cf16fa48750bffa398bbf6b67d31bd14d93e3994055824138d465b87b",
+    "exit": 1,
+    "failed": [
+      "\u00d7 shows zero rather than an invalid shared daily budget (12.5) 11ms",
+      "\u00d7 shows zero rather than an invalid shared daily budget (-1) 3ms"
+    ],
+    "restore": "byte-exact"
+  },
+  {
+    "finding": "9-activation",
+    "file": "src/extension.ts",
+    "sha256": "9ab37d856be34cc8c5285f90454e3836b99418d25af92127b3eda50ed9290c6f",
+    "exit": 1,
+    "failed": ["\u00d7 keeps judge schemas out of the activation dependency graph 166ms"],
+    "restore": "byte-exact"
+  },
+  {
+    "finding": "9-predicate",
+    "file": "src/core/judge/engine.ts",
+    "sha256": "7974230e9770b8141712be69185743eac30eab71bb87cc365d7d1df7679eedd0",
+    "exit": 1,
+    "failed": ["\u00d7 bundles the engine predicate without zod or the judge contract 41ms"],
+    "restore": "byte-exact"
   }
 ]

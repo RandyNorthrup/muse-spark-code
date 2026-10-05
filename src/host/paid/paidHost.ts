@@ -18,7 +18,7 @@ import {
   UI_TEXT,
   WORKSPACE_STATE_KEYS,
 } from '../../shared/constants'
-import { fill } from '../../shared/l10n/text'
+import { fill, formatUsd } from '../../shared/l10n/text'
 import {
   autoReviewPrice,
   modelApiPaidTier,
@@ -33,6 +33,7 @@ import type { Logger } from '../logger'
 const acceptedSchema = z.array(z.enum(PAID_FEATURES))
 // Feature → grant generation; keys that are not a paid feature are ignored.
 const generationsSchema = z.record(z.string(), z.int().check(z.nonnegative()))
+const dailyBudgetSchema = z.number().check(z.gte(0))
 
 /** A feature's grant generation: 0 until its price acceptance first changes. */
 function generationOf(generations: Readonly<Record<string, number>>, feature: PaidFeature): number {
@@ -77,6 +78,17 @@ function confirmationDetail(feature: PaidFeature): string {
     autoReviewer: UI_TEXT.paidConfirmAutoReviewer,
     bestOfN: UI_TEXT.paidConfirmBestOfN,
     judge: UI_TEXT.paidConfirmJudge,
+  }
+  if (feature === 'judge') {
+    const budget = dailyBudgetSchema.safeParse(
+      vscode.workspace.getConfiguration(SETTINGS_SECTION).get('paidDailyBudgetUsd'),
+    )
+    // The shared D78 setting arrives with FIXDEF. Until then (or for an
+    // invalid hand edit), show zero; no charge is enabled by this formatter.
+    return fill(details.judge, {
+      price: paidFeaturePrice(feature),
+      budget: formatUsd(budget.success ? budget.data : 0, 2),
+    })
   }
   return fill(details[feature], { price: paidFeaturePrice(feature) })
 }

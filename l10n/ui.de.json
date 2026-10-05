@@ -1768,7 +1768,7 @@
     "other": "{count} Prüfungen"
   },
   "paidJudgeName": "Beurteiler",
-  "paidConfirmJudge": "Ihr eigenes Chatmodell beurteilt jede riskante Auto-Aktion, die keine Regel klärt, und kann nur zur Vorsicht raten: eine bereite Warnung macht aus einer Freigabe eine Nachfrage oder einen Hinweis auf der Genehmigungskarte. Jede Beurteilung wird Ihrem Model-API-Schlüssel zu den Tokenpreisen des Unterhaltungsmodells berechnet:\n{price}\nJede Beurteilung fragt zuerst nach, es sei denn, Sie lassen Beurteilungen in diesem Arbeitsbereich immer zu. Auf Muse Code laufen dieselben Aufrufe stattdessen über Ihr Abonnement.",
+  "paidConfirmJudge": "Ihr eigenes Chatmodell beurteilt jede riskante Auto-Aktion, die keine Regel klärt, und kann nur zur Vorsicht raten: eine bereite Warnung macht aus einer Freigabe eine Nachfrage oder einen Hinweis auf der Genehmigungskarte. Jede Beurteilung wird Ihrem Model-API-Schlüssel zu den Tokenpreisen des Unterhaltungsmodells berechnet:\n{price}\nDer Beurteiler fragt einmal vor der ersten Berechnung nach und zeigt diese Preise und das gemeinsame Tagesbudget: {budget}. Beim Wechsel von einer kostenlosen zu einer kostenpflichtigen Quelle wird erneut gefragt. Auf Muse Code laufen dieselben Aufrufe stattdessen über Ihr Abonnement.",
   "usagePaidJudgeCalls": {
     "one": "{count} Beurteilung",
     "other": "{count} Beurteilungen"

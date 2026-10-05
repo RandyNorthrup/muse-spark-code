@@ -2218,7 +2218,7 @@ export const EN = {
   // The Muse Judge (M98, PLAN.md D77): its name, confirmation and tally.
   paidJudgeName: 'Judge',
   paidConfirmJudge:
-    'Your own chat model judges each risky Auto action that no rule settles, and can only add caution: a ready caution turns an allow into a question, or into a note on the approval card. Each judgment is billed to your Model API key at the conversation model’s token rates:\n{price}\nEvery judgment asks first, unless you allow judging always in this workspace. On Muse Code the same calls run on your subscription instead.',
+    'Your own chat model judges each risky Auto action that no rule settles, and can only add caution: a ready caution turns an allow into a question, or into a note on the approval card. Each judgment is billed to your Model API key at the conversation model’s token rates:\n{price}\nThe judge asks once before the first charge, with these prices and the shared daily budget: {budget}. Switching from a free source to a paid one asks again. On Muse Code the same calls run on your subscription instead.',
   usagePaidJudgeCalls: forms({ one: '{count} judgment', other: '{count} judgments' }),
   // Problems in the permission settings, each said once in the conversation.
   // {setting}: the setting's name; {index}: the rule's place in it, from 1;

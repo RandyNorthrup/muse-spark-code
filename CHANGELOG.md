@@ -56,12 +56,15 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
-- **Muse Judge core (M98, RVM98J).** Boolean action arguments hash correctly;
+- **Muse Judge (M98, RVM98J).** Boolean action arguments hash correctly;
   retried actions reject stale callbacks and fences; complete prompt batches
   fit the measured context; choice and score tokens must be one character.
   Explicit `same` honors the user's selection below the automatic readiness
   floor, logprob metadata matches the shared contract, and top-1 estimates
-  correctly report partial evidence. No judge runs yet.
+  correctly report partial evidence. Startup excludes the judge from legacy
+  paid price review and loads no judge schema. The first-charge wording in
+  every language says ask once and shows the shared daily budget. No judge
+  runs yet; the first-charge consent hookup remains lane U's work.
 
 - A blocked M80 `v0` tag update now reports that an administrator must move it,
   while preserving the four release channels' outcomes. Updates require a

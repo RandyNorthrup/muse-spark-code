@@ -1900,7 +1900,7 @@
     "other": "{count} kontrol"
   },
   "paidJudgeName": "Posuzovatel",
-  "paidConfirmJudge": "Váš vlastní chatovací model posuzuje každou rizikovou akci Auto, kterou nerozhodne žádné pravidlo, a může jen přidat opatrnost: připravená výstraha změní povolení na dotaz nebo na poznámku na schvalovací kartě. Každé posouzení se účtuje vašemu klíči Model API podle cen za tokeny modelu konverzace:\n{price}\nKaždé posouzení se nejprve zeptá, pokud posuzování v tomto pracovním prostoru nepovolíte vždy. Na Muse Code běží stejná volání místo toho na vaše předplatné.",
+  "paidConfirmJudge": "Váš vlastní chatovací model posuzuje každou rizikovou akci Auto, kterou nerozhodne žádné pravidlo, a může jen přidat opatrnost: připravená výstraha změní povolení na dotaz nebo na poznámku na schvalovací kartě. Každé posouzení se účtuje vašemu klíči Model API podle cen za tokeny modelu konverzace:\n{price}\nPosuzovatel se zeptá jednou před prvním účtováním a uvede tyto ceny a sdílený denní rozpočet: {budget}. Přechod z bezplatného zdroje na placený vyžaduje nový souhlas. Na Muse Code běží stejná volání místo toho v rámci vašeho předplatného.",
   "usagePaidJudgeCalls": {
     "one": "{count} posouzení",
     "few": "{count} posouzení",
