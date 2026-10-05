@@ -6,7 +6,8 @@ import { EN } from '../../src/shared/l10n/en'
 import { setUiText } from '../../src/shared/l10n/text'
 import { USAGE_EN } from '../../src/shared/l10n/usageEn'
 import { setUsageText } from '../../src/shared/l10n/usageTable'
-import { usageFixtureDeps, usageFixtureRecord } from './helpers/usageFixture'
+import { usageFixtureDeps, usageFixtureRecord, usageNow } from './helpers/usageFixture'
+import { USAGE_STALE_MS } from '../../src/shared/constants'
 
 afterEach(() => {
   setUiText(EN, 'en')
@@ -47,6 +48,71 @@ describe('usage text in every editor', () => {
     expect(text).toContain('Uncertain: $2.00')
     expect(text).toContain('Unknown cost is not zero.')
     expect(text).not.toContain('Total cost: $6.00')
+  })
+  it('prints only the latest provider/source/window limits with stale and awaiting status while retaining chart history', async () => {
+    const deps = usageFixtureDeps()
+    const [base] = await deps.readLiveLimits()
+    const current = {
+      ...base!,
+      windows: [{ id: 'window', usedPercent: 70, resetsAt: usageNow + 9_000_000, windowMins: 300 }],
+      account: { usedUsd: 7, limitUsd: 10, remainingUsd: 3, period: 'month' },
+    }
+    const older = {
+      ...current,
+      id: 'old',
+      observedAt: usageNow - 1000,
+      windows: [
+        { ...current.windows[0]!, usedPercent: 10 },
+        { id: 'expired-window', usedPercent: 90, resetsAt: usageNow },
+      ],
+      account: { ...current.account, usedUsd: 1 },
+    }
+    const stale = {
+      ...current,
+      id: 'stale',
+      observedAt: usageNow - USAGE_STALE_MS,
+      windows: [{ id: 'stale-window', usedPercent: 80 }],
+    }
+    const headers = {
+      ...current,
+      id: 'headers',
+      source: 'headers' as const,
+      windows: [{ id: 'window', label: 'header-window', usedPercent: 50 }],
+    }
+    const otherProvider = { ...current, id: 'other', provider: 'other-provider' }
+    const journal = await deps.journal.read()
+    const service = createUsageService({
+      ...deps,
+      journal: {
+        ...deps.journal,
+        read: () => Promise.resolve({ ...journal, limits: [current, older, stale] }),
+      },
+      readLiveLimits: () => Promise.resolve([headers, otherProvider, current]),
+    })
+    const state = await service.snapshot({ range: '30d', groupBy: 'provider', metric: 'cost' })
+    const before = JSON.stringify(state.limits)
+    expect(state.limits).toHaveLength(5)
+    for (const format of ['plain', 'markdown'] as const) {
+      const text = usageText(state, format)
+      expect(text.match(/window: 70% used/g)).toHaveLength(2)
+      expect(text).not.toContain('window: 10% used')
+      expect(text).not.toContain('Under pace')
+      expect(text).not.toContain('Provider account budget: $1.00')
+      expect(text).toContain('header-window: 50% used')
+      expect(text).toContain('stale-window: 80% used · Stale')
+      expect(text).toContain('expired-window: 90% used · Awaiting fresh usage')
+    }
+    expect(JSON.stringify(state.limits)).toBe(before)
+  })
+  it('formats the combined charge once after exact accumulation across certainty lanes', async () => {
+    const records = [
+      usageFixtureRecord({ cost: { certainty: 'reported', usd: 0.001 } }),
+      usageFixtureRecord({ cost: { certainty: 'computed', usd: 0.002 } }),
+      usageFixtureRecord({ cost: { certainty: 'estimated', usd: 0.022 } }),
+    ]
+    const state = await createUsageService(usageFixtureDeps(records)).snapshot()
+    expect(usageText(state)).toContain('Total cost: $0.03')
+    expect(usageText(state, 'markdown')).toContain('Total cost: $0.03')
   })
   it('escapes hostile model labels in Markdown and keeps real local model zero visible', async () => {
     const record = usageFixtureRecord({

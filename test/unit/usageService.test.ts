@@ -148,6 +148,33 @@ describe('shared usage service', () => {
       { type: 'usage/error', code: 'unsupported' },
     ])
   })
+  it('passes the same cent-exact settlements to page buckets, tables and every export format', async () => {
+    const records = [0.005, 0.005, 0.005, 0.003, 0.002, 0.003, 0.001, 0.001].map((usd, index) =>
+      usageFixtureRecord({ id: `call-${String(index)}`, cost: { certainty: 'computed', usd } }),
+    )
+    const deps = usageFixtureDeps(records)
+    const service = createUsageService(deps)
+    const query = { range: 'today', groupBy: 'provider', metric: 'cost' } as const
+    const state = await service.snapshot(query)
+    expect(state.totals.costs[0]?.usd).toBe(0.025)
+    expect(state.buckets[0]?.totals.costs).toEqual(state.totals.costs)
+    expect(state.breakdown[0]?.totals.costs).toEqual(state.totals.costs)
+    for (const format of ['callsCsv', 'summaryCsv', 'json'] as const) {
+      expect(
+        await service.handle({ type: 'usage/export', requestId: 'exact', format, query }),
+      ).toEqual([
+        { type: 'usage/result', requestId: 'exact', action: 'export', outcome: 'completed' },
+      ])
+      expect(deps.exportFile).toHaveBeenLastCalledWith(
+        format,
+        expect.objectContaining({ records }),
+        state,
+      )
+      expect(deps.saveFile).toHaveBeenLastCalledWith(
+        expect.objectContaining({ content: JSON.stringify(state.totals) }),
+      )
+    }
+  })
   it('model detail respects provider identity and stored settlements remain unchanged', async () => {
     const records = [
       usageFixtureRecord(),
@@ -173,7 +200,7 @@ describe('shared usage service', () => {
     })
     expect(await service.snapshot()).not.toHaveProperty('modelDetail')
   })
-  it('serializes actions and sanitizes read, write and confirmation failures', async () => {
+  it('sanitizes read, write and confirmation failures', async () => {
     const deps = usageFixtureDeps()
     const service = createUsageService(deps)
     deps.journal.read.mockRejectedValueOnce(new Error('/private/path credential canary'))
@@ -185,11 +212,40 @@ describe('shared usage service', () => {
       { type: 'usage/error', requestId: 'delete', code: 'writeFailed' },
     ])
     expect(deps.journal.deleteHistory).not.toHaveBeenCalled()
-    const replies = await Promise.all([
-      service.handle({ type: 'usage/setHistory', enabled: false }),
-      service.handle({ type: 'usage/setHistory', enabled: true }),
-    ])
-    expect(replies[0][0]?.type).toBe('usage/state')
+  })
+  it('holds the second action until the first finishes and returns each ordered history state', async () => {
+    const deps = usageFixtureDeps()
+    const entered = Promise.withResolvers<undefined>()
+    const release = Promise.withResolvers<undefined>()
+    const setHistory = deps.setHistory.getMockImplementation()!
+    deps.setHistory.mockImplementation(async (isEnabled) => {
+      if (!isEnabled) {
+        entered.resolve(undefined)
+        await release.promise
+      }
+      await setHistory(isEnabled)
+    })
+    const service = createUsageService(deps)
+    const first = service.handle({ type: 'usage/setHistory', enabled: false })
+    await entered.promise
+    const second = service.handle({ type: 'usage/setHistory', enabled: true })
+    try {
+      await new Promise<void>((resolve) => setImmediate(resolve))
+      expect(deps.setHistory).toHaveBeenCalledExactlyOnceWith(false)
+      expect(deps.journal.read).not.toHaveBeenCalled()
+    } finally {
+      release.resolve(undefined)
+    }
+    const replies = await Promise.all([first, second])
+    expect(replies[0][0]).toMatchObject({
+      type: 'usage/state',
+      state: { history: { enabled: false } },
+    })
+    expect(replies[1][0]).toMatchObject({
+      type: 'usage/state',
+      state: { history: { enabled: true } },
+    })
+    expect(deps.setHistory.mock.calls).toEqual([[false], [true]])
     expect(await service.snapshot()).toHaveProperty('history.enabled', true)
   })
   it('retains range limit history for step charts and deduplicates identical live snapshots', async () => {

@@ -9,6 +9,13 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- M102 usage sums settle in integer micro-dollars before formatting, keeping
+  buckets, breakdowns and exported totals consistent at cent boundaries.
+  ACP/CLI summaries show the latest provider/source/window limit with its
+  stale or awaiting status, while charts retain the observation history.
+  A held-operation regression now proves usage actions run in order and
+  return the history state from their own completed action.
+
 - Package only allowlisted build artifacts with a short landing guide and recent
   release notes. Compact staged translation and manifest JSON preserves every
   value, and the strict localization gate validates the exact packaged data.

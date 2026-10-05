@@ -15768,6 +15768,15 @@ joined with M57, M58 and PR #49's sign-in
 
 ### M102 — Usage & cost in every editor (D82)
 
+- **RVM102S repair (FIXM102S, 2026-10-05).** Repair all three P2 findings
+  and the P3 regression gap: exact fixed-point monetary accumulation across
+  raw records and rollups; paired rate observations with coverage; current
+  text limits selected by provider/source/window while chart history stays;
+  and a held-port queue test that proves both action replies. Each repair
+  gets a deliberate failing drill and byte-exact restoration in
+  `docs/certification/m102-s.md`. No model calls or dependencies. The shared
+  totals contract needs a minimal validated paired-observation addition;
+  clarification of that frozen-contract ownership is pending.
 - **Goal.** One local history of every model call, whichever editor or backend
   made it, and one page that shows cost, tokens in and out, time, rate and plan
   limits, and budgets. The page has charts, a table behind every chart, export

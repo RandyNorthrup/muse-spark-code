@@ -4,6 +4,7 @@ import {
   usageBurnProjection,
   usageLocalDay,
   usagePeriodDelta,
+  usageSumUsd,
   usageWindowStatus,
   type UsageAggregateRow,
 } from '../../src/core/usage/aggregate'
@@ -11,9 +12,15 @@ import {
   USAGE_BURN_MIN_MS,
   USAGE_HISTOGRAM_EDGES_MS,
   USAGE_STALE_MS,
+  EXEC_USD_UNITS,
 } from '../../src/shared/constants'
-import { usageRecordSchema, type UsageRecord } from '../../src/shared/usageJournal'
+import {
+  USAGE_CERTAINTIES,
+  usageRecordSchema,
+  type UsageRecord,
+} from '../../src/shared/usageJournal'
 import { usageTotalsSchema, usageQuerySchema, type UsageQuery } from '../../src/shared/usagePage'
+import { formatUsd } from '../../src/shared/l10n/text'
 
 const now = new Date(2026, 9, 5, 12).getTime()
 const today = usageLocalDay(now)
@@ -42,6 +49,121 @@ function record(extra: Partial<UsageRecord> = {}): UsageRecord {
 }
 
 describe('usage aggregation', () => {
+  it('settles the cent boundary exactly in every monetary sum and grouping order', () => {
+    const records = [0.005, 0.005, 0.005, 0.003, 0.002, 0.003, 0.001, 0.001].map((usd, index) =>
+      record({ provider: index % 2 === 0 ? 'a' : 'b', cost: { certainty: 'computed', usd } }),
+    )
+    for (const calls of [records, records.toReversed()]) {
+      const result = aggregateUsage(calls, [], query, now)
+      expect(result.totals.costs[0]?.usd).toBe(0.025)
+      for (const rows of [result.breakdown, result.buckets, result.features]) {
+        const sum = usageSumUsd(rows.flatMap((row) => row.totals.costs.map((cost) => cost.usd)))
+        expect(sum).toBe(0.025)
+        expect(formatUsd(sum ?? 0, 2)).toBe('$0.03')
+      }
+    }
+    expect(usageSumUsd([undefined, undefined])).toBeUndefined()
+    expect(usageSumUsd([0, undefined])).toBe(0)
+  })
+  it('keeps randomized fixed-point settlements identical across orders, buckets, groups and serialized rollups', () => {
+    let seed = 102
+    const random = (max: number): number => {
+      seed = (seed * 16_807) % 2_147_483_647
+      return seed % max
+    }
+    const selected: UsageQuery = { ...query, range: '7d' }
+    for (let trial = 0; trial < 24; trial += 1) {
+      const records = Array.from({ length: 80 }, (_, index) => {
+        const tag = random(6)
+        return record({
+          id: `call-${String(index)}`,
+          provider: `provider-${String(tag % 2)}`,
+          model: `model-${String(tag % 3)}`,
+          kind: tag % 2 === 0 ? 'turn' : 'subagent',
+          client: tag % 2 === 0 ? 'Zed' : 'cli',
+          day: tag % 2 === 0 ? today : '2026-10-04',
+          at: now - random(8) * 3_600_000,
+          cost: {
+            certainty: USAGE_CERTAINTIES[random(USAGE_CERTAINTIES.length)]!,
+            usd: random(20_000) / EXEC_USD_UNITS,
+            apiEquivalentUsd: random(20_000) / EXEC_USD_UNITS,
+          },
+        })
+      })
+      const rollups: UsageAggregateRow[] = []
+      for (const provider of ['provider-0', 'provider-1']) {
+        for (const model of ['model-0', 'model-1', 'model-2']) {
+          const calls = records.filter((call) => call.provider === provider && call.model === model)
+          const first = calls[0]
+          if (first === undefined) continue
+          const serialized = JSON.stringify(aggregateUsage(calls, [], selected, now).totals)
+          const parsed: unknown = JSON.parse(serialized)
+          rollups.push({
+            ...first,
+            totals: usageTotalsSchema.parse(parsed),
+            histogram: Array.from({ length: USAGE_HISTOGRAM_EDGES_MS.length + 1 }, () => 0),
+          })
+        }
+      }
+      const shuffled = records
+        .map((call) => ({ call, order: random(10_000) }))
+        .toSorted((a, b) => a.order - b.order)
+        .map(({ call }) => call)
+      for (const groupBy of ['provider', 'model', 'kind', 'client'] as const) {
+        for (const interval of ['hour', 'day', 'week'] as const) {
+          for (const [calls, rows] of [
+            [records, []],
+            [shuffled, []],
+            [[], rollups],
+          ] as const) {
+            const result = aggregateUsage(calls, rows, { ...selected, groupBy }, now, interval)
+            for (const certainty of USAGE_CERTAINTIES) {
+              for (const key of ['usd', 'apiEquivalentUsd'] as const) {
+                const amounts = records
+                  .filter((call) => call.cost.certainty === certainty)
+                  .map((call) => Math.round((call.cost[key] ?? 0) * EXEC_USD_UNITS))
+                const expected =
+                  amounts.length === 0
+                    ? undefined
+                    : amounts.reduce((sum, units) => sum + units, 0) / EXEC_USD_UNITS
+                const amount = result.totals.costs.find((cost) => cost.certainty === certainty)?.[
+                  key
+                ]
+                expect(amount).toBe(expected)
+                for (const groups of [result.breakdown, result.buckets, result.features]) {
+                  const sum = usageSumUsd(
+                    groups.map(
+                      (row) => row.totals.costs.find((cost) => cost.certainty === certainty)?.[key],
+                    ),
+                  )
+                  expect(sum).toBe(expected)
+                  expect(sum === undefined ? undefined : formatUsd(sum, 2)).toBe(
+                    amount === undefined ? undefined : formatUsd(amount, 2),
+                  )
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  })
+  it('refuses amounts and sums outside safe fixed-point precision', () => {
+    expect(() => usageSumUsd([Number.MAX_SAFE_INTEGER])).toThrow('unsafe usage amount')
+    const safe = Math.floor(Number.MAX_SAFE_INTEGER / EXEC_USD_UNITS)
+    expect(() => usageSumUsd([safe, safe])).toThrow('unsafe usage sum')
+    expect(() =>
+      aggregateUsage(
+        [
+          record({ cost: { certainty: 'reported', usd: safe } }),
+          record({ cost: { certainty: 'reported', usd: safe } }),
+        ],
+        [],
+        query,
+        now,
+      ),
+    ).toThrow('unsafe usage sum')
+  })
   it('preserves unknown counters and separates every certainty, including plan equivalents and local zero', () => {
     const records = [
       record({
@@ -100,12 +222,9 @@ describe('usage aggregation', () => {
           expect(rows.reduce((sum, row) => sum + row.totals.records, 0)).toBe(1000)
           expect(rows.reduce((sum, row) => sum + (row.totals.tokens.input ?? 0), 0)).toBe(499_500)
           expect(rows.reduce((sum, row) => sum + (row.totals.tokens.output ?? 0), 0)).toBe(10_000)
-          expect(
-            rows.reduce(
-              (sum, row) => sum + row.totals.costs.reduce((usd, cost) => usd + (cost.usd ?? 0), 0),
-              0,
-            ),
-          ).toBeCloseTo(10, 10)
+          expect(usageSumUsd(rows.flatMap((row) => row.totals.costs.map((cost) => cost.usd)))).toBe(
+            10,
+          )
         }
         expect(result.totals.cacheHitPercent).toBeCloseTo((124_750 / 499_500) * 100)
         expect(result.totals.tokensPerSecond).toBe(10)

@@ -12,9 +12,9 @@ import {
   plural,
 } from '../../shared/l10n/text'
 import { USAGE_TEXT } from '../../shared/l10n/usageTable'
-import type { UsageCertainty } from '../../shared/usageJournal'
+import type { UsageCertainty, UsageLimitSnapshot } from '../../shared/usageJournal'
 import type { UsagePageState, UsageTotals } from '../../shared/usagePage'
-import { usagePeriodDelta, usageRange, usageWindowStatus } from './aggregate'
+import { usagePeriodDelta, usageRange, usageSumUsd, usageWindowStatus } from './aggregate'
 
 export type UsageTextFormat = 'markdown' | 'plain'
 function certaintyLabel(certainty: UsageCertainty): string {
@@ -46,7 +46,7 @@ function charge(totals: UsageTotals): number | undefined {
   const costs = totals.costs.filter(
     (cost) => !['plan', 'uncertain', 'unpriced'].includes(cost.certainty) && cost.usd !== undefined,
   )
-  return costs.length === 0 ? undefined : costs.reduce((sum, cost) => sum + (cost.usd ?? 0), 0)
+  return usageSumUsd(costs.map((cost) => cost.usd))
 }
 export function usageText(state: UsagePageState, format: UsageTextFormat = 'plain'): string {
   const isMarkdown = format === 'markdown'
@@ -137,9 +137,27 @@ export function usageText(state: UsagePageState, format: UsageTextFormat = 'plai
     )
   }
   heading(USAGE_TEXT.limits)
+  // Select each window independently: partial header/window reports need not
+  // replace another window. Account/raw data belong to the latest source
+  // snapshot. Keep the original state intact for the history charts.
+  const latest = new Map<string, UsageLimitSnapshot>()
+  const limitKey = (limit: UsageLimitSnapshot, window?: string): string =>
+    JSON.stringify([limit.provider, limit.source, window])
   for (const limit of state.limits) {
+    for (const window of [undefined, ...limit.windows.map((entry) => entry.id)]) {
+      const key = limitKey(limit, window)
+      const previous = latest.get(key)
+      if (previous === undefined || limit.observedAt >= previous.observedAt) latest.set(key, limit)
+    }
+  }
+  for (const limit of state.limits) {
+    const isLatestSource = latest.get(limitKey(limit)) === limit
+    const windows = limit.windows.filter(
+      (window) => latest.get(limitKey(limit, window.id)) === limit,
+    )
+    if (!isLatestSource && windows.length === 0) continue
     row(limit.provider, fill(USAGE_TEXT.asOf, { date: formatDateTime(limit.observedAt) }))
-    for (const window of limit.windows) {
+    for (const window of windows) {
       const status = usageWindowStatus(window, limit.observedAt, state.generatedAt)
       const freshness = { fresh: '', stale: USAGE_TEXT.stale, awaiting: USAGE_TEXT.awaitingFresh }[
         status.freshness
@@ -160,7 +178,7 @@ export function usageText(state: UsagePageState, format: UsageTextFormat = 'plai
         row(USAGE_TEXT.pace, paceLabels[status.pace])
       }
     }
-    if (limit.account !== undefined) {
+    if (isLatestSource && limit.account !== undefined) {
       row(
         USAGE_TEXT.accountBudget,
         `${amount(limit.account.usedUsd)} / ${amount(limit.account.limitUsd)}`,
@@ -169,7 +187,7 @@ export function usageText(state: UsagePageState, format: UsageTextFormat = 'plai
         escape(fill(USAGE_TEXT.budgetRemaining, { remaining: amount(limit.account.remainingUsd) })),
       )
     }
-    if (limit.raw !== undefined)
+    if (isLatestSource && limit.raw !== undefined)
       for (const [name, value] of Object.entries(limit.raw))
         row(`${USAGE_TEXT.asReported} (${name})`, value)
   }
