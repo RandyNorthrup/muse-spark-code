@@ -2161,5 +2161,8 @@
   "ollamaMissingFinal": "Ollamaが最終回答なしでストリームを閉じました。",
   "ollamaMalformedFrame": "Ollamaのストリームフレームが不正です。",
   "ollamaStreamLimit": "Ollamaがストリームサイズまたは項目数の上限を超えました。",
-  "ollamaFinishReason": "Ollamaが理由「{reason}」で終了しました。"
+  "ollamaFinishReason": "Ollamaが理由「{reason}」で終了しました。",
+  "compactionEmpty": "要約が空でした。会話は変更されていません。",
+  "compactionToolCall": "要約がツールを要求しました。会話は変更されていません。",
+  "summaryForkUnavailable": "要約付きの分岐には有料利用の承認が必要です。分岐は開かれていません。"
 }

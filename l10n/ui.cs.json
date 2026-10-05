@@ -2407,5 +2407,8 @@
   "ollamaMissingFinal": "Ollama ukončila stream bez konečné odpovědi.",
   "ollamaMalformedFrame": "Neplatný rámec streamu Ollama.",
   "ollamaStreamLimit": "Ollama překročila limit velikosti streamu nebo počtu položek.",
-  "ollamaFinishReason": "Ollama skončila s důvodem „{reason}“."
+  "ollamaFinishReason": "Ollama skončila s důvodem „{reason}“.",
+  "compactionEmpty": "Souhrn byl prázdný; konverzace zůstala beze změny.",
+  "compactionToolCall": "Souhrn požádal o nástroj; konverzace zůstala beze změny.",
+  "summaryForkUnavailable": "Vytvoření větve se souhrnem vyžaduje schválení placeného použití; žádná větev nebyla otevřena."
 }

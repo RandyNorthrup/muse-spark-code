@@ -7,7 +7,7 @@ import { metaGoldenRequests } from './helpers/metaGoldenRequests'
 
 describe('Meta request bytes with BYO unused', () => {
   it.each(metaGoldenRequests())(
-    'keeps $name byte-identical to main 1e93c67c',
+    'keeps $name byte-identical to its baseline (compaction: M101 C1; others: main 1e93c67c)',
     async ({ name, body }) => {
       let sent: unknown
       const client = new ModelApiClient({

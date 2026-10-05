@@ -1075,6 +1075,9 @@ export const EN = {
     'The Model API sent nothing for {seconds} s, so the reply was ended; send the message again to retry',
   queuedTurnDropped: 'Not sent: Stop cleared the queued messages',
   compactionStopped: 'the compaction was stopped',
+  compactionEmpty: 'The summary was empty; the conversation is unchanged.',
+  compactionToolCall: 'The summary requested a tool; the conversation is unchanged.',
+  summaryForkUnavailable: 'Fork with summary requires paid admission; no fork was opened.',
   compactionStoppedNotice: 'Compaction stopped; the conversation is as it was.',
   // PLAN.md D26: a decision or answer that arrived after the prompt had moved.
   promptAlreadySettled: 'That request was already answered, so this choice was not needed.',

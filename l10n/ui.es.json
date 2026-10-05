@@ -2325,5 +2325,8 @@
   "ollamaMissingFinal": "Ollama cerró el flujo sin una respuesta final.",
   "ollamaMalformedFrame": "Trama del flujo de Ollama mal formada.",
   "ollamaStreamLimit": "Ollama superó el límite de tamaño del flujo o de elementos.",
-  "ollamaFinishReason": "Ollama terminó con el motivo «{reason}»."
+  "ollamaFinishReason": "Ollama terminó con el motivo «{reason}».",
+  "compactionEmpty": "El resumen estaba vacío; la conversación no ha cambiado.",
+  "compactionToolCall": "El resumen solicitó una herramienta; la conversación no ha cambiado.",
+  "summaryForkUnavailable": "Crear una rama con resumen requiere autorización de pago; no se abrió ninguna rama."
 }

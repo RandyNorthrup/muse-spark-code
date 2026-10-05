@@ -15612,6 +15612,20 @@ its sections 1–2 (harness), "BYO n" its section 3 (providers).
   Gemini, OpenRouter/chat, Ollama/local, custom), with "on / off: reason" in
   every cell.
 
+**Lane C1 status (2026-10-05, kubuntu; implemented; scoped static/owning checks passed).**
+Implemented cache-readable compaction, host-owned todo snapshots, structured
+summary/update prompts and replay-derived file lists, window-scaled output
+and verbatim recent whole turns, refusal/NOOP/retry guards, and opt-in
+summary forks. This base has neither M95's host/client registry wiring nor
+D78's paid gate: compaction consumes an injected model-record reader and
+summary forks require an injected paid-admission guard; absent admission
+refuses before dispatch. A last request offering paid hosted search uses
+the tool-less compaction path, because its earlier consent does not cover
+a new search. Preserve manual hook behavior and expose the compaction core
+for C2. Meta and Gemini compaction request goldens intentionally adopt the
+structured prompt; other request goldens retain their bytes. No live calls;
+certification is `docs/certification/m101-c1.md`.
+
 **Lanes and file ownership** (so lanes merge without overlapping hunks):
 
 - **Lane A — cache-stable prefix** (items 1, 2 with 22, 7, 16, 17).
@@ -15747,6 +15761,21 @@ its sections 1–2 (harness), "BYO n" its section 3 (providers).
   - [ ] Provider × item table complete; full gate green
 
 ## 7. Gates
+
+**M101 C1 imported-suite baseline deferral (2026-10-05, kubuntu).**
+The scoped static gates and owning suites pass. The required imported sweep
+finds two pre-existing `chatPanel.test.ts` assertions expecting
+`<script nonce=` while the unchanged `src/host/html.ts` emits
+`<script type="module" nonce=...>`. Both failures reproduce with the base
+`60bf96aa` host, constants and English table; each source file is restored
+byte-exact. The other two files in that batch pass. The handoff dialog test
+“keeps a brief that arrives while /usage is open waiting until it closes”
+also fails on both base and final trees: it asks for the Account & usage
+dialog during the deferred surface's loading state. This lane does not own
+those UI surfaces or tests, so the integrator must repair the two files and
+rerun them. No assertion, test filter, threshold, timeout
+or gate setting is changed here; the imported sweep retains the failing
+receipt. See `docs/certification/m101-c1.md` for final results.
 
 **M95INT final whole-chain rerun — deferred under the 120-minute rig brief.**
 The final 548-page rerun still returns 1: `dark/models-pick` has one selected

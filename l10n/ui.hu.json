@@ -2243,5 +2243,8 @@
   "ollamaMissingFinal": "Az Ollama végső válasz nélkül lezárta az adatfolyamot.",
   "ollamaMalformedFrame": "Hibás Ollama-adatfolyamkeret.",
   "ollamaStreamLimit": "Az Ollama túllépte az adatfolyam méret- vagy elemszámkorlátját.",
-  "ollamaFinishReason": "Az Ollama ezzel az indokkal fejeződött be: „{reason}”."
+  "ollamaFinishReason": "Az Ollama ezzel az indokkal fejeződött be: „{reason}”.",
+  "compactionEmpty": "Az összefoglaló üres volt; a beszélgetés változatlan maradt.",
+  "compactionToolCall": "Az összefoglaló eszközt kért; a beszélgetés változatlan maradt.",
+  "summaryForkUnavailable": "Az összefoglalóval létrehozott ág fizetős használati jóváhagyást igényel; nem nyílt meg új ág."
 }

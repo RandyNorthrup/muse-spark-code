@@ -2407,5 +2407,8 @@
   "ollamaMissingFinal": "Ollama zamknęła strumień bez końcowej odpowiedzi.",
   "ollamaMalformedFrame": "Nieprawidłowa ramka strumienia Ollama.",
   "ollamaStreamLimit": "Ollama przekroczyła limit rozmiaru strumienia lub liczby elementów.",
-  "ollamaFinishReason": "Ollama zakończyła działanie z powodu „{reason}”."
+  "ollamaFinishReason": "Ollama zakończyła działanie z powodu „{reason}”.",
+  "compactionEmpty": "Podsumowanie było puste; rozmowa pozostała bez zmian.",
+  "compactionToolCall": "Podsumowanie zażądało narzędzia; rozmowa pozostała bez zmian.",
+  "summaryForkUnavailable": "Utworzenie odgałęzienia z podsumowaniem wymaga zgody na płatność; nie otwarto odgałęzienia."
 }

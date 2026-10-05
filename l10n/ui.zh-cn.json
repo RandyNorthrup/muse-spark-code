@@ -2161,5 +2161,8 @@
   "ollamaMissingFinal": "Ollama在没有最终回答的情况下关闭了数据流。",
   "ollamaMalformedFrame": "Ollama数据流帧格式错误。",
   "ollamaStreamLimit": "Ollama超出了数据流大小或条目数量限制。",
-  "ollamaFinishReason": "Ollama已结束，原因为“{reason}”。"
+  "ollamaFinishReason": "Ollama已结束，原因为“{reason}”。",
+  "compactionEmpty": "摘要为空；对话未更改。",
+  "compactionToolCall": "摘要请求了工具；对话未更改。",
+  "summaryForkUnavailable": "带摘要的分支需要付费使用授权；未打开任何分支。"
 }

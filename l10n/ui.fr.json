@@ -2325,5 +2325,8 @@
   "ollamaMissingFinal": "Ollama a fermé le flux sans réponse finale.",
   "ollamaMalformedFrame": "Trame du flux Ollama mal formée.",
   "ollamaStreamLimit": "Ollama a dépassé la limite de taille du flux ou du nombre d’éléments.",
-  "ollamaFinishReason": "Ollama s’est arrêté pour la raison « {reason} »."
+  "ollamaFinishReason": "Ollama s’est arrêté pour la raison « {reason} ».",
+  "compactionEmpty": "Le résumé était vide ; la conversation reste inchangée.",
+  "compactionToolCall": "Le résumé a demandé un outil ; la conversation reste inchangée.",
+  "summaryForkUnavailable": "Créer une branche avec résumé nécessite une autorisation de paiement ; aucune branche n’a été ouverte."
 }

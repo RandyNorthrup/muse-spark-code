@@ -2243,5 +2243,8 @@
   "ollamaMissingFinal": "Ollama hat den Stream ohne abschließende Antwort geschlossen.",
   "ollamaMalformedFrame": "Fehlerhaftes Ollama-Stream-Frame.",
   "ollamaStreamLimit": "Ollama hat das Limit für Streamgröße oder Elemente überschritten.",
-  "ollamaFinishReason": "Ollama wurde mit dem Grund „{reason}“ beendet."
+  "ollamaFinishReason": "Ollama wurde mit dem Grund „{reason}“ beendet.",
+  "compactionEmpty": "Die Zusammenfassung war leer; die Unterhaltung bleibt unverändert.",
+  "compactionToolCall": "Die Zusammenfassung hat ein Werkzeug angefordert; die Unterhaltung bleibt unverändert.",
+  "summaryForkUnavailable": "Für einen Zweig mit Zusammenfassung ist eine Zahlungsfreigabe erforderlich; kein Zweig wurde geöffnet."
 }

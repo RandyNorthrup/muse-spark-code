@@ -2161,5 +2161,8 @@
   "ollamaMissingFinal": "Ollama在沒有最終回答的情況下關閉了資料流。",
   "ollamaMalformedFrame": "Ollama資料流框架格式錯誤。",
   "ollamaStreamLimit": "Ollama超出了資料流大小或項目數量限制。",
-  "ollamaFinishReason": "Ollama已結束，原因為「{reason}」。"
+  "ollamaFinishReason": "Ollama已結束，原因為「{reason}」。",
+  "compactionEmpty": "摘要為空；對話未變更。",
+  "compactionToolCall": "摘要要求使用工具；對話未變更。",
+  "summaryForkUnavailable": "建立附摘要的分支需要付費使用授權；未開啟任何分支。"
 }

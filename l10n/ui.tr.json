@@ -2243,5 +2243,8 @@
   "ollamaMissingFinal": "Ollama son yanıt olmadan akışı kapattı.",
   "ollamaMalformedFrame": "Bozuk Ollama akış çerçevesi.",
   "ollamaStreamLimit": "Ollama akış boyutu veya öğe sınırını aştı.",
-  "ollamaFinishReason": "Ollama \"{reason}\" nedeniyle sona erdi."
+  "ollamaFinishReason": "Ollama \"{reason}\" nedeniyle sona erdi.",
+  "compactionEmpty": "Özet boştu; konuşma değişmedi.",
+  "compactionToolCall": "Özet bir araç istedi; konuşma değişmedi.",
+  "summaryForkUnavailable": "Özetle dallandırma için ücretli kullanım onayı gerekir; dal açılmadı."
 }

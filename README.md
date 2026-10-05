@@ -1851,6 +1851,16 @@ Meta's paid web search.
   tooltip give the tokens used and the window, the pressure word the
   backend reports, and say when the window is exceeded. Click it to compact
   now. A backend that has not reported a window shows no meter.
+  On the Model API backend, `/compact` builds a structured summary with the
+  exact open tasks and file paths, and keeps recent whole turns verbatim
+  (up to roughly 20,000 tokens, scaled down for smaller model windows).
+  Repeated compaction without new work makes no model call. Empty or
+  incomplete summaries leave the conversation as it was; transient stream
+  failures use the same bounded retries as a reply. Where the model supports
+  keeping tools with history, compaction retains the last request's cached
+  prefix. A requested tool is discarded and retried without tools; no
+  compaction tool executes. Paid hosted-search requests use that tool-less
+  path directly.
 - **Stop** turns red on hover and keyboard focus; in the high-contrast
   themes its icon and border take the error colour instead.
 - Every row of the palette and the `/` list has a one-sentence tip, as its

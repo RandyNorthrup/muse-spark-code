@@ -77,10 +77,8 @@ export function metaGoldenRequests(): readonly {
   for (let sent = 0; sent < OBS_PACK_WHOLE_SENDS; sent += 1) {
     pack.noteSent(pack.project(longOutput))
   }
-  const compact = {
-    ...request([...loop, message(MODEL_API_MODEL_TEXT.compactionPrompt)]),
-    tools: [],
-  }
+  // M101 C1 intentionally re-baselines compaction; ordinary requests retain 1e93c67c bytes.
+  const compact = request([...loop, message(MODEL_API_MODEL_TEXT.compactionPrompt)])
   return [
     { name: 'first-turn', body: request(first) },
     { name: 'tool-loop', body: request(loop) },

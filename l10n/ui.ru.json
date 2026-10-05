@@ -2407,5 +2407,8 @@
   "ollamaMissingFinal": "Ollama закрыла поток без окончательного ответа.",
   "ollamaMalformedFrame": "Некорректный кадр потока Ollama.",
   "ollamaStreamLimit": "Ollama превысила предел размера потока или числа элементов.",
-  "ollamaFinishReason": "Ollama завершилась с причиной «{reason}»."
+  "ollamaFinishReason": "Ollama завершилась с причиной «{reason}».",
+  "compactionEmpty": "Сводка оказалась пустой; беседа не изменилась.",
+  "compactionToolCall": "Сводка запросила инструмент; беседа не изменилась.",
+  "summaryForkUnavailable": "Для ответвления со сводкой требуется разрешение на оплату; ответвление не открыто."
 }

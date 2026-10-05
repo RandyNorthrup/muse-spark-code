@@ -9,6 +9,15 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- Model API compaction reuses the sent cached prefix where supported,
+  snapshots exact open tasks and replay-derived file paths, and keeps recent
+  whole turns and supported reasoning verbatim. Structured summaries update
+  earlier summaries; output and tail budgets scale with the model window.
+  Blank summaries are refused, repeated compaction is a no-op, and transient
+  stream failures share the turn retry limit. Returned tools never run.
+  The summary-fork engine action is opt-in and requires injected paid
+  admission; it remains unavailable in the UI until D78 is wired.
+
 - M95 integration shares the Node validation runtime and the provider-setup
   schema, so Models host stays within its existing size budget. Account & usage
   loads on demand with a dismissible loading modal. Chat's unchanged startup

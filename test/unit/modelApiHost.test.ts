@@ -1,3 +1,4 @@
+import { FORMAT_QUIRKS } from '../../src/core/providers/presets'
 import { Buffer } from 'node:buffer'
 import { createHash } from 'node:crypto'
 import { existsSync, mkdtempSync, readFileSync, realpathSync } from 'node:fs'
@@ -265,6 +266,9 @@ function setup(
     store?: SessionStore
     budgetScope?: ModelApiHostDeps['budgetScope']
     admitResponseAttempt?: ModelApiHostDeps['admitResponseAttempt']
+    compactionModel?: ModelApiHostDeps['compactionModel']
+    admitSummaryFork?: ModelApiHostDeps['admitSummaryFork']
+    observationPacking?: ModelApiHostDeps['observationPacking']
     /** A capped fixture usually keeps its reservation in memory; this tests an unavailable store. */
     hasNoStore?: boolean
     describeEnvironment?: ModelApiHostDeps['describeEnvironment']
@@ -366,6 +370,9 @@ function setup(
         })
   const host = new ModelApiHost({
     client,
+    compactionModel: options.compactionModel,
+    admitSummaryFork: options.admitSummaryFork,
+    observationPacking: options.observationPacking,
     workspaceRoot: ROOT,
     platform: options.platform ?? 'linux',
     io,
@@ -4269,7 +4276,7 @@ describe('ModelApiSession: turns', () => {
     t.api.inputTokens = 77
     await expect(session.compact()).resolves.toEqual({ status: 'accepted', reason: undefined })
     const compactionBody = t.api.responseBodies().at(-1)
-    expect(compactionBody?.['tools']).toEqual([])
+    expect(compactionBody?.['tools']).toEqual(t.api.responseBodies()[0]?.['tools'])
     expect(JSON.stringify(compactionBody?.['input'])).toContain('Summarise this conversation')
     // The compaction runs like a turn (D26): running, the summary, idle.
     expect(events.slice(-3)).toEqual([
@@ -4302,12 +4309,12 @@ describe('ModelApiSession: turns', () => {
     const [one, two] = t.api.responseBodies()
     expect(one?.['prompt_cache_key']).toBe(two?.['prompt_cache_key'])
     expect(one?.['prompt_cache_retention']).toBe('24h')
-    // A compaction starts with no tools, so it names its own prefix.
+    // M101 C1: compaction reads the turn's exact prefix and cache key.
     t.api.script({ text: 'THE SUMMARY' })
     await first.session.compact()
     const compaction = t.api.responseBodies().at(-1)
     expect(compaction?.['prompt_cache_key']).toMatch(/^muse-spark-code-[\da-f]{32}$/)
-    expect(compaction?.['prompt_cache_key']).not.toBe(one?.['prompt_cache_key'])
+    expect(compaction?.['prompt_cache_key']).toBe(one?.['prompt_cache_key'])
     // Another tool list is another prefix: web search turned on (M33).
     const searching = setup({ paid: ['webSearch'] })
     const third = await startSession(searching)
@@ -5318,11 +5325,11 @@ describe('ModelApiSession: hook boundaries (M51)', () => {
         }),
         expect.objectContaining({
           hook_event_name: 'PreLLMCall',
-          tool_count: 0,
+          tool_count: z.array(z.unknown()).parse(t.api.responseBodies()[0]?.['tools']).length,
         }),
         expect.objectContaining({
           hook_event_name: 'PostLLMCall',
-          tool_count: 0,
+          tool_count: z.array(z.unknown()).parse(t.api.responseBodies()[0]?.['tools']).length,
           output_text_preview: 'Summary',
         }),
       ]),
@@ -16240,5 +16247,574 @@ describe('ModelApiHost: taking a message back before a request reads it (M87, PL
         .filter((item) => item.kind === 'userMessage' || item.kind === 'agentMessage')
         .map((item) => item.recordedAt),
     ).toEqual(stamped.map((item) => item.recordedAt))
+  })
+})
+
+/** A completed ordinary turn before the compaction under test. */
+async function preparedCompaction(t: ReturnType<typeof setup>, mode?: string) {
+  const watched = await startSession(t, mode)
+  await answerFirst(t, watched.session, watched.turnDone)
+  return watched
+}
+
+function smallCompactionModel(
+  overrides: {
+    readonly toolCalling?: boolean
+    readonly keepToolsWithHistory?: boolean
+    readonly reasoningReplay?: 'none' | 'same-model'
+  } = {},
+) {
+  return {
+    contextTokens: 8000,
+    capabilities: { toolCalling: overrides.toolCalling ?? true },
+    quirks: {
+      keepToolsWithHistory: overrides.keepToolsWithHistory ?? true,
+      reasoningReplay: overrides.reasoningReplay ?? 'same-model',
+    },
+  }
+}
+
+describe('M101 C1 compaction', () => {
+  it('reuses the exact sent packed prefix, tools and cache key (item 3)', async () => {
+    const t = setup({
+      observationPacking: () => true,
+      files: { 'long.txt': `${'detail-'.repeat(10)}\n`.repeat(9000) },
+    })
+    const { session, turnDone } = await startSession(t, 'allowAll')
+    t.api.script(
+      { calls: [{ name: 'read_file', arguments: '{"path":"long.txt"}' }] },
+      { text: 'read it' },
+    )
+    await session.sendTurn([{ type: 'text', text: 'read the long file' }])
+    await turnDone()
+    for (const text of ['ask again', 'ask once more']) {
+      t.api.script({ text: 'read it again' })
+      await session.sendTurn([{ type: 'text', text }])
+      await turnDone()
+    }
+    const previous = t.api.responseBodies().at(-1)
+    t.api.script({ text: 'summary' })
+    await session.compact()
+    const compact = t.api.responseBodies().at(-1)
+    const input = z.array(z.unknown()).parse(previous?.['input'])
+    expect(compact?.['instructions']).toBe(previous?.['instructions'])
+    expect(JSON.stringify(compact?.['tools'])).toBe(JSON.stringify(previous?.['tools']))
+    expect(compact?.['prompt_cache_key']).toBe(previous?.['prompt_cache_key'])
+    expect(
+      JSON.stringify(z.array(z.unknown()).parse(compact?.['input']).slice(0, input.length)),
+    ).toBe(JSON.stringify(input))
+    expect(JSON.stringify(input)).toContain('recall_output')
+  })
+
+  it('honours a model without tool calling and keeps ordinary request bytes unchanged (item 3)', async () => {
+    const t = setup({
+      compactionModel: () => smallCompactionModel({ toolCalling: false, reasoningReplay: 'none' }),
+    })
+    const { session } = await preparedCompaction(t)
+    const before = JSON.stringify(t.api.responseBodies()[0])
+    t.api.script({ text: 'summary' })
+    await session.compact()
+    expect(t.api.responseBodies().at(-1)?.['tools']).toEqual([])
+    expect(JSON.stringify(t.api.responseBodies()[0])).toBe(before)
+  })
+
+  it('rebuilds compaction for a changed model while keeping its required tools (item 3 guard)', async () => {
+    const t = setup({ compactionModel: () => smallCompactionModel() })
+    const { session } = await preparedCompaction(t)
+    await session.setModel('custom/other-model')
+    t.api.script({ text: 'summary' })
+    await session.compact()
+    const body = t.api.responseBodies().at(-1)
+    expect(body?.['model']).toBe('custom/other-model')
+    expect(z.array(z.unknown()).parse(body?.['tools']).length).toBeGreaterThan(0)
+  })
+
+  it('does not reuse paid hosted-search consent during compaction (item 3 guard)', async () => {
+    const t = setup({ paid: ['webSearch'] })
+    const { session } = await preparedCompaction(t)
+    expect(webSearchTools(t.api.responseBodies()[0])).toEqual([{ type: 'web_search' }])
+    const questions = t.paidRequests.length
+    t.api.script({ text: 'summary' })
+    await session.compact()
+    expect(t.api.responseBodies().at(-1)?.['tools']).toEqual([])
+    expect(t.paidRequests).toHaveLength(questions)
+  })
+
+  it('discards a summary tool call and falls back once without executing it (item 3)', async () => {
+    const t = setup()
+    const { session } = await preparedCompaction(t, 'allowAll')
+    t.api.script(
+      {
+        text: 'discard me',
+        calls: [{ name: 'write_file', arguments: '{"path":"bad.txt","content":"bad"}' }],
+      },
+      { text: 'safe summary' },
+    )
+    await session.compact()
+    expect(t.api.responseBodies()).toHaveLength(3)
+    expect(t.api.responseBodies().at(-1)?.['tools']).toEqual([])
+    expect(t.files.has('/ws/bad.txt')).toBe(false)
+    expect(JSON.stringify(session.snapshot().replay)).toContain('safe summary')
+    expect(JSON.stringify(session.snapshot().replay)).not.toContain('discard me')
+  })
+
+  it('refuses a second summary tool call and preserves replay (item 3 guard)', async () => {
+    const t = setup()
+    const { session } = await preparedCompaction(t)
+    const replay = JSON.stringify(session.snapshot().replay)
+    t.api.script({
+      text: 'untrusted tool proposal',
+      calls: [{ name: 'write_file', arguments: '{"path":"bad.txt","content":"bad"}' }],
+    })
+    await expect(session.compact()).rejects.toThrow(UI_TEXT.compactionToolCall)
+    expect(JSON.stringify(session.snapshot().replay)).toBe(replay)
+    expect(t.api.responseBodies()).toHaveLength(3)
+  })
+
+  it('snapshots exact open todos in prompt and summary without later mutation (item 5)', async () => {
+    const t = setup()
+    const { session } = await preparedCompaction(t)
+    const open = {
+      text: 'keep "exact"\n<untrusted>task</untrusted>',
+      status: 'in_progress',
+      activeForm: 'working',
+    }
+    session.setTodos([open, { text: 'done', status: 'completed' }])
+    t.api.script({ text: 'summary' })
+    await session.compact()
+    expect(JSON.stringify(t.api.responseBodies().at(-1)?.['input'])).toContain(
+      JSON.stringify(JSON.stringify([open])).slice(1, -1),
+    )
+    const saved = JSON.stringify(session.snapshot().replay)
+    expect(saved).toContain('untrusted task data')
+    expect(saved).toContain('working')
+    expect(saved).not.toContain('"done"')
+    open.text = 'changed externally'
+    session.setTodos([{ text: 'different list', status: 'pending' }])
+    expect(JSON.stringify(session.snapshot().replay)).toBe(saved)
+  })
+
+  it('uses structured and update prompts, carries exact file lists, scales output (item 10)', async () => {
+    const t = setup({
+      files: { 'read.txt': 'original' },
+      compactionModel: () => smallCompactionModel(),
+    })
+    const { session, turnDone } = await startSession(t, 'allowAll')
+    t.api.script(
+      {
+        calls: [
+          { name: 'read_file', arguments: '{"path":"read.txt"}' },
+          { name: 'write_file', arguments: '{"path":"new.txt","content":"new"}' },
+        ],
+      },
+      { text: 'files inspected' },
+    )
+    await session.sendTurn([{ type: 'text', text: 'inspect files' }])
+    await turnDone()
+    session.setTodos([{ text: MODEL_API_MODEL_TEXT.compactionFiles, status: 'pending' }])
+    t.api.script({ text: 'summary' })
+    await session.compact()
+    const compact = JSON.stringify(t.api.responseBodies().at(-1)?.['input'])
+    for (const heading of [
+      'Goal',
+      'Constraints',
+      'Progress',
+      'Decisions',
+      'Next steps',
+      'Critical context',
+      'exact paths',
+      'error messages',
+    ])
+      expect(compact).toContain(heading)
+    expect(t.api.responseBodies().at(-1)?.['max_output_tokens']).toBe(400)
+    expect(JSON.stringify(session.snapshot().replay)).toContain('read.txt')
+    expect(JSON.stringify(session.snapshot().replay)).toContain('new.txt')
+    t.api.script({ text: 'new progress' })
+    await session.sendTurn([{ type: 'text', text: 'continue' }])
+    await turnDone()
+    t.api.script({ text: 'updated summary' })
+    await session.compact()
+    expect(JSON.stringify(t.api.responseBodies().at(-1)?.['input'])).toContain(
+      MODEL_API_MODEL_TEXT.compactionUpdatePrompt,
+    )
+    const summary = session.snapshot().replay[0]?.item
+    expect(JSON.stringify(summary)).toContain('read.txt')
+    expect(JSON.stringify(summary)).toContain('new.txt')
+  })
+
+  it('refuses blank summaries and accounts their usage without losing history (item 11)', async () => {
+    const t = setup()
+    const { session } = await preparedCompaction(t)
+    const before = session.snapshot()
+    t.api.script({ text: ' \n\t ', usage: { input: 100, output: 20 } })
+    await expect(session.compact()).rejects.toThrow(UI_TEXT.compactionEmpty)
+    expect(JSON.stringify(session.snapshot().replay)).toBe(JSON.stringify(before.replay))
+    expect(session.snapshot().usage.inputTokens).toBe(before.usage.inputTokens + 100)
+  })
+
+  it('does not pay to compact an already compacted tail, including after resume (item 11)', async () => {
+    const store = memorySessionStore()
+    const t = setup({ store })
+    const { session, turnDone } = await preparedCompaction(t)
+    t.api.script({ text: 'recent' })
+    await session.sendTurn([{ type: 'text', text: 'second' }])
+    await turnDone()
+    t.api.script({ text: 'summary' })
+    await session.compact()
+    const sent = t.api.responseBodies().length
+    await expect(session.compact()).resolves.toMatchObject({ status: 'noop' })
+    await t.host.flush()
+    const reopened = setup({ store })
+    await reopened.host.load()
+    const loaded = await reopened.host.resumeSession(session.sessionId, 'muse-spark-1.3')
+    await expect(loaded.session.compact()).resolves.toMatchObject({ status: 'noop' })
+    expect(t.api.responseBodies()).toHaveLength(sent)
+    expect(reopened.api.responseBodies()).toHaveLength(0)
+  })
+
+  it('compacts new background context after a summary and resume (item 11 guard)', async () => {
+    const store = memorySessionStore()
+    const t = setup({ store })
+    const { session } = await preparedCompaction(t)
+    t.api.script({ text: 'summary' })
+    await session.compact()
+    await t.host.flush()
+    const saved = store.saved.get(session.sessionId)
+    if (saved === undefined) throw new Error('missing saved fixture')
+    store.saved.set(session.sessionId, {
+      ...saved,
+      replay: [
+        ...saved.replay,
+        {
+          turnId: saved.turnIds.at(-1) ?? 'latest',
+          item: {
+            type: 'message',
+            role: 'user',
+            content: [{ type: 'input_text', text: 'new background result' }],
+          },
+          backgroundTaskId: 'background-task',
+        },
+      ],
+    })
+    await t.host.flush()
+    const reopened = setup({ store })
+    await reopened.host.load()
+    const loaded = await reopened.host.resumeSession(session.sessionId, 'muse-spark-1.3')
+    reopened.api.script({ text: 'updated summary' })
+    await expect(loaded.session.compact()).resolves.toMatchObject({ status: 'accepted' })
+    expect(JSON.stringify(reopened.api.responseBodies().at(-1)?.['input'])).toContain(
+      'new background result',
+    )
+  })
+
+  it('retries transient compaction streams with backoff, fresh hooks and reservations (item 11)', async () => {
+    const payloads: unknown[] = []
+    const t = setup({
+      sessionBudgetUsd: 1,
+      hooks: hooksFor('PreLLMCall', 'observe'),
+      runHook: recordHookPayloads(payloads),
+    })
+    const { session, events, turnDone } = await startSession(t)
+    await answerFirst(t, session, turnDone)
+    payloads.length = 0
+    const waiting = vi.spyOn(t.client, 'waitBeforeRetry')
+    t.api.script(
+      {
+        text: 'discarded partial',
+        streamError: { code: 'server_shutting_down', message: 'retry' },
+      },
+      { text: 'complete summary' },
+    )
+    await session.compact()
+    expect(waiting).toHaveBeenCalledOnce()
+    expect(payloads).toMatchObject([{ attempt: 1 }, { attempt: 2 }])
+    expect(events.filter((event) => event.type === 'turnRetry')).toHaveLength(1)
+    expect(JSON.stringify(session.snapshot().replay)).toContain('complete summary')
+    expect(JSON.stringify(session.snapshot().replay)).not.toContain('discarded partial')
+    expect(reservations(t)).toHaveLength(3)
+  })
+
+  it('keeps whole recent turns and reasoning byte-exact while dropping old turns (item 19)', async () => {
+    const t = setup()
+    const { session, turnDone } = await preparedCompaction(t)
+    t.api.script({ text: 'recent reply', reasoning: 'signed thought' })
+    const recent = await session.sendTurn([{ type: 'text', text: 'recent request' }])
+    await turnDone()
+    const tail = session.snapshot().replay.filter((entry) => entry.turnId === recent.turnId)
+    expect(JSON.stringify(tail)).toContain('encrypted_content')
+    t.api.script({ text: 'old context summary' })
+    await session.compact()
+    expect(JSON.stringify(session.snapshot().replay.slice(1))).toBe(JSON.stringify(tail))
+    expect(JSON.stringify(session.snapshot().replay)).not.toContain('first reply')
+  })
+
+  it('scales the tail to the window and never splits an oversized turn (item 19 guard)', async () => {
+    const t = setup({
+      compactionModel: () => smallCompactionModel({ reasoningReplay: 'none' }),
+    })
+    const { session, turnDone } = await preparedCompaction(t)
+    t.api.script({ text: 'long'.repeat(2000), reasoning: 'not replayable' })
+    await session.sendTurn([{ type: 'text', text: 'oversized turn' }])
+    await turnDone()
+    t.api.script({ text: 'summary' })
+    await session.compact()
+    expect(session.snapshot().replay).toHaveLength(1)
+  })
+
+  it('defaults summary forks off and refuses absent or declined paid admission (BYO 17)', async () => {
+    for (const admission of [undefined, () => Promise.resolve(undefined)]) {
+      const t = setup({ admitSummaryFork: admission })
+      const { session } = await preparedCompaction(t)
+      await t.host.forkSession(session.sessionId, 'muse-spark-1.3')
+      expect(t.api.responseBodies()).toHaveLength(1)
+      await expect(
+        t.host.forkSession(session.sessionId, 'muse-spark-1.3', undefined, { withSummary: true }),
+      ).rejects.toThrow(UI_TEXT.summaryForkUnavailable)
+      expect(t.api.responseBodies()).toHaveLength(1)
+    }
+  })
+
+  it('admits and tallies one summary-fork call, saves it, and leaves the source intact (BYO 17)', async () => {
+    const guard = Object.assign(vi.fn(), { onRequestStarted: vi.fn() })
+    const admission = vi.fn(() => Promise.resolve(guard))
+    const store = memorySessionStore()
+    const t = setup({ store, admitSummaryFork: admission })
+    const { session } = await preparedCompaction(t)
+    const before = JSON.stringify(session.snapshot().replay)
+    t.api.script({ text: 'fork summary' })
+    const fork = await t.host.forkSession(session.sessionId, 'muse-spark-1.3', undefined, {
+      withSummary: true,
+    })
+    expect(admission).toHaveBeenCalledWith(
+      session.sessionId,
+      'muse-spark-1.3',
+      expect.any(AbortSignal),
+    )
+    expect(guard).toHaveBeenCalledOnce()
+    expect(guard.onRequestStarted).toHaveBeenCalledOnce()
+    expect(t.api.responseBodies()).toHaveLength(2)
+    expect(t.api.responseBodies().at(-1)?.['tools']).toEqual([])
+    expect(JSON.stringify(session.snapshot().replay)).toBe(before)
+    expect(JSON.stringify(store.saved.get(fork.session.sessionId)?.replay)).toContain(
+      'fork summary',
+    )
+  })
+
+  it('checks summary-fork admission again after credential retrieval (BYO 17 guard)', async () => {
+    const t = setup({
+      admitSummaryFork: () =>
+        Promise.resolve(() => {
+          throw new Error('admission revoked')
+        }),
+    })
+    const { session } = await preparedCompaction(t)
+    await expect(
+      t.host.forkSession(session.sessionId, 'muse-spark-1.3', undefined, { withSummary: true }),
+    ).rejects.toThrow('admission revoked')
+    expect(t.api.responseBodies()).toHaveLength(1)
+  })
+})
+
+describe('M101 C1 provider gates and recovery', () => {
+  it.each([
+    ['meta', 'muse-spark-1.3', 'responses'],
+    ['openai', 'openai/gpt-5.6-luna', 'responses'],
+    ['xai', 'xai/grok-4.3', 'responses'],
+    ['azure', 'azure/deployment', 'responses'],
+    ['anthropic', 'anthropic/claude-sonnet-5-5', 'anthropic'],
+    ['gemini', 'gemini/gemini-3.5-flash-lite', 'gemini'],
+    ['openrouter', 'openrouter/openai/gpt-oss-20b', 'chat'],
+    ['ollama', 'ollama/qwen3:8b', 'ollama'],
+    ['custom', 'custom/model', 'chat'],
+  ] as const)(
+    'reads %s model capabilities for cache, tail and output (%s, %s)',
+    async (_provider, modelId, format) => {
+      const readModel = vi.fn(() => ({
+        contextTokens: 8000,
+        capabilities: { toolCalling: true },
+        quirks: FORMAT_QUIRKS[format],
+      }))
+      const t = setup({ compactionModel: readModel })
+      const { session, turnDone } = await startSession(t)
+      await session.setModel(modelId)
+      await answerFirst(t, session, turnDone)
+      const previous = t.api.responseBodies().at(-1)
+      t.api.script({ text: 'summary' })
+      await session.compact()
+      expect(readModel).toHaveBeenCalledWith(modelId)
+      expect(JSON.stringify(t.api.responseBodies().at(-1)?.['tools'])).toBe(
+        JSON.stringify(previous?.['tools']),
+      )
+      expect(t.api.responseBodies().at(-1)?.['max_output_tokens']).toBe(400)
+    },
+  )
+
+  it('keeps required tools after resume even without an in-memory sent prefix (item 3)', async () => {
+    const store = memorySessionStore()
+    const t = setup({ store })
+    const { session } = await preparedCompaction(t)
+    await t.host.flush()
+    const reopened = setup({
+      store,
+      compactionModel: () => ({
+        contextTokens: 8000,
+        capabilities: { toolCalling: true },
+        quirks: FORMAT_QUIRKS.chat,
+      }),
+    })
+    await reopened.host.load()
+    const loaded = await reopened.host.resumeSession(
+      session.sessionId,
+      'openrouter/openai/gpt-oss-20b',
+    )
+    reopened.api.script({ text: 'summary' })
+    await loaded.session.compact()
+    expect(
+      z.array(z.unknown()).parse(reopened.api.responseBodies().at(-1)?.['tools']).length,
+    ).toBeGreaterThan(0)
+  })
+
+  it('drops tail reasoning when the selected model cannot replay it (item 19 gate)', async () => {
+    const t = setup({
+      compactionModel: () => smallCompactionModel({ reasoningReplay: 'none' }),
+    })
+    const { session, turnDone } = await preparedCompaction(t)
+    t.api.script({ text: 'recent', reasoning: 'must not replay' })
+    await session.sendTurn([{ type: 'text', text: 'recent request' }])
+    await turnDone()
+    t.api.script({ text: 'summary' })
+    await session.compact()
+    const replay = session.snapshot().replay
+    expect(JSON.stringify(replay)).toContain('recent request')
+    expect(replay.some((entry) => entry.item.type === 'reasoning')).toBe(false)
+  })
+
+  it('shares the HTTP and stream retry limit instead of multiplying attempts (item 11 guard)', async () => {
+    const t = setup()
+    const { session } = await preparedCompaction(t)
+    const before = JSON.stringify(session.snapshot().replay)
+    t.api.script(
+      { httpError: { status: 429 } },
+      ...Array.from({ length: MODEL_API_MAX_RETRIES }, () => ({
+        text: 'partial',
+        streamError: { code: 'server_shutting_down', message: 'retry' },
+      })),
+    )
+    await expect(session.compact()).rejects.toThrow('retry')
+    expect(t.api.responseBodies()).toHaveLength(MODEL_API_MAX_RETRIES + 2)
+    expect(JSON.stringify(session.snapshot().replay)).toBe(before)
+  })
+
+  it('does not retry incomplete summaries or ordinary failure codes (item 11 guard)', async () => {
+    for (const reply of [
+      { incomplete: { reason: 'max_output_tokens' } },
+      { text: 'partial', streamError: { code: 'bad_request', message: 'invalid' } },
+    ]) {
+      const t = setup()
+      const { session } = await preparedCompaction(t)
+      const before = JSON.stringify(session.snapshot().replay)
+      t.api.script(reply)
+      await expect(session.compact()).rejects.toThrow()
+      expect(t.api.responseBodies()).toHaveLength(2)
+      expect(JSON.stringify(session.snapshot().replay)).toBe(before)
+    }
+  })
+
+  it('lets the settled-boundary core compact without a manual hook veto (C2 seam)', async () => {
+    const t = setup({
+      hooks: hooksFor('PreCompact', 'veto'),
+      runHook: () => hookReply('{"continue":false,"stopReason":"manual veto"}'),
+    })
+    const { session } = await preparedCompaction(t)
+    await expect(session.compact()).resolves.toEqual({ status: 'noop', reason: 'manual veto' })
+    expect(t.api.responseBodies()).toHaveLength(1)
+    t.api.script({ text: 'summary' })
+    await expect(session.compactContext(new AbortController().signal)).resolves.toMatchObject({
+      status: 'accepted',
+    })
+  })
+})
+
+describe('M101 C1 admission publication', () => {
+  it('honours keepToolsWithHistory off without changing the original turn (item 3 gate)', async () => {
+    const t = setup({
+      compactionModel: () => smallCompactionModel({ keepToolsWithHistory: false }),
+    })
+    const { session } = await preparedCompaction(t)
+    expect(z.array(z.unknown()).parse(t.api.responseBodies()[0]?.['tools']).length).toBeGreaterThan(
+      0,
+    )
+    t.api.script({ text: 'summary' })
+    await session.compact()
+    expect(t.api.responseBodies().at(-1)?.['tools']).toEqual([])
+  })
+
+  it('does not save or announce an unadmitted summary fork (BYO 17 guard)', async () => {
+    const store = memorySessionStore()
+    const pending = Promise.withResolvers<undefined>()
+    const started = Promise.withResolvers<undefined>()
+    const t = setup({
+      store,
+      admitSummaryFork: () => {
+        started.resolve(undefined)
+        return pending.promise
+      },
+    })
+    const { session } = await preparedCompaction(t)
+    await t.host.flush()
+    const changes: unknown[] = []
+    t.host.onSessionListEvent((event) => {
+      changes.push(event)
+    })
+    const opening = t.host.forkSession(session.sessionId, 'muse-spark-1.3', undefined, {
+      withSummary: true,
+    })
+    await started.promise
+    const listed = await t.host.listSessions({ workspaceRoot: ROOT, limit: 100 })
+    expect(listed.sessions.map((record) => record.sessionId)).toEqual([session.sessionId])
+    expect(changes).toHaveLength(0)
+    pending.resolve(undefined)
+    await expect(opening).rejects.toThrow(UI_TEXT.summaryForkUnavailable)
+    await t.host.flush()
+    expect(store.saved.size).toBe(1)
+    expect(store.saved.has(session.sessionId)).toBe(true)
+    expect(changes).toHaveLength(0)
+  })
+
+  it('never executes or falls back from a tool call in an admitted summary fork (BYO 17 guard)', async () => {
+    const started = vi.fn()
+    const guard = Object.assign(vi.fn(), { onRequestStarted: started })
+    const t = setup({ admitSummaryFork: () => Promise.resolve(guard) })
+    const { session } = await preparedCompaction(t, 'allowAll')
+    t.api.script({
+      text: 'untrusted tool proposal',
+      calls: [{ name: 'write_file', arguments: '{"path":"bad.txt","content":"bad"}' }],
+    })
+    await expect(
+      t.host.forkSession(session.sessionId, 'muse-spark-1.3', undefined, { withSummary: true }),
+    ).rejects.toThrow(UI_TEXT.compactionToolCall)
+    expect(started).toHaveBeenCalledOnce()
+    expect(t.api.responseBodies()).toHaveLength(2)
+    expect(t.files.has('/ws/bad.txt')).toBe(false)
+  })
+})
+
+describe('M101 C1 summary-fork context', () => {
+  it('loads workspace constraints and fires only the fork startup hook (BYO 17)', async () => {
+    const payloads: unknown[] = []
+    const t = setup({
+      files: { 'AGENTS.md': 'Keep the exact project constraint.' },
+      hooks: hooksFor('SessionStart', 'observe'),
+      runHook: recordHookPayloads(payloads),
+      admitSummaryFork: () => Promise.resolve(() => undefined),
+    })
+    const { session } = await preparedCompaction(t)
+    payloads.length = 0
+    t.api.script({ text: 'summary' })
+    await t.host.forkSession(session.sessionId, 'muse-spark-1.3', undefined, { withSummary: true })
+    expect(payloads).toMatchObject([{ hook_event_name: 'SessionStart', source: 'fork' }])
+    expect(t.api.responseBodies().at(-1)?.['instructions']).toContain(
+      'Keep the exact project constraint.',
+    )
   })
 })

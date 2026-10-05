@@ -2325,5 +2325,8 @@
   "ollamaMissingFinal": "Ollama ha chiuso il flusso senza una risposta finale.",
   "ollamaMalformedFrame": "Frame del flusso Ollama non valido.",
   "ollamaStreamLimit": "Ollama ha superato il limite di dimensione del flusso o del numero di elementi.",
-  "ollamaFinishReason": "Ollama ha terminato con il motivo «{reason}»."
+  "ollamaFinishReason": "Ollama ha terminato con il motivo «{reason}».",
+  "compactionEmpty": "Il riepilogo era vuoto; la conversazione è rimasta invariata.",
+  "compactionToolCall": "Il riepilogo ha richiesto uno strumento; la conversazione è rimasta invariata.",
+  "summaryForkUnavailable": "Creare una diramazione con riepilogo richiede l’autorizzazione al pagamento; nessuna diramazione è stata aperta."
 }
