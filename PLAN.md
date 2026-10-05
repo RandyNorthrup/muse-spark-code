@@ -16705,6 +16705,12 @@ existing validated ledger contracts so stored results round-trip into history.
 History currently has no production callers to update for its required time
 zone; A's next review round remains separate.
 
+U2 now owns the chat tree's final rendering contract. Its `teamTree` update
+uses that schema both before and after validator installation; lane 0's
+separate `teamAgentsUpdate` draft keeps its existing workspace-role contract.
+Remove the obsolete reducer ignore case and verify the installed parser accepts
+the final view shape, without an old `isDefault`/new `slot` type union.
+
 **Lane F review correction (FIXM96F, 2026-10-05).** Address all 15 P2
 findings in `RVM96F.report.md` within the seven lane-F core modules and
 their tests: D75 tool groups and cap vocabulary; numeric and daily-budget

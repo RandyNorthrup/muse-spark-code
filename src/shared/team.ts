@@ -11,6 +11,7 @@
 // data they carry is here, so both surfaces read one shape.
 
 import * as z from 'zod/mini'
+import { teamTreeSchema as teamViewTreeSchema } from './teamView'
 import {
   TEAM_BRIEF_MAX_CHARS,
   TEAM_EXHAUSTED_POLICIES,
@@ -411,7 +412,7 @@ export type TeamTreeAction = z.infer<typeof teamTreeActionSchema>
 // The tree pushed to the chat panel (lane U2): the ledger's live view.
 export const teamTreeUpdateSchema = z.object({
   type: z.literal('teamTree'),
-  tree: teamTreeSchema,
+  tree: teamViewTreeSchema,
 })
 export type TeamTreeUpdate = z.infer<typeof teamTreeUpdateSchema>
 

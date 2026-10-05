@@ -40,8 +40,8 @@ describe('lazy team protocol validators', () => {
     expect(parseWebviewToHostMessage(action)).toEqual({ ok: true, message: action })
     expect(parseWebviewToHostMessage({ ...action, action: 'launch' }).ok).toBe(false)
     const emptyTree = {
-      orchestrator: { model: 'second-model', backend: 'modelApi', isDefault: false },
-      ...Object.fromEntries(['roles', 'queued', 'unmerged', 'interrupted'].map((key) => [key, []])),
+      orchestrator: { model: 'second-model', backend: 'modelApi', slot: 'override' },
+      roles: [],
     }
     const update = { type: 'teamTree', tree: emptyTree }
     expect(parseHostToWebviewMessage(update)).toEqual({ ok: true, message: update })

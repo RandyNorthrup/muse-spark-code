@@ -37,6 +37,27 @@ happened, not what was planned; superseded entries are kept.
   validation, the no-model-call preview with cost ranges, and credential-
   free export with strict import. Strings in all 14 tables.
 
+- **Team workspaces and integration (M96 lane I).** `src/core/team/` holds the
+  `agents/<role>/<task-id>` workspaces on the Best-of-N infrastructure
+  (shared clones with no remote, scratch copies for read-only workers, the
+  end-of-task commit and fetch), the ref fence (the worker git guard, the
+  read-only shell list, the credential-free environment, the `agents/` ref
+  check), the per-file three-way merge with `git merge-file` (conflicts with
+  markers, protected paths, `write-paths`, Undo merge), and review-before-merge
+  with the reviewer pick that differs from every author.
+
+- **The Agent map's team tree and transcript cards (M96 lane U2).** Once
+  the team runs, the Agent map grows a team tree — the orchestrator at the
+  root, roles with mode and tools, pool entries with caps and headroom, and
+  each entry's workers with Open transcript, Stop, Review diff, Merge and
+  Discard — with WAI-ARIA tree keyboard support and the same items at
+  320 px. The orchestrator's transcript shows the delegation plan, one row
+  per switch, the four-choice "waiting for you" card, the merge card and
+  each task's report row; a worker's own approval or question card carries
+  the panel-drawn role, agent and task label. Account & usage gains a Team
+  section, and the header pill counts team tasks. With one model the panel
+  is exactly today's: no team UI loads or changes requests.
+
 ### Fixed
 
 - **Project-role restrictions (M96 lane R).** Every project role, including
@@ -100,8 +121,6 @@ happened, not what was planned; superseded entries are kept.
   unavailable endpoints refuse, interrupted startup and metadata saves clean
   up, and team arguments have explicit size limits (M96 lane T, RVM96D).
 
-### Fixed
-
 - **Team worker confinement (M96, RVM96A).** Prompt assembly excludes
   private/protected file data, bounds UTF-8 bytes and preserves named paths.
   Child environments start empty with explicit runtime/profile allowlists
@@ -116,17 +135,6 @@ happened, not what was planned; superseded entries are kept.
   readback before prompting. Abort signals interrupt startup and pending
   turns; failure and completion dispose sessions and owned ACP children.
 
-- **Team workspaces and integration (M96 lane I).** `src/core/team/` holds the
-  `agents/<role>/<task-id>` workspaces on the Best-of-N infrastructure
-  (shared clones with no remote, scratch copies for read-only workers, the
-  end-of-task commit and fetch), the ref fence (the worker git guard, the
-  read-only shell list, the credential-free environment, the `agents/` ref
-  check), the per-file three-way merge with `git merge-file` (conflicts with
-  markers, protected paths, `write-paths`, Undo merge), and review-before-merge
-  with the reviewer pick that differs from every author.
-
-### Fixed
-
 - **Team workspace security (RVM96B lane I).** Read-only commands require
   exact arguments and trusted Git execution; worker environments cannot
   restore Git helpers or SSH agents. Cleanup refuses linked storage parents,
@@ -136,20 +144,6 @@ happened, not what was planned; superseded entries are kept.
   handle multiple conflict hunks, and return conflicts to the task copy for
   rework. Executable modes survive merge/Undo, and completed review provenance
   enforces a different-model requirement.
-
-- **The Agent map's team tree and transcript cards (M96 lane U2).** Once
-  the team runs, the Agent map grows a team tree — the orchestrator at the
-  root, roles with mode and tools, pool entries with caps and headroom, and
-  each entry's workers with Open transcript, Stop, Review diff, Merge and
-  Discard — with WAI-ARIA tree keyboard support and the same items at
-  320 px. The orchestrator's transcript shows the delegation plan, one row
-  per switch, the four-choice "waiting for you" card, the merge card and
-  each task's report row; a worker's own approval or question card carries
-  the panel-drawn role, agent and task label. Account & usage gains a Team
-  section, and the header pill counts team tasks. With one model the panel
-  is exactly today's: no team UI loads or changes requests.
-
-### Fixed
 
 - **Team UI review corrections (RVM96B, findings 13–23).** Completed and
   host-confirmed cards remain locked after replay; a refused request can
@@ -163,8 +157,6 @@ happened, not what was planned; superseded entries are kept.
   dynamic imports, with all shipped chunks inside the existing aggregate
   webview budget and the existing nonce policy.
 
-### Fixed
-
 - **Team pipelines and history hardenings (lane L, review RVM96A).** A
   step result whose kind does not belong to the step is refused, so a bare
   `work-done` can never stand in for the review's findings or the check's
@@ -176,6 +168,8 @@ happened, not what was planned; superseded entries are kept.
   with per-agent totals. `done` (a success needing no merge) is counted
   separately from `merged`. CSV export prefixes formula-opening cells
   (`= + - @`, tab, carriage return) with a single quote.
+
+- **M96 integration on Windows:** ACP process fixtures use native file URLs and path rules; all workers share the mandatory environment fence. Successful tasks without a merge retain `done` through both ledger schemas. Browser builds share the verified-identical JavaScript grammar inside TypeScript and emit UTF-8, preserving every language inside the unchanged aggregate cap.
 
 ## [0.12.1] - 2026-10-04
 

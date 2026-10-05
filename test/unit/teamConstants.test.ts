@@ -712,11 +712,8 @@ describe('team protocol region', () => {
     const update: TeamTreeUpdate = {
       type: 'teamTree',
       tree: {
-        orchestrator: { model: 'm', backend: 'b', isDefault: false },
+        orchestrator: { model: 'm', backend: 'b', slot: 'override' },
         roles: [],
-        queued: [],
-        unmerged: [],
-        interrupted: [],
       },
     }
     expect(teamTreeUpdateSchema.safeParse(update).success).toBe(true)
