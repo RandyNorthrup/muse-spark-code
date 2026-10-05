@@ -14617,7 +14617,444 @@ joined with M57, M58 and PR #49's sign-in
   - [ ] Each phase-2 section certified on its own when it ships.
 - **Size.** Phase 1: M, in seven lanes. Phase 2: about XL across 2a–2j.
 
+#### M98 phase 2 — buildable lanes (2026-10-05, planned)
+
+**Goal.** Deliver both the user's own model and a separate judge as
+first-class advisory sources, including the requested local-model opt-in,
+without changing the single-model user's current behaviour. These are
+subsections of M98, not new milestones. The phase-1 scope, lanes,
+acceptance and outstanding certification above are unchanged. Planning
+receipt and review trace: `docs/certification/m98p2-plan.md`.
+
+**Policy for phase 2.** The owner's M98P2PLAN brief is authoritative where
+older drafts differ. Enhancements stay on by default for the user's chosen
+setup; `auto` stays `same` until a separate source passes its verification
+and measurement gates. Paid extras are enabled but cannot dispatch until
+the first-charge, three-choice consent shows their price and the shared
+`museSpark.paidDailyBudgetUsd`. A free-to-paid move asks again. There is no
+activation-time paid prompt, automatic download or automatic provider
+switch. An explicit mode bypasses an automatic readiness default only,
+never consent, confidentiality, provenance or admission.
+
+TypeSafe/Jev remains **experimental, untested and opt-in** under this
+brief, with the direct TypeSafe route blocked on the sales-call/key step.
+The OpenRouter Jev captures in `m98-research.md` remain historical wire and
+smoke evidence; they do not certify the integrated phase-2 product or
+remove this shipping label. An untested route is not auto-selected. Jev or
+TypeSafe only assists: it never replaces the Muse model, skips a rule or
+question, grants an action, or supplies the sole gate, including in lint.
+A missing or unsure signal leaves the existing behaviour unchanged.
+
+**Dependencies and entry conditions.** All build lanes branch from the
+merged, certified phase-1 tree, including A/S/U/G/D, FIXM98J's repairs,
+M91-G's corrected raw-body baseline and D78/FIXDEF's durable ledger entry
+criteria 1–7. `0433091f` alone is not that completed tree. Additional waits:
+
+- **M95:** its `ProviderClient`, model capability/price records, presets,
+  SecretStorage/OS-store keys and endpoint policy for 2e and 2c's service
+  adapters; its models panel for 2f. No second provider transport or key
+  store. A fake-only `serve` boundary does not require M95.
+- **M91:** captured pre-execution semantics and each agent's output schema
+  for 2f's fences and 2g's hook CLI. No guessed hook output or ALLOW field.
+- **M75:** independent family labels, harder replays and grouped splits
+  for 2a/2b/2d/2f/2i; **M96** for orchestrator hints; **D68** for the
+  bundled-skill lint entry.
+- **2j spike:** the parallel Windows lane's reviewed commit and
+  `docs/certification/m98-2j-spike.md`, its outcome (a) or (b), exact
+  captures, call ledger and platform limits. No result is available on
+  this planning base. Absence blocks the local build, not the other lanes.
+  A Windows receipt never certifies Linux or macOS.
+
+**Lane ownership and ordering.** “Start” means implementation and owning
+fake tests may begin; release still requires the surface's acceptance and
+measurements. New paths below are planned ownership, not claims that files
+exist. Each lane owns its uniquely named `test/unit/judge<Surface>*.test.ts`
+files and `docs/certification/m98p2-<lane>.md`. Shared-file requests go to P0
+or Z; lanes do not edit each other's files. Required injected dependencies
+may be tested with fakes under `test/**`; no fake production seam or unused
+scaffold is merged.
+
+| Lane / surface           | Start / wait                                                                               | File ownership                                                                                                                                                                                                                                                                            | Merge or enable condition                                                                                                                             |
+| ------------------------ | ------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
+| P0 Contract / settings   | Phase 1 merge; first small commit                                                          | `src/core/judge/{schema,engine}.ts`; judge constants and lazy model-text blocks in `src/shared/constants.ts`; judge regions of `src/host/settings.ts`, `package.json`, `package.nls*.json`, `src/shared/l10n/en.ts`, all 14 `l10n/ui.*.json`; `judgeContract*` / `judgeActivation*` tests | Cross-lane request/result, capability, profile and reason-code seams agreed; off stays lazy; no new runtime by itself                                 |
+| B / 2b Calibration       | Phase 1 merge; alongside P0                                                                | New `src/core/judge/calibration/**`; `judgeCalibration*` tests; labelled/grouped fixtures under `test/fixtures/judge/calibration/`                                                                                                                                                        | Fits/report work offline; activating a profile needs independent evaluation                                                                           |
+| CS / 2c Serve boundary   | Phase 1 merge; alongside B and G, using P0 seams                                           | New `src/runtime/judge/{serve,tokenFile}.ts`; `judgeServe*` tests and token/ACL fixtures                                                                                                                                                                                                  | Fake service tests first; G owns command dispatch; real source and cross-OS ACL/installed-host receipts before shipping                               |
+| D / 2d Techniques        | Phase 1 merge; pure work alongside B/CS/G                                                  | New `src/core/judge/{sampling,contrastive}.ts`; `judgeSampling*` / `judgeContrastive*` tests                                                                                                                                                                                              | Runtime use waits for a captured eligible model and its M75 measurement; calibration labels wait for B                                                |
+| G / 2g CLI and MCP       | Phase 1 merge; alongside B/CS/D                                                            | New `src/runtime/judge/{args,commands,mcp}.ts`; judge dispatch regions of `src/runtime/{main,cliArgs}.ts`; `judgeCli*` / `judgeMcp*` tests                                                                                                                                                | `ask`/`mcp` on a real available source; `calibrate`/`report` after B; dispatch for `serve` after CS and `lint` after H                                |
+| H / 2h Lint              | Phase 1 merge; config/pack fixtures alongside B/CS/D/G                                     | New `src/core/judge/lint/**`, `src/runtime/judge/lint.ts`, `src/host/judge/lint.ts`; first-party pack under `skills/judge-lint/`; `judgeLint*` tests and fixtures                                                                                                                         | Extraction/package integration follows G and D68; strict upstream parity and supported coverage proved; grammar dependencies reviewed before addition |
+| J / 2j Local source      | Reviewed spike result; P0 seams                                                            | New `src/core/judge/local/**`; `src/host/judge/local.ts`; `judgeLocal*` tests; OS helper source only if the spike establishes it                                                                                                                                                          | Outcome (a) enabled only on individually certified platforms; outcome (b) explicit unverified endpoint only                                           |
+| C / 2c Service adapters  | M95 merge; P0 seams                                                                        | New `src/core/judge/systemone/**`; only SystemOne preset/capability regions of M95's `src/core/providers/{presets,capabilities}.ts`; `judgeSystemOne*` tests                                                                                                                              | Captured common wire; TypeSafe/Jev labelled untested and opt-in; Clef unavailable until captured                                                      |
+| E / 2e BYO               | M95 merge; P0 seams; parallel with C/J                                                     | New `src/core/judge/providers/**`; `judgeProviders*` tests                                                                                                                                                                                                                                | Reuses M95 transport/keys/prices; each model's captured capability decides technique                                                                  |
+| A / 2a Cascade / modes   | B plus a verified C, E or J source                                                         | New `src/core/judge/cascade.ts`; `src/core/judge/resolve.ts`; `judgeCascade*` / `judgeResolve*` tests                                                                                                                                                                                     | Actual entropy cascade, profile weights and ready-rate/precision measurements pass; then `auto` may become `both`                                     |
+| FU / 2f Uses / fences    | Pure fixtures after phase 1; source/B/M75 before adoption; M91 for fences, M96 for hints   | New `src/core/judge/uses/**`, `src/host/judge/uses.ts`; judge-use regions of `src/host/conversation/conversationController.ts` and `src/host/review/reviewedApprovals.ts`; `judgeUses*` / `judgeFences*` tests                                                                            | Each use ships separately after its paired evidence and borrowed goldens; phase-1 fences still never await                                            |
+| FP / 2f Panel            | M95 models-panel merge; P0 and source status seams                                         | Judge regions of `src/host/models/modelsPanel.ts`, `src/webview/models/**` and `src/shared/modelsPanel.ts`; `src/shared/protocol.ts` judge usage messages; judge rows in `src/webview/components/{UsageDialog,PaidBadge}.tsx`; `judgePanel*` tests / harness cases                        | Validated bridge, real translations, four themes, keyboard/screen-reader and truthful status/cost labels                                              |
+| GH / 2g Hook CLI         | G plus M91 merge/captures                                                                  | New `src/runtime/judge/hook.ts`; `judgeHookCli*` tests; G alone changes the dispatcher                                                                                                                                                                                                    | Native caution-only format per agent; absent answer emits no opinion                                                                                  |
+| I / 2i Embeddings        | B; same-provider embedding capability from E or opted-in J; hundreds of independent labels | New `src/core/judge/embedding/**`; `judgeEmbedding*` tests and labelled fixtures                                                                                                                                                                                                          | Family-specific paired evidence; opt-in local training; no VSIX weights                                                                               |
+| Z Integration / delivery | Alongside; serializes and closes each delivered surface                                    | `src/core/judge/judge.ts` assembly; host/runtime wiring outside lane-owned regions; borrowed `judgeP2Golden*` tests; build/split/package scripts, knip/dpdm entries; README, `docs/judge.md`, PRIVACY, SECURITY, CHANGELOG, PLAN and aggregate receipt                                    | No cap/rule weakened; full exact-tree quality and installed/package receipts; preserve single-model/no-hint goldens                                   |
+
+P0 owns manifest/settings/text edits even when requested by FP or G. Z
+owns build/package dependency edits, admission adapters onto the existing
+D78 ledger and wiring into existing backend/context/evaluation code; it
+does not modify ledger internals. G owns every CLI parser/dispatch change,
+including CS/H/GH registrations. C alone extends SystemOne presets; E
+consumes provider records without rewriting M95. Z serializes shared
+regions with M95/M91/M96 before integration. No lane creates a parallel
+ledger, scheduler, provider registry, hook format or golden baseline.
+
+##### 2a — Cascade, `both`, and `auto` → `both`
+
+- **Scope.** Separate first; same-model follow-up below entropy
+  `JUDGE_CASCADE_CONFIDENCE` or always for a high-stakes family. Combine
+  using B's fitted profile weights; disagreement can only add caution.
+  `auto` resolves at the first decision, never activation. It becomes
+  `both` only with a verified, available separate source and suitable
+  profiles; otherwise it retains phase-1 `same` and its readiness default.
+- **Fake acceptance.** A resolver matrix covers `auto|same|separate|both|off`,
+  missing profiles, source failures and explicit modes below the default
+  ready-rate floor. The same model remains the conversation's model.
+  Compare the actual entropy gate with the recorded 17-versus-28 prototype
+  counterexample; every high-stakes question invokes same. A partial/top-1
+  result cannot enter a calibrated combiner. Failed/late separate output
+  leaves phase-1 behaviour and honestly reports the source that answered.
+  Invalidate selection/results on source/model/endpoint/profile, consent,
+  owner, mode, turn or confidential changes; cached selection is no trust
+  proof. Each source, retry and fan-out has admission before dispatch.
+- **Red drills.** Replace entropy with `|2p−1|`; omit the high-stakes
+  follow-up; use equal raw weights; reuse a stale profile; turn disagreement
+  into ALLOW; dispatch both sources against one budget claim.
+- **Evidence to enable.** B, verified C/E/J and M75 held-out paired runs of
+  same-only, separate-only and the implemented cascade, with ready rate,
+  caution precision, Brier/ECE where applicable, latency and actual costs.
+  Prototype numbers remain prototypes; live attempts follow the ledger below.
+
+##### 2b — Calibration fitting and report
+
+- **Scope.** Binary Platt scaling first; isotonic only with at least 200
+  independent labels in that family. Profiles identify model/version,
+  endpoint/source, technique, question family, prompt/criteria and fit
+  version, so another engine's probabilities or vendor confidence never
+  inherit a profile. Unsupported family/technique gives an explicit reason
+  and uncalibrated output, never a manufactured calibrated label.
+- **Fake acceptance.** Known synthetic distributions exercise numerical
+  bounds, degenerate datasets and profile mismatch. Fit, tuning and
+  evaluation groups are disjoint by task/repository; report ECE/Brier only
+  on evaluation groups, alongside sample counts and the uncalibrated arm.
+  `risk.destructive` uses independent hand/M75 labels and `skill.fit` uses
+  M75 routing labels. Approvals, successful tests, reviewer answers and
+  model logprobs are excluded as factual labels. Optional outcome signals
+  stay in their separate local, content-free drift/preference store.
+- **Red drills.** Fit an evaluation group; allow 199 labels into isotonic;
+  treat an approved destructive command or model belief as truth; apply
+  one model's profile to another; include training metrics in the report.
+- **Evidence.** Offline fitting/reports cost nothing. Fakes prove mechanics,
+  not calibration. Collecting missing real model predictions requires a
+  separately authorized, counted run on independently labelled families.
+
+##### 2c — SystemOne adapters and `judge serve` (M85)
+
+- **Scope.** C consumes M95's SystemOne presets/keys for OpenRouter Jev,
+  direct TypeSafe and later Clef; CS exposes the existing captured Jev
+  contract at `/v1/systemone`. There is no second client/key store. Native
+  `answers` stay compatible; additions are siblings in `muse`.
+- **Fake acceptance: adapters.** Replayed named captures cover noul,
+  choice and score, malformed/missing usage, unexpected additions, question
+  alignment and model-specific bounds. Compute entropy confidence locally;
+  retain `vendorConfidence` separately. Redaction precedes a remote send.
+  TypeSafe/Jev cannot auto-select, suppress a deterministic check or solely
+  fail a gate; its opt-in and untested labels survive errors and resume.
+  Remote SystemOne is unavailable in confidential workspaces. Clef has no
+  parser/availability promise before its own counted capture.
+- **Fake acceptance: server security.** Bind only the IP literal
+  `127.0.0.1` or `::1`, on a chosen/random port; reject hostnames, wildcards
+  and non-loopback addresses. Generate a new bearer token per start, write
+  it once to a user-only file in a private directory, and enforce/verify
+  its effective ACL before listening. POSIX mode and Windows DACL receipts
+  must prove other users cannot read it; inability refuses startup. Never
+  print the token or place it in arguments, environment, logs or a child.
+  Refuse a Host other than the bound literal and actual port (bracketed
+  `::1`); refuse every request carrying an Origin, including `null`.
+  A missing Origin never bypasses bearer authentication. Bound the entire
+  streamed body to 64 KiB even without Content-Length; reject malformed
+  input/path/method before invoking the judge. Each inference request has
+  its own admission/reservation, including concurrent clients and retries.
+  Close listeners/connections and delete the token file on exit; after a
+  crash, old tokens never authenticate a restart and uncertain paid claims
+  remain liabilities. Clients may set `TYPESAFE_ENDPOINT` to the URL but
+  must support the required bearer header; no unauthenticated workaround
+  for a client that cannot do so.
+- **Red drills.** Accept a foreign Host, an Origin, or missing/wrong token;
+  authenticate only when Origin is present; reuse a restart token; permit
+  broad inherited ACLs; cap declared length instead of streamed bytes;
+  admit two paid requests for the last balance; dispatch before reservation.
+- **Evidence.** CS security uses fake providers and real local sockets,
+  plus per-OS ACL and installed-Node/VS Code receipts, with no model cost.
+  Real service captures and smoke calls are the named optional paid rows
+  below; the sales-call block does not block the common adapter/server.
+
+##### 2d — Sampling and one-call contrastive framing
+
+- **Scope.** k independent parallel samples share the state/prefix; contrastive
+  sends the question and inverse in one call, combines mean(p, 1−p′), and
+  is not the two-call prototype. Neither conditions one answer on another.
+- **Fake acceptance.** Sampling is refused on reasoning-forced models,
+  Muse Spark included. Otherwise require captured cache/non-reasoning
+  capability and the worst-case-per-question cost gate, or the high-stakes
+  exception; the exception never bypasses consent or budget admission.
+  Test provider minimum output, a cold write then reads, cache misses,
+  k concurrent reservations, retries, cancellation and uncertain charges.
+  Full state and complete system/user request overhead fit on every call.
+  Contrastive uses one POST, matching pairs and bounded distributions.
+  Labels remain uncalibrated until B validates this specific technique.
+- **Red drills.** Sample Muse Spark; use cached price for admission; dispatch
+  k attempts with one claim; send two contrastive POSTs; split state or
+  ignore prompt overhead; condition the second frame on the first answer.
+- **Evidence.** Actual default algorithms need their own paired M75 run;
+  no accuracy, cache savings or speed claim comes from the round-2 prototype.
+
+##### 2e — BYO providers after M95
+
+- **Scope.** Consume `ProviderClient`, existing endpoints, price cards,
+  keys and captured per-model capabilities. Same remains exactly the
+  chosen chat model; a separately selected model is honestly separate.
+- **Fake acceptance.** Captured top-k, top-1, stated and silently dropped
+  fields decide technique per model, not provider. An uncaptured capability
+  permits only a captured supported stated path; otherwise no answer.
+  Preserve RVM98J's single-character tokens, singular `logprob` metadata,
+  top-1 floor/partial flag and complete-request admission. A provider/model
+  switch invalidates old results and rebinds price/consent after waits.
+  Unknown price, unavailable keys and confidential-policy refusal dispatch
+  nothing; a request-only judge does not start another agent/backend.
+- **Red drills.** Infer capability from provider name; read a dropped field
+  as certainty; switch the same model; send a stored key to a subprocess;
+  send against an unpriced card or an expired consent binding.
+- **Evidence.** Prefer M95's scrubbed capture receipts. A missing shape
+  needs a named bounded live capture before its parser, not a guessed fixture.
+
+##### 2f — Other uses, M95 Judge section and pre-execution fences
+
+- **Scope.** Separate, measured deliveries: skill/custom-agent suggestions
+  (at most one hint line), context relevance, semantic grading beside
+  deterministic checks, M96 orchestrator hints, M90 review signals, and
+  CI-log flake triage, lane-diff pre-screen and review-class ordering.
+  A judge does not make tests faster or decide to retry, merge or skip one.
+- **Fake acceptance: uses.** Safe/failed/unsure output never permits an
+  action or changes a rule. No-hint main bodies retain M91-G raw goldens;
+  an allowed hint changes only the documented tail, leaving earlier bytes
+  and the complete skill index intact. Redaction wins over prefix reuse.
+  Context adoption requires M75 evidence of no loss; grading cannot replace
+  verifiers. Missing M96 produces no orchestration override. M90 retains
+  its independent reviewer and its ALLOW parser never reads judge output.
+- **Fake acceptance: fences/panel.** Immediate/native allows remain
+  unjudged and uncharged until a captured M91 pre-execution or separately
+  measured deadline fence exists. Fake-clock tests prove the new fence's
+  hard deadline, exact-action/generation binding, cancellation and late
+  discard; missing output is no opinion. Existing phase-1 fences never
+  await. M95's panel displays effective source/model, technique, partial/
+  calibration status, unavailable/unverified/untested reasons, price,
+  reserved/settled/uncertain cost and daily budget. Model API first charge
+  asks once; Muse Code has only its subscription note unless a paid source
+  is selected. Every new UI key has all translations and zod bridge tests.
+- **Red drills.** Insert a hint into history; trim context on an unsure
+  score; let grading replace a test; feed a judge result to ALLOW; judge an
+  immediate allow without a fence; resurrect an old generation; await past
+  the deadline; show a paid modal on subscription-only activation.
+- **Evidence.** Each use needs its own paired M75 adoption receipt; the
+  panel needs four-theme/narrow/pseudo-locale/a11y receipts. No claim that
+  a fake tool-item cancellation proves Muse Code had no tool side effect;
+  the isolated fresh-session residual from phase 1 remains disclosed.
+
+##### 2g — `judge` CLI and MCP, hook after M91
+
+- **Scope.** Reserve `judge` before ordinary prompt parsing, as M97's
+  `exec legal-scan` does. `ask`, `calibrate`, `report`, `mcp`, and later
+  `hook` use the pure engine; `serve` and `lint` dispatch their owning
+  surfaces. No ACP frames, `createRuntimeBackend` or `muse serve` startup.
+  Flags: `--engine auto|same|separate|both`, `--model`, `--separate`,
+  `--budget-usd` (default 0), `--timeout-ms`. Explicit `off` remains the
+  extension setting; the CLI's engine flag retains D77's declared set.
+- **Fake acceptance.** Dispatch tests feed malformed arguments/stdin,
+  command-looking prompts, bounded input and closed/stalled output pipes.
+  Exit 0 answered, 2 input/config error, 4 no answer; timeout/failure never
+  becomes empty success. `same` needs an explicit available model/provider
+  context; absent context gives no answer, never a silent model switch or
+  spawned chat session. A paid request must pass both the run's explicit
+  USD cap and D78's shared durable daily ledger/consent; a tiny positive
+  cap is not authorization for a larger batch. Offline `calibrate`/`report`
+  use B without inference. MCP validates request/result and exposes only
+  the bounded advisory judge tool. Hook output uses M91's captured format
+  per agent, caution only; no answer means no opinion, never ALLOW.
+- **Red drills.** Fall through into a chat prompt/backend; emit an ACP
+  frame; answer from a guessed model; charge at budget 0; ignore the daily
+  ledger; return 0 for no answer; emit a hook grant or guessed output field.
+- **Evidence.** Built npm package/stdio/command success with fake sources
+  and real local sockets first; a real model smoke is separately counted.
+  No README support claim until each documented command has run successfully.
+
+##### 2h — Lint within the declared jevlint limits
+
+- **Scope.** Strict `jevlint.json`, packs and evals at upstream
+  `73a7a94ab08a4e314709d68c2863687a4646f29b`; Muse options only in
+  `.muse/judge-lint.json` or flags. Symbols cover function/type/field where
+  available; Tree-sitter covers comment/docComment/statement/localize and
+  files without providers. Grammars/runtime ship in npm ACP, not the VSIX;
+  the panel delegates to that installed package, or says not checked.
+- **Fake acceptance.** Run the pinned upstream `doctor`/`eval` on identical
+  offline fixtures; unknown keys are rejected by both readers. Each unit
+  batches applicable rules; pass/fail are always options, skip/abstain only
+  under their flags and upstream criteria. Fixture parity covers context
+  callees and localized regions, not just symbol extraction. Report every
+  checked language/kind and every unsupported pair as “not checked”. First
+  supported set: TS, TSX, JS, Python, Go, Rust, Java; c/cpp/csharp/kotlin/
+  php/ruby remain unsupported. A missing provider/grammar is never a clean
+  no-findings run. Cache keys include exact request/model/source/profile
+  identity but cache stores no source or keys. Flags `--changed`,
+  `--fail-on error|warning`, `--budget-usd`, `--format text|json|sarif`;
+  exits 0 no findings, 1 findings, 2 error; coverage omissions remain visible.
+  The first-party high-quality-projects pack has fixture/eval pairs for
+  silent fallback, placeholders, production mock data, actionable errors,
+  unexplained magic values and honest names. Advisory by default; an
+  explicit user gate cannot rely solely on Jev/TypeSafe or replace existing
+  checks. A Jev-only finding is advisory until independently corroborated.
+- **Red drills.** Put Muse keys in upstream config; always offer skip;
+  hide an unsupported comment/language; declare an empty extraction clean;
+  cache source; package grammars in VSIX; fail a gate solely on Jev.
+- **Evidence.** Offline compatibility and extraction need no live call;
+  actual judge accuracy needs independent pack evals and a counted source
+  run. Z checks dependency peers/pins/audit/notices before adding grammars.
+
+##### 2i — Embedding fast path after family measurement
+
+- **Scope.** Logistic head per recurring family, using embeddings from the
+  same provider or an explicitly opted-in local judge. Training stays local
+  and opt-in; weights live in global storage and never in VSIX.
+- **Fake acceptance.** Profile/dimension/model/family mismatch, corrupt
+  weights and confidence below `JUDGE_EMBED_FALLBACK_CONFIDENCE` fall back
+  to the full judge, under its normal admission. A missing allowed full
+  source returns no answer. Embedding and fallback each reserve their own
+  worst-case cost. No remote embedding in a confidential workspace unless
+  its existing provider policy explicitly permits it; unverified local
+  endpoints are never permitted there. Synthetic fixtures prove prediction,
+  grouped splits, fallback and storage boundaries, not usefulness.
+- **Red drills.** Enable on the 40-label prototype; reuse another model's
+  head; omit low-confidence fallback; bill two calls with one reservation;
+  train without opt-in; include weights in the VSIX.
+- **Evidence.** Hundreds of independent labels per family, B's disjoint
+  groups and a paired held-out report before enabling that family's head.
+  Real embedding acquisition is separately counted; local fitting is free.
+
+##### 2j — Local judge after the parallel spike
+
+- **Scope.** Adopt the spike's reviewed result, not a cached listener probe
+  or this lane's guess. CPU-only is the product assumption; `tev1:4b` is
+  recommended, or a captured local general model of at least 3B with
+  logprobs. Pulls/downloads require explicit consent and model-size notice.
+- **Fake acceptance: outcome (a).** On each actual content-bearing socket,
+  before any body byte, prove its peer's four-tuple, OS owner, PID/start
+  identity, supported Ollama executable at its install path, and local
+  weights matching the served digest. Certify the Linux inode/process,
+  Windows owning-PID and macOS tuple designs separately. Replacement
+  within old TTL, clean reconnect, PID reuse, distinct IPv4/IPv6 owners,
+  SSH forward, same-user relay, cloud models, containers/namespaces/WSL,
+  remote-host ambiguity, permissions and missing probes all refuse content
+  when locality cannot be proved. Verify transport in extension-host and
+  headless Node: pinned `node:net`, IP literal, one loopback-only lookup if
+  resolving an explicit address, no proxy machinery and no redirects.
+  Proxy traps, changed/mixed lookup, `0.0.0.0`, `::1`, cancel and deadline
+  tests count actual written body bytes, not merely a returned status.
+- **Fake acceptance: outcome (b).** Only an explicitly entered endpoint;
+  show “unverified local endpoint” everywhere. Never auto-selected or used
+  confidentially, regardless of consent or a prior successful response.
+  Platforms without outcome-(a) proof retain this limitation; no inherited
+  Windows verification. A free-to-paid fallback asks again and is never
+  used in a confidential workspace. No auto pull or relay exception.
+- **Red drills.** Reuse TTL proof on a new socket; verify the listener
+  instead of the connected tuple; accept a relay's Ollama metadata; accept
+  foreign/PID-reused/IPv6-mismatched ownership; write before proof; let a
+  proxy receive state; auto-select or confidentially use outcome (b).
+- **Evidence.** Spike ledger plus real per-OS peer/runtime/model/transport
+  receipts, counted free local inference and CPU latency. Fake OS tables
+  establish refusal logic only. Outcome (a) is unavailable on a platform
+  until its real installed-host receipt exists; outcome (b) stays labelled.
+
+##### Cross-surface gates, security and counted live work
+
+Every new assertion/guard gets a deliberate red mutation, named failing
+assertion, byte-exact SHA-256 restore and whole owning-file green rerun in
+that lane's receipt. The drills above are the minimum inventory, not a
+replacement for proving new guards. Use test workspaces/fake providers
+only for mutations, never a user's repository or live inference. Preserve
+all FIXM98J regressions, especially boolean argument keys, generation-bound
+handles, complete-request context, exact tokens, first-charge consent,
+explicit `same`, singular `logprob`, translated budget text, off-mode lazy
+loading and truthful top-1 `partial`.
+
+All sources use D78's canonical durable ledger: uncached worst-case
+reservation committed before dispatch, new retry claims, idempotent known
+settlement, refunds only for known non-sends, crash/timeout liability kept,
+fail-closed corrupt store/lock/network-home refusal and re-binding after
+every wait. VS Code windows, CLI, MCP and `serve` share its namespace. No
+new M98 store/lock/journal. Multi-client and held-modal tests rerun M80 and
+D78 regressions. Same-model confidential rules remain those of the chat
+model; remote SystemOne and unverified local inference remain unavailable.
+`redact.ts` runs before remote content/cache reuse. Logs have ids, source,
+model, technique, timing and cost, never state, answers or keys; PRIVACY
+names each recipient. Model keys stay in SecretStorage/OS store and never
+reach children, including `muse serve`; the per-start server bearer file
+is only the explicitly required local service credential.
+
+Lane gates run directly on rigs: changed-file Prettier/ESLint, appropriate
+typechecks, owning Vitest files (at most three per run on this Kubuntu rig,
+`--maxWorkers=3 --testTimeout=120000`), localization, host API, plain knip,
+dpdm, duplication and production build when affected. UI deliveries add
+the existing accessibility gate. Z/lead retains `npm run quality`, coverage,
+required hosted checks, exact installed-host and VSIX/npm package receipts
+on each integrated delivery. Caps, thresholds, ignores and timeouts are
+not weakened. New bundles are lazy, have measured budgets and split/package
+guards before merge; grammar/weight exclusion has a missing-member/red
+control. New dependencies follow D3/AGENTS peer-range, exact pin, audit and
+notice rules. User docs/CHANGELOG move only with implemented, successfully
+run surfaces. This documentation-only lane changes no product support claim.
+
+**Live/paid ledger.** This planning lane authorizes and performs **0 live,
+0 paid and 0 local model calls**. The rows below name future evidence, not
+permission to spend. Before a later run, record the exact model/endpoint,
+workspace/synthetic manifest, integer attempt ceiling and hard USD cap;
+count every inference POST, refusal and retry, completed/uncertain usage
+and free metadata separately. Use only the Muse contributor model for Meta
+calls (`muse-spark-1.3-contributor` in the current captures), never Standard
+or a paid subscription tier. External services retain their own named
+model/key/pricing and need separate authorization. No unrestricted retries.
+
+| Receipt          | Surface / purpose                                                                                        | Count or bound before the run                                                                                                                                                          | Paid / blocker                                                                                                                                 |
+| ---------------- | -------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| L98P2-SAME       | 2e/2g: built request-only contributor source, stated output and no model switch                          | At most 2 inference attempts per newly delivered route; reuse phase-1/M95 captures where sufficient                                                                                    | Model API paid; contributor only; explicit later consent/budget                                                                                |
+| L98P2-SYSTEMONE  | 2c: noul/choice/score integrated source capture/smoke                                                    | At most 3 attempts per named route: OpenRouter `typesafe/jev-1.13`, direct TypeSafe `jev-1.13.0`, or captured Clef model                                                               | External paid; direct TypeSafe sales-call/key block; Clef key/capture block; Jev remains labelled untested/opt-in                              |
+| L98P2-CAPABILITY | 2e: a missing per-model wire/effort/cache capability                                                     | At most 2 attempts per explicitly named M95 model variant; no general provider sweep                                                                                                   | External paid or local free; must precede the new parser                                                                                       |
+| L98P2-M75        | 2a/2b/2d/2f: actual cascade, fitting predictions, contrastive/sampling and each adopted use              | Exact integer per arm from the preregistered grouped manifest and complete-request batching; sampling ceiling includes every k sample and retry; no run while count/cap is unspecified | Paid same-model contributor arm and separately authorized external arms, or counted free local; fakes/40-item prototypes cannot close adoption |
+| L98P2-EMBED      | 2i: embedding acquisition and full-judge fallbacks on hundreds of independent labels                     | Exact integer embedding + fallback attempt ceiling from the grouped family manifest before dispatch                                                                                    | Paid same-provider embeddings or free opted-in verified local; training itself offline                                                         |
+| L98P2-LOCAL      | 2j: spike, then platform-specific peer/local-model and latency proof                                     | Spike has its own at-most-60-free-call brief/ledger; later per-OS run gets its own exact manifest/count before execution                                                               | Free local only; spike outcome and installed platform proof required; no pulls authorized here                                                 |
+| L98P2-HOST       | 2c/2g/2h/2f: ACLs, proxy traps, installed commands/packages, upstream offline compatibility, themes/a11y | 0 real model attempts; local sockets/fake providers and recorded OS/client versions                                                                                                    | No paid key needed; not a calibration or inference-quality receipt                                                                             |
+
+**Recommended order today.** Finish phase-1 merge/certification first; make
+P0's small seam/settings commit, then run B, CS, G and D independently, with
+H's offline fixtures alongside if capacity permits. Incorporate the reviewed
+2j spike as J only after its outcome is delivered. After M95 lands, start
+C and E in parallel and FP on the existing panel; after B plus a verified
+separate source, build A and measure the real cascade. GH and FU's new
+fences wait for M91, orchestrator hints wait for M96, and I stays last until
+its hundreds-label evidence exists. Z closes each small delivery separately;
+do not wait for all ten surfaces to ship a certified one.
+
 ## 7. Gates
+
+**M98P2PLAN documentation-only lane (2026-10-05).** The explicit rig brief
+limits changes to PLAN and the phase-2 planning receipt and requires only
+changed-file Prettier and whitespace checks, with hooks enabled. No source,
+dependency, runtime test or new gate changes, and no aggregate quality run,
+live/paid call, merge, rebase or push is authorized here. Full product
+certification remains with the future surface lanes and the lead above;
+this is a bounded planning receipt, not aggregate-green evidence. README
+and CHANGELOG delivery is assigned to Z because this lane ships no feature.
 
 **FIXM98J bounded-lane gate delegation (2026-10-04).** The rig brief and
 shared lane rules prohibit a full `npm run quality` or full test suite in
