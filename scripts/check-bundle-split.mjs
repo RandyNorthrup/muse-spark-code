@@ -735,15 +735,16 @@ const TEXT_BLOCKS = [
     readers: [CONVERSATION_GIT.output],
   },
   // The review turn's text (M70): the review's bundle, the Model API's
-  // built-in Reviewer, and the review pane's removed-line note.
+  // built-in Reviewer. The pane's one comment template has its own block.
   {
     block: 'REVIEW_MODEL_TEXT',
     sentinels: ['reviewerRole', 'reviewMuseCodeRole'],
-    readers: [
-      REVIEW.output,
-      BUNDLES.modelApi.output,
-      ...webviewConstants.map(({ output }) => output),
-    ],
+    readers: [REVIEW.output, BUNDLES.modelApi.output],
+  },
+  {
+    block: 'REVIEW_COMMENT_MODEL_TEXT',
+    sentinels: ['reviewRemovedLine'],
+    readers: ['dist/webview/main.js'],
   },
   // Web fetch's own words (M69): the window's fetch, the Model API
   // backend's URL checks and the ACP agent's fetch.

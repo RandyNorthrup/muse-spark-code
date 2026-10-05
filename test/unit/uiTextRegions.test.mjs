@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os'
 import { createRequire } from 'node:module'
 import vm from 'node:vm'
 import { build } from 'esbuild'
-import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import { EN } from '../../src/shared/l10n/en'
 import {
   UI_TEXT_REGIONS,
@@ -50,6 +50,19 @@ beforeAll(async () => {
 })
 
 afterAll(() => removeFolder(built.folder))
+
+it('selects the canonical English input on POSIX and Windows paths', () => {
+  let filter
+  regionalUiText().setup({
+    onResolve: vi.fn(),
+    onLoad(options) {
+      filter = options.filter
+    },
+  })
+  expect(filter.test('/project/src/shared/l10n/en.ts')).toBe(true)
+  expect(filter.test(path.win32.join('C:', 'project', 'src', 'shared', 'l10n', 'en.ts'))).toBe(true)
+  expect(filter.test('/project/l10n/ui.de.json')).toBe(false)
+})
 
 function evaluate(source, file, require) {
   const module = { exports: {} }

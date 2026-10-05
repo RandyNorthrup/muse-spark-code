@@ -295,7 +295,8 @@ Node zod/mini runtime exports (40,416 bytes measured; new 50 KiB cap by
 the existing rule). Browser/integration parsers stay inline. All Node
 consumers, including ACP and workers, ship it beside their bundles; the
 split and host-global gates enforce separation and API completeness.
-The six deferred chat surfaces use ESM chunks under dist/webview/chunks.
+The optional chat surfaces use ESM chunks under dist/webview/chunks; ACTDIET
+adds report and share dialogs to the original six.
 The unchanged 900 KiB startup cap includes every transitively eager chunk;
 optional JavaScript has a new 50 KiB total cap (38.6 KiB measured plus
 15%, rounded by D6). Chunk reachability, lazy placement and packaging are
@@ -326,6 +327,12 @@ validation or serialization loads all regions; translated startup still validate
 against all English keys. Nothing claims a wall-clock startup improvement when
 a restored chat or What's New page immediately needs these bundles. The split,
 size, package member, cold-load and full-table equality tests guard the change.
+ACP shares the recorder before session initialization or reading reports. The
+webview's report and share dialogs use the existing deferred surface affordance;
+report focus is captured before the loading modal mounts. Its removed-line
+comment alone lives in REVIEW_COMMENT_MODEL_TEXT, guarded for the webview;
+REVIEW_MODEL_TEXT stays in the backend readers. Browser output uses equivalent
+UTF-8 source text; browser and integration fallback still have every key.
 
 **M78b implementation scope (2026-10-02): deferred cohort bundles.**
 **FIXCOH review scope (2026-10-02).** Refuse a missing or malformed board
@@ -18100,6 +18107,17 @@ joined with M57, M58 and PR #49's sign-in
         commit-writing path exists
 
 ## 7. Gates
+
+**ACTDIET preview integration deferral (2026-10-05).** Full quality is prohibited
+by the explicit lane brief; focused tests, static gates and production builds
+run on Kubuntu instead. `jscpd` reports existing clones in M91 hooks and their
+fixtures, MCP/plugin fixture setup, golden/shell test setup and repeated shell
+scenarios. The implicated files are byte-identical to merged preview ce99c0fc
+(`git diff ce99c0fc --` those ten paths is empty). ACTDIET's repeated split-drill
+logic is consolidated and adds no clone. No ignore, threshold or gate changes.
+These integration refactors remain with the owning feature/release lanes; the
+preview is not certified for release while duplication is red. Exact findings
+and other results are in `docs/certification/actdiet.md`.
 
 **FIXM91P4 lane-scope deferrals (2026-10-04, not gate exceptions).** The required
 commands ran directly on the Mac mini. `check:host-api` fails on the review base

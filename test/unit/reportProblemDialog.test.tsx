@@ -11,6 +11,7 @@ import { EN } from '../../src/shared/l10n/en'
 import { setUiText } from '../../src/shared/l10n/text'
 import type { ReportDraftItem } from '../../src/shared/protocol'
 import type { WebviewToHostMessage } from '../../src/shared/protocol'
+import { DeferredReportDialog } from '../../src/webview/components/DeferredReportDialog'
 import {
   reportDialogStatusText,
   ReportDialog,
@@ -215,6 +216,24 @@ function reportState(overrides: Partial<ReportDialogState> = {}): ReportDialogSt
     ...overrides,
   }
 }
+
+it('returns focus to the report opener after the first deferred load', async () => {
+  const opener = document.createElement('button')
+  document.body.append(opener)
+  opener.focus()
+  const view = render(
+    <DeferredReportDialog report={reportState()} postMessage={vi.fn()} onClose={vi.fn()} />,
+  )
+  try {
+    expect(screen.getByRole('status')).toHaveTextContent(UI_TEXT.loadingOutput)
+    await screen.findByRole('dialog', { name: UI_TEXT.reportTitle })
+    view.unmount()
+    expect(opener).toHaveFocus()
+  } finally {
+    view.unmount()
+    opener.remove()
+  }
+})
 
 type Update = Extract<WebviewToHostMessage, { type: 'updateReport' }>
 

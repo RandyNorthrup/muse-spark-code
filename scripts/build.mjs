@@ -517,6 +517,7 @@ const pageWorkerOptions = {
 /** @type {import('esbuild').BuildOptions} */
 const webviewOptions = {
   ...common,
+  charset: 'utf8',
   entryPoints: [WEBVIEW_ENTRY],
   outdir: WEBVIEW_OUTDIR,
   platform: 'browser',

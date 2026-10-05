@@ -23,4 +23,6 @@ export const DEFERRED_WEBVIEW_SURFACES = [
   'ReviewPane',
   'HistoryDialog',
   'SessionBoardDialog',
+  'ReportDialog',
+  'ShareView',
 ]

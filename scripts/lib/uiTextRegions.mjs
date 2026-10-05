@@ -57,7 +57,7 @@ export function regionalUiText(name) {
           ? { path: args.path, external: true }
           : undefined,
       )
-      build.onLoad({ filter: /\/l10n\/en\.ts$/ }, (args) => {
+      build.onLoad({ filter: /[/\\]l10n[/\\]en\.ts$/ }, (args) => {
         if (path.resolve(args.path) !== path.resolve(TABLE)) return
         const properties = uiTextProperties()
         const kept = properties.filter((property) => property.region === name)

@@ -4136,6 +4136,8 @@ and optional-surface regions. English regions load when a value is read; full
 translation validation or webview table serialization reads every region.
 The ACP agent loads the shared recorder before session initialization or reading
 a report, retaining the same journal policy without embedding another copy.
+Report and share dialogs load when opened, using the panel's loading/cancel
+controls; the report returns focus to its opener even after its first load.
 
 The extension is developed by a small team of AI agents under one human
 owner. The process below has been in use since 2026-09-28. Each milestone's

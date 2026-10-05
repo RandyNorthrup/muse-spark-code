@@ -5113,7 +5113,11 @@ export const REVIEW_MODEL_TEXT = {
   reviewPrivateLeftOut:
     'Changed files left out because they may hold secrets (environment files, keys, credentials); do not read them:',
   reviewListCut: '… and {count} more',
-  // A comment on a removed line in the review pane: the line it was.
+} as const
+
+// The optional review pane sends this comment to the model. Its one template
+// does not carry the backend's full review instructions into the webview.
+export const REVIEW_COMMENT_MODEL_TEXT = {
   reviewRemovedLine: '{path} (a line this change removed; it was line {line})',
 } as const
 

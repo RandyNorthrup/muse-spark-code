@@ -13,7 +13,7 @@ import type { WebviewToHostMessage } from '../shared/protocol'
 import { App } from './App'
 import { TasksApp } from './TasksApp'
 import { ErrorBoundary } from './components/ErrorBoundary'
-import { ReportDialogHost } from './components/ReportDialog'
+import { DeferredReportDialog } from './components/DeferredReportDialog'
 import { type ErrorReporter, reportWebviewErrorMessage, webviewErrorReport } from './errorReport'
 import { vsCodeHostBridge } from './hostBridge'
 import { installEmbeddedTable } from './installTable'
@@ -49,7 +49,7 @@ function CrashReportDialog({
     return null
   }
   return (
-    <ReportDialogHost
+    <DeferredReportDialog
       key={report.session}
       report={report}
       postMessage={postMessage}

@@ -265,6 +265,222 @@ The whole baseline fallback is 134,771 bytes. Region estimates below use UTF-8 J
 | Support report |   35 |                2,545 |
 | What’s New     |   16 |                  807 |
 
+## Every English key-prefix region, ranked
+
+These disjoint regions use the first lower-case word of each camel-case key. All 1700 keys are counted once. This exposes the large main/other group above; a prefix is a measurement region, while the build uses the explicitly declared feature matchers. JSON weight is the same estimate as above.
+
+| Rank | Prefix       | Keys | JSON key/value bytes |
+| ---: | ------------ | ---: | -------------------: |
+|    1 | paid         |   56 |                7,247 |
+|    2 | agent        |   96 |                6,704 |
+|    3 | browser      |   44 |                5,451 |
+|    4 | usage        |   86 |                4,788 |
+|    5 | review       |   68 |                4,744 |
+|    6 | acp          |   27 |                4,136 |
+|    7 | mcp          |   53 |                3,688 |
+|    8 | palette      |    6 |                3,628 |
+|    9 | web          |   38 |                3,616 |
+|   10 | exec         |   40 |                3,209 |
+|   11 | export       |   46 |                3,028 |
+|   12 | tool         |   16 |                2,995 |
+|   13 | restore      |   26 |                2,925 |
+|   14 | muse         |   23 |                2,867 |
+|   15 | best         |   47 |                2,849 |
+|   16 | plan         |   30 |                2,811 |
+|   17 | hooks        |   39 |                2,748 |
+|   18 | sandbox      |   17 |                2,599 |
+|   19 | report       |   35 |                2,545 |
+|   20 | schedule     |   36 |                2,403 |
+|   21 | hook         |   27 |                2,369 |
+|   22 | session      |   19 |                2,237 |
+|   23 | approval     |   22 |                2,228 |
+|   24 | goal         |   37 |                1,803 |
+|   25 | worktree     |   30 |                1,741 |
+|   26 | dictation    |   15 |                1,686 |
+|   27 | permission   |   12 |                1,636 |
+|   28 | sign         |   19 |                1,565 |
+|   29 | memory       |   27 |                1,521 |
+|   30 | import       |   21 |                1,505 |
+|   31 | model        |   13 |                1,466 |
+|   32 | bundled      |   13 |                1,421 |
+|   33 | handoff      |   18 |                1,323 |
+|   34 | tab          |   24 |                1,314 |
+|   35 | command      |    9 |                1,211 |
+|   36 | workflow     |   12 |                1,133 |
+|   37 | onboarding   |    4 |                1,073 |
+|   38 | subagent     |   11 |                1,067 |
+|   39 | rewind       |   13 |                  993 |
+|   40 | whats        |   16 |                  807 |
+|   41 | bypass       |    6 |                  787 |
+|   42 | install      |   11 |                  787 |
+|   43 | checkpoints  |    6 |                  786 |
+|   44 | network      |    4 |                  783 |
+|   45 | question     |   15 |                  662 |
+|   46 | history      |   17 |                  647 |
+|   47 | queued       |    9 |                  614 |
+|   48 | edit         |    9 |                  606 |
+|   49 | skills       |   10 |                  602 |
+|   50 | transfer     |    8 |                  594 |
+|   51 | auto         |    7 |                  567 |
+|   52 | elicitation  |   10 |                  563 |
+|   53 | step         |    1 |                  538 |
+|   54 | board        |    9 |                  503 |
+|   55 | check        |    2 |                  496 |
+|   56 | contributor  |    5 |                  483 |
+|   57 | open         |   12 |                  481 |
+|   58 | diff         |    7 |                  436 |
+|   59 | text         |    6 |                  434 |
+|   60 | share        |    7 |                  415 |
+|   61 | pack         |    4 |                  398 |
+|   62 | announce     |    9 |                  380 |
+|   63 | turn         |    5 |                  366 |
+|   64 | user         |    6 |                  362 |
+|   65 | cli          |    4 |                  361 |
+|   66 | policy       |    2 |                  356 |
+|   67 | composer     |    5 |                  324 |
+|   68 | manual       |    6 |                  313 |
+|   69 | notify       |    6 |                  309 |
+|   70 | image        |    5 |                  301 |
+|   71 | plans        |    6 |                  296 |
+|   72 | checks       |    1 |                  291 |
+|   73 | prompt       |    3 |                  271 |
+|   74 | stop         |    7 |                  271 |
+|   75 | background   |    5 |                  263 |
+|   76 | code         |    3 |                  257 |
+|   77 | rules        |    3 |                  257 |
+|   78 | verify       |    4 |                  257 |
+|   79 | host         |    5 |                  250 |
+|   80 | nothing      |    4 |                  250 |
+|   81 | revert       |    2 |                  249 |
+|   82 | secret       |    4 |                  248 |
+|   83 | redo         |    5 |                  247 |
+|   84 | output       |    3 |                  241 |
+|   85 | unsupported  |    2 |                  235 |
+|   86 | attachment   |    4 |                  234 |
+|   87 | rename       |    4 |                  226 |
+|   88 | context      |    5 |                  225 |
+|   89 | insert       |    3 |                  214 |
+|   90 | group        |    8 |                  209 |
+|   91 | move         |    3 |                  205 |
+|   92 | setup        |    3 |                  203 |
+|   93 | backend      |    4 |                  200 |
+|   94 | compaction   |    4 |                  200 |
+|   95 | view         |    2 |                  200 |
+|   96 | no           |    3 |                  199 |
+|   97 | side         |    4 |                  199 |
+|   98 | effort       |    3 |                  192 |
+|   99 | send         |    3 |                  190 |
+|  100 | device       |    4 |                  189 |
+|  101 | loop         |    3 |                  189 |
+|  102 | reference    |    5 |                  189 |
+|  103 | link         |    2 |                  187 |
+|  104 | todo         |    4 |                  187 |
+|  105 | tasks        |    4 |                  182 |
+|  106 | remove       |    4 |                  176 |
+|  107 | plugin       |    2 |                  168 |
+|  108 | agents       |    4 |                  167 |
+|  109 | new          |    3 |                  167 |
+|  110 | api          |    3 |                  164 |
+|  111 | continue     |    3 |                  162 |
+|  112 | extension    |    1 |                  158 |
+|  113 | then         |    4 |                  154 |
+|  114 | unsaved      |    1 |                  154 |
+|  115 | imported     |    2 |                  148 |
+|  116 | editor       |    3 |                  147 |
+|  117 | child        |    1 |                  145 |
+|  118 | fork         |    3 |                  141 |
+|  119 | crash        |    3 |                  139 |
+|  120 | steer        |    1 |                  138 |
+|  121 | resume       |    3 |                  134 |
+|  122 | older        |    1 |                  131 |
+|  123 | snapshot     |    1 |                  129 |
+|  124 | shell        |    2 |                  127 |
+|  125 | status       |    1 |                  121 |
+|  126 | modes        |    4 |                  114 |
+|  127 | mention      |    3 |                  113 |
+|  128 | row          |    4 |                  109 |
+|  129 | trust        |    1 |                  108 |
+|  130 | notice       |    2 |                  106 |
+|  131 | restarted    |    1 |                  106 |
+|  132 | binary       |    1 |                  104 |
+|  133 | conversation |    1 |                  103 |
+|  134 | message      |    3 |                  100 |
+|  135 | decision     |    1 |                   99 |
+|  136 | reply        |    2 |                   99 |
+|  137 | workflows    |    2 |                   99 |
+|  138 | manage       |    2 |                   95 |
+|  139 | skill        |    1 |                   94 |
+|  140 | terminal     |    1 |                   91 |
+|  141 | documents    |    1 |                   85 |
+|  142 | media        |    1 |                   85 |
+|  143 | compact      |    2 |                   84 |
+|  144 | not          |    2 |                   84 |
+|  145 | pdf          |    2 |                   83 |
+|  146 | cost         |    2 |                   82 |
+|  147 | repo         |    1 |                   80 |
+|  148 | attach       |    3 |                   77 |
+|  149 | jump         |    2 |                   77 |
+|  150 | removed      |    1 |                   77 |
+|  151 | allow        |    2 |                   76 |
+|  152 | thinking     |    3 |                   76 |
+|  153 | toggle       |    3 |                   74 |
+|  154 | action       |    1 |                   71 |
+|  155 | added        |    1 |                   71 |
+|  156 | slash        |    1 |                   70 |
+|  157 | sessions     |    1 |                   68 |
+|  158 | empty        |    1 |                   66 |
+|  159 | invalid      |    1 |                   66 |
+|  160 | budget       |    1 |                   65 |
+|  161 | unread       |    2 |                   62 |
+|  162 | clear        |    2 |                   60 |
+|  163 | thought      |    2 |                   60 |
+|  164 | focus        |    2 |                   57 |
+|  165 | clarify      |    1 |                   55 |
+|  166 | quote        |    2 |                   53 |
+|  167 | task         |    1 |                   52 |
+|  168 | document     |    1 |                   51 |
+|  169 | implement    |    1 |                   51 |
+|  170 | connecting   |    1 |                   50 |
+|  171 | answer       |    1 |                   49 |
+|  172 | forked       |    1 |                   48 |
+|  173 | restart      |    2 |                   48 |
+|  174 | copy         |    2 |                   47 |
+|  175 | signed       |    1 |                   45 |
+|  176 | show         |    2 |                   44 |
+|  177 | upload       |    1 |                   43 |
+|  178 | checkpoint   |    1 |                   42 |
+|  179 | ctrl         |    1 |                   38 |
+|  180 | surface      |    1 |                   38 |
+|  181 | named        |    1 |                   37 |
+|  182 | process      |    1 |                   36 |
+|  183 | click        |    1 |                   33 |
+|  184 | comment      |    1 |                   33 |
+|  185 | untitled     |    1 |                   33 |
+|  186 | attachments  |    1 |                   32 |
+|  187 | transcript   |    1 |                   32 |
+|  188 | ask          |    1 |                   31 |
+|  189 | run          |    1 |                   31 |
+|  190 | switch       |    1 |                   31 |
+|  191 | citations    |    1 |                   28 |
+|  192 | loading      |    1 |                   28 |
+|  193 | retry        |    1 |                   27 |
+|  194 | add          |    1 |                   26 |
+|  195 | commands     |    1 |                   26 |
+|  196 | banner       |    1 |                   25 |
+|  197 | resumed      |    1 |                   25 |
+|  198 | menu         |    1 |                   23 |
+|  199 | logout       |    1 |                   22 |
+|  200 | save         |    1 |                   22 |
+|  201 | working      |    1 |                   22 |
+|  202 | copied       |    1 |                   21 |
+|  203 | modified     |    1 |                   21 |
+|  204 | apply        |    1 |                   19 |
+|  205 | duration     |    1 |                   19 |
+|  206 | reject       |    1 |                   17 |
+|  207 | line         |    1 |                   16 |
+|  208 | out          |    1 |                   16 |
+|  209 | in           |    1 |                   14 |
+
 ## Prototype plan and first measurement
 
 1. Move the conversation implementation, attachment/send/replay logic, session
@@ -380,3 +596,34 @@ restore original metafile bytes with matching SHA-256, then pass again.
 Full production build currently rejects the merged webview startup at
 **933,277 bytes / 921,600 cap**; compilation and every other bundle size pass.
 The source of this separate merge overage is under investigation; no cap raised.
+
+## Webview recovery (step 4)
+
+Merged startup was **933,277 / 921,600 bytes**. The review pane read one key
+from the full review model-text block, carrying all backend instructions. Move
+only that unchanged template to REVIEW_COMMENT_MODEL_TEXT; guard its sole
+webview reader and reject the full backend block there. Report and ShareView
+use ESM first-open chunks with the existing loading/cancellation affordance.
+ShareView's exclusive Markdown export renderer also moves. Browser source uses
+equivalent UTF-8 rather than ASCII escapes; no English text or key changes.
+
+Report focus needs the original opener before the loading modal takes focus.
+The new cold-load/unmount test **fails** without the wrapper's opener snapshot,
+then passes with it. ShareView's existing synchronous test first exposes its
+new boundary; await its real dialog, retaining all tab-order, Copy, Escape and
+focus-return assertions. Kubuntu App/reviewUi/reportProblemDialog: **180 passed**.
+
+The first measured candidate left startup at 902.0 KiB. Moving ShareView and
+emitting UTF-8 recovered startup but exceeded the optional 50-KiB cap; retaining
+Handoff and SecretPrompt eagerly fits both unchanged caps. This is a prototype
+measurement record, not a gate exception. Final bytes are recorded below.
+
+Further drills: change the conversation factory guard to accept strings instead
+of functions. All **five new loader tests fail**, including cold loading, cache
+reuse, malformed exports and retry. Restore the source byte-exact with matching
+SHA-256. The regional plugin's POSIX-only path filter fails the new Windows-path
+selection test; accept both separators and all four regional tests pass. This
+checks path matching, not a native Windows build. Final region/l10n/VSIX-stage
+unit run: **46 passed**. Webview split/model-text drills plus existing deferred
+behavior and English tests: **33 passed**; both new surfaces and both directions
+of model-text ownership reject deliberate placement, restore bytes and pass.

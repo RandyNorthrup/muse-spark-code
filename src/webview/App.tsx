@@ -67,9 +67,8 @@ import { GoalPanel } from './components/GoalPanel'
 import { SchedulePanel } from './components/SchedulePanel'
 import { Header } from './components/Header'
 import { HandoffDialog } from './components/HandoffDialog'
-import { ReportDialogHost } from './components/ReportDialog'
+import { DeferredReportDialog } from './components/DeferredReportDialog'
 import { SecretPromptDialog } from './components/SecretPromptDialog'
-import { ShareView } from './components/ShareView'
 import { AddContextIcon, ExpandChevron, UploadIcon } from './components/icons'
 import { modeIcon } from './components/modeIcons'
 import { Palette, type PaletteKeys, type PaletteView } from './components/Palette'
@@ -126,6 +125,10 @@ const BestOfNDialog = lazy(async () => {
 const ReviewPane = lazy(async () => {
   const module = await import('./components/ReviewPane')
   return { default: module.ReviewPane }
+})
+const ShareView = lazy(async () => {
+  const module = await import('./components/ShareView')
+  return { default: module.ShareView }
 })
 
 export interface AppProps {
@@ -2235,7 +2238,7 @@ export function App({
   // starts its own count of choices.
   const reportDialog =
     isOtherModalOpen || state.report === undefined ? null : (
-      <ReportDialogHost
+      <DeferredReportDialog
         key={state.report.session}
         report={state.report}
         postMessage={postMessage}
@@ -2298,18 +2301,20 @@ export function App({
       {secretPromptDialog}
       {reportDialog}
       {state.share === undefined ? null : (
-        <ShareView
-          title={state.share.title}
-          exportedAt={state.share.exportedAt}
-          sourceBackend={state.share.sourceBackend}
-          modelId={state.share.modelId}
-          redacted={state.share.redacted}
-          items={state.share.items}
-          onClose={onCloseShare}
-          onOpenLink={onOpenExternal}
-          onCopy={onCopy}
-          onSectionError={onShareSectionError}
-        />
+        <DeferredSurface onClose={onCloseShare}>
+          <ShareView
+            title={state.share.title}
+            exportedAt={state.share.exportedAt}
+            sourceBackend={state.share.sourceBackend}
+            modelId={state.share.modelId}
+            redacted={state.share.redacted}
+            items={state.share.items}
+            onClose={onCloseShare}
+            onOpenLink={onOpenExternal}
+            onCopy={onCopy}
+            onSectionError={onShareSectionError}
+          />
+        </DeferredSurface>
       )}
       <main
         ref={bodyRef}

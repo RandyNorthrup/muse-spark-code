@@ -250,6 +250,10 @@ happened, not what was planned; superseded entries are kept.
 
 ### Changed
 
+- Load Report and Share only when opened, preserving loading cancellation and
+  opener focus. Keep the browser’s review-comment template separate from
+  backend instructions and emit equivalent UTF-8 browser text.
+
 - ACP loads the same recorder bundle before report reading or session startup,
   keeping the journal implementation out of its entry bundle.
 

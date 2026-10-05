@@ -2753,7 +2753,7 @@ describe('App: Model API scheduled prompts (M52)', () => {
     expect(screen.getByRole('button', { name: UI_TEXT.applyCode })).toBeInTheDocument()
   })
 
-  it('renders a share file read-only with keyboard order, trapping and Escape focus return (M84f)', () => {
+  it('renders a share file read-only with keyboard order, trapping and Escape focus return (M84f)', async () => {
     const postMessage = renderReady()
     deliver({
       type: 'sharePreview',
@@ -2785,7 +2785,7 @@ describe('App: Model API scheduled prompts (M52)', () => {
         })),
       ],
     })
-    const dialog = screen.getByRole('dialog', { name: 'Shared over' })
+    const dialog = await screen.findByRole('dialog', { name: 'Shared over' })
     expect(within(dialog).getByText('Hi there')).toBeInTheDocument()
     expect(within(dialog).getByText('Tool: read_file')).toBeInTheDocument()
     // The file's `redacted: true` is anyone's to set: the view reports it as
