@@ -373,8 +373,9 @@ export const SETTING_DEFAULTS = {
   tabLanguages: { '*': true, plaintext: false, markdown: false, scminput: false },
   // Multi-line context: added by D73's rules, on Invoke, or never.
   tabMultiline: 'auto',
-  // The probe's latency gate may flip this to onInvoke (M94 step 1).
-  tabTrigger: 'automatic',
+  // The probe's latency gate (M94 step 1, 2026-10-04): the median fast first
+  // text was 3.8 s, over TAB_AUTOMATIC_LATENCY_CEILING_MS, so Invoke only.
+  tabTrigger: 'onInvoke',
   // Automatic Tab requests yield to Copilot's languages unless both run.
   tabWithCopilot: 'yield',
 } as const
@@ -1368,15 +1369,24 @@ export const TAB_FAST_MAX_LINES = 3
 export const TAB_MULTILINE_MAX_LINES = 16
 // A reply is cut here, at a line boundary first.
 export const TAB_MAX_COMPLETION_CHARS = 2000
-// Automatic triggers wait this long on the token; the probe retunes it (*).
+// Automatic triggers wait this long on the token (*). Kept at the planned
+// 350 by the probe (2026-10-04): the median fast first text, 3.8 s, is over
+// the 1.5 s ceiling by itself, so a shorter wait would only bill more
+// never-aborted requests (docs/certification/m94.md, "Probe").
 export const TAB_DEBOUNCE_MS = 350
-// Fast mode's output cap, reasoning included; the probe retunes it (*).
-export const TAB_FAST_MAX_OUTPUT_TOKENS = 128
-// Multi-line mode's output cap; the probe retunes it (*).
-export const TAB_MULTILINE_MAX_OUTPUT_TOKENS = 512
+// Fast mode's output cap, reasoning included (*). The probe (2026-10-04):
+// p99 reasoning at `minimal` 485 tokens, plus 3 lines at 32 tokens each,
+// rounded up to 32. The planned 128 would have cut most replies short.
+export const TAB_FAST_MAX_OUTPUT_TOKENS = 608
+// Multi-line mode's output cap (*). The probe (2026-10-04) put p99 reasoning
+// at 2,045 tokens, but that p99 was one runaway reply that reasoned past the
+// probe's cap and showed no text. Lead decision: 1,536 ends runaways sooner
+// and spends less, at the cost of about one multi-line reply in ten.
+export const TAB_MULTILINE_MAX_OUTPUT_TOKENS = 1536
 // Provider-side backstop only, never UX: a stale answer is dropped by the
-// token. The probe sets it from measured totals (M94 step 1).
-export const TAB_REQUEST_TIMEOUT_MS = 30_000
+// token. Twice the probe's p99 total time (33.0 s, 2026-10-04), rounded up
+// to a second, so it never cuts a request that would still report usage.
+export const TAB_REQUEST_TIMEOUT_MS = 67_000
 // Typing-through LRU windows (Continue's design, research §4).
 export const TAB_CACHE_ENTRIES = 64
 // The latency gate: a slower median first text defaults the trigger to onInvoke.

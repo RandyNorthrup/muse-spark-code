@@ -61,10 +61,11 @@ describe('Tab constants (M94 lane 0, PLAN.md D73)', () => {
   })
 
   it('keeps the debounce, output caps and request bounds the probe retunes', () => {
+    // The probe's values (docs/certification/m94.md, "Probe", 2026-10-04).
     expect(TAB_DEBOUNCE_MS).toBe(350)
-    expect(TAB_FAST_MAX_OUTPUT_TOKENS).toBe(128)
-    expect(TAB_MULTILINE_MAX_OUTPUT_TOKENS).toBe(512)
-    expect(TAB_REQUEST_TIMEOUT_MS).toBe(30_000)
+    expect(TAB_FAST_MAX_OUTPUT_TOKENS).toBe(608)
+    expect(TAB_MULTILINE_MAX_OUTPUT_TOKENS).toBe(1536)
+    expect(TAB_REQUEST_TIMEOUT_MS).toBe(67_000)
     expect(TAB_CACHE_ENTRIES).toBe(64)
     expect(TAB_HOOK_VERDICT_CACHE).toBe(128)
     expect(TAB_AUTOMATIC_LATENCY_CEILING_MS).toBe(1500)
@@ -129,7 +130,8 @@ describe('Tab constants (M94 lane 0, PLAN.md D73)', () => {
       scminput: false,
     })
     expect(SETTING_DEFAULTS.tabMultiline).toBe('auto')
-    expect(SETTING_DEFAULTS.tabTrigger).toBe('automatic')
+    // The probe's latency gate: the median fast first text was over the ceiling.
+    expect(SETTING_DEFAULTS.tabTrigger).toBe('onInvoke')
     expect(SETTING_DEFAULTS.tabWithCopilot).toBe('yield')
   })
 
