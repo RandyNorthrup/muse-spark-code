@@ -175,6 +175,22 @@ describe('shared usage service', () => {
       )
     }
   })
+  it('sends paired rates through the checked page protocol without borrowing counters from other calls', async () => {
+    const deps = usageFixtureDeps([
+      usageFixtureRecord({ tokens: { input: 1000, output: 100 }, durationMs: undefined }),
+      usageFixtureRecord({ id: 'cached', tokens: { input: 100, cached: 100 }, durationMs: 1000 }),
+    ])
+    const service = createUsageService(deps)
+    const replies = await service.handle({ type: 'usage/refresh' })
+    expect(replies[0]).toMatchObject({
+      type: 'usage/state',
+      state: { totals: { cacheHitPercent: 100, tokens: { input: 1100, output: 100 } } },
+    })
+    const state = await service.snapshot()
+    expect(state.totals.tokensPerSecond).toBeUndefined()
+    expect(state.buckets[0]?.totals.tokensPerSecond).toBeUndefined()
+    expect(state.breakdown[0]?.totals.cacheHitPercent).toBe(100)
+  })
   it('model detail respects provider identity and stored settlements remain unchanged', async () => {
     const records = [
       usageFixtureRecord(),

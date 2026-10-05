@@ -47,6 +47,16 @@ function record(extra: Partial<UsageRecord> = {}): UsageRecord {
     ...extra,
   })
 }
+function partiallyReportedCalls(output = 100): UsageRecord[] {
+  return [
+    record({
+      tokens: { input: 1000, output },
+      durationMs: undefined,
+      firstTokenMs: undefined,
+    }),
+    record({ tokens: { input: 100, cached: 100 }, durationMs: 1000, firstTokenMs: 100 }),
+  ]
+}
 
 describe('usage aggregation', () => {
   it('settles the cent boundary exactly in every monetary sum and grouping order', () => {
@@ -96,11 +106,13 @@ describe('usage aggregation', () => {
           const calls = records.filter((call) => call.provider === provider && call.model === model)
           const first = calls[0]
           if (first === undefined) continue
-          const serialized = JSON.stringify(aggregateUsage(calls, [], selected, now).totals)
+          const aggregate = aggregateUsage(calls, [], selected, now)
+          const serialized = JSON.stringify(aggregate.totals)
           const parsed: unknown = JSON.parse(serialized)
           rollups.push({
             ...first,
             totals: usageTotalsSchema.parse(parsed),
+            measurements: aggregate.measurements,
             histogram: Array.from({ length: USAGE_HISTOGRAM_EDGES_MS.length + 1 }, () => 0),
           })
         }
@@ -163,6 +175,71 @@ describe('usage aggregation', () => {
         now,
       ),
     ).toThrow('unsafe usage sum')
+  })
+  it('uses only paired calls for cache and speed rates and counts latency coverage', () => {
+    const calls = partiallyReportedCalls()
+    const result = aggregateUsage(calls, [], query, now)
+    expect(result.totals.tokens).toEqual({ input: 1100, output: 100, cached: 100 })
+    expect(result.totals.cacheHitPercent).toBe(100)
+    expect(result.totals.tokensPerSecond).toBeUndefined()
+    expect(result.measurements).toEqual({
+      cache: { records: 1, input: 100, cached: 100 },
+      speed: { records: 0, output: 0, durationMs: 0 },
+      latency: { records: 1, durationMs: 1000 },
+      firstToken: { records: 1, firstTokenMs: 100 },
+    })
+    const unpaired = aggregateUsage(
+      [
+        calls[0]!,
+        record({ tokens: { cached: 100 }, durationMs: undefined, firstTokenMs: undefined }),
+      ],
+      [],
+      query,
+      now,
+    )
+    expect(unpaired.totals.cacheHitPercent).toBeUndefined()
+    expect(unpaired.totals.tokensPerSecond).toBeUndefined()
+    expect(unpaired.totals.p50Ms).toBeUndefined()
+    expect(unpaired.totals.p95Ms).toBeUndefined()
+    expect(unpaired.measurements.cache.records).toBe(0)
+    expect(unpaired.measurements.latency.records).toBe(0)
+  })
+  it('preserves paired sums and coverage in rollups without inventing measurements from old subtotals', () => {
+    const calls = [
+      ...partiallyReportedCalls(900),
+      record({
+        tokens: { input: 500, cached: 0, output: 200 },
+        durationMs: 2000,
+        firstTokenMs: undefined,
+      }),
+    ]
+    const raw = aggregateUsage(calls, [], query, now)
+    const histogram = Array.from({ length: USAGE_HISTOGRAM_EDGES_MS.length + 1 }, () => 0)
+    histogram[USAGE_HISTOGRAM_EDGES_MS.indexOf(1000)] = 1
+    histogram[USAGE_HISTOGRAM_EDGES_MS.indexOf(2000)] = 1
+    const rollup: UsageAggregateRow = {
+      ...calls[0]!,
+      totals: raw.totals,
+      measurements: raw.measurements,
+      histogram,
+    }
+    const rolled = aggregateUsage([], [rollup], query, now)
+    expect(rolled.totals).toEqual(raw.totals)
+    expect(rolled.measurements).toEqual(raw.measurements)
+    expect(rolled.totals.cacheHitPercent).toBe((100 / 600) * 100)
+    expect(rolled.totals.tokensPerSecond).toBe(100)
+    expect(rolled.measurements.latency).toEqual({ records: 2, durationMs: 3000 })
+    const { measurements: _measurements, ...old } = rollup
+    const legacy = aggregateUsage([], [old], query, now)
+    expect(legacy.totals.cacheHitPercent).toBeUndefined()
+    expect(legacy.totals.tokensPerSecond).toBeUndefined()
+    expect(legacy.measurements.cache.records).toBe(0)
+    expect(legacy.measurements.latency).toEqual({ records: 2, durationMs: 3000 })
+    const { durationMs: _durationMs, ...unknownTotals } = old.totals
+    const unknown = aggregateUsage([], [{ ...old, totals: unknownTotals }], query, now)
+    expect(unknown.totals.p50Ms).toBeUndefined()
+    expect(unknown.totals.p95Ms).toBeUndefined()
+    expect(unknown.measurements.latency.records).toBe(0)
   })
   it('preserves unknown counters and separates every certainty, including plan equivalents and local zero', () => {
     const records = [
@@ -311,6 +388,7 @@ describe('usage aggregation', () => {
       client: 'Zed',
       backend: 'modelApi',
       totals: raw.totals,
+      measurements: raw.measurements,
       histogram,
     }
     const rolled = aggregateUsage([], [rollup], query, now)

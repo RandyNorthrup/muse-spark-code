@@ -16709,6 +16709,20 @@ before a repaired one loads (2026-09-30).
 
 ## 9. Security assumptions and accepted residual risk
 
+- **FIXM102S-RATE-COVERAGE (RVM102S P2-2, 2026-10-05).** Paired cache and
+  speed math is repaired, and the lane S aggregate/rollup read interface
+  preserves paired sums and observed-call counts for cache, speed, latency
+  and first-token timing. The frozen lane 0 `usageTotalsSchema` has no
+  coverage field, so the checked page protocol cannot carry those counts
+  to the page or text renderer. Scope clarification was requested; no
+  out-of-lane schema or string was changed. Safe only for this unmerged,
+  unshipped service lane: rates use measured pairs and unknown stays unknown,
+  but a mixed-coverage rate still lacks its required `n/m` disclosure.
+  Follow-up: authorize or have lane 0 add a strictly validated optional
+  measurements object to totals, then emit it for every total/group/bucket,
+  preserve it in journal rollups/exports and display localized observed/total
+  call coverage for each rate and latency in both page and text. This is a
+  remaining acceptance blocker, not permission to release incomplete usage.
 - **FIXM95P (2026-10-05):** all thirteen assigned RVM95A findings
   (1, 2, 4–8, 12–15, 18, 19) are repaired with regressions and deliberate
   failure drills in `docs/certification/m95-p.md`; no assigned finding is

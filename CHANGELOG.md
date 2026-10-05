@@ -14,7 +14,9 @@ happened, not what was planned; superseded entries are kept.
   ACP/CLI summaries show the latest provider/source/window limit with its
   stale or awaiting status, while charts retain the observation history.
   A held-operation regression now proves usage actions run in order and
-  return the history state from their own completed action.
+  return the history state from their own completed action. Cache and speed
+  rates use paired observations and retain those sums/counts in the shared
+  aggregation read interface; visible coverage awaits the contract owner.
 
 - Package only allowlisted build artifacts with a short landing guide and recent
   release notes. Compact staged translation and manifest JSON preserves every

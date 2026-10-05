@@ -29,6 +29,13 @@ const TOKEN_KEYS = [
 ] as const
 const UNIT_KEYS = ['searches', 'images', 'audioSeconds'] as const
 
+/** Paired sums survive rollups; independently known subtotals cannot measure a rate. */
+export interface UsageMeasurements {
+  readonly cache: { records: number; input: number; cached: number }
+  readonly speed: { records: number; output: number; durationMs: number }
+  readonly latency: { records: number; durationMs: number }
+  readonly firstToken: { records: number; firstTokenMs: number }
+}
 /** Lane J adapts its validated rollup rows to this explicit read interface. */
 export interface UsageAggregateRow {
   readonly day: string
@@ -38,6 +45,8 @@ export interface UsageAggregateRow {
   readonly model: string
   readonly kind: UsageKind
   readonly totals: UsageTotals
+  /** Absent in older rollups: rates stay unknown rather than guessing coverage. */
+  readonly measurements?: UsageMeasurements
   /** Twelve counts at USAGE_HISTOGRAM_EDGES_MS, including overflow. */
   readonly histogram: readonly number[]
 }
@@ -47,6 +56,7 @@ export interface UsageAggregation {
   readonly previousFrom: string
   readonly previousTo: string
   readonly totals: UsageTotals
+  readonly measurements: UsageMeasurements
   readonly previousTotals: UsageTotals
   readonly buckets: UsagePageState['buckets']
   readonly breakdown: UsagePageState['breakdown']
@@ -80,11 +90,18 @@ export function usageRange(
 
 interface Accumulator {
   totals: UsageTotals
+  measurements: UsageMeasurements
   histogram: number[]
 }
 function accumulator(): Accumulator {
   return {
     totals: { records: 0, tokens: {}, units: {}, costs: [], retries: 0, rateLimited: 0 },
+    measurements: {
+      cache: { records: 0, input: 0, cached: 0 },
+      speed: { records: 0, output: 0, durationMs: 0 },
+      latency: { records: 0, durationMs: 0 },
+      firstToken: { records: 0, firstTokenMs: 0 },
+    },
     histogram: Array.from({ length: USAGE_HISTOGRAM_EDGES_MS.length + 1 }, () => 0),
   }
 }
@@ -107,7 +124,25 @@ export function usageSumUsd(values: Iterable<number | undefined>): number | unde
   }
   return units === undefined ? undefined : units / EXEC_USD_UNITS
 }
-function add(target: Accumulator, value: UsageTotals, histogram: readonly number[]): void {
+function add(target: Accumulator, row: UsageAggregateRow): void {
+  const { totals: value, histogram, measurements } = row
+  if (measurements !== undefined) {
+    for (const key of ['cache', 'speed', 'latency', 'firstToken'] as const)
+      target.measurements[key].records += measurements[key].records
+    target.measurements.cache.input += measurements.cache.input
+    target.measurements.cache.cached += measurements.cache.cached
+    target.measurements.speed.output += measurements.speed.output
+    target.measurements.speed.durationMs += measurements.speed.durationMs
+    target.measurements.latency.durationMs += measurements.latency.durationMs
+    target.measurements.firstToken.firstTokenMs += measurements.firstToken.firstTokenMs
+  } else if (value.durationMs !== undefined) {
+    // Older rollups retain the observed latency count in their histogram.
+    const records = histogram.reduce((sum, count) => sum + count, 0)
+    if (records > 0) {
+      target.measurements.latency.records += records
+      target.measurements.latency.durationMs += value.durationMs
+    }
+  }
   const total = target.totals
   total.records += value.records
   for (const key of TOKEN_KEYS)
@@ -137,7 +172,13 @@ function add(target: Accumulator, value: UsageTotals, histogram: readonly number
   }
   let index = 0
   for (const count of histogram) {
-    if (count !== 0) target.histogram[index] = (target.histogram[index] ?? 0) + count
+    if (
+      count !== 0 &&
+      (measurements === undefined
+        ? value.durationMs !== undefined
+        : measurements.latency.records > 0)
+    )
+      target.histogram[index] = (target.histogram[index] ?? 0) + count
     index += 1
   }
 }
@@ -156,11 +197,11 @@ function percentile(histogram: readonly number[], share: number): number | undef
 }
 function finish(value: Accumulator): UsageTotals {
   const total = value.totals
-  const { input, cached, output } = total.tokens
-  if (cached !== undefined && input !== undefined && input > 0)
-    total.cacheHitPercent = (cached / input) * 100
-  if (output !== undefined && total.durationMs !== undefined && total.durationMs > 0)
-    total.tokensPerSecond = (output / total.durationMs) * MILLISECONDS_PER_SECOND
+  const { cache, speed } = value.measurements
+  if (cache.records > 0 && cache.input > 0)
+    total.cacheHitPercent = (cache.cached / cache.input) * 100
+  if (speed.records > 0 && speed.durationMs > 0)
+    total.tokensPerSecond = (speed.output / speed.durationMs) * MILLISECONDS_PER_SECOND
   for (const key of ['p50Ms', 'p95Ms'] as const) {
     const latency = percentile(
       value.histogram,
@@ -195,6 +236,24 @@ function recordRow(record: UsageRecord): UsageAggregateRow {
     model: record.model,
     kind: record.kind,
     histogram,
+    measurements: {
+      cache:
+        record.tokens.input !== undefined && record.tokens.cached !== undefined
+          ? { records: 1, input: record.tokens.input, cached: record.tokens.cached }
+          : { records: 0, input: 0, cached: 0 },
+      speed:
+        record.tokens.output !== undefined && record.durationMs !== undefined
+          ? { records: 1, output: record.tokens.output, durationMs: record.durationMs }
+          : { records: 0, output: 0, durationMs: 0 },
+      latency:
+        record.durationMs === undefined
+          ? { records: 0, durationMs: 0 }
+          : { records: 1, durationMs: record.durationMs },
+      firstToken:
+        record.firstTokenMs === undefined
+          ? { records: 0, firstTokenMs: 0 }
+          : { records: 1, firstTokenMs: record.firstTokenMs },
+    },
     totals: {
       records: 1,
       tokens: record.tokens,
@@ -235,7 +294,7 @@ function addGroup(
     group = { row, sum: accumulator() }
     groups.set(key, group)
   }
-  add(group.sum, row.totals, row.histogram)
+  add(group.sum, row)
 }
 function groupRows(
   groups: Map<string, Group>,
@@ -269,13 +328,12 @@ export function aggregateUsage(
     { at: number; day: string; sum: Accumulator; groups: Map<string, Group> }
   >()
   function visit(row: UsageAggregateRow, at?: number): void {
-    if (row.day >= range.previousFrom && row.day <= range.previousTo)
-      add(previous, row.totals, row.histogram)
+    if (row.day >= range.previousFrom && row.day <= range.previousTo) add(previous, row)
     if (row.day < range.from || row.day > range.to) return
-    add(current, row.totals, row.histogram)
+    add(current, row)
     addGroup(groups, row, query.groupBy)
     const feature = features.get(row.kind) ?? accumulator()
-    add(feature, row.totals, row.histogram)
+    add(feature, row)
     features.set(row.kind, feature)
     let day = row.day
     if (interval === 'week') {
@@ -293,7 +351,7 @@ export function aggregateUsage(
       }
       buckets.set(key, bucket)
     }
-    add(bucket.sum, row.totals, row.histogram)
+    add(bucket.sum, row)
     addGroup(bucket.groups, row, query.groupBy)
   }
   for (const record of records) {
@@ -304,6 +362,7 @@ export function aggregateUsage(
   return {
     ...range,
     totals: finish(current),
+    measurements: current.measurements,
     previousTotals: finish(previous),
     buckets: Array.from(buckets, (entry) => entry[1])
       .toSorted((a, b) => a.at - b.at)
