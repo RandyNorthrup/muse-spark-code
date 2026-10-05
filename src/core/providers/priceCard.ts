@@ -53,6 +53,8 @@ export interface PricedUsage {
    * Codecs whose native input excludes read/write must normalize to this total.
    */
   readonly cacheWriteTokens?: number | undefined
+  /** The 1 h subset of cacheWriteTokens, never extra input. */
+  readonly cacheWriteTokens1h?: number | undefined
   readonly outputTokens: number
 }
 
@@ -63,10 +65,12 @@ export function isValidUsage(usage: PricedUsage): boolean {
     usage.outputTokens,
     usage.cachedTokens ?? 0,
     usage.cacheWriteTokens ?? 0,
+    usage.cacheWriteTokens1h ?? 0,
   ]
   return (
     counts.every((count) => Number.isFinite(count) && !(count < 0)) &&
-    (usage.cachedTokens ?? 0) + (usage.cacheWriteTokens ?? 0) <= usage.inputTokens
+    (usage.cachedTokens ?? 0) + (usage.cacheWriteTokens ?? 0) <= usage.inputTokens &&
+    (usage.cacheWriteTokens1h ?? 0) <= (usage.cacheWriteTokens ?? 0)
   )
 }
 
@@ -189,11 +193,13 @@ export function settleUsageUsd(
   const outputRate = isLongContext ? tier.output : card.output
   const read = usage.cachedTokens ?? 0
   const written = usage.cacheWriteTokens ?? 0
+  const written1h = usage.cacheWriteTokens1h ?? 0
   const fresh = usage.inputTokens - read - written
   return (
     fresh * inputRate +
     read * (card.cachedInput ?? inputRate) +
-    written * (card.cacheWrite ?? inputRate) +
+    (written - written1h) * (card.cacheWrite ?? inputRate) +
+    written1h * (card.cacheWrite1h ?? card.cacheWrite ?? inputRate) +
     usage.outputTokens * outputRate +
     (card.request ?? 0)
   )
