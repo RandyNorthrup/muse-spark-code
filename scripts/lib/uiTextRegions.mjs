@@ -2,8 +2,11 @@
 // Browser and integration builds keep en.ts unchanged. Accessors retain the
 // complete enumerable shape, while an English Node consumer loads only the
 // regions whose values it reads. Serializing a full table reads every region.
-import { readFileSync } from 'node:fs'
+import { Buffer } from 'node:buffer'
+import { readFileSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
+import { runInNewContext } from 'node:vm'
+import { brotliCompressSync, constants as zlibConstants } from 'node:zlib'
 import ts from 'typescript'
 import { loadL10n } from './l10nSource.mjs'
 
@@ -79,6 +82,52 @@ export function regionalUiText(name) {
           resolveDir: path.dirname(args.path),
           watchFiles: [args.path],
         }
+      })
+    },
+  }
+}
+
+// Use the same production codec for disk builds and private in-memory fixtures.
+/** @returns {import('esbuild').Plugin} */
+export function compressedEnglish(file, isProduction, compressionQuality) {
+  return {
+    name: 'compressed-english',
+    setup(build) {
+      build.onEnd((result) => {
+        if (!isProduction || result.errors.length > 0) return
+        const outputFile = result.outputFiles?.find(
+          (output) => path.resolve(output.path) === path.resolve(file),
+        )
+        const module = { exports: {} }
+        runInNewContext(outputFile?.text ?? readFileSync(file, 'utf8'), {
+          module,
+          exports: module.exports,
+        })
+        // Data descriptors preserve the regions' first-value loading boundary.
+        const data = Object.fromEntries(
+          Object.entries(Object.getOwnPropertyDescriptors(Reflect.get(module.exports, 'EN')))
+            .filter(([, property]) => Object.hasOwn(property, 'value'))
+            .map(([key, property]) => [key, property.value]),
+        )
+        const packed = brotliCompressSync(JSON.stringify(data), {
+          params: { [zlibConstants.BROTLI_PARAM_QUALITY]: compressionQuality },
+        }).toString('base64')
+        const getters =
+          path.basename(file) === 'uiText.js'
+            ? UI_TEXT_REGIONS.map((region) => {
+                const keys = uiTextProperties()
+                  .filter((property) => property.region === region.name)
+                  .map((property) => property.key)
+                return `for(const key of ${JSON.stringify(keys)})Object.defineProperty(exports.EN,key,{enumerable:true,configurable:true,get(){return require('./${path.basename(region.output)}').EN[key]}});`
+              }).join('\n')
+            : ''
+        const code = `exports.EN=JSON.parse(require("node:zlib").brotliDecompressSync(Buffer.from("${packed}","base64")).toString("utf8"));\n${getters}\n`
+        if (outputFile === undefined) writeFileSync(file, code)
+        else outputFile.contents = Buffer.from(code)
+        const output = result.metafile?.outputs[file]
+        if (output === undefined) return
+        output.bytes = Buffer.byteLength(code)
+        output.imports.push({ path: 'node:zlib', kind: 'require-call', external: true })
       })
     },
   }

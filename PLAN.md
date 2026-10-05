@@ -6790,6 +6790,26 @@ cached: "0.15", currency: "USD" }`, `isDefault`, `isActive`, `releaseDate`.
 
 ## 6. Milestones
 
+### CIFIX14M — macOS hosted CI repair for 0.14.0 (2026-10-05)
+
+- [x] Collect all four CI unit/process-e2e shards on the Mac mini, in the rig
+      brief's batches of at most three files with three workers. Preserve coverage
+      collection and merge the complete map against the unchanged thresholds.
+- [x] Repair the deferred-bundle tests' dependency on pre-existing `dist/`
+      artifacts: build and load every required support bundle from private fixtures,
+      using the production English compression plugin for the exact-value check.
+      Preserve activation's assertions that action bundles remain unloaded.
+- [x] Fix any further macOS failures at their root, prove regression assertions
+      fire, then collect two consecutive green complete runs and per-file receipts.
+- [x] Run typecheck, scoped lint/format and the available static/build gates;
+      commit locally with hooks. No push, merge, rebase or paid/live call. VS Code
+      integration is outside the macOS CI matrix. Time box: 90 minutes.
+
+The explicit lane brief authorizes full shard coverage but shared rules prohibit
+`npm run quality`; the lead retains the integrated full quality gate. No gate,
+timeout, retry or skip policy is changed. Evidence is recorded in
+`docs/certification/cifix14-macos.md`.
+
 ### TRAIN14B — Complete the 0.14.0 release train (2026-10-05)
 
 - [x] Merge origin-main (#121), M91/M91b, M93, Knip constants, DEFLAKE4 and M98 phase 1 in the brief's order, retaining every source head and both split-check speed fixes. Skip unready m94/kw and ci/refresh-badges for the lead.
@@ -18148,6 +18168,15 @@ joined with M57, M58 and PR #49's sign-in
         commit-writing path exists
 
 ## 7. Gates
+
+**CIFIX14M bounded macOS certification (2026-10-05).** The explicit lane brief
+requires all four unit/process-e2e coverage shards and two complete green runs.
+The rig note overrides the shared prohibition on full suites for that work,
+while retaining its three-file/three-worker batches. Shared rules still prohibit
+`npm run quality`; hook-on commits use scoped regressions, typecheck, lint and
+format, with the available static/build checks and merged coverage recorded in
+`docs/certification/cifix14-macos.md`. The lead retains the integrated aggregate
+quality, accessibility and hosted certification. No gate is weakened.
 
 **TRAIN14B Judge activation fixture stop (2026-10-05).** Full quality is
 explicitly authorized by this rig brief. Its aggregate unit run exposes a

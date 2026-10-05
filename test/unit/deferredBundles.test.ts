@@ -1,6 +1,8 @@
 // Build the real shipped Node entries once with the production plugins.
 // Each drill changes its own metafile copy, never shared dist/ files.
 import { createHash } from 'node:crypto'
+import { mkdtempSync } from 'node:fs'
+import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { createRequire } from 'node:module'
 import vm from 'node:vm'
@@ -8,6 +10,12 @@ import { build } from 'esbuild'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import * as z from 'zod/mini'
 import { EN } from '../../src/shared/l10n/en'
+import { L10N_COMPRESSION_QUALITY } from '../../src/shared/constants'
+import {
+  UI_TEXT_REGIONS,
+  compressedEnglish,
+  regionalUiText,
+} from '../../scripts/lib/uiTextRegions.mjs'
 import {
   checkDeferredBundles,
   deferredCohort,
@@ -16,6 +24,7 @@ import {
   sharedWire,
 } from '../../scripts/lib/deferredBundles.mjs'
 import type * as validation from '../../src/shared/validationEntry'
+import { removeFolder } from './helpers/temporaryFolders'
 
 const metafileSchema = z.looseObject({
   inputs: z.record(z.string(), z.unknown()),
@@ -31,6 +40,7 @@ const metafileSchema = z.looseObject({
 })
 
 const fixtures = new Map<string, { bytes: Buffer; meta: z.infer<typeof metafileSchema> }>()
+const fixtureRoot = mkdtempSync(path.join(tmpdir(), 'muse-deferred-bundles-'))
 const bundleTexts = new Map<string, string>()
 const inputMaps = new Map<string, ReadonlyMap<string, number>>()
 const supportModules = new Map<string, unknown>()
@@ -42,7 +52,6 @@ const parsers: z.infer<typeof parserSchema>[] = []
 
 beforeAll(async () => {
   const common = {
-    outdir: 'dist',
     write: false,
     bundle: true,
     minify: true,
@@ -56,6 +65,7 @@ beforeAll(async () => {
   const builds = await Promise.all([
     build({
       ...common,
+      outdir: 'dist',
       entryPoints: {
         extension: 'src/extension.ts',
         conversation: 'src/host/conversation/conversationEntry.ts',
@@ -85,6 +95,7 @@ beforeAll(async () => {
     }),
     build({
       ...common,
+      outdir: 'dist',
       target: 'node22',
       entryPoints: { acp: 'src/runtime/main.ts' },
       plugins: [sharedUiText, sharedValidation, deferredCohort, sharedWire],
@@ -92,16 +103,26 @@ beforeAll(async () => {
     }),
     build({
       ...common,
+      outdir: 'dist',
       entryPoints: { wire: 'src/shared/wireEntry.ts' },
       plugins: [sharedUiText, sharedValidation],
     }),
     build({
       ...common,
-      entryPoints: {
-        uiText: 'src/shared/l10n/en.ts',
-        validation: 'src/shared/validationEntry.ts',
-      },
+      outdir: 'dist',
+      entryPoints: { validation: 'src/shared/validationEntry.ts' },
     }),
+    ...[{ name: undefined, output: 'dist/uiText.js' }, ...UI_TEXT_REGIONS].map((region) =>
+      build({
+        ...common,
+        entryPoints: ['src/shared/l10n/en.ts'],
+        outfile: region.output,
+        plugins: [
+          regionalUiText(region.name),
+          compressedEnglish(region.output, true, L10N_COMPRESSION_QUALITY),
+        ],
+      }),
+    ),
   ])
   for (const { metafile, outputFiles } of builds) {
     for (const output of outputFiles)
@@ -132,8 +153,10 @@ afterAll(() => {
   }
 })
 
+afterAll(() => removeFolder(fixtureRoot))
+
 function bundleFile(name: string) {
-  return path.resolve('dist', `${name}.js`)
+  return path.join(fixtureRoot, `${name}.js`)
 }
 
 function loadSupportBundle(name: string): unknown {
@@ -146,7 +169,10 @@ function loadSupportBundle(name: string): unknown {
     { filename: entry },
   )
   Reflect.apply(run, undefined, [
-    createRequire(entry),
+    (file: string): unknown =>
+      file.startsWith('./') && bundleTexts.has(path.basename(file, '.js'))
+        ? loadSupportBundle(path.basename(file, '.js'))
+        : createRequire(entry)(file),
     module,
     module.exports,
     path.dirname(entry),
@@ -193,9 +219,8 @@ function inputs(name: string): string[] {
 
 describe('deferred cohort bundles', () => {
   it('decodes the complete production English fallback without changing any value', () => {
-    const require = createRequire(path.resolve('dist/uiText.js'))
-    const fallback: { readonly EN: typeof EN } = require(path.resolve('dist/uiText.js'))
-    expect(fallback.EN).toEqual(EN)
+    expect(bundleText('uiText')).toContain('brotliDecompressSync')
+    expect(loadSupportBundle('uiText')).toHaveProperty('EN', EN)
   })
 
   it('uses the real shared parser for boundary checks without inlining it in Node bundles', () => {
@@ -239,7 +264,7 @@ describe('deferred cohort bundles', () => {
       (file: string): unknown => {
         loaded.push(file)
         if (file === 'vscode') return {}
-        return file === './validation.js' || file === './uiText.js'
+        return file.startsWith('./') && bundleTexts.has(path.basename(file, '.js'))
           ? loadSupportBundle(path.basename(file, '.js'))
           : nativeRequire(file)
       },
@@ -249,6 +274,7 @@ describe('deferred cohort bundles', () => {
       entry,
     ])
     expect(module.exports).toHaveProperty('activate', expect.any(Function))
+    expect(loaded).toContain('./wire.js')
     expect(loaded).not.toContain('./sessionBoard.js')
     expect(loaded).not.toContain('./reviewer.js')
     expect(loaded).not.toContain('./conversation.js')
