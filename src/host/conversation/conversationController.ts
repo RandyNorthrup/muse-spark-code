@@ -150,7 +150,8 @@ import type {
   ReviewFile,
   SkillOption,
 } from '../../shared/protocol'
-import type { AccountFacts, SubscriptionUsage, UsageInsights } from '../../shared/usage'
+import type { AccountFacts, SubscriptionUsage } from '../../shared/usage'
+import type { UsageInsightsReport } from '../../runtime/usage/traceLogs'
 import type { AuthPort } from '../auth/authService'
 import type { CheckpointPort } from '../checkpoints/checkpointHost'
 import type { DescribedFile, EditReviewActions, ReviewNotice } from '../editor/editReview'
@@ -475,12 +476,6 @@ export interface ConversationDeps {
   readonly museCodeReviewer?: MuseCodeReviewerPort
   readonly now: () => number
   readonly log: Logger
-}
-
-/** The day and the week windows of the usage insights (M14). */
-export interface UsageInsightsReport {
-  readonly day: UsageInsights
-  readonly week: UsageInsights
 }
 
 const IDLE_STATUS = 'idle'

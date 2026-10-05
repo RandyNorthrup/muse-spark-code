@@ -15781,6 +15781,15 @@ joined with M57, M58 and PR #49's sign-in
   the companion keeps its own idle/explicit-stop lifetime. Both repairs require
   regressions and byte-exact restored red drills in `docs/certification/m102-e.md`.
   No dependency, protocol shape, guard relaxation or other-lane implementation.
+- **RVM102S repair (FIXM102S, 2026-10-05).** Repair all three P2 findings
+  and the P3 regression gap: exact fixed-point monetary accumulation across
+  raw records and rollups; paired rate observations with coverage; current
+  text limits selected by provider/source/window while chart history stays;
+  and a held-port queue test that proves both action replies. Each repair
+  gets a deliberate failing drill and byte-exact restoration in
+  `docs/certification/m102-s.md`. No model calls or dependencies. The shared
+  totals contract needs a minimal validated paired-observation addition;
+  clarification of that frozen-contract ownership is pending.
 - **Goal.** One local history of every model call, whichever editor or backend
   made it, and one page that shows cost, tokens in and out, time, rate and plan
   limits, and budgets. The page has charts, a table behind every chart, export
@@ -16789,6 +16798,20 @@ before a repaired one loads (2026-09-30).
   compose the lanes and pass full quality/editor checks before release; the rig
   brief explicitly reserves that full gate and prohibits a merge here.
 
+- **FIXM102S-RATE-COVERAGE (RVM102S P2-2, 2026-10-05).** Paired cache and
+  speed math is repaired, and the lane S aggregate/rollup read interface
+  preserves paired sums and observed-call counts for cache, speed, latency
+  and first-token timing. The frozen lane 0 `usageTotalsSchema` has no
+  coverage field, so the checked page protocol cannot carry those counts
+  to the page or text renderer. Scope clarification was requested; no
+  out-of-lane schema or string was changed. Safe only for this unmerged,
+  unshipped service lane: rates use measured pairs and unknown stays unknown,
+  but a mixed-coverage rate still lacks its required `n/m` disclosure.
+  Follow-up: authorize or have lane 0 add a strictly validated optional
+  measurements object to totals, then emit it for every total/group/bucket,
+  preserve it in journal rollups/exports and display localized observed/total
+  call coverage for each rate and latency in both page and text. This is a
+  remaining acceptance blocker, not permission to release incomplete usage.
 - **FIXM95P (2026-10-05):** all thirteen assigned RVM95A findings
   (1, 2, 4–8, 12–15, 18, 19) are repaired with regressions and deliberate
   failure drills in `docs/certification/m95-p.md`; no assigned finding is
