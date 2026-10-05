@@ -34,6 +34,11 @@ happened, not what was planned; superseded entries are kept.
   - **Headless.** `muse-spark-code-acp report` prints the same scrubbed
     report from the agent's own journal, starting nothing; in ACP mode the
     agent records its own failures there without touching ACP stdout.
+  - **Windows reports.** UNC and extended Windows paths are scrubbed,
+    including quoted paths with spaces. Workspace/home replacements accept
+    equivalent Windows case and separators; extended paths retain verified
+    package stack frames. Windows link, open-file pruning and CRLF export
+    checks are recorded in `docs/certification/m93.md`.
 - **A live receipt workflow for the GitHub Action (M80 LA).**
   `.github/workflows/action-live.yml` runs the real Action, on the agent
   package packed from the same commit, against one open same-repository pull

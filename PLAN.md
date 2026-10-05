@@ -14249,6 +14249,12 @@ joined with M57, M58 and PR #49's sign-in
   activation. An exported BigInt constant broke vitest's shared module cache
   for every suite importing `constants.ts`; it is a number compared as
   BigInt. Receipts: `docs/certification/m93.md`.
+- **Windows validation (WINM93, 2026-10-05).** Run M93's owning suites on
+  Windows 11, including UNC/extended paths, drive-letter case, journal storage
+  with spaces and Unicode, links/junctions, open-file append/prune, CRLF export
+  identity and the four-theme 320 px dialog. Correct Windows path scrubbing
+  when these probes fail; keep POSIX path handling unchanged. Record failing
+  probes, byte-exact red drills and restored receipts in `m93.md`.
 - **Certification checklist.**
   - [x] Owner-approved decision and milestone planned; source research recorded.
   - [x] All acceptance tests fail under their breaks, then pass on restored code
@@ -14530,6 +14536,12 @@ named suites and all requested static/build gates directly on Kubuntu, serially;
 commit with hooks enabled. Record pending integration gates without weakening
 any rule, threshold or ignore. The correction and red-drill receipts are in
 `docs/certification/m93-r.md`.
+
+**WINM93 gate boundary (2026-10-05).** Its rig brief and shared rules reserve
+full quality/coverage for the lead and forbid merges, rebases and pushes. Run
+M93 owning files (at most three per vitest invocation, three workers), the
+requested static/build checks and report accessibility directly on Windows 11;
+commit locally with hooks enabled. The Windows receipts are in `m93.md`.
 
 - **FIXM93R-G-L10N (resolved by lane I, 2026-10-05):** `museSpark.reportProblem`
   is contributed; `check:l10n` reports 0 problems on the integrated tree.

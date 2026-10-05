@@ -210,6 +210,63 @@ describe('stored records, validated again', () => {
 })
 
 describe('second scrub over the final draft', () => {
+  it.each([
+    String.raw`C:\Users\Alice\work\main.ts`,
+    String.raw`c:\users\alice\work\main.ts`,
+    'c:/Users/Alice/work/main.ts',
+    String.raw`\\?\C:\Users\Alice\work\main.ts`,
+  ])('replaces Windows workspace spelling %s before home', (location) => {
+    const scrubbed = scrubFinalDraft(location, {
+      workspaceRoots: [String.raw`C:\Users\Alice\work`],
+      homeDir: String.raw`C:\Users\Alice`,
+      extraLiterals: [],
+    })
+    expect(scrubbed).toMatch(/^<workspace>[\\/]main\.ts$/)
+  })
+
+  it.each([
+    String.raw`\\server\share\work\main.ts`,
+    String.raw`\\SERVER\share\work\main.ts`,
+    String.raw`\\?\UNC\server\share\work\main.ts`,
+  ])('replaces a known UNC workspace %s', (location) => {
+    expect(
+      scrubFinalDraft(location, {
+        workspaceRoots: [String.raw`\\server\share\work`],
+        homeDir: '',
+        extraLiterals: [],
+      }),
+    ).toBe(String.raw`<workspace>\main.ts`)
+  })
+
+  it.each([
+    String.raw`C:\Users\Other\private.txt`,
+    String.raw`\\server\share\Other\private.txt`,
+    String.raw`\\?\UNC\server\share\Other\private.txt`,
+    String.raw`\\?\C:\Users\Other\private.txt`,
+  ])('removes the whole unknown Windows user path %s', (location) => {
+    expect(scrubFinalDraft(`see ${location}`, SCRUB)).toBe(`see ${REDACTED_MARK}`)
+  })
+
+  it('replaces a Windows home with spaces, Unicode and regexp punctuation', () => {
+    expect(
+      scrubFinalDraft(String.raw`c:\users\Café [one]\notes.txt`, {
+        workspaceRoots: [],
+        homeDir: String.raw`C:\Users\Café [one]`,
+        extraLiterals: [],
+      }),
+    ).toBe(String.raw`~\notes.txt`)
+  })
+
+  it.each([
+    String.raw`C:\Users\Other Person\private 雪.txt`,
+    String.raw`\\server\share\Other Person\private 雪.txt`,
+    String.raw`\\?\UNC\server\share\Other Person\private 雪.txt`,
+  ])('redacts an unknown quoted Windows path with spaces: %s', (location) => {
+    expect(scrubFinalDraft(`see "${location}" after reload`, SCRUB)).toBe(
+      `see "${REDACTED_MARK}" after reload`,
+    )
+  })
+
   it('catches every secret-shaped value injected late', () => {
     const late = [
       'key LLM_abcdefghijklmnop here',

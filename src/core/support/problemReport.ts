@@ -232,7 +232,12 @@ export interface ReportScrubContext {
 const WORKSPACE_MARK = '<workspace>'
 
 const POSIX_USER_PATH = /\/(?:home|Users)\/[^\s]+/g
-const WINDOWS_USER_PATH = /[a-z]:[\\/]users[\\/][^\s]+/gi
+// Unknown Windows paths can contain spaces; stop at a line or enclosing quote.
+const WINDOWS_USER_PATH = /(?:\\\\\?\\)?[a-z]:[\\/]users[\\/][^\r\n"'<>`]+|\\\\[^\r\n"'<>`]+/gi
+const WINDOWS_ROOT = /^(?:[a-z]:[\\/]|\\\\)/i
+const EXTENDED_UNC_PREFIX = /^\\\\\?\\UNC\\/i
+const EXTENDED_DRIVE_PREFIX = /^\\\\\?\\/
+const REGEXP_SPECIAL = /[.*+?^${}()|[\]\\]/g
 const EMAIL_PATTERN = /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b/g
 const IPV4_PATTERN = /\b(?:\d{1,3}\.){3}\d{1,3}\b/g
 const IPV6_PATTERN =
@@ -241,6 +246,21 @@ const URL_QUERY_PATTERN = /\b(https?:\/\/[^\s?#]*)(?:[?#][^\s]*)?/g
 
 function isIpv6Like(match: string): boolean {
   return match.includes('::') || /[a-fA-F]/.test(match)
+}
+
+/** Windows roots have equivalent case, separators and extended spellings. */
+function replaceReportRoot(text: string, root: string, mark: string): string {
+  if (!WINDOWS_ROOT.test(root)) return text.replaceAll(root, () => mark)
+  const plain = root
+    .replace(EXTENDED_UNC_PREFIX, () => '\\\\')
+    .replace(EXTENDED_DRIVE_PREFIX, () => '')
+  const isUnc = plain.startsWith('\\\\')
+  const escaped = (isUnc ? plain.slice(2) : plain)
+    .split(/[\\/]/)
+    .map((part) => part.replaceAll(REGEXP_SPECIAL, (character) => `\\${character}`))
+    .join(String.raw`[\\/]`)
+  const prefix = isUnc ? String.raw`\\\\(?:\?\\UNC\\)?` : String.raw`(?:\\\\\?\\)?`
+  return text.replaceAll(new RegExp(`${prefix}${escaped}`, 'gi'), () => mark)
 }
 
 /**
@@ -255,13 +275,13 @@ export function scrubFinalDraft(draft: string, context: ReportScrubContext): str
     .filter((root) => root !== '')
     .toSorted((a, b) => b.length - a.length)
   for (const root of roots) {
-    text = text.replaceAll(root, () => WORKSPACE_MARK)
+    text = replaceReportRoot(text, root, WORKSPACE_MARK)
   }
   if (context.homeDir !== '') {
-    text = text.replaceAll(context.homeDir, () => HOME_ABBREVIATION)
+    text = replaceReportRoot(text, context.homeDir, HOME_ABBREVIATION)
   }
-  text = text.replaceAll(POSIX_USER_PATH, () => REDACTED_MARK)
   text = text.replaceAll(WINDOWS_USER_PATH, () => REDACTED_MARK)
+  text = text.replaceAll(POSIX_USER_PATH, () => REDACTED_MARK)
   text = text.replaceAll(URL_QUERY_PATTERN, (_match, base: string) => base)
   text = text.replaceAll(EMAIL_PATTERN, () => REDACTED_MARK)
   text = text.replaceAll(IPV6_PATTERN, (match) => (isIpv6Like(match) ? REDACTED_MARK : match))
