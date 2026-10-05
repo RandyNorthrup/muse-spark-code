@@ -98,7 +98,6 @@ const DEFERRED = [
 
 // The backend's files the activation bundle may carry, each with its reason.
 const ACTIVATION_ALLOWED = new Map([
-  ['client.ts', 'the key client that makes images for Muse Code (M44)'],
   ['schemas.ts', "the key client's request and response shapes"],
   ['sse.ts', "the key client's stream parser"],
   ['imageGeneration.ts', "the IDE server's image tools on Muse Code (M44)"],
@@ -111,6 +110,8 @@ const ACTIVATION_ALLOWED = new Map([
 // The files that load only with the backend: the host, its tools, hooks,
 // goals, subagents, memory tools, permission engine and MCP client.
 const LAZY_ONLY = [
+  // TRAIN14A: paid key clients load from the existing backend bundle on first use.
+  'client.ts',
   'ModelApiHost.ts',
   // M78: command policy and the paid, read-only Auto reviewer load with the backend.
   'autoReviewer.ts',

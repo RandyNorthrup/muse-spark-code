@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto'
 import { cpSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
+import { brotliDecompressSync } from 'node:zlib'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { stageVsix, packagedChangelog } from '../../scripts/package-vsix.mjs'
 import { listFiles } from '@vscode/vsce/out/package.js'
@@ -55,6 +56,7 @@ beforeAll(async () => {
     'dist/webview/main.css',
     'dist/webview/chunks/UsageDialog-test.js',
     'native/darwin/muse-dictate',
+    'l10n/ui.de.json.br',
   ]) {
     mkdirSync(path.dirname(path.join(fixture.root, file)), { recursive: true })
     writeFileSync(path.join(fixture.root, file), 'runtime')
@@ -82,6 +84,7 @@ describe('VSIX packaging', () => {
         'dist/validation.js',
         'dist/webview/chunks/UsageDialog-test.js',
         'native/darwin/muse-dictate',
+        'l10n/ui.de.json.br',
       ]),
     )
     expect(packaged).not.toContain('docs/marketplace-readme.md')
@@ -89,7 +92,9 @@ describe('VSIX packaging', () => {
   it('compacts translations with identical values and leaves the source byte-exact', () => {
     const source = path.join(fixture.root, 'l10n/ui.de.json')
     const before = readFileSync(path.join(ROOT, 'l10n/ui.de.json'))
-    const shipped = readFileSync(path.join(fixture.stage, 'l10n/ui.de.json'), 'utf8')
+    const shipped = brotliDecompressSync(
+      readFileSync(path.join(fixture.stage, 'l10n/ui.de.json.br')),
+    ).toString('utf8')
     expect(JSON.parse(shipped)).toEqual(JSON.parse(before))
     expect(shipped).toBe(JSON.stringify(JSON.parse(before)))
     expect(createHash('sha256').update(readFileSync(source)).digest('hex')).toBe(

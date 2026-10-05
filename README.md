@@ -3992,3 +3992,8 @@ via PayPal. Thank you!
 - [docs/PRIVACY.md](docs/PRIVACY.md): what leaves your machine.
 - [SECURITY.md](SECURITY.md) and [CONTRIBUTING.md](CONTRIBUTING.md).
 - [Issues](https://github.com/RandyNorthrup/muse-spark-code/issues).
+
+Production packages store UI translation tables with Brotli compression and
+read them with a bounded decoder; source tables remain readable JSON. The
+packaged localization check compares every decoded value with its source.
+The shared production Node English fallback uses the same built-in compression.

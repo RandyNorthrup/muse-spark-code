@@ -33,7 +33,7 @@ export interface IdeImageToolsDeps {
   /** The workspace the images go into; undefined with no folder open. */
   readonly workspace: ImageWorkspace | undefined
   /** A Model API client that reads the stored key (never the subscription). */
-  readonly client: ModelApiClient
+  readonly client: () => ModelApiClient
   /** The modal before every purchase; true only when the user chose to buy. */
   readonly confirm: (plan: ImagePlan) => Promise<boolean>
   /** Called once an image was returned: the window's tally. */
@@ -78,7 +78,8 @@ async function callImageTool(
   if (!prepared.ok) {
     throw new Error(prepared.reason)
   }
-  const keyDigest = await deps.client.currentKeyDigest()
+  const client = deps.client()
+  const keyDigest = await client.currentKeyDigest()
   if (deps.keyGeneration() !== keyGeneration) {
     throw new Error(MODEL_TEXT.imageAccountChanged)
   }
@@ -90,7 +91,7 @@ async function callImageTool(
     throw new Error(MODEL_TEXT.imageAccountChanged)
   }
   const outcome = await runImageCall(prepared.plan, {
-    client: deps.client,
+    client,
     io: workspace.io,
     // No turn to stop it from here: the request's own deadline ends the wait.
     signal: AbortSignal.timeout(IMAGE_REQUEST_TIMEOUT_MS),

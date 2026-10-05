@@ -87,7 +87,7 @@ import {
 import { BackgroundNotifier } from './host/conversation/turnNotifications'
 import { canonicalPath } from './host/canonicalPath'
 import { loadToolImage } from './core/toolImages'
-import { ModelApiClient } from './core/backends/modelapi/client'
+import { modelApiClientLoader } from './host/backend/modelApiBundle'
 import { ideImageTools } from './host/ide/imageTools'
 import { ideWebFetchTools, isIdeWebFetchOffered, oneQuestionPerUrl } from './host/ide/webFetchTool'
 import { isWebFetchAllowed } from './host/web/webFetchConfirm'
@@ -161,7 +161,7 @@ import { TasksPanel } from './host/views/tasksPanel'
 import { SurfaceRegistry } from './host/views/surfaceRegistry'
 import type { ChatSurface } from './host/views/chatSurface'
 import type { WebviewHostContext } from './host/views/webviewSetup'
-import { loadUiTable } from './host/l10n'
+import { loadUiTable, readUiTableFile } from './host/l10n'
 import { createInsightsReader } from './host/usage/traceLogs'
 import { createDictationSetup, createMuseVoiceSetup } from './host/voice/dictationHost'
 import { voiceLoader } from './host/voice/voiceBundle'
@@ -591,10 +591,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   // or says a word (PLAN.md D33); the webviews get the same table.
   const l10n = await loadUiTable({
     language: vscode.env.language,
-    readExtensionFile: async (segments) =>
-      new TextDecoder().decode(
-        await vscode.workspace.fs.readFile(vscode.Uri.joinPath(context.extensionUri, ...segments)),
-      ),
+    readExtensionFile: (segments) => readUiTableFile(context.extensionUri.fsPath, segments),
     log,
   })
 
@@ -1013,9 +1010,9 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     },
     // The bundle builds its engine (lane C) and its spend gate over this
     // window's ledger file (lane L) from these. The key client is the one
-    // M44 keeps in activation; it is read only on a Tab request.
+    // M44 loads on its first paid use; it is read only on a Tab request.
     services: {
-      stream: (body, signal, budget) => keyClient.streamResponse(body, signal, undefined, budget),
+      stream: (body, signal, budget) => keyClient().streamResponse(body, signal, undefined, budget),
       ledgerDirectory: path.join(context.globalStorageUri.fsPath, TAB_LEDGER_DIR),
       windowId: crypto.randomUUID(),
       onSent: () => {
@@ -1523,17 +1520,21 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   })
   // Images for Muse Code (M44, PLAN.md D37): made here with the stored key,
   // never by `muse serve`, each one confirmed with its price.
-  const keyClient = new ModelApiClient({
-    fetch: liveFetch,
-    baseUrl: MODEL_API_BASE_URL,
-    apiKey: () => credentials.getApiKey(),
-    sleep: (ms) =>
-      new Promise((resolve) => {
-        setTimeout(resolve, ms)
-      }),
-    now: () => Date.now(),
-    random: () => Math.random(),
+  const keyClient = modelApiClientLoader({
+    bundlePath: vscode.Uri.joinPath(context.extensionUri, 'dist', MODEL_API_BUNDLE_FILE).fsPath,
     log,
+    client: {
+      fetch: liveFetch,
+      baseUrl: MODEL_API_BASE_URL,
+      apiKey: () => credentials.getApiKey(),
+      sleep: (ms) =>
+        new Promise((resolve) => {
+          setTimeout(resolve, ms)
+        }),
+      now: () => Date.now(),
+      random: () => Math.random(),
+      log,
+    },
   })
   const ideTools = [diagnostics]
   // Web fetch (M69, PLAN.md D49): resolved, checked and pinned here, for the

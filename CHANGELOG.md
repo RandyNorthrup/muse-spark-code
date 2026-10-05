@@ -37,6 +37,8 @@ happened, not what was planned; superseded entries are kept.
 
 ### Changed
 
+- Keep paid HTTP clients in the existing Model API bundle until first use; compress production Node English text and packaged UI tables without changing their decoded values or size budgets.
+
 ### Fixed
 
 ### Security

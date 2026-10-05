@@ -7,10 +7,11 @@
 // bundle's table before it builds anything. The English fallback remains
 // available when this backend is loaded outside the extension.
 
-import { ModelApiClient } from '../../core/backends/modelapi/client'
+import { ModelApiClient, type ModelApiClientDeps } from '../../core/backends/modelapi/client'
 import { loadHookDefinitions } from '../../core/backends/modelapi/hooks'
 import { McpServerPool } from '../../core/backends/modelapi/mcp/pool'
 import { ModelApiHost } from '../../core/backends/modelapi/ModelApiHost'
+import type { UiText } from '../../shared/l10n/en'
 import { setUiText } from '../../shared/l10n/text'
 import type { ModelApiBundleDeps } from './modelApiBundle'
 
@@ -38,4 +39,14 @@ export async function createModelApiHost(deps: ModelApiBundleDeps): Promise<Mode
   })
   await host.load()
   return host
+}
+
+/** Stored-key operations share this bundle's client and installed language. */
+export function createModelApiClient(
+  deps: ModelApiClientDeps,
+  table: UiText,
+  locale: string,
+): ModelApiClient {
+  setUiText(table, locale)
+  return new ModelApiClient(deps)
 }

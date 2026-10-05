@@ -8,6 +8,7 @@ import { createRequire } from 'node:module'
 import vm from 'node:vm'
 import { beforeAll, describe, expect, it } from 'vitest'
 import * as z from 'zod/mini'
+import { EN } from '../../src/shared/l10n/en'
 import type * as validation from '../../src/shared/validationEntry'
 
 const metafileSchema = z.looseObject({
@@ -35,6 +36,12 @@ function inputs(name: string): string[] {
 }
 
 describe('deferred cohort bundles', () => {
+  it('decodes the complete production English fallback without changing any value', () => {
+    const require = createRequire(path.resolve('dist/uiText.js'))
+    const fallback: { readonly EN: typeof EN } = require(path.resolve('dist/uiText.js'))
+    expect(fallback.EN).toEqual(EN)
+  })
+
   it('uses the real shared parser for boundary checks without inlining it in Node bundles', () => {
     const require = createRequire(path.resolve('dist/validation.js'))
     const parser: typeof validation = require(path.resolve('dist/validation.js'))

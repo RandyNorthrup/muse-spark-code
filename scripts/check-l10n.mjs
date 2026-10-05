@@ -25,6 +25,7 @@
 
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs'
 import path from 'node:path'
+import { brotliDecompressSync } from 'node:zlib'
 import process from 'node:process'
 import ts from 'typescript'
 import { loadL10n } from './lib/l10nSource.mjs'
@@ -99,10 +100,15 @@ function isRecord(value) {
 }
 
 /** The parsed JSON file, or undefined with the reason added to `problems`. */
-function readJson(file, problems, root = repoRoot) {
+function readJson(file, problems, root = repoRoot, maxOutputLength) {
   let value
   try {
-    value = JSON.parse(readFileSync(path.join(root, file), 'utf8'))
+    const target = path.join(root, file)
+    const text =
+      maxOutputLength === undefined
+        ? readFileSync(target, 'utf8')
+        : brotliDecompressSync(readFileSync(`${target}.br`), { maxOutputLength }).toString('utf8')
+    value = JSON.parse(text)
   } catch (error) {
     problems.push(`${file}: ${error.message}`)
   }
@@ -435,7 +441,12 @@ function checkPackaged(root, l10n, untranslatedFor, strings, problems) {
     ]),
   ]
   for (const file of files) {
-    const shipped = readJson(file, problems, root)
+    const shipped = readJson(
+      file,
+      problems,
+      root,
+      file.startsWith(`${l10n.TABLE_DIRECTORY}/`) ? l10n.L10N_TABLE_MAX_BYTES : undefined,
+    )
     const source = readJson(file, problems)
     if (JSON.stringify(shipped) !== JSON.stringify(source))
       problems.push(`packaged ${file}: differs from source`)

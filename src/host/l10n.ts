@@ -6,6 +6,11 @@
 // and the log says why. The same table goes to each webview in its HTML.
 // Pure: the file read and the language are injected.
 
+import { existsSync } from 'node:fs'
+import { readFile } from 'node:fs/promises'
+import path from 'node:path'
+import { brotliDecompressSync } from 'node:zlib'
+import { L10N_TABLE_MAX_BYTES } from '../shared/constants'
 import { tableProblems } from '../shared/l10n/check'
 import { EN, type UiText } from '../shared/l10n/en'
 import { TABLE_DIRECTORY, tableFileName, tableLocaleFor } from '../shared/l10n/locales'
@@ -77,4 +82,16 @@ export async function loadUiTable(deps: UiTableDeps): Promise<UiTable> {
   setUiText(parsed, locale)
   deps.log.info(`Display language ${deps.language}: the panel is in ${locale} (${file})`)
   return { locale, table: parsed }
+}
+
+/** Source and ACP tables are JSON; staged VSIX tables are bounded Brotli. */
+export async function readUiTableFile(root: string, segments: readonly string[]): Promise<string> {
+  const file = path.join(root, ...segments)
+  const compressed = `${file}.br`
+  if (existsSync(compressed)) {
+    return brotliDecompressSync(await readFile(compressed), {
+      maxOutputLength: L10N_TABLE_MAX_BYTES,
+    }).toString('utf8')
+  }
+  return await readFile(file, 'utf8')
 }

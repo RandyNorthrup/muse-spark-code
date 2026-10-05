@@ -7,7 +7,7 @@
 import { spawn } from 'node:child_process'
 import { randomBytes } from 'node:crypto'
 import { readFileSync } from 'node:fs'
-import { open, readFile } from 'node:fs/promises'
+import { open } from 'node:fs/promises'
 import { homedir } from 'node:os'
 import path from 'node:path'
 import process from 'node:process'
@@ -15,7 +15,7 @@ import { Writable } from 'node:stream'
 import { ndJsonStream } from '@agentclientprotocol/sdk'
 import { createAcpAgent, type SignInMethod } from '../acp/agent'
 import { processGitRunner } from '../host/git'
-import { loadUiTable } from '../host/l10n'
+import { loadUiTable, readUiTableFile } from '../host/l10n'
 import {
   ACP_AGENT_NAME,
   ACP_AUTH_METHODS,
@@ -288,7 +288,7 @@ async function main(): Promise<number> {
               process.env,
               new Intl.DateTimeFormat().resolvedOptions().locale,
             ),
-            readExtensionFile: (segments) => readFile(path.join(packageRoot, ...segments), 'utf8'),
+            readExtensionFile: (segments) => readUiTableFile(packageRoot, segments),
             log,
           }),
         )
@@ -359,7 +359,7 @@ async function main(): Promise<number> {
   // The language's table goes in before anything reads the text (D33).
   await loadUiTable({
     language: displayLanguage(process.env, new Intl.DateTimeFormat().resolvedOptions().locale),
-    readExtensionFile: (segments) => readFile(path.join(packageRoot, ...segments), 'utf8'),
+    readExtensionFile: (segments) => readUiTableFile(packageRoot, segments),
     log,
   })
   switch (command.command) {

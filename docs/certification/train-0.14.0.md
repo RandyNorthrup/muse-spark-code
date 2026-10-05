@@ -30,8 +30,8 @@ helper and is **not** a CI-shaped size certificate. The previous train's actual
 helper contributed 119,342 compressed bytes plus 164 bytes of ZIP overhead;
 adding that contribution estimates 2,255,361 bytes, 2,561 over the unchanged cap.
 The helper location has been requested because shared rules prohibit network
-retrieval and reading another lane without authorization. CI-shaped certification
-and size recovery remain pending; no placeholder helper is used.
+retrieval and reading another lane without authorization. CI-shaped certification remains pending; no placeholder helper is used.
+The following repair supplies headroom before the next feature merge.
 
 ## Scoped checks
 
@@ -63,3 +63,47 @@ source byte-exact. Restored paidFeatures/paidConsent/paidHost pass all 77 tests.
 | Make `asksOnFirstUse` always return false            | Tab's no-turn-on-modal assertions fail.  |
 
 Both before/after SHA-256 values for `src/core/paid/paidFeatures.ts`: `0c7efee68cb9af5bf5befb47a8d8532ce612b913911c4b07398335dd6a9b61b0`.
+
+## M94 size recovery before M71
+
+The prepared M71 tree exceeded activation and shared-English caps. Abort that
+uncommitted merge, keep its resolved files privately, and first repair M94's
+shared startup/package cost. The paid HTTP client now uses the existing checked,
+retryable lazy loader; Tab and image calls create it when needed and never read
+a stored key while constructing it. Production Node English and staged UI tables
+use lossless Brotli compression; source/browser/ACP JSON stays unchanged. Decode
+is bounded to 1 MiB, corrupt packed tables fall back to English through the
+existing error path, and packaged localization compares exact decoded values.
+No dependency, cap, locale, UI key, setting or command changes.
+
+| Repaired M94 | extension.js | modelApi.js | Webview startup | Deferred JS | uiText.js | VSIX without helper | Estimated with prior helper |
+| ------------ | -----------: | ----------: | --------------: | ----------: | --------: | ------------------: | --------------------------: |
+| Before M71   |      603,473 |     440,260 |         901,818 |      40,575 |    47,353 |           2,071,485 |                   2,190,991 |
+
+`npm run package` passes every existing build gate and staged localization;
+all five TypeScript projects, changed-file lint/format, localization, host API,
+Knip and jscpd pass. Recovery suites pass 113 tests across
+modelApiBundle, ideImageTools, tabBundle, hostL10n, vsixPackaging, l10n and
+deferredBundles. The actual universal-helper package is still unverified.
+
+The following faults fail their whole owning test files, then restore exact
+source bytes; restored tests pass. Factory validation: one failure; lost client
+cache: three; doubled decode bound: one; ignored corrupt packed file: two;
+compiled English replaced with an empty object: one.
+
+| Fault               | File                                 | Before and restored SHA-256                                        |
+| ------------------- | ------------------------------------ | ------------------------------------------------------------------ |
+| client-factory      | `src/host/backend/modelApiBundle.ts` | `e4fe62648b92e8376e698732183f665da7f12944d4c224ee2f4a281f06c8d198` |
+| client-cache        | `src/host/backend/modelApiBundle.ts` | `e4fe62648b92e8376e698732183f665da7f12944d4c224ee2f4a281f06c8d198` |
+| decoded-table-bound | `src/host/l10n.ts`                   | `011e2cc8f6c998f95022521958ab467059496ff37b9b8794753ec3b76e1bfe67` |
+| corrupt-table       | `src/host/l10n.ts`                   | `011e2cc8f6c998f95022521958ab467059496ff37b9b8794753ec3b76e1bfe67` |
+| english-roundtrip   | `scripts/build.mjs`                  | `43754943dc2f7c65920699c8bfe8f67fe0e7067eb6c4dbd98218ba8e9836a231` |
+
+The packaged-table exact-value and paid-client activation split guards also fail
+when their actual staged table/metafile is altered, then pass after byte-exact
+restoration. Their receipts:
+
+| Fault                | Artifact                               | Before and restored SHA-256                                        |
+| -------------------- | -------------------------------------- | ------------------------------------------------------------------ |
+| packaged-table-exact | `dist/vsix-package/l10n/ui.de.json.br` | `d268f44b9367227e9944173fd3f371f025764fe4e6e30d6807e4c2d0b10c7c98` |
+| paid-client-split    | `dist/meta/extension.json`             | `22654eda4cef7fb26df8b6ada6119d8141a1cff8ac879be0cdcf75a947b46251` |

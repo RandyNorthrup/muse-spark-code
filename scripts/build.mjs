@@ -47,8 +47,12 @@
 // does, and its package ships that file (scripts/package-acp.mjs), so the
 // backend is built once for both.
 
-import { mkdirSync, readdirSync, rmSync, statSync, writeFileSync } from 'node:fs'
+import { Buffer } from 'node:buffer'
+import { mkdirSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
+import { runInNewContext } from 'node:vm'
+import { brotliCompressSync, constants as zlibConstants } from 'node:zlib'
+import { loadL10n } from './lib/l10nSource.mjs'
 import * as esbuild from 'esbuild'
 import {
   CONTENT_FILE as WHATS_NEW_CONTENT_OUTFILE,
@@ -368,9 +372,35 @@ const acpOptions = {
   banner: { js: '#!/usr/bin/env node' },
 }
 
+// Keep the production Node fallback under its existing cap; runtime values
+// are the same table. Browser and development outputs retain their inline text.
+const { L10N_COMPRESSION_QUALITY } = await loadL10n(process.cwd())
+/** @type {import('esbuild').Plugin} */
+const compressedEnglish = {
+  name: 'compressed-english',
+  setup(build) {
+    build.onEnd((result) => {
+      if (!isProduction || result.errors.length > 0) return
+      // Evaluate only this build's trusted CommonJS English table.
+      const module = { exports: {} }
+      runInNewContext(readFileSync(UI_TEXT_OUTFILE, 'utf8'), { module, exports: module.exports })
+      const packed = brotliCompressSync(JSON.stringify(Reflect.get(module.exports, 'EN')), {
+        params: { [zlibConstants.BROTLI_PARAM_QUALITY]: L10N_COMPRESSION_QUALITY },
+      }).toString('base64')
+      const code = `exports.EN=JSON.parse(require("node:zlib").brotliDecompressSync(Buffer.from("${packed}","base64")).toString("utf8"));\n`
+      writeFileSync(UI_TEXT_OUTFILE, code)
+      const output = result.metafile?.outputs[UI_TEXT_OUTFILE]
+      if (output === undefined) return
+      output.bytes = Buffer.byteLength(code)
+      output.imports = [{ path: 'node:zlib', kind: 'require-call', external: true }]
+    })
+  },
+}
+
 /** @type {import('esbuild').BuildOptions} */
 const uiTextOptions = {
   ...common,
+  plugins: [compressedEnglish],
   entryPoints: [UI_TEXT_ENTRY],
   outfile: UI_TEXT_OUTFILE,
   platform: 'node',
@@ -380,6 +410,7 @@ const uiTextOptions = {
 
 const validationOptions = {
   ...uiTextOptions,
+  plugins: [],
   entryPoints: [VALIDATION_ENTRY],
   outfile: VALIDATION_OUTFILE,
 }
