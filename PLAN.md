@@ -13982,6 +13982,15 @@ organization-owned repositories, and this one is user-owned. Until that is
 settled, PRs keep the full tier and no check is weaker than before. Record:
 `docs/certification/ciflow.md`.
 
+**M97 integration gate blockers (2026-10-05, lane I).** Full quality did not
+exit 0. Source coverage and every production cap pass, but the 456-page a11y
+run was stopped within the lane time box after very slow Chrome progress.
+Gitleaks reports five historical `authSource.test.ts` findings; only redacted
+metadata was inspected. SAST reports five non-literal RegExp findings in the
+legal ecosystem readers and rule timeouts. No history, ignore, threshold or
+rule was changed. These are release blockers, not waivers; exact receipts are
+in `docs/certification/m97.md`. Installed-host certification remains pending.
+
 **M97 package compression (lane I, before changing the package script).**
 The universal VSIX initially measures 2,260,558 bytes, 7,758 bytes above the
 unchanged 2,252,800-byte cap. A maximum-DEFLATE probe preserves every archive
@@ -14654,9 +14663,12 @@ These are unresolved delivery/security gaps, not accepted legal conclusions:
 - I-R8: current scanner recognizes pinned identifiers and heuristic license
   titles, not a complete license-text matching corpus or full legal analysis.
   Static readers cannot resolve arbitrary build logic, linkage or stale artifacts.
+- I-R10: M97-GATE-A11Y, M97-GATE-SECRETS and M97-GATE-SAST remain open;
+  full quality has no exit-0 receipt. See §7 and aggregate certification.
 - I-R9: the independent S/W review reports 20 findings (3 P1, 17 P2),
   including scope redaction and fix evidence/lifecycle guards. FIXM97SW owns
-  those repairs; no fix branch is locally available at this receipt. Existing
+  those repairs. Rig snapshot `c88fec94` is local, but its final verification
+  is pending and no finished `m97/swfix` branch is available. Existing
   component passes do not waive that review. Do not release before integration
   and exact-tree verification. See the aggregate certification record.
 

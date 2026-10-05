@@ -70,9 +70,9 @@ muse-spark-code-acp legal --format json --out legal-report.json
 These invocations use the packaged local scanner. No model, backend, sign-in,
 credential store, package manager, build or ACP connection is started. The
 scan is free and offline by default. `--out` writes only the report destination
-you explicitly name; ordinary scans do not change the workspace. JSON stdout
-is one `{ disclaimer, result, registry }` envelope, with no ACP frames; status words go to
-stderr. Keep reports private when they contain package names, paths or source
+you explicitly name; ordinary scans do not change the workspace. Without
+`--out`, JSON stdout is one `{ disclaimer, result, registry }` envelope, with
+no ACP frames; `--out` leaves stdout empty. Status words go to stderr. Keep reports private when they contain package names, paths or source
 URLs. Known secret formats and email values are scrubbed; universal PII
 recognition is not promised.
 
