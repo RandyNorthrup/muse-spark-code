@@ -3896,6 +3896,46 @@ export const LEGAL_SCAN_PATHS_MAX = 100
 export const LEGAL_EXCLUSIONS_MAX = 200
 export const LEGAL_INCOMPLETE_MAX = 100
 
+// --- The headless `legal` command (M97 lane R, PLAN.md D76) ---
+//
+// Exit codes (D76): 0 is a complete scan with no blockers, 1 a complete scan
+// with blockers, 2 incomplete coverage, bad input or an operational failure.
+// Advice alone never fails CI: only `blocker` and `should-fix` findings take
+// exit 1, and anything the scan could not cover takes exit 2.
+export const LEGAL_EXIT = {
+  ok: 0,
+  findings: 1,
+  incomplete: 2,
+} as const
+// The scanner bundle beside dist/extension.js and dist/acp.js (D76): lane S's
+// scanner, loaded lazily by the host and the headless command, never part of
+// activation. The bundle-split gate refuses it in dist/extension.js.
+export const LEGAL_SCAN_BUNDLE_FILE = 'legalScan.js'
+// The headless scan's own deadline: a workspace walk of up to
+// LEGAL_FILES_SCANNED_MAX files plus the bounded registry reads below. The
+// headless lifecycle still owns the process deadline.
+export const LEGAL_SCAN_TIMEOUT_MS = 120_000
+// Registry enrichment (D76: disclosed, bounded, OFF unless `--registry`): the
+// only hosts ever queried, over HTTPS, with no credentials. npm answers one
+// version document per package@version; PyPI one project document per
+// package@version; both shapes were captured live before parsing (lane R).
+export const LEGAL_REGISTRY_HOSTS = {
+  npm: 'registry.npmjs.org',
+  pypi: 'pypi.org',
+} as const
+export type LegalRegistryEcosystem = keyof typeof LEGAL_REGISTRY_HOSTS
+// Packages enriched per run: one request per package@version, so the count
+// bounds the requests, the identifiers that leave the machine, and the wait.
+export const LEGAL_REGISTRY_MAX_QUERIES = 50
+// A version or project document past this is refused instead of buffered:
+// the license shapes both registries use fit in kilobytes.
+export const LEGAL_REGISTRY_RESPONSE_MAX_BYTES = 262_144
+// One registry request's own deadline; LEGAL_SCAN_TIMEOUT_MS bounds the run.
+export const LEGAL_REGISTRY_TIMEOUT_MS = 10_000
+// A rendered report past this is refused instead of written: 500 findings
+// with full excerpts stay far below it, so past it means a broken renderer.
+export const LEGAL_REPORT_MAX_BYTES = 4_194_304
+
 // What the user reads, in the display language (PLAN.md D33).
 export { UI_TEXT } from './l10n/text'
 // The JSON script element the host writes into each webview's HTML with

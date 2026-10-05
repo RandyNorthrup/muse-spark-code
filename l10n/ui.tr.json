@@ -1173,7 +1173,7 @@
   "acpQuestionAsked": "Muse'un bir sorusu var; bu düzenleyici soruyu form olarak gösteremiyor, bu yüzden bir sonraki iletinizde yanıtlayın:",
   "acpUnknownArgument": "Bilinmeyen bağımsız değişken: {argument}",
   "acpPaidNeedsModelApi": "{argument} için --backend modelApi gerekir: ücretli özellikler bir Model API anahtarına faturalandırılır.",
-  "acpUsage": "Kullanım:\n  {command} [seçenekler]              Agent Client Protocol'ü stdin ve stdout üzerinden sunar\n  {command} [seçenekler] login        Bu terminalde Muse Code'da oturum açar\n  {command} auth set|status|clear  Meta Model API anahtarını saklar, denetler veya kaldırır\n  {command} exec [options] <prompt>  Arayüzsüz bir tur çalıştır\n  {command} scan-secrets <file> [--key-stdin]  Bir dosyadaki olası gizli bilgileri say (yalnızca sayıyı yazar)\nSeçenekler:\n  --backend museCode|modelApi      Kim öder: Muse Code (varsayılan) veya Model API anahtarı\n  --trust-workspace                Klasörün kurallarını, becerilerini ve belleğini yükler\n  --muse-binary <yol>             Çalıştırılacak Muse Code CLI\n  --shell-sandbox auto|muse|off    Muse Code'un kabuk korumalı alanı\n  --allow-dangerously-skip-permissions  \"İzinleri atla\" modunu sunar\n  --allow-contributor-models       Katkıda bulunan düzeyindeki modelleri listeler (Meta bunların içeriğiyle eğitim yapabilir)\n  --web-search                     Ücretli web aramasını sunar (Model API arka ucu; önce fiyatı sorulur)\n  --image-generation               Ücretli görüntü oluşturmayı sunar (Model API arka ucu; önce fiyatı sorulur)\n  --verbose                        Her ayrıntıyı stderr'e kaydeder\n  --help, --version",
+  "acpUsage": "Kullanım:\n  {command} [seçenekler]              Agent Client Protocol'ü stdin ve stdout üzerinden sunar\n  {command} [seçenekler] login        Bu terminalde Muse Code'da oturum açar\n  {command} auth set|status|clear  Meta Model API anahtarını saklar, denetler veya kaldırır\n  {command} exec [options] <prompt>  Arayüzsüz bir tur çalıştır\n  {command} scan-secrets <file> [--key-stdin]  Bir dosyadaki olası gizli bilgileri say (yalnızca sayıyı yazar)\n\n  {command} legal [options]  Salt okunur yasal taramayı çalıştır (arka uç veya oturum gerekmez)\nSeçenekler:\n  --backend museCode|modelApi      Kim öder: Muse Code (varsayılan) veya Model API anahtarı\n  --trust-workspace                Klasörün kurallarını, becerilerini ve belleğini yükler\n  --muse-binary <yol>             Çalıştırılacak Muse Code CLI\n  --shell-sandbox auto|muse|off    Muse Code'un kabuk korumalı alanı\n  --allow-dangerously-skip-permissions  \"İzinleri atla\" modunu sunar\n  --allow-contributor-models       Katkıda bulunan düzeyindeki modelleri listeler (Meta bunların içeriğiyle eğitim yapabilir)\n  --web-search                     Ücretli web aramasını sunar (Model API arka ucu; önce fiyatı sorulur)\n  --image-generation               Ücretli görüntü oluşturmayı sunar (Model API arka ucu; önce fiyatı sorulur)\n  --verbose                        Her ayrıntıyı stderr'e kaydeder\n  --help, --version",
   "exportSessionLine": "Oturum: `{id}`",
   "exportBackendLine": "Arka uç: {backend}",
   "exportModelLine": "Model: {model}",
@@ -1865,5 +1865,11 @@
   "legalFixable": "Düzeltilebilir",
   "legalNotFixable": "Yalnızca öneri",
   "legalEvidenceLabel": "Kanıt: {evidence}",
-  "legalConfidenceLabel": "Güven: {confidence}"
+  "legalConfidenceLabel": "Güven: {confidence}",
+  "legalDistributionLine": "Dağıtım: {distribution}",
+  "legalRegistryLine": "Paket registry: {detail}",
+  "legalRegistryOff": "Registry zenginleştirme kapalı. Eksik lisansları tamamlamak için --registry ile yeniden çalıştırın.",
+  "legalWroteFile": "Yasal tarama raporu {path} konumuna yazıldı.",
+  "legalFormatInvalid": "Biçim text veya json olmalıdır.",
+  "legalUsage": "legal [--format text|json] [--out <file>] [--registry]"
 }

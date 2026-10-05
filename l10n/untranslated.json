@@ -45,7 +45,8 @@
       "agentImportSourceCursor",
       "exportThenRunSkipped",
       "execUsage",
-      "execScanUsage"
+      "execScanUsage",
+      "legalUsage"
     ],
     "cs": [
       "groupModel",

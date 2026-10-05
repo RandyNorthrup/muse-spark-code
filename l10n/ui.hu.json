@@ -1173,7 +1173,7 @@
   "acpQuestionAsked": "Muse-nak kérdése van; ez a szerkesztő nem tudja űrlapként megjeleníteni, ezért a következő üzenetében válaszoljon:",
   "acpUnknownArgument": "Ismeretlen argumentum: {argument}",
   "acpPaidNeedsModelApi": "A(z) {argument} használatához --backend modelApi szükséges: a fizetős funkciókat egy Model API-kulcsra számlázzák.",
-  "acpUsage": "Használat:\n  {command} [kapcsolók]              Az Agent Client Protocol kiszolgálása stdin és stdout felett\n  {command} [kapcsolók] login        Bejelentkezés a Muse Code-ba ebben a terminálban\n  {command} auth set|status|clear  A Meta Model API-kulcs tárolása, ellenőrzése vagy törlése\n  {command} exec [options] <prompt>  Egy kör futtatása felület nélkül\n  {command} scan-secrets <file> [--key-stdin]  Valószínű titkok megszámolása egy fájlban (csak a számot írja ki)\nKapcsolók:\n  --backend museCode|modelApi      Ki fizet: a Muse Code (alapértelmezett) vagy a Model API-kulcs\n  --trust-workspace                A mappa szabályainak, képességeinek és memóriájának betöltése\n  --muse-binary <útvonal>             A futtatandó Muse Code parancssori eszköz\n  --shell-sandbox auto|muse|off    A Muse Code parancsértelmező-védőkörnyezete\n  --allow-dangerously-skip-permissions  A(z) „Engedélyek megkerülése” mód felkínálása\n  --allow-contributor-models       A közreműködői szintű modellek listázása (a Meta tanulhat a tartalmukból)\n  --web-search                     Fizetős webes keresés felajánlása (Model API háttérrendszer; előbb az áráról kérdez)\n  --image-generation               Fizetős képkészítés felajánlása (Model API háttérrendszer; előbb az áráról kérdez)\n  --verbose                        Minden részlet naplózása az stderr-re\n  --help, --version",
+  "acpUsage": "Használat:\n  {command} [kapcsolók]              Az Agent Client Protocol kiszolgálása stdin és stdout felett\n  {command} [kapcsolók] login        Bejelentkezés a Muse Code-ba ebben a terminálban\n  {command} auth set|status|clear  A Meta Model API-kulcs tárolása, ellenőrzése vagy törlése\n  {command} exec [options] <prompt>  Egy kör futtatása felület nélkül\n  {command} scan-secrets <file> [--key-stdin]  Valószínű titkok megszámolása egy fájlban (csak a számot írja ki)\n\n  {command} legal [options]  Csak olvasható jogi vizsgálat futtatása (háttérrendszer és bejelentkezés nélkül)\nKapcsolók:\n  --backend museCode|modelApi      Ki fizet: a Muse Code (alapértelmezett) vagy a Model API-kulcs\n  --trust-workspace                A mappa szabályainak, képességeinek és memóriájának betöltése\n  --muse-binary <útvonal>             A futtatandó Muse Code parancssori eszköz\n  --shell-sandbox auto|muse|off    A Muse Code parancsértelmező-védőkörnyezete\n  --allow-dangerously-skip-permissions  A(z) „Engedélyek megkerülése” mód felkínálása\n  --allow-contributor-models       A közreműködői szintű modellek listázása (a Meta tanulhat a tartalmukból)\n  --web-search                     Fizetős webes keresés felajánlása (Model API háttérrendszer; előbb az áráról kérdez)\n  --image-generation               Fizetős képkészítés felajánlása (Model API háttérrendszer; előbb az áráról kérdez)\n  --verbose                        Minden részlet naplózása az stderr-re\n  --help, --version",
   "exportSessionLine": "Munkamenet: `{id}`",
   "exportBackendLine": "Háttérrendszer: {backend}",
   "exportModelLine": "Modell: {model}",
@@ -1865,5 +1865,11 @@
   "legalFixable": "Javítható",
   "legalNotFixable": "Csak ajánlás",
   "legalEvidenceLabel": "Bizonyíték: {evidence}",
-  "legalConfidenceLabel": "Megbízhatóság: {confidence}"
+  "legalConfidenceLabel": "Megbízhatóság: {confidence}",
+  "legalDistributionLine": "Terjesztés: {distribution}",
+  "legalRegistryLine": "Csomagregistry: {detail}",
+  "legalRegistryOff": "A registry-kiegészítés ki van kapcsolva. Futtassa újra --registry kapcsolóval a hiányzó licencek kiegészítéséhez.",
+  "legalWroteFile": "A jogi vizsgálati jelentés ide lett írva: {path}.",
+  "legalFormatInvalid": "A formátum text vagy json lehet.",
+  "legalUsage": "legal [--format text|json] [--out <file>] [--registry]"
 }

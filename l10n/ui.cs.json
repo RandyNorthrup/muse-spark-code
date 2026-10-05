@@ -1235,7 +1235,7 @@
   "acpQuestionAsked": "Muse má otázku; tento editor ji neumí zobrazit jako formulář, odpovězte proto v další zprávě:",
   "acpUnknownArgument": "Neznámý argument: {argument}",
   "acpPaidNeedsModelApi": "{argument} vyžaduje --backend modelApi: placené funkce se účtují na klíč Model API.",
-  "acpUsage": "Použití:\n  {command} [volby]              Poskytuje Agent Client Protocol přes stdin a stdout\n  {command} [volby] login        Přihlásí se k Muse Code v tomto terminálu\n  {command} auth set|status|clear  Uloží, zkontroluje nebo odebere klíč Meta Model API\n  {command} exec [options] <prompt>  Spustit jeden běh bez rozhraní\n  {command} scan-secrets <file> [--key-stdin]  Spočítat pravděpodobná tajemství v jednom souboru (vypíše jen počet)\nVolby:\n  --backend museCode|modelApi      Kdo platí: Muse Code (výchozí) nebo klíč Model API\n  --trust-workspace                Načte pravidla, dovednosti a paměť složky\n  --muse-binary <cesta>             Rozhraní CLI Muse Code, které se spustí\n  --shell-sandbox auto|muse|off    Izolované prostředí shellu Muse Code\n  --allow-dangerously-skip-permissions  Nabídne režim „Obejít oprávnění“\n  --allow-contributor-models       Zobrazí modely úrovně contributor (Meta může trénovat na jejich obsahu)\n  --web-search                     Nabídne placené hledání na webu (back-end Model API; nejprve se zeptá na cenu)\n  --image-generation               Nabídne placené vytváření obrázků (back-end Model API; nejprve se zeptá na cenu)\n  --verbose                        Zapisuje každý detail do stderr\n  --help, --version",
+  "acpUsage": "Použití:\n  {command} [volby]              Poskytuje Agent Client Protocol přes stdin a stdout\n  {command} [volby] login        Přihlásí se k Muse Code v tomto terminálu\n  {command} auth set|status|clear  Uloží, zkontroluje nebo odebere klíč Meta Model API\n  {command} exec [options] <prompt>  Spustit jeden běh bez rozhraní\n  {command} scan-secrets <file> [--key-stdin]  Spočítat pravděpodobná tajemství v jednom souboru (vypíše jen počet)\n\n  {command} legal [options]  Spustit kontrolu licencí jen pro čtení (bez backendu a přihlášení)\nVolby:\n  --backend museCode|modelApi      Kdo platí: Muse Code (výchozí) nebo klíč Model API\n  --trust-workspace                Načte pravidla, dovednosti a paměť složky\n  --muse-binary <cesta>             Rozhraní CLI Muse Code, které se spustí\n  --shell-sandbox auto|muse|off    Izolované prostředí shellu Muse Code\n  --allow-dangerously-skip-permissions  Nabídne režim „Obejít oprávnění“\n  --allow-contributor-models       Zobrazí modely úrovně contributor (Meta může trénovat na jejich obsahu)\n  --web-search                     Nabídne placené hledání na webu (back-end Model API; nejprve se zeptá na cenu)\n  --image-generation               Nabídne placené vytváření obrázků (back-end Model API; nejprve se zeptá na cenu)\n  --verbose                        Zapisuje každý detail do stderr\n  --help, --version",
   "exportSessionLine": "Relace: `{id}`",
   "exportBackendLine": "Back-end: {backend}",
   "exportModelLine": "Model: {model}",
@@ -1999,5 +1999,11 @@
   "legalFixable": "Opravitelné",
   "legalNotFixable": "Pouze doporučení",
   "legalEvidenceLabel": "Důkaz: {evidence}",
-  "legalConfidenceLabel": "Jistota: {confidence}"
+  "legalConfidenceLabel": "Jistota: {confidence}",
+  "legalDistributionLine": "Distribuce: {distribution}",
+  "legalRegistryLine": "Registr: {detail}",
+  "legalRegistryOff": "Obohacování z registru je vypnuté. Zopakujte s --registry pro doplnění chybějících licencí.",
+  "legalWroteFile": "Zpráva z kontroly licencí byla zapsána do {path}.",
+  "legalFormatInvalid": "Formát musí být text nebo json.",
+  "legalUsage": "legal [--format text|json] [--out <file>] [--registry]"
 }

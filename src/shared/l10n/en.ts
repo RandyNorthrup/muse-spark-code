@@ -1668,6 +1668,7 @@ export const EN = {
     '  {command} auth set|status|clear  Store, check or remove the Meta Model API key',
     '  {command} exec [options] <prompt>  Run one headless turn',
     '  {command} scan-secrets <file> [--key-stdin]  Count likely secrets in one file (prints only the number)',
+    '  {command} legal [options]  Run the read-only legal scan (no backend, no sign-in)',
     'Options:',
     '  --backend museCode|modelApi      Who pays: Muse Code (the default) or the Model API key',
     '  --trust-workspace                Load the folder’s rules, skills and memory',
@@ -2325,6 +2326,17 @@ export const EN = {
   legalNotFixable: 'Recommendation only',
   legalEvidenceLabel: 'Evidence: {evidence}',
   legalConfidenceLabel: 'Confidence: {confidence}',
+  // M97 lane R: the headless `legal` command's own lines. {distribution} is
+  // the scanner's one-sentence assumption; {detail} is the registry
+  // disclosure (hosts, queries, bytes); {path} stays as typed; {reason} is
+  // the scanner's own words.
+  legalDistributionLine: 'Distribution: {distribution}',
+  legalRegistryLine: 'Registry: {detail}',
+  legalRegistryOff: 'Registry enrichment off. Rerun with --registry to enrich missing licenses.',
+  legalWroteFile: 'Legal scan report written to {path}.',
+  legalFormatInvalid: 'The format must be text or json.',
+  // Command syntax stays English (l10n/untranslated.json).
+  legalUsage: 'legal [--format text|json] [--out <file>] [--registry]',
 }
 
 /** The shape every table has: English's keys, with any language's plural forms. */
