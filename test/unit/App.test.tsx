@@ -3112,6 +3112,7 @@ function editItem(itemId: string, path: string, added: number, removed: number) 
         tool: 'edit_file',
         args: JSON.stringify({ path }),
         patchSummary: { files: 1, added, removed },
+        patchRef: { id: `patch-${itemId}`, byteLen: 10 },
       },
     },
   })
@@ -3122,8 +3123,8 @@ describe('App: the M87 wiring (PLAN.md D66)', () => {
     vi.restoreAllMocks()
   })
 
-  it('adds up the edits in a row above the goal and task panes, without Review before M70', () => {
-    renderReady()
+  it('adds up the edits in a row above the goal and task panes, Review opening M70’s pane', () => {
+    const postMessage = renderReady()
     const goal = showGoal()
     deliver({
       type: 'agentEvent',
@@ -3137,11 +3138,22 @@ describe('App: the M87 wiring (PLAN.md D66)', () => {
     const tally = screen.getByRole('group', { name: UI_TEXT.diffTallyLabel })
     expect(tally).toHaveTextContent('2 files changed')
     expect(tally).toHaveTextContent('+14 −3')
-    expect(within(tally).queryByRole('button')).toBeNull()
     const tasks = screen.getByRole('region', { name: 'Tasks' })
     for (const below of [goal, tasks, textarea()]) {
       expect(tally.compareDocumentPosition(below) & Node.DOCUMENT_POSITION_FOLLOWING).not.toBe(0)
     }
+    // Review asks for the same edits the pane lists, in their order.
+    fireEvent.click(within(tally).getByRole('button', { name: UI_TEXT.diffTallyReview }))
+    expect(postMessage).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: 'readReviewChanges',
+        edits: [
+          { itemId: 'e1', outputRef: 'patch-e1' },
+          { itemId: 'e2', outputRef: 'patch-e2' },
+          { itemId: 'e3', outputRef: 'patch-e3' },
+        ],
+      }),
+    )
   })
 
   it('reverts a landed edit from its row’s menu (D66 item 17)', () => {

@@ -32,8 +32,8 @@ export const DEFAULT_OUT_DIR = 'media/readme'
 export const BUNDLE_PATH = 'dist/webview/main.js'
 export const THEMES = new Set(['dark', 'light', 'hc-dark', 'hc-light'])
 // Chrome's headless CLI clamps windows below this width (see
-// withNarrowPage in scripts/lib/harnessServer.mjs): a narrower shot has no
-// capture path yet.
+// withSizedPage in scripts/lib/harnessServer.mjs): a narrower shot has no
+// capture path here yet.
 export const MIN_CLI_WIDTH = 500
 const LANG_ID = /^[a-z]{2,3}(?:-[a-z\d]+)*$/
 const SHOT_IMAGE = /^media\/readme\/[^/]+\.png$/

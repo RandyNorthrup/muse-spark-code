@@ -160,7 +160,13 @@
     "paid:autoReviewer": "Activer ou désactiver le réviseur auto payant.",
     "paid:bestOfN": "Activer ou désactiver Best-of-N payant.",
     "loop": "Planifier un prompt dans cette conversation Model API.",
-    "importSession": "Reprendre un fichier de session exporté sur le backend Model API."
+    "importSession": "Reprendre un fichier de session exporté sur le backend Model API.",
+    "review": "Demander à Muse de relire vos modifications, ou ce que vous décrivez.",
+    "reviewUncommitted": "Muse relit vos modifications indexées et non indexées.",
+    "reviewBranch": "Muse relit cette branche par rapport à la branche de base choisie.",
+    "reviewCommit": "Muse relit un commit récent que vous choisissez.",
+    "reviewSecurity": "Muse cherche des problèmes de sécurité dans vos modifications non validées.",
+    "reviewChanges": "Accepter ou annuler chaque modification de cette conversation."
   },
   "paletteSkillTip": "Exécute la compétence {name}.",
   "groupContext": "Contexte",

@@ -157,26 +157,41 @@ describe('GooeyMenu', () => {
     expect(onSelect).toHaveBeenCalledOnce()
   })
 
-  it('places pills by their drawn widths, capped at the panel', () => {
-    drawn('offsetWidth', (node) => (node.getAttribute('role') === 'menuitem' ? 200 : 0))
-    render(
-      <GooeyMenu
-        items={[
-          { id: 'a', label: 'Alpha', icon: 'A', onSelect: vi.fn() },
-          { id: 'b', label: 'Beta', icon: 'B', onSelect: vi.fn() },
-        ]}
-        label="Measured"
-        origin={{ x: 1000, y: 380 }}
-        onClose={vi.fn()}
-      />,
-    )
-    for (const pill of screen.getAllByRole('menuitem')) {
-      // jsdom's window is 1024 px wide: the pills reach left, ending 16 px or
-      // more short of the origin, and are never drawn wider than 1024 - 16.
-      expect(Number(pill.style.left.replace('px', '')) + 200).toBeLessThanOrEqual(1000 - 16)
-      expect(pill.style.maxWidth).toBe('1008px')
-    }
-  })
+  it.each([1024, 320])(
+    'draws every pill one size in a %s px panel, a long pseudo-locale label included',
+    (width) => {
+      vi.spyOn(window, 'innerWidth', 'get').mockReturnValue(width)
+      render(
+        <GooeyMenu
+          items={[
+            { id: 'a', label: 'Edit', icon: 'A', onSelect: vi.fn() },
+            {
+              id: 'b',
+              label: '⟦Fórk çóñvérsátíóñ áñd réwíñd çódé xxxxx xxxxx xxxxx xxxxx⟧',
+              icon: 'B',
+              onSelect: vi.fn(),
+            },
+            { id: 'c', label: 'Reply to this output', icon: 'C', onSelect: vi.fn() },
+          ]}
+          label="Uniform"
+          origin={{ x: width - 24, y: 380 }}
+          onClose={vi.fn()}
+        />,
+      )
+      const pills = screen.getAllByRole('menuitem')
+      // The owner, 2026-10-04: "they should be a uniform size". The width is
+      // the widest that keeps the whole fan inside 320 px: 320 - 2 × 8 - 32.
+      for (const pill of pills) {
+        expect(pill.style.width).toBe('272px')
+        expect(pill.style.height).toBe('40px')
+        const left = Number(pill.style.left.replace('px', ''))
+        expect(left).toBeGreaterThanOrEqual(8)
+        expect(left + 272).toBeLessThanOrEqual(width - 8)
+      }
+      // They scale in one after another, 30 ms apart.
+      expect(pills.map((pill) => pill.style.animationDelay)).toEqual(['0ms', '30ms', '60ms'])
+    },
+  )
 
   it('puts a clipped label whole in the tooltip, after an item’s own title', () => {
     drawn('scrollWidth', (node) => (node.classList.contains('gooey-menu-pill-label') ? 300 : 0))
@@ -242,7 +257,7 @@ describe('GooeyMenu', () => {
     expect(document.activeElement).toBe(opener)
   })
 
-  it('uses anchor element origin and provides motion/forced-color hooks and unique goo filter', () => {
+  it('uses anchor element origin and a forced-colours hook, with no filter at all', () => {
     const anchor = document.createElement('button')
     vi.spyOn(anchor, 'getBoundingClientRect').mockReturnValue(new DOMRect(260, 30, 40, 40))
     const { container } = render(
@@ -253,19 +268,16 @@ describe('GooeyMenu', () => {
         onClose={vi.fn()}
       />,
     )
-    expect(screen.getByRole('menu')).toHaveClass('gooey-menu-motion-safe', 'gooey-menu-colors-safe')
+    expect(screen.getByRole('menu')).toHaveClass('gooey-menu-colors-safe')
     // The anchor's centre is (280, 50): the lone pill sits 48 px to its right,
     // level with it, and bursts from that centre.
     const pill = screen.getByRole('menuitem')
     expect(pill.style.left).toBe('328px')
     expect(pill.style.top).toBe('30px')
     expect(pill.style.transformOrigin).toBe('-48px 20px')
-    expect(container.querySelector('feGaussianBlur')).toHaveAttribute('stdDeviation', '10')
-    expect(container.querySelector('feColorMatrix')).toHaveAttribute(
-      'values',
-      '1 0 0 0 0 0 1 0 0 0 0 0 1 0 0 0 0 0 18 -7',
-    )
-    expect(container.querySelector('feBlend')).toHaveAttribute('in2', 'goo')
+    // The owner, 2026-10-04: crisp pills, "not with the faded smudge look".
+    expect(container.querySelector('svg, filter, defs')).toBeNull()
+    expect(container.querySelector('[style*="filter"]')).toBeNull()
   })
 
   it('handles no enabled actions without activating or losing Escape', () => {

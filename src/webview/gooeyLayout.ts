@@ -13,7 +13,7 @@ interface MenuViewport {
 /** Which way the pills reach from the origin: 1 to its right, -1 to its left. */
 type GooeySide = -1 | 1
 
-/** A pill's top-left corner and drawn width; every pill is `GOOEY_MENU.pillHeight` high. */
+/** A pill's top-left corner and width; every pill is `GOOEY_MENU.pillHeight` high. */
 export interface GooeyPill {
   readonly left: number
   readonly top: number
@@ -31,25 +31,32 @@ function clamp(value: number, low: number, high: number): number {
   return Math.max(low, Math.min(high, value))
 }
 
-/** The widest a pill is drawn: the panel less the edge padding on both sides. */
-export function gooeyPillMaxWidth(viewport: MenuViewport): number {
-  return Math.max(0, viewport.width - 2 * GOOEY_MENU.edgePadding)
+/**
+ * Every pill's width (the owner, 2026-10-04: "they should be a uniform
+ * size"): the widest that keeps the whole fan inside a 320 px panel, so no
+ * label grows its pill; a longer label ends in an ellipsis. A panel
+ * narrower still gives each pill its width less the edge padding.
+ */
+export function gooeyPillWidth(viewport: MenuViewport): number {
+  const fixed = GOOEY_MENU.narrowPanel - 2 * GOOEY_MENU.edgePadding - GOOEY_MENU.bow
+  return Math.max(0, Math.min(fixed, viewport.width - 2 * GOOEY_MENU.edgePadding))
 }
 
 /**
- * One column of pills beside `anchor`, centred on its height and moved
- * whole to stay inside the panel. Rows never overlap, whatever the labels'
- * widths, so only the horizontal place depends on them. The near ends sit on
- * half an ellipse around the anchor: the pills level with it reach farthest,
- * the outer ones curve back, so the column reads as a fan.
+ * The pills beside `anchor`, one row each, centred on its height and moved
+ * whole to stay inside the panel. Their near ends sit on half an ellipse
+ * around the anchor: the pills level with it reach farthest, the outer ones
+ * curve back, so the rows read as a fan. When the fan would leave the panel
+ * it moves back towards (and over) the origin all at once, keeping its arc;
+ * only a panel too narrow for the whole arc gets a shallower one. Rows never
+ * overlap.
  */
 function column(
   anchor: MenuPoint,
   side: GooeySide,
-  widths: readonly number[],
+  count: number,
   viewport: MenuViewport,
 ): readonly GooeyPill[] {
-  const count = widths.length
   if (count === 0) {
     return []
   }
@@ -61,36 +68,42 @@ function column(
   const step = height + gap
   const total = count * height + (count - 1) * gap
   const first = clamp(anchor.y - total / 2, pad, viewport.height - pad - total)
-  const tops = widths.map((_, index) => first + index * step)
-  // How far each pill's middle sits above or below the anchor, against half
-  // a step past the outermost pill, so even that one curves out a little.
+  const tops = Array.from({ length: count }, (_, index) => first + index * step)
+  // How far out each row bows, 0 to 1: its middle's distance from the
+  // anchor's height, against half a step past the outermost row, so even
+  // that one curves out a little.
   const lifts = tops.map((top) => top + height / 2 - anchor.y)
   const span = Math.max(...lifts.map((lift) => Math.abs(lift))) + step / 2
-  const maxWidth = gooeyPillMaxWidth(viewport)
-  return widths.map((requested, index) => {
-    const width = Math.min(requested, maxWidth)
-    const lift = (lifts[index] ?? 0) / span
-    const reach = GOOEY_MENU.reach + GOOEY_MENU.bow * Math.sqrt(1 - lift * lift)
-    const near = anchor.x + side * reach
-    return {
-      // A pill too wide for its side of the origin slides back over it,
-      // still whole inside the panel.
-      left: clamp(side === 1 ? near : near - width, pad, viewport.width - pad - width),
-      top: tops[index] ?? first,
-      width,
-    }
+  const curve = lifts.map((lift) => Math.sqrt(1 - (lift / span) ** 2))
+  const width = gooeyPillWidth(viewport)
+  const spread = Math.max(...curve) - Math.min(...curve)
+  const across = viewport.width - 2 * pad
+  const bow = spread > 0 ? clamp((across - width) / spread, 0, GOOEY_MENU.bow) : GOOEY_MENU.bow
+  const lefts = curve.map((bend) => {
+    const near = anchor.x + side * (GOOEY_MENU.reach + bow * bend)
+    return side === 1 ? near : near - width
   })
+  const shift =
+    side === 1
+      ? Math.min(0, viewport.width - pad - (Math.max(...lefts) + width))
+      : Math.max(0, pad - Math.min(...lefts))
+  return lefts.map((left, index) => ({
+    left: left + shift,
+    top: tops[index] ?? first,
+    width,
+  }))
 }
 
 /**
- * The pills of a menu opened at `origin` (M87, the owner's request of
- * 2026-10-04: labels on the bubbles, so pills). They stack in a column on
- * the side of the origin with more room, away from the nearer side edge,
- * and the column centres on the origin unless that would leave the panel.
+ * The pills of a menu opened at `origin` (M87, the owner's requests of
+ * 2026-10-04: one blue pill per item, icon and label in it, all one size,
+ * in a fan). They reach to the side of the origin with more room, away from
+ * the nearer side edge, and centre on the origin unless that would leave
+ * the panel.
  */
 export function gooeyLayout(
   origin: MenuPoint,
-  widths: readonly number[],
+  count: number,
   viewport: MenuViewport,
 ): GooeyPillLayout {
   const pad = GOOEY_MENU.edgePadding
@@ -99,7 +112,7 @@ export function gooeyLayout(
     y: clamp(origin.y, pad, viewport.height - pad),
   }
   const side: GooeySide = point.x < viewport.width / 2 ? 1 : -1
-  return { origin: point, side, pills: column(point, side, widths, viewport) }
+  return { origin: point, side, pills: column(point, side, count, viewport) }
 }
 
 /**
@@ -110,7 +123,7 @@ export function gooeyLayout(
 export function gooeySecondBurst(
   layout: GooeyPillLayout,
   index: number,
-  widths: readonly number[],
+  count: number,
   viewport: MenuViewport,
 ): GooeyPillLayout | undefined {
   const pill = layout.pills[index]
@@ -121,6 +134,6 @@ export function gooeySecondBurst(
   return {
     origin: centre,
     side: layout.side,
-    pills: column({ x: layout.origin.x, y: centre.y }, layout.side, widths, viewport),
+    pills: column({ x: layout.origin.x, y: centre.y }, layout.side, count, viewport),
   }
 }

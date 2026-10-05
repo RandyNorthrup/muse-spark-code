@@ -47,6 +47,7 @@ export const SCENARIOS = [
   'add-context',
   'markdown',
   'tools',
+  'tools-open',
   'approval',
   'approval-several',
   'approval-narrow',

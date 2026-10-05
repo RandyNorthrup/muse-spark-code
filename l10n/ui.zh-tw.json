@@ -160,7 +160,13 @@
     "paid:autoReviewer": "開啟或關閉付費自動審查器。",
     "paid:bestOfN": "開啟或關閉付費 N 選最優。",
     "loop": "在此 Model API 對話中排程提示詞。",
-    "importSession": "在 Model API 後端中繼續已匯出的工作階段檔案。"
+    "importSession": "在 Model API 後端中繼續已匯出的工作階段檔案。",
+    "review": "讓 Muse 審查你的變更，或你描述的內容。",
+    "reviewUncommitted": "Muse 審查已暫存和未暫存的變更。",
+    "reviewBranch": "Muse 將此分支與你選擇的基礎分支比對審查。",
+    "reviewCommit": "Muse 審查你選擇的一個近期提交。",
+    "reviewSecurity": "Muse 檢查未提交的變更中是否有安全問題。",
+    "reviewChanges": "接受或還原此對話中的每處編輯。"
   },
   "paletteSkillTip": "執行 {name} 技能。",
   "groupContext": "上下文",

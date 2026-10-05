@@ -263,12 +263,13 @@ describe('M87 palette descriptions', () => {
       renderPalette({
         groups: buildPalette({
           ...context,
-          skills: [{ selector: 'review', displayName: 'Review code', description }],
+          // Not "review": M70's /review rows share that name.
+          skills: [{ selector: 'tidy-notes', displayName: 'Tidy notes', description }],
         }),
       })
-      const row = screen.getByRole('option', { name: /review/ })
-      expect(row).toHaveAttribute('title', 'Run the Review code skill.')
-      expect(row).toHaveAccessibleDescription('Run the Review code skill.')
+      const row = screen.getByRole('option', { name: /tidy-notes/ })
+      expect(row).toHaveAttribute('title', 'Run the Tidy notes skill.')
+      expect(row).toHaveAccessibleDescription('Run the Tidy notes skill.')
     },
   )
 })

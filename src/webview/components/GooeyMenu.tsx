@@ -1,17 +1,18 @@
-// Fresh implementation inspired by Lucas Bebber's Gooey Menu (MIT):
-// https://codepen.io/lbebber/pen/LELBEo
+// The chat's radial menu: a fan of blue pills, each its icon and its label,
+// all one size, that scale in from where the menu opened, one after another.
+// The burst began as a fresh take on Lucas Bebber's Gooey Menu (MIT,
+// https://codepen.io/lbebber/pen/LELBEo); its goo filter is gone (the owner,
+// 2026-10-04: "not with the faded smudge look").
 import {
-  type CSSProperties,
   type KeyboardEvent,
   type ReactNode,
   type MouseEvent,
-  useId,
   useLayoutEffect,
   useRef,
   useState,
 } from 'react'
 import { GOOEY_MENU, UI_TEXT } from '../../shared/constants'
-import { gooeyLayout, gooeyPillMaxWidth, gooeySecondBurst, type MenuPoint } from '../gooeyLayout'
+import { gooeyLayout, gooeySecondBurst, type MenuPoint } from '../gooeyLayout'
 import { useDismiss } from '../useDismiss'
 import { MoreIcon } from './icons'
 
@@ -38,14 +39,8 @@ interface GooeyMenuProps {
   readonly onClose: () => void
 }
 
-/** A drawn pill's width, and whether its label had to end in an ellipsis. */
-interface PillSize {
-  readonly width: number
-  readonly isClipped: boolean
-}
-
-/** Sizes are kept per level, so an open group's own pill keeps its place. */
-function sizeKey(level: string | undefined, id: string): string {
+/** A pill's key per level: the same item may sit in the first burst and a group's. */
+function pillKey(level: string | undefined, id: string): string {
   return JSON.stringify([level ?? null, id])
 }
 
@@ -63,10 +58,9 @@ export function GooeyMenu({ items, label, origin, onClose }: GooeyMenuProps) {
   const [active, setActive] = useState<string>()
   // Where the menu opened, and the panel's size: placed again on a resize.
   const [frame, setFrame] = useState(() => ({ point: { x: 0, y: 0 }, viewport: viewportNow() }))
-  // Each pill as drawn, measured before the first paint, so the layout keeps
-  // a pill of any label's width inside the panel and off its neighbours.
-  const [sizes, setSizes] = useState<ReadonlyMap<string, PillSize>>(() => new Map())
-  const filterId = useId()
+  // The pills whose label ends in an ellipsis, measured before the first
+  // paint: their tooltip gives the whole label.
+  const [clipped, setClipped] = useState<ReadonlyMap<string, boolean>>(() => new Map())
   const group = items.find((item): item is GooeyGroup => item.id === groupId && 'children' in item)
   const visibleItems = group?.children ?? items
   const returnFocus = () => {
@@ -116,30 +110,27 @@ export function GooeyMenu({ items, label, origin, onClose }: GooeyMenuProps) {
   }, [origin])
 
   const level = group?.id
-  const maxWidth = gooeyPillMaxWidth(frame.viewport)
+  const layout = gooeyLayout(frame.point, items.length, frame.viewport)
+  const burst =
+    (group === undefined
+      ? undefined
+      : gooeySecondBurst(layout, items.indexOf(group), group.children.length, frame.viewport)) ??
+    layout
+  const pillWidth = burst.pills[0]?.width
   useLayoutEffect(() => {
-    // A label, a level or the panel's width may change a pill's size; the
-    // state changes only when a size did.
+    // A label, a level or the panel's width may clip a label; the state
+    // changes only when the clipped set did.
     const drawn = buttons.current
-    const measured = visibleItems.flatMap((item): (readonly [string, PillSize])[] => {
-      const button = drawn.get(item.id)
-      if (button === undefined) {
-        return []
-      }
-      const text = button.querySelector('.gooey-menu-pill-label')
-      const isClipped = text !== null && text.scrollWidth > text.clientWidth
-      return [[sizeKey(level, item.id), { width: button.offsetWidth, isClipped }]]
+    const measured = visibleItems.map((item): readonly [string, boolean] => {
+      const text = drawn.get(item.id)?.querySelector('.gooey-menu-pill-label')
+      const isClipped = text !== null && text !== undefined && text.scrollWidth > text.clientWidth
+      return [pillKey(level, item.id), isClipped]
     })
-    const isChanged = measured.some(([key, size]) => {
-      const known = sizes.get(key)
-      return known?.width !== size.width || known.isClipped !== size.isClipped
-    })
-    if (!isChanged) {
+    if (measured.every(([key, isClipped]) => clipped.get(key) === isClipped)) {
       return
     }
-    const next = new Map([...sizes, ...measured])
-    setSizes(next)
-  }, [visibleItems, level, sizes, maxWidth])
+    setClipped(new Map([...clipped, ...measured]))
+  }, [visibleItems, level, clipped, pillWidth])
 
   useLayoutEffect(() => {
     // A parent's re-render passes new item objects; focus stays put unless the
@@ -174,18 +165,6 @@ export function GooeyMenu({ items, label, origin, onClose }: GooeyMenuProps) {
     [opener],
   )
 
-  const widthsOf = (level: string | undefined, list: readonly GooeyItem[]) =>
-    list.map((item) => sizes.get(sizeKey(level, item.id))?.width ?? 0)
-  const layout = gooeyLayout(frame.point, widthsOf(undefined, items), frame.viewport)
-  const burst =
-    (group === undefined
-      ? undefined
-      : gooeySecondBurst(
-          layout,
-          items.indexOf(group),
-          widthsOf(group.id, group.children),
-          frame.viewport,
-        )) ?? layout
   const select = (item: GooeyItem) => {
     if (item.disabled === true || closed.current) {
       return
@@ -246,40 +225,23 @@ export function GooeyMenu({ items, label, origin, onClose }: GooeyMenuProps) {
       buttons.current.get(next.id)?.focus()
     }
   }
-  const gooStyle: CSSProperties & { '--ms-goo-filter': string } = {
-    '--ms-goo-filter': `url(#${filterId})`,
-  }
   return (
     <div
       ref={menu}
-      className="gooey-menu gooey-menu-motion-safe gooey-menu-colors-safe"
+      className="gooey-menu gooey-menu-colors-safe"
       role="menu"
       aria-label={group?.label ?? label}
       tabIndex={-1}
       onBlur={onBlur}
       onKeyDown={handleKeyDown}
     >
-      <svg className="gooey-menu-defs" aria-hidden="true" width="0" height="0">
-        <defs>
-          <filter id={filterId} x="-100%" y="-100%" width="300%" height="300%">
-            <feGaussianBlur in="SourceGraphic" stdDeviation={GOOEY_MENU.blur} result="blur" />
-            <feColorMatrix
-              in="blur"
-              mode="matrix"
-              values="1 0 0 0 0 0 1 0 0 0 0 0 1 0 0 0 0 0 18 -7"
-              result="goo"
-            />
-            <feBlend in="SourceGraphic" in2="goo" />
-          </filter>
-        </defs>
-      </svg>
-      <div className="gooey-menu-pills" style={gooStyle}>
+      <div className="gooey-menu-pills">
         {visibleItems.map((item, index) => {
           const pill = burst.pills[index]
           const left = pill?.left ?? 0
           const top = pill?.top ?? 0
           // A label cut short by the ellipsis is whole in the tooltip too.
-          const isClipped = sizes.get(sizeKey(level, item.id))?.isClipped === true
+          const isClipped = clipped.get(pillKey(level, item.id)) === true
           return (
             <button
               key={item.id}
@@ -301,8 +263,11 @@ export function GooeyMenu({ items, label, origin, onClose }: GooeyMenuProps) {
               style={{
                 left,
                 top,
-                maxWidth,
+                // One size for every pill, whatever its label (the owner).
+                width: pill?.width,
+                height: GOOEY_MENU.pillHeight,
                 transformOrigin: `${String(burst.origin.x - left)}px ${String(burst.origin.y - top)}px`,
+                animationDelay: `${String(index * GOOEY_MENU.staggerMs)}ms`,
               }}
               onFocus={() => {
                 setActive(item.id)

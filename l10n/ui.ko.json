@@ -160,7 +160,13 @@
     "paid:autoReviewer": "유료 자동 검토자를 켜거나 끕니다.",
     "paid:bestOfN": "유료 베스트 오브 N을 켜거나 끕니다.",
     "loop": "이 Model API 대화에서 프롬프트 예약.",
-    "importSession": "내보낸 세션 파일을 Model API 백엔드에서 계속하기."
+    "importSession": "내보낸 세션 파일을 Model API 백엔드에서 계속하기.",
+    "review": "Muse에게 변경 사항이나 설명한 내용을 검토하게 합니다.",
+    "reviewUncommitted": "Muse가 스테이징된 변경과 스테이징되지 않은 변경을 검토합니다.",
+    "reviewBranch": "Muse가 이 브랜치를 선택한 기준 브랜치와 비교해 검토합니다.",
+    "reviewCommit": "Muse가 선택한 최근 커밋 하나를 검토합니다.",
+    "reviewSecurity": "Muse가 커밋하지 않은 변경에서 보안 문제를 찾습니다.",
+    "reviewChanges": "이 대화의 각 편집을 수락하거나 되돌립니다."
   },
   "paletteSkillTip": "{name} 스킬 실행.",
   "groupContext": "컨텍스트",

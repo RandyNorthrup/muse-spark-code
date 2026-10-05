@@ -160,7 +160,13 @@
     "paid:autoReviewer": "Fizetős automatikus ellenőrző be- vagy kikapcsolása.",
     "paid:bestOfN": "Fizetős N legjobbja funkció be- vagy kikapcsolása.",
     "loop": "Prompt ütemezése ebben a Model API-beszélgetésben.",
-    "importSession": "Exportált munkamenetfájl folytatása a Model API háttérrendszerben."
+    "importSession": "Exportált munkamenetfájl folytatása a Model API háttérrendszerben.",
+    "review": "A Muse átnézi a módosításait, vagy amit leír.",
+    "reviewUncommitted": "A Muse átnézi az előkészített és nem előkészített módosításokat.",
+    "reviewBranch": "A Muse átnézi ezt az ágat a választott alapághoz képest.",
+    "reviewCommit": "A Muse átnéz egy választott friss commitot.",
+    "reviewSecurity": "A Muse biztonsági hibákat keres a nem véglegesített módosításokban.",
+    "reviewChanges": "A beszélgetés minden szerkesztésének elfogadása vagy visszavonása."
   },
   "paletteSkillTip": "A(z) {name} képesség futtatása.",
   "groupContext": "Kontextus",

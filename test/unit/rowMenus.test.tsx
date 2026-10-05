@@ -22,14 +22,19 @@ function expectLabelledPills() {
 
 const px = (value: string) => Number(value.replace('px', ''))
 
-/** The shown pills, as drawn (capped at their max width), inside 320 × 760 and apart. */
+/** The shown pills, all one size, inside 320 × 760 and apart. */
 function expectPlacedInNarrowPanel(count: number) {
-  const boxes = expectLabelledPills().map((pill) => ({
+  const pills = expectLabelledPills()
+  const boxes = pills.map((pill) => ({
     left: px(pill.style.left),
     top: px(pill.style.top),
-    width: Math.min(pill.offsetWidth, px(pill.style.maxWidth)),
+    width: px(pill.style.width),
   }))
   expect(boxes).toHaveLength(count)
+  // The owner: "they should be a uniform size", whatever the label.
+  expect(new Set(pills.map((pill) => `${pill.style.width} × ${pill.style.height}`))).toEqual(
+    new Set(['272px × 40px']),
+  )
   for (const [index, box] of boxes.entries()) {
     expect(box.left).toBeGreaterThanOrEqual(8)
     expect(box.left + box.width).toBeLessThanOrEqual(312)
@@ -407,13 +412,6 @@ describe('M87 F2 row menus', () => {
   it('keeps a row menu’s pills inside a 320 px panel and apart, in both bursts', () => {
     vi.spyOn(window, 'innerWidth', 'get').mockReturnValue(320)
     vi.spyOn(window, 'innerHeight', 'get').mockReturnValue(760)
-    // About 7 px a character plus the icon and padding: the notes are wider
-    // than the panel and are capped at it, 304 px.
-    vi.spyOn(HTMLElement.prototype, 'offsetWidth', 'get').mockImplementation(function (
-      this: HTMLElement,
-    ) {
-      return this.getAttribute('role') === 'menuitem' ? 52 + 7 * this.textContent.length : 0
-    })
     renderTranscript([user], {
       onRewind: vi.fn(),
       onFork: vi.fn(),

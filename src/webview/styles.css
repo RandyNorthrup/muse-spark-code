@@ -2504,29 +2504,26 @@ li:focus-within > .row-actions .row-actions-button,
   pointer-events: none;
 }
 
-.gooey-menu-defs {
-  position: absolute;
-}
-
 .gooey-menu-pills {
   position: absolute;
   inset: 0;
-  filter: var(--ms-goo-filter);
 }
 
-/* Each item is a pill, its icon and then its label (the owner, 2026-10-04):
-   the old bubble's height, half-circle ends. The layout measures the drawn
-   width and caps it at the panel's (inline max-width); the ellipsis is the
-   last resort. */
+/* Each item is one crisp blue pill, its icon and then its label (the owner,
+   2026-10-04), every pill one size: the layout sets the same width and
+   height inline on each, so a long label ends in an ellipsis and never wraps
+   or grows its pill. Half-circle ends, no filter, no shadow. Each scales in
+   from the menu's origin after the one before it (inline animation-delay),
+   drawn at scale 0 until its turn. */
 .gooey-menu-pill {
   position: absolute;
   display: flex;
   gap: 8px;
   align-items: center;
+  justify-content: flex-start;
   box-sizing: border-box;
-  width: max-content;
-  height: 40px;
   padding: 0 16px 0 12px;
+  overflow: hidden;
   font: inherit;
   color: var(--vscode-button-foreground);
   white-space: nowrap;
@@ -2535,7 +2532,7 @@ li:focus-within > .row-actions .row-actions-button,
   border: 1px solid var(--vscode-button-border, transparent);
   border-radius: 20px;
   pointer-events: auto;
-  animation: gooey-burst 180ms ease-out;
+  animation: menu-pill-burst 180ms ease-out backwards;
 }
 
 /* A disabled item is a note ("File checkpoints need git on PATH"): the same
@@ -2564,12 +2561,14 @@ li:focus-within > .row-actions .row-actions-button,
 }
 
 .gooey-menu-pill-label {
+  flex: 1;
   min-width: 0;
   overflow: hidden;
+  text-align: start;
   text-overflow: ellipsis;
 }
 
-@keyframes gooey-burst {
+@keyframes menu-pill-burst {
   from {
     transform: scale(0);
   }
@@ -2579,18 +2578,9 @@ li:focus-within > .row-actions .row-actions-button,
   }
 }
 
-/* The pills' burst stops in the closing reduced-motion block. */
-@media (prefers-reduced-motion: reduce) {
-  .gooey-menu-motion-safe .gooey-menu-pills {
-    filter: none;
-  }
-}
-
+/* The pills' burst stops in the closing reduced-motion block: they appear
+   where they rest, all at once. */
 @media (forced-colors: active) {
-  .gooey-menu-colors-safe .gooey-menu-pills {
-    filter: none;
-  }
-
   .gooey-menu-colors-safe .gooey-menu-pill {
     color: ButtonText;
     background: ButtonFace;

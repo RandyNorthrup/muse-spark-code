@@ -91,6 +91,14 @@
       body {
         width: 690px;
       }
+
+      /* A still capture. Headless Chrome's fast-forwarded clock runs the
+         scenario's timers but not CSS animations, so a shot or a scan could
+         catch the menu's pills mid-burst; they are drawn where they rest.
+         The burst itself is the stylesheet's, under reduced motion too. */
+      .gooey-menu-pill {
+        animation: none;
+      }
     </style>
     <script>
       // The fake host: answers the webview the way the extension would.
@@ -1021,6 +1029,21 @@
   <body>
     <div id="root"></div>
     <script>
+      // The harness page is a focused panel. Headless Chrome running many
+      // pages at once (the accessibility gate's workers) can take the
+      // window's focus from one mid-scan: its focused control then hears a
+      // blur nobody caused, a menu that needs the focus (the "/" list) closes
+      // while axe runs, and axe reports the detached list against :root.
+      // A focus change the window made (the document lost focus, no element
+      // took it) is stopped before the app hears it; a real one (Tab, a
+      // click, a scenario's own blur()) passes.
+      const keepWindowFocus = (event) => {
+        if (!document.hasFocus() && event.relatedTarget === null) {
+          event.stopImmediatePropagation()
+        }
+      }
+      window.addEventListener('focusout', keepWindowFocus, true)
+      window.addEventListener('blur', keepWindowFocus, true)
       if (new URLSearchParams(location.search).get('scenario')?.startsWith('tasks-tab')) {
         document.body.dataset.surface = 'tasks'
         document.documentElement.style.width = '100%'
@@ -1745,6 +1768,15 @@
         },
         tools: () => {
           transcriptFixture()
+        },
+        // The same turn with its folded steps opened (M87): thinking, the
+        // read, the edit with its diff, the write and the shell row, as the
+        // README's turn.png shows them.
+        'tools-open': () => {
+          transcriptFixture()
+          whenFound('.steps-toggle', (summary) => {
+            summary.click()
+          })
         },
         approval: () => {
           transcriptFixture()
@@ -2861,8 +2893,16 @@
             const selection = window.getSelection()
             selection.removeAllRanges()
             selection.addRange(range)
+            // Right-clicked inside the passage, as a pointer would: the
+            // pills fan out from there, not from the page's corner.
+            const box = passage.getBoundingClientRect()
             passage.dispatchEvent(
-              new MouseEvent('contextmenu', { bubbles: true, cancelable: true }),
+              new MouseEvent('contextmenu', {
+                bubbles: true,
+                cancelable: true,
+                clientX: box.left + box.width / 2,
+                clientY: box.top + box.height / 2,
+              }),
             )
           })
         },

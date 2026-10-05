@@ -160,7 +160,13 @@
     "paid:autoReviewer": "有料の自動レビュー担当をオンまたはオフにします。",
     "paid:bestOfN": "有料のベスト・オブ・N をオンまたはオフにします。",
     "loop": "この Model API 会話でプロンプトを予約。",
-    "importSession": "エクスポートしたセッションファイルを Model API バックエンドで再開。"
+    "importSession": "エクスポートしたセッションファイルを Model API バックエンドで再開。",
+    "review": "変更内容や説明した内容を Muse にレビューしてもらいます。",
+    "reviewUncommitted": "Muse がステージ済みと未ステージの変更をレビューします。",
+    "reviewBranch": "Muse がこのブランチを選んだベースブランチと比べてレビューします。",
+    "reviewCommit": "Muse が選んだ最近のコミットを 1 つレビューします。",
+    "reviewSecurity": "Muse が未コミットの変更にセキュリティ上の問題がないか確認します。",
+    "reviewChanges": "この会話の各編集を承認または元に戻します。"
   },
   "paletteSkillTip": "{name} スキルを実行します。",
   "groupContext": "コンテキスト",

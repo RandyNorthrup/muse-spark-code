@@ -160,7 +160,13 @@
     "paid:autoReviewer": "Włącz lub wyłącz płatnego automatycznego oceniającego.",
     "paid:bestOfN": "Włącz lub wyłącz płatną funkcję Najlepszy z N.",
     "loop": "Zaplanuj prompt w tej rozmowie Model API.",
-    "importSession": "Wznów wyeksportowany plik sesji w backendzie Model API."
+    "importSession": "Wznów wyeksportowany plik sesji w backendzie Model API.",
+    "review": "Poproś Muse o przegląd zmian lub tego, co opiszesz.",
+    "reviewUncommitted": "Muse przegląda zmiany przygotowane i nieprzygotowane.",
+    "reviewBranch": "Muse przegląda tę gałąź względem wybranej gałęzi bazowej.",
+    "reviewCommit": "Muse przegląda jeden wybrany niedawny commit.",
+    "reviewSecurity": "Muse szuka problemów z bezpieczeństwem w niezatwierdzonych zmianach.",
+    "reviewChanges": "Zaakceptuj lub cofnij każdą edycję z tej rozmowy."
   },
   "paletteSkillTip": "Uruchom umiejętność {name}.",
   "groupContext": "Kontekst",

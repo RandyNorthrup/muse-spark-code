@@ -2075,7 +2075,8 @@ export function App({
         ) : null}
       </main>
       {/* Review waits for M70's review pane (PR #69), which main does not have yet (D66). */}
-      <DiffTally counts={tally} />
+      {/* Review opens M70's pane on the same edits (D66 item 10). */}
+      <DiffTally counts={tally} onReview={openReviewPane} />
       <GoalPanel
         key={state.sessionId}
         goal={state.goal}

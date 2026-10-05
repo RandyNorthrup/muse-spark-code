@@ -160,7 +160,13 @@
     "paid:autoReviewer": "Zapnout nebo vypnout placeného automatického kontrolora.",
     "paid:bestOfN": "Zapnout nebo vypnout placenou funkci Nejlepší z N.",
     "loop": "Naplánovat prompt v této konverzaci Model API.",
-    "importSession": "Pokračovat v exportovaném souboru relace v Model API."
+    "importSession": "Pokračovat v exportovaném souboru relace v Model API.",
+    "review": "Požádat Muse o kontrolu změn nebo toho, co popíšete.",
+    "reviewUncommitted": "Muse zkontroluje připravené i nepřipravené změny.",
+    "reviewBranch": "Muse zkontroluje tuto větev oproti základní větvi, kterou vyberete.",
+    "reviewCommit": "Muse zkontroluje jeden nedávný commit, který vyberete.",
+    "reviewSecurity": "Muse prověří necommitnuté změny z hlediska zabezpečení.",
+    "reviewChanges": "Přijmout nebo vrátit každou úpravu z této konverzace."
   },
   "paletteSkillTip": "Spustit dovednost {name}.",
   "groupContext": "Kontext",

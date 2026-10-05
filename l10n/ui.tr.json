@@ -160,7 +160,13 @@
     "paid:autoReviewer": "Ücretli otomatik inceleyiciyi açın veya kapatın.",
     "paid:bestOfN": "Ücretli N arasından en iyi özelliğini açın veya kapatın.",
     "loop": "Bu Model API konuşmasında bir istem zamanla.",
-    "importSession": "Dışa aktarılan oturum dosyasına Model API arka ucunda devam et."
+    "importSession": "Dışa aktarılan oturum dosyasına Model API arka ucunda devam et.",
+    "review": "Değişikliklerinizi veya anlattığınızı Muse'a inceletin.",
+    "reviewUncommitted": "Muse hazırlanmış ve hazırlanmamış değişikliklerinizi inceler.",
+    "reviewBranch": "Muse bu dalı seçtiğiniz temel dala göre inceler.",
+    "reviewCommit": "Muse seçtiğiniz yakın tarihli bir commit'i inceler.",
+    "reviewSecurity": "Muse kaydedilmemiş değişikliklerinizde güvenlik sorunlarını arar.",
+    "reviewChanges": "Bu konuşmanın her düzenlemesini kabul edin veya geri alın."
   },
   "paletteSkillTip": "{name} becerisini çalıştır.",
   "groupContext": "Bağlam",

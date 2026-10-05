@@ -160,7 +160,13 @@
     "paid:autoReviewer": "Den kostenpflichtigen Auto-Prüfer ein- oder ausschalten.",
     "paid:bestOfN": "Kostenpflichtiges Best-of-N ein- oder ausschalten.",
     "loop": "Einen Prompt in dieser Model-API-Unterhaltung planen.",
-    "importSession": "Eine exportierte Sitzungsdatei im Model-API-Backend fortsetzen."
+    "importSession": "Eine exportierte Sitzungsdatei im Model-API-Backend fortsetzen.",
+    "review": "Muse Ihre Änderungen prüfen lassen, oder das, was Sie beschreiben.",
+    "reviewUncommitted": "Muse prüft Ihre bereitgestellten und nicht bereitgestellten Änderungen.",
+    "reviewBranch": "Muse prüft diesen Branch gegen einen Basis-Branch Ihrer Wahl.",
+    "reviewCommit": "Muse prüft einen kürzlichen Commit Ihrer Wahl.",
+    "reviewSecurity": "Muse prüft Ihre nicht committeten Änderungen auf Sicherheitsprobleme.",
+    "reviewChanges": "Jede Bearbeitung dieser Unterhaltung annehmen oder zurücksetzen."
   },
   "paletteSkillTip": "Den Skill {name} ausführen.",
   "groupContext": "Kontext",

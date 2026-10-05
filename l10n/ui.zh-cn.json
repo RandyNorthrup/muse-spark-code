@@ -160,7 +160,13 @@
     "paid:autoReviewer": "开启或关闭付费自动审查器。",
     "paid:bestOfN": "开启或关闭付费 N 选最优。",
     "loop": "在此 Model API 对话中计划提示词。",
-    "importSession": "在 Model API 后端中继续已导出的会话文件。"
+    "importSession": "在 Model API 后端中继续已导出的会话文件。",
+    "review": "让 Muse 审查你的更改，或你描述的内容。",
+    "reviewUncommitted": "Muse 审查已暂存和未暂存的更改。",
+    "reviewBranch": "Muse 将此分支与你选择的基础分支对比审查。",
+    "reviewCommit": "Muse 审查你选择的一个近期提交。",
+    "reviewSecurity": "Muse 检查未提交的更改中是否有安全问题。",
+    "reviewChanges": "接受或还原此对话中的每处编辑。"
   },
   "paletteSkillTip": "运行 {name} 技能。",
   "groupContext": "上下文",

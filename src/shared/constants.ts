@@ -19,22 +19,25 @@ export const TASKS_MOVE_TO_WINDOW_COMMAND = 'workbench.action.moveEditorToNewWin
 export const WALKTHROUGH_ID = 'museSpark.gettingStarted'
 export const WALKTHROUGH_QUALIFIED_ID = `${EXTENSION_QUALIFIED_ID}#${WALKTHROUGH_ID}`
 // M87 F: radial menu geometry, shared by the pure layout and its renderer.
-// Since 2026-10-04 each item is a pill, its icon and its label (the owner).
+// Since 2026-10-04 (the owner) each item is one blue pill holding its icon
+// and its label, every pill the same size, in a fan with no goo.
 export const GOOEY_MENU = {
   /** A pill's height, the old bubble's; its ends are half circles. */
   pillHeight: 40,
   edgePadding: 8,
-  /**
-   * Between stacked pills at rest. The goo blurs by `blur` and keeps what
-   * reaches 7/18 alpha; two flat edges 20 px apart give 2Φ(-1) ≈ 0.32 at
-   * the middle, so resting pills stay apart and merge only as they burst.
-   */
+  /** Between the fan's pills at rest. */
   gap: 20,
   /** The least room from the origin to a pill: clears a 26 px control centred there. */
   reach: 16,
   /** How much farther the fan's middle reaches than its ends: the arc. */
   bow: 32,
-  blur: 10,
+  /**
+   * The narrowest panel the whole fan must fit (the owner's narrow-view
+   * rule): every pill's width is this less the padding and the bow.
+   */
+  narrowPanel: 320,
+  /** Each pill starts its scale-in this long after the one before it. */
+  staggerMs: 30,
 } as const
 
 export const COMMAND_IDS = {
