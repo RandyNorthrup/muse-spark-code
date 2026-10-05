@@ -20,6 +20,38 @@ Available on Windows, macOS and Linux, with English and 14 translated languages.
 Unofficial. Not affiliated with or endorsed by Meta. “Muse Spark” and “Muse
 Code” are Meta trademarks. You bring your own credentials.
 
+## What's new in 0.13.0
+
+- **Browser checks on local web changes** (see [Browser check](https://github.com/RandyNorthrup/muse-spark-code#browser-check)).
+  The model can open your dev server, click or type, and read console errors
+  and failed requests through a verified, isolated headless browser that you
+  download once with **Muse Spark: Download Browser Check Runtime**. On the
+  Model API it also receives the page's screenshot.
+- **What's New after an update** (see
+  [What's New after an update](https://github.com/RandyNorthrup/muse-spark-code#whats-new-after-an-update)). After the
+  extension updates, the release's highlights and full notes open in an
+  editor tab once you are idle; a fixes-only patch shows a quiet notification
+  instead. Turn it off with `museSpark.showWhatsNewOnUpdate`.
+- **Enhancements available by default** (see
+  [What's on out of the box](https://github.com/RandyNorthrup/muse-spark-code#whats-on-out-of-the-box) and
+  [Paid features](https://github.com/RandyNorthrup/muse-spark-code#paid-features)). Model API extras are on out of the box for
+  the setup you chose. A paid extra asks before its first charge, showing the
+  price and the shared daily budget (`museSpark.paidDailyBudgetUsd`, $5 a day
+  by default). A setting you have turned off stays off.
+- **Muse Gadgets guidance and secret checks** (see
+  [Muse Gadgets](https://github.com/RandyNorthrup/muse-spark-code#muse-gadgets)). The bundled SDK skill covers ESP32 build,
+  flash and bounded serial monitoring. Detected tokens are redacted, a prompt
+  that contains a secret pauses for your decision, and a shell approval that
+  would expose one offers only one-time consent.
+- **Safer diagnostics and steadier Windows helpers** (see
+  [Privacy and security](https://github.com/RandyNorthrup/muse-spark-code#privacy-and-security)). Diagnostic notices redact
+  known secret shapes, confidential workspaces recheck contributor dispatch,
+  protected file approvals stay protected, and the Windows job helpers
+  compile directly with the .NET compiler.
+
+Earlier releases are in the
+[changelog](https://github.com/RandyNorthrup/muse-spark-code/blob/main/CHANGELOG.md).
+
 ## Get started
 
 1. Open **Muse Spark** from the activity bar in a trusted workspace.
