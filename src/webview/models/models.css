@@ -16,10 +16,7 @@
   max-width: 880px;
 }
 
-:where(.models-panel) button,
-:where(.models-panel) input,
-:where(.models-panel) select,
-:where(.models-panel) textarea {
+.models-panel :where(button, input, select, textarea) {
   font: inherit;
   color: inherit;
 }
@@ -27,11 +24,6 @@
 .models-panel :focus-visible {
   outline: 1px solid var(--vscode-focusBorder);
   outline-offset: 1px;
-}
-
-.models-table input[type='checkbox'] {
-  width: 24px;
-  height: 24px;
 }
 
 .models-visually-hidden {
@@ -83,7 +75,10 @@
 }
 
 .models-error {
-  color: var(--vscode-testing-iconFailed, var(--vscode-errorForeground));
+  color: var(--vscode-inputValidation-errorForeground, var(--vscode-foreground));
+  background: var(--vscode-inputValidation-errorBackground, transparent);
+  border-left: 2px solid var(--vscode-inputValidation-errorBorder, var(--vscode-errorForeground));
+  padding: 6px 8px;
   margin: 8px 0;
 }
 
@@ -343,6 +338,10 @@
   color: var(--vscode-descriptionForeground);
 }
 
+.models-select-list [aria-selected='true'] .models-select-description {
+  color: inherit;
+}
+
 .models-select-empty {
   padding: 6px 10px;
   color: var(--vscode-descriptionForeground);
@@ -456,6 +455,11 @@
 
 .models-table-empty {
   color: var(--vscode-descriptionForeground);
+}
+
+.models-table input[type='checkbox'] {
+  width: 24px;
+  height: 24px;
 }
 
 .models-numctx {

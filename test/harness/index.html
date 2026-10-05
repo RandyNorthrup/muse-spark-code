@@ -17,6 +17,9 @@
       // (M95) instead of the chat's, with its own stylesheet.
       const harnessBundle =
         new URLSearchParams(location.search).get('bundle') === 'models' ? 'models' : 'main'
+      if (harnessBundle === 'models') {
+        document.documentElement.classList.add('models-harness')
+      }
       document.write(`<link rel="stylesheet" href="../../dist/webview/${harnessBundle}.css" />`)
     </script>
     <script>
@@ -96,6 +99,11 @@
       html,
       body {
         width: 690px;
+      }
+
+      html.models-harness,
+      html.models-harness body {
+        width: 100%;
       }
     </style>
     <script>
@@ -456,6 +464,7 @@
             }
             case 'modelsPanel/ready':
             case 'providers/select':
+            case 'providers/edit':
             case 'providers/prefill':
             case 'providers/enterKey':
             case 'providers/connect':
@@ -1779,6 +1788,23 @@
           case 'models/filter': {
             modelsLive = modelsApplyFilter(modelsDataset(), message.filter, message.sort)
             modelsSend({ filter: message.filter, sort: message.sort })
+            break
+          }
+          case 'providers/edit': {
+            const provider = modelsBase.providers.find((entry) => entry.id === message.providerId)
+            if (provider !== undefined) {
+              modelsSend({
+                drafts: {
+                  edits: {
+                    [provider.id]: modelsWizardDraft('configure', {
+                      presetId: provider.presetId,
+                      address: provider.address,
+                      blockers: [],
+                    }),
+                  },
+                },
+              })
+            }
             break
           }
           case 'models/tick': {
@@ -4306,6 +4332,9 @@
           clickText('Pick a provider')
         },
         'models-providers': () => {},
+        'models-edit': () => {
+          whenFound('.models-provider', () => clickText('Edit'))
+        },
         'models-scanning': () => {},
         'models-scan-failed': () => {},
         // The diff lines render on the provider rows: no navigation.

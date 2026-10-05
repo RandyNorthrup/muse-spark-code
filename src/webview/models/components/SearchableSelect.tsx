@@ -141,10 +141,10 @@ export function SearchableSelect({
         type="text"
         role="combobox"
         aria-expanded={isOpen}
-        aria-controls={listId}
+        aria-controls={isOpen ? listId : undefined}
         aria-autocomplete="list"
         aria-activedescendant={
-          active === undefined ? undefined : `${baseId}-option-${active.value}`
+          !isOpen || active === undefined ? undefined : `${baseId}-option-${active.value}`
         }
         placeholder={placeholder}
         autoComplete="off"

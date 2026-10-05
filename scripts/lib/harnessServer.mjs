@@ -153,6 +153,7 @@ export const SCENARIOS = [
   'models-suggestions',
   'models-confirm',
   'models-providers',
+  'models-edit',
   'models-scanning',
   'models-scan-failed',
   'models-scan-diff',

@@ -2074,7 +2074,7 @@
   "panelNoMatches": "Keine Treffer.",
   "modelFilterLabels": {
     "toolCalling": "Werkzeugaufrufe",
-    "vision": "Bildverständnis",
+    "vision": "Bildverarbeitung",
     "reasoning": "Schlussfolgern",
     "contextMin": "Mindestkontext",
     "contextMax": "Max. Kontext",

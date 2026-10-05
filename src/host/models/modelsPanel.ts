@@ -1,7 +1,6 @@
 // Lane M's strict bridge is shared by both sides. Credentials stay in this
 // host-owned draft and never join state, exceptions, logs or postMessage.
 import * as vscode from 'vscode'
-import * as z from 'zod/mini'
 import {
   MODELS_PANEL_VIEW_TYPE,
   MODELS_WEBVIEW_SCRIPT_FILE,
@@ -15,7 +14,6 @@ import {
   parseHostToPanelMessage,
   presetCardSchema,
   wizardStepSchema,
-  prefillFieldsSchema,
   type ModelsPanelState,
   type PanelDraft,
   type PanelToHostMessage,
@@ -36,16 +34,6 @@ import type {
 import type { ProvidersHost } from '../providers/providersHost'
 import type { WizardSaveOutcome } from '../providers/wizardSave'
 import { OPENROUTER_ORIGIN } from '../providers/openRouter'
-
-// Edit operations extend M's initial contract; their strict shapes carry no
-// credential. M's repair can adopt these variants in the shared schema.
-const editSchema = z.strictObject({ type: z.literal('providers/edit'), providerId: z.string() })
-const editPrefillSchema = z.strictObject({
-  type: z.literal('providers/prefill'),
-  providerId: z.string(),
-  fields: prefillFieldsSchema,
-})
-type EditMessage = z.infer<typeof editSchema> | z.infer<typeof editPrefillSchema>
 
 export interface ModelsPanelDeps {
   readonly extensionUri: vscode.Uri
@@ -396,7 +384,7 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
             ]
     }
   }
-  const handle = async (message: PanelToHostMessage | EditMessage): Promise<void> => {
+  const handle = async (message: PanelToHostMessage): Promise<void> => {
     switch (message.type) {
       case 'modelsPanel/ready': {
         const cachedScans = await providers.cachedScans()
@@ -746,7 +734,7 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
     await refresh()
     publish()
   }
-  const enqueue = (message: PanelToHostMessage | EditMessage): void => {
+  const enqueue = (message: PanelToHostMessage): void => {
     const previous = operations
     operations = (async () => {
       await previous
@@ -761,16 +749,6 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
     })()
   }
   const subscription = panel.webview.onDidReceiveMessage((raw: unknown) => {
-    const edit = editSchema.safeParse(raw)
-    if (edit.success) {
-      enqueue(edit.data)
-      return
-    }
-    const prefill = editPrefillSchema.safeParse(raw)
-    if (prefill.success) {
-      enqueue(prefill.data)
-      return
-    }
     const parsed = parsePanelToHostMessage(raw)
     if (!parsed.ok) {
       log.warn('Dropped malformed models panel message')

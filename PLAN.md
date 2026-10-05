@@ -13966,6 +13966,27 @@ red drill in `docs/certification/m95-k.md`. No new dependency or weaker gate.
 The brief reserves full quality certification for the lead and requires rig
 execution for Vitest, builds and multi-project typechecks. Any residual and
 missing final integration proof is recorded in section 9 and certification.
+**Review correction, FIXM95MU (2026-10-05).** RVM95KMU findings 3
+(panel webview contract), 4, 16, 17, 18, 19 and 20 are this lane's scope.
+Keep `src/shared/modelsPanel.ts` as the single strict, credential-free
+contract: top-level request fields and `modelsPanel/state` / navigation
+replies. Provider edit requests and draft changes identify their provider;
+the host owns the draft. Confidential BYO admission resolves current host
+privacy metadata before selection and refuses absent or failed resolution.
+Bare Muse-only pickers retain their existing selectable rows. Grid keys
+belong to the grid's own focus, and active descendants name mounted items
+only. Correct the five translations without relaxing localization. Each
+finding has a regression and byte-exact red drill in `m95-m.md` or
+`m95-u.md`; composed host-contract acceptance remains the integration
+lane's check after lane K supplies this shared contract.
+The rig build exposed the panel entry emitted as `models/models.js` while
+the host and harness load `models.js`; explicit entry names keep both
+JavaScript and CSS at their contracted paths. The production build itself
+is the regression gate for that wiring.
+The required rig accessibility run also exposed invalid key-usage list
+markup and missing panel-page theme background. Repair them in the panel's
+owned markup and stylesheet; axe remains unchanged and provides the red
+and green evidence for these corrections.
 
 **Status 2026-10-04: planned on `feature/m95-byo-providers` from main
 `1e93c67c`; research in `docs/certification/m95-research.md`. Step 13's
@@ -15570,6 +15591,15 @@ before a repaired one loads (2026-09-30).
   cancellation, four themes, pseudo-locale and 320px remain integration gates.
   Focused host tests do not certify those surfaces. Final evidence and merge
   status are recorded in `docs/certification/m95-k.md`.
+- **M95MU-HOST-API-RECORD (2026-10-05, integration prerequisite).** The
+  composed M/U tree's host API record still describes 30 commands rather
+  than the 33 from lane 0 and names only the chat stylesheet. Its gate
+  reports those two documentation differences; the 271 API names and 59
+  theme variables are unchanged. This lane adds no VS Code API. Safe while
+  unmerged: this is generated documentation, not a runtime policy change.
+  Lane W / the lead must regenerate and review it on the fully integrated
+  tree, where lane K also contributes APIs. The full quality gate remains
+  required before integration is proposed.
 
 - Code intelligence (M67) shows what VS Code's language services say. A
   result located outside the workspace is left out and a hover defined only

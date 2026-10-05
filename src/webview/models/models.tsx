@@ -8,19 +8,13 @@
 // before the first render (PLAN.md D33).
 
 import { createRoot } from 'react-dom/client'
-import { Component, type ReactNode, useEffect, useReducer, useState } from 'react'
+import { Component, type ReactNode } from 'react'
 import { UI_TEXT, WEBVIEW_ROOT_ELEMENT_ID } from '../../shared/constants'
-import {
-  parseHostToPanelMessage,
-  type ModelsPanelState,
-  type PanelToHostMessage,
-} from '../../shared/modelsPanel'
 import type { ErrorReporter } from '../errorReport'
 import { webviewErrorReport } from '../errorReport'
 import { type HostBridge, vsCodeHostBridge } from '../hostBridge'
 import { installEmbeddedTable } from '../installTable'
-import { ModelsPanel } from './panel'
-import { INITIAL_PANEL_UI, panelUiReducer } from './reducer'
+import { ModelsApp } from './panel'
 import './models.css'
 
 interface CrashState {
@@ -68,52 +62,6 @@ class PanelBoundary extends Component<
   }
 }
 
-function ModelsApp({
-  host,
-  report,
-}: {
-  readonly host: HostBridge
-  readonly report: ErrorReporter
-}) {
-  const [ui, dispatch] = useReducer(panelUiReducer, INITIAL_PANEL_UI)
-  const [panelState, setPanelState] = useState<ModelsPanelState | undefined>(undefined)
-  useEffect(() => {
-    const onMessage = (event: MessageEvent): void => {
-      const parsed = parseHostToPanelMessage(event.data)
-      if (!parsed.ok) {
-        report('hostMessage', new Error(parsed.error))
-        return
-      }
-      const message = parsed.message
-      if (message.type === 'modelsPanel/state') {
-        setPanelState(message.state)
-        dispatch({ type: 'host-state', state: message.state })
-      } else {
-        dispatch({ type: 'host-navigate', section: message.section, itemId: message.itemId })
-      }
-    }
-    host.messages.addEventListener('message', onMessage)
-    return () => {
-      host.messages.removeEventListener('message', onMessage)
-    }
-  }, [host, report])
-  useEffect(() => {
-    host.post({ type: 'modelsPanel/ready' })
-  }, [host])
-  const post = (message: PanelToHostMessage): void => {
-    host.post(message)
-  }
-  return (
-    <PanelBoundary
-      onError={(error) => {
-        report('render', error)
-      }}
-    >
-      <ModelsPanel panelState={panelState} ui={ui} post={post} dispatch={dispatch} />
-    </PanelBoundary>
-  )
-}
-
 // The panel boots once and keeps no module state besides the bridge it
 // renders with. What throws on the way reaches the host's log (M39): a
 // render the boundary caught, an error or a rejected promise nothing
@@ -135,7 +83,15 @@ function startModelsPanel(root: Element, bridge: HostBridge): void {
   if (tableError !== undefined) {
     report('hostMessage', tableError)
   }
-  createRoot(root).render(<ModelsApp host={bridge} report={report} />)
+  createRoot(root).render(
+    <PanelBoundary
+      onError={(error) => {
+        report('render', error)
+      }}
+    >
+      <ModelsApp host={bridge} report={report} />
+    </PanelBoundary>,
+  )
 }
 
 const rootElement = document.querySelector(`#${WEBVIEW_ROOT_ELEMENT_ID}`)

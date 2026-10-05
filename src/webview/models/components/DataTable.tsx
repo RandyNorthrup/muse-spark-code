@@ -68,6 +68,9 @@ export function DataTable({
     }
   }
   const onKeyDown = (event: KeyboardEvent<HTMLTableElement>): void => {
+    if (event.target !== event.currentTarget) {
+      return
+    }
     switch (event.key) {
       case 'ArrowDown': {
         event.preventDefault()
@@ -119,7 +122,9 @@ export function DataTable({
       className="models-table"
       role="grid"
       aria-label={caption}
-      aria-activedescendant={activeId === undefined ? undefined : `models-row-${activeId}`}
+      aria-activedescendant={
+        activeIndex === -1 || activeId === undefined ? undefined : `models-row-${activeId}`
+      }
       tabIndex={0}
       onKeyDown={onKeyDown}
     >

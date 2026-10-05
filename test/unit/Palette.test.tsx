@@ -168,14 +168,29 @@ describe('Palette (actions view)', () => {
 })
 
 describe('Palette (models view)', () => {
+  it('keeps the single bare Muse picker and its arrow wrapping unchanged', () => {
+    const { props, filter } = renderPalette({ view: 'models', models: context.models.slice(0, 1) })
+    expect(screen.getAllByRole('option').map((node) => node.textContent)).toEqual([
+      'Muse Spark 1.31M contextCurrent',
+    ])
+    expect(screen.queryByText('Add a model provider…')).toBeNull()
+    expect(screen.queryByText('Manage models…')).toBeNull()
+    fireEvent.keyDown(filter, { key: 'ArrowUp' })
+    fireEvent.keyDown(filter, { key: 'Enter' })
+    fireEvent.keyDown(filter, { key: 'ArrowDown' })
+    fireEvent.keyDown(filter, { key: 'Enter' })
+    expect(props.onSelectModel).toHaveBeenCalledTimes(2)
+    expect(props.onSelectModel).toHaveBeenNthCalledWith(1, 'muse-spark-1.3')
+    expect(props.onSelectModel).toHaveBeenNthCalledWith(2, 'muse-spark-1.3')
+    expect(props.onAction).not.toHaveBeenCalled()
+  })
+
   it('lists models with their context window, marks the current one, and selects', () => {
     const { props, filter } = renderPalette({ view: 'models' })
     const options = screen.getAllByRole('option')
     expect(options.map((node) => node.textContent)).toEqual([
       'Muse Spark 1.31M contextCurrent',
       'Muse Spark 1.2',
-      'Add a model provider…',
-      'Manage models…',
     ])
     expect(screen.getByTitle('Current')).toBeInTheDocument()
     fireEvent.keyDown(filter, { key: 'ArrowDown' })

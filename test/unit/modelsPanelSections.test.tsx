@@ -51,6 +51,44 @@ function props(
 }
 
 describe('ProvidersSection', () => {
+  it('requests an edit draft and targets changes and cancellation to that provider', () => {
+    const post = vi.fn()
+    const state = makeState({ providers: [makeProvider()] })
+    const { rerender } = render(<ProvidersSection {...props(state, post)} />)
+    fireEvent.click(screen.getByRole('button', { name: UI_TEXT.providerEdit }))
+    expect(post).toHaveBeenCalledWith({ type: 'providers/edit', providerId: 'ollama' })
+    rerender(
+      <ProvidersSection
+        {...props(
+          {
+            ...state,
+            drafts: {
+              edits: {
+                ollama: makeDraft({ address: 'http://127.0.0.1:11434', blockers: [] }),
+              },
+            },
+          },
+          post,
+        )}
+      />,
+    )
+    fireEvent.change(screen.getByLabelText(UI_TEXT.providerFields.address), {
+      target: { value: 'http://127.0.0.1:11435' },
+    })
+    expect(post).toHaveBeenCalledWith({
+      type: 'providers/prefill',
+      providerId: 'ollama',
+      fields: { address: 'http://127.0.0.1:11435' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: UI_TEXT.wizardCancel }))
+    expect(post).toHaveBeenCalledWith({
+      type: 'providers/wizard',
+      event: 'cancel',
+      providerId: 'ollama',
+    })
+    expect(screen.queryByLabelText(UI_TEXT.providerFields.address)).toBeNull()
+  })
+
   it('offers the wizard from an empty first run', () => {
     const dispatch = vi.fn()
     render(<ProvidersSection {...props(makeState(), vi.fn(), { dispatch })} />)

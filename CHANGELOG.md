@@ -54,6 +54,16 @@ happened, not what was planned; superseded entries are kept.
   writes/removal recovery preserve provider state. Auth recognizes configured
   local models. Canonical exports retain model options and the default model.
   Final integration certification and the activation-growth residual remain open.
+- Confidential workspaces resolve current bring-your-own model privacy
+  before selection, including first setup; unknown models and failed
+  resolution are refused. Bare Muse-only pickers retain their existing
+  rows and keyboard wrapping.
+- The Models panel requests provider edit drafts explicitly, keeps grid
+  shortcuts within the grid, and clears inaccessible active references.
+  Its JavaScript and CSS now build at the host's expected paths. Theme
+  colors, usage-list markup and checkbox targets pass the four-theme
+  accessibility checks; five German, French and Italian labels are
+  translated without localization exceptions.
 
 ### Added
 

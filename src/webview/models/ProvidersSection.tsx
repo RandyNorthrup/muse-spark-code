@@ -100,9 +100,9 @@ function KeyUsage({ provider }: { readonly provider: ProviderState }) {
     return null
   }
   return (
-    <div className="models-usage">
+    <div className="models-key-usage">
       <h4>{UI_TEXT.usageKeyUsage}</h4>
-      <dl>
+      <dl className="models-usage">
         {rows.map(([label, usd]) => (
           <div key={label} className="models-usage-row">
             <dt>{label}</dt>
@@ -248,6 +248,11 @@ function ProviderRow({
           type="button"
           className="models-button"
           onClick={() => {
+            post(
+              editing
+                ? { type: 'providers/wizard', event: 'cancel', providerId: provider.id }
+                : { type: 'providers/edit', providerId: provider.id },
+            )
             setEditing(!editing)
           }}
         >
@@ -281,11 +286,11 @@ function ProviderRow({
             setEditing(false)
           }}
           onCancel={() => {
-            post({ type: 'providers/wizard', event: 'cancel' })
+            post({ type: 'providers/wizard', event: 'cancel', providerId: provider.id })
             setEditing(false)
           }}
           onPrefill={(fields) => {
-            post({ type: 'providers/prefill', fields })
+            post({ type: 'providers/prefill', fields, providerId: provider.id })
           }}
         />
       )}

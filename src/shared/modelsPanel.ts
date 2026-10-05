@@ -361,7 +361,12 @@ export const panelToHostMessageSchema = z.discriminatedUnion('type', [
   // through the host, anything else is refused there.
   z.strictObject({ type: z.literal('openExternal'), url: z.string() }),
   z.strictObject({ type: z.literal('providers/select'), presetId: z.string() }),
-  z.strictObject({ type: z.literal('providers/prefill'), fields: prefillFieldsSchema }),
+  z.strictObject({ type: z.literal('providers/edit'), providerId: z.string() }),
+  z.strictObject({
+    type: z.literal('providers/prefill'),
+    fields: prefillFieldsSchema,
+    providerId: z.optional(z.string()),
+  }),
   z.strictObject({
     type: z.literal('providers/enterKey'),
     mode: z.enum(['new', 'change']),
@@ -387,6 +392,7 @@ export const panelToHostMessageSchema = z.discriminatedUnion('type', [
   z.strictObject({
     type: z.literal('providers/wizard'),
     event: z.enum(['next', 'back', 'cancel']),
+    providerId: z.optional(z.string()),
   }),
   // Without a provider it confirms the wizard; with one it applies that
   // provider's edit draft. `useNow` also sets the conversation's model.

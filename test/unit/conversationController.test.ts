@@ -13379,13 +13379,92 @@ describe('ConversationController: BYO models (M95, PLAN.md D74)', () => {
     )
   })
 
-  it('allows a never-listed model where confidential, for the wizard’s first save', async () => {
-    const t = byoPanel(true)
-    await t.controller.handle({ type: 'setModel', modelId: 'openrouter/brand/new' })
-    expect(t.surface.posted.findLast((message) => message.type === 'sessionInfo')).toMatchObject({
+  it.each([
+    {
+      name: 'refuses a training model before the first listing in a confidential workspace',
+      modelId: 'openrouter/any/model',
+      doesListingFail: false,
+    },
+    {
+      name: 'refuses an unknown model where confidential on the wizard’s first save',
       modelId: 'openrouter/brand/new',
+      doesListingFail: false,
+    },
+    {
+      name: 'refuses confidential admission when privacy resolution fails',
+      modelId: 'ollama/qwen3:8b',
+      doesListingFail: true,
+    },
+  ])('$name', async ({ modelId, doesListingFail }) => {
+    const t = byoPanel(true)
+    if (doesListingFail) {
+      vi.mocked(t.host.listModels).mockRejectedValue(new Error('listing unavailable'))
+    }
+    await t.controller.handle({ type: 'setModel', modelId })
+    expect(t.host.listModels).toHaveBeenCalled()
+    expect(t.surface.posted.findLast((message) => message.type === 'notice')).toMatchObject({
+      level: 'warning',
+      text: UI_TEXT.trainingBlocked,
+    })
+    expect(t.surface.posted.findLast((message) => message.type === 'sessionInfo')).toMatchObject({
+      modelId: 'muse-spark-1.3',
+    })
+  })
+
+  it('resolves a safe model before confidential first-save admission', async () => {
+    const t = byoPanel(true)
+    await t.controller.handle({ type: 'setModel', modelId: 'ollama/qwen3:8b' })
+    expect(t.host.listModels).toHaveBeenCalled()
+    expect(t.surface.posted.findLast((message) => message.type === 'sessionInfo')).toMatchObject({
+      modelId: 'ollama/qwen3:8b',
     })
     expect(t.surface.posted.some((message) => message.type === 'notice')).toBe(false)
+  })
+
+  it.each([
+    {
+      name: 'rechecks privacy when a listed safe route changes to training',
+      doesTrain: true,
+      modelId: 'openrouter/deepseek/deepseek-v3',
+      selected: 'muse-spark-1.3',
+    },
+    {
+      name: 'admits a route that current metadata now marks safe',
+      doesTrain: false,
+      modelId: 'openrouter/any/model',
+      selected: 'openrouter/any/model',
+    },
+  ])('$name', async ({ doesTrain, modelId, selected }) => {
+    const t = byoPanel(true)
+    await listedModels(t.controller, t.surface)
+    vi.mocked(t.host.listModels).mockResolvedValue(
+      BYO_MODELS.map((model) => ({
+        ...model,
+        trainsOnContent: doesTrain && model.providerId === 'openrouter',
+      })),
+    )
+    await t.controller.handle({ type: 'setModel', modelId })
+    expect(t.surface.posted.findLast((message) => message.type === 'sessionInfo')).toMatchObject({
+      modelId: selected,
+    })
+  })
+
+  it('does not admit a model after disposal during privacy resolution', async () => {
+    const t = byoPanel(true)
+    const listing = Promise.withResolvers<readonly ModelSummary[]>()
+    vi.mocked(t.host.listModels).mockReturnValue(listing.promise)
+    const choosing = t.controller.handle({ type: 'setModel', modelId: 'ollama/qwen3:8b' })
+    await vi.waitFor(() => {
+      expect(t.host.listModels).toHaveBeenCalled()
+    })
+    t.controller.dispose()
+    listing.resolve(BYO_MODELS)
+    await choosing
+    expect(
+      t.surface.posted.some(
+        (message) => message.type === 'sessionInfo' && message.modelId === 'ollama/qwen3:8b',
+      ),
+    ).toBe(false)
   })
 
   it('runs startWithOwnModel for the byo sign-in, never the credential flows', async () => {
