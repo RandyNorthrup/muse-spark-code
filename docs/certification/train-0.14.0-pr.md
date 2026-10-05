@@ -28,8 +28,8 @@ setting highlights, and preserves every older released changelog byte.
 
 Validation and conflict-by-conflict decisions are in
 [the train certification](train-0.14.0.md). The final universal VSIX is 2,246,965 bytes (cap 2,252,800). Activation is
-447,145 bytes and browser startup 914,592. Packaging, static gates, audit and
-secrets pass; the complete quality run exits 1 with three paused Judge fixture
+447,145 bytes and browser startup 914,592. Packaging, static gates, audit, secrets, SAST (zero findings) and accessibility
+(all 620 pages, zero violations) pass; the complete quality run exits 1 with three paused Judge fixture
 cases and a browser inventory timeout (the final inventory fixture now passes
 scoped verification). **Blocked for merge/release until full quality exits zero.** This is a local integration draft; no push,
 publish, live model call, paid model call or hosted-platform certification was

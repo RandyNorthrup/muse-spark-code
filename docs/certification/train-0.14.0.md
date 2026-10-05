@@ -491,3 +491,20 @@ The complete PR description is `docs/certification/train-0.14.0-pr.md`.
 
 SAST exits zero: 529 rules on 1,148 tracked targets, approximately 99.9%
 parsed lines, zero findings; only the existing script/config exclusions apply.
+
+Accessibility exits zero on all **620 pages (155 scenarios × 4 themes)**:
+zero rules violated, zero undecided, zero exemptions and zero missing results.
+Under the gate’s unchanged measurement policy, axe cannot measure 1,462
+obscured/offscreen elements and 20 glyph-only elements; those are reported
+separately, not silently treated as measured contrasts.
+
+Local draft release commit: `87c1c2e27f334579073d3fd7a32790ff3ebc5ed5`.
+Its hook runs changed-file ESLint, formatting and staged Gitleaks successfully;
+post-hook checks confirm the exact universal artifact members, restored trust
+source hash and unchanged older changelog bytes. Worktree is clean before this
+final documentation receipt. Every ready merge head is retained; the two
+unready branches are skipped. The requested Judge stop-rule override has not
+arrived, so no third fixture correction is made and full quality remains red.
+No push, tag, publish, live/paid call, dependency change, cap increase, timeout
+increase or gate weakening occurs. The time-boxed train is handed back as a
+committed draft with that explicit blocker, not a release-ready proposal.
