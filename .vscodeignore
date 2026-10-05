@@ -25,6 +25,9 @@
 !dist/whatsNew.json
 !dist/judge.js
 !dist/uiText.js
+!dist/uiTextRuntime.js
+!dist/uiTextHooks.js
+!dist/uiTextSurfaces.js
 !dist/validation.js
 !dist/searchWorker.js
 !dist/pageWorker.js

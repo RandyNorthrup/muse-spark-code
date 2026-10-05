@@ -55,6 +55,7 @@ import { mkdirSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync }
 import path from 'node:path'
 import { runInNewContext } from 'node:vm'
 import { brotliCompressSync, constants as zlibConstants } from 'node:zlib'
+import { UI_TEXT_REGIONS, regionalUiText, uiTextProperties } from './lib/uiTextRegions.mjs'
 import { loadL10n } from './lib/l10nSource.mjs'
 import * as esbuild from 'esbuild'
 import { sharedUiText, sharedValidation, deferredCohort } from './lib/deferredBundles.mjs'
@@ -442,37 +443,58 @@ const acpOptions = {
 // are the same table. Browser and development outputs retain their inline text.
 const { L10N_COMPRESSION_QUALITY } = await loadL10n(process.cwd())
 /** @type {import('esbuild').Plugin} */
-const compressedEnglish = {
+const compressedEnglish = (file) => ({
   name: 'compressed-english',
   setup(build) {
     build.onEnd((result) => {
       if (!isProduction || result.errors.length > 0) return
-      // Evaluate only this build's trusted CommonJS English table.
       const module = { exports: {} }
-      runInNewContext(readFileSync(UI_TEXT_OUTFILE, 'utf8'), { module, exports: module.exports })
-      const packed = brotliCompressSync(JSON.stringify(Reflect.get(module.exports, 'EN')), {
+      runInNewContext(readFileSync(file, 'utf8'), { module, exports: module.exports })
+      // Read data descriptors only: observing regional getters would load all
+      // regions while building and destroy their first-value boundary.
+      const data = Object.fromEntries(
+        Object.entries(Object.getOwnPropertyDescriptors(Reflect.get(module.exports, 'EN')))
+          .filter(([, property]) => Object.hasOwn(property, 'value'))
+          .map(([key, property]) => [key, property.value]),
+      )
+      const packed = brotliCompressSync(JSON.stringify(data), {
         params: { [zlibConstants.BROTLI_PARAM_QUALITY]: L10N_COMPRESSION_QUALITY },
       }).toString('base64')
-      const code = `exports.EN=JSON.parse(require("node:zlib").brotliDecompressSync(Buffer.from("${packed}","base64")).toString("utf8"));\n`
-      writeFileSync(UI_TEXT_OUTFILE, code)
-      const output = result.metafile?.outputs[UI_TEXT_OUTFILE]
+      const getters =
+        file === UI_TEXT_OUTFILE
+          ? UI_TEXT_REGIONS.map((region) => {
+              const keys = uiTextProperties()
+                .filter((property) => property.region === region.name)
+                .map((property) => property.key)
+              return `for(const key of ${JSON.stringify(keys)})Object.defineProperty(exports.EN,key,{enumerable:true,configurable:true,get(){return require('./${path.basename(region.output)}').EN[key]}});`
+            }).join('\n')
+          : ''
+      const code = `exports.EN=JSON.parse(require("node:zlib").brotliDecompressSync(Buffer.from("${packed}","base64")).toString("utf8"));\n${getters}\n`
+      writeFileSync(file, code)
+      const output = result.metafile?.outputs[file]
       if (output === undefined) return
       output.bytes = Buffer.byteLength(code)
-      output.imports = [{ path: 'node:zlib', kind: 'require-call', external: true }]
+      output.imports.push({ path: 'node:zlib', kind: 'require-call', external: true })
     })
   },
-}
+})
 
 /** @type {import('esbuild').BuildOptions} */
 const uiTextOptions = {
   ...common,
-  plugins: [compressedEnglish],
+  plugins: [regionalUiText(), compressedEnglish(UI_TEXT_OUTFILE)],
   entryPoints: [UI_TEXT_ENTRY],
   outfile: UI_TEXT_OUTFILE,
   platform: 'node',
   format: 'cjs',
   target: HOST_NODE_TARGET,
 }
+
+const uiTextRegionOptions = UI_TEXT_REGIONS.map((region) => ({
+  ...uiTextOptions,
+  plugins: [regionalUiText(region.name), compressedEnglish(region.output)],
+  outfile: region.output,
+}))
 
 const validationOptions = {
   ...uiTextOptions,
@@ -572,6 +594,7 @@ if (isWatch) {
     esbuild.context(whatsNewOptions),
     esbuild.context(judgeOptions),
     esbuild.context(uiTextOptions),
+    ...uiTextRegionOptions.map((options) => esbuild.context(options)),
     esbuild.context(validationOptions),
     esbuild.context(browserCheckOptions),
     esbuild.context(browserRuntimeOptions),
@@ -609,6 +632,12 @@ if (isWatch) {
     whatsNew: esbuild.build(whatsNewOptions),
     judge: esbuild.build(judgeOptions),
     uiText: esbuild.build(uiTextOptions),
+    ...Object.fromEntries(
+      UI_TEXT_REGIONS.map((region, index) => [
+        path.basename(region.output, '.js'),
+        esbuild.build(uiTextRegionOptions[index]),
+      ]),
+    ),
     validation: esbuild.build(validationOptions),
     browserCheck: esbuild.build(browserCheckOptions),
     browserRuntime: esbuild.build(browserRuntimeOptions),
@@ -659,6 +688,7 @@ if (isWatch) {
   reportSize(WHATS_NEW_CONTENT_OUTFILE)
   reportSize(JUDGE_OUTFILE)
   reportSize(UI_TEXT_OUTFILE)
+  for (const region of UI_TEXT_REGIONS) reportSize(region.output)
   reportSize(VALIDATION_OUTFILE)
   reportSize(BROWSER_CHECK_OUTFILE)
   reportSize(BROWSER_RUNTIME_OUTFILE)

@@ -22,6 +22,9 @@ const metafileSchema = z.looseObject({
     z.string(),
     z.looseObject({
       inputs: z.record(z.string(), z.object({ bytesInOutput: z.number() })),
+      imports: z.array(
+        z.looseObject({ path: z.string(), kind: z.string(), external: z.optional(z.boolean()) }),
+      ),
     }),
   ),
 })

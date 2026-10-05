@@ -84,6 +84,7 @@ import {
   checkDeferredBundles,
 } from './lib/deferredBundles.mjs'
 import { DEFERRED_WEBVIEW_SURFACES, webviewStartupOutputs } from './lib/webviewBundles.mjs'
+import { UI_TEXT_REGIONS } from './lib/uiTextRegions.mjs'
 
 const MODEL_API_DIR = 'src/core/backends/modelapi'
 const ENTRY = 'src/host/backend/modelApiEntry.ts'
@@ -358,6 +359,35 @@ const uiText = inputsOf(UI_TEXT)
 if (!uiText.has(ENGLISH_TABLE)) {
   problems.push(`${UI_TEXT.output} no longer carries ${ENGLISH_TABLE}`)
 }
+// ACTDIET: only the shared fallback may reference a generated English region.
+for (const region of UI_TEXT_REGIONS) {
+  const bundle = {
+    output: region.output,
+    metafile: `dist/meta/${path.basename(region.output, '.js')}.json`,
+  }
+  if (!inputsOf(bundle).has(ENGLISH_TABLE)) {
+    problems.push(`${region.output} no longer carries its English region`)
+  }
+  const imported = `./${path.basename(region.output)}`
+  const coreMeta = JSON.parse(readFileSync(UI_TEXT.metafile, 'utf8'))
+  if (
+    coreMeta.outputs[UI_TEXT.output].imports.every(
+      (entry) => !(entry.path === imported && entry.external),
+    )
+  ) {
+    problems.push(`${UI_TEXT.output} no longer references ${region.output}`)
+  }
+  for (const { output, metafile } of shippedBundles()) {
+    if (output === UI_TEXT.output || output.startsWith('dist/webview/')) continue
+    const meta = JSON.parse(readFileSync(metafile, 'utf8'))
+    if (meta.outputs[output].imports.some((entry) => entry.path === imported)) {
+      problems.push(
+        `${output} directly imports ${region.output}, which only the shared fallback reads`,
+      )
+    }
+  }
+}
+
 // M81: the browser check's pipe, run, proxy, canaries and processes live in
 // their own bundle, required on the first check; activation keeps the
 // loader, the tool and the lifetime both bundles' callers share.

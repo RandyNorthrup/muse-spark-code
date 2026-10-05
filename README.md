@@ -4128,6 +4128,13 @@ without rebuilding.
 
 ### How this extension is built
 
+The conversation implementation loads when the first chat surface needs it. The
+first opening includes that local load; commands and backend restart handling
+remain registered at activation.
+Node bundles share a core English fallback and generated runtime, hooks/import
+and optional-surface regions. English regions load when a value is read; full
+translation validation or webview table serialization reads every region.
+
 The extension is developed by a small team of AI agents under one human
 owner. The process below has been in use since 2026-09-28. Each milestone's
 record in `docs/certification/` says what was actually run for it; the

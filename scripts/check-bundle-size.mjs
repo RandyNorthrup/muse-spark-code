@@ -120,6 +120,9 @@ const BUDGETS = [
   // Shared English fallback; existing host budgets stay unchanged. Measured
   // 104.9 KiB (2026-10-04); plus 15%, rounded up to 25 KiB.
   { path: 'dist/uiText.js', budgetKiB: 125 },
+  { path: 'dist/uiTextRuntime.js', budgetKiB: 25 },
+  { path: 'dist/uiTextHooks.js', budgetKiB: 25 },
+  { path: 'dist/uiTextSurfaces.js', budgetKiB: 25 },
   // TRAIN13B: used Node mini-parser API, 39.5 KiB + 15%, rounded to 25 KiB.
   { path: 'dist/validation.js', budgetKiB: 50 },
   { path: 'dist/searchWorker.js', budgetKiB: 50 },

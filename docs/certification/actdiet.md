@@ -327,3 +327,36 @@ exportConversation/sessionTransfer/deferredBundles **49 passed**;
 reportProblemRows and conversationBundle passed in the preceding runs.
 Existing size failures for core English and ACP remain for steps 2/3; no cap
 was raised to certify this preview piece. No whole-repository quality claim.
+
+## English prototype (step 2)
+
+| Artifact                 |  Before |   After |                                    Change |
+| ------------------------ | ------: | ------: | ----------------------------------------: |
+| `dist/extension.js`      | 469,981 | 470,082 | +101 (descriptor-preserving locale state) |
+| `dist/uiText.js`         | 134,771 | 116,791 |                                   −17,980 |
+| `dist/uiTextRuntime.js`  |       — |   8,338 |      new; ACP/headless usage and refusals |
+| `dist/uiTextHooks.js`    |       — |  12,176 |     new; hooks, paid hook text and import |
+| `dist/uiTextSurfaces.js` |       — |   5,893 |           new; Tab, report and What's New |
+
+Core headroom is **11,209 bytes** under the original 128,000-byte cap. Total
+English artifacts are **143,198 bytes**, so splitting adds wrapper/accessor/key
+metadata overhead while keeping the core under its cap. Full translation
+validation and full-table webview serialization load all regions. Regions align
+with uses rather than strict one-bundle ownership: Tab status can read its
+region immediately. Existing loadUiTable supports whole tables, not regions;
+build generation plus descriptor-preserving state adds lazy English access
+without changing translation files or the loader's complete-shape validation.
+Future `/legal` and judge string keys should be assigned to the corresponding
+optional-surface region when their owning lanes define them, under its existing
+25-KiB cap, rather than silently spending the core's headroom.
+
+Drills: deliberately restore eager spread, corrupt one generated English value
+and disable table installation. All **three new functional tests fail**. Restore
+both changed sources byte-exact and verify their SHA-256 hashes. Three direct
+regional imports planted into activation metadata each make the split gate exit
+1; each metafile is restored byte-exact, hashed and checked green. Metadata
+mutations now live in the one existing deferred suite; English behavior tests
+build isolated temporary artifacts, preventing their initial shared-dist race.
+Kubuntu final regional/l10n/deferred run: **49 passed** (3 files). The preceding
+29-test behavior/locale run passed; an intermediate two-suite metadata race was
+caught and corrected, not accepted as a product result.

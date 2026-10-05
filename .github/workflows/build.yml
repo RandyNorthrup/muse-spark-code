@@ -339,6 +339,7 @@ jobs:
             extension/dist/extension.js extension/dist/conversation.js extension/dist/modelApi.js extension/dist/searchWorker.js \
             extension/dist/pageWorker.js extension/dist/planMarkdown.js extension/dist/checkpointStore.js \
             extension/dist/review.js extension/dist/agentImport.js extension/dist/conversationGit.js extension/dist/bundledSkills.js \
+            extension/dist/uiTextRuntime.js extension/dist/uiTextHooks.js extension/dist/uiTextSurfaces.js \
             extension/dist/uiText.js extension/dist/validation.js extension/dist/browserCheck.js extension/dist/browserRuntime.js \
             extension/dist/sessionBoard.js extension/dist/reviewer.js \
             extension/dist/foreignHooks.js extension/dist/hookRuntime.js extension/dist/extensionHooks.js extension/dist/pluginHooks.js \
@@ -364,7 +365,8 @@ jobs:
       - name: the agent's package carries its bundles, tables, notices and manifest
         run: |
           listing="$(tar -tzf dist/muse-spark-code-acp-*.tgz)"
-          for entry in package/package.json package/dist/acp.js package/dist/modelApi.js package/dist/uiText.js package/dist/validation.js package/dist/reviewer.js \
+          for entry in package/package.json package/dist/uiTextRuntime.js package/dist/uiTextHooks.js package/dist/uiTextSurfaces.js \
+            package/dist/acp.js package/dist/modelApi.js package/dist/uiText.js package/dist/validation.js package/dist/reviewer.js \
             package/dist/foreignHooks.js package/dist/hookRuntime.js package/dist/extensionHooks.js \
             package/dist/searchWorker.js package/dist/pageWorker.js \
             package/native/windows/MuseSparkJob.cs package/native/windows/MuseSparkMcpJob.cs \

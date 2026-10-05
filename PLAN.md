@@ -268,7 +268,10 @@ properties, and retain all existing caps. No new artifact or dependency.
 | `dist/acp.js`              | ≤ 850 KiB (the ACP agent, installed once, never loaded by VS Code; 713.2 KiB when set, see below)                                                                                                                                                                                                                                                                                                      |
 | `dist/planMarkdown.js`     | ≤ 150 KiB (M79: the plan reader, the panel's Markdown parser, loaded on the first plan action; 139.0 KiB with the brief writer)                                                                                                                                                                                                                                                                        |
 | `dist/checkpointStore.js`  | ≤ 225 KiB (M72: synchronous checkpoint factory and legacy reader; measured 187.0 KiB plus 15%, rounded up to 25 KiB)                                                                                                                                                                                                                                                                                   |
-| `dist/uiText.js`           | ≤ 125 KiB (shared English fallback for Node bundles; 2026-10-04: measured 104.9 KiB plus 15%, rounded up to 25 KiB; was 100 KiB from 72.7 KiB on the build-only baseline; lazy, so activation is unchanged)                                                                                                                                                                                            |
+| `dist/uiText.js`           | ≤ 125 KiB (original cap retained; ACTDIET regional core 116,791 bytes)                                                                                                                                                                                                                                                                                                                                 |
+| `dist/uiTextRuntime.js`    | ≤ 25 KiB (ACTDIET: ACP/headless English, 8,338 bytes plus 15%, rounded to 25 KiB)                                                                                                                                                                                                                                                                                                                      |
+| `dist/uiTextHooks.js`      | ≤ 25 KiB (ACTDIET: hooks/import English, 12,176 bytes by the same rule)                                                                                                                                                                                                                                                                                                                                |
+| `dist/uiTextSurfaces.js`   | ≤ 25 KiB (ACTDIET: Tab/report/What's New English, 5,893 bytes by the same rule)                                                                                                                                                                                                                                                                                                                        |
 | `dist/sessionBoard.js`     | ≤ 75 KiB (M78b: first board/best-of-N action; measured 61.0 KiB plus 15%, rounded up to 25 KiB)                                                                                                                                                                                                                                                                                                        |
 | `dist/reviewer.js`         | ≤ 75 KiB (M78b: paid Auto review after consent; measured 55.2 KiB plus 15%, rounded up to 25 KiB)                                                                                                                                                                                                                                                                                                      |
 | `dist/foreignHooks.js`     | ≤ 100 KiB (M91 lane W: the adapters for hooks imported from other agents, lane P's contracts and engine, loaded the first time a session holding one runs a hook; measured 64.9 KiB, 68.0 KiB with lane X's Cline contract, 85.7 KiB once the imported records' reader moved in from `dist/modelApi.js`; 2026-10-05 on 0.13.0's shared `dist/validation.js`: 65.4 KiB, plus 15%, rounded up to 25 KiB) |
@@ -308,6 +311,21 @@ stays unchanged; `JUDGE_MODEL_TEXT` is guarded in that bundle alone.
 numbers and fails over budget or when a bundle is missing. The compressed VSIX
 has its own `scripts/check-vsix-size.mjs` gate in the CI package job. This table
 mirrors both scripts and changes with them, with a CHANGELOG entry.
+
+**ACTDIET (2026-10-05): regional English and the first chat surface.**
+`conversation.js` loads synchronously when the first surface needs a controller;
+its factory installs the caller's display language. Backend restart sequencing
+has its own eager helper. Cross-bundle MSP failures are recognized by the SDK's
+name/kind/code shape for safe logging rather than constructor identity.
+`uiText.js` is generated from canonical `en.ts` as a core and enumerable lazy
+accessors for runtime, hooks/import and optional surfaces. The installed-language
+state clones descriptors, preserving laziness and its complete shape; replacing
+it copies the checked table's descriptors, so translations remain independent.
+Browser/integration builds keep the full inline fallback. A complete table's
+validation or serialization loads all regions; translated startup still validates
+against all English keys. Nothing claims a wall-clock startup improvement when
+a restored chat or What's New page immediately needs these bundles. The split,
+size, package member, cold-load and full-table equality tests guard the change.
 
 **M78b implementation scope (2026-10-02): deferred cohort bundles.**
 **FIXCOH review scope (2026-10-02).** Refuse a missing or malformed board
@@ -19037,6 +19055,10 @@ remain available.
 M78b (2026-10-02) runs scoped gates on Kubuntu per the implementation brief; full `npm run quality` remains the lead's aggregate gate. After deferring paid review the Model API bundle stayed 2.8 KiB over 400 KiB; the lead revisited its budget to 475 KiB by the repository's rule (Q-M78b). See `docs/certification/m78.md` and the lane's `m78/BUNDLE.md` handoff.
 
 ## 8. Escape hatches register
+
+| Location                            | Escape hatch                        | Reason                                                                                                                                                                                                                                             |
+| ----------------------------------- | ----------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `src/shared/l10n/text.ts` (ACTDIET) | `as UiText` on the descriptor clone | Copies every own EN descriptor, retaining exactly its key/value shape without invoking regional getters. TypeScript cannot infer that shape from `Object.defineProperties`; built-bundle tests compare every key and value and locale replacement. |
 
 Every lint or scanner suppression (`eslint-disable`, `@ts-expect-error`, `nosemgrep`), every cast the compiler cannot verify, and every error swallowed inside generated shell, C# or Swift must be listed here with its reason. A TypeScript `catch {}` needs only an inline comment saying why the error is dropped.
 

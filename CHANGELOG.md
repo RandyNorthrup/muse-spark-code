@@ -250,6 +250,10 @@ happened, not what was planned; superseded entries are kept.
 
 ### Changed
 
+- Keep English fallback regions lazy through descriptor-preserving locale
+  state. Runtime, hooks and optional surfaces load their text on access;
+  browser and integration builds retain their inline fallback.
+
 - Load the conversation implementation on the first chat surface, install its
   caller's display language, and keep backend restart handling eager. Move
   conversation-only model prompts beside their lazy readers.

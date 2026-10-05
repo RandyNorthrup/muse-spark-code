@@ -49,7 +49,8 @@ them, the milestone plan, and the certification checklist.
      `dist/extension.js` reads, a block in any shipped bundle but its
      declared readers, and a new block the split check does not guard
      (PLAN.md D6, 2026-10-03 and 2026-10-04).
-   - **Node bundles share English fallback** (`dist/uiText.js`, PLAN.md D6).
+   - **Node bundles share English fallback** (`dist/uiText.js` and its generated
+     runtime/hooks/surfaces regions, PLAN.md D6).
      Each bundle keeps its own installed-language state; lazy factories install
      the caller's table before use. Browser and integration-test bundles keep
      their inline fallback.

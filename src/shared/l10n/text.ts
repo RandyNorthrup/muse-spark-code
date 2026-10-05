@@ -46,11 +46,13 @@ function stateFor(locale: string, formatters: Map<string, Intl.NumberFormat>): L
 const current: LocaleState = stateFor(BASE_LOCALE, new Map())
 
 /** What the user reads, in the display language once `setUiText` has run. */
-export const UI_TEXT: UiText = { ...EN }
+// A descriptor clone has exactly EN's keys and value types; TypeScript cannot
+// infer that from defineProperties (ACTDIET, PLAN.md §8). Getters stay lazy.
+export const UI_TEXT = Object.defineProperties({}, Object.getOwnPropertyDescriptors(EN)) as UiText
 
 /** Installs a checked table and the language whose plural and number rules apply. */
 export function setUiText(table: UiText, tableLocale: string): void {
-  Object.assign(UI_TEXT, table)
+  Object.defineProperties(UI_TEXT, Object.getOwnPropertyDescriptors(table))
   current.formatters.clear()
   Object.assign(current, stateFor(tableLocale, current.formatters))
 }
