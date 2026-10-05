@@ -97,5 +97,20 @@
         ]
       }
     ]
+  },
+  {
+    "name": "chat-assign-red",
+    "exit": 1,
+    "restored": [
+      {
+        "file": "src/core/backends/modelapi/codecs/chat.ts",
+        "sha256Parts": [
+          "c8333b237d9382e2",
+          "23be7b5dcd30c20a",
+          "7d51535a7a618f3f",
+          "d7c51b7333bf0ef5"
+        ]
+      }
+    ]
   }
 ]

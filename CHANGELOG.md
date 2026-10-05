@@ -13,6 +13,8 @@ happened, not what was planned; superseded entries are kept.
   Chat and Ollama codecs in the lazy provider bundle. Z.ai key checks use a
   fixed pattern, and OAuth callbacks serve localized plain text. Models
   harness readiness and selected-description contrast survive combined builds.
+  Native Chat reasoning fragments copy future fields without setter mutation;
+  serial SAST scans complete at unchanged rule deadlines without timeout warnings.
 - The M95 Chat codec keeps impossible cache accounting unknown, fails
   corrupt response chunks, and preserves tool-call identity across fragments
   and responses, including Fireworks' captured nullable continuation IDs.

@@ -8,7 +8,7 @@ import french from '../../l10n/ui.fr.json'
 import italian from '../../l10n/ui.it.json'
 import { tableProblems } from '../../src/shared/l10n/check'
 import { EN } from '../../src/shared/l10n/en'
-import { makeDraft } from './modelsPanelFixtures.js'
+import { makeDraft, makeState } from './modelsPanelFixtures.js'
 import {
   type HostToPanelMessage,
   parseHostToPanelMessage,
@@ -18,20 +18,10 @@ import {
   parsePanelToHostMessage,
 } from '../../src/shared/modelsPanel'
 
-const emptyState: ModelsPanelState = {
+const emptyState: ModelsPanelState = makeState({
   presets: [],
-  providers: [],
-  models: [],
-  totalModels: 0,
-  filter: {},
-  sort: { key: 'name', direction: 'asc' },
   facets: { providers: [], families: [] },
-  scans: {},
-  suggestions: [],
-  lastChoices: {},
-  drafts: { edits: {} },
-  pendingRemovals: [],
-}
+})
 
 const messages: readonly PanelToHostMessage[] = [
   { type: 'modelsPanel/ready' },

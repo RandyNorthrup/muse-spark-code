@@ -22,6 +22,10 @@ before adding that release. The universal macOS helper is also absent; an
 approved local path or permission to extract it from a released VSIX is
 requested. Neither elapsed time nor an unanswered question is approval.
 
+The existing localization gate passes (14 UI tables and 127 manifest
+strings). A separate strict JSON object-pair check of all 29 UI/manifest
+tables confirms zero duplicate keys; no exemptions are added.
+
 Integration corrections:
 
 - The host parses only `shared/modelsPanel.ts`, including M's strict edit,
@@ -43,19 +47,51 @@ Integration corrections:
   task and Models surfaces. Every inline script passes Node syntax checking.
   Both failing scenarios pass: eight pages, zero violations/undecided/missing.
 
-Six deliberate drills returned 1, restored bytes in `finally` and compared
-SHA-256; exact hashes are in `m95-int2-drills.json`. The contrast drill
+The full scanner subsequently found a fifth, in Chat's native reasoning
+fragment `Object.assign`. Replace target mutation with a data-property copy,
+retaining future fields and concatenated text. The captured-fragment replay
+regression remains the behavior check. The final serial full scan returns 0:
+**287 rules, 947 targets, zero findings, no timeout warnings**. The default
+nine-worker scan timed out the Express SSRF rule on two large TypeScript
+files. A one-worker scan of those files completes all rules at the unchanged
+five-second rule deadline; the complete one-worker scan then does likewise.
+Only concurrency changes; no rule, target, ignore, suppression or timeout.
+
+The complete unit sweep also exposes release-tooltip text appended to the
+M95 row text assertions and a stylesheet test treating the new `@import`
+as part of `:root`. Keep tooltip behavior, update the expected accessible
+help text, and make the test's rule reader ignore CSS imports. No product
+style, selector or assertion is weakened.
+
+The full static pass confirms all five TypeScript projects, localization,
+host API, knip, dpdm and audit. Formatting caught two merged lines and
+lint caught only six temporary harness syntax files outside TypeScript
+projects; normalize the lines and rename the temporary inputs as text,
+with no new ignore. Duplication found two clones. Share only the identical
+non-secret routing schema outside provider core, and build the schema-test
+empty state through its existing fixture. All three owning files pass
+43/43, and the unchanged duplication gate finds zero clones.
+
+Seven deliberate drills returned 1, restored bytes in `finally` and compared
+SHA-256; exact hashes are in `m95-int2-drills.json`. The Chat drill restores the original assignment and reproduces the fifth
+finding. The contrast drill
 reproduces the exact 4.41:1 failure. The readiness drill produces four named
 missing-nav failures. The existing membership tests themselves inject/remove
 metafile membership and compare restored hashes. Focused merged tests also
 pass: K host 23, M schema/components/app 33, panel/Palette 41, Chat 74,
 Ollama/App/controller 707, and threats/catalogue/redactor 278. These are
-scoped receipts; final complete quality and package results follow later.
+scoped receipts. The complete 406-file sweep in 141 sequential batches
+returns 8,068 passed, three failed and 56 existing live/platform skips. All
+three failures are the tooltip/import mismatches described above. The three
+corrected whole files (including Chat) then pass 98/98, so every offline test
+has passed. Final complete quality and package results follow later.
 
 The preliminary build honestly fails unchanged caps: Models host 94.7/75 KiB
 and chat 905.0/900 KiB. Activation is 570.2/600 KiB, English 121.0/125 KiB.
 The missing 0.13.0 release contains shared Node validation and chat deferrals
 needed by the requested baseline; no cap is raised here.
+
+## Round one — historical integration receipts
 
 This branch starts at `1ca53611` and integrates only the eight lanes named
 in `/home/randy/lanes/_ctx/M95INT.rig.md`, following that brief and

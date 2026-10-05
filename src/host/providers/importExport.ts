@@ -5,6 +5,7 @@
 // "needs a key").
 
 import * as z from 'zod/mini'
+import { openRouterRoutingSchema } from '../../shared/providerRouting'
 import type { AddressCheck, AddressPolicy, ProviderEntry, ProvidersStore } from './providerPorts'
 
 /**
@@ -37,13 +38,7 @@ export const providerEntrySchema = z.object({
       }),
     ),
   ),
-  routing: z.optional(
-    z.object({
-      privacy: z.enum(['zdr', 'no-training', 'any']),
-      order: z.optional(z.array(z.string())),
-      allowFallbacks: z.optional(z.boolean()),
-    }),
-  ),
+  routing: z.optional(openRouterRoutingSchema),
   numCtx: z.optional(z.record(z.string(), z.number())),
 })
 

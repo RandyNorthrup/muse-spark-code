@@ -11,6 +11,7 @@ import path from 'node:path'
 import * as z from 'zod/mini'
 import { PROVIDERS_FILE_VERSION } from '../../shared/constants'
 import { UI_TEXT } from '../../shared/l10n/text'
+import { openRouterRoutingSchema } from '../../shared/providerRouting'
 import { isProviderId, parseModelRef } from './modelRef'
 import type { PriceCard } from './priceCard'
 
@@ -35,11 +36,7 @@ export const userPriceCardSchema = z.object({
 export type UserPriceCard = z.infer<typeof userPriceCardSchema>
 
 /** OpenRouter's routing choices for one provider entry (D74). */
-export const openRouterRoutingSchema = z.object({
-  privacy: z.enum(['zdr', 'no-training', 'any']),
-  order: z.optional(z.array(z.string())),
-  allowFallbacks: z.optional(z.boolean()),
-})
+
 export type OpenRouterRouting = z.infer<typeof openRouterRoutingSchema>
 
 /** User-supplied custom-server limits; both are finite positive token counts. */
@@ -201,3 +198,5 @@ export async function writeProvidersFileAtomic(
     return { ok: false, reason: 'io-error', detail: String(error) }
   }
 }
+
+export { openRouterRoutingSchema } from '../../shared/providerRouting'

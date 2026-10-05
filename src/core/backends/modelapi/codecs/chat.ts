@@ -1122,7 +1122,13 @@ export class ChatStreamDecoder {
           if (existing === undefined) {
             this.detailsRaw.push({ ...entry })
           } else {
-            Object.assign(existing, { ...entry, text: `${existing.text ?? ''}${entry.text ?? ''}` })
+            // Spread copies native fields as data properties, including future fields,
+            // without invoking a target object's setters during fragment merging.
+            this.detailsRaw[this.detailsRaw.indexOf(existing)] = {
+              ...existing,
+              ...entry,
+              text: `${existing.text ?? ''}${entry.text ?? ''}`,
+            }
           }
           this.ensureReasoningAdded(events)
           if (typeof entry.text === 'string' && entry.text !== '') {

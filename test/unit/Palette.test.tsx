@@ -3,6 +3,7 @@ import { fireEvent, render, screen } from '@testing-library/react'
 import { createRef } from 'react'
 import { describe, expect, it, vi } from 'vitest'
 import { buildPalette, type PaletteAction, type PaletteContext } from '../../src/shared/palette'
+import { UI_TEXT } from '../../src/shared/l10n/text'
 import { Palette, type PaletteKeys, type PaletteProps } from '../../src/webview/components/Palette'
 
 const context: PaletteContext = {
@@ -178,7 +179,7 @@ describe('Palette (models view)', () => {
   it('keeps the single bare Muse picker and its arrow wrapping unchanged', () => {
     const { props, filter } = renderPalette({ view: 'models', models: context.models.slice(0, 1) })
     expect(screen.getAllByRole('option').map((node) => node.textContent)).toEqual([
-      'Muse Spark 1.31M contextCurrent',
+      `Muse Spark 1.31M contextCurrent${UI_TEXT.paletteTips.switchModel}`,
     ])
     expect(screen.queryByText('Add a model provider…')).toBeNull()
     expect(screen.queryByText('Manage models…')).toBeNull()
@@ -257,9 +258,9 @@ describe('Palette (models view)', () => {
     })
     const options = screen.getAllByRole('option')
     expect(options.map((node) => node.textContent)).toEqual([
-      'DeepSeek V364K context · $0.2700 in · $1.10 out (per M tokens)Current',
-      'Muse Spark 1.31M context',
-      'qwen3:8b32.8K context · local',
+      `DeepSeek V364K context · $0.2700 in · $1.10 out (per M tokens)Current${UI_TEXT.paletteTips.switchModel}`,
+      `Muse Spark 1.31M context${UI_TEXT.paletteTips.switchModel}`,
+      `qwen3:8b32.8K context · local${UI_TEXT.paletteTips.switchModel}`,
       'Add a model provider…',
       'Manage models…',
     ])
