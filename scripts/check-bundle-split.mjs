@@ -66,35 +66,12 @@ import { existsSync, readdirSync, readFileSync } from 'node:fs'
 import path from 'node:path'
 import ts from 'typescript'
 import { createRequire } from 'node:module'
+import { BUNDLES, DEFERRED, ON_FIRST_USE, checkDeferredBundles } from './lib/deferredBundles.mjs'
 import { DEFERRED_WEBVIEW_SURFACES, webviewStartupOutputs } from './lib/webviewBundles.mjs'
 
 const MODEL_API_DIR = 'src/core/backends/modelapi'
 const ENTRY = 'src/host/backend/modelApiEntry.ts'
-const BUNDLES = {
-  activation: { output: 'dist/extension.js', metafile: 'dist/meta/extension.json' },
-  modelApi: { output: 'dist/modelApi.js', metafile: 'dist/meta/modelApi.json' },
-  acp: { output: 'dist/acp.js', metafile: 'dist/meta-acp/acp.json' },
-}
-const DEFERRED_ONLY = ['reviewerEntry.ts']
-const DEFERRED = [
-  {
-    output: 'dist/sessionBoard.js',
-    metafile: 'dist/meta/sessionBoard.json',
-    files: [
-      'src/host/sessionBoardEntry.ts',
-      'src/host/sessionBoard.ts',
-      'src/host/bestOfN/bestOfNManager.ts',
-      'src/core/bestOfN/bestOfNRunner.ts',
-      'src/core/bestOfN/worktreeConversationHost.ts',
-      'src/core/bestOfN/bestOfN.ts',
-    ],
-  },
-  {
-    output: 'dist/reviewer.js',
-    metafile: 'dist/meta/reviewer.json',
-    files: DEFERRED_ONLY.map((name) => `${MODEL_API_DIR}/${name}`),
-  },
-]
+const DEFERRED_ONLY = new Set(['reviewerEntry.ts'])
 
 // The backend's files the activation bundle may carry, each with its reason.
 const ACTIVATION_ALLOWED = new Map([
@@ -179,9 +156,7 @@ const onDisk = new Set(backendFiles())
 const lazy = new Set(LAZY_ONLY)
 for (const name of onDisk) {
   const lists =
-    Number(ACTIVATION_ALLOWED.has(name)) +
-    Number(lazy.has(name)) +
-    Number(DEFERRED_ONLY.includes(name))
+    Number(ACTIVATION_ALLOWED.has(name)) + Number(lazy.has(name)) + Number(DEFERRED_ONLY.has(name))
   if (lists !== 1) {
     problems.push(
       `${MODEL_API_DIR}/${name} is on ${lists === 0 ? 'neither list' : 'both lists'} in scripts/check-bundle-split.mjs`,
@@ -197,17 +172,6 @@ for (const name of [...ACTIVATION_ALLOWED.keys(), ...lazy, ...DEFERRED_ONLY]) {
 const activation = inputsOf(BUNDLES.activation)
 const modelApi = inputsOf(BUNDLES.modelApi)
 const acp = inputsOf(BUNDLES.acp)
-for (const bundle of DEFERRED) {
-  const inputs = inputsOf(bundle)
-  for (const file of bundle.files) {
-    for (const parent of [BUNDLES.activation, BUNDLES.modelApi, BUNDLES.acp]) {
-      if (inputsOf(parent).has(file)) {
-        problems.push(`${parent.output} carries ${file}, which loads only on its first action`)
-      }
-    }
-    if (!inputs.has(file)) problems.push(`${bundle.output} no longer carries ${file}`)
-  }
-}
 // The bundles that load the backend from dist/modelApi.js rather than carry it.
 const loaders = [
   [BUNDLES.activation.output, activation],
@@ -313,77 +277,6 @@ const BUNDLED_SKILLS = {
   output: 'dist/bundledSkills.js',
   metafile: 'dist/meta/bundledSkills.json',
 }
-// Split out of activation on 2026-10-03 (D6): each loads on its first use.
-// The Model API backend keeps its own copy of code intelligence.
-const ON_FIRST_USE = [
-  {
-    output: 'dist/codeIntel.js',
-    metafile: 'dist/meta/codeIntel.json',
-    use: 'the first code intelligence call',
-    files: [
-      'src/host/ide/codeIntelEntry.ts',
-      'src/core/codeIntel/codeIntelQuery.ts',
-      'src/core/codeIntel/codeIntelTools.ts',
-      'src/core/codeIntel/codeText.ts',
-      'src/core/codeIntel/rename.ts',
-      'src/core/codeIntel/repoMap.ts',
-    ],
-  },
-  {
-    output: 'dist/voice.js',
-    metafile: 'dist/meta/voice.json',
-    use: 'the first recording',
-    files: [
-      'src/host/voice/voiceEntry.ts',
-      'src/host/voice/voiceProcesses.ts',
-      'src/core/voice/dictation.ts',
-      'src/core/voice/museVoice.ts',
-      'src/core/voice/recorderHelper.ts',
-    ],
-  },
-  // The window's web fetch (M69), split out on 2026-10-04: the Model API
-  // backend keeps its own URL checks, the ACP agent its own fetch.
-  {
-    output: 'dist/webFetch.js',
-    metafile: 'dist/meta/webFetch.json',
-    use: 'the first web fetch',
-    files: [
-      'src/host/web/webFetchEntry.ts',
-      'src/host/web/webFetcher.ts',
-      'src/host/web/pinnedRequest.ts',
-      'src/core/web/webFetch.ts',
-      'src/core/web/fetchFailure.ts',
-      'src/core/web/pageUrl.ts',
-      'src/core/web/publicAddress.ts',
-      'src/core/web/mimeType.ts',
-      'src/core/web/textDecoding.ts',
-    ],
-  },
-  {
-    output: 'dist/museCodeReviewer.js',
-    metafile: 'dist/meta/museCodeReviewer.json',
-    use: 'the first review',
-    files: [
-      'src/host/review/museCodeReviewerEntry.ts',
-      'src/host/review/museCodeReviewer.ts',
-      'src/core/backends/modelapi/autoReviewer.ts',
-    ],
-  },
-  // What's New (M99, D79): activation keeps the update check, the claim and
-  // the loader; the page is required on the first page or notice.
-  {
-    output: 'dist/whatsNew.js',
-    metafile: 'dist/meta/whatsNew.json',
-    use: 'the first What’s New page or notice',
-    files: [
-      'src/host/whatsNew/whatsNewEntry.ts',
-      'src/host/whatsNew/whatsNewPanel.ts',
-      'src/host/whatsNew/whatsNewHtml.ts',
-      'src/core/whatsNew/whatsNewContent.ts',
-      'src/shared/whatsNewMessages.ts',
-    ],
-  },
-]
 const uiText = inputsOf(UI_TEXT)
 if (!uiText.has(ENGLISH_TABLE)) {
   problems.push(`${UI_TEXT.output} no longer carries ${ENGLISH_TABLE}`)
@@ -572,19 +465,7 @@ for (const file of BUNDLED_SKILLS_ONLY) {
   }
 }
 
-for (const bundle of ON_FIRST_USE) {
-  const inputs = inputsOf(bundle)
-  for (const file of bundle.files) {
-    if (activation.has(file)) {
-      problems.push(
-        `${BUNDLES.activation.output} carries ${file}, which loads only on ${bundle.use}`,
-      )
-    }
-    if (!inputs.has(file)) {
-      problems.push(`${bundle.output} no longer carries ${file}`)
-    }
-  }
-}
+problems.push(...checkDeferredBundles(inputsOf))
 
 // What's New's page script (M99) is a few lines that pass clicks back: it
 // carries no package, not the display table and not constants.ts (which

@@ -50,6 +50,7 @@
 import { mkdirSync, readdirSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import * as esbuild from 'esbuild'
+import { sharedUiText, sharedValidation, deferredCohort } from './lib/deferredBundles.mjs'
 import {
   CONTENT_FILE as WHATS_NEW_CONTENT_OUTFILE,
   writeWhatsNewContent,
@@ -119,52 +120,6 @@ const AGENT_NODE_TARGET = 'node22'
 const BROWSER_TARGET = 'chrome128'
 const BYTES_PER_KIB = 1024
 const METAFILE_DIR = 'dist/meta'
-
-/** @type {import('esbuild').Plugin} */
-const sharedUiText = {
-  name: 'shared-ui-text',
-  setup(build) {
-    // esbuild sends this filter to Go RE2, which rejects JavaScript's u flag.
-    // `en`, `en.js` and `en.ts` all name the table's TypeScript source.
-    build.onResolve({ filter: /\/en(?:\.[jt]s)?$/ }, (args) =>
-      path.resolve(args.resolveDir, args.path.replace(/(?:\.[jt]s)?$/, '.ts')) ===
-      path.resolve(UI_TEXT_ENTRY)
-        ? { path: './uiText.js', external: true }
-        : undefined,
-    )
-  },
-}
-
-// Share the used mini-parser API across Node bundles; browsers and integration
-// test bundles still inline it. The split gate checks every runtime member.
-/** @type {import('esbuild').Plugin} */
-const sharedValidation = {
-  name: 'shared-validation',
-  setup(build) {
-    build.onResolve({ filter: /^zod\/mini$/ }, () => ({
-      path: './validation.js',
-      external: true,
-    }))
-  },
-}
-
-// Keep dynamic imports dynamic: these entries run only on their first action.
-/** @type {import('esbuild').Plugin} */
-const deferredCohort = {
-  name: 'deferred-cohort',
-  setup(build) {
-    build.onResolve({ filter: /\/(?:sessionBoardEntry|reviewerEntry)(?:\.[jt]s)?$/ }, (args) => {
-      if (args.kind !== 'dynamic-import') return
-      const source = path.resolve(args.resolveDir, `${args.path.replace(/\.[jt]s$/, '')}.ts`)
-      let output
-      if (source === path.resolve(SESSION_BOARD_ENTRY)) output = SESSION_BOARD_OUTFILE
-      else if (source === path.resolve(REVIEWER_ENTRY)) output = REVIEWER_OUTFILE
-      return output === undefined
-        ? undefined
-        : { path: `./${path.basename(output)}`, external: true }
-    })
-  },
-}
 
 /** @type {import('esbuild').BuildOptions} */
 const common = {

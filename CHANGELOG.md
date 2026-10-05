@@ -7,6 +7,13 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+### Fixed
+
+- Deferred-bundle split drills now build the checked Node entries once in
+  memory and call the production guard directly. They retain rejection and
+  byte-exact restoration checks without repeated full-repository scans,
+  child processes, shared `dist/` mutations or longer timeouts.
+
 ## [0.13.0] - 2026-10-05
 
 ### Highlights
