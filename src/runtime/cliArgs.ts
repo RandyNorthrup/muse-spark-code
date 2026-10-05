@@ -189,17 +189,32 @@ function parseHeadless(argv: readonly string[]): RuntimeCommand {
           }
         : { command: 'invalid', reason: UI_TEXT.execScanUsage, exitCode: 2 }
     const { help: _help, ...options } = values
-    const parsed = parseExec(options, positionals)
-    return parsed.ok
-      ? { command: 'exec', options: parsed.options }
-      : { command: 'invalid', reason: parsed.reason, exitCode: 2 }
+    return execOutcome(parseExec(options, positionals))
   } catch (error: unknown) {
-    return {
-      command: 'invalid',
-      reason: error instanceof Error ? error.message : String(error),
-      exitCode: 2,
-    }
+    return invalidHeadlessCause(error)
   }
+}
+
+/** A headless usage refusal, with the headless usage exit code. */
+function invalidHeadlessReason(reason: string): RuntimeCommand {
+  return { command: 'invalid', reason, exitCode: 2 }
+}
+
+/** A `parseArgs` throw as a headless usage refusal (never a prompt). */
+function invalidHeadlessCause(error: unknown): RuntimeCommand {
+  return invalidHeadlessReason(error instanceof Error ? error.message : String(error))
+}
+
+function execOutcome(parsed: ReturnType<typeof parseExec>): RuntimeCommand {
+  return parsed.ok
+    ? { command: 'exec', options: parsed.options }
+    : invalidHeadlessReason(parsed.reason)
+}
+
+function legalOutcome(parsed: ReturnType<typeof parseLegalArgs>): RuntimeCommand {
+  return parsed.ok
+    ? { command: 'legal', options: parsed.options }
+    : invalidHeadlessReason(parsed.reason)
 }
 
 /**
@@ -220,17 +235,11 @@ function parseLegalCommand(argv: readonly string[]): RuntimeCommand {
         help: { type: 'boolean', short: 'h' },
       },
     })
-    if (values.help === true) return { command: 'help' }
-    const parsed = parseLegalArgs(values, positionals)
-    return parsed.ok
-      ? { command: 'legal', options: parsed.options }
-      : { command: 'invalid', reason: parsed.reason, exitCode: 2 }
+    return values.help === true
+      ? { command: 'help' }
+      : legalOutcome(parseLegalArgs(values, positionals))
   } catch (error: unknown) {
-    return {
-      command: 'invalid',
-      reason: error instanceof Error ? error.message : String(error),
-      exitCode: 2,
-    }
+    return invalidHeadlessCause(error)
   }
 }
 

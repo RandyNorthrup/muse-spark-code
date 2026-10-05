@@ -11,11 +11,14 @@ import {
   UI_TEXT,
 } from '../../src/shared/constants'
 import { requestUrl } from './helpers/legalRequest'
+import type { LegalRegistryTarget } from '../../src/runtime/legal/legalRegistry'
 import { loadLegalScanner, type LegalScanHandle } from '../../src/runtime/legal/legalScanner'
 import {
   legalReportEnvelopeSchema,
   runLegalCommand,
+  type LegalReportEnvelope,
   type RunLegalDeps,
+  type RunLegalResult,
 } from '../../src/runtime/legal/runLegal'
 import {
   legalScanResultSchema,
@@ -64,6 +67,26 @@ interface LegalTestDeps extends RunLegalDeps {
   readonly written: Map<string, string>
 }
 
+function fakeScan(
+  result: LegalScanResult,
+  registryTargets: readonly LegalRegistryTarget[] = [],
+): RunLegalDeps['scan'] {
+  return () => Promise.resolve({ result, registryTargets })
+}
+
+async function runJsonScan(scan: RunLegalDeps['scan']): Promise<{
+  outcome: RunLegalResult
+  envelope: LegalReportEnvelope
+}> {
+  const context = deps({ scan })
+  const outcome = await runLegalCommand({
+    options: { format: 'json', out: undefined, registry: false },
+    deps: context,
+  })
+  const body: unknown = JSON.parse(outcome.out)
+  return { outcome, envelope: legalReportEnvelopeSchema.parse(body) }
+}
+
 function deps(input?: {
   readonly scan?: RunLegalDeps['scan']
   readonly fetch?: typeof fetch
@@ -98,7 +121,7 @@ describe('M97 legal run (lane R)', () => {
       expect(context.requested).toEqual([])
       if (format === 'json') {
         const body: unknown = JSON.parse(outcome.out)
-        const envelope = legalReportEnvelopeSchema.parse(body)
+        const envelope: LegalReportEnvelope = legalReportEnvelopeSchema.parse(body)
         expect(legalScanResultSchema.parse(envelope.result)).toEqual(envelope.result)
         expect(envelope.registry).toMatchObject({ enabled: false, queried: [] })
       } else {
@@ -111,29 +134,27 @@ describe('M97 legal run (lane R)', () => {
   })
   it('exits 0 on advice alone and renders every finding field', async () => {
     const context = deps({
-      scan: () =>
-        Promise.resolve({
-          result: scanResult({
-            findings: [
-              finding({
-                id: 'rule/headers/3',
-                severity: 'advice',
-                category: 'copyrightHeader',
-                file: 'src/index.ts',
-                line: 1,
-                endLine: 2,
-                packageName: 'left-pad',
-                packageVersion: '1.3.0',
-                licenseExpression: 'WTFPL',
-                evidenceSource: 'the header block',
-                evidenceExcerpt: '// Copyright 2026',
-                confidence: 0.5,
-                fixable: true,
-              }),
-            ],
-          }),
-          registryTargets: [],
+      scan: fakeScan(
+        scanResult({
+          findings: [
+            finding({
+              id: 'rule/headers/3',
+              severity: 'advice',
+              category: 'copyrightHeader',
+              file: 'src/index.ts',
+              line: 1,
+              endLine: 2,
+              packageName: 'left-pad',
+              packageVersion: '1.3.0',
+              licenseExpression: 'WTFPL',
+              evidenceSource: 'the header block',
+              evidenceExcerpt: '// Copyright 2026',
+              confidence: 0.5,
+              fixable: true,
+            }),
+          ],
         }),
+      ),
     })
     const outcome = await runLegalCommand({
       options: { format: 'text', out: undefined, registry: false },
@@ -152,32 +173,20 @@ describe('M97 legal run (lane R)', () => {
     }
   })
   it.each(['blocker', 'should-fix'] as const)('exits 1 on a %s finding', async (severity) => {
-    const context = deps({
-      scan: () =>
-        Promise.resolve({
-          result: scanResult({ findings: [finding({ severity })] }),
-          registryTargets: [],
-        }),
-    })
-    const outcome = await runLegalCommand({
-      options: { format: 'json', out: undefined, registry: false },
-      deps: context,
-    })
+    const { outcome, envelope } = await runJsonScan(
+      fakeScan(scanResult({ findings: [finding({ severity })] })),
+    )
     expect(outcome.exitCode).toBe(LEGAL_EXIT.findings)
-    const body: unknown = JSON.parse(outcome.out)
-    const envelope = legalReportEnvelopeSchema.parse(body)
     expect(envelope.result.findings).toHaveLength(1)
   })
   it('exits 2 on incomplete coverage, even with blockers beside it', async () => {
     const context = deps({
-      scan: () =>
-        Promise.resolve({
-          result: scanResult({
-            incompleteChecks: ['the lockfile is missing, so transitive versions are unknown'],
-            findings: [finding({ severity: 'blocker' })],
-          }),
-          registryTargets: [],
+      scan: fakeScan(
+        scanResult({
+          incompleteChecks: ['the lockfile is missing, so transitive versions are unknown'],
+          findings: [finding({ severity: 'blocker' })],
         }),
+      ),
     })
     const outcome = await runLegalCommand({
       options: { format: 'text', out: undefined, registry: false },
@@ -187,53 +196,29 @@ describe('M97 legal run (lane R)', () => {
     expect(outcome.out).toContain('the lockfile is missing')
   })
   it('reports an unavailable scanner as incomplete with a parseable envelope', async () => {
-    const context = deps({
-      scan: () => Promise.reject(new Error('legalScan.js could not be loaded')),
-    })
-    const outcome = await runLegalCommand({
-      options: { format: 'json', out: undefined, registry: false },
-      deps: context,
-    })
+    const { outcome, envelope } = await runJsonScan(() =>
+      Promise.reject(new Error('legalScan.js could not be loaded')),
+    )
     expect(outcome.exitCode).toBe(LEGAL_EXIT.incomplete)
-    const body: unknown = JSON.parse(outcome.out)
-    const envelope = legalReportEnvelopeSchema.parse(body)
     expect(envelope.result.incompleteChecks).toHaveLength(1)
     expect(outcome.err).toContain(UI_TEXT.legalScanFailed.split('{', 2)[0] ?? 'failed')
   })
   it('reports a contract-breaking scanner result as incomplete', async () => {
-    const context = deps({
-      scan: () =>
-        Promise.resolve({
-          result: scanResult({ incompleteChecks: ['x'.repeat(LEGAL_TEXT_MAX_CHARS + 1)] }),
-          registryTargets: [],
-        }),
-    })
-    const outcome = await runLegalCommand({
-      options: { format: 'json', out: undefined, registry: false },
-      deps: context,
-    })
+    const { outcome, envelope } = await runJsonScan(
+      fakeScan(scanResult({ incompleteChecks: ['x'.repeat(LEGAL_TEXT_MAX_CHARS + 1)] })),
+    )
     expect(outcome.exitCode).toBe(LEGAL_EXIT.incomplete)
-    const body: unknown = JSON.parse(outcome.out)
-    const envelope = legalReportEnvelopeSchema.parse(body)
     expect(envelope.result.incompleteChecks).toHaveLength(1)
   })
   it('never leaks a scanner secret through stdout or stderr', async () => {
-    const context = deps({ scan: secretBundleScan })
-    const outcome = await runLegalCommand({
-      options: { format: 'json', out: undefined, registry: false },
-      deps: context,
-    })
+    const { outcome } = await runJsonScan(secretBundleScan)
     expect(outcome.exitCode).toBe(LEGAL_EXIT.incomplete)
     expect(outcome.out).not.toContain('hunter2')
     expect(outcome.err).not.toContain('hunter2')
   })
   it('writes --out to the file and leaves stdout empty, keeping the exit code', async () => {
     const context = deps({
-      scan: () =>
-        Promise.resolve({
-          result: scanResult({ findings: [finding({ severity: 'blocker' })] }),
-          registryTargets: [],
-        }),
+      scan: fakeScan(scanResult({ findings: [finding({ severity: 'blocker' })] })),
     })
     const outcome = await runLegalCommand({
       options: { format: 'json', out: 'report/legal.json', registry: false },
@@ -257,11 +242,7 @@ describe('M97 legal run (lane R)', () => {
   })
   it('asks nothing of the network without --registry, even with targets waiting', async () => {
     const context = deps({
-      scan: () =>
-        Promise.resolve({
-          result: scanResult(),
-          registryTargets: [{ ecosystem: 'npm', name: 'is-even', version: '1.0.0' }],
-        }),
+      scan: fakeScan(scanResult(), [{ ecosystem: 'npm', name: 'is-even', version: '1.0.0' }]),
     })
     const outcome = await runLegalCommand({
       options: { format: 'json', out: undefined, registry: false },
