@@ -9,6 +9,7 @@ import {
   mergeFile,
   type MergeRoutineDeps,
   type MergeVersion,
+  type MergeFileInput,
 } from '../../src/core/team/mergeRoutine'
 
 function candidate(id: string, overrides: Partial<MergeCandidate> = {}): MergeCandidate {
@@ -36,7 +37,8 @@ describe('merge queue', () => {
       candidate('wide', { changedLines: 100 }),
       candidate('protected', { files: [{ shared: true, protected: true }] }),
     ]
-    expect(orderMergeQueue(tasks, new Set()).ordered.map((task) => task.id)).toEqual([
+    const order = orderMergeQueue(tasks, new Set())
+    expect(order.ordered.map((task) => task.id)).toEqual([
       'late',
       'early',
       'normal',
@@ -44,6 +46,14 @@ describe('merge queue', () => {
       'many-conflicts',
       'protected',
     ])
+    expect(() => orderMergeQueue([candidate('same'), candidate('same')], new Set())).toThrow(
+      'duplicate',
+    )
+    expect(order.reasons.get('late')?.priorityWeight).toBeGreaterThan(
+      order.reasons.get('normal')?.priorityWeight ?? 0,
+    )
+    expect(order.reasons.get('early')).toMatchObject({ dependencies: ['late'], finishedAt: 0 })
+    expect(order.reasons.get('many-conflicts')).toMatchObject({ predictedConflicts: 0 })
     expect(
       orderMergeQueue(
         [candidate('a', { dependsOn: ['missing'] }), candidate('b', { dependsOn: ['a'] })],
@@ -53,7 +63,7 @@ describe('merge queue', () => {
   })
 
   it('keeps consecutive small batches closed under dependency and predicted conflicts', () => {
-    expect(nextMergeBatch(batch, new Set())).toHaveLength(4)
+    expect(nextMergeBatch([...batch, candidate('E')], new Set())).toHaveLength(4)
     expect(nextMergeBatch([candidate('D', { dependsOn: ['C'] })], new Set())).toEqual([])
     expect(
       nextMergeBatch([candidate('C'), candidate('D', { dependsOn: ['C'] })], new Set()),
@@ -64,6 +74,15 @@ describe('merge queue', () => {
     expect(
       nextMergeBatch([candidate('A', { changedLines: 200 }), candidate('B')], new Set()),
     ).toHaveLength(1)
+  })
+
+  it('refuses oversized admissions before any merge or check', async () => {
+    const deps = { merge: vi.fn(), check: vi.fn(), rework: vi.fn() }
+    await expect(admitMergeBatch([], [...batch, candidate('E')], new Set(), deps)).rejects.toThrow(
+      'cap',
+    )
+    expect(deps.merge).not.toHaveBeenCalled()
+    expect(deps.check).not.toHaveBeenCalled()
   })
 
   it('backs out one culprit and lands only the last cumulative combination checked', async () => {
@@ -130,13 +149,17 @@ describe('merge queue', () => {
       candidate('markers', { onConflict: 'markers' }),
     ]
     const result = await admitMergeBatch<string[]>([], tasks, new Set(), {
-      merge: (tree, task) =>
-        Promise.resolve({
+      merge: (tree, task) => {
+        let kind: MergeFileInput['kind'] = 'text'
+        if (task.id === 'json') kind = 'json-table'
+        else if (task.id === 'log') kind = 'changelog'
+        return Promise.resolve({
           status: 'conflict',
-          kind: task.id === 'json' ? 'json-table' : task.id === 'log' ? 'changelog' : 'text',
+          kind,
           tree: [...tree, task.id],
           output: 'conflict',
-        }),
+        })
+      },
       check: () => Promise.resolve([]),
       rework,
     })

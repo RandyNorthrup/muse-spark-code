@@ -1,4 +1,4 @@
-import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
+import { mkdir, mkdtemp, rm, symlink, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import { processGitProcess } from '../../../src/host/git'
 import { StagingCopy } from '../../../src/host/team/stagingCopy'
@@ -54,6 +54,16 @@ export async function teamRepository() {
     git,
     write,
     staging,
+    outsideLink: async (name: string) => {
+      const canary = path.join(folder, 'canary')
+      await write('a.txt', 'outside', canary)
+      await symlink(
+        canary,
+        path.join(root, name),
+        process.platform === 'win32' ? 'junction' : 'dir',
+      )
+      return canary
+    },
     dispose: async () => {
       await rm(folder, { recursive: true, force: true })
     },

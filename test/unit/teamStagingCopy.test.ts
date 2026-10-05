@@ -1,7 +1,8 @@
-import { readFile, readdir, rm } from 'node:fs/promises'
+import { mkdir, readFile, readdir, rm } from 'node:fs/promises'
 import path from 'node:path'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { checkIdentity, formatStagedTables, StagingCopy } from '../../src/host/team/stagingCopy'
+import { UI_TEXT } from '../../src/shared/constants'
 import { teamRepository } from './helpers/teamRepository'
 
 describe('team staging copies', () => {
@@ -42,6 +43,37 @@ describe('team staging copies', () => {
     await repo.write('untracked.txt', 'changed dependency\n')
     const changed = await repo.staging.snapshot(repo.root)
     expect(changed.tree).not.toBe(snapshot.tree)
+  })
+
+  it('refuses escaped tracked parents and submodule directories, cleaning its private index', async () => {
+    await repo.write('redirect/a.txt', 'tracked\n')
+    await repo.git(['add', 'redirect/a.txt'])
+    await rm(path.join(repo.root, 'redirect'), { recursive: true })
+    const canary = await repo.outsideLink('redirect')
+    await expect(repo.staging.snapshot(repo.root)).rejects.toThrow(UI_TEXT.checkpointFailed)
+    expect(await readFile(path.join(canary, 'a.txt'), 'utf8')).toBe('outside')
+    await rm(path.join(repo.root, 'redirect'))
+    await repo.git(['update-index', '--force-remove', 'redirect/a.txt'])
+    const head = await repo.staging.head(repo.root)
+    await repo.git(['update-index', '--add', '--cacheinfo', `160000,${head},submodule`])
+    await mkdir(path.join(repo.root, 'submodule'))
+    await expect(repo.staging.snapshot(repo.root)).rejects.toThrow(UI_TEXT.checkpointFailed)
+    expect(await readdir(path.join(repo.storage, 'indices'))).toEqual([])
+  })
+
+  it('refuses a HEAD change during capture and still removes its private index', async () => {
+    const previous = await repo.staging.snapshot(repo.root)
+    const staging = new StagingCopy(
+      async (args, options) => {
+        const output = await repo.processGit(args, options)
+        if (args.includes('write-tree')) await repo.git(['update-ref', 'HEAD', previous.commit])
+        return output
+      },
+      repo.env,
+      path.join(repo.storage, 'changing-head'),
+    )
+    await expect(staging.snapshot(repo.root)).rejects.toThrow()
+    expect(await readdir(path.join(repo.storage, 'changing-head'))).toEqual([])
   })
 
   it('binds resolved commands, platform, setup and cache key into the check identity', () => {

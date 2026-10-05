@@ -20,6 +20,15 @@ export interface MergeCandidate {
   readonly onConflict: 'rework' | 'markers'
 }
 
+/** Numeric decision material for the Traffic view to explain each queue position. */
+export interface MergePositionReason {
+  readonly dependencies: readonly string[]
+  readonly priorityWeight: number
+  readonly predictedConflicts: number
+  readonly blastRadius: number
+  readonly finishedAt: number
+}
+
 function weight(candidate: MergeCandidate): number {
   return Math.max(
     TEAM_PRIORITY_WEIGHTS[candidate.priority],
@@ -45,7 +54,11 @@ function blast(candidate: MergeCandidate): number {
 export function orderMergeQueue(
   candidates: readonly MergeCandidate[],
   merged: ReadonlySet<string>,
-): { readonly ordered: readonly MergeCandidate[]; readonly held: readonly MergeCandidate[] } {
+): {
+  readonly ordered: readonly MergeCandidate[]
+  readonly held: readonly MergeCandidate[]
+  readonly reasons: ReadonlyMap<string, MergePositionReason>
+} {
   const pending = new Map(candidates.map((candidate) => [candidate.id, candidate]))
   if (pending.size !== candidates.length) throw new Error('duplicate merge candidate')
   const priorities = new Map(candidates.map((candidate) => [candidate.id, weight(candidate)]))
@@ -61,6 +74,7 @@ export function orderMergeQueue(
     }
   }
   const ordered: MergeCandidate[] = []
+  const reasons = new Map<string, MergePositionReason>()
   const landed = new Set(merged)
   while (pending.size > 0) {
     const ready = candidates.filter(
@@ -77,11 +91,18 @@ export function orderMergeQueue(
     )
     const next = ready[0]
     if (next === undefined) break
+    reasons.set(next.id, {
+      dependencies: next.dependsOn,
+      priorityWeight: priorities.get(next.id) ?? 0,
+      predictedConflicts: next.conflictsWith.filter((id) => pending.has(id)).length,
+      blastRadius: blast(next),
+      finishedAt: next.finishedAt,
+    })
     ordered.push(next)
     landed.add(next.id)
     pending.delete(next.id)
   }
-  return { ordered, held: candidates.filter((candidate) => pending.has(candidate.id)) }
+  return { ordered, held: candidates.filter((candidate) => pending.has(candidate.id)), reasons }
 }
 
 /** Consecutive small candidates; every prerequisite is landed or in this batch. */
