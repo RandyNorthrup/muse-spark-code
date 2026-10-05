@@ -9,8 +9,11 @@
 // approval payload's mapping to `MuseWorkerApprovalRequest` is the
 // integration's. Nothing here guesses an uncaptured wire shape.
 
-import path from 'node:path'
 import type { SessionMcpServer } from '../../agent/agentBackend'
+import { pathModule } from '../../workspaceRoot'
+import { confineWorkspacePath, isBelow, type RealPathIo } from '../../workspacePath'
+import { isGlobMatch } from '../../backends/modelapi/globLimits'
+import { isProtectedPath } from '../../protectedPaths'
 import { commandShape, looseWords, type ShellDialect } from '../../backends/modelapi/shellSyntax'
 import type { ApprovalMode } from '../../../shared/permissionModes'
 import {
@@ -92,22 +95,54 @@ export class MuseWorkerCapturePendingError extends Error {
  * tree; starting in the workspace is refused. `denyUnmatched` (Plan) for a
  * `read-only` role, `promptUnmatched` for every other role.
  */
-export function buildWorkerSessionConfig(input: {
+export async function assertWorkerRoot(input: {
+  readonly workspaceRoot: string
+  readonly folder: string
+  readonly platform: NodeJS.Platform
+  readonly io: RealPathIo
+}): Promise<void> {
+  const p = pathModule(input.platform)
+  try {
+    const [checkout, worker] = await Promise.all([
+      input.io.realPath(input.workspaceRoot),
+      input.io.realPath(input.folder),
+    ])
+    if (
+      checkout === worker ||
+      !p.isAbsolute(checkout) ||
+      !p.isAbsolute(worker) ||
+      p.relative(checkout, worker) === '' ||
+      isBelow(p.relative(checkout, worker), p) ||
+      isBelow(p.relative(worker, checkout), p)
+    ) {
+      throw new MuseWorkerFolderError()
+    }
+  } catch {
+    throw new MuseWorkerFolderError()
+  }
+}
+
+export async function buildWorkerSessionConfig(input: {
   readonly task: WorkerTask
   readonly role: WorkerRolePolicy
   readonly modelId: string
   readonly workspaceRoot: string
+  readonly platform: NodeJS.Platform
+  readonly io: RealPathIo
+  /** Complete inventory from the host's user-server configuration. */
+  readonly exclusiveUserServers: readonly string[]
   readonly bridgeServers: Readonly<Record<string, SessionMcpServer>>
-}): {
+}): Promise<{
   readonly workspaceRoot: string
   readonly modelId: string
   readonly approvalMode: ApprovalMode
   readonly mcpServers: Readonly<Record<string, SessionMcpServer>>
-} {
-  const relative = path.relative(input.workspaceRoot, input.task.folder)
-  if (relative === '' || (!relative.startsWith('..') && !path.isAbsolute(relative))) {
+}> {
+  await assertWorkerRoot({ ...input, folder: input.task.folder })
+  if (input.role.workspaceMode === 'in-place') {
     throw new MuseWorkerFolderError()
   }
+  userServerExclusion(input.exclusiveUserServers)
   return {
     workspaceRoot: input.task.folder,
     modelId: input.modelId,
@@ -122,8 +157,10 @@ export function buildWorkerSessionConfig(input: {
  * server of the same name; until it does, this throws rather than running
  * the worker beside a second copy of a singleton server.
  */
-export function userServerExclusion(_names: readonly string[]): never {
-  throw new MuseWorkerCapturePendingError()
+export function userServerExclusion(names: readonly string[]): void {
+  if (names.length > 0) {
+    throw new MuseWorkerCapturePendingError()
+  }
 }
 
 /** A git command that would commit, merge, push, fetch, switch or move any ref (D75's fence). */
@@ -152,19 +189,24 @@ const REF_MOVING_SUBCOMMANDS: ReadonlySet<string> = new Set([
  */
 export function isRefMovingGitCommand(words: readonly string[]): boolean {
   let index = 0
-  if (words[index] !== 'git') {
+  if (!/(?:^|[/\\])git(?:\.exe)?$/i.test(words[index] ?? '')) {
     return false
   }
   index += 1
   while (index < words.length) {
     const word: string | undefined = words[index]
-    if (word === undefined) {
-      return false
-    }
     if (
+      word === undefined ||
       word === '-C' ||
+      word === '-c' ||
+      word === '--config-env' ||
+      word === '--exec-path' ||
       word === '--git-dir' ||
       word === '--work-tree' ||
+      word.startsWith('-C') ||
+      word.startsWith('-c') ||
+      word.startsWith('--config-env=') ||
+      word.startsWith('--exec-path=') ||
       word.startsWith('--git-dir=') ||
       word.startsWith('--work-tree=')
     ) {
@@ -173,13 +215,13 @@ export function isRefMovingGitCommand(words: readonly string[]): boolean {
     if (!word.startsWith('-')) {
       break
     }
+    if (!GIT_SAFE_GLOBAL_FLAGS.has(word)) {
+      return true
+    }
     index += 1
   }
   const subcommand: string | undefined = words[index]
-  if (subcommand === undefined) {
-    return false
-  }
-  if (REF_MOVING_SUBCOMMANDS.has(subcommand)) {
+  if (subcommand === undefined || REF_MOVING_SUBCOMMANDS.has(subcommand)) {
     return true
   }
   if (subcommand === 'branch' || subcommand === 'tag') {
@@ -187,8 +229,35 @@ export function isRefMovingGitCommand(words: readonly string[]): boolean {
     const readOnly = subcommand === 'branch' ? GIT_BRANCH_LIST_FLAGS : GIT_TAG_LIST_FLAGS
     return rest.some((word) => !readOnly.has(word))
   }
-  return false
+  if (subcommand === 'worktree') {
+    return words[index + 1] !== 'list'
+  }
+  // Unknown aliases/subcommands may execute arbitrary code or move refs.
+  return !GIT_READ_SUBCOMMANDS.has(subcommand)
 }
+
+const GIT_SAFE_GLOBAL_FLAGS: ReadonlySet<string> = new Set([
+  '--no-pager',
+  '--paginate',
+  '--no-optional-locks',
+  '--literal-pathspecs',
+])
+const GIT_READ_SUBCOMMANDS: ReadonlySet<string> = new Set([
+  'status',
+  'diff',
+  'log',
+  'show',
+  'blame',
+  'rev-parse',
+  'ls-files',
+  'ls-tree',
+  'for-each-ref',
+  'cat-file',
+  'check-ignore',
+  'describe',
+  'help',
+  'version',
+])
 
 const GIT_BRANCH_LIST_FLAGS: ReadonlySet<string> = new Set([
   '--list',
@@ -219,38 +288,97 @@ export type MuseWorkerApprovalAnswer = 'deny' | 'askUser'
  * guard refuses, and for a `read-only` role any write and any command off
  * the read-only list. Everything else goes to the user, labelled.
  */
-export function classifyMuseWorkerApproval(input: {
+export async function isWorkerWriteAllowed(
+  input: {
+    readonly role: WorkerRolePolicy
+    readonly folder: string
+    readonly platform: NodeJS.Platform
+    readonly io: RealPathIo
+  },
+  given: string,
+): Promise<boolean> {
+  if (
+    given.trim() === '' ||
+    input.role.workspaceMode === 'read-only' ||
+    !input.role.toolGroups.includes('write')
+  ) {
+    return false
+  }
+  const confined = await confineWorkspacePath(input.folder, given, input.platform, input.io)
+  if (!confined.ok || isProtectedPath(confined.relative) || isProtectedPath(confined.canonical)) {
+    return false
+  }
+  return (
+    input.role.writePaths === undefined ||
+    input.role.writePaths.some((pattern) => {
+      try {
+        return isGlobMatch(confined.canonical, pattern)
+      } catch {
+        return false
+      }
+    })
+  )
+}
+
+export async function classifyMuseWorkerApproval(input: {
   readonly role: WorkerRolePolicy
   readonly request: MuseWorkerApprovalRequest
   readonly dialect: ShellDialect
   /** Lane 0's `TEAM_READ_ONLY_COMMANDS`, injected until it lands. */
   readonly readOnlyCommands: ReadonlySet<string>
-}): MuseWorkerApprovalAnswer {
-  const { role, request } = input
+  readonly folder: string
+  readonly platform: NodeJS.Platform
+  readonly io: RealPathIo
+  readonly testCommands?: ReadonlySet<string>
+}): Promise<MuseWorkerApprovalAnswer> {
+  const { request } = input
   if (request.kind === 'writeFile') {
-    return role.workspaceMode === 'read-only' ? 'deny' : 'askUser'
+    return (await isWorkerWriteAllowed(input, request.path)) ? 'askUser' : 'deny'
   }
   if (request.kind === 'shellCommand') {
-    if (!role.toolGroups.includes('shell') && !role.toolGroups.includes('readOnlyShell')) {
-      return 'deny'
-    }
-    const shape = commandShape(request.command, input.dialect)
-    if (!shape.isPlain || shape.commands.length !== 1) {
-      return 'deny'
-    }
-    const words = shape.commands[0] ?? []
-    if (isRefMovingGitCommand(words)) {
-      return 'deny'
-    }
-    if (role.workspaceMode === 'read-only') {
-      const name: string | undefined = words[0]
-      if (name === undefined || !input.readOnlyCommands.has(name)) {
-        return 'deny'
-      }
-    }
-    return 'askUser'
+    return isWorkerCommandAllowed({ ...input, command: request.command }) ? 'askUser' : 'deny'
   }
-  return 'askUser'
+  return 'deny'
+}
+
+/** Full role commands, plain syntax, and refused options bind both adapters. */
+export function isWorkerCommandAllowed(input: {
+  readonly role: WorkerRolePolicy
+  readonly command: string
+  readonly dialect: ShellDialect
+  readonly readOnlyCommands: ReadonlySet<string>
+  readonly testCommands?: ReadonlySet<string>
+}): boolean {
+  const shape = commandShape(input.command, input.dialect)
+  if (!shape.isPlain || shape.commands.length !== 1 || hasRefMove(input.command, input.dialect)) {
+    return false
+  }
+  if (input.role.workspaceMode !== 'read-only' && input.role.toolGroups.includes('shell')) {
+    return true
+  }
+  const words = shape.commands[0] ?? []
+  const hasMatchingCommand = (commands: ReadonlySet<string>): boolean =>
+    [...commands].some((command) => {
+      const permitted = commandShape(command, input.dialect)
+      if (!permitted.isPlain || permitted.commands.length !== 1) return false
+      const prefix = permitted.commands[0] ?? []
+      return prefix.length > 0 && prefix.every((word, index) => words[index] === word)
+    })
+  return input.role.toolGroups.includes('readOnlyShell') &&
+    hasMatchingCommand(input.readOnlyCommands)
+    ? words.every((word) =>
+        ['--output', '-o', '--ext-diff', '--textconv', '-c', '--exec-path'].every(
+          (option) =>
+            !(
+              word === option ||
+              word.startsWith(`${option}=`) ||
+              (option === '-o' && word.startsWith('-o'))
+            ),
+        ),
+      )
+    : input.role.workspaceMode !== 'read-only' &&
+        input.role.toolGroups.includes('testShell') &&
+        hasMatchingCommand(input.testCommands ?? new Set())
 }
 
 /**
@@ -267,6 +395,9 @@ export interface MuseCodeWorkerDeps {
   readonly prompt: string
   readonly modelId: string
   readonly workspaceRoot: string
+  readonly platform: NodeJS.Platform
+  readonly io: RealPathIo
+  readonly exclusiveUserServers: readonly string[]
   readonly isTrusted: boolean
   readonly bridgeServers: Readonly<Record<string, SessionMcpServer>>
   readonly hosts: TeamHostProvider
@@ -286,15 +417,18 @@ export async function runMuseCodeWorker(deps: MuseCodeWorkerDeps): Promise<{
   if (!deps.isTrusted) {
     throw new WorkerUntrustedError()
   }
-  const kind = hostKindFor(deps.role)
-  const host = kind === 'readOnly' ? await deps.hosts.readOnlyHost() : await deps.hosts.teamHost()
-  const config = buildWorkerSessionConfig({
+  const config = await buildWorkerSessionConfig({
     task: deps.task,
     role: deps.role,
     modelId: deps.modelId,
     workspaceRoot: deps.workspaceRoot,
+    platform: deps.platform,
+    io: deps.io,
+    exclusiveUserServers: deps.exclusiveUserServers,
     bridgeServers: deps.bridgeServers,
   })
+  const kind = hostKindFor(deps.role)
+  const host = kind === 'readOnly' ? await deps.hosts.readOnlyHost() : await deps.hosts.teamHost()
   const session = await host.startSession(config)
   const { lastMessage } = await session.sendPrompt(deps.prompt)
   return {

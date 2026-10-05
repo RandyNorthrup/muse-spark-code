@@ -10,10 +10,9 @@
 import type { AuthMethod, McpServer } from '@agentclientprotocol/sdk'
 import { WORKER_ACP_MAX_PERMISSION_PATHS } from '../../../shared/constants'
 import { confineWorkspacePath, type RealPathIo } from '../../workspacePath'
-import { isGlobMatch } from '../../backends/modelapi/globLimits'
-import { commandShape, looseWords, type ShellDialect } from '../../backends/modelapi/shellSyntax'
+import type { ShellDialect } from '../../backends/modelapi/shellSyntax'
 import { buildWorkerPrompt, WorkerUntrustedError, type WorkerFileIo } from './engineWorker'
-import { isRefMovingGitCommand } from './museCodeWorker'
+import { assertWorkerRoot, isWorkerCommandAllowed, isWorkerWriteAllowed } from './museCodeWorker'
 import { extractTeamReport, type WorkerReportOutcome } from './report'
 import type { WorkerPromptParts, WorkerRolePolicy, WorkerTask } from './workerTypes'
 
@@ -180,7 +179,7 @@ const ACP_WRITE_KINDS: ReadonlySet<string> = new Set(['edit', 'delete', 'move'])
 export function extractRequestPaths(rawInput: unknown): ExtractedRequestPaths {
   const paths: string[] = []
   let isTruncated = false
-  const visit = (value: unknown, depth: number): void => {
+  const visit = (value: unknown, depth: number, isPath = false): void => {
     if (isTruncated) {
       return
     }
@@ -189,16 +188,30 @@ export function extractRequestPaths(rawInput: unknown): ExtractedRequestPaths {
       return
     }
     if (typeof value === 'string') {
-      if (value.startsWith('/') || /^[a-zA-Z]:[\\/]/.test(value) || value.startsWith('\\\\')) {
+      if (
+        isPath ||
+        value.startsWith('/') ||
+        /^[a-zA-Z]:[\\/]/.test(value) ||
+        value.startsWith('\\\\')
+      ) {
         paths.push(value)
       }
       return
     }
-    if (value === null || typeof value !== 'object' || depth <= 0) {
+    if (value === null || typeof value !== 'object') return
+    if (depth <= 0) {
+      isTruncated = true
       return
     }
-    for (const entry of Object.values(value)) {
-      visit(entry, depth - 1)
+    for (const [key, entry] of Object.entries(value)) {
+      visit(
+        entry,
+        depth - 1,
+        isPath ||
+          /^(?:path|paths|file|files|file_?path|source|destination|old_?path|new_?path)$/i.test(
+            key,
+          ),
+      )
     }
   }
   visit(rawInput, 2)
@@ -219,6 +232,7 @@ export interface AcpPermissionInput {
   readonly dialect: ShellDialect
   /** Lane 0's `TEAM_READ_ONLY_COMMANDS`, injected until it lands. */
   readonly readOnlyCommands: ReadonlySet<string>
+  readonly testCommands?: ReadonlySet<string>
   readonly toolCall: AcpPermissionToolCall
 }
 
@@ -250,7 +264,7 @@ export async function answerAcpPermission(
   }
   const kind = toolCall.kind ?? 'other'
   const isWrite = ACP_WRITE_KINDS.has(kind)
-  if (isWrite && role.workspaceMode === 'read-only') {
+  if (isWrite && (candidates.length === 0 || role.workspaceMode === 'read-only')) {
     return { action: 'rejectOnce' }
   }
   if (isWrite && !(await isWithinWritePaths(input, candidates))) {
@@ -259,8 +273,16 @@ export async function answerAcpPermission(
   if (kind === 'execute') {
     return { action: isCommandAllowed(input) ? 'askUser' : 'rejectOnce' }
   }
+  if (isWrite) return { action: 'askUser' }
+  if (kind === 'fetch')
+    return { action: role.toolGroups.includes('webFetch') ? 'askUser' : 'rejectOnce' }
   return {
-    action: kind === 'fetch' && !role.toolGroups.includes('webFetch') ? 'rejectOnce' : 'askUser',
+    action:
+      (kind === 'read' || kind === 'search') &&
+      role.toolGroups.includes('read') &&
+      candidates.length > 0
+        ? 'askUser'
+        : 'rejectOnce',
   }
 }
 
@@ -268,51 +290,16 @@ async function isWithinWritePaths(
   input: Pick<AcpPermissionInput, 'role' | 'folder' | 'platform' | 'io'>,
   candidates: readonly string[],
 ): Promise<boolean> {
-  const { role } = input
-  if (role.writePaths === undefined || role.writePaths.length === 0) {
-    return true
-  }
   for (const candidate of candidates) {
-    const confined = await confineWorkspacePath(input.folder, candidate, input.platform, input.io)
-    if (!confined.ok) {
-      return false
-    }
-    const isMatch = role.writePaths.some((pattern) => {
-      try {
-        return isGlobMatch(confined.canonical, pattern)
-      } catch {
-        return false
-      }
-    })
-    if (!isMatch) {
-      return false
-    }
+    if (!(await isWorkerWriteAllowed(input, candidate))) return false
   }
-  return true
+  return candidates.length > 0
 }
 
 /** Whether the role may run the command in the request's raw input. */
 function isCommandAllowed(input: AcpPermissionInput): boolean {
-  const { role, toolCall } = input
-  if (!role.toolGroups.includes('shell') && !role.toolGroups.includes('readOnlyShell')) {
-    return false
-  }
-  const command = commandTextOf(toolCall.rawInput)
-  if (command === undefined) {
-    return true
-  }
-  if (looseWords(command, input.dialect).some((words) => isRefMovingGitCommand(words))) {
-    return false
-  }
-  const shape = commandShape(command, input.dialect)
-  if (!shape.isPlain || shape.commands.length !== 1) {
-    return role.workspaceMode !== 'read-only'
-  }
-  const words = shape.commands[0] ?? []
-  return (
-    role.workspaceMode !== 'read-only' ||
-    (words.length > 0 && input.readOnlyCommands.has(words[0] ?? ''))
-  )
+  const command = commandTextOf(input.toolCall.rawInput)
+  return command !== undefined && isWorkerCommandAllowed({ ...input, command })
 }
 
 /** The command a raw input carries, when it names one plainly. */
@@ -320,8 +307,9 @@ function commandTextOf(rawInput: unknown): string | undefined {
   if (typeof rawInput !== 'object' || rawInput === null) {
     return undefined
   }
-  const record = rawInput as { readonly command?: unknown }
-  return typeof record.command === 'string' ? record.command : undefined
+  return 'command' in rawInput && typeof rawInput.command === 'string'
+    ? rawInput.command
+    : undefined
 }
 
 /** Confines an `fs/*` path to the working copy, links followed. */
@@ -353,12 +341,7 @@ export async function acpFsRead(
   input: AcpFsInput,
   given: string,
 ): Promise<{ readonly content: string } | { readonly error: string }> {
-  const confined = await confineAcpFsPath({
-    folder: input.folder,
-    given,
-    platform: input.platform,
-    io: input.io,
-  })
+  const confined = await confineAcpFsPath({ ...input, given })
   if (!confined.ok) {
     return { error: 'outside the working copy' }
   }
@@ -372,12 +355,7 @@ export async function acpFsWrite(
   given: string,
   content: string,
 ): Promise<{ readonly ok: true } | { readonly error: string }> {
-  const confined = await confineAcpFsPath({
-    folder: input.folder,
-    given,
-    platform: input.platform,
-    io: input.io,
-  })
+  const confined = await confineAcpFsPath({ ...input, given })
   if (!confined.ok) {
     return { error: 'outside the working copy' }
   }
@@ -413,6 +391,14 @@ export interface AcpAgentConnection {
   readonly close: () => void
 }
 
+/** Native user-server exclusion is a required launcher admission condition. */
+export class AcpNativeServersError extends Error {
+  public constructor() {
+    super('An ACP worker requires captured native-server isolation')
+    this.name = 'AcpNativeServersError'
+  }
+}
+
 /** The agent's `authenticate` must not run for a terminal method (research §4.1). */
 export class AcpAuthRequiredError extends Error {
   public constructor(readonly methods: readonly AuthMethod[]) {
@@ -427,6 +413,9 @@ export interface AcpWorkerDeps {
   readonly preset: AcpPreset
   readonly prompt: WorkerPromptParts
   readonly modelId?: string
+  readonly workspaceRoot: string
+  /** Set only by a launcher that applied the captured native-server exclusion switch. */
+  readonly nativeServersExcluded: boolean
   readonly isTrusted: boolean
   readonly io: WorkerFileIo
   readonly platform: NodeJS.Platform
@@ -449,6 +438,10 @@ export async function runAcpWorker(deps: AcpWorkerDeps): Promise<{
 }> {
   if (!deps.isTrusted) {
     throw new WorkerUntrustedError()
+  }
+  await assertWorkerRoot({ ...deps, folder: deps.task.folder })
+  if (deps.role.workspaceMode === 'in-place' || !deps.nativeServersExcluded) {
+    throw new AcpNativeServersError()
   }
   try {
     await deps.connection.initialize()

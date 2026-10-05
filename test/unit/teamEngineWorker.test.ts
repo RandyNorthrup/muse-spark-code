@@ -79,7 +79,7 @@ class FakeSession implements WorktreeSession {
   public onEvent(listener: (event: WorktreeSessionEvent) => void): () => void {
     this.listener = listener
     return () => {
-      this.listener = undefined
+      if (this.listener === listener) this.listener = undefined
     }
   }
 

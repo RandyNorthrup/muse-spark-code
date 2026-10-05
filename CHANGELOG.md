@@ -14,7 +14,10 @@ happened, not what was planned; superseded entries are kept.
   Child environments start empty with explicit runtime/profile allowlists
   and pinned Git credential isolation. Reports require a meaningful summary
   and blocked results require a question. Worker/ACP admission and lifecycle
-  repairs are certified in `docs/certification/m96-w.md`.
+  repairs are certified in `docs/certification/m96-w.md`. Worker roots are
+  proven disjoint from the checkout before startup; unresolved/out-of-role
+  requests and Git ref/worktree mutations are refused before approval.
+  Uncaptured native-server exclusion now prevents worker startup.
 
 ## [0.12.1] - 2026-10-04
 

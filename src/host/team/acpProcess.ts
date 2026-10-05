@@ -21,6 +21,8 @@ import {
   type AcpPreset,
   type AcpPresetId,
 } from '../../core/team/workers/acpWorker'
+import { assertWorkerRoot } from '../../core/team/workers/museCodeWorker'
+import type { RealPathIo } from '../../core/workspacePath'
 import { scrubWorkerEnv } from '../../core/team/workers/workerEnv'
 
 /** The launch marker lane K's journal records; every team child carries it. */
@@ -111,6 +113,8 @@ export interface SpawnAcpAgentInput {
   readonly command: string
   readonly extraArgs?: readonly string[]
   readonly cwd: string
+  readonly workspaceRoot: string
+  readonly io: RealPathIo
   readonly baseEnv: NodeJS.ProcessEnv
   readonly platform: NodeJS.Platform
   /** Profile-declared names the agent may receive, and nothing else. */
@@ -118,7 +122,6 @@ export interface SpawnAcpAgentInput {
   /** Lane K's launch id, carried in the environment for recovery. */
   readonly launchId: string
   readonly launcher: TeamChildLauncher
-  readonly withoutUserServers?: boolean
 }
 
 /**
@@ -128,20 +131,22 @@ export interface SpawnAcpAgentInput {
  * servers is appended only once step 1 has captured it.
  */
 export async function spawnAcpAgent(input: SpawnAcpAgentInput): Promise<TeamChildProcess> {
+  await assertWorkerRoot({ ...input, folder: input.cwd })
+  const presetSwitch = input.preset.withoutUserServersSwitch
+  if (
+    presetSwitch === undefined ||
+    presetSwitch.length === 0 ||
+    (input.extraArgs?.length ?? 0) > 0
+  ) {
+    throw new AcpUserServersSwitchError(input.preset.id)
+  }
   const env = scrubWorkerEnv({
     platform: input.platform,
     baseEnv: input.baseEnv,
     passthrough: input.passthrough,
   })
   env[LAUNCH_ID_ENV] = input.launchId
-  const args = [...input.preset.defaultArgs, ...(input.extraArgs ?? [])]
-  if (input.withoutUserServers === true) {
-    const presetSwitch = input.preset.withoutUserServersSwitch
-    if (presetSwitch === undefined) {
-      throw new AcpUserServersSwitchError(input.preset.id)
-    }
-    args.push(...presetSwitch)
-  }
+  const args = [...input.preset.defaultArgs, ...presetSwitch]
   return await input.launcher.spawn({ command: input.command, args, cwd: input.cwd, env })
 }
 

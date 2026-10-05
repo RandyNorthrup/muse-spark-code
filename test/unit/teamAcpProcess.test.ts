@@ -114,9 +114,11 @@ describe('spawnAcpAgent', () => {
   it('scrubs credentials and carries the launch marker', async () => {
     const seen: { command?: string; args?: readonly string[]; env?: NodeJS.ProcessEnv } = {}
     await spawnAcpAgent({
-      preset: ACP_PRESETS.codex,
+      preset: { ...ACP_PRESETS.codex, withoutUserServersSwitch: ['--fake-without-user-servers'] },
       command: '/tools/bin/codex-acp',
       cwd: '/work/copy',
+      workspaceRoot: '/user/checkout',
+      io: { realPath: (given) => Promise.resolve(given) },
       baseEnv: { PATH: '/bin', META_API_KEY: 'key-1', TEAM: 'x' },
       platform: 'linux',
       passthrough: [],
@@ -124,26 +126,47 @@ describe('spawnAcpAgent', () => {
       launcher: launcherWith(seen),
     })
     expect(seen.command).toBe('/tools/bin/codex-acp')
-    expect(seen.args).toEqual([])
+    expect(seen.args).toEqual(['--fake-without-user-servers'])
     expect(seen.env?.['META_API_KEY']).toBeUndefined()
-    expect(seen.env?.['TEAM']).toBe('x')
+    expect(seen.env?.['TEAM']).toBeUndefined()
     expect(seen.env?.['MUSE_SPARK_LAUNCH_ID']).toBe('launch-1')
     expect(seen.env?.['GIT_TERMINAL_PROMPT']).toBe('0')
   })
 
-  it('refuses the without-servers switch until step 1 captures it', async () => {
+  it('RVM96A-8 refuses startup by default until native-server exclusion is captured', async () => {
+    const seen: { command?: string } = {}
     await expect(
       spawnAcpAgent({
         preset: ACP_PRESETS.claude,
         command: '/tools/bin/claude-agent-acp',
         cwd: '/work/copy',
+        workspaceRoot: '/user/checkout',
+        io: { realPath: (given) => Promise.resolve(given) },
         baseEnv: {},
         platform: 'linux',
         launchId: 'launch-1',
-        launcher: launcherWith({}),
-        withoutUserServers: true,
+        launcher: launcherWith(seen),
       }),
     ).rejects.toBeInstanceOf(AcpUserServersSwitchError)
+    expect(seen.command).toBeUndefined()
+  })
+
+  it('RVM96A-4 refuses a checkout alias before spawning the process', async () => {
+    const seen: { command?: string } = {}
+    await expect(
+      spawnAcpAgent({
+        preset: { ...ACP_PRESETS.codex, withoutUserServersSwitch: ['--fake-without-user-servers'] },
+        command: '/fake/codex-acp',
+        cwd: '/alias',
+        workspaceRoot: '/repo',
+        io: { realPath: () => Promise.resolve('/repo') },
+        baseEnv: {},
+        platform: 'linux',
+        launchId: 'l',
+        launcher: launcherWith(seen),
+      }),
+    ).rejects.toThrow()
+    expect(seen.command).toBeUndefined()
   })
 })
 
@@ -261,7 +284,14 @@ function policyHandlers(
       platform: 'linux',
       io,
       dialect: 'bash',
-      readOnlyCommands: new Set(['git', 'ls']),
+      readOnlyCommands: new Set([
+        'git diff',
+        'git log',
+        'git show',
+        'git blame',
+        'git status',
+        'ls',
+      ]),
       toolCall,
     })
     let decision: 'allowOnce' | 'rejectOnce' | 'askUser' = verdict.action
@@ -298,6 +328,8 @@ function workerDeps(connection: AcpAgentConnection, task: WorkerTask, role: Work
       body: 'Write clean code.',
       rulesAndSkills: 'Follow the repo rules.',
     },
+    workspaceRoot: '/user/checkout',
+    nativeServersExcluded: true,
     isTrusted: true,
     io: {
       realPath: (absolutePath: string) => Promise.resolve(absolutePath),
@@ -309,28 +341,44 @@ function workerDeps(connection: AcpAgentConnection, task: WorkerTask, role: Work
   }
 }
 
+async function expectPermissionSelection(records: unknown[], optionId: string): Promise<void> {
+  const answer = await waitForRecord(
+    records,
+    (record) => typeof record === 'object' && record !== null && 'permissionAnswer' in record,
+  )
+  expect(answer).toEqual({ permissionAnswer: { outcome: { outcome: 'selected', optionId } } })
+}
+
+function taskIn(folder: string, taskId: string): WorkerTask {
+  return {
+    taskId,
+    roleId: 'engineering',
+    brief: 'Do it.',
+    branch: `agents/engineering/${taskId}`,
+    folder,
+    files: [],
+  }
+}
+function emptyPolicyHandlers(
+  folder: string,
+  onAskUser: () => Promise<'allowOnce' | 'rejectOnce'> = () => Promise.resolve('rejectOnce'),
+): AcpClientHandlers {
+  return policyHandlers(
+    WRITER,
+    folder,
+    { readTextFile: () => Promise.resolve(undefined) },
+    onAskUser,
+  )
+}
+
 describe('the full stack against the fake agent', () => {
   it('runs a task end to end and parses its report', async () => {
     const folder = await mkdtemp(path.join(tmpdir(), 'acp-copy-'))
     try {
-      const handlers = policyHandlers(
-        WRITER,
-        folder,
-        {
-          readTextFile: () => Promise.resolve(undefined),
-        },
-        () => Promise.resolve('rejectOnce'),
-      )
+      const handlers = emptyPolicyHandlers(folder)
       const { connection, records } = startFake('report', folder, handlers)
       try {
-        const task: WorkerTask = {
-          taskId: 't-1',
-          roleId: 'engineering',
-          brief: 'Do it.',
-          branch: 'agents/engineering/t-1',
-          folder,
-          files: [],
-        }
+        const task = taskIn(folder, 't-1')
         const result = await runAcpWorker(workerDeps(connection, task, WRITER))
         expect(result.sessionId).toBe('fake-s1')
         expect(result.report).toEqual({
@@ -357,35 +405,12 @@ describe('the full stack against the fake agent', () => {
   it('answers an inside-edit with the once option, never allow_always', async () => {
     const folder = await mkdtemp(path.join(tmpdir(), 'acp-copy-'))
     try {
-      const handlers = policyHandlers(
-        WRITER,
-        folder,
-        {
-          readTextFile: () => Promise.resolve(undefined),
-        },
-        () => Promise.resolve('allowOnce'),
-      )
+      const handlers = emptyPolicyHandlers(folder, () => Promise.resolve('allowOnce'))
       const { connection, records } = startFake('permission-inside', folder, handlers)
       try {
-        const task: WorkerTask = {
-          taskId: 't-2',
-          roleId: 'engineering',
-          brief: 'Do it.',
-          branch: 'agents/engineering/t-2',
-          folder,
-          files: [],
-        }
+        const task = taskIn(folder, 't-2')
         await runAcpWorker(workerDeps(connection, task, WRITER))
-        const answer = (await waitForRecord(
-          records,
-          (record) => typeof record === 'object' && record !== null && 'permissionAnswer' in record,
-        )) as {
-          permissionAnswer?: { outcome?: { outcome?: string; optionId?: string } }
-        }
-        expect(answer.permissionAnswer?.outcome).toEqual({
-          outcome: 'selected',
-          optionId: 'yes-once',
-        })
+        await expectPermissionSelection(records, 'yes-once')
       } finally {
         connection.close()
       }
@@ -398,39 +423,16 @@ describe('the full stack against the fake agent', () => {
     const folder = await mkdtemp(path.join(tmpdir(), 'acp-copy-'))
     try {
       let wasAsked = false
-      const handlers = policyHandlers(
-        WRITER,
-        folder,
-        {
-          readTextFile: () => Promise.resolve(undefined),
-        },
-        () => {
-          wasAsked = true
-          return Promise.resolve('allowOnce')
-        },
-      )
+      const handlers = emptyPolicyHandlers(folder, () => {
+        wasAsked = true
+        return Promise.resolve('allowOnce')
+      })
       const { connection, records } = startFake('permission-outside', folder, handlers)
       try {
-        const task: WorkerTask = {
-          taskId: 't-3',
-          roleId: 'engineering',
-          brief: 'Do it.',
-          branch: 'agents/engineering/t-3',
-          folder,
-          files: [],
-        }
+        const task = taskIn(folder, 't-3')
         await runAcpWorker(workerDeps(connection, task, WRITER))
         expect(wasAsked).toBe(false)
-        const answer = (await waitForRecord(
-          records,
-          (record) => typeof record === 'object' && record !== null && 'permissionAnswer' in record,
-        )) as {
-          permissionAnswer?: { outcome?: { outcome?: string; optionId?: string } }
-        }
-        expect(answer.permissionAnswer?.outcome).toEqual({
-          outcome: 'selected',
-          optionId: 'no-once',
-        })
+        await expectPermissionSelection(records, 'no-once')
       } finally {
         connection.close()
       }
@@ -455,14 +457,7 @@ describe('the full stack against the fake agent', () => {
       )
       const { connection, records } = startFake('fs', folder, handlers)
       try {
-        const task: WorkerTask = {
-          taskId: 't-4',
-          roleId: 'engineering',
-          brief: 'Do it.',
-          branch: 'agents/engineering/t-4',
-          folder,
-          files: [],
-        }
+        const task = taskIn(folder, 't-4')
         await runAcpWorker(workerDeps(connection, task, WRITER))
         const read = (await waitForRecord(
           records,
@@ -485,24 +480,10 @@ describe('the full stack against the fake agent', () => {
   it('cancels a slow turn and settles its permissions', async () => {
     const folder = await mkdtemp(path.join(tmpdir(), 'acp-copy-'))
     try {
-      const handlers = policyHandlers(
-        WRITER,
-        folder,
-        {
-          readTextFile: () => Promise.resolve(undefined),
-        },
-        () => Promise.resolve('rejectOnce'),
-      )
+      const handlers = emptyPolicyHandlers(folder)
       const { connection } = startFake('slow', folder, handlers)
       try {
-        const task: WorkerTask = {
-          taskId: 't-5',
-          roleId: 'engineering',
-          brief: 'Do it.',
-          branch: 'agents/engineering/t-5',
-          folder,
-          files: [],
-        }
+        const task = taskIn(folder, 't-5')
         const deps = workerDeps(connection, task, WRITER)
         const pending = runAcpWorker(deps)
         await new Promise((resolve) => setTimeout(resolve, 500))
@@ -520,24 +501,10 @@ describe('the full stack against the fake agent', () => {
   it('hands auth_required to the sign-in flow and reads no credential', async () => {
     const folder = await mkdtemp(path.join(tmpdir(), 'acp-copy-'))
     try {
-      const handlers = policyHandlers(
-        WRITER,
-        folder,
-        {
-          readTextFile: () => Promise.resolve(undefined),
-        },
-        () => Promise.resolve('rejectOnce'),
-      )
+      const handlers = emptyPolicyHandlers(folder)
       const { connection } = startFake('auth', folder, handlers)
       try {
-        const task: WorkerTask = {
-          taskId: 't-6',
-          roleId: 'engineering',
-          brief: 'Do it.',
-          branch: 'agents/engineering/t-6',
-          folder,
-          files: [],
-        }
+        const task = taskIn(folder, 't-6')
         await expect(runAcpWorker(workerDeps(connection, task, WRITER))).rejects.toBeInstanceOf(
           AcpAuthRequiredError,
         )

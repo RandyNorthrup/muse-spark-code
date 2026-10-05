@@ -12,6 +12,7 @@ import {
   AcpForbiddenModeError,
   AcpMethodNotFoundError,
   AcpModeError,
+  AcpNativeServersError,
   chooseAcpMode,
   confineAcpFsPath,
   extractRequestPaths,
@@ -62,7 +63,7 @@ function permission(
     platform: 'linux',
     io: IO,
     dialect: 'bash',
-    readOnlyCommands: new Set(['git', 'ls']),
+    readOnlyCommands: new Set(['git diff', 'git log', 'git show', 'git blame', 'git status', 'ls']),
     toolCall,
   })
 }
@@ -135,6 +136,68 @@ describe('extractRequestPaths', () => {
 })
 
 describe('answerAcpPermission', () => {
+  it('RVM96A-6 rejects relative escapes, missing paths, opaque commands and unknown tools', async () => {
+    for (const toolCall of [
+      { toolCallId: 'c1', title: 'edit', kind: 'edit', rawInput: { path: '../../outside.txt' } },
+      { toolCallId: 'c1', title: 'edit', kind: 'edit', rawInput: {} },
+      { toolCallId: 'c1', title: 'run', kind: 'execute', rawInput: {} },
+      { toolCallId: 'c1', title: 'unknown', kind: 'other', rawInput: {} },
+    ]) {
+      expect(await permission(WRITER, toolCall, ['docs/**'])).toEqual({ action: 'rejectOnce' })
+    }
+    expect(
+      await permission(READ_ONLY, { toolCallId: 'c1', title: 'run', kind: 'execute' }),
+    ).toEqual({ action: 'rejectOnce' })
+    expect(
+      await permission(
+        WRITER,
+        { toolCallId: 'c1', title: 'edit', kind: 'edit', rawInput: { path: 'docs/a.md' } },
+        ['docs/**'],
+      ),
+    ).toEqual({ action: 'askUser' })
+  })
+
+  it('RVM96A-20 consumes full read commands and project QA test commands', async () => {
+    expect(
+      await permission(READ_ONLY, {
+        toolCallId: 'c1',
+        title: 'run',
+        kind: 'execute',
+        rawInput: { command: 'git diff HEAD' },
+      }),
+    ).toEqual({ action: 'askUser' })
+    expect(
+      await permission(READ_ONLY, {
+        toolCallId: 'c1',
+        title: 'run',
+        kind: 'execute',
+        rawInput: { command: 'git diff --output=/fake/out' },
+      }),
+    ).toEqual({ action: 'rejectOnce' })
+    const input: AcpPermissionInput = {
+      role: { ...WRITER, roleId: 'qa', toolGroups: ['testShell', 'report'] },
+      folder: FOLDER,
+      platform: 'linux',
+      io: IO,
+      dialect: 'bash',
+      readOnlyCommands: new Set(),
+      testCommands: new Set(['npm test']),
+      toolCall: {
+        toolCallId: 'c1',
+        title: 'test',
+        kind: 'execute',
+        rawInput: { command: 'npm test' },
+      },
+    }
+    expect(await answerAcpPermission(input)).toEqual({ action: 'askUser' })
+    expect(
+      await answerAcpPermission({
+        ...input,
+        toolCall: { ...input.toolCall, rawInput: { command: 'npm install' } },
+      }),
+    ).toEqual({ action: 'rejectOnce' })
+  })
+
   it('rejects a path outside the working copy without asking', async () => {
     const verdict = await permission(WRITER, {
       toolCallId: 'c1',
@@ -337,6 +400,8 @@ function depsWith(overrides: { connection: AcpAgentConnection }) {
       body: 'Write clean code.',
       rulesAndSkills: 'Follow the repo rules.',
     },
+    workspaceRoot: '/user/checkout',
+    nativeServersExcluded: true,
     isTrusted: true,
     io: { ...IO, readTextFile: () => Promise.resolve(undefined) },
     platform: 'linux' as const,
@@ -351,6 +416,32 @@ class AuthRequiredFailure extends Error {
 }
 
 describe('runAcpWorker', () => {
+  it('RVM96A-4 refuses the checkout and its aliases before initialize', async () => {
+    const initialize = vi.fn(() => Promise.resolve({ protocolVersion: 1, authMethods: [] }))
+    const connection = connectionWith({ initialize })
+    for (const folder of ['/user/checkout', '/user/checkout/sub', '/user', '/alias']) {
+      await expect(
+        runAcpWorker({
+          ...depsWith({ connection }),
+          task: { ...TASK, folder },
+          io: {
+            realPath: (given) => Promise.resolve(given === '/alias' ? '/user/checkout' : given),
+            readTextFile: () => Promise.resolve(undefined),
+          },
+        }),
+      ).rejects.toThrow()
+    }
+    expect(initialize).not.toHaveBeenCalled()
+  })
+
+  it('RVM96A-8 requires native-server isolation before initialize', async () => {
+    const initialize = vi.fn(() => Promise.resolve({ protocolVersion: 1, authMethods: [] }))
+    const connection = connectionWith({ initialize })
+    await expect(
+      runAcpWorker({ ...depsWith({ connection }), nativeServersExcluded: false }),
+    ).rejects.toBeInstanceOf(AcpNativeServersError)
+    expect(initialize).not.toHaveBeenCalled()
+  })
   it('initializes, opens the session in the folder, sets the mode and reports', async () => {
     const seen: string[] = []
     const connection = connectionWith({
