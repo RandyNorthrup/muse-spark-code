@@ -592,7 +592,6 @@ async function main(): Promise<number> {
     }
     case 'help': {
       writeLine(process.stdout, fill(UI_TEXT.acpUsage, { command: ACP_AGENT_NAME }))
-      writeLine(process.stdout, fill(UI_TEXT.acpUsageSetup, { command: ACP_AGENT_NAME }))
       return 0
     }
     case 'invalid': {
