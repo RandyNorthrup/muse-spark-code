@@ -16,11 +16,12 @@
 // (D62) say the same.
 
 import { PAID_FEATURES, type PaidFeature, UI_TEXT } from '../../shared/constants'
-import { fill, formatNumber } from '../../shared/l10n/text'
+import { fill, formatNumber, formatUsd } from '../../shared/l10n/text'
 import {
   paidFeaturePrice,
   autoReviewPrice,
   bestOfNPrice,
+  modelApiPaidTier,
   type PaidUseRequest,
   scheduledRunPrice,
   subagentTaskPrice,
@@ -104,12 +105,37 @@ export function paidUseQuestion(request: PaidUseRequest): {
         }),
       }
     }
+    case 'tab': {
+      // Tab bills the request's model per token (M94, PLAN.md D73): the
+      // popup names its rates, today's budget and the training note. An
+      // unpriced model has no rate to quote, so it never reaches a popup.
+      const tier = modelApiPaidTier(request.modelId)
+      if (tier === undefined) {
+        throw new Error(UI_TEXT.subagentTariffUnknown)
+      }
+      return {
+        title: UI_TEXT.paidUseTabTitle,
+        detail: fill(UI_TEXT.paidUseTabDetail, {
+          model: request.modelId,
+          price: scheduledRunPrice(request.modelId),
+          budget: formatUsd(request.budgetUsd, 2),
+          training: tier === 'contributor' ? UI_TEXT.tabTrainingContributor : '',
+        }),
+      }
+    }
   }
 }
 
 export interface PaidUseConsentDeps {
   /** Whether the feature may be used at all: its setting on and its price accepted. */
   readonly isOn: (feature: PaidFeature) => boolean
+  /**
+   * Features whose "Allow once" covers this window until it closes (Tab,
+   * M94 Q-M94a): kept in memory only, never stored, so nothing persists
+   * past the window. "Allow always" stays workspace-scoped for every
+   * feature, window-once ones included.
+   */
+  readonly windowOnceFeatures?: ReadonlySet<PaidFeature>
   /** A trusted workspace with a folder open: the only place "always" is offered and kept. */
   readonly canRemember: () => boolean
   /** The features allowed always in this workspace, still valid (the host drops lapsed ones). */
@@ -122,8 +148,15 @@ export interface PaidUseConsentDeps {
 
 export class PaidUseConsent {
   private readonly listeners = new Set<() => void>()
+  /** Window-once grants this instance gave: memory only, never stored. */
+  private readonly windowOnce = new Set<PaidFeature>()
 
   public constructor(private readonly deps: PaidUseConsentDeps) {}
+
+  /** Whether an "Allow once" for the feature covers this window. */
+  private isWindowOnce(feature: PaidFeature): boolean {
+    return (this.deps.windowOnceFeatures?.has(feature) ?? false) && this.windowOnce.has(feature)
+  }
 
   private notify(): void {
     for (const listener of this.listeners) {
@@ -180,6 +213,10 @@ export class PaidUseConsent {
       this.deps.log.info(`Paid use of ${feature}: allowed always in this workspace`)
       return true
     }
+    if (!requiresAsking && this.isWindowOnce(feature)) {
+      this.deps.log.info(`Paid use of ${feature}: allowed once in this window`)
+      return true
+    }
     const canRemember = this.deps.canRemember()
     const answer = await this.deps.ask(request, canRemember)
     if (answer === 'deny') {
@@ -198,15 +235,34 @@ export class PaidUseConsent {
     ) {
       this.deps.log.info(`Paid use of ${feature}: allowed always in this workspace`)
       this.notify()
+    } else if (answer === 'once' && (this.deps.windowOnceFeatures?.has(feature) ?? false)) {
+      this.windowOnce.add(feature)
+      this.deps.log.info(`Paid use of ${feature}: allowed once in this window`)
     } else {
       this.deps.log.info(`Paid use of ${feature}: allowed once`)
     }
     return true
   }
 
-  /** Account & usage's "Ask again": every feature asks again in this workspace. */
+  /**
+   * A price acceptance changed (the host calls this from `writeAccepted`):
+   * this window's once was given under the old price, so it asks again.
+   */
+  public revokeWindowOnce(feature: PaidFeature): void {
+    if (this.windowOnce.delete(feature)) {
+      this.deps.log.info(`Paid use of ${feature} asks again in this window`)
+    }
+  }
+
+  /** Account & usage's "Ask again": every feature asks again here. */
   public async forget(): Promise<void> {
+    const hadWindowOnce = this.windowOnce.size > 0
+    this.windowOnce.clear()
     if (this.deps.readGrants().size === 0) {
+      if (hadWindowOnce) {
+        this.deps.log.info('Paid uses ask again in this window')
+        this.notify()
+      }
       return
     }
     await this.deps.writeGrants(new Set())

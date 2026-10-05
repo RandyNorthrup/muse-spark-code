@@ -288,6 +288,68 @@ describe('Allow always in this workspace (M58)', () => {
   })
 })
 
+describe('M94 Tab wording and window question (lane L, PLAN.md D73)', () => {
+  const TAB = { feature: 'tab', modelId: 'muse-spark-1.3', budgetUsd: 1 } as const
+
+  it('refuses Tab on a model without verified rates before any popup', async () => {
+    await expect(
+      askPaidUse({ feature: 'tab', modelId: 'muse-spark-future', budgetUsd: 1 }, true),
+    ).resolves.toBe('deny')
+    expect(confirmModal).not.toHaveBeenCalled()
+  })
+
+  it('refuses Tab with an unusable budget before any popup', async () => {
+    await expect(
+      askPaidUse({ feature: 'tab', modelId: 'muse-spark-1.3', budgetUsd: Number.NaN }, true),
+    ).resolves.toBe('deny')
+    expect(confirmModal).not.toHaveBeenCalled()
+  })
+
+  it('names Tab, the model, its rates and today\u2019s budget', async () => {
+    const standard = await details(TAB)
+    expect(standard.title).toBe(UI_TEXT.paidUseTabTitle)
+    expect(standard.detail).toContain('muse-spark-1.3')
+    expect(standard.detail).toContain('$1.250/1M input')
+    expect(standard.detail).toContain('$1.00')
+    expect(standard.detail).toContain('Allow once covers this window until it closes')
+    const contributor = await details({ ...TAB, modelId: 'muse-spark-1.3-contributor' })
+    expect(contributor.detail).toContain('muse-spark-1.3-contributor')
+    expect(contributor.detail).toContain(UI_TEXT.tabTrainingContributor)
+  })
+
+  it('quotes both tariff tiers in the turn-on confirmation', async () => {
+    const data = new Map<string, unknown>()
+    const { paid } = paidWithSettings(data, ['tab'])
+    vi.mocked(confirmModal).mockResolvedValueOnce(UI_TEXT.paidConfirmAccept)
+    await paid.gate.review()
+    const detail = vi.mocked(confirmModal).mock.calls[0]?.[1]?.detail
+    expect(detail).toContain('muse-spark-1.3:')
+    expect(detail).toContain('muse-spark-1.3-contributor:')
+    expect(paid.gate.isOn('tab')).toBe(true)
+  })
+
+  it('asks once per window, and again after the price acceptance changes', async () => {
+    const data = new Map<string, unknown>([[GLOBAL_STATE_KEYS.paidConfirmations, ['tab']]])
+    const { paid, settings } = paidWithSettings(data, ['tab'])
+    answerWith(UI_TEXT.allowOnce)
+    await expect(paid.consent.allows(TAB)).resolves.toBe(true)
+    await expect(paid.consent.allows(TAB)).resolves.toBe(true)
+    expect(confirmModal).toHaveBeenCalledTimes(1)
+    // Nothing was stored for this window: only the setting's price was kept.
+    expect(data.get(GLOBAL_STATE_KEYS.paidConfirmations)).toEqual(['tab'])
+    // The setting turned off and on again with a fresh acceptance: it asks again.
+    settings.delete('tab')
+    await paid.gate.review()
+    settings.add('tab')
+    answerWith(UI_TEXT.paidConfirmAccept)
+    await paid.gate.review()
+    expect(paid.gate.isOn('tab')).toBe(true)
+    answerWith(UI_TEXT.allowOnce)
+    await expect(paid.consent.allows(TAB)).resolves.toBe(true)
+    expect(confirmModal).toHaveBeenCalledTimes(3)
+  })
+})
+
 describe('M48 paid child task price', () => {
   it('requires the current price revision in addition to the setting and accepted feature', () => {
     const data = new Map<string, unknown>([[GLOBAL_STATE_KEYS.paidConfirmations, ['subagents']]])
