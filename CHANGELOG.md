@@ -9,6 +9,10 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- Usage recording retains earlier uncertain billing after HTTP retries and
+  journals Muse Code's reported tokens before a turn completes, preserving
+  those counts if its process exits early.
+
 - Package only allowlisted build artifacts with a short landing guide and recent
   release notes. Compact staged translation and manifest JSON preserves every
   value, and the strict localization gate validates the exact packaged data.

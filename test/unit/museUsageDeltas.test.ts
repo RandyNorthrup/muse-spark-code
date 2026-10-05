@@ -59,17 +59,22 @@ describe('Muse Code journal deltas', () => {
       expect.anything(),
     )
   })
-  it('aggregates cumulative reports into one delta per turn and ignores duplicates', () => {
+  it('journals each reported delta immediately and ignores duplicate completion', () => {
     const t = setup(true)
     t.deltas.receive({ type: 'turnStarted', turnId: 'turn' })
     t.report(100, 20)
-    t.report(150, 30)
-    t.report(150, 30)
-    t.finish()
-    t.finish()
     expect(t.port.note).toHaveBeenCalledExactlyOnceWith(
-      { input_tokens: 150, output_tokens: 30 },
-      expect.objectContaining({ pricing: { kind: 'plan' }, kind: 'turn', outcome: 'completed' }),
+      { input_tokens: 100, output_tokens: 20 },
+      expect.objectContaining({ pricing: { kind: 'plan' }, kind: 'turn', outcome: 'incomplete' }),
+    )
+    t.report(150, 30)
+    t.report(150, 30)
+    t.finish()
+    t.finish()
+    expect(t.port.note).toHaveBeenCalledTimes(2)
+    expect(t.port.note).toHaveBeenLastCalledWith(
+      { input_tokens: 50, output_tokens: 10 },
+      expect.objectContaining({ outcome: 'incomplete' }),
     )
     t.report(200, 40)
     t.finish()
@@ -77,6 +82,38 @@ describe('Muse Code journal deltas', () => {
       { input_tokens: 50, output_tokens: 10 },
       expect.anything(),
     )
+  })
+  it('keeps reported tokens when Muse Code exits before turn completion', async () => {
+    const tap = setup(true).port
+    const handle = fakeMspHost(fakeInitializeResult)
+    handle.server.handle('session/start', (params) => ({
+      session: { sessionId: 'new-session', modelId: params['modelId'], status: 'idle' },
+      viewCursor: '',
+    }))
+    const host = new MuseCodeHost(handle.host, new FakeLogOutputChannel(), undefined, tap)
+    const session = await host.startSession({
+      workspaceRoot: '/workspace',
+      modelId: 'muse-spark-1.3',
+      approvalMode: 'promptUnmatched',
+    })
+    handle.server.notify('turn/started', {
+      sessionId: session.sessionId,
+      turnId: 'turn',
+      viewCursor: 'v',
+    })
+    handle.server.notify('session/tokenUsage', {
+      sessionId: session.sessionId,
+      cumulative: { promptTokens: 100, outputTokens: 20 },
+    })
+    await settle()
+    expect(tap.note).toHaveBeenCalledExactlyOnceWith(
+      { input_tokens: 100, output_tokens: 20 },
+      expect.objectContaining({ outcome: 'incomplete' }),
+    )
+    handle.exit(1)
+    await settle()
+    await host.close()
+    expect(tap.note).toHaveBeenCalledOnce()
   })
   it('takes the first resumed report as a baseline and never replays historical spend', () => {
     const t = setup(false)

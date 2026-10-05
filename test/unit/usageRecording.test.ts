@@ -302,6 +302,30 @@ describe('recording taps', () => {
     )
     await run.host.close()
   })
+  it.each(['refusal', 'success'] as const)(
+    'retains earlier HTTP billing uncertainty after retry %s',
+    async (ending) => {
+      const run = await hostRun(true)
+      run.api.script(
+        { httpError: { status: 500 } },
+        ending === 'refusal' ? { httpError: { status: 400 } } : { text: 'answer' },
+      )
+      await run.session.sendTurn([{ type: 'text', text: 'hello' }])
+      await run.turns.turnDone()
+      expect(run.api.responseBodies()).toHaveLength(2)
+      expect(run.tap.note).toHaveBeenCalledOnce()
+      expect(run.tap.note.mock.calls[0]?.[1]).toMatchObject({ uncertain: true, retries: 1 })
+      await run.host.close()
+    },
+  )
+  it('keeps explicit rate-limit retry refusals free of billing uncertainty', async () => {
+    const run = await hostRun(true)
+    run.api.script({ httpError: { status: 429 } }, { httpError: { status: 400 } })
+    await run.session.sendTurn([{ type: 'text', text: 'hello' }])
+    await run.turns.turnDone()
+    expect(run.tap.note.mock.calls[0]?.[1]).toMatchObject({ uncertain: false, retries: 1 })
+    await run.host.close()
+  })
   it('records a 429 snapshot even without a reported limit header', async () => {
     const run = await hostRun(true)
     run.api.script({ httpError: { status: 429 } }, { text: 'answer' })

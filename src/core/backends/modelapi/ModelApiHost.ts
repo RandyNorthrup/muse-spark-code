@@ -1862,6 +1862,7 @@ export class ModelApiSession implements AgentSession {
   private sendingModelId: string | undefined
   private recordedCall: RecordedCall | undefined
   private wasCallSent = false
+  private hasAmbiguousCallAttempt = false
   private hasRecordedCall = false
   private packedBaseline = 0
   private sendingModel: ResolvedModel | undefined
@@ -2360,6 +2361,7 @@ export class ModelApiSession implements AgentSession {
     this.sendingModelId = body.model
     this.hasRecordedCall = false
     this.wasCallSent = false
+    this.hasAmbiguousCallAttempt = false
     this.packedBaseline = this.packing?.savings() ?? 0
     const parentKind = this.isSideChat ? 'sideChat' : (this.deps.usageKind ?? 'turn')
     const kind = this.isSubagent ? 'subagent' : parentKind
@@ -2519,9 +2521,10 @@ export class ModelApiSession implements AgentSession {
           packedAvoided: Math.max(0, this.packing.savings() - this.packedBaseline),
         }),
         uncertain:
-          this.wasCallSent &&
-          reservation?.isRefused !== true &&
-          this.recordedCall.outcome !== 'refused',
+          this.hasAmbiguousCallAttempt ||
+          (this.wasCallSent &&
+            reservation?.isRefused !== true &&
+            this.recordedCall.outcome !== 'refused'),
         retainedLiabilityUsd: reservation?.costUsd,
         outcome,
       })
@@ -3103,6 +3106,9 @@ export class ModelApiSession implements AgentSession {
   /** A client-generated 429 refusal admitted no work, so this claim can retry. */
   private allowRateLimitedRetry(notice: RetryNotice): void {
     const reservation = this.openReservation
+    if (this.wasCallSent && !notice.reason.startsWith(`HTTP ${String(HTTP_TOO_MANY_REQUESTS)}:`)) {
+      this.hasAmbiguousCallAttempt = true
+    }
     if (reservation !== undefined) {
       if (notice.reason.startsWith(`HTTP ${String(HTTP_TOO_MANY_REQUESTS)}:`)) {
         reservation.isSent = false
@@ -3325,6 +3331,10 @@ export class ModelApiSession implements AgentSession {
         outcome,
         durationMs: Math.max(0, this.deps.now() - this.recordedCall.startedAt),
         providerCostUsd: usage.provider_cost_usd,
+        uncertain: this.hasAmbiguousCallAttempt,
+        retainedLiabilityUsd: this.hasAmbiguousCallAttempt
+          ? this.openReservation?.costUsd
+          : undefined,
         ...(this.packing !== undefined && {
           packedAvoided: Math.max(0, this.packing.savings() - this.packedBaseline),
         }),

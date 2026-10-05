@@ -15873,6 +15873,15 @@ joined with M57, M58 and PR #49's sign-in
 
 ### M102 — Usage & cost in every editor (D82)
 
+**FIXM102R review repair (2026-10-05).** Fix RVM102R's six P2 findings within
+R's recording files, plus the explicitly authorized runtime backend paid
+wiring. Preserve ambiguity across retries, record sent images with unknown
+outcomes and their reserved liability, use the core paid producer for ACP,
+restore scheduled runs once per wake, await a bounded deactivate flush, and
+journal Muse Code deltas on each usage event. Add regressions and byte-exact
+red drills in `docs/certification/m102-r.md`. No dependency, request body,
+paid admission rule or gate changes; integrated quality stays with the lead.
+
 - **Goal.** One local history of every model call, whichever editor or backend
   made it, and one page that shows cost, tokens in and out, time, rate and plan
   limits, and budgets. The page has charts, a table behind every chart, export

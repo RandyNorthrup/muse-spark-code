@@ -634,10 +634,9 @@ export function describeExit(
       }
 }
 
-/** Cumulative MSP reports become one delta at the turn's terminal boundary. */
+/** Each cumulative MSP report is journaled immediately as a known delta. */
 export class MuseUsageDeltas {
   private baseline: { inputTokens: number; outputTokens: number } | undefined
-  private pending = { inputTokens: 0, outputTokens: 0 }
   private startedAt: number | undefined
   private currentModel: string
   public constructor(
@@ -660,36 +659,32 @@ export class MuseUsageDeltas {
       this.startedAt = this.now()
       return
     }
+    if (event.type === 'turnCompleted') {
+      this.startedAt = undefined
+      return
+    }
     if (event.type === 'modelChanged') {
       this.currentModel = event.modelId
       return
     }
-    if (event.type === 'tokenUsage') {
-      const next = { inputTokens: event.inputTokens, outputTokens: event.outputTokens }
-      const prior = this.baseline
-      this.baseline = next
-      if (event.modelId !== undefined) this.currentModel = event.modelId
-      if (
-        prior === undefined ||
-        next.inputTokens < prior.inputTokens ||
-        next.outputTokens < prior.outputTokens
-      )
-        return
-      this.pending.inputTokens += next.inputTokens - prior.inputTokens
-      this.pending.outputTokens += next.outputTokens - prior.outputTokens
+    if (event.type !== 'tokenUsage') return
+    const next = { inputTokens: event.inputTokens, outputTokens: event.outputTokens }
+    const prior = this.baseline
+    this.baseline = next
+    if (event.modelId !== undefined) this.currentModel = event.modelId
+    if (
+      prior === undefined ||
+      next.inputTokens < prior.inputTokens ||
+      next.outputTokens < prior.outputTokens
+    )
       return
-    }
-    if (event.type !== 'turnCompleted') return
-    const pending = this.pending
-    this.pending = { inputTokens: 0, outputTokens: 0 }
+    const input = next.inputTokens - prior.inputTokens
+    const output = next.outputTokens - prior.outputTokens
+    if (input === 0 && output === 0) return
     const at = this.now()
     const startedAt = this.startedAt ?? at
-    this.startedAt = undefined
-    if (pending.inputTokens === 0 && pending.outputTokens === 0) return
-    const stoppedOutcome = event.terminal === 'cancelled' ? 'cancelled' : 'failed'
-    const outcome = event.terminal === 'completed' ? 'completed' : stoppedOutcome
     this.recording.note(
-      { input_tokens: pending.inputTokens, output_tokens: pending.outputTokens },
+      { input_tokens: input, output_tokens: output },
       {
         backend: 'museCode',
         provider: 'museCode',
@@ -698,8 +693,8 @@ export class MuseUsageDeltas {
         kind: 'turn',
         pricing: { kind: 'plan' },
         startedAt,
-        durationMs: event.durationMs ?? Math.max(0, at - startedAt),
-        outcome,
+        durationMs: Math.max(0, at - startedAt),
+        outcome: 'incomplete',
       },
     )
   }
