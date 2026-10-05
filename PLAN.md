@@ -247,6 +247,11 @@ quality`) and as a CI job.
 | `dist/voice.js`            | ≤ 50 KiB (2026-10-03: both voice engines' drivers, loaded on the first recording; measured 34.5 KiB plus 15%, rounded up to 25 KiB)                                                                               |
 | `dist/museCodeReviewer.js` | ≤ 75 KiB (M90: the Auto reviewer on Muse Code, its side session and approvals with M78's reviewer core, loaded on the first review; measured 45.4 KiB plus 15%, rounded up to 25 KiB)                             |
 
+M98 adds `dist/judge.js` at **100 KiB**, measured at 77.7 KiB on Kubuntu,
+plus 15% rounded to 25 KiB. It contains the sources, latch, admission and
+usage and is required only at an eligible approval. Every existing cap
+stays unchanged; `JUDGE_MODEL_TEXT` is guarded in that bundle alone.
+
 `npm run build` prints bundle sizes; `scripts/check-bundle-size.mjs` holds their
 numbers and fails over budget or when a bundle is missing. The compressed VSIX
 has its own `scripts/check-vsix-size.mjs` gate in the CI package job. This table
@@ -14361,7 +14366,31 @@ joined with M57, M58 and PR #49's sign-in
   before sign-in; the key never in a frame, an argument, the environment
   or the log; every gate green.
 
-### M98 — Muse Judge: a calibrated judge for any agent (D77, planned)
+### M98 — Muse Judge: a calibrated judge for any agent (D77, phase 1 integration)
+
+Lane D integration (2026-10-05, Kubuntu): merge A's review fixes and G's
+M91-G goldens into U, activate the same-model sources through a lazy window
+bundle, retain A's live binding and dispatch guards, and connect dispatch
+receipts to U's separate usage rows. Repair the recorded 320 px tool-row
+overflow. Document and certify only the behaviour exercised on this tree.
+D78's `paidDailyBudget.ts` and setting are absent from this checkout; its
+historical `3db0ef37` factory exposes `capUsd`/`reserve`, not A's complete
+daily-ledger interface. Metered Judge stays unavailable until that real
+adapter and D77's entry-criteria receipts land; no competing store is added.
+The exact handoff is recorded in `docs/certification/m98.md`. Prefixes with
+hosted billable tools use a standalone body with no tools: Judge token
+consent cannot authorize a separate hosted-search charge.
+The full rig gate also exposes Chrome CLI `--dump-dom` stalls on ordinary
+pages. Use the existing Playwright page driver for every accessibility
+scenario, preserving the four themes, real 690/320 px viewports, 120-second
+page timeout and every axe finding rule; prove the ordinary-page failure
+and the restored driver before rerunning the complete quality command.
+Lane D's final Kubuntu `npm run quality` exits 0 (7,317 passing tests;
+464 accessibility pages). Package and raw size check exit 0 at 2,113,751
+bytes against the unchanged 2,252,800 cap. The universal macOS helper is
+absent; CI's exact presence check fails only for that helper. The combined
+final-tree checkbox stays open. Receipts and the D78 handoff are in the
+aggregate certification record.
 
 - **Goal.** Small, calibrated, advisory decisions, on out of the box (D78),
   from the user's own chat model first, with separate judges later. The Muse
@@ -14610,7 +14639,8 @@ joined with M57, M58 and PR #49's sign-in
         and byte-exact red drills; no finding remains as an accepted residual.
   - [ ] Phase 1 acceptance 1–11, each with its failing drill and passing
         receipt.
-  - [ ] M91-G's harness merged, and lane G certified on it.
+  - [x] M91-G's harness merged with `--no-ff` in `e64ced28`; lane G's
+        golden and MSP receipts are linked in `docs/certification/m98.md`.
   - [ ] D78's ledger meets entry criteria 1–7, or FIXDEF gaps are closed.
   - [ ] Phase-1 final tree: full quality, a11y, package and bundle caps,
         installed-host receipts.

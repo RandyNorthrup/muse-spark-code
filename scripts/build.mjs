@@ -79,6 +79,8 @@ const WEB_FETCH_ENTRY = 'src/host/web/webFetchEntry.ts'
 const WEB_FETCH_OUTFILE = 'dist/webFetch.js'
 const MUSE_CODE_REVIEWER_ENTRY = 'src/host/review/museCodeReviewerEntry.ts'
 const MUSE_CODE_REVIEWER_OUTFILE = 'dist/museCodeReviewer.js'
+const JUDGE_ENTRY = 'src/host/judge/judgeEntry.ts'
+const JUDGE_OUTFILE = 'dist/judge.js'
 const SEARCH_WORKER_ENTRY = 'src/host/backend/searchWorker.ts'
 const SEARCH_WORKER_OUTFILE = 'dist/searchWorker.js'
 const PAGE_WORKER_ENTRY = 'src/host/web/pageWorker.ts'
@@ -231,6 +233,13 @@ const museCodeReviewerOptions = {
 }
 
 /** @type {import('esbuild').BuildOptions} */
+const judgeOptions = {
+  ...planMarkdownOptions,
+  entryPoints: [JUDGE_ENTRY],
+  outfile: JUDGE_OUTFILE,
+}
+
+/** @type {import('esbuild').BuildOptions} */
 const agentImportOptions = {
   ...common,
   plugins: [sharedUiText],
@@ -356,6 +365,7 @@ if (isWatch) {
     esbuild.context(voiceOptions),
     esbuild.context(webFetchOptions),
     esbuild.context(museCodeReviewerOptions),
+    esbuild.context(judgeOptions),
     esbuild.context(uiTextOptions),
     esbuild.context(searchWorkerOptions),
     esbuild.context(pageWorkerOptions),
@@ -378,6 +388,7 @@ if (isWatch) {
     voice: esbuild.build(voiceOptions),
     webFetch: esbuild.build(webFetchOptions),
     museCodeReviewer: esbuild.build(museCodeReviewerOptions),
+    judge: esbuild.build(judgeOptions),
     uiText: esbuild.build(uiTextOptions),
     searchWorker: esbuild.build(searchWorkerOptions),
     pageWorker: esbuild.build(pageWorkerOptions),
@@ -413,6 +424,7 @@ if (isWatch) {
   reportSize(VOICE_OUTFILE)
   reportSize(WEB_FETCH_OUTFILE)
   reportSize(MUSE_CODE_REVIEWER_OUTFILE)
+  reportSize(JUDGE_OUTFILE)
   reportSize(UI_TEXT_OUTFILE)
   reportSize(SEARCH_WORKER_OUTFILE)
   reportSize(PAGE_WORKER_OUTFILE)

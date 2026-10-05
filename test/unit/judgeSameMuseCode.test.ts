@@ -201,6 +201,18 @@ function fakeSetup(): FakeRig {
   }
 }
 
+function batchObservers() {
+  const observed: { errors: unknown[]; sideIds: string[] } = { errors: [], sideIds: [] }
+  const roots = trackTempRoots(folders)
+  return {
+    ...observed,
+    roots,
+    removed: roots.removed,
+    entries: new SpyJudgeStore(),
+    cache: new JudgeResultCache(),
+  }
+}
+
 describe('MuseCodeSameJudge on fakes', () => {
   it('judges in a hidden session and deletes its folder after', async () => {
     const rig = fakeSetup()
@@ -383,12 +395,7 @@ describe('MuseCodeSameJudge over MSP frames', () => {
         status: 'accepted',
       }))
     }
-    const entries = new SpyJudgeStore()
-    const cache = new JudgeResultCache()
-    const errors: unknown[] = []
-    const sideIds: string[] = []
-    const roots = trackTempRoots(folders)
-    const removed = roots.removed
+    const { entries, cache, errors, sideIds, roots, removed } = batchObservers()
     const judge = new MuseCodeSameJudge({
       startSession: (options) => host.startSession(options),
       readSettingsText: () => undefined,
@@ -529,12 +536,7 @@ describe('M98-G main-session frames unchanged while the judge runs', () => {
     }
     expect(framesBefore.length).toBeGreaterThan(0)
     // Then the judge works on a held action in the background.
-    const entries = new SpyJudgeStore()
-    const cache = new JudgeResultCache()
-    const errors: unknown[] = []
-    const sideIds: string[] = []
-    const roots = trackTempRoots(folders)
-    const removed = roots.removed
+    const { entries, cache, errors, sideIds, roots, removed } = batchObservers()
     const judge = new MuseCodeSameJudge({
       modelId: MODEL,
       timeoutMs: 5000,

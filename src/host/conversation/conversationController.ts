@@ -1369,7 +1369,10 @@ export class ConversationController {
     }
     const sessions: ReturnType<typeof toSessionRow>[] = []
     for (const record of this.sessionRecords.values()) {
-      if (this.deps.museCodeReviewer?.isSideSession(record.sessionId) === true) {
+      if (
+        this.deps.museCodeReviewer?.isSideSession(record.sessionId) === true ||
+        this.deps.judge?.isSideSession?.(record.sessionId) === true
+      ) {
         // The Auto reviewer's side session (M90): never a conversation of the user's.
         continue
       }
@@ -3230,7 +3233,8 @@ export class ConversationController {
     if (event.type === 'changed') {
       if (
         event.record.workspaceRoot !== this.deps.workspaceRoot ||
-        this.deps.museCodeReviewer?.isSideSession(event.record.sessionId) === true
+        this.deps.museCodeReviewer?.isSideSession(event.record.sessionId) === true ||
+        this.deps.judge?.isSideSession?.(event.record.sessionId) === true
       ) {
         return
       }
@@ -8020,6 +8024,40 @@ export class ConversationController {
   /** Whether Ctrl+B has a running command to move here (M46): its context key. */
   public get hasForegroundShell(): boolean {
     return this.foregroundShells.size > 0
+  }
+
+  /** The Judge reads the attached action's current model and loaded context window. */
+  public judgeContext(
+    sessionId: string,
+    turnId: string,
+  ):
+    | {
+        readonly backend: BackendKind
+        readonly modelId: string
+        readonly contextLimit: number | undefined
+      }
+    | undefined {
+    if (
+      this.isDisposed ||
+      this.accountStopsInFlight > 0 ||
+      this.session === undefined ||
+      this.sessionKind === undefined ||
+      this.session.sessionId !== sessionId ||
+      this.activeTurnId !== turnId ||
+      (this.deps.isConfidentialWorkspace() && isContributorModel(this.session.modelId))
+    )
+      return
+    return {
+      backend: this.sessionKind,
+      modelId: this.session.modelId,
+      contextLimit: this.contextLimitFor(this.session.modelId),
+    }
+  }
+
+  public postJudge(
+    message: Extract<HostToWebviewMessage, { type: 'judgeState' | 'agentEvent' }>,
+  ): void {
+    this.post(message)
   }
 
   /** Board state comes from captured turn events, not a guessed native status. */

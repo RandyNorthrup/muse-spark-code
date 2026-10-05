@@ -13259,6 +13259,68 @@ async function asking(mode: ConversationDeps['initialPermissionMode'] = 'auto') 
 }
 
 describe('ConversationController: Muse Judge card lifecycle (M98-U)', () => {
+  it('exposes Judge context only for its current attached live turn', async () => {
+    const t = await judgeConversation('manual')
+    expect(t.controller.judgeContext('s1', 't1')).toMatchObject({
+      backend: 'museCode',
+      modelId: 'muse-spark-1.3',
+      contextLimit: 1_007_997,
+    })
+    expect(t.controller.judgeContext('another', 't1')).toBeUndefined()
+    expect(t.controller.judgeContext('s1', 'another')).toBeUndefined()
+    t.controller.postJudge({
+      type: 'judgeState',
+      state: {
+        mode: 'same',
+        reason: 'auto-same',
+        modelId: 'muse-spark-1.3',
+        billing: 'subscription',
+      },
+    })
+    expect(t.surface.posted.at(-1)).toMatchObject({ type: 'judgeState' })
+    t.finishTurn()
+    await settle()
+    expect(t.controller.judgeContext('s1', 't1')).toBeUndefined()
+    t.controller.dispose()
+    expect(t.controller.judgeContext('s1', 't1')).toBeUndefined()
+  })
+
+  it('excludes hidden Judge sessions from list reads and native list changes', async () => {
+    const sideSession = 'judge-hidden'
+    const t = setup({
+      judge: {
+        start: vi.fn(),
+        discardTurn: vi.fn(),
+        discardSession: vi.fn(),
+        isSideSession: (id) => id === sideSession,
+      },
+    })
+    await t.send('local', 'Hello')
+    t.server.handle('session/list', () => ({
+      sessions: [
+        { ...storedSession, sessionId: 's1', status: 'running' },
+        { ...storedSession, sessionId: sideSession },
+      ],
+      nextCursor: null,
+    }))
+    await t.controller.handle({ type: 'listSessions' })
+    expect(
+      JSON.stringify(t.surface.posted.findLast((message) => message.type === 'sessionList')),
+    ).not.toContain(sideSession)
+    const listed = t.surface.posted.filter((message) => message.type === 'sessionList').length
+    t.server.notify('session/listChanged', {
+      session: { ...storedSession, sessionId: sideSession },
+    })
+    await settle()
+    expect(
+      JSON.stringify(t.surface.posted.findLast((message) => message.type === 'sessionList')),
+    ).not.toContain(sideSession)
+    expect(t.surface.posted.filter((message) => message.type === 'sessionList')).toHaveLength(
+      listed,
+    )
+    t.controller.dispose()
+  })
+
   it.each([
     { mode: 'auto', name: 'renders the native card immediately, then adds only a caution' },
     {

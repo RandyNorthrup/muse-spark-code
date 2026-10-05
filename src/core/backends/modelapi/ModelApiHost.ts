@@ -189,6 +189,7 @@ import type { McpTool } from '../../mcp'
 import type { WebFetcher, WebFetchResult } from '../../web/webFetch'
 import type { WebFetchFailure } from '../../web/fetchFailure'
 import type { JudgeAdvisory, JudgeFence } from '../../judge/use'
+import type { ModelApiJudgeConnection } from '../../judge/same/modelApiSource'
 import { approvalHost } from '../../web/hostName'
 import { checkPageUrl } from '../../web/pageUrl'
 import { IndexLineStoppedError, type MemoryStore } from '../../memory/memoryStore'
@@ -1670,6 +1671,7 @@ function waitFor<T>(signal: AbortSignal, register: (pending: Pending<T>) => void
 }
 
 export class ModelApiSession implements AgentSession {
+  private lastJudgeBody: CreateResponseBody | undefined
   private readonly listeners = new Set<SessionEventListener>()
   private readonly replay: ReplayItem[] = []
   private readonly transcript: TranscriptItem[] = []
@@ -3545,6 +3547,7 @@ export class ModelApiSession implements AgentSession {
     }
     await this.refreshBudgetSpend()
     const body = this.budgeted(this.body())
+    this.lastJudgeBody = body
     const reservation = this.sending(body)
     const requestReplay = [...this.replay]
     let final: ResponseObject | undefined
@@ -10065,6 +10068,73 @@ export class ModelApiSession implements AgentSession {
     }
   }
 
+  /** Reads the actual main request; the side stream never enters this session's replay or tally. */
+  public judgeConnection(turnId: string, keyDigest: string): ModelApiJudgeConnection {
+    const readMainBody = (): CreateResponseBody => {
+      if (this.active?.turnId !== turnId || this.lastJudgeBody?.model !== this.modelId)
+        throw new Error('Judge source changed')
+      return this.lastJudgeBody
+    }
+    return {
+      keyDigest,
+      source: {
+        readMainBody,
+        keyPrefix: promptCacheKey,
+        prefixTokens: () => {
+          return
+        },
+      },
+      transport: {
+        send: async (body, signal, guard) => {
+          if (guard === undefined) throw new Error('Judge dispatch requires admission')
+          let final: ResponseObject | undefined
+          const stream = this.deps.client.streamResponse(
+            body,
+            signal,
+            undefined,
+            { retriesUsed: MODEL_API_MAX_RETRIES },
+            guard,
+          )
+          for await (const event of stream) {
+            if (event.type === 'response.completed') final = event.response
+          }
+          if (final?.status !== 'completed')
+            throw new Error('Judge stream has no completed response')
+          const text = final.output
+            .flatMap((item) =>
+              item.type === 'message' && 'content' in item
+                ? item.content.flatMap((part) =>
+                    part.type === 'output_text' && 'text' in part ? [part.text] : [],
+                  )
+                : [],
+            )
+            .join('')
+          const usage = final.usage
+          if (usage !== undefined && usage !== null && !isCountedUsage(usage))
+            throw new Error('Invalid Judge usage')
+          const cached = usage?.input_tokens_details?.cached_tokens
+          const reasoning = usage?.output_tokens_details?.reasoning_tokens
+          return {
+            text,
+            inputTokens: usage?.input_tokens,
+            outputTokens: usage?.output_tokens,
+            ...(usage !== undefined &&
+              usage !== null &&
+              cached !== undefined &&
+              reasoning !== undefined && {
+                usage: {
+                  inputTokens: usage.input_tokens,
+                  outputTokens: usage.output_tokens,
+                  cachedTokens: cached,
+                  reasoningTokens: reasoning,
+                },
+              }),
+          }
+        },
+      },
+    }
+  }
+
   /** Child transcripts are read through the host, not listed as conversations. */
   public childHistory(sessionId: string): SessionHistoryOutcome | undefined {
     for (const child of this.children.values()) {
@@ -10080,6 +10150,7 @@ export class ModelApiHost implements AgentHost {
   private isClosing = false
   private isVerifyDisposed = false
   private readonly sessions = new Map<string, ModelApiSession>()
+
   private readonly workspaceEdits: WorkspaceEdits
   /** Pinned at first use; a host cannot serve a different stored-key account. */
   private accountIdValue: string | undefined
@@ -10413,6 +10484,12 @@ export class ModelApiHost implements AgentHost {
    * model as untrusted data, and the session marked imported. The save
    * stamps the current key's digest, so only this key reopens it.
    */
+  public judgeConnection(sessionId: string, turnId: string): ModelApiJudgeConnection | undefined {
+    const session = this.sessions.get(sessionId)
+    if (session === undefined || this.accountIdValue === undefined) return
+    return session.judgeConnection(turnId, this.accountIdValue)
+  }
+
   public async importSession(
     doc: SessionExport,
     options: { readonly approvalMode: ApprovalMode; readonly modelId: string },

@@ -126,6 +126,24 @@ security notes for contributors are in `PLAN.md` §9.
   without allow-once and shared-panel sessions are never reviewed. Busy,
   timeout and breaker fallbacks leave the card; host exit recreates the
   side session.
+- **Muse Judge (M98 phase 1, `auto` by default).** At an already held approval,
+  the conversation's own model receives a redacted risk question containing
+  the current request/action and earlier calls selected by the approval path.
+  On Muse Code it is a standalone prompt in a fresh hidden Plan session, in
+  an empty temporary folder, on your subscription; no Model API price is
+  asked. Standing user-level allow rules or unreadable settings disable it.
+  Tool-item cancellation reacts after a notification, so native execution
+  before notification is a residual. The CLI may retain the hidden session
+  in its own store even after the extension removes its temporary folder;
+  History hides its id. The bounded result cache is window memory only.
+  The Model API source preserves the main request, copying its prefix only
+  if redaction changes no byte and no hosted billable tool is present,
+  otherwise using a standalone request with no tools. That
+  paid source is unavailable here until D78's daily ledger joins, with no
+  Judge price prompt or paid dispatch in the meantime. Judge never delays a
+  card, allows an action, or adds its result to a main request. Pattern
+  redaction does not remove every private fact. Logs contain fixed failures
+  and reason words, not judged content or probabilities. See [Judge](judge.md).
 - **Best-of-N (Model API, off by default).** After its paid-use popup names
   N and the request ceiling, the same prompt runs in separate local Git
   worktrees. Each attempt sends its conversation and tool outputs to Meta

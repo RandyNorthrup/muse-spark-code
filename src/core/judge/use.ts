@@ -24,6 +24,7 @@ export interface JudgeAdvisory {
   start(action: JudgeEntryParts, stateText: string): JudgeFence | undefined
   discardTurn(sessionId: string, turnId: string): void
   discardSession(sessionId: string): void
+  readonly isSideSession?: ((sessionId: string) => boolean) | undefined
 }
 
 export interface JudgeUseDeps {

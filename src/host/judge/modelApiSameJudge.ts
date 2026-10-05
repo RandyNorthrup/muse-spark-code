@@ -13,7 +13,16 @@ import type { JudgeEntryHandle } from '../../core/judge/entries'
 import { type JudgeQuestion } from '../../core/judge/judge'
 import { selectTechnique, type ModelJudgeCapability } from '../../core/judge/techniques'
 import { JUDGE_MIN_CACHED_PREFIX_TOKENS } from '../../shared/constants'
-import { type CachedPrefix } from '../../core/backends/modelapi/promptCache'
+import type {
+  ModelApiJudgeSource,
+  ModelApiJudgeTransport,
+  ModelApiSideResponse,
+} from '../../core/judge/same/modelApiSource'
+export type {
+  ModelApiJudgeSource,
+  ModelApiJudgeTransport,
+  ModelApiSideResponse,
+} from '../../core/judge/same/modelApiSource'
 import {
   commitSettledAnswers,
   judgeHeldAction,
@@ -22,37 +31,6 @@ import {
 } from '../../core/judge/same/batches'
 import { settleBatch } from '../../core/judge/same/answers'
 import { planSideRequest } from '../../core/judge/same/sideRequest'
-
-/** ModelApiHost's own request builder, as the adapter reads it (lane S seam). */
-export interface ModelApiJudgeSource {
-  /** The host's built, keyed body for the current turn — never modified here. */
-  readMainBody(): CreateResponseBody
-  /** `promptCacheKey` over a prefix: the side key of a shared prefix. */
-  keyPrefix(prefix: CachedPrefix): string
-  /**
-   * The cached prefix's length in the model's tokens, when the host measured
-   * it. Undefined means unmeasured: the side request shares the prefix (real
-   * conversations carry thousands of cached tokens; the minimum only saves a
-   * standalone send for degenerate short bodies).
-   */
-  prefixTokens(): number | undefined
-}
-
-/** One side request sent, as the transport answers it. */
-export interface ModelApiSideResponse {
-  readonly text: string
-  readonly inputTokens: number
-  readonly outputTokens: number
-}
-
-/**
- * The `client.streamResponse` call the integration owns (lane U/D wiring):
- * the side body through the conversation's own model and endpoint, answered
- * as text with usage. Failures reject.
- */
-export interface ModelApiJudgeTransport {
-  send(body: CreateResponseBody, signal: AbortSignal): Promise<ModelApiSideResponse>
-}
 
 export interface ModelApiJudgeDeps extends SameJudgeRunnerDeps {
   readonly source: ModelApiJudgeSource
@@ -155,7 +133,9 @@ export class ModelApiSameJudge {
       prefixTokens: this.deps.source.prefixTokens() ?? this.minPrefixTokens,
       minPrefixTokens: this.minPrefixTokens,
     })
-    const body = planned.mode === 'shared-prefix' ? planned.body : this.standaloneBody(main, tail)
+    const canReusePrefix =
+      planned.mode === 'shared-prefix' && main.tools.every((tool) => tool.type === 'function')
+    const body = canReusePrefix ? planned.body : this.standaloneBody(main, tail)
     let response: ModelApiSideResponse
     try {
       response = await this.deps.transport.send(body, signal)
@@ -179,8 +159,8 @@ export class ModelApiSameJudge {
       replyText: response.text,
       model: this.deps.modelId,
       advisoryThreshold: tuning.advisoryThreshold,
-      reservedCostUsd: job.reservedCostUsd,
-      settledCostUsd: job.settledCostUsd,
+      reservedCostUsd: response.reservedCostUsd ?? job.reservedCostUsd,
+      settledCostUsd: response.settledCostUsd ?? job.settledCostUsd,
     })
     commitSettledAnswers({
       entries: this.deps.entries,

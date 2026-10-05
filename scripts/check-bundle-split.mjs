@@ -299,6 +299,34 @@ const BUNDLED_SKILLS = {
 // The Model API backend keeps its own copy of code intelligence.
 const ON_FIRST_USE = [
   {
+    output: 'dist/judge.js',
+    metafile: 'dist/meta/judge.json',
+    use: 'the first eligible Judge approval',
+    files: [
+      'src/host/judge/judgeEntry.ts',
+      'src/host/judge/judgeTransport.ts',
+      'src/host/judge/judgeUse.ts',
+      'src/host/judge/judgeUsage.ts',
+      'src/host/judge/museCodeSameJudge.ts',
+      'src/host/judge/modelApiSameJudge.ts',
+      'src/core/judge/admission.ts',
+      'src/core/judge/entries.ts',
+      'src/core/judge/judge.ts',
+      'src/core/judge/math.ts',
+      'src/core/judge/techniques.ts',
+      'src/core/judge/prompt.ts',
+      'src/core/judge/resolve.ts',
+      'src/core/judge/same/allowRules.ts',
+      'src/core/judge/same/answers.ts',
+      'src/core/judge/same/batches.ts',
+      'src/core/judge/same/resultCache.ts',
+      'src/core/judge/same/scheduler.ts',
+      'src/core/judge/same/sessionSpec.ts',
+      'src/core/judge/same/sideRequest.ts',
+      'src/core/judge/same/wording.ts',
+    ],
+  },
+  {
     output: 'dist/codeIntel.js',
     metafile: 'dist/meta/codeIntel.json',
     use: 'the first code intelligence call',
@@ -567,14 +595,11 @@ const TEXT_BLOCKS = [
     sentinels: ['autoReviewerInstructions', 'museCodeReviewerTurn'],
     readers: ['dist/reviewer.js', 'dist/museCodeReviewer.js'],
   },
-  // The same-model judge (M98 lane S): no bundle reads it yet — lane S's
-  // core and adapters are unwired until lane D ships the judge bundle and
-  // lane U wires the fences. Until then the guard proves the block rides
-  // nowhere; wiring adds the readers here.
+  // The same-model Judge's sources and question load only at an eligible approval.
   {
     block: 'JUDGE_MODEL_TEXT',
     sentinels: ['judgeSystemInstruction', 'judgeStandaloneTurn'],
-    readers: [],
+    readers: ['dist/judge.js'],
   },
 ].map((entry) => ({
   ...entry,

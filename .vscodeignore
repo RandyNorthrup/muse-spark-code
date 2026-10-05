@@ -12,6 +12,7 @@
 !dist/voice.js
 !dist/webFetch.js
 !dist/museCodeReviewer.js
+!dist/judge.js
 !dist/uiText.js
 !dist/searchWorker.js
 !dist/pageWorker.js
@@ -35,4 +36,5 @@
 !LICENSE
 !THIRD_PARTY_NOTICES.txt
 !docs/PRIVACY.md
+!docs/judge.md
 !vendor/high-quality-projects-skill/**

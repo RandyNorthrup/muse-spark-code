@@ -955,7 +955,7 @@
     "typecheck:e2e": "tsc -p test/e2e/tsconfig.json --noEmit",
     "typecheck:integration": "tsc -p test/integration/tsconfig.json --noEmit",
     "deadcode": "knip",
-    "cycles": "dpdm --no-warning --no-tree --exit-code circular:1 -T src/extension.ts src/host/backend/modelApiEntry.ts src/host/sessionBoardEntry.ts src/core/backends/modelapi/reviewerEntry.ts src/host/agentImportEntry.ts src/host/ide/codeIntelEntry.ts src/host/voice/voiceEntry.ts src/host/web/webFetchEntry.ts src/host/planMarkdownEntry.ts src/host/checkpoints/checkpointStoreEntry.ts src/host/review/reviewEntry.ts src/host/review/museCodeReviewerEntry.ts src/host/skills/bundledSkillsEntry.ts src/webview/main.tsx src/runtime/main.ts",
+    "cycles": "dpdm --no-warning --no-tree --exit-code circular:1 -T src/extension.ts src/host/backend/modelApiEntry.ts src/host/sessionBoardEntry.ts src/core/backends/modelapi/reviewerEntry.ts src/host/agentImportEntry.ts src/host/ide/codeIntelEntry.ts src/host/voice/voiceEntry.ts src/host/web/webFetchEntry.ts src/host/planMarkdownEntry.ts src/host/checkpoints/checkpointStoreEntry.ts src/host/review/reviewEntry.ts src/host/review/museCodeReviewerEntry.ts src/host/skills/bundledSkillsEntry.ts src/host/judge/judgeEntry.ts src/webview/main.tsx src/runtime/main.ts",
     "duplication": "jscpd",
     "test": "run-s test:unit test:integration",
     "test:unit": "vitest run --coverage",

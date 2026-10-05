@@ -21,6 +21,7 @@ import { judgePromptWording } from './wording'
 
 /** The runner both adapters share: entries, cache, model, limits, reporter. */
 export interface SameJudgeRunnerDeps {
+  readonly signal?: AbortSignal | undefined
   readonly entries: JudgeEntryStore
   readonly cache: JudgeResultCache
   /** The conversation's own model: no backend ever names another. */
@@ -32,6 +33,7 @@ export interface SameJudgeRunnerDeps {
    * counter, provided by the wiring.
    */
   readonly measureTokens: (text: string) => number
+  readonly contextTokenLimit?: number | undefined
   readonly onError: (error: unknown) => void
 }
 
@@ -122,8 +124,14 @@ export function planKindBatches(inputs: PlanKindBatchesInputs): PlannedJudgeBatc
 export function planJobBatches(
   job: { readonly stateText: string; readonly questions: readonly JudgeQuestion[] },
   measureTokens: (text: string) => number,
+  contextTokenLimit?: number,
 ): PlannedJudgeBatch[] {
-  return planKindBatches({ stateText: job.stateText, questions: job.questions, measureTokens })
+  return planKindBatches({
+    stateText: job.stateText,
+    questions: job.questions,
+    measureTokens,
+    contextTokenLimit,
+  })
 }
 
 /**
@@ -195,10 +203,18 @@ export function judgeHeldAction(inputs: JudgeHeldActionInputs): void {
       planJobBatches(
         { stateText: inputs.stateText, questions: inputs.questions },
         tuning.measureTokens,
+        inputs.runner.contextTokenLimit,
       ),
     launch: (batch) => {
       launchJudgeBatch(
-        (signal) => inputs.runBatch(batch, tuning, signal),
+        (signal) =>
+          inputs.runBatch(
+            batch,
+            tuning,
+            inputs.runner.signal === undefined
+              ? signal
+              : AbortSignal.any([signal, inputs.runner.signal]),
+          ),
         tuning,
         inputs.runner.onError,
       )

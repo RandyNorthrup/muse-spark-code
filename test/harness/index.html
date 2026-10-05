@@ -1484,6 +1484,8 @@
           })
         },
         'judge-narrow': () => {
+          document.documentElement.style.width = '100%'
+          document.body.style.width = '100%'
           document.body.style.maxWidth = '320px'
           steps.judge()
         },

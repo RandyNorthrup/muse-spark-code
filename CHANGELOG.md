@@ -9,14 +9,33 @@ happened, not what was planned; superseded entries are kept.
 
 ### Added
 
-- **Muse Judge contract and strings (M98 lane 0, PLAN.md D77).** New
-  `src/core/judge/schema.ts` (zod request/answer/`muse` schemas, bounds,
-  labels, option letters, log summary); the named judge limits in
-  `src/shared/constants.ts`; the `judge` paid feature; `museSpark.judge.engine`
-  (`auto`, `same`, `off`; `auto` by default) with English and translated
-  descriptions. Phase 1 only: the same-model judge. No judge runs yet.
+- **Muse Judge phase 1 integration (M98, PLAN.md D77).** Same-model,
+  uncalibrated risk advice at existing reviewer and card fences, a fixed
+  caution note, status and separate usage rows. Muse Code uses fresh hidden
+  Plan sessions on the subscription, with standing-rule checks, redaction,
+  cancellation and temporary-folder cleanup. `museSpark.judge.engine`
+  selects `auto` (default), `same` or `off`; the Judge bundle loads only at
+  an eligible approval. Model API main-body goldens and main-session MSP
+  invariants remain unchanged. Paid transport admission, credential-wait
+  rechecks and unknown-cost liability are integrated, but Model API Judge
+  stays unavailable until the real D78 daily-ledger adapter joins this tree.
+  Local/separate Judge, CLI, live measurements and full certification remain
+  planned.
 
 ### Changed
+
+- **M98 integration repairs.** A ready Judge latch is invalidated when its
+  live source becomes unavailable; the main Model API body is read from the
+  actual sent request. Hidden-session rows stay out of History, and the
+  PowerShell tool toggle fits within a 320 px panel. Invalid side-receipt
+  counts fail before they reach usage rows. Hosted-tool prefixes use
+  standalone Judge bodies, so token consent grants no hosted-search charge. Every existing
+  bundle and VSIX cap is preserved; the new lazy Judge has a 100 KiB cap
+  from its 77.7 KiB measurement plus the existing sizing rule.
+- **Accessibility browser driver.** All scenarios use the existing
+  Playwright page driver after Chrome's `--dump-dom` stalled on ordinary
+  pages. The scenarios, themes, page timeout and axe finding rules stay
+  unchanged.
 
 - **Tiered CI, ready for a merge queue.** The full gate now runs as parallel
   jobs:

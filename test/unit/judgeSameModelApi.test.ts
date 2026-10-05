@@ -61,6 +61,7 @@ interface Rig {
 }
 
 function setup(options: {
+  readonly signal?: AbortSignal
   readonly reply?: string | undefined
   readonly main?: CreateResponseBody | undefined
   readonly prefixTokens?: number | undefined
@@ -91,6 +92,7 @@ function setup(options: {
     return await transport.send(body, signal)
   })
   const deps: ModelApiJudgeDeps = {
+    signal: options.signal,
     source,
     transport: { send: sending },
     entries,
@@ -211,6 +213,47 @@ describe('ModelApiSameJudge', () => {
     const key = startKey(rig.entries)
     expect(await judgeOnce(rig.judge, rig.entries, judgeJob(key, 'x', [NOUL]))).toBe('failed')
     expect(rig.cache.get(key.key)).toBeUndefined()
+  })
+
+  it('uses a standalone body when a prefix carries a billable hosted tool', async () => {
+    const main: CreateResponseBody = { ...mainBody(), tools: [{ type: 'web_search' }] }
+    const before = structuredClone(main)
+    const rig = setup({ main })
+    expect(
+      await judgeOnce(rig.judge, rig.entries, judgeJob(startKey(rig.entries), 'state', [NOUL])),
+    ).toBe('caution')
+    expect(rig.sent[0]).toMatchObject({ tools: [], instructions: '', model: main.model })
+    expect(rig.sent[0]?.input).toHaveLength(1)
+    expect(main).toEqual(before)
+  })
+
+  it('forwards the action lifetime to an in-flight batch transport', async () => {
+    const stop = new AbortController()
+    const observed: { signal?: AbortSignal } = {}
+    const rig = setup({
+      signal: stop.signal,
+      send: (_body, signal) => {
+        observed.signal = signal
+        return new Promise((_resolve, reject) => {
+          signal.addEventListener(
+            'abort',
+            () => {
+              reject(new Error('cancelled'))
+            },
+            { once: true },
+          )
+        })
+      },
+    })
+    const key = startKey(rig.entries)
+    rig.judge.judge(judgeJob(key, 'state', [NOUL]))
+    await vi.waitFor(() => {
+      expect(observed.signal).toBeDefined()
+    })
+    stop.abort()
+    expect(observed.signal?.aborted).toBe(true)
+    expect(await untilJudgeSettled(rig.entries, key)).toBe('failed')
+    expect(rig.cache.size).toBe(0)
   })
 
   it('settles failed when the transport throws', async () => {

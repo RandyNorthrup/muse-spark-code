@@ -12,13 +12,11 @@
 //   node scripts/a11y.mjs --lang=pseudo      in the pseudo-locale table
 //   CHROME_PATH=/path/to/chrome node scripts/a11y.mjs
 
-import { execFile } from 'node:child_process'
 import { existsSync } from 'node:fs'
 import { mkdtemp, rm } from 'node:fs/promises'
 import { availableParallelism, tmpdir } from 'node:os'
 import path from 'node:path'
 import process from 'node:process'
-import { promisify } from 'node:util'
 import { findChrome } from './lib/chrome.mjs'
 import { harnessArgs, langQuery, prepareLang } from './lib/harnessLang.mjs'
 import {
@@ -33,16 +31,10 @@ import {
 
 const THEMES = ['light', 'dark', 'hc-dark', 'hc-light']
 const BUNDLE_PATH = 'dist/webview/main.js'
-const WINDOW_SIZE = '690,760'
-// Virtual time: the scenario plays, the harness waits 5 s, axe runs.
-const VIRTUAL_TIME_BUDGET_MS = 30_000
 const MAX_WORKERS = 6
 // Windows headless Chrome stalled on the long transcript plus jump button
 // with four concurrent pages (M46); two workers passed twice with all rules.
 const WINDOWS_MAX_WORKERS = 2
-const OUTPUT_MAX_BYTES = 64 * 1024 * 1024
-const RESULT = /<pre id="axe-result" hidden="">([\s\S]*?)<\/pre>/
-const ENTITIES = { '&amp;': '&', '&lt;': '<', '&gt;': '>', '&quot;': '"', '&#39;': "'" }
 // axe's reasons (messageKey) for a contrast it could not decide: the text is
 // covered, or it could not see the background behind it; or the content is
 // glyphs, not text.
@@ -61,50 +53,27 @@ const EXEMPT_REASONS = new Map([
     'scrollable-region-focusable on a listbox its focused control drives with aria-activedescendant (WCAG 2.1.1 is met: the arrows move through the options and the active one is scrolled into view, so the region needs no Tab stop of its own)',
   ],
 ])
-const execFileAsync = promisify(execFile)
 const repoRoot = process.cwd()
-
-function decodeEntities(text) {
-  return text.replaceAll(/&(amp|lt|gt|quot|#39);/g, (entity) => ENTITIES[entity] ?? entity)
-}
 
 /** One page: `{ violations }` from axe, or `{ error }` saying why there is none. */
 async function scan(chrome, port, page, lang, profileDir) {
   const url = `http://${LOOPBACK}:${String(port)}/${HARNESS_PATH}?scenario=${page.scenario}&theme=${page.theme}&axe=1${langQuery(lang)}`
   try {
-    if (page.scenario === 'share-narrow' || page.scenario.startsWith('judge')) {
-      return await withNarrowPage(
-        chrome,
-        profileDir,
-        url,
-        async (tab) => {
-          const result = tab.locator('#axe-result')
-          await result.waitFor({ state: 'attached', timeout: PAGE_TIMEOUT_MS })
-          return JSON.parse(await result.textContent())
-        },
-        page.scenario === 'share-narrow' || page.scenario === 'judge-narrow'
-          ? undefined
-          : HARNESS_WIDE_VIEWPORT,
-      )
-    }
-    const { stdout } = await execFileAsync(
+    // Chrome's CLI can hang even on ordinary pages; the same real-page
+    // driver already used for narrow/Judge cases waits for the actual axe result.
+    return await withNarrowPage(
       chrome,
-      [
-        '--headless=new',
-        '--disable-gpu',
-        '--no-first-run',
-        `--user-data-dir=${profileDir}`,
-        `--window-size=${WINDOW_SIZE}`,
-        `--virtual-time-budget=${String(VIRTUAL_TIME_BUDGET_MS)}`,
-        '--dump-dom',
-        url,
-      ],
-      { timeout: PAGE_TIMEOUT_MS, maxBuffer: OUTPUT_MAX_BYTES, windowsHide: true },
+      profileDir,
+      url,
+      async (tab) => {
+        const result = tab.locator('#axe-result')
+        await result.waitFor({ state: 'attached', timeout: PAGE_TIMEOUT_MS })
+        return JSON.parse(await result.textContent())
+      },
+      page.scenario === 'share-narrow' || page.scenario === 'judge-narrow'
+        ? undefined
+        : HARNESS_WIDE_VIEWPORT,
     )
-    const match = RESULT.exec(stdout)
-    return match === null
-      ? { error: 'the page wrote no axe result (did the scenario throw?)' }
-      : JSON.parse(decodeEntities(match[1]))
   } catch (error) {
     return { error: String(error.message ?? error) }
   }

@@ -1659,6 +1659,43 @@ settles. Invalid token counts refuse ALLOW and retain unknown liability;
 host close stops admission before its end hooks finish. No guessed native fields or new
 shell parser are involved.
 
+## Muse Judge
+
+Muse Judge adds risk advice to approvals already held for an Auto reviewer
+or shown as a card. A ready caution turns a reviewer's ALLOW into the normal
+question, or adds a fixed note to the card. It never allows an action. Cards
+and reviewers continue immediately if Judge is pending, unavailable or
+unsure; native and immediate Auto allows start no Judge.
+
+Phase 1 uses the conversation's own model, with stated confidence labelled
+**uncalibrated**. A single-model setup keeps the main Model API request bytes
+and Muse Code's main-session MSP frames unchanged. There is no separate
+model, local engine, Judge CLI or extra hint in the chat request.
+
+On Muse Code, Judge uses your subscription and counts against its limits.
+Its first use explains this, without a Model API price prompt. Each batch
+runs in a fresh hidden Plan session, with no MCP servers, in an empty
+temporary folder removed afterward. Standing user-level allow rules or
+unreadable settings disable it. The tool-item guard reacts to notifications;
+this isolation does not prove that no native tool ran.
+
+**Model API Judge is unavailable on this tree:** the shared D78 daily ledger
+and its setting have not joined this branch. It makes no paid Judge request
+and asks no Judge price while that dependency is absent. The integrated
+transport requires the existing three-choice consent, a durable worst-case
+reservation before each dispatch, and known-usage settlement; missing
+receipts retain liability. These paths are tested with fakes, not certified
+against the missing daily ledger. The subscription never pays for a Model
+API call.
+
+`museSpark.judge.engine` is machine-scoped: `auto` (default) uses the same
+model, `same` keeps that selection explicit, and `off` disables Judge. Set
+it to `off` in Settings to stop future judgments. A measured ready rate below
+the floor disables `auto` on that backend; no production ready-rate or
+precision measurement is claimed here. Status and separate dispatch rows
+show what ran, with missing usage left unknown. See [Judge](docs/judge.md)
+for the phase-1 contract and remaining certification.
+
 ## Web fetch
 
 The model can read one public web page it found or you
@@ -2820,7 +2857,10 @@ stopped and the next message resumes the same session.
   In Auto on Muse Code, [the reviewer](#the-auto-reviewer-on-muse-code)
   sends your latest message, the turn's earlier calls and the request it
   judges to Meta as one more Muse Code turn on your subscription
-  (`museSpark.museCodeAutoReviewer`). The extension has no telemetry
+  (`museSpark.museCodeAutoReviewer`). [Muse Judge](#muse-judge) can also send
+  a redacted risk question about an already held approval, using that same
+  model on your subscription (`museSpark.judge.engine`, `auto` by default).
+  The extension has no telemetry
   and no hosted server of its own. Details: [PRIVACY.md](docs/PRIVACY.md).
 - A pasted Model API key lives only in VS Code's SecretStorage, is sent only
   to `api.meta.ai`, is never passed to any child process, and never reaches

@@ -53,6 +53,7 @@ export function createJudgeUse(deps: JudgeUseHostDeps): JudgeUse {
     }
     return (
       resolution.mode === 'same' &&
+      current.sourceAvailable &&
       (current.engine === 'auto' || current.engine === 'same') &&
       isJudgeEngineOn(current.engine)
     )

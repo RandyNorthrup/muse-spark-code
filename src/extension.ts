@@ -1,4 +1,6 @@
 import { isJudgeEngineOn } from './core/judge/engine'
+import { judgeWindowPort } from './host/judge/judgeBundle'
+import { storeErrorCode } from './host/backend/storeErrors'
 // Extension host entry point. Kept to registration and adapter wiring; the
 // behaviour lives in src/host (VS Code adapters) and src/core (pure logic).
 
@@ -180,6 +182,7 @@ import {
   WEB_FETCH_BUNDLE_FILE,
   VOICE_BUNDLE_FILE,
   MUSE_CODE_REVIEWER_BUNDLE_FILE,
+  JUDGE_BUNDLE_FILE,
   MUSE_CODE_REVIEWER_DIR,
   MODEL_API_SCHEDULES_DIR,
   CHECKPOINTS_DIR,
@@ -688,9 +691,9 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   const paid = createPaidFeatures({
     globalState: context.globalState,
     workspaceState: context.workspaceState,
-    // No judge runs yet (M98). Its first-charge, ask-once consent belongs
-    // to lane U/D78, so it is not paid-pending in this legacy startup gate.
-    // The subscription source must never receive a Model API price popup.
+    // Judge uses the engine predicate below; its first-charge consent runs
+    // lazily at an eligible approval. Activation never asks for its price,
+    // and subscription judging never receives a Model API price popup.
     isSettingOn: (feature) =>
       feature !== 'judge' && currentSettings()[PAID_FEATURE_SETTINGS[feature]],
     isJudgeOn: () => isJudgeEngineOn(currentSettings()['judge.engine']),
@@ -711,9 +714,57 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     isOn: () => currentSettings().museCodeAutoReviewer,
     log,
   })
+  const judge = judgeWindowPort({
+    bundlePath: vscode.Uri.joinPath(context.extensionUri, 'dist', JUDGE_BUNDLE_FILE).fsPath,
+    engine: () => currentSettings()['judge.engine'],
+    context: (action) => {
+      if (!vscode.workspace.isTrusted) return
+      for (const controller of controllers.values()) {
+        const current = controller.judgeContext(action.sessionId, action.turnId)
+        if (current !== undefined)
+          return {
+            ...current,
+            ownerId: String(auth.admissionGeneration),
+            confidential: currentSettings().confidentialWorkspace,
+          }
+      }
+      return
+    },
+    readSettingsText: () => {
+      try {
+        return readFileSync(museSettingsPath(museConfig()), 'utf8')
+      } catch (error: unknown) {
+        if (storeErrorCode(error) === 'ENOENT') return
+        throw error
+      }
+    },
+    startSession: async (options) => {
+      const host = await backend.ensureHost()
+      return await host.startSession(options)
+    },
+    modelApi: (action) => modelApi.judgeConnection(action.sessionId, action.turnId),
+    paid,
+    emit: (action, event) => {
+      for (const controller of controllers.values()) {
+        if (controller.boardSession()?.sessionId === action.sessionId)
+          controller.postJudge({ type: 'agentEvent', event })
+      }
+    },
+    status: (action, status) => {
+      for (const controller of controllers.values()) {
+        if (controller.boardSession()?.sessionId === action.sessionId)
+          controller.postJudge({ type: 'judgeState', state: status })
+      }
+    },
+    notice: (text) => {
+      registry.broadcast({ type: 'notice', level: 'info', text })
+    },
+    log,
+  })
   context.subscriptions.push({
     dispose: () => {
       museCodeReviewer.dispose()
+      judge.dispose()
     },
   })
   // Both engines' drivers are dist/voice.js (D6), required on the first recording.
@@ -1524,6 +1575,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
           }),
         })
   const modelApi = new ModelApiBackendManager({
+    judge,
     log,
     // Each Model API turn's unit (M86): its record before it runs, its own
     // recorded writes while it does, then its writes drained, its unit folded
@@ -1974,6 +2026,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
           })
         },
         museCodeReviewer,
+        judge,
         copyText: async (text) => {
           await vscode.env.clipboard.writeText(text)
         },

@@ -10,10 +10,16 @@
 // notification, so it cannot prove that no command ran (the narrowed claim).
 // The judge runs in the background and is never awaited. No `vscode` import.
 
-import type { AgentSession, StartSessionOptions, TurnPart } from '../../core/agent/agentBackend'
+import type {
+  AgentSession,
+  StartSessionOptions,
+  TurnPart,
+  TurnSubmission,
+} from '../../core/agent/agentBackend'
 import type { JudgeEntryHandle } from '../../core/judge/entries'
 import { type JudgeQuestion } from '../../core/judge/judge'
 import type { AgentEvent } from '../../shared/agentEvents'
+import type { TokenUsage } from '../../shared/agentEvents'
 import { THINKING_OFF_EFFORT } from '../../shared/constants'
 import { checkStandingAllowRules } from '../../core/judge/same/allowRules'
 import { settleBatch } from '../../core/judge/same/answers'
@@ -27,6 +33,16 @@ import { isJudgeTurnItemAllowed, judgeSessionOptions } from '../../core/judge/sa
 import { judgeStandaloneTurn } from '../../core/judge/same/wording'
 
 export interface MuseCodeJudgeDeps extends SameJudgeRunnerDeps {
+  /** Host integration admits and accounts for the actual subscription dispatch. */
+  readonly sendTurn?:
+    | ((
+        session: AgentSession,
+        parts: readonly TurnPart[],
+        signal: AbortSignal,
+      ) => Promise<TurnSubmission>)
+    | undefined
+  readonly onUsage?: ((sessionId: string, usage: TokenUsage | undefined) => void) | undefined
+  readonly onFinished?: ((sessionId: string, hasFailed: boolean) => void) | undefined
   /** `host.startSession`: the side session joins the conversation's host. */
   readonly startSession: (options: StartSessionOptions) => Promise<AgentSession>
   /** The CLI's user-level settings text, undefined when the file is missing. */
@@ -69,7 +85,10 @@ interface TrackedTurn {
  * turn is sent, so no frame is missed): the first completed reply per turn,
  * each turn's terminal, and the item guard's trip.
  */
-function trackBatchTurns(session: AgentSession): {
+function trackBatchTurns(
+  session: AgentSession,
+  onUsage: MuseCodeJudgeDeps['onUsage'],
+): {
   readonly turns: Map<string, TrackedTurn>
   readonly stop: () => void
 } {
@@ -84,12 +103,35 @@ function trackBatchTurns(session: AgentSession): {
     return fresh
   }
   const stop = session.onEvent((event: AgentEvent) => {
+    if (event.type === 'tokenUsage')
+      onUsage?.(
+        session.sessionId,
+        event.cachedTokens === undefined || event.reasoningTokens === undefined
+          ? undefined
+          : {
+              inputTokens: event.inputTokens,
+              outputTokens: event.outputTokens,
+              cachedTokens: event.cachedTokens,
+              reasoningTokens: event.reasoningTokens,
+            },
+      )
+    if (
+      ['itemStarted', 'itemUpdated', 'itemCompleted'].includes(event.type) &&
+      'item' in event &&
+      event.item.turnId !== undefined &&
+      !isJudgeTurnItemAllowed(event.item.kind)
+    ) {
+      const tracked = at(event.item.turnId)
+      if (!tracked.tripped) {
+        tracked.tripped = true
+        void session.cancel().catch(() => {
+          return
+        })
+      }
+      return
+    }
     if (event.type === 'itemCompleted' && event.item.turnId !== undefined) {
       const tracked = at(event.item.turnId)
-      if (!isJudgeTurnItemAllowed(event.item.kind)) {
-        tracked.tripped = true
-        return
-      }
       if (
         tracked.reply === undefined &&
         event.item.kind === AGENT_MESSAGE &&
@@ -186,6 +228,7 @@ export class MuseCodeSameJudge {
       throw error
     }
     let session: AgentSession | undefined
+    let hasReply = false
     try {
       if (signal.aborted) {
         failed('the approval stopped waiting')
@@ -194,11 +237,14 @@ export class MuseCodeSameJudge {
       session = await this.deps.startSession(judgeSessionOptions(this.deps.modelId, root))
       this.deps.onSideSession(session.sessionId)
       // Tracked before the turn is sent, so no frame is missed.
-      const tracked = trackBatchTurns(session)
+      const tracked = trackBatchTurns(session, this.deps.onUsage)
       try {
         await session.setReasoningEffort(THINKING_OFF_EFFORT)
         const parts: readonly TurnPart[] = [{ type: 'text', text: judgeStandaloneTurn(batch.user) }]
-        const submission = await session.sendTurn(parts)
+        signal.throwIfAborted()
+        const submission = await (this.deps.sendTurn === undefined
+          ? session.sendTurn(parts)
+          : this.deps.sendTurn(session, parts, signal))
         if (submission.disposition !== STARTED_DISPOSITION) {
           failed(`its turn was ${submission.disposition}, not started`)
           return
@@ -208,6 +254,7 @@ export class MuseCodeSameJudge {
           failed('no completed reply in time')
           return
         }
+        hasReply = true
         const settled = settleBatch({
           questions: batch.questions,
           questionIds: batch.questionIds,
@@ -237,6 +284,7 @@ export class MuseCodeSameJudge {
       // The batch's folder goes even on failure: an empty temporary folder,
       // deleted after. A turn that may still run is stopped first.
       if (session !== undefined) {
+        this.deps.onFinished?.(session.sessionId, !hasReply)
         try {
           await session.cancel()
         } catch {
