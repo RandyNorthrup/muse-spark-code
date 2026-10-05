@@ -9,23 +9,23 @@
 // model's effort tiers are M95's capability data, reduced to the string
 // list the effort helpers take.
 
-import { UI_TEXT } from '../../shared/constants'
+import {
+  UI_TEXT,
+  TEAM_INTENSITY_LEVELS as INTENSITY_VALUES,
+  TEAM_INTENSITY_ORDER,
+  TEAM_INTENSITY_DEFAULT,
+  TEAM_WORKER_TPM_ESTIMATE,
+  TEAM_MINUTES_PER_HOUR,
+  TEAM_TOKENS_PER_MTOK,
+  type TeamIntensityLevel,
+} from '../../shared/constants'
+export { type TeamIntensityLevel, TEAM_WORKER_TPM_ESTIMATE } from '../../shared/constants'
 import { fill, formatUsd } from '../../shared/l10n/text'
 import type { TeamRoleDraft } from './templates'
 
 /** The five intensity levels, cheapest first. */
-export type TeamIntensityLevel = 'minimal' | 'light' | 'balanced' | 'heavy' | 'max'
-
-export const TEAM_INTENSITY_LEVELS: readonly TeamIntensityLevel[] = [
-  'minimal',
-  'light',
-  'balanced',
-  'heavy',
-  'max',
-]
-
-/** The default level for a new team. */
-export const DEFAULT_INTENSITY_LEVEL: TeamIntensityLevel = 'balanced'
+export const TEAM_INTENSITY_LEVELS: readonly TeamIntensityLevel[] = TEAM_INTENSITY_ORDER
+export const DEFAULT_INTENSITY_LEVEL: TeamIntensityLevel = TEAM_INTENSITY_DEFAULT
 
 /**
  * What one level sets (D75's table): the running cap per role, the effort
@@ -41,42 +41,22 @@ export interface TeamIntensitySpec {
   readonly dailyBudgetTokens: number
 }
 
+function intensitySpec(level: TeamIntensityLevel): TeamIntensitySpec {
+  const value = INTENSITY_VALUES[level]
+  return {
+    runningPerRole: value.runningPerRole,
+    effortSteps: value.effortShift,
+    tokensPerTask: value.tokensPerTask,
+    dailyBudgetUsd: value.dailyUsd,
+    dailyBudgetTokens: value.dailyTokens,
+  }
+}
 export const TEAM_INTENSITY_SPECS: Readonly<Record<TeamIntensityLevel, TeamIntensitySpec>> = {
-  minimal: {
-    runningPerRole: 1,
-    effortSteps: -2,
-    tokensPerTask: 100_000,
-    dailyBudgetUsd: 2,
-    dailyBudgetTokens: 1_000_000,
-  },
-  light: {
-    runningPerRole: 2,
-    effortSteps: -1,
-    tokensPerTask: 200_000,
-    dailyBudgetUsd: 5,
-    dailyBudgetTokens: 2_500_000,
-  },
-  balanced: {
-    runningPerRole: 4,
-    effortSteps: 0,
-    tokensPerTask: 400_000,
-    dailyBudgetUsd: 10,
-    dailyBudgetTokens: 5_000_000,
-  },
-  heavy: {
-    runningPerRole: 8,
-    effortSteps: 1,
-    tokensPerTask: 800_000,
-    dailyBudgetUsd: 25,
-    dailyBudgetTokens: 12_000_000,
-  },
-  max: {
-    runningPerRole: 'ceiling',
-    effortSteps: 2,
-    tokensPerTask: 1_500_000,
-    dailyBudgetUsd: 50,
-    dailyBudgetTokens: 25_000_000,
-  },
+  minimal: intensitySpec('minimal'),
+  light: intensitySpec('light'),
+  balanced: intensitySpec('balanced'),
+  heavy: intensitySpec('heavy'),
+  max: intensitySpec('max'),
 }
 
 /**
@@ -223,7 +203,6 @@ export interface TeamLevelPrice {
 }
 
 /** Tokens a worker moves per minute when it runs (D75's estimate). */
-export const TEAM_WORKER_TPM_ESTIMATE = 250_000
 
 export interface TeamLevelCost {
   readonly tokensPerHour: number
@@ -232,9 +211,6 @@ export interface TeamLevelCost {
   readonly usdPerHourHigh: number | undefined
   readonly hasUnknownPrice: boolean
 }
-
-const MINUTES_PER_HOUR = 60
-const TOKENS_PER_MTOK = 1_000_000
 
 function average(values: readonly number[]): number {
   let sum = 0
@@ -252,7 +228,7 @@ export function levelCostPerHour(
   workerTpm = TEAM_WORKER_TPM_ESTIMATE,
 ): TeamLevelCost {
   const running = runningForLevel(level, ceilings)
-  const tokensPerHour = running * roleCount * workerTpm * MINUTES_PER_HOUR
+  const tokensPerHour = running * roleCount * workerTpm * TEAM_MINUTES_PER_HOUR
   const billable = prices.filter((price) => price.billable)
   const priced = billable.flatMap((price) =>
     price.usdPerMTok === undefined
@@ -276,14 +252,14 @@ export function levelCostPerHour(
       hasUnknownPrice: false,
     }
   }
-  const billableTokensPerHour = running * billable.length * workerTpm * MINUTES_PER_HOUR
+  const billableTokensPerHour = running * billable.length * workerTpm * TEAM_MINUTES_PER_HOUR
   return {
     tokensPerHour,
     hasUnknownPrice: false,
     usdPerHourLow:
-      (billableTokensPerHour / TOKENS_PER_MTOK) * average(priced.map((price) => price.low)),
+      (billableTokensPerHour / TEAM_TOKENS_PER_MTOK) * average(priced.map((price) => price.low)),
     usdPerHourHigh:
-      (billableTokensPerHour / TOKENS_PER_MTOK) * average(priced.map((price) => price.high)),
+      (billableTokensPerHour / TEAM_TOKENS_PER_MTOK) * average(priced.map((price) => price.high)),
   }
 }
 

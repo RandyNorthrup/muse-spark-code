@@ -1,3 +1,5 @@
+import { TEAM_MODEL_TEXT } from '../../shared/constants'
+import { fill } from '../../shared/l10n/text'
 // The orchestrator's five tools on both backends (PLAN.md M96 lane T, D75
 // "The orchestrator's tools"): `roster`, `delegate`, `collect`, `cancel`
 // and `merge` (`reschedule` is M96c's, not this lane's).
@@ -12,8 +14,6 @@
 // The JSON Schemas below are the one definition both backends declare, so
 // the `team` server's tool list stays byte-identical across sessions and
 // team edits. Descriptions never name a role, so they never change.
-// LANE-T-SEAM (lane 0): the English descriptions relocate into
-// `TEAM_MODEL_TEXT` in `src/shared/constants.ts` at integration.
 
 import * as z from 'zod/mini'
 import type { McpTool } from '../mcp'
@@ -23,10 +23,11 @@ import {
   TEAM_DELEGATE_MAX,
   TEAM_BRIEF_MAX_CHARS,
   TEAM_REASON_CODES,
-} from './teamConstants'
+  TEAM_TOOL_NAMES,
+} from '../../shared/constants'
 
 /** The five tool names, in declaration order. */
-export const TEAM_TOOL_NAMES = ['roster', 'delegate', 'collect', 'cancel', 'merge'] as const
+export { TEAM_TOOL_NAMES } from '../../shared/constants'
 export type TeamToolName = (typeof TEAM_TOOL_NAMES)[number]
 
 /** What a delegating worker gets: the four that never merge. */
@@ -51,11 +52,10 @@ export function teamToolsForWorker(
 const TASK_SCHEMA = {
   type: 'object',
   properties: {
-    role: { type: 'string', description: 'The role to run, e.g. engineering' },
+    role: { type: 'string', description: TEAM_MODEL_TEXT.toolTheRoleToRunEG },
     brief: {
       type: 'string',
-      description:
-        'The whole task for a worker that has not seen this conversation: goal, context, files, constraints, done criteria',
+      description: TEAM_MODEL_TEXT.toolTheWholeTaskForAWorker,
     },
     reason: {
       type: 'object',
@@ -63,21 +63,21 @@ const TASK_SCHEMA = {
         code: {
           type: 'string',
           enum: [...TEAM_REASON_CODES],
-          description: 'Why this is delegated: one of the rubric codes',
+          description: TEAM_MODEL_TEXT.toolWhyThisIsDelegatedOneOf,
         },
-        detail: { type: 'string', description: 'The reason in one sentence' },
+        detail: { type: 'string', description: TEAM_MODEL_TEXT.toolTheReasonInOneSentence },
       },
       required: ['code', 'detail'],
     },
     files: {
       type: 'array',
       items: { type: 'string' },
-      description: 'Workspace paths the worker is pointed at',
+      description: TEAM_MODEL_TEXT.toolWorkspacePathsTheWorkerIsPointed,
     },
-    entry: { type: 'string', description: 'One pool entry to use, only if it has headroom' },
+    entry: { type: 'string', description: TEAM_MODEL_TEXT.toolOnePoolEntryToUseOnly },
     continue: {
       type: 'string',
-      description: 'A finished task id to reopen with a follow-up on its own branch',
+      description: TEAM_MODEL_TEXT.toolAFinishedTaskIdToReopen,
     },
   },
   required: ['role', 'brief', 'reason'],
@@ -86,16 +86,16 @@ const TASK_SCHEMA = {
 const PLAN_ITEM_SCHEMA = {
   type: 'object',
   properties: {
-    what: { type: 'string', description: 'The work you keep for yourself' },
+    what: { type: 'string', description: TEAM_MODEL_TEXT.toolTheWorkYouKeepForYourself },
     reason: {
       type: 'object',
       properties: {
         code: {
           type: 'string',
           enum: [...TEAM_REASON_CODES],
-          description: 'Why you keep it: one of the rubric codes',
+          description: TEAM_MODEL_TEXT.toolWhyYouKeepItOneOf,
         },
-        detail: { type: 'string', description: 'The reason in one sentence' },
+        detail: { type: 'string', description: TEAM_MODEL_TEXT.toolTheReasonInOneSentence2 },
       },
       required: ['code', 'detail'],
     },
@@ -114,14 +114,15 @@ export interface TeamToolSchema {
 /** The one definition both backends declare. */
 export const TEAM_TOOL_SCHEMAS: Record<TeamToolName, TeamToolSchema> = {
   roster: {
-    description:
-      'Show the team as it is now: each role with its pool and headroom, the queue, the budget left today and finished tasks not yet merged. Call it once before delegating.',
+    description: TEAM_MODEL_TEXT.toolShowTheTeamAsItIs,
     properties: {},
     required: [],
     annotations: { readOnlyHint: true },
   },
   delegate: {
-    description: `Start one to ${String(TEAM_DELEGATE_MAX)} tasks behind one approval and answer at once with each task's id, entry, state and ceilings. A retry with the same command_id and the same tasks starts nothing new. dry_run plans without starting or spending anything.`,
+    description: fill(TEAM_MODEL_TEXT.toolStartOneToTasksBehindOne, {
+      value1: String(TEAM_DELEGATE_MAX),
+    }),
     properties: {
       tasks: {
         type: 'array',
@@ -132,29 +133,30 @@ export const TEAM_TOOL_SCHEMAS: Record<TeamToolName, TeamToolSchema> = {
       plan: {
         type: 'array',
         items: PLAN_ITEM_SCHEMA,
-        description: 'The work you keep for yourself, so the user sees the whole plan',
+        description: TEAM_MODEL_TEXT.toolTheWorkYouKeepForYourself2,
       },
       command_id: {
         type: 'string',
-        description:
-          'Optional request id; a retry with the same id and tasks reuses the tasks already started',
+        description: TEAM_MODEL_TEXT.toolOptionalRequestIdARetryWith,
       },
-      pipeline: { type: 'string', description: 'The configured pipeline to run' },
+      pipeline: { type: 'string', description: TEAM_MODEL_TEXT.toolTheConfiguredPipelineToRun },
       dry_run: {
         type: 'boolean',
-        description: 'Answer the plan without starting or spending anything',
+        description: TEAM_MODEL_TEXT.toolAnswerThePlanWithoutStartingOr,
       },
     },
     required: ['tasks'],
   },
   collect: {
-    description: `Return the reports that are ready, with the tasks still running and their time and consumption. Waits at most wait_seconds. Page a large part with part and offset.`,
+    description: TEAM_MODEL_TEXT.toolReturnTheReportsThatAreReady,
     properties: {
       task_ids: { type: 'array', items: { type: 'string' } },
       wait_seconds: {
         type: 'integer',
         minimum: 0,
-        description: `Seconds to wait for reports, at most ${String(TEAM_COLLECT_WAIT_MAX_SECONDS)}`,
+        description: fill(TEAM_MODEL_TEXT.toolSecondsToWaitForReportsAt, {
+          value1: String(TEAM_COLLECT_WAIT_MAX_SECONDS),
+        }),
       },
       part: { type: 'string', enum: ['report', 'diff', 'transcript'] },
       offset: { type: 'integer', minimum: 0 },
@@ -163,23 +165,20 @@ export const TEAM_TOOL_SCHEMAS: Record<TeamToolName, TeamToolSchema> = {
     annotations: { readOnlyHint: true },
   },
   cancel: {
-    description:
-      'Stop running tasks, or discard finished ones: their working copies and branches are removed.',
+    description: TEAM_MODEL_TEXT.toolStopRunningTasksOrDiscardFinished,
     properties: {
       task_ids: { type: 'array', minItems: 1, items: { type: 'string' } },
     },
     required: ['task_ids'],
   },
   merge: {
-    description:
-      'Bring a finished, reviewed task change into the working branch as uncommitted changes: the only path from a worker branch to the user. Asks the user before writing.',
+    description: TEAM_MODEL_TEXT.toolBringAFinishedReviewedTaskChange,
     properties: {
       task_id: { type: 'string' },
       on_conflict: {
         type: 'string',
         enum: ['markers', 'rework'],
-        description:
-          'markers writes conflict markers; rework sends the conflict back to the task branch',
+        description: TEAM_MODEL_TEXT.toolMarkersWritesConflictMarkersReworkSends,
       },
     },
     required: ['task_id'],
@@ -216,7 +215,10 @@ export function teamMcpToolList(): readonly McpTool[] {
       },
       ...(schema.annotations !== undefined && { annotations: { ...schema.annotations } }),
       // The host routes the call; this list only describes.
-      call: () => Promise.reject(new Error(`team tool ${name} is answered by the host`)),
+      call: () =>
+        Promise.reject(
+          new Error(fill(TEAM_MODEL_TEXT.toolTeamToolIsAnsweredByThe, { value1: name })),
+        ),
     }
   })
 }
@@ -301,7 +303,12 @@ export function parseTeamArgs(
   const result = TEAM_ARG_SCHEMAS[name].safeParse(args)
   return result.success
     ? { ok: true, args: result.data }
-    : { ok: false, reason: `invalid arguments: ${z.prettifyError(result.error)}` }
+    : {
+        ok: false,
+        reason: fill(TEAM_MODEL_TEXT.toolInvalidArguments, {
+          value1: z.prettifyError(result.error),
+        }),
+      }
 }
 
 // --- `command_id`: a retry is safe ---
@@ -350,13 +357,13 @@ export class TeamCommandRegistry {
   ): Promise<TeamToolResult> {
     const fingerprint = fingerprintDelegateTasks(tasks)
     const claim = this.claim(commandId, fingerprint)
-    if (claim.kind === 'refused') throw new Error('command_id was already used for different tasks')
+    if (claim.kind === 'refused') throw new Error(TEAM_MODEL_TEXT.toolCommandIdWasAlreadyUsedFor)
     if (claim.kind === 'replay') return { output: claim.answer, visibleOutput: '' }
     if (commandId === undefined) return await start()
     const pending = this.pending.get(commandId)
     if (pending !== undefined) {
       if (pending.fingerprint !== fingerprint)
-        throw new Error('command_id was already used for different tasks')
+        throw new Error(TEAM_MODEL_TEXT.toolCommandIdWasAlreadyUsedFor2)
       const result = await pending.result
       return { output: result.output, visibleOutput: '' }
     }
@@ -412,17 +419,17 @@ export class TeamCommandRegistry {
 
 /** A team conversation whose last ready distinct entry went away keeps its tools; from the next turn `delegate` is refused at call admission. */
 export function singleModelAgainRefusal(): string {
-  return 'Only one model is ready: the team applies from a new conversation. Do the work yourself or ask the user.'
+  return TEAM_MODEL_TEXT.toolOnlyOneModelIsReadyThe
 }
 
 /** The team runner lanes A/W/I supply has not loaded: an explicit error, never an empty success. */
 export function teamRunnerMissing(tool: string): string {
-  return `Error: ${tool} is unavailable: the team runner is not loaded in this window.`
+  return fill(TEAM_MODEL_TEXT.toolErrorIsUnavailableTheTeamRunner, { value1: tool })
 }
 
 /** A team tool called where the conversation never declared it. */
 export function teamToolNotDeclared(tool: string): string {
-  return `Error: unknown tool ${tool}`
+  return fill(TEAM_MODEL_TEXT.toolErrorUnknownTool, { value1: tool })
 }
 
 /**
@@ -431,5 +438,5 @@ export function teamToolNotDeclared(tool: string): string {
  * transcript's visible line is `UI_TEXT.teamInPlaceOrchestratorRefused`.
  */
 export function inPlaceRefusal(): string {
-  return 'A worker is writing in place: edits, rename_symbol, the shell, then_run and merge wait until its task ends.'
+  return TEAM_MODEL_TEXT.toolAWorkerIsWritingInPlace
 }

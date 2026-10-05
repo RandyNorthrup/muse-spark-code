@@ -51,6 +51,11 @@ const BUNDLES = {
 const DEFERRED_ONLY = ['reviewerEntry.ts']
 const DEFERRED = [
   {
+    output: 'dist/team.js',
+    metafile: 'dist/meta/team.json',
+    files: ['src/core/team/teamEntry.ts', 'src/core/team/teamTools.ts', 'src/core/team/roster.ts'],
+  },
+  {
     output: 'dist/sessionBoard.js',
     metafile: 'dist/meta/sessionBoard.json',
     files: [
@@ -171,6 +176,11 @@ const acp = inputsOf(BUNDLES.acp)
 // M96 acceptance 47: the team factory installs these validators on activation.
 // A single-model user must never pay their eager loading cost in any backend.
 for (const bundle of [BUNDLES.activation, BUNDLES.modelApi, BUNDLES.acp]) {
+  for (const file of inputsOf(bundle).keys()) {
+    if (/^src\/(core|host)\/team\//.test(file)) {
+      problems.push(bundle.output + ' carries ' + file + ', which loads only with the team')
+    }
+  }
   if (inputsOf(bundle).has('src/shared/team.ts')) {
     problems.push(`${bundle.output} carries src/shared/team.ts, which loads only with the team`)
   }

@@ -10,7 +10,12 @@
 // orchestrator` (a `dry_run` turn) is lane T's; here the preview states
 // its cost first through `dryRunCostLabel`.
 
-import { UI_TEXT } from '../../shared/constants'
+import {
+  UI_TEXT,
+  TEAM_TOKENS_PER_MTOK,
+  TEAM_PREVIEW_OUTPUT_SHARE,
+  TEAM_PREVIEW_USD_FRACTION_DIGITS,
+} from '../../shared/constants'
 import { fill, formatUsd, plural } from '../../shared/l10n/text'
 import { typicalTokensFor } from './autofill'
 import type { TeamDraft } from './templates'
@@ -103,11 +108,9 @@ export interface TeamPreview {
   readonly unstaffedRoles: readonly string[]
 }
 
-const TOKENS_PER_MTOK = 1_000_000
 /** The output share of a step's tokens in the estimate. */
-const PREVIEW_OUTPUT_SHARE = 0.3
+
 /** Estimates stay readable below a dollar: four fraction digits. */
-const USD_PREVIEW_FRACTION_DIGITS = 4
 
 export interface TeamPreviewInput {
   readonly draft: TeamDraft
@@ -225,11 +228,11 @@ function costOf(
 ): number {
   let total = 0
   for (const { step, inputRate, outputRate, cachedInputRate } of pricedSteps) {
-    const output = step.tokens * PREVIEW_OUTPUT_SHARE
+    const output = step.tokens * TEAM_PREVIEW_OUTPUT_SHARE
     const inputTokens = step.tokens - output
     total +=
       (inputTokens * (isCached ? cachedInputRate : inputRate) + output * outputRate) /
-      TOKENS_PER_MTOK
+      TEAM_TOKENS_PER_MTOK
   }
   return total
 }
@@ -243,8 +246,8 @@ export function previewCostLabel(preview: TeamPreview): string {
     return fill(UI_TEXT.teamPreviewCostTokens, { tokens: preview.tokens })
   }
   return fill(UI_TEXT.teamPreviewCost, {
-    low: formatUsd(preview.usdLow, USD_PREVIEW_FRACTION_DIGITS),
-    high: formatUsd(preview.usdHigh, USD_PREVIEW_FRACTION_DIGITS),
+    low: formatUsd(preview.usdLow, TEAM_PREVIEW_USD_FRACTION_DIGITS),
+    high: formatUsd(preview.usdHigh, TEAM_PREVIEW_USD_FRACTION_DIGITS),
     tokens: preview.tokens,
   })
 }
@@ -256,5 +259,7 @@ export function previewSwitchLabel(preview: TeamPreview): string {
 
 /** `Try with the orchestrator` states its one-turn cost first (D75). */
 export function dryRunCostLabel(usd: number): string {
-  return fill(UI_TEXT.teamPreviewDryRunCost, { cost: formatUsd(usd, USD_PREVIEW_FRACTION_DIGITS) })
+  return fill(UI_TEXT.teamPreviewDryRunCost, {
+    cost: formatUsd(usd, TEAM_PREVIEW_USD_FRACTION_DIGITS),
+  })
 }

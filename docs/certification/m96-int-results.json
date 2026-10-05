@@ -1,0 +1,213 @@
+{
+  "date": "2026-10-05",
+  "rig": "win11",
+  "base": "e23ec61c",
+  "units": [
+    {
+      "files": [
+        "test/unit/conversationController.test.ts",
+        "test/unit/ideMcpServer.test.ts",
+        "test/unit/modelApiGoldenRequests.test.ts"
+      ],
+      "tests": 568,
+      "passed": 568,
+      "failed": 0,
+      "pending": 0
+    },
+    {
+      "files": [
+        "test/unit/modelApiPolicyFence.test.ts",
+        "test/unit/team/teamBuiltInRoles.test.ts",
+        "test/unit/team/teamCapabilityCheck.test.ts"
+      ],
+      "tests": 107,
+      "passed": 107,
+      "failed": 0,
+      "pending": 0
+    },
+    {
+      "files": [
+        "test/unit/team/teamCharter.test.ts",
+        "test/unit/team/teamConfig.test.ts",
+        "test/unit/team/teamRoles.test.ts"
+      ],
+      "tests": 37,
+      "passed": 37,
+      "failed": 0,
+      "pending": 0
+    },
+    {
+      "files": [
+        "test/unit/team/teamSameModel.test.ts",
+        "test/unit/team/teamTables.test.ts",
+        "test/unit/team/teamToolsets.test.ts"
+      ],
+      "tests": 36,
+      "passed": 36,
+      "failed": 0,
+      "pending": 0
+    },
+    {
+      "files": [
+        "test/unit/teamActivationGraph.test.ts",
+        "test/unit/teamAdmission.test.ts",
+        "test/unit/teamAutofill.test.ts"
+      ],
+      "tests": 31,
+      "passed": 31,
+      "failed": 0,
+      "pending": 0
+    },
+    {
+      "files": [
+        "test/unit/teamCapValidation.test.ts",
+        "test/unit/teamCeilings.test.ts",
+        "test/unit/teamClaimJournal.test.ts"
+      ],
+      "tests": 37,
+      "passed": 37,
+      "failed": 0,
+      "pending": 0
+    },
+    {
+      "files": [
+        "test/unit/teamConstants.test.ts",
+        "test/unit/teamDeclaration.test.ts",
+        "test/unit/teamIntensity.test.ts"
+      ],
+      "tests": 77,
+      "passed": 77,
+      "failed": 0,
+      "pending": 0
+    },
+    {
+      "files": [
+        "test/unit/teamLedger.test.ts",
+        "test/unit/teamMcpBridge.test.ts",
+        "test/unit/teamMcpServer.test.ts"
+      ],
+      "tests": 61,
+      "passed": 61,
+      "failed": 0,
+      "pending": 0
+    },
+    {
+      "files": [
+        "test/unit/teamMeter.test.ts",
+        "test/unit/teamModelSettings.test.ts",
+        "test/unit/teamOrchestratorSlot.test.ts"
+      ],
+      "tests": 32,
+      "passed": 32,
+      "failed": 0,
+      "pending": 0
+    },
+    {
+      "files": [
+        "test/unit/teamPlanRecord.test.ts",
+        "test/unit/teamPool.test.ts",
+        "test/unit/teamPreview.test.ts"
+      ],
+      "tests": 31,
+      "passed": 31,
+      "failed": 0,
+      "pending": 0
+    },
+    {
+      "files": [
+        "test/unit/teamProtocolLoading.test.ts",
+        "test/unit/teamResources.test.ts",
+        "test/unit/teamRoster.test.ts"
+      ],
+      "tests": 37,
+      "passed": 37,
+      "failed": 0,
+      "pending": 0
+    },
+    {
+      "files": [
+        "test/unit/teamSingleModel.test.ts",
+        "test/unit/teamTemplates.test.ts",
+        "test/unit/teamTools.test.ts"
+      ],
+      "tests": 47,
+      "passed": 47,
+      "failed": 0,
+      "pending": 0
+    },
+    {
+      "files": [
+        "test/unit/teamTransfer.test.ts",
+        "test/unit/teamWorkersPaid.test.ts",
+        "test/unit/customAgents.test.ts"
+      ],
+      "tests": 65,
+      "passed": 65,
+      "failed": 0,
+      "pending": 0
+    },
+    {
+      "files": [
+        "test/unit/protocol.test.ts",
+        "test/unit/l10n.test.ts",
+        "test/unit/uiState.test.ts"
+      ],
+      "tests": 263,
+      "passed": 263,
+      "failed": 0,
+      "pending": 0
+    },
+    {
+      "files": [
+        "test/unit/paidFeatures.test.ts",
+        "test/unit/paidConsent.test.ts",
+        "test/unit/mcpPool.test.ts"
+      ],
+      "tests": 47,
+      "passed": 47,
+      "failed": 0,
+      "pending": 0
+    },
+    {
+      "files": [
+        "test/unit/mcpConnection.test.ts",
+        "test/unit/instructions.test.ts",
+        "test/unit/modelApiTools.test.ts"
+      ],
+      "tests": 64,
+      "passed": 64,
+      "failed": 0,
+      "pending": 0
+    },
+    {
+      "files": ["test/unit/sessionStore.test.ts", "test/unit/fileSessionStore.test.ts"],
+      "tests": 21,
+      "passed": 21,
+      "failed": 0,
+      "pending": 0
+    }
+  ],
+  "baseBundleComparison": [
+    {
+      "name": "extension",
+      "baseBytes": 604810,
+      "currentBytes": 608722,
+      "deltaBytes": 3912,
+      "sourceInputs": 201
+    },
+    {
+      "name": "modelApi",
+      "baseBytes": 440468,
+      "currentBytes": 447899,
+      "deltaBytes": 7431,
+      "sourceInputs": 99
+    },
+    {
+      "name": "acp",
+      "baseBytes": 820162,
+      "currentBytes": 822153,
+      "deltaBytes": 1991,
+      "sourceInputs": 121
+    }
+  ]
+}

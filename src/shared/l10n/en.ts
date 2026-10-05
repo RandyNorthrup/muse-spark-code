@@ -1950,7 +1950,6 @@ export const EN = {
   // reasons, and the two refusals callers surface. {measure} and {window}
   // are D75's code words (tokens/day); {used} and {amount} are formatted
   // counts in the display language.
-  teamSwitchRow: '{role}: {from} → {to}, {reason}',
   teamSwitchReasonCap: '{measure}/{window} cap met, {used} of {amount} used',
   teamSwitchReasonConcurrency: 'no free running slot',
   teamSwitchReasonRateLimited: 'rate-limited by the provider',

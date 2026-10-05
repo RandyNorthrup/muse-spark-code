@@ -9,7 +9,13 @@
 // (SoL-Pi rule 1): an edit applies to the next task, which the runner
 // (lanes T and W) enforces by snapshotting `ResolvedEntrySettings`.
 
-import { UI_TEXT } from '../../shared/constants'
+import {
+  UI_TEXT,
+  TEAM_EFFORT_LADDER,
+  TEAM_ROLE_IDS,
+  TEAM_ROLE_BASE_EFFORT,
+  TEAM_DEFAULT_ROLE_EFFORT,
+} from '../../shared/constants'
 
 /** Every setting an entry or the orchestrator slot may expose. */
 export type TeamModelSetting =
@@ -23,17 +29,7 @@ export type TeamModelSetting =
   | 'parallelToolCalls'
   | 'contextCap'
 
-export const TEAM_MODEL_SETTINGS: readonly TeamModelSetting[] = [
-  'effort',
-  'thinking',
-  'thinkingBudget',
-  'serviceTier',
-  'maxOutputTokens',
-  'sampling',
-  'verbosity',
-  'parallelToolCalls',
-  'contextCap',
-]
+export { TEAM_MODEL_SETTINGS } from '../../shared/constants'
 
 /**
  * What M95 knows about one model, reduced to what the settings need: the
@@ -148,24 +144,8 @@ export type TeamEffortBase = 'low' | 'medium' | 'high'
 
 /** A charter suggests each role's base effort (D75). */
 export function roleBaseEffort(role: string): TeamEffortBase {
-  switch (role) {
-    case 'marketing':
-    case 'docs': {
-      return 'low'
-    }
-    case 'research':
-    case 'design':
-    case 'qa': {
-      return 'medium'
-    }
-    case 'engineering':
-    case 'code-review': {
-      return 'high'
-    }
-    default: {
-      return 'medium'
-    }
-  }
+  const builtIn = TEAM_ROLE_IDS.find((id) => id === role)
+  return builtIn === undefined ? TEAM_DEFAULT_ROLE_EFFORT : TEAM_ROLE_BASE_EFFORT[builtIn]
 }
 
 /**
@@ -174,14 +154,7 @@ export function roleBaseEffort(role: string): TeamEffortBase {
  * only supported tiers: Meta never gets `none`, and `max` only on Standard
  * 1.3 (D75).
  */
-export const TEAM_EFFORT_LADDER: readonly string[] = [
-  'minimal',
-  'low',
-  'medium',
-  'high',
-  'xhigh',
-  'max',
-]
+export { TEAM_EFFORT_LADDER } from '../../shared/constants'
 
 export function shiftEffort(base: string, steps: number, tiers: readonly string[]): string {
   if (tiers.length === 0) {

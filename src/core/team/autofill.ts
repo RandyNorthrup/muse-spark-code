@@ -8,7 +8,7 @@
 // the price cards (M95) arrive injected. Learning reads the team ledger's
 // per-role task tokens (lane A); here they arrive as plain numbers.
 
-import { UI_TEXT } from '../../shared/constants'
+import { TEAM_LEARNED_MIN_TASKS, UI_TEXT } from '../../shared/constants'
 import { fill, formatUsd } from '../../shared/l10n/text'
 import { TEAM_ROLE_TYPICAL_TASK_TOKENS, type TeamDraft } from './templates'
 
@@ -60,7 +60,7 @@ export interface TeamAutofillContext {
 }
 
 /** The tasks a role needs before the record replaces the starting value. */
-export const TEAM_LEARNED_MIN_TASKS = 5
+export { TEAM_LEARNED_MIN_TASKS } from '../../shared/constants'
 
 /**
  * Typical use per role: the starting value until the role has five tasks

@@ -3241,8 +3241,14 @@ The session board and best-of-N implementation loads on its first action
 from `dist/sessionBoard.js`. Paid Auto reviewer execution loads only after
 consent from `dist/reviewer.js`, also shipped with the ACP agent. Ordinary
 activation and an ordinary Model API turn load neither implementation.
-Both receive the current display language. These bundles each have a 75 KiB
-cap; the activation and Model API caps stay 600/400 KiB. Code intelligence's
+Both receive the current display language. M96's team tools and roster
+load from `dist/team.js` only for a team
+conversation supplied by its wiring seam. The synchronous mode decision
+uses known readiness; ordinary conversations load no team runtime. The
+team bundle receives the caller's display language and ships with both
+the extension and ACP package, with an initial 75 KiB cap. The session
+board and reviewer each retain their own 75 KiB
+cap; the activation and Model API caps stay 600/475 KiB. Code intelligence's
 answers for Muse Code's `ide` tools load on the first call from
 `dist/codeIntel.js` (100 KiB cap), and both voice engines' drivers on the
 first recording from `dist/voice.js` (50 KiB cap); the tool list and the

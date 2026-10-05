@@ -10,6 +10,16 @@ it('ordinary activation, backend and ACP graphs have no team runtime modules', a
     write: false,
     metafile: true,
     external: ['vscode', '@napi-rs/keyring'],
+    plugins: [
+      {
+        name: 'deferred-team',
+        setup(bundle) {
+          bundle.onResolve({ filter: /\/teamEntry(?:\.[jt]s)?$/ }, (args) =>
+            args.kind === 'dynamic-import' ? { path: './team.js', external: true } : undefined,
+          )
+        },
+      },
+    ],
     logLevel: 'silent',
   })
   expect(

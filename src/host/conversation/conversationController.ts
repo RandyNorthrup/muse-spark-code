@@ -128,7 +128,7 @@ import {
   USER_SHELL_SANDBOX_FAILURE_MARKER,
 } from '../../shared/constants'
 // M96 lane T (LANE-T-SEAM, lane 0): from shared constants at integration.
-import { TEAM_MCP_SERVER_NAME } from '../../core/team/teamConstants'
+import { TEAM_MCP_SERVER_NAME } from '../../shared/constants'
 import { effortForThinking, effortLevelsFor, isEffortLevel } from '../../shared/effort'
 import type { AgentEvent, ApprovalChoice, ItemSnapshot, TodoItem } from '../../shared/agentEvents'
 import { fill, plural } from '../../shared/l10n/text'

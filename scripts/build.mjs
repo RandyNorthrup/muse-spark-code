@@ -58,6 +58,8 @@ const MODEL_API_ENTRY = 'src/host/backend/modelApiEntry.ts'
 const MODEL_API_OUTFILE = 'dist/modelApi.js'
 const SESSION_BOARD_ENTRY = 'src/host/sessionBoardEntry.ts'
 const SESSION_BOARD_OUTFILE = 'dist/sessionBoard.js'
+const TEAM_ENTRY = 'src/core/team/teamEntry.ts'
+const TEAM_OUTFILE = 'dist/team.js'
 const REVIEWER_ENTRY = 'src/core/backends/modelapi/reviewerEntry.ts'
 const REVIEWER_OUTFILE = 'dist/reviewer.js'
 const PLAN_MARKDOWN_ENTRY = 'src/host/planMarkdownEntry.ts'
@@ -115,16 +117,20 @@ const sharedUiText = {
 const deferredCohort = {
   name: 'deferred-cohort',
   setup(build) {
-    build.onResolve({ filter: /\/(?:sessionBoardEntry|reviewerEntry)(?:\.[jt]s)?$/ }, (args) => {
-      if (args.kind !== 'dynamic-import') return
-      const source = path.resolve(args.resolveDir, `${args.path.replace(/\.[jt]s$/, '')}.ts`)
-      let output
-      if (source === path.resolve(SESSION_BOARD_ENTRY)) output = SESSION_BOARD_OUTFILE
-      else if (source === path.resolve(REVIEWER_ENTRY)) output = REVIEWER_OUTFILE
-      return output === undefined
-        ? undefined
-        : { path: `./${path.basename(output)}`, external: true }
-    })
+    build.onResolve(
+      { filter: /\/(?:sessionBoardEntry|reviewerEntry|teamEntry)(?:\.[jt]s)?$/ },
+      (args) => {
+        if (args.kind !== 'dynamic-import') return
+        const source = path.resolve(args.resolveDir, `${args.path.replace(/\.[jt]s$/, '')}.ts`)
+        let output
+        if (source === path.resolve(TEAM_ENTRY)) output = TEAM_OUTFILE
+        if (source === path.resolve(SESSION_BOARD_ENTRY)) output = SESSION_BOARD_OUTFILE
+        else if (source === path.resolve(REVIEWER_ENTRY)) output = REVIEWER_OUTFILE
+        return output === undefined
+          ? undefined
+          : { path: `./${path.basename(output)}`, external: true }
+      },
+    )
   },
 }
 
@@ -166,6 +172,13 @@ const sessionBoardOptions = {
   ...modelApiOptions,
   entryPoints: [SESSION_BOARD_ENTRY],
   outfile: SESSION_BOARD_OUTFILE,
+}
+
+/** @type {import('esbuild').BuildOptions} */
+const teamOptions = {
+  ...modelApiOptions,
+  entryPoints: [TEAM_ENTRY],
+  outfile: TEAM_OUTFILE,
 }
 
 /** @type {import('esbuild').BuildOptions} */
@@ -338,6 +351,7 @@ if (isWatch) {
     esbuild.context(reviewOptions),
     esbuild.context(sessionBoardOptions),
     esbuild.context(reviewerOptions),
+    esbuild.context(teamOptions),
     esbuild.context(planMarkdownOptions),
     esbuild.context(checkpointStoreOptions),
     esbuild.context(agentImportOptions),
@@ -359,6 +373,7 @@ if (isWatch) {
     review: esbuild.build(reviewOptions),
     sessionBoard: esbuild.build(sessionBoardOptions),
     reviewer: esbuild.build(reviewerOptions),
+    team: esbuild.build(teamOptions),
     planMarkdown: esbuild.build(planMarkdownOptions),
     checkpointStore: esbuild.build(checkpointStoreOptions),
     agentImport: esbuild.build(agentImportOptions),
@@ -393,6 +408,7 @@ if (isWatch) {
   reportSize(REVIEW_OUTFILE)
   reportSize(SESSION_BOARD_OUTFILE)
   reportSize(REVIEWER_OUTFILE)
+  reportSize(TEAM_OUTFILE)
   reportSize(PLAN_MARKDOWN_OUTFILE)
   reportSize(CHECKPOINT_STORE_OUTFILE)
   reportSize(AGENT_IMPORT_OUTFILE)

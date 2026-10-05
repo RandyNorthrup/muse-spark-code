@@ -72,7 +72,7 @@ import type { ToolClass } from './permissions'
 import type { FunctionOutputPart, FunctionToolDefinition } from './schemas'
 import { RECALL_TOOL_DEFINITION } from './observationPack'
 import { SUBAGENT_TOOL_DEFINITIONS } from './subagentTools'
-import { TEAM_TOOL_DEFINITIONS } from '../../team/teamTools'
+import type { TEAM_TOOL_DEFINITIONS } from '../../team/teamTools'
 import { runChecksDefinition, THEN_RUN_PROPERTY } from './verifyTools'
 
 import type { ShellResult } from '../../shellResult'
@@ -536,7 +536,7 @@ export interface ToolDefinitionOptions {
   /** Child sessions cannot spawn again (M48, PLAN.md D45). */
   readonly hasSubagents?: boolean
   /** A team conversation declares the team's five tools instead (M96, PLAN.md D75). */
-  readonly hasTeamTools?: boolean
+  readonly teamTools?: typeof TEAM_TOOL_DEFINITIONS
   /** Child sessions cannot ask the panel or set its task list. */
   readonly isSubagent?: boolean
   /** Muse Code's memory tools, trusted workspaces only (M49, PLAN.md D41). */
@@ -744,11 +744,9 @@ export function toolDefinitions(
         )
       : []),
     // M96 (PLAN.md D75): the orchestrator's five, never beside M48's six.
-    ...(options.hasTeamTools === true
-      ? TEAM_TOOL_DEFINITIONS.map((tool) =>
-          define(tool.name, tool.description, tool.properties, tool.required),
-        )
-      : []),
+    ...(options.teamTools ?? []).map((tool) =>
+      define(tool.name, tool.description, tool.properties, tool.required),
+    ),
     ...(options.hasMemory === true
       ? MEMORY_TOOL_DEFINITIONS.map((tool) =>
           define(tool.name, tool.description, tool.properties, tool.required),

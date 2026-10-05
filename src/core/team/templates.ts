@@ -13,7 +13,8 @@
 // - the model catalogue, capabilities and price cards are M95's; here they
 //   arrive as the injected `TeamAgentOffer` list.
 
-import { UI_TEXT } from '../../shared/constants'
+import { UI_TEXT, TEAM_ROLE_TOOLSETS, TEAM_ROLE_TYPICAL_TASK_TOKENS } from '../../shared/constants'
+export { TEAM_ROLE_TYPICAL_TASK_TOKENS } from '../../shared/constants'
 import { fill } from '../../shared/l10n/text'
 
 /** The seven built-in role keys (D75). Custom roles add their own keys. */
@@ -77,16 +78,6 @@ export interface TeamAgentOffer {
  * the local record has five tasks here; autofill (lane F) follows the
  * record after that.
  */
-export const TEAM_ROLE_TYPICAL_TASK_TOKENS: Readonly<Record<TeamRoleKey, number>> = {
-  research: 150_000,
-  design: 80_000,
-  marketing: 40_000,
-  engineering: 400_000,
-  qa: 200_000,
-  'code-review': 120_000,
-  docs: 60_000,
-}
-
 /** A template's name in the display language. */
 export function templateName(template: TeamTemplateId): string {
   switch (template) {
@@ -145,59 +136,7 @@ export function defaultModeFor(role: TeamRoleKey): TeamWorkspaceMode {
 
 /** The tool groups a fresh role starts with (lane R owns the definition). */
 export function defaultToolGroupsFor(role: TeamRoleKey): readonly string[] {
-  switch (role) {
-    case 'research': {
-      return [
-        'read',
-        'codeIntel',
-        'readOnlyShell',
-        'webFetch',
-        'webSearch',
-        'memoryRead',
-        'skills',
-        'report',
-      ]
-    }
-    case 'design': {
-      return ['read', 'write', 'webFetch', 'images', 'skills', 'report']
-    }
-    case 'marketing': {
-      return ['read', 'write', 'webFetch', 'webSearch', 'images', 'skills', 'report']
-    }
-    case 'engineering': {
-      return [
-        'read',
-        'codeIntel',
-        'rename',
-        'write',
-        'shell',
-        'checks',
-        'diagnostics',
-        'webFetch',
-        'memoryRead',
-        'skills',
-        'report',
-      ]
-    }
-    case 'qa': {
-      return [
-        'read',
-        'codeIntel',
-        'write',
-        'testShell',
-        'checks',
-        'diagnostics',
-        'skills',
-        'report',
-      ]
-    }
-    case 'code-review': {
-      return ['read', 'codeIntel', 'readOnlyShell', 'diagnostics', 'skills', 'report']
-    }
-    case 'docs': {
-      return ['read', 'codeIntel', 'write', 'skills', 'report']
-    }
-  }
+  return [...TEAM_ROLE_TOOLSETS[role]]
 }
 
 /** The prefilled `task` token cap for a role: its typical use. */

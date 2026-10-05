@@ -32,7 +32,7 @@
 
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { ModelApiClient } from '../../src/core/backends/modelapi/client'
 import {
   ModelApiHost,
@@ -46,7 +46,15 @@ import { fakeModelApiHostDeps } from './helpers/modelApiHostDeps'
 import { watchSessionTurns } from './helpers/sessionTurns'
 
 import type { TeamDecisionSource } from '../../src/core/team/teamSeams'
+import type * as TeamEntry from '../../src/core/team/teamEntry'
+import { isSameTeamModel } from '../../src/core/team/sameModel'
 import { memorySessionStore } from './helpers/fakeSessionStore'
+
+const teamLoads = vi.hoisted(() => ({ count: 0 }))
+vi.mock('../../src/core/team/teamEntry.js', async (importOriginal) => {
+  teamLoads.count += 1
+  return await importOriginal<typeof TeamEntry>()
+})
 
 const ROOT = '/ws'
 const FIXTURE_DIR = path.join(__dirname, '..', 'fixtures', 'golden-requests')
@@ -311,7 +319,7 @@ function teamSource(overrides: Partial<TeamDecisionSource> = {}): TeamDecisionSo
     soloTemplate: false,
     orchestratorModelId: 'muse-spark-1.3',
     customEntries: [],
-    isSameModel: (a, b) => a === b,
+    isSameModel: isSameTeamModel,
     isEntryReady: () => false,
     teamWorkersOn: false,
     ...overrides,
@@ -350,7 +358,7 @@ const BASELINES: readonly { label: string; source?: () => TeamDecisionSource }[]
       teamSource({
         customEntries: [
           { ...OTHER_ENTRY, modelId: 'muse-spark-1.3' },
-          { ...OTHER_ENTRY, entryId: 'duplicate', modelId: 'muse-spark-1.3', kind: 'musecode' },
+          { ...OTHER_ENTRY, entryId: 'duplicate', modelId: ' muse-spark-1.3 ', kind: 'musecode' },
         ],
         isEntryReady: () => true,
       }),
@@ -371,6 +379,9 @@ const BASELINES: readonly { label: string; source?: () => TeamDecisionSource }[]
 ]
 
 describe.each(BASELINES)('M91-G golden requests: $label', ({ source }) => {
+  afterEach(() => {
+    expect(teamLoads.count).toBe(0)
+  })
   const setup = (files: Record<string, string>, options: { paidSubagents?: boolean } = {}) =>
     baseSetup(files, { ...options, ...(source !== undefined && { teamSource: source }) })
   it('records a plain one-turn reply', async () => {

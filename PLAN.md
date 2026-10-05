@@ -18169,6 +18169,8 @@ x > f`, `Set-Content`) are each refused. A fake Muse Code or external
       preview, and the `team` server's handlers. It is required on the
       first team action: a conversation starting with a team, the Agent
       map's team tree, or the Roles section.
+      M96INT's initial tools/roster slice measures 44.6 KiB; its initial
+      cap is 75 KiB under the approved measured-plus-15%/25-KiB rule.
     - `dist/teamAcp.js` holds the ACP client with `@agentclientprotocol/sdk`.
       It is required when the first external worker starts.
   - The Roles and Agent map sections ride M95's panel bundles
@@ -19830,6 +19832,17 @@ joined with M57, M58 and PR #49's sign-in
   or the log; every gate green.
 
 ## 7. Gates
+
+**M96INT integration (2026-10-05, Windows 11 rig).** Merge R/0, A, B,
+F and T in that order, preserving round 4. The integrated activation
+graph exposes T's eager tool/roster imports; repair this seam with the
+planned lazy `dist/team.js`, a shared synchronous conversation-mode read,
+and injected tool definitions. Reconcile lane-local tunables with lane 0's
+constants and retain every translated key contract. Prove ordinary graph
+exclusion and the seven golden request scenarios against a read-only build
+of `e23ec61c`, then run the rig brief's focused unit and static/build gates.
+W/I/U2/L/K and the full quality run remain with the lead. Evidence goes in
+`docs/certification/m96-int.md`.
 
 **FIXM96B (2026-10-05, macmini).** RVM96A findings 9–11 and 23–26 are
 fixed with full-file regression runs and byte-exact red drills. All five

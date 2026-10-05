@@ -341,26 +341,14 @@ import {
   targetArgs,
   waitArgs,
 } from './subagentTools'
+import type { TeamStateChange } from '../../team/roster'
 import {
-  buildStableRosterSection,
-  buildRosterLive,
-  formatStateChangeNote,
-  type TeamStateChange,
-} from '../../team/roster'
-import { decideTeamConversationMode, type TeamConversationMode } from '../../team/singleModel'
-import {
-  clampCollectWait,
-  collectArgs,
-  delegateArgs,
-  inPlaceRefusal,
-  isTeamTool,
-  parseTeamArgs,
-  singleModelAgainRefusal,
-  teamRunnerMissing,
-  teamToolNotDeclared,
-  TeamCommandRegistry,
-  type TeamToolName,
-} from '../../team/teamTools'
+  decideTeamConversationMode,
+  type TeamConversationMode,
+} from '../../../shared/teamConversation'
+import { TEAM_TOOL_NAMES } from '../../../shared/constants'
+import type { TeamCommandRecord, TeamCommandRegistry, TeamToolName } from '../../team/teamTools'
+import type { createTeamRuntime } from '../../team/teamEntry'
 import type {
   TeamDecisionSource,
   TeamRosterLive,
@@ -1773,7 +1761,11 @@ export class ModelApiSession implements AgentSession {
    */
   private teamMode: TeamConversationMode | undefined
   /** M96 lane T: `command_id` claims, kept with the conversation. */
-  private readonly teamCommands = new TeamCommandRegistry()
+  private teamCommands: TeamCommandRegistry | undefined
+  private storedTeamCommands: Readonly<Record<string, TeamCommandRecord>> = {}
+  private teamRuntime: ReturnType<typeof createTeamRuntime> | undefined
+  private teamRuntimeLoading: Promise<void> | undefined
+
   /**
    * M96 lane T: the roster's stable part as the first request sent it, never
    * rewritten; a team edit reaches the model only as a tail note.
@@ -1965,6 +1957,21 @@ export class ModelApiSession implements AgentSession {
         run: (id, occurrenceMs, confirmed) => this.runSchedule(id, occurrenceMs, confirmed),
       }
     }
+  }
+
+  private get team(): ReturnType<typeof createTeamRuntime> {
+    if (this.teamRuntime === undefined) throw new Error('team runtime was not prepared')
+    return this.teamRuntime
+  }
+
+  private async prepareTeamRuntime(): Promise<void> {
+    this.teamRuntimeLoading ??= (async () => {
+      const entry = await import('../../team/teamEntry.js')
+      this.teamRuntime = entry.createTeamRuntime(UI_TEXT, uiLocale())
+      this.teamCommands = new this.teamRuntime.TeamCommandRegistry()
+      this.teamCommands.restore(this.storedTeamCommands)
+    })()
+    await this.teamRuntimeLoading
   }
 
   private emit(event: AgentEvent): void {
@@ -2584,7 +2591,7 @@ export class ModelApiSession implements AgentSession {
       return this.teamRosterStable
     }
     const data = this.deps.teamRosterData?.()
-    this.teamRosterStable = buildStableRosterSection(data?.stable ?? [])
+    this.teamRosterStable = this.team.buildStableRosterSection(data?.stable ?? [])
     return this.teamRosterStable
   }
 
@@ -2782,7 +2789,10 @@ export class ModelApiSession implements AgentSession {
         delegationFamily(teamMode) === 'subagents' &&
         !isSubagent &&
         this.deps.isPaidFeatureOn('subagents'),
-      hasTeamTools: delegationFamily(teamMode) === 'team' && !isSubagent,
+      ...(delegationFamily(teamMode) === 'team' &&
+        !isSubagent && {
+          teamTools: this.team.TEAM_TOOL_DEFINITIONS,
+        }),
       isSubagent,
       hasMemory,
       hasPackedRecall: this.packing !== undefined,
@@ -5770,7 +5780,7 @@ export class ModelApiSession implements AgentSession {
       return undefined
     }
     return {
-      output: `Error: ${inPlaceRefusal()}`,
+      output: `Error: ${this.team.inPlaceRefusal()}`,
       visibleOutput: UI_TEXT.teamInPlaceOrchestratorRefused,
       failureReason: UI_TEXT.teamInPlaceOrchestratorRefused,
     }
@@ -5783,7 +5793,7 @@ export class ModelApiSession implements AgentSession {
     signal: AbortSignal,
   ): Promise<ToolOutcome> {
     if (this.isSubagent || this.teamModeForRequest() !== 'team') {
-      const reason = teamToolNotDeclared(call.name)
+      const reason = `Error: unknown tool ${call.name}`
       return { output: reason, visibleOutput: reason, failureReason: reason }
     }
     if ((name === 'delegate' || name === 'merge') && !this.deps.isWorkspaceTrusted()) {
@@ -5795,7 +5805,7 @@ export class ModelApiSession implements AgentSession {
     ) {
       return this.refusedByMode(call).outcome
     }
-    const parsed = parseTeamArgs(name, argumentsOf(call))
+    const parsed = this.team.parseTeamArgs(name, argumentsOf(call))
     if (!parsed.ok) {
       return {
         output: `Error: ${parsed.reason}`,
@@ -5816,7 +5826,7 @@ export class ModelApiSession implements AgentSession {
     const context = { sessionId: this.sessionId, approvalMode: this.approvalMode, signal }
     if (name === 'collect') {
       // Validated above; the wait is clamped to the backend's bound here.
-      const reparsed = collectArgs.safeParse(parsed.args)
+      const reparsed = this.team.collectArgs.safeParse(parsed.args)
       if (!reparsed.success) {
         const reason = 'invalid arguments for collect'
         return { output: `Error: ${reason}`, visibleOutput: reason, failureReason: reason }
@@ -5825,7 +5835,7 @@ export class ModelApiSession implements AgentSession {
       return await runner.collect(
         {
           ...rest,
-          wait_seconds: clampCollectWait(wait ?? 0),
+          wait_seconds: this.team.clampCollectWait(wait ?? 0),
         },
         context,
       )
@@ -5837,7 +5847,11 @@ export class ModelApiSession implements AgentSession {
 
   private unavailableTeamTool(name: TeamToolName): ToolOutcome {
     const visible = fill(UI_TEXT.teamRunnerUnavailable, { tool: name })
-    return { output: teamRunnerMissing(name), visibleOutput: visible, failureReason: visible }
+    return {
+      output: this.team.teamRunnerMissing(name),
+      visibleOutput: visible,
+      failureReason: visible,
+    }
   }
 
   /** M96 lane T: `roster` answers the stable part with the live numbers, direct from the seams. */
@@ -5846,8 +5860,8 @@ export class ModelApiSession implements AgentSession {
     if (data === undefined) {
       return this.unavailableTeamTool('roster')
     }
-    const stable = buildStableRosterSection(data.stable)
-    const live = data.live === undefined ? '' : `\n\n${buildRosterLive(data.live)}`
+    const stable = this.team.buildStableRosterSection(data.stable)
+    const live = data.live === undefined ? '' : `\n\n${this.team.buildRosterLive(data.live)}`
     return { output: `${stable}${live}`, visibleOutput: '' }
   }
 
@@ -5863,7 +5877,7 @@ export class ModelApiSession implements AgentSession {
     runner: TeamToolRunner | undefined,
     signal: AbortSignal,
   ): Promise<ToolOutcome> {
-    const parsed = delegateArgs.safeParse(args)
+    const parsed = this.team.delegateArgs.safeParse(args)
     if (!parsed.success) {
       const reason = 'invalid arguments for delegate'
       return { output: `Error: ${reason}`, visibleOutput: reason, failureReason: reason }
@@ -5871,7 +5885,7 @@ export class ModelApiSession implements AgentSession {
     const now = this.deps.teamDecisionSource?.()
     if (now === undefined || decideTeamConversationMode(now).mode !== 'team') {
       return {
-        output: singleModelAgainRefusal(),
+        output: this.team.singleModelAgainRefusal(),
         visibleOutput: UI_TEXT.teamSingleModelAgain,
         failureReason: UI_TEXT.teamSingleModelAgain,
       }
@@ -5882,7 +5896,9 @@ export class ModelApiSession implements AgentSession {
     }
     const context = { sessionId: this.sessionId, approvalMode: this.approvalMode, signal }
     if (dryRun === true) return await runner.preview(parsed.data, context)
-    return await this.teamCommands.run(commandId, tasks, () =>
+    const commands = this.teamCommands
+    if (commands === undefined) throw new Error('team commands were not prepared')
+    return await commands.run(commandId, tasks, () =>
       runner.delegate(parsed.data, {
         sessionId: this.sessionId,
         approvalMode: this.approvalMode,
@@ -5910,8 +5926,9 @@ export class ModelApiSession implements AgentSession {
     }
     // M96 lane T: the five team tools, answered by the roster and the team
     // runner lanes A/W/I supply.
-    if (isTeamTool(call.name)) {
-      return { outcome: await this.runTeamTool(call.name, call, signal) }
+    const teamTool = TEAM_TOOL_NAMES.find((tool) => tool === call.name)
+    if (teamTool !== undefined) {
+      return { outcome: await this.runTeamTool(teamTool, call, signal) }
     }
     const external = this.externalTool(call.name)
     if (external !== undefined) {
@@ -8345,15 +8362,15 @@ export class ModelApiSession implements AgentSession {
     if (this.teamModeForRequest() !== 'team' || this.isReviewing()) return
     const changes = this.deps.takeTeamChanges?.(this.sessionId)
     if (changes === undefined) return
-    const state = formatStateChangeNote(changes.states)
-    const edits =
-      changes.edits.length === 0 ? undefined : `Team changed: ${changes.edits.join('; ')}.`
+    const state = this.team.formatStateChangeNote(changes.states)
+    const edits = this.team.formatTeamEditNote(changes.edits)
     const text = [state, edits].filter((part) => part !== undefined).join(' ')
     if (text.length > 0) this.replay.push({ turnId, item: noteItem(text) })
   }
 
   private async loop(turn: ActiveTurn): Promise<void> {
     const { signal } = turn.abort
+    if (this.teamModeForRequest() === 'team') await this.prepareTeamRuntime()
     let isStopHookActive = false
     let stopContinuations = 0
     for (let round = 0; round < MODEL_API_MAX_TOOL_ROUNDS; round += 1) {
@@ -8921,6 +8938,7 @@ export class ModelApiSession implements AgentSession {
 
   /** The summary call of `compact`, and the replay it leaves behind. */
   private async runCompaction(signal: AbortSignal): Promise<CompactOutcome> {
+    if (this.teamModeForRequest() === 'team') await this.prepareTeamRuntime()
     await this.refreshBudgetSpend()
     // The compaction is a request like any other: the session budget
     // reserves it too, and refuses it when it cannot fit (M82).
@@ -10036,8 +10054,8 @@ export class ModelApiSession implements AgentSession {
       // rewritten, so the cached prefix holds across the resume.
       ...(this.teamMode !== undefined && { teamMode: this.teamMode }),
       ...(this.teamRosterStable !== undefined && { teamRoster: this.teamRosterStable }),
-      ...(Object.keys(this.teamCommands.snapshot()).length > 0 && {
-        teamCommands: this.teamCommands.snapshot(),
+      ...(Object.keys(this.teamCommands?.snapshot() ?? this.storedTeamCommands).length > 0 && {
+        teamCommands: this.teamCommands?.snapshot() ?? this.storedTeamCommands,
       }),
       ...(this.pendingChildResults.length > 0 && {
         pendingChildResults: this.pendingChildResults.map((pending) => storedPending(pending)),
@@ -10115,7 +10133,7 @@ export class ModelApiSession implements AgentSession {
     this.teamMode = stored.teamMode ?? 'single-model'
     this.teamRosterStable = stored.teamRoster
     if (stored.teamCommands !== undefined) {
-      this.teamCommands.restore(stored.teamCommands)
+      this.storedTeamCommands = stored.teamCommands
     }
     const savedChildren = stored.children ?? []
     for (const saved of savedChildren) {

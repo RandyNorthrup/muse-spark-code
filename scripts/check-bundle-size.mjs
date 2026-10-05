@@ -24,6 +24,9 @@ const BUDGETS = [
   { path: 'dist/sessionBoard.js', budgetKiB: 75 },
   // M78b: paid Auto review after consent, 55.2 KiB with the same rule.
   { path: 'dist/reviewer.js', budgetKiB: 75 },
+  // M96INT: tools and roster, loaded only for a team conversation. 44.6 KiB
+  // measured; plus 15%, rounded up to 25 KiB (the approved D6 rule).
+  { path: 'dist/team.js', budgetKiB: 75 },
   // The plan reader, the panel's Markdown parser, loaded on the first plan
   // action (M79): 114.7 KiB when split out, 139.0 KiB with the brief's writer.
   { path: 'dist/planMarkdown.js', budgetKiB: 150 },

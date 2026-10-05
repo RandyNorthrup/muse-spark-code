@@ -11,13 +11,13 @@
 // to one they have or removed.
 
 import * as z from 'zod/mini'
-import { UI_TEXT } from '../../shared/constants'
+import { TEAM_EXPORT_FORMAT, TEAM_EXPORT_VERSION, UI_TEXT } from '../../shared/constants'
 import { fill } from '../../shared/l10n/text'
 import type { TeamCapDraft, TeamDraft, TeamEntryDraft, TeamRoleDraft } from './templates'
 
 /** The export format marker and version. */
-export const TEAM_EXPORT_FORMAT = 'muse-spark-team'
-export const TEAM_EXPORT_VERSION = 1
+export { TEAM_EXPORT_FORMAT } from '../../shared/constants'
+export { TEAM_EXPORT_VERSION } from '../../shared/constants'
 
 const teamCapSchema = z
   .object({

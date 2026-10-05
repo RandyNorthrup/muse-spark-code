@@ -5,12 +5,12 @@
 // Severity follows the panel's contract (lane U1): `error` refuses the
 // value, `warning` shows beside it and still saves.
 
-import { UI_TEXT } from '../../shared/constants'
+import { TEAM_MIN_REQUEST_TOKENS, UI_TEXT } from '../../shared/constants'
 import { fill, formatNumber, formatUsd } from '../../shared/l10n/text'
 import type { TeamCapDraft } from './templates'
 
 /** One request's minimum tokens (D75): the role's prefix plus this. */
-export const TEAM_MIN_REQUEST_TOKENS = 2048
+export { TEAM_MIN_REQUEST_TOKENS } from '../../shared/constants'
 
 export type TeamCapMeasure = TeamCapDraft['measure']
 export type TeamCapWindow = 'task' | 'day' | 'lifetime'
