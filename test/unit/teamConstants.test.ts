@@ -3,7 +3,7 @@
 // lane builds on, with its red drill recorded in docs/certification/m96-0.md.
 
 import { readFileSync } from 'node:fs'
-import { describe, expect, it } from 'vitest'
+import { beforeAll, describe, expect, it } from 'vitest'
 import {
   TEAM_BRANCH_PREFIX,
   TEAM_BRIEF_FILES_MAX_BYTES,
@@ -82,7 +82,11 @@ import {
 import { tableProblems } from '../../src/shared/l10n/check'
 import { EN } from '../../src/shared/l10n/en'
 import { TABLE_LOCALES, tableFileName } from '../../src/shared/l10n/locales'
-import { parseHostToWebviewMessage, parseWebviewToHostMessage } from '../../src/shared/protocol'
+import {
+  installTeamProtocolSchemas,
+  parseHostToWebviewMessage,
+  parseWebviewToHostMessage,
+} from '../../src/shared/protocol'
 import {
   teamAgentKinds,
   teamAgentKindSchema,
@@ -464,6 +468,21 @@ describe('team schemas', () => {
     refuses(teamAgentRefSchema, { ...agent, kind: 'sidekick' })
   })
 
+  it('round-trips pool-entry model settings and refuses malformed settings', () => {
+    const entry = {
+      id: 'default',
+      concurrent: 1,
+      caps: [],
+      settings: { outputCap: 100, effort: 'high', parallelToolCalls: false },
+    }
+    expect(teamPoolEntrySchema.parse(entry)).toEqual(entry)
+    const snapshot = { roles: [{ role: 'engineering', pool: [entry] }], intensity: 'balanced' }
+    const savedSnapshot = JSON.stringify(snapshot)
+    expect(teamSnapshotSchema.parse(JSON.parse(savedSnapshot))).toEqual(snapshot)
+    refuses(teamPoolEntrySchema, { ...entry, settings: { outputCap: 0 } })
+    refuses(teamPoolEntrySchema, { ...entry, settings: 'high' })
+  })
+
   it('parses a role with an empty pool and refuses widening keys', () => {
     const role: TeamRoleConfig = { role: 'engineering', pool: [] }
     expect(teamRoleConfigSchema.safeParse(role).success).toBe(true)
@@ -551,7 +570,7 @@ describe('team schemas', () => {
     refuses(teamSwitchReasonSchema, 'cheaper')
   })
 
-  it('keeps ledger rows free of prompt text beyond the bounded brief', () => {
+  it('round-trips task ledger identity and keeps only the bounded brief', () => {
     const usage: TeamUsage = {
       input: 1000,
       cachedInput: 200,
@@ -564,6 +583,7 @@ describe('team schemas', () => {
     expect(teamUsageSchema.safeParse(usage).success).toBe(true)
     const row: TeamLedgerTaskRow = {
       kind: 'task',
+      taskId: 'task-1',
       role: 'engineering',
       entryId: 'entry-1',
       model: 'muse-spark-1.3',
@@ -574,7 +594,18 @@ describe('team schemas', () => {
       startMs: 1_700_000_000_000,
       usage,
     }
-    expect(teamLedgerTaskRowSchema.safeParse(row).success).toBe(true)
+    const savedRow = JSON.stringify(row)
+    expect(teamLedgerTaskRowSchema.parse(JSON.parse(savedRow))).toEqual(row)
+    const readOnly = {
+      ...row,
+      taskId: 'review-task',
+      workspaceMode: 'read-only',
+      branch: undefined,
+    }
+    expect(teamLedgerTaskRowSchema.parse(readOnly).taskId).toBe('review-task')
+    refuses(teamLedgerTaskRowSchema, { ...row, taskId: '' })
+    refuses(teamLedgerTaskRowSchema, { ...row, taskId: undefined })
+    refuses(teamLedgerTaskRowSchema, { ...row, taskId: 1 })
     refuses(teamLedgerTaskRowSchema, { ...row, brief: 'x'.repeat(TEAM_BRIEF_MAX_CHARS + 1) })
     refuses(teamLedgerTaskRowSchema, { ...row, outcome: 'mailed' })
     const totals: TeamLedgerTotalsRow = {
@@ -663,6 +694,9 @@ describe('team schemas', () => {
 })
 
 describe('team protocol region', () => {
+  beforeAll(() => {
+    installTeamProtocolSchemas({ action: teamTreeActionSchema, update: teamTreeUpdateSchema })
+  })
   it('takes the tree action from the panel', () => {
     const parsed = parseWebviewToHostMessage({
       type: 'teamTreeAction',

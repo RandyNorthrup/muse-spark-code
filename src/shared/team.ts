@@ -69,6 +69,21 @@ export const teamCapSchema = z.object({
 })
 export type TeamCap = z.infer<typeof teamCapSchema>
 
+/** The settings an entry carries that its model supports (D75). */
+export const teamModelSettingsSchema = z.object({
+  effort: z.optional(z.string()),
+  thinking: z.optional(z.boolean()),
+  thinkingBudget: z.optional(z.int().check(z.gte(1))),
+  tier: z.optional(z.string()),
+  outputCap: z.optional(z.int().check(z.gte(1))),
+  temperature: z.optional(z.number()),
+  topP: z.optional(z.number()),
+  verbosity: z.optional(z.string()),
+  parallelToolCalls: z.optional(z.boolean()),
+  windowCap: z.optional(z.int().check(z.gte(1))),
+})
+export type TeamModelSettings = z.infer<typeof teamModelSettingsSchema>
+
 /**
  * One pool entry: an agent with its own limits. An entry without an agent
  * is Default: whatever the orchestrator slot resolves to when the task
@@ -79,6 +94,7 @@ export const teamPoolEntrySchema = z.object({
   agent: z.optional(teamAgentRefSchema),
   concurrent: z.int().check(z.gte(1)),
   caps: z.array(teamCapSchema),
+  settings: z.optional(teamModelSettingsSchema),
 })
 export type TeamPoolEntry = z.infer<typeof teamPoolEntrySchema>
 
@@ -110,21 +126,6 @@ export const teamRoleConfigSchema = z.object({
   pool: z.array(teamPoolEntrySchema),
 })
 export type TeamRoleConfig = z.infer<typeof teamRoleConfigSchema>
-
-/** The settings an entry carries that its model supports (D75). */
-export const teamModelSettingsSchema = z.object({
-  effort: z.optional(z.string()),
-  thinking: z.optional(z.boolean()),
-  thinkingBudget: z.optional(z.int().check(z.gte(1))),
-  tier: z.optional(z.string()),
-  outputCap: z.optional(z.int().check(z.gte(1))),
-  temperature: z.optional(z.number()),
-  topP: z.optional(z.number()),
-  verbosity: z.optional(z.string()),
-  parallelToolCalls: z.optional(z.boolean()),
-  windowCap: z.optional(z.int().check(z.gte(1))),
-})
-export type TeamModelSettings = z.infer<typeof teamModelSettingsSchema>
 
 // The intensity control, from Minimal to Max (D75).
 export const teamIntensityLevels = ['minimal', 'light', 'balanced', 'heavy', 'max'] as const
@@ -258,6 +259,7 @@ export type TeamUsage = z.infer<typeof teamUsageSchema>
  */
 export const teamLedgerTaskRowSchema = z.object({
   kind: z.literal('task'),
+  taskId: z.string().check(z.minLength(1)),
   role: z.string().check(z.minLength(1)),
   entryId: z.string().check(z.minLength(1)),
   agent: z.optional(teamAgentRefSchema),

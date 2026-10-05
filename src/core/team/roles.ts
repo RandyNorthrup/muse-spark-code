@@ -40,6 +40,7 @@ import {
 } from '../context/customAgents'
 import { type CatalogKind, loadCatalogFiles } from '../context/catalogFiles'
 import { builtinRoles } from './builtInRoles'
+import { isGlobMatch } from '../backends/modelapi/globLimits'
 
 /** The role keys, one line each in the front matter (PLAN.md D75). */
 export const TEAM_ROLE_FRONT_MATTER_KEYS: readonly string[] = [
@@ -245,6 +246,49 @@ function isSubsetOf(
     : shadow === undefined || project.every((item) => shadow.includes(item))
 }
 
+/** Proves literal paths and subtrees; other glob languages must stay identical. */
+function isWritePathSubsetOf(
+  project: readonly string[] | undefined,
+  shadow: readonly string[] | undefined,
+): boolean {
+  if (project === undefined || shadow === undefined) {
+    return project !== undefined || shadow === undefined
+  }
+  return project.every((candidate) =>
+    shadow.some((allowed) => {
+      if (candidate === allowed) {
+        return true
+      }
+      // Only normalized workspace-relative paths can prove inclusion.
+      if (
+        candidate.includes('\\') ||
+        candidate.includes(':') ||
+        candidate.split('/').some((part) => ['', '.', '..'].includes(part))
+      ) {
+        return false
+      }
+      if (!/[*?[\]{}]/u.test(candidate)) {
+        return isGlobMatch(candidate, allowed)
+      }
+      const root = allowed.endsWith('/**') ? allowed.slice(0, -'**'.length) : undefined
+      return root !== undefined && !/[*?[\]{}]/u.test(root) && candidate.startsWith(root)
+    }),
+  )
+}
+
+/** Unconditional restrictions, including new ids before their hash allowance. */
+function projectRoleRefusal(project: RoleDefinition): string | undefined {
+  if (project.workspace === 'in-place') {
+    return 'a project role can never set in-place'
+  }
+  if (project.model !== undefined) {
+    return 'a project role names no model: the pool chooses it'
+  }
+  return project.skills === undefined
+    ? undefined
+    : 'a project role names no skills: they come from user configuration'
+}
+
 /**
  * A project role may only narrow the role it shadows (a built-in or
  * personal role of the same id): its workspace no wider, its tools and
@@ -259,17 +303,9 @@ export function narrowProjectRole(
 ):
   | { readonly ok: true; readonly role: RoleDefinition }
   | { readonly ok: false; readonly reason: string } {
-  if (project.workspace === 'in-place') {
-    return { ok: false, reason: 'a project role can never set in-place' }
-  }
-  if (project.model !== undefined) {
-    return { ok: false, reason: 'a project role names no model: the pool chooses it' }
-  }
-  if (project.skills !== undefined) {
-    return {
-      ok: false,
-      reason: 'a project role names no skills: they come from user configuration',
-    }
+  const refusal = projectRoleRefusal(project)
+  if (refusal !== undefined) {
+    return { ok: false, reason: refusal }
   }
   const workspace = resolveRoleWorkspace(project)
   if (TEAM_WORKSPACE_ORDER[workspace] > TEAM_WORKSPACE_ORDER[resolveRoleWorkspace(shadow)]) {
@@ -281,19 +317,18 @@ export function narrowProjectRole(
   if (!isSubsetOf(project.tools, shadow.tools)) {
     return { ok: false, reason: 'a project role adds a tool the role it shadows does not have' }
   }
-  if (!isSubsetOf(project.writePaths, shadow.writePaths)) {
+  if (!isWritePathSubsetOf(project.writePaths, shadow.writePaths)) {
     return { ok: false, reason: 'a project role writes where the role it shadows does not' }
   }
   if (!isSubsetOf(project.delegates ?? [], shadow.delegates ?? [])) {
     return { ok: false, reason: 'a project role delegates where the role it shadows does not' }
   }
+  const approvalMode = project.approvalMode ?? 'denyUnmatched'
   const hasWiderCeiling =
-    project.approvalMode !== undefined &&
-    narrowApprovalMode(shadow.approvalMode ?? 'allowAll', project.approvalMode) !==
-      project.approvalMode
+    narrowApprovalMode(shadow.approvalMode ?? 'denyUnmatched', approvalMode) !== approvalMode
   return hasWiderCeiling
     ? { ok: false, reason: 'a project role never widens the approval ceiling' }
-    : { ok: true, role: project }
+    : { ok: true, role: { ...project, approvalMode } }
 }
 
 /** The file's SHA-256: the per-workspace allowance is kept with it. */
@@ -355,12 +390,17 @@ export function applyNewRoleCeiling(
   role: RoleDefinition,
   allowance: TeamRoleAllowance | undefined,
 ): RoleDefinition {
+  const refusal = projectRoleRefusal(role)
+  if (refusal !== undefined) {
+    throw new Error(refusal)
+  }
+  const resolved = { ...role, approvalMode: role.approvalMode ?? 'denyUnmatched' }
   if (role.sha256 !== undefined && isAllowanceForFile(allowance, role.sha256)) {
-    return role
+    return resolved
   }
   const ceiling = new Set(newRoleCeilingTools())
   return {
-    ...role,
+    ...resolved,
     workspace: 'read-only',
     tools: role.tools === undefined ? [...ceiling] : role.tools.filter((tool) => ceiling.has(tool)),
     writePaths: undefined,
@@ -466,11 +506,8 @@ export async function loadRoles(
     const builtin = builtinRoles().find((candidate) => candidate.id === id)
     const shadowed =
       personal.get(id) ?? (builtin === undefined ? undefined : builtinToRole(builtin))
-    if (shadowed === undefined) {
-      project.set(id, role)
-      return
-    }
-    const narrowed = narrowProjectRole(shadowed, role)
+    // A new id meets its own requests; the unconditional restrictions still run.
+    const narrowed = narrowProjectRole(shadowed ?? role, role)
     if (!narrowed.ok) {
       warnings.push(`project role ${id} skipped: ${narrowed.reason}`)
       holes.push({

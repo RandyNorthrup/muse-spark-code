@@ -9,6 +9,8 @@
 
 import {
   TEAM_MODEL_TEXT,
+  TEAM_READ_ONLY_COMMANDS,
+  TEAM_REPORT_FENCE,
   type TeamReportShape,
   type TeamToolGroup,
   type TeamWorkspaceMode,
@@ -31,6 +33,7 @@ export interface CharterRole {
 /** The tools the charter's "You may" line lists: the resolved groups. */
 export interface CharterTools {
   readonly groups: readonly TeamToolGroup[]
+  readonly tools: readonly string[]
 }
 
 export interface TeamCharter {
@@ -69,22 +72,29 @@ function fillSlot(template: string, slot: string, value: string): string {
 
 /** A role's charter: the generated parts, then the role's own guidance. */
 export function buildTeamCharter(role: CharterRole, tools: CharterTools): TeamCharter {
-  const mustNever =
+  const mustNever = fillSlot(
+    TEAM_MODEL_TEXT.teamCharterMustNever,
+    'delegateClause',
     role.delegates.length === 0
-      ? TEAM_MODEL_TEXT.teamCharterMustNever
-      : `${TEAM_MODEL_TEXT.teamCharterMustNever} ${fillSlot(TEAM_MODEL_TEXT.teamCharterMayDelegate, 'roles', role.delegates.join(', '))}`
+      ? ''
+      : fillSlot(TEAM_MODEL_TEXT.teamCharterDelegateClause, 'roles', role.delegates.join(', ')),
+  )
   const sections = [
     fillSlot(TEAM_MODEL_TEXT.teamCharterWho, 'role', role.id),
     fillSlot(TEAM_MODEL_TEXT.teamCharterPurpose, 'description', role.description),
-    WORKSPACE_TEXTS[role.workspace],
+    fillSlot(WORKSPACE_TEXTS[role.workspace], 'commands', TEAM_READ_ONLY_COMMANDS.join(', ')),
     fillSlot(
       TEAM_MODEL_TEXT.teamCharterYouMay,
       'tools',
-      describeToolsForCharter(tools.groups, role.writePaths),
+      describeToolsForCharter(tools.groups, role.writePaths, tools.tools),
     ),
     mustNever,
     fillSlot(TEAM_MODEL_TEXT.teamCharterDone, 'done', role.done ?? DONE_DEFAULTS[role.report]),
-    REPORT_CONTRACTS[role.report],
+    fillSlot(
+      fillSlot(TEAM_MODEL_TEXT.teamCharterHandBack, 'fence', TEAM_REPORT_FENCE),
+      'contract',
+      REPORT_CONTRACTS[role.report],
+    ),
   ]
   const generated = sections.join('\n\n')
   return { generated, body: role.body, charter: `${generated}\n\n${role.body}` }

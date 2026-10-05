@@ -9,6 +9,7 @@
 import {
   TEAM_DELEGATE_TOOLS,
   TEAM_DIAGNOSTICS_TOOL,
+  TEAM_MODEL_TEXT,
   TEAM_READ_ONLY_COMMANDS,
   TEAM_TOOL_GROUPS,
   TEAM_TOOL_GROUP_TOOLS,
@@ -110,8 +111,53 @@ export function groupWords(
 export function describeToolsForCharter(
   groups: readonly TeamToolGroup[],
   writePaths: readonly string[] | undefined,
+  tools?: readonly string[],
 ): string {
-  return groups.map((group) => groupWords(group, writePaths)).join('; ')
+  if (tools === undefined) {
+    return groups.map((group) => groupWords(group, writePaths)).join('; ')
+  }
+  const offered = new Set(tools)
+  const described = new Set<string>()
+  const words: string[] = []
+  for (const group of groups) {
+    const canonical = TEAM_TOOL_GROUP_TOOLS[group]
+    const met = canonical
+      .map((tool) => meetTool(offered, tool))
+      .filter((tool) => tool !== undefined)
+    if (met.length === 0) {
+      continue
+    }
+    for (const tool of met) {
+      described.add(tool)
+    }
+    if (met.length === canonical.length) {
+      words.push(groupWords(group, writePaths))
+    } else {
+      const detail = met.join(', ')
+      if (['shell', 'readOnlyShell', 'testShell'].includes(group)) {
+        words.push(`${groupWords(group, writePaths)} (${detail})`)
+        continue
+      }
+      let template: string = TEAM_MODEL_TEXT.teamPartialTools
+      if (group === 'write') {
+        template = TEAM_MODEL_TEXT.teamPartialWriteTools
+      } else if (group === 'images') {
+        template = TEAM_MODEL_TEXT.teamPartialPaidTools
+      }
+      words.push(
+        template
+          .split('{tools}')
+          .join(detail)
+          .split('{paths}')
+          .join(writePaths?.join(', ') ?? TEAM_MODEL_TEXT.teamWriteWholeCopy),
+      )
+    }
+  }
+  const extra = tools.filter((tool) => !described.has(tool))
+  if (extra.length > 0) {
+    words.push(TEAM_MODEL_TEXT.teamPartialTools.split('{tools}').join(extra.join(', ')))
+  }
+  return words.join('; ')
 }
 
 /**
@@ -158,7 +204,7 @@ export function resolveTeamToolset(
       }
     }
   }
-  return { tools, groups: kept, youMay: describeToolsForCharter(kept, spec.writePaths) }
+  return { tools, groups: kept, youMay: describeToolsForCharter(kept, spec.writePaths, tools) }
 }
 
 /** Call admission: a call to anything outside the resolved set is refused. */

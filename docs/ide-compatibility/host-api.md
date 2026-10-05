@@ -355,7 +355,7 @@ Functions, variables, classes, enums and members declared in `@types/vscode`; th
 | ---------------------- | ----- |
 | `node:buffer`          | 27    |
 | `node:child_process`   | 9     |
-| `node:crypto`          | 32    |
+| `node:crypto`          | 33    |
 | `node:dns`             | 1     |
 | `node:dns/promises`    | 1     |
 | `node:fs`              | 24    |
@@ -365,7 +365,7 @@ Functions, variables, classes, enums and members declared in `@types/vscode`; th
 | `node:module`          | 1     |
 | `node:net`             | 3     |
 | `node:os`              | 6     |
-| `node:path`            | 65    |
+| `node:path`            | 66    |
 | `node:process`         | 1     |
 | `node:stream`          | 9     |
 | `node:string_decoder`  | 1     |

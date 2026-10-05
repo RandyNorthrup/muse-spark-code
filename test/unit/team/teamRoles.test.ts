@@ -172,6 +172,48 @@ const narrowedResearch = (extra: string) =>
   )
 
 describe('narrowProjectRole', () => {
+  it('resolves an omitted project permission mode to the most restrictive ceiling', () => {
+    const project = asRole(
+      'research',
+      'project',
+      roleFile('Research', 'Reading', 'tools: read_file\n'),
+    )
+    for (const approvalMode of ['denyUnmatched', undefined] as const) {
+      expect(narrowProjectRole({ ...researchShadow(), approvalMode }, project)).toMatchObject({
+        ok: true,
+        role: { approvalMode: 'denyUnmatched' },
+      })
+    }
+    expect(
+      narrowProjectRole(
+        { ...researchShadow(), approvalMode: undefined },
+        { ...project, approvalMode: 'allowAll' },
+      ).ok,
+    ).toBe(false)
+  })
+
+  it('allows literal and subtree write-path narrowing while refusing escapes and wider globs', () => {
+    const shadow = { ...designShadow(), writePaths: ['docs/**'] }
+    const project = { ...shadow, source: 'project' as const }
+    for (const writePaths of [['docs/release.md'], ['docs/releases/**'], ['docs/releases/*.md']]) {
+      expect(narrowProjectRole(shadow, { ...project, writePaths }).ok).toBe(true)
+    }
+    for (const writePaths of [
+      ['src/release.md'],
+      ['docs/../src/*.md'],
+      ['docs/**/../../*'],
+      ['**/*.md'],
+      undefined,
+    ]) {
+      expect(narrowProjectRole(shadow, { ...project, writePaths }).ok).toBe(false)
+    }
+    expect(
+      narrowProjectRole(
+        { ...shadow, writePaths: ['**/*.md'] },
+        { ...project, writePaths: ['docs/release.md'] },
+      ).ok,
+    ).toBe(true)
+  })
   it('accepts a project role that only narrows', () => {
     const narrowed = narrowedResearch('tools: read_file\n')
     expect(narrowed.ok).toBe(true)
@@ -302,13 +344,66 @@ describe('the new-id ceiling', () => {
     expect(ceiling.delegates).toEqual([])
     expect(isAllowanceForFile(undefined, role.sha256 ?? '')).toBe(false)
     expect(isAllowanceForFile({ sha256: 'other' }, role.sha256 ?? '')).toBe(false)
-    expect(applyNewRoleCeiling(role, { sha256: role.sha256 ?? '' })).toEqual(role)
+    expect(applyNewRoleCeiling(role, { sha256: role.sha256 ?? '' })).toEqual({
+      ...role,
+      approvalMode: 'denyUnmatched',
+    })
     // An edit asks again.
     expect(isAllowanceForFile({ sha256: role.sha256 ?? '' }, roleFileSha256('edited'))).toBe(false)
   })
 })
 
 describe('loadRoles', () => {
+  it('refuses forbidden powers for every project id before any allowance can apply', async () => {
+    for (const id of ['cartography', 'research']) {
+      for (const extra of [
+        'workspace: in-place\n',
+        'model: muse-spark-1.3\n',
+        'skills: cartography\n',
+      ]) {
+        const text = roleFile(id, 'Mapping', `tools: read_file\n${extra}`)
+        const load = await loadRoles(
+          loaderDeps({ [`.agents/agents/${id}/AGENT.md`]: text }),
+          roots,
+          { trustedWorkspace: true },
+        )
+        expect(resolveRole(load, id)).toMatchObject({
+          kind: 'unloaded',
+          hole: { id, source: 'project' },
+        })
+        expect(offeredRoles(load).some((role) => role.id === id)).toBe(false)
+      }
+    }
+  })
+
+  it('rejects forbidden new-role powers even with a matching allowance', () => {
+    for (const extra of [
+      'workspace: in-place\n',
+      'model: muse-spark-1.3\n',
+      'skills: cartography\n',
+    ]) {
+      const text = roleFile('Cartography', 'Mapping', extra)
+      const role = { ...asRole('cartography', 'project', text), sha256: roleFileSha256(text) }
+      for (const allowance of [undefined, { sha256: role.sha256 }]) {
+        expect(() => applyNewRoleCeiling(role, allowance)).toThrow(/a project role/u)
+      }
+    }
+  })
+
+  it('retains the strict missing ceiling on a new project id, including a hash allowance', async () => {
+    const text = roleFile('Cartography', 'Mapping', 'tools: read_file\n')
+    const load = await loadRoles(
+      loaderDeps({ '.agents/agents/cartography/AGENT.md': text }),
+      roots,
+      { trustedWorkspace: true },
+    )
+    const role = load.roles.find((candidate) => candidate.id === 'cartography')
+    expect(role?.approvalMode).toBe('denyUnmatched')
+    if (role === undefined) throw new Error('project role missing')
+    expect(applyNewRoleCeiling(role, { sha256: roleFileSha256(text) }).approvalMode).toBe(
+      'denyUnmatched',
+    )
+  })
   it('loads the seven built-ins with nothing configured', async () => {
     const load = await loadRoles(loaderDeps({}), roots, { trustedWorkspace: true })
     expect(load.roles.map((role) => `${role.source}:${role.id}`)).toEqual(

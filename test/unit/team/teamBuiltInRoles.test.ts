@@ -26,7 +26,7 @@ describe('builtinRoles', () => {
 
   it('expands every role tools from the one definition', () => {
     for (const role of builtinRoles()) {
-      expect(role.tools).toEqual(toolsOfGroups(TEAM_ROLE_TOOLSETS[role.id].groups))
+      expect(role.tools).toEqual(toolsOfGroups(TEAM_ROLE_TOOLSETS[role.id]))
     }
   })
 

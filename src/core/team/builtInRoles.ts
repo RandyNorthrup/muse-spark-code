@@ -9,6 +9,7 @@ import {
   TEAM_BUILTIN_ROLE_IDS,
   TEAM_BUILTIN_ROLE_TEXT,
   TEAM_ROLE_TOOLSETS,
+  TEAM_ROLE_WRITE_PATHS,
   TEAM_TOOL_GROUP_TOOLS,
   type AgentSource,
   type TeamBuiltinRoleId,
@@ -92,8 +93,8 @@ export function builtinRoles(): BuiltinRole[] {
       done: text.done,
       body: text.body,
       workspace: BUILTIN_ROLE_WORKSPACES[id],
-      tools: toolsOfGroups(toolset.groups),
-      writePaths: toolset.writePaths,
+      tools: toolsOfGroups(toolset),
+      writePaths: TEAM_ROLE_WRITE_PATHS[id],
       report: BUILTIN_ROLE_REPORTS[id],
       delegates: [],
     }

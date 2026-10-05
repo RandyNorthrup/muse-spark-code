@@ -5,6 +5,7 @@ import {
   TEAM_BUILTIN_ROLE_IDS,
   TEAM_DELEGATE_TOOLS,
   TEAM_ROLE_TOOLSETS,
+  TEAM_ROLE_WRITE_PATHS,
   TEAM_TOOL_GROUPS,
   TEAM_TOOL_GROUP_TOOLS,
   TEAM_TOOL_GROUP_WORDS,
@@ -33,19 +34,52 @@ function roleSession(
   session: TeamToolsetSession = FULL_SESSION,
 ) {
   const toolset = TEAM_ROLE_TOOLSETS[role]
-  return resolveTeamToolset({ groups: toolset.groups, writePaths: toolset.writePaths }, session)
+  return resolveTeamToolset({ groups: toolset, writePaths: TEAM_ROLE_WRITE_PATHS[role] }, session)
 }
 
 describe('resolveTeamToolset', () => {
+  it('describes only offered capabilities after a partial tool meet', () => {
+    for (const offered of [
+      ['edit_file'],
+      ['write_file'],
+      ['read_file'],
+      ['generate_image'],
+      ['hover'],
+    ]) {
+      const resolved = resolveTeamToolset(
+        { groups: ['read', 'write', 'images', 'codeIntel'], writePaths: ['docs/**'] },
+        { ...FULL_SESSION, offered },
+      )
+      expect(resolved.tools).toEqual(offered)
+      expect(resolved.youMay).toContain(offered[0])
+      expect(resolved.youMay).not.toContain('create and edit files')
+      expect(resolved.youMay).not.toContain('generate and edit images')
+      expect(resolved.youMay).not.toContain('definitions, references')
+      if (offered[0] === 'generate_image') {
+        expect(resolved.youMay).toContain('(paid)')
+      } else if (offered[0] === 'edit_file' || offered[0] === 'write_file') {
+        expect(resolved.youMay).toContain('docs/**')
+      }
+    }
+  })
+
+  it('retains command restrictions when only one shell is offered', () => {
+    const resolved = resolveTeamToolset(
+      { groups: ['readOnlyShell'] },
+      { ...FULL_SESSION, offered: ['bash'] },
+    )
+    expect(resolved.youMay).toContain('bash')
+    expect(resolved.youMay).toContain('read-only shell commands')
+    expect(resolved.youMay).toContain('git diff')
+    expect(resolved.youMay).not.toContain('powershell')
+  })
   it('gives each built-in role exactly its groups met with the session', () => {
     for (const role of TEAM_BUILTIN_ROLE_IDS) {
       const resolved = roleSession(role)
-      const expected = TEAM_ROLE_TOOLSETS[role].groups.flatMap(
-        (group) => TEAM_TOOL_GROUP_TOOLS[group],
-      )
+      const expected = TEAM_ROLE_TOOLSETS[role].flatMap((group) => TEAM_TOOL_GROUP_TOOLS[group])
       expect(new Set(resolved.tools)).toEqual(new Set(expected))
       expect(resolved.groups).toEqual(
-        TEAM_ROLE_TOOLSETS[role].groups.filter((group) => TEAM_TOOL_GROUP_TOOLS[group].length > 0),
+        TEAM_ROLE_TOOLSETS[role].filter((group) => TEAM_TOOL_GROUP_TOOLS[group].length > 0),
       )
     }
   })
