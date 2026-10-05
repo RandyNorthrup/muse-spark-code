@@ -48,17 +48,26 @@ export function mavenLicenseName(text: string): string {
     : (MAVEN_LICENSE_NAMES.get(trimmed.toLowerCase()) ?? trimmed)
 }
 
-function tagContents(block: string, tag: string): string | undefined {
-  return new RegExp(String.raw`<${tag}>([\s\S]*?)</${tag}>`).exec(block)?.[1]?.trim()
+type PomTag =
+  'groupId' | 'artifactId' | 'version' | 'scope' | 'name' | 'dependency' | 'licenses' | 'license'
+
+function tagContents(block: string, tag: PomTag): string | undefined {
+  return blockContents(block, tag)[0]?.trim()
 }
 
-function blockContents(text: string, tag: string): string[] {
+function blockContents(text: string, tag: PomTag): string[] {
   const found: string[] = []
-  const pattern = new RegExp(String.raw`<${tag}>([\s\S]*?)</${tag}>`, 'g')
-  let match = pattern.exec(text)
-  while (match !== null) {
-    found.push(match[1] ?? '')
-    match = pattern.exec(text)
+  const opening = `<${tag}>`
+  const closing = `</${tag}>`
+  let offset = 0
+  while (offset < text.length) {
+    const start = text.indexOf(opening, offset)
+    if (start === -1) break
+    const content = start + opening.length
+    const end = text.indexOf(closing, content)
+    if (end === -1) break
+    found.push(text.slice(content, end))
+    offset = end + closing.length
   }
   return found
 }

@@ -57,12 +57,17 @@ interface GemspecStatic {
   readonly dependencies: readonly { readonly name: string; readonly development: boolean }[]
 }
 
-function quotedAssignment(text: string, field: string): string | undefined {
-  return new RegExp(String.raw`\.${field}\s*=\s*['"]([^'"]+)['"]`).exec(text)?.[1]
+function quotedAssignment(text: string, field: 'name' | 'version' | 'license'): string | undefined {
+  const patterns = {
+    name: /\.name\s*=\s*['"]([^'"]+)['"]/,
+    version: /\.version\s*=\s*['"]([^'"]+)['"]/,
+    license: /\.license\s*=\s*['"]([^'"]+)['"]/,
+  }
+  return patterns[field].exec(text)?.[1]
 }
 
-function quotedArrayAssignment(text: string, field: string): string[] {
-  const body = new RegExp(String.raw`\.${field}\s*=\s*\[([^\]]*)\]`).exec(text)?.[1]
+function quotedArrayAssignment(text: string): string[] {
+  const body = /\.licenses\s*=\s*\[([^\]]*)\]/.exec(text)?.[1]
   if (body === undefined) {
     return []
   }
@@ -94,7 +99,7 @@ function readGemspecStatic(text: string): GemspecStatic {
     match = pattern.exec(text)
   }
   const singular = quotedAssignment(text, 'license')
-  const plural = quotedArrayAssignment(text, 'licenses')
+  const plural = quotedArrayAssignment(text)
   return {
     name: quotedAssignment(text, 'name'),
     version: quotedAssignment(text, 'version'),

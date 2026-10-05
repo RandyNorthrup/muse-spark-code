@@ -3,6 +3,7 @@
 // unknown, and dynamic or missing versions are named gaps.
 
 import { describe, expect, it } from 'vitest'
+import { inlineTableField } from '../../src/core/legal/ecosystems/toml'
 import { readPython } from '../../src/core/legal/ecosystems/python'
 import { snapshotFrom } from './legal/helpers'
 
@@ -84,5 +85,13 @@ describe('readPython', () => {
     expect(result.incomplete).toEqual([
       'not checked: no Python manifests, locks or distribution metadata found',
     ])
+  })
+})
+
+describe('bounded inline license metadata', () => {
+  it('matches only the exact literal field name, never patterns or suffixes', () => {
+    expect(inlineTableField('{ profile = "wrong", file = "LICENSE" }', 'file')).toBe('LICENSE')
+    expect(inlineTableField('{ file = "LICENSE" }', 'file.*')).toBeUndefined()
+    expect(inlineTableField('{ file = "LICENSE" }', '[')).toBeUndefined()
   })
 })

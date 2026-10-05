@@ -96,7 +96,10 @@ export function parseTomlSection(text: string, section: string): Map<string, Tom
 
 /** One field of an inline `{ key = "value" }` table. */
 export function inlineTableField(table: string, field: string): string | undefined {
-  return new RegExp(String.raw`${field}\s*=\s*"([^"]+)"`).exec(table)?.[1]
+  for (const match of table.matchAll(/(?:^|[,{])\s*(file|text|version)\s*=\s*"([^"]+)"/g)) {
+    if (match[1] === field) return match[2]
+  }
+  return undefined
 }
 
 /** One `[[package]]` stanza: a name, an optional version, optionality. */

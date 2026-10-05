@@ -13940,6 +13940,19 @@ joined with M57, M58 and PR #49's sign-in
   admission and the unchanged guard. Three unrelated timing failures on the
   shared rig are retried with two test workers, preserving every deadline and
   coverage threshold.
+- **Finish lane (2026-10-05, M97FIN).** Merge the finished S/W repair branch
+  without merging main. Close deterministic fixes using verified existing
+  project headers only: prepare exact diffs, confirm project ownership, admit
+  each selected edit through the existing checkpoint/conditional-write path,
+  recheck live mode/trust/evidence, list failures and rescan. No guessed owner
+  or license is permitted. Add requested Markdown export and tool disclaimers.
+  Remove dynamic scanner regex construction and review historical gitleaks
+  findings without exposing values; only exact benign fingerprints may be
+  ignored. Run every full-quality gate and package cap unchanged. A persistent
+  Chrome driver may replace the slow per-page CLI launch while retaining all
+  456 pages, harness assertions, axe rules and fail-closed result admission.
+  Remaining cross-platform/live/explanation and translation gaps keep explicit
+  owners and release-blocking dispositions in §9 until their receipts exist.
 - **Certification checklist.**
   - [x] Owner request, D76 design, lanes and source-grounded research recorded.
   - [ ] Acceptance 1–10, each with its failing drill and passing receipt.

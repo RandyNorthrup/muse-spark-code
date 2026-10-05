@@ -7,6 +7,11 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+- Integrated all 20 M97 scanner/report review repairs and removed dynamic
+  regex construction from the static ecosystem readers. Historical synthetic
+  auth fixtures and an ordinary-prose secret-scan false positive are recorded
+  by exact fingerprint only; no secret-scan path or rule is suppressed.
+
 ### Changed
 
 - **Tiered CI, ready for a merge queue.** The full gate now runs as parallel
