@@ -29,11 +29,28 @@ import {
   PAID_FEATURES,
   PERMISSION_MODES,
   PREFERRED_LOCATIONS,
+  REPORT_DESCRIPTION_MAX_CHARS,
+  REPORT_ERROR_CODE_MAX_CHARS,
+  REPORT_RECENT_EVENT_COUNT,
+  REPORT_EVENT_KINDS,
+  REPORT_FRAME_PATH_MAX_CHARS,
+  REPORT_STACK_MAX_FRAMES,
+  REPORT_WEBVIEW_ERROR_KINDS,
   SUBAGENT_ACTIONS,
   WEBVIEW_ERROR_MESSAGE_MAX_CHARS,
   WEBVIEW_ERROR_SOURCES,
   WEBVIEW_ERROR_STACK_MAX_CHARS,
 } from './constants'
+import {
+  commitFormSchema,
+  GIT_ACTIONS,
+  GIT_DRAFT_KINDS,
+  GIT_FORMS,
+  gitDraftSchema,
+  gitStateSchema,
+  pullRequestFormSchema,
+} from './git'
+import { judgeStatusSchema } from './judge'
 import { paidStateSchema } from './paid'
 import { patchHunkSchema } from './patchDocument'
 import { reviewRequestSchema } from './reviewCommand'
@@ -180,6 +197,8 @@ export const HOST_ACTIONS = [
   /** The palette's "New worktree…" and "Remove a worktree…" (M32). */
   'newWorktree',
   'removeWorktree',
+  /** The palette's "Open a pull request in a conversation…" (M71). */
+  'openPullRequestInConversation',
   /** A Muse Code fault's notice: stop `muse serve`, the next message starts it (D26). */
   'restartMuseCode',
   /**
@@ -270,6 +289,79 @@ const planReplyFields = {
   itemId: z.string().check(z.minLength(1)),
 } as const
 
+// Report a problem (M93, PLAN.md D72): the report workflow's wire shapes,
+// exported for lane W's messages and handler. No free-text event payload
+// crosses here: fixed event kinds, counts and bounded identifiers only. Raw
+// messages, stacks, paths, prompts and session ids stay out; every object is
+// strict, so a forged extra field fails instead of riding along.
+export const reportEventRefSchema = z.strictObject({
+  /** Which recorded event this handoff names. */
+  kind: z.enum(REPORT_EVENT_KINDS),
+  /**
+   * The event's place in this window's recording order (its sequence
+   * number, from 0): which failure the row means, never its text. The
+   * report itself always reads the whole retained journal.
+   */
+  entryIndex: z.int().check(z.gte(0)),
+})
+export type ReportEventRef = z.infer<typeof reportEventRefSchema>
+
+const reportFrameSchema = z.strictObject({
+  /** A package-relative path the recorder already verified. */
+  path: z.string().check(z.minLength(1), z.maxLength(REPORT_FRAME_PATH_MAX_CHARS)),
+  line: z.int().check(z.gte(1)),
+  column: z.int().check(z.gte(0)),
+})
+
+/**
+ * What the webview posts for window.onerror, unhandledrejection and React
+ * boundary failures: the scrubbed shape only. `code` is a known short code
+ * or REPORT_UNKNOWN_ERROR_CODE; `frames` are bounded verified frames.
+ */
+export const reportWebviewErrorSchema = z.strictObject({
+  kind: z.enum(REPORT_WEBVIEW_ERROR_KINDS),
+  source: z.enum(WEBVIEW_ERROR_SOURCES),
+  code: z.string().check(z.minLength(1), z.maxLength(REPORT_ERROR_CODE_MAX_CHARS)),
+  frames: z.array(reportFrameSchema).check(z.maxLength(REPORT_STACK_MAX_FRAMES)),
+})
+export type ReportWebviewError = z.infer<typeof reportWebviewErrorSchema>
+
+// Report a problem (M93 lane W, PLAN.md D72): the preview dialog's wire
+// shapes. The dialog shows only what the host built from lane P's sealed
+// draft: these messages carry the user's choices (a description within its
+// cap, section switches, which journal entries to drop) and bounded
+// identifiers (a journal index, a draft seal), never report content, event
+// text, paths or raw error text. Every object is strict, so a forged extra
+// field (a message, a stack, a text) fails instead of riding along.
+
+/** Where a sealed draft goes: the issue page, the clipboard, a file, or the VS Code reporter. */
+export const REPORT_EXPORT_CHANNELS = ['copy', 'issue', 'save', 'vscodeReporter'] as const
+export type ReportExportChannel = (typeof REPORT_EXPORT_CHANNELS)[number]
+
+/** Why an export did not happen: stale (rebuild and try again), refused, or cancelled quietly. */
+export const REPORT_EXPORT_REASONS = [
+  'stale',
+  'cancelled',
+  'copyFailed',
+  'saveFailed',
+  'openFailed',
+  'reporterFailed',
+] as const
+export type ReportExportReason = (typeof REPORT_EXPORT_REASONS)[number]
+
+/** A sealed draft is SHA-256 over title and text: 64 hex characters. */
+export const REPORT_HASH_HEX_CHARS = 64
+
+/** One removable row of the preview: the facts section or one journal event by index. */
+export const reportDraftItemSchema = z.object({
+  kind: z.enum(['facts', 'event']),
+  /** The journal entry's place, for `event` items only. */
+  eventIndex: z.optional(z.int().check(z.gte(0))),
+  /** Built by the host from fixed vocabularies; the webview renders it as is. */
+  label: z.string().check(z.minLength(1)),
+})
+export type ReportDraftItem = z.infer<typeof reportDraftItemSchema>
+
 const webviewToHostMessageSchema = z.discriminatedUnion('type', [
   // Sent once when the React app has mounted and is listening for messages.
   z.object({ type: z.literal('ready'), attachmentEpoch: z.optional(z.number()) }),
@@ -304,6 +396,13 @@ const webviewToHostMessageSchema = z.discriminatedUnion('type', [
      * chose Send anyway. The host skips the secret hold for this send only.
      */
     secretAccepted: z.optional(z.boolean()),
+    /**
+     * The user asked the model for a commit message or a pull request's
+     * text (M71): the host adds what the model needs, and the reply fills the form.
+     */
+    gitDraft: z.optional(z.enum(GIT_DRAFT_KINDS)),
+    /** The PR form's edited base, so its draft describes the same comparison. */
+    gitDraftBase: z.optional(z.string()),
   }),
   // Edit on a queued message (M87, PLAN.md D66): take it back before the
   // model has it. The ids are those `turnAccepted` gave its card; the host
@@ -317,6 +416,7 @@ const webviewToHostMessageSchema = z.discriminatedUnion('type', [
     userMessageId: z.optional(z.string().check(z.minLength(1))),
   }),
   // The user pressed Stop.
+  z.object({ type: z.literal('runManualHook'), name: z.string().check(z.minLength(1)) }),
   z.object({ type: z.literal('cancelTurn') }),
   z.object({ type: z.literal('signIn'), method: z.enum(SIGN_IN_METHODS) }),
   z.object({ type: z.literal('installMuseCode') }),
@@ -401,6 +501,14 @@ const webviewToHostMessageSchema = z.discriminatedUnion('type', [
   }),
   // Question card: Cancel declines the prompt; the model sees a cancelled result (M16).
   z.object({ type: z.literal('cancelQuestion'), userInputId: z.string() }),
+  // Elicitation form (M91 lane M): accept with the form's values (validated
+  // against the schema before they reach the server), or decline or cancel.
+  z.object({
+    type: z.literal('elicitationAnswer'),
+    elicitationId: z.string(),
+    action: z.enum(['accept', 'decline', 'cancel']),
+    values: z.optional(z.record(z.string(), z.unknown())),
+  }),
   // Question card: one answer per question.
   z.object({
     type: z.literal('answerQuestion'),
@@ -599,6 +707,59 @@ const webviewToHostMessageSchema = z.discriminatedUnion('type', [
   // Account & usage's "Ask again" (M58): no paid feature stays allowed
   // always in this workspace.
   z.object({ type: z.literal('forgetPaidUse') }),
+  // Git and pull requests (M71, PLAN.md D49): the panel's buttons and forms.
+  z.object({ type: z.literal('gitAction'), action: z.enum(GIT_ACTIONS) }),
+  z.object({
+    type: z.literal('gitCommit'),
+    message: z.string(),
+    /** Stage every change first, new files included. */
+    includeUnstaged: z.boolean(),
+  }),
+  z.object({
+    type: z.literal('gitCreatePullRequest'),
+    /** The branch the form showed: a different one now refuses the request. */
+    head: z.string(),
+    base: z.string(),
+    title: z.string(),
+    body: z.string(),
+    isDraft: z.boolean(),
+  }),
+  // Report a problem (M93 lane W): the preview dialog's requests. Strict:
+  // the dialog's choices and bounded identifiers only. `ref` is the
+  // sanitized handoff from an error row, a notice or the render fallback —
+  // which recorded event the user means, never its text.
+  z.strictObject({ type: z.literal('openReport'), ref: z.optional(reportEventRefSchema) }),
+  // A description edit, a section switch or an item removal: the host
+  // rebuilds lane P's sealed draft and answers with a fresh `reportDraft`.
+  z.strictObject({
+    type: z.literal('updateReport'),
+    // The dialog's own count of the choices it sent (1, 2, …): the host
+    // echoes it on the rebuilt draft, so an older reply never settles a
+    // newer choice.
+    revision: z.int().check(z.gte(1)),
+    description: z.string().check(z.maxLength(REPORT_DESCRIPTION_MAX_CHARS)),
+    includeFacts: z.boolean(),
+    includeEvents: z.boolean(),
+    removedEventIndexes: z
+      .array(z.int().check(z.gte(0)))
+      .check(z.maxLength(REPORT_RECENT_EVENT_COUNT)),
+  }),
+  // Export the previewed draft through lane P's export paths. `hash` is the
+  // seal of the draft on screen; any change since the preview refuses here.
+  z.strictObject({
+    type: z.literal('exportReport'),
+    via: z.enum(REPORT_EXPORT_CHANNELS),
+    hash: z.string().check(z.minLength(REPORT_HASH_HEX_CHARS), z.maxLength(REPORT_HASH_HEX_CHARS)),
+  }),
+  // The scrubbed webview failure (M93 lane W): window.onerror,
+  // unhandledrejection and React-boundary posts carry lane 0's bounded
+  // identifiers only — lane 0's fields, never the error's message, stack or
+  // anything the user typed. M39's `webviewError` (with its text, for the
+  // host's log) is unchanged.
+  z.strictObject({
+    type: z.literal('reportWebviewError'),
+    ...reportWebviewErrorSchema.shape,
+  }),
 ])
 
 export type WebviewToHostMessage = z.infer<typeof webviewToHostMessageSchema>
@@ -616,6 +777,8 @@ const hostToWebviewMessageSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('settingsChanged'), settings: settingsSnapshotSchema }),
   // Move keyboard focus into the composer (Ctrl+Esc).
   z.object({ type: z.literal('focusInput') }),
+  // Open Account & usage (the Tab status menu's row, M94; RVM94HU 21).
+  z.object({ type: z.literal('openUsage') }),
   // The host dropped this surface's conversation (M25): New Conversation
   // from a keybinding, or the echo of the webview's own clear.
   z.object({ type: z.literal('conversationCleared'), accountBoundary: z.optional(z.boolean()) }),
@@ -749,6 +912,7 @@ const hostToWebviewMessageSchema = z.discriminatedUnion('type', [
   // D30): the composer's badge, the palette's toggles and the usage dialog.
   // Sent on surfaceReady and on every change.
   z.object({ type: z.literal('paidState'), state: paidStateSchema }),
+  z.object({ type: z.literal('judgeState'), state: judgeStatusSchema }),
   // A message the host sent itself (M79: a plan's brief): the pending card,
   // as the composer's own Send would have made it. `turnAccepted` or
   // `sendFailed` follows with the same `localId`.
@@ -821,7 +985,13 @@ const hostToWebviewMessageSchema = z.discriminatedUnion('type', [
     accepted: z.boolean(),
   }),
   // One backend-agnostic conversation event (see agentEvents.ts).
-  z.object({ type: z.literal('agentEvent'), event: agentEventSchema }),
+  // `reportRef` (M93): a failed turn the host recorded; its error row
+  // offers "Report this" with it, never with the row's text.
+  z.object({
+    type: z.literal('agentEvent'),
+    event: agentEventSchema,
+    reportRef: z.optional(reportEventRefSchema),
+  }),
   // The host's model catalogue (for the picker and context-limit lookups).
   z.object({ type: z.literal('modelList'), models: z.array(modelOptionSchema) }),
   // The session's user-invocable skills (palette "Skills" group).
@@ -848,12 +1018,16 @@ const hostToWebviewMessageSchema = z.discriminatedUnion('type', [
   // A one-line message for the transcript (failed host command, warnings).
   // `redoRestoreId` (M72): a file restore's Redo, offered on its notice.
   // `actions` (D26): the buttons of a Muse Code fault's notice.
+  // `reportRef` (M93 lane W): the sanitized handoff when the failure was
+  // recorded — which journal event the row means, never its text. The row
+  // offers "Report this" only while it is present.
   z.object({
     type: z.literal('notice'),
     level: z.enum(NOTICE_LEVELS),
     text: z.string(),
     redoRestoreId: z.optional(z.string()),
     actions: z.optional(z.array(z.enum(NOTICE_ACTIONS))),
+    reportRef: z.optional(reportEventRefSchema),
   }),
   // A Redo was answered (M72): spent, its button goes; otherwise it stays
   // for another try (a file left as it is, a turn running).
@@ -885,6 +1059,13 @@ const hostToWebviewMessageSchema = z.discriminatedUnion('type', [
   }),
   // The host did not move or stop this task (M46): the row's button is free again.
   z.object({ type: z.literal('taskRefused'), itemId: z.string() }),
+  // Git and pull requests (M71, PLAN.md D49): the panel's cards and forms.
+  z.object({ type: z.literal('gitState'), state: gitStateSchema }),
+  z.object({ type: z.literal('gitCommitForm'), form: commitFormSchema }),
+  z.object({ type: z.literal('gitPullRequestForm'), form: pullRequestFormSchema }),
+  z.object({ type: z.literal('gitDraft'), draft: gitDraftSchema }),
+  // A form's commit or creation ended: done closes it, a failure reopens its buttons.
+  z.object({ type: z.literal('gitDone'), form: z.enum(GIT_FORMS), ok: z.boolean() }),
   // The review pane's files and hunks (answer to readReviewChanges, M70).
   // `omittedEdits` counts the edits past the pane's limits or unreadable;
   // `reason` says why there is nothing to list at all.
@@ -915,6 +1096,48 @@ const hostToWebviewMessageSchema = z.discriminatedUnion('type', [
     path: z.string(),
     dataUri: z.optional(z.string()),
     error: z.optional(z.string()),
+  }),
+  // Report a problem (M93 lane W): the sealed draft the preview shows
+  // byte-identical, with the removable items it contains. Labels are built
+  // by the host from fixed vocabularies and relative ages; the webview
+  // renders them as is and never builds report content itself. `text` is
+  // the exact final draft (lane P's seal over title and text); `hash` is
+  // that seal, which the export carries back. Like `notice`'s text, title
+  // and text are unbounded: the preview scrolls, and the host built them.
+  z.object({
+    type: z.literal('reportDraft'),
+    // Which dialog session (one per open, counted by the host from 1) and
+    // which of its choices (the dialog's `revision`, 0 for the opening
+    // draft) this draft answers: a late draft for a closed or older dialog,
+    // or for an older choice, is told apart instead of reopening or
+    // overwriting it.
+    session: z.int().check(z.gte(1)),
+    revision: z.int().check(z.gte(0)),
+    description: z.string().check(z.maxLength(REPORT_DESCRIPTION_MAX_CHARS)),
+    includeFacts: z.boolean(),
+    includeEvents: z.boolean(),
+    items: z.array(reportDraftItemSchema).check(z.maxLength(REPORT_RECENT_EVENT_COUNT + 1)),
+    title: z.string(),
+    text: z.string(),
+    hash: z.string().check(z.minLength(REPORT_HASH_HEX_CHARS), z.maxLength(REPORT_HASH_HEX_CHARS)),
+    canUseVscodeReporter: z.boolean(),
+    recordingUnavailable: z.boolean(),
+  }),
+  // What an export attempt answered (M93 lane W): lane P's outcome mapped
+  // to fixed words, so the dialog states failures plainly with no raw
+  // text. `issueFallback` (the over-long draft, copied with a paste note)
+  // rides only on an opened issue page.
+  z.object({
+    type: z.literal('reportExported'),
+    // The session and the seal of the draft this answer is about: an answer
+    // for another draft (edited since, or a dialog closed and reopened) is
+    // never shown beside the current one.
+    session: z.int().check(z.gte(1)),
+    hash: z.string().check(z.minLength(REPORT_HASH_HEX_CHARS), z.maxLength(REPORT_HASH_HEX_CHARS)),
+    via: z.enum(REPORT_EXPORT_CHANNELS),
+    ok: z.boolean(),
+    issueFallback: z.optional(z.boolean()),
+    reason: z.optional(z.enum(REPORT_EXPORT_REASONS)),
   }),
 ])
 

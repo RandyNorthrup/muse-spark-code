@@ -11,6 +11,14 @@
 // schema before use (AGENTS.md rule 7).
 
 import * as z from 'zod/mini'
+import { Buffer } from 'node:buffer'
+import { brotliCompressSync, brotliDecompressSync, constants as zlibConstants } from 'node:zlib'
+import {
+  L10N_COMPRESSION_QUALITY,
+  UI_TEXT,
+  WHATS_NEW_CONTENT_MAX_BYTES,
+  WHATS_NEW_CONTENT_DECODE_MAX_BYTES,
+} from '../../shared/constants'
 
 export const WHATS_NEW_CONTENT_SCHEMA_VERSION = 1
 
@@ -111,7 +119,37 @@ const contentSchema = z.object({
   ),
 })
 
+const packedContentSchema = z.object({
+  encoding: z.literal('br'),
+  data: z.string().check(z.regex(/^[A-Za-z0-9+/]*={0,2}$/)),
+})
+
+/** Build-only encoding retains both full releases within the artifact budget. */
+export function encodeWhatsNewContent(text: string): string {
+  const bytes = Buffer.byteLength(text)
+  if (bytes > WHATS_NEW_CONTENT_DECODE_MAX_BYTES) throw new Error(UI_TEXT.actionFailed)
+  contentSchema.parse(JSON.parse(text))
+  if (bytes <= WHATS_NEW_CONTENT_MAX_BYTES) return text
+  const data = brotliCompressSync(text, {
+    params: { [zlibConstants.BROTLI_PARAM_QUALITY]: L10N_COMPRESSION_QUALITY },
+  }).toString('base64')
+  const packed = JSON.stringify({ encoding: 'br', data })
+  if (Buffer.byteLength(packed) > WHATS_NEW_CONTENT_MAX_BYTES) throw new Error(UI_TEXT.actionFailed)
+  return packed
+}
+
 /** The content file's text, checked; throws with zod's reason when it is not ours. */
 export function parseWhatsNewContent(text: string): WhatsNewContent {
-  return contentSchema.parse(JSON.parse(text))
+  const raw: unknown = JSON.parse(text)
+  const packed = packedContentSchema.safeParse(raw)
+  if (packed.success && Buffer.byteLength(text) > WHATS_NEW_CONTENT_MAX_BYTES)
+    throw new Error(UI_TEXT.actionFailed)
+  const content: unknown = packed.success
+    ? JSON.parse(
+        brotliDecompressSync(Buffer.from(packed.data.data, 'base64'), {
+          maxOutputLength: WHATS_NEW_CONTENT_DECODE_MAX_BYTES,
+        }).toString('utf8'),
+      )
+    : raw
+  return contentSchema.parse(content)
 }

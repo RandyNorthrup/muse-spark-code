@@ -1,8 +1,12 @@
 // Runs inside the Extension Development Host (see .vscode-test.mjs).
 
 import * as assert from 'node:assert/strict'
+import { mkdtemp, rm, writeFile } from 'node:fs/promises'
+import path from 'node:path'
 import * as vscode from 'vscode'
 import { ModelApiBackendManager } from '../../src/host/backend/modelApiBackendManager'
+import { loadGitApi, repositoryAt } from '../../src/host/git/gitExtension'
+import { processGitRunner } from '../../src/host/git'
 import type { Logger } from '../../src/host/logger'
 import { planMarkdownLoader } from '../../src/host/planMarkdownBundle'
 import type { AgentEvent } from '../../src/shared/agentEvents'
@@ -124,6 +128,15 @@ suite('activation', () => {
     assert.equal(webviewTabs(), before)
   })
 
+  test('runs Retry Plugin Hooks in a live window, with no plugin configured (M91b)', async () => {
+    // AGENTS rule 10: the README's command runs here, not only in unit tests.
+    // It forgets a failed Windows job preparation and says so; with nothing
+    // to forget it still resolves, on every platform.
+    await vscode.commands.executeCommand(COMMAND_IDS.retryPluginHooks)
+    const commands = await vscode.commands.getCommands(true)
+    assert.ok(commands.includes(COMMAND_IDS.retryPluginHooks))
+  })
+
   test('opens the walkthrough (D15)', async () => {
     await vscode.commands.executeCommand(COMMAND_IDS.openWalkthrough)
     // The walkthrough opens in VS Code's Welcome editor.
@@ -192,6 +205,49 @@ suite('the Model API bundle', () => {
       assert.deepEqual(errors, [])
     } finally {
       await manager.dispose()
+    }
+  })
+})
+
+// M71: the part of VS Code's git extension API the extension types and
+// calls, against the real one in this VS Code (the floor version and the
+// latest): commit with `all` and no post-commit command, and a plain,
+// three-argument push that makes a branch on a local bare remote.
+suite('VS Code git extension API (M71)', () => {
+  test('commits and pushes through the members the extension calls', async () => {
+    // Inside the workspace, as the extension's repository always is: VS Code
+    // 1.99 to at least 1.104 open no repository through the API outside the
+    // workspace folders unless `git.openRepositoryInParentFolders` is "always".
+    const folder = vscode.workspace.workspaceFolders?.[0]
+    assert.ok(folder, 'the integration tests open a workspace folder')
+    const base = await mkdtemp(path.join(folder.uri.fsPath, 'muse-m71-git-'))
+    const runGit = processGitRunner()
+    try {
+      const remote = path.join(base, 'remote.git')
+      const work = path.join(base, 'work')
+      await runGit(['init', '--bare', '-q', remote], base)
+      await runGit(['init', '-q', '-b', 'main', work], base)
+      await runGit(['config', 'user.email', 'test@example.invalid'], work)
+      await runGit(['config', 'user.name', 'Muse Spark test'], work)
+      await runGit(['remote', 'add', 'origin', remote], work)
+      await writeFile(path.join(work, 'a.txt'), 'one\n')
+      const repository = await repositoryAt(await loadGitApi(), work)
+      await repository.status()
+      // `git.untrackedChanges` decides which group a new file is in ("mixed" by default).
+      const { state } = repository
+      assert.equal(state.workingTreeChanges.length + state.untrackedChanges.length, 1)
+      await repository.commit('Add a.txt', { all: true, postCommitCommand: null })
+      await repository.status()
+      assert.equal(repository.state.HEAD?.name, 'main')
+      await repository.push('origin', 'main', true)
+      const pushed = await runGit(['log', '--format=%s', 'main'], remote)
+      assert.equal(pushed.trim(), 'Add a.txt')
+      await repository.status()
+      assert.equal(repository.state.HEAD.upstream?.remote, 'origin')
+      const log = await repository.log({ range: 'origin/main..HEAD' })
+      assert.deepEqual(log, [])
+    } finally {
+      await rm(base, { recursive: true, force: true, maxRetries: 5 })
     }
   })
 })

@@ -1,0 +1,191 @@
+{
+  "task": "MG78",
+  "machine": "kubuntu",
+  "snapshot": "70de9c55efd4483f88eb44c7e424487efa031af6",
+  "eslintFiles": 5,
+  "prettierFiles": 12,
+  "owningTestFiles": [
+    "test/unit/sessionTransfer.test.ts",
+    "test/unit/sessionImport.test.ts",
+    "test/unit/transferDialogs.test.ts",
+    "test/unit/exportConversation.test.ts",
+    "test/unit/redact.test.ts",
+    "test/unit/cliFeatures.test.ts",
+    "test/unit/conversationController.test.ts",
+    "test/unit/modelApiHost.test.ts",
+    "test/unit/acpAgent.test.ts",
+    "test/unit/App.test.tsx",
+    "test/unit/uiState.test.ts",
+    "test/unit/paletteRegistry.test.ts",
+    "test/unit/manifest.test.ts",
+    "test/unit/checkpointNativeCommands.test.ts",
+    "test/unit/toolIoBounded.test.ts",
+    "test/unit/Transcript.test.tsx",
+    "test/unit/MarkdownView.test.tsx",
+    "test/unit/logger.test.ts",
+    "test/unit/networkFailure.test.ts",
+    "test/unit/conversationGit.test.ts",
+    "test/unit/conversationGitBundle.test.ts",
+    "test/unit/agentImportBundle.test.ts",
+    "test/unit/agentImportWorkspaceEdits.test.ts"
+  ],
+  "gates": [
+    {
+      "name": "typecheck",
+      "exit": 0,
+      "seconds": 46.2
+    },
+    {
+      "name": "eslint",
+      "exit": 0,
+      "seconds": 9.96
+    },
+    {
+      "name": "prettier",
+      "exit": 0,
+      "seconds": 5.13
+    },
+    {
+      "name": "knip",
+      "exit": 0,
+      "seconds": 2.3
+    },
+    {
+      "name": "jscpd",
+      "exit": 0,
+      "seconds": 0.73
+    },
+    {
+      "name": "l10n",
+      "exit": 0,
+      "seconds": 1.52
+    },
+    {
+      "name": "host-api",
+      "exit": 0,
+      "seconds": 10.12
+    },
+    {
+      "name": "cycles",
+      "exit": 0,
+      "seconds": 3.81
+    },
+    {
+      "name": "build",
+      "exit": 0,
+      "seconds": 0.87
+    },
+    {
+      "name": "vsix-members",
+      "exit": 0,
+      "seconds": 1.91
+    },
+    {
+      "name": "owning",
+      "exit": 0,
+      "seconds": 18.68
+    }
+  ],
+  "sourceConfigurationFingerprint": {
+    "algorithm": "SHA-256 of sorted path, NUL, raw file SHA-256",
+    "scope": "src/, test/, scripts/, l10n/, native/, .github/, root JSON/JSONC/MJS, .vscodeignore, .npmrc",
+    "files": 867,
+    "sha256": "f516e815e498651799adce719bfa40708d678688a41c295ac02aecc9d83ebd9c"
+  },
+  "initialJoin": {
+    "task": "MG78",
+    "machine": "kubuntu",
+    "snapshot": "3fea958b09a3ee2f9e208de4a735d69ef1bc3f00",
+    "eslintFiles": 99,
+    "prettierFiles": 167,
+    "owningTestFiles": [
+      "test/unit/sessionTransfer.test.ts",
+      "test/unit/sessionImport.test.ts",
+      "test/unit/transferDialogs.test.ts",
+      "test/unit/exportConversation.test.ts",
+      "test/unit/redact.test.ts",
+      "test/unit/cliFeatures.test.ts",
+      "test/unit/conversationController.test.ts",
+      "test/unit/modelApiHost.test.ts",
+      "test/unit/acpAgent.test.ts",
+      "test/unit/App.test.tsx",
+      "test/unit/uiState.test.ts",
+      "test/unit/paletteRegistry.test.ts",
+      "test/unit/manifest.test.ts",
+      "test/unit/checkpointNativeCommands.test.ts",
+      "test/unit/toolIoBounded.test.ts",
+      "test/unit/Transcript.test.tsx",
+      "test/unit/MarkdownView.test.tsx",
+      "test/unit/logger.test.ts",
+      "test/unit/networkFailure.test.ts",
+      "test/unit/conversationGit.test.ts",
+      "test/unit/conversationGitBundle.test.ts",
+      "test/unit/agentImportBundle.test.ts",
+      "test/unit/agentImportWorkspaceEdits.test.ts"
+    ],
+    "gates": [
+      {
+        "name": "typecheck",
+        "exit": 0,
+        "seconds": 52.17
+      },
+      {
+        "name": "eslint",
+        "exit": 0,
+        "seconds": 58.32
+      },
+      {
+        "name": "prettier",
+        "exit": 0,
+        "seconds": 14.66
+      },
+      {
+        "name": "knip",
+        "exit": 0,
+        "seconds": 2.32
+      },
+      {
+        "name": "jscpd",
+        "exit": 0,
+        "seconds": 0.73
+      },
+      {
+        "name": "l10n",
+        "exit": 0,
+        "seconds": 1.53
+      },
+      {
+        "name": "host-api",
+        "exit": 0,
+        "seconds": 10.26
+      },
+      {
+        "name": "cycles",
+        "exit": 0,
+        "seconds": 4.31
+      },
+      {
+        "name": "build",
+        "exit": 0,
+        "seconds": 1.41
+      },
+      {
+        "name": "vsix-members",
+        "exit": 0,
+        "seconds": 1.99
+      },
+      {
+        "name": "owning",
+        "exit": 0,
+        "seconds": 19.55
+      }
+    ],
+    "sourceConfigurationFingerprint": {
+      "algorithm": "SHA-256 of sorted path, NUL, raw file SHA-256",
+      "scope": "src/, test/, scripts/, l10n/, native/, .github/, root JSON/JSONC/MJS, .vscodeignore, .npmrc",
+      "files": 867,
+      "sha256": "29549f9a4992e681c31cd165aac5716779a334263581851bde785f2de84859ed"
+    }
+  },
+  "mainJoined": "8dac84cfa7cce1a38ecfd35b3bb7ff3e81307364"
+}

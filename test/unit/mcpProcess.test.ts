@@ -23,6 +23,7 @@ import {
   type McpProcessHandle,
 } from '../../src/host/backend/mcpProcess'
 import { FakeLogOutputChannel } from './helpers/fakes'
+import { isRunning } from './helpers/processes'
 import { spawnMcpJob } from '../../src/host/backend/mcpJobLaunch'
 import {
   FAKE_MCP_SERVER,
@@ -136,24 +137,6 @@ it('keeps a final MCP response after process exit until stdout closes', async ()
   node.streamsClosed()
   await connection.close()
 })
-
-function isRunning(pid: number): boolean {
-  try {
-    process.kill(pid, 0)
-  } catch {
-    return false
-  }
-  if (process.platform === 'linux') {
-    try {
-      const stat = readFileSync(`/proc/${String(pid)}/stat`, 'utf8')
-      return !stat.slice(stat.lastIndexOf(')') + 2).startsWith('Z')
-    } catch {
-      // The process may have been reaped between the signal and the read.
-      return false
-    }
-  }
-  return true
-}
 
 async function expectBinaryRoundtrip(child: McpChildProcess): Promise<void> {
   const output: Buffer[] = []

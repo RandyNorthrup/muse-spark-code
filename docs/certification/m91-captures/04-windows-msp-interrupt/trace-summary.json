@@ -1,0 +1,34 @@
+{
+  "modelAttemptLines": 6,
+  "admissions": 3,
+  "byProviderModelPhaseOutcome": {
+    "echo/echo/admission/accepted": 3,
+    "echo/echo/terminal/completed": 2,
+    "echo/echo/terminal/cancelled": 1
+  },
+  "nonEchoAdmissions": 0,
+  "credentialStatus": [],
+  "hookTraceLines": [
+    "event=\"hook.admission\" outcome=\"ready\" handlers=19 runnable=19 inactive=0 diagnostics=0 advisories=0 duration_ms=12",
+    "event=\"hook.execution.terminal\" hook_event=\"session_start\" display_order=0 status=\"completed\" duration_ms=2121 stdout_bytes=0 stderr_bytes=0 error_bytes=0",
+    "event=\"hook.execution.terminal\" hook_event=\"user_prompt_submit\" display_order=1 status=\"completed\" duration_ms=3632 stdout_bytes=0 stderr_bytes=0 error_bytes=0",
+    "event=\"hook.execution.terminal\" hook_event=\"pre_llm_call\" display_order=5 status=\"completed\" duration_ms=1608 stdout_bytes=0 stderr_bytes=0 error_bytes=0",
+    "event=\"hook.execution.terminal\" hook_event=\"subagent_start\" display_order=9 status=\"completed\" duration_ms=2406 stdout_bytes=0 stderr_bytes=0 error_bytes=0",
+    "event=\"hook.execution.terminal\" hook_event=\"pre_llm_call\" display_order=5 status=\"completed\" duration_ms=1703 stdout_bytes=0 stderr_bytes=0 error_bytes=0",
+    "event=\"hook.execution.terminal\" hook_event=\"post_llm_call\" display_order=6 status=\"completed\" duration_ms=2663 stdout_bytes=0 stderr_bytes=0 error_bytes=0",
+    "event=\"hook.execution.terminal\" hook_event=\"post_llm_call\" display_order=6 status=\"completed\" duration_ms=5226 stdout_bytes=0 stderr_bytes=0 error_bytes=0",
+    "event=\"hook.execution.terminal\" hook_event=\"stop\" display_order=11 status=\"completed\" duration_ms=5722 stdout_bytes=0 stderr_bytes=0 error_bytes=0",
+    "event=\"hook.execution.terminal\" hook_event=\"subagent_stop\" display_order=10 status=\"completed\" duration_ms=1740 stdout_bytes=0 stderr_bytes=0 error_bytes=0",
+    "event=\"hook.execution.terminal\" hook_event=\"subagent_start\" display_order=9 status=\"completed\" duration_ms=3543 stdout_bytes=0 stderr_bytes=0 error_bytes=0",
+    "event=\"hook.execution.terminal\" hook_event=\"user_prompt_submit\" display_order=1 status=\"completed\" duration_ms=1811 stdout_bytes=0 stderr_bytes=0 error_bytes=0",
+    "event=\"hook.execution.terminal\" hook_event=\"subagent_start\" display_order=9 status=\"cancelled\" duration_ms=39 stdout_bytes=0 stderr_bytes=0 error_bytes=0",
+    "event=\"hook.execution.terminal\" hook_event=\"pre_llm_call\" display_order=5 status=\"cancelled\" duration_ms=249 stdout_bytes=0 stderr_bytes=0 error_bytes=0",
+    "event=\"hook.execution.terminal\" hook_event=\"post_llm_call\" display_order=6 status=\"cancelled\" duration_ms=7 stdout_bytes=0 stderr_bytes=0 error_bytes=0",
+    "event=\"hook.execution.terminal\" hook_event=\"interrupt\" display_order=17 status=\"completed\" duration_ms=1331 stdout_bytes=0 stderr_bytes=0 error_bytes=0",
+    "event=\"hook.execution.terminal\" hook_event=\"user_prompt_submit\" display_order=1 status=\"cancelled\" duration_ms=3264 stdout_bytes=0 stderr_bytes=0 error_bytes=0",
+    "event=\"hook.execution.terminal\" hook_event=\"interrupt\" display_order=17 status=\"completed\" duration_ms=2877 stdout_bytes=0 stderr_bytes=0 error_bytes=0",
+    "event=\"hook.execution.terminal\" hook_event=\"user_prompt_submit\" display_order=1 status=\"cancelled\" duration_ms=3793 stdout_bytes=0 stderr_bytes=0 error_bytes=0",
+    "event=\"hook.execution.terminal\" hook_event=\"interrupt\" display_order=17 status=\"completed\" duration_ms=4307 stdout_bytes=0 stderr_bytes=0 error_bytes=0",
+    "event=\"hook.execution.terminal\" hook_event=\"session_end\" display_order=12 status=\"cancelled\" duration_ms=632 stdout_bytes=0 stderr_bytes=0 error_bytes=0"
+  ]
+}

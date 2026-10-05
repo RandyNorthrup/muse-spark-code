@@ -7,6 +7,20 @@ import { refusedShellEntry } from '../../../src/core/shellResult'
 import { fingerprint } from '../../../src/core/verify/fingerprint'
 import { createToolIo } from '../../../src/host/backend/toolIo'
 
+/** A command-hook completion; callers choose the independent stdout and status. */
+export function hookResult(
+  stdout: string,
+  options: { readonly exitCode?: number; readonly stderr?: string } = {},
+): ShellResult {
+  return {
+    stdout,
+    stderr: options.stderr ?? '',
+    exitCode: options.exitCode ?? 0,
+    isTimedOut: false,
+    isCancelled: false,
+  }
+}
+
 /**
  * The real tool io over the real file system: no shell environment, and an
  * editor with unsaved changes at `unsavedFiles` only (none by default).

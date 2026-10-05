@@ -1,0 +1,14 @@
+{
+  "cwd": "<workspace>",
+  "hook_event_name": "PreToolUse",
+  "model": "unknown",
+  "permission_mode": "default",
+  "session_id": "01a1085a-8452-7db3-801c-077ea7144958",
+  "tool_input": {
+    "command": "exit 3"
+  },
+  "tool_name": "shell",
+  "tool_use_id": "user_shell_01a1085a-943f-7000-a5bf-4e04d316e5d5",
+  "transcript_path": null,
+  "turn_id": "01a1085a-943f-7000-a5bf-4e04d316e5d5"
+}

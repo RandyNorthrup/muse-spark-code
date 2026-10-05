@@ -13,6 +13,7 @@ import {
   approvalSubjectSchema,
   answerSchema,
   citationSchema,
+  elicitationFieldSchema,
   outputRefSchema,
   patchSummarySchema,
   questionSchema,
@@ -23,7 +24,7 @@ import {
   workflowRunFields,
 } from '../../shared/agentEvents'
 import { PAID_FEATURES, TASK_REQUESTS } from '../../shared/constants'
-import { NOTICE_ACTIONS, NOTICE_LEVELS } from '../../shared/protocol'
+import { NOTICE_ACTIONS, NOTICE_LEVELS, reportEventRefSchema } from '../../shared/protocol'
 
 const pendingApprovalSchema = z.object({
   approvalId: z.string(),
@@ -33,6 +34,7 @@ const pendingApprovalSchema = z.object({
   availableChoices: z.readonly(z.array(approvalChoiceSchema)),
   isProtectedWrite: z.boolean(),
   isJudgeEscalated: z.boolean(),
+  judgeCaution: z.optional(z.boolean()),
   /** Why the card asks beyond the mode (M78), as the host said it. */
   note: z.optional(z.string()),
   /**
@@ -57,6 +59,22 @@ const pendingQuestionSchema = z.object({
   isSubmitted: z.optional(z.boolean()),
 })
 export type PendingQuestion = z.infer<typeof pendingQuestionSchema>
+
+/**
+ * An MCP elicitation form waiting on the user (M91 lane M): the server's
+ * message and the schema to fill. Values live only in the card's draft
+ * while it is open: settling clears the form, so nothing typed survives in
+ * the saved transcript.
+ */
+const pendingElicitationSchema = z.object({
+  elicitationId: z.string(),
+  server: z.string(),
+  message: z.string(),
+  fields: z.readonly(z.array(elicitationFieldSchema)),
+  /** Answered, declined or cancelled from the form: locked until the host settles it. */
+  isSubmitted: z.optional(z.boolean()),
+})
+export type PendingElicitation = z.infer<typeof pendingElicitationSchema>
 
 export type OutputRef = z.infer<typeof outputRefSchema>
 export type PatchSummary = z.infer<typeof patchSummarySchema>
@@ -158,6 +176,7 @@ const assistantEntrySchema = z.object({
   kind: z.literal('assistant'),
   id: z.string(),
   text: z.string(),
+  displayText: z.optional(z.string()),
   isStreaming: z.boolean(),
   /** The web pages the reply cites (M33), listed under it as links. */
   citations: z.optional(z.readonly(z.array(citationSchema))),
@@ -222,6 +241,7 @@ const toolEntrySchema = z.object({
     }),
   ),
   question: z.optional(pendingQuestionSchema),
+  elicitation: z.optional(pendingElicitationSchema),
   questionOutcome: z.optional(
     z.object({
       outcome: z.string(),
@@ -324,7 +344,17 @@ const itemEntrySchema = z.object({
   text: z.optional(z.string()),
 })
 
-const errorEntrySchema = z.object({ kind: z.literal('error'), id: z.string(), text: z.string() })
+const errorEntrySchema = z.object({
+  kind: z.literal('error'),
+  id: z.string(),
+  text: z.string(),
+  /**
+   * The sanitized handoff when the host recorded this failure (M93 lane W):
+   * which journal event the row means, never its text. The row offers
+   * "Report this" only while it is present.
+   */
+  reportRef: z.optional(reportEventRefSchema),
+})
 
 export type NoticeLevel = (typeof NOTICE_LEVELS)[number]
 
@@ -339,6 +369,12 @@ const noticeEntrySchema = z.object({
   isRedoUsed: z.optional(z.boolean()),
   /** A Muse Code fault's way on (D26): its buttons. */
   actions: z.optional(z.readonly(z.array(z.enum(NOTICE_ACTIONS)))),
+  /**
+   * The sanitized handoff when the host recorded this failure (M93 lane W):
+   * which journal event the row means, never its text. The row offers
+   * "Report this" only while it is present.
+   */
+  reportRef: z.optional(reportEventRefSchema),
   /**
    * How many times the same notice was said (D26), set from the second: the
    * repeats are this one row. Optional, so a snapshot saved before it reads.
@@ -374,6 +410,7 @@ export const usageSummarySchema = z.object({
   cachedTokens: z.optional(z.number()),
   // The packing ledger's estimate (M73): absent unless packing runs.
   packedTokensAvoided: z.optional(z.number()),
+  hookTokensAdded: z.optional(z.number()),
 })
 export type UsageSummary = z.infer<typeof usageSummarySchema>
 

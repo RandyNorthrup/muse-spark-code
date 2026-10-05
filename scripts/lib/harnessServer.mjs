@@ -52,7 +52,13 @@ export const SCENARIOS = [
   'approval-several',
   'approval-narrow',
   'approval-moved',
+  'judge',
+  'judge-narrow',
+  'judge-slow',
+  'judge-usage',
   'question',
+  'elicitation',
+  'elicitation-narrow',
   'todo',
   'todo-collapsed',
   'tasks-tab',
@@ -136,9 +142,15 @@ export const SCENARIOS = [
   'muse-workflow-map',
   'schedules',
   'schedules-narrow',
+  'git-held',
+  'git-commit',
+  'git-pr',
+  'git-pr-narrow',
   'auto-review',
   'auto-review-rule',
   'auto-review-usage',
+  'tab-usage',
+  'tab-usage-off',
   'share',
   'share-narrow',
   'verify',
@@ -154,6 +166,8 @@ export const SCENARIOS = [
   'review-pane',
   'review-pane-narrow',
   'review-comment',
+  'report',
+  'report-narrow',
 ]
 const CONTENT_TYPES = {
   '.html': 'text/html; charset=utf-8',
@@ -192,13 +206,21 @@ export function serveRepo(repoRoot) {
 
 /**
  * The scenarios that need a viewport of their own width, and the element a
- * screenshot waits for: the 320 px share dialog and chat menus, and the chat
+ * screenshot waits for: the 320 px share and report (M93) dialogs, whose
+ * backdrops are fixed to the viewport, and chat menus, and the chat
  * column at 320 and 1400 px (M87), which marks the page once its geometry
  * checks pass or reports why they did not. The wide column keeps the
  * scrollbars headless Chrome otherwise hides, as its check measures one.
  */
 export const SIZED_SCENARIOS = {
+  'judge-narrow': { width: 320, ready: '.judge-status' },
+  judge: { width: 690, ready: '.judge-status' },
+  'judge-slow': { width: 690, ready: '.judge-status' },
+  'judge-usage': { width: 690, ready: '[role="dialog"]' },
   'share-narrow': { width: 320, ready: '[role="dialog"]' },
+  // M91 lane M: the MCP elicitation form at the panel's narrowest width.
+  'elicitation-narrow': { width: 320, ready: 'form' },
+  'report-narrow': { width: 320, ready: '[role="dialog"]' },
   'chat-menu-narrow': { width: 320, ready: '[role="menu"]' },
   'chat-tool-menu-narrow': { width: 320, ready: '[role="menu"]' },
   'column-narrow': { width: 320, ready: '[data-column-checked], .harness-report' },

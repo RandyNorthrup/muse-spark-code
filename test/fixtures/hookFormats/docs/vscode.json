@@ -1,0 +1,363 @@
+[
+  {
+    "id": "vscode-common-stdout-1",
+    "vendor": "vscode",
+    "flavor": "local",
+    "event": "common",
+    "direction": "stdout",
+    "source": "hooks-parity/vsc/hooks-reference.md:87-91",
+    "raw": "{\n  \"continue\": false,\n  \"stopReason\": \"Security policy violation\",\n  \"systemMessage\": \"Review the hook result.\"\n}",
+    "json": {
+      "continue": false,
+      "stopReason": "Security policy violation",
+      "systemMessage": "Review the hook result."
+    },
+    "note": "Common output: \"All events support these top-level fields\" (:84)"
+  },
+  {
+    "id": "vscode-PreToolUse-stdin-1",
+    "vendor": "vscode",
+    "flavor": "local",
+    "event": "PreToolUse",
+    "direction": "stdin",
+    "source": "hooks-parity/vsc/hooks-reference.md:132-136",
+    "raw": "{\n  \"tool_name\": \"<local-tool-name>\",\n  \"tool_input\": {},\n  \"tool_use_id\": \"tool-123\"\n}",
+    "json": {
+      "tool_name": "<local-tool-name>",
+      "tool_input": {},
+      "tool_use_id": "tool-123"
+    },
+    "note": "Event fields only; common input fields (timestamp, cwd, session_id, hook_event_name, transcript_path, :71-77) are added \"in addition\" (:129). tool_name is a placeholder."
+  },
+  {
+    "id": "vscode-PreToolUse-stdout-1",
+    "vendor": "vscode",
+    "flavor": "local",
+    "event": "PreToolUse",
+    "direction": "stdout",
+    "source": "hooks-parity/vsc/hooks-reference.md:152-159",
+    "raw": "{\n  \"hookSpecificOutput\": {\n    \"hookEventName\": \"PreToolUse\",\n    \"permissionDecision\": \"deny\",\n    \"permissionDecisionReason\": \"Destructive command blocked by policy.\",\n    \"additionalContext\": \"Production files are read-only.\"\n  }\n}",
+    "json": {
+      "hookSpecificOutput": {
+        "hookEventName": "PreToolUse",
+        "permissionDecision": "deny",
+        "permissionDecisionReason": "Destructive command blocked by policy.",
+        "additionalContext": "Production files are read-only."
+      }
+    }
+  },
+  {
+    "id": "vscode-PostToolUse-stdin-1",
+    "vendor": "vscode",
+    "flavor": "local",
+    "event": "PostToolUse",
+    "direction": "stdin",
+    "source": "hooks-parity/vsc/hooks-reference.md:187-192",
+    "raw": "{\n  \"tool_name\": \"<local-tool-name>\",\n  \"tool_input\": {},\n  \"tool_use_id\": \"tool-123\",\n  \"tool_response\": \"<tool-result>\"\n}",
+    "json": {
+      "tool_name": "<local-tool-name>",
+      "tool_input": {},
+      "tool_use_id": "tool-123",
+      "tool_response": "<tool-result>"
+    },
+    "note": "Event fields only; common input fields added (:184)."
+  },
+  {
+    "id": "vscode-PostToolUse-stdout-1",
+    "vendor": "vscode",
+    "flavor": "local",
+    "event": "PostToolUse",
+    "direction": "stdout",
+    "source": "hooks-parity/vsc/hooks-reference.md:207-214",
+    "raw": "{\n  \"decision\": \"block\",\n  \"reason\": \"Post-processing validation failed.\",\n  \"hookSpecificOutput\": {\n    \"hookEventName\": \"PostToolUse\",\n    \"additionalContext\": \"The edited file has lint errors.\"\n  }\n}",
+    "json": {
+      "decision": "block",
+      "reason": "Post-processing validation failed.",
+      "hookSpecificOutput": {
+        "hookEventName": "PostToolUse",
+        "additionalContext": "The edited file has lint errors."
+      }
+    },
+    "note": "decision/reason are top level; additionalContext is nested in hookSpecificOutput"
+  },
+  {
+    "id": "vscode-UserPromptSubmit-stdin-1",
+    "vendor": "vscode",
+    "flavor": "local",
+    "event": "UserPromptSubmit",
+    "direction": "stdin",
+    "source": "hooks-parity/vsc/hooks-reference.md:233-235",
+    "raw": "{\n  \"prompt\": \"Add input validation to the sign-up form.\"\n}",
+    "json": {
+      "prompt": "Add input validation to the sign-up form."
+    },
+    "note": "Event fields only; common input fields added (:230). Output: common output only (:242)."
+  },
+  {
+    "id": "vscode-SessionStart-stdin-1",
+    "vendor": "vscode",
+    "flavor": "local",
+    "event": "SessionStart",
+    "direction": "stdin",
+    "source": "hooks-parity/vsc/hooks-reference.md:253-255",
+    "raw": "{\n  \"source\": \"new\"\n}",
+    "json": {
+      "source": "new"
+    },
+    "note": "Event fields only; source \"Currently always \\\"new\\\"\" (:260)."
+  },
+  {
+    "id": "vscode-SessionStart-stdout-1",
+    "vendor": "vscode",
+    "flavor": "local",
+    "event": "SessionStart",
+    "direction": "stdout",
+    "source": "hooks-parity/vsc/hooks-reference.md:267-272",
+    "raw": "{\n  \"hookSpecificOutput\": {\n    \"hookEventName\": \"SessionStart\",\n    \"additionalContext\": \"Project: my-app 2.1.0 | Branch: main\"\n  }\n}",
+    "json": {
+      "hookSpecificOutput": {
+        "hookEventName": "SessionStart",
+        "additionalContext": "Project: my-app 2.1.0 | Branch: main"
+      }
+    }
+  },
+  {
+    "id": "vscode-Stop-stdin-1",
+    "vendor": "vscode",
+    "flavor": "local",
+    "event": "Stop",
+    "direction": "stdin",
+    "source": "hooks-parity/vsc/hooks-reference.md:291-293",
+    "raw": "{\n  \"stop_hook_active\": false\n}",
+    "json": {
+      "stop_hook_active": false
+    },
+    "note": "Event fields only; common input fields added (:288)."
+  },
+  {
+    "id": "vscode-Stop-stdout-1",
+    "vendor": "vscode",
+    "flavor": "local",
+    "event": "Stop",
+    "direction": "stdout",
+    "source": "hooks-parity/vsc/hooks-reference.md:305-311",
+    "raw": "{\n  \"hookSpecificOutput\": {\n    \"hookEventName\": \"Stop\",\n    \"decision\": \"block\",\n    \"reason\": \"Run the test suite before finishing.\"\n  }\n}",
+    "json": {
+      "hookSpecificOutput": {
+        "hookEventName": "Stop",
+        "decision": "block",
+        "reason": "Run the test suite before finishing."
+      }
+    },
+    "note": "decision/reason are NESTED in hookSpecificOutput here, unlike SubagentStop (:388-391) and PostToolUse (:208-209) where they are top level"
+  },
+  {
+    "id": "vscode-SubagentStart-stdin-1",
+    "vendor": "vscode",
+    "flavor": "local",
+    "event": "SubagentStart",
+    "direction": "stdin",
+    "source": "hooks-parity/vsc/hooks-reference.md:332-335",
+    "raw": "{\n  \"agent_id\": \"subagent-456\",\n  \"agent_type\": \"Plan\"\n}",
+    "json": {
+      "agent_id": "subagent-456",
+      "agent_type": "Plan"
+    },
+    "note": "Event fields only; common input fields added (:329)."
+  },
+  {
+    "id": "vscode-SubagentStart-stdout-1",
+    "vendor": "vscode",
+    "flavor": "local",
+    "event": "SubagentStart",
+    "direction": "stdout",
+    "source": "hooks-parity/vsc/hooks-reference.md:348-353",
+    "raw": "{\n  \"hookSpecificOutput\": {\n    \"hookEventName\": \"SubagentStart\",\n    \"additionalContext\": \"Follow the project coding guidelines.\"\n  }\n}",
+    "json": {
+      "hookSpecificOutput": {
+        "hookEventName": "SubagentStart",
+        "additionalContext": "Follow the project coding guidelines."
+      }
+    }
+  },
+  {
+    "id": "vscode-SubagentStop-stdin-1",
+    "vendor": "vscode",
+    "flavor": "local",
+    "event": "SubagentStop",
+    "direction": "stdin",
+    "source": "hooks-parity/vsc/hooks-reference.md:370-374",
+    "raw": "{\n  \"agent_id\": \"subagent-456\",\n  \"agent_type\": \"Plan\",\n  \"stop_hook_active\": false\n}",
+    "json": {
+      "agent_id": "subagent-456",
+      "agent_type": "Plan",
+      "stop_hook_active": false
+    },
+    "note": "Event fields only; common input fields added (:367)."
+  },
+  {
+    "id": "vscode-SubagentStop-stdout-1",
+    "vendor": "vscode",
+    "flavor": "local",
+    "event": "SubagentStop",
+    "direction": "stdout",
+    "source": "hooks-parity/vsc/hooks-reference.md:388-391",
+    "raw": "{\n  \"decision\": \"block\",\n  \"reason\": \"Verify the results before completing.\"\n}",
+    "json": {
+      "decision": "block",
+      "reason": "Verify the results before completing."
+    },
+    "note": "decision/reason top level (no hookSpecificOutput)"
+  },
+  {
+    "id": "vscode-PreCompact-stdin-1",
+    "vendor": "vscode",
+    "flavor": "local",
+    "event": "PreCompact",
+    "direction": "stdin",
+    "source": "hooks-parity/vsc/hooks-reference.md:408-410",
+    "raw": "{\n  \"trigger\": \"auto\"\n}",
+    "json": {
+      "trigger": "auto"
+    },
+    "note": "Event fields only; common input fields added (:405). Output: common output only (:417)."
+  },
+  {
+    "id": "vscode-PreToolUse-stdout-2",
+    "vendor": "vscode",
+    "flavor": "local",
+    "event": "PreToolUse",
+    "direction": "stdout",
+    "source": "hooks-parity/vsc/hooks.md:263-279",
+    "raw": "let input = '';\nprocess.stdin.setEncoding('utf8');\nprocess.stdin.on('data', chunk => input += chunk);\nprocess.stdin.on('end', () => {\n  const event = JSON.parse(input);\n  const decision = event.tool_name === process.env.SENSITIVE_TOOL_NAME\n    ? {\n        hookSpecificOutput: {\n          hookEventName: 'PreToolUse',\n          permissionDecision: 'ask',\n          permissionDecisionReason: 'This tool requires manual approval.'\n        }\n      }\n    : { continue: true };\n\n  process.stdout.write(JSON.stringify(decision));\n});",
+    "note": "not strict JSON (JavaScript hook script from the doc; the object it writes with JSON.stringify is the stdout); writes hookSpecificOutput ask or {continue:true}"
+  },
+  {
+    "id": "vscode-SessionStart-stdout-2",
+    "vendor": "vscode",
+    "flavor": "local",
+    "event": "SessionStart",
+    "direction": "stdout",
+    "source": "hooks-parity/vsc/hooks.md:307-314",
+    "raw": "const packageJson = require('../../package.json');\n\nprocess.stdout.write(JSON.stringify({\n  hookSpecificOutput: {\n    hookEventName: 'SessionStart',\n    additionalContext: `Project: ${packageJson.name} ${packageJson.version}`\n  }\n}));",
+    "note": "not strict JSON (JavaScript hook script from the doc; the object it writes with JSON.stringify is the stdout)"
+  },
+  {
+    "id": "vscode-common-stdout-2",
+    "vendor": "vscode",
+    "flavor": "local",
+    "event": "common",
+    "direction": "stdout",
+    "source": "hooks-parity/vsc/hooks-pre-harness.md:281-285",
+    "raw": "{\n  \"continue\": true,\n  \"stopReason\": \"Security policy violation\",\n  \"systemMessage\": \"Unit tests failed\"\n}",
+    "json": {
+      "continue": true,
+      "stopReason": "Security policy violation",
+      "systemMessage": "Unit tests failed"
+    },
+    "note": "Common output; older doc revision (hooks-pre-harness.md, DateApproved 9/16/2026)"
+  },
+  {
+    "id": "vscode-PreToolUse-stdout-3",
+    "vendor": "vscode",
+    "flavor": "local",
+    "event": "PreToolUse",
+    "direction": "stdout",
+    "exitCode": 0,
+    "source": "hooks-parity/vsc/hooks-pre-harness.md:354-354",
+    "raw": "{\"hookSpecificOutput\":{\"permissionDecision\":\"deny\",\"permissionDecisionReason\":\"Destructive command blocked by security policy\"}}",
+    "json": {
+      "hookSpecificOutput": {
+        "permissionDecision": "deny",
+        "permissionDecisionReason": "Destructive command blocked by security policy"
+      }
+    },
+    "note": "Embedded substring: echo in block-dangerous.sh (:344-360), followed by exit 0 (:355). hookSpecificOutput WITHOUT hookEventName; older doc revision (hooks-pre-harness.md, DateApproved 9/16/2026)"
+  },
+  {
+    "id": "vscode-PreToolUse-stdout-4",
+    "vendor": "vscode",
+    "flavor": "local",
+    "event": "PreToolUse",
+    "direction": "stdout",
+    "source": "hooks-parity/vsc/hooks-pre-harness.md:359-359",
+    "raw": "{\"continue\":true}",
+    "json": {
+      "continue": true
+    },
+    "note": "Embedded substring: allow-path output of block-dangerous.sh; older doc revision (hooks-pre-harness.md, DateApproved 9/16/2026)"
+  },
+  {
+    "id": "vscode-PostToolUse-stdout-2",
+    "vendor": "vscode",
+    "flavor": "local",
+    "event": "PostToolUse",
+    "direction": "stdout",
+    "source": "hooks-parity/vsc/hooks-pre-harness.md:401-401",
+    "raw": "{\"continue\":true}",
+    "json": {
+      "continue": true
+    },
+    "note": "Embedded substring: output of format-changed-files.sh (:386-402); older doc revision (hooks-pre-harness.md, DateApproved 9/16/2026)"
+  },
+  {
+    "id": "vscode-PreToolUse-stdout-5",
+    "vendor": "vscode",
+    "flavor": "local",
+    "event": "PreToolUse",
+    "direction": "stdout",
+    "source": "hooks-parity/vsc/hooks-pre-harness.md:437-437",
+    "raw": "{\"continue\":true}",
+    "json": {
+      "continue": true
+    },
+    "note": "Embedded substring: output of log-tool-use.sh (:429-438); older doc revision (hooks-pre-harness.md, DateApproved 9/16/2026)"
+  },
+  {
+    "id": "vscode-PreToolUse-stdout-6",
+    "vendor": "vscode",
+    "flavor": "local",
+    "event": "PreToolUse",
+    "direction": "stdout",
+    "source": "hooks-parity/vsc/hooks-pre-harness.md:471-471",
+    "raw": "{\"hookSpecificOutput\":{\"permissionDecision\":\"ask\",\"permissionDecisionReason\":\"This operation requires manual approval\"}}",
+    "json": {
+      "hookSpecificOutput": {
+        "permissionDecision": "ask",
+        "permissionDecisionReason": "This operation requires manual approval"
+      }
+    },
+    "note": "Embedded substring: require-approval.sh ask path (:462-475). hookSpecificOutput WITHOUT hookEventName; older doc revision (hooks-pre-harness.md, DateApproved 9/16/2026)"
+  },
+  {
+    "id": "vscode-PreToolUse-stdout-7",
+    "vendor": "vscode",
+    "flavor": "local",
+    "event": "PreToolUse",
+    "direction": "stdout",
+    "source": "hooks-parity/vsc/hooks-pre-harness.md:473-473",
+    "raw": "{\"hookSpecificOutput\":{\"permissionDecision\":\"allow\"}}",
+    "json": {
+      "hookSpecificOutput": {
+        "permissionDecision": "allow"
+      }
+    },
+    "note": "Embedded substring: require-approval.sh allow path. hookSpecificOutput WITHOUT hookEventName; older doc revision (hooks-pre-harness.md, DateApproved 9/16/2026)"
+  },
+  {
+    "id": "vscode-SessionStart-stdout-3",
+    "vendor": "vscode",
+    "flavor": "local",
+    "event": "SessionStart",
+    "direction": "stdout",
+    "source": "hooks-parity/vsc/hooks-pre-harness.md:505-510",
+    "raw": "{\n  \"hookSpecificOutput\": {\n    \"hookEventName\": \"SessionStart\",\n    \"additionalContext\": \"Project: $PROJECT_INFO | Branch: $BRANCH | Node: $(node -v 2>/dev/null || echo 'not installed')\"\n  }\n}",
+    "json": {
+      "hookSpecificOutput": {
+        "hookEventName": "SessionStart",
+        "additionalContext": "Project: $PROJECT_INFO | Branch: $BRANCH | Node: $(node -v 2>/dev/null || echo 'not installed')"
+      }
+    },
+    "note": "Heredoc body inside inject-context.sh (:499-512); a template whose $VARs and $(...) the shell expands before emitting; older doc revision (hooks-pre-harness.md, DateApproved 9/16/2026)"
+  }
+]

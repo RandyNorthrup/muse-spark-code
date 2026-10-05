@@ -157,6 +157,11 @@ export async function runEvalTurn(options: EvalTurnOptions): Promise<EvalTurnOut
     // The evaluation's own wire counts its spend and refuses past its budget.
     sessionBudgetUsd: () => SETTING_DEFAULTS.modelApiSessionBudgetUsd,
     showReplyUsage: () => SETTING_DEFAULTS.modelApiReplyUsage,
+    // M91 lane S: M75 records the shell-directory setting as off (PLAN.md
+    // M91 step 4), matching the recorded baseline, which predates it: every
+    // arm still runs under the baseline's conditions. The shipped default
+    // stays on; flipping this needs a fresh baseline run.
+    shellKeepsDirectory: () => false,
     getAccountId: () => Promise.resolve(deps.accountId),
     isPaidFeatureOn: () => false,
     notePaidUse: (_feature, units) => {

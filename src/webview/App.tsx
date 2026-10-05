@@ -1,3 +1,4 @@
+import { JudgeStatusLine } from './components/JudgeStatusLine'
 import {
   type ReactNode,
   lazy,
@@ -17,6 +18,7 @@ import {
   GOAL_SLASH_COMMAND,
   HANDOFF_SLASH_COMMAND,
   LOOP_SLASH_COMMAND,
+  HOOK_RUN_SLASH_COMMAND,
   type GoalCommandVerb,
   MUSE_DELEGATION_ENABLED,
   REVIEW_SLASH_COMMAND,
@@ -44,14 +46,17 @@ import {
 import { paidFeatureName, paidFeaturePrice, usablePaidFeatures } from '../shared/paid'
 import { buildPalette, type PaletteAction } from '../shared/palette'
 import { type SlashCommand, slashCommandsOf } from '../shared/slashCommands'
+import type { GitAction, GitDraftKind } from '../shared/git'
 import type {
   ChatReference,
   LineRange,
   NoticeAction,
+  ReportEventRef,
   ReviewFile,
   SignInMethod,
   WebviewToHostMessage,
 } from '../shared/protocol'
+import type { GitFormEdit } from './state/gitState'
 import type { ApprovalDecisionInput } from './components/ApprovalCard'
 import { ApprovalDock } from './components/ApprovalDock'
 import { Composer, type ImageData, type SlashPaletteSlot } from './components/Composer'
@@ -62,8 +67,8 @@ import { GoalPanel } from './components/GoalPanel'
 import { SchedulePanel } from './components/SchedulePanel'
 import { Header } from './components/Header'
 import { HandoffDialog } from './components/HandoffDialog'
+import { DeferredReportDialog } from './components/DeferredReportDialog'
 import { SecretPromptDialog } from './components/SecretPromptDialog'
-import { ShareView } from './components/ShareView'
 import { AddContextIcon, ExpandChevron, UploadIcon } from './components/icons'
 import { modeIcon } from './components/modeIcons'
 import { Palette, type PaletteKeys, type PaletteView } from './components/Palette'
@@ -95,15 +100,13 @@ import {
 } from './state/uiState'
 import { isChildRunning } from './workflowDetails'
 import type { QuoteIntent } from './components/QuoteMenu'
+import { SessionBoardDialog } from './components/SessionBoardDialog'
+import { ShareView } from './components/ShareView'
 import { DeferredSurface } from './components/DeferredSurface'
 
 const HistoryDialog = lazy(async () => {
   const module = await import('./components/HistoryDialog')
   return { default: module.HistoryDialog }
-})
-const SessionBoardDialog = lazy(async () => {
-  const module = await import('./components/SessionBoardDialog')
-  return { default: module.SessionBoardDialog }
 })
 const AgentMap = lazy(async () => {
   const module = await import('./components/AgentMap')
@@ -183,6 +186,13 @@ function restoreNoteOf(state: UiState): string | undefined {
   return notes[state.checkpoints.availability]
 }
 
+// These panels share this runtime's React and installed language; importing
+// them waits for state to show (Git) or the user's Account & usage action.
+const GitPanel = lazy(async () => {
+  const { GitPanel } = await import('./components/GitPanel')
+  return { default: GitPanel }
+})
+
 /** What floats above the composer: a palette view, a menu, the History dialog or a modal. */
 type Overlay =
   PaletteView | 'modes' | 'attach' | 'history' | 'board' | 'bestOfN' | 'usage' | 'agents' | 'review'
@@ -200,6 +210,7 @@ const KEEPS_PALETTE_OPEN: ReadonlySet<PaletteAction['type']> = new Set([
 // What choosing `/goal` leaves in the prompt: the command, ready for the objective (M45).
 const GOAL_PROMPT_START = `/${GOAL_SLASH_COMMAND} `
 const LOOP_PROMPT_START = `/${LOOP_SLASH_COMMAND} `
+const HOOK_PROMPT_START = `/${HOOK_RUN_SLASH_COMMAND} `
 // What choosing `/review` leaves: the command, ready for what to review (M70).
 const REVIEW_PROMPT_START = `/${REVIEW_SLASH_COMMAND} `
 // What choosing `/handoff` leaves in the prompt: the command, ready for the goal (M74).
@@ -296,6 +307,9 @@ function promptStartFor(action: PaletteAction): string | undefined {
     }
     case 'startLoop': {
       return LOOP_PROMPT_START
+    }
+    case 'startHook': {
+      return HOOK_PROMPT_START
     }
     case 'startReview': {
       return REVIEW_PROMPT_START
@@ -477,6 +491,73 @@ export function App({
     },
     [store, onGoalCommand],
   )
+  // Git and pull requests (M71): the panel's buttons, forms and drafts.
+  const onGitAction = useCallback(
+    (action: GitAction) => {
+      postMessage({ type: 'gitAction', action })
+    },
+    [postMessage],
+  )
+  const onGitEdit = useCallback(
+    (edit: GitFormEdit) => {
+      dispatch({ type: 'gitFormEdited', edit })
+    },
+    [dispatch],
+  )
+  const onGitClose = useCallback(() => {
+    postMessage({ type: 'gitAction', action: 'cancel' })
+    dispatch({ type: 'gitFormClosed' })
+  }, [dispatch, postMessage])
+  const onGitCommit = useCallback(() => {
+    const { form } = store.getState().git
+    if (form?.kind !== 'commit') {
+      return
+    }
+    dispatch({ type: 'gitFormBusy' })
+    postMessage({
+      type: 'gitCommit',
+      message: form.message,
+      includeUnstaged: form.includeUnstaged,
+    })
+  }, [store, dispatch, postMessage])
+  const onGitCreatePullRequest = useCallback(() => {
+    const { form } = store.getState().git
+    if (form?.kind !== 'pullRequest') {
+      return
+    }
+    dispatch({ type: 'gitFormBusy' })
+    postMessage({
+      type: 'gitCreatePullRequest',
+      head: form.facts.head,
+      base: form.base,
+      title: form.title,
+      body: form.body,
+      isDraft: form.isDraft,
+    })
+  }, [store, dispatch, postMessage])
+  // The user's own message asks for the draft (PLAN.md D49: part of their turn).
+  const onGitGenerate = useCallback(
+    (kind: GitDraftKind) => {
+      const current = store.getState()
+      if (current.auth.status !== 'signedIn' || current.activeTurnId !== undefined) {
+        return
+      }
+      const localId = newLocalId()
+      const text =
+        kind === 'commitMessage' ? UI_TEXT.gitAskCommitMessage : UI_TEXT.gitAskPullRequest
+      dispatch({ type: 'gitDraftRequested', localId, text })
+      postMessage({
+        type: 'sendMessage',
+        localId,
+        text,
+        attachmentIds: [],
+        gitDraft: kind,
+        ...(current.git.form?.kind === 'pullRequest' && { gitDraftBase: current.git.form.base }),
+      })
+      setIsPinnedToEnd(true)
+    },
+    [store, dispatch, newLocalId, postMessage],
+  )
   // `/handoff …` is a command to the backend, not a message (M74): the
   // host cards the accepted request itself, and the brief comes back as a
   // dialog before anything starts. The draft clears only once the host
@@ -568,6 +649,16 @@ export function App({
       return
     }
     const text = current.draft.trim()
+    if (text === HOOK_PROMPT_START.trim() || text.startsWith(HOOK_PROMPT_START)) {
+      const name = text.slice(HOOK_PROMPT_START.trim().length).trim()
+      if (name === '') {
+        dispatch({ type: 'noticeRaised', level: 'warning', text: UI_TEXT.manualHookPick })
+        return
+      }
+      dispatch({ type: 'draftChanged', draft: '' })
+      postMessage({ type: 'runManualHook', name })
+      return
+    }
     // `/review …` (M70): a review turn, its card what was typed. The chips
     // and the reference chip wait for the next message.
     const review = parseReviewPrompt(text)
@@ -928,6 +1019,28 @@ export function App({
     (userInputId: string, text: string) => {
       dispatch({ type: 'questionSubmitted', userInputId })
       postMessage({ type: 'clarifyQuestion', userInputId, text })
+    },
+    [dispatch, postMessage],
+  )
+  // All three lock the form until the host settles it (M91 lane M).
+  const onAcceptElicitation = useCallback(
+    (elicitationId: string, values: Record<string, unknown>) => {
+      dispatch({ type: 'elicitationSubmitted', elicitationId })
+      postMessage({ type: 'elicitationAnswer', elicitationId, action: 'accept', values })
+    },
+    [dispatch, postMessage],
+  )
+  const onDeclineElicitation = useCallback(
+    (elicitationId: string) => {
+      dispatch({ type: 'elicitationSubmitted', elicitationId })
+      postMessage({ type: 'elicitationAnswer', elicitationId, action: 'decline' })
+    },
+    [dispatch, postMessage],
+  )
+  const onCancelElicitation = useCallback(
+    (elicitationId: string) => {
+      dispatch({ type: 'elicitationSubmitted', elicitationId })
+      postMessage({ type: 'elicitationAnswer', elicitationId, action: 'cancel' })
     },
     [dispatch, postMessage],
   )
@@ -1313,6 +1426,17 @@ export function App({
     },
     [store, dispatch, postMessage],
   )
+  // "Report this" on a recorded failure (M93 lane W): the row's
+  // sanitized event reference opens the report workflow, never its text.
+  const onReportProblem = useCallback(
+    (_entryId: string, ref: ReportEventRef) => {
+      postMessage({ type: 'openReport', ref })
+    },
+    [postMessage],
+  )
+  const onReportClosed = useCallback(() => {
+    dispatch({ type: 'reportClosed' })
+  }, [dispatch])
   // A Muse Code fault's way on (D26): the header's New conversation, or a
   // restart the host runs.
   const onNoticeAction = useCallback(
@@ -1474,6 +1598,12 @@ export function App({
           closeOverlay()
           break
         }
+        case 'openReport': {
+          // The same dialog every entry point opens (M93): the host builds it.
+          closeOverlay()
+          postMessage({ type: 'openReport' })
+          break
+        }
         case 'signOut': {
           postMessage({ type: 'signOut' })
           closeOverlay()
@@ -1492,6 +1622,11 @@ export function App({
         }
         case 'startLoop': {
           dispatch({ type: 'draftChanged', draft: LOOP_PROMPT_START })
+          closeOverlay()
+          break
+        }
+        case 'startHook': {
+          dispatch({ type: 'draftChanged', draft: HOOK_PROMPT_START })
           closeOverlay()
           break
         }
@@ -1518,13 +1653,19 @@ export function App({
         case 'showHooks':
         case 'showMemory':
         case 'newWorktree':
-        case 'removeWorktree': {
+        case 'removeWorktree':
+        case 'openPullRequestInConversation': {
           postMessage({ type: 'hostAction', action: action.type })
           closeOverlay()
           break
         }
         case 'exportConversation': {
           postMessage({ type: 'exportConversation', format: action.format })
+          closeOverlay()
+          break
+        }
+        case 'gitAction': {
+          postMessage({ type: 'gitAction', action: action.action })
           closeOverlay()
           break
         }
@@ -1613,6 +1754,16 @@ export function App({
   const onOpenUsage = useCallback(() => {
     openOverlay('usage')
   }, [openOverlay])
+  // The host asks for Account & usage (the Tab status menu's row, M94).
+  const usageRequests = state.usageRequests
+  const seenUsageRequests = useRef(usageRequests)
+  useEffect(() => {
+    if (usageRequests === seenUsageRequests.current) {
+      return
+    }
+    seenUsageRequests.current = usageRequests
+    openOverlay('usage')
+  }, [usageRequests, openOverlay])
   // The prompt's "/" menus (M38). A row chosen there takes the `/` with it,
   // unless it leaves the palette open; a skill becomes `/selector ` for its
   // arguments.
@@ -1811,6 +1962,9 @@ export function App({
           onAnswer={onAnswer}
           onCancelQuestion={onCancelQuestion}
           onClarifyQuestion={onClarifyQuestion}
+          onAcceptElicitation={onAcceptElicitation}
+          onDeclineElicitation={onDeclineElicitation}
+          onCancelElicitation={onCancelElicitation}
           onMoveToBackground={onMoveToBackground}
           onStopTask={onStopTask}
           canStopUserShell={state.auth.backend === 'modelApi'}
@@ -1840,6 +1994,7 @@ export function App({
           }
           onRedo={state.checkpoints.canRestore ? onRedo : undefined}
           onNoticeAction={onNoticeAction}
+          onReportProblem={onReportProblem}
           restoreNote={restoreNoteOf(state)}
           conversationNote={
             state.sessionId !== undefined && !state.canEditSessions
@@ -2055,8 +2210,11 @@ export function App({
     reviewPane !== null ||
     isInstallConfirmOpen ||
     state.share !== undefined
+  // The report dialog (M93) keeps the same policy: it waits for those, and a
+  // brief that arrives while it is open waits for it in turn, so two modals
+  // never share the panel and the open one keeps focus.
   const handoffDialog =
-    isOtherModalOpen || state.handoff === undefined ? null : (
+    isOtherModalOpen || state.report !== undefined || state.handoff === undefined ? null : (
       <HandoffDialog
         goal={state.handoff.goal}
         todos={state.handoff.todos}
@@ -2067,10 +2225,25 @@ export function App({
         onCancel={onHandoffCancel}
       />
     )
+  // The report-a-problem preview (M93 lane W): the sealed draft the host
+  // built, shown byte-identical, one modal at a time (above), and over the
+  // crash screen too (main.tsx renders the same host there, so a render
+  // failure keeps its way on). Keyed by the host's session: a new dialog
+  // starts its own count of choices.
+  const reportDialog =
+    isOtherModalOpen || state.report === undefined ? null : (
+      <DeferredReportDialog
+        key={state.report.session}
+        report={state.report}
+        postMessage={postMessage}
+        onClose={onReportClosed}
+      />
+    )
   // M92e: the secret dialog waits behind any other modal (as the handoff
-  // dialog does), and holds the composer inert while it shows.
+  // dialog does), and holds the composer inert while it shows; it and the
+  // report dialog never share the panel either (M93).
   const secretPromptDialog =
-    isOtherModalOpen || state.secretPrompt === undefined ? null : (
+    isOtherModalOpen || state.report !== undefined || state.secretPrompt === undefined ? null : (
       <SecretPromptDialog
         redactedText={state.secretPrompt.redactedText}
         onSendAnyway={onSecretPromptSendAnyway}
@@ -2080,7 +2253,10 @@ export function App({
   // Behind a modal nothing takes focus or clicks (M25): the modal traps Tab,
   // the rest of the panel is inert.
   const isModalOpen =
-    isOtherModalOpen || state.handoff !== undefined || state.secretPrompt !== undefined
+    isOtherModalOpen ||
+    state.handoff !== undefined ||
+    state.secretPrompt !== undefined ||
+    state.report !== undefined
 
   return (
     <div className="app">
@@ -2117,19 +2293,22 @@ export function App({
       </DeferredSurface>
       {handoffDialog}
       {secretPromptDialog}
+      {reportDialog}
       {state.share === undefined ? null : (
-        <ShareView
-          title={state.share.title}
-          exportedAt={state.share.exportedAt}
-          sourceBackend={state.share.sourceBackend}
-          modelId={state.share.modelId}
-          redacted={state.share.redacted}
-          items={state.share.items}
-          onClose={onCloseShare}
-          onOpenLink={onOpenExternal}
-          onCopy={onCopy}
-          onSectionError={onShareSectionError}
-        />
+        <DeferredSurface onClose={onCloseShare}>
+          <ShareView
+            title={state.share.title}
+            exportedAt={state.share.exportedAt}
+            sourceBackend={state.share.sourceBackend}
+            modelId={state.share.modelId}
+            redacted={state.share.redacted}
+            items={state.share.items}
+            onClose={onCloseShare}
+            onOpenLink={onOpenExternal}
+            onCopy={onCopy}
+            onSectionError={onShareSectionError}
+          />
+        </DeferredSurface>
       )}
       <main
         ref={bodyRef}
@@ -2151,9 +2330,27 @@ export function App({
           </button>
         ) : null}
       </main>
-      {/* Review waits for M70's review pane (PR #69), which main does not have yet (D66). */}
       {/* Review opens M70's pane on the same edits (D66 item 10). */}
       <DiffTally counts={tally} onReview={openReviewPane} />
+      {state.git.form === undefined &&
+      state.git.state.worktree === undefined &&
+      state.git.state.pullRequest === undefined &&
+      state.git.state.hold === undefined ? null : (
+        <DeferredSurface onClose={onGitClose} isModal={false}>
+          <GitPanel
+            git={state.git}
+            isInert={isModalOpen}
+            canGenerate={state.auth.status === 'signedIn' && state.activeTurnId === undefined}
+            onAction={onGitAction}
+            onEdit={onGitEdit}
+            onClose={onGitClose}
+            onCommit={onGitCommit}
+            onCreatePullRequest={onGitCreatePullRequest}
+            onGenerate={onGitGenerate}
+            onOpenLink={onOpenExternal}
+          />
+        </DeferredSurface>
+      )}
       <GoalPanel
         key={state.sessionId}
         goal={state.goal}
@@ -2183,6 +2380,7 @@ export function App({
       )}
       <div className="composer-area" inert={isModalOpen}>
         {floating}
+        <JudgeStatusLine status={state.judge} />
         <Composer
           draft={state.draft}
           placeholder={state.composerPlaceholder}

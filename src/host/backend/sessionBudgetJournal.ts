@@ -80,6 +80,8 @@ export type SessionBudgetJournalDeps = {
 interface ProjectedSessionBudgetJournal extends SessionBudgetJournal {
   /** Existing journal data owns this field; an unopened journal leaves a snapshot alone. */
   project(session: StoredSession): Promise<StoredSession>
+  /** Read-only reconciliation; ownership of settlement stays with the creator. */
+  lookupByClaimId(sessionId: string, accountId: string, claimId: string): Promise<Claim>
 }
 
 interface Scope {
@@ -445,6 +447,10 @@ export function createSessionBudgetJournal(
   }
 
   return {
+    lookupByClaimId(sessionId, accountId, claimId) {
+      const scope = scopeFor(sessionId, accountId)
+      return Promise.resolve(readClaim(scope, readSeed(scope), claimId))
+    },
     async read(sessionId, accountId) {
       const scope = scopeFor(sessionId, accountId)
       await ensure(scope)
