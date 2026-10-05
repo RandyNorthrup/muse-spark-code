@@ -543,7 +543,8 @@ export const EN = {
   reportSaveFailed: 'The report could not be saved.',
   reportUrlTooLong:
     'The report is too long to open in a browser address. Copy it instead, then paste it into the new-issue form.',
-  reportRecordingUnavailable: 'Event recording was unavailable, so this report has no recent events.',
+  reportRecordingUnavailable:
+    'Event recording was unavailable, so this report has no recent events.',
   reportDescriptionWarning:
     'Anything you write above is sent exactly as written. Do not include passwords, keys or other confidential information.',
   reportVscodeReporterNote:
@@ -1696,6 +1697,7 @@ export const EN = {
     '  {command} auth set|status|clear  Store, check or remove the Meta Model API key',
     '  {command} exec [options] <prompt>  Run one headless turn',
     '  {command} scan-secrets <file> [--key-stdin]  Count likely secrets in one file (prints only the number)',
+    '  {command} report [options]  Print a scrubbed problem report (starts no backend, opens no browser)',
     'Options:',
     '  --backend museCode|modelApi      Who pays: Muse Code (the default) or the Model API key',
     '  --trust-workspace                Load the folder’s rules, skills and memory',
@@ -1707,6 +1709,20 @@ export const EN = {
     '  --image-generation               Offer paid image generation (Model API backend; its price is asked first)',
     '  --verbose                        Log every detail on stderr',
     '  --help, --version',
+  ].join('\n'),
+  // Report a problem headless (M93 lane A, PLAN.md D72): `report --help`
+  // and bad report arguments print this on stderr, never the report itself.
+  // {command}: the executable's name. <file> and <text> stay as typed.
+  reportUsage: [
+    'Usage:',
+    '  {command} report [--out <file>] [--description <text>] [--no-facts] [--no-events]',
+    '  Prints the scrubbed problem report to stdout, or writes it to <file> with --out.',
+    '  Starts no backend, signs in nowhere, and opens no browser.',
+    'Options:',
+    '  --out <file>         Write the report to a file instead of stdout',
+    '  --description <text>  What was happening, in your own words',
+    '  --no-facts           Leave the support facts out',
+    '  --no-events          Leave the recent events out',
   ].join('\n'),
   // M80 (PLAN.md D65): the headless exec and scan-secrets commands.
   execBudgetRequired: 'Model API requires --max-budget-usd.',

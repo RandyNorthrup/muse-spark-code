@@ -53,6 +53,7 @@ import {
   ACP_PAID_TOOL_CALL_PREFIX,
   ACP_SESSION_LIST_LIMIT,
   type AcpBackendKind,
+  type ReportEventKind,
   CONTRIBUTOR_MODEL_SUFFIX,
   DEFAULT_EFFORT,
   type EffortLevel,
@@ -130,6 +131,36 @@ export interface AcpAgentDeps {
   /** The flagged paid features; the agent asks before each use (M63c, M58). */
   readonly paid: AcpPaidUse
   readonly log: CoreLogger
+  /**
+   * Report a problem (M93 lane A, PLAN.md D72): facts-only error observation
+   * for the standalone report's journal. The runtime wires this to its local
+   * recorder adapter in ACP mode; the report subcommand reads it back. The
+   * observer receives a fixed event kind and a fixed short code per failure
+   * site — never a message, stack, path, prompt or session id — so observing
+   * cannot leak what the scrub would remove. It runs after the log call,
+   * never touches ACP stdout, and a throwing observer never breaks the
+   * session. Absent, the agent behaves exactly as before.
+   */
+  readonly reportError?: (fact: AcpErrorFact) => void
+}
+
+/** One observed failure as facts: a fixed kind and a fixed short code, nothing else. */
+export interface AcpErrorFact {
+  readonly kind: ReportEventKind
+  readonly code: string
+}
+
+/** Hands one fixed code to the error observer; a throwing observer never breaks the session. */
+function observeError(deps: AcpAgentDeps, code: string): void {
+  const report = deps.reportError
+  if (report === undefined) {
+    return
+  }
+  try {
+    report({ kind: 'errorNotice', code })
+  } catch {
+    // Observing never breaks the session it watches.
+  }
 }
 
 type ApprovalRequest = Extract<AgentEvent, { type: 'approvalRequested' }>
@@ -237,6 +268,7 @@ class AcpSession {
       this.deps.log.warn(
         `ACP session ${this.sessionId}: an update was not sent: ${failureForLog(error)}`,
       )
+      observeError(this.deps, 'updateNotSent')
     }
   }
 
@@ -273,6 +305,7 @@ class AcpSession {
       this.deps.log.warn(
         `ACP session ${this.sessionId}: skills unavailable: ${failureForLog(error)}`,
       )
+      observeError(this.deps, 'skillsUnavailable')
       return
     }
     this.send({
@@ -410,6 +443,7 @@ class AcpSession {
         this.deps.log.warn(
           `ACP session ${this.sessionId}: permission request failed, denying: ${failureForLog(error)}`,
         )
+        observeError(this.deps, 'permissionRequestFailed')
       }
       choice = decidedChoice(response, event.availableChoices)
     }
@@ -422,6 +456,7 @@ class AcpSession {
       this.deps.log.warn(
         `ACP session ${this.sessionId}: approval ${event.approvalId} offers no denial; stopping the turn`,
       )
+      observeError(this.deps, 'approvalWithoutDenial')
       await this.cancel()
       return
     }
@@ -474,6 +509,7 @@ class AcpSession {
       this.deps.log.warn(
         `ACP session ${this.sessionId}: question ${event.userInputId}: ${failureForLog(error)}`,
       )
+      observeError(this.deps, 'questionFailed')
       // A form that failed is declined, so the turn goes on without the answer.
       if (this.isCurrentPrompt(pending)) {
         await this.declineQuestions(event.userInputId)
