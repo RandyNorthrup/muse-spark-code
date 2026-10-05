@@ -41,7 +41,7 @@
 // does, and its package ships that file (scripts/package-acp.mjs), so the
 // backend is built once for both.
 
-import { mkdirSync, readdirSync, statSync, writeFileSync } from 'node:fs'
+import { mkdirSync, readdirSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import * as esbuild from 'esbuild'
 import { copyCatalogToDist } from './sync-provider-catalog.mjs'
@@ -56,6 +56,8 @@ const HOST_OUTFILE = 'dist/extension.js'
 // mutable installed-language state. The browser keeps its fallback bundled.
 const UI_TEXT_ENTRY = 'src/shared/l10n/en.ts'
 const UI_TEXT_OUTFILE = 'dist/uiText.js'
+const VALIDATION_ENTRY = 'src/shared/validationEntry.ts'
+const VALIDATION_OUTFILE = 'dist/validation.js'
 const MODEL_API_ENTRY = 'src/host/backend/modelApiEntry.ts'
 const MODEL_API_OUTFILE = 'dist/modelApi.js'
 const PROVIDERS_ENTRY = 'src/host/backend/providersEntry.ts'
@@ -122,6 +124,15 @@ const sharedUiText = {
   },
 }
 
+// Share mini-validation across Node bundles; browsers and tests inline it.
+/** @type {import('esbuild').Plugin} */
+const sharedValidation = {
+  name: 'shared-validation',
+  setup(build) {
+    build.onResolve({ filter: /^zod\/mini$/ }, () => ({ path: './validation.js', external: true }))
+  },
+}
+
 // Keep dynamic imports dynamic: these entries run only on their first action.
 /** @type {import('esbuild').Plugin} */
 const deferredCohort = {
@@ -153,7 +164,7 @@ const common = {
 /** @type {import('esbuild').BuildOptions} */
 const hostOptions = {
   ...common,
-  plugins: [sharedUiText, deferredCohort],
+  plugins: [sharedUiText, sharedValidation, deferredCohort],
   entryPoints: [HOST_ENTRY],
   outfile: HOST_OUTFILE,
   platform: 'node',
@@ -165,7 +176,7 @@ const hostOptions = {
 /** @type {import('esbuild').BuildOptions} */
 const modelApiOptions = {
   ...common,
-  plugins: [sharedUiText, deferredCohort],
+  plugins: [sharedUiText, sharedValidation, deferredCohort],
   entryPoints: [MODEL_API_ENTRY],
   outfile: MODEL_API_OUTFILE,
   platform: 'node',
@@ -197,7 +208,7 @@ const reviewerOptions = {
 /** @type {import('esbuild').BuildOptions} */
 const reviewOptions = {
   ...common,
-  plugins: [sharedUiText],
+  plugins: [sharedUiText, sharedValidation],
   entryPoints: [REVIEW_ENTRY],
   outfile: REVIEW_OUTFILE,
   platform: 'node',
@@ -208,7 +219,7 @@ const reviewOptions = {
 /** @type {import('esbuild').BuildOptions} */
 const planMarkdownOptions = {
   ...common,
-  plugins: [sharedUiText],
+  plugins: [sharedUiText, sharedValidation],
   entryPoints: [PLAN_MARKDOWN_ENTRY],
   outfile: PLAN_MARKDOWN_OUTFILE,
   platform: 'node',
@@ -249,7 +260,7 @@ const museCodeReviewerOptions = {
 /** @type {import('esbuild').BuildOptions} */
 const modelsPanelOptions = {
   ...common,
-  plugins: [sharedUiText],
+  plugins: [sharedUiText, sharedValidation],
   entryPoints: [MODELS_PANEL_ENTRY],
   outfile: MODELS_PANEL_OUTFILE,
   platform: 'node',
@@ -261,7 +272,7 @@ const modelsPanelOptions = {
 /** @type {import('esbuild').BuildOptions} */
 const agentImportOptions = {
   ...common,
-  plugins: [sharedUiText],
+  plugins: [sharedUiText, sharedValidation],
   entryPoints: [AGENT_IMPORT_ENTRY],
   outfile: AGENT_IMPORT_OUTFILE,
   platform: 'node',
@@ -273,7 +284,7 @@ const agentImportOptions = {
 /** @type {import('esbuild').BuildOptions} */
 const bundledSkillsOptions = {
   ...common,
-  plugins: [sharedUiText],
+  plugins: [sharedUiText, sharedValidation],
   entryPoints: [BUNDLED_SKILLS_ENTRY],
   outfile: BUNDLED_SKILLS_OUTFILE,
   platform: 'node',
@@ -284,6 +295,7 @@ const bundledSkillsOptions = {
 /** @type {import('esbuild').BuildOptions} */
 const searchWorkerOptions = {
   ...common,
+  plugins: [sharedValidation],
   entryPoints: [SEARCH_WORKER_ENTRY],
   outfile: SEARCH_WORKER_OUTFILE,
   platform: 'node',
@@ -294,7 +306,7 @@ const searchWorkerOptions = {
 /** @type {import('esbuild').BuildOptions} */
 const checkpointStoreOptions = {
   ...common,
-  plugins: [sharedUiText],
+  plugins: [sharedUiText, sharedValidation],
   entryPoints: [CHECKPOINT_STORE_ENTRY],
   outfile: CHECKPOINT_STORE_OUTFILE,
   platform: 'node',
@@ -305,7 +317,7 @@ const checkpointStoreOptions = {
 /** @type {import('esbuild').BuildOptions} */
 const acpOptions = {
   ...common,
-  plugins: [sharedUiText],
+  plugins: [sharedUiText, sharedValidation],
   entryPoints: [ACP_ENTRY],
   outfile: ACP_OUTFILE,
   platform: 'node',
@@ -325,9 +337,16 @@ const uiTextOptions = {
   target: HOST_NODE_TARGET,
 }
 
+const validationOptions = {
+  ...uiTextOptions,
+  entryPoints: [VALIDATION_ENTRY],
+  outfile: VALIDATION_OUTFILE,
+}
+
 /** @type {import('esbuild').BuildOptions} */
 const pageWorkerOptions = {
   ...common,
+  plugins: [sharedValidation],
   entryPoints: [PAGE_WORKER_ENTRY],
   outfile: PAGE_WORKER_OUTFILE,
   platform: 'node',
@@ -338,12 +357,21 @@ const pageWorkerOptions = {
 /** @type {import('esbuild').BuildOptions} */
 const webviewOptions = {
   ...common,
-  entryPoints: { main: WEBVIEW_ENTRY, models: MODELS_WEBVIEW_ENTRY },
+  entryPoints: { main: WEBVIEW_ENTRY },
   outdir: WEBVIEW_OUTDIR,
   platform: 'browser',
-  format: 'iife',
+  format: 'esm',
+  splitting: true,
+  chunkNames: 'chunks/[name]-[hash]',
   target: BROWSER_TARGET,
   jsx: 'automatic',
+}
+
+const modelsWebviewOptions = {
+  ...webviewOptions,
+  entryPoints: { models: MODELS_WEBVIEW_ENTRY },
+  format: 'iife',
+  splitting: false,
 }
 
 function listIntegrationTests() {
@@ -371,6 +399,8 @@ function reportSize(path) {
 
 // Validate the sealed data before starting any bundle build or watcher.
 copyCatalogToDist()
+rmSync(path.join(WEBVIEW_OUTDIR, 'chunks'), { recursive: true, force: true })
+
 if (isWatch) {
   const contexts = await Promise.all([
     esbuild.context(hostOptions),
@@ -389,9 +419,11 @@ if (isWatch) {
     esbuild.context(museCodeReviewerOptions),
     esbuild.context(modelsPanelOptions),
     esbuild.context(uiTextOptions),
+    esbuild.context(validationOptions),
     esbuild.context(searchWorkerOptions),
     esbuild.context(pageWorkerOptions),
     esbuild.context(webviewOptions),
+    esbuild.context(modelsWebviewOptions),
   ])
   await Promise.all(contexts.map((ctx) => ctx.watch()))
   console.log('watching for changes…')
@@ -413,9 +445,11 @@ if (isWatch) {
     museCodeReviewer: esbuild.build(museCodeReviewerOptions),
     modelsPanel: esbuild.build(modelsPanelOptions),
     uiText: esbuild.build(uiTextOptions),
+    validation: esbuild.build(validationOptions),
     searchWorker: esbuild.build(searchWorkerOptions),
     pageWorker: esbuild.build(pageWorkerOptions),
     webview: esbuild.build(webviewOptions),
+    modelsWebview: esbuild.build(modelsWebviewOptions),
   }
   const acp = esbuild.build(acpOptions)
   const builds = [...Object.values(shipped), acp]
@@ -450,6 +484,7 @@ if (isWatch) {
   reportSize(MUSE_CODE_REVIEWER_OUTFILE)
   reportSize(MODELS_PANEL_OUTFILE)
   reportSize(UI_TEXT_OUTFILE)
+  reportSize(VALIDATION_OUTFILE)
   reportSize(SEARCH_WORKER_OUTFILE)
   reportSize(PAGE_WORKER_OUTFILE)
   reportSize(path.join(WEBVIEW_OUTDIR, 'main.js'))

@@ -114,6 +114,9 @@ describe('deferred cohort bundles', () => {
 
   it.each([
     ['extension', 'src/host/bestOfN/bestOfNManager.ts', 'on its first action'],
+    ['modelsPanel', 'src/shared/protocol.ts', 'chat schemas'],
+    ['modelApi', 'node_modules/zod/v4/mini/future.js', 'shared mini-parser'],
+    ['webview', 'src/webview/components/UsageDialog.tsx', 'deferred webview chunk'],
     ['modelApi', 'src/core/backends/modelapi/reviewerEntry.ts', 'on its first action'],
     // Split out of activation on 2026-10-03 (PLAN.md D6).
     ['extension', 'src/core/codeIntel/codeIntelQuery.ts', 'on the first code intelligence call'],
@@ -140,7 +143,7 @@ describe('deferred cohort bundles', () => {
       const original = readFileSync(file)
       const hash = createHash('sha256').update(original).digest('hex')
       const meta = metafileSchema.parse(JSON.parse(original.toString('utf8')))
-      const output = meta.outputs[`dist/${name}.js`]
+      const output = meta.outputs[name === 'webview' ? 'dist/webview/main.js' : `dist/${name}.js`]
       if (output === undefined) throw new Error('Missing bundle output')
       try {
         if (name === 'providers') Reflect.deleteProperty(output.inputs, source)
@@ -150,11 +153,17 @@ describe('deferred cohort bundles', () => {
           encoding: 'utf8',
         })
         expect(red.status).toBe(1)
-        expect(red.stderr).toContain(
-          name === 'providers'
-            ? `dist/providers.js no longer carries ${source}`
-            : `carries ${source}, which loads only ${use}`,
-        )
+        let message = `dist/${name}.js carries ${source}, which loads only ${use}`
+        if (name === 'webview') {
+          message = `${source} must occur in exactly one deferred webview chunk`
+        } else if (use === 'chat schemas') {
+          message = 'dist/modelsPanel.js carries unrelated chat schemas'
+        } else if (use === 'shared mini-parser') {
+          message = 'dist/modelApi.js inlines the shared mini-parser'
+        } else if (name === 'providers') {
+          message = `dist/providers.js no longer carries ${source}`
+        }
+        expect(red.stderr).toContain(message)
       } finally {
         writeFileSync(file, original)
       }

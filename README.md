@@ -3538,6 +3538,10 @@ states, npm EOTP, signing decisions and the prepared M80 hooks.
 
 ### How this extension is built
 
+Node bundles share the mini-validation runtime; each message keeps its original
+schema. Account & usage loads its dialog when opened. Its loading modal can be
+closed before the local script finishes loading.
+
 The M95 integration build emits provider codecs and core as `dist/providers.js`,
 the Models panel host as `dist/modelsPanel.js`, and its browser script and
 stylesheet as `dist/webview/models.js` and `dist/webview/models.css`. The

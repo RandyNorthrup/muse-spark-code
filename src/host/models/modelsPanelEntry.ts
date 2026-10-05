@@ -7,7 +7,7 @@
 
 import * as vscode from 'vscode'
 import { GLOBAL_STATE_KEYS, PROVIDER_IMPORT_MAX_BYTES, UI_TEXT } from '../../shared/constants'
-import { parseHostToWebviewMessage } from '../../shared/protocol'
+import { providerSetupSchema } from '../../shared/providerSetup'
 import type { ChatSurface } from '../views/chatSurface'
 import { fill, setUiText } from '../../shared/l10n/text'
 import type { SecretStore } from '../auth/credentialStore'
@@ -196,7 +196,7 @@ export async function setComposerModelConfirmed(
   }
 }
 
-/** The existing chat protocol decides when lane U's setup message is supported. */
+/** The publisher uses the same setup-message schema as the chat boundary. */
 export function publishProviderSetup(
   outcome: WizardSaveOutcome,
   surface: Pick<ChatSurface, 'post'>,
@@ -204,13 +204,13 @@ export function publishProviderSetup(
   if (!outcome.composerSet) {
     return
   }
-  const parsed = parseHostToWebviewMessage({
+  const parsed = providerSetupSchema.safeParse({
     type: 'setupComplete',
     provider: outcome.providerId,
     model: outcome.modelRef,
   })
-  if (parsed.ok) {
-    surface.post(parsed.message)
+  if (parsed.success) {
+    surface.post(parsed.data)
   }
 }
 

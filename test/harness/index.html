@@ -1080,7 +1080,9 @@
       }
     </script>
     <script>
-      document.write(`<script src="../../dist/webview/${harnessBundle}.js"><\/script>`)
+      document.write(
+        `<script type="module" src="../../dist/webview/${harnessBundle}.js"><\/script>`,
+      )
     </script>
     <script>
       // Scripting errors and dropped host messages are written into the page

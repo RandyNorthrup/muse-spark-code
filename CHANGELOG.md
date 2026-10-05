@@ -9,6 +9,11 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- M95 integration shares the Node validation runtime and the provider-setup
+  schema, so Models host stays within its existing size budget. Account & usage
+  loads on demand with a dismissible loading modal. Chat's unchanged startup
+  budget counts every static JavaScript chunk; the package ships all chunks.
+
 - M95 integration uses one strict Models panel bridge and includes the captured
   Chat and Ollama codecs in the lazy provider bundle. Z.ai key checks use a
   fixed pattern, and OAuth callbacks serve localized plain text. Models

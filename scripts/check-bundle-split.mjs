@@ -51,6 +51,9 @@
 
 import { existsSync, readdirSync, readFileSync } from 'node:fs'
 import path from 'node:path'
+import ts from 'typescript'
+import { createRequire } from 'node:module'
+import { DEFERRED_WEBVIEW_SURFACES, webviewStartupOutputs } from './lib/webviewBundles.mjs'
 
 const MODEL_API_DIR = 'src/core/backends/modelapi'
 const ENTRY = 'src/host/backend/modelApiEntry.ts'
@@ -533,7 +536,7 @@ function shippedBundles() {
         const metafile = `${dir}/${name}`
         const { outputs } = JSON.parse(readFileSync(metafile, 'utf8'))
         return Object.keys(outputs)
-          .filter((output) => output.endsWith('.js'))
+          .filter((output) => output.endsWith('.js') && !output.startsWith('dist/webview/chunks/'))
           .map((output) => ({ output, metafile }))
       }),
   )
@@ -628,7 +631,13 @@ function blockKeys(name) {
 const outputText = new Map()
 function textOf(output) {
   if (!outputText.has(output)) {
-    outputText.set(output, readFileSync(output, 'utf8'))
+    const files =
+      output === 'dist/webview/main.js'
+        ? Object.keys(JSON.parse(readFileSync('dist/meta/webview.json', 'utf8')).outputs).filter(
+            (file) => file.endsWith('.js'),
+          )
+        : [output]
+    outputText.set(output, files.map((file) => readFileSync(file, 'utf8')).join('\n'))
   }
   return outputText.get(output)
 }
@@ -694,6 +703,122 @@ for (const key of modelTextKeys) {
   }
 }
 
+// Optional Account & usage must remain behind dynamic imports. Every
+// emitted JS chunk must be reachable and packaged; stale output is refused.
+const webviewMeta = JSON.parse(readFileSync('dist/meta/webview.json', 'utf8'))
+const eagerWebview = new Set(webviewStartupOutputs(webviewMeta))
+const reachableWebview = new Set()
+const visitWebview = (file) => {
+  if (reachableWebview.has(file)) return
+  reachableWebview.add(file)
+  const output = webviewMeta.outputs[file]
+  if (!output) {
+    problems.push(`Missing webview chunk ${file}`)
+    return
+  }
+  for (const imported of output.imports) if (!imported.external) visitWebview(imported.path)
+}
+visitWebview('dist/webview/main.js')
+for (const surface of DEFERRED_WEBVIEW_SURFACES) {
+  const source = `src/webview/components/${surface}.tsx`
+  const outputs = Object.entries(webviewMeta.outputs).filter(([, output]) =>
+    Object.hasOwn(output.inputs, source),
+  )
+  if (outputs.length !== 1 || eagerWebview.has(outputs[0]?.[0])) {
+    problems.push(`${source} must occur in exactly one deferred webview chunk`)
+  }
+}
+for (const [file, output] of Object.entries(webviewMeta.outputs)) {
+  if (!file.endsWith('.js')) continue
+  if (!reachableWebview.has(file) || !existsSync(file))
+    problems.push(`Unreachable or missing webview chunk ${file}`)
+  if (
+    output.entryPoint &&
+    output.entryPoint !== 'src/webview/main.tsx' &&
+    DEFERRED_WEBVIEW_SURFACES.every(
+      (name) => output.entryPoint !== `src/webview/components/${name}.tsx`,
+    )
+  ) {
+    problems.push(`Unlisted deferred webview surface ${output.entryPoint}`)
+  }
+}
+const chunks = 'dist/webview/chunks'
+const builtChunks = readdirSync(chunks).filter((name) => name.endsWith('.js'))
+for (const file of builtChunks) {
+  if (!reachableWebview.has(`${chunks}/${file}`)) problems.push(`Stale webview chunk ${file}`)
+}
+
+// TRAIN13B: Node consumers share exactly the mini-parser API they read.
+const validationMeta = JSON.parse(readFileSync('dist/meta/validation.json', 'utf8'))
+const validationExports = new Set(
+  Object.keys(createRequire(import.meta.url)(path.resolve('dist/validation.js'))),
+)
+const nodeMetafiles = readdirSync('dist/meta')
+  .filter((name) => !['validation.json', 'webview.json', 'modelsWebview.json'].includes(name))
+  .map((name) => `dist/meta/${name}`)
+nodeMetafiles.push('dist/meta-acp/acp.json')
+const validationReaders = new Set()
+for (const file of nodeMetafiles) {
+  const meta = JSON.parse(readFileSync(file, 'utf8'))
+  for (const [output, details] of Object.entries(meta.outputs)) {
+    if (
+      Object.keys(details.inputs).some((input) => input.startsWith('node_modules/zod/v4/mini/'))
+    ) {
+      problems.push(`${output} inlines the shared mini-parser`)
+    }
+  }
+  const sourceInputs = Object.keys(meta.inputs).filter((name) => name.startsWith('src/'))
+  for (const input of sourceInputs) {
+    validationReaders.add(input)
+  }
+}
+for (const input of validationReaders) {
+  const source = ts.createSourceFile(
+    input,
+    readFileSync(input, 'utf8'),
+    ts.ScriptTarget.Latest,
+    true,
+  )
+  const aliases = new Set()
+  for (const statement of source.statements) {
+    if (
+      ts.isImportDeclaration(statement) &&
+      ts.isStringLiteral(statement.moduleSpecifier) &&
+      statement.moduleSpecifier.text === 'zod/mini' &&
+      statement.importClause?.namedBindings &&
+      ts.isNamespaceImport(statement.importClause.namedBindings)
+    ) {
+      aliases.add(statement.importClause.namedBindings.name.text)
+    }
+  }
+  const visit = (node) => {
+    if (
+      ts.isPropertyAccessExpression(node) &&
+      ts.isIdentifier(node.expression) &&
+      aliases.has(node.expression.text) &&
+      !validationExports.has(node.name.text)
+    ) {
+      problems.push(`${input} reads zod/mini.${node.name.text}, absent from validation.js`)
+    }
+    ts.forEachChild(node, visit)
+  }
+  visit(source)
+}
+if (
+  Object.keys(validationMeta.inputs).every(
+    (input) => !input.startsWith('node_modules/zod/v4/mini/'),
+  )
+) {
+  problems.push('dist/validation.js no longer carries the mini-parser')
+}
+
+if (
+  inputsOf({ output: 'dist/modelsPanel.js', metafile: 'dist/meta/modelsPanel.json' }).has(
+    'src/shared/protocol.ts',
+  )
+) {
+  problems.push('dist/modelsPanel.js carries unrelated chat schemas')
+}
 if (problems.length > 0) {
   console.error(`bundle split: ${String(problems.length)} problem(s); see PLAN.md D6 and M57`)
   for (const problem of problems) {

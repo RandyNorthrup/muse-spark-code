@@ -1,5 +1,6 @@
 import {
   type ReactNode,
+  lazy,
   useCallback,
   useEffect,
   useLayoutEffect,
@@ -66,7 +67,7 @@ import { ReviewPane } from './components/ReviewPane'
 import { SessionBoardDialog } from './components/SessionBoardDialog'
 import { BestOfNDialog } from './components/BestOfNDialog'
 import { SetupBanner } from './components/SetupBanner'
-import { UsageDialog } from './components/UsageDialog'
+import { DeferredSurface } from './components/DeferredSurface'
 import { HandoffDialog } from './components/HandoffDialog'
 import { ShareView } from './components/ShareView'
 import { AddContextIcon, ExpandChevron, UploadIcon } from './components/icons'
@@ -100,6 +101,11 @@ import {
 } from './state/uiState'
 import { isChildRunning } from './workflowDetails'
 import type { QuoteIntent } from './components/QuoteMenu'
+
+const UsageDialog = lazy(async () => {
+  const module = await import('./components/UsageDialog')
+  return { default: module.UsageDialog }
+})
 
 export interface AppProps {
   readonly postMessage: (message: WebviewToHostMessage) => void
@@ -2054,7 +2060,7 @@ export function App({
         {board}
         {bestOfN}
       </div>
-      {usageDialog}
+      <DeferredSurface onClose={closeOverlay}>{usageDialog}</DeferredSurface>
       {handoffDialog}
       {agentMap}
       {reviewPane}

@@ -5,6 +5,7 @@
 // Shared by both TypeScript projects (host and webview), so this file must not
 // import from `vscode`, Node, or the DOM.
 
+import { providerSetupSchema } from './providerSetup'
 import * as z from 'zod/mini'
 import {
   agentEventSchema,
@@ -738,11 +739,7 @@ const hostToWebviewMessageSchema = z.discriminatedUnion('type', [
   }),
   // A finished provider setup (M95): the wizard saved a provider and set the
   // composer's model. The panel confirms once, then leaves first run.
-  z.object({
-    type: z.literal('setupComplete'),
-    provider: z.string(),
-    model: z.string(),
-  }),
+  providerSetupSchema,
   // A subagent's own transcript for the Agent map (M14).
   z.object({
     type: z.literal('childTranscript'),

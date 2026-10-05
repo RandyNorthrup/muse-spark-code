@@ -3,7 +3,8 @@
 // mirrors them) and change only with a CHANGELOG entry. Exits 1 when any production artifact exceeds
 // its budget or is missing.
 
-import { existsSync, statSync } from 'node:fs'
+import { existsSync, readFileSync, statSync } from 'node:fs'
+import { DEFERRED_WEBVIEW_SURFACES, webviewStartupOutputs } from './lib/webviewBundles.mjs'
 
 const BYTES_PER_KIB = 1024
 
@@ -61,6 +62,8 @@ const BUDGETS = [
   // Shared English fallback; existing host budgets stay unchanged. Measured
   // 104.9 KiB (2026-10-04); plus 15%, rounded up to 25 KiB.
   { path: 'dist/uiText.js', budgetKiB: 125 },
+  // Used Node mini-parser API: 39.5 KiB + 15%, rounded up to 25 KiB.
+  { path: 'dist/validation.js', budgetKiB: 50 },
   { path: 'dist/searchWorker.js', budgetKiB: 50 },
   // Web fetch's page converter (M69), on a worker started for each page:
   // 201.2 KiB when split out (parse5 122.7 of it), plus room.
@@ -74,14 +77,31 @@ const BUDGETS = [
   { path: 'dist/acp.js', budgetKiB: 850 },
 ]
 
+// Optional surfaces have their own measured + 15%, rounded-up budget.
+const DEFERRED_SURFACE_BUDGET_KIB = 25
+const webviewMeta = JSON.parse(readFileSync('dist/meta/webview.json', 'utf8'))
+const deferredBudgets = Object.entries(webviewMeta.outputs)
+  .filter(([, output]) =>
+    DEFERRED_WEBVIEW_SURFACES.some(
+      (name) => output.entryPoint === `src/webview/components/${name}.tsx`,
+    ),
+  )
+  .map(([path]) => ({ path, budgetKiB: DEFERRED_SURFACE_BUDGET_KIB }))
+
 let hasFailure = false
-for (const { path, budgetKiB } of BUDGETS) {
+for (const { path, budgetKiB } of [...BUDGETS, ...deferredBudgets]) {
   if (!existsSync(path)) {
     hasFailure = true
     console.log(`MISS ${path}: not built (budget ${budgetKiB} KiB)`)
     continue
   }
-  const sizeKiB = statSync(path).size / BYTES_PER_KIB
+  const bytes =
+    path === 'dist/webview/main.js'
+      ? webviewStartupOutputs(JSON.parse(readFileSync('dist/meta/webview.json', 'utf8')))
+          .filter((file) => file.endsWith('.js'))
+          .reduce((total, file) => total + statSync(file).size, 0)
+      : statSync(path).size
+  const sizeKiB = bytes / BYTES_PER_KIB
   const status = sizeKiB <= budgetKiB ? 'ok  ' : 'OVER'
   if (sizeKiB > budgetKiB) {
     hasFailure = true

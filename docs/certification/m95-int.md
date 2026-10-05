@@ -86,6 +86,39 @@ three failures are the tooltip/import mismatches described above. The three
 corrected whole files (including Chat) then pass 98/98, so every offline test
 has passed. Final complete quality and package results follow later.
 
+The first complete current build (before further deferral) also confirms
+Providers at 115.7/125 KiB; Models host is 94.5/75 and chat 905.0/900.
+The brief permits further deferral. Adopt the release's shared Node mini-parser
+pattern independently of a main merge, with only the API members current Node
+sources read. Extract the existing authored `setupComplete` shape once and
+reuse it in both the chat parser and panel publisher, removing unrelated chat
+and agent schema initialization from the panel. Account & usage loads through
+an optional ESM chunk with a focused, dismissible loading modal. Late import
+completion cannot reopen a closed dialog. Models remains a separate IIFE build.
+
+All static startup chunks count toward chat's unchanged 900-KiB cap. Require
+reachable deferred chunks, reject stale/unlisted outputs, enforce a 25-KiB
+optional-dialog cap (12.6 KiB measured + 15%, rounded to 25), and ship them
+through the allowlist. Node parser is initially 39.5 KiB with a 50-KiB cap by
+the same D6 rule; remove six unused API exports. Every existing cap stays fixed.
+ACP production and fake-only packages include the shared parser. Regenerated
+notices change only their bundle header; all 84 package notices stay intact.
+Host API regeneration remains 283 APIs/23 import files/23 built-ins/57 variables,
+zero problems.
+
+The original module-tag HTML assertion fires before correction. App and panel
+owning files pass 156 assertions; the corrected HTML, bundle and pending-dialog
+files pass 37/37. Six more deliberate drills (13 total this round) restore exact
+bytes: disabling the three new split checks fails their three new tests;
+changing loading text and disabling Escape fails both pending-dialog tests;
+removing `safeParse` fails API completeness; parser and optional-dialog cap + 1
+fail their budgets; adding `navigator` fails the new Node member's global guard.
+The subsequent production build passes every size, split, global and notices
+check. The complete browser gate passes all **668 pages (167 scenarios × four
+themes)**: zero violations, zero undecided rules, zero missing results. Eight
+existing obscured-menu/listbox exemptions remain separately reported; no
+exemption changes. Final full-quality receipts follow below.
+
 The preliminary build honestly fails unchanged caps: Models host 94.7/75 KiB
 and chat 905.0/900 KiB. Activation is 570.2/600 KiB, English 121.0/125 KiB.
 The missing 0.13.0 release contains shared Node validation and chat deferrals

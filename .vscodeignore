@@ -15,9 +15,11 @@
 !dist/museCodeReviewer.js
 !dist/modelsPanel.js
 !dist/uiText.js
+!dist/validation.js
 !dist/searchWorker.js
 !dist/pageWorker.js
 !dist/webview/main.js
+!dist/webview/chunks/*.js
 !dist/webview/main.css
 !dist/webview/models.js
 !dist/webview/models.css

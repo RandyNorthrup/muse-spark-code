@@ -476,7 +476,7 @@ describe('App sign-in gate', () => {
     expect(screen.getByRole('button', { name: 'Open sign-in page' })).toBeInTheDocument()
   })
 
-  it('offers CLI install while a Model API key keeps the backend signed in', () => {
+  it('offers CLI install while a Model API key keeps the backend signed in', async () => {
     const postMessage = renderReady()
     deliver({
       type: 'authState',
@@ -485,7 +485,7 @@ describe('App sign-in gate', () => {
       hasCli: false,
       installCommand: 'irm https://dev.meta.ai/install.ps1 | iex',
     })
-    openUsageDialog()
+    await openUsageDialog()
     fireEvent.click(screen.getByRole('button', { name: 'Install Muse Code' }))
     expect(screen.getByText('irm https://dev.meta.ai/install.ps1 | iex')).toBeInTheDocument()
     expect(postMessage).not.toHaveBeenCalledWith({ type: 'installMuseCode' })
@@ -512,7 +512,7 @@ describe('App sign-in gate', () => {
     expect(postMessage).toHaveBeenCalledWith({ type: 'signIn', method: 'browser' })
   })
 
-  it('offers an extra Model API key while Muse Code remains signed in', () => {
+  it('offers an extra Model API key while Muse Code remains signed in', async () => {
     const postMessage = renderReady()
     deliver({
       type: 'authState',
@@ -521,7 +521,7 @@ describe('App sign-in gate', () => {
       hasCli: true,
       hasCliSession: true,
     })
-    openUsageDialog()
+    await openUsageDialog()
     fireEvent.click(screen.getByRole('button', { name: 'Add Model API key' }))
     expect(postMessage).toHaveBeenCalledWith({ type: 'signIn', method: 'apiKey' })
   })
@@ -1094,11 +1094,11 @@ function openPalette() {
 }
 
 /** Opens the account modal through the same palette action a user selects. */
-function openUsageDialog() {
+async function openUsageDialog() {
   const filter = openPalette()
   fireEvent.change(filter, { target: { value: '/usage' } })
   fireEvent.keyDown(filter, { key: 'Enter' })
-  return screen.getByRole('dialog', { name: 'Account & usage' })
+  return await screen.findByRole('dialog', { name: 'Account & usage' })
 }
 
 describe('App palette', () => {
@@ -1974,9 +1974,9 @@ describe('App account & usage, onboarding and announcements (M8)', () => {
     weekly: { usedPercent: 7, resetsAtMs: Date.now() + 86_400_000 },
   }
 
-  it('opens Account & usage from /usage, asks the host, renders the report, closes on Escape', () => {
+  it('opens Account & usage from /usage, asks the host, renders the report, closes on Escape', async () => {
     const postMessage = renderReady()
-    const dialog = openUsageDialog()
+    const dialog = await openUsageDialog()
     expect(postMessage).toHaveBeenLastCalledWith({ type: 'readUsage' })
     expect(dialog.parentElement).toHaveClass('modal-backdrop')
     expect(dialog).toHaveTextContent('Reading usage…')
@@ -1990,9 +1990,9 @@ describe('App account & usage, onboarding and announcements (M8)', () => {
     expect(document.activeElement).toBe(textarea())
   })
 
-  it('hides old account usage immediately on the boundary clear before auth replies', () => {
+  it('hides old account usage immediately on the boundary clear before auth replies', async () => {
     renderReady()
-    const dialog = openUsageDialog()
+    const dialog = await openUsageDialog()
     deliver({ type: 'usageReport', backend: 'museCode', subscription })
     expect(dialog).toHaveTextContent('muse-pro')
     deliver({ type: 'conversationCleared', accountBoundary: true })
@@ -2300,9 +2300,9 @@ describe('App webview and UI state (M25)', () => {
     expect(screen.queryByRole('menu')).toBeNull()
   })
 
-  it('makes everything behind a modal inert', () => {
+  it('makes everything behind a modal inert', async () => {
     renderReady()
-    openUsageDialog()
+    await openUsageDialog()
     expect(screen.getByRole('main')).toHaveAttribute('inert')
     expect(document.querySelector('.composer-area')).toHaveAttribute('inert')
     expect(document.querySelector('.header-area')).toHaveAttribute('inert')
