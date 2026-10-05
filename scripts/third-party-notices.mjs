@@ -33,6 +33,7 @@ const ACP_METAFILES = [
   path.join('dist', 'meta-acp', 'acp.json'),
   path.join(METAFILE_DIR, 'modelApi.json'),
   path.join(METAFILE_DIR, 'reviewer.json'),
+  path.join(METAFILE_DIR, 'team.json'),
   path.join(METAFILE_DIR, 'searchWorker.json'),
   path.join(METAFILE_DIR, 'pageWorker.json'),
 ]

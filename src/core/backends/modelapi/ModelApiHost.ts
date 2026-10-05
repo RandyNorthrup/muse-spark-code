@@ -346,7 +346,7 @@ import {
   decideTeamConversationMode,
   type TeamConversationMode,
 } from '../../../shared/teamConversation'
-import { TEAM_TOOL_NAMES } from '../../../shared/constants'
+import { TEAM_TOOL_NAMES, TEAM_BOOTSTRAP_MODEL_TEXT } from '../../../shared/constants'
 import type { TeamCommandRecord, TeamCommandRegistry, TeamToolName } from '../../team/teamTools'
 import type { createTeamRuntime } from '../../team/teamEntry'
 import type {
@@ -5780,7 +5780,7 @@ export class ModelApiSession implements AgentSession {
       return undefined
     }
     return {
-      output: `Error: ${this.team.inPlaceRefusal()}`,
+      output: `Error: ${TEAM_BOOTSTRAP_MODEL_TEXT.inPlaceRefusal}`,
       visibleOutput: UI_TEXT.teamInPlaceOrchestratorRefused,
       failureReason: UI_TEXT.teamInPlaceOrchestratorRefused,
     }
@@ -5793,7 +5793,7 @@ export class ModelApiSession implements AgentSession {
     signal: AbortSignal,
   ): Promise<ToolOutcome> {
     if (this.isSubagent || this.teamModeForRequest() !== 'team') {
-      const reason = `Error: unknown tool ${call.name}`
+      const reason = fill(TEAM_BOOTSTRAP_MODEL_TEXT.undeclaredTool, { tool: call.name })
       return { output: reason, visibleOutput: reason, failureReason: reason }
     }
     if ((name === 'delegate' || name === 'merge') && !this.deps.isWorkspaceTrusted()) {
@@ -5828,7 +5828,7 @@ export class ModelApiSession implements AgentSession {
       // Validated above; the wait is clamped to the backend's bound here.
       const reparsed = this.team.collectArgs.safeParse(parsed.args)
       if (!reparsed.success) {
-        const reason = 'invalid arguments for collect'
+        const reason = TEAM_BOOTSTRAP_MODEL_TEXT.invalidCollectArguments
         return { output: `Error: ${reason}`, visibleOutput: reason, failureReason: reason }
       }
       const { wait_seconds: wait, ...rest } = reparsed.data
@@ -5879,7 +5879,7 @@ export class ModelApiSession implements AgentSession {
   ): Promise<ToolOutcome> {
     const parsed = this.team.delegateArgs.safeParse(args)
     if (!parsed.success) {
-      const reason = 'invalid arguments for delegate'
+      const reason = TEAM_BOOTSTRAP_MODEL_TEXT.invalidDelegateArguments
       return { output: `Error: ${reason}`, visibleOutput: reason, failureReason: reason }
     }
     const now = this.deps.teamDecisionSource?.()

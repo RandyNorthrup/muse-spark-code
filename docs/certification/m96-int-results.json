@@ -75,8 +75,8 @@
         "test/unit/teamDeclaration.test.ts",
         "test/unit/teamIntensity.test.ts"
       ],
-      "tests": 77,
-      "passed": 77,
+      "tests": 78,
+      "passed": 78,
       "failed": 0,
       "pending": 0
     },
@@ -208,6 +208,130 @@
       "currentBytes": 822153,
       "deltaBytes": 1991,
       "sourceInputs": 121
+    }
+  ],
+  "originalFixtures": {
+    "source": "6cfb19e4",
+    "files": [
+      {
+        "file": "test/fixtures/golden-requests/01-plain-turn.json",
+        "sha256": "b1b98610276a4e68ebf652b6484b9f9fcd4b77967ee73c5bbaa574751241662e",
+        "requests": 1
+      },
+      {
+        "file": "test/fixtures/golden-requests/02-tool-call.json",
+        "sha256": "5ff1a9f3a7216389f655bda11c9fc24c8e1995ad394b260f4e7f4b065f2bc6a6",
+        "requests": 2
+      },
+      {
+        "file": "test/fixtures/golden-requests/03-edit-then-run.json",
+        "sha256": "b29a4a4e7ad563b74d8fdf6dcc7d02de46c9a0ed6c3c07356d53d52ef887d7da",
+        "requests": 2
+      },
+      {
+        "file": "test/fixtures/golden-requests/04-packed-output.json",
+        "sha256": "7cb9ffd78b23cf19c22c58594e8b604c22f08523ba7d686b2216bafc8a139764",
+        "requests": 4
+      },
+      {
+        "file": "test/fixtures/golden-requests/05-manual-compaction.json",
+        "sha256": "d81a7dd91e01d956375b7e36cae959de7986075e9b1e2778e13924fd7237c6a5",
+        "requests": 3
+      },
+      {
+        "file": "test/fixtures/golden-requests/06-subagent-child.json",
+        "sha256": "160679252b3fa702abe50233238faf86ad52ffd9127b76d89b0782c3fae91461",
+        "requests": 3
+      },
+      {
+        "file": "test/fixtures/golden-requests/07-skills-and-rules.json",
+        "sha256": "d98a2739182330e30292ed0b121e42edc69bdaace580beab2871d55bf643ee97",
+        "requests": 1
+      }
+    ]
+  },
+  "artifactDrills": [
+    {
+      "name": "team-size-cap",
+      "file": "dist/team.js",
+      "exit": 1,
+      "expected": "OVER dist/team.js",
+      "restoredSha256": "aaf6060d1e93b98e220d20d86bb9d246efbf591c2e1d02e33f6701e64bdc2823"
+    },
+    {
+      "name": "ordinary-team-prefix",
+      "file": "dist/meta/extension.json",
+      "exit": 1,
+      "expected": "src/core/team/gateFire.ts",
+      "restoredSha256": "99a7d6a3cabb207d9551b1fe25ae4d1d26e66ca867d0bf7d23088be63077eaa6"
+    },
+    {
+      "name": "team-tools-presence",
+      "file": "dist/meta/team.json",
+      "exit": 1,
+      "expected": "dist/team.js no longer carries src/core/team/teamTools.ts",
+      "restoredSha256": "2838f32081d91e729a0a376ccec44d09619b090ac6361ecfff86e7e89808fac7"
+    },
+    {
+      "name": "team-host-global",
+      "file": "dist/team.js",
+      "exit": 1,
+      "expected": "FAIL dist/team.js",
+      "restoredSha256": "aaf6060d1e93b98e220d20d86bb9d246efbf591c2e1d02e33f6701e64bdc2823"
+    }
+  ],
+  "followupUnits": [
+    {
+      "files": [
+        "test/unit/teamDeclaration.test.ts",
+        "test/unit/modelApiGoldenRequests.test.ts",
+        "test/unit/teamActivationGraph.test.ts"
+      ],
+      "passed": 87,
+      "pending": 0
+    },
+    {
+      "files": [
+        "test/unit/teamTools.test.ts",
+        "test/unit/teamConstants.test.ts",
+        "test/unit/teamMcpServer.test.ts"
+      ],
+      "passed": 78,
+      "pending": 0
+    }
+  ],
+  "sourceDrills": [
+    {
+      "name": "single-model-loader",
+      "file": "src/core/backends/modelapi/ModelApiHost.ts",
+      "test": "test/unit/modelApiGoldenRequests.test.ts",
+      "exit": 1,
+      "summary": "Tests  63 failed | 6 passed (69)",
+      "restoredSha256": "d58d16e2b3a25485d273449a6ca98bca17d7dedb19c4248391f3650a22870701"
+    },
+    {
+      "name": "eager-team-module",
+      "file": "src/core/backends/modelapi/ModelApiHost.ts",
+      "test": "test/unit/teamActivationGraph.test.ts",
+      "exit": 1,
+      "summary": "Tests  1 failed (1)",
+      "restoredSha256": "d58d16e2b3a25485d273449a6ca98bca17d7dedb19c4248391f3650a22870701"
+    },
+    {
+      "name": "ordinary-in-place-refusal",
+      "file": "src/core/backends/modelapi/ModelApiHost.ts",
+      "test": "test/unit/teamDeclaration.test.ts",
+      "exit": 1,
+      "summary": "Tests  1 failed | 16 passed (17)",
+      "restoredSha256": "d58d16e2b3a25485d273449a6ca98bca17d7dedb19c4248391f3650a22870701"
+    },
+    {
+      "name": "real-model-deduplication",
+      "file": "src/core/team/sameModel.ts",
+      "test": "test/unit/modelApiGoldenRequests.test.ts",
+      "exit": 1,
+      "summary": "Tests  28 failed | 41 passed (69)",
+      "restoredSha256": "ce5b4e0d3e1bf16b079b1d2f25df4eebe3547eafcc9c6c2ea7ace9e40f3f778e"
     }
   ]
 }

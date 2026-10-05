@@ -1,4 +1,4 @@
-import { TEAM_MODEL_TEXT } from '../../shared/constants'
+import { TEAM_MODEL_TEXT, TEAM_BOOTSTRAP_MODEL_TEXT } from '../../shared/constants'
 import { fill } from '../../shared/l10n/text'
 // The orchestrator's five tools on both backends (PLAN.md M96 lane T, D75
 // "The orchestrator's tools"): `roster`, `delegate`, `collect`, `cancel`
@@ -24,6 +24,7 @@ import {
   TEAM_BRIEF_MAX_CHARS,
   TEAM_REASON_CODES,
   TEAM_TOOL_NAMES,
+  TEAM_DELEGATE_TOOLS,
 } from '../../shared/constants'
 
 /** The five tool names, in declaration order. */
@@ -31,7 +32,7 @@ export { TEAM_TOOL_NAMES } from '../../shared/constants'
 export type TeamToolName = (typeof TEAM_TOOL_NAMES)[number]
 
 /** What a delegating worker gets: the four that never merge. */
-export const TEAM_WORKER_TOOL_NAMES = ['roster', 'delegate', 'collect', 'cancel'] as const
+export const TEAM_WORKER_TOOL_NAMES = TEAM_DELEGATE_TOOLS.filter(isTeamTool)
 
 /** Whether a tool is one of the five. */
 export function isTeamTool(name: string): name is TeamToolName {
@@ -429,14 +430,5 @@ export function teamRunnerMissing(tool: string): string {
 
 /** A team tool called where the conversation never declared it. */
 export function teamToolNotDeclared(tool: string): string {
-  return fill(TEAM_MODEL_TEXT.toolErrorUnknownTool, { value1: tool })
-}
-
-/**
- * An orchestrator writing tool called while an `in-place` worker task runs:
- * edits, `rename_symbol`, the shell, `then_run` and `merge` wait (D75). The
- * transcript's visible line is `UI_TEXT.teamInPlaceOrchestratorRefused`.
- */
-export function inPlaceRefusal(): string {
-  return TEAM_MODEL_TEXT.toolAWorkerIsWritingInPlace
+  return fill(TEAM_BOOTSTRAP_MODEL_TEXT.undeclaredTool, { tool })
 }

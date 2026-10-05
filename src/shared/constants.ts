@@ -4235,20 +4235,8 @@ export const TEAM_MCP_TOKEN_BYTES = 32
 // No positive collect wait until the Muse Code timeout capture lands (M96 P).
 export const TEAM_COLLECT_WAIT_MAX_SECONDS = 0
 export const TEAM_TOOL_NAMES = ['roster', 'delegate', 'collect', 'cancel', 'merge'] as const
-export const TEAM_REASON_CODES = [
-  'small',
-  'quick_edit',
-  'needs_context',
-  'handoff_costlier',
-  'coupled',
-  'asked_you',
-  'parallel',
-  'specialty',
-  'different_model',
-  'context_size',
-  'long_running',
-] as const
-export type TeamReasonCode = (typeof TEAM_REASON_CODES)[number]
+export { TEAM_RUBRIC_REASON_CODES as TEAM_REASON_CODES }
+export type TeamReasonCode = (typeof TEAM_RUBRIC_REASON_CODES)[number]
 // Per-role defaults (D75): tasks per orchestrator turn, minutes per task,
 // the exhausted policy, and `continue on next`.
 export const TEAM_TASKS_PER_TURN_DEFAULT = 6
@@ -4365,6 +4353,16 @@ export const TEAM_LEDGER_LINE_MAX_BYTES = 1_000_000
 export const TEAM_LEDGER_FILE_PREFIX = 'team-'
 export const TEAM_LEDGER_FILE_SUFFIX = '.jsonl'
 
+// A single-model conversation can encounter a worker started by another
+// conversation. These refusals remain available without loading team.js.
+export const TEAM_BOOTSTRAP_MODEL_TEXT = {
+  inPlaceRefusal:
+    'A worker is writing in place: edits, rename_symbol, the shell, then_run and merge wait until its task ends.',
+  undeclaredTool: 'Error: unknown tool {tool}',
+  invalidCollectArguments: 'invalid arguments for collect',
+  invalidDelegateArguments: 'invalid arguments for delegate',
+} as const
+
 // The team's text for the model (M96, PLAN.md D75), English whatever the
 // display language. A block of its own beside MODEL_TEXT so that a bundle
 // that never teams does not carry it: only dist/team.js (the roster, the
@@ -4412,9 +4410,6 @@ export const TEAM_MODEL_TEXT = {
     'Only one model is ready: the team applies from a new conversation. Do the work yourself or ask the user.',
   toolErrorIsUnavailableTheTeamRunner:
     'Error: {value1} is unavailable: the team runner is not loaded in this window.',
-  toolErrorUnknownTool: 'Error: unknown tool {value1}',
-  toolAWorkerIsWritingInPlace:
-    'A worker is writing in place: edits, rename_symbol, the shell, then_run and merge wait until its task ends.',
   rosterNoCaps: 'no caps',
   rosterNotStaffedPolicy: '  not staffed (policy {value1})',
   rosterUse: '  use: {value1}',
@@ -4566,6 +4561,13 @@ export const TEAM_MODEL_SETTINGS = [
   'contextCap',
 ] as const
 
-export const TEAM_EFFORT_LADDER = ['minimal', 'low', 'medium', 'high', 'xhigh', 'max'] as const
+export const TEAM_EFFORT_LADDER: readonly string[] = [
+  'minimal',
+  'low',
+  'medium',
+  'high',
+  'xhigh',
+  'max',
+]
 
 export const TEAM_DEFAULT_ROLE_EFFORT = 'medium'

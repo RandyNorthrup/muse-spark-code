@@ -19844,6 +19844,13 @@ of `e23ec61c`, then run the rig brief's focused unit and static/build gates.
 W/I/U2/L/K and the full quality run remain with the lead. Evidence goes in
 `docs/certification/m96-int.md`.
 
+The lazy-entry regression also covers an older single-model conversation
+while another conversation has an in-place worker: its known refusal stays
+in the bootstrap and never requires the team runtime. The entry exposes
+only the functions it uses; obsolete compatibility exports are removed.
+T's reason codes and delegating-worker tools reuse lane 0's definitions,
+and the ACP notices list includes the new shipped bundle.
+
 **FIXM96B (2026-10-05, macmini).** RVM96A findings 9–11 and 23–26 are
 fixed with full-file regression runs and byte-exact red drills. All five
 TypeScript projects, focused lint/format, localization (0 problems), knip,

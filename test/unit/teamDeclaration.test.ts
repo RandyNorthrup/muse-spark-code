@@ -315,52 +315,59 @@ describe('runTeamTool', () => {
 })
 
 describe('in-place admission', () => {
-  it('refuses the orchestrator’s writing tools while a worker writes in place', async () => {
-    const h = teamHostHarness({
-      files: { 'a.txt': 'alpha\n' },
-      teamSource: () => teamSource(),
-      roster: ROLES,
-      runner: runnerStub([]),
-      isTeamInPlaceActive: () => true,
-    })
-    const { session, turnDone } = await h.startSession('allowAll')
-    h.api.script(
-      {
-        calls: [
-          {
-            name: 'edit_file',
-            arguments: '{"path":"a.txt","find":"alpha","replace":"beta"}',
-            callId: 'e1',
-          },
-          { name: 'bash', arguments: '{"command":"ls","description":"list"}', callId: 's1' },
-          {
-            name: 'merge',
-            arguments: '{"task_id":"t1"}',
-            callId: 'm1',
-          },
-          { name: 'write_file', arguments: '{"path":"a.txt","content":"forbidden"}', callId: 'w1' },
-          { name: 'rename_symbol', arguments: '{}', callId: 'n1' },
-          { name: 'run_checks', arguments: '{}', callId: 'v1' },
-          { name: 'read_file', arguments: '{"path":"a.txt"}', callId: 'r1' },
-        ],
-      },
-      { text: 'done' },
-    )
-    await session.sendTurn([{ type: 'text', text: 'work' }])
-    await turnDone()
-    const outputs = responseOutputsByCall(h.api, 1)
-    expect(outputs.get('e1')).toContain('writing in place')
-    expect(outputs.get('s1')).toContain('writing in place')
-    expect(outputs.get('m1')).toContain('writing in place')
-    expect(outputs.get('w1')).toContain('writing in place')
-    expect(outputs.get('n1')).toContain('writing in place')
-    expect(outputs.get('v1')).toContain('writing in place')
-    // The transcript's visible line is the translated refusal.
-    const history = JSON.stringify(session.history().items)
-    expect(history).toContain(UI_TEXT.teamInPlaceOrchestratorRefused)
-    // Reads still run.
-    expect(outputs.get('r1')).toContain('alpha')
-  })
+  it.each([true, false])(
+    'refuses writing while a worker writes in place (team=%s)',
+    async (hasTeam) => {
+      const h = teamHostHarness({
+        files: { 'a.txt': 'alpha\n' },
+        teamSource: () => teamSource({ customEntries: hasTeam ? [entry('e1', OTHER_MODEL)] : [] }),
+        roster: ROLES,
+        runner: runnerStub([]),
+        isTeamInPlaceActive: () => true,
+      })
+      const { session, turnDone } = await h.startSession('allowAll')
+      h.api.script(
+        {
+          calls: [
+            {
+              name: 'edit_file',
+              arguments: '{"path":"a.txt","find":"alpha","replace":"beta"}',
+              callId: 'e1',
+            },
+            { name: 'bash', arguments: '{"command":"ls","description":"list"}', callId: 's1' },
+            {
+              name: 'merge',
+              arguments: '{"task_id":"t1"}',
+              callId: 'm1',
+            },
+            {
+              name: 'write_file',
+              arguments: '{"path":"a.txt","content":"forbidden"}',
+              callId: 'w1',
+            },
+            { name: 'rename_symbol', arguments: '{}', callId: 'n1' },
+            { name: 'run_checks', arguments: '{}', callId: 'v1' },
+            { name: 'read_file', arguments: '{"path":"a.txt"}', callId: 'r1' },
+          ],
+        },
+        { text: 'done' },
+      )
+      await session.sendTurn([{ type: 'text', text: 'work' }])
+      await turnDone()
+      const outputs = responseOutputsByCall(h.api, 1)
+      expect(outputs.get('e1')).toContain('writing in place')
+      expect(outputs.get('s1')).toContain('writing in place')
+      expect(outputs.get('m1')).toContain('writing in place')
+      expect(outputs.get('w1')).toContain('writing in place')
+      expect(outputs.get('n1')).toContain('writing in place')
+      expect(outputs.get('v1')).toContain('writing in place')
+      // The transcript's visible line is the translated refusal.
+      const history = JSON.stringify(session.history().items)
+      expect(history).toContain(UI_TEXT.teamInPlaceOrchestratorRefused)
+      // Reads still run.
+      expect(outputs.get('r1')).toContain('alpha')
+    },
+  )
 
   it('lets the same calls through once the worker ends', async () => {
     let isActive = true

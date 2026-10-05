@@ -23,6 +23,14 @@ is byte-identical to `e23ec61c`.
 
 ## Integration repairs
 
+The final entry uses named function references so knip can trace every
+export, and drops two obsolete compatibility exports. A new parametrized
+in-place case first failed in a single-model conversation with
+`Error: team runtime was not prepared`. Its refusal now comes from a tiny
+English bootstrap block shared with tool refusals, and never loads the
+team. The full graph/golden/declaration group then passes **87 tests**;
+tools/constants/MCP server pass **78**, and plain knip passes.
+
 - Ordinary bundles use the synchronous decision in
   `src/shared/teamConversation.ts`. The old team import paths re-export
   the shared definitions for consumers of those lane interfaces.
@@ -78,15 +86,34 @@ build does.
 | Prepare the team runtime unconditionally at the start of every turn | All 63 single-model raw scenarios fail the zero-loader assertion; six other tests pass. Exit 1. | ModelApiHost restored byte-exact.                                                              |
 | Eagerly import and use `isTeamTool` from the team runtime           | The ordinary graph guard fails. Exit 1.                                                         | Same SHA-256 before/after: `64c3de5758a9cb7db175f7e1ae6a4d22e9962f0c10d47471f2f5036dd05759f0`. |
 
+The new production bundle checks also fired independently: enlarge
+`team.js` to 75 KiB plus one byte; plant a team-directory input in the
+activation metafile; remove the tools input from the team metafile; and
+append a `navigator` reference to `team.js`. Each named guard exits 1.
+Every artifact is restored byte-exact; the result JSON records its SHA-256.
+
 Hashes identify the bytes at each drill, before subsequent text relocation
 and formatting. The restored graph/golden suites passed together (80 tests,
 including the independent base proof), and tools/roster/goldens passed
 after text relocation (97 tests). No rule, ignore, threshold, timeout or
 test selection within a file was weakened.
 
+The integrated golden source now uses R's `isSameTeamModel`, including a
+whitespace-padded duplicate model on another backend. The entire
+graph/golden/declaration group passes after the final lint repairs (86).
+The central effort ladder retains F's `readonly string[]` type so unknown
+provider tiers can still enter the fallback; its 73 owning tests pass.
+
+Repeated the source drills after the refusal repair: unconditional loading
+fails 63 cases; the eager import fails the graph; returning the missing-runtime
+error fails exactly the new single-model in-place case; removing R's trimming
+fails 28 golden cases. Every source is restored byte-exact; final drill
+hashes and commands are in the result JSON. The complete three-file group
+passes afterward (87 tests).
+
 ## Owning unit coverage
 
-**1,561 tests pass in 50 files; 0 pending.** Every run contains at most
+**1,562 tests pass in 50 files; 0 pending.** Every run contains at most
 three files, with `--maxWorkers=3 --testTimeout=120000`, directly on win11.
 The file inventory and per-run counts are recorded in
 `m96-int-results.json`. It includes every test file changed by the five
