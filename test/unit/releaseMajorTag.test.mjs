@@ -1,5 +1,5 @@
 import { spawnSync } from 'node:child_process'
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 
@@ -55,10 +55,11 @@ gh() {
   return "$API_STATUS"
 }
 ${script.replaceAll(/^ {10}/gm, '')}`
-  const bash =
-    process.platform === 'win32'
-      ? path.join(process.env.ProgramFiles ?? 'C:/Program Files', 'Git/bin/bash.exe')
-      : 'bash'
+  const installedBash = path.join(
+    process.env.ProgramFiles ?? 'C:/Program Files',
+    'Git/bin/bash.exe',
+  )
+  const bash = process.platform === 'win32' && existsSync(installedBash) ? installedBash : 'bash'
   const child = spawnSync(bash, ['--noprofile', '--norc', '-e', '-o', 'pipefail', '-c', commands], {
     encoding: 'utf8',
     env: {

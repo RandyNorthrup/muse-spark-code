@@ -135,5 +135,10 @@
   "config.tabTrigger.enumDescriptions.onInvoke": "手動で提案を呼び出したときのみ提案。",
   "config.tabWithCopilot.description": "GitHub Copilot も提案する言語で Tab がどう動作するか。",
   "config.tabWithCopilot.enumDescriptions.yield": "Copilot が対応する言語には Tab 自動リクエストを送信しない。明示的な呼び出しは引き続き動作。",
-  "config.tabWithCopilot.enumDescriptions.both": "Copilot が対応する言語にも Tab 自動リクエストを送信。"
+  "config.tabWithCopilot.enumDescriptions.both": "Copilot が対応する言語にも Tab 自動リクエストを送信。",
+  "command.tabTurnOn.title": "Tab を有効にする",
+  "command.tabTurnOff.title": "Tab を無効にする",
+  "command.tabSnooze.title": "Tab を一時停止する",
+  "command.tabMenu.title": "Tab メニュー",
+  "command.tabLanguages.title": "Tab の言語"
 }

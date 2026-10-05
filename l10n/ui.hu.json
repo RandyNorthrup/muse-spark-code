@@ -159,6 +159,7 @@
     "paid:scheduledPrompts": "Fizetős ütemezett promptok be- vagy kikapcsolása.",
     "paid:autoReviewer": "Fizetős automatikus ellenőrző be- vagy kikapcsolása.",
     "paid:bestOfN": "Fizetős N legjobbja funkció be- vagy kikapcsolása.",
+    "paid:tab": "A fizetős Tab-kiegészítések be- vagy kikapcsolása.",
     "loop": "Prompt ütemezése ebben a Model API-beszélgetésben.",
     "importSession": "Exportált munkamenetfájl folytatása a Model API háttérrendszerben.",
     "review": "A Muse átnézi a módosításait, vagy amit leír.",
@@ -1985,5 +1986,8 @@
   "agentImportIgnoredToTracked": "ez Git által figyelmen kívül hagyott fájlt másolna egy követett fájlba",
   "agentImportEditPrompt": "Megnyitja az átalakított bejegyzéseket itt: {path}, nem mentett módosításként, ellenőrzésre és mentésre? Csak erre az útvonalra mentse, soha ne másik fájlba.",
   "agentImportEditAction": "Fájl szerkesztése és megnyitása",
-  "agentImportPreviewLegacyKey": "A fájl az elavult `mcp_servers` kulcsot használja. Ezek hozzáadásakor nevezze át `mcpServers` névre: ha mindkettő jelen van, a Muse Code egyiket sem tölti be."
+  "agentImportPreviewLegacyKey": "A fájl az elavult `mcp_servers` kulcsot használja. Ezek hozzáadásakor nevezze át `mcpServers` névre: ha mindkettő jelen van, a Muse Code egyiket sem tölti be.",
+  "tabMultilineAuto": "Automatikus",
+  "tabMultilineOnInvoke": "Csak meghíváskor",
+  "tabMultilineNever": "Csak egysoros környezet"
 }

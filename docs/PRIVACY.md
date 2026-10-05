@@ -310,6 +310,38 @@ whether a proxy is set, never its address. **Muse Spark: Diagnostics** runs
 machine. The public-issue report includes only recognized source and
 generation fields, never raw configuration or failed-command output.
 
+## Tab completions
+
+Tab is on by default and asks before its first charge in each window. A
+stored Model API key pays for its separate requests on either chat backend;
+the Muse Code subscription never pays. Each request sends a
+workspace-relative path, language id and redacted code around the cursor.
+Multi-line requests also send bounded redacted excerpts of recent edits and
+symbol definitions. Standard is the default and Meta does not train on this
+traffic; the contributor model is a separate choice that permits training.
+Requests use `store: false` and their own prompt cache key, with no chat
+history, goal or memory.
+
+Private, protected, ignored, excluded, outside-workspace and oversized files
+are refused as context as well as as the current file. Related buffers are
+opened only after the path, resolved links, ignore rules and disk size pass;
+large unsaved buffers are refused conservatively before their text is read.
+Secrets are redacted before cutting excerpts. No code, completion or path is
+written to the Tab log, and Tab adds no telemetry.
+
+The local-day spend ledger is in the extension's global storage under
+`tab-spend/<date>/<window>.json`. It contains request counts and reserved and
+reported USD amounts, never code or keys. All windows count toward the hard
+daily limit ($1.00 by default). A sent request runs to completion even when
+its suggestion is dismissed, so its cost is accounted for. Missing usage
+keeps the reservation. The typing-through cache and the recent-edit path
+list are kept only in this window's memory.
+
+Tab's hook bridge is prepared for M91/lane K; configuring Cursor's Tab hooks
+does not yet execute them in this build. When that lane lands, a local
+`beforeTabFileRead` hook sees the full unredacted file and may deny it;
+`afterTabFileEdit` observes accepted edits locally.
+
 ## Credentials
 
 - A Model API key you paste is stored in VS Code's secret storage (the

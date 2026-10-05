@@ -76,6 +76,11 @@ export const COMMAND_IDS = {
   // M89 (PLAN.md D68): the bundled skills into, and out of, Muse Code's own folders.
   installBundledSkills: 'museSpark.installBundledSkills',
   removeBundledSkills: 'museSpark.removeBundledSkills',
+  tabTurnOn: 'museSpark.tabTurnOn',
+  tabTurnOff: 'museSpark.tabTurnOff',
+  tabSnooze: 'museSpark.tabSnooze',
+  tabMenu: 'museSpark.tabMenu',
+  tabLanguages: 'museSpark.tabLanguages',
 } as const
 
 // Extension-private `globalState` keys (never machine-wide configuration).
@@ -1385,6 +1390,11 @@ export const TAB_MULTILINE_PREFIX_CHARS = 12_000
 export const TAB_MULTILINE_SUFFIX_CHARS = 3200
 // Recent-edit and definition snippets' budget in multi-line mode.
 export const TAB_CONTEXT_CHARS = 8000
+// Bound related-file reads and language-service queries per trigger.
+export const TAB_CONTEXT_FILES = 8
+export const TAB_CONTEXT_SNIPPET_LINES = 32
+// Conservative UTF-8 size bound without reading an unsaved related buffer.
+export const TAB_UTF8_BYTES_PER_CODE_UNIT = 3
 // The prefix window starts on a multiple of this line, so consecutive
 // requests share a cached prefix (A6, A7).
 export const TAB_PREFIX_ANCHOR_LINES = 32

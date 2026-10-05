@@ -9,55 +9,27 @@ happened, not what was planned; superseded entries are kept.
 
 ### Added
 
-- **Tab completions, merged but not yet shipped (M94, PLAN.md D73).** The
-  lanes are integrated on `feature/m94-tab`; the commands, the Alt+\
-  binding, the `dist/tab.js` build entry and the docs come with lane W, so
-  no user sees Tab yet.
-  - **Pure core (lane C).** `src/core/tab/` holds the request windows with
-    their cache-stable anchor, the Model API request body with its own cache
-    key, the reply tags and filters, the typing-through cache, the
-    debounce/cap scheduler that never aborts a sent request, and the
-    worst-case/settlement/day spend arithmetic — all against fakes, with one
-    unit test file per module and a red drill per guard
-    (`docs/certification/m94-c.md`). `CreateResponseBody`'s
-    `reasoning.summary` is optional (types only; existing requests
-    unchanged), and the key client gains
-    `isModelApiError`/`isMissingApiKeyError` guards for the Tab bundle
-    boundary.
-  - **Ledger and paid use (lane L).** A daily spend ledger of one atomically
-    written file per window per local day under global storage, totalled
-    across windows and refusing when missing, corrupt or unreadable; the
-    `tab` paid feature's Account & usage tally (requests, tokens, cached
-    tokens, cost) and its once-per-window Allow once
-    (`docs/certification/m94-l.md`).
-  - **Host (lane H).** The inline completion provider with D73's
-    eligibility checks (private, protected, git-ignored, `.cursorignore`d,
-    `.continueignore`d, `files.exclude`d and oversize files are never read),
-    the Copilot yield, the status bar and snooze, the accept command and the
-    inferred partial accept, and the secret read deferred to the first view,
-    panel, command or Tab request (`docs/certification/m94-h.md`).
-  - **Account & usage (lane U).** A Tab row with requests, tokens, cached
-    tokens, cost and the budget (`docs/certification/m94-u.md`).
-  - **Integration.** The Tab bundle builds the engine and the ledger's spend
-    gate itself from the activation's key client. A request reserves the
-    worst case of exactly what it sends, releases it when nothing was sent,
-    gets one HTTP attempt, shows its suggestion as soon as the closing tag
-    arrives and settles the reported cost when the stream ends. Tab's price
-    is asked by its first request's question (Allow once in this window,
-    Allow always in this workspace, or Deny, which snoozes Tab), never by a
-    turn-on confirmation.
-  - **Review fixes (RVM94LC, RVM94HU).** A ledger reservation settles into
-    its own local day; one first question per window, voided when another
-    window re-accepts the price; completions keep their whitespace and are
-    placed against the cursor; the debounce is never cut short; and the
-    provider re-checks everything after its waits. Tab never reads a file
-    through a link that leaves its folder, a git-ignored, `.cursorignore`d or
-    nested-ignored file, a `files.exclude` match (now with VS Code's `**/`
-    and `when` rules) or a secret split by the cursor, and reads no text of a
-    refused file. With Tab on, its provider is registered at startup and
-    loads on the first request; the status menu's Account & usage opens the
-    dialog, whose Tab row shows the configured budget and today's total
-    across windows.
+- **Tab completions (M94, PLAN.md D73).** On by default, with its status
+  item visible at startup and its completion engine loaded on first use.
+  Alt+\ invokes ghost text; the five Tab commands turn it on/off, snooze it,
+  open its menu and choose languages. The default trigger is Invoke because
+  the probe measured 3.8 s median to first text. The first charge asks once
+  per window, names the model's rates and the $1.00/day default hard budget;
+  the stored Model API key pays on either chat backend, never the subscription.
+  - Fast and multi-line context, filtered completions, typing-through cache,
+    bounded scheduling and per-window daily-ledger files shared across all
+    windows. Reported usage settles reservations; missing usage retains them.
+  - Related recent-edit and definition snippets now reach the engine in
+    path order, within the context limit, through the same file privacy
+    checks as the current file; secrets are redacted before cutting excerpts.
+  - The status item shows spend, snooze, budget, no key, trust, language and
+    Copilot states. Account & usage counts Tab requests, tokens, cached tokens,
+    this window's reported cost and the cross-window day/budget.
+  - Translated commands and multi-line picker labels in all 14 languages.
+    `dist/tab.js` ships in the VSIX, with size, module-split, model-text and
+    host-global checks; the host-API record is regenerated.
+  - Cursor's Tab hook bridge is prepared; executing those hook configurations
+    and the final live check wait for M91/lane K.
 
 - **A live receipt workflow for the GitHub Action (M80 LA).**
   `.github/workflows/action-live.yml` runs the real Action, on the agent
@@ -185,13 +157,6 @@ happened, not what was planned; superseded entries are kept.
   line, a held response. Tests only; the product is unchanged.
 
 ### Changed
-
-- M94's staged, machine-scoped `museSpark.modelApiTab` setting defaults to
-  on, following the owner's "On, ask once first" decision. English and all
-  14 translated descriptions name the first-request paid modal, price and
-  default $1.00/day budget. Tab's provider, consent wiring and final gates
-  remain with their owning lanes; this foundation does not enable requests
-  by itself.
 
 - **Tiered CI, ready for a merge queue.** The full gate now runs as parallel
   jobs:

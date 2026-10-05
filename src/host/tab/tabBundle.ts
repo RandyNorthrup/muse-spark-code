@@ -1,7 +1,7 @@
 // Tab completions as the activation bundle sees them (M94, PLAN.md D73):
 // dist/tab.js, built from tabEntry.ts and required on the first Tab request
-// (PLAN.md D6). Only types cross into the activation bundle here: a value
-// imported from the Tab side would carry the provider, the status bar, the
+// (PLAN.md D6). Only types cross from the lazy side into activation: a value
+// imported from that side would carry the provider, the
 // engine (lane C) and the ledger (lane L) back into dist/extension.js, which
 // the bundle-split gate refuses. The bundle builds the engine and the spend
 // gate itself (`createTabServices`) from what activation hands it: the key
@@ -9,16 +9,16 @@
 // keeps the paid question (lane L's PaidUseConsent) and the tally. Lane K's
 // hooks stay an optional dependency until lane K lands.
 
-import type * as vscode from 'vscode'
+import * as vscode from 'vscode'
 import type {
   TabEngine,
   TabEngineRequest,
   TabEngineUsage,
   TabStream,
 } from '../../core/tab/tabEngine'
-import { UI_TEXT } from '../../shared/constants'
+import { COMMAND_IDS, CONTEXT_KEYS, UI_TEXT } from '../../shared/constants'
 import type { UiText } from '../../shared/l10n/en'
-import { fill } from '../../shared/l10n/text'
+import { fill, formatUsd } from '../../shared/l10n/text'
 import { lazyBundleLoader } from '../lazyBundle'
 import type { Logger } from '../logger'
 
@@ -30,11 +30,11 @@ export const TAB_BUNDLE_FILE = 'tab.js'
 // sixth, the item's accept command, stays out of the palette: it only ever
 // runs from a suggestion the provider returned.
 export const TAB_COMMAND_IDS = {
-  turnOn: 'museSpark.tabTurnOn',
-  turnOff: 'museSpark.tabTurnOff',
-  snooze: 'museSpark.tabSnooze',
-  menu: 'museSpark.tabMenu',
-  languages: 'museSpark.tabLanguages',
+  turnOn: COMMAND_IDS.tabTurnOn,
+  turnOff: COMMAND_IDS.tabTurnOff,
+  snooze: COMMAND_IDS.tabSnooze,
+  menu: COMMAND_IDS.tabMenu,
+  languages: COMMAND_IDS.tabLanguages,
   afterAccept: 'museSpark.tabAfterAccept',
 } as const
 
@@ -248,6 +248,9 @@ export interface TabProviderDeps {
   readonly onDidChangeTextDocument: (listener: (event: TabTextChangeEvent) => void) => {
     dispose(): void
   }
+  /** Recently edited paths and line numbers; text is read only after eligibility. */
+  readonly recentEdits?:
+    (() => readonly { readonly uri: TabUri; readonly line: number }[]) | undefined
   /** Lane C's engine (the M94 integration branch injects it). */
   readonly engine: TabCompletionEngine
   /** Lane L's ledger (the M94 integration branch injects it). */
@@ -288,6 +291,20 @@ export interface TabDocumentChange {
 /** A document-change event: the provider watches for inferred partial accepts. */
 export interface TabTextChangeEvent {
   readonly changes: readonly TabDocumentChange[]
+}
+
+/** The document-change projection used by activation and the real-host fixture. */
+export function tabTextChangeEvent(event: vscode.TextDocumentChangeEvent): TabTextChangeEvent {
+  return {
+    changes: event.contentChanges.map((change) => ({
+      uriString: event.document.uri.toString(),
+      insertedText: change.text,
+      startLine: change.range.start.line,
+      startCharacter: change.range.start.character,
+      endLine: change.range.end.line,
+      endCharacter: change.range.end.character,
+    })),
+  }
 }
 
 /** What a trigger did: served, quiet, or the failure's class. Pure counts for the log. */
@@ -459,6 +476,8 @@ export interface TabServicesDeps {
 
 /** The engine (lane C) and the spend gate over the ledger (lane L), built in the bundle. */
 export interface TabServices {
+  readonly recentEdits?:
+    (() => readonly { readonly uri: TabUri; readonly line: number }[]) | undefined
   readonly engine: TabCompletionEngine
   readonly spend: TabSpendGate
 }
@@ -466,9 +485,8 @@ export interface TabServices {
 /** What tabEntry.ts exports: the services, the snooze, the provider, the status and the menu commands. */
 export interface TabBundle {
   createTabServices(deps: TabServicesDeps): TabServices
-  createTabSnooze(store: TabSnoozeStore): TabSnooze
   createTabProvider(deps: TabProviderDeps & TabBundleTable): TabProviderHandle
-  createTabStatus(deps: TabStatusDeps & TabBundleTable): TabStatusHandle
+  showTabMenu(deps: TabStatusDeps & TabBundleTable): Promise<void>
   snoozeTabCommand(snooze: TabSnooze, table: UiText, locale: string): Promise<void>
   tabLanguagesCommand(deps: TabLanguagesCommandDeps & TabBundleTable): Promise<void>
 }
@@ -480,17 +498,169 @@ export function isTabBundle(value: unknown): value is TabBundle {
     value !== null &&
     'createTabServices' in value &&
     typeof value.createTabServices === 'function' &&
-    'createTabSnooze' in value &&
-    typeof value.createTabSnooze === 'function' &&
     'createTabProvider' in value &&
     typeof value.createTabProvider === 'function' &&
-    'createTabStatus' in value &&
-    typeof value.createTabStatus === 'function' &&
+    'showTabMenu' in value &&
+    typeof value.showTabMenu === 'function' &&
     'snoozeTabCommand' in value &&
     typeof value.snoozeTabCommand === 'function' &&
     'tabLanguagesCommand' in value &&
     typeof value.tabLanguagesCommand === 'function'
   )
+}
+
+const TAB_STATUS_PRIORITY = 100
+
+const MS_PER_MINUTE = 60_000
+
+/** The snooze: timed across every window, or until restart in this one. */
+export function createTabSnooze(store: TabSnoozeStore): TabSnooze {
+  let isUntilRestart = false
+  return {
+    isSnoozed: (nowMs) => isUntilRestart || (store.readSnoozedUntil() ?? 0) > nowMs,
+    minutesLeft: (nowMs) => {
+      if (isUntilRestart) {
+        return
+      }
+      const end = store.readSnoozedUntil()
+      return end === undefined || end <= nowMs
+        ? undefined
+        : Math.max(1, Math.ceil((end - nowMs) / MS_PER_MINUTE))
+    },
+    snoozeMinutes: async (minutes, nowMs) => {
+      isUntilRestart = false
+      await store.writeSnoozedUntil(nowMs + minutes * MS_PER_MINUTE)
+    },
+    snoozeUntilRestart: () => {
+      isUntilRestart = true
+    },
+  }
+}
+
+export function createTabStatusItem(
+  deps: TabStatusDeps,
+  showMenu: () => Promise<void>,
+): TabStatusHandle {
+  const item = vscode.window.createStatusBarItem(
+    vscode.StatusBarAlignment.Right,
+    TAB_STATUS_PRIORITY,
+  )
+  item.command = TAB_COMMAND_IDS.menu
+  let lastFailure: TabFailureKind | undefined
+  let lastContext: boolean | undefined
+  // While a timed snooze runs, the bar redraws each minute, so its minutes
+  // left count down and its end shows without another event (RVM94HU 9).
+  let snoozeTimer: ReturnType<typeof setTimeout> | undefined
+
+  const setTabOn = (isOn: boolean): void => {
+    if (lastContext === isOn) {
+      return
+    }
+
+    lastContext = isOn
+    void vscode.commands.executeCommand('setContext', CONTEXT_KEYS.tabOn, isOn)
+  }
+
+  function refresh(): void {
+    if (snoozeTimer !== undefined) {
+      clearTimeout(snoozeTimer)
+      snoozeTimer = undefined
+    }
+    const table = deps.table()
+    if (!deps.isOn()) {
+      item.hide()
+      setTabOn(false)
+      return
+    }
+    setTabOn(true)
+    const spend = deps.todaySpend()
+    const spendText = formatUsd(spend.totalUsd, 2)
+    const budgetText = formatUsd(deps.budgetUsd(), 2)
+    const tooltip = fill(table.tabStatusTooltip, {
+      model: deps.model(),
+      requests: spend.requests,
+      spend: spendText,
+      budget: budgetText,
+    })
+    if (deps.snooze.isSnoozed(Date.now())) {
+      const left = deps.snooze.minutesLeft(Date.now())
+      const snoozedText =
+        left === undefined ? table.tabMenuSnoozeRestart : fill(table.tabStatusSnoozed, { left })
+      item.text = `$(clock) ${snoozedText}`
+      // The filled sentence, never the template (RVM94HU 26).
+      item.tooltip = snoozedText
+      if (left !== undefined) {
+        snoozeTimer = setTimeout(refresh, MS_PER_MINUTE)
+      }
+      item.backgroundColor = undefined
+    } else if (deps.isBudgetReached()) {
+      item.text = `$(warning) ${table.tabStatusBudget}`
+      item.tooltip = tooltip
+      item.backgroundColor = new vscode.ThemeColor('statusBarItem.warningBackground')
+    } else if (!deps.isKeyStored()) {
+      // No key: the bar says so and Tab never prompts for one (Acceptance 2).
+      item.text = `$(circle-slash) ${table.tabStatusNoKey}`
+      item.tooltip = table.tabStatusNoKey
+      item.backgroundColor = undefined
+    } else if (deps.isTrusted()) {
+      const language = deps.activeLanguageId()
+      const isYields =
+        language !== undefined &&
+        shouldYieldToCopilot(
+          readCopilotPosture({
+            isCopilotExtensionPresent: deps.isCopilotExtensionPresent,
+            foreignSetting: deps.foreignSetting,
+            tabWithCopilot: deps.tabWithCopilot(),
+            languageId: language,
+          }),
+        )
+      if (language !== undefined && !isTabLanguageOn(deps.tabLanguages(), language)) {
+        item.text = `$(circle-slash) ${fill(table.tabStatusLanguageOff, { language })}`
+        item.tooltip = fill(table.tabStatusLanguageOff, { language })
+      } else if (isYields) {
+        item.text = `$(code) ${table.tabStatusCopilot}`
+        item.tooltip = table.tabStatusCopilot
+      } else if (lastFailure === undefined) {
+        item.text = `$(code) ${fill(table.tabStatusSpend, { spend: spendText })}`
+        item.tooltip = tooltip
+      } else {
+        item.text = `$(error) ${fill(table.tabStatusError, { kind: lastFailure })}`
+        item.tooltip = fill(table.tabStatusError, { kind: lastFailure })
+      }
+      item.backgroundColor = undefined
+    } else {
+      item.text = `$(circle-slash) ${table.tabStatusUntrusted}`
+      item.tooltip = table.tabStatusUntrusted
+      item.backgroundColor = undefined
+    }
+    item.show()
+  }
+
+  function noteOutcome(outcome: TabOutcome): void {
+    if (outcome.kind === 'failed') {
+      lastFailure = outcome.failure
+    } else {
+      // A later trigger clears the failure: quiet states have their own rows.
+      lastFailure = undefined
+    }
+    refresh()
+  }
+
+  refresh()
+  return {
+    refresh,
+    // The menu runs from the item's command, registered once by the shim.
+    showMenu,
+    noteOutcome,
+    dispose: () => {
+      if (snoozeTimer !== undefined) {
+        clearTimeout(snoozeTimer)
+      }
+      // The Alt+\ binding goes with the item (RVM94HU 8).
+      setTabOn(false)
+      item.dispose()
+    },
+  }
 }
 
 export interface TabLoaderDeps {
@@ -503,18 +673,17 @@ export interface TabLoaderDeps {
 
 /** The bundle, required on the first Tab request and kept from then on. */
 export function tabLoader(deps: TabLoaderDeps): () => TabBundle {
+  const forward =
+    (level: 'trace' | 'info' | 'warn') =>
+    (message: string): void => {
+      deps.log[level](message)
+    }
   return lazyBundleLoader({
     ...deps,
     log: {
-      trace: (message) => {
-        deps.log.trace(message)
-      },
-      info: (message) => {
-        deps.log.info(message)
-      },
-      warn: (message) => {
-        deps.log.warn(message)
-      },
+      trace: forward('trace'),
+      info: forward('info'),
+      warn: forward('warn'),
       // Paths never reach the log (Acceptance 20): fixed words, as the
       // import bundle's loader keeps them.
       error: (message) => {
@@ -637,6 +806,7 @@ export interface TabActivationDeps {
   readonly locale: () => string
   readonly snoozeStore: TabSnoozeStore
   /** What the bundle's engine and spend gate are built from (the budget and log are added here). */
+  readonly recentEdits?: TabProviderDeps['recentEdits']
   readonly services: Omit<TabServicesDeps, 'budgetUsd' | 'onTotalChanged' | 'log'>
   /** Today's ledger total moved: Account & usage follows (RVM94HU 23). */
   readonly onTodayTotalChanged?: (() => void) | undefined
@@ -683,8 +853,37 @@ export function createTabActivation(deps: TabActivationDeps): TabActivation {
     loadBundle: deps.loadBundle,
   })
   let active: ActiveTab | undefined
+  const snooze = createTabSnooze(deps.snoozeStore)
+  let status: TabStatusHandle | undefined
 
   let registration: { dispose(): void } | undefined
+
+  const statusDeps: TabStatusDeps = {
+    isOn: deps.isTabSettingOn,
+    isKeyStored: deps.isKeyStored,
+    isTrusted: deps.isTrusted,
+    activeLanguageId: deps.activeLanguageId,
+    foreignSetting: deps.foreignSetting,
+    isCopilotExtensionPresent: deps.isCopilotExtensionPresent,
+    tabWithCopilot: () => deps.tabSettings().tabWithCopilot,
+    todaySpend: () => ({
+      totalUsd: active?.spend.todayTotalUsd() ?? 0,
+      requests: active?.spend.todayRequests() ?? 0,
+    }),
+    isBudgetReached: () =>
+      (active?.spend.todayTotalUsd() ?? 0) >= deps.tabSettings().tabDailyBudgetUsd,
+    model: () => deps.tabSettings().tabModel,
+    budgetUsd: () => deps.tabSettings().tabDailyBudgetUsd,
+    snooze,
+    updateSetting: deps.updateSetting,
+    tabLanguages: () => deps.tabSettings().tabLanguages,
+    knownLanguages: deps.knownLanguages,
+    confirmCopilotDisable: deps.confirmCopilotDisable,
+    disableCopilotFor: deps.disableCopilotFor,
+    runCommand: (command) => deps.runCommand(command),
+    openAccountUsage: deps.openAccountUsage,
+    table: deps.table,
+  }
 
   function ensureLoaded(): ActiveTab | undefined {
     if (active !== undefined) {
@@ -703,40 +902,16 @@ export function createTabActivation(deps: TabActivationDeps): TabActivation {
       ...deps.services,
       budgetUsd: () => deps.tabSettings().tabDailyBudgetUsd,
       onTotalChanged: () => {
-        active?.status.refresh()
+        status?.refresh()
         deps.onTodayTotalChanged?.()
       },
       log: deps.log,
     })
     const consent = deps.consent
-    const snooze = bundle.createTabSnooze(deps.snoozeStore)
-    const status = bundle.createTabStatus({
-      isOn: deps.isTabSettingOn,
-      isKeyStored: deps.isKeyStored,
-      isTrusted: deps.isTrusted,
-      activeLanguageId: deps.activeLanguageId,
-      foreignSetting: deps.foreignSetting,
-      isCopilotExtensionPresent: deps.isCopilotExtensionPresent,
-      tabWithCopilot: () => deps.tabSettings().tabWithCopilot,
-      todaySpend: () => ({
-        totalUsd: spend.todayTotalUsd(),
-        requests: spend.todayRequests(),
-      }),
-      isBudgetReached: () => spend.todayTotalUsd() >= deps.tabSettings().tabDailyBudgetUsd,
-      model: () => deps.tabSettings().tabModel,
-      budgetUsd: () => deps.tabSettings().tabDailyBudgetUsd,
-      snooze,
-      updateSetting: deps.updateSetting,
-      tabLanguages: () => deps.tabSettings().tabLanguages,
-      knownLanguages: deps.knownLanguages,
-      confirmCopilotDisable: deps.confirmCopilotDisable,
-      disableCopilotFor: deps.disableCopilotFor,
-      runCommand: (command) => deps.runCommand(command),
-      openAccountUsage: deps.openAccountUsage,
-      table: deps.table,
-      uiTable,
-      locale,
-    })
+    const currentStatus = status
+    if (currentStatus === undefined) {
+      throw new Error('Tab status is not armed')
+    }
     const settingsOf = (): ReturnType<TabProviderDeps['settings']> => {
       const settings = deps.tabSettings()
       return {
@@ -762,6 +937,7 @@ export function createTabActivation(deps: TabActivationDeps): TabActivation {
       runGit: deps.runGit,
       onIgnoreFilesChanged: deps.onIgnoreFilesChanged,
       onDidChangeTextDocument: deps.onDidChangeTextDocument,
+      recentEdits: deps.recentEdits,
       engine,
       spend,
       consent,
@@ -771,7 +947,7 @@ export function createTabActivation(deps: TabActivationDeps): TabActivation {
         if (outcome.kind === 'quiet' && outcome.reason === 'consent-denied') {
           snooze.snoozeUntilRestart()
         }
-        status.noteOutcome(outcome)
+        currentStatus.noteOutcome(outcome)
       },
       log: deps.log,
       uiTable,
@@ -780,13 +956,13 @@ export function createTabActivation(deps: TabActivationDeps): TabActivation {
     const handle: ActiveTab = {
       provider,
       spend,
-      status,
+      status: currentStatus,
       snooze,
-      showMenu: () => status.showMenu(),
+      showMenu: () => bundle.showTabMenu({ ...statusDeps, uiTable, locale }),
       runSnooze: async () => {
         await bundle.snoozeTabCommand(snooze, uiTable, locale)
         // The palette's snooze redraws the bar, as the menu's rows do (RVM94HU 9).
-        status.refresh()
+        currentStatus.refresh()
       },
       runLanguages: () =>
         bundle.tabLanguagesCommand({
@@ -801,7 +977,6 @@ export function createTabActivation(deps: TabActivationDeps): TabActivation {
       },
       dispose: () => {
         provider.dispose()
-        status.dispose()
       },
     }
     active = handle
@@ -838,6 +1013,10 @@ export function createTabActivation(deps: TabActivationDeps): TabActivation {
     if (registration !== undefined) {
       return
     }
+    status = createTabStatusItem(statusDeps, async () => {
+      await ensureLoaded()?.showMenu()
+      status?.refresh()
+    })
     registration = deps.registerProvider(delegating)
     deps.setTabOnContext(true)
   }
@@ -848,6 +1027,8 @@ export function createTabActivation(deps: TabActivationDeps): TabActivation {
     registration = undefined
     active?.dispose()
     active = undefined
+    status?.dispose()
+    status = undefined
     if (wasOn) {
       // The Alt+\ binding goes with Tab (RVM94HU 8).
       deps.setTabOnContext(false)
@@ -868,7 +1049,7 @@ export function createTabActivation(deps: TabActivationDeps): TabActivation {
       await ensureLoaded()?.runSnooze()
     }),
     deps.registerCommand(TAB_COMMAND_IDS.menu, async () => {
-      await ensureLoaded()?.showMenu()
+      await status?.showMenu()
     }),
     deps.registerCommand(TAB_COMMAND_IDS.languages, async () => {
       await ensureLoaded()?.runLanguages()
@@ -888,7 +1069,7 @@ export function createTabActivation(deps: TabActivationDeps): TabActivation {
       arm()
     },
     refreshStatus: () => {
-      active?.status.refresh()
+      status?.refresh()
     },
     isActive: () => active !== undefined,
     isRegistered: () => registration !== undefined,

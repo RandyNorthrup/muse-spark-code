@@ -440,3 +440,31 @@ multi-line one ($0.0032 and $0.0086 with nothing cached). The contributor
 model costs $0.00007 and $0.00017. Whatever the real numbers, the daily budget
 (D73) is the hard ceiling, and `TAB_MAX_REQUESTS_PER_MINUTE` bounds the rate
 below the contributor tier's 100 RPM team limit.
+
+### Probe update (2026-10-04)
+
+The estimates above are superseded by lane P's 30-call capture in
+[`m94.md`](m94.md). The contributor model reported 78,705 input tokens
+(17,131 cached) and 9,298 output tokens, costing about $0.0081 in total.
+No Standard-tier request was measured; its figures below project those same
+tokens at Standard prices. Standard latency is assumed equal, not measured.
+
+| Request    | Contributor (measured) | Standard (projected) |
+| ---------- | ---------------------- | -------------------- |
+| Fast       | $0.000156              | $0.00242             |
+| Multi-line | $0.000492              | $0.00706             |
+
+At the earlier assumed billed rates and 85/15 mix, the hourly projections
+are $0.84 / $0.056 (270 requests), $1.68 / $0.11 (540), and $4.20 / $0.28
+(1,350), Standard / contributor. Those typing and cache-reuse assumptions
+remain unmeasured; heavy typing also encounters the 20-request/minute cap.
+The $1.00 daily admission limit takes precedence over every projection.
+
+The measured token-weighted cache hit rate was 21.8% overall, 78.7% for the
+second request of a fast pair, 4.7% for the first and 2.5% for multi-line.
+Fast first-text latency was median 3,798 ms and p95 8,449 ms, so Invoke
+is the default trigger. The resulting caps are 768 output tokens for fast,
+2,560 for multi-line, a 350 ms debounce and a 67,000 ms timeout. The
+multi-line p99 reasoning measurement is a lower bound because one request
+hit the probe's cap without text. The live typing-through check remains
+with the lead after lane K.

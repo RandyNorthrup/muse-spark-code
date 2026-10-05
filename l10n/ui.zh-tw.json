@@ -159,6 +159,7 @@
     "paid:scheduledPrompts": "開啟或關閉付費已排程的提示詞。",
     "paid:autoReviewer": "開啟或關閉付費自動審查器。",
     "paid:bestOfN": "開啟或關閉付費 N 選最優。",
+    "paid:tab": "開啟或關閉付費 Tab 補全。",
     "loop": "在此 Model API 對話中排程提示詞。",
     "importSession": "在 Model API 後端中繼續已匯出的工作階段檔案。",
     "review": "讓 Muse 審查你的變更，或你描述的內容。",
@@ -1911,5 +1912,8 @@
   "agentImportIgnoredToTracked": "這會將 Git 忽略的檔案複製到受追蹤的檔案中",
   "agentImportEditPrompt": "將轉換後的項目在 {path} 中作為未儲存的編輯開啟，以供檢查和儲存？請只儲存到該路徑，切勿儲存到其他檔案。",
   "agentImportEditAction": "編輯並開啟檔案",
-  "agentImportPreviewLegacyKey": "此檔案使用舊版 `mcp_servers` 索引鍵。新增這些項目時請將其重新命名為 `mcpServers`：兩者同時存在時 Muse Code 都不會載入。"
+  "agentImportPreviewLegacyKey": "此檔案使用舊版 `mcp_servers` 索引鍵。新增這些項目時請將其重新命名為 `mcpServers`：兩者同時存在時 Muse Code 都不會載入。",
+  "tabMultilineAuto": "自動",
+  "tabMultilineOnInvoke": "僅在手動叫用時",
+  "tabMultilineNever": "僅使用單行上下文"
 }

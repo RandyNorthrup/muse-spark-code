@@ -159,6 +159,7 @@
     "paid:scheduledPrompts": "Ücretli zamanlanmış istemleri açın veya kapatın.",
     "paid:autoReviewer": "Ücretli otomatik inceleyiciyi açın veya kapatın.",
     "paid:bestOfN": "Ücretli N arasından en iyi özelliğini açın veya kapatın.",
+    "paid:tab": "Ücretli Tab tamamlamalarını açın veya kapatın.",
     "loop": "Bu Model API konuşmasında bir istem zamanla.",
     "importSession": "Dışa aktarılan oturum dosyasına Model API arka ucunda devam et.",
     "review": "Değişikliklerinizi veya anlattığınızı Muse'a inceletin.",
@@ -1985,5 +1986,8 @@
   "agentImportIgnoredToTracked": "bu, Git tarafından yok sayılan bir dosyayı izlenen bir dosyaya kopyalar",
   "agentImportEditPrompt": "Dönüştürülen girdiler {path} içinde inceleyip kaydetmeniz için kaydedilmemiş bir düzenleme olarak açılsın mı? Yalnızca bu yola kaydedin, asla başka bir dosyaya kaydetmeyin.",
   "agentImportEditAction": "Dosyayı düzenle ve aç",
-  "agentImportPreviewLegacyKey": "Dosya eski `mcp_servers` anahtarını kullanıyor. Bunları eklerken adını `mcpServers` olarak değiştirin: ikisi birden olduğunda Muse Code hiçbirini yüklemez."
+  "agentImportPreviewLegacyKey": "Dosya eski `mcp_servers` anahtarını kullanıyor. Bunları eklerken adını `mcpServers` olarak değiştirin: ikisi birden olduğunda Muse Code hiçbirini yüklemez.",
+  "tabMultilineAuto": "Otomatik",
+  "tabMultilineOnInvoke": "Yalnızca çağrıldığında",
+  "tabMultilineNever": "Yalnızca tek satırlık bağlam"
 }

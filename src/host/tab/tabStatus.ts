@@ -7,57 +7,16 @@
 // `$(sparkle)` (the owner's branding rule).
 
 import * as vscode from 'vscode'
-import {
-  CONTEXT_KEYS,
-  TAB_SNOOZE_LONG_MINUTES,
-  TAB_SNOOZE_SHORT_MINUTES,
-  UI_TEXT,
-} from '../../shared/constants'
-import { fill, formatUsd } from '../../shared/l10n/text'
+import { TAB_SNOOZE_LONG_MINUTES, TAB_SNOOZE_SHORT_MINUTES, UI_TEXT } from '../../shared/constants'
+import { fill } from '../../shared/l10n/text'
 import {
   TAB_COMMAND_IDS,
-  isTabLanguageOn,
   readCopilotPosture,
   shouldYieldToCopilot,
-  type TabFailureKind,
   type TabLanguagesCommandDeps,
-  type TabOutcome,
-  type TabSettingValue,
   type TabSnooze,
-  type TabSnoozeStore,
   type TabStatusDeps,
-  type TabStatusHandle,
-  type TabWritableSetting,
 } from './tabBundle'
-
-// The status bar's place: with the language and indentation items on the right.
-const TAB_STATUS_PRIORITY = 100
-
-const MS_PER_MINUTE = 60_000
-
-/** The snooze: timed across every window, or until restart in this one. */
-export function createTabSnooze(store: TabSnoozeStore): TabSnooze {
-  let isUntilRestart = false
-  return {
-    isSnoozed: (nowMs) => isUntilRestart || (store.readSnoozedUntil() ?? 0) > nowMs,
-    minutesLeft: (nowMs) => {
-      if (isUntilRestart) {
-        return
-      }
-      const end = store.readSnoozedUntil()
-      return end === undefined || end <= nowMs
-        ? undefined
-        : Math.max(1, Math.ceil((end - nowMs) / MS_PER_MINUTE))
-    },
-    snoozeMinutes: async (minutes, nowMs) => {
-      isUntilRestart = false
-      await store.writeSnoozedUntil(nowMs + minutes * MS_PER_MINUTE)
-    },
-    snoozeUntilRestart: () => {
-      isUntilRestart = true
-    },
-  }
-}
 
 interface TabMenuRow {
   readonly label: string
@@ -65,232 +24,99 @@ interface TabMenuRow {
 }
 
 /** The status bar item and its menu, over the shim's readers and writers. */
-export function createTabStatus(deps: TabStatusDeps): TabStatusHandle {
-  const item = vscode.window.createStatusBarItem(
-    vscode.StatusBarAlignment.Right,
-    TAB_STATUS_PRIORITY,
-  )
-  item.command = TAB_COMMAND_IDS.menu
-  let lastFailure: TabFailureKind | undefined
-  let lastContext: boolean | undefined
-  // While a timed snooze runs, the bar redraws each minute, so its minutes
-  // left count down and its end shows without another event (RVM94HU 9).
-  let snoozeTimer: ReturnType<typeof setTimeout> | undefined
-
-  const setTabOn = (isOn: boolean): void => {
-    if (lastContext === isOn) {
-      return
-    }
-
-    lastContext = isOn
-    void vscode.commands.executeCommand('setContext', CONTEXT_KEYS.tabOn, isOn)
-  }
-
-  function refresh(): void {
-    if (snoozeTimer !== undefined) {
-      clearTimeout(snoozeTimer)
-      snoozeTimer = undefined
-    }
-    const table = deps.table()
-    if (!deps.isOn()) {
-      item.hide()
-      setTabOn(false)
-      return
-    }
-    setTabOn(true)
-    const spend = deps.todaySpend()
-    const spendText = formatUsd(spend.totalUsd, 2)
-    const budgetText = formatUsd(deps.budgetUsd(), 2)
-    const tooltip = fill(table.tabStatusTooltip, {
-      model: deps.model(),
-      requests: spend.requests,
-      spend: spendText,
-      budget: budgetText,
-    })
-    if (deps.snooze.isSnoozed(Date.now())) {
-      const left = deps.snooze.minutesLeft(Date.now())
-      const snoozedText =
-        left === undefined ? table.tabMenuSnoozeRestart : fill(table.tabStatusSnoozed, { left })
-      item.text = `$(clock) ${snoozedText}`
-      // The filled sentence, never the template (RVM94HU 26).
-      item.tooltip = snoozedText
-      if (left !== undefined) {
-        snoozeTimer = setTimeout(refresh, MS_PER_MINUTE)
-      }
-      item.backgroundColor = undefined
-    } else if (deps.isBudgetReached()) {
-      item.text = `$(warning) ${table.tabStatusBudget}`
-      item.tooltip = tooltip
-      item.backgroundColor = new vscode.ThemeColor('statusBarItem.warningBackground')
-    } else if (!deps.isKeyStored()) {
-      // No key: the bar says so and Tab never prompts for one (Acceptance 2).
-      item.text = `$(circle-slash) ${table.tabStatusNoKey}`
-      item.tooltip = table.tabStatusNoKey
-      item.backgroundColor = undefined
-    } else if (deps.isTrusted()) {
-      const language = deps.activeLanguageId()
-      const isYields =
-        language !== undefined &&
-        shouldYieldToCopilot(
-          readCopilotPosture({
-            isCopilotExtensionPresent: deps.isCopilotExtensionPresent,
-            foreignSetting: deps.foreignSetting,
-            tabWithCopilot: deps.tabWithCopilot(),
-            languageId: language,
-          }),
-        )
-      if (language !== undefined && !isTabLanguageOn(deps.tabLanguages(), language)) {
-        item.text = `$(circle-slash) ${fill(table.tabStatusLanguageOff, { language })}`
-        item.tooltip = fill(table.tabStatusLanguageOff, { language })
-      } else if (isYields) {
-        item.text = `$(code) ${table.tabStatusCopilot}`
-        item.tooltip = table.tabStatusCopilot
-      } else if (lastFailure === undefined) {
-        item.text = `$(code) ${fill(table.tabStatusSpend, { spend: spendText })}`
-        item.tooltip = tooltip
-      } else {
-        item.text = `$(error) ${fill(table.tabStatusError, { kind: lastFailure })}`
-        item.tooltip = fill(table.tabStatusError, { kind: lastFailure })
-      }
-      item.backgroundColor = undefined
-    } else {
-      item.text = `$(circle-slash) ${table.tabStatusUntrusted}`
-      item.tooltip = table.tabStatusUntrusted
-      item.backgroundColor = undefined
-    }
-    item.show()
-  }
-
-  async function showMenu(): Promise<void> {
-    const table = deps.table()
-    const rows: TabMenuRow[] = [
-      {
-        label: table.tabMenuTurnOff,
-        run: () => deps.runCommand(TAB_COMMAND_IDS.turnOff),
-      },
-      {
-        label: table.tabMenuSnoozeShort,
-        run: async () => {
-          await deps.snooze.snoozeMinutes(TAB_SNOOZE_SHORT_MINUTES, Date.now())
-          refresh()
-        },
-      },
-      {
-        label: table.tabMenuSnoozeLong,
-        run: async () => {
-          await deps.snooze.snoozeMinutes(TAB_SNOOZE_LONG_MINUTES, Date.now())
-          refresh()
-        },
-      },
-      {
-        label: table.tabMenuSnoozeRestart,
-        run: () => {
-          deps.snooze.snoozeUntilRestart()
-          refresh()
-        },
-      },
-      {
-        label: table.tabMenuLanguages,
-        run: () => deps.runCommand(TAB_COMMAND_IDS.languages),
-      },
-      {
-        label: table.tabMenuMultiline,
-        run: () => pickTabMultiline(deps),
-      },
-    ]
-    const language = deps.activeLanguageId()
-    if (
-      language !== undefined &&
-      shouldYieldToCopilot(
-        readCopilotPosture({
-          isCopilotExtensionPresent: deps.isCopilotExtensionPresent,
-          foreignSetting: deps.foreignSetting,
-          tabWithCopilot: deps.tabWithCopilot(),
-          languageId: language,
-        }),
-      )
-    ) {
-      rows.push(
-        {
-          label: fill(table.tabMenuCopilotOff, { language }),
-          run: async () => {
-            if (await deps.confirmCopilotDisable(language)) {
-              await deps.disableCopilotFor(language)
-            }
-            refresh()
-          },
-        },
-        {
-          label: table.tabMenuRunBoth,
-          run: async () => {
-            await deps.updateSetting('tabWithCopilot', 'both')
-            refresh()
-          },
-        },
-      )
-    }
-    rows.push({
-      label: table.tabMenuUsage,
-      run: () => deps.openAccountUsage(),
-    })
-    const picked = await vscode.window.showQuickPick(
-      rows.map((row) => ({ label: row.label })),
-      { title: table.paidTabName },
-    )
-    const row = rows.find((candidate) => candidate.label === picked?.label)
-    if (row !== undefined) {
-      await row.run()
-    }
-  }
-
-  function noteOutcome(outcome: TabOutcome): void {
-    if (outcome.kind === 'failed') {
-      lastFailure = outcome.failure
-    } else {
-      // A later trigger clears the failure: quiet states have their own rows.
-      lastFailure = undefined
-    }
-    refresh()
-  }
-
-  refresh()
-  return {
-    refresh,
-    // The menu runs from the item's command, registered once by the shim.
-    showMenu,
-    noteOutcome,
-    dispose: () => {
-      if (snoozeTimer !== undefined) {
-        clearTimeout(snoozeTimer)
-      }
-      // The Alt+\ binding goes with the item (RVM94HU 8).
-      setTabOn(false)
-      item.dispose()
+export async function showTabMenu(deps: TabStatusDeps): Promise<void> {
+  const table = deps.table()
+  const rows: TabMenuRow[] = [
+    {
+      label: table.tabMenuTurnOff,
+      run: () => deps.runCommand(TAB_COMMAND_IDS.turnOff),
     },
+    {
+      label: table.tabMenuSnoozeShort,
+      run: async () => {
+        await deps.snooze.snoozeMinutes(TAB_SNOOZE_SHORT_MINUTES, Date.now())
+        // The activation shim refreshes after the menu action.
+      },
+    },
+    {
+      label: table.tabMenuSnoozeLong,
+      run: async () => {
+        await deps.snooze.snoozeMinutes(TAB_SNOOZE_LONG_MINUTES, Date.now())
+        // The activation shim refreshes after the menu action.
+      },
+    },
+    {
+      label: table.tabMenuSnoozeRestart,
+      run: () => {
+        deps.snooze.snoozeUntilRestart()
+        // The activation shim refreshes after the menu action.
+      },
+    },
+    {
+      label: table.tabMenuLanguages,
+      run: () => deps.runCommand(TAB_COMMAND_IDS.languages),
+    },
+    {
+      label: table.tabMenuMultiline,
+      run: () => pickTabMultiline(deps),
+    },
+  ]
+  const language = deps.activeLanguageId()
+  if (
+    language !== undefined &&
+    shouldYieldToCopilot(
+      readCopilotPosture({
+        isCopilotExtensionPresent: deps.isCopilotExtensionPresent,
+        foreignSetting: deps.foreignSetting,
+        tabWithCopilot: deps.tabWithCopilot(),
+        languageId: language,
+      }),
+    )
+  ) {
+    rows.push(
+      {
+        label: fill(table.tabMenuCopilotOff, { language }),
+        run: async () => {
+          if (await deps.confirmCopilotDisable(language)) {
+            await deps.disableCopilotFor(language)
+          }
+          // The activation shim refreshes after the menu action.
+        },
+      },
+      {
+        label: table.tabMenuRunBoth,
+        run: async () => {
+          await deps.updateSetting('tabWithCopilot', 'both')
+          // The activation shim refreshes after the menu action.
+        },
+      },
+    )
+  }
+  rows.push({
+    label: table.tabMenuUsage,
+    run: () => deps.openAccountUsage(),
+  })
+  const picked = await vscode.window.showQuickPick(
+    rows.map((row) => ({ label: row.label })),
+    { title: table.paidTabName },
+  )
+  const row = rows.find((candidate) => candidate.label === picked?.label)
+  if (row !== undefined) {
+    await row.run()
   }
 }
 
 /** The multi-line mode's picker (the menu's row): auto, on Invoke, never. */
 async function pickTabMultiline(deps: TabStatusDeps): Promise<void> {
-  const picked = await vscode.window.showQuickPick(
-    [{ label: 'auto' }, { label: 'onInvoke' }, { label: 'never' }],
-    { title: deps.table().tabMenuMultiline },
-  )
-  const label = picked?.label
-  if (label === undefined) {
-    return
-  }
-  switch (label) {
-    case 'auto':
-    case 'onInvoke':
-    case 'never': {
-      const key: TabWritableSetting = 'tabMultiline'
-      const value: TabSettingValue = label
-      await deps.updateSetting(key, value)
-      // The shim refreshes the item on the configuration change.
-      break
-    }
-    // No default: an unknown label writes nothing.
+  const table = deps.table()
+  const choices = [
+    { label: table.tabMultilineAuto, value: 'auto' },
+    { label: table.tabMultilineOnInvoke, value: 'onInvoke' },
+    { label: table.tabMultilineNever, value: 'never' },
+  ] as const
+  const picked = await vscode.window.showQuickPick(choices, { title: table.tabMenuMultiline })
+  if (picked !== undefined) {
+    await deps.updateSetting('tabMultiline', picked.value)
   }
 }
 

@@ -159,6 +159,7 @@
     "paid:scheduledPrompts": "Activa o desactiva los prompts programados de pago.",
     "paid:autoReviewer": "Activa o desactiva el revisor automático de pago.",
     "paid:bestOfN": "Activa o desactiva Best-of-N de pago.",
+    "paid:tab": "Activar o desactivar las sugerencias de pago de Tab.",
     "loop": "Programar un prompt en esta conversación de Model API.",
     "importSession": "Continuar un archivo de sesión exportado en el backend de Model API.",
     "review": "Pide a Muse que revise tus cambios o lo que describas.",
@@ -2059,5 +2060,8 @@
   "agentImportIgnoredToTracked": "esto copiaría un archivo ignorado por Git a uno con seguimiento",
   "agentImportEditPrompt": "¿Abrir las entradas convertidas en {path} como una edición sin guardar para revisarla y guardarla? Guárdela solo en esa ruta, nunca en otro archivo.",
   "agentImportEditAction": "Editar y abrir el archivo",
-  "agentImportPreviewLegacyKey": "El archivo usa la clave antigua `mcp_servers`. Cámbiele el nombre a `mcpServers` al añadir estos: Muse Code no carga ninguna de las dos cuando están ambas."
+  "agentImportPreviewLegacyKey": "El archivo usa la clave antigua `mcp_servers`. Cámbiele el nombre a `mcpServers` al añadir estos: Muse Code no carga ninguna de las dos cuando están ambas.",
+  "tabMultilineAuto": "Automático",
+  "tabMultilineOnInvoke": "Solo al invocar",
+  "tabMultilineNever": "Solo contexto de una línea"
 }

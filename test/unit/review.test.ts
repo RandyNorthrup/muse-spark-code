@@ -150,10 +150,11 @@ describe('isPrivateFileName', () => {
       'id_rsa',
       String.raw`a\b\server.Pem`,
       'auth.json',
+      '.pem',
     ]) {
       expect(isPrivateFileName(name)).toBe(true)
     }
-    for (const name of ['env.ts', 'src/.envrc.md', 'key.ts', 'README.md', '.pem']) {
+    for (const name of ['env.ts', 'src/.envrc.md', 'key.ts', 'README.md']) {
       expect(isPrivateFileName(name)).toBe(false)
     }
   })

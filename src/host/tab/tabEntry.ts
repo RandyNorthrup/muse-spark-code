@@ -1,5 +1,5 @@
 // Tab's shipped CommonJS bundle (M94, PLAN.md D6): the engine and the
-// ledger's spend gate, the provider, the status bar, the snooze and the
+// ledger's spend gate, the provider and the
 // menu commands. esbuild builds this file into dist/tab.js, which `tabLoader`
 // requires on the first Tab request, so none of it is in the bundle VS Code
 // loads at activation. `vscode` is the host's external module. Every entry
@@ -17,16 +17,13 @@ import {
   type TabServices,
   type TabServicesDeps,
   type TabSnooze,
-  type TabSnoozeStore,
   type TabStatusDeps,
-  type TabStatusHandle,
 } from './tabBundle'
 import { createTabLedger } from './tabLedger'
 import { createTabProvider as createProvider } from './tabProvider'
 import { createTabSpendGate } from './tabSpendGate'
 import {
-  createTabSnooze as createSnooze,
-  createTabStatus as createStatus,
+  showTabMenu as showMenu,
   snoozeTabCommand as runSnoozeCommand,
   tabLanguagesCommand as runLanguagesCommand,
 } from './tabStatus'
@@ -64,18 +61,14 @@ export function createTabServices(deps: TabServicesDeps): TabServices {
   }
 }
 
-export function createTabSnooze(store: TabSnoozeStore): TabSnooze {
-  return createSnooze(store)
-}
-
 export function createTabProvider(deps: TabProviderDeps & TabBundleTable): TabProviderHandle {
   setUiText(deps.uiTable, deps.locale)
   return createProvider(deps)
 }
 
-export function createTabStatus(deps: TabStatusDeps & TabBundleTable): TabStatusHandle {
+export async function showTabMenu(deps: TabStatusDeps & TabBundleTable): Promise<void> {
   setUiText(deps.uiTable, deps.locale)
-  return createStatus(deps)
+  await showMenu(deps)
 }
 
 export async function snoozeTabCommand(

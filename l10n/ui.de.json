@@ -159,6 +159,7 @@
     "paid:scheduledPrompts": "Kostenpflichtige geplante Prompts ein- oder ausschalten.",
     "paid:autoReviewer": "Den kostenpflichtigen Auto-Prüfer ein- oder ausschalten.",
     "paid:bestOfN": "Kostenpflichtiges Best-of-N ein- oder ausschalten.",
+    "paid:tab": "Kostenpflichtige Tab-Vervollständigungen ein- oder ausschalten.",
     "loop": "Einen Prompt in dieser Model-API-Unterhaltung planen.",
     "importSession": "Eine exportierte Sitzungsdatei im Model-API-Backend fortsetzen.",
     "review": "Muse Ihre Änderungen prüfen lassen, oder das, was Sie beschreiben.",
@@ -1985,5 +1986,8 @@
   "agentImportIgnoredToTracked": "dadurch würde eine von Git ignorierte Datei in eine versionierte Datei kopiert",
   "agentImportEditPrompt": "Konvertierte Einträge in {path} als ungespeicherte Änderung zum Prüfen und Speichern öffnen? Speichern Sie sie nur unter diesem Pfad, nie in einer anderen Datei.",
   "agentImportEditAction": "Datei bearbeiten und öffnen",
-  "agentImportPreviewLegacyKey": "Die Datei verwendet den veralteten Schlüssel `mcp_servers`. Benennen Sie ihn in `mcpServers` um, wenn Sie diese hinzufügen: Muse Code lädt keinen von beiden, wenn beide vorhanden sind."
+  "agentImportPreviewLegacyKey": "Die Datei verwendet den veralteten Schlüssel `mcp_servers`. Benennen Sie ihn in `mcpServers` um, wenn Sie diese hinzufügen: Muse Code lädt keinen von beiden, wenn beide vorhanden sind.",
+  "tabMultilineAuto": "Automatisch",
+  "tabMultilineOnInvoke": "Nur bei Aufruf",
+  "tabMultilineNever": "Nur Kontext für eine Zeile"
 }

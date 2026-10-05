@@ -101,8 +101,19 @@ describe('package.json manifest', () => {
       linux: 'ctrl+alt+o',
       when: 'museSpark.inputFocused',
     })
+    expect(bindings.get('editor.action.inlineSuggest.trigger')).toMatchObject({
+      key: 'alt+\\',
+      when: 'editorTextFocus && museSpark.tabOn',
+    })
     for (const command of bindings.keys()) {
-      expect(Object.values(COMMAND_IDS)).toContain(command)
+      if (command === 'editor.action.inlineSuggest.trigger') {
+        expect(bindings.get(command)).toMatchObject({
+          key: 'alt+\\',
+          when: 'editorTextFocus && museSpark.tabOn',
+        })
+      } else {
+        expect(Object.values(COMMAND_IDS)).toContain(command)
+      }
     }
   })
 
@@ -123,8 +134,11 @@ describe('package.json manifest', () => {
     expect(properties['museSpark.archiveInactiveSessions'].enum).toEqual([...ARCHIVE_DAY_CHOICES])
   })
 
-  it('activates for restored chat panels only (D15)', () => {
-    expect(manifest.activationEvents).toEqual([`onWebviewPanel:${CHAT_PANEL_VIEW_TYPE}`])
+  it('activates at startup for Tab and for restored chat panels (D15, D73)', () => {
+    expect(manifest.activationEvents).toEqual([
+      `onWebviewPanel:${CHAT_PANEL_VIEW_TYPE}`,
+      'onStartupFinished',
+    ])
   })
 
   it('machine-scopes the settings that choose what runs and what is billed (D15)', () => {

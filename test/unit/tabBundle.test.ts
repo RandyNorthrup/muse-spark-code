@@ -8,7 +8,6 @@ import { mkdtempSync, mkdirSync, readFileSync, realpathSync, writeFileSync } fro
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
-import { build } from 'esbuild'
 import type * as vscode from 'vscode'
 import { InlineCompletionTriggerKind, Position, Uri, commands, languages, window } from 'vscode'
 import {
@@ -25,27 +24,23 @@ import {
   shouldYieldToCopilot,
   tabLoader,
   type TabActivationDeps,
-  type TabOutcome,
   type TabProviderDeps,
   type TabServices,
   type TabServicesDeps,
-  type TabStatusDeps,
   type TabUseConsent,
 } from '../../src/host/tab/tabBundle'
-import { createTabSnooze } from '../../src/host/tab/tabStatus'
+import { createTabSnooze } from '../../src/host/tab/tabBundle'
 import {
   createTabServices as entryServices,
-  createTabSnooze as entrySnooze,
   createTabProvider as entryProvider,
-  createTabStatus as entryStatus,
   snoozeTabCommand as entrySnoozeCommand,
   tabLanguagesCommand as entryLanguagesCommand,
 } from '../../src/host/tab/tabEntry'
-import { UI_TEXT } from '../../src/shared/constants'
+import { SETTING_DEFAULTS, UI_TEXT } from '../../src/shared/constants'
 import { BASE_LOCALE } from '../../src/shared/l10n/text'
 import { FakeCancellationToken, FakeLogOutputChannel, FakeTextDocument } from './helpers/fakes'
 import { FakeStatusBarItem } from './mocks/vscode'
-import { sharedUiText } from './helpers/modelApiBundle'
+import { buildHostBundles } from './helpers/modelApiBundle'
 import { removeFolder } from './helpers/temporaryFolders'
 import { pickOne } from './helpers/vscodeViews'
 
@@ -61,33 +56,25 @@ beforeAll(async () => {
   mkdirSync(vscodeDirectory, { recursive: true })
   writeFileSync(path.join(vscodeDirectory, 'index.js'), 'module.exports = {}\n')
   writeFileSync(path.join(vscodeDirectory, 'package.json'), '{"main":"index.js"}\n')
-  await build({
-    entryPoints: [path.resolve('src/shared/l10n/en.ts')],
-    outfile: path.join(built.folder, 'uiText.js'),
-    bundle: true,
-    platform: 'node',
-    format: 'cjs',
-    target: 'node20.18',
-    logLevel: 'silent',
-  })
-  await build({
-    entryPoints: [path.resolve('src/host/tab/tabEntry.ts')],
-    outfile: built.file,
-    bundle: true,
-    platform: 'node',
-    external: ['vscode'],
-    format: 'cjs',
-    target: 'node20.18',
-    plugins: [sharedUiText],
-    logLevel: 'silent',
-  })
+  await buildHostBundles(built.folder, { tab: path.resolve('src/host/tab/tabEntry.ts') }, [
+    'vscode',
+  ])
 })
 afterAll(() => removeFolder(built.folder))
 
 beforeEach(() => {
+  vi.mocked(window.createStatusBarItem)
+    .mockReset()
+    .mockImplementation(() => new FakeStatusBarItem())
   vi.mocked(window.showQuickPick).mockReset()
   vi.mocked(commands.executeCommand).mockReset()
 })
+
+function lastStatusItem(): FakeStatusBarItem {
+  const value: unknown = vi.mocked(window.createStatusBarItem).mock.results.at(-1)?.value
+  if (!(value instanceof FakeStatusBarItem)) throw new Error('no status item')
+  return value
+}
 
 describe('TAB_COMMAND_IDS', () => {
   it('names the five user commands and the internal accept, all museSpark.tab*', () => {
@@ -159,9 +146,8 @@ describe('isTabBundle', () => {
     expect(
       isTabBundle({
         createTabServices: () => undefined,
-        createTabSnooze: () => undefined,
         createTabProvider: () => undefined,
-        createTabStatus: () => undefined,
+        showTabMenu: () => Promise.resolve(),
         snoozeTabCommand: () => undefined,
         tabLanguagesCommand: () => undefined,
       }),
@@ -170,9 +156,8 @@ describe('isTabBundle', () => {
     // The five host entries without the services are not the bundle.
     expect(
       isTabBundle({
-        createTabSnooze: () => undefined,
         createTabProvider: () => undefined,
-        createTabStatus: () => undefined,
+        showTabMenu: () => Promise.resolve(),
         snoozeTabCommand: () => undefined,
         tabLanguagesCommand: () => undefined,
       }),
@@ -185,9 +170,8 @@ describe('isTabBundle', () => {
 describe('tabLoader', () => {
   const bundle = {
     createTabServices: () => undefined,
-    createTabSnooze: () => undefined,
     createTabProvider: () => undefined,
-    createTabStatus: () => undefined,
+    showTabMenu: () => Promise.resolve(),
     snoozeTabCommand: () => undefined,
     tabLanguagesCommand: () => undefined,
   }
@@ -265,8 +249,6 @@ interface ActivationHarness {
   readonly registered: Map<string, (...args: readonly unknown[]) => unknown>
   readonly disposables: ReturnType<typeof vi.fn>[]
   readonly providerDeps: () => TabProviderDeps | undefined
-  readonly statusDeps: () => TabStatusDeps | undefined
-  readonly outcomes: () => TabOutcome[]
   readonly servicesDeps: () => TabServicesDeps | undefined
   readonly consent: TabUseConsent
   readonly services: TabServices
@@ -274,7 +256,7 @@ interface ActivationHarness {
   readonly providers: vscode.InlineCompletionItemProvider[]
   /** Every `museSpark.tabOn` value the shim set, in order. */
   readonly tabOnContext: boolean[]
-  readonly statusRefresh: ReturnType<typeof vi.fn>
+  readonly acceptNotified: ReturnType<typeof vi.fn>
   readonly delegated: ReturnType<typeof vi.fn>
   settingOn: boolean
 }
@@ -344,7 +326,6 @@ function activationHarness(
           servicesFound = found
           return services
         },
-        createTabSnooze: (store: never) => createTabSnooze(store),
         createTabProvider: (found: TabProviderDeps) => {
           providerFound = found
           return {
@@ -353,18 +334,11 @@ function activationHarness(
             acceptNotified,
           }
         },
-        createTabStatus: (found: TabStatusDeps) => {
-          statusFound = found
-          return {
-            refresh: statusRefresh,
-            showMenu: () => Promise.resolve(),
-            noteOutcome: (outcome: TabOutcome) => {
-              seenOutcomes.push(outcome)
-            },
-            dispose: statusDispose,
-          }
+        showTabMenu: () => Promise.resolve(),
+        snoozeTabCommand: (snooze: ReturnType<typeof createTabSnooze>) => {
+          snooze.snoozeUntilRestart()
+          return Promise.resolve()
         },
-        snoozeTabCommand: () => Promise.resolve(),
         tabLanguagesCommand: () => Promise.resolve(),
       }
     )
@@ -378,37 +352,24 @@ function activationHarness(
     registered: new Map(),
     disposables: [],
     providerDeps: () => providerFound,
-    statusDeps: () => statusFound,
-    outcomes: () => seenOutcomes,
     servicesDeps: () => servicesFound,
     consent,
     services,
     providers: [],
     tabOnContext: [],
-    statusRefresh: vi.fn(),
     delegated: vi.fn(() => []),
+    acceptNotified: vi.fn(),
     settingOn: false,
   }
-  const { statusRefresh, delegated } = harness
+  const { delegated, acceptNotified } = harness
   let providerFound: TabProviderDeps | undefined
-  let statusFound: TabStatusDeps | undefined
-  const seenOutcomes: TabOutcome[] = []
   const providerDispose = vi.fn()
-  const statusDispose = vi.fn()
-  const acceptNotified = vi.fn()
   const activation = createTabActivation({
     bundlePath: '/dist/tab.js',
     log,
     loadBundle,
     isTabSettingOn: () => harness.settingOn,
-    tabSettings: () => ({
-      tabModel: 'muse-spark-1.3',
-      tabLanguages: { '*': true },
-      tabMultiline: 'auto',
-      tabTrigger: 'automatic',
-      tabWithCopilot: 'yield',
-      tabDailyBudgetUsd: 1,
-    }),
+    tabSettings: () => ({ ...SETTING_DEFAULTS, tabTrigger: 'automatic' }),
     isPaidOn: () => true,
     isKeyStored: () => {
       harness.keyReads.count += 1
@@ -494,6 +455,7 @@ describe('createTabActivation', () => {
     expect(harness.activation.isActive()).toBe(false)
     expect(harness.loadBundle).not.toHaveBeenCalled()
     expect(harness.keyReads.count).toBe(0)
+    expect(window.createStatusBarItem).not.toHaveBeenCalled()
     expect(harness.gitRuns).toEqual([])
     expect(harness.keyPresence).toEqual([])
   })
@@ -507,6 +469,7 @@ describe('createTabActivation', () => {
     expect(harness.providers).toHaveLength(1)
     expect(harness.tabOnContext).toEqual([true])
     expect(harness.loadBundle).not.toHaveBeenCalled()
+    expect(lastStatusItem().visible).toBe(true)
     expect(harness.keyPresence).toEqual([])
     await requestThroughShim(harness)
     // The first request waits for the deferred secret read (deferredRefresh
@@ -542,9 +505,8 @@ describe('createTabActivation', () => {
     harness.settingOn = true
     harness.activation.refresh()
     await loadThroughMenu(harness)
-    harness.statusRefresh.mockClear()
     await harness.registered.get(TAB_COMMAND_IDS.snooze)?.()
-    expect(harness.statusRefresh).toHaveBeenCalled()
+    expect(lastStatusItem().text).toContain(UI_TEXT.tabMenuSnoozeRestart)
   })
 
   it('retries after a missing bundle: the loader logged, the next request loads', async () => {
@@ -570,32 +532,14 @@ describe('createTabActivation', () => {
     expect(providerDeps).toBeDefined()
     expect(providerDeps?.isSnoozed()).toBe(false)
     providerDeps?.onOutcome({ kind: 'quiet', reason: 'consent-denied' })
-    expect(harness.outcomes()).toEqual([{ kind: 'quiet', reason: 'consent-denied' }])
+    expect(lastStatusItem().text).toContain(UI_TEXT.tabMenuSnoozeRestart)
     // Deny snoozes the window (Q-M94a): the provider reads it live.
     expect(providerDeps?.isSnoozed()).toBe(true)
   })
 
   it('routes the accept command to the running provider only', async () => {
-    const acceptNotified = vi.fn()
-    const harness = activationHarness({
-      loadModule: {
-        createTabServices: () => harnessServices(),
-        createTabSnooze: (store: never) => createTabSnooze(store),
-        createTabProvider: () => ({
-          provider: { provideInlineCompletionItems: () => [] },
-          dispose: () => undefined,
-          acceptNotified,
-        }),
-        createTabStatus: () => ({
-          refresh: () => undefined,
-          showMenu: () => Promise.resolve(),
-          noteOutcome: () => undefined,
-          dispose: () => undefined,
-        }),
-        snoozeTabCommand: () => Promise.resolve(),
-        tabLanguagesCommand: () => Promise.resolve(),
-      },
-    })
+    const harness = activationHarness()
+    const { acceptNotified } = harness
     const afterAccept = harness.registered.get(TAB_COMMAND_IDS.afterAccept)
     expect(afterAccept).toBeDefined()
     // Stale while off: answers nothing, throws nothing.
@@ -625,9 +569,7 @@ describe('createTabActivation', () => {
     harness.settingOn = true
     harness.activation.refresh()
     await loadThroughMenu(harness)
-    const statusDeps = harness.statusDeps()
-    expect(statusDeps?.todaySpend()).toEqual({ totalUsd: 5, requests: 21 })
-    expect(statusDeps?.isBudgetReached()).toBe(true)
+    expect(lastStatusItem().text).toContain(UI_TEXT.tabStatusBudget)
   })
 
   it('wires the bundle’s engine and ledger and the activation’s question into the provider', async () => {
@@ -668,7 +610,7 @@ describe('the shipped Tab bundle', () => {
       seen.push(items.map((item) => item.label))
       return Promise.resolve(undefined)
     })
-    const snooze = entrySnooze({
+    const snooze = createTabSnooze({
       readSnoozedUntil: () => undefined,
       writeSnoozedUntil: () => Promise.resolve(),
       nowMs: () => Date.now(),
@@ -697,41 +639,6 @@ describe('the shipped Tab bundle', () => {
     expect(titles).toContain('Marker languages.')
   })
 
-  it('creates the status from the entry with the handed table', () => {
-    const item = new FakeStatusBarItem()
-    vi.mocked(window.createStatusBarItem).mockReturnValue(item)
-    const status = entryStatus({
-      isOn: () => true,
-      isKeyStored: () => true,
-      isTrusted: () => true,
-      activeLanguageId: () => 'typescript',
-      foreignSetting: () => undefined,
-      isCopilotExtensionPresent: () => false,
-      tabWithCopilot: () => 'yield',
-      todaySpend: () => ({ totalUsd: 0.12, requests: 1 }),
-      isBudgetReached: () => false,
-      model: () => 'muse-spark-1.3',
-      budgetUsd: () => 1,
-      snooze: entrySnooze({
-        readSnoozedUntil: () => undefined,
-        writeSnoozedUntil: () => Promise.resolve(),
-        nowMs: () => Date.now(),
-      }),
-      updateSetting: () => Promise.resolve(),
-      tabLanguages: () => ({ '*': true }),
-      knownLanguages: () => Promise.resolve([]),
-      confirmCopilotDisable: () => Promise.resolve(true),
-      disableCopilotFor: () => Promise.resolve(),
-      runCommand: () => Promise.resolve(),
-      openAccountUsage: () => Promise.resolve(),
-      table: () => ({ ...UI_TEXT, tabStatusSpend: 'Marker {spend}.' }),
-      uiTable: UI_TEXT,
-      locale: BASE_LOCALE,
-    })
-    expect(item.text).toContain('Marker')
-    status.dispose()
-  })
-
   it('creates the engine and the ledger’s spend gate from the entry', () => {
     const services = entryServices({
       stream: () => {
@@ -754,14 +661,9 @@ describe('the shipped Tab bundle', () => {
     vi.mocked(languages.registerInlineCompletionItemProvider).mockReturnValue({
       dispose: () => undefined,
     })
+    const services = harnessServices()
     const provider = entryProvider({
-      settings: () => ({
-        tabModel: 'muse-spark-1.3',
-        tabLanguages: { '*': true },
-        tabMultiline: 'auto',
-        tabTrigger: 'automatic',
-        tabWithCopilot: 'yield',
-      }),
+      settings: () => ({ ...SETTING_DEFAULTS, tabTrigger: 'automatic' }),
       isPaidOn: () => true,
       isKeyStored: () => true,
       isTrusted: () => true,
@@ -775,20 +677,7 @@ describe('the shipped Tab bundle', () => {
       runGit: () => Promise.reject(new Error('no git')),
       onIgnoreFilesChanged: () => ({ dispose: () => undefined }),
       onDidChangeTextDocument: () => ({ dispose: () => undefined }),
-      engine: {
-        complete: () =>
-          Promise.resolve({
-            completion: undefined,
-            usage: Promise.resolve({ inputTokens: 0, cachedTokens: 0, outputTokens: 0 }),
-          }),
-      },
-      spend: {
-        reserve: () =>
-          Promise.resolve({ model: 'muse-spark-1.3', worstCaseUsd: 0, date: '2026-10-04' }),
-        settle: () => undefined,
-        todayTotalUsd: () => 0,
-        todayRequests: () => 0,
-      },
+      ...services,
       consent: { requestUse: () => Promise.resolve(true) },
       onOutcome: () => undefined,
       log: new FakeLogOutputChannel(),

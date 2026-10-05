@@ -32,6 +32,7 @@ function request(overrides: Partial<TabEngineRequest> = {}): TabEngineRequest {
     languageId: 'typescript',
     prefix: 'const y = ',
     suffix: '',
+    snippets: '',
     mode: 'fast',
     isInvoke: true,
     cursorLineBefore: 'const y = ',
@@ -137,6 +138,16 @@ describe('createTabEngine', () => {
     expect(script.calls[0]?.budget.retriesUsed).toBe(MODEL_API_MAX_RETRIES)
     expect(script.calls[0]?.body.store).toBe(false)
     expect(script.calls[0]?.body.tools).toEqual([])
+  })
+
+  it('carries the ordered context snippets into the request', async () => {
+    const script = scriptedStream([completed(USAGE)])
+    const engine = createTabEngine({ stream: script.stream, onSent: vi.fn(), onUsage: vi.fn() })
+    const answer = await engine.complete(
+      request({ mode: 'multiline', snippets: '```helper.ts\nexport const helper = 1\n```' }),
+    )
+    await answer.usage
+    expect(JSON.stringify(script.calls[0]?.body.input)).toContain('export const helper = 1')
   })
 
   it('serves typing through from the cache, with no request and zero usage', async () => {

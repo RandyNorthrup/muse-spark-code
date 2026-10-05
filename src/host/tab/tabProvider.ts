@@ -7,16 +7,21 @@
 // `vscode` is the host's external module, as in every host file.
 
 import { Buffer } from 'node:buffer'
+import { stat } from 'node:fs/promises'
 import path from 'node:path'
 import * as vscode from 'vscode'
 import { isGitExitError } from '../git'
 import { compileGlob } from '../../core/backends/modelapi/globLimits'
 import { redactSecrets } from '../../core/redact'
 import { isProtectedPath } from '../../core/protectedPaths'
-import { contextWindow } from '../../core/tab/tabContext'
+import { contextWindow, orderSnippets, type TabSnippet } from '../../core/tab/tabContext'
 import { tabUserText } from '../../core/tab/tabRequest'
 import {
+  TAB_CONTEXT_FILES,
+  TAB_CONTEXT_SNIPPET_LINES,
+  TAB_UTF8_BYTES_PER_CODE_UNIT,
   TAB_FAST_MAX_OUTPUT_TOKENS,
+  VSCODE_COMMANDS,
   TAB_FILE_MAX_BYTES,
   TAB_MODEL_TEXT,
   TAB_MULTILINE_MAX_LINES,
@@ -560,6 +565,116 @@ export function createTabProvider(deps: TabProviderDeps): TabProviderHandle {
     return undefined
   }
 
+  /** Related files pass every privacy check before opening or reading text. */
+  async function contextSnippets(
+    document: TabDocument,
+    lineNumber: number,
+    lineText: string,
+    isCancelled: () => boolean,
+  ): Promise<string> {
+    const checkedGeneration = ignore.currentGeneration
+    const candidates = [...(deps.recentEdits?.() ?? [])]
+    const identifiers = lineText.matchAll(/[\p{L}_$][\p{L}\p{N}_$]*/gu)
+    let queries = 0
+    for (const identifier of identifiers) {
+      if (queries >= TAB_CONTEXT_FILES || candidates.length >= TAB_CONTEXT_FILES) break
+      queries += 1
+      if (isCancelled() || !deps.isTrusted()) return ''
+      try {
+        const locations = await vscode.commands.executeCommand<
+          readonly (vscode.Location | vscode.LocationLink)[] | undefined
+        >(
+          VSCODE_COMMANDS.executeDefinitionProvider,
+          document.uri,
+          new vscode.Position(lineNumber, identifier.index),
+        )
+        const available = (locations ?? []).slice(
+          0,
+          Math.max(0, TAB_CONTEXT_FILES - candidates.length),
+        )
+        for (const location of available) {
+          const uri = 'targetUri' in location ? location.targetUri : location.uri
+          const range = 'targetRange' in location ? location.targetRange : location.range
+          candidates.push({ uri, line: range.start.line })
+        }
+      } catch {
+        // A language service without a definition supplies no context.
+      }
+      if (candidates.length >= TAB_CONTEXT_FILES) break
+    }
+    const snippets: TabSnippet[] = []
+    const seen = new Set<string>([document.uri.toString()])
+    for (const candidate of candidates.slice(0, TAB_CONTEXT_FILES)) {
+      if (isCancelled() || !deps.isTrusted()) return ''
+      if (candidate.uri.scheme !== 'file' || seen.has(candidate.uri.toString())) continue
+      seen.add(candidate.uri.toString())
+      const rootAbs = deps.workspaceRoots(candidate.uri.fsPath).at(0)
+      const relativePath =
+        rootAbs === undefined ? undefined : relativeInside(rootAbs, candidate.uri.fsPath)
+      if (rootAbs === undefined || relativePath === undefined) continue
+      const checks: TabFileCheckDeps = {
+        filesExclude: deps.filesExclude(candidate.uri),
+        ignore,
+        rootAbs,
+        hasSibling: (sibling) => deps.ignoreFileExists(path.join(rootAbs, ...sibling.split('/'))),
+        hooks: deps.hooks,
+      }
+      try {
+        const target = relativeInside(
+          await deps.realPath(rootAbs),
+          await deps.realPath(candidate.uri.fsPath),
+        )
+        if (
+          target === undefined ||
+          isTabForbiddenName(target) ||
+          !(await isTabPathEligible(relativePath, checks))
+        )
+          continue
+        const metadata = await stat(candidate.uri.fsPath)
+        if (metadata.size > TAB_FILE_MAX_BYTES) continue
+        if (isCancelled() || !deps.isTrusted()) return ''
+        const related = await vscode.workspace.openTextDocument(candidate.uri)
+        if (isCancelled() || !deps.isTrusted() || ignore.currentGeneration !== checkedGeneration)
+          return ''
+        if (
+          !isTabLanguageOn(deps.settings().tabLanguages, related.languageId) ||
+          isFilesExcluded(relativePath, deps.filesExclude(candidate.uri), checks.hasSibling)
+        )
+          continue
+        // A large unsaved buffer is refused before reading its text too.
+        if (
+          related.offsetAt(related.lineAt(related.lineCount - 1).range.end) *
+            TAB_UTF8_BYTES_PER_CODE_UNIT >
+          TAB_FILE_MAX_BYTES
+        )
+          continue
+        const text = related.getText()
+        if (
+          !(await isTabFileEligible(
+            {
+              absolutePath: candidate.uri.fsPath,
+              relativePath,
+              sizeBytes: Buffer.byteLength(text, 'utf8'),
+              content: text,
+            },
+            checks,
+          ))
+        )
+          continue
+        // Redact the full text before cutting: secrets spanning an excerpt edge are still caught.
+        const lines = redactSecrets(text).split('\n')
+        const start = Math.max(0, candidate.line - Math.floor(TAB_CONTEXT_SNIPPET_LINES / 2))
+        snippets.push({
+          path: redactSecrets(relativePath),
+          text: lines.slice(start, start + TAB_CONTEXT_SNIPPET_LINES).join('\n'),
+        })
+      } catch {
+        // Unreadable related files never prevent a current-file completion.
+      }
+    }
+    return orderSnippets(snippets)
+  }
+
   async function provide(
     document: TabDocument,
     position: TabPosition,
@@ -655,17 +770,27 @@ export function createTabProvider(deps: TabProviderDeps): TabProviderHandle {
     // (Acceptance 5).
     const window = contextWindow(halves.before + halves.after, halves.before.length, mode)
     const { prefix, suffix } = window
+    const snippets =
+      mode === 'multiline'
+        ? await contextSnippets(
+            document,
+            position.line,
+            line,
+            () => token.isCancellationRequested || isDisposed(),
+          )
+        : ''
     const model = deps.settings().tabModel
+    const redactedPath = redactSecrets(relativePath)
     // The worst case is priced on everything sent: the instructions and the
     // one user message (D73, M82's one token per UTF-8 byte; RVM94HU 16).
     const sentText =
       TAB_MODEL_TEXT.tabSystem +
       tabUserText({
-        path: relativePath,
+        path: redactedPath,
         languageId: document.languageId,
         prefix,
         suffix,
-        snippets: '',
+        snippets,
       })
     const reservation = await deps.spend.reserve({
       model,
@@ -683,10 +808,7 @@ export function createTabProvider(deps: TabProviderDeps): TabProviderHandle {
     const lateReason = isDisposed()
       ? 'cancelled-before-send'
       : (stateQuietReason(document, rootAbs, isInvoke) ??
-        (ignore.currentGeneration !== ignoreGeneration &&
-        !(await isTabPathEligible(relativePath, checks))
-          ? 'ineligible-file'
-          : undefined))
+        (ignore.currentGeneration === ignoreGeneration ? undefined : 'ineligible-file'))
     if (lateReason !== undefined) {
       deps.spend.settle(reservation, NOTHING_SENT)
       return quiet(lateReason)
@@ -701,10 +823,11 @@ export function createTabProvider(deps: TabProviderDeps): TabProviderHandle {
     const snapshot: TabCompletionSnapshot = {
       model,
       absolutePath: document.uri.fsPath,
-      relativePath,
+      relativePath: redactedPath,
       languageId: document.languageId,
       prefix,
       suffix,
+      snippets,
       mode,
       isInvoke,
       cursorLineBefore: line.slice(0, position.character),

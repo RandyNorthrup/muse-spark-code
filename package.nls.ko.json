@@ -135,5 +135,10 @@
   "config.tabTrigger.enumDescriptions.onInvoke": "직접 제안을 호출할 때만 제안.",
   "config.tabWithCopilot.description": "GitHub Copilot도 제안하는 언어에서 Tab의 동작.",
   "config.tabWithCopilot.enumDescriptions.yield": "Copilot이 제안하는 언어에는 Tab 자동 요청을 보내지 않음. 명시적 호출은 계속 동작.",
-  "config.tabWithCopilot.enumDescriptions.both": "Copilot이 제안하는 언어에도 Tab 자동 요청을 보냄."
+  "config.tabWithCopilot.enumDescriptions.both": "Copilot이 제안하는 언어에도 Tab 자동 요청을 보냄.",
+  "command.tabTurnOn.title": "Tab 켜기",
+  "command.tabTurnOff.title": "Tab 끄기",
+  "command.tabSnooze.title": "Tab 일시 중지",
+  "command.tabMenu.title": "Tab 메뉴",
+  "command.tabLanguages.title": "Tab 언어"
 }

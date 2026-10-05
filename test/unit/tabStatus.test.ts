@@ -11,12 +11,8 @@ import {
   type TabStatusHandle,
   type TabSnoozeStore,
 } from '../../src/host/tab/tabBundle'
-import {
-  createTabSnooze,
-  createTabStatus,
-  snoozeTabCommand,
-  tabLanguagesCommand,
-} from '../../src/host/tab/tabStatus'
+import { showTabMenu, snoozeTabCommand, tabLanguagesCommand } from '../../src/host/tab/tabStatus'
+import { createTabSnooze, createTabStatusItem } from '../../src/host/tab/tabBundle'
 import { UI_TEXT } from '../../src/shared/constants'
 import { fill, formatUsd } from '../../src/shared/l10n/text'
 import { FakeStatusBarItem } from './mocks/vscode'
@@ -90,7 +86,7 @@ function statusHarness(overrides: Partial<TabStatusDeps> = {}): StatusHarness {
   vi.mocked(pickOne).mockImplementation((items) =>
     Promise.resolve(items.find((item) => item.label === picked.label)),
   )
-  const status = createTabStatus({
+  const statusDeps: TabStatusDeps = {
     isOn: () => true,
     isKeyStored: () => true,
     isTrusted: () => true,
@@ -112,7 +108,8 @@ function statusHarness(overrides: Partial<TabStatusDeps> = {}): StatusHarness {
     openAccountUsage,
     table: () => UI_TEXT,
     ...overrides,
-  })
+  }
+  const status = createTabStatusItem(statusDeps, () => showTabMenu(statusDeps))
   return {
     item,
     status,
@@ -274,6 +271,27 @@ describe('createTabStatus', () => {
     await both.status.showMenu()
     expect(both.openAccountUsage).toHaveBeenCalledOnce()
     expect(both.confirmCopilotDisable).not.toHaveBeenCalled()
+  })
+
+  it('uses translated multi-line labels and writes their stable values', async () => {
+    for (const [label, value] of [
+      [UI_TEXT.tabMultilineAuto, 'auto'],
+      [UI_TEXT.tabMultilineOnInvoke, 'onInvoke'],
+      [UI_TEXT.tabMultilineNever, 'never'],
+    ]) {
+      const harness = statusHarness()
+      let isFirst = true
+      vi.mocked(pickOne).mockImplementation((items) => {
+        const selected = items.find(
+          (item) => item.label === (isFirst ? UI_TEXT.tabMenuMultiline : label),
+        )
+        isFirst = false
+        return Promise.resolve(selected)
+      })
+      await harness.status.showMenu()
+      expect(harness.updateSetting).toHaveBeenCalledWith('tabMultiline', value)
+      harness.status.dispose()
+    }
   })
 
   it('never shows Copilot’s icon: every icon is a codicon, never $(sparkle)', () => {

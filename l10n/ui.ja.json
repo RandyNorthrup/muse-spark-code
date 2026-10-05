@@ -159,6 +159,7 @@
     "paid:scheduledPrompts": "有料の予定されたプロンプトをオンまたはオフにします。",
     "paid:autoReviewer": "有料の自動レビュー担当をオンまたはオフにします。",
     "paid:bestOfN": "有料のベスト・オブ・N をオンまたはオフにします。",
+    "paid:tab": "有料の Tab 補完をオンまたはオフにします。",
     "loop": "この Model API 会話でプロンプトを予約。",
     "importSession": "エクスポートしたセッションファイルを Model API バックエンドで再開。",
     "review": "変更内容や説明した内容を Muse にレビューしてもらいます。",
@@ -1911,5 +1912,8 @@
   "agentImportIgnoredToTracked": "Gitで無視されたファイルを追跡対象のファイルにコピーすることになります",
   "agentImportEditPrompt": "変換した項目を {path} に未保存の編集として開き、確認して保存しますか？保存先はそのパスだけにし、別のファイルには保存しないでください。",
   "agentImportEditAction": "ファイルを編集して開く",
-  "agentImportPreviewLegacyKey": "ファイルは古い `mcp_servers` キーを使用しています。これらを追加するときに `mcpServers` に名前を変更してください。両方あると Muse Code はどちらも読み込みません。"
+  "agentImportPreviewLegacyKey": "ファイルは古い `mcp_servers` キーを使用しています。これらを追加するときに `mcpServers` に名前を変更してください。両方あると Muse Code はどちらも読み込みません。",
+  "tabMultilineAuto": "自動",
+  "tabMultilineOnInvoke": "手動で呼び出したときのみ",
+  "tabMultilineNever": "単一行のコンテキストのみ"
 }

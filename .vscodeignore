@@ -1,5 +1,6 @@
 **
 !dist/extension.js
+!dist/tab.js
 !dist/modelApi.js
 !dist/sessionBoard.js
 !dist/reviewer.js

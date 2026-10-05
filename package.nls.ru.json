@@ -135,5 +135,10 @@
   "config.tabTrigger.enumDescriptions.onInvoke": "Подсказывать только когда вы вызываете подсказки вручную.",
   "config.tabWithCopilot.description": "Что делает Tab там, где подсказывает и GitHub Copilot.",
   "config.tabWithCopilot.enumDescriptions.yield": "Не отправлять автоматические запросы Tab для языка, который обслуживает Copilot; явный вызов продолжает работать.",
-  "config.tabWithCopilot.enumDescriptions.both": "Отправлять автоматические запросы Tab даже там, где язык обслуживает Copilot."
+  "config.tabWithCopilot.enumDescriptions.both": "Отправлять автоматические запросы Tab даже там, где язык обслуживает Copilot.",
+  "command.tabTurnOn.title": "Включить Tab",
+  "command.tabTurnOff.title": "Выключить Tab",
+  "command.tabSnooze.title": "Приостановить Tab",
+  "command.tabMenu.title": "Меню Tab",
+  "command.tabLanguages.title": "Языки Tab"
 }

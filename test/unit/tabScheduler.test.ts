@@ -59,6 +59,15 @@ function hanging(
   }
 }
 
+async function startOlderRequest() {
+  const { scheduler, advance } = setup()
+  const started: string[] = []
+  const older = hanging({ cancelled: false }, record(started, 'A'))
+  scheduler.trigger(older.work, { immediate: true })
+  await advance(0)
+  return { scheduler, advance, started, older }
+}
+
 describe('debounce', () => {
   it('sends nothing while keystrokes keep coming, then sends the latest', async () => {
     const { scheduler, advance } = setup()
@@ -97,16 +106,12 @@ describe('debounce', () => {
   })
 
   it('never sends newer Automatic work early when older work settles', async () => {
-    const { scheduler, advance } = setup()
-    const started: string[] = []
-    const older = hanging({ cancelled: false }, record(started, 'A'))
-    scheduler.trigger(older.work, { immediate: true })
-    await advance(0)
+    const { scheduler, advance, started, older } = await startOlderRequest()
     expect(started).toEqual(['A'])
     scheduler.trigger({
       token: { cancelled: false },
       run: () => {
-        started.push('B')
+        record(started, 'B')()
         return Promise.resolve()
       },
     })
@@ -125,16 +130,12 @@ describe('debounce', () => {
   })
 
   it('keeps the cancellation window after older work settles', async () => {
-    const { scheduler, advance } = setup()
-    const started: string[] = []
-    const older = hanging({ cancelled: false }, record(started, 'A'))
-    scheduler.trigger(older.work, { immediate: true })
-    await advance(0)
+    const { scheduler, advance, started, older } = await startOlderRequest()
     const token = { cancelled: false }
     scheduler.trigger({
       token,
       run: () => {
-        started.push('B')
+        record(started, 'B')()
         return Promise.resolve()
       },
     })

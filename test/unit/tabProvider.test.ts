@@ -4,6 +4,9 @@
 // case; removing one exclusion fails its case (the red drills).
 
 import path from 'node:path'
+import { mkdtempSync, mkdirSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { removeFolder } from './helpers/temporaryFolders'
 import type * as vscode from 'vscode'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import {
@@ -52,6 +55,9 @@ import { FakeCancellationToken, FakeLogOutputChannel, FakeTextDocument } from '.
 import { SYNTHETIC } from './helpers/syntheticTokens'
 import { FakeUri } from './mocks/vscode'
 
+const openContextDocument: (uri: vscode.Uri) => Thenable<vscode.TextDocument> =
+  workspace.openTextDocument
+
 const USAGE: TabReportedUsage = { inputTokens: 10, cachedTokens: 2, outputTokens: 3 }
 const NOTHING_SENT: TabReportedUsage = { inputTokens: 0, cachedTokens: 0, outputTokens: 0 }
 const RESERVATION: TabReservation = {
@@ -67,6 +73,7 @@ beforeEach(() => {
   vi.mocked(window.showWarningMessage).mockReset()
   vi.mocked(commands.executeCommand).mockReset()
   vi.mocked(workspace.getWorkspaceFolder).mockReset()
+  vi.mocked(workspace.openTextDocument).mockReset()
 })
 
 function onInvokeSettings(): ReturnType<TabProviderDeps['settings']> {
@@ -981,5 +988,183 @@ describe('createTabProvider', () => {
       inputBytes: expect.any(Number),
       maxOutputTokens: TAB_MULTILINE_MAX_OUTPUT_TOKENS,
     })
+  })
+})
+
+// Related-file privacy is exercised with real metadata and fake open documents.
+describe('Tab multi-line context wiring', () => {
+  it('orders recent edits and definitions, redacts snippets and reserves exactly the sent text', async () => {
+    const root = mkdtempSync(path.join(tmpdir(), 'muse-tab-context-'))
+    const source = path.join(root, `main-${SYNTHETIC.awsAccessKey}.ts`)
+    const edited = Uri.file(path.join(root, `z-${SYNTHETIC.awsAccessKey}.ts`))
+    const definition = Uri.file(path.join(root, 'a.ts'))
+    const texts = new Map([
+      [edited.fsPath, `const key = "${SYNTHETIC.awsAccessKey}"`],
+      [definition.fsPath, 'export const helper = 1'],
+    ])
+    for (const [file, text] of texts) writeFileSync(file, text)
+    vi.mocked(openContextDocument).mockImplementation((uri) =>
+      Promise.resolve(new FakeTextDocument(uri, 'typescript', texts.get(uri.fsPath) ?? '')),
+    )
+    vi.mocked(commands.executeCommand).mockResolvedValue([
+      { uri: definition, range: new Range(new Position(0, 0), new Position(0, 1)) },
+    ])
+    const harness = providerHarness({
+      workspaceRoots: () => [root],
+      recentEdits: () => [{ uri: edited, line: 0 }],
+    })
+    try {
+      await harness.serve('helper() {', 0, 10, new FakeCancellationToken(), source)
+      const snapshot = harness.snapshots[0]
+      expect(snapshot?.relativePath).toBe(`main-${REDACTED_MARK}.ts`)
+      expect(snapshot?.snippets).toContain('export const helper = 1')
+      expect(snapshot?.snippets).toContain(REDACTED_MARK)
+      expect(snapshot?.snippets).not.toContain(SYNTHETIC.awsAccessKey)
+      expect(snapshot?.snippets.indexOf('a.ts')).toBeLessThan(
+        snapshot?.snippets.indexOf(`z-${REDACTED_MARK}.ts`) ?? -1,
+      )
+      expect(workspace.openTextDocument).toHaveBeenCalledTimes(2)
+      expect(harness.reserve).toHaveBeenCalledWith({
+        model: 'muse-spark-1.3',
+        maxOutputTokens: TAB_MULTILINE_MAX_OUTPUT_TOKENS,
+        inputBytes: Buffer.byteLength(
+          TAB_MODEL_TEXT.tabSystem +
+            tabUserText({
+              path: `main-${REDACTED_MARK}.ts`,
+              languageId: 'typescript',
+              prefix: 'helper() {',
+              suffix: '',
+              snippets: snapshot?.snippets ?? '',
+            }),
+          'utf8',
+        ),
+      })
+      expect(JSON.stringify(harness.log.trace.mock.calls)).not.toContain('helper')
+    } finally {
+      harness.handle.dispose()
+      await removeFolder(root)
+    }
+  })
+
+  it.each([
+    'private',
+    'protected',
+    'gitignored',
+    'cursorignored',
+    'continueignored',
+    'excluded',
+    'oversize',
+    'outside',
+    'linked',
+    'unreadable',
+  ])('never opens a %s context file', async (reason) => {
+    const root = mkdtempSync(path.join(tmpdir(), 'muse-tab-context-'))
+    const name =
+      new Map([
+        ['private', '.env'],
+        ['protected', '.muse/data.ts'],
+      ]).get(reason) ?? 'related.ts'
+    const uri = Uri.file(path.join(root, name))
+    mkdirSync(path.dirname(uri.fsPath), { recursive: true })
+    if (reason !== 'unreadable')
+      writeFileSync(
+        uri.fsPath,
+        reason === 'oversize' ? 'x'.repeat(TAB_FILE_MAX_BYTES + 1) : 'related text',
+      )
+    const harness = providerHarness({
+      recentEdits: () => [{ uri, line: 0 }],
+      workspaceRoots: (file) => (reason === 'outside' && file === uri.fsPath ? [] : [root]),
+      realPath: (file) =>
+        Promise.resolve(
+          reason === 'linked' && file === uri.fsPath ? path.join(root, '..', 'external.ts') : file,
+        ),
+      filesExclude: () => (reason === 'excluded' ? { 'related.ts': true } : {}),
+      ignoreFileExists: (file) =>
+        reason === 'cursorignored'
+          ? file.endsWith('.cursorignore')
+          : reason === 'continueignored' && file.endsWith('.continueignore'),
+      runGit: (args) =>
+        args.includes('related.ts') &&
+        (reason === 'gitignored' ||
+          (reason === 'cursorignored' && args.some((arg) => arg.includes('core.excludesFile'))) ||
+          (reason === 'continueignored' && args.some((arg) => arg.includes('core.excludesFile'))))
+          ? Promise.resolve('related.ts')
+          : Promise.reject(gitExit(1)),
+    })
+    try {
+      await harness.serve(
+        'helper() {',
+        0,
+        10,
+        new FakeCancellationToken(),
+        path.join(root, 'file.ts'),
+      )
+      expect(workspace.openTextDocument).not.toHaveBeenCalled()
+      expect(harness.snapshots[0]?.snippets).toBe('')
+    } finally {
+      harness.handle.dispose()
+      await removeFolder(root)
+    }
+  })
+
+  it.each(['unsaved-oversize', 'language-off', 'hook-denied', 'untrusted-after-open'])(
+    'refuses %s context before using its text',
+    async (reason) => {
+      const root = mkdtempSync(path.join(tmpdir(), 'muse-tab-context-'))
+      const uri = Uri.file(path.join(root, 'related.ts'))
+      writeFileSync(uri.fsPath, 'small on disk')
+      const document = new FakeTextDocument(
+        uri,
+        reason === 'language-off' ? 'markdown' : 'typescript',
+        reason === 'unsaved-oversize' ? 'x'.repeat(TAB_FILE_MAX_BYTES + 1) : 'related text',
+      )
+      const read = vi.spyOn(document, 'getText')
+      let isTrusted = true
+      vi.mocked(openContextDocument).mockImplementation(() => {
+        if (reason === 'untrusted-after-open') isTrusted = false
+        return Promise.resolve(document)
+      })
+      const harness = providerHarness({
+        workspaceRoots: () => [root],
+        recentEdits: () => [{ uri, line: 0 }],
+        isTrusted: () => isTrusted,
+        settings: () => ({
+          tabModel: 'muse-spark-1.3',
+          tabLanguages: { '*': true, markdown: false },
+          tabMultiline: 'auto',
+          tabTrigger: 'automatic',
+          tabWithCopilot: 'yield',
+        }),
+        hooks: {
+          beforeRead: (file) => Promise.resolve(reason !== 'hook-denied' || file !== uri.fsPath),
+          afterEdit: () => undefined,
+        },
+      })
+      try {
+        await harness.serve(
+          'helper() {',
+          0,
+          10,
+          new FakeCancellationToken(),
+          path.join(root, 'file.ts'),
+        )
+        if (reason === 'hook-denied') expect(read).toHaveBeenCalledOnce()
+        else expect(read).not.toHaveBeenCalled()
+        expect(harness.snapshots[0]?.snippets ?? '').toBe('')
+      } finally {
+        harness.handle.dispose()
+        await removeFolder(root)
+      }
+    },
+  )
+
+  it('reads no related files in fast mode', async () => {
+    const recentEdits = vi.fn(() => [{ uri: Uri.file('/ws/related.ts'), line: 0 }])
+    const harness = providerHarness({ recentEdits })
+    await harness.serve()
+    expect(recentEdits).not.toHaveBeenCalled()
+    expect(workspace.openTextDocument).not.toHaveBeenCalled()
+    expect(commands.executeCommand).not.toHaveBeenCalled()
+    harness.handle.dispose()
   })
 })

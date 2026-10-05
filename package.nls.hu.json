@@ -135,5 +135,10 @@
   "config.tabTrigger.enumDescriptions.onInvoke": "Javaslat csak akkor, ha Ön kézzel hívja meg a javaslatokat.",
   "config.tabWithCopilot.description": "Mit tesz a Tab ott, ahol a GitHub Copilot is javasol.",
   "config.tabWithCopilot.enumDescriptions.yield": "Ne küldjön automatikus Tab-kéréseket olyan nyelvre, amelyet a Copilot kiszolgál; a kifejezett meghívás továbbra is működik.",
-  "config.tabWithCopilot.enumDescriptions.both": "Automatikus Tab-kérések küldése oda is, ahol a nyelvet a Copilot szolgálja ki."
+  "config.tabWithCopilot.enumDescriptions.both": "Automatikus Tab-kérések küldése oda is, ahol a nyelvet a Copilot szolgálja ki.",
+  "command.tabTurnOn.title": "Tab bekapcsolása",
+  "command.tabTurnOff.title": "Tab kikapcsolása",
+  "command.tabSnooze.title": "Tab szüneteltetése",
+  "command.tabMenu.title": "Tab menü",
+  "command.tabLanguages.title": "Tab nyelvek"
 }

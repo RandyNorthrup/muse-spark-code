@@ -135,5 +135,10 @@
   "config.tabTrigger.enumDescriptions.onInvoke": "Suggérer uniquement quand vous appelez les suggestions vous-même.",
   "config.tabWithCopilot.description": "Ce que fait Tab là où GitHub Copilot suggère aussi.",
   "config.tabWithCopilot.enumDescriptions.yield": "N’envoyer aucune requête Tab automatique pour un langage servi par Copilot ; l’appel explicite fonctionne toujours.",
-  "config.tabWithCopilot.enumDescriptions.both": "Envoyer des requêtes Tab automatiques même là où Copilot sert le langage."
+  "config.tabWithCopilot.enumDescriptions.both": "Envoyer des requêtes Tab automatiques même là où Copilot sert le langage.",
+  "command.tabTurnOn.title": "Activer Tab",
+  "command.tabTurnOff.title": "Désactiver Tab",
+  "command.tabSnooze.title": "Suspendre Tab",
+  "command.tabMenu.title": "Menu Tab",
+  "command.tabLanguages.title": "Langues de Tab"
 }

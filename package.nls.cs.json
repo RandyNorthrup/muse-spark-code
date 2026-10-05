@@ -135,5 +135,10 @@
   "config.tabTrigger.enumDescriptions.onInvoke": "Navrhovat jen když návrhy vyvoláte ručně.",
   "config.tabWithCopilot.description": "Co dělá Tab tam, kde navrhuje i GitHub Copilot.",
   "config.tabWithCopilot.enumDescriptions.yield": "Neodesílat automatické požadavky Tab pro jazyk, který obsluhuje Copilot; výslovné vyvolání funguje dál.",
-  "config.tabWithCopilot.enumDescriptions.both": "Odesílat automatické požadavky Tab i tam, kde jazyk obsluhuje Copilot."
+  "config.tabWithCopilot.enumDescriptions.both": "Odesílat automatické požadavky Tab i tam, kde jazyk obsluhuje Copilot.",
+  "command.tabTurnOn.title": "Zapnout Tab",
+  "command.tabTurnOff.title": "Vypnout Tab",
+  "command.tabSnooze.title": "Pozastavit Tab",
+  "command.tabMenu.title": "Nabídka Tab",
+  "command.tabLanguages.title": "Jazyky Tab"
 }

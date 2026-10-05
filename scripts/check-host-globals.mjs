@@ -13,6 +13,7 @@ import { existsSync, readFileSync } from 'node:fs'
 
 const HOST_BUNDLES = [
   'dist/extension.js',
+  'dist/tab.js',
   'dist/modelApi.js',
   'dist/review.js',
   'dist/sessionBoard.js',

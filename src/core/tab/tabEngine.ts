@@ -37,6 +37,8 @@ export interface TabEngineRequest {
   readonly prefix: string
   /** The window after the cursor, redacted. */
   readonly suffix: string
+  /** Ordered, bounded, redacted related-file excerpts. */
+  readonly snippets: string
   readonly mode: TabMode
   readonly isInvoke: boolean
   /** The cursor line's text before the cursor (whitespace normalization). */
@@ -121,7 +123,7 @@ export function createTabEngine(deps: TabEngineDeps): TabEngine {
       languageId: request.languageId,
       prefix: request.prefix,
       suffix: request.suffix,
-      snippets: '',
+      snippets: request.snippets,
       mode: request.mode,
     })
     const filter = {

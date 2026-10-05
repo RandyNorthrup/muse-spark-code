@@ -159,6 +159,7 @@
     "paid:scheduledPrompts": "Włącz lub wyłącz płatne zaplanowane monity.",
     "paid:autoReviewer": "Włącz lub wyłącz płatnego automatycznego oceniającego.",
     "paid:bestOfN": "Włącz lub wyłącz płatną funkcję Najlepszy z N.",
+    "paid:tab": "Włącz lub wyłącz płatne uzupełnienia Tab.",
     "loop": "Zaplanuj prompt w tej rozmowie Model API.",
     "importSession": "Wznów wyeksportowany plik sesji w backendzie Model API.",
     "review": "Poproś Muse o przegląd zmian lub tego, co opiszesz.",
@@ -2133,5 +2134,8 @@
   "agentImportIgnoredToTracked": "spowodowałoby to skopiowanie pliku ignorowanego przez Git do pliku śledzonego",
   "agentImportEditPrompt": "Otworzyć przekonwertowane wpisy w {path} jako niezapisaną zmianę do przejrzenia i zapisania? Zapisz ją tylko pod tą ścieżką, nigdy w innym pliku.",
   "agentImportEditAction": "Edytuj i otwórz plik",
-  "agentImportPreviewLegacyKey": "Plik używa starego klucza `mcp_servers`. Zmień jego nazwę na `mcpServers`, dodając te wpisy: Muse Code nie wczytuje żadnego, gdy oba są obecne."
+  "agentImportPreviewLegacyKey": "Plik używa starego klucza `mcp_servers`. Zmień jego nazwę na `mcpServers`, dodając te wpisy: Muse Code nie wczytuje żadnego, gdy oba są obecne.",
+  "tabMultilineAuto": "Automatycznie",
+  "tabMultilineOnInvoke": "Tylko na żądanie",
+  "tabMultilineNever": "Tylko kontekst jednego wiersza"
 }

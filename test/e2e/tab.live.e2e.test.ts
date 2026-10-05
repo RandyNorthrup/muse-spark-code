@@ -799,10 +799,6 @@ function report(text: string): void {
   process.stderr.write(`${scrub(text)}\n`)
 }
 
-function describeError(error: unknown): string {
-  return scrub(error instanceof Error ? error.message : String(error))
-}
-
 function refusal(message: string): Response {
   return Response.json(
     { error: { message, type: 'tab_probe', code: 'tab_probe' } },
@@ -835,19 +831,16 @@ async function probeFetch(input: string | URL | Request, init?: RequestInit): Pr
   return response
 }
 
+const appendLog =
+  (level: string) =>
+  (message: string): void => {
+    logged.push(`${level} ${message}`)
+  }
 const recordingLog: CoreLogger = {
-  trace: (message) => {
-    logged.push(`trace ${message}`)
-  },
-  info: (message) => {
-    logged.push(`info ${message}`)
-  },
-  warn: (message) => {
-    logged.push(`warn ${message}`)
-  },
-  error: (message) => {
-    logged.push(`error ${message}`)
-  },
+  trace: appendLog('trace'),
+  info: appendLog('info'),
+  warn: appendLog('warn'),
+  error: appendLog('error'),
 }
 
 function readTerminal(record: ProbeRecord, response: ResponseObject): void {
@@ -965,7 +958,7 @@ async function send(client: ModelApiClient, request: ProbeRequest): Promise<Prob
       readEvent(record, event, startedAt)
     }
   } catch (error: unknown) {
-    record.status = `failed: ${describeError(error)}`
+    record.status = `failed: ${scrub(error instanceof Error ? error.message : String(error))}`
   }
   record.totalMs = performance.now() - startedAt
   current.record = undefined

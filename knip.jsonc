@@ -15,6 +15,8 @@
 
   "entry": [
     "src/extension.ts",
+    // Tab's lazy provider, engine and ledger (M94), loaded by path.
+    "src/host/tab/tabEntry.ts",
     // The Model API backend's own bundle (M57), required by path at runtime.
     "src/host/backend/modelApiEntry.ts",
     "src/host/sessionBoardEntry.ts",

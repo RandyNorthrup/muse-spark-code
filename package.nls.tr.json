@@ -135,5 +135,10 @@
   "config.tabTrigger.enumDescriptions.onInvoke": "Yalnızca önerileri el ile çağırdığınızda öner.",
   "config.tabWithCopilot.description": "GitHub Copilot'un da önerdiği dillerde Tab'in davranışı.",
   "config.tabWithCopilot.enumDescriptions.yield": "Copilot'un sunduğu diller için otomatik Tab isteği gönderme; açık çağrı çalışmaya devam eder.",
-  "config.tabWithCopilot.enumDescriptions.both": "Copilot'un sunduğu dillerde bile otomatik Tab istekleri gönder."
+  "config.tabWithCopilot.enumDescriptions.both": "Copilot'un sunduğu dillerde bile otomatik Tab istekleri gönder.",
+  "command.tabTurnOn.title": "Tab’ı aç",
+  "command.tabTurnOff.title": "Tab’ı kapat",
+  "command.tabSnooze.title": "Tab’ı duraklat",
+  "command.tabMenu.title": "Tab menüsü",
+  "command.tabLanguages.title": "Tab dilleri"
 }

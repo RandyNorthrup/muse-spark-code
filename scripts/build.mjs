@@ -53,6 +53,8 @@ const HOST_ENTRY = 'src/extension.ts'
 const HOST_OUTFILE = 'dist/extension.js'
 // One immutable English fallback shared by Node bundles; each keeps its own
 // mutable installed-language state. The browser keeps its fallback bundled.
+const TAB_ENTRY = 'src/host/tab/tabEntry.ts'
+const TAB_OUTFILE = 'dist/tab.js'
 const UI_TEXT_ENTRY = 'src/shared/l10n/en.ts'
 const UI_TEXT_OUTFILE = 'dist/uiText.js'
 const MODEL_API_ENTRY = 'src/host/backend/modelApiEntry.ts'
@@ -243,6 +245,13 @@ const agentImportOptions = {
 }
 
 /** @type {import('esbuild').BuildOptions} */
+const tabOptions = {
+  ...agentImportOptions,
+  entryPoints: [TAB_ENTRY],
+  outfile: TAB_OUTFILE,
+}
+
+/** @type {import('esbuild').BuildOptions} */
 const bundledSkillsOptions = {
   ...common,
   plugins: [sharedUiText],
@@ -344,6 +353,7 @@ function reportSize(path) {
 if (isWatch) {
   const contexts = await Promise.all([
     esbuild.context(hostOptions),
+    esbuild.context(tabOptions),
     esbuild.context(modelApiOptions),
     esbuild.context(reviewOptions),
     esbuild.context(sessionBoardOptions),
@@ -366,6 +376,7 @@ if (isWatch) {
 } else {
   const shipped = {
     extension: esbuild.build(hostOptions),
+    tab: esbuild.build(tabOptions),
     modelApi: esbuild.build(modelApiOptions),
     review: esbuild.build(reviewOptions),
     sessionBoard: esbuild.build(sessionBoardOptions),
@@ -401,6 +412,7 @@ if (isWatch) {
   }
   console.log('bundle sizes:')
   reportSize(HOST_OUTFILE)
+  reportSize(TAB_OUTFILE)
   reportSize(MODEL_API_OUTFILE)
   reportSize(REVIEW_OUTFILE)
   reportSize(SESSION_BOARD_OUTFILE)

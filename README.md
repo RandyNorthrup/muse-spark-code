@@ -404,6 +404,71 @@ Each panel is its own conversation, started on the first message with the
 standard `muse-spark-1.3` model (never a contributor-tier model by default).
 The model pill shows the model as soon as the panel opens.
 
+## Tab completions
+
+Tab is **on by default**. Press `Alt+\` in a code editor to request ghost
+text, then **Tab** to accept or **Esc** to dismiss it. The status bar shows
+Tab from startup; click it for **Tab Menu**, languages, multi-line mode,
+snooze, Copilot choices and Account & usage. The Command Palette also has
+**Muse Spark: Turn Tab On**, **Turn Tab Off**, **Snooze Tab**, **Tab Menu** and
+**Tab Languages**.
+
+Tab uses your stored **Model API key**, on either chat backend; your Muse
+Code subscription never pays for it. With no key the status says **no key**
+and sends nothing. Before the first charge in a window, it asks with the
+model's rates and your budget: **Allow once** covers that window until it
+closes, **Allow always in this workspace** remembers revocable consent, and
+**Deny** snoozes Tab in that window. Closing the question denies it too.
+
+The hard daily budget defaults to **$1.00 across every window on this
+machine**, reserved before each request. The status shows today's spend;
+Account & usage shows requests, tokens, cached tokens, today's cross-window
+total, this window's reported cost and your configured budget. Requests
+without reported usage retain their worst-case reservation. The next local
+day, or a larger budget, permits requests again. At the probe's token counts,
+Standard's projected average was $0.00242 per fast request and $0.00706 per
+multi-line request; actual usage and cache hits change the cost.
+
+Invoke is the default trigger because the contributor-model probe measured
+**3.8 seconds median to first text** (p95 8.4 seconds); Standard latency is
+assumed equal, not measured. `museSpark.tabTrigger: automatic` opts into
+requests after a 350 ms typing pause. At most two requests are open and
+20 start per minute. A sent request finishes for accounting even if you
+type past it; its answer remains available to the typing-through cache.
+
+All Tab settings are machine-scoped:
+
+| Setting                       | Default                                      | Effect                                                                                                                                                             |
+| ----------------------------- | -------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `museSpark.modelApiTab`       | `true`                                       | Offer Tab, with consent required before the first charge.                                                                                                          |
+| `museSpark.tabModel`          | `muse-spark-1.3`                             | Standard: Meta does not train on your code. The cheaper `muse-spark-1.3-contributor` tier trains on the code sent.                                                 |
+| `museSpark.tabDailyBudgetUsd` | `1`                                          | Hard local-day USD limit, from $0.05 to $50.                                                                                                                       |
+| `museSpark.tabLanguages`      | All except plaintext, Markdown and SCM input | Per-language switches over a `"*"` default, like Copilot's enable setting.                                                                                         |
+| `museSpark.tabMultiline`      | `auto`                                       | Automatic requests add context on a blank line or block opener; `onInvoke` and `never` keep automatic requests in fast mode. Explicit Invoke uses multi-line mode. |
+| `museSpark.tabTrigger`        | `onInvoke`                                   | Alt+\ or **Inline Suggest: Trigger**; `automatic` enables typing triggers.                                                                                         |
+| `museSpark.tabWithCopilot`    | `yield`                                      | Yield automatic requests in languages Copilot serves; Invoke works. **Run both** opts in; turning off Copilot's suggestions asks before changing its setting.      |
+
+Fast mode uses the current file. Multi-line mode adds bounded excerpts of
+recent edits and definitions on the cursor's line, ordered by path. Every
+file passes the same privacy checks: trusted workspace, inside its folder
+including resolved links, private/protected names, git ignores,
+`.cursorignore`, `.continueignore`, `files.exclude` and the size limit.
+Secrets are redacted before excerpts are cut. Related unsaved buffers use
+a conservative UTF-8 size bound. Tab has its own cache and never reads or
+changes a chat's history or memory.
+
+**Inline Suggest: Accept Next Word** (**Ctrl+Right**, **Cmd+Right** on macOS)
+and **Inline Suggest: Accept Next Line** (assign a key in Keyboard Shortcuts)
+accept part of a suggestion; typing through serves its rest without another
+request. Snooze offers 15 minutes, an hour or until this window restarts.
+Copilot's sign-in state cannot be detected, so an installed active Copilot
+can cause yielding even when signed out.
+
+Cursor's `beforeTabFileRead` and `afterTabFileEdit` hooks remain planned for
+lane K after M91; this build has their host bridge but does not run those
+hook configurations yet. The probe receipts and current limits are in
+[the M94 record](docs/certification/m94.md).
+
 ## Backends
 
 | Backend                                                                      | Sign-in                                                          | Billing                | Tools                                                                                                                                                                                                                                                        |
@@ -2885,22 +2950,6 @@ stopped and the next message resumes the same session.
   WebSocket at all, and known-safe source and generation fields from
   Muse Code's managed configuration (`muse config status`). Unrecognized
   lines and failed-command output stay out of the public-issue report.
-
-### Inline completions (M94, in development)
-
-Inline completions (M94) are still in development. Their settings are
-staged: `museSpark.modelApiTab` defaults to on for the Model API backend,
-with Standard (`museSpark.tabModel`) and a hard $1.00/day budget across
-windows (`museSpark.tabDailyBudgetUsd`, $0.05–$50). The first request in
-each window must wait for the existing paid modal showing price and budget:
-Allow once covers the window, Allow always in this workspace remembers
-consent, and Deny snoozes Tab. Nothing is sent before an allowing answer.
-The staged settings alone do not send completion requests.
-`museSpark.tabLanguages` enables languages except plaintext, markdown and
-scminput; `museSpark.tabMultiline` defaults to `auto`,
-`museSpark.tabTrigger` to `automatic` (subject to the latency probe), and
-`museSpark.tabWithCopilot` to `yield`. The contributor model is cheaper and
-lets Meta train on the code it receives; Standard does not.
 
 ## Requirements
 

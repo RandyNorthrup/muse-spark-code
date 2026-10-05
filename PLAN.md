@@ -219,6 +219,7 @@ quality`) and as a CI job.
 
 | Artifact                   | Budget (minified, uncompressed)                                                                                                                                                                                   |
 | -------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `dist/tab.js`              | ≤ 75 KiB (M94: provider, completion engine and daily ledger, loaded on first request or menu; status item stays in activation)                                                                                    |
 | `dist/extension.js`        | ≤ 600 KiB (the M7 Model API client fit without raising it; the activation bundle since M57)                                                                                                                       |
 | `dist/modelApi.js`         | ≤ 475 KiB (M57: the Model API backend, loaded when it first starts; revisited after M77/M78/M82 at 402.8 KiB, see Q-M78b)                                                                                         |
 | `dist/review.js`           | ≤ 50 KiB (M70: git's material, the review turn's text, the Plan-mode hold and edit review; 40.8 KiB when split)                                                                                                   |
@@ -14074,14 +14075,29 @@ live) and the controller filters its id as well.
 
 ### M94 — Inline completions (Tab) (D73)
 
-**Status 2026-10-04: planned on `feature/m94-tab` from main `1e93c67c`.** The
-plan is D73, Q-M94a–d and this section; the research is
-`docs/certification/m94-research.md`. Implementation lanes start after the
-lead reviews the plan.
+**Status 2026-10-04: lanes 0/P/C/L/H/U integrated; lane W finishing wiring
+and verification on `feature/m94-tab`, merged with `main-sync`.** The plan
+is D73, Q-M94a–d and this section; the research is
+`docs/certification/m94-research.md`. Lane K waits for M91 and the final live
+check remains with the lead. W also moves the small status item into the
+activation shim, translates the multi-line picker, and wires recent-edit
+and definition snippets through the same privacy checks as the current file.
+The full gate also joins main's M87 palette-tip contract: Tab's paid row
+gets a tip in English and every translated table before it is certified.
+The review fixture follows the shared privacy rule that a bare `.pem`
+filename is private; it must no longer expect that file to be attachable.
+The full Windows gate also resolves the release-tag fixture's Bash executable
+from PATH instead of assuming a machine-wide `Program Files/Git` install.
+Its actual workflow shell and all assertions remain intact.
+The real-host Tab fixture scopes its command registrations and returned
+accept command IDs because startup activation already owns the product IDs.
+It still runs the dev bundle and real trigger/full/word acceptance commands.
+Current-file and context header paths pass through secret redaction too;
+the privacy fixture embeds a synthetic secret in both filenames and checks
+the exact redacted prompt reservation before the engine receives it.
 
 - **Goal.** Ghost-text completions as the user types, in every language the
-  user enables, billed to the Model API key. Tab is off until the user turns
-  it on and accepts the price. It is capped by a hard daily budget, counted
+  user enables, billed to the Model API key. Tab is on by default and asks once before the first charge. It is capped by a hard daily budget, counted
   in the status bar and in Account & usage, and never sends a private,
   protected or ignored file. It never touches a conversation's cache or
   history. Cursor's `beforeTabFileRead` and `afterTabFileEdit` hooks run at
@@ -14193,9 +14209,11 @@ lead reviews the plan.
 
      State the expected count before running. Record what was spent.
 - **Acceptance.**
-  1. **Off by default.** With the setting off, no request is sent, no lazy
-     bundle loads and nothing reaches the network. Turning it on shows the
-     price confirmation; declining leaves it off.
+  1. **On, ask once first.** The setting defaults to on and the status bar
+     shows at startup without loading the engine or reading a secret. The
+     first request asks the paid-use question; Deny snoozes this window.
+     With the setting off, no request is sent, no lazy bundle loads and
+     nothing reaches the network.
   2. **No key.** No request, the status bar says "no key", and Tab never
      prompts for a key. On Muse Code with no key, nothing is offered.
   3. **Where it stays quiet.** No request in an untrusted workspace, for a
@@ -14347,7 +14365,7 @@ lead reviews the plan.
     - A request whose answer the user typed past is still billed, because it
       is never aborted. It is counted, and the cache often uses it.
 - **Cost controls.**
-  - The setting is off by default, and turning it on shows the price.
+  - The setting is on by default; the first request asks the price before dispatch.
   - The D48 question comes once per window (Q-M94a).
   - The model choice says which tier trains on the code (Q-M94b).
   - The hard daily budget is reserved before every request across windows
@@ -14366,7 +14384,7 @@ lead reviews the plan.
 | `afterTabFileEdit`  | After an accepted Tab edit is in the document: a full accept (the item's `command`) or an inferred partial accept; matcher `TabWrite` | `hook_event_name`, `file_path`, `edits[]` with `old_string`, `new_string`, `range` (1-based lines and columns), `old_line`, `new_line` and, when inferred, `inferred: true`; `workspace_roots`, `model`, `generation_id` | None; output and exit code logged only             | Strings ≤ `HOOK_TOOL_VALUE_PREVIEW_CHARS` each, the cut counted; never blocks the editor; queue ≤ `TAB_EDIT_HOOK_QUEUE` (8), the oldest dropped and logged; M51's caps                                |
 
 - **Docs.**
-  - **README.** A Tab section covering turning it on, the price and the
+  - **README.** A Tab section covering default-on behavior, first-charge consent, the price and the
     estimate, the budget, languages, snooze, the multi-line and trigger
     settings, partial accept with VS Code's Accept Word (Ctrl/Cmd+Right) and
     Accept Line (bind it yourself), and Copilot. Also the hooks.
@@ -14383,14 +14401,14 @@ lead reviews the plan.
   (owner, 2026-10-04; §3). The probe and the live check use the existing DPAPI test key on
   the contributor model under his live-spend rule, so no credential is minted.
 - **Certification checklist.**
-  - [ ] The probe recorded, with its call count; the constants and §7 of the
+  - [x] The probe recorded, with its call count; the constants and §7 of the
         research updated from it.
   - [ ] Acceptance 1–20, each with its test and drill
         (`docs/certification/m94.md`).
-  - [ ] The integration test at the 1.99 floor and at stable.
+  - [x] The integration test at the 1.99 floor and at stable.
   - [ ] The live check recorded, with its call count and spend.
   - [ ] Bundle sizes measured and within budget.
-  - [ ] README, PRIVACY, CHANGELOG, AGENTS.md, CONTRIBUTING and this record
+  - [x] README, PRIVACY, CHANGELOG, AGENTS.md, CONTRIBUTING and this record
         updated.
 
 ### M94b — Next edit suggestions (D73; waits)
@@ -14721,6 +14739,27 @@ joined with M57, M58 and PR #49's sign-in
   or the log; every gate green.
 
 ## 7. Gates
+
+**M94W size boundary (2026-10-05).** The Windows production build passes
+activation at 578.0/600 KiB and Tab at 62.4/75 KiB. W adds 3,378 bytes
+(3.299 KiB) against the integrated pre-W source control, within the brief's
+added-startup allowance. The whole Tab shim is 7.393 KiB, inherited from a
+4.431 KiB H shim: D73's stricter whole-shim 4 KiB target and acceptance 19
+are not certified. Reducing the whole shim needs the existing service/provider
+orchestration moved into the lazy entry while preserving loader retry,
+cleanup and startup status; that broader follow-up is deferred to the lead
+under W's bounded scope. The hard 600 KiB cap and every existing gate remain
+unchanged. The exact control and bundle measurements are in
+`docs/certification/m94.md`.
+
+W's final `npm run quality` exits 0 on Windows (2026-10-05), and integration
+passes 34 tests each at VS Code 1.99.0 and stable 1.140.0. The local VSIX
+passes 2,176,052 / 2,252,800 bytes and includes `dist/tab.js`; the rig lacks
+the built macOS helper, so universal release-size certification remains
+with the lead. The SAST receipt records one rule timeout in the existing
+`ModelApiHost.ts` despite its successful zero-finding exit. These limits
+and the complete gate/failure-drill receipts are recorded in M94's
+certification; acceptance 19 and final live certification stay open.
 
 **FIXM94L0 scoped result (2026-10-04).** Macmini passes changed-file ESLint,
 all five typecheck projects, Knip, jscpd (0 clones), localization (0 problems)

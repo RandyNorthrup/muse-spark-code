@@ -1,13 +1,12 @@
 // Tab's provider inside the real extension host (M94, PLAN.md D73): the
-// provider, the status bar and the shim run from source against a local fake
+// provider runs from the dev build's dist/tab.js against a local fake
 // Model API. `editor.action.inlineSuggest.trigger` then `commit` changes the
 // document and the item's command runs a fixture `afterTabFileEdit`;
 // `acceptNextWord` inserts one word and the inference fires. The bundle's
 // own engine (lane C) and ledger (lane L) run; only the key client's stream
 // is the test's: it POSTs the real request body to the fake server and
-// replays its answer as Responses events. Lane W points this file at the
-// dev build's dist/tab.js; until then it loads the entry the same way,
-// through the shim's loader seam.
+// replays its answer as Responses events. The activation shim and status
+// item are bundled into this fixture, as in the extension's activation.
 
 import * as assert from 'node:assert/strict'
 import { mkdtempSync, rmSync } from 'node:fs'
@@ -17,10 +16,14 @@ import { tmpdir } from 'node:os'
 import path from 'node:path'
 import * as vscode from 'vscode'
 import type { StreamEvent } from '../../src/core/backends/modelapi/schemas'
-import { createTabActivation, type TabAcceptedEdit } from '../../src/host/tab/tabBundle'
-import * as tabEntry from '../../src/host/tab/tabEntry'
+import {
+  createTabActivation,
+  tabTextChangeEvent,
+  type TabAcceptedEdit,
+} from '../../src/host/tab/tabBundle'
 import {
   REDACTED_MARK,
+  SETTING_DEFAULTS,
   TAB_REPLY_CLOSE_TAG,
   TAB_REPLY_OPEN_TAG,
   UI_TEXT,
@@ -32,6 +35,7 @@ const TRIGGER_TIMEOUT_MS = 15_000
 const TRIGGER_POLL_MS = 100
 const FIXTURE_NAME = 'tab-fixture.ts'
 const COMPLETION = 'foo(bar)'
+const FIXTURE_COMMAND_PREFIX = 'm94.fixture.'
 
 function fixtureText(): string {
   return `const key = "${SYNTHETIC.awsAccessKey}"\nconst y = `
@@ -78,32 +82,49 @@ suite('tab completions', () => {
     const received: string[] = []
     const { server, url } = await startFakeModelApi(received)
     const edits: TabAcceptedEdit[] = []
+    const fixtureCommands = new Map<string, string>()
     const log = new FakeLogOutputChannel()
     const root = folder.uri.fsPath
     const ledgerDirectory = mkdtempSync(path.join(tmpdir(), 'muse-tab-ledger-'))
     const tab = createTabActivation({
-      bundlePath: '<test seam: the entry module>',
+      bundlePath: path.resolve(__dirname, '..', '..', 'tab.js'),
       log,
-      loadBundle: () => tabEntry,
       isTabSettingOn: () => true,
-      tabSettings: () => ({
-        tabModel: 'muse-spark-1.3',
-        tabLanguages: { '*': true },
-        tabMultiline: 'auto',
-        tabTrigger: 'automatic',
-        tabWithCopilot: 'yield',
-        tabDailyBudgetUsd: 1,
-      }),
+      tabSettings: () => ({ ...SETTING_DEFAULTS, tabTrigger: 'automatic' }),
       isPaidOn: () => true,
       isKeyStored: () => true,
       isTrusted: () => vscode.workspace.isTrusted,
       ensureKeyPresence: () => Promise.resolve(),
       updateSetting: () => Promise.resolve(),
-      registerCommand: (id, run) =>
-        vscode.commands.registerCommand(id, (...args: unknown[]) => run(...args)),
+      // Startup activation owns the real IDs; this fixture owns its handlers.
+      registerCommand: (id, run) => {
+        const fixtureId = `${FIXTURE_COMMAND_PREFIX}${id}`
+        fixtureCommands.set(id, fixtureId)
+        return vscode.commands.registerCommand(fixtureId, (...args: unknown[]) => run(...args))
+      },
       realPath: async (absolutePath) => await realpath(absolutePath),
       registerProvider: (provider) =>
-        vscode.languages.registerInlineCompletionItemProvider({ scheme: 'file' }, provider),
+        vscode.languages.registerInlineCompletionItemProvider(
+          { scheme: 'file' },
+          {
+            provideInlineCompletionItems: async (document, position, context, token) => {
+              const result = await provider.provideInlineCompletionItems(
+                document,
+                position,
+                context,
+                token,
+              )
+              const items = Array.isArray(result) ? result : (result?.items ?? [])
+              for (const item of items) {
+                if (item.command === undefined) continue
+                const command = fixtureCommands.get(item.command.command)
+                assert.ok(command !== undefined, 'unregistered fixture accept command')
+                item.command = { ...item.command, command }
+              }
+              return result
+            },
+          },
+        ),
       setTabOnContext: () => undefined,
       foreignSetting: () => undefined,
       isCopilotExtensionPresent: () => false,
@@ -114,16 +135,7 @@ suite('tab completions', () => {
       onIgnoreFilesChanged: () => ({ dispose: () => undefined }),
       onDidChangeTextDocument: (listener) =>
         vscode.workspace.onDidChangeTextDocument((event) => {
-          listener({
-            changes: event.contentChanges.map((change) => ({
-              uriString: event.document.uri.toString(),
-              insertedText: change.text,
-              startLine: change.range.start.line,
-              startCharacter: change.range.start.character,
-              endLine: change.range.end.line,
-              endCharacter: change.range.end.character,
-            })),
-          })
+          listener(tabTextChangeEvent(event))
         }),
       activeLanguageId: () => vscode.window.activeTextEditor?.document.languageId,
       knownLanguages: async (): Promise<readonly string[]> => [
@@ -191,7 +203,7 @@ suite('tab completions', () => {
         },
       },
     })
-    // Tab is on: the shim loads the bundle and registers the provider.
+    // Tab is on: register at once; the first request loads the bundle.
     tab.refresh()
     const target = vscode.Uri.joinPath(folder.uri, FIXTURE_NAME)
     let document: vscode.TextDocument | undefined

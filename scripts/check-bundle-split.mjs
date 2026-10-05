@@ -299,6 +299,21 @@ const BUNDLED_SKILLS = {
 // The Model API backend keeps its own copy of code intelligence.
 const ON_FIRST_USE = [
   {
+    output: 'dist/tab.js',
+    metafile: 'dist/meta/tab.json',
+    use: 'the first Tab request or menu',
+    files: [
+      'src/host/tab/tabEntry.ts',
+      'src/host/tab/tabProvider.ts',
+      'src/host/tab/tabStatus.ts',
+      'src/host/tab/tabLedger.ts',
+      'src/host/tab/tabSpendGate.ts',
+      ...readdirSync('src/core/tab')
+        .filter((file) => file.endsWith('.ts'))
+        .map((file) => `src/core/tab/${file}`),
+    ],
+  },
+  {
     output: 'dist/codeIntel.js',
     metafile: 'dist/meta/codeIntel.json',
     use: 'the first code intelligence call',
@@ -519,6 +534,11 @@ function shipped(output) {
   return bundle ?? { output, metafile: '' }
 }
 const TEXT_BLOCKS = [
+  {
+    block: 'TAB_MODEL_TEXT',
+    sentinels: ['tabSystem', 'tabUserTemplate'],
+    readers: ['dist/tab.js'],
+  },
   {
     block: 'MODEL_API_MODEL_TEXT',
     sentinels: ['compactionPrompt', 'goalUnfinishedExists', 'verifyUncheckedCodeLoading'],

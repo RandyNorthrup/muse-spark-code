@@ -135,5 +135,10 @@
   "config.tabTrigger.enumDescriptions.onInvoke": "仅在手动触发建议时建议。",
   "config.tabWithCopilot.description": "在 GitHub Copilot 也给出建议的语言中，Tab 的行为。",
   "config.tabWithCopilot.enumDescriptions.yield": "对 Copilot 已覆盖的语言不发送 Tab 自动请求；显式手动触发仍有效。",
-  "config.tabWithCopilot.enumDescriptions.both": "即使 Copilot 已覆盖该语言，也发送 Tab 自动请求。"
+  "config.tabWithCopilot.enumDescriptions.both": "即使 Copilot 已覆盖该语言，也发送 Tab 自动请求。",
+  "command.tabTurnOn.title": "开启 Tab",
+  "command.tabTurnOff.title": "关闭 Tab",
+  "command.tabSnooze.title": "暂停 Tab",
+  "command.tabMenu.title": "Tab 菜单",
+  "command.tabLanguages.title": "Tab 语言"
 }

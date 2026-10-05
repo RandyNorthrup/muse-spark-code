@@ -159,6 +159,7 @@
     "paid:scheduledPrompts": "Zapnout nebo vypnout placené naplánované prompty.",
     "paid:autoReviewer": "Zapnout nebo vypnout placeného automatického kontrolora.",
     "paid:bestOfN": "Zapnout nebo vypnout placenou funkci Nejlepší z N.",
+    "paid:tab": "Zapnout nebo vypnout placené doplňování pomocí Tab.",
     "loop": "Naplánovat prompt v této konverzaci Model API.",
     "importSession": "Pokračovat v exportovaném souboru relace v Model API.",
     "review": "Požádat Muse o kontrolu změn nebo toho, co popíšete.",
@@ -2133,5 +2134,8 @@
   "agentImportIgnoredToTracked": "tím by se soubor ignorovaný Gitem zkopíroval do sledovaného souboru",
   "agentImportEditPrompt": "Otevřít převedené položky v {path} jako neuloženou úpravu ke kontrole a uložení? Uložte ji pouze do této cesty, nikdy do jiného souboru.",
   "agentImportEditAction": "Upravit a otevřít soubor",
-  "agentImportPreviewLegacyKey": "Soubor používá starý klíč `mcp_servers`. Při přidávání těchto položek jej přejmenujte na `mcpServers`: když jsou přítomny oba, Muse Code nenačte ani jeden."
+  "agentImportPreviewLegacyKey": "Soubor používá starý klíč `mcp_servers`. Při přidávání těchto položek jej přejmenujte na `mcpServers`: když jsou přítomny oba, Muse Code nenačte ani jeden.",
+  "tabMultilineAuto": "Automaticky",
+  "tabMultilineOnInvoke": "Pouze při vyvolání",
+  "tabMultilineNever": "Pouze kontext jednoho řádku"
 }

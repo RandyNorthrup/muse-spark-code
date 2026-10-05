@@ -103,6 +103,7 @@ import {
   TAB_SNOOZE_STATE_KEY,
   type TabFilesExclude,
   createTabActivation,
+  tabTextChangeEvent,
   deferredRefresh,
 } from './host/tab/tabBundle'
 import { createCliFeatures } from './host/cliFeatures'
@@ -220,6 +221,7 @@ import {
   WALKTHROUGH_QUALIFIED_ID,
   WINDOWS_POWERSHELL_TERMINAL_PATH,
   WORKSPACE_STATE_KEYS,
+  TAB_CONTEXT_FILES,
 } from './shared/constants'
 import { fill, uiLocale } from './shared/l10n/text'
 import type { HostAction } from './shared/protocol'
@@ -795,6 +797,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     }
     isKeyStored = isStored
     broadcastPaidState()
+    tab.refreshStatus()
   }
   // Inline completions (Tab) (M94, PLAN.md D73): the secret read waits for
   // the first view, panel, command or Tab request. Activation with no view
@@ -806,10 +809,11 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   // off, no bundle load, no request, no secret read, no process: dist/tab.js
   // loads only for an explicit Tab command or while the setting is on. Only
   // types and the loader come from the Tab side here, so dist/extension.js
-  // carries none of the provider, the status bar, the engine (lane C) or
+  // carries the small status item, but none of the provider, engine (lane C) or
   // the ledger (lane L). Tab is on by default (owner, 2026-10-04): no
   // turn-on price confirmation; the first request asks D48's question with
   // the price and the daily budget, and nothing is sent before the answer.
+  const tabRecentEdits = new Map<string, { readonly uri: vscode.Uri; readonly line: number }>()
   const tabIgnoreListeners = new Set<() => void>()
   const tabIgnoreWatcher = vscode.workspace.createFileSystemWatcher(
     '**/{.gitignore,.cursorignore,.continueignore}',
@@ -820,6 +824,19 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     }
   }
   const tabDisposables = [
+    vscode.workspace.onDidChangeTextDocument((event) => {
+      const change = event.contentChanges.at(0)
+      if (change === undefined || event.document.uri.scheme !== 'file') return
+      {
+        const key = event.document.uri.toString()
+        tabRecentEdits.delete(key)
+        tabRecentEdits.set(key, { uri: event.document.uri, line: change.range.start.line })
+        if (tabRecentEdits.size > TAB_CONTEXT_FILES) {
+          const oldest = tabRecentEdits.keys().next().value
+          if (oldest !== undefined) tabRecentEdits.delete(oldest)
+        }
+      }
+    }),
     tabIgnoreWatcher,
     tabIgnoreWatcher.onDidChange(tabIgnoreCleared),
     tabIgnoreWatcher.onDidCreate(tabIgnoreCleared),
@@ -890,18 +907,14 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
         },
       }
     },
+    recentEdits: () => {
+      const edits: { readonly uri: vscode.Uri; readonly line: number }[] = []
+      for (const edit of tabRecentEdits.values()) edits.unshift(edit)
+      return edits
+    },
     onDidChangeTextDocument: (listener) =>
       vscode.workspace.onDidChangeTextDocument((event) => {
-        listener({
-          changes: event.contentChanges.map((change) => ({
-            uriString: event.document.uri.toString(),
-            insertedText: change.text,
-            startLine: change.range.start.line,
-            startCharacter: change.range.start.character,
-            endLine: change.range.end.line,
-            endCharacter: change.range.end.character,
-          })),
-        })
+        listener(tabTextChangeEvent(event))
       }),
     activeLanguageId: () => vscode.window.activeTextEditor?.document.languageId,
     knownLanguages: async () => await vscode.languages.getLanguages(),
