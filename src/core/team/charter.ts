@@ -44,48 +44,47 @@ export interface TeamCharter {
   readonly charter: string
 }
 
-function doneText(done: string | undefined, report: TeamReportShape): string {
-  if (done !== undefined) {
-    return done
-  }
-  return report === 'review'
-    ? TEAM_MODEL_TEXT.teamDoneDefaultReview
-    : report === 'qa'
-      ? TEAM_MODEL_TEXT.teamDoneDefaultQa
-      : TEAM_MODEL_TEXT.teamDoneDefaultSummary
+const DONE_DEFAULTS: Readonly<Record<TeamReportShape, string>> = {
+  summary: TEAM_MODEL_TEXT.teamDoneDefaultSummary,
+  review: TEAM_MODEL_TEXT.teamDoneDefaultReview,
+  qa: TEAM_MODEL_TEXT.teamDoneDefaultQa,
 }
 
-function reportContract(report: TeamReportShape): string {
-  return report === 'review'
-    ? TEAM_MODEL_TEXT.teamReportContractReview
-    : report === 'qa'
-      ? TEAM_MODEL_TEXT.teamReportContractQa
-      : TEAM_MODEL_TEXT.teamReportContractSummary
+const REPORT_CONTRACTS: Readonly<Record<TeamReportShape, string>> = {
+  summary: TEAM_MODEL_TEXT.teamReportContractSummary,
+  review: TEAM_MODEL_TEXT.teamReportContractReview,
+  qa: TEAM_MODEL_TEXT.teamReportContractQa,
 }
 
-function workspaceText(workspace: TeamWorkspaceMode): string {
-  return workspace === 'read-only'
-    ? TEAM_MODEL_TEXT.teamCharterWorkspaceReadOnly
-    : workspace === 'in-place'
-      ? TEAM_MODEL_TEXT.teamCharterWorkspaceInPlace
-      : TEAM_MODEL_TEXT.teamCharterWorkspaceOwnBranch
+const WORKSPACE_TEXTS: Readonly<Record<TeamWorkspaceMode, string>> = {
+  'read-only': TEAM_MODEL_TEXT.teamCharterWorkspaceReadOnly,
+  'own-branch': TEAM_MODEL_TEXT.teamCharterWorkspaceOwnBranch,
+  'in-place': TEAM_MODEL_TEXT.teamCharterWorkspaceInPlace,
+}
+
+/** Fills one `{slot}`; split and join keep a `$` in the value literal. */
+function fillSlot(template: string, slot: string, value: string): string {
+  return template.split(`{${slot}}`).join(value)
 }
 
 /** A role's charter: the generated parts, then the role's own guidance. */
 export function buildTeamCharter(role: CharterRole, tools: CharterTools): TeamCharter {
-  const sections = [
-    TEAM_MODEL_TEXT.teamCharterWho.replaceAll('{role}', role.id),
-    TEAM_MODEL_TEXT.teamCharterPurpose.replaceAll('{description}', role.description),
-    workspaceText(role.workspace),
-    TEAM_MODEL_TEXT.teamCharterYouMay.replaceAll(
-      '{tools}',
-      describeToolsForCharter(tools.groups, role.writePaths),
-    ),
+  const mustNever =
     role.delegates.length === 0
       ? TEAM_MODEL_TEXT.teamCharterMustNever
-      : `${TEAM_MODEL_TEXT.teamCharterMustNever} ${TEAM_MODEL_TEXT.teamCharterMayDelegate.replaceAll('{roles}', role.delegates.join(', '))}`,
-    TEAM_MODEL_TEXT.teamCharterDone.replaceAll('{done}', doneText(role.done, role.report)),
-    reportContract(role.report),
+      : `${TEAM_MODEL_TEXT.teamCharterMustNever} ${fillSlot(TEAM_MODEL_TEXT.teamCharterMayDelegate, 'roles', role.delegates.join(', '))}`
+  const sections = [
+    fillSlot(TEAM_MODEL_TEXT.teamCharterWho, 'role', role.id),
+    fillSlot(TEAM_MODEL_TEXT.teamCharterPurpose, 'description', role.description),
+    WORKSPACE_TEXTS[role.workspace],
+    fillSlot(
+      TEAM_MODEL_TEXT.teamCharterYouMay,
+      'tools',
+      describeToolsForCharter(tools.groups, role.writePaths),
+    ),
+    mustNever,
+    fillSlot(TEAM_MODEL_TEXT.teamCharterDone, 'done', role.done ?? DONE_DEFAULTS[role.report]),
+    REPORT_CONTRACTS[role.report],
   ]
   const generated = sections.join('\n\n')
   return { generated, body: role.body, charter: `${generated}\n\n${role.body}` }

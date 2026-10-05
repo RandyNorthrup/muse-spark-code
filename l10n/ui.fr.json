@@ -1896,5 +1896,14 @@
   "agentImportIgnoredToTracked": "cela copierait un fichier ignoré par Git dans un fichier suivi",
   "agentImportEditPrompt": "Ouvrir les entrées converties dans {path} comme modification non enregistrée à vérifier et enregistrer ? Enregistrez-la uniquement à cet emplacement, jamais dans un autre fichier.",
   "agentImportEditAction": "Modifier et ouvrir le fichier",
-  "agentImportPreviewLegacyKey": "Le fichier utilise l’ancienne clé `mcp_servers`. Renommez-la en `mcpServers` en ajoutant ceux-ci : Muse Code ne charge ni l’une ni l’autre quand les deux sont présentes."
+  "agentImportPreviewLegacyKey": "Le fichier utilise l’ancienne clé `mcp_servers`. Renommez-la en `mcpServers` en ajoutant ceux-ci : Muse Code ne charge ni l’une ni l’autre quand les deux sont présentes.",
+  "teamCapabilityNoTools": "Ce modèle ne peut pas appeler d’outils, il ne peut donc pas tenir le rôle {role}.",
+  "teamCapabilitySmallWindow": "La fenêtre de contexte de ce modèle ({tokens} jetons) est inférieure aux {minimum} jetons exigés pour chaque rôle.",
+  "teamCapabilityWarnWindow": "La fenêtre de contexte de ce modèle ({tokens} jetons) est inférieure aux {recommended} jetons recommandés pour le rôle {role}.",
+  "teamCapabilityWarnImages": "Ce modèle n’accepte pas les images en entrée, avec lesquelles le rôle {role} fonctionne mieux.",
+  "teamCapabilityWarnReasoning": "Ce modèle n’a pas de niveau de raisonnement, avec lequel le rôle {role} fonctionne mieux.",
+  "teamCapabilityUnknown": "Les capacités de {model} sont inconnues ; il n’a pas été vérifié pour le rôle {role}.",
+  "teamRoleFileRefused": "{file} : {detail}",
+  "teamJsonRefused": "{file} : {detail}",
+  "teamRoleNeedsAllowance": "Le rôle de projet {id} demande {detail} ; il fonctionne en lecture seule jusqu’à son autorisation pour cet espace de travail."
 }

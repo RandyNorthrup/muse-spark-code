@@ -1830,5 +1830,14 @@
   "agentImportIgnoredToTracked": "dadurch würde eine von Git ignorierte Datei in eine versionierte Datei kopiert",
   "agentImportEditPrompt": "Konvertierte Einträge in {path} als ungespeicherte Änderung zum Prüfen und Speichern öffnen? Speichern Sie sie nur unter diesem Pfad, nie in einer anderen Datei.",
   "agentImportEditAction": "Datei bearbeiten und öffnen",
-  "agentImportPreviewLegacyKey": "Die Datei verwendet den veralteten Schlüssel `mcp_servers`. Benennen Sie ihn in `mcpServers` um, wenn Sie diese hinzufügen: Muse Code lädt keinen von beiden, wenn beide vorhanden sind."
+  "agentImportPreviewLegacyKey": "Die Datei verwendet den veralteten Schlüssel `mcp_servers`. Benennen Sie ihn in `mcpServers` um, wenn Sie diese hinzufügen: Muse Code lädt keinen von beiden, wenn beide vorhanden sind.",
+  "teamCapabilityNoTools": "Dieses Modell kann keine Tools aufrufen und daher die Rolle {role} nicht übernehmen.",
+  "teamCapabilitySmallWindow": "Das Kontextfenster dieses Modells ({tokens} Tokens) liegt unter den {minimum} Tokens, die jede Rolle braucht.",
+  "teamCapabilityWarnWindow": "Das Kontextfenster dieses Modells ({tokens} Tokens) liegt unter den empfohlenen {recommended} Tokens für die Rolle {role}.",
+  "teamCapabilityWarnImages": "Dieses Modell verarbeitet keine Bildeingaben, mit denen die Rolle {role} besser arbeitet.",
+  "teamCapabilityWarnReasoning": "Dieses Modell hat keine Reasoning-Stufe, mit der die Rolle {role} besser arbeitet.",
+  "teamCapabilityUnknown": "Die Fähigkeiten von {model} sind unbekannt; es wurde für die Rolle {role} nicht geprüft.",
+  "teamRoleFileRefused": "{file}: {detail}",
+  "teamJsonRefused": "{file}: {detail}",
+  "teamRoleNeedsAllowance": "Die Projektrolle {id} verlangt {detail}; sie läuft schreibgeschützt, bis sie für diesen Arbeitsbereich zugelassen wird."
 }

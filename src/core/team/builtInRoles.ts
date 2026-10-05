@@ -19,7 +19,7 @@ import {
 
 /** A built-in role, resolved: an M76 agent definition with the role keys. */
 export interface BuiltinRole {
-  readonly id: string
+  readonly id: TeamBuiltinRoleId
   readonly source: AgentSource
   readonly name: string
   readonly description: string
@@ -68,7 +68,8 @@ const BUILTIN_ROLE_REPORTS: Readonly<Record<TeamBuiltinRoleId, TeamReportShape>>
 export function toolsOfGroups(groups: readonly TeamToolGroup[]): string[] {
   const tools: string[] = []
   for (const group of groups) {
-    for (const tool of TEAM_TOOL_GROUP_TOOLS[group]) {
+    const groupTools = TEAM_TOOL_GROUP_TOOLS[group]
+    for (const tool of groupTools) {
       if (!tools.includes(tool)) {
         tools.push(tool)
       }
@@ -103,7 +104,7 @@ export function builtinRoles(): BuiltinRole[] {
  * A built-in role as an AGENT.md file: front matter with the role keys,
  * then the body. What "Copy Built-in Role to Project" writes (lane U1).
  */
-export function builtinRoleFile(id: TeamBuiltinRoleId): string {
+export function builtinRoleFile(id: string): string {
   const role = builtinRoles().find((candidate) => candidate.id === id)
   if (role === undefined) {
     throw new Error(`unknown built-in role ${id}`)

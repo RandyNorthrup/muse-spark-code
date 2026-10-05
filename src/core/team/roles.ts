@@ -9,6 +9,7 @@
 import { createHash } from 'node:crypto'
 import path from 'node:path'
 import {
+  AGENT_FILE_MAX_BYTES,
   AGENT_ID_PATTERN,
   AGENT_MAX_FILES,
   TEAM_NEW_ROLE_CEILING_GROUPS,
@@ -92,33 +93,40 @@ function cleanText(value: string): string {
   return value.replaceAll('\t', ' ')
 }
 
-function boundedText(value: string, maxChars: number): boolean {
+function isBoundedText(value: string, maxChars: number): boolean {
   return value.length <= maxChars && !HIDDEN_CHARACTER.test(cleanText(value))
 }
 
-/** A comma-separated list: each item non-empty, bounded and matching `each`. */
+/** A comma-separated list: each item non-empty, bounded and valid. */
 function parseList(
   value: string,
   maxItems: number,
   maxChars: number,
-  each: (item: string) => boolean,
+  isValid: (item: string) => boolean,
 ): readonly string[] | undefined {
   const items = value.split(',').map((item) => item.trim())
-  if (
+  const isInvalid =
     items.length > maxItems ||
-    items.some((item) => item.length === 0 || item.length > maxChars || !each(item))
-  ) {
-    return undefined
-  }
-  return [...new Set(items)]
+    items.some((item) => item.length === 0 || item.length > maxChars || !isValid(item))
+  return isInvalid ? undefined : [...new Set(items)]
 }
 
 function isWorkspaceMode(value: string): value is TeamWorkspaceMode {
-  return (TEAM_WORKSPACE_MODES as readonly string[]).includes(value)
+  for (const mode of TEAM_WORKSPACE_MODES) {
+    if (mode === value) {
+      return true
+    }
+  }
+  return false
 }
 
 function isReportShape(value: string): value is TeamReportShape {
-  return (TEAM_REPORT_SHAPES as readonly string[]).includes(value)
+  for (const shape of TEAM_REPORT_SHAPES) {
+    if (shape === value) {
+      return true
+    }
+  }
+  return false
 }
 
 /** A role's front matter, validated; unknown keys are the caller's to refuse. */
@@ -130,17 +138,17 @@ export function parseRoleFile(text: string): RoleFileParse {
   if (parsed.unknownKeys.length > 0) {
     return {
       ok: false,
-      reason: `front matter names an unknown role key: ${parsed.unknownKeys.toSorted().join(', ')}`,
+      reason: `front matter names an unknown role key: ${parsed.unknownKeys.toSorted((a, b) => a.localeCompare(b, 'en')).join(', ')}`,
     }
   }
   const { agent, roleFields } = parsed
   const get = (key: string): string | undefined => roleFields.get(key)
   const whenToUse = get('when-to-use')
-  if (whenToUse !== undefined && !boundedText(whenToUse, TEAM_ROLE_WHEN_TO_USE_MAX_CHARS)) {
+  if (whenToUse !== undefined && !isBoundedText(whenToUse, TEAM_ROLE_WHEN_TO_USE_MAX_CHARS)) {
     return { ok: false, reason: 'front matter has an invalid when-to-use' }
   }
   const done = get('done')
-  if (done !== undefined && !boundedText(done, TEAM_ROLE_DONE_MAX_CHARS)) {
+  if (done !== undefined && !isBoundedText(done, TEAM_ROLE_DONE_MAX_CHARS)) {
     return { ok: false, reason: 'front matter has an invalid done' }
   }
   const workspace = get('workspace')
@@ -155,7 +163,7 @@ export function parseRoleFile(text: string): RoleFileParse {
     writePaths === undefined
       ? undefined
       : parseList(writePaths, TEAM_ROLE_WRITE_PATHS_MAX, TEAM_ROLE_WRITE_PATH_MAX_CHARS, (item) =>
-          boundedText(item, TEAM_ROLE_WRITE_PATH_MAX_CHARS),
+          isBoundedText(item, TEAM_ROLE_WRITE_PATH_MAX_CHARS),
         )
   if (writePaths !== undefined && parsedPaths === undefined) {
     return { ok: false, reason: 'front matter has an invalid write-paths' }
@@ -206,7 +214,7 @@ export function parseRoleFile(text: string): RoleFileParse {
 }
 
 /** Whether the allowlist holds a tool that writes (the write or rename groups). */
-export function roleHasWriteTool(tools: readonly string[] | undefined): boolean {
+export function hasRoleWriteTool(tools: readonly string[] | undefined): boolean {
   if (tools === undefined) {
     return true
   }
@@ -218,8 +226,13 @@ export function roleHasWriteTool(tools: readonly string[] | undefined): boolean 
  * A role's workspace: the filed one, else `own-branch` for a role with a
  * write tool and `read-only` otherwise.
  */
-export function resolveRoleWorkspace(role: Pick<RoleDefinition, 'workspace' | 'tools'>): TeamWorkspaceMode {
-  return role.workspace ?? (roleHasWriteTool(role.tools) ? 'own-branch' : 'read-only')
+export function resolveRoleWorkspace(
+  role: Pick<RoleDefinition, 'workspace' | 'tools'>,
+): TeamWorkspaceMode {
+  if (role.workspace !== undefined) {
+    return role.workspace
+  }
+  return hasRoleWriteTool(role.tools) ? 'own-branch' : 'read-only'
 }
 
 /** A missing allowlist or write-path list resolves to the whole session: wider than any list. */
@@ -227,13 +240,9 @@ function isSubsetOf(
   project: readonly string[] | undefined,
   shadow: readonly string[] | undefined,
 ): boolean {
-  if (project === undefined) {
-    return shadow === undefined
-  }
-  if (shadow === undefined) {
-    return true
-  }
-  return project.every((item) => shadow.includes(item))
+  return project === undefined
+    ? shadow === undefined
+    : shadow === undefined || project.every((item) => shadow.includes(item))
 }
 
 /**
@@ -247,7 +256,9 @@ function isSubsetOf(
 export function narrowProjectRole(
   shadow: RoleDefinition,
   project: RoleDefinition,
-): { readonly ok: true; readonly role: RoleDefinition } | { readonly ok: false; readonly reason: string } {
+):
+  | { readonly ok: true; readonly role: RoleDefinition }
+  | { readonly ok: false; readonly reason: string } {
   if (project.workspace === 'in-place') {
     return { ok: false, reason: 'a project role can never set in-place' }
   }
@@ -255,11 +266,17 @@ export function narrowProjectRole(
     return { ok: false, reason: 'a project role names no model: the pool chooses it' }
   }
   if (project.skills !== undefined) {
-    return { ok: false, reason: 'a project role names no skills: they come from user configuration' }
+    return {
+      ok: false,
+      reason: 'a project role names no skills: they come from user configuration',
+    }
   }
   const workspace = resolveRoleWorkspace(project)
   if (TEAM_WORKSPACE_ORDER[workspace] > TEAM_WORKSPACE_ORDER[resolveRoleWorkspace(shadow)]) {
-    return { ok: false, reason: `a project role's workspace (${workspace}) is wider than the role it shadows` }
+    return {
+      ok: false,
+      reason: `a project role's workspace (${workspace}) is wider than the role it shadows`,
+    }
   }
   if (!isSubsetOf(project.tools, shadow.tools)) {
     return { ok: false, reason: 'a project role adds a tool the role it shadows does not have' }
@@ -270,13 +287,13 @@ export function narrowProjectRole(
   if (!isSubsetOf(project.delegates ?? [], shadow.delegates ?? [])) {
     return { ok: false, reason: 'a project role delegates where the role it shadows does not' }
   }
-  if (
+  const hasWiderCeiling =
     project.approvalMode !== undefined &&
-    narrowApprovalMode(shadow.approvalMode ?? 'allowAll', project.approvalMode) !== project.approvalMode
-  ) {
-    return { ok: false, reason: 'a project role never widens the approval ceiling' }
-  }
-  return { ok: true, role: project }
+    narrowApprovalMode(shadow.approvalMode ?? 'allowAll', project.approvalMode) !==
+      project.approvalMode
+  return hasWiderCeiling
+    ? { ok: false, reason: 'a project role never widens the approval ceiling' }
+    : { ok: true, role: project }
 }
 
 /** The file's SHA-256: the per-workspace allowance is kept with it. */
@@ -290,7 +307,7 @@ export interface TeamRoleAllowance {
 }
 
 /** Whether the allowance covers this file: an edit asks again. */
-export function allowanceCoversFile(
+export function isAllowanceForFile(
   allowance: TeamRoleAllowance | undefined,
   fileSha256: string,
 ): boolean {
@@ -301,7 +318,8 @@ export function allowanceCoversFile(
 export function newRoleCeilingTools(): string[] {
   const tools: string[] = []
   for (const group of TEAM_NEW_ROLE_CEILING_GROUPS) {
-    for (const tool of TEAM_TOOL_GROUP_TOOLS[group]) {
+    const groupTools = TEAM_TOOL_GROUP_TOOLS[group]
+    for (const tool of groupTools) {
       if (!tools.includes(tool)) {
         tools.push(tool)
       }
@@ -337,7 +355,7 @@ export function applyNewRoleCeiling(
   role: RoleDefinition,
   allowance: TeamRoleAllowance | undefined,
 ): RoleDefinition {
-  if (role.sha256 !== undefined && allowanceCoversFile(allowance, role.sha256)) {
+  if (role.sha256 !== undefined && isAllowanceForFile(allowance, role.sha256)) {
     return role
   }
   const ceiling = new Set(newRoleCeilingTools())
@@ -353,7 +371,8 @@ export function applyNewRoleCeiling(
 const ROLE_CATALOG: CatalogKind = {
   kind: 'role',
   fileName: 'AGENT.md',
-  maxBytes: 64 * 1024,
+  // Roles are M76 agent definitions: the same file, caps and layout.
+  maxBytes: AGENT_FILE_MAX_BYTES,
   idPattern: AGENT_ID_PATTERN,
   maxEntries: AGENT_MAX_FILES,
 }
@@ -402,6 +421,22 @@ interface LoadedRoleFile {
   readonly sha256: string
 }
 
+type RoleFileEntry =
+  | { readonly ok: true; readonly name: string; readonly entry: LoadedRoleFile }
+  | { readonly ok: false; readonly reason: string }
+
+/** Parses one AGENT.md as a role, stashing its SHA-256 for the allowance. */
+function parseRoleEntry(text: string): RoleFileEntry {
+  const parsed = parseRoleFile(text)
+  return parsed.ok
+    ? {
+        ok: true,
+        name: parsed.role.name,
+        entry: { role: parsed.role, sha256: roleFileSha256(text) },
+      }
+    : parsed
+}
+
 /**
  * Every valid role: the built-ins first, then the personal files, then the
  * project files with the same id rules as M76. Personal roots load in any
@@ -420,70 +455,69 @@ export async function loadRoles(
   const holes: AgentHole[] = []
   const personal = new Map<string, RoleDefinition>()
   const project = new Map<string, RoleDefinition>()
-  // Personal roots first, so a project file meets the role it shadows.
-  const ordered = [...roots].sort((a, b) =>
-    a.source === b.source ? 0 : a.source === 'user' ? -1 : 1,
-  )
-  for (const root of ordered) {
-    if (root.source !== 'project' && root.source !== 'user') {
-      continue
+  const pathModule = deps.platform === 'win32' ? path.win32 : path.posix
+  const takeProjectEntry = (
+    root: AgentRoot,
+    id: string,
+    filed: Omit<RoleDefinition, 'id' | 'source' | 'sha256'>,
+    sha256: string,
+  ): void => {
+    const role: RoleDefinition = { ...filed, id, source: 'project', sha256 }
+    const builtin = builtinRoles().find((candidate) => candidate.id === id)
+    const shadowed =
+      personal.get(id) ?? (builtin === undefined ? undefined : builtinToRole(builtin))
+    if (shadowed === undefined) {
+      project.set(id, role)
+      return
     }
-    if (root.source === 'project' && !opts.trustedWorkspace) {
+    const narrowed = narrowProjectRole(shadowed, role)
+    if (!narrowed.ok) {
+      warnings.push(`project role ${id} skipped: ${narrowed.reason}`)
+      holes.push({
+        source: 'project',
+        id,
+        path: pathModule.join(root.directory, id, ROLE_CATALOG.fileName),
+      })
+      return
+    }
+    project.set(id, narrowed.role)
+  }
+  // Personal roots first, so a project file meets the role it shadows.
+  const userRoots = roots.filter((root) => root.source === 'user')
+  const projectRoots = roots.filter((root) => root.source === 'project')
+  for (const root of userRoots) {
+    const load = await loadCatalogFiles(deps, [root], ROLE_CATALOG, parseRoleEntry)
+    warnings.push(...load.warnings)
+    for (const rootLoad of load.roots) {
+      for (const refused of rootLoad.refused) {
+        holes.push({ source: 'user', id: refused.id, path: refused.file })
+      }
+    }
+    for (const entry of load.entries) {
+      personal.set(entry.id, {
+        ...entry.entry.role,
+        id: entry.id,
+        source: 'user',
+        sha256: undefined,
+      })
+    }
+  }
+  for (const root of projectRoots) {
+    if (!opts.trustedWorkspace) {
       warnings.push('loading the project roles failed: the workspace is not trusted')
       holes.push({ source: 'project', id: undefined, path: root.directory })
       continue
     }
-    const pathModule = deps.platform === 'win32' ? path.win32 : path.posix
-    const load = await loadCatalogFiles(
-      deps,
-      [root],
-      ROLE_CATALOG,
-      (
-        text,
-      ):
-        | { readonly ok: true; readonly name: string; readonly entry: LoadedRoleFile }
-        | { readonly ok: false; readonly reason: string } => {
-        const parsed = parseRoleFile(text)
-        return parsed.ok
-          ? { ok: true, name: parsed.role.name, entry: { role: parsed.role, sha256: roleFileSha256(text) } }
-          : parsed
-      },
-    )
+    const load = await loadCatalogFiles(deps, [root], ROLE_CATALOG, parseRoleEntry)
     warnings.push(...load.warnings)
     for (const rootLoad of load.roots) {
       for (const refused of rootLoad.refused) {
-        holes.push({ source: root.source, id: refused.id, path: refused.file })
+        holes.push({ source: 'project', id: refused.id, path: refused.file })
       }
     }
-    for (const entry of load.entries) {
-      const label = `${root.source} role ${entry.id}`
-      if (root.source === 'user') {
-        personal.set(entry.id, { ...entry.entry.role, id: entry.id, source: 'user', sha256: undefined })
-        continue
-      }
-      const builtin = builtinRoles().find((role) => role.id === entry.id)
-      const shadowed = personal.get(entry.id) ?? (builtin === undefined ? undefined : builtinToRole(builtin))
-      const role: RoleDefinition = {
-        ...entry.entry.role,
-        id: entry.id,
-        source: 'project',
-        sha256: entry.entry.sha256,
-      }
-      if (shadowed === undefined) {
-        project.set(entry.id, role)
-        continue
-      }
-      const narrowed = narrowProjectRole(shadowed, role)
-      if (!narrowed.ok) {
-        warnings.push(`${label} skipped: ${narrowed.reason}`)
-        holes.push({
-          source: 'project',
-          id: entry.id,
-          path: pathModule.join(root.directory, entry.id, ROLE_CATALOG.fileName),
-        })
-        continue
-      }
-      project.set(entry.id, narrowed.role)
+    const entries = load.entries
+    for (const entry of entries) {
+      takeProjectEntry(root, entry.id, entry.entry.role, entry.entry.sha256)
     }
   }
   const roles: RoleDefinition[] = []
@@ -509,10 +543,19 @@ export async function loadRoles(
 }
 
 /** The roles the orchestrator is offered: those whose name resolves to them. */
+export function offeredRoles(catalogue: RolesLoad): readonly RoleDefinition[] {
+  return catalogue.roles.filter((role) => {
+    const resolved = resolveRole(catalogue, role.id)
+    return resolved.kind === 'found' && resolved.role === role
+  })
+}
+
+/** What a name resolves to: a role, nothing, or a hole of higher precedence than any match. */
 export function resolveRole(roles: RolesLoad, id: string): RoleResolution {
   for (const source of ROLE_PRECEDENCE) {
     const hole = roles.holes.find(
-      (candidate) => candidate.source === source && (candidate.id === undefined || candidate.id === id),
+      (candidate) =>
+        candidate.source === source && (candidate.id === undefined || candidate.id === id),
     )
     if (hole !== undefined) {
       return { kind: 'unloaded', hole }

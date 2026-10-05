@@ -2291,7 +2291,8 @@ export const EN = {
   teamCapabilityWarnWindow:
     'This model’s context window ({tokens} tokens) is below the {recommended} tokens recommended for the {role} role.',
   // {role}: the role id.
-  teamCapabilityWarnImages: 'This model takes no image input, which the {role} role works better with.',
+  teamCapabilityWarnImages:
+    'This model takes no image input, which the {role} role works better with.',
   teamCapabilityWarnReasoning:
     'This model has no reasoning tier, which the {role} role works better with.',
   // {model}: the model id; {role}: the role id.

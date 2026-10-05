@@ -7,6 +7,19 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+### Added
+
+- **Agent roles, charters and tool sets (M96 lane R, unreleased
+  internals).** The new `src/core/team/` holds the seven built-in roles
+  and their generated `AGENT.md` files, the role keys on M76's parser with
+  shadow-only narrowing and the new-id ceiling, the seven-part charter
+  generator, the one tool-set definition behind allowlists, the charter's
+  "You may" line and the panel checklist, the model-into-role capability
+  check, same-model identity, and the workspace team with the
+  `.muse/team.json` lowering merge — with tests, translations and the red
+  drills in `docs/certification/m96-r.md`. Nothing team-related loads or
+  changes requests for a single model.
+
 ## [0.12.1] - 2026-10-04
 
 ### Changed

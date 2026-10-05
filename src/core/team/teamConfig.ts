@@ -158,8 +158,8 @@ export type TeamJsonParse =
   | { readonly ok: true; readonly file: TeamJsonFile }
   | { readonly ok: false; readonly reason: string }
 
-const TEAM_JSON_TOP_KEYS: readonly string[] = ['roles', 'budgets']
-const TEAM_JSON_ROLE_KEYS: readonly string[] = ['off', 'reviewer', 'caps']
+const TEAM_JSON_TOP_KEYS: ReadonlySet<string> = new Set(['roles', 'budgets'])
+const TEAM_JSON_ROLE_KEYS: ReadonlySet<string> = new Set(['off', 'reviewer', 'caps'])
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
@@ -178,7 +178,7 @@ function isLowerableNumber(value: unknown): value is number {
 export function parseTeamJson(text: string): TeamJsonParse {
   let parsed: unknown
   try {
-    parsed = JSON.parse(text) as unknown
+    parsed = JSON.parse(text)
   } catch {
     return { ok: false, reason: 'team.json is not JSON' }
   }
@@ -186,7 +186,7 @@ export function parseTeamJson(text: string): TeamJsonParse {
     return { ok: false, reason: 'team.json holds an object' }
   }
   for (const key of Object.keys(parsed)) {
-    if (!TEAM_JSON_TOP_KEYS.includes(key)) {
+    if (!TEAM_JSON_TOP_KEYS.has(key)) {
       return { ok: false, reason: `team.json holds an unknown key: ${key}` }
     }
   }
@@ -201,7 +201,7 @@ export function parseTeamJson(text: string): TeamJsonParse {
         return { ok: false, reason: `team.json holds an invalid role: ${id}` }
       }
       for (const key of Object.keys(value)) {
-        if (!TEAM_JSON_ROLE_KEYS.includes(key)) {
+        if (!TEAM_JSON_ROLE_KEYS.has(key)) {
           return { ok: false, reason: `team.json holds an unknown key: roles.${id}.${key}` }
         }
       }
@@ -286,7 +286,8 @@ export function lowerTeamWithJson(base: TeamLoweringBase, file: TeamJsonFile): T
   const offRoles: string[] = []
   const reviewers: Record<string, string> = {}
   const caps: Record<string, Record<string, number>> = {}
-  for (const [id, role] of Object.entries(file.roles ?? {})) {
+  const fileRoles = Object.entries(file.roles ?? {})
+  for (const [id, role] of fileRoles) {
     const baseRole = base.roles[id]
     if (baseRole === undefined) {
       return { ok: false, reason: `team.json adds a role: ${id}` }
@@ -297,7 +298,8 @@ export function lowerTeamWithJson(base: TeamLoweringBase, file: TeamJsonFile): T
     if (role.reviewer !== undefined) {
       reviewers[id] = role.reviewer
     }
-    for (const [measure, cap] of Object.entries(role.caps ?? {})) {
+    const roleCaps = Object.entries(role.caps ?? {})
+    for (const [measure, cap] of roleCaps) {
       const baseCap = baseRole.caps[measure]
       if (baseCap === undefined) {
         return { ok: false, reason: `team.json adds a cap: roles.${id}.caps.${measure}` }
@@ -309,7 +311,8 @@ export function lowerTeamWithJson(base: TeamLoweringBase, file: TeamJsonFile): T
     }
   }
   const budgets: Record<string, number> = {}
-  for (const [name, budget] of Object.entries(file.budgets ?? {})) {
+  const fileBudgets = Object.entries(file.budgets ?? {})
+  for (const [name, budget] of fileBudgets) {
     const baseBudget = base.budgets[name]
     if (baseBudget === undefined) {
       return { ok: false, reason: `team.json adds a budget: ${name}` }

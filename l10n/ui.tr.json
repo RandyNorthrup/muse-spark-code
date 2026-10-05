@@ -1830,5 +1830,14 @@
   "agentImportIgnoredToTracked": "bu, Git tarafından yok sayılan bir dosyayı izlenen bir dosyaya kopyalar",
   "agentImportEditPrompt": "Dönüştürülen girdiler {path} içinde inceleyip kaydetmeniz için kaydedilmemiş bir düzenleme olarak açılsın mı? Yalnızca bu yola kaydedin, asla başka bir dosyaya kaydetmeyin.",
   "agentImportEditAction": "Dosyayı düzenle ve aç",
-  "agentImportPreviewLegacyKey": "Dosya eski `mcp_servers` anahtarını kullanıyor. Bunları eklerken adını `mcpServers` olarak değiştirin: ikisi birden olduğunda Muse Code hiçbirini yüklemez."
+  "agentImportPreviewLegacyKey": "Dosya eski `mcp_servers` anahtarını kullanıyor. Bunları eklerken adını `mcpServers` olarak değiştirin: ikisi birden olduğunda Muse Code hiçbirini yüklemez.",
+  "teamCapabilityNoTools": "Bu model araç çağıramadığı için {role} rolünü üstlenemez.",
+  "teamCapabilitySmallWindow": "Bu modelin bağlam penceresi ({tokens} jeton), her rolün ihtiyaç duyduğu {minimum} jetonun altındadır.",
+  "teamCapabilityWarnWindow": "Bu modelin bağlam penceresi ({tokens} jeton), {role} rolü için önerilen {recommended} jetonun altındadır.",
+  "teamCapabilityWarnImages": "Bu model görüntü girdisi almaz; {role} rolü görüntü girdisiyle daha iyi çalışır.",
+  "teamCapabilityWarnReasoning": "Bu modelin akıl yürütme katmanı yoktur; {role} rolü akıl yürütme katmanıyla daha iyi çalışır.",
+  "teamCapabilityUnknown": "{model} modelinin yetenekleri bilinmiyor; {role} rolü için denetlenmedi.",
+  "teamRoleFileRefused": "{file}: {detail}",
+  "teamJsonRefused": "{file}: {detail}",
+  "teamRoleNeedsAllowance": "{id} proje rolü {detail} istiyor; bu çalışma alanı için izin verilene kadar salt okunur çalışır."
 }

@@ -1764,5 +1764,14 @@
   "agentImportIgnoredToTracked": "這會將 Git 忽略的檔案複製到受追蹤的檔案中",
   "agentImportEditPrompt": "將轉換後的項目在 {path} 中作為未儲存的編輯開啟，以供檢查和儲存？請只儲存到該路徑，切勿儲存到其他檔案。",
   "agentImportEditAction": "編輯並開啟檔案",
-  "agentImportPreviewLegacyKey": "此檔案使用舊版 `mcp_servers` 索引鍵。新增這些項目時請將其重新命名為 `mcpServers`：兩者同時存在時 Muse Code 都不會載入。"
+  "agentImportPreviewLegacyKey": "此檔案使用舊版 `mcp_servers` 索引鍵。新增這些項目時請將其重新命名為 `mcpServers`：兩者同時存在時 Muse Code 都不會載入。",
+  "teamCapabilityNoTools": "此模型無法呼叫工具，因此無法擔任 {role} 角色。",
+  "teamCapabilitySmallWindow": "此模型的上下文視窗（{tokens} 個詞元）低於每個角色所需的 {minimum} 個詞元。",
+  "teamCapabilityWarnWindow": "此模型的上下文視窗（{tokens} 個詞元）低於 {role} 角色建議的 {recommended} 個詞元。",
+  "teamCapabilityWarnImages": "此模型不支援圖像輸入，而 {role} 角色在有圖像輸入時表現更好。",
+  "teamCapabilityWarnReasoning": "此模型沒有推理層級，而 {role} 角色在有推理層級時表現更好。",
+  "teamCapabilityUnknown": "{model} 的功能未知；尚未針對 {role} 角色進行檢查。",
+  "teamRoleFileRefused": "{file}：{detail}",
+  "teamJsonRefused": "{file}：{detail}",
+  "teamRoleNeedsAllowance": "專案角色 {id} 要求 {detail}；在獲得此工作區的許可之前，它將以唯讀方式執行。"
 }

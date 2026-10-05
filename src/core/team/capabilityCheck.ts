@@ -8,6 +8,7 @@
 // M95's registry through it), so the tests use a fake catalogue.
 
 import {
+  TEAM_ROLE_DEFAULT_RECOMMENDED_CONTEXT_TOKENS,
   TEAM_ROLE_MIN_CONTEXT_TOKENS,
   TEAM_ROLE_RECOMMENDED_CONTEXT_TOKENS,
   UI_TEXT,
@@ -51,11 +52,16 @@ export interface TeamCapabilityRole {
 }
 
 function recommendedWindow(roleId: string): number {
-  return (TEAM_ROLE_RECOMMENDED_CONTEXT_TOKENS as Readonly<Record<string, number>>)[roleId] ?? 65_536
+  const entry = Object.entries(TEAM_ROLE_RECOMMENDED_CONTEXT_TOKENS).find(([id]) => id === roleId)
+  return entry === undefined ? TEAM_ROLE_DEFAULT_RECOMMENDED_CONTEXT_TOKENS : entry[1]
 }
 
-function needsReasoning(roleId: string): boolean {
+function requiresReasoning(roleId: string): boolean {
   return roleId === 'engineering' || roleId === 'code-review'
+}
+
+function requiresImages(role: TeamCapabilityRole): boolean {
+  return role.groups.includes('images') || role.id === 'design'
 }
 
 function unknownWarning(model: string, roleId: string): TeamCapabilityWarning {
@@ -86,7 +92,10 @@ export function checkRoleCapability(
       warnings: [],
     }
   }
-  if (capabilities.contextWindow !== undefined && capabilities.contextWindow < TEAM_ROLE_MIN_CONTEXT_TOKENS) {
+  if (
+    capabilities.contextWindow !== undefined &&
+    capabilities.contextWindow < TEAM_ROLE_MIN_CONTEXT_TOKENS
+  ) {
     return {
       allowed: false,
       reason: fill(UI_TEXT.teamCapabilitySmallWindow, {
@@ -97,9 +106,17 @@ export function checkRoleCapability(
     }
   }
   const warnings: TeamCapabilityWarning[] = []
+  let hasUnknownWarning = false
+  const warnUnknown = (): void => {
+    if (hasUnknownWarning) {
+      return
+    }
+    hasUnknownWarning = true
+    warnings.push(unknownWarning(model, role.id))
+  }
   const recommended = recommendedWindow(role.id)
   if (capabilities.contextWindow === undefined) {
-    warnings.push(unknownWarning(model, role.id))
+    warnUnknown()
   } else if (capabilities.contextWindow < recommended) {
     warnings.push({
       code: 'window',
@@ -110,22 +127,24 @@ export function checkRoleCapability(
       }),
     })
   }
-  const wantsImages = role.groups.includes('images') || role.id === 'design'
-  if (capabilities.imageInput === undefined) {
-    if (wantsImages && !warnings.some((warning) => warning.code === 'unknown')) {
-      warnings.push(unknownWarning(model, role.id))
+  if (requiresImages(role)) {
+    if (capabilities.imageInput === undefined) {
+      warnUnknown()
+    } else if (!capabilities.imageInput) {
+      warnings.push({
+        code: 'images',
+        message: fill(UI_TEXT.teamCapabilityWarnImages, { role: role.id }),
+      })
     }
-  } else if (!capabilities.imageInput && wantsImages) {
-    warnings.push({
-      code: 'images',
-      message: fill(UI_TEXT.teamCapabilityWarnImages, { role: role.id }),
-    })
+  }
+  if (!requiresReasoning(role.id)) {
+    return { allowed: true, warnings }
   }
   if (capabilities.reasoning === undefined) {
-    if (needsReasoning(role.id) && !warnings.some((warning) => warning.code === 'unknown')) {
-      warnings.push(unknownWarning(model, role.id))
-    }
-  } else if (!capabilities.reasoning && needsReasoning(role.id)) {
+    warnUnknown()
+    return { allowed: true, warnings }
+  }
+  if (!capabilities.reasoning) {
     warnings.push({
       code: 'reasoning',
       message: fill(UI_TEXT.teamCapabilityWarnReasoning, { role: role.id }),

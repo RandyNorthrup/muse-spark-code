@@ -1896,5 +1896,14 @@
   "agentImportIgnoredToTracked": "esto copiaría un archivo ignorado por Git a uno con seguimiento",
   "agentImportEditPrompt": "¿Abrir las entradas convertidas en {path} como una edición sin guardar para revisarla y guardarla? Guárdela solo en esa ruta, nunca en otro archivo.",
   "agentImportEditAction": "Editar y abrir el archivo",
-  "agentImportPreviewLegacyKey": "El archivo usa la clave antigua `mcp_servers`. Cámbiele el nombre a `mcpServers` al añadir estos: Muse Code no carga ninguna de las dos cuando están ambas."
+  "agentImportPreviewLegacyKey": "El archivo usa la clave antigua `mcp_servers`. Cámbiele el nombre a `mcpServers` al añadir estos: Muse Code no carga ninguna de las dos cuando están ambas.",
+  "teamCapabilityNoTools": "Este modelo no puede llamar a herramientas, por lo que no puede desempeñar el rol {role}.",
+  "teamCapabilitySmallWindow": "La ventana de contexto de este modelo ({tokens} tokens) está por debajo de los {minimum} tokens que necesita cada rol.",
+  "teamCapabilityWarnWindow": "La ventana de contexto de este modelo ({tokens} tokens) está por debajo de los {recommended} tokens recomendados para el rol {role}.",
+  "teamCapabilityWarnImages": "Este modelo no acepta imágenes como entrada, con las que el rol {role} funciona mejor.",
+  "teamCapabilityWarnReasoning": "Este modelo no tiene nivel de razonamiento, con el que el rol {role} funciona mejor.",
+  "teamCapabilityUnknown": "Las capacidades de {model} se desconocen; no se comprobó para el rol {role}.",
+  "teamRoleFileRefused": "{file}: {detail}",
+  "teamJsonRefused": "{file}: {detail}",
+  "teamRoleNeedsAllowance": "El rol de proyecto {id} pide {detail}; se ejecuta como solo lectura hasta que se autorice para esta área de trabajo."
 }

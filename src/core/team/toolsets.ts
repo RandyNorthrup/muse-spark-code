@@ -63,20 +63,16 @@ export function teamToolChecklist(): readonly TeamToolChecklistRow[] {
   return TEAM_TOOL_GROUPS.map((group) => ({ group, tools: TEAM_TOOL_GROUP_TOOLS[group] }))
 }
 
-/** Whether `tool` (a session name) is one of the canonical `tools`. */
-function offeredHas(offered: ReadonlySet<string>, tool: string): boolean {
-  if (offered.has(tool)) {
-    return true
-  }
-  return (TEAM_TOOL_ALIASES[tool] ?? []).some((alias) => offered.has(alias))
+/** Whether the session offers a canonical tool, under its own name or an alias. */
+function isToolOffered(offered: ReadonlySet<string>, tool: string): boolean {
+  return offered.has(tool) || (TEAM_TOOL_ALIASES[tool] ?? []).some((alias) => offered.has(alias))
 }
 
 /** A canonical tool met with the session: the name the session offers, or undefined. */
 function meetTool(offered: ReadonlySet<string>, tool: string): string | undefined {
-  if (offered.has(tool)) {
-    return tool
-  }
-  return (TEAM_TOOL_ALIASES[tool] ?? []).find((alias) => offered.has(alias))
+  return offered.has(tool)
+    ? tool
+    : (TEAM_TOOL_ALIASES[tool] ?? []).find((alias) => offered.has(alias))
 }
 
 /** The groups an allowlist of tool names touches: a group is kept by one tool. */
@@ -84,22 +80,30 @@ export function groupsForTools(tools: readonly string[]): TeamToolGroup[] {
   const wanted = new Set(tools)
   return TEAM_TOOL_GROUPS.filter((group) =>
     TEAM_TOOL_GROUP_TOOLS[group].some(
-      (tool) => wanted.has(tool) || (TEAM_TOOL_ALIASES[tool] ?? []).some((alias) => wanted.has(alias)),
+      (tool) =>
+        wanted.has(tool) || (TEAM_TOOL_ALIASES[tool] ?? []).some((alias) => wanted.has(alias)),
     ),
   )
 }
 
+/** `a, b and c`: the read-only commands as the charter names them. */
+function commandList(commands: readonly string[]): string {
+  return commands.length <= 2
+    ? commands.join(' and ')
+    : `${commands.slice(0, -1).join(', ')} and ${commands.at(-1) ?? ''}`
+}
+
 /** One group's plain words for the "You may" line, from the one definition. */
-export function groupWords(group: TeamToolGroup, writePaths: readonly string[] | undefined): string {
+export function groupWords(
+  group: TeamToolGroup,
+  writePaths: readonly string[] | undefined,
+): string {
   if (group === 'readOnlyShell') {
-    return `run read-only shell commands (${TEAM_READ_ONLY_COMMANDS.join(', ')})`
+    return `run read-only shell commands (${commandList(TEAM_READ_ONLY_COMMANDS)})`
   }
-  if (group === 'write') {
-    return writePaths === undefined
-      ? 'create and edit files anywhere inside your working copy'
-      : `create and edit files inside ${writePaths.join(', ')}`
-  }
-  return TEAM_TOOL_GROUP_WORDS[group]
+  return group === 'write' && writePaths !== undefined
+    ? `create and edit files inside ${writePaths.join(', ')}`
+    : TEAM_TOOL_GROUP_WORDS[group]
 }
 
 /** The "You may" list for kept groups: each group's words, joined. */
@@ -121,15 +125,17 @@ export function resolveTeamToolset(
   session: TeamToolsetSession,
 ): ResolvedTeamToolset {
   const offered = new Set(session.offered)
-  const gated = spec.groups.filter(
-    (group) =>
-      (group !== 'webSearch' || session.webSearchAllowed) &&
-      (group !== 'images' || session.imagesAllowed),
+  const gated = new Set(
+    spec.groups.filter(
+      (group) =>
+        (group !== 'webSearch' || session.webSearchAllowed) &&
+        (group !== 'images' || session.imagesAllowed),
+    ),
   )
   const tools: string[] = []
   const kept: TeamToolGroup[] = []
   for (const group of TEAM_TOOL_GROUPS) {
-    if (!gated.includes(group)) {
+    if (!gated.has(group)) {
       continue
     }
     const met = TEAM_TOOL_GROUP_TOOLS[group]
@@ -147,7 +153,7 @@ export function resolveTeamToolset(
   }
   if (session.delegates.length > 0) {
     for (const tool of TEAM_DELEGATE_TOOLS) {
-      if (offeredHas(offered, tool) && !tools.includes(tool)) {
+      if (isToolOffered(offered, tool) && !tools.includes(tool)) {
         tools.push(tool)
       }
     }

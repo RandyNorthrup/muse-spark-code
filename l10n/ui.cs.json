@@ -1962,5 +1962,14 @@
   "agentImportIgnoredToTracked": "tím by se soubor ignorovaný Gitem zkopíroval do sledovaného souboru",
   "agentImportEditPrompt": "Otevřít převedené položky v {path} jako neuloženou úpravu ke kontrole a uložení? Uložte ji pouze do této cesty, nikdy do jiného souboru.",
   "agentImportEditAction": "Upravit a otevřít soubor",
-  "agentImportPreviewLegacyKey": "Soubor používá starý klíč `mcp_servers`. Při přidávání těchto položek jej přejmenujte na `mcpServers`: když jsou přítomny oba, Muse Code nenačte ani jeden."
+  "agentImportPreviewLegacyKey": "Soubor používá starý klíč `mcp_servers`. Při přidávání těchto položek jej přejmenujte na `mcpServers`: když jsou přítomny oba, Muse Code nenačte ani jeden.",
+  "teamCapabilityNoTools": "Tento model neumí volat nástroje, takže nemůže zastávat roli {role}.",
+  "teamCapabilitySmallWindow": "Kontextové okno tohoto modelu ({tokens} tokenů) je menší než {minimum} tokenů, které potřebuje každá role.",
+  "teamCapabilityWarnWindow": "Kontextové okno tohoto modelu ({tokens} tokenů) je menší než doporučených {recommended} tokenů pro roli {role}.",
+  "teamCapabilityWarnImages": "Tento model nepřijímá obrázky na vstupu, se kterými role {role} funguje lépe.",
+  "teamCapabilityWarnReasoning": "Tento model nemá úroveň uvažování, se kterou role {role} funguje lépe.",
+  "teamCapabilityUnknown": "Schopnosti {model} nejsou známy; pro roli {role} nebyl zkontrolován.",
+  "teamRoleFileRefused": "{file}: {detail}",
+  "teamJsonRefused": "{file}: {detail}",
+  "teamRoleNeedsAllowance": "Projektová role {id} požaduje {detail}; do povolení pro tento pracovní prostor běží jen pro čtení."
 }

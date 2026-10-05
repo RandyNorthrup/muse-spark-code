@@ -1830,5 +1830,14 @@
   "agentImportIgnoredToTracked": "ez Git által figyelmen kívül hagyott fájlt másolna egy követett fájlba",
   "agentImportEditPrompt": "Megnyitja az átalakított bejegyzéseket itt: {path}, nem mentett módosításként, ellenőrzésre és mentésre? Csak erre az útvonalra mentse, soha ne másik fájlba.",
   "agentImportEditAction": "Fájl szerkesztése és megnyitása",
-  "agentImportPreviewLegacyKey": "A fájl az elavult `mcp_servers` kulcsot használja. Ezek hozzáadásakor nevezze át `mcpServers` névre: ha mindkettő jelen van, a Muse Code egyiket sem tölti be."
+  "agentImportPreviewLegacyKey": "A fájl az elavult `mcp_servers` kulcsot használja. Ezek hozzáadásakor nevezze át `mcpServers` névre: ha mindkettő jelen van, a Muse Code egyiket sem tölti be.",
+  "teamCapabilityNoTools": "Ez a modell nem tud eszközöket hívni, ezért nem töltheti be a(z) {role} szerepet.",
+  "teamCapabilitySmallWindow": "A modell környezeti ablaka ({tokens} token) kisebb, mint minden szerephez szükséges {minimum} token.",
+  "teamCapabilityWarnWindow": "A modell környezeti ablaka ({tokens} token) kisebb, mint a(z) {role} szerephez ajánlott {recommended} token.",
+  "teamCapabilityWarnImages": "Ez a modell nem fogad képbemenetet, amellyel a(z) {role} szerep jobban működik.",
+  "teamCapabilityWarnReasoning": "Ennek a modellnek nincs érvelési szintje, amellyel a(z) {role} szerep jobban működik.",
+  "teamCapabilityUnknown": "{model} képességei ismeretlenek; a(z) {role} szerepre nem lett ellenőrizve.",
+  "teamRoleFileRefused": "{file}: {detail}",
+  "teamJsonRefused": "{file}: {detail}",
+  "teamRoleNeedsAllowance": "A(z) {id} projektfeladat {detail} kér; a munkaterület engedélyezéséig csak olvasható módban fut."
 }

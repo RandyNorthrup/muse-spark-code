@@ -277,7 +277,10 @@ const AGENT_BASE_KEYS: readonly string[] = [
   PERMISSION_MODE_KEY,
 ]
 
-export function parseAgentFileForRole(text: string, roleKeys: readonly string[]): AgentRoleFileParse {
+export function parseAgentFileForRole(
+  text: string,
+  roleKeys: readonly string[],
+): AgentRoleFileParse {
   const parsed = parseAgentFile(text)
   if (!parsed.ok) {
     return parsed

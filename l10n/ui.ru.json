@@ -1962,5 +1962,14 @@
   "agentImportIgnoredToTracked": "это скопировало бы игнорируемый Git файл в отслеживаемый",
   "agentImportEditPrompt": "Открыть преобразованные записи в {path} как несохранённую правку для проверки и сохранения? Сохраняйте её только по этому пути, никогда в другой файл.",
   "agentImportEditAction": "Изменить и открыть файл",
-  "agentImportPreviewLegacyKey": "Файл использует устаревший ключ `mcp_servers`. При добавлении этих записей переименуйте его в `mcpServers`: если есть оба, Muse Code не загружает ни один."
+  "agentImportPreviewLegacyKey": "Файл использует устаревший ключ `mcp_servers`. При добавлении этих записей переименуйте его в `mcpServers`: если есть оба, Muse Code не загружает ни один.",
+  "teamCapabilityNoTools": "Эта модель не умеет вызывать инструменты, поэтому не может исполнять роль {role}.",
+  "teamCapabilitySmallWindow": "Контекстное окно этой модели ({tokens} токенов) меньше {minimum} токенов, необходимых каждой роли.",
+  "teamCapabilityWarnWindow": "Контекстное окно этой модели ({tokens} токенов) меньше {recommended} токенов, рекомендованных для роли {role}.",
+  "teamCapabilityWarnImages": "Эта модель не принимает изображения на вход, с которыми роль {role} работает лучше.",
+  "teamCapabilityWarnReasoning": "У этой модели нет уровня рассуждений, с которым роль {role} работает лучше.",
+  "teamCapabilityUnknown": "Возможности {model} неизвестны; для роли {role} проверка не выполнялась.",
+  "teamRoleFileRefused": "{file}: {detail}",
+  "teamJsonRefused": "{file}: {detail}",
+  "teamRoleNeedsAllowance": "Роль проекта {id} запрашивает {detail}; до разрешения для этой рабочей области она работает только для чтения."
 }

@@ -1962,5 +1962,14 @@
   "agentImportIgnoredToTracked": "spowodowałoby to skopiowanie pliku ignorowanego przez Git do pliku śledzonego",
   "agentImportEditPrompt": "Otworzyć przekonwertowane wpisy w {path} jako niezapisaną zmianę do przejrzenia i zapisania? Zapisz ją tylko pod tą ścieżką, nigdy w innym pliku.",
   "agentImportEditAction": "Edytuj i otwórz plik",
-  "agentImportPreviewLegacyKey": "Plik używa starego klucza `mcp_servers`. Zmień jego nazwę na `mcpServers`, dodając te wpisy: Muse Code nie wczytuje żadnego, gdy oba są obecne."
+  "agentImportPreviewLegacyKey": "Plik używa starego klucza `mcp_servers`. Zmień jego nazwę na `mcpServers`, dodając te wpisy: Muse Code nie wczytuje żadnego, gdy oba są obecne.",
+  "teamCapabilityNoTools": "Ten model nie może wywoływać narzędzi, więc nie może pełnić roli {role}.",
+  "teamCapabilitySmallWindow": "Okno kontekstu tego modelu ({tokens} tokenów) jest mniejsze niż {minimum} tokenów wymaganych dla każdej roli.",
+  "teamCapabilityWarnWindow": "Okno kontekstu tego modelu ({tokens} tokenów) jest mniejsze niż zalecane {recommended} tokenów dla roli {role}.",
+  "teamCapabilityWarnImages": "Ten model nie przyjmuje obrazów na wejściu, z którymi rola {role} działa lepiej.",
+  "teamCapabilityWarnReasoning": "Ten model nie ma warstwy rozumowania, z którą rola {role} działa lepiej.",
+  "teamCapabilityUnknown": "Możliwości {model} są nieznane; nie sprawdzono go pod kątem roli {role}.",
+  "teamRoleFileRefused": "{file}: {detail}",
+  "teamJsonRefused": "{file}: {detail}",
+  "teamRoleNeedsAllowance": "Rola projektu {id} żąda {detail}; do czasu zezwolenia dla tego obszaru roboczego działa tylko do odczytu."
 }

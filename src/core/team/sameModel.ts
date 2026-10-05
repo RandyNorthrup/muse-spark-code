@@ -20,7 +20,7 @@ export function normalizeTeamModelId(id: string): string {
 }
 
 /** Whether two model ids name the same model, provider and backend aside. */
-export function sameTeamModel(a: string, b: string): boolean {
+export function isSameTeamModel(a: string, b: string): boolean {
   return normalizeTeamModelId(a) === normalizeTeamModelId(b)
 }
 

@@ -1764,5 +1764,14 @@
   "agentImportIgnoredToTracked": "Gitで無視されたファイルを追跡対象のファイルにコピーすることになります",
   "agentImportEditPrompt": "変換した項目を {path} に未保存の編集として開き、確認して保存しますか？保存先はそのパスだけにし、別のファイルには保存しないでください。",
   "agentImportEditAction": "ファイルを編集して開く",
-  "agentImportPreviewLegacyKey": "ファイルは古い `mcp_servers` キーを使用しています。これらを追加するときに `mcpServers` に名前を変更してください。両方あると Muse Code はどちらも読み込みません。"
+  "agentImportPreviewLegacyKey": "ファイルは古い `mcp_servers` キーを使用しています。これらを追加するときに `mcpServers` に名前を変更してください。両方あると Muse Code はどちらも読み込みません。",
+  "teamCapabilityNoTools": "このモデルはツールを呼び出せないため、{role}ロールを実行できません。",
+  "teamCapabilitySmallWindow": "このモデルのコンテキストウィンドウ（{tokens}トークン）は、すべてのロールに必要な{minimum}トークンを下回っています。",
+  "teamCapabilityWarnWindow": "このモデルのコンテキストウィンドウ（{tokens}トークン）は、{role}ロールに推奨される{recommended}トークンを下回っています。",
+  "teamCapabilityWarnImages": "このモデルは画像入力に対応しておらず、{role}ロールは画像入力があるとより良く動作します。",
+  "teamCapabilityWarnReasoning": "このモデルには推論ティアがなく、{role}ロールは推論ティアがあるとより良く動作します。",
+  "teamCapabilityUnknown": "{model}の機能は不明です。{role}ロール向けの確認は行われていません。",
+  "teamRoleFileRefused": "{file}：{detail}",
+  "teamJsonRefused": "{file}：{detail}",
+  "teamRoleNeedsAllowance": "プロジェクトロール{id}は{detail}を求めています。このワークスペースで許可されるまで読み取り専用で実行されます。"
 }
