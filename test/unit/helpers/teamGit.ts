@@ -113,3 +113,41 @@ export async function teamFixtureRepo(
 export async function teamRealPath(candidate: string): Promise<string> {
   return await realpath(candidate)
 }
+
+export function teamWindowsPath(root: string, form: string): string {
+  if (form === 'case') {
+    return root.toUpperCase()
+  }
+  if (form === 'drive') {
+    return root.replace(/^[a-z]:/i, (drive) => drive.toLowerCase())
+  }
+  if (form === 'namespace') {
+    return path.toNamespacedPath(root)
+  }
+  throw new Error(`Unknown Windows path form: ${form}`)
+}
+
+/** Ask the local volume rather than inventing an 8.3 alias. */
+export async function teamShortRoot(root: string): Promise<string | undefined> {
+  const parent = path.dirname(root)
+  const grandparent = path.dirname(parent)
+  const output = await new Promise<string>((resolve, reject) => {
+    execFile(
+      'cmd.exe',
+      ['/d', '/c', 'dir', '/x', grandparent],
+      { env: teamGitEnv },
+      (error, stdout) => {
+        if (error === null) {
+          resolve(stdout)
+        } else {
+          reject(new Error('Local 8.3 listing failed', { cause: error }))
+        }
+      },
+    )
+  })
+  const row = output.split(/\r?\n/).find((line) => line.trimEnd().endsWith(path.basename(parent)))
+  const shortName = row?.match(/<DIR>\s+(\S+)\s+\S+\s*$/)?.[1]
+  return shortName === undefined
+    ? undefined
+    : path.join(grandparent, shortName, path.basename(root))
+}

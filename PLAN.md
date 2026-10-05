@@ -17638,6 +17638,15 @@ live) and the controller filters its id as well.
 ### M96 — Agent roles and the team (D75)
 
 **FIXM96I repair plan (2026-10-05, RVM96B findings 1–12 and 24).**
+Windows follow-up WINM96I runs the complete owning files on the local Windows
+host (at most three files and three workers), including junction deletion,
+cleanup and Undo, case and drive-letter aliases, namespace/UNC spellings and
+8.3 aliases when present. Fix only lane I files; keep no-follow checks and
+case-sensitive charter matching. Record failing regressions, byte-exact
+restored drills and final platform/static receipts under the Windows heading
+in `docs/certification/m96-i.md`. Use the previously recorded 120-second
+real-Git invocation; full quality remains the lead's gate.
+
 Keep lane I's source/test boundary and add no dependency. Replace shell-list
 admission with parsed exact argv and the host's trusted absolute Git executable;
 start workers from an explicit environment allowlist, with Git credential/config
@@ -20956,15 +20965,27 @@ joined with M57, M58 and PR #49's sign-in
 
 ## 7. Gates
 
+**WINM96I Windows follow-up (2026-10-05).** Complete owning files pass on
+Windows: teamWorkspaces 39, teamRefFence 89, teamMerge 45 and reviewGate /
+reviewerPick 16 (189 total; four existing POSIX-only bodies return). Junction
+cleanup, unlink, add/overwrite/delete and Undo cases execute, alongside case,
+drive, namespace and real reported 8.3 aliases. Six deliberate guard/argv
+drills fail as intended and restore byte-exact with SHA-256. All five compiler
+projects, changed-file ESLint, deadcode, zero-clone duplication, localization,
+host API and production build pass on macmini snapshot `5f4f0f80`. No gate or
+budget changed; shared test setup fixes the duplication finding. See the
+Windows heading in `docs/certification/m96-i.md`. Full quality and editor
+integration remain the lead's gates under the lane brief.
+
 **FIXM96I local repair proof (2026-10-05).** RVM96B findings 1–12 and 24
 are fixed in lane I with 165 passing owning cases and 26 SHA-256-exact
 restored guard drills. Five compiler projects, changed-file ESLint/Prettier,
 deadcode, duplication (zero clones), localization, host API and production
 build pass on macmini. The duplication gate caught repeated test setup and
 was fixed with test-local shared fixtures; the host API record's two Node
-import counts were regenerated. No gate or budget changed. Full quality and
-the guarded Windows junction cases remain the lead's certification work under
-the rig brief. See `docs/certification/m96-i.md`; §9 names the remaining
+import counts were regenerated. No gate or budget changed. Full quality remains the lead's certification work under
+the rig brief; WINM96I above completes the previously pending Windows
+junction execution. See `docs/certification/m96-i.md`; §9 names the remaining
 platform validation and existing filesystem atomicity assumptions.
 
 **TRAIN13B (2026-10-05).** The owner authorizes recovering the two size
@@ -21546,10 +21567,10 @@ before a repaired one loads (2026-09-30).
 ## 9. Security assumptions and accepted residual risk
 
 - **FIXM96I / RVM96B (2026-10-05):** findings 1–12 and 24 are repaired,
-  with no scoped finding deferred. Named validation residual **I-Windows**:
-  junction regressions are platform guarded and cannot execute on macmini;
-  the same no-follow ancestor logic is exercised with POSIX links here,
-  and the lead must run the owning files on Windows before certification.
+  with no scoped finding deferred. Named validation residual **I-Windows**
+  is closed by WINM96I's owning Windows runs and six restored guard drills
+  (`docs/certification/m96-i.md`, Windows heading). UNC spelling coverage is
+  lexical; no live SMB share certification is claimed.
   Named platform residual **I-path-race**: canonical checks run at every
   ancestor immediately before writes/deletes, but portable Node path APIs
   cannot atomically pin the whole ancestor chain against a hostile local

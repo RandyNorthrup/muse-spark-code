@@ -32,7 +32,7 @@ import { isProtectedPath } from '../protectedPaths'
 import { isBelow, resolveWorkspacePath } from '../workspacePath'
 import { pathModule } from '../workspaceRoot'
 import { checkAgentsRef, type AgentsRefCheck } from './refFence'
-import { isTeamGitError, type TeamGit } from './teamWorkspaces'
+import { isTeamGitError, isSameTeamPath, type TeamGit } from './teamWorkspaces'
 
 /** A merge failure: the stable code travels with the error. */
 export class TeamMergeError extends Error {
@@ -227,7 +227,7 @@ async function confinedRelative(
   } catch {
     throw new TeamMergeError('linkEscape', `The team merge cannot resolve its root ${file}`, [file])
   }
-  if (p.resolve(root) !== realRoot) {
+  if (!isSameTeamPath(root, realRoot, platform)) {
     throw new TeamMergeError('linkEscape', `The team merge has a linked root ${file}`, [file])
   }
   // Check every ancestor, even when the leaf already exists. A leaf-only
@@ -235,18 +235,24 @@ async function confinedRelative(
   let current = textual.absolute
   for (;;) {
     const stat = await linkOf(current)
-    if (stat !== undefined && (stat.isSymbolicLink() || (await io.realPath(current)) !== current)) {
+    if (
+      stat !== undefined &&
+      (stat.isSymbolicLink() || !isSameTeamPath(await io.realPath(current), current, platform))
+    ) {
       throw new TeamMergeError(
         'linkEscape',
         `The team merge refused a path through a link ${file}`,
         [file],
       )
     }
-    if (current === realRoot) {
+    if (isSameTeamPath(current, realRoot, platform)) {
       return textual.relative
     }
     current = p.dirname(current)
-    if (current !== realRoot && !isBelow(p.relative(realRoot, current), p)) {
+    if (
+      !isSameTeamPath(current, realRoot, platform) &&
+      !isBelow(p.relative(p.toNamespacedPath(realRoot), p.toNamespacedPath(current)), p)
+    ) {
       throw new TeamMergeError('linkEscape', `The team merge refused an outside ancestor ${file}`, [
         file,
       ])
@@ -432,11 +438,18 @@ export async function applyTeamMerge(
     }
     if (conflicts.length > 0) {
       const taskFolder = spec.taskFolder
+      const p = pathModule(platform)
       if (
         taskFolder === undefined ||
-        path.resolve(taskFolder) === path.resolve(spec.repositoryRoot) ||
-        isBelow(path.relative(spec.repositoryRoot, taskFolder), path) ||
-        isBelow(path.relative(taskFolder, spec.repositoryRoot), path)
+        isSameTeamPath(taskFolder, spec.repositoryRoot, platform) ||
+        isBelow(
+          p.relative(p.toNamespacedPath(spec.repositoryRoot), p.toNamespacedPath(taskFolder)),
+          p,
+        ) ||
+        isBelow(
+          p.relative(p.toNamespacedPath(taskFolder), p.toNamespacedPath(spec.repositoryRoot)),
+          p,
+        )
       ) {
         throw new TeamMergeError(
           'mergeFailed',

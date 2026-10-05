@@ -230,7 +230,11 @@ describe('classifyReadOnlyShellCommand', () => {
   })
 
   it('allows inert quoted data after decoding quotes', () => {
-    expect(shell('git log --grep="a > b"').allowed).toBe(true)
+    expect(shell('git log "--grep=a > b"')).toEqual({
+      allowed: true,
+      executable: TRUSTED_GIT,
+      args: ['--no-pager', 'log', '--grep=a > b'],
+    })
   })
 
   it('refuses redirects and entry-specific refused options', () => {

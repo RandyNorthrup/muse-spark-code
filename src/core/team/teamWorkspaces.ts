@@ -93,6 +93,18 @@ export function teamGitPathMax(platform: NodeJS.Platform): number {
   return platform === 'darwin' ? GIT_PATH_MAX_DARWIN : GIT_PATH_MAX_DEFAULT
 }
 
+/** Canonical spellings may differ only by Windows casing or the namespace prefix. */
+export function isSameTeamPath(
+  left: string,
+  right: string,
+  platform: NodeJS.Platform = process.platform,
+): boolean {
+  const p = pathModule(platform)
+  return (
+    p.relative(p.toNamespacedPath(p.resolve(left)), p.toNamespacedPath(p.resolve(right))) === ''
+  )
+}
+
 /** Clones live under `<storage>/agents/`, never beside the repository. */
 const TEAM_STORAGE_DIRNAME = 'agents'
 
@@ -229,14 +241,18 @@ export async function startTeamWorkspace(
   if (spec.mode === 'in-place') {
     return { folder: spec.repositoryRoot }
   }
-  const folder = teamCloneFolder(storageRoot, spec.role, spec.taskId, spec.mode, platform)
+  const requestedFolder = teamCloneFolder(storageRoot, spec.role, spec.taskId, spec.mode, platform)
   const p = pathModule(platform)
   await mkdir(storageRoot, { recursive: true })
-  await validateTeamFolder(storageRoot, folder)
+  await validateTeamFolder(storageRoot, requestedFolder)
+  // Git for Windows does not accept an extended namespace path as a clone
+  // argument. Resolve only after the original storage spelling passes its fence.
+  const canonicalStorage = await realpath(storageRoot)
+  const folder = teamCloneFolder(canonicalStorage, spec.role, spec.taskId, spec.mode, platform)
   await mkdir(p.dirname(folder), { recursive: true })
-  await validateTeamFolder(storageRoot, folder)
+  await validateTeamFolder(canonicalStorage, folder)
   await runGit(
-    ['clone', '--shared', '--no-checkout', spec.repositoryRoot, folder],
+    ['clone', '--shared', '--no-checkout', await realpath(spec.repositoryRoot), folder],
     p.dirname(folder),
   )
   try {
@@ -349,14 +365,17 @@ export async function publishTaskRef(
 async function validateTeamFolder(storageRoot: string, folder: string): Promise<void> {
   const root = path.resolve(storageRoot)
   const target = path.resolve(folder)
-  if (!isBelow(path.relative(root, target), path) || (await realpath(root)) !== root) {
+  if (
+    !isBelow(path.relative(path.toNamespacedPath(root), path.toNamespacedPath(target)), path) ||
+    !isSameTeamPath(await realpath(root), root)
+  ) {
     throw new TeamWorkspaceError('workspaceFailed', 'The team copy is outside canonical storage')
   }
   let current = path.dirname(target)
   for (;;) {
     try {
       const stat = await lstat(current)
-      if (stat.isSymbolicLink() || (await realpath(current)) !== current) {
+      if (stat.isSymbolicLink() || !isSameTeamPath(await realpath(current), current)) {
         throw new TeamWorkspaceError(
           'workspaceFailed',
           'The team copy has a linked storage ancestor',
@@ -372,7 +391,7 @@ async function validateTeamFolder(storageRoot: string, folder: string): Promise<
         throw error
       }
     }
-    if (current === root) {
+    if (isSameTeamPath(current, root)) {
       return
     }
     current = path.dirname(current)
@@ -398,7 +417,7 @@ export async function removeTeamWorkspace(
     if (stat.isSymbolicLink()) {
       await unlink(folder)
     } else {
-      if ((await realpath(folder)) !== path.resolve(folder)) {
+      if (!isSameTeamPath(await realpath(folder), folder)) {
         throw new TeamWorkspaceError(
           'workspaceFailed',
           'The team copy is outside canonical storage',

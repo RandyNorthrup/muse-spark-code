@@ -20,6 +20,13 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- **Windows team paths (M96 lane I).** Canonical containment accepts drive
+  letter and directory casing differences and extended namespace spellings.
+  Junction ancestors remain refused for merge, deletion, cleanup and Undo;
+  cleanup unlinks a replaced copy without following it. Ambiguous 8.3 aliases
+  remain refused. Real-Git fixtures handle Windows path separators and quote
+  inert arguments consistently across shells.
+
 - **Team workspace security (RVM96B lane I).** Read-only commands require
   exact arguments and trusted Git execution; worker environments cannot
   restore Git helpers or SSH agents. Cleanup refuses linked storage parents,

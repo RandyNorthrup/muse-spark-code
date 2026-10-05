@@ -13,6 +13,7 @@ import {
   publishTaskRef,
   removeTeamWorkspace,
   resolveBaseCommit,
+  isSameTeamPath,
   scratchBreach,
   startTeamWorkspace,
   teamCloneFolder,
@@ -26,6 +27,8 @@ import {
   teamGitEnv,
   teamGitRunner,
   teamRealPath,
+  teamShortRoot,
+  teamWindowsPath,
 } from './helpers/teamGit'
 
 const runGit = teamGitRunner()
@@ -158,7 +161,8 @@ describe('startTeamWorkspace', () => {
   it('shares objects with the user repository', async () => {
     const { root, workspace } = await taskWorkspace('t1')
     const alternates = path.join(workspace.folder, '.git', 'objects', 'info', 'alternates')
-    expect(await readFile(alternates, 'utf8')).toContain(path.join(root, '.git', 'objects'))
+    const objectPath = await readFile(alternates, 'utf8')
+    expect(path.resolve(objectPath.trim())).toBe(path.join(root, '.git', 'objects'))
   })
 
   it('starts a read-only scratch copy with no agents/ ref', async () => {
@@ -440,5 +444,69 @@ describe('teamCloneFolder', () => {
         ? String.raw`\storage\agents\engineering-t1`
         : '/storage/agents/engineering-t1',
     )
+  })
+})
+
+describe('Windows storage paths', () => {
+  it.each(['case', 'drive', 'namespace'])(
+    'starts and removes a copy through a %s alias',
+    async (form) => {
+      if (process.platform !== 'win32') {
+        return
+      }
+      const { root, head } = await teamFixtureRepo(runGit)
+      const storage = path.join(root, '..', 'storage')
+      const alias = teamWindowsPath(storage, form)
+      const workspace = await startTeamWorkspace(runGit, alias, process.platform, {
+        repositoryRoot: teamWindowsPath(root, form),
+        role: 'engineering',
+        taskId: 'alias',
+        mode: 'own-branch',
+        baseCommit: head,
+      })
+      expect(await revOf(workspace.folder, 'HEAD')).toBe(head)
+      await removeTeamWorkspace(runGit, root, alias, workspace.folder, workspace.agentsRef)
+      await expect(lstat(workspace.folder)).rejects.toMatchObject({ code: 'ENOENT' })
+    },
+  )
+
+  it('refuses an 8.3 storage alias without deleting the copy', async () => {
+    if (process.platform !== 'win32') {
+      return
+    }
+    const { root, workspace } = await taskWorkspace('short-name')
+    const shortRoot = await teamShortRoot(root)
+    if (shortRoot === undefined) {
+      return // The volume did not report an 8.3 name.
+    }
+    await expect(
+      removeTeamWorkspace(
+        runGit,
+        root,
+        path.join(shortRoot, '..', 'storage'),
+        path.join(shortRoot, '..', 'storage', 'agents', path.basename(workspace.folder)),
+      ),
+    ).rejects.toMatchObject({ code: 'workspaceFailed' })
+    expect(await revOf(workspace.folder, 'HEAD')).toMatch(/^[a-f0-9]+$/)
+  })
+})
+
+describe('canonical team path spellings', () => {
+  it.each([
+    [String.raw`C:\tree\Docs`, String.raw`c:\TREE\docs`, true],
+    [String.raw`C:\tree`, String.raw`\\?\C:\tree`, true],
+    [String.raw`\\server\share\tree`, String.raw`\\?\UNC\SERVER\SHARE\TREE`, true],
+    [String.raw`\\server\share\tree`, String.raw`\\server\share2\tree`, false],
+    [String.raw`\\server\share\tree`, String.raw`\\elsewhere\share\tree`, false],
+    [String.raw`C:\tree`, String.raw`C:\tree-other`, false],
+    [String.raw`C:\tree`, String.raw`D:\tree`, false],
+    [String.raw`C:\tree`, String.raw`\\.\C:\tree`, false],
+    [String.raw`C:\long-name`, String.raw`C:\LONG-N~1`, false],
+  ])('compares %s with %s as equal=%s', (left, right, equal) => {
+    expect(isSameTeamPath(left, right, 'win32')).toBe(equal)
+  })
+
+  it('keeps POSIX path casing distinct', () => {
+    expect(isSameTeamPath('/repo/Docs', '/repo/docs', 'linux')).toBe(false)
   })
 })
