@@ -18442,6 +18442,15 @@ serve`."
 
 ### M96c — Scheduler and traffic (D75)
 
+**M96CINT partial integration (2026-10-05).** Merge reviewed S/Q, T2 and V
+in that order, keeping their contracts and fixes. Run their complete owned
+test files and the scoped rig gates. Make Q's cumulative-batch fixture use
+candidate paths distinct from its base paths even on case-insensitive
+volumes; keep its interaction, ownership and exact-tree assertions. Record
+the merges, interface checks and S's `teamPool.ts` region in
+`docs/certification/m96c-int.md`. C, O and final X2 wiring/docs/package work
+remain with the lead; this branch runs no full quality or live/model call.
+
 **Status 2026-10-04: planned, round 3 (redesign), amended in round 4 for
 Codex's third review (`RVM96C3`: three P1, five P2, one P3).** This milestone
 builds
