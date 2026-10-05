@@ -8,7 +8,7 @@ import {
   type AuthBackendFacts,
   type AuthServiceDeps,
 } from '../../src/host/auth/authService'
-import { CredentialStore } from '../../src/host/auth/credentialStore'
+import { ProviderCredentialStore as CredentialStore } from '../../src/host/providers/credentialRecords'
 import { providerSecretKey } from '../../src/host/providers/credentialRecords'
 import { memorySecrets } from './helpers/fakes'
 import { CURRENT_SHAPE_KEYS } from './helpers/modelApiKeys'

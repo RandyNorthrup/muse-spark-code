@@ -39,7 +39,8 @@ describe('the OAuth loopback server', () => {
 
   it('rejects a callback with the wrong state', async () => {
     const loopback = await startOAuthLoopback(STATE, 1000)
-    const rejected = expect(loopback.waitForCode()).rejects.toThrow('state')
+    const waited = loopback.waitForCode()
+    const rejected = expect(waited).rejects.toThrow('state')
     const response = await callback(loopback, '?code=auth-code&state=forged')
     expect(response.status).toBe(400)
     await rejected
@@ -47,14 +48,16 @@ describe('the OAuth loopback server', () => {
 
   it('rejects a callback with no code', async () => {
     const loopback = await startOAuthLoopback(STATE, 1000)
-    const rejected = expect(loopback.waitForCode()).rejects.toThrow('no code')
+    const waited = loopback.waitForCode()
+    const rejected = expect(waited).rejects.toThrow('no code')
     await callback(loopback, `?state=${STATE}`)
     await rejected
   })
 
   it('rejects a provider refusal', async () => {
     const loopback = await startOAuthLoopback(STATE, 1000)
-    const rejected = expect(loopback.waitForCode()).rejects.toThrow('refused')
+    const waited = loopback.waitForCode()
+    const rejected = expect(waited).rejects.toThrow('refused')
     await callback(loopback, '?error=access_denied&error_description=nope')
     await rejected
   })

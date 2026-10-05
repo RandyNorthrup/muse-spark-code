@@ -14,9 +14,9 @@ import { saveProviderCredential } from '../../src/host/providers/credentialRecor
 
 const ENTRY: ProviderEntry = {
   id: 'openrouter',
-  presetId: 'openrouter',
+  preset: 'openrouter',
   address: 'https://openrouter.ai',
-  auth: 'oauth',
+  auth: 'apiKey',
   models: ['openai/gpt-oss-20b'],
 }
 
@@ -77,13 +77,32 @@ function makeRemoval(parts: {
 }
 
 describe('provider removal with undo', () => {
+  it('keeps a replacement providers new key at the old deadline and restart', async () => {
+    const clock = manualClock()
+    const providers = memoryProviders([ENTRY])
+    const active = makeRemoval({ providers, clock })
+    await active.remove(ENTRY.id)
+    await providers.add(ENTRY)
+    await saveProviderCredential(active.secrets, ENTRY.id, {
+      v: 1,
+      auth: 'apiKey',
+      origin: ENTRY.address,
+      secret: 'new-generation-key',
+    })
+    clock.scheduled[0]?.run()
+    await active.completePending()
+    expect(await active.secrets.get('museSpark.provider.openrouter')).toContain(
+      'new-generation-key',
+    )
+    expect(await active.undo(ENTRY.id)).toBe(false)
+  })
   it('removes the entry at once but deletes the secret after its window', async () => {
     const clock = manualClock()
     const removal = makeRemoval({ clock })
     await removal.secrets.store('x', 'y')
     await saveProviderCredential(removal.secrets, 'openrouter', {
       v: 1,
-      auth: 'oauth',
+      auth: 'apiKey',
       origin: 'https://openrouter.ai',
       secret: 'sk-or-test-key',
     })
@@ -109,7 +128,7 @@ describe('provider removal with undo', () => {
     const active = makeRemoval({ providers, clock })
     await saveProviderCredential(active.secrets, 'openrouter', {
       v: 1,
-      auth: 'oauth',
+      auth: 'apiKey',
       origin: 'https://openrouter.ai',
       secret: 'sk-or-test-key',
     })
@@ -136,7 +155,7 @@ describe('completePending', () => {
     const secrets = memorySecrets()
     await saveProviderCredential(secrets, 'openrouter', {
       v: 1,
-      auth: 'oauth',
+      auth: 'apiKey',
       origin: 'https://openrouter.ai',
       secret: 'sk-or-test-key',
     })

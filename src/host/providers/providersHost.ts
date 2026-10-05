@@ -8,7 +8,9 @@
 import type * as vscode from 'vscode'
 import { UI_TEXT } from '../../shared/constants'
 import { fill } from '../../shared/l10n/text'
-import type { CredentialStore, SecretStore } from '../auth/credentialStore'
+import type { SecretStore } from '../auth/credentialStore'
+import type { ProviderCredentialStore as CredentialStore } from './credentialRecords'
+import { isOriginBound } from './credentialRecords'
 import { readOpenRouterKeyUsage } from './openRouter'
 import { connectOpenRouterAccount } from './openRouter'
 import type { OAuthLoopback } from './oauthLoopback'
@@ -93,6 +95,8 @@ export interface ProviderState {
 
 export interface ProvidersHost {
   readonly providers: () => Promise<readonly ProviderEntry[]>
+  readonly updateProvider: (entry: ProviderEntry) => Promise<void>
+  readonly storedCredential: (entry: ProviderEntry) => Promise<string | undefined>
   readonly preset: (id: string) => PresetInfo | undefined
   readonly presetIds: () => readonly string[]
   readonly suggestedPreset: (settingValue: string | undefined) => string | undefined
@@ -105,6 +109,7 @@ export interface ProvidersHost {
   /** Every provider with its credential state, for the panel's list. */
   readonly providerStates: () => Promise<readonly ProviderState[]>
   readonly scan: (entry: ProviderEntry, request?: ScanRequest) => Promise<ScanOutcome>
+  readonly scanDraft: (entry: ProviderEntry, credential: string | undefined) => Promise<ScanOutcome>
   readonly cancelScan: (providerId: string) => boolean
   readonly cachedScans: () => Promise<readonly ModelScan[]>
   readonly remove: (id: string) => Promise<ProviderEntry | undefined>
@@ -139,10 +144,29 @@ async function credentialFor(
     return undefined
   }
   const record = await credentials.getProviderCredential(entry.id)
+  if (record !== undefined && !isOriginBound(record, entry.address)) {
+    throw new Error(UI_TEXT.importNeedsKey)
+  }
   return record === undefined ? undefined : record.secret
 }
 
 export function createProvidersHost(deps: ProvidersHostDeps): ProvidersHost {
+  let mutations = Promise.resolve()
+  const serialize = <T>(run: () => Promise<T>): Promise<T> => {
+    const previous = mutations
+    const next = (async () => {
+      await previous
+      return await run()
+    })()
+    mutations = (async () => {
+      try {
+        await next
+      } catch {
+        return
+      }
+    })()
+    return next
+  }
   const scanner = createModelScanner({
     fetch: deps.fetcher,
     credentialFor: (entry) => credentialFor(deps.credentials, entry),
@@ -154,7 +178,9 @@ export function createProvidersHost(deps: ProvidersHostDeps): ProvidersHost {
     secrets: deps.secrets,
     pending: deps.removalStore,
     clock: deps.clock,
+    serialize,
   })
+  const confirmedAddresses = new Set<string>()
 
   // Runs the key test, asking before a one-token check: declined answers
   // the paid state, so the panel can offer the test again.
@@ -171,6 +197,17 @@ export function createProvidersHost(deps: ProvidersHostDeps): ProvidersHost {
 
   return {
     providers: () => deps.store.list(),
+    storedCredential: (entry) => credentialFor(deps.credentials, entry),
+    updateProvider: (entry) =>
+      serialize(async () => {
+        const entries = await deps.store.list()
+        if (entries.every((candidate) => candidate.id !== entry.id)) {
+          throw new Error(UI_TEXT.actionFailed)
+        }
+        await deps.store.replaceAll(
+          entries.map((candidate) => (candidate.id === entry.id ? entry : candidate)),
+        )
+      }),
     preset: (id) => deps.catalog.get(id),
     presetIds: () => deps.catalog.ids(),
     suggestedPreset: (settingValue) =>
@@ -183,6 +220,9 @@ export function createProvidersHost(deps: ProvidersHostDeps): ProvidersHost {
       const isConfirmed = await deps.ui.confirmPrivateNetwork(
         fill(UI_TEXT.providerPrivateNetwork, { address: verdict.address }),
       )
+      if (isConfirmed) {
+        confirmedAddresses.add(address)
+      }
       return isConfirmed ? verdict : { kind: 'refused', detail: verdict.address }
     },
     promptForKey: (preset) =>
@@ -209,6 +249,13 @@ export function createProvidersHost(deps: ProvidersHostDeps): ProvidersHost {
       return states
     },
     scan: (entry, request) => scanner.scan(entry, request),
+    scanDraft: async (entry, credential) => {
+      if (credential === undefined && entry.auth !== 'none') {
+        throw new Error(UI_TEXT.importNeedsKey)
+      }
+      const answer = await deps.fetcher.fetchModels(entry, credential)
+      return { rows: answer.rows, diff: undefined, fromCache: false }
+    },
     cancelScan: (providerId) => scanner.cancelScan(providerId),
     cachedScans: () => deps.scanStore.load(),
     remove: (id) => removal.remove(id),
@@ -216,9 +263,24 @@ export function createProvidersHost(deps: ProvidersHostDeps): ProvidersHost {
     completePendingRemovals: () => removal.completePending(),
     exportConfig: () => exportProviders(deps.store),
     previewImport: async (text) =>
-      previewProvidersImport(await deps.store.list(), text, deps.policy),
+      previewProvidersImport(
+        await deps.store.list(),
+        text,
+        deps.policy,
+        (preset) => deps.catalog.get(preset)?.origin,
+      ),
     importConfig: (text, shouldImport) =>
-      importProviders({ store: deps.store, policy: deps.policy, confirm: shouldImport }, text),
+      serialize(() =>
+        importProviders(
+          {
+            store: deps.store,
+            policy: deps.policy,
+            confirm: shouldImport,
+            presetAddress: (preset) => deps.catalog.get(preset)?.origin,
+          },
+          text,
+        ),
+      ),
     connectOpenRouter: async (isRemote) => {
       const connection = await connectOpenRouterAccount({
         pkce: deps.pkce,
@@ -243,14 +305,17 @@ export function createProvidersHost(deps: ProvidersHostDeps): ProvidersHost {
     suggestDefaultModel: (candidates) => deps.suggest.defaultModel(candidates),
     suggestSessionBudget: (modelPrices) => deps.suggest.sessionBudget(modelPrices),
     saveDraft: (draft) =>
-      saveWizardDraft(
-        {
-          store: deps.store,
-          credentials: deps.credentials,
-          policy: deps.policy,
-          setComposerModel: deps.setComposerModel,
-        },
-        draft,
+      serialize(() =>
+        saveWizardDraft(
+          {
+            store: deps.store,
+            credentials: deps.credentials,
+            policy: deps.policy,
+            setComposerModel: deps.setComposerModel,
+            isPrivateConfirmed: (address) => confirmedAddresses.has(address),
+          },
+          draft,
+        ),
       ),
   }
 }

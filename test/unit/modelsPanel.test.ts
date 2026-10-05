@@ -1,70 +1,70 @@
-// M95 lane K (PLAN.md D74, M95 acceptance 17 and the Tests' first-run
-// items): the panel's WebviewPanel, its CSP and its zod-validated bridge.
-// Unknown shapes are logged and dropped; the host validates and saves.
-
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { ViewColumn, window } from 'vscode'
-import { window as fakeWindow } from './mocks/vscode'
+import { window } from 'vscode'
+import { window as fakeWindow, FakeUri } from './mocks/vscode'
 import { createModelsPanel, type ModelsPanelDeps } from '../../src/host/models/modelsPanel'
-import type { WizardSaveOutcome } from '../../src/host/providers/wizardSave'
-import { saveProviderCredential } from '../../src/host/providers/credentialRecords'
+import { parseHostToPanelMessage, type ModelsPanelState } from '../../src/shared/modelsPanel'
 import { EN } from '../../src/shared/l10n/en'
 import { TEST_ENTRY, testProvidersHost, testRow } from './helpers/m95kFixtures'
 import { FakeWebviewPanel, memoryProvidersStore } from './helpers/fakes'
-import { FakeUri } from './mocks/vscode'
 
-function panelDeps(overrides: Partial<ModelsPanelDeps> = {}): {
-  readonly deps: ModelsPanelDeps
-  readonly warnings: string[]
-  readonly saved: WizardSaveOutcome[]
-  readonly exported: string[]
+function setup(overrides: Partial<ModelsPanelDeps> = {}): {
+  panel: FakeWebviewPanel
+  warnings: string[]
+  saved: ReturnType<typeof vi.fn>
+  providers: ModelsPanelDeps['providers']
 } {
-  const warnings: string[] = []
-  const saved: WizardSaveOutcome[] = []
-  const exported: string[] = []
   const { providers } = testProvidersHost({
     deps: {
+      store: memoryProvidersStore(),
       fetcher: { fetchModels: () => Promise.resolve({ rows: [testRow('m1')] }) },
     },
   })
-  return {
-    warnings,
-    saved,
-    exported,
-    deps: {
-      extensionUri: new FakeUri('/ext'),
-      l10n: { locale: 'en', table: EN },
-      log: {
-        trace: () => undefined,
-        info: () => undefined,
-        warn: (message: string) => {
-          warnings.push(message)
-        },
-        error: () => undefined,
+  const warnings: string[] = []
+  const saved = vi.fn()
+  createModelsPanel({
+    extensionUri: new FakeUri('/ext'),
+    l10n: { locale: 'en', table: EN },
+    providers,
+    log: {
+      trace: () => undefined,
+      info: () => undefined,
+      error: (message) => {
+        warnings.push(message)
       },
-      providers,
-      writeExportFile: (text) => {
-        exported.push(text)
-        return Promise.resolve()
+      warn: (message) => {
+        warnings.push(message)
       },
-      readImportFile: () => Promise.resolve(undefined),
-      confirmImport: () => Promise.resolve(true),
-      onWizardSaved: (outcome) => {
-        saved.push(outcome)
-      },
-      ...overrides,
     },
-  }
-}
-
-function openedPanel(): FakeWebviewPanel {
+    writeExportFile: () => Promise.resolve(),
+    readImportFile: () => Promise.resolve(undefined),
+    confirmImport: () => Promise.resolve(true),
+    onWizardSaved: saved,
+    ...overrides,
+  })
   const panel = fakeWindow.createWebviewPanel.mock.results[0]?.value
   if (!(panel instanceof FakeWebviewPanel)) {
-    throw new TypeError('expected the fake models panel')
+    throw new TypeError('Expected panel')
   }
-  return panel
+  return { panel, warnings, saved, providers: overrides.providers ?? providers }
 }
-
+function latestState(panel: FakeWebviewPanel): ModelsPanelState {
+  for (const call of vi.mocked(panel.webview.postMessage).mock.calls.toReversed()) {
+    const parsed = parseHostToPanelMessage(call[0])
+    if (parsed.ok && parsed.message.type === 'modelsPanel/state') {
+      return parsed.message.state
+    }
+  }
+  throw new Error('No valid state')
+}
+async function send(panel: FakeWebviewPanel, message: unknown, done: () => void): Promise<void> {
+  panel.webview.messages.fire(message)
+  await vi.waitFor(done)
+}
+async function chooseOpenRouter(panel: FakeWebviewPanel): Promise<void> {
+  await send(panel, { type: 'providers/select', presetId: 'openrouter' }, () => {
+    expect(latestState(panel).drafts.wizard?.presetId).toBe('openrouter')
+  })
+}
 beforeEach(() => {
   fakeWindow.createWebviewPanel.mockReset()
   fakeWindow.createWebviewPanel.mockImplementation(
@@ -72,179 +72,163 @@ beforeEach(() => {
   )
   vi.mocked(window.showInputBox).mockReset()
 })
-
-describe('createModelsPanel', () => {
-  it('opens the panel with a strict CSP and the models bundle', () => {
-    createModelsPanel(panelDeps().deps)
-    const panel = openedPanel()
-    expect(fakeWindow.createWebviewPanel).toHaveBeenCalledWith(
-      'museSpark.modelsPanel',
-      'Models & Agents',
-      ViewColumn.One,
-      { retainContextWhenHidden: true },
+describe('Models host contract', () => {
+  it('keeps an OAuth credential bound to its issuer after an edited draft address', async () => {
+    const test = vi.fn(() => Promise.resolve({ kind: 'ok' as const, models: 1 }))
+    const { providers } = testProvidersHost({
+      deps: { store: memoryProvidersStore(), tester: { test } },
+    })
+    const { panel, warnings } = setup({ providers })
+    await chooseOpenRouter(panel)
+    await send(
+      panel,
+      { type: 'providers/prefill', fields: { address: 'https://attacker.example' } },
+      () => {
+        expect(latestState(panel).drafts.wizard?.address).toBe('https://attacker.example')
+      },
     )
-    expect(panel.webview.html).toContain('dist/webview/models.js')
+    await send(panel, { type: 'providers/connect' }, () => {
+      expect(latestState(panel).drafts.wizard?.connected).toBe(true)
+    })
+    await send(panel, { type: 'providers/test', acceptCost: false }, () => {
+      expect(warnings.length).toBeGreaterThan(0)
+    })
+    expect(test).not.toHaveBeenCalled()
+  })
+  it('loads a host-owned edit draft and identifies edited prefills', async () => {
+    const { providers } = testProvidersHost()
+    const { panel } = setup({ providers })
+    await send(panel, { type: 'providers/edit', providerId: 'openrouter' }, () => {
+      expect(latestState(panel).drafts.edits['openrouter']?.presetId).toBe('openrouter')
+    })
+    await send(
+      panel,
+      {
+        type: 'providers/prefill',
+        providerId: 'openrouter',
+        fields: { address: 'https://different.example' },
+      },
+      () => {
+        expect(latestState(panel).drafts.edits['openrouter']?.address).toBe(
+          'https://different.example',
+        )
+      },
+    )
+    const entries = await providers.providers()
+    expect(entries[0]?.address).toBe(TEST_ENTRY.address)
+  })
+  it('loads models stylesheet and keeps nonce CSP', () => {
+    const { panel } = setup()
     expect(panel.webview.html).toContain('dist/webview/models.css')
     expect(panel.webview.html).toContain("script-src 'nonce-")
-    expect(panel.webview.html).not.toMatch(/src="http/)
-    expect(panel.webview.html).not.toMatch(/href="http/)
-    expect(panel.webview.options).toMatchObject({
-      enableScripts: true,
-      localResourceRoots: expect.any(Array),
-    })
   })
-
-  it('drops malformed messages and unknown sections in the log', async () => {
-    const parts = panelDeps()
-    createModelsPanel(parts.deps)
-    const panel = openedPanel()
-    panel.webview.messages.fire('not an object')
-    panel.webview.messages.fire({ type: 'models/tick', payload: { id: 'm1' } })
-    await vi.waitFor(() => {
-      expect(parts.warnings).toHaveLength(2)
+  it('answers ready and top-level selection with the shared state contract', async () => {
+    const { panel } = setup()
+    await send(panel, { type: 'modelsPanel/ready' }, () => {
+      expect(latestState(panel).presets).toHaveLength(2)
     })
+    await send(panel, { type: 'providers/select', presetId: 'openrouter' }, () => {
+      expect(latestState(panel).drafts.wizard?.presetId).toBe('openrouter')
+    })
+    for (const call of vi.mocked(panel.webview.postMessage).mock.calls) {
+      expect(parseHostToPanelMessage(call[0]).ok).toBe(true)
+    }
+  })
+  it('drops smuggled credentials without echoing raw validation input', async () => {
+    const { panel, warnings } = setup()
+    await send(
+      panel,
+      { type: 'providers/select', presetId: 'openrouter', secret: 'bare-synthetic-secret' },
+      () => {
+        expect(warnings).toHaveLength(1)
+      },
+    )
+    expect(warnings.join(',')).not.toContain('bare-synthetic-secret')
     expect(panel.webview.postMessage).not.toHaveBeenCalled()
   })
-
-  it('prefills a preset without any secret, and names an unknown one', async () => {
-    const parts = panelDeps()
-    createModelsPanel(parts.deps)
-    const panel = openedPanel()
-    panel.webview.messages.fire({ type: 'providers/select', payload: { presetId: 'openrouter' } })
-    await vi.waitFor(() => {
-      expect(panel.webview.postMessage).toHaveBeenCalled()
+  it('never forwards exception text to state or logs', async () => {
+    const host = testProvidersHost()
+    const { panel, warnings } = setup({
+      providers: {
+        ...host.providers,
+        connectOpenRouter: () => Promise.reject(new Error('bare-synthetic-secret')),
+      },
     })
-    const prefilled = vi.mocked(panel.webview.postMessage).mock.calls[0]?.[0] as {
-      type: string
-      state: Record<string, unknown>
-    }
-    expect(prefilled.type).toBe('providers/prefilled')
-    expect(prefilled.state).toMatchObject({ presetId: 'openrouter', name: 'OpenRouter' })
-    // The shape hint renders; a secret never does.
-    expect(prefilled.state).toMatchObject({ keyHint: 'sk-or-…' })
-    expect(prefilled.state).not.toHaveProperty('secret')
-    panel.webview.messages.fire({ type: 'providers/select', payload: { presetId: 'nope' } })
-    await vi.waitFor(() => {
-      expect(parts.warnings.length).toBeGreaterThan(0)
+    await chooseOpenRouter(panel)
+    await send(panel, { type: 'providers/connect' }, () => {
+      expect(warnings.length).toBeGreaterThan(0)
     })
+    expect(JSON.stringify(panel.webview.postMessage.mock.calls)).not.toContain(
+      'bare-synthetic-secret',
+    )
+    expect(warnings.join(',')).not.toContain('bare-synthetic-secret')
   })
-
-  it('takes the key through the password box, never the webview', async () => {
-    createModelsPanel(panelDeps().deps)
-    const panel = openedPanel()
-    vi.mocked(window.showInputBox).mockResolvedValue('sk-or-x')
-    panel.webview.messages.fire({ type: 'providers/enterKey', payload: { presetId: 'openrouter' } })
-    await vi.waitFor(() => {
-      expect(panel.webview.postMessage).toHaveBeenCalledWith({
-        type: 'providers/keyState',
-        state: { presetId: 'openrouter', hasKey: true },
-      })
+  it('retains a password-box draft for test, scan and save without crossing the bridge', async () => {
+    const { panel, providers, saved } = setup()
+    vi.mocked(window.showInputBox).mockResolvedValue('bare-synthetic-secret')
+    await chooseOpenRouter(panel)
+    await send(panel, { type: 'providers/enterKey', mode: 'new' }, () => {
+      expect(latestState(panel).drafts.wizard?.keyPresent).toBe(true)
     })
+    expect(await providers.providers()).toEqual([])
+    await send(panel, { type: 'providers/test', acceptCost: false }, () => {
+      expect(latestState(panel).drafts.wizard?.test?.status).toBe('ok')
+    })
+    await send(
+      panel,
+      { type: 'models/tick', scope: { scope: 'wizard' }, ref: 'openrouter/m1', ticked: true },
+      () => {
+        expect(latestState(panel).drafts.wizard?.models).toEqual(['m1'])
+      },
+    )
+    await send(panel, { type: 'providers/save', useNow: true }, () => {
+      expect(saved).toHaveBeenCalledOnce()
+    })
+    expect(await providers.providers()).toHaveLength(1)
+    expect(JSON.stringify(panel.webview.postMessage.mock.calls)).not.toContain(
+      'bare-synthetic-secret',
+    )
   })
-
-  it('tests the stored credential and scans its models', async () => {
-    const { providers, secrets } = testProvidersHost({
+  it('cancel drops a connected draft without persisting any provider', async () => {
+    const { panel, providers } = setup()
+    await chooseOpenRouter(panel)
+    await send(panel, { type: 'providers/connect' }, () => {
+      expect(latestState(panel).drafts.wizard?.connected).toBe(true)
+    })
+    await send(panel, { type: 'providers/wizard', event: 'cancel' }, () => {
+      expect(latestState(panel).drafts.wizard).toBeUndefined()
+    })
+    expect(await providers.providers()).toEqual([])
+  })
+  it('pins and ticks provider models through top-level messages', async () => {
+    const { providers } = testProvidersHost({
       deps: {
+        store: memoryProvidersStore([{ ...TEST_ENTRY, models: ['m1'] }]),
         fetcher: { fetchModels: () => Promise.resolve({ rows: [testRow('m1')] }) },
       },
     })
-    await saveProviderCredential(secrets, 'openrouter', {
-      v: 1,
-      auth: 'oauth',
-      origin: 'https://openrouter.ai',
-      secret: 'sk-or-test-key',
+    const { panel } = setup({ providers })
+    await send(panel, { type: 'models/scan', providerId: TEST_ENTRY.id }, () => {
+      expect(latestState(panel).models).toHaveLength(1)
     })
-    createModelsPanel(panelDeps({ providers }).deps)
-    const panel = openedPanel()
-    panel.webview.messages.fire({ type: 'providers/test', payload: { id: 'openrouter' } })
-    await vi.waitFor(() => {
-      expect(panel.webview.postMessage).toHaveBeenCalledWith({
-        type: 'providers/tested',
-        state: { id: 'openrouter', result: { kind: 'ok', models: 3 } },
-      })
-    })
-    panel.webview.messages.fire({ type: 'models/scan', payload: { id: 'openrouter' } })
-    await vi.waitFor(() => {
-      expect(panel.webview.postMessage).toHaveBeenCalledWith(
-        expect.objectContaining({ type: 'models/scanned' }),
-      )
-    })
-  })
-
-  it('saves a draft through Save, writing file and secret together', async () => {
-    const { providers } = testProvidersHost({ deps: { store: memoryProvidersStore() } })
-    const parts = panelDeps({ providers })
-    createModelsPanel(parts.deps)
-    const panel = openedPanel()
-    panel.webview.messages.fire({
-      type: 'providers/save',
-      payload: {
-        provider: {
-          id: 'openrouter',
-          presetId: 'openrouter',
-          address: 'https://openrouter.ai',
-          auth: 'oauth',
-          models: ['openai/gpt-oss-20b'],
-        },
-        credential: 'sk-or-saved',
-        credentialAuth: 'oauth',
-        defaultModel: 'openrouter/openai/gpt-oss-20b',
-        useNow: true,
+    await send(
+      panel,
+      { type: 'models/pin', providerId: TEST_ENTRY.id, ref: 'openrouter/m1', pinned: true },
+      () => {
+        expect(latestState(panel).models[0]?.pinned).toBe(true)
       },
-    })
-    await vi.waitFor(() => {
-      expect(parts.saved).toHaveLength(1)
-    })
-    expect(parts.saved[0]).toMatchObject({
-      providerId: 'openrouter',
-      modelRef: 'openrouter/openai/gpt-oss-20b',
-      composerSet: true,
-    })
-    expect(panel.webview.postMessage).toHaveBeenCalledWith({
-      type: 'providers/saved',
-      state: {
-        providerId: 'openrouter',
-        modelRef: 'openrouter/openai/gpt-oss-20b',
-        composerSet: true,
+    )
+    await send(
+      panel,
+      {
+        type: 'models/tick',
+        scope: { scope: 'provider', providerId: TEST_ENTRY.id },
+        ref: 'openrouter/m1',
+        ticked: false,
       },
-    })
-  })
-
-  it('removes with undo, and exports and imports the file', async () => {
-    const parts = panelDeps({
-      readImportFile: () =>
-        Promise.resolve(JSON.stringify({ version: 1, providers: [TEST_ENTRY] })),
-    })
-    createModelsPanel(parts.deps)
-    const panel = openedPanel()
-    panel.webview.messages.fire({ type: 'providers/remove', payload: { id: 'openrouter' } })
-    await vi.waitFor(() => {
-      expect(panel.webview.postMessage).toHaveBeenCalledWith({
-        type: 'providers/removed',
-        state: { id: 'openrouter', removed: true },
-      })
-    })
-    panel.webview.messages.fire({ type: 'providers/undo', payload: { id: 'openrouter' } })
-    await vi.waitFor(() => {
-      expect(panel.webview.postMessage).toHaveBeenCalledWith({
-        type: 'providers/unremoved',
-        state: { id: 'openrouter', restored: true },
-      })
-    })
-    panel.webview.messages.fire({ type: 'providers/export' })
-    await vi.waitFor(() => {
-      expect(parts.exported).toHaveLength(1)
-    })
-    // The text is this lane's own export; the cast names its document shape
-    // for the count assertion (PLAN.md §8). A foreign shape is covered by
-    // the malformed-import tests, which never reach this cast.
-    const exported = JSON.parse(parts.exported[0] ?? '') as { providers: readonly unknown[] }
-    expect(exported.providers).toHaveLength(1)
-    panel.webview.messages.fire({ type: 'providers/importPreview' })
-    await vi.waitFor(() => {
-      expect(panel.webview.postMessage).toHaveBeenCalledWith(
-        expect.objectContaining({ type: 'providers/importPreviewed' }),
-      )
-    })
+      () => {
+        expect(latestState(panel).models[0]?.ticked).toBe(false)
+      },
+    )
   })
 })

@@ -32,11 +32,31 @@ function row(id: string, priceFingerprint = 'p1'): ProviderModelRow {
 
 const ENTRY: ProviderEntry = {
   id: 'openrouter',
-  presetId: 'openrouter',
+  preset: 'openrouter',
   address: 'https://openrouter.ai',
-  auth: 'oauth',
+  auth: 'apiKey',
   models: [],
 }
+
+describe('shared scan persistence', () => {
+  it('retains simultaneous scans for different providers', async () => {
+    const store = memoryStore()
+    const scanner = createModelScanner({
+      store,
+      now: () => 1,
+      credentialFor: () => Promise.resolve('draft'),
+      fetch: { fetchModels: (entry) => Promise.resolve({ rows: [row(entry.id)] }) },
+    })
+    await Promise.all([
+      scanner.scan(ENTRY, { refresh: true }),
+      scanner.scan({ ...ENTRY, id: 'groq' }, { refresh: true }),
+    ])
+    const scans = await store.load()
+    expect(
+      scans.map((scan) => scan.providerId).toSorted((left, right) => left.localeCompare(right)),
+    ).toEqual(['groq', 'openrouter'])
+  })
+})
 
 function memoryStore(scans: readonly ModelScan[] = []): ScanStore & { saved: ModelScan[][] } {
   let current = [...scans]

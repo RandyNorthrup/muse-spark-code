@@ -10,10 +10,53 @@ import { UI_TEXT } from '../../shared/constants'
 import { lazyBundleLoader } from '../lazyBundle'
 import type { Logger } from '../logger'
 import type * as ModelsPanelEntry from './modelsPanelEntry'
+import { CredentialStore, type SecretStore } from '../auth/credentialStore'
+import type { ProviderEntry } from '../providers/providerPorts'
+
+/** Activation and the panel share this store, including credential-free locals. */
+export function providerCredentials(
+  secrets: SecretStore,
+  log: Logger,
+  readProviders: () => Promise<readonly ProviderEntry[]>,
+): CredentialStore {
+  return new CredentialStore(
+    secrets,
+    (message) => {
+      log.warn(message)
+    },
+    undefined,
+    async () => {
+      try {
+        return await readProviders()
+      } catch {
+        log.warn('Configured providers could not be read')
+        return []
+      }
+    },
+  )
+}
+
+/** Recover persisted deletion on activation, without opening a Models tab. */
+export async function recoverProviderRemovals(
+  pending: unknown,
+  features: () => ModelsPanelEntry.ModelsPanelFeatures,
+  log: Logger,
+): Promise<void> {
+  if (!Array.isArray(pending) || pending.length === 0) {
+    return
+  }
+  try {
+    await features().completePendingRemovals()
+  } catch {
+    log.warn('Provider removal cleanup failed')
+  }
+}
 
 /** The panel bundle's one export. */
 export interface ModelsPanelBundle {
   readonly createModelsPanelFeatures: typeof ModelsPanelEntry.createModelsPanelFeatures
+  readonly setComposerModelConfirmed?: typeof ModelsPanelEntry.setComposerModelConfirmed
+  readonly publishProviderSetup?: typeof ModelsPanelEntry.publishProviderSetup
 }
 
 /** Whether a required module is the panel bundle: its factory is a function. */

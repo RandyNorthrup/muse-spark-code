@@ -32,6 +32,7 @@ export interface ProviderRemovalDeps {
   readonly pending: RemovalStore
   readonly clock: RemovalClock
   readonly undoWindowMs?: number | undefined
+  readonly serialize?: <T>(run: () => Promise<T>) => Promise<T>
 }
 
 export interface ProviderRemoval {
@@ -53,6 +54,30 @@ export interface ProviderRemoval {
 export function createProviderRemoval(deps: ProviderRemovalDeps): ProviderRemoval {
   const undoWindowMs = deps.undoWindowMs ?? PROVIDER_UNDO_WINDOW_MS
   const timers = new Map<string, { cancel(): void }>()
+  let operations = Promise.resolve()
+  const serialize =
+    deps.serialize ??
+    (<T>(run: () => Promise<T>): Promise<T> => {
+      const previous = operations
+      const next = (async () => {
+        await previous
+        return await run()
+      })()
+      operations = (async () => {
+        try {
+          await next
+        } catch {
+          return
+        }
+      })()
+      return next
+    })
+  const deleteRemovedSecret = async (id: string): Promise<void> => {
+    const entries = await deps.providers.list()
+    if (entries.every((entry) => entry.id !== id)) {
+      await deleteProviderCredential(deps.secrets, id)
+    }
+  }
 
   const dropPending = async (id: string): Promise<readonly PendingRemoval[]> => {
     const pending = await deps.pending.load()
@@ -68,7 +93,11 @@ export function createProviderRemoval(deps: ProviderRemovalDeps): ProviderRemova
     timers.get(id)?.cancel()
     timers.delete(id)
     try {
-      await deleteProviderCredential(deps.secrets, id)
+      const pending = await deps.pending.load()
+      if (pending.every((removal) => removal.entry.id !== id)) {
+        return
+      }
+      await deleteRemovedSecret(id)
       await dropPending(id)
     } catch {
       return
@@ -76,51 +105,59 @@ export function createProviderRemoval(deps: ProviderRemovalDeps): ProviderRemova
   }
 
   return {
-    remove: async (id) => {
-      const entry = await deps.providers.remove(id)
-      if (entry === undefined) {
-        return
-      }
-      timers.get(id)?.cancel()
-      timers.set(
-        id,
-        deps.clock.schedule(undoWindowMs, () => void finish(id)),
-      )
-      const pending = await deps.pending.load()
-      await deps.pending.save([
-        ...pending.filter((removal) => removal.entry.id !== id),
-        { entry, removedAt: deps.clock.now() },
-      ])
-      return entry
-    },
-    undo: async (id) => {
-      const pending = await deps.pending.load()
-      const removal = pending.find((candidate) => candidate.entry.id === id)
-      if (removal === undefined || deps.clock.now() - removal.removedAt > undoWindowMs) {
-        return false
-      }
-      timers.get(id)?.cancel()
-      timers.delete(id)
-      await deps.providers.restore(removal.entry)
-      await dropPending(id)
-      return true
-    },
-    completePending: async () => {
-      const failed: string[] = []
-      const pending = await deps.pending.load()
-      for (const removal of pending) {
-        try {
-          await deleteProviderCredential(deps.secrets, removal.entry.id)
-        } catch {
-          failed.push(removal.entry.id)
+    remove: (id) =>
+      serialize(async () => {
+        const entry = await deps.providers.remove(id)
+        if (entry === undefined) {
+          return
         }
-      }
-      const remaining = await deps.pending.load()
-      const kept = remaining.filter((removal) => failed.includes(removal.entry.id))
-      await deps.pending.save(kept)
-      if (failed.length > 0) {
-        throw new Error(`The secrets of ${failed.join(', ')} could not be deleted`)
-      }
-    },
+        timers.get(id)?.cancel()
+        const pending = await deps.pending.load()
+        await deps.pending.save([
+          ...pending.filter((removal) => removal.entry.id !== id),
+          { entry, removedAt: deps.clock.now() },
+        ])
+        timers.set(
+          id,
+          deps.clock.schedule(undoWindowMs, () => void serialize(() => finish(id))),
+        )
+        return entry
+      }),
+    undo: (id) =>
+      serialize(async () => {
+        const pending = await deps.pending.load()
+        const removal = pending.find((candidate) => candidate.entry.id === id)
+        const entries = await deps.providers.list()
+        if (
+          removal === undefined ||
+          deps.clock.now() - removal.removedAt >= undoWindowMs ||
+          entries.some((entry) => entry.id === id)
+        ) {
+          return false
+        }
+        timers.get(id)?.cancel()
+        timers.delete(id)
+        await deps.providers.restore(removal.entry)
+        await dropPending(id)
+        return true
+      }),
+    completePending: () =>
+      serialize(async () => {
+        const failed: string[] = []
+        const pending = await deps.pending.load()
+        for (const removal of pending) {
+          try {
+            await deleteRemovedSecret(removal.entry.id)
+          } catch {
+            failed.push(removal.entry.id)
+          }
+        }
+        const remaining = await deps.pending.load()
+        const kept = remaining.filter((removal) => failed.includes(removal.entry.id))
+        await deps.pending.save(kept)
+        if (failed.length > 0) {
+          throw new Error(`The secrets of ${failed.join(', ')} could not be deleted`)
+        }
+      }),
   }
 }

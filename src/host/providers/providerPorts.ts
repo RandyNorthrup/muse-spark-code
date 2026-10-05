@@ -12,7 +12,7 @@
 // P's merge reconciles names instead of behaviour.
 
 /** How a provider proves its calls (D74: `apiKey`, `none`, `subscription`). */
-export type ProviderAuthMode = 'apiKey' | 'none' | 'oauth' | 'subscription'
+export type ProviderAuthMode = 'apiKey' | 'none'
 
 /**
  * Lane K's view of one configured provider: the non-secret entry D74 keeps
@@ -21,12 +21,38 @@ export type ProviderAuthMode = 'apiKey' | 'none' | 'oauth' | 'subscription'
  */
 export interface ProviderEntry {
   readonly id: string
-  readonly presetId: string
+  readonly preset: string
   readonly address: string
   readonly auth: ProviderAuthMode
   readonly models: readonly string[]
+  readonly format?: 'responses' | 'chat' | 'anthropic' | 'gemini' | 'ollama' | undefined
+  readonly pinned?: readonly string[] | undefined
+  readonly prices?:
+    | Readonly<
+        Record<
+          string,
+          {
+            readonly input: number
+            readonly output: number
+            readonly cachedInput?: number | undefined
+            readonly cacheWrite?: number | undefined
+            readonly cacheWrite1h?: number | undefined
+            readonly request?: number | undefined
+            readonly image?: number | undefined
+          }
+        >
+      >
+    | undefined
+  readonly routing?:
+    | {
+        readonly privacy: 'zdr' | 'no-training' | 'any'
+        readonly order?: readonly string[] | undefined
+        readonly allowFallbacks?: boolean | undefined
+      }
+    | undefined
+  readonly numCtx?: Readonly<Record<string, number>> | undefined
   /** A private-network address the user confirmed once (D74). */
-  readonly isPrivate?: boolean | undefined
+  readonly privateNetwork?: boolean | undefined
 }
 
 /**
@@ -46,7 +72,7 @@ export interface ProvidersStore {
   /** Replaces the whole file (a confirmed import); the file's previous entries. */
   replaceAll(entries: readonly ProviderEntry[]): Promise<readonly ProviderEntry[]>
   /** Names the composer's default model (`providers.json`'s `defaultModel`). */
-  setDefaultModel(ref: string): Promise<void>
+  setDefaultModel(ref: string | undefined): Promise<void>
   /** The default model reference, or undefined when none is set. */
   defaultModel(): Promise<string | undefined>
 }
@@ -117,6 +143,12 @@ export interface ProviderModelRow {
   readonly priceFingerprint: string
   readonly isFree: boolean
   readonly isLocal: boolean
+  readonly family?: string | undefined
+  readonly inputPerMillion?: number | undefined
+  readonly outputPerMillion?: number | undefined
+  readonly cachedPerMillion?: number | undefined
+  readonly recommended?: boolean | undefined
+  readonly serverless?: boolean | undefined
 }
 
 /**

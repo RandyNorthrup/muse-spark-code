@@ -3,7 +3,7 @@
 // host with its own overrides.
 
 import { window } from 'vscode'
-import { CredentialStore } from '../../../src/host/auth/credentialStore'
+import { ProviderCredentialStore as CredentialStore } from '../../../src/host/providers/credentialRecords'
 import {
   createProvidersHost,
   type ProvidersHost,
@@ -32,7 +32,7 @@ export const OPENROUTER_PRESET: PresetInfo = {
   kind: 'aggregator',
   origin: 'https://openrouter.ai',
   format: 'chat',
-  auth: 'oauth',
+  auth: 'apiKey',
   keyHint: 'sk-or-…',
   keyPage: 'https://openrouter.ai/keys',
   isKeyShape: (value) => value.startsWith('sk-or-'),
@@ -69,9 +69,9 @@ export const TEST_CATALOG: PresetCatalog = {
 
 export const TEST_ENTRY: ProviderEntry = {
   id: 'openrouter',
-  presetId: 'openrouter',
+  preset: 'openrouter',
   address: 'https://openrouter.ai',
-  auth: 'oauth',
+  auth: 'apiKey',
   models: [],
 }
 

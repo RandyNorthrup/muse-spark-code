@@ -135,7 +135,7 @@ export async function runAddProviderQuickPick(
       }
     }
     if (credential === undefined) {
-      const pasted = await providers.promptForKey(preset)
+      const pasted = await providers.promptForKey({ ...preset, origin: new URL(address).origin })
       if (pasted === undefined) {
         return undefined
       }
@@ -143,13 +143,30 @@ export async function runAddProviderQuickPick(
     }
   }
   const providerId = preset.id
+  let customFormat: ProviderEntry['format']
+  if (preset.id === 'custom') {
+    const choice = await ui.pickOne(
+      [
+        { id: 'chat', label: UI_TEXT.wireFormats.chat },
+        { id: 'responses', label: UI_TEXT.wireFormats.responses },
+        { id: 'anthropic', label: UI_TEXT.wireFormats.anthropic },
+      ],
+      UI_TEXT.providerFields.provider,
+      UI_TEXT.providerSearchPlaceholder,
+    )
+    if (choice !== 'chat' && choice !== 'responses' && choice !== 'anthropic') {
+      return undefined
+    }
+    customFormat = choice
+  }
   const entry: ProviderEntry = {
     id: providerId,
-    presetId: preset.id,
+    preset: preset.id,
     address,
     auth: preset.auth,
     models: [],
-    ...(addressVerdict.kind === 'private' && { isPrivate: true }),
+    ...(customFormat !== undefined && { format: customFormat }),
+    ...(addressVerdict.kind === 'private' && { privateNetwork: true }),
   }
   // The free check, or the one-token cost stated and asked first.
   if (credential !== undefined) {
@@ -165,7 +182,7 @@ export async function runAddProviderQuickPick(
     }
   }
   // The models: the scan fills the table, the suggestion ticks the default.
-  const scanned = await providers.scan(entry, { refresh: true })
+  const scanned = await providers.scanDraft(entry, credential)
   if (scanned.rows.length === 0) {
     ui.showError(fill(UI_TEXT.scanFailed, { detail: providerId }))
     return undefined
@@ -271,6 +288,8 @@ export async function runAddProviderQuickPick(
     sessionBudgetUsd,
     useNow: true,
   })
-  ui.showNotice(fill(UI_TEXT.setupComplete, { provider: preset.name, model: outcome.modelRef }))
+  if (outcome.composerSet) {
+    ui.showNotice(fill(UI_TEXT.setupComplete, { provider: preset.name, model: outcome.modelRef }))
+  }
   return { providerId: outcome.providerId, modelRef: outcome.modelRef }
 }

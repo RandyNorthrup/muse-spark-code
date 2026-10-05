@@ -13956,6 +13956,16 @@ Prove each regression by a red drill and SHA-256-exact restoration in
 `docs/certification/m95-g.md`, including the unit TypeScript check. The rig
 brief forbids full quality, merging and pushing; focused gates run here,
 and the lead owns final integration and full quality.
+**Lane K review repair, 2026-10-05 (`FIXM95K`, review `RVM95KMU`):**
+Repair findings 1, 2, 3 (host), 5–15, 21 and 22 within lane K. Reuse the
+existing provider host, panel, scans and removal implementations; align the
+host bridge with lane M and the persisted file with lane P. Credentials stay
+host-owned and origin-bound; persistence failures roll back; setup requires
+confirmed composer selection. Each repair needs a regression and byte-exact
+red drill in `docs/certification/m95-k.md`. No new dependency or weaker gate.
+The brief reserves full quality certification for the lead and requires rig
+execution for Vitest, builds and multi-project typechecks. Any residual and
+missing final integration proof is recorded in section 9 and certification.
 
 **Status 2026-10-04: planned on `feature/m95-byo-providers` from main
 `1e93c67c`; research in `docs/certification/m95-research.md`. Step 13's
@@ -15023,6 +15033,9 @@ lane. Local focused suites, five-project typecheck, scoped lint/format,
 localization, host API, knip, duplication, cycles and production build run
 here; the lead must run full quality on the integrated tree. No threshold,
 ignore or rule is weakened. `docs/certification/m95-a.md` records results.
+M95 K repair: FIXM95K/common.md delegates full quality to the lead. The new
+activation-growth test passes at 2,901 bytes versus 3,072; no threshold
+or test was weakened. Final M/U integration remains a certification gate.
 
 **MG69 merged-source proof (2026-10-02).** Kubuntu passes 49 owning/merged
 files (2,056 tests; two existing Windows-only cases platform-skipped), all
@@ -15390,6 +15403,10 @@ M78b (2026-10-02) runs scoped gates on Kubuntu per the implementation brief; ful
 
 ## 8. Escape hatches register
 
+| M95 K repair file                     | Construct                                                    | Reason                                                                                                                                                    | Added      |
+| ------------------------------------- | ------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
+| `src/host/models/modelsPanelEntry.ts` | `eslint-disable-next-line @typescript-eslint/unbound-method` | Capture the exact surface method for restoration and invoke it with its original receiver through `call`; the receipt test covers forwarding and refusal. | 2026-10-05 |
+
 Every lint or scanner suppression (`eslint-disable`, `@ts-expect-error`, `nosemgrep`), every cast the compiler cannot verify, and every error swallowed inside generated shell, C# or Swift must be listed here with its reason. A TypeScript `catch {}` needs only an inline comment saying why the error is dropped.
 
 | M80 lane A location                      | Escape hatch                                   | Reason                                                                                                                                                                                                                                               | Date       |
@@ -15521,6 +15538,38 @@ before a repaired one loads (2026-09-30).
   while the codec is unwired; the owner's counted step-13 live receipts
   remain required before release. This lane is explicitly forbidden from
   making paid/live calls.
+
+### M95 K repair residuals (2026-10-05)
+
+- **K22 resolved:** final comparable activation is 608,089 bytes against
+  605,188 at `ad916bbc`: growth 2,901, under 3,072. Two size-specific
+  attempts had not closed the gap; fixing misplaced K15 recovery callbacks
+  subsequently closed it. All total bundle caps also pass. Full composed
+  certification still belongs to the lead.
+- **K-contract:** lane M supplies the shared Models schema; lane U supplies
+  chat `setupComplete`. K tests use M's exact temporary source dependency,
+  which is not committed. M must adopt strict `providers/edit` and scoped
+  prefill variants. Follow-up: certify the final composed protocol/editor flow.
+- **K-recovery:** rollback compensates ordinary persistence failures; crash
+  atomicity and a different window/process writing during deletion require
+  a shared transaction/generation protocol with lane P. Same-host writes,
+  undo and deadlines are serialized, and replacement ids are rechecked.
+  Remaining risk is credential/setup availability, not credential exfiltration;
+  the origin dispatch guard remains mandatory. Follow-up: cross-window drills
+  with the final store seam and explicit repair when an OS-store rollback fails.
+- **K-release-base merge:** local `origin/main` at `a95f24cf` conflicts in
+  release/build files, every manifest translation, extension and constants.
+  Merge was aborted; lead must reconcile the release base on integration.
+  This preserves the lane and both sides' behavior rather than choosing a
+  side wholesale. Full certification stays open.
+- **K-hook verification:** ignored Husky wrapper was missing; an early
+  commit proceeded despite lint errors. `npm run prepare` regenerated the
+  local `sh -e` wrapper with the same configured hook path. No bypass was
+  used. Require the closing commit's positive lint/Gitleaks receipt.
+- **K-final-runtime:** live setup/OAuth/discovery, unsaved-draft scan
+  cancellation, four themes, pseudo-locale and 320px remain integration gates.
+  Focused host tests do not certify those surfaces. Final evidence and merge
+  status are recorded in `docs/certification/m95-k.md`.
 
 - Code intelligence (M67) shows what VS Code's language services say. A
   result located outside the workspace is left out and a hover defined only

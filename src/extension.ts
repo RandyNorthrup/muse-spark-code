@@ -39,7 +39,7 @@ import { AccountHosts, connectAccountSession } from './host/auth/accountHost'
 import { AuthService } from './host/auth/authService'
 import { CliAccount, isCliSignedIn } from './host/auth/cliAccount'
 import { runDeviceSignIn } from './host/auth/deviceSignIn'
-import { CredentialStore, isValidModelApiKey } from './host/auth/credentialStore'
+import { isValidModelApiKey } from './host/auth/credentialStore'
 import { ModelApiBackendManager } from './host/backend/modelApiBackendManager'
 import { createFileScheduleStore } from './host/backend/fileScheduleStore'
 import { MuseCodeBackendManager } from './host/backend/museCodeBackendManager'
@@ -149,7 +149,12 @@ import { createDictationSetup, createMuseVoiceSetup } from './host/voice/dictati
 import { voiceLoader } from './host/voice/voiceBundle'
 import { museCodeReviewerPort } from './host/review/museCodeReviewerBundle'
 import { createPaidFeatures } from './host/paid/paidHost'
-import { modelsPanelLoader, providersSeamLoader } from './host/models/modelsPanelBundle'
+import {
+  modelsPanelLoader,
+  providersSeamLoader,
+  providerCredentials,
+  recoverProviderRemovals,
+} from './host/models/modelsPanelBundle'
 import type { ModelsPanelFeatures } from './host/models/modelsPanelEntry'
 import { imageUseRequest } from './core/backends/modelapi/imageGeneration'
 import {
@@ -180,7 +185,6 @@ import {
   CODE_INTEL_BUNDLE_FILE,
   MODELS_PANEL_BUNDLE_FILE,
   PROVIDERS_BUNDLE_FILE,
-  PROVIDER_IMPORT_MAX_BYTES,
   VOICE_BUNDLE_FILE,
   MUSE_CODE_REVIEWER_BUNDLE_FILE,
   MUSE_CODE_REVIEWER_DIR,
@@ -679,9 +683,13 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   void checkpoints.maintain().catch(logRejection(log, 'checkpoint cleanup'))
   const insights = createInsightsReader({ homeDir: homedir(), now: () => Date.now() })
 
-  const credentials = new CredentialStore(context.secrets, (message) => {
-    log.warn(message)
+  const providersSeamBundle = providersSeamLoader({
+    bundlePath: vscode.Uri.joinPath(context.extensionUri, 'dist', PROVIDERS_BUNDLE_FILE).fsPath,
+    log,
   })
+  const credentials = providerCredentials(context.secrets, log, () =>
+    providersSeamBundle().store.list(),
+  )
   // The paid Model API features (M33–M35, PLAN.md D30): on only with the
   // setting on and the price accepted; every panel shows which are on.
   // Whether a Model API key is stored (M44): the Muse Code backend then
@@ -2287,22 +2295,19 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     bundlePath: vscode.Uri.joinPath(context.extensionUri, 'dist', MODELS_PANEL_BUNDLE_FILE).fsPath,
     log,
   })
-  const providersSeamBundle = providersSeamLoader({
-    bundlePath: vscode.Uri.joinPath(context.extensionUri, 'dist', PROVIDERS_BUNDLE_FILE).fsPath,
-    log,
-  })
   /** Asks the conversation to set the composer's model (its refusal stands). */
   const setComposerModel = async (modelRef: string): Promise<void> => {
-    const surface = registry.active
-    if (surface === undefined) {
+    if (registry.active === undefined) {
       await openConversation()
-      const opened = registry.active
-      if (opened !== undefined) {
-        await controllerFor(opened).handle({ type: 'setModel', modelId: modelRef })
-      }
-      return
     }
-    await controllerFor(surface).handle({ type: 'setModel', modelId: modelRef })
+    const surface = registry.active
+    const confirm = modelsPanelBundle().setComposerModelConfirmed
+    if (surface === undefined || confirm === undefined) {
+      throw new Error(UI_TEXT.actionFailed)
+    }
+    await confirm(surface, modelRef, () =>
+      controllerFor(surface).handle({ type: 'setModel', modelId: modelRef }),
+    )
   }
   /** `museSpark.suggestedProvider` as written: a preset id at most. */
   const suggestedProviderSetting = (): string => {
@@ -2310,35 +2315,6 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
       .getConfiguration(SETTINGS_SECTION)
       .get('suggestedProvider')
     return typeof raw === 'string' ? raw : ''
-  }
-  const writeProvidersExportFile = async (text: string): Promise<void> => {
-    const target = await vscode.window.showSaveDialog({
-      filters: { JSON: ['json'] },
-      saveLabel: UI_TEXT.providerExport,
-    })
-    if (target?.scheme !== 'file') {
-      return
-    }
-    await vscode.workspace.fs.writeFile(target, new TextEncoder().encode(text))
-  }
-  const readProvidersImportFile = async (): Promise<string | undefined> => {
-    const [target] =
-      (await vscode.window.showOpenDialog({
-        filters: { JSON: ['json'] },
-        canSelectMany: false,
-      })) ?? []
-    if (target?.scheme !== 'file') {
-      return undefined
-    }
-    const bytes = await vscode.workspace.fs.readFile(target)
-    if (bytes.length > PROVIDER_IMPORT_MAX_BYTES) {
-      throw new Error(UI_TEXT.textFileTooLarge)
-    }
-    try {
-      return new TextDecoder('utf-8', { fatal: true }).decode(bytes)
-    } catch {
-      throw new Error(UI_TEXT.textFileInvalid)
-    }
   }
   let modelsFeatures: ModelsPanelFeatures | undefined
   const ensureModelsFeatures = (): ModelsPanelFeatures => {
@@ -2355,15 +2331,25 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
           suggestedProviderSetting,
           isRemote: vscode.env.remoteName !== undefined,
           setComposerModel,
-          writeExportFile: writeProvidersExportFile,
-          readImportFile: readProvidersImportFile,
+          onWizardSaved: async (outcome) => {
+            await auth.refresh()
+            const surface = registry.active
+            if (surface !== undefined) {
+              bundle.publishProviderSetup?.(outcome, surface)
+            }
+          },
         },
         seam,
       )
-      void modelsFeatures.completePendingRemovals().catch(logRejection(log, 'provider removals'))
     }
     return modelsFeatures
   }
+
+  void recoverProviderRemovals(
+    context.globalState.get(GLOBAL_STATE_KEYS.providerPendingRemovals),
+    ensureModelsFeatures,
+    log,
+  )
 
   editorContext.update(editorSnapshot)
   // A setting turned on while VS Code was closed, or in another window, is

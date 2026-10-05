@@ -108,7 +108,7 @@ describe('connectOpenRouterAccount', () => {
     )
     expect(connection).toEqual({
       key: 'sk-or-connected',
-      record: { v: 1, auth: 'oauth', origin: OPENROUTER_ORIGIN, secret: 'sk-or-connected' },
+      record: { v: 1, auth: 'apiKey', origin: OPENROUTER_ORIGIN, secret: 'sk-or-connected' },
     })
     expect(opened).toHaveLength(1)
     expect(exchanged).toEqual([

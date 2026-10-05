@@ -46,6 +46,14 @@ happened, not what was planned; superseded entries are kept.
   reject malformed deltas, preserve cache-write usage and TTL counts, apply
   rolling cache breakpoints, and translate local errors. Native request
   goldens and the codec bundle exclusion guard cover the review regressions.
+- **M95 provider host review repairs.** Stored-key tests and scans refuse an
+  edited origin; panel failures use fixed text, and password-box/OAuth keys
+  remain in host-owned drafts. The panel uses the Models bridge and stylesheet.
+  Save compensates persistence and composer failures, native private-network
+  consent is required, draft scans use the entered key, and concurrent cache
+  writes/removal recovery preserve provider state. Auth recognizes configured
+  local models. Canonical exports retain model options and the default model.
+  Final integration certification and the activation-growth residual remain open.
 
 ### Added
 

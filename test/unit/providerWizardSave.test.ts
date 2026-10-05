@@ -3,7 +3,7 @@
 // model and asks for the composer's model; Cancel writes nothing.
 
 import { describe, expect, it, vi } from 'vitest'
-import { CredentialStore } from '../../src/host/auth/credentialStore'
+import { ProviderCredentialStore as CredentialStore } from '../../src/host/providers/credentialRecords'
 import { providerSecretKey } from '../../src/host/providers/credentialRecords'
 import type { AddressPolicy } from '../../src/host/providers/providerPorts'
 import { saveWizardDraft, type WizardDraft } from '../../src/host/providers/wizardSave'
@@ -19,9 +19,9 @@ const POLICY: AddressPolicy = {
 const DRAFT: WizardDraft = {
   provider: {
     id: 'openrouter',
-    presetId: 'openrouter',
+    preset: 'openrouter',
     address: 'https://openrouter.ai',
-    auth: 'oauth',
+    auth: 'apiKey',
     models: ['openai/gpt-oss-20b'],
   },
   credential: 'sk-or-connected',
@@ -74,13 +74,13 @@ describe('saveWizardDraft', () => {
     expect(composed).toEqual(['openrouter/openai/gpt-oss-20b'])
     expect(await savingParts.credentials.getProviderCredential('openrouter')).toEqual({
       v: 1,
-      auth: 'oauth',
+      auth: 'apiKey',
       origin: 'https://openrouter.ai',
       secret: 'sk-or-connected',
     })
   })
 
-  it('leaves the composer alone without use now, and survives its refusal', async () => {
+  it('leaves the composer alone without use now, and rolls back its refusal', async () => {
     const without = saving()
     const outcome = await saveWizardDraft(
       {
@@ -96,18 +96,55 @@ describe('saveWizardDraft', () => {
     const refusing = saving({
       setComposerModel: () => Promise.reject(new Error('unknown model')),
     })
-    const refused = await saveWizardDraft(
-      {
-        store: refusing.store,
-        credentials: refusing.credentials,
-        policy: POLICY,
-        setComposerModel: refusing.setComposerModel,
-      },
-      DRAFT,
+    await expect(
+      saveWizardDraft(
+        {
+          store: refusing.store,
+          credentials: refusing.credentials,
+          policy: POLICY,
+          setComposerModel: refusing.setComposerModel,
+        },
+        DRAFT,
+      ),
+    ).rejects.toThrow('unknown model')
+    expect(refusing.store.current).toEqual([])
+    expect(await refusing.store.defaultModel()).toBeUndefined()
+    expect(await refusing.credentials.getProviderCredential(DRAFT.provider.id)).toBeUndefined()
+  })
+
+  it('rolls back a secret-store failure and preserves the prior default', async () => {
+    const parts = saving()
+    await parts.store.setDefaultModel('previous/model')
+    vi.spyOn(parts.credentials, 'setProviderCredential').mockRejectedValue(
+      new Error('store unavailable'),
     )
-    // The save stands; only the composer ask failed.
-    expect(refused.composerSet).toBe(false)
-    expect(refusing.store.current).toEqual([DRAFT.provider])
+    await expect(saveWizardDraft({ ...parts, policy: POLICY }, DRAFT)).rejects.toThrow(
+      'store unavailable',
+    )
+    expect(parts.store.current).toEqual([])
+    expect(await parts.store.defaultModel()).toBe('previous/model')
+  })
+  it('rolls back a default-model persistence failure', async () => {
+    const parts = saving()
+    vi.spyOn(parts.store, 'setDefaultModel').mockRejectedValueOnce(new Error('default unavailable'))
+    await expect(saveWizardDraft({ ...parts, policy: POLICY }, DRAFT)).rejects.toThrow(
+      'default unavailable',
+    )
+    expect(parts.store.current).toEqual([])
+    expect(await parts.credentials.getProviderCredential(DRAFT.provider.id)).toBeUndefined()
+  })
+  it('requires native private-network consent despite a claimed file grant', async () => {
+    const parts = saving()
+    await expect(
+      saveWizardDraft(
+        {
+          ...parts,
+          policy: { check: () => ({ kind: 'private', address: 'https://lan.example' }) },
+        },
+        { ...DRAFT, provider: { ...DRAFT.provider, privateNetwork: true } },
+      ),
+    ).rejects.toThrow()
+    expect(parts.store.current).toEqual([])
   })
 
   it('writes nothing for an incomplete draft, a missing key or a refused address', async () => {
@@ -147,7 +184,7 @@ describe('saveWizardDraft', () => {
         ...DRAFT,
         provider: {
           id: 'ollama',
-          presetId: 'ollama',
+          preset: 'ollama',
           address: 'http://127.0.0.1:11434',
           auth: 'none',
           models: ['qwen3:8b'],

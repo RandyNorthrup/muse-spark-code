@@ -7,6 +7,7 @@
 
 import * as z from 'zod/mini'
 import { PROVIDER_SECRET_PREFIX } from '../../shared/constants'
+import { CredentialStore } from '../auth/credentialStore'
 
 /**
  * The three-method subset of `vscode.SecretStorage` records use. Spelled
@@ -30,6 +31,24 @@ const credentialRecordSchema = z.object({
 })
 
 export type CredentialRecord = z.infer<typeof credentialRecordSchema>
+
+/** Provider operations live in the lazy Models bundle, not activation. */
+export class ProviderCredentialStore extends CredentialStore {
+  private readonly records: RecordStore
+  public constructor(...args: ConstructorParameters<typeof CredentialStore>) {
+    super(...args)
+    this.records = args[0]
+  }
+  public async getProviderCredential(id: string): Promise<CredentialRecord | undefined> {
+    return await readProviderCredential(this.records, id)
+  }
+  public async setProviderCredential(id: string, record: CredentialRecord): Promise<void> {
+    await saveProviderCredential(this.records, id, record)
+  }
+  public async clearProviderCredential(id: string): Promise<void> {
+    await deleteProviderCredential(this.records, id)
+  }
+}
 
 /** The SecretStorage account name for a provider id. */
 export function providerSecretKey(id: string): string {
