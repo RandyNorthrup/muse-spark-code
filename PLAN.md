@@ -16674,6 +16674,17 @@ live) and the controller filters its id as well.
 
 ### M96 — Agent roles and the team (D75)
 
+**Lane F review correction (FIXM96F, 2026-10-05).** Address all 15 P2
+findings in `RVM96F.report.md` within the seven lane-F core modules and
+their tests: D75 tool groups and cap vocabulary; numeric and daily-budget
+validation; current-level Re-apply and zero ceilings; learned budget
+shares; provider-ordered settings and thinking budgets; Default preview
+selection and unknown prices; billable-only hourly costs; policy and
+concurrency transfer with nested export allowlists. Each correction needs
+a regression and a SHA-256-verified red drill in
+`docs/certification/m96-f.md`. No dependency or guard relaxation; full
+quality and integration remain the lead's gates under the rig brief.
+
 **Status 2026-10-04: planned on `feature/m96-agent-roles` from main
 `1e93c67c`.** The plan is D75 (with its decisions on the open questions),
 M96b, M96c and this section. The research is
@@ -19833,6 +19844,13 @@ explicit lane prohibition. No gate, ignore, threshold or deadline changes.
 See `docs/certification/m96-b.md` for exact evidence and the late-answer
 liveness residual.
 
+**FIXM96F (2026-10-05).** The rig brief requires focused Windows checks
+and forbids full quality or merging. The fifteen lane-F review findings
+are corrected with regression tests and 29 distinct SHA-256-verified red
+drills (`docs/certification/m96-f.md`). Knip and duplication failures in
+the owned modules/tests were fixed without changing gate configuration.
+Full quality remains the lead's aggregate gate before integration.
+
 **MG69 merged-source proof (2026-10-02).** Kubuntu passes 49 owning/merged
 files (2,056 tests; two existing Windows-only cases platform-skipped), all
 five compiler projects and every required static gate. Both review and import
@@ -20313,6 +20331,15 @@ before a repaired one loads (2026-09-30).
   integration/M50 owner adds per-call terminal observation through the pool
   and connection (including late replies), with capture-backed regression
   tests. This lane changes no M50 wire/lifecycle API and makes no live call.
+
+- **FIXM96F integration verification (2026-10-05).** No RVM96F P2 finding
+  remains. Lane-R commit `3b628e0a` and its worktree are absent on this rig;
+  template groups are verified against D75's exact table. The lead must
+  compare the role source during integration. This is safe for the lane's
+  pure draft helpers, which do not enter shipped request graphs. Integrated
+  consent, dispatch setting filtering/task snapshots, team bundle/VSIX
+  budgets and the single-model/golden-request/UI checks remain the owning
+  lanes' follow-up, and are not certified by the lane-F unit suites.
 
 - Code intelligence (M67) shows what VS Code's language services say. A
   result located outside the workspace is left out and a hover defined only

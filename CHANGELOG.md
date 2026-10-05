@@ -9,26 +9,6 @@ happened, not what was planned; superseded entries are kept.
 
 ### Added
 
-- **Team strings, constants and schemas (M96 lane 0, unreleased
-  internals).** Shared pool, task, usage, ledger and Agent map contracts,
-  charter templates and recovery/landing text with all 14 translations.
-  Pool entries retain model settings, and ledger task rows retain their
-  required task identity. Team validators install when the team activates,
-  keeping single-model activation, Model API and ACP bundles free of them.
-
-- **Agent roles, charters and tool sets (M96 lane R, unreleased
-  internals).** The new `src/core/team/` holds the seven built-in roles
-  and their generated `AGENT.md` files, the role keys on M76's parser with
-  shadow-only narrowing and the new-id ceiling, the seven-part charter
-  generator, the one tool-set definition behind allowlists, the charter's
-  "You may" line and the panel checklist, the model-into-role capability
-  check, same-model identity, and the workspace team with the
-  `.muse/team.json` lowering merge — with tests, translations and the red
-  drills in `docs/certification/m96-r.md`. Nothing team-related loads or
-  changes requests for a single model.
-
-- **M96 agent roles, lane A (pools, accounting and the ledger)**: pool selection takes the first entry with headroom and moves down the line at a cap, a rate limit or a usage limit, with one switch row and one `TeamAgentSwitch` per move; `continue on next` hands the task off with a brief on the same branch; the exhausted policy answers `ask` (Queue it, Main agent does it, Raise a limit…, Cancel), `queue` (recoverable reasons only, then it asks) or `self`; meters sum ledger rows plus open reservations per measure and window, reported or estimated, charged to the sending entry; the ledger keeps one redacted row per delegation in a daily append-only file, with interrupted rows and retention rollups. New paid feature `teamWorkers` (`museSpark.modelApiTeamWorkers`, on with one price question before the first charge): each delegate call that starts key tasks asks once with each model's prices, each task's ceiling and the shared daily budget.
-
 ### Fixed
 
 - **Project-role restrictions (M96 lane R).** Every project role, including
@@ -63,8 +43,21 @@ happened, not what was planned; superseded entries are kept.
   disposed bridge. Loopback auth-negative tests now send no credentials,
   and endpoint tests release their exclusive lease before switching holders.
 
+- **Team configuration validation and transfer (M96 lane F).** Templates
+  use D75's enforced tool groups, all planned cap measures are accepted,
+  numeric limits and daily token budgets are validated, and exports keep
+  role policies and entry concurrency while stripping extra nested fields.
+- **Team intensity, suggestions and estimates (M96 lane F).** Re-apply
+  uses the current level, zero ceilings keep workers stopped, budget
+  suggestions learn from local records, and effort follows provider tier
+  order. Unsupported settings stay hidden and thinking budgets are carried
+  in task settings. Preview resolves live Default, unknown billed prices
+  are shown as unknown, and subscription/local tokens incur no key-model
+  estimate.
+
 
 ## [0.12.1] - 2026-10-04
+
 
 ### Changed
 

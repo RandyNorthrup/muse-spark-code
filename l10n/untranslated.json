@@ -127,7 +127,8 @@
       "teamTemplates.solo",
       "teamSetupSteps.pools",
       "teamSwitchRow",
-      "teamCapabilityWarning"
+      "teamCapabilityWarning",
+      "teamTemplateSolo"
     ],
     "es": [
       "usagePlan",
@@ -175,7 +176,9 @@
       "agentImportKindAgent",
       "teamIntensityLevels.max",
       "teamTemplates.solo",
-      "teamSetupSteps.pools"
+      "teamSetupSteps.pools",
+      "teamTemplateSolo",
+      "teamIntensityLevels.minimal"
     ],
     "it": [
       "usageAccount",

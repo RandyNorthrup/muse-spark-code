@@ -2394,6 +2394,14 @@ export const EN = {
   teamCapabilityRefused: '{model} cannot take this role: {reason}.',
   teamCapabilityWarning: '{model}: {warning}.',
   teamIntensityTitle: 'Intensity',
+  // M96 lane F (PLAN.md D75): team templates, autofill, intensity, model
+  // settings, cap validation, preview and transfer.
+  teamTemplateSolo: 'Solo',
+  teamTemplatePair: 'Pair (code + review)',
+  teamTemplateFull: 'Full team',
+  teamTemplateCustom: 'Custom',
+  // {step}: the guided first run's step number.
+  teamSetupStep: 'Set-up step {step}',
   teamIntensityLevels: {
     minimal: 'Minimal',
     light: 'Light',
@@ -2573,6 +2581,58 @@ export const EN = {
     'When on, and a role has a distinct custom model, the panel probes the team’s models once when the window opens. Configuring a second model is what authorizes this traffic.',
   teamDuplicateJournal:
     'Another window’s journal ({task}) may belong to a window that is still open. Nothing here writes its copy, branch or journal row.',
+  teamThrottledByProvider: 'throttled by provider',
+  // {low}, {high}: dollars per hour; {tokens}: tokens per hour.
+  teamLevelCost: '{low}–{high} per hour, {tokens} tokens',
+  teamLevelCostTokens: '{tokens} tokens per hour',
+  teamSettingCostEffort: 'Higher effort is slower, about twice the tokens per step up',
+  teamSettingCostThinking: 'Thinking adds reasoning tokens to every task',
+  teamSettingCostServiceTier: 'Priority tiers cost more per token',
+  teamSettingCostMaxOutput: 'A higher cap lets long answers finish, at their token cost',
+  teamSettingCostSampling: 'Sampling changes style, not cost',
+  teamSettingCostVerbosity: 'Higher verbosity uses more output tokens',
+  teamSettingCostParallel: 'Parallel tool calls finish faster at the same token cost',
+  teamSettingCostContextCap: 'A lower cap compacts earlier and bounds each reservation',
+  // {minimum}: the token floor below which a cap cannot serve one request.
+  teamCapTokenTooSmall: 'Below one request’s minimum of {minimum} tokens',
+  teamCapInvalidAmount: 'Use a finite positive cap; token and task counts must be whole numbers',
+  teamCapInvalidConcurrent: 'Running concurrency must be a whole number of at least one',
+  teamCapDollarUnpriced: 'A dollar cap needs a priced model; use a token cap',
+  // {budget}: the team's daily budget.
+  teamCapDayAboveBudgetDetail: 'Above the team’s daily budget of {budget}',
+  // {maximum}: the global running limit.
+  teamCapConcurrentAboveGlobalDetail: 'Above the global limit of {maximum} running',
+  teamCapUnpricedKeyNeedsCaps: 'An unpriced key model needs both a task and a day token cap',
+  // {model}: the suggested model; {vendor}: its vendor.
+  teamSuggestReviewVendorDetail:
+    'Review on {model} ({vendor}), a different vendor from engineering',
+  // {model}: the suggested model; {role}: the role it would serve.
+  teamSuggestCheapestDetail: '{model} is the cheapest model that can do {role} work',
+  teamSuggestFreeLocal: '{model} is free and local, and can do {role} work',
+  // {role}: the single-entry pool; {model}: the suggested second entry.
+  teamSuggestFallbackDetail: '{role} has one entry; add {model} as its fallback',
+  // {role}: the role; {amount}: the suggested day cap.
+  teamSuggestBudget: '{role} day cap of {amount}, from the remaining daily budget',
+  teamPreviewFeatureTests: 'A feature with tests',
+  teamPreviewResearchLibrary: 'Research a library',
+  teamPreviewReviewBranch: 'Review my branch',
+  // {low}, {high}: the estimated cost range; {tokens}: the token figure.
+  teamPreviewCost: '{low}–{high} for about {tokens} tokens',
+  teamPreviewCostTokens: 'About {tokens} tokens; no priced entry takes part',
+  teamPreviewCostUnknown: 'About {tokens} tokens; price unknown',
+  teamLevelCostUnknown: '{tokens} tokens per hour; price unknown',
+  // {count}: the steps the caps moved off the first entry.
+  teamPreviewSwitches: forms({
+    one: '{count} switch forced by caps',
+    other: '{count} switches forced by caps',
+  }),
+  // {cost}: the one orchestrator turn's estimated cost.
+  teamPreviewDryRunCost: 'Try with the orchestrator first: one turn, about {cost}',
+  // {key}: the unknown setting; the whole file is refused.
+  teamImportUnknownKey: 'Unknown setting {key}: the file was refused whole',
+  // {model}: the entry's model reference.
+  teamImportMissingEntry:
+    '{model} is not installed here; map it to one of your models or remove it',
 }
 
 /** The shape every table has: English's keys, with any language's plural forms. */
