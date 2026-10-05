@@ -14729,8 +14729,15 @@ ledger, scheduler, provider registry, hook format or golden baseline.
 
 ##### 2b — Calibration fitting and report
 
+- **FIXM98B / RVM98P2A finding 1 (2026-10-05).** Merge P0's shared
+  contract (`3e192331`) before the repair. Calibration must retain all ten
+  profile identity fields, including `providerId`, and refuse another
+  provider even when model/version and endpoint are unchanged. Prove shared
+  contract interoperability, provider validation and exact-provider refusal
+  with owning regressions and byte-exact red drills in
+  `docs/certification/m98-b.md`; no runtime assembly or model calls.
 - **Scope.** Binary Platt scaling first; isotonic only with at least 200
-  independent labels in that family. Profiles identify model/version,
+  independent labels in that family. Profiles identify provider, model/version,
   endpoint/source, technique, question family, prompt/criteria and fit
   version, so another engine's probabilities or vendor confidence never
   inherit a profile. Unsupported family/technique gives an explicit reason
@@ -15046,6 +15053,16 @@ its hundreds-label evidence exists. Z closes each small delivery separately;
 do not wait for all ten surfaces to ship a certified one.
 
 ## 7. Gates
+
+**FIXM98B bounded-lane gate delegation (2026-10-05).** The rig brief and
+shared rules prohibit aggregate quality/full tests and reserve them for the
+lead. Run owning regression files (at most three per run), red drills,
+typecheck, scoped lint/format, dead-code, duplication, localization, host API
+and production build directly on win11, with hooks enabled. The brief
+authorizes only the P0 merge; do not merge main or the common release
+candidate. Full quality, coverage, a11y and installed/package certification
+remain lead gates on the integrated tree. Existing host-API snapshot
+deferrals remain visible; no gate or threshold is weakened.
 
 **M98P2PLAN documentation-only lane (2026-10-05).** The explicit rig brief
 limits changes to PLAN and the phase-2 planning receipt and requires only
