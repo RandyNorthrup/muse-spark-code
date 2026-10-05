@@ -5,12 +5,7 @@ import {
   TAB_FAST_SUFFIX_CHARS,
   TAB_PREFIX_ANCHOR_LINES,
 } from '../../src/shared/constants'
-import {
-  contextWindow,
-  cursorLine,
-  orderSnippets,
-  selectMode,
-} from '../../src/core/tab/tabContext'
+import { contextWindow, cursorLine, orderSnippets, selectMode } from '../../src/core/tab/tabContext'
 
 /**
  * Numbered lines of exactly 200 characters, so anchors land deterministically:

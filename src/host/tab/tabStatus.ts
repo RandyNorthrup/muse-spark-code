@@ -76,7 +76,7 @@ export function createTabStatus(deps: TabStatusDeps): TabStatusHandle {
 
   const setTabOn = (isOn: boolean): void => {
     if (lastContext === isOn) {
-      return;
+      return
     }
 
     lastContext = isOn
@@ -200,21 +200,24 @@ export function createTabStatus(deps: TabStatusDeps): TabStatusHandle {
         }),
       )
     ) {
-      rows.push({
-        label: fill(table.tabMenuCopilotOff, { language }),
-        run: async () => {
-          if (await deps.confirmCopilotDisable(language)) {
-            await deps.disableCopilotFor(language)
-          }
-          refresh()
+      rows.push(
+        {
+          label: fill(table.tabMenuCopilotOff, { language }),
+          run: async () => {
+            if (await deps.confirmCopilotDisable(language)) {
+              await deps.disableCopilotFor(language)
+            }
+            refresh()
+          },
         },
-      }, {
-        label: table.tabMenuRunBoth,
-        run: async () => {
-          await deps.updateSetting('tabWithCopilot', 'both')
-          refresh()
+        {
+          label: table.tabMenuRunBoth,
+          run: async () => {
+            await deps.updateSetting('tabWithCopilot', 'both')
+            refresh()
+          },
         },
-      })
+      )
     }
     rows.push({
       label: table.tabMenuUsage,
@@ -287,22 +290,22 @@ export async function snoozeTabCommand(snooze: TabSnooze): Promise<void> {
     { title: UI_TEXT.paidTabName },
   )
   switch (picked?.label) {
-  case UI_TEXT.tabMenuSnoozeShort: {
-    await snooze.snoozeMinutes(TAB_SNOOZE_SHORT_MINUTES, Date.now())
-  
-  break;
-  }
-  case UI_TEXT.tabMenuSnoozeLong: {
-    await snooze.snoozeMinutes(TAB_SNOOZE_LONG_MINUTES, Date.now())
-  
-  break;
-  }
-  case UI_TEXT.tabMenuSnoozeRestart: {
-    snooze.snoozeUntilRestart()
-  
-  break;
-  }
-  // No default
+    case UI_TEXT.tabMenuSnoozeShort: {
+      await snooze.snoozeMinutes(TAB_SNOOZE_SHORT_MINUTES, Date.now())
+
+      break
+    }
+    case UI_TEXT.tabMenuSnoozeLong: {
+      await snooze.snoozeMinutes(TAB_SNOOZE_LONG_MINUTES, Date.now())
+
+      break
+    }
+    case UI_TEXT.tabMenuSnoozeRestart: {
+      snooze.snoozeUntilRestart()
+
+      break
+    }
+    // No default
   }
 }
 

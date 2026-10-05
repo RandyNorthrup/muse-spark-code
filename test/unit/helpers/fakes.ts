@@ -163,9 +163,7 @@ export class FakeTextDocument implements vscode.TextDocument {
 
   public offsetAt(position: vscode.Position): number {
     const before = this.text.split('\n').slice(0, position.line)
-    return (
-      before.reduce((sum, text) => sum + text.length + 1, 0) + position.character
-    )
+    return before.reduce((sum, text) => sum + text.length + 1, 0) + position.character
   }
 
   public positionAt(offset: number): vscode.Position {

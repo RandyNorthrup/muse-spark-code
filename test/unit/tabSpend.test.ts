@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest'
 import {
   tabDayKey,
   tabSettleUsd,
-  tabWithinBudget,
+  isWithinTabBudget,
   tabWorstCaseUsd,
 } from '../../src/core/tab/tabSpend'
 
@@ -25,13 +25,18 @@ describe('tabWorstCaseUsd', () => {
 
   it('counts UTF-8 bytes, not characters', () => {
     // 'é' is one character but two bytes: 2 at $1.25, 16 at $4.25.
-    expect(
-      tabWorstCaseUsd({ model: STANDARD, inputText: 'é', maxOutputTokens: 16 }),
-    ).toBeCloseTo(0.0000705, 10)
+    expect(tabWorstCaseUsd({ model: STANDARD, inputText: 'é', maxOutputTokens: 16 })).toBeCloseTo(
+      0.0000705,
+      10,
+    )
   })
 
   it('errs high against the settlement for the same usage', () => {
-    const worst = tabWorstCaseUsd({ model: STANDARD, inputText: 'x'.repeat(100), maxOutputTokens: 128 })
+    const worst = tabWorstCaseUsd({
+      model: STANDARD,
+      inputText: 'x'.repeat(100),
+      maxOutputTokens: 128,
+    })
     const settled = tabSettleUsd({ inputTokens: 100, outputTokens: 20, cachedTokens: 90 }, STANDARD)
     expect(worst).toBeGreaterThan(settled)
   })
@@ -46,10 +51,10 @@ describe('tabSettleUsd', () => {
   })
 })
 
-describe('tabWithinBudget', () => {
+describe('isWithinTabBudget', () => {
   it('fits exactly at the budget and refuses past it', () => {
-    expect(tabWithinBudget({ spentTodayUsd: 0.5, worstCaseUsd: 0.5, budgetUsd: 1 })).toBe(true)
-    expect(tabWithinBudget({ spentTodayUsd: 0.5, worstCaseUsd: 0.500001, budgetUsd: 1 })).toBe(
+    expect(isWithinTabBudget({ spentTodayUsd: 0.5, worstCaseUsd: 0.5, budgetUsd: 1 })).toBe(true)
+    expect(isWithinTabBudget({ spentTodayUsd: 0.5, worstCaseUsd: 0.500001, budgetUsd: 1 })).toBe(
       false,
     )
   })
@@ -59,7 +64,7 @@ describe('tabWithinBudget', () => {
 // honours the pin (its January and July offsets prove it), so the suite
 // stays green on rigs whose platform ignores TZ.
 process.env['TZ'] = 'America/New_York'
-const EASTERN_PINNED =
+const IS_EASTERN_PINNED =
   new Date('2026-01-15T12:00:00Z').getTimezoneOffset() === 300 &&
   new Date('2026-07-15T12:00:00Z').getTimezoneOffset() === 240
 
@@ -79,13 +84,13 @@ describe('tabDayKey', () => {
     expect(tabDayKey(midnight)).not.toBe(tabDayKey(midnight + 24 * 60 * 60 * 1000))
   })
 
-  it.skipIf(!EASTERN_PINNED)('uses the local day, not the UTC day', () => {
+  it.skipIf(!IS_EASTERN_PINNED)('uses the local day, not the UTC day', () => {
     // 23:30 in New York is already the next UTC day, both in winter and summer.
     expect(tabDayKey(Date.parse('2026-01-15T23:30:00-05:00'))).toBe('2026-01-15')
     expect(tabDayKey(Date.parse('2026-07-15T23:30:00-04:00'))).toBe('2026-07-15')
   })
 
-  it.skipIf(!EASTERN_PINNED)('holds one day across both DST transitions', () => {
+  it.skipIf(!IS_EASTERN_PINNED)('holds one day across both DST transitions', () => {
     // Spring forward 2026-03-08: the 02:00 hour never happens locally.
     expect(tabDayKey(new Date(2026, 2, 8, 0, 30).getTime())).toBe('2026-03-08')
     expect(tabDayKey(new Date(2026, 2, 8, 3, 30).getTime())).toBe('2026-03-08')

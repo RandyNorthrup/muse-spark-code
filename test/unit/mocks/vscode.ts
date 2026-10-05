@@ -201,9 +201,8 @@ export const languages = {
   getDiagnostics: vi.fn<() => [vscode.Uri, vscode.Diagnostic[]][]>(),
   onDidChangeDiagnostics: diagnosticsChanged.event,
   // Tab's ghost-text provider (M94): the last registration, for assertions.
-  registerInlineCompletionItemProvider: vi.fn<
-    typeof vscode.languages.registerInlineCompletionItemProvider
-  >(),
+  registerInlineCompletionItemProvider:
+    vi.fn<typeof vscode.languages.registerInlineCompletionItemProvider>(),
   getLanguages: vi.fn<() => Thenable<string[]>>(),
 }
 
@@ -248,20 +247,22 @@ export class Position {
     return this.compare(other)
   }
 
-  public translate(lineDelta?: number, characterDelta?: number): Position;
-  public translate(change: { lineDelta?: number; characterDelta?: number }): Position;
+  public translate(lineDelta?: number, characterDelta?: number): Position
+  public translate(change: { lineDelta?: number; characterDelta?: number }): Position
   public translate(
     lineDeltaOrChange?: number | { lineDelta?: number; characterDelta?: number },
     characterDelta?: number,
   ): Position {
-    return typeof lineDeltaOrChange === 'object' ? new Position(
-        this.line + (lineDeltaOrChange.lineDelta ?? 0),
-        this.character + (lineDeltaOrChange.characterDelta ?? 0),
-      ) : new Position(this.line + (lineDeltaOrChange ?? 0), this.character + (characterDelta ?? 0));
+    return typeof lineDeltaOrChange === 'object'
+      ? new Position(
+          this.line + (lineDeltaOrChange.lineDelta ?? 0),
+          this.character + (lineDeltaOrChange.characterDelta ?? 0),
+        )
+      : new Position(this.line + (lineDeltaOrChange ?? 0), this.character + (characterDelta ?? 0))
   }
 
-  public with(line?: number, character?: number): Position;
-  public with(change: { line?: number; character?: number }): Position;
+  public with(line?: number, character?: number): Position
+  public with(change: { line?: number; character?: number }): Position
   public with(
     lineOrChange?: number | { line?: number; character?: number },
     character?: number,
@@ -308,8 +309,8 @@ export class Range {
     return new Range(start, end)
   }
 
-  public with(start?: vscode.Position, end?: vscode.Position): Range;
-  public with(change: { start?: vscode.Position; end?: vscode.Position }): Range;
+  public with(start?: vscode.Position, end?: vscode.Position): Range
+  public with(change: { start?: vscode.Position; end?: vscode.Position }): Range
   public with(
     startOrChange?: vscode.Position | { start?: vscode.Position; end?: vscode.Position },
     end?: vscode.Position,

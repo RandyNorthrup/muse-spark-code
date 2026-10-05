@@ -130,7 +130,9 @@ describe('createTabStatus', () => {
   it('shows today’s spend with the model, requests and budget behind it', () => {
     const harness = statusHarness()
     expect(harness.item.visible).toBe(true)
-    expect(harness.item.text).toBe(`$(code) ${fill(UI_TEXT.tabStatusSpend, { spend: formatUsd(0.12, 2) })}`)
+    expect(harness.item.text).toBe(
+      `$(code) ${fill(UI_TEXT.tabStatusSpend, { spend: formatUsd(0.12, 2) })}`,
+    )
     expect(harness.item.tooltip).toBe(
       fill(UI_TEXT.tabStatusTooltip, {
         model: 'muse-spark-1.3',

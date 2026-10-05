@@ -125,10 +125,7 @@ function compareSnippetPath(a: TabSnippet, b: TabSnippet): number {
   if (a.path < b.path) {
     return -1
   }
-  if (a.path > b.path) {
-    return 1
-  }
-  return 0
+  return a.path > b.path ? 1 : 0
 }
 
 /**
@@ -138,7 +135,7 @@ function compareSnippetPath(a: TabSnippet, b: TabSnippet): number {
  * head stays byte-stable while the user types.
  */
 export function orderSnippets(snippets: readonly TabSnippet[]): string {
-  const ordered = [...snippets].sort(compareSnippetPath)
+  const ordered = snippets.toSorted(compareSnippetPath)
   const kept: string[] = []
   let used = 0
   for (const snippet of ordered) {

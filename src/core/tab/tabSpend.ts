@@ -38,7 +38,7 @@ export interface TabBudgetCheck {
 }
 
 /** The request is sent only when today's total plus its worst case fits. */
-export function tabWithinBudget(check: TabBudgetCheck): boolean {
+export function isWithinTabBudget(check: TabBudgetCheck): boolean {
   return check.spentTodayUsd + check.worstCaseUsd <= check.budgetUsd
 }
 
