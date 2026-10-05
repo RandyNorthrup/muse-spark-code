@@ -14708,7 +14708,7 @@ Unresolved items remain delivery/security gaps, not accepted legal conclusions:
   analysis; static readers cannot resolve arbitrary build logic or linkage.
 - I-R9 — **closed; owner: M97FIN.** Merge `242a47f2` incorporates all 20
   finished S/W findings from `aa181639`; combined targeted suites pass.
-- I-R10 — **local aggregate receipt closed; owner: FIN3.** Full
+- I-R10 — **latest-head aggregate pending; owner: FIN3/lead.** Full
   `npm run quality` on `62e881ad` exits 0 in 1,559.97 seconds on macmini:
   385 test files / 7,406 tests, coverage above all unchanged thresholds,
   every production bundle/split/notices gate, audit, 460 general accessibility
@@ -14717,9 +14717,13 @@ Unresolved items remain delivery/security gaps, not accepted legal conclusions:
   Existing 4/60 test skips, 48 a11y exemptions and the reviewed audit exception
   are unchanged; no new exemption, retry or raised deadline was used. Five
   original failures and two additional timing races are repaired and their
-  guards proved in `docs/certification/m97.md`. The final documentation head
-  receives a complete repeat; platform/live release receipts remain their own
-  requirements, not claims made by this local aggregate.
+  guards proved in `docs/certification/m97.md`. The documentation-head repeat
+  on `21676725` exits 1 on two different timing fixtures (reviewer journal
+  polling and deep HTML parsing). Both owning files pass 576 tests after
+  repairs; recursive traversal still fails at the original depth. The latest
+  head needs a complete repeat, which exceeds the brief's remaining 90-minute
+  time box. The earlier pass is historical, not a latest-head claim.
+  Platform/live release receipts remain separate requirements.
 
 ## 10. Definition of done and release records
 
@@ -15299,3 +15303,15 @@ the same 100 ms deadline. Legal byte-boundary tests share a real 10 ms scanner
 deadline; hold Date.now constant for those tests while retaining the explicit
 9/10 ms elapsed-time boundary assertions. Preserve every deadline, liability
 assertion, byte cap and whole-file test; demonstrate both guards still fail.
+
+FIN3's documentation-head repeat on `21676725` finds two additional timing
+failures, after the complete pass on `62e881ad`: the finite-cap reviewer test
+polls for a completed command under vi.waitFor's short deadline before awaiting
+its existing turn-completion event; await that event first and retain every
+journal/usage assertion. The deep-tree walker test also measures parse5's
+known nonlinear hostile-HTML parsing cost. Build identical 5,000-div and
+2,000-list-level trees through the real parse5 adapter in linear time, retaining
+the depths, original input and expected Markdown; every other converter case
+continues through the real parser. Prove the deep traversal still rejects a
+recursive mutant. No timeout, retry, test or gate is changed. A further complete
+quality run needs more time than remains in the brief's 90-minute limit.

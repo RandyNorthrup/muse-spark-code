@@ -15281,11 +15281,11 @@ describe('ModelApiSession: the Auto reviewer (M78, PLAN.md D49)', () => {
     const finished = turnDone()
     try {
       await session.sendTurn([{ type: 'text', text: 'run the tests' }])
-      await vi.waitFor(() => {
-        expect(reviewerBodies(t)).toHaveLength(1)
-        expect(commandsRun(t)).toEqual(['npm test'])
-      })
+      // Completion already follows the real journal settlement and command;
+      // observe that event instead of racing disk I/O against a polling bound.
       await finished
+      expect(reviewerBodies(t)).toHaveLength(1)
+      expect(commandsRun(t)).toEqual(['npm test'])
       expect(hasApprovalCard(events)).toBe(false)
       expect(t.paidUses.filter((use) => use.feature === 'autoReviewer')).toEqual([
         { feature: 'autoReviewer', units: 1 },

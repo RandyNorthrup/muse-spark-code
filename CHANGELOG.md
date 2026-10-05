@@ -10,6 +10,8 @@ happened, not what was planned; superseded entries are kept.
 - Fix the duplicate paid marker on legal-explanation toggles; align quality
   fixtures with window-scoped registry settings, signal readiness, controlled
   deadline boundaries and lossless VSIX localization packaging.
+- Await settled reviewer turns directly and construct full-depth parser trees
+  in linear time for traversal tests, preserving every assertion and deadline.
 
 - Keep ACP package guard fixtures aligned with lossless localization packaging and assert plural values in the emitted tarball.
 
