@@ -189,6 +189,11 @@ deprecated). Webview controls are hand-built on VS Code CSS theme variables.
   the model reads through web fetch, asked per host (M69); GitHub, through
   VS Code's authentication (M71); the local dev server (M81); and
   `api.typesafe.ai` (M85), experimental and off by default, and off while
+  `museSpark.confidentialWorkspace` is on. Amended 2026-10-04 (D77): the
+  Muse Judge engine the user turns on (M98). That is a loopback local
+  runtime, a decision API (TypeSafe, OpenRouter's SystemOne route,
+  Cloudflare), or one of the user's providers (D74). All are off by default.
+  Only the verified-loopback local engine may stay on while
   `museSpark.confidentialWorkspace` is on.
 - Contributor-tier models are opt-in behind a dialog quoting Meta's training
   wording; off by default; blocked when the workspace setting
@@ -3233,6 +3238,24 @@ only the extension-side uses reach it.
   a documented weak spot, so at most a warning signal.
 - Any use as the coding model.
 
+**Amended 2026-10-04 by D77 (M98).** The ruling and the uses above stand.
+What changes:
+
+- **TypeSafe is one engine of the Muse Judge.** It is no longer a feature of
+  its own. Its client is M98's SystemOne adapter, which also serves Jev
+  through OpenRouter, Cloudflare's Clef and loopback decision servers.
+- **Testing.** The owner ruled that M85 ships best effort, labelled
+  untested, because a TypeSafe key needs a sales call. That label still holds
+  for the direct `api.typesafe.ai` route. The OpenRouter route
+  (`typesafe/jev-1.13` at `/api/v1/systemone`) was tested live on 2026-10-04
+  with identical shapes, so it ships tested.
+- **Names.** The setting is `museSpark.judge.*`, not
+  `museSpark.experimental.typesafeAssist`. The paid feature is `judge`, priced
+  per engine, and the TypeSafe key keeps this decision's exception to rule 12.
+- **Confidential workspaces.** Every remote engine, TypeSafe included, is
+  still off while `museSpark.confidentialWorkspace` is on. A verified-loopback
+  local engine may stay on (D77).
+
 ### D51 — Turn checkpoints live in a shadow repository (M72, amended by M86)
 
 M72 introduced whole-workspace captures in the extension's own storage.
@@ -4258,6 +4281,352 @@ Decisions (the owner chose the reviewer on 2026-10-03):
   (or a way to pick the reviewer over the protocol) goes with the event-log
   report; when it lands, the extension prefers it and keeps this reviewer as
   the fallback.
+
+### D77 — Muse Judge: a calibrated System One judge for any agent (M98, 2026-10-04)
+
+The owner asked whether we can design our own version of TypeSafe's Jev "to
+use with any agent", and approved the proposal with "yes". He then added:
+"we should add the optin to use the judge engine with a local model as well".
+He also pointed at jevlint, a rule linter built on Jev. **Planned; this lane
+writes documentation only.** D70–D76 and M91–M97 belong to other drafts; their
+absence here does not release those numbers. Research, with the probe table
+and sources: `docs/certification/m98-research.md`.
+
+**What the probe found** (2026-10-04; 30 live model-call attempts, 20
+completed, ≈ $0.0010; plus a free local run on the Kubuntu rig):
+
+- **The Jev wire is now a standard, and Jev is reachable without a sales
+  call.** OpenRouter serves `typesafe/jev-1.13` at
+  `POST /api/v1/systemone`, with TypeSafe's request and response shapes byte
+  for byte ($0.042 per million input tokens). Ollama 0.35 serves
+  `/v1/systemone` on loopback for local decision models: `tev1` (Together
+  AI), `nimble` (Bespoke Labs), and `clef`/`clef-flash` (Cloudflare). Cloudflare
+  Workers AI serves Clef in the same shape.
+- **Token log-probabilities exist on about half the providers.**
+  - A top-5 comes back from Together, Fireworks, DeepSeek, OpenRouter (with
+    `provider.require_parameters`), Hugging Face (with a provider that passes
+    them) and Ollama.
+  - OpenAI's `gpt-5.6-luna` returns the chosen token only, on both wires.
+  - xAI and Z.ai accept the parameter and drop it silently.
+  - Anthropic, Muse Spark, current Gemini models, Mistral and Groq refuse
+    it. Muse Spark is a reasoning model with no `none` effort.
+- **Local works on CPU.** On a 40-item labelled destructive-command set:
+
+  | Engine                               | Accuracy | Brier | Warm latency                 |
+  | ------------------------------------ | -------: | ----: | ---------------------------- |
+  | `tev1:4b` (Ollama, CPU)              |    0.975 | 0.030 | 3.1 s per state              |
+  | Jev 1.13 (OpenRouter)                |    0.975 | 0.023 | 2.1 s for all 40 in one call |
+  | `tev1:0.8b` (Ollama, CPU)            |    0.750 | 0.176 | 0.67 s                       |
+  | `llama3.2:1b` logprobs (Ollama, CPU) |    0.475 | 0.278 | 0.26 s                       |
+
+  The 1B general model answered "no" to 39 of 40, so a small general model
+  is not a judge.
+
+- **Confidence and scores do not transfer between engines.** Jev's
+  confidence formula differs from Ollama's `1 − H/ln N`. Jev and `tev1:4b`
+  scored the same command 3.09 and 2.16.
+
+**The ruling of D50 carries over unchanged.** A judge only assists:
+
+- it feeds hints, scores and relevance signals;
+- the Muse model, or the extension's deterministic rules, act on them;
+- it never answers the user, writes code, allows an action, skips a
+  question or skips a rule;
+- a missing or unsure answer leaves behaviour exactly as it is without a
+  judge.
+
+Decisions:
+
+- **One contract, the Jev wire.** `judge({state, questions})` returns
+  `{model, answers, usage}`, exactly TypeSafe's and Ollama's shapes:
+  - a `noul` gives p(yes);
+  - a `choice` gives the option, its probabilities and a confidence;
+  - a `score` gives the expected level, the legend, the probabilities and a
+    confidence.
+
+  The schemas are zod, bounded at the intersection of the services: 1–64
+  questions; choice 2–26 options; score 2–10 levels; state plus the longest
+  question within 32k tokens; a 64 KiB body. A question id is never sent to a
+  model (as Jev). Our additions ride in a sibling `muse` object, so `answers`
+  stays byte-compatible with any SystemOne client:
+  - the engine and model that answered;
+  - `calibrated` and the calibration profile id;
+  - our `confidence`, always `1 − H(p)/ln N`, computed by us;
+  - the backend's own value as `vendorConfidence`, never mixed with ours;
+  - `partial` when the backend saw fewer alternatives than options;
+  - the cost.
+
+  Code lives in pure `src/core/judge/**`, with no `vscode` import, so the
+  extension, the ACP runtime and the CLI share it.
+
+- **Engines.** Each is chosen by explicit setting, never discovered and
+  switched to silently. A preset's capability record comes from a capture
+  (rule 13).
+  - **(a) SystemOne.** For any `/v1/systemone` service: OpenRouter's Jev
+    (tested), TypeSafe direct (untested, per the owner's ruling), Cloudflare
+    Clef (no key yet; the owner's to mint), and a loopback server. One
+    request carries every question over one state, as the service ingests
+    the state once. This is the preferred remote engine, because these
+    models are trained for the task.
+  - **(b) Logprob.** On a provider whose capture shows a top-k for a
+    one-token answer:
+    - the answer token is `yes`/`no`, an option letter `A`–`T`, or a level
+      digit `0`–`9`;
+    - p is the renormalized mass of the answer tokens among the top-k;
+    - the residual mass and how many options were unseen are recorded;
+    - a choice with more options than the provider's top-k (at most 20), or
+      a top-1-only provider (OpenAI today), is `partial`, and only its noul
+      p(chosen) is usable;
+    - the capture records the switch that frees the first token from
+      reasoning (OpenAI and Fireworks effort `none`, DeepSeek
+      `thinking.disabled`);
+    - a response without the field (xAI, Z.ai) is an engine failure. It is
+      never read as certainty.
+  - **(c) Sampling.** For providers with no logprobs (Anthropic, Muse
+    Spark, Gemini, Mistral, Groq, xAI, Z.ai):
+    - k parallel samples, default 5 and at most 9;
+    - the provider's highest allowed temperature, or its minimal effort on a
+      reasoning model;
+    - frequencies with add-½ smoothing, always marked uncalibrated and
+      coarse;
+    - off unless `museSpark.judge.allowSampling` is on, because it costs k
+      calls. Muse Spark contributor: 8.8 s and $0.000037 per sample; about
+      $0.0007 at Standard.
+  - **(d) Local.** A loopback Ollama, llama.cpp server or LM Studio:
+    - through (a) when a decision model is installed (Ollama's capability
+      `decision`);
+    - otherwise through (b) on a general model's top-k (Ollama `/api/chat`
+      with `think: false`; the OpenAI-shaped `logprobs` of llama.cpp and LM
+      Studio, captured before they are listed);
+    - free, private, and a first-class choice, not a fallback.
+
+  **Not taken:**
+  - verbalized probabilities ("say a number from 0 to 1"), which are poorly
+    calibrated and still cost a turn;
+  - conditioning one question on another's answer.
+
+- **The settings, an explicit opt-in.**
+  - `museSpark.judge.engine`: `off` (default), `local`, `decisionApi` or
+    `provider`. Machine-scoped. `decisionApi` replaces the earlier example
+    value `typesafe`, because TypeSafe is now one of three such services.
+  - `museSpark.judge.model`: a model reference (D74):
+    - `ollama/tev1:4b`;
+    - `openrouter/typesafe/jev-1.13`;
+    - `typesafe/jev-latest`;
+    - `together/meta-llama/Llama-3.3-70B-Instruct-Turbo`.
+  - `museSpark.judge.fallback`: an ordered list, empty by default. An entry
+    that can cost money needs its own consent when it is added.
+  - `museSpark.judge.allowSampling`: default `false`.
+
+  Turning on **Local** has its own consent text: free, private, runs on your
+  machine, needs a local runtime and a downloaded model. Turning on a paid
+  engine goes through D48's paid gate.
+
+- **Local setup** (the owner's addition), reusing M95's wizard state machine
+  and picker components where M95 has landed, and a minimal quick pick
+  before it:
+  1. **Detect** Ollama (`11434`), llama.cpp server (`8080`) and LM Studio
+     (`1234`). Only a loopback address is allowed:
+     - `127.0.0.0/8`, `::1`, or `localhost` when every answer resolves to
+       loopback;
+     - a user-entered URL passes the same check, through the classifier
+       beside `src/core/web/publicAddress.ts` that M95's `endpointPolicy.ts`
+       wraps;
+     - requests use `node:http` directly, no proxy (D74).
+  2. **List** the installed models and mark the decision-capable ones.
+     Recommend `tev1:4b` (4.5 GB; accuracy 0.975 and Brier 0.030 on the
+     probe set; about 3 s per state on CPU). Offer `tev1:0.8b` (0.8 GB,
+     0.67 s) only with its measured warning (accuracy 0.75). Do not
+     recommend a general model under about 7B for the logprob route.
+  3. **Pull** only on an explicit click, after showing the model's download
+     size and licence. Never auto-install, never bundle weights in the VSIX,
+     never start or install a runtime.
+  4. **Health check** on first use and on failure: `/api/version`, the
+     model's presence and capability, and the loaded context window.
+     Ollama's decision endpoint defaults to 2,048 tokens and refuses longer
+     input, so the engine splits by state, and setup tells the user how to
+     raise `OLLAMA_CONTEXT_LENGTH`.
+
+  An unreachable runtime means no assist for that decision, with the reason
+  logged. **Never a silent fallback to a paid engine**; a fallback entry
+  needs its own opt-in.
+
+- **Confidential workspaces.** While `museSpark.confidentialWorkspace` is on:
+  - the Local engine may stay on, because the content never leaves the
+    machine and every request re-verifies that the endpoint is loopback;
+  - every remote engine (a, b, c, or a non-loopback SystemOne URL) is off,
+    whatever the setting;
+  - a test proves both.
+
+  This amends D50's "off while confidential" for the local case only.
+
+- **Prompt shape and parallelism.** State first, question last:
+  - the system line and the state form a stable prefix, so several questions
+    over one state hit the provider's prompt cache (`prompt_cache_key` from
+    the state hash where the preset supports it);
+  - questions run in parallel and are never conditioned on another answer;
+  - on SystemOne, one request carries them all;
+  - a concurrency cap and a per-decision deadline (short; named constants)
+    bound everything.
+- **Calibration.** Profiles are kept per engine, model and question family
+  (for example `risk.destructive`, `skill.fit`):
+  - **Methods.** Temperature scaling on the logit for the logprob engine;
+    Platt scaling for binary families; isotonic regression from 200 labels
+    up.
+  - **Labels.** From M75's harness cases. Also from an opt-in, local-only
+    decision log that holds the question family, model, p, timing and the
+    later outcome (the user's approval choice, the reviewer's verdict, the
+    test result), never content. Nothing leaves the machine.
+  - **Measures.** ECE (equal-mass bins) and Brier. A report command shows
+    per-model reliability.
+  - **Uncalibrated.** An engine without a profile says so in the UI and the
+    JSON, and the uses apply their conservative defaults.
+  - **Local.** Each local model keeps its own profile (owner request), as a
+    `tev1:4b` threshold means nothing for `nimble`.
+- **Uses inside the extension** (D50's list, advisory only):
+  - skill and custom-agent suggestion, at most one hint line;
+  - the Auto risk advisory, which can add caution (ask where Auto would have
+    allowed, or flag to the reviewer) and never allows;
+  - context relevance and evaluation grading, unreachable until their M75
+    runs pass;
+  - M96's orchestrator hints (role fit, stall detection), as advisory input
+    to the lead agent's decisions;
+  - an extra signal for M90's reviewer and the review loops.
+- **"Use with any agent."** Every surface uses the same core.
+  - **`muse-spark-code-acp judge`**, reserved before prompt parsing as M97's
+    `exec legal-scan` is. It starts no backend, makes no ACP frame on
+    stdout, and reads no credential beyond the chosen engine's.
+    - **`judge ask`:** JSON in on stdin, JSON out. Flags: `--engine`,
+      `--model`, `--budget-usd`, `--timeout-ms`. Exit 0 = answered, 2 =
+      input or configuration error, 4 = no answer (unreachable, timeout,
+      refused budget).
+    - **`judge hook --agent claude|codex|cursor|gemini|copilot --check <id>`**
+      reads that agent's hook payload. M91's per-agent schemas parse it. The
+      helper emits that agent's hook output, which can only add caution:
+      "ask" or a warning, never "allow" or "approve". No answer means no
+      opinion: exit 0 with no decision, and the agent's own flow continues.
+      Example: a PreToolUse "is this command destructive?" check.
+    - **`judge serve`:** `/v1/systemone` on loopback only, backed by the
+      configured engine. It binds `127.0.0.1` on a chosen or random port and
+      takes a bearer token generated per start (written once to a
+      user-only file). It checks the Host header against DNS rebinding,
+      refuses any request with an `Origin` header, and caps the body at
+      64 KiB. jevlint, TypeSafe's SDKs and any SystemOne client then point
+      `TYPESAFE_ENDPOINT` at it and run on the user's local model for free.
+    - **`judge lint`:** see below.
+    - **`judge calibrate` and `judge report`:** the calibration fit and its
+      report.
+  - **An MCP tool**, `judge`, on the existing loopback `ide` MCP server
+    (`readOnlyHint`, plus a guard that it cannot write) and as a stdio MCP
+    server, `judge mcp`.
+
+  Headless runs with a paid engine need `--budget-usd`, default 0. A hook
+  can therefore never spend money that nobody set.
+
+- **Judge lint, jevlint-compatible.** It checks code units against
+  plain-language rules: one choice question per unit with the options pass,
+  fail, skip and abstain, batched per unit.
+  - **Format.** We read `jevlint.json` and jevlint packs as they are:
+    - `id`, `description`, `severity`, `kinds`, `include`/`exclude`;
+    - `exceptions`, `minConfidence`, `allowSkip`/`allowAbstain`;
+    - `localize`, `context.callees`;
+    - `jevlint-evals.json` with jevlint's outcome rules (an `inconclusive`
+      never matches).
+
+    So one rule file serves both tools. We do not invent a second format.
+    Our own options live under a `museSpark` key that jevlint ignores. The
+    parser is our own code; jevlint is MIT and is credited.
+
+  - **Code units.**
+    - In VS Code, from the language server's document symbols
+      (`vscode.executeDocumentSymbolProvider`, as M67 uses), at no bundle
+      cost.
+    - The headless `judge lint` uses `web-tree-sitter` in a lazy
+      `dist/judgeLint.js`. The runtime is 366 KB (JS plus wasm). The
+      grammars are lazy files: TypeScript 2.34 MB, TSX 2.41 MB, JavaScript
+      0.65 MB, Python 0.48 MB and Go 0.24 MB unpacked.
+    - They ship in the npm ACP package, not in the VSIX. A new D6 cap for
+      `dist/judgeLint.js` and a package-size line are measured and proposed
+      before merge; no existing cap is raised.
+  - **Mechanics.**
+    - A result cache in the user cache directory, keyed by engine, model,
+      credential fingerprint and exact request, with no source.
+    - `--changed`, `--fail-on error|warning`, `--budget-usd` and
+      `--format text|json|sarif`.
+    - Exit 0 = no findings at the floor, 1 = findings, 2 = configuration or
+      engine error.
+  - **A first-party rule pack** in jevlint's pack format. It is drawn from
+    the high-quality-projects skill's code standards, the ones deterministic
+    linters cannot catch, and each rule has good and bad fixtures and evals:
+    - no silent fallbacks;
+    - no placeholder or fake production code;
+    - no mock data outside test boundaries;
+    - errors that explain how to fix them;
+    - no unexplained magic values beyond what lint catches;
+    - honest function names.
+  - **Uses.**
+    - An advisory pre-review in the panel before a commit.
+    - A CI mode that the user can make a gate.
+    - An extra signal for M90's reviewer and the Codex and Muse review
+      loops.
+    - The bundled-skills path (D68), so the high-quality-projects skill can
+      call it.
+    - It stays advisory unless the user makes it a gate.
+- **Faster testing, honestly.** A judge does not make tests run faster;
+  sharding, the rigs and changed-only selection do. Only three uses are
+  planned, each measured on a labelled set before adoption, and each
+  advisory:
+  - classifying a failing CI log as a likely flake or a real failure. It
+    never retries or merges on its own;
+  - pre-screening a lane's diff against the rule pack, to cut review rounds;
+  - choosing which review class to run first.
+- **Cost, consent and privacy.**
+  - **Paid engines.** Under D48: a `judge` paid feature replaces
+    `typesafeAssist` in the `PaidFeature` union, priced per engine, with the
+    badge, a paid row, `PaidUsage` and the per-use popup ("Allow always in
+    this workspace").
+  - **Billing.** A BYO provider key is billed as D74 bills it. The TypeSafe
+    key keeps D50's named exception to rule 12.
+  - **Local.** Free, with no popup, and tallied as local.
+  - **Redaction.** `src/core/redact.ts` runs before any remote call.
+  - **Logs.** Only question ids, engine, model, timing and cost; never state
+    or answers' content.
+  - **PRIVACY** names each engine's recipient.
+- **The single-model invariant.** With `museSpark.judge.engine` `off` (the
+  default), nothing changes: no request, no file, no log line, no bundle
+  load (the judge bundle is lazy).
+  - The judge never edits the main request.
+  - A hint line enters only the newest user turn's tail, never the system
+    prompt, tools or the cached prefix. The SoL-Pi invariants hold
+    (then_run, ObservationPack, the reducer, todo compaction, M75's eval,
+    the cache-stable prefix).
+  - A golden test asserts that the main request is byte-identical with the
+    judge absent or off. With the judge on and a hint given, every byte
+    before the newest user turn's tail is identical.
+- **Order against M95.** M98 ships in two parts, so nothing is built twice:
+  - **M98 core** needs no M95: the contract and math, calibration, the
+    SystemOne client, the Local engine (loopback, no credentials), the CLI,
+    hook helper, server, MCP tool, lint, and the golden test. Its SystemOne
+    client takes an `AuthSource`-shaped callback, so M95's credential records
+    plug in later without changing it.
+  - **The `provider` and `decisionApi` engines** wait for M95's
+    `ProviderClient`, presets and keys. TypeSafe, OpenRouter's SystemOne route
+    and Cloudflare become presets of a `systemone` format with captured
+    capability data. M98 builds no second key store or transport.
+- **M85 is folded in.** M85 becomes M98's SystemOne-adapter lane (D50
+  amended):
+  - the OpenRouter route of that adapter is tested live, which supersedes
+    the owner's "untested" label for that route;
+  - the direct TypeSafe route stays labelled untested until a TypeSafe key
+    exists.
+- **GPU.** The plan assumes CPU-only local inference. A GPU (the Win11 VM's
+  GTX 1080 Ti in the lab) changes:
+  - latency: a 4B decision model should go from about 3 s to well under a
+    second per state, to be measured;
+  - calibration: the batch runs go from about an hour to minutes per model.
+
+  It changes no decision. The product's local engine stays loopback-only on
+  the user's own machine. The rigs are development infrastructure.
 
 ## 3. Open questions (need the owner)
 
@@ -12200,7 +12569,26 @@ remain the lead's.
       redacted again; its tests (glued tokens, the differential against the
       old pattern, 128,000-character timing) are kept.
 
-### M85 — TypeSafe assist, experimental and opt in (D50)
+### M85 — TypeSafe assist, experimental and opt in (D50; folded into M98)
+
+**Amended 2026-10-04: M85 is now lane T, the SystemOne adapter, of M98
+(D77).** Read M98 for its scope, lanes and acceptance. What remains M85's own:
+
+- **The adapter.** A zod-validated client for `POST /v1/systemone`, with
+  three routes:
+  - TypeSafe direct (`api.typesafe.ai`, the user's TypeSafe key), **labelled
+    untested** per the owner's ruling until a key exists;
+  - OpenRouter (`/api/v1/systemone`, `typesafe/jev-1.13`), tested against
+    the live shapes captured on 2026-10-04;
+  - Cloudflare Workers AI Clef (`…/ai/run/@cf/cloudflare/clef`), listed once
+    a Workers AI token exists (the owner's to mint).
+- **The fake.** A fake SystemOne server built from those captures and
+  Ollama's documented limits, used by every M98 test. A TypeSafe-only
+  difference found later becomes a fixture, never a guess.
+- **Unchanged.** D50's uses and its rule that a "safe" score leaves the
+  verdict unchanged, now in M98's acceptance.
+
+The original text follows for the record; where it differs, M98 wins.
 
 - **Goal.** Cheaper, better-calibrated small decisions around the Muse
   model: which skill fits, how risky a command is, what context still
@@ -13717,6 +14105,204 @@ joined with M57, M58 and PR #49's sign-in
   `status` and `clear` against a real Secret Service; `auth_required`
   before sign-in; the key never in a frame, an argument, the environment
   or the log; every gate green.
+
+### M98 — Muse Judge: a calibrated judge for any agent (D77, planned)
+
+- **Goal.** Small, calibrated decisions on the user's chosen engine:
+  - a local model (free and private);
+  - a decision API (Jev through OpenRouter or TypeSafe, Cloudflare Clef);
+  - one of the user's providers (logprobs, or sampling).
+
+  They are offered to the extension, to other agents' hooks, to any
+  SystemOne client and to code review, and they stay advisory everywhere. The
+  Muse model, or a deterministic rule, still decides.
+
+- **Scope.** D77's contract and math, the four engines, local setup and
+  health, calibration and its report, the extension's advisory uses, the
+  `judge` CLI (`ask`, `hook`, `serve`, `lint`, `calibrate`, `report`, `mcp`),
+  the MCP tool, the jevlint-compatible lint and its first-party pack, the
+  three measured testing uses, consent, cost, privacy and the
+  single-model golden test. M85's TypeSafe client is lane T.
+- **Depends on.**
+  - **None for the core:** lanes 0, J, L, T, X, K and G below.
+  - **M95 (D74)** for the `provider` and `decisionApi` engines:
+    `ProviderClient`, presets, credential records, `endpointPolicy.ts`, and
+    the wizard and picker components the local setup reuses. Until M95
+    merges, setup is a quick pick and SystemOne keys are not offered.
+  - **M91 (D70)** for the hook helper's per-agent payload and output schemas
+    (Claude Code, Codex, Cursor, Gemini, Copilot). Lane H waits for M91's
+    merge and adds no parser of its own.
+  - **M96 (D75)** for the orchestrator hints. Lane U's M96 part waits for its
+    scheduler and consumes `judge()` as advisory input only. M96's decisions
+    are unchanged.
+  - **Existing:** M75 (labels and paired runs), M78 and M90 (the Auto
+    advisory and the reviewer signal), M89/D68 (the bundled-skill path for
+    lint), M69 (`publicAddress.ts`), M80 and M97 (reserved headless
+    subcommands), D48 (paid use), and D6 (lazy bundles).
+- **Lanes and file ownership.** Muse codes each lane. Codex independently
+  reviews each lane's finished diff and gate-fire evidence. The lead
+  serializes shared files, integration and the aggregate gates; no lane
+  rewrites another's region. Phase 1 is lanes 0, J, L, T, X, K, G, C and D.
+  Phase 2 (after M95) is lanes P, H and U.
+
+| Lane                      | Muse implementation ownership                                                                                                                                                                                                                                                                                                                                                                | Codex review / acceptance focus                                                                                                                                                               |
+| ------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 0 Contract / strings      | `src/core/judge/schema.ts` (the zod request/answer/`muse` schemas and bounds), named limits in `constants.ts`, the `judge` paid feature in `PAID_FEATURES`, the settings in `package.json` and `package.nls*.json`, English and the 14 `l10n/ui.*.json`                                                                                                                                      | Byte-compatible `answers`; bounds at the intersection of services; no content in log fields; complete real translations                                                                       |
+| J Judge core              | `src/core/judge/{judge,math,engines,prompt,partial}.ts`: the engine interface, the confidence (`1 − H/ln N`), renormalization and residual mass, `partial`, smoothing for sampling, the state-first prompt builder, parallel fan-out with a concurrency cap and deadline; `test/unit/judge*.test.ts`                                                                                         | The math against hand-computed fixtures (including the probe's distributions), no question conditioned on another, deadlines and cancellation, a missing field read as failure, not certainty |
+| T SystemOne adapter (M85) | `src/core/judge/systemone.ts`: the client for any `/v1/systemone` with an `AuthSource`-shaped callback; the fake SystemOne server in `test/**` built from the 2026-10-04 captures and Ollama's documented limits; route records for OpenRouter (tested), TypeSafe (untested label), Cloudflare (pending key)                                                                                 | Shapes from captures only (rule 13); the untested label on the TypeSafe route in UI, docs and JSON; vendor confidence kept apart; 400/404/413/429/529 mapped; no key in any record            |
+| L Local engine            | `src/core/judge/local/**`: runtime detection (Ollama, llama.cpp, LM Studio), loopback verification per request through a classifier beside `src/core/web/publicAddress.ts`, `node:http` without a proxy, model listing and decision capability, health and context-window checks, splitting by state; the consented pull flow's core; `test/**` with a fake local server                     | Loopback refusal (LAN, public, DNS rebinding, redirects); no silent paid fallback; confidential-mode allow; pull only after consent with the size shown; no weights or runtime shipped        |
+| C Calibration             | `src/core/judge/calibration/**`: temperature, Platt and isotonic fits, ECE (equal-mass) and Brier, profiles per engine, model and question family in global storage, the opt-in local decision log (ids, p, timing, outcome; no content), the report model                                                                                                                                   | Fits and metrics against known datasets; an uncalibrated engine marked; the log holds no content and never leaves the machine; profiles per local model                                       |
+| X Runtime / CLI           | `src/runtime/judge/**` and the reserved `judge` subcommand in `cliArgs.ts`: `ask`, `serve` (loopback, per-start token, Host check, `Origin` refused, 64 KiB cap), `calibrate`, `report`, `mcp` (stdio); exit codes; `--engine`, `--model`, `--budget-usd`, `--timeout-ms`                                                                                                                    | No backend, sign-in or ACP stdout mixing; budget default 0 for paid engines; `serve` unreachable off loopback and from a browser origin; jevlint pointed at `serve` passes its own eval       |
+| K Lint                    | `src/core/judge/lint/**` (the `jevlint.json`, pack and eval readers; unit batching; the result cache; outcomes; SARIF), the lazy `dist/judgeLint.js` with `web-tree-sitter` and the lazy grammar files for the npm ACP package, the document-symbol unit source for VS Code; the first-party pack under `resources/judge-packs/hq/**` with fixtures and evals; the D68 bundled-skill hook-up | jevlint compatibility on its own shipped rules and evals; the pack's evals pass on a calibrated engine; no grammar in the VSIX; measured caps; no source in the cache                         |
+| P Provider engines        | (after M95) `src/core/judge/engines/{logprob,sampling}.ts` over `ProviderClient`; a `judge` capability block per preset in `presets.ts` (top-k, the reasoning switch, silent-drop flag), with the `systemone` format presets for TypeSafe, OpenRouter's route and Cloudflare                                                                                                                 | Capability data only from captures; top-1 and silent-drop handled as in D77; sampling off by default and its cost shown before consent                                                        |
+| H Hook helper             | (after M91) `src/runtime/judge/hook.ts`: `judge hook --agent … --check …` over M91's schemas; the built-in checks (destructive command, secret-shaped write, out-of-workspace path)                                                                                                                                                                                                          | Output can only add caution in every agent's format; no answer means no opinion; real payload captures from M91 for each agent                                                                |
+| U Uses / UI               | Extension integration: skill and agent suggestion, the Auto risk advisory (M78/M90), the gated relevance and grading paths, the M90 reviewer signal, the M96 hints (after M96); the local setup quick pick or M95 wizard pages, the consent texts, status and Account & usage rows; the MCP `judge` tool on the `ide` server; owned harness and accessibility cases                          | Advisory only (no allow, no skipped question, no skipped rule); the hint line only in the newest user turn's tail; consent texts; themes, narrow panel, keyboard and screen reader            |
+| G Golden / invariants     | `test/unit/judgeInvariant.test.ts`: the main request byte-identical with the judge absent or off; the prefix identical with a hint; no file, log or bundle load while off; the SoL-Pi regression files rerun                                                                                                                                                                                 | The golden is red when a hint enters the prefix or when the judge changes anything while off                                                                                                  |
+| D Docs / integration      | README, `docs/judge.md` (CLI, hooks for each agent, MCP, `serve` with jevlint, lint, calibration), `docs/acp.md`, `docs/PRIVACY.md`, SECURITY, CHANGELOG, PLAN, `docs/certification/m98.md`, bundle and package scripts, knip and dpdm entries                                                                                                                                               | Documented commands only after a real run; costs and limits from receipts; the untested route labelled                                                                                        |
+
+- **Acceptance.**
+  1. **Off means off.** With `museSpark.judge.engine` `off`: no request, no
+     file, no log line, no judge bundle loaded. The golden test shows the
+     main request byte-identical to a build without M98.
+  2. **The contract.** `judge()` returns the Jev shapes for noul, choice and
+     score on every engine. `answers` validates against the captured
+     OpenRouter frames. `muse` carries the engine, `calibrated`, our
+     confidence, `vendorConfidence`, `partial` and the cost. The bounds
+     refuse 65 questions, 27 options, 11 levels and an oversized body with
+     clear errors.
+  3. **Engines.**
+     - SystemOne answers through the fake and through the captured
+       OpenRouter shapes.
+     - Logprob handles top-5, top-1 (`partial`) and a silently dropped field
+       (engine failure, no answer).
+     - Sampling runs only with `allowSampling` on and shows its k-call cost
+       first.
+     - Local works through `/v1/systemone` with a decision model and through
+       logprobs with a general model.
+  4. **Local engine** (owner addition).
+     - **Consent.** Its own opt-in and consent text.
+     - **Detection.** Ollama, llama.cpp and LM Studio on loopback.
+     - **Loopback.** A LAN, public, rebinding or redirecting endpoint is
+       refused.
+     - **Models.** Installed models listed with decision capability, and
+       `tev1:4b` recommended.
+     - **Pull.** Only after a click that showed the size. Nothing installed
+       or bundled.
+     - **Failure.** An unreachable runtime gives no assist, logs the reason,
+       and **never** calls a paid engine unless a fallback entry was opted
+       into.
+     - **Context.** An over-window state is split, or refused with
+       `OLLAMA_CONTEXT_LENGTH` advice.
+  5. **Confidential workspace.** With `museSpark.confidentialWorkspace` on,
+     Local answers and every remote engine is refused, each by a test.
+  6. **Advisory only.** No path lets an answer allow an action, skip a
+     question or rule, or answer the user. A "safe" Auto score leaves the
+     verdict unchanged (D50's test, kept). A risky one can only ask or flag.
+  7. **Calibration.**
+     - Profiles are fitted per engine, model and question family from M75
+       cases and the opt-in local log.
+     - ECE and Brier are reported per model.
+     - An uncalibrated engine is labelled in UI and JSON.
+     - Each local model has its own profile.
+  8. **Any agent.**
+     - **`judge ask`:** exit codes 0, 2 and 4 as specified.
+     - **`judge hook`:** each of the five agents' formats from M91's
+       captures; only caution comes out.
+     - **`judge serve`:** answers jevlint (`TYPESAFE_ENDPOINT`) on a local
+       model, and refuses a non-loopback bind, a missing token, a foreign
+       Host and an `Origin`.
+     - **MCP:** the `judge` tool works on the `ide` server and over stdio.
+     - **Budget:** headless paid use without `--budget-usd` is refused.
+  9. **Lint.**
+     - jevlint's own `jevlint.json` and evals parse and run.
+     - The first-party pack's evals pass on at least one calibrated engine.
+     - `--fail-on` gates CI only when asked.
+     - The cache holds no source.
+     - Units come from document symbols in VS Code and from tree-sitter
+       headless.
+     - The VSIX carries no grammar, and the new caps are measured.
+  10. **Measured testing uses.** The flake classifier, the lane-diff
+      pre-screen and the review-class triage each report precision and
+      recall on a labelled set before any is switched on, and none retries,
+      merges or skips a review.
+  11. **Cost and privacy.** A paid use goes through D48 with the `judge`
+      feature. Local is free and tallied as local. Redaction runs before
+      every remote call. Logs carry only ids, engine, model, timing and
+      cost. PRIVACY names every recipient.
+- **Tests and red drills.** Fakes only under `test/**`: a fake SystemOne
+  server (from the captures), a fake local runtime (Ollama `/api/tags`,
+  `/api/show`, `/api/chat` logprobs, `/v1/systemone`), and a fake provider
+  with top-5, top-1 and silent-drop modes. Each new assertion and guard is
+  broken once on purpose, observed failing, restored byte-exact (SHA-256), and
+  its whole test file rerun. The mutation, failure, restoration, machine and
+  exit code go in `docs/certification/m98.md`. The required drills:
+  - the loopback refusal (make the classifier accept a LAN address);
+  - no silent paid fallback (route an unreachable local engine to a fake paid
+    one);
+  - the confidential-mode allow and refuse;
+  - a "safe" score that would allow;
+  - a hint written into the prefix (the golden goes red);
+  - the judge doing anything while off;
+  - top-1 read as a distribution;
+  - a dropped field read as certainty;
+  - `serve` without the token or with an `Origin`;
+  - a hook output that says "allow";
+  - lint reporting below `minConfidence`;
+  - a cache entry holding source.
+
+  Never drill against a user's repository.
+
+- **Gates.** The lead runs the full `npm run quality` and the required CI
+  checks on the final integrated tree. Lane tests and builds run on the rigs;
+  local work is limited to changed-file formatting and lint. Coverage,
+  security, localization, host-API, accessibility, duplication, dead-code,
+  bundle and split, and package budgets are preserved. Each new external
+  shape needs a counted capture before its parser:
+  - llama.cpp's and LM Studio's logprobs;
+  - Cloudflare's Clef, once a key exists;
+  - every provider preset's judge capability.
+
+  This planning lane authorizes no paid or live call beyond its recorded
+  probe. A calibration run on the GPU rig is free; a cloud calibration run
+  states its expected call count and cost first.
+
+- **Security.**
+  - All inputs are bounded by named constants.
+  - State is data, never instructions; a decision model's documented weak
+    spot is adversarial content, so the judge can only add caution.
+  - Keys stay in SecretStorage or the OS store (D61, D74); never in the CLI's
+    arguments, the environment of child processes, logs or the cache key in
+    clear (a fingerprint only).
+  - `serve` is loopback-only, token-guarded, and refuses Host and Origin
+    attacks.
+  - A local pull goes only to the runtime's own registry, after consent.
+- **Docs and owner steps.**
+  - **Owner-only:** a Cloudflare Workers AI token for the Clef route, and a
+    TypeSafe key if he ever wants the direct route tested. Neither blocks
+    M98.
+  - Delivery documents commands and settings only after each invocation
+    succeeds. `docs/judge.md` gives an example for every surface:
+    - `judge ask` from a shell;
+    - a PreToolUse hook for each of the five agents;
+    - the MCP tool;
+    - `judge serve` with jevlint;
+    - `judge lint` in CI.
+- **Certification checklist.**
+  - [x] Owner requests (judge for any agent, the local opt-in, jevlint and
+        the SystemOne endpoint), D77, lanes and research with the probe table
+        recorded.
+  - [x] Logprob capability of the 12 providers and Muse Spark probed live
+        (30 attempts, ≈ $0.0010); Jev through OpenRouter tested; local CPU
+        baseline on Kubuntu.
+  - [ ] Local latency and calibration on the GPU rig (Win11 VM, GTX 1080 Ti).
+  - [ ] Acceptance 1–11, each with its failing drill and passing receipt.
+  - [ ] Captures for llama.cpp, LM Studio and each preset's judge capability;
+        Cloudflare when a key exists.
+  - [ ] Final-tree full quality, a11y, package and bundle caps, installed
+        host and ACP receipts.
+  - [ ] Delivered commands, costs, limits and privacy documented from real
+        runs; the TypeSafe direct route still labelled untested.
+- **Size.** XL in all: phase 1 L, phase 2 M.
 
 ## 7. Gates
 
