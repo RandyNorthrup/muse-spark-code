@@ -98,6 +98,11 @@
         "category": "%command.category%"
       },
       {
+        "command": "museSpark.openTasks",
+        "title": "%command.openTasks.title%",
+        "category": "%command.category%"
+      },
+      {
         "command": "museSpark.insertMentionReference",
         "title": "%command.insertMentionReference.title%",
         "category": "%command.category%"
@@ -939,6 +944,7 @@
     "watch": "node scripts/build.mjs --watch",
     "harness:shots": "node scripts/harness-shots.mjs",
     "harness:pseudo": "node scripts/pseudo-l10n.mjs",
+    "readme:shots": "node scripts/readme-shots.mjs",
     "test:a11y": "node scripts/a11y.mjs",
     "check:l10n": "node scripts/check-l10n.mjs",
     "check:host-api": "node scripts/check-host-api.mjs",
@@ -955,7 +961,7 @@
     "typecheck:e2e": "tsc -p test/e2e/tsconfig.json --noEmit",
     "typecheck:integration": "tsc -p test/integration/tsconfig.json --noEmit",
     "deadcode": "knip",
-    "cycles": "dpdm --no-warning --no-tree --exit-code circular:1 -T src/extension.ts src/host/backend/modelApiEntry.ts src/host/sessionBoardEntry.ts src/core/backends/modelapi/reviewerEntry.ts src/host/agentImportEntry.ts src/host/ide/codeIntelEntry.ts src/host/voice/voiceEntry.ts src/host/planMarkdownEntry.ts src/host/checkpoints/checkpointStoreEntry.ts src/host/review/reviewEntry.ts src/host/review/museCodeReviewerEntry.ts src/host/skills/bundledSkillsEntry.ts src/webview/main.tsx src/runtime/main.ts",
+    "cycles": "dpdm --no-warning --no-tree --exit-code circular:1 -T src/extension.ts src/host/backend/modelApiEntry.ts src/host/sessionBoardEntry.ts src/core/backends/modelapi/reviewerEntry.ts src/host/agentImportEntry.ts src/host/ide/codeIntelEntry.ts src/host/voice/voiceEntry.ts src/host/web/webFetchEntry.ts src/host/planMarkdownEntry.ts src/host/checkpoints/checkpointStoreEntry.ts src/host/review/reviewEntry.ts src/host/review/museCodeReviewerEntry.ts src/host/skills/bundledSkillsEntry.ts src/webview/main.tsx src/runtime/main.ts",
     "duplication": "jscpd",
     "test": "run-s test:unit test:integration",
     "test:unit": "vitest run --coverage",
@@ -1039,12 +1045,12 @@
     "highlight.js": "11.12.0",
     "mdast-util-from-markdown": "2.0.3",
     "mdast-util-gfm": "3.1.0",
-    "mdast-util-to-markdown": "2.1.2",
+    "mdast-util-to-markdown": "2.1.3",
     "micromark-extension-gfm": "3.0.0",
     "html-encoding-sniffer": "7.0.0",
     "parse5": "8.0.1",
     "react-markdown": "10.1.0",
     "remark-gfm": "4.0.1",
-    "smol-toml": "1.8.0"
+    "smol-toml": "1.9.0"
   }
 }

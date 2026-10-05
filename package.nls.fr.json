@@ -8,6 +8,7 @@
   "command.category": "Muse Spark",
   "command.openInSidebar.title": "Ouvrir dans la barre latérale",
   "command.openInNewTab.title": "Ouvrir dans un nouvel onglet",
+  "command.openTasks.title": "Ouvrir les tâches dans un onglet",
   "command.focusInput.title": "Activer/désactiver le focus",
   "command.insertMentionReference.title": "Insérer une mention @ pour la sélection",
   "command.toggleFocusView.title": "Activer/désactiver la vue concentrée",

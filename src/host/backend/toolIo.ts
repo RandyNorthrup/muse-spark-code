@@ -45,12 +45,13 @@ import { powerShellQuoted } from '../../core/shellQuote'
 import {
   BOUNDED_FILE_READ_CHUNK_BYTES,
   BYTES_PER_MIB,
-  MODEL_TEXT,
-  MAX_DOCUMENT_BYTES,
-  PDF_HEADER_WINDOW_BYTES,
-  HOOK_OUTPUT_MAX_BYTES,
+  FILE_REFUSAL_MODEL_TEXT,
   HOOK_FORBIDDEN_ENV_NAMES,
+  HOOK_OUTPUT_MAX_BYTES,
   HOOK_STDIN_MAX_BYTES,
+  MAX_DOCUMENT_BYTES,
+  MODEL_TEXT,
+  PDF_HEADER_WINDOW_BYTES,
   SEARCH_TIMEOUT_MS,
   SHELL_DRAIN_GRACE_MS,
   SHELL_OUTPUT_MAX_CHARS,
@@ -63,7 +64,6 @@ import {
 import { canonicalPath } from '../canonicalPath'
 import { foldersMade, writeFileAtomically, writeFileIfUnchanged } from '../fsAtomic'
 import { killTree, type ProcessTreeDeps, type ShellJob, treeSpawnOptions } from '../processTree'
-import { postHookPayload } from '../web/hookHttpRequest'
 import { joinStatement, newShellJob } from './shellJob'
 
 export interface ToolIoDeps {
@@ -383,7 +383,7 @@ async function assertCheckedCanonicalPath(
   }
   const canonical = await canonicalPath(absolutePath)
   if (!isSamePath(canonical, expectedCanonicalPath, platform)) {
-    throw new Error(MODEL_TEXT.pathChangedAfterApproval)
+    throw new Error(FILE_REFUSAL_MODEL_TEXT.pathChangedAfterApproval)
   }
 }
 
@@ -404,7 +404,7 @@ async function checkedOpenedFile(
     await assertCheckedCanonicalPath(absolutePath, expectedCanonicalPath, platform)
     const current = await statIdentity(absolutePath)
     if (!sameFile(held, current)) {
-      throw new Error(MODEL_TEXT.pathChangedAfterApproval)
+      throw new Error(FILE_REFUSAL_MODEL_TEXT.pathChangedAfterApproval)
     }
   }
   return held
@@ -748,7 +748,8 @@ export function createToolIo(deps: ToolIoDeps): ToolIo {
       if (Buffer.byteLength(payload) > HOOK_STDIN_MAX_BYTES) {
         throw new RangeError('Hook http payload exceeds the input cap')
       }
-      return await postHookPayload(url, payload, signal)
+      const hooks = await import('../web/webFetchEntry.js')
+      return await hooks.postHookPayload(url, payload, signal)
     },
   }
 }

@@ -321,24 +321,25 @@ Every change is in the [CHANGELOG](CHANGELOG.md).
 ## Screenshots
 
 Rendered from the shipped panel by its own UI harness (`npm run
-harness:shots`) against a scripted session, so they match the build.
+readme:shots`, one harness scenario per image) against a scripted session,
+so they match the build.
 
 <table>
   <tr>
-    <td align="center" width="50%"><img src="media/readme/turn.png" alt="A turn: Thought for 1s, Read, an Edit row with its diff and Click to expand, a Write row, a PowerShell row with its input and output, the reply, and Working…"><br><sub>A turn: thinking, read, edit with its diff, write, shell, and the reply</sub></td>
+    <td align="center" width="50%"><img src="media/readme/turn.png" alt="A turn whose summary row, Read a file, edited 2 files, and ran a command, is open: Thought for 1s, Read, an Edit row with its diff and Click to expand, a Write row, a PowerShell row with its input and output; then the reply, Working…, and the diff tally 2 files changed +3 −1 with Review"><br><sub>A turn: thinking, read, edit with its diff, write and shell under one summary row, the reply, and the diff tally</sub></td>
     <td align="center" width="50%"><img src="media/readme/agents.png" alt="The Agent map over a transcript: the 2 agents pill, this conversation, two agents, one running and one with its result ready, with their duration and tokens"><br><sub>Subagents: the <b>2 agents</b> pill and the Agent map</sub></td>
   </tr>
   <tr>
     <td align="center"><img src="media/readme/palette.png" alt="A slash typed in the prompt and the palette above it: Context, Model and Customize groups with effort dots and a thinking toggle"><br><sub>Type <code>/</code>: the palette above the prompt</sub></td>
-    <td align="center"><img src="media/readme/slash-commands.png" alt="The prompt holding /co and the Slash commands list above it: /compact, /config, /cost, /clear, /export, /resume, /usage, each with its description"><br><sub>A letter more: the slash commands, ranked as you type</sub></td>
+    <td align="center"><img src="media/readme/slash-commands.png" alt="The prompt holding /co and the Slash commands list above it: /compact, /config, /cost, /changes, /clear, /export, /handoff, /resume, /review and more, each with its description"><br><sub>A letter more: the slash commands, ranked as you type</sub></td>
   </tr>
   <tr>
-    <td align="center"><img src="media/readme/approval.png" alt="An approval card docked above the message box: Muse wants to Set-Content, step 1 of 2, a feedback box, Allow once, Always allow in this workspace, Reject; its row in the conversation says it waits for your approval"><br><sub>An approval card, docked above the message box, with the CLI's own choices</sub></td>
+    <td align="center"><img src="media/readme/approval.png" alt="An approval card docked above the message box: Muse wants to Set-Content, step 1 of 2, a feedback box, and Allow once, Always allow in this workspace and Reject, one line each at one height; above it the diff tally, 2 files changed +3 −1 with Review; in the conversation the earlier steps fold into Read a file and edited 2 files, and the PowerShell row says it waits for your approval"><br><sub>An approval card, docked above the message box, with the CLI's own choices</sub></td>
     <td align="center"><img src="media/readme/question.png" alt="A question card with Colour and Toppings tabs, radio buttons, an Other answer, Submit greyed out, Explain instead and Cancel"><br><sub>A question card: tabs, radios or checkboxes, Other, Submit, Explain instead and Cancel</sub></td>
   </tr>
   <tr>
-    <td align="center"><img src="media/readme/quote.png" alt="A highlighted passage of a reply with the Copy / Ask about this / Comment on this menu"><br><sub>Highlight, right-click: <b>Copy</b>, <b>Ask about this</b> or <b>Comment on this</b></sub></td>
-    <td align="center"><img src="media/readme/rewind.png" alt="A sent message's rewind menu: Fork conversation from here, Rewind conversation to here, Rewind code to here, Fork conversation and rewind code, with the Side chat button in the header"><br><sub>Every sent message: fork, rewind the conversation or the code, or fork and rewind</sub></td>
+    <td align="center"><img src="media/readme/quote.png" alt="A reply right-clicked in its highlighted passage: three blue pills, Copy, Ask about this and Comment on this, fanned out from the pointer"><br><sub>Highlight, right-click: <b>Copy</b>, <b>Ask about this</b> or <b>Comment on this</b></sub></td>
+    <td align="center"><img src="media/readme/rewind.png" alt="A sent message's ⋯ menu as blue pills: Fork conversation from here, Fork conversation and rewind code, and Rewind, whose second burst offers Rewind conversation to here and Rewind code to here"><br><sub>Every sent message's ⋯: fork, fork and rewind the code, or <b>Rewind</b> for the conversation or the code</sub></td>
   </tr>
   <tr>
     <td align="center"><img src="media/readme/modes.png" alt="The Modes menu: Manual, Edit automatically, Plan, Auto, each with its one-line description, and the effort row"><br><sub>Permission modes, one line each, <code>Shift+Tab</code> to cycle</sub></td>
@@ -1278,6 +1279,32 @@ work out of the box.
   Muse Code's instructions are its own, so there the model asks for
   `repoMap` when it wants one.
 
+## Tasks
+
+The task list above the prompt can collapse to two lines: its title with
+"3 of 7 done", and the task in progress. Its chevron expands the list again;
+reloading starts expanded. **Open in a tab** on the list, or **Muse Spark:
+Open Tasks in a Tab**, opens a read-only editor tab for the conversation in
+view. It follows that conversation's task list and title live, rebuilds the
+list whenever its webview reloads, and says when the conversation closes.
+It has no prompt box, and nothing in it can send a message.
+
+When the editor provides it, **Move into new window** focuses the tasks tab
+and runs the editor's own window-move action. Its limits:
+
+- The floating window is a VS Code window: it follows the editor's theme
+  and closes with the editor; it is not an app of its own.
+- A webview that moves reloads, so the tab rebuilds its list from the
+  extension each time it loads.
+- The tab is not restored after a full window reload, since its
+  conversation may no longer exist.
+- The window-move action uses VS Code's built-in
+  `workbench.action.moveEditorToNewWindow` command. The host-API record
+  lists the APIs that probe and execute it, not command IDs; editors
+  without it get the plain tab, which
+  their tab context menu may still move.
+- Chat tabs opened with **Open in New Tab** move the same way.
+
 ## Session goals
 
 Give a conversation a goal and Muse keeps working toward it across turns, on
@@ -1773,6 +1800,17 @@ Meta's paid web search.
 - While a turn runs, `Enter` steers it and Stop cancels it; Stop also drops
   messages still queued, which read "Not sent". A picked text file on Muse
   Code queues a new turn so its file annotation survives History resume.
+- **Edit a queued message.** A message the model has not read yet reads
+  **Queued**. Its ⋯ menu (or a right-click on it, Shift+F10 or the Menu key)
+  offers **Edit**: the message leaves the queue and its text and images come
+  back to the prompt box, alone in an empty box or above your draft with a
+  blank line between, so no draft is lost. If it reached the model in the
+  meantime, the card stays and a notice says it can no longer be edited. On
+  the Model API a message steered into the running turn can be edited until
+  the next request reads it. On Muse Code a steered message joins the
+  running turn at once, so its menu says it was delivered; Edit is offered
+  for the messages Muse Code queued (a handoff, a message with a text file,
+  a refused steer).
 - The `+` button attaches images (PNG, JPEG, GIF, WebP), PDFs on the Model
   API backend, and UTF-8 text files up to 1 MiB from trusted, indexed workspace
   paths. Text files travel with their names as text on both backends. Files
@@ -1829,8 +1867,19 @@ Meta's paid web search.
 - The model pill reads `model effort` (effort tiers Minimal to Max, each
   verified per model); the mode button opens the Modes menu; the microphone
   dictates.
-- The context indicator is a button: click it to compact now; its tooltip
-  carries the pressure level Muse reports.
+- The **context meter** is a ring beside the mode button that fills
+  clockwise with the share of the context window used, the whole percent
+  inside it: rounded down, "<1" under one percent, "100" once the window is
+  full or exceeded. From 70 % the ring takes the warning colour and from
+  90 % the error colour; the number always carries the value. Its name and
+  tooltip give the tokens used and the window, the pressure word the
+  backend reports, and say when the window is exceeded. Click it to compact
+  now. A backend that has not reported a window shows no meter.
+- **Stop** turns red on hover and keyboard focus; in the high-contrast
+  themes its icon and border take the error colour instead.
+- Every row of the palette and the `/` list has a one-sentence tip, as its
+  tooltip and its accessible description. A skill's tip is its own
+  description, or "Run the _name_ skill." when it has none.
 
 **`/`: the palette and the slash commands.** A `/` on an empty prompt stays
 in the box and shows the palette above it; the `/` button opens the same
@@ -1860,12 +1909,39 @@ is completed so you can add what follows it), `Tab` completes the name and
 
 - Replies render as GitHub-flavoured markdown with highlighted code and
   **Copy**, **Insert at cursor** and **Apply** on every block; a finished
-  reply carries **Copy** on hover. A relative link in a reply
+  reply's ⋯ menu has **Copy response** (the ⋯ shows a check for a moment
+  after) and **Reply to this output**. A relative link in a reply
   (`src/parser.ts#L12`) opens that workspace file at those lines.
 - Tool rows show the diff or the command and its output from the start;
-  read rows open on click, and a chevron marks the rows that open. Previews
-  show 12 lines or 2,000 characters, with **Show more**. A backgrounded call
-  carries a "background" badge.
+  read rows open on click, and a chevron marks the rows that open. A shell
+  row's IN and OUT are one bordered block split by a rule, each part showing
+  five lines (and at most 2,000 characters) with its own **Show more**; your
+  own `!` commands look the same. Other outputs show 12 lines or 2,000
+  characters, with **Show more**. A backgrounded call carries a
+  "background" badge.
+- **Steps fold under what they did.** A run of two or more finished steps
+  (tool and reasoning rows with nothing between them) folds into one
+  summary row, such as "Edited 2 files, ran a command, and read 3 files",
+  which opens in place. Files count once however often they were touched.
+  A failure is named in the summary, with its red dot; a step waiting on
+  you never folds, and a running one stays below the summary until it
+  finishes. **Focus view** (`Ctrl+Alt+F`) folds every step that is not
+  waiting, under the same summary.
+- While Muse works, the status line shows a small looping circle-pattern
+  mark, the verb, and a heartbeat trace centred in the chat (hidden below
+  260 px). With reduced motion both stand still.
+- **Message times.** Hover a message or move the keyboard into it to see
+  when it was sent or received, at the card's corner: the time alone for
+  today, otherwise the date and time, in the display language; its tooltip
+  gives the full date and time. "Today" is judged when the card is shown,
+  so a card left open past midnight keeps its time and its tooltip names
+  the day. Tab reaches every card's time: through the card's ⋯, or, on a
+  card with no ⋯ (an imported message, a reply still streaming), through
+  the time itself. Muse Code's times are its own recorded ones (live and
+  in History). The Model API stores a time with each message and reply from
+  this release on, so a conversation saved before shows none; a time is
+  never guessed. A card you just sent shows the moment you sent it until
+  the backend's time arrives.
   During a turn, edit rows keep their visible diff or written content;
   their stored patch loads when you reopen the row or the turn ends.
   Turn end also retries an open row whose patch read failed.
@@ -1875,11 +1951,33 @@ is completed so you can add what follows it), `Tab` completes the name and
   opens VS Code's diff editor (the file side is editable).
 - Thinking rows stream their summary while the model thinks and end as
   "Thought for Ns" (a resumed conversation's read "Thought").
+- Each actionable message, reply, tool output or restore notice has one **More
+  actions** (⋯) button, revealed on hover or keyboard focus and always visible
+  on touch screens. Right-click its row, or press Shift+F10 / the Menu key,
+  to open the same radial menu: each action is one crisp blue pill, its icon
+  then its name, every pill the same size, in a fan beside the pointer or
+  the ⋯ and inside the panel. Arrow keys move, Home/End go to the first and last,
+  Enter or Space picks. A message's menu has **Fork conversation from here**
+  and a **Rewind** pill that opens a second burst of the rewind and restore
+  choices; Escape returns from that burst first, then closes the menu and
+  returns focus to ⋯. An edit row's menu has **Open output**, **Review** (the
+  diff editor) and **Revert**: it asks first, then puts back that one edit's
+  lines, leaving (and naming) a file whose lines changed since; it is not
+  offered while a turn runs. A reply has no Retry (a resent prompt would run
+  its tools a second time): **Rewind conversation to here** on the prompt's
+  card puts the prompt back to send again. With text selected in a row,
+  right-clicking that row opens the highlighted-text menu instead.
 - A reply's ⋯ menu has **Reply to this output**: the next message carries
   that output to the agent as context. Highlight any text in the chat and
   right-click it for **Copy**, **Ask about this** or **Comment on this**; the
   passage, its author and your intent travel with the message. The composer
   shows a chip for either; × drops it.
+  The highlighted-text menu fans into the same labelled pills, fitting panels
+  as narrow as 320 px. Every pill is the same size; a label longer than its
+  pill ends in an ellipsis, with the whole label in its tooltip. Arrow keys
+  move between actions, Home/End select the first/last, Enter/Space choose,
+  and Escape closes and returns focus. Reduced motion shows the pills in
+  place, without their scale-in; forced colors uses bordered pills.
 - Approval cards carry the CLI's own choices (Allow once, Always allow in
   this workspace or Allow for this session, Reject, with optional feedback);
   multi-step shell lines are approved one step at a time.
@@ -1909,13 +2007,21 @@ is completed so you can add what follows it), `Tab` completes the name and
 - The transcript follows new entries while you are at the end; scrolled up,
   it holds still and **New messages** jumps to the newest. The agent's task
   list pins above the composer, and the composer shows how much of the
-  context window is used. **Focus view** (`Ctrl+Alt+F`) folds tool and
-  reasoning rows behind `Show N steps`.
+  context window is used.
+- **The diff tally.** Once the conversation has edited a file, a row above
+  the goal, schedule and task panes reads, for example, "8 files changed
+  +313 −96": the edit rows' own line counts added up, each file counted
+  once. It is a sum of this conversation's edits, not `git diff`: changes
+  made by shell commands or by you are not counted, as its tooltip says.
+  The added and removed numbers use the editor's git-decoration colours.
+  Its **Review** button opens the review pane on the same edits, as
+  **Review this conversation’s changes** (`/changes`) does.
 
 **Edits and rewind.** Muse applies in-workspace edits as it goes, so review
 comes after: the edit row shows the diff, its path opens the file at the
-change, and **Click to expand** opens the diff editor. To undo, use the
-rewind button on any sent message (on hover):
+change, and **Click to expand** opens the diff editor. One edit can be
+undone from its row's ⋯ menu (**Revert**). To undo more, use the ⋯ menu on
+any sent message (or right-click it):
 
 - **Fork conversation from here**.
 - **Restore files to here** (a message whose turn has a checkpoint) puts the
@@ -3202,6 +3308,10 @@ test variant (`muse-spark-code-acp-test-<version>.tgz`, whose bin is
 `dist/exec-test-launcher.js`). The test variant is never released.
 `.github/workflows/action-check.yml` runs the Action against it with a
 scripted fake Meta API: no key and no spend.
+`.github/workflows/action-live.yml` is the one live check (receipt LA): the
+repository owner starts it by hand to run the real Action, on the product
+package from the same commit, against one pull request, with the real key,
+the contributor model and a hard $0.25 budget.
 
 See the [ACP guide](docs/acp.md), the [CI guide](docs/ci.md) and the
 [M80 record](docs/certification/m80.md) for tests, deliberate breaks, platform
@@ -3262,8 +3372,10 @@ activation and an ordinary Model API turn load neither implementation.
 Both receive the current display language. These bundles each have a 75 KiB
 cap; the activation and Model API caps stay 600/400 KiB. Code intelligence's
 answers for Muse Code's `ide` tools load on the first call from
-`dist/codeIntel.js` (100 KiB cap), and both voice engines' drivers on the
-first recording from `dist/voice.js` (50 KiB cap); the tool list and the
+`dist/codeIntel.js` (100 KiB cap), both voice engines' drivers on the
+first recording from `dist/voice.js` (50 KiB cap), and the window's web
+fetch (each hop's checks and pins, the transport, the decoders) on the
+first fetch from `dist/webFetch.js` (75 KiB cap); the tool lists and the
 microphone's availability stay at activation. The Auto reviewer on Muse
 Code (its side session, what follows a review, and the Model API reviewer's
 core it reuses) loads on the first review from `dist/museCodeReviewer.js`
@@ -3275,7 +3387,7 @@ are recorded in [the M78 certification](docs/certification/m78.md).
 | ----------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | `npm run build:dev`                       | Dev bundles for the extension, the Model API backend, the review, the search worker, web fetch's page converter worker, the webview and the integration tests, with source maps                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
 | `npm run watch`                           | Rebuild the extension, the Model API backend, the search worker, the page converter worker and the webview on change                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
-| `npm run harness:shots`                   | Screenshots of the webview in headless Chrome behind a fake host (`test/harness/`), every scenario or the names you pass; needs `build:dev`. The README's screenshots are these renders, copied from `harness-shots/` into `media/readme/`: `tools` (as `turn.png`), `agents`, `slash-palette` (as `palette.png`), `slash-commands`, `approval`, `question`, `quote-menu` (as `quote.png`), `rewind`, `modes`, `history`, `usage`, `dictation` (as `voice.png`), `paid` and `paid-always`, and the Languages section's is `usage --lang=de` (as `languages.png`); the walkthrough's are `empty`, `tools`, `slash-palette` and `signin` (as `open.png`, `welcome.png`, `chat.png` and `sign-in.png` in `resources/walkthrough/`); `--lang=<id>` renders them in a table from `l10n/` (`--lang=pseudo` in the pseudo-locale)                                                                                                                                                                                                                                                                                                                                                                                                     |
+| `npm run harness:shots`                   | Screenshots of the webview in headless Chrome behind a fake host (`test/harness/`), every scenario or the names you pass; needs `build:dev`. `--theme=dark`, `light`, `hc-dark` or `hc-light` uses a captured theme; `chat-menu-narrow` uses a true 320 px viewport. The README's screenshots refresh with `npm run readme:shots` (the mapping in `scripts/readme-shots.json`), rendered the same way into `media/readme/`: `tools-open` (as `turn.png`), `agents`, `slash-palette` (as `palette.png`), `slash-commands`, `approval`, `question`, `quote-menu` (as `quote.png`), `rewind`, `modes`, `history`, `usage`, `dictation` (as `voice.png`), `paid` and `paid-always`, and the Languages section's is `usage --lang=de` (as `languages.png`); the walkthrough's are `empty`, `tools`, `slash-palette` and `signin` (as `open.png`, `welcome.png`, `chat.png` and `sign-in.png` in `resources/walkthrough/`); `--lang=<id>` renders them in a table from `l10n/` (`--lang=pseudo` in the pseudo-locale)                                                                                                                                                                                                                |
 | `npm run harness:pseudo`                  | Write the pseudo-locale (`test/harness/l10n/ui.pseudo.json`): every string accented, bracketed and lengthened by about a third, with its slots kept, so English left outside the table and text that overflows stand out in `harness:shots --lang=pseudo`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
 | `npm run test:a11y`                       | The accessibility gate: axe-core checks every harness scenario in VS Code's four default themes against WCAG 2.2 AA and fails on any violation, on anything axe leaves undecided, and on a page without a result or whose scenario threw; needs a build. `node scripts/capture-themes.mjs` refreshes the theme colours from a real VS Code; `--lang=<id>` checks the scenarios in a table from `l10n/`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
 | `npm run images`                          | Render the Marketplace icon, the README banner and the social preview from their SVGs (headless Chrome)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
@@ -3326,7 +3438,7 @@ was seen to fail on a deliberate break before being trusted; the records are
 in [`docs/certification/`](docs/certification/), one file per milestone.
 Accessibility is a gate too: every screen the harness shows passes axe-core's
 WCAG 2.2 AA rules in Light Modern, Dark Modern and both High Contrast themes
-(PLAN.md D32); CI runs it on Linux and Windows. So is localization
+(PLAN.md D32); CI's full tier runs it once, on Linux. So is localization
 (PLAN.md D33): text the user reads goes in the English table
 `src/shared/l10n/en.ts`, read as `UI_TEXT.key` when the code runs. A
 sentence around a value is a `{slot}` template filled with `fill`, and a
@@ -3379,22 +3491,45 @@ media/                      icons, banner, social preview, README screenshots
 .github/                    workflows (ci, build, release), issue and pull-request templates, audit exceptions, pinned semgrep, CODEOWNERS, Dependabot, FUNDING
 ```
 
-**Releases.** CI (`ci.yml`, every pull request and optional manual branch
-dispatch) calls
-`build.yml`:
+**Releases.** CI (`ci.yml`: pull requests, merge-queue groups and optional
+manual branch dispatches) calls `build.yml`. Once the merge queue is on, a
+pull request runs its fast tier: the static gates of `quality:gates`, the
+production build and every unit/e2e test on Ubuntu, with gitleaks and
+semgrep. Everything else (the merge queue, manual runs, the release build,
+and every pull request until the queue is on) runs the full tier:
 
-- `quality:gates` on Ubuntu, Windows and macOS;
-- the accessibility gate and the integration tests (VS Code stable and the
-  `engines.vscode` floor) on Ubuntu and Windows;
-- gitleaks over the full history and semgrep, as jobs of their own;
-- a `native-darwin` job that compiles the macOS helper and checks its
-  disclaim;
-- a `package` job (Ubuntu) that packs the `.vsix` with both helpers as the
+- the static gates of `quality:gates` on Ubuntu, Windows and macOS;
+- the unit/e2e tests in four shards per platform, merged before the coverage
+  thresholds apply;
+- the accessibility gate once on Ubuntu, and the integration tests (VS Code
+  stable and the `engines.vscode` floor) on Ubuntu and Windows;
+- gitleaks and semgrep, as jobs of their own;
+- a job that compiles the macOS helper and checks its disclaim;
+- a packaging job (Ubuntu) that packs the `.vsix` with both helpers as the
   `muse-spark-code-vsix` artifact, checks its compressed size budget, and
   packages the ACP agent with every locale table and both CycloneDX inventories.
 
+The seven required checks keep their names on both tiers (CONTRIBUTING.md,
+"CI tiers and required checks").
+
 A tag `v1.2.3` runs `release.yml`. It checks that the tag matches the
-manifest and is on `main`, runs the same build, creates a GitHub Release with
+manifest and is on `main`, reuses successful own-repository CI artifacts only
+when their recorded checkout tree equals the tag tree and all package versions
+and SHA-256 hashes match, or runs the same full build on any miss. CI retains
+the packages, inventories and source-tree receipt for 30 days;
+`scripts/release-reuse.mjs` records, finds and verifies these release inputs.
+The owner can force a rebuild with Actions variable `RELEASE_FORCE_REBUILD=true`.
+Successful pull-request, merge-queue (`merge_group`) and main-push CI runs qualify
+by their recorded checkout tree. Manual recovery on a version tag keeps
+`artifacts_run_id`: the earlier Release build is validated, and its original
+bytes pass through the same verification/staging job. Invalid recovery stops;
+cancelled runs cannot publish. Older builds without a receipt retain inventory,
+manifest and download-integrity checks; see the recovery guide for that limit.
+An M80 `v0` tag update blocked by the release-tags ruleset is reported separately
+as **admin move required**, preserving the release channels' outcomes. The
+[release guide](docs/RELEASING.md#signing-and-the-prepared-m80-hooks) documents
+the administrator's fast-forward recovery; the ruleset stays in place.
+The workflow creates a GitHub Release with
 that `.vsix`, the ACP tarball, both inventories and `SHA256SUMS`, with the
 CHANGELOG section as its notes and package provenance attestations. The same
 VSIX goes to the Marketplace (publisher `RandyNorthrup`) and Open VSX; the same

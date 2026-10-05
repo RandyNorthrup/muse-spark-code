@@ -42,8 +42,13 @@ them, the milestone plan, and the certification checklist.
      technical.
    - **Text the model or Meta reads** is `MODEL_TEXT` in constants.ts and
      stays English. A feature that only a lazily loaded bundle reads has a
-     block of its own beside it (`REVIEW_MODEL_TEXT`), so the activation
-     bundle does not carry it.
+     block of its own beside it (`REVIEW_MODEL_TEXT`, `MODEL_API_MODEL_TEXT`,
+     `CODE_INTEL_MODEL_TEXT`, `WEB_FETCH_MODEL_TEXT`…), so the activation
+     bundle does not carry it: one object is carried whole, and
+     `npm run build` fails a `MODEL_TEXT` key that no file of
+     `dist/extension.js` reads, a block in any shipped bundle but its
+     declared readers, and a new block the split check does not guard
+     (PLAN.md D6, 2026-10-03 and 2026-10-04).
    - **Node bundles share English fallback** (`dist/uiText.js`, PLAN.md D6).
      Each bundle keeps its own installed-language state; lazy factories install
      the caller's table before use. Browser and integration-test bundles keep
@@ -151,6 +156,8 @@ src/host/**           VS Code adapters (views, conversation, backend managers,
                       code intelligence's `ide` answers (dist/codeIntel.js,
                       loaded on the first call) and voice's drivers
                       (dist/voice.js, loaded on the first recording),
+                      the window's web fetch (dist/webFetch.js, loaded on
+                      the first fetch),
                       the Auto reviewer on Muse Code (dist/museCodeReviewer.js,
                       loaded on the first review),
                       the search worker and web fetch's page converter worker
@@ -189,7 +196,18 @@ src/shared/l10n/**    the English table (en.ts), fill/plural/Intl helpers, the
 l10n/                 translated tables (ui.<language>.json) and the names the
                       localization gate lets stay English
 package.nls.json      the manifest's text (commands, settings, walkthrough)
-src/webview/**        React 19 app (browser project, own tsconfig)
+src/webview/**        React 19 app (browser project, own tsconfig);
+                      TasksApp is the tasks tab's read-only document (M87),
+                      mounted by main.tsx for `data-surface="tasks"` and
+                      speaking only shared/tasksProtocol; the tab itself is
+                      host/views/tasksPanel (a WebviewPanel behind the
+                      controller's TasksTabPort, no serializer, no composer);
+                      stepSummary.ts names a folded run of steps;
+                      components/GooeyMenu.tsx is the one radial menu (and
+                      useRowMenu, each row's ⋯ opener) over gooeyLayout.ts's
+                      pure geometry for its fanned column of labelled
+                      pills; diffTally.ts and
+                      components/DiffTally.tsx add up the conversation's edits
 native/windows/**     dictate.ps1, the Windows dictation helper; capture.ps1,
                       Muse Voice's recorder; the job helpers' C#
                       (MuseSparkJob.cs, MuseSparkMcpLauncher.cs and the

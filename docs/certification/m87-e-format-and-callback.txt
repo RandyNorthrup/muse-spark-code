@@ -1,0 +1,209 @@
+** WARNING: connection is not using a post-quantum key exchange algorithm.
+** This session may be vulnerable to "store now, decrypt later" attacks.
+** The server may need to be upgraded. See https://openssh.com/pq.html
+rig=win11 slot=m87e2 snapshot=6e14403c
+rig: Windows WIN-11-VM; slot m87e2; snapshot 6e14403c7ad4b21bca421ad57309076fd711348b
+base=C:\Users\randy\gates\base-cea22aae4ddb7fb0 lock=cea22aae4ddb7fb0d0bcf2e9d197656e859d307e622c3cbea187725d09a53101
+base reused
+[33m(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - ESM syntax in a file loaded as CommonJS (vitest.config.ts:1:1). Use a `.mjs` extension or set `"type": "module"` in the closest package.json
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.[39m
+
+[1m[30m[46m RUN [49m[39m[22m [36mv5.0.1 [39m[90mC:/Users/Randy/gates/rt-m87e2[39m
+
+ [31m❯[39m test/unit/DiffTally.test.tsx [2m([22m[2m5 tests[22m[2m | [22m[31m4 failed[39m[2m)[22m[32m 224[2mms[22m[39m
+   [31m❯[39m DiffTally [2m(5)[22m
+     [32m✓[39m renders nothing for a conversation without edits, even with Review available[32m 36[2mms[22m[39m
+[31m     [31m×[31m shows singular files, formatted line totals, and the scope tooltip from real edits[39m[32m 32[2mms[22m[39m
+[31m     [31m×[31m uses the plural file form and keeps a zero-line edit visible[39m[32m 6[2mms[22m[39m
+[31m     [31m×[31m offers Review only with its callback and invokes it once[39m[32m 136[2mms[22m[39m
+[31m     [31m×[31m reads installed text at render time and preserves translated order and number grouping[39m[32m 12[2mms[22m[39m
+ [32m✓[39m test/unit/diffTally.test.ts [2m([22m[2m12 tests[22m[2m)[22m[32m 10[2mms[22m[39m
+
+[31m⎯⎯⎯⎯⎯⎯⎯[39m[1m[41m Failed Tests 4 [49m[22m[31m⎯⎯⎯⎯⎯⎯⎯[39m
+
+[41m[1m FAIL [22m[49m test/unit/DiffTally.test.tsx[2m > [22mDiffTally[2m > [22mshows singular files, formatted line totals, and the scope tooltip from real edits
+[31m[1mTestingLibraryElementError[22m: Unable to find an element with the text: 1,234. This could be because the text is broken up by multiple elements. In this case, you can provide a function for your text matcher to make your matcher more flexible.
+
+Ignored nodes: comments, script, style
+[36m<body>[31m
+  [36m<div>[31m
+    [36m<div[31m
+      [33maria-description[31m=[32m"Lines added and removed by this conversation's edits, added up edit by edit. Changes made by shell commands or by you are not counted."[31m
+      [33maria-label[31m=[32m"Changes in this conversation"[31m
+      [33mclass[31m=[32m"diff-tally"[31m
+      [33mrole[31m=[32m"group"[31m
+      [33mtitle[31m=[32m"Lines added and removed by this conversation's edits, added up edit by edit. Changes made by shell commands or by you are not counted."[31m
+    [36m>[31m
+      [36m<span[31m
+        [33mclass[31m=[32m"diff-tally-files"[31m
+      [36m>[31m
+        [0m1 file changed[0m
+      [36m</span>[31m
+      [36m<span[31m
+        [33mclass[31m=[32m"diff-tally-lines"[31m
+      [36m>[31m
+        [0m+[0m
+        [36m<span[31m
+          [33mclass[31m=[32m"diff-tally-added"[31m
+        [36m>[31m
+          [0m1234[0m
+        [36m</span>[31m
+        [0m −[0m
+        [36m<span[31m
+          [33mclass[31m=[32m"diff-tally-removed"[31m
+        [36m>[31m
+          [0m5678[0m
+        [36m</span>[31m
+      [36m</span>[31m
+    [36m</div>[31m
+  [36m</div>[31m
+[36m</body>[31m[39m
+[90m [2m❯[22m Object.getElementError node_modules/@testing-library/dom/dist/config.js:[2m37:19[22m[39m
+[90m [2m❯[22m node_modules/@testing-library/dom/dist/query-helpers.js:[2m76:38[22m[39m
+[90m [2m❯[22m node_modules/@testing-library/dom/dist/query-helpers.js:[2m52:17[22m[39m
+[90m [2m❯[22m node_modules/@testing-library/dom/dist/query-helpers.js:[2m95:19[22m[39m
+[36m [2m❯[22m test/unit/DiffTally.test.tsx:[2m35:26[22m[39m
+    [90m 33|[39m     render(<DiffTally counts={diffTally([edit])} />)
+    [90m 34|[39m     expect(screen.getByText('1 file changed')).toBeInTheDocument()
+    [90m 35|[39m     const added = screen.getByText('1,234')
+    [90m   |[39m                          [31m^[39m
+    [90m 36|[39m     expect(added).toHaveClass('diff-tally-added')
+    [90m 37|[39m     expect(screen.getByText('5,678')).toHaveClass('diff-tally-removed')
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/4]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m test/unit/DiffTally.test.tsx[2m > [22mDiffTally[2m > [22muses the plural file form and keeps a zero-line edit visible
+[31m[1mTestingLibraryElementError[22m: Unable to find an element with the text: 2 files changed. This could be because the text is broken up by multiple elements. In this case, you can provide a function for your text matcher to make your matcher more flexible.
+
+Ignored nodes: comments, script, style
+[36m<body>[31m
+  [36m<div>[31m
+    [36m<div[31m
+      [33maria-description[31m=[32m"Lines added and removed by this conversation's edits, added up edit by edit. Changes made by shell commands or by you are not counted."[31m
+      [33maria-label[31m=[32m"Changes in this conversation"[31m
+      [33mclass[31m=[32m"diff-tally"[31m
+      [33mrole[31m=[32m"group"[31m
+      [33mtitle[31m=[32m"Lines added and removed by this conversation's edits, added up edit by edit. Changes made by shell commands or by you are not counted."[31m
+    [36m>[31m
+      [36m<span[31m
+        [33mclass[31m=[32m"diff-tally-files"[31m
+      [36m>[31m
+        [0m1 file changed[0m
+      [36m</span>[31m
+      [36m<span[31m
+        [33mclass[31m=[32m"diff-tally-lines"[31m
+      [36m>[31m
+        [0m+[0m
+        [36m<span[31m
+          [33mclass[31m=[32m"diff-tally-added"[31m
+        [36m>[31m
+          [0m0[0m
+        [36m</span>[31m
+        [0m −[0m
+        [36m<span[31m
+          [33mclass[31m=[32m"diff-tally-removed"[31m
+        [36m>[31m
+          [0m0[0m
+        [36m</span>[31m
+      [36m</span>[31m
+    [36m</div>[31m
+  [36m</div>[31m
+[36m</body>[31m[39m
+[90m [2m❯[22m Object.getElementError node_modules/@testing-library/dom/dist/config.js:[2m37:19[22m[39m
+[90m [2m❯[22m node_modules/@testing-library/dom/dist/query-helpers.js:[2m76:38[22m[39m
+[90m [2m❯[22m node_modules/@testing-library/dom/dist/query-helpers.js:[2m52:17[22m[39m
+[90m [2m❯[22m node_modules/@testing-library/dom/dist/query-helpers.js:[2m95:19[22m[39m
+[36m [2m❯[22m test/unit/DiffTally.test.tsx:[2m47:19[22m[39m
+    [90m 45|[39m   it('uses the plural file form and keeps a zero-line edit visible', (…
+    [90m 46|[39m     render(<DiffTally counts={{ files: 2, added: 0, removed: 0 }} />)
+    [90m 47|[39m     expect(screen.getByText('2 files changed')).toBeInTheDocument()
+    [90m   |[39m                   [31m^[39m
+    [90m 48|[39m     expect(screen.getByText('+', { exact: false })).toHaveTextContent(…
+    [90m 49|[39m   })
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/4]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m test/unit/DiffTally.test.tsx[2m > [22mDiffTally[2m > [22moffers Review only with its callback and invokes it once
+[31m[1mAssertionError[22m: expected "vi.fn()" to be called once with arguments: [][90m
+
+Number of calls: [1m0[22m
+[31m[39m
+[36m [2m❯[22m test/unit/DiffTally.test.tsx:[2m61:22[22m[39m
+    [90m 59|[39m     expect(review).toHaveFocus()
+    [90m 60|[39m     fireEvent.click(review)
+    [90m 61|[39m     expect(onReview).toHaveBeenCalledExactlyOnceWith()
+    [90m   |[39m                      [31m^[39m
+    [90m 62|[39m     rerender(<DiffTally counts={counts} />)
+    [90m 63|[39m     expect(screen.queryByRole('button', { name: 'Review' })).not.toBeI…
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/4]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m test/unit/DiffTally.test.tsx[2m > [22mDiffTally[2m > [22mreads installed text at render time and preserves translated order and number grouping
+[31m[1mTestingLibraryElementError[22m: Unable to find an element with the text: 1.234 Dateien geändert. This could be because the text is broken up by multiple elements. In this case, you can provide a function for your text matcher to make your matcher more flexible.
+
+Ignored nodes: comments, script, style
+[36m<body>[31m
+  [36m<div>[31m
+    [36m<div[31m
+      [33maria-description[31m=[32m"Lines added and removed by this conversation's edits, added up edit by edit. Changes made by shell commands or by you are not counted."[31m
+      [33maria-label[31m=[32m"Änderungen in diesem Gespräch"[31m
+      [33mclass[31m=[32m"diff-tally"[31m
+      [33mrole[31m=[32m"group"[31m
+      [33mtitle[31m=[32m"Lines added and removed by this conversation's edits, added up edit by edit. Changes made by shell commands or by you are not counted."[31m
+    [36m>[31m
+      [36m<span[31m
+        [33mclass[31m=[32m"diff-tally-files"[31m
+      [36m>[31m
+        [0m1 Datei geändert[0m
+      [36m</span>[31m
+      [36m<span[31m
+        [33mclass[31m=[32m"diff-tally-lines"[31m
+      [36m>[31m
+        [0m−[0m
+        [36m<span[31m
+          [33mclass[31m=[32m"diff-tally-removed"[31m
+        [36m>[31m
+          [0m3456[0m
+        [36m</span>[31m
+        [0m / +[0m
+        [36m<span[31m
+          [33mclass[31m=[32m"diff-tally-added"[31m
+        [36m>[31m
+          [0m2345[0m
+        [36m</span>[31m
+      [36m</span>[31m
+      [36m<button[31m
+        [33mclass[31m=[32m"button-secondary diff-tally-review"[31m
+        [33mtitle[31m=[32m"Open the review pane on these changes"[31m
+        [33mtype[31m=[32m"button"[31m
+      [36m>[31m
+        [0mPrüfen[0m
+      [36m</button>[31m
+    [36m</div>[31m
+  [36m</div>[31m
+[36m</body>[31m[39m
+[90m [2m❯[22m Object.getElementError node_modules/@testing-library/dom/dist/config.js:[2m37:19[22m[39m
+[90m [2m❯[22m node_modules/@testing-library/dom/dist/query-helpers.js:[2m76:38[22m[39m
+[90m [2m❯[22m node_modules/@testing-library/dom/dist/query-helpers.js:[2m52:17[22m[39m
+[90m [2m❯[22m node_modules/@testing-library/dom/dist/query-helpers.js:[2m95:19[22m[39m
+[36m [2m❯[22m test/unit/DiffTally.test.tsx:[2m80:19[22m[39m
+    [90m 78|[39m     )
+    [90m 79|[39m     rerender(<DiffTally counts={counts} onReview={vi.fn()} />)
+    [90m 80|[39m     expect(screen.getByText('1.234 Dateien geändert')).toBeInTheDocume…
+    [90m   |[39m                   [31m^[39m
+    [90m 81|[39m     expect(screen.getByText('2.345').parentElement).toHaveTextContent(…
+    [90m 82|[39m     expect(screen.getByRole('group', { name: 'Änderungen in diesem Ges…
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/4]⎯[22m[39m
+
+
+[2m Test Files [22m [1m[31m1 failed[39m[22m[2m | [22m[1m[32m1 passed[39m[22m[90m (2)[39m
+[2m      Tests [22m [1m[31m4 failed[39m[22m[2m | [22m[1m[32m13 passed[39m[22m[90m (17)[39m
+[2m   Start at [22m 19:45:27
+[2m   Duration [22m 3.12s[2m (environment 41%, import 18%, transform 17%, setup 15%, tests 9%)[22m
+
+[2m    Isolate [22m [33m2 workers spawned[39m[2m · ~731ms startup each (spawn + environment, per file)[22m
+[2m            [22m [2mat least ~731ms faster with [22m[33misolate: false[39m[2m — reuses workers across files instead of one per file[22m
+
+exit=1

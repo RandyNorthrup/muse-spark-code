@@ -20,62 +20,65 @@ import {
   AUTO_REVIEW_ROW_TOOL,
   AUTO_REVIEWER_RECENT_CALLS,
   BACKGROUND_INITIATOR_USER,
+  BASE64_DATA_URL_OVERHEAD_CHARS,
   CHECK_FIX_MAX_ROUNDS,
   type CheckCommandSetting,
   type CheckSkip,
   CLARIFICATION_MAX_CHARS,
-  BASE64_DATA_URL_OVERHEAD_CHARS,
+  CODE_INTEL_MODEL_TEXT,
+  CODE_INTEL_TOOLS,
+  type CodeIntelTool,
   CONTEXT_PRESSURE_HIGH,
   CONTEXT_PRESSURE_MEDIUM,
   CONTRIBUTOR_MODEL_SUFFIX,
   DEFAULT_EFFORT,
   DEFAULT_MODEL_ID,
+  FILE_REFUSAL_MODEL_TEXT,
   GOAL_OBJECTIVE_MAX_CHARS,
   GOAL_STATUS,
   type GoalCommandVerb,
-  type SubagentAction,
-  HTTP_STATUS,
-  HTTP_TOO_MANY_REQUESTS,
-  HTTP_UNAUTHORIZED,
   HOOK_MAX_STOP_CONTINUATIONS,
   HOOK_MODEL_READ_TOOLS,
   HOOK_NOTIFICATION_DELAY_MS,
   HOOK_SESSION_END_TIMEOUT_MS,
+  HTTP_STATUS,
+  HTTP_TOO_MANY_REQUESTS,
+  HTTP_UNAUTHORIZED,
   IDE_MCP_SERVER_NAME,
-  MODEL_API_CLOSE_SETTLE_MS,
-  MODEL_API_CONTEXT_WINDOW,
-  MODEL_API_EFFORT_OFF,
   ISO_DATE_LENGTH,
-  MODEL_API_MAX_OUTPUT_TOKENS,
-  CODE_INTEL_TOOLS,
-  type CodeIntelTool,
-  MODEL_API_MAX_RETRIES,
-  MODEL_API_MAX_TOOL_ROUNDS,
   MAX_ENCODED_MEDIA_CHARS,
   MAX_MODEL_API_TEXT_ATTACHMENT_BYTES,
   MEMORY_INDEX_FILE,
-  MODEL_API_MEDIA_PER_REQUEST,
-  MODEL_API_PDF_PAGE_IMAGES,
+  type MemoryScope,
+  MODEL_API_CLOSE_SETTLE_MS,
+  MODEL_API_CONTEXT_WINDOW,
+  MODEL_API_EFFORT_OFF,
   MODEL_API_HOOK_PROVIDER,
-  MODEL_API_RETRYABLE_STREAM_CODES,
+  MODEL_API_MAX_OUTPUT_TOKENS,
+  MODEL_API_MAX_RETRIES,
+  MODEL_API_MAX_TOOL_ROUNDS,
+  MODEL_API_MEDIA_PER_REQUEST,
   MODEL_API_MODEL_PREFIX,
+  MODEL_API_MODEL_TEXT,
   MODEL_API_OUTPUT_ENCODING,
   MODEL_API_OUTPUT_MEDIA_TYPE,
-  MODEL_API_SERVER_NAME,
+  MODEL_API_PDF_PAGE_IMAGES,
+  MODEL_API_RETRYABLE_STREAM_CODES,
   MODEL_API_SCHEDULED_TOOL,
+  MODEL_API_SERVER_NAME,
   MODEL_API_SUBAGENT_TOOLS,
   MODEL_API_TOOLS,
-  WEB_FETCH_SUBJECT_KIND,
   MODEL_API_VERSION,
   MODEL_API_WEB_SEARCH_TOOL,
-  MODEL_API_MODEL_TEXT,
   MODEL_TEXT,
-  REPO_MAP_PROMPT_TRIES,
-  type MemoryScope,
   OUTPUT_REF_PREFIX,
   PAID_FEATURES,
   PAID_PRICES_USD,
+  type PaidFeature,
   PROJECT_SKILLS_DIR_SEGMENTS,
+  type PromptCacheRetention,
+  QUESTION_OUTCOME_CLARIFIED,
+  REPO_MAP_PROMPT_TRIES,
   SCHEDULE_LIFETIME_MS,
   SCHEDULE_MAX_INTERVAL_MS,
   SCHEDULE_MAX_JOBS_PER_SESSION,
@@ -85,19 +88,17 @@ import {
   SEARCHES_PER_PRICE_UNIT,
   SHELL_DEFAULT_TIMEOUT_MS,
   SKILL_FILE_NAME,
-  type PaidFeature,
-  QUESTION_OUTCOME_CLARIFIED,
-  type PromptCacheRetention,
   STORED_SESSION_VERSION,
   SUBAGENT_CAPACITY,
   SUBAGENT_DEPTH,
   SUBAGENT_ID_PREFIX,
   SUBAGENT_MAX_PER_CONVERSATION,
   SUBAGENT_RESULT_READY,
-  SUBAGENT_WAIT_DEFAULT_MS,
-  SUBAGENT_SUMMARY_MAX_CHARS,
   SUBAGENT_RESULT_TEXT_MAX_CHARS,
+  SUBAGENT_SUMMARY_MAX_CHARS,
   SUBAGENT_TASK_MAX_REQUESTS,
+  SUBAGENT_WAIT_DEFAULT_MS,
+  type SubagentAction,
   THINKING_OFF_EFFORT,
   TOOL_OUTPUT_CLIP_MARKER,
   TOOL_OUTPUT_MAX_CHARS,
@@ -109,6 +110,7 @@ import {
   VERIFY_NOTE_MAX_CHARS,
   VERIFY_SHOWN_FILES_MAX,
   VERIFY_TOOLS,
+  WEB_FETCH_SUBJECT_KIND,
 } from '../../../shared/constants'
 import { fill, formatNumber, plural } from '../../../shared/l10n/text'
 import { APPROVAL_MODES, type ApprovalMode } from '../../../shared/permissionModes'
@@ -145,6 +147,7 @@ import {
   type ModelSummary,
   type OutputPage,
   type OutputPageRequest,
+  type QueuedMessageRef,
   type SentImage,
   type SessionEventListener,
   type SessionHistoryOutcome,
@@ -157,6 +160,7 @@ import {
   SteerRefusedError,
   type TurnPart,
   type TurnSubmission,
+  type WithdrawOutcome,
 } from '../../agent/agentBackend'
 import type { ContextIo } from '../../context/contextFiles'
 import {
@@ -187,7 +191,8 @@ import { fingerprint } from '../../verify/fingerprint'
 import type { McpTool } from '../../mcp'
 import type { WebFetcher, WebFetchResult } from '../../web/webFetch'
 import type { WebFetchFailure } from '../../web/fetchFailure'
-import { approvalHost, checkPageUrl } from '../../web/pageUrl'
+import { approvalHost } from '../../web/hostName'
+import { checkPageUrl } from '../../web/pageUrl'
 import { IndexLineStoppedError, type MemoryStore } from '../../memory/memoryStore'
 import { type CodeIntelDeps, CodeIntelRefusal } from '../../codeIntel/codeIntelQuery'
 import { codeIntelToolOf } from '../../codeIntel/definitions'
@@ -567,6 +572,18 @@ function turnMediaSlots(part: ImagePart | DocumentPart): number {
     : Math.min(part.pageCount ?? MODEL_API_PDF_PAGE_IMAGES, MODEL_API_PDF_PAGE_IMAGES)
 }
 
+// A message steered into the running turn (M87): the one kind taken back without an event.
+const STEERED_DISPOSITION = 'steered'
+
+function isImagePart(part: TurnPart): part is ImagePart {
+  return part.type === 'image'
+}
+
+/** A withdrawn message's picture, as the composer takes it back (M87, as M53's rewind). */
+function sentImageOf(part: ImagePart): SentImage {
+  return { mediaType: part.mediaType, base64Data: part.base64Data }
+}
+
 interface PendingNote {
   readonly text: string
   readonly backgroundTaskId?: string
@@ -892,6 +909,8 @@ interface OpenItem {
   isCompleted: boolean
   /** The sources the completed reply cited, as the transcript has them (M33). */
   citations: readonly Citation[]
+  /** When the item completed (M87, PLAN.md D66): a reply's recorded time, kept with it. */
+  recordedAt?: string
 }
 
 /** What a search row shows: the query (or page) as its arguments, the results as its output. */
@@ -1257,7 +1276,7 @@ function childTaskMessages(kind: ChildTaskRefusal): {
     }
     case 'contributorBlocked': {
       return {
-        model: MODEL_TEXT.subagentContributorBlocked,
+        model: MODEL_API_MODEL_TEXT.subagentContributorBlocked,
         visible: UI_TEXT.subagentContributorBlocked,
       }
     }
@@ -1289,18 +1308,20 @@ function cardNote(judgement: PermissionJudgement | undefined): string | undefine
 /** A shell command a forbid rule refused (M78): the model hears the rule's reason, if it has one. */
 function refusedByRule(call: FunctionCallItem, judgement: PermissionJudgement): ToolOutcome {
   const why = judgement.rule?.justification?.trim() ?? ''
-  return toolFailure(`${call.name} ${MODEL_TEXT.toolRefusedByRule}${why === '' ? '' : `: ${why}`}`)
+  return toolFailure(
+    `${call.name} ${MODEL_API_MODEL_TEXT.toolRefusedByRule}${why === '' ? '' : `: ${why}`}`,
+  )
 }
 
 /** A path the permission settings deny the file tools (M78). */
 function deniedPath(display: string): ToolOutcome {
-  return toolFailure(`${display} ${MODEL_TEXT.pathDeniedByPolicy}`)
+  return toolFailure(`${display} ${MODEL_API_MODEL_TEXT.pathDeniedByPolicy}`)
 }
 
 /** A call the permission settings stopped allowing at its I/O (M78): the model's reason, the row's in the user's language. */
 function policyChangedRefusal(toolName: string): ToolOutcome {
   return {
-    output: `Error: ${toolName} ${MODEL_TEXT.toolRefusedByPolicyChange}`,
+    output: `Error: ${toolName} ${MODEL_API_MODEL_TEXT.toolRefusedByPolicyChange}`,
     visibleOutput: UI_TEXT.policyChangedRefused,
     failureReason: UI_TEXT.policyChangedRefused,
   }
@@ -1314,7 +1335,7 @@ function policyChangedRefusal(toolName: string): ToolOutcome {
  */
 function policyChangedAfterWrite(toolName: string, written: ToolOutcome): ToolOutcome {
   return {
-    output: `Error: ${toolName} ${MODEL_TEXT.toolRefusedByPolicyChange}${MODEL_TEXT.policyChangeKeptWrite}`,
+    output: `Error: ${toolName} ${MODEL_API_MODEL_TEXT.toolRefusedByPolicyChange}${MODEL_API_MODEL_TEXT.policyChangeKeptWrite}`,
     visibleOutput: UI_TEXT.policyChangedKeptWrite,
     failureReason: UI_TEXT.policyChangedKeptWrite,
     ...(written.patch !== undefined && { patch: written.patch }),
@@ -2255,7 +2276,7 @@ export class ModelApiSession implements AgentSession {
     for (const pending of this.pendingChildResults.splice(0)) {
       const text = this.isRevisionCurrent([pending.revision])
         ? pending.text
-        : `${MODEL_API_MODEL_TEXT.subagentResult}\n${pending.childId}: ${MODEL_TEXT.subagentResultWithheld}`
+        : `${MODEL_API_MODEL_TEXT.subagentResult}\n${pending.childId}: ${MODEL_API_MODEL_TEXT.subagentResultWithheld}`
       this.replay.push({
         turnId: this.turnIds.at(-1) ?? this.sessionId,
         item: { type: 'message', role: 'user', content: [{ type: 'input_text', text }] },
@@ -3000,6 +3021,15 @@ export class ModelApiSession implements AgentSession {
     this.transcript.push({ turnId, item })
   }
 
+  /**
+   * Now as a recorded time (M87, PLAN.md D66): RFC 3339, as Muse Code's
+   * `recordedAt`. The host stamps each user message and reply with it, and
+   * the session file keeps it, so a reload shows the times again.
+   */
+  private recordedNow(): string {
+    return new Date(this.deps.now()).toISOString()
+  }
+
   /** Replaces a recorded item's snapshot (a reply whose sources arrived with the response). */
   private rerecordTranscript(item: ItemSnapshot): void {
     const index = this.transcript.findLastIndex((entry) => entry.item.itemId === item.itemId)
@@ -3031,6 +3061,7 @@ export class ModelApiSession implements AgentSession {
       turnId,
       text,
       ...(attachments.length > 0 && { attachments }),
+      recordedAt: this.recordedNow(),
     })
   }
 
@@ -3352,6 +3383,7 @@ export class ModelApiSession implements AgentSession {
           turnId,
           text: entry.text,
           ...(entry.citations.length > 0 && { citations: [...entry.citations] }),
+          ...(entry.recordedAt !== undefined && { recordedAt: entry.recordedAt }),
         }
       : {
           itemId: entry.ourId,
@@ -3363,6 +3395,10 @@ export class ModelApiSession implements AgentSession {
   }
 
   private completeItem(entry: OpenItem, turnId: string): void {
+    // A reply's time is the moment it completed, as Muse Code records one (M87).
+    if (entry.kind === 'agentMessage') {
+      entry.recordedAt ??= this.recordedNow()
+    }
     const item = this.completedSnapshot(entry, turnId)
     entry.isCompleted = true
     this.emit({ type: 'itemCompleted', item })
@@ -4538,7 +4574,7 @@ export class ModelApiSession implements AgentSession {
         this.deps.io,
       )
       if (!current.ok || current.checkedAbsolute !== path.checkedAbsolute) {
-        return toolFailure(MODEL_TEXT.pathChangedAfterApproval)
+        return toolFailure(FILE_REFUSAL_MODEL_TEXT.pathChangedAfterApproval)
       }
     }
     await this.refreshBudgetSpend()
@@ -5133,7 +5169,7 @@ export class ModelApiSession implements AgentSession {
     // Agent files load only in a trusted workspace; a session that began
     // trusted and lost it offers none either (Restricted Mode, D13).
     if (!this.deps.isWorkspaceTrusted()) {
-      return { refusal: subagentFailure(MODEL_TEXT.agentRestrictedMode) }
+      return { refusal: subagentFailure(MODEL_API_MODEL_TEXT.agentRestrictedMode) }
     }
     const resolved = this.context.agent(agentId)
     if (resolved.kind === 'found') {
@@ -5145,7 +5181,10 @@ export class ModelApiSession implements AgentSession {
     const { hole } = resolved
     return {
       refusal: subagentFailure(
-        fill(MODEL_TEXT.agentUnloaded, { id: agentId, source: AGENT_SOURCE_LABELS[hole.source] }),
+        fill(MODEL_API_MODEL_TEXT.agentUnloaded, {
+          id: agentId,
+          source: AGENT_SOURCE_LABELS[hole.source],
+        }),
         fill(UI_TEXT.agentUnloaded, { id: agentId, path: hole.path }),
       ),
     }
@@ -5379,7 +5418,7 @@ export class ModelApiSession implements AgentSession {
       }
     }
     if (agent !== undefined && !this.deps.isWorkspaceTrusted()) {
-      return { refusal: subagentFailure(MODEL_TEXT.agentRestrictedMode) }
+      return { refusal: subagentFailure(MODEL_API_MODEL_TEXT.agentRestrictedMode) }
     }
     const refusal = this.childGrantRefusal(grant, keyDigest, grant.modelId)
     if (refusal !== undefined) {
@@ -6182,7 +6221,7 @@ export class ModelApiSession implements AgentSession {
     // A narrowed custom agent holds neither the shell nor run_checks: what it
     // was never offered is not run for it (M76), before any hook sees it.
     if (!this.canRunVerifyCommands()) {
-      return { kind: 'skipped', skip: 'refused', detail: MODEL_TEXT.agentToolNotOffered }
+      return { kind: 'skipped', skip: 'refused', detail: MODEL_API_MODEL_TEXT.agentToolNotOffered }
     }
     const beforePolicy = this.policy()
     const commandAdmission = this.verificationAdmission(signal)
@@ -6508,7 +6547,7 @@ export class ModelApiSession implements AgentSession {
     isAllowed: () => boolean,
   ): Promise<Performed> {
     if (!this.deps.isWorkspaceTrusted())
-      return { outcome: toolFailure(MODEL_TEXT.checkSkipRestricted) }
+      return { outcome: toolFailure(MODEL_API_MODEL_TEXT.checkSkipRestricted) }
     const configured = this.checkCommands()
     if (configured.length === 0) {
       return { outcome: toolFailure(MODEL_API_MODEL_TEXT.runChecksNone) }
@@ -7194,7 +7233,7 @@ export class ModelApiSession implements AgentSession {
             this.policy().files.isDenied([file.relative, file.canonical])
           ) {
             throw new CodeIntelRefusal(
-              MODEL_TEXT.codeIntelPolicyRefused,
+              CODE_INTEL_MODEL_TEXT.codeIntelPolicyRefused,
               UI_TEXT.codeIntelPolicyRefused,
             )
           }
@@ -7259,7 +7298,7 @@ export class ModelApiSession implements AgentSession {
     // path: definitions alone cannot stop a model calling a tool by name.
     if (this.agent?.toolAllowlist !== undefined && !this.agent.toolAllowlist.includes(call.name)) {
       return {
-        outcome: toolFailure(MODEL_TEXT.agentToolNotOffered, UI_TEXT.agentToolNotOffered),
+        outcome: toolFailure(MODEL_API_MODEL_TEXT.agentToolNotOffered, UI_TEXT.agentToolNotOffered),
         isRejected: false,
       }
     }
@@ -7590,7 +7629,7 @@ export class ModelApiSession implements AgentSession {
         : {
             kind: 'skipped',
             skip: 'refused',
-            detail: MODEL_TEXT.agentToolNotOffered,
+            detail: MODEL_API_MODEL_TEXT.agentToolNotOffered,
             visibleDetail: UI_TEXT.agentToolNotOffered,
           }
     } catch (error: unknown) {
@@ -8099,7 +8138,12 @@ export class ModelApiSession implements AgentSession {
         turnId: turn.turnId,
         text,
         ...(attachments.length > 0 && { attachments }),
+        recordedAt: this.recordedNow(),
       })
+      // It is in the request now (M87): an Edit can no longer take it back.
+      if (!this.isSubagent) {
+        this.emit({ type: 'messageAdmitted', userMessageId: itemId })
+      }
     }
   }
 
@@ -8110,6 +8154,41 @@ export class ModelApiSession implements AgentSession {
       this.emit({ type: 'userMessageTurnChanged', userMessageId, turnId })
       return { turnId, parts, displayText: undefined, userMessageId, isGoalWake: false }
     })
+  }
+
+  /** The queued turn `ref` names, out of the queue and withdrawn; undefined once it started. */
+  private takeQueued(ref: QueuedMessageRef): readonly TurnPart[] | undefined {
+    const index = this.queuedTurns.findIndex(
+      (queued) =>
+        queued.turnId === ref.turnId &&
+        !queued.isGoalWake &&
+        queued.userMessageId === ref.userMessageId,
+    )
+    const [queued] = index === -1 ? [] : this.queuedTurns.splice(index, 1)
+    if (queued === undefined) {
+      return undefined
+    }
+    this.emit({ type: 'turnWithdrawn', turnId: queued.turnId, reason: UI_TEXT.turnUnqueued })
+    return queued.parts
+  }
+
+  /**
+   * The steer `ref` names, out of the running turn's steered input; undefined
+   * once a request took it. Never a `turnWithdrawn`: that names the running
+   * turn, which would end it for the panel (lane P's warning).
+   */
+  private takeSteer(ref: QueuedMessageRef): readonly TurnPart[] | undefined {
+    const turn = this.active
+    if (turn?.turnId !== ref.turnId) {
+      return undefined
+    }
+    const index = turn.steered.findIndex((steer) => steer.userMessageId === ref.userMessageId)
+    const [steer] = index === -1 ? [] : turn.steered.splice(index, 1)
+    if (steer === undefined) {
+      return undefined
+    }
+    turn.acceptedTextAttachmentBytes -= textAttachmentBytes(steer.parts)
+    return steer.parts
   }
 
   /** A busy goal command was not in the request already in flight. */
@@ -8181,7 +8260,7 @@ export class ModelApiSession implements AgentSession {
     const refusedChecks = canRunChecks
       ? []
       : selectedChecks.map((check) =>
-          skippedCheck(check, 'refused', MODEL_TEXT.agentToolNotOffered),
+          skippedCheck(check, 'refused', MODEL_API_MODEL_TEXT.agentToolNotOffered),
         )
     if (!isDiagnosticsOn && selectedChecks.length === 0) {
       if (this.ledger.judgeRound()) {
@@ -9469,6 +9548,27 @@ export class ModelApiSession implements AgentSession {
     this.active.acceptedTextAttachmentBytes += addedTextBytes
     this.active.steered.push({ parts, userMessageId })
     return Promise.resolve({ turnId: expectedTurnId, disposition: 'steered', userMessageId })
+  }
+
+  /**
+   * Take a message back before a request reads it (M87, PLAN.md D66). A
+   * queued turn leaves the queue and ends withdrawn, as Muse Code's
+   * `turn/unqueued` does; a steer leaves the running turn's steered input
+   * with no event, as the running turn goes on. Both happen synchronously,
+   * so a message the queue already started or `drainSteered` already put in
+   * a request is too late. The images come back from the message's parts.
+   */
+  public withdrawQueued(ref: QueuedMessageRef): Promise<WithdrawOutcome> {
+    const parts =
+      ref.disposition === STEERED_DISPOSITION ? this.takeSteer(ref) : this.takeQueued(ref)
+    return Promise.resolve(
+      parts === undefined
+        ? { status: 'tooLate' }
+        : {
+            status: 'withdrawn',
+            images: parts.filter(isImagePart).map((part) => sentImageOf(part)),
+          },
+    )
   }
 
   /**

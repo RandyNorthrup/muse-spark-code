@@ -8,6 +8,7 @@
   "command.category": "Muse Spark",
   "command.openInSidebar.title": "사이드바에서 열기",
   "command.openInNewTab.title": "새 탭에서 열기",
+  "command.openTasks.title": "탭에서 작업 열기",
   "command.focusInput.title": "포커스 전환",
   "command.insertMentionReference.title": "선택 영역에 대한 @-멘션 삽입",
   "command.toggleFocusView.title": "포커스 보기 전환",
