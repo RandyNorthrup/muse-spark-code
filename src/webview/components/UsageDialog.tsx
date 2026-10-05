@@ -282,6 +282,9 @@ function paidUseText(feature: PaidFeature, tally: PaidTally): string {
     case 'bestOfN': {
       return plural(UI_TEXT.usagePaidBestOfNAttempts, tally.bestOfNAttempts ?? 0)
     }
+    case 'judge': {
+      return plural(UI_TEXT.usagePaidJudgeCalls, tally.judgeCalls ?? 0)
+    }
   }
 }
 

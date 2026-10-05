@@ -1899,6 +1899,14 @@
     "many": "{count} ocen",
     "other": "{count} oceny"
   },
+  "paidJudgeName": "Oceniający",
+  "paidConfirmJudge": "Twój własny model rozmowy ocenia każdą ryzykowną akcję Auto, której nie rozstrzyga żadna reguła, i może jedynie dodać ostrożności: gotowe ostrzeżenie zamienia zezwolenie w pytanie albo w notatkę na karcie zatwierdzenia. Każdy osąd jest rozliczany przez Twój klucz Model API według stawek za tokeny modelu rozmowy:\n{price}\nKażdy osąd najpierw pyta, chyba że zawsze zezwolisz na osądy w tym obszarze roboczym. Na Muse Code te same wywołania korzystają z Twojej subskrypcji.",
+  "usagePaidJudgeCalls": {
+    "one": "{count} osąd",
+    "few": "{count} osądy",
+    "many": "{count} osądów",
+    "other": "{count} osądy"
+  },
   "commandRuleInvalid": "{setting}: reguła {index} jest nieprawidłowa i nie jest stosowana ({detail}).",
   "commandRuleInvalidKept": "{setting}: reguła {index} ({pattern}) jest nieprawidłowa ({detail}). Nadal pyta lub zabrania według swojego wzorca, bo to może tylko zaostrzyć.",
   "commandRuleExampleFailed": "{setting}: reguła zezwalająca {index} ({pattern}) nie robi tego, co mówi jej przykład „{detail}”, więc nie jest stosowana.",

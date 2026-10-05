@@ -10,6 +10,8 @@ import {
   type BackendMode,
   type CheckCommandSetting,
   type EnvironmentVariable,
+  JUDGE_ENGINES,
+  type JudgeEngine,
   PROMPT_CACHE_RETENTIONS,
   type PromptCacheRetention,
   SANDBOX_NETWORK_MODES,
@@ -59,6 +61,8 @@ export interface ExtensionSettings extends SettingsSnapshot {
   readonly modelApiRepositoryRules: unknown
   /** The paid Auto reviewer (M78): on only with its price accepted too. */
   readonly modelApiAutoReviewer: boolean
+  /** The Muse Judge's engine (M98, PLAN.md D77): `auto` is `same` in phase 1. */
+  readonly 'judge.engine': JudgeEngine
   /** The verify loop (M68, PLAN.md D49): diagnostics after edits, check commands, format on edit. */
   readonly diagnosticsAfterEdits: boolean
   readonly checkCommands: readonly CheckCommandSetting[]
@@ -115,6 +119,7 @@ const settingSchemas = {
   modelApiPermissionProfile: z.unknown(),
   modelApiRepositoryRules: z.unknown(),
   modelApiAutoReviewer: z.boolean(),
+  'judge.engine': z.enum(JUDGE_ENGINES),
   diagnosticsAfterEdits: z.boolean(),
   checkCommands: checkCommandsSchema,
   formatOnEdit: z.boolean(),
@@ -209,6 +214,7 @@ export function readSettings(config: SettingsSource, log: Logger): ExtensionSett
     modelApiPermissionProfile: readSetting(config, 'modelApiPermissionProfile', log),
     modelApiRepositoryRules: readSetting(config, 'modelApiRepositoryRules', log),
     modelApiAutoReviewer: readSetting(config, 'modelApiAutoReviewer', log),
+    'judge.engine': readSetting(config, 'judge.engine', log),
     museCodeAutoReviewer: readSetting(config, 'museCodeAutoReviewer', log),
   }
 }

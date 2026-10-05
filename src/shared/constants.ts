@@ -358,6 +358,12 @@ export const SETTING_DEFAULTS = {
   // hidden side session before the user. On until turned off; machine scoped,
   // since a repository must not choose what is approved or spent.
   museCodeAutoReviewer: true,
+  // The Muse Judge's engine (M98, PLAN.md D77): `auto` is `same` in phase 1
+  // (the user's own chat model judges); `off` runs no judge. On (`auto`) by
+  // default, per the owner's 2026-10-04 defaults ruling; machine scoped,
+  // since a repository must not choose what is spent. The key holds the dot:
+  // VS Code declares `museSpark.judge.engine` and reads it as a subsection.
+  'judge.engine': 'auto' as JudgeEngine,
 } as const
 export const ARCHIVE_DAY_CHOICES = [1, 2, 7, 14, 0] as const
 // Settings a repository's `.vscode/settings.json` must never set (PLAN.md
@@ -407,6 +413,9 @@ export const MACHINE_SCOPED_SETTINGS = [
   'modelApiSessionBudgetUsd',
   // What may approve a command for the user, on their subscription (M90).
   'museCodeAutoReviewer',
+  // What may spend on judging, on the key or the subscription (M98, PLAN.md
+  // D77): a repository must not choose it.
+  'judge.engine',
 ] as const
 
 // Muse Code SDK 1.3.0 hook process limits (PLAN.md M51).
@@ -468,6 +477,10 @@ export const PAID_FEATURES = [
   // M78 (PLAN.md D49): the Auto reviewer's calls.
   'autoReviewer',
   'bestOfN',
+  // M98 (PLAN.md D77): the same-model judge's calls on the Model API backend.
+  // On Muse Code the same calls run on the subscription, like the Auto
+  // reviewer, so the judge is not among MUSE_CODE_PAID_FEATURES either.
+  'judge',
 ] as const
 // The paid features the Muse Code backend can use too, billed to a stored
 // Model API key (M44, PLAN.md D37): images through the `ide` server and
@@ -484,6 +497,10 @@ export const PAID_FEATURE_SETTINGS = {
   subagents: 'modelApiSubagents',
   autoReviewer: 'modelApiAutoReviewer',
   bestOfN: 'modelApiBestOfN',
+  // The judge's switch is the engine enum, not a boolean (M98, PLAN.md D77):
+  // the paid gate reads it as on while it is not `off` (isJudgeEngineOn in
+  // src/core/judge/schema.ts), and turning the feature off parks it at `off`.
+  judge: 'judge.engine',
 } as const satisfies Readonly<Record<PaidFeature, keyof typeof SETTING_DEFAULTS>>
 // Meta's published prices (dev.meta.ai/docs/pricing-rate-limits, read
 // 2026-09-24), on top of the tokens a turn uses: a web search, an image, and
@@ -496,6 +513,42 @@ export const PAID_PRICES_USD = {
 export const PAID_PRICES_VERIFIED_ON = '2026-09-24'
 export const SEARCHES_PER_PRICE_UNIT = 1000
 export const SECONDS_PER_HOUR = 3600
+
+// --- The Muse Judge (M98, PLAN.md D77) ---
+//
+// The engines `museSpark.judge.engine` takes in phase 1. `auto` is `same`
+// (the user's own chat model judges); `separate` and `both` arrive with the
+// phase-2 sections that build them. Machine-scoped, on (`auto`) by default.
+export const JUDGE_ENGINES = ['auto', 'same', 'off'] as const
+export type JudgeEngine = (typeof JUDGE_ENGINES)[number]
+// The request bounds, at the intersection of the SystemOne services (TypeSafe,
+// OpenRouter, Ollama, Cloudflare): 1–64 questions; a choice of 2–26 options
+// lettered A–Z; a score of 2–10 levels; a 64 KiB body. A state past its
+// model's context is refused with an explicit no-answer; the 32k-token
+// ceiling below is that refusal's backstop, not a promise any model reaches.
+export const JUDGE_QUESTION_MIN = 1
+export const JUDGE_QUESTION_MAX = 64
+export const JUDGE_CHOICE_OPTION_MIN = 2
+export const JUDGE_CHOICE_OPTION_MAX = 26
+export const JUDGE_SCORE_LEVEL_MIN = 2
+export const JUDGE_SCORE_LEVEL_MAX = 10
+export const JUDGE_MAX_BODY_BYTES = 64 * 1024
+export const JUDGE_MAX_STATE_TOKENS = 32_000
+// Binary-from-top-1 (D77): valid only for a noul whose top-1 yes/no token
+// reaches this probability, labelled "approximate (top-1)". Above the
+// RVM98 counterexample's 0.60, which falls back to stated confidence, and
+// low enough that the probe's ~0.99 matches still count; the residual error
+// it attributes to the other answer stays under 1 − this floor.
+export const JUDGE_TOP1_MIN_PROB = 0.8
+// The Auto advisory's caution bar (D77): a caution needs at least this judged
+// risk, since phase-1 output is uncalibrated and can only add caution.
+export const JUDGE_ADVISORY_THRESHOLD = 0.7
+// Per-backend readiness (D77): under this ready rate at the reviewer's fence,
+// the backend's judge is off by default, with the reason shown.
+export const JUDGE_MIN_READY_RATE = 0.5
+// One judge call never runs longer than this. Calls run in the background and
+// are never awaited on a user path; a late result is dropped at its fence.
+export const JUDGE_REQUEST_TIMEOUT_MS = 60_000
 
 // --- Sessions (M6, PLAN.md §6 M6) ---
 

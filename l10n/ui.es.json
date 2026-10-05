@@ -1833,6 +1833,13 @@
     "many": "{count} revisiones",
     "other": "{count} revisiones"
   },
+  "paidJudgeName": "Evaluador",
+  "paidConfirmJudge": "Tu propio modelo de conversación evalúa cada acción arriesgada de Auto que ninguna regla resuelve, y solo puede añadir cautela: una cautela lista convierte una autorización en una pregunta, o en una nota en la tarjeta de aprobación. Cada juicio se factura a tu clave de Model API según las tarifas por token del modelo de la conversación:\n{price}\nCada juicio pide confirmación primero, salvo que permitas siempre los juicios en esta área de trabajo. En Muse Code, las mismas llamadas usan tu suscripción.",
+  "usagePaidJudgeCalls": {
+    "one": "{count} juicio",
+    "many": "{count} juicios",
+    "other": "{count} juicios"
+  },
   "commandRuleInvalid": "{setting}: la regla {index} no es válida y no se aplica ({detail}).",
   "commandRuleInvalidKept": "{setting}: la regla {index} ({pattern}) no es válida ({detail}). Sigue pidiendo confirmación o prohibiendo según su patrón, ya que eso solo puede restringir.",
   "commandRuleExampleFailed": "{setting}: la regla de permiso {index} ({pattern}) no hace lo que dice su ejemplo «{detail}», así que no se aplica.",

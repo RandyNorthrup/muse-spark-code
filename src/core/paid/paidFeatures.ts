@@ -224,6 +224,10 @@ export class PaidUsage {
         this.tally = { ...tally, bestOfNAttempts: (tally.bestOfNAttempts ?? 0) + units }
         break
       }
+      case 'judge': {
+        this.tally = { ...tally, judgeCalls: (tally.judgeCalls ?? 0) + units }
+        break
+      }
     }
     this.log.info(`Paid use: ${feature} +${String(units)}`)
     for (const listener of this.listeners) {

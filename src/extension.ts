@@ -35,6 +35,7 @@ import {
   rootRelativePath,
 } from './core/workspaceRoot'
 import { keychainItemPresence } from './core/backends/musecode/credentialFile'
+import { isJudgeEngineOn } from './core/judge/schema'
 import { AccountHosts, connectAccountSession } from './host/auth/accountHost'
 import { AuthService } from './host/auth/authService'
 import { CliAccount, isCliSignedIn } from './host/auth/cliAccount'
@@ -687,7 +688,12 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   const paid = createPaidFeatures({
     globalState: context.globalState,
     workspaceState: context.workspaceState,
-    isSettingOn: (feature) => currentSettings()[PAID_FEATURE_SETTINGS[feature]],
+    // The judge's switch is the engine enum, not a boolean (M98, PLAN.md
+    // D77): the paid gate reads it as on while it is not `off`.
+    isSettingOn: (feature) =>
+      feature === 'judge'
+        ? isJudgeEngineOn(currentSettings()['judge.engine'])
+        : currentSettings()[PAID_FEATURE_SETTINGS[feature]],
     isKeyStored: () => isKeyStored,
     // "Allow always in this workspace" (M58) needs a workspace to keep it,
     // and never in Restricted Mode.
