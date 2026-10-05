@@ -329,13 +329,13 @@ function openCodePayload(
   payload: Readonly<Record<string, unknown>>,
   now: number,
 ): Readonly<Record<string, unknown>> {
-  const sessionID = text(payload['session_id'])
-  const { tool, input } = toolFields(payload)
   if (route.busType !== undefined) {
     return {
       event: { type: route.busType, properties: busProperties(route.busType, payload, now) },
     }
   }
+  const sessionID = text(payload['session_id'])
+  const { tool, input } = toolFields(payload)
   switch (route.hook) {
     case 'tool.execute.before': {
       return {

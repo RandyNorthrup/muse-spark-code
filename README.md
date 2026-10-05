@@ -1190,6 +1190,50 @@ backend each one runs in its own agent's shape:
 Imported hooks never run on the Muse Code backend, and run under the same
 trust gate, opt-in and limits as every other hook.
 
+**Amp and OpenCode plugins.** The import also finds Amp's plugin files
+(`.amp/plugins/`, and `$XDG_CONFIG_HOME/amp/plugins/` or
+`~/.config/amp/plugins/`) and OpenCode's (`.opencode/plugins/` and
+`~/.config/opencode/plugins/`). For each hook a plugin registers by name, it
+writes one `spark-hooks.json` entry that points at the file. A plugin whose
+hook names it cannot read gets every hook it could fire. The preview shows
+file and hook names, never code. Directory plugins, OpenCode's npm plugins,
+and a personal plugin that leads into the open folder are listed and not
+imported.
+
+- **Where they run.** Only on the Model API backend. Each call runs in a
+  child process of its own, under your installed `node` (22.18 or later) for
+  Amp and `bun` for OpenCode, with the narrow hook environment:
+  - **Windows:** in a job object with a memory limit, which ends the plugin
+    and everything it started.
+  - **Linux:** in its own process group, with OpenCode's `bun` held to the
+    same memory limit by `prlimit`.
+  - **macOS:** OpenCode plugins are refused, because `bun`'s memory cannot be
+    bounded there.
+  - **The ACP agent:** plugin hooks are refused.
+- **What they can do.** A plugin can refuse a call, narrow its input, add
+  context or replace a tool's output, as its own agent allows. It has no
+  shell, no client and no model. Amp's `shellCommandFromToolCall` helper is
+  the one helper it can use.
+- **Failures.**
+  - An Amp `error` stops the call and ends the turn, as it does in Amp.
+  - An OpenCode `tool.execute.before` that throws, crashes or times out
+    blocks the call.
+  - Any other failure is logged and the call goes on.
+- **Tools and arguments.** A plugin sees our tools under its agent's names:
+  Amp's `Bash`, `Read`, `edit_file`, `create_file`; OpenCode's `bash`,
+  `read`, `edit`, `write`. Arguments are renamed only where a source shows
+  them: OpenCode's `read` takes `filePath` and `bash` takes `command`.
+  - Every other argument keeps our name. So an OpenCode guard that reads
+    `output.args.filePath` on `edit` or `write` throws, and the call is
+    blocked, never let through.
+  - Five OpenCode hooks have no event to fire on yet, and are listed and not
+    imported: `command.execute.before` and the bus's `todo.updated`,
+    `permission.replied`, `file.watcher.updated` and `message.updated`.
+- **Windows job failures.** If Windows cannot prepare the job that contains
+  plugins, plugin hooks fail by their rule and say why. The job is tried
+  again once after a few seconds. After a second failure, run **Muse Spark:
+  Retry Plugin Hooks** to try again.
+
 **Worktrees.** **New worktree…** asks for a new branch and its base (the
 current commit or any local branch), creates it in a folder of its own, and
 offers to open it in a new window, so a conversation there leaves your

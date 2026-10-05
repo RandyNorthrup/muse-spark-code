@@ -6,6 +6,9 @@
 // context goes at the tail of an unchanged prefix (rule 1); and imported hooks
 // that are off leave the request bytes as they were (rule 7).
 
+import { mkdtempSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import path from 'node:path'
 import { describe, expect, it, vi } from 'vitest'
 import { ModelApiHost, ModelApiSession } from '../../src/core/backends/modelapi/ModelApiHost'
 import { parseForeignHooks, type HookDefinition } from '../../src/core/backends/modelapi/hooks'
@@ -24,6 +27,7 @@ import {
 import { memoryToolIo } from './helpers/fakeToolIo'
 import { fakeModelApiHostDeps } from './helpers/modelApiHostDeps'
 import { watchSessionTurns } from './helpers/sessionTurns'
+import { expectEnded, isRunning, markedPid } from './helpers/processes'
 
 const ROOT = '/ws'
 
@@ -59,6 +63,8 @@ async function session(options: {
   readonly answer?: (run: HookRun) => ShellResult
   readonly mode?: string
   readonly isHooksEnabled?: boolean
+  /** Amp and OpenCode plugins (M91b): children in a process group, under this node. */
+  readonly hasPlugins?: boolean
 }) {
   const api = fakeModelApi()
   const log = new FakeLogOutputChannel()
@@ -75,6 +81,12 @@ async function session(options: {
     verify: noChecks,
     loadHooks: () => Promise.resolve(options.hooks),
     isHooksEnabled: () => options.isHooksEnabled ?? true,
+    ...(options.hasPlugins === true && {
+      pluginHooks: {
+        env: () => ({ PATH: path.dirname(process.execPath) }),
+        containment: () => Promise.resolve({ kind: 'processGroup' as const }),
+      },
+    }),
   })
   const started = await host.startSession({
     workspaceRoot: ROOT,
@@ -234,5 +246,90 @@ describe('imported hooks in a Model API session', () => {
       )
     }
     expect(await bodies(cursorShellGuard, false)).toEqual(await bodies([], true))
+  })
+})
+
+// M91b: Amp and OpenCode plugin hooks in a running session. Amp's tool.call
+// `error` stops the thread worker (amp_plugin-api.md:1978): the tool never
+// runs and the turn ends with the plugin's reason. The session's dispose ends
+// plugin children still running. Real children under this node.
+const VERSION_MATCH = /^v(\d+)\.(\d+)\./.exec(process.version)
+const HAS_PLUGIN_NODE =
+  process.platform !== 'win32' &&
+  VERSION_MATCH !== null &&
+  (Number(VERSION_MATCH[1]) > 22 ||
+    (Number(VERSION_MATCH[1]) === 22 && Number(VERSION_MATCH[2]) >= 18))
+const BASH_CALL = { calls: [{ name: 'bash', arguments: JSON.stringify({ command: 'echo hi' }) }] }
+
+/** An Amp plugin whose tool.call handler is `handler`, as the importer writes it. */
+function ampGuard(handler: string, extra: Record<string, unknown> = {}): readonly HookDefinition[] {
+  const plugin = path.join(mkdtempSync(path.join(tmpdir(), 'm91b-session-')), 'guard.mjs')
+  writeFileSync(plugin, `export default function (amp) {\n  amp.on('tool.call', ${handler})\n}\n`)
+  return spark('PreToolUse', {
+    format: 'amp',
+    sourceEvent: 'tool.call',
+    plugin,
+    hooks: [{ type: 'plugin' }],
+    ...extra,
+  })
+}
+
+/** A handler that records its process id in `marker`, then holds for a minute. */
+function holding(marker: string): string {
+  return `async () => { (await import('node:fs')).writeFileSync(${JSON.stringify(marker)}, String(process.pid)); await new Promise((resolve) => setTimeout(resolve, 60000)) }`
+}
+
+/** The session's dispose ends the child that wrote `marker`, well before its own timeout. */
+async function expectDisposeEnds(t: Awaited<ReturnType<typeof session>>, marker: string) {
+  const pid = await markedPid(marker)
+  expect(isRunning(pid)).toBe(true)
+  t.session.dispose()
+  await expectEnded(pid)
+  expect(t.runs).toEqual([])
+}
+
+describe.runIf(HAS_PLUGIN_NODE)('plugin hooks in a Model API session (M91b)', () => {
+  it('an Amp error refuses the call, the tool never runs, and the turn ends with its reason', async () => {
+    const t = await session({
+      hooks: ampGuard(`() => ({ action: 'error', message: 'plugin stopped this thread' })`),
+      hasPlugins: true,
+    })
+    await t.turn(BASH_CALL, { text: 'should never be asked for' })
+    expect(t.io.shellCalls).toEqual([])
+    expect(t.runs).toEqual([])
+    // The refused call ended the turn: no second request went out.
+    expect(t.api.responseBodies()).toHaveLength(1)
+    const row = t.events.find(
+      (event): event is Extract<AgentEvent, { type: 'itemCompleted' }> =>
+        event.type === 'itemCompleted' && event.item.tool === 'bash',
+    )
+    expect(JSON.stringify(row?.item)).toContain('plugin stopped this thread')
+  })
+
+  it('an Amp reject-and-continue refuses the call and the turn goes on', async () => {
+    const t = await session({
+      hooks: ampGuard(`() => ({ action: 'reject-and-continue', message: 'not this one' })`),
+      hasPlugins: true,
+    })
+    await t.turn(BASH_CALL, { text: 'ok' })
+    expect(t.io.shellCalls).toEqual([])
+    expect(t.api.responseBodies()).toHaveLength(2)
+  })
+
+  it('the session’s dispose ends a straggler: an async plugin hook its finished turn left running', async () => {
+    const marker = path.join(mkdtempSync(path.join(tmpdir(), 'm91b-pid-')), 'pid')
+    const t = await session({ hooks: ampGuard(holding(marker), { async: true }), hasPlugins: true })
+    // The turn ends; the asynchronous hook's child is still running.
+    await t.turn(BASH_CALL, { text: 'ok' })
+    await expectDisposeEnds(t, marker)
+  })
+
+  it('the session’s dispose ends a plugin child still running', async () => {
+    const marker = path.join(mkdtempSync(path.join(tmpdir(), 'm91b-pid-')), 'pid')
+    const t = await session({ hooks: ampGuard(holding(marker)), hasPlugins: true })
+    t.api.script(BASH_CALL, { text: 'ok' })
+    void t.session.sendTurn([{ type: 'text', text: 'go' }]).catch(() => undefined)
+    await expectDisposeEnds(t, marker)
+    expect(t.io.shellCalls).toEqual([])
   })
 })

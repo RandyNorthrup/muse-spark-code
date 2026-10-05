@@ -5,10 +5,10 @@
 // and arguments included. Real children run under this node (OpenCode's bun
 // stood in for), each in its own process group; no model is called.
 
-import { existsSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdtempSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
-import { describe, expect, it, vi } from 'vitest'
+import { describe, expect, it } from 'vitest'
 import {
   dispatchHooks,
   parseForeignHooks,
@@ -29,6 +29,7 @@ import {
   runtimeArguments,
 } from '../../src/core/backends/modelapi/pluginFormats'
 import { HOOK_MAX_RUNNING_COMMANDS, MODEL_API_TOOLS } from '../../src/shared/constants'
+import { expectEnded, markedPid } from './helpers/processes'
 
 const ROOT = '/ws'
 const VERSION_MATCH = /^v(\d+)\.(\d+)\./.exec(process.version)
@@ -357,6 +358,17 @@ function ampPlugin(body: string): string {
   return writePlugin(`export default function (amp) {\n${body}\n}\n`, 'guard.mjs')
 }
 
+/** One Amp tool.call guard whose handler answers `answer`, dispatched on `bash ls`. */
+async function ampToolCall(answer: string) {
+  const plugin = ampPlugin(`amp.on('tool.call', () => ${answer})`)
+  return await dispatch(
+    definitions('PreToolUse', 'amp', 'tool.call', plugin),
+    'PreToolUse',
+    toolPayload('PreToolUse', 'bash', { command: 'ls' }),
+    adapterWith(host()),
+  )
+}
+
 describe.runIf(IS_REAL)('plugin dispatch with real children', () => {
   it('an Amp reject-and-continue blocks; the guard sees Bash and its command', async () => {
     const plugin = ampPlugin(
@@ -383,30 +395,14 @@ describe.runIf(IS_REAL)('plugin dispatch with real children', () => {
   })
 
   it('an Amp error refuses the call and ends the turn, whatever the fail-open rule', async () => {
-    const plugin = ampPlugin(
-      `amp.on('tool.call', () => ({ action: 'error', message: 'stop the thread' }))`,
-    )
-    const hooks = definitions('PreToolUse', 'amp', 'tool.call', plugin)
-    const result = await dispatch(
-      hooks,
-      'PreToolUse',
-      toolPayload('PreToolUse', 'bash', { command: 'ls' }),
-      adapterWith(host()),
-    )
+    const result = await ampToolCall(`({ action: 'error', message: 'stop the thread' })`)
     expect(result.blockedReason).toBe('stop the thread')
     expect(result.stopReason).toBe('stop the thread')
   })
 
   it('an Amp synthesize never runs the tool; its output is what the model reads', async () => {
-    const plugin = ampPlugin(
-      `amp.on('tool.call', () => ({ action: 'synthesize', result: { output: 'cached answer' } }))`,
-    )
-    const hooks = definitions('PreToolUse', 'amp', 'tool.call', plugin)
-    const result = await dispatch(
-      hooks,
-      'PreToolUse',
-      toolPayload('PreToolUse', 'bash', { command: 'ls' }),
-      adapterWith(host()),
+    const result = await ampToolCall(
+      `({ action: 'synthesize', result: { output: 'cached answer' } })`,
     )
     expect(result.blockedReason).toBe('cached answer')
   })
@@ -554,21 +550,10 @@ describe.runIf(IS_REAL)('plugin dispatch with real children', () => {
       toolPayload('PreToolUse', 'bash', { command: 'ls' }),
       adapter,
     )
-    await vi.waitFor(
-      () => {
-        expect(readFileSync(marker, 'utf8')).not.toBe('')
-      },
-      { timeout: 10_000 },
-    )
-    const pid = Number(readFileSync(marker, 'utf8'))
+    const pid = await markedPid(marker)
     adapter.dispose?.()
     // Well before the hook's own 20-second timeout would end it.
-    await vi.waitFor(
-      () => {
-        expect(isRunning(pid)).toBe(false)
-      },
-      { timeout: 5000 },
-    )
+    await expectEnded(pid)
     await pending
   })
 })
@@ -704,17 +689,3 @@ describe('plugin dispatch without real children', () => {
     expect(result.blockedReason).toContain('cannot run here')
   })
 })
-
-function isRunning(pid: number): boolean {
-  try {
-    process.kill(pid, 0)
-  } catch {
-    return false
-  }
-  try {
-    const stat = readFileSync(`/proc/${String(pid)}/stat`, 'utf8')
-    return !stat.slice(stat.lastIndexOf(')') + 2).startsWith('Z')
-  } catch {
-    return false
-  }
-}

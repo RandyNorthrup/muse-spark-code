@@ -4,10 +4,10 @@
 // after a short delay, then stays until Retry Plugin Hooks. The real-process
 // cases run on Windows only (this host and the Win11 rig); the rest
 // everywhere.
-import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
+import { mkdtempSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
-import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
+import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import {
   containedTree,
   type PluginCall,
@@ -18,6 +18,7 @@ import {
 import { pluginContainment } from '../../src/host/backend/pluginContainment'
 import { PLUGIN_JOB_RETRY_BACKOFF_MS, UI_TEXT } from '../../src/shared/constants'
 import { fixtureJobLifecycle } from './helpers/mcpFixtures'
+import { expectEnded, markedPid } from './helpers/processes'
 
 const jobState = fixtureJobLifecycle()
 beforeAll(jobState.setup, 60_000)
@@ -43,15 +44,6 @@ function call(pluginPath: string, extra: Partial<PluginCall> = {}): PluginCall {
     failClosed: false,
     timeoutMs: 30_000,
     ...extra,
-  }
-}
-
-function isRunning(pid: number): boolean {
-  try {
-    process.kill(pid, 0)
-    return true
-  } catch {
-    return false
   }
 }
 
@@ -193,13 +185,7 @@ describe.runIf(process.platform === 'win32')('Windows: the kill-on-close job', (
     const { plugin: file, marker } = treePlugin(false)
     const answer = await runPluginHook(call(file), await jobDeps())
     expect(answer).toEqual({ status: 'blocked', reason: 'tree' })
-    const pid = Number(readFileSync(marker, 'utf8'))
-    await vi.waitFor(
-      () => {
-        expect(isRunning(pid)).toBe(false)
-      },
-      { timeout: 5000 },
-    )
+    await expectEnded(await markedPid(marker))
   }, 60_000)
 
   it('ends a detached grandchild when the plugin times out', async () => {
@@ -209,13 +195,7 @@ describe.runIf(process.platform === 'win32')('Windows: the kill-on-close job', (
       status: 'failed',
       reason: expect.stringContaining('timed out') as unknown,
     })
-    const pid = Number(readFileSync(marker, 'utf8'))
-    await vi.waitFor(
-      () => {
-        expect(isRunning(pid)).toBe(false)
-      },
-      { timeout: 5000 },
-    )
+    await expectEnded(await markedPid(marker))
   }, 60_000)
 
   it('bounds the whole job’s memory (P2 12)', async () => {

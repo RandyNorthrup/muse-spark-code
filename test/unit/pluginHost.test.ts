@@ -20,6 +20,7 @@ import {
   sanitizePluginAnswer,
 } from '../../src/core/backends/modelapi/pluginHost'
 import { PLUGIN_CHILD_MAX_MEMORY_BYTES } from '../../src/shared/constants'
+import { expectEnded } from './helpers/processes'
 
 interface FakeChild {
   readonly handle: PluginChildHandle
@@ -766,29 +767,6 @@ describe.runIf(HAS_NODE && process.platform !== 'win32')('real node child', () =
     const answer = await runPluginHook(call({ pluginPath: plugin, payload: thread }), realDeps())
     expect(answer).toEqual({ status: 'blocked', reason: 'tree' })
     expect(existsSync(marker)).toBe(true)
-    const pid = Number(readFileSync(marker, 'utf8'))
-    await vi.waitFor(
-      () => {
-        expect(isRunning(pid)).toBe(false)
-      },
-      { timeout: 5000 },
-    )
+    await expectEnded(Number(readFileSync(marker, 'utf8')))
   })
 })
-
-function isRunning(pid: number): boolean {
-  try {
-    process.kill(pid, 0)
-  } catch {
-    return false
-  }
-  if (process.platform === 'linux') {
-    try {
-      const stat = readFileSync(`/proc/${String(pid)}/stat`, 'utf8')
-      return !stat.slice(stat.lastIndexOf(')') + 2).startsWith('Z')
-    } catch {
-      return false
-    }
-  }
-  return true
-}

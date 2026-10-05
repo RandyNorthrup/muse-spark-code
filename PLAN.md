@@ -14025,9 +14025,12 @@ returns`void`, so every bus mapping is observation only; a throw fails
 
 ### M91b — Amp and OpenCode plugin dispatch (D70)
 
-**Status 2026-10-05: built on `m91/w-plugins`; its own pull request.** Split
-from M91 at the lead's 07:00 checkpoint, after the RVM91X fixes (`22e9e7ff`).
-The record is `docs/certification/m91-wp.md`.
+**Status 2026-10-05: done on `m91/w-plugins` (`5a2aa619` and its docs
+commit); it ships with M91 in the 0.14.0 batch, not as a separate pull
+request.** Split from M91 at the lead's 07:00 checkpoint, after the RVM91X
+fixes (`22e9e7ff`). The record is `docs/certification/m91-wp.md`: 28 red
+drills, Kubuntu and Win11 green. Its residuals are in §9 ("Amp and
+OpenCode plugin hooks").
 
 - **Scope, exactly this list:**
   - dispatch in `foreignHooksEntry.ts`, with the session's `dispose` ending
@@ -14984,6 +14987,31 @@ before a repaired one loads (2026-09-30).
   repository admin bypasses both for direct pushes and releases, and every
   bypass is logged by GitHub. A moved tag, as with 0.5.2, is then a
   deliberate bypass rather than a habit.
+
+- Amp and OpenCode plugin hooks (M91b, `docs/certification/m91-wp.md`).
+  The plugin is the user's own code, run as the user. These residuals are
+  accepted, and each is stated in the README:
+  1. **Five OpenCode hooks are not imported:** `command.execute.before`
+     (UserPromptExpansion) and the bus's `todo.updated`,
+     `permission.replied`, `file.watcher.updated` and `message.updated`.
+     Their extension events have no imported-hook dispatch yet. The import
+     lists them, so nothing weaker runs in their place.
+  2. **OpenCode arguments beyond `read.filePath` and `bash.command`** keep
+     our names, since no saved source shows theirs. A guard that reads
+     another name throws, and at `tool.execute.before` that blocks: never
+     weaker, sometimes stricter than OpenCode.
+  3. **macOS refuses OpenCode plugins**, because nothing enforces a data
+     limit for `bun` there. Elsewhere the memory bound is 1 GiB
+     (`PLUGIN_CHILD_MAX_MEMORY_BYTES`): `node` does not start under a 512 MiB
+     data limit.
+  4. **The ACP agent** supplies no plugin host side, so plugin hooks are
+     refused there, and `dist/pluginHooks.js` is not in its package.
+  5. **Plugin paths** are capped at 256 characters
+     (`HOOK_MATCHER_VALUE_MAX_CHARS`, reused).
+  6. **Kubuntu tests run on real `bun`.** `bun` 1.3.14 was installed there
+     (`~/.bun`, from bun.sh's installer) for the real `prlimit` tests, under
+     the owner's install authorization. Those tests skip wherever `bun` is
+     absent, CI included.
 
 ## 10. Definition of done and release records
 

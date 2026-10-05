@@ -753,6 +753,17 @@ function foreignSpec(group: HookRecord, event: HookEvent): ForeignHookSpec | str
   }
 }
 
+/** The one handler an imported group holds, with only `fields`; a string says why not. */
+function onlyEntry(group: HookRecord, fields: ReadonlySet<string>): HookRecord | string {
+  const entries: unknown = group.hooks
+  const entry: unknown = Array.isArray(entries) && entries.length === 1 ? entries[0] : undefined
+  if (!isRecord(entry)) {
+    return 'an imported group holds exactly one handler'
+  }
+  const unknownField = Object.keys(entry).find((key) => !fields.has(key))
+  return unknownField === undefined ? entry : `unsupported handler field ${unknownField}`
+}
+
 /** A plugin path: absolute and already in its normalized form, or undefined. */
 function pluginPath(value: unknown, platform: NodeJS.Platform): string | undefined {
   if (typeof value !== 'string' || value === '' || value.length > HOOK_MATCHER_VALUE_MAX_CHARS) {
@@ -778,14 +789,9 @@ function pluginGroup(
   if (plugin === undefined) {
     return 'plugin must be an absolute, normalized path'
   }
-  const entries: unknown = group.hooks
-  const entry: unknown = Array.isArray(entries) && entries.length === 1 ? entries[0] : undefined
-  if (!isRecord(entry)) {
-    return 'an imported group holds exactly one handler'
-  }
-  const unknownField = Object.keys(entry).find((key) => !PLUGIN_HANDLER_FIELDS.has(key))
-  if (unknownField !== undefined) {
-    return `unsupported handler field ${unknownField}`
+  const entry = onlyEntry(group, PLUGIN_HANDLER_FIELDS)
+  if (typeof entry === 'string') {
+    return entry
   }
   if (entry.type !== 'plugin') {
     return 'handler type must be plugin'
@@ -845,14 +851,9 @@ function foreignGroup(
   if (PLUGIN_FORMAT_NAMES.has(spec.format)) {
     return pluginGroup(group, spec, event, source, platform)
   }
-  const entries: unknown = group.hooks
-  const entry: unknown = Array.isArray(entries) && entries.length === 1 ? entries[0] : undefined
-  if (!isRecord(entry)) {
-    return 'an imported group holds exactly one handler'
-  }
-  const unknownField = Object.keys(entry).find((key) => !FOREIGN_HANDLER_FIELDS.has(key))
-  if (unknownField !== undefined) {
-    return `unsupported handler field ${unknownField}`
+  const entry = onlyEntry(group, FOREIGN_HANDLER_FIELDS)
+  if (typeof entry === 'string') {
+    return entry
   }
   let cwd: string | undefined
   if (entry.cwd !== undefined) {
