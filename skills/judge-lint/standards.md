@@ -51,4 +51,8 @@ The independently hand-labelled examples are under
 `test/fixtures/judge/lint/standards/` and their manifest is
 `test/fixtures/judge/lint/standard-evals.json`. That manifest is a local
 label inventory, not a claim of upstream jevlint eval compatibility or model
-accuracy. Upstream pack/eval packaging waits for the pinned decoder receipt.
+accuracy. `pack.json`, `rules.json` and `jevlint-evals.json` use the pinned
+upstream revision's formats. The evals reference the same `.txt` fixtures.
+The offline config under `test/fixtures/judge/lint/upstream/` uses upstream's
+explicit JavaScript extension override to read them. These are development
+evals; installed packaging is Z's work.

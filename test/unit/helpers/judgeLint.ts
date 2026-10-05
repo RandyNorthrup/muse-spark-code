@@ -18,7 +18,7 @@ export function lintRule(overrides: Partial<LintRule> = {}): LintRule {
     minConfidence: 0.5,
     allowSkip: false,
     allowAbstain: false,
-    localize: false,
+    localize: [],
     callees: false,
     ...overrides,
   }

@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
 import { evaluateLintUnit } from '../../src/core/judge/lint/evaluate'
+import type { LintRule } from '../../src/core/judge/lint/rules'
 import type { JudgeRequest } from '../../src/core/judge/schema'
 import { lintEvaluator, lintResponse, lintRule } from './helpers/judgeLint'
 
@@ -12,6 +13,68 @@ const unit = { kind: 'function', name: 'outer', start: 0, end: file.source.lengt
 const signal = () => new AbortController().signal
 
 describe('batched lint evaluation', () => {
+  it('preserves localized source, complete parent context and parent callees', async () => {
+    const evaluator = lintEvaluator()
+    const instructions = vi.fn(
+      (rule: LintRule, isLocalized: boolean) =>
+        `${rule.description} localized=${String(isLocalized)}`,
+    )
+    const callees = vi
+      .fn()
+      .mockResolvedValue([{ name: 'inner', path: 'src/inner.ts', source: 'function inner() {}' }])
+    const judgeAdmitted = vi.fn((request: JudgeRequest) => Promise.resolve(lintResponse(request)))
+    const region = {
+      kind: 'statement',
+      name: 'outer:return_statement',
+      start: 19,
+      end: 33,
+    } as const
+    await evaluateLintUnit(
+      file,
+      region,
+      [lintRule({ callees: true })],
+      {
+        ...evaluator,
+        wording: { ...evaluator.wording, instructions },
+        callees,
+        judgeAdmitted,
+      },
+      0,
+      signal(),
+      unit,
+    )
+    expect(judgeAdmitted.mock.calls[0]?.[0].state).toEqual({
+      kind: 'region',
+      name: region.name,
+      path: file.path,
+      language: file.language,
+      source: file.source.slice(region.start, region.end),
+      parentSource: file.source,
+      regionKind: 'statement',
+      callees: [{ name: 'inner', path: 'src/inner.ts', source: 'function inner() {}' }],
+    })
+    expect(callees).toHaveBeenCalledWith(file, unit)
+    expect(instructions).toHaveBeenCalledWith(expect.any(Object), true)
+  })
+
+  it('admits exactly the upstream source-byte callee limit without charging metadata against it', async () => {
+    const evaluator = lintEvaluator()
+    const result = await evaluateLintUnit(
+      file,
+      unit,
+      [lintRule({ callees: true })],
+      {
+        ...evaluator,
+        callees: vi
+          .fn()
+          .mockResolvedValue([{ name: 'inner', path: 'src/inner.ts', source: 'x'.repeat(16_384) }]),
+      },
+      0,
+      signal(),
+    )
+    expect(result[0]?.decision.outcome).toBe('pass')
+  })
+
   it('batches applicable rules per unit and context group with the complete state', async () => {
     const evaluator = lintEvaluator()
     const judge = vi.fn((request: JudgeRequest, _budgetUsd: number, _signal: AbortSignal) =>
@@ -19,7 +82,9 @@ describe('batched lint evaluation', () => {
     )
     const callees = vi
       .fn()
-      .mockResolvedValue([{ name: 'inner', source: 'function inner() { return 1 }' }])
+      .mockResolvedValue([
+        { name: 'inner', path: 'src/inner.ts', source: 'function inner() { return 1 }' },
+      ])
     const rules = [
       lintRule({ id: 'one' }),
       lintRule({ id: 'two' }),
@@ -37,12 +102,19 @@ describe('batched lint evaluation', () => {
     expect(judge).toHaveBeenCalledTimes(2)
     expect(Object.keys(judge.mock.calls[0]![0].questions)).toEqual(['one', 'two'])
     expect(judge.mock.calls[0]![0].state).toEqual({
-      unit: { language: 'typescript', kind: 'function', name: 'outer', source: file.source },
-      callees: [],
+      language: 'typescript',
+      kind: 'function',
+      name: 'outer',
+      source: file.source,
+      path: file.path,
     })
     expect(judge.mock.calls[1]![0].state).toEqual({
-      unit: { language: 'typescript', kind: 'function', name: 'outer', source: file.source },
-      callees: [{ name: 'inner', source: 'function inner() { return 1 }' }],
+      language: 'typescript',
+      kind: 'function',
+      name: 'outer',
+      source: file.source,
+      path: file.path,
+      callees: [{ name: 'inner', path: 'src/inner.ts', source: 'function inner() { return 1 }' }],
     })
     expect(callees).toHaveBeenCalledTimes(1)
     expect(judge.mock.calls[0]![1]).toBe(0)
@@ -222,9 +294,15 @@ describe('batched lint evaluation', () => {
   })
 
   it.each([
-    { context: [{ name: 'inner', source: 'x'.repeat(16_384) }] },
-    { context: Array.from({ length: 13 }, () => ({ name: 'inner', source: 'body' })) },
-    { context: [{ name: 'inner', source: 'body', key: 'unexpected' }] },
+    { context: [{ name: 'inner', path: 'src/inner.ts', source: 'x'.repeat(16_385) }] },
+    {
+      context: Array.from({ length: 13 }, () => ({
+        name: 'inner',
+        path: 'src/inner.ts',
+        source: 'body',
+      })),
+    },
+    { context: [{ name: 'inner', path: 'src/inner.ts', source: 'body', key: 'unexpected' }] },
   ])('refuses oversized or unvalidated callee context %#', async ({ context }) => {
     const evaluator = lintEvaluator()
     await expect(

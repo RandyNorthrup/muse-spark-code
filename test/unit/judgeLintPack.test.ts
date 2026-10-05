@@ -3,6 +3,12 @@ import path from 'node:path'
 import * as z from 'zod/mini'
 import { describe, expect, it } from 'vitest'
 import { evaluateLintUnit } from '../../src/core/judge/lint/evaluate'
+import {
+  decodeLintConfig,
+  decodeLintPackRules,
+  normalizeLintRules,
+} from '../../src/core/judge/lint/config'
+import { decodeLintPackManifest, decodeLintEvals } from '../../src/core/judge/lint/formats'
 import type { JudgeRequest } from '../../src/core/judge/schema'
 import { lintEvaluator, lintResponse, lintRule } from './helpers/judgeLint'
 
@@ -24,6 +30,48 @@ const manifest = manifestSchema.parse(
 )
 
 describe('first-party lint criterion inventory', () => {
+  it('ships strict upstream pack/rules/evals with the same twelve independent fixtures', async () => {
+    const packDir = path.resolve(root, 'skills/judge-lint')
+    const pack = decodeLintPackManifest(await readFile(path.resolve(packDir, 'pack.json'), 'utf8'))
+    expect(pack).toEqual({
+      version: 1,
+      id: 'muse-spark-code/high-quality-projects',
+      languages: ['javascript'],
+      rules: 'rules.json',
+      evals: 'jevlint-evals.json',
+    })
+    const rules = decodeLintPackRules(await readFile(path.resolve(packDir, pack.rules!), 'utf8'))
+    const cfg = decodeLintConfig(
+      JSON.stringify({ languages: { javascript: { extensions: ['.txt'] } }, rules }),
+    )
+    expect(normalizeLintRules(cfg).map((rule) => rule.id)).toEqual([
+      ...new Set(manifest.cases.map((item) => item.rule)),
+    ])
+    const evals = decodeLintEvals(await readFile(path.resolve(packDir, pack.evals!), 'utf8'), cfg)
+    expect(evals.cases).toHaveLength(12)
+    for (const item of evals.cases) {
+      const label = manifest.cases.find(
+        (label) => label.rule === item.rule && label.expect === item.expect,
+      )!
+      const actual = await readFile(path.resolve(packDir, item.file), 'utf8')
+      const expected = await readFile(
+        path.resolve(root, 'test/fixtures/judge/lint', label.fixture),
+        'utf8',
+      )
+      expect(actual).toBe(expected)
+    }
+    const offlineDir = path.resolve(root, 'test/fixtures/judge/lint/upstream')
+    expect(
+      decodeLintConfig(await readFile(path.resolve(offlineDir, 'jevlint.json'), 'utf8')),
+    ).toEqual(cfg)
+    const offlineEvals = decodeLintEvals(
+      await readFile(path.resolve(offlineDir, 'jevlint-evals.json'), 'utf8'),
+      cfg,
+    )
+    expect(offlineEvals.cases.map((item) => [item.rule, item.expect])).toEqual(
+      evals.cases.map((item) => [item.rule, item.expect]),
+    )
+  })
   it('has all six standards and independently labelled pass/fail pairs', async () => {
     const standards = await readFile(path.resolve(root, 'skills/judge-lint/standards.md'), 'utf8')
     const expected = [

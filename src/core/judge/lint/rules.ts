@@ -15,7 +15,7 @@ export interface LintRule {
   readonly minConfidence: number
   readonly allowSkip: boolean
   readonly allowAbstain: boolean
-  readonly localize: boolean
+  readonly localize: readonly LintKind[]
   readonly callees: boolean
 }
 
@@ -25,7 +25,7 @@ export interface LintWording {
   readonly fail: string
   readonly skip: string
   readonly abstain: string
-  instructions(rule: LintRule): string
+  instructions(rule: LintRule, isLocalized: boolean): string
 }
 
 export interface LintQuestion {
@@ -33,7 +33,11 @@ export interface LintQuestion {
   readonly outcomes: Readonly<Record<string, LintDecision['outcome']>>
 }
 
-export function lintQuestion(rule: LintRule, wording: LintWording): LintQuestion {
+export function lintQuestion(
+  rule: LintRule,
+  wording: LintWording,
+  isLocalized = false,
+): LintQuestion {
   const options: { readonly outcome: LintDecision['outcome']; readonly text: string }[] = [
     { outcome: 'pass', text: wording.pass },
     { outcome: 'fail', text: wording.fail },
@@ -48,7 +52,7 @@ export function lintQuestion(rule: LintRule, wording: LintWording): LintQuestion
     outcomes[letter] = option.outcome
   }
   return {
-    question: { type: 'choice', instructions: wording.instructions(rule), criteria },
+    question: { type: 'choice', instructions: wording.instructions(rule, isLocalized), criteria },
     outcomes,
   }
 }

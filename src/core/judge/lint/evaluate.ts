@@ -6,7 +6,7 @@ import { type LintCache, type LintDecision, type LintIdentity } from './cache'
 import { lintQuestion, type LintQuestion, type LintRule, type LintWording } from './rules'
 import type { LintFile, LintUnit } from './units'
 
-const calleeSchema = z.strictObject({ name: z.string(), source: z.string() })
+const calleeSchema = z.strictObject({ name: z.string(), path: z.string(), source: z.string() })
 
 export interface LintLimits {
   readonly maxCallees: number
@@ -89,6 +89,7 @@ export async function evaluateLintUnit(
   evaluator: LintEvaluator,
   budgetUsd: number,
   signal: AbortSignal,
+  parent?: LintUnit,
 ): Promise<readonly LintUnitResult[]> {
   if (rules.length === 0) return []
   if (
@@ -117,27 +118,33 @@ export async function evaluateLintUnit(
     const group = rules.filter((rule) => rule.callees === isNeedsCallees)
     if (group.length === 0) continue
     const callees = isNeedsCallees
-      ? z.array(calleeSchema).parse(await evaluator.callees(file, unit))
+      ? z.array(calleeSchema).parse(await evaluator.callees(file, parent ?? unit))
       : []
     signal.throwIfAborted()
     assertIdentity()
     if (
       callees.length > evaluator.limits.maxCallees ||
-      Buffer.byteLength(JSON.stringify(callees), 'utf8') > evaluator.limits.maxCalleeBytes
+      callees.reduce((bytes, callee) => bytes + Buffer.byteLength(callee.source, 'utf8'), 0) >
+        evaluator.limits.maxCalleeBytes
     ) {
       throw new RangeError('lint-context-too-large')
     }
-    const questions = new Map(group.map((rule) => [rule.id, lintQuestion(rule, evaluator.wording)]))
+    const questions = new Map(
+      group.map((rule) => [rule.id, lintQuestion(rule, evaluator.wording, parent !== undefined)]),
+    )
     const rawRequest = {
       model: identity.model,
       state: {
-        unit: {
-          language: file.language,
-          kind: unit.kind,
-          name: unit.name,
-          source: file.source.slice(unit.start, unit.end),
-        },
-        callees,
+        language: file.language,
+        kind: parent === undefined ? unit.kind : 'region',
+        name: unit.name,
+        path: file.path,
+        source: file.source.slice(unit.start, unit.end),
+        ...(parent !== undefined && {
+          parentSource: file.source.slice(parent.start, parent.end),
+          regionKind: unit.kind,
+        }),
+        ...(callees.length > 0 && { callees }),
       },
       questions: Object.fromEntries(
         [...questions].map(([id, prepared]) => [id, prepared.question]),

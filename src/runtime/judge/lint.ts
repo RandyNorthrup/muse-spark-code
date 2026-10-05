@@ -69,6 +69,13 @@ const errorCodes: ReadonlySet<string> = new Set([
   'lint-localization-invalid',
   'lint-extraction-invalid',
   'lint-symbol-range-invalid',
+  'lint-config-invalid',
+  'lint-pack-path-invalid',
+  'lint-pack-pin-mismatch',
+  'lint-pack-language-missing',
+  'lint-eval-rule-unknown',
+  'lint-eval-duplicate',
+  'lint-eval-no-units',
 ])
 
 function position(source: string, offset: number) {
@@ -164,7 +171,7 @@ export async function runJudgeLint(
           const finding = await findingFor(file, result, deps, options.failOn !== undefined)
           signal.throwIfAborted()
           findings.push(finding)
-          if (!result.rule.localize) continue
+          if (result.rule.localize.length === 0) continue
           const rawRegions = await deps.localize(file, unit, deps.maxLocalizedRegions)
           signal.throwIfAborted()
           if (rawRegions === undefined) {
@@ -179,7 +186,19 @@ export async function runJudgeLint(
             })
             continue
           }
-          const regions = z.array(regionSchema).parse(rawRegions)
+          const suppliedRegions = z.array(regionSchema).parse(rawRegions)
+          if (
+            suppliedRegions.length > deps.maxLocalizedRegions ||
+            suppliedRegions.some(
+              (region) =>
+                region.start < unit.start || region.end > unit.end || region.end <= region.start,
+            )
+          ) {
+            throw new Error('lint-localization-invalid')
+          }
+          const regions = suppliedRegions.filter((region) =>
+            result.rule.localize.includes(region.kind),
+          )
           if (regions.length === 0) {
             isIncomplete = true
             coverage.push({
@@ -191,15 +210,6 @@ export async function runJudgeLint(
               reason: 'no-regions',
             })
             continue
-          }
-          if (
-            regions.length > deps.maxLocalizedRegions ||
-            regions.some(
-              (region) =>
-                region.start < unit.start || region.end > unit.end || region.end <= region.start,
-            )
-          ) {
-            throw new Error('lint-localization-invalid')
           }
           const localizedIndex = coverage.length
           coverage.push({
@@ -217,6 +227,7 @@ export async function runJudgeLint(
               deps.evaluator,
               options.budgetUsd ?? 0,
               signal,
+              unit,
             )
             if (
               localized.length > 0 &&

@@ -1,0 +1,7 @@
+{
+  "version": 1,
+  "id": "muse-spark-code/high-quality-projects",
+  "languages": ["javascript"],
+  "rules": "rules.json",
+  "evals": "jevlint-evals.json"
+}

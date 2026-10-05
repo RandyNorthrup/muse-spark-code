@@ -10,7 +10,11 @@ import { lintResponse, lintRule, lintRunDependencies } from './helpers/judgeLint
 const signal = () => new AbortController().signal
 function localizedResponse(request: JudgeRequest) {
   return Promise.resolve(
-    lintResponse(request, 'B', JSON.stringify(request.state).includes('function f') ? 1 : 0.51),
+    lintResponse(
+      request,
+      'B',
+      JSON.stringify(request.state).includes('"kind":"region"') ? 0.51 : 1,
+    ),
   )
 }
 function failing(deps = lintRunDependencies()): JudgeLintDependencies {
@@ -24,6 +28,41 @@ function failing(deps = lintRunDependencies()): JudgeLintDependencies {
 }
 
 describe('judge lint runtime entry', () => {
+  it('localizes only the explicitly selected upstream region categories', async () => {
+    const deps = failing()
+    const result = await runJudgeLint(
+      {},
+      {
+        ...deps,
+        rules: vi.fn().mockResolvedValue([lintRule({ localize: ['statement'] })]),
+        localize: vi.fn().mockResolvedValue([
+          { kind: 'comment', name: 'comment', start: 0, end: 2 },
+          { kind: 'statement', name: 'return', start: 15, end: 23 },
+        ]),
+      },
+      signal(),
+    )
+    expect(result.report.findings).toHaveLength(2)
+    expect(result.report.findings[1]?.unit.kind).toBe('statement')
+    expect(result.report.coverage.at(-1)).toMatchObject({ units: 1, status: 'checked' })
+    expect(deps.evaluator.judgeAdmitted).toHaveBeenCalledTimes(2)
+  })
+
+  it('validates even unselected regions before filtering categories', async () => {
+    const deps = failing()
+    const result = await runJudgeLint(
+      {},
+      {
+        ...deps,
+        rules: vi.fn().mockResolvedValue([lintRule({ localize: ['statement'] })]),
+        localize: vi.fn().mockResolvedValue([{ kind: 'comment', name: '', start: 0, end: 999 }]),
+      },
+      signal(),
+    )
+    expect(result.report.error).toBe('lint-localization-invalid')
+    expect(deps.evaluator.judgeAdmitted).toHaveBeenCalledTimes(1)
+  })
+
   it('keeps findings advisory by default and forwards changed and zero budget', async () => {
     const deps = failing()
     const options: JudgeLintOptions = { changed: true }
@@ -191,7 +230,7 @@ describe('judge lint runtime entry', () => {
       {},
       {
         ...deps,
-        rules: vi.fn().mockResolvedValue([lintRule({ localize: true })]),
+        rules: vi.fn().mockResolvedValue([lintRule({ localize: ['statement'] })]),
         evaluator: { ...deps.evaluator, judgeAdmitted: localizedResponse },
         localize: vi.fn().mockResolvedValue([{ kind: 'statement', name: '', start: 15, end: 23 }]),
       },
@@ -235,7 +274,11 @@ describe('judge lint runtime entry', () => {
       .mockResolvedValue([{ kind: 'statement', name: '', start: 15, end: 23 }])
     const result = await runJudgeLint(
       { budgetUsd: 1 },
-      { ...deps, rules: vi.fn().mockResolvedValue([lintRule({ localize: true })]), localize },
+      {
+        ...deps,
+        rules: vi.fn().mockResolvedValue([lintRule({ localize: ['statement'] })]),
+        localize,
+      },
       signal(),
     )
     expect(result.exitCode).toBe(0)
@@ -257,7 +300,7 @@ describe('judge lint runtime entry', () => {
 
   it('does not localize passing rules and shows unavailable localization', async () => {
     const deps = lintRunDependencies()
-    const rules = vi.fn().mockResolvedValue([lintRule({ localize: true })])
+    const rules = vi.fn().mockResolvedValue([lintRule({ localize: ['statement'] })])
     await expect(runJudgeLint({}, { ...deps, rules }, signal())).resolves.toMatchObject({
       exitCode: 0,
     })
@@ -288,7 +331,7 @@ describe('judge lint runtime entry', () => {
   ])('rejects invalid or unbounded localization %#', async ({ regions }) => {
     const deps = {
       ...failing(),
-      rules: vi.fn().mockResolvedValue([lintRule({ localize: true })]),
+      rules: vi.fn().mockResolvedValue([lintRule({ localize: ['statement'] })]),
       localize: vi.fn().mockResolvedValue(regions),
     }
     const result = await runJudgeLint({}, deps, signal())
