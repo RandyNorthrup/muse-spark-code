@@ -326,3 +326,39 @@ mismatch detailed above (271 VS Code APIs, 18 importers; Node totals and
 paidHost rows are unchanged by this repair). PLAN §7 records the explicit
 Z refresh deferral. Aggregate quality remains with the lead under the rig
 brief; it is not claimed green here.
+
+### Post-commit lane gates
+
+Implementation commit **96454696** completed its enabled Husky lint-staged
+ESLint/Prettier and staged gitleaks checks (no leaks). All 12 source
+restoration hashes still match the hook-on implementation byte-for-byte.
+The worktree was clean after that commit and the production build.
+
+All remaining lane gates ran directly on macmini, one heavy command at a time:
+
+- `npm run typecheck:unit`: pass again after the final cleanup-test additions;
+  all five projects had already passed with the final source changes.
+
+- `npm run deadcode`: pass (plain knip); only the existing `vendor/**`
+  configuration hint remains.
+- `npm run cycles`: pass, no cycle over 403 entry-reachable files.
+- `npx jscpd`: pass, **0 clones**, 856 files; no ignore or threshold change.
+- `npm run build`: pass, including all **18 unchanged bundle caps**, bundle
+  splits/model-text readers, host globals and third-party notices (83 bundled
+  packages). All 18 production metafiles confirm neither boundary module is
+  shipped on this unwired base; G/Z must repeat checks after wiring.
+
+| Bundle           | Size / unchanged cap |
+| ---------------- | -------------------- |
+| extension        | 553.3 / 600 KiB      |
+| Model API        | 426.4 / 475 KiB      |
+| ACP              | 786.7 / 850 KiB      |
+| webview JS       | 861.2 / 900 KiB      |
+| English fallback | 105.9 / 125 KiB      |
+| checkpoint store | 109.1 / 225 KiB      |
+
+Host inventory is the sole attempted lane gate that exits 1: the inherited,
+shared generated-document mismatch described in PLAN §7. Full quality,
+coverage, accessibility and installed package/source matrices remain the
+lead's integrated checks under the rig/shared brief. No merge, rebase, push,
+external request or real model call occurred.
