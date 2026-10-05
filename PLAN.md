@@ -19800,7 +19800,7 @@ joined with M57, M58 and PR #49's sign-in
 requires focused checks and prohibits a full `npm run quality` here; the
 lead runs it after integration. No gate is weakened. The existing lane-X
 generated host-API record deferral remains owned by X. Findings 1–9 have
-35 firing red drills with byte-exact restoration; final focused/static
+37 firing red drills with byte-exact restoration; final focused/static
 results are recorded in `docs/certification/m96-t.md`.
 
 **MG69 merged-source proof (2026-10-02).** Kubuntu passes 49 owning/merged

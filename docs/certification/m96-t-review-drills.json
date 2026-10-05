@@ -959,6 +959,58 @@
       "beforeSha256": "cf845f9677c3560116e02c159382de298dd894b7fd11a4632e1892da325e8b68",
       "afterSha256": "cf845f9677c3560116e02c159382de298dd894b7fd11a4632e1892da325e8b68",
       "seconds": 1.75
+    },
+    {
+      "name": "Validate restored MCP command records",
+      "finding": 5,
+      "path": "src/host/team/teamMcpServer.ts",
+      "test": "teamMcpServer",
+      "old": "teamCommandRecordsSchema.parse(saved)",
+      "new": "saved",
+      "count": 1,
+      "command": [
+        "npx",
+        "vitest",
+        "run",
+        "test/unit/teamMcpServer.test.ts",
+        "--maxWorkers=3",
+        "--testTimeout=120000",
+        "--reporter=json",
+        "--outputFile=/home/randy/lanes/FIXM96T/temp/fixm96t/result-36.json"
+      ],
+      "exitCode": 1,
+      "failures": [
+        "team MCP admission refuses malformed durable retry records before binding an endpoint"
+      ],
+      "beforeSha256": "cf845f9677c3560116e02c159382de298dd894b7fd11a4632e1892da325e8b68",
+      "afterSha256": "cf845f9677c3560116e02c159382de298dd894b7fd11a4632e1892da325e8b68",
+      "seconds": 1.84
+    },
+    {
+      "name": "Old startup cannot clear restarted promise",
+      "finding": 8,
+      "path": "src/host/team/teamMcpServer.ts",
+      "test": "teamMcpServer",
+      "old": "if (this.startingAbort === controller) {",
+      "new": "if (true) {",
+      "count": 1,
+      "command": [
+        "npx",
+        "vitest",
+        "run",
+        "test/unit/teamMcpServer.test.ts",
+        "--maxWorkers=3",
+        "--testTimeout=120000",
+        "--reporter=json",
+        "--outputFile=/home/randy/lanes/FIXM96T/temp/fixm96t/result-37.json"
+      ],
+      "exitCode": 1,
+      "failures": [
+        "team MCP admission settles a shared start on close and permits an immediate restart"
+      ],
+      "beforeSha256": "cf845f9677c3560116e02c159382de298dd894b7fd11a4632e1892da325e8b68",
+      "afterSha256": "cf845f9677c3560116e02c159382de298dd894b7fd11a4632e1892da325e8b68",
+      "seconds": 1.67
     }
   ]
 }

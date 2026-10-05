@@ -388,6 +388,19 @@ describe('team MCP admission', () => {
     expect(runs).toEqual([])
   })
 
+  it('refuses malformed durable retry records before binding an endpoint', async () => {
+    const { server } = await start()
+    await expect(
+      server.endpointForConversation({
+        ...binding().binding,
+        commandRecords: {
+          load: () => ({ invalid: { tasksFingerprint: '[]', answer: 1 } }),
+          save: () => Promise.resolve(),
+        },
+      }),
+    ).rejects.toThrow()
+  })
+
   it('refuses an endpoint whose already-listening startup was closed before binding', async () => {
     const { server } = await start()
     const pending = server.endpointForConversation(binding().binding)
@@ -405,6 +418,11 @@ describe('team MCP admission', () => {
     const outcomes = Promise.allSettled([pending, shared])
     server.close()
     const restarted = server.start()
+    const restartAfterClose = async (): Promise<string> => {
+      await outcomes
+      return await server.start()
+    }
+    const concurrentRestart = restartAfterClose()
     // Bounded assertion: the unfixed promises cannot hang the whole test timeout.
     let settled: PromiseSettledResult<unknown>[] | undefined
     void outcomes.then((results) => {
@@ -413,6 +431,7 @@ describe('team MCP admission', () => {
     await expect.poll(() => settled).toBeDefined()
     expect(settled?.map((result) => result.status)).toEqual(['rejected', 'rejected'])
     expect(await restarted).toMatch(/^http:\/\/127\.0\.0\.1:/)
+    expect(await concurrentRestart).toBe(await restarted)
     expect(await server.start()).toBe(await restarted)
   })
 

@@ -434,6 +434,12 @@ describe('team server name', () => {
   })
 })
 
+async function reopenTeamSession(next: TeamHostHarness, sessionId: string) {
+  await next.host.load()
+  const revived = await next.host.resumeSession(sessionId, OTHER_MODEL)
+  return { session: revived.session, turnDone: watchSessionTurns(revived.session).turnDone }
+}
+
 describe('team storage', () => {
   it('does not start delegation cancelled while its durable claim is saving', async () => {
     const memory = memorySessionStore()
@@ -516,15 +522,13 @@ describe('team storage', () => {
     )
     expect(stored?.replay.some(({ item }) => item.type === 'function_call')).toBe(false)
     const next = teamHostHarness(options)
-    await next.host.load()
-    const revived = await next.host.resumeSession(session.sessionId, OTHER_MODEL)
-    const watching = watchSessionTurns(revived.session)
+    const revived = await reopenTeamSession(next, session.sessionId)
     next.api.script(
       { calls: [{ name: 'delegate', arguments: args, callId: 'd2' }] },
       { text: 'Done.' },
     )
     await revived.session.sendTurn([{ type: 'text', text: 'retry' }])
-    await watching.turnDone()
+    await revived.turnDone()
     expect(responseOutputsByCall(next.api, 1).get('d2')).toContain('uncertain')
     expect(starts).toBe(1)
     held.reject(new Error('interrupted after starting'))
@@ -576,9 +580,7 @@ describe('team storage', () => {
       runner: runnerStub(calls),
       store,
     })
-    await next.host.load()
-    const revived = await next.host.resumeSession(session.sessionId, OTHER_MODEL)
-    const watching = watchSessionTurns(revived.session)
+    const revived = await reopenTeamSession(next, session.sessionId)
     next.api.script(
       {
         calls: [
@@ -592,7 +594,7 @@ describe('team storage', () => {
       { text: 'done' },
     )
     await revived.session.sendTurn([{ type: 'text', text: 'retry after reopening' }])
-    await watching.turnDone()
+    await revived.turnDone()
     expect(calls).toHaveLength(1)
     expect(responseOutputsByCall(next.api, 1).get('d2')).toBe(
       responseOutputsByCall(h.api, 1).get('d1'),
