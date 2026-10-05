@@ -15131,6 +15131,16 @@ joined with M57, M58 and PR #49's sign-in
 
 ### M103 — Makers: boards, firmware and machines (D83)
 
+**FIXM103D review corrections (2026-10-05).** Address all three P2 findings
+in RVM103D: bind detection reads and directory enumeration to opened handles
+and the workspace root's identity; recognize CIRCUITPY volume labels and
+root boot_out.txt on Windows, macOS and Linux; offer Pico/Zephyr builds only
+from detected application CMakeLists.txt, keeping metadata markers for kind
+and skill detection. Each correction has a regression and a byte-exact
+restored red drill in `docs/certification/m103-d.md`. No dependency or gate
+change; full quality and generated host-record integration remain lane W's
+responsibility under the rig brief.
+
 **Q-M103a–h resolved 2026-10-05 (lead, under the owner's standing
 authorization: "any recommendation you come up with you are authorized").**
 (a) Plain HTTP on the LAN only for a machine the user registered by command,

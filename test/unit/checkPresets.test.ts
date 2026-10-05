@@ -89,6 +89,8 @@ describe('portable maker preset suggestions', () => {
       const presets = checkPresets(detection, 'linux', options)
       const counts: Partial<Record<MakerProjectKind, number>> = {
         marlin: 0,
+        'pico-sdk': 0,
+        zephyr: 0,
         platformio: 2,
         'esp-idf': 2,
         kicad: 2,
@@ -136,6 +138,57 @@ describe('portable maker preset suggestions', () => {
     expect(checkPresets(project('klipper', 'printer.cfg'), 'linux')).toEqual([])
     expect(checkPresets(project('esp-idf', 'CMakeLists.txt'), 'linux')).toHaveLength(1)
   })
+
+  it.each(['linux', 'darwin', 'win32'] as const)(
+    'offers Pico and Zephyr builds only from application CMakeLists.txt on %s',
+    async (platform) => {
+      const files = {
+        '.west/config': '[manifest]',
+        'west.yml': 'manifest:',
+        'app/CMakeLists.txt': 'find_package(Zephyr REQUIRED HINTS $ENV{ZEPHYR_BASE})',
+        'pico/CMakeLists.txt': 'pico_sdk_init()',
+        'pico/cmake/pico_sdk_import.cmake': '# toolchain metadata',
+      }
+      const root = platform === 'win32' ? String.raw`C:\ws` : '/ws'
+      const detected = await detectProjectKinds(root, platform, ioFor(files))
+      const presets = checkPresets(detected, platform, options)
+      expect(presets).toHaveLength(2)
+      expect(presets.map((preset) => preset.id)).toEqual([
+        'zephyr:build:app/CMakeLists.txt',
+        'pico-sdk:build:pico/CMakeLists.txt',
+      ])
+      expect(presets).toMatchObject([
+        {
+          check: {
+            command:
+              platform === 'win32'
+                ? "Set-Location -LiteralPath 'app' -ErrorAction Stop; west build -b 'nucleo_f401re' ."
+                : "cd -- 'app' && west build -b 'nucleo_f401re' .",
+          },
+        },
+        {
+          check: {
+            command:
+              platform === 'win32'
+                ? "Set-Location -LiteralPath 'pico' -ErrorAction Stop; cmake -S . -B build; if ($LASTEXITCODE -eq 0) { cmake --build build } else { exit $LASTEXITCODE }"
+                : "cd -- 'pico' && cmake -S . -B build && cmake --build build",
+          },
+        },
+      ])
+      const metadata = await detectProjectKinds(
+        root,
+        platform,
+        ioFor({
+          '.west/config': '',
+          'west.yml': '',
+          'cmake/pico_sdk_import.cmake': '',
+        }),
+      )
+      expect(metadata.kinds).toEqual(['pico-sdk', 'zephyr'])
+      expect(metadata.skillIds).toContain('maker_firmware')
+      expect(checkPresets(metadata, platform, options)).toEqual([])
+    },
+  )
 
   it('keeps a user-selected finite simulator check intact without changing the selection', () => {
     const qemuCheck = Object.freeze({
@@ -208,7 +261,7 @@ describe('portable maker preset suggestions', () => {
           "Set-Location -LiteralPath 'O''Brien' -ErrorAction Stop; arduino-cli compile --fqbn 'arduino:avr:uno' .",
       },
     })
-    const [pico] = checkPresets(project('pico-sdk', 'pico_sdk_import.cmake'), 'win32')
+    const [pico] = checkPresets(project('pico-sdk', 'CMakeLists.txt'), 'win32')
     expect(pico).toMatchObject({
       check: {
         command:

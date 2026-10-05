@@ -136,6 +136,7 @@ export function checkPresets(
         return
       }
       case 'pico-sdk': {
+        if (path.posix.basename(file).toLowerCase() !== 'cmakelists.txt') return
         build(
           'Pico SDK',
           platform === 'win32'
@@ -145,6 +146,7 @@ export function checkPresets(
         return
       }
       case 'zephyr': {
+        if (path.posix.basename(file).toLowerCase() !== 'cmakelists.txt') return
         if (options.zephyrBoard !== undefined && isSafeCheckPath(options.zephyrBoard, platform))
           build('Zephyr', `west build -b ${quote(options.zephyrBoard)} .`)
         return
