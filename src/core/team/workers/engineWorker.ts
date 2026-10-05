@@ -19,11 +19,10 @@ import {
 import { retryAfterMs } from '../../backends/modelapi/client'
 import {
   WorktreeConversationHost,
-  type RealPathIo,
   type WorktreeAttemptOutcome,
   type WorktreeSession,
 } from '../../bestOfN/worktreeConversationHost'
-import { confineWorkspacePath } from '../../workspacePath'
+import { confineWorkspacePath, type RealPathIo } from '../../workspacePath'
 import { scrubWorkerEnv } from './workerEnv'
 import { extractTeamReport, parseReportJson, type WorkerReportOutcome } from './report'
 import type { WorkerPromptParts, WorkerRolePolicy, WorkerTask } from './workerTypes'

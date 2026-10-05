@@ -56,7 +56,7 @@ export interface ScrubWorkerEnvInput {
    * Profile-declared names the agent may receive (D75: "except the names
    * the profile passes through"), read from the unscrubbed base.
    */
-  readonly passthrough?: readonly string[]
+  readonly passthrough?: readonly string[] | undefined
 }
 
 /**

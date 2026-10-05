@@ -157,7 +157,10 @@ export function isRefMovingGitCommand(words: readonly string[]): boolean {
   }
   index += 1
   while (index < words.length) {
-    const word = words[index]
+    const word: string | undefined = words[index]
+    if (word === undefined) {
+      return false
+    }
     if (
       word === '-C' ||
       word === '--git-dir' ||
@@ -172,7 +175,7 @@ export function isRefMovingGitCommand(words: readonly string[]): boolean {
     }
     index += 1
   }
-  const subcommand = words[index]
+  const subcommand: string | undefined = words[index]
   if (subcommand === undefined) {
     return false
   }
@@ -235,12 +238,12 @@ export function classifyMuseWorkerApproval(input: {
     if (!shape.isPlain || shape.commands.length !== 1) {
       return 'deny'
     }
-    const words = shape.commands[0]
+    const words = shape.commands[0] ?? []
     if (isRefMovingGitCommand(words)) {
       return 'deny'
     }
     if (role.workspaceMode === 'read-only') {
-      const name = words[0]
+      const name: string | undefined = words[0]
       if (name === undefined || !input.readOnlyCommands.has(name)) {
         return 'deny'
       }
