@@ -3,6 +3,7 @@
 // arguments in, what to do out, with the reason when they make no sense.
 
 import { parseArgs } from 'node:util'
+import * as z from 'zod/mini'
 import {
   ACP_BACKENDS,
   ACP_DEFAULT_BACKEND,
@@ -17,6 +18,18 @@ import {
 } from '../shared/constants'
 import { fill } from '../shared/l10n/text'
 import { parseExec, type ExecOptions } from './exec/execArgs'
+import type { UsageQuery } from '../shared/usagePage'
+import type { UsageSection } from './usage/usageAdapter'
+
+export type UsageCommand =
+  | { readonly action: 'open' }
+  | { readonly action: 'stdio' }
+  | {
+      readonly action: UsageSection | 'export'
+      readonly query: UsageQuery
+      readonly format: 'text' | 'json' | 'csv'
+      readonly out?: string
+    }
 
 export interface ServeOptions {
   /** Which account pays; chosen here, never guessed (D62). */
@@ -35,6 +48,7 @@ export interface ServeOptions {
 }
 
 export type RuntimeCommand =
+  | { readonly command: 'usage'; readonly options: UsageCommand }
   | { readonly command: 'exec'; readonly options: ExecOptions }
   | { readonly command: 'scan-secrets'; readonly file: string; readonly keyFromStdin: boolean }
   | { readonly command: 'serve'; readonly options: ServeOptions }
@@ -64,7 +78,7 @@ function isOneOf<T extends string>(allowed: readonly T[], value: string | undefi
   return value !== undefined && (allowed as readonly string[]).includes(value)
 }
 
-function invalid(argument: string): RuntimeCommand {
+function invalid(argument: string): Extract<RuntimeCommand, { command: 'invalid' }> {
   return { command: 'invalid', reason: fill(UI_TEXT.acpUnknownArgument, { argument }) }
 }
 
@@ -74,6 +88,7 @@ function paidFeaturesOf(values: Readonly<Record<string, unknown>>): AcpPaidFeatu
 }
 
 export function parseCommandLine(argv: readonly string[]): RuntimeCommand {
+  if (argv[0] === 'usage') return parseUsage(argv.slice(1))
   if (argv[0] === 'exec' || argv[0] === 'scan-secrets') return parseHeadless(argv)
   let parsed: ReturnType<typeof parseCommandLineStrictly>
   try {
@@ -123,6 +138,92 @@ export function parseCommandLine(argv: readonly string[]): RuntimeCommand {
   }
   const auth = first === 'auth' && rest.length === 0 ? authCommand(second) : undefined
   return auth === undefined ? invalid(positionals.join(' ')) : { command: auth }
+}
+
+function parseUsage(argv: readonly string[]): RuntimeCommand {
+  try {
+    const { values, positionals } = parseArgs({
+      args: [...argv],
+      allowPositionals: true,
+      strict: true,
+      options: {
+        range: { type: 'string' },
+        by: { type: 'string' },
+        from: { type: 'string' },
+        to: { type: 'string' },
+        json: { type: 'boolean' },
+        csv: { type: 'boolean' },
+        out: { type: 'string' },
+        stdio: { type: 'boolean' },
+        help: { type: 'boolean', short: 'h' },
+      },
+    })
+    if (values.help) return { command: 'help' }
+    const [action = 'summary', ...rest] = positionals
+    const fail = (): RuntimeCommand => ({ ...invalid('usage'), exitCode: 2 })
+    if (rest.length > 0 || (values.json && values.csv) || values.out === '') return fail()
+    if (action === 'open' || action === 'serve') {
+      if (
+        Object.keys(values).some((key) => key !== 'stdio') ||
+        (action === 'serve' ? values.stdio !== true : values.stdio !== undefined)
+      )
+        return fail()
+      return { command: 'usage', options: { action: action === 'serve' ? 'stdio' : 'open' } }
+    }
+    if (
+      values.stdio !== undefined ||
+      !['summary', 'daily', 'models', 'limits', 'export'].includes(action)
+    )
+      return fail()
+    // CLI flags are a separate input boundary. Importing the page schema here
+    // would eagerly carry the full usage table into the ACP startup bundle.
+    const query = z
+      .strictObject({
+        range: z.enum(['today', '7d', '30d', '90d', 'custom']),
+        groupBy: z.enum(['provider', 'model', 'kind', 'client']),
+        metric: z.literal('cost'),
+        from: z.optional(z.iso.date()),
+        to: z.optional(z.iso.date()),
+      })
+      .safeParse({
+        range:
+          values.range ?? (values.from !== undefined || values.to !== undefined ? 'custom' : '30d'),
+        groupBy: values.by ?? (action === 'models' ? 'model' : 'provider'),
+        metric: 'cost',
+        ...(values.from !== undefined && { from: values.from }),
+        ...(values.to !== undefined && { to: values.to }),
+      })
+    if (
+      !query.success ||
+      (query.data.range === 'custom' &&
+        (query.data.from === undefined ||
+          query.data.to === undefined ||
+          query.data.from > query.data.to)) ||
+      (query.data.range !== 'custom' && (values.from !== undefined || values.to !== undefined))
+    )
+      return fail()
+    // Narrow the validated subcommand without a cast, keeping invalid actions out.
+    if (
+      action !== 'summary' &&
+      action !== 'daily' &&
+      action !== 'models' &&
+      action !== 'limits' &&
+      action !== 'export'
+    )
+      return fail()
+    const format = action === 'export' || values.csv ? 'csv' : 'text'
+    return {
+      command: 'usage',
+      options: {
+        action,
+        query: query.data,
+        format: values.json ? 'json' : format,
+        ...(values.out !== undefined && { out: values.out }),
+      },
+    }
+  } catch {
+    return { ...invalid('usage'), exitCode: 2 }
+  }
 }
 
 function parseHeadless(argv: readonly string[]): RuntimeCommand {

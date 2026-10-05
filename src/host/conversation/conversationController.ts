@@ -8139,6 +8139,10 @@ export class ConversationController {
         await this.runHostAction(message.action)
         break
       }
+      case 'openUsagePage': {
+        await this.runHostAction('openUsagePage')
+        break
+      }
       case 'listSessions': {
         await this.listSessions()
         break

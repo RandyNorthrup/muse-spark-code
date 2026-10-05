@@ -4,6 +4,8 @@
 import { execFile, type ExecFileException } from 'node:child_process'
 import { readFileSync, statSync } from 'node:fs'
 import { homedir } from 'node:os'
+import { usagePanelLoader } from './host/usage/usagePanelBundle'
+import type { UsagePanel } from './host/usage/usagePanel'
 import path from 'node:path'
 import * as vscode from 'vscode'
 import * as z from 'zod/mini'
@@ -1939,6 +1941,10 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
         await vscode.commands.executeCommand(COMMAND_IDS.modelsAndAgents)
         break
       }
+      case 'openUsagePage': {
+        await vscode.commands.executeCommand('museSpark.openUsagePage')
+        break
+      }
     }
   }
 
@@ -2379,6 +2385,38 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     return modelsFeatures
   }
 
+  // Lane E's editor command adapter; lane S supplies the lazy shared service.
+  const usageBundle = usagePanelLoader({
+    bundlePath: vscode.Uri.joinPath(context.extensionUri, 'dist', 'usagePanel.js').fsPath,
+    log,
+  })
+  let usagePanel: Promise<UsagePanel> | undefined
+  const openUsagePage = async (): Promise<void> => {
+    usagePanel ??= (async () => {
+      const panel = await usageBundle().createUsagePanel({
+        extensionUri: context.extensionUri,
+        l10n,
+        log,
+        openModels: (provider, model) => {
+          ensureModelsFeatures().openPanel({
+            section: 'models',
+            presetId: model === undefined ? provider : `${provider}/${model}`,
+          })
+          return Promise.resolve()
+        },
+      })
+      context.subscriptions.push(panel)
+      return panel
+    })()
+    try {
+      const panel = await usagePanel
+      panel.open()
+    } catch (error: unknown) {
+      usagePanel = undefined
+      throw error
+    }
+  }
+
   void recoverProviderRemovals(
     context.globalState.get(GLOBAL_STATE_KEYS.providerPendingRemovals),
     ensureModelsFeatures,
@@ -2515,6 +2553,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     registerLoggedCommand(log, COMMAND_IDS.openInNewTab, () => {
       openChatPanel(hostContext, registry)
     }),
+    registerLoggedCommand(log, 'museSpark.openUsagePage', openUsagePage),
     registerLoggedCommand(
       log,
       COMMAND_IDS.openTasks,

@@ -11,6 +11,8 @@
 // paid.ts). Every update of a turn goes out before the turn's response.
 
 import { randomUUID } from 'node:crypto'
+import type { UsageAdapter } from '../runtime/usage/usageAdapter'
+import { usageCompanionUrl } from '../runtime/usage/usageAdapter'
 import path from 'node:path'
 import {
   agent as acpAgent,
@@ -121,6 +123,8 @@ export interface SignInMethod {
 }
 
 export interface AcpAgentDeps {
+  /** Shared journal/service, required lazily on the local /usage command. */
+  readonly usage?: Pick<UsageAdapter, 'access' | 'openPage'>
   readonly backend: AcpBackend
   readonly version: string
   readonly options: AcpAgentOptions
@@ -273,15 +277,28 @@ class AcpSession {
       this.deps.log.warn(
         `ACP session ${this.sessionId}: skills unavailable: ${failureForLog(error)}`,
       )
-      return
+      if (this.deps.usage === undefined) return
     }
     this.send({
       sessionUpdate: 'available_commands_update',
-      availableCommands: this.skills.map((skill) => ({
-        name: skill.selector,
-        description: skill.description === '' ? skill.displayName : skill.description,
-        input: skill.argumentHint === undefined ? null : { hint: skill.argumentHint },
-      })),
+      availableCommands: [
+        ...(this.deps.usage === undefined
+          ? []
+          : [
+              {
+                name: 'usage',
+                description: UI_TEXT.acpUsageDescription,
+                input: null,
+              },
+            ]),
+        ...this.skills
+          .filter((skill) => this.deps.usage === undefined || skill.selector !== 'usage')
+          .map((skill) => ({
+            name: skill.selector,
+            description: skill.description === '' ? skill.displayName : skill.description,
+            input: skill.argumentHint === undefined ? null : { hint: skill.argumentHint },
+          })),
+      ],
     })
   }
 
@@ -533,6 +550,54 @@ class AcpSession {
    * about to be billed and its price, and a permission prompt on it with the
    * popup's answers. Anything but Allow once or Allow always is Deny.
    */
+  private async usageReply(
+    blocks: readonly ContentBlock[],
+    preparing: PreparingPrompt,
+  ): Promise<boolean> {
+    const [block] = blocks
+    const usage = this.deps.usage
+    if (
+      usage === undefined ||
+      blocks.length !== 1 ||
+      block?.type !== 'text' ||
+      !['/usage', '/usage page', '/usage open'].includes(block.text.trim())
+    )
+      return false
+    if (!this.canReplyUsage(preparing)) return true
+    const access = usage.access()
+    const state = await access.read({ range: '30d', groupBy: 'provider', metric: 'cost' })
+    if (!this.canReplyUsage(preparing)) return true
+    const text = access.usageText(state, 'markdown', 'summary')
+    this.send({ sessionUpdate: 'agent_message_chunk', content: { type: 'text', text } })
+    const url = usageCompanionUrl(await usage.openPage())
+    if (!this.canReplyUsage(preparing)) return true
+    if (this.clientCapabilities.elicitation?.url != null) {
+      try {
+        await this.client.request('elicitation/create', {
+          sessionId: this.sessionId,
+          mode: 'url',
+          elicitationId: randomUUID(),
+          message: UI_TEXT.openUsagePage,
+          url,
+        })
+        return true
+      } catch {
+        // An advertised feature can still fail; the local page remains reachable.
+        this.deps.log.warn('ACP usage URL elicitation failed')
+      }
+    }
+    if (this.canReplyUsage(preparing))
+      this.send({
+        sessionUpdate: 'agent_message_chunk',
+        content: { type: 'text', text: `\n[${UI_TEXT.openUsagePage}](${url})` },
+      })
+    return true
+  }
+
+  private canReplyUsage(preparing: PreparingPrompt): boolean {
+    return !preparing.isCancelled && !this.isDisposed
+  }
+
   public async askPaidUse(request: PaidUseRequest, canRemember: boolean): Promise<PaidUseAnswer> {
     const pending = this.pending
     const preparing = this.preparing
@@ -709,8 +774,10 @@ class AcpSession {
     }
     const preparing: PreparingPrompt = { isCancelled: false }
     this.preparing = preparing
+    let isUsage: boolean
     try {
       await this.announceCommands()
+      isUsage = await this.usageReply(blocks, preparing)
     } finally {
       this.preparing = undefined
     }
@@ -720,6 +787,10 @@ class AcpSession {
     if (preparing.isCancelled) {
       await this.outbox
       return 'cancelled'
+    }
+    if (isUsage) {
+      await this.outbox
+      return 'end_turn'
     }
     // Outcomes are values: a host exit before turn/start answers must not
     // reject a promise that the prompt has not yet reached (Node would exit).

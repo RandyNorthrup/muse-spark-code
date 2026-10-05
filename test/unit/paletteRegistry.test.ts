@@ -502,6 +502,7 @@ describe('slashCommandsOf', () => {
       'hooks',
       'memory',
       'config',
+      'usage page',
       'fix-bug',
       'acme:deploy',
       'agents',
