@@ -1,5 +1,5 @@
 import { Buffer } from 'node:buffer'
-import { randomUUID } from 'node:crypto'
+import { createHash, randomUUID } from 'node:crypto'
 import {
   copyFileSync,
   mkdtempSync,
@@ -667,8 +667,13 @@ function setup(
           : Promise.resolve({ bytes: new TextEncoder().encode('example text'), isPdf: false }),
       canonicalRelativePath: (fsPath: string) =>
         Promise.resolve(
-          fsPath.startsWith('/ws/')
-            ? { canonical: fsPath.slice('/ws/'.length), checkedAbsolute: fsPath }
+          path.relative(path.resolve('/ws'), fsPath) !== '' &&
+            !path.relative(path.resolve('/ws'), fsPath).startsWith('..') &&
+            !path.isAbsolute(path.relative(path.resolve('/ws'), fsPath))
+            ? {
+                canonical: path.relative(path.resolve('/ws'), fsPath).split(path.sep).join('/'),
+                checkedAbsolute: fsPath,
+              }
             : undefined,
         ),
       pickMentionFile: () => Promise.resolve(mentionChoice),
@@ -13261,7 +13266,7 @@ function emptyLegalResult(): LegalScanResult {
 }
 
 interface LegalSetupOptions extends Omit<
-  Parameters<typeof setup>[0],
+  NonNullable<Parameters<typeof setup>[0]>,
   'legalScan' | 'createLegalHold'
 > {
   /** The scan waits here, so a test can act mid-scan. */
@@ -13498,10 +13503,29 @@ describe('the legal selected-fix handoff (M97 lane W)', () => {
     recommendation: 'Add the project copyright header.',
     fixable: true,
   }
-  const scan = { ruleVersion: '1', dataVersion: '2026-10-04', scope: '' }
+  const scan = { scanId: 'legal-1', ruleVersion: '1', dataVersion: '2026-10-04', scope: '' }
+
+  const ready = async () => {
+    const t = setup({
+      createLegalHold: (holdDeps) => new PlanModeHold(holdDeps),
+      legalScan: () =>
+        Promise.resolve({
+          ...emptyLegalResult(),
+          ruleVersion: '1',
+          dataVersion: '2026-10-04',
+          findings: [header],
+          evidenceFiles: [
+            { path: 'src/a.ts', hash: createHash('sha256').update('example text').digest('hex') },
+          ],
+        }),
+    })
+    await t.controller.handle({ type: 'requestLegalScan' })
+    expect(t.surface.posted.filter((message) => message.type === 'legalScanReport')).toHaveLength(1)
+    return t
+  }
 
   it('routes a fix preview and refuses the guarded confirm without an applier', async () => {
-    const t = setup()
+    const t = await ready()
     await t.controller.handle({
       type: 'requestLegalFix',
       scan,
@@ -13521,6 +13545,21 @@ describe('the legal selected-fix handoff (M97 lane W)', () => {
     expect(t.surface.posted.findLast((message) => message.type === 'legalFixResult')).toMatchObject(
       { outcome: 'refused', refusal: 'fixUnavailable' },
     )
+  })
+
+  it('F3 a fresh scan after dropping the session can establish new previews', async () => {
+    const t = await ready()
+    await t.controller.handle({ type: 'clearConversation' })
+    await t.controller.handle({ type: 'requestLegalScan' })
+    await t.controller.handle({
+      type: 'requestLegalFix',
+      scan: { ...scan, scanId: 'legal-2' },
+      findings: [header],
+      includeProjectLicense: false,
+    })
+    expect(
+      t.surface.posted.findLast((message) => message.type === 'legalFixPreview'),
+    ).toMatchObject({ eligible: [header.id], paths: ['src/a.ts'] })
   })
 
   it('refuses a confirm for an unknown preview', async () => {

@@ -64,15 +64,36 @@ export function eligibleFixTargets(
 ): EligibleFixTargets {
   const selected = new Set(selectedIds)
   const byId = new Map(findings.map((finding) => [finding.id, finding] as const))
+  const unfixable = new Set(
+    findings
+      .filter(
+        (finding) =>
+          !finding.fixable ||
+          finding.file
+            ?.split('/')
+            .some((segment) =>
+              [
+                'node_modules',
+                'vendor',
+                'third_party',
+                'third-party',
+                'gems',
+                'site-packages',
+                'registry',
+                'packages',
+              ].includes(segment.toLowerCase()),
+            ) === true,
+      )
+      .map((finding) => finding.id),
+  )
   const eligible: LegalFinding[] = []
   for (const finding of findings) {
     if (
       !selected.has(finding.id) ||
-      !finding.fixable ||
+      unfixable.has(finding.id) ||
       (!isProjectLicenseIncluded && isProjectLicenseChange(finding))
-    ) {
+    )
       continue
-    }
     eligible.push(finding)
   }
   const excluded: { readonly id: string; readonly reason: LegalFixExclusion }[] = []
@@ -80,7 +101,7 @@ export function eligibleFixTargets(
     const finding = byId.get(id)
     if (finding === undefined) {
       excluded.push({ id, reason: 'unknownFinding' })
-    } else if (!finding.fixable) {
+    } else if (unfixable.has(id)) {
       excluded.push({ id, reason: 'notFixable' })
     } else if (!isProjectLicenseIncluded && isProjectLicenseChange(finding)) {
       excluded.push({ id, reason: 'projectLicenseSeparate' })
@@ -128,6 +149,8 @@ export function authorizeLegalFix(
   if (live.workspacePath !== snapshot.workspacePath) {
     return { ok: false, refusal: 'workspaceChanged' }
   }
+  if (live.permissionMode !== snapshot.permissionMode)
+    return { ok: false, refusal: 'previewExpired' }
   for (const { id, digest } of snapshot.evidence) {
     if (live.evidence[id] !== digest) {
       return { ok: false, refusal: 'staleEvidence' }

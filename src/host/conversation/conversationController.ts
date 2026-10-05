@@ -1474,7 +1474,8 @@ export class ConversationController {
     this.revertedHunks.clear()
     // A dropped session's fix previews go with it (M97 lane W): later
     // confirms refuse with `previewExpired` instead of authorizing.
-    this.legalFixPreviews.dispose()
+    if (this.isDisposed) this.legalFixPreviews.dispose()
+    else this.legalFixPreviews.invalidate()
     const didHaveSkills = this.skills !== undefined
     this.skills = undefined
     this.skillsRefresh = undefined
@@ -5706,6 +5707,11 @@ export class ConversationController {
         return
       }
       this.legalScanSequence += 1
+      this.legalFixPreviews.setScan(
+        `legal-${String(this.legalScanSequence)}`,
+        result,
+        this.deps.workspaceRoot ?? '',
+      )
       this.post({
         type: 'legalScanReport',
         requestId: `legal-${String(this.legalScanSequence)}`,
@@ -6144,31 +6150,36 @@ export class ConversationController {
     }
   }
 
+  private legalFixHostState() {
+    const permissionMode = () => this.permissionMode
+    const workspacePath = () => this.deps.workspaceRoot ?? ''
+    const isTrusted = () => this.deps.isWorkspaceTrusted()
+    return {
+      get permissionMode() {
+        return permissionMode()
+      },
+      get workspacePath() {
+        return workspacePath()
+      },
+      get isTrusted() {
+        return isTrusted()
+      },
+      files: this.legalFixFiles(),
+      applier: undefined,
+    }
+  }
+
   private async previewLegalFix(
     message: Extract<ConversationMessage, { type: 'requestLegalFix' }>,
   ): Promise<void> {
-    const preview = await this.legalFixPreviews.preview(message, {
-      permissionMode: this.permissionMode,
-      workspacePath: this.deps.workspaceRoot ?? '',
-      isTrusted: this.deps.isWorkspaceTrusted(),
-      files: this.legalFixFiles(),
-      // Lane B's router supplies the applier through the normal edit tools.
-      applier: undefined,
-    })
+    const preview = await this.legalFixPreviews.preview(message, this.legalFixHostState())
     this.post(preview)
   }
 
   private async confirmLegalFix(
     message: Extract<ConversationMessage, { type: 'confirmLegalFix' }>,
   ): Promise<void> {
-    const result = await this.legalFixPreviews.confirm(message, {
-      permissionMode: this.permissionMode,
-      workspacePath: this.deps.workspaceRoot ?? '',
-      isTrusted: this.deps.isWorkspaceTrusted(),
-      files: this.legalFixFiles(),
-      // Lane B's router supplies the applier through the normal edit tools.
-      applier: undefined,
-    })
+    const result = await this.legalFixPreviews.confirm(message, this.legalFixHostState())
     this.post(result)
   }
 
@@ -6588,6 +6599,7 @@ export class ConversationController {
   }
 
   private async setPermissionMode(mode: PermissionMode): Promise<void> {
+    this.legalFixPreviews.invalidate()
     if (mode !== 'plan' && this.isSideChat) {
       this.notice('info', UI_TEXT.sideChatPlanOnly)
       this.postComposerState()
