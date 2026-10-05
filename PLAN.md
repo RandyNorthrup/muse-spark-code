@@ -5836,6 +5836,27 @@ merged through pull request #7 from `hardening/m26-platform`, shipped in
 
 ### M27 — The tree kill's orphans (D25)
 
+**DEFLAKE2 follow-up (2026-10-04, scoped gates verified):** PR #115's Windows
+shard failed while starting PowerShell to compile the M50 MCP launcher.
+Both M27 and M50 still compile through `Add-Type` under the existing
+20-second process deadline; the reported error lacks termination metadata.
+Remove PowerShell startup/module discovery from their shared build path by
+invoking Windows' .NET Framework C# compiler directly, keeping source-digest
+caching, atomic publication, self-tests and the unchanged deadline. Prove a
+forced PowerShell compile-start failure is avoided for both helpers and run
+real Windows compile/process suites. Preserve compiler diagnostics and
+termination details on failures. Record the precise evidence and any limits
+in `docs/certification/mcp-job-flake.md`; scoped lane gates run on Win11,
+with aggregate quality and hosted CI left to the lead per the lane rules.
+Win11 passed 80 tests across six owned helper/MCP/shell suites, with two
+existing platform skips. Both deliberate regressions fired and the source
+was restored SHA-256-exact. All five compiler projects, scoped lint/format,
+dead code, duplication, localization, host API and production build passed;
+the extension is 553.1 KiB under its unchanged 600 KiB cap. The initial
+CI termination reason remains unavailable; the dependency on PowerShell
+compile startup is removed for both helpers, and future native compiler
+failures include diagnostics and exit/signal/killed metadata.
+
 **JOBFLAKE follow-up (2026-10-03, scoped gates verified):** hosted Windows failures in
 PRs #96 and #89 hid the helper's preparation error and kept its failed
 promise for the session. Keep compilation and success caching unchanged;
@@ -13719,6 +13740,14 @@ joined with M57, M58 and PR #49's sign-in
   or the log; every gate green.
 
 ## 7. Gates
+
+**DEFLAKE2 bounded-lane result (2026-10-04).** Direct Win11 owning tests
+and the required static/build gates passed; two deliberate regressions
+failed and were restored byte-exact. The rig brief prohibits integration
+merges/pushes, and `common.md` forbids aggregate quality/full-unit runs in
+this shared lane. Full quality, aggregate coverage, accessibility and the
+hosted Windows recheck remain the lead's gates. No gate or deadline was
+weakened. Evidence: `docs/certification/mcp-job-flake.md`.
 
 **RELFAST3 bounded-lane result (2026-10-04).** Fresh Windows compilers,
 dead-code, duplication, localization, host API, production build, actionlint
