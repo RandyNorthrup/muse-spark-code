@@ -13882,6 +13882,19 @@ live) and the controller filters its id as well.
 
 ### M95 — Bring-your-own model providers (D74)
 
+**M95INT round-two scope (2026-10-05, kubuntu).** The rig brief authorizes
+ordered `--no-ff` merges of `m95/kfix`, `m95/mufix`, `m95/hfix`, `m95/ofix`
+and `m95/scfix`; the last brings the 0.13.0 release at `928a9200`. Preserve
+all lane behavior and translations, use one shared Models panel contract,
+regenerate generated records, and close the round-one four blocking SAST
+findings, scan timeout warnings, selected-description contrast and harness
+readiness failures. Keep every bundle and the universal-helper VSIX within
+the existing caps by lazy loading where necessary. Run every offline unit
+file in sequential batches of at most three, all static/build/package gates,
+and a final complete `npm run quality`. T/X/I/W remain owned by their lanes;
+no live or paid calls, credential reads, push, rebase or separate main merge.
+The 150-minute timebox and actual receipts belong in `docs/certification/m95-int.md`.
+
 **M95INT integration scope (2026-10-05, kubuntu).** Merge completed lanes
 0, P fixes, G fixes, A fixes, R, K, M and U in the assigned order. Preserve
 translated keys, share duplicate tunables, repair integration-only test
