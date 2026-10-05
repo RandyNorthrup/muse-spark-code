@@ -61,6 +61,7 @@ function paidAtActivation(settings: ExtensionSettings, isKeyStored = false) {
     // D78 defaults are available on the Model API backend; this fixture
     // models a subscription without a key or an interactive keyed backend.
     isAvailable: (feature) => feature === 'tab' || isKeyStored,
+    isDefaultOn: () => !isKeyStored,
     isKeyStored: () => isKeyStored,
     canRememberPaidUse: () => true,
     log: new FakeLogOutputChannel(),
