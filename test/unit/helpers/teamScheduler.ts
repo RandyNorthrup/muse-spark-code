@@ -49,7 +49,7 @@ export function retireBoardAttempt(board: TaskBoard, id: string) {
   const number = board.task(id).currentAttempt
   return board.finishAttempt(id, number, {
     state: 'retired',
-    endedAt: number + 1,
+    endedAt: (board.task(id).attempts.at(-1)?.startedAt ?? number) + 1,
     retirement: { kind: 'proved', method: 'linuxCgroup' },
   })
 }

@@ -33,6 +33,13 @@ describe('scheduler pick', () => {
       fit: 0.225,
       score: 0.9,
     })
+    expect(
+      picker.rank([readyTask('short')], pickContext({ minutes: () => 1 / 2 }))[0]
+        ?.criticalPathFactor,
+    ).toBe(2)
+    expect(
+      picker.rank([readyTask('zero')], pickContext({ minutes: () => 0 }))[0]?.criticalPathFactor,
+    ).toBe(1)
     expect(() => criticalPaths([readyTask('x', { depends_on: [{ task: 'x' }] })])).toThrow('cycle')
   })
 
@@ -79,6 +86,12 @@ describe('scheduler pick', () => {
       inheritedPriorities(tasks, [{ waiter: 'urgent', holder: 'middle' }], 0).get('holder'),
     ).toBe('urgent')
     expect(inheritedPriorities(tasks, [], 0).get('holder')).toBe('low')
+    const stopped = tasks.map((task) =>
+      task.id === 'urgent' ? { ...task, state: 'cancelled' as const } : task,
+    )
+    expect(
+      inheritedPriorities(stopped, [{ waiter: 'urgent', holder: 'middle' }], 0).get('holder'),
+    ).toBe('low')
   })
 
   it('shares eligible lanes by weighted round robin between conversations', () => {
@@ -153,6 +166,24 @@ function slots(workers = 2, processWorkers = 2) {
 }
 
 describe('reserved child slots', () => {
+  it('binds reserved children to their selected entry and retains recovered liabilities above a lowered cap', () => {
+    const pool = slots(1)
+    pool.reserve(slot('child'))
+    expect(pool.isReserved(slot('child'))).toBe(true)
+    expect(pool.isReserved(slot('child', { entryId: 'different' }))).toBe(false)
+    expect(pool.isReserved(slot('child', { workspaceId: 'different' }))).toBe(false)
+    pool.release(slot('child'), 'notStarted')
+    pool.recover(slot('old'))
+    pool.recover(slot('older'))
+    expect(pool.snapshot()).toHaveLength(2)
+    expect(pool.reserve(slot('new'))).toMatchObject({ reason: 'workers' })
+    expect(() => {
+      pool.recover(slot('old'))
+    }).toThrow('recoverySlot')
+    expect(() => {
+      pool.recover(slot('foreign', { workspaceId: 'foreign' }))
+    }).toThrow('recoverySlot')
+  })
   it('refuses a child behind its parent at once and reserves the whole batch or none', () => {
     const one = slots(1)
     const parent = slot('parent')

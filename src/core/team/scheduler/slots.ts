@@ -69,6 +69,25 @@ export class SchedulerSlots {
     return { ok: true }
   }
 
+  isReserved(request: SlotRequest): boolean {
+    const slot = this.held.get(this.key(request))
+    return (
+      slot?.state === 'reserved' &&
+      slot.request.workspaceId === request.workspaceId &&
+      slot.request.roleId === request.roleId &&
+      slot.request.entryId === request.entryId &&
+      slot.request.agentProfileId === request.agentProfileId &&
+      slot.request.kind === request.kind
+    )
+  }
+
+  /** Recovery retains old liabilities even when the user lowered a cap. */
+  recover(request: SlotRequest): void {
+    if (request.workspaceId !== this.workspaceId || this.held.has(this.key(request)))
+      throw new Error('team:recoverySlot')
+    this.held.set(this.key(request), { request: structuredClone(request), state: 'uncertain' })
+  }
+
   reserveChildren(
     parent: Pick<SlotRequest, 'taskId' | 'attempt'>,
     children: readonly SlotRequest[],

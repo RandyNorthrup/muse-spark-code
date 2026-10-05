@@ -60,9 +60,12 @@ export function inheritedPriorities(
       return [task.id, Math.min(priorities.length - 1, priorities.indexOf(task.priority) + aging)]
     }),
   )
+  const waiting = tasks.filter((task) =>
+    ['queued', 'ready', 'running', 'blocked', 'review', 'merge'].includes(task.state),
+  )
   const edges = [
-    ...waits,
-    ...tasks.flatMap((task) =>
+    ...waits.filter((edge) => waiting.some((task) => task.id === edge.waiter)),
+    ...waiting.flatMap((task) =>
       (task.depends_on ?? [])
         .filter((edge) => {
           const dependency = tasks.find((item) => item.id === edge.task)
@@ -104,7 +107,7 @@ export class TaskPicker {
 
   rank(tasks: readonly TeamBoardTask[], context: PickContext): readonly ScoredPick[] {
     const paths = criticalPaths(tasks, (task) => context.minutes(task))
-    const longest = Math.max(1, ...paths.values())
+    const longest = Math.max(0, ...paths.values())
     const inherited = inheritedPriorities(tasks, context.waits, context.now, context.agingMs)
     const ranked: ScoredPick[] = []
     for (const task of tasks) {
@@ -126,7 +129,7 @@ export class TaskPicker {
           (context.landingOverlap(task) ? 1 / 2 : 1)
         if (!(fit > 0 && fit <= 1)) continue
         const priorityWeight = TEAM_PRIORITY_WEIGHTS[inherited.get(task.id) ?? task.priority]
-        const criticalPathFactor = 1 + (paths.get(task.id) ?? 0) / longest
+        const criticalPathFactor = longest > 0 ? 1 + (paths.get(task.id) ?? 0) / longest : 1
         ranked.push({
           task,
           entry,

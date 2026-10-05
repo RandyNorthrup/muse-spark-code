@@ -1,4 +1,9 @@
-import { TEAM_BOARD_MAX, TEAM_SCHED_HISTORY_MAX, UI_TEXT } from '../../../shared/constants'
+import {
+  TEAM_BOARD_MAX,
+  TEAM_MAX_REASSIGNMENTS,
+  TEAM_SCHED_HISTORY_MAX,
+  UI_TEXT,
+} from '../../../shared/constants'
 import {
   teamBoardSchema,
   teamBoardTaskSchema,
@@ -219,7 +224,10 @@ export class TaskBoard {
         task: dependency.task,
         on:
           dependency.on ??
-          (this.context.workspaceMode(dependency.task) === 'read-only' ? 'done' : 'merged'),
+          (next.tasks.some((candidate) => candidate.id === dependency.task) &&
+          this.context.workspaceMode(dependency.task) === 'read-only'
+            ? 'done'
+            : 'merged'),
       }))
       task.state = 'queued'
       delete task.readyAt
@@ -314,13 +322,37 @@ export class TaskBoard {
   ): boolean {
     const task = this.requireTask(id)
     const attempt = task.attempts.find((candidate) => candidate.number === number)
-    if (!attempt || number !== task.currentAttempt) return false
+    if (!attempt || (number !== task.currentAttempt && outcome.state !== 'retired')) return false
     const updated = { ...attempt, ...outcome }
     const checked = teamBoardTaskSchema.parse({
       ...task,
       attempts: task.attempts.map((item) => (item === attempt ? updated : item)),
     })
     task.attempts = checked.attempts
+    return true
+  }
+
+  /** Trusted recovery, never a worker event, opens the next attempt. */
+  prepareNext(
+    id: string,
+    number: number,
+    at: number,
+    reason: 'stall' | 'review' | 'conflict',
+    hasQuarantine = false,
+  ): boolean {
+    const task = this.requireTask(id)
+    const previous = task.attempts.at(-1)
+    if (!previous || number !== task.currentAttempt || terminal.has(task.state)) return false
+    if (previous.state !== 'retired' && !(hasQuarantine && previous.state === 'uncertain'))
+      return false
+    if (reason === 'stall') {
+      if (task.reassignments >= TEAM_MAX_REASSIGNMENTS) return false
+      task.reassignments++
+    }
+    task.state = 'ready'
+    task.readyAt = at
+    delete task.blockedReason
+    this.refresh(at)
     return true
   }
 
@@ -354,10 +386,6 @@ export class TaskBoard {
       charge(event)
       return true
     }
-    return !(
-      event.attempt !== task.currentAttempt ||
-      attempt.state === 'retired' ||
-      attempt.state === 'uncertain'
-    )
+    return event.attempt === task.currentAttempt && ['running', 'retiring'].includes(attempt.state)
   }
 }

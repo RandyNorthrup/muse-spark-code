@@ -1,10 +1,58 @@
 import { describe, expect, it, vi } from 'vitest'
-import { BoardRefusal } from '../../src/core/team/scheduler/board'
+import { BoardRefusal, TaskBoard } from '../../src/core/team/scheduler/board'
 import { TEAM_BOARD_MAX } from '../../src/shared/constants'
 import { teamBoardSchema } from '../../src/shared/team'
 import { attempt, makeBoard, retireBoardAttempt, submission } from './helpers/teamScheduler'
 
 describe('window task board', () => {
+  it('refuses unknown and foreign relinks before consulting local task metadata', () => {
+    const board = new TaskBoard('workspace', 'window', {
+      workspaceFor: (id) => (id === 'foreign' ? 'other' : undefined),
+      workspaceMode: () => {
+        throw new Error('not local')
+      },
+      report: () => '',
+      countAttempt: () => true,
+    })
+    board.submit([submission('a')], 0)
+    const before = board.snapshot()
+    for (const [task, code] of [
+      ['missing', 'unknownTask'],
+      ['foreign', 'crossWorkspace'],
+    ] as const) {
+      expect(() => {
+        board.reschedule({ task_ids: ['a'], depends_on: [{ task }] }, 1)
+      }).toThrow(expect.objectContaining({ code, edge: ['a', task] }))
+      expect(board.snapshot()).toEqual(before)
+    }
+  })
+  it('opens bounded stall attempts only after retirement or quarantined handoff and records old retirement separately', () => {
+    const { board } = makeBoard()
+    board.submit([submission('a')], 0)
+    board.begin('a', attempt())
+    expect(board.prepareNext('a', 1, 2, 'stall')).toBe(false)
+    retireBoardAttempt(board, 'a')
+    expect(board.prepareNext('a', 1, 2, 'stall')).toBe(true)
+    expect(board.task('a').reassignments).toBe(1)
+    board.begin('a', attempt(2))
+    board.finishAttempt('a', 2, { state: 'uncertain' })
+    expect(board.prepareNext('a', 2, 3, 'stall')).toBe(false)
+    expect(board.prepareNext('a', 2, 3, 'stall', true)).toBe(true)
+    expect(board.begin('a', attempt(3))).toBe(false)
+    expect(board.begin('a', attempt(3), true)).toBe(true)
+    const before = board.task('a').state
+    expect(
+      board.finishAttempt('a', 2, {
+        state: 'retired',
+        endedAt: 4,
+        retirement: { kind: 'proved', method: 'linuxCgroup' },
+      }),
+    ).toBe(true)
+    expect(board.task('a').state).toBe(before)
+    retireBoardAttempt(board, 'a')
+    expect(board.prepareNext('a', 3, 4, 'stall')).toBe(false)
+    expect(board.prepareNext('a', 3, 4, 'review')).toBe(true)
+  })
   it('refuses cycles, unknown and foreign edges atomically and names the edge', () => {
     const { board } = makeBoard()
     for (const [dependency, code] of [
@@ -174,6 +222,12 @@ describe('window task board', () => {
     const snapshot = board.snapshot()
     board.restore(snapshot)
     expect(board.paused).toBe(true)
+    expect(
+      board.applyEvent(
+        { workspaceId: 'workspace', taskId: 'running', attempt: 1, at: 3, kind: 'started' },
+        vi.fn(),
+      ),
+    ).toBe(false)
     expect(board.task('running')).toMatchObject({
       state: 'blocked',
       attempts: [{ state: 'interrupted' }],
