@@ -1,6 +1,7 @@
 **
 !dist/extension.js
 !dist/modelApi.js
+!dist/providers.js
 !dist/sessionBoard.js
 !dist/reviewer.js
 !dist/planMarkdown.js

@@ -6,22 +6,13 @@
    first, then state rules from lowest to highest specificity
    (:disabled and :focus-visible before :hover:enabled). */
 
+@import url('./page.css');
+
 :root {
   --ms-gap: 8px;
   --ms-radius: 6px;
   --ms-icon-size: 16px;
   --ms-control-size: 26px;
-}
-
-html,
-body {
-  height: 100%;
-  margin: 0;
-  padding: 0;
-  color: var(--vscode-foreground);
-  font-family: var(--vscode-font-family);
-  font-size: var(--vscode-font-size);
-  background: var(--vscode-sideBar-background);
 }
 
 .app {

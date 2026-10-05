@@ -31,6 +31,8 @@ export interface ExtensionSettings extends SettingsSnapshot {
   readonly shellSandbox: ShellSandboxMode
   /** Which backend hosts conversations (PLAN.md D1, M7). */
   readonly backend: BackendMode
+  /** Workspace preset suggestion, held by the host (M95, PLAN.md D74). */
+  readonly suggestedProvider: string
   /** Ctrl+N for a new conversation (read by the keybinding, kept here for the schema). */
   readonly enableNewConversationShortcut: boolean
   /** Days an idle Model API conversation is kept; 0 keeps it (PLAN.md D26). */
@@ -99,6 +101,7 @@ const settingSchemas = {
   environmentVariables: z.array(environmentVariableSchema),
   shellSandbox: z.enum(SHELL_SANDBOX_MODES),
   backend: z.enum(BACKEND_MODES),
+  suggestedProvider: z.string(),
   enableNewConversationShortcut: z.boolean(),
   cleanupPeriodDays: z.int().check(z.nonnegative()),
   modelApiWebSearch: z.boolean(),
@@ -183,6 +186,7 @@ export function readSettings(config: SettingsSource, log: Logger): ExtensionSett
     environmentVariables: readSetting(config, 'environmentVariables', log),
     shellSandbox: readSetting(config, 'shellSandbox', log),
     backend: readSetting(config, 'backend', log),
+    suggestedProvider: readSetting(config, 'suggestedProvider', log),
     enableNewConversationShortcut: readSetting(config, 'enableNewConversationShortcut', log),
     cleanupPeriodDays: readSetting(config, 'cleanupPeriodDays', log),
     modelApiWebSearch: readSetting(config, 'modelApiWebSearch', log),

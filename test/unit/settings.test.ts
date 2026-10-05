@@ -26,6 +26,7 @@ describe('readSettings', () => {
         environmentVariables: [{ name: 'MUSE_HOME', value: 'D:/muse' }],
         shellSandbox: 'off',
         backend: 'modelApi',
+        suggestedProvider: 'openrouter',
         sandboxNetwork: 'restricted',
         modelApiPromptCacheRetention: '24h',
         modelApiHooks: true,
@@ -61,6 +62,7 @@ describe('readSettings', () => {
     expect(settings.environmentVariables).toEqual([{ name: 'MUSE_HOME', value: 'D:/muse' }])
     expect(settings.shellSandbox).toBe('off')
     expect(settings.backend).toBe('modelApi')
+    expect(settings.suggestedProvider).toBe('openrouter')
     expect(settings.modelApiHooks).toBe(true)
     // M73: observation packing, off by default.
     expect(settings.modelApiObservationPacking).toBe(true)
@@ -193,6 +195,7 @@ describe('toSettingsSnapshot', () => {
     expect(snapshot).not.toHaveProperty('shellSandbox')
     expect(snapshot).not.toHaveProperty('enableNewConversationShortcut')
     expect(snapshot).not.toHaveProperty('backend')
+    expect(snapshot).not.toHaveProperty('suggestedProvider')
     expect(snapshot).not.toHaveProperty('modelApiHooks')
     expect(snapshot).not.toHaveProperty('notifyOnBackgroundTurn')
     expect(snapshot).not.toHaveProperty('modelApiSessionBudgetUsd')

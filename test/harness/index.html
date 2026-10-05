@@ -17,9 +17,7 @@
       // (M95) instead of the chat's, with its own stylesheet.
       const harnessBundle =
         new URLSearchParams(location.search).get('bundle') === 'models' ? 'models' : 'main'
-      document.write(
-        `<link rel="stylesheet" href="../../dist/webview/${harnessBundle}.css" />`,
-      )
+      document.write(`<link rel="stylesheet" href="../../dist/webview/${harnessBundle}.css" />`)
     </script>
     <script>
       // `?lang=<id>` renders the panel in l10n/ui.<id>.json, and
@@ -1479,10 +1477,25 @@
         totalModels: 5,
         filter: {},
         sort: { key: 'name', direction: 'asc' },
-        facets: { providers: ['ollama', 'openrouter'], families: ['deepseek', 'gpt', 'l', 'mystery', 'qwen3'] },
+        facets: {
+          providers: ['ollama', 'openrouter'],
+          families: ['deepseek', 'gpt', 'l', 'mystery', 'qwen3'],
+        },
         scans: {
-          ollama: { providerId: 'ollama', status: 'done', newCount: 1, removedCount: 0, repricedCount: 0 },
-          openrouter: { providerId: 'openrouter', status: 'done', newCount: 0, removedCount: 0, repricedCount: 1 },
+          ollama: {
+            providerId: 'ollama',
+            status: 'done',
+            newCount: 1,
+            removedCount: 0,
+            repricedCount: 0,
+          },
+          openrouter: {
+            providerId: 'openrouter',
+            status: 'done',
+            newCount: 0,
+            removedCount: 0,
+            repricedCount: 1,
+          },
         },
         suggestions: [
           {
@@ -1579,18 +1592,29 @@
             return wizard('test', {
               keyPresent: true,
               keyShapeOk: true,
-              test: { status: 'failed', detail: 'Unauthorized: that key is not shaped like one of ours.' },
+              test: {
+                status: 'failed',
+                detail: 'Unauthorized: that key is not shaped like one of ours.',
+              },
               blockers: [],
             })
           }
           case 'models-models': {
-            return wizard('models', { keyPresent: true, keyShapeOk: true, test: { status: 'ok', modelCount: 3 }, blockers: [] })
+            return wizard('models', {
+              keyPresent: true,
+              keyShapeOk: true,
+              test: { status: 'ok', modelCount: 3 },
+              blockers: [],
+            })
           }
           case 'models-privacy': {
             return wizard('privacy', { blockers: [] })
           }
           case 'models-suggestions': {
-            return wizard('suggestions', { blockers: [], models: ['openrouter/deepseek/deepseek-v4-pro'] })
+            return wizard('suggestions', {
+              blockers: [],
+              models: ['openrouter/deepseek/deepseek-v4-pro'],
+            })
           }
           case 'models-confirm': {
             return wizard('confirm', {
@@ -1652,9 +1676,7 @@
             return {
               ...base,
               filter: { search: 'qwen', toolCalling: true },
-              models: base.models.filter(
-                (row) => row.modelId.includes('qwen') && row.toolCalling,
-              ),
+              models: base.models.filter((row) => row.modelId.includes('qwen') && row.toolCalling),
             }
           }
           default: {
@@ -1670,7 +1692,13 @@
       const modelsApplyFilter = (rows, filter, sort) => {
         const needle = (filter.search ?? '').trim().toLowerCase()
         const kept = rows.filter((row) => {
-          if (needle !== '' && ![row.modelId, row.label ?? '', row.description ?? '', row.providerId].join(' ').toLowerCase().includes(needle)) {
+          if (
+            needle !== '' &&
+            ![row.modelId, row.label ?? '', row.description ?? '', row.providerId]
+              .join(' ')
+              .toLowerCase()
+              .includes(needle)
+          ) {
             return false
           }
           for (const facet of ['toolCalling', 'vision', 'reasoning', 'freeOrLocal']) {
@@ -1681,11 +1709,21 @@
           if (filter.contextMin !== undefined && (row.contextTokens ?? -1) < filter.contextMin) {
             return false
           }
-          if (filter.contextMax !== undefined && (row.contextTokens ?? Infinity) > filter.contextMax) {
+          if (
+            filter.contextMax !== undefined &&
+            (row.contextTokens ?? Infinity) > filter.contextMax
+          ) {
             return false
           }
-          for (const [facet, field] of [['maxInputPerMillion', 'inputPerMillion'], ['maxOutputPerMillion', 'outputPerMillion'], ['maxCachedPerMillion', 'cachedPerMillion']]) {
-            if (filter[facet] !== undefined && (row[field] === undefined || row[field] > filter[facet])) {
+          for (const [facet, field] of [
+            ['maxInputPerMillion', 'inputPerMillion'],
+            ['maxOutputPerMillion', 'outputPerMillion'],
+            ['maxCachedPerMillion', 'cachedPerMillion'],
+          ]) {
+            if (
+              filter[facet] !== undefined &&
+              (row[field] === undefined || row[field] > filter[facet])
+            ) {
               return false
             }
           }
@@ -1730,7 +1768,10 @@
             modelsSend({
               drafts: {
                 edits: {},
-                wizard: modelsWizardDraft('configure', { presetId: message.presetId, blockers: [] }),
+                wizard: modelsWizardDraft('configure', {
+                  presetId: message.presetId,
+                  blockers: [],
+                }),
               },
             })
             break
@@ -1768,7 +1809,9 @@
           }
           case 'models/scan': {
             modelsSend({
-              scans: { [message.providerId]: { providerId: message.providerId, status: 'scanning' } },
+              scans: {
+                [message.providerId]: { providerId: message.providerId, status: 'scanning' },
+              },
             })
             later(600, () =>
               modelsSend({

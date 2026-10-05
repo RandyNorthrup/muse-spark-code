@@ -16,6 +16,11 @@ const BUDGETS = [
   // purpose after M77, M78 and M82 (2026-10-02): 402.8 KiB measured, plus 15%,
   // rounded up to 25 KiB (PLAN.md D6).
   { path: 'dist/modelApi.js', budgetKiB: 475 },
+  // M95 integration: measured 93.0, 50.1 and 404.7 KiB respectively.
+  // New bundles use measured + 15%, rounded up to 25 KiB (D6/D74).
+  { path: 'dist/providers.js', budgetKiB: 125 },
+  { path: 'dist/modelsPanel.js', budgetKiB: 75 },
+  { path: 'dist/webview/models.js', budgetKiB: 475 },
   // The review (M70): git's material, the review turn's text, the Plan-mode
   // hold and edit review, loaded the first time one is used: 40.6 KiB when
   // split out, plus room (PLAN.md D6).

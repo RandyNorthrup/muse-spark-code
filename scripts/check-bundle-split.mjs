@@ -47,6 +47,7 @@ const BUNDLES = {
   activation: { output: 'dist/extension.js', metafile: 'dist/meta/extension.json' },
   modelApi: { output: 'dist/modelApi.js', metafile: 'dist/meta/modelApi.json' },
   acp: { output: 'dist/acp.js', metafile: 'dist/meta-acp/acp.json' },
+  providers: { output: 'dist/providers.js', metafile: 'dist/meta/providers.json' },
 }
 const DEFERRED_ONLY = ['reviewerEntry.ts']
 const DEFERRED = [
@@ -464,6 +465,13 @@ for (const bundle of ON_FIRST_USE) {
   }
 }
 
+const providers = inputsOf(BUNDLES.providers)
+for (const name of onDisk) {
+  if (name.startsWith('codecs/') && !providers.has(`${MODEL_API_DIR}/${name}`)) {
+    problems.push(`${BUNDLES.providers.output} no longer carries ${MODEL_API_DIR}/${name}`)
+  }
+}
+
 // M95: codecs belong exclusively to the separate providers bundle. Check
 // every emitted JS output, including future bundles and new codec files.
 for (const directory of ['dist/meta', 'dist/meta-acp']) {
@@ -471,9 +479,12 @@ for (const directory of ['dist/meta', 'dist/meta-acp']) {
     if (!name.endsWith('.json')) continue
     const { outputs } = JSON.parse(readFileSync(path.join(directory, name), 'utf8'))
     for (const [output, bundle] of Object.entries(outputs)) {
-      if (output === 'dist/providers.js' || !output.endsWith('.js')) continue
+      if (output === BUNDLES.providers.output || !output.endsWith('.js')) continue
       for (const input of Object.keys(bundle.inputs)) {
-        if (input.startsWith(`${MODEL_API_DIR}/codecs/`)) {
+        if (
+          input.startsWith(`${MODEL_API_DIR}/codecs/`) ||
+          input.startsWith('src/core/providers/')
+        ) {
           problems.push(`${output} carries ${input}, which loads only in dist/providers.js`)
         }
       }
@@ -527,6 +538,7 @@ console.log(
 console.log(
   `ok   ${AGENT_IMPORT.output}: carries the import (scan, converters, file access, smol-toml); ${BUNDLES.activation.output} carries none of it`,
 )
+console.log(`ok   ${BUNDLES.providers.output}: codecs and provider core load exclusively there`)
 console.log(`ok   ${UI_TEXT.output}: Node bundles share the English fallback`)
 for (const bundle of DEFERRED) console.log(`ok   ${bundle.output}: loads only on its first action`)
 for (const bundle of ON_FIRST_USE) {

@@ -5,6 +5,7 @@
 import { readFile } from 'node:fs/promises'
 import { createServer } from 'node:http'
 import path from 'node:path'
+import { performance } from 'node:perf_hooks'
 import { chromium } from 'playwright-core'
 
 export const LOOPBACK = '127.0.0.1'
@@ -12,10 +13,11 @@ export const HARNESS_PATH = 'test/harness/index.html'
 // The bundle a scenario plays in: the Models & Agents panel's own
 // (`?bundle=models`, M95 lane M) for its scenarios, the chat's otherwise.
 export function bundleFor(scenario) {
-  return scenario.startsWith('models-') ? 'models' : 'main'
+  return scenario !== 'models-byo' && scenario.startsWith('models-') ? 'models' : 'main'
 }
 // Real time for one page; a hung browser fails rather than producing an empty result.
 export const PAGE_TIMEOUT_MS = 120_000
+const NARROW_VIEWPORT = { width: 320, height: 760 }
 // Every `?scenario=` test/harness/index.html plays.
 export const SCENARIOS = [
   'empty',
@@ -195,19 +197,25 @@ export function serveRepo(repoRoot) {
   })
 }
 
-/** Chrome's CLI clamps windows to 500 px: the narrow share check needs a real 320 px viewport. */
-export async function withNarrowPage(chrome, profileDir, url, run) {
+/** Real Chrome viewport; narrow by default, with an explicit size for the accessibility gate. */
+export async function withNarrowPage(chrome, profileDir, url, run, viewport = NARROW_VIEWPORT) {
+  const deadline = performance.now() + PAGE_TIMEOUT_MS
+  const remaining = () => Math.max(1, deadline - performance.now())
   const browser = await chromium.launchPersistentContext(profileDir, {
     ...(path.isAbsolute(chrome) ? { executablePath: chrome } : { channel: 'chrome' }),
-    viewport: { width: 320, height: 760 },
+    viewport,
     timeout: PAGE_TIMEOUT_MS,
   })
   try {
+    browser.setDefaultTimeout(remaining())
+    browser.setDefaultNavigationTimeout(remaining())
     const page = await browser.newPage()
-    page.setDefaultTimeout(PAGE_TIMEOUT_MS)
-    page.setDefaultNavigationTimeout(PAGE_TIMEOUT_MS)
+    page.setDefaultTimeout(remaining())
+    page.setDefaultNavigationTimeout(remaining())
     await page.goto(url)
-    return await run(page)
+    page.setDefaultTimeout(remaining())
+    page.setDefaultNavigationTimeout(remaining())
+    return await run(page, remaining)
   } finally {
     await browser.close()
   }

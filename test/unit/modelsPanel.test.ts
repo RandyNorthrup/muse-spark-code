@@ -84,6 +84,7 @@ describe('createModelsPanel', () => {
       { retainContextWhenHidden: true },
     )
     expect(panel.webview.html).toContain('dist/webview/models.js')
+    expect(panel.webview.html).toContain('dist/webview/models.css')
     expect(panel.webview.html).toContain("script-src 'nonce-")
     expect(panel.webview.html).not.toMatch(/src="http/)
     expect(panel.webview.html).not.toMatch(/href="http/)

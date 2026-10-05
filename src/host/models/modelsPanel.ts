@@ -12,9 +12,9 @@ import * as z from 'zod/mini'
 import {
   MODELS_PANEL_VIEW_TYPE,
   MODELS_WEBVIEW_SCRIPT_FILE,
+  MODELS_WEBVIEW_STYLE_FILE,
   UI_TEXT,
   WEBVIEW_DIST_SEGMENTS,
-  WEBVIEW_STYLE_FILE,
 } from '../../shared/constants'
 import { buildWebviewHtml, createNonce } from '../html'
 import type { UiTable } from '../l10n'
@@ -129,7 +129,7 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
       .asWebviewUri(vscode.Uri.joinPath(bundleRoot, MODELS_WEBVIEW_SCRIPT_FILE))
       .toString(),
     styleUri: panel.webview
-      .asWebviewUri(vscode.Uri.joinPath(bundleRoot, WEBVIEW_STYLE_FILE))
+      .asWebviewUri(vscode.Uri.joinPath(bundleRoot, MODELS_WEBVIEW_STYLE_FILE))
       .toString(),
     cspSource: panel.webview.cspSource,
     nonce: createNonce(),

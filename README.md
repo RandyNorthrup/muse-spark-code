@@ -3403,6 +3403,15 @@ states, npm EOTP, signing decisions and the prepared M80 hooks.
 
 ### How this extension is built
 
+The M95 integration build emits provider codecs and core as `dist/providers.js`,
+the Models panel host as `dist/modelsPanel.js`, and its browser script and
+stylesheet as `dist/webview/models.js` and `dist/webview/models.css`. The
+production build checks their measured budgets and keeps provider code outside
+activation and the Meta backend. Provider transport and final panel wiring
+remain pending until the remaining M95 lanes are integrated.
+The accessibility gate uses Playwright to read real Chrome's axe results
+across all four themes, with explicit standard and narrow viewports.
+
 The extension is developed by a small team of AI agents under one human
 owner. The process below has been in use since 2026-09-28. Each milestone's
 record in `docs/certification/` says what was actually run for it; the

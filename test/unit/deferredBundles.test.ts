@@ -59,6 +59,8 @@ describe('deferred cohort bundles', () => {
     expect(module.exports).toHaveProperty('activate', expect.any(Function))
     expect(loaded).not.toContain('./sessionBoard.js')
     expect(loaded).not.toContain('./reviewer.js')
+    expect(loaded).not.toContain('./providers.js')
+    expect(loaded).not.toContain('./modelsPanel.js')
   })
 
   it('keeps board and best-of-N execution out of activation', () => {
@@ -94,6 +96,17 @@ describe('deferred cohort bundles', () => {
     expect(activation).toContain('src/host/review/museCodeReviewerBundle.ts')
   })
 
+  it('carries every captured codec only in the providers bundle', () => {
+    for (const codec of ['anthropic', 'gemini', 'responses']) {
+      const source = `src/core/backends/modelapi/codecs/${codec}.ts`
+      expect(inputs('providers')).toContain(source)
+      for (const bundle of ['extension', 'modelApi', 'modelsPanel']) {
+        expect(inputs(bundle)).not.toContain(source)
+      }
+    }
+    expect(inputs('providers')).toContain('src/core/providers/providersFile.ts')
+  })
+
   it('keeps paid review execution out of the session first-turn bundle', () => {
     expect(inputs('modelApi')).not.toContain('src/core/backends/modelapi/reviewerEntry.ts')
     expect(inputs('reviewer')).toContain('src/core/backends/modelapi/reviewerEntry.ts')
@@ -110,6 +123,12 @@ describe('deferred cohort bundles', () => {
     ['modelApi', 'src/core/backends/modelapi/codecs/anthropic.ts', 'in dist/providers.js'],
     ['acp', 'src/core/backends/modelapi/codecs/anthropic.ts', 'in dist/providers.js'],
     ['pageWorker', 'src/core/backends/modelapi/codecs/future.ts', 'in dist/providers.js'],
+    ['extension', 'src/core/backends/modelapi/codecs/gemini.ts', 'in dist/providers.js'],
+    ['modelApi', 'src/core/backends/modelapi/codecs/responses.ts', 'in dist/providers.js'],
+    ['modelsPanel', 'src/core/providers/providersFile.ts', 'in dist/providers.js'],
+    ['providers', 'src/core/backends/modelapi/codecs/anthropic.ts', 'missing'],
+    ['providers', 'src/core/backends/modelapi/codecs/gemini.ts', 'missing'],
+    ['providers', 'src/core/backends/modelapi/codecs/responses.ts', 'missing'],
     // M90: the Auto reviewer on Muse Code, required on the first review.
     ['extension', 'src/host/review/museCodeReviewer.ts', 'on the first review'],
   ])(
@@ -122,13 +141,18 @@ describe('deferred cohort bundles', () => {
       const output = meta.outputs[`dist/${name}.js`]
       if (output === undefined) throw new Error('Missing bundle output')
       try {
-        output.inputs[source] = { bytesInOutput: 1 }
+        if (name === 'providers') Reflect.deleteProperty(output.inputs, source)
+        else output.inputs[source] = { bytesInOutput: 1 }
         writeFileSync(file, JSON.stringify(meta))
         const red = spawnSync(process.execPath, ['scripts/check-bundle-split.mjs'], {
           encoding: 'utf8',
         })
         expect(red.status).toBe(1)
-        expect(red.stderr).toContain(`carries ${source}, which loads only ${use}`)
+        expect(red.stderr).toContain(
+          name === 'providers'
+            ? `dist/providers.js no longer carries ${source}`
+            : `carries ${source}, which loads only ${use}`,
+        )
       } finally {
         writeFileSync(file, original)
       }

@@ -100,15 +100,17 @@ function KeyUsage({ provider }: { readonly provider: ProviderState }) {
     return null
   }
   return (
-    <dl className="models-usage">
-      <dt>{UI_TEXT.usageKeyUsage}</dt>
-      {rows.map(([label, usd]) => (
-        <div key={label} className="models-usage-row">
-          <dt>{label}</dt>
-          <dd>{formatUsd(usd, 2)}</dd>
-        </div>
-      ))}
-    </dl>
+    <div className="models-usage">
+      <h4>{UI_TEXT.usageKeyUsage}</h4>
+      <dl>
+        {rows.map(([label, usd]) => (
+          <div key={label} className="models-usage-row">
+            <dt>{label}</dt>
+            <dd>{formatUsd(usd, 2)}</dd>
+          </div>
+        ))}
+      </dl>
+    </div>
   )
 }
 

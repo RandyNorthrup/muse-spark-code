@@ -221,6 +221,9 @@ quality`) and as a CI job.
 | -------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `dist/extension.js`        | ≤ 600 KiB (the M7 Model API client fit without raising it; the activation bundle since M57)                                                                                                                       |
 | `dist/modelApi.js`         | ≤ 475 KiB (M57: the Model API backend, loaded when it first starts; revisited after M77/M78/M82 at 402.8 KiB, see Q-M78b)                                                                                         |
+| `dist/providers.js`        | ≤ 125 KiB (M95INT: 93.0 KiB measured; provider core and captured codecs, on first BYO use)                                                                                                                        |
+| `dist/modelsPanel.js`      | ≤ 75 KiB (M95INT: 50.1 KiB measured; panel host and quick pick, on first action)                                                                                                                                  |
+| `dist/webview/models.js`   | ≤ 475 KiB (M95INT: 404.7 KiB measured; separate Models panel browser entry)                                                                                                                                       |
 | `dist/review.js`           | ≤ 50 KiB (M70: git's material, the review turn's text, the Plan-mode hold and edit review; 40.8 KiB when split)                                                                                                   |
 | `dist/searchWorker.js`     | ≤ 50 KiB                                                                                                                                                                                                          |
 | `dist/pageWorker.js`       | ≤ 300 KiB (M69: web fetch's page converter, parse5 and its parts, on a worker started for each page; 212.3 KiB when split)                                                                                        |
@@ -13889,7 +13892,31 @@ remove manifest commands only where no real handler has landed. Run the
 full local gates and record Meta byte equivalence against `1e93c67c`.
 H/O fixes, catalogue, transport, security, headless and final I/W wiring
 remain assigned to their lanes; no live/paid calls or release claim here.
+New D6 budgets: providers **125 KiB** (93.0 measured), panel host
+**75 KiB** (50.1 measured), panel webview **475 KiB** (404.7 measured):
+measured plus 15%, rounded up to 25 KiB. Existing budgets stay fixed.
 Results and remaining seams: `docs/certification/m95-int.md`.
+The complete integration sweep exposed lane 0's `suggestedProvider`
+default missing from the host settings reader. Synchronize its host-only
+type, string schema and read with the already-landed manifest/default;
+provider suggestion decisions remain in K/P and final wiring remains I/W.
+The rig's Chrome 150 CLI capture repeatedly reaches its deadline with no
+output, including a single healthy harness page; two flag probes did not
+repair it. The existing Playwright path reads that page's real axe result
+in 5.6 seconds. Use that driver for the full accessibility gate, preserving
+the measured CLI viewport (690×673), the narrow viewport (320×760), every
+scenario/theme/rule and the existing 120-second deadline. This is a gate
+execution repair, not a waiver or a provider feature.
+The standard capture carries one 120-second budget through browser launch,
+navigation, axe readiness and result reading; changing drivers must not
+restart the deadline at every operation.
+The complete real-browser gate also exposed combined panel defects:
+`models-byo` is U's chat palette scenario, not M's panel; the separate
+panel CSS needs its own themed body, lower-specificity control inheritance,
+readable error text and 24px checkbox targets; its usage heading must sit
+outside the definition list. Repair these shared causes without exemptions.
+The identical themed page reset is shared in `src/webview/page.css` by both
+browser entries, keeping the existing zero-duplication gate intact.
 
 **FIXM95P review repairs (2026-10-05, kubuntu).** Authorized lane P scope:
 RVM95A findings 1, 2, 4–8, 12–15, 18, 19. Use address-value IPv6
@@ -13921,8 +13948,9 @@ and the lead owns final integration and full quality.
 `1e93c67c`; research in `docs/certification/m95-research.md`. Step 13's
 wire captures were recorded 2026-10-04 for the twelve cloud presets the
 owner gave keys for (`docs/certification/m95-captures.md`: 46 model-call
-attempts, 44 billed, about $0.07). No code yet; implementation starts after
-the lead's review.**
+attempts, 44 billed, about $0.07). Completed lanes 0/P/G/A/R/K/M/U are integrated on
+`m95/int` as of 2026-10-05; remaining lanes, final composition and
+release acceptance are still pending.**
 
 - **FIXM95A review repair (2026-10-05).** Lane A repairs RVM95AO findings
   3, 4 (Anthropic), 5, 6, 7, 11 and 13 (Anthropic): codecs may occur only
@@ -14916,6 +14944,39 @@ joined with M57, M58 and PR #49's sign-in
 
 ## 7. Gates
 
+**M95INT final whole-chain rerun — deferred under the 120-minute rig brief.**
+The final 548-page rerun still returns 1: `dark/models-pick` has one selected
+description at 4.41:1 contrast (4.5:1 required), and `hc-light/models-table`
+hits the harness readiness error. The other 1,068 initial violated elements
+and all 869 undecided contrasts are resolved. M/W must repair those two
+remaining outcomes and rerun accessibility plus the complete quality chain.
+The common brief's stop-after-two-fixes rule and the elapsed timebox end
+further UI repair here. No exemption is added and this gate remains failing.
+The completed SAST call also returns 1: one dynamic-RegExp finding in
+`src/core/providers/presets.ts:53` and three manual-HTML-escaping findings
+in `src/host/providers/oauthLoopback.ts:32`, plus scan timeout warnings.
+These P/K security surfaces belong to the explicitly pending S lane;
+that lane must repair/review the findings and obtain a complete clean scan.
+No ignore, suppression, timeout or dependency is changed here.
+The complete `npm run quality` reached accessibility after every
+`quality:gates` check passed: 7,376 tests, coverage and all production caps.
+Real Chrome then exposed the combined panel routing/style/markup failures
+recorded in `docs/certification/m95-int.md`. The shared causes were repaired,
+and the final full browser gate plus affected unit/type/lint/build/security
+checks are rerun directly. A fresh complete wrapper run after those last
+repairs belongs to the lead: the browser CLI stall and two full browser
+sweeps consumed the lane's explicit timebox. No gate, rule, exemption,
+threshold or timeout is weakened. This defers only the final whole-chain
+receipt, the two named browser failures and the four SAST findings; see the final
+record for the actual exit codes. Do not describe the final wrapper as green.
+
+**FIXM95P host API record deferral — closed by M95INT (2026-10-05).**
+Integration regenerated the complete record (276 APIs, 22 adapters, 23
+Node built-ins, 59 theme variables) and the unchanged check passes. The
+combined-tree diff includes crypto 33→35, fs/promises 34→35, net 3→4,
+path 65→66 and the Models panel stylesheet in the theme source list.
+The original isolated-lane report follows for provenance.
+
 **FIXM95P host API record deferral (2026-10-05).** The scoped rig check
 finds only four stale Node import counts in
 `docs/ide-compatibility/host-api.md`: crypto 32→34, fs/promises 34→35,
@@ -14924,6 +14985,12 @@ the generated integration record is outside that scope. Keep the gate
 unchanged and failing until integration regenerates it with
 `npm run check:host-api -- --write` and verifies the resulting diff.
 No portable-to-VS-Code boundary or host API mismatch was reported.
+**FIXM95G build deferral — closed by M95INT (2026-10-05).**
+All three landed codecs build only into `dist/providers.js`; the split
+guard requires each there and rejects codecs/provider core in every other
+JavaScript output. Presence and exclusion drills fail as expected and
+restore byte-exact. The original lane deferral follows for provenance.
+
 **FIXM95G build deferral (2026-10-05).** The correction lane fixes all six
 assigned Gemini review findings and runs the required focused gates on
 Kubuntu. `npm run build` generates all production bundles within their
@@ -15407,10 +15474,9 @@ before a repaired one loads (2026-09-30).
   deferred. These isolated core checks do not certify combined provider
   integration, installed-editor behavior, live service calls or the full
   platform matrix, which remain the lead's work under the rig brief.
-- **FIXM95P-HOST-API:** the generated import inventory is stale (the four
-  counts in §7). This documentation-only deferral does not change runtime
-  behavior; no new VS Code API or forbidden portable import was found.
-  Integration must regenerate the record and pass the unchanged gate.
+- **FIXM95P-HOST-API — closed by M95INT:** the regenerated combined import
+  inventory passes the unchanged host API gate; see §7 and
+  `docs/certification/m95-int.md`. No portable-boundary exception was added.
 - **M95-G tool-result image replay (FIXM95G / RVM95A 11).** The existing
   Gemini captures and research §1.6 do not establish a multimedia
   `functionResponse` representation. The codec explicitly refuses the whole
@@ -15425,9 +15491,10 @@ before a repaired one loads (2026-09-30).
   2026-10-05).** The Anthropic decoder caps complete-frame bytes, argument
   bytes, item bytes/count, stream bytes and frame count. Its input seam is
   already-parsed `SseEvent`s: the shared `parseSse` reader can still retain
-  an unterminated line/event before the decoder sees it. Safe for this lane
-  only because no shipped entry imports the Anthropic codec (the bundle
-  exclusion gate proves that). Lane T must bound the byte source and SSE
+  an unterminated line/event before the decoder sees it. M95INT now carries
+  the codec exclusively in `providers.js`, without any backend dispatch
+  wired to it. This intermediate integration remains safe only while no
+  session dispatches it. Lane T must bound the byte source and SSE
   pending line/event before providers are wired; this is a release blocker,
   not an accepted risk for a configured provider. No shared parser/transport
   redesign in this owned-file repair. Evidence and guard drills:

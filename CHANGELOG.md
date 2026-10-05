@@ -9,6 +9,19 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- M95 integration keeps all captured provider codecs and provider core in
+  `dist/providers.js`, with required membership and exclusion checks and a
+  measured bundle budget. The Models panel emits the script and stylesheet
+  paths its host and harness load; its new bundles have measured budgets.
+  Shared scan/context constants and loopback rejection assertions now work
+  across the merged lanes. The host settings reader validates and preserves
+  the workspace's provider suggestion alongside its documented default.
+  Accessibility captures use the existing Playwright Chrome driver with the
+  same viewports and deadlines, avoiding the rig's stalled CLI captures.
+  The Models panel has its own themed page background, readable control
+  and error colors, valid usage markup and accessible checkbox targets.
+  The harness routes the BYO chat palette to the chat bundle.
+
 - Provider endpoint checks classify equivalent IPv6 spellings consistently and
   restrict plain HTTP to literal loopback or localhost. Budget admission reserves
   full input cost; settlement counts fresh, cached and cache-written input once.

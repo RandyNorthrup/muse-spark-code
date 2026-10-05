@@ -6,10 +6,7 @@ import type * as vscode from 'vscode'
 import { vi } from 'vitest'
 import type { VerifyHooks } from '../../../src/core/backends/modelapi/verifyLoop'
 import type { SecretStore } from '../../../src/host/auth/credentialStore'
-import type {
-  ProviderEntry,
-  ProvidersStore,
-} from '../../../src/host/providers/providerPorts'
+import type { ProviderEntry, ProvidersStore } from '../../../src/host/providers/providerPorts'
 import type { SettingsSource } from '../../../src/host/settings'
 import { EN } from '../../../src/shared/l10n/en'
 import { BASE_LOCALE } from '../../../src/shared/l10n/text'

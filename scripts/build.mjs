@@ -56,6 +56,8 @@ const UI_TEXT_ENTRY = 'src/shared/l10n/en.ts'
 const UI_TEXT_OUTFILE = 'dist/uiText.js'
 const MODEL_API_ENTRY = 'src/host/backend/modelApiEntry.ts'
 const MODEL_API_OUTFILE = 'dist/modelApi.js'
+const PROVIDERS_ENTRY = 'src/host/backend/providersEntry.ts'
+const PROVIDERS_OUTFILE = 'dist/providers.js'
 const SESSION_BOARD_ENTRY = 'src/host/sessionBoardEntry.ts'
 const SESSION_BOARD_OUTFILE = 'dist/sessionBoard.js'
 const REVIEWER_ENTRY = 'src/core/backends/modelapi/reviewerEntry.ts'
@@ -163,6 +165,13 @@ const modelApiOptions = {
   platform: 'node',
   format: 'cjs',
   target: HOST_NODE_TARGET,
+}
+
+/** @type {import('esbuild').BuildOptions} */
+const providersOptions = {
+  ...modelApiOptions,
+  entryPoints: [PROVIDERS_ENTRY],
+  outfile: PROVIDERS_OUTFILE,
 }
 
 /** @type {import('esbuild').BuildOptions} */
@@ -316,7 +325,7 @@ const pageWorkerOptions = {
 /** @type {import('esbuild').BuildOptions} */
 const webviewOptions = {
   ...common,
-  entryPoints: [WEBVIEW_ENTRY, MODELS_WEBVIEW_ENTRY],
+  entryPoints: { main: WEBVIEW_ENTRY, models: MODELS_WEBVIEW_ENTRY },
   outdir: WEBVIEW_OUTDIR,
   platform: 'browser',
   format: 'iife',
@@ -351,6 +360,7 @@ if (isWatch) {
   const contexts = await Promise.all([
     esbuild.context(hostOptions),
     esbuild.context(modelApiOptions),
+    esbuild.context(providersOptions),
     esbuild.context(reviewOptions),
     esbuild.context(sessionBoardOptions),
     esbuild.context(reviewerOptions),
@@ -373,6 +383,7 @@ if (isWatch) {
   const shipped = {
     extension: esbuild.build(hostOptions),
     modelApi: esbuild.build(modelApiOptions),
+    providers: esbuild.build(providersOptions),
     review: esbuild.build(reviewOptions),
     sessionBoard: esbuild.build(sessionBoardOptions),
     reviewer: esbuild.build(reviewerOptions),
@@ -408,6 +419,7 @@ if (isWatch) {
   console.log('bundle sizes:')
   reportSize(HOST_OUTFILE)
   reportSize(MODEL_API_OUTFILE)
+  reportSize(PROVIDERS_OUTFILE)
   reportSize(REVIEW_OUTFILE)
   reportSize(SESSION_BOARD_OUTFILE)
   reportSize(REVIEWER_OUTFILE)
