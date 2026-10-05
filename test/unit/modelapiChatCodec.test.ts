@@ -11,6 +11,8 @@ import { describe, expect, it } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import * as z from 'zod/mini'
+import { EN } from '../../src/shared/l10n/en'
+import { setUiText, UI_TEXT } from '../../src/shared/l10n/text'
 import {
   CHAT_CODEC_FORMAT,
   ChatStreamDecoder,
@@ -360,6 +362,276 @@ function expectRoundTrip(provider: string, file: string, quirks: ChatPresetQuirk
   expect(encoded.body).toEqual(frame.requestBody)
   expect(JSON.stringify(encoded.body)).toBe(JSON.stringify(frame.requestBody))
 }
+
+const CHAT_GOLDENS = fileURLToPath(new URL('../fixtures/modelapi-chat/', import.meta.url))
+const IMAGE_URL = 'data:image/png;base64,AAAA'
+
+function imageBody(isToolOutput: boolean): CreateResponseBody {
+  const parts = [
+    { type: 'input_text', text: 'Describe this image.' },
+    { type: 'input_image', image_url: IMAGE_URL, detail: 'auto' },
+    { type: 'input_text', text: 'Be brief.' },
+  ] as const
+  return tinyBody({
+    input: isToolOutput
+      ? [
+          {
+            type: 'function_call',
+            call_id: 'image-1',
+            name: 'read_file',
+            arguments: '{"path":"shot.png"}',
+          },
+          { type: 'function_call_output', call_id: 'image-1', output: parts },
+        ]
+      : [{ type: 'message', role: 'user', content: parts }],
+  })
+}
+
+function expectRequestGolden(name: string, request: unknown): void {
+  const golden: unknown = JSON.parse(readFileSync(`${CHAT_GOLDENS}${name}.json`, 'utf8'))
+  expect(JSON.stringify(request)).toBe(JSON.stringify(golden))
+}
+
+function retainedToolBody(output: string): CreateResponseBody {
+  // The packing swap changes only the canonical result; compaction keeps these tools.
+  return tinyBody({
+    input: [
+      {
+        type: 'message',
+        role: 'user',
+        content: [{ type: 'input_text', text: 'What time is it?' }],
+      },
+      {
+        type: 'function_call',
+        call_id: 'time-1',
+        name: 'get_time',
+        arguments: '{"timezone":"UTC"}',
+      },
+      { type: 'function_call_output', call_id: 'time-1', output },
+    ],
+    tools: [
+      {
+        type: 'function',
+        name: 'get_time',
+        description: 'time',
+        parameters: { type: 'object' },
+        strict: false,
+      },
+      {
+        type: 'function',
+        name: 'recall_output',
+        description: 'recall',
+        parameters: { type: 'object' },
+        strict: false,
+      },
+    ],
+    prompt_cache_key: 'session-cache',
+  })
+}
+
+describe('chat codec retained-history scenario goldens', () => {
+  it('encodes image input for the captured vision-capable Mistral model', () => {
+    const capture = recordField(captureFile('mistral', '01-models-list.json'), 'model list')
+    const response = recordField(capture['response'], 'response')
+    const body = recordField(response['bodySummary'], 'body summary')
+    const models = arrayField(body['sample'], 'models').map((model) => recordField(model, 'model'))
+    const model = models.find((entry) => entry['id'] === 'ministral-3b-latest')
+    const capabilities = recordField(model?.['capabilities'], 'capabilities')
+    const hasVision = z.boolean().parse(capabilities['vision'])
+    expect(hasVision).toBe(true)
+    const encoded = encodeChatRequest(imageBody(false), 'ministral-3b-latest', MISTRAL, {
+      capabilities: { vision: hasVision },
+    })
+    expectRequestGolden('image-input', encoded.body)
+    const grown = encodeChatRequest(
+      {
+        ...imageBody(false),
+        input: [
+          ...imageBody(false).input,
+          { type: 'message', role: 'user', content: [{ type: 'input_text', text: 'And now?' }] },
+        ],
+      },
+      'ministral-3b-latest',
+      MISTRAL,
+      { capabilities: { vision: hasVision } },
+    )
+    expect(JSON.stringify(grown.body.messages.slice(0, encoded.body.messages.length))).toBe(
+      JSON.stringify(encoded.body.messages),
+    )
+  })
+
+  it('encodes image tool output as a tool result followed by user image parts', () => {
+    const encoded = encodeChatRequest(imageBody(true), 'ministral-3b-latest', MISTRAL, {
+      capabilities: { vision: true },
+    })
+    expectRequestGolden('image-tool-output', encoded.body)
+    const body = imageBody(true)
+    const grown = encodeChatRequest(
+      {
+        ...body,
+        input: [
+          ...body.input,
+          { type: 'message', role: 'user', content: [{ type: 'input_text', text: 'Continue.' }] },
+        ],
+      },
+      'ministral-3b-latest',
+      MISTRAL,
+      { capabilities: { vision: true } },
+    )
+    expect(JSON.stringify(grown.body.messages.slice(0, encoded.body.messages.length))).toBe(
+      JSON.stringify(encoded.body.messages),
+    )
+  })
+
+  it('keeps parallel tool results together before appending their image messages', () => {
+    const body = imageBody(true)
+    const call = body.input[0]
+    const output = body.input[1]
+    if (call?.type !== 'function_call' || output?.type !== 'function_call_output') {
+      throw new Error('image scenario is missing its tool call/result')
+    }
+    const encoded = encodeChatRequest(
+      {
+        ...body,
+        input: [call, { ...call, call_id: 'image-2' }, output, { ...output, call_id: 'image-2' }],
+      },
+      'm',
+      MISTRAL,
+      { capabilities: { vision: true } },
+    )
+    expect(encoded.body.messages.map((message) => message.role)).toEqual([
+      'system',
+      'assistant',
+      'tool',
+      'tool',
+      'user',
+      'user',
+    ])
+    expect(encoded.body.messages[2]).toMatchObject({ tool_call_id: 'image-1' })
+    expect(encoded.body.messages[3]).toMatchObject({ tool_call_id: 'image-2' })
+    expect(encoded.body.messages.at(-1)).toEqual(encoded.body.messages.at(-2))
+  })
+
+  it('marks only the last text part of image input while retaining image bytes', () => {
+    const parts = [
+      { type: 'text', text: 'Describe this image.' },
+      { type: 'image_url', image_url: { url: IMAGE_URL, detail: 'auto' } },
+      { type: 'text', text: 'Be brief.' },
+    ] as const
+    for (const cacheBreakpoints of ['anthropic', 'last'] as const) {
+      const options = { capabilities: { vision: true }, cacheBreakpoints }
+      const encoded = encodeChatRequest(imageBody(false), 'm', OPENROUTER, options)
+      expect(encoded.body.messages[1]).toEqual({
+        role: 'user',
+        content: [parts[0], parts[1], { ...parts[2], cache_control: { type: 'ephemeral' } }],
+      })
+      const grown = encodeChatRequest(
+        {
+          ...imageBody(false),
+          input: [
+            ...imageBody(false).input,
+            { type: 'message', role: 'user', content: [{ type: 'input_text', text: 'next' }] },
+          ],
+        },
+        'm',
+        OPENROUTER,
+        options,
+      )
+      expect(grown.body.messages[1]).toEqual({
+        role: 'user',
+        content: parts,
+      })
+    }
+  })
+
+  it('encodes retained completed hosted search as text and keeps the saved answer', () => {
+    const input: InputItem[] = [
+      opaqueReasoningItem('meta', 'old thought', undefined),
+      {
+        type: 'web_search_call',
+        id: 'search-1',
+        status: 'completed',
+        action: {
+          type: 'search',
+          queries: ['vite 7 release'],
+          sources: [{ type: 'url', url: 'https://vite.dev/' }],
+        },
+      },
+      {
+        type: 'message',
+        role: 'assistant',
+        content: [{ type: 'output_text', text: 'Saved answer.' }],
+      },
+      { type: 'message', role: 'user', content: [{ type: 'input_text', text: 'Continue.' }] },
+    ]
+    const encoded = encodeChatRequest(tinyBody({ input }), 'm', GROQ)
+    expect(encoded.body).not.toHaveProperty('tools')
+    expect(encoded.body.messages[1]).toEqual({
+      role: 'assistant',
+      content: JSON.stringify(input[1]),
+    })
+    expect(encoded.body.messages[2]).toEqual({ role: 'assistant', content: 'Saved answer.' })
+    expect(JSON.stringify(encoded.body)).not.toContain('old thought')
+    expectRequestGolden('hosted-search-history', encoded.body)
+  })
+
+  it('encodes packed output byte for byte and preserves all other native prefix bytes', () => {
+    const packed =
+      'Packed output "observation-1" (100 characters, 10 lines, about 25 tokens): sent whole before, packed to save context. Its first 1 and last 1 lines:\nhead\n[…]\ntail\nCall recall_output with id "observation-1" and an offset to page the original back.'
+    const body = retainedToolBody(packed)
+    const encoded = encodeChatRequest(body, 'ministral-3b-latest', MISTRAL, {
+      cacheBreakpoints: 'anthropic',
+    })
+    expectRequestGolden('packed-output', encoded.body)
+    const full = encodeChatRequest(
+      retainedToolBody('full original output'),
+      'ministral-3b-latest',
+      MISTRAL,
+      { cacheBreakpoints: 'anthropic' },
+    )
+    expect(JSON.stringify(encoded.body.messages.slice(0, -1))).toBe(
+      JSON.stringify(full.body.messages.slice(0, -1)),
+    )
+    expect(encoded.body.tools).toEqual(full.body.tools)
+    expect(encoded.body.prompt_cache_key).toBe(full.body.prompt_cache_key)
+  })
+
+  it('encodes compaction byte for byte with retained tool order and stable cache prefix', () => {
+    const body = retainedToolBody('{"time":"12:00"}')
+    const before = encodeChatRequest(body, 'ministral-3b-latest', MISTRAL, {
+      cacheBreakpoints: 'anthropic',
+    })
+    const compact = encodeChatRequest(
+      {
+        ...body,
+        input: [
+          ...body.input,
+          {
+            type: 'message',
+            role: 'user',
+            content: [{ type: 'input_text', text: 'Summarize the conversation for continuation.' }],
+          },
+        ],
+      },
+      'ministral-3b-latest',
+      MISTRAL,
+      { cacheBreakpoints: 'anthropic' },
+    )
+    expectRequestGolden('compaction', compact.body)
+    expect(JSON.stringify(compact.body.tools)).toBe(JSON.stringify(before.body.tools))
+    expect(compact.body.tool_choice).toBe('auto')
+    expect(compact.body.prompt_cache_key).toBe(before.body.prompt_cache_key)
+    expect(JSON.stringify(compact.body.messages.slice(0, -2))).toBe(
+      JSON.stringify(before.body.messages.slice(0, -1)),
+    )
+    expect(compact.body.messages.at(-2)).toMatchObject({
+      content: [{ type: 'text', text: '{"time":"12:00"}' }],
+    })
+    expect(compact.body.messages.at(-1)).toMatchObject({
+      content: [{ cache_control: { type: 'ephemeral' } }],
+    })
+  })
+})
 
 describe('chat codec request goldens', () => {
   it('identifies the chat format for lane T', () => {
@@ -1262,37 +1534,22 @@ describe('chat codec guards', () => {
     )
   })
 
-  it('refuses images and hosted search instead of mistranslating them', () => {
-    expect(() =>
-      encodeChatRequest(
-        tinyBody({
-          input: [
-            {
-              type: 'function_call_output',
-              call_id: 'one',
-              output: [{ type: 'input_image', image_url: 'data:,', detail: 'auto' }],
-            },
-          ],
-        }),
-        'm',
-        GROQ,
-      ),
-    ).toThrow('image tool output')
-    expect(() =>
-      encodeChatRequest(
-        tinyBody({
-          input: [
-            {
-              type: 'message',
-              role: 'user',
-              content: [{ type: 'input_image', image_url: 'data:,', detail: 'auto' }],
-            },
-          ],
-        }),
-        'm',
-        GROQ,
-      ),
-    ).toThrow('image input')
+  it('refuses images without verified vision using the installed translated reason', () => {
+    const modelUnavailable = 'Dieses Modell ist für diesen Lauf nicht verfügbar.'
+    setUiText({ ...EN, execUnknownModel: modelUnavailable }, 'de')
+    try {
+      expect(UI_TEXT.execUnknownModel).toBe(modelUnavailable)
+      for (const body of [imageBody(false), imageBody(true)]) {
+        for (const options of [undefined, { capabilities: { vision: false } }]) {
+          expect(() => encodeChatRequest(body, 'm', GROQ, options)).toThrow(modelUnavailable)
+        }
+      }
+    } finally {
+      setUiText(EN, 'en')
+    }
+  })
+
+  it('refuses hosted tool declarations and unfinished hosted search history', () => {
     expect(() =>
       encodeChatRequest(
         tinyBody({
@@ -1304,7 +1561,7 @@ describe('chat codec guards', () => {
     ).toThrow('hosted search')
     expect(() =>
       encodeChatRequest(
-        tinyBody({ input: [{ type: 'web_search_call', status: 'completed' }] }),
+        tinyBody({ input: [{ type: 'web_search_call', status: 'in_progress' }] }),
         'm',
         GROQ,
       ),

@@ -12,6 +12,9 @@ happened, not what was planned; superseded entries are kept.
 - The M95 Chat codec keeps impossible cache accounting unknown, fails
   corrupt response chunks, and preserves tool-call identity across fragments
   and responses, including Fireworks' captured nullable continuation IDs.
+  Vision-capable models accept image input and image tool results; retained
+  completed hosted search survives a provider switch as plain text. Packed
+  output and compaction requests now have checked-in byte goldens.
 
 ## [0.12.1] - 2026-10-04
 

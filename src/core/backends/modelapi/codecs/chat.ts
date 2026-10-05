@@ -101,6 +101,8 @@ export type ChatBreakpoints = 'none' | 'anthropic' | 'last'
 
 /** Per-request options: the native model id and the breakpoint placement. */
 export interface ChatEncodeOptions {
+  /** The caller's model capability record; unknown vision is refused. */
+  readonly capabilities?: { readonly vision: boolean } | undefined
   /**
    * `anthropic` marks the system block and the last text block (OpenRouter
    * to an Anthropic upstream, as the `anthropic` codec's rule); `last`
@@ -118,6 +120,12 @@ export interface ChatTextPart {
   readonly cache_control?: { readonly type: 'ephemeral' } | undefined
 }
 
+/** Chat's standard image-understanding input, independent of paid generation. */
+export interface ChatImagePart {
+  readonly type: 'image_url'
+  readonly image_url: { readonly url: string; readonly detail: 'auto' }
+}
+
 export interface ChatSystemMessage {
   readonly role: 'system'
   readonly content: string | readonly ChatTextPart[]
@@ -125,7 +133,7 @@ export interface ChatSystemMessage {
 
 export interface ChatUserMessage {
   readonly role: 'user'
-  readonly content: string | readonly ChatTextPart[]
+  readonly content: string | readonly (ChatTextPart | ChatImagePart)[]
 }
 
 export interface ChatToolCall {
@@ -277,24 +285,40 @@ function textOfParts(parts: readonly InputContentPart[]): string {
       if (part.type === 'input_text' || part.type === 'output_text') {
         return part.text
       }
-      throw new Error('chat codec: image input needs the Meta backend')
+      throw new Error(UI_TEXT.execUnknownModel)
     })
     .join('')
 }
 
-/** Joins a function result to one string; pictures stay Meta's (acceptance 11). */
-function toolOutputText(output: string | readonly FunctionOutputPart[]): string {
-  if (typeof output === 'string') {
-    return output
+function contentOfParts(
+  parts: readonly InputContentPart[],
+  canUseImages: boolean,
+): ChatUserMessage['content'] {
+  if (parts.every((part) => part.type !== 'input_image')) {
+    return textOfParts(parts)
   }
-  return output
-    .map((part) => {
-      if (part.type === 'input_text') {
-        return part.text
-      }
-      throw new Error('chat codec: image tool output needs the Meta backend')
-    })
-    .join('')
+  if (!canUseImages) {
+    throw new Error(UI_TEXT.execUnknownModel)
+  }
+  return parts.map((part) => {
+    if (part.type === 'input_image') {
+      return { type: 'image_url', image_url: { url: part.image_url, detail: part.detail } }
+    }
+    if (part.type === 'input_text' || part.type === 'output_text') {
+      return { type: 'text', text: part.text }
+    }
+    throw new Error(UI_TEXT.execUnknownModel)
+  })
+}
+
+/** Chat tool messages carry text; image results follow in a user message. */
+function toolOutputText(output: string | readonly FunctionOutputPart[]): string {
+  return typeof output === 'string'
+    ? output
+    : output
+        .filter((part) => part.type === 'input_text')
+        .map((part) => part.text)
+        .join('')
 }
 
 interface PendingCalls {
@@ -316,6 +340,8 @@ export function encodeChatRequest(
   options?: ChatEncodeOptions,
 ): ChatNativeRequest {
   const messages: ChatMessage[] = [{ role: 'system', content: body.instructions }]
+  // Keep all parallel tool results adjacent before adding their user images.
+  const pendingImages: ChatUserMessage[] = []
   const callNames = new Map<string, string>()
   for (const item of body.input) {
     if (item.type === 'function_call') {
@@ -343,6 +369,9 @@ export function encodeChatRequest(
     }
   }
   const encodeItem = (item: InputItem): void => {
+    if (item.type !== 'function_call_output') {
+      messages.push(...pendingImages.splice(0))
+    }
     switch (item.type) {
       case 'message': {
         if (item.role === 'developer') {
@@ -356,7 +385,10 @@ export function encodeChatRequest(
           }
         } else {
           flushAssistant()
-          messages.push({ role: 'user', content: textOfParts(item.content) })
+          messages.push({
+            role: 'user',
+            content: contentOfParts(item.content, options?.capabilities?.vision === true),
+          })
         }
 
         break
@@ -396,6 +428,16 @@ export function encodeChatRequest(
         } else {
           messages.push(toolMessage)
         }
+        const images =
+          typeof item.output === 'string'
+            ? []
+            : item.output.filter((part) => part.type === 'input_image')
+        if (images.length > 0) {
+          pendingImages.push({
+            role: 'user',
+            content: contentOfParts(images, options?.capabilities?.vision === true),
+          })
+        }
 
         break
       }
@@ -415,8 +457,14 @@ export function encodeChatRequest(
 
         break
       }
-      default: {
-        throw new Error('chat codec: hosted search never reaches a BYO model')
+      case 'web_search_call': {
+        if (item.status !== 'completed') {
+          throw new Error('chat codec: hosted search never reaches a BYO model')
+        }
+        flushAssistant()
+        messages.push({ role: 'assistant', content: JSON.stringify(item) })
+
+        break
       }
     }
   }
@@ -424,6 +472,7 @@ export function encodeChatRequest(
     encodeItem(item)
   }
   flushAssistant()
+  messages.push(...pendingImages)
 
   const nativeTools: ChatFunctionTool[] = []
   for (const tool of body.tools) {
@@ -1240,9 +1289,27 @@ function markBreakpoints(
     return messages
   }
   const lastTextIndex = messages.findLastIndex(
-    (message) => typeof message.content === 'string' && message.content !== '',
+    (message) =>
+      (typeof message.content === 'string' && message.content !== '') ||
+      (Array.isArray(message.content) &&
+        message.content.some(
+          (part: ChatTextPart | ChatImagePart) => part.type === 'text' && part.text !== '',
+        )),
   )
   return messages.map((message, index) => {
+    if (message.role === 'user' && typeof message.content !== 'string') {
+      const lastPart = message.content.findLastIndex(
+        (part) => part.type === 'text' && part.text !== '',
+      )
+      return {
+        ...message,
+        content: message.content.map((part, partIndex) =>
+          index === lastTextIndex && partIndex === lastPart
+            ? { ...part, cache_control: { type: 'ephemeral' as const } }
+            : part,
+        ),
+      }
+    }
     if (typeof message.content !== 'string') {
       return message
     }

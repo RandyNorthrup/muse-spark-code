@@ -14876,6 +14876,13 @@ joined with M57, M58 and PR #49's sign-in
 
 ## 7. Gates
 
+**FIXM95H gate boundary (2026-10-05).** The rig brief requires scoped
+tests and static/build checks here; full `npm run quality` is the lead's
+integrated gate. Chat's existing bundle-split registration failure belongs
+to lane W, which the brief explicitly forbids this lane from editing. Keep
+the gate unchanged and record its exact failure and passed size budgets in
+`docs/certification/m95-h.md` before integration.
+
 **MG69 merged-source proof (2026-10-02).** Kubuntu passes 49 owning/merged
 files (2,056 tests; two existing Windows-only cases platform-skipped), all
 five compiler projects and every required static gate. Both review and import
@@ -15319,6 +15326,15 @@ before a repaired one loads (2026-09-30).
 | `test/harness/index.html` (`isActiveDescendantList`), printed by `scripts/a11y.mjs` | The accessibility gate exempts axe's `scrollable-region-focusable` | The composer's `/` and `@` lists follow WAI-ARIA's combobox pattern: the box keeps the focus and moves `aria-activedescendant` through the listbox's options, and `Composer.tsx` scrolls the active option into view, so the list is keyboard operable (WCAG 2.1.1) without being a Tab stop. axe cannot see activedescendant-driven scrolling. The exemption holds only for a region that contains a listbox whose id is in the `aria-controls` of a focused or focusable element whose active descendant is one of that listbox's options; drills show a plain scrollable region and a listbox no control drives are still reported, and removing the exemption reports the composer's list again. Every exempt element is printed under its own "Exempt:" heading and counted. No `tabindex` was added to the list. | 2026-10-04 |
 
 ## 9. Security assumptions and accepted residual risk
+
+- **M95-H bundle registration (FIXM95H, 2026-10-05).** All seven RVM95RH
+  codec/test findings are fixed; none is deferred. The independent Chat
+  lane still lacks its entry in `scripts/check-bundle-split.mjs`, owned by
+  lane W. Safe for this unintegrated branch because the codec is not yet
+  imported by a shipped entrypoint, and the unchanged split gate refuses
+  the build. Follow-up: lane W registers Chat, lane I supplies its caller's
+  vision capability and tools-retaining compaction body, then the lead runs
+  full integrated quality/live acceptance. No product-support claim here.
 
 - Code intelligence (M67) shows what VS Code's language services say. A
   result located outside the workspace is left out and a hover defined only
