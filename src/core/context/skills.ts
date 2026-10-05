@@ -25,6 +25,7 @@ import {
   BUNDLED_SKILLS_DIR,
   BUNDLED_SKILLS_SOURCES_DIR,
   BUNDLED_SKILLS_VENDOR_SEGMENTS,
+  EXTENSION_SKILLS_DIR,
   MODEL_TEXT,
   PERSONAL_SKILLS_DIR_SEGMENTS,
   PROJECT_SKILLS_DIR_SEGMENTS,
@@ -163,6 +164,12 @@ export function bundledSkillsRoot(packageRoot: string, platform: NodeJS.Platform
   return pathModule(platform).join(packageRoot, BUNDLED_SKILLS_DIR)
 }
 
+/** The extension's own skill root (M97): `<extension>/skills`, beside the vendored package. */
+export function extensionSkillsRoot(packageRoot: string, platform: NodeJS.Platform): string {
+  const p = pathModule(platform)
+  return p.join(p.dirname(p.dirname(packageRoot)), EXTENSION_SKILLS_DIR)
+}
+
 /**
  * Where the Muse Code install keeps its copy of the package (M89):
  * `skill-sources`, beside the managed personal skill root, in the config home
@@ -201,15 +208,17 @@ export async function loadSkills(
   roots: readonly SkillRoot[],
 ): Promise<SkillsLoad> {
   const load = await loadCatalogFiles(deps, roots, SKILL_CATALOG, parseCatalogFile)
-  // Each source has one root, so an entry's source names its package.
+  // A source may have several roots (the vendored package and the
+  // extension's own skills are both `bundled`, M97), so an entry's package
+  // is the root it was read from, not its source.
   const packageRoots = new Map(
     roots.flatMap((root) =>
-      root.packageRoot === undefined ? [] : [[root.source, root.packageRoot]],
+      root.packageRoot === undefined ? [] : [[root.directory, root.packageRoot]],
     ),
   )
   return {
     skills: load.entries.map((entry) => {
-      const packageRoot = packageRoots.get(entry.source)
+      const packageRoot = packageRoots.get(entry.directory)
       return {
         id: entry.id,
         source: entry.source,

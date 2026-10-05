@@ -179,6 +179,7 @@ import {
   CHECKPOINT_STORE_BUNDLE_FILE,
   CODE_INTEL_BUNDLE_FILE,
   LEGAL_SCAN_BUNDLE_FILE,
+  EXTENSION_SKILLS_DIR,
   WEB_FETCH_BUNDLE_FILE,
   VOICE_BUNDLE_FILE,
   MUSE_CODE_REVIEWER_BUNDLE_FILE,
@@ -1421,6 +1422,9 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     vendorRoot: bundledPackageRoot,
     skillsRoot: personalSkillsRoot(museConfig()),
     sourcesRoot: bundledSkillSourcesRoot(museConfig()),
+    // The extension's own skills (M97, PLAN.md D76): installed beside the
+    // vendored package through the same mechanism, without touching it.
+    extensionSkillsRoot: vscode.Uri.joinPath(context.extensionUri, EXTENSION_SKILLS_DIR).fsPath,
   })
   const bundledSkillsOffer = createBundledSkillsOffer({
     isEnabled: () => currentSettings().bundledSkills,

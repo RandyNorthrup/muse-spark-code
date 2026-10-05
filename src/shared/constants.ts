@@ -1585,6 +1585,14 @@ export const BUNDLED_SKILLS_SETTING = 'museSpark.bundledSkills'
 export const BUNDLED_SKILLS_PACKAGE_NAME = 'high-quality-projects-skill'
 export const BUNDLED_SKILLS_VENDOR_SEGMENTS = ['vendor', BUNDLED_SKILLS_PACKAGE_NAME] as const
 export const BUNDLED_SKILLS_DIR = 'skills'
+// The extension's own skills (M97, PLAN.md D76): `<extension>/skills`,
+// beside the vendored package, through D68's loading/install mechanism
+// without touching the pinned upstream package.
+export const EXTENSION_SKILLS_DIR = 'skills'
+// The bundled `/legal` skill (M97): guidance over the deterministic scan.
+// A user skill with the same id shadows its text; the host's scan and the
+// `/legal` command stay host-owned regardless.
+export const LEGAL_SKILL_ID = 'legal'
 export const BUNDLED_SKILLS_VENDOR_FILE = 'VENDOR.json'
 export const BUNDLED_SKILLS_SOURCES_DIR = 'skill-sources'
 // The file that makes a copy the extension's own: only a folder holding it
