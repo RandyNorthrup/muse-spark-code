@@ -77,6 +77,42 @@ describe('team collision leases', () => {
     expect(leases.grow({ ...a, attempt: 2 }, 'src/a.ts').kind).toBe('stale')
   })
 
+  it('inherits a retired pipeline lineage while refusing late children and superseded parents', () => {
+    const leases = new WriteSetLeases('workspace', shared)
+    leases.acquire(a, plan(['src/a.ts']))
+    const child = { taskId: 'child', attempt: 1 }
+    leases.acquire(child, plan(['src/a.ts']), 'serialize', a)
+    leases.release(a, retired)
+    expect(
+      leases.acquire({ taskId: 'qa', attempt: 1 }, plan(['src/a.ts']), 'serialize', a, 'pipeline')
+        .kind,
+    ).toBe('acquired')
+    expect(
+      leases.acquire({ taskId: 'late', attempt: 1 }, plan(['src/a.ts']), 'serialize', a).kind,
+    ).toBe('stale')
+    expect(
+      leases.acquire(
+        { taskId: 'foreign', attempt: 1 },
+        plan(['src/b.ts']),
+        'serialize',
+        b,
+        'pipeline',
+      ).kind,
+    ).toBe('stale')
+    leases.release(child, retired)
+    leases.release({ taskId: 'qa', attempt: 1 }, retired)
+    leases.acquire({ ...a, attempt: 2 }, plan(['src/a.ts']))
+    expect(
+      leases.acquire(
+        { taskId: 'superseded', attempt: 1 },
+        plan(['src/a.ts']),
+        'serialize',
+        a,
+        'pipeline',
+      ).kind,
+    ).toBe('stale')
+  })
+
   it('clips roles, conservatively overlaps future prefixes, and makes whole-tree/in-place writers exclusive', () => {
     expect(expandWriteSet(['**'], files, ['docs/**']).paths).toEqual(['docs/a.md'])
     expect(expandWriteSet(['src/**'], files, ['docs/**']).patterns).toEqual([])
@@ -105,6 +141,9 @@ describe('team collision leases', () => {
     expect(() => expandWriteSet(['C:/escape.ts'], files)).toThrow()
     expect(expandWriteSet(['**/*'], files).exclusiveWriter).toBe(true)
     expect(() => leases.grow({ ...a, attempt: 2 }, '../escape.ts')).toThrow()
+    const clipped = new WriteSetLeases('workspace', shared)
+    clipped.acquire(a, expandWriteSet(['**'], files, ['docs/**']))
+    expect(() => clipped.grow(a, 'src/a.ts')).toThrow()
   })
 
   it('transfers a quarantined attempt lease and refuses every stale release or growth', () => {

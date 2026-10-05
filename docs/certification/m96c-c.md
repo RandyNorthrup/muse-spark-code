@@ -1,7 +1,8 @@
 # M96c lane C — Collisions
 
-Status: implementation checkpoint, 2026-10-05. Lane verification is in
-progress; this is not whole-milestone certification.
+Status: implementation and core guard proof, 2026-10-05. One real-repository
+fixture remains blocked on its runtime gate; this is not a green lane or
+whole-milestone certification.
 
 The supplied `M96CC.md` filename was absent. `M96C-C.md` names this exact
 worktree (`mx-m96cc`), branch (`m96c/c`) and lane. Its lane-specific rules
@@ -14,7 +15,7 @@ record `e23ec61c` (D75, M96c, round 4); research §8 was read.
 - `src/core/team/writeSets.ts`: rooted, bounded glob expansion over the
   caller's base listing and literal future files; role clipping; conservative
   fixed-prefix overlap for future glob files; window-local attempt leases;
-  inherited families; retirement release; stale-attempt refusal; quarantined
+  inherited families, with an explicit pipeline lineage after retirement; retirement release; stale-attempt refusal; quarantined
   handoff transfer; free growth and occupied-growth prediction; whole-branch
   and in-place exclusive writers; fresh-hint collision questions and answer
   expiry. A growth conflict reports the earlier holder; the worker keeps
@@ -30,8 +31,8 @@ record `e23ec61c` (D75, M96c, round 4); research §8 was read.
   built-in changelog/JSON rules, user entries, bounded repository entries,
   explicit shared-text declaration checks, and root-anchored glob matching.
   Windows matching folds case. Existing glob limits are reused.
-- `src/core/team/merge/jsonTable.ts`: strict grammar plus a raw-order second
-  pass, escaped-key duplicate refusal at every depth, nested key merges,
+- `src/core/team/merge/jsonTable.ts`: a strict cursor parser preserving raw
+  order, escaped-key duplicate refusal at every depth, nested key merges,
   atomic arrays, exact decimal-number comparison (including large integers
   and exponents), conflict/type/removal refusal, integration key order and
   branch-predecessor placement, BOM/EOL/indent/escaping preservation, and
@@ -116,6 +117,109 @@ standalone tests do not certify the assembled scheduler.
 
 ## Red drills
 
-Pending at this implementation checkpoint. The final record will list the
-named failed tests, mutation identities, rig results, before/restored
-SHA-256 fingerprints and restored-green verification.
+All 48 distinct mutations fired a named assertion failure (exit 1): 47 on
+Mac mini and Windows case folding on the Windows 11 rig. There were 59
+successful executions, including re-running the write-set guards after the
+pipeline-lineage correction. Every mutation used a full owned test file,
+not a test-name filter. Every source was restored byte-exact in `finally`,
+and before/restored SHA-256 equality was independently checked against the
+current files.
+
+The complete receipts, including every failed test name, mutation hash and
+before/restored hash, are in [m96c-c-drills.json](m96c-c-drills.json). Raw rig
+output and the disposable runner remain under `temp/m96cc-drills/` and
+`temp/m96cc-drills.mjs`, respectively. Those temporary files are not product
+artifacts. No model call ran and no spend was incurred.
+
+| Guards                              | Mutations                                                                                                                                                                                 |
+| ----------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Strict JSON grammar and diagnostics | grammar, colon, trailing comma, closing delimiter, string grammar, key type, JSON whitespace                                                                                              |
+| JSON value identity and spelling    | exact decimal precision, decoded duplicates, duplicate keys, raw key and raw string spelling, conflict refusal                                                                            |
+| JSON order and style                | key order, BOM, CRLF                                                                                                                                                                      |
+| Both intents after formatting       | integration kept check, branch intent, formatter order, formatter BOM, formatter CRLF                                                                                                     |
+| Changelog                           | released material, competing edits, kept check, authorized removals, release placement, structure, fragments                                                                              |
+| Leases                              | overlap, child inheritance, retired pipeline lineage, clipping, future prefix, role growth, retirement, stale attempts, occupied growth, exclusive writers, path confinement, hint expiry |
+| Wait graph                          | atomic cycle refusal                                                                                                                                                                      |
+| Shared files                        | JSON/changelog no-lock policy, root anchoring, Windows case folding                                                                                                                       |
+| Prediction                          | integration state, landing routine, one notification, late-stop suppression                                                                                                               |
+
+## Current blocker and bounded stop
+
+The real-Git fixture first passed at snapshot `e785c620` in 4.733 seconds.
+Later runs crossed its unchanged 5,000 ms limit. Two performance fixes were
+tried: memoizing identical Prettier inputs and then batching independent
+file I/O. They did not close the runtime gate. The last full-file run,
+snapshot `8038e158`, timed out at 5.031 seconds; the other 41 cases passed.
+No timeout, assertion, gate threshold or test discovery rule was weakened.
+
+common.md requires: "If the same test fails twice after two different fixes,
+STOP that path". That path is now stopped: the fixture remains registered,
+and has not been edited or re-run since its second failed performance fix.
+It needs the lead's redesign/review. Subsequent runs verify the other owned
+files, including the separate pipeline-lineage fix; they do not make the
+real-repository obligation green.
+
+Final core restored-green checks and final static/build receipts are recorded
+below. The real-repository fixture is excluded from those core-only receipts
+because its path was stopped under the explicit rule; it remains registered
+and failed, with no skip or test-name filter added. The lead also owns S/K/Q/T2/X2 assembly and its full,
+integration and live checks.
+
+## Pipeline lineage correction
+
+A delegated child still requires its parent's live attempt. A host-owned
+pipeline step can pass `acquire(holder, set, overlap, parent, 'pipeline')`
+after that registered parent retires. It shares the recorded family while
+rejecting unknown or superseded parents. S must validate the parent/pipeline
+relationship before choosing that internal mode; the model cannot choose it.
+On reload, S rebinds pipeline ownership to current-window admissions rather
+than treating another window's old lease as authority.
+
+This has its own positive/negative test and the `lease-retired-pipeline`
+red drill. The earlier active-parent-only implementation was insufficient
+for a QA step after retirement.
+
+## Final observed receipts
+
+| Check                                              | Machine       | Result                                  | Snapshot   |
+| -------------------------------------------------- | ------------- | --------------------------------------- | ---------- |
+| Four core test files after lineage fix             | Mac mini      | 42/42 pass, exit 0                      | `3c862cf0` |
+| Four core files, restored after Windows mutation   | Windows 11 VM | 42/42 pass, exit 0                      | `ebf80178` |
+| All five typecheck projects                        | Mac mini      | exit 0                                  | `cbf9c545` |
+| Dead code                                          | Mac mini      | exit 0                                  | `cbf9c545` |
+| Duplication                                        | Mac mini      | 0 clones, exit 0                        | `cbf9c545` |
+| Localization                                       | Mac mini      | 0 problems, exit 0                      | `cbf9c545` |
+| Host API                                           | Mac mini      | 0 problems, exit 0                      | `cbf9c545` |
+| Production build, size, split, globals and notices | Mac mini      | exit 0                                  | `cbf9c545` |
+| Real-repository fixture                            | Mac mini      | stopped after repeated 5-second timeout | `8038e158` |
+
+Final build measurements match the checkpoint above. Production source
+hashes for the six mutated modules match every current drill receipt. The
+schema-composition file is covered by core tests, typecheck and dead-code
+checks. The full lane has 43 registered cases; its one real-repository case
+is not certified by the 42 core cases.
+
+The late syntax correction is at `merge/jsonTable.ts:34`: cursor-based
+syntax failures retain the decoded key and line instead of guessing from
+Node's version-dependent exception text. Raw escaped key/value spellings
+are retained for untouched input. Post-formatter kept checks begin at
+`merge/jsonTable.ts:312`. Retired pipeline inheritance is at
+`writeSets.ts:152`, selected only by the host's validated pipeline context.
+
+S/T2 also owns translating expanded internal path lists into its bounded
+wire/paged views, while retaining `TEAM_WRITE_SET_MAX`; namespace paths by
+workspace/repository consistently before expansion. These internal lists
+are not a reason to widen a boundary cap.
+
+Implementation checkpoint commit: `8a38f22f`. Final corrections and evidence
+are in the follow-up commit. Both use hooks and the required co-author
+trailer. The next action is lead review/redesign of the timed-out fixture,
+then S/K/Q/T2/X2 wiring, root-document/PLAN reconciliation and the complete
+four-machine quality/integration/live matrix. No publication or release
+certification is asserted.
+
+The final test-literal lint correction (`String.raw` for the invalid JSON
+escape fixture) preserves the exact input bytes. The four core files passed
+again on Mac mini at snapshot `05b7a17a`: 42/42, exit 0. Final changed-file
+ESLint and Prettier checks passed locally; pre-commit hooks enforce both
+again.

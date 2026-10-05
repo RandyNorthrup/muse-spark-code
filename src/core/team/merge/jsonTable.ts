@@ -28,18 +28,14 @@ class TableFault extends Error {
 
 function parseTable(source: string): JsonNode & { kind: 'object' } {
   const text = source.replace(/^\u{FEFF}/u, '')
-  // Validate all JSON grammar first; the second pass keeps order and detects
-  // duplicates at every depth, including objects inside arrays.
-  try {
-    JSON.parse(text)
-  } catch (error) {
-    const message = error instanceof Error ? error.message : ''
-    const line = /line (\d+)/.exec(message)?.[1]
-    throw new TableFault('parse', [], line === undefined ? 1 : Number(line))
-  }
+  // Keep the cursor for exact syntax locations even when Node's JSON error
+  // does not report a position. Scalar strings still use native JSON rules.
   let offset = 0
+  function failParse(path: string[]): never {
+    throw new TableFault('parse', path, text.slice(0, offset).split('\n').length)
+  }
   function whitespace(): void {
-    while (/\s/.test(text[offset] ?? '') && offset < text.length) offset++
+    while (/[\t\r\n ]/.test(text[offset] ?? '') && offset < text.length) offset++
   }
   function read(path: string[]): JsonNode {
     whitespace()
@@ -56,8 +52,7 @@ function parseTable(source: string): JsonNode & { kind: 'object' } {
           whitespace()
           const keyOffset = offset
           const keyNode = read(path)
-          if (keyNode.kind !== 'value' || typeof keyNode.value !== 'string')
-            throw new SyntaxError('json')
+          if (keyNode.kind !== 'value' || typeof keyNode.value !== 'string') failParse(path)
           const key = keyNode.value
           spellings.set(key, text.slice(keyOffset, offset))
           if (entries.has(key))
@@ -67,7 +62,8 @@ function parseTable(source: string): JsonNode & { kind: 'object' } {
               text.slice(0, keyOffset).split('\n').length,
             )
           whitespace()
-          offset++ // Colon: already validated by JSON.parse.
+          if (text[offset] !== ':') failParse([...path, key])
+          offset++
           entries.set(key, read([...path, key]))
         } else {
           items.push(read([...path, String(items.length)]))
@@ -75,24 +71,34 @@ function parseTable(source: string): JsonNode & { kind: 'object' } {
         whitespace()
         if (text[offset] !== ',') break
         offset++
+        whitespace()
+        if (text[offset] === closing) failParse(path)
       }
+      if (text[offset] !== closing) failParse(path)
       offset++
       return opening === '{' ? { kind: 'object', entries, spellings } : { kind: 'array', items }
     }
     const token =
-      /^(?:"(?:[^"\\]|\\.)*"|true|false|null|-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?)/.exec(
+      /^(?:"(?:[^"\\\r\n]|\\.)*"|true|false|null|-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?)/.exec(
         text.slice(offset),
       )?.[0]
-    if (token === undefined) throw new SyntaxError('json')
+    if (token === undefined) failParse(path)
     offset += token.length
     if (/^-?\d/.test(token)) return { kind: 'number', raw: token }
-    const value: unknown = JSON.parse(token)
+    let value: unknown
+    try {
+      value = JSON.parse(token)
+    } catch {
+      failParse(path)
+    }
     if (value === null || typeof value === 'string' || typeof value === 'boolean') {
       return { kind: 'value', value, raw: token }
     }
-    throw new SyntaxError('json')
+    failParse(path)
   }
   const root = read([])
+  whitespace()
+  if (offset !== text.length) failParse([])
   if (root.kind !== 'object') throw new TableFault('topLevel', [])
   return root
 }

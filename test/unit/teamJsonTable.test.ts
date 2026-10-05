@@ -55,6 +55,12 @@ describe('team JSON table merge', () => {
   it.each([
     '{',
     '{"a":1}junk',
+    '{"a";1}',
+    '{"a":1,}',
+    '{"a":1]',
+    String.raw`{"a":"\q"}`,
+    '{{}:1}',
+    '\u{00A0}{}',
     '{"a":1,"a":2}',
     String.raw`{"nested":{"a":1,"\u0061":2}}`,
     '{"array":[{"a":1,"a":2}]}',
@@ -71,11 +77,6 @@ describe('team JSON table merge', () => {
   })
 
   it('accepts identical changes, removals and one-sided type changes', () => {
-    expect(mergeJsonTable('{}', '{\n"a": }', '{}')).toMatchObject({
-      kind: 'conflict',
-      reason: 'parse',
-      line: 2,
-    })
     expect(merged('{"a":0}', '{"a":1}', '{"a":1}')).toBe('{"a":1}')
     expect(merged('{"a":0,"b":0}', '{"a":0,"b":1}', '{"a":false,"b":0}')).toBe('{"a":false,"b":1}')
     expect(merged('{"a":1}', '{"a":1.0}', '{"a":1e0}')).toBe('{"a":1.0}')
@@ -94,6 +95,15 @@ describe('team JSON table merge', () => {
       '{"10":1,"new":1,"2":0}',
     )
     expect(merged('{"a":0,"b":0}', '{"b":0}', '{"a":0,"new":1,"b":0}')).toBe('{"b":0,"new":1}')
+  })
+
+  it('names syntax line and decoded key without relying on native error-message wording', () => {
+    expect(mergeJsonTable('{}', '{\n"a": }', '{}')).toMatchObject({
+      kind: 'conflict',
+      reason: 'parse',
+      key: ['a'],
+      line: 2,
+    })
   })
 
   it('preserves BOM, CRLF, indentation, escaped strings and final newline', () => {

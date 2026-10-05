@@ -130,6 +130,7 @@ function isSame(left: Attempt, right: Attempt): boolean {
 export class WriteSetLeases {
   private readonly held = new Map<string, Held>()
   private readonly latest = new Map<string, number>()
+  private readonly families = new Map<string, string>()
 
   constructor(
     private readonly workspaceId: string,
@@ -141,6 +142,7 @@ export class WriteSetLeases {
     set: PlannedWriteSet,
     overlap: 'serialize' | 'allow' = 'serialize',
     inheritedFrom?: Attempt,
+    inheritance: 'child' | 'pipeline' = 'child',
   ): LeaseResult {
     const existing = this.held.get(holder.taskId)
     if (existing !== undefined && isSame(existing.lease.holder, holder))
@@ -148,12 +150,18 @@ export class WriteSetLeases {
     if (existing !== undefined || holder.attempt <= (this.latest.get(holder.taskId) ?? 0))
       return { kind: 'stale' }
     const parent = inheritedFrom === undefined ? undefined : this.held.get(inheritedFrom.taskId)
-    if (
-      inheritedFrom !== undefined &&
-      (parent === undefined || !isSame(parent.lease.holder, inheritedFrom))
-    )
-      return { kind: 'stale' }
-    const family = parent?.family ?? key(holder)
+    let parentFamily: string | undefined
+    if (inheritedFrom !== undefined) {
+      if (parent !== undefined && isSame(parent.lease.holder, inheritedFrom))
+        parentFamily = parent.family
+      else if (
+        inheritance === 'pipeline' &&
+        this.latest.get(inheritedFrom.taskId) === inheritedFrom.attempt
+      )
+        parentFamily = this.families.get(inheritedFrom.taskId)
+    }
+    if (inheritedFrom !== undefined && parentFamily === undefined) return { kind: 'stale' }
+    const family = parentFamily ?? key(holder)
     for (const held of this.held.values()) {
       if (held.family === family) continue
       const paths = writeSetOverlap(set, held.set, this.shared)
@@ -172,6 +180,7 @@ export class WriteSetLeases {
     }
     this.held.set(holder.taskId, { lease, set, family })
     this.latest.set(holder.taskId, holder.attempt)
+    this.families.set(holder.taskId, family)
     return { kind: 'acquired', lease }
   }
 
