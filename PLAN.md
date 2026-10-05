@@ -14678,7 +14678,9 @@ Unresolved items remain delivery/security gaps, not accepted legal conclusions:
 - I-R1 — **open, release blocker; owner: lead/localization lane.** Scanner
   findings, labels and incomplete/error prose still need the full UI_TEXT and
   14-language conversion. The three new controls and report disclaimer are
-  translated; a passing inventory does not certify scanner prose.
+  translated; a passing inventory does not certify scanner prose. The ACP
+  lazy scanner also needs caller-language installation for nested report text;
+  its outer text/disclaimer already uses the installed table.
 - I-R2 — **closed for supported missing headers; owner: M97FIN.** Production
   exact patches require verified root license/holder evidence, explicit
   ownership consent, live mode/trust/workspace admission, confined conditional
@@ -14692,9 +14694,11 @@ Unresolved items remain delivery/security gaps, not accepted legal conclusions:
 - I-R5 — **open; owner: paid/backend lane and lead.** Bounded optional
   explanation, paid-use and read-only confinement receipts are absent. This
   lane made no paid/live calls. Ordinary coding-turn billing remains ordinary.
-- I-R6 — **open; owner: lead/platform rigs.** Exact-tree installed VSIX on
-  both active backends, Windows reparse/path checks and hosted platform
-  receipts remain outstanding unless expressly recorded in certification.
+- I-R6 — **open; owner: lead/platform rigs.** Windows installed-host and
+  reparse/path checks, native browser zoom/screen readers and hosted
+  platform receipts remain outstanding. Actual local VSIX installs on Mac in
+  both selected backend profiles now pass 3/3 tests apiece; fake transports
+  compare the shipped native/MCP scanner without a signed-in model.
 - I-R7 — **command contract closed; owner: M97FIN.** Reserved
   `exec legal-scan --json` and legacy `legal --format json` share the scanner;
   complete should-fix exits 0 and blocker exits 1. Real scans retain documented
@@ -14704,12 +14708,15 @@ Unresolved items remain delivery/security gaps, not accepted legal conclusions:
   analysis; static readers cannot resolve arbitrary build logic or linkage.
 - I-R9 — **closed; owner: M97FIN.** Merge `242a47f2` incorporates all 20
   finished S/W findings from `aa181639`; combined targeted suites pass.
-- I-R10 — **verification in progress; owner: M97FIN/lead.** All 460 a11y
+- I-R10 — **aggregate receipt pending; owner: lead.** All 460 a11y
   pages pass with unchanged rules; synthetic history findings have exact
   fingerprint-only exceptions; all five dynamic RegExp findings are removed.
-  The first full quality run exits 0; final source/package receipts are pending.
-  Two-worker SAST runs every rule/target with zero findings and zero timeouts;
-  per-rule deadlines and failure thresholds remain unchanged.
+  The first full quality run exits 0. On source `a5265fcd`, every static,
+  coverage, build, audit and 460-page accessibility gate passes. Incoming
+  shared refs added a certification SHA-256 false positive, now exactly ignored.
+  The latest complete repeat is still running at the finish timebox: lead owns
+  its final aggregate receipt. Two-worker SAST covers every rule/target with
+  zero findings/timeouts; all deadlines and failure thresholds stay unchanged.
 
 ## 10. Definition of done and release records
 
