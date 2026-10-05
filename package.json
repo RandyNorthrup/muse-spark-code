@@ -925,7 +925,7 @@
             "%config.tabTrigger.enumDescriptions.automatic%",
             "%config.tabTrigger.enumDescriptions.onInvoke%"
           ],
-          "default": "automatic",
+          "default": "onInvoke",
           "description": "%config.tabTrigger.description%",
           "scope": "machine"
         },
