@@ -96,6 +96,9 @@ export const PROVIDER_HARNESS_MIN_CONTEXT_TOKENS = 32_000
 export const PROVIDER_SECRET_PREFIX = 'museSpark.provider.'
 /** The OAuth loopback's one-shot callback lasts ten minutes (D74). */
 export const OAUTH_LOOPBACK_TIMEOUT_MS = 10 * 60 * 1000
+/** ACP grant mutations serialize by exclusively listening on this loopback port. */
+export const CHATGPT_REFRESH_LOCK_PORT = 49_953
+export const CHATGPT_REFRESH_LOCK_RETRY_MS = 100
 /** A removed provider's secret waits ten seconds behind Undo (D74). */
 export const PROVIDER_UNDO_WINDOW_MS = 10 * 1000
 /** How long Scan this computer waits on one loopback port (D74). */
