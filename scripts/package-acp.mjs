@@ -20,6 +20,7 @@ import {
   existsSync,
   mkdirSync,
   readFileSync,
+  readdirSync,
   rmSync,
   statSync,
   writeFileSync,
@@ -36,6 +37,8 @@ const BUNDLES = [
   'validation.js',
   'searchWorker.js',
   'pageWorker.js',
+  'usageService.js',
+  'usageCompanion.js',
 ]
 // The C# of the shell tool's Windows job (M27), compiled on first use, as
 // the extension ships it (PLAN.md D6): its own file and the half it shares.
@@ -72,9 +75,50 @@ function requireBundles() {
   }
 }
 
+/** Ship only the usage entry's transitive assets, never chat code or maps. */
+function usageAssets() {
+  const root = path.resolve('dist', 'webview')
+  const meta = JSON.parse(readFileSync(path.join('dist', 'meta', 'webview.json'), 'utf8'))
+  const pending = ['dist/webview/usage.js', 'dist/webview/usage.css']
+  const files = new Set()
+  while (pending.length > 0) {
+    const file = pending.pop()
+    if (files.has(file)) continue
+    const relative = path.relative(root, path.resolve(file))
+    if (
+      relative === '' ||
+      relative.startsWith('..') ||
+      path.isAbsolute(relative) ||
+      !['.js', '.css'].includes(path.extname(file))
+    ) {
+      throw new Error('Usage asset is outside the browser bundle')
+    }
+    const output = meta.outputs?.[file]
+    if (output === undefined || !statSync(file).isFile()) {
+      throw new Error(`${file} is missing from the usage browser build`)
+    }
+    files.add(file)
+    if (output.cssBundle !== undefined) pending.push(output.cssBundle)
+    const imports = output.imports ?? []
+    for (const imported of imports) {
+      if (imported.external) throw new Error('Usage assets must be bundled locally')
+      pending.push(imported.path)
+    }
+  }
+  return [...files]
+}
+
 const manifest = JSON.parse(readFileSync('package.json', 'utf8'))
 const keyringVersion = lockedVersion(manifest)
 requireBundles()
+const pageAssets = usageAssets()
+// Every installed display language needs the usage family too (lane L).
+for (const table of readdirSync('l10n')) {
+  if (!/^ui\..+\.json$/u.test(table)) continue
+  const source = path.join('l10n', table.replace(/^ui\./u, 'usage.'))
+  if (!statSync(source).isFile()) throw new Error(`${source} is missing`)
+  JSON.parse(readFileSync(source, 'utf8'))
+}
 for (const schema of SCHEMAS) {
   const source = path.join('docs', 'schemas', schema)
   if (!statSync(source).isFile()) {
@@ -92,6 +136,11 @@ for (const schema of SCHEMAS) {
 }
 for (const bundle of BUNDLES) {
   copyFileSync(path.join('dist', bundle), path.join(STAGE, 'dist', bundle))
+}
+for (const source of pageAssets) {
+  const target = path.join(STAGE, source)
+  mkdirSync(path.dirname(target), { recursive: true })
+  copyFileSync(source, target)
 }
 for (const source of JOB_SOURCES) {
   mkdirSync(path.join(STAGE, path.dirname(source)), { recursive: true })

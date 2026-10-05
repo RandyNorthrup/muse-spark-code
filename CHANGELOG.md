@@ -14,6 +14,12 @@ happened, not what was planned; superseded entries are kept.
 - Usage history reads stay consistent across retention, read atomically replaced
   rollups through one handle, and fsync rollups before publication. Generation
   locks prevent a paused former owner from releasing its successor's lock.
+- ACP `/usage` cancellation abandons a pending URL elicitation immediately,
+  returns a cancelled response, and lets the next prompt run before the client
+  answers the old request. Late answers cannot send a stale reply.
+- Linux `usage open` acknowledges and detaches the browser handler on spawn,
+  allowing foreground handlers to keep running. The usage companion retains
+  its own idle timeout or explicit-stop lifetime, independent of handler exit.
 
 - Package only allowlisted build artifacts with a short landing guide and recent
   release notes. Compact staged translation and manifest JSON preserves every

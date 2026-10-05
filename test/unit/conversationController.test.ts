@@ -2389,6 +2389,15 @@ describe('ConversationController: context', () => {
       { type: 'notice', level: 'error', text: 'openLog failed: no channel' },
     ])
   })
+
+  it('opens the shared usage page from both bridge routes without starting a conversation', async () => {
+    const t = setup()
+    await t.controller.handle({ type: 'openUsagePage' })
+    await t.controller.handle({ type: 'hostAction', action: 'openUsagePage' })
+    expect(t.hostActions).toEqual(['openUsagePage', 'openUsagePage'])
+    expect(t.server.requestsFor('session/new')).toEqual([])
+    expect(t.surface.posted).toEqual([])
+  })
 })
 
 describe('ConversationController: transcript actions (M4)', () => {

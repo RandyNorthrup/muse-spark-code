@@ -8,7 +8,9 @@ import { spawn } from 'node:child_process'
 import { randomBytes } from 'node:crypto'
 import { readFileSync } from 'node:fs'
 import { open, readFile } from 'node:fs/promises'
-import { homedir } from 'node:os'
+import { writeFile } from 'node:fs/promises'
+import { createInterface } from 'node:readline'
+import { homedir, hostname } from 'node:os'
 import path from 'node:path'
 import process from 'node:process'
 import { Writable } from 'node:stream'
@@ -22,11 +24,13 @@ import {
   EXEC_EXIT,
   EXEC_SCAN_TIMEOUT_MS,
   EXEC_FORCE_WRITE_MS,
+  MEMORY_STAGE_FILE_MODE,
   SETTING_DEFAULTS,
   UI_TEXT,
 } from '../shared/constants'
 import type { SecretStore } from '../host/auth/credentialStore'
 import { fill } from '../shared/l10n/text'
+import { uiLocale } from '../shared/l10n/text'
 import { authClear, type AuthCommandDeps, authSet, authStatus, login } from './authCommands'
 import { createRuntimeBackend } from './backends'
 import { parseCommandLine, type ServeOptions } from './cliArgs'
@@ -43,6 +47,10 @@ import { createFdWriter } from './exec/fdWriter'
 import { createExecLogger, redactWhole } from './exec/execOutput'
 import { runExec } from './exec/runExec'
 import { runSecretScan } from './exec/scanSecrets'
+import { runProgram } from '../host/processTree'
+import { agentDataFolder } from './dataFolder'
+import { lazyUsageAdapter, usageCompanionUrl } from './usage/usageAdapter'
+import type { UsageAdapter } from './usage/usageAdapter'
 
 const EXIT_FAILED = 1
 // Credential variables leave the agent's own environment before anything
@@ -192,8 +200,56 @@ function runtimeFor(options: ServeOptions, log: Logger) {
   })
 }
 
+function usageFor(log: Logger): UsageAdapter {
+  return lazyUsageAdapter({
+    dataFolder: agentDataFolder({
+      platform: process.platform,
+      env: process.env,
+      homeDir: homedir(),
+    }),
+    packageRoot,
+    host: hostname(),
+    locale: uiLocale(),
+    uiText: UI_TEXT,
+    log,
+  })
+}
+
+async function openUsageBrowser(input: string): Promise<void> {
+  const url = usageCompanionUrl(input)
+  let executable = 'xdg-open'
+  if (process.platform === 'darwin') executable = 'open'
+  else if (process.platform === 'win32') executable = 'rundll32.exe'
+  const args = process.platform === 'win32' ? ['url.dll,FileProtocolHandler', url] : [url]
+  // The fixed OS opener receives only a checked loopback URL and no credential
+  // environment; argument arrays never pass through a shell (D82, rule 8).
+  try {
+    if (process.platform === 'linux') {
+      await new Promise<void>((resolve, reject) => {
+        // nosemgrep: javascript.lang.security.detect-child-process.detect-child-process -- Fixed OS opener, validated loopback URL, credential-stripped environment and shell-free arguments (D82, PLAN.md §8).
+        const handler = spawn(executable, args, {
+          env: process.env,
+          detached: true,
+          stdio: 'ignore',
+        })
+        handler.once('error', reject)
+        handler.once('spawn', () => {
+          // A valid xdg-open handler may stay foreground with the browser.
+          // Its lifetime cannot hold the launcher or decide the page's lifetime.
+          handler.unref()
+          resolve()
+        })
+      })
+    } else await runProgram(executable, args, process.env)
+  } catch {
+    // Opener stderr can repeat the private fragment; it never reaches a log.
+    throw new Error(UI_TEXT.actionFailed)
+  }
+}
+
 async function serve(options: ServeOptions, log: Logger): Promise<number> {
   const runtime = runtimeFor(options, log)
+  const usage = usageFor(log)
   // A proxy the Model API backend's requests will not use is said at once (Q66).
   const proxyWarning = envProxyWarning({
     backend: options.backend,
@@ -219,12 +275,14 @@ async function serve(options: ServeOptions, log: Logger): Promise<number> {
     defaultCwd: process.cwd(),
     paid: runtime.paid,
     log,
+    usage,
   })
   const connection = agent.connect(
     ndJsonStream(Writable.toWeb(process.stdout), webReadable(process.stdin)),
   )
   log.info(`${ACP_AGENT_NAME} ${packageVersion()} serving ACP on stdio (${options.backend})`)
   await connection.closed
+  await usage.dispose()
   await runtime.close()
   return 0
 }
@@ -363,6 +421,35 @@ async function main(): Promise<number> {
     log,
   })
   switch (command.command) {
+    case 'usage': {
+      const usage = usageFor(log)
+      const lines = createInterface({ input: process.stdin, crlfDelay: Infinity })
+      let isPageOpen = false
+      try {
+        const result = await usage.runCommand(command.options, {
+          usage: usage.access(),
+          openPage: () => usage.openPage(),
+          input: lines,
+          openBrowser: openUsageBrowser,
+          print: (text) =>
+            new Promise<void>((resolve, reject) => {
+              process.stdout.write(text, (error) => {
+                if (error == null) resolve()
+                else reject(error)
+              })
+            }),
+          writeFile: (file, content) =>
+            writeFile(file, content, { encoding: 'utf8', mode: MEMORY_STAGE_FILE_MODE }),
+        })
+        isPageOpen = command.options.action === 'open'
+        return result
+      } finally {
+        lines.close()
+        // An open page's companion owns its 30-minute idle lifetime. Other
+        // commands leave no server behind; ACP closes its server on disconnect.
+        if (!isPageOpen) await usage.dispose()
+      }
+    }
     case 'serve': {
       return await serve(command.options, log)
     }
