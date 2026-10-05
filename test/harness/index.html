@@ -12,7 +12,15 @@
       as the accessibility gate does (scripts/a11y.mjs). `?lang=` renders
       the panel in a translated table (below).
     -->
-    <link rel="stylesheet" href="../../dist/webview/main.css" />
+    <script>
+      // `?bundle=models` loads the Models & Agents panel's own bundle
+      // (M95) instead of the chat's, with its own stylesheet.
+      const harnessBundle =
+        new URLSearchParams(location.search).get('bundle') === 'models' ? 'models' : 'main'
+      document.write(
+        `<link rel="stylesheet" href="../../dist/webview/${harnessBundle}.css" />`,
+      )
+    </script>
     <script>
       // `?lang=<id>` renders the panel in l10n/ui.<id>.json, and
       // `?lang=pseudo` in the pseudo-locale table scripts/pseudo-l10n.mjs
@@ -446,6 +454,32 @@
                 contextLimit: 1007997,
                 ...(isRestored && { sessionId: 'restored-1' }),
               })
+              break
+            }
+            case 'modelsPanel/ready':
+            case 'providers/select':
+            case 'providers/prefill':
+            case 'providers/enterKey':
+            case 'providers/connect':
+            case 'providers/test':
+            case 'providers/wizard':
+            case 'providers/save':
+            case 'providers/remove':
+            case 'providers/undoRemove':
+            case 'providers/scanLocal':
+            case 'providers/export':
+            case 'providers/import':
+            case 'models/scan':
+            case 'models/cancelScan':
+            case 'models/tick':
+            case 'models/pin':
+            case 'models/numCtx':
+            case 'models/filter':
+            case 'suggestions/accept':
+            case 'suggestions/change': {
+              // Answered by the panel's fake host further down (M95 lane M);
+              // `modelsAnswer` is defined by the time any page posts.
+              modelsAnswer(message)
               break
             }
             case 'listSkills': {
@@ -1005,7 +1039,9 @@
   </head>
   <body>
     <div id="root"></div>
-    <script src="../../dist/webview/main.js"></script>
+    <script>
+      document.write(`<script src="../../dist/webview/${harnessBundle}.js"><\/script>`)
+    </script>
     <script>
       // Scripting errors and dropped host messages are written into the page
       // so a screenshot shows them instead of a silent empty state.
@@ -1067,6 +1103,23 @@
         'Session board': ['boardTitle'],
         // The permission-mode button reads "<title>: <mode>".
         'Permission mode: Manual': ['permissionModeTitle', 'permissionModes.manual'],
+        // The Models & Agents panel's buttons carry text, not aria-labels
+        // (M95): the steps below click them by that text.
+        'Pick a provider': ['wizardPickProvider'],
+        Test: ['testConnection'],
+        'Refresh models': ['refreshModels'],
+        Accept: ['suggestionAccept'],
+        Change: ['suggestionChange'],
+        Save: ['saveProvider'],
+        'Save and use now': ['saveAndUseNow'],
+        Continue: ['wizardContinue'],
+        Back: ['wizardBack'],
+        Cancel: ['wizardCancel'],
+        Undo: ['undoAction'],
+        'Enter key…': ['enterKey'],
+        'Scan this computer': ['scanComputer'],
+        Import: ['providerImport'],
+        Export: ['providerExport'],
       }
       const shown = (label) => {
         if (harnessL10n.table === undefined) {
@@ -1081,6 +1134,18 @@
       }
       const click = (label) =>
         document.querySelector(`button[aria-label="${shown(label)}"]`).click()
+      // The Models & Agents panel's buttons carry text (M95): click the
+      // button whose whole text is the label.
+      const clickText = (label) => {
+        const text = shown(label)
+        const button = [...document.querySelectorAll('.models-panel button')].find(
+          (candidate) => candidate.textContent.trim() === text,
+        )
+        if (button === undefined) {
+          throw new Error(`never rendered: button "${text}"`)
+        }
+        button.click()
+      }
       const event = (payload) => send({ type: 'agentEvent', event: payload })
       // About 10k tokens of markdown: prose plus a fenced block, repeated.
       const longReply = () =>
@@ -1210,6 +1275,526 @@
           // Focus view hides the rows; nothing to expand then.
           document.querySelectorAll('.tool-header')[1]?.click()
         })
+      }
+      // --- M95 lane M: the Models & Agents panel's fake host. `?bundle=models`
+      // loads the panel's own bundle; its `modelsPanel/ready` is answered
+      // with the scenario's state, and its messages are applied to this
+      // dataset and answered the way the host will.
+      const modelsPresets = [
+        {
+          id: 'openai',
+          label: 'OpenAI',
+          description: 'OpenAI Responses API with GPT models',
+          category: 'cloud',
+          format: 'responses',
+          originKind: 'fixed',
+          originDisplay: 'https://api.openai.com',
+          auth: 'apiKey',
+          connectOAuth: false,
+          keyHint: 'sk-… (platform.openai.com)',
+          keyPage: 'https://platform.openai.com/api-keys',
+          docsUrl: 'https://platform.openai.com/docs',
+        },
+        {
+          id: 'openrouter',
+          label: 'OpenRouter',
+          description: 'Hundreds of models behind one key',
+          category: 'aggregator',
+          format: 'chat',
+          originKind: 'fixed',
+          originDisplay: 'https://openrouter.ai',
+          auth: 'apiKey',
+          connectOAuth: true,
+          keyHint: 'sk-or-… (openrouter.ai)',
+          keyPage: 'https://openrouter.ai/keys',
+          docsUrl: 'https://openrouter.ai/docs',
+          dataUseUrl: 'https://openrouter.ai/policy',
+          privacyNote: 'Routing chooses who sees the prompt.',
+        },
+        {
+          id: 'ollama',
+          label: 'Ollama',
+          description: 'Models on this computer through Ollama',
+          category: 'local',
+          format: 'ollama',
+          originKind: 'loopback',
+          originDisplay: 'http://127.0.0.1:11434',
+          auth: 'none',
+          connectOAuth: false,
+          keyHint: 'No key needed',
+        },
+        {
+          id: 'custom',
+          label: 'Custom server',
+          description: 'Your own Chat Completions, Responses or Messages endpoint',
+          category: 'custom',
+          format: 'chat',
+          originKind: 'custom',
+          originDisplay: '',
+          auth: 'apiKey',
+          connectOAuth: false,
+          keyHint: 'Whatever your server takes',
+        },
+      ]
+      const modelsDataset = () => [
+        {
+          ref: 'openrouter/deepseek/deepseek-v4-pro',
+          providerId: 'openrouter',
+          modelId: 'deepseek/deepseek-v4-pro',
+          label: 'DeepSeek V4 Pro',
+          description: 'DeepSeek through OpenRouter',
+          toolCalling: true,
+          vision: false,
+          reasoning: true,
+          contextTokens: 128000,
+          inputPerMillion: 2,
+          outputPerMillion: 8,
+          freeOrLocal: false,
+          recommended: true,
+          ticked: true,
+          pinned: true,
+          priceNote: 'priced',
+          badges: {
+            recommended: true,
+            cheapestCapable: true,
+            largestContext: false,
+            isNew: false,
+          },
+        },
+        {
+          ref: 'openrouter/openai/gpt-oss-20b',
+          providerId: 'openrouter',
+          modelId: 'openai/gpt-oss-20b',
+          toolCalling: true,
+          vision: false,
+          reasoning: true,
+          contextTokens: 64000,
+          inputPerMillion: 0.5,
+          outputPerMillion: 2,
+          freeOrLocal: false,
+          ticked: false,
+          pinned: false,
+          priceNote: 'priced',
+          badges: {
+            recommended: false,
+            cheapestCapable: false,
+            largestContext: false,
+            isNew: true,
+          },
+        },
+        {
+          ref: 'openrouter/mystery/mystery-1',
+          providerId: 'openrouter',
+          modelId: 'mystery/mystery-1',
+          toolCalling: false,
+          vision: false,
+          reasoning: false,
+          freeOrLocal: false,
+          ticked: false,
+          pinned: false,
+          priceNote: 'unpriced',
+          badges: {
+            recommended: false,
+            cheapestCapable: false,
+            largestContext: false,
+            isNew: false,
+          },
+        },
+        {
+          ref: 'ollama/qwen3:8b',
+          providerId: 'ollama',
+          modelId: 'qwen3:8b',
+          toolCalling: true,
+          vision: false,
+          reasoning: true,
+          contextTokens: 131072,
+          inputPerMillion: 0,
+          outputPerMillion: 0,
+          freeOrLocal: true,
+          ticked: true,
+          pinned: false,
+          numCtx: 32768,
+          priceNote: 'local',
+          badges: {
+            recommended: false,
+            cheapestCapable: false,
+            largestContext: true,
+            isNew: false,
+          },
+        },
+        {
+          ref: 'ollama/llama4:16b',
+          providerId: 'ollama',
+          modelId: 'llama4:16b',
+          toolCalling: true,
+          vision: true,
+          reasoning: false,
+          contextTokens: 65536,
+          inputPerMillion: 0,
+          outputPerMillion: 0,
+          freeOrLocal: true,
+          ticked: false,
+          pinned: false,
+          numCtx: 32768,
+          priceNote: 'local',
+          badges: {
+            recommended: false,
+            cheapestCapable: false,
+            largestContext: false,
+            isNew: true,
+          },
+        },
+      ]
+      const modelsBase = {
+        presets: modelsPresets,
+        providers: [
+          {
+            id: 'openrouter',
+            presetId: 'openrouter',
+            label: 'OpenRouter',
+            address: 'https://openrouter.ai',
+            format: 'chat',
+            auth: 'apiKey',
+            key: { state: 'stored', origin: 'https://openrouter.ai' },
+            test: { status: 'ok', modelCount: 3 },
+            models: ['openrouter/deepseek/deepseek-v4-pro'],
+            pinned: ['openrouter/deepseek/deepseek-v4-pro'],
+            keyUsage: { dayUsd: 1.2, monthUsd: 3.4, limitUsd: 10, remainingUsd: 6.6 },
+            lastScannedAtMs: Date.now() - 3600000,
+          },
+          {
+            id: 'ollama',
+            presetId: 'ollama',
+            label: 'Ollama',
+            address: 'http://127.0.0.1:11434',
+            format: 'ollama',
+            auth: 'none',
+            key: { state: 'missing' },
+            test: { status: 'untested' },
+            models: ['ollama/qwen3:8b'],
+            pinned: [],
+            lastScannedAtMs: Date.now() - 7200000,
+          },
+        ],
+        totalModels: 5,
+        filter: {},
+        sort: { key: 'name', direction: 'asc' },
+        facets: { providers: ['ollama', 'openrouter'], families: ['deepseek', 'gpt', 'l', 'mystery', 'qwen3'] },
+        scans: {
+          ollama: { providerId: 'ollama', status: 'done', newCount: 1, removedCount: 0, repricedCount: 0 },
+          openrouter: { providerId: 'openrouter', status: 'done', newCount: 0, removedCount: 0, repricedCount: 1 },
+        },
+        suggestions: [
+          {
+            kind: 'defaultModel',
+            modelRef: 'openrouter/deepseek/deepseek-v4-pro',
+            reason: 'The cheapest tool-calling model with room for the harness.',
+            accepted: false,
+          },
+          {
+            kind: 'sessionBudget',
+            usd: 2.5,
+            reason: 'No history yet: a reference session at the default model’s prices.',
+            accepted: false,
+          },
+        ],
+        lastChoices: {},
+        drafts: { edits: {} },
+        pendingRemovals: [],
+      }
+      const modelsWizardDraft = (step, overrides = {}) => ({
+        step,
+        presetId: 'openrouter',
+        address: 'https://openrouter.ai',
+        auth: 'apiKey',
+        keyPresent: false,
+        keyShapeOk: false,
+        connected: false,
+        costAccepted: false,
+        models: [],
+        privacy: 'zdr',
+        providerOrder: [],
+        allowFallbacks: true,
+        privateConfirmed: false,
+        privateAsked: false,
+        errors: [],
+        blockers: ['Pick a provider first.'],
+        ...overrides,
+      })
+      // The scenario's state: the full board, or one slice of it. The
+      // wizard drafts mimic what the host holds at each step.
+      const modelsStateFor = (scenario) => {
+        const base = {
+          ...modelsBase,
+          models: modelsDataset(),
+          drafts: { edits: {}, wizard: undefined },
+          importPreview: undefined,
+        }
+        const wizard = (step, overrides = {}) => ({
+          ...base,
+          drafts: { edits: {}, wizard: modelsWizardDraft(step, overrides) },
+        })
+        switch (scenario) {
+          case 'models-empty': {
+            return {
+              ...base,
+              providers: [],
+              models: [],
+              totalModels: 0,
+              scans: {},
+              suggestions: [],
+            }
+          }
+          case 'models-configure': {
+            return wizard('configure', { blockers: [] })
+          }
+          case 'models-errors': {
+            return wizard('configure', {
+              presetId: 'custom',
+              address: 'http://example.com:8080/v1',
+              errors: ['This address cannot be used: plain HTTP off this computer is refused.'],
+              blockers: ['Fix the address above.'],
+            })
+          }
+          case 'models-credential': {
+            return wizard('credential', { blockers: [] })
+          }
+          case 'models-test': {
+            return wizard('test', {
+              keyPresent: true,
+              keyShapeOk: true,
+              test: { status: 'ok', modelCount: 3 },
+              blockers: [],
+            })
+          }
+          case 'models-test-cost': {
+            return wizard('test', {
+              keyPresent: true,
+              keyShapeOk: true,
+              test: { status: 'needs-cost', costUsd: 0.000002 },
+              blockers: [],
+            })
+          }
+          case 'models-test-failed': {
+            return wizard('test', {
+              keyPresent: true,
+              keyShapeOk: true,
+              test: { status: 'failed', detail: 'Unauthorized: that key is not shaped like one of ours.' },
+              blockers: [],
+            })
+          }
+          case 'models-models': {
+            return wizard('models', { keyPresent: true, keyShapeOk: true, test: { status: 'ok', modelCount: 3 }, blockers: [] })
+          }
+          case 'models-privacy': {
+            return wizard('privacy', { blockers: [] })
+          }
+          case 'models-suggestions': {
+            return wizard('suggestions', { blockers: [], models: ['openrouter/deepseek/deepseek-v4-pro'] })
+          }
+          case 'models-confirm': {
+            return wizard('confirm', {
+              keyPresent: true,
+              keyShapeOk: true,
+              test: { status: 'ok', modelCount: 3 },
+              blockers: ['Tick at least one model.'],
+              summary: {
+                origin: 'https://openrouter.ai',
+                lines: [
+                  'Provider: openrouter',
+                  'Code goes to: https://openrouter.ai',
+                  'Models: —',
+                  'Default model: suggested',
+                ],
+              },
+            })
+          }
+          case 'models-scanning': {
+            return {
+              ...base,
+              scans: { ...base.scans, ollama: { providerId: 'ollama', status: 'scanning' } },
+            }
+          }
+          case 'models-scan-failed': {
+            return {
+              ...base,
+              scans: {
+                ...base.scans,
+                ollama: { providerId: 'ollama', status: 'failed', detail: 'connection refused' },
+              },
+            }
+          }
+          case 'models-providers': {
+            return {
+              ...base,
+              scans: {
+                ollama: { providerId: 'ollama', status: 'done' },
+                openrouter: { providerId: 'openrouter', status: 'done' },
+              },
+            }
+          }
+          case 'models-undo': {
+            return { ...base, pendingRemovals: [{ providerId: 'openrouter', label: 'OpenRouter' }] }
+          }
+          case 'models-import': {
+            return {
+              ...base,
+              importPreview: {
+                providers: [
+                  { id: 'groq', label: 'Groq', address: 'https://api.groq.com' },
+                  { id: 'team-server', address: 'https://models.example.com/v1' },
+                ],
+                errors: [],
+              },
+            }
+          }
+          case 'models-table-filtered': {
+            return {
+              ...base,
+              filter: { search: 'qwen', toolCalling: true },
+              models: base.models.filter(
+                (row) => row.modelId.includes('qwen') && row.toolCalling,
+              ),
+            }
+          }
+          default: {
+            return base
+          }
+        }
+      }
+      // The live dataset a page load starts from; the answers below mutate
+      // it, so ticking, pinning and filtering round-trip like the host.
+      // (Ticking from a filtered table re-sends only the rows in view, a
+      // documented fake-host simplification: no scenario ticks filtered.)
+      let modelsLive = modelsDataset()
+      const modelsApplyFilter = (rows, filter, sort) => {
+        const needle = (filter.search ?? '').trim().toLowerCase()
+        const kept = rows.filter((row) => {
+          if (needle !== '' && ![row.modelId, row.label ?? '', row.description ?? '', row.providerId].join(' ').toLowerCase().includes(needle)) {
+            return false
+          }
+          for (const facet of ['toolCalling', 'vision', 'reasoning', 'freeOrLocal']) {
+            if (filter[facet] !== undefined && row[facet] !== filter[facet]) {
+              return false
+            }
+          }
+          if (filter.contextMin !== undefined && (row.contextTokens ?? -1) < filter.contextMin) {
+            return false
+          }
+          if (filter.contextMax !== undefined && (row.contextTokens ?? Infinity) > filter.contextMax) {
+            return false
+          }
+          for (const [facet, field] of [['maxInputPerMillion', 'inputPerMillion'], ['maxOutputPerMillion', 'outputPerMillion'], ['maxCachedPerMillion', 'cachedPerMillion']]) {
+            if (filter[facet] !== undefined && (row[field] === undefined || row[field] > filter[facet])) {
+              return false
+            }
+          }
+          if (filter.providerId !== undefined && row.providerId !== filter.providerId) {
+            return false
+          }
+          return true
+        })
+        const valueOf = (row) =>
+          sort.key === 'context'
+            ? (row.contextTokens ?? -1)
+            : sort.key === 'input-price'
+              ? (row.inputPerMillion ?? Infinity)
+              : sort.key === 'output-price'
+                ? (row.outputPerMillion ?? Infinity)
+                : row.modelId
+        const sign = sort.direction === 'asc' ? 1 : -1
+        return kept
+          .map((row, index) => ({ row, index }))
+          .sort((a, b) => {
+            const aValue = valueOf(a.row)
+            const bValue = valueOf(b.row)
+            const compared = aValue < bValue ? -1 : aValue > bValue ? 1 : 0
+            return compared === 0 ? a.index - b.index : sign * compared
+          })
+          .map((entry) => entry.row)
+      }
+      const modelsSend = (patch = {}) => {
+        send({
+          type: 'modelsPanel/state',
+          state: { ...modelsStateFor(scenarioName), ...patch, models: modelsLive },
+        })
+      }
+      const modelsAnswer = (message) => {
+        switch (message.type) {
+          case 'modelsPanel/ready': {
+            modelsLive = modelsDataset()
+            send({ type: 'modelsPanel/state', state: modelsStateFor(scenarioName) })
+            break
+          }
+          case 'providers/select': {
+            modelsSend({
+              drafts: {
+                edits: {},
+                wizard: modelsWizardDraft('configure', { presetId: message.presetId, blockers: [] }),
+              },
+            })
+            break
+          }
+          case 'models/filter': {
+            modelsLive = modelsApplyFilter(modelsDataset(), message.filter, message.sort)
+            modelsSend({ filter: message.filter, sort: message.sort })
+            break
+          }
+          case 'models/tick': {
+            modelsLive = modelsLive.map((row) =>
+              row.ref === message.ref ? { ...row, ticked: message.ticked } : row,
+            )
+            modelsSend()
+            break
+          }
+          case 'models/pin': {
+            modelsLive = modelsLive.map((row) =>
+              row.ref === message.ref ? { ...row, pinned: message.pinned } : row,
+            )
+            modelsSend()
+            break
+          }
+          case 'models/numCtx': {
+            modelsLive = modelsLive.map((row) =>
+              row.ref === message.ref ? { ...row, numCtx: message.numCtx } : row,
+            )
+            modelsSend()
+            break
+          }
+          case 'providers/test': {
+            modelsSend()
+            later(300, () => modelsSend())
+            break
+          }
+          case 'models/scan': {
+            modelsSend({
+              scans: { [message.providerId]: { providerId: message.providerId, status: 'scanning' } },
+            })
+            later(600, () =>
+              modelsSend({
+                scans: {
+                  [message.providerId]: {
+                    providerId: message.providerId,
+                    status: 'done',
+                    newCount: 2,
+                    removedCount: 0,
+                    repricedCount: 1,
+                  },
+                },
+              }),
+            )
+            break
+          }
+          case 'models/cancelScan': {
+            modelsSend({
+              scans: { [message.providerId]: { providerId: message.providerId, status: 'idle' } },
+            })
+            break
+          }
+          default: {
+            break
+          }
+        }
       }
       const steps = {
         empty: () => {},
@@ -3634,13 +4219,79 @@
             document.querySelector('.palette-header .button-secondary').click()
           })
         },
+        // --- M95 lane M: the Models & Agents panel (`?bundle=models`), one
+        // scenario per state. The fake host above answers `modelsPanel/ready`
+        // with each scenario's state; the steps below drive the UI from there.
+        'models-empty': () => {},
+        'models-pick': () => {
+          clickText('Pick a provider')
+          whenFound('.models-select input', (box) => {
+            setValue(box, HTMLInputElement.prototype, 'Oll')
+          })
+        },
+        'models-configure': () => {
+          // The draft is already in the state: opening shows its step.
+          clickText('Pick a provider')
+        },
+        // Each wizard state below arrives as the host's draft; opening the
+        // wizard shows its step.
+        'models-credential': () => {
+          clickText('Pick a provider')
+        },
+        'models-test': () => {
+          clickText('Pick a provider')
+        },
+        'models-test-cost': () => {
+          clickText('Pick a provider')
+        },
+        'models-test-failed': () => {
+          clickText('Pick a provider')
+        },
+        'models-models': () => {
+          clickText('Pick a provider')
+        },
+        'models-privacy': () => {
+          clickText('Pick a provider')
+        },
+        'models-suggestions': () => {
+          clickText('Pick a provider')
+        },
+        'models-confirm': () => {
+          clickText('Pick a provider')
+        },
+        'models-errors': () => {
+          clickText('Pick a provider')
+        },
+        'models-providers': () => {},
+        'models-scanning': () => {},
+        'models-scan-failed': () => {},
+        // The diff lines render on the provider rows: no navigation.
+        'models-scan-diff': () => {},
+        'models-table': () => {
+          whenFound('.models-nav', () => clickText('Models'))
+        },
+        'models-table-filtered': () => {
+          whenFound('.models-nav', () => clickText('Models'))
+        },
+        'models-undo': () => {},
+        'models-import': () => {
+          clickText('Import')
+        },
+        'models-narrow': () => {
+          document.body.style.maxWidth = '300px'
+          whenFound('.models-nav', () => clickText('Models'))
+        },
       }
       // A scenario starts once the panel has drawn its surface: the composer,
       // a sign-in or install gate, or the crash screen; never sooner than the
       // 400 ms it always waited. A fixed delay alone raced the first render
       // on a loaded machine (M40: `agents` and `dictation` found no composer).
       if (scenario !== null && scenario in steps) {
-        later(100, () => whenFound('textarea, .gate, [role="alert"]', () => steps[scenario]()))
+        // The Models & Agents panel (`?bundle=models`, M95) draws neither a
+        // composer nor a gate: its nav marks the surface instead.
+        later(100, () =>
+          whenFound('textarea, .gate, [role="alert"], .models-panel', () => steps[scenario]()),
+        )
       }
 
       // `?theme=<kind>` applies the colours VS Code gives a webview in one of

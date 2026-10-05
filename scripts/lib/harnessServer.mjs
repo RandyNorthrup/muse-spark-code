@@ -9,6 +9,11 @@ import { chromium } from 'playwright-core'
 
 export const LOOPBACK = '127.0.0.1'
 export const HARNESS_PATH = 'test/harness/index.html'
+// The bundle a scenario plays in: the Models & Agents panel's own
+// (`?bundle=models`, M95 lane M) for its scenarios, the chat's otherwise.
+export function bundleFor(scenario) {
+  return scenario.startsWith('models-') ? 'models' : 'main'
+}
 // Real time for one page; a hung browser fails rather than producing an empty result.
 export const PAGE_TIMEOUT_MS = 120_000
 // Every `?scenario=` test/harness/index.html plays.
@@ -132,6 +137,28 @@ export const SCENARIOS = [
   'review-pane',
   'review-pane-narrow',
   'review-comment',
+  // M95 lane M: the Models & Agents panel (`?bundle=models`), one per state.
+  'models-empty',
+  'models-pick',
+  'models-configure',
+  'models-errors',
+  'models-credential',
+  'models-test',
+  'models-test-cost',
+  'models-test-failed',
+  'models-models',
+  'models-privacy',
+  'models-suggestions',
+  'models-confirm',
+  'models-providers',
+  'models-scanning',
+  'models-scan-failed',
+  'models-scan-diff',
+  'models-table',
+  'models-table-filtered',
+  'models-undo',
+  'models-import',
+  'models-narrow',
 ]
 const CONTENT_TYPES = {
   '.html': 'text/html; charset=utf-8',

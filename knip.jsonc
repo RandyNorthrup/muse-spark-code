@@ -39,6 +39,8 @@
     // Web fetch's page converter (M69), a worker bundle started by path.
     "src/host/web/pageWorker.ts",
     "src/webview/main.tsx",
+    // The Models & Agents panel's own entry (M95 lane M), required by path.
+    "src/webview/models/models.tsx",
     "src/runtime/main.ts",
     "test/unit/**/*.test.{ts,tsx,mjs}",
     "test/e2e/**/*.test.ts",

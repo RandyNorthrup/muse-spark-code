@@ -23,12 +23,14 @@ import {
   HARNESS_PATH,
   LOOPBACK,
   SCENARIOS,
+  bundleFor,
   serveRepo,
   withNarrowPage,
 } from './lib/harnessServer.mjs'
 
 const OUT_DIR = 'harness-shots'
 const BUNDLE_PATH = 'dist/webview/main.js'
+const MODELS_BUNDLE_PATH = 'dist/webview/models.js'
 const WINDOW_SIZE = '690,760'
 const VIRTUAL_TIME_BUDGET_MS = 6000
 const execFileAsync = promisify(execFile)
@@ -36,7 +38,8 @@ const repoRoot = process.cwd()
 
 async function shoot(chrome, port, scenario, lang, outDir, profileDir) {
   const file = path.join(outDir, `${scenario}.png`)
-  const url = `http://${LOOPBACK}:${String(port)}/${HARNESS_PATH}?scenario=${scenario}${langQuery(lang)}`
+  const bundle = bundleFor(scenario)
+  const url = `http://${LOOPBACK}:${String(port)}/${HARNESS_PATH}?scenario=${scenario}&bundle=${bundle}${langQuery(lang)}`
   if (scenario === 'share-narrow') {
     await withNarrowPage(chrome, profileDir, url, async (page) => {
       await page.getByRole('dialog').waitFor()
@@ -67,6 +70,12 @@ async function main() {
     throw new Error('No Chrome install found; set CHROME_PATH to the browser executable')
   }
   const { lang, scenarios: requested } = harnessArgs(process.argv.slice(2))
+  if (
+    (requested.length === 0 || requested.some((name) => bundleFor(name) === 'models')) &&
+    !existsSync(path.join(repoRoot, MODELS_BUNDLE_PATH))
+  ) {
+    throw new Error(`${MODELS_BUNDLE_PATH} is missing; run \`npm run build:dev\` first`)
+  }
   const unknown = requested.filter((name) => !SCENARIOS.includes(name))
   if (unknown.length > 0) {
     throw new Error(`Unknown scenario(s): ${unknown.join(', ')}. Known: ${SCENARIOS.join(', ')}`)

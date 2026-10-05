@@ -3129,6 +3129,17 @@ export const TOOL_STATUS_IN_PROGRESS = 'inProgress'
 // typing: a field holding text, or a key pressed this recently.
 export const DOCK_TYPING_GRACE_MS = 1500
 
+// M95 (PLAN.md D74): the context sizes the Models table offers for an
+// Ollama model (32k, 64k, 128k); the memory each takes is shown beside them.
+export const OLLAMA_NUM_CTX_OPTIONS: readonly {
+  readonly tokens: number
+  readonly label: string
+}[] = [
+  { tokens: 32_768, label: '32k' },
+  { tokens: 65_536, label: '64k' },
+  { tokens: 131_072, label: '128k' },
+]
+
 // What the model or Meta reads (PLAN.md D33): the context leads, the
 // compaction prompt, the steering and answer prefixes, the skill invocation
 // and the tool failures returned to the model. English whatever the display

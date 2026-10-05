@@ -1958,5 +1958,48 @@
   "acpProvidersNone": "Yapılandırılmış sağlayıcı yok.",
   "acpProviderAdded": "{id} sağlayıcısı eklendi.",
   "acpProviderRemoved": "{id} sağlayıcısı kaldırıldı.",
-  "execProviderNotConfigured": "{id} sağlayıcısı yapılandırılmadı."
+  "execProviderNotConfigured": "{id} sağlayıcısı yapılandırılmadı.",
+  "modelsEmpty": "Henüz model sağlayıcı yok. Kendi modellerinizi kullanmak için ekleyin.",
+  "panelNoMatches": "Eşleşme yok.",
+  "modelFilterLabels": {
+    "toolCalling": "Araç çağrıları",
+    "vision": "Görüntü",
+    "reasoning": "Akıl yürütme",
+    "contextMin": "En az bağlam",
+    "contextMax": "En çok bağlam",
+    "maxInput": "En çok girdi fiyatı",
+    "maxOutput": "En çok çıktı fiyatı",
+    "maxCached": "En çok önbellek fiyatı",
+    "freeOrLocal": "Ücretsiz veya yerel",
+    "provider": "Sağlayıcı",
+    "family": "Aile",
+    "clear": "Filtreleri temizle",
+    "any": "Tümü"
+  },
+  "tickModel": "{model} model seçicide sun",
+  "pinModel": "{model} favori olarak sabitle",
+  "modelsColumnOffered": "Sunuluyor",
+  "modelsColumnPinned": "Sabitlendi",
+  "providerDetailFields": {
+    "azureResource": "Azure kaynağı",
+    "deployment": "Dağıtım",
+    "loopbackPort": "Yerel bağlantı noktası",
+    "customFormat": "Protokol biçimi"
+  },
+  "providerDocs": "Belgeler",
+  "providerDataUse": "Verilerinizin nasıl kullanıldığı",
+  "numCtxLabel": "Bağlam boyutu",
+  "suggestUnavailable": "Öneri yok: buradaki hiçbir model uygun değil.",
+  "lastDefaultHint": "Son varsayılan: {model}",
+  "importUntrusted": "Bu dosya güvenilir değil: içe aktarmadan önce her adresi denetleyin.",
+  "openRouterOrder": "Tercih edilen sağlayıcı sırası",
+  "openRouterFallback": "Diğer sağlayıcılara geç",
+  "keyMissing": "Kayıtlı anahtar yok",
+  "testRunning": "Test ediliyor…",
+  "modelsShownCount": {
+    "one": "{shown} / {count} model",
+    "other": "{shown} / {count} model"
+  },
+  "pricePerMillion": "Milyon jeton başına fiyatlar.",
+  "modelsNotScanned": "Bu sağlayıcının modellerini listelemek için yenileyin."
 }

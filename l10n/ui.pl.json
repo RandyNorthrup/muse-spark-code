@@ -2098,5 +2098,50 @@
   "acpProvidersNone": "Nie skonfigurowano dostawców.",
   "acpProviderAdded": "Dodano dostawcę {id}.",
   "acpProviderRemoved": "Usunięto dostawcę {id}.",
-  "execProviderNotConfigured": "Dostawca {id} nie jest skonfigurowany."
+  "execProviderNotConfigured": "Dostawca {id} nie jest skonfigurowany.",
+  "modelsEmpty": "Nie ma jeszcze dostawców modeli. Dodaj jednego, aby używać własnych modeli.",
+  "panelNoMatches": "Brak wyników.",
+  "modelFilterLabels": {
+    "toolCalling": "Wywołania narzędzi",
+    "vision": "Wizja",
+    "reasoning": "Rozumowanie",
+    "contextMin": "Min. kontekst",
+    "contextMax": "Maks. kontekst",
+    "maxInput": "Maks. cena wejścia",
+    "maxOutput": "Maks. cena wyjścia",
+    "maxCached": "Maks. cena pamięci podręcznej",
+    "freeOrLocal": "Bezpłatny lub lokalny",
+    "provider": "Dostawca",
+    "family": "Rodzina",
+    "clear": "Wyczyść filtry",
+    "any": "Wszystkie"
+  },
+  "tickModel": "Oferuj {model} w wyborze modeli",
+  "pinModel": "Przypnij {model} jako ulubiony",
+  "modelsColumnOffered": "Oferowany",
+  "modelsColumnPinned": "Przypięty",
+  "providerDetailFields": {
+    "azureResource": "Zasób platformy Azure",
+    "deployment": "Wdrożenie",
+    "loopbackPort": "Port lokalny",
+    "customFormat": "Format protokołu"
+  },
+  "providerDocs": "Dokumentacja",
+  "providerDataUse": "Sposób wykorzystania danych",
+  "numCtxLabel": "Rozmiar kontekstu",
+  "suggestUnavailable": "Brak sugestii: żaden model nie spełnia wymagań.",
+  "lastDefaultHint": "Ostatni domyślny: {model}",
+  "importUntrusted": "Ten plik nie jest zaufany: przed importem sprawdź każdy adres.",
+  "openRouterOrder": "Preferowana kolejność dostawców",
+  "openRouterFallback": "Przełącz na innych dostawców",
+  "keyMissing": "Brak zapisanego klucza",
+  "testRunning": "Testowanie…",
+  "modelsShownCount": {
+    "one": "{shown} z {count} modelu",
+    "few": "{shown} z {count} modele",
+    "many": "{shown} z {count} modeli",
+    "other": "{shown} z {count} modeli"
+  },
+  "pricePerMillion": "Ceny za milion tokenów.",
+  "modelsNotScanned": "Odśwież, aby wyświetlić modele tego dostawcy."
 }

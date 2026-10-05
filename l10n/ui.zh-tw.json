@@ -1888,5 +1888,47 @@
   "acpProvidersNone": "未設定提供者。",
   "acpProviderAdded": "已新增提供者 {id}。",
   "acpProviderRemoved": "已移除提供者 {id}。",
-  "execProviderNotConfigured": "提供者 {id} 未設定。"
+  "execProviderNotConfigured": "提供者 {id} 未設定。",
+  "modelsEmpty": "尚無模型供應商。新增一個以使用自己的模型。",
+  "panelNoMatches": "沒有相符項目。",
+  "modelFilterLabels": {
+    "toolCalling": "工具呼叫",
+    "vision": "視覺",
+    "reasoning": "推理",
+    "contextMin": "最小上下文",
+    "contextMax": "最大上下文",
+    "maxInput": "最高輸入價格",
+    "maxOutput": "最高輸出價格",
+    "maxCached": "最高快取價格",
+    "freeOrLocal": "免費或本機",
+    "provider": "供應商",
+    "family": "系列",
+    "clear": "清除篩選器",
+    "any": "全部"
+  },
+  "tickModel": "在模型選擇器中提供 {model}",
+  "pinModel": "將 {model} 固定為最愛",
+  "modelsColumnOffered": "已提供",
+  "modelsColumnPinned": "已固定",
+  "providerDetailFields": {
+    "azureResource": "Azure 資源",
+    "deployment": "部署",
+    "loopbackPort": "本機連接埠",
+    "customFormat": "通訊協定格式"
+  },
+  "providerDocs": "文件",
+  "providerDataUse": "資料的使用方式",
+  "numCtxLabel": "上下文大小",
+  "suggestUnavailable": "無建議：此處沒有符合條件的模型。",
+  "lastDefaultHint": "上次預設：{model}",
+  "importUntrusted": "此檔案不可信任：匯入前請檢查每個位址。",
+  "openRouterOrder": "慣用供應商順序",
+  "openRouterFallback": "回復到其他供應商",
+  "keyMissing": "未儲存金鑰",
+  "testRunning": "正在測試…",
+  "modelsShownCount": {
+    "other": "共 {count} 個模型，顯示 {shown} 個"
+  },
+  "pricePerMillion": "每百萬 token 價格。",
+  "modelsNotScanned": "重新整理以列出此供應商的模型。"
 }
