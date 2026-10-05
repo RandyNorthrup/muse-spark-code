@@ -130,10 +130,14 @@ describe('whatsNewLoader', () => {
 })
 
 describe('the shipped What’s New bundle', () => {
-  it('loads the shared English fallback without copying it', () => {
-    const text = readFileSync(built.file, 'utf8')
-    expect(text).toContain('require("./uiText.js")')
-    expect(text).not.toContain(UI_TEXT.crashTitle)
+  it('requires the English table beside it and carries none of its own words', () => {
+    const bundled = readFileSync(built.file, 'utf8')
+    const table = readFileSync(path.join(built.folder, 'uiText.js'), 'utf8')
+    expect(bundled).toMatch(/require\("\.\/uiText\.js"\)/)
+    for (const words of [UI_TEXT.whatsNewTitle, UI_TEXT.whatsNewUnavailable]) {
+      expect(table).toContain(words)
+      expect(bundled).not.toContain(words)
+    }
   })
 
   it('renders the page in the handed table, and runs only a contributed Try it', async () => {

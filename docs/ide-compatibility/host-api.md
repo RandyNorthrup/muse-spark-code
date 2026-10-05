@@ -33,7 +33,7 @@ The VS Code adapter: 19 files. Everything else reaches VS Code only through them
 
 | File                                       | VS Code APIs used |
 | ------------------------------------------ | ----------------- |
-| `src/extension.ts`                         | 150               |
+| `src/extension.ts`                         | 151               |
 | `src/host/agentImportHost.ts`              | 29                |
 | `src/host/cliFeatures.ts`                  | 28                |
 | `src/host/codeIntel/languageServices.ts`   | 45                |
@@ -72,7 +72,7 @@ These never reach `vscode` through their imports, type-only ones included; the g
 - `src/host/conversation/conversationController.ts`
 - `src/host/ide/ideMcpServer.ts`
 
-## VS Code API used at run time (278)
+## VS Code API used at run time (279)
 
 Functions, variables, classes, enums and members declared in `@types/vscode`; the members of a VS Code interface the code implements (a provider, an options object); and the members of a VS Code object handed to code that takes it by shape.
 
@@ -234,6 +234,7 @@ Functions, variables, classes, enums and members declared in `@types/vscode`; th
 | `TextDocument.uri`                                                                   | `src/extension.ts`, `src/host/agentImportHost.ts`, `src/host/editor/verifyEditor.ts`                                                                                                                                    |
 | `TextDocument.version`                                                               | `src/host/agentImportHost.ts`                                                                                                                                                                                           |
 | `TextDocumentChangeEvent.contentChanges`                                             | `src/extension.ts`                                                                                                                                                                                                      |
+| `TextDocumentChangeEvent.document`                                                   | `src/extension.ts`                                                                                                                                                                                                      |
 | `TextDocumentContentProvider.provideTextDocumentContent`                             | `src/extension.ts`                                                                                                                                                                                                      |
 | `TextDocumentShowOptions.preserveFocus`                                              | `src/host/editor/verifyEditor.ts`                                                                                                                                                                                       |
 | `TextDocumentShowOptions.preview`                                                    | `src/extension.ts`, `src/host/agentImportHost.ts`, `src/host/cliFeatures.ts`, `src/host/editor/verifyEditor.ts`, `src/host/memoryFeatures.ts`                                                                           |
