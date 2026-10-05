@@ -308,11 +308,46 @@ Restored source checksum:
 `8cce6bc7742b52f095d3a762a1559e85dbc73596fcce9b94e479d29b9dd6a45e`.
 
 Restored test checksum:
-`29fef7f3b7b949c46cc953eb821b9d1061d1a431ce82697e3884f9867cb6d124`.
+`ae85e7003b0da6987d6567c616554a21e23be3f4d2166bae94e75184a5382f57`.
 
 ### Repair checks
 
-The five-project `npm.cmd run typecheck` passed (exit 0). Final scoped lint,
-formatting, restored suites and remaining required gate results are recorded
-in the closing validation update. The inherited host API record difference
-remains owned by W/lead; this repair adds no Node or VS Code import.
+| Check                             | Final result on Windows 11                                                             |
+| --------------------------------- | -------------------------------------------------------------------------------------- |
+| `npm.cmd run typecheck`           | Exit 0, all five projects; the test-helper follow-up also passes `typecheck:unit`      |
+| Scoped ESLint, zero warnings      | Exit 0 on the changed core and tests                                                   |
+| Prettier and `git diff --check`   | Exit 0 on changed files                                                                |
+| Three complete owned Vitest files | 115/115 pass, three workers, after byte-exact restoration                              |
+| Eleven whole-file mutation drills | 11/11 exit 1 with the named failed regression; SHA-256 restoration confirmed           |
+| `npm.cmd run deadcode`            | Exit 0; inherited `vendor/**` configuration hint only                                  |
+| `npx.cmd jscpd`                   | Exit 0, 967 files, zero clones                                                         |
+| `npm.cmd run check:l10n`          | Exit 0; 14 tables, 127 manifest strings, 493 source files, zero problems               |
+| `npm.cmd run check:host-api`      | Exit 1 only for the inherited `node:crypto` import count 35 → 36; no membership change |
+| `npm.cmd run build`               | Exit 0; all 23 budgets, split, host globals and 84-package notices pass                |
+
+The first duplication run found two assertion clones in the new test file.
+Factored only their common replacement-revocation assertion into a test
+helper, preserving every endpoint/storage assertion; jscpd then reported zero
+clones. Reran all eleven drills on that final test file and restored it
+byte-exact. Production code and its checksum were unchanged by this cleanup.
+No threshold, ignore, timeout, test or gate was weakened.
+
+Build KiB used/cap: activation **553.1/600**, Model API **413.3/475**,
+providers **96.2/125**, Models host **51.0/75**, Models webview **411.4/475**,
+conversation startup including its shared chunk **896.4/900**, ACP
+**798.8/850**, checkpoint store **88.4/225**. The new sign-in core is still
+consumed only by tests in this isolated lane; V/X/lead must recheck composed
+budgets after wiring. The inherited **M95BS-R-host-api-count** remains W/lead's
+generated-record maintenance; this repair adds no Node or VS Code import.
+Full quality and aggregate/live acceptance remain expressly reserved for the
+lead, and are not claimed here.
+
+Implementation commit `cc92f35aa4e3f9f191f8091d537debd90aef6306` ran the
+unchanged real hooks: serial lint-staged passed, and gitleaks scanned
+**25,787 staged bytes**, finding no leaks. Its first attempt failed before
+creating a commit because this rig's Git has `sh` but not `bash`, required by
+npm's shell launcher. Ignored workspace-local `temp/hook-bin/npm` and `npx`
+launch the same installed npm JavaScript CLI through `sh`; only that commit
+process's PATH is prepended. No hook bypass, Git/machine setting change,
+package install or write to `node_modules` was used. The closing validation
+commit uses those same unchanged hooks.

@@ -197,6 +197,15 @@ function form(init: RequestInit | undefined): URLSearchParams {
   return init.body
 }
 
+async function expectReplacementRevocation(
+  tester: ReturnType<typeof rig>,
+  core = tester.core,
+): Promise<void> {
+  await core.remove()
+  const revoked = tester.requests.find((item) => item.url === DISCOVERY.revocation_endpoint)
+  expect(form(revoked?.init).get('token')).toBe('synthetic-new-refresh')
+}
+
 function insecureApiUrl(): string {
   const url = new URL('https://api.openai.com/v1/responses')
   url.protocol = 'http:'
@@ -551,9 +560,7 @@ describe('shared ChatGPT sign-in, refresh and removal', () => {
       'chatgpt.missing-plan-scope',
     )
     expect(tester.stored()).toMatchObject({ refreshToken: 'synthetic-new-refresh' })
-    await tester.core.remove()
-    const revoked = tester.requests.find((item) => item.url === DISCOVERY.revocation_endpoint)
-    expect(form(revoked?.init).get('token')).toBe('synthetic-new-refresh')
+    await expectReplacementRevocation(tester)
   })
 
   it('persists a pending rotation before JWKS failure and resumes it in another window', async () => {
@@ -590,9 +597,7 @@ describe('shared ChatGPT sign-in, refresh and removal', () => {
           'synthetic-new-access',
         )
       } else {
-        await other.remove()
-        const revoked = tester.requests.find((item) => item.url === DISCOVERY.revocation_endpoint)
-        expect(form(revoked?.init).get('token')).toBe('synthetic-new-refresh')
+        await expectReplacementRevocation(tester, other)
         await expect(other.accessToken('https://api.openai.com/v1/models', 0)).rejects.toThrow(
           'chatgpt.sign-in-required',
         )
@@ -613,9 +618,7 @@ describe('shared ChatGPT sign-in, refresh and removal', () => {
       'chatgpt.request-failed',
     )
     expect(tester.stored()).toMatchObject({ refreshToken: 'synthetic-new-refresh' })
-    await tester.core.remove()
-    const revoked = tester.requests.find((item) => item.url === DISCOVERY.revocation_endpoint)
-    expect(form(revoked?.init).get('token')).toBe('synthetic-new-refresh')
+    await expectReplacementRevocation(tester)
   })
 
   it('never returns an unverified pending token after invalid refresh identity claims', async () => {
@@ -627,9 +630,7 @@ describe('shared ChatGPT sign-in, refresh and removal', () => {
       )
     }
     expect(tokenRequests(tester)).toHaveLength(1)
-    await tester.core.remove()
-    const revoked = tester.requests.find((item) => item.url === DISCOVERY.revocation_endpoint)
-    expect(form(revoked?.init).get('token')).toBe('synthetic-new-refresh')
+    await expectReplacementRevocation(tester)
   })
 
   it.each([1, 2])(
