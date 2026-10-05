@@ -33,7 +33,8 @@ happened, not what was planned; superseded entries are kept.
   withdraws every delegation tool, so admission and the charter agree that
   the worker cannot delegate. Offered configured MCP tools survive personal
   allowlists and session inheritance, while runtime and project ceilings
-  still narrow them.
+  still narrow them. Charters consume the frozen final toolset and preserve
+  built-in QA's test-only shell and research/review's read-only shell policy.
 
 - **Role resolution redesigned (M96 lane R, round 3).** All role files,
   catalogues, permission modes and runtime ceilings are captured before

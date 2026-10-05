@@ -23,15 +23,18 @@ import {
   TEAM_ROLE_SKILL_IDS_MAX,
   TEAM_ROLE_SKILL_ID_MAX_CHARS,
   TEAM_ROLE_SKILL_ID_PATTERN,
+  TEAM_ROLE_TOOLSETS,
   TEAM_ROLE_WHEN_TO_USE_MAX_CHARS,
   TEAM_ROLE_WRITE_PATHS_MAX,
   TEAM_ROLE_WRITE_PATH_MAX_CHARS,
   TEAM_TOOL_GROUP_TOOLS,
+  TEAM_TOOL_GROUPS,
   TEAM_WORKSPACE_MODES,
   TEAM_WORKSPACE_ORDER,
   type AgentSource,
   type EffortLevel,
   type TeamReportShape,
+  type TeamToolGroup,
   type TeamWorkspaceMode,
 } from '../../shared/constants'
 import { APPROVAL_MODES, type ApprovalMode } from '../../shared/permissionModes'
@@ -47,9 +50,9 @@ import { readContextText } from '../context/contextFiles'
 import { builtinRoles } from './builtInRoles'
 import { compileGlob, isGlobMatch } from '../backends/modelapi/globLimits'
 import {
-  groupsForTools,
   meetTeamToolNames,
   resolveTeamToolset,
+  type ResolvedTeamToolset,
   type TeamToolsetSession,
 } from './toolsets'
 
@@ -82,6 +85,8 @@ export interface RoleDefinition {
   readonly workspace: TeamWorkspaceMode | undefined
   /** The filed allowlist; undefined runs with the session's own set. */
   readonly tools: readonly string[] | undefined
+  /** Captured built-in policy; files cannot declare or infer these groups. */
+  readonly toolGroups?: readonly TeamToolGroup[] | undefined
   readonly writePaths: readonly string[] | undefined
   readonly skills: readonly string[] | undefined
   readonly report: TeamReportShape | undefined
@@ -532,13 +537,21 @@ interface RoleSnapshot {
 export interface RolesLoad {
   readonly snapshot: RoleInput<RoleSnapshot>
   /** Resolved roles only; an Unknown snapshot offers none. */
-  readonly roles: readonly RoleDefinition[]
+  readonly roles: readonly ResolvedRole[]
   readonly holes: readonly AgentHole[]
   readonly warnings: readonly string[]
 }
 
+/** Effective settings and the final toolset, including its retained shell policy. */
+export interface ResolvedRole extends RoleDefinition {
+  readonly tools: readonly string[]
+  readonly workspace: TeamWorkspaceMode
+  readonly delegates: readonly string[]
+  readonly toolset: ResolvedTeamToolset
+}
+
 export type RoleResolution =
-  | { readonly kind: 'found'; readonly role: RoleDefinition }
+  | { readonly kind: 'found'; readonly role: ResolvedRole }
   | { readonly kind: 'unknown'; readonly reason: string }
   | {
       readonly kind: 'unloaded'
@@ -557,6 +570,7 @@ function freezeRole(role: RoleDefinition): RoleDefinition {
   return Object.freeze({
     ...role,
     tools: freezeList(role.tools),
+    toolGroups: freezeList(role.toolGroups),
     writePaths: freezeList(role.writePaths),
     skills: freezeList(role.skills),
     delegates: freezeList(role.delegates),
@@ -567,6 +581,7 @@ function freezeRole(role: RoleDefinition): RoleDefinition {
 function builtinToRole(role: ReturnType<typeof builtinRoles>[number]): RoleDefinition {
   return freezeRole({
     ...role,
+    toolGroups: TEAM_ROLE_TOOLSETS[role.id],
     skills: undefined,
     model: undefined,
     effort: undefined,
@@ -605,17 +620,19 @@ function freezeEnvironment(environment: RoleEnvironment): RoleEnvironment {
 }
 
 /** Resolve one complete known snapshot. Precedence chooses prose; ceilings choose powers. */
-function resolveSnapshotRole(snapshot: RoleSnapshot, id: string): RoleDefinition | undefined {
+function resolveSnapshotRole(snapshot: RoleSnapshot, id: string): ResolvedRole | undefined {
   const definitions = snapshot.definitions.filter((role) => role.id === id)
   const requested = ROLE_PRECEDENCE.flatMap((source) =>
     definitions.filter((role) => role.source === source),
   )[0]
   if (requested === undefined) return undefined
+  let authority = requested
   const ceilings: RoleCeiling[] = [...snapshot.environment.ceilings]
   if (requested.source === 'project') {
     const shadow =
       definitions.find((role) => role.source === 'user') ??
       definitions.find((role) => role.source === 'builtin')
+    authority = shadow ?? requested
     if (shadow !== undefined)
       ceilings.push({
         ...shadow,
@@ -633,9 +650,12 @@ function resolveSnapshotRole(snapshot: RoleSnapshot, id: string): RoleDefinition
     else if (!isAllowanceForFile(snapshot.environment.allowances[id], requested.sha256 ?? ''))
       ceilings.push(newIdCeiling())
   }
+  const groups =
+    authority.toolGroups ??
+    TEAM_TOOL_GROUPS.filter((group) => group !== 'readOnlyShell' && group !== 'testShell')
   const available = resolveTeamToolset(
     {
-      groups: groupsForTools(requested.tools ?? snapshot.environment.session.offered),
+      groups,
       tools: requested.tools ?? snapshot.environment.session.offered,
       writePaths: requested.writePaths,
     },
@@ -650,7 +670,24 @@ function resolveSnapshotRole(snapshot: RoleSnapshot, id: string): RoleDefinition
   })
   const met = meetRolePermissions({ ...requested, tools: available.tools }, ceilings)
   if (!met.ok) throw new Error(UI_TEXT.teamRoleGlobUnproven)
-  return met.role
+  const workspace = resolveRoleWorkspace(met.role)
+  const delegates = met.role.delegates ?? Object.freeze([])
+  const final = resolveTeamToolset(
+    {
+      groups: groups.map((group) =>
+        workspace === 'read-only' && group === 'shell' ? 'readOnlyShell' : group,
+      ),
+      tools: met.role.tools,
+      writePaths: met.role.writePaths,
+    },
+    { ...snapshot.environment.session, offered: met.role.tools ?? [], delegates },
+  )
+  const toolset = Object.freeze({
+    ...final,
+    tools: Object.freeze([...final.tools]),
+    groups: Object.freeze([...final.groups]),
+  })
+  return Object.freeze({ ...met.role, workspace, delegates, tools: toolset.tools, toolset })
 }
 
 /** Capture every input first. Any failure invalidates the whole catalogue. */
@@ -810,7 +847,7 @@ export async function loadRoles(
     environment === undefined
       ? undefined
       : Object.freeze({ definitions: Object.freeze(definitions), environment })
-  const roles: RoleDefinition[] = []
+  const roles: ResolvedRole[] = []
   if (known !== undefined && unknowns.length === 0) {
     const roleIds = new Set(definitions.map((role) => role.id))
     for (const id of roleIds) {
@@ -854,7 +891,7 @@ export async function loadRoles(
 }
 
 /** No role is offered from an incomplete snapshot. */
-export function offeredRoles(catalogue: RolesLoad): readonly RoleDefinition[] {
+export function offeredRoles(catalogue: RolesLoad): readonly ResolvedRole[] {
   return catalogue.snapshot.kind === 'known' ? catalogue.roles : []
 }
 

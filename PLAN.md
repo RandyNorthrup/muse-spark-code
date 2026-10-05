@@ -16713,7 +16713,13 @@ refuse before the meet; omitted file permission modes mean denyUnmatched.
 Write-glob inclusion has one conservative proof: identical normalized globs,
 literal paths checked by the existing bounded matcher, and subtrees below a
 literal directory/** ceiling. Unprovable inclusion refuses; no heuristic
-broadens it. Charters consume the exact final tool names. The orchestrator
+broadens it. Each resolved role carries a deeply frozen final `toolset`:
+session tool names, retained authority groups and the charter's `youMay` words,
+generated after every permission ceiling. Built-in groups are captured with
+the definitions; project copies retain their personal or built-in authority's
+shell policy. Personal replacements remain user-authoritative, with the final
+read-only workspace imposing its shell restriction. Charters consume that
+toolset directly, never infer shell power from shared tool names. The orchestrator
 snapshot/slot retains full agent identity and model settings (RB2 R10).
 
 Property-style tests enumerate permission combinations and Unknown sources;

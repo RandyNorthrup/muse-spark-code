@@ -5,6 +5,8 @@ import {
   TEAM_TOOL_GROUPS,
   TEAM_DELEGATE_TOOLS,
   TEAM_TOOL_GROUP_TOOLS,
+  TEAM_TOOL_GROUP_WORDS,
+  TEAM_ROLE_TOOLSETS,
   TEAM_WORKSPACE_MODES,
   TEAM_WORKSPACE_ORDER,
   UI_TEXT,
@@ -27,7 +29,7 @@ import {
 } from '../../../src/core/team/roles'
 import { builtinRoleFile } from '../../../src/core/team/builtInRoles'
 import { buildTeamCharter } from '../../../src/core/team/charter'
-import { groupsForTools, isTeamToolAdmitted } from '../../../src/core/team/toolsets'
+import { isTeamToolAdmitted } from '../../../src/core/team/toolsets'
 import { loaderDeps } from '../helpers/fakeContextIo'
 
 const PROJECT = '/ws/.agents/agents'
@@ -81,6 +83,91 @@ function assertNarrowed(result: RoleDefinition, ceiling: RoleCeiling): void {
 }
 
 describe('Round-3 role resolution invariants', () => {
+  it('RVM96R3 P2-3: final role toolsets retain authoritative shell policy for charters', async () => {
+    const shellPolicy = {
+      qa: 'testShell',
+      research: 'readOnlyShell',
+      'code-review': 'readOnlyShell',
+      engineering: 'shell',
+    } as const
+    for (const id of ['qa', 'research', 'code-review', 'engineering'] as const) {
+      for (const isProject of [false, true]) {
+        for (const offered of [
+          ['bash'],
+          ['powershell'],
+          ['bash', 'powershell'],
+          ENVIRONMENT.session.offered,
+        ]) {
+          const loaded = await loadRoles(
+            loaderDeps(isProject ? { [`.agents/agents/${id}/AGENT.md`]: builtinRoleFile(id) } : {}),
+            ROOTS,
+            {
+              trustedWorkspace: true,
+              inputs: {
+                kind: 'known',
+                value: { ...ENVIRONMENT, session: { ...ENVIRONMENT.session, offered } },
+              },
+            },
+          )
+          const found = resolveRole(loaded, id)
+          if (found.kind !== 'found') throw new Error('role refused')
+          const wanted = new Set(
+            TEAM_ROLE_TOOLSETS[id].flatMap((group) => TEAM_TOOL_GROUP_TOOLS[group]),
+          )
+          expect(new Set(found.role.tools)).toEqual(
+            new Set(offered.filter((tool) => wanted.has(tool))),
+          )
+          expect(found.role.toolset.tools).toBe(found.role.tools)
+          expect(Object.isFrozen(found.role.toolset)).toBe(true)
+          expect(Object.isFrozen(found.role.toolset.tools)).toBe(true)
+          expect(Object.isFrozen(found.role.toolset.groups)).toBe(true)
+          const charter = buildTeamCharter(
+            {
+              ...found.role,
+              report: found.role.report ?? 'summary',
+            },
+            found.role.toolset,
+          )
+          const group = shellPolicy[id]
+          expect(
+            found.role.toolset.groups.filter((name) =>
+              ['shell', 'readOnlyShell', 'testShell'].includes(name),
+            ),
+          ).toEqual([group])
+          expect(charter.generated).toContain(TEAM_TOOL_GROUP_WORDS[group])
+          for (const other of ['shell', 'readOnlyShell', 'testShell'] as const) {
+            if (other !== group)
+              expect(charter.generated).not.toContain(TEAM_TOOL_GROUP_WORDS[other])
+          }
+        }
+      }
+    }
+  })
+
+  it('RVM96R3 P2-3: personal replacements retain user authority and final read-only shell ceilings', async () => {
+    for (const workspace of ['read-only', 'own-branch'] as const) {
+      for (const isProject of [false, true]) {
+        const text = file(`workspace: ${workspace}\ntools: bash\n`)
+        const loaded = await loadRoles(
+          loaderDeps({
+            '.home/.config/muse/agents/qa/AGENT.md': text,
+            ...(isProject && { '.agents/agents/qa/AGENT.md': text }),
+          }),
+          ROOTS,
+          { trustedWorkspace: true, inputs: INPUTS },
+        )
+        const found = resolveRole(loaded, 'qa')
+        if (found.kind !== 'found') throw new Error('role refused')
+        const group = workspace === 'read-only' ? 'readOnlyShell' : 'shell'
+        expect(found.role.toolset.tools).toEqual(['bash'])
+        expect(found.role.toolset.groups).toEqual([group])
+        const charter = buildTeamCharter({ ...found.role, report: 'qa' }, found.role.toolset)
+        expect(charter.generated).toContain(TEAM_TOOL_GROUP_WORDS[group])
+        expect(charter.generated).not.toContain(TEAM_TOOL_GROUP_WORDS.testShell)
+      }
+    }
+  })
+
   it('RVM96R3 P2-2: preserves offered MCP allowlists and inheritance through every ceiling', async () => {
     const lookup = 'mcp__docs__lookup'
     const other = 'mcp__docs__search'
@@ -118,7 +205,7 @@ describe('Round-3 role resolution invariants', () => {
           expect(found.role.tools).toEqual(expected)
           const charter = buildTeamCharter(
             { ...found.role, workspace: 'read-only', delegates: [], report: 'summary' },
-            { tools: found.role.tools ?? [], groups: [] },
+            found.role.toolset,
           )
           for (const tool of expected) expect(charter.generated).toContain(tool)
           if (tools?.length === 0) expect(charter.generated).not.toContain(lookup)
@@ -128,6 +215,12 @@ describe('Round-3 role resolution invariants', () => {
   })
 
   it('RVM96R3 P2-1: withdraws delegation tools when final ceilings permit no delegate', async () => {
+    const pure = meetRolePermissions(
+      { ...definition('delegates: qa\n'), tools: ['read_file', ...TEAM_DELEGATE_TOOLS] },
+      [{ approvalMode: 'allowAll', delegates: [] }],
+    )
+    if (!pure.ok) throw new Error(pure.reason)
+    expect(pure.role.tools).toEqual(['read_file'])
     const cases: Pick<RoleEnvironment, 'ceilings' | 'session'>[] = [
       { session: { ...ENVIRONMENT.session, delegates: [] }, ceilings: [] },
       {
@@ -166,7 +259,7 @@ describe('Round-3 role resolution invariants', () => {
       if (found.kind !== 'found') throw new Error('role refused')
       expect(found.role.delegates).toEqual([])
       expect(found.role.tools).toEqual(['read_file'])
-      const tools = { tools: found.role.tools ?? [], groups: [], youMay: '' }
+      const tools = found.role.toolset
       for (const tool of TEAM_DELEGATE_TOOLS) expect(isTeamToolAdmitted(tools, tool)).toBe(false)
       const charter = buildTeamCharter(
         { ...found.role, workspace: 'read-only', delegates: [], report: 'summary' },
@@ -332,6 +425,12 @@ describe('Round-3 role resolution invariants', () => {
     for (const role of loaded.roles) {
       expect(Object.isFrozen(role)).toBe(true)
       expect(Object.isFrozen(role.tools)).toBe(true)
+      expect(Object.isFrozen(role.toolset)).toBe(true)
+      expect(Object.isFrozen(role.toolset.groups)).toBe(true)
+      expect(role.toolset.tools).toBe(role.tools)
+    }
+    for (const role of loaded.snapshot.value.definitions) {
+      if (role.source === 'builtin') expect(Object.isFrozen(role.toolGroups)).toBe(true)
     }
   })
 })
@@ -402,27 +501,38 @@ describe('named role review regressions', () => {
   })
 
   it('RVM96A R35: a charter describes exactly the final tools after all ceilings', async () => {
-    const loaded = await loadRoles(loaderDeps({}), ROOTS, {
-      trustedWorkspace: true,
-      inputs: {
-        kind: 'known',
-        value: { ...ENVIRONMENT, session: { ...ENVIRONMENT.session, offered: ['edit_file'] } },
+    const loaded = await loadRoles(
+      loaderDeps({
+        '.agents/agents/engineering/AGENT.md': file(
+          'tools: edit_file\nwrite-paths: docs/release.md\n',
+        ),
+      }),
+      ROOTS,
+      {
+        trustedWorkspace: true,
+        inputs: {
+          kind: 'known',
+          value: {
+            ...ENVIRONMENT,
+            ceilings: [{ approvalMode: 'allowAll', tools: ['edit_file'] }],
+          },
+        },
       },
-    })
+    )
     const found = resolveRole(loaded, 'engineering')
     if (found.kind !== 'found') throw new Error('role refused')
-    const tools = found.role.tools ?? []
+    const tools = found.role.tools
     expect(tools).toEqual(['edit_file'])
     const charter = buildTeamCharter(
       {
         ...found.role,
-        workspace: found.role.workspace ?? 'read-only',
-        delegates: found.role.delegates ?? [],
         report: found.role.report ?? 'summary',
       },
-      { tools, groups: groupsForTools(tools) },
+      found.role.toolset,
     )
     expect(charter.generated).toContain('edit_file')
+    expect(charter.generated).toContain('docs/release.md')
+    expect(charter.generated).not.toContain('whole branch')
     expect(charter.generated).not.toContain('write_file')
     expect(charter.generated).not.toContain('create and edit files')
   })

@@ -12,10 +12,9 @@ import {
   TEAM_READ_ONLY_COMMANDS,
   TEAM_REPORT_FENCE,
   type TeamReportShape,
-  type TeamToolGroup,
   type TeamWorkspaceMode,
 } from '../../shared/constants'
-import { describeToolsForCharter } from './toolsets'
+import type { ResolvedTeamToolset } from './toolsets'
 
 /** A role's resolved settings, as the charter reads them. */
 export interface CharterRole {
@@ -30,11 +29,8 @@ export interface CharterRole {
   readonly body: string
 }
 
-/** The tools the charter's "You may" line lists: the resolved groups. */
-export interface CharterTools {
-  readonly groups: readonly TeamToolGroup[]
-  readonly tools: readonly string[]
-}
+/** The final toolset, whose words preserve the captured policy and met names. */
+export type CharterTools = ResolvedTeamToolset
 
 export interface TeamCharter {
   /**
@@ -83,11 +79,7 @@ export function buildTeamCharter(role: CharterRole, tools: CharterTools): TeamCh
     fillSlot(TEAM_MODEL_TEXT.teamCharterWho, 'role', role.id),
     fillSlot(TEAM_MODEL_TEXT.teamCharterPurpose, 'description', role.description),
     fillSlot(WORKSPACE_TEXTS[role.workspace], 'commands', TEAM_READ_ONLY_COMMANDS.join(', ')),
-    fillSlot(
-      TEAM_MODEL_TEXT.teamCharterYouMay,
-      'tools',
-      describeToolsForCharter(tools.groups, role.writePaths, tools.tools),
-    ),
+    fillSlot(TEAM_MODEL_TEXT.teamCharterYouMay, 'tools', tools.youMay),
     mustNever,
     fillSlot(TEAM_MODEL_TEXT.teamCharterDone, 'done', role.done ?? DONE_DEFAULTS[role.report]),
     fillSlot(
