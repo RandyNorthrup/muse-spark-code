@@ -182,11 +182,8 @@ interface HeldLease {
   uncertainCalls: number
   lastTerminalAt: number | undefined
   idleTimer: { cancel(): void } | undefined
-  /**
-   * Set by Take back: this previous holder's next call is told the resource
-   * is busy, naming who took it.
-   */
-  takenBackBy: LeaseHolder | undefined
+  /** Release is deferred until all earlier calls have terminal answers. */
+  releaseRequested: boolean
 }
 
 interface Waiter {
@@ -199,6 +196,8 @@ interface LiveResource {
   declaration: ResourceDeclaration
   leases: HeldLease[]
   waiters: Waiter[]
+  readonly takenBack: Map<string, LeaseHolder>
+  takeBackTo: LeaseHolder | undefined
 }
 
 function holderKey(holder: LeaseHolder): string {
@@ -275,7 +274,7 @@ export class ResourceRegistry {
       uncertainCalls: 0,
       lastTerminalAt: undefined,
       idleTimer: undefined,
-      takenBackBy: undefined,
+      releaseRequested: false,
     })
   }
 
@@ -286,6 +285,16 @@ export class ResourceRegistry {
       return
     }
     const now = this.clock.now()
+    const takeBackTo = live.takeBackTo
+    if (
+      takeBackTo !== undefined &&
+      live.leases.every((lease) => holderKey(lease.holder) === holderKey(takeBackTo))
+    ) {
+      live.takeBackTo = undefined
+      if (!this.isRetired(takeBackTo) && live.leases.length === 0) {
+        this.grant(live, takeBackTo)
+      }
+    }
     while (live.waiters.length > 0) {
       const waiter = live.waiters[0]
       if (waiter === undefined) {
@@ -302,11 +311,22 @@ export class ResourceRegistry {
         waiter.resolve({ status: 'busy', holder })
         continue
       }
-      if (live.leases.length >= this.capacityOf(live.declaration)) {
-        return
+      const takenBackBy = live.takenBack.get(holderKey(waiter.holder))
+      if (takenBackBy !== undefined) {
+        live.waiters.shift()
+        waiter.resolve({ status: 'busy', holder: takenBackBy })
+        continue
+      }
+      if (live.leases.every((lease) => holderKey(lease.holder) !== holderKey(waiter.holder))) {
+        if (
+          live.takeBackTo !== undefined ||
+          live.leases.length >= this.capacityOf(live.declaration)
+        ) {
+          return
+        }
+        this.grant(live, waiter.holder)
       }
       live.waiters.shift()
-      this.grant(live, waiter.holder)
       waiter.resolve({ status: 'held' })
     }
   }
@@ -338,7 +358,13 @@ export class ResourceRegistry {
     }
     const live = this.resources.get(init.name)
     if (live === undefined) {
-      this.resources.set(init.name, { declaration, leases: [], waiters: [] })
+      this.resources.set(init.name, {
+        declaration,
+        leases: [],
+        waiters: [],
+        takenBack: new Map(),
+        takeBackTo: undefined,
+      })
     } else {
       live.declaration = declaration
     }
@@ -441,12 +467,12 @@ export class ResourceRegistry {
     return { accepted, refused }
   }
 
-  /** The servers a role may use: assigned ones, or every unassigned server. */
+  /** The servers explicitly assigned by the user to this role. */
   public serversForRole(role: string): readonly string[] {
     const names: string[] = []
     for (const live of this.resources.values()) {
       const assigned = live.declaration.assignedRoles ?? []
-      if (assigned.length === 0 || assigned.includes(role)) {
+      if (assigned.includes(role)) {
         names.push(live.declaration.name)
       }
     }
@@ -483,13 +509,17 @@ export class ResourceRegistry {
     if (this.isRetired(holder)) {
       return Promise.resolve({ status: 'stale' })
     }
+    const takenBackBy = live.takenBack.get(holderKey(holder))
+    if (takenBackBy !== undefined) {
+      return Promise.resolve({ status: 'busy', holder: takenBackBy })
+    }
     if (live.declaration.kind === 'free') {
       return Promise.resolve({ status: 'held' })
     }
     if (live.leases.some((lease) => holderKey(lease.holder) === holderKey(holder))) {
       return Promise.resolve({ status: 'held' })
     }
-    if (live.leases.length < this.capacityOf(live.declaration)) {
+    if (live.takeBackTo === undefined && live.leases.length < this.capacityOf(live.declaration)) {
       this.grant(live, holder)
       return Promise.resolve({ status: 'held' })
     }
@@ -502,56 +532,61 @@ export class ResourceRegistry {
     })
   }
 
-  /** Releases the holder's lease: at finish, stop and cancel (D75), by the holder. */
+  /** Requests release; open or uncertain calls keep ownership until terminal (D75). */
   public release(resourceName: string, holder: LeaseHolder): void {
     const live = this.live(resourceName)
     if (live === undefined) {
       return
     }
     const key = holderKey(holder)
-    const index = live.leases.findIndex((lease) => holderKey(lease.holder) === key)
-    if (index === -1) {
+    const lease = live.leases.find((candidate) => holderKey(candidate.holder) === key)
+    if (lease === undefined) {
       return
     }
-    const [lease] = live.leases.splice(index, 1)
-    lease?.idleTimer?.cancel()
+    lease.releaseRequested = true
+    lease.idleTimer?.cancel()
+    lease.idleTimer = undefined
+    if (lease.openCalls !== 0 || lease.uncertainCalls !== 0) {
+      return
+    }
+    // Replace the list so retirement and Take back can safely iterate the old one.
+    live.leases = live.leases.filter((candidate) => candidate !== lease)
     this.wake(resourceName)
   }
 
   /**
-   * Retires the attempt: its leases are released, and its late calls are
-   * refused by attempt number (D75).
+   * Retires the attempt: new calls are refused immediately; its leases
+   * remain held until every earlier call is terminal (D75).
    */
   public retireAttempt(taskId: string, attempt: number): void {
     this.retired.set(taskId, Math.max(this.retired.get(taskId) ?? -1, attempt))
     // Every queue is pumped, not only the changed ones: a waiter retired
     // while waiting hears it at once instead of at its deadline.
     for (const [name, live] of this.resources) {
-      live.leases = live.leases.filter((lease) => {
+      for (const lease of live.leases) {
         if (lease.holder.taskId === taskId && lease.holder.attempt <= attempt) {
-          lease.idleTimer?.cancel()
-          return false
+          this.release(name, lease.holder)
         }
-        return true
-      })
+      }
       this.wake(name)
     }
   }
 
   /** Every call carries its lease (D75): admits the holder's call, or refuses it. */
   public checkCall(resourceName: string, holder: LeaseHolder): CallAdmission {
+    if (this.isRetired(holder)) {
+      return { status: 'stale-attempt' }
+    }
     const live = this.live(resourceName)
     if (live === undefined || live.declaration.kind === 'free') {
       return { status: 'ok' }
     }
-    const lease = live.leases.find((candidate) => holderKey(candidate.holder) === holderKey(holder))
-    if (lease !== undefined) {
-      return lease.takenBackBy === undefined
-        ? { status: 'ok' }
-        : { status: 'taken-back', holder: lease.takenBackBy }
+    const takenBackBy = live.takenBack.get(holderKey(holder))
+    if (takenBackBy !== undefined) {
+      return { status: 'taken-back', holder: takenBackBy }
     }
-    return this.isRetired(holder)
-      ? { status: 'stale-attempt' }
+    return live.leases.some((lease) => holderKey(lease.holder) === holderKey(holder))
+      ? { status: 'ok' }
       : { status: 'not-holder', holder: live.leases[0]?.holder }
   }
 
@@ -592,11 +627,14 @@ export class ResourceRegistry {
       lease.openCalls -= 1
       lease.uncertainCalls += 1
     }
-    if (
-      live.declaration.idleRelease === false ||
-      lease.openCalls !== 0 ||
-      lease.uncertainCalls !== 0
-    ) {
+    if (lease.openCalls !== 0 || lease.uncertainCalls !== 0) {
+      return
+    }
+    if (lease.releaseRequested) {
+      this.release(resourceName, holder)
+      return
+    }
+    if (live.declaration.idleRelease === false) {
       return
     }
     lease.idleTimer?.cancel()
@@ -614,25 +652,26 @@ export class ResourceRegistry {
   }
 
   /**
-   * Take it back (D75): the lease moves to the orchestrator, and the old
-   * holder's next call is told the resource is busy.
+   * Take it back (D75): revoke old callers now, then move the lease only
+   * once every earlier call is terminal (or the user explicitly releases).
    */
   public takeBack(resourceName: string, to: LeaseHolder): void {
     const live = this.live(resourceName)
     if (live === undefined) {
       return
     }
+    live.takeBackTo = to
+    live.takenBack.delete(holderKey(to))
     for (const lease of live.leases) {
-      lease.takenBackBy = to
+      if (holderKey(lease.holder) !== holderKey(to)) {
+        live.takenBack.set(holderKey(lease.holder), to)
+      }
     }
-    live.leases.push({
-      holder: to,
-      openCalls: 0,
-      uncertainCalls: 0,
-      lastTerminalAt: undefined,
-      idleTimer: undefined,
-      takenBackBy: undefined,
-    })
+    for (const lease of live.leases) {
+      if (holderKey(lease.holder) !== holderKey(to)) {
+        this.release(resourceName, lease.holder)
+      }
+    }
     this.wake(resourceName)
   }
 

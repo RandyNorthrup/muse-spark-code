@@ -4756,6 +4756,16 @@ every fact, is `docs/certification/m96-research.md`.
     - **Take it back.** The user can take a lease back for the
       orchestrator from the Agent map; the holder's next call is told the
       resource is busy.
+      - **FIXM96B / RVM96A 9–11, 23–26 (2026-10-05).** Take back and
+        retirement revoke new calls immediately but retain capacity while
+        any earlier call is open or uncertain. Transfer waits for every
+        terminal answer, a proved server exit, or the user's **Release
+        anyway**. A local timeout is not a terminal server answer.
+        Unassigned servers reach no worker role. Bridge disposal and caller
+        removal cancel engine calls as well as HTTP calls; cancellation
+        removes queued admission before dispatch, and disposal cannot be
+        overtaken by startup. Regressions and byte-exact red drills are
+        recorded in `docs/certification/m96-b.md`.
   - **One instance of each MCP server, shared by everyone.** The extension,
     as the orchestrator's host, owns one instance of each MCP server and
     proxies every caller's calls to it: the **MCP bridge**.

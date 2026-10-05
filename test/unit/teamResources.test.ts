@@ -170,6 +170,24 @@ describe('idle release', () => {
 })
 
 describe('retired holders', () => {
+  it('retains a retired lease until every open and uncertain call is terminal', async () => {
+    const { registry, advance } = drivenRegistry()
+    await heldChrome(registry)
+    registry.callStarted('chrome', RESEARCHER)
+    registry.callStarted('chrome', RESEARCHER)
+    registry.callEnded('chrome', RESEARCHER, false)
+    registry.retireAttempt('task-a', 1)
+    registry.release('chrome', RESEARCHER)
+    expect(registry.checkCall('chrome', RESEARCHER)).toEqual({ status: 'stale-attempt' })
+    const waiting = registry.acquire('chrome', ENGINEER)
+    registry.callEnded('chrome', RESEARCHER, true)
+    advance(120_000)
+    expect(registry.snapshot()[0]?.holders).toEqual([RESEARCHER])
+    await expect(waiting).resolves.toEqual({ status: 'busy', holder: RESEARCHER })
+    registry.callEnded('chrome', RESEARCHER, true)
+    await expect(registry.acquire('chrome', ENGINEER)).resolves.toEqual({ status: 'held' })
+  })
+
   it('releases a stopped attempt and refuses its late call by attempt number', async () => {
     const { registry } = drivenRegistry()
     registry.declare({ name: 'chrome', kind: 'exclusive' })
@@ -190,6 +208,62 @@ describe('retired holders', () => {
 })
 
 describe('take back', () => {
+  it('times out a pending Take back admission without transferring an open lease', async () => {
+    const { registry, advance } = drivenRegistry()
+    await heldChrome(registry)
+    registry.callStarted('chrome', RESEARCHER)
+    registry.takeBack('chrome', ORCHESTRATOR)
+    const waiting = registry.acquire('chrome', ORCHESTRATOR)
+    advance(60_000)
+    await expect(waiting).resolves.toEqual({ status: 'busy', holder: RESEARCHER })
+    expect(registry.snapshot()[0]?.holders).toEqual([RESEARCHER])
+    registry.callEnded('chrome', RESEARCHER, true)
+    expect(registry.snapshot()[0]?.holders).toEqual([ORCHESTRATOR])
+  })
+
+  it('defers Take back until all earlier calls have terminal answers', async () => {
+    const { registry, advance } = drivenRegistry()
+    await heldChrome(registry)
+    registry.callStarted('chrome', RESEARCHER)
+    registry.callStarted('chrome', RESEARCHER)
+    registry.callEnded('chrome', RESEARCHER, false)
+    registry.takeBack('chrome', ORCHESTRATOR)
+    expect(registry.checkCall('chrome', RESEARCHER)).toEqual({
+      status: 'taken-back',
+      holder: ORCHESTRATOR,
+    })
+    expect(registry.checkCall('chrome', ORCHESTRATOR)).toEqual({
+      status: 'not-holder',
+      holder: RESEARCHER,
+    })
+    registry.callEnded('chrome', RESEARCHER, true)
+    advance(1_000_000)
+    expect(registry.snapshot()[0]?.holders).toEqual([RESEARCHER])
+    registry.callEnded('chrome', RESEARCHER, true)
+    expect(registry.snapshot()[0]?.holders).toEqual([ORCHESTRATOR])
+    await expect(registry.acquire('chrome', RESEARCHER)).resolves.toEqual({
+      status: 'busy',
+      holder: ORCHESTRATOR,
+    })
+  })
+
+  it.each(['exit', 'release-anyway'])(
+    'ends a pending Take back only on explicit %s',
+    async (end) => {
+      const { registry } = drivenRegistry()
+      await heldChrome(registry)
+      registry.callStarted('chrome', RESEARCHER)
+      registry.takeBack('chrome', ORCHESTRATOR)
+      expect(registry.snapshot()[0]?.holders).toEqual([RESEARCHER])
+      if (end === 'exit') {
+        registry.markServerExited('chrome')
+      } else {
+        registry.releaseAnyway('chrome')
+      }
+      expect(registry.snapshot()[0]?.holders).toEqual([ORCHESTRATOR])
+    },
+  )
+
   it('moves the lease to the orchestrator and tells the old holder busy', () => {
     const { registry } = drivenRegistry()
     registry.declare({ name: 'chrome', kind: 'exclusive' })
@@ -224,12 +298,14 @@ describe('the repository file', () => {
 })
 
 describe('roles and kinds', () => {
-  it('serves every unassigned server to every role, and an assigned one only to its roles', () => {
+  it('offers unassigned servers to no role and assigned servers only to their roles', () => {
     const { registry } = drivenRegistry()
     registry.declare({ name: 'chrome', kind: 'exclusive' })
     registry.declare({ name: 'device', kind: 'exclusive', assignedRoles: ['engineering'] })
-    expect(registry.serversForRole('research')).toEqual(['chrome'])
-    expect(registry.serversForRole('engineering')).toEqual(['chrome', 'device'])
+    registry.ensureServer('notes')
+    expect(registry.serversForRole('research')).toEqual([])
+    expect(registry.serversForRole('new-project-role')).toEqual([])
+    expect(registry.serversForRole('engineering')).toEqual(['device'])
   })
 
   it('holds nothing for a free resource', async () => {

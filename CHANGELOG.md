@@ -7,6 +7,12 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+### Fixed
+
+- **Team resource ownership.** Take back and retirement retain exclusive
+  resources until every earlier call is terminal, the server exits, or the
+  user chooses Release anyway. Unassigned servers reach no worker role.
+
 ## [0.12.1] - 2026-10-04
 
 ### Changed
