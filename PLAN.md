@@ -13556,7 +13556,7 @@ its messages) and `whatsNewHtml.ts` (the page, the Try it allow list) over
 - **Certification checklist.**
   - [x] Acceptance 1–12 with tests and drills (`docs/certification/m99.md`).
   - [x] Strings in all 14 tables (check-l10n 0 problems).
-  - [ ] Full quality gate on a rig at the commit (see m99.md).
+  - [x] Full quality gate on Kubuntu at `b23e1181`, exit 0 (m99.md).
   - [ ] The VSIX within its 2200 KiB budget (CI package job).
 
 ### M41 — Install Muse Code from the panel (folded into M55)
