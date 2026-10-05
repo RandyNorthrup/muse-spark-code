@@ -8981,15 +8981,17 @@ export class ModelApiSession implements AgentSession {
           signal,
           (notice) => {
             if (attemptState.didSend) {
+              const usage = attemptState.usage
+              // Consume first: failed accounting must not settle this attempt again in cleanup.
+              attemptState.didSend = false
+              attemptState.usage = undefined
               settleExtra?.(
                 body.model,
-                attemptState.usage,
+                usage,
                 notice.reason.startsWith(`HTTP ${String(HTTP_TOO_MANY_REQUESTS)}:`)
                   ? 'rate-limited'
                   : 'uncertain',
               )
-              attemptState.didSend = false
-              attemptState.usage = undefined
             }
             this.allowRateLimitedRetry(notice)
             this.emit({

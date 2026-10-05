@@ -16,6 +16,8 @@ happened, not what was planned; superseded entries are kept.
   setting defaults on, with an ACP/headless opt-out, but production reports
   awaiting evaluation and stays inactive until its M75 pair passes and shared
   D78 paid admission/ledger wiring is available. Missing admission fails closed.
+  If accounting fails during an HTTP retry notice, that dispatched attempt
+  is settled once and the turn stops; cleanup cannot tally it a second time.
 
 - Compaction keeps media removed by Stop out of its request and resolves the
   selected model's capabilities after hooks. File snapshots report successful

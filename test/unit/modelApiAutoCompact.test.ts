@@ -271,26 +271,39 @@ describe('automatic compaction in the shared Model API loop', () => {
     await t.host.close()
   })
 
-  it('ends the turn if the shared paid ledger cannot settle a dispatched summary', async () => {
-    const t = await setup({
-      admitAutoCompaction: () =>
-        Promise.resolve({
-          guard: () => undefined,
-          settle: () => {
-            throw new Error('ledger unavailable')
-          },
-        }),
-    })
-    await t.seed()
-    t.api.script(OVERFLOW, { text: 'summary' }, { text: 'must not continue' })
-    await t.send()
-    expect(t.api.responseBodies()).toHaveLength(3)
-    expect(t.events.findLast((event) => event.type === 'turnCompleted')).toMatchObject({
-      terminal: 'failed',
-      reason: EN.sessionBudgetStoreUnavailable,
-    })
-    await t.host.close()
-  })
+  it.each([
+    { name: 'a returned summary', plan: { text: 'summary' }, outcome: 'returned' },
+    {
+      name: 'an HTTP retry notice',
+      plan: { httpError: { status: 429, body: 'rate limited' } },
+      outcome: 'rate-limited',
+    },
+  ])(
+    'ends the turn with one settlement if the ledger cannot record $name',
+    async ({ plan, outcome }) => {
+      const settlements: string[] = []
+      const t = await setup({
+        admitAutoCompaction: () =>
+          Promise.resolve({
+            guard: () => undefined,
+            settle: (_modelId, _usage, settledOutcome) => {
+              settlements.push(settledOutcome)
+              throw new Error('ledger unavailable')
+            },
+          }),
+      })
+      await t.seed()
+      t.api.script(OVERFLOW, plan, { text: 'must not continue' })
+      await t.send()
+      expect(settlements).toEqual([outcome])
+      expect(t.api.responseBodies()).toHaveLength(3)
+      expect(t.events.findLast((event) => event.type === 'turnCompleted')).toMatchObject({
+        terminal: 'failed',
+        reason: EN.sessionBudgetStoreUnavailable,
+      })
+      await t.host.close()
+    },
+  )
 
   it('honours Stop while the first paid consent is pending', async () => {
     const consent = Promise.withResolvers<undefined>()

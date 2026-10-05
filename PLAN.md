@@ -15723,11 +15723,23 @@ receipts remain the lead's checks under the rig brief.
   **C2 mechanism built, 2026-10-05.** The overflow lane is merged in
   `68ca19f5`. Economics, owned boundary/recovery, per-attempt admission and
   settlement, memory policy, full exact todo restoration, all-editor options
-  and translated awaiting-evaluation notice are implemented. All 22 deliberate
+  and translated awaiting-evaluation notice are implemented. All 23 deliberate
   mutations produce assertion failures and restore byte-exact; final gate and
   importing-suite receipts live in `docs/certification/m101-c2.md`. The M75 pair
   and absent shared D78/registry binding keep production inactive; the milestone
   checkbox remains open until those integration receipts exist.
+
+  **C2 final-review accounting correction.** If shared settlement throws during
+  an HTTP retry notice, mark that attempt consumed before invoking settlement
+  so cleanup cannot settle it a second time. A complete-file regression must
+  first fail on the implementation commit, then pass with the small ordering
+  fix; deliberately reverse the order once and restore byte-exact. Every
+  importing suite for this correction and the final static/build gates rerun.
+  The regression first fails with duplicate rate-limited/uncertain settlement
+  on `8d9bb54f`; the ordering fix passes 646 owning tests and all 27 importing
+  files (1,745 tests). R23 deliberately reverses it, fails and restores exact
+  bytes. Final static gates, every unchanged production cap and the corrected
+  installed-editor bundle's 11 tests pass. Production remains inactive.
 
 - **Lane O — context overflow** (item 6, item 13's budget scaling).
   A pure `providers/overflow.ts` with Pi's per-format patterns (429 and rate
@@ -15835,7 +15847,7 @@ receipts remain the lead's checks under the rig brief.
 
 **M101 C2 imported-suite baseline deferral (2026-10-05, kubuntu).**
 The 373-file importing inventory (plus two related document/build suites)
-passes 7,653 tests after updating ACP's exact awaiting-evaluation notice
+passes 7,654 tests after updating ACP's exact awaiting-evaluation notice
 and CLI default-option expectations. Five unchanged files retain 27 failed
 assertions and one beforeAll packaging failure: execStdio's 22 missing
 validation-bundle fixture assertions, execTestLauncher's missing validation
