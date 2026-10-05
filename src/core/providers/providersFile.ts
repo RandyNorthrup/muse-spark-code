@@ -86,7 +86,9 @@ export const providerEntrySchema = z
     z.refine(
       (entry) =>
         entry.preset !== 'custom' ||
-        entry.models.every((modelId) => entry.modelLimits?.[modelId] !== undefined),
+        entry.models.every(
+          (modelId) => entry.modelLimits !== undefined && Object.hasOwn(entry.modelLimits, modelId),
+        ),
       { error: () => UI_TEXT.providerText.schema.customLimits },
     ),
   )

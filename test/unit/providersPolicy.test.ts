@@ -324,6 +324,27 @@ describe('providersFile', () => {
     expect(await readdir(dir)).toEqual(['occupied'])
   })
 
+  it('isolates simultaneous saves to the same destination', async () => {
+    dir = await mkdtemp(path.join(tmpdir(), 'providers-'))
+    const rename = vi.spyOn(fsPromises, 'rename')
+    const destination = path.join(dir, 'shared.json')
+    const second = { ...file, defaultModel: 'openai/other' }
+    expect(
+      await Promise.all([
+        writeProvidersFileAtomic(destination, file),
+        writeProvidersFileAtomic(destination, second),
+      ]),
+    ).toEqual([{ ok: true }, { ok: true }])
+    const sources = rename.mock.calls.map(([source]) => String(source))
+    expect(new Set(sources).size).toBe(2)
+    expect(sources.every((source) => path.dirname(source) === dir)).toBe(true)
+    expect([
+      { ok: true, file },
+      { ok: true, file: second },
+    ]).toContainEqual(await readProvidersFile(destination))
+    expect(await readdir(dir)).toEqual(['shared.json'])
+  })
+
   it('requires custom model windows and output caps and preserves them on reload', async () => {
     dir = await mkdtemp(path.join(tmpdir(), 'providers-'))
     const filePath = path.join(dir, 'custom.json')
@@ -355,6 +376,21 @@ describe('providersFile', () => {
     }
     expect(await writeProvidersFileAtomic(filePath, valid)).toEqual({ ok: true })
     expect(await readProvidersFile(filePath)).toEqual({ ok: true, file: valid })
+  })
+
+  it('requires explicit custom limits for model ids matching inherited properties', async () => {
+    dir = await mkdtemp(path.join(tmpdir(), 'providers-'))
+    for (const modelId of ['toString', 'constructor']) {
+      expect(
+        await writeProvidersFileAtomic(path.join(dir, 'custom.json'), {
+          v: 1,
+          providers: [
+            { ...entry, id: 'custom', preset: 'custom', models: [modelId], modelLimits: {} },
+          ],
+        }),
+      ).toMatchObject({ ok: false, reason: 'invalid' })
+    }
+    expect(await readdir(dir)).toEqual([])
   })
 
   it('reports unparseable and invalid files without repairing them', async () => {

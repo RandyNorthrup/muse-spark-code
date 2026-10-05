@@ -14879,6 +14879,15 @@ joined with M57, M58 and PR #49's sign-in
 
 ## 7. Gates
 
+**FIXM95P host API record deferral (2026-10-05).** The scoped rig check
+finds only four stale Node import counts in
+`docs/ide-compatibility/host-api.md`: crypto 32→34, fs/promises 34→35,
+net 3→4, path 65→66. The lane brief restricts changes to lane P files;
+the generated integration record is outside that scope. Keep the gate
+unchanged and failing until integration regenerates it with
+`npm run check:host-api -- --write` and verifies the resulting diff.
+No portable-to-VS-Code boundary or host API mismatch was reported.
+
 **MG69 merged-source proof (2026-10-02).** Kubuntu passes 49 owning/merged
 files (2,056 tests; two existing Windows-only cases platform-skipped), all
 five compiler projects and every required static gate. Both review and import
@@ -15332,6 +15341,10 @@ before a repaired one loads (2026-09-30).
   deferred. These isolated core checks do not certify combined provider
   integration, installed-editor behavior, live service calls or the full
   platform matrix, which remain the lead's work under the rig brief.
+- **FIXM95P-HOST-API:** the generated import inventory is stale (the four
+  counts in §7). This documentation-only deferral does not change runtime
+  behavior; no new VS Code API or forbidden portable import was found.
+  Integration must regenerate the record and pass the unchanged gate.
 
 - Code intelligence (M67) shows what VS Code's language services say. A
   result located outside the workspace is left out and a hover defined only
