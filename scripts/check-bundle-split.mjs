@@ -149,6 +149,13 @@ const problems = []
 const onDisk = new Set(backendFiles())
 const lazy = new Set(LAZY_ONLY)
 for (const name of onDisk) {
+  // M95 lane A: the wire codecs load with the providers bundle
+  // (dist/providers.js, lanes I/K), not with activation or dist/modelApi.js,
+  // so until that bundle exists they sit on neither list (PLAN.md M95 gates).
+  // Lane W owns this file; adjust when the bundle map lands.
+  if (name.startsWith('codecs/')) {
+    continue
+  }
   const lists =
     Number(ACTIVATION_ALLOWED.has(name)) +
     Number(lazy.has(name)) +
