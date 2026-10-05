@@ -158,5 +158,9 @@
   "command.tabSnooze.title": "Snooze Tab",
   "command.tabMenu.title": "Tab Menu",
   "command.tabLanguages.title": "Tab Languages",
-  "command.openPullRequestInConversation.title": "Open a Pull Request in a Conversation…"
+  "command.openPullRequestInConversation.title": "Open a Pull Request in a Conversation…",
+  "config.judge.engine.description": "`auto` (your own chat model; `same` in phase 1) and `same` can only add caution to a risky Auto action no rule settles: a ready caution turns an allow into a question, or into a note on the approval card. `off` runs no judge. On the Model API backend each judgment bills your key and asks once first; on Muse Code it runs on your subscription.",
+  "config.judge.engine.enumDescriptions.auto": "Your own chat model judges (`same` in phase 1); a separate judge joins it once one is configured.",
+  "config.judge.engine.enumDescriptions.same": "Only your own chat model judges; it never switches models.",
+  "config.judge.engine.enumDescriptions.off": "No judge: approvals behave exactly as without one."
 }

@@ -1,3 +1,4 @@
+import type { JudgeStatus } from '../../shared/judge'
 // Webview UI state: a pure reducer over host messages and local edits. No DOM
 // access here; the components apply focus and caret changes. Timestamps come
 // in with the action (`at`) so reasoning durations stay deterministic in tests.
@@ -233,6 +234,7 @@ export interface CheckpointView {
 }
 
 export interface UiState {
+  readonly judge: JudgeStatus | undefined
   /** Newest resolutions whose tool rows have not arrived yet; never saved. */
   readonly pendingApprovalResolutions: readonly Extract<AgentEvent, { type: 'approvalResolved' }>[]
   readonly phase: 'connecting' | 'ready'
@@ -595,6 +597,7 @@ export const initialUiState: UiState = {
   focusRequests: 0,
   usageRequests: 0,
   pendingInsert: undefined,
+  judge: undefined,
   auth: { status: 'checking', detail: undefined, backend: undefined, methods: undefined },
   model: undefined,
   models: [],
@@ -1947,6 +1950,7 @@ function applyAgentEvent(
         availableChoices: event.availableChoices,
         isProtectedWrite: event.isProtectedWrite,
         isJudgeEscalated: event.isJudgeEscalated,
+        judgeCaution: event.judgeCaution,
         note: event.note,
       }
       return announce(
@@ -1983,6 +1987,21 @@ function applyAgentEvent(
         fill(UI_TEXT.announceApprovalFor, { tool: toolLabel(event.toolName) ?? event.toolName }),
       )
     }
+    case 'approvalCaution': {
+      const transcript = state.transcript.map((entry) => {
+        return entry.kind !== 'tool' ||
+          entry.approval?.approvalId !== event.approvalId ||
+          entry.approval.requirementId.approvalId !== event.requirementId.approvalId ||
+          entry.approval.requirementId.sourceIndex !== event.requirementId.sourceIndex ||
+          entry.approval.decidedSourceIndex !== undefined ||
+          entry.approval.judgeCaution === true
+          ? entry
+          : { ...entry, approval: { ...entry.approval, judgeCaution: true } }
+      })
+      return transcript.some((entry, index) => entry !== state.transcript[index])
+        ? announce({ ...state, transcript }, UI_TEXT.judgeCaution)
+        : state
+    }
     case 'approvalUpdated': {
       return {
         ...state,
@@ -1996,6 +2015,7 @@ function applyAgentEvent(
                   subject: event.subject,
                   availableChoices: event.availableChoices,
                   note: event.note ?? entry.approval.note,
+                  judgeCaution: undefined,
                 },
               }
             : entry,
@@ -2279,6 +2299,7 @@ export function planReplyIdOf(state: UiState): string | undefined {
 function clearedConversation(state: UiState): UiState {
   return {
     ...state,
+    judge: undefined,
     pendingApprovalResolutions: [],
     attachmentEpoch: state.attachmentEpoch + 1,
     attachmentSettlements: [],
@@ -2671,6 +2692,9 @@ function applyHostMessage(state: UiState, message: HostToWebviewMessage, at: num
         },
         dictationAnnouncement(state.dictation.status, message.status),
       )
+    }
+    case 'judgeState': {
+      return { ...state, judge: message.state }
     }
     case 'paidState': {
       return { ...state, paid: message.state }

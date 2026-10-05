@@ -29,6 +29,24 @@ Releases and npm.
 
 ## What the extension protects, and how
 
+- **Muse Judge (M98 phase 1).** The same model can only add caution at an
+  existing reviewer/card fence; it cannot allow, override a rule or enter an
+  ALLOW parser. Off loads no Judge source or admission bundle. Replaced
+  actions, models, turns and sessions invalidate the latch and abort its
+  lifetime. Redaction precedes remote content and prefix reuse. Muse Code
+  uses fresh hidden Plan sessions, no MCP servers and empty temporary
+  folders removed afterward; standing native allow rules and unreadable
+  settings disable it. Its tool-item guard reacts to notification and does
+  not prove that no native command ran. Unknown allow sources or execution
+  before notification remain the D77/M90 residual. The subscription source
+  never asks a Model API price or receives its key. The metered path requires
+  live consent/account/binding checks after every wait and a durable daily
+  reservation; absent D78 disables production dispatch before consent.
+  Unknown receipts retain liability. No local listener, separate provider,
+  guessed wire field, calibration label from approvals or new ledger is
+  introduced. See [Judge](docs/judge.md) and its
+  [certification record](docs/certification/m98.md).
+
 - **Credentials.** A pasted Model API key lives only in VS Code's
   SecretStorage, is sent only to `api.meta.ai`, and is never passed to a
   child process, written to settings or logs, or shown in the panel. The

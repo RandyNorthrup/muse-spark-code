@@ -1,4 +1,5 @@
 import { MspError } from '@muse-code/sdk'
+import { startApprovalJudge } from '../../core/judge/use'
 // One conversation per surface: owns the MSP session for that surface, turns
 // webview requests into backend calls, and streams AgentEvents back. Also the
 // source of truth for the composer settings that outlive a webview reload
@@ -145,6 +146,7 @@ import type { ScheduleCadence, ScheduledPrompt } from '../../shared/schedule'
 import { formatMention, parseSkillInvocation } from '../../shared/mentions'
 import { approvalModeFor, untrustedStartMode } from '../../shared/permissionModes'
 import type { MuseCodeReviewerPort } from '../review/museCodeReviewerBundle'
+import type { JudgeAdvisory, JudgeFence } from '../../core/judge/use'
 import type { ReviewedApprovals } from '../review/reviewedApprovals'
 import type {
   ChatReference,
@@ -561,6 +563,7 @@ export interface ConversationDeps {
    * Auto, an approval Muse Code raised goes to it before the user. Absent
    * where there is none.
    */
+  readonly judge?: JudgeAdvisory | undefined
   readonly museCodeReviewer?: MuseCodeReviewerPort
   readonly now: () => number
   readonly log: Logger
@@ -1116,6 +1119,7 @@ export class ConversationController {
    * approvals in its hands (and its breaker), made on the first review.
    */
   private reviews: ReviewedApprovals | undefined
+  private readonly judgeCards = new Map<string, JudgeFence>()
   /** What the reviewer is shown (M78's input): the user's latest message, the turn's calls so far. */
   private reviewUserText: string | undefined
   private reviewCalls: readonly { readonly tool: string; readonly args: string }[] = []
@@ -1557,7 +1561,10 @@ export class ConversationController {
     }
     const sessions: ReturnType<typeof toSessionRow>[] = []
     for (const record of this.sessionRecords.values()) {
-      if (this.deps.museCodeReviewer?.isSideSession(record.sessionId) === true) {
+      if (
+        this.deps.museCodeReviewer?.isSideSession(record.sessionId) === true ||
+        this.deps.judge?.isSideSession?.(record.sessionId) === true
+      ) {
         // The Auto reviewer's side session (M90): never a conversation of the user's.
         continue
       }
@@ -1881,6 +1888,7 @@ export class ConversationController {
         mayAllow: (held) => this.isReviewerApproval(held),
         log: this.deps.log,
         describeFailure: failureForLog,
+        judge: this.deps.judge,
       })
     } catch (error: unknown) {
       this.deps.log.warn(
@@ -1903,6 +1911,44 @@ export class ConversationController {
         workspaceRoot: this.deps.workspaceRoot ?? '',
         platform: this.deps.platform,
       },
+    })
+  }
+
+  private clearJudgeCards(): void {
+    for (const fence of this.judgeCards.values()) fence.discard()
+    this.judgeCards.clear()
+  }
+
+  private watchJudgeCard(event: Extract<AgentEvent, { type: 'approvalRequested' }>): void {
+    if (this.sessionKind !== 'museCode' || this.session === undefined || event.isReplayed === true)
+      return
+    const fence = startApprovalJudge(
+      this.deps.judge,
+      {
+        backend: 'museCode',
+        sessionId: this.session.sessionId,
+        turnId: event.turnId ?? this.activeTurnId ?? '',
+        tool: event.toolName,
+      },
+      event.rawArgs,
+      JSON.stringify({
+        userRequest: this.reviewUserText,
+        recentCalls: this.reviewCalls,
+        tool: event.toolName,
+        action: event.subject.command ?? event.rawArgs,
+      }),
+    )
+    if (fence === undefined) return
+    this.judgeCards.get(event.approvalId)?.discard()
+    this.judgeCards.set(event.approvalId, fence)
+    // The request renders first; the background source never delays the card.
+    fence.card(() => {
+      if (this.judgeCards.get(event.approvalId) !== fence) return
+      this.forward({
+        type: 'approvalCaution',
+        approvalId: event.approvalId,
+        requirementId: event.requirementId,
+      })
     })
   }
 
@@ -1929,6 +1975,8 @@ export class ConversationController {
 
   /** The session left this panel: its reviews stop; a new conversation forgets what they were shown. */
   private forgetReviews(isOwnedRecovery: boolean): void {
+    if (this.session !== undefined) this.deps.judge?.discardSession(this.session.sessionId)
+    this.clearJudgeCards()
     this.reviews?.forget()
     if (isOwnedRecovery) {
       return
@@ -2114,6 +2162,8 @@ export class ConversationController {
       return
     }
     if (event.type === 'modelChanged') {
+      if (this.session !== undefined) this.deps.judge?.discardSession(this.session.sessionId)
+      this.clearJudgeCards()
       this.voiceContextRevision += 1
     } else if (event.type === 'viewGap') {
       // The controller's own events (D26): never forwarded to the webview.
@@ -2145,15 +2195,20 @@ export class ConversationController {
           this.holdForReview(event)
           return
         }
+        this.watchJudgeCard(event)
         break
       }
       case 'approvalUpdated': {
+        this.judgeCards.get(event.approvalId)?.discard()
+        this.judgeCards.delete(event.approvalId)
         if (this.reviews?.updated(event) === true) {
           return
         }
         break
       }
       case 'approvalResolved': {
+        this.judgeCards.get(event.approvalId)?.discard()
+        this.judgeCards.delete(event.approvalId)
         this.noteShellApprovalResolved(event)
         if (this.session !== undefined) {
           this.deps.pendingPrompts.resolve(this.session.sessionId, event.approvalId)
@@ -2246,6 +2301,9 @@ export class ConversationController {
         if (this.isChildTurn(event.turnId)) {
           break
         }
+        if (this.session !== undefined && this.activeTurnId !== undefined)
+          this.deps.judge?.discardTurn(this.session.sessionId, this.activeTurnId)
+        this.clearJudgeCards()
         this.activeTurnId = event.turnId
         this.reviewCalls = []
         this.turnClocks.set(event.turnId, { startedAt: this.deps.now(), firstOutputAt: undefined })
@@ -2319,6 +2377,9 @@ export class ConversationController {
         if (!this.isChildTurn(event.turnId)) {
           this.admittedEarly.clear()
         }
+        if (this.session !== undefined)
+          this.deps.judge?.discardTurn(this.session.sessionId, event.turnId)
+        if (event.turnId === this.activeTurnId) this.clearJudgeCards()
         this.endTurnClock(event)
         this.finishedTurns.add(event.turnId)
         // A review turn's end puts the user's mode back (M70).
@@ -3747,7 +3808,8 @@ export class ConversationController {
     if (event.type === 'changed') {
       if (
         event.record.workspaceRoot !== this.deps.workspaceRoot ||
-        this.deps.museCodeReviewer?.isSideSession(event.record.sessionId) === true
+        this.deps.museCodeReviewer?.isSideSession(event.record.sessionId) === true ||
+        this.deps.judge?.isSideSession?.(event.record.sessionId) === true
       ) {
         return
       }
@@ -7165,6 +7227,8 @@ export class ConversationController {
   }
 
   private async setPermissionMode(mode: PermissionMode): Promise<void> {
+    if (this.session !== undefined) this.deps.judge?.discardSession(this.session.sessionId)
+    this.clearJudgeCards()
     if (mode !== 'plan' && this.isSideChat) {
       this.notice('info', UI_TEXT.sideChatPlanOnly)
       this.postComposerState()
@@ -8382,6 +8446,8 @@ export class ConversationController {
         break
       }
       case 'decideApproval': {
+        this.judgeCards.get(message.approvalId)?.discard()
+        this.judgeCards.delete(message.approvalId)
         await this.decideApproval(message)
         break
       }
@@ -8974,6 +9040,40 @@ export class ConversationController {
   /** Whether Ctrl+B has a running command to move here (M46): its context key. */
   public get hasForegroundShell(): boolean {
     return this.foregroundShells.size > 0
+  }
+
+  /** The Judge reads the attached action's current model and loaded context window. */
+  public judgeContext(
+    sessionId: string,
+    turnId: string,
+  ):
+    | {
+        readonly backend: BackendKind
+        readonly modelId: string
+        readonly contextLimit: number | undefined
+      }
+    | undefined {
+    if (
+      this.isDisposed ||
+      this.accountStopsInFlight > 0 ||
+      this.session === undefined ||
+      this.sessionKind === undefined ||
+      this.session.sessionId !== sessionId ||
+      this.activeTurnId !== turnId ||
+      (this.deps.isConfidentialWorkspace() && isContributorModel(this.session.modelId))
+    )
+      return
+    return {
+      backend: this.sessionKind,
+      modelId: this.session.modelId,
+      contextLimit: this.contextLimitFor(this.session.modelId),
+    }
+  }
+
+  public postJudge(
+    message: Extract<HostToWebviewMessage, { type: 'judgeState' | 'agentEvent' }>,
+  ): void {
+    this.post(message)
   }
 
   /** Board state comes from captured turn events, not a guessed native status. */

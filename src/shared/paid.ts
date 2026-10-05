@@ -59,6 +59,11 @@ export const paidTallySchema = z.object({
   hookModelUnknownRequests: z.optional(z.int().check(z.nonnegative())),
   hookModelTokens: z.optional(z.int().check(z.nonnegative())),
   hookModelCostUsd: z.optional(z.number().check(z.nonnegative())),
+  // Same-model judge calls this window (M98, PLAN.md D77); absent means none.
+  judgeCalls: z.optional(z.int().check(z.nonnegative())),
+  judgeUnknownRequests: z.optional(z.int().check(z.nonnegative())),
+  judgeTokens: z.optional(z.int().check(z.nonnegative())),
+  judgeCostUsd: z.optional(z.number().check(z.nonnegative())),
 })
 export type PaidTally = z.infer<typeof paidTallySchema>
 
@@ -139,6 +144,7 @@ export type PaidState = z.infer<typeof paidStateSchema>
  * to search at all.
  */
 export type PaidUseRequest =
+  | { readonly feature: 'judge'; readonly modelId: string; readonly dailyBudgetUsd: number }
   | { readonly feature: 'webSearch' }
   | { readonly feature: 'voice' }
   | {
@@ -238,6 +244,10 @@ export function paidCostUsd(feature: PaidFeature, tally: PaidTally): number {
       // a review's. Count only reported costs, not unanswered runs.
       return tally.hookModelCostUsd ?? 0
     }
+    case 'judge': {
+      // Billed apart from the conversation, so counted here alone.
+      return tally.judgeCostUsd ?? 0
+    }
   }
 }
 
@@ -259,7 +269,8 @@ export function listedPaidFeatures(
       (feature === 'autoReviewer' && (tally.autoReviews ?? 0) > 0) ||
       (feature === 'bestOfN' && (tally.bestOfNAttempts ?? 0) > 0) ||
       (feature === 'tab' && (tally.tabRequests ?? 0) > 0) ||
-      (feature === 'hookModels' && (tally.hookModelRuns ?? 0) > 0),
+      (feature === 'hookModels' && (tally.hookModelRuns ?? 0) > 0) ||
+      (feature === 'judge' && (tally.judgeCalls ?? 0) > 0),
   )
 }
 
@@ -290,6 +301,7 @@ export function paidFeatureName(feature: PaidFeature): string {
     bestOfN: UI_TEXT.paidBestOfNName,
     tab: UI_TEXT.paidTabName,
     hookModels: UI_TEXT.paidHookModelName,
+    judge: UI_TEXT.paidJudgeName,
   }
   return names[feature]
 }
@@ -377,9 +389,9 @@ export function paidFeaturePrice(feature: PaidFeature): string {
     }
     case 'scheduledPrompts':
     case 'autoReviewer':
-    case 'tab': {
-      // Tab bills ordinary Model API tokens on the request's model (M94,
-      // PLAN.md D73); the popup quotes these same tier rates.
+    case 'tab':
+    case 'judge': {
+      // The judge runs on the conversation's own model, at its token rates.
       return tokenRatesByTier()
     }
     case 'subagents': {

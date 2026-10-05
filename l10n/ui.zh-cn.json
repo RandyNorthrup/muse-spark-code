@@ -160,6 +160,7 @@
     "paid:scheduledPrompts": "开启或关闭付费已计划的提示词。",
     "paid:autoReviewer": "开启或关闭付费自动审查器。",
     "paid:bestOfN": "开启或关闭付费 N 选最优。",
+    "paid:judge": "开启或关闭付费评判建议。",
     "paid:hookModels": "开启或关闭付费模型钩子。",
     "hookRun": "立即运行 spark-hooks.json 中的一个 Manual 钩子。",
     "loop": "在此 Model API 对话中计划提示词。",
@@ -1257,7 +1258,8 @@
     "mcp__ide__renameSymbol": "重命名",
     "auto_review": "自动审查",
     "run_checks": "运行检查",
-    "verify_edits": "检查编辑"
+    "verify_edits": "检查编辑",
+    "judge": "评判器"
   },
   "mcpToolLabel": "{tool}（{server}）",
   "memoryScopes": {
@@ -2313,5 +2315,20 @@
   "usagePaidTabBudget": "每日预算：{budget}",
   "tabMultilineAuto": "自动",
   "tabMultilineOnInvoke": "仅在手动调用时",
-  "tabMultilineNever": "仅使用单行上下文"
+  "tabMultilineNever": "仅使用单行上下文",
+  "paidJudgeName": "评判器",
+  "paidConfirmJudge": "您的聊天模型自身会评判每个没有规则决定的有风险的Auto操作，且只能增加谨慎：就绪的提醒会将允许变为提问，或在审批卡上添加备注。每次评判按对话模型的令牌费率计入您的Model API密钥：\n{price}\n评判器会在首次收费前询问一次，并显示这些价格和共用的每日预算：{budget}。从免费来源切换到付费来源时，会再次询问。在Muse Code上，相同的调用改走您的订阅。",
+  "usagePaidJudgeCalls": {
+    "other": "评判 {count} 次"
+  },
+  "judgeCaution": "Muse Judge 建议谨慎。由你决定；它不能批准此操作。",
+  "judgeSubscriptionNotice": "Muse Judge 通过你的 Muse 订阅使用聊天模型，并计入订阅限额。每个批次都使用全新、隔离的计划模式会话。检测到工具时，保护机制会取消会话，但无法证明没有工具曾运行。它只能建议谨慎。",
+  "judgeStatusSame": "同一模型",
+  "judgeStatusOff": "关闭",
+  "judgeStatusUnavailable": "关闭：来源不可用或存在长期允许规则",
+  "judgeStatusConsent": "等待首次收费前的同意",
+  "judgeStatusDeclined": "关闭：已拒绝付费使用",
+  "judgeStatusSlow": "默认关闭：审核员作出决定时就绪的结果太少",
+  "judgeStatusSubscription": "订阅",
+  "judgeStatusPaid": "付费"
 }

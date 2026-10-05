@@ -158,5 +158,9 @@
   "command.tabSnooze.title": "Sospendi Tab",
   "command.tabMenu.title": "Menu Tab",
   "command.tabLanguages.title": "Lingue di Tab",
-  "command.openPullRequestInConversation.title": "Apri una richiesta pull in una conversazione…"
+  "command.openPullRequestInConversation.title": "Apri una richiesta pull in una conversazione…",
+  "config.judge.engine.description": "`auto` (il tuo modello di conversazione; `same` nella fase 1) e `same` possono solo aggiungere cautela a un’azione Auto rischiosa che nessuna regola decide: una cautela pronta trasforma un’autorizzazione in una domanda, o in una nota sulla scheda di approvazione. `off` non esegue alcun valutatore. Sul backend Model API ogni giudizio viene addebitato alla tua chiave e chiede prima conferma una volta; su Muse Code usa il tuo abbonamento.",
+  "config.judge.engine.enumDescriptions.auto": "Il tuo modello di conversazione valuta (`same` nella fase 1); un valutatore separato si unisce appena ne viene configurato uno.",
+  "config.judge.engine.enumDescriptions.same": "Solo il tuo modello di conversazione valuta; non cambia mai modello.",
+  "config.judge.engine.enumDescriptions.off": "Nessun valutatore: le approvazioni si comportano esattamente come senza."
 }

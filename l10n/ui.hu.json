@@ -160,6 +160,7 @@
     "paid:scheduledPrompts": "Fizetős ütemezett promptok be- vagy kikapcsolása.",
     "paid:autoReviewer": "Fizetős automatikus ellenőrző be- vagy kikapcsolása.",
     "paid:bestOfN": "Fizetős N legjobbja funkció be- vagy kikapcsolása.",
+    "paid:judge": "A Bíró fizetős tanácsainak be- vagy kikapcsolása.",
     "paid:hookModels": "Fizetős modellhookok be- vagy kikapcsolása.",
     "hookRun": "Az egyik Manual hook futtatása most a spark-hooks.json fájlból.",
     "loop": "Prompt ütemezése ebben a Model API-beszélgetésben.",
@@ -1294,7 +1295,8 @@
     "mcp__ide__renameSymbol": "Átnevezés",
     "auto_review": "Automatikus ellenőrzés",
     "run_checks": "Ellenőrzések futtatása",
-    "verify_edits": "Szerkesztések ellenőrzése"
+    "verify_edits": "Szerkesztések ellenőrzése",
+    "judge": "Értékelő"
   },
   "mcpToolLabel": "{tool} ({server})",
   "memoryScopes": {
@@ -2406,5 +2408,21 @@
   "usagePaidTabBudget": "Napi keret: {budget}",
   "tabMultilineAuto": "Automatikus",
   "tabMultilineOnInvoke": "Csak meghíváskor",
-  "tabMultilineNever": "Csak egysoros környezet"
+  "tabMultilineNever": "Csak egysoros környezet",
+  "paidJudgeName": "Értékelő",
+  "paidConfirmJudge": "Saját csevegőmodellje értékel minden kockázatos Auto műveletet, amelyről egyetlen szabály sem dönt, és csak óvatosságot adhat hozzá: az elkészült figyelmeztetés az engedélyt kérdéssé alakítja, vagy megjegyzést fűz a jóváhagyási kártyához. Minden értékelés díja a Model API-kulcsára terhelődik a beszélgetés modelljének tokenáraival:\n{price}\nAz értékelő egyszer kér engedélyt az első díj felszámítása előtt, feltüntetve ezeket az árakat és a közös napi keretet: {budget}. Ingyenes forrásról fizetősre váltáskor újra engedélyt kér. A Muse Code rendszerben ugyanezek a hívások az előfizetését használják.",
+  "usagePaidJudgeCalls": {
+    "one": "{count} értékelés",
+    "other": "{count} értékelés"
+  },
+  "judgeCaution": "A Muse Judge óvatosságot javasol. Ön dönt; nem hagyhatja jóvá ezt a műveletet.",
+  "judgeSubscriptionNotice": "A Muse Judge az Ön csevegési modelljét használja a Muse-előfizetésével, és beleszámít annak korlátjaiba. Minden köteg új, elkülönített munkamenetet használ Terv módban. Az eszközészlelési védelem megszakítja a munkamenetet, de nem bizonyíthatja, hogy egyetlen eszköz sem futott. Csak óvatosságot javasolhat.",
+  "judgeStatusSame": "Ugyanaz a modell",
+  "judgeStatusOff": "Kikapcsolva",
+  "judgeStatusUnavailable": "Kikapcsolva: a forrás nem elérhető vagy állandó engedélyezési szabályok vannak",
+  "judgeStatusConsent": "Hozzájárulásra vár az első díj előtt",
+  "judgeStatusDeclined": "Kikapcsolva: a fizetős használat elutasítva",
+  "judgeStatusSlow": "Alapértelmezetten kikapcsolva: túl kevés eredmény kész az ellenőr döntésekor",
+  "judgeStatusSubscription": "Előfizetés",
+  "judgeStatusPaid": "Fizetős"
 }

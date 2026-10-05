@@ -160,6 +160,7 @@
     "paid:scheduledPrompts": "Activer ou désactiver les prompts planifiés payants.",
     "paid:autoReviewer": "Activer ou désactiver le réviseur auto payant.",
     "paid:bestOfN": "Activer ou désactiver Best-of-N payant.",
+    "paid:judge": "Activer ou désactiver les conseils payants du Juge.",
     "paid:hookModels": "Activer ou désactiver les hooks de modèle payants.",
     "hookRun": "Exécuter maintenant l’un de vos hooks Manual de spark-hooks.json.",
     "loop": "Planifier un prompt dans cette conversation Model API.",
@@ -1331,7 +1332,8 @@
     "mcp__ide__renameSymbol": "Renommer",
     "auto_review": "Revue auto",
     "run_checks": "Lancer les vérifications",
-    "verify_edits": "Vérifier les modifications"
+    "verify_edits": "Vérifier les modifications",
+    "judge": "Évaluateur"
   },
   "mcpToolLabel": "{tool} ({server})",
   "memoryScopes": {
@@ -2499,5 +2501,22 @@
   "usagePaidTabBudget": "Budget quotidien : {budget}",
   "tabMultilineAuto": "Automatique",
   "tabMultilineOnInvoke": "Uniquement sur demande",
-  "tabMultilineNever": "Contexte sur une seule ligne"
+  "tabMultilineNever": "Contexte sur une seule ligne",
+  "paidJudgeName": "Évaluateur",
+  "paidConfirmJudge": "Votre propre modèle de conversation évalue chaque action Auto risquée qu’aucune règle ne tranche, et ne peut qu’ajouter de la prudence : un avertissement prêt transforme une autorisation en question, ou en note sur la carte d’approbation. Chaque jugement est facturé sur votre clé Model API aux tarifs par jeton du modèle de la conversation :\n{price}\nLe juge demande votre accord une seule fois avant la première facturation, avec ces tarifs et le budget quotidien partagé : {budget}. Le passage d’une source gratuite à une source payante demande un nouvel accord. Sur Muse Code, les mêmes appels passent par votre abonnement.",
+  "usagePaidJudgeCalls": {
+    "one": "{count} jugement",
+    "many": "{count} jugements",
+    "other": "{count} jugements"
+  },
+  "judgeCaution": "Muse Judge recommande la prudence. Vous décidez ; il ne peut pas autoriser cette action.",
+  "judgeSubscriptionNotice": "Muse Judge utilise votre modèle de discussion via votre abonnement Muse et compte dans ses limites. Chaque lot utilise une nouvelle session isolée en mode Plan. Une protection annule la session lorsqu’un outil est détecté, mais ne peut pas prouver qu’aucun outil n’a été exécuté. Il peut seulement recommander la prudence.",
+  "judgeStatusSame": "Même modèle",
+  "judgeStatusOff": "Désactivé",
+  "judgeStatusUnavailable": "Désactivé : source indisponible ou règles d’autorisation permanente",
+  "judgeStatusConsent": "En attente du consentement avant la première facturation",
+  "judgeStatusDeclined": "Désactivé : utilisation payante refusée",
+  "judgeStatusSlow": "Désactivé par défaut : trop peu de résultats prêts au verdict du réviseur",
+  "judgeStatusSubscription": "Abonnement",
+  "judgeStatusPaid": "Payant"
 }

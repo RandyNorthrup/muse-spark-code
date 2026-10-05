@@ -160,6 +160,7 @@
     "paid:scheduledPrompts": "開啟或關閉付費已排程的提示詞。",
     "paid:autoReviewer": "開啟或關閉付費自動審查器。",
     "paid:bestOfN": "開啟或關閉付費 N 選最優。",
+    "paid:judge": "開啟或關閉付費評判建議。",
     "paid:hookModels": "開啟或關閉付費模型鉤子。",
     "hookRun": "立即執行 spark-hooks.json 中的一個 Manual 鉤子。",
     "loop": "在此 Model API 對話中排程提示詞。",
@@ -1257,7 +1258,8 @@
     "mcp__ide__renameSymbol": "重新命名",
     "auto_review": "自動審查",
     "run_checks": "執行檢查",
-    "verify_edits": "檢查編輯"
+    "verify_edits": "檢查編輯",
+    "judge": "評判器"
   },
   "mcpToolLabel": "{tool}（{server}）",
   "memoryScopes": {
@@ -2313,5 +2315,20 @@
   "usagePaidTabBudget": "每日預算：{budget}",
   "tabMultilineAuto": "自動",
   "tabMultilineOnInvoke": "僅在手動叫用時",
-  "tabMultilineNever": "僅使用單行上下文"
+  "tabMultilineNever": "僅使用單行上下文",
+  "paidJudgeName": "評判器",
+  "paidConfirmJudge": "您的聊天模型自身會評判每個沒有規則決定的有風險的Auto操作，且只能增加謹慎：就緒的提醒會將允許變為提問，或在審批卡上新增備註。每次評判依對話模型的權杖費率計入您的Model API金鑰：\n{price}\n評判器會在首次收費前詢問一次，並顯示這些價格和共用的每日預算：{budget}。從免費來源切換到付費來源時，會再次詢問。在Muse Code上，相同的呼叫改走您的訂閱。",
+  "usagePaidJudgeCalls": {
+    "other": "評判 {count} 次"
+  },
+  "judgeCaution": "Muse Judge 建議謹慎。由你決定；它不能核准此操作。",
+  "judgeSubscriptionNotice": "Muse Judge 透過你的 Muse 訂閱使用聊天模型，並計入訂閱額度。每個批次都使用全新、隔離的計畫模式工作階段。偵測到工具時，保護機制會取消工作階段，但無法證明沒有工具曾執行。它只能建議謹慎。",
+  "judgeStatusSame": "同一模型",
+  "judgeStatusOff": "關閉",
+  "judgeStatusUnavailable": "關閉：來源無法使用或存在長期允許規則",
+  "judgeStatusConsent": "等待首次收費前的同意",
+  "judgeStatusDeclined": "關閉：已拒絕付費使用",
+  "judgeStatusSlow": "預設關閉：審核員作出決定時就緒的結果太少",
+  "judgeStatusSubscription": "訂閱",
+  "judgeStatusPaid": "付費"
 }

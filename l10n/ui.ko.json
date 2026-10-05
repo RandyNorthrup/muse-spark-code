@@ -160,6 +160,7 @@
     "paid:scheduledPrompts": "유료 예약된 프롬프트를 켜거나 끕니다.",
     "paid:autoReviewer": "유료 자동 검토자를 켜거나 끕니다.",
     "paid:bestOfN": "유료 베스트 오브 N을 켜거나 끕니다.",
+    "paid:judge": "유료 심사 조언을 켜거나 끕니다.",
     "paid:hookModels": "유료 모델 후크를 켜거나 끕니다.",
     "hookRun": "spark-hooks.json의 Manual 후크 하나를 지금 실행합니다.",
     "loop": "이 Model API 대화에서 프롬프트 예약.",
@@ -1257,7 +1258,8 @@
     "mcp__ide__renameSymbol": "이름 바꾸기",
     "auto_review": "자동 검토",
     "run_checks": "검사 실행",
-    "verify_edits": "편집 검사"
+    "verify_edits": "편집 검사",
+    "judge": "판단자"
   },
   "mcpToolLabel": "{tool} ({server})",
   "memoryScopes": {
@@ -2313,5 +2315,20 @@
   "usagePaidTabBudget": "일일 예산: {budget}",
   "tabMultilineAuto": "자동",
   "tabMultilineOnInvoke": "직접 호출할 때만",
-  "tabMultilineNever": "한 줄 컨텍스트만"
+  "tabMultilineNever": "한 줄 컨텍스트만",
+  "paidJudgeName": "판단자",
+  "paidConfirmJudge": "자신의 채팅 모델이 어떤 규칙으로도 결정되지 않은 위험한 Auto 작업을 판단하며, 주의만 추가할 수 있습니다. 준비된 주의는 허용을 질문으로 바꾸거나 승인 카드에 메모합니다. 각 판단은 대화 모델의 토큰 요금으로 Model API 키에 청구됩니다.\n{price}\n판단기는 첫 과금 전에 한 번만 동의를 요청하며, 이 요금과 공통 일일 예산({budget})을 표시합니다. 무료 소스에서 유료 소스로 전환하면 다시 동의를 요청합니다. Muse Code에서는 동일한 호출이 구독으로 실행됩니다.",
+  "usagePaidJudgeCalls": {
+    "other": "판단 {count}회"
+  },
+  "judgeCaution": "Muse Judge가 주의를 권고합니다. 결정은 사용자가 하며, 이 작업을 승인할 수는 없습니다.",
+  "judgeSubscriptionNotice": "Muse Judge는 Muse 구독으로 사용자의 채팅 모델을 사용하며 구독 한도에 포함됩니다. 각 묶음은 격리된 새 계획 모드 세션을 사용합니다. 도구 감지 보호 기능이 세션을 취소하지만 도구가 실행되지 않았음을 증명할 수는 없습니다. 주의만 권고할 수 있습니다.",
+  "judgeStatusSame": "같은 모델",
+  "judgeStatusOff": "꺼짐",
+  "judgeStatusUnavailable": "꺼짐: 소스를 사용할 수 없거나 상시 허용 규칙이 있음",
+  "judgeStatusConsent": "첫 과금 전 동의 대기 중",
+  "judgeStatusDeclined": "꺼짐: 유료 사용 거부됨",
+  "judgeStatusSlow": "기본으로 꺼짐: 검토자 판정 시 준비된 결과가 너무 적음",
+  "judgeStatusSubscription": "구독",
+  "judgeStatusPaid": "유료"
 }

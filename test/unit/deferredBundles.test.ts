@@ -61,6 +61,7 @@ beforeAll(async () => {
         hookRuntime: 'src/core/backends/modelapi/hookRuntimeEntry.ts',
         pluginHooks: 'src/core/backends/modelapi/pluginHooksEntry.ts',
         tab: 'src/host/tab/tabEntry.ts',
+        judge: 'src/host/judge/judgeEntry.ts',
         report: 'src/host/support/reportEntry.ts',
         recorder: 'src/host/support/recorderEntry.ts',
         codeIntel: 'src/host/ide/codeIntelEntry.ts',

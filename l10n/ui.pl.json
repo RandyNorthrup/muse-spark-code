@@ -160,6 +160,7 @@
     "paid:scheduledPrompts": "Włącz lub wyłącz płatne zaplanowane monity.",
     "paid:autoReviewer": "Włącz lub wyłącz płatnego automatycznego oceniającego.",
     "paid:bestOfN": "Włącz lub wyłącz płatną funkcję Najlepszy z N.",
+    "paid:judge": "Włącz lub wyłącz płatne porady Sędziego.",
     "paid:hookModels": "Włącz lub wyłącz płatne hooki modelu.",
     "hookRun": "Uruchom teraz jeden ze swoich hooków Manual z pliku spark-hooks.json.",
     "loop": "Zaplanuj prompt w tej rozmowie Model API.",
@@ -1368,7 +1369,8 @@
     "mcp__ide__renameSymbol": "Zmiana nazwy",
     "auto_review": "Automatyczna ocena",
     "run_checks": "Uruchom sprawdzenia",
-    "verify_edits": "Sprawdź edycje"
+    "verify_edits": "Sprawdź edycje",
+    "judge": "Oceniający"
   },
   "mcpToolLabel": "{tool} ({server})",
   "memoryScopes": {
@@ -2592,5 +2594,23 @@
   "usagePaidTabBudget": "Dzienny budżet: {budget}",
   "tabMultilineAuto": "Automatycznie",
   "tabMultilineOnInvoke": "Tylko na żądanie",
-  "tabMultilineNever": "Tylko kontekst jednego wiersza"
+  "tabMultilineNever": "Tylko kontekst jednego wiersza",
+  "paidJudgeName": "Oceniający",
+  "paidConfirmJudge": "Twój własny model rozmowy ocenia każdą ryzykowną akcję Auto, której nie rozstrzyga żadna reguła, i może jedynie dodać ostrożności: gotowe ostrzeżenie zamienia zezwolenie w pytanie albo w notatkę na karcie zatwierdzenia. Każdy osąd jest rozliczany przez Twój klucz Model API według stawek za tokeny modelu rozmowy:\n{price}\nOceniający pyta o zgodę raz przed pierwszą opłatą, pokazując te stawki i wspólny budżet dzienny: {budget}. Przejście ze źródła bezpłatnego na płatne wymaga ponownej zgody. W Muse Code te same wywołania korzystają z Twojej subskrypcji.",
+  "usagePaidJudgeCalls": {
+    "one": "{count} osąd",
+    "few": "{count} osądy",
+    "many": "{count} osądów",
+    "other": "{count} osądy"
+  },
+  "judgeCaution": "Muse Judge zaleca ostrożność. Decyzja należy do Ciebie; nie może zatwierdzić tej czynności.",
+  "judgeSubscriptionNotice": "Muse Judge używa Twojego modelu czatu w ramach subskrypcji Muse i zużywa jej limity. Każda partia korzysta z nowej, odizolowanej sesji w trybie Planu. Zabezpieczenie anuluje sesję po wykryciu narzędzia, ale nie może dowieść, że żadne narzędzie nie zostało uruchomione. Może tylko zalecać ostrożność.",
+  "judgeStatusSame": "Ten sam model",
+  "judgeStatusOff": "Wyłączony",
+  "judgeStatusUnavailable": "Wyłączony: źródło niedostępne lub trwałe reguły zezwalania",
+  "judgeStatusConsent": "Oczekiwanie na zgodę przed pierwszą opłatą",
+  "judgeStatusDeclined": "Wyłączony: odmówiono płatnego użycia",
+  "judgeStatusSlow": "Domyślnie wyłączony: zbyt mało wyników gotowych w chwili decyzji recenzenta",
+  "judgeStatusSubscription": "Subskrypcja",
+  "judgeStatusPaid": "Płatne"
 }

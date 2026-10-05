@@ -15,6 +15,8 @@ import {
   type BrowserRuntimeMode,
   type CheckCommandSetting,
   type EnvironmentVariable,
+  JUDGE_ENGINES,
+  type JudgeEngine,
   PROMPT_CACHE_RETENTIONS,
   type PromptCacheRetention,
   SANDBOX_NETWORK_MODES,
@@ -96,6 +98,8 @@ export interface ExtensionSettings extends SettingsSnapshot {
   readonly tabTrigger: TabTrigger
   /** What Tab does where GitHub Copilot also suggests. */
   readonly tabWithCopilot: TabWithCopilot
+  /** The Muse Judge's engine (M98, PLAN.md D77): `auto` is `same` in phase 1. */
+  readonly 'judge.engine': JudgeEngine
   /** The verify loop (M68, PLAN.md D49): diagnostics after edits, check commands, format on edit. */
   readonly diagnosticsAfterEdits: boolean
   readonly checkCommands: readonly CheckCommandSetting[]
@@ -170,6 +174,7 @@ const settingSchemas = {
   tabMultiline: z.enum(TAB_MULTILINE_MODES),
   tabTrigger: z.enum(TAB_TRIGGER_MODES),
   tabWithCopilot: z.enum(TAB_WITH_COPILOT_MODES),
+  'judge.engine': z.enum(JUDGE_ENGINES),
   diagnosticsAfterEdits: z.boolean(),
   checkCommands: checkCommandsSchema,
   formatOnEdit: z.boolean(),
@@ -284,6 +289,7 @@ export function readSettings(config: SettingsSource, log: Logger): ExtensionSett
     modelApiPermissionProfile: readSetting(config, 'modelApiPermissionProfile', log),
     modelApiRepositoryRules: readSetting(config, 'modelApiRepositoryRules', log),
     modelApiAutoReviewer: readSetting(config, 'modelApiAutoReviewer', log),
+    'judge.engine': readSetting(config, 'judge.engine', log),
     museCodeAutoReviewer: readSetting(config, 'museCodeAutoReviewer', log),
     modelApiTab: readSetting(config, 'modelApiTab', log),
     tabModel: readSetting(config, 'tabModel', log),

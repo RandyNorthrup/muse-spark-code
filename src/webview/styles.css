@@ -3887,3 +3887,11 @@ li:focus-within > .row-actions .row-actions-button,
     transition: none;
   }
 }
+
+/* M98: an advisory status line wraps at narrow panel widths. */
+.judge-status {
+  margin: 0 var(--ms-gap) 0.5em;
+  color: var(--vscode-foreground);
+  font-size: 0.9em;
+  overflow-wrap: anywhere;
+}

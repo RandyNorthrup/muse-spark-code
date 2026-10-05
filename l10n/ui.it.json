@@ -160,6 +160,7 @@
     "paid:scheduledPrompts": "Attiva o disattiva i prompt pianificati a pagamento.",
     "paid:autoReviewer": "Attiva o disattiva il revisore automatico a pagamento.",
     "paid:bestOfN": "Attiva o disattiva Best-of-N a pagamento.",
+    "paid:judge": "Attiva o disattiva i consigli a pagamento del Giudice.",
     "paid:hookModels": "Attiva o disattiva gli hook del modello a pagamento.",
     "hookRun": "Esegui ora uno dei tuoi hook Manual da spark-hooks.json.",
     "loop": "Pianifica un prompt in questa conversazione Model API.",
@@ -1331,7 +1332,8 @@
     "mcp__ide__renameSymbol": "Rinomina",
     "auto_review": "Revisione automatica",
     "run_checks": "Esegui controlli",
-    "verify_edits": "Controlla modifiche"
+    "verify_edits": "Controlla modifiche",
+    "judge": "Valutatore"
   },
   "mcpToolLabel": "{tool} ({server})",
   "memoryScopes": {
@@ -2499,5 +2501,22 @@
   "usagePaidTabBudget": "Budget giornaliero: {budget}",
   "tabMultilineAuto": "Automatico",
   "tabMultilineOnInvoke": "Solo su richiesta",
-  "tabMultilineNever": "Solo contesto di una riga"
+  "tabMultilineNever": "Solo contesto di una riga",
+  "paidJudgeName": "Valutatore",
+  "paidConfirmJudge": "Il tuo modello di conversazione valuta ogni azione Auto rischiosa che nessuna regola decide e può solo aggiungere cautela: una cautela pronta trasforma un’autorizzazione in una domanda, o in una nota sulla scheda di approvazione. Ogni giudizio viene addebitato alla tua chiave Model API alle tariffe per token del modello della conversazione:\n{price}\nIl giudice chiede il consenso una volta prima del primo addebito, mostrando queste tariffe e il budget giornaliero condiviso: {budget}. Passando da una fonte gratuita a una a pagamento, chiede nuovamente il consenso. Su Muse Code le stesse chiamate usano il tuo abbonamento.",
+  "usagePaidJudgeCalls": {
+    "one": "{count} giudizio",
+    "many": "{count} giudizi",
+    "other": "{count} giudizi"
+  },
+  "judgeCaution": "Muse Judge suggerisce cautela. Decidi tu; non può approvare questa azione.",
+  "judgeSubscriptionNotice": "Muse Judge usa il tuo modello di chat tramite l’abbonamento Muse e ne consuma i limiti. Ogni gruppo usa una nuova sessione isolata in modalità Piano. Una protezione annulla la sessione quando rileva uno strumento, ma non può dimostrare che nessuno strumento sia stato eseguito. Può solo suggerire cautela.",
+  "judgeStatusSame": "Stesso modello",
+  "judgeStatusOff": "Disattivato",
+  "judgeStatusUnavailable": "Disattivato: fonte non disponibile o regole di autorizzazione permanente",
+  "judgeStatusConsent": "In attesa del consenso prima del primo addebito",
+  "judgeStatusDeclined": "Disattivato: uso a pagamento rifiutato",
+  "judgeStatusSlow": "Disattivato per impostazione predefinita: pochi risultati pronti al verdetto del revisore",
+  "judgeStatusSubscription": "Abbonamento",
+  "judgeStatusPaid": "A pagamento"
 }

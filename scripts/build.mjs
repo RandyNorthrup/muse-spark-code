@@ -126,6 +126,8 @@ const EXTENSION_HOOKS_ENTRY = 'src/host/extensionHooksEntry.ts'
 const EXTENSION_HOOKS_OUTFILE = 'dist/extensionHooks.js'
 const WHATS_NEW_ENTRY = 'src/host/whatsNew/whatsNewEntry.ts'
 const WHATS_NEW_OUTFILE = 'dist/whatsNew.js'
+const JUDGE_ENTRY = 'src/host/judge/judgeEntry.ts'
+const JUDGE_OUTFILE = 'dist/judge.js'
 const SEARCH_WORKER_ENTRY = 'src/host/backend/searchWorker.ts'
 const SEARCH_WORKER_OUTFILE = 'dist/searchWorker.js'
 const REPORT_ENTRY = 'src/host/support/reportEntry.ts'
@@ -319,6 +321,13 @@ const extensionHooksOptions = {
   ...modelApiOptions,
   entryPoints: [EXTENSION_HOOKS_ENTRY],
   outfile: EXTENSION_HOOKS_OUTFILE,
+}
+
+/** @type {import('esbuild').BuildOptions} */
+const judgeOptions = {
+  ...planMarkdownOptions,
+  entryPoints: [JUDGE_ENTRY],
+  outfile: JUDGE_OUTFILE,
 }
 
 /** @type {import('esbuild').BuildOptions} */
@@ -551,6 +560,7 @@ if (isWatch) {
     esbuild.context(reportOptions),
     esbuild.context(recorderOptions),
     esbuild.context(whatsNewOptions),
+    esbuild.context(judgeOptions),
     esbuild.context(uiTextOptions),
     esbuild.context(validationOptions),
     esbuild.context(browserCheckOptions),
@@ -586,6 +596,7 @@ if (isWatch) {
     report: esbuild.build(reportOptions),
     recorder: esbuild.build(recorderOptions),
     whatsNew: esbuild.build(whatsNewOptions),
+    judge: esbuild.build(judgeOptions),
     uiText: esbuild.build(uiTextOptions),
     validation: esbuild.build(validationOptions),
     browserCheck: esbuild.build(browserCheckOptions),
@@ -634,6 +645,7 @@ if (isWatch) {
   reportSize(RECORDER_OUTFILE)
   reportSize(WHATS_NEW_OUTFILE)
   reportSize(WHATS_NEW_CONTENT_OUTFILE)
+  reportSize(JUDGE_OUTFILE)
   reportSize(UI_TEXT_OUTFILE)
   reportSize(VALIDATION_OUTFILE)
   reportSize(BROWSER_CHECK_OUTFILE)

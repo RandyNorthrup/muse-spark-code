@@ -158,5 +158,9 @@
   "command.tabSnooze.title": "Pausar Tab",
   "command.tabMenu.title": "Menú de Tab",
   "command.tabLanguages.title": "Idiomas de Tab",
-  "command.openPullRequestInConversation.title": "Abrir una solicitud de incorporación de cambios en una conversación…"
+  "command.openPullRequestInConversation.title": "Abrir una solicitud de incorporación de cambios en una conversación…",
+  "config.judge.engine.description": "`auto` (tu propio modelo de conversación; `same` en la fase 1) y `same` solo pueden añadir cautela a una acción arriesgada de Auto que ninguna regla resuelve: una cautela lista convierte una autorización en una pregunta, o en una nota en la tarjeta de aprobación. `off` no ejecuta ningún evaluador. En el backend Model API cada juicio se factura a tu clave y pide confirmación una vez primero; en Muse Code usa tu suscripción.",
+  "config.judge.engine.enumDescriptions.auto": "Tu propio modelo de conversación evalúa (`same` en la fase 1); un evaluador aparte se une cuando se configura uno.",
+  "config.judge.engine.enumDescriptions.same": "Solo tu propio modelo de conversación evalúa; nunca cambia de modelo.",
+  "config.judge.engine.enumDescriptions.off": "Sin evaluador: las aprobaciones se comportan exactamente igual que sin él."
 }

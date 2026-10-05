@@ -160,6 +160,7 @@
     "paid:scheduledPrompts": "Ücretli zamanlanmış istemleri açın veya kapatın.",
     "paid:autoReviewer": "Ücretli otomatik inceleyiciyi açın veya kapatın.",
     "paid:bestOfN": "Ücretli N arasından en iyi özelliğini açın veya kapatın.",
+    "paid:judge": "Ücretli Yargıç önerilerini açın veya kapatın.",
     "paid:hookModels": "Ücretli model kancalarını açın veya kapatın.",
     "hookRun": "spark-hooks.json içindeki Manual kancalarınızdan birini şimdi çalıştırın.",
     "loop": "Bu Model API konuşmasında bir istem zamanla.",
@@ -1294,7 +1295,8 @@
     "mcp__ide__renameSymbol": "Yeniden adlandır",
     "auto_review": "Otomatik inceleme",
     "run_checks": "Denetimleri çalıştır",
-    "verify_edits": "Düzenlemeleri denetle"
+    "verify_edits": "Düzenlemeleri denetle",
+    "judge": "Değerlendirici"
   },
   "mcpToolLabel": "{tool} ({server})",
   "memoryScopes": {
@@ -2406,5 +2408,21 @@
   "usagePaidTabBudget": "Günlük bütçe: {budget}",
   "tabMultilineAuto": "Otomatik",
   "tabMultilineOnInvoke": "Yalnızca çağrıldığında",
-  "tabMultilineNever": "Yalnızca tek satırlık bağlam"
+  "tabMultilineNever": "Yalnızca tek satırlık bağlam",
+  "paidJudgeName": "Değerlendirici",
+  "paidConfirmJudge": "Kendi sohbet modeliniz, hiçbir kuralın karara bağlamadığı her riskli Auto işlemini değerlendirir ve yalnızca dikkat ekleyebilir: hazır bir uyarı izni soruya dönüştürür ya da onay kartına not ekler. Her değerlendirme, konuşma modelinin token ücretleri üzerinden Model API anahtarınıza faturalandırılır:\n{price}\nDeğerlendirici ilk ücretlendirmeden önce bir kez onay ister; bu fiyatları ve ortak günlük bütçeyi gösterir: {budget}. Ücretsiz bir kaynaktan ücretli bir kaynağa geçişte yeniden onay ister. Muse Code’da aynı çağrılar bunun yerine aboneliğinizden çalışır.",
+  "usagePaidJudgeCalls": {
+    "one": "{count} değerlendirme",
+    "other": "{count} değerlendirme"
+  },
+  "judgeCaution": "Muse Judge dikkatli olmanızı öneriyor. Kararı siz verirsiniz; bu eylemi onaylayamaz.",
+  "judgeSubscriptionNotice": "Muse Judge, Muse aboneliğiniz üzerinden sohbet modelinizi kullanır ve abonelik sınırlarını tüketir. Her toplu işlem, Plan modunda yeni ve yalıtılmış bir oturum kullanır. Araç algılama koruması oturumu iptal eder ancak hiçbir aracın çalışmadığını kanıtlayamaz. Yalnızca dikkatli olmanızı önerebilir.",
+  "judgeStatusSame": "Aynı model",
+  "judgeStatusOff": "Kapalı",
+  "judgeStatusUnavailable": "Kapalı: kaynak kullanılamıyor veya kalıcı izin kuralları var",
+  "judgeStatusConsent": "İlk ücretlendirme öncesinde onay bekleniyor",
+  "judgeStatusDeclined": "Kapalı: ücretli kullanım reddedildi",
+  "judgeStatusSlow": "Varsayılan olarak kapalı: inceleyici kararında çok az sonuç hazır",
+  "judgeStatusSubscription": "Abonelik",
+  "judgeStatusPaid": "Ücretli"
 }

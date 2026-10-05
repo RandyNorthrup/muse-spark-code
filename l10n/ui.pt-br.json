@@ -160,6 +160,7 @@
     "paid:scheduledPrompts": "Ative ou desative os prompts agendados pagos.",
     "paid:autoReviewer": "Ative ou desative o revisor automático pago.",
     "paid:bestOfN": "Ative ou desative o Best-of-N pago.",
+    "paid:judge": "Ativar ou desativar os conselhos pagos do Juiz.",
     "paid:hookModels": "Ative ou desative os ganchos de modelo pagos.",
     "hookRun": "Execute agora um dos seus ganchos Manual de spark-hooks.json.",
     "loop": "Agendar um prompt nesta conversa da Model API.",
@@ -1331,7 +1332,8 @@
     "mcp__ide__renameSymbol": "Renomear",
     "auto_review": "Revisão automática",
     "run_checks": "Executar verificações",
-    "verify_edits": "Verificar edições"
+    "verify_edits": "Verificar edições",
+    "judge": "Avaliador"
   },
   "mcpToolLabel": "{tool} ({server})",
   "memoryScopes": {
@@ -2499,5 +2501,22 @@
   "usagePaidTabBudget": "Orçamento diário: {budget}",
   "tabMultilineAuto": "Automático",
   "tabMultilineOnInvoke": "Somente ao invocar",
-  "tabMultilineNever": "Somente contexto de uma linha"
+  "tabMultilineNever": "Somente contexto de uma linha",
+  "paidJudgeName": "Avaliador",
+  "paidConfirmJudge": "Seu próprio modelo de conversa avalia cada ação arriscada do Auto que nenhuma regra resolve e só pode acrescentar cautela: uma cautela pronta transforma uma permissão em pergunta, ou em nota no cartão de aprovação. Cada julgamento é cobrado na sua chave Model API pelas tarifas por token do modelo da conversa:\n{price}\nO juiz pede permissão uma vez antes da primeira cobrança, com estes preços e o orçamento diário compartilhado: {budget}. Ao mudar de uma fonte gratuita para uma paga, pede permissão novamente. No Muse Code, as mesmas chamadas usam sua assinatura.",
+  "usagePaidJudgeCalls": {
+    "one": "{count} julgamento",
+    "many": "{count} julgamentos",
+    "other": "{count} julgamentos"
+  },
+  "judgeCaution": "Muse Judge recomenda cautela. Você decide; ele não pode aprovar esta ação.",
+  "judgeSubscriptionNotice": "Muse Judge usa seu modelo de chat pela sua assinatura Muse e conta nos limites dela. Cada lote usa uma nova sessão isolada no modo Plano. Uma proteção cancela a sessão ao detectar uma ferramenta, mas não pode provar que nenhuma ferramenta foi executada. Ele só pode recomendar cautela.",
+  "judgeStatusSame": "Mesmo modelo",
+  "judgeStatusOff": "Desativado",
+  "judgeStatusUnavailable": "Desativado: fonte indisponível ou regras de autorização permanente",
+  "judgeStatusConsent": "Aguardando consentimento antes da primeira cobrança",
+  "judgeStatusDeclined": "Desativado: uso pago recusado",
+  "judgeStatusSlow": "Desativado por padrão: poucos resultados prontos na decisão do revisor",
+  "judgeStatusSubscription": "Assinatura",
+  "judgeStatusPaid": "Pago"
 }

@@ -55,6 +55,8 @@
     // What's New (M99), required on the first page or notice, and its page script.
     "src/host/whatsNew/whatsNewEntry.ts",
     "src/webview/whatsNew/main.ts",
+    // M98's Judge, required only at the first eligible approval.
+    "src/host/judge/judgeEntry.ts",
     "src/host/backend/searchWorker.ts",
     // Web fetch's page converter (M69), a worker bundle started by path.
     "src/host/web/pageWorker.ts",

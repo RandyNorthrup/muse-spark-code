@@ -234,6 +234,19 @@ happened, not what was planned; superseded entries are kept.
     checks are recorded in `docs/certification/m93.md`. The dialog's section
     switches now have enough room for Windows native checkbox targets.
 
+- **Muse Judge phase 1 integration (M98, PLAN.md D77).** Same-model,
+  uncalibrated risk advice at existing reviewer and card fences, a fixed
+  caution note, status and separate usage rows. Muse Code uses fresh hidden
+  Plan sessions on the subscription, with standing-rule checks, redaction,
+  cancellation and temporary-folder cleanup. `museSpark.judge.engine`
+  selects `auto` (default), `same` or `off`; the Judge bundle loads only at
+  an eligible approval. Model API main-body goldens and main-session MSP
+  invariants remain unchanged. Paid transport admission, credential-wait
+  rechecks and unknown-cost liability are integrated, but Model API Judge
+  stays unavailable until the real D78 daily-ledger adapter joins this tree.
+  Local/separate Judge, CLI, live measurements and full certification remain
+  planned.
+
 ### Changed
 
 - **M100's paired-device plan now states connectivity prerequisites.** Manual
@@ -254,7 +267,66 @@ happened, not what was planned; superseded entries are kept.
 - **M50's Windows MCP job launcher** takes an optional job memory limit.
   MCP servers still start without one.
 
+- **M98 integration repairs.** A ready Judge latch is invalidated when its
+  live source becomes unavailable; the main Model API body is read from the
+  actual sent request. Hidden-session rows stay out of History, and the
+  PowerShell tool toggle fits within a 320 px panel. Invalid side-receipt
+  counts fail before they reach usage rows. Hosted-tool prefixes use
+  standalone Judge bodies, so token consent grants no hosted-search charge. Every existing
+  bundle and VSIX cap is preserved; the new lazy Judge has a 100 KiB cap
+  from its 77.7 KiB measurement plus the existing sizing rule.
+- **Accessibility browser driver.** All scenarios use the existing
+  Playwright page driver after Chrome's `--dump-dom` stalled on ordinary
+  pages. The scenarios, themes, page timeout and axe finding rules stay
+  unchanged.
+
+- **Tiered CI, ready for a merge queue.** The full gate now runs as parallel
+  jobs:
+  - the static gates on all three platforms;
+  - the unit/e2e tests in four coverage shards per platform, merged before
+    the unchanged thresholds apply;
+  - the accessibility harness once, on Ubuntu;
+  - integration on Ubuntu and Windows;
+  - the macOS helper and the universal packages.
+
+  A `merge_group` run checks the commit that will land. Once the maintainer
+  turns on the queue and sets `CI_MERGE_QUEUE=on`, pull requests run only a
+  fast Ubuntu tier: the static gates, the build, every test, gitleaks and
+  semgrep. Until then every pull request keeps the full tier. The seven
+  required check names and the release artifacts are unchanged. In a merge
+  group, gitleaks runs its pinned, checksum-checked CLI, because the gitleaks
+  action refuses that event.
+- **The extension loads less at startup**: `dist/extension.js` is
+  552.6 KiB, down from 590.6 KiB, under its unchanged 600 KiB budget
+  (PLAN.md D6, 2026-10-03 and 2026-10-04). Model text that only a lazily
+  loaded bundle or the ACP agent reads is no longer carried at activation
+  (same words, in blocks by reader), and the window's web fetch loads with
+  its own bundle, `dist/webFetch.js` (budget 75 KiB), on the first fetch; if
+  it cannot load, that fetch fails with the reason ("Web fetch could not be
+  loaded", in all 14 languages) and the next one tries again. The lazily
+  loaded bundles shrink too (the Model API backend, the checkpoint store,
+  the import, code intelligence and both reviewers by 4 to 27 KiB each).
+  `npm run build` now fails when a shipped bundle carries a model-text
+  block it does not read, or when `MODEL_TEXT` holds a key no source file
+  of `dist/extension.js` reads; the code intelligence and web fetch
+  bundles' tests check that neither carries any key or value of `MODEL_TEXT`.
+- Releases reuse verified universal CI packages when the successful own-repository
+  PR, merge-queue or main CI build has exactly the tag's source tree, with recorded
+  SHA-256/version checks and 30-day retention; tag-push misses run the full gates.
+- Manual release recovery uses the same verified staging path while preserving
+  the earlier run's original bytes; invalid recovery and cancelled runs cannot publish.
+
 ### Fixed
+
+- **Muse Judge (M98, RVM98J).** Boolean action arguments hash correctly;
+  retried actions reject stale callbacks and fences; complete prompt batches
+  fit the measured context; choice and score tokens must be one character.
+  Explicit `same` honors the user's selection below the automatic readiness
+  floor, logprob metadata matches the shared contract, and top-1 estimates
+  correctly report partial evidence. Startup excludes the judge from legacy
+  paid price review and loads no judge schema. The first-charge wording in
+  every language says ask once and shows the shared daily budget. No judge
+  runs yet; the first-charge consent hookup remains lane U's work.
 
 - **CI reliability:** the checkpoint-copy count test crosses a small test-only
   budget with six real copies, then checks the exact read bound and reuse of
@@ -289,6 +361,20 @@ happened, not what was planned; superseded entries are kept.
   memory and call the production guard directly. They retain rejection and
   byte-exact restoration checks without repeated full-repository scans,
   child processes, shared `dist/` mutations or longer timeouts.
+
+- **Muse Judge (M98, RVM98J).** Boolean action arguments hash correctly;
+  retried actions reject stale callbacks and fences; complete prompt batches
+  fit the measured context; choice and score tokens must be one character.
+  Explicit `same` honors the user's selection below the automatic readiness
+  floor, logprob metadata matches the shared contract, and top-1 estimates
+  correctly report partial evidence. Startup excludes the judge from legacy
+  paid price review and loads no judge schema. The first-charge wording in
+  every language says ask once and shows the shared daily budget. No judge
+  runs yet; the first-charge consent hookup remains lane U's work.
+
+- A blocked M80 `v0` tag update now reports that an administrator must move it,
+  while preserving the four release channels' outcomes. Updates require a
+  fast-forward; the release guide documents the administrator's recovery command.
 
 ### Security
 

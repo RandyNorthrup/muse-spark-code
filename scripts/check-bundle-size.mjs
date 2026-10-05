@@ -112,6 +112,11 @@ const BUDGETS = [
   { path: 'dist/whatsNew.json', budgetKiB: WHATS_NEW_CONTENT_BUDGET_KIB },
   // Shared English fallback; TRAIN14 restores the original cap after the
   // lossless packed fallback and ACTDIET region split (PLAN.md D6).
+  // M98: first eligible approval, measured 77.7 KiB + 15%, rounded to 25 KiB.
+  // Every existing budget is unchanged (PLAN.md D6).
+  { path: 'dist/judge.js', budgetKiB: 100 },
+  // Shared English fallback; existing host budgets stay unchanged. Measured
+  // 104.9 KiB (2026-10-04); plus 15%, rounded up to 25 KiB.
   { path: 'dist/uiText.js', budgetKiB: 125 },
   // TRAIN13B: used Node mini-parser API, 39.5 KiB + 15%, rounded to 25 KiB.
   { path: 'dist/validation.js', budgetKiB: 50 },

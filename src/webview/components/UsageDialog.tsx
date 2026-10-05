@@ -297,6 +297,9 @@ function paidUseText(feature: PaidFeature, tally: PaidTally): string {
     case 'hookModels': {
       return plural(UI_TEXT.usagePaidHookModelRuns, tally.hookModelRuns ?? 0)
     }
+    case 'judge': {
+      return plural(UI_TEXT.usagePaidJudgeCalls, tally.judgeCalls ?? 0)
+    }
   }
 }
 
@@ -356,6 +359,8 @@ function paidRowState(feature: PaidFeature, paid: PaidState): string {
 }
 
 function paidTokenTally(feature: PaidFeature, paid: PaidState) {
+  if (feature === 'judge')
+    return [paid.tally.judgeCalls, paid.tally.judgeUnknownRequests, paid.tally.judgeTokens]
   if (feature === 'autoReviewer') {
     return [
       paid.tally.autoReviews,
@@ -436,7 +441,11 @@ function PaidRow({ feature, paid }: { readonly feature: PaidFeature; readonly pa
   const isAttempt = feature === 'bestOfN'
   const [requests = 0, unknown = 0, tokens = 0] = paidTokenTally(feature, paid)
   const isTokenFeature =
-    feature === 'subagents' || isReview || isAttempt || feature === 'hookModels'
+    feature === 'subagents' ||
+    isReview ||
+    isAttempt ||
+    feature === 'hookModels' ||
+    feature === 'judge'
   const isEntirelyUnknown = isTokenFeature && requests > 0 && requests === unknown
   const cost = formatUsd(paidCostUsd(feature, paid.tally))
   let costDetail = cost

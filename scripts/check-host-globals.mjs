@@ -39,6 +39,7 @@ const HOST_BUNDLES = [
   'dist/report.js',
   'dist/recorder.js',
   'dist/whatsNew.js',
+  'dist/judge.js',
   'dist/searchWorker.js',
   'dist/pageWorker.js',
 ]

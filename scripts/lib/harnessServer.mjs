@@ -52,6 +52,10 @@ export const SCENARIOS = [
   'approval-several',
   'approval-narrow',
   'approval-moved',
+  'judge',
+  'judge-narrow',
+  'judge-slow',
+  'judge-usage',
   'question',
   'elicitation',
   'elicitation-narrow',
@@ -209,6 +213,10 @@ export function serveRepo(repoRoot) {
  * scrollbars headless Chrome otherwise hides, as its check measures one.
  */
 export const SIZED_SCENARIOS = {
+  'judge-narrow': { width: 320, ready: '.judge-status' },
+  judge: { width: 690, ready: '.judge-status' },
+  'judge-slow': { width: 690, ready: '.judge-status' },
+  'judge-usage': { width: 690, ready: '[role="dialog"]' },
   'share-narrow': { width: 320, ready: '[role="dialog"]' },
   // M91 lane M: the MCP elicitation form at the panel's narrowest width.
   'elicitation-narrow': { width: 320, ready: 'form' },

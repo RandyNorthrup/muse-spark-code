@@ -160,6 +160,7 @@
     "paid:scheduledPrompts": "Kostenpflichtige geplante Prompts ein- oder ausschalten.",
     "paid:autoReviewer": "Den kostenpflichtigen Auto-Prüfer ein- oder ausschalten.",
     "paid:bestOfN": "Kostenpflichtiges Best-of-N ein- oder ausschalten.",
+    "paid:judge": "Kostenpflichtige Judge-Hinweise ein- oder ausschalten.",
     "paid:hookModels": "Kostenpflichtige Modell-Hooks ein- oder ausschalten.",
     "hookRun": "Einen Ihrer Manual-Hooks aus spark-hooks.json jetzt ausführen.",
     "loop": "Einen Prompt in dieser Model-API-Unterhaltung planen.",
@@ -1294,7 +1295,8 @@
     "mcp__ide__renameSymbol": "Umbenennen",
     "auto_review": "Auto-Prüfung",
     "run_checks": "Prüfungen ausführen",
-    "verify_edits": "Änderungen prüfen"
+    "verify_edits": "Änderungen prüfen",
+    "judge": "Beurteiler"
   },
   "mcpToolLabel": "{tool} ({server})",
   "memoryScopes": {
@@ -2406,5 +2408,21 @@
   "usagePaidTabBudget": "Tagesbudget: {budget}",
   "tabMultilineAuto": "Automatisch",
   "tabMultilineOnInvoke": "Nur bei Aufruf",
-  "tabMultilineNever": "Nur Kontext für eine Zeile"
+  "tabMultilineNever": "Nur Kontext für eine Zeile",
+  "paidJudgeName": "Beurteiler",
+  "paidConfirmJudge": "Ihr eigenes Chatmodell beurteilt jede riskante Auto-Aktion, die keine Regel klärt, und kann nur zur Vorsicht raten: eine bereite Warnung macht aus einer Freigabe eine Nachfrage oder einen Hinweis auf der Genehmigungskarte. Jede Beurteilung wird Ihrem Model-API-Schlüssel zu den Tokenpreisen des Unterhaltungsmodells berechnet:\n{price}\nDer Beurteiler fragt einmal vor der ersten Berechnung nach und zeigt diese Preise und das gemeinsame Tagesbudget: {budget}. Beim Wechsel von einer kostenlosen zu einer kostenpflichtigen Quelle wird erneut gefragt. Auf Muse Code laufen dieselben Aufrufe stattdessen über Ihr Abonnement.",
+  "usagePaidJudgeCalls": {
+    "one": "{count} Beurteilung",
+    "other": "{count} Beurteilungen"
+  },
+  "judgeCaution": "Muse Judge empfiehlt Vorsicht. Sie entscheiden; er kann diese Aktion nicht genehmigen.",
+  "judgeSubscriptionNotice": "Muse Judge verwendet Ihr Chatmodell über Ihr Muse-Abonnement und zählt gegen dessen Limits. Jeder Stapel nutzt eine neue isolierte Sitzung im Planmodus. Eine Schutzfunktion bricht die Sitzung bei einem Werkzeugelement ab, kann aber nicht beweisen, dass kein Werkzeug ausgeführt wurde. Er kann nur zur Vorsicht raten.",
+  "judgeStatusSame": "Gleiches Modell",
+  "judgeStatusOff": "Aus",
+  "judgeStatusUnavailable": "Aus: Quelle nicht verfügbar oder dauerhafte Erlaubnisregeln",
+  "judgeStatusConsent": "Warten auf Zustimmung vor der ersten Zahlung",
+  "judgeStatusDeclined": "Aus: kostenpflichtige Nutzung abgelehnt",
+  "judgeStatusSlow": "Standardmäßig aus: zu wenige Ergebnisse beim Urteil des Prüfers bereit",
+  "judgeStatusSubscription": "Abonnement",
+  "judgeStatusPaid": "Kostenpflichtig"
 }

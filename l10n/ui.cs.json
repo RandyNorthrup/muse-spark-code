@@ -160,6 +160,7 @@
     "paid:scheduledPrompts": "Zapnout nebo vypnout placené naplánované prompty.",
     "paid:autoReviewer": "Zapnout nebo vypnout placeného automatického kontrolora.",
     "paid:bestOfN": "Zapnout nebo vypnout placenou funkci Nejlepší z N.",
+    "paid:judge": "Zapnout nebo vypnout placené rady Soudce.",
     "paid:hookModels": "Zapnout nebo vypnout placené modelové hooky.",
     "hookRun": "Spustit teď jeden z vašich hooků Manual ze souboru spark-hooks.json.",
     "loop": "Naplánovat prompt v této konverzaci Model API.",
@@ -1368,7 +1369,8 @@
     "mcp__ide__renameSymbol": "Přejmenování",
     "auto_review": "Automatická kontrola",
     "run_checks": "Spustit kontroly",
-    "verify_edits": "Kontrola úprav"
+    "verify_edits": "Kontrola úprav",
+    "judge": "Posuzovatel"
   },
   "mcpToolLabel": "{tool} ({server})",
   "memoryScopes": {
@@ -2592,5 +2594,23 @@
   "usagePaidTabBudget": "Denní rozpočet: {budget}",
   "tabMultilineAuto": "Automaticky",
   "tabMultilineOnInvoke": "Pouze při vyvolání",
-  "tabMultilineNever": "Pouze kontext jednoho řádku"
+  "tabMultilineNever": "Pouze kontext jednoho řádku",
+  "paidJudgeName": "Posuzovatel",
+  "paidConfirmJudge": "Váš vlastní chatovací model posuzuje každou rizikovou akci Auto, kterou nerozhodne žádné pravidlo, a může jen přidat opatrnost: připravená výstraha změní povolení na dotaz nebo na poznámku na schvalovací kartě. Každé posouzení se účtuje vašemu klíči Model API podle cen za tokeny modelu konverzace:\n{price}\nPosuzovatel se zeptá jednou před prvním účtováním a uvede tyto ceny a sdílený denní rozpočet: {budget}. Přechod z bezplatného zdroje na placený vyžaduje nový souhlas. Na Muse Code běží stejná volání místo toho v rámci vašeho předplatného.",
+  "usagePaidJudgeCalls": {
+    "one": "{count} posouzení",
+    "few": "{count} posouzení",
+    "many": "{count} posouzení",
+    "other": "{count} posouzení"
+  },
+  "judgeCaution": "Muse Judge doporučuje opatrnost. Rozhodujete vy; tuto akci nemůže schválit.",
+  "judgeSubscriptionNotice": "Muse Judge používá váš chatovací model v rámci předplatného Muse a čerpá jeho limity. Každá dávka používá novou izolovanou relaci v režimu Plán. Ochrana při zjištění nástroje relaci zruší, ale nemůže prokázat, že se žádný nástroj nespustil. Může pouze doporučit opatrnost.",
+  "judgeStatusSame": "Stejný model",
+  "judgeStatusOff": "Vypnuto",
+  "judgeStatusUnavailable": "Vypnuto: zdroj není dostupný nebo existují trvalá pravidla povolení",
+  "judgeStatusConsent": "Čeká na souhlas s první platbou",
+  "judgeStatusDeclined": "Vypnuto: placené použití odmítnuto",
+  "judgeStatusSlow": "Ve výchozím nastavení vypnuto: příliš málo výsledků připravených při rozhodnutí kontrolora",
+  "judgeStatusSubscription": "Předplatné",
+  "judgeStatusPaid": "Placené"
 }

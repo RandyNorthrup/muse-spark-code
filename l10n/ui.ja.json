@@ -160,6 +160,7 @@
     "paid:scheduledPrompts": "有料の予定されたプロンプトをオンまたはオフにします。",
     "paid:autoReviewer": "有料の自動レビュー担当をオンまたはオフにします。",
     "paid:bestOfN": "有料のベスト・オブ・N をオンまたはオフにします。",
+    "paid:judge": "有料の判定アドバイスをオンまたはオフにします。",
     "paid:hookModels": "有料のモデル フックをオンまたはオフにします。",
     "hookRun": "spark-hooks.json の Manual フックを今すぐ 1 つ実行します。",
     "loop": "この Model API 会話でプロンプトを予約。",
@@ -1257,7 +1258,8 @@
     "mcp__ide__renameSymbol": "名前の変更",
     "auto_review": "自動レビュー",
     "run_checks": "チェックを実行",
-    "verify_edits": "編集をチェック"
+    "verify_edits": "編集をチェック",
+    "judge": "ジャッジ"
   },
   "mcpToolLabel": "{tool} ({server})",
   "memoryScopes": {
@@ -2313,5 +2315,20 @@
   "usagePaidTabBudget": "1 日の予算：{budget}",
   "tabMultilineAuto": "自動",
   "tabMultilineOnInvoke": "手動で呼び出したときのみ",
-  "tabMultilineNever": "単一行のコンテキストのみ"
+  "tabMultilineNever": "単一行のコンテキストのみ",
+  "paidJudgeName": "ジャッジ",
+  "paidConfirmJudge": "あなたのチャットモデル自身が、どのルールでも決まらないリスクのあるAuto操作を判定し、注意の追加だけを行います。準備のできた注意は許可を質問に変え、または承認カードに注記します。各判定は会話のモデルのトークン料金でModel APIキーに請求されます:\n{price}\nジャッジは最初の課金前に一度だけ確認し、これらの料金と共通の1日の予算（{budget}）を示します。無料のソースから有料のソースに切り替えると、再度確認します。Muse Codeでは同じ呼び出しがサブスクリプションで実行されます。",
+  "usagePaidJudgeCalls": {
+    "other": "ジャッジ {count} 回"
+  },
+  "judgeCaution": "Muse Judge は慎重な判断を勧めています。決めるのはあなたです。この操作を承認することはできません。",
+  "judgeSubscriptionNotice": "Muse Judge は Muse サブスクリプションでチャットモデルを使用し、その利用枠を消費します。各バッチには、分離された新しいプランモードのセッションを使います。ツールを検出すると保護機能がセッションを中止しますが、ツールが実行されなかったことは証明できません。慎重な判断を勧めることだけができます。",
+  "judgeStatusSame": "同じモデル",
+  "judgeStatusOff": "オフ",
+  "judgeStatusUnavailable": "オフ：ソースが利用できないか、常時許可ルールがあります",
+  "judgeStatusConsent": "初回課金前の同意を待っています",
+  "judgeStatusDeclined": "オフ：有料利用が拒否されました",
+  "judgeStatusSlow": "既定でオフ：レビュー担当の判定時に準備できる結果が少なすぎます",
+  "judgeStatusSubscription": "サブスクリプション",
+  "judgeStatusPaid": "有料"
 }

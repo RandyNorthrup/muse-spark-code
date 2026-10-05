@@ -721,6 +721,12 @@ const TEXT_BLOCKS = [
     sentinels: ['autoReviewerInstructions', 'museCodeReviewerTurn'],
     readers: ['dist/reviewer.js', 'dist/museCodeReviewer.js'],
   },
+  // The same-model Judge's sources and question load only at an eligible approval.
+  {
+    block: 'JUDGE_MODEL_TEXT',
+    sentinels: ['judgeSystemInstruction', 'judgeStandaloneTurn'],
+    readers: ['dist/judge.js'],
+  },
 ].map((entry) => ({
   ...entry,
   readers: entry.readers.map((output) => shipped(output)),

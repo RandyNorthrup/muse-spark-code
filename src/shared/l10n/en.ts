@@ -225,6 +225,7 @@ export const EN = {
     'paid:autoReviewer': 'Turn the paid Auto reviewer on or off.',
     'paid:bestOfN': 'Turn paid Best of N on or off.',
     'paid:tab': 'Turn paid Tab completions on or off.',
+    'paid:judge': 'Turn paid Judge advice on or off.',
     'paid:hookModels': 'Turn paid model hooks on or off.',
     // M91: `/hook run`, a Manual hook from spark-hooks.json.
     hookRun: 'Run one of your Manual hooks from spark-hooks.json now.',
@@ -1929,6 +1930,7 @@ export const EN = {
   // and the label the row shows; unknown tools show their raw name. The IDE
   // tool is named by the CLI's MCP catalog: `mcp__<server>__<tool>`.
   toolLabels: {
+    judge: 'Judge',
     write_file: 'Write',
     edit_file: 'Edit',
     read_file: 'Read',
@@ -2959,6 +2961,22 @@ export const EN = {
   paidUseAutoReviewerDetail:
     '{action}\n\nA separate call to {model} judges whether it may run without asking you. Billed to your Model API key: {price}. Total varies with tokens used. Deny shows you the approval card instead.',
   usagePaidAutoReviews: forms({ one: '{count} review', other: '{count} reviews' }),
+  // The Muse Judge (M98, PLAN.md D77): its name, confirmation and tally.
+  paidJudgeName: 'Judge',
+  paidConfirmJudge:
+    'Your own chat model judges each risky Auto action that no rule settles, and can only add caution: a ready caution turns an allow into a question, or into a note on the approval card. Each judgment is billed to your Model API key at the conversation model’s token rates:\n{price}\nThe judge asks once before the first charge, with these prices and the shared daily budget: {budget}. Switching from a free source to a paid one asks again. On Muse Code the same calls run on your subscription instead.',
+  usagePaidJudgeCalls: forms({ one: '{count} judgment', other: '{count} judgments' }),
+  judgeCaution: 'Muse Judge suggests caution. You decide; it cannot approve this action.',
+  judgeSubscriptionNotice:
+    'Muse Judge uses your chat model on your Muse subscription and counts against its limits. Each batch uses a fresh isolated Plan session. A tool-item guard cancels the session, but cannot prove that no tool ran. It can only add caution.',
+  judgeStatusSame: 'Same model',
+  judgeStatusOff: 'Off',
+  judgeStatusUnavailable: 'Off: source unavailable or standing allow rules',
+  judgeStatusConsent: 'Waiting for first-charge consent',
+  judgeStatusDeclined: 'Off: paid use declined',
+  judgeStatusSlow: 'Off by default: too few results ready at the reviewer fence',
+  judgeStatusSubscription: 'Subscription',
+  judgeStatusPaid: 'Paid',
   // Problems in the permission settings, each said once in the conversation.
   // {setting}: the setting's name; {index}: the rule's place in it, from 1;
   // {pattern}: the rule's words; {detail}: the error, or the failing example.

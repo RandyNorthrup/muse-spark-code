@@ -18,8 +18,7 @@ import {
   UI_TEXT,
   WORKSPACE_STATE_KEYS,
 } from '../../shared/constants'
-import { fill } from '../../shared/l10n/text'
-import { formatUsd } from '../../core/usage/insights'
+import { fill, formatUsd } from '../../shared/l10n/text'
 import {
   autoReviewPrice,
   modelApiPaidTier,
@@ -34,6 +33,7 @@ import type { Logger } from '../logger'
 const acceptedSchema = z.array(z.enum(PAID_FEATURES))
 // Feature → grant generation; keys that are not a paid feature are ignored.
 const generationsSchema = z.record(z.string(), z.int().check(z.nonnegative()))
+const dailyBudgetSchema = z.number().check(z.gte(0))
 
 /** A feature's grant generation: 0 until its price acceptance first changes. */
 function generationOf(generations: Readonly<Record<string, number>>, feature: PaidFeature): number {
@@ -54,6 +54,8 @@ export interface PaidFeaturesDeps {
   readonly isAvailable?: (feature: PaidFeature) => boolean
   readonly isDefaultOn?: (feature: PaidFeature) => boolean
   readonly dailyBudgetUsd?: () => number | undefined
+  /** Separate from startup review, since subscription judging has no price popup. */
+  readonly isJudgeOn?: (() => boolean) | undefined
   /** Whether a Model API key is stored, as last read (M44). */
   readonly isKeyStored: () => boolean
   /** A trusted workspace with a folder open: "always" is offered and kept only there. */
@@ -67,6 +69,7 @@ export interface PaidFeatures {
   readonly gate: PaidFeatureGate
   readonly consent: PaidUseConsent
   readonly usage: PaidUsage
+  readonly allowsJudgeUse: (modelId: string) => Promise<boolean>
   readonly state: () => PaidState
   /** Whether a change to the configuration touched a paid feature's setting. */
   readonly affects: (event: vscode.ConfigurationChangeEvent) => boolean
@@ -87,6 +90,18 @@ function confirmationDetail(feature: PaidFeature): string {
     // own model instead (paidConsent.ts).
     tab: UI_TEXT.paidConfirmTab,
     hookModels: UI_TEXT.paidConfirmHookModel,
+    judge: UI_TEXT.paidConfirmJudge,
+  }
+  if (feature === 'judge') {
+    const budget = dailyBudgetSchema.safeParse(
+      vscode.workspace.getConfiguration(SETTINGS_SECTION).get('paidDailyBudgetUsd'),
+    )
+    // The shared D78 setting arrives with FIXDEF. Until then (or for an
+    // invalid hand edit), show zero; no charge is enabled by this formatter.
+    return fill(details.judge, {
+      price: paidFeaturePrice(feature),
+      budget: formatUsd(budget.success ? budget.data : 0, 2),
+    })
   }
   return fill(details[feature], { price: paidFeaturePrice(feature) })
 }
@@ -114,7 +129,11 @@ export async function askPaidUse(
   // No verified price, nothing to accept (M48, M78): refused before any popup.
   if (
     (request.feature === 'subagents' && modelApiPaidTier(request.task.modelId) === undefined) ||
-    (request.feature === 'autoReviewer' && autoReviewPrice(request.modelId) === undefined)
+    (request.feature === 'autoReviewer' && autoReviewPrice(request.modelId) === undefined) ||
+    (request.feature === 'judge' &&
+      (autoReviewPrice(request.modelId) === undefined ||
+        !Number.isFinite(request.dailyBudgetUsd) ||
+        request.dailyBudgetUsd < 0))
   ) {
     return 'deny'
   }
@@ -147,7 +166,7 @@ export async function askPaidUse(
       detail:
         dailyBudgetUsd === undefined
           ? detail
-          : `${detail}\n\n${fill(UI_TEXT.paidDailyBudgetLine, { budget: formatUsd(dailyBudgetUsd) })}`,
+          : `${detail}\n\n${fill(UI_TEXT.paidDailyBudgetLine, { budget: formatUsd(dailyBudgetUsd, 2) })}`,
     },
     ...(canRemember ? [once, always, deny] : [once, deny]),
   )
@@ -178,7 +197,10 @@ export function createPaidFeatures(deps: PaidFeaturesDeps): PaidFeatures {
     return parsed.success ? parsed.data : {}
   }
   const gate = new PaidFeatureGate({
-    isSettingOn: deps.isSettingOn,
+    isSettingOn: (feature) =>
+      feature === 'judge'
+        ? (deps.isJudgeOn?.() ?? deps.isSettingOn(feature))
+        : deps.isSettingOn(feature),
     ...(deps.isAvailable !== undefined && { isAvailable: deps.isAvailable }),
     ...(deps.isDefaultOn !== undefined && { isDefaultOn: deps.isDefaultOn }),
     // Tab is on by default and asks once, at its first request, with the
@@ -186,9 +208,12 @@ export function createPaidFeatures(deps: PaidFeaturesDeps): PaidFeatures {
     // price confirmation, at activation or anywhere else.
     asksOnFirstUse: new Set<PaidFeature>(['tab']),
     setSetting: async (feature, isOn) => {
+      // The judge's switch is the engine enum, not a boolean (M98, PLAN.md
+      // D77): turning it off parks it at `off`, turning it on restores `auto`.
+      const value = feature === 'judge' ? (isOn ? 'auto' : 'off') : isOn
       await vscode.workspace
         .getConfiguration(SETTINGS_SECTION)
-        .update(PAID_FEATURE_SETTINGS[feature], isOn, vscode.ConfigurationTarget.Global)
+        .update(PAID_FEATURE_SETTINGS[feature], value, vscode.ConfigurationTarget.Global)
     },
     readAccepted,
     writeAccepted: async (accepted) => {
@@ -226,6 +251,8 @@ export function createPaidFeatures(deps: PaidFeaturesDeps): PaidFeatures {
     // shared by every window (the generations "always" is checked against):
     // another window's withdrawal and new acceptance makes this one ask again.
     windowOnceGeneration: (feature) => generationOf(readGenerations(), feature),
+    isJudgeEnabled: () => deps.isKeyStored() && (deps.isJudgeOn?.() ?? deps.isSettingOn('judge')),
+    acceptJudgePrice: () => gate.acceptJudgePrice(),
     canRemember: deps.canRememberPaidUse,
     readGrants: () => {
       const parsed = generationsSchema.safeParse(
@@ -285,6 +312,17 @@ export function createPaidFeatures(deps: PaidFeaturesDeps): PaidFeatures {
             ? { budgetUsd: day.budgetUsd }
             : { budgetUsd: day.budgetUsd, todayUsd: day.todayUsd },
       }
+    },
+    allowsJudgeUse: async (modelId) => {
+      if (autoReviewPrice(modelId) === undefined) return false
+      const budget = dailyBudgetSchema.safeParse(
+        vscode.workspace.getConfiguration(SETTINGS_SECTION).get('paidDailyBudgetUsd'),
+      )
+      return await consent.allows({
+        feature: 'judge',
+        modelId,
+        dailyBudgetUsd: budget.success ? budget.data : 0,
+      })
     },
     affects: (event) =>
       PAID_FEATURES.some((feature) =>
