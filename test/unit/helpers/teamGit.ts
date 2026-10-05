@@ -4,11 +4,11 @@
 // here, never inherited from a developer's global git configuration.
 
 import { execFile } from 'node:child_process'
-import { mkdtemp, mkdir, realpath, rm, writeFile } from 'node:fs/promises'
+import { cp, mkdtemp, realpath, rm, writeFile } from 'node:fs/promises'
 import { realpathSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
-import { afterEach } from 'vitest'
+import { afterAll, afterEach, beforeAll } from 'vitest'
 import { TeamGitError, type TeamGit } from '../../../src/core/team/teamWorkspaces'
 
 const roots: string[] = []
@@ -27,6 +27,17 @@ export function trackTeamRoot(root: string): void {
 }
 
 export function cleanupTeamRoots(): void {
+  beforeAll(async () => {
+    seed.value ??= createSeedRepo()
+    await seed.value
+  })
+  afterAll(async () => {
+    if (seed.value === undefined) {
+      return
+    }
+    const template = await seed.value
+    await rm(template.root, { recursive: true, force: true })
+  })
   afterEach(async () => {
     for (const root of roots.splice(0)) {
       await rm(root, { recursive: true, force: true, maxRetries: 20, retryDelay: 250 })
@@ -48,14 +59,27 @@ function exitCodeOf(error: unknown): number {
 
 /** Binary-safe `git`: stdout as bytes, non-zero exits as `TeamGitError`. */
 export function teamGitRunner(env: NodeJS.ProcessEnv = teamGitEnv): TeamGit {
-  return (args, cwd, input) =>
-    new Promise<Uint8Array>((resolve, reject) => {
+  // Repeated reads of immutable object IDs still come from real Git. Keep
+  // their bytes so preview + derivation do not respawn identical Git reads.
+  const objects = new Map<string, Promise<Uint8Array>>()
+  return async (args, cwd, input, isolatedEnv) => {
+    const isImmutable =
+      (args[0] === 'ls-tree' && /^(?:[a-f0-9]{40}|[a-f0-9]{64})$/i.test(args[2] ?? '')) ||
+      (args[0] === 'cat-file' &&
+        args[1] === 'blob' &&
+        /^(?:[a-f0-9]{40}|[a-f0-9]{64})$/i.test(args[2] ?? ''))
+    const key = JSON.stringify([cwd, args])
+    const cached = isImmutable ? objects.get(key) : undefined
+    if (cached !== undefined) {
+      return new Uint8Array(await cached)
+    }
+    const result = new Promise<Uint8Array>((resolve, reject) => {
       const child = execFile(
         'git',
         [...args],
         {
           cwd,
-          env,
+          env: isolatedEnv ?? env,
           timeout: 30_000,
           maxBuffer: 64 * 1024 * 1024,
           encoding: 'buffer',
@@ -79,6 +103,12 @@ export function teamGitRunner(env: NodeJS.ProcessEnv = teamGitEnv): TeamGit {
       }
       child.stdin?.end()
     })
+    if (isImmutable) {
+      objects.set(key, result)
+      void result.catch(() => objects.delete(key))
+    }
+    return await result
+  }
 }
 
 export interface TeamFixtureRepo {
@@ -87,6 +117,27 @@ export interface TeamFixtureRepo {
 }
 
 /** A repository with one commit (`tracked.txt`, `shared.txt`), branch `main`. */
+async function createSeedRepo(): Promise<TeamFixtureRepo> {
+  const runGit = teamGitRunner()
+  const root = await mkdtemp(path.join(tmpdir(), 'muse-team-seed-'))
+  await runGit(['init', '-b', 'main'], root)
+  await runGit(['config', 'user.name', 'Offline test'], root)
+  await runGit(['config', 'user.email', 'offline@example.invalid'], root)
+  await writeFile(path.join(root, 'tracked.txt'), 'before\n')
+  await writeFile(path.join(root, 'shared.txt'), 'one\ntwo\nthree\n')
+  return { root, head: await commitFixture(runGit, root) }
+}
+
+const seed: { value?: Promise<TeamFixtureRepo> } = {}
+
+async function commitFixture(runGit: TeamGit, root: string): Promise<string> {
+  await runGit(['add', '--all'], root)
+  await runGit(['commit', '-m', 'fixture'], root)
+  return Buffer.from(await runGit(['rev-parse', 'HEAD^{commit}'], root))
+    .toString('utf8')
+    .trim()
+}
+
 export async function teamFixtureRepo(
   runGit: TeamGit,
   tracked = 'before\n',
@@ -96,18 +147,15 @@ export async function teamFixtureRepo(
   const temp = realpathSync.native(requested)
   trackTeamRoot(temp)
   const root = path.join(temp, 'app')
-  await mkdir(root)
-  await runGit(['init', '-b', 'main'], root)
-  await runGit(['config', 'user.name', 'Offline test'], root)
-  await runGit(['config', 'user.email', 'offline@example.invalid'], root)
+  seed.value ??= createSeedRepo()
+  const template = await seed.value
+  await cp(template.root, root, { recursive: true })
+  if (tracked === 'before\n' && shared === 'one\ntwo\nthree\n') {
+    return { root, head: template.head }
+  }
   await writeFile(path.join(root, 'tracked.txt'), tracked)
   await writeFile(path.join(root, 'shared.txt'), shared)
-  await runGit(['add', '--all'], root)
-  await runGit(['commit', '-m', 'fixture'], root)
-  const head = Buffer.from(await runGit(['rev-parse', 'HEAD^{commit}'], root))
-    .toString('utf8')
-    .trim()
-  return { root, head }
+  return { root, head: await commitFixture(runGit, root) }
 }
 
 export async function teamRealPath(candidate: string): Promise<string> {
@@ -134,7 +182,7 @@ export async function teamShortRoot(root: string): Promise<string | undefined> {
   const output = await new Promise<string>((resolve, reject) => {
     execFile(
       'cmd.exe',
-      ['/d', '/c', 'dir', '/x', grandparent],
+      ['/d', '/c', 'dir', '/x', '/ad', path.join(grandparent, `${path.basename(parent)}*`)],
       { env: teamGitEnv },
       (error, stdout) => {
         if (error === null) {

@@ -21566,9 +21566,24 @@ before a repaired one loads (2026-09-30).
 
 ## 9. Security assumptions and accepted residual risk
 
+- **FIXM96I2 / RVM96I2C (2026-10-05):** final lane-I round covers six P2
+  and seven P3 findings. Named validation residual **I-default-timeout**:
+  shared real-Git seed/copy fixtures and cached immutable Git object reads
+  did not close P2-5 on this Windows host. First run: 164 passed, 27 timeout
+  failures across three files. Second merge run: 24 passed, 28 timeouts and
+  one faulty I/O injection, subsequently corrected. Under common.md's
+  two-attempt stop rule, no further fixture redesign or Windows merge rerun
+  is attempted here. This is a validation blocker, not approval to merge
+  or a claim that Windows is green. Follow-up: lead assigns a fixture
+  redesign and obtains a complete default-timeout Windows pass. Older
+  I-Windows records used 120-second overrides and do not close this gate.
+  The integrator must unify lane I's tokenizer and lane W's shared Git
+  classifier in round 3b, and honour TeamGit's explicit isolated environment
+  argument. Proof and remaining checks are in `docs/certification/m96-i.md`.
+
 - **FIXM96I / RVM96B (2026-10-05):** findings 1–12 and 24 are repaired,
   with no scoped finding deferred. Named validation residual **I-Windows**
-  is closed by WINM96I's owning Windows runs and six restored guard drills
+  was historically closed by WINM96I's owning Windows runs and six restored guard drills
   (`docs/certification/m96-i.md`, Windows heading). UNC spelling coverage is
   lexical; no live SMB share certification is claimed.
   Named platform residual **I-path-race**: canonical checks run at every

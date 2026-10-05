@@ -126,8 +126,6 @@ const ALLOWED_GIT_GLOBALS = new Set([
   '--noglob-pathspecs',
   '--icase-pathspecs',
 ])
-/** The only short global flag a worker needs: pager off is the host's own. */
-const PAGINATE_SHORT = '-p'
 
 /** A global option that smuggles repository configuration into the call. */
 const CONFIG_OPTIONS = new Set(['-c', '--config', '--config-env'])
@@ -234,9 +232,6 @@ const LIST_ONLY_SHORT = new Set(['-l', '-a', '-r', '-v'])
  */
 export function classifyWorkerGitCommand(args: readonly string[]): RefFenceVerdict {
   const words = [...args]
-  if (words[0] === 'git') {
-    words.shift()
-  }
   const command = words.join(' ')
   let index = 0
   // Global options before the subcommand.
@@ -259,10 +254,8 @@ export function classifyWorkerGitCommand(args: readonly string[]): RefFenceVerdi
       index += 1
       continue
     }
-    if (token !== PAGINATE_SHORT) {
-      return refused(command, 'gitOption')
-    }
-    index += 1
+    // All short globals, including `-p` (--paginate), are refused.
+    return refused(command, 'gitOption')
   }
   const subcommand = words[index] ?? ''
   if (subcommand === '' || HELP_OPTIONS.has(subcommand)) {
@@ -319,7 +312,6 @@ const WRITE_OPTIONS = new Set([
   '-o',
   '-w',
   '-O',
-  '-p',
   '--lost-found',
   '--ext-diff',
   '--textconv',
@@ -338,10 +330,16 @@ function checkGitOptions(rest: readonly string[], command: string): RefFenceVerd
     const name = token.split('=', 1)[0] ?? token
     if (
       WRITE_OPTIONS.has(name) ||
-      (name.startsWith('--') && [...WRITE_OPTIONS].some((option) => option.startsWith(name))) ||
-      ['-w', '-o', '-O'].some((option) => token.startsWith(option))
+      (name.startsWith('--') && [...WRITE_OPTIONS].some((option) => option.startsWith(name)))
     ) {
       return refused(command, 'refusedOption')
+    }
+    if (!token.startsWith('--')) {
+      for (const flag of token.slice(1)) {
+        if (WRITE_OPTIONS.has(`-${flag}`)) {
+          return refused(command, 'refusedOption')
+        }
+      }
     }
   }
   return { allowed: true }

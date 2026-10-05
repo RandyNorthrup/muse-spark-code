@@ -10,7 +10,7 @@
 // in `refFence.ts`. The host runs git and owns storage; workers never touch
 // these functions. No `vscode` here.
 
-import { lstat, mkdir, mkdtemp, realpath, rm, unlink, writeFile } from 'node:fs/promises'
+import { copyFile, lstat, mkdir, mkdtemp, realpath, rm, unlink, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { isBelow } from '../workspacePath'
@@ -18,9 +18,11 @@ import {
   GIT_PATH_MAX_DARWIN,
   GIT_PATH_MAX_DEFAULT,
   GIT_PATH_MAX_WINDOWS,
+  GIT_FILTER_NAME_MAX_CHARS,
+  GIT_FILTER_NAMES_MAX,
 } from '../../shared/constants'
 import { pathModule } from '../workspaceRoot'
-import { teamAgentsRef, teamBranchName } from './refFence'
+import { teamAgentsRef, teamBranchName, workerEnvironment } from './refFence'
 
 /** git ended non-zero: the code and what it said. */
 export class TeamGitError extends Error {
@@ -47,9 +49,82 @@ export function isTeamGitError(value: unknown): value is TeamGitError {
 /**
  * One git command's stdout as bytes (binary-safe for blobs); rejects with
  * `TeamGitError` on a non-zero exit. The host adapts its git process to
- * this; tests run real git through `execFile`.
+ * this; tests run real git through `execFile`. The adapter MUST honour an
+ * explicit environment: automatic worker-copy calls supply credential-free
+ * `workerEnvironment`, never the host's inherited environment.
  */
-export type TeamGit = (args: readonly string[], cwd: string, input?: string) => Promise<Uint8Array>
+export type TeamGit = (
+  args: readonly string[],
+  cwd: string,
+  input?: string,
+  env?: NodeJS.ProcessEnv,
+) => Promise<Uint8Array>
+
+/** One shared policy for every extension-owned Git call in a worker copy. */
+export function teamProgramFreeGit(runGit: TeamGit): TeamGit {
+  return async (args, cwd, input) => {
+    const hooks = await mkdtemp(path.join(tmpdir(), 'muse-team-hooks-'))
+    const env = workerEnvironment(process.env, process.platform)
+    const fixed = [
+      '--no-replace-objects',
+      '-c',
+      `core.hooksPath=${hooks}`,
+      '-c',
+      'core.fsmonitor=false',
+      '-c',
+      'core.askPass=',
+      '-c',
+      'credential.helper=',
+      '-c',
+      'diff.external=',
+      '-c',
+      'commit.gpgSign=false',
+      '-c',
+      'tag.gpgSign=false',
+      '-c',
+      'maintenance.auto=false',
+      '-c',
+      'gc.auto=0',
+    ]
+    try {
+      // Names only: configured program values are never read. Re-read on
+      // every call, since a worker may have edited its repository config.
+      const names = decodeText(
+        await runGit([...fixed, 'config', '--null', '--name-only', '--list'], cwd, undefined, env),
+      )
+        .split('\0')
+        .filter((name) => /^(?:filter|diff|merge)\./i.test(name))
+      const drivers = new Set<string>()
+      for (const name of names) {
+        if (name.length > GIT_FILTER_NAME_MAX_CHARS || /[=\p{Cc}]/u.test(name)) {
+          throw new TeamWorkspaceError('workspaceFailed', 'Unsafe Git driver name')
+        }
+        if (
+          /^(?:filter|diff|merge)\..+\.(?:clean|smudge|process|required|command|textconv|driver)$/i.test(
+            name,
+          )
+        ) {
+          drivers.add(name.slice(0, name.lastIndexOf('.')))
+        }
+      }
+      if (drivers.size > GIT_FILTER_NAMES_MAX) {
+        throw new TeamWorkspaceError('workspaceFailed', 'Too many Git drivers')
+      }
+      const disabled = [...drivers].flatMap((driver) => {
+        let fields = ['driver=false']
+        if (driver.startsWith('filter.')) {
+          fields = ['clean=', 'smudge=', 'process=', 'required=false']
+        } else if (driver.startsWith('diff.')) {
+          fields = ['command=', 'textconv=']
+        }
+        return fields.flatMap((field) => ['-c', `${driver}.${field}`])
+      })
+      return await runGit([...fixed, ...disabled, ...args], cwd, input, env)
+    } finally {
+      await rm(hooks, { recursive: true, force: true })
+    }
+  }
+}
 
 /** A workspace failure: the stable code travels with the error. */
 export class TeamWorkspaceError extends Error {
@@ -169,7 +244,7 @@ async function revParse(runGit: TeamGit, repo: string, rev: string): Promise<str
  */
 export async function resolveBaseCommit(runGit: TeamGit, repositoryRoot: string): Promise<string> {
   const status = await runGit(
-    ['status', '--porcelain=v1', '-z', '--untracked-files=normal'],
+    ['--no-optional-locks', 'status', '--porcelain=v1', '-z', '--untracked-files=normal'],
     repositoryRoot,
   )
   if (status.length === 0) {
@@ -188,7 +263,41 @@ export async function resolveBaseCommit(runGit: TeamGit, repositoryRoot: string)
       ),
     ).trim()
     await writeFile(path.join(scratch, 'objects', 'info', 'alternates'), `${objects}\n`)
-    const prefix = [`--git-dir=${scratch}`, `--work-tree=${repositoryRoot}`]
+    const localExclude = decodeText(
+      await runGit(
+        ['rev-parse', '--path-format=absolute', '--git-path', 'info/exclude'],
+        repositoryRoot,
+      ),
+    ).trim()
+    try {
+      await copyFile(localExclude, path.join(scratch, 'info', 'exclude'))
+    } catch (error: unknown) {
+      if (!(
+        typeof error === 'object' &&
+        error !== null &&
+        'code' in error &&
+        error.code === 'ENOENT'
+      )) {
+        throw error
+      }
+    }
+    let excludes: string | undefined
+    try {
+      excludes = decodeText(
+        await runGit(['config', '--path', '--get', 'core.excludesFile'], repositoryRoot),
+      ).trim()
+    } catch (error: unknown) {
+      if (!isTeamGitError(error) || error.exitCode !== 1) {
+        throw error
+      }
+    }
+    const prefix = [
+      `--git-dir=${scratch}`,
+      `--work-tree=${repositoryRoot}`,
+      ...(excludes === undefined
+        ? []
+        : ['-c', `core.excludesFile=${path.resolve(repositoryRoot, excludes)}`]),
+    ]
     await runGit([...prefix, 'read-tree', head], repositoryRoot)
     await runGit([...prefix, 'add', '--all', '--'], repositoryRoot)
     const tree = objectId(await runGit([...prefix, 'write-tree'], repositoryRoot), 'tree')
@@ -255,10 +364,11 @@ export async function startTeamWorkspace(
     ['clone', '--shared', '--no-checkout', await realpath(spec.repositoryRoot), folder],
     p.dirname(folder),
   )
+  const copyGit = teamProgramFreeGit(runGit)
   try {
-    await removeRemote(runGit, folder)
+    await removeRemote(copyGit, folder)
     if (spec.mode === 'own-branch') {
-      await runGit(['checkout', '-b', branch, spec.baseCommit], folder)
+      await copyGit(['checkout', '-b', branch, spec.baseCommit], folder)
       const agentsRef = teamAgentsRef(branch)
       await runGit(
         ['update-ref', agentsRef, spec.baseCommit, '0'.repeat(spec.baseCommit.length)],
@@ -266,7 +376,7 @@ export async function startTeamWorkspace(
       )
       return { folder, branch, agentsRef }
     }
-    await runGit(['checkout', '--detach', spec.baseCommit], folder)
+    await copyGit(['checkout', '--detach', spec.baseCommit], folder)
     return { folder }
   } catch (error: unknown) {
     await removeTeamWorkspace(runGit, spec.repositoryRoot, storageRoot, folder)
@@ -291,6 +401,7 @@ export async function commitTaskBranch(
   folder: string,
   spec: { branch: string; role: string; taskId: string; entryId: string },
 ): Promise<{ readonly committed: boolean; readonly head: string }> {
+  runGit = teamProgramFreeGit(runGit)
   const status = await runGit(['status', '--porcelain=v1', '-z', '--untracked-files=all'], folder)
   if (status.length === 0) {
     return { committed: false, head: await revParse(runGit, folder, spec.branch) }
@@ -342,7 +453,7 @@ export async function publishTaskRef(
       `The team ref ${agentsRef} moved from ${expected ?? '(absent)'} to ${actual ?? '(absent)'}`,
     )
   }
-  const head = await revParse(runGit, cloneFolder, branch)
+  const head = await revParse(teamProgramFreeGit(runGit), cloneFolder, branch)
   await runGit(['fetch', '--no-write-fetch-head', '--no-tags', cloneFolder, head], repositoryRoot)
   try {
     await runGit(
@@ -354,6 +465,9 @@ export async function publishTaskRef(
       throw error
     }
     const moved = await readAgentsRef(runGit, repositoryRoot, agentsRef)
+    if (moved === expected) {
+      throw error
+    }
     throw new TeamWorkspaceError(
       'refMoved',
       `The team ref ${agentsRef} moved from ${expected ?? '(absent)'} to ${moved ?? '(absent)'}`,
@@ -480,6 +594,7 @@ export function parseScratchStatus(porcelain: Uint8Array): readonly string[] {
  * any change or new file there is a breach of its role.
  */
 export async function scratchBreach(runGit: TeamGit, folder: string): Promise<readonly string[]> {
+  runGit = teamProgramFreeGit(runGit)
   const status = await runGit(
     ['status', '--porcelain=v1', '-z', '--untracked-files=all', '--ignored=matching'],
     folder,

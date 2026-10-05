@@ -20,6 +20,19 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- **Team merge transactions (RVM96I2C lane I).** Landing compares each
+  target's current bytes and permissions with its planned base, prepares
+  replacement bytes before touching the target, and rolls back landed files
+  on a later refusal. Errors carry the Undo record and rollback outcomes;
+  Undo verifies its restored bytes. Worker bases honour local and global Git
+  excludes, extension-owned worker-copy Git disables configured programs,
+  clustered unsafe options and doubled `git` commands refuse, and read-only
+  patch output remains available. Ref-lock failures retain their real error,
+  symlink blobs refuse, executable flips preserve private permissions, binary
+  rework keeps the worker's bytes, and 8.3 fixture listings stay bounded.
+  Windows default-timeout verification remains blocked; see M96 lane I's
+  certification record.
+
 - **Windows team paths (M96 lane I).** Canonical containment accepts drive
   letter and directory casing differences and extended namespace spellings.
   Junction ancestors remain refused for merge, deletion, cleanup and Undo;

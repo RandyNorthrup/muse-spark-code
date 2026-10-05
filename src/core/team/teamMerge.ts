@@ -21,6 +21,7 @@ import {
   mkdtemp,
   readFile,
   realpath,
+  rename,
   rm,
   unlink,
   writeFile,
@@ -32,7 +33,7 @@ import { isProtectedPath } from '../protectedPaths'
 import { isBelow, resolveWorkspacePath } from '../workspacePath'
 import { pathModule } from '../workspaceRoot'
 import { checkAgentsRef, type AgentsRefCheck } from './refFence'
-import { isTeamGitError, isSameTeamPath, type TeamGit } from './teamWorkspaces'
+import { isTeamGitError, isSameTeamPath, teamProgramFreeGit, type TeamGit } from './teamWorkspaces'
 
 /** A merge failure: the stable code travels with the error. */
 export class TeamMergeError extends Error {
@@ -44,9 +45,15 @@ export class TeamMergeError extends Error {
       | 'writePaths'
       | 'protected'
       | 'refBreach'
+      | 'treeChanged'
       | 'mergeFailed',
     message: string,
     public readonly files: readonly string[] = [],
+    public readonly undo: TeamMergeUndo = { files: [] },
+    public readonly rollback?: {
+      readonly restored: readonly string[]
+      readonly refused: readonly string[]
+    },
   ) {
     super(message)
     this.name = 'TeamMergeError'
@@ -62,7 +69,8 @@ const LOSSY_DECODER = new TextDecoder('utf-8', { fatal: false })
 const NUL = 0
 const EXECUTABLE_BIT = 0o100
 const PLAIN_FILE_MODE = 0o644
-const EXEC_FILE_MODE = 0o755
+const EXECUTABLE_MASK = 0o111
+const READABLE_MASK = 0o444
 const PERMISSION_MASK = 0o777
 /** An added file compares against a non-executable default. */
 const ADDED_BASE_MODE = 0o10_0644
@@ -291,6 +299,11 @@ async function treeBlob(
     return undefined
   }
   const mode = Number.parseInt(match[1] ?? '', 8)
+  if ((mode & ~EXECUTABLE_MASK) !== ADDED_BASE_MODE) {
+    throw new TeamMergeError('unsafePath', `The team merge refused a non-regular file ${file}`, [
+      file,
+    ])
+  }
   return Number.isSafeInteger(mode) ? { sha: match[2] ?? '', mode } : undefined
 }
 
@@ -428,63 +441,107 @@ export async function applyTeamMerge(
   const conflicts: TeamMergeConflict[] = []
   const modeChanged: string[] = []
   const undoFiles: TeamMergeUndoFile[] = []
+  const landed: TeamMergeUndoFile[] = []
+  let landingRoot = spec.repositoryRoot
   try {
-    for (const file of planned) {
-      const outcome = await mergeOneFile(io, spec, file, scratch, platform)
-      written.push(...outcome.written)
-      conflicts.push(...outcome.conflicts)
-      modeChanged.push(...outcome.modeChanged)
-      undoFiles.push(...outcome.undo)
-    }
-    if (conflicts.length > 0) {
-      const taskFolder = spec.taskFolder
-      const p = pathModule(platform)
-      if (
-        taskFolder === undefined ||
-        isSameTeamPath(taskFolder, spec.repositoryRoot, platform) ||
-        isBelow(
-          p.relative(p.toNamespacedPath(spec.repositoryRoot), p.toNamespacedPath(taskFolder)),
-          p,
-        ) ||
-        isBelow(
-          p.relative(p.toNamespacedPath(taskFolder), p.toNamespacedPath(spec.repositoryRoot)),
-          p,
-        )
-      ) {
-        throw new TeamMergeError(
-          'mergeFailed',
-          'Conflicts need the task copy for rework',
-          conflicts.map((file) => file.path),
-        )
+    try {
+      for (const file of planned) {
+        const outcome = await mergeOneFile(io, spec, file, scratch, platform)
+        written.push(...outcome.written)
+        conflicts.push(...outcome.conflicts)
+        modeChanged.push(...outcome.modeChanged)
+        undoFiles.push(...outcome.undo)
       }
-      const taskHead = checkCommit(
-        LOSSY_DECODER.decode(
-          await io.runGit(['rev-parse', '--verify', 'HEAD^{commit}'], taskFolder),
-        ).trim(),
-        'task head',
-      )
-      if (taskHead !== spec.branchHead) {
-        throw new TeamMergeError('refBreach', 'The rework task copy moved since its preview')
+      if (conflicts.length > 0) {
+        const taskFolder = spec.taskFolder
+        const p = pathModule(platform)
+        if (
+          taskFolder === undefined ||
+          isSameTeamPath(taskFolder, spec.repositoryRoot, platform) ||
+          isBelow(
+            p.relative(p.toNamespacedPath(spec.repositoryRoot), p.toNamespacedPath(taskFolder)),
+            p,
+          ) ||
+          isBelow(
+            p.relative(p.toNamespacedPath(taskFolder), p.toNamespacedPath(spec.repositoryRoot)),
+            p,
+          )
+        ) {
+          throw new TeamMergeError(
+            'mergeFailed',
+            'Conflicts need the task copy for rework',
+            conflicts.map((file) => file.path),
+          )
+        }
+        const taskHead = checkCommit(
+          LOSSY_DECODER.decode(
+            await teamProgramFreeGit(io.runGit)(
+              ['rev-parse', '--verify', 'HEAD^{commit}'],
+              taskFolder,
+            ),
+          ).trim(),
+          'task head',
+        )
+        if (taskHead !== spec.branchHead) {
+          throw new TeamMergeError('refBreach', 'The rework task copy moved since its preview')
+        }
+        await checkLiveRefs(io, spec)
+        landingRoot = taskFolder
+        for (const file of undoFiles) {
+          // Binary conflicts keep the worker's version intact for rework.
+          if (conflicts.some((conflict) => conflict.path === file.path && conflict.isBinary)) {
+            continue
+          }
+          await confinedRelative(io, taskFolder, file.path, platform)
+          const taskBefore = await readWorktreeFile(taskFolder, file.path)
+          const taskMode = await worktreeMode(taskFolder, file.path, platform)
+          const rework = { ...file, before: taskBefore, beforeMode: taskMode }
+          await landFile(
+            io,
+            taskFolder,
+            rework,
+            platform,
+            () => checkLiveRefs(io, spec),
+            () => {
+              landed.push(rework)
+            },
+          )
+        }
+        return {
+          status: 'rework',
+          written: [],
+          conflicts,
+          modeChanged: [],
+          protectedWritten: [],
+          undo: { files: [] },
+        }
       }
-      await checkLiveRefs(io, spec)
       for (const file of undoFiles) {
-        await landFile(io, taskFolder, file, platform, () => checkLiveRefs(io, spec))
+        await checkLiveRefs(io, spec)
+        await landFile(
+          io,
+          spec.repositoryRoot,
+          file,
+          platform,
+          () => checkLiveRefs(io, spec),
+          () => {
+            landed.push(file)
+          },
+        )
       }
-      return {
-        status: 'rework',
-        written: [],
-        conflicts,
-        modeChanged: [],
-        protectedWritten: [],
-        undo: { files: [] },
-      }
+    } finally {
+      await rm(scratch, { recursive: true, force: true })
     }
-    for (const file of undoFiles) {
-      await checkLiveRefs(io, spec)
-      await landFile(io, spec.repositoryRoot, file, platform, () => checkLiveRefs(io, spec))
-    }
-  } finally {
-    await rm(scratch, { recursive: true, force: true })
+  } catch (error: unknown) {
+    const undo = { files: landed }
+    const rollback = await undoTeamMerge(landingRoot, undo)
+    throw new TeamMergeError(
+      isTeamMergeError(error) ? error.code : 'mergeFailed',
+      error instanceof Error ? error.message : 'The team merge failed',
+      isTeamMergeError(error) ? error.files : [],
+      undo,
+      rollback,
+    )
   }
   return {
     status: 'merged',
@@ -530,26 +587,79 @@ async function landFile(
   file: TeamMergeUndoFile,
   platform: NodeJS.Platform,
   beforeWrite?: () => Promise<void>,
+  onLanded?: () => void,
 ): Promise<void> {
   await confinedRelative(io, root, file.path, platform)
   const absolute = path.join(root, file.path)
   if (file.after === undefined) {
+    await verifyWorktreeFile(
+      io,
+      root,
+      file.path,
+      file.before,
+      file.beforeMode,
+      platform,
+      beforeWrite,
+    )
     if ((await linkOf(absolute)) !== undefined) {
-      await beforeWrite?.()
       await unlink(absolute)
+      onLanded?.()
     }
     return
   }
   await mkdir(path.dirname(absolute), { recursive: true })
-  await confinedRelative(io, root, file.path, platform)
-  await beforeWrite?.()
-  await writeFile(absolute, file.after)
-  if (platform === 'win32' || file.afterMode === undefined) {
-    return
+  // Prepare bytes and mode before touching the target. A failed write or
+  // chmod cannot leave a truncated target outside the transaction journal.
+  const staging = await mkdtemp(path.join(path.dirname(absolute), '.muse-team-land-'))
+  try {
+    const staged = path.join(staging, 'file')
+    await writeFile(staged, file.after)
+    if (platform !== 'win32' && file.afterMode !== undefined) {
+      await chmod(staged, file.afterMode)
+    }
+    await verifyWorktreeFile(
+      io,
+      root,
+      file.path,
+      file.before,
+      file.beforeMode,
+      platform,
+      beforeWrite,
+    )
+    await rename(staged, absolute)
+    onLanded?.()
+  } finally {
+    await rm(staging, { recursive: true, force: true })
   }
-  await confinedRelative(io, root, file.path, platform)
+}
+
+async function worktreeMode(
+  root: string,
+  file: string,
+  platform: NodeJS.Platform,
+): Promise<number | undefined> {
+  const stat = await linkOf(path.join(root, file))
+  return platform === 'win32' || stat === undefined ? undefined : stat.mode & PERMISSION_MASK
+}
+
+/** Compare-and-swap admission, also used to verify Undo's restored bytes. */
+async function verifyWorktreeFile(
+  io: Pick<TeamMergeIo, 'realPath'>,
+  root: string,
+  file: string,
+  bytes: Uint8Array | undefined,
+  mode: number | undefined,
+  platform: NodeJS.Platform,
+  beforeWrite?: () => Promise<void>,
+): Promise<void> {
+  await confinedRelative(io, root, file, platform)
   await beforeWrite?.()
-  await chmod(absolute, file.afterMode)
+  if (
+    !areBytesEqual(await readWorktreeFile(root, file), bytes) ||
+    (await worktreeMode(root, file, platform)) !== mode
+  ) {
+    throw new TeamMergeError('treeChanged', `The team merge refused a changed file ${file}`, [file])
+  }
 }
 
 interface FileOutcome {
@@ -633,9 +743,21 @@ async function mergeOneFile(
     (baseMode & EXECUTABLE_BIT) !== (theirsBlob.mode & EXECUTABLE_BIT)
   let afterMode: number | undefined
   if (platform !== 'win32' && theirsBytes !== undefined) {
-    afterMode = beforeMode ?? PLAIN_FILE_MODE
+    afterMode = beforeMode
+    if (afterMode === undefined) {
+      // A real file creation honours the process umask without reading it
+      // through Node's deprecated, process-wide read/change/restore API.
+      const modeFolder = await mkdtemp(path.join(scratch, 'mode-'))
+      const modeFile = path.join(modeFolder, 'file')
+      await writeFile(modeFile, new Uint8Array(), { mode: PLAIN_FILE_MODE })
+      const modeStat = await lstat(modeFile)
+      afterMode = modeStat.mode & PERMISSION_MASK
+    }
     if (hasModeFlip) {
-      afterMode = (theirsBlob.mode & EXECUTABLE_BIT) === 0 ? PLAIN_FILE_MODE : EXEC_FILE_MODE
+      afterMode =
+        (theirsBlob.mode & EXECUTABLE_BIT) === 0
+          ? afterMode & ~EXECUTABLE_MASK
+          : afterMode | ((afterMode & READABLE_MASK) >> 2)
     }
   }
   const modes = beforeMode !== afterMode && hasModeFlip ? [file.path] : []
@@ -733,14 +855,26 @@ export async function undoTeamMerge(
       await landFile(
         io,
         repositoryRoot,
-        { ...file, after: file.before, afterMode: file.beforeMode },
+        {
+          ...file,
+          before: file.after,
+          beforeMode: file.afterMode,
+          after: file.before,
+          afterMode: file.beforeMode,
+        },
+        process.platform,
+      )
+      await verifyWorktreeFile(
+        io,
+        repositoryRoot,
+        file.path,
+        file.before,
+        file.beforeMode,
         process.platform,
       )
       restored.push(file.path)
-    } catch (error: unknown) {
-      if (!isTeamMergeError(error) || error.code !== 'linkEscape') {
-        throw error
-      }
+    } catch {
+      // An I/O error or read-back mismatch must not be reported as restored.
       refused.push(file.path)
     }
   }

@@ -5,7 +5,9 @@
 
 import { lstat, mkdir, readFile, rename, symlink, writeFile } from 'node:fs/promises'
 import path from 'node:path'
-import { describe, expect, it } from 'vitest'
+import { execFile } from 'node:child_process'
+import type * as ChildProcess from 'node:child_process'
+import { describe, expect, it, vi } from 'vitest'
 import { workerEnvironment } from '../../src/core/team/refFence'
 import {
   commitTaskBranch,
@@ -19,6 +21,7 @@ import {
   teamCloneFolder,
   teamCommitSubject,
   TeamWorkspaceError,
+  teamProgramFreeGit,
   type TeamWorkspace,
 } from '../../src/core/team/teamWorkspaces'
 import {
@@ -34,6 +37,11 @@ import {
 const runGit = teamGitRunner()
 cleanupTeamRoots()
 const TEXT = new TextDecoder()
+
+vi.mock('node:child_process', async (importOriginal) => {
+  const actual = await importOriginal<typeof ChildProcess>()
+  return { ...actual, execFile: vi.fn(actual.execFile) }
+})
 
 async function revOf(repo: string, rev: string): Promise<string> {
   return TEXT.decode(await runGit(['rev-parse', rev], repo)).trim()
@@ -127,6 +135,29 @@ describe('resolveBaseCommit', () => {
 })
 
 describe('repair regressions: base snapshot', () => {
+  it('honours gitignore, local info/exclude and core.excludesFile without changing the index', async () => {
+    const { root } = await teamFixtureRepo(runGit)
+    const global = path.join(root, '..', 'owned-global-excludes')
+    await writeFile(global, 'global-only.txt\n')
+    await runGit(['config', 'core.excludesFile', global], root)
+    await writeFile(path.join(root, '.git', 'info', 'exclude'), 'local-only.txt\n')
+    await writeFile(path.join(root, '.gitignore'), 'ignored.txt\n')
+    for (const file of ['ignored.txt', 'local-only.txt', 'global-only.txt', 'source.ts']) {
+      await writeFile(path.join(root, file), 'synthetic private fixture\n')
+    }
+    await writeFile(path.join(root, 'tracked.txt'), 'dirty\n')
+    const index = await readFile(path.join(root, '.git', 'index'))
+    const base = await resolveBaseCommit(runGit, root)
+    const names = TEXT.decode(await runGit(['ls-tree', '-r', '--name-only', base], root)).split(
+      '\n',
+    )
+    expect(names).toContain('source.ts')
+    for (const file of ['ignored.txt', 'local-only.txt', 'global-only.txt']) {
+      expect(names).not.toContain(file)
+    }
+    expect(await readFile(path.join(root, '.git', 'index'))).toEqual(index)
+  })
+
   it('captures untracked source and staged edits without altering the user index or refs', async () => {
     const { root, head } = await teamFixtureRepo(runGit)
     await writeFile(path.join(root, 'tracked.txt'), 'staged\n')
@@ -299,6 +330,17 @@ describe('publishTaskRef', () => {
 })
 
 describe('repair regressions: publication CAS', () => {
+  it('reports a held ref lock as Git failure rather than fictitious movement', async () => {
+    const { root, head, workspace } = await taskWorkspace('locked')
+    const ref = 'refs/heads/agents/engineering/locked'
+    const lock = path.join(root, '.git', `${ref}.lock`)
+    await writeFile(lock, 'synthetic lock\n')
+    await expect(
+      publishTaskRef(runGit, root, workspace.folder, 'agents/engineering/locked', ref, head),
+    ).rejects.toMatchObject({ name: 'TeamGitError' })
+    expect(await revOf(root, ref)).toBe(head)
+  })
+
   it('refuses an intervening ref movement at the object import boundary', async () => {
     const { root, head, workspace } = await taskWorkspace('cas')
     await writeWorkerFile(workspace.folder, 'shared.txt', 'changed\n')
@@ -343,6 +385,65 @@ describe('scratchBreach', () => {
     await expect(scratchBreach(runGit, workspace.folder)).resolves.toEqual(
       expect.arrayContaining(['shared.txt', 'new-file.txt']),
     )
+  })
+})
+
+describe('round 2: extension-owned Git isolation', () => {
+  it('disables hooks, fsmonitor, filters and configured programs on every worker-copy command', async () => {
+    const { workspace } = await taskWorkspace('programs')
+    const folder = workspace.folder
+    const canary = path.join(folder, 'program-fired')
+    const program = `touch "${canary}"; cat`
+    await writeFile(path.join(folder, '.git', 'hooks', 'pre-commit'), `#!/bin/sh\n${program}\n`, {
+      mode: 0o755,
+    })
+    await runGit(['config', 'core.fsmonitor', program], folder)
+    await runGit(['config', 'filter.canary.clean', program], folder)
+    await runGit(['config', 'filter.canary.process', program], folder)
+    await runGit(['config', 'filter.canary.required', 'true'], folder)
+    await writeFile(
+      path.join(folder, '.gitattributes'),
+      '*.txt filter=canary diff=canary merge=canary\n',
+    )
+    await writeFile(path.join(folder, 'shared.txt'), 'safe edit\n')
+    const committed = await commitWorkerEdit(folder, 'engineering', 'programs', 'entry')
+    expect(committed.committed).toBe(true)
+    expect(await scratchBreach(runGit, folder)).toEqual([])
+    await expect(readFile(canary)).rejects.toMatchObject({ code: 'ENOENT' })
+  })
+
+  it('passes isolated environment and disables named diff/merge drivers at the shared seam', async () => {
+    const calls: {
+      readonly args: readonly string[]
+      readonly env: NodeJS.ProcessEnv | undefined
+    }[] = []
+    const fakeGit: typeof runGit = (args, _cwd, _input, env) => {
+      calls.push({ args, env })
+      return Promise.resolve(
+        new TextEncoder().encode(
+          args.includes('config') ? 'diff.canary.command\0merge.canary.driver\0' : '',
+        ),
+      )
+    }
+    await teamProgramFreeGit(fakeGit)(['status'], process.cwd())
+    expect(calls).toHaveLength(2)
+    expect(calls[1]?.args).toEqual(
+      expect.arrayContaining([
+        'core.fsmonitor=false',
+        'core.askPass=',
+        'credential.helper=',
+        'diff.canary.command=',
+        'diff.canary.textconv=',
+        'merge.canary.driver=false',
+      ]),
+    )
+    expect(calls.every((call) => call.args.some((arg) => arg.startsWith('core.hooksPath=')))).toBe(
+      true,
+    )
+    expect(calls[1]?.env?.['GIT_CONFIG_GLOBAL']).toBe(
+      process.platform === 'win32' ? 'NUL' : '/dev/null',
+    )
+    expect(calls[1]?.env?.['GIT_TERMINAL_PROMPT']).toBe('0')
   })
 })
 
@@ -448,6 +549,15 @@ describe('teamCloneFolder', () => {
 })
 
 describe('Windows storage paths', () => {
+  it('bounds the 8.3 listing to its fixture parent, never the whole TEMP', async () => {
+    if (process.platform !== 'win32') {
+      return
+    }
+    const { root } = await teamFixtureRepo(runGit)
+    await teamShortRoot(root)
+    const call = vi.mocked(execFile).mock.calls.findLast((entry) => entry[0] === 'cmd.exe')
+    expect(call?.[1]).toEqual(['/d', '/c', 'dir', '/x', '/ad', `${path.dirname(root)}*`])
+  })
   it.each(['case', 'drive', 'namespace'])(
     'starts and removes a copy through a %s alias',
     async (form) => {
