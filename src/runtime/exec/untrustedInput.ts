@@ -2,11 +2,11 @@ import path from 'node:path'
 import {
   EXEC_CHUNK_NEWLINE_LOOKBACK_CHARS,
   EXEC_MARKER_BYTES,
+  EXEC_MODEL_TEXT,
   EXEC_UNTRUSTED_CHUNKS_MAX,
   EXEC_UNTRUSTED_FILE_MAX_BYTES,
   EXEC_UNTRUSTED_FILES_MAX,
   EXEC_UNTRUSTED_TOTAL_MAX_BYTES,
-  MODEL_TEXT,
   SELECTION_TEXT_MAX_CHARS,
   UI_TEXT,
 } from '../../shared/constants'
@@ -54,10 +54,10 @@ export async function readUntrustedInputs(input: {
       const marker = input.randomHex(EXEC_MARKER_BYTES)
       const envelope = (slice: string, part: number, parts: number) =>
         [
-          fill(MODEL_TEXT.execUntrustedLead, { name: label, part, parts }),
-          fill(MODEL_TEXT.execUntrustedOpen, { marker }),
+          fill(EXEC_MODEL_TEXT.execUntrustedLead, { name: label, part, parts }),
+          fill(EXEC_MODEL_TEXT.execUntrustedOpen, { marker }),
           slice,
-          fill(MODEL_TEXT.execUntrustedClose, { marker }),
+          fill(EXEC_MODEL_TEXT.execUntrustedClose, { marker }),
         ].join('\n')
       const capacity =
         SELECTION_TEXT_MAX_CHARS -
@@ -84,14 +84,14 @@ export async function readUntrustedInputs(input: {
       resources.push({
         name,
         text: [
-          fill(MODEL_TEXT.execUntrustedLead, {
+          fill(EXEC_MODEL_TEXT.execUntrustedLead, {
             name: label,
             part: index + 1,
             parts: pieces.length,
           }),
-          fill(MODEL_TEXT.execUntrustedOpen, { marker: piece.marker }),
+          fill(EXEC_MODEL_TEXT.execUntrustedOpen, { marker: piece.marker }),
           piece.text,
-          fill(MODEL_TEXT.execUntrustedClose, { marker: piece.marker }),
+          fill(EXEC_MODEL_TEXT.execUntrustedClose, { marker: piece.marker }),
         ].join('\n'),
       })
     }

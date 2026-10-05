@@ -3238,8 +3238,10 @@ activation and an ordinary Model API turn load neither implementation.
 Both receive the current display language. These bundles each have a 75 KiB
 cap; the activation and Model API caps stay 600/400 KiB. Code intelligence's
 answers for Muse Code's `ide` tools load on the first call from
-`dist/codeIntel.js` (100 KiB cap), and both voice engines' drivers on the
-first recording from `dist/voice.js` (50 KiB cap); the tool list and the
+`dist/codeIntel.js` (100 KiB cap), both voice engines' drivers on the
+first recording from `dist/voice.js` (50 KiB cap), and the window's web
+fetch (each hop's checks and pins, the transport, the decoders) on the
+first fetch from `dist/webFetch.js` (75 KiB cap); the tool lists and the
 microphone's availability stay at activation. The Auto reviewer on Muse
 Code (its side session, what follows a review, and the Model API reviewer's
 core it reuses) loads on the first review from `dist/museCodeReviewer.js`
@@ -3302,7 +3304,7 @@ was seen to fail on a deliberate break before being trusted; the records are
 in [`docs/certification/`](docs/certification/), one file per milestone.
 Accessibility is a gate too: every screen the harness shows passes axe-core's
 WCAG 2.2 AA rules in Light Modern, Dark Modern and both High Contrast themes
-(PLAN.md D32); CI runs it on Linux and Windows. So is localization
+(PLAN.md D32); CI's full tier runs it once, on Linux. So is localization
 (PLAN.md D33): text the user reads goes in the English table
 `src/shared/l10n/en.ts`, read as `UI_TEXT.key` when the code runs. A
 sentence around a value is a `{slot}` template filled with `fill`, and a
@@ -3355,22 +3357,45 @@ media/                      icons, banner, social preview, README screenshots
 .github/                    workflows (ci, build, release), issue and pull-request templates, audit exceptions, pinned semgrep, CODEOWNERS, Dependabot, FUNDING
 ```
 
-**Releases.** CI (`ci.yml`, every pull request and optional manual branch
-dispatch) calls
-`build.yml`:
+**Releases.** CI (`ci.yml`: pull requests, merge-queue groups and optional
+manual branch dispatches) calls `build.yml`. Once the merge queue is on, a
+pull request runs its fast tier: the static gates of `quality:gates`, the
+production build and every unit/e2e test on Ubuntu, with gitleaks and
+semgrep. Everything else (the merge queue, manual runs, the release build,
+and every pull request until the queue is on) runs the full tier:
 
-- `quality:gates` on Ubuntu, Windows and macOS;
-- the accessibility gate and the integration tests (VS Code stable and the
-  `engines.vscode` floor) on Ubuntu and Windows;
-- gitleaks over the full history and semgrep, as jobs of their own;
-- a `native-darwin` job that compiles the macOS helper and checks its
-  disclaim;
-- a `package` job (Ubuntu) that packs the `.vsix` with both helpers as the
+- the static gates of `quality:gates` on Ubuntu, Windows and macOS;
+- the unit/e2e tests in four shards per platform, merged before the coverage
+  thresholds apply;
+- the accessibility gate once on Ubuntu, and the integration tests (VS Code
+  stable and the `engines.vscode` floor) on Ubuntu and Windows;
+- gitleaks and semgrep, as jobs of their own;
+- a job that compiles the macOS helper and checks its disclaim;
+- a packaging job (Ubuntu) that packs the `.vsix` with both helpers as the
   `muse-spark-code-vsix` artifact, checks its compressed size budget, and
   packages the ACP agent with every locale table and both CycloneDX inventories.
 
+The seven required checks keep their names on both tiers (CONTRIBUTING.md,
+"CI tiers and required checks").
+
 A tag `v1.2.3` runs `release.yml`. It checks that the tag matches the
-manifest and is on `main`, runs the same build, creates a GitHub Release with
+manifest and is on `main`, reuses successful own-repository CI artifacts only
+when their recorded checkout tree equals the tag tree and all package versions
+and SHA-256 hashes match, or runs the same full build on any miss. CI retains
+the packages, inventories and source-tree receipt for 30 days;
+`scripts/release-reuse.mjs` records, finds and verifies these release inputs.
+The owner can force a rebuild with Actions variable `RELEASE_FORCE_REBUILD=true`.
+Successful pull-request, merge-queue (`merge_group`) and main-push CI runs qualify
+by their recorded checkout tree. Manual recovery on a version tag keeps
+`artifacts_run_id`: the earlier Release build is validated, and its original
+bytes pass through the same verification/staging job. Invalid recovery stops;
+cancelled runs cannot publish. Older builds without a receipt retain inventory,
+manifest and download-integrity checks; see the recovery guide for that limit.
+An M80 `v0` tag update blocked by the release-tags ruleset is reported separately
+as **admin move required**, preserving the release channels' outcomes. The
+[release guide](docs/RELEASING.md#signing-and-the-prepared-m80-hooks) documents
+the administrator's fast-forward recovery; the ruleset stays in place.
+The workflow creates a GitHub Release with
 that `.vsix`, the ACP tarball, both inventories and `SHA256SUMS`, with the
 CHANGELOG section as its notes and package provenance attestations. The same
 VSIX goes to the Marketplace (publisher `RandyNorthrup`) and Open VSX; the same

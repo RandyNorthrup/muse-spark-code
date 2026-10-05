@@ -16,7 +16,7 @@ import { MuseCodeReviewer } from '../../src/host/review/museCodeReviewer'
 import type { ReviewedApprovals } from '../../src/host/review/reviewedApprovals'
 import type { AgentEvent } from '../../src/shared/agentEvents'
 import {
-  MODEL_TEXT,
+  AUTO_REVIEWER_MODEL_TEXT,
   MUSE_CODE_REVIEWER_TURNS_PER_SESSION,
   THINKING_OFF_EFFORT,
   UI_TEXT,
@@ -476,7 +476,7 @@ describe('the Auto reviewer on Muse Code (M90)', () => {
     })
     expect(turn.sessionId).toBe('side-1')
     // M78's rubric and input, every part fenced as data (acceptance 5).
-    expect(turn.text.startsWith(MODEL_TEXT.autoReviewerInstructions)).toBe(true)
+    expect(turn.text.startsWith(AUTO_REVIEWER_MODEL_TEXT.autoReviewerInstructions)).toBe(true)
     expect(turn.text).toContain('Use no tools.')
     expect(turn.text).toContain(`<<<\n${USER_REQUEST}\n>>>`)
     expect(turn.text).toContain('read_file {"path":"notes.md"}')

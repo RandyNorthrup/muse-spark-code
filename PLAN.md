@@ -333,6 +333,76 @@ instead.
   stops carrying one of them, or when a file of the folder is on neither the
   lazy list nor the allowed list above.
 
+**Amendment (2026-10-03, the third strike; current numbers 2026-10-04):
+activation stops carrying what only lazily loaded bundles use.** Three PRs
+in a row (#89, #78, #87) each had to split code out because
+`dist/extension.js` crossed its 600 KiB, and main with M70 stood at
+590.6 KiB with M87, M71 and M81 still to land. Under the owner's
+three-tries rule this is fixed once, structurally, on
+`perf/activation-diet`, since merged with main (M70, #88, #89, #98–#106).
+The budget stays 600 KiB; text and code move. Proof, drills and the full
+table are in
+[`docs/certification/activation-diet.md`](docs/certification/activation-diet.md).
+
+- **Measured** (production build, KiB, main with M70 → this branch):
+  `dist/extension.js` 590.6 → 552.6 (−38.0, 47.4 under the budget);
+  `dist/modelApi.js` 430.1 → 426.3; `dist/checkpointStore.js`
+  135.7 → 109.1; `dist/agentImport.js` 115.6 → 88.8; `dist/codeIntel.js`
+  76.9 → 54.6; `dist/reviewer.js` 54.6 → 28.8;
+  `dist/museCodeReviewer.js` 42.7 → 16.9; `dist/acp.js` 800.9 → 786.5;
+  `dist/webFetch.js` new, 46.7 of 75; the review, the session board, the
+  plan reader, voice, the bundled skills, the workers and the webview
+  unchanged (the English table and the webview +0.1 for one new string).
+- **Model text by reader.** `MODEL_TEXT` is one object, and esbuild cannot
+  tree-shake an object by key: every bundle that read any key carried all
+  of it. It now holds the 65 keys a source file of `dist/extension.js`
+  reads. The rest moved, word for word (a scripted comparison of all 329
+  keys and values with main's), to blocks that only their readers import:
+  `MODEL_API_MODEL_TEXT` (135 keys: the Model API backend's goal, file,
+  media, agent, MCP, permission-profile, observation-packing and
+  verify-loop text), `CODE_INTEL_MODEL_TEXT` (45: the code intelligence
+  answers and refusals, `dist/codeIntel.js` and `dist/modelApi.js`),
+  `WEB_FETCH_MODEL_TEXT` (42: the fetch's frame and every failure),
+  `CHECKPOINT_MODEL_TEXT` (4), `AGENT_IMPORT_MODEL_TEXT` (3),
+  `EXEC_MODEL_TEXT` (3: a headless run's attached files, `dist/acp.js`
+  only), `AUTO_REVIEWER_MODEL_TEXT` (3: `dist/reviewer.js` and
+  `dist/museCodeReviewer.js`), and `FILE_REFUSAL_MODEL_TEXT` (2:
+  `fileHasUnsavedChanges` and `pathChangedAfterApproval`, read at
+  activation and by the lazy file tools alike, so a bundle that reads only
+  these does not carry `MODEL_TEXT`). `REVIEW_MODEL_TEXT` (27, M70) is
+  unchanged. One key is new: `webFetchUnavailable`.
+- **Code intelligence**: main's own split (PR #89 amendment below,
+  `dist/codeIntel.js` at 100 KiB) replaced this lane's first one, which was
+  dropped in the merge; its answers now carry no `MODEL_TEXT` (76.9 →
+  54.6 KiB).
+- **The window's web fetch is a bundle of its own.**
+  `src/host/web/webFetchEntry.ts` builds to `dist/webFetch.js`: the fetch
+  (`core/web/webFetch.ts`), each hop's checks and pins, the pinned
+  transport, the decoders and `WEB_FETCH_MODEL_TEXT`, 23.1 KiB of
+  activation. `webFetchBundle.ts` requires it through `lazyBundle.ts` on the
+  first fetch on either backend or the first URL Muse Code's `webFetch`
+  checks; creating the fetcher loads nothing, and `approvalHost` moved to
+  `core/web/hostName.ts` so the tool names the host without the checks. A
+  bundle that cannot load fails that fetch as a refused fetch fails (kind
+  `unavailable`, `webFetchUnavailable` for the model and the row, in all 14
+  tables); Muse Code's call is refused before any modal; the log has the
+  cause and the next use tries again. The Model API backend keeps its own
+  URL checks, the ACP agent its own fetch. Budget 75 KiB (46.7 measured
+  plus 15 %, rounded up to 25 KiB). `src/core/export/sessionTransfer.ts`,
+  the brief's other candidate, stays: the target was met without it.
+- **The guard** (`scripts/check-bundle-split.mjs`, in `npm run build`): a
+  text block's sentinel keys must be in every bundle declared to read it
+  and in none of the other shipped bundles (all 18 in the production
+  metafiles, lazy ones and the webview included, after the review found
+  activation and the ACP agent alone were checked); a block that
+  `constants.ts` declares without an entry fails; `FILE_REFUSAL_MODEL_TEXT`
+  is pinned to its two keys; and a key of `MODEL_TEXT` that no source file
+  of `dist/extension.js` reads fails, which keeps lazy text from growing
+  back. The code intelligence and web fetch bundles' tests check that
+  neither carries any key or value of `MODEL_TEXT`. Drills: four on the
+  first cut, R1–R5 for the review's findings, W1–W7 for the web fetch
+  split; each failed and was reverted.
+
 **Amendment (M79, 2026-09-28): the plan reader is a bundle of its own.**
 Reading a plan with the panel's own Markdown grammar (PR #53 review) takes
 `mdast-util-from-markdown`, `micromark-extension-gfm` and `mdast-util-gfm`:
@@ -6017,6 +6087,54 @@ merged through pull request #8 from `hardening/m25-webview`, shipped in
   new dependency.
 
 ### M26 — The audit: packaging, CI, platform and voice (D29)
+
+**Release-build reuse request (RELFAST, 2026-10-04).** The owner asked why a
+release repeats roughly 50 minutes of gates after its release PR already passed.
+Reuse only this repository's successful PR/merge-group/main-push CI run whose package job
+recorded the exact tag tree, including the PR merge checkout. Record CI asset
+SHA-256 hashes, retain packages/SBOMs/receipt for 30 days, verify tree and package
+versions before staging unchanged bytes for the existing publishers. Any lookup,
+download or verification miss falls back to the full shared build, with a job
+summary; `RELEASE_FORCE_REBUILD=true` forces that path. Scope: build/release
+workflows, one release-only lookup/receipt script, owning release tests and docs.
+Acceptance: exact-tree success, fork/event/workflow/status refusal, version/hash
+refusal and rebuild wiring proved by tests and byte-exact guard drills. No new
+dependencies, publication or gate relaxation. Lane checks follow RELFAST/common;
+aggregate quality and hosted reuse/fallback remain the lead's gates. Evidence:
+`docs/certification/relfast.md`. Design is in `docs/RELEASING.md` before code.
+
+**RELFAST2 completion (2026-10-04).** Merge PR #107's manual
+`artifacts_run_id` recovery into the same lookup/download/verification/staging
+path. Automatic reuse requires the tag's exact recorded checkout tree; merge
+queue commits qualify by that tree, never by their temporary branch or head SHA.
+Manual recovery pins an earlier own-repository Release run on the same version
+tag with all seven build jobs successful. Its original source commit/tree may
+precede a recovery-only workflow/changelog fix: preserve those original package
+bytes. Validate the source run, nonexpired artifact inventory and both manifests;
+use its recorded hashes when present. Pre-receipt Release runs remain recoverable
+with the pinned download action's artifact integrity check and manifest/inventory
+verification, without claiming an older CI hash receipt. Recovery failures stop;
+they never rebuild an already-published version. Publishers download only the
+verified bytes staged in the current run. Every release job condition respects
+cancellation, including skipped-build handling. Finish the 19 pending guard
+drills and drill these new recovery/merge-queue/cancellation guards byte-exact.
+Lane checks follow RELFAST2 and common.md; full quality and hosted receipts
+remain lead-owned. No push, tag or workflow run.
+
+**RELFAST3 completion (2026-10-04).** Preserve the staged RELFAST2 work with
+enabled commit hooks and merge `origin/main` at `1e93c67c`, keeping every released
+CHANGELOG section. The owner reports that release run `37225339230` could create
+`v0` but its update failed with HTTP 422 under the release-tags ruleset
+`23893754` (admin bypass only). Keep that ruleset unchanged. A failed major-tag
+step retains its failure outcome and reports an admin move without failing the
+already-published channels' summary. Keep all-channel admission, cancellation,
+ancestor and divergent-history guards; request only a fast-forward update.
+Document the owner's admin PATCH command in `docs/RELEASING.md`. Acceptance:
+execute the actual workflow shell with synthetic Git/API responses, prove
+failure reporting and successful/no-op/divergent paths, drill each new guard
+with byte-exact restoration, and run the owning workflow tests and lane checks.
+Hosted reuse/fallback, CIFLOW integration and the actual admin tag move remain
+lead-owned; no network publication or ruleset mutation is authorized here.
 
 **Release-artifact follow-up (REL, 2026-10-02; implemented and lane-verified).**
 Scope: checksums and pinned provenance for the VSIX and ACP package; accurate
@@ -14269,6 +14387,62 @@ joined with M57, M58 and PR #49's sign-in
   or the log; every gate green.
 
 ## 7. Gates
+
+**RELFAST3 bounded-lane result (2026-10-04).** Fresh Windows compilers,
+dead-code, duplication, localization, host API, production build, actionlint
+and scoped formatting pass; the fixture's two ESLint style findings are fixed
+without suppression and its generated workflow shell is byte-identical.
+Kubuntu passes all 128 owning tests and six added byte-exact guard drills;
+RELFAST2's 36 controls remain historical receipts. A contended Windows Bash
+fixture timed out at the unchanged five-second limit and is not green proof.
+The live Model API size gate is 475 KiB, not common.md's 400 KiB figure: the
+430.1 KiB bundle passes the existing gate without a cap change, but 400 KiB
+compliance is not claimed. Full quality/hosted/CIFLOW/admin-tag verification
+and the skill's unsupported ledger-format validator remain deferred to the
+lead; no required gate was weakened. See `docs/certification/relfast.md`,
+`relfast3-drills.json` and `relfast3-shell-equivalence.json` beside it.
+
+**RELFAST2 bounded-lane deferral (2026-10-04).** The hard 60-minute brief
+requires scoped eslint/Prettier, owning release tests, available actionlint and
+hook-on commit. All 19 carried controls plus 17 new controls are proved locally.
+Fresh common.md aggregate typecheck, dead-code, duplication, localization,
+host-API and production-build runs are deferred to the lead: this change touches
+release tooling/workflows and owning tests, with no production bundle changes.
+This is a deferral, not current aggregate-green evidence; full quality, hosted
+reuse/recovery/fallback and CIFLOW integration remain required. Evidence:
+`docs/certification/relfast.md` and `docs/certification/relfast2-drills.json`.
+
+**CIFLOW — tiered CI and merge queue (owner request, 2026-10-04).** The owner
+said it took "like 4 40 minute checks just to get a release cut": the full
+three-OS gate ran on each PR push, again after each refresh from `main`, and
+again in the release. He approved a GitHub merge queue plus tiered CI. PRs
+run a fast Ubuntu tier: the static gates, the production build, every
+unit/e2e test, gitleaks and semgrep, in about 12 minutes or less. The merge
+group runs the full tier once, on the commit that becomes `main`, in an
+estimated 10–15 minutes; Windows quality alone took 38m23s in run 37211362498. The full tier runs:
+
+- the static gates on all three OSes;
+- four coverage shards per OS, merged before the unchanged 90/85/90/90
+  thresholds apply;
+- the a11y harness once, on Ubuntu;
+- integration on Linux and Windows;
+- the macOS helper and the universal packages.
+
+An aggregate job produces the seven required names on both tiers. Lead
+review found and fixed two defects:
+
+- **gitleaks on `merge_group`.** The gitleaks action exits 1 on that event,
+  so every queue entry would have failed. The queue now runs the pinned,
+  checksum-checked CLI over the history that lands.
+- **No interlock.** Nothing stopped PRs taking the fast tier with no queue
+  behind it, so they would have merged with no full gate. PRs now get the
+  fast tier only after the maintainer sets `CI_MERGE_QUEUE=on`, once the
+  ruleset has the queue.
+
+Blocker for the owner: GitHub's documentation offers merge queues only in
+organization-owned repositories, and this one is user-owned. Until that is
+settled, PRs keep the full tier and no check is weaker than before. Record:
+`docs/certification/ciflow.md`.
 
 **MG69 merged-source proof (2026-10-02).** Kubuntu passes 49 owning/merged
 files (2,056 tests; two existing Windows-only cases platform-skipped), all

@@ -420,6 +420,7 @@
   "webFetchProxyRefused": "프록시나 중간의 다른 컴퓨터가 {address}({host})에 안전하게 연결하는 대신 {status}(으)로 응답했습니다. 아무것도 읽지 않았습니다.",
   "webFetchUnreachable": "{address}에서 {host}에 연결할 수 없습니다. ({detail})",
   "webFetchNetwork": "요청이 실패했습니다: {detail}",
+  "webFetchUnavailable": "페이지 가져오기를 불러오지 못해 아무것도 가져오지 않았습니다. 확장을 다시 설치하고 창을 다시 로드하세요. 자세한 내용은 로그에 있습니다.",
   "webFetchMoved": "페이지가 다른 호스트의 {location}(으)로 리디렉션되었습니다. Muse는 다시 묻는 새 호출로 가져올 수 있습니다.",
   "webFetchRestrictedMode": "제한 모드에서는 페이지 가져오기가 꺼져 있습니다. 사용하려면 작업 영역을 신뢰하세요.",
   "packRecalled": "패킹된 출력 {id}에서 문자 {start}~{end}(전체 {total}자)를 다시 불러왔습니다",

@@ -440,6 +440,7 @@
   "webFetchProxyRefused": "Un proxy u otro equipo intermedio respondió {status} en lugar de conectarse de forma segura a {address} ({host}). No se leyó nada.",
   "webFetchUnreachable": "No se pudo llegar a {host} en {address}. ({detail})",
   "webFetchNetwork": "La solicitud falló: {detail}",
+  "webFetchUnavailable": "No se pudo cargar la obtención de páginas, así que no se obtuvo nada; reinstale la extensión y vuelva a cargar la ventana. El registro tiene los detalles.",
   "webFetchMoved": "La página redirigió a {location}, en otro host. Muse puede obtenerla con una nueva llamada, que vuelve a preguntar.",
   "webFetchRestrictedMode": "La obtención de páginas está desactivada en el modo restringido. Confíe en el área de trabajo para usarla.",
   "packRecalled": "Recuperados los caracteres {start} a {end} de {total} de la salida empaquetada {id}",

@@ -24,7 +24,7 @@ import {
   writeFileAtomically,
   writeFileIfUnchanged,
 } from '../../src/host/fsAtomic'
-import { MODEL_TEXT } from '../../src/shared/constants'
+import { FILE_REFUSAL_MODEL_TEXT } from '../../src/shared/constants'
 import { fingerprint } from '../../src/core/verify/fingerprint'
 import * as identity from '../../src/core/fs/fileIdentity'
 import { ATOMIC_TEMPORARY_SUFFIX } from '../../src/shared/constants'
@@ -350,7 +350,7 @@ describe('deleteFileIfUnchanged', () => {
     const remove = vi.fn((file: string) => rm(file))
     await expect(
       deleteFileIfUnchanged(target, fingerprint('same'), { expectedCanonicalPath: target, remove }),
-    ).rejects.toThrow(MODEL_TEXT.pathChangedAfterApproval)
+    ).rejects.toThrow(FILE_REFUSAL_MODEL_TEXT.pathChangedAfterApproval)
     expect(remove).not.toHaveBeenCalled()
     await expect(readFile(path.join(elsewhere, 'made.txt'), 'utf8')).resolves.toBe('same')
   })
