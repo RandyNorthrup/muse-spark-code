@@ -38,6 +38,21 @@ const scout: AgentDefinition = {
 }
 
 describe('instructionsFor', () => {
+  it('names the selected BYO model/provider while retaining the exact Meta identity', () => {
+    const facts = { ...base, hasShell: true, context: noContext }
+    const meta = instructionsFor(facts)
+    expect(
+      instructionsFor({ ...facts, identity: { provider: 'meta', model: 'muse-spark-1.3' } }),
+    ).toBe(meta)
+    const byo = instructionsFor({
+      ...facts,
+      identity: { provider: 'openai', model: 'openai/gpt-5.6' },
+    })
+    expect(byo).toContain('You are openai/gpt-5.6, served by openai,')
+    expect(byo).toContain('Muse Spark Code (Unofficial)')
+    expect(byo.slice(byo.indexOf('\n\n'))).toBe(meta.slice(meta.indexOf('\n\n')))
+  })
+
   it('describes the tools and the shell in a trusted workspace without context', () => {
     const text = instructionsFor({ ...base, hasShell: true, context: noContext })
     expect(text).toContain('The workspace root is /ws on linux.')

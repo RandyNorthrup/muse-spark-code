@@ -2524,6 +2524,11 @@ export const EN = {
     newBadge: 'New',
   },
   // How a model without a dollar price is marked.
+  modelToolCallingUnavailable: 'Tool calling has not been verified for this model.',
+  paidProviderPrice:
+    'Per million tokens: input {input}, cache read {cached}, cache write {write}, one-hour write {write1h}, output {output}. Per request {request}; per image {image}.',
+  paidProviderPriceTier:
+    'From {threshold} input tokens: input {input}, output {output} per million.',
   modelUnpriced: 'unpriced',
   modelLocal: 'local',
   modelPlan: 'plan',

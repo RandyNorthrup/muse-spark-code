@@ -2165,5 +2165,8 @@
   "usagePageTitle": "用量與費用",
   "paletteUsagePage": "追蹤各編輯器中的費用、權杖和限額。",
   "openUsagePage": "開啟用量頁面",
-  "acpUsageDescription": "顯示各模型的用量與費用，或開啟用量頁面。"
+  "acpUsageDescription": "顯示各模型的用量與費用，或開啟用量頁面。",
+  "paidProviderPrice": "每百萬詞元：輸入 {input}、快取讀取 {cached}、快取寫入 {write}、一小時寫入 {write1h}、輸出 {output}。每次請求 {request}；每張圖片 {image}。",
+  "paidProviderPriceTier": "輸入達到 {threshold} 個詞元後：每百萬詞元輸入 {input}、輸出 {output}。",
+  "modelToolCallingUnavailable": "此模型的工具呼叫尚未驗證。"
 }

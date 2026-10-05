@@ -11,6 +11,7 @@ import { ModelApiClient } from '../../core/backends/modelapi/client'
 import { loadHookDefinitions } from '../../core/backends/modelapi/hooks'
 import { McpServerPool } from '../../core/backends/modelapi/mcp/pool'
 import { ModelApiHost } from '../../core/backends/modelapi/ModelApiHost'
+import { UI_TEXT } from '../../shared/constants'
 import { setUiText } from '../../shared/l10n/text'
 import type { ModelApiBundleDeps } from './modelApiBundle'
 
@@ -18,9 +19,33 @@ import type { ModelApiBundleDeps } from './modelApiBundle'
 export async function createModelApiHost(deps: ModelApiBundleDeps): Promise<ModelApiHost> {
   setUiText(deps.uiText, deps.uiLocale)
   const { host: hostDeps, hookSettingsPath } = deps
+  let providers: ReturnType<NonNullable<typeof deps.createProviders>> | undefined
+  const resolveProviders = async () => {
+    if (deps.createProviders === undefined) throw new Error(UI_TEXT.modelsPanelUnavailable)
+    providers ??= deps.createProviders()
+    try {
+      return await providers
+    } catch (error: unknown) {
+      providers = undefined
+      throw error
+    }
+  }
   const host = new ModelApiHost({
     ...hostDeps,
     client: new ModelApiClient(deps.client),
+    ...(deps.createProviders !== undefined && {
+      models: {
+        resolve: async (ref: string) => {
+          const registry = await resolveProviders()
+          return await registry.resolve(ref)
+        },
+        list: async () => {
+          const { list } = await resolveProviders()
+          if (list === undefined) throw new Error(UI_TEXT.modelsPanelUnavailable)
+          return await list()
+        },
+      },
+    }),
     mcpServers: await deps.createMcpServers?.((poolDeps) => new McpServerPool(poolDeps)),
     loadHooks: async () =>
       hookSettingsPath !== undefined && hostDeps.isHooksEnabled?.() === true

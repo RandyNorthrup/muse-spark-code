@@ -599,6 +599,22 @@ describe('refusals', () => {
     )
   })
 
+  it('retains qualified BYO model references when importing an agent', async () => {
+    const setup = input({
+      files: {
+        [`${HOME}/.claude/agents/scout.md`]: agentFile(
+          'scout',
+          'Review.',
+          'model: team/author/model\n',
+        ),
+      },
+    })
+    const scan = await scanAgentImports(setup)
+    const plan = await planImportApply(scan.candidates, DESTINATIONS, planState(setup.io))
+    expect(plan.writes).toHaveLength(1)
+    expect(plan.writes[0]?.content).toContain('model: team/author/model')
+  })
+
   it.each([
     'tools: Read, Grep\n',
     'tools: \n  - read_file\n',
@@ -606,6 +622,9 @@ describe('refusals', () => {
     'disallowedTools: bash\n',
     'permissionMode: plan\n',
     'model: sonnet\n',
+    'model: meta/model\n',
+    'model: bad_provider/model\n',
+    'model: provider/\n',
     'Model: muse-spark-1.3\n',
     'Permission-mode: plan\n',
     'description: |\n  Multiline description\n',

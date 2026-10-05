@@ -2247,5 +2247,8 @@
   "usagePageTitle": "Használat és költség",
   "paletteUsagePage": "Költségek, tokenek és korlátok követése minden szerkesztőben.",
   "openUsagePage": "Használati oldal megnyitása",
-  "acpUsageDescription": "Az összes modell használatának és költségének megjelenítése, vagy a használati oldal megnyitása."
+  "acpUsageDescription": "Az összes modell használatának és költségének megjelenítése, vagy a használati oldal megnyitása.",
+  "paidProviderPrice": "Millió tokenenként: bemenet {input}, gyorsítótár-olvasás {cached}, gyorsítótár-írás {write}, egyórás írás {write1h}, kimenet {output}. Kérésenként {request}; képenként {image}.",
+  "paidProviderPriceTier": "{threshold} bemeneti tokentől: bemenet {input}, kimenet {output} milliónként.",
+  "modelToolCallingUnavailable": "Az eszközhívás nincs ellenőrizve ennél a modellnél."
 }

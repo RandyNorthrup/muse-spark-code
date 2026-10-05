@@ -160,6 +160,9 @@ export interface RetryBudget {
 
 /** In-memory identity of an explicitly confirmed scheduled Model API run. */
 export interface ConfirmedModelRequest {
+  readonly providerId?: string | undefined
+  readonly origin?: string | undefined
+
   readonly modelId: string
   readonly keyDigest: string
   /** The paid gate and session model must still match before every HTTP try. */
