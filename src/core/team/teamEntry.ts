@@ -9,12 +9,7 @@ import {
   singleModelAgainRefusal,
   teamRunnerMissing,
 } from './teamTools'
-import {
-  buildStableRosterSection,
-  buildRosterLive,
-  formatStateChangeNote,
-  formatTeamEditNote,
-} from './roster'
+import { buildStableRosterSection, buildRosterLive, formatStateChangeNote } from './roster'
 import { setUiText } from '../../shared/l10n/text'
 import type { UiText } from '../../shared/l10n/en'
 
@@ -32,6 +27,5 @@ export function createTeamRuntime(table: UiText, locale: string) {
     buildStableRosterSection,
     buildRosterLive,
     formatStateChangeNote,
-    formatTeamEditNote,
   }
 }

@@ -1768,7 +1768,7 @@ export class ModelApiSession implements AgentSession {
 
   /**
    * M96 lane T: the roster's stable part as the first request sent it, never
-   * rewritten; a team edit reaches the model only as a tail note.
+   * rewritten; a team edit reaches the model only as structured tool data.
    */
   private teamRosterStable: string | undefined
   /** The contributor-tier models the user said yes to for an agent's run, in this session (M76). */
@@ -1902,7 +1902,7 @@ export class ModelApiSession implements AgentSession {
     approvalMode: ApprovalMode,
     private readonly deps: ModelApiHostDeps,
     private readonly onChanged: () => void,
-    private readonly onPersisted: (kind?: 'budget' | 'refund') => Promise<void>,
+    private readonly onPersisted: (kind?: 'budget' | 'refund' | 'team') => Promise<void>,
     private readonly onDispose: () => void,
     private readonly isHostClosing: () => boolean,
     private readonly isSubagent = false,
@@ -1968,7 +1968,9 @@ export class ModelApiSession implements AgentSession {
     this.teamRuntimeLoading ??= (async () => {
       const entry = await import('../../team/teamEntry.js')
       this.teamRuntime = entry.createTeamRuntime(UI_TEXT, uiLocale())
-      this.teamCommands = new this.teamRuntime.TeamCommandRegistry()
+      this.teamCommands = new this.teamRuntime.TeamCommandRegistry(async () => {
+        if (this.deps.store !== undefined) await this.onPersisted('team')
+      })
       this.teamCommands.restore(this.storedTeamCommands)
     })()
     await this.teamRuntimeLoading
@@ -5768,15 +5770,27 @@ export class ModelApiSession implements AgentSession {
     if (this.isSubagent || this.deps.isTeamInPlaceActive?.() !== true) {
       return undefined
     }
-    const refused = new Set([
-      MODEL_API_TOOLS.editFile,
-      MODEL_API_TOOLS.writeFile,
-      CODE_INTEL_TOOLS.renameSymbol,
-      shellToolFor(this.deps.platform).name,
-      'merge',
-      VERIFY_TOOLS.runChecks,
-    ])
-    if (!refused.has(name)) {
+    const capability = classifyTool(name)
+    const external = this.externalTool(name)
+    // Read-only metadata cannot turn a writing name into a read. Unknown
+    // MCP tools have no proved read capability, so they refuse in place.
+    const isWritingName = /^mcp__[^_].*__(?:write|edit|create|delete|move|rename|remove)/i.test(
+      name,
+    )
+    const isExternalWriter =
+      external?.kind === 'mcp'
+        ? !external.ref.isReadOnly
+        : external?.kind === 'ide' && external.tool.annotations?.['readOnlyHint'] !== true
+    const isUnknownMcp = external === undefined && name.startsWith('mcp__')
+    if (
+      !isExternalWriter &&
+      !isWritingName &&
+      !isUnknownMcp &&
+      capability !== 'edit' &&
+      capability !== 'shell' &&
+      name !== 'merge' &&
+      name !== VERIFY_TOOLS.runChecks
+    ) {
       return undefined
     }
     return {
@@ -5898,13 +5912,14 @@ export class ModelApiSession implements AgentSession {
     if (dryRun === true) return await runner.preview(parsed.data, context)
     const commands = this.teamCommands
     if (commands === undefined) throw new Error('team commands were not prepared')
-    return await commands.run(commandId, tasks, () =>
-      runner.delegate(parsed.data, {
+    return await commands.run(commandId, tasks, () => {
+      signal.throwIfAborted()
+      return runner.delegate(parsed.data, {
         sessionId: this.sessionId,
         approvalMode: this.approvalMode,
         signal,
-      }),
-    )
+      })
+    })
   }
 
   private async perform(
@@ -5928,7 +5943,8 @@ export class ModelApiSession implements AgentSession {
     // runner lanes A/W/I supply.
     const teamTool = TEAM_TOOL_NAMES.find((tool) => tool === call.name)
     if (teamTool !== undefined) {
-      return { outcome: await this.runTeamTool(teamTool, call, signal) }
+      const outcome = await this.runTeamTool(teamTool, call, signal)
+      return { outcome: this.teamEventsOutcome(teamTool, outcome) }
     }
     const external = this.externalTool(call.name)
     if (external !== undefined) {
@@ -6018,6 +6034,8 @@ export class ModelApiSession implements AgentSession {
     isCurrent: () => boolean,
   ): NonNullable<EditFormatter['assertCanWrite']> {
     return (target) => {
+      const inPlace = this.inPlaceRefusalFor(call.name)
+      if (inPlace !== undefined) throw new CodeIntelRefusal(inPlace.output, inPlace.visibleOutput)
       if (
         !isCurrent() ||
         this.deps.io.hasUnsavedChanges(target.absolute) ||
@@ -7179,6 +7197,9 @@ export class ModelApiSession implements AgentSession {
         seen: this.seenFiles,
         signal,
         beforeAccess: (file) => {
+          const inPlace = this.inPlaceRefusalFor(call.name)
+          if (inPlace !== undefined)
+            throw new CodeIntelRefusal(inPlace.output, inPlace.visibleOutput)
           if (
             this.isDisposed ||
             this.isHostClosing() ||
@@ -7235,7 +7256,9 @@ export class ModelApiSession implements AgentSession {
     if (inPlace !== undefined) {
       return { outcome: inPlace, isRejected: true }
     }
-    const isAllowed = this.verificationAdmission(signal)
+    const current = this.verificationAdmission(signal)
+    const isAllowed: CallAdmission = (detached) =>
+      current(detached) && this.inPlaceRefusalFor(call.name) === undefined
     const external = this.externalTool(call.name)
     if (external !== undefined && this.isSideChat) {
       return {
@@ -8145,7 +8168,9 @@ export class ModelApiSession implements AgentSession {
     const wasTrusted = this.deps.isWorkspaceTrusted()
     // Filtering denied files out of lookup must not authorize checks over the revoked edit.
     const isAllowed: CallAdmission = (canRunDetached) =>
-      admission(canRunDetached) && this.verificationAllowed(edited, undefined, wasTrusted)
+      admission(canRunDetached) &&
+      this.inPlaceRefusalFor(VERIFY_TOOLS.runChecks) === undefined &&
+      this.verificationAllowed(edited, undefined, wasTrusted)
     const { verify } = this.deps
     const { signal } = turn.abort
     if (verify === undefined || isAbortRequested(signal)) {
@@ -8358,14 +8383,14 @@ export class ModelApiSession implements AgentSession {
     })
   }
 
-  private appendTeamNotes(turnId: string): void {
-    if (this.teamModeForRequest() !== 'team' || this.isReviewing()) return
+  private teamEventsOutcome(name: TeamToolName, outcome: ToolOutcome): ToolOutcome {
+    if (this.isSubagent || this.isReviewing() || this.teamModeForRequest() !== 'team')
+      return outcome
+    if (!['roster', 'delegate', 'collect'].includes(name)) return outcome
     const changes = this.deps.takeTeamChanges?.(this.sessionId)
-    if (changes === undefined) return
-    const state = this.team.formatStateChangeNote(changes.states)
-    const edits = this.team.formatTeamEditNote(changes.edits)
-    const text = [state, edits].filter((part) => part !== undefined).join(' ')
-    if (text.length > 0) this.replay.push({ turnId, item: noteItem(text) })
+    if (changes === undefined) return outcome
+    const events = this.team.formatStateChangeNote(changes.states, changes.edits)
+    return events === undefined ? outcome : { ...outcome, output: `${outcome.output}\n${events}` }
   }
 
   private async loop(turn: ActiveTurn): Promise<void> {
@@ -8383,7 +8408,6 @@ export class ModelApiSession implements AgentSession {
       }
       this.drainSteered(turn)
       this.drainGoalWake(turn)
-      this.appendTeamNotes(turn.turnId)
       const wasBudgetLimited = this.goal?.status === GOAL_STATUS.budgetLimited
       let streamed: StreamedCall
       try {
@@ -10496,6 +10520,25 @@ export class ModelApiHost implements AgentHost {
       : this.queueSave(snapshot, store, false))
   }
 
+  /** Persist retry claims without putting an unanswered call in replay. */
+  private persistTeamCommands(session: ModelApiSession): Promise<void> {
+    const { store } = this.deps
+    if (store === undefined) return Promise.resolve()
+    const snapshot = this.ownedSnapshot(session.snapshot())
+    const last = this.lastSaved.get(snapshot.sessionId)
+    if (last === undefined) return Promise.reject(new Error(UI_TEXT.historyUnavailable))
+    return this.queueSave(
+      {
+        ...last,
+        ...(snapshot.teamMode !== undefined && { teamMode: snapshot.teamMode }),
+        ...(snapshot.teamRoster !== undefined && { teamRoster: snapshot.teamRoster }),
+        ...(snapshot.teamCommands !== undefined && { teamCommands: snapshot.teamCommands }),
+      },
+      store,
+      false,
+    )
+  }
+
   /** A schedule create needs proof its owning session was saved before success. */
   private persistStrict(session: ModelApiSession): Promise<void> {
     const { store } = this.deps
@@ -10527,10 +10570,11 @@ export class ModelApiHost implements AgentHost {
         void this.persist(session)
         this.announce(session)
       },
-      (kind) =>
-        kind === 'budget' || kind === 'refund'
-          ? this.persistBudgetReservation(session, kind === 'refund')
-          : this.persistStrict(session),
+      (kind) => {
+        if (kind === 'budget' || kind === 'refund')
+          return this.persistBudgetReservation(session, kind === 'refund')
+        return kind === 'team' ? this.persistTeamCommands(session) : this.persistStrict(session)
+      },
       () => {
         this.sessions.delete(sessionId)
         this.lastSaved.delete(sessionId)

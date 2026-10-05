@@ -52,6 +52,7 @@ export function teamHostHarness(
     isTeamInPlaceActive?: () => boolean
     takeTeamChanges?: ModelApiHostDeps['takeTeamChanges']
     store?: ReturnType<typeof memorySessionStore>
+    mcpServers?: ModelApiHostDeps['mcpServers']
   } = {},
 ): TeamHostHarness {
   const api = fakeModelApi()
@@ -97,6 +98,7 @@ export function teamHostHarness(
     confirmContributorModel: () => Promise.resolve(false),
     getAccountId: () => Promise.resolve(FAKE_MODEL_API_ACCOUNT_ID),
     ...(options.store !== undefined && { store: options.store }),
+    ...(options.mcpServers !== undefined && { mcpServers: options.mcpServers }),
     describeEnvironment: () => Promise.resolve({ git: undefined }),
     isPaidFeatureOn: (feature) => options.paid?.includes(feature) === true,
     notePaidUse: () => undefined,

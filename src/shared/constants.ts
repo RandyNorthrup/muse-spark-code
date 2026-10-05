@@ -4258,6 +4258,15 @@ export const TEAM_MIN_REQUEST_TOKENS = 2048
 // characters, and small text files are inlined up to this many bytes, under
 // M54's private-path and protected-path checks.
 export const TEAM_BRIEF_MAX_CHARS = 8000
+
+/** Dispatch argument bounds shared by declarations and validators. */
+export const TEAM_IDENTIFIER_MAX_CHARS = 256
+export const TEAM_REASON_MAX_CHARS = 2000
+export const TEAM_PLAN_ITEM_MAX_CHARS = 8000
+export const TEAM_PATH_MAX_CHARS = 4096
+export const TEAM_FILES_MAX = 128
+export const TEAM_PLAN_ITEMS_MAX = 64
+export const TEAM_TASK_IDS_MAX = 256
 export const TEAM_BRIEF_FILES_MAX_BYTES = 65_536
 // `collect` pages a large `report`, `diff` or `transcript` part this many
 // characters at a time (D75).
@@ -4372,6 +4381,8 @@ export const TEAM_BOOTSTRAP_MODEL_TEXT = {
 // no branch, folder, task id or date, so every task of one role and entry
 // starts with the same bytes.
 export const TEAM_MODEL_TEXT = {
+  toolUncertainDelegation:
+    'Error: command_id has an uncertain delegation outcome; inspect its tasks before issuing a new command_id.',
   // Captured lane-T declarations and roster bytes, shared by both backends.
   toolTheRoleToRunEG: 'The role to run, e.g. engineering',
   toolTheWholeTaskForAWorker:

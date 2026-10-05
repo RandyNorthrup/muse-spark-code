@@ -27,6 +27,8 @@ import {
   clampCollectWait,
   delegateArgs,
   TeamCommandRegistry,
+  teamCommandRecordsSchema,
+  type TeamCommandStore,
 } from '../../core/team/teamTools'
 import { TEAM_MCP_TOKEN_BYTES } from '../../core/team/teamConstants'
 import {
@@ -42,6 +44,8 @@ export type TeamMcpEndpoint = SessionMcpHttpServer
 
 /** Where a conversation's team tool calls run (lanes A/W/I own the runner). */
 export interface TeamSessionBinding {
+  /** Conversation-owned storage: rebinding and server reload use the same record. */
+  readonly commandRecords?: TeamCommandStore
   /**
    * Answer one team tool call for this conversation; throw to report a tool
    * error. `signal` aborts when the caller stops waiting for it.
@@ -93,6 +97,8 @@ export class TeamMcpServer {
   private url: string | undefined
   /** A start in flight: concurrent callers share it instead of opening two ports. */
   private starting: Promise<string> | undefined
+  private startingAbort: AbortController | undefined
+  private lifetime = 0
   /** Tokens by value, each bound to exactly one conversation's binding. */
   private readonly bindings = new Map<string, TeamSessionBinding>()
   private readonly endpoints = new Map<TeamSessionBinding, TeamMcpEndpoint>()
@@ -151,10 +157,12 @@ export class TeamMcpServer {
         if (delegation.dry_run === true) return await binding.run(tool.name, delegation, signal)
         const commands = this.commands.get(binding)
         if (commands === undefined) throw new Error('Conversation is no longer available')
-        const result = await commands.run(delegation.command_id, delegation.tasks, async () => ({
-          output: await binding.run(tool.name, delegation, signal),
-          visibleOutput: '',
-        }))
+        if (delegation.command_id !== undefined && binding.commandRecords === undefined)
+          throw new Error('Durable conversation retry storage is unavailable')
+        const result = await commands.run(delegation.command_id, delegation.tasks, async () => {
+          signal.throwIfAborted()
+          return { output: await binding.run(tool.name, delegation, signal), visibleOutput: '' }
+        })
         return result.output
       },
     }))
@@ -241,22 +249,27 @@ export class TeamMcpServer {
   }
 
   /** `listen`, forgetting the shared start once it settles. */
-  private async listenOnce(): Promise<string> {
+  private async listenOnce(controller: AbortController): Promise<string> {
     try {
-      return await this.listen()
+      return await this.listen(controller.signal)
     } finally {
-      this.starting = undefined
+      // A cancelled start must never clear a later restart's shared promise.
+      if (this.startingAbort === controller) {
+        this.starting = undefined
+        this.startingAbort = undefined
+      }
     }
   }
 
-  private async listen(): Promise<string> {
+  private async listen(signal: AbortSignal): Promise<string> {
     const server = createServer((request, response) => {
       void this.respond(request, response)
     })
     this.server = server
-    const listening = once(server, 'listening')
-    server.listen(0, IDE_MCP_LOOPBACK_HOST)
+    const listening = once(server, 'listening', { signal })
+    server.listen({ port: 0, host: IDE_MCP_LOOPBACK_HOST, signal })
     await listening
+    signal.throwIfAborted()
     // Errors after the listen (a socket fault) are logged, never thrown at the host.
     server.on('error', (error) => {
       this.log.error(`Team tool server error: ${error.message}`)
@@ -275,7 +288,11 @@ export class TeamMcpServer {
     if (this.url !== undefined) {
       return this.url
     }
-    this.starting ??= this.listenOnce()
+    if (this.starting === undefined) {
+      const controller = new AbortController()
+      this.startingAbort = controller
+      this.starting = this.listenOnce(controller)
+    }
     return await this.starting
   }
 
@@ -285,14 +302,21 @@ export class TeamMcpServer {
    * set unchanged.
    */
   public async endpointForConversation(binding: TeamSessionBinding): Promise<TeamMcpEndpoint> {
+    const lifetime = this.lifetime
     const url = await this.start()
+    if (this.lifetime !== lifetime) throw new Error('Team tool server closed during startup')
     const existing = this.endpoints.get(binding)
     if (existing !== undefined) return existing
+    const commands = new TeamCommandRegistry(binding.commandRecords?.save)
+    if (binding.commandRecords !== undefined) {
+      const saved = binding.commandRecords.load()
+      if (saved !== undefined) commands.restore(teamCommandRecordsSchema.parse(saved))
+    }
     const token = randomBytes(TEAM_MCP_TOKEN_BYTES).toString('hex')
     this.bindings.set(token, binding)
     const endpoint = { url, headers: { Authorization: `${BEARER_PREFIX}${token}` } }
     this.endpoints.set(binding, endpoint)
-    this.commands.set(binding, new TeamCommandRegistry())
+    this.commands.set(binding, commands)
     return endpoint
   }
 
@@ -316,6 +340,10 @@ export class TeamMcpServer {
   }
 
   public close(): void {
+    this.lifetime += 1
+    this.startingAbort?.abort()
+    this.startingAbort = undefined
+    this.starting = undefined
     for (const key of this.inFlight.keys()) this.cancel(key)
     this.server?.closeAllConnections()
     this.server?.close()

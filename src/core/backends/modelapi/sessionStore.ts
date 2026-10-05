@@ -345,7 +345,14 @@ export const storedSessionSchema = z.object({
   teamMode: z.optional(z.enum(['single-model', 'team'])),
   teamRoster: z.optional(z.string()),
   teamCommands: z.optional(
-    z.record(z.string(), z.object({ tasksFingerprint: z.string(), answer: z.string() })),
+    z.record(
+      z.string(),
+      z.object({
+        tasksFingerprint: z.string(),
+        answer: z.string(),
+        state: z.optional(z.literal('uncertain')),
+      }),
+    ),
   ),
 })
 

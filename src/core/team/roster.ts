@@ -10,8 +10,8 @@ import { fill } from '../../shared/l10n/text'
 //   request and is never rewritten: it holds nothing that varies by task.
 // - The live part (headroom, states, queue, unmerged tasks, budget left)
 //   rides only in `roster`/`delegate`/`collect` answers and in a one-line
-//   state-change note at the tail of the next request.
-// - A team edit mid-conversation reaches the model only as a tail note.
+//   structured state-change event in the next team tool answer.
+// - A team edit mid-conversation reaches the model only as structured tool data.
 //
 
 import type { TeamRosterLive, TeamStableRole, TeamStableEntry } from './teamSeams'
@@ -99,31 +99,12 @@ export interface TeamStateChange {
   readonly to: string
 }
 
-/**
- * The one-line note at the tail of the orchestrator's next request, sent
- * only when an entry changes state (ready to capped, rate-limited, at its
- * usage limit, or reset). Plain consumption numbers wait for the next tool
- * answer, so the history does not grow on every request. Undefined when
- * nothing changed.
- */
-export function formatStateChangeNote(changes: readonly TeamStateChange[]): string | undefined {
-  if (changes.length === 0) {
-    return undefined
-  }
-  const parts = changes.map((change) =>
-    fill(TEAM_MODEL_TEXT.rosterTo, {
-      value1: change.roleId,
-      value2: change.entryId,
-      value3: change.from,
-      value4: change.to,
-    }),
-  )
-  return fill(TEAM_MODEL_TEXT.rosterTeam2, { value1: parts.join('; ') })
-}
-
-/** Team edits reach an existing conversation only as a tail note. */
-export function formatTeamEditNote(edits: readonly string[]): string | undefined {
-  return edits.length === 0
+/** State and edit events are JSON data in tool answers, never user messages. */
+export function formatStateChangeNote(
+  changes: readonly TeamStateChange[],
+  edits: readonly string[] = [],
+): string | undefined {
+  return changes.length === 0 && edits.length === 0
     ? undefined
-    : fill(TEAM_MODEL_TEXT.rosterTeamChanged, { value1: edits.join('; ') })
+    : JSON.stringify({ type: 'team_events', states: changes, edits })
 }
