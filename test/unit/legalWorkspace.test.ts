@@ -58,6 +58,17 @@ afterEach(() => {
 })
 
 describe('legal workspace admission', () => {
+  it('F2 hashes exact admitted bytes including the UTF-8 BOM', () => {
+    const root = fixture()
+    const bytes = Buffer.from([0xef, 0xbb, 0xbf, ...Buffer.from('MIT License\n')])
+    fs.writeFileSync(path.join(root, 'LICENSE'), bytes)
+    const result = scanLegal(createLegalSnapshot(root), { headerPolicy: 'off' })
+    expect(result.evidenceFiles).toContainEqual({
+      path: 'LICENSE',
+      hash: createHash('sha256').update(bytes).digest('hex'),
+    })
+  })
+
   it('reads only O_RDONLY descriptors and leaves paths, types and bytes unchanged', () => {
     const root = fixture()
     const before = tree(root)
@@ -79,14 +90,26 @@ describe('legal workspace admission', () => {
   it('rejects external links, directory links and a leaf replaced after enumeration before reading bytes', () => {
     const root = fixture()
     const outside = fixture()
-    fs.symlinkSync(path.join(outside, 'LICENSE'), path.join(root, 'COPYING'))
-    fs.symlinkSync(outside, path.join(root, 'linked-directory'))
+    fs.symlinkSync(
+      process.platform === 'win32' ? outside : path.join(outside, 'LICENSE'),
+      path.join(root, 'COPYING'),
+      process.platform === 'win32' ? 'junction' : 'file',
+    )
+    fs.symlinkSync(
+      outside,
+      path.join(root, 'linked-directory'),
+      process.platform === 'win32' ? 'junction' : 'dir',
+    )
     const snapshot = createLegalSnapshot(root)
     expect(snapshot.files).not.toContain('COPYING')
     expect(snapshot.files.some((path) => path.startsWith('linked-directory/'))).toBe(false)
     expect(snapshot.incompleteChecks.join(' ')).toContain('link')
     fs.unlinkSync(path.join(root, 'LICENSE'))
-    fs.symlinkSync(path.join(outside, 'LICENSE'), path.join(root, 'LICENSE'))
+    fs.symlinkSync(
+      process.platform === 'win32' ? outside : path.join(outside, 'LICENSE'),
+      path.join(root, 'LICENSE'),
+      process.platform === 'win32' ? 'junction' : 'file',
+    )
     vi.mocked(fs.readSync).mockClear()
     expect(snapshot.readFile('LICENSE')).toBeUndefined()
     expect(fs.readSync).not.toHaveBeenCalled()
@@ -134,7 +157,11 @@ describe('legal workspace admission', () => {
     fs.renameSync(path.join(root, 'nested'), path.join(root, 'old-nested'))
     fs.mkdirSync(path.join(other, 'nested'))
     fs.renameSync(path.join(other, 'nested-license'), path.join(other, 'nested', 'LICENSE'))
-    fs.symlinkSync(path.join(other, 'nested'), path.join(root, 'nested'))
+    fs.symlinkSync(
+      path.join(other, 'nested'),
+      path.join(root, 'nested'),
+      process.platform === 'win32' ? 'junction' : 'dir',
+    )
     vi.mocked(fs.openSync).mockClear()
     expect(snapshot.readFile('nested/LICENSE')).toBeUndefined()
     expect(fs.openSync).not.toHaveBeenCalled()

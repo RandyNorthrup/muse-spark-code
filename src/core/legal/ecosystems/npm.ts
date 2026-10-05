@@ -263,7 +263,7 @@ function readInstalled(snapshot: LegalFileSnapshot): Map<string, InstalledLicens
     if (manifest === undefined) {
       continue
     }
-    installed.set(name, {
+    installed.set(`${name}@${stringField(manifest, 'version') ?? ''}`, {
       version: stringField(manifest, 'version'),
       licenseRaw: licenseFieldOf(manifest),
       file,
@@ -391,8 +391,9 @@ export function readNpm(snapshot: LegalFileSnapshot): EcosystemResult {
   const dependencies: LegalDependency[] = []
   const listed10 = locked.values()
   for (const dep of listed10) {
-    const candidate = installed.get(dep.name)
-    const present = candidate?.version === dep.version ? candidate : undefined
+    const candidate = installed.get(`${dep.name}@${dep.version ?? ''}`)
+    const present =
+      dep.version !== undefined && candidate?.version === dep.version ? candidate : undefined
     if (present !== undefined && dep.licenseRaw === undefined && present.licenseRaw !== undefined) {
       dependencies.push(
         dependency('npm', present.file, dep.name, {
@@ -426,8 +427,10 @@ export function readNpm(snapshot: LegalFileSnapshot): EcosystemResult {
       dependencies.push(manifestDep)
     }
   }
-  for (const [name, present] of installed) {
-    if (!lockedNames.has(name) && dependencies.every((dep) => dep.name !== name)) {
+  for (const present of installed.values()) {
+    const dir = dirNameOf(present.file)
+    const name = dir.slice(dir.lastIndexOf('node_modules/') + 'node_modules/'.length)
+    if (dependencies.every((dep) => dep.name !== name || dep.version !== present.version)) {
       dependencies.push(
         dependency('npm', present.file, name, {
           version: present.version,

@@ -115,6 +115,19 @@ function FindingRow({
         </code>
       </p>
       {locationLine(location, target, range, onOpenFile)}
+      {finding.packageName === undefined ? null : (
+        <p className="legal-meta" dir="auto">
+          <code>
+            {finding.packageName}
+            {finding.packageVersion === undefined ? '' : `@${finding.packageVersion}`}
+          </code>
+        </p>
+      )}
+      {finding.licenseExpression === undefined ? null : (
+        <p className="legal-meta" dir="auto">
+          <code>{finding.licenseExpression}</code>
+        </p>
+      )}
       <p className="legal-text" dir="auto">
         {finding.explanation}
       </p>
@@ -229,6 +242,7 @@ export function LegalReport({
 
   const toggle = (id: string, isChecked: boolean) => {
     setShowsNothingSelected(false)
+    setFlow('select')
     setSelected(isChecked ? [...selected, id] : selected.filter((candidate) => candidate !== id))
   }
   const requestPreview = (findings: readonly LegalFinding[], isProjectLicenseIncluded: boolean) => {
@@ -267,6 +281,9 @@ export function LegalReport({
           </p>
         )}
         <p className="legal-summary">{summary}</p>
+        <p className="legal-meta" dir="auto">
+          {result.scope}
+        </p>
         {result.incompleteChecks.length === 0 ? null : (
           <p className="legal-meta">
             {fill(UI_TEXT.legalScanIncomplete, { checks: result.incompleteChecks.join(', ') })}
@@ -323,6 +340,7 @@ export function LegalReport({
                   checked={separateConfirm}
                   onChange={(event) => {
                     setSeparateConfirm(event.target.checked)
+                    setFlow('select')
                   }}
                 />
                 <label htmlFor="legal-separate-confirm">{UI_TEXT.legalFixSeparateConfirm}</label>
@@ -395,11 +413,17 @@ export function LegalReport({
                     </ul>
                   </>
                 )}
+                {preview.patches?.map((patch) => (
+                  <pre key={patch.path} className="legal-excerpt" dir="auto">
+                    {patch.diff}
+                  </pre>
+                ))}
                 {preview.eligible.length === 0 ? null : (
                   <div className="legal-buttons">
                     <button
                       type="button"
                       className="button-primary"
+                      disabled={flow !== 'preview' || (preview.patches?.length ?? 0) === 0}
                       onClick={() => {
                         setFlow('done')
                         onConfirm(preview.previewId)

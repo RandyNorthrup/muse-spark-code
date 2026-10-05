@@ -66,10 +66,9 @@ const BSD_SOURCE_BINARY = /\bredistribution and use in source and binary forms\b
  */
 export function identifyLicenseText(text: string): LicenseTextMatch | undefined {
   const title = topLines(text).join('\n')
+  const firstTitle = title.split('\n').find((line) => line.trim() !== '') ?? ''
   for (const candidate of TITLE_PATTERNS) {
-    if (candidate.pattern.test(title) || candidate.pattern.test(text)) {
-      return { id: candidate.id, confidence: 1 }
-    }
+    if (candidate.pattern.test(firstTitle)) return { id: candidate.id, confidence: 1 }
   }
   for (const kind of GPL_KIND) {
     if (kind.pattern.test(text)) {
@@ -83,6 +82,10 @@ export function identifyLicenseText(text: string): LicenseTextMatch | undefined 
         ? { id: `${kind.id}-${version}.0${suffix}`, confidence: 1 }
         : { id: kind.id, confidence: 0.6 }
     }
+  }
+  for (const candidate of TITLE_PATTERNS) {
+    if (candidate.pattern.test(title) || candidate.pattern.test(text))
+      return { id: candidate.id, confidence: 0.8 }
   }
   return BSD_SOURCE_BINARY.test(text) ? { id: 'BSD-2-Clause', confidence: 0.8 } : undefined
 }

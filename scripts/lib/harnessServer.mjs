@@ -127,6 +127,7 @@ export const SCENARIOS = [
   'review-comment',
   'legal',
   'legal-narrow',
+  'legal-preview',
 ]
 const CONTENT_TYPES = {
   '.html': 'text/html; charset=utf-8',

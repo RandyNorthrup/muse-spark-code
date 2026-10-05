@@ -12,6 +12,7 @@
 import * as z from 'zod/mini'
 import {
   LEGAL_FINDING_ID_MAX_CHARS,
+  LEGAL_FIX_FILE_READ_MAX_BYTES,
   LEGAL_FINDINGS_MAX,
   LEGAL_FIX_DIGEST_MAX_CHARS,
   LEGAL_FIX_EXCLUSIONS,
@@ -65,6 +66,7 @@ export type LegalFixSnapshot = z.infer<typeof legalFixSnapshotSchema>
  * echoed so the preview's snapshot names the exact scan it guards.
  */
 export const legalFixScanMetaSchema = z.strictObject({
+  scanId: z.optional(idSchema),
   ruleVersion: legalScanResultSchema.shape.ruleVersion,
   dataVersion: legalScanResultSchema.shape.dataVersion,
   scope: legalScanResultSchema.shape.scope,
@@ -72,13 +74,14 @@ export const legalFixScanMetaSchema = z.strictObject({
 
 /**
  * The webview asks the host to preview fixes for exactly these findings:
- * the selected ones, in the report's order, with their full evidence so
- * the host can digest it. `includeProjectLicense` is the user's separate
+ * the selected ids, in the report's order. Browser evidence is never
+ * authoritative; the host looks the ids up in its own scan record. `includeProjectLicense` is the user's separate
  * project-license confirmation (D76); without it those findings stay out
  * of the preview.
  */
 export const requestLegalFixMessageSchema = z.strictObject({
   type: z.literal('requestLegalFix'),
+  requestId: z.optional(idSchema),
   scan: legalFixScanMetaSchema,
   findings: z.array(legalFindingSchema).check(z.maxLength(LEGAL_FINDINGS_MAX)),
   includeProjectLicense: z.boolean(),
@@ -97,8 +100,16 @@ export type LegalFixExcluded = z.infer<typeof legalFixExcludedSchema>
  * confirm may authorize, plus who stays out and why. Nothing is authorized
  * by this message; `confirmLegalFix` still has to pass every recheck.
  */
+export const legalFixPatchSchema = z.strictObject({
+  path: pathSchema,
+  diff: z.string().check(z.minLength(1), z.maxLength(LEGAL_FIX_FILE_READ_MAX_BYTES)),
+})
+export type LegalFixPatch = z.infer<typeof legalFixPatchSchema>
+
 export const legalFixPreviewMessageSchema = z.strictObject({
   type: z.literal('legalFixPreview'),
+  requestId: z.optional(idSchema),
+  patches: z.optional(z.array(legalFixPatchSchema).check(z.maxLength(LEGAL_FINDINGS_MAX))),
   previewId: idSchema,
   /**
    * Present exactly when `refusal` is absent: the guarded baseline the

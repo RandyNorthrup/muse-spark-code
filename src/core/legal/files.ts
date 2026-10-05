@@ -23,6 +23,8 @@ import {
 export interface LegalFileSnapshot {
   readonly incompleteChecks?: readonly string[]
   readonly files: readonly string[]
+  /** Exact admitted bytes, when supplied by the native snapshot. */
+  readonly readFileHash?: (path: string) => string | undefined
   readFile: (path: string) => string | undefined
 }
 

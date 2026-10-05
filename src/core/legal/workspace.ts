@@ -2,6 +2,7 @@
 // file is bound to the exact native identity sampled during enumeration,
 // opened read-only, and checked again before any bytes are read. Runtime
 // and host lanes can share this adapter rather than supply an unsafe reader.
+import { bytesFingerprint } from '../verify/fingerprint'
 import {
   closeSync,
   constants,
@@ -50,6 +51,7 @@ export function createLegalSnapshot(
   const root = realpathSync(rootPath)
   if (!lstatSync(root).isDirectory()) throw new LegalScanError('Legal scan root is not a directory')
   const admitted = new Map<string, BigIntStats>()
+  const hashes = new Map<string, string>()
   const incompleteChecks: string[] = []
   let entriesSeen = 0
   const checkCancellation = (): void => {
@@ -116,6 +118,7 @@ export function createLegalSnapshot(
   return {
     files: Array.from(admitted.keys(), (entry) => entry).toSorted((a, b) => compareLegalText(a, b)),
     incompleteChecks,
+    readFileHash: (local) => hashes.get(local),
     readFile: (local: string): string | undefined => {
       checkCancellation()
       assertWorkspaceRelative(local)
@@ -151,7 +154,10 @@ export function createLegalSnapshot(
         )
           return undefined
         checkCancellation()
-        return new TextDecoder('utf-8', { fatal: true }).decode(bytes.subarray(0, count))
+        const text = new TextDecoder('utf-8', { fatal: true }).decode(bytes.subarray(0, count))
+        const hash = bytesFingerprint(bytes.subarray(0, count))
+        if (hash !== undefined) hashes.set(local, hash)
+        return text
       } catch {
         checkCancellation()
         return undefined

@@ -448,6 +448,30 @@
               })
               break
             }
+            case 'requestLegalFix': {
+              const paths = [
+                ...new Set(
+                  message.findings.flatMap((finding) =>
+                    finding.file === undefined ? [] : [finding.file],
+                  ),
+                ),
+              ]
+              later(50, () =>
+                send({
+                  type: 'legalFixPreview',
+                  requestId: message.requestId,
+                  previewId: 'legal-preview',
+                  eligible: message.findings.map((finding) => finding.id),
+                  excluded: [],
+                  paths,
+                  patches: paths.map((path) => ({
+                    path,
+                    diff: `--- a/${path}\n+++ b/${path}\n@@ -1 +1,2 @@\n+// Copyright 2026 Verified Owner\n source`,
+                  })),
+                }),
+              )
+              break
+            }
             case 'listSkills': {
               later(50, () => send({ type: 'skillList', skills }))
               break
@@ -3331,9 +3355,9 @@
               version: 1,
               ruleVersion: '1',
               dataVersion: '2026-10-04',
-              scope: '',
+              scope: 'src',
               distribution: 'source checkout, undistributed',
-              exclusions: [],
+              exclusions: ['generated/output.ts'],
               incompleteChecks: ['private registry names were not queried'],
               findings: [
                 {
@@ -3379,6 +3403,20 @@
           // a selection with its separate confirmation.
           whenFound('.legal-finding input:not([disabled])', (box) => {
             box.click()
+          })
+        },
+        'legal-preview': () => {
+          steps['legal']()
+          whenFound('.legal-select input:checked', (box) => {
+            box.click()
+            document.getElementById('legal-fix-header/1/1').click()
+            const buttons = [...document.querySelectorAll('.legal-buttons button')]
+            buttons
+              .find(
+                (button) =>
+                  button.textContent === (harnessL10n.table?.legalPreviewFixes ?? 'Preview fixes'),
+              )
+              ?.click()
           })
         },
         'legal-narrow': () => {

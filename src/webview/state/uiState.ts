@@ -324,6 +324,7 @@ export interface UiState {
   /** The legal scan's latest report (M97 lane W), with the request it answers; never saved. */
   readonly legalReport: { readonly requestId: string; readonly result: LegalScanResult } | undefined
   /** The selected-fix preview the report last asked for (M97 lane W); never saved. */
+  readonly legalFixRequestId?: string | undefined
   readonly legalFixPreview: LegalFixPreviewMessage | undefined
   /** What the last confirmed fix batch ended as (M97 lane W); never saved. */
   readonly legalFixResult: LegalFixResultMessage | undefined
@@ -439,6 +440,7 @@ export type UiAction =
   | { readonly type: 'shareClosed' }
   /** The × (or Escape, or the backdrop) on the legal report (M97 lane W). */
   | { readonly type: 'legalReportClosed' }
+  | { readonly type: 'legalFixRequested'; readonly requestId: string }
 
 export const initialUiState: UiState = {
   pendingApprovalResolutions: [],
@@ -2670,7 +2672,9 @@ function applyHostMessage(state: UiState, message: HostToWebviewMessage, at: num
       )
     }
     case 'legalFixPreview': {
-      return { ...state, legalFixPreview: message }
+      return message.requestId !== undefined && message.requestId !== state.legalFixRequestId
+        ? state
+        : { ...state, legalFixPreview: message }
     }
     case 'legalFixResult': {
       return { ...state, legalFixResult: message }
@@ -2890,10 +2894,20 @@ export function uiReducer(state: UiState, action: UiAction): UiState {
     case 'shareClosed': {
       return { ...state, share: undefined }
     }
+    case 'legalFixRequested': {
+      return {
+        ...state,
+        legalFixRequestId: action.requestId,
+        legalFixPreview: undefined,
+        legalFixResult: undefined,
+      }
+    }
     case 'legalReportClosed': {
       return {
         ...state,
         legalReport: undefined,
+        focusRequests: state.focusRequests + 1,
+        legalFixRequestId: undefined,
         legalFixPreview: undefined,
         legalFixResult: undefined,
       }
