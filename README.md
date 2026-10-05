@@ -3455,6 +3455,13 @@ results and what is still open.
 
 ## Development
 
+The additive MHP 1.1.0 panel contract for native and companion adapters is
+[documented here](docs/ide-compatibility/host-api-panel-1.1.md). Its JSON
+Schemas reuse the shared panel payload validators and preserve frozen v1.
+Regenerate with `node scripts/mhp-schema.mjs`; verify both version locks and
+snapshots with `node scripts/mhp-schema.mjs --check`. Runtime and native
+bridge implementation and editor qualification remain in M104's other lanes.
+
 ```bash
 git clone https://github.com/RandyNorthrup/muse-spark-code.git
 cd muse-spark-code

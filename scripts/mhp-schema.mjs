@@ -11,7 +11,7 @@ const root = path.resolve(import.meta.dirname, '..')
 const { outputFiles } = await esbuild.build({
   stdin: {
     contents:
-      "export * as z from 'zod/mini'; export { MHP_METHODS } from './src/shared/hostApi/methods'; export { failureFrameSchema } from './src/shared/hostApi/protocol'; export { MHP_FEATURES, MHP_EDITORS, mhpRegistryProblems } from './src/shared/hostApi/features'; export { MHP_CAPABILITIES, MHP_FALLBACKS, offeredCapabilitiesSchema } from './src/shared/hostApi/capabilities'; export { MHP, MHP_ERROR_CODES } from './src/shared/constants'",
+      "export * as z from 'zod/mini'; export * as panel from './src/shared/hostApi/panel'; export { MHP_METHODS } from './src/shared/hostApi/methods'; export { failureFrameSchema } from './src/shared/hostApi/protocol'; export { MHP_FEATURES, MHP_EDITORS, mhpRegistryProblems } from './src/shared/hostApi/features'; export { MHP_CAPABILITIES, MHP_FALLBACKS, offeredCapabilitiesSchema } from './src/shared/hostApi/capabilities'; export { MHP, MHP_PANEL, MHP_ERROR_CODES } from './src/shared/constants'",
     resolveDir: root,
     loader: 'ts',
     sourcefile: 'mhp-schema-entry.ts',
@@ -35,6 +35,8 @@ const {
   offeredCapabilitiesSchema,
   MHP,
   MHP_ERROR_CODES,
+  MHP_PANEL,
+  panel,
 } = await import(
   `data:text/javascript;base64,${Buffer.from(outputFiles[0].contents).toString('base64')}`
 )
@@ -113,27 +115,97 @@ const contract = {
   editors: MHP_EDITORS,
   features: MHP_FEATURES,
 }
-const file = path.join(root, 'src/shared/hostApi/mhp-v1.schema.json')
 // Feature evidence can advance without changing the wire. The remaining
 // fields lock v1 independently of formatting; this generator never rewrites
 // the lock. A new version gets a new snapshot and an explicitly reviewed lock.
-const { editors: _editors, features: _features, ...wireContract } = contract
-const digest = createHash('sha256').update(JSON.stringify(wireContract)).digest('hex')
-const lock = z
-  .strictObject({
-    protocol: z.literal(MHP.version),
-    sha256: z.string().check(z.regex(/^[a-f0-9]{64}$/u)),
+const panelContract = {
+  ...contract,
+  protocol: MHP_PANEL.version,
+  range: {
+    minimum: MHP_PANEL.minimumVersion,
+    maximumExclusive: MHP_PANEL.maximumVersionExclusive,
+  },
+  conventions: {
+    ...contract.conventions,
+    transport: 'one bounded UTF-8 NDJSON stream multiplexes JSON-RPC and MHP 1.1 envelopes',
+    initialize:
+      'legacy wide v1 offers select 1.0.0; offers bounded through mhp/1.2.0 opt into newest implemented minor; 1.0 receives only v1',
+    panel: 'docs/ide-compatibility/host-api-panel-1.1.md',
+  },
+  methods: {
+    ...methods,
+    initialize: { ...methods.initialize, result: schema(panel.panelInitializeResultSchema) },
+  },
+  panel: {
+    envelope: schema(panel.panelEnvelopeSchema),
+    binding: schema(panel.panelBindingSchema),
+    lifecycle: schema(panel.panelLifecycleSchema),
+    error: schema(panel.panelErrorSchema),
+    stateRequest: schema(panel.panelStateRequestSchema),
+    queueBudget: schema(panel.panelQueueBudgetSchema),
+    limits: {
+      maximumEnvelopeBytes: MHP_PANEL.maximumEnvelopeBytes,
+      maximumQueuedBytes: MHP_PANEL.maximumQueuedBytes,
+      maximumQueuedMessages: MHP_PANEL.maximumQueuedMessages,
+    },
+    invariants: [
+      'Panel frames require negotiated mhp/1.1.0. Validate shared payload and bound surface kind before delivery.',
+      'One immutable session binding per surface; unknown/closed surfaces produce typed errors and no delivery.',
+      'Sequence starts at 1 per surface and direction; reject duplicates and gaps without advancing.',
+      'Reload retains binding and sequence, suspends delivery until ready, then replays stateRequest once.',
+      'Closing drops queued messages; closed.droppedMessages counts them; warn MHP_PANEL_DROPPED when nonzero.',
+      'Cap UTF-8 serialized envelope bytes before JSON parsing, including unknown fields; exclude line terminator.',
+      'Bound aggregate queued bytes/messages; pause on write(false), resume on drain; overflow refuses before enqueue.',
+    ],
+  },
+  embeddedBridge: {
+    global: 'window.museHost',
+    postMessage: { payload: schema(panel.panelToHostPayloadSchema), returns: 'void' },
+    onMessage: { payload: schema(panel.panelToPanelPayloadSchema), returns: 'unsubscribe' },
+    getState: { result: schema(panel.embeddedBridgeStateSchema), absent: 'undefined' },
+    setState: { state: schema(panel.embeddedBridgeStateSchema) },
+    mappings: {
+      jcef: 'JBCefJSQuery; native receiver parses envelopes before dispatch',
+      webView2: 'chrome.webview.postMessage; native WebMessageReceived validates before dispatch',
+      swt: 'BrowserFunction; native receiver validates before dispatch',
+      companion:
+        'POST /panel/message; POST /panel/surface; SSE /panel/events with event:mhp and JSON frame data',
+    },
+  },
+  framing: {
+    calls: 'methods[method].call',
+    results: 'methods[pendingMethod].result; correlate request id before dispatch',
+    failures: 'failure',
+    envelopes: ['panel.envelope', 'panel.lifecycle', 'panel.error'],
+    batches: false,
+    logging: 'stdout is protocol only; stderr carries redacted technical diagnostics',
+  },
+}
+for (const [name, snapshot] of [
+  ['v1', contract],
+  ['v1.1', panelContract],
+]) {
+  const file = path.join(root, `src/shared/hostApi/mhp-${name}.schema.json`)
+  const { editors: _editors, features: _features, ...wireContract } = snapshot
+  const digest = createHash('sha256').update(JSON.stringify(wireContract)).digest('hex')
+  const lock = z
+    .strictObject({
+      protocol: z.literal(snapshot.protocol),
+      sha256: z.string().check(z.regex(/^[a-f0-9]{64}$/u)),
+    })
+    .parse(
+      JSON.parse(
+        await readFile(path.join(root, `src/shared/hostApi/mhp-${name}.lock.json`), 'utf8'),
+      ),
+    )
+  if (lock.sha256 !== digest)
+    throw new Error(`MHP_VERSION_LOCK: ${name} frozen wire contract changed (expected ${digest})`)
+  const bytes = await format(JSON.stringify(snapshot), {
+    ...(await resolveConfig(file)),
+    filepath: file,
   })
-  .parse(JSON.parse(await readFile(path.join(root, 'src/shared/hostApi/mhp-v1.lock.json'), 'utf8')))
-if (lock.sha256 !== digest)
-  throw new Error(
-    'MHP_VERSION_LOCK: change the protocol version before changing the frozen wire contract',
-  )
-const bytes = await format(JSON.stringify(contract), {
-  ...(await resolveConfig(file)),
-  filepath: file,
-})
-if (process.argv.includes('--check')) {
-  if ((await readFile(file, 'utf8')) !== bytes) throw new Error('MHP_SCHEMA_DRIFT')
-} else await writeFile(file, bytes)
+  if (process.argv.includes('--check')) {
+    if ((await readFile(file, 'utf8')) !== bytes) throw new Error(`MHP_SCHEMA_DRIFT: ${name}`)
+  } else await writeFile(file, bytes)
+}
 console.log(process.argv.includes('--check') ? 'MHP schemas match.' : 'MHP schemas written.')

@@ -15414,6 +15414,17 @@ logged.
 
 ### M104 — Every editor, every feature (D84)
 
+**Lane 0 status: MHP 1.1.0 adds the panel carrier (lead decision; E01).**
+The frozen `mhp/1.0.0` editor-service table, errors and snapshot remain
+unchanged. The additive `mhp/1.1.0` contract reuses the shared chat, Tasks
+and What's New payload schemas, binds opaque surfaces to sessions, defines
+ordered bounded delivery and lifecycle notifications, and exports the
+`window.museHost` and multiplexed NDJSON/HTTP/SSE contracts. Its supported
+minor range is `mhp/1.0.0..1.1.x`; panel traffic requires negotiated 1.1.0.
+Lane 0 owns contract/schema tests and red drills only; B owns runtime
+delivery and C/D/native lanes own HTTP/SSE and browser implementations.
+Certification: `docs/certification/m104-0.md`, section "1.1.0".
+
 **M104 is split** because it is large: a foundation and seven parallel
 parts. All of them build against the MHP v1 contract frozen at the end of
 lane A's first step.
@@ -15569,8 +15580,9 @@ lane A's first step.
     With 8–10 lanes in parallel, the critical path is lane A plus one plugin
     (M104b).
 - **Certification checklist** (§6.0, plus):
-  - [ ] Lane 0's contract is frozen and versioned (`mhp/1.0.0`), with a
-        schema snapshot committed.
+  - [x] Lane 0's contract is frozen and versioned (`mhp/1.0.0`), with the
+        additive `mhp/1.1.0` panel carrier (lead decision; E01), both schema
+        snapshots and locks, and certification in `m104-0.md` section 1.1.0.
   - [ ] VS Code is pixel-identical (harness) and every integration test
         passes.
   - [ ] Conformance is green per adapter, with a receipt per editor and

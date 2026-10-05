@@ -270,7 +270,7 @@ const planReplyFields = {
   itemId: z.string().check(z.minLength(1)),
 } as const
 
-const webviewToHostMessageSchema = z.discriminatedUnion('type', [
+export const webviewToHostMessageSchema = z.discriminatedUnion('type', [
   // Sent once when the React app has mounted and is listening for messages.
   z.object({ type: z.literal('ready'), attachmentEpoch: z.optional(z.number()) }),
   // The composer gained or lost keyboard focus; drives the
@@ -603,7 +603,7 @@ const webviewToHostMessageSchema = z.discriminatedUnion('type', [
 
 export type WebviewToHostMessage = z.infer<typeof webviewToHostMessageSchema>
 
-const hostToWebviewMessageSchema = z.discriminatedUnion('type', [
+export const hostToWebviewMessageSchema = z.discriminatedUnion('type', [
   // Reply to `ready`: everything the shell needs to render its first frame.
   z.object({
     type: z.literal('init'),

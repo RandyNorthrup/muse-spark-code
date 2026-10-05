@@ -7,6 +7,14 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+### Added
+
+- MHP 1.1.0 panel carrier contract: validated shared payloads, ordered
+  session-bound surface envelopes and lifecycle, the `window.museHost`
+  API, and multiplexed NDJSON/companion HTTP/SSE framing. Native consumers
+  get a versioned schema export and lock; frozen v1 editor services remain
+  unchanged. Runtime and browser implementations remain pending in M104.
+
 ### Fixed
 
 - **The README's "What's new" section matches the release again.** 0.12.1 and

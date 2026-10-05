@@ -4119,3 +4119,14 @@ export const MHP_ERROR_CODES = {
   cancelled: -32_800,
   permissionDenied: -32_006,
 } as const
+
+// Additive panel contract; the frozen MHP v1 block above stays unchanged.
+export const MHP_PANEL = {
+  version: 'mhp/1.1.0',
+  wireVersion: '1.1',
+  minimumVersion: 'mhp/1.0.0',
+  maximumVersionExclusive: 'mhp/1.2.0',
+  maximumEnvelopeBytes: 16_777_216,
+  maximumQueuedBytes: 33_554_432,
+  maximumQueuedMessages: 128,
+} as const
