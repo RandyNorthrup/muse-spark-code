@@ -1,30 +1,44 @@
 // M91 lane X: the plugin host. Amp and OpenCode plugins run OUT OF PROCESS
 // in a short-lived child under the user's own runtime (pluginChild.ts is the
-// entry; both sides speak one JSON request line on stdin, one JSON answer
-// line on stdout). One child per hook call: a crash or timeout is contained
-// to that call, and nothing survives it. The host guarantees the brief's
-// invariants whatever a plugin does:
-// - an answer can only refuse, narrow or add context: sanitizePluginAnswer
-//   drops every allow grant, even from a compromised child;
-// - a crash, timeout, over-long answer or missing runtime follows the
-//   event's fail-closed rule (failClosed on the call, owned by lane W's
-//   dispatcher): blocked when closed, failed with the reason when open;
-// - the child is killed with the session: PluginSession tracks every live
-//   child and kills the process group (POSIX) or the process (Windows);
+// entry; the host writes one JSON request line on stdin and reads one JSON
+// answer line on stdout). One child per hook call: a crash or timeout is
+// contained to that call, and nothing survives it. The host guarantees the
+// invariants whatever a plugin does (RVM91X fixes in brackets):
+// - an answer can only refuse, narrow or add context: every frame is parsed
+//   by a closed schema [3], and sanitizePluginAnswer drops every allow grant,
+//   even from a compromised child;
+// - a crash, timeout, over-long or invalid answer, missing runtime, or a
+//   failed answer from the shim follows the call's fail-closed rule [6]:
+//   blocked when closed, failed with the reason when open;
+// - the child and everything it starts end together: a `PluginProcessTree`
+//   starts it (a kill-on-close job object on Windows, from the host; a
+//   process group on POSIX) and ends the whole tree on answer, timeout and
+//   session dispose [5]; without a tree on Windows the hook is refused;
+// - the environment is the caller's allowlisted hook environment (M51's,
+//   `hookEnvironment` in the host), for the version probe and the child
+//   alike; never the inherited one, and no credential name in any case [2];
+// - nothing throws outside the call's promise: stdin errors [4], frame
+//   errors and kill errors all settle the call;
+// - a disposed session spawns nothing, rechecked after every await [8];
+// - the answer completes on its response line, then the tree is ended [11];
 // - bounds: PLUGIN_HOOK_TIMEOUT_MS per call, PLUGIN_CHILD_MAX_HEAP_MB heap
-//   for node, PLUGIN_RESPONSE_MAX_BYTES per answer frame.
-// The child inherits a filtered environment: HOOK_FORBIDDEN_ENV_NAMES and
-// any *_API_KEY never reach it (AGENTS.md: secrets never reach a child).
-import { spawn as nodeSpawn, type ChildProcess } from 'node:child_process'
-import { execFile as nodeExecFile } from 'node:child_process'
+//   for node, PLUGIN_RESPONSE_MAX_BYTES UTF-8 bytes per answer frame [14].
+import { Buffer } from 'node:buffer'
+import { type ChildProcess, execFile as nodeExecFile, spawn as nodeSpawn } from 'node:child_process'
+import { statSync } from 'node:fs'
+import path from 'node:path'
 import { promisify } from 'node:util'
+import * as z from 'zod/mini'
 import {
   HOOK_FORBIDDEN_ENV_NAMES,
   PLUGIN_CHILD_MAX_HEAP_MB,
   PLUGIN_HOOK_TIMEOUT_MS,
   PLUGIN_NODE_MINIMUM,
   PLUGIN_RESPONSE_MAX_BYTES,
+  PLUGIN_RUNTIME_PROBE_TIMEOUT_MS,
 } from '../../../shared/constants'
+import { resolveExecutable } from '../../executables'
+import { environmentValue } from '../musecode/launch'
 import type { ForeignHookAnswer } from './hookFormats/contract'
 import { pluginChildSource } from './pluginChild'
 
@@ -38,50 +52,67 @@ export interface PluginCall {
   readonly hook: string
   /** The hook payload, shaped by the dispatcher per the mapping. */
   readonly payload: Readonly<Record<string, unknown>>
-  /** Whether a crash/timeout blocks (the event's fail-closed rule). */
+  /** Whether any failure blocks (the event's fail-closed rule). */
   readonly failClosed: boolean
   readonly timeoutMs?: number | undefined
 }
 
-export interface PluginRunDeps {
-  readonly platform?: NodeJS.Platform | undefined
-  /** `node --version` / `bun --version` output; default runs the binary. */
-  readonly runVersion?: ((command: string) => Promise<string>) | undefined
-  /** Child entry source; default is pluginChildSource(). */
-  readonly childSource?: string | undefined
-  readonly spawn?: PluginSpawn | undefined
-  /** Live children register here so the session kills its stragglers. */
-  readonly ownedBy?: Set<PluginChildHandle> | undefined
-}
-
 export interface PluginSpawnOptions {
+  /** The child's whole environment: already allowlisted by the caller. */
   readonly env: NodeJS.ProcessEnv
-  readonly detached: boolean
+  readonly cwd: string
 }
 
-export interface PluginChildStdin {
-  write(chunk: string): void
-  end(): void
-}
-
-export interface PluginChildEvents {
-  on(event: 'data', listener: (chunk: Buffer) => void): void
-}
-
+/** One running plugin child, as the host drives it. */
 export interface PluginChildHandle {
   readonly pid: number | undefined
-  readonly stdin: PluginChildStdin | null
-  readonly stdout: PluginChildEvents | null
-  readonly stderr: PluginChildEvents | null
-  kill(signal?: NodeJS.Signals): boolean
-  on(event: 'close' | 'error', listener: (...args: never[]) => void): void
+  /** Writes the request and closes stdin; a write error reaches `onError`. */
+  write(text: string): void
+  onStdout(listener: (chunk: Buffer) => void): void
+  onClose(listener: () => void): void
+  /** A spawn error, or a stdin error such as EPIPE. */
+  onError(listener: () => void): void
 }
 
-export type PluginSpawn = (
-  command: string,
-  args: readonly string[],
-  options: PluginSpawnOptions,
-) => PluginChildHandle
+/**
+ * How plugin children start and end as a whole tree. The host gives a
+ * kill-on-close job object on Windows (the M50 job launcher); POSIX uses a
+ * process group of its own. `killTree` never throws.
+ */
+export interface PluginProcessTree {
+  spawn(
+    command: string,
+    args: readonly string[],
+    options: PluginSpawnOptions,
+  ): Promise<PluginChildHandle>
+  killTree(child: PluginChildHandle): void
+}
+
+export interface PluginRunDeps {
+  /**
+   * M51's allowlisted hook environment, computed by the caller
+   * (`hookEnvironment` in the host). It is the only environment the probe
+   * and the child see; the extension host's own never reaches either.
+   */
+  readonly env: NodeJS.ProcessEnv
+  readonly platform?: NodeJS.Platform | undefined
+  /** `node --version` / `bun --version` output for an absolute command. */
+  readonly runVersion?: ((command: string, env: NodeJS.ProcessEnv) => Promise<string>) | undefined
+  /** Whether an absolute path is a file (the runtime's PATH lookup, D24). */
+  readonly fileExists?: ((filePath: string) => boolean) | undefined
+  /** Child entry source; default is pluginChildSource(). */
+  readonly childSource?: string | undefined
+  /** Default: a POSIX process group; none on Windows, where the hook is then refused. */
+  readonly processTree?: PluginProcessTree | undefined
+  /** Fixed-text notes (refused registrations); never plugin text. */
+  readonly warn?: ((message: string) => void) | undefined
+}
+
+/** What a session lends one call: its live children and whether it closed. */
+interface RunScope {
+  readonly owned: Set<PluginChildHandle>
+  readonly isClosed: () => boolean
+}
 
 export type RuntimeResolution =
   | { readonly ok: true; readonly command: string; readonly args: readonly string[] }
@@ -89,9 +120,21 @@ export type RuntimeResolution =
 
 const execFileAsync = promisify(nodeExecFile)
 
-async function defaultRunVersion(command: string): Promise<string> {
-  const { stdout } = await execFileAsync(command, ['--version'], { timeout: 15_000 })
+async function defaultRunVersion(command: string, env: NodeJS.ProcessEnv): Promise<string> {
+  const { stdout } = await execFileAsync(command, ['--version'], {
+    env,
+    timeout: PLUGIN_RUNTIME_PROBE_TIMEOUT_MS,
+    windowsHide: true,
+  })
   return stdout
+}
+
+function isExistingFile(filePath: string): boolean {
+  try {
+    return statSync(filePath).isFile()
+  } catch {
+    return false
+  }
 }
 
 const VERSION_PARTS = 3
@@ -115,21 +158,46 @@ function isAtLeast(have: readonly [number, number, number], want: string): boole
   return true
 }
 
+/** No credential name, even in an allowlist a caller widened by mistake. */
+function withoutCredentials(env: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
+  const clean: NodeJS.ProcessEnv = {}
+  for (const [name, value] of Object.entries(env)) {
+    const upper = name.toUpperCase()
+    if (value === undefined || upper.endsWith('_API_KEY') || HOOK_FORBIDDEN_ENV_NAMES.has(upper)) {
+      continue
+    }
+    clean[name] = value
+  }
+  return clean
+}
+
 /**
- * The user's runtime for this plugin system, or a refusal with a reason:
- * Amp and plain JS need system node >= 22.18 (TS goes through Node's
- * built-in type stripping; the extension host's Electron Node is never
- * used); OpenCode is Bun-native and needs the installed bun.
+ * The user's runtime for this plugin system, by absolute path on the
+ * allowlisted PATH (D24), or a refusal with a reason: Amp and plain JS need
+ * system node >= 22.18 (TS goes through Node's built-in type stripping; the
+ * extension host's Electron Node is never used); OpenCode is Bun-native and
+ * needs the installed bun.
  */
 export async function resolvePluginRuntime(
   system: PluginSystem,
-  deps: PluginRunDeps = {},
+  deps: PluginRunDeps,
 ): Promise<RuntimeResolution> {
+  const platform = deps.platform ?? process.platform
+  const env = withoutCredentials(deps.env)
   const runVersion = deps.runVersion ?? defaultRunVersion
+  const name = system === 'amp' ? 'node' : 'bun'
+  const command = resolveExecutable(name, {
+    platform,
+    pathVariable: environmentValue(env, platform, 'PATH'),
+    fileExists: deps.fileExists ?? isExistingFile,
+  })
   if (system === 'amp') {
+    if (command === undefined) {
+      return { ok: false, reason: 'amp: the system node runtime is not installed' }
+    }
     let text: string
     try {
-      text = await runVersion('node')
+      text = await runVersion(command, env)
     } catch {
       return { ok: false, reason: 'amp: the system node runtime is not installed' }
     }
@@ -143,7 +211,7 @@ export async function resolvePluginRuntime(
       }
     return {
       ok: true,
-      command: 'node',
+      command,
       args: [
         `--max-old-space-size=${String(PLUGIN_CHILD_MAX_HEAP_MB)}`,
         '--input-type=module',
@@ -151,30 +219,147 @@ export async function resolvePluginRuntime(
       ],
     }
   }
+  if (command === undefined) {
+    return { ok: false, reason: 'opencode: the installed bun runtime is absent' }
+  }
   try {
-    await runVersion('bun')
+    await runVersion(command, env)
   } catch {
     return { ok: false, reason: 'opencode: the installed bun runtime is absent' }
   }
-  return { ok: true, command: 'bun', args: ['-e'] }
+  return { ok: true, command, args: ['-e'] }
 }
 
-/** The child environment: everything except credentials. */
-export function pluginChildEnv(from: NodeJS.ProcessEnv = process.env): NodeJS.ProcessEnv {
-  const env: NodeJS.ProcessEnv = {}
-  for (const [name, value] of Object.entries(from)) {
-    if (value === undefined) continue
-    const upper = name.toUpperCase()
-    if (upper.endsWith('_API_KEY') || HOOK_FORBIDDEN_ENV_NAMES.has(upper)) continue
-    env[name] = value
+/** Wraps a Node child: the request goes in once, and stderr is drained unread. */
+export function nodeChildHandle(child: ChildProcess): PluginChildHandle {
+  const errors: (() => void)[] = []
+  const failed = (): void => {
+    for (const listener of errors) listener()
   }
-  return env
+  child.on('error', failed)
+  // An EPIPE arrives after write() returns: without this it would be uncaught.
+  child.stdin?.on('error', failed)
+  // Plugin logs stay on the child's stderr; the host never parses them.
+  child.stderr?.resume()
+  return {
+    pid: child.pid,
+    write: (text) => {
+      const { stdin } = child
+      if (stdin === null) {
+        failed()
+        return
+      }
+      // A child that ended before it was handed over (its close and error
+      // already past) has a destroyed stdin: the write's callback says so.
+      stdin.write(text, (error) => {
+        if (error !== null && error !== undefined) failed()
+      })
+      stdin.end()
+    },
+    onStdout: (listener) => {
+      child.stdout?.on('data', (chunk: Buffer) => {
+        listener(chunk)
+      })
+    },
+    onClose: (listener) => {
+      child.on('close', () => {
+        listener()
+      })
+    },
+    onError: (listener) => {
+      errors.push(listener)
+    },
+  }
 }
 
-const ANSWER_STATUSES = ['completed', 'blocked', 'failed'] as const
+/** POSIX: the child leads a process group of its own, killed as one. */
+export const posixProcessTree: PluginProcessTree = {
+  spawn: (command, args, options) =>
+    Promise.resolve(
+      nodeChildHandle(
+        nodeSpawn(command, [...args], {
+          env: options.env,
+          cwd: options.cwd,
+          detached: true,
+          stdio: ['pipe', 'pipe', 'pipe'],
+        }),
+      ),
+    ),
+  killTree: (child) => {
+    if (child.pid === undefined) return
+    try {
+      process.kill(-child.pid, 'SIGKILL')
+    } catch {
+      // The group is gone already: nothing left to bound.
+    }
+  },
+}
 
-function isStatus(value: unknown): value is ForeignHookAnswer['status'] {
-  return (ANSWER_STATUSES as readonly unknown[]).includes(value)
+const ANSWER_SCHEMA = z.strictObject({
+  status: z.enum(['completed', 'blocked', 'failed']),
+  reason: z.optional(z.string()),
+  context: z.optional(z.string()),
+  systemMessage: z.optional(z.string()),
+  permissionDecision: z.optional(z.enum(['deny', 'ask', 'allow'])),
+  approvalDecision: z.optional(z.enum(['allow', 'deny'])),
+  updatedInput: z.optional(z.record(z.string(), z.unknown())),
+  stopReason: z.optional(z.string()),
+  replacement: z.optional(
+    z.strictObject({
+      target: z.literal('toolResult'),
+      value: z.union([z.string(), z.record(z.string(), z.unknown())]),
+    }),
+  ),
+})
+
+const FRAME_SCHEMA = z.union([
+  z.strictObject({
+    ok: z.literal(true),
+    answer: ANSWER_SCHEMA,
+    refused: z.optional(z.array(z.string())),
+  }),
+  z.strictObject({ ok: z.literal(false), error: z.string() }),
+])
+
+/**
+ * Registrations the mapping refuses (PLAN.md M91, the lane X tables), each
+ * with its fixed reason. The child reports names; only these reach the log.
+ */
+const REFUSED_REGISTRATIONS: Readonly<Record<PluginSystem, Readonly<Record<string, string>>>> = {
+  amp: { 'changes.prompt': 'there is no Ship or Push workflow here' },
+  opencode: {
+    'chat.params': 'it chooses model parameters',
+    'chat.headers': 'it chooses request headers',
+    'experimental.provider.small_model': 'it chooses a model',
+    'tool.definition': 'it changes the tool list',
+    'experimental.chat.messages.transform': 'it rewrites earlier request bytes',
+    'experimental.chat.system.transform': 'it rewrites earlier request bytes',
+    'experimental.compaction.autocontinue': 'there is no auto-continue control here',
+    'experimental.text.complete': 'there is no display rewrite here',
+    'shell.env': 'environment edits are a secret risk',
+    config: 'it is a registration, not a hook point',
+    tool: 'it is a registration, not a hook point',
+    auth: 'it is a registration, not a hook point',
+    provider: 'it is a registration, not a hook point',
+    dispose: 'it is a registration, not a hook point',
+  },
+}
+
+function noteRefused(call: PluginCall, names: readonly string[], deps: PluginRunDeps): void {
+  const known = REFUSED_REGISTRATIONS[call.system]
+  let unknown = 0
+  const distinct = new Set(names)
+  for (const name of distinct) {
+    const reason = Object.hasOwn(known, name) ? known[name] : undefined
+    if (reason === undefined) {
+      unknown += 1
+    } else {
+      deps.warn?.(`${call.system}: the plugin's ${name} is refused: ${reason}`)
+    }
+  }
+  if (unknown > 0) {
+    deps.warn?.(`${call.system}: ${String(unknown)} unknown plugin hook(s) refused`)
+  }
 }
 
 /**
@@ -184,9 +369,10 @@ function isStatus(value: unknown): value is ForeignHookAnswer['status'] {
  * including the child's, so a compromised child cannot widen a decision.
  */
 export function sanitizePluginAnswer(answer: ForeignHookAnswer): ForeignHookAnswer {
-  if (!isStatus(answer.status))
-    return { status: 'failed', reason: 'plugin returned an invalid answer' }
-  const { approvalDecision, permissionDecision, allowedToolNames: _dropped, ...rest } = answer
+  const { allowedToolNames: _dropped, ...offered } = answer
+  const parsed = ANSWER_SCHEMA.safeParse(offered)
+  if (!parsed.success) return { status: 'failed', reason: 'plugin returned an invalid answer' }
+  const { approvalDecision, permissionDecision, ...rest } = parsed.data
   return {
     ...rest,
     ...(approvalDecision === 'deny' && { approvalDecision: 'deny' as const }),
@@ -194,76 +380,102 @@ export function sanitizePluginAnswer(answer: ForeignHookAnswer): ForeignHookAnsw
   }
 }
 
+/** The call's fail-closed rule over any failure: a transport fault or a failed answer. */
+function settled(call: PluginCall, answer: ForeignHookAnswer): ForeignHookAnswer {
+  if (answer.status !== 'failed') return answer
+  const reason = answer.reason ?? `${call.system}: the plugin failed`
+  return { status: call.failClosed ? 'blocked' : 'failed', reason }
+}
+
 function transportFailure(call: PluginCall, detail: string): ForeignHookAnswer {
-  return { status: call.failClosed ? 'blocked' : 'failed', reason: `${call.system}: ${detail}` }
+  return { status: 'failed', reason: `${call.system}: ${detail}` }
 }
 
-function defaultSpawn(
-  command: string,
-  args: readonly string[],
-  options: PluginSpawnOptions,
-): PluginChildHandle {
-  const child: ChildProcess = nodeSpawn(command, [...args], {
-    env: options.env,
-    detached: options.detached,
-    stdio: ['pipe', 'pipe', 'pipe'],
-  })
-  return child as unknown as PluginChildHandle
+/** The response frame, by its closed schema; anything else is a failure. */
+function readFrame(call: PluginCall, text: string, deps: PluginRunDeps): ForeignHookAnswer {
+  let value: unknown
+  try {
+    value = JSON.parse(text)
+  } catch {
+    return transportFailure(call, 'the plugin child answered outside its frame')
+  }
+  const frame = FRAME_SCHEMA.safeParse(value)
+  if (!frame.success) return transportFailure(call, 'the plugin child sent an invalid answer')
+  if (!frame.data.ok) return transportFailure(call, frame.data.error)
+  if (frame.data.refused !== undefined) noteRefused(call, frame.data.refused, deps)
+  return frame.data.answer
 }
 
-/** Kill the whole process group on POSIX; the process on Windows. */
-function killChild(child: PluginChildHandle, platform: NodeJS.Platform): void {
+const NEWLINE = 0x0a
+
+/** A tree's end, which must never throw out of an event listener. */
+function endTree(tree: PluginProcessTree, child: PluginChildHandle): void {
   try {
-    if (platform !== 'win32' && child.pid !== undefined) {
-      process.kill(-child.pid, 'SIGKILL')
-      return
-    }
+    tree.killTree(child)
   } catch {
-    // Fall through to a direct kill (already dead or no group).
+    // The tree's own fault: the call still settles.
   }
-  try {
-    child.kill('SIGKILL')
-  } catch {
-    // Already dead: nothing left to bound.
-  }
+}
+
+function treeFor(deps: PluginRunDeps, platform: NodeJS.Platform): PluginProcessTree | undefined {
+  if (deps.processTree !== undefined) return deps.processTree
+  return platform === 'win32' ? undefined : posixProcessTree
 }
 
 /**
- * One plugin hook call in one child. The child is always reaped: on answer,
- * on timeout, on crash, and by PluginSession.dispose for stragglers.
+ * One plugin hook call in one child. The child's tree is always ended: on
+ * its answer line, on timeout, on crash, and by PluginSession.dispose for
+ * stragglers.
  */
-export async function runPluginHook(
+async function runInScope(
   call: PluginCall,
-  deps: PluginRunDeps = {},
+  deps: PluginRunDeps,
+  scope: RunScope | undefined,
 ): Promise<ForeignHookAnswer> {
   const platform = deps.platform ?? process.platform
-  const spawn = deps.spawn ?? defaultSpawn
-  const source = deps.childSource ?? pluginChildSource()
-  const timeoutMs = call.timeoutMs ?? PLUGIN_HOOK_TIMEOUT_MS
+  const closed = (): ForeignHookAnswer => ({
+    status: 'failed',
+    reason: `${call.system}: the session is closed`,
+  })
+  if (scope?.isClosed() === true) return closed()
+  const tree = treeFor(deps, platform)
+  if (tree === undefined) {
+    return settled(
+      call,
+      transportFailure(call, 'plugin children run only in a job object, which is unavailable here'),
+    )
+  }
   const runtime = await resolvePluginRuntime(call.system, deps)
-  if (!runtime.ok) return transportFailure(call, runtime.reason)
+  if (scope?.isClosed() === true) return closed()
+  if (!runtime.ok) return settled(call, transportFailure(call, runtime.reason))
+  const source = deps.childSource ?? pluginChildSource()
+  let child: PluginChildHandle
+  try {
+    child = await tree.spawn(runtime.command, [...runtime.args, source], {
+      env: withoutCredentials(deps.env),
+      cwd: path.dirname(call.pluginPath),
+    })
+  } catch {
+    return settled(call, transportFailure(call, 'the plugin child could not start'))
+  }
+  if (scope?.isClosed() === true) {
+    endTree(tree, child)
+    return closed()
+  }
   return await new Promise<ForeignHookAnswer>((resolve) => {
-    let child: PluginChildHandle
-    try {
-      child = spawn(runtime.command, [...runtime.args, source], {
-        env: pluginChildEnv(),
-        detached: platform !== 'win32',
-      })
-    } catch {
-      resolve(transportFailure(call, 'the plugin child could not start'))
-      return
-    }
-    deps.ownedBy?.add(child)
+    scope?.owned.add(child)
     let isDone = false
-    let stdout = ''
-    let isFrameCapped = false
+    let bytes = 0
+    const chunks: Buffer[] = []
+    const timeoutMs = call.timeoutMs ?? PLUGIN_HOOK_TIMEOUT_MS
     const finish = (answer: ForeignHookAnswer): void => {
       if (isDone) return
       isDone = true
-      deps.ownedBy?.delete(child)
+      scope?.owned.delete(child)
       clearTimeout(timer)
-      killChild(child, platform)
-      resolve(sanitizePluginAnswer(answer))
+      endTree(tree, child)
+      // A call its session ended answers nothing: the session is gone.
+      resolve(scope?.isClosed() === true ? closed() : settled(call, sanitizePluginAnswer(answer)))
     }
     const timer = setTimeout(
       () => {
@@ -273,81 +485,73 @@ export async function runPluginHook(
     )
     // Do not let a straggler keep the host alive.
     timer.unref()
-    child.on('error', () => {
+    child.onError(() => {
       finish(transportFailure(call, 'the plugin child crashed'))
     })
-    child.on('close', () => {
+    child.onStdout((chunk) => {
       if (isDone) return
-      const text = stdout.trim()
-      if (text === '') {
-        finish(transportFailure(call, 'the plugin child exited without answering'))
+      const end = chunk.indexOf(NEWLINE)
+      const part = end === -1 ? chunk : chunk.subarray(0, end)
+      bytes += part.byteLength
+      if (bytes > PLUGIN_RESPONSE_MAX_BYTES) {
+        finish(transportFailure(call, 'the plugin answer exceeded its frame'))
         return
       }
-      let frame: unknown
-      try {
-        frame = JSON.parse(text)
-      } catch {
-        finish(transportFailure(call, 'the plugin child answered outside its frame'))
-        return
-      }
-      if (
-        frame === null ||
-        typeof frame !== 'object' ||
-        (frame as { ok?: unknown }).ok !== true ||
-        typeof (frame as { answer?: unknown }).answer !== 'object'
-      ) {
-        const error =
-          frame !== null &&
-          typeof frame === 'object' &&
-          typeof (frame as { error?: unknown }).error === 'string'
-            ? (frame as { error: string }).error
-            : 'the plugin failed'
-        finish(transportFailure(call, error))
-        return
-      }
-      finish((frame as { answer: ForeignHookAnswer }).answer)
+      chunks.push(part)
+      if (end !== -1) finish(readFrame(call, Buffer.concat(chunks).toString('utf8'), deps))
     })
-    const request = JSON.stringify({
-      system: call.system,
-      plugin: call.pluginPath,
-      hook: call.hook,
-      payload: call.payload,
-    })
-    child.stdout?.on('data', (chunk: Buffer) => {
-      if (isDone || isFrameCapped) return
-      stdout += chunk.toString('utf8')
-      if (stdout.length <= PLUGIN_RESPONSE_MAX_BYTES) return
-      isFrameCapped = true
-      finish(transportFailure(call, 'the plugin answer exceeded its frame'))
-    })
-    child.stderr?.on('data', () => {
-      // Plugin logs stay on the child's stderr; the host never parses them.
+    child.onClose(() => {
+      if (isDone) return
+      const text = Buffer.concat(chunks).toString('utf8').trim()
+      finish(
+        text === ''
+          ? transportFailure(call, 'the plugin child exited without answering')
+          : readFrame(call, text, deps),
+      )
     })
     try {
-      child.stdin?.write(`${request}\n`)
-      child.stdin?.end()
+      child.write(
+        `${JSON.stringify({
+          system: call.system,
+          plugin: call.pluginPath,
+          hook: call.hook,
+          payload: call.payload,
+        })}\n`,
+      )
     } catch {
-      finish(transportFailure(call, 'the plugin child could not start'))
+      finish(transportFailure(call, 'the plugin child could not take its request'))
     }
   })
 }
 
-/** One session's plugin children: dispose kills every live child. */
+/** One plugin hook call outside any session. */
+export async function runPluginHook(
+  call: PluginCall,
+  deps: PluginRunDeps,
+): Promise<ForeignHookAnswer> {
+  return await runInScope(call, deps, undefined)
+}
+
+/** One session's plugin children: dispose ends every live child's tree. */
 export class PluginSession {
   private readonly owned = new Set<PluginChildHandle>()
-  private disposed = false
+  private isDisposed = false
 
-  /** Run one hook call; refused when the session is closed. */
-  async run(call: PluginCall, deps: PluginRunDeps = {}): Promise<ForeignHookAnswer> {
-    return this.disposed
-      ? { status: 'failed', reason: `${call.system}: the session is closed` }
-      : await runPluginHook(call, { ...deps, ownedBy: this.owned })
+  public constructor(private readonly deps: PluginRunDeps) {}
+
+  /** Run one hook call; refused when the session is closed, at any await. */
+  public async run(call: PluginCall): Promise<ForeignHookAnswer> {
+    return await runInScope(call, this.deps, {
+      owned: this.owned,
+      isClosed: () => this.isDisposed,
+    })
   }
 
-  /** Kill every live child of this session. */
-  dispose(platform: NodeJS.Platform = process.platform): void {
-    this.disposed = true
-    for (const child of this.owned) killChild(child, platform)
+  /** End every live child's tree; later calls are refused. */
+  public dispose(): void {
+    this.isDisposed = true
+    const tree = treeFor(this.deps, this.deps.platform ?? process.platform)
+    if (tree !== undefined) for (const child of this.owned) endTree(tree, child)
     this.owned.clear()
   }
 }
