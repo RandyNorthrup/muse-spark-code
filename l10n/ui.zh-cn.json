@@ -9,7 +9,7 @@
   "snapshotTooLong": "此对话过长，重新加载后无法完整保留在面板中；请从历史记录中打开以查看全部内容。",
   "linkOutsideWorkspace": "不会从对话记录中打开指向工作区外文件的链接。",
   "emptyStateHint": "输入 /model，为手头的任务选择合适的模型。",
-  "composerPlaceholder": "按 ctrl esc（Windows 上为 ctrl alt esc）聚焦或取消聚焦 Muse",
+  "composerPlaceholder": "按 ctrl esc（macOS 上为 cmd esc，Windows 上为 ctrl alt esc）聚焦或取消聚焦 Muse",
   "composerQueuePlaceholder": "排队发送另一条消息…",
   "queuedLabel": "排队中",
   "queuedMenuLabel": "排队消息的操作",
@@ -855,7 +855,9 @@
   "planOpenFailed": "无法打开计划",
   "sideChatSessionOnly": "此旁聊只能打开其他旁聊对话。",
   "renameFailed": "无法重命名对话",
-  "sandboxOffProfileNotice": "此工作区位于你的用户配置文件目录下，Muse Code 的 Windows 沙盒无法在此运行命令，因此此窗口不使用沙盒，直接以你的身份运行 shell 命令。批准提示仍然适用。设置：museSpark.shellSandbox。",
+  "sandboxOffProfileWarning": "Muse Code 的 Windows 沙盒无法在你的用户配置文件目录下的工作区中可靠地运行命令，因此此窗口在不使用其操作系统沙盒的情况下运行 Muse Code。此时，它的文件工具可以在任何模式下（包括规划模式）不经询问地写入你的帐户可写的任何位置，包括此工作区之外；它的命令会以你的身份、使用你的网络直接运行。批准仍然适用于它的命令以及对 .git、.muse 和 .agents 的写入。位于你的用户配置文件目录之外的工作区会保留沙盒。设置：museSpark.shellSandbox。",
+  "sandboxOffSettingWarning": "museSpark.shellSandbox 已关闭，因此 Muse Code 在此窗口中不使用其操作系统沙盒运行。此时，它的文件工具可以在任何模式下（包括规划模式）不经询问地写入你的帐户可写的任何位置，包括此工作区之外；它的命令会以你的身份、使用你的网络直接运行。批准仍然适用于它的命令以及对 .git、.muse 和 .agents 的写入。",
+  "sandboxPreparingNotice": "Muse Code 的 Windows 沙盒仍在准备中，因此此命令没有运行。设置完成后，Muse Code 会在后台一次性为沙盒授予对你的文件的读取权限，用户配置文件较大时可能需要一些时间。请几分钟后重试。设置：museSpark.shellSandbox。",
   "rulesFileNoWorkspace": "请先打开文件夹；AGENTS.md 位于工作区根目录。",
   "rulesFileExists": "此工作区中已存在 AGENTS.md；正在打开它。",
   "rulesFileCreated": "已创建 AGENTS.md。从下一个对话开始，Muse 会将其作为项目规则读取。",
@@ -978,7 +980,7 @@
   "bannerDismiss": "关闭",
   "trustGrantedNotice": "工作区已受信任：从下一条消息开始，Muse 将加载其规则、技能和记忆。",
   "sandboxRestartNotice": "Muse Code 的某项设置已更改；Muse Code 将在下一条消息时以新设置重启，并继续此对话。",
-  "sandboxProfileNotice": "此工作区位于你的用户配置文件目录下，而Muse Code 的 Windows 沙盒无法进入该目录：shell 命令将在 PowerShell 文件夹而不是项目中启动。文件读取和编辑不受影响。位于 C:\\Users 之外的工作区会就地运行命令。",
+  "sandboxProfileNotice": "此工作区位于你的用户配置文件目录下，Muse Code 的 Windows 沙盒可能无法在此运行命令：命令可能会在 PowerShell 文件夹而不是项目中启动，或者永远不会结束。文件读取和编辑不受影响。位于 C:\\Users 之外的工作区会就地运行命令。",
   "permissionModes": {
     "manual": "手动",
     "acceptEdits": "自动编辑",
@@ -989,7 +991,7 @@
   "permissionModeDetails": {
     "manual": "Muse 会在运行命令前询问；Muse Code 会直接编辑工作区文件而不询问",
     "acceptEdits": "在 Muse Code 上与手动相同：Muse Code 会直接编辑工作区文件而不询问，并在运行命令前询问",
-    "plan": "Muse 会先探索代码并提出计划，然后再编辑",
+    "plan": "Muse 会先做规划；Muse Code 会拒绝命令，但它的文件工具仍可不经询问地编辑文件",
     "auto": "Muse Code 会直接运行它判断为简单的命令而不询问，其余命令运行前会询问",
     "bypassPermissions": "Muse 会直接编辑文件和运行命令而不询问"
   },
@@ -997,8 +999,10 @@
   "modelApiPermissionModeDetails": {
     "manual": "Muse 会在每次编辑和每条命令前请求批准",
     "acceptEdits": "Muse 会直接编辑文件而不询问，并在运行命令前询问",
+    "plan": "Muse 会先探索代码并提出计划，然后再编辑",
     "auto": "Muse 会直接编辑文件而不询问（受保护的文件除外），并在运行命令前询问"
   },
+  "modelApiReviewedAutoDetail": "Muse 会直接编辑文件而不询问（受保护的文件除外）；付费审查器可能会允许部分命令运行一次，其余命令会询问您",
   "effortLevels": {
     "minimal": "极低",
     "low": "低",
@@ -1306,12 +1310,12 @@
     "composing": "正在撰写…"
   },
   "onboardingShortcuts": {
-    "focus": "Ctrl+Esc（Windows 上为 Ctrl+Alt+Esc）",
+    "focus": "Ctrl+Esc（macOS 上为 Cmd+Esc，Windows 上为 Ctrl+Alt+Esc）",
     "palette": "/",
     "cycleMode": "Shift+Tab",
     "mentionSelection": "Alt+K",
     "mentionFile": "@",
-    "newTab": "Ctrl+Shift+Esc（Windows 上为 Ctrl+Shift+Alt+Esc）",
+    "newTab": "Ctrl+Shift+Esc（macOS 上为 Cmd+Shift+Esc，Windows 上为 Ctrl+Shift+Alt+Esc）",
     "dictation": "Ctrl+D",
     "shell": "!",
     "moveToBackground": "Ctrl+B"
@@ -1808,7 +1812,7 @@
   "autoReviewerTripped": "由于多次拒绝或失败，自动审查器已停止。在您发送下一条消息之前，每个有风险的操作都会询问您。",
   "museCodeReviewerNotice": "默认开启。在 Muse Code 的自动模式下，只有当前轮次中没有规则作出决定的批准请求才符合审查条件：在隐藏的规划会话中使用您的订阅进行一次简短的 Muse Code 轮次。受保护的写入、付费调用、子任务、提问、重放或升级的请求、未知对象、没有仅允许一次选项的请求以及多个面板共享的会话都不会被审查。成功的审查可以允许一次；拒绝、失败、会话繁忙、超时或熔断器触发时会显示批准卡片。宿主进程退出后会重新创建辅助会话。 可通过 museSpark.museCodeAutoReviewer 关闭。",
   "paidAutoReviewerName": "自动审查器",
-  "paidConfirmAutoReviewer": "在 Model API 后端的自动模式下，一次单独的模型调用会评判每个没有规则决定的有风险操作，看起来安全时不询问直接运行。它绝不会允许被禁止的命令、您的规则要求询问的命令、受保护的写入或付费调用；它拒绝或失败时由您决定。每次审查按对话模型的令牌费率计入您的 Model API 密钥：\n{price}\n除非您在此工作区中始终允许审查，否则每次审查前都会先询问。",
+  "paidConfirmAutoReviewer": "在 Model API 后端的自动模式下，一次单独的模型调用会评判每个会询问、且没有规则或权限配置文件决定的简单 shell 命令或 MCP 工具调用，看起来安全时不询问直接运行。它绝不会允许被禁止的命令、您的规则要求询问的命令、受保护的写入或付费调用；它拒绝或失败时由您决定。每次审查按对话模型的令牌费率计入您的 Model API 密钥：\n{price}\n除非您在此工作区中始终允许审查，否则每次审查前都会先询问。",
   "paidUseAutoReviewerTitle": "让自动审查器评判此 {tool} 调用吗？",
   "paidUseAutoReviewerDetail": "{action}\n\n对 {model} 的一次单独调用会评判此操作能否不经询问直接运行。费用计入您的 Model API 密钥：{price}。总额随使用的令牌数变化。选择不允许则改为显示审批卡片。",
   "usagePaidAutoReviews": {

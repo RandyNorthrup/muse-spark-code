@@ -9,7 +9,7 @@
   "snapshotTooLong": "Diese Unterhaltung war zu lang, um sie beim Neuladen im Panel zu behalten. Öffnen Sie sie über den Verlauf, um sie vollständig zu sehen.",
   "linkOutsideWorkspace": "Links zu Dateien außerhalb des Arbeitsbereichs werden nicht aus dem Transkript geöffnet.",
   "emptyStateHint": "Geben Sie /model ein, um das passende Werkzeug für die Aufgabe zu wählen.",
-  "composerPlaceholder": "Strg+Esc (unter Windows Strg+Alt+Esc), um Muse zu fokussieren oder den Fokus zu verlassen",
+  "composerPlaceholder": "Strg+Esc (unter macOS Cmd+Esc, unter Windows Strg+Alt+Esc), um Muse zu fokussieren oder den Fokus zu verlassen",
   "composerQueuePlaceholder": "Weitere Nachricht einreihen…",
   "queuedLabel": "Eingereiht",
   "queuedMenuLabel": "Aktionen für eingereihte Nachrichten",
@@ -880,7 +880,9 @@
   "planOpenFailed": "Der Plan konnte nicht geöffnet werden",
   "sideChatSessionOnly": "Dieser Nebenchat kann nur Nebenchat-Unterhaltungen öffnen.",
   "renameFailed": "Die Unterhaltung konnte nicht umbenannt werden",
-  "sandboxOffProfileNotice": "Dieser Arbeitsbereich liegt unter Ihrem Benutzerprofil, wo die Windows-Sandbox von Muse Code keine Befehle ausführen kann; daher führt dieses Fenster Shellbefehle ohne Sandbox direkt als Sie aus. Genehmigungsanfragen gelten weiterhin. Einstellung: museSpark.shellSandbox.",
+  "sandboxOffProfileWarning": "Die Windows-Sandbox von Muse Code kann in einem Arbeitsbereich unter Ihrem Benutzerprofil Befehle nicht zuverlässig ausführen; daher führt dieses Fenster Muse Code ohne seine Betriebssystem-Sandbox aus. Seine Dateitools können dann ohne Nachfrage überall schreiben, wo Ihr Konto schreiben darf, auch außerhalb dieses Arbeitsbereichs, in jedem Modus, auch in „Planen“, und seine Befehle laufen direkt als Sie, mit Ihrem Netzwerk. Genehmigungen gelten weiterhin für seine Befehle und für Schreibzugriffe auf .git, .muse und .agents. Ein Arbeitsbereich außerhalb Ihres Benutzerprofils behält die Sandbox. Einstellung: museSpark.shellSandbox.",
+  "sandboxOffSettingWarning": "museSpark.shellSandbox ist ausgeschaltet, daher läuft Muse Code in diesem Fenster ohne seine Betriebssystem-Sandbox. Seine Dateitools können dann ohne Nachfrage überall schreiben, wo Ihr Konto schreiben darf, auch außerhalb dieses Arbeitsbereichs, in jedem Modus, auch in „Planen“, und seine Befehle laufen direkt als Sie, mit Ihrem Netzwerk. Genehmigungen gelten weiterhin für seine Befehle und für Schreibzugriffe auf .git, .muse und .agents.",
+  "sandboxPreparingNotice": "Die Windows-Sandbox von Muse Code wird noch vorbereitet, daher wurde dieser Befehl nicht ausgeführt. Nach der Einrichtung gibt Muse Code der Sandbox einmalig im Hintergrund Lesezugriff auf Ihre Dateien, was bei einem großen Benutzerprofil eine Weile dauern kann. Versuchen Sie es in einigen Minuten erneut. Einstellung: museSpark.shellSandbox.",
   "rulesFileNoWorkspace": "Öffnen Sie zuerst einen Ordner; AGENTS.md liegt im Stammverzeichnis des Arbeitsbereichs.",
   "rulesFileExists": "AGENTS.md ist in diesem Arbeitsbereich bereits vorhanden und wird geöffnet.",
   "rulesFileCreated": "AGENTS.md erstellt. Muse liest die Datei ab der nächsten Unterhaltung als Projektregeln.",
@@ -1008,7 +1010,7 @@
   "bannerDismiss": "Schließen",
   "trustGrantedNotice": "Arbeitsbereich als vertrauenswürdig eingestuft: Muse lädt ab der nächsten Nachricht dessen Regeln, Skills und Gedächtnis.",
   "sandboxRestartNotice": "Eine Muse Code-Einstellung wurde geändert; Muse Code startet bei der nächsten Nachricht damit neu und setzt diese Unterhaltung fort.",
-  "sandboxProfileNotice": "Dieser Arbeitsbereich liegt unter Ihrem Benutzerprofil, das die Windows-Sandbox von Muse Code nicht betreten kann: Shellbefehle starten dann im PowerShell-Ordner statt im Projekt. Das Lesen und Bearbeiten von Dateien ist nicht betroffen. In einem Arbeitsbereich außerhalb von C:\\Users laufen Befehle direkt dort.",
+  "sandboxProfileNotice": "Dieser Arbeitsbereich liegt unter Ihrem Benutzerprofil, wo die Windows-Sandbox von Muse Code Befehle möglicherweise nicht ausführt: Sie können im PowerShell-Ordner statt im Projekt starten oder nie fertig werden. Das Lesen und Bearbeiten von Dateien ist nicht betroffen. In einem Arbeitsbereich außerhalb von C:\\Users laufen Befehle direkt dort.",
   "permissionModes": {
     "manual": "Manuell",
     "acceptEdits": "Automatisch bearbeiten",
@@ -1019,7 +1021,7 @@
   "permissionModeDetails": {
     "manual": "Muse fragt vor dem Ausführen von Befehlen; Muse Code bearbeitet Dateien im Arbeitsbereich ohne Nachfrage",
     "acceptEdits": "In Muse Code dasselbe wie Manuell: Muse Code bearbeitet Dateien im Arbeitsbereich ohne Nachfrage und fragt vor dem Ausführen von Befehlen",
-    "plan": "Muse erkundet den Code und legt vor dem Bearbeiten einen Plan vor",
+    "plan": "Muse plant zuerst; Muse Code verweigert Befehle, aber seine Dateitools können Dateien weiterhin ohne Nachfrage bearbeiten",
     "auto": "Muse Code führt Befehle, die es für einfach hält, ohne Nachfrage aus und fragt vor allen anderen",
     "bypassPermissions": "Muse bearbeitet Dateien und führt Befehle ohne Nachfrage aus"
   },
@@ -1027,8 +1029,10 @@
   "modelApiPermissionModeDetails": {
     "manual": "Muse fragt vor jeder Bearbeitung und jedem Befehl nach einer Genehmigung",
     "acceptEdits": "Muse bearbeitet Dateien ohne Nachfrage und fragt vor dem Ausführen von Befehlen",
+    "plan": "Muse erkundet den Code und legt vor dem Bearbeiten einen Plan vor",
     "auto": "Muse bearbeitet Dateien ohne Nachfrage, außer geschützten Dateien, und fragt vor Befehlen"
   },
+  "modelApiReviewedAutoDetail": "Muse bearbeitet Dateien ohne Nachfrage, außer geschützten Dateien; ein kostenpflichtiger Prüfer kann manche Befehle einmal erlauben, zu den übrigen werden Sie gefragt",
   "effortLevels": {
     "minimal": "Minimal",
     "low": "Niedrig",
@@ -1349,12 +1353,12 @@
     "composing": "Formuliert…"
   },
   "onboardingShortcuts": {
-    "focus": "Strg+Esc (Strg+Alt+Esc unter Windows)",
+    "focus": "Strg+Esc (Cmd+Esc unter macOS, Strg+Alt+Esc unter Windows)",
     "palette": "/",
     "cycleMode": "Umschalt+Tab",
     "mentionSelection": "Alt+K",
     "mentionFile": "@",
-    "newTab": "Strg+Umschalt+Esc (Strg+Umschalt+Alt+Esc unter Windows)",
+    "newTab": "Strg+Umschalt+Esc (Cmd+Umschalt+Esc unter macOS, Strg+Umschalt+Alt+Esc unter Windows)",
     "dictation": "Strg+D",
     "shell": "!",
     "moveToBackground": "Strg+B"
@@ -1880,7 +1884,7 @@
   "autoReviewerTripped": "Der Auto-Prüfer hat nach wiederholten Ablehnungen oder Fehlern angehalten. Bis Sie Ihre nächste Nachricht senden, fragt jede riskante Aktion Sie.",
   "museCodeReviewerNotice": "Standardmäßig an. In Auto auf Muse Code kommen nur Genehmigungen für den laufenden Durchgang infrage, die keine Regel entscheidet: ein kurzer Muse-Code-Durchgang über Ihr Abonnement in einer verborgenen Plan-Sitzung. Geschützte Schreibvorgänge, kostenpflichtige Aufrufe, untergeordnete Aufgaben, Fragen, erneut zugestellte oder eskalierte Anfragen, unbekannte Gegenstände, Anfragen ohne einmalige Erlaubnis und von mehreren Panels geteilte Sitzungen werden nie geprüft. Eine erfolgreiche Prüfung kann einmal erlauben; Ablehnungen, Fehler, belegte Sitzungen, Zeitüberschreitungen oder eine ausgelöste Abschaltung zeigen die Genehmigungskarte. Nach Ende des Hosts wird die Nebensitzung neu erstellt. Ausschalten mit museSpark.museCodeAutoReviewer.",
   "paidAutoReviewerName": "Auto-Prüfer",
-  "paidConfirmAutoReviewer": "Im Modus „Auto“ auf dem Model-API-Backend beurteilt ein separater Modellaufruf jede riskante Aktion, die keine Regel klärt, und führt sie ohne Nachfrage aus, wenn sie sicher wirkt. Er lässt niemals einen verbotenen Befehl, einen Befehl, bei dem Ihre Regeln nachfragen, einen geschützten Schreibvorgang oder einen kostenpflichtigen Aufruf zu; lehnt er ab oder scheitert er, entscheiden Sie. Jede Prüfung wird Ihrem Model-API-Schlüssel zu den Tokenpreisen des Unterhaltungsmodells berechnet:\n{price}\nJede Prüfung fragt zuerst nach, es sei denn, Sie lassen Prüfungen in diesem Arbeitsbereich immer zu.",
+  "paidConfirmAutoReviewer": "Im Modus „Auto“ auf dem Model-API-Backend beurteilt ein separater Modellaufruf jeden einfachen Shellbefehl und jeden MCP-Werkzeugaufruf, der nachfragen würde und den weder eine Regel noch ein Berechtigungsprofil klärt, und führt ihn ohne Nachfrage aus, wenn er sicher wirkt. Er lässt niemals einen verbotenen Befehl, einen Befehl, bei dem Ihre Regeln nachfragen, einen geschützten Schreibvorgang oder einen kostenpflichtigen Aufruf zu; lehnt er ab oder scheitert er, entscheiden Sie. Jede Prüfung wird Ihrem Model-API-Schlüssel zu den Tokenpreisen des Unterhaltungsmodells berechnet:\n{price}\nJede Prüfung fragt zuerst nach, es sei denn, Sie lassen Prüfungen in diesem Arbeitsbereich immer zu.",
   "paidUseAutoReviewerTitle": "Den Auto-Prüfer diesen {tool}-Aufruf beurteilen lassen?",
   "paidUseAutoReviewerDetail": "{action}\n\nEin separater Aufruf von {model} beurteilt, ob die Aktion ohne Nachfrage ausgeführt werden darf. Abrechnung über Ihren Model-API-Schlüssel: {price}. Der Gesamtbetrag hängt von den verwendeten Token ab. Bei „Verweigern“ sehen Sie stattdessen die Genehmigungskarte.",
   "usagePaidAutoReviews": {

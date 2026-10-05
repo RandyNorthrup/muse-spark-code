@@ -9,7 +9,7 @@
   "snapshotTooLong": "Cette conversation était trop longue pour être conservée dans le panneau lors du rechargement ; ouvrez-la depuis l’Historique pour la voir en entier.",
   "linkOutsideWorkspace": "Les liens vers des fichiers situés hors de l’espace de travail ne s’ouvrent pas depuis la transcription.",
   "emptyStateHint": "Tapez /model pour choisir l’outil adapté à la tâche.",
-  "composerPlaceholder": "ctrl échap (ctrl alt échap sous Windows) pour donner ou retirer le focus à Muse",
+  "composerPlaceholder": "ctrl échap (cmd échap sous macOS, ctrl alt échap sous Windows) pour donner ou retirer le focus à Muse",
   "composerQueuePlaceholder": "Mettre un autre message en file d’attente…",
   "queuedLabel": "En file d’attente",
   "queuedMenuLabel": "Actions des messages en file d’attente",
@@ -905,7 +905,9 @@
   "planOpenFailed": "Impossible d’ouvrir le plan",
   "sideChatSessionOnly": "Cette discussion parallèle ne peut ouvrir que d’autres discussions parallèles.",
   "renameFailed": "Impossible de renommer la conversation",
-  "sandboxOffProfileNotice": "Cet espace de travail se trouve dans votre profil utilisateur, où le bac à sable Windows de Muse Code ne peut pas exécuter de commandes ; cette fenêtre exécute donc les commandes shell sans bac à sable, directement sous votre identité. Les demandes d’approbation s’appliquent toujours. Paramètre : museSpark.shellSandbox.",
+  "sandboxOffProfileWarning": "Le bac à sable Windows de Muse Code ne peut pas exécuter de commandes de façon fiable dans un espace de travail situé dans votre profil utilisateur ; cette fenêtre exécute donc Muse Code sans son bac à sable du système. Ses outils de fichiers peuvent alors écrire sans demander partout où votre compte le peut, y compris hors de cet espace de travail, dans tous les modes, Planification comprise, et ses commandes s’exécutent directement sous votre identité, avec votre réseau. L’approbation couvre toujours ses commandes et les écritures dans .git, .muse et .agents. Un espace de travail situé hors de votre profil utilisateur conserve le bac à sable. Paramètre : museSpark.shellSandbox.",
+  "sandboxOffSettingWarning": "museSpark.shellSandbox est désactivé ; Muse Code s’exécute donc sans son bac à sable du système dans cette fenêtre. Ses outils de fichiers peuvent alors écrire sans demander partout où votre compte le peut, y compris hors de cet espace de travail, dans tous les modes, Planification comprise, et ses commandes s’exécutent directement sous votre identité, avec votre réseau. L’approbation couvre toujours ses commandes et les écritures dans .git, .muse et .agents.",
+  "sandboxPreparingNotice": "Le bac à sable Windows de Muse Code est encore en préparation ; cette commande n’a donc pas été exécutée. Après sa configuration, Muse Code accorde une fois, en arrière-plan, au bac à sable l’accès en lecture à vos fichiers, ce qui peut prendre un moment sur un profil utilisateur volumineux. Réessayez dans quelques minutes. Paramètre : museSpark.shellSandbox.",
   "rulesFileNoWorkspace": "Ouvrez d’abord un dossier ; AGENTS.md se trouve à la racine de l’espace de travail.",
   "rulesFileExists": "AGENTS.md existe déjà dans cet espace de travail ; ouverture du fichier.",
   "rulesFileCreated": "AGENTS.md créé. Muse le lit comme règles du projet à partir de la prochaine conversation.",
@@ -1038,7 +1040,7 @@
   "bannerDismiss": "Ignorer",
   "trustGrantedNotice": "Espace de travail approuvé : Muse chargera ses règles, compétences et mémoire à partir du prochain message.",
   "sandboxRestartNotice": "Un paramètre de Muse Code a changé ; Muse Code redémarre avec ce paramètre au prochain message et poursuit cette conversation.",
-  "sandboxProfileNotice": "Cet espace de travail se trouve dans votre profil utilisateur, où le bac à sable Windows de Muse Code ne peut pas entrer : les commandes shell démarreront dans le dossier de PowerShell au lieu du projet. La lecture et la modification des fichiers ne sont pas affectées. Un espace de travail situé hors de C:\\Users exécute les commandes sur place.",
+  "sandboxProfileNotice": "Cet espace de travail se trouve dans votre profil utilisateur, où le bac à sable Windows de Muse Code risque de ne pas exécuter les commandes : elles peuvent démarrer dans le dossier de PowerShell au lieu du projet, ou ne jamais se terminer. La lecture et la modification des fichiers ne sont pas affectées. Un espace de travail situé hors de C:\\Users exécute les commandes sur place.",
   "permissionModes": {
     "manual": "Manuel",
     "acceptEdits": "Modifier automatiquement",
@@ -1049,7 +1051,7 @@
   "permissionModeDetails": {
     "manual": "Muse demandera avant d’exécuter des commandes ; Muse Code modifie les fichiers de l’espace de travail sans demander",
     "acceptEdits": "Sur Muse Code, identique à Manuel : Muse Code modifie les fichiers de l’espace de travail sans demander et demande avant d’exécuter des commandes",
-    "plan": "Muse explorera le code et présentera un plan avant toute modification",
+    "plan": "Muse planifie d’abord ; Muse Code refuse les commandes, mais ses outils de fichiers peuvent toujours modifier des fichiers sans demander",
     "auto": "Muse Code exécute sans demander les commandes qu’il juge simples et demande avant les autres",
     "bypassPermissions": "Muse modifiera les fichiers et exécutera des commandes sans demander"
   },
@@ -1057,8 +1059,10 @@
   "modelApiPermissionModeDetails": {
     "manual": "Muse demandera une approbation avant chaque modification et chaque commande",
     "acceptEdits": "Muse modifiera les fichiers sans demander et demandera avant d’exécuter des commandes",
+    "plan": "Muse explorera le code et présentera un plan avant toute modification",
     "auto": "Muse modifiera les fichiers sans demander, sauf les fichiers protégés, et demandera avant les commandes"
   },
+  "modelApiReviewedAutoDetail": "Muse modifiera les fichiers sans demander, sauf les fichiers protégés ; un réviseur payant peut autoriser certaines commandes une fois, et on vous demande pour le reste",
   "effortLevels": {
     "minimal": "Minimum",
     "low": "Faible",
@@ -1392,12 +1396,12 @@
     "composing": "Rédaction…"
   },
   "onboardingShortcuts": {
-    "focus": "Ctrl+Échap (Ctrl+Alt+Échap sous Windows)",
+    "focus": "Ctrl+Échap (Cmd+Échap sous macOS, Ctrl+Alt+Échap sous Windows)",
     "palette": "/",
     "cycleMode": "Maj+Tab",
     "mentionSelection": "Alt+K",
     "mentionFile": "@",
-    "newTab": "Ctrl+Maj+Échap (Ctrl+Maj+Alt+Échap sous Windows)",
+    "newTab": "Ctrl+Maj+Échap (Cmd+Maj+Échap sous macOS, Ctrl+Maj+Alt+Échap sous Windows)",
     "dictation": "Ctrl+D",
     "shell": "!",
     "moveToBackground": "Ctrl+B"
@@ -1952,7 +1956,7 @@
   "autoReviewerTripped": "Le réviseur auto s’est arrêté après des refus ou des échecs répétés. Jusqu’à votre prochain message, chaque action risquée vous est soumise.",
   "museCodeReviewerNotice": "Activé par défaut. En mode Automatique sur Muse Code, seules les approbations du tour en cours qu’aucune règle ne tranche sont admissibles : un court tour Muse Code sur votre abonnement dans une session masquée de Planification. Les écritures protégées, appels payants, tâches enfants, questions, demandes rejouées ou escaladées, objets inconnus, demandes sans autorisation unique et sessions partagées entre panneaux ne sont jamais examinés. Un examen réussi peut autoriser une fois ; les refus, échecs, sessions occupées, délais dépassés ou coupe-circuit déclenché affichent la carte d’approbation. La session auxiliaire est recréée après l’arrêt de l’hôte. Désactivez-le avec museSpark.museCodeAutoReviewer.",
   "paidAutoReviewerName": "Réviseur auto",
-  "paidConfirmAutoReviewer": "En mode Automatique sur le backend Model API, un appel de modèle distinct évalue chaque action risquée qu’aucune règle ne tranche, et l’exécute sans vous demander si elle semble sûre. Il n’autorise jamais une commande interdite, une commande pour laquelle vos règles demandent votre accord, une écriture protégée ni un appel payant ; s’il refuse ou échoue, c’est vous qui décidez. Chaque revue est facturée sur votre clé Model API aux tarifs par jeton du modèle de la conversation :\n{price}\nChaque revue demande d’abord votre accord, sauf si vous autorisez toujours les revues dans cet espace de travail.",
+  "paidConfirmAutoReviewer": "En mode Automatique sur le backend Model API, un appel de modèle distinct évalue chaque commande shell simple ou appel d’outil MCP qui demanderait votre accord et qu’aucune règle ni aucun profil d’autorisations ne tranche, et l’exécute sans vous demander si cela semble sûr. Il n’autorise jamais une commande interdite, une commande pour laquelle vos règles demandent votre accord, une écriture protégée ni un appel payant ; s’il refuse ou échoue, c’est vous qui décidez. Chaque revue est facturée sur votre clé Model API aux tarifs par jeton du modèle de la conversation :\n{price}\nChaque revue demande d’abord votre accord, sauf si vous autorisez toujours les revues dans cet espace de travail.",
   "paidUseAutoReviewerTitle": "Laisser le réviseur auto évaluer cet appel {tool} ?",
   "paidUseAutoReviewerDetail": "{action}\n\nUn appel distinct à {model} évalue si l’action peut s’exécuter sans vous demander. Facturé sur votre clé Model API : {price}. Le total dépend des jetons utilisés. Refuser vous montre plutôt la carte d’approbation.",
   "usagePaidAutoReviews": {

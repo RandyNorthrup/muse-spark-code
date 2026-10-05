@@ -1,3 +1,4 @@
+import { redactDiagnosticEvent } from '../../redact'
 // The Model API backend (PLAN.md D1, M7): sessions held in this process,
 // each a replayed conversation on `POST /v1/responses` (stateless reasoning
 // replay, `store: false`) with the in-process tool harness, the permission
@@ -1925,8 +1926,9 @@ export class ModelApiSession implements AgentSession {
   }
 
   private emit(event: AgentEvent): void {
+    const safe = redactDiagnosticEvent(event)
     for (const listener of this.listeners) {
-      listener(event)
+      listener(safe)
     }
   }
 

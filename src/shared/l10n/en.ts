@@ -28,8 +28,10 @@ export const EN = {
     'This conversation was too long to keep in the panel across the reload; open it from History to see all of it.',
   linkOutsideWorkspace: 'Links to files outside the workspace are not opened from the transcript.',
   emptyStateHint: 'Type /model to pick the right tool for the job.',
-  // Windows binds Ctrl+Alt+Esc (Ctrl+Esc opens Start there; M26, D29).
-  composerPlaceholder: 'ctrl esc (ctrl alt esc on Windows) to focus or unfocus Muse',
+  // macOS binds Cmd+Esc; Windows binds Ctrl+Alt+Esc (Ctrl+Esc opens Start
+  // there; M26, D29).
+  composerPlaceholder:
+    'ctrl esc (cmd esc on macOS, ctrl alt esc on Windows) to focus or unfocus Muse',
   // Shown while a turn runs: Enter then steers the running turn.
   composerQueuePlaceholder: 'Queue another message…',
   queuedLabel: 'Queued',
@@ -1245,8 +1247,12 @@ export const EN = {
   planOpenFailed: 'Could not open the plan',
   sideChatSessionOnly: 'This side chat can open only side-chat conversations.',
   renameFailed: 'Could not rename the conversation',
-  sandboxOffProfileNotice:
-    "This workspace is under your user profile, where Muse Code's Windows sandbox cannot run commands, so this window runs shell commands without the sandbox, directly as you. Approval prompts still apply. Setting: museSpark.shellSandbox.",
+  sandboxOffProfileWarning:
+    "Muse Code's Windows sandbox cannot reliably run commands in a workspace under your user profile, so this window runs Muse Code without its OS sandbox. Its file tools can then write anywhere your account can, outside this workspace too, without asking in any mode, Plan included, and its commands run directly as you, with your network. Approval still covers its commands and writes to .git, .muse and .agents. A workspace outside your user profile keeps the sandbox. Setting: museSpark.shellSandbox.",
+  sandboxOffSettingWarning:
+    'museSpark.shellSandbox is off, so Muse Code runs without its OS sandbox in this window. Its file tools can then write anywhere your account can, outside this workspace too, without asking in any mode, Plan included, and its commands run directly as you, with your network. Approval still covers its commands and writes to .git, .muse and .agents.',
+  sandboxPreparingNotice:
+    "Muse Code's Windows sandbox is still being prepared, so this command did not run. After its setup, Muse Code gives the sandbox read access to your files once, in the background, and that can take a while on a large user profile. Try again in a few minutes. Setting: museSpark.shellSandbox.",
   rulesFileNoWorkspace: 'Open a folder first; AGENTS.md lives in the workspace root.',
   rulesFileExists: 'AGENTS.md already exists in this workspace; opening it.',
   rulesFileCreated: 'AGENTS.md created. Muse reads it as project rules from the next conversation.',
@@ -1385,7 +1391,7 @@ export const EN = {
     'Workspace trusted: Muse will load its rules, skills and memory from the next message.',
   sandboxRestartNotice:
     'A Muse Code setting changed; Muse Code restarts with it on the next message and continues this conversation.',
-  sandboxProfileNotice: String.raw`This workspace is under your user profile, which Muse Code's Windows sandbox cannot enter: shell commands will start in the PowerShell folder instead of the project. File reads and edits are unaffected. A workspace outside C:\Users runs commands in place.`,
+  sandboxProfileNotice: String.raw`This workspace is under your user profile, where Muse Code's Windows sandbox may not run commands: they can start in the PowerShell folder instead of the project, or never finish. File reads and edits are unaffected. A workspace outside C:\Users runs commands in place.`,
   // Label groups keyed by id (they were records in constants.ts before M40).
   permissionModes: {
     manual: 'Manual',
@@ -1402,12 +1408,14 @@ export const EN = {
   // and under `muse serve` Auto skips only the commands Muse Code judges
   // simple, with no safety-check judge (D69); the panel's reviewer checks the
   // rest while its setting is on (museCodeReviewedAutoDetail). The Model API
-  // backend has no safety-check judge behind Auto either.
+  // backend has no safety-check judge behind Auto either; its paid Auto
+  // reviewer (M78) checks commands no rule settles while it is on
+  // (modelApiReviewedAutoDetail).
   permissionModeDetails: {
     manual: 'Muse will ask before running commands; Muse Code edits workspace files without asking',
     acceptEdits:
       'On Muse Code, the same as Manual: Muse Code edits workspace files without asking and asks before running commands',
-    plan: 'Muse will explore the code and present a plan before editing',
+    plan: 'Muse plans first; Muse Code refuses commands, but its file tools can still edit files without asking',
     auto: 'Muse Code runs the commands it judges simple without asking and asks before the rest',
     bypassPermissions: 'Muse will edit files and run commands without asking',
   },
@@ -1416,8 +1424,11 @@ export const EN = {
   modelApiPermissionModeDetails: {
     manual: 'Muse will ask for approval before each edit and each command',
     acceptEdits: 'Muse will edit files without asking and ask before running commands',
+    plan: 'Muse will explore the code and present a plan before editing',
     auto: 'Muse will edit files without asking, except protected files, and ask before commands',
   },
+  modelApiReviewedAutoDetail:
+    'Muse will edit files without asking, except protected files; a paid reviewer may allow some commands once, and you are asked about the rest',
   effortLevels: {
     minimal: 'Minimal',
     low: 'Low',
@@ -1929,16 +1940,16 @@ export const EN = {
     calculating: 'Calculating…',
     composing: 'Composing…',
   },
-  // The getting-started tips (M8): the default keybindings, named for both
-  // platforms since the webview does not know which one it runs on (M26,
+  // The getting-started tips (M8): the default keybindings, named for each
+  // platform since the webview does not know which one it runs on (M26,
   // D29), and what each does.
   onboardingShortcuts: {
-    focus: 'Ctrl+Esc (Ctrl+Alt+Esc on Windows)',
+    focus: 'Ctrl+Esc (Cmd+Esc on macOS, Ctrl+Alt+Esc on Windows)',
     palette: '/',
     cycleMode: 'Shift+Tab',
     mentionSelection: 'Alt+K',
     mentionFile: '@',
-    newTab: 'Ctrl+Shift+Esc (Ctrl+Shift+Alt+Esc on Windows)',
+    newTab: 'Ctrl+Shift+Esc (Cmd+Shift+Esc on macOS, Ctrl+Shift+Alt+Esc on Windows)',
     dictation: 'Ctrl+D',
     // M46.
     shell: '!',
@@ -2335,7 +2346,7 @@ export const EN = {
   // The paid feature (D48): its name, confirmation, popup and tally.
   paidAutoReviewerName: 'Auto reviewer',
   paidConfirmAutoReviewer:
-    'In Auto mode on the Model API backend, a separate model call judges each risky action that no rule settles, and runs it without asking when it looks safe. It never allows a forbidden command, a command your rules ask about, a protected write or a paid call, and when it declines or fails, you decide. Each review is billed to your Model API key at the conversation model’s token rates:\n{price}\nEvery review asks first, unless you allow reviews always in this workspace.',
+    'In Auto mode on the Model API backend, a separate model call judges each plain shell command or MCP tool call that would ask and that no rule or permission profile settles, and runs it without asking when it looks safe. It never allows a forbidden command, a command your rules ask about, a protected write or a paid call, and when it declines or fails, you decide. Each review is billed to your Model API key at the conversation model’s token rates:\n{price}\nEvery review asks first, unless you allow reviews always in this workspace.',
   // {tool}: the tool the reviewed call is for; {action}: its command line or arguments.
   paidUseAutoReviewerTitle: 'Let the Auto reviewer judge this {tool} call?',
   paidUseAutoReviewerDetail:

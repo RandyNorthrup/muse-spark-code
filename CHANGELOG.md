@@ -154,6 +154,53 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- **Diagnostic failures redact known key/token shapes before display.**
+  A shared event redactor covers both backends' failed-turn/retry reasons;
+  the panel boundary also covers raw diagnostic events and notices before
+  webview snapshots. MCP picker failures and voice error/close notices are
+  covered, including M87 queued-edit refusals and Tasks-tab failures at the
+  panel boundary. Muse Code RPC/failure logs and skill activation stdout/stderr use
+  fixed kind/code/length summaries, keeping account/profile text out of
+  those failure logs. Ordinary conversation and tool content stays intact.
+- **Confidential workspaces block contributor dispatch after an earlier yes.**
+  Every send/steer, queued/timed preparation, review and resume checks the
+  current setting; checks repeat after confirmations and setup awaits.
+  Configuration changes cancel and retire existing contributor sessions.
+  Turning the setting off retains the panel's earlier confirmation.
+- **Scanner forced-signal docs preserve the first stop.** On POSIX an earlier
+  latched timeout retains exit 6 when repeated signals force cleanup; only a
+  signal that latched first selects 130/143. Windows forced process exit is 1.
+- **Docs, setting descriptions and panel hints now match the code** (a
+  truth audit of the 0.12.0 tree). The README, PRIVACY.md, SECURITY.md,
+  acp.md, ci.md, RELEASING.md, CONTRIBUTING.md, the walkthrough and the
+  manifest's setting and command text no longer overstate what asks: Plan
+  refuses where they said "asks", allow rules, session allowances and hooks
+  settle some asks in Manual, and "Allow always in this workspace" covers
+  subagents, scheduled runs, best-of-N and reviews. They name all seven paid
+  features (the Auto reviewer was missing), say the ACP agent is on npm
+  since 0.11.0, and give the current bundle caps, exec and scanner rules,
+  release recovery run and hosted Action check status. The Modes menu's Auto
+  line on the Model API names the paid Auto reviewer while it is on, and the
+  panel's focus shortcuts name Cmd+Esc on macOS.
+- **The panel no longer says approvals still cover everything when Muse
+  Code runs without its sandbox.** Without it, Muse Code's file tools can
+  write anywhere your account can, without asking, in every mode, Plan
+  included (Meta's permissions page; probed on 1.4.2). This is the posture
+  `museSpark.shellSandbox` at `auto` picks for a Windows workspace under
+  your user profile, where the sandbox does not reliably run commands
+  ([#26](https://github.com/meta-models/muse-code-sdk/issues/26): 1.4.2 ran
+  them there on one machine and hung on a freshly set-up one). The panel
+  now warns once per window whenever the sandbox is off, whether `auto` or
+  the `off` setting turned it off; the Diagnostics report gains a
+  `muse code file writes` line; the setting's description says so too.
+- **The Modes menu no longer promises that Plan on Muse Code plans before
+  editing.** Plan is Muse Code's `denyUnmatched`, which refuses commands its
+  own allow rules do not cover and writes to `.git`, `.muse` and `.agents` but lets its file tools edit
+  other files, and the menu now says that.
+- **A first command after the Windows sandbox setup that fails while Muse
+  Code is still preparing the sandbox** (`ACL publication lock … timed
+  out`) now says to wait and try again, instead of offering the setup that
+  has already run.
 - A blocked M80 `v0` tag update now reports that an administrator must move it,
   while preserving the four release channels' outcomes. Updates require a
   fast-forward; the release guide documents the administrator's recovery command.
@@ -170,6 +217,33 @@ happened, not what was planned; superseded entries are kept.
   with Chrome's focus emulation and is scanned only once its scenario is
   ready (a page not ready in 10 s fails); no rule or exemption changed.
   Tooling only.
+
+### Security
+
+- **Other coding agents' folders and files are protected writes.** On the
+  Model API backend, a write into `.claude`, `.codex`, `.cursor`, `.gemini`,
+  `.github/hooks`, `.github/copilot`, `.devin`, `.windsurf`, `.kiro`,
+  `.clinerules`, `.amp`, `.opencode`, `.continue` or `.roo`, or to
+  `.mcp.json`, `opencode.json`, `opencode.jsonc`, `GEMINI.md`,
+  `.cursorrules`, `.windsurfrules`, `.roomodes` or
+  `.github/copilot-instructions.md` (like `AGENTS.md` and `CLAUDE.md`
+  already), now always shows an approval card, "Edit automatically" and
+  Auto included; only Bypass writes it without asking. Those folders hold
+  hooks, MCP servers, plugins and settings that the other agent runs on its
+  own, and the instruction files steer the next agent that reads them, so
+  before this a model could plant a hook or an instruction there without a
+  card and have it act the next time you started that agent in the
+  workspace.
+- **Muse Code's file-write approvals follow the same list.** When Muse Code
+  asks before writing a file the list protects, wherever it is (outside the
+  workspace too, such as `~/.claude/settings.json`), the card now says
+  "Protected write", "Edit automatically" and the Auto reviewer never
+  answer it, and it offers no "Always allow" rule. Before this the
+  extension went only by Muse Code's own flag, and Muse Code does not flag
+  these folders. Muse Code still writes some of them without asking at all
+  (it wrote `.claude/settings.json` that way in a live check with its
+  sandbox off); the extension cannot stop a write it is never asked
+  about.
 
 ## [0.12.1] - 2026-10-04
 

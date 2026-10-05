@@ -193,6 +193,18 @@ deprecated). Webview controls are hand-built on VS Code CSS theme variables.
 - Contributor-tier models are opt-in behind a dialog quoting Meta's training
   wording; off by default; blocked when the workspace setting
   `museSpark.confidentialWorkspace` is true.
+  RVAUDIT round 2 (2026-10-04): enforce this at each send, steer, review,
+  queued/timed dispatch and resume, after pending confirmations and setup;
+  configuration changes retire contributor sessions. Diagnostic events and
+  notices use the shared redactor at the panel boundary, with backend failure
+  reasons redacted before stream/storage; MCP details use the same redactor.
+  CLI log failures use fixed-word helpers, including skill activation output.
+  Acceptance and rig red drills: `docs/certification/docs-truth-audit-0120.md`.
+  PR #116 integration with M87 (2026-10-04): retain both confidentiality
+  admission and in-flight revert guards, and extend the same panel boundary
+  to queued-edit refusal reasons. Tasks-tab failures continue through its
+  notice branch. Regression and merge receipts stay in that certification
+  record; regenerate screenshots and the host API inventory from this tree.
 - Secret scanning (gitleaks) in pre-commit and CI; `npm audit --audit-level=high`
   in `security:audit`; semgrep locally in `security:sast` (part of `npm run
 quality`) and as a CI job.
@@ -571,6 +583,21 @@ Manual / Edit automatically / Auto to `denyUnmatched` (M2 behaviour) and only
 Plan and Bypass differ. Flipping the constant is an M4 change with its own
 live verification of each mode.
 
+**Correction (2026-10-04, musecode-write-asks).** The Plan row above did
+not hold either. `denyUnmatched` denies what no rule matches, and Muse
+Code's own profile allows file-tool writes, so Plan on Muse Code refuses
+commands and protected writes (`.git`, `.muse`, `.agents`: raised, then
+`resolvedBy: policy`) but its `write_file` and `edit_file` still write
+without asking: inside the workspace with the sandbox, anywhere without it
+(forced tool calls through a loopback stand-in for the provider, 0 model
+calls, docs/certification/musecode-write-asks.md). Meta's permissions page
+says in-workspace `write_file` and `edit_file` writes "still pass in any
+mode". MSP cannot select Muse Code's Read-only profile (1.4.2 has no
+`session/setPermissionProfile`; the `next` SDK site lists one,
+experimental and select-only; our #43 asks for it). The Modes menu and the
+README now say what Plan does on Muse Code instead of "plans before
+editing".
+
 **Correction (2026-10-03, D69).** The Auto row above did not hold under
 `muse serve`: the LLM approval judge `muse --help` names runs only in the
 CLI's interactive and `exec` commands, so serve's `onRequest` skips only the
@@ -743,6 +770,81 @@ setting drops the host so the next message respawns it (a notice says so).
 Caveat from the CLI docs, kept in the README: without the sandbox Muse
 Code's file tools may write outside the workspace, so the approval modes
 matter more.
+
+**Update (2026-10-04, musecode-write-asks).** A live check by the
+protect-agent-folders lane found Muse Code 1.4.2, in Manual with the
+sandbox off, writing `.claude/settings.json` and a file outside the
+workspace without any approval. The findings, with forced tool calls
+through a loopback stand-in for the provider (0 model calls) and Meta's
+docs (docs/certification/musecode-write-asks.md):
+
+- The caveat understated it. Meta's permissions page: `--disable-sandbox`
+  "also removes workspace confinement from the file tools, so write_file
+  and edit_file can write anywhere on the filesystem", and Muse Code asks
+  for none of those writes, in Manual, Auto or Plan. With the sandbox they
+  fail ("absolute path is outside the workspace"), a temp-folder target
+  included. Either way only `.git`, `.muse` and `.agents` ask; in-workspace
+  writes "still pass in any mode", so `.claude/settings.json` is written
+  unasked with or without the sandbox. "Approval prompts still apply", the
+  old notice's line, was true only for commands.
+- Nothing lets a client add ask rules. MSP is "select, never create"
+  (`session/start.config` admits only `mcpServers`; the experimental
+  `session/setPermissionProfile` on the `next` site says "there is no
+  inline-rule member and none may be added"); `muse serve` takes posture
+  flags only (no `--permission-profile`, no `--approval-judge`); the
+  documented settings key is `permissions.default_profile` (built-in
+  profiles; custom ones are undocumented, and the binary's own startup text
+  says that without the sandbox "permission-profile filesystem …
+  restrictions remain recorded but are not enforced"); managed policy
+  (`execution.permission_profiles`, `execution.tool_rules`) is a
+  machine-wide administrator plane; hooks (a PreToolUse block) live in the
+  user's settings file, a managed hooks file or the repository's
+  `.muse/hooks.json`. The extension writes none of those (D17: it never
+  writes the CLI's settings).
+- #26 is not reliably fixed in 1.4.2-R4684.1, so the sandbox cannot stay
+  on for a profile workspace. On the owner's machine a sandboxed
+  `powershell` call in a workspace under `C:\Users\<user>` (and under
+  `%TEMP%`) printed the workspace as its location in about 5 s. On the
+  freshly set-up Windows 11 rig, in the interactive session, the same call
+  first failed with "ACL publication lock
+  Global\TbhWindowsSandboxAclPublication: timed out … after 120000 ms":
+  Muse Code's background read worker (1.4.0's "Root:Read … through an
+  optional background worker") held that lock for about 70 minutes while it
+  granted the sandbox group read access to the profile's top-level entries,
+  ending "refresh-partial". After it ended, the call in a profile workspace
+  never finished, twice (8 minutes each); a workspace outside the profile
+  (`C:\mcwrite-probe-ws`) ran in place throughout. (Runs over SSH, session
+  0, hung or failed with "The pipe has been ended" and are not counted.)
+
+Decisions (the lead's brief: keep the sandbox on wherever it can work,
+warn honestly where it cannot):
+
+- **`auto` stays as it was.** A version gate (keep the sandbox for 1.4.2 in
+  a profile workspace) was built and drilled, then dropped on the rig's
+  evidence: it would leave fresh setups with commands that hang without a
+  message. The sandbox stays on everywhere else, as before; no rule or
+  setting of Muse Code can narrow the switch-off to a precise exception.
+  The extension changes no ACL.
+- **The sandbox-off warning.** Whenever the host runs without the sandbox,
+  for either reason, the first Muse Code conversation of the window gets a
+  warning: the file tools can write anywhere the account can, without
+  asking in any mode, Plan included; commands run as the user with the
+  user's network; approval still covers commands and `.git`, `.muse`,
+  `.agents`; a workspace outside the profile keeps the sandbox. The
+  posture carries `isUnsupportedWorkspace`, and the wrong-folder warning
+  (now "may start in the PowerShell folder … or never finish") stays for
+  `muse` forced in a profile workspace.
+- **The preparing notice.** A shell failure carrying the lock text says
+  the sandbox is still being prepared and to try again later, and offers no
+  setup (the setup has run).
+- **Diagnostics** adds `muse code file writes:` (workspace only, or
+  anywhere without asking).
+- **Upstream** (draft 07): ask before file-tool writes outside the
+  workspace roots when the shell sandbox is off (or keep the file tools'
+  confinement independent of the shell sandbox), let a client select the
+  Read-only profile for Plan (#43), protect other agents' configuration
+  folders or let users name protected paths; and, on #26, the 1.4.2
+  results above.
 
 ### D8 — Attachments live in the host; images are validated by header parsing
 
@@ -14045,6 +14147,15 @@ joined with M57, M58 and PR #49's sign-in
 
 ## 7. Gates
 
+**MRG116 bounded merge lane (2026-10-04).** The rig brief requires merging
+`main-sync` (M87) into PR #116 with scoped owning tests and static/build
+checks. Its shared rules prohibit this lane from running full quality or
+the full test suite, assigning those checks to the lead. Full quality,
+coverage, accessibility and installed-editor/platform acceptance therefore
+remain required after integration; no gate or threshold is changed.
+Conflict resolutions, generated material, redaction drills and the observed
+Kubuntu results are recorded in `docs/certification/docs-truth-audit-0120.md`.
+
 **RELFAST3 bounded-lane result (2026-10-04).** Fresh Windows compilers,
 dead-code, duplication, localization, host API, production build, actionlint
 and scoped formatting pass; the fixture's two ESLint style findings are fixed
@@ -14568,6 +14679,22 @@ before a repaired one loads (2026-09-30).
   auto-approves outside the mode the user selected; the one automatic answer
   is "Edit automatically" allowing a plain file write once (D24), never a
   protected write, an escalation or a command.
+- Muse Code's unasked file writes (musecode-write-asks, D12 update). Muse
+  Code 1.4.2 raises an approval only for file writes to `.git`, `.muse` and
+  `.agents`; every other file-tool write runs without one in every mode,
+  Plan included, and without the sandbox that reaches any path the user can
+  write. The extension cannot add rules over MSP and does not write Muse
+  Code's settings or the repository's hooks file to add a PreToolUse block.
+  Mitigations: the sandbox stays on wherever it works (every workspace but
+  a Windows profile one, #26), the panel warns once per window when it is
+  off, Diagnostics says where the file tools can write, and the docs say
+  what Plan does on Muse Code and that a workspace outside the profile
+  keeps the sandbox. Residual, accepted until Muse Code changes: in the
+  workspace, a prompt-injected turn can write other agents' configuration
+  (`.claude/settings.json`) unasked in any mode; with the sandbox off
+  (`off`, or `auto` in a Windows profile workspace, which is most Windows
+  workspaces) it can write anywhere the user can, the Auto reviewer's
+  Plan-mode side session included before its cancellation lands.
 - The Model API backend (M7) executes tools in-process. The controls (D24):
   path confinement by canonical path (links and junctions resolved, Windows
   reinterpreted names refused), protected writes that always ask, per-call
@@ -14576,6 +14703,41 @@ before a repaired one loads (2026-09-30).
   confirmed once in a remote window. Residual risk: a file swapped for a link
   between the check and the write (a local attacker already inside the
   workspace); the check runs immediately before each operation.
+- Other coding agents' folders and files (2026-10-04,
+  `docs/certification/protect-agent-folders.md`): `.claude`, `.codex`,
+  `.cursor`, `.gemini`, `.github/hooks`, `.github/copilot`, `.devin`,
+  `.windsurf`, `.kiro`, `.clinerules`, `.amp`, `.opencode`, `.continue` and
+  `.roo` hold hooks, MCP servers, plugins and settings that those agents
+  run outside our approvals, and `.mcp.json`, `opencode.json` and
+  `opencode.jsonc` name MCP servers they start, so all are protected writes
+  (D24) like `.muse`. The instruction files (`AGENTS.md`, `CLAUDE.md`,
+  `GEMINI.md`, `.cursorrules`, `.windsurfrules`, `.roomodes`,
+  `.clinerules`, `.github/copilot-instructions.md`) run nothing, but they
+  are protected too: they steer the next agent that reads them, so an
+  instruction a prompt injection plants there persists after the
+  conversation (prompt-injection persistence). Roo Code's and Continue's
+  paths are from their documentation (Roo: `.roomodes` at the root,
+  `.roo/rules*`, `.roo/mcp.json`; Continue: `.continue/rules`,
+  `.continue/mcpServers`; both start stdio MCP servers as local commands).
+  Residual risks: (1) a shell command, an MCP tool or a Best-of-N attempt in
+  its own worktree can still write there; the extension does not parse
+  commands for paths, so the command's own card (every mode but Bypass,
+  unless a rule or the Auto reviewer allows it) is the control; (2) on Muse
+  Code the CLI decides which writes ask. The extension judges every Muse
+  Code `fileAccess` write it is asked about by the same list, on the
+  absolute path Muse Code names (captured 2026-10-04: `\\?\C:\…\.muse\hooks.json`),
+  so one outside the workspace counts too: it is shown as protected, Edit
+  automatically and the M90 reviewer never answer it, and its card drops
+  Muse Code's standing "Always allow" choices. A workspace inside a
+  protected folder makes every such write ask, which only asks more. What
+  Muse Code writes without asking never reaches the extension: the same
+  capture, with the sandbox off (the extension's posture for a workspace
+  under the user's profile) and in Manual, wrote `.claude/settings.json`
+  and a file outside the workspace with no approval. That is Muse Code's
+  policy, to be raised upstream; (3)
+  names matched by pattern rather than exactly are not protected: Roo's
+  `.roorules-<mode>` fallback and Copilot's
+  `.github/instructions/*.instructions.md`.
 - Programs are started by absolute path (D24): git, bash and PowerShell from
   absolute `PATH` entries, the CLI from its install layout or an absolute
   `museBinaryPath`; git never runs in Restricted Mode.

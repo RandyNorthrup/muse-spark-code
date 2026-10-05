@@ -308,9 +308,11 @@ export function App({
   const [isInstallConfirmOpen, setIsInstallConfirmOpen] = useState(false)
   const [selectedAgentId, setSelectedAgentId] = useState<string | undefined>(undefined)
   const canBypass = state.settings?.allowDangerouslySkipPermissions ?? false
-  // The Auto reviewer on Muse Code (M90), as its setting says.
+  // The Auto reviewer on Muse Code (M90), as its setting says, and the paid
+  // one on the Model API (M78), on with its price accepted.
   const hasMuseCodeReviewer =
     state.settings?.museCodeAutoReviewer ?? SETTING_DEFAULTS.museCodeAutoReviewer
+  const hasModelApiReviewer = state.paid.features.includes('autoReviewer')
 
   // The transcript follows new entries while the reader is at its end; once
   // they scroll up it holds still and offers a jump to the newest (M15).
@@ -1610,11 +1612,14 @@ export function App({
       availablePermissionModes(canBypass).map((mode) => ({
         id: mode,
         label: UI_TEXT.permissionModes[mode],
-        detail: permissionModeDetail(mode, state.auth.backend, hasMuseCodeReviewer),
+        detail: permissionModeDetail(mode, state.auth.backend, {
+          museCode: hasMuseCodeReviewer,
+          modelApi: hasModelApiReviewer,
+        }),
         icon: modeIcon(mode),
         isChecked: mode === state.permissionMode,
       })),
-    [canBypass, state.permissionMode, state.auth.backend, hasMuseCodeReviewer],
+    [canBypass, state.permissionMode, state.auth.backend, hasMuseCodeReviewer, hasModelApiReviewer],
   )
   const agents = agentsOf(state)
   // The approvals waiting, docked above the composer (D26).

@@ -9,7 +9,7 @@
   "snapshotTooLong": "Bu konuşma, yeniden yükleme boyunca panelde tutulamayacak kadar uzundu; tamamını görmek için Geçmiş'ten açın.",
   "linkOutsideWorkspace": "Çalışma alanı dışındaki dosyalara giden bağlantılar dökümden açılmaz.",
   "emptyStateHint": "İş için doğru aracı seçmek üzere /model yazın.",
-  "composerPlaceholder": "Muse'a odaklanmak veya odağı bırakmak için ctrl esc (Windows'ta ctrl alt esc)",
+  "composerPlaceholder": "Muse'a odaklanmak veya odağı bırakmak için ctrl esc (macOS'ta cmd esc, Windows'ta ctrl alt esc)",
   "composerQueuePlaceholder": "Başka bir mesajı kuyruğa ekle…",
   "queuedLabel": "Kuyrukta",
   "queuedMenuLabel": "Kuyruktaki ileti işlemleri",
@@ -880,7 +880,9 @@
   "planOpenFailed": "Plan açılamadı",
   "sideChatSessionOnly": "Bu yan sohbet yalnızca diğer yan sohbetleri açabilir.",
   "renameFailed": "Konuşma yeniden adlandırılamadı",
-  "sandboxOffProfileNotice": "Bu çalışma alanı kullanıcı profilinizin altında; burada Muse Code'un Windows korumalı alanı komut çalıştıramaz, bu nedenle bu pencere kabuk komutlarını korumalı alan olmadan, doğrudan sizin hesabınızla çalıştırır. Onay istemleri yine geçerlidir. Ayar: museSpark.shellSandbox.",
+  "sandboxOffProfileWarning": "Muse Code'un Windows korumalı alanı, kullanıcı profilinizin altındaki bir çalışma alanında komutları güvenilir biçimde çalıştıramaz; bu nedenle bu pencere Muse Code'u işletim sistemi korumalı alanı olmadan çalıştırır. Bu durumda dosya araçları, bu çalışma alanının dışı da dahil olmak üzere hesabınızın yazabildiği her yere, Planlama dahil her modda sormadan yazabilir ve komutları doğrudan sizin hesabınızla, sizin ağınızla çalışır. Onay, komutlarını ve .git, .muse ile .agents'a yazmayı kapsamaya devam eder. Kullanıcı profilinizin dışındaki bir çalışma alanı korumalı alanı korur. Ayar: museSpark.shellSandbox.",
+  "sandboxOffSettingWarning": "museSpark.shellSandbox kapalı, bu nedenle Muse Code bu pencerede işletim sistemi korumalı alanı olmadan çalışır. Bu durumda dosya araçları, bu çalışma alanının dışı da dahil olmak üzere hesabınızın yazabildiği her yere, Planlama dahil her modda sormadan yazabilir ve komutları doğrudan sizin hesabınızla, sizin ağınızla çalışır. Onay, komutlarını ve .git, .muse ile .agents'a yazmayı kapsamaya devam eder.",
+  "sandboxPreparingNotice": "Muse Code'un Windows korumalı alanı hâlâ hazırlanıyor, bu nedenle bu komut çalışmadı. Kurulumdan sonra Muse Code, korumalı alana arka planda bir kez dosyalarınızı okuma erişimi verir; bu, büyük bir kullanıcı profilinde biraz zaman alabilir. Birkaç dakika sonra yeniden deneyin. Ayar: museSpark.shellSandbox.",
   "rulesFileNoWorkspace": "Önce bir klasör açın; AGENTS.md çalışma alanının kök klasöründe bulunur.",
   "rulesFileExists": "AGENTS.md bu çalışma alanında zaten var; açılıyor.",
   "rulesFileCreated": "AGENTS.md oluşturuldu. Muse sonraki konuşmadan itibaren bunu proje kuralları olarak okur.",
@@ -1008,7 +1010,7 @@
   "bannerDismiss": "Kapat",
   "trustGrantedNotice": "Çalışma alanına güvenildi: Muse sonraki mesajdan itibaren kurallarını, becerilerini ve belleğini yükleyecek.",
   "sandboxRestartNotice": "Bir Muse Code ayarı değişti; Muse Code sonraki mesajda bu ayarla yeniden başlar ve bu konuşmayı sürdürür.",
-  "sandboxProfileNotice": "Bu çalışma alanı kullanıcı profilinizin altında ve Muse Code'un Windows korumalı alanı buraya giremez: kabuk komutları proje yerine PowerShell klasöründe başlar. Dosya okuma ve düzenlemeleri etkilenmez. C:\\Users dışındaki bir çalışma alanı komutları yerinde çalıştırır.",
+  "sandboxProfileNotice": "Bu çalışma alanı kullanıcı profilinizin altında; Muse Code'un Windows korumalı alanı burada komut çalıştıramayabilir: komutlar proje yerine PowerShell klasöründe başlayabilir ya da hiç bitmeyebilir. Dosya okuma ve düzenlemeleri etkilenmez. C:\\Users dışındaki bir çalışma alanı komutları yerinde çalıştırır.",
   "permissionModes": {
     "manual": "El ile",
     "acceptEdits": "Otomatik düzenleme",
@@ -1019,7 +1021,7 @@
   "permissionModeDetails": {
     "manual": "Muse komut çalıştırmadan önce sorar; Muse Code çalışma alanı dosyalarını sormadan düzenler",
     "acceptEdits": "Muse Code’da El ile ile aynıdır: Muse Code çalışma alanı dosyalarını sormadan düzenler ve komut çalıştırmadan önce sorar",
-    "plan": "Muse kodu inceler ve düzenlemeden önce bir plan sunar",
+    "plan": "Muse önce plan yapar; Muse Code komutları reddeder, ancak dosya araçları dosyaları yine de sormadan düzenleyebilir",
     "auto": "Muse Code basit saydığı komutları sormadan çalıştırır, diğerlerinden önce sorar",
     "bypassPermissions": "Muse sormadan dosya düzenler ve komut çalıştırır"
   },
@@ -1027,8 +1029,10 @@
   "modelApiPermissionModeDetails": {
     "manual": "Muse her düzenlemeden ve her komuttan önce onay ister",
     "acceptEdits": "Muse dosyaları sormadan düzenler ve komut çalıştırmadan önce sorar",
+    "plan": "Muse kodu inceler ve düzenlemeden önce bir plan sunar",
     "auto": "Muse korumalı dosyalar dışındaki dosyaları sormadan düzenler ve komutlardan önce sorar"
   },
+  "modelApiReviewedAutoDetail": "Muse korumalı dosyalar dışındaki dosyaları sormadan düzenler; ücretli bir inceleyici bazı komutlara bir kez izin verebilir, geri kalanlar size sorulur",
   "effortLevels": {
     "minimal": "Minimum",
     "low": "Düşük",
@@ -1349,12 +1353,12 @@
     "composing": "Yazıyor…"
   },
   "onboardingShortcuts": {
-    "focus": "Ctrl+Esc (Windows'ta Ctrl+Alt+Esc)",
+    "focus": "Ctrl+Esc (macOS'ta Cmd+Esc, Windows'ta Ctrl+Alt+Esc)",
     "palette": "/",
     "cycleMode": "Shift+Tab",
     "mentionSelection": "Alt+K",
     "mentionFile": "@",
-    "newTab": "Ctrl+Shift+Esc (Windows'ta Ctrl+Shift+Alt+Esc)",
+    "newTab": "Ctrl+Shift+Esc (macOS'ta Cmd+Shift+Esc, Windows'ta Ctrl+Shift+Alt+Esc)",
     "dictation": "Ctrl+D",
     "shell": "!",
     "moveToBackground": "Ctrl+B"
@@ -1880,7 +1884,7 @@
   "autoReviewerTripped": "Otomatik inceleyici tekrarlanan retler veya hatalardan sonra durdu. Bir sonraki mesajınızı gönderene kadar her riskli işlem size sorar.",
   "museCodeReviewerNotice": "Varsayılan olarak açık. Muse Code Otomatik modunda yalnızca çalışan turun hiçbir kuralın karara bağlamadığı onayları uygundur: gizli Planlama oturumunda aboneliğinizden kısa bir Muse Code turu. Korumalı yazmalar, ücretli çağrılar, alt görevler, sorular, yeniden sunulan veya üst değerlendirmeye aktarılan istekler, bilinmeyen konular, bir kez izin verme seçeneği olmayan istekler ve panellerce paylaşılan oturumlar asla incelenmez. Başarılı inceleme bir kez izin verebilir; retler, hatalar, meşgul oturumlar, zaman aşımları veya devre kesicinin açılması onay kartını gösterir. Ana süreç çıktığında yan oturum yeniden oluşturulur. museSpark.museCodeAutoReviewer ile kapatabilirsiniz.",
   "paidAutoReviewerName": "Otomatik inceleyici",
-  "paidConfirmAutoReviewer": "Model API arka ucunda Otomatik modda, ayrı bir model çağrısı hiçbir kuralın karara bağlamadığı her riskli işlemi değerlendirir ve güvenli görünüyorsa sormadan çalıştırır. Yasaklanmış bir komuta, kurallarınızın onay istediği bir komuta, korumalı bir yazmaya veya ücretli bir çağrıya asla izin vermez; reddederse veya başarısız olursa kararı siz verirsiniz. Her inceleme, konuşma modelinin token ücretleri üzerinden Model API anahtarınıza faturalandırılır:\n{price}\nBu çalışma alanında incelemelere her zaman izin vermediğiniz sürece her inceleme önce onay ister.",
+  "paidConfirmAutoReviewer": "Model API arka ucunda Otomatik modda, ayrı bir model çağrısı, onay isteyecek ve hiçbir kuralın veya izin profilinin karara bağlamadığı her basit kabuk komutunu ya da MCP aracı çağrısını değerlendirir ve güvenli görünüyorsa sormadan çalıştırır. Yasaklanmış bir komuta, kurallarınızın onay istediği bir komuta, korumalı bir yazmaya veya ücretli bir çağrıya asla izin vermez; reddederse veya başarısız olursa kararı siz verirsiniz. Her inceleme, konuşma modelinin token ücretleri üzerinden Model API anahtarınıza faturalandırılır:\n{price}\nBu çalışma alanında incelemelere her zaman izin vermediğiniz sürece her inceleme önce onay ister.",
   "paidUseAutoReviewerTitle": "Bu {tool} çağrısını otomatik inceleyici değerlendirsin mi?",
   "paidUseAutoReviewerDetail": "{action}\n\n{model} modeline yapılan ayrı bir çağrı, işlemin size sormadan çalışıp çalışamayacağını değerlendirir. Model API anahtarınıza faturalandırılır: {price}. Toplam, kullanılan tokenlara göre değişir. İzin vermezseniz bunun yerine onay kartını görürsünüz.",
   "usagePaidAutoReviews": {

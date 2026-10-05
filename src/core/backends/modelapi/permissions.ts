@@ -22,7 +22,8 @@
 // A protected write (PLAN.md D24) asks in every mode but Bypass and Plan,
 // session rules included: a file that configures or runs code outside the
 // edit itself (git's hooks and config, the editor's tasks, CI workflows,
-// the agent's own rules and skills) never changes without a card.
+// the agent's own rules and skills, other coding agents' hooks and
+// settings) never changes without a card.
 //
 // An MCP server's tool (M50, PLAN.md D42) is arbitrary code: it asks like a
 // shell command, "always allow in this session" included, and Plan refuses
