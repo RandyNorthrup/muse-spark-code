@@ -415,6 +415,39 @@ describe('packaging (M26)', () => {
       expect(body, job).toContain('if: ${{ !cancelled()')
     }
   })
+
+  it('starts the live Action receipt by the owner’s hand only, under a hard cap (M80 LA)', () => {
+    const live = read('.github', 'workflows', 'action-live.yml')
+    // The one trigger: no pull request, push, comment or schedule reaches the key.
+    const triggers = live.split('\non:\n', 2)[1]!.split('\npermissions:\n', 1)[0]!
+    expect(triggers.match(/^ {2}\S.*$/gm)).toEqual(['  workflow_dispatch:'])
+    const ownerGate = [
+      "github.event_name == 'workflow_dispatch' &&",
+      'github.actor == github.repository_owner &&',
+      'github.triggering_actor == github.repository_owner &&',
+      "github.ref == format('refs/heads/{0}', github.event.repository.default_branch)",
+    ].join('\n      ')
+    expect(count(live, /^ {4}runs-on: /gm)).toBe(2)
+    expect(live.split(ownerGate).length - 1).toBe(2)
+    expect(count(live, /^ {4}timeout-minutes: \d+$/gm)).toBe(2)
+    expect(count(live, /^ {6}- uses: actions\/checkout@/gm)).toBe(
+      count(live, /^ {10}persist-credentials: false$/gm),
+    )
+    expect(live).not.toMatch(/:\s*write\b/)
+    // The key is the Action's input and nothing else's.
+    expect(live.match(/secrets\.\w+/g)).toEqual(['secrets.MUSE_MODEL_API_KEY'])
+    expect(live).toMatch(/^ {10}model-api-key: \$\{\{ secrets\.MUSE_MODEL_API_KEY \}\}$/m)
+    for (const input of [
+      "max-budget-usd: '0.25'",
+      'model: muse-spark-1.3-contributor',
+      "allow-contributor-models: 'true'",
+      "image-generation: 'false'",
+      "post-comment: 'false'",
+      "timeout-minutes: '10'",
+    ]) {
+      expect(live).toContain(`\n          ${input}\n`)
+    }
+  })
 })
 
 describe('tiered CI (CIFLOW)', () => {

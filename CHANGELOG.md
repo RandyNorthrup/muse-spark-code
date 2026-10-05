@@ -7,6 +7,17 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+### Added
+
+- **A live receipt workflow for the GitHub Action (M80 LA).**
+  `.github/workflows/action-live.yml` runs the real Action, on the agent
+  package packed from the same commit, against one open same-repository pull
+  request with the `MUSE_MODEL_API_KEY` secret: the contributor model, a hard
+  $0.25 budget, read-only permissions and no comment. Only the repository
+  owner can start it, by hand, on the default branch; it has no other
+  trigger. `test/action/la-check.mjs` judges the run and the step summary
+  records the receipt. It has not run yet.
+
 ### Changed
 
 - **Enhancements available out of the box (D78).** Model API observation
@@ -63,6 +74,12 @@ happened, not what was planned; superseded entries are kept.
 - A blocked M80 `v0` tag update now reports that an administrator must move it,
   while preserving the four release channels' outcomes. Updates require a
   fast-forward; the release guide documents the administrator's recovery command.
+- **CI reliability: flaky tests no longer race a deadline.**
+  The Model API host's fork, Auto reviewer and two-host budget tests, the
+  Action's signal tests (G18) and the headless deadline test (D9) failed now
+  and then on slow runners. Each now waits for the event it tests: a settled
+  parent turn, a held request, published claims, the fake agent's ready
+  line, a held response. Tests only; the product is unchanged.
 
 ## [0.12.1] - 2026-10-04
 

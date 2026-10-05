@@ -3206,6 +3206,10 @@ test variant (`muse-spark-code-acp-test-<version>.tgz`, whose bin is
 `dist/exec-test-launcher.js`). The test variant is never released.
 `.github/workflows/action-check.yml` runs the Action against it with a
 scripted fake Meta API: no key and no spend.
+`.github/workflows/action-live.yml` is the one live check (receipt LA): the
+repository owner starts it by hand to run the real Action, on the product
+package from the same commit, against one pull request, with the real key,
+the contributor model and a hard $0.25 budget.
 
 See the [ACP guide](docs/acp.md), the [CI guide](docs/ci.md) and the
 [M80 record](docs/certification/m80.md) for tests, deliberate breaks, platform
