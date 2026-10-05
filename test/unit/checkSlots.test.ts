@@ -110,6 +110,15 @@ describe('persistent check slots', () => {
     expect(await readFile(path.join(folder, 'installs'), 'utf8')).toBe('xx')
     expect(slots.states()).toEqual([{ id: 0, busy: false, uncertain: false }])
   })
+  it('hashes binary lockfiles without collapsing distinct invalid UTF-8 bytes', async () => {
+    const { deps, job, worker, folder } = await fixture()
+    const slots = new CheckSlots(deps)
+    await writeFile(path.join(worker, 'package-lock.json'), Buffer.from([255]))
+    await slots.run(job)
+    await writeFile(path.join(worker, 'package-lock.json'), Buffer.from([254]))
+    await slots.run(job)
+    expect(await readFile(path.join(folder, 'installs'), 'utf8')).toBe('xx')
+  })
   it('isolates installs between concurrent slots and never shares mutable cache files', async () => {
     const { deps, job, folder } = await fixture(2)
     const slots = new CheckSlots(deps)

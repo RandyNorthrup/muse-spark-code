@@ -257,7 +257,7 @@ export class CheckSlots {
       hash
         .update('\0')
         .update(file)
-        .update(await this.git(['show', `${snapshot}:${file}`], cwd, job, slot))
+        .update(await this.git(['rev-parse', '--verify', `${snapshot}:${file}`], cwd, job, slot))
     }
     const cache = path.join(home, 'installs', hash.digest('hex'))
     let isReady = true
