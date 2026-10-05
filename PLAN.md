@@ -4480,7 +4480,9 @@ Decisions (the owner chose the reviewer on 2026-10-03):
 The owner approved a local, crash-safe support workflow on 2026-10-04:
 someone can report a failure after a crash, Reload Window or a new chat,
 without giving the extension access to their GitHub account or recording
-their prompts, code or model output. **Planned; no product code in this lane.**
+their prompts, code or model output. **Implemented in M93 (2026-10-05):**
+`docs/certification/m93.md` records what shipped, where it differs from the
+bullets below (as noted inline), and the receipts still open.
 Research and the engine-floor source check: `docs/certification/m93-research.md`.
 D70, D71 and D73 remain reserved for the other planning branches.
 
@@ -4627,11 +4629,13 @@ D70, D71 and D73 remain reserved for the other planning branches.
 - **M88 unattended timed sends on Muse Code (D67, items 15 and 16).** **Resolved 2026-10-03 (owner): yes, on both backends.** A Muse Code timed send or resume goes at its time without Send now. It runs in the conversation's current mode, so Manual still stops at each approval. The Model API follows the scheduling-time confirmation above.
 - **M88 Muse Code usage-limit capture (D67, item 16).** **Resolved 2026-10-03 (lead, under the owner's live-spend authorisation of 2026-09-25 and 2026-10-02): capture it.** The next time the owner's window is full, run one short contributor-model turn in an empty workspace and record the error.
 
-- **M93:** No new owner choice blocks the approved plan. Last 50 entries and
-  a 2,000-character encoded URL are conservative implementation defaults,
-  tunable after browser receipts. Native-reporter source support is proved;
-  host behavior, multi-window recovery and remote-storage behavior still need
-  implementation receipts, not another design approval.
+- **M93:** No new owner choice blocks the shipped workflow. Last 50 entries,
+  a 2,000-character encoded URL and 20 recorded failures a window a minute are
+  conservative implementation defaults, tunable after browser receipts. Still
+  open as receipts, not design questions: the installed-editor runs (engine
+  floor 1.99 and current VS Code, a remote window, two live windows, a real
+  crash), the browser's new-issue page at the cap, and an aggregate on-disk
+  budget across windows (§9, FIXM93R-R7).
 
 | #   | Question                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     | Default until answered                                                                  |
 | --- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------- |
@@ -14166,7 +14170,7 @@ joined with M57, M58 and PR #49's sign-in
   before sign-in; the key never in a frame, an argument, the environment
   or the log; every gate green.
 
-### M93 — Report a problem after a crash or reload (D72, planned)
+### M93 — Report a problem after a crash or reload (D72, implemented 2026-10-05)
 
 - **Goal.** A user can prepare and inspect a useful, scrubbed report without
   an active chat, backend or credential, then choose where it goes.
@@ -14229,14 +14233,40 @@ joined with M57, M58 and PR #49's sign-in
   exact preview, browser/clipboard/file consequences, and VS Code reporter's
   separate host data/network/submission policy. CHANGELOG calls implementation
   shipped only once certified; this lane records a plan, not a working command.
+- **Lane I integration (2026-10-05).** The lead merged P, W, A and R (with
+  R's fix round) and fixed all ten RVM93W findings: webview frames only from
+  the bundle's own script URL; a revision and a host session on every draft
+  and export answer; the item list is the builder's selection; the report
+  dialog keeps the one-modal policy; browser refusals answer `openFailed`;
+  localized item ages; a real 320 px narrow scenario. Lane A's separate JSON
+  journal was replaced by R's ReportJournal in the agent's data folder (strict
+  records, links refused, pruning at append and read), and the standalone
+  report names no VS Code version. The dialog's builder, scrub, export paths
+  and handler are `dist/report.js`, loaded on first open; they take the
+  editor's clipboard, browser, save picker and issue reporter as
+  `ReportEditorIo`, so the portable conversation controller still reaches no
+  `vscode` (D60). The flight recorder (journal, policy, recorder) stays in
+  activation. An exported BigInt constant broke vitest's shared module cache
+  for every suite importing `constants.ts`; it is a number compared as
+  BigInt. Receipts: `docs/certification/m93.md`.
 - **Certification checklist.**
   - [x] Owner-approved decision and milestone planned; source research recorded.
-  - [ ] All acceptance tests fail under their breaks, then pass on restored code.
-  - [ ] Both backends, reload/new chat, crash recovery and multi-window proof.
-  - [ ] Engine floor/current VS Code, remote-host and standalone ACP receipts.
-  - [ ] Accessibility, real translations/pseudo-locale and exact-export proof.
-  - [ ] SoL-Pi invariants, D6 sizes and full lead gate exit 0 on the final tree.
-  - [ ] README/ACP/privacy/changelog/host-API and `m93.md` match shipped behavior.
+  - [x] All acceptance tests fail under their breaks, then pass on restored code
+        (lanes' drills in `m93-0/p/r/w/a.md`, integration drills in `m93.md`).
+  - [ ] Both backends, reload/new chat, crash recovery and multi-window proof:
+        unit-level on both backends' event paths, the per-window journals and
+        markers (R), and the command/notice/turn wiring; an installed-editor run
+        is still open.
+  - [ ] Engine floor/current VS Code, remote-host and standalone ACP receipts:
+        the standalone command is covered by unit tests over the real journal
+        adapter; installed-editor, remote and packaged-agent runs are still open.
+  - [x] Accessibility (the `report` and `report-narrow` harness scenarios in
+        the full gate's a11y run), real translations in all 14 tables and the
+        pseudo-locale, and exact-export proof (preview = Copy/Save/URL/reporter).
+  - [x] SoL-Pi invariants (golden request bytes with recording and a report
+        between turns; M68 and M73 guards re-drilled), D6 sizes measured, and the
+        full lead gate exit 0 on the final tree (`m93.md`).
+  - [x] README/ACP/privacy/changelog/host-API and `m93.md` match shipped behavior.
 
 ## 7. Gates
 
@@ -14501,15 +14531,10 @@ commit with hooks enabled. Record pending integration gates without weakening
 any rule, threshold or ignore. The correction and red-drill receipts are in
 `docs/certification/m93-r.md`.
 
-- **FIXM93R-G-L10N:** `check:l10n` still rejects lane 0's unused
-  `command.reportProblem.title` in `package.nls.json`. Command registration is
-  owned by lane I and outside this repair lane; all fourteen UI tables remain
-  valid. Keep the gate unchanged and re-run after real registration.
-- **FIXM93R-G-HOSTAPI:** `check:host-api` reports four stale Node import counts
-  in lane I's generated `docs/ide-compatibility/host-api.md` (crypto 32→33,
-  fs 24→25, fs/promises 34→35, path 65→66). The VS Code API set is unchanged.
-  Leave that generated integration-owned file untouched; lane I must regenerate
-  and review it on the integrated source. This is not a host API gate pass.
+- **FIXM93R-G-L10N (resolved by lane I, 2026-10-05):** `museSpark.reportProblem`
+  is contributed; `check:l10n` reports 0 problems on the integrated tree.
+- **FIXM93R-G-HOSTAPI (resolved by lane I, 2026-10-05):** the record is
+  regenerated and reviewed on the integrated source; `check:host-api` passes.
 
 **M93 planning lane (2026-10-04).** Documentation only. Its task-specific
 `common.md` forbids a local aggregate quality run and delegates it to the lead;
@@ -14784,12 +14809,13 @@ before a repaired one loads (2026-09-30).
   owned journal, and against the merged report, but several retained/live
   journals can exceed 256 KiB on disk in aggregate. A peer cannot enforce an
   aggregate disk budget by rewriting a live journal outside its append queue.
-  This is safe for the current unintegrated recorder lane: all retained fields
-  remain scrubbed and each journal is bounded and expires on next eligible use;
-  live peer files wait for their own queue (append/read or a later closed-file
-  sweep), while merged reads filter their expired entries immediately.
-  No report command is shipped by this lane. It is not the D72 aggregate disk
-  guarantee. Follow-up: a cross-process storage transaction/ownership protocol
+  All retained fields remain scrubbed and each journal is bounded and expires
+  on next eligible use; live peer files wait for their own queue (append/read
+  or a later closed-file sweep), while merged reads filter their expired
+  entries immediately. M93 ships with this residual (lead, 2026-10-05): the
+  report reads at most the last 50 records, each window writes at most 20
+  records a minute, and a journal with no valid record left is deleted. It is
+  not the D72 aggregate disk guarantee. Follow-up: a cross-process storage transaction/ownership protocol
   that serializes admission, append and oldest-first aggregate eviction, with
   native concurrent-process tests, before claiming that guarantee. The R7
   regression demonstrates both the bounded merged report and this disk limit.
@@ -14803,11 +14829,15 @@ before a repaired one loads (2026-09-30).
   existing atomic writer; it is not a guarantee against that actor. Follow-up
   if that threat enters scope: native directory-handle operations.
 
-- **M93 (planned).** Support recording accepts facts, not arbitrary log text;
+- **M93.** Support recording accepts facts, not arbitrary log text;
   write-time validation/scrub and export-time validation/scrub are separate
   boundaries. Local user/admin access, confidential user-authored descriptions,
   retention while the editor is closed, and host/browser/clipboard/file behavior
   after an explicit handoff remain limits stated in D72 and the privacy guide.
+  A crash before the recorder starts, or a forced exit, is not told apart from
+  a crash; a frame inside the package can be forged by an error message that
+  imitates a stack line, but it can then name only a shipped bundle and two
+  numbers.
 
 - Code intelligence (M67) shows what VS Code's language services say. A
   result located outside the workspace is left out and a hover defined only

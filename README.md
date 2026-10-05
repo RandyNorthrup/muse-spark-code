@@ -41,7 +41,8 @@ two.
 [Limits](#limits) ·
 [Commands](#commands-and-keybindings) · [Settings](#settings) ·
 [Requirements](#requirements) · [Privacy](#privacy-and-security) ·
-[Troubleshooting](#troubleshooting) · [Development](#development)
+[Troubleshooting](#troubleshooting) ·
+[Reporting a problem](#reporting-a-problem) · [Development](#development)
 
 ## What's new in 0.12.0
 
@@ -2744,6 +2745,7 @@ What stays in English:
 | Muse Spark: Set Up Shell Sandbox                    | —                                                                                    | Windows: run Muse Code's one-time `muse sandbox windows setup` through a UAC prompt and report the result; elsewhere reports that no setup is needed                                              |
 | Muse Spark: Show Logs                               | —                                                                                    | Open the "Muse Spark" log channel (keys redacted)                                                                                                                                                 |
 | Muse Spark: Diagnostics                             | —                                                                                    | Write the versions, the backend and CLI facts, credential facts, never a value, the dictation state, the network posture and `muse config status` to the log and open it: what a bug report needs |
+| Muse Spark: Report a Problem                        | —                                                                                    | Open the report dialog, in a new conversation if none is open: preview the scrubbed draft, then copy it, open a GitHub issue page or save it ([more](#reporting-a-problem))                       |
 | Muse Spark: Manage Skills                           | —                                                                                    | Turn Muse Code's skills on or off (`muse skills enable`/`disable`), then offer to restart it so the change takes effect                                                                           |
 | Muse Spark: Import Skills from Claude Code or Codex | —                                                                                    | Preview what `muse skills import` would copy, import it once you confirm, report what was imported, skipped or failed                                                                             |
 | Muse Spark: Import from Other Agents                | —                                                                                    | Preview MCP servers, hooks, agents, commands and rules from Claude Code, Codex or Cursor, import the files once you confirm, offer unsaved target edits, preserve source exposure                 |
@@ -2968,6 +2970,13 @@ stopped and the next message resumes the same session.
 - The log records what happened (sessions, turns and their times, approvals,
   failures) and never your prompts, files, dictated words or the model's
   output; keys are redacted.
+- For [Reporting a problem](#reporting-a-problem), each window keeps a
+  small journal of failures in the extension's global storage: fixed event
+  kinds, error codes, versions and frames inside the extension's own
+  bundles, for 7 days and at most 256 KiB. It never holds prompts, code,
+  model output, messages, absolute paths or credentials, and a report
+  leaves the machine only through an export you choose. Details:
+  [PRIVACY.md](docs/PRIVACY.md#reporting-a-problem).
 - The usage insights read the Muse Code CLI's trace logs on this machine and
   send nothing anywhere.
 - On the Model API backend Meta caches the start of each request to answer
@@ -3201,6 +3210,34 @@ stopped and the next message resumes the same session.
   the host's devices unless the client redirects a microphone). On macOS,
   "Siri and Dictation are disabled" means Dictation must be switched on in
   System Settings > Keyboard.
+
+## Reporting a problem
+
+**Muse Spark: Report a Problem** builds a bug report for this repository
+without recording your conversation. The panel opens the same dialog from
+the palette's **Support** item **Report an issue…**, from **Report this** on
+a recorded error notice or failed turn, and from **Report a problem** on the
+panel's crash screen. With no conversation open, the command opens one and
+shows the dialog there.
+
+- **What goes in:** your description, support facts (versions, platform,
+  backend and sandbox settings, whether the CLI was found and is signed in,
+  whether a key is stored or `META_API_KEY` is set, the names of Muse Spark
+  settings you changed) and up to the last 50 recorded failures with their
+  ages. Each item has **Remove**. The preview shows the exact, scrubbed text
+  every export uses.
+- **Where it goes:** **Copy report**, **Open issue page** (this repository's
+  new-issue form in your browser, filled in), **Save to a file**, or, where
+  VS Code has it, **Use the VS Code issue reporter**. The extension posts
+  nothing itself, makes no network or model call and has no GitHub access.
+- **After a crash:** at its next start the extension offers once, "Muse
+  Spark Code stopped unexpectedly last time — report it?". It cannot tell a
+  crash from a killed process or a power loss.
+- **Other editors:** `muse-spark-code-acp report` prints the same kind of
+  report in a terminal ([docs/acp.md](docs/acp.md#report-a-problem-m93)).
+
+What the recorder keeps, where, for how long, and what each export does:
+[PRIVACY.md](docs/PRIVACY.md#reporting-a-problem).
 
 ## Headless and CI (M80)
 

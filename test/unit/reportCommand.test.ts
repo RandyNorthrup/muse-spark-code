@@ -419,8 +419,8 @@ describe('the agent journal, through the extension recorder (M93 regressions)', 
     const outside = path.join(dir, 'outside.jsonl')
     await writeFile(outside, recordLine({ code: 'questionFailed' }))
     await symlink(outside, path.join(reports, 'journal-linked.jsonl'))
-    const read = await readAsReport(dir)
-    expect(read.entries).toEqual([])
+    // The link is passed over quietly: no events from it, and recording stays available.
+    expect(await readAsReport(dir)).toEqual({ entries: [], recordingUnavailable: false })
     expect(await readFile(outside, 'utf8')).toBe(recordLine({ code: 'questionFailed' }))
   })
 })
