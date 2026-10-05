@@ -2325,5 +2325,9 @@
   "ollamaMissingFinal": "Ollama ha chiuso il flusso senza una risposta finale.",
   "ollamaMalformedFrame": "Frame del flusso Ollama non valido.",
   "ollamaStreamLimit": "Ollama ha superato il limite di dimensione del flusso o del numero di elementi.",
-  "ollamaFinishReason": "Ollama ha terminato con il motivo «{reason}»."
+  "ollamaFinishReason": "Ollama ha terminato con il motivo «{reason}».",
+  "usagePageTitle": "Utilizzo e costo",
+  "paletteUsagePage": "Monitorare costi, token e limiti in tutti gli editor.",
+  "openUsagePage": "Apri pagina di utilizzo",
+  "acpUsageDescription": "Mostra l’utilizzo e il costo di tutti i modelli oppure apri la pagina di utilizzo."
 }

@@ -125,5 +125,8 @@
   "command.addModelProvider.title": "Добавить поставщика моделей…",
   "config.suggestedProvider.description": "Рабочая область может предложить один пресет поставщика моделей по его id; панель предложит открыть «Модели и агенты» с этим пресетом. Пустое значение ничего не предлагает. Рабочая область не может задавать адрес или данные.",
   "walkthrough.gettingStarted.step.ownModel.title": "Начните со своей моделью",
-  "walkthrough.gettingStarted.step.ownModel.description": "Нет подписки Muse или ключа Meta API? Добавьте своего поставщика моделей — OpenRouter, Anthropic, OpenAI или локальный сервер — и выберите модель.\n[Начать со своей моделью](command:museSpark.startWithOwnModel)"
+  "walkthrough.gettingStarted.step.ownModel.description": "Нет подписки Muse или ключа Meta API? Добавьте своего поставщика моделей — OpenRouter, Anthropic, OpenAI или локальный сервер — и выберите модель.\n[Начать со своей моделью](command:museSpark.startWithOwnModel)",
+  "command.openUsagePage.title": "Открыть использование и стоимость",
+  "setting.usageHistory.description": "Записывать использование моделей локально на этом компьютере. При отключении новые записи не создаются; текущие лимиты и бюджеты остаются видимыми.",
+  "setting.usageHistoryDays.description": "Срок хранения ежедневных сводок использования в днях (30–1825). Подробности каждого вызова хранятся 30 дней."
 }

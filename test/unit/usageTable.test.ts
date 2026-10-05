@@ -1,4 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
+import { EN } from '../../src/shared/l10n/en'
+import { forms } from '../../src/shared/l10n/forms'
+import { fill, plural, setUiText, formatPercent } from '../../src/shared/l10n/text'
 import { USAGE_EN } from '../../src/shared/l10n/usageEn'
 import { tableProblems } from '../../src/shared/l10n/check'
 import {
@@ -16,6 +19,7 @@ const deps = (language: string, value: unknown = USAGE_EN) => ({
 })
 afterEach(() => {
   setUsageText(USAGE_EN)
+  setUiText(EN, 'en')
 })
 
 describe('usage table family', () => {
@@ -70,6 +74,16 @@ describe('usage table family', () => {
     expect(USAGE_EN.title).toBe('Usage & cost')
     setUsageText(USAGE_EN)
     expect(USAGE_TEXT.title).toBe('Usage & cost')
+  })
+
+  it('formats range counts and threshold percentages in the installed display language', () => {
+    expect(plural(USAGE_EN.rangeDays, 7)).toBe('7 days')
+    setUiText(EN, 'de')
+    setUsageText({ ...USAGE_EN, rangeDays: forms({ one: '{count} Tag', other: '{count} Tage' }) })
+    expect(plural(USAGE_TEXT.rangeDays, 1234)).toBe('1.234 Tage')
+    expect(fill(USAGE_TEXT.warning75, { percent: formatPercent(75) })).toBe(
+      'At least 75\u{A0}% of the limit is used.',
+    )
   })
 
   it('requires translations to keep templates and use their own plural categories', () => {

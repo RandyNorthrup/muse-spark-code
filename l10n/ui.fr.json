@@ -2325,5 +2325,9 @@
   "ollamaMissingFinal": "Ollama a fermé le flux sans réponse finale.",
   "ollamaMalformedFrame": "Trame du flux Ollama mal formée.",
   "ollamaStreamLimit": "Ollama a dépassé la limite de taille du flux ou du nombre d’éléments.",
-  "ollamaFinishReason": "Ollama s’est arrêté pour la raison « {reason} »."
+  "ollamaFinishReason": "Ollama s’est arrêté pour la raison « {reason} ».",
+  "usagePageTitle": "Utilisation et coût",
+  "paletteUsagePage": "Suivre les coûts, les jetons et les limites dans tous les éditeurs.",
+  "openUsagePage": "Ouvrir la page d’utilisation",
+  "acpUsageDescription": "Afficher l’utilisation et le coût de tous les modèles, ou ouvrir la page d’utilisation."
 }

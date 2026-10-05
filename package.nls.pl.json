@@ -125,5 +125,8 @@
   "command.addModelProvider.title": "Dodaj dostawcę modeli…",
   "config.suggestedProvider.description": "Obszar roboczy może zasugerować jeden preset dostawcy modeli według id; panel proponuje otwarcie Modeli i agentów z tym presetem. Pusty nie sugeruje nic. Obszar roboczy nie może ustawić adresu ani poświadczenia.",
   "walkthrough.gettingStarted.step.ownModel.title": "Zacznij od własnego modelu",
-  "walkthrough.gettingStarted.step.ownModel.description": "Brak subskrypcji Muse lub klucza API Meta? Dodaj własnego dostawcę modeli — OpenRouter, Anthropic, OpenAI albo serwer lokalny — i wybierz model.\n[Zacznij od własnego modelu](command:museSpark.startWithOwnModel)"
+  "walkthrough.gettingStarted.step.ownModel.description": "Brak subskrypcji Muse lub klucza API Meta? Dodaj własnego dostawcę modeli — OpenRouter, Anthropic, OpenAI albo serwer lokalny — i wybierz model.\n[Zacznij od własnego modelu](command:museSpark.startWithOwnModel)",
+  "command.openUsagePage.title": "Otwórz użycie i koszty",
+  "setting.usageHistory.description": "Zapisuj użycie modeli lokalnie na tym komputerze. Wyłączenie zatrzymuje nowe zapisy; bieżące limity i budżety pozostają widoczne.",
+  "setting.usageHistoryDays.description": "Liczba dni przechowywania dziennych podsumowań użycia (30–1825). Szczegóły poszczególnych wywołań są przechowywane przez 30 dni."
 }

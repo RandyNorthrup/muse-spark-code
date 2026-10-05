@@ -2407,5 +2407,9 @@
   "ollamaMissingFinal": "Ollama закрыла поток без окончательного ответа.",
   "ollamaMalformedFrame": "Некорректный кадр потока Ollama.",
   "ollamaStreamLimit": "Ollama превысила предел размера потока или числа элементов.",
-  "ollamaFinishReason": "Ollama завершилась с причиной «{reason}»."
+  "ollamaFinishReason": "Ollama завершилась с причиной «{reason}».",
+  "usagePageTitle": "Использование и стоимость",
+  "paletteUsagePage": "Отслеживать расходы, токены и лимиты во всех редакторах.",
+  "openUsagePage": "Открыть страницу использования",
+  "acpUsageDescription": "Показать использование и стоимость всех моделей или открыть страницу использования."
 }

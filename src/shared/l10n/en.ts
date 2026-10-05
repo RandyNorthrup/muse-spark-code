@@ -16,6 +16,11 @@
 import { forms } from './forms'
 
 export const EN = {
+  // M102: the shared usage page; its full table is a separate lazy family.
+  usagePageTitle: 'Usage & cost',
+  paletteUsagePage: 'Track cost, tokens and limits across editors.',
+  openUsagePage: 'Open usage page',
+  acpUsageDescription: 'Show usage and cost across models, or open the usage page.',
   untitledConversation: 'Untitled',
   crashTitle: 'The panel hit an error',
   crashDetail: 'Reload rebuilds the panel; the conversation is kept by the host.',

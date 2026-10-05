@@ -3,6 +3,15 @@ import { USAGE_EN } from '../../src/shared/l10n/usageEn'
 import { USAGE_HISTOGRAM_EDGES_MS } from '../../src/shared/constants'
 import {
   USAGE_CERTAINTIES,
+  USAGE_CLI_CLIENT_ID,
+  type UsageKind,
+  type UsageCertainty,
+  type UsageHeaders,
+  type UsageTokens,
+  type UsageCost,
+  type UsageRecord,
+  type UsageLimitSnapshot,
+  type UsageJournalEntry,
   USAGE_HEADER_ALLOW_LIST,
   USAGE_KINDS,
   usageJournalEntrySchema,
@@ -12,6 +21,9 @@ import {
   usageCostSchema,
 } from '../../src/shared/usageJournal'
 import {
+  type UsageQuery,
+  type UsageTotals,
+  type UsagePageState,
   parseUsagePageToServiceMessage,
   parseUsageServiceToPageMessage,
   usageQuerySchema,
@@ -19,7 +31,10 @@ import {
 } from '../../src/shared/usagePage'
 import { parseWebviewToHostMessage } from '../../src/shared/protocol'
 
-const identity = {
+const identity: Pick<
+  UsageRecord,
+  'v' | 'id' | 'at' | 'day' | 'timezoneOffsetMins' | 'client' | 'backend' | 'provider'
+> = {
   v: 1,
   id: 'record-1',
   at: 1_791_234_567_890,
@@ -29,19 +44,27 @@ const identity = {
   backend: 'modelApi',
   provider: 'openai',
 }
-const record = {
+const cost: UsageCost = { certainty: 'unpriced' }
+const record: UsageRecord = {
   ...identity,
   type: 'usage',
   startedAt: 1_791_234_567_800,
   model: 'gpt-example',
   kind: 'turn',
   tokens: {},
-  cost: { certainty: 'unpriced' },
+  cost,
   outcome: 'completed',
 }
-const query = { range: 'today', groupBy: 'provider', metric: 'cost' }
-const totals = { records: 0, tokens: {}, units: {}, costs: [], retries: 0, rateLimited: 0 }
-const state = {
+const query: UsageQuery = { range: 'today', groupBy: 'provider', metric: 'cost' }
+const totals: UsageTotals = {
+  records: 0,
+  tokens: {},
+  units: {},
+  costs: [],
+  retries: 0,
+  rateLimited: 0,
+}
+const state: UsagePageState = {
   v: 1,
   query,
   generatedAt: 1_791_234_567_890,
@@ -71,19 +94,27 @@ describe('usage journal v1', () => {
     const parsed = usageRecordSchema.parse(record)
     expect(parsed.tokens).toEqual({})
     expect(parsed.cost).toEqual({ certainty: 'unpriced' })
-    for (const certainty of USAGE_CERTAINTIES) {
+    const certainties: readonly UsageCertainty[] = USAGE_CERTAINTIES
+    for (const certainty of certainties) {
       expect(usageCostSchema.parse({ certainty })).toEqual({ certainty })
     }
-    for (const client of ['Visual Studio Code', 'JetBrains', 'Eclipse', 'cli', 'custom editor']) {
+    for (const client of [
+      'Visual Studio Code',
+      'JetBrains',
+      'Eclipse',
+      USAGE_CLI_CLIENT_ID,
+      'custom editor',
+    ]) {
       expect(usageRecordSchema.parse({ ...record, client }).client).toBe(client)
     }
-    for (const kind of USAGE_KINDS) {
+    const kinds: readonly UsageKind[] = USAGE_KINDS
+    for (const kind of kinds) {
       expect(usageRecordSchema.parse({ ...record, kind }).kind).toBe(kind)
     }
   })
 
   it('keeps optional canonical counters, timing, retries and reported zeroes', () => {
-    const tokens = {
+    const tokens: UsageTokens = {
       input: 100,
       cached: 20,
       cacheWrite: 15,
@@ -169,7 +200,7 @@ describe('usage journal v1', () => {
   })
 
   it('caps the encoded UTF-8 record below 4 KiB, including headers', () => {
-    const headers = Object.fromEntries(
+    const headers: UsageHeaders = Object.fromEntries(
       USAGE_HEADER_ALLOW_LIST.map((name) => [name, 'x'.repeat(64)]),
     )
     const large = {
@@ -197,7 +228,7 @@ describe('usage journal v1', () => {
   })
 
   it('keeps reported limit percentages and unknown durations, but rejects arbitrary raw payloads', () => {
-    const snapshot = {
+    const snapshot: UsageLimitSnapshot = {
       ...identity,
       type: 'limit',
       source: 'museCode',
@@ -208,7 +239,8 @@ describe('usage journal v1', () => {
     }
     expect(usageLimitSnapshotSchema.parse(snapshot)).toEqual(snapshot)
     expect(usageJournalEntrySchema.parse(snapshot)).toEqual(snapshot)
-    expect(usageJournalEntrySchema.parse(record)).toEqual(record)
+    const entry: UsageJournalEntry = usageJournalEntrySchema.parse(record)
+    expect(entry).toEqual(record)
     expect(
       usageLimitSnapshotSchema.safeParse({ ...snapshot, raw: { apiKey: 'canary' } }).success,
     ).toBe(false)

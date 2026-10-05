@@ -2161,5 +2161,9 @@
   "ollamaMissingFinal": "Ollamaが最終回答なしでストリームを閉じました。",
   "ollamaMalformedFrame": "Ollamaのストリームフレームが不正です。",
   "ollamaStreamLimit": "Ollamaがストリームサイズまたは項目数の上限を超えました。",
-  "ollamaFinishReason": "Ollamaが理由「{reason}」で終了しました。"
+  "ollamaFinishReason": "Ollamaが理由「{reason}」で終了しました。",
+  "usagePageTitle": "使用量と費用",
+  "paletteUsagePage": "各エディターの費用、トークン、上限を追跡します。",
+  "openUsagePage": "使用量ページを開く",
+  "acpUsageDescription": "モデル全体の使用量と費用を表示するか、使用量ページを開きます。"
 }

@@ -2243,5 +2243,9 @@
   "ollamaMissingFinal": "Az Ollama végső válasz nélkül lezárta az adatfolyamot.",
   "ollamaMalformedFrame": "Hibás Ollama-adatfolyamkeret.",
   "ollamaStreamLimit": "Az Ollama túllépte az adatfolyam méret- vagy elemszámkorlátját.",
-  "ollamaFinishReason": "Az Ollama ezzel az indokkal fejeződött be: „{reason}”."
+  "ollamaFinishReason": "Az Ollama ezzel az indokkal fejeződött be: „{reason}”.",
+  "usagePageTitle": "Használat és költség",
+  "paletteUsagePage": "Költségek, tokenek és korlátok követése minden szerkesztőben.",
+  "openUsagePage": "Használati oldal megnyitása",
+  "acpUsageDescription": "Az összes modell használatának és költségének megjelenítése, vagy a használati oldal megnyitása."
 }

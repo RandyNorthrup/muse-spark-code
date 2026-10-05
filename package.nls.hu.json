@@ -125,5 +125,8 @@
   "command.addModelProvider.title": "Modellszolgáltató hozzáadása…",
   "config.suggestedProvider.description": "Egy munkaterület legfeljebb egy modellszolgáltató-előbeállítást javasolhat azonosító alapján; a panel felajánlja a Modellek és ügynökök megnyitását ezzel az előbeállítással. Üresen semmit sem javasol. A munkaterület nem adhat meg címet vagy hitelesítő adatot.",
   "walkthrough.gettingStarted.step.ownModel.title": "Kezdje saját modellel",
-  "walkthrough.gettingStarted.step.ownModel.description": "Nincs Muse-előfizetése vagy Meta API-kulcsa? Adjon hozzá saját modellszolgáltatót — OpenRouter, Anthropic, OpenAI vagy helyi kiszolgáló — és válasszon modellt.\n[Kezdés saját modellel](command:museSpark.startWithOwnModel)"
+  "walkthrough.gettingStarted.step.ownModel.description": "Nincs Muse-előfizetése vagy Meta API-kulcsa? Adjon hozzá saját modellszolgáltatót — OpenRouter, Anthropic, OpenAI vagy helyi kiszolgáló — és válasszon modellt.\n[Kezdés saját modellel](command:museSpark.startWithOwnModel)",
+  "command.openUsagePage.title": "Használat és költség megnyitása",
+  "setting.usageHistory.description": "A modellhasználat helyi rögzítése ezen a számítógépen. Kikapcsoláskor nem készülnek új bejegyzések; az aktuális korlátok és keretek láthatók maradnak.",
+  "setting.usageHistoryDays.description": "A napi használati összesítések megőrzési ideje napokban (30–1825). Az egyes hívások részletei 30 napig maradnak meg."
 }

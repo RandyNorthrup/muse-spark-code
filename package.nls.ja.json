@@ -125,5 +125,8 @@
   "command.addModelProvider.title": "モデルプロバイダーを追加…",
   "config.suggestedProvider.description": "ワークスペースはモデルプロバイダーのプリセットを ID で 1 件だけ提案できます。パネルはそのプリセットで「モデルとエージェント」を開くことを提案します。空の場合は何も提案しません。ワークスペースはアドレスや資格情報を設定できません。",
   "walkthrough.gettingStarted.step.ownModel.title": "自分のモデルで始める",
-  "walkthrough.gettingStarted.step.ownModel.description": "Muse サブスクリプションも Meta API キーもありませんか？自分のモデルプロバイダー (OpenRouter、Anthropic、OpenAI、ローカルサーバー) を追加してモデルを選んでください。\n[自分のモデルで始める](command:museSpark.startWithOwnModel)"
+  "walkthrough.gettingStarted.step.ownModel.description": "Muse サブスクリプションも Meta API キーもありませんか？自分のモデルプロバイダー (OpenRouter、Anthropic、OpenAI、ローカルサーバー) を追加してモデルを選んでください。\n[自分のモデルで始める](command:museSpark.startWithOwnModel)",
+  "command.openUsagePage.title": "使用量と費用を開く",
+  "setting.usageHistory.description": "このコンピューターにモデルの使用量をローカル保存します。オフにすると新しい記録を停止します。現在の上限と予算は引き続き表示されます。",
+  "setting.usageHistoryDays.description": "日別の使用量集計を保持する日数（30–1825）。呼び出しごとの詳細は 30 日間保持されます。"
 }

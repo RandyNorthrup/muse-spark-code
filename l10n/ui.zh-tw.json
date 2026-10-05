@@ -2161,5 +2161,9 @@
   "ollamaMissingFinal": "Ollama在沒有最終回答的情況下關閉了資料流。",
   "ollamaMalformedFrame": "Ollama資料流框架格式錯誤。",
   "ollamaStreamLimit": "Ollama超出了資料流大小或項目數量限制。",
-  "ollamaFinishReason": "Ollama已結束，原因為「{reason}」。"
+  "ollamaFinishReason": "Ollama已結束，原因為「{reason}」。",
+  "usagePageTitle": "用量與費用",
+  "paletteUsagePage": "追蹤各編輯器中的費用、權杖和限額。",
+  "openUsagePage": "開啟用量頁面",
+  "acpUsageDescription": "顯示各模型的用量與費用，或開啟用量頁面。"
 }

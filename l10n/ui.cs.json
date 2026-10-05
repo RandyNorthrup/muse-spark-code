@@ -2407,5 +2407,9 @@
   "ollamaMissingFinal": "Ollama ukončila stream bez konečné odpovědi.",
   "ollamaMalformedFrame": "Neplatný rámec streamu Ollama.",
   "ollamaStreamLimit": "Ollama překročila limit velikosti streamu nebo počtu položek.",
-  "ollamaFinishReason": "Ollama skončila s důvodem „{reason}“."
+  "ollamaFinishReason": "Ollama skončila s důvodem „{reason}“.",
+  "usagePageTitle": "Využití a náklady",
+  "paletteUsagePage": "Sledujte náklady, tokeny a limity ve všech editorech.",
+  "openUsagePage": "Otevřít stránku využití",
+  "acpUsageDescription": "Zobrazit využití a náklady všech modelů nebo otevřít stránku využití."
 }

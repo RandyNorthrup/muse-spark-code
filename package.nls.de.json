@@ -125,5 +125,8 @@
   "command.addModelProvider.title": "Modellanbieter hinzufügen…",
   "config.suggestedProvider.description": "Ein Arbeitsbereich kann genau eine Modellanbieter-Vorlage per ID vorschlagen; das Panel bietet an, Modelle & Agenten mit dieser Vorlage zu öffnen. Leer schlägt nichts vor. Ein Arbeitsbereich kann keine Adresse und keine Anmeldedaten festlegen.",
   "walkthrough.gettingStarted.step.ownModel.title": "Mit eigenem Modell starten",
-  "walkthrough.gettingStarted.step.ownModel.description": "Kein Muse-Abonnement und kein Meta-API-Schlüssel? Fügen Sie Ihren eigenen Modellanbieter hinzu — OpenRouter, Anthropic, OpenAI oder einen lokalen Server — und wählen Sie ein Modell.\n[Mit eigenem Modell starten](command:museSpark.startWithOwnModel)"
+  "walkthrough.gettingStarted.step.ownModel.description": "Kein Muse-Abonnement und kein Meta-API-Schlüssel? Fügen Sie Ihren eigenen Modellanbieter hinzu — OpenRouter, Anthropic, OpenAI oder einen lokalen Server — und wählen Sie ein Modell.\n[Mit eigenem Modell starten](command:museSpark.startWithOwnModel)",
+  "command.openUsagePage.title": "Nutzung und Kosten öffnen",
+  "setting.usageHistory.description": "Modellnutzung lokal auf diesem Rechner aufzeichnen. Beim Ausschalten werden keine neuen Einträge erstellt; aktuelle Limits und Budgets bleiben sichtbar.",
+  "setting.usageHistoryDays.description": "Aufbewahrungsdauer täglicher Nutzungsübersichten in Tagen (30–1825). Details einzelner Aufrufe werden 30 Tage aufbewahrt."
 }

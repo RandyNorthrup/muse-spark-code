@@ -52,7 +52,7 @@ export const usageLabelSchema = z
     z.transform((value) => value.replaceAll(CONTROL_CHARACTERS, '')),
   )
   .check(z.minLength(1))
-export const usageClientIdSchema = usageLabelSchema
+export const usageClientIdSchema = usageLabelSchema.clone()
 export const usageIdSchema = z
   .string()
   .check(z.minLength(1), z.maxLength(USAGE_ID_MAX_CHARS), z.regex(/^[\w.-]+$/))

@@ -125,5 +125,8 @@
   "command.addModelProvider.title": "新增模型提供者…",
   "config.suggestedProvider.description": "工作區最多可按 id 推薦一個模型提供者預設；面板會提供使用該預設開啟「模型與代理」。為空則不推薦。工作區不能設定位址或憑證。",
   "walkthrough.gettingStarted.step.ownModel.title": "使用自己的模型開始",
-  "walkthrough.gettingStarted.step.ownModel.description": "沒有 Muse 訂閱或 Meta API 金鑰？新增您自己的模型提供者（OpenRouter、Anthropic、OpenAI 或本機伺服器）並選擇模型。\n[使用自己的模型開始](command:museSpark.startWithOwnModel)"
+  "walkthrough.gettingStarted.step.ownModel.description": "沒有 Muse 訂閱或 Meta API 金鑰？新增您自己的模型提供者（OpenRouter、Anthropic、OpenAI 或本機伺服器）並選擇模型。\n[使用自己的模型開始](command:museSpark.startWithOwnModel)",
+  "command.openUsagePage.title": "開啟用量與費用",
+  "setting.usageHistory.description": "在此電腦上本機記錄模型用量。關閉後將停止新增記錄；即時限額和預算仍然可見。",
+  "setting.usageHistoryDays.description": "每日用量摘要的保留天數（30–1825）。每次呼叫的詳細記錄保留 30 天。"
 }

@@ -2161,5 +2161,9 @@
   "ollamaMissingFinal": "Ollama가 최종 답변 없이 스트림을 닫았습니다.",
   "ollamaMalformedFrame": "잘못된 Ollama 스트림 프레임입니다.",
   "ollamaStreamLimit": "Ollama가 스트림 크기 또는 항목 수 제한을 초과했습니다.",
-  "ollamaFinishReason": "Ollama가 \"{reason}\" 사유로 종료되었습니다."
+  "ollamaFinishReason": "Ollama가 \"{reason}\" 사유로 종료되었습니다.",
+  "usagePageTitle": "사용량 및 비용",
+  "paletteUsagePage": "여러 편집기의 비용, 토큰 및 한도를 추적합니다.",
+  "openUsagePage": "사용량 페이지 열기",
+  "acpUsageDescription": "모델별 사용량과 비용을 표시하거나 사용량 페이지를 엽니다."
 }

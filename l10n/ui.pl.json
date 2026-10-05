@@ -2407,5 +2407,9 @@
   "ollamaMissingFinal": "Ollama zamknęła strumień bez końcowej odpowiedzi.",
   "ollamaMalformedFrame": "Nieprawidłowa ramka strumienia Ollama.",
   "ollamaStreamLimit": "Ollama przekroczyła limit rozmiaru strumienia lub liczby elementów.",
-  "ollamaFinishReason": "Ollama zakończyła działanie z powodu „{reason}”."
+  "ollamaFinishReason": "Ollama zakończyła działanie z powodu „{reason}”.",
+  "usagePageTitle": "Użycie i koszty",
+  "paletteUsagePage": "Śledź koszty, tokeny i limity we wszystkich edytorach.",
+  "openUsagePage": "Otwórz stronę użycia",
+  "acpUsageDescription": "Pokaż użycie i koszty wszystkich modeli lub otwórz stronę użycia."
 }

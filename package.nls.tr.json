@@ -125,5 +125,8 @@
   "command.addModelProvider.title": "Model sağlayıcı ekle…",
   "config.suggestedProvider.description": "Çalışma alanı, kimliğine göre tek bir model sağlayıcı ön ayarı önerebilir; panel, Modeller ve Ajanlar'ı bu ön ayarla açmayı önerir. Boş değer hiçbir şey önermez. Çalışma alanı adres veya kimlik bilgisi belirleyemez.",
   "walkthrough.gettingStarted.step.ownModel.title": "Kendi modelinizle başlayın",
-  "walkthrough.gettingStarted.step.ownModel.description": "Muse aboneliğiniz veya Meta API anahtarınız yok mu? Kendi model sağlayıcınızı ekleyin — OpenRouter, Anthropic, OpenAI veya yerel sunucu — ve bir model seçin.\n[Kendi modelinizle başlayın](command:museSpark.startWithOwnModel)"
+  "walkthrough.gettingStarted.step.ownModel.description": "Muse aboneliğiniz veya Meta API anahtarınız yok mu? Kendi model sağlayıcınızı ekleyin — OpenRouter, Anthropic, OpenAI veya yerel sunucu — ve bir model seçin.\n[Kendi modelinizle başlayın](command:museSpark.startWithOwnModel)",
+  "command.openUsagePage.title": "Kullanım ve maliyeti aç",
+  "setting.usageHistory.description": "Model kullanımını bu bilgisayarda yerel olarak kaydedin. Kapatıldığında yeni kayıtlar durur; güncel sınırlar ve bütçeler görünür kalır.",
+  "setting.usageHistoryDays.description": "Günlük kullanım özetlerinin saklanacağı gün sayısı (30–1825). Çağrı ayrıntıları 30 gün saklanır."
 }
