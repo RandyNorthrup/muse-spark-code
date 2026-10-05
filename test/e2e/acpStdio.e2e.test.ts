@@ -19,6 +19,7 @@ import * as acp from '@agentclientprotocol/sdk'
 import { EXPECTED_SCHEMA_FINGERPRINT } from '@muse-code/sdk'
 import { build } from 'esbuild'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
+import { z } from 'zod'
 import type { AgentEvent } from '../../src/shared/agentEvents'
 import { createRuntimeBackend } from '../../src/runtime/backends'
 import { webReadable } from '../../src/runtime/webStreams'
@@ -192,7 +193,7 @@ function text(updates: readonly acp.SessionUpdate[]): string {
 
 describe('the ACP agent over stdio (M63)', { timeout: TEST_TIMEOUT_MS }, () => {
   it('prints its version and help, and refuses an argument it does not know', () => {
-    const env = { ...process.env, NODE_PATH, LANG: 'C' }
+    const env = { ...process.env, NODE_PATH, LANG: 'C', LC_ALL: 'C' }
     const version = spawnSync(process.execPath, [AGENT, '--version'], { encoding: 'utf8', env })
     const expected =
       INSTALLED === undefined
@@ -204,10 +205,29 @@ describe('the ACP agent over stdio (M63)', { timeout: TEST_TIMEOUT_MS }, () => {
           ).version
     expect(version.stdout.trim()).toBe(expected)
     const help = spawnSync(process.execPath, [AGENT, '--help'], { encoding: 'utf8', env })
+    expect(help.status).toBe(0)
+    expect(help.stderr).toBe('')
+    expect(help.stdout.trim()).toBe(fill(UI_TEXT.acpUsage, { command: 'muse-spark-code-acp' }))
     expect(help.stdout).toContain('muse-spark-code-acp auth set|status|clear')
+    expect(help.stdout).toContain('--trust-workspace setup [--maintenance]')
     const wrong = spawnSync(process.execPath, [AGENT, '--colour'], { encoding: 'utf8', env })
     expect(wrong.status).toBe(1)
     expect(wrong.stderr).toContain('--colour')
+    expect(wrong.stderr).toContain(help.stdout)
+  })
+
+  it('prints the complete translated usage from one table entry', () => {
+    const table = z
+      .object({ acpUsage: z.string() })
+      .parse(JSON.parse(readFileSync(path.join(PACKAGE, 'l10n', 'ui.de.json'), 'utf8')))
+    const help = spawnSync(process.execPath, [AGENT, '--help'], {
+      encoding: 'utf8',
+      env: { ...process.env, NODE_PATH, LC_ALL: 'de_DE.UTF-8' },
+    })
+    expect(help.status).toBe(0)
+    expect(help.stderr).toBe('')
+    expect(help.stdout.trim()).toBe(table.acpUsage.replaceAll('{command}', 'muse-spark-code-acp'))
+    expect(help.stdout).toContain('--trust-workspace setup [--maintenance]')
   })
 
   it('streams a reply, runs an allowed tool call and skips a denied one, on Muse Code', async () => {

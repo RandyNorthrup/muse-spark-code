@@ -6790,6 +6790,26 @@ cached: "0.15", currency: "USD" }`, `isDefault`, `isActive`, `releaseDate`.
 
 ## 6. Milestones
 
+### CIFIX14C — Packaged ACP help agrees with its canonical table (2026-10-05)
+
+- [x] Reproduce the release job's strict English fallback check against the
+      installed production ACP tarball, and trace both help strings through
+      the generated runtime region and package copy.
+- [x] Fold the existing translated Setup command into `acpUsage` in English
+      and all 14 translations; remove the separate key and appended write.
+      Both help and argument errors read the complete canonical usage once.
+- [x] Prove exact help/table equality and Setup visibility in process tests,
+      including a translated locale; run the release package steps, localization
+      checks and ACP regressions directly on Kubuntu in bounded batches.
+- [x] Record gate-fire drills, artifact sizes and unavailable platform steps in
+      `docs/certification/cifix14-acp-usage.md`; commit locally with hooks.
+
+The rig brief prohibits pushes, merges, rebases and paid/live calls; shared
+rules prohibit aggregate quality and writes to the existing `node_modules`.
+Use the installed dependency tree and an offline scratch-prefix tarball install.
+The lead retains the integrated full quality and hosted universal-helper checks.
+The existing strict equality check and every budget remain unchanged.
+
 ### CIFIX14M — macOS hosted CI repair for 0.14.0 (2026-10-05)
 
 - [x] Collect all four CI unit/process-e2e shards on the Mac mini, in the rig
@@ -18168,6 +18188,18 @@ joined with M57, M58 and PR #49's sign-in
         commit-writing path exists
 
 ## 7. Gates
+
+**CIFIX14C bounded ACP packaging certification (2026-10-05).** The installed
+tarball passes the unchanged strict English fallback check and 382 distinct
+scoped tests. Typecheck, changed-file lint/format, localization (source and staged),
+deadcode, duplication, host API and production build gates pass. Shared rules
+prohibit aggregate `npm run quality` and replacing the existing dependency tree;
+fresh tarball installs use an offline scratch prefix. Kubuntu runs Node 24.18.0,
+not CI's requested Node 22, and lacks CI's downloaded compiled macOS helper.
+The exact universal VSIX listing therefore fails only that helper entry; hosted
+artifact operations and full integrated quality remain with the lead. No check
+is weakened. Receipts and deliberate failures are in
+`docs/certification/cifix14-acp-usage.md`.
 
 **CIFIX14M bounded macOS certification (2026-10-05).** The explicit lane brief
 requires all four unit/process-e2e coverage shards and two complete green runs.

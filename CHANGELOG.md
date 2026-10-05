@@ -9,6 +9,9 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- ACP help and argument errors now use one complete localized usage table,
+  including the Setup hooks command, so the installed package passes the
+  release job's strict English fallback check.
 - Production bundle regression tests now build their own compressed English and
   shared wire fixtures, so macOS CI's test job works without a prior build.
 - Windows CI hook fixtures now use the platform their captured paths describe;
