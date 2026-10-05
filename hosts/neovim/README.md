@@ -21,7 +21,7 @@ exchanges its fragment once, holds its bearer in memory and authenticates
 every request, including its fetch-streamed event channel. The shim does
 not exchange codes, send HTTP requests, use cookies or store URLs.
 
-`MuseStop` cancels CodeCompanion's active chat and terminates the companion
+`MuseStop` cancels the active Muse CodeCompanion chat and terminates the companion
 owned by this shim. Quitting Neovim also performs cleanup. A second launch
 while that companion is alive fails explicitly. Opening a supplied ACP
 link does not transfer ownership of its runtime to this shim; cancel that

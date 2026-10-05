@@ -54,15 +54,24 @@
                (lambda (&rest args)
                  (should-not (getenv "M104_API_KEY"))
                  (should (equal (plist-get args :command) "muse-spark-code-acp"))
-                 (should (eq (plist-get args :context-buffer) 'context)))))
-      (funcall maker 'context))))
+                 (should (bufferp (plist-get args :context-buffer))))))
+      (with-temp-buffer
+        (funcall maker (current-buffer))
+        (should muse-spark--owned-shell)))))
 
 (ert-deftest muse-stop-cancels-agent-shell ()
-  (let ((muse-spark--process nil) stopped)
+  (let ((muse-spark--process nil) (muse-spark--owned-shell t) stopped)
     (cl-letf (((symbol-function 'derived-mode-p) (lambda (&rest _modes) t))
               ((symbol-function 'agent-shell-interrupt) (lambda () (setq stopped t))))
       (muse-spark-stop)
       (should stopped))))
+
+(ert-deftest muse-stop-preserves-other-agent-shells ()
+  (let ((muse-spark--process nil) (muse-spark--owned-shell nil) stopped)
+    (cl-letf (((symbol-function 'derived-mode-p) (lambda (&rest _modes) t))
+              ((symbol-function 'agent-shell-interrupt) (lambda () (setq stopped t))))
+      (muse-spark-stop)
+      (should-not stopped))))
 
 (ert-deftest muse-real-child-cleanup-and-duplicate-refusal ()
   (let ((muse-spark-command '("/bin/cat"))

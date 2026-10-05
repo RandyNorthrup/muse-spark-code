@@ -16,7 +16,7 @@ that same-session page using `xwidget-webkit-browse-url`; other builds use
 redeems the launch fragment once and keeps its per-window bearer in memory,
 using an Authorization header on every request and fetch-streamed events.
 
-`M-x muse-spark-stop` cancels the turn when called in an agent-shell buffer,
+`M-x muse-spark-stop` cancels the turn when called in this shim's agent-shell buffer,
 and terminates the companion owned by this shim. An editor shutdown cleans
 it up too. Stopping a supplied `/panel` link's ACP session remains the ACP
 client's or shared panel's responsibility. Duplicate companion starts fail

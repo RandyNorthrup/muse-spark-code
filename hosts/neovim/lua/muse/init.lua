@@ -31,9 +31,9 @@ function M.valid_url(url)
   if type(url) ~= "string" then
     return false
   end
-  local port, code = url:match("^http://127%.0%.0%.1:(%d+)/#k=([%w_-]+)$")
+  local port, code = url:match("^http://127%.0%.0%.1:(%d+)/#k=([A-Za-z0-9_-]+)$")
   if not port then
-    port, code = url:match("^http://%[::1%]:(%d+)/#k=([%w_-]+)$")
+    port, code = url:match("^http://%[::1%]:(%d+)/#k=([A-Za-z0-9_-]+)$")
   end
   return port ~= nil and tonumber(port) > 0 and tonumber(port) <= 65535 and code ~= nil
 end
@@ -86,7 +86,7 @@ function M.stop()
   local ok, companion = pcall(require, "codecompanion")
   if ok then
     local chat = companion.last_chat()
-    if chat then
+    if chat and chat.adapter and chat.adapter.name == "muse_spark" then
       chat:stop()
     end
   end

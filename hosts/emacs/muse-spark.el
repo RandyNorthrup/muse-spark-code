@@ -35,6 +35,7 @@
   :type '(repeat string))
 
 (defvar muse-spark--process nil "This editor's companion process.")
+(defvar-local muse-spark--owned-shell nil "Whether this buffer uses Muse's ACP route.")
 
 (defun muse-spark--environment ()
   "Return `process-environment' with credential variables removed."
@@ -113,6 +114,8 @@ Without URL, let the installed panel runtime open its own browser."
       :shell-prompt "Muse> " :shell-prompt-regexp "Muse> "
       :client-maker
       (lambda (buffer)
+        (with-current-buffer buffer
+          (setq muse-spark--owned-shell t))
         ;; The client can be recreated after the dynamic binding has ended.
         (let ((process-environment (muse-spark--environment)))
           (acp-make-client :command (car muse-spark-command)
@@ -123,7 +126,7 @@ Without URL, let the installed panel runtime open its own browser."
 (defun muse-spark-stop ()
   "Cancel the active agent-shell turn and terminate this companion."
   (interactive)
-  (when (derived-mode-p 'agent-shell-mode)
+  (when (and muse-spark--owned-shell (derived-mode-p 'agent-shell-mode))
     (agent-shell-interrupt))
   (when (process-live-p muse-spark--process)
     (delete-process muse-spark--process))

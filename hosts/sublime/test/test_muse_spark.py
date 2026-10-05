@@ -163,6 +163,16 @@ class ShimTests(unittest.TestCase):
                 muse.MusePanelCommand(self.window).run(url=self.url)
             self.assertEqual(spawn.call_count, 0)
 
+    def test_windows_browser_requires_explicit_opener(self):
+        with (
+            patch.dict(settings, {"opener": []}),
+            patch.object(muse.sys, "platform", "win32"),
+            patch.object(muse.subprocess, "Popen") as spawn,
+        ):
+            muse.MusePanelCommand(self.window).run(url=self.url)
+            spawn.assert_not_called()
+            self.assertEqual(errors, ["EPANEL_LAUNCH"])
+
     def test_stop_failure_retains_ownership_for_retry(self):
         child = Process()
         muse._processes[1] = child

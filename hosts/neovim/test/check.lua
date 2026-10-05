@@ -4,6 +4,7 @@ local muse = require("muse")
 local calls = {}
 local stopped = 0
 local cancelled = 0
+local chat_adapter = "muse_spark"
 local actual_system = vim.system
 vim.env.M104_API_KEY = "test-sentinel"
 vim.env.OPENAI_KEY = "test-sentinel"
@@ -12,6 +13,7 @@ package.preload["codecompanion"] = function()
   return {
     last_chat = function()
       return {
+        adapter = { name = chat_adapter },
         stop = function()
           cancelled = cancelled + 1
         end,
@@ -36,8 +38,8 @@ vim.system = function(args, opts, callback)
     end,
   }
 end
-local function rejects(callback)
-  assert(not pcall(callback), "expected refusal")
+local function rejects(callback, label)
+  assert(not pcall(callback), label .. ": expected refusal")
 end
 local url = "http://127.0.0.1:41234/#k=test-launch"
 assert(muse.valid_url(url), "accepts fragment launch")
@@ -55,53 +57,78 @@ for _, bad in ipairs({
   assert(not muse.valid_url(bad), "refuses unsafe launch URL")
   rejects(function()
     muse.open_companion(bad)
-  end)
+  end, "refuses unsafe launch URL")
 end
 print("PASS refuses unsafe launch URL")
-muse.setup({ command = { "agent with spaces", "--backend", "musecode" }, opener = { "test-browser" } })
+local actual_has = vim.fn.has
+vim.fn.has = function(feature)
+  return feature == "win32" and 1 or 0
+end
+rejects(function()
+  muse.open_companion(url)
+end, "Windows browser requires explicit opener")
+vim.fn.has = actual_has
+print("PASS Windows browser requires explicit opener")
+rejects(function()
+  muse.setup({ command = {} })
+end, "empty runtime argv refused")
+print("PASS empty runtime argv refused")
+local opener = { "test-browser" }
+muse.setup({ command = { "agent with spaces", "--backend", "musecode" }, opener = opener })
 vim.cmd("MusePanel")
 assert(vim.deep_equal(calls[1].args, { "agent with spaces", "--backend", "musecode", "panel", "--companion" }))
 assert(calls[1].opts.clear_env)
-assert(calls[1].opts.env.M104_API_KEY == nil and calls[1].opts.env.OPENAI_KEY == nil)
+assert(
+  calls[1].opts.env.M104_API_KEY == nil and calls[1].opts.env.OPENAI_KEY == nil,
+  "companion child has no credentials or raw logs"
+)
 assert(calls[1].opts.env.m104_api_key == nil)
 assert(calls[1].opts.env.PATH == vim.env.PATH)
 assert(calls[1].opts.stdout == false and calls[1].opts.stderr == false)
 print("PASS companion child has no credentials or raw logs")
 rejects(function()
   muse.open_companion()
-end)
+end, "duplicate companion refused")
 print("PASS duplicate companion refused")
 vim.cmd("MuseStop")
 assert(stopped == 1 and cancelled == 1, "Stop cancels chat and companion")
 muse.stop()
 assert(stopped == 1, "Stop is idempotent")
 print("PASS Stop cancels chat and companion")
+chat_adapter = "another_agent"
+local before = cancelled
+muse.stop()
+assert(cancelled == before, "Stop preserves other ACP clients")
+chat_adapter = "muse_spark"
+print("PASS Stop preserves other ACP clients")
 muse.open_companion()
 calls[1].callback({ code = 0 })
 vim.wait(1)
 rejects(function()
   muse.open_companion()
-end)
+end, "late exit preserves replacement companion")
 muse.stop()
 assert(stopped == 2, "late exit must preserve replacement companion")
 print("PASS late exit preserves replacement companion")
 muse.open_companion(url)
 assert(vim.deep_equal(calls[3].args, { "test-browser", url }))
-assert(calls[3].opts.env.M104_API_KEY == nil and calls[3].opts.clear_env)
+assert(
+  calls[3].opts.env.M104_API_KEY == nil and calls[3].opts.clear_env,
+  "browser launch keeps fragment and sanitized environment"
+)
 print("PASS browser launch keeps fragment and sanitized environment")
 local adapter = muse.acp_adapter()
-assert(adapter.env.M104_API_KEY == "" and adapter.env.OPENAI_KEY == "")
+assert(adapter.env.M104_API_KEY == "" and adapter.env.OPENAI_KEY == "", "CodeCompanion adapter blanks credentials")
 assert(adapter.env.m104_api_key == "")
 assert(vim.deep_equal(adapter.commands.default, { "agent with spaces", "--backend", "musecode" }))
 print("PASS CodeCompanion adapter blanks credentials")
 vim.system = actual_system
+opener[1] = vim.fn.exepath("python3")
+opener[2] = root .. "/hosts/neovim/test/opener.py"
+local child = muse.open_companion(url):wait()
+assert(child.code == 0, "real sanitized child exits: " .. (child.stderr or ""))
 vim.env.M104_API_KEY = nil
 vim.env.OPENAI_KEY = nil
 vim.env.m104_api_key = nil
-local child = actual_system({ vim.v.progpath, "--headless", "-u", "NONE", "-c", "qa!" }, {
-  env = { PATH = vim.env.PATH },
-  clear_env = true,
-}):wait()
-assert(child.code == 0, "real sanitized child exits")
 print("PASS real sanitized child exits")
 vim.cmd("qa!")
