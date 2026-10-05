@@ -16,6 +16,7 @@ import path from 'node:path'
 import * as z from 'zod/mini'
 import {
   parseStoredSession,
+  storedSessionSchema,
   type SessionStore,
   type StoredSession,
   type StoredSessionHeader,
@@ -24,7 +25,6 @@ import {
   ATOMIC_TEMPORARY_SUFFIX,
   MILLISECONDS_PER_DAY,
   SESSION_FILE_STALE_TEMPORARY_MS,
-  STORED_SESSION_VERSION,
   UI_TEXT,
 } from '../../shared/constants'
 import { writeFileAtomically } from '../fsAtomic'
@@ -52,21 +52,34 @@ const SESSION_ID_PATTERN = /^[A-Za-z0-9_-]+$/
 
 /**
  * The header fields a listing validates (M101 BYO 16): the scalars the
- * history row needs, with the full schema's own constraints, plus the
- * replay's length for the turn count. The replay and transcript items
- * themselves are never validated here.
+ * history row needs, with the full schema's own field schemas (one source
+ * for the constraints), plus the turn ids, whose items are never validated
+ * here — only their count becomes the turn count. The replay and transcript
+ * items themselves are never read.
  */
+const {
+  version,
+  sessionId,
+  accountId,
+  sideChat,
+  workspaceRoot,
+  name,
+  createdAt,
+  lastActivityAt,
+  forkedFrom,
+  firstPrompt,
+} = storedSessionSchema.shape
 const storedSessionHeaderShape = z.object({
-  version: z.literal(STORED_SESSION_VERSION),
-  sessionId: z.string(),
-  accountId: z.optional(z.string().check(z.regex(/^[a-f0-9]{64}$/))),
-  sideChat: z.optional(z.boolean()),
-  workspaceRoot: z.string(),
-  name: z.optional(z.string()),
-  createdAt: z.string(),
-  lastActivityAt: z.string(),
-  forkedFrom: z.optional(z.string()),
-  firstPrompt: z.optional(z.string()),
+  version,
+  sessionId,
+  accountId,
+  sideChat,
+  workspaceRoot,
+  name,
+  createdAt,
+  lastActivityAt,
+  forkedFrom,
+  firstPrompt,
   turnIds: z.array(z.unknown()),
 })
 
@@ -91,15 +104,22 @@ async function hasSessionFile(file: string): Promise<boolean> {
 export function createFileSessionStore(deps: FileSessionStoreDeps): SessionStore {
   const fileFor = (sessionId: string) => path.join(deps.directory, `${sessionId}${FILE_EXTENSION}`)
 
-  const readOne = async (name: string): Promise<StoredSession | undefined> => {
+  /** A session file's parsed JSON, or undefined with a log line when it does not read. */
+  const readRaw = async (name: string): Promise<unknown> => {
     const file = path.join(deps.directory, name)
-    let raw: unknown
     try {
-      raw = JSON.parse(await readFile(file, 'utf8'))
+      return JSON.parse(await readFile(file, 'utf8'))
     } catch (error: unknown) {
       if (storeErrorCode(error) !== ENOENT) {
         deps.log.warn(`Session file ${name} skipped: ${describeStoreError(error)}`)
       }
+      return undefined
+    }
+  }
+
+  const readOne = async (name: string): Promise<StoredSession | undefined> => {
+    const raw = await readRaw(name)
+    if (raw === undefined) {
       return undefined
     }
     const parsed = parseStoredSession(raw)
@@ -118,14 +138,8 @@ export function createFileSessionStore(deps: FileSessionStoreDeps): SessionStore
    * line, as before; the session itself is read whole when it is opened.
    */
   const readHeader = async (name: string): Promise<StoredSessionHeader | undefined> => {
-    const file = path.join(deps.directory, name)
-    let raw: unknown
-    try {
-      raw = JSON.parse(await readFile(file, 'utf8'))
-    } catch (error: unknown) {
-      if (storeErrorCode(error) !== ENOENT) {
-        deps.log.warn(`Session file ${name} skipped: ${describeStoreError(error)}`)
-      }
+    const raw = await readRaw(name)
+    if (raw === undefined) {
       return undefined
     }
     const parsed = storedSessionHeaderShape.safeParse(raw)

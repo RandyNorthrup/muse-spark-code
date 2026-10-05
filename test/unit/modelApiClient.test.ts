@@ -71,6 +71,17 @@ function collect(stream: AsyncIterable<StreamEvent>): Promise<StreamEvent[]> {
   return Array.fromAsync(stream)
 }
 
+/** The scripted failures, then success: the stream completes after exactly `expectedSleeps`. */
+async function streamRetryThenSucceed(
+  client: ModelApiClient,
+  sleeps: number[],
+  expectedSleeps: readonly number[],
+): Promise<void> {
+  const events = await collect(client.streamResponse(body, new AbortController().signal))
+  expect(events.at(-1)?.type).toBe('response.completed')
+  expect(sleeps).toEqual(expectedSleeps)
+}
+
 /** A fetch behind a network that inspects HTTPS: Node's "fetch failed" and its cause (M56). */
 function untrusted(): Promise<Response> {
   return Promise.reject(
@@ -536,10 +547,8 @@ describe('ModelApiClient', () => {
       { httpError: { status: 500 } },
       { text: 'finally' },
     )
-    const events = await collect(client.streamResponse(body, new AbortController().signal))
-    expect(events.at(-1)?.type).toBe('response.completed')
     // Retry-After 2 s + 500 ms jitter, then 2 s + jitter and 4 s + jitter of backoff.
-    expect(sleeps).toEqual([2500, 2500, 4500])
+    await streamRetryThenSucceed(client, sleeps, [2500, 2500, 4500])
     expect(log.warn).toHaveBeenCalledTimes(3)
     expect(String(log.warn.mock.calls[0]?.[0])).toContain('429')
     expect(String(log.warn.mock.calls[0]?.[0])).toContain('slow down')
@@ -588,9 +597,9 @@ describe('ModelApiClient', () => {
         body: { error: { message: 'slow down', type: 'rate_limit_error' } },
       },
     })
-    await expect(collect(client.streamResponse(body, new AbortController().signal))).rejects.toThrow(
-      'wait 120 s before retrying, past the 60 s limit',
-    )
+    await expect(
+      collect(client.streamResponse(body, new AbortController().signal)),
+    ).rejects.toThrow('wait 120 s before retrying, past the 60 s limit')
     expect(api.requests.filter((request) => request.path === '/responses')).toHaveLength(1)
     expect(sleeps).toEqual([])
   })
@@ -607,9 +616,7 @@ describe('ModelApiClient', () => {
       },
       { text: 'finally' },
     )
-    const events = await collect(client.streamResponse(body, new AbortController().signal))
-    expect(events.at(-1)?.type).toBe('response.completed')
-    expect(sleeps).toEqual([60_000])
+    await streamRetryThenSucceed(client, sleeps, [60_000])
   })
 
   it('checks a child grant after a fresh key read before every HTTP retry', async () => {

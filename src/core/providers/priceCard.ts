@@ -122,11 +122,7 @@ export function isValidPriceCard(card: PriceCard): boolean {
     return false
   }
   const tier = card.longContextTier
-  const tierCacheRates = [
-    tier?.cachedInput ?? 0,
-    tier?.cacheWrite ?? 0,
-    tier?.cacheWrite1h ?? 0,
-  ]
+  const tierCacheRates = [tier?.cachedInput ?? 0, tier?.cacheWrite ?? 0, tier?.cacheWrite1h ?? 0]
   return (
     tier === undefined ||
     (Number.isFinite(tier.fromTokens) &&
@@ -169,16 +165,37 @@ export function ticksToUsdPerToken(ticks: number): number | undefined {
 }
 
 /**
+ * The card's input/output rates for this usage: the long-context tier past
+ * its threshold, else the card's own rates. The tier itself is returned so
+ * callers can reach its cache rates.
+ */
+function longContextRates(
+  card: PriceCard,
+  usage: PricedUsage,
+): {
+  readonly tier: PriceCard['longContextTier']
+  readonly isLongContext: boolean
+  readonly inputRate: number
+  readonly outputRate: number
+} {
+  const tier = card.longContextTier
+  const isLongContext = tier !== undefined && usage.inputTokens >= tier.fromTokens
+  return {
+    tier,
+    isLongContext,
+    inputRate: isLongContext ? tier.input : card.input,
+    outputRate: isLongContext ? tier.output : card.output,
+  }
+}
+
+/**
  * The reservation for a request: the worst case. Input at the full input
  * price (the long-context tier when the estimate reaches it), regardless of
  * estimated cache hits. Known write premiums are reserved in addition;
  * output and a per-request flat price are reserved too.
  */
 export function reserveRequestUsd(card: PriceCard, usage: PricedUsage): number {
-  const tier = card.longContextTier
-  const isLongContext = tier !== undefined && usage.inputTokens >= tier.fromTokens
-  const inputRate = isLongContext && tier !== undefined ? tier.input : card.input
-  const outputRate = isLongContext && tier !== undefined ? tier.output : card.output
+  const { tier, isLongContext, inputRate, outputRate } = longContextRates(card, usage)
   // Cold writes are bounded at the dearest applicable write price: the
   // card's own write rates, plus the tier's where the estimate reaches it.
   const writeCandidates: number[] = [card.cacheWrite, card.cacheWrite1h].filter(
@@ -186,9 +203,7 @@ export function reserveRequestUsd(card: PriceCard, usage: PricedUsage): number {
   )
   if (isLongContext && tier !== undefined) {
     writeCandidates.push(
-      ...[tier.cacheWrite, tier.cacheWrite1h].filter(
-        (rate): rate is number => rate !== undefined,
-      ),
+      ...[tier.cacheWrite, tier.cacheWrite1h].filter((rate): rate is number => rate !== undefined),
     )
   }
   const writeRate = Math.max(inputRate, ...writeCandidates)
@@ -238,10 +253,7 @@ export function settleUsageUsd(
   if (!isValidPriceCard(card) || !isValidUsage(usage)) {
     return undefined
   }
-  const tier = card.longContextTier
-  const isLongContext = tier !== undefined && usage.inputTokens >= tier.fromTokens
-  const inputRate = isLongContext && tier !== undefined ? tier.input : card.input
-  const outputRate = isLongContext && tier !== undefined ? tier.output : card.output
+  const { tier, isLongContext, inputRate, outputRate } = longContextRates(card, usage)
   // Long-context tiers reprice cached reads and writes too; a tier cache
   // rate the list does not give falls back to the card's own, then to the
   // tier's input rate.

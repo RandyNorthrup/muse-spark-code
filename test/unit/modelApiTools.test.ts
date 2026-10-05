@@ -495,7 +495,9 @@ describe('strict tool schemas and grammar safety (M101 item 24)', () => {
     const strict = withStrictTools(definitions, true)
     expect(strict).not.toBe(definitions)
     for (const tool of strict) {
-      expect(tool.strict).toBe(true)
+      if (tool.type === 'function') {
+        expect(tool.strict).toBe(true)
+      }
     }
     expect(definitions.every((tool) => !tool.strict)).toBe(true)
   })

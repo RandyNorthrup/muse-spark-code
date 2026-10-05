@@ -10336,13 +10336,11 @@ export class ModelApiHost implements AgentHost {
     if (last === undefined) {
       return isStrict ? Promise.reject(new Error(UI_TEXT.historyUnavailable)) : Promise.resolve()
     }
-    if (
-      !isStrict &&
-      last.budgetSpentUsd === snapshot.budgetSpentUsd &&
-      JSON.stringify(last.usage) === JSON.stringify(snapshot.usage)
-    ) {
-      return Promise.resolve()
-    }
+    // No same-values skip: the per-session queue coalesces rapid persists
+    // into one trailing write, and a persist that repeats the queued spend
+    // can still carry a newer journal behind it (a store may settle spend
+    // from its own journal at write time, so the post-settle touch must
+    // reach the store even when the snapshot matches the queued one).
     const { budgetSpentUsd: _unsaved, ...saved } = last
     return this.queueSave(
       {
