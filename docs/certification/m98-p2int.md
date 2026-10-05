@@ -185,3 +185,13 @@ SHA-256, not a credential. Changed the receipt map to nested `{ sha256 }`
 records, preserving each checksum and adding no scanner ignore/allowlist.
 The redacted scanner report stays in ignored scratch storage; no secret
 value is printed or copied into this record.
+
+## Hook-on assembly commit
+
+Implementation **`510428300f2a337c1f29499aa307aa78944555a4`** completed
+Husky lint-staged ESLint/Prettier and staged gitleaks with **no leaks**.
+After those hooks, every source-control restoration hash and artifact
+receipt still matched, and all 19 pre-existing bundles remained byte-identical.
+The worktree was clean. This final receipt-only commit changes no source,
+package inventory or generated artifact; its formatting/whitespace and
+unchanged enabled hooks are the applicable checks.
