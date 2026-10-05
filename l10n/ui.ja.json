@@ -160,6 +160,8 @@
     "paid:scheduledPrompts": "有料の予定されたプロンプトをオンまたはオフにします。",
     "paid:autoReviewer": "有料の自動レビュー担当をオンまたはオフにします。",
     "paid:bestOfN": "有料のベスト・オブ・N をオンまたはオフにします。",
+    "paid:hookModels": "有料のモデル フックをオンまたはオフにします。",
+    "hookRun": "spark-hooks.json の Manual フックを今すぐ 1 つ実行します。",
     "loop": "この Model API 会話でプロンプトを予約。",
     "importSession": "エクスポートしたセッションファイルを Model API バックエンドで再開。",
     "review": "変更内容や説明した内容を Muse にレビューしてもらいます。",

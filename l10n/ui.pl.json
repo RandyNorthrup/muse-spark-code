@@ -160,6 +160,8 @@
     "paid:scheduledPrompts": "Włącz lub wyłącz płatne zaplanowane monity.",
     "paid:autoReviewer": "Włącz lub wyłącz płatnego automatycznego oceniającego.",
     "paid:bestOfN": "Włącz lub wyłącz płatną funkcję Najlepszy z N.",
+    "paid:hookModels": "Włącz lub wyłącz płatne hooki modelu.",
+    "hookRun": "Uruchom teraz jeden ze swoich hooków Manual z pliku spark-hooks.json.",
     "loop": "Zaplanuj prompt w tej rozmowie Model API.",
     "importSession": "Wznów wyeksportowany plik sesji w backendzie Model API.",
     "review": "Poproś Muse o przegląd zmian lub tego, co opiszesz.",

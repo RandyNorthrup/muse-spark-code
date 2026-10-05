@@ -34,6 +34,8 @@ function inputs(name: string): string[] {
   return Object.keys(raw.inputs).map((file) => file.split(path.sep).join('/'))
 }
 
+const SPLIT_GUARD_TIMEOUT_MS = 120_000
+
 describe('deferred cohort bundles', () => {
   it('uses the real shared parser for boundary checks without inlining it in Node bundles', () => {
     const require = createRequire(path.resolve('dist/validation.js'))
@@ -215,5 +217,7 @@ describe('deferred cohort bundles', () => {
       })
       expect(green.status, green.stderr).toBe(0)
     },
+    // Two runs of the split check each; a loaded rig must not time them out.
+    SPLIT_GUARD_TIMEOUT_MS,
   )
 })

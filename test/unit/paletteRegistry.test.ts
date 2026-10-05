@@ -640,6 +640,14 @@ describe('buildPalette: paid features (M33, PLAN.md D30)', () => {
         { kind: 'toggle', isOn: false },
         { type: 'setPaidFeature', feature: 'bestOfN', isOn: true },
       ],
+      // M91 lane H: prompt and agent hooks, each a paid model call.
+      [
+        'Model hooks (paid)',
+        '$1.250/1M input, $0.150/1M cached input, $4.250/1M output tokens\n' +
+          '$0.100/1M input, $0.002/1M cached input, $0.200/1M output tokens',
+        { kind: 'toggle', isOn: false },
+        { type: 'setPaidFeature', feature: 'hookModels', isOn: true },
+      ],
     ])
   })
 })

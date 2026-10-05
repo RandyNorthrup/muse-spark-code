@@ -224,6 +224,9 @@ export const EN = {
     'paid:scheduledPrompts': 'Turn paid scheduled prompts on or off.',
     'paid:autoReviewer': 'Turn the paid Auto reviewer on or off.',
     'paid:bestOfN': 'Turn paid Best of N on or off.',
+    'paid:hookModels': 'Turn paid model hooks on or off.',
+    // M91: `/hook run`, a Manual hook from spark-hooks.json.
+    hookRun: 'Run one of your Manual hooks from spark-hooks.json now.',
     loop: 'Schedule a prompt in this Model API conversation.',
     importSession: 'Resume an exported session file on the Model API backend.',
     review: 'Ask Muse to review your changes, or what you describe.',

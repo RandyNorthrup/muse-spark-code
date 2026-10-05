@@ -81,9 +81,11 @@ describe('Transcript', () => {
     fireEvent.click(screen.getByRole('button', { name: UI_TEXT.hookMessageShowEdited }))
     expect(screen.getByText('a hook wrote this')).toBeTruthy()
     // Copy takes the original, whichever version shows.
-    const copyButtons = screen.getAllByRole('button', { name: UI_TEXT.copyResponse })
-    expect(copyButtons).toHaveLength(2)
-    fireEvent.click(copyButtons[0] ?? document.body)
+    // Copy lives in each row's actions menu (0.13.0).
+    const menus = screen.getAllByRole('button', { name: UI_TEXT.rowMoreActions })
+    expect(menus).toHaveLength(2)
+    fireEvent.click(menus[0] ?? document.body)
+    fireEvent.click(screen.getByRole('menuitem', { name: UI_TEXT.copyResponse }))
     expect(copied).toEqual(['the model wrote this'])
   })
 

@@ -160,6 +160,8 @@
     "paid:scheduledPrompts": "유료 예약된 프롬프트를 켜거나 끕니다.",
     "paid:autoReviewer": "유료 자동 검토자를 켜거나 끕니다.",
     "paid:bestOfN": "유료 베스트 오브 N을 켜거나 끕니다.",
+    "paid:hookModels": "유료 모델 후크를 켜거나 끕니다.",
+    "hookRun": "spark-hooks.json의 Manual 후크 하나를 지금 실행합니다.",
     "loop": "이 Model API 대화에서 프롬프트 예약.",
     "importSession": "내보낸 세션 파일을 Model API 백엔드에서 계속하기.",
     "review": "Muse에게 변경 사항이나 설명한 내용을 검토하게 합니다.",

@@ -160,6 +160,8 @@
     "paid:scheduledPrompts": "Ücretli zamanlanmış istemleri açın veya kapatın.",
     "paid:autoReviewer": "Ücretli otomatik inceleyiciyi açın veya kapatın.",
     "paid:bestOfN": "Ücretli N arasından en iyi özelliğini açın veya kapatın.",
+    "paid:hookModels": "Ücretli model kancalarını açın veya kapatın.",
+    "hookRun": "spark-hooks.json içindeki Manual kancalarınızdan birini şimdi çalıştırın.",
     "loop": "Bu Model API konuşmasında bir istem zamanla.",
     "importSession": "Dışa aktarılan oturum dosyasına Model API arka ucunda devam et.",
     "review": "Değişikliklerinizi veya anlattığınızı Muse'a inceletin.",

@@ -160,6 +160,8 @@
     "paid:scheduledPrompts": "Fizetős ütemezett promptok be- vagy kikapcsolása.",
     "paid:autoReviewer": "Fizetős automatikus ellenőrző be- vagy kikapcsolása.",
     "paid:bestOfN": "Fizetős N legjobbja funkció be- vagy kikapcsolása.",
+    "paid:hookModels": "Fizetős modellhookok be- vagy kikapcsolása.",
+    "hookRun": "Az egyik Manual hook futtatása most a spark-hooks.json fájlból.",
     "loop": "Prompt ütemezése ebben a Model API-beszélgetésben.",
     "importSession": "Exportált munkamenetfájl folytatása a Model API háttérrendszerben.",
     "review": "A Muse átnézi a módosításait, vagy amit leír.",

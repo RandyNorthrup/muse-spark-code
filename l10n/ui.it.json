@@ -160,6 +160,8 @@
     "paid:scheduledPrompts": "Attiva o disattiva i prompt pianificati a pagamento.",
     "paid:autoReviewer": "Attiva o disattiva il revisore automatico a pagamento.",
     "paid:bestOfN": "Attiva o disattiva Best-of-N a pagamento.",
+    "paid:hookModels": "Attiva o disattiva gli hook del modello a pagamento.",
+    "hookRun": "Esegui ora uno dei tuoi hook Manual da spark-hooks.json.",
     "loop": "Pianifica un prompt in questa conversazione Model API.",
     "importSession": "Riprendi un file di sessione esportato sul backend Model API.",
     "review": "Chiedi a Muse di rivedere le modifiche, o ciò che descrivi.",

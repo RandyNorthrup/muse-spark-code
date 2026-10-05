@@ -122,6 +122,10 @@ function packagingFixture() {
     'acp',
     'modelApi',
     'reviewer',
+    // M91: the adapters, the hook and MCP-form runtime, the window's hook runner.
+    'foreignHooks',
+    'hookRuntime',
+    'extensionHooks',
     'uiText',
     'validation',
     'searchWorker',

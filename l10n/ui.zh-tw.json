@@ -160,6 +160,8 @@
     "paid:scheduledPrompts": "開啟或關閉付費已排程的提示詞。",
     "paid:autoReviewer": "開啟或關閉付費自動審查器。",
     "paid:bestOfN": "開啟或關閉付費 N 選最優。",
+    "paid:hookModels": "開啟或關閉付費模型鉤子。",
+    "hookRun": "立即執行 spark-hooks.json 中的一個 Manual 鉤子。",
     "loop": "在此 Model API 對話中排程提示詞。",
     "importSession": "在 Model API 後端中繼續已匯出的工作階段檔案。",
     "review": "讓 Muse 審查你的變更，或你描述的內容。",

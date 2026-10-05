@@ -160,6 +160,8 @@
     "paid:scheduledPrompts": "Zapnout nebo vypnout placené naplánované prompty.",
     "paid:autoReviewer": "Zapnout nebo vypnout placeného automatického kontrolora.",
     "paid:bestOfN": "Zapnout nebo vypnout placenou funkci Nejlepší z N.",
+    "paid:hookModels": "Zapnout nebo vypnout placené modelové hooky.",
+    "hookRun": "Spustit teď jeden z vašich hooků Manual ze souboru spark-hooks.json.",
     "loop": "Naplánovat prompt v této konverzaci Model API.",
     "importSession": "Pokračovat v exportovaném souboru relace v Model API.",
     "review": "Požádat Muse o kontrolu změn nebo toho, co popíšete.",

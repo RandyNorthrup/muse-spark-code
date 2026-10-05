@@ -160,6 +160,8 @@
     "paid:scheduledPrompts": "Kostenpflichtige geplante Prompts ein- oder ausschalten.",
     "paid:autoReviewer": "Den kostenpflichtigen Auto-Prüfer ein- oder ausschalten.",
     "paid:bestOfN": "Kostenpflichtiges Best-of-N ein- oder ausschalten.",
+    "paid:hookModels": "Kostenpflichtige Modell-Hooks ein- oder ausschalten.",
+    "hookRun": "Einen Ihrer Manual-Hooks aus spark-hooks.json jetzt ausführen.",
     "loop": "Einen Prompt in dieser Model-API-Unterhaltung planen.",
     "importSession": "Eine exportierte Sitzungsdatei im Model-API-Backend fortsetzen.",
     "review": "Muse Ihre Änderungen prüfen lassen, oder das, was Sie beschreiben.",

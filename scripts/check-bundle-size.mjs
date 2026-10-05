@@ -40,9 +40,10 @@ const BUDGETS = [
   // zod/mini, plus 15%, rounded up to 25 KiB (PLAN.md D6).
   { path: 'dist/hookRuntime.js', budgetKiB: 50 },
   // M91b: the Amp and OpenCode plugin host (its child's source, the host and
-  // the event mapping), loaded on the first plugin hook: 51.6 KiB
-  // when split out (2026-10-05), plus 15%, rounded up to 25 KiB (PLAN.md D6).
-  { path: 'dist/pluginHooks.js', budgetKiB: 75 },
+  // the event mapping), loaded on the first plugin hook: 51.6 KiB when split
+  // out (2026-10-05), 33.8 KiB on 0.13.0's shared dist/validation.js; plus
+  // 15%, rounded up to 25 KiB (PLAN.md D6).
+  { path: 'dist/pluginHooks.js', budgetKiB: 50 },
   // The plan reader, the panel's Markdown parser, loaded on the first plan
   // action (M79): 114.7 KiB when split out, 139.0 KiB with the brief's writer.
   { path: 'dist/planMarkdown.js', budgetKiB: 150 },
@@ -95,8 +96,10 @@ const BUDGETS = [
   { path: 'dist/whatsNew.js', budgetKiB: 50 },
   { path: 'dist/whatsNew.json', budgetKiB: WHATS_NEW_CONTENT_BUDGET_KIB },
   // Shared English fallback; existing host budgets stay unchanged. Measured
-  // 104.9 KiB (2026-10-04); 126.5 KiB with M91's strings on 0.13.0
-  // (2026-10-05); plus 15%, rounded up to 25 KiB.
+  // 104.9 KiB (2026-10-04); 126.8 KiB with M91's strings on 0.13.0
+  // (2026-10-05); plus 15%, rounded up to 25 KiB. PROVISIONAL (PLAN.md §8):
+  // the 0.14.0 batch applies ACTDIET's per-bundle English split and brings it
+  // back under 125.
   { path: 'dist/uiText.js', budgetKiB: 150 },
   // TRAIN13B: used Node mini-parser API, 39.5 KiB + 15%, rounded to 25 KiB.
   { path: 'dist/validation.js', budgetKiB: 50 },
