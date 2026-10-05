@@ -1,5 +1,6 @@
 import { spawn } from 'node:child_process'
 import { mkdtemp, readFile, readdir, realpath, rm, symlink, writeFile } from 'node:fs/promises'
+import type * as fsPromises from 'node:fs/promises'
 import os from 'node:os'
 import path from 'node:path'
 import * as z from 'zod/mini'
@@ -16,7 +17,7 @@ import { createWindowAuthority, createWindowIdentity } from '../../src/host/team
 const directories: string[] = []
 const syncState = vi.hoisted(() => ({ shouldFail: false }))
 vi.mock('node:fs/promises', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('node:fs/promises')>()
+  const actual = await importOriginal<typeof fsPromises>()
   const open: typeof actual.open = async (target, flags, mode) => {
     const file = await actual.open(target, flags, mode)
     const sync = file.sync.bind(file)
