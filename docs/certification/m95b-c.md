@@ -27,9 +27,42 @@ the other M95b lanes.
   server rewrite cannot alter later encoded requests. Encoding stays pure;
   existing OpenAI/xAI byte goldens remain unchanged.
 
-The output-cap piece follows in this lane's next commit. No fake transport,
+No fake transport,
 credential reader, model slug fallback, user text, dependency, escape hatch,
 command, setting or script is added.
+
+## Client-side output cap
+
+`ResponsesDecodeSink.outputCap` is required for every ChatGPT decode and
+ignored by API-key profiles. Its explicit `ResponsesOutputCap` interface
+injects the host's `maxOutputTokens`, cumulative `countOutputTokens(event)`
+and per-request `abort()` callback. Encoding never stores a request's cap
+in the codec or sends it over the wire. Missing/invalid caps and invalid
+counter results fail explicitly; counts and caps must be safe integers,
+counts nonnegative, caps positive.
+
+Every canonical event is fully validated before the counter sees it, once,
+and the same event reaches the consumer. The host counter must include
+text, tool arguments and whole final items without counting deltas twice.
+Crossing the cap aborts that request, throws `ResponsesOutputCapError`
+with the cap/count, and closes the upstream iterator before the excess
+event reaches the host. Exactly the cap is allowed. Concurrent decodes of
+one codec keep independent host counters and cancellation.
+
+Reported `usage.output_tokens` also bounds the reply, including encrypted
+reasoning that was invisible in deltas. That hidden work cannot be stopped
+until usage is reported; this is a client cancellation limit, not a claim
+that the server generates no more than the cap. No production tokenizer or
+character-to-token ratio is invented. Tests inject synthetic counters only
+under `test/unit/`.
+
+Integration must supply the chosen model's real/conservative counter and
+the active transport's abort callback, setting `maxOutputTokens` from that
+request's canonical `max_output_tokens`. The codec deliberately refuses a
+ChatGPT stream when those dependencies are absent. Lane S's subscription
+record remains an auth/transport concern: the codec consumes no record,
+credential or account id. The same shared-core interface serves VS Code,
+other editors, ACP and headless consumers without importing `vscode`.
 
 ## Capture provenance and limits
 
@@ -65,9 +98,13 @@ Commands run serially, directly in this worktree:
 - After implementation,
   `npx vitest run test/unit/chatgptResponsesCodec.test.ts test/unit/responsesCodec.test.ts --maxWorkers=3 --testTimeout=120000`:
   **54 passed** before the four additional error-only/header cases.
+- Before the cap implementation, the complete
+  `test/unit/chatgptResponsesCap.test.ts` file: **17 failed, 2 passed**.
+- Final focused suite (all three codec files, `--maxWorkers=3 --testTimeout=120000`):
+  **77 passed** (45 existing Responses, 13 ChatGPT request/error, 19 cap).
 - `npm run typecheck`: all five projects passed.
 - `npx eslint --max-warnings=0 src/core/backends/modelapi/codecs/responses.ts test/unit/chatgptResponsesCodec.test.ts`:
-  passed.
+  passed; the cap test file also passes.
 - Prettier applied to the changed source, tests and golden.
 - `.husky/_/pre-commit` exists, `core.hooksPath` is `.husky/_`, and
   `gitleaks` is available; commits run the normal lint-staged and staged
@@ -100,3 +137,27 @@ The first first-event mutation exposed a test gap: a subsequent
 `response.failed` still produced the expected error, hiding the broken first
 handler. An error-only case was added and the complete drills rerun; the
 new case fails when that handler is broken.
+
+## Cap red drills
+
+All thirteen mutations ran the complete cap test file and exited 1 at the
+named test. Each restored the original source buffer in `finally` and
+compared SHA-256 before/after:
+
+`8019ce397d7a075d506a69bcb07b197d80eb9338c6b57ea8c666ee76dacac60b`
+
+| Guard                       | Deliberate break                      | Named failing test                                                                  |
+| --------------------------- | ------------------------------------- | ----------------------------------------------------------------------------------- |
+| Mandatory host cap          | Disable missing-cap refusal           | requires a host cap rather than silently allowing an unbounded reply                |
+| Safe integer cap            | Remove safe-integer check             | refuses an invalid host cap (NaN / Infinity / 1.5)                                  |
+| Positive cap                | Remove positive check                 | refuses an invalid host cap (0 / -1)                                                |
+| Safe integer counter        | Remove safe-integer check             | refuses an invalid counter result (NaN / Infinity / 1.5)                            |
+| Nonnegative counter         | Remove nonnegative check              | refuses an invalid counter result (-1)                                              |
+| Crossing the cap            | Disable crossing refusal              | aborts before yielding an over-cap response.output_text.delta and closes the source |
+| Exact cap allowed           | Change `>` to `>=`                    | allows exactly the cap without aborting                                             |
+| Active request cancellation | Remove `abort()`                      | aborts before yielding an over-cap response.output_text.delta and closes the source |
+| Hidden reasoning usage      | Ignore reported output tokens         | uses reported output usage to bound invisible reasoning before yielding completion  |
+| Response boundary           | Bypass response-event cap             | uses reported output usage to bound invisible reasoning before yielding completion  |
+| Item boundary               | Bypass item-event cap                 | checks a final item without deltas through the host counter                         |
+| Delta boundary              | Bypass delta-event cap                | aborts before yielding an over-cap response.output_text.delta and closes the source |
+| API-key compatibility       | Apply the ChatGPT cap to API profiles | does not enforce the ChatGPT cap on an API-key profile                              |

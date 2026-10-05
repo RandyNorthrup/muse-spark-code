@@ -5,11 +5,19 @@ import { describe, expect, it } from 'vitest'
 import {
   createResponsesCodec,
   ResponsesDecodeError,
+  type ResponsesDecodeSink,
 } from '../../src/core/backends/modelapi/codecs/responses'
 import type { CreateResponseBody } from '../../src/core/backends/modelapi/schemas'
 
 const encoder = new TextEncoder()
 const codec = createResponsesCodec({ profile: 'chatgpt', toolNamespace: 'functions' })
+// The error/created fixtures produce no output tokens.
+const sink: ResponsesDecodeSink = {
+  outputCap: { maxOutputTokens: 512, countOutputTokens: () => 0, abort: () => undefined },
+}
+function decode(chunks: AsyncIterable<Uint8Array>) {
+  return codec.decodeStream(chunks, sink)
+}
 const limitMessage =
   'The ChatGPT user has reached their Subscription Sharing usage limit. Ask the user to try again after their usage limit resets or use an API key instead.'
 const limitError = {
@@ -134,7 +142,7 @@ describe('chatgpt Responses request profile', () => {
 describe('chatgpt Responses stream profile', () => {
   it('surfaces the first nested plan-limit event before response.failed is available', async () => {
     await expect(
-      Array.fromAsync(codec.decodeStream(stream(frame({ type: 'error', error: limitError })))),
+      Array.fromAsync(decode(stream(frame({ type: 'error', error: limitError })))),
     ).rejects.toMatchObject({
       name: 'ChatgptPlanLimitError',
       code: limitError.code,
@@ -161,7 +169,7 @@ describe('chatgpt Responses stream profile', () => {
         { status: 200, headers: contentType === undefined ? {} : { 'Content-Type': contentType } },
       )
       if (response.body === null) throw new Error('Missing test response body')
-      const events = await Array.fromAsync(codec.decodeStream(response.body))
+      const events = await Array.fromAsync(decode(response.body))
       expect(events).toMatchObject([{ type: 'response.created' }])
       expect(codec.encodeRequest(body())['prompt_cache_key']).toBe('m95b-capture')
     },
@@ -175,7 +183,7 @@ describe('chatgpt Responses stream profile', () => {
         { status: 200, headers: contentType === undefined ? {} : { 'Content-Type': contentType } },
       )
       if (response.body === null) throw new Error('Missing test response body')
-      await expect(Array.fromAsync(codec.decodeStream(response.body))).rejects.toMatchObject({
+      await expect(Array.fromAsync(decode(response.body))).rejects.toMatchObject({
         name: 'ChatgptPlanLimitError',
         code: limitError.code,
         message: limitMessage,
@@ -184,9 +192,7 @@ describe('chatgpt Responses stream profile', () => {
   )
 
   it('also recognises a response.failed plan limit when no preceding error event arrives', async () => {
-    await expect(
-      Array.fromAsync(codec.decodeStream(stream(frame(failed())))),
-    ).rejects.toMatchObject({
+    await expect(Array.fromAsync(decode(stream(frame(failed()))))).rejects.toMatchObject({
       name: 'ChatgptPlanLimitError',
       code: limitError.code,
       message: limitMessage,
@@ -195,15 +201,15 @@ describe('chatgpt Responses stream profile', () => {
 
   it('translates other nested errors without misclassifying them as a plan limit', async () => {
     const error = { ...limitError, code: 'other_error', message: 'Other error' }
-    expect(
-      await Array.fromAsync(codec.decodeStream(stream(frame({ type: 'error', error })))),
-    ).toEqual([{ type: 'error', code: 'other_error', message: 'Other error' }])
+    expect(await Array.fromAsync(decode(stream(frame({ type: 'error', error }))))).toEqual([
+      { type: 'error', code: 'other_error', message: 'Other error' },
+    ])
   })
 
   it('rejects malformed nested errors without exposing their contents', async () => {
     await expect(
       Array.fromAsync(
-        codec.decodeStream(
+        decode(
           stream(
             frame({
               type: 'error',
