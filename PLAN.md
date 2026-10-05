@@ -15115,6 +15115,19 @@ record gains an optional pending-refresh validation marker. Regression tests,
 byte-exact red drills and integration/storage limits go in `m95b-s.md` and §9.
 No dependency, guard relaxation, live call or another lane's implementation.
 
+**FIXM95BC review repair (2026-10-05, RVM95BC).** Within lane C's codec,
+tests, request fixtures and certification, preserve validated reported usage
+in the output-cap error for the canonical adapter's ordinary failure
+settlement; prove the actual `ModelApiHost` emits all four token tallies
+without replaying excess output. Add the supplied scrubbed namespace-request
+comparison, preserve its description and declared strictness, and enumerate
+every intentional harness adaptation beside the test. Keep the existing
+contract golden, API-key profiles, guards and dependencies unchanged. Each
+finding gets an owning-file red drill with byte-exact restoration, recorded
+in `docs/certification/m95b-c.md`. The rig brief delegates full quality and
+shared README/CHANGELOG integration to the lead/lane W and forbids
+merge/rebase/push; focused checks run directly on Kubuntu.
+
 **Status 2026-10-04: planned with M95; research in
 `docs/certification/m95-research.md` §6. Starts when M95's seam (lanes P, T
 and I) has merged.**
@@ -15763,6 +15776,13 @@ its sections 1–2 (harness), "BYO n" its section 3 (providers).
 
 ## 7. Gates
 
+**FIXM95BC gate boundary (2026-10-05).** The rig/common brief prohibits
+aggregate `npm run quality` and full-test runs in this lane; the lead owns
+that gate on the integrated tree. Run the owned codec suites and required
+static/build checks directly on Kubuntu with every existing gate unchanged.
+Shared README/CHANGELOG updates remain lane W's work. Results and deliberate
+failure drills are recorded in `docs/certification/m95b-c.md`.
+
 **M95INT final whole-chain rerun — deferred under the 120-minute rig brief.**
 The final 548-page rerun still returns 1: `dark/models-pick` has one selected
 description at 4.41:1 contrast (4.5:1 required), and `hc-light/models-table`
@@ -16408,6 +16428,20 @@ before a repaired one loads (2026-09-30).
   not claim shipped sign-in support. The inherited generated host API count
   difference (35 → 36 `node:crypto` imports) also remains W/lead's record
   maintenance, as documented under M95BS-R-host-api-count in certification.
+
+- **FIXM95BC / RVM95BC (2026-10-05).** P2 reported usage lost at an
+  output-cap cut and P3 missing capture-request comparison are both repaired
+  in lane C; no assigned finding is deferred. The typed cap error carries
+  validated usage only, with excess output withheld. Tests drive its
+  canonical failure translation through the actual `ModelApiHost` and
+  compare the supplied scrubbed request with enumerated adaptations, with
+  deliberate failures recorded in `docs/certification/m95b-c.md`.
+  **BC-INTEGRATION** remains the pre-existing acceptance boundary: lane T/I/W
+  must wire that cap-error translation and the namespace description/counter
+  inputs, and the lead must certify successful live plan/tool turns and
+  combined quality. Safe while this codec-only branch has no subscription
+  dispatch; this is an integration prerequisite, not a supported-live-turn
+  claim. No paid or live model calls are authorized in this repair lane.
 
 - **FIXM95P (2026-10-05):** all thirteen assigned RVM95A findings
   (1, 2, 4–8, 12–15, 18, 19) are repaired with regressions and deliberate
