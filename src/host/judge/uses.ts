@@ -2,7 +2,7 @@
 // certified B/M75 policy; absent injection performs no work or paid prompt.
 import type { ReviewRequest } from '../../core/backends/modelapi/autoReviewer'
 import type { JudgeRuntime } from '../../core/judge/engine'
-import { JudgeEntryStore, type JudgeEntryParts } from '../../core/judge/entries'
+import { entryKey, type JudgeEntryParts, type JudgeReadyOutcome } from '../../core/judge/entries'
 import { judgeRequestSchema, type JudgeQuestion } from '../../core/judge/schema'
 import { judgeUseAdvice } from '../../core/judge/uses/advice'
 import {
@@ -12,7 +12,7 @@ import {
 } from '../../core/judge/uses/definitions'
 
 export interface JudgeCautionLatch {
-  /** Synchronous, consuming read; never a promise or an ALLOW answer. */
+  /** Synchronous read consuming this holder only; never a promise or an ALLOW answer. */
   read(): boolean
   discard(): void
 }
@@ -37,10 +37,24 @@ export interface JudgeReviewUsesDeps {
   readonly redact: (text: string) => string
 }
 
+interface SharedReview {
+  readonly stop: AbortController
+  readonly isCurrent: () => boolean
+  holders: number
+  outcome: JudgeReadyOutcome | 'failed' | undefined
+}
+
 export class JudgeUses implements JudgeReviewUses {
-  private readonly entries = new JudgeEntryStore()
+  private readonly entries = new Map<string, SharedReview>()
 
   public constructor(private readonly deps: JudgeReviewUsesDeps) {}
+
+  private discardEntry(key: string, entry: SharedReview): void {
+    if (this.entries.get(key) === entry) {
+      this.entries.delete(key)
+    }
+    entry.stop.abort()
+  }
 
   public startReview(input: JudgeReviewInput, signal: AbortSignal): JudgeCautionLatch | undefined {
     const policy = this.deps.policy()
@@ -73,36 +87,62 @@ export class JudgeUses implements JudgeReviewUses {
         current.evidence.threshold === admission.evidence.threshold
       )
     }
-    const handle = this.entries.start(input.action)
-    const stop = new AbortController()
+    const key = entryKey(input.action)
+    let existing = this.entries.get(key)
+    if (existing !== undefined && !existing.isCurrent()) {
+      this.discardEntry(key, existing)
+      existing = undefined
+    }
+    const entry: SharedReview = existing ?? {
+      stop: new AbortController(),
+      isCurrent,
+      holders: 0,
+      outcome: undefined,
+    }
+    if (existing === undefined) {
+      this.entries.set(key, entry)
+    }
+    entry.holders += 1
+    let isHeld = true
     const discard = (): void => {
-      this.entries.discard(handle)
+      if (!isHeld) {
+        return
+      }
+      isHeld = false
       signal.removeEventListener('abort', discard)
-      stop.abort()
+      entry.holders -= 1
+      if (entry.holders === 0) {
+        this.discardEntry(key, entry)
+      }
     }
     signal.addEventListener('abort', discard, { once: true })
     const settle = async (): Promise<void> => {
       try {
-        const output = await this.deps.runtime.judge(request.data, stop.signal)
-        if (stop.signal.aborted || !isCurrent()) {
-          discard()
+        const output = await this.deps.runtime.judge(request.data, entry.stop.signal)
+        if (entry.stop.signal.aborted || !entry.isCurrent()) {
+          this.discardEntry(key, entry)
           return
         }
         const advice = judgeUseAdvice(admission, request.data, output)
-        this.entries.settle(
-          handle,
-          advice.kind === 'advisory' && advice.effect === 'caution' ? 'caution' : 'none',
-        )
+        entry.outcome =
+          advice.kind === 'advisory' && advice.effect === 'caution' ? 'caution' : 'none'
       } catch {
-        this.entries.settle(handle, 'failed')
+        // A failed advisory has no opinion at any remaining holder's fence.
+        entry.outcome = 'failed'
       }
     }
-    void settle()
+    // The shared entry owns dispatch; another approval only acquires a holder.
+    if (existing === undefined) {
+      void settle()
+    }
     return {
       read: () => {
         try {
-          return isCurrent() && this.entries.readLatch(handle) === 'caution'
+          return (
+            isHeld && !entry.stop.signal.aborted && entry.isCurrent() && entry.outcome === 'caution'
+          )
         } catch {
+          // A failed policy/binding read is no opinion for this approval.
           return false
         } finally {
           discard()

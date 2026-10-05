@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
+import { isReviewableApproval } from '../../src/core/agent/approvalRules'
 import { ReviewBreaker } from '../../src/core/backends/modelapi/autoReviewer'
 import { mapNotification } from '../../src/core/backends/musecode/mapNotification'
 import type { JudgeRuntime } from '../../src/core/judge/engine'
@@ -31,6 +32,25 @@ function approval(): Approval {
     return mapped.event
   }
   throw new Error('captured approval did not map')
+}
+
+/** Synthetic internal network subjects reuse M90's captured approval envelope. */
+function identicalNetworkApprovals(event: Approval): readonly [Approval, Approval] {
+  const first: Approval = {
+    ...event,
+    toolName: 'network',
+    rawArgs: '{"host":"example.com"}',
+    subject: { kind: 'network', host: 'example.com' },
+  }
+  return [
+    first,
+    {
+      ...first,
+      approvalId: 'other-approval',
+      itemId: 'other-item',
+      requirementId: { ...first.requirementId, approvalId: 'other-approval' },
+    },
+  ]
 }
 
 function deferred<T>() {
@@ -162,6 +182,118 @@ describe('independent reviewer and synchronous caution fence', () => {
     expect(t.cards).toHaveBeenCalledExactlyOnceWith(t.event, undefined)
     expect(t.session.decideApproval).not.toHaveBeenCalled()
     expect(t.reviewOne.mock.calls[0]?.[0]).toMatchObject({ request: t.hold.request })
+  })
+
+  it('identical actions share one dispatch with independent abort and latch lifetimes', async () => {
+    for (const exit of ['abort-pending', 'discard-ready', 'read-ready', 'join-ready'] as const) {
+      const t = setup()
+      const firstStop = new AbortController()
+      const lastStop = new AbortController()
+      const input = { action: useAction(), state: t.hold.request }
+      const first = t.uses.startReview(input, firstStop.signal)
+      if (exit === 'join-ready') {
+        t.judge.resolve(useOutput(t.policy(), undefined, {}, 'review'))
+        await flush()
+      }
+      const last = t.uses.startReview(input, lastStop.signal)
+      expect(first).toBeDefined()
+      expect(last).toBeDefined()
+      if (exit === 'abort-pending') {
+        firstStop.abort()
+      }
+      t.judge.resolve(useOutput(t.policy(), undefined, {}, 'review'))
+      await flush()
+      if (exit === 'read-ready') {
+        expect(first?.read()).toBe(true)
+      }
+      first?.discard()
+      first?.discard()
+      firstStop.abort()
+      expect(first?.read()).toBe(false)
+      expect(t.runtime.judge.mock.calls[0]?.[1].aborted).toBe(false)
+      expect(last?.read()).toBe(true)
+      expect(last?.read()).toBe(false)
+      expect(t.runtime.judge).toHaveBeenCalledOnce()
+      expect(t.runtime.judge.mock.calls[0]?.[1].aborted).toBe(true)
+    }
+  })
+
+  it('resolving one of two identical reviewable approvals preserves the other caution card', async () => {
+    const t = setup()
+    const [first, other] = identicalNetworkApprovals(t.event)
+    expect(isReviewableApproval(first, 'auto', 't1')).toBe(true)
+    expect(isReviewableApproval(other, 'auto', 't1')).toBe(true)
+    t.approvals.hold(first, t.hold)
+    t.approvals.hold(other, t.hold)
+    t.judge.resolve(useOutput(t.policy(), undefined, {}, 'review'))
+    await flush()
+    t.approvals.resolved({
+      type: 'approvalResolved',
+      approvalId: first.approvalId,
+      itemId: first.itemId,
+      decision: 'denied',
+      resolvedBy: 'user',
+    })
+    t.review.resolve(allow)
+    await flush()
+    expect(t.cards).toHaveBeenCalledExactlyOnceWith(other, undefined)
+    expect(t.session.decideApproval).not.toHaveBeenCalled()
+    expect(t.runtime.judge).toHaveBeenCalledOnce()
+  })
+
+  it('a pending shared call survives the first reviewer fence without delaying it', async () => {
+    const t = setup()
+    const [first, other] = identicalNetworkApprovals(t.event)
+    const firstReview = deferred<MuseCodeReviewOutcome>()
+    t.reviewOne.mockReturnValueOnce(firstReview.promise)
+    t.approvals.hold(first, t.hold)
+    t.approvals.hold(other, t.hold)
+    await flush()
+    firstReview.resolve(allow)
+    await flush()
+    expect(t.session.decideApproval).toHaveBeenCalledOnce()
+    expect(t.cards).not.toHaveBeenCalled()
+    expect(t.runtime.judge.mock.calls[0]?.[1].aborted).toBe(false)
+    t.judge.resolve(useOutput(t.policy(), undefined, {}, 'review'))
+    await flush()
+    t.review.resolve(allow)
+    await flush()
+    expect(t.cards).toHaveBeenCalledExactlyOnceWith(other, undefined)
+    expect(t.session.decideApproval).toHaveBeenCalledOnce()
+    expect(t.runtime.judge).toHaveBeenCalledOnce()
+  })
+
+  it('only the last shared holder cancels, and stale holders cannot consume a rebound entry', async () => {
+    for (const change of ['abort', 'binding'] as const) {
+      const t = setup()
+      const input = { action: useAction(), state: t.hold.request }
+      const first = t.uses.startReview(input, new AbortController().signal)
+      const lastStop = new AbortController()
+      const last = t.uses.startReview(input, lastStop.signal)
+      first?.discard()
+      expect(t.runtime.judge.mock.calls[0]?.[1].aborted).toBe(false)
+      if (change === 'abort') {
+        lastStop.abort()
+        expect(t.runtime.judge.mock.calls[0]?.[1].aborted).toBe(true)
+      } else {
+        t.replaceBinding()
+      }
+      const nextResult = deferred<JudgeOutcome>()
+      t.runtime.judge.mockReturnValueOnce(nextResult.promise)
+      const next = t.uses.startReview(input, new AbortController().signal)
+      expect(t.runtime.judge.mock.calls[0]?.[1].aborted).toBe(true)
+      last?.discard()
+      lastStop.abort()
+      t.judge.resolve(useOutput(t.policy(), undefined, {}, 'review'))
+      await flush()
+      const joined = t.uses.startReview(input, new AbortController().signal)
+      nextResult.resolve(useOutput(t.policy(), undefined, {}, 'review'))
+      await flush()
+      expect(last?.read()).toBe(false)
+      expect(next?.read()).toBe(true)
+      expect(joined?.read()).toBe(true)
+      expect(t.runtime.judge).toHaveBeenCalledTimes(2)
+    }
   })
 
   it('a fast reviewer never waits for a delayed judge and drops its late answer', async () => {

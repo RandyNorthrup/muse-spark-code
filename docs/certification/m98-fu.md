@@ -292,3 +292,62 @@ integration work. FU's pure implementation, injected reviewer region,
 owning acceptance tests and red controls are complete. Working tree was
 clean after the implementation commit and final lane gates; this receipt
 update is the only subsequent change.
+
+## FIXM98FU — RVM98FU P2 repair (2026-10-05, macmini)
+
+Branch `m98/fufix`, base `bb5299f3`; worktree
+`/Users/randy/lanes/FIXM98FU`. Read the entire rig/common brief and
+`RVM98FU.report.md`. The review has one P2 and no P1/P3. **P2 fixed;
+no review finding remains residual.** All original activation/adoption,
+isolation and integrated-gate prerequisites above still apply.
+
+`src/host/judge/uses.ts` now keeps the exact-action shared entry as the
+single owner of its runtime call, result and cancellation controller,
+reusing core `entryKey` without changing lane J's consuming store. Each
+approval acquires a separately consuming latch. Idempotent release removes
+only that holder; a ready caution remains available to every other holder.
+The last holder leaving deletes the entry and aborts its call. Invalid
+owner/source/policy bindings discard the stale generation before a new
+approval joins; identity-checked deletion and captured entry objects keep
+old holders/callbacks away from its replacement. Fences still read once
+synchronously and never await; no gate or admission boundary is widened.
+
+Both review probes are permanent in `test/unit/judgeUsesReview.test.ts`:
+“identical actions share one dispatch with independent abort and latch
+lifetimes” and “resolving one of two identical reviewable approvals preserves
+the other caution card”. The latter first proves both approvals pass
+`isReviewableApproval` and reuses M90's captured approval envelope with
+synthetic internal network subjects and distinct approval identities;
+no new external wire shape is invented. Two further tests
+cover an early pending reviewer fence and last-holder/rebound lifetimes.
+The whole file failed against unchanged base production code: **4 new
+tests failed, 19 existing tests passed**. With the repair: **23/23 pass**.
+
+Six additional guard drills ran the whole owning file, serially and directly
+on macmini with `--maxWorkers=3 --testTimeout=120000`. Each had red exit 1,
+the named assertion below, byte-exact restoration in `finally` verified by
+SHA-256, then a whole-file green exit 0 (23/23). No test-name filters/skips.
+An initial scratch-driver needle did not match after formatting; it stopped
+before mutation, restored the original bytes, and the remaining controls
+ran with the corrected needle. This is not counted as a red control.
+
+| Guard deliberately broken                      | Named failing regression (abbreviated)                                             |
+| ---------------------------------------------- | ---------------------------------------------------------------------------------- |
+| Join guard: dispatch for every holder          | identical actions share one dispatch…                                              |
+| Last-holder count: cancel with one holder left | identical actions share one dispatch…; resolving one of two…; pending shared call… |
+| Idempotent release guard                       | identical actions share one dispatch…; resolving one of two…                       |
+| Per-holder read-once guard                     | identical actions share one dispatch…                                              |
+| Generation identity check on deletion          | only the last shared holder cancels…                                               |
+| Stale-binding check before joining             | only the last shared holder cancels…                                               |
+
+Restored production SHA-256 for all six controls:
+`src/host/judge/uses.ts` =
+`eeed42145cfca77f9da2b8cbd1db93aa2ac36d9b72c87ee066da1229c5b027f5`.
+Scratch driver/logs/JSON remain under ignored `temp/fixm98fu/` only.
+
+No dependencies, keys, source activation, strings, wire parser or other
+lane's production regions change. Z retains shared README/CHANGELOG
+delivery; suggested Unreleased repair note: “Identical held judge actions
+share one dispatch, and resolving one approval preserves the other held
+approvals' cautions.” This repair performs **0 live/paid/local model calls**,
+credential reads, installs, network requests, merges, rebases or pushes.

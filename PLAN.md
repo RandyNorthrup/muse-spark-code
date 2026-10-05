@@ -14832,6 +14832,17 @@ ledger, scheduler, provider registry, hook format or golden baseline.
 
 ##### 2f — Other uses, M95 Judge section and pre-execution fences
 
+- **FIXM98FU review repair (RVM98FU P2, 2026-10-05).** The injected
+  reviewer-use entry owns one runtime dispatch per live exact-action key.
+  Identical approvals join that entry with independently consuming,
+  reference-counted latches; resolving, aborting or reading one holder
+  cannot discard another holder's ready caution. Only the last holder
+  leaving cancels the shared call. Owner/source/policy invalidation still
+  discards the whole stale generation, and old holders/callbacks cannot
+  affect its replacement. Keep the synchronous reviewer fence and all
+  evidence/admission gates. Add the review's independent-lifetime and
+  two-reviewable-approval hold/resolved probes, and byte-exact red drills,
+  to `docs/certification/m98-fu.md`. No source activation or new dependency.
 - **Scope.** Separate, measured deliveries: skill/custom-agent suggestions
   (at most one hint line), context relevance, semantic grading beside
   deterministic checks, M96 orchestrator hints, M90 review signals, and
@@ -15046,6 +15057,15 @@ its hundreds-label evidence exists. Z closes each small delivery separately;
 do not wait for all ten surfaces to ship a certified one.
 
 ## 7. Gates
+
+**FIXM98FU bounded-lane delegation (2026-10-05).** The rig/common brief
+prohibits aggregate quality/full-suite runs, merges, rebases and pushes.
+Hook-on repair commits use the whole owning test files with the rig's
+flags, byte-exact red drills, scoped lint/format and serial typechecks;
+the final receipt also runs dead-code, duplication, localization, host API
+and production build. Full quality/coverage/installed-host certification
+stays with Z/lead. The inherited FIXM98J host-API snapshot deferral below
+is neither widened nor claimed green. No gate or threshold is weakened.
 
 **M98P2PLAN documentation-only lane (2026-10-05).** The explicit rig brief
 limits changes to PLAN and the phase-2 planning receipt and requires only
