@@ -7,6 +7,15 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+### Changed
+
+- Smaller universal VSIX and ACP packages: runtime translations, lazy English
+  regions share a bounded Brotli archive; exact lazy Node sources use a separate
+  solid archive so translation damage preserves backend availability.
+  Bundle checksums preserve the compiled bytes and filename; damaged tables
+  retain the existing English fallback. Lossless walkthrough image compression
+  preserves every pixel. Activation code and all package caps stay unchanged.
+
 ## [0.14.0] - 2026-10-05
 
 ### Highlights

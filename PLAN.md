@@ -238,6 +238,24 @@ quality`) and as a CI job.
 
 ### D6 — Bundle budgets (Phase 6)
 
+**VSIXDIET2 (2026-10-05).** Package staging solid-compresses the existing
+language-major translation matrix and all three lazy English regions at Brotli
+quality 11; a separate solid archive holds exact lazy CommonJS sources so
+translation damage never disables a backend. Node's built-in
+decoder retains the existing 14-MiB archive bound; only requested locale
+tables, English regions and modules are installed/compiled. SHA-256 guards
+every executable/English member; CommonJS compilation retains its original
+filename and relative imports. English regions keep independent inline
+fallbacks, so missing/corrupt translation archives preserve today's English
+behavior. Activation, recorder, shared parsers and ACP entry remain ordinary
+CommonJS; compressed regional key lists offset the eager reader's bytes.
+Both packages check exact staged translations against source JSON. Manifest
+tables, licences/notices, helpers and browser chunks remain ordinary files.
+Lossless PNG filtering preserves every walkthrough pixel. All existing caps
+stay unchanged; package/member and drill receipts are in
+`docs/certification/vsix-diet-2.md`. This is shared Node packaging for VS Code
+hosts and ACP/headless editors; browser fallback and editor features are unchanged.
+
 **TRAIN14A integration size recovery (2026-10-05).** The initial M94 archive
 has insufficient universal-helper headroom, and the prepared M71 join exceeds
 activation and shared English by 7.1 KiB each; browser budgets still fit.
@@ -6789,6 +6807,32 @@ cached: "0.15", currency: "USD" }`, `isDefault`, `isActive`, `releaseDate`.
   extension must track the child PID and kill the tree on dispose.
 
 ## 6. Milestones
+
+### VSIXDIET2 — Universal package headroom for 0.15.0 (2026-10-05)
+
+- [x] Reproduce the 0.14.0 universal VSIX with the checksum-verified published
+      helper and rank every member by compressed bytes. Keep the 2,252,800-byte cap.
+- [x] Pack runtime translations and generated lazy English regions together at
+      Brotli quality 11, using Node's built-in bounded decoder and today's table
+      validation. Use the same archive in ACP; keep manifest translations readable
+      by VS Code and source JSON checked by the localization gate.
+- [x] Measure deterministic lossless package improvements, targeting at least
+      150,000 bytes of universal headroom with no activation growth or text changes.
+      Preserve all licences/notices, runtime assets and editor behavior.
+- [x] Solid-compress the exact existing lazy CommonJS bundle sources in an
+      independent archive: translation damage must preserve backend availability.
+      Keep activation, recorder, shared parsers and
+      ACP entry code ordinary CommonJS. Compile each selected, SHA-256-checked
+      original through Node's CommonJS module loader with its original filename;
+      retain independent inline English-region fallbacks for archive damage.
+- [x] Prove every locale's exact compact JSON round-trip, English-region lazy
+      loading, missing/corrupt fallback, and packaged ACP/CLI loading. Drill new
+      guards and restore each file byte-exact with SHA-256 receipts.
+- [x] Run scoped owning/importing suites in batches of at most three files,
+      static gates, all production caps and universal packaging on Kubuntu. Record
+      before/after members in `docs/certification/vsix-diet-2.md`; hook-on local
+      commits only, no network/live/paid calls, merge, push or rebase. The lane's
+      shared rules reserve aggregate quality/coverage for the lead; 120-minute box.
 
 ### TRAIN14B — Complete the 0.14.0 release train (2026-10-05)
 

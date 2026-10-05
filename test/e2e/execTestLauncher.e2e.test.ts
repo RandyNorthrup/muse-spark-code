@@ -21,6 +21,7 @@ import {
   writeFileSync,
 } from 'node:fs'
 import path from 'node:path'
+import { brotliCompressSync } from 'node:zlib'
 import { build, type Plugin } from 'esbuild'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import {
@@ -127,6 +128,10 @@ async function packageTree(): Promise<void> {
     logLevel: 'silent',
   })
   cpSync(path.join(ROOT, 'docs', 'schemas'), path.join(STAGE, 'schemas'), { recursive: true })
+  writeFileSync(
+    path.join(dist, 'runtime.bundles.json.br'),
+    brotliCompressSync('{"version":1,"bundles":{}}'),
+  )
   writeFileSync(
     path.join(STAGE, 'package.json'),
     `${JSON.stringify({ name: 'muse-spark-code-acp', version: VERSION, bin: { 'muse-spark-code-acp': 'dist/acp.js' } }, null, 2)}\n`,

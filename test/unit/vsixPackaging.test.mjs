@@ -1,13 +1,19 @@
 import { createHash } from 'node:crypto'
 import { cpSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
-import { brotliDecompressSync } from 'node:zlib'
-import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { brotliCompressSync, brotliDecompressSync } from 'node:zlib'
+import { createRequire } from 'node:module'
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import { stageVsix, packagedChangelog } from '../../scripts/package-vsix.mjs'
+import { packRuntimeArchive } from '../../scripts/lib/packageArchive.mjs'
 import { readArchivedUiTable } from '../../src/shared/l10n/tableArchive'
+import { EN } from '../../src/shared/l10n/en'
+import { TABLE_LOCALES } from '../../src/shared/l10n/locales'
+import { loadUiTable, readUiTableFile } from '../../src/host/l10n'
 import { listFiles } from '@vscode/vsce/out/package.js'
 
 const ROOT = process.cwd()
+const hash = (text) => createHash('sha256').update(text).digest('hex')
 const fixture = { root: '', stage: '', files: [] }
 const excluded = [
   'PLAN.md',
@@ -63,6 +69,14 @@ beforeAll(async () => {
     writeFileSync(path.join(fixture.root, file), 'runtime')
   }
   cpSync(path.join(ROOT, 'l10n'), path.join(fixture.root, 'l10n'), { recursive: true })
+  for (const name of ['uiText', 'uiTextRuntime', 'uiTextHooks', 'uiTextSurfaces']) {
+    cpSync(path.join(ROOT, 'dist', `${name}.js`), path.join(fixture.root, 'dist', `${name}.js`))
+  }
+  writeFileSync(
+    path.join(fixture.root, 'dist/tab.js'),
+    'exports.file=__filename;exports.relative=require("./wire.js").value;exports.fail=()=>{throw new Error("original stack")};',
+  )
+  writeFileSync(path.join(fixture.root, 'dist/wire.js'), 'exports.value="sibling";')
   cpSync(path.join(ROOT, 'package.nls.json'), path.join(fixture.root, 'package.nls.json'))
   writeFileSync(
     path.join(fixture.root, 'dist/meta/webview.json'),
@@ -86,22 +100,188 @@ describe('VSIX packaging', () => {
         'dist/webview/chunks/UsageDialog-test.js',
         'native/darwin/muse-dictate',
         'l10n/ui.tables.json.br',
+        'dist/runtime.bundles.json.br',
       ]),
     )
     expect(packaged).not.toContain('docs/marketplace-readme.md')
   })
-  it('compacts translations with identical values and leaves the source byte-exact', () => {
-    const source = path.join(fixture.root, 'l10n/ui.de.json')
-    const before = readFileSync(path.join(ROOT, 'l10n/ui.de.json'))
+  it.each(TABLE_LOCALES)('round-trips %s byte-exact and leaves source unchanged', (locale) => {
+    const file = `l10n/ui.${locale}.json`
+    const source = path.join(fixture.root, file)
+    const before = readFileSync(path.join(ROOT, file))
     const shipped = brotliDecompressSync(
       readFileSync(path.join(fixture.stage, 'l10n/ui.tables.json.br')),
     ).toString('utf8')
-    const table = readArchivedUiTable(shipped, 'de')
+    const table = readArchivedUiTable(shipped, locale)
     expect(JSON.parse(table)).toEqual(JSON.parse(before))
     expect(table).toBe(JSON.stringify(JSON.parse(before)))
     expect(createHash('sha256').update(readFileSync(source)).digest('hex')).toBe(
       createHash('sha256').update(before).digest('hex'),
     )
+  })
+  it('loads exact archived CommonJS with original relative requires and stack filename', () => {
+    const file = path.join(fixture.stage, 'dist/tab.js')
+    const loaded = createRequire(file)(file)
+    expect(loaded.file).toBe(file)
+    expect(loaded.relative).toBe('sibling')
+    expect(loaded.fail).toThrow('original stack')
+    try {
+      loaded.fail()
+    } catch (error) {
+      expect(error.stack).toContain(`${file}:1:`)
+    }
+    const archive = JSON.parse(
+      brotliDecompressSync(readFileSync(path.join(fixture.stage, 'dist/runtime.bundles.json.br'))),
+    )
+    expect(archive.bundles['tab.js']).toBe(
+      readFileSync(path.join(fixture.root, 'dist/tab.js'), 'utf8'),
+    )
+    expect(readFileSync(path.join(fixture.stage, 'dist/extension.js'))).toEqual(
+      readFileSync(path.join(fixture.root, 'dist/extension.js')),
+    )
+  })
+  it('keeps the eager fallback smaller and enumerates keys without loading regions', () => {
+    const file = path.join(fixture.stage, 'dist/uiText.js')
+    const require = createRequire(file)
+    const core = require(file)
+    expect(Object.keys(core.EN)).toHaveLength(Object.keys(EN).length)
+    expect(core.EN.actionFailed).toBe(EN.actionFailed)
+    for (const name of ['uiTextRuntime', 'uiTextHooks', 'uiTextSurfaces']) {
+      expect(require.cache[path.join(fixture.stage, 'dist', `${name}.js`)]).toBeUndefined()
+    }
+    expect(readFileSync(file).byteLength).toBeLessThan(
+      readFileSync(path.join(ROOT, 'dist/uiText.js')).byteLength,
+    )
+  })
+  it('refuses packaging a runtime archive over the existing decoded bound', async () => {
+    const root = mkdtempSync(path.join(ROOT, 'temp', 'oversized-package-'))
+    try {
+      cpSync(fixture.root, root, { recursive: true })
+      writeFileSync(path.join(root, 'dist/tab.js'), ' '.repeat(15 * 1024 * 1024))
+      await expect(stageVsix(root, path.join(root, 'dist/vsix-package'))).rejects.toThrow(
+        'Runtime archive exceeds decoded bound',
+      )
+    } finally {
+      rmSync(root, { recursive: true, force: true })
+    }
+  })
+  it('produces identical archive bytes with reversed input order', async () => {
+    const stage = path.join(fixture.root, 'reordered')
+    cpSync(fixture.stage, stage, { recursive: true })
+    cpSync(path.join(fixture.root, 'dist/uiText.js'), path.join(stage, 'dist/uiText.js'))
+    const tables = TABLE_LOCALES.map((locale) => [
+      locale,
+      JSON.parse(readFileSync(path.join(fixture.root, `l10n/ui.${locale}.json`))),
+    ])
+    await packRuntimeArchive(fixture.root, stage, fixture.files.toReversed(), tables.toReversed())
+    expect(
+      readFileSync(path.join(stage, 'l10n/ui.tables.json.br')).equals(
+        readFileSync(path.join(fixture.stage, 'l10n/ui.tables.json.br')),
+      ),
+    ).toBe(true)
+    expect(
+      readFileSync(path.join(stage, 'dist/runtime.bundles.json.br')).equals(
+        readFileSync(path.join(fixture.stage, 'dist/runtime.bundles.json.br')),
+      ),
+    ).toBe(true)
+  })
+  it('discards a cached archive after a failed member so a repair can retry', () => {
+    const stage = path.join(fixture.root, 'repair')
+    cpSync(fixture.stage, stage, { recursive: true })
+    const file = path.join(stage, 'dist/uiText.js')
+    const core = createRequire(file)(file)
+    const archiveFile = path.join(stage, 'dist/runtime.bundles.json.br')
+    const archive = JSON.parse(brotliDecompressSync(readFileSync(archiveFile)))
+    core.readPackedRuntime('bundles', 'tab.js', hash(archive.bundles['tab.js']))
+    const repaired = 'exports.later=true;'
+    expect(() => core.readPackedRuntime('bundles', 'later.js', hash(repaired))).toThrow()
+    archive.bundles['later.js'] = repaired
+    writeFileSync(archiveFile, brotliCompressSync(JSON.stringify(archive)))
+    expect(core.readPackedRuntime('bundles', 'later.js', hash(repaired))).toBe(repaired)
+  })
+  it.each([
+    'missing',
+    'corrupt',
+    'version',
+    'english',
+    'oversized',
+    'code-missing',
+    'code-corrupt',
+    'code-version',
+    'code-bundle',
+    'code-oversized',
+  ])('preserves English fallback and refuses damaged executable content: %s', async (kind) => {
+    const stage = path.join(fixture.root, kind)
+    cpSync(fixture.stage, stage, { recursive: true })
+    const isCode = kind.startsWith('code-')
+    const fault = isCode ? kind.slice('code-'.length) : kind
+    const archiveFile = path.join(
+      stage,
+      isCode ? 'dist/runtime.bundles.json.br' : 'l10n/ui.tables.json.br',
+    )
+    const originalBytes = readFileSync(archiveFile)
+    let oversizedDigest
+    if (fault === 'missing') rmSync(archiveFile)
+    else if (fault === 'corrupt') writeFileSync(archiveFile, 'Invalid Brotli')
+    else {
+      const archive = JSON.parse(brotliDecompressSync(readFileSync(archiveFile)))
+      switch (fault) {
+        case 'version': {
+          archive.version = 2
+          break
+        }
+        case 'english': {
+          archive.english.runtime = '{}'
+          break
+        }
+        case 'bundle': {
+          archive.bundles['tab.js'] = 'exports.relative="tampered";'
+          break
+        }
+        case 'oversized': {
+          const text = ' '.repeat(15 * 1024 * 1024)
+          if (isCode) archive.bundles['tab.js'] = text
+          else archive.english.runtime = text
+          oversizedDigest = createHash('sha256').update(text).digest('hex')
+          break
+        }
+        default: {
+          throw new Error('Unknown archive fault')
+        }
+      }
+      writeFileSync(archiveFile, brotliCompressSync(JSON.stringify(archive)))
+    }
+    const coreFile = path.join(stage, 'dist/uiText.js')
+    const require = createRequire(coreFile)
+    const original = createRequire(path.join(ROOT, 'dist/uiText.js'))(
+      path.join(ROOT, 'dist/uiText.js'),
+    ).EN
+    expect(JSON.stringify(require(coreFile).EN)).toBe(JSON.stringify(original))
+    expect(require(coreFile).EN).toEqual(EN)
+    if (fault === 'oversized') {
+      expect(() =>
+        require(coreFile).readPackedRuntime(
+          isCode ? 'bundles' : 'english',
+          isCode ? 'tab.js' : 'runtime',
+          oversizedDigest,
+        ),
+      ).toThrow()
+    }
+    const tab = path.join(stage, 'dist/tab.js')
+    if (isCode) {
+      expect(() => require(tab)).toThrow()
+      writeFileSync(archiveFile, originalBytes)
+      expect(require(tab).relative).toBe('sibling')
+    } else expect(require(tab).relative).toBe('sibling')
+    if (!['missing', 'corrupt', 'version', 'oversized'].includes(kind)) return
+    const log = { info: vi.fn(), warn: vi.fn(), error: vi.fn(), trace: vi.fn() }
+    const table = await loadUiTable({
+      language: 'de',
+      log,
+      readExtensionFile: (segments) => readUiTableFile(stage, segments),
+    })
+    expect(table.locale).toBe('en')
+    expect(JSON.stringify(table.table)).toBe(JSON.stringify(EN))
   })
   it('keeps a compact guide and recent notes with links to complete documentation', () => {
     expect(readFileSync(path.join(fixture.stage, 'README.md'), 'utf8')).toBe(
