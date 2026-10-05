@@ -6,7 +6,7 @@
 // keeps building one body and reading one stream. The transport (lane T)
 // adds the preset's auth header and posts `path` with `body`; the registry
 // (lane P) supplies the model id, output cap and capabilities; the host
-// (lane I) gates web search and images. Nothing here touches the network,
+// (lane I) gates web search. Nothing here touches the network,
 // the clock or randomness: the same input encodes to the same bytes.
 //
 // Wire sources (AGENTS.md rule 13): `docs/certification/m95-captures.md`

@@ -34,9 +34,7 @@
               "description": "An IANA time zone such as UTC."
             }
           },
-          "required": [
-            "timezone"
-          ]
+          "required": ["timezone"]
         }
       }
     ],

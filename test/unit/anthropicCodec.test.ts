@@ -16,6 +16,7 @@ import {
   type CreateResponseBody,
   type FunctionToolDefinition,
   type ReasoningItem,
+  type StreamEvent,
 } from '../../src/core/backends/modelapi/schemas'
 import type { SseEvent } from '../../src/core/backends/modelapi/sse'
 
@@ -56,6 +57,15 @@ function golden(name: string): string {
   return readFileSync(new URL(`anthropicCodecGoldens/${name}.json`, import.meta.url), 'utf8')
 }
 
+/**
+ * The golden file parsed and re-serialized: key order (the assertion) and
+ * values survive, file formatting does not, so the goldens stay
+ * prettier-clean without weakening the reorder drill.
+ */
+function goldenBytes(name: string): string {
+  return `${JSON.stringify(JSON.parse(golden(name)), null, 2)}\n`
+}
+
 function encodedText(
   body: CreateResponseBody,
   options: AnthropicEncodeOptions = BASE_OPTIONS,
@@ -77,6 +87,47 @@ function captureEvents(path: string): SseEvent[] {
 
 function decodeAll(frames: readonly SseEvent[], options: AnthropicDecodeOptions) {
   return Array.fromAsync(decodeAnthropicStream(frames, options))
+}
+
+async function decodeCompleted(frames: readonly SseEvent[]): Promise<{
+  events: StreamEvent[]
+  terminal: Extract<StreamEvent, { type: 'response.completed' }>
+}> {
+  const events = await decodeAll(frames, { model: MODEL })
+  const terminal = events.at(-1)
+  expect(terminal?.type).toBe('response.completed')
+  if (terminal?.type !== 'response.completed') {
+    throw new Error('expected a completed response')
+  }
+  return { events, terminal }
+}
+
+function timeQuestionBody(rest: CreateResponseBody['input']): CreateResponseBody {
+  return canonicalBody({
+    instructions: 'You are a capture assistant. Call get_time, then answer briefly.',
+    tools: [GET_TIME_TOOL],
+    input: [
+      {
+        type: 'message',
+        role: 'user',
+        content: [{ type: 'input_text', text: 'What time is it in UTC? Call get_time.' }],
+      },
+      ...rest,
+    ],
+  })
+}
+
+function errorStreamFrames(errorPayload: unknown): SseEvent[] {
+  return [
+    {
+      event: 'message_start',
+      data: JSON.stringify({
+        type: 'message_start',
+        message: { id: 'm2', usage: { input_tokens: 3, output_tokens: 1 } },
+      }),
+    },
+    { event: 'error', data: JSON.stringify({ type: 'error', error: errorPayload }) },
+  ]
 }
 
 /** The frame's `type` without trusting its shape. */
@@ -159,61 +210,41 @@ function streamOf(
 
 describe('anthropic codec goldens (checked-in request bytes)', () => {
   it('encodes a first turn with a system breakpoint and adaptive thinking', () => {
-    const body = canonicalBody({
-      instructions: 'You are a capture assistant. Call get_time, then answer briefly.',
-      tools: [GET_TIME_TOOL],
-      input: [
-        {
-          type: 'message',
-          role: 'user',
-          content: [{ type: 'input_text', text: 'What time is it in UTC? Call get_time.' }],
-        },
-      ],
-    })
-    expect(encodedText(body)).toBe(golden('first-turn'))
+    expect(encodedText(timeQuestionBody([]))).toBe(goldenBytes('first-turn'))
   })
 
   it('encodes a thinking tool loop with the stale-block beta and caller replay', () => {
-    const body = canonicalBody({
-      instructions: 'You are a capture assistant. Call get_time, then answer briefly.',
-      tools: [GET_TIME_TOOL],
-      input: [
-        {
-          type: 'message',
-          role: 'user',
-          content: [{ type: 'input_text', text: 'What time is it in UTC? Call get_time.' }],
-        },
-        {
-          type: 'reasoning',
-          encrypted_content: JSON.stringify({
-            v: 1,
-            provider: 'anthropic',
-            kind: 'thinking',
-            model: MODEL,
-            thinking: '',
-            signature: 'test-signature-bytes',
-          }),
-        },
-        {
-          type: 'function_call',
-          id: 'toolu_01test',
-          call_id: 'toolu_01test',
-          name: 'get_time',
-          arguments: '{"timezone":"UTC"}',
-        },
-        {
-          type: 'function_call_output',
-          call_id: 'toolu_01test',
-          output: '{"timezone":"UTC","time":"2026-10-04T12:00:00Z"}',
-        },
-      ],
-    })
+    const body = timeQuestionBody([
+      {
+        type: 'reasoning',
+        encrypted_content: JSON.stringify({
+          v: 1,
+          provider: 'anthropic',
+          kind: 'thinking',
+          model: MODEL,
+          thinking: '',
+          signature: 'test-signature-bytes',
+        }),
+      },
+      {
+        type: 'function_call',
+        id: 'toolu_01test',
+        call_id: 'toolu_01test',
+        name: 'get_time',
+        arguments: '{"timezone":"UTC"}',
+      },
+      {
+        type: 'function_call_output',
+        call_id: 'toolu_01test',
+        output: '{"timezone":"UTC","time":"2026-10-04T12:00:00Z"}',
+      },
+    ])
     expect(
       encodedText(body, {
         ...BASE_OPTIONS,
         toolExtras: { toolu_01test: { caller: { type: 'direct' } } },
       }),
-    ).toBe(golden('tool-loop-reasoning'))
+    ).toBe(goldenBytes('tool-loop-reasoning'))
   })
 
   it('encodes an image turn as native image blocks', () => {
@@ -234,41 +265,32 @@ describe('anthropic codec goldens (checked-in request bytes)', () => {
         },
       ],
     })
-    expect(encodedText(body)).toBe(golden('image'))
+    expect(encodedText(body)).toBe(goldenBytes('image'))
   })
 
   it('encodes packed tool output as tool_result content blocks', () => {
-    const body = canonicalBody({
-      instructions: 'You are a capture assistant. Call get_time, then answer briefly.',
-      tools: [GET_TIME_TOOL],
-      input: [
-        {
-          type: 'message',
-          role: 'user',
-          content: [{ type: 'input_text', text: 'What time is it in UTC? Call get_time.' }],
-        },
-        {
-          type: 'function_call',
-          id: 'toolu_01packed',
-          call_id: 'toolu_01packed',
-          name: 'get_time',
-          arguments: '{"timezone":"UTC"}',
-        },
-        {
-          type: 'function_call_output',
-          call_id: 'toolu_01packed',
-          output: [
-            { type: 'input_text', text: 'The clock reads:' },
-            {
-              type: 'input_image',
-              image_url: 'data:image/png;base64,iVBORw0KGgo=',
-              detail: 'auto',
-            },
-          ],
-        },
-      ],
-    })
-    expect(encodedText(body)).toBe(golden('packed-output'))
+    const body = timeQuestionBody([
+      {
+        type: 'function_call',
+        id: 'toolu_01packed',
+        call_id: 'toolu_01packed',
+        name: 'get_time',
+        arguments: '{"timezone":"UTC"}',
+      },
+      {
+        type: 'function_call_output',
+        call_id: 'toolu_01packed',
+        output: [
+          { type: 'input_text', text: 'The clock reads:' },
+          {
+            type: 'input_image',
+            image_url: 'data:image/png;base64,iVBORw0KGgo=',
+            detail: 'auto',
+          },
+        ],
+      },
+    ])
+    expect(encodedText(body)).toBe(goldenBytes('packed-output'))
   })
 
   it('encodes a compaction with the turn tools kept beside the summary', () => {
@@ -288,7 +310,7 @@ describe('anthropic codec goldens (checked-in request bytes)', () => {
         },
       ],
     })
-    expect(encodedText(body)).toBe(golden('compaction'))
+    expect(encodedText(body)).toBe(goldenBytes('compaction'))
   })
 })
 
@@ -376,17 +398,9 @@ describe('stream decoding from the captures', () => {
   })
 
   it('decodes a text follow-up with cumulative usage', async () => {
-    const events = await decodeAll(
+    const { terminal } = await decodeCompleted(
       captureEvents(`${ANTHROPIC_CAPTURE}04-tool-result-stream.json`),
-      {
-        model: MODEL,
-      },
     )
-    const terminal = events.at(-1)
-    expect(terminal?.type).toBe('response.completed')
-    if (terminal?.type !== 'response.completed') {
-      throw new Error('expected a completed response')
-    }
     const message = terminal.response.output.find((item) => item.type === 'message')
     expect(message).toMatchObject({ type: 'message', role: 'assistant' })
     if (message === undefined || !isMessageItem(message)) {
@@ -397,15 +411,11 @@ describe('stream decoding from the captures', () => {
   })
 
   it('decodes a thinking turn into a byte-exact replayable envelope', async () => {
-    const frames = captureEvents(
-      '../../docs/certification/m95-captures/anthropic-sonnet-thinking-riddle/01-tool-call-stream.json',
+    const { terminal } = await decodeCompleted(
+      captureEvents(
+        '../../docs/certification/m95-captures/anthropic-sonnet-thinking-riddle/01-tool-call-stream.json',
+      ),
     )
-    const events = await decodeAll(frames, { model: MODEL })
-    const terminal = events.at(-1)
-    expect(terminal?.type).toBe('response.completed')
-    if (terminal?.type !== 'response.completed') {
-      throw new Error('expected a completed response')
-    }
     const reasoning = terminal.response.output.find((item) => item.type === 'reasoning')
     expect(reasoning?.type).toBe('reasoning')
     if (reasoning === undefined || !isReasoningItem(reasoning)) {
@@ -467,14 +477,11 @@ describe('stream decoding from the captures', () => {
   })
 
   it('maps cached reads and thinking tokens from the riddle follow-up', async () => {
-    const frames = captureEvents(
-      '../../docs/certification/m95-captures/anthropic-sonnet-thinking-riddle/02-tool-result-stream.json',
+    const { terminal } = await decodeCompleted(
+      captureEvents(
+        '../../docs/certification/m95-captures/anthropic-sonnet-thinking-riddle/02-tool-result-stream.json',
+      ),
     )
-    const events = await decodeAll(frames, { model: MODEL })
-    const terminal = events.at(-1)
-    if (terminal?.type !== 'response.completed') {
-      throw new Error('expected a completed response')
-    }
     // input 295 after the last breakpoint plus 2,054 cached reads (captures §Anthropic).
     expect(terminal.response.usage).toEqual({
       input_tokens: 295 + 2054,
@@ -486,23 +493,11 @@ describe('stream decoding from the captures', () => {
   })
 
   it('folds cache writes into the input total on the cache pair', async () => {
-    const first = await decodeAll(captureEvents(`${ANTHROPIC_CAPTURE}08-cache-call-1.json`), {
-      model: MODEL,
-    })
-    const second = await decodeAll(captureEvents(`${ANTHROPIC_CAPTURE}09-cache-call-2.json`), {
-      model: MODEL,
-    })
-    const firstTerminal = first.at(-1)
-    const secondTerminal = second.at(-1)
-    if (
-      firstTerminal?.type !== 'response.completed' ||
-      secondTerminal?.type !== 'response.completed'
-    ) {
-      throw new Error('expected completed responses')
-    }
+    const first = await decodeCompleted(captureEvents(`${ANTHROPIC_CAPTURE}08-cache-call-1.json`))
+    const second = await decodeCompleted(captureEvents(`${ANTHROPIC_CAPTURE}09-cache-call-2.json`))
     // 16 post-breakpoint tokens plus 1,925 written, then read back in full.
-    expect(firstTerminal.response.usage?.input_tokens).toBe(16 + 1925)
-    expect(secondTerminal.response.usage?.input_tokens_details).toEqual({ cached_tokens: 1925 })
+    expect(first.terminal.response.usage?.input_tokens).toBe(16 + 1925)
+    expect(second.terminal.response.usage?.input_tokens_details).toEqual({ cached_tokens: 1925 })
   })
 
   it('is deterministic: the same frames decode to the same events', async () => {
@@ -633,11 +628,7 @@ describe('thinking replay (acceptance 9 and 12)', () => {
       },
       { event: 'message_stop', data: JSON.stringify({ type: 'message_stop' }) },
     ]
-    const events = await decodeAll(frames, { model: MODEL })
-    const terminal = events.at(-1)
-    if (terminal?.type !== 'response.completed') {
-      throw new Error('expected a completed response')
-    }
+    const { terminal } = await decodeCompleted(frames)
     const reasoning = terminal.response.output.find((item) => item.type === 'reasoning')
     if (reasoning === undefined || !isReasoningItem(reasoning)) {
       throw new Error('expected a reasoning item')
@@ -906,12 +897,7 @@ describe('decode edges', () => {
       ],
       'end_turn',
     )
-    const events = await decodeAll(frames, { model: MODEL })
-    const terminal = events.at(-1)
-    expect(terminal?.type).toBe('response.completed')
-    if (terminal?.type !== 'response.completed') {
-      throw new Error('expected a completed response')
-    }
+    const { events, terminal } = await decodeCompleted(frames)
     const call = terminal.response.output.find((item) => item.type === 'function_call')
     if (call === undefined || !isFunctionCallItem(call)) {
       throw new Error('expected a function call')
@@ -935,11 +921,7 @@ describe('decode edges', () => {
         ? { ...frame, data: JSON.stringify({ type: 'message_start', message: { id: 'msg_edge' } }) }
         : frame,
     )
-    const events = await decodeAll(frames, { model: MODEL })
-    const terminal = events.at(-1)
-    if (terminal?.type !== 'response.completed') {
-      throw new Error('expected a completed response')
-    }
+    const { terminal } = await decodeCompleted(frames)
     expect(terminal.response.usage?.input_tokens).toBe(5)
   })
 
@@ -952,11 +934,7 @@ describe('decode edges', () => {
           }
         : frame,
     )
-    const events = await decodeAll(frames, { model: MODEL })
-    const terminal = events.at(-1)
-    if (terminal?.type !== 'response.completed') {
-      throw new Error('expected a completed response')
-    }
+    const { terminal } = await decodeCompleted(frames)
     expect(terminal.response.usage?.input_tokens).toBe(5)
   })
 
@@ -972,11 +950,7 @@ describe('decode edges', () => {
       },
       { event: 'message_stop', data: JSON.stringify({ type: 'message_stop' }) },
     ]
-    const events = await decodeAll(frames, { model: MODEL })
-    const terminal = events.at(-1)
-    if (terminal?.type !== 'response.completed') {
-      throw new Error('expected a completed response')
-    }
+    const { terminal } = await decodeCompleted(frames)
     expect(terminal.response.usage).toBeNull()
   })
 
@@ -1170,45 +1144,17 @@ describe('decode edges', () => {
   })
 
   it('turns a mid-stream error into the canonical error event', async () => {
-    const frames: SseEvent[] = [
-      {
-        event: 'message_start',
-        data: JSON.stringify({
-          type: 'message_start',
-          message: { id: 'm2', usage: { input_tokens: 3, output_tokens: 1 } },
-        }),
-      },
-      {
-        event: 'error',
-        data: JSON.stringify({
-          type: 'error',
-          error: { type: 'overloaded_error', message: 'Overloaded' },
-        }),
-      },
-    ]
-    const events = await decodeAll(frames, { model: MODEL })
+    const events = await decodeAll(
+      errorStreamFrames({ type: 'overloaded_error', message: 'Overloaded' }),
+      { model: MODEL },
+    )
     expect(events.at(-1)).toEqual({
       type: 'error',
       code: 'overloaded_error',
       message: 'Overloaded',
     })
 
-    const typeless = await decodeAll(
-      [
-        {
-          event: 'message_start',
-          data: JSON.stringify({
-            type: 'message_start',
-            message: { id: 'm2', usage: { input_tokens: 3, output_tokens: 1 } },
-          }),
-        },
-        {
-          event: 'error',
-          data: JSON.stringify({ type: 'error', error: { message: 'Busy' } }),
-        },
-      ],
-      { model: MODEL },
-    )
+    const typeless = await decodeAll(errorStreamFrames({ message: 'Busy' }), { model: MODEL })
     expect(typeless.at(-1)).toEqual({ type: 'error', code: undefined, message: 'Busy' })
   })
 })
