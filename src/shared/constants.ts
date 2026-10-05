@@ -449,6 +449,8 @@ export const CLINE_CONTEXT_MODIFICATION_MAX_CHARS = 50_000
 // M91 lane X: the plugin child runs one plugin per hook call under these bounds.
 export const PLUGIN_HOOK_TIMEOUT_MS = 30_000
 export const PLUGIN_NODE_MINIMUM = '22.18.0'
+export const PLUGIN_CHILD_MAX_HEAP_MB = 256
+export const PLUGIN_RESPONSE_MAX_BYTES = 64 * 1024
 export const HOOK_FORBIDDEN_ENV_NAMES: ReadonlySet<string> = new Set([
   'AWS_ACCESS_KEY_ID',
   'AWS_SECRET_ACCESS_KEY',

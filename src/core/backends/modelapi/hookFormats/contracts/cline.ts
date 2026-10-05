@@ -47,11 +47,6 @@ const COMMON: readonly FieldSpec[] = [
   { to: 'workspaceRoots', from: 'cwd', transform: 'wrapArray' },
 ]
 
-const TOOL: readonly FieldSpec[] = [
-  { to: 'tool_name', transform: 'toolName', required: true },
-  { to: 'tool_input', required: true },
-]
-
 /**
  * DOC:253-267 plus cline/cline#13554 (SUMMARY:27): `cancel: true` stops the
  * operation with `errorMessage` as its reason; `contextModification` is
