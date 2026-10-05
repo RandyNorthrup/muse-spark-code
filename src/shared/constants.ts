@@ -4092,3 +4092,30 @@ export const WEBVIEW_L10N_ELEMENT_ID = 'muse-l10n'
 export const WINDOWS_POWERSHELL_TERMINAL_PATH = String.raw`\System32\WindowsPowerShell\v1.0\powershell.exe`
 // The login / TUI terminal's shell off Windows (PLAN.md D25): POSIX syntax, always there.
 export const POSIX_TERMINAL_SHELL = '/bin/sh'
+
+// Muse Host Protocol v1 (D84, M104 lane 0). This block is shared by the
+// in-process adapter and the stdio hosts; no credential is a protocol value.
+export const MHP = {
+  version: 'mhp/1.0.0',
+  minimumVersion: 'mhp/1.0.0',
+  maximumVersionExclusive: 'mhp/2.0.0',
+  jsonRpcVersion: '2.0',
+  maximumInteger: Number.MAX_SAFE_INTEGER,
+  zero: 0n,
+  maximumSelectionChars: 16_384,
+  featureCount: 56,
+} as const
+export const MHP_ERROR_CODES = {
+  parseError: -32_700,
+  invalidRequest: -32_600,
+  methodNotFound: -32_601,
+  invalidParams: -32_602,
+  internalError: -32_603,
+  incompatibleVersion: -32_001,
+  unsupportedCapability: -32_002,
+  versionConflict: -32_003,
+  dirtyBuffer: -32_004,
+  untrustedWorkspace: -32_005,
+  cancelled: -32_800,
+  permissionDenied: -32_006,
+} as const
