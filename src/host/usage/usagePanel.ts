@@ -6,7 +6,7 @@ import {
   WEBVIEW_DIST_SEGMENTS,
 } from '../../shared/constants'
 import { plural } from '../../shared/l10n/text'
-import { USAGE_TEXT } from '../../shared/l10n/usageTable'
+import { USAGE_TEXT, type UsageTable } from '../../shared/l10n/usageTable'
 import {
   parseUsagePageToServiceMessage,
   parseUsageServiceToPageMessage,
@@ -20,6 +20,7 @@ import type { Logger } from '../logger'
 export interface UsagePanelDeps {
   readonly extensionUri: vscode.Uri
   readonly l10n: UiTable
+  readonly usageTable: UsageTable
   readonly log: Logger
   readonly usage: UsageAccess
   readonly journalFolder: vscode.Uri
@@ -51,13 +52,22 @@ export class UsagePanel implements vscode.Disposable {
       enableCommandUris: false,
       localResourceRoots: [root],
     }
+    // The usage entry reads this inert data block before rendering. Keeping it
+    // in the document needs no fetch or change to buildWebviewHtml's policy.
+    const usageTable = JSON.stringify(this.deps.usageTable)
+      .replaceAll('<', String.raw`\u003c`)
+      .replaceAll('\u{2028}', String.raw`\u2028`)
+      .replaceAll('\u{2029}', String.raw`\u2029`)
     panel.webview.html = buildWebviewHtml({
       scriptUri: panel.webview.asWebviewUri(vscode.Uri.joinPath(root, 'usage.js')).toString(),
       styleUri: panel.webview.asWebviewUri(vscode.Uri.joinPath(root, 'usage.css')).toString(),
       cspSource: panel.webview.cspSource,
       nonce: createNonce(),
       l10n: this.deps.l10n,
-    })
+    }).replace(
+      '</body>',
+      () => `<script type="application/json" id="muse-usage-l10n">${usageTable}</script>\n</body>`,
+    )
     const post = (message: UsageServiceToPageMessage): void => {
       const parsed = parseUsageServiceToPageMessage(message)
       if (this.panel === panel && parsed.ok) void panel.webview.postMessage(parsed.message)

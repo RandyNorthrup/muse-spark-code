@@ -8,7 +8,10 @@ import { agentDataFolder } from '../../runtime/dataFolder'
 import { lazyUsageAdapter } from '../../runtime/usage/usageAdapter'
 import { SETTINGS_SECTION, USAGE_FOLDER, USAGE_HISTORY_DAYS_DEFAULT } from '../../shared/constants'
 
-export interface UsagePanelHostDeps extends Omit<UsagePanelDeps, 'usage' | 'journalFolder'> {
+export interface UsagePanelHostDeps extends Omit<
+  UsagePanelDeps,
+  'usage' | 'journalFolder' | 'usageTable'
+> {
   /** Tests and native composition can inject the shared service explicitly. */
   readonly service?: Pick<UsagePanelDeps, 'usage' | 'journalFolder'>
 }
@@ -49,5 +52,5 @@ export async function createUsagePanel(deps: UsagePanelHostDeps): Promise<UsageP
     }).access(),
     journalFolder: vscode.Uri.file(path.join(dataFolder, USAGE_FOLDER)),
   }
-  return new UsagePanel({ ...deps, ...service })
+  return new UsagePanel({ ...deps, ...service, usageTable: table })
 }

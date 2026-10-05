@@ -545,11 +545,6 @@ class AcpSession {
     }
   }
 
-  /**
-   * The question before a paid use (M58, PLAN.md D48): a row naming what is
-   * about to be billed and its price, and a permission prompt on it with the
-   * popup's answers. Anything but Allow once or Allow always is Deny.
-   */
   private async usageReply(
     blocks: readonly ContentBlock[],
     preparing: PreparingPrompt,
@@ -598,6 +593,11 @@ class AcpSession {
     return !preparing.isCancelled && !this.isDisposed
   }
 
+  /**
+   * The question before a paid use (M58, PLAN.md D48): a row naming what is
+   * about to be billed and its price, and a permission prompt on it with the
+   * popup's answers. Anything but Allow once or Allow always is Deny.
+   */
   public async askPaidUse(request: PaidUseRequest, canRemember: boolean): Promise<PaidUseAnswer> {
     const pending = this.pending
     const preparing = this.preparing

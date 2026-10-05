@@ -408,8 +408,9 @@ async function main(): Promise<number> {
     case 'usage': {
       const usage = usageFor(log)
       const lines = createInterface({ input: process.stdin, crlfDelay: Infinity })
+      let isPageOpen = false
       try {
-        return await usage.runCommand(command.options, {
+        const result = await usage.runCommand(command.options, {
           usage: usage.access(),
           openPage: () => usage.openPage(),
           input: lines,
@@ -424,11 +425,13 @@ async function main(): Promise<number> {
           writeFile: (file, content) =>
             writeFile(file, content, { encoding: 'utf8', mode: MEMORY_STAGE_FILE_MODE }),
         })
+        isPageOpen = command.options.action === 'open'
+        return result
       } finally {
         lines.close()
         // An open page's companion owns its 30-minute idle lifetime. Other
         // commands leave no server behind; ACP closes its server on disconnect.
-        if (command.options.action !== 'open') await usage.dispose()
+        if (!isPageOpen) await usage.dispose()
       }
     }
     case 'serve': {

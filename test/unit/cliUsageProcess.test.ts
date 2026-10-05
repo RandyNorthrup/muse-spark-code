@@ -1,7 +1,7 @@
 import { spawnSync } from 'node:child_process'
-import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
-import { build } from 'esbuild'
+import { build, type Plugin } from 'esbuild'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { sharedUiText } from './helpers/modelApiBundle'
 import { removeFolder } from './helpers/temporaryFolders'
@@ -14,6 +14,25 @@ beforeAll(async () => {
   fixture.root = root
   mkdirSync(path.join(root, 'dist'), { recursive: true })
   writeFileSync(path.join(root, 'package.json'), JSON.stringify({ version: '0.0.0-test' }))
+  // Substitute only main.ts's OS opener so this process test cannot launch a
+  // browser on any rig. It exercises the actual helper's refusal/redaction.
+  writeFileSync(
+    path.join(root, 'dist', 'testOpener.cjs'),
+    `exports.runProgram = async (_file, args) => {
+      if (process.env.M102_FAKE_OPEN_RESULT === 'success') return '';
+      throw new Error(args.at(-1));
+    };`,
+  )
+  const opener: Plugin = {
+    name: 'test-usage-os-opener',
+    setup(pluginBuild) {
+      pluginBuild.onResolve({ filter: /\/processTree$/ }, (args) =>
+        args.importer === path.resolve('src/runtime/main.ts')
+          ? { path: './testOpener.cjs', external: true }
+          : undefined,
+      )
+    },
+  }
   const options = {
     bundle: true,
     platform: 'node',
@@ -30,7 +49,7 @@ beforeAll(async () => {
     ...options,
     entryPoints: ['src/runtime/main.ts'],
     outfile: path.join(root, 'dist', 'acp.js'),
-    plugins: [sharedUiText],
+    plugins: [sharedUiText, opener],
     external: ['@napi-rs/keyring'],
   })
   // All fake implementations stay in this test-only bundle. The CLI dispatcher
@@ -62,7 +81,7 @@ beforeAll(async () => {
 })
 afterAll(() => removeFolder(fixture.root))
 
-function run(args: string[], input?: string) {
+function run(args: string[], input?: string, openerResult = 'failure') {
   return spawnSync(
     process.execPath,
     [path.join(fixture.root, 'dist', 'acp.js'), 'usage', ...args],
@@ -76,6 +95,7 @@ function run(args: string[], input?: string) {
         LANGUAGE: 'en',
         LC_ALL: 'en_US.UTF-8',
         M102_FAKE_API_KEY: 'test-only-value',
+        M102_FAKE_OPEN_RESULT: openerResult,
         XDG_DATA_HOME: path.join(fixture.root, 'data'),
       },
     },
@@ -116,5 +136,33 @@ describe('built CLI usage routes', () => {
     const absent = run(['open'])
     expect(absent.status).toBe(1)
     expect(absent.stdout).toBe('')
+  })
+
+  it('closes a companion after an opener failure, hides its token, and leaves a successful page alive', () => {
+    const url = `http://127.0.0.1:1234/#${'a'.repeat(64)}`
+    const closed = path.join(fixture.root, 'dist', 'closed.txt')
+    const companion = path.join(fixture.root, 'dist', 'usageCompanion.js')
+    writeFileSync(
+      companion,
+      `const fs = require('node:fs'); const path = require('node:path');
+      exports.openUsageCompanion = async () => ({
+        url: '${url}', closed: new Promise(() => {}),
+        close: async () => fs.writeFileSync(path.join(__dirname, 'closed.txt'), 'closed')
+      });`,
+    )
+    try {
+      const failed = run(['open'])
+      expect(failed.status, failed.stderr).toBe(1)
+      expect(failed.stdout).toBe('')
+      expect(failed.stderr).not.toContain(url)
+      expect(existsSync(closed)).toBe(true)
+      rmSync(closed)
+      const opened = run(['open'], undefined, 'success')
+      expect(opened.status, opened.stderr).toBe(0)
+      expect(opened.stdout).toBe(`${url}\n`)
+      expect(existsSync(closed)).toBe(false)
+    } finally {
+      rmSync(companion)
+    }
   })
 })

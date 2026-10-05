@@ -29,6 +29,7 @@ function openPanel() {
   const openModels = vi.fn().mockResolvedValue(undefined)
   const panel = new UsagePanel({
     ...context,
+    usageTable: { locale: 'en', table: USAGE_EN },
     usage: fake.usage,
     journalFolder: Uri.file('/data/usage'),
     openModels,
@@ -138,7 +139,7 @@ describe('UsagePanel', () => {
   })
 
   it('requires the counted delete confirmation and routes settings, folder, models and safe consoles', async () => {
-    const { ports, context, openModels } = openPanel()
+    const { ports, context, openModels, panel } = openPanel()
     expect(await ports.confirmDelete(1234)).toBe(false)
     expect(confirm).toHaveBeenLastCalledWith(
       'Delete usage history?',
@@ -166,6 +167,8 @@ describe('UsagePanel', () => {
       'command:doSomething',
       'file:///private',
       'http://127.0.0.1',
+      'https://user@example.com',
+      'https://:pass@example.com',
       'https://user:pass@example.com',
     ])
       await expect(ports.openExternal(unsafe)).rejects.toThrow(USAGE_TEXT.unsupported)
@@ -175,6 +178,8 @@ describe('UsagePanel', () => {
       Uri.parse('https://example.com/console'),
     )
     expect(context.log.warn).not.toHaveBeenCalled()
+    panel.dispose()
+    expect(await ports.confirmDelete(1234)).toBe(false)
   })
 
   it('serializes service work, reports errors without raw data, and closes the bridge with its tab', async () => {
@@ -214,7 +219,7 @@ describe('UsagePanel', () => {
     expect(() => bundle()).toThrow()
     const loaded = bundle()
     expect(bundle()).toBe(loaded)
-    await loaded.createUsagePanel({
+    const panel = await loaded.createUsagePanel({
       ...context,
       l10n: { locale: 'de', table: EN },
       service: { usage: fakeUsageAccess().usage, journalFolder: Uri.file('/usage') },
@@ -225,5 +230,96 @@ describe('UsagePanel', () => {
     )
     expect(factory).toHaveBeenCalledOnce()
     expect(load).toHaveBeenCalledTimes(2)
+    panel.open()
+    const tab: unknown = window.createWebviewPanel.mock.results[0]?.value
+    if (!(tab instanceof FakeWebviewPanel)) throw new TypeError('expected localized tab')
+    expect(tab.webview.html).toContain('id="muse-usage-l10n">{"locale":"de","table":')
+    panel.dispose()
+  })
+
+  it('orders pending page operations and refuses queued work and output after the tab closes', async () => {
+    const { panel, tab, receive, ports } = openPanel()
+    const first = Promise.withResolvers<undefined>()
+    receive.mockReturnValueOnce(first.promise)
+    tab.webview.messages.fire({ type: 'usage/ready' })
+    tab.webview.messages.fire({ type: 'usage/refresh' })
+    await vi.waitFor(() => {
+      expect(receive).toHaveBeenCalledOnce()
+    })
+    first.resolve(undefined)
+    await vi.waitFor(() => {
+      expect(receive).toHaveBeenCalledTimes(2)
+    })
+    const next = Promise.withResolvers<undefined>()
+    receive.mockReturnValueOnce(next.promise)
+    tab.webview.messages.fire({ type: 'usage/ready' })
+    tab.webview.messages.fire({ type: 'usage/refresh' })
+    await vi.waitFor(() => {
+      expect(receive).toHaveBeenCalledTimes(3)
+    })
+    panel.dispose()
+    next.resolve(undefined)
+    await new Promise<void>((resolve) => {
+      setImmediate(resolve)
+    })
+    expect(receive).toHaveBeenCalledTimes(3)
+    const posts = tab.webview.postMessage.mock.calls.length
+    ports.post({ type: 'usage/state', state: usageState() })
+    expect(tab.webview.postMessage).toHaveBeenCalledTimes(posts)
+  })
+
+  it('disposes a failed connection tab and permits a subsequent open', () => {
+    const disposeTab = vi.spyOn(FakeWebviewPanel.prototype, 'dispose')
+    const fake = fakeUsageAccess()
+    fake.usage.connect.mockImplementationOnce(() => {
+      throw new Error('cannot read history')
+    })
+    const panel = new UsagePanel({
+      ...fakeHostContext(),
+      usageTable: { locale: 'en', table: USAGE_EN },
+      usage: fake.usage,
+      journalFolder: Uri.file('/data/usage'),
+      openModels: () => Promise.resolve(),
+    })
+    expect(() => {
+      panel.open()
+    }).toThrow('cannot read history')
+    const tab: unknown = window.createWebviewPanel.mock.results[0]?.value
+    if (!(tab instanceof FakeWebviewPanel)) throw new TypeError('expected failed tab')
+    expect(disposeTab).toHaveBeenCalledOnce()
+    panel.open()
+    expect(window.createWebviewPanel).toHaveBeenCalledTimes(2)
+    panel.dispose()
+    disposeTab.mockRestore()
+  })
+
+  it('embeds the selected usage table without executable markup or raw line separators', () => {
+    const usageTable = {
+      locale: 'de',
+      table: {
+        ...USAGE_EN,
+        title: "</script><script>alert(1)</script>\u{2028}\u{2029} $& $` $' $$",
+      },
+    }
+    const panel = new UsagePanel({
+      ...fakeHostContext(),
+      usageTable,
+      usage: fakeUsageAccess().usage,
+      journalFolder: Uri.file('/data/usage'),
+      openModels: () => Promise.resolve(),
+    })
+    panel.open()
+    const tab: unknown = window.createWebviewPanel.mock.results[0]?.value
+    if (!(tab instanceof FakeWebviewPanel)) throw new TypeError('expected usage tab')
+    const json = /<script type="application\/json" id="muse-usage-l10n">([\s\S]*?)<\/script>/u.exec(
+      tab.webview.html,
+    )?.[1]
+    expect(json).toBeDefined()
+    expect(json).not.toContain('<')
+    expect(json).not.toContain('\u{2028}')
+    expect(json).not.toContain('\u{2029}')
+    expect(JSON.parse(json ?? 'null')).toEqual(usageTable)
+    expect(tab.webview.html).not.toContain('<script>alert(1)')
+    panel.dispose()
   })
 })

@@ -94,6 +94,8 @@ describe('usage command line', () => {
       ['--by', 'workspace'],
       ['--json', '--csv'],
       ['--from', '2026-10-05'],
+      ['--to', '2026-10-05'],
+      ['--range', 'custom'],
       ['--from', '2026-10-05', '--to', '2026-10-04'],
       ['--from', '2026-02-30', '--to', '2026-03-05'],
       ['--range', 'today', '--from', '2026-10-01', '--to', '2026-10-05'],
@@ -179,10 +181,53 @@ describe('usage command line', () => {
     )
     expect(() => ports.connections[0]?.confirmDelete(2)).toThrow()
     ports.print.mockRejectedValueOnce(new Error('pipe closed'))
+    let hasReadNext = false
+    async function* failingInput() {
+      await Promise.resolve()
+      yield 'bad'
+      hasReadNext = true
+      yield JSON.stringify({ type: 'usage/ready' })
+    }
     await expect(
-      runUsageCommand({ action: 'stdio' }, { ...ports, input: lines(['bad']) }),
+      runUsageCommand({ action: 'stdio' }, { ...ports, input: failingInput() }),
     ).rejects.toThrow('pipe closed')
+    expect(hasReadNext).toBe(false)
     expect(ports.dispose).toHaveBeenCalledTimes(2)
+    ports.usage.connect.mockImplementationOnce((page) => {
+      page.post({ type: 'usage/state', state: usageState() })
+      return { receive: ports.receive, dispose: ports.dispose }
+    })
+    ports.print.mockRejectedValueOnce(new Error('pipe closed at EOF'))
+    await expect(runUsageCommand({ action: 'stdio' }, ports)).rejects.toThrow('pipe closed at EOF')
+    expect(ports.dispose).toHaveBeenCalledTimes(3)
+  })
+
+  it('preserves stdio message order while the first output write is pending', async () => {
+    const ports = fixture()
+    const firstWrite = Promise.withResolvers<undefined>()
+    ports.print.mockReturnValueOnce(firstWrite.promise)
+    ports.receive.mockImplementation(() => {
+      ports.connections[0]?.post({ type: 'usage/state', state: usageState() })
+      ports.connections[0]?.post({ type: 'usage/error', code: 'readFailed' })
+      return Promise.resolve()
+    })
+    const run = runUsageCommand(
+      { action: 'stdio' },
+      { ...ports, input: lines([{ type: 'usage/ready' }]) },
+    )
+    try {
+      await vi.waitFor(() => {
+        expect(ports.receive).toHaveBeenCalledOnce()
+      })
+      expect(ports.print).toHaveBeenCalledOnce()
+    } finally {
+      firstWrite.resolve(undefined)
+      await run
+    }
+    expect(ports.print.mock.calls).toEqual([
+      [`${JSON.stringify({ type: 'usage/state', state: usageState() })}\n`],
+      [`${JSON.stringify({ type: 'usage/error', code: 'readFailed' })}\n`],
+    ])
   })
 })
 
@@ -270,5 +315,40 @@ describe('lazy usage adapters', () => {
       Object.assign(url, override)
       expect(() => usageCompanionUrl(url.href), url.href).toThrow()
     }
+  })
+
+  it('rejects a corrupt companion bundle and closes an unsafe page before retrying', async () => {
+    const close = vi.fn().mockResolvedValue(undefined)
+    const valid = `http://127.0.0.1:1234/#${'a'.repeat(64)}`
+    const closed = Promise.withResolvers<undefined>().promise
+    const open = vi
+      .fn()
+      .mockResolvedValueOnce({
+        url: 'https://foreign.example/',
+        close,
+        closed,
+      })
+      .mockResolvedValue({ url: valid, close, closed })
+    let companion: unknown = {}
+    const adapter = lazyUsageAdapter({
+      dataFolder: '/data',
+      packageRoot: '/package',
+      host: 'cli',
+      locale: 'en',
+      uiText: EN,
+      log: new FakeLogOutputChannel(),
+      loadBundle: (file) =>
+        file.endsWith('usageService.js')
+          ? { createUsageAccess: () => fakeUsageAccess().usage, runUsageCommand }
+          : companion,
+    })
+    await expect(adapter.openPage()).rejects.toThrow(EN.actionFailed)
+    companion = { openUsageCompanion: open }
+    await expect(adapter.openPage()).rejects.toThrow(EN.actionFailed)
+    expect(close).toHaveBeenCalledOnce()
+    expect(await adapter.openPage()).toBe(valid)
+    expect(open).toHaveBeenCalledTimes(2)
+    await adapter.dispose()
+    expect(close).toHaveBeenCalledTimes(2)
   })
 })
