@@ -9,6 +9,12 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- The M95 Chat codec keeps impossible cache accounting unknown, fails
+  corrupt response chunks, and preserves tool-call identity across fragments
+  and responses, including Fireworks' captured nullable continuation IDs.
+  Vision-capable models accept image input and image tool results; retained
+  completed hosted search survives a provider switch as plain text. Packed
+  output and compaction requests now have checked-in byte goldens.
 - M95 integration keeps all captured provider codecs and provider core in
   `dist/providers.js`, with required membership and exclusion checks and a
   measured bundle budget. The Models panel emits the script and stylesheet
@@ -86,6 +92,7 @@ happened, not what was planned; superseded entries are kept.
   the composer pill names the provider; Account & usage lists per-provider
   tallies with OpenRouter key usage and unpriced/local costs. A confidential
   workspace hides training models from the list and refuses them on switch.
+
 
 ## [0.12.1] - 2026-10-04
 

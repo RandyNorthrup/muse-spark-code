@@ -13987,6 +13987,17 @@ The required rig accessibility run also exposed invalid key-usage list
 markup and missing panel-page theme background. Repair them in the panel's
 owned markup and stylesheet; axe remains unchanged and provides the red
 and green evidence for these corrections.
+**Chat review fixes (FIXM95H, 2026-10-05).** Resolve RVM95RH findings
+1–7 within the Chat codec and its tests/goldens: impossible cache usage
+stays unknown (no provider-cost settlement); corrupt known chunks fail
+explicitly; native index/id identity reconnects unambiguous indexless
+continuations, and synthetic call ids include the response id and ordinal;
+image understanding follows the injected model vision capability (a
+translated refusal otherwise); completed hosted-search history becomes
+plain text without a hosted declaration; packed-output and compaction
+requests gain checked-in byte goldens. Each fix has a regression and a
+byte-exact-restored red drill in `docs/certification/m95-h.md`. No dependency,
+paid/live call or guard widening. Bundle registration remains lane W's work.
 
 **Status 2026-10-04: planned on `feature/m95-byo-providers` from main
 `1e93c67c`; research in `docs/certification/m95-research.md`. Step 13's
@@ -15057,6 +15068,12 @@ ignore or rule is weakened. `docs/certification/m95-a.md` records results.
 M95 K repair: FIXM95K/common.md delegates full quality to the lead. The new
 activation-growth test passes at 2,901 bytes versus 3,072; no threshold
 or test was weakened. Final M/U integration remains a certification gate.
+**FIXM95H gate boundary (2026-10-05).** The rig brief requires scoped
+tests and static/build checks here; full `npm run quality` is the lead's
+integrated gate. Chat's existing bundle-split registration failure belongs
+to lane W, which the brief explicitly forbids this lane from editing. Keep
+the gate unchanged and record its exact failure and passed size budgets in
+`docs/certification/m95-h.md` before integration.
 
 **MG69 merged-source proof (2026-10-02).** Kubuntu passes 49 owning/merged
 files (2,056 tests; two existing Windows-only cases platform-skipped), all
@@ -15600,6 +15617,14 @@ before a repaired one loads (2026-09-30).
   Lane W / the lead must regenerate and review it on the fully integrated
   tree, where lane K also contributes APIs. The full quality gate remains
   required before integration is proposed.
+- **M95-H bundle registration (FIXM95H, 2026-10-05).** All seven RVM95RH
+  codec/test findings are fixed; none is deferred. The independent Chat
+  lane still lacks its entry in `scripts/check-bundle-split.mjs`, owned by
+  lane W. Safe for this unintegrated branch because the codec is not yet
+  imported by a shipped entrypoint, and the unchanged split gate refuses
+  the build. Follow-up: lane W registers Chat, lane I supplies its caller's
+  vision capability and tools-retaining compaction body, then the lead runs
+  full integrated quality/live acceptance. No product-support claim here.
 
 - Code intelligence (M67) shows what VS Code's language services say. A
   result located outside the workspace is left out and a hover defined only
