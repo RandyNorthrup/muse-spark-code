@@ -15,15 +15,20 @@ export function submission(id: string, patch: Partial<BoardSubmission> = {}): Bo
     ...patch,
   }
 }
-export function makeBoard() {
+export function makeBoard(archived = new Map<string, TeamBoardTask>()) {
   const countAttempt = vi.fn(() => true)
+  const archive = vi.fn((tasks: readonly TeamBoardTask[]) => {
+    for (const task of tasks) archived.set(task.id, structuredClone(task))
+  })
   const board = new TaskBoard('workspace', 'window', {
     workspaceFor: (id) => (id === 'foreign' ? 'other' : undefined),
     workspaceMode: (id) => (id === 'reader' ? 'read-only' : 'own-branch'),
     report: () => 'untrusted report',
     countAttempt,
+    archive,
+    archivedTask: (id) => archived.get(id),
   })
-  return { board, countAttempt }
+  return { board, countAttempt, archive, archived }
 }
 export function attempt(number = 1, kind: TeamAttempt['kind'] = 'engine'): TeamAttempt {
   return {

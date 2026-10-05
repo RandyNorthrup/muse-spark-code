@@ -31,6 +31,9 @@ export interface BoardContext {
   workspaceMode(taskId: string): BoardSubmission['workspaceMode']
   report(taskId: string): string
   countAttempt(task: TeamBoardTask, attempt: TeamAttempt): boolean
+  /** The team ledger keeps terminal rows beside the board; journal both before dispatch. */
+  archive(tasks: readonly TeamBoardTask[]): void
+  archivedTask(taskId: string): unknown
 }
 
 const terminal = new Set<TeamTaskState>([
@@ -79,10 +82,34 @@ export class TaskBoard {
     this.board = teamBoardSchema.parse({ workspaceId, windowInstanceId, paused: false, tasks: [] })
   }
 
+  private archivedTask(id: string): TeamBoardTask | undefined {
+    const input = this.context.archivedTask(id)
+    if (input === undefined) return undefined
+    const task = teamBoardTaskSchema.parse(input)
+    if (
+      task.id !== id ||
+      task.workspaceId !== this.board.workspaceId ||
+      !terminal.has(task.state) ||
+      task.attempts.some((attempt) => attempt.state !== 'retired')
+    )
+      throw new BoardRefusal('state', [id])
+    return task
+  }
+
+  private findTask(id: string): TeamBoardTask | undefined {
+    return this.board.tasks.find((item) => item.id === id) ?? this.archivedTask(id)
+  }
+
   private requireTask(id: string): TeamBoardTask {
-    const task = this.board.tasks.find((item) => item.id === id)
+    const task = this.findTask(id)
     if (!task) throw new BoardRefusal('unknownTask', [id])
     return task
+  }
+
+  private retainOpen(tasks: readonly TeamBoardTask[]): TeamBoardTask[] {
+    const completed = tasks.filter((task) => terminal.has(task.state))
+    if (completed.length > 0) this.context.archive(structuredClone(completed))
+    return tasks.filter((task) => !terminal.has(task.state))
   }
 
   private validateEdges(tasks: readonly TeamBoardTask[]): void {
@@ -96,6 +123,7 @@ export class TaskBoard {
       const edges = byId.get(id)?.depends_on ?? []
       for (const edge of edges) {
         if (!byId.has(edge.task)) {
+          if (this.archivedTask(edge.task)) continue
           const workspace = this.context.workspaceFor(edge.task)
           throw new BoardRefusal(
             workspace && workspace !== this.board.workspaceId ? 'crossWorkspace' : 'unknownTask',
@@ -149,6 +177,7 @@ export class TaskBoard {
       task.state = 'blocked'
       task.blockedReason = UI_TEXT.teamTrafficNotices.uncertainAttempt
     }
+    restored.tasks = this.retainOpen(restored.tasks)
     this.board = restored
   }
 
@@ -157,7 +186,7 @@ export class TaskBoard {
     const modes = new Map(inputs.map((input) => [input.id, input.workspaceMode]))
     const existing = new Set(this.board.tasks.map((task) => task.id))
     for (const input of inputs) {
-      if (existing.has(input.id) || aliases.has(input.id))
+      if (existing.has(input.id) || this.archivedTask(input.id) || aliases.has(input.id))
         throw new BoardRefusal('duplicate', [input.id])
       aliases.set(input.id, input.id)
     }
@@ -167,7 +196,11 @@ export class TaskBoard {
         continue
       }
 
-      if ((aliases.has(key) && aliases.get(key) !== input.id) || existing.has(key)) {
+      if (
+        (aliases.has(key) && aliases.get(key) !== input.id) ||
+        existing.has(key) ||
+        this.archivedTask(key)
+      ) {
         throw new BoardRefusal('duplicateKey', [input.id, key])
       }
       aliases.set(key, input.id)
@@ -183,7 +216,10 @@ export class TaskBoard {
         depends_on: fields.depends_on?.map((dependency) => {
           const task = aliases.get(dependency.task) ?? dependency.task
           const mode =
-            modes.get(task) ?? (existing.has(task) ? this.context.workspaceMode(task) : undefined)
+            modes.get(task) ??
+            (existing.has(task) || this.archivedTask(task)
+              ? this.context.workspaceMode(task)
+              : undefined)
           return { task, on: dependency.on ?? (mode === 'read-only' ? 'done' : 'merged') }
         }),
         state: 'queued',
@@ -196,13 +232,10 @@ export class TaskBoard {
       })
     })
     const next = [...this.board.tasks, ...additions]
-    if (
-      next.filter((task) => !terminal.has(task.state)).length > TEAM_BOARD_MAX ||
-      next.length > TEAM_SCHED_HISTORY_MAX
-    )
+    if (next.filter((task) => !terminal.has(task.state)).length > TEAM_BOARD_MAX)
       throw new BoardRefusal('boardFull')
     this.validateEdges(next)
-    this.board.tasks = next
+    this.board.tasks = this.retainOpen(next)
     this.refresh(at)
     return additions.map((task) => structuredClone(task))
   }
@@ -224,7 +257,8 @@ export class TaskBoard {
         task: dependency.task,
         on:
           dependency.on ??
-          (next.tasks.some((candidate) => candidate.id === dependency.task) &&
+          ((next.tasks.some((candidate) => candidate.id === dependency.task) ||
+            this.archivedTask(dependency.task)) &&
           this.context.workspaceMode(dependency.task) === 'read-only'
             ? 'done'
             : 'merged'),
@@ -321,6 +355,7 @@ export class TaskBoard {
     outcome: Pick<TeamAttempt, 'state' | 'endedAt' | 'retirement'>,
   ): boolean {
     const task = this.requireTask(id)
+    if (terminal.has(task.state)) return false
     const attempt = task.attempts.find((candidate) => candidate.number === number)
     if (!attempt || (number !== task.currentAttempt && outcome.state !== 'retired')) return false
     const updated = { ...attempt, ...outcome }
@@ -379,7 +414,7 @@ export class TaskBoard {
   applyEvent(input: unknown, charge: (event: TeamSchedulerEvent) => void): boolean {
     const event = teamSchedulerEventSchema.parse(input)
     if (event.workspaceId !== this.board.workspaceId) return false
-    const task = this.board.tasks.find((item) => item.id === event.taskId)
+    const task = this.findTask(event.taskId)
     const attempt = task?.attempts.find((item) => item.number === event.attempt)
     if (!task || !attempt) return false
     if (event.kind === 'usage') {

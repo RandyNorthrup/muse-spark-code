@@ -277,3 +277,37 @@ named regressions failed (exit 1). Restored `reviewFlow.ts` byte-exact, SHA-256
 No live or paid calls. Full quality remains the lead's gate, as the rig
 brief forbids full-suite runs. Public changelog/README integration remains X2's
 assigned ownership; no new public command, setting or script was added.
+
+## RVM96CSQ finding 4 — terminal task archive (2026-10-05, Kubuntu)
+
+Fixed: the board admits only against the 64-open-task limit. Terminal rows
+move into the existing team ledger through required `BoardContext.archive`
+and `archivedTask` callbacks. Submission and legacy restore keep only open
+rows in the bounded board envelope; its schema and attempt caps are unchanged.
+Archived rows still resolve dependencies and reports, refuse reused ids and
+keys, and charge late usage only for known attempts. Terminal attempt updates
+are refused. Archive records are parsed and checked for id, workspace, terminal
+state and retirement. A failed archive leaves board admission unchanged.
+
+X2 must supply the ledger archive adapter and journal the ledger plus board
+before dispatch, as for the existing injected accounting/report callbacks.
+The archive must survive reload and retain records for dependency/usage lookup;
+a no-op or volatile production archive is not a valid implementation. This
+lane still does not claim runtime wiring or full M96c certification.
+
+The regression “continues delegation after terminal history fills the old
+board envelope, including reload” failed on the original code (`boardFull`,
+10 existing tests passed). Added regressions also cover persisted dependency
+reports, failed dependencies, known late usage, duplicate ids, legacy snapshots,
+archive failure atomicity and invalid archived records.
+
+Red drills (each exit 1; source restored byte-exact after each):
+
+| Broken guard                      | Named failing regression                                                                                                                                                                                                                                            |
+| --------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| open-only retention               | continues delegation after terminal history fills the old board envelope, including reload; keeps archived dependencies, reports, duplicate refusals and late usage across reload; archives legacy full terminal snapshots and preserves failed-dependency blocking |
+| terminal transfer to ledger       | keeps archived dependencies, reports, duplicate refusals and late usage across reload; archives legacy full terminal snapshots and preserves failed-dependency blocking; keeps board admission atomic if archival fails and rejects invalid archived records        |
+| archive identity/state validation | keeps board admission atomic if archival fails and rejects invalid archived records                                                                                                                                                                                 |
+| terminal attempt updates refused  | keeps archived dependencies, reports, duplicate refusals and late usage across reload                                                                                                                                                                               |
+
+Restored `board.ts` SHA-256: `92c9677ebbc9e0c04d4735a9396069f50d78dd129aac501d0a43529af859f645`.

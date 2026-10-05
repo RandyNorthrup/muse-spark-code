@@ -1,10 +1,125 @@
 import { describe, expect, it, vi } from 'vitest'
 import { BoardRefusal, TaskBoard } from '../../src/core/team/scheduler/board'
-import { TEAM_BOARD_MAX } from '../../src/shared/constants'
+import { TEAM_BOARD_MAX, TEAM_SCHED_HISTORY_MAX } from '../../src/shared/constants'
 import { teamBoardSchema } from '../../src/shared/team'
-import { attempt, makeBoard, retireBoardAttempt, submission } from './helpers/teamScheduler'
+import {
+  attempt,
+  makeBoard,
+  readyTask,
+  retireBoardAttempt,
+  submission,
+} from './helpers/teamScheduler'
 
 describe('window task board', () => {
+  it('continues delegation after terminal history fills the old board envelope, including reload', () => {
+    const { board } = makeBoard()
+    for (let index = 0; index < TEAM_SCHED_HISTORY_MAX; index++) {
+      const id = `old-${String(index)}`
+      board.submit([submission(id)], index)
+      expect(board.transition(id, 0, 'cancelled', index)).toBe(true)
+    }
+    expect(() => board.submit([submission('next')], TEAM_SCHED_HISTORY_MAX)).not.toThrow()
+    const { board: restored } = makeBoard()
+    restored.restore(board.snapshot())
+    restored.resume()
+    expect(() =>
+      restored.submit([submission('after-reload')], TEAM_SCHED_HISTORY_MAX),
+    ).not.toThrow()
+    expect(restored.snapshot().tasks.filter((task) => task.state === 'ready')).toHaveLength(2)
+  })
+
+  it('keeps archived dependencies, reports, duplicate refusals and late usage across reload', () => {
+    const { board, archived } = makeBoard()
+    board.submit([submission('reader', { workspaceMode: 'read-only' })], 0)
+    board.begin('reader', attempt())
+    retireBoardAttempt(board, 'reader')
+    board.transition('reader', 1, 'done', 2)
+    board.submit(
+      [
+        submission('child', {
+          fields: { ...submission('child').fields, depends_on: [{ task: 'reader' }] },
+        }),
+      ],
+      3,
+    )
+    expect(board.snapshot().tasks.map((task) => task.id)).toEqual(['child'])
+    const { board: restored } = makeBoard(archived)
+    restored.restore(board.snapshot())
+    restored.resume()
+    expect(restored.dependencyInput('child')).toEqual({
+      integrationTasks: [],
+      reports: [{ taskId: 'reader', kind: 'data', text: 'untrusted report' }],
+    })
+    expect(restored.task('reader').state).toBe('done')
+    expect(() => restored.submit([submission('reader')], 4)).toThrow('duplicate')
+    expect(() =>
+      restored.submit(
+        [submission('other', { fields: { ...submission('other').fields, key: 'reader' } })],
+        4,
+      ),
+    ).toThrow('duplicateKey')
+    const charge = vi.fn()
+    const event = { workspaceId: 'workspace', taskId: 'reader', attempt: 1, at: 4 }
+    expect(restored.applyEvent({ ...event, kind: 'usage', usage: attempt().usage }, charge)).toBe(
+      true,
+    )
+    expect(charge).toHaveBeenCalledOnce()
+    expect(restored.applyEvent({ ...event, kind: 'started' }, charge)).toBe(false)
+    expect(
+      restored.applyEvent(
+        { ...event, taskId: 'unknown', kind: 'usage', usage: attempt().usage },
+        charge,
+      ),
+    ).toBe(false)
+    expect(charge).toHaveBeenCalledOnce()
+    expect(restored.finishAttempt('reader', 1, { state: 'uncertain' })).toBe(false)
+  })
+
+  it('archives legacy full terminal snapshots and preserves failed-dependency blocking', () => {
+    const { board, archived } = makeBoard()
+    const legacy = board.snapshot()
+    legacy.tasks = Array.from({ length: TEAM_SCHED_HISTORY_MAX }, (_, index) =>
+      readyTask(`old-${String(index)}`, { state: 'cancelled' }),
+    )
+    board.restore(legacy)
+    expect(board.snapshot().tasks).toHaveLength(0)
+    expect(archived.size).toBe(TEAM_SCHED_HISTORY_MAX)
+    board.resume()
+    board.submit(
+      [
+        submission('child', {
+          fields: { ...submission('child').fields, depends_on: [{ task: 'old-0' }] },
+        }),
+      ],
+      1,
+    )
+    expect(board.task('child')).toMatchObject({ state: 'blocked', currentAttempt: 0 })
+    expect(board.task('child').blockedReason).toContain('old-0')
+  })
+
+  it('keeps board admission atomic if archival fails and rejects invalid archived records', () => {
+    const { board, archive, archived } = makeBoard()
+    board.submit([submission('old')], 0)
+    board.transition('old', 0, 'cancelled', 1)
+    const before = board.snapshot()
+    archive.mockImplementationOnce(() => {
+      throw new Error('journal failure')
+    })
+    expect(() => board.submit([submission('next')], 2)).toThrow('journal failure')
+    expect(board.snapshot()).toEqual(before)
+    archived.set('foreign', readyTask('foreign', { workspaceId: 'other', state: 'done' }))
+    expect(() => board.task('foreign')).toThrow('state')
+    archived.set('active', readyTask('active'))
+    expect(() => board.task('active')).toThrow('state')
+    archived.set('wrong-id', readyTask('different', { state: 'done' }))
+    expect(() => board.task('wrong-id')).toThrow('state')
+    archived.set(
+      'unretired',
+      readyTask('unretired', { state: 'done', currentAttempt: 1, attempts: [attempt()] }),
+    )
+    expect(() => board.task('unretired')).toThrow('state')
+  })
+
   it('refuses unknown and foreign relinks before consulting local task metadata', () => {
     const board = new TaskBoard('workspace', 'window', {
       workspaceFor: (id) => (id === 'foreign' ? 'other' : undefined),
@@ -13,6 +128,8 @@ describe('window task board', () => {
       },
       report: () => '',
       countAttempt: () => true,
+      archive: vi.fn(),
+      archivedTask: () => undefined,
     })
     board.submit([submission('a')], 0)
     const before = board.snapshot()
