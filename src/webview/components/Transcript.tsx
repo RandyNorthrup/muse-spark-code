@@ -21,7 +21,7 @@ import {
   outputPageKey,
   type TranscriptEntry,
 } from '../state/uiState'
-import type { NoticeAction } from '../../shared/protocol'
+import type { NoticeAction, ReportEventRef } from '../../shared/protocol'
 import { splitForStreaming, splitOpenFence } from '../streamSplit'
 import { useDismiss } from '../useDismiss'
 import { agentStatusLabel, formatDurationMs } from '../agentFormat'
@@ -89,6 +89,12 @@ export interface TranscriptProps {
   readonly onRedo?: ((entryId: string, restoreId: string) => void) | undefined
   /** A Muse Code fault's way on (D26): Restart now, New conversation. */
   readonly onNoticeAction?: ((entryId: string, action: NoticeAction) => void) | undefined
+  /**
+   * "Report this" on a failure the host recorded (M93 lane W): hands the
+   * row's sanitized event reference to the report workflow, never its text.
+   * Rows offer it only while they carry a reference.
+   */
+  readonly onReportProblem?: ((entryId: string, ref: ReportEventRef) => void) | undefined
   /** Why the menu offers no file restore (Restricted Mode, the setting), or none. */
   readonly restoreNote?: string | undefined
   /** Why the menu offers no conversation rewind (Muse Code on Windows, D26), or none. */
@@ -626,13 +632,41 @@ const WorkflowRow = memo(function WorkflowRow({
   )
 })
 
+/**
+ * "Report this" on a recorded failure (M93 lane W): posts the row's
+ * sanitized event reference — which journal event it means, never its text.
+ */
+const ReportThisButton = memo(function ReportThisButton({
+  entryId,
+  reportRef,
+  onReportProblem,
+}: {
+  readonly entryId: string
+  readonly reportRef: ReportEventRef
+  readonly onReportProblem: (entryId: string, ref: ReportEventRef) => void
+}) {
+  return (
+    <button
+      type="button"
+      className="notice-action"
+      onClick={() => {
+        onReportProblem(entryId, reportRef)
+      }}
+    >
+      {UI_TEXT.reportThisAction}
+    </button>
+  )
+})
+
 function OtherRow({
   entry,
+  onReportProblem,
 }: {
   readonly entry: Exclude<
     TranscriptEntry,
     StepEntry | { kind: 'user' | 'assistant' | 'userShell' | 'workflow' }
   >
+  readonly onReportProblem?: ((entryId: string, ref: ReportEventRef) => void) | undefined
 }) {
   switch (entry.kind) {
     case 'subagent': {
@@ -665,13 +699,31 @@ function OtherRow({
       )
     }
     case 'error': {
-      return <li className="message message-error-card">{entry.text}</li>
+      return (
+        <li className="message message-error-card">
+          {entry.text}
+          {onReportProblem !== undefined && entry.reportRef !== undefined ? (
+            <ReportThisButton
+              entryId={entry.id}
+              reportRef={entry.reportRef}
+              onReportProblem={onReportProblem}
+            />
+          ) : null}
+        </li>
+      )
     }
     case 'notice': {
       return (
         <li className={`notice notice-${entry.level}`}>
           {entry.text}
           <RepeatCount count={entry.repeatCount} />
+          {onReportProblem !== undefined && entry.reportRef !== undefined ? (
+            <ReportThisButton
+              entryId={entry.id}
+              reportRef={entry.reportRef}
+              onReportProblem={onReportProblem}
+            />
+          ) : null}
         </li>
       )
     }
@@ -760,10 +812,12 @@ const ActionNotice = memo(function ActionNotice({
   entry,
   actions,
   onAction,
+  onReportProblem,
 }: {
   readonly entry: Extract<TranscriptEntry, { kind: 'notice' }>
   readonly actions: readonly NoticeAction[]
   readonly onAction: (entryId: string, action: NoticeAction) => void
+  readonly onReportProblem?: ((entryId: string, ref: ReportEventRef) => void) | undefined
 }) {
   const spent = useRef(false)
   const [isSpent, setIsSpent] = useState(false)
@@ -789,6 +843,13 @@ const ActionNotice = memo(function ActionNotice({
           {noticeActionLabel(action)}
         </button>
       ))}
+      {onReportProblem !== undefined && entry.reportRef !== undefined ? (
+        <ReportThisButton
+          entryId={entry.id}
+          reportRef={entry.reportRef}
+          onReportProblem={onReportProblem}
+        />
+      ) : null}
     </li>
   )
 })
@@ -826,6 +887,7 @@ function TranscriptList(props: TranscriptProps) {
     onRestoreBoth,
     onRedo,
     onNoticeAction,
+    onReportProblem,
     restoreNote,
     conversationNote,
     activeTurnId,
@@ -954,11 +1016,12 @@ function TranscriptList(props: TranscriptProps) {
               entry={entry}
               actions={entry.actions}
               onAction={onNoticeAction}
+              onReportProblem={onReportProblem}
             />
           )
         }
         return onRedo === undefined || entry.redoRestoreId === undefined ? (
-          <MemoOtherRow key={entry.id} entry={entry} />
+          <MemoOtherRow key={entry.id} entry={entry} onReportProblem={onReportProblem} />
         ) : (
           <RestoreNotice
             key={entry.id}
@@ -969,7 +1032,7 @@ function TranscriptList(props: TranscriptProps) {
         )
       }
       default: {
-        return <MemoOtherRow key={entry.id} entry={entry} />
+        return <MemoOtherRow key={entry.id} entry={entry} onReportProblem={onReportProblem} />
       }
     }
   }

@@ -29,7 +29,9 @@ import {
   PAID_FEATURES,
   PERMISSION_MODES,
   PREFERRED_LOCATIONS,
+  REPORT_DESCRIPTION_MAX_CHARS,
   REPORT_ERROR_CODE_MAX_CHARS,
+  REPORT_RECENT_EVENT_COUNT,
   REPORT_EVENT_KINDS,
   REPORT_FRAME_PATH_MAX_CHARS,
   REPORT_STACK_MAX_FRAMES,
@@ -299,6 +301,41 @@ export const reportWebviewErrorSchema = z.strictObject({
   frames: z.array(reportFrameSchema).check(z.maxLength(REPORT_STACK_MAX_FRAMES)),
 })
 export type ReportWebviewError = z.infer<typeof reportWebviewErrorSchema>
+
+// Report a problem (M93 lane W, PLAN.md D72): the preview dialog's wire
+// shapes. The dialog shows only what the host built from lane P's sealed
+// draft: these messages carry the user's choices (a description within its
+// cap, section switches, which journal entries to drop) and bounded
+// identifiers (a journal index, a draft seal), never report content, event
+// text, paths or raw error text. Every object is strict, so a forged extra
+// field (a message, a stack, a text) fails instead of riding along.
+
+/** Where a sealed draft goes: the issue page, the clipboard, a file, or the VS Code reporter. */
+export const REPORT_EXPORT_CHANNELS = ['copy', 'issue', 'save', 'vscodeReporter'] as const
+export type ReportExportChannel = (typeof REPORT_EXPORT_CHANNELS)[number]
+
+/** Why an export did not happen: stale (rebuild and try again), refused, or cancelled quietly. */
+export const REPORT_EXPORT_REASONS = [
+  'stale',
+  'cancelled',
+  'copyFailed',
+  'saveFailed',
+  'reporterFailed',
+] as const
+export type ReportExportReason = (typeof REPORT_EXPORT_REASONS)[number]
+
+/** A sealed draft is SHA-256 over title and text: 64 hex characters. */
+export const REPORT_HASH_HEX_CHARS = 64
+
+/** One removable row of the preview: the facts section or one journal event by index. */
+export const reportDraftItemSchema = z.object({
+  kind: z.enum(['facts', 'event']),
+  /** The journal entry's place, for `event` items only. */
+  eventIndex: z.optional(z.int().check(z.gte(0))),
+  /** Built by the host from fixed vocabularies; the webview renders it as is. */
+  label: z.string().check(z.minLength(1)),
+})
+export type ReportDraftItem = z.infer<typeof reportDraftItemSchema>
 
 const webviewToHostMessageSchema = z.discriminatedUnion('type', [
   // Sent once when the React app has mounted and is listening for messages.
@@ -609,6 +646,38 @@ const webviewToHostMessageSchema = z.discriminatedUnion('type', [
   // Account & usage's "Ask again" (M58): no paid feature stays allowed
   // always in this workspace.
   z.object({ type: z.literal('forgetPaidUse') }),
+  // Report a problem (M93 lane W): the preview dialog's requests. Strict:
+  // the dialog's choices and bounded identifiers only. `ref` is the
+  // sanitized handoff from an error row, a notice or the render fallback —
+  // which recorded event the user means, never its text.
+  z.strictObject({ type: z.literal('openReport'), ref: z.optional(reportEventRefSchema) }),
+  // A description edit, a section switch or an item removal: the host
+  // rebuilds lane P's sealed draft and answers with a fresh `reportDraft`.
+  z.strictObject({
+    type: z.literal('updateReport'),
+    description: z.string().check(z.maxLength(REPORT_DESCRIPTION_MAX_CHARS)),
+    includeFacts: z.boolean(),
+    includeEvents: z.boolean(),
+    removedEventIndexes: z
+      .array(z.int().check(z.gte(0)))
+      .check(z.maxLength(REPORT_RECENT_EVENT_COUNT)),
+  }),
+  // Export the previewed draft through lane P's export paths. `hash` is the
+  // seal of the draft on screen; any change since the preview refuses here.
+  z.strictObject({
+    type: z.literal('exportReport'),
+    via: z.enum(REPORT_EXPORT_CHANNELS),
+    hash: z.string().check(z.minLength(REPORT_HASH_HEX_CHARS), z.maxLength(REPORT_HASH_HEX_CHARS)),
+  }),
+  // The scrubbed webview failure (M93 lane W): window.onerror,
+  // unhandledrejection and React-boundary posts carry lane 0's bounded
+  // identifiers only — lane 0's fields, never the error's message, stack or
+  // anything the user typed. M39's `webviewError` (with its text, for the
+  // host's log) is unchanged.
+  z.strictObject({
+    type: z.literal('reportWebviewError'),
+    ...reportWebviewErrorSchema.shape,
+  }),
 ])
 
 export type WebviewToHostMessage = z.infer<typeof webviewToHostMessageSchema>
@@ -832,12 +901,16 @@ const hostToWebviewMessageSchema = z.discriminatedUnion('type', [
   // A one-line message for the transcript (failed host command, warnings).
   // `redoRestoreId` (M72): a file restore's Redo, offered on its notice.
   // `actions` (D26): the buttons of a Muse Code fault's notice.
+  // `reportRef` (M93 lane W): the sanitized handoff when the failure was
+  // recorded — which journal event the row means, never its text. The row
+  // offers "Report this" only while it is present.
   z.object({
     type: z.literal('notice'),
     level: z.enum(NOTICE_LEVELS),
     text: z.string(),
     redoRestoreId: z.optional(z.string()),
     actions: z.optional(z.array(z.enum(NOTICE_ACTIONS))),
+    reportRef: z.optional(reportEventRefSchema),
   }),
   // A Redo was answered (M72): spent, its button goes; otherwise it stays
   // for another try (a file left as it is, a turn running).
@@ -899,6 +972,36 @@ const hostToWebviewMessageSchema = z.discriminatedUnion('type', [
     path: z.string(),
     dataUri: z.optional(z.string()),
     error: z.optional(z.string()),
+  }),
+  // Report a problem (M93 lane W): the sealed draft the preview shows
+  // byte-identical, with the removable items it contains. Labels are built
+  // by the host from fixed vocabularies and relative ages; the webview
+  // renders them as is and never builds report content itself. `text` is
+  // the exact final draft (lane P's seal over title and text); `hash` is
+  // that seal, which the export carries back. Like `notice`'s text, title
+  // and text are unbounded: the preview scrolls, and the host built them.
+  z.object({
+    type: z.literal('reportDraft'),
+    description: z.string().check(z.maxLength(REPORT_DESCRIPTION_MAX_CHARS)),
+    includeFacts: z.boolean(),
+    includeEvents: z.boolean(),
+    items: z.array(reportDraftItemSchema).check(z.maxLength(REPORT_RECENT_EVENT_COUNT + 1)),
+    title: z.string(),
+    text: z.string(),
+    hash: z.string().check(z.minLength(REPORT_HASH_HEX_CHARS), z.maxLength(REPORT_HASH_HEX_CHARS)),
+    canUseVscodeReporter: z.boolean(),
+    recordingUnavailable: z.boolean(),
+  }),
+  // What an export attempt answered (M93 lane W): lane P's outcome mapped
+  // to fixed words, so the dialog states failures plainly with no raw
+  // text. `issueFallback` (the over-long draft, copied with a paste note)
+  // rides only on an opened issue page.
+  z.object({
+    type: z.literal('reportExported'),
+    via: z.enum(REPORT_EXPORT_CHANNELS),
+    ok: z.boolean(),
+    issueFallback: z.optional(z.boolean()),
+    reason: z.optional(z.enum(REPORT_EXPORT_REASONS)),
   }),
 ])
 
