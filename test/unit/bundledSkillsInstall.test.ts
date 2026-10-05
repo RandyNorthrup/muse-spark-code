@@ -400,6 +400,163 @@ describe('removeBundledSkills', () => {
   })
 })
 
+function firstParty(f: Fixture, id = 'maker_firmware'): string {
+  const root = path.join(f.root, 'first-party-skills')
+  writeFile(path.join(root, id, 'SKILL.md'), `---\nname: ${id}\ndescription: Build boards\n---\n`)
+  writeFile(path.join(root, id, 'topics', 'build.md'), 'Build before programming.\n')
+  return root
+}
+
+describe('first-party bundled skills (M103-S)', () => {
+  it('copies and marks first-party topics and exposes them through real Muse Code links', async () => {
+    const f = fixture()
+    const root = firstParty(f)
+    firstParty(f, 'muse_gadgets')
+    const result = await installBundledSkills(deps(f))
+    expect(result.failure).toBeUndefined()
+    expect(result.installed).toEqual(['maker_firmware', 'muse_gadgets', ...IDS])
+    expect(result.tag).toMatch(/^v0\.7\.0\+[a-f0-9]{64}$/)
+    const link = path.join(f.skillsRoot, 'maker_firmware')
+    expect(leadsTo(link)).toBe(path.join(f.copy, 'first-party-skills', 'maker_firmware'))
+    expect(readFileSync(path.join(link, 'topics', 'build.md'), 'utf8')).toBe(
+      readFileSync(path.join(root, 'maker_firmware', 'topics', 'build.md'), 'utf8'),
+    )
+    expect(JSON.parse(readFileSync(path.join(f.copy, MARKER), 'utf8'))).toMatchObject({
+      tag: result.tag,
+    })
+    await expect(bundledSkillsStatus(f)).resolves.toMatchObject({
+      skillIds: result.installed,
+      installedTag: result.tag,
+      vendorTag: result.tag,
+    })
+  })
+
+  it('offers Update for old installs and changed topics without a new vendor tag', async () => {
+    const f = fixture()
+    await installBundledSkills(deps(f))
+    const root = firstParty(f)
+    const old = await bundledSkillsStatus(f)
+    expect(old).toMatchObject({ installedTag: 'v0.7.0' })
+    const offer = createBundledSkillsOffer({
+      isEnabled: () => true,
+      state: memento(),
+      keys: { installDeclined: 'install', updateDeclined: 'update' },
+      status: () => bundledSkillsStatus(f),
+    })
+    await expect(offer.next()).resolves.toMatchObject({
+      actions: ['updateBundledSkills', 'declineBundledSkills'],
+    })
+    const installed = await installBundledSkills(deps(f))
+    writeFile(path.join(root, 'maker_firmware', 'topics', 'build.md'), 'A changed topic.\n')
+    const changed = await bundledSkillsStatus(f)
+    expect(changed).toMatchObject({ installedTag: installed.tag })
+    expect(changed.vendorTag).not.toBe(installed.tag)
+    const update = await installBundledSkills(deps(f))
+    expect(update.failure).toBeUndefined()
+    expect(
+      readFileSync(path.join(f.skillsRoot, 'maker_firmware', 'topics', 'build.md'), 'utf8'),
+    ).toBe('A changed topic.\n')
+  })
+
+  it('keeps user folders and outside links, removes only marked first-party links', async () => {
+    const f = fixture()
+    firstParty(f)
+    firstParty(f, 'maker_cnc')
+    writeFile(path.join(f.skillsRoot, 'maker_firmware', 'SKILL.md'), 'mine\n')
+    const outside = path.join(f.root, 'user-cnc')
+    writeFile(path.join(outside, 'SKILL.md'), 'user CNC\n')
+    linkFolder(outside, path.join(f.skillsRoot, 'maker_cnc'))
+    firstParty(f, 'maker_printers')
+    const installed = await installBundledSkills(deps(f))
+    expect(installed.skipped).toEqual(['maker_cnc', 'maker_firmware'])
+    expect(installed.installed).toContain('maker_printers')
+    await fs.rm(path.join(f.copy, MARKER))
+    await expect(removeBundledSkills(f)).resolves.toMatchObject({ hadCopy: false, removed: [] })
+    expect(existsSync(path.join(f.skillsRoot, 'maker_printers', 'SKILL.md'))).toBe(true)
+    writeFile(path.join(f.copy, MARKER), JSON.stringify({ tag: installed.tag, installedAt: 'x' }))
+    const removed = await removeBundledSkills(f)
+    expect(sorted(removed.removed)).toEqual(sorted(['maker_printers', ...IDS]))
+    expect(readFileSync(path.join(f.skillsRoot, 'maker_firmware', 'SKILL.md'), 'utf8')).toBe(
+      'mine\n',
+    )
+    expect(leadsTo(path.join(f.skillsRoot, 'maker_cnc'))).toBe(outside)
+    expect(readFileSync(path.join(outside, 'SKILL.md'), 'utf8')).toBe('user CNC\n')
+  })
+
+  it('drops obsolete first-party links and gives first-party ids precedence over vendor ids', async () => {
+    const f = fixture()
+    const root = firstParty(f, 'project_setup')
+    firstParty(f, 'maker_cnc')
+    const installed = await installBundledSkills(deps(f))
+    expect(installed.installed.filter((id) => id === 'project_setup')).toHaveLength(1)
+    expect(leadsTo(path.join(f.skillsRoot, 'project_setup'))).toBe(
+      path.join(f.copy, 'first-party-skills', 'project_setup'),
+    )
+    await fs.rm(path.join(root, 'maker_cnc'), { recursive: true })
+    const updated = await installBundledSkills(deps(f))
+    expect(updated.removed).toEqual(['maker_cnc'])
+    expect(existsSync(path.join(f.skillsRoot, 'maker_cnc'))).toBe(false)
+  })
+
+  it.each(['root', 'skill', 'topic', 'entry'] as const)(
+    'refuses a linked first-party %s before writing',
+    async (kind) => {
+      const f = fixture()
+      const root = firstParty(f)
+      const outside = path.join(f.root, 'outside')
+      writeFile(path.join(outside, 'SKILL.md'), 'outside\n')
+      if (kind === 'root') {
+        await fs.rm(path.join(outside, 'SKILL.md'))
+        writeFile(path.join(outside, 'maker_firmware', 'SKILL.md'), 'outside\n')
+      }
+      const targets = {
+        root,
+        entry: path.join(root, 'maker_firmware', 'SKILL.md'),
+        skill: path.join(root, 'maker_firmware'),
+        topic: path.join(root, 'maker_firmware', 'topics'),
+      }
+      const target = targets[kind]
+      await fs.rm(target, { recursive: true })
+      linkFolder(outside, target)
+      const result = await installBundledSkills(deps(f))
+      const reasons = {
+        root: `${root} is not a skill folder`,
+        skill: `${target} is not a skill folder`,
+        entry: 'maker_firmware/SKILL.md is not a file',
+        topic: `${target} is neither a file nor a folder`,
+      }
+      expect(result.failure?.reason).toEqual({ kind: 'error', message: reasons[kind] })
+      expect(existsSync(f.sourcesRoot)).toBe(false)
+      const outsideFile =
+        kind === 'root'
+          ? path.join(outside, 'maker_firmware', 'SKILL.md')
+          : path.join(outside, 'SKILL.md')
+      expect(readFileSync(outsideFile, 'utf8')).toBe('outside\n')
+    },
+  )
+
+  it('rejects invalid skill ids and missing entries, and undoes first-party link failures', async () => {
+    const f = fixture()
+    const root = firstParty(f, 'bad.id')
+    const invalid = await installBundledSkills(deps(f))
+    expect(invalid.failure?.reason.kind).toBe('error')
+    await fs.rm(path.join(root, 'bad.id'), { recursive: true })
+    firstParty(f)
+    await fs.rm(path.join(root, 'maker_firmware', 'SKILL.md'))
+    const missing = await installBundledSkills(deps(f))
+    expect(missing.failure?.reason.kind).toBe('error')
+    firstParty(f)
+    const result = await installBundledSkills(
+      deps(f, {
+        makeLink: () => Promise.reject(new Error('first-party link failed')),
+      }),
+    )
+    expect(result.failure?.reason).toEqual({ kind: 'error', message: 'first-party link failed' })
+    expect(readdirSync(f.sourcesRoot)).toEqual([])
+    expect(readdirSync(f.skillsRoot)).toEqual([])
+  })
+})
+
 describe('on this platform, end to end', () => {
   it('installs into a config home, lists the links, and removes them again', async () => {
     const f = fixture()

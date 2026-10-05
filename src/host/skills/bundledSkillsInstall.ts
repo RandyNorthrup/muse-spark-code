@@ -16,6 +16,7 @@
 // made. Built into dist/bundledSkills.js and loaded on first use (PLAN.md
 // D6); every result is data, worded by the activation side.
 
+import { createHash } from 'node:crypto'
 import { constants as fsConstants } from 'node:fs'
 import fs from 'node:fs/promises'
 import path from 'node:path'
@@ -28,6 +29,7 @@ import {
   BUNDLED_SKILLS_RETIRED_WORD,
   BUNDLED_SKILLS_STAGING_WORD,
   BUNDLED_SKILLS_VENDOR_FILE,
+  FIRST_PARTY_SKILLS_DIR,
   SKILL_FILE_NAME,
   SKILL_ID_PATTERN,
 } from '../../shared/constants'
@@ -102,6 +104,8 @@ export type BundledSkillsStatus =
 interface VendoredPackage {
   readonly tag: string
   readonly skillIds: readonly string[]
+  readonly firstPartyRoot: string | undefined
+  readonly firstPartyIds: readonly string[]
 }
 
 type CopyState =
@@ -161,7 +165,60 @@ async function readVendor(vendorRoot: string): Promise<VendoredPackage> {
   if (skillIds.length === 0) {
     throw new Error(`${file} lists no skills`)
   }
-  return { tag: parsed.data.tag, skillIds }
+  // Both packages ship inside the extension. Derive the sibling root so
+  // existing hosts use the same installer port without a VS Code dependency.
+  const firstPartyRoot = path.join(path.dirname(path.dirname(vendorRoot)), FIRST_PARTY_SKILLS_DIR)
+  let entries
+  try {
+    const rootStats = await fs.lstat(firstPartyRoot)
+    if (!rootStats.isDirectory()) {
+      throw new Error(`${firstPartyRoot} is not a skill folder`)
+    }
+    entries = await fs.readdir(firstPartyRoot, { withFileTypes: true })
+  } catch (error: unknown) {
+    if (errorCode(error) !== NOT_FOUND) {
+      throw error
+    }
+    // Older packages carry only the vendor tree.
+    return { tag: parsed.data.tag, skillIds, firstPartyRoot: undefined, firstPartyIds: [] }
+  }
+  const firstPartyIds: string[] = []
+  for (const entry of entries) {
+    if (!entry.isDirectory() || !SKILL_ID_PATTERN.test(entry.name)) {
+      throw new Error(`${path.join(firstPartyRoot, entry.name)} is not a skill folder`)
+    }
+    const skill = await fs.lstat(path.join(firstPartyRoot, entry.name, SKILL_FILE_NAME))
+    if (!skill.isFile()) {
+      throw new Error(`${entry.name}/${SKILL_FILE_NAME} is not a file`)
+    }
+    firstPartyIds.push(entry.name)
+  }
+  firstPartyIds.sort((a, b) => a.localeCompare(b, 'en'))
+  // Topic changes must offer Update even when the third-party tag stays put.
+  const digest = createHash('sha256')
+  async function hashTree(folder: string, relative: string): Promise<void> {
+    const children = await fs.readdir(folder, { withFileTypes: true })
+    children.sort((a, b) => a.name.localeCompare(b.name, 'en'))
+    for (const child of children) {
+      const source = path.join(folder, child.name)
+      const name = `${relative}/${child.name}`
+      if (child.isDirectory()) {
+        await hashTree(source, name)
+      } else if (child.isFile()) {
+        const bytes = await fs.readFile(source)
+        digest.update(JSON.stringify([name, bytes.toString('base64')]))
+      } else {
+        throw new Error(`${source} is neither a file nor a folder`)
+      }
+    }
+  }
+  await hashTree(firstPartyRoot, FIRST_PARTY_SKILLS_DIR)
+  return {
+    tag: `${parsed.data.tag}+${digest.digest('hex')}`,
+    skillIds: [...firstPartyIds, ...skillIds.filter((id) => !firstPartyIds.includes(id))],
+    firstPartyRoot,
+    firstPartyIds,
+  }
 }
 
 /** Whether the copy's folder is absent, the extension's (a real folder with a valid mark) or someone else's. */
@@ -244,7 +301,10 @@ async function copyTree(from: string, to: string): Promise<void> {
 }
 
 /** The links in Muse Code's skills folder that lead into the copy's `skills/`, by name. */
-async function linksInto(skillsRoot: string, copySkills: string): Promise<readonly string[]> {
+async function linksInto(
+  skillsRoot: string,
+  copyRoots: readonly string[],
+): Promise<readonly string[]> {
   let names: readonly string[]
   try {
     names = await fs.readdir(skillsRoot)
@@ -257,7 +317,7 @@ async function linksInto(skillsRoot: string, copySkills: string): Promise<readon
   const ours: string[] = []
   for (const name of names) {
     const target = await linkTarget(path.join(skillsRoot, name))
-    if (target !== undefined && isInside(copySkills, target)) {
+    if (target !== undefined && copyRoots.some((root) => isInside(root, target))) {
       ours.push(name)
     }
   }
@@ -324,6 +384,7 @@ export async function installBundledSkills(
   }
   const folder = copyFolder(deps)
   const copySkills = path.join(folder, BUNDLED_SKILLS_DIR)
+  const copyFirstParty = path.join(folder, FIRST_PARTY_SKILLS_DIR)
   const makeLink: MakeLink =
     deps.makeLink ?? ((target, link, type) => fs.symlink(target, link, type))
   const linkType = deps.platform === 'win32' ? 'junction' : 'dir'
@@ -347,6 +408,9 @@ export async function installBundledSkills(
     at = staging
     try {
       await copyTree(deps.vendorRoot, staging)
+      if (vendor.firstPartyRoot !== undefined) {
+        await copyTree(vendor.firstPartyRoot, path.join(staging, FIRST_PARTY_SKILLS_DIR))
+      }
       const marker = { tag: vendor.tag, installedAt: new Date(deps.now()).toISOString() }
       await fs.writeFile(
         path.join(staging, BUNDLED_SKILLS_MARKER_FILE),
@@ -366,7 +430,7 @@ export async function installBundledSkills(
     await fs.mkdir(deps.skillsRoot, { recursive: true })
     for (const id of vendor.skillIds) {
       const link = path.join(deps.skillsRoot, id)
-      const target = path.join(copySkills, id)
+      const target = path.join(vendor.firstPartyIds.includes(id) ? copyFirstParty : copySkills, id)
       at = link
       let existing: string | undefined
       try {
@@ -389,7 +453,7 @@ export async function installBundledSkills(
     }
     // An earlier release's skill this one dropped: its link would lead nowhere.
     at = deps.skillsRoot
-    const ourLinks = await linksInto(deps.skillsRoot, copySkills)
+    const ourLinks = await linksInto(deps.skillsRoot, [copySkills, copyFirstParty])
     for (const name of ourLinks) {
       if (vendor.skillIds.includes(name)) {
         continue
@@ -441,7 +505,10 @@ export async function removeBundledSkills(
       return { removed, hadCopy: false, failure: undefined }
     }
     at = paths.skillsRoot
-    const ourLinks = await linksInto(paths.skillsRoot, path.join(folder, BUNDLED_SKILLS_DIR))
+    const ourLinks = await linksInto(paths.skillsRoot, [
+      path.join(folder, BUNDLED_SKILLS_DIR),
+      path.join(folder, FIRST_PARTY_SKILLS_DIR),
+    ])
     for (const name of ourLinks) {
       at = path.join(paths.skillsRoot, name)
       await fs.unlink(at)
