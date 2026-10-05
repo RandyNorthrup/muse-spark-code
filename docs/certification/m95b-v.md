@@ -292,14 +292,17 @@ output counts and explicit certainty `estimated`. Counting happens before
 yielding each output part, preserving the count when the consumer closes
 at that yield. Failure during a later count retains the previous estimate;
 uncounted content stays unknown. Admission, input-counting or consent
-refusals before `sendRequest` produce no dispatched usage. These are plan
+refusals before `sendRequest` produce no dispatched usage. Request options
+are built before admission and dispatch observation: a throwing justification
+reader is not counted as a request. Its regression failed against the first
+repair commit, then passed with this ordering correction. These are plan
 estimates, not reported usage or a dollar charge.
 
 ### Repair red drills
 
 Each drill runs the complete owning test file with
 `--maxWorkers=3 --testTimeout=120000`, no test-name filter. The runner restores
-the exact original buffer in `finally` and compares SHA-256. All **15** exit 1
+the exact original buffer in `finally` and compares SHA-256. All **16** exit 1
 and the named assertion fails. Raw logs/JSON are in ignored `temp/m95b-v/`.
 
 | Guard deliberately broken       | Named failed test (substring)                    | Failed tests | Restoration       |
@@ -316,8 +319,9 @@ and the named assertion fails. Raw logs/JSON are in ignored `temp/m95b-v/`.
 | aggregate input deadline        | `one deadline for all input messages and tools`  | 1            | SHA-256 identical |
 | failure/closure settlement      | `consumer closes immediately after a text delta` | 11           | SHA-256 identical |
 | one settlement                  | `preserves ordered tool calls/results`           | 1            | SHA-256 identical |
-| dispatched attempts only        | `admission refuses before dispatch`              | 4            | SHA-256 identical |
+| dispatched attempts only        | `admission refuses before dispatch`              | 5            | SHA-256 identical |
 | estimated certainty             | `retains counted output on Stop`                 | 12           | SHA-256 identical |
+| options before dispatch         | `justification reader fails before sendRequest`  | 1            | SHA-256 identical |
 | count before yield              | `consumer closes immediately after a text delta` | 2            | SHA-256 identical |
 
 ### Named residuals and release requirements
@@ -325,7 +329,7 @@ and the named assertion fails. Raw logs/JSON are in ignored `temp/m95b-v/`.
 Restored repair sources:
 
 - `chatgptSignIn.ts` SHA-256: `633a592b14ecb81c609ceee60f2897447b00dddf60ab13594a7142033bd7e1cb`.
-- `copilotClient.ts` SHA-256: `3de091e54651e6ecb535567f137710988088878325ce2ba7d1349fff348453cd`.
+- `copilotClient.ts` SHA-256: `59553d731dbf39658c7c77967dd94cc96da607dd6cfafdce6e36910d866c4ae3`.
 
 **RVM95BV-4-SUBSCRIPTION-INTEGRATION.** This P2 requires coordinated shared
 contract/dispatch changes outside this lane's files, meeting the repair
@@ -364,3 +368,43 @@ limitation is named in PLAN §9.
 All-editor ownership stays as D74: shared ChatGPT decisions remain in lane
 S, and runtime/ACP ports in X; Copilot is offered only by a host supplying
 the sanctioned Language Model API. These repairs alter only VS Code ports.
+
+### Repair final validation
+
+All commands ran directly in this Kubuntu worktree, sequentially. No test
+filter, skip, threshold, rule level or gate script changed.
+
+| Check                                                                                                                | Final result                                                                                                                        |
+| -------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
+| `npx vitest run test/unit/chatGptVsCode.test.ts test/unit/copilotClient.test.ts --maxWorkers=3 --testTimeout=120000` | exit 0; **76/76** (26 ChatGPT, 50 Copilot), after the final 16 restored drills                                                      |
+| `npm run typecheck`                                                                                                  | exit 0; host, webview, unit, e2e and integration; affected host/unit projects rerun after the final SDK options change, both exit 0 |
+| Scoped `npx eslint --max-warnings=0` on both adapters and both test files                                            | exit 0                                                                                                                              |
+| Prettier on the seven lane files; `git diff --check`                                                                 | exit 0; final closing commit's hooks repeat changed-file checks                                                                     |
+| `npm run deadcode`                                                                                                   | exit 0; existing `vendor/**` configuration hint only                                                                                |
+| `npx jscpd`                                                                                                          | exit 0; zero clones                                                                                                                 |
+| `node scripts/check-l10n.mjs`                                                                                        | exit 0; 14 tables, 127 manifest strings, 495 sources, zero problems                                                                 |
+| `node scripts/check-host-api.mjs --write`, then check                                                                | exit 0; 311 APIs, 25 adapter files, zero problems                                                                                   |
+| `npm run cycles`                                                                                                     | exit 0; no circular dependency                                                                                                      |
+| `npm run build`                                                                                                      | exit 0; unchanged size caps, split, host globals and third-party notices all pass                                                   |
+| Pre-commit hooks                                                                                                     | enabled; implementation commit `1ce82cb4` passed ESLint, Prettier and Gitleaks; closing commit repeats them                         |
+
+The initial duplication run found one 11-line/65-token repeated owner fixture.
+Changed only its object-field order, preserving all values and assertions;
+the unchanged gate then reported zero clones. The SDK options now have an
+explicit `LanguageModelChatRequestOptions` type before admission. The API
+scanner includes that full options interface, so its generated record also
+lists `modelOptions` and `toolMode`; the request object carries `tools` and
+`justification`. Regenerated the derived record and verified the same gate.
+No compatibility or validation guard is relaxed.
+
+Final production sizes: activation **553.1/600 KiB**, Model API
+**413.3/475 KiB**, providers **96.2/125 KiB**, Models host **51.0/75 KiB**,
+checkpoint store **88.4/225 KiB**. Checked `dist/meta/*.json`: neither adapter
+is an input of those bundles, independently confirming the named integration
+blocker. These sizes do not certify eventual adapter composition.
+
+Full quality, installed-editor consent/remote/OS checks, live subscription
+receipts and the blocked shared integration remain the lead/owner's work.
+No live/paid model call was made. The original unshipped ownerless-lock
+limitation and the unfinished V rows/command region remain explicitly named
+in this certificate and PLAN §9; neither is silently certified as fixed.

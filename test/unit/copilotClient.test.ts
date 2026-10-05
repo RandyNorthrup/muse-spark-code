@@ -454,6 +454,29 @@ describe('Copilot VS Code client', () => {
     expect(tester.deps.recordEstimatedUsage).not.toHaveBeenCalled()
   })
 
+  it('records no dispatch or usage when the justification reader fails before sendRequest', async () => {
+    const tester = rig()
+    const clients = await connectCopilotFromClick({
+      ...tester.deps,
+      justification: () => {
+        throw new Error('synthetic reader failure')
+      },
+    })
+    const admission = Object.assign(vi.fn(), { onRequestStarted: vi.fn() })
+    const stream = clients[0]!.streamResponse(
+      body(),
+      new AbortController().signal,
+      undefined,
+      undefined,
+      admission,
+    )
+    await expect(stream.next()).rejects.toThrow('translated.request-failed')
+    expect(tester.model.sendRequest).not.toHaveBeenCalled()
+    expect(admission).not.toHaveBeenCalled()
+    expect(admission.onRequestStarted).not.toHaveBeenCalled()
+    expect(tester.deps.recordEstimatedUsage).not.toHaveBeenCalled()
+  })
+
   it('blocks first-use consent from a background request but allows a previously granted request', async () => {
     const tester = rig()
     tester.userInitiated(false)

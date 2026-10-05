@@ -382,10 +382,10 @@ describe('VS Code subscription ports', () => {
     await writeFile(
       path.join(lockPath, `${randomUUID()}.json`),
       JSON.stringify({
-        pid: 99_999_999,
         startedAt: 1,
         windowId: randomUUID(),
         expiresAt: 1,
+        pid: 99_999_999,
       }),
     )
     vi.spyOn(process, 'kill').mockImplementation(() => {

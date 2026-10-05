@@ -310,14 +310,14 @@ class CopilotClient implements ProviderClient {
       this.check()
       this.checkConsent()
       if (isAborted(signal)) throw this.fail('cancelled')
+      const options: vscode.LanguageModelChatRequestOptions = {
+        tools,
+        justification: this.deps.justification(),
+      }
       admitAttempt?.(undefined)
       admitAttempt?.onRequestStarted?.()
       isDispatched = true
-      const response = await this.model.sendRequest(
-        messages,
-        { tools, justification: this.deps.justification() },
-        cancellation.token,
-      )
+      const response = await this.model.sendRequest(messages, options, cancellation.token)
       const id = randomUUID()
       const output: OutputItem[] = []
       const assistant = this.api.assistant('')

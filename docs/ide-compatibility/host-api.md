@@ -46,7 +46,7 @@ The VS Code adapter: 25 files. Everything else reaches VS Code only through them
 | `src/host/paid/paidHost.ts`                | 11                |
 | `src/host/popups.ts`                       | 2                 |
 | `src/host/providers/chatgptSignIn.ts`      | 3                 |
-| `src/host/providers/copilotClient.ts`      | 27                |
+| `src/host/providers/copilotClient.ts`      | 29                |
 | `src/host/providers/keyPrompt.ts`          | 6                 |
 | `src/host/providers/providersHost.ts`      | 4                 |
 | `src/host/quickPick.ts`                    | 5                 |
@@ -78,7 +78,7 @@ These never reach `vscode` through their imports, type-only ones included; the g
 - `src/host/conversation/conversationController.ts`
 - `src/host/ide/ideMcpServer.ts`
 
-## VS Code API used at run time (309)
+## VS Code API used at run time (311)
 
 Functions, variables, classes, enums and members declared in `@types/vscode`; the members of a VS Code interface the code implements (a provider, an options object); and the members of a VS Code object handed to code that takes it by shape.
 
@@ -161,6 +161,8 @@ Functions, variables, classes, enums and members declared in `@types/vscode`; th
 | `LanguageModelChatMessage.User`                                                      | `src/host/providers/copilotClient.ts`                                                                                                                                                                                                                                                  |
 | `LanguageModelChatMessage.content`                                                   | `src/host/providers/copilotClient.ts`                                                                                                                                                                                                                                                  |
 | `LanguageModelChatRequestOptions.justification`                                      | `src/host/providers/copilotClient.ts`                                                                                                                                                                                                                                                  |
+| `LanguageModelChatRequestOptions.modelOptions`                                       | `src/host/providers/copilotClient.ts`                                                                                                                                                                                                                                                  |
+| `LanguageModelChatRequestOptions.toolMode`                                           | `src/host/providers/copilotClient.ts`                                                                                                                                                                                                                                                  |
 | `LanguageModelChatRequestOptions.tools`                                              | `src/host/providers/copilotClient.ts`                                                                                                                                                                                                                                                  |
 | `LanguageModelChatResponse.stream`                                                   | `src/host/providers/copilotClient.ts`                                                                                                                                                                                                                                                  |
 | `LanguageModelChatSelector.family`                                                   | `src/host/providers/copilotClient.ts`                                                                                                                                                                                                                                                  |
