@@ -1256,11 +1256,9 @@ describe('App palette', () => {
     expect(postMessage).toHaveBeenCalledWith({ type: 'hostAction', action: 'newWorktree' })
     run('Remove a worktree')
     expect(postMessage).toHaveBeenCalledWith({ type: 'hostAction', action: 'removeWorktree' })
+    // M93: the report's preview, never a bare link.
     run('Report an issue')
-    expect(postMessage).toHaveBeenCalledWith({
-      type: 'openExternal',
-      url: 'https://github.com/RandyNorthrup/muse-spark-code/issues',
-    })
+    expect(postMessage).toHaveBeenCalledWith({ type: 'openReport' })
     run('/fix-bug')
     expect(textarea()).toHaveValue('/fix-bug ')
     expect(screen.queryByRole('dialog')).toBeNull()

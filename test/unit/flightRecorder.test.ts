@@ -637,24 +637,30 @@ describe('ReportJournal recording', () => {
     ).rejects.toMatchObject({ code: 'ENOENT' })
   })
 
-  it('R11 evicts the oldest entries past the byte cap on actual appends', async () => {
-    const store = new MapFs()
-    const { recorder } = journal('mem', 'window-a', { fs: store, now: () => 100_000 })
-    expect(await recorder.startup()).toEqual({ offerReport: false })
-    const frames = Array.from({ length: 16 }, (_, index) =>
-      frame('dist/museCodeReviewer.js', index + 1),
-    )
-    for (let index = 0; index < 320; index += 1) {
-      await recorder.record(event({ code: 'EIO', count: index, frames }))
-    }
-    // Inspect physical bytes before a report read can mask missing append pruning.
-    const raw =
-      store.files.get(path.join('mem', REPORT_STORAGE_DIR, 'journal-window-a.jsonl')) ?? ''
-    expect(Buffer.byteLength(raw, 'utf8')).toBeLessThanOrEqual(REPORT_JOURNAL_MAX_BYTES)
-    const parsed = parseJournalText(raw)
-    expect(parsed.entries[0]?.count).toBeGreaterThan(0)
-    expect(parsed.entries.at(-1)?.count).toBe(319)
-  })
+  // 320 real appends, each pruning the whole journal (parse and validate up
+  // to 256 KiB twice): about 5 s alone and 20 s under the full suite's load.
+  it(
+    'R11 evicts the oldest entries past the byte cap on actual appends',
+    { timeout: 60_000 },
+    async () => {
+      const store = new MapFs()
+      const { recorder } = journal('mem', 'window-a', { fs: store, now: () => 100_000 })
+      expect(await recorder.startup()).toEqual({ offerReport: false })
+      const frames = Array.from({ length: 16 }, (_, index) =>
+        frame('dist/museCodeReviewer.js', index + 1),
+      )
+      for (let index = 0; index < 320; index += 1) {
+        await recorder.record(event({ code: 'EIO', count: index, frames }))
+      }
+      // Inspect physical bytes before a report read can mask missing append pruning.
+      const raw =
+        store.files.get(path.join('mem', REPORT_STORAGE_DIR, 'journal-window-a.jsonl')) ?? ''
+      expect(Buffer.byteLength(raw, 'utf8')).toBeLessThanOrEqual(REPORT_JOURNAL_MAX_BYTES)
+      const parsed = parseJournalText(raw)
+      expect(parsed.entries[0]?.count).toBeGreaterThan(0)
+      expect(parsed.entries.at(-1)?.count).toBe(319)
+    },
+  )
 })
 
 describe('ReportJournal crash markers', () => {
