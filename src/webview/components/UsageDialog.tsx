@@ -229,6 +229,12 @@ function TokensSection({
             <dd>{formatTokenWindow(usage.packedTokensAvoided)}</dd>
           </>
         )}
+        {usage?.hookTokensAdded === undefined ? null : (
+          <>
+            <dt>{UI_TEXT.usageAddedByHooks}</dt>
+            <dd>{formatTokenWindow(usage.hookTokensAdded)}</dd>
+          </>
+        )}
         {costUsd !== undefined && (
           <>
             <dt>{UI_TEXT.usageCost}</dt>
@@ -284,6 +290,9 @@ function paidUseText(feature: PaidFeature, tally: PaidTally): string {
     }
     case 'judge': {
       return plural(UI_TEXT.usagePaidJudgeCalls, tally.judgeCalls ?? 0)
+    }
+    case 'hookModels': {
+      return plural(UI_TEXT.usagePaidHookModelRuns, tally.hookModelRuns ?? 0)
     }
   }
 }
@@ -354,6 +363,13 @@ function paidTokenTally(feature: PaidFeature, paid: PaidState) {
   if (feature === 'bestOfN') {
     return [paid.tally.bestOfNRequests, paid.tally.bestOfNUnknownRequests, paid.tally.bestOfNTokens]
   }
+  if (feature === 'hookModels') {
+    return [
+      paid.tally.hookModelRuns,
+      paid.tally.hookModelUnknownRequests,
+      paid.tally.hookModelTokens,
+    ]
+  }
   return [
     paid.tally.subagentRequests,
     paid.tally.subagentUnknownRequests,
@@ -366,7 +382,8 @@ function PaidRow({ feature, paid }: { readonly feature: PaidFeature; readonly pa
   const isReview = feature === 'autoReviewer'
   const isAttempt = feature === 'bestOfN'
   const [requests = 0, unknown = 0, tokens = 0] = paidTokenTally(feature, paid)
-  const isTokenFeature = feature === 'subagents' || isReview || isAttempt
+  const isTokenFeature =
+    feature === 'subagents' || isReview || isAttempt || feature === 'hookModels'
   const isEntirelyUnknown = isTokenFeature && requests > 0 && requests === unknown
   const cost = formatUsd(paidCostUsd(feature, paid.tally))
   let costDetail = cost

@@ -5,6 +5,7 @@
 // conversation saved across a reload is validated before it comes back (M25).
 
 import * as z from 'zod/mini'
+import { redactSecrets } from '../../shared/redact'
 import {
   type AgentEvent,
   type ItemSnapshot,
@@ -60,22 +61,28 @@ import type { SessionRow } from '../../shared/sessions'
 import type { AccountFacts, SubscriptionUsage, UsageInsights } from '../../shared/usage'
 import { goalStatusLabel, toolLabel } from '../toolPresentation'
 import { backgroundRun } from '../toolDetails'
-import type {
-  ChildTranscript,
-  ContextSummary,
-  NoticeLevel,
-  OutputRef,
-  PendingApproval,
-  PendingQuestion,
-  TranscriptEntry,
-  UsageSummary,
-  WorkflowChild,
+import {
+  type ChildTranscript,
+  type ContextSummary,
+  hasImageAttachment,
+  type NoticeLevel,
+  type OutputRef,
+  type PendingApproval,
+  type PendingElicitation,
+  type PendingQuestion,
+  QUEUED_DISPOSITION,
+  recordedAtMs,
+  STEERED_DISPOSITION,
+  type TranscriptEntry,
+  type UsageSummary,
+  type WorkflowChild,
 } from './transcriptEntries'
 
 export type {
   ChildTranscript,
   ContextSummary,
   PendingApproval,
+  PendingElicitation,
   PendingQuestion,
   TranscriptEntry,
   UsageSummary,
@@ -270,6 +277,11 @@ export interface UiState {
   readonly lastCompletedTurnId: string | undefined
   /** Promoted-steer turn corrections received before their local card is accepted. */
   readonly pendingReplayTurns: Readonly<Record<string, string>>
+  /**
+   * User items a request read before their card was accepted (M87): the late
+   * acceptance marks the card sent, never queued. At most one per pending card.
+   */
+  readonly admittedMessageIds: readonly string[]
   readonly usage: UsageSummary | undefined
   readonly context: ContextSummary | undefined
   /** undefined until the host answered `readUsage` for this window. */
@@ -291,7 +303,41 @@ export interface UiState {
   readonly unsentAttachments: Readonly<Record<string, readonly AttachmentSummary[]>>
   /** The latest pending send's exact draft, restored only on a handoff refusal. */
   readonly pendingSendDraft:
-    { readonly localId: string; readonly text: string; readonly revision: number } | undefined
+    | {
+        readonly localId: string
+        readonly text: string
+        readonly revision: number
+        /** What the send replied to or quoted (M17, M92e): restored with the draft. */
+        readonly reference?: ChatReference | undefined
+      }
+    | undefined
+  /** In-memory drafts by local id: a delayed hold must survive another send. */
+  readonly pendingSendDrafts: Readonly<
+    Record<
+      string,
+      NonNullable<UiState['pendingSendDraft']> & {
+        readonly contextLabel?: string | undefined
+      }
+    >
+  >
+  /**
+   * A held prompt's Send anyway arm (M92e, PLAN.md D71): the refused draft
+   * and its redacted text, attachments and reference. Only the dialog's
+   * explicit resend carries `secretAccepted`; a newer composer draft stays
+   * independent and receives its own scan.
+   */
+  readonly secretPrompt:
+    | {
+        readonly localId: string
+        readonly draft: string
+        readonly redactedText: string
+        readonly attachments: readonly AttachmentSummary[]
+        readonly reference?: ChatReference | undefined
+        readonly contextLabel?: string | undefined
+      }
+    | undefined
+  /** Delayed holds are shown in arrival order, each with its own payload. */
+  readonly secretPromptQueue: readonly NonNullable<UiState['secretPrompt']>[]
   /**
    * Images of a refused message the host may still hold but the composer no
    * longer shows (M25): the app asks the host to drop them, so none linger
@@ -372,9 +418,15 @@ export type UiAction =
       readonly text: string
       readonly attachments: readonly AttachmentSummary[]
       readonly contextLabel: string | undefined
+      /** True only for the dialog's explicit resend of its held payload. */
+      readonly isSecretResend?: boolean
       /** What the message replies to or quotes (M17); absent for a plain send. */
       readonly reference?: ChatReference | undefined
+      /** When it was sent (M87): the card's time until the host's arrives. */
+      readonly at?: number | undefined
     }
+  /** The secret dialog closed for editing (M92e): the draft is already back. */
+  | { readonly type: 'secretPromptDismissed' }
   /** The composer now replies to an output or quotes a passage (M17). */
   | { readonly type: 'referenceSet'; readonly reference: ChatReference }
   | { readonly type: 'referenceCleared' }
@@ -395,6 +447,8 @@ export type UiAction =
     }
   /** The user answered or cancelled a question card; lock it until the host settles it (M25). */
   | { readonly type: 'questionSubmitted'; readonly userInputId: string }
+  /** The user answered, declined or cancelled an elicitation form; lock it until the host settles it. */
+  | { readonly type: 'elicitationSubmitted'; readonly elicitationId: string }
   /** A row's Move to background or Stop (M46): its button waits for the host. */
   | { readonly type: 'taskRequested'; readonly itemId: string; readonly request: TaskRequest }
   /** A line for the transcript the webview itself has to say (M25). */
@@ -475,6 +529,7 @@ export const initialUiState: UiState = {
   activeTurnId: undefined,
   lastCompletedTurnId: undefined,
   pendingReplayTurns: {},
+  admittedMessageIds: [],
   usage: undefined,
   context: undefined,
   usageReport: undefined,
@@ -484,6 +539,9 @@ export const initialUiState: UiState = {
   strayItems: {},
   unsentAttachments: {},
   pendingSendDraft: undefined,
+  pendingSendDrafts: {},
+  secretPrompt: undefined,
+  secretPromptQueue: [],
   attachmentsToRelease: [],
   banner: undefined,
   announcement: undefined,
@@ -922,6 +980,7 @@ function toolEntry(item: ItemSnapshot): TranscriptEntry {
     approval: undefined,
     approvalOutcome: undefined,
     question: undefined,
+    elicitation: undefined,
     questionOutcome: undefined,
     taskRequest: undefined,
   }
@@ -988,10 +1047,12 @@ function entryFor(item: ItemSnapshot, at: number, seq: number): TranscriptEntry 
         kind: 'assistant',
         id: item.itemId,
         text: item.text ?? '',
+        displayText: item.displayText,
         isStreaming: item.status === IN_PROGRESS,
         citations: item.citations,
         usage: item.usage,
         costUsd: item.costUsd,
+        atMs: recordedAtMs(item.recordedAt),
       }
     }
     case 'reasoning': {
@@ -1036,10 +1097,12 @@ function mergeItem(entry: TranscriptEntry, item: ItemSnapshot, at: number): Tran
       return {
         ...entry,
         text: item.text ?? entry.text,
+        displayText: item.displayText ?? entry.displayText,
         isStreaming: item.status === IN_PROGRESS,
         citations: item.citations ?? entry.citations,
         usage: item.usage ?? entry.usage,
         costUsd: item.costUsd ?? entry.costUsd,
+        atMs: recordedAtMs(item.recordedAt) ?? entry.atMs,
       }
     }
     case 'reasoning': {
@@ -1147,7 +1210,12 @@ function settleEntry(entry: TranscriptEntry, at: number): TranscriptEntry {
     }
     case 'tool': {
       const isCutOff = entry.status === IN_PROGRESS && !entry.isBackground
-      if (!isCutOff && entry.approval === undefined && entry.question === undefined) {
+      if (
+        !isCutOff &&
+        entry.approval === undefined &&
+        entry.question === undefined &&
+        entry.elicitation === undefined
+      ) {
         return entry
       }
       return {
@@ -1155,6 +1223,7 @@ function settleEntry(entry: TranscriptEntry, at: number): TranscriptEntry {
         status: isCutOff ? TOOL_STATUS_INTERRUPTED : entry.status,
         approval: undefined,
         question: undefined,
+        elicitation: undefined,
         // A Move to background the turn's end overtook asks nothing any more (M46).
         taskRequest: isCutOff ? undefined : entry.taskRequest,
       }
@@ -1178,12 +1247,23 @@ function withTaskRequest(
   )
 }
 
-/** Question cards locked on a submission the host refused, open again (M25). */
+/** Answer cards locked on a submission the host refused, open again (M25). */
 function unlockQuestions(entries: readonly TranscriptEntry[]): readonly TranscriptEntry[] {
-  return entries.some((entry) => entry.kind === 'tool' && entry.question?.isSubmitted === true)
+  const isLocked = (entry: TranscriptEntry): boolean =>
+    entry.kind === 'tool' &&
+    (entry.question?.isSubmitted === true || entry.elicitation?.isSubmitted === true)
+  return entries.some((entry) => isLocked(entry))
     ? entries.map((entry) =>
-        entry.kind === 'tool' && entry.question?.isSubmitted === true
-          ? { ...entry, question: { ...entry.question, isSubmitted: false } }
+        entry.kind === 'tool'
+          ? {
+              ...entry,
+              ...(entry.question?.isSubmitted === true && {
+                question: { ...entry.question, isSubmitted: false },
+              }),
+              ...(entry.elicitation?.isSubmitted === true && {
+                elicitation: { ...entry.elicitation, isSubmitted: false },
+              }),
+            }
           : entry,
       )
     : entries
@@ -1200,12 +1280,14 @@ function settleAll(entries: readonly TranscriptEntry[], at: number): readonly Tr
  * not record.
  */
 function replayedUserEntry(item: ItemSnapshot, seq: number, isPlanTurn = false): TranscriptEntry {
+  const atMs = recordedAtMs(item.recordedAt)
   return {
     kind: 'user',
     id: item.itemId,
     seq,
-    text: item.text ?? '',
+    text: redactSecrets(item.text ?? ''),
     status: 'sent',
+    ...(atMs !== undefined && { atMs }),
     attachments: (item.attachments ?? []).map((attachment, index) => ({
       id: `${item.itemId}:${String(index)}`,
       name: attachment.name ?? attachment.mediaType,
@@ -1358,6 +1440,15 @@ function childOwnerOf(state: UiState, turnId: string | undefined): SubagentEntry
       )
 }
 
+/**
+ * A reply that arrives live shows the moment it began arriving until the
+ * backend's recorded time comes with its completion (M87). A row read back
+ * from history takes only the recorded time: no other time stands in.
+ */
+function withArrivalTime(entry: TranscriptEntry, at: number): TranscriptEntry {
+  return entry.kind === 'assistant' && entry.atMs === undefined ? { ...entry, atMs: at } : entry
+}
+
 function upsertEntry(
   entries: readonly TranscriptEntry[],
   item: ItemSnapshot,
@@ -1367,7 +1458,58 @@ function upsertEntry(
   const isKnown = entries.some((entry) => entry.id === item.itemId)
   return isKnown
     ? updateEntry(entries, item.itemId, (entry) => stampCompletion(mergeItem(entry, item, at), seq))
-    : [...entries, stampCompletion(mergeItem(entryFor(item, at, seq), item, at), seq)]
+    : [
+        ...entries,
+        stampCompletion(withArrivalTime(mergeItem(entryFor(item, at, seq), item, at), at), seq),
+      ]
+}
+
+/**
+ * Muse Code's own record of a message sent from this panel (M87): the live
+ * path shows the card, not the item, so the card takes the item's recorded
+ * time. The card is the one the item names exactly (its replay id, or the
+ * item it took a time from before); failing that, the first card of the
+ * item's turn with its text that no item has named yet, which then keeps
+ * the item's id. One item stamps one card: two equal messages in a turn
+ * keep their own times (the review of lane C). A time that does not parse
+ * changes nothing.
+ */
+function withRecordedUserTime(state: UiState, item: ItemSnapshot): UiState {
+  const atMs = recordedAtMs(item.recordedAt)
+  if (atMs === undefined) {
+    return state
+  }
+  const exact = state.transcript.find(
+    (entry) =>
+      entry.kind === 'user' &&
+      (entry.replayItemId === item.itemId || entry.recordedItemId === item.itemId),
+  )
+  const card =
+    exact ??
+    state.transcript.find(
+      (entry) =>
+        entry.kind === 'user' &&
+        entry.replayItemId === undefined &&
+        entry.recordedItemId === undefined &&
+        item.turnId !== undefined &&
+        entry.turnId === item.turnId &&
+        entry.text === item.text,
+    )
+  if (card?.kind !== 'user') {
+    return state
+  }
+  const recordedItemId = card.replayItemId === undefined ? item.itemId : card.recordedItemId
+  if (card.atMs === atMs && card.recordedItemId === recordedItemId) {
+    return state
+  }
+  return {
+    ...state,
+    transcript: updateEntry(state.transcript, card.id, (entry) =>
+      entry.kind === 'user'
+        ? { ...entry, atMs, ...(recordedItemId !== undefined && { recordedItemId }) }
+        : entry,
+    ),
+  }
 }
 
 function ownersOf(childId: string, entries: readonly TranscriptEntry[]): Record<string, string> {
@@ -1447,6 +1589,9 @@ function claimStrays(state: UiState, childId: string): UiState {
 }
 
 function applyItem(state: UiState, item: ItemSnapshot, at: number): UiState {
+  if (item.kind === USER_MESSAGE_KIND) {
+    return withRecordedUserTime(state, item)
+  }
   if (HIDDEN_ITEM_KINDS.has(item.kind)) {
     return state
   }
@@ -1516,6 +1661,24 @@ function withToolEntry(
   return { ...state, transcript }
 }
 
+type UserEntry = Extract<TranscriptEntry, { kind: 'user' }>
+
+/**
+ * Queued cards the model now has (M87, PLAN.md D66): their turn started, the
+ * message reached a request, or the turn it joined ended. They read as sent,
+ * and Edit is no longer offered.
+ */
+function admitQueued(
+  transcript: readonly TranscriptEntry[],
+  isAdmitted: (entry: UserEntry) => boolean,
+): readonly TranscriptEntry[] {
+  const isQueued = (entry: TranscriptEntry): entry is UserEntry =>
+    entry.kind === 'user' && entry.status === 'queued' && isAdmitted(entry)
+  return transcript.some((entry) => isQueued(entry))
+    ? transcript.map((entry) => (isQueued(entry) ? { ...entry, status: 'sent' } : entry))
+    : transcript
+}
+
 /** A turn of the conversation ended (M25 settles the rows it left behind). */
 function completeTurn(
   state: UiState,
@@ -1543,7 +1706,13 @@ function completeTurn(
       activeTurnId: undefined,
       lastCompletedTurnId: event.turnId,
       strayItems: without(state.strayItems, event.turnId),
-      transcript: [...settleAll(state.transcript, at), ...failure],
+      transcript: [
+        ...settleAll(
+          admitQueued(state.transcript, (entry) => entry.turnId === event.turnId),
+          at,
+        ),
+        ...failure,
+      ],
     },
     turnAnnouncement(event.terminal, event.reason),
   )
@@ -1557,6 +1726,7 @@ function applyAgentEvent(state: UiState, event: AgentEvent, at: number): UiState
             ...state,
             activeTurnId: event.turnId,
             strayItems: without(state.strayItems, event.turnId),
+            transcript: admitQueued(state.transcript, (entry) => entry.turnId === event.turnId),
           }
         : state
     }
@@ -1592,11 +1762,18 @@ function applyAgentEvent(state: UiState, event: AgentEvent, at: number): UiState
         if (card.turnId !== undefined && activeTurnId === card.turnId) {
           activeTurnId = event.turnId === state.lastCompletedTurnId ? undefined : event.turnId
         }
+        // A steer the turn ended without waits as a queued turn of its own (M87).
         return {
           ...state,
           activeTurnId,
           transcript: updateEntry(state.transcript, card.id, (entry) =>
-            entry.kind === 'user' ? { ...entry, turnId: event.turnId } : entry,
+            entry.kind === 'user'
+              ? {
+                  ...entry,
+                  turnId: event.turnId,
+                  ...(entry.status === 'queued' && { disposition: QUEUED_DISPOSITION }),
+                }
+              : entry,
           ),
         }
       }
@@ -1638,6 +1815,7 @@ function applyAgentEvent(state: UiState, event: AgentEvent, at: number): UiState
           ...(event.packedTokensAvoided !== undefined && {
             packedTokensAvoided: event.packedTokensAvoided,
           }),
+          ...(event.hookTokensAdded !== undefined && { hookTokensAdded: event.hookTokensAdded }),
         },
       }
     }
@@ -1724,6 +1902,7 @@ function applyAgentEvent(state: UiState, event: AgentEvent, at: number): UiState
                   requirementId: event.requirementId,
                   subject: event.subject,
                   availableChoices: event.availableChoices,
+                  note: event.note ?? entry.approval.note,
                 },
               }
             : entry,
@@ -1799,6 +1978,42 @@ function applyAgentEvent(state: UiState, event: AgentEvent, at: number): UiState
         ),
       }
     }
+    case 'elicitationRequested': {
+      const form: PendingElicitation = {
+        elicitationId: event.elicitationId,
+        server: event.server,
+        message: event.message,
+        fields: [...event.fields],
+      }
+      const rowId = event.itemId ?? `elicitation:${event.elicitationId}`
+      return announce(
+        withToolEntry(
+          state,
+          rowId,
+          () =>
+            toolEntry({
+              itemId: rowId,
+              kind: 'toolCall',
+              status: IN_PROGRESS,
+              tool: event.server,
+            }),
+          (entry) => (entry.kind === 'tool' ? { ...entry, elicitation: form } : entry),
+        ),
+        fill(UI_TEXT.elicitationTitle, { server: event.server }),
+      )
+    }
+    case 'elicitationSettled': {
+      // The settlement carries the action only: values never reach the
+      // transcript, so settling clears the form with nothing kept.
+      return {
+        ...state,
+        transcript: state.transcript.map((entry) =>
+          entry.kind === 'tool' && entry.elicitation?.elicitationId === event.elicitationId
+            ? { ...entry, elicitation: undefined }
+            : entry,
+        ),
+      }
+    }
     case 'todoChanged': {
       return { ...state, todos: event.items }
     }
@@ -1817,6 +2032,29 @@ function applyAgentEvent(state: UiState, event: AgentEvent, at: number): UiState
     case 'skillsChanged': {
       // The host confirms the resulting composer state / skill list itself.
       return state
+    }
+    case 'messageAdmitted': {
+      // A steered or queued message reached a request (M87): its card is sent.
+      const transcript = admitQueued(
+        state.transcript,
+        (entry) => entry.replayItemId === event.userMessageId,
+      )
+      if (transcript !== state.transcript) {
+        return { ...state, transcript }
+      }
+      // Before its card's acceptance (the ack can trail the request): kept,
+      // so the acceptance marks the card sent (the review of lane C).
+      const pendingCount = state.transcript.filter(
+        (entry) => entry.kind === 'user' && entry.status === 'pending',
+      ).length
+      return pendingCount === 0 || state.admittedMessageIds.includes(event.userMessageId)
+        ? state
+        : {
+            ...state,
+            admittedMessageIds: [...state.admittedMessageIds, event.userMessageId].slice(
+              -pendingCount,
+            ),
+          }
     }
     case 'turnWithdrawn': {
       // Only the message that will never run is marked (D26); the running
@@ -1884,6 +2122,7 @@ function withPendingCard(
     readonly contextLabel?: string | undefined
     readonly reference?: ChatReference | undefined
     readonly isPlanTurn?: boolean
+    readonly at?: number | undefined
   },
 ): UiState {
   return {
@@ -1905,6 +2144,7 @@ function withPendingCard(
         ...(card.contextLabel !== undefined && { contextLabel: card.contextLabel }),
         ...(card.reference !== undefined && { referenceLabel: referenceLabel(card.reference) }),
         ...(card.isPlanTurn === true && { isPlanTurn: true }),
+        ...(card.at !== undefined && { atMs: card.at }),
       },
     ],
   }
@@ -1960,8 +2200,12 @@ function clearedConversation(state: UiState): UiState {
     childOwners: {},
     strayItems: {},
     pendingReplayTurns: {},
+    admittedMessageIds: [],
     unsentAttachments: {},
     pendingSendDraft: undefined,
+    pendingSendDrafts: {},
+    secretPrompt: undefined,
+    secretPromptQueue: [],
     attachmentsToRelease: [],
     banner: undefined,
     title: undefined,
@@ -2371,10 +2615,15 @@ function applyHostMessage(state: UiState, message: HostToWebviewMessage, at: num
             ...editor,
             pendingGoalCommand: isSameSession ? state.pendingGoalCommand : undefined,
             pendingHandoffCommand: isSameSession ? state.pendingHandoffCommand : undefined,
+            pendingSendDraft: isSameSession ? state.pendingSendDraft : undefined,
+            pendingSendDrafts: isSameSession ? state.pendingSendDrafts : {},
+            secretPrompt: isSameSession ? state.secretPrompt : undefined,
+            secretPromptQueue: isSameSession ? state.secretPromptQueue : [],
             schedules: isSameSession ? state.schedules : [],
             activeTurnId: message.activeTurnId,
             lastCompletedTurnId: undefined,
             pendingReplayTurns: {},
+            admittedMessageIds: [],
             usage: isSameSession ? state.usage : undefined,
             context: isSameSession ? state.context : undefined,
             outputPages: {},
@@ -2413,20 +2662,37 @@ function applyHostMessage(state: UiState, message: HostToWebviewMessage, at: num
         (entry) =>
           entry.kind === 'user' && entry.status === 'pending' && entry.id !== message.localId,
       ).length
+      // Queued or steered (M87): the model does not have it yet, unless its
+      // turn already started or finished before this acceptance arrived.
+      const { disposition } = message
+      const isAdmitted =
+        message.userMessageId !== undefined &&
+        state.admittedMessageIds.includes(message.userMessageId)
+      const isQueued =
+        !isFinished &&
+        !isAdmitted &&
+        (disposition === STEERED_DISPOSITION ||
+          (disposition === QUEUED_DISPOSITION && turnId !== state.activeTurnId))
       return {
         ...state,
         activeTurnId: isFinished ? state.activeTurnId : turnId,
         strayItems: without(state.strayItems, turnId),
         pendingReplayTurns: boundedReplayTurns(pending, pendingCount),
+        admittedMessageIds: isAdmitted
+          ? state.admittedMessageIds.filter((id) => id !== message.userMessageId)
+          : state.admittedMessageIds,
         unsentAttachments: without(state.unsentAttachments, message.localId),
+        pendingSendDrafts: without(state.pendingSendDrafts, message.localId),
         pendingSendDraft:
           state.pendingSendDraft?.localId === message.localId ? undefined : state.pendingSendDraft,
         transcript: updateEntry(state.transcript, message.localId, (entry) =>
           entry.kind === 'user'
             ? {
                 ...entry,
-                status: 'sent',
+                status: isQueued ? 'queued' : 'sent',
                 turnId,
+                atMs: entry.atMs ?? at,
+                ...(disposition !== undefined && { disposition }),
                 ...(message.userMessageId !== undefined && { replayItemId: message.userMessageId }),
               }
             : entry,
@@ -2515,6 +2781,7 @@ function applyHostMessage(state: UiState, message: HostToWebviewMessage, at: num
           ...state,
           draft: shouldRestoreDraft ? pending.text : state.draft,
           pendingSendDraft: pending?.localId === message.localId ? undefined : pending,
+          pendingSendDrafts: without(state.pendingSendDrafts, message.localId),
           attachments: isKept ? [...unsent, ...others] : state.attachments,
           attachmentsToRelease: isKept
             ? state.attachmentsToRelease
@@ -2525,6 +2792,79 @@ function applyHostMessage(state: UiState, message: HostToWebviewMessage, at: num
           ),
         },
         message.reason,
+      )
+    }
+    case 'queuedWithdrawn': {
+      // A queued message taken back (M87, PLAN.md D66): its card goes and its
+      // text returns to the composer, alone in an empty box, else first with
+      // a blank line before the draft, so no draft is lost. Its images came
+      // back before this, as `attachmentAdded`.
+      const card = state.transcript.find((entry) => entry.id === message.localId)
+      if (card?.kind !== 'user') {
+        return state
+      }
+      const withdrawn: UiState = {
+        ...state,
+        transcript: state.transcript.filter((entry) => entry !== card),
+        draft: state.draft === '' ? card.text : `${card.text}\n\n${state.draft}`,
+        draftRevision: state.draftRevision + 1,
+        focusRequests: state.focusRequests + 1,
+      }
+      // Images the backend kept no bytes of (Muse Code) do not come back (M87):
+      // the text does, and a notice says the pictures must be attached again.
+      return message.attachmentsKept === true || !hasImageAttachment(card.attachments)
+        ? withdrawn
+        : announce(
+            withNotice(withdrawn, 'warning', UI_TEXT.queuedImagesNotReturned),
+            UI_TEXT.queuedImagesNotReturned,
+          )
+    }
+    case 'withdrawRefused': {
+      // Not taken back (M87): the card stays, and the reason is said.
+      return announce(withNotice(state, 'warning', message.reason), message.reason)
+    }
+    case 'secretPromptDetected': {
+      const pending =
+        own(state.pendingSendDrafts, message.localId) ??
+        (state.pendingSendDraft?.localId === message.localId ? state.pendingSendDraft : undefined)
+      if (pending === undefined) {
+        return state
+      }
+      const unsent = own(state.unsentAttachments, message.localId) ?? []
+      const others = state.attachments.filter((attachment) =>
+        unsent.every((chip) => chip.id !== attachment.id),
+      )
+      const shouldRestore = pending.revision === state.draftRevision
+      const prompt = {
+        localId: message.localId,
+        draft: pending.text,
+        redactedText: message.redactedText,
+        attachments: unsent,
+        reference: pending.reference,
+        contextLabel: own(state.pendingSendDrafts, message.localId)?.contextLabel,
+      }
+      return announce(
+        {
+          ...state,
+          draft: shouldRestore ? pending.text : state.draft,
+          ...(shouldRestore && pending.reference !== undefined && { reference: pending.reference }),
+          pendingSendDraft:
+            state.pendingSendDraft?.localId === message.localId
+              ? undefined
+              : state.pendingSendDraft,
+          pendingSendDrafts: without(state.pendingSendDrafts, message.localId),
+          secretPrompt: state.secretPrompt ?? prompt,
+          secretPromptQueue:
+            state.secretPrompt === undefined
+              ? state.secretPromptQueue
+              : [...state.secretPromptQueue, prompt],
+          attachments: shouldRestore ? [...unsent, ...others] : state.attachments,
+          unsentAttachments: without(state.unsentAttachments, message.localId),
+          transcript: state.transcript.filter(
+            (entry) => !(entry.kind === 'user' && entry.id === message.localId),
+          ),
+        },
+        UI_TEXT.secretPromptTitle,
       )
     }
     case 'agentEvent': {
@@ -2767,23 +3107,62 @@ export function uiReducer(state: UiState, action: UiAction): UiState {
       return { ...state, focusRequests: state.focusRequests + 1 }
     }
     case 'submitted': {
+      const arm =
+        action.isSecretResend === true && state.secretPrompt?.draft.trim() === action.text.trim()
+          ? state.secretPrompt
+          : undefined
+      const shouldClear = arm === undefined || state.draft === arm.draft
+      const revision = state.draftRevision + (shouldClear ? 1 : 0)
+      const pending = {
+        localId: action.localId,
+        text: arm?.draft ?? (state.draft.trim() === action.text.trim() ? state.draft : action.text),
+        revision,
+        ...(action.reference !== undefined && { reference: action.reference }),
+        ...(action.contextLabel !== undefined && { contextLabel: action.contextLabel }),
+      }
       return withPendingCard(
         {
           ...state,
-          draft: '',
-          draftRevision: state.draftRevision + 1,
-          pendingSendDraft: {
-            localId: action.localId,
-            text: state.draft,
-            revision: state.draftRevision + 1,
-          },
+          draft: shouldClear ? '' : state.draft,
+          draftRevision: revision,
+          pendingSendDraft: pending,
+          pendingSendDrafts: { ...state.pendingSendDrafts, [action.localId]: pending },
+          secretPrompt: arm === undefined ? state.secretPrompt : state.secretPromptQueue[0],
+          secretPromptQueue:
+            arm === undefined ? state.secretPromptQueue : state.secretPromptQueue.slice(1),
           pendingGoalCommand: undefined,
           pendingHandoffCommand: undefined,
-          attachments: [],
-          reference: undefined,
+          attachments:
+            arm === undefined
+              ? []
+              : state.attachments.filter((chip) =>
+                  arm.attachments.every((held) => held.id !== chip.id),
+                ),
+          reference: shouldClear ? undefined : state.reference,
         },
-        { ...action, isPlanTurn: state.permissionMode === 'plan' },
+        {
+          ...action,
+          text: redactSecrets(action.text),
+          isPlanTurn: state.permissionMode === 'plan',
+        },
       )
+    }
+    case 'secretPromptDismissed': {
+      const prompt = state.secretPrompt
+      return prompt === undefined
+        ? state
+        : {
+            ...state,
+            secretPrompt: state.secretPromptQueue[0],
+            secretPromptQueue: state.secretPromptQueue.slice(1),
+            attachments: [
+              ...prompt.attachments,
+              ...state.attachments.filter((chip) =>
+                prompt.attachments.every((held) => held.id !== chip.id),
+              ),
+            ],
+            focusRequests: state.focusRequests + 1,
+          }
     }
     case 'editorContextDismissed': {
       return { ...state, dismissedEditorPath: state.editorContext?.relativePath }
@@ -2820,6 +3199,16 @@ export function uiReducer(state: UiState, action: UiAction): UiState {
         transcript: state.transcript.map((entry) =>
           entry.kind === 'tool' && entry.question?.userInputId === action.userInputId
             ? { ...entry, question: { ...entry.question, isSubmitted: true } }
+            : entry,
+        ),
+      }
+    }
+    case 'elicitationSubmitted': {
+      return {
+        ...state,
+        transcript: state.transcript.map((entry) =>
+          entry.kind === 'tool' && entry.elicitation?.elicitationId === action.elicitationId
+            ? { ...entry, elicitation: { ...entry.elicitation, isSubmitted: true } }
             : entry,
         ),
       }
@@ -3062,6 +3451,9 @@ export function waitingApprovals(
 export function hasPendingRequest(state: UiState): boolean {
   return state.transcript.some(
     (entry) =>
-      entry.kind === 'tool' && (entry.approval !== undefined || entry.question !== undefined),
+      entry.kind === 'tool' &&
+      (entry.approval !== undefined ||
+        entry.question !== undefined ||
+        entry.elicitation !== undefined),
   )
 }

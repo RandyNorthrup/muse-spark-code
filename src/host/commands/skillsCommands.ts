@@ -20,6 +20,7 @@ import {
 } from '../../core/backends/musecode/skillsCli'
 import { stderrForLog } from '../../core/backends/musecode/logText'
 import { clipForLog } from '../../core/logging'
+import { redactSecrets } from '../../core/redact'
 import { type SkillImportSource, UI_TEXT } from '../../shared/constants'
 import type { PluralForms } from '../../shared/l10n/forms'
 import { fill, plural } from '../../shared/l10n/text'
@@ -75,15 +76,15 @@ function firstLine(text: string): string {
 }
 
 function describe(error: unknown): string {
-  return error instanceof Error ? error.message : String(error)
+  return redactSecrets(error instanceof Error ? error.message : String(error))
 }
 
 /** Why a finished CLI run failed, in one line. */
 function failureOf(result: ProcessResult): string {
-  return (
+  return redactSecrets(
     firstLine(result.stderr) ||
-    firstLine(result.stdout) ||
-    fill(UI_TEXT.processExitCode, { code: String(result.exitCode) })
+      firstLine(result.stdout) ||
+      fill(UI_TEXT.processExitCode, { code: String(result.exitCode) }),
   )
 }
 
@@ -136,7 +137,11 @@ async function applyChange(
     return `${change.skill.name}: ${UI_TEXT.skillsCliMissing}`
   }
   const result = await running
-  return result.exitCode === 0 ? undefined : `${change.skill.name}: ${failureOf(result)}`
+  if (result.exitCode === 0) return undefined
+  deps.log.warn(
+    `Skill activation failed with exit code ${String(result.exitCode)}: ${stderrForLog(result.stderr || result.stdout)}`,
+  )
+  return `${change.skill.name}: ${failureOf(result)}`
 }
 
 export async function manageSkills(deps: ManageSkillsDeps): Promise<void> {
@@ -174,7 +179,7 @@ export async function manageSkills(deps: ManageSkillsDeps): Promise<void> {
   }
   const changed = changes.length - failures.length
   if (failures.length > 0) {
-    deps.log.warn(`Skill changes that failed: ${failures.join('; ')}`)
+    deps.log.warn(`Skill changes that failed: ${String(failures.length)}`)
     deps.showError(fill(UI_TEXT.skillsChangeFailed, { skills: failures.join('; ') }))
   }
   if (changed === 0) {
@@ -248,7 +253,9 @@ export async function importSkills(deps: ImportSkillsDeps): Promise<void> {
     return
   }
   const summary = importSummary(report)
-  deps.log.info(`muse skills import --from ${source}: ${summary}`)
+  deps.log.info(
+    `muse skills import --from ${source}: ${String(report.installed.length)} installed; ${String(report.failed.length)} failed`,
+  )
   deps.showInformation(summary)
   if (report.installed.length > 0) {
     await offerRestart(deps)

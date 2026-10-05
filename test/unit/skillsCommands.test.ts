@@ -237,6 +237,50 @@ describe('manageSkills', () => {
     expect(none.restartPrompts()).toBe(0)
   })
 
+  it('redacts secret-shaped values from failed skill stderr in the notice and the log', async () => {
+    const secret = `ghp_${'a'.repeat(36)}`
+    const t = harness({
+      cli: (args) =>
+        args[1] === 'list'
+          ? ok(CATALOG)
+          : { exitCode: 1, stdout: '', stderr: `activation refused for ${secret}\nsecond line` },
+      picks: () => new Set(['bundled:grill', 'user:caveman']),
+      confirmsRestart: false,
+    })
+    await manageSkills(t.manage)
+    expect(t.errors).toHaveLength(1)
+    expect(t.errors[0]).not.toContain(secret)
+    expect(t.errors[0]).toContain('[redacted]')
+    const warned = t.log.warn.mock.calls.map(([line]) => String(line)).join('\n')
+    expect(warned).toContain('Skill changes that failed')
+    expect(warned).not.toContain(secret)
+    expect(warned).toContain('not logged')
+  })
+
+  it.each(['stderr', 'stdout'])(
+    'keeps private skill activation %s out of the log',
+    async (channel) => {
+      const privateText = 'alice@example.test /Users/alice/private-project'
+      const t = harness({
+        cli: (args) =>
+          args[1] === 'list'
+            ? ok(CATALOG)
+            : {
+                exitCode: 1,
+                stdout: channel === 'stdout' ? privateText : '',
+                stderr: channel === 'stderr' ? privateText : '',
+              },
+        picks: () => new Set(['bundled:grill', 'user:caveman']),
+      })
+      await manageSkills(t.manage)
+      expect(t.errors[0]).toContain(privateText)
+      const logs = t.log.warn.mock.calls.map(([line]) => String(line)).join('\n')
+      expect(logs).toContain('Skill changes that failed')
+      expect(logs).not.toContain('alice@example.test')
+      expect(logs).not.toContain('/Users/alice/private-project')
+    },
+  )
+
   it('reports a CLI that disappears between the list and a change', async () => {
     const t = harness({ cli: () => ok(CATALOG), picks: () => new Set<string>() })
     const runCli = t.manage.runCli

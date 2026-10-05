@@ -8,6 +8,8 @@
 //   extra one, the same {slots}, code spans and bold markers, exactly the
 //   plural forms Intl.PluralRules gives the language, and no value left in
 //   English unless l10n/untranslated.json allows it (names, commands, …).
+//   A `one` form also needs {count} if the locale selects it for an integer
+//   other than 1 in 0..200, even when English's `one` omits the number.
 // - The manifest: every user-visible string in package.json is a `%key%` of
 //   package.nls.json, every key there is used, and each
 //   package.nls.<language>.json passes the same checks against it.
@@ -16,6 +18,8 @@
 //   there: a function called at once, or one passed to map, filter, …),
 //   because the display language's table is installed after that. Imports,
 //   exports and types (`typeof UI_TEXT`) are not reads.
+// - No JSON file it reads names a key twice in one object (M91): JSON.parse
+//   would keep the last one silently.
 //
 // Every problem is printed; any problem fails the gate.
 //
@@ -96,11 +100,67 @@ function isRecord(value) {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
 }
 
+/** Opens a container for `{` or `[` and closes one for `}` or `]`. */
+function trackContainer(open, char) {
+  switch (char) {
+    case '{': {
+      open.push(new Set())
+      return
+    }
+    case '[': {
+      open.push(null)
+      return
+    }
+    case '}':
+    case ']': {
+      open.pop()
+      return
+    }
+    // No default
+  }
+}
+
+/**
+ * The keys an object in valid JSON text names twice, at any depth. JSON.parse
+ * keeps the last one without a word, so a stale string could win unseen (M91:
+ * a merge left two `config.modelApiHooks.description` lines in three tables).
+ */
+function duplicateKeys(text) {
+  const found = []
+  // One entry per open container: the keys seen for an object, null for an array.
+  const open = []
+  let index = 0
+  while (index < text.length) {
+    const char = text[index]
+    if (char === '"') {
+      let end = index + 1
+      while (end < text.length && text[end] !== '"') end += text[end] === '\\' ? 2 : 1
+      const literal = text.slice(index, end + 1)
+      index = end + 1
+      let next = index
+      while (/\s/u.test(text[next] ?? '')) next += 1
+      const keys = open.at(-1)
+      if (text[next] === ':' && keys instanceof Set) {
+        const key = JSON.parse(literal)
+        if (keys.has(key)) found.push(key)
+        keys.add(key)
+      }
+      continue
+    }
+    trackContainer(open, char)
+    index += 1
+  }
+  return found
+}
+
 /** The parsed JSON file, or undefined with the reason added to `problems`. */
-function readJson(file, problems) {
+function readJson(file, problems, root = repoRoot) {
   let value
   try {
-    value = JSON.parse(readFileSync(path.join(repoRoot, file), 'utf8'))
+    const text = readFileSync(path.join(root, file), 'utf8')
+    value = JSON.parse(text)
+    for (const key of duplicateKeys(text))
+      problems.push(`${file}: "${key}" is named twice in one object; JSON keeps only the last`)
   } catch (error) {
     problems.push(`${file}: ${error.message}`)
   }
@@ -421,6 +481,39 @@ function checkLoadOrder(problems) {
   return files.length
 }
 
+// Package-time compaction must keep every translated value byte-for-byte
+// after JSON parsing. Validate staged data with the same strict source schema.
+function checkPackaged(root, l10n, untranslatedFor, strings, problems) {
+  const files = [
+    MANIFEST,
+    MANIFEST_STRINGS,
+    ...l10n.TABLE_LOCALES.flatMap((locale) => [
+      `${l10n.TABLE_DIRECTORY}/${l10n.tableFileName(locale)}`,
+      `package.nls.${locale}.json`,
+    ]),
+  ]
+  for (const file of files) {
+    const shipped = readJson(file, problems, root)
+    const source = readJson(file, problems)
+    if (JSON.stringify(shipped) !== JSON.stringify(source))
+      problems.push(`packaged ${file}: differs from source`)
+    if (file === MANIFEST || file === MANIFEST_STRINGS) continue
+    const locale =
+      TABLE_FILE.exec(path.basename(file))?.[1] ??
+      MANIFEST_TRANSLATION.exec(path.basename(file))?.[1]
+    const isUi = file.startsWith(`${l10n.TABLE_DIRECTORY}/`)
+    problems.push(
+      ...l10n
+        .tableProblems(isUi ? l10n.EN : strings, shipped, {
+          ...(locale !== undefined && { locale }),
+          isStrict: true,
+          untranslated: untranslatedFor(isUi ? 'ui' : 'manifest', locale ?? 'en'),
+        })
+        .map((problem) => `packaged ${file}: ${problem}`),
+    )
+  }
+}
+
 async function main() {
   const problems = []
   let l10n
@@ -445,6 +538,13 @@ async function main() {
   const tables = checkTables(l10n, untranslatedFor, problems)
   const manifestKeys = checkManifest(l10n, untranslatedFor, strings, problems)
   const sources = checkLoadOrder(problems)
+  if (process.argv[2] === '--packaged') {
+    if (process.argv.length !== 4)
+      throw new Error('--packaged requires exactly one stage directory')
+    checkPackaged(path.resolve(process.argv[3]), l10n, untranslatedFor, strings, problems)
+  } else if (process.argv.length !== 2) {
+    throw new Error('Unknown localization gate arguments')
+  }
   for (const problem of problems) {
     console.log(problem)
   }

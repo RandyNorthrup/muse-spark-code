@@ -1,8 +1,9 @@
 // The paid Model API features (M33–M35, PLAN.md D30), "opt in and loud":
 // which are on, and what this window has used of them.
 //
-// A feature is on only when its setting is on AND the user accepted its
-// price in the confirmation; each use then asks again (paidConsent.ts, M58). Turning the setting on anywhere (the palette,
+// D78: a default-on setting offers an interactive Model API feature; every
+// paid use still needs paidConsent.ts and final budget admission. Explicit
+// opt-ins require the accepted price. Turning the setting on in the palette,
 // the Settings editor, settings.json) asks once, naming the price; a
 // declined confirmation turns the setting back off, and turning the setting
 // off forgets the acceptance, so the next time asks again. The confirmation
@@ -26,6 +27,10 @@ import { estimateCostUsd } from '../usage/insights'
 export interface PaidFeatureGateDeps {
   /** Whether the feature's `museSpark.*` setting is on. */
   readonly isSettingOn: (feature: PaidFeature) => boolean
+  /** Backend availability never changes the user's setting or accepted price. */
+  readonly isAvailable?: (feature: PaidFeature) => boolean
+  /** D78: an unconfigured default offers the feature; use still requires consent. */
+  readonly isDefaultOn?: (feature: PaidFeature) => boolean
   /** Writes the feature's setting in the user's settings. */
   readonly setSetting: (feature: PaidFeature, isOn: boolean) => Promise<void>
   /** The features whose price the user accepted (the extension's own global state). */
@@ -36,6 +41,15 @@ export interface PaidFeatureGateDeps {
   readonly isWindowFocused: () => boolean
   readonly log: CoreLogger
 }
+
+/**
+ * M91 prompt/agent hooks (PLAN.md D70) are available by default (OWNER
+ * RULING 2026-10-04, superseding the plan's "off by default"): no turn-on
+ * confirmation asks for them. Their price is asked per run in the paid-use
+ * popup instead, so the gate never confirms them and `isOn` reads only the
+ * setting (the machine-scoped kill switch).
+ */
+const AVAILABLE_BY_DEFAULT: ReadonlySet<PaidFeature> = new Set(['hookModels'])
 
 export class PaidFeatureGate {
   /** Features whose confirmation is on screen now: never asked twice at once. */
@@ -83,9 +97,19 @@ export class PaidFeatureGate {
     this.notify()
   }
 
-  /** Whether the feature may be used: setting on and price accepted. */
+  /**
+   * Availability only: paidConsent and the request boundary authorize
+   * spending. A feature available by default (M91 hookModels) needs no
+   * accepted price here: PaidUseConsent asks it per use.
+   */
   public isOn(feature: PaidFeature): boolean {
-    return this.deps.isSettingOn(feature) && this.deps.readAccepted().has(feature)
+    return (
+      this.deps.isSettingOn(feature) &&
+      this.deps.isAvailable?.(feature) !== false &&
+      (AVAILABLE_BY_DEFAULT.has(feature) ||
+        this.deps.isDefaultOn?.(feature) === true ||
+        this.deps.readAccepted().has(feature))
+    )
   }
 
   /** The features that are on, in their fixed order. */
@@ -109,12 +133,23 @@ export class PaidFeatureGate {
   public async review(): Promise<void> {
     const pending: PaidFeature[] = []
     for (const feature of PAID_FEATURES) {
+      // A feature available by default needs no turn-on confirmation: its
+      // price is asked per use. Nothing is forgotten either: it holds no
+      // acceptance to lose.
+      if (AVAILABLE_BY_DEFAULT.has(feature)) {
+        continue
+      }
       const isSettingOn = this.deps.isSettingOn(feature)
       const isAccepted = this.deps.readAccepted().has(feature)
       if (!isSettingOn && isAccepted) {
         await this.setAccepted(feature, false)
         this.deps.log.info(`Paid feature ${feature} turned off`)
-      } else if (isSettingOn && !isAccepted && !this.asking.has(feature)) {
+      } else if (
+        isSettingOn &&
+        !isAccepted &&
+        !this.asking.has(feature) &&
+        this.deps.isDefaultOn?.(feature) !== true
+      ) {
         pending.push(feature)
       }
     }
@@ -228,6 +263,14 @@ export class PaidUsage {
         this.tally = { ...tally, judgeCalls: (tally.judgeCalls ?? 0) + units }
         break
       }
+      case 'hookModels': {
+        this.tally = {
+          ...tally,
+          hookModelRuns: (tally.hookModelRuns ?? 0) + units,
+          hookModelUnknownRequests: (tally.hookModelUnknownRequests ?? 0) + units,
+        }
+        break
+      }
     }
     this.log.info(`Paid use: ${feature} +${String(units)}`)
     for (const listener of this.listeners) {
@@ -280,6 +323,33 @@ export class PaidUsage {
       ...this.tally,
       bestOfNRequests: (this.tally.bestOfNRequests ?? 0) + 1,
       bestOfNUnknownRequests: (this.tally.bestOfNUnknownRequests ?? 0) + 1,
+    }
+    for (const listener of this.listeners) listener()
+  }
+
+  /** One prompt/agent hook run started; its cost settles when reported. */
+  public addHookModelRun(): void {
+    this.add('hookModels', 1)
+  }
+
+  /** One hook run's reported billable usage; never replayed from storage. */
+  public addHookModelUsage(modelId: string, usage: SubagentUsage): void {
+    if (modelApiPaidTier(modelId) === undefined) {
+      throw new Error('Cannot estimate hook model use for an unpriced model')
+    }
+    if (
+      Object.values(usage).some((value) => !Number.isSafeInteger(value) || value < 0) ||
+      usage.cachedTokens > usage.inputTokens
+    ) {
+      throw new Error('Hook model usage must be valid nonnegative token counts')
+    }
+    const unknown = this.tally.hookModelUnknownRequests ?? 0
+    if (unknown === 0) return
+    this.tally = {
+      ...this.tally,
+      hookModelUnknownRequests: unknown - 1,
+      hookModelTokens: (this.tally.hookModelTokens ?? 0) + usage.inputTokens + usage.outputTokens,
+      hookModelCostUsd: (this.tally.hookModelCostUsd ?? 0) + estimateCostUsd(usage, modelId),
     }
     for (const listener of this.listeners) listener()
   }

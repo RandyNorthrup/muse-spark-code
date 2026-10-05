@@ -1,0 +1,282 @@
+{
+  "date": "2026-10-04",
+  "rig": "WIN-11-VM, slot pills, npx vitest run on the named files only",
+  "baseline": {
+    "snapshot": "ff7ada02",
+    "exit": 0,
+    "tests": "120 passed (120)",
+    "failed": []
+  },
+  "drills": [
+    {
+      "name": "resting-gap",
+      "file": "src/webview/gooeyLayout.ts",
+      "find": "Math.min(GOOEY_MENU.gap, (room",
+      "replace": "Math.min(GOOEY_MENU.gap / 2, (room",
+      "files": ["test/unit/gooeyLayout.test.ts"],
+      "snapshot": "4d8fc3ba",
+      "exit": 1,
+      "tests": "2 failed | 12 passed (14)",
+      "failed": [
+        "test/unit/gooeyLayout.test.ts > gooeyLayout (pills, 2026-10-04) > stacks the pills 20 px apart, centred on the origin, on an arc that bows out",
+        "test/unit/gooeyLayout.test.ts > gooeyLayout (pills, 2026-10-04) > opens a second burst from a group pill, on the same side, inside the panel"
+      ],
+      "restoredSha256": "d0d5080a8a0e8638cec1fa4669f38207004492992ae3ad94b5a88ff62b8a75bb"
+    },
+    {
+      "name": "arc-bow",
+      "file": "src/webview/gooeyLayout.ts",
+      "find": "GOOEY_MENU.reach + GOOEY_MENU.bow * Math.sqrt(1 - lift * lift)",
+      "replace": "GOOEY_MENU.reach + GOOEY_MENU.bow",
+      "files": ["test/unit/gooeyLayout.test.ts"],
+      "snapshot": "fbf246c0",
+      "exit": 1,
+      "tests": "2 failed | 12 passed (14)",
+      "failed": [
+        "test/unit/gooeyLayout.test.ts > gooeyLayout (pills, 2026-10-04) > stacks the pills 20 px apart, centred on the origin, on an arc that bows out",
+        "test/unit/gooeyLayout.test.ts > gooeyLayout (pills, 2026-10-04) > opens down from a top corner and up from a bottom one, curving back to the origin"
+      ],
+      "restoredSha256": "d0d5080a8a0e8638cec1fa4669f38207004492992ae3ad94b5a88ff62b8a75bb"
+    },
+    {
+      "name": "side-choice",
+      "file": "src/webview/gooeyLayout.ts",
+      "find": "point.x < viewport.width / 2 ? 1 : -1",
+      "replace": "point.x < viewport.width / 2 ? -1 : 1",
+      "files": ["test/unit/gooeyLayout.test.ts"],
+      "snapshot": "c715bff7",
+      "exit": 1,
+      "tests": "6 failed | 8 passed (14)",
+      "failed": [
+        "test/unit/gooeyLayout.test.ts > gooeyLayout (pills, 2026-10-04) > stacks the pills 20 px apart, centred on the origin, on an arc that bows out",
+        "test/unit/gooeyLayout.test.ts > gooeyLayout (pills, 2026-10-04) > reaches away from the nearer side edge from x = 10",
+        "test/unit/gooeyLayout.test.ts > gooeyLayout (pills, 2026-10-04) > reaches away from the nearer side edge from x = 159",
+        "test/unit/gooeyLayout.test.ts > gooeyLayout (pills, 2026-10-04) > reaches away from the nearer side edge from x = 161",
+        "test/unit/gooeyLayout.test.ts > gooeyLayout (pills, 2026-10-04) > reaches away from the nearer side edge from x = 312",
+        "test/unit/gooeyLayout.test.ts > gooeyLayout (pills, 2026-10-04) > opens down from a top corner and up from a bottom one, curving back to the origin"
+      ],
+      "restoredSha256": "d0d5080a8a0e8638cec1fa4669f38207004492992ae3ad94b5a88ff62b8a75bb"
+    },
+    {
+      "name": "vertical-clamp",
+      "file": "src/webview/gooeyLayout.ts",
+      "find": "clamp(anchor.y - total / 2, pad, viewport.height - pad - total)",
+      "replace": "anchor.y - total / 2",
+      "files": ["test/unit/gooeyLayout.test.ts"],
+      "snapshot": "822478da",
+      "exit": 1,
+      "tests": "8 failed | 6 passed (14)",
+      "failed": [
+        "test/unit/gooeyLayout.test.ts > gooeyLayout (pills, 2026-10-04) > opens down from a top corner and up from a bottom one, curving back to the origin",
+        "test/unit/gooeyLayout.test.ts > gooeyLayout (pills, 2026-10-04) > keeps 2 pills with long labels inside 320 and 690 px, apart",
+        "test/unit/gooeyLayout.test.ts > gooeyLayout (pills, 2026-10-04) > keeps 3 pills with long labels inside 320 and 690 px, apart",
+        "test/unit/gooeyLayout.test.ts > gooeyLayout (pills, 2026-10-04) > keeps 4 pills with long labels inside 320 and 690 px, apart",
+        "test/unit/gooeyLayout.test.ts > gooeyLayout (pills, 2026-10-04) > keeps 5 pills with long labels inside 320 and 690 px, apart",
+        "test/unit/gooeyLayout.test.ts > gooeyLayout (pills, 2026-10-04) > keeps 6 pills with long labels inside 320 and 690 px, apart",
+        "test/unit/gooeyLayout.test.ts > gooeyLayout (pills, 2026-10-04) > shares out a short panel’s height, still inside and apart while the rows fit",
+        "test/unit/gooeyLayout.test.ts > gooeyLayout (pills, 2026-10-04) > opens a second burst from a group pill, on the same side, inside the panel"
+      ],
+      "restoredSha256": "d0d5080a8a0e8638cec1fa4669f38207004492992ae3ad94b5a88ff62b8a75bb"
+    },
+    {
+      "name": "horizontal-clamp",
+      "file": "src/webview/gooeyLayout.ts",
+      "find": "left: clamp(side === 1 ? near : near - width, pad, viewport.width - pad - width),",
+      "replace": "left: side === 1 ? near : near - width,",
+      "files": ["test/unit/gooeyLayout.test.ts", "test/unit/rowMenus.test.tsx"],
+      "snapshot": "e9c59203",
+      "exit": 1,
+      "tests": "9 failed | 32 passed (41)",
+      "failed": [
+        "test/unit/gooeyLayout.test.ts > gooeyLayout (pills, 2026-10-04) > keeps 2 pills with long labels inside 320 and 690 px, apart",
+        "test/unit/gooeyLayout.test.ts > gooeyLayout (pills, 2026-10-04) > keeps 3 pills with long labels inside 320 and 690 px, apart",
+        "test/unit/gooeyLayout.test.ts > gooeyLayout (pills, 2026-10-04) > keeps 4 pills with long labels inside 320 and 690 px, apart",
+        "test/unit/gooeyLayout.test.ts > gooeyLayout (pills, 2026-10-04) > keeps 5 pills with long labels inside 320 and 690 px, apart",
+        "test/unit/gooeyLayout.test.ts > gooeyLayout (pills, 2026-10-04) > keeps 6 pills with long labels inside 320 and 690 px, apart",
+        "test/unit/gooeyLayout.test.ts > gooeyLayout (pills, 2026-10-04) > caps a pill at the panel less its padding",
+        "test/unit/gooeyLayout.test.ts > gooeyLayout (pills, 2026-10-04) > shares out a short panel’s height, still inside and apart while the rows fit",
+        "test/unit/gooeyLayout.test.ts > gooeyLayout (pills, 2026-10-04) > opens a second burst from a group pill, on the same side, inside the panel",
+        "test/unit/rowMenus.test.tsx > M87 F2 row menus > keeps a row menu’s pills inside a 320 px panel and apart, in both bursts"
+      ],
+      "restoredSha256": "d0d5080a8a0e8638cec1fa4669f38207004492992ae3ad94b5a88ff62b8a75bb"
+    },
+    {
+      "name": "width-cap",
+      "file": "src/webview/gooeyLayout.ts",
+      "find": "const width = Math.min(requested, maxWidth)",
+      "replace": "const width = requested",
+      "files": ["test/unit/gooeyLayout.test.ts"],
+      "snapshot": "4c6409a5",
+      "exit": 1,
+      "tests": "6 failed | 8 passed (14)",
+      "failed": [
+        "test/unit/gooeyLayout.test.ts > gooeyLayout (pills, 2026-10-04) > keeps 4 pills with long labels inside 320 and 690 px, apart",
+        "test/unit/gooeyLayout.test.ts > gooeyLayout (pills, 2026-10-04) > keeps 5 pills with long labels inside 320 and 690 px, apart",
+        "test/unit/gooeyLayout.test.ts > gooeyLayout (pills, 2026-10-04) > keeps 6 pills with long labels inside 320 and 690 px, apart",
+        "test/unit/gooeyLayout.test.ts > gooeyLayout (pills, 2026-10-04) > caps a pill at the panel less its padding",
+        "test/unit/gooeyLayout.test.ts > gooeyLayout (pills, 2026-10-04) > shares out a short panel’s height, still inside and apart while the rows fit",
+        "test/unit/gooeyLayout.test.ts > gooeyLayout (pills, 2026-10-04) > opens a second burst from a group pill, on the same side, inside the panel"
+      ],
+      "restoredSha256": "d0d5080a8a0e8638cec1fa4669f38207004492992ae3ad94b5a88ff62b8a75bb"
+    },
+    {
+      "name": "short-panel",
+      "file": "src/webview/gooeyLayout.ts",
+      "find": "count > 1 ? Math.min(GOOEY_MENU.gap, (room - count * height) / (count - 1)) : 0",
+      "replace": "count > 1 ? GOOEY_MENU.gap : 0",
+      "files": ["test/unit/gooeyLayout.test.ts"],
+      "snapshot": "f184391b",
+      "exit": 1,
+      "tests": "1 failed | 13 passed (14)",
+      "failed": [
+        "test/unit/gooeyLayout.test.ts > gooeyLayout (pills, 2026-10-04) > shares out a short panel’s height, still inside and apart while the rows fit"
+      ],
+      "restoredSha256": "d0d5080a8a0e8638cec1fa4669f38207004492992ae3ad94b5a88ff62b8a75bb"
+    },
+    {
+      "name": "second-burst-row",
+      "file": "src/webview/gooeyLayout.ts",
+      "find": "column({ x: layout.origin.x, y: centre.y }, layout.side, widths, viewport)",
+      "replace": "column(layout.origin, layout.side, widths, viewport)",
+      "files": ["test/unit/gooeyLayout.test.ts"],
+      "snapshot": "57d64ea0",
+      "exit": 1,
+      "tests": "1 failed | 13 passed (14)",
+      "failed": [
+        "test/unit/gooeyLayout.test.ts > gooeyLayout (pills, 2026-10-04) > opens a second burst from a group pill, on the same side, inside the panel"
+      ],
+      "restoredSha256": "d0d5080a8a0e8638cec1fa4669f38207004492992ae3ad94b5a88ff62b8a75bb"
+    },
+    {
+      "name": "second-burst-origin",
+      "file": "src/webview/gooeyLayout.ts",
+      "find": "    origin: centre,\n",
+      "replace": "    origin: layout.origin,\n",
+      "files": ["test/unit/gooeyLayout.test.ts"],
+      "snapshot": "9d79e16c",
+      "exit": 1,
+      "tests": "1 failed | 13 passed (14)",
+      "failed": [
+        "test/unit/gooeyLayout.test.ts > gooeyLayout (pills, 2026-10-04) > opens a second burst from a group pill, on the same side, inside the panel"
+      ],
+      "restoredSha256": "d0d5080a8a0e8638cec1fa4669f38207004492992ae3ad94b5a88ff62b8a75bb"
+    },
+    {
+      "name": "pill-label",
+      "file": "src/webview/components/GooeyMenu.tsx",
+      "find": "<span className=\"gooey-menu-pill-label\">{item.label}</span>",
+      "replace": "<span className=\"gooey-menu-pill-label\" />",
+      "files": [
+        "test/unit/GooeyMenu.test.tsx",
+        "test/unit/rowMenus.test.tsx",
+        "test/unit/QuoteMenu.test.tsx"
+      ],
+      "snapshot": "ddb4bee3",
+      "exit": 1,
+      "tests": "9 failed | 35 passed (44)",
+      "failed": [
+        "test/unit/GooeyMenu.test.tsx > GooeyMenu > names menu and pills, focuses first enabled action, labels every pill",
+        "test/unit/GooeyMenu.test.tsx > GooeyMenu > selects by pointer, refuses disabled selection, keeps labels without hover",
+        "test/unit/GooeyMenu.test.tsx > GooeyMenu > handles no enabled actions without activating or losing Escape",
+        "test/unit/QuoteMenu.test.tsx > QuoteMenu > relays Copy unchanged",
+        "test/unit/QuoteMenu.test.tsx > QuoteMenu > relays Ask about this unchanged",
+        "test/unit/QuoteMenu.test.tsx > QuoteMenu > relays Comment on this unchanged",
+        "test/unit/rowMenus.test.tsx > M87 F2 row menus > keeps the Rewind group’s notes in its second burst, present and inert (P3)",
+        "test/unit/rowMenus.test.tsx > M87 F2 row menus > labels every pill of the user, reply and tool menus",
+        "test/unit/rowMenus.test.tsx > M87 F2 row menus > keeps a row menu’s pills inside a 320 px panel and apart, in both bursts"
+      ],
+      "restoredSha256": "6ead9e88f570f763dec3602222e4659f00b1b060c6c2995698cc7897a37c7423"
+    },
+    {
+      "name": "measured-width",
+      "file": "src/webview/components/GooeyMenu.tsx",
+      "find": "list.map((item) => sizes.get(sizeKey(level, item.id))?.width ?? 0)",
+      "replace": "list.map(() => 0)",
+      "files": ["test/unit/GooeyMenu.test.tsx", "test/unit/rowMenus.test.tsx"],
+      "snapshot": "eb07af8a",
+      "exit": 1,
+      "tests": "2 failed | 39 passed (41)",
+      "failed": [
+        "test/unit/GooeyMenu.test.tsx > GooeyMenu > places pills by their drawn widths, capped at the panel",
+        "test/unit/rowMenus.test.tsx > M87 F2 row menus > keeps a row menu’s pills inside a 320 px panel and apart, in both bursts"
+      ],
+      "restoredSha256": "6ead9e88f570f763dec3602222e4659f00b1b060c6c2995698cc7897a37c7423"
+    },
+    {
+      "name": "max-width",
+      "file": "src/webview/components/GooeyMenu.tsx",
+      "find": "                maxWidth,\n",
+      "replace": "",
+      "files": ["test/unit/GooeyMenu.test.tsx", "test/unit/rowMenus.test.tsx"],
+      "snapshot": "4337d2df",
+      "exit": 1,
+      "tests": "1 failed | 40 passed (41)",
+      "failed": [
+        "test/unit/GooeyMenu.test.tsx > GooeyMenu > places pills by their drawn widths, capped at the panel"
+      ],
+      "restoredSha256": "6ead9e88f570f763dec3602222e4659f00b1b060c6c2995698cc7897a37c7423"
+    },
+    {
+      "name": "clipped-title",
+      "file": "src/webview/components/GooeyMenu.tsx",
+      "find": "title={item.title ?? (isClipped ? item.label : undefined)}",
+      "replace": "title={item.title}",
+      "files": ["test/unit/GooeyMenu.test.tsx"],
+      "snapshot": "162409a3",
+      "exit": 1,
+      "tests": "1 failed | 13 passed (14)",
+      "failed": [
+        "test/unit/GooeyMenu.test.tsx > GooeyMenu > puts a clipped label whole in the tooltip, after an item’s own title"
+      ],
+      "restoredSha256": "6ead9e88f570f763dec3602222e4659f00b1b060c6c2995698cc7897a37c7423"
+    },
+    {
+      "name": "burst-centre",
+      "file": "src/webview/components/GooeyMenu.tsx",
+      "find": "x: rect === undefined ? 0 : rect.left + rect.width / 2,\n              y: rect === undefined ? 0 : rect.top + rect.height / 2,",
+      "replace": "x: rect?.right ?? 0,\n              y: rect?.top ?? 0,",
+      "files": ["test/unit/GooeyMenu.test.tsx"],
+      "snapshot": "1fdb574a",
+      "exit": 1,
+      "tests": "1 failed | 13 passed (14)",
+      "failed": [
+        "test/unit/GooeyMenu.test.tsx > GooeyMenu > uses anchor element origin and provides motion/forced-color hooks and unique goo filter"
+      ],
+      "restoredSha256": "6ead9e88f570f763dec3602222e4659f00b1b060c6c2995698cc7897a37c7423"
+    },
+    {
+      "name": "level-key",
+      "file": "src/webview/components/GooeyMenu.tsx",
+      "find": "return [[sizeKey(level, item.id), { width: button.offsetWidth, isClipped }]]",
+      "replace": "return [[sizeKey(undefined, item.id), { width: button.offsetWidth, isClipped }]]",
+      "files": ["test/unit/rowMenus.test.tsx"],
+      "snapshot": "25b2d6c2",
+      "exit": 1,
+      "tests": "1 failed | 26 passed (27)",
+      "failed": [
+        "test/unit/rowMenus.test.tsx > M87 F2 row menus > keeps a row menu’s pills inside a 320 px panel and apart, in both bursts"
+      ],
+      "restoredSha256": "6ead9e88f570f763dec3602222e4659f00b1b060c6c2995698cc7897a37c7423"
+    },
+    {
+      "name": "reduced-motion-pill",
+      "file": "src/webview/styles.css",
+      "find": "  .agent-dot-running,\n  .gooey-menu-pill {\n    animation: none;",
+      "replace": "  .agent-dot-running {\n    animation: none;",
+      "files": ["test/unit/reducedMotion.test.ts"],
+      "snapshot": "693d8cce",
+      "exit": 1,
+      "tests": "1 failed (1)",
+      "failed": [
+        "test/unit/reducedMotion.test.ts > webview reduced motion (M87) > disables every animated or transitioned selector under reduced motion"
+      ],
+      "restoredSha256": "dd466dd7fb43790118d8dfdddcaef43b853d11b10421df74e86eb0793581f28a"
+    }
+  ],
+  "restored": {
+    "snapshot": "1312652b",
+    "exit": 0,
+    "tests": "120 passed (120)",
+    "failed": []
+  }
+}

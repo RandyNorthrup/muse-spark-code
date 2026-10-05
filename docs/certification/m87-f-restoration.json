@@ -1,0 +1,14 @@
+[
+  {
+    "path": "src/webview/gooeyLayout.ts",
+    "sha256": "9cc4c8268000b8d2f3f4723021f0d540359273c0499dca32c8a52b1859355e81"
+  },
+  {
+    "path": "src/webview/components/GooeyMenu.tsx",
+    "sha256": "c9ede955300c148a2f838146df8f8bce6af2063c830d1556cabba4bceaf9ed35"
+  },
+  {
+    "path": "src/webview/components/QuoteMenu.tsx",
+    "sha256": "7a8f99a063872aeed4f86c2f3c93ccafe32902e56903db2033da26d14a60b7b1"
+  }
+]

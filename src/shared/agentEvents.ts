@@ -118,6 +118,14 @@ export const itemSnapshotFields = {
   turnId: z.optional(z.string()),
   /** `agentMessage` / `userMessage`: the text; `reasoning`: raw text if exposed. */
   text: z.optional(z.string()),
+  /**
+   * `agentMessage`: a MessageDisplay hook's display-only rewrite (M91).
+   * `text` stays the original, so history, copy and export keep it; the
+   * panel shows this with the hook's marker and the original one click
+   * away. A hook cannot set or remove the marker itself: the panel adds it
+   * whenever this differs from `text`.
+   */
+  displayText: z.optional(z.string()),
   /** `reasoning`: summary parts, streamed as `summary.N` deltas. */
   summary: z.optional(z.array(z.string())),
   /** `toolCall`: tool name and the model-authored argument JSON, verbatim. */
@@ -190,6 +198,14 @@ export const itemSnapshotFields = {
   verifySummary: z.optional(verifySummarySchema),
   /** `toolCall` of an edit with `then_run` (M68): the command's result beside the edit's. */
   thenRun: z.optional(thenRunResultSchema),
+  /**
+   * When the item was recorded (M87, PLAN.md D66), an RFC 3339 string: MSP
+   * `Item.recordedAt` as captured on `userMessage`, `agentMessage` and
+   * `userShell` items (M46, M79), or the Model API host's own stamp. Kept as
+   * the string it came as: a time that does not parse costs the time where
+   * it is read, never the item.
+   */
+  recordedAt: z.optional(z.string()),
 } as const
 
 const itemSnapshotSchema = z.object(itemSnapshotFields)
@@ -267,6 +283,35 @@ export const answerSchema = z.object({
 })
 export type QuestionAnswer = z.infer<typeof answerSchema>
 
+/** One field of an MCP elicitation form (M91 lane M): the schema, never values. */
+export const elicitationFieldSchema = z.object({
+  name: z.string(),
+  title: z.optional(z.string()),
+  description: z.optional(z.string()),
+  type: z.enum(['string', 'number', 'integer', 'boolean']),
+  required: z.boolean(),
+  enum: z.optional(z.array(z.string())),
+  enumNames: z.optional(z.array(z.string())),
+  format: z.optional(z.enum(['email', 'uri', 'date', 'date-time'])),
+  default: z.optional(z.union([z.string(), z.number(), z.boolean()])),
+  minLength: z.optional(z.number()),
+  maxLength: z.optional(z.number()),
+  minimum: z.optional(z.number()),
+  maximum: z.optional(z.number()),
+})
+export type ElicitationField = z.infer<typeof elicitationFieldSchema>
+
+/** How an elicitation form settles (M91 lane M): accept, decline or cancel. */
+export const elicitationReplySchema = z.union([
+  z.object({
+    kind: z.literal('accepted'),
+    values: z.record(z.string(), z.unknown()),
+  }),
+  z.object({ kind: z.literal('declined') }),
+  z.object({ kind: z.literal('cancelled') }),
+])
+export type ElicitationReply = z.infer<typeof elicitationReplySchema>
+
 export const todoItemSchema = z.object({
   text: z.string(),
   status: z.string(),
@@ -337,6 +382,7 @@ const agentEventSchema = z.discriminatedUnion('type', [
     reasoningTokens: z.optional(z.number()),
     modelId: z.optional(z.string()),
     packedTokensAvoided: z.optional(z.number()),
+    hookTokensAdded: z.optional(z.int().check(z.nonnegative())),
   }),
   z.object({
     type: z.literal('contextUsage'),
@@ -393,6 +439,11 @@ const agentEventSchema = z.discriminatedUnion('type', [
     requirementId: requirementRefSchema,
     subject: approvalSubjectSchema,
     availableChoices: z.array(approvalChoiceSchema),
+    /**
+     * Why the card asks beyond the mode. The CLI sends none; the controller
+     * sets the secret note here too when it scrubs one in (M92e).
+     */
+    note: z.optional(z.string()),
   }),
   z.object({
     type: z.literal('approvalResolved'),
@@ -420,6 +471,26 @@ const agentEventSchema = z.discriminatedUnion('type', [
     /** The explanation given instead of an answer (`clarified`, M46). */
     clarification: z.optional(z.string()),
   }),
+  // An MCP server asked the user for structured input (`elicitation/create`,
+  // M91 lane M): the panel shows a form, the ACP agent its form path. The
+  // request carries the schema, never values; the settlement carries the
+  // action only, so values reach no transcript or export.
+  z.object({
+    type: z.literal('elicitationRequested'),
+    elicitationId: z.string(),
+    server: z.string(),
+    message: z.string(),
+    fields: z.array(elicitationFieldSchema),
+    /** The tool row the form belongs under; absent, it stands on its own. */
+    itemId: z.optional(z.string()),
+  }),
+  z.object({
+    type: z.literal('elicitationSettled'),
+    elicitationId: z.string(),
+    action: z.enum(['accept', 'decline', 'cancel']),
+    /** Why a hook declined or cancelled it. */
+    reason: z.optional(z.string()),
+  }),
   // The full todo list, replaced wholesale.
   z.object({ type: z.literal('todoChanged'), items: z.array(todoItemSchema) }),
   // The session goal, replaced wholesale; `null` when it was cleared (M45).
@@ -428,6 +499,10 @@ const agentEventSchema = z.discriminatedUnion('type', [
   // (`turn/unqueued`) or Stop cleared the queue. Only its message is marked;
   // the running turn, if any, runs on.
   z.object({ type: z.literal('turnWithdrawn'), turnId: z.string(), reason: z.string() }),
+  // A queued or steered message reached a request (M87, PLAN.md D66): from
+  // now on the model has it, so it can no longer be withdrawn. Named by the
+  // user item id its acceptance gave (`turnAccepted.userMessageId`).
+  z.object({ type: z.literal('messageAdmitted'), userMessageId: z.string().check(z.minLength(1)) }),
   // The two below are the controller's, never forwarded (PLAN.md D26): live
   // delivery dropped events, so the transcript is reloaded from the host...
   z.object({ type: z.literal('viewGap') }),

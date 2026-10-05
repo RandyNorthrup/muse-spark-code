@@ -1,0 +1,74 @@
+[
+  {
+    "theme": "dark",
+    "source": "VS Code 1.139.0, theme \"Default Dark Modern\", read from the workbench by scripts/capture-themes.mjs",
+    "pairs": [
+      {
+        "state": "background",
+        "foreground": "#ffffff",
+        "background": "#0078d4",
+        "ratio": 4.529
+      },
+      {
+        "state": "hoverBackground",
+        "foreground": "#ffffff",
+        "background": "#026ec1",
+        "ratio": 5.246
+      }
+    ]
+  },
+  {
+    "theme": "light",
+    "source": "VS Code 1.139.0, theme \"Default Light Modern\", read from the workbench by scripts/capture-themes.mjs",
+    "pairs": [
+      {
+        "state": "background",
+        "foreground": "#ffffff",
+        "background": "#005fb8",
+        "ratio": 6.308
+      },
+      {
+        "state": "hoverBackground",
+        "foreground": "#ffffff",
+        "background": "#0258a8",
+        "ratio": 7.085
+      }
+    ]
+  },
+  {
+    "theme": "hc-dark",
+    "source": "VS Code 1.139.0, theme \"Default High Contrast\", read from the workbench by scripts/capture-themes.mjs",
+    "pairs": [
+      {
+        "state": "background",
+        "foreground": "#ffffff",
+        "background": "#000000",
+        "ratio": 21
+      },
+      {
+        "state": "hoverBackground",
+        "foreground": "#ffffff",
+        "background": "#000000",
+        "ratio": 21
+      }
+    ]
+  },
+  {
+    "theme": "hc-light",
+    "source": "VS Code 1.139.0, theme \"Default High Contrast Light\", read from the workbench by scripts/capture-themes.mjs",
+    "pairs": [
+      {
+        "state": "background",
+        "foreground": "#ffffff",
+        "background": "#0f4a85",
+        "ratio": 8.98
+      },
+      {
+        "state": "hoverBackground",
+        "foreground": "#ffffff",
+        "background": "#0f4a85",
+        "ratio": 8.98
+      }
+    ]
+  }
+]

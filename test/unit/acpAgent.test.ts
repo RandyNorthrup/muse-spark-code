@@ -1,3 +1,4 @@
+import { fill } from '../../src/shared/l10n/text'
 import * as acp from '@agentclientprotocol/sdk'
 import { MspError } from '@muse-code/sdk'
 import { describe, expect, it, vi } from 'vitest'
@@ -413,6 +414,31 @@ async function turn(
   await events(session)
   session.emit({ type: 'turnCompleted', turnId: `turn-${String(calls + 1)}`, terminal })
   return await response
+}
+
+const MCP_FORM_REQUEST: Extract<AgentEvent, { type: 'elicitationRequested' }> = {
+  type: 'elicitationRequested',
+  elicitationId: 'elicit-1',
+  server: 'srv',
+  message: 'Who goes there?',
+  fields: [{ name: 'name', title: 'Name', type: 'string', required: true }],
+  itemId: 'tool-1',
+}
+
+async function runMcpForm(
+  h: ReturnType<typeof harness>,
+  capabilities: Parameters<typeof start>[1],
+  isAnswerRefused = false,
+) {
+  await h.run(async (client) => {
+    const { sessionId } = await start(client, capabilities)
+    await turn(h, client, sessionId, async (session) => {
+      if (isAnswerRefused)
+        session.settleElicitation.mockRejectedValueOnce(new Error('does not fit'))
+      session.emit(MCP_FORM_REQUEST)
+      await until(() => session.settleElicitation.mock.calls.length === (isAnswerRefused ? 2 : 1))
+    })
+  })
 }
 
 describe('the ACP agent (M63)', () => {
@@ -911,6 +937,58 @@ describe('the ACP agent (M63)', () => {
     expect(h.log.info).toHaveBeenCalledWith(
       expect.stringContaining('question input-1 declined: the form came back without an answer'),
     )
+  })
+
+  it('forwards an MCP elicitation through the client form and settles the answer', async () => {
+    const h = harness({
+      elicitation: { action: 'accept', content: { name: 'Ada' } },
+    })
+    await runMcpForm(h, { elicitation: { form: {} } })
+    expect(h.elicitations).toHaveLength(1)
+    expect(h.elicitations[0]).toMatchObject({
+      mode: 'form',
+      message: `${fill(UI_TEXT.elicitationTitle, { server: 'srv' })}\nWho goes there?`,
+      requestedSchema: {
+        type: 'object',
+        properties: { name: { type: 'string', title: 'Name' } },
+        required: ['name'],
+      },
+    })
+    expect(h.host.sessions[0]?.settleElicitation).toHaveBeenCalledWith('elicit-1', {
+      kind: 'accepted',
+      values: { name: 'Ada' },
+    })
+  })
+
+  it('declines an elicitation the client form declined, and texts it where there are no forms', async () => {
+    const withForms = harness({ elicitation: { action: 'decline' } })
+    const withoutForms = harness()
+    for (const [h, capabilities] of [
+      [withForms, { elicitation: { form: {} } }],
+      [withoutForms, {}],
+    ] as const) {
+      await runMcpForm(h, capabilities)
+      expect(h.host.sessions.at(-1)?.settleElicitation).toHaveBeenCalledWith('elicit-1', {
+        kind: h === withForms ? 'declined' : 'cancelled',
+      })
+    }
+    expect(withoutForms.updates).toContainEqual({
+      sessionUpdate: 'agent_message_chunk',
+      content: {
+        type: 'text',
+        text: `${UI_TEXT.acpQuestionAsked}\n${fill(UI_TEXT.elicitationTitle, { server: 'srv' })}\nWho goes there?\n- Name`,
+      },
+    })
+  })
+
+  it('cancels an elicitation whose accepted content the session refuses', async () => {
+    const h = harness({
+      elicitation: { action: 'accept', content: { name: 'Ada' } },
+    })
+    await runMcpForm(h, { elicitation: { form: {} } }, true)
+    expect(h.host.sessions[0]?.settleElicitation).toHaveBeenLastCalledWith('elicit-1', {
+      kind: 'cancelled',
+    })
   })
 
   it('logs a backend failure by its MSP kind and code, never the CLI’s message', async () => {

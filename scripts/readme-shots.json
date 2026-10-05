@@ -1,0 +1,132 @@
+{
+  "$comment": "README screenshots: each entry renders one harness scenario at the given size and writes media/readme/<name>.png. The banner is not a harness render and stays out (see excluded).",
+  "shots": [
+    {
+      "file": "media/readme/agents.png",
+      "scenario": "agents",
+      "theme": "light",
+      "width": 690,
+      "height": 760,
+      "note": "Subagents: the 2 agents pill and the Agent map"
+    },
+    {
+      "file": "media/readme/approval.png",
+      "scenario": "approval",
+      "theme": "light",
+      "width": 690,
+      "height": 760,
+      "note": "An approval card, docked above the message box, with the CLI's own choices"
+    },
+    {
+      "file": "media/readme/history.png",
+      "scenario": "history",
+      "theme": "light",
+      "width": 690,
+      "height": 760,
+      "note": "History: search, resume, archive"
+    },
+    {
+      "file": "media/readme/languages.png",
+      "scenario": "usage",
+      "theme": "light",
+      "width": 690,
+      "height": 760,
+      "lang": "de",
+      "note": "Account & usage in German, with its numbers written the German way"
+    },
+    {
+      "file": "media/readme/modes.png",
+      "scenario": "modes",
+      "theme": "light",
+      "width": 690,
+      "height": 760,
+      "note": "Permission modes, one line each, Shift+Tab to cycle"
+    },
+    {
+      "file": "media/readme/paid.png",
+      "scenario": "paid",
+      "theme": "light",
+      "width": 690,
+      "height": 760,
+      "note": "A search marked paid, the reply's sources, and the badge"
+    },
+    {
+      "file": "media/readme/paid-always.png",
+      "scenario": "paid-always",
+      "theme": "light",
+      "width": 690,
+      "height": 760,
+      "note": "What no longer asks in this workspace, and Ask again"
+    },
+    {
+      "file": "media/readme/palette.png",
+      "scenario": "slash-palette",
+      "theme": "light",
+      "width": 690,
+      "height": 760,
+      "note": "Type /: the palette above the prompt"
+    },
+    {
+      "file": "media/readme/question.png",
+      "scenario": "question",
+      "theme": "light",
+      "width": 690,
+      "height": 760,
+      "note": "A question card: tabs, radios or checkboxes, Other, Submit, Explain instead and Cancel"
+    },
+    {
+      "file": "media/readme/quote.png",
+      "scenario": "quote-menu",
+      "theme": "light",
+      "width": 690,
+      "height": 760,
+      "note": "Highlight, right-click: Copy, Ask about this or Comment on this"
+    },
+    {
+      "file": "media/readme/rewind.png",
+      "scenario": "rewind",
+      "theme": "light",
+      "width": 690,
+      "height": 760,
+      "note": "Every sent message's ⋯: fork, fork and rewind the code, or Rewind for the conversation or the code"
+    },
+    {
+      "file": "media/readme/slash-commands.png",
+      "scenario": "slash-commands",
+      "theme": "light",
+      "width": 690,
+      "height": 760,
+      "note": "A letter more: the slash commands, ranked as you type"
+    },
+    {
+      "file": "media/readme/turn.png",
+      "scenario": "tools-open",
+      "theme": "light",
+      "width": 690,
+      "height": 760,
+      "note": "A turn: its steps opened under one summary row (thinking, read, edit with its diff, write, shell), the reply and the diff tally"
+    },
+    {
+      "file": "media/readme/usage.png",
+      "scenario": "usage",
+      "theme": "light",
+      "width": 690,
+      "height": 760,
+      "note": "Account & usage: windows, tokens, and what is eating the usage"
+    },
+    {
+      "file": "media/readme/voice.png",
+      "scenario": "dictation",
+      "theme": "light",
+      "width": 690,
+      "height": 760,
+      "note": "Voice dictation: tap or hold, Ctrl+D"
+    }
+  ],
+  "excluded": [
+    {
+      "file": "media/readme/banner.png",
+      "reason": "Rendered by scripts/render-images.mjs from media/banner.svg, not by the UI harness."
+    }
+  ]
+}

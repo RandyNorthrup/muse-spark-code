@@ -42,6 +42,11 @@ export interface ScriptedReply {
   readonly malformedTerminal?: boolean
   readonly frameDelayMs?: number
   readonly holdEof?: Promise<unknown>
+  /**
+   * Called once the body has handed out every frame and `holdEof` starts
+   * holding its end: a test acts on the held response, not on a fixed delay.
+   */
+  readonly onEofHeld?: () => void
   /** Hold this response while concurrent sessions run (M48 capacity tests). */
   readonly hold?: Promise<unknown>
   /**
@@ -363,7 +368,10 @@ function bodyStream(
             controller.enqueue(encoder.encode(next))
             return
           }
-          if (reply.holdEof !== undefined) await afterGate(reply.holdEof, undefined, signal)
+          if (reply.holdEof !== undefined) {
+            reply.onEofHeld?.()
+            await afterGate(reply.holdEof, undefined, signal)
+          }
           if (!isStopped()) controller.close()
         } catch (error: unknown) {
           if (!isCancelled) controller.error(error)

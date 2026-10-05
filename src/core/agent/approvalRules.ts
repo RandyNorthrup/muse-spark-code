@@ -3,7 +3,11 @@
 // write, an escalation, a staged command, a request replayed from history
 // (M46) or anything in another mode. The panel's controller and the ACP
 // agent (D62) both ask this module, so the rule exists once; the panel
-// adds its own condition (one panel holding the session).
+// adds its own condition (one panel holding the session). A protected write
+// is one the backend flags or, for Muse Code's `fileAccess` writes, one whose
+// path the extension's own list protects (`isProtectedFileAccess`): the CLI
+// flags only its own list, and wrote `.claude/settings.json` unasked
+// (2026-10-04).
 //
 // The Auto reviewer on Muse Code (M90, PLAN.md D69) may answer one more
 // kind, allowed once, after a reviewer turn said ALLOW: an approval Muse
@@ -21,6 +25,9 @@ import {
   MODEL_API_SUBAGENT_TOOLS,
   type PermissionMode,
 } from '../../shared/constants'
+import { isProtectedFileAccess } from '../protectedPaths'
+
+import { hasApprovalSecret } from './approvalSecrets'
 
 const EDIT_AUTOMATICALLY_MODE: PermissionMode = 'acceptEdits'
 // Approval subjects that are a plain file write: the Model API's own, and
@@ -102,9 +109,13 @@ export function isReviewableApproval(
     childPermissionMode(mode, event.permissionMode) !== AUTO_MODE ||
     event.isReplayed === true ||
     event.isProtectedWrite ||
+    isProtectedFileAccess(event.subject) ||
     event.isJudgeEscalated ||
     event.turnId === undefined ||
     event.turnId !== parentTurnId ||
+    // M92e (PLAN.md D71): a shell command holding a detected secret is never
+    // answered on the user's behalf; the card asks with the value redacted.
+    hasApprovalSecret(event.subject) ||
     !REVIEWABLE_SUBJECTS.has(event.subject.kind)
   ) {
     return false
@@ -130,6 +141,7 @@ export function editAutomaticallyChoice(
     childPermissionMode(mode, event.permissionMode) !== EDIT_AUTOMATICALLY_MODE ||
     event.isReplayed === true ||
     event.isProtectedWrite ||
+    isProtectedFileAccess(event.subject) ||
     event.isJudgeEscalated
   ) {
     return undefined

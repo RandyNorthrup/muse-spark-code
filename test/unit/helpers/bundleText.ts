@@ -28,11 +28,21 @@ function plainRun(value: string): string {
   return longest
 }
 
+/** How many times `run` occurs in `text`. */
+function occurrences(text: string, run: string): number {
+  return text.split(run).length - 1
+}
+
 /**
  * The cases every such bundle meets; `ownText` is a value of the block it
- * reads, found the same way as a control.
+ * reads, found the same way as a control, and `ownBlocks` every block it
+ * reads.
  */
-export function shippedTextCases(built: BuiltBundle, ownText: string): void {
+export function shippedTextCases(
+  built: BuiltBundle,
+  ownText: string,
+  ownBlocks: readonly Readonly<Record<string, string>>[],
+): void {
   it('loads the shared English fallback without copying it', () => {
     const text = readFileSync(built.file, 'utf8')
     expect(text).toContain('require("./uiText.js")')
@@ -42,12 +52,19 @@ export function shippedTextCases(built: BuiltBundle, ownText: string): void {
   it('carries its own model text and no key and none of the words of MODEL_TEXT', () => {
     const text = readFileSync(built.file, 'utf8')
     expect(text).toContain(plainRun(ownText))
+    // A value of MODEL_TEXT may share its words with a value of a block the
+    // bundle reads (the browser check's page markers are web fetch's, M81):
+    // they may occur only as often as those values hold them; a carried
+    // MODEL_TEXT adds one more.
+    const ownValues = ownBlocks.flatMap((block) => Object.values(block))
     for (const [key, value] of Object.entries(MODEL_TEXT)) {
       expect(text, key).not.toMatch(new RegExp(String.raw`(?:^|[\s{,])${key}:`, 'mu'))
       const run = plainRun(value)
-      if (run.length >= MIN_PLAIN_RUN) {
-        expect(text, key).not.toContain(run)
+      if (run.length < MIN_PLAIN_RUN) {
+        continue
       }
+      const own = ownValues.reduce((sum, ownValue) => sum + occurrences(ownValue, run), 0)
+      expect(occurrences(text, run), key).toBeLessThanOrEqual(own)
     }
   })
 }

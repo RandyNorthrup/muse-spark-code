@@ -18,6 +18,10 @@ interface LocaleState {
   relativeTimes: Intl.RelativeTimeFormat
   dates: Intl.DateTimeFormat
   dateTimes: Intl.DateTimeFormat
+  // M87 (PLAN.md D66): a message's time on its card, and a step summary's list.
+  times: Intl.DateTimeFormat
+  fullDateTimes: Intl.DateTimeFormat
+  lists: Intl.ListFormat
   readonly formatters: Map<string, Intl.NumberFormat>
 }
 
@@ -28,6 +32,12 @@ function stateFor(locale: string, formatters: Map<string, Intl.NumberFormat>): L
     relativeTimes: new Intl.RelativeTimeFormat(locale, { numeric: 'auto', style: 'short' }),
     dates: new Intl.DateTimeFormat(locale, { dateStyle: 'medium' }),
     dateTimes: new Intl.DateTimeFormat(locale, { dateStyle: 'medium', timeStyle: 'short' }),
+    times: new Intl.DateTimeFormat(locale, { timeStyle: 'short' }),
+    fullDateTimes: new Intl.DateTimeFormat(locale, { dateStyle: 'full', timeStyle: 'short' }),
+    // A conjunction list, not a `unit` one (D66 named `unit`, short): Turkish,
+    // Japanese, Korean, Russian and Chinese join units with bare spaces,
+    // which no list of actions reads as (measured, docs/certification/m87-c.md).
+    lists: new Intl.ListFormat(locale, { type: 'conjunction', style: 'long' }),
     formatters,
   }
 }
@@ -132,6 +142,42 @@ export function formatDate(epochMs: number): string {
 /** A local calendar date and time in the installed language. */
 export function formatDateTime(epochMs: number): string {
   return current.dateTimes.format(epochMs)
+}
+
+/** The local time of day alone, as the language writes it: 14:05 / 2:05 PM (M87). */
+export function formatTime(epochMs: number): string {
+  return current.times.format(epochMs)
+}
+
+/** The full local date and the time: "Saturday, 3 October 2026 at 14:05" (M87). */
+export function formatFullDateTime(epochMs: number): string {
+  return current.fullDateTimes.format(epochMs)
+}
+
+/** Whether two moments fall on the same calendar day in the local time zone (M87). */
+export function isSameLocalDay(aMs: number, bMs: number): boolean {
+  const a = new Date(aMs)
+  const b = new Date(bMs)
+  return (
+    a.getFullYear() === b.getFullYear() &&
+    a.getMonth() === b.getMonth() &&
+    a.getDate() === b.getDate()
+  )
+}
+
+/** Parts joined as the language lists them: "a, b, and c" / "a, b und c" / "a、b、c" (M87). */
+export function formatList(parts: readonly string[]): string {
+  return current.lists.format(parts)
+}
+
+/** The first letter raised by the language's own case rules, the rest as it is (M87). */
+export function capitalizeFirst(text: string): string {
+  const first = text.codePointAt(0)
+  if (first === undefined) {
+    return text
+  }
+  const head = String.fromCodePoint(first)
+  return `${head.toLocaleUpperCase(current.locale)}${text.slice(head.length)}`
 }
 
 /** The template with each `{slot}` replaced; numbers are formatted, unknown slots stay. */

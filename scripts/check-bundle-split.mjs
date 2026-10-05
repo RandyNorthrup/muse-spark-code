@@ -17,6 +17,15 @@
 // - web fetch's page converter (M69: parse5, the HTML converter and what
 //   they use) is in dist/extension.js or dist/modelApi.js, or missing from
 //   its worker, dist/pageWorker.js, started for each page.
+// - the browser check's pipe, run, proxy, canaries and processes (M81) are
+//   in dist/extension.js, dist/modelApi.js, dist/acp.js or
+//   dist/browserRuntime.js, or missing from their own bundle,
+//   dist/browserCheck.js, required on the first check.
+// - the browser check's runtime acquisition (M81 A1: the pin manifest, the
+//   downloader, the ZIP reader, hashing, staging and publication) is in any
+//   bundle but dist/browserRuntime.js, or missing from it (design spec v4
+//   §9.1: dist/browserCheck.js keeps its 50 KiB and never carries the
+//   extractor).
 // - the review (M70: git's material, the review turn's text, the Plan-mode
 //   hold and edit review) is in dist/extension.js, dist/modelApi.js or
 //   dist/acp.js, or missing from dist/review.js, which dist/extension.js
@@ -35,6 +44,10 @@
 //   with M78's reviewer core) are in dist/extension.js, or missing from
 //   dist/codeIntel.js, dist/voice.js, dist/webFetch.js or
 //   dist/museCodeReviewer.js.
+// - What's New (M99: the page's renderer, content schema and tab) is in
+//   dist/extension.js or missing from dist/whatsNew.js; or its page script,
+//   dist/webview/whatsNew.js, carries any package, the display table or
+//   constants.ts, or no longer carries the page script.
 // - a model text block beside MODEL_TEXT (MODEL_API_, CODE_INTEL_,
 //   CHECKPOINT_, AGENT_IMPORT_, REVIEW_, WEB_FETCH_, EXEC_,
 //   AUTO_REVIEWER_MODEL_TEXT) is
@@ -51,6 +64,9 @@
 
 import { existsSync, readdirSync, readFileSync } from 'node:fs'
 import path from 'node:path'
+import ts from 'typescript'
+import { createRequire } from 'node:module'
+import { DEFERRED_WEBVIEW_SURFACES, webviewStartupOutputs } from './lib/webviewBundles.mjs'
 
 const MODEL_API_DIR = 'src/core/backends/modelapi'
 const ENTRY = 'src/host/backend/modelApiEntry.ts'
@@ -59,7 +75,45 @@ const BUNDLES = {
   modelApi: { output: 'dist/modelApi.js', metafile: 'dist/meta/modelApi.json' },
   acp: { output: 'dist/acp.js', metafile: 'dist/meta-acp/acp.json' },
 }
-const DEFERRED_ONLY = ['reviewerEntry.ts']
+const DEFERRED_ONLY = ['reviewerEntry.ts', 'hookModelEntry.ts']
+// M91 lane W: the adapters for hooks imported in another agent's format (lane
+// P's contracts and engine), dist/foreignHooks.js, loaded the first time a
+// session holding one runs a hook.
+const FOREIGN_HOOKS_ONLY = [
+  'foreignHooksEntry.ts',
+  'hookFormats.ts',
+  'hookFormats/core.ts',
+  'hookFormats/engine.ts',
+  'hookFormats/transforms.ts',
+  'hookFormats/contracts/cline.ts',
+  'hookFormats/contracts/copilot.ts',
+  'hookFormats/contracts/cursor.ts',
+  'hookFormats/contracts/gemini.ts',
+  'hookFormats/contracts/kiro.ts',
+  'hookFormats/contracts/vscode.ts',
+  'hookFormats/contracts/windsurf.ts',
+]
+// M91: the hook and MCP-form runtime, dist/hookRuntime.js (lane E's
+// spark-hooks.json reader and dispatcher, lane H's typed handlers, lane M's
+// form checks), loaded the first time a session needs one of them. The
+// modules it re-exports stay LAZY_ONLY: dist/modelApi.js keeps their types,
+// field builders and constants, and esbuild leaves the runners out of it.
+const HOOK_RUNTIME_ONLY = ['hookRuntimeEntry.ts']
+// M91b: the Amp and OpenCode plugin host, its child's source and its event
+// mapping, dist/pluginHooks.js, which the adapters require on the first
+// plugin hook (the import bundle reads the mapping too).
+const PLUGIN_HOOKS_ONLY = [
+  'pluginHooksEntry.ts',
+  'pluginHost.ts',
+  'pluginChild.ts',
+  'pluginFormats.ts',
+]
+// Files of type declarations only, which no bundle carries: lane P's contract
+// shapes, read by the adapters' compiler and never at run time.
+const TYPES_ONLY = new Set(['hookFormats/contract.ts'])
+// M91 lane X's Cline discovery, which no bundle carries until its dispatcher
+// wiring lands (PLAN.md M91, lane X; the lead's call).
+const UNBUNDLED = new Set(['hookFormats/clineDiscover.ts'])
 const DEFERRED = [
   {
     output: 'dist/sessionBoard.js',
@@ -77,6 +131,21 @@ const DEFERRED = [
     output: 'dist/reviewer.js',
     metafile: 'dist/meta/reviewer.json',
     files: DEFERRED_ONLY.map((name) => `${MODEL_API_DIR}/${name}`),
+  },
+  {
+    output: 'dist/foreignHooks.js',
+    metafile: 'dist/meta/foreignHooks.json',
+    files: FOREIGN_HOOKS_ONLY.map((name) => `${MODEL_API_DIR}/${name}`),
+  },
+  {
+    output: 'dist/hookRuntime.js',
+    metafile: 'dist/meta/hookRuntime.json',
+    files: HOOK_RUNTIME_ONLY.map((name) => `${MODEL_API_DIR}/${name}`),
+  },
+  {
+    output: 'dist/pluginHooks.js',
+    metafile: 'dist/meta/pluginHooks.json',
+    files: PLUGIN_HOOKS_ONLY.map((name) => `${MODEL_API_DIR}/${name}`),
   },
 ]
 
@@ -107,6 +176,8 @@ const LAZY_ONLY = [
   'glob.ts',
   'goals.ts',
   'hooks.ts',
+  'hookHandlers.ts',
+  'extensionHooks.ts',
   'instructions.ts',
   'mediaBudget.ts',
   'memoryTools.ts',
@@ -121,11 +192,16 @@ const LAZY_ONLY = [
   'subagentTools.ts',
   'toolHookPayload.ts',
   'tools.ts',
+  // M81: what a browser check hands the model and the row.
+  'browserCalls.ts',
   // The verify loop's session side and its tool surface (M68).
   'verifyLedger.ts',
   'verifyLoop.ts',
   'verifyTools.ts',
   'mcp/connection.ts',
+  // M91-M: MCP forms' types and log text load with the backend; their checks
+  // load with dist/hookRuntime.js, and the browser reuses value validation.
+  'mcp/elicitation.ts',
   'mcp/functions.ts',
   'mcp/http.ts',
   'mcp/pool.ts',
@@ -163,14 +239,28 @@ for (const name of onDisk) {
   const lists =
     Number(ACTIVATION_ALLOWED.has(name)) +
     Number(lazy.has(name)) +
-    Number(DEFERRED_ONLY.includes(name))
+    Number(DEFERRED_ONLY.includes(name)) +
+    Number(FOREIGN_HOOKS_ONLY.includes(name)) +
+    Number(HOOK_RUNTIME_ONLY.includes(name)) +
+    Number(PLUGIN_HOOKS_ONLY.includes(name)) +
+    Number(TYPES_ONLY.has(name)) +
+    Number(UNBUNDLED.has(name))
   if (lists !== 1) {
     problems.push(
       `${MODEL_API_DIR}/${name} is on ${lists === 0 ? 'neither list' : 'both lists'} in scripts/check-bundle-split.mjs`,
     )
   }
 }
-for (const name of [...ACTIVATION_ALLOWED.keys(), ...lazy, ...DEFERRED_ONLY]) {
+for (const name of [
+  ...ACTIVATION_ALLOWED.keys(),
+  ...lazy,
+  ...DEFERRED_ONLY,
+  ...FOREIGN_HOOKS_ONLY,
+  ...HOOK_RUNTIME_ONLY,
+  ...PLUGIN_HOOKS_ONLY,
+  ...TYPES_ONLY,
+  ...UNBUNDLED,
+]) {
   if (!onDisk.has(name)) {
     problems.push(`${MODEL_API_DIR}/${name} is listed but does not exist`)
   }
@@ -179,6 +269,20 @@ for (const name of [...ACTIVATION_ALLOWED.keys(), ...lazy, ...DEFERRED_ONLY]) {
 const activation = inputsOf(BUNDLES.activation)
 const modelApi = inputsOf(BUNDLES.modelApi)
 const acp = inputsOf(BUNDLES.acp)
+const extensionHooks = inputsOf({
+  output: 'dist/extensionHooks.js',
+  metafile: 'dist/meta/extensionHooks.json',
+})
+for (const file of ['src/host/extensionHooksEntry.ts', 'src/host/extensionHooksRunner.ts']) {
+  for (const [output, inputs] of [
+    [BUNDLES.activation.output, activation],
+    [BUNDLES.modelApi.output, modelApi],
+    [BUNDLES.acp.output, acp],
+  ]) {
+    if (inputs.has(file)) problems.push(`${output} carries the lazy extension hook runner ${file}`)
+  }
+  if (!extensionHooks.has(file)) problems.push(`dist/extensionHooks.js no longer carries ${file}`)
+}
 for (const bundle of DEFERRED) {
   const inputs = inputsOf(bundle)
   for (const file of bundle.files) {
@@ -188,6 +292,19 @@ for (const bundle of DEFERRED) {
       }
     }
     if (!inputs.has(file)) problems.push(`${bundle.output} no longer carries ${file}`)
+  }
+}
+// The plugin host loads only on the first plugin hook: the adapters' bundle
+// requires it rather than carry it (M91b).
+{
+  const adapters = inputsOf(DEFERRED.find((bundle) => bundle.output === 'dist/foreignHooks.js'))
+  for (const name of PLUGIN_HOOKS_ONLY) {
+    const file = `${MODEL_API_DIR}/${name}`
+    if (adapters.has(file)) {
+      problems.push(
+        `dist/foreignHooks.js carries ${file}, which loads only on the first plugin hook`,
+      )
+    }
   }
 }
 // The bundles that load the backend from dist/modelApi.js rather than carry it.
@@ -351,10 +468,94 @@ const ON_FIRST_USE = [
       'src/core/backends/modelapi/autoReviewer.ts',
     ],
   },
+  // What's New (M99, D79): activation keeps the update check, the claim and
+  // the loader; the page is required on the first page or notice.
+  {
+    output: 'dist/whatsNew.js',
+    metafile: 'dist/meta/whatsNew.json',
+    use: 'the first What’s New page or notice',
+    files: [
+      'src/host/whatsNew/whatsNewEntry.ts',
+      'src/host/whatsNew/whatsNewPanel.ts',
+      'src/host/whatsNew/whatsNewHtml.ts',
+      'src/core/whatsNew/whatsNewContent.ts',
+      'src/shared/whatsNewMessages.ts',
+    ],
+  },
 ]
 const uiText = inputsOf(UI_TEXT)
 if (!uiText.has(ENGLISH_TABLE)) {
   problems.push(`${UI_TEXT.output} no longer carries ${ENGLISH_TABLE}`)
+}
+// M81: the browser check's pipe, run, proxy, canaries and processes live in
+// their own bundle, required on the first check; activation keeps the
+// loader, the tool and the lifetime both bundles' callers share.
+const BROWSER_CHECK = { output: 'dist/browserCheck.js', metafile: 'dist/meta/browserCheck.json' }
+const BROWSER_ONLY = [
+  'src/host/browser/browserCheckEntry.ts',
+  'src/host/browser/browserProcess.ts',
+  'src/core/browser/browserRun.ts',
+  'src/core/browser/pageCheck.ts',
+  'src/core/browser/canaries.ts',
+  'src/core/browser/checkProxy.ts',
+  'src/core/browser/browserLaunch.ts',
+  'src/core/browser/requestLog.ts',
+  'src/core/browser/cdpPipe.ts',
+]
+// M81 A1: the runtime's acquisition, loaded only when a runtime is prepared
+// or verified; no other bundle carries any of it.
+const BROWSER_RUNTIME = {
+  output: 'dist/browserRuntime.js',
+  metafile: 'dist/meta/browserRuntime.json',
+}
+const RUNTIME_ONLY = [
+  'src/host/browser/browserRuntimeEntry.ts',
+  'src/host/browser/runtime/browserRuntime.json',
+  'src/host/browser/runtime/runtimeStore.ts',
+  'src/host/browser/runtime/zipExtract.ts',
+  'src/core/browser/runtime/runtimeManifest.ts',
+]
+const browserCheck = inputsOf(BROWSER_CHECK)
+const browserRuntime = inputsOf(BROWSER_RUNTIME)
+for (const file of BROWSER_ONLY) {
+  for (const [output, inputs] of [
+    ...loaders,
+    [BUNDLES.modelApi.output, modelApi],
+    [BROWSER_RUNTIME.output, browserRuntime],
+  ]) {
+    if (inputs.has(file)) {
+      problems.push(`${output} carries ${file}, which belongs to the browser check bundle`)
+    }
+  }
+  if (!browserCheck.has(file)) {
+    problems.push(`${BROWSER_CHECK.output} no longer carries ${file}`)
+  }
+}
+for (const file of RUNTIME_ONLY) {
+  for (const [output, inputs] of [
+    ...loaders,
+    [BUNDLES.modelApi.output, modelApi],
+    [BROWSER_CHECK.output, browserCheck],
+    [CHECKPOINT_STORE.output, inputsOf(CHECKPOINT_STORE)],
+  ]) {
+    if (inputs.has(file)) {
+      problems.push(`${output} carries ${file}, which belongs to the browser runtime bundle`)
+    }
+  }
+  if (!browserRuntime.has(file)) {
+    problems.push(`${BROWSER_RUNTIME.output} no longer carries ${file}`)
+  }
+}
+// M81 A1: the browser check and its runtime store return a closed failure
+// union and show no text of their own, so neither loads the English table;
+// neither may carry a copy of it either.
+for (const [output, inputs] of [
+  [BROWSER_RUNTIME.output, browserRuntime],
+  [BROWSER_CHECK.output, browserCheck],
+]) {
+  if (inputs.has(ENGLISH_TABLE)) {
+    problems.push(`${output} duplicates ${ENGLISH_TABLE}`)
+  }
 }
 for (const bundle of [
   BUNDLES.activation,
@@ -484,6 +685,27 @@ for (const bundle of ON_FIRST_USE) {
   }
 }
 
+// What's New's page script (M99) is a few lines that pass clicks back: it
+// carries no package, not the display table and not constants.ts (which
+// re-exports that table), only the script and its markup contract.
+const WHATS_NEW_PAGE = {
+  output: 'dist/webview/whatsNew.js',
+  metafile: 'dist/meta/whatsNewPage.json',
+  script: 'src/webview/whatsNew/whatsNewPage.ts',
+  never: ['node_modules/', 'src/shared/l10n/', 'src/shared/constants.ts'],
+}
+const whatsNewPage = inputsOf(WHATS_NEW_PAGE)
+for (const prefix of WHATS_NEW_PAGE.never) {
+  if (hasPrefix(whatsNewPage, prefix)) {
+    problems.push(
+      `${WHATS_NEW_PAGE.output} carries ${prefix}, which What’s New’s page script never needs`,
+    )
+  }
+}
+if (!whatsNewPage.has(WHATS_NEW_PAGE.script)) {
+  problems.push(`${WHATS_NEW_PAGE.output} no longer carries ${WHATS_NEW_PAGE.script}`)
+}
+
 // Model text (PLAN.md D6, 2026-10-03). One object is carried whole by every
 // bundle that reads any key of it: esbuild does not tree-shake by key. So
 // text that only lazily loaded bundles read is a block of its own in
@@ -504,7 +726,7 @@ function shippedBundles() {
         const metafile = `${dir}/${name}`
         const { outputs } = JSON.parse(readFileSync(metafile, 'utf8'))
         return Object.keys(outputs)
-          .filter((output) => output.endsWith('.js'))
+          .filter((output) => output.endsWith('.js') && !output.startsWith('dist/webview/chunks/'))
           .map((output) => ({ output, metafile }))
       }),
   )
@@ -519,6 +741,12 @@ function shipped(output) {
   return bundle ?? { output, metafile: '' }
 }
 const TEXT_BLOCKS = [
+  {
+    block: 'HOOK_MODEL_TEXT',
+    sentinels: ['hookPromptRole', 'hookAgentRole', 'hookAnswer'],
+    // Lane H's prompt and agent handlers run from the hook runtime (M91).
+    readers: ['dist/hookRuntime.js'],
+  },
   {
     block: 'MODEL_API_MODEL_TEXT',
     sentinels: ['compactionPrompt', 'goalUnfinishedExists', 'verifyUncheckedCodeLoading'],
@@ -599,7 +827,13 @@ function blockKeys(name) {
 const outputText = new Map()
 function textOf(output) {
   if (!outputText.has(output)) {
-    outputText.set(output, readFileSync(output, 'utf8'))
+    const files =
+      output === 'dist/webview/main.js'
+        ? Object.keys(JSON.parse(readFileSync('dist/meta/webview.json', 'utf8')).outputs).filter(
+            (file) => file.endsWith('.js'),
+          )
+        : [output]
+    outputText.set(output, files.map((file) => readFileSync(file, 'utf8')).join('\n'))
   }
   return outputText.get(output)
 }
@@ -665,6 +899,115 @@ for (const key of modelTextKeys) {
   }
 }
 
+// All six optional surfaces must remain behind dynamic imports. Every
+// emitted JS chunk must be reachable and packaged; stale output is refused.
+const webviewMeta = JSON.parse(readFileSync('dist/meta/webview.json', 'utf8'))
+const eagerWebview = new Set(webviewStartupOutputs(webviewMeta))
+const reachableWebview = new Set()
+const visitWebview = (file) => {
+  if (reachableWebview.has(file)) return
+  reachableWebview.add(file)
+  const output = webviewMeta.outputs[file]
+  if (!output) {
+    problems.push(`Missing webview chunk ${file}`)
+    return
+  }
+  for (const imported of output.imports) if (!imported.external) visitWebview(imported.path)
+}
+visitWebview('dist/webview/main.js')
+for (const surface of DEFERRED_WEBVIEW_SURFACES) {
+  const source = `src/webview/components/${surface}.tsx`
+  const outputs = Object.entries(webviewMeta.outputs).filter(([, output]) =>
+    Object.hasOwn(output.inputs, source),
+  )
+  if (outputs.length !== 1 || eagerWebview.has(outputs[0]?.[0])) {
+    problems.push(`${source} must occur in exactly one deferred webview chunk`)
+  }
+}
+for (const [file, output] of Object.entries(webviewMeta.outputs)) {
+  if (!file.endsWith('.js')) continue
+  if (!reachableWebview.has(file) || !existsSync(file))
+    problems.push(`Unreachable or missing webview chunk ${file}`)
+  if (
+    output.entryPoint &&
+    output.entryPoint !== 'src/webview/main.tsx' &&
+    DEFERRED_WEBVIEW_SURFACES.every(
+      (name) => output.entryPoint !== `src/webview/components/${name}.tsx`,
+    )
+  ) {
+    problems.push(`Unlisted deferred webview surface ${output.entryPoint}`)
+  }
+}
+const chunks = 'dist/webview/chunks'
+const builtChunks = readdirSync(chunks).filter((name) => name.endsWith('.js'))
+for (const file of builtChunks) {
+  if (!reachableWebview.has(`${chunks}/${file}`)) problems.push(`Stale webview chunk ${file}`)
+}
+
+// TRAIN13B: Node consumers share exactly the mini-parser API they read.
+const validationMeta = JSON.parse(readFileSync('dist/meta/validation.json', 'utf8'))
+const validationExports = new Set(
+  Object.keys(createRequire(import.meta.url)(path.resolve('dist/validation.js'))),
+)
+const nodeMetafiles = readdirSync('dist/meta')
+  .filter((name) => !['validation.json', 'webview.json', 'whatsNewPage.json'].includes(name))
+  .map((name) => `dist/meta/${name}`)
+nodeMetafiles.push('dist/meta-acp/acp.json')
+const validationReaders = new Set()
+for (const file of nodeMetafiles) {
+  const meta = JSON.parse(readFileSync(file, 'utf8'))
+  for (const [output, details] of Object.entries(meta.outputs)) {
+    if (
+      Object.keys(details.inputs).some((input) => input.startsWith('node_modules/zod/v4/mini/'))
+    ) {
+      problems.push(`${output} inlines the shared mini-parser`)
+    }
+  }
+  const sourceInputs = Object.keys(meta.inputs).filter((name) => name.startsWith('src/'))
+  for (const input of sourceInputs) {
+    validationReaders.add(input)
+  }
+}
+for (const input of validationReaders) {
+  const source = ts.createSourceFile(
+    input,
+    readFileSync(input, 'utf8'),
+    ts.ScriptTarget.Latest,
+    true,
+  )
+  const aliases = new Set()
+  for (const statement of source.statements) {
+    if (
+      ts.isImportDeclaration(statement) &&
+      ts.isStringLiteral(statement.moduleSpecifier) &&
+      statement.moduleSpecifier.text === 'zod/mini' &&
+      statement.importClause?.namedBindings &&
+      ts.isNamespaceImport(statement.importClause.namedBindings)
+    ) {
+      aliases.add(statement.importClause.namedBindings.name.text)
+    }
+  }
+  const visit = (node) => {
+    if (
+      ts.isPropertyAccessExpression(node) &&
+      ts.isIdentifier(node.expression) &&
+      aliases.has(node.expression.text) &&
+      !validationExports.has(node.name.text)
+    ) {
+      problems.push(`${input} reads zod/mini.${node.name.text}, absent from validation.js`)
+    }
+    ts.forEachChild(node, visit)
+  }
+  visit(source)
+}
+if (
+  Object.keys(validationMeta.inputs).every(
+    (input) => !input.startsWith('node_modules/zod/v4/mini/'),
+  )
+) {
+  problems.push('dist/validation.js no longer carries the mini-parser')
+}
+
 if (problems.length > 0) {
   console.error(`bundle split: ${String(problems.length)} problem(s); see PLAN.md D6 and M57`)
   for (const problem of problems) {
@@ -706,6 +1049,12 @@ console.log(
   `ok   ${CHECKPOINT_STORE.output}: carries the checkpoint implementation; activation keeps the port and synchronous loader`,
 )
 console.log(
+  `ok   ${BROWSER_CHECK.output}: carries the browser check's pipe, run, proxy, canaries and processes; activation keeps the loaders and the tool`,
+)
+console.log(
+  `ok   ${BROWSER_RUNTIME.output}: carries the runtime's acquisition (pin, download, ZIP reader, store); no other bundle does`,
+)
+console.log(
   `ok   ${REVIEW.output}: carries the review and edit review; ${BUNDLES.activation.output} keeps the loader`,
 )
 console.log(
@@ -719,3 +1068,4 @@ for (const bundle of DEFERRED) console.log(`ok   ${bundle.output}: loads only on
 for (const bundle of ON_FIRST_USE) {
   console.log(`ok   ${bundle.output}: loads only on ${bundle.use}, never at activation`)
 }
+console.log(`ok   ${WHATS_NEW_PAGE.output}: the page script alone, no package and no display table`)

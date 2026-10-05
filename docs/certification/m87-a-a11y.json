@@ -1,0 +1,462 @@
+[
+  {
+    "theme": "dark",
+    "scenario": "context-meter",
+    "violations": [],
+    "incomplete": [
+      {
+        "id": "color-contrast",
+        "impact": "serious",
+        "help": "Elements must meet minimum color contrast ratio thresholds",
+        "nodes": [
+          {
+            "target": "text",
+            "summary": "Fix any of the following:\n  Element's background color could not be determined because it is overlapped by another element",
+            "reasons": ["bgOverlap"]
+          }
+        ]
+      }
+    ],
+    "exempt": [],
+    "harnessErrors": []
+  },
+  {
+    "theme": "dark",
+    "scenario": "context-meter-warning",
+    "violations": [],
+    "incomplete": [
+      {
+        "id": "color-contrast",
+        "impact": "serious",
+        "help": "Elements must meet minimum color contrast ratio thresholds",
+        "nodes": [
+          {
+            "target": "text",
+            "summary": "Fix any of the following:\n  Element's background color could not be determined because it is overlapped by another element",
+            "reasons": ["bgOverlap"]
+          }
+        ]
+      }
+    ],
+    "exempt": [],
+    "harnessErrors": []
+  },
+  {
+    "theme": "dark",
+    "scenario": "context-meter-full",
+    "violations": [],
+    "incomplete": [
+      {
+        "id": "color-contrast",
+        "impact": "serious",
+        "help": "Elements must meet minimum color contrast ratio thresholds",
+        "nodes": [
+          {
+            "target": "text",
+            "summary": "Fix any of the following:\n  Element's background color could not be determined because it is overlapped by another element",
+            "reasons": ["bgOverlap"]
+          }
+        ]
+      }
+    ],
+    "exempt": [],
+    "harnessErrors": []
+  },
+  {
+    "theme": "dark",
+    "scenario": "palette-tips",
+    "violations": [],
+    "incomplete": [],
+    "exempt": [],
+    "harnessErrors": []
+  },
+  {
+    "theme": "dark",
+    "scenario": "slash-tips",
+    "violations": [],
+    "incomplete": [
+      {
+        "id": "color-contrast",
+        "impact": "serious",
+        "help": "Elements must meet minimum color contrast ratio thresholds",
+        "nodes": [
+          {
+            "target": ".onboarding-list > li:nth-child(8) > span",
+            "summary": "Fix any of the following:\n  Element's background color could not be determined because it is overlapped by another element",
+            "reasons": ["bgOverlap"]
+          },
+          {
+            "target": "li:nth-child(9) > kbd",
+            "summary": "Fix any of the following:\n  Element's background color could not be determined because it is overlapped by another element",
+            "reasons": ["bgOverlap"]
+          },
+          {
+            "target": "li:nth-child(9) > span",
+            "summary": "Fix any of the following:\n  Element's background color could not be determined because it is overlapped by another element",
+            "reasons": ["bgOverlap"]
+          },
+          {
+            "target": ".usage-link",
+            "summary": "Fix any of the following:\n  Element's background color could not be determined because it is overlapped by another element",
+            "reasons": ["bgOverlap"]
+          }
+        ]
+      }
+    ],
+    "exempt": [],
+    "harnessErrors": []
+  },
+  {
+    "theme": "dark",
+    "scenario": "stop-running",
+    "violations": [],
+    "incomplete": [],
+    "exempt": [],
+    "harnessErrors": []
+  },
+  {
+    "theme": "light",
+    "scenario": "context-meter",
+    "violations": [],
+    "incomplete": [
+      {
+        "id": "color-contrast",
+        "impact": "serious",
+        "help": "Elements must meet minimum color contrast ratio thresholds",
+        "nodes": [
+          {
+            "target": "text",
+            "summary": "Fix any of the following:\n  Element's background color could not be determined because it is overlapped by another element",
+            "reasons": ["bgOverlap"]
+          }
+        ]
+      }
+    ],
+    "exempt": [],
+    "harnessErrors": []
+  },
+  {
+    "theme": "light",
+    "scenario": "context-meter-warning",
+    "violations": [],
+    "incomplete": [
+      {
+        "id": "color-contrast",
+        "impact": "serious",
+        "help": "Elements must meet minimum color contrast ratio thresholds",
+        "nodes": [
+          {
+            "target": "text",
+            "summary": "Fix any of the following:\n  Element's background color could not be determined because it is overlapped by another element",
+            "reasons": ["bgOverlap"]
+          }
+        ]
+      }
+    ],
+    "exempt": [],
+    "harnessErrors": []
+  },
+  {
+    "theme": "light",
+    "scenario": "context-meter-full",
+    "violations": [],
+    "incomplete": [
+      {
+        "id": "color-contrast",
+        "impact": "serious",
+        "help": "Elements must meet minimum color contrast ratio thresholds",
+        "nodes": [
+          {
+            "target": "text",
+            "summary": "Fix any of the following:\n  Element's background color could not be determined because it is overlapped by another element",
+            "reasons": ["bgOverlap"]
+          }
+        ]
+      }
+    ],
+    "exempt": [],
+    "harnessErrors": []
+  },
+  {
+    "theme": "light",
+    "scenario": "palette-tips",
+    "violations": [],
+    "incomplete": [],
+    "exempt": [],
+    "harnessErrors": []
+  },
+  {
+    "theme": "light",
+    "scenario": "slash-tips",
+    "violations": [],
+    "incomplete": [
+      {
+        "id": "color-contrast",
+        "impact": "serious",
+        "help": "Elements must meet minimum color contrast ratio thresholds",
+        "nodes": [
+          {
+            "target": ".onboarding-list > li:nth-child(8) > span",
+            "summary": "Fix any of the following:\n  Element's background color could not be determined because it is overlapped by another element",
+            "reasons": ["bgOverlap"]
+          },
+          {
+            "target": "li:nth-child(9) > kbd",
+            "summary": "Fix any of the following:\n  Element's background color could not be determined because it is overlapped by another element",
+            "reasons": ["bgOverlap"]
+          },
+          {
+            "target": "li:nth-child(9) > span",
+            "summary": "Fix any of the following:\n  Element's background color could not be determined because it is overlapped by another element",
+            "reasons": ["bgOverlap"]
+          },
+          {
+            "target": ".usage-link",
+            "summary": "Fix any of the following:\n  Element's background color could not be determined because it is overlapped by another element",
+            "reasons": ["bgOverlap"]
+          }
+        ]
+      }
+    ],
+    "exempt": [],
+    "harnessErrors": []
+  },
+  {
+    "theme": "light",
+    "scenario": "stop-running",
+    "violations": [],
+    "incomplete": [],
+    "exempt": [],
+    "harnessErrors": []
+  },
+  {
+    "theme": "hc-dark",
+    "scenario": "context-meter",
+    "violations": [],
+    "incomplete": [
+      {
+        "id": "color-contrast",
+        "impact": "serious",
+        "help": "Elements must meet minimum color contrast ratio thresholds",
+        "nodes": [
+          {
+            "target": "text",
+            "summary": "Fix any of the following:\n  Element's background color could not be determined because it is overlapped by another element",
+            "reasons": ["bgOverlap"]
+          }
+        ]
+      }
+    ],
+    "exempt": [],
+    "harnessErrors": []
+  },
+  {
+    "theme": "hc-dark",
+    "scenario": "context-meter-warning",
+    "violations": [],
+    "incomplete": [
+      {
+        "id": "color-contrast",
+        "impact": "serious",
+        "help": "Elements must meet minimum color contrast ratio thresholds",
+        "nodes": [
+          {
+            "target": "text",
+            "summary": "Fix any of the following:\n  Element's background color could not be determined because it is overlapped by another element",
+            "reasons": ["bgOverlap"]
+          }
+        ]
+      }
+    ],
+    "exempt": [],
+    "harnessErrors": []
+  },
+  {
+    "theme": "hc-dark",
+    "scenario": "context-meter-full",
+    "violations": [],
+    "incomplete": [
+      {
+        "id": "color-contrast",
+        "impact": "serious",
+        "help": "Elements must meet minimum color contrast ratio thresholds",
+        "nodes": [
+          {
+            "target": "text",
+            "summary": "Fix any of the following:\n  Element's background color could not be determined because it is overlapped by another element",
+            "reasons": ["bgOverlap"]
+          }
+        ]
+      }
+    ],
+    "exempt": [],
+    "harnessErrors": []
+  },
+  {
+    "theme": "hc-dark",
+    "scenario": "palette-tips",
+    "violations": [],
+    "incomplete": [],
+    "exempt": [],
+    "harnessErrors": []
+  },
+  {
+    "theme": "hc-dark",
+    "scenario": "slash-tips",
+    "violations": [],
+    "incomplete": [
+      {
+        "id": "color-contrast",
+        "impact": "serious",
+        "help": "Elements must meet minimum color contrast ratio thresholds",
+        "nodes": [
+          {
+            "target": ".onboarding-list > li:nth-child(8) > span",
+            "summary": "Fix any of the following:\n  Element's background color could not be determined because it is overlapped by another element",
+            "reasons": ["bgOverlap"]
+          },
+          {
+            "target": "li:nth-child(9) > kbd",
+            "summary": "Fix any of the following:\n  Element's background color could not be determined because it is overlapped by another element",
+            "reasons": ["bgOverlap"]
+          },
+          {
+            "target": "li:nth-child(9) > span",
+            "summary": "Fix any of the following:\n  Element's background color could not be determined because it is overlapped by another element",
+            "reasons": ["bgOverlap"]
+          },
+          {
+            "target": ".usage-link",
+            "summary": "Fix any of the following:\n  Element's background color could not be determined because it is overlapped by another element",
+            "reasons": ["bgOverlap"]
+          }
+        ]
+      }
+    ],
+    "exempt": [],
+    "harnessErrors": []
+  },
+  {
+    "theme": "hc-dark",
+    "scenario": "stop-running",
+    "violations": [],
+    "incomplete": [],
+    "exempt": [],
+    "harnessErrors": []
+  },
+  {
+    "theme": "hc-light",
+    "scenario": "context-meter",
+    "violations": [],
+    "incomplete": [
+      {
+        "id": "color-contrast",
+        "impact": "serious",
+        "help": "Elements must meet minimum color contrast ratio thresholds",
+        "nodes": [
+          {
+            "target": "text",
+            "summary": "Fix any of the following:\n  Element's background color could not be determined because it is overlapped by another element",
+            "reasons": ["bgOverlap"]
+          }
+        ]
+      }
+    ],
+    "exempt": [],
+    "harnessErrors": []
+  },
+  {
+    "theme": "hc-light",
+    "scenario": "context-meter-warning",
+    "violations": [],
+    "incomplete": [
+      {
+        "id": "color-contrast",
+        "impact": "serious",
+        "help": "Elements must meet minimum color contrast ratio thresholds",
+        "nodes": [
+          {
+            "target": "text",
+            "summary": "Fix any of the following:\n  Element's background color could not be determined because it is overlapped by another element",
+            "reasons": ["bgOverlap"]
+          }
+        ]
+      }
+    ],
+    "exempt": [],
+    "harnessErrors": []
+  },
+  {
+    "theme": "hc-light",
+    "scenario": "context-meter-full",
+    "violations": [],
+    "incomplete": [
+      {
+        "id": "color-contrast",
+        "impact": "serious",
+        "help": "Elements must meet minimum color contrast ratio thresholds",
+        "nodes": [
+          {
+            "target": "text",
+            "summary": "Fix any of the following:\n  Element's background color could not be determined because it is overlapped by another element",
+            "reasons": ["bgOverlap"]
+          }
+        ]
+      }
+    ],
+    "exempt": [],
+    "harnessErrors": []
+  },
+  {
+    "theme": "hc-light",
+    "scenario": "palette-tips",
+    "violations": [],
+    "incomplete": [],
+    "exempt": [],
+    "harnessErrors": []
+  },
+  {
+    "theme": "hc-light",
+    "scenario": "slash-tips",
+    "violations": [],
+    "incomplete": [
+      {
+        "id": "color-contrast",
+        "impact": "serious",
+        "help": "Elements must meet minimum color contrast ratio thresholds",
+        "nodes": [
+          {
+            "target": ".onboarding-list > li:nth-child(8) > span",
+            "summary": "Fix any of the following:\n  Element's background color could not be determined because it is overlapped by another element",
+            "reasons": ["bgOverlap"]
+          },
+          {
+            "target": "li:nth-child(9) > kbd",
+            "summary": "Fix any of the following:\n  Element's background color could not be determined because it is overlapped by another element",
+            "reasons": ["bgOverlap"]
+          },
+          {
+            "target": "li:nth-child(9) > span",
+            "summary": "Fix any of the following:\n  Element's background color could not be determined because it is overlapped by another element",
+            "reasons": ["bgOverlap"]
+          },
+          {
+            "target": ".usage-link",
+            "summary": "Fix any of the following:\n  Element's background color could not be determined because it is overlapped by another element",
+            "reasons": ["bgOverlap"]
+          }
+        ]
+      }
+    ],
+    "exempt": [],
+    "harnessErrors": []
+  },
+  {
+    "theme": "hc-light",
+    "scenario": "stop-running",
+    "violations": [],
+    "incomplete": [],
+    "exempt": [],
+    "harnessErrors": []
+  }
+]

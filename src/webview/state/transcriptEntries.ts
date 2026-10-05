@@ -13,6 +13,7 @@ import {
   approvalSubjectSchema,
   answerSchema,
   citationSchema,
+  elicitationFieldSchema,
   outputRefSchema,
   patchSummarySchema,
   questionSchema,
@@ -58,6 +59,22 @@ const pendingQuestionSchema = z.object({
 })
 export type PendingQuestion = z.infer<typeof pendingQuestionSchema>
 
+/**
+ * An MCP elicitation form waiting on the user (M91 lane M): the server's
+ * message and the schema to fill. Values live only in the card's draft
+ * while it is open: settling clears the form, so nothing typed survives in
+ * the saved transcript.
+ */
+const pendingElicitationSchema = z.object({
+  elicitationId: z.string(),
+  server: z.string(),
+  message: z.string(),
+  fields: z.readonly(z.array(elicitationFieldSchema)),
+  /** Answered, declined or cancelled from the form: locked until the host settles it. */
+  isSubmitted: z.optional(z.boolean()),
+})
+export type PendingElicitation = z.infer<typeof pendingElicitationSchema>
+
 export type OutputRef = z.infer<typeof outputRefSchema>
 export type PatchSummary = z.infer<typeof patchSummarySchema>
 
@@ -72,6 +89,39 @@ const userAttachmentSchema = z.object({
   width: z.optional(z.number()),
   height: z.optional(z.number()),
 })
+
+// `turnAccepted.disposition` (M87, PLAN.md D66): the backend's words for a
+// message the model does not have yet.
+export const QUEUED_DISPOSITION = 'queued'
+export const STEERED_DISPOSITION = 'steered'
+
+// A backend's recorded time (M87): RFC 3339, as Muse Code sends `recordedAt`
+// (M46, M79) and the Model API host stamps it.
+const recordedAtSchema = z.iso.datetime({ offset: true })
+
+/**
+ * A recorded time as epoch milliseconds (M87, PLAN.md D66), or undefined for
+ * none or one that does not parse: an invalid value costs the time, never the
+ * row, and no other time stands in for it.
+ */
+export function recordedAtMs(recordedAt: string | undefined): number | undefined {
+  if (recordedAt === undefined || !recordedAtSchema.safeParse(recordedAt).success) {
+    return undefined
+  }
+  const epochMs = Date.parse(recordedAt)
+  return Number.isFinite(epochMs) ? epochMs : undefined
+}
+
+/** Whether a card's chips include an image (M87): what a withdrawn message may not get back. */
+export function hasImageAttachment(
+  attachments: readonly z.infer<typeof userAttachmentSchema>[],
+): boolean {
+  return attachments.some((attachment) =>
+    attachment.mediaType === undefined
+      ? attachment.width !== undefined || attachment.height !== undefined
+      : attachment.mediaType.startsWith('image/'),
+  )
+}
 
 export function hasFileAttachment(
   attachments: readonly z.infer<typeof userAttachmentSchema>[],
@@ -89,8 +139,20 @@ const userEntrySchema = z.object({
   /** Where the message falls in the arrival order (M20): the rewind boundary. */
   seq: z.number(),
   text: z.string(),
-  status: z.enum(['pending', 'sent', 'failed']),
+  /**
+   * `queued` (M87, PLAN.md D66): accepted, but the model does not have it
+   * yet; it lasts until the message reaches a request or its turn starts.
+   */
+  status: z.enum(['pending', 'queued', 'sent', 'failed']),
   reason: z.optional(z.string()),
+  /** What the backend did with it (`turnAccepted.disposition`): `queued` or `steered` matter here. */
+  disposition: z.optional(z.string()),
+  /**
+   * When it was sent (M87): the backend's recorded time (`recordedAt`), or
+   * the moment the host accepted it until that time arrives. Absent where
+   * nothing recorded one (a Model API session stored before M87).
+   */
+  atMs: z.optional(z.number()),
   attachments: z.readonly(z.array(userAttachmentSchema)),
   /** The open-file chip that went with the message (M5). */
   contextLabel: z.optional(z.string()),
@@ -100,6 +162,11 @@ const userEntrySchema = z.object({
   turnId: z.optional(z.string()),
   /** The Model API replay item's ID; live cards keep their local `id` for UI updates. */
   replayItemId: z.optional(z.string()),
+  /**
+   * The Muse Code user item whose recorded time this live card took (M87),
+   * matched by turn and text: that item no longer stamps another card.
+   */
+  recordedItemId: z.optional(z.string()),
   /** Sent from this panel in Plan mode (M79): the reply it gets may be a plan. */
   isPlanTurn: z.optional(z.boolean()),
 })
@@ -108,12 +175,18 @@ const assistantEntrySchema = z.object({
   kind: z.literal('assistant'),
   id: z.string(),
   text: z.string(),
+  displayText: z.optional(z.string()),
   isStreaming: z.boolean(),
   /** The web pages the reply cites (M33), listed under it as links. */
   citations: z.optional(z.readonly(z.array(citationSchema))),
   /** The response's tokens and dollar estimate (M82, Model API only). */
   usage: z.optional(tokenUsageSchema),
   costUsd: z.optional(z.number()),
+  /**
+   * When it was received (M87): the backend's recorded time, or the moment
+   * it began arriving until that time comes with its completion.
+   */
+  atMs: z.optional(z.number()),
 })
 
 const reasoningEntrySchema = z.object({
@@ -167,6 +240,7 @@ const toolEntrySchema = z.object({
     }),
   ),
   question: z.optional(pendingQuestionSchema),
+  elicitation: z.optional(pendingElicitationSchema),
   questionOutcome: z.optional(
     z.object({
       outcome: z.string(),
@@ -319,6 +393,7 @@ export const usageSummarySchema = z.object({
   cachedTokens: z.optional(z.number()),
   // The packing ledger's estimate (M73): absent unless packing runs.
   packedTokensAvoided: z.optional(z.number()),
+  hookTokensAdded: z.optional(z.number()),
 })
 export type UsageSummary = z.infer<typeof usageSummarySchema>
 

@@ -19,6 +19,8 @@ import {
   SETTING_DEFAULTS,
   SETTINGS_SECTION,
   WALKTHROUGH_ID,
+  WHATS_NEW_CHANGELOG_URL,
+  WHATS_NEW_README_URL,
 } from '../../src/shared/constants'
 import { findBash } from './helpers/shellParsers'
 
@@ -244,6 +246,8 @@ describe('package.json manifest', () => {
       [COMMAND_IDS.toggleThinking]: `activeWebviewPanelId == '${CHAT_PANEL_VIEW_TYPE}' || view.${CHAT_VIEW_ID}.visible`,
       // The Windows sandbox; a remote window may run on Windows whatever this machine is.
       [COMMAND_IDS.setUpSandbox]: 'isWindows || remoteName',
+      // M91b: only Windows prepares a job for plugin hooks.
+      [COMMAND_IDS.retryPluginHooks]: 'isWindows',
       // Writes AGENTS.md into the workspace folder.
       [COMMAND_IDS.createRulesFile]: 'workspaceFolderCount > 0',
       // Exports the conversation in front of the user (M30).
@@ -263,6 +267,21 @@ describe('package.json manifest', () => {
     for (const command of palette.keys()) {
       expect(registered).toContain(command)
     }
+  })
+
+  it('links What’s New to the repository the manifest names (M99)', () => {
+    const repository = manifest.repository.url.replace(/.git$/, '')
+    expect(WHATS_NEW_CHANGELOG_URL).toBe(`${repository}/blob/main/CHANGELOG.md`)
+    expect(WHATS_NEW_README_URL).toBe(manifest.homepage)
+    // Machine-scoped and on by default (the owner's ruling: enhancements are on).
+    expect(manifest.contributes.configuration.properties['museSpark.showWhatsNewOnUpdate']).toEqual(
+      {
+        type: 'boolean',
+        default: true,
+        description: '%config.showWhatsNewOnUpdate.description%',
+        scope: 'machine',
+      },
+    )
   })
 
   it('lists the extension under the AI and Chat categories only (M26)', () => {
@@ -303,6 +322,17 @@ describe('packaging (M26)', () => {
     for (const name of [...Object.keys(manifest.dependencies), 'react', 'zod', '@muse-code/sdk']) {
       expect(notices, name).toContain(`\n${name} (`)
     }
+  })
+
+  it('ships What’s New: its bundle, its content and its page (M99)', () => {
+    expect(shipped).toEqual(
+      expect.arrayContaining([
+        'dist/whatsNew.js',
+        'dist/whatsNew.json',
+        'dist/webview/whatsNew.js',
+        'dist/webview/whatsNew.css',
+      ]),
+    )
   })
 
   it('ships the manifest strings and the translated tables, not the harness (M40)', () => {
@@ -413,6 +443,39 @@ describe('packaging (M26)', () => {
     for (const job of ['build', 'release', 'publish', 'openvsx', 'npm', 'summary']) {
       const body = release.split(`\n  ${job}:\n`, 2)[1]!.split(/\n {2}[a-z]+:\n/, 1)[0]!
       expect(body, job).toContain('if: ${{ !cancelled()')
+    }
+  })
+
+  it('starts the live Action receipt by the owner’s hand only, under a hard cap (M80 LA)', () => {
+    const live = read('.github', 'workflows', 'action-live.yml')
+    // The one trigger: no pull request, push, comment or schedule reaches the key.
+    const triggers = live.split('\non:\n', 2)[1]!.split('\npermissions:\n', 1)[0]!
+    expect(triggers.match(/^ {2}\S.*$/gm)).toEqual(['  workflow_dispatch:'])
+    const ownerGate = [
+      "github.event_name == 'workflow_dispatch' &&",
+      'github.actor == github.repository_owner &&',
+      'github.triggering_actor == github.repository_owner &&',
+      "github.ref == format('refs/heads/{0}', github.event.repository.default_branch)",
+    ].join('\n      ')
+    expect(count(live, /^ {4}runs-on: /gm)).toBe(2)
+    expect(live.split(ownerGate).length - 1).toBe(2)
+    expect(count(live, /^ {4}timeout-minutes: \d+$/gm)).toBe(2)
+    expect(count(live, /^ {6}- uses: actions\/checkout@/gm)).toBe(
+      count(live, /^ {10}persist-credentials: false$/gm),
+    )
+    expect(live).not.toMatch(/:\s*write\b/)
+    // The key is the Action's input and nothing else's.
+    expect(live.match(/secrets\.\w+/g)).toEqual(['secrets.MUSE_MODEL_API_KEY'])
+    expect(live).toMatch(/^ {10}model-api-key: \$\{\{ secrets\.MUSE_MODEL_API_KEY \}\}$/m)
+    for (const input of [
+      "max-budget-usd: '0.25'",
+      'model: muse-spark-1.3-contributor',
+      "allow-contributor-models: 'true'",
+      "image-generation: 'false'",
+      "post-comment: 'false'",
+      "timeout-minutes: '10'",
+    ]) {
+      expect(live).toContain(`\n          ${input}\n`)
     }
   })
 })

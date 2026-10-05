@@ -129,6 +129,7 @@ export interface StoredSession {
    * before the ledger was kept, which resumes at zero.
    */
   readonly packedTokensAvoided?: number
+  readonly hookTokensAdded?: number
   /** Children are nested in the parent's file; they do not appear in History. */
   readonly children?: readonly StoredChild[]
   /** Completed children whose results have not entered the next model request. */
@@ -270,6 +271,8 @@ const storedSessionFields = {
       backgroundTaskId: z.optional(z.string()),
     }),
   ),
+  // Each item keeps its optional `recordedAt` (M87, PLAN.md D66): the time the
+  // host stamped on a user message or reply; a file saved before has none.
   transcript: z.array(
     z.object({
       turnId: z.string(),
@@ -289,6 +292,7 @@ const storedSessionFields = {
   // Optional, so a session saved before M73 kept its ledger still reads; a
   // corrupt value is dropped before validation (withoutCorruptEstimate).
   packedTokensAvoided: z.optional(z.int().check(z.nonnegative())),
+  hookTokensAdded: z.optional(z.int().check(z.nonnegative())),
 } as const
 
 export const storedSessionSchema = z.object({
@@ -377,6 +381,7 @@ export function parseStoredSession(raw: unknown): StoredSessionParse {
     budgetIsFreshFork,
     agent,
     packedTokensAvoided,
+    hookTokensAdded,
     ...rest
   } = result.data
   const replay = rest.replay.map(({ backgroundTaskId, userMessageId, ...entry }) => ({
@@ -438,6 +443,7 @@ export function parseStoredSession(raw: unknown): StoredSessionParse {
       ...(spawnCommands !== undefined && { spawnCommands }),
       ...(agent !== undefined && { agent }),
       ...(packedTokensAvoided !== undefined && { packedTokensAvoided }),
+      ...(hookTokensAdded !== undefined && { hookTokensAdded }),
     },
   }
 }

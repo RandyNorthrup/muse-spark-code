@@ -9,6 +9,7 @@ import { Buffer } from 'node:buffer'
 import { randomBytes, randomUUID } from 'node:crypto'
 import { createServer } from 'node:net'
 import { setEnvironmentVariable } from '../../core/backends/musecode/launch'
+import { redactSecrets } from '../../core/redact'
 import {
   MCP_JOB_CONFIG_VARIABLE,
   MCP_JOB_HANDSHAKE_MAX_CHARS,
@@ -24,6 +25,8 @@ export interface McpJobLaunch {
   /** Only the allowlisted and explicitly configured variables reach the server. */
   readonly env: NodeJS.ProcessEnv
   readonly log: (message: string) => void
+  /** The whole job's memory in bytes (M91b, plugin children); absent sets no limit. */
+  readonly jobMemoryLimit?: number | undefined
 }
 
 /** The raw pipes belong to this ChildProcess; no text relay touches MCP frames. */
@@ -36,7 +39,7 @@ export function spawnMcpJob(launch: McpJobLaunch): ChildProcessWithoutNullStream
     let request = ''
     let isAuthorized = false
     socket.on('error', (error) => {
-      launch.log(`the MCP job control pipe closed: ${error.message}`)
+      launch.log(`the MCP job control pipe closed: ${redactSecrets(error.message)}`)
     })
     socket.on('data', (bytes: Buffer) => {
       if (isAuthorized) return
@@ -67,7 +70,7 @@ export function spawnMcpJob(launch: McpJobLaunch): ChildProcessWithoutNullStream
     if (isClosed) control.close()
   })
   control.on('error', (error) => {
-    launch.log(`the MCP job control pipe could not listen: ${error.message}`)
+    launch.log(`the MCP job control pipe could not listen: ${redactSecrets(error.message)}`)
     child?.kill()
   })
   control.listen(`\\\\.\\pipe\\${controlPipe}`)
@@ -82,6 +85,7 @@ export function spawnMcpJob(launch: McpJobLaunch): ChildProcessWithoutNullStream
       isVerbatim: launch.isVerbatim,
       controlPipe,
       controlNonce,
+      ...(launch.jobMemoryLimit !== undefined && { jobMemoryLimit: launch.jobMemoryLimit }),
     }),
     'utf8',
   ).toString('base64')

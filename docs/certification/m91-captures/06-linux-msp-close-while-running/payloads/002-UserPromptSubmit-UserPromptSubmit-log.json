@@ -1,0 +1,10 @@
+{
+  "cwd": "<workspace>",
+  "hook_event_name": "UserPromptSubmit",
+  "model": "echo",
+  "permission_mode": "default",
+  "prompt": "m91 capture: warm-up turn",
+  "session_id": "01a10858-e524-7e21-9110-3d5e657d5582",
+  "transcript_path": null,
+  "turn_id": "01a10858-e59b-7000-baee-66474cb653b1"
+}

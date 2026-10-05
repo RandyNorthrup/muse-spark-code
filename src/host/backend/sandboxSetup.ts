@@ -7,6 +7,7 @@
 
 import type { LaunchResolution } from '../../core/backends/musecode/launch'
 import { failureForLog } from '../../core/backends/musecode/logText'
+import { redactSecrets } from '../../core/redact'
 import {
   type CliInvocation,
   elevatedInvocation,
@@ -84,7 +85,7 @@ export class SandboxSetup {
     this.deps.log.info(`Sandbox setup: ${invocation.command} ${invocation.args.join(' ')}`)
     const result = await this.deps.run(invocation, SANDBOX_SETUP_TIMEOUT_MS)
     if (result.exitCode !== 0) {
-      const detail = firstLine(result.stderr) || firstLine(result.stdout)
+      const detail = redactSecrets(firstLine(result.stderr) || firstLine(result.stdout))
       const outcome =
         result.exitCode === FAILED_EXIT_CODE ? 'did not run' : `exited ${String(result.exitCode)}`
       this.deps.log.warn(`Sandbox setup ${outcome}: ${detail}`)

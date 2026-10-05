@@ -6,6 +6,7 @@
 
 import type {
   AgentEvent,
+  ElicitationReply,
   ItemSnapshot,
   QuestionAnswer,
   RequirementRef,
@@ -21,8 +22,24 @@ import type {
 } from '../../shared/schedule'
 import type { ApprovalMode } from '../../shared/permissionModes'
 import type { SessionExport } from '../export/sessionTransfer'
+import type { ExtensionHookDispatch, ExtensionHookEvent } from '../backends/modelapi/extensionHooks'
 
 export type BackendKind = 'museCode' | 'modelApi'
+/** Shared empty result; importing it never loads a backend bundle. */
+export const NO_EXTENSION_HOOK_DISPATCH: ExtensionHookDispatch = {
+  refusedReason: undefined,
+  failedReason: undefined,
+  messages: [],
+  contexts: [],
+  displayText: undefined,
+  allowedTools: undefined,
+  answer: undefined,
+  hasAnswer: false,
+  output: '',
+  keepWorking: false,
+  keepReason: undefined,
+  attemptFailed: undefined,
+}
 
 /** How a backend process ended, as the conversations need to know it (PLAN.md D25). */
 export interface HostExit {
@@ -326,6 +343,27 @@ export interface TurnSubmission {
   readonly userMessageId?: string
 }
 
+/**
+ * A message accepted as queued or steered (M87, PLAN.md D66), named as its
+ * submission was acknowledged: what `withdrawQueued` takes back.
+ */
+export interface QueuedMessageRef {
+  readonly turnId: string
+  /** The backend's user item id for it (the Model API's); undefined where none was given. */
+  readonly userMessageId: string | undefined
+  /** The submission's `disposition`: `queued` or `steered`, as the backend said it. */
+  readonly disposition: string
+}
+
+/**
+ * What withdrawing did (M87): `withdrawn`, with the images the message
+ * carried (undefined where the backend keeps no bytes, an empty list for a
+ * message with none), or `tooLate`: the message already reached a request.
+ */
+export type WithdrawOutcome =
+  | { readonly status: 'withdrawn'; readonly images: readonly SentImage[] | undefined }
+  | { readonly status: 'tooLate' }
+
 export interface CompactOutcome {
   readonly status: string
   readonly reason: string | undefined
@@ -454,6 +492,12 @@ export interface AgentSession {
   /** Decline the prompt: the tool call resolves with a cancelled result the model sees (M16). */
   cancelQuestions(userInputId: string): Promise<void>
   /**
+   * Settle an MCP elicitation form (M91 lane M): accept with validated
+   * values, or decline or cancel. Absent where the backend never asks
+   * (Muse Code answers its own elicitations itself).
+   */
+  settleElicitation?: (elicitationId: string, reply: ElicitationReply) => Promise<void>
+  /**
    * Answer with an explanation instead of the options (MSP `userInput/clarify`,
    * M46): the model reads it and decides again.
    */
@@ -513,11 +557,32 @@ export interface AgentSession {
    */
   readonly setTodos?: (items: readonly TodoItem[]) => void
   /**
+   * Fire one extension hook event from the session's own snapshot (M91):
+   * the Model API backend runs its spark-hooks.json snapshot outside any
+   * turn (a Best-of-N worktree, an idling teammate, a message about to
+   * show). Hook context has no turn to join, so only the decision comes
+   * back. Sessions without such a point leave it absent, and the operation
+   * proceeds as before.
+   */
+  readonly fireExtensionHook?: (
+    event: ExtensionHookEvent,
+    fields: Readonly<Record<string, unknown>>,
+    matcherValue?: string,
+  ) => Promise<ExtensionHookDispatch>
+  /**
    * Told when the backend reports this session's own event log failed, so
    * it can take no new message (CLI recovery): Muse Code 1.4.2 answered a
    * command with "event log failed: …". The Model API keeps no such log.
    */
   readonly onLogDamaged?: (listener: () => void) => () => void
+  /**
+   * Take back a message before the model has it (M87, PLAN.md D66): the
+   * Model API removes it from its queue or the running turn's steered input;
+   * Muse Code sends `turn/unqueue` for a submit acknowledged `queued`. It
+   * resolves `tooLate` once the message reached a request. A session
+   * without it offers no Edit: the controller refuses before asking.
+   */
+  readonly withdrawQueued?: (ref: QueuedMessageRef) => Promise<WithdrawOutcome>
   dispose(): void
 }
 

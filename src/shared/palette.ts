@@ -8,6 +8,7 @@ import {
   type EffortLevel,
   type ExportFormat,
   ISSUES_URL,
+  HOOK_RUN_SLASH_COMMAND,
   MUSE_DOCS_URL,
   type PaidFeature,
   type PermissionMode,
@@ -53,6 +54,7 @@ export type PaletteAction =
   /** `/goal ` in the prompt, for the objective (M45). */
   | { readonly type: 'startGoal' }
   | { readonly type: 'startLoop' }
+  | { readonly type: 'startHook' }
   | { readonly type: 'compact' }
   /** `/handoff …` in the prompt, for the new conversation's goal (M74). */
   | { readonly type: 'startHandoff' }
@@ -72,6 +74,8 @@ export type PaletteAction =
   /** "Open share file…" (M84): a portable JSON file read-only in the panel. */
   | { readonly type: 'openShareFile' }
   | { readonly type: 'openLog' }
+  /** "What's New" (M99): the release notes of this version in an editor tab. */
+  | { readonly type: 'showWhatsNew' }
   | { readonly type: 'openExternal'; readonly url: string }
   | { readonly type: 'setPaidFeature'; readonly feature: PaidFeature; readonly isOn: boolean }
   /** `/review ` in the prompt, for what to review (M70). */
@@ -85,6 +89,8 @@ export type PaletteAction =
 export interface PaletteItem {
   readonly id: string
   readonly label: string
+  /** Absent only on the loading/empty notes and externally supplied rows. */
+  readonly tip?: string | undefined
   readonly detail?: string
   readonly widget?: PaletteWidget
   readonly action: PaletteAction
@@ -410,6 +416,7 @@ function skillItems(skills: readonly SkillOption[] | undefined): readonly Palett
   return skills.map((skill) => ({
     id: `skill:${skill.selector}`,
     label: `/${skill.selector}`,
+    tip: skill.description.trim() || fill(UI_TEXT.paletteSkillTip, { name: skill.displayName }),
     detail:
       skill.argumentHint === undefined
         ? skill.description
@@ -419,7 +426,7 @@ function skillItems(skills: readonly SkillOption[] | undefined): readonly Palett
 }
 
 export function buildPalette(context: PaletteContext): readonly PaletteGroup[] {
-  return [
+  const groups: readonly PaletteGroup[] = [
     {
       id: 'context',
       title: UI_TEXT.groupContext,
@@ -515,7 +522,7 @@ export function buildPalette(context: PaletteContext): readonly PaletteGroup[] {
         {
           id: 'importFromAgents',
           label: UI_TEXT.agentImportItem,
-          detail: UI_TEXT.agentImportDetail,
+          detail: UI_TEXT.agentImportDetailEvery,
           action: { type: 'importFromAgents' },
         },
         // Muse Code's memory (M49): the same notes on both backends.
@@ -576,6 +583,12 @@ export function buildPalette(context: PaletteContext): readonly PaletteGroup[] {
       title: UI_TEXT.groupSlashCommands,
       items: [
         {
+          id: 'hookRun',
+          label: `/${HOOK_RUN_SLASH_COMMAND}`,
+          detail: UI_TEXT.manualHookSlashDetail,
+          action: { type: 'startHook' },
+        },
+        {
           id: 'agents',
           label: UI_TEXT.agentsCommand,
           detail: UI_TEXT.agentsCommandDetail,
@@ -635,6 +648,7 @@ export function buildPalette(context: PaletteContext): readonly PaletteGroup[] {
       title: UI_TEXT.groupSupport,
       items: [
         { id: 'log', label: UI_TEXT.openLog, action: { type: 'openLog' } },
+        { id: 'whatsNew', label: UI_TEXT.whatsNewOpen, action: { type: 'showWhatsNew' } },
         {
           id: 'issue',
           label: UI_TEXT.reportIssue,
@@ -648,6 +662,14 @@ export function buildPalette(context: PaletteContext): readonly PaletteGroup[] {
       ],
     },
   ]
+  const tips = new Map(Object.entries(UI_TEXT.paletteTips))
+  return groups.map((group) => ({
+    ...group,
+    items: group.items.map((item) => ({
+      ...item,
+      tip: item.tip ?? tips.get(item.id),
+    })),
+  }))
 }
 
 /** Case-insensitive substring filter over label and detail; empty groups drop. */

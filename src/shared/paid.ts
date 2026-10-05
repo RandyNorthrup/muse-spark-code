@@ -51,6 +51,11 @@ export const paidTallySchema = z.object({
   judgeCalls: z.optional(z.int().check(z.nonnegative())),
   judgeTokens: z.optional(z.int().check(z.nonnegative())),
   judgeCostUsd: z.optional(z.number().check(z.nonnegative())),
+  // M91 prompt/agent hook runs started this window (D70); absent means none.
+  hookModelRuns: z.optional(z.int().check(z.nonnegative())),
+  hookModelUnknownRequests: z.optional(z.int().check(z.nonnegative())),
+  hookModelTokens: z.optional(z.int().check(z.nonnegative())),
+  hookModelCostUsd: z.optional(z.number().check(z.nonnegative())),
 })
 export type PaidTally = z.infer<typeof paidTallySchema>
 
@@ -147,6 +152,16 @@ export type PaidUseRequest =
       readonly attempts: number
       readonly requestCeilingPerAttempt: number
     }
+  | {
+      /** M91 prompt/agent hook handlers (D70): one paid model call per hook run. */
+      readonly feature: 'hookModels'
+      /** The hook event the handler runs on. */
+      readonly event: string
+      /** The handler kind, as written in the file. */
+      readonly kind: 'prompt' | 'agent'
+      readonly modelId: string
+      readonly dailyBudgetUsd?: number | undefined
+    }
 
 /**
  * The paid features a window can use (M44, PLAN.md D37): every one on the
@@ -196,6 +211,11 @@ export function paidCostUsd(feature: PaidFeature, tally: PaidTally): number {
       // Billed apart from the conversation, so counted here alone.
       return tally.judgeCostUsd ?? 0
     }
+    case 'hookModels': {
+      // A hook's own model call is billed apart from the conversation, like
+      // a review's. Count only reported costs, not unanswered runs.
+      return tally.hookModelCostUsd ?? 0
+    }
   }
 }
 
@@ -216,7 +236,8 @@ export function listedPaidFeatures(
       (feature === 'subagents' && (tally.subagentRequests ?? 0) > 0) ||
       (feature === 'autoReviewer' && (tally.autoReviews ?? 0) > 0) ||
       (feature === 'bestOfN' && (tally.bestOfNAttempts ?? 0) > 0) ||
-      (feature === 'judge' && (tally.judgeCalls ?? 0) > 0),
+      (feature === 'judge' && (tally.judgeCalls ?? 0) > 0) ||
+      (feature === 'hookModels' && (tally.hookModelRuns ?? 0) > 0),
   )
 }
 
@@ -246,6 +267,7 @@ export function paidFeatureName(feature: PaidFeature): string {
     autoReviewer: UI_TEXT.paidAutoReviewerName,
     bestOfN: UI_TEXT.paidBestOfNName,
     judge: UI_TEXT.paidJudgeName,
+    hookModels: UI_TEXT.paidHookModelName,
   }
   return names[feature]
 }
@@ -307,6 +329,16 @@ export function bestOfNPrice(
   })
 }
 
+/**
+ * What one prompt/agent hook run may bill (M91, PLAN.md D70): the per-token
+ * rates of the model. The total cannot be known in advance, so the popup
+ * quotes exactly these; unknown models cannot authorize a hook run.
+ */
+export function hookModelPrice(modelId: string): string {
+  const tier = modelApiPaidTier(modelId)
+  return tier === undefined ? UI_TEXT.subagentTariffUnknown : tokenRatePrice(tier)
+}
+
 /** The feature's price, as its setting, confirmation, badge and dialog state it. */
 export function paidFeaturePrice(feature: PaidFeature): string {
   switch (feature) {
@@ -348,6 +380,12 @@ export function paidFeaturePrice(feature: PaidFeature): string {
           BEST_OF_N_DEFAULT_ATTEMPTS,
           BEST_OF_N_DEFAULT_REQUESTS_PER_ATTEMPT,
         ),
+      ].join('\n')
+    }
+    case 'hookModels': {
+      return [
+        hookModelPrice(DEFAULT_MODEL_ID),
+        hookModelPrice(`${DEFAULT_MODEL_ID}${CONTRIBUTOR_MODEL_SUFFIX}`),
       ].join('\n')
     }
   }
