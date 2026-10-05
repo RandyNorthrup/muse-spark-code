@@ -63,6 +63,7 @@ import {
   MUSE_MCP_OPTIONAL_MODE,
 } from '../../shared/constants'
 import { fill } from '../../shared/l10n/text'
+import { mcpFunctionName, mcpServerPart } from '../backends/modelapi/mcp/functions'
 
 /**
  * Why an entry that was found is not converted. The lane-0 preview keys name
@@ -686,7 +687,7 @@ function translateToolMatcher(
   const known = Object.keys(vocabulary.tools)
   const selections: Selection[] = []
   for (const token of literal.tokens) {
-    const mcp = vocabulary.mcpToken?.(token, isAnchored)
+    const mcp = vocabulary.mcpToken?.(token, literal.isAnchored)
     if (mcp === null) {
       return REFUSED_MATCHER
     }
@@ -720,12 +721,15 @@ const GEMINI_VOCABULARY: ToolVocabulary = {
       return
     }
     const [server, tool, ...rest] = token.slice('mcp_'.length).split('_')
-    return !isAnchored || server === undefined || tool === undefined || rest.length > 0
+    return !isAnchored ||
+      server === undefined ||
+      tool === undefined ||
+      rest.length > 0 ||
+      mcpFunctionName(server, tool, new Set()) !== `${OUR_MCP_PREFIX}${server}__${tool}`
       ? null
       : { names: [`${OUR_MCP_PREFIX}${server}__${tool}`], patterns: [] }
   },
-  // Gemini joins with one underscore and we with two: either spelling inside matches.
-  mcpContaining: (token) => `^${OUR_MCP_PREFIX}.*${escapeRegExp(token).replaceAll('_', '_{1,2}')}`,
+  // Unanchored Gemini names cannot round-trip across normalized MCP identities.
 }
 
 const CURSOR_MCP_TOKEN = /^MCP:[A-Za-z0-9_-]+$/
@@ -760,10 +764,11 @@ const KIRO_VOCABULARY: ToolVocabulary = {
   tools: AGENT_IMPORT_KIRO_TOOLS,
   isUnanchored: false,
   everything: new Set(['', '*']),
-  mcpToken: (token) => {
+  mcpToken: (token, isAnchored) => {
     if (!KIRO_MCP_TOKEN.test(token)) {
       return
     }
+    if (isAnchored && ['@mcp', '@builtin', '@powers'].includes(token)) return null
     if (token === '@mcp') {
       return { names: [], patterns: [`^${OUR_MCP_PREFIX}`] }
     }
@@ -774,14 +779,19 @@ const KIRO_VOCABULARY: ToolVocabulary = {
       return { names: [], patterns: [] }
     }
     const [server, tool] = token.slice(1).split('/', 2)
-    if (server === undefined || !CANONICAL_SERVER.test(server)) {
+    if (
+      server === undefined ||
+      !CANONICAL_SERVER.test(server) ||
+      mcpServerPart(server) !== server
+    ) {
       return null
     }
     if (tool === undefined) {
-      return { names: [], patterns: [`^${OUR_MCP_PREFIX}${server}`] }
+      return isAnchored ? null : { names: [], patterns: [`^${OUR_MCP_PREFIX}${server}`] }
     }
-    return CANONICAL_TOOL.test(tool)
-      ? { names: [], patterns: [`^${OUR_MCP_PREFIX}${server}__${tool}`] }
+    return CANONICAL_TOOL.test(tool) &&
+      mcpFunctionName(server, tool, new Set()) === `${OUR_MCP_PREFIX}${server}__${tool}`
+      ? { names: [], patterns: [`^${OUR_MCP_PREFIX}${server}__${tool}${isAnchored ? '$' : ''}`] }
       : null
   },
 }
@@ -796,7 +806,7 @@ const COPILOT_VOCABULARY: ToolVocabulary = {
 const COPILOT_CLAUDE_VOCABULARY: ToolVocabulary = {
   tools: { ...AGENT_IMPORT_COPILOT_TOOLS, ...AGENT_IMPORT_COPILOT_CLAUDE_TOOLS },
   isUnanchored: false,
-  everything: new Set(['', '*', '**']),
+  everything: new Set(['', '*', '**', '.*', '^.*$']),
 }
 
 /**
@@ -808,17 +818,12 @@ function translateValueMatcher(
   matcher: string | undefined,
   values: readonly string[] | undefined,
   everything: ReadonlySet<string>,
-  isSingleValue = false,
 ): MatcherTranslation {
   if (matcher === undefined || everything.has(matcher)) {
     return { ok: true, matcher: undefined }
   }
   const literal = literalTokens(matcher)
   if (values === undefined || literal === undefined) {
-    return REFUSED_MATCHER
-  }
-  if (isSingleValue && literal.tokens.length !== 1) {
-    // An exact-string matcher with a `|` equals no value: it never runs there.
     return REFUSED_MATCHER
   }
   return literal.tokens.every((token) => values.includes(token))
@@ -1119,7 +1124,7 @@ export function convertCodexHook(hook: FoundHook): Conversion<MuseHook> {
 //   format       the source format, as lane P's HOOK_FORMATS names it
 //   sourceEvent  the source's own event name, verbatim
 //   flavor       where a vendor has two contracts: Copilot `copilot` (CLI)
-//                or `vscode` (Local); Cursor `generic` or `specialized`
+//                or `vscode` (Local); Cursor uses sourceEvent alone
 //   sourceEntry  the source entry verbatim (a Claude-shaped source: its
 //                group with this one handler), lossless
 //   matcher      our tool matcher, translated exactly
@@ -1247,12 +1252,20 @@ export function geminiSequentialEvents(hooks: readonly FoundHook[]): ReadonlySet
 
 function geminiMatcher(event: string, matcher: string | undefined): MatcherTranslation {
   if (GEMINI_TOOL_EVENTS.has(event)) {
-    return translateToolMatcher(matcher, GEMINI_VOCABULARY, /^mcp_[A-Za-z0-9_]+$/)
+    return matcher !== undefined &&
+      !MATCH_ALL_REGEX.has(matcher) &&
+      literalTokens(matcher, /^mcp_[A-Za-z0-9_]+$/)?.isAnchored !== true
+      ? REFUSED_MATCHER
+      : translateToolMatcher(matcher, GEMINI_VOCABULARY, /^mcp_[A-Za-z0-9_]+$/)
   }
   const values = GEMINI_VALUE_MATCHERS[event]
   if (values !== undefined) {
-    return translateValueMatcher(matcher, values, MATCH_ALL_REGEX, true)
+    const value = matcher === '' ? undefined : matcher
+    return value === undefined || values.includes(value)
+      ? { ok: true, matcher: value }
+      : REFUSED_MATCHER
   }
+  if (event === 'SessionEnd' && matcher !== undefined && matcher !== '') return REFUSED_MATCHER
   // Gemini ignores a matcher on every other event: dropping it is exact.
   return { ok: true, matcher: undefined }
 }
@@ -1365,7 +1378,8 @@ const CURSOR_LOOP_EVENTS: ReadonlySet<string> = new Set(['stop', 'subagentStop']
 
 /** A Cursor `{"version":1,"hooks":{…}}` file; a wrong version is a newer format. */
 export function readCursorHooks(text: string): ForeignHooksRead {
-  return readVersionedFile(text)
+  const read = readVersionedFile(text)
+  return read.status === 'ok' && !read.isVersioned ? { status: 'unknownFormat' } : read
 }
 
 /**
@@ -1406,7 +1420,7 @@ function cursorMatcher(
 /**
  * One Cursor hook entry as the `spark-hooks.json` entry. Generic tool events
  * (`preToolUse`) and the specialised ones (`beforeShellExecution`) keep their
- * own event and flavor, so the adapter sends each its own envelope.
+ * own event, so the adapter selects each envelope without a flavor tag.
  * `failClosed` and `loop_limit` stay for the adapter. `subagentStart` can
  * block where it comes from but only observes here, so it stays refused; the
  * Tab hooks wait for inline completions.
@@ -1464,7 +1478,6 @@ export function convertCursorHook(hook: FoundHook): Conversion<MuseHook> {
     {
       format: AGENT_IMPORT_FORMATS.cursor,
       sourceEvent: hook.event,
-      flavor: Object.hasOwn(CURSOR_SPECIALIZED, hook.event) ? 'specialized' : 'generic',
       sourceEntry: hook.raw,
       matcher: isGenericToolless ? undefined : matcher.matcher,
       extra: {
@@ -1563,7 +1576,13 @@ export function copilotFlavorOf(
 
 function copilotMatcher(sourceEvent: string, matcher: string | undefined): MatcherTranslation {
   if (COPILOT_CLAUDE_MATCHED.has(sourceEvent)) {
-    return translateToolMatcher(matcher, COPILOT_CLAUDE_VOCABULARY)
+    const literal = matcher === undefined ? undefined : literalTokens(matcher)
+    // Regex subjects use Claude names; only literal lists accept runtime aliases.
+    const vocabulary =
+      literal?.isAnchored === true
+        ? { ...COPILOT_CLAUDE_VOCABULARY, tools: AGENT_IMPORT_COPILOT_CLAUDE_TOOLS }
+        : COPILOT_CLAUDE_VOCABULARY
+    return translateToolMatcher(matcher, vocabulary)
   }
   if (COPILOT_TOOL_MATCHED.has(sourceEvent)) {
     return translateToolMatcher(matcher, COPILOT_VOCABULARY)
@@ -1882,8 +1901,8 @@ function kiroMatcher(
  * refused as disabled; a `confirm` question (and its `confirmCommand`) has
  * no equivalent here, so the entry is refused naming it. File triggers map
  * to `PostToolUse` on file tools with the path regex as `pathPattern`;
- * spec-task triggers map to the todo-item events; `Manual` runs only when
- * the user starts it. Agent actions become `prompt` handlers under lane H's
+ * spec-task triggers map to the todo-item events; `Manual` is refused until
+ * its adapter row exists. Agent actions become `prompt` handlers under lane H's
  * paid-feature gates, with the same scope as a command. `hooks[].timeout`
  * is kept (60 s when absent); `0` (no limit) cannot be honoured and is
  * refused.
@@ -1910,6 +1929,7 @@ export function convertKiroHook(hook: KiroHook): Conversion<MuseHook> {
   if (entry.data.enabled === false) {
     return { ok: false, reason: 'disabled' }
   }
+  if (hook.trigger === 'Manual') return { ok: false, reason: 'unmapped' }
   if (entry.data.confirm !== undefined) {
     return fieldRefusal('confirm')
   }
@@ -2022,7 +2042,12 @@ export function convertClineHook(
       sourceEvent,
       sourceEntry: { path: command },
     },
-    { type: COMMAND_HANDLER, command },
+    {
+      type: COMMAND_HANDLER,
+      timeout: AGENT_IMPORT_DEFAULT_TIMEOUT_SECONDS.cline,
+      command: `'${command.replaceAll("'", String.raw`'\''`)}'`,
+      commandWindows: `& '${command.replaceAll("'", "''")}'`,
+    },
   )
 }
 

@@ -1922,6 +1922,7 @@ export const AGENT_IMPORT_DEFAULT_TIMEOUT_SECONDS = {
   copilot: 30,
   vscode: 30,
   gemini: 60,
+  cline: 30,
 } as const
 
 /** Gemini CLI's hook events (geminicli.com/docs/hooks) by our names. */
@@ -1948,11 +1949,8 @@ export const AGENT_IMPORT_GEMINI_TOOLS: Readonly<Record<string, readonly string[
   read_file: ['Read'],
   write_file: ['Write'],
   replace: ['Edit'],
-  grep: ['Grep'],
-  search_file_content: ['Grep'],
   grep_search: ['Grep'],
   list_directory: ['list_files'],
-  ls: ['list_files'],
   web_fetch: ['web_fetch'],
   write_todos: ['todo_write'],
   save_memory: ['add_memory'],

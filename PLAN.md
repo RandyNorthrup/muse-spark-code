@@ -13545,6 +13545,14 @@ live) and the controller filters its id as well.
 - Lane 0 is built: 88 strings in all 14 tables, and the hook region's four
   constants.
 - Lanes R, E, I, P, S, M, H and X are next.
+- **Lane I round 3 (FIXM91I3, RVM91I2):** repair all eleven findings
+  within the importer: unknown source switches refuse hooks; Cline executable
+  references are rechecked after awaits and during planning, quoted as
+  literal paths and retain their source 30-second bound; strict Copilot inline blocks refuse together; nonexact
+  matcher translations refuse; Gemini lifecycle filters stay exact and
+  sequential policy spans merged settings; Cursor records match adapter
+  source-event selection at `d8e609aa` and require version 1. Each finding
+  gets a regression and a SHA-256-restored red drill in `m91-i.md`.
 
 The early protected-paths fix is its own pull request,
 `fix/protect-agent-folders`.
@@ -14677,6 +14685,28 @@ before a repaired one loads (2026-09-30).
 | `test/harness/index.html` (`isActiveDescendantList`), printed by `scripts/a11y.mjs` | The accessibility gate exempts axe's `scrollable-region-focusable` | The composer's `/` and `@` lists follow WAI-ARIA's combobox pattern: the box keeps the focus and moves `aria-activedescendant` through the listbox's options, and `Composer.tsx` scrolls the active option into view, so the list is keyboard operable (WCAG 2.1.1) without being a Tab stop. axe cannot see activedescendant-driven scrolling. The exemption holds only for a region that contains a listbox whose id is in the `aria-controls` of a focused or focusable element whose active descendant is one of that listbox's options; drills show a plain scrollable region and a listbox no control drives are still reported, and removing the exemption reports the composer's list again. Every exempt element is printed under its own "Exempt:" heading and counted. No `tabindex` was added to the list. | 2026-10-04 |
 
 ## 9. Security assumptions and accepted residual risk
+
+- **M91-I-Manual-adapter (FIXM91I3).** No numbered RVM91I2 finding is
+  left open on the importer side. The pinned P adapter at `d8e609aa` has no
+  Kiro Manual row, so the importer now refuses Manual as `unmapped` and
+  emits no runnable record. Safe for now because it runs nothing. Follow-up:
+  P adds and certifies its Manual contract, then I lifts that refusal.
+- **M91-I-Foreign-wiring (FIXM91I3).** Import records remain inert in this
+  tree: the native parser skips foreign group fields and W has not wired
+  dispatch. Importer tests and the pinned adapter's eighteen Cursor stdin
+  entries do not certify execution. Safe for now because no native fallback
+  executes these records. Follow-up W/P/H/X: validate the foreign record;
+  apply commandPattern, Kiro pathPattern/file operation and template
+  substitutions, Cursor loop_limit (default 5), source cwd/shell/environment,
+  adapter input and model payloads, fail-closed results, and paid handler
+  admission; certify integrated guards before declaring support.
+- **M91-I-Live-Cline-reference (FIXM91I3).** Scan and planning now reject
+  retargeted executable references, and generated Unix/PowerShell commands
+  quote literal paths with the source's 30-second timeout. A file can still
+  change after the unsaved edit is planned. Safe for now under the inert
+  foreign-record boundary above. Follow-up W/X: invoke sourceEntry.path as
+  a path under live canonical scope and workspace trust checks immediately
+  before spawning, and prove the real Unix and Windows execution paths.
 
 - Code intelligence (M67) shows what VS Code's language services say. A
   result located outside the workspace is left out and a hover defined only

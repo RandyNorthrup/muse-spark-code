@@ -5,7 +5,10 @@
 // engine (`parseHookConfig` and `matchingHooks`), never by string equality
 // alone.
 
+import { spawnSync } from 'node:child_process'
 import { describe, expect, it } from 'vitest'
+import { mcpFunctionName } from '../../src/core/backends/modelapi/mcp/functions'
+import { AGENT_IMPORT_CURSOR_EVENTS } from '../../src/shared/constants'
 import {
   type HookDefinition,
   matchingHooks,
@@ -142,7 +145,7 @@ describe('RVM91I-2 disabled in the source', () => {
     hooks: {
       BeforeTool: [
         {
-          matcher: 'run_shell_command',
+          matcher: '^run_shell_command$',
           hooks: [
             { name: 'audit', type: 'command', command: 'audit.sh' },
             { name: 'guard', type: 'command', command: 'guard.sh' },
@@ -284,12 +287,10 @@ describe('RVM91I-5 source identity', () => {
     expect(generic).toMatchObject({
       format: 'cursor',
       sourceEvent: 'preToolUse',
-      flavor: 'generic',
     })
     expect(special).toMatchObject({
       format: 'cursor',
       sourceEvent: 'beforeShellExecution',
-      flavor: 'specialized',
     })
     expect(generic).not.toEqual(special)
   })
@@ -365,25 +366,17 @@ describe('RVM91I-7 matcher translation', () => {
     expect(isAdmitted(write['matcher'], 'Writer')).toBe(false)
   })
 
-  it('keeps a Gemini regex a regex: a partial name is refused, a full name also covers MCP names containing it', () => {
-    const partial = convertGeminiHook({
-      event: 'BeforeTool',
-      matcher: 'read_',
-      raw: { type: 'command', command: 'x' },
-      group: { matcher: 'read_' },
-    })
-    expect(partial).toEqual({ ok: false, reason: 'field', field: 'matcher' })
-    const full = groupOf(
-      convertGeminiHook({
-        event: 'BeforeTool',
-        matcher: 'read_file',
-        raw: { type: 'command', command: 'x' },
-        group: { matcher: 'read_file' },
-      }),
-    )
-    expect(isAdmitted(full['matcher'], 'read_file')).toBe(true)
-    expect(isAdmitted(full['matcher'], 'mcp__fs__read_file')).toBe(true)
-    expect(isAdmitted(full['matcher'], 'write_file')).toBe(false)
+  it('refuses Gemini partial and unanchored names that cannot preserve MCP admission', () => {
+    for (const matcher of ['read_', 'read_file']) {
+      expect(
+        convertGeminiHook({
+          event: 'BeforeTool',
+          matcher,
+          raw: { type: 'command', command: 'x' },
+          group: { matcher },
+        }),
+      ).toEqual({ ok: false, reason: 'field', field: 'matcher' })
+    }
   })
 
   it('refuses an ambiguous Gemini MCP name and keeps underscores in an anchored one', () => {
@@ -648,10 +641,10 @@ describe('RVM91I-13 adopted events', () => {
     })
   })
 
-  it('maps Kiro Manual and Gemini BeforeToolSelection', () => {
+  it('refuses Kiro Manual without its adapter and maps Gemini BeforeToolSelection', () => {
     expect(
       kiroOne({ name: 'hand', trigger: 'Manual', action: { type: 'command', command: 'run' } }),
-    ).toMatchObject({ ok: true, value: { event: 'Manual', group: { description: 'hand' } } })
+    ).toEqual({ ok: false, reason: 'unmapped' })
     expect(
       convertGeminiHook({
         event: 'BeforeToolSelection',
@@ -683,5 +676,229 @@ describe('Cursor fixed-subject matchers', () => {
     expect(readCursorHooks(JSON.stringify({ version: 2, hooks: {} }))).toEqual({
       status: 'unknownFormat',
     })
+  })
+})
+
+// RVM91I2 source contracts: hooks-parity/gemini/hooks-reference.md:30,79-90;
+// gh/copilot_reference_hooks-configuration.md:426-448; raw/kiro_hooks.md:84.
+describe('RVM91I2 exact admission and records', () => {
+  it('R2-3 quotes Cline shell metacharacters and spaces as one literal path', () => {
+    const path = "/missing/space ' $(printf R2_PATH_EVALUATED >&2)/.clinerules/hooks/PreToolUse"
+    const group = groupOf(convertClineHook('PreToolUse', path))
+    expect(group['sourceEntry']).toEqual({ path })
+    const parsed = parseHookConfig(
+      JSON.stringify({ hooks: { PreToolUse: [{ hooks: group['hooks'] }] } }),
+      'project',
+      'linux',
+    )
+    const command = parsed.hooks[0]?.command
+    expect(command).toBeDefined()
+    expect(parsed.hooks[0]?.timeoutSeconds).toBe(30)
+    const run = spawnSync(
+      process.platform === 'win32' ? 'bash' : '/bin/sh',
+      ['-c', command ?? ''],
+      { encoding: 'utf8' },
+    )
+    expect(run.status).not.toBe(0)
+    // A shell error must name the whole literal path; no command substitution runs.
+    expect(run.stderr).toContain(path)
+    expect(run.stderr.split('\n')).not.toContain('R2_PATH_EVALUATED')
+    const windows = parseHookConfig(
+      JSON.stringify({ hooks: { PreToolUse: [{ hooks: group['hooks'] }] } }),
+      'project',
+      'win32',
+    )
+    expect(windows.hooks[0]?.command).toBe(`& '${path.replaceAll("'", "''")}'`)
+  })
+
+  it('R2-5g refuses unanchored Gemini read_file rather than widening underscores', () => {
+    expect(
+      convertGeminiHook(
+        foreign(
+          'BeforeTool',
+          { type: 'command', command: 'guard' },
+          { matcher: 'read_file', group: { matcher: 'read_file' } },
+        ),
+      ),
+    ).toEqual({ ok: false, reason: 'field', field: 'matcher' })
+    const exact = groupOf(
+      convertGeminiHook(
+        foreign(
+          'BeforeTool',
+          { type: 'command', command: 'guard' },
+          { matcher: '^read_file$', group: { matcher: '^read_file$' } },
+        ),
+      ),
+    )
+    expect(isAdmitted(exact['matcher'], 'read_file')).toBe(true)
+    expect(isAdmitted(exact['matcher'], 'mcp__fs__read__file')).toBe(false)
+  })
+
+  it('R2-5c preserves the difference between Copilot literal aliases and regex subjects', () => {
+    expect(convertCopilotHook(foreign('PreToolUse', { bash: 'guard', matcher: '^edit$' }))).toEqual(
+      { ok: false, reason: 'field', field: 'matcher' },
+    )
+    const literal = groupOf(
+      convertCopilotHook(foreign('PreToolUse', { bash: 'guard', matcher: 'edit' })),
+    )
+    const regex = groupOf(
+      convertCopilotHook(foreign('PreToolUse', { bash: 'guard', matcher: '^Edit$' })),
+    )
+    expect(isAdmitted(literal['matcher'], 'edit_file')).toBe(true)
+    expect(isAdmitted(regex['matcher'], 'edit_file')).toBe(true)
+  })
+
+  it('R2-5k refuses an anchored Kiro server-only selector and keeps tool anchors', () => {
+    const action = { type: 'command', command: 'guard' }
+    const hook = (matcher: string) =>
+      kiroOne({
+        name: 'guard',
+        trigger: 'PreToolUse',
+        matcher,
+        action,
+      })
+    for (const matcher of ['^@mcp$', '^@builtin$', '^@powers$'])
+      expect(hook(matcher)).toEqual({ ok: false, reason: 'field', field: 'matcher' })
+    expect(hook('^@git$')).toEqual({ ok: false, reason: 'field', field: 'matcher' })
+    const exact = groupOf(hook('^@git/status$'))
+    expect(isAdmitted(exact['matcher'], 'mcp__git__status')).toBe(true)
+    expect(isAdmitted(exact['matcher'], 'mcp__git__statusExtra')).toBe(false)
+    expect(isAdmitted(exact['matcher'], 'mcp__github__status')).toBe(false)
+    const prefix = groupOf(hook('@git'))
+    expect(isAdmitted(prefix['matcher'], 'mcp__github__status')).toBe(true)
+  })
+
+  it.each([
+    ['SessionStart', '^startup$'],
+    ['SessionStart', '.*'],
+    ['SessionEnd', 'logout'],
+    ['PreCompress', '^manual$'],
+  ])('R2-6 refuses Gemini exact lifecycle %s filter %s', (event, matcher) => {
+    const [hook] =
+      readClaudeHooks(
+        JSON.stringify({
+          hooks: { [event]: [{ matcher, hooks: [{ type: 'command', command: 'guard' }] }] },
+        }),
+      ) ?? []
+    expect(hook).toBeDefined()
+    expect(convertGeminiHook(hook!)).toEqual({ ok: false, reason: 'field', field: 'matcher' })
+  })
+
+  it('R2-6 keeps a supported Gemini lifecycle exact string', () => {
+    expect(
+      convertGeminiHook(
+        foreign(
+          'SessionStart',
+          { type: 'command', command: 'guard' },
+          { matcher: 'startup', group: { matcher: 'startup' } },
+        ),
+      ),
+    ).toMatchObject({ ok: true, value: { group: { matcher: 'startup' } } })
+  })
+
+  it('R2-7 refuses MCP identities truncated by the real Muse name builder', () => {
+    const server = 'abcdefghijklmnopqrstuvwxy'
+    expect(mcpFunctionName(server, 'read', new Set())).toBe('mcp__abcdefghijklmnopqrst__read')
+    const matcher = `^mcp_${server}_read$`
+    expect(
+      convertGeminiHook(
+        foreign(
+          'BeforeTool',
+          { type: 'command', command: 'guard' },
+          { matcher, group: { matcher } },
+        ),
+      ),
+    ).toEqual({ ok: false, reason: 'field', field: 'matcher' })
+    expect(
+      kiroOne({
+        name: 'guard',
+        trigger: 'PreToolUse',
+        matcher: `@${server}`,
+        action: { type: 'command', command: 'guard' },
+      }),
+    ).toEqual({ ok: false, reason: 'field', field: 'matcher' })
+    const safe = groupOf(
+      convertGeminiHook(
+        foreign(
+          'BeforeTool',
+          { type: 'command', command: 'guard' },
+          { matcher: '^mcp_fs_read$', group: { matcher: '^mcp_fs_read$' } },
+        ),
+      ),
+    )
+    expect(isAdmitted(safe['matcher'], mcpFunctionName('fs', 'read', new Set()))).toBe(true)
+  })
+
+  // P d8e609aa engine.selectRow requires flavor equality. Cursor rows have
+  // no flavor/defaultFlavor; sourceEvent alone identifies all eighteen rows.
+  it('R2-8 emits every Cursor adapter source event without an incompatible flavor', () => {
+    for (const [event, mapped] of Object.entries(AGENT_IMPORT_CURSOR_EVENTS)) {
+      const converted = convertCursorHook(foreign(event, { command: 'guard' }))
+      expect(converted.ok).toBe(true)
+      if (!converted.ok) {
+        continue
+      }
+
+      expect(converted.value.event).toBe(mapped)
+      expect(converted.value.group['sourceEvent']).toBe(event)
+      expect(converted.value.group).not.toHaveProperty('flavor')
+    }
+  })
+
+  it('R2-8 refuses Kiro Manual while the pinned adapter has no row', () => {
+    expect(
+      kiroOne({ name: 'manual', trigger: 'Manual', action: { type: 'command', command: 'guard' } }),
+    ).toEqual({ ok: false, reason: 'unmapped' })
+  })
+
+  it.each(['PreToolUse', 'PermissionRequest'])(
+    'R2-10 accepts universal Copilot regexes on %s',
+    (event) => {
+      for (const matcher of ['.*', '^.*$']) {
+        const group = groupOf(convertCopilotHook(foreign(event, { bash: 'guard', matcher })))
+        for (const tool of ['edit_file', 'bash', 'mcp__fs__read'])
+          expect(isAdmitted(group['matcher'], tool)).toBe(true)
+      }
+    },
+  )
+
+  // cursor_com_docs_hooks_md.out:694-699 requires numeric version 1.
+  it('R2-11 requires Cursor version without changing Copilot Local discovery', () => {
+    const text = JSON.stringify({ hooks: { preToolUse: [{ command: 'guard' }] } })
+    expect(readCursorHooks(text)).toEqual({ status: 'unknownFormat' })
+    expect(
+      readCursorHooks(
+        JSON.stringify({ version: 1, hooks: { preToolUse: [{ command: 'guard' }] } }),
+      ),
+    ).toMatchObject({ status: 'ok' })
+    expect(readCopilotHooks(text)).toMatchObject({ status: 'ok', isVersioned: false })
+  })
+})
+
+describe('RVM91I2 Gemini adapter tool names', () => {
+  // P d8e609aa captured Gemini 0.62.0: search -> grep_search,
+  // list_files -> list_directory. Legacy names cannot preserve exact filters.
+  it('R2-5g refuses legacy exact aliases absent from the captured adapter vocabulary', () => {
+    for (const matcher of ['^grep$', '^search_file_content$', '^ls$']) {
+      expect(
+        convertGeminiHook(
+          foreign(
+            'BeforeTool',
+            { type: 'command', command: 'guard' },
+            { matcher, group: { matcher } },
+          ),
+        ),
+      ).toEqual({ ok: false, reason: 'field', field: 'matcher' })
+    }
+    const current = groupOf(
+      convertGeminiHook(
+        foreign(
+          'BeforeTool',
+          { type: 'command', command: 'guard' },
+          { matcher: '^grep_search$', group: { matcher: '^grep_search$' } },
+        ),
+      ),
+    )
+    expect(isAdmitted(current['matcher'], 'search')).toBe(true)
   })
 })
