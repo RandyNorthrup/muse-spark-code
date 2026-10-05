@@ -91,6 +91,30 @@ byte-exact SHA-256 restoration. This source drill preceded final import-only
 formatting; the final compilers and repaired-file lint pass. Exact receipts
 are in the verification JSON.
 
+## Hook verification
+
+Merge `c32ded4d3e4f7bde3cb795c41e8348c53a0f3aa5` was committed before
+discovering that this copied rig lacked the ignored `.husky/_` wrappers.
+Its configured hook therefore did not run. No bypass flag was used.
+The pinned Husky dispatcher and generated wrappers are restored inside
+this worktree, with repository configuration unchanged.
+
+The exact merge delta from `cb00e78f` passes the repository's stock
+lint-staged tasks: 172 script files, one stylesheet and 91 document/config
+files. Windows' command-line limit required `--max-arg-length 4000`; every
+original lint/format command and rule remains. `--diff` selects the committed
+delta and avoids a backup stash. The replay leaves the worktree unchanged.
+Gitleaks scans the first-parent merge patch: one commit, 1,501,117 bytes,
+zero leaks, exit 0. A follow-up evidence commit runs the normal configured
+pre-commit hook. Its SHA and actual hook outcome are reported to the lead;
+the original merge history is retained.
+
+The first real hook attempt refuses with code 127: the rig's `npx` shell
+shim requires Bash, which is absent. A temporary process-local `sh` shim
+execs the same installed npm `npx-cli.js`, as `npx.cmd` does. Only the
+commit process PATH is prefixed; the tracked hook, its commands, npm
+version and machine/user settings remain unchanged.
+
 ## Open browser-size gate
 
 The final merged production browser bundle is 935,470 bytes (913.5 KiB) against

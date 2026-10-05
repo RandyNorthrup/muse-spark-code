@@ -633,5 +633,27 @@
     "files": 338,
     "changelogReleasedBytesMatchMain": true,
     "unreleasedSections": 1
+  },
+  "mergeCommit": "c32ded4d3e4f7bde3cb795c41e8348c53a0f3aa5",
+  "hooks": {
+    "initialWrappersMissing": true,
+    "repair": "Copy pinned Husky dispatcher and generated wrappers into ignored .husky/_; repository configuration unchanged",
+    "lintStagedReplay": {
+      "command": "npx.cmd lint-staged --concurrent 1 --max-arg-length 4000 --diff=cb00e78fb084bb9315400ce456eb4d2d33c97186",
+      "exit": 0,
+      "scriptFiles": 172,
+      "styleFiles": 1,
+      "documentFiles": 91,
+      "worktreeUnchanged": true
+    },
+    "gitleaksMerge": {
+      "command": "gitleaks git --redact --no-banner --log-opts=\"--first-parent --diff-merges=first-parent cb00e78fb084bb9315400ce456eb4d2d33c97186..c32ded4d3e4f7bde3cb795c41e8348c53a0f3aa5\"",
+      "exit": 0,
+      "commits": 1,
+      "bytes": 1501117,
+      "leaks": 0
+    },
+    "evidenceCommit": "Normal pre-commit hook must run on the follow-up evidence commit; its result is reported in the final response",
+    "rigNpx": "The rig npx shell shim requires absent bash. A process-local sh shim execs the same installed npm npx-cli.js; only the commit process PATH is prefixed. Tracked hook and all commands stay unchanged."
   }
 }

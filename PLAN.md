@@ -9506,6 +9506,14 @@ byte-exact. Production build remains red at the unchanged browser cap
 (913.5/900 KiB); the additional PowerShell lint cannot load the rig's
 missing pinned analyzer. See section 7 and the certification record.
 
+Merge `c32ded4d` initially found the copied rig missing its ignored Husky
+wrappers, so Git ran no pre-commit hook. Pinned wrappers are restored
+locally without a configuration change. The exact committed merge delta
+passes stock lint-staged tasks (Windows argument batches at 4,000
+characters, unchanged commands/rules) and gitleaks (one merge patch, zero
+leaks), leaving the worktree unchanged. A normal hook-on evidence commit
+records this limitation and correction; history is not rewritten.
+
 **FIX78B repair (2026-10-04, bounded rig proof complete; lead gates open):** close RVFIX78's remaining P2/P3
 without merging main. Classify the Muse settings destination by canonical
 workspace containment before the planning read, refusing held/untrusted
