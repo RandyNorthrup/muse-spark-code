@@ -1,6 +1,6 @@
 import type * as z from 'zod/mini'
 import { teamRetirementSchema, type TeamWriteSetLease } from '../../shared/team'
-import { type SharedFiles, teamPathMatcher } from './sharedFiles'
+import { canonicalTeamPath, type SharedFiles, teamPathMatcher } from './sharedFiles'
 
 type Attempt = TeamWriteSetLease['holder']
 export interface PlannedWriteSet {
@@ -8,32 +8,22 @@ export interface PlannedWriteSet {
   readonly patterns: readonly string[]
   readonly writePaths: readonly string[] | undefined
   readonly exclusiveWriter: boolean
+  readonly isCaseInsensitive: boolean
 }
 
-function relative(path: string): string {
-  const normalized = path.replaceAll('\\', '/').replace(/^\.\//, '')
-  if (
-    normalized.startsWith('/') ||
-    /^[A-Za-z]:/.test(normalized) ||
-    normalized.split('/').includes('..') ||
-    normalized.includes('\0')
-  )
-    throw new RangeError('writes')
-  return normalized
-}
 function prefix(pattern: string): string {
-  const fixed = pattern.split(/[*?{[]/, 1)[0] ?? ''
-  return process.platform === 'win32' ? fixed.toLowerCase() : fixed
+  return pattern.split(/[*?{[]/, 1)[0] ?? ''
 }
-function canOverlap(left: string, right: string): boolean {
-  if (!/[*?{[]/.test(left)) return teamPathMatcher(right)(left)
+function canOverlap(left: string, right: string, isCaseInsensitive: boolean): boolean {
+  if (!/[*?{[]/.test(left)) return teamPathMatcher(right, isCaseInsensitive)(left)
   return /[*?{[]/.test(right)
     ? prefix(left).startsWith(prefix(right)) || prefix(right).startsWith(prefix(left))
-    : teamPathMatcher(left)(right)
+    : teamPathMatcher(left, isCaseInsensitive)(right)
 }
 function canWrite(set: PlannedWriteSet, path: string): boolean {
   return (
-    set.writePaths === undefined || set.writePaths.some((pattern) => teamPathMatcher(pattern)(path))
+    set.writePaths === undefined ||
+    set.writePaths.some((pattern) => teamPathMatcher(pattern, set.isCaseInsensitive)(path))
   )
 }
 
@@ -42,17 +32,21 @@ export function expandWriteSet(
   baseFiles: readonly string[],
   writePaths?: readonly string[],
   isInPlace = false,
+  isCaseInsensitive = process.platform === 'win32' || process.platform === 'darwin',
 ): PlannedWriteSet {
-  const allowed = writePaths?.map((path) => relative(path))
+  const allowed = writePaths?.map((path) => canonicalTeamPath(path, isCaseInsensitive))
   const patterns = (writes ?? [])
-    .map((path) => relative(path))
+    .map((path) => canonicalTeamPath(path, isCaseInsensitive))
     .filter(
-      (pattern) => allowed === undefined || allowed.some((permit) => canOverlap(pattern, permit)),
+      (pattern) =>
+        allowed === undefined ||
+        allowed.some((permit) => canOverlap(pattern, permit, isCaseInsensitive)),
     )
   const set: PlannedWriteSet = {
     patterns,
     paths: [],
     writePaths: allowed,
+    isCaseInsensitive,
     exclusiveWriter:
       isInPlace ||
       (patterns.some((pattern) => pattern === '**' || pattern === '**/*') &&
@@ -60,13 +54,15 @@ export function expandWriteSet(
           allowed.some((pattern) => pattern === '**' || pattern === '**/*'))),
   }
   const files = new Set([
-    ...baseFiles.map((path) => relative(path)),
+    ...baseFiles.map((path) => canonicalTeamPath(path, isCaseInsensitive)),
     ...patterns.filter((pattern) => !/[*?{[]/.test(pattern)),
   ])
   return {
     ...set,
     paths: [...files].filter(
-      (path) => canWrite(set, path) && patterns.some((pattern) => teamPathMatcher(pattern)(path)),
+      (path) =>
+        canWrite(set, path) &&
+        patterns.some((pattern) => teamPathMatcher(pattern, isCaseInsensitive)(path)),
     ),
   }
 }
@@ -83,20 +79,22 @@ export function writeSetOverlap(
       shared.shouldSerialize(path) &&
       canWrite(left, path) &&
       canWrite(right, path) &&
-      left.patterns.some((pattern) => teamPathMatcher(pattern)(path)) &&
-      right.patterns.some((pattern) => teamPathMatcher(pattern)(path)),
+      left.patterns.some((pattern) => teamPathMatcher(pattern, left.isCaseInsensitive)(path)) &&
+      right.patterns.some((pattern) => teamPathMatcher(pattern, right.isCaseInsensitive)(path)),
   )
   for (const a of left.patterns) {
     if (!shared.shouldSerializePattern(a)) continue
     for (const b of right.patterns) {
-      if (!shared.shouldSerializePattern(b) || !canOverlap(a, b)) continue
+      if (!shared.shouldSerializePattern(b) || !canOverlap(a, b, shared.isCaseInsensitive)) continue
       const leftPermits = left.writePaths ?? ['**']
       const rightPermits = right.writePaths ?? ['**']
       for (const permitA of leftPermits) {
         for (const permitB of rightPermits) {
           const constraints = [a, b, permitA, permitB]
           if (
-            constraints.every((pattern) => constraints.every((other) => canOverlap(pattern, other)))
+            constraints.every((pattern) =>
+              constraints.every((other) => canOverlap(pattern, other, shared.isCaseInsensitive)),
+            )
           )
             overlap.push(prefix(a).length >= prefix(b).length ? a : b)
         }
@@ -187,7 +185,7 @@ export class WriteSetLeases {
   grow(holder: Attempt, path: string): GrowthResult {
     const held = this.held.get(holder.taskId)
     if (held === undefined || !isSame(held.lease.holder, holder)) return { kind: 'stale' }
-    const normalized = relative(path)
+    const normalized = canonicalTeamPath(path, held.set.isCaseInsensitive)
     if (!canWrite(held.set, normalized)) throw new RangeError('write-paths')
     for (const other of this.held.values()) {
       if (
@@ -247,6 +245,7 @@ export interface FreshFileHint {
   paths: readonly string[]
 }
 export interface FileHintQuestion {
+  ownWindow: string
   hint: FreshFileHint
   paths: string[]
   answer?: 'continue' | 'wait' | 'open'
@@ -255,13 +254,17 @@ export interface FileHintQuestion {
 /** K supplies only fresh, canonical repository hints. Collision answers have
  * no authority over trust, paid consent, caps, or the local execution leases. */
 export class FileHintQuestions {
-  private readonly answers = new Map<string, 'continue' | 'wait' | 'open'>()
+  private readonly answers = new Map<
+    string,
+    { question: FileHintQuestion; answer: 'continue' | 'wait' | 'open' }
+  >()
 
-  private key(question: FileHintQuestion): string {
+  private key(question: FileHintQuestion, path: string): string {
     return JSON.stringify([
+      question.ownWindow,
       question.hint.windowInstanceId,
       question.hint.repository,
-      question.paths.toSorted((left, right) => left.localeCompare(right)),
+      path,
     ])
   }
   questions(
@@ -271,28 +274,54 @@ export class FileHintQuestions {
     hints: readonly FreshFileHint[],
     shared: SharedFiles,
   ): FileHintQuestion[] {
-    const questions = hints
+    const fresh = hints
       .filter((hint) => hint.repository === repository && hint.windowInstanceId !== ownWindow)
       .map((hint) => ({
+        ...hint,
+        paths: [
+          ...new Set(hint.paths.map((path) => canonicalTeamPath(path, set.isCaseInsensitive))),
+        ],
+      }))
+    // Expiry follows the complete fresh hint snapshot, never this task's
+    // filtered overlap. Other repositories/windows retain their own answers.
+    const live = new Set(
+      fresh.flatMap((hint) =>
+        hint.paths.map((path) => this.key({ ownWindow, hint, paths: [] }, path)),
+      ),
+    )
+    for (const [identity, remembered] of this.answers)
+      if (
+        remembered.question.ownWindow === ownWindow &&
+        remembered.question.hint.repository === repository &&
+        !live.has(identity)
+      )
+        this.answers.delete(identity)
+    const questions = fresh
+      .map((hint) => ({
+        ownWindow,
         hint,
         paths: hint.paths.filter(
           (path) =>
             shared.shouldSerialize(path) &&
             canWrite(set, path) &&
-            (set.exclusiveWriter || set.patterns.some((pattern) => teamPathMatcher(pattern)(path))),
+            (set.exclusiveWriter ||
+              set.patterns.some((pattern) =>
+                teamPathMatcher(pattern, set.isCaseInsensitive)(path),
+              )),
         ),
       }))
       .filter((question) => question.paths.length > 0)
-    const live = new Set(questions.map((question) => this.key(question)))
-    for (const remembered of this.answers.keys())
-      if (!live.has(remembered)) this.answers.delete(remembered)
     return questions.map((question) => {
-      const answer = this.answers.get(this.key(question))
-      return { ...question, ...(answer !== undefined && { answer }) }
+      const answer = this.answers.get(this.key(question, question.paths[0] ?? ''))?.answer
+      const isSameAnswer = question.paths.every(
+        (path) => this.answers.get(this.key(question, path))?.answer === answer,
+      )
+      return { ...question, ...(answer !== undefined && isSameAnswer && { answer }) }
     })
   }
 
   answer(question: FileHintQuestion, answer: 'continue' | 'wait' | 'open'): void {
-    this.answers.set(this.key(question), answer)
+    for (const path of question.paths)
+      this.answers.set(this.key(question, path), { question, answer })
   }
 }

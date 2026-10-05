@@ -95,6 +95,86 @@ describe('team conflict prediction', () => {
     expect(state.events).toHaveLength(3)
   })
 
+  it('identifies both attempts and notifies symmetrically when either task is reassigned', async () => {
+    const state = fixture()
+    await state.predictor.poll()
+    expect(state.events[0]).toMatchObject({
+      taskId: 'a',
+      attempt: 1,
+      otherTaskId: 'b',
+      otherAttempt: 1,
+    })
+    state.tasks[1] = { ...state.tasks[1]!, attempt: 2 }
+    await state.predictor.poll()
+    expect(state.events.filter((event) => event.otherTaskId === 'b')).toEqual([
+      { taskId: 'a', attempt: 1, otherTaskId: 'b', otherAttempt: 1, paths: ['src/a.ts'] },
+      { taskId: 'a', attempt: 1, otherTaskId: 'b', otherAttempt: 2, paths: ['src/a.ts'] },
+    ])
+    state.tasks[0] = { ...state.tasks[0]!, attempt: 2 }
+    await state.predictor.poll()
+    expect(state.events.filter((event) => event.otherTaskId === 'b')).toHaveLength(3)
+    expect(state.events.findLast((event) => event.otherTaskId === 'b')).toMatchObject({
+      attempt: 2,
+      otherAttempt: 2,
+    })
+    expect(
+      state.events
+        .filter((event) => event.otherTaskId === 'integration')
+        .every((event) => event.otherAttempt === undefined),
+    ).toBe(true)
+  })
+
+  it('starts fresh polling after restart and prevents an old finalizer from clearing new work', async () => {
+    vi.useFakeTimers()
+    const state = fixture()
+    const old = Promise.withResolvers<readonly PredictionTask[]>()
+    const fresh = Promise.withResolvers<readonly PredictionTask[]>()
+    const reads = vi
+      .fn<ConflictPredictionDeps['readTasks']>()
+      .mockReturnValueOnce(old.promise)
+      .mockReturnValueOnce(fresh.promise)
+      .mockResolvedValue(state.tasks)
+    const predictor = new ConflictPredictor({ ...state.deps, readTasks: reads })
+    const oldPoll = predictor.poll()
+    predictor.stop()
+    predictor.start()
+    const newPoll = predictor.poll()
+    expect(reads).toHaveBeenCalledTimes(2)
+    old.resolve(state.tasks)
+    await oldPoll
+    expect(state.events).toEqual([])
+    expect(state.deps.merge).not.toHaveBeenCalled()
+    const coalesced = predictor.poll()
+    expect(coalesced).toBe(newPoll)
+    fresh.resolve(state.tasks)
+    await Promise.all([newPoll, coalesced])
+    expect(reads).toHaveBeenCalledTimes(3)
+    expect(state.events).toHaveLength(3)
+    predictor.stop()
+  })
+
+  it('publishes restarted results while an old read remains unresolved', async () => {
+    const state = fixture()
+    const old = Promise.withResolvers<readonly PredictionTask[]>()
+    const reads = vi
+      .fn<ConflictPredictionDeps['readTasks']>()
+      .mockReturnValueOnce(old.promise)
+      .mockResolvedValue(state.tasks)
+    const predictor = new ConflictPredictor({ ...state.deps, readTasks: reads })
+    const oldPoll = predictor.poll()
+    predictor.stop()
+    predictor.start()
+    const newPoll = predictor.poll()
+    expect(reads).toHaveBeenCalledTimes(2)
+    await newPoll
+    expect(state.events).toHaveLength(3)
+    old.resolve([])
+    await oldPoll
+    await predictor.poll()
+    expect(state.events).toHaveLength(3)
+    predictor.stop()
+  })
+
   it('suppresses late results after stop and reports failed diff reads', async () => {
     vi.useFakeTimers()
     const state = fixture()
@@ -122,6 +202,8 @@ describe('team conflict prediction', () => {
       ],
       new SharedFiles(),
     )
-    expect(conflicts).toEqual([{ taskId: 'a', attempt: 1, otherTaskId: 'b', paths: ['src/a.ts'] }])
+    expect(conflicts).toEqual([
+      { taskId: 'a', attempt: 1, otherTaskId: 'b', otherAttempt: 1, paths: ['src/a.ts'] },
+    ])
   })
 })

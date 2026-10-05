@@ -13,6 +13,7 @@ interface Document {
   bullets: Bullet[]
   releases: { name: string; start: number }[]
   sections: { release: string; name: string; start: number }[]
+  unsupportedHeading: string | undefined
 }
 export type ChangelogResult =
   | { kind: 'merged'; text: string }
@@ -24,7 +25,13 @@ function isUnreleased(release: string): boolean {
 
 function parse(text: string): Document {
   const lines = text.replace(/^\u{FEFF}/u, '').split(/\r?\n/)
-  const document: Document = { lines, bullets: [], releases: [], sections: [] }
+  const document: Document = {
+    lines,
+    bullets: [],
+    releases: [],
+    sections: [],
+    unsupportedHeading: undefined,
+  }
   let release = ''
   let section = ''
   let fence = ''
@@ -37,13 +44,17 @@ function parse(text: string): Document {
       continue
     }
     if (fence !== '') continue
-    const heading = /^## (\[.+?\].*)$/.exec(line)?.[1]
+    const heading = /^## (\[[^\]\r\n]+\](?:\s+-\s+.+)?)$/.exec(line)?.[1]
     if (heading !== undefined) {
       release = heading
       section = ''
       document.releases.push({ name: release, start: index })
       continue
     }
+    // Partial release parsing must never leave released bullets under the
+    // previous Unreleased context. Unsupported ATX/setext headings refuse.
+    if (/^\s*##(?:\s|$)/.test(line) || /^\s*(?:-{3,}|={3,})\s*$/.test(line))
+      document.unsupportedHeading ??= line
     const category = /^### (.+)$/.exec(line)?.[1]
     if (release !== '' && category !== undefined) {
       section = category
@@ -54,6 +65,7 @@ function parse(text: string): Document {
     let end = index + 1
     while (
       end < lines.length &&
+      !/^\s*##(?:\s|$)/.test(lines[end] ?? '') &&
       (/^\s+\S/.test(lines[end] ?? '') ||
         ((lines[end] ?? '') === '' && /^\s+\S/.test(lines[end + 1] ?? '')))
     )
@@ -80,6 +92,9 @@ function delta(
   base: Document,
   theirs: Document,
 ): ChangelogResult | { removed: Bullet[]; added: Bullet[] } {
+  const unsupported = base.unsupportedHeading ?? theirs.unsupportedHeading
+  if (unsupported !== undefined)
+    return { kind: 'conflict', reason: 'structure', identity: unsupported }
   if (base.releases.length === 0 || theirs.releases.length === 0)
     return { kind: 'conflict', reason: 'structure', identity: '' }
   const baseIds = new Set(base.bullets.map((bullet) => bullet.identity))
@@ -109,6 +124,7 @@ function isKept(
   removed: readonly Bullet[],
   added: readonly Bullet[],
 ): boolean {
+  if (ours.unsupportedHeading !== undefined || result.unsupportedHeading !== undefined) return false
   const removedIds = new Set(removed.map((bullet) => bullet.identity))
   const resultIds = new Set(result.bullets.map((bullet) => bullet.identity))
   const expected = new Set(
@@ -139,6 +155,8 @@ export function mergeChangelog(
 ): ChangelogResult {
   const base = parse(baseText)
   const ours = parse(oursText)
+  if (ours.unsupportedHeading !== undefined)
+    return { kind: 'conflict', reason: 'structure', identity: ours.unsupportedHeading }
   if (ours.releases.length === 0) return { kind: 'conflict', reason: 'structure', identity: '' }
   const change = delta(base, parse(theirsText))
   if ('kind' in change) return change

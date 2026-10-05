@@ -84,6 +84,36 @@ describe('team CHANGELOG merge', () => {
     expect(merge(base, theirs)).toContain('### Security\n\n- Protected.')
   })
 
+  it('refuses unsupported release headings on every input and in the kept check', () => {
+    for (const heading of [
+      '## 1.0.0',
+      '## Unreleased',
+      '##\t[1.0.0]',
+      '  ## [1.0.0]',
+      '## [1.0.0] ###',
+      '1.0.0\n-----',
+    ]) {
+      const unsupported = base.replace('## [1.0.0]', () => heading)
+      const rewritten = unsupported.replace('Released note.', 'Rewritten released history.')
+      expect(mergeChangelog(unsupported, unsupported, rewritten), heading).toMatchObject({
+        kind: 'conflict',
+        reason: 'structure',
+      })
+      expect(mergeChangelog(base, unsupported, base)).toMatchObject({
+        kind: 'conflict',
+        reason: 'structure',
+      })
+      expect(mergeChangelog(base, base, unsupported)).toMatchObject({
+        kind: 'conflict',
+        reason: 'structure',
+      })
+      expect(isChangelogKept(base, unsupported, base, unsupported)).toBe(false)
+      expect(isChangelogKept(base, base, base, unsupported)).toBe(false)
+    }
+    const fenced = base.replace('- Existing note.', '- Existing note.\n\n```md\n## 1.0.0\n```')
+    expect(mergeChangelog(fenced, fenced, fenced)).toEqual({ kind: 'merged', text: fenced })
+  })
+
   it('preserves BOM/CRLF and existing fragment conventions without folding them', () => {
     const ours = '\u{FEFF}' + base.replaceAll('\n', '\r\n')
     expect(merge(ours, base.replace('Existing note.', 'Edited note.'))).toContain(

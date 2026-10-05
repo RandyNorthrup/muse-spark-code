@@ -156,6 +156,131 @@ describe('team collision leases', () => {
     expect(leases.snapshot()[0]?.holder.attempt).toBe(2)
   })
 
+  it('preserves strict built-ins and user authority across overlapping repository rules', () => {
+    const configured = new SharedFiles(
+      [{ pattern: 'src/hot.json', kind: 'json-table' }],
+      [
+        { pattern: 'l10n/ui.fr.json', kind: 'text' },
+        { pattern: 'src/**', kind: 'text' },
+        { pattern: '**', kind: 'text' },
+      ],
+    )
+    expect(configured.kind('l10n/ui.fr.json')).toBe('json-table')
+    expect(configured.kind('src/hot.json')).toBe('json-table')
+    expect(configured.kind('CHANGELOG.md')).toBe('changelog')
+    expect(configured.kind('src/a.ts')).toBe('text')
+    expect(
+      new SharedFiles(
+        [{ pattern: 'l10n/ui.fr.json', kind: 'text' }],
+        [{ pattern: 'l10n/**', kind: 'json-table' }],
+      ).kind('l10n/ui.fr.json'),
+    ).toBe('text')
+    expect(
+      new SharedFiles(
+        [],
+        [
+          { pattern: 'data/*.json', kind: 'json-table' },
+          { pattern: 'data/**', kind: 'text' },
+        ],
+      ).kind('data/a.json'),
+    ).toBe('json-table')
+  })
+
+  it('canonicalizes path aliases before leasing, role clipping, growth and hint matching', () => {
+    for (const alias of [
+      'src/./a.ts',
+      'src//a.ts',
+      '././src/a.ts',
+      'src/tmp/../a.ts',
+      String.raw`src\a.ts`,
+    ]) {
+      const leases = new WriteSetLeases('workspace', shared)
+      const set = expandWriteSet([alias], ['src/./a.ts'], ['src//*.ts'])
+      expect(set.paths).toEqual(['src/a.ts'])
+      expect(set.patterns).toEqual(['src/a.ts'])
+      expect(leases.acquire(a, set).kind).toBe('acquired')
+      expect(leases.acquire(b, plan(['src/a.ts']))).toMatchObject({
+        kind: 'wait',
+        paths: ['src/a.ts'],
+      })
+      expect(leases.grow(a, 'src/tmp/../b.ts').kind).toBe('acquired')
+      expect(leases.snapshot()[0]?.paths).toEqual(['src/a.ts', 'src/b.ts'])
+      const questions = new FileHintQuestions().questions(
+        '/repo',
+        'ours',
+        set,
+        [
+          {
+            repository: '/repo',
+            windowInstanceId: 'other',
+            paths: [alias],
+          },
+        ],
+        shared,
+      )
+      expect(questions[0]?.paths).toEqual(['src/a.ts'])
+    }
+    for (const outside of [
+      'src/../../escape.ts',
+      './C:/escape.ts',
+      String.raw`\\server\file`,
+      '/escape.ts',
+    ])
+      expect(() => expandWriteSet([outside], files)).toThrow()
+  })
+
+  it('folds case consistently on insensitive filesystems and preserves sensitive distinctions', () => {
+    const insensitive = new SharedFiles([], [], true)
+    const upper = expandWriteSet(['SRC/A.TS'], [], ['src/**'], false, true)
+    const lower = expandWriteSet(['src/a.ts'], [], undefined, false, true)
+    const leases = new WriteSetLeases('workspace', insensitive)
+    expect(upper.paths).toEqual(['src/a.ts'])
+    expect(leases.acquire(a, upper).kind).toBe('acquired')
+    expect(leases.acquire(b, lower).kind).toBe('wait')
+    expect(leases.grow(a, 'SRC/B.TS').kind).toBe('acquired')
+    expect(leases.snapshot()[0]?.paths).toEqual(['src/a.ts', 'src/b.ts'])
+    expect(insensitive.kind('L10N/UI.FR.JSON')).toBe('json-table')
+    expect(teamPathMatcher('src/A.ts', false)('src/a.ts')).toBe(false)
+    expect(
+      writeSetOverlap(
+        expandWriteSet(['src/A.ts'], [], undefined, false, false),
+        expandWriteSet(['src/a.ts'], [], undefined, false, false),
+        new SharedFiles([], [], false),
+      ),
+    ).toEqual([])
+  })
+
+  it('exempts narrower merge-kind globs while leasing globs that can create ordinary files', () => {
+    for (const pattern of [
+      'l10n/ui.*.json',
+      'l10n/ui.??.json',
+      'l10n/ui.[a-z][a-z].json',
+      'l10n/{ui.fr.json,ui.en.json}',
+      'package.nls.*.json',
+      'locales/fr/**/*.json',
+      'locales/{fr,en}/**/*.json',
+      'i18n/messages*.json',
+    ])
+      expect(writeSetOverlap(plan([pattern]), plan([pattern]), shared)).toEqual([])
+    for (const pattern of ['l10n/*', 'l10n/**/*.json', 'l10n/{ui.fr.json,notes.md}', '**/*.json'])
+      expect(writeSetOverlap(plan([pattern]), plan([pattern]), shared)).not.toEqual([])
+    const override = new SharedFiles([{ pattern: 'l10n/ui.fr.json', kind: 'text' }])
+    expect(
+      writeSetOverlap(
+        expandWriteSet(['l10n/ui.*.json'], []),
+        expandWriteSet(['l10n/ui.*.json'], []),
+        override,
+      ),
+    ).not.toEqual([])
+    const repository = new SharedFiles([], [{ pattern: '**', kind: 'text' }])
+    expect(writeSetOverlap(plan(['l10n/ui.*.json']), plan(['l10n/ui.*.json']), repository)).toEqual(
+      [],
+    )
+    expect(() => shared.shouldSerializePattern(`l10n/${'{a,b}'.repeat(10)}.json`)).toThrow(
+      RangeError,
+    )
+  })
+
   it('never serializes built-in JSON/changelog files, while declared text shared files serialize', () => {
     const configured = new SharedFiles([{ pattern: 'src/hot.ts', kind: 'text' }])
     expect(
@@ -171,7 +296,9 @@ describe('team collision leases', () => {
     expect(configured.undeclaredTextFiles(['src/hot.ts'], ['src/**'])).toEqual([])
     expect(configured.kind('src/shared/l10n/en.ts')).toBeUndefined()
     expect(teamPathMatcher('CHANGELOG.md')('nested/CHANGELOG.md')).toBe(false)
-    expect(teamPathMatcher('src/A.ts')('src/a.ts')).toBe(process.platform === 'win32')
+    expect(teamPathMatcher('src/A.ts')('src/a.ts')).toBe(
+      process.platform === 'win32' || process.platform === 'darwin',
+    )
     expect(configured.kind('locales/a/b.json')).toBe('json-table')
     expect(
       new SharedFiles([], [{ pattern: 'config.json', kind: 'json-table' }]).kind('config.json'),
@@ -198,9 +325,7 @@ describe('team collision leases', () => {
     questions.answer(first[0]!, 'wait')
     expect(questions.questions('/repo/.git', 'ours', set, [hint], shared)[0]?.answer).toBe('wait')
     expect(questions.questions('/different', 'ours', set, [hint], shared)).toEqual([])
-    expect(
-      questions.questions('/repo/.git', 'ours', set, [hint], shared)[0]?.answer,
-    ).toBeUndefined()
+    expect(questions.questions('/repo/.git', 'ours', set, [hint], shared)[0]?.answer).toBe('wait')
     questions.answer(first[0]!, 'continue')
     expect(
       questions.questions(
@@ -212,6 +337,34 @@ describe('team collision leases', () => {
       )[0]?.answer,
     ).toBeUndefined()
     expect(questions.questions('/repo/.git', 'other', set, [hint], shared)).toEqual([])
+  })
+
+  it('retains Continue and Wait for live hints across unrelated tasks, repositories and windows', () => {
+    for (const answer of ['continue', 'wait'] as const) {
+      const questions = new FileHintQuestions()
+      const hint = {
+        repository: '/repo',
+        windowInstanceId: 'other',
+        paths: ['src/./a.ts', 'src/b.ts'],
+      }
+      const ask = (writes: string[], hints = [hint]) =>
+        questions.questions('/repo', 'ours', plan(writes), hints, shared)
+      questions.answer(ask(['src/a.ts'])[0]!, answer)
+      expect(ask(['src/b.ts'])[0]?.answer).toBeUndefined()
+      questions.questions('/different', 'ours', plan(['src/a.ts']), [], shared)
+      expect(
+        questions.questions('/repo', 'third', plan(['src/a.ts']), [hint], shared)[0]?.answer,
+      ).toBeUndefined()
+      expect(ask(['src/a.ts'])[0]?.answer).toBe(answer)
+      expect(ask(['src/**'])[0]?.answer).toBeUndefined()
+      questions.answer(ask(['src/**'])[0]!, answer)
+      expect(ask(['src/a.ts'])[0]?.answer).toBe(answer)
+      expect(ask(['src/**'], [{ ...hint, paths: ['src/a.ts'] }])[0]?.answer).toBe(answer)
+      expect(ask(['src/b.ts'])[0]?.answer).toBeUndefined()
+      ask(['src/a.ts'], [])
+      expect(ask(['src/a.ts'])[0]?.answer).toBeUndefined()
+      expect(ask(['src/a.ts'], [{ ...hint, windowInstanceId: 'new' }])[0]?.answer).toBeUndefined()
+    }
   })
 })
 

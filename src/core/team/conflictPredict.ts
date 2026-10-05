@@ -11,6 +11,7 @@ export interface PredictedConflict {
   readonly taskId: string
   readonly attempt: number
   readonly otherTaskId: string
+  readonly otherAttempt?: number
   readonly paths: readonly string[]
 }
 export interface ConflictPredictionDeps {
@@ -39,7 +40,13 @@ export function plannedConflicts(
     for (const other of others) {
       const paths = writeSetOverlap(task.set, other.set, shared)
       if (paths.length > 0)
-        conflicts.push({ taskId: task.taskId, attempt: 1, otherTaskId: other.taskId, paths })
+        conflicts.push({
+          taskId: task.taskId,
+          attempt: 1,
+          otherTaskId: other.taskId,
+          otherAttempt: 1,
+          paths,
+        })
     }
   }
   return conflicts
@@ -60,6 +67,7 @@ export class ConflictPredictor {
     do {
       this.again = false
       const read = await this.deps.readTasks()
+      if (generation !== this.generation) return
       const tasks = read.toSorted((left, right) => left.taskId.localeCompare(right.taskId))
       const conflicts: PredictedConflict[] = []
       for (const [index, task] of tasks.entries()) {
@@ -76,6 +84,7 @@ export class ConflictPredictor {
               taskId: task.taskId,
               attempt: task.attempt,
               otherTaskId: other.taskId,
+              otherAttempt: other.attempt,
               paths,
             })
         }
@@ -102,6 +111,7 @@ export class ConflictPredictor {
             conflict.taskId,
             conflict.attempt,
             conflict.otherTaskId,
+            conflict.otherAttempt,
             path,
           ])
           next.add(identity)
@@ -120,7 +130,7 @@ export class ConflictPredictor {
     try {
       await this.sweep(generation)
     } finally {
-      this.pending = undefined
+      if (generation === this.generation) this.pending = undefined
     }
   }
 
@@ -137,6 +147,8 @@ export class ConflictPredictor {
     if (this.timer !== undefined) clearInterval(this.timer)
     this.timer = undefined
     this.generation++
+    this.pending = undefined
+    this.again = false
     this.seen.clear()
   }
 

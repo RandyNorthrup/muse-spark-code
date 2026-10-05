@@ -1,8 +1,9 @@
 # M96c lane C — Collisions
 
-Status: implementation and core guard proof, 2026-10-05. One real-repository
-fixture remains blocked on its runtime gate; this is not a green lane or
-whole-milestone certification.
+Status: FIXM96CC review repairs pass focused tests and guard drills on
+2026-10-05, including the default-deadline real-Git fixture. Final gate
+receipts follow below; whole-milestone assembly remains the lead's work.
+The original implementation and timeout receipts are retained as history.
 
 The supplied `M96CC.md` filename was absent. `M96C-C.md` names this exact
 worktree (`mx-m96cc`), branch (`m96c/c`) and lane. Its lane-specific rules
@@ -223,3 +224,76 @@ escape fixture) preserves the exact input bytes. The four core files passed
 again on Mac mini at snapshot `05b7a17a`: 42/42, exit 0. Final changed-file
 ESLint and Prettier checks passed locally; pre-commit hooks enforce both
 again.
+
+## FIXM96CC review repairs — core checkpoint (2026-10-05)
+
+RVM96CC reported seven P2 findings and one P3, with no P1. The owner's
+`FIXM96CC.rig.md` authorizes repairs and supersedes the historical stopped
+fixture path above. This checkout is already on macmini, branch `m96c/cfix`,
+base `48f617f0`. No merge, rebase, push, network, credential access or model
+call is authorized. The full-quality gate remains the lead's work, as the
+brief requires and PLAN §7 records.
+
+All seven P2 regressions failed against the original source before repairs:
+three complete files, 12 failed / 15 passed, exit 1. The repaired sources
+pass those files: 27/27, exit 0. The original hint-expiry assertion was
+corrected to retain an answer when querying a different repository; expiry
+now means actual hint disappearance in the corresponding scope.
+
+| Finding                             | Resolution                                                                                                                                                                                                                                                                | Named regression                                                                                                                                                                | Red drill IDs                                                                          |
+| ----------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------- |
+| 1 (P2) repository merge downgrade   | Effective order preserves explicit user choices, strict built-ins, and strict repository additions over repository text rules, including overlapping patterns. Existing identical-pattern validation stays.                                                               | `preserves strict built-ins and user authority across overlapping repository rules`                                                                                             | `F1-trusted-precedence`, `F1-repository-no-downgrade`                                  |
+| 2 (P2) path aliases                 | One confined lexical normalizer resolves separators and dot segments before matching declarations, base files, role permissions, growth and hints. Stored lease paths fold on insensitive volumes; the host can select volume case policy explicitly.                     | `canonicalizes path aliases before leasing, role clipping, growth and hint matching`; `folds case consistently on insensitive filesystems and preserves sensitive distinctions` | `F2-lexical-identity`, `F2-case-identity`                                              |
+| 3 (P2) narrower JSON globs          | Bounded fixed prefix/suffix containment, character classes and brace alternatives prove narrower merge-kind globs exempt. Wider globs that may create ordinary files and overlapping higher-priority text overrides keep conservative leases.                             | `exempts narrower merge-kind globs while leasing globs that can create ordinary files`                                                                                          | `F3-contained-globs`, `F3-text-override`, `F3-brace-containment`, `F3-compiler-bounds` |
+| 4 (P2) hint answers                 | Cache identity includes own window, other window, repository and each canonical path. Expiry uses the complete fresh hint snapshot for the queried scope, independent of the current task. A new path asks; a dropped path expires; surviving paths retain Continue/Wait. | `retains Continue and Wait for live hints across unrelated tasks, repositories and windows`                                                                                     | `F4-hint-snapshot-expiry`, `F4-answer-scope`                                           |
+| 5 (P2) asymmetric prediction        | Task-pair events and deduplication include `otherAttempt`. Integration events have no other task attempt; submission warnings identify both initial attempts.                                                                                                             | `identifies both attempts and notifies symmetrically when either task is reassigned`                                                                                            | `F5-both-attempt-identities`, `F5-both-attempt-events`                                 |
+| 6 (P2) restarted polling            | Stop detaches old pending work; only the owning generation clears pending state. A stale read returns before merging, so new polls work even when an old read never settles.                                                                                              | `starts fresh polling after restart and prevents an old finalizer from clearing new work`; `publishes restarted results while an old read remains unresolved`                   | `F6-generation-pending`, `F6-finalizer-ownership`, `F6-late-snapshot`                  |
+| 7 (P2) unsupported release headings | Unsupported ATX/setext release structure refuses all merge inputs with `structure` and the offending heading. Kept checks refuse unsupported structure too. Indented headings cannot be swallowed by multiline bullets; fenced examples are preserved.                    | `refuses unsupported release headings on every input and in the kept check`                                                                                                     | `F7-unsupported-heading`, `F7-kept-structure`, `F7-indented-heading`                   |
+
+The eighteen distinct successful core drills ran complete owned files, each exited 1 on
+its named regression, and restored SHA-256-identical source bytes in
+`finally`. Machine-readable receipts are in
+[m96c-c-fix-drills.json](m96c-c-fix-drills.json); raw reports and the runner
+are in ignored `temp/`. One initially non-firing text-override mutation is
+retained in that record: an existing base file masked the future-pattern
+bug. Adding the empty-base regression made the same mutation fire. No gate
+was weakened. Earlier receipts above are historical source hashes, not the
+hashes of these repaired modules.
+
+The P3 fixture repair and final complete lane checks are recorded in the
+following checkpoint. There are no new dependencies, suppressions, unchecked
+casts, wire shapes or user-facing strings. README/CHANGELOG product assembly
+remains with X2 under the lane ownership table; this lane updates only its
+required certification and PLAN records.
+
+## FIXM96CC P3 fixture repair — implementation checkpoint
+
+| Finding                                  | Resolution                                                                                                                                                                                                                                                                                                      | Regression                                                                                                                                                                                                                                                               | Red drill                                                                                                                                      |
+| ---------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| 8 (P3) repeated Git porcelain / deadline | One template is built per file using batched `hash-object`, isolated `update-index`/`write-tree` indices and `commit-tree`, then copied per case. Independent branch/tree construction is parallel; cumulative integration commits remain ordered. Exact blobs for every path are read with `cat-file --batch`. | The existing real-Git case retains its complete assertions, adds per-file identity, value/order/committed-byte checks, and enforces fewer than 80 Git launches including setup, with no porcelain commits. Original implementation fails this regression at 96 launches. | `F8-redundant-git`: add ten real redundant `rev-parse` calls; the named case fails its launch-budget assertion, exit 1; restore SHA-256-exact. |
+
+The real-Git test still covers ten actual branch commits, thirty tables,
+ten cumulative merge commits, a release after the fifth integration, all
+three hundred serial table merges/formatter steps, each saved-byte SHA-256,
+all final values and raw integer/predecessor key order, every final
+committed blob and clean status. Per-path fixture values ensure accidentally
+reusing the first table's blob is observable. No assertion or deadline was
+removed or raised. Setup plus each case uses 72 Git launches; the previous
+fixture used 96, including repeated checkout/add/commit processes.
+
+The failing old implementation took 7.406 seconds with the rig's diagnostic
+120-second override. The plumbing implementation's first test body took
+2.020 seconds. Three default-deadline runs passed at 1.870, 1.553 and 1.972
+seconds; no `--testTimeout` flag or per-test timeout was supplied. Those
+three runs preceded the fixture's final lint corrections. The final-source
+JSON/real-Git file pair also passes the default deadline, 25/25, exit 0
+(`temp/final-json-repository-default.json`). The unchanged five-second
+case deadline is now proven directly on macmini, superseding the stopped
+fixture record above.
+
+Together with the 27 core cases, the complete owned lane passes 52/52
+registered cases across five files. The nineteen distinct guard drills
+(eighteen core guards plus the fixture) have current successful receipts
+whose before/restored hashes independently match the final source files.
+All eight review findings are fixed; none is left as a named review
+residual. Final static/build checks are recorded in the next checkpoint.
