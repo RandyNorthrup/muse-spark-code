@@ -1,10 +1,12 @@
-# Pull requests and optional manual branch dispatches run the shared build
-# (build.yml): the quality gates on three platforms, the integration tests,
-# the macOS helper, the .vsix, secret scanning and semgrep.
+# Pull requests, merge-queue groups and manual branch runs call the shared
+# build (build.yml): the fast tier for a pull request once the merge queue is
+# on, the full tier for everything else. The required checks are the same
+# seven names on every event.
 name: CI
 
 on:
   pull_request:
+  merge_group:
   workflow_dispatch:
 
 permissions:
@@ -19,3 +21,9 @@ jobs:
     # Same-repository reusable workflow: GITHUB_TOKEN reaches it on its own;
     # no other secret is passed (least privilege).
     uses: ./.github/workflows/build.yml
+    with:
+      # The fast PR tier is safe only while the merge queue runs the full one
+      # before anything lands. Until the maintainer has turned the queue on in
+      # the main ruleset and set the repository variable CI_MERGE_QUEUE to
+      # `on` (CONTRIBUTING.md, "CI tiers"), every PR keeps the full tier.
+      fast: ${{ github.event_name == 'pull_request' && vars.CI_MERGE_QUEUE == 'on' }}

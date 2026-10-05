@@ -7,6 +7,171 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+### Added
+
+- **A live receipt workflow for the GitHub Action (M80 LA).**
+  `.github/workflows/action-live.yml` runs the real Action, on the agent
+  package packed from the same commit, against one open same-repository pull
+  request with the `MUSE_MODEL_API_KEY` secret: the contributor model, a hard
+  $0.25 budget, read-only permissions and no comment. Only the repository
+  owner can start it, by hand, on the default branch; it has no other
+  trigger. `test/action/la-check.mjs` judges the run and the step summary
+  records the receipt. It has not run yet.
+- **The first live Action receipt (M80 LA) passed** on 2026-10-05, in
+  [run 37249121568](https://github.com/RandyNorthrup/muse-spark-code/actions/runs/37249121568).
+  The real Action, with the real key, reviewed pull request #114 on the
+  contributor model. It completed in 5 requests for $0.001668, and neither key
+  shape appeared in the log or the artifacts. The package was an unsigned
+  candidate; registry-path support still waits on LR after a release.
+- **Panel polish (M87).** The owner's panel requests of 2026-10-03 (PLAN.md
+  D66).
+  - **A context meter** replaces the composer's "12% context": a ring that
+    fills with the share of the context window used, the whole percent
+    (rounded down) inside it, the warning colour from 70 % and the error
+    colour from 90 %. Its name and tooltip give the tokens, the window and
+    the backend's pressure word; a click still compacts.
+  - **Steps fold under one summary row.** In the default view a run of two
+    or more finished steps reads, for example, "Edited 2 files, ran a
+    command, and read 3 files" and opens in place. A failure is named with
+    its dot, a step waiting on you never folds and a running one stays
+    below. Focus view folds under the same summary.
+  - **Message times** on hover and keyboard focus: the time alone for
+    today, otherwise the date and time, the full date in the tooltip. Muse
+    Code's come from its recorded times; the Model API now stores a time
+    with each message and reply (older sessions show none).
+  - **Edit a queued message** from its ⋯ menu: it leaves the queue (Muse
+    Code's `turn/unqueue`; the Model API's queue, or a steer no request has
+    read yet) and returns to the prompt box above any draft. One that
+    already reached the model stays, with a notice; a Muse Code steer's menu
+    says it was delivered.
+  - **A diff tally** above the goal and task panes, such as "8 files
+    changed +313 −96": the conversation's edits added up, each file once.
+    It is not `git diff`, so shell commands' and your own changes are not
+    counted. Its **Review** opens the review pane on the same edits.
+  - **The tasks pane** collapses to two lines. **Open in a tab** (or **Open
+    Tasks in a Tab**) mirrors the list in a read-only editor tab that
+    rebuilds after its webview reloads and says when its conversation
+    closes; where VS Code has the command (its built-in
+    `workbench.action.moveEditorToNewWindow`), **Move into new window**
+    moves it into a window of its own. Acceptance in native VS Code is
+    still open.
+  - **One radial menu for the chat.** Right-click a row, press Shift+F10 or
+    the Menu key, or use its one ⋯: each action is one crisp blue pill, its
+    icon then its name, every pill the same size (the owner's requests of
+    2026-10-04), in a fan beside the pointer or ⋯ that stays whole inside
+    panels as narrow as 320 px; the pills scale in one after another. A message
+    has fork and the Rewind group's second burst, queued Edit; a reply Copy
+    response and Reply to this output; a restore Redo; a tool Open output;
+    a landed edit Review and **Revert** (Revert asks first and is not
+    offered while a turn runs; it rechecks the session and turn through
+    patch loading, file preparation and every write or delete, a turn
+    started meanwhile refuses it, and no send overlaps its file I/O). A
+    label longer than its pill ends in an ellipsis, with the whole label
+    as its name and tooltip; an unavailable note is
+    the same pill, opaque, with a dimmed icon. Selected text keeps its
+    Copy, Ask about this and Comment on this menu, in the same pills. Arrow
+    keys, Home/End, Enter/Space and Escape work as in any menu; reduced
+    motion shows the pills in place, and forced colours draws bordered
+    pills.
+  - **Tips** on every row of the palette and the `/` list: a skill's own
+    description, or "Run the _name_ skill." for one without.
+  - **Rows and the status line.** A shell row's IN and OUT are one bordered
+    block, five lines each with its own Show more (your `!` rows too). The
+    working line leads with a small looping circle-pattern mark (after
+    Inclushe's "circle pattern animation lighten", CodePen OPWreWR, MIT,
+    written fresh with no pointer tracking), then the verb, in a box as wide as
+    the longest verb so nothing moves when it changes, and a heartbeat
+    trace whose beam draws the P/QRS/T shape itself and leaves only a fading
+    trail; under reduced motion both stand still. Stop turns red on hover
+    and focus.
+  - **One centred chat column** (the owner's requests of 2026-10-04). The
+    transcript (queued messages and the working line included), the diff
+    tally, the goal, task and schedule panes, the approval dock and the
+    composer share one column, at most 760 px wide with its side gutters,
+    so their edges line up at every width; a wide panel centres it, the
+    transcript's scrollbar no longer shifts it, and a narrow panel keeps
+    the full width.
+  - **Even approval buttons.** "Always allow …" and "Allow once" are the
+    same height (28 px), one line each; the fill alone tells approving from
+    rejecting. A label longer than the card ends in an ellipsis with the
+    full text in its tooltip, and in a narrow card the choices stack, each
+    as wide as the card.
+  - **A shorter model pill.** Its fill is 20 px tall instead of 26 px, the
+    open-file chip's height, inside the same 26 px click target.
+  - **Narrow panels.** The composer's controls stay on one row at one
+    height: square icon buttons, the mode button as its icon alone, and a
+    model pill that shortens. An open-file chip that no longer fits moves
+    to its own row below the controls.
+  - **Plural counts.** The localization gate requires `{count}` in a
+    language's `one` form when it also covers an integer other than 1 in
+    0–200. Seven step-summary forms each in Russian, French and Brazilian
+    Portuguese now show the actual count; German forms may still omit it
+    when English does.
+- `npm run readme:shots` refreshes the README's screenshots from the UI
+  harness: `scripts/readme-shots.json` declares each image's scenario,
+  theme, size and language (`languages.png` renders `usage` in German),
+  with `--list` printing the mapping and its gaps, `--only <name,...>`
+  retaking some images and `--out <dir>` previewing elsewhere. The banner
+  stays rendered by `scripts/render-images.mjs`.
+
+### Changed
+
+- **Tiered CI, ready for a merge queue.** The full gate now runs as parallel
+  jobs:
+  - the static gates on all three platforms;
+  - the unit/e2e tests in four coverage shards per platform, merged before
+    the unchanged thresholds apply;
+  - the accessibility harness once, on Ubuntu;
+  - integration on Ubuntu and Windows;
+  - the macOS helper and the universal packages.
+
+  A `merge_group` run checks the commit that will land. Once the maintainer
+  turns on the queue and sets `CI_MERGE_QUEUE=on`, pull requests run only a
+  fast Ubuntu tier: the static gates, the build, every test, gitleaks and
+  semgrep. Until then every pull request keeps the full tier. The seven
+  required check names and the release artifacts are unchanged. In a merge
+  group, gitleaks runs its pinned, checksum-checked CLI, because the gitleaks
+  action refuses that event.
+- **The extension loads less at startup**: `dist/extension.js` is
+  552.6 KiB, down from 590.6 KiB, under its unchanged 600 KiB budget
+  (PLAN.md D6, 2026-10-03 and 2026-10-04). Model text that only a lazily
+  loaded bundle or the ACP agent reads is no longer carried at activation
+  (same words, in blocks by reader), and the window's web fetch loads with
+  its own bundle, `dist/webFetch.js` (budget 75 KiB), on the first fetch; if
+  it cannot load, that fetch fails with the reason ("Web fetch could not be
+  loaded", in all 14 languages) and the next one tries again. The lazily
+  loaded bundles shrink too (the Model API backend, the checkpoint store,
+  the import, code intelligence and both reviewers by 4 to 27 KiB each).
+  `npm run build` now fails when a shipped bundle carries a model-text
+  block it does not read, or when `MODEL_TEXT` holds a key no source file
+  of `dist/extension.js` reads; the code intelligence and web fetch
+  bundles' tests check that neither carries any key or value of `MODEL_TEXT`.
+- Releases reuse verified universal CI packages when the successful own-repository
+  PR, merge-queue or main CI build has exactly the tag's source tree, with recorded
+  SHA-256/version checks and 30-day retention; tag-push misses run the full gates.
+- Manual release recovery uses the same verified staging path while preserving
+  the earlier run's original bytes; invalid recovery and cancelled runs cannot publish.
+
+### Fixed
+
+- **CI reliability:** Windows MCP and shell job helpers compile directly with the .NET compiler, avoiding PowerShell startup and module discovery under load; failures retain compiler diagnostics and termination details.
+- A blocked M80 `v0` tag update now reports that an administrator must move it,
+  while preserving the four release channels' outcomes. Updates require a
+  fast-forward; the release guide documents the administrator's recovery command.
+- **CI reliability: flaky tests no longer race a deadline.**
+  The Model API host's fork, Auto reviewer and two-host budget tests, the
+  Action's signal tests (G18) and the headless deadline test (D9) failed now
+  and then on slow runners. Each now waits for the event it tests: a settled
+  parent turn, a held request, published claims, the fake agent's ready
+  line, a held response. Tests only; the product is unchanged.
+- **CI reliability: the accessibility gate keeps each page focused.**
+  Headless Chrome did not keep a window's focus, so on a loaded machine the
+  `slash-commands` page's `/` menu closed while axe scanned it and was
+  reported as `scrollable-region-focusable` on `:root`. Each page now runs
+  with Chrome's focus emulation and is scanned only once its scenario is
+  ready (a page not ready in 10 s fails); no rule or exemption changed.
+  Tooling only.
+
 ## [0.12.1] - 2026-10-04
 
 ### Changed

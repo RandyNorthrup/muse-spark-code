@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from 'vitest'
-import { MODEL_TEXT } from '../../src/shared/constants'
+import { WEB_FETCH_MODEL_TEXT } from '../../src/shared/constants'
 import { EN } from '../../src/shared/l10n/en'
 import { fill, setUiText } from '../../src/shared/l10n/text'
 import {
@@ -290,13 +290,13 @@ describe('web fetch rows (M69)', () => {
       })
     }
     const output = [
-      fill(MODEL_TEXT.webFetchHeader, {
+      fill(WEB_FETCH_MODEL_TEXT.webFetchHeader, {
         url: 'https://docs.example.com/a',
         status: '200',
         type: 'text/html',
         bytes: '48213',
       }),
-      MODEL_TEXT.webFetchUntrusted,
+      WEB_FETCH_MODEL_TEXT.webFetchUntrusted,
     ].join(' ')
     expect(fetchedSize(output)).toBe('Fetched 48.2 kB (text/html)')
     expect(fetchedSize('Fetched 512 bytes of nothing')).toBeUndefined()
