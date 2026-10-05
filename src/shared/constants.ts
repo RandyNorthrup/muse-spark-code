@@ -51,6 +51,8 @@ export const COMMAND_IDS = {
   // M89 (PLAN.md D68): the bundled skills into, and out of, Muse Code's own folders.
   installBundledSkills: 'museSpark.installBundledSkills',
   removeBundledSkills: 'museSpark.removeBundledSkills',
+  // M99 (PLAN.md D79): the release notes of this version and the ones before it.
+  showWhatsNew: 'museSpark.showWhatsNew',
 } as const
 
 // Extension-private `globalState` keys (never machine-wide configuration).
@@ -78,6 +80,11 @@ export const GLOBAL_STATE_KEYS = {
   bundledSkillsInstallDeclined: 'museSpark.bundledSkillsInstallDeclined',
   /** The vendored tag whose Update offer was answered Not now (M89): a newer tag asks again. */
   bundledSkillsUpdateDeclined: 'museSpark.bundledSkillsUpdateDeclined',
+  /**
+   * The newest version What's New ran for (M99, PLAN.md D79), synced with
+   * Settings Sync, so a page seen on one machine is not shown on another.
+   */
+  whatsNewLastSeenVersion: 'museSpark.whatsNewLastSeenVersion',
 } as const
 
 // VS Code `when`-clause context keys the extension maintains.
@@ -345,6 +352,10 @@ export const SETTING_DEFAULTS = {
   // or a question. On until turned off; nothing shows while focused. It
   // chooses nothing that runs or is billed, so a workspace may set it.
   notifyOnBackgroundTurn: true,
+  // M99 (PLAN.md D79): What's New after an update, on by default (the
+  // owner's ruling that enhancements are on). Off shows nothing on updates;
+  // the command still opens the page.
+  showWhatsNewOnUpdate: true,
   // Tokens and the dollar estimate under each Model API reply (M82): off
   // until turned on. Muse Code reports no per-reply totals on its protocol
   // (PLAN.md D26), so its replies never carry one. Display only.
@@ -407,6 +418,8 @@ export const MACHINE_SCOPED_SETTINGS = [
   'modelApiSessionBudgetUsd',
   // What may approve a command for the user, on their subscription (M90).
   'museCodeAutoReviewer',
+  // A page that opens on its own after an update is the user's choice, never a repository's (M99).
+  'showWhatsNewOnUpdate',
 ] as const
 
 // Muse Code SDK 1.3.0 hook process limits (PLAN.md M51).
@@ -529,6 +542,35 @@ export const WEBVIEW_DIST_SEGMENTS = ['dist', 'webview'] as const
 export const WEBVIEW_SCRIPT_FILE = 'main.js'
 export const WEBVIEW_STYLE_FILE = 'main.css'
 export const WEBVIEW_ROOT_ELEMENT_ID = 'root'
+
+// What's New after an update (M99, PLAN.md D79). Its page is an editor
+// webview (every VS Code fork has webviews; not all have Markdown preview):
+// the host renders it from dist/whatsNew.json, made at build time from
+// CHANGELOG.md, and its few lines of script (dist/webview/whatsNew.js) only
+// pass a click on a link, a Try it or the toggle back to the host.
+export const WHATS_NEW_VIEW_TYPE = 'museSpark.whatsNew'
+// The page's own bundle (PLAN.md D6), loaded on the first page or notice.
+export const WHATS_NEW_BUNDLE_FILE = 'whatsNew.js'
+export const WHATS_NEW_CONTENT_FILE = 'whatsNew.json'
+export const WHATS_NEW_SCRIPT_FILE = 'whatsNew.js'
+export const WHATS_NEW_STYLE_FILE = 'whatsNew.css'
+// One claim file per version under the extension's global storage: the
+// window whose exclusive create succeeds shows the update; the others,
+// started at the same moment by the same update, see the file and do not.
+export const WHATS_NEW_CLAIMS_DIR = 'whats-new'
+export const WHATS_NEW_CLAIM_SUFFIX = '.claim'
+// When an update shows: some time after activation, then only while no turn
+// runs and no document was edited for a while, checked at this interval.
+export const WHATS_NEW_SETTLE_MS = 5 * 1000
+export const WHATS_NEW_QUIET_MS = 3 * 1000
+export const WHATS_NEW_IDLE_POLL_MS = 2 * 1000
+// An output channel's document (the extension's own log among them) changes
+// without the user typing, so its changes do not count as edits.
+export const OUTPUT_CHANNEL_SCHEME = 'output'
+export const WHATS_NEW_CHANGELOG_URL =
+  'https://github.com/RandyNorthrup/muse-spark-code/blob/main/CHANGELOG.md'
+export const WHATS_NEW_README_URL = 'https://github.com/RandyNorthrup/muse-spark-code#readme'
+// The markup its script reads is in src/shared/whatsNewPage.ts.
 
 // Content-Security-Policy nonce: 24 random bytes encode to 32 base64url chars.
 export const NONCE_BYTES = 24

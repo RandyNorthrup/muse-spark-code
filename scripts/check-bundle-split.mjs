@@ -35,6 +35,10 @@
 //   with M78's reviewer core) are in dist/extension.js, or missing from
 //   dist/codeIntel.js, dist/voice.js, dist/webFetch.js or
 //   dist/museCodeReviewer.js.
+// - What's New (M99: the page's renderer, content schema and tab) is in
+//   dist/extension.js or missing from dist/whatsNew.js; or its page script,
+//   dist/webview/whatsNew.js, carries any package, the display table or
+//   constants.ts, or no longer carries the page script.
 // - a model text block beside MODEL_TEXT (MODEL_API_, CODE_INTEL_,
 //   CHECKPOINT_, AGENT_IMPORT_, REVIEW_, WEB_FETCH_, EXEC_,
 //   AUTO_REVIEWER_MODEL_TEXT) is
@@ -351,6 +355,20 @@ const ON_FIRST_USE = [
       'src/core/backends/modelapi/autoReviewer.ts',
     ],
   },
+  // What's New (M99, D79): activation keeps the update check, the claim and
+  // the loader; the page is required on the first page or notice.
+  {
+    output: 'dist/whatsNew.js',
+    metafile: 'dist/meta/whatsNew.json',
+    use: 'the first What’s New page or notice',
+    files: [
+      'src/host/whatsNew/whatsNewEntry.ts',
+      'src/host/whatsNew/whatsNewPanel.ts',
+      'src/host/whatsNew/whatsNewHtml.ts',
+      'src/core/whatsNew/whatsNewContent.ts',
+      'src/shared/whatsNewMessages.ts',
+    ],
+  },
 ]
 const uiText = inputsOf(UI_TEXT)
 if (!uiText.has(ENGLISH_TABLE)) {
@@ -482,6 +500,27 @@ for (const bundle of ON_FIRST_USE) {
       problems.push(`${bundle.output} no longer carries ${file}`)
     }
   }
+}
+
+// What's New's page script (M99) is a few lines that pass clicks back: it
+// carries no package, not the display table and not constants.ts (which
+// re-exports that table), only the script and its markup contract.
+const WHATS_NEW_PAGE = {
+  output: 'dist/webview/whatsNew.js',
+  metafile: 'dist/meta/whatsNewPage.json',
+  script: 'src/webview/whatsNew/whatsNewPage.ts',
+  never: ['node_modules/', 'src/shared/l10n/', 'src/shared/constants.ts'],
+}
+const whatsNewPage = inputsOf(WHATS_NEW_PAGE)
+for (const prefix of WHATS_NEW_PAGE.never) {
+  if (hasPrefix(whatsNewPage, prefix)) {
+    problems.push(
+      `${WHATS_NEW_PAGE.output} carries ${prefix}, which What’s New’s page script never needs`,
+    )
+  }
+}
+if (!whatsNewPage.has(WHATS_NEW_PAGE.script)) {
+  problems.push(`${WHATS_NEW_PAGE.output} no longer carries ${WHATS_NEW_PAGE.script}`)
 }
 
 // Model text (PLAN.md D6, 2026-10-03). One object is carried whole by every
@@ -719,3 +758,4 @@ for (const bundle of DEFERRED) console.log(`ok   ${bundle.output}: loads only on
 for (const bundle of ON_FIRST_USE) {
   console.log(`ok   ${bundle.output}: loads only on ${bundle.use}, never at activation`)
 }
+console.log(`ok   ${WHATS_NEW_PAGE.output}: the page script alone, no package and no display table`)

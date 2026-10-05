@@ -231,6 +231,11 @@
         "command": "museSpark.removeBundledSkills",
         "title": "%command.removeBundledSkills.title%",
         "category": "%command.category%"
+      },
+      {
+        "command": "museSpark.showWhatsNew",
+        "title": "%command.showWhatsNew.title%",
+        "category": "%command.category%"
       }
     ],
     "keybindings": [
@@ -668,6 +673,12 @@
           "type": "boolean",
           "default": true,
           "description": "%config.bundledSkills.description%",
+          "scope": "machine"
+        },
+        "museSpark.showWhatsNewOnUpdate": {
+          "type": "boolean",
+          "default": true,
+          "description": "%config.showWhatsNewOnUpdate.description%",
           "scope": "machine"
         },
         "museSpark.modelApiCommandRules": {

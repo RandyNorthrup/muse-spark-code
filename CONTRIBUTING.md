@@ -86,7 +86,10 @@ Use this order for a candidate branch:
   nobody captured says so in a comment.
 - Update `CHANGELOG.md` (Keep a Changelog, under `Unreleased`), the README
   where behaviour changed, and `docs/PRIVACY.md` when anything new leaves
-  the machine.
+  the machine. A change users should try can add a bullet to the section's
+  `### Highlights` list, which What's New shows after the update (at most 5
+  per release; `docs/RELEASING.md` has the form and the `<!-- try: … -->`
+  button).
 - No new dependency without a reason in the pull request and a
   compatibility check; no suppressed lint rule or `any` without an inline
   reason and a row in PLAN.md §8.

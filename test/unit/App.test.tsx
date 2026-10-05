@@ -1205,6 +1205,9 @@ describe('App palette', () => {
     expect(postMessage).toHaveBeenCalledWith({ type: 'hostAction', action: 'openKeybindings' })
     run('Output log')
     expect(postMessage).toHaveBeenCalledWith({ type: 'hostAction', action: 'openLog' })
+    // M99: the release notes of this version, in an editor tab.
+    run('What’s New')
+    expect(postMessage).toHaveBeenCalledWith({ type: 'hostAction', action: 'showWhatsNew' })
     run('Sign out')
     expect(postMessage).toHaveBeenCalledWith({ type: 'signOut' })
     run('/compact')

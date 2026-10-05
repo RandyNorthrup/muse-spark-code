@@ -102,3 +102,4 @@ The PNGs beside the records are that day's harness renders.
 - [M76](m76.md): custom Model API agents, bounded untrusted files, tool/permission narrowing, paid model consent and trust during waits; lane evidence with lead-owned aggregate gates open (PLAN.md D49)
 - [M80 headless and CI](m80.md): lanes A–D, their integration, the W workflow and the cross-lane fix pass, with every drill and the integrated-tree gates on three rigs; hosted matrix and live receipts L/LA/LR pending.
 - [M89](m89.md): the bundled high-quality-projects skills: a third skill source on the Model API backend, the install, update offer and removal for Muse Code, junctions and symlinks proven on the three rigs (PLAN.md D68)
+- [M99](m99.md): What's New after an update: the page or notice once per update in one window, the content built from CHANGELOG.md, the Try it allow list, the changelog's Highlights guard, every guard red-drilled on Kubuntu (PLAN.md D79)

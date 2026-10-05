@@ -36,6 +36,7 @@ describe('readSettings', () => {
         modelApiAutoReviewer: true,
         modelApiObservationPacking: true,
         museCodeAutoReviewer: false,
+        showWhatsNewOnUpdate: false,
       }),
       new FakeLogOutputChannel(),
     )
@@ -51,6 +52,9 @@ describe('readSettings', () => {
     expect(settings.museCodeAutoReviewer).toBe(false)
     expect(SETTING_DEFAULTS.museCodeAutoReviewer).toBe(true)
     expect(toSettingsSnapshot(settings).museCodeAutoReviewer).toBe(false)
+    // M99: What's New after an update, on by default, off when the user says so.
+    expect(settings.showWhatsNewOnUpdate).toBe(false)
+    expect(SETTING_DEFAULTS.showWhatsNewOnUpdate).toBe(true)
     // M56 (PLAN.md D43).
     expect(settings.sandboxNetwork).toBe('restricted')
     expect(settings.modelApiPromptCacheRetention).toBe('24h')

@@ -19,6 +19,8 @@ import {
   SETTING_DEFAULTS,
   SETTINGS_SECTION,
   WALKTHROUGH_ID,
+  WHATS_NEW_CHANGELOG_URL,
+  WHATS_NEW_README_URL,
 } from '../../src/shared/constants'
 import { findBash } from './helpers/shellParsers'
 
@@ -265,6 +267,21 @@ describe('package.json manifest', () => {
     }
   })
 
+  it('links What’s New to the repository the manifest names (M99)', () => {
+    const repository = manifest.repository.url.replace(/.git$/, '')
+    expect(WHATS_NEW_CHANGELOG_URL).toBe(`${repository}/blob/main/CHANGELOG.md`)
+    expect(WHATS_NEW_README_URL).toBe(manifest.homepage)
+    // Machine-scoped and on by default (the owner's ruling: enhancements are on).
+    expect(manifest.contributes.configuration.properties['museSpark.showWhatsNewOnUpdate']).toEqual(
+      {
+        type: 'boolean',
+        default: true,
+        description: '%config.showWhatsNewOnUpdate.description%',
+        scope: 'machine',
+      },
+    )
+  })
+
   it('lists the extension under the AI and Chat categories only (M26)', () => {
     expect(manifest.categories).toEqual(['AI', 'Chat'])
   })
@@ -303,6 +320,17 @@ describe('packaging (M26)', () => {
     for (const name of [...Object.keys(manifest.dependencies), 'react', 'zod', '@muse-code/sdk']) {
       expect(notices, name).toContain(`\n${name} (`)
     }
+  })
+
+  it('ships What’s New: its bundle, its content and its page (M99)', () => {
+    expect(shipped).toEqual(
+      expect.arrayContaining([
+        'dist/whatsNew.js',
+        'dist/whatsNew.json',
+        'dist/webview/whatsNew.js',
+        'dist/webview/whatsNew.css',
+      ]),
+    )
   })
 
   it('ships the manifest strings and the translated tables, not the harness (M40)', () => {

@@ -12,11 +12,15 @@
 !dist/voice.js
 !dist/webFetch.js
 !dist/museCodeReviewer.js
+!dist/whatsNew.js
+!dist/whatsNew.json
 !dist/uiText.js
 !dist/searchWorker.js
 !dist/pageWorker.js
 !dist/webview/main.js
 !dist/webview/main.css
+!dist/webview/whatsNew.js
+!dist/webview/whatsNew.css
 !media/icon.svg
 !media/icon.png
 !resources/walkthrough/**

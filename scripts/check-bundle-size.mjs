@@ -53,6 +53,10 @@ const BUDGETS = [
   // side session, queue and approvals with M78's reviewer core. 45.4 KiB when
   // split out, plus 15%, rounded up to 25 KiB (PLAN.md D6).
   { path: 'dist/museCodeReviewer.js', budgetKiB: 75 },
+  // What's New (M99, PLAN.md D79), loaded on the first page or notice: the
+  // page's renderer, its content schema (zod's mini parser) and its tab.
+  // 34.7 KiB when split out, plus 15%, rounded up to 25 KiB.
+  { path: 'dist/whatsNew.js', budgetKiB: 50 },
   // Shared English fallback; existing host budgets stay unchanged. Measured
   // 104.9 KiB (2026-10-04); plus 15%, rounded up to 25 KiB.
   { path: 'dist/uiText.js', budgetKiB: 125 },
@@ -61,6 +65,9 @@ const BUDGETS = [
   // 201.2 KiB when split out (parse5 122.7 of it), plus room.
   { path: 'dist/pageWorker.js', budgetKiB: 300 },
   { path: 'dist/webview/main.js', budgetKiB: 900 },
+  // What's New's page script (M99): it only passes clicks back to the host.
+  // 0.7 KiB when made, plus 15%, rounded up to 25 KiB.
+  { path: 'dist/webview/whatsNew.js', budgetKiB: 25 },
   // The ACP agent (M63, PLAN.md D62), a process of its own installed once,
   // never loaded by VS Code: the engine without the webview or the Model API
   // backend (dist/modelApi.js, M57), plus the ACP SDK and the classic zod it
