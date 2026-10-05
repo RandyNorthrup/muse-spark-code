@@ -224,6 +224,7 @@ export const EN = {
     'paid:scheduledPrompts': 'Turn paid scheduled prompts on or off.',
     'paid:autoReviewer': 'Turn the paid Auto reviewer on or off.',
     'paid:bestOfN': 'Turn paid Best of N on or off.',
+    'paid:tab': 'Turn paid Tab completions on or off.',
     loop: 'Schedule a prompt in this Model API conversation.',
     importSession: 'Resume an exported session file on the Model API backend.',
     review: 'Ask Muse to review your changes, or what you describe.',
@@ -2181,6 +2182,56 @@ export const EN = {
     'The same prompt runs in separate worktrees, each billed to your Model API key. {price} Each run asks for approval in every permission mode, including Bypass, unless you allow best-of-N always in this workspace. Actual cost depends on tokens used; other paid tools cost extra. Model API backend only.',
   usagePaidBestOfNAttempts: forms({ one: '{count} attempt', other: '{count} attempts' }),
   usagePaidBestOfNIncluded: 'Reported token estimate: {cost}',
+  // Inline completions (M94, PLAN.md D73): the paid feature, the
+  // once-per-window popup (Q-M94a), the status bar with its menu, the snooze
+  // and the Account & usage row. {price} is a dollar amount in the display
+  // language's money format.
+  paidTabName: 'Tab completions',
+  paidConfirmTab:
+    'Tab completions send the code around your cursor to Meta as you type, billed to your Model API key. {price} At typical typing that is about $0.80 an hour on Standard and about $0.05 on the contributor model, capped by a daily budget you can change in settings. The contributor model is cheaper, and Meta trains on the code it is sent. Copilot, if on, is yielded to: automatic Tab suggestions pause for its languages unless you run both. Tab asks once per window before its first suggestion.',
+  paidUseTabTitle: 'Let Tab suggest in this window?',
+  paidUseTabDetail:
+    'Tab sends the code around your cursor to Meta’s {model} model, billed to your Model API key at {price}. Today’s budget is {budget}; Tab stops for the day if it is reached. {training} Allow once covers this window until it closes; Allow always in this workspace never asks again here; Deny snoozes Tab in this window.',
+  tabTrainingContributor:
+    'The contributor model is cheaper, and Meta trains on the code it is sent.',
+  // The status bar item while the feature is on; {spend} is today's spend.
+  tabStatusSpend: 'Tab {spend}',
+  tabStatusTooltip:
+    'Tab completions ({model}). {requests} today, {spend} of the {budget} daily budget.',
+  // Each state D73 names; {left} is the snooze's remaining time.
+  tabStatusSnoozed: 'Tab snoozed ({left} left)',
+  tabStatusBudget: 'Tab daily budget reached',
+  tabStatusNoKey: 'Tab: no key',
+  tabStatusUntrusted: 'Tab off in an untrusted workspace',
+  tabStatusLanguageOff: 'Tab off for {language}',
+  tabStatusCopilot: 'Tab: on Invoke while Copilot is on',
+  // {kind} is the last failure's class, never code or a path.
+  tabStatusError: 'Tab failed ({kind})',
+  // The status bar menu: turn off, the snoozes, languages, the multi-line
+  // mode, Copilot's row and Account & usage.
+  tabMenuTurnOff: 'Turn Tab off',
+  tabMenuSnoozeShort: 'Snooze for 15 minutes',
+  tabMenuSnoozeLong: 'Snooze for an hour',
+  tabMenuSnoozeRestart: 'Snooze until restart',
+  tabMenuLanguages: 'Tab languages…',
+  tabMenuMultiline: 'Multi-line mode…',
+  tabMultilineAuto: 'Automatic',
+  tabMultilineOnInvoke: 'Only when invoked',
+  tabMultilineNever: 'Single-line context only',
+  tabMenuUsage: 'Account & usage',
+  tabMenuCopilotOff: 'Turn off Copilot’s suggestions for {language}',
+  tabMenuRunBoth: 'Run both',
+  tabCopilotConfirmTitle: 'Turn off Copilot’s suggestions for {language}?',
+  tabCopilotConfirmDetail:
+    'Tab stops waiting for Invoke in {language} and sends its own automatic suggestions, billed to your Model API key. You can turn Copilot’s suggestions back on in settings any time.',
+  // The Account & usage row: requests, tokens, cached tokens, cost today and
+  // in this window, and the budget.
+  usagePaidTabRequests: forms({ one: '{count} Tab request', other: '{count} Tab requests' }),
+  usagePaidTabTokens: '{tokens} tokens ({cached} cached)',
+  usagePaidTabReported: 'Reported token estimate: {cost}',
+  usagePaidTabCostToday: 'Today: {cost}',
+  usagePaidTabCostWindow: 'This window: {cost}',
+  usagePaidTabBudget: 'Daily budget: {budget}',
   // The session board (M77, PLAN.md D49).
   boardTitle: 'Session board',
   boardUnavailable:

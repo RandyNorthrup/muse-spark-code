@@ -39,6 +39,14 @@ export interface PaidFeatureGateDeps {
   /** The modal naming the price; true when the user turned the feature on. */
   readonly confirm: (feature: PaidFeature) => Promise<boolean>
   readonly isWindowFocused: () => boolean
+  /**
+   * Features whose price the first use's question names instead of a
+   * turn-on confirmation (Tab, M94 Q-M94a; owner 2026-10-04: on by default,
+   * ask once before the first charge). Their acceptance follows the setting
+   * without a modal, so turning one off still voids its "always" grants
+   * (M58); nothing is billed before the first use's answer (paidConsent.ts).
+   */
+  readonly asksOnFirstUse?: ReadonlySet<PaidFeature>
   readonly log: CoreLogger
 }
 
@@ -88,6 +96,11 @@ export class PaidFeatureGate {
     this.notify()
   }
 
+  /** Whether the feature's price is named by its first use instead of a turn-on modal. */
+  private asksOnFirstUse(feature: PaidFeature): boolean {
+    return this.deps.asksOnFirstUse?.has(feature) ?? false
+  }
+
   /** Availability only: paidConsent and the request boundary authorize spending. */
   public isOn(feature: PaidFeature): boolean {
     return (
@@ -123,6 +136,10 @@ export class PaidFeatureGate {
       if (!isSettingOn && isAccepted) {
         await this.setAccepted(feature, false)
         this.deps.log.info(`Paid feature ${feature} turned off`)
+      } else if (isSettingOn && !isAccepted && this.asksOnFirstUse(feature)) {
+        // No modal: its first use asks, naming the price (D48).
+        await this.setAccepted(feature, true)
+        this.deps.log.info(`Paid feature ${feature} on; its first use asks`)
       } else if (
         isSettingOn &&
         !isAccepted &&
@@ -145,6 +162,14 @@ export class PaidFeatureGate {
   /** The palette's toggle turning a feature on: the confirmation first, then the setting. */
   public async turnOn(feature: PaidFeature): Promise<boolean> {
     if (this.isOn(feature)) {
+      return true
+    }
+    if (this.asksOnFirstUse(feature)) {
+      // No modal: its first use asks, naming the price (D48).
+      await this.setAccepted(feature, true)
+      await this.deps.setSetting(feature, true)
+      this.deps.log.info(`Paid feature ${feature} turned on; its first use asks`)
+      this.notify()
       return true
     }
     if (this.asking.has(feature)) {
@@ -238,6 +263,10 @@ export class PaidUsage {
         this.tally = { ...tally, bestOfNAttempts: (tally.bestOfNAttempts ?? 0) + units }
         break
       }
+      case 'tab': {
+        this.tally = { ...tally, tabRequests: (tally.tabRequests ?? 0) + units }
+        break
+      }
     }
     this.log.info(`Paid use: ${feature} +${String(units)}`)
     for (const listener of this.listeners) {
@@ -290,6 +319,43 @@ export class PaidUsage {
       ...this.tally,
       bestOfNRequests: (this.tally.bestOfNRequests ?? 0) + 1,
       bestOfNUnknownRequests: (this.tally.bestOfNUnknownRequests ?? 0) + 1,
+    }
+    for (const listener of this.listeners) listener()
+  }
+
+  /** A Tab suggestion request was sent (M94, PLAN.md D73): counted at once, priced on report. */
+  public addTabRequest(): void {
+    this.tally = {
+      ...this.tally,
+      tabRequests: (this.tally.tabRequests ?? 0) + 1,
+      tabUnknownRequests: (this.tally.tabUnknownRequests ?? 0) + 1,
+    }
+    for (const listener of this.listeners) listener()
+  }
+
+  /**
+   * One Tab request's reported tokens (M94, PLAN.md D73): its cost at the
+   * request model's rates, apart from every conversation. A request that
+   * never reports keeps its unknown count, never a zero cost.
+   */
+  public addTabUsage(modelId: string, usage: SubagentUsage): void {
+    if (modelApiPaidTier(modelId) === undefined) {
+      throw new Error('Cannot estimate Tab use for an unpriced model')
+    }
+    if (
+      Object.values(usage).some((value) => !Number.isSafeInteger(value) || value < 0) ||
+      usage.cachedTokens > usage.inputTokens
+    ) {
+      throw new Error('Tab usage must be valid nonnegative token counts')
+    }
+    const unknown = this.tally.tabUnknownRequests ?? 0
+    if (unknown === 0) return
+    this.tally = {
+      ...this.tally,
+      tabUnknownRequests: unknown - 1,
+      tabTokens: (this.tally.tabTokens ?? 0) + usage.inputTokens + usage.outputTokens,
+      tabCachedTokens: (this.tally.tabCachedTokens ?? 0) + usage.cachedTokens,
+      tabCostUsd: (this.tally.tabCostUsd ?? 0) + estimateCostUsd(usage, modelId),
     }
     for (const listener of this.listeners) listener()
   }

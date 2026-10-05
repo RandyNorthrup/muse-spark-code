@@ -7,6 +7,40 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+### Highlights
+
+- **Tab completions with a separate hard daily budget.** Invoke ghost text with Alt+\; the first paid request asks for consent and uses your stored Model API key. <!-- try: command museSpark.tabMenu -->
+
+### Added
+
+- **Tab completions (M94, PLAN.md D73).** On by default, with its status
+  item visible at startup and its completion engine loaded on first use.
+  Alt+\ invokes ghost text; the five Tab commands turn it on/off, snooze it,
+  open its menu and choose languages. The default trigger is Invoke because
+  the probe measured 3.8 s median to first text. The first charge asks once
+  per window, names the model's rates and the $1.00/day default hard budget;
+  the stored Model API key pays on either chat backend, never the subscription.
+  - Fast and multi-line context, filtered completions, typing-through cache,
+    bounded scheduling and per-window daily-ledger files shared across all
+    windows. Reported usage settles reservations; missing usage retains them.
+  - Related recent-edit and definition snippets now reach the engine in
+    path order, within the context limit, through the same file privacy
+    checks as the current file; secrets are redacted before cutting excerpts.
+  - The status item shows spend, snooze, budget, no key, trust, language and
+    Copilot states. Account & usage counts Tab requests, tokens, cached tokens,
+    this window's reported cost and the cross-window day/budget.
+  - Translated commands and multi-line picker labels in all 14 languages.
+    `dist/tab.js` ships in the VSIX, with size, module-split, model-text and
+    host-global checks; the host-API record is regenerated.
+  - Cursor's Tab hook bridge is prepared; executing those hook configurations
+    and the final live check wait for M91/lane K.
+
+### Changed
+
+### Fixed
+
+### Security
+
 ## [0.13.0] - 2026-10-05
 
 ### Highlights

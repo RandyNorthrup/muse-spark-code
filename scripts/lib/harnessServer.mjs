@@ -139,6 +139,8 @@ export const SCENARIOS = [
   'auto-review',
   'auto-review-rule',
   'auto-review-usage',
+  'tab-usage',
+  'tab-usage-off',
   'share',
   'share-narrow',
   'verify',

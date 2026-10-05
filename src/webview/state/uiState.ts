@@ -239,6 +239,8 @@ export interface UiState {
     | undefined
   /** Incremented per host `focusInput`; the composer focuses when it changes. */
   readonly focusRequests: number
+  /** Incremented per host `openUsage`; Account & usage opens when it changes (M94). */
+  readonly usageRequests: number
   /** Text waiting to be inserted at the composer caret, if any. */
   readonly pendingInsert: string | undefined
   readonly auth: {
@@ -509,6 +511,7 @@ export const initialUiState: UiState = {
   pendingHandoffCommand: undefined,
   handoff: undefined,
   focusRequests: 0,
+  usageRequests: 0,
   pendingInsert: undefined,
   auth: { status: 'checking', detail: undefined, backend: undefined, methods: undefined },
   model: undefined,
@@ -2292,6 +2295,9 @@ function applyHostMessage(state: UiState, message: HostToWebviewMessage, at: num
     }
     case 'focusInput': {
       return { ...state, focusRequests: state.focusRequests + 1 }
+    }
+    case 'openUsage': {
+      return { ...state, usageRequests: state.usageRequests + 1 }
     }
     case 'conversationCleared': {
       if (message.accountBoundary === true) {

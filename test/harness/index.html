@@ -2605,6 +2605,47 @@
           steps['auto-review']()
           whenFound('.paid-badge', (badge) => badge.click())
         },
+        // --- M94 lane U: the Tab row of Account & usage, on ---
+        'tab-usage': () => {
+          window.harnessBackend = 'modelApi'
+          window.harnessPaid = {
+            features: ['tab'],
+            tally: {
+              webSearches: 0,
+              images: 0,
+              voiceSeconds: 0,
+              scheduledRuns: 0,
+              tabRequests: 12,
+              tabUnknownRequests: 1,
+              tabTokens: 45000,
+              tabCachedTokens: 3000,
+              tabCostUsd: 0.12,
+            },
+            isKeyStored: true,
+            alwaysAllowed: [],
+          }
+          send({ type: 'authState', status: 'signedIn', backend: 'modelApi' })
+          send({ type: 'paidState', state: window.harnessPaid })
+          whenFound('.paid-badge', (badge) => badge.click())
+        },
+        // --- M94 lane U: the Tab row of Account & usage, off ---
+        'tab-usage-off': () => {
+          window.harnessBackend = 'modelApi'
+          window.harnessPaid = {
+            features: [],
+            tally: { webSearches: 0, images: 0, voiceSeconds: 0, scheduledRuns: 0 },
+            isKeyStored: true,
+            alwaysAllowed: [],
+          }
+          send({ type: 'authState', status: 'signedIn', backend: 'modelApi' })
+          send({ type: 'paidState', state: window.harnessPaid })
+          // No badge while Tab is off: open Account & usage from the palette.
+          click('Commands')
+          whenFound('.palette-filter', (filter) => {
+            setValue(filter, HTMLInputElement.prototype, '/usage')
+            filter.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }))
+          })
+        },
         // --- M34, M58: an image's row while the paid-use popup asks first ---
         'paid-image': () => {
           window.harnessBackend = 'modelApi'

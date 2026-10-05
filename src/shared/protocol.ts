@@ -616,6 +616,8 @@ const hostToWebviewMessageSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('settingsChanged'), settings: settingsSnapshotSchema }),
   // Move keyboard focus into the composer (Ctrl+Esc).
   z.object({ type: z.literal('focusInput') }),
+  // Open Account & usage (the Tab status menu's row, M94; RVM94HU 21).
+  z.object({ type: z.literal('openUsage') }),
   // The host dropped this surface's conversation (M25): New Conversation
   // from a keybinding, or the echo of the webview's own clear.
   z.object({ type: z.literal('conversationCleared'), accountBoundary: z.optional(z.boolean()) }),

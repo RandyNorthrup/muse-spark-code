@@ -128,6 +128,15 @@ them, the milestone plan, and the certification checklist.
     user's own TypeSafe key instead of the Model API key; every other part
     of this rule applies to it unchanged.
 
+- **Tab (M94, D73):** `museSpark.modelApiTab` is machine-scoped and on by
+  default. The first paid request asks D48's question with the model's rates
+  and daily budget ($1.00 by default). Allow once covers this window until
+  it closes; Always is workspace-scoped and revocable; Deny snoozes this
+  window. No charge precedes consent. Tab uses only the stored Model API
+  key on either backend, with a hard cross-window local-day ledger. Its
+  small status item shows at activation; `dist/tab.js` loads the provider,
+  completion engine, ledger and menu on first use.
+
 - **Headless exception (M80, D65):** interactive popup policy above stays.
   Headless images require the explicit `--image-generation` flag,
   `acceptEdits`, a hard USD budget, and per-use admission/settlement tally;
@@ -178,6 +187,8 @@ src/host/**           VS Code adapters (views, conversation, backend managers,
                       prepare a runtime) and the runtime's consent and command,
                       bundled skills' Muse Code installer (skills/,
                       dist/bundledSkills.js, loaded on first use),
+                      Tab's lazy provider, ledger and menu (dist/tab.js),
+                      with its status item in the activation shim,
                       commands, auth, settings, mentions,
                       editor tracking, usage trace logs, voice, the IDE tool
                       MCP server (diagnostics, code intelligence, images, web
@@ -197,7 +208,8 @@ src/core/**           backend-agnostic logic; must not import `vscode`
                       loop's check commands, diagnostics report and the files
                       it never opens because tools run them, the checkpoint
                       restore plan, the paired efficiency evaluation,
-                      observation packing)
+                      observation packing, Tab's context windows, requests,
+                      filters, typing-through cache, scheduler and spend)
 src/acp/**            the ACP agent (D62): the ACP side of a session and the
                       translation of the engine's events; must not import
                       `vscode`
