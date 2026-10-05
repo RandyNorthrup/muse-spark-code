@@ -15,13 +15,12 @@ import type { WhatsNewContent } from '../../src/core/whatsNew/whatsNewContent'
 import { whatsNewLoader } from '../../src/host/whatsNew/whatsNew'
 import { UI_TEXT, WHATS_NEW_BUNDLE_FILE } from '../../src/shared/constants'
 import { FakeLogOutputChannel } from './helpers/fakes'
-import type { BuiltBundle } from './helpers/lazyBundles'
 import { lazyLoaderCases } from './helpers/lazyBundles'
 import { sharedUiText } from './helpers/modelApiBundle'
 import { removeFolder } from './helpers/temporaryFolders'
 import { Uri } from './mocks/vscode'
 
-const built: BuiltBundle = { folder: '', file: '' }
+const built = { folder: '', file: '' }
 
 // What the bundle asks of `vscode`, recording the panel, links and commands.
 const FAKE_VSCODE = `

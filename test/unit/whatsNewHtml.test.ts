@@ -150,7 +150,7 @@ describe('renderWhatsNewPage', () => {
       { kind: 'setting', id: 'museSpark.showWhatsNewOnUpdate' },
     ])
     const buttons = [...documentOf(page.html).querySelectorAll<HTMLElement>('button[data-try]')]
-    expect(buttons.map((button) => [button.dataset.try, button.textContent])).toEqual([
+    expect(buttons.map((button) => [button.dataset['try'], button.textContent])).toEqual([
       ['0', UI_TEXT.whatsNewTryIt],
       ['1', UI_TEXT.whatsNewOpenSetting],
     ])
@@ -167,7 +167,7 @@ describe('renderWhatsNewPage', () => {
       WHATS_NEW_README_URL,
     ])
     const anchors = [...documentOf(page.html).querySelectorAll<HTMLElement>('a[data-link]')]
-    expect(anchors.map((anchor) => [anchor.dataset.link, anchor.getAttribute('href')])).toEqual(
+    expect(anchors.map((anchor) => [anchor.dataset['link'], anchor.getAttribute('href')])).toEqual(
       page.links.map((link, index) => [String(index), link]),
     )
     // A link that is not http or https is its text only.
