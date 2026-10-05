@@ -276,5 +276,20 @@ The rig brief forbids the full quality/unit run and main integration in
 this lane; the lead owns those checks on the joined tree. That is a lane
 boundary, recorded in PLAN §7, not a reduced product gate or a runtime
 certification claim. Normal pre-commit hooks remain required: serial
-lint-staged formatting followed by staged, redacted gitleaks. Final document
-format/whitespace and local commit receipts are appended after execution.
+lint-staged formatting followed by staged, redacted gitleaks.
+
+**Final formatting/whitespace:** `npx prettier --check` on both documents
+exited 0, and `git diff --cached --check` exited 0 with exactly the two
+authorized paths staged.
+
+**Local commit and hook remediation:** `c248cc7f` introduced the two-file
+plan. Its ordinary `git commit` completed without invoking hooks: the rig's
+existing `core.hooksPath=.husky/_` pointed to a missing generated launcher.
+The lane restored the standard ignored local `.husky/_/pre-commit` launcher
+and `h` from the installed Husky package, without changing the tracked hook,
+Git configuration, machine/user settings or any gate. An explicit
+`gitleaks git --redact --no-banner --log-opts='c248cc7f^..c248cc7f'`
+then exited 0: one commit, approximately 55.63 KB scanned, no leaks. The
+follow-up receipt commit uses the restored launcher and the repository's
+unchanged `.husky/pre-commit`; its Git/hook output is the completion receipt.
+History is preserved rather than amended. No push, merge or rebase occurred.
