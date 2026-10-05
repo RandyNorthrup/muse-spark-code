@@ -60,6 +60,9 @@ async function callLegalScan(
   }
   const result = await deps.runScan(parsed.data, signal)
   throwIfCancelled(signal, 'the legal scan was cancelled')
+  if (!deps.isOffered()) {
+    throw new Error('the legal scan is unavailable while the workspace is untrusted')
+  }
   const checked = legalScanResultSchema.safeParse(result)
   if (!checked.success) {
     // The scanner's shape is lane S's contract: log what broke it, never

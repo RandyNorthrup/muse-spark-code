@@ -1,3 +1,4 @@
+import { redactSecrets } from '../../core/redact'
 // One conversation per surface: owns the MSP session for that surface, turns
 // webview requests into backend calls, and streams AgentEvents back. Also the
 // source of truth for the composer settings that outlive a webview reload
@@ -3152,12 +3153,14 @@ export class ConversationController {
     for (;;) {
       const held = this.planHold
       const starting = this.reviewStart
+      const scanning = this.legalScanStart
       try {
         await this.reviewModeSettling
       } catch {
         // The mode owner handles the failure and may retire this session.
       }
       await starting
+      await scanning
       await held?.hold.waitForModeChange()
       if (generation !== this.sendInvalidationEpoch || this.isDisposed) {
         return undefined
@@ -3165,6 +3168,7 @@ export class ConversationController {
       if (
         this.reviewModeSettling === undefined &&
         this.reviewStart === undefined &&
+        this.legalScanStart === undefined &&
         (this.planHold === held || this.planHold === undefined)
       ) {
         break
@@ -5645,9 +5649,8 @@ export class ConversationController {
    * hold, D76), restored only while the scan still owns it.
    */
   private async startLegalScan(input: LegalScanInput | undefined): Promise<void> {
-    // Says why when it refuses (signed out, no folder), as a message's card does.
-    const refusal = this.refuseAction()
-    if (refusal !== undefined || this.deps.workspaceRoot === undefined) {
+    if (this.deps.workspaceRoot === undefined) {
+      this.notice('warning', UI_TEXT.noWorkspaceReason)
       return
     }
     if (
@@ -5723,7 +5726,10 @@ export class ConversationController {
       // The scan failed: the log keeps the kind, the panel says why in its
       // words (a finding holds evidence excerpts, never secret values).
       this.deps.log.error(`startLegalScan failed: ${errorKind(error)}`)
-      this.notice('warning', fill(UI_TEXT.legalScanFailed, { reason: describe(error) }))
+      this.notice(
+        'warning',
+        fill(UI_TEXT.legalScanFailed, { reason: redactSecrets(describe(error)) }),
+      )
     } finally {
       if (this.legalScanStop === stop) {
         this.legalScanStop = undefined
@@ -5764,19 +5770,8 @@ export class ConversationController {
     try {
       return await hold.holding(session, () => runner(input, signal), isCurrent)
     } catch (error: unknown) {
-      // Released meanwhile: the session going stops the scan through its
-      // signal, while a user's own mode choice does not invalidate a
-      // read-only scan, which continues unheld with nothing put back.
-      if (this.planHold?.hold !== hold) {
-        if (signal.aborted || !this.isCurrentSessionAction(session, generation)) {
-          this.deps.log.info('Legal scan stopped: the conversation moved on')
-          throw error
-        }
-        this.deps.log.info('Legal scan continues without its hold: the mode changed meanwhile')
-        return await runner(input, signal)
-      }
-      // Plan mode was refused (nothing to put back), or the scan failed and
-      // the hold put the mode back already.
+      // Admission and scanner failures never retry unheld. Restoration can
+      // clear planHold too; that does not establish a user mode change.
       this.dropFailedHold(hold, session, generation)
       throw error
     }
@@ -6484,6 +6479,7 @@ export class ConversationController {
   }
 
   private async cancel(): Promise<void> {
+    this.legalScanStop?.abort()
     if (this.session === undefined) {
       return
     }

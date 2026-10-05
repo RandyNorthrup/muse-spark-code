@@ -31,7 +31,7 @@ function managerOn(
   extra: Partial<
     Pick<
       ModelApiBackendManagerDeps,
-      'createMcpServers' | 'ideTools' | 'isObservationPackingOn' | 'newId'
+      'createMcpServers' | 'ideTools' | 'legalScan' | 'isObservationPackingOn' | 'newId'
     >
   > = {},
 ) {
@@ -63,6 +63,19 @@ function manager(workspaceRoot: string | undefined) {
 }
 
 describe('ModelApiBackendManager', () => {
+  it('forwards the legal scanner to production host construction', async () => {
+    const create = vi.spyOn(modelApiEntry, 'createModelApiHost')
+    const legalScan = vi.fn()
+    const m = managerOn('/ws', undefined, undefined, undefined, { legalScan })
+    try {
+      await m.manager.ensureHost()
+      expect(create.mock.calls.at(-1)?.[0].host.legalScan).toBe(legalScan)
+    } finally {
+      await m.manager.dispose()
+      create.mockRestore()
+    }
+  })
+
   it('holds a manual revert across lazy startup and a same-id replacement without creating an own round', async () => {
     const m = manager('/ws')
     const entered = Promise.withResolvers<undefined>()

@@ -48,7 +48,7 @@ function deps(overrides?: Partial<IdeLegalScanDeps>): {
         calls.push(input)
         return Promise.resolve(result())
       },
-      log: { info: vi.fn(), warn: vi.fn(), error: vi.fn() },
+      log: { trace: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() },
       ...overrides,
     },
     calls,
@@ -111,6 +111,18 @@ describe('ideLegalScanTools', () => {
     expect(calls).toEqual([])
   })
 
+  it('refuses evidence after trust is revoked during the scan', async () => {
+    let isTrusted = true
+    const { deps: offered } = deps({
+      isOffered: () => isTrusted,
+      runScan: () => {
+        isTrusted = false
+        return Promise.resolve(result())
+      },
+    })
+    await expect(call(offered, {})).rejects.toThrow('untrusted')
+  })
+
   it('starts nothing for a caller that already stopped waiting', async () => {
     const { deps: offered, calls } = deps()
     const controller = new AbortController()
@@ -141,6 +153,7 @@ describe('ideLegalScanTools', () => {
     const errors: unknown[] = []
     const { deps: offered } = deps({
       log: {
+        trace: vi.fn(),
         info: vi.fn(),
         warn: vi.fn(),
         error: (...args: unknown[]) => void errors.push(args),
