@@ -451,3 +451,143 @@ describe('MuseCodeSameJudge over MSP frames', () => {
     await host.close()
   })
 })
+
+// Lane M98-G: main-session MSP frame invariance (PLAN.md M98 acceptance item
+// 1). A main turn runs through the real MuseCodeHost over the in-memory MSP
+// transport (the fake CLI); while the judge works, no frame touching the
+// main session may appear, change or reorder. No claim about the CLI's own
+// HTTP bytes: only MSP frames are recorded here.
+describe('M98-G main-session frames unchanged while the judge runs', () => {
+  it('leaves every main-session frame byte-equal with a main turn on the wire', async () => {
+    const handle: FakeHostHandle = fakeMspHost()
+    const log = new FakeLogOutputChannel()
+    const host = new MuseCodeHost(handle.host, log)
+    handle.server.handle('session/start', (params) => {
+      const started = handle.server.requestsFor('session/start').length
+      return sideSessionStarted(
+        `started-${String(started)}`,
+        params['workspaceRoot'],
+        params['modelId'],
+      )
+    })
+    const main = await host.startSession({
+      workspaceRoot: '/ws',
+      modelId: MODEL,
+      approvalMode: 'onRequest',
+    })
+    // Every fire-and-forget method answers `accepted` with its command id.
+    for (const method of ['session/setReasoningEffort', 'turn/cancel', 'task/stopAll']) {
+      handle.server.handle(method, (params) => ({
+        commandId: params['commandId'],
+        status: 'accepted',
+      }))
+    }
+    // Both turns answer through the same captured shapes; the router keeps
+    // them apart by session, as `muse serve` would.
+    handle.server.handle('turn/start', (params) => {
+      const sessionId = String(params['sessionId'])
+      const isMain = sessionId === main.sessionId
+      const turnId = isMain ? 'main-1' : 'jt-1'
+      const started = reviewTurnStarted(params['commandId'], turnId)
+      setTimeout(() => {
+        for (const frame of [
+          ...reviewLeadFrames(sessionId, turnId, ''),
+          ...reviewReplyFrames(
+            sessionId,
+            turnId,
+            isMain ? 'Main reply.' : '{"answer":"no","confidence":99}',
+          ),
+        ]) {
+          handle.server.notify(frame.method, frame.params)
+        }
+        handle.server.notify('turn/completed', reviewTurnCompleted(sessionId, turnId))
+      }, 10)
+      return started
+    })
+    // One real main turn first, awaited through its own completion.
+    const submission = await main.sendTurn([{ type: 'text', text: 'Count the lines.' }])
+    expect(submission.disposition).toBe('started')
+    await new Promise<void>((resolve) => {
+      const stop = main.onEvent((event: AgentEvent) => {
+        if (event.type !== 'turnCompleted' || event.turnId !== submission.turnId) {
+          return
+        }
+        stop()
+        resolve()
+      })
+    })
+    const mainFrames = (): string =>
+      JSON.stringify(
+        handle.server.requests.filter(
+          (request) => request.params?.['sessionId'] === main.sessionId,
+        ),
+      )
+    const before = mainFrames()
+    const framesBefore: unknown = JSON.parse(before)
+    if (!Array.isArray(framesBefore)) {
+      throw new TypeError('expected the main session frames')
+    }
+    expect(framesBefore.length).toBeGreaterThan(0)
+    // Then the judge works on a held action in the background.
+    const entries = new SpyJudgeStore()
+    const cache = new JudgeResultCache()
+    const errors: unknown[] = []
+    const sideIds: string[] = []
+    const roots = trackTempRoots(folders)
+    const removed = roots.removed
+    const judge = new MuseCodeSameJudge({
+      modelId: MODEL,
+      timeoutMs: 5000,
+      measureTokens: (text) => text.length,
+      entries,
+      cache,
+      onError: (error) => {
+        errors.push(error)
+      },
+      startSession: (options) => host.startSession(options),
+      readSettingsText: () => undefined,
+      makeTempRoot: roots.makeTempRoot,
+      removeTempRoot: roots.removeTempRoot,
+      onSideSession: (sessionId) => {
+        sideIds.push(sessionId)
+      },
+      describeFailure: failureForLog,
+      logInfo: () => undefined,
+      logWarn: () => undefined,
+    })
+    const key = startKey(entries)
+    expect(await judgeOnce(judge, entries, judgeJob(key, 'ls /tmp', [NOUL]))).toBe('none')
+    // The main session's frames are unchanged: nothing added, changed or
+    // reordered by the judge run.
+    expect(mainFrames()).toBe(before)
+    // And the judge session carried only its standalone prompt.
+    expect(sideIds).toHaveLength(1)
+    expect(sideIds[0]).not.toBe(main.sessionId)
+    const sideTurns = handle.server
+      .requestsFor('turn/start')
+      .filter((request) => request.params?.['sessionId'] === sideIds[0])
+    expect(sideTurns).toHaveLength(1)
+    const seen: unknown = sideTurns.at(0)?.params?.['input']
+    if (!Array.isArray(seen)) {
+      throw new TypeError('expected the judge turn input')
+    }
+    const said = seen
+      .map((part: unknown) =>
+        typeof part === 'object' && part !== null && 'text' in part ? part.text : undefined,
+      )
+      .filter((text): text is string => typeof text === 'string')
+    expect(said).toHaveLength(1)
+    expect(said.join('\n')).toContain('Use no tools.')
+    expect(said.join('\n')).toContain('ls /tmp')
+    const starts = handle.server.requestsFor('session/start')
+    // A `session/start` names no session yet: the judge start is the one in
+    // its own folder, never the main workspace root.
+    const sideStart = starts.find((request) => request.params?.['workspaceRoot'] !== '/ws')
+    expect(sideStart?.params?.['approvalMode']).toBe('denyUnmatched')
+    expect(sideStart?.params?.['config']).toBeUndefined()
+    expect(removed).toHaveLength(1)
+    expect(errors).toEqual([])
+    main.dispose()
+    await host.close()
+  })
+})
