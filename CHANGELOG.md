@@ -29,6 +29,10 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- **Final role ceilings (M96 lane R).** An empty final delegate intersection
+  withdraws every delegation tool, so admission and the charter agree that
+  the worker cannot delegate.
+
 - **Role resolution redesigned (M96 lane R, round 3).** All role files,
   catalogues, permission modes and runtime ceilings are captured before
   resolution. Any missing, unreadable, malformed or ambiguous input refuses

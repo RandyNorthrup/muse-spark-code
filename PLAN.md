@@ -16725,6 +16725,15 @@ build/caps certify this lane. Team modules remain outside ordinary activation.
 The rig brief forbids a main merge, push and full quality run; those integrated
 gates remain with the lead. No dependency, new wire shape or paid/live call.
 
+Final repair FIXM96R3 (2026-10-05), against all three `RVM96R3` P2s:
+withdraw delegation tools when the final delegate intersection is empty;
+preserve explicitly offered configured MCP tools through personal allowlists
+and session inheritance, still intersecting every ceiling; retain the
+authoritative shell-policy groups and return the final resolved tool set for
+charters instead of inferring policy from shared shell names. Keep one
+immutable snapshot, intersection-only ceilings and whole-catalogue refusal.
+Each finding gets a named regression and byte-exact red drill in `m96-r.md`.
+
 - **Goal.** A user builds a team in the Models & Agents panel within two
   minutes, from a template with prefills and suggestions.
   - **Roles.** Each role has a charter generated from its settings, a

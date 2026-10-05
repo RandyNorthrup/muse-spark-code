@@ -338,6 +338,9 @@ export function meetRolePermissions(
   if (workspace === 'read-only' || writePaths?.length === 0) {
     tools = tools?.filter((tool) => !hasRoleWriteTool([tool]))
   }
+  if (delegates.length === 0) {
+    tools = tools?.filter((tool) => !TEAM_DELEGATE_TOOLS.includes(tool))
+  }
   return {
     ok: true,
     role: freezeRole({ ...role, workspace, tools, writePaths, delegates, approvalMode }),

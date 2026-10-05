@@ -27,7 +27,7 @@ import {
 } from '../../../src/core/team/roles'
 import { builtinRoleFile } from '../../../src/core/team/builtInRoles'
 import { buildTeamCharter } from '../../../src/core/team/charter'
-import { groupsForTools } from '../../../src/core/team/toolsets'
+import { groupsForTools, isTeamToolAdmitted } from '../../../src/core/team/toolsets'
 import { loaderDeps } from '../helpers/fakeContextIo'
 
 const PROJECT = '/ws/.agents/agents'
@@ -81,6 +81,56 @@ function assertNarrowed(result: RoleDefinition, ceiling: RoleCeiling): void {
 }
 
 describe('Round-3 role resolution invariants', () => {
+  it('RVM96R3 P2-1: withdraws delegation tools when final ceilings permit no delegate', async () => {
+    const cases: Pick<RoleEnvironment, 'ceilings' | 'session'>[] = [
+      { session: { ...ENVIRONMENT.session, delegates: [] }, ceilings: [] },
+      {
+        session: ENVIRONMENT.session,
+        ceilings: [{ approvalMode: 'allowAll', delegates: [] }],
+      },
+      {
+        session: ENVIRONMENT.session,
+        ceilings: [{ approvalMode: 'allowAll', delegates: ['research'] }],
+      },
+    ]
+    for (const environment of cases) {
+      const loaded = await loadRoles(
+        loaderDeps({
+          '.home/.config/muse/agents/engineering/AGENT.md': file(
+            'tools: read_file\ndelegates: qa\n',
+          ),
+        }),
+        ROOTS,
+        {
+          trustedWorkspace: true,
+          inputs: {
+            kind: 'known',
+            value: {
+              ...ENVIRONMENT,
+              ...environment,
+              session: {
+                ...environment.session,
+                offered: ['read_file', ...TEAM_DELEGATE_TOOLS],
+              },
+            },
+          },
+        },
+      )
+      const found = resolveRole(loaded, 'engineering')
+      if (found.kind !== 'found') throw new Error('role refused')
+      expect(found.role.delegates).toEqual([])
+      expect(found.role.tools).toEqual(['read_file'])
+      const tools = { tools: found.role.tools ?? [], groups: [], youMay: '' }
+      for (const tool of TEAM_DELEGATE_TOOLS) expect(isTeamToolAdmitted(tools, tool)).toBe(false)
+      const charter = buildTeamCharter(
+        { ...found.role, workspace: 'read-only', delegates: [], report: 'summary' },
+        tools,
+      )
+      expect(charter.generated).toContain('start a worker;')
+      expect(charter.generated).not.toContain('use these tools: roster')
+    }
+  })
+
   it('property: every successful intersection is no broader than every applicable ceiling', () => {
     const lists = [undefined, [], ['read_file'], ['read_file', 'edit_file']]
     const paths = [undefined, [], ['docs/**'], ['docs/releases/a.md']]
