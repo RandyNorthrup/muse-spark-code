@@ -17,6 +17,16 @@ happened, not what was planned; superseded entries are kept.
   `</COMPLETION>` in both instructions and the user template, keeping its
   existing context slots and matching lane C's reply filter.
 
+- A blocked M80 `v0` tag update now reports that an administrator must move it,
+  while preserving the four release channels' outcomes. Updates require a
+  fast-forward; the release guide documents the administrator's recovery command.
+- **CI reliability: flaky tests no longer race a deadline.**
+  The Model API host's fork, Auto reviewer and two-host budget tests, the
+  Action's signal tests (G18) and the headless deadline test (D9) failed now
+  and then on slow runners. Each now waits for the event it tests: a settled
+  parent turn, a held request, published claims, the fake agent's ready
+  line, a held response. Tests only; the product is unchanged.
+
 ### Changed
 
 - M94's staged, machine-scoped `museSpark.modelApiTab` setting defaults to
@@ -25,8 +35,6 @@ happened, not what was planned; superseded entries are kept.
   default $1.00/day budget. Tab's provider, consent wiring and final gates
   remain with their owning lanes; this foundation does not enable requests
   by itself.
-
-### Changed
 
 - **Tiered CI, ready for a merge queue.** The full gate now runs as parallel
   jobs:
@@ -63,18 +71,6 @@ happened, not what was planned; superseded entries are kept.
   SHA-256/version checks and 30-day retention; tag-push misses run the full gates.
 - Manual release recovery uses the same verified staging path while preserving
   the earlier run's original bytes; invalid recovery and cancelled runs cannot publish.
-
-### Fixed
-
-- A blocked M80 `v0` tag update now reports that an administrator must move it,
-  while preserving the four release channels' outcomes. Updates require a
-  fast-forward; the release guide documents the administrator's recovery command.
-- **CI reliability: flaky tests no longer race a deadline.**
-  The Model API host's fork, Auto reviewer and two-host budget tests, the
-  Action's signal tests (G18) and the headless deadline test (D9) failed now
-  and then on slow runners. Each now waits for the event it tests: a settled
-  parent turn, a held request, published claims, the fake agent's ready
-  line, a held response. Tests only; the product is unchanged.
 
 ## [0.12.1] - 2026-10-04
 
