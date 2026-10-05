@@ -306,12 +306,16 @@ describe('M96 K launcher contract', () => {
     const f = await fixture()
     const real = driver('uncertain', 'linuxScope')
     let shouldProve = true
+    let hasChildExited = true
     const launch: TeamProcessDriver['launch'] = (r, id) => {
       const child = real.launch(r, id)
       return {
         ...child,
         retire: () =>
-          Promise.resolve({ childExited: true, descendants: shouldProve ? 'proved' : 'uncertain' }),
+          Promise.resolve({
+            childExited: hasChildExited,
+            descendants: shouldProve ? 'proved' : 'uncertain',
+          }),
       }
     }
     const lifetime = createTeamProcessLifetime({
@@ -323,6 +327,9 @@ describe('M96 K launcher contract', () => {
     await child.ended
     expect(await lifetime.recoveryRecords(f.journal)).toHaveLength(1)
     expect(await child.retire()).toEqual({ childExited: true, descendants: 'proved' })
+    hasChildExited = false
+    await expect(child.retire()).rejects.toThrow('RETIREMENT_PROOF_INVALID')
+    hasChildExited = true
     shouldProve = false
     expect(await child.retire()).toEqual({ childExited: true, descendants: 'proved' })
     expect(await lifetime.recoveryRecords(f.journal)).toEqual([])

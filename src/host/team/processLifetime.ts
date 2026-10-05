@@ -27,6 +27,7 @@ import {
 
 const NATIVE_POLL_MS = 10
 const NATIVE_CONFIRM_MS = 5000
+const LAUNCH_GATE_FD = 3
 const TEAM_CONFIG_VARIABLE = 'MUSE_SPARK_TEAM_LAUNCH'
 
 /** A separate team MSP host, never the conversation's host. W supplies the
@@ -145,6 +146,8 @@ const confirmationSchema = z.strictObject({
   /** OS identity, not a timestamp inferred from when spawn returned. */
   startTime: z.string().check(z.minLength(1)),
   container: z.enum(['windowsJob', 'linuxScope', 'processGroup']),
+  /** Linux membership captured while the leader is held behind the launch gate. */
+  cgroup: z.optional(z.string().check(z.minLength(1))),
 })
 const endSchema = z.strictObject({
   childExited: z.boolean(),
@@ -178,6 +181,8 @@ export interface ContainedTeamChild {
   readonly confirmation: Promise<LaunchConfirmation>
   /** Resolves separately from the direct child's exit. */
   readonly ended: Promise<Retirement>
+  /** Release a POSIX command only after this confirmation has been persisted. */
+  resume?(recorded: LaunchConfirmation): Promise<void>
   retire(): Promise<Retirement>
 }
 
@@ -228,6 +233,7 @@ export function createTeamProcessLifetime(options: {
         try {
           const confirmation = confirmationSchema.parse(await launched.confirmation)
           await save({ ...record, confirmation })
+          await launched.resume?.(confirmation)
           let endTail = Promise.resolve<Retirement | undefined>(undefined)
           const recordEnd = (raw: Retirement): Promise<Retirement> => {
             const previousTail = endTail
@@ -246,7 +252,7 @@ export function createTeamProcessLifetime(options: {
             // Preserve a successful outcome, but let persistence retry after a rejected write.
             endTail = (async () => {
               const [outcome] = await Promise.allSettled([saved])
-              return outcome.status === 'fulfilled' ? outcome.value : undefined
+              return outcome.status === 'fulfilled' ? outcome.value : await previousTail
             })()
             return saved
           }
@@ -363,8 +369,16 @@ export async function createNativeTeamProcessDriver(options: {
   return {
     launch(request, launchId) {
       const unit = `muse-spark-${launchId}.scope`
-      let command = request.command
-      let args = [...request.args]
+      // The shell remains the group leader until exec, preserving PID and start identity.
+      // Its private fd is closed before the command runs; stdin remains the command's pipe.
+      let command = '/bin/sh'
+      let args = [
+        '-c',
+        'IFS= read -r launch <&3 && [ "$launch" = "$MUSE_SPARK_LAUNCH_ID" ] && exec 3<&- && exec "$@"',
+        'team-launch',
+        request.command,
+        ...request.args,
+      ]
       if (request.priority === 'belowNormal') {
         args = ['-n', '10', '--', command, ...args]
         command = 'nice'
@@ -393,9 +407,15 @@ export async function createNativeTeamProcessDriver(options: {
       }
       const child = spawn(command, args, {
         cwd: request.cwd,
-        env: { ...probeEnv, ...request.env },
+        env: { ...probeEnv, ...request.env, MUSE_SPARK_LAUNCH_ID: launchId },
         detached: true,
-        stdio: ['pipe', 'pipe', 'pipe'],
+        stdio: ['pipe', 'pipe', 'pipe', 'pipe'],
+      })
+      const gate = child.stdio[LAUNCH_GATE_FD]
+      if (gate === null || gate === undefined || !('write' in gate))
+        throw new Error('TEAM_LAUNCH_GATE_UNAVAILABLE')
+      gate.on('error', () => {
+        // resume's write callback reports pipe failure; retirement can also close the gate.
       })
       const exited = new Promise<boolean>((resolve, reject) => {
         child.once('exit', () => {
@@ -443,6 +463,10 @@ export async function createNativeTeamProcessDriver(options: {
               group: hasScope ? unit : observed.group,
               startTime: observed.startTime,
               container: hasScope ? 'linuxScope' : 'processGroup',
+              cgroup:
+                process.platform === 'linux'
+                  ? await readFile(`/proc/${String(child.pid)}/cgroup`, 'utf8')
+                  : undefined,
             })
           }
           if (state.isExited) throw new Error('TEAM_CONFIRMATION_LOST')
@@ -468,7 +492,44 @@ export async function createNativeTeamProcessDriver(options: {
       void ended.catch(() => {
         /* The caller receives this failure; no retirement proof is invented. */
       })
-      const signal = async (name: 'SIGTERM' | 'SIGKILL') => {
+      let recorded: LaunchConfirmation | undefined
+      const didSignal = async (name: 'SIGTERM' | 'SIGKILL'): Promise<boolean> => {
+        if (recorded === undefined) return false
+        try {
+          if (process.platform === 'linux') {
+            if (
+              recorded.cgroup === undefined ||
+              (await readFile(`/proc/${String(recorded.pid)}/cgroup`, 'utf8')) !== recorded.cgroup
+            )
+              return false
+            if (hasScope) {
+              const rawGroup = await runProgram(
+                'systemctl',
+                ['--user', 'show', unit, '--property=ControlGroup', '--value'],
+                probeEnv,
+              )
+              const group = rawGroup.trim()
+              if (
+                `/sys/fs/cgroup${group}/cgroup.events` !== state.cgroup ||
+                !recorded.cgroup.split('\n').includes(`0::${group}`)
+              )
+                return false
+            }
+          }
+          // No intervening await on the process-group path after the final leader sample.
+          const current = await observer.observe(recorded.pid)
+          if (
+            current?.pid !== recorded.pid ||
+            current.group !== String(recorded.pid) ||
+            current.startTime !== recorded.startTime ||
+            current.launchId !== launchId ||
+            (!hasScope && current.group !== recorded.group)
+          )
+            return false
+        } catch {
+          // Unavailable identity/membership is not authority to signal. Keep recovery open.
+          return false
+        }
         if (hasScope) {
           try {
             await runProgram(
@@ -483,7 +544,7 @@ export async function createNativeTeamProcessDriver(options: {
               await readFile(state.cgroup, 'utf8')
             } catch (readError: unknown) {
               if (readError instanceof Error && 'code' in readError && readError.code === 'ENOENT')
-                return
+                return false
             }
             throw error
           }
@@ -494,18 +555,46 @@ export async function createNativeTeamProcessDriver(options: {
             if (!(error instanceof Error && 'code' in error && error.code === 'ESRCH')) throw error
           }
         }
+        return true
       }
       let retiring: Promise<Retirement> | undefined
       const retire = async (): Promise<Retirement> => {
-        await signal('SIGTERM')
+        if (recorded === undefined) {
+          // EOF cancels the held launcher without sending any PID/group signal.
+          gate.end()
+          await exited
+          return { childExited: true, descendants: 'uncertain' }
+        }
+        if (!(await isEmpty()) && !(await didSignal('SIGTERM')))
+          return { childExited: state.isExited, descendants: 'uncertain' }
         const deadline = Date.now() + options.killGraceMs
         while (Date.now() < deadline && !(await isEmpty())) await delay(NATIVE_POLL_MS)
         // A direct child's exit is never evidence that a group has no descendants.
-        if (!(await isEmpty())) await signal('SIGKILL')
+        if (!(await isEmpty()) && !(await didSignal('SIGKILL')))
+          return { childExited: state.isExited, descendants: 'uncertain' }
         await exited
         return { childExited: true, descendants: (await isEmpty()) ? 'proved' : 'uncertain' }
       }
-      return { child, confirmation, ended, retire: () => (retiring ??= retire()) }
+      return {
+        child,
+        confirmation,
+        ended,
+        async resume(value) {
+          const observed = await confirmation
+          const parsed = confirmationSchema.parse(value)
+          if (JSON.stringify(parsed) !== JSON.stringify(observed))
+            throw new Error('TEAM_LAUNCH_CONFIRMATION_CHANGED')
+          recorded = parsed
+          await new Promise<void>((resolve, reject) => {
+            gate.write(`${launchId}\n`, 'utf8', (error) => {
+              gate.end()
+              if (error == null) resolve()
+              else reject(error)
+            })
+          })
+        },
+        retire: () => (retiring ??= retire()),
+      }
     },
   }
 }
@@ -658,8 +747,13 @@ function windowsTeamDriver(assembly: string, systemRoot: string): TeamProcessDri
         confirmation,
         ended,
         async retire() {
-          if (stop === undefined) child.kill()
-          else stop()
+          if (stop === undefined)
+            // No native control channel: keep uncertainty rather than signal an unverified PID.
+            return {
+              childExited: child.exitCode !== null || child.signalCode !== null,
+              descendants: 'uncertain',
+            }
+          stop()
           await closed
           return await ended
         },

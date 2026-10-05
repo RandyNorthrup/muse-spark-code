@@ -9,6 +9,8 @@ import * as z from 'zod/mini'
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import { jobSourceReader } from '../../src/host/backend/jobSource'
 import { createNativeOrphanDriver, createOrphanRecovery } from '../../src/host/team/orphanRecovery'
+import * as orphanRecovery from '../../src/host/team/orphanRecovery'
+import * as processTree from '../../src/host/processTree'
 import {
   createNativeTeamProcessDriver,
   createTeamProcessLifetime,
@@ -46,6 +48,7 @@ afterAll(async () => {
   await rm(native.directory, { recursive: true, force: true })
 })
 afterEach(async () => {
+  vi.restoreAllMocks()
   for (const stop of stops.splice(0)) await stop()
   await Promise.all(
     directories.splice(0).map((directory) => rm(directory, { recursive: true, force: true })),
@@ -90,7 +93,7 @@ async function standaloneOwner(directory: string, code: string, env?: NodeJS.Pro
   const launcher = path.join(directory, 'owner.cjs')
   await build({
     stdin: {
-      contents: String.raw`const {createNativeTeamProcessDriver}=require('./src/host/team/processLifetime'); const sources=require('./src/host/backend/jobSource'); (async()=>{ const driver=await createNativeTeamProcessDriver({killGraceMs:100,windows:{storageDir:${JSON.stringify(native.directory)},systemRoot:process.env.SystemRoot,readJobSource:sources.jobSourceReader(process.cwd()),log:()=>{}}});const child=driver.launch({command:process.execPath,args:['-e',${JSON.stringify(code)}],cwd:process.cwd(),taskId:'owner',env:{SystemRoot:process.env.SystemRoot,PATH:process.env.PATH},priority:'belowNormal'},${JSON.stringify(randomUUID())}); await child.confirmation;process.stdout.write("READY\n");setInterval(()=>{},1000) })().catch(error=>{process.stderr.write(String(error));process.exit(1)})`,
+      contents: String.raw`const {createNativeTeamProcessDriver}=require('./src/host/team/processLifetime'); const sources=require('./src/host/backend/jobSource'); (async()=>{ const driver=await createNativeTeamProcessDriver({killGraceMs:100,windows:{storageDir:${JSON.stringify(native.directory)},systemRoot:process.env.SystemRoot,readJobSource:sources.jobSourceReader(process.cwd()),log:()=>{}}});const child=driver.launch({command:process.execPath,args:['-e',${JSON.stringify(code)}],cwd:process.cwd(),taskId:'owner',env:{SystemRoot:process.env.SystemRoot,PATH:process.env.PATH},priority:'belowNormal'},${JSON.stringify(randomUUID())}); const confirmation=await child.confirmation; await child.resume?.(confirmation);process.stdout.write("READY\n");setInterval(()=>{},1000) })().catch(error=>{process.stderr.write(String(error));process.exit(1)})`,
       resolveDir: process.cwd(),
       loader: 'ts',
     },
@@ -171,26 +174,59 @@ describe('M96 K real native lifetime', () => {
   })
   it('rejects MSP writes to closed stdin without an unhandled pipe error', async () => {
     const f = await fixture()
-    const child = await f.lifetime.launch(
-      f.request(
+    // Use the direct pipe on every platform; a Windows helper has a separate stdin copier.
+    const child = spawn(
+      process.execPath,
+      [
+        '-e',
         String.raw`require('node:fs').closeSync(0);process.stdout.write('READY\n');setTimeout(()=>{},20000)`,
-      ),
+      ],
+      { cwd: f.directory, env: f.request('').env, stdio: ['pipe', 'pipe', 'pipe'] },
     )
-    await new Promise<void>((resolve) => {
-      child.child.stdout.once('data', () => {
+    const closed = new Promise<void>((resolve) => {
+      child.once('close', () => {
         resolve()
       })
     })
-    vi.spyOn(f.lifetime, 'launch').mockResolvedValueOnce(child)
+    const retire = async () => {
+      child.kill()
+      await closed
+      return { childExited: true, descendants: 'uncertain' as const }
+    }
+    stops.push(retire)
+    await new Promise<void>((resolve) => {
+      child.stdout.once('data', () => {
+        resolve()
+      })
+    })
     await expect(
       startTeamMuseCodeHost({
-        lifetime: f.lifetime,
+        lifetime: {
+          launch: () =>
+            Promise.resolve({
+              child,
+              launchId: randomUUID(),
+              confirmation: Promise.resolve({
+                pid: child.pid ?? 1,
+                group: 'fixture',
+                startTime: 'fixture',
+                container: 'processGroup' as const,
+              }),
+              ended: (async () => {
+                await closed
+                return { childExited: true, descendants: 'uncertain' as const }
+              })(),
+              retire,
+            }),
+          dispose: () => Promise.resolve([]),
+          recoveryRecords: () => Promise.resolve([]),
+        },
         request: f.request(''),
         extensionVersion: 'test',
         log: { trace: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() },
       }),
     ).rejects.toMatchObject({ code: 'EPIPE' })
-    expect(child.child.stdin.listenerCount('error')).toBeGreaterThan(0)
+    expect(child.stdin.listenerCount('error')).toBeGreaterThan(0)
   })
   it('preserves the real command exit code through its native container', async () => {
     const f = await fixture()
@@ -294,6 +330,113 @@ describe('M96 K real native lifetime', () => {
   })
 
   if (process.platform !== 'win32') {
+    async function fallbackDriver() {
+      const runProgram = processTree.runProgram
+      vi.spyOn(processTree, 'runProgram').mockImplementation((file, args, env) =>
+        file === 'systemd-run'
+          ? Promise.reject(new Error('fixture-no-scope'))
+          : runProgram(file, args, env),
+      )
+      const observer = createNativeOrphanDriver()
+      vi.spyOn(orphanRecovery, 'createNativeOrphanDriver').mockReturnValue(observer)
+      const driver = await createNativeTeamProcessDriver({ killGraceMs: 100 })
+      return { driver, observer }
+    }
+
+    it('signals nothing on disposal after PID and process-group reuse', async () => {
+      const f = await fixture()
+      const { driver, observer } = await fallbackDriver()
+      const lifetime = createTeamProcessLifetime({
+        journal: f.journal,
+        driver,
+        isHostBusy: () => false,
+      })
+      stops.push(() => lifetime.dispose())
+      const child = await lifetime.launch(f.request('setTimeout(()=>{},20000)'))
+      const confirmation = await child.confirmation
+      child.child.kill()
+      await child.ended
+      vi.spyOn(observer, 'observe').mockResolvedValue({
+        pid: confirmation.pid,
+        group: confirmation.group,
+        startTime: 'reused-start',
+        launchId: child.launchId,
+        command: 'unrelated-process',
+      })
+      const signal = vi.spyOn(process, 'kill').mockReturnValue(true)
+      expect(await lifetime.dispose()).toEqual([{ childExited: true, descendants: 'uncertain' }])
+      expect(signal).not.toHaveBeenCalled()
+      expect(await lifetime.recoveryRecords(f.journal)).toMatchObject([{ id: child.launchId }])
+    })
+
+    it('rechecks the leader identity before KILL after TERM', async () => {
+      const f = await fixture()
+      const { driver, observer } = await fallbackDriver()
+      const lifetime = createTeamProcessLifetime({
+        journal: f.journal,
+        driver,
+        isHostBusy: () => false,
+      })
+      const child = await lifetime.launch(f.request('setTimeout(()=>{},20000)'))
+      stops.push(async () => {
+        const closed = new Promise<void>((resolve) => {
+          child.child.once('close', () => {
+            resolve()
+          })
+        })
+        child.child.kill()
+        await closed
+      })
+      const confirmation = await child.confirmation
+      const observe = observer.observe
+      let wasTermSent = false
+      vi.spyOn(observer, 'observe').mockImplementation(async (pid) => {
+        const current = await observe(pid)
+        return current !== undefined && wasTermSent
+          ? { ...current, startTime: 'reused-start' }
+          : current
+      })
+      const signal = vi.spyOn(process, 'kill').mockImplementation(() => {
+        wasTermSent = true
+        return true
+      })
+      expect(await lifetime.dispose()).toEqual([{ childExited: false, descendants: 'uncertain' }])
+      expect(signal.mock.calls).toEqual([[-confirmation.pid, 'SIGTERM']])
+    })
+
+    it('holds short commands until their OS confirmation is durable', async () => {
+      const f = await fixture()
+      const output = path.join(f.directory, 'short-started')
+      const write = f.journal.write
+      const saving = vi
+        .spyOn(f.journal, 'write')
+        .mockImplementation(async (name, value, schema) => {
+          await write(name, value, schema)
+          const record = z
+            .object({ confirmation: z.optional(z.unknown()), end: z.optional(z.unknown()) })
+            .parse(value)
+          if (record.confirmation === undefined || record.end !== undefined) return
+          await delay(100)
+          await expect(readFile(output)).rejects.toMatchObject({ code: 'ENOENT' })
+        })
+      const child = await f.lifetime.launch(
+        f.request(`require('node:fs').writeFileSync(${JSON.stringify(output)},'started')`),
+      )
+      expect(await child.ended).toMatchObject({ childExited: true })
+      expect(await readFile(output, 'utf8')).toBe('started')
+      saving.mockRestore()
+      if (process.platform === 'linux') {
+        for (let attempt = 0; attempt < 10; attempt++) {
+          const short = await f.lifetime.launch({
+            ...f.request(''),
+            command: '/usr/bin/true',
+            args: [],
+          })
+          expect(await short.ended).toMatchObject({ childExited: true })
+        }
+      }
+    })
+
     it('scans real marked descendants and stops only after click and second identity check', async () => {
       const f = await fixture()
       const output = path.join(f.directory, 'descendant.json')

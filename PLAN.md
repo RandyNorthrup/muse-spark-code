@@ -20238,6 +20238,24 @@ before a repaired one loads (2026-09-30).
 
 ## 9. Security assumptions and accepted residual risk
 
+- **M96 K / FIXM96K, `K-retirement-ownership-unproved` (2026-10-05).**
+  RVM96K's seven findings are fixed, with regressions and restored red drills
+  in `docs/certification/m96-k.md`; none is deferred. A gone, changed or
+  unreadable POSIX group leader (including changed Linux cgroup/scope), or
+  an unavailable Windows native control channel, denies automatic signaling.
+  The uncertain launch remains journalled for user recovery. This can leave
+  descendants running, but protects unrelated processes and never supplies
+  descendant proof or permission to reuse the old copy. Follow-up: integration
+  must surface these retained records through U2's existing recovery actions;
+  the native certification lead owns control-loss/platform receipts.
+- **M96 K, `K-signal-final-interval`.** The required live identity and Linux
+  membership checks now run immediately before every retirement signal.
+  Sampling and signaling remain separate OS calls, as the existing D75
+  PID-reuse residual states; the fix removes signaling of arbitrarily old
+  cached identifiers. Follow-up: evaluate stable OS process/container handles
+  with the native certification lead. Unproved ownership refuses signaling
+  and keeps recovery open.
+
 - Code intelligence (M67) shows what VS Code's language services say. A
   result located outside the workspace is left out and a hover defined only
   there is held back, but a language service also infers: a workspace
