@@ -13572,7 +13572,12 @@ its messages) and `whatsNewHtml.ts` (the page, the Try it allow list) over
   - [x] Acceptance 1–12 with tests and drills (`docs/certification/m99.md`).
   - [x] Strings in all 14 tables (check-l10n 0 problems).
   - [x] Full quality gate on Kubuntu at `b23e1181`, exit 0 (m99.md).
-  - [ ] The VSIX within its 2200 KiB budget (CI package job).
+  - [x] Acceptance 13 and FIXM99 review fixes at `696ec15d`: JSON 34,410
+        bytes, hard 40 KiB cap, 282 targeted tests passed, drills fired
+        (win11; m99.md).
+  - [x] Local Windows VSIX 2,102,696 bytes, within 2200 KiB, +36,468 bytes
+        versus main `bf77aabe` on the same rig (without the macOS helper).
+  - [ ] Universal VSIX within its 2200 KiB budget (hosted CI package job).
 
 ### M41 — Install Muse Code from the panel (folded into M55)
 
