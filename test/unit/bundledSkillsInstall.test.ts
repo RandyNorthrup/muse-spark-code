@@ -408,6 +408,27 @@ function firstParty(f: Fixture, id = 'maker_firmware'): string {
 }
 
 describe('first-party bundled skills (M103-S)', () => {
+  it('installs the shipped first-party pack with every topic reachable through its link', async () => {
+    const f = fixture()
+    const source = path.resolve('first-party-skills')
+    await fs.cp(source, path.join(f.root, 'first-party-skills'), { recursive: true })
+    const ids = readdirSync(source).toSorted((a, b) => a.localeCompare(b, 'en'))
+    const installed = await installBundledSkills(deps(f))
+    expect(installed.failure).toBeUndefined()
+    expect(installed.installed).toEqual([...ids, ...IDS])
+    for (const id of ids) {
+      const names = readdirSync(path.join(source, id))
+      for (const name of names) {
+        expect(readFileSync(path.join(f.skillsRoot, id, name))).toEqual(
+          readFileSync(path.join(source, id, name)),
+        )
+      }
+    }
+    const removed = await removeBundledSkills(f)
+    expect(sorted(removed.removed)).toEqual(sorted([...ids, ...IDS]))
+    expect(readdirSync(f.skillsRoot)).toEqual([])
+  })
+
   it('copies and marks first-party topics and exposes them through real Muse Code links', async () => {
     const f = fixture()
     const root = firstParty(f)

@@ -6,7 +6,9 @@
 // `<config home>/muse/skills/<id>`: a junction on Windows, a directory symlink
 // elsewhere, as the package's own install guide prescribes. Update is the
 // same install over the extension's own copy; Remove deletes the links that
-// lead into the marked copy, then the copy.
+// lead into the marked copy, then the copy. M103 also carries the extension's
+// first-party skills and their topics under that copy's first-party-skills/;
+// both trees share the mark, ownership rules and explicit install action.
 //
 // What it never does: replace or remove a folder without the mark, touch a
 // skill folder of the user's (an id already taken is left alone and named),
@@ -16,11 +18,11 @@
 // made. Built into dist/bundledSkills.js and loaded on first use (PLAN.md
 // D6); every result is data, worded by the activation side.
 
-import { createHash } from 'node:crypto'
 import { constants as fsConstants } from 'node:fs'
 import fs from 'node:fs/promises'
 import path from 'node:path'
 import { redactSecrets } from '../../core/redact'
+import { fingerprint } from '../../core/verify/fingerprint'
 import * as z from 'zod/mini'
 import {
   BUNDLED_SKILLS_DIR,
@@ -144,7 +146,7 @@ function copyFolder(paths: BundledSkillsPaths): string {
   return path.join(paths.sourcesRoot, BUNDLED_SKILLS_PACKAGE_NAME)
 }
 
-/** The tag and the skill ids the vendored package's VENDOR.json lists. */
+/** The vendor release and first-party content identity, with both sets of skill ids. */
 async function readVendor(vendorRoot: string): Promise<VendoredPackage> {
   const file = path.join(vendorRoot, BUNDLED_SKILLS_VENDOR_FILE)
   const parsed = vendorSchema.safeParse(JSON.parse(await fs.readFile(file, 'utf8')))
@@ -195,7 +197,7 @@ async function readVendor(vendorRoot: string): Promise<VendoredPackage> {
   }
   firstPartyIds.sort((a, b) => a.localeCompare(b, 'en'))
   // Topic changes must offer Update even when the third-party tag stays put.
-  const digest = createHash('sha256')
+  const content: string[] = []
   async function hashTree(folder: string, relative: string): Promise<void> {
     const children = await fs.readdir(folder, { withFileTypes: true })
     children.sort((a, b) => a.name.localeCompare(b.name, 'en'))
@@ -206,7 +208,7 @@ async function readVendor(vendorRoot: string): Promise<VendoredPackage> {
         await hashTree(source, name)
       } else if (child.isFile()) {
         const bytes = await fs.readFile(source)
-        digest.update(JSON.stringify([name, bytes.toString('base64')]))
+        content.push(JSON.stringify([name, bytes.toString('base64')]))
       } else {
         throw new Error(`${source} is neither a file nor a folder`)
       }
@@ -214,7 +216,7 @@ async function readVendor(vendorRoot: string): Promise<VendoredPackage> {
   }
   await hashTree(firstPartyRoot, FIRST_PARTY_SKILLS_DIR)
   return {
-    tag: `${parsed.data.tag}+${digest.digest('hex')}`,
+    tag: `${parsed.data.tag}+${fingerprint(content.join(''))}`,
     skillIds: [...firstPartyIds, ...skillIds.filter((id) => !firstPartyIds.includes(id))],
     firstPartyRoot,
     firstPartyIds,
@@ -300,7 +302,7 @@ async function copyTree(from: string, to: string): Promise<void> {
   }
 }
 
-/** The links in Muse Code's skills folder that lead into the copy's `skills/`, by name. */
+/** Links into either skill tree in the marked copy, by name. */
 async function linksInto(
   skillsRoot: string,
   copyRoots: readonly string[],
