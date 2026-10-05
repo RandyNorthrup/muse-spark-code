@@ -17,7 +17,7 @@
 //   side: a value imported from there would carry it into dist/extension.js,
 //   which the bundle-split gate refuses.
 
-import { mkdir, open, readdir, rm } from 'node:fs/promises'
+import { mkdir, open } from 'node:fs/promises'
 import path from 'node:path'
 import { decideUpdate, isVersion, hasHighlights } from '../../core/whatsNew/whatsNewVersions'
 import {
@@ -78,7 +78,8 @@ function errorCode(error: unknown): string | undefined {
  * Claims showing `version` for this window: true when this window created
  * the version's claim file, false when another window already had. Any other
  * failure (a read-only folder) lets this window show it, logged: a second
- * tab is better than none. The claim files of other versions are removed.
+ * tab is better than none. Keep other versions' claims: windows running
+ * different builds must not delete each other's claim and show twice.
  */
 export async function hasClaimedVersion(
   dir: string,
@@ -107,16 +108,6 @@ export async function hasClaimedVersion(
     await handle.close()
   } catch (error: unknown) {
     return errorCode(error) !== ALREADY_CLAIMED && canShowUnclaimed(error)
-  }
-  try {
-    const entries = await readdir(dir)
-    for (const entry of entries) {
-      if (entry !== name && entry.endsWith(WHATS_NEW_CLAIM_SUFFIX)) {
-        await rm(path.join(dir, entry), { force: true })
-      }
-    }
-  } catch (error: unknown) {
-    log.warn(`What’s New could not remove an old claim (${errorCode(error) ?? 'unknown'})`)
   }
   return true
 }
@@ -199,6 +190,9 @@ export function createWhatsNew(deps: WhatsNewDeps): WhatsNew {
       UI_TEXT.whatsNewOpen,
       UI_TEXT.whatsNewDontShowAgain,
     )
+    if (isDisposed) {
+      return
+    }
     if (answer === UI_TEXT.whatsNewOpen) {
       pagesNow().open(from, false)
     } else if (answer === UI_TEXT.whatsNewDontShowAgain) {

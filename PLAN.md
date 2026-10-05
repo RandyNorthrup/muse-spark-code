@@ -238,6 +238,7 @@ quality`) and as a CI job.
 | `dist/voice.js`            | ≤ 50 KiB (2026-10-03: both voice engines' drivers, loaded on the first recording; measured 34.5 KiB plus 15%, rounded up to 25 KiB)                                                                               |
 | `dist/museCodeReviewer.js` | ≤ 75 KiB (M90: the Auto reviewer on Muse Code, its side session and approvals with M78's reviewer core, loaded on the first review; measured 45.4 KiB plus 15%, rounded up to 25 KiB)                             |
 | `dist/whatsNew.js`         | ≤ 50 KiB (M99, D79: What's New's renderer, content schema and tab, loaded on the first page or notice; measured 34.8 KiB plus 15%, rounded up to 25 KiB)                                                          |
+| `dist/whatsNew.json`       | ≤ 40 KiB raw (M99, D79: newest two releases' full notes and the newest earlier Highlights when needed; hard content cap independent of VSIX compression)                                                          |
 | `dist/webview/whatsNew.js` | ≤ 25 KiB (M99: What's New's page script, which only passes clicks back; 0.7 KiB when made, plus 15%, rounded up to 25 KiB)                                                                                        |
 
 `npm run build` prints bundle sizes; `scripts/check-bundle-size.mjs` holds their
@@ -4296,13 +4297,16 @@ we make". His standing ruling: enhancements are on by default.
   while `globalState`'s propagation between windows has no ordering guarantee
   (two windows can each read the other's claim last, and neither shows it).
   A claim that cannot be written (read-only storage) lets that window show
-  it, logged: a second tab is better than none. Claims of other versions are
-  removed.
+  it, logged: a second tab is better than none. Keep the zero-byte claims of
+  other versions: an older window must not delete a newer window's claim
+  (nor a newer one delete an older window's still-active claim), allowing
+  another activation to show that version a second time.
 - **When in the window.** Some seconds after activation
   (`WHATS_NEW_SETTLE_MS`), and then only while no conversation runs a turn
   and no document was edited for `WHATS_NEW_QUIET_MS` (checked every
   `WHATS_NEW_IDLE_POLL_MS`). The tab opens with `preserveFocus`, so the
-  keyboard stays where it was.
+  keyboard stays where it was. A pending notification's answer is ignored
+  after disposal, so it cannot reopen a tab or write settings in that window.
 - **Page or notice (the rule).** An update whose releases (every one after
   the version updated from, up to the running one) include one with a
   `### Highlights` list opens the page. Otherwise (a patch of fixes only) a
@@ -4313,7 +4317,7 @@ we make". His standing ruling: enhancements are on by default.
 - **What it shows.** A webview editor tab, "What's New in Muse Spark Code":
   every fork the compatibility docs list has webviews, where
   `markdown.showPreview` is not universal. For each release, newest first:
-  its Highlights (each may carry a **Try it** button) and then its full notes.
+  its Highlights (each may carry a **Try it** button) and then its shipped notes.
   The footer links the full CHANGELOG and the README on GitHub and carries a
   **Don't show on updates** box bound to the setting.
 - **Try it.** A Highlight ends with `<!-- try: command <id> -->` or
@@ -4332,9 +4336,15 @@ we make". His standing ruling: enhancements are on by default.
   tree of text-only parts read through a zod schema before use. Raw HTML never
   becomes markup (comments are dropped, other tags kept as their literal
   text); pictures are their alt text; relative links point at the repository;
-  links with a scheme other than http or https are kept as text. All released
-  versions ship (273 KB raw, about 78 KiB compressed in the VSIX), so an
-  update across many versions shows them all.
+  links with a scheme other than http or https are kept as text. The build
+  validates every release and `[Unreleased]`, but ships full notes for only
+  the newest two releases (`FULL_NOTES_RELEASES`, build-time constant in the
+  generator). Eight releases measured 177,802 bytes; two cover the current
+  release and its immediate predecessor within a hard 40 KiB raw content
+  budget. If neither has Highlights, retain the newest earlier Highlights
+  with its notes omitted. Older upgrades still have those Highlights and
+  the full-changelog link; older details live at that link. The size gate
+  rejects both missing content and content one byte over the budget.
 - **Security.** Strict CSP (`default-src 'none'`, the stylesheet from the
   webview origin, one script by nonce, no inline style); every piece of text
   escaped on the host; links carry their address for keyboards and screen
@@ -13546,6 +13556,11 @@ its messages) and `whatsNewHtml.ts` (the page, the Try it allow list) over
   11. The generator keeps released sections only (`[Unreleased]` excluded)
       and splits them at their headings.
   12. A minor release without Highlights fails the changelog test.
+  13. The shipped content keeps only the newest two releases' full notes,
+      plus the newest earlier Highlights when needed; upgrades from before
+      that window still show Highlights and the full-changelog link.
+      `dist/whatsNew.json` has a hard 40 KiB raw budget, red-drilled, and the
+      packaged VSIX is compared with main `bf77aabe` on the same rig.
 - **Tests.** `whatsNewVersions`, `whatsNewContent` (the generator),
   `whatsNewHtml` (with axe in jsdom), `whatsNewPanel`, `whatsNew`,
   `whatsNewPage`, `whatsNewBundle` (the shipped bundle against a stand-in

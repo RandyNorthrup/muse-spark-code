@@ -246,6 +246,27 @@ describe('createWhatsNew', () => {
     expect(dismissed.opened).toEqual([])
   })
 
+  it.each([UI_TEXT.whatsNewOpen, UI_TEXT.whatsNewDontShowAgain])(
+    'ignores the pending notice’s answer after disposal: %s',
+    async (answer) => {
+      const w = window({
+        state: new Map([[KEY, '0.13.0']]),
+        current: '0.13.1',
+        releases: [release('0.13.1', false)],
+      })
+      const reply = Promise.withResolvers<string | undefined>()
+      w.notify.mockImplementation(() => reply.promise)
+      await w.whatsNew.check()
+      await w.tick()
+      expect(w.notify).toHaveBeenCalledOnce()
+      w.whatsNew.dispose()
+      reply.resolve(answer)
+      await w.tick()
+      expect(w.opened).toEqual([])
+      expect(w.disable).not.toHaveBeenCalled()
+    },
+  )
+
   it('waits while a turn runs or the user types, then shows it', async () => {
     const w = window({ state: new Map([[KEY, '0.12.1']]) })
     await w.whatsNew.check()
@@ -303,7 +324,7 @@ describe('createWhatsNew', () => {
 })
 
 describe('hasClaimedVersion', () => {
-  it('claims a version once, and removes the claims of other versions', async () => {
+  it('claims a version once, retaining other versions’ claims across overlapping updates', async () => {
     const dir = claimsFolder()
     const log = new FakeLogOutputChannel()
     mkdirSync(dir, { recursive: true })
@@ -312,9 +333,15 @@ describe('hasClaimedVersion', () => {
     expect(await hasClaimedVersion(dir, '0.13.0', log)).toBe(true)
     expect(await hasClaimedVersion(dir, '0.13.0', log)).toBe(false)
     expect(readdirSync(dir).toSorted((a, b) => a.localeCompare(b, 'en'))).toEqual([
+      '0.12.1.claim',
       '0.13.0.claim',
       'unrelated.txt',
     ])
+    // A window on an older build must not remove the newer window's claim.
+    expect(await hasClaimedVersion(dir, '0.12.2', log)).toBe(true)
+    expect(await hasClaimedVersion(dir, '0.13.0', log)).toBe(false)
+    expect(await hasClaimedVersion(dir, '0.12.2', log)).toBe(false)
+    expect(await hasClaimedVersion(dir, '0.12.1', log)).toBe(false)
   })
 
   it('lets the window show it when the claim cannot be written, and says why in the log', async () => {

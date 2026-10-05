@@ -6,6 +6,8 @@
 import { existsSync, statSync } from 'node:fs'
 
 const BYTES_PER_KIB = 1024
+// M99: bound the generated notes independently of their ZIP compression.
+const WHATS_NEW_CONTENT_BUDGET_KIB = 40
 
 /**
  * @type {ReadonlyArray<{ path: string; budgetKiB: number }>}
@@ -57,6 +59,7 @@ const BUDGETS = [
   // page's renderer, its content schema (zod's mini parser) and its tab.
   // 34.8 KiB when split out, plus 15%, rounded up to 25 KiB.
   { path: 'dist/whatsNew.js', budgetKiB: 50 },
+  { path: 'dist/whatsNew.json', budgetKiB: WHATS_NEW_CONTENT_BUDGET_KIB },
   // Shared English fallback; existing host budgets stay unchanged. Measured
   // 104.9 KiB (2026-10-04); plus 15%, rounded up to 25 KiB.
   { path: 'dist/uiText.js', budgetKiB: 125 },

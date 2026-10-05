@@ -14,9 +14,12 @@ happened, not what was planned; superseded entries are kept.
 ### Added
 
 - **What's New** (M99, PLAN.md D79). After an update, the release notes of
-  every version since the one you had open in an editor tab ("What's New in
+  recent versions since the one you had open in an editor tab ("What's New in
   Muse Spark Code"): each release's Highlights (with a **Try it** button
-  where a highlight has a command or setting to try) and then its full notes.
+  where a highlight has a command or setting to try) and then its notes.
+  Full notes ship for the newest two releases, plus the newest earlier
+  Highlights when those releases have none; the full-changelog link covers
+  older details. The generated JSON has its own hard 40 KiB raw budget.
   - **When.** Once per update, in one window only, some seconds after the
     window starts and only while no turn runs and you are not typing; the
     tab opens in the background. A patch release with no Highlights (fixes
@@ -81,6 +84,10 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- What's New keeps version claims across overlapping updates, preventing
+  windows on different builds from deleting each other's claim and showing
+  duplicate notices. A pending notice cannot reopen its page or change the
+  update setting after the window is disposed.
 - A blocked M80 `v0` tag update now reports that an administrator must move it,
   while preserving the four release channels' outcomes. Updates require a
   fast-forward; the release guide documents the administrator's recovery command.

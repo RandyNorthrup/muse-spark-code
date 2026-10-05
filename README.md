@@ -404,7 +404,10 @@ Spark: Open Walkthrough** brings it back.
 When the extension updates, **What's New in Muse Spark Code** opens in an
 editor tab (it works the same in VS Code's forks and remote windows): each
 new release's Highlights, with a **Try it** button where there is a command
-or setting to try, then its full notes from the CHANGELOG. It shows once per
+or setting to try, then its notes from the CHANGELOG. Full notes ship for
+the newest two releases; when neither has Highlights, the page also carries
+the newest earlier Highlights. Older upgrades can follow the page's full
+changelog link for all intervening details. It shows once per
 update and in one window only, waits until no turn is running and you have
 stopped typing, and does not take the keyboard. After a fixes-only patch a
 quiet notification offers it instead. A fresh install shows nothing. **Muse

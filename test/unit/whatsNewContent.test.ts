@@ -18,6 +18,9 @@ import {
   writeWhatsNewContent,
 } from '../../scripts/lib/whatsNewContent.mjs'
 import { parseWhatsNewContent } from '../../src/core/whatsNew/whatsNewContent'
+import { releasesToShow } from '../../src/core/whatsNew/whatsNewVersions'
+import { renderWhatsNewPage } from '../../src/host/whatsNew/whatsNewHtml'
+import { WHATS_NEW_CHANGELOG_URL } from '../../src/shared/constants'
 import manifest from '../../package.json'
 import { removeFolder } from './helpers/temporaryFolders'
 
@@ -221,7 +224,7 @@ describe('writeWhatsNewContent', () => {
     writeFileSync(path.join(root, 'package.json'), JSON.stringify(manifest))
     mkdirSync(path.join(root, 'dist'), { recursive: true })
     const written = writeWhatsNewContent(root)
-    expect(written.releases).toBe(3)
+    expect(written.releases).toBe(2)
     const text = readFileSync(path.join(root, CONTENT_FILE), 'utf8')
     expect(written.bytes).toBe(Buffer.byteLength(text))
     const content = parseWhatsNewContent(text)
@@ -230,6 +233,73 @@ describe('writeWhatsNewContent', () => {
     ])
     // Relative links point at the manifest's repository.
     expect(text).toContain(`${repositoryUrl(manifest)}/blob/main/docs/acp.md`)
+    expect(text).not.toContain('Older.')
+  })
+
+  it('keeps the newest earlier Highlights when the recent notes have none, without older full notes', () => {
+    const changelog = `## [1.0.4] - 2026-10-05
+
+### Fixed
+
+- Current fix.
+
+## [1.0.3] - 2026-10-04
+
+### Fixed
+
+- Previous fix.
+
+## [1.0.2] - 2026-10-03
+
+### Highlights
+
+- Newest Highlights. <!-- try: command museSpark.showWhatsNew -->
+
+### Added
+
+- Old detailed notes.
+
+## [1.0.1] - 2026-10-02
+
+### Highlights
+
+- Older Highlights.
+`
+    writeFileSync(path.join(root, 'CHANGELOG.md'), changelog)
+    writeFileSync(path.join(root, 'package.json'), JSON.stringify(manifest))
+    expect(writeWhatsNewContent(root).releases).toBe(3)
+    const content = parseWhatsNewContent(readFileSync(path.join(root, CONTENT_FILE), 'utf8'))
+    expect(content.releases.map((release) => release.version)).toEqual(['1.0.4', '1.0.3', '1.0.2'])
+    expect(content.releases.slice(0, 2).every((release) => release.sections.length > 0)).toBe(true)
+    expect(content.releases[2]?.sections).toEqual([])
+    expect(content.releases[2]?.highlights[0]?.tries).toEqual([
+      { kind: 'command', id: 'museSpark.showWhatsNew' },
+    ])
+    expect(JSON.stringify(content)).not.toContain('Old detailed notes.')
+    expect(JSON.stringify(content)).not.toContain('Older Highlights.')
+    const page = renderWhatsNewPage({
+      releases: releasesToShow(content.releases, '0.1.0', '1.0.4'),
+      from: '0.1.0',
+      current: '1.0.4',
+      isShownOnUpdate: true,
+      cspSource: 'vscode-webview://fake',
+      nonce: 'test-nonce',
+      scriptUri: 'webview/whatsNew.js',
+      styleUri: 'webview/whatsNew.css',
+      locale: 'en',
+    })
+    expect(page.html).toContain('Newest Highlights.')
+    expect(page.html).not.toContain('Old detailed notes.')
+    expect(page.links).toContain(WHATS_NEW_CHANGELOG_URL)
+    // Retention never skips validation of the releases it leaves out.
+    writeFileSync(
+      path.join(root, 'CHANGELOG.md'),
+      changelog.replace(
+        'Older Highlights.',
+        'Older Highlights. <!-- try: command museSpark.nope -->',
+      ),
+    )
+    expect(() => writeWhatsNewContent(root)).toThrow('the Try it command "museSpark.nope"')
   })
 
   it('takes the Try it allow list from the manifest', () => {

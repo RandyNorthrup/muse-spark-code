@@ -32,6 +32,10 @@ export const HIGHLIGHTS_HEADING = 'Highlights'
 export const MAX_HIGHLIGHTS = 5
 export const CONTENT_FILE = 'dist/whatsNew.json'
 const SCHEMA_VERSION = 1
+// Keep the current release and its immediate predecessor in full. Eight
+// releases measured 177,802 bytes, far beyond the content's 40 KiB budget.
+// Earlier details remain available through the page's full-changelog link.
+const FULL_NOTES_RELEASES = 2
 const RELEASE_HEADING = /^\[(\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?)\] - (\d{4}-\d{2}-\d{2})$/
 const UNRELEASED_HEADING = '[Unreleased]'
 const PATCH_RELEASE = /^\d+\.\d+\.(\d+)/
@@ -320,7 +324,16 @@ export function highlightsProblem(releases, version) {
 export function writeWhatsNewContent(root = '.') {
   const manifest = JSON.parse(readFileSync(path.join(root, 'package.json'), 'utf8'))
   const changelog = readFileSync(path.join(root, 'CHANGELOG.md'), 'utf8')
-  const releases = parseChangelog(changelog, contributedIds(manifest), repositoryUrl(manifest))
+  const allReleases = parseChangelog(changelog, contributedIds(manifest), repositoryUrl(manifest))
+  const releases = allReleases.slice(0, FULL_NOTES_RELEASES)
+  if (releases.every((release) => release.highlights.length === 0)) {
+    const latestHighlights = allReleases
+      .slice(FULL_NOTES_RELEASES)
+      .find((release) => release.highlights.length > 0)
+    if (latestHighlights !== undefined) {
+      releases.push({ ...latestHighlights, sections: [] })
+    }
+  }
   const text = JSON.stringify({ schema: SCHEMA_VERSION, releases })
   const target = path.join(root, CONTENT_FILE)
   mkdirSync(path.dirname(target), { recursive: true })
