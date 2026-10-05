@@ -35,7 +35,7 @@ function deps(): CheckRoutingDeps {
     isTrusted: () => true,
     localLabels: ['os:macos'],
     sample: vi.fn(() => Promise.resolve(health)),
-    remote: vi.fn(() =>
+    remote: vi.fn<CheckRoutingDeps['remote']>(() =>
       Promise.resolve({
         kind: 'finished',
         result: { runId: job.runId, exitCode: 0, output: 'ok', location: 'remote' },
@@ -113,7 +113,9 @@ describe('check routing after shell guards', () => {
   it('refuses untrusted work and trust lost while sampling', async () => {
     const d = deps()
     await expect(
-      routeChecks(job, [runner], { ...d, isTrusted: () => false }, () => Promise.resolve()),
+      routeChecks(job, [runner], { ...d, isTrusted: () => false }, (value) =>
+        Promise.resolve(value.command),
+      ),
     ).rejects.toThrow()
     expect(d.sample).not.toHaveBeenCalled()
     let isTrusted = true
@@ -129,7 +131,7 @@ describe('check routing after shell guards', () => {
             return Promise.resolve(health)
           },
         },
-        () => Promise.resolve(),
+        (value) => Promise.resolve(value.command),
       ),
     ).rejects.toThrow()
     expect(d.remote).not.toHaveBeenCalled()
@@ -137,14 +139,14 @@ describe('check routing after shell guards', () => {
   it('matches Windows-only labels and command classes instead of routing to a Mac', async () => {
     const d = deps()
     const windows: Runner = { ...runner, id: 'win', os: 'win32' }
-    await routeChecks({ ...job, labels: ['os:windows'] }, [runner, windows], d, () =>
-      Promise.resolve(),
+    await routeChecks({ ...job, labels: ['os:windows'] }, [runner, windows], d, (value) =>
+      Promise.resolve(value.command),
     )
     expect(d.sample).toHaveBeenCalledExactlyOnceWith(windows)
     const build = deps()
     expect(
-      await routeChecks({ ...job, commandClass: 'builds' }, [runner], build, () =>
-        Promise.resolve(),
+      await routeChecks({ ...job, commandClass: 'builds' }, [runner], build, (value) =>
+        Promise.resolve(value.command),
       ),
     ).toMatchObject({ location: 'local' })
     expect(build.sample).not.toHaveBeenCalled()
@@ -152,7 +154,9 @@ describe('check routing after shell guards', () => {
   it('refuses a Windows-only job when no Windows runner or local slot is available', async () => {
     const d = deps()
     await expect(
-      routeChecks({ ...job, labels: ['os:windows'] }, [runner], d, () => Promise.resolve()),
+      routeChecks({ ...job, labels: ['os:windows'] }, [runner], d, (value) =>
+        Promise.resolve(value.command),
+      ),
     ).rejects.toThrow()
     expect(d.local).not.toHaveBeenCalled()
   })
@@ -160,15 +164,17 @@ describe('check routing after shell guards', () => {
     const other = { ...runner, id: 'other' }
     const d = deps()
     expect(
-      await routeChecks({ ...job, preferredRunners: ['other'] }, [runner, other], d, () =>
-        Promise.resolve(),
+      await routeChecks({ ...job, preferredRunners: ['other'] }, [runner, other], d, (value) =>
+        Promise.resolve(value.command),
       ),
     ).toMatchObject({ location: 'remote' })
     expect(d.remote).toHaveBeenCalledExactlyOnceWith(other, expect.anything())
     for (const kind of ['offline', 'busy', 'uncertain'] as const) {
       const fallback = { ...deps(), remote: vi.fn(() => Promise.resolve({ kind })) }
       expect(
-        await routeChecks(job, [runner, other], fallback, () => Promise.resolve()),
+        await routeChecks(job, [runner, other], fallback, (value) =>
+          Promise.resolve(value.command),
+        ),
       ).toMatchObject({ location: 'local' })
       expect(fallback.remote).toHaveBeenCalledTimes(2)
     }
@@ -181,7 +187,9 @@ describe('check routing after shell guards', () => {
       { ...health, inputReady: false },
     ]) {
       const d = { ...deps(), sample: () => Promise.resolve(sample) }
-      expect(await routeChecks(job, [runner], d, () => Promise.resolve())).toMatchObject({
+      expect(
+        await routeChecks(job, [runner], d, (value) => Promise.resolve(value.command)),
+      ).toMatchObject({
         location: 'local',
       })
       expect(d.remote).not.toHaveBeenCalled()
@@ -195,7 +203,7 @@ describe('check routing after shell guards', () => {
         result: { runId: `${job.runId}-old`, exitCode: 0, output: 'late', location: 'remote' },
       })
     expect(
-      await routeChecks(job, [runner], { ...d, remote }, () => Promise.resolve()),
+      await routeChecks(job, [runner], { ...d, remote }, (value) => Promise.resolve(value.command)),
     ).toMatchObject({ location: 'local' })
     await expect(
       routeChecks(
@@ -206,13 +214,15 @@ describe('check routing after shell guards', () => {
           local: () =>
             Promise.resolve({ runId: 'old-run', exitCode: 0, output: '', location: 'local' }),
         },
-        () => Promise.resolve(),
+        (value) => Promise.resolve(value.command),
       ),
     ).rejects.toThrow()
     const abort = new AbortController()
     abort.abort()
     await expect(
-      routeChecks({ ...job, signal: abort.signal }, [runner], d, () => Promise.resolve()),
+      routeChecks({ ...job, signal: abort.signal }, [runner], d, (value) =>
+        Promise.resolve(value.command),
+      ),
     ).rejects.toThrow()
   })
 })

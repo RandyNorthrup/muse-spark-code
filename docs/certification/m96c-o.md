@@ -60,3 +60,145 @@ Restored SHA-256 values before commit formatting:
 - `src/core/runners/runnerConfig.ts`: `9a99a0a33b339716cf492bf6480851fa126dc5f257456fd9eefbba352b4155bc`
 - `src/core/runners/health.ts`: `0a653fa81bf72719cf472d853187a1ce8fcf974c6e3880fe3866b11965ba570b`
 - `src/core/runners/routing.ts`: `cbf8b11d78b2b49fa4220190e28b755f3983328c364bee3bbb0c63d04386fdef`
+
+## Check slots and the two calling regions
+
+`CheckSlots` snapshots the caller's working edits with a private Git index,
+keeps one persistent copy per window slot, resets tracked and untracked
+files, and caches configured install artifacts under the exact lockfile,
+setup-command and cache-key hash. Copies use `COPYFILE_FICLONE`, with Node's
+ordinary copy fallback, and never hard-link mutable installs. Failed setup
+returns its exit code and complete diagnostic output without starting the
+check. Canonical-path checks refuse the user's checkout, aliases to it,
+and slot storage inside it. Trust, cancellation, host pressure, slot
+ownership and descendant uncertainty are checked before reuse.
+
+The `engineWorker.ts` and `mcpBridge.ts` files contain only O's marked
+regions, because W/B's full files are absent on this base. The bridge uses
+the existing `run_checks` definition and check-command schema, bounded
+strict arguments, injected canonical path resolution, current authenticated
+attempt/tool-policy admission, all shell guards, hook rewrites, and injected
+M73 packing of complete results. Admission is rechecked after packing too.
+Tests cover ordinary test commands and `then_run`; no guard refusal probes
+a runner or snapshots/installs anything.
+
+Required caller bindings, deliberately explicit rather than production
+stand-ins:
+
+- K supplies `CheckProcess`: a trusted executable resolver, credential-free
+  journalled launch, bounded output/timeout/cancellation, and actual
+  container retirement evidence. `descendantsEnded: true` means proof,
+  never a PID observation, process-group exit or `userDecision`.
+- K supplies a window-owned slot root, load pressure, and recovery/admission
+  for copies left by an earlier window. An uncertain slot remains occupied;
+  its copy has no reuse/release API here. The scheduler's user-decision and
+  fresh-copy handoff policy remains distinct from proof. On macOS, no
+  whole-descendant proof is claimed by this lane's test adapter.
+- W routes its classified test commands and `then_run` through
+  `routeWorkerCheck`, injecting the full ordinary shell guard chain. Its
+  guard returns the admitted final command; routing freezes the other job
+  fields.
+- B registers `bridgeRunChecks` on its authenticated endpoint and binds its
+  token/attempt/tool checks, path resolver, job ids, output packing, and the
+  same routing/guard chain. No token transport, engine loop or MCP server
+  is stubbed in these region files.
+
+The finite local test child adapter is test-only. It is not production
+process-lifetime evidence. All temporary fixtures remain inside `temp/`.
+
+## SSH runners and helper protocol
+
+Every helper connection uses the user's SSH with `-n`, batch mode, strict
+host keys, no agent forwarding, and the pinned connection timeout. Git's
+SSH command retains the four security options and deliberately omits `-n`:
+Git's duplex pack protocol needs standard input. Credential variables are
+removed from local children and forwarded command environments; the host
+SSH transport alone may retain its own agent. Both helpers strip credential
+names from the runner's own inherited environment before executing setup
+and checks. Only the public SHA-256 host fingerprint is extracted from
+verbose stderr; the raw text is never logged or shown.
+
+The pushed snapshot contains uncommitted and untracked files without moving
+the caller's index or refs. Pushes originate in a temporary shared bare
+copy with global/system Git configuration disabled, so repository
+`url.*.insteadOf` cannot redirect them. A fixture plants precisely that
+redirect and the fake SSH transcript proves it is unused. Helpers are
+versioned by their content hash and installed through unique temporary
+files followed by rename. Output is streamed by append-only deltas and
+bounded by bytes; malformed markers, stale ids, regressed output and an
+uncertain local transport cannot admit a result.
+
+Remote allocation uses exclusive create. Slots are reclaimed only after
+that job's exit marker exists, never because SSH disconnected, a timer
+expired, or a PID looked dead. Setup caches have separate exclusive
+creation; a busy creator produces a tagged fallback, while an actual
+check's exit code 75 remains a check failure. An exclusive cache owner
+removes its incomplete old install before rebuilding. A killed cache
+creator's stale creation lock is conservative and is never stolen.
+
+The POSIX supervisor detaches from SSH, owns the job's process group,
+terminates it on timeout and after command exit, waits for the group to
+end, then renames the exit marker. A descendant that deliberately escapes
+with `setsid` is outside this process-group guarantee; no OS sandbox or
+whole-descendant proof is claimed. The Windows helper launches its
+supervisor with direct inheritable NUL/output handles (no SSH-owned pipe
+pump), and launches checks suspended into a kill-on-close Windows job
+before resume. Retirement waits for the job's active count to reach zero.
+The Windows self-test exercises detached launch and closed-input reading;
+a refusal/hang offers the existing scheduled-task-wrapper notice.
+
+The helper protocol is owned by these bundled scripts, not guessed Muse
+Code/Model API wire data. Its strict health/start/end schemas correspond to
+frames generated by the helpers in the fake-SSH/local-Git tests. No model
+attempts or real remote connections were made.
+
+## Red drills: slots and calling regions
+
+All 30 mutations below failed a named test in the whole owned test file,
+without a name filter. Each source was restored byte-exact and SHA-256
+checked before the next mutation. The path-boundary follow-ups below were
+added after reviewing Windows case folding and a child named `..cache`.
+
+| Mutated guard              | Named failure                                                                                    |
+| -------------------------- | ------------------------------------------------------------------------------------------------ |
+| hook rewrite               | dispatches the command after a hook rewrite and refuses an empty hook command                    |
+| empty hook command         | dispatches the command after a hook rewrite and refuses an empty hook command                    |
+| routing labels after hook  | matches Windows-only labels and command classes instead of routing to a Mac                      |
+| snapshot private index     | snapshots working edits and untracked files without touching the real index or refs              |
+| snapshot dirty bytes       | snapshots working edits and untracked files without touching the real index or refs              |
+| snapshot descendant proof  | keeps slots occupied when descendants are uncertain or a transport fails                         |
+| git descendant proof       | keeps slots occupied when descendants are uncertain or a transport fails                         |
+| command descendant proof   | keeps slots occupied when descendants are uncertain or a transport fails                         |
+| launch failure reservation | keeps slots occupied when descendants are uncertain or a transport fails                         |
+| slot exclusive owner       | isolates installs between concurrent slots and never shares mutable cache files                  |
+| uncertain slot retention   | keeps slots occupied when descendants are uncertain or a transport fails                         |
+| slot trust                 | refuses the user checkout, host pressure, untrusted work, escaped installs and missing lockfiles |
+| slot cancel                | refuses late trust loss and cancellation before starting another child                           |
+| slot load                  | refuses the user checkout, host pressure, untrusted work, escaped installs and missing lockfiles |
+| user checkout fence        | refuses the user checkout, host pressure, untrusted work, escaped installs and missing lockfiles |
+| storage inside checkout    | refuses the user checkout, host pressure, untrusted work, escaped installs and missing lockfiles |
+| install path fence         | refuses the user checkout, host pressure, untrusted work, escaped installs and missing lockfiles |
+| git metadata exclusion     | refuses the user checkout, host pressure, untrusted work, escaped installs and missing lockfiles |
+| slot count                 | refuses the user checkout, host pressure, untrusted work, escaped installs and missing lockfiles |
+| source reset               | resets source and installs once per exact lockfile hash in each slot                             |
+| exact lockfile cache       | resets source and installs once per exact lockfile hash in each slot                             |
+| cache reuse                | resets source and installs once per exact lockfile hash in each slot                             |
+| failed setup stops check   | does not run checks after a failed install and strips credentials from every child               |
+| slot credentials           | does not run checks after a failed install and strips credentials from every child               |
+| bridge strict boundary     | rejects unknown fields, missing checks, unknown names, unsafe paths and oversized calls          |
+| bridge call bound          | rejects unknown fields, missing checks, unknown names, unsafe paths and oversized calls          |
+| bridge auth and attempt    | binds access to the current authenticated attempt and rechecks it after waits                    |
+| bridge paths resolved      | rejects unknown fields, missing checks, unknown names, unsafe paths and oversized calls          |
+| bridge packing complete    | offers the existing run_checks definition, quotes paths, runs guards and packs the full output   |
+| bridge post-pack admission | binds access to the current authenticated attempt and rechecks it after waits                    |
+
+Restored source SHA-256 values for these drills:
+
+- `src/core/runners/routing.ts`: `bc0b98a6d6521a4328adcc8cde3a36190b33d02c3f717e82bd10c27206d95f62`
+- `src/host/team/checkSlots.ts`: `06990625ce512526897eaf68b0b3ea78e22f18519b9ff49e5452816e98117cb2`
+- `src/host/team/mcpBridge.ts`: `e902daf152cf1de8cb8015527ecc82b5681c7fa33ae1f24252aa38a1c7cbb9ab`
+
+The two follow-up guards were also deliberately removed and failed:
+
+- case insensitive metadata path: refuses the user checkout, host pressure, untrusted work, escaped installs and missing lockfiles. Restored SHA-256 `2351e77348944b1ba26f8199e0b76752c30f837dec8e4e7b4ea0c71e3b5a3f35`.
+- dot prefix storage fence: refuses the user checkout, host pressure, untrusted work, escaped installs and missing lockfiles. Restored SHA-256 `2351e77348944b1ba26f8199e0b76752c30f837dec8e4e7b4ea0c71e3b5a3f35`.

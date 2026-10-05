@@ -38,29 +38,28 @@ export async function routeChecks(
   job: CheckJob,
   runners: readonly Runner[],
   deps: CheckRoutingDeps,
-  guard: () => Promise<void>,
+  guard: (job: CheckJob) => Promise<string>,
 ): Promise<CheckResult> {
-  await guard()
+  const admittedJob = { ...job, command: await guard(job) }
+  if (admittedJob.command.trim() === '') throw new Error(UI_TEXT.hookInputNoCommand)
   const admit = () => {
-    job.signal.throwIfAborted()
+    admittedJob.signal.throwIfAborted()
     if (!deps.isTrusted()) throw new Error(UI_TEXT.teamRunners.trustNotice)
   }
   admit()
   const rank = (runner: Runner) => {
-    const index = job.preferredRunners.indexOf(runner.id)
-    return index === -1 ? job.preferredRunners.length : index
+    const index = admittedJob.preferredRunners.indexOf(runner.id)
+    return index === -1 ? admittedJob.preferredRunners.length : index
   }
   const candidates = runners
-    .filter(
-      (runner) =>
-        runner.commandClasses.includes(job.commandClass) &&
-        job.labels.every(
-          (label) =>
-            runner.labels.includes(label) ||
-            label ===
-              `os:${runner.os === 'win32' ? 'windows' : runner.os === 'darwin' ? 'macos' : 'linux'}`,
-        ),
-    )
+    .filter((runner) => {
+      const platform = runner.os === 'win32' ? 'windows' : runner.os
+      const label = `os:${platform === 'darwin' ? 'macos' : platform}`
+      return (
+        runner.commandClasses.includes(admittedJob.commandClass) &&
+        admittedJob.labels.every((wanted) => runner.labels.includes(wanted) || wanted === label)
+      )
+    })
     .toSorted((a, b) => rank(a) - rank(b))
   for (const runner of candidates) {
     admit()
@@ -73,15 +72,16 @@ export async function routeChecks(
       health.load >= health.cores
     )
       continue
-    const answer = await deps.remote(runner, job)
+    const answer = await deps.remote(runner, admittedJob)
     admit()
-    if (answer.kind === 'finished' && answer.result.runId === job.runId) return answer.result
+    if (answer.kind === 'finished' && answer.result.runId === admittedJob.runId)
+      return answer.result
   }
   admit()
-  if (job.labels.some((label) => !deps.localLabels.includes(label)))
+  if (admittedJob.labels.some((label) => !deps.localLabels.includes(label)))
     throw new Error(UI_TEXT.teamRunners.offline)
-  const result = await deps.local(job)
+  const result = await deps.local(admittedJob)
   admit()
-  if (result.runId !== job.runId) throw new Error(UI_TEXT.teamRunners.testFailed)
+  if (result.runId !== admittedJob.runId) throw new Error(UI_TEXT.teamRunners.testFailed)
   return result
 }
