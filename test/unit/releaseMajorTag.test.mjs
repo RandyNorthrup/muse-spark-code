@@ -25,7 +25,7 @@ function step(name) {
   const workflow = readFileSync('.github/workflows/release.yml', 'utf8')
   const body = workflow.split(`\n      - name: ${name}\n`, 2)[1]
   expect(body, `workflow step ${name}`).toBeDefined()
-  return body.split('\n      - name: ', 1)[0]
+  return body.split(/\n(?: {6}- | {2}[a-z][\w-]*:)/, 1)[0]
 }
 
 function runStep(name, environment = {}) {

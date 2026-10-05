@@ -8128,6 +8128,21 @@ merged through pull request #7 from `hardening/m26-platform`, shipped in
   tokens persisted; the audit has no silent bypass; no new dependencies; no
   signing credentials created.
 
+### M26 follow-up — Refresh README badges after publication (BADGES)
+
+The 0.13.0 release exposed stale badge-service and GitHub image-proxy caches.
+Extend the existing release workflow and scripts without changing publication:
+BADGES-A waits at most 15 minutes, polling every 30 seconds, for all four public
+channel versions; BADGES-B requests README badge URLs and retries older version
+answers with a cache-busting query; BADGES-C purges the repository page's camo
+images and logs statuses. Every failure warns only, with no credential required.
+The final job requires the summary's successful, all-published outcome.
+Fake-fetch tests and red drills cover parsing, version ordering, retries,
+polling bounds and warning-only failures; hosted public-service proof remains
+the lead's next release check. Implemented: 40 focused tests and 14 red drills
+passed, with typecheck and required focused gates green on the worktree merged
+with `8c894b60a`. Evidence: [BADGES](docs/certification/badges.md).
+
 ### M27 — The tree kill's orphans (D25)
 
 **DEFLAKE2 follow-up (2026-10-04, scoped gates verified):** PR #115's Windows

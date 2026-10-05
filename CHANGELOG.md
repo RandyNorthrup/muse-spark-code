@@ -142,6 +142,12 @@ happened, not what was planned; superseded entries are kept.
 
 ### Changed
 
+- After all four release channels publish successfully, a credential-free final
+  job waits for public version propagation, refreshes README badge URLs and
+  purges GitHub's camo image copies. Older version badges get a cache-busting
+  retry and an original-URL recheck; stale caches and network failures warn
+  without failing the release.
+
 - Preserve both full What’s New releases in a bounded lossless artifact
   envelope, keeping its existing 40-KiB file cap and plain-file compatibility.
 
