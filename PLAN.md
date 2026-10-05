@@ -18193,6 +18193,17 @@ joined with M57, M58 and PR #49's sign-in
 
 ## 7. Gates
 
+**VSIXDIET2 scoped certification (2026-10-05).** This lane's explicit shared
+rules prohibit aggregate `npm run quality`/full-test runs and reserve coverage
+and installed-editor/platform certification for the lead. Its required scoped
+gates pass: 286 tests in 17 complete files, five-project typecheck, changed-file
+lint/format, localization, host API, Knip, zero-clone duplication, cycles, all
+production caps and universal/ACP packages. Ten faults reject and restore
+byte-exact. Universal headroom is 221,523 bytes with byte-identical activation;
+the full member table and receipts are in `docs/certification/vsix-diet-2.md`.
+No threshold, ignore, test skip, timeout or gate is weakened. This local lane
+handoff does not claim aggregate release certification.
+
 **TRAIN14B Judge activation fixture stop (2026-10-05).** Full quality is
 explicitly authorized by this rig brief. Its aggregate unit run exposes a
 legacy Judge activation fixture that omits D78’s default callback. The field

@@ -82,6 +82,13 @@ the archives unchanged and remains private, unsigned and unpublished.
 
 ## Checks and drills
 
+Implementation commit: `a1bc7dac5f9953cacb677246f250c0b7ea192271`.
+The existing `.husky/_/pre-commit` hook runs changed-file ESLint with fixes,
+Prettier and staged Gitleaks: all pass, no leaks. The generated reader's source
+still matches every drill restoration hash; the worktree is clean after the
+implementation commit. This final receipt/PLAN gate-scope note uses the same
+hook. No branch is pushed or integrated.
+
 All commands run directly on Kubuntu, Node 24.18.0; complete Vitest files
 run serially in batches of at most three with `--maxWorkers=3 --testTimeout=120000`.
 The final positive run follows every byte-exact drill restoration.
