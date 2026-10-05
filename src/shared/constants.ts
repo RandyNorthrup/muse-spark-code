@@ -444,6 +444,11 @@ export const HOOK_MANAGED_ENV_MAX_NAMES = 64
 export const HOOK_MANAGED_ENV_NAME_MAX_CHARS = 128
 export const HOOK_NOTIFICATION_DELAY_MS = 6000
 export const HOOK_SESSION_END_TIMEOUT_MS = 10_000
+// Cline v1 contextModification cap (M91 lane X; hooks-parity/raw-copilot-cline.md:25).
+export const CLINE_CONTEXT_MODIFICATION_MAX_CHARS = 50_000
+// M91 lane X: the plugin child runs one plugin per hook call under these bounds.
+export const PLUGIN_HOOK_TIMEOUT_MS = 30_000
+export const PLUGIN_NODE_MINIMUM = '22.18.0'
 export const HOOK_FORBIDDEN_ENV_NAMES: ReadonlySet<string> = new Set([
   'AWS_ACCESS_KEY_ID',
   'AWS_SECRET_ACCESS_KEY',

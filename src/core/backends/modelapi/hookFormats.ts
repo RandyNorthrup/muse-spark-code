@@ -7,6 +7,7 @@ import {
   type ForeignHookAnswer,
   type VendorContract,
 } from './hookFormats/contract'
+import { CLINE_CONTRACT } from './hookFormats/contracts/cline'
 import { COPILOT_CONTRACT } from './hookFormats/contracts/copilot'
 import { CURSOR_CONTRACT } from './hookFormats/contracts/cursor'
 import { GEMINI_CONTRACT } from './hookFormats/contracts/gemini'
@@ -23,7 +24,7 @@ export {
 } from './hookFormats/contract'
 export { confineHookCwd } from './hookFormats/transforms'
 
-export const HOOK_FORMATS = ['gemini', 'cursor', 'copilot', 'windsurf', 'kiro'] as const
+export const HOOK_FORMATS = ['gemini', 'cursor', 'copilot', 'windsurf', 'kiro', 'cline'] as const
 export type HookFormat = (typeof HOOK_FORMATS)[number]
 
 /** Every vendor table, for the property suite and lane W's admission checks. */
@@ -33,6 +34,7 @@ export const HOOK_FORMAT_CONTRACTS: Readonly<Record<HookFormat, VendorContract>>
   copilot: COPILOT_CONTRACT,
   windsurf: WINDSURF_CONTRACT,
   kiro: KIRO_CONTRACT,
+  cline: CLINE_CONTRACT,
 }
 
 /**
@@ -163,6 +165,24 @@ export function parseKiroResult(
   options?: KiroAdapterOptions,
 ): ForeignHookAnswer {
   return parseResult(KIRO_CONTRACT, event, exitCode, stdout, stderr, kiroOptions(options))
+}
+
+export function buildClineStdin(
+  event: AdapterEvent,
+  payload: Readonly<Record<string, unknown>>,
+  options?: AdapterOptions,
+): ForeignStdinResult {
+  return buildStdin(CLINE_CONTRACT, event, payload, options)
+}
+
+export function parseClineResult(
+  event: AdapterEvent,
+  exitCode: number | null,
+  stdout: string,
+  stderr: string,
+  options?: AdapterOptions,
+): ForeignHookAnswer {
+  return parseResult(CLINE_CONTRACT, event, exitCode, stdout, stderr, options)
 }
 
 /** Gemini timeouts are milliseconds; ours are whole seconds, capped. */
