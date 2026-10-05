@@ -16644,6 +16644,41 @@ live) and the controller filters its id as well.
 
 ### M96 — Agent roles and the team (D75)
 
+#### Round-3 redesign: process ownership (REDM96K, 2026-10-05)
+
+Replace K's separate signal guards with one ownership module. Every signal
+re-reads PID, OS start identity, group and the launch marker (or an exact
+journal identity). A foreign group's marked member never authorizes that
+group: prove its leader first, otherwise signal only individually proved
+members and report the unowned leader. Linux individual signals use a private,
+credential-free Python standard-library helper with `pidfd_open` and
+`pidfd_send_signal`; if that facility cannot be used, signalling fails closed.
+Linux groups are enumerated and their proved members signalled by pidfd rather
+than a reusable negative PID. macOS retains its named final syscall interval;
+Windows retains its nonce-bound native job control channel, with an optional
+pre-resume callback in the shared suspended launcher (existing callers keep
+the original entry). K persists the child's kernel start identity while it is
+suspended, then sends GO. STOP uses a duplicated process handle; ending the
+primary closes the inner job. A failed STOP is reported and can be retried.
+
+One launch object owns `spawning → confirming → released → retiring → ended`.
+Disposal changes that object before any await, closes a held launch through
+its private control channel, and forbids release after closure, including
+while confirmation persistence is pending. Each retirement invocation retries
+the native operation with fresh ownership; no rejected native promise is
+cached. Confirmation and kill-grace deadlines use monotonic time.
+
+Hints are read through an opened, no-follow descriptor. Its fstat must prove
+a regular file, current UID, no group/other write, and one link on POSIX;
+Windows retains verified owner ACLs. Unsafe files disable hints; atomic
+publication replaces an inode rather than reusing it. Recovery and the end
+writer share one launch schema enforcing proof/container/child-exit invariants.
+Malformed filenames and records become unreadable warnings while valid foreign
+records remain recoverable and byte-exact. K's seven round-1 and seven round-2
+findings get named regressions and SHA-256 restored red drills in
+`docs/certification/m96-k.md`. No live/paid calls, merge, push, dependencies,
+gate changes or other lane's product wiring are authorized in this rig task.
+
 **Lane K review corrections (FIXM96K, 2026-10-05).** Fix all seven RVM96K
 findings within K's existing lifetime, journal, hints/load modules and tests.
 Before each POSIX retirement signal, compare the live group leader's PID,
