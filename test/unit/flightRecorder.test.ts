@@ -3,8 +3,7 @@
 // src/host/support/reportJournal.ts. Every guard below has a red drill in
 // docs/certification/m93-r.md: the passing receipt here means nothing until
 // the break was seen to fail.
-import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
-import { tmpdir } from 'node:os'
+import { link, mkdir, mkdtemp, readFile, rm, symlink, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
 import {
@@ -39,6 +38,7 @@ import {
 } from '../../src/host/support/reportJournal'
 import {
   REPORT_JOURNAL_ENTRY_MAX_BYTES,
+  REPORT_PACKAGE_FRAME_PATHS,
   REPORT_JOURNAL_MAX_BYTES,
   REPORT_RECENT_EVENT_COUNT,
   REPORT_STORAGE_DIR,
@@ -55,7 +55,11 @@ function event(overrides?: Partial<FlightEventInput>): FlightEventInput {
   return { kind: 'toolCallFailed', code: 'ENOENT', ext: EXT, host: HOST, ...overrides }
 }
 
-function frame(path: string, line = 12, column = 4): { path: string; line: number; column: number } {
+function frame(
+  path: string,
+  line = 12,
+  column = 4,
+): { path: string; line: number; column: number } {
   return { path, line, column }
 }
 
@@ -65,7 +69,9 @@ afterEach(async () => {
 })
 
 async function storage(): Promise<string> {
-  const dir = await mkdtemp(path.join(tmpdir(), 'muse-flight-'))
+  const root = path.resolve(import.meta.dirname, '../../temp/flight-recorder')
+  await mkdir(root, { recursive: true })
+  const dir = await mkdtemp(path.join(root, 'muse-flight-'))
   dirs.push(dir)
   return dir
 }
@@ -90,7 +96,7 @@ function journal(
 }
 
 function warnings(log: FakeLogOutputChannel): string[] {
-  const calls = (log.warn as unknown as { mock: { calls: unknown[][] } }).mock.calls
+  const calls = log.warn.mock.calls
   return calls.map((call) => String(call[0]))
 }
 
@@ -112,43 +118,64 @@ class MapFs implements ReportJournalFs {
   public readonly files = new Map<string, string>()
   public readonly links = new Set<string>()
 
-  public async mkdir(): Promise<void> {
-    // Every path is accepted; confinement is by name, not by directory.
+  public mkdir(): Promise<void> {
+    return Promise.resolve()
   }
 
-  public async readDir(dir: string): Promise<readonly ReportDirEntry[]> {
+  public readDir(dir: string): Promise<readonly ReportDirEntry[]> {
     const names = new Set<string>()
     for (const file of [...this.files.keys(), ...this.links]) {
       if (path.dirname(file) === dir) names.add(path.basename(file))
     }
-    return [...names].sort().map((name) => ({
-      name,
-      isFile: true,
-      isSymbolicLink: this.links.has(path.join(dir, name)),
-    }))
+    return Promise.resolve(
+      [...names]
+        .toSorted((left, right) => left.localeCompare(right))
+        .map((name) => ({
+          name,
+          isFile: true,
+          isSymbolicLink: this.links.has(path.join(dir, name)),
+        })),
+    )
   }
 
-  public async readFile(file: string): Promise<string> {
+  public readFile(file: string): Promise<string> {
     const text = this.files.get(file)
-    if (text === undefined) {
-      throw Object.assign(new Error('missing'), { code: 'ENOENT' })
-    }
-    return text
+    return text === undefined
+      ? Promise.reject(Object.assign(new Error('missing'), { code: 'ENOENT' }))
+      : Promise.resolve(text)
   }
 
-  public async appendFile(file: string, data: string): Promise<void> {
+  public appendFile(file: string, data: string): Promise<void> {
     this.files.set(file, (this.files.get(file) ?? '') + data)
+    return Promise.resolve()
   }
 
-  public async writeTempAndRename(file: string, data: string): Promise<void> {
+  public writeTempAndRename(file: string, data: string): Promise<void> {
     this.files.set(file, data)
+    return Promise.resolve()
   }
 
-  public async remove(file: string): Promise<void> {
-    if (!this.files.delete(file)) {
-      throw Object.assign(new Error('missing'), { code: 'ENOENT' })
-    }
+  public remove(file: string): Promise<void> {
+    return this.files.delete(file)
+      ? Promise.resolve()
+      : Promise.reject(Object.assign(new Error('missing'), { code: 'ENOENT' }))
   }
+}
+
+function line(record: FlightRecord): string {
+  return serializeFlightRecord(record).replace(/\n$/, '')
+}
+
+function valid(index: number): FlightRecord {
+  const built = buildFlightRecord(event({ code: 'EIO', count: index }), 1000 + index)
+  if (!built.ok) throw new Error('test record must build')
+  return built.record
+}
+
+function at(index: number, timestamp: number): FlightRecord {
+  const built = buildFlightRecord(event({ code: 'EIO', count: index }), timestamp)
+  if (!built.ok) throw new Error('test record must build')
+  return built.record
 }
 
 describe('lane-R storage tunables', () => {
@@ -177,19 +204,32 @@ describe('buildFlightRecord', () => {
 
   it('keeps enums, counts, versions and verified frames', () => {
     const built = buildFlightRecord(
-      event({ kind: 'backendExit', backend: 'museCode', count: 3, frames: [frame('dist/extension.js')] }),
+      event({
+        kind: 'backendExit',
+        backend: 'museCode',
+        count: 3,
+        frames: [frame('dist/extension.js')],
+      }),
       2000,
     )
     expect(built.ok).toBe(true)
-    if (built.ok) {
-      expect(built.record.backend).toBe('museCode')
-      expect(built.record.count).toBe(3)
-      expect(built.record.frames).toEqual([{ path: 'dist/extension.js', line: 12, column: 4 }])
+    if (!built.ok) {
+      return
     }
+
+    expect(built.record.backend).toBe('museCode')
+    expect(built.record.count).toBe(3)
+    expect(built.record.frames).toEqual([{ path: 'dist/extension.js', line: 12, column: 4 }])
   })
 
   it('maps an unknown code shape to the fixed unknown word', () => {
-    for (const code of ['something went wrong', '', 'https://example.com/x', 'E seq', `${'A'.repeat(65)}`]) {
+    for (const code of [
+      'something went wrong',
+      '',
+      'https://example.com/x',
+      'E seq',
+      'A'.repeat(65),
+    ]) {
       const built = buildFlightRecord(event({ code }), 1000)
       expect(built.ok).toBe(true)
       if (built.ok) expect(built.record.code).toBe('unknown')
@@ -213,7 +253,10 @@ describe('buildFlightRecord', () => {
       reason: 'badBackend',
     })
     expect(buildFlightRecord(event({ count: -1 }), 1000)).toEqual({ ok: false, reason: 'badCount' })
-    expect(buildFlightRecord(event({ count: 1.5 }), 1000)).toEqual({ ok: false, reason: 'badCount' })
+    expect(buildFlightRecord(event({ count: 1.5 }), 1000)).toEqual({
+      ok: false,
+      reason: 'badCount',
+    })
   })
 
   it('drops unverifiable frames but keeps the record', () => {
@@ -225,30 +268,32 @@ describe('buildFlightRecord', () => {
           frame('../escape.js'),
           frame('a/../../escape.js'),
           frame('https://example.com/x.js'),
-          frame('dist\\windows.js'),
+          frame(String.raw`dist\windows.js`),
           frame(''),
           frame('a//b.js'),
           frame('./dotted.js'),
           frame('vscode-remote://host/x.js'),
-          frame('dist/kept.js'),
+          frame('dist/extension.js'),
         ],
       }),
       1000,
     )
     expect(built.ok).toBe(true)
     if (built.ok) {
-      expect(built.record.frames).toEqual([{ path: 'dist/kept.js', line: 12, column: 4 }])
+      expect(built.record.frames).toEqual([{ path: 'dist/extension.js', line: 12, column: 4 }])
     }
   })
 
   it('truncates the stack to its first bounded frames', () => {
-    const frames = Array.from({ length: 20 }, (_, index) => frame(`dist/f${index}.js`))
+    const frames = Array.from({ length: 20 }, (_, index) => frame('dist/extension.js', index + 1))
     const built = buildFlightRecord(event({ frames }), 1000)
     expect(built.ok).toBe(true)
-    if (built.ok) {
-      expect(built.record.frames).toHaveLength(16)
-      expect(built.record.frames[0]).toEqual({ path: 'dist/f0.js', line: 12, column: 4 })
+    if (!built.ok) {
+      return
     }
+
+    expect(built.record.frames).toHaveLength(16)
+    expect(built.record.frames[0]).toEqual({ path: 'dist/extension.js', line: 1, column: 4 })
   })
 
   it('never lets a secret-shaped value land in a record', () => {
@@ -258,11 +303,16 @@ describe('buildFlightRecord', () => {
       expect(serializeFlightRecord(withSecretCode.record)).not.toContain(SECRET)
       expect(withSecretCode.record.code).toBe('unknown')
     }
-    const withSecretFrame = buildFlightRecord(event({ frames: [frame(`dist/${SECRET}.js`), frame('dist/kept.js')] }), 1000)
+    const withSecretFrame = buildFlightRecord(
+      event({ frames: [frame(`dist/${SECRET}.js`), frame('dist/extension.js')] }),
+      1000,
+    )
     expect(withSecretFrame.ok).toBe(true)
     if (withSecretFrame.ok) {
       expect(serializeFlightRecord(withSecretFrame.record)).not.toContain(SECRET)
-      expect(withSecretFrame.record.frames).toEqual([{ path: 'dist/kept.js', line: 12, column: 4 }])
+      expect(withSecretFrame.record.frames).toEqual([
+        { path: 'dist/extension.js', line: 12, column: 4 },
+      ])
     }
     expect(buildFlightRecord(event({ host: `home ${SECRET}` }), 1000)).toEqual({
       ok: false,
@@ -270,26 +320,34 @@ describe('buildFlightRecord', () => {
     })
   })
 
-  it('refuses an oversize entry, counting multibyte input as UTF-8 bytes', () => {
-    const wide = 'é'.repeat(250)
-    const frames = Array.from({ length: 16 }, (_, index) => frame(`dist/${wide}-${index}.js`))
-    expect(buildFlightRecord(event({ frames }), 1000)).toEqual({ ok: false, reason: 'oversize' })
+  it('refuses an oversize stored entry even when every parsed field is valid', () => {
+    const built = buildFlightRecord(event(), 1000)
+    if (!built.ok) throw new Error('test record must build')
+    const line = `${' '.repeat(REPORT_JOURNAL_ENTRY_MAX_BYTES)}${serializeFlightRecord(built.record)}`
+    expect(parseJournalText(line).entries).toEqual([])
   })
 })
 
 describe('buildWebviewFlightRecord', () => {
   it('records a lane-0 webview post', () => {
     const built = buildWebviewFlightRecord(
-      { kind: 'windowError', source: 'window', code: 'TypeError', frames: [{ path: 'dist/panel.js', line: 3, column: 0 }] },
+      {
+        kind: 'windowError',
+        source: 'window',
+        code: 'TypeError',
+        frames: [{ path: 'dist/webview/main.js', line: 3, column: 0 }],
+      },
       { ext: EXT, host: HOST },
       1000,
     )
     expect(built.ok).toBe(true)
-    if (built.ok) {
-      expect(built.record.kind).toBe('windowError')
-      expect(built.record.code).toBe('TypeError')
-      expect(built.record.frames).toEqual([{ path: 'dist/panel.js', line: 3, column: 0 }])
+    if (!built.ok) {
+      return
     }
+
+    expect(built.record.kind).toBe('windowError')
+    expect(built.record.code).toBe('TypeError')
+    expect(built.record.frames).toEqual([{ path: 'dist/webview/main.js', line: 3, column: 0 }])
   })
 
   it('refuses host kinds, extra free-text fields and absolute frames', () => {
@@ -303,13 +361,25 @@ describe('buildWebviewFlightRecord', () => {
     ).toEqual({ ok: false, reason: 'invalid' })
     expect(
       buildWebviewFlightRecord(
-        { kind: 'windowError', source: 'window', code: 'x', frames: [], message: 'boom', stack: 'at x' },
+        {
+          kind: 'windowError',
+          source: 'window',
+          code: 'x',
+          frames: [],
+          message: 'boom',
+          stack: 'at x',
+        },
         versions,
         1000,
       ),
     ).toEqual({ ok: false, reason: 'invalid' })
     const absolute = buildWebviewFlightRecord(
-      { kind: 'windowError', source: 'window', code: 'x', frames: [{ path: '/etc/secret.js', line: 1, column: 0 }] },
+      {
+        kind: 'windowError',
+        source: 'window',
+        code: 'x',
+        frames: [{ path: '/etc/secret.js', line: 1, column: 0 }],
+      },
       versions,
       1000,
     )
@@ -344,16 +414,6 @@ describe('flightRecordSchema', () => {
 })
 
 describe('parseJournalText', () => {
-  function line(record: FlightRecord): string {
-    return serializeFlightRecord(record).replace(/\n$/, '')
-  }
-
-  function valid(index: number): FlightRecord {
-    const built = buildFlightRecord(event({ code: `E${index}` }), 1000 + index)
-    if (!built.ok) throw new Error('test record must build')
-    return built.record
-  }
-
   it('parses valid lines and counts nothing on a clean file', () => {
     const parsed: ParsedJournal = parseJournalText(`${line(valid(0))}\n${line(valid(1))}\n`)
     expect(parsed.entries).toHaveLength(2)
@@ -365,7 +425,11 @@ describe('parseJournalText', () => {
     const good = line(valid(0))
     const tampered = JSON.stringify({ ...valid(1), message: 'injected', at: 1001 })
     const wrongVersion = JSON.stringify({ ...valid(2), v: 999, at: 1002 })
-    const freeTextCode = JSON.stringify({ ...valid(3), code: 'a text sentence with spaces', at: 1003 })
+    const freeTextCode = JSON.stringify({
+      ...valid(3),
+      code: 'a text sentence with spaces',
+      at: 1003,
+    })
     const freeTextVersion = JSON.stringify({ ...valid(4), ext: 'version one point oh', at: 1004 })
     const outsideFrame = JSON.stringify({
       ...valid(5),
@@ -376,7 +440,7 @@ describe('parseJournalText', () => {
     const parsed = parseJournalText(
       `${good}\nnot json\n${tampered}\n${wrongVersion}\n${freeTextCode}\n${freeTextVersion}\n${outsideFrame}\n${oversize}\n{"torn": tru`,
     )
-    expect(parsed.entries.map((entry) => entry.code)).toEqual(['E0'])
+    expect(parsed.entries.map((entry) => entry.code)).toEqual(['EIO'])
     expect(parsed.skipped).toBe(7)
     expect(parsed.torn).toBe(true)
   })
@@ -387,37 +451,31 @@ describe('parseJournalText', () => {
 })
 
 describe('pruneFlightEntries', () => {
-  function at(index: number, timestamp: number): FlightRecord {
-    const built = buildFlightRecord(event({ code: `E${index}`, count: index }), timestamp)
-    if (!built.ok) throw new Error('test record must build')
-    return built.record
-  }
-
   it('drops entries past the retention age but keeps the boundary', () => {
     const now = 8 * 24 * 60 * 60 * 1000
     const age = 7 * 24 * 60 * 60 * 1000
     const pruned = pruneFlightEntries([at(0, now - age - 1), at(1, now - age), at(2, now)], now)
-    expect(pruned.map((entry) => entry.count)).toEqual([1, 2])
+    expect(pruned.map((entry) => entry.count ?? -1)).toEqual([1, 2])
   })
 
   it('evicts oldest first past the byte cap without mutating the input', () => {
-    const frames = Array.from({ length: 13 }, (_, index) => frame(`${'p'.repeat(240)}-${index}.js`))
+    const frames = Array.from({ length: 16 }, (_, index) =>
+      frame('dist/museCodeReviewer.js', index + 1),
+    )
     const entries: FlightRecord[] = []
-    for (let index = 0; index < 80; index += 1) {
-      const built = buildFlightRecord(event({ code: `E${index}`, frames }), index)
+    for (let index = 0; index < 320; index += 1) {
+      const built = buildFlightRecord(event({ code: 'EIO', count: index, frames }), index)
       if (built.ok) entries.push(built.record)
     }
     expect(entries.length).toBeGreaterThan(64)
-    const pruned = pruneFlightEntries(entries, 100000)
+    const pruned = pruneFlightEntries(entries, 100_000)
     const bytes = pruned.map((entry) => Buffer.byteLength(serializeFlightRecord(entry), 'utf8'))
     const total = bytes.reduce((a, b) => a + b, 0)
     expect(total).toBeLessThanOrEqual(REPORT_JOURNAL_MAX_BYTES)
-    expect(entries).toHaveLength(80)
-    const firstKept = pruned[0]?.code
-    expect(firstKept).not.toBe('E0')
-    const codes = pruned.map((entry) => entry.code)
-    const indexes = codes.map((code) => Number(code.slice(1)))
-    const ordered = [...indexes].sort((a, b) => a - b)
+    expect(entries).toHaveLength(320)
+    expect(pruned[0]?.count).toBeGreaterThan(0)
+    const indexes = pruned.map((entry) => entry.count ?? -1)
+    const ordered = indexes.toSorted((a, b) => a - b)
     expect(indexes).toEqual(ordered)
   })
 })
@@ -441,15 +499,18 @@ describe('journal and marker names', () => {
     expect(parseMarkerName('marker-a1b2c3.json.tmp-1')).toBeUndefined()
     expect(isTempName('journal-a.jsonl.tmp-123')).toBe(true)
     expect(isTempName('journal-a.jsonl')).toBe(false)
-    expect(() => new ReportJournal({
-      globalStorageDir: 'x',
-      instance: '../escape',
-      ext: EXT,
-      host: HOST,
-      pid: 1,
-      log: new FakeLogOutputChannel(),
-      isAlive: () => true,
-    })).toThrow()
+    expect(
+      () =>
+        new ReportJournal({
+          globalStorageDir: 'x',
+          instance: '../escape',
+          ext: EXT,
+          host: HOST,
+          pid: 1,
+          log: new FakeLogOutputChannel(),
+          isAlive: () => true,
+        }),
+    ).toThrow()
   })
 })
 
@@ -463,14 +524,22 @@ describe('flight markers', () => {
       pid: 4242,
       at: 1000,
     })
-    expect(flightMarkerSchema.safeParse({ v: 1, instance: 'w', pid: 1, at: 1, pid2: 2 }).success).toBe(false)
+    expect(
+      flightMarkerSchema.safeParse({ v: 1, instance: 'w', pid: 1, at: 1, pid2: 2 }).success,
+    ).toBe(false)
   })
 
   it('rejects unowned, garbled and mistyped markers without offering', () => {
     expect(parseMarkerText('marker-a.json', 'not json')).toBeUndefined()
-    expect(parseMarkerText('marker-a.json', '{"v":1,"instance":"b","pid":1,"at":1}')).toBeUndefined()
-    expect(parseMarkerText('marker-a.json', '{"v":2,"instance":"a","pid":1,"at":1}')).toBeUndefined()
-    expect(parseMarkerText('notes.txt', '{"v":1,"instance":"notes","pid":1,"at":1}')).toBeUndefined()
+    expect(
+      parseMarkerText('marker-a.json', '{"v":1,"instance":"b","pid":1,"at":1}'),
+    ).toBeUndefined()
+    expect(
+      parseMarkerText('marker-a.json', '{"v":2,"instance":"a","pid":1,"at":1}'),
+    ).toBeUndefined()
+    expect(
+      parseMarkerText('notes.txt', '{"v":1,"instance":"notes","pid":1,"at":1}'),
+    ).toBeUndefined()
     expect(buildMarkerText('../x', 1, 1)).toBeUndefined()
   })
 
@@ -489,7 +558,11 @@ describe('ReportJournal recording', () => {
     const { recorder } = journal(dir, 'window-a')
     expect(await recorder.startup()).toEqual({ offerReport: false })
     // The adapter stamps its own versions: call sites carry no ext or host.
-    const first: ReportEventInput = { kind: 'toolCallFailed', code: 'EACCES', frames: [frame('dist/host.js', 7, 0)] }
+    const first: ReportEventInput = {
+      kind: 'toolCallFailed',
+      code: 'EACCES',
+      frames: [frame('dist/extension.js', 7, 0)],
+    }
     await recorder.record(first)
     await recorder.record({ kind: 'errorNotice', code: 'failed badly' })
     const raw = await readFile(path.join(dir, REPORT_STORAGE_DIR, 'journal-window-a.jsonl'), 'utf8')
@@ -522,12 +595,7 @@ describe('ReportJournal recording', () => {
     const dir = await storage()
     const { recorder, log } = journal(dir, 'window-a')
     await recorder.startup()
-    const wide = 'é'.repeat(250)
-    await recorder.record({
-      kind: 'toolCallFailed',
-      code: 'E2BIG',
-      frames: Array.from({ length: 16 }, (_, index) => frame(`dist/${wide}-${index}.js`)),
-    })
+    await recorder.record(event({ count: -1 }))
     const merged = await recorder.readMerged()
     expect(merged.total).toBe(0)
     expect(warnings(log)).toEqual([])
@@ -558,6 +626,7 @@ describe('ReportJournal recording', () => {
     const { recorder } = journal(dir, 'window-a', { now: () => oldNow })
     await recorder.startup()
     await recorder.record(event({}))
+    await recorder.shutdown()
     const fresh = journal(dir, 'window-b', { now: () => oldNow + 8 * 24 * 60 * 60 * 1000 })
     await fresh.recorder.startup()
     const merged = await fresh.recorder.readMerged()
@@ -568,23 +637,23 @@ describe('ReportJournal recording', () => {
     ).rejects.toMatchObject({ code: 'ENOENT' })
   })
 
-  it('evicts the oldest entries past the byte cap on append', async () => {
-    const dir = await storage()
-    const frames = Array.from({ length: 13 }, (_, index) => frame(`${'p'.repeat(240)}-${index}.js`))
-    const lines: string[] = []
-    for (let index = 0; index < 80; index += 1) {
-      const built = buildFlightRecord(event({ code: `E${index}`, frames }), index)
-      if (built.ok) lines.push(serializeFlightRecord(built.record))
-    }
-    expect(lines.length).toBe(80)
-    await mkdir(path.join(dir, REPORT_STORAGE_DIR), { recursive: true })
-    await writeFile(path.join(dir, REPORT_STORAGE_DIR, 'journal-window-a.jsonl'), lines.join(''))
-    const { recorder } = journal(dir, 'window-a', { now: () => 100000 })
+  it('R11 evicts the oldest entries past the byte cap on actual appends', async () => {
+    const store = new MapFs()
+    const { recorder } = journal('mem', 'window-a', { fs: store, now: () => 100_000 })
     expect(await recorder.startup()).toEqual({ offerReport: false })
-    const raw = await readFile(path.join(dir, REPORT_STORAGE_DIR, 'journal-window-a.jsonl'), 'utf8')
+    const frames = Array.from({ length: 16 }, (_, index) =>
+      frame('dist/museCodeReviewer.js', index + 1),
+    )
+    for (let index = 0; index < 320; index += 1) {
+      await recorder.record(event({ code: 'EIO', count: index, frames }))
+    }
+    // Inspect physical bytes before a report read can mask missing append pruning.
+    const raw =
+      store.files.get(path.join('mem', REPORT_STORAGE_DIR, 'journal-window-a.jsonl')) ?? ''
     expect(Buffer.byteLength(raw, 'utf8')).toBeLessThanOrEqual(REPORT_JOURNAL_MAX_BYTES)
-    expect(raw).not.toContain('"code":"E0"')
-    expect(raw).toContain('"code":"E79"')
+    const parsed = parseJournalText(raw)
+    expect(parsed.entries[0]?.count).toBeGreaterThan(0)
+    expect(parsed.entries.at(-1)?.count).toBe(319)
   })
 })
 
@@ -652,7 +721,7 @@ describe('ReportJournal crash markers', () => {
     const dir = await storage()
     await mkdir(path.join(dir, REPORT_STORAGE_DIR), { recursive: true })
     await writeFile(path.join(dir, REPORT_STORAGE_DIR, 'journal-window-a.jsonl.tmp-999'), 'junk')
-    const { recorder } = journal(dir, 'window-a')
+    const { recorder } = journal(dir, 'window-a', { isAlive: () => false })
     await recorder.startup()
     await expect(
       readFile(path.join(dir, REPORT_STORAGE_DIR, 'journal-window-a.jsonl.tmp-999'), 'utf8'),
@@ -669,8 +738,12 @@ describe('ReportJournal windows', () => {
     await left.recorder.startup()
     await right.recorder.startup()
     await Promise.all([
-      ...Array.from({ length: 10 }, (_, index) => left.recorder.record(event({ kind: 'backendExit', count: index }))),
-      ...Array.from({ length: 10 }, (_, index) => right.recorder.record(event({ kind: 'windowError', count: index }))),
+      ...Array.from({ length: 10 }, (_, index) =>
+        left.recorder.record(event({ kind: 'backendExit', count: index })),
+      ),
+      ...Array.from({ length: 10 }, (_, index) =>
+        right.recorder.record(event({ kind: 'windowError', count: index })),
+      ),
     ])
     const merged = await right.recorder.readMerged()
     expect(merged.total).toBe(20)
@@ -678,7 +751,10 @@ describe('ReportJournal windows', () => {
     expect(merged.entries.filter((entry) => entry.kind === 'backendExit')).toHaveLength(10)
     expect(merged.entries.filter((entry) => entry.kind === 'windowError')).toHaveLength(10)
     for (const instance of ['left', 'right']) {
-      const raw = await readFile(path.join(dir, REPORT_STORAGE_DIR, `journal-${instance}.jsonl`), 'utf8')
+      const raw = await readFile(
+        path.join(dir, REPORT_STORAGE_DIR, `journal-${instance}.jsonl`),
+        'utf8',
+      )
       const parsed = parseJournalText(raw)
       expect(parsed.skipped).toBe(0)
       expect(parsed.torn).toBe(false)
@@ -716,7 +792,7 @@ describe('ReportJournal windows', () => {
     const merged = await recorder.readMerged()
     expect(merged.total).toBe(1)
     expect(merged.entries.map((entry) => entry.code)).toEqual(['EIO'])
-    expect(merged.skipped).toBe(1)
+    expect(merged.skipped).toBe(0)
     await recorder.shutdown()
   })
 })
@@ -740,8 +816,8 @@ describe('ReportJournal storage failure', () => {
 
   it('goes quiet with one warning when the disk fills mid-run', async () => {
     class FullFs extends MapFs {
-      public override async appendFile(): Promise<void> {
-        throw Object.assign(new Error('full'), { code: 'ENOSPC' })
+      public override appendFile(): Promise<void> {
+        return Promise.reject(Object.assign(new Error('full'), { code: 'ENOSPC' }))
       }
     }
     const { recorder, log } = journal('mem', 'window-a', { fs: new FullFs() })
@@ -754,5 +830,326 @@ describe('ReportJournal storage failure', () => {
     expect(seen).toHaveLength(1)
     expect(seen[0]).toContain('ENOSPC')
     await recorder.shutdown()
+  })
+})
+
+describe('RVM93R regressions', () => {
+  it('R1 maps arbitrary token codes to unknown and rejects secret-shaped stored fields', () => {
+    const input = {
+      kind: 'windowError',
+      source: 'window',
+      code: 'CONFIDENTIAL_PROMPT_WORD',
+      frames: [],
+    }
+    const built = buildWebviewFlightRecord(input, { ext: EXT, host: HOST }, 1000)
+    expect(built.ok && built.record.code).toBe('unknown')
+    const good = buildFlightRecord(event(), 1000)
+    if (!good.ok) throw new Error('test record must build')
+    for (const field of ['code', 'ext', 'host']) {
+      const parsed = parseJournalText(`${JSON.stringify({ ...good.record, [field]: SECRET })}\n`)
+      expect(parsed.entries).toEqual([])
+      expect(parsed.skipped).toBe(1)
+    }
+  })
+
+  it('R2 rejects free text and non-package frames on write and read', () => {
+    const paths = [
+      'private-file-contents\nmodel output sentinels',
+      'src/private-user.js',
+      'dist/extension.js?private',
+      'dist/extension.js#private',
+      'dist/unknown.js',
+    ]
+    const built = buildWebviewFlightRecord(
+      {
+        kind: 'windowError',
+        source: 'window',
+        code: 'TypeError',
+        frames: paths.map((name) => frame(name)),
+      },
+      { ext: EXT, host: HOST },
+      1000,
+    )
+    expect(built.ok && built.record.frames).toEqual([])
+    const good = buildFlightRecord(event(), 1000)
+    if (!good.ok) throw new Error('test record must build')
+    for (const name of paths) {
+      expect(
+        parseJournalText(serializeFlightRecord({ ...good.record, frames: [frame(name)] })).entries,
+      ).toEqual([])
+    }
+  })
+
+  it('R2 verifies the frame vocabulary against the shipped extension package', async () => {
+    const manifest = await readFile(
+      path.resolve(import.meta.dirname, '../../.vscodeignore'),
+      'utf8',
+    )
+    const packaged = manifest
+      .split('\n')
+      .filter((name) => name.startsWith('!dist/') && name.endsWith('.js'))
+      .map((name) => name.slice(1))
+    expect(
+      [...REPORT_PACKAGE_FRAME_PATHS].toSorted((left, right) => left.localeCompare(right)),
+    ).toEqual(packaged.toSorted((left, right) => left.localeCompare(right)))
+  })
+
+  it('R3 refuses reads and appends through hard links and marker symlinks', async () => {
+    const dir = await storage()
+    const reports = path.join(dir, REPORT_STORAGE_DIR)
+    await mkdir(reports)
+    const target = path.join(dir, 'target')
+    await writeFile(target, 'untouched')
+    const hard = path.join(reports, 'journal-hard.jsonl')
+    await link(target, hard)
+    await expect(nodeReportJournalFs.readFile(hard)).rejects.toThrow()
+    await expect(nodeReportJournalFs.appendFile(hard, 'changed')).rejects.toThrow()
+    const marker = path.join(reports, 'marker-own.json')
+    await symlink(target, marker)
+    await expect(nodeReportJournalFs.readFile(marker)).rejects.toThrow()
+    await expect(nodeReportJournalFs.writeTempAndRename(marker, 'changed')).rejects.toThrow()
+    expect(await readFile(target, 'utf8')).toBe('untouched')
+  })
+
+  it('R3 refuses redirected reports directories and journal leaves', async () => {
+    const dir = await storage()
+    const outside = path.join(dir, 'outside')
+    await mkdir(outside)
+    await symlink(outside, path.join(dir, REPORT_STORAGE_DIR), 'junction')
+    const linked = journal(dir, 'linked')
+    await linked.recorder.startup()
+    await linked.recorder.record(event())
+    expect(linked.recorder.isAvailable).toBe(false)
+    await expect(readFile(path.join(outside, 'marker-linked.json'), 'utf8')).rejects.toMatchObject({
+      code: 'ENOENT',
+    })
+    await rm(path.join(dir, REPORT_STORAGE_DIR))
+    await mkdir(path.join(dir, REPORT_STORAGE_DIR))
+    const target = path.join(outside, 'target')
+    await writeFile(target, 'untouched')
+    await symlink(target, path.join(dir, REPORT_STORAGE_DIR, 'journal-own.jsonl'))
+    const own = journal(dir, 'own')
+    await own.recorder.startup()
+    await own.recorder.record(event())
+    expect(own.recorder.isAvailable).toBe(false)
+    expect(await readFile(target, 'utf8')).toBe('untouched')
+  })
+
+  it('R3 never follows a predictable stage link or an unexpected file type', async () => {
+    const dir = await storage()
+    const reports = path.join(dir, REPORT_STORAGE_DIR)
+    await mkdir(reports)
+    const target = path.join(dir, 'target')
+    await writeFile(target, 'untouched')
+    const file = path.join(reports, 'marker-own.json')
+    await symlink(target, `${file}.tmp-${String(process.pid)}`)
+    await nodeReportJournalFs.writeTempAndRename(file, buildMarkerText('own', 1001, 1000) ?? '')
+    expect(await readFile(target, 'utf8')).toBe('untouched')
+    await mkdir(path.join(reports, 'journal-directory.jsonl'))
+    await expect(
+      nodeReportJournalFs.readFile(path.join(reports, 'journal-directory.jsonl')),
+    ).rejects.toThrow()
+  })
+
+  it('R3 startup preserves directory-entry types and never reads journal links', async () => {
+    class LinkFs extends MapFs {
+      public readonly read: string[] = []
+      public override readFile(file: string): Promise<string> {
+        this.read.push(file)
+        return super.readFile(file)
+      }
+    }
+    const store = new LinkFs()
+    const link = path.join('mem', REPORT_STORAGE_DIR, 'journal-link.jsonl')
+    store.links.add(link)
+    const own = journal('mem', 'own', { fs: store })
+    await own.recorder.startup()
+    await own.recorder.readMerged()
+    expect(store.read).not.toContain(link)
+  })
+
+  it.each(['startup', 'readMerged'] as const)(
+    'R4 %s preserves a live peer append after a stale snapshot',
+    async (operation) => {
+      const store = new MapFs()
+      let now = 1000
+      const left = journal('mem', 'left', { fs: store, now: () => now })
+      await left.recorder.startup()
+      await left.recorder.record(event({ code: 'EIO' }))
+      const right = journal('mem', 'right', { fs: store, now: () => now })
+      if (operation === 'readMerged') await right.recorder.startup()
+      now += 8 * 24 * 60 * 60 * 1000
+      const held = Promise.withResolvers<undefined>()
+      const proceed = Promise.withResolvers<undefined>()
+      const original = store.readFile.bind(store)
+      const file = path.join('mem', REPORT_STORAGE_DIR, 'journal-left.jsonl')
+      let isPaused = false
+      store.readFile = async (name) => {
+        const snapshot = await original(name)
+        if (name === file && !isPaused) {
+          isPaused = true
+          held.resolve(undefined)
+          await proceed.promise
+        }
+        return snapshot
+      }
+      const reading = right.recorder[operation]()
+      await held.promise
+      await left.recorder.record(event({ code: 'EACCES' }))
+      proceed.resolve(undefined)
+      await reading
+      expect(parseJournalText(await original(file)).entries.map((entry) => entry.code)).toContain(
+        'EACCES',
+      )
+    },
+  )
+
+  it('R4 shutdown closes append admission before removing ownership', async () => {
+    const store = new MapFs()
+    const own = journal('mem', 'own', { fs: store })
+    await own.recorder.startup()
+    await own.recorder.record(event({ code: 'EIO' }))
+    await own.recorder.shutdown()
+    await own.recorder.record(event({ code: 'EACCES' }))
+    const raw = store.files.get(path.join('mem', REPORT_STORAGE_DIR, 'journal-own.jsonl')) ?? ''
+    expect(parseJournalText(raw).entries.map((entry) => entry.code)).toEqual(['EIO'])
+  })
+
+  it('R5 keeps live-process stages and sweeps only dead-process stages', async () => {
+    const store = new MapFs()
+    const live = path.join('mem', REPORT_STORAGE_DIR, 'marker-left.json.tmp-2001')
+    const dead = path.join('mem', REPORT_STORAGE_DIR, 'journal-dead.jsonl.tmp-2002')
+    store.files.set(live, 'in-flight')
+    store.files.set(dead, 'abandoned')
+    const own = journal('mem', 'own', { fs: store, isAlive: (pid) => pid === 2001 })
+    await own.recorder.startup()
+    expect(store.files.get(live)).toBe('in-flight')
+    expect(store.files.has(dead)).toBe(false)
+  })
+
+  it('R6 prunes retention age on every small append', async () => {
+    const store = new MapFs()
+    let now = 1000
+    const own = journal('mem', 'own', { fs: store, now: () => now })
+    await own.recorder.startup()
+    await own.recorder.record(event({ code: 'EIO' }))
+    now += 8 * 24 * 60 * 60 * 1000
+    await own.recorder.record(event({ code: 'EACCES' }))
+    const raw = store.files.get(path.join('mem', REPORT_STORAGE_DIR, 'journal-own.jsonl')) ?? ''
+    expect(parseJournalText(raw).entries.map((entry) => entry.code)).toEqual(['EACCES'])
+  })
+
+  it.each(['startup', 'readMerged'] as const)(
+    'R8 %s deletes invalid-only bytes and repairs torn tails',
+    async (operation) => {
+      const store = new MapFs()
+      const own = journal('mem', 'own', { fs: store, now: () => 1000 })
+      if (operation === 'readMerged') await own.recorder.startup()
+      const bad = path.join('mem', REPORT_STORAGE_DIR, 'journal-bad.jsonl')
+      const torn = path.join('mem', REPORT_STORAGE_DIR, 'journal-torn.jsonl')
+      const good = buildFlightRecord(event(), 1000)
+      if (!good.ok) throw new Error('test record must build')
+      const line = serializeFlightRecord(good.record)
+      store.files.set(bad, 'x'.repeat(REPORT_JOURNAL_MAX_BYTES + 100))
+      store.files.set(torn, `${line}{partial`)
+      await own.recorder[operation]()
+      expect(store.files.has(bad)).toBe(false)
+      expect(store.files.get(torn)).toBe(line)
+    },
+  )
+
+  it('R8 bounds native reads while preserving the newest complete records', async () => {
+    const dir = await storage()
+    const reports = path.join(dir, REPORT_STORAGE_DIR)
+    await mkdir(reports)
+    const file = path.join(reports, 'journal-large.jsonl')
+    const good = buildFlightRecord(event(), 1000)
+    if (!good.ok) throw new Error('test record must build')
+    await writeFile(
+      file,
+      `${'x'.repeat(REPORT_JOURNAL_MAX_BYTES * 2)}\n${serializeFlightRecord(good.record)}`,
+    )
+    const text = await nodeReportJournalFs.readFile(file)
+    expect(Buffer.byteLength(text)).toBeLessThanOrEqual(REPORT_JOURNAL_MAX_BYTES)
+    expect(parseJournalText(text).entries).toEqual([good.record])
+    const own = journal(dir, 'own', { now: () => 1000 })
+    await own.recorder.startup()
+    expect(await readFile(file, 'utf8')).toBe(serializeFlightRecord(good.record))
+  })
+
+  it.each(['startup', 'readMerged'] as const)(
+    'R9 %s exposes unreadable evidence with one warning',
+    async (operation) => {
+      class UnreadableFs extends MapFs {
+        public override readFile(file: string): Promise<string> {
+          return file.endsWith('journal-unreadable.jsonl')
+            ? Promise.reject(
+                Object.assign(new Error('unreadable private path'), { code: 'EACCES' }),
+              )
+            : super.readFile(file)
+        }
+      }
+      const store = new UnreadableFs()
+      const own = journal('mem', 'own', { fs: store })
+      if (operation === 'readMerged') await own.recorder.startup()
+      store.files.set(
+        path.join('mem', REPORT_STORAGE_DIR, 'journal-unreadable.jsonl'),
+        'inaccessible',
+      )
+      await own.recorder[operation]()
+      expect(own.recorder.isAvailable).toBe(false)
+      expect(warnings(own.log)).toHaveLength(1)
+      expect(warnings(own.log)[0]).not.toContain('private path')
+    },
+  )
+
+  it('R7 bounds merged reports while exposing the aggregate on-disk residual', async () => {
+    const store = new MapFs()
+    const frames = Array.from({ length: 16 }, (_, index) =>
+      frame('dist/museCodeReviewer.js', index + 1),
+    )
+    const records: FlightRecord[] = []
+    for (let index = 0; index < 320; index += 1) {
+      const built = buildFlightRecord(event({ frames, count: index }), 1000)
+      if (!built.ok) throw new Error('test record must build')
+      records.push(built.record)
+    }
+    const bytes = pruneFlightEntries(records, 1000)
+      .map((record) => serializeFlightRecord(record))
+      .join('')
+    const left = journal('mem', 'left', { fs: store, now: () => 1000 })
+    const right = journal('mem', 'right', { fs: store, now: () => 1000 })
+    await left.recorder.startup()
+    await right.recorder.startup()
+    const files = ['left', 'right'].map((name) =>
+      path.join('mem', REPORT_STORAGE_DIR, `journal-${name}.jsonl`),
+    )
+    for (const file of files) store.files.set(file, bytes)
+    const merged = await right.recorder.readMerged(Number.MAX_SAFE_INTEGER)
+    expect(
+      Buffer.byteLength(merged.entries.map((record) => serializeFlightRecord(record)).join('')),
+    ).toBeLessThanOrEqual(REPORT_JOURNAL_MAX_BYTES)
+    // Named residual R7: live files each stay bounded, but their combined disk
+    // budget needs a cross-process transaction, not a peer's unqueued rewrite.
+    expect(
+      files.reduce((total, file) => total + Buffer.byteLength(store.files.get(file) ?? ''), 0),
+    ).toBeGreaterThan(REPORT_JOURNAL_MAX_BYTES)
+  })
+
+  it('R10 clears the activation marker after recording is disabled', async () => {
+    class FullFs extends MapFs {
+      public override appendFile(): Promise<void> {
+        return Promise.reject(Object.assign(new Error('full'), { code: 'ENOSPC' }))
+      }
+    }
+    const store = new FullFs()
+    const own = journal('mem', 'own', { fs: store })
+    await own.recorder.startup()
+    await own.recorder.record(event())
+    expect(own.recorder.isAvailable).toBe(false)
+    await own.recorder.shutdown()
+    expect(store.files.has(path.join('mem', REPORT_STORAGE_DIR, 'marker-own.json'))).toBe(false)
+    const next = journal('mem', 'next', { fs: store, isAlive: () => false })
+    expect(await next.recorder.startup()).toEqual({ offerReport: false })
   })
 })

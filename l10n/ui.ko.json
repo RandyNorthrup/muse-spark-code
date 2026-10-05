@@ -377,7 +377,7 @@
   "reportSaveFailed": "보고서를 저장할 수 없습니다.",
   "reportUrlTooLong": "보고서가 너무 길어 브라우저 주소에서 열 수 없습니다. 복사한 뒤 새 문제 양식에 붙여넣으세요.",
   "reportRecordingUnavailable": "이벤트 기록을 사용할 수 없어 이 보고서에는 최근 이벤트가 없습니다.",
-  "reportDescriptionWarning": "위에 작성한 내용은 작성된 그대로 전송됩니다. 암호, 키 또는 기타 기밀 정보를 포함하지 마세요.",
+  "reportDescriptionWarning": "공유하기 전에 민감한 데이터를 제거한 미리 보기를 확인하세요. 설명에 기밀 정보가 남아 있을 수 있으므로 암호나 키를 포함하지 마세요.",
   "reportVscodeReporterNote": "VS Code 문제 보고자는 자체 데이터를 추가하고, GitHub에서 유사한 문제를 검색할 수 있으며, 로그인 및 제출을 제어합니다.",
   "openDocs": "Muse Code 설명서",
   "modelListLabel": "모델",

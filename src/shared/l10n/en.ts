@@ -543,9 +543,10 @@ export const EN = {
   reportSaveFailed: 'The report could not be saved.',
   reportUrlTooLong:
     'The report is too long to open in a browser address. Copy it instead, then paste it into the new-issue form.',
-  reportRecordingUnavailable: 'Event recording was unavailable, so this report has no recent events.',
+  reportRecordingUnavailable:
+    'Event recording was unavailable, so this report has no recent events.',
   reportDescriptionWarning:
-    'Anything you write above is sent exactly as written. Do not include passwords, keys or other confidential information.',
+    'Review the scrubbed preview before sharing. Your description can still disclose confidential information; do not include passwords or keys.',
   reportVscodeReporterNote:
     'The VS Code issue reporter adds its own data, may search GitHub for similar issues, and controls sign-in and submission.',
   openDocs: 'Muse Code documentation',

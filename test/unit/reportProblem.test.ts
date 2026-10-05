@@ -180,10 +180,19 @@ describe('reportWebviewErrorSchema', () => {
   })
 
   it.each([
-    ['a raw message', { kind: 'windowError', source: 'window', code: 'x', frames: [], message: 'boom' }],
-    ['a raw stack', { kind: 'windowError', source: 'window', code: 'x', frames: [], stack: 'at x' }],
+    [
+      'a raw message',
+      { kind: 'windowError', source: 'window', code: 'x', frames: [], message: 'boom' },
+    ],
+    [
+      'a raw stack',
+      { kind: 'windowError', source: 'window', code: 'x', frames: [], stack: 'at x' },
+    ],
     ['a prompt', { kind: 'windowError', source: 'window', code: 'x', frames: [], prompt: 'hi' }],
-    ['a forged frame field', { kind: 'windowError', source: 'window', code: 'x', frames: [{ ...frame, function: 'f' }] }],
+    [
+      'a forged frame field',
+      { kind: 'windowError', source: 'window', code: 'x', frames: [{ ...frame, function: 'f' }] },
+    ],
   ])('rejects free text and unknown keys: %s', (_label, input) => {
     expect(reportWebviewErrorSchema.safeParse(input).success).toBe(false)
   })
@@ -219,5 +228,13 @@ describe('report strings', () => {
     const text: string = EN[key]
     expect(typeof text).toBe('string')
     expect(text.length).toBeGreaterThan(0)
+  })
+})
+
+describe('RVM93R description disclosure', () => {
+  it('R12 asks users to review the scrubbed preview without promising unchanged input', () => {
+    expect(EN.reportDescriptionWarning).toContain('scrubbed preview')
+    expect(EN.reportDescriptionWarning).toContain('confidential information')
+    expect(EN.reportDescriptionWarning).not.toContain('exactly as written')
   })
 })

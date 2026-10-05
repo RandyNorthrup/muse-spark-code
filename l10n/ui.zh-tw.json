@@ -377,7 +377,7 @@
   "reportSaveFailed": "無法儲存報告。",
   "reportUrlTooLong": "報告太長，無法在瀏覽器網址中開啟。請複製報告，然後貼到新增問題表單中。",
   "reportRecordingUnavailable": "事件記錄無法使用，因此此報告沒有最近的事件。",
-  "reportDescriptionWarning": "您在上方填寫的任何內容都將按原樣傳送。請勿包含密碼、金鑰或其他機密資訊。",
+  "reportDescriptionWarning": "分享前請檢查已去除敏感資料的預覽。您的描述仍可能洩露機密資訊；請勿包含密碼或金鑰。",
   "reportVscodeReporterNote": "VS Code 問題回報程式會加入其自身資料，可能會在 GitHub 上搜尋類似問題，並控制登入與提交。",
   "openDocs": "Muse Code 說明文件",
   "modelListLabel": "模型",

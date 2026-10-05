@@ -395,7 +395,7 @@
   "reportSaveFailed": "No se pudo guardar el informe.",
   "reportUrlTooLong": "El informe es demasiado largo para abrirlo en una dirección del navegador. Cópielo y péguelo en el formulario de nuevo problema.",
   "reportRecordingUnavailable": "La grabación de eventos no estaba disponible, por lo que este informe no incluye eventos recientes.",
-  "reportDescriptionWarning": "Todo lo que escriba arriba se envía exactamente como está escrito. No incluya contraseñas, claves ni otra información confidencial.",
+  "reportDescriptionWarning": "Revise la vista previa con los datos sensibles eliminados antes de compartirla. Su descripción aún puede revelar información confidencial; no incluya contraseñas ni claves.",
   "reportVscodeReporterNote": "El notificador de problemas de VS Code añade sus propios datos, puede buscar problemas similares en GitHub y controla el inicio de sesión y el envío.",
   "openDocs": "Documentación de Muse Code",
   "modelListLabel": "Modelos",

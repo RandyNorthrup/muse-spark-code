@@ -386,7 +386,7 @@
   "reportSaveFailed": "Rapor kaydedilemedi.",
   "reportUrlTooLong": "Rapor, tarayıcı adresinde açılamayacak kadar uzun. Kopyalayın ve yeni sorun formuna yapıştırın.",
   "reportRecordingUnavailable": "Olay kaydı kullanılamıyordu, bu nedenle bu raporda son olaylar yok.",
-  "reportDescriptionWarning": "Yukarıya yazdığınız her şey aynen yazıldığı gibi gönderilir. Parola, anahtar veya diğer gizli bilgileri eklemeyin.",
+  "reportDescriptionWarning": "Paylaşmadan önce hassas verilerden arındırılmış önizlemeyi inceleyin. Açıklamanız hâlâ gizli bilgileri açığa çıkarabilir; parola veya anahtar eklemeyin.",
   "reportVscodeReporterNote": "VS Code sorun bildiricisi kendi verilerini ekler, GitHub’da benzer sorunları arayabilir ve oturum açma ile gönderimi denetler.",
   "openDocs": "Muse Code belgeleri",
   "modelListLabel": "Modeller",
