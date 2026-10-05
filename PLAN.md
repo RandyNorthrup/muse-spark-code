@@ -15083,6 +15083,17 @@ directly on win11, never full quality/full tests, merge, rebase or push.
 The lead retains integrated quality, packaging and installed-host gates;
 the stale host-API generated record remains Z's existing handoff.
 
+**FIXM98J2 native certification deferral.** The completed review repairs
+have four full red/restore/green receipts and 144 passing Windows unit
+tests. Qwen's three free CPU calls returned below the unchanged request
+deadline. The native PID opt-in test passed a real exit/near-PID fixture
+and fired its liveness mutation, but restored reruns failed the allocation
+precondition twice. Its strict bound remains and the path stops under the
+common retry rule: `WIN-PID-REPEATABILITY` in section 9 is an incomplete
+certification drill, not a waived native support gate. The opt-in test and
+positive/failed receipts remain for a reviewed repeatable fixture; no
+product/native guard or portable quality configuration is changed.
+
 **M98-2j bounded spike delegation (2026-10-05).** The rig brief authorizes
 hook-on local commits after owning tests and deliberate failing drills,
 scoped lint/format and typecheck, with the final dead-code, duplication,
@@ -15627,6 +15638,49 @@ before a repaired one loads (2026-09-30).
 | `test/harness/index.html` (`isActiveDescendantList`), printed by `scripts/a11y.mjs` | The accessibility gate exempts axe's `scrollable-region-focusable` | The composer's `/` and `@` lists follow WAI-ARIA's combobox pattern: the box keeps the focus and moves `aria-activedescendant` through the listbox's options, and `Composer.tsx` scrolls the active option into view, so the list is keyboard operable (WCAG 2.1.1) without being a Tab stop. axe cannot see activedescendant-driven scrolling. The exemption holds only for a region that contains a listbox whose id is in the `aria-controls` of a focused or focusable element whose active descendant is one of that listbox's options; drills show a plain scrollable region and a listbox no control drives are still reported, and removing the exemption reports the composer's list again. Every exempt element is printed under its own "Exempt:" heading and counted. No `tabindex` was added to the list. | 2026-10-04 |
 
 ## 9. Security assumptions and accepted residual risk
+
+- **FIXM98J2 / WIN-PID-REPEATABILITY (2026-10-05).** A real process exit
+  and new PID eight away passed the held-handle refusal; ignoring the native
+  exit signal made the intended assertion fail. Source restoration matched
+  SHA-256, but two restored runs reached only PID distances 44 and 28 against
+  the unchanged at-most-16 fixture precondition. This is an incomplete drill,
+  not repeatable platform certification; the bounded allocator path stops
+  under the common retry rule. No native generation/liveness guard changes
+  and no local source is product-wired. Follow-up: a reviewed repeatable
+  native fixture and complete red/green installed-source receipt.
+
+- **FIXM98J2 / CPU-TEV (2026-10-05).** The three returned free CPU calls
+  certify one-token qwen transport/provenance latency on win11, all below
+  the unchanged 60-second request deadline and all with reported GPU
+  residence zero. They do not certify `tev1:4b` CPU SystemOne latency or a
+  population percentile. Automatic qwen selection still requires calibration;
+  no CPU speed recommendation for tev is added. Follow-up: a separately
+  bounded/consented tev CPU receipt and installed-source latency under Z.
+
+- **FIXM98J2 / WIN-INSTALLED (RVM98J2, 2026-10-05).** The repaired
+  source and headless native receipts do not certify transport inside an
+  installed extension or complete runtime assembly. The product exposes no
+  local-judge runtime yet; an unregistered factory is not a support claim.
+  Z must register/package the native helper and vetted install/update anchors,
+  supply the complete model token counter and model wording, install language
+  state, run exact installed-host execution and borrowed request goldens,
+  refresh the host-API snapshot and close aggregate quality/package gates.
+- **FIXM98J2 / WIN-SSH (RVM98J2, 2026-10-05).** Authenticated self-SSH
+  forwarding remains uncaptured. Real same-user relay refusal and exact
+  per-socket tuple/executable/generation checks passed; no relay exception
+  or confidential/unverified bypass is added. Follow-up: an authenticated
+  loopback SSH fixture through the assembled installed source on win11.
+- **FIXM98J2 / COMMON-MODEL-LIFETIME (RVM98J2, 2026-10-05).** Retained
+  blob handles and snapshot revalidation prove the bytes checked before
+  dispatch, not immutable weights during inference. Arbitrary same-user
+  code injection is outside that proof. The narrow advisory claim stays;
+  no peer/hash TTL is permitted. A stronger claim needs a separately reviewed
+  immutable-file/runtime-lifetime design and real replacement drills.
+- **FIXM98J2 / POSIX-NATIVE (RVM98J2, 2026-10-05).** This Windows lane
+  neither implements nor certifies Linux/macOS native lifetime, volume,
+  installation and transport. Missing native evidence fails closed and
+  Windows receipts are not inherited. M98J3L/M98J3M own their platform files
+  and installed native receipts; Z incorporates those before support.
 
 - Code intelligence (M67) shows what VS Code's language services say. A
   result located outside the workspace is left out and a hover defined only

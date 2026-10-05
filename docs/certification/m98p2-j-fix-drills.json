@@ -34,5 +34,18 @@
     "restoredExit": 0,
     "beforeSha256": "53c57ddccd177993c1b539b400800de1547bf2b5552745ca1894c05c3daa8d6b",
     "restoredSha256": "53c57ddccd177993c1b539b400800de1547bf2b5552745ca1894c05c3daa8d6b"
+  },
+  {
+    "guard": "native-held-process-lifetime",
+    "file": "native/windows/MuseSparkLocalJudgePeer.cs",
+    "test": "refuses an exited native process lease while a new OS PID is forced near it",
+    "redExit": 1,
+    "restoredExit": 1,
+    "beforeSha256": "a7a47577e5c82919fc58efe1f375308ea8bc2dadea555016a1e8670b90990477",
+    "restoredSha256": "a7a47577e5c82919fc58efe1f375308ea8bc2dadea555016a1e8670b90990477",
+    "completed": false,
+    "intendedRedAssertion": "helper exit code 0 instead of 1",
+    "restoredFailure": "fixture could not allocate within 16: nearest distances 44 and 28",
+    "residual": "WIN-PID-REPEATABILITY"
   }
 ]

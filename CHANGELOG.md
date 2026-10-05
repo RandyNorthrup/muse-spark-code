@@ -14,6 +14,8 @@ happened, not what was planned; superseded entries are kept.
   hashing, with adversarial fixtures and free Ollama latency receipts.
   Nothing selects or runs a local judge in the product; the certification
   records the verification scope and remaining platform work.
+  Windows follow-up receipts measure CPU-only qwen latency and real
+  exit/near-PID refusal; repeatable PID-fixture certification remains open.
 
 - **Muse Judge contract and strings (M98 lane 0, PLAN.md D77).** New
   `src/core/judge/schema.ts` (zod request/answer/`muse` schemas, bounds,
