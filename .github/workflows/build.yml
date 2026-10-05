@@ -341,6 +341,7 @@ jobs:
             extension/dist/review.js extension/dist/agentImport.js extension/dist/conversationGit.js extension/dist/bundledSkills.js \
             extension/dist/uiText.js extension/dist/validation.js extension/dist/browserCheck.js extension/dist/browserRuntime.js \
             extension/dist/sessionBoard.js extension/dist/reviewer.js \
+            extension/dist/foreignHooks.js extension/dist/hookRuntime.js extension/dist/extensionHooks.js extension/dist/pluginHooks.js \
             extension/dist/codeIntel.js extension/dist/voice.js extension/dist/museCodeReviewer.js \
             extension/dist/webFetch.js extension/dist/whatsNew.js extension/dist/whatsNew.json \
             extension/dist/webview/main.js extension/dist/webview/main.css \
@@ -364,6 +365,7 @@ jobs:
         run: |
           listing="$(tar -tzf dist/muse-spark-code-acp-*.tgz)"
           for entry in package/package.json package/dist/acp.js package/dist/modelApi.js package/dist/uiText.js package/dist/validation.js package/dist/reviewer.js \
+            package/dist/foreignHooks.js package/dist/hookRuntime.js package/dist/extensionHooks.js \
             package/dist/searchWorker.js package/dist/pageWorker.js \
             package/native/windows/MuseSparkJob.cs package/native/windows/MuseSparkMcpJob.cs \
             package/THIRD_PARTY_NOTICES.txt package/LICENSE package/README.md \

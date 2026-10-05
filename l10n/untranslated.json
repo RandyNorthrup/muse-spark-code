@@ -47,6 +47,13 @@
       "reviewItem",
       "execUsage",
       "execScanUsage",
+      "hooksSparkProjectFile",
+      "agentImportSourceGemini",
+      "agentImportSourceWindsurf",
+      "agentImportSourceKiro",
+      "agentImportSourceCline",
+      "agentImportSourceAmp",
+      "agentImportSourceOpenCode",
       "contextMeterUnderOne",
       "diffTallyLines"
     ],
@@ -120,9 +127,11 @@
       "gitChangeCounts",
       "gitCommitAction",
       "agentImportKindHook",
-      "agentImportKindAgent"
+      "agentImportKindAgent",
+      "shellDirectory"
     ],
     "es": [
+      "hooksItem",
       "usagePlan",
       "agentTokens",
       "permissionModes.manual",
@@ -181,7 +190,7 @@
     "*": ["viewsContainers.museSpark.title", "command.category", "config.title"],
     "cs": ["views.chatView.name"],
     "de": ["views.chatView.name", "command.hooks.title"],
-    "es": ["views.chatView.name"],
+    "es": ["views.chatView.name", "command.hooks.title"],
     "pt-br": ["views.chatView.name"],
     "fr": ["command.hooks.title"],
     "it": ["views.chatView.name"]

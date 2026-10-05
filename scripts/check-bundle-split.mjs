@@ -78,7 +78,45 @@ const BUNDLES = {
   modelApi: { output: 'dist/modelApi.js', metafile: 'dist/meta/modelApi.json' },
   acp: { output: 'dist/acp.js', metafile: 'dist/meta-acp/acp.json' },
 }
-const DEFERRED_ONLY = ['reviewerEntry.ts']
+const DEFERRED_ONLY = ['reviewerEntry.ts', 'hookModelEntry.ts']
+// M91 lane W: the adapters for hooks imported in another agent's format (lane
+// P's contracts and engine), dist/foreignHooks.js, loaded the first time a
+// session holding one runs a hook.
+const FOREIGN_HOOKS_ONLY = [
+  'foreignHooksEntry.ts',
+  'hookFormats.ts',
+  'hookFormats/core.ts',
+  'hookFormats/engine.ts',
+  'hookFormats/transforms.ts',
+  'hookFormats/contracts/cline.ts',
+  'hookFormats/contracts/copilot.ts',
+  'hookFormats/contracts/cursor.ts',
+  'hookFormats/contracts/gemini.ts',
+  'hookFormats/contracts/kiro.ts',
+  'hookFormats/contracts/vscode.ts',
+  'hookFormats/contracts/windsurf.ts',
+]
+// M91: the hook and MCP-form runtime, dist/hookRuntime.js (lane E's
+// spark-hooks.json reader and dispatcher, lane H's typed handlers, lane M's
+// form checks), loaded the first time a session needs one of them. The
+// modules it re-exports stay LAZY_ONLY: dist/modelApi.js keeps their types,
+// field builders and constants, and esbuild leaves the runners out of it.
+const HOOK_RUNTIME_ONLY = ['hookRuntimeEntry.ts']
+// M91b: the Amp and OpenCode plugin host, its child's source and its event
+// mapping, dist/pluginHooks.js, which the adapters require on the first
+// plugin hook (the import bundle reads the mapping too).
+const PLUGIN_HOOKS_ONLY = [
+  'pluginHooksEntry.ts',
+  'pluginHost.ts',
+  'pluginChild.ts',
+  'pluginFormats.ts',
+]
+// Files of type declarations only, which no bundle carries: lane P's contract
+// shapes, read by the adapters' compiler and never at run time.
+const TYPES_ONLY = new Set(['hookFormats/contract.ts'])
+// M91 lane X's Cline discovery, which no bundle carries until its dispatcher
+// wiring lands (PLAN.md M91, lane X; the lead's call).
+const UNBUNDLED = new Set(['hookFormats/clineDiscover.ts'])
 const DEFERRED = [
   {
     output: 'dist/sessionBoard.js',
@@ -96,6 +134,21 @@ const DEFERRED = [
     output: 'dist/reviewer.js',
     metafile: 'dist/meta/reviewer.json',
     files: DEFERRED_ONLY.map((name) => `${MODEL_API_DIR}/${name}`),
+  },
+  {
+    output: 'dist/foreignHooks.js',
+    metafile: 'dist/meta/foreignHooks.json',
+    files: FOREIGN_HOOKS_ONLY.map((name) => `${MODEL_API_DIR}/${name}`),
+  },
+  {
+    output: 'dist/hookRuntime.js',
+    metafile: 'dist/meta/hookRuntime.json',
+    files: HOOK_RUNTIME_ONLY.map((name) => `${MODEL_API_DIR}/${name}`),
+  },
+  {
+    output: 'dist/pluginHooks.js',
+    metafile: 'dist/meta/pluginHooks.json',
+    files: PLUGIN_HOOKS_ONLY.map((name) => `${MODEL_API_DIR}/${name}`),
   },
 ]
 
@@ -127,6 +180,8 @@ const LAZY_ONLY = [
   'glob.ts',
   'goals.ts',
   'hooks.ts',
+  'hookHandlers.ts',
+  'extensionHooks.ts',
   'instructions.ts',
   'mediaBudget.ts',
   'memoryTools.ts',
@@ -148,6 +203,9 @@ const LAZY_ONLY = [
   'verifyLoop.ts',
   'verifyTools.ts',
   'mcp/connection.ts',
+  // M91-M: MCP forms' types and log text load with the backend; their checks
+  // load with dist/hookRuntime.js, and the browser reuses value validation.
+  'mcp/elicitation.ts',
   'mcp/functions.ts',
   'mcp/http.ts',
   'mcp/pool.ts',
@@ -185,14 +243,28 @@ for (const name of onDisk) {
   const lists =
     Number(ACTIVATION_ALLOWED.has(name)) +
     Number(lazy.has(name)) +
-    Number(DEFERRED_ONLY.includes(name))
+    Number(DEFERRED_ONLY.includes(name)) +
+    Number(FOREIGN_HOOKS_ONLY.includes(name)) +
+    Number(HOOK_RUNTIME_ONLY.includes(name)) +
+    Number(PLUGIN_HOOKS_ONLY.includes(name)) +
+    Number(TYPES_ONLY.has(name)) +
+    Number(UNBUNDLED.has(name))
   if (lists !== 1) {
     problems.push(
       `${MODEL_API_DIR}/${name} is on ${lists === 0 ? 'neither list' : 'both lists'} in scripts/check-bundle-split.mjs`,
     )
   }
 }
-for (const name of [...ACTIVATION_ALLOWED.keys(), ...lazy, ...DEFERRED_ONLY]) {
+for (const name of [
+  ...ACTIVATION_ALLOWED.keys(),
+  ...lazy,
+  ...DEFERRED_ONLY,
+  ...FOREIGN_HOOKS_ONLY,
+  ...HOOK_RUNTIME_ONLY,
+  ...PLUGIN_HOOKS_ONLY,
+  ...TYPES_ONLY,
+  ...UNBUNDLED,
+]) {
   if (!onDisk.has(name)) {
     problems.push(`${MODEL_API_DIR}/${name} is listed but does not exist`)
   }
@@ -201,6 +273,20 @@ for (const name of [...ACTIVATION_ALLOWED.keys(), ...lazy, ...DEFERRED_ONLY]) {
 const activation = inputsOf(BUNDLES.activation)
 const modelApi = inputsOf(BUNDLES.modelApi)
 const acp = inputsOf(BUNDLES.acp)
+const extensionHooks = inputsOf({
+  output: 'dist/extensionHooks.js',
+  metafile: 'dist/meta/extensionHooks.json',
+})
+for (const file of ['src/host/extensionHooksEntry.ts', 'src/host/extensionHooksRunner.ts']) {
+  for (const [output, inputs] of [
+    [BUNDLES.activation.output, activation],
+    [BUNDLES.modelApi.output, modelApi],
+    [BUNDLES.acp.output, acp],
+  ]) {
+    if (inputs.has(file)) problems.push(`${output} carries the lazy extension hook runner ${file}`)
+  }
+  if (!extensionHooks.has(file)) problems.push(`dist/extensionHooks.js no longer carries ${file}`)
+}
 for (const bundle of DEFERRED) {
   const inputs = inputsOf(bundle)
   for (const file of bundle.files) {
@@ -210,6 +296,19 @@ for (const bundle of DEFERRED) {
       }
     }
     if (!inputs.has(file)) problems.push(`${bundle.output} no longer carries ${file}`)
+  }
+}
+// The plugin host loads only on the first plugin hook: the adapters' bundle
+// requires it rather than carry it (M91b).
+{
+  const adapters = inputsOf(DEFERRED.find((bundle) => bundle.output === 'dist/foreignHooks.js'))
+  for (const name of PLUGIN_HOOKS_ONLY) {
+    const file = `${MODEL_API_DIR}/${name}`
+    if (adapters.has(file)) {
+      problems.push(
+        `dist/foreignHooks.js carries ${file}, which loads only on the first plugin hook`,
+      )
+    }
   }
 }
 // The bundles that load the backend from dist/modelApi.js rather than carry it.
@@ -716,6 +815,12 @@ const TEXT_BLOCKS = [
     block: 'TAB_MODEL_TEXT',
     sentinels: ['tabSystem', 'tabUserTemplate'],
     readers: ['dist/tab.js'],
+  },
+  {
+    block: 'HOOK_MODEL_TEXT',
+    sentinels: ['hookPromptRole', 'hookAgentRole', 'hookAnswer'],
+    // Lane H's prompt and agent handlers run from the hook runtime (M91).
+    readers: ['dist/hookRuntime.js'],
   },
   {
     block: 'MODEL_API_MODEL_TEXT',

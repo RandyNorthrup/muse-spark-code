@@ -17,7 +17,7 @@ differs from the source. Do not edit it by hand.
 | `capabilities.untrustedWorkspaces` | `limited`                                                                                                                    |
 | `enabledApiProposals`              | none                                                                                                                         |
 | `activationEvents`                 | `onWebviewPanel:museSpark.chatPanel`, `onStartupFinished`                                                                    |
-| `contributes`                      | `commands` (39), `configuration` (2), `keybindings` (8), `menus` (2), `views` (1), `viewsContainers` (1), `walkthroughs` (1) |
+| `contributes`                      | `commands` (42), `configuration` (2), `keybindings` (8), `menus` (2), `views` (1), `viewsContainers` (1), `walkthroughs` (1) |
 
 ## Build targets
 
@@ -33,7 +33,7 @@ The VS Code adapter: 30 files. Everything else reaches VS Code only through them
 
 | File                                       | VS Code APIs used |
 | ------------------------------------------ | ----------------- |
-| `src/extension.ts`                         | 161               |
+| `src/extension.ts`                         | 167               |
 | `src/host/agentImportHost.ts`              | 28                |
 | `src/host/browser/browserCheckConfirm.ts`  | 5                 |
 | `src/host/browser/runtimeCommand.ts`       | 9                 |
@@ -83,7 +83,7 @@ These never reach `vscode` through their imports, type-only ones included; the g
 - `src/host/conversation/conversationController.ts`
 - `src/host/ide/ideMcpServer.ts`
 
-## VS Code API used at run time (328)
+## VS Code API used at run time (332)
 
 Functions, variables, classes, enums and members declared in `@types/vscode`; the members of a VS Code interface the code implements (a provider, an options object); and the members of a VS Code object handed to code that takes it by shape.
 
@@ -189,6 +189,8 @@ Functions, variables, classes, enums and members declared in `@types/vscode`; th
 | `OpenDialogOptions.filters`                                                          | `src/host/conversation/transferDialogs.ts`                                                                                                                                                                                                                                                                                                                                |
 | `OpenDialogOptions.openLabel`                                                        | `src/extension.ts`                                                                                                                                                                                                                                                                                                                                                        |
 | `OpenDialogOptions.title`                                                            | `src/host/conversation/transferDialogs.ts`                                                                                                                                                                                                                                                                                                                                |
+| `OutputChannel.append`                                                               | `src/extension.ts`                                                                                                                                                                                                                                                                                                                                                        |
+| `OutputChannel.appendLine`                                                           | `src/extension.ts`                                                                                                                                                                                                                                                                                                                                                        |
 | `OutputChannel.show`                                                                 | `src/extension.ts`                                                                                                                                                                                                                                                                                                                                                        |
 | `Position`                                                                           | `src/extension.ts`, `src/host/codeIntel/languageServices.ts`, `src/host/tab/tabProvider.ts`                                                                                                                                                                                                                                                                               |
 | `Position.character`                                                                 | `src/extension.ts`, `src/host/codeIntel/languageServices.ts`, `src/host/editor/verifyEditor.ts`, `src/host/tab/tabBundle.ts`, `src/host/tab/tabProvider.ts`                                                                                                                                                                                                               |
@@ -212,7 +214,7 @@ Functions, variables, classes, enums and members declared in `@types/vscode`; th
 | `QuickPickOptions.ignoreFocusOut`                                                    | `src/host/agentImportHost.ts`, `src/host/cliFeatures.ts`                                                                                                                                                                                                                                                                                                                  |
 | `QuickPickOptions.matchOnDescription`                                                | `src/host/agentImportHost.ts`, `src/host/cliFeatures.ts`, `src/host/quickPick.ts`, `src/host/worktreeFeatures.ts`                                                                                                                                                                                                                                                         |
 | `QuickPickOptions.matchOnDetail`                                                     | `src/host/agentImportHost.ts`, `src/host/cliFeatures.ts`, `src/host/quickPick.ts`                                                                                                                                                                                                                                                                                         |
-| `QuickPickOptions.placeHolder`                                                       | `src/host/agentImportHost.ts`, `src/host/cliFeatures.ts`, `src/host/git/gitWindow.ts`, `src/host/quickPick.ts`, `src/host/tab/tabStatus.ts`, `src/host/worktreeFeatures.ts`                                                                                                                                                                                               |
+| `QuickPickOptions.placeHolder`                                                       | `src/extension.ts`, `src/host/agentImportHost.ts`, `src/host/cliFeatures.ts`, `src/host/git/gitWindow.ts`, `src/host/quickPick.ts`, `src/host/tab/tabStatus.ts`, `src/host/worktreeFeatures.ts`                                                                                                                                                                           |
 | `QuickPickOptions.title`                                                             | `src/host/agentImportHost.ts`, `src/host/cliFeatures.ts`, `src/host/git/gitWindow.ts`, `src/host/quickPick.ts`, `src/host/tab/tabStatus.ts`, `src/host/worktreeFeatures.ts`                                                                                                                                                                                               |
 | `Range`                                                                              | `src/extension.ts`, `src/host/agentImportHost.ts`, `src/host/tab/tabProvider.ts`                                                                                                                                                                                                                                                                                          |
 | `Range.contains`                                                                     | `src/extension.ts`, `src/host/tab/tabProvider.ts`                                                                                                                                                                                                                                                                                                                         |
@@ -357,6 +359,7 @@ Functions, variables, classes, enums and members declared in `@types/vscode`; th
 | `WorkspaceEdit.entries`                                                              | `src/host/codeIntel/languageServices.ts`                                                                                                                                                                                                                                                                                                                                  |
 | `WorkspaceEdit.replace`                                                              | `src/host/agentImportHost.ts`                                                                                                                                                                                                                                                                                                                                             |
 | `WorkspaceFolder.uri`                                                                | `src/extension.ts`, `src/host/agentImportHost.ts`, `src/host/cliFeatures.ts`                                                                                                                                                                                                                                                                                              |
+| `WorkspaceFoldersChangeEvent.added`                                                  | `src/extension.ts`                                                                                                                                                                                                                                                                                                                                                        |
 | `authentication.getSession`                                                          | `src/host/git/githubSession.ts`                                                                                                                                                                                                                                                                                                                                           |
 | `commands.executeCommand`                                                            | `src/extension.ts`, `src/host/cliFeatures.ts`, `src/host/codeIntel/languageServices.ts`, `src/host/editor/verifyEditor.ts`, `src/host/tab/tabBundle.ts`, `src/host/tab/tabProvider.ts`, `src/host/views/tasksPanel.ts`, `src/host/whatsNew/whatsNewPanel.ts`, `src/host/worktreeFeatures.ts`                                                                              |
 | `commands.getCommands`                                                               | `src/host/views/tasksPanel.ts`                                                                                                                                                                                                                                                                                                                                            |
@@ -392,7 +395,7 @@ Functions, variables, classes, enums and members declared in `@types/vscode`; th
 | `window.showInformationMessage`                                                      | `src/extension.ts`, `src/host/agentImportHost.ts`, `src/host/browser/runtimeCommand.ts`, `src/host/browser/runtimeConsent.ts`, `src/host/cliFeatures.ts`, `src/host/conversation/transferDialogs.ts`, `src/host/memoryFeatures.ts`, `src/host/worktreeFeatures.ts`                                                                                                        |
 | `window.showInputBox`                                                                | `src/extension.ts`, `src/host/git/gitWindow.ts`, `src/host/memoryFeatures.ts`, `src/host/paid/paidDailyBudget.ts`, `src/host/worktreeFeatures.ts`                                                                                                                                                                                                                         |
 | `window.showOpenDialog`                                                              | `src/extension.ts`, `src/host/conversation/transferDialogs.ts`                                                                                                                                                                                                                                                                                                            |
-| `window.showQuickPick`                                                               | `src/host/agentImportHost.ts`, `src/host/cliFeatures.ts`, `src/host/git/gitWindow.ts`, `src/host/quickPick.ts`, `src/host/tab/tabStatus.ts`, `src/host/worktreeFeatures.ts`                                                                                                                                                                                               |
+| `window.showQuickPick`                                                               | `src/extension.ts`, `src/host/agentImportHost.ts`, `src/host/cliFeatures.ts`, `src/host/git/gitWindow.ts`, `src/host/quickPick.ts`, `src/host/tab/tabStatus.ts`, `src/host/worktreeFeatures.ts`                                                                                                                                                                           |
 | `window.showSaveDialog`                                                              | `src/host/cliFeatures.ts`                                                                                                                                                                                                                                                                                                                                                 |
 | `window.showTextDocument`                                                            | `src/extension.ts`, `src/host/agentImportHost.ts`, `src/host/cliFeatures.ts`, `src/host/editor/verifyEditor.ts`, `src/host/memoryFeatures.ts`                                                                                                                                                                                                                             |
 | `window.showWarningMessage`                                                          | `src/extension.ts`, `src/host/agentImportHost.ts`, `src/host/browser/browserCheckConfirm.ts`, `src/host/browser/runtimeCommand.ts`, `src/host/git/gitWindow.ts`, `src/host/memoryFeatures.ts`, `src/host/paid/paidDailyBudget.ts`, `src/host/paid/paidHost.ts`, `src/host/popups.ts`, `src/host/web/webFetchConfirm.ts`, `src/host/worktreeFeatures.ts`                   |
@@ -411,6 +414,7 @@ Functions, variables, classes, enums and members declared in `@types/vscode`; th
 | `workspace.notebookDocuments`                                                        | `src/extension.ts`                                                                                                                                                                                                                                                                                                                                                        |
 | `workspace.onDidChangeConfiguration`                                                 | `src/extension.ts`                                                                                                                                                                                                                                                                                                                                                        |
 | `workspace.onDidChangeTextDocument`                                                  | `src/extension.ts`                                                                                                                                                                                                                                                                                                                                                        |
+| `workspace.onDidChangeWorkspaceFolders`                                              | `src/extension.ts`                                                                                                                                                                                                                                                                                                                                                        |
 | `workspace.onDidGrantWorkspaceTrust`                                                 | `src/extension.ts`                                                                                                                                                                                                                                                                                                                                                        |
 | `workspace.openTextDocument`                                                         | `src/extension.ts`, `src/host/agentImportHost.ts`, `src/host/codeIntel/languageServices.ts`, `src/host/editor/verifyEditor.ts`, `src/host/tab/tabProvider.ts`                                                                                                                                                                                                             |
 | `workspace.registerTextDocumentContentProvider`                                      | `src/extension.ts`                                                                                                                                                                                                                                                                                                                                                        |
@@ -422,20 +426,20 @@ Functions, variables, classes, enums and members declared in `@types/vscode`; th
 
 | Module                 | Files |
 | ---------------------- | ----- |
-| `node:buffer`          | 32    |
-| `node:child_process`   | 12    |
-| `node:crypto`          | 39    |
+| `node:buffer`          | 38    |
+| `node:child_process`   | 13    |
+| `node:crypto`          | 40    |
 | `node:dgram`           | 1     |
 | `node:dns`             | 1     |
-| `node:dns/promises`    | 2     |
-| `node:fs`              | 30    |
-| `node:fs/promises`     | 43    |
+| `node:dns/promises`    | 3     |
+| `node:fs`              | 32    |
+| `node:fs/promises`     | 45    |
 | `node:http`            | 4     |
 | `node:https`           | 1     |
 | `node:module`          | 1     |
-| `node:net`             | 6     |
-| `node:os`              | 7     |
-| `node:path`            | 76    |
+| `node:net`             | 7     |
+| `node:os`              | 8     |
+| `node:path`            | 81    |
 | `node:process`         | 1     |
 | `node:stream`          | 12    |
 | `node:stream/promises` | 2     |
@@ -443,7 +447,7 @@ Functions, variables, classes, enums and members declared in `@types/vscode`; th
 | `node:timers/promises` | 3     |
 | `node:tls`             | 1     |
 | `node:url`             | 3     |
-| `node:util`            | 4     |
+| `node:util`            | 5     |
 | `node:vm`              | 1     |
 | `node:worker_threads`  | 4     |
 | `node:zlib`            | 3     |

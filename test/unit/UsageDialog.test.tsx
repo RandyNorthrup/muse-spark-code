@@ -79,6 +79,19 @@ function renderDialog(overrides: Partial<UsageDialogProps> = {}) {
 }
 
 describe('UsageDialog', () => {
+  it('shows hook additions separately without subtracting them from packing savings', () => {
+    renderDialog({
+      usage: {
+        inputTokens: 30_000,
+        outputTokens: 1200,
+        packedTokensAvoided: 9000,
+        hookTokensAdded: 500,
+      },
+    })
+    const dialog = screen.getByRole('dialog')
+    expect(dialog).toHaveTextContent('Packing saved (estimate)9K')
+    expect(dialog).toHaveTextContent('Added by hooks (estimate)500')
+  })
   it('names an installer terminal failure while the Model API stays available', () => {
     renderDialog({
       auth: {

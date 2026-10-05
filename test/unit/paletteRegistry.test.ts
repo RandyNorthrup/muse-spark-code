@@ -302,6 +302,7 @@ describe('buildPalette', () => {
     })
     const slash = groups.find((group) => group.id === 'slash')
     expect(slash?.items.map((item) => item.label)).toEqual([
+      '/hook run',
       '/agents',
       '/compact',
       '/handoff',
@@ -393,7 +394,7 @@ describe('buildPalette', () => {
         id: 'importFromAgents',
         tip: EN.paletteTips.importFromAgents,
         label: EN.agentImportItem,
-        detail: EN.agentImportDetail,
+        detail: EN.agentImportDetailEvery,
         action: { type: 'importFromAgents' },
       })
     }
@@ -526,6 +527,7 @@ describe('slashCommandsOf', () => {
       'config',
       'fix-bug',
       'acme:deploy',
+      'hook run',
       'agents',
       'compact',
       'handoff',
@@ -666,6 +668,14 @@ describe('buildPalette: paid features (M33, PLAN.md D30)', () => {
           'muse-spark-1.2-contributor, muse-spark-1.3-contributor: $0.100/1M input, $0.002/1M cached input, $0.200/1M output tokens',
         { kind: 'toggle', isOn: false },
         { type: 'setPaidFeature', feature: 'tab', isOn: true },
+      ],
+      // M91 lane H: prompt and agent hooks, each a paid model call.
+      [
+        'Model hooks (paid)',
+        '$1.250/1M input, $0.150/1M cached input, $4.250/1M output tokens\n' +
+          '$0.100/1M input, $0.002/1M cached input, $0.200/1M output tokens',
+        { kind: 'toggle', isOn: false },
+        { type: 'setPaidFeature', feature: 'hookModels', isOn: true },
       ],
     ])
   })

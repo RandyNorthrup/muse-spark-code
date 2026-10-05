@@ -225,6 +225,9 @@ export const EN = {
     'paid:autoReviewer': 'Turn the paid Auto reviewer on or off.',
     'paid:bestOfN': 'Turn paid Best of N on or off.',
     'paid:tab': 'Turn paid Tab completions on or off.',
+    'paid:hookModels': 'Turn paid model hooks on or off.',
+    // M91: `/hook run`, a Manual hook from spark-hooks.json.
+    hookRun: 'Run one of your Manual hooks from spark-hooks.json now.',
     loop: 'Schedule a prompt in this Model API conversation.',
     importSession: 'Resume an exported session file on the Model API backend.',
     review: 'Ask Muse to review your changes, or what you describe.',
@@ -292,10 +295,7 @@ export const EN = {
   importFailed: 'Muse Code could not import skills',
   // Import from Claude Code, Codex and Cursor (M83, D49).
   agentImportItem: 'Import from other agents…',
-  agentImportDetail:
-    'Copy MCP servers, hooks, agents, commands and rules from Claude Code, Codex or Cursor',
   agentImportSourceTitle: 'Import from',
-  agentImportSourceAll: 'All three',
   agentImportSourceCursor: 'Cursor',
   agentImportPickTitle: 'What to import',
   agentImportPickPlaceholder: 'Checked entries are previewed before anything is written',
@@ -361,6 +361,32 @@ export const EN = {
   agentImportCountSections: 'Sections for AGENTS.md: {count}',
   agentImportCountCopies: 'Entries offered in the editor: {count}',
   agentImportCountSkipped: 'Not imported: {count}',
+  // Hooks from every popular agent (M91, PLAN.md D70): the new sources.
+  agentImportSourceGemini: 'Gemini CLI',
+  agentImportSourceCopilot: 'Copilot and VS Code',
+  agentImportSourceWindsurf: 'Windsurf',
+  agentImportSourceKiro: 'Kiro',
+  agentImportSourceCline: 'Cline',
+  agentImportSourceAmp: 'Amp',
+  agentImportSourceOpenCode: 'OpenCode',
+  agentImportSourceEvery: 'All of them',
+  agentImportDetailEvery:
+    'Copy MCP servers, hooks, agents, commands and rules from Claude Code, Codex or Cursor, and hooks and plugins from Gemini CLI, Copilot, Windsurf, Kiro, Cline, Amp and OpenCode',
+  agentImportKindPlugin: 'Plugin',
+  // Why an entry is not imported, after "Not imported:".
+  agentImportSkippedWeaker:
+    'here it could not block as it does where it came from, so the guard would be weaker',
+  agentImportSkippedChooses: 'it chooses a path, a model or a tool, which no hook may do here',
+  // {field}: a field name as the source writes it.
+  agentImportSkippedField: 'it sets {field}, which has no equivalent here',
+  agentImportSkippedNotify: 'Codex’s notify program is not a hook, so it is listed, not converted',
+  agentImportSkippedNeedsMatcher: 'FileChanged needs a matcher naming the files to watch',
+  agentImportSkippedUnknownFormat: 'its file is in a format this version does not read',
+  agentImportKeptWaiting:
+    'kept, waiting for inline completions, which this extension does not have yet',
+  // Kiro's spec-task triggers map to the todo-item events (M91, PLAN.md D70):
+  // the preview says so in plain words.
+  agentImportKiroTaskNote: 'Kiro spec-task triggers run on todo items here',
   exportNothing: 'There is no conversation to export yet.',
   exportFailed: 'The conversation could not be exported',
   exportSaved: 'Conversation exported to {path}',
@@ -537,6 +563,131 @@ export const EN = {
   hooksManagedSet: 'Set by your settings; whoever controls this file controls what runs',
   hooksManagedMissing: 'Your settings name this file, but it does not exist.',
   hooksDocs: 'Hooks in Muse Code (documentation)',
+  // Hooks from every popular agent (M91, PLAN.md D70). The Hooks picker's
+  // rows for spark-hooks.json, the extension's own hook file, which Muse Code
+  // never reads.
+  hooksSparkProject: 'Extension hooks for this project',
+  hooksSparkProjectFile: '.muse/spark-hooks.json',
+  hooksSparkProjectNone: 'This workspace has no .muse/spark-hooks.json.',
+  hooksSparkUser: 'Your extension hooks',
+  hooksSparkUserNone: 'You have no spark-hooks.json.',
+  // {file}: the file's name or path.
+  hooksSparkCount: forms({
+    one: '{count} hook in {file}',
+    other: '{count} hooks in {file}',
+  }),
+  hooksSparkAbout:
+    'Muse Code never reads this file. It holds the events only this extension runs, and hooks imported from other agents.',
+  // Which backend runs a file's hooks, under its row.
+  hooksBackendMuseCode: 'Run by Muse Code',
+  hooksBackendBoth: 'Run by Muse Code, and by this window on the Model API backend',
+  hooksBackendSpark:
+    'Run by this window: on the Model API backend, and on both backends for the events the extension itself handles',
+  hooksFormatModelApiOnly: 'Hooks in another agent’s format run only on the Model API backend.',
+  // {format}: the source agent's name, such as Cursor.
+  hooksFormatTag: '{format} format',
+  // {event}: a hook event's name as the file writes it.
+  hooksMuseEventRefused:
+    '{event} is a Muse Code event: configure it in .muse/hooks.json, so it runs once.',
+  hooksExtensionEventSkipped:
+    '{event} runs only from spark-hooks.json; Muse Code skips it in this file.',
+  hooksStopFailureNote:
+    'Muse Code 1.4.2 does not run StopFailure hooks; this window runs them on the Model API backend.',
+  hooksSessionForkNote:
+    'Muse Code 1.4.2 accepts SessionFork hooks but never runs them, so this window does not run them either.',
+  hooksTabWaiting:
+    'Waiting for inline completions, which this extension does not have yet, so it never runs.',
+  hooksNotRunnable: 'Hooks run only in a trusted workspace, once museSpark.modelApiHooks is on.',
+  // What a hook refused, with the hook's own words as {reason}.
+  // {name}: the slash command or skill.
+  hookRefusedExpansion: 'A hook refused {name}: {reason}',
+  // {model}: the model id the conversation stays on.
+  hookRefusedModelSwitch: 'A hook kept the model on {model}: {reason}',
+  // {subject}: the task's subject.
+  hookRefusedTaskCreated: 'A hook refused the task “{subject}”: {reason}',
+  hookRefusedTaskCompleted: 'A hook kept the task “{subject}” open: {reason}',
+  hookWorktreeCreateFailed: 'A WorktreeCreate hook failed, so this attempt did not run: {reason}',
+  // {name}: a Best-of-N attempt's or a subagent's label.
+  hookTeammateKept: 'A hook kept {name} working: {reason}',
+  hookFileChangedPaused: forms({
+    one: 'FileChanged hooks are paused for a minute: more than {count} change arrived.',
+    other: 'FileChanged hooks are paused for a minute: more than {count} changes arrived.',
+  }),
+  // A PostToolUseFailure hook's corrected call; {reason}: one of the three below.
+  hookCorrectionRefused: 'A hook’s corrected call was refused: {reason}',
+  hookCorrectionOtherTool: 'it names a different tool',
+  hookCorrectionOutside: 'it reaches outside the workspace',
+  hookCorrectionTooDeep: forms({
+    one: 'it went past {count} correction in a row',
+    other: 'it went past {count} corrections in a row',
+  }),
+  // Why a call was not run: a BeforeToolSelection hook took its tool away.
+  hookToolRemoved: 'a hook removed this tool for this turn',
+  // A MessageDisplay hook's display-only rewrite: its marker and the switch.
+  hookMessageEdited: 'Edited by a hook',
+  hookMessageShowOriginal: 'Show the original',
+  hookMessageShowEdited: 'Show the hook’s version',
+  // Setup and Manual hooks, which run only when the user starts them.
+  setupHooksNone: 'No Setup hooks are configured in spark-hooks.json.',
+  setupHooksRan: forms({ one: 'Ran {count} Setup hook.', other: 'Ran {count} Setup hooks.' }),
+  setupHooksFailed: 'A Setup hook failed: {reason}',
+  manualHookPick: 'Run which hook?',
+  manualHookNone: 'No Manual hooks are configured in spark-hooks.json.',
+  // {name}: the name `/hook run` was given.
+  manualHookNoneNamed: 'No Manual hook is named {name}.',
+  // {name}: the hook's name in spark-hooks.json.
+  manualHookDone: 'Hook {name} finished.',
+  manualHookFailed: 'Hook {name} failed: {reason}',
+  manualHookSlashDetail: 'Run a Manual hook from spark-hooks.json',
+  // dist/extensionHooks.js failed to load.
+  extensionHooksUnavailable:
+    'The extension hooks could not be loaded, so no hook ran; reinstall the extension and reload the window. The log has the details.',
+  // The Model API shell's kept working directory. {path}: workspace-relative.
+  shellDirectory: 'In {path}',
+  shellDirectoryReset:
+    'The shell went back to the workspace root: {path} is outside the workspace.',
+  // MCP elicitation on the Model API backend. {server}: the MCP server's name.
+  elicitationTitle: '{server} asks for information',
+  elicitationNote: 'Your answer goes to {server}, not to Muse. Never enter a password or a key.',
+  elicitationSend: 'Send',
+  elicitationDecline: 'Decline',
+  elicitationCancel: 'Cancel',
+  elicitationRequired: 'Required',
+  // {field}: the field's title, or its name when it has none.
+  elicitationInvalid: '{field} does not fit what {server} asked for.',
+  elicitationDeclinedByHook: 'A hook declined this request from {server}: {reason}',
+  elicitationAnsweredByHook: 'One of your hooks answered this request from {server}.',
+  elicitationExpired: 'The request from {server} is no longer waiting.',
+  // The http and mcp_tool hook handlers. {host}: a host name; {tool}: a tool name.
+  hookHttpHostRefused: 'An http hook was refused: {host} is not an allowed host.',
+  hookHttpSchemeRefused: 'An http hook was refused: only HTTPS is allowed.',
+  hookHttpRedirectRefused: 'An http hook was refused: it redirected to {host}.',
+  hookHttpProjectRefused:
+    'An http hook in a project file was refused: http hooks run only from your own files.',
+  hookHttpNetworkRefused:
+    'An http hook was refused: this window’s network setting blocks the network.',
+  hookMcpToolMissing: 'An mcp_tool hook was refused: {tool} is not a tool of a running MCP server.',
+  // The prompt and agent handlers on Muse Code: one side-session turn each.
+  hookModelMuseCodeNotice:
+    'Prompt and agent hooks each run one short turn of your Muse subscription, in a hidden side session that History does not list.',
+  // Amp and OpenCode plugins in the plugin host. {name}: the plugin's name;
+  // {api}: the plugin API it called, as written.
+  pluginStopped: 'The {name} plugin stopped: {reason}',
+  pluginApiUnavailable:
+    'The {name} plugin called {api}, which the plugin host does not offer, so that hook failed.',
+  // Hooks in another agent's format. {format}: the source agent's name.
+  hookAdapterUnreadable:
+    'A {format}-format hook gave an answer this window cannot read, so it counts as a failure.',
+  hookAdapterFailClosed:
+    'A {format}-format guard failed, so the call was blocked, as {format} itself would block it.',
+  // A hook in another agent's format replaced a tool's output for the model.
+  hookOutputReplaced:
+    'A hook replaced what the model sees of this tool’s output; the row shows the real output.',
+  // Amp and OpenCode plugin hooks on Windows without their job (M91b): the
+  // notice, and what Retry Plugin Hooks says once it forgot the failure.
+  pluginHooksNoJob:
+    'Amp and OpenCode plugin hooks did not run: Windows could not prepare the job that contains them. Run “Retry Plugin Hooks” to try again.',
+  pluginHooksRetried: 'Plugin hooks will prepare their Windows job again the next time one runs.',
   // Memory (M49, D41): the notes Muse Code keeps, on both backends.
   memoryItem: 'Memory…',
   memoryItemDetail: 'The notes Muse keeps for later sessions',
@@ -1320,6 +1471,8 @@ export const EN = {
   usageCached: 'Cached',
   usageContext: 'Context',
   usagePackedAvoided: 'Packing saved (estimate)',
+  // Tokens hooks added, never netted against the savings (M91, SoL-Pi rule 6).
+  usageAddedByHooks: 'Added by hooks (estimate)',
   usageNoSession: 'No tokens counted yet in this conversation.',
   usageLoading: 'Reading usage…',
   usageUnavailable: 'Usage could not be read',
@@ -2139,6 +2292,10 @@ export const EN = {
     '  --verbose                        Log every detail on stderr',
     '  --help, --version',
   ].join('\n'),
+  // The Setup hooks' command (M91, PLAN.md D70); {command}: the executable's
+  // name. Lane E adds it to the usage above with the command.
+  acpUsageSetup:
+    '  {command} --trust-workspace setup [--maintenance]  Run the Setup hooks and exit',
   // M80 (PLAN.md D65): the headless exec and scan-secrets commands.
   execBudgetRequired: 'Model API requires --max-budget-usd.',
   execNumberInvalid: 'Invalid number or limit; the USD budget accepts at most six decimal places.',
@@ -2408,6 +2565,21 @@ export const EN = {
   usagePaidTabCostToday: 'Today: {cost}',
   usagePaidTabCostWindow: 'This window: {cost}',
   usagePaidTabBudget: 'Daily budget: {budget}',
+  // The prompt and agent hook handlers on the Model API (M91, PLAN.md D70):
+  // a paid use under D30 and D48, tallied on their own line.
+  paidHookModelName: 'Model hooks',
+  // {event}: the hook event's name.
+  paidHookModelTitle: 'Let this {event} hook ask the model?',
+  // {kind}: prompt or agent, as written in the file; {model}: the model id.
+  paidHookModelDetail:
+    'A {kind} hook asks {model} before it answers.\n\n{price}\n\nBilled to your Model API key. Actual cost depends on tokens used. Allow once covers this hook run only.',
+  paidConfirmHookModel:
+    'Prompt and agent hooks ask the model before they answer, each run billed to your Model API key. {price} Each run asks for approval in every permission mode, including Bypass, unless you allow model hooks always in this workspace. Actual cost depends on tokens used. They can only refuse, narrow or add context. Model API backend only; on Muse Code they use a turn of your subscription instead.',
+  usagePaidHookModelRuns: forms({ one: '{count} hook run', other: '{count} hook runs' }),
+  // A prompt or agent hook refused while museSpark.modelApiHookModels is off.
+  hookModelPaidOff:
+    'Model hooks are off. Turn on museSpark.modelApiHookModels to let prompt and agent hooks ask the model.',
+  paidHookModelDailyBudget: 'Shared daily paid budget: {budget}.',
   // The session board (M77, PLAN.md D49).
   boardTitle: 'Session board',
   boardUnavailable:

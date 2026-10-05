@@ -1166,12 +1166,46 @@ hooks from `.muse/hooks.json`. `MCP servers…` and `Hooks…` show configuratio
     (`"Authorization": "Bearer ${MY_TOKEN}"`).
   - **Tools** are named `mcp__<server>__<tool>` and read "tool (server)" in
     the transcript. Their results reach the model as text and pictures;
-    audio and files are described instead. Resources, prompts and sampling
+    audio and files are described instead. MCP servers may request a form:
+    review its fields and choose **Send**, **Decline** or **Cancel**, including
+    in Bypass. Only flat primitive forms from MCP 2025-06-18 are supported;
+    unsupported schemas and URL flows are refused. The panel closing, Stop,
+    or a timeout cancels. Typed values go only to the requesting server,
+    never as form answers in logs or saved transcripts. The server’s own
+    tool output may repeat submitted values. ACP clients use their form UI;
+    clients without forms receive a description and the request cancels.
+    Elicitation hook dispatch awaits M91 lane E's integration.
+    Resources, prompts and sampling
     are not supported.
 - **Hooks…** lists the project's, yours and your administrator's hooks, and
   opens the file behind each. A hook runs through your shell outside Muse
   Code's sandbox and approvals, so read a repository's hooks before you
   trust its folder.
+  - Beside Muse Code's `.muse/hooks.json` and your settings' `hooks`, it
+    lists the extension's own `spark-hooks.json`: the project's in
+    `.muse/spark-hooks.json`, and yours beside Muse Code's `settings.json`.
+    Muse Code never reads that file. It holds the events only this
+    extension runs, and the hooks imported from other agents.
+  - Each row says which backend runs the file, and a `spark-hooks.json`
+    row names the formats of the hooks imported into it.
+
+**Extension hooks (M91, in progress).** `.muse/spark-hooks.json` and the user
+`spark-hooks.json` beside Muse Code's `settings.json` hold extension events;
+Muse Code never reads these files. The same trust and `museSpark.modelApiHooks`
+opt-in apply. **Muse Spark: Run Setup Hooks** runs `Setup` with matcher `init`;
+**Muse Spark: Run Hook…** and `/hook run <name>` run one `Manual` hook by command
+or description, showing bounded output. These operations work on both backends
+without a model turn. The standalone agent also accepts
+`muse-spark-code-acp --trust-workspace setup [--maintenance]`; headless `exec`
+still refuses trust and never runs hooks.
+
+File changes require a matcher and an indexed workspace path; protected,
+ignored and escaped paths are excluded. Changes are debounced and capped.
+Settings notifications send an empty path and reason `settings`, because
+VS Code's settings event does not identify a file. Hook token additions appear
+separately from packing savings. Full 21-event support, including CwdChanged,
+elicitation, the MessageDisplay marker and automatic-compaction integration,
+still needs the owning lanes; see [lane E evidence](docs/certification/m91-e.md).
 
 On the **Model API backend**, `museSpark.modelApiHooks` is a machine-scoped
 setting, on by default and inert without a hooks file. A new session in a trusted workspace
@@ -1194,6 +1228,30 @@ Plan still refuses memory writes. Review each source with
 On the Model API backend, that picker shows the machine setting's on/off state
 and opens it. Turning the setting off stops hook dispatch in an open session;
 source file changes are read at the next session start.
+
+The Model API also accepts `http`, `mcp_tool`, `prompt` and `agent` handlers.
+An `http` handler supplies `url` in a user hook file. It uses HTTPS, follows
+no redirects and requires an entry in the machine setting
+`museSpark.hookHttpAllowedHosts` (empty by default): an exact host or
+`*.example.com`, which covers subdomains only. IP literals are refused except
+explicitly allowlisted loopback addresses. Restricted network posture stops it.
+An `mcp_tool` handler supplies `server` and `tool`, and uses that configured
+tool's ordinary permission path. Both receive the bounded event payload.
+
+`prompt` and `agent` supply `prompt`, on `PreToolUse`, `PermissionRequest`,
+`UserPromptSubmit`, `Stop` or `SubagentStop`. These model hooks are available
+by default when hooks are enabled; `museSpark.modelApiHookModels` switches
+them off. Each run asks through the three-choice paid popup with its token
+price, unless remembered for this workspace, and appears separately in
+Account & usage. `agent` can use only read, search, list and read-only code
+intelligence. Hidden model turns fire no hooks. Typed answers can refuse,
+narrow or add context; they cannot approve another operation.
+The existing session budget covers every request. Shared daily-budget
+integration and Muse Code dispatch are pending the other M91 lanes; see
+`docs/certification/m91-h.md` for their exact integration requirements.
+The fake-only guard drill script, `python3 docs/certification/m91-h-drills.py`,
+runs on the Kubuntu test rig and refuses Windows.
+
 Model-call hooks receive bounded summaries without inline image bytes or the
 Model API key. A pre-call veto stops the request before it reaches Meta. A
 post-call veto stops returned tools and follow-up requests. An isolated Muse
@@ -1204,6 +1262,68 @@ Tool hooks receive bounded previews of arguments and output, with media data
 URLs and credential-named fields omitted. MCP tools and the model still use
 the original arguments and results. A required MCP server failure ends the
 turn even if a post-tool hook asks to stop it.
+
+**Hooks from other agents.** **Import from other agents…** copies hooks
+written for Gemini CLI, Cursor, Copilot and VS Code, Windsurf, Kiro and Cline
+into `spark-hooks.json`, each tagged with its format. On the Model API
+backend each one runs in its own agent's shape:
+
+- It gets the input its agent would send, and its answer is read by that
+  agent's rules. A guard that blocks, fails or crashes there does the same
+  here. No answer approves a call: a foreign "allow" still shows the card.
+- Cursor's shell-command patterns and loop limits, and Kiro's file triggers,
+  decide whether a hook runs, as they do in those tools. On Windows,
+  Copilot, Windsurf and Cline hooks run in PowerShell, as their agents run
+  them.
+- A hook may replace what the model sees of a tool's output where its agent
+  documents that. The row keeps the real output, and a notice says so.
+
+Imported hooks never run on the Muse Code backend, and run under the same
+trust gate, opt-in and limits as every other hook.
+
+**Amp and OpenCode plugins.** The import also finds Amp's plugin files
+(`.amp/plugins/`, and `$XDG_CONFIG_HOME/amp/plugins/` or
+`~/.config/amp/plugins/`) and OpenCode's (`.opencode/plugins/` and
+`~/.config/opencode/plugins/`). For each hook a plugin registers by name, it
+writes one `spark-hooks.json` entry that points at the file. A plugin whose
+hook names it cannot read gets every hook it could fire. The preview shows
+file and hook names, never code. Directory plugins, OpenCode's npm plugins,
+and a personal plugin that leads into the open folder are listed and not
+imported.
+
+- **Where they run.** Only on the Model API backend. Each call runs in a
+  child process of its own, under your installed `node` (22.18 or later) for
+  Amp and `bun` for OpenCode, with the narrow hook environment:
+  - **Windows:** in a job object with a memory limit, which ends the plugin
+    and everything it started.
+  - **Linux:** in its own process group, with OpenCode's `bun` held to the
+    same memory limit by `prlimit`.
+  - **macOS:** OpenCode plugins are refused, because `bun`'s memory cannot be
+    bounded there.
+  - **The ACP agent:** plugin hooks are refused.
+- **What they can do.** A plugin can refuse a call, narrow its input, add
+  context or replace a tool's output, as its own agent allows. It has no
+  shell, no client and no model. Amp's `shellCommandFromToolCall` helper is
+  the one helper it can use.
+- **Failures.**
+  - An Amp `error` stops the call and ends the turn, as it does in Amp.
+  - An OpenCode `tool.execute.before` that throws, crashes or times out
+    blocks the call.
+  - Any other failure is logged and the call goes on.
+- **Tools and arguments.** A plugin sees our tools under its agent's names:
+  Amp's `Bash`, `Read`, `edit_file`, `create_file`; OpenCode's `bash`,
+  `read`, `edit`, `write`. Arguments are renamed only where a source shows
+  them: OpenCode's `read` takes `filePath` and `bash` takes `command`.
+  - Every other argument keeps our name. So an OpenCode guard that reads
+    `output.args.filePath` on `edit` or `write` throws, and the call is
+    blocked, never let through.
+  - Five OpenCode hooks have no event to fire on yet, and are listed and not
+    imported: `command.execute.before` and the bus's `todo.updated`,
+    `permission.replied`, `file.watcher.updated` and `message.updated`.
+- **Windows job failures.** If Windows cannot prepare the job that contains
+  plugins, plugin hooks fail by their rule and say why. The job is tried
+  again once after a few seconds. After a second failure, run **Muse Spark:
+  Retry Plugin Hooks** to try again.
 
 **Worktrees.** **New worktree…** asks for a new branch and its base (the
 current commit or any local branch), creates it in a folder of its own, and

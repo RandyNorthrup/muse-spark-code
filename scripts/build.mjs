@@ -79,6 +79,19 @@ const SESSION_BOARD_ENTRY = 'src/host/sessionBoardEntry.ts'
 const SESSION_BOARD_OUTFILE = 'dist/sessionBoard.js'
 const REVIEWER_ENTRY = 'src/core/backends/modelapi/reviewerEntry.ts'
 const REVIEWER_OUTFILE = 'dist/reviewer.js'
+// M91 lane W: the adapters for hooks imported in another agent's format,
+// loaded the first time a session holding one runs a hook.
+const FOREIGN_HOOKS_ENTRY = 'src/core/backends/modelapi/foreignHooksEntry.ts'
+const FOREIGN_HOOKS_OUTFILE = 'dist/foreignHooks.js'
+// M91: the hook and MCP-form runtime (lane E's spark-hooks.json reader and
+// dispatcher, lane H's typed handlers, lane M's form checks), loaded the first
+// time a session with hooks on, or a server's form, needs it.
+const HOOK_RUNTIME_ENTRY = 'src/core/backends/modelapi/hookRuntimeEntry.ts'
+const HOOK_RUNTIME_OUTFILE = 'dist/hookRuntime.js'
+// M91b: the Amp and OpenCode plugin host, which the adapters require the
+// first time a session dispatches a plugin hook.
+const PLUGIN_HOOKS_ENTRY = 'src/core/backends/modelapi/pluginHooksEntry.ts'
+const PLUGIN_HOOKS_OUTFILE = 'dist/pluginHooks.js'
 const PLAN_MARKDOWN_ENTRY = 'src/host/planMarkdownEntry.ts'
 const PLAN_MARKDOWN_OUTFILE = 'dist/planMarkdown.js'
 const REVIEW_ENTRY = 'src/host/review/reviewEntry.ts'
@@ -105,6 +118,8 @@ const WEB_FETCH_ENTRY = 'src/host/web/webFetchEntry.ts'
 const WEB_FETCH_OUTFILE = 'dist/webFetch.js'
 const MUSE_CODE_REVIEWER_ENTRY = 'src/host/review/museCodeReviewerEntry.ts'
 const MUSE_CODE_REVIEWER_OUTFILE = 'dist/museCodeReviewer.js'
+const EXTENSION_HOOKS_ENTRY = 'src/host/extensionHooksEntry.ts'
+const EXTENSION_HOOKS_OUTFILE = 'dist/extensionHooks.js'
 const WHATS_NEW_ENTRY = 'src/host/whatsNew/whatsNewEntry.ts'
 const WHATS_NEW_OUTFILE = 'dist/whatsNew.js'
 const SEARCH_WORKER_ENTRY = 'src/host/backend/searchWorker.ts'
@@ -159,20 +174,32 @@ const sharedValidation = {
 }
 
 // Keep dynamic imports dynamic: these entries run only on their first action.
+const DEFERRED_OUTFILES = new Map([
+  [path.resolve(SESSION_BOARD_ENTRY), SESSION_BOARD_OUTFILE],
+  [path.resolve(REVIEWER_ENTRY), REVIEWER_OUTFILE],
+  [path.resolve(FOREIGN_HOOKS_ENTRY), FOREIGN_HOOKS_OUTFILE],
+  [path.resolve(HOOK_RUNTIME_ENTRY), HOOK_RUNTIME_OUTFILE],
+  [path.resolve(WEB_FETCH_ENTRY), WEB_FETCH_OUTFILE],
+  [path.resolve(PLUGIN_HOOKS_ENTRY), PLUGIN_HOOKS_OUTFILE],
+])
 /** @type {import('esbuild').Plugin} */
 const deferredCohort = {
   name: 'deferred-cohort',
   setup(build) {
-    build.onResolve({ filter: /\/(?:sessionBoardEntry|reviewerEntry)(?:\.[jt]s)?$/ }, (args) => {
-      if (args.kind !== 'dynamic-import') return
-      const source = path.resolve(args.resolveDir, `${args.path.replace(/\.[jt]s$/, '')}.ts`)
-      let output
-      if (source === path.resolve(SESSION_BOARD_ENTRY)) output = SESSION_BOARD_OUTFILE
-      else if (source === path.resolve(REVIEWER_ENTRY)) output = REVIEWER_OUTFILE
-      return output === undefined
-        ? undefined
-        : { path: `./${path.basename(output)}`, external: true }
-    })
+    build.onResolve(
+      {
+        filter:
+          /\/(?:sessionBoardEntry|reviewerEntry|foreignHooksEntry|hookRuntimeEntry|pluginHooksEntry|webFetchEntry)(?:\.[jt]s)?$/,
+      },
+      (args) => {
+        if (args.kind !== 'dynamic-import') return
+        const source = path.resolve(args.resolveDir, `${args.path.replace(/\.[jt]s$/, '')}.ts`)
+        const output = DEFERRED_OUTFILES.get(source)
+        return output === undefined
+          ? undefined
+          : { path: `./${path.basename(output)}`, external: true }
+      },
+    )
   },
 }
 
@@ -221,6 +248,27 @@ const reviewerOptions = {
   ...modelApiOptions,
   entryPoints: [REVIEWER_ENTRY],
   outfile: REVIEWER_OUTFILE,
+}
+
+/** @type {import('esbuild').BuildOptions} */
+const foreignHooksOptions = {
+  ...modelApiOptions,
+  entryPoints: [FOREIGN_HOOKS_ENTRY],
+  outfile: FOREIGN_HOOKS_OUTFILE,
+}
+
+/** @type {import('esbuild').BuildOptions} */
+const hookRuntimeOptions = {
+  ...modelApiOptions,
+  entryPoints: [HOOK_RUNTIME_ENTRY],
+  outfile: HOOK_RUNTIME_OUTFILE,
+}
+
+/** @type {import('esbuild').BuildOptions} */
+const pluginHooksOptions = {
+  ...modelApiOptions,
+  entryPoints: [PLUGIN_HOOKS_ENTRY],
+  outfile: PLUGIN_HOOKS_OUTFILE,
 }
 
 /** @type {import('esbuild').BuildOptions} */
@@ -287,6 +335,13 @@ const whatsNewOptions = {
   external: ['vscode'],
   format: 'cjs',
   target: HOST_NODE_TARGET,
+}
+
+/** @type {import('esbuild').BuildOptions} */
+const extensionHooksOptions = {
+  ...modelApiOptions,
+  entryPoints: [EXTENSION_HOOKS_ENTRY],
+  outfile: EXTENSION_HOOKS_OUTFILE,
 }
 
 /** @type {import('esbuild').BuildOptions} */
@@ -503,6 +558,9 @@ if (isWatch) {
     esbuild.context(reviewOptions),
     esbuild.context(sessionBoardOptions),
     esbuild.context(reviewerOptions),
+    esbuild.context(foreignHooksOptions),
+    esbuild.context(hookRuntimeOptions),
+    esbuild.context(pluginHooksOptions),
     esbuild.context(planMarkdownOptions),
     esbuild.context(checkpointStoreOptions),
     esbuild.context(agentImportOptions),
@@ -512,6 +570,7 @@ if (isWatch) {
     esbuild.context(voiceOptions),
     esbuild.context(webFetchOptions),
     esbuild.context(museCodeReviewerOptions),
+    esbuild.context(extensionHooksOptions),
     esbuild.context(whatsNewOptions),
     esbuild.context(uiTextOptions),
     esbuild.context(validationOptions),
@@ -532,6 +591,9 @@ if (isWatch) {
     review: esbuild.build(reviewOptions),
     sessionBoard: esbuild.build(sessionBoardOptions),
     reviewer: esbuild.build(reviewerOptions),
+    foreignHooks: esbuild.build(foreignHooksOptions),
+    hookRuntime: esbuild.build(hookRuntimeOptions),
+    pluginHooks: esbuild.build(pluginHooksOptions),
     planMarkdown: esbuild.build(planMarkdownOptions),
     checkpointStore: esbuild.build(checkpointStoreOptions),
     agentImport: esbuild.build(agentImportOptions),
@@ -541,6 +603,7 @@ if (isWatch) {
     voice: esbuild.build(voiceOptions),
     webFetch: esbuild.build(webFetchOptions),
     museCodeReviewer: esbuild.build(museCodeReviewerOptions),
+    extensionHooks: esbuild.build(extensionHooksOptions),
     whatsNew: esbuild.build(whatsNewOptions),
     uiText: esbuild.build(uiTextOptions),
     validation: esbuild.build(validationOptions),
@@ -574,6 +637,8 @@ if (isWatch) {
   reportSize(REVIEW_OUTFILE)
   reportSize(SESSION_BOARD_OUTFILE)
   reportSize(REVIEWER_OUTFILE)
+  reportSize(FOREIGN_HOOKS_OUTFILE)
+  reportSize(HOOK_RUNTIME_OUTFILE)
   reportSize(PLAN_MARKDOWN_OUTFILE)
   reportSize(CHECKPOINT_STORE_OUTFILE)
   reportSize(AGENT_IMPORT_OUTFILE)
@@ -583,6 +648,7 @@ if (isWatch) {
   reportSize(VOICE_OUTFILE)
   reportSize(WEB_FETCH_OUTFILE)
   reportSize(MUSE_CODE_REVIEWER_OUTFILE)
+  reportSize(EXTENSION_HOOKS_OUTFILE)
   reportSize(WHATS_NEW_OUTFILE)
   reportSize(WHATS_NEW_CONTENT_OUTFILE)
   reportSize(UI_TEXT_OUTFILE)

@@ -122,6 +122,22 @@ export function worktreeRemoveArgs(folder: string, isForced: boolean): readonly 
   return ['worktree', 'remove', ...(isForced ? ['--force'] : []), folder]
 }
 
+/**
+ * The path a WorktreeCreate/Remove hook sees (M91 lane E): the worktree
+ * relative to the repository, with forward slashes, so matchers stay
+ * portable. Best-of-N worktrees live beside the repository, which reads as
+ * a `..` path; a workspace-rooted watcher resolves it from there.
+ */
+export function worktreeHookPath(
+  repositoryRoot: string,
+  worktreePath: string,
+  platform: NodeJS.Platform,
+): string {
+  const p = platform === 'win32' ? path.win32 : path.posix
+  const relative = p.relative(repositoryRoot, worktreePath)
+  return relative === '' ? '.' : relative.split(p.sep).join('/')
+}
+
 /** git refused because the worktree has changes; `--force` would discard them. */
 export function isDirtyWorktreeError(message: string): boolean {
   return DIRTY_WORKTREE.test(message)

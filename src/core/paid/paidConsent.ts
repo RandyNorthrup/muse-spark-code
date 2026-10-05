@@ -22,6 +22,7 @@ import {
   autoReviewPrice,
   bestOfNPrice,
   modelApiPaidTier,
+  hookModelPrice,
   type PaidUseRequest,
   scheduledRunPrice,
   subagentTaskPrice,
@@ -102,6 +103,19 @@ export function paidUseQuestion(request: PaidUseRequest): {
         detail: fill(UI_TEXT.paidBestOfNDetail, {
           prompt: request.prompt,
           price: bestOfNPrice(request.modelId, request.attempts, request.requestCeilingPerAttempt),
+        }),
+      }
+    }
+    case 'hookModels': {
+      return {
+        title: fill(UI_TEXT.paidHookModelTitle, { event: request.event }),
+        detail: fill(UI_TEXT.paidHookModelDetail, {
+          kind: request.kind,
+          model: request.modelId,
+          price:
+            request.dailyBudgetUsd === undefined
+              ? hookModelPrice(request.modelId)
+              : `${hookModelPrice(request.modelId)} ${fill(UI_TEXT.paidHookModelDailyBudget, { budget: formatUsd(request.dailyBudgetUsd, 2) })}`,
         }),
       }
     }

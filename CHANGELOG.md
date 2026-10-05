@@ -61,6 +61,147 @@ happened, not what was planned; superseded entries are kept.
   guards refuse stale operations. Commit, push, PR fetch and checkout use
   checkpoint process admission.
 
+- **M91 lane E wiring, in progress.** Trusted, opt-in `spark-hooks.json`
+  dispatch now reaches rules and skill loading, expanded prompts, tool
+  admission and permission refusals, model switches, todos, finished thoughts,
+  Best-of-N worktrees and bounded teammate continuations. Window hooks load
+  lazily on both backends, with Setup and Manual commands, `/hook run`, matched
+  file changes, settings changes and added folders. The standalone agent's
+  trusted Setup command runs without an account probe or a model call. Hook
+  context estimates have their own usage row. Full 21-event support remains
+  pending the owning S/M/W lanes and the automatic-compaction integration;
+  see `docs/certification/m91-e.md` for exact evidence and limits.
+
+- **Hooks from every popular agent (M91, PLAN.md D70), in progress.**
+  - **The plan.** On the Model API backend:
+    - Muse Code's Interrupt and its PostToolUseFailure correction;
+    - 21 extension-only events in a new `spark-hooks.json`, which Muse Code
+      never reads;
+    - importers and format adapters for hooks written for Codex, Gemini,
+      Cursor, Copilot and VS Code, Windsurf, Kiro and Cline;
+    - the `http`, `mcp_tool`, `prompt` and `agent` handler types;
+    - an out-of-process host for Amp and OpenCode plugins.
+
+    None of them gains a permission or a paid use, and none breaks the
+    prompt cache or the SoL-Pi savings.
+  - **So far:** the research and echo-provider captures of Muse Code 1.4.2,
+    with 0 model calls.
+    - Interrupt fires on every cancellation of a running turn, a hook's
+      block and a close included.
+    - SessionFork, StopFailure and PostToolBatch did not run.
+
+    Also built: the milestone's strings in all 14 languages, and its hook
+    constants (the spark-hooks.json paths, the 21 extension events, and
+    FileChanged's debounce and per-minute cap). Nothing a user can reach has
+    changed yet.
+  - **Lane G:** the golden "hooks off" request fixtures
+    (`test/fixtures/golden-requests/`): the exact `POST /responses` bodies
+    for a plain turn, a tool call, an `edit_file` with `then_run`, a packed
+    long output, a manual compaction, a subagent child turn, and a turn with
+    skills and rules loaded. Later lanes must not move these bytes.
+  - **Lane I:** importers for every agent's hooks. Codex `hooks.json` and
+    the inline `[hooks]` table of `config.toml` convert into Muse Code's
+    own files and run on both backends. Gemini, Cursor, Copilot and VS
+    Code, Windsurf, Kiro v1 and Cline v1 convert into `spark-hooks.json`
+    with a `format` tag for lane P's adapters, as does Claude Code's
+    extension set. Every refusal carries its reason
+    (`agentImportSkipped*`); the preview shows metadata only, never
+    command text. The golden hooks-off requests are unchanged.
+  - **Lane R, Muse Code parity.** On the Model API backend, `Interrupt`
+    (async only) fires when a running turn or compaction is cancelled, and
+    never when an idle session closes, as the captures show Muse Code firing
+    it. `SessionFork` is accepted only as sync and runs nothing until
+    meta-models/muse-code-sdk#84 is answered. A `PostToolUseFailure` hook's
+    `updatedInput` re-runs the same tool once per step through the full
+    path, up to `HOOK_ON_FAILURE_MAX_DEPTH`.
+  - **Lane P, format adapters.** Each of Gemini CLI, Cursor, Copilot (CLI
+    and VS Code Local), Windsurf and Kiro has a declarative contract table,
+    every row citing its saved source, and one engine reads them all. Each
+    source keeps its fail-closed rules and none of its grants.
+  - **Lane S, the shell keeps its directory.** A `cd` in one Model API
+    shell call carries into the next, confined to the workspace. A
+    directory outside it, or one reached through a link out of it, resets to
+    the root with a note. `then_run` and `run_checks` still run at the
+    root. `museSpark.modelApiShellKeepsDirectory` (machine-scoped, on by
+    default) turns it off.
+  - **Lane X, plugins and Cline.** A contract table for Cline v1's
+    per-event scripts, and an out-of-process child that runs Amp and
+    OpenCode plugins under the user's own node or bun, with no shell,
+    client or model access. The plugin child is not yet dispatched.
+  - **Lane W, the wiring.** Hooks imported from other agents now run on
+    the Model API backend through those adapters, from `spark-hooks.json`,
+    under the same trust gate, opt-in and limits as Muse Code's hooks:
+    - they never run as native hooks, and no answer grants;
+    - a timeout is told apart from a crash by each source's rule (Copilot
+      lets a timed-out guard through; Cursor's `failClosed` blocks on
+      both);
+    - Cursor's shell-command patterns and loop limits, and Kiro's file
+      triggers, decide whether a hook runs, as they do there;
+    - a hook's working directory is confined after links resolve, and a
+      Cursor user hook runs from `~/.cursor`;
+    - on Windows, Copilot, Windsurf and Cline hooks run in PowerShell, as
+      their sources run them;
+    - a documented output replacement reaches the model before the next
+      request, with a notice, and the row keeps the real output.
+
+    The adapters load from their own bundle the first time a session runs
+    one. The Hooks picker lists both hook files for each scope and which
+    backend runs each, and the panel marks a reply a MessageDisplay hook
+    rewrote, with the original one click away.
+  - **Lane H:** the four new hook handler types. `http` (user files only,
+    HTTPS, machine-scoped `museSpark.hookHttpAllowedHosts`, no redirects);
+    `mcp_tool` (a configured MCP server's tool, through its own approval
+    card); `prompt` and `agent` on the Model API (a paid model call each,
+    allowed by default, first charge asks once, tallied apart); `prompt`
+    and `agent` have a reusable hidden Muse Code side-session runner with
+    a subscription notice (dispatch awaits lane R). The session budget
+    applies; shared daily-budget wiring awaits the defaults lane. Every answer parses like a command's:
+    refuse, narrow or add context only. `command` is unchanged.
+  - **Lane M:** MCP elicitation in form mode on the Model API backend. The
+    MCP client declares the `elicitation` capability (`form` only) and
+    answers a server's `elicitation/create` with a form in the panel — or
+    through the ACP client's own form — as accept (validated against the
+    server's schema), decline or cancel. A request outside the spec's
+    restricted subset, and URL-mode flows, are declined with a reason and
+    never rendered. A timeout, a stopped turn or a closed panel cancels;
+    nothing auto-accepts, in Bypass either. Values are never logged and
+    reach no transcript or export beyond the server's own result. The
+    Elicitation hook may decline or cancel (a user hook may answer) and
+    ElicitationResult observes with field names and the action only, through
+    a narrow seam until lane E wires the dispatch.
+  - **Integration (lane W, 2026-10-05).**
+    - A hook imported onto one of the extension events is not imported yet,
+      and the preview says why in the user's language: "weaker" where the
+      source can block (Gemini BeforeToolSelection, Kiro PreTaskExec),
+      otherwise "not supported". M91b routes them, and Amp and OpenCode
+      plugin dispatch moves to M91b with them.
+    - Lanes E, H and M's runtime (the spark-hooks.json reader and
+      dispatcher, the typed handlers, the form checks) loads from its own
+      bundle, `dist/hookRuntime.js`, and the imported records' reader from
+      `dist/foreignHooks.js`. `dist/modelApi.js` went from 486.1 KiB to
+      463.7 KiB, under its 475 KiB cap.
+    - The format adapters' dotted paths never reach an object's prototype
+      (semgrep's prototype-pollution-loop finding).
+    - The localization check fails when a JSON file names a key twice in one
+      object: a stale `config.modelApiHooks.description` in ko, pt-br and
+      zh-tw had been hiding the new one.
+  - **M91b, Amp and OpenCode plugins.** Their hooks now run on the Model API
+    backend.
+    - **Import.** Plugin files in Amp's and OpenCode's folders become
+      `spark-hooks.json` entries, one per hook named in the file. Directory
+      plugins and npm plugins are listed and not imported. A personal plugin
+      that leads into the open folder is also refused, as are the five
+      OpenCode hooks with no event to fire on yet.
+    - **Running.** Each call runs in a child process under your `node` or
+      `bun`, in a Windows job or a POSIX process group. A plugin sees our
+      tools and arguments under its agent's names, where the agent's own
+      sources show them. Amp's `error` stops the call and ends the turn.
+    - **Retry Plugin Hooks.** A new command, **Muse Spark: Retry Plugin
+      Hooks** (Windows), turns plugin hooks back on after the job that
+      contains them could not be prepared twice.
+    - **The plugin host** loads from its own bundle, `dist/pluginHooks.js`,
+      the first time a plugin hook runs.
+
 ### Changed
 
 - **M100's paired-device plan now states connectivity prerequisites.** Manual
@@ -71,6 +212,15 @@ happened, not what was planned; superseded entries are kept.
   Devices and mDNS stay off by default as an explicit security exception to
   enhancements-on. Documentation only; no pairing or remote execution ships.
 - Keep paid HTTP clients in the existing Model API bundle until first use; compress production Node English text and packaged UI tables without changing their decoded values or size budgets.
+
+- **Plugin limits (M91b).**
+  - OpenCode plugins are refused on macOS, where `bun`'s memory cannot be
+    bounded.
+  - Plugin hooks are refused in the ACP agent.
+  - An OpenCode `tool.execute.before` blocks the call when it throws,
+    crashes or times out. Every other plugin hook fails open.
+- **M50's Windows MCP job launcher** takes an optional job memory limit.
+  MCP servers still start without one.
 
 ### Fixed
 
@@ -83,9 +233,38 @@ happened, not what was planned; superseded entries are kept.
   describes 0.13.0, the Marketplace README carries the same section, and a
   test fails any release whose README section does not name its version.
 
+- M91's unwired Gemini hook adapters translate established native arguments
+  and explicitly refuse unsupported blocking calls. Tool-selection whitelists
+  survive `ANY` without forcing a call. Captured nested arguments and saved
+  vendor scripts now have data-dependent checks; certification claims are
+  limited to the evidence actually checked. Model packets validate their
+  captured shapes, tool patches preserve full original arguments, ignored
+  lifecycle controls retain observations, and Notification retains details.
+
+- **M91 import review, round 3:** unreadable source switches refuse hooks;
+  Copilot inline settings refuse siblings together; Cline script references
+  are checked again after awaits and during planning, quoted as literal paths
+  for Unix and PowerShell, and retain their 30-second bound. Nonexact tool
+  matchers and Gemini lifecycle filters refuse visibly, Gemini sequential
+  policy spans user and project settings, Cursor requires version 1 and
+  uses the adapter's source-event contract, and universal Copilot regexes
+  remain supported. Truncated or normalized MCP identities are refused.
+  Kiro Manual is refused until its adapter has a row.
+
 ### Security
 
 - Tab uses held-project trust for completions and rechecks it at the native Git entry for ignore lookups, so a held pull-request worktree runs no automatic Tab Git command.
+
+- **The plugin child** (RVM91X review, M91):
+  - **Contained.** On Windows it runs in a kill-on-close job, so it cannot
+    leave descendants behind. It sees only the allowlisted hook
+    environment, as does the version probe.
+  - **Memory-bounded.** The limit is 1 GiB: a Windows job limit, a `node`
+    heap cap, or `prlimit` for `bun` on Linux.
+  - **Validated.** Every answer it sends is parsed by a closed schema, and
+    no plugin answer grants a permission.
+  - **Ruled.** A failed answer follows the call's fail-closed rule, and an
+    earlier refusal survives a later handler's failure.
 
 ## [0.13.0] - 2026-10-05
 

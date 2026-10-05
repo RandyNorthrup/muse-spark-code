@@ -335,6 +335,7 @@ const webviewToHostMessageSchema = z.discriminatedUnion('type', [
     userMessageId: z.optional(z.string().check(z.minLength(1))),
   }),
   // The user pressed Stop.
+  z.object({ type: z.literal('runManualHook'), name: z.string().check(z.minLength(1)) }),
   z.object({ type: z.literal('cancelTurn') }),
   z.object({ type: z.literal('signIn'), method: z.enum(SIGN_IN_METHODS) }),
   z.object({ type: z.literal('installMuseCode') }),
@@ -419,6 +420,14 @@ const webviewToHostMessageSchema = z.discriminatedUnion('type', [
   }),
   // Question card: Cancel declines the prompt; the model sees a cancelled result (M16).
   z.object({ type: z.literal('cancelQuestion'), userInputId: z.string() }),
+  // Elicitation form (M91 lane M): accept with the form's values (validated
+  // against the schema before they reach the server), or decline or cancel.
+  z.object({
+    type: z.literal('elicitationAnswer'),
+    elicitationId: z.string(),
+    action: z.enum(['accept', 'decline', 'cancel']),
+    values: z.optional(z.record(z.string(), z.unknown())),
+  }),
   // Question card: one answer per question.
   z.object({
     type: z.literal('answerQuestion'),

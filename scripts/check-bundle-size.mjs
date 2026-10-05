@@ -29,6 +29,23 @@ const BUDGETS = [
   { path: 'dist/sessionBoard.js', budgetKiB: 75 },
   // M78b: paid Auto review after consent, 55.2 KiB with the same rule.
   { path: 'dist/reviewer.js', budgetKiB: 75 },
+  // M91 lane W: the imported hooks' adapters (lane P's contracts and engine),
+  // loaded the first time a session holding one runs a hook: 64.9 KiB when
+  // split out (2026-10-04). 85.7 KiB once the imported records' reader moved
+  // in from dist/modelApi.js (2026-10-05), 65.4 KiB with main's shared
+  // dist/validation.js; plus 15%, rounded up to 25 KiB (PLAN.md D6).
+  { path: 'dist/foreignHooks.js', budgetKiB: 100 },
+  // M91: the hook and MCP-form runtime (lane E's spark-hooks.json reader and
+  // dispatcher, lane H's typed handlers, lane M's form checks), moved out of
+  // dist/modelApi.js and loaded on first use: 67.1 KiB when split out
+  // (2026-10-05), 41.7 KiB once main's shared dist/validation.js carried its
+  // zod/mini, plus 15%, rounded up to 25 KiB (PLAN.md D6).
+  { path: 'dist/hookRuntime.js', budgetKiB: 50 },
+  // M91b: the Amp and OpenCode plugin host (its child's source, the host and
+  // the event mapping), loaded on the first plugin hook: 51.6 KiB when split
+  // out (2026-10-05), 33.8 KiB on 0.13.0's shared dist/validation.js; plus
+  // 15%, rounded up to 25 KiB (PLAN.md D6).
+  { path: 'dist/pluginHooks.js', budgetKiB: 50 },
   // The plan reader, the panel's Markdown parser, loaded on the first plan
   // action (M79): 114.7 KiB when split out, 139.0 KiB with the brief's writer.
   { path: 'dist/planMarkdown.js', budgetKiB: 150 },
@@ -38,6 +55,8 @@ const BUDGETS = [
   // M83: the import from other agents (the scan, the converters, the file
   // access, the flow and smol-toml), loaded on the first import: 100.0 KiB
   // when split out. Measured size plus 15%, rounded up to 25 KiB (PLAN.md D6).
+  // M91 lane I's readers for every agent's hooks: 108.1 KiB with main's shared
+  // dist/validation.js (2026-10-05), within the unchanged budget.
   { path: 'dist/agentImport.js', budgetKiB: 125 },
   // M81: the browser check's pipe, run and processes, required on the first
   // check: 37.8 KiB when split out (zod/mini 14.8 of it). Measured size
@@ -75,13 +94,15 @@ const BUDGETS = [
   // side session, queue and approvals with M78's reviewer core. 45.4 KiB when
   // split out, plus 15%, rounded up to 25 KiB (PLAN.md D6).
   { path: 'dist/museCodeReviewer.js', budgetKiB: 75 },
+  // M91 E: both-backend hooks, 45.4 KiB + 15%, rounded up to 25 KiB.
+  { path: 'dist/extensionHooks.js', budgetKiB: 75 },
   // What's New (M99, PLAN.md D79), loaded on the first page or notice: the
   // page's renderer, its content schema (zod's mini parser) and its tab.
   // 34.8 KiB when split out, plus 15%, rounded up to 25 KiB.
   { path: 'dist/whatsNew.js', budgetKiB: 50 },
   { path: 'dist/whatsNew.json', budgetKiB: WHATS_NEW_CONTENT_BUDGET_KIB },
-  // Shared English fallback; existing host budgets stay unchanged. Measured
-  // 104.9 KiB (2026-10-04); plus 15%, rounded up to 25 KiB.
+  // Shared English fallback; TRAIN14 restores the original cap after the
+  // lossless packed fallback and ACTDIET region split (PLAN.md D6).
   { path: 'dist/uiText.js', budgetKiB: 125 },
   // TRAIN13B: used Node mini-parser API, 39.5 KiB + 15%, rounded to 25 KiB.
   { path: 'dist/validation.js', budgetKiB: 50 },

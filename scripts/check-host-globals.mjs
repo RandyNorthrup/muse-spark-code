@@ -19,6 +19,12 @@ const HOST_BUNDLES = [
   'dist/review.js',
   'dist/sessionBoard.js',
   'dist/reviewer.js',
+  // M91: the imported hooks' adapters, the hook and MCP-form runtime, and
+  // the window's extension hook runner.
+  'dist/foreignHooks.js',
+  'dist/hookRuntime.js',
+  'dist/extensionHooks.js',
+  'dist/pluginHooks.js',
   'dist/planMarkdown.js',
   'dist/checkpointStore.js',
   'dist/browserCheck.js',

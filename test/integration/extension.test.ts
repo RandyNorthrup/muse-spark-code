@@ -128,6 +128,15 @@ suite('activation', () => {
     assert.equal(webviewTabs(), before)
   })
 
+  test('runs Retry Plugin Hooks in a live window, with no plugin configured (M91b)', async () => {
+    // AGENTS rule 10: the README's command runs here, not only in unit tests.
+    // It forgets a failed Windows job preparation and says so; with nothing
+    // to forget it still resolves, on every platform.
+    await vscode.commands.executeCommand(COMMAND_IDS.retryPluginHooks)
+    const commands = await vscode.commands.getCommands(true)
+    assert.ok(commands.includes(COMMAND_IDS.retryPluginHooks))
+  })
+
   test('opens the walkthrough (D15)', async () => {
     await vscode.commands.executeCommand(COMMAND_IDS.openWalkthrough)
     // The walkthrough opens in VS Code's Welcome editor.

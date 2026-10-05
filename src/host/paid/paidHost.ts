@@ -86,6 +86,7 @@ function confirmationDetail(feature: PaidFeature): string {
     // (`paidFeaturePrice('tab')`); the per-use popup quotes the request's
     // own model instead (paidConsent.ts).
     tab: UI_TEXT.paidConfirmTab,
+    hookModels: UI_TEXT.paidConfirmHookModel,
   }
   return fill(details[feature], { price: paidFeaturePrice(feature) })
 }
@@ -130,6 +131,10 @@ export async function askPaidUse(
     if (!Number.isFinite(request.budgetUsd) || request.budgetUsd < 0) {
       return 'deny'
     }
+  }
+  // No verified price, nothing to accept (M48, M78): refused before any popup.
+  if (request.feature === 'hookModels' && modelApiPaidTier(request.modelId) === undefined) {
+    return 'deny'
   }
   const { title, detail } = paidUseQuestion(request)
   const once: vscode.MessageItem = { title: UI_TEXT.allowOnce }

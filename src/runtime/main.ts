@@ -8,7 +8,7 @@ import { spawn } from 'node:child_process'
 import { randomBytes } from 'node:crypto'
 import { readFileSync } from 'node:fs'
 import { open } from 'node:fs/promises'
-import { homedir } from 'node:os'
+import { homedir, tmpdir } from 'node:os'
 import path from 'node:path'
 import process from 'node:process'
 import { Writable } from 'node:stream'
@@ -22,6 +22,8 @@ import {
   EXEC_EXIT,
   EXEC_SCAN_TIMEOUT_MS,
   EXEC_FORCE_WRITE_MS,
+  EXTENSION_HOOKS_BUNDLE_FILE,
+  SEARCH_WORKER_FILE,
   SETTING_DEFAULTS,
   UI_TEXT,
 } from '../shared/constants'
@@ -43,6 +45,14 @@ import { createFdWriter } from './exec/fdWriter'
 import { createExecLogger, redactWhole } from './exec/execOutput'
 import { runExec } from './exec/runExec'
 import { runSecretScan } from './exec/scanSecrets'
+import { extensionHooksBundle } from '../host/extensionHooksBundle'
+import { fileContextIo } from '../host/backend/contextIo'
+import { createToolIo } from '../host/backend/toolIo'
+import { museSettingsPath } from '../host/backend/museSettings'
+import { walkFiles } from './fileWalk'
+import { shellJobAssembly } from '../host/backend/shellJob'
+import { jobSourceReader } from '../host/backend/jobSource'
+import { uiLocale } from '../shared/l10n/text'
 
 const EXIT_FAILED = 1
 // Credential variables leave the agent's own environment before anything
@@ -190,6 +200,78 @@ function runtimeFor(options: ServeOptions, log: Logger) {
     sleep,
     log,
   })
+}
+
+/** Explicit trusted Setup runs neither an account probe nor a model request. */
+async function setupHooks(
+  options: ServeOptions,
+  isMaintenance: boolean,
+  log: Logger,
+): Promise<number> {
+  const workspaceRoot = process.cwd()
+  const systemRoot = process.env['SystemRoot']
+  const io = createToolIo({
+    platform: process.platform,
+    listFiles: () => walkFiles(workspaceRoot, 1, log),
+    systemRoot,
+    searchWorkerPath: path.join(distDir, SEARCH_WORKER_FILE),
+    env: () => process.env,
+    log: (message) => {
+      log.warn(message)
+    },
+    unsavedFiles: () => [],
+    shellJobAssembly:
+      systemRoot !== undefined && process.platform === 'win32'
+        ? shellJobAssembly({
+            storageDir: path.join(tmpdir(), ACP_AGENT_NAME),
+            systemRoot,
+            readJobSource: jobSourceReader(packageRoot),
+            log: (message) => {
+              log.warn(message)
+            },
+          })
+        : undefined,
+  })
+  const runHook = io.runHook?.bind(io)
+  if (runHook === undefined) throw new Error(UI_TEXT.hooksNotRunnable)
+  const bundle = await extensionHooksBundle(
+    path.join(distDir, EXTENSION_HOOKS_BUNDLE_FILE),
+    log,
+  ).loadBundle()
+  const runner = bundle.createExtensionHookRunner(
+    {
+      io: fileContextIo,
+      runHook,
+      platform: process.platform,
+      workspaceRoot,
+      settingsPath: museSettingsPath({
+        platform: process.platform,
+        homeDir: homedir(),
+        xdgConfigHome: process.env['XDG_CONFIG_HOME'],
+      }),
+      isWorkspaceTrusted: () => options.trustWorkspace,
+      isHooksEnabled: () => options.trustWorkspace,
+      now: () => Date.now(),
+      notice: (_level, text) => {
+        writeLine(process.stderr, text)
+      },
+      showOutput: (_title, text) => {
+        writeLine(process.stdout, text)
+      },
+      warn: (message) => {
+        log.warn(message)
+      },
+    },
+    UI_TEXT,
+    uiLocale(),
+  )
+  const result = await runner.runSetup(isMaintenance ? 'maintenance' : 'init')
+  if (result.failedReason !== undefined) {
+    writeLine(process.stderr, fill(UI_TEXT.setupHooksFailed, { reason: result.failedReason }))
+    return EXIT_FAILED
+  }
+  if (result.ran === 0) writeLine(process.stderr, UI_TEXT.setupHooksNone)
+  return 0
 }
 
 async function serve(options: ServeOptions, log: Logger): Promise<number> {
@@ -363,6 +445,9 @@ async function main(): Promise<number> {
     log,
   })
   switch (command.command) {
+    case 'setup': {
+      return await setupHooks(command.options, command.maintenance, log)
+    }
     case 'serve': {
       return await serve(command.options, log)
     }
@@ -394,6 +479,7 @@ async function main(): Promise<number> {
     }
     case 'help': {
       writeLine(process.stdout, fill(UI_TEXT.acpUsage, { command: ACP_AGENT_NAME }))
+      writeLine(process.stdout, fill(UI_TEXT.acpUsageSetup, { command: ACP_AGENT_NAME }))
       return 0
     }
     case 'invalid': {

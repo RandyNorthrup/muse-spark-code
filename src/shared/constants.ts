@@ -68,6 +68,10 @@ export const COMMAND_IDS = {
   openShareFile: 'museSpark.openShareFile',
   mcpServers: 'museSpark.mcpServers',
   hooks: 'museSpark.hooks',
+  runSetupHooks: 'museSpark.runSetupHooks',
+  runHook: 'museSpark.runHook',
+  // M91b: forget a failed Windows job preparation for plugin hooks.
+  retryPluginHooks: 'museSpark.retryPluginHooks',
   memory: 'museSpark.memory',
   newWorktree: 'museSpark.newWorktree',
   removeWorktree: 'museSpark.removeWorktree',
@@ -360,6 +364,21 @@ export const SETTING_DEFAULTS = {
   modelApiBestOfN: true,
   // D78: inert without a hooks file; Restricted Mode loads and runs none.
   modelApiHooks: true,
+  // The Model API shell keeps its directory between calls (M91 lane S, PLAN.md
+  // D70). On by default, the owner's ruling of 2026-10-04 that enhancements
+  // ship on; a machine setting turns it off.
+  modelApiShellKeepsDirectory: true,
+  // M91 prompt and agent hook handlers (PLAN.md D70): each run is a paid
+  // model call under D30 and D48. OWNER RULING 2026-10-04 supersedes the
+  // plan's "off by default": the feature is available by default, and the
+  // first charge asks once in the paid-use popup. The setting stays as the
+  // machine-scoped kill switch.
+  modelApiHookModels: true,
+  // M91 http hook handlers (PLAN.md D70): the hosts one may call, exact
+  // names or `*.example.com` for subdomains only. Empty by default: with no
+  // entry, no http hook runs. Machine scoped, beside the paid settings: a
+  // repository must not allow hosts.
+  hookHttpAllowedHosts: [] as readonly string[],
   // M78 (PLAN.md D49): the command rules, the permission profiles and the
   // one in force, what a repository adds (it can only tighten), and the
   // paid Auto reviewer. None set, nothing changes.
@@ -469,6 +488,11 @@ export const MACHINE_SCOPED_SETTINGS = [
   'modelApiSubagents',
   'modelApiBestOfN',
   'modelApiHooks',
+  // M91 lane S: what directory the shell runs in is the user's choice, never a
+  // repository's.
+  'modelApiShellKeepsDirectory',
+  'modelApiHookModels',
+  'hookHttpAllowedHosts',
   // M78: the user's rules and profiles, which loosen as well as tighten.
   // `modelApiRepositoryRules` is not among them: a repository sets it, and
   // everything in it can only tighten.
@@ -550,6 +574,40 @@ export const HOOK_MANAGED_ENV_MAX_NAMES = 64
 export const HOOK_MANAGED_ENV_NAME_MAX_CHARS = 128
 export const HOOK_NOTIFICATION_DELAY_MS = 6000
 export const HOOK_SESSION_END_TIMEOUT_MS = 10_000
+// Cline v1 contextModification cap (M91 lane X; hooks-parity/raw-copilot-cline.md:25).
+export const CLINE_CONTEXT_MODIFICATION_MAX_CHARS = 50_000
+// M91 lane X: the plugin child runs one plugin per hook call under these bounds.
+export const PLUGIN_HOOK_TIMEOUT_MS = 30_000
+export const PLUGIN_NODE_MINIMUM = '22.18.0'
+export const PLUGIN_CHILD_MAX_HEAP_MB = 256
+export const PLUGIN_RESPONSE_MAX_BYTES = 64 * 1024
+// How long `node --version` / `bun --version` may take before the runtime counts as absent.
+export const PLUGIN_RUNTIME_PROBE_TIMEOUT_MS = 15_000
+// M91 handler types (PLAN.md D70, lane H): the http, mcp_tool, prompt and
+// agent handlers take the same caps as commands (M91 acceptance: stdin,
+// stdout and timeout caps shared).
+export const HOOK_HTTP_URL_MAX_CHARS = 2048
+export const HOOK_HTTP_ALLOWLIST_ENTRY_MAX_CHARS = 256
+export const HOOK_IP_V4_FAMILY = 4
+export const HOOK_IP_V6_FAMILY = 6
+export const HOOK_HTTP_REDIRECT_MIN_STATUS = 300
+// A prompt or agent handler's own model call: one attempt, no retry, with
+// the hook's answer parsed like a command's.
+export const HOOK_MODEL_TIMEOUT_MS = 60_000
+export const HOOK_MODEL_MAX_OUTPUT_TOKENS = 1024
+// An agent handler's read-only tool loop: this many model requests at most,
+// then its partial answer is parsed as-is.
+export const HOOK_AGENT_MAX_STEPS = 5
+// A prompt/agent hook's transcript row: the paid run is loud, like a review's.
+export const HOOK_MODEL_ROW_TOOL = 'hook_model'
+// RVM91X P2 12: a plugin child's whole memory, as a Windows job limit and,
+// for bun on Linux, as prlimit's data limit (node also keeps its heap cap).
+export const PLUGIN_CHILD_MAX_MEMORY_BYTES = 1024 * 1024 * 1024
+// After the Windows job launcher fails to prepare, the next plugin dispatch
+// past this delay tries once more; a second failure stays until Retry.
+export const PLUGIN_JOB_RETRY_BACKOFF_MS = 5000
+// The plugin files an import reads to find their events, per system.
+export const PLUGIN_IMPORT_MAX_BYTES = 256 * 1024
 export const HOOK_FORBIDDEN_ENV_NAMES: ReadonlySet<string> = new Set([
   'AWS_ACCESS_KEY_ID',
   'AWS_SECRET_ACCESS_KEY',
@@ -558,6 +616,100 @@ export const HOOK_FORBIDDEN_ENV_NAMES: ReadonlySet<string> = new Set([
   'ANTHROPIC_KEY',
   'META_KEY',
 ])
+// M91 lane W (PLAN.md D70): the formats lane P's adapters translate, Cline's
+// v1 scripts among them (lane X's contract). A spark-hooks.json group names one
+// in its `format` tag; a group in any other format is skipped with a warning.
+export const HOOK_FORMATS = ['gemini', 'cursor', 'copilot', 'windsurf', 'kiro', 'cline'] as const
+// M91b: the plugin systems whose plugins run out of process (pluginHost.ts).
+// A spark-hooks.json group names one in `format`, with a `plugin` path and a
+// `plugin` handler; lane P's adapters (HOOK_FORMATS) never read them.
+export const PLUGIN_FORMATS = ['amp', 'opencode'] as const
+// The one plugin hook whose failure blocks: OpenCode's tool.execute.before,
+// where a throw blocks (oc_plugin_index.ts:266), so a crash counts as one.
+export const PLUGIN_FAIL_CLOSED_SOURCE = 'tool.execute.before'
+// Each format's source agent by its name in the import picker, for the Hooks
+// picker's rows and the adapters' notices; Cline's for lane X's plugin host.
+export const HOOK_FORMAT_NAME_KEYS = {
+  gemini: 'agentImportSourceGemini',
+  cursor: 'agentImportSourceCursor',
+  copilot: 'agentImportSourceCopilot',
+  windsurf: 'agentImportSourceWindsurf',
+  kiro: 'agentImportSourceKiro',
+  cline: 'agentImportSourceCline',
+  amp: 'agentImportSourceAmp',
+  opencode: 'agentImportSourceOpenCode',
+} as const
+// Cursor's stop and subagentStop follow-up limit for a script that sets no
+// `loop_limit` ("Default is 5 for Cursor hooks", cursor.com/docs/hooks).
+export const HOOK_CURSOR_DEFAULT_LOOP_LIMIT = 5
+// An imported hook on one of the extension events waits for M91b's adapter
+// route there, so the importer refuses it (M91 lane W). These source events,
+// as `format:event`, can refuse or narrow where they come from, so their
+// refusal says the guard would be weaker; every other one is unsupported.
+// Gemini BeforeToolSelection narrows the tools (geminicli.com hooks
+// reference, "BeforeToolSelection"); Kiro PreTaskExec blocks on exit 2
+// (lane P's contracts/kiro.ts). Cursor workspaceOpen and afterAgentThought,
+// Windsurf post_setup_worktree and Kiro PostTaskExec only observe.
+export const HOOK_IMPORT_REFUSING_EXTENSION_SOURCES: readonly string[] = [
+  'gemini:BeforeToolSelection',
+  'kiro:PreTaskExec',
+]
+// cmd.exe's longest command line (learn.microsoft.com, "Command prompt line
+// string limitation"): an imported PowerShell hook's encoded command past it
+// is refused rather than cut.
+export const HOOK_WINDOWS_COMMAND_MAX_CHARS = 8191
+// Hooks from every popular agent (M91, PLAN.md D70), landed by lane 0 before
+// the lanes that read them. Muse Code's own two new events, Interrupt (1.4.0)
+// and SessionFork (1.4.2), join `HOOK_EVENTS` in hooks.ts (lane R).
+
+// Muse Code never reads spark-hooks.json, so extension events neither warn on every CLI start nor change meaning if Muse Code adopts a name (D70).
+export const SPARK_HOOKS_SEGMENTS = {
+  /** Under the workspace root, inside the protected `.muse`. */
+  project: ['.muse', 'spark-hooks.json'],
+  /** Under the config home (`$XDG_CONFIG_HOME`, else `~/.config`), beside Muse Code's settings.json. */
+  user: ['muse', 'spark-hooks.json'],
+} as const
+// The events only this extension runs, from spark-hooks.json: Claude Code's names (the de facto standard), else the source agent's in PascalCase.
+export const EXTENSION_HOOK_EVENTS = [
+  'InstructionsLoaded',
+  'UserPromptExpansion',
+  'PermissionDenied',
+  'PreModelSwitch',
+  'PostModelSwitch',
+  'TaskCreated',
+  'TaskCompleted',
+  'FileChanged',
+  'ConfigChange',
+  'WorktreeCreate',
+  'WorktreeRemove',
+  // Adopted on the owner's direction of 2026-10-04, each with its operation.
+  'Setup',
+  'DirectoryAdded',
+  'CwdChanged',
+  'Elicitation',
+  'ElicitationResult',
+  'TeammateIdle',
+  'MessageDisplay',
+  'BeforeToolSelection',
+  'AfterAgentThought',
+  'Manual',
+] as const
+// A save storm or a build's output changes a path many times in a burst, so FileChanged fires once per path in this quiet window.
+export const HOOK_FILE_CHANGED_DEBOUNCE_MS = 500
+// At most this many FileChanged runs a minute per session; the rest are dropped and counted in the log, so a watcher loop cannot spawn processes without bound.
+export const HOOK_FILE_CHANGED_MAX_PER_MINUTE = 30
+// How long an MCP elicitation form waits for its answer (M91 lane M): a
+// timeout or a stopped turn settles it as a cancel, never as an accept. It
+// runs inside the tool call's own deadline, which still bounds the call.
+export const MCP_ELICITATION_TIMEOUT_MS = 300_000
+// Extension hook payload bounds (M91 lane E, PLAN.md D70): payloads carry a
+// workspace-relative path and a reason, never content; task, thought, display
+// and expansion text is clipped with `[truncated]` (toolHookPayload.ts).
+export const HOOK_TASK_SUBJECT_MAX_CHARS = 256
+export const HOOK_TASK_DESCRIPTION_MAX_CHARS = 1024
+export const HOOK_THOUGHT_MAX_CHARS = 2048
+export const HOOK_DISPLAY_MESSAGE_MAX_CHARS = 4096
+export const HOOK_EXPANSION_MAX_CHARS = 2048
 
 // --- Paid features on the Model API backend (M33–M35, PLAN.md D30) ---
 
@@ -576,6 +728,10 @@ export const PAID_FEATURES = [
   'bestOfN',
   // M94 (PLAN.md D73): inline completions, billed to the Model API key.
   'tab',
+  // M91 (PLAN.md D70): prompt and agent hook handlers. OWNER RULING
+  // 2026-10-04: available by default (its setting defaults on); the price
+  // is asked per use, not at turn-on (see PaidFeatureGate.isOn).
+  'hookModels',
 ] as const
 // The paid features the Muse Code backend can use too, billed to a stored
 // Model API key (M44, PLAN.md D37): images through the `ide` server and
@@ -593,6 +749,7 @@ export const PAID_FEATURE_SETTINGS = {
   autoReviewer: 'modelApiAutoReviewer',
   bestOfN: 'modelApiBestOfN',
   tab: 'modelApiTab',
+  hookModels: 'modelApiHookModels',
 } as const satisfies Readonly<Record<PaidFeature, keyof typeof SETTING_DEFAULTS>>
 // Meta's published prices (dev.meta.ai/docs/pricing-rate-limits, read
 // 2026-09-24), on top of the tokens a turn uses: a web search, an image, and
@@ -1192,6 +1349,9 @@ export const GOAL_STATUS = {
 // `/goal edit <objective>`, `/goal pause`, `/goal resume`, `/goal clear`.
 export const GOAL_SLASH_COMMAND = 'goal'
 export const LOOP_SLASH_COMMAND = 'loop'
+// `/hook run <name>` runs one Manual hook from spark-hooks.json (M91); the
+// command reads the same in every language.
+export const HOOK_RUN_SLASH_COMMAND = 'hook run'
 // `/handoff <goal>` distils the conversation into a brief for a fresh one
 // (M74, PLAN.md D49); the goal is optional.
 export const HANDOFF_SLASH_COMMAND = 'handoff'
@@ -1621,6 +1781,16 @@ export const TAB_MODEL_TEXT = {
     'File {path} ({languageId}). Return only the missing code between <COMPLETION> and </COMPLETION>. The parts below are fenced data: the prefix, the hole marker where the completion goes, the suffix, and any context snippets from related files.\n{snippets}\n```{languageId} path={path} prefix\n{prefix}\n```\n{holeMarker}\n```{languageId} path={path} suffix\n{suffix}\n```',
 } as const
 
+// An M91 agent handler's tools (PLAN.md D70, lane H): read, grep, list and
+// code intelligence. No writes, no shell, no web; rename is not offered.
+export const HOOK_MODEL_READ_TOOLS: ReadonlySet<string> = new Set([
+  MODEL_API_TOOLS.readFile,
+  MODEL_API_TOOLS.search,
+  MODEL_API_TOOLS.listFiles,
+  ...Object.entries(CODE_INTEL_TOOLS)
+    .filter(([tool]) => tool !== 'renameSymbol')
+    .map(([, name]) => name),
+])
 // --- Web fetch (M69, PLAN.md D49; the network-safety design of M44b) ---
 //
 // The same tool on the `ide` session server for Muse Code, whose own
@@ -1967,7 +2137,18 @@ export const EXPLORE_AGENT_TOOLS: readonly string[] = [
 // (PLAN.md D13). Config entries open as unsaved target editor edits
 // (D17, D30, D64), with values unchanged. An entry
 // whose target would be more exposed is refused (D64).
-export const AGENT_IMPORT_SOURCES = ['claudeCode', 'codex', 'cursor'] as const
+export const AGENT_IMPORT_SOURCES = [
+  'claudeCode',
+  'codex',
+  'cursor',
+  'gemini',
+  'copilot',
+  'windsurf',
+  'kiro',
+  'cline',
+  'amp',
+  'opencode',
+] as const
 export type AgentImportSource = (typeof AGENT_IMPORT_SOURCES)[number]
 export const AGENT_IMPORT_KINDS = ['mcpServer', 'hook', 'agent', 'command', 'rules'] as const
 export type AgentImportKind = (typeof AGENT_IMPORT_KINDS)[number]
@@ -1993,6 +2174,8 @@ export const AGENT_IMPORT_PATHS = {
     homeVariable: 'CODEX_HOME',
     dir: '.codex',
     configFile: 'config.toml',
+    /** Claude-shaped hooks: the home folder's and the repository's own. */
+    hooksFile: 'hooks.json',
     /** Custom prompts: the home folder's own, top level only (no project prompts). */
     promptsDir: 'prompts',
     rulesFile: 'AGENTS.md',
@@ -2000,14 +2183,95 @@ export const AGENT_IMPORT_PATHS = {
   cursor: {
     dir: '.cursor',
     mcpFile: 'mcp.json',
+    /** `{"version":1,"hooks":{…}}`: the home folder's and the repository's own. */
+    hooksFile: 'hooks.json',
     agentsDir: 'agents',
     commandsDir: 'commands',
     rulesDir: 'rules',
     legacyRulesFile: '.cursorrules',
   },
+  /** Gemini CLI: the `.gemini/settings.json` hooks block, home and repository. */
+  gemini: {
+    dir: '.gemini',
+    settingsFile: 'settings.json',
+  },
+  /**
+   * Copilot and VS Code (the Copilot hooks reference, "Hooks locations"):
+   * `.github/hooks/*.json` and the inline `hooks` block of
+   * `.github/copilot/settings.json` and `settings.local.json` in the
+   * repository; `~/.copilot/hooks/*.json` and the inline block of
+   * `~/.copilot/settings.json` for the user, `COPILOT_HOME` replacing
+   * `~/.copilot` when it is set.
+   */
+  copilot: {
+    homeVariable: 'COPILOT_HOME',
+    userDir: '.copilot',
+    userHooksDir: 'hooks',
+    userSettingsFile: 'settings.json',
+    projectDir: '.github',
+    projectHooksDir: 'hooks',
+    projectSettingsDir: 'copilot',
+    projectSettingsFiles: ['settings.json', 'settings.local.json'],
+  },
+  /**
+   * Windsurf (Devin Desktop's Cascade hooks, "Workspace-Level"):
+   * `.devin/hooks.json` in the repository, the legacy `.windsurf/hooks.json`
+   * only when that is absent or defines no hooks;
+   * `~/.codeium/windsurf/hooks.json` for the user.
+   */
+  windsurf: {
+    dir: '.devin',
+    legacyDir: '.windsurf',
+    hooksFile: 'hooks.json',
+    userDir: '.codeium',
+    userHooksSegments: ['windsurf', 'hooks.json'],
+  },
+  /** Kiro v1: `.kiro/hooks/*.json` (`"version":"v1"`, a `hooks` array). */
+  kiro: {
+    dir: '.kiro',
+    userDir: '.kiro',
+    hooksDir: 'hooks',
+    version: 'v1',
+  },
+  /**
+   * Cline v1 per-event scripts: executables named for their event in
+   * `.clinerules/hooks/`, `~/Documents/Cline/Hooks/` for the user.
+   */
+  cline: {
+    projectDir: '.clinerules',
+    projectHooksDir: 'hooks',
+    userDir: 'Documents',
+    userHooksSegments: ['Cline', 'Hooks'],
+  },
+  /**
+   * Amp's plugin files (amp_customize_plugins.md:49-52, 100-102): project
+   * `.amp/plugins/`; system `$XDG_CONFIG_HOME/amp/plugins/`, else
+   * `~/.config/amp/plugins/`. A single-file plugin is `.ts` or `.js`.
+   */
+  amp: {
+    projectSegments: ['.amp', 'plugins'],
+    configHomeVariable: 'XDG_CONFIG_HOME',
+    userConfigDir: '.config',
+    userSegments: ['amp', 'plugins'],
+    extensions: ['.ts', '.js'],
+  },
+  /**
+   * OpenCode's local plugins (oc_plugins.mdx:20-23, 69): `.opencode/plugins/`
+   * and `~/.config/opencode/plugins/`, JavaScript or TypeScript files; npm
+   * plugins are named in `opencode.json`'s `plugin` list (oc_plugins.mdx:31-36).
+   */
+  opencode: {
+    projectSegments: ['.opencode', 'plugins'],
+    userSegments: ['.config', 'opencode', 'plugins'],
+    extensions: ['.js', '.mjs', '.ts', '.mts'],
+    configFile: 'opencode.json',
+    userConfigSegments: ['.config', 'opencode', 'opencode.json'],
+  },
 } as const
 export const AGENT_IMPORT_MARKDOWN_EXTENSION = '.md'
 export const AGENT_IMPORT_CURSOR_RULE_EXTENSION = '.mdc'
+/** Copilot, Kiro and Cline hook files; Cline scripts under any other spelling are executables. */
+export const AGENT_IMPORT_JSON_EXTENSION = '.json'
 /** A foreign command, agent, settings, MCP or rules file over this is skipped unread. */
 export const AGENT_IMPORT_FILE_MAX_BYTES = 64 * 1024
 /** Git reports a non-repository with this exit code; other failures refuse classification. */
@@ -2051,6 +2315,347 @@ export const AGENT_IMPORT_HOOK_EVENTS_WITHOUT_MATCHER: readonly string[] = [
   'PostToolBatch',
   'Stop',
 ]
+/**
+ * Codex's 12 hook events (learn.chatgpt.com/docs/hooks; rust-v0.160.0),
+ * by the same names Muse Code uses; anything else in a Codex file is shown,
+ * never converted. `Interrupt` converts only with `async:true`.
+ */
+export const AGENT_IMPORT_CODEX_EVENTS: readonly string[] = [
+  'SessionStart',
+  'SessionEnd',
+  'UserPromptSubmit',
+  'PreToolUse',
+  'PermissionRequest',
+  'PostToolUse',
+  'PreCompact',
+  'PostCompact',
+  'SubagentStart',
+  'SubagentStop',
+  'Stop',
+  'Interrupt',
+]
+/**
+ * Claude Code's extension events (its hooks reference) that the import
+ * carries into `spark-hooks.json`; the rest of Claude's 33 stay in Muse
+ * Code's own files or are refused. `WorktreeCreate` and `ConfigChange` can
+ * block where they come from but only observe here, so they stay refused;
+ * `FileChanged` without a matcher watches nothing, so it stays refused too.
+ * The seven M91 adopts with their operations (PLAN.md D70) are no longer
+ * refused.
+ */
+export const AGENT_IMPORT_CLAUDE_SPARK_EVENTS: readonly string[] = [
+  'InstructionsLoaded',
+  'UserPromptExpansion',
+  'PermissionDenied',
+  'PreModelSwitch',
+  'PostModelSwitch',
+  'TaskCreated',
+  'TaskCompleted',
+  'FileChanged',
+  'ConfigChange',
+  'WorktreeCreate',
+  'WorktreeRemove',
+  'Setup',
+  'DirectoryAdded',
+  'CwdChanged',
+  'Elicitation',
+  'ElicitationResult',
+  'TeammateIdle',
+  'MessageDisplay',
+]
+/**
+ * Extension events whose `spark-hooks.json` matcher selects paths (any
+ * glob or name list), and those whose matcher selects names (a name list
+ * only); every other extension event takes no matcher, and `Setup` takes
+ * `init` or `maintenance`. Lane E's parser holds the same grammar, so an
+ * import never writes a matcher that file would refuse at load.
+ */
+export const AGENT_IMPORT_SPARK_PATH_MATCHED: readonly string[] = [
+  'InstructionsLoaded',
+  'FileChanged',
+  'ConfigChange',
+  'WorktreeCreate',
+  'WorktreeRemove',
+  'DirectoryAdded',
+]
+export const AGENT_IMPORT_SPARK_NAME_MATCHED: readonly string[] = [
+  'UserPromptExpansion',
+  'PermissionDenied',
+  'TaskCreated',
+  'TaskCompleted',
+  'Elicitation',
+  'TeammateIdle',
+]
+export const AGENT_IMPORT_SETUP_TRIGGERS: readonly string[] = ['init', 'maintenance']
+/**
+ * The format a converted foreign hook names, as lane P's adapters name them
+ * (`HOOK_FORMATS`), plus Cline's for lane X.
+ */
+export const AGENT_IMPORT_FORMATS = {
+  gemini: 'gemini',
+  cursor: 'cursor',
+  copilot: 'copilot',
+  windsurf: 'windsurf',
+  kiro: 'kiro',
+  cline: 'cline',
+  amp: 'amp',
+  opencode: 'opencode',
+} as const
+// Pinned MCP identity contract: mcp/functions.ts server cap at d8e609aa.
+export const AGENT_IMPORT_MCP_SERVER_MAX_CHARS = 20
+
+/**
+ * A source timeout's documented default, written on the converted entry so
+ * the source's execution bound survives: Kiro `hooks[].timeout` (60 s),
+ * Copilot `timeoutSec` and VS Code Local `timeout` (30 s), Gemini `timeout`
+ * (60 000 ms), Cline v1 scripts (30 s).
+ */
+export const AGENT_IMPORT_DEFAULT_TIMEOUT_SECONDS = {
+  kiro: 60,
+  copilot: 30,
+  vscode: 30,
+  gemini: 60,
+  cline: 30,
+} as const
+
+/** Gemini CLI's hook events (geminicli.com/docs/hooks) by our names. */
+export const AGENT_IMPORT_GEMINI_EVENTS: Readonly<Record<string, string>> = {
+  BeforeTool: 'PreToolUse',
+  AfterTool: 'PostToolUse',
+  BeforeAgent: 'UserPromptSubmit',
+  AfterAgent: 'Stop',
+  SessionStart: 'SessionStart',
+  SessionEnd: 'SessionEnd',
+  PreCompress: 'PreCompact',
+  Notification: 'Notification',
+  BeforeModel: 'PreLLMCall',
+  AfterModel: 'PostLLMCall',
+  // Narrow only, at call admission (PLAN.md D70).
+  BeforeToolSelection: 'BeforeToolSelection',
+}
+/**
+ * Gemini CLI's built-in tool names (its tools reference) by the names our
+ * matchers take; an empty list is a tool this extension does not have.
+ */
+export const AGENT_IMPORT_GEMINI_TOOLS: Readonly<Record<string, readonly string[]>> = {
+  run_shell_command: ['Bash'],
+  read_file: ['Read'],
+  write_file: ['Write'],
+  replace: ['Edit'],
+  grep_search: ['Grep'],
+  list_directory: ['list_files'],
+  web_fetch: ['web_fetch'],
+  write_todos: ['todo_write'],
+  save_memory: ['add_memory'],
+  glob: [],
+  read_many_files: [],
+  google_web_search: [],
+}
+/** Cursor's hook events (cursor.com/docs/hooks) by our names. */
+export const AGENT_IMPORT_CURSOR_EVENTS: Readonly<Record<string, string>> = {
+  sessionStart: 'SessionStart',
+  sessionEnd: 'SessionEnd',
+  preToolUse: 'PreToolUse',
+  postToolUse: 'PostToolUse',
+  postToolUseFailure: 'PostToolUseFailure',
+  subagentStop: 'SubagentStop',
+  beforeShellExecution: 'PreToolUse',
+  afterShellExecution: 'PostToolUse',
+  beforeMCPExecution: 'PreToolUse',
+  afterMCPExecution: 'PostToolUse',
+  beforeReadFile: 'PreToolUse',
+  afterFileEdit: 'PostToolUse',
+  beforeSubmitPrompt: 'UserPromptSubmit',
+  preCompact: 'PreCompact',
+  stop: 'Stop',
+  afterAgentResponse: 'PostLLMCall',
+  // Adopted with their operations (PLAN.md D70).
+  afterAgentThought: 'AfterAgentThought',
+  workspaceOpen: 'DirectoryAdded',
+}
+/**
+ * Cursor's tool types for `preToolUse` matchers by the names our matchers
+ * take; `MCP:<tool>` is translated by rule. `Write` is Cursor's name for
+ * every file edit.
+ */
+export const AGENT_IMPORT_CURSOR_TOOLS: Readonly<Record<string, readonly string[]>> = {
+  Shell: ['Bash'],
+  Read: ['Read'],
+  Write: ['Write', 'Edit'],
+  Grep: ['Grep'],
+  Delete: [],
+  Task: [],
+}
+/**
+ * The fixed value Cursor tests a matcher against on these events (its
+ * "Available matchers by hook"): the hook runs when the matcher matches it.
+ */
+export const AGENT_IMPORT_CURSOR_MATCHER_SUBJECTS: Readonly<Record<string, string>> = {
+  beforeReadFile: 'Read',
+  afterFileEdit: 'Write',
+  beforeSubmitPrompt: 'UserPromptSubmit',
+  stop: 'Stop',
+  afterAgentResponse: 'AgentResponse',
+  afterAgentThought: 'AgentThought',
+}
+/** Copilot CLI's camelCase events (docs.github.com hooks-configuration) by our names. */
+export const AGENT_IMPORT_COPILOT_EVENTS: Readonly<Record<string, string>> = {
+  sessionStart: 'SessionStart',
+  sessionEnd: 'SessionEnd',
+  userPromptSubmitted: 'UserPromptSubmit',
+  preToolUse: 'PreToolUse',
+  permissionRequest: 'PermissionRequest',
+  postToolUse: 'PostToolUse',
+  postToolUseFailure: 'PostToolUseFailure',
+  preCompact: 'PreCompact',
+  agentStop: 'Stop',
+  subagentStart: 'SubagentStart',
+  subagentStop: 'SubagentStop',
+  errorOccurred: 'StopFailure',
+  notification: 'Notification',
+}
+/**
+ * Copilot CLI's PascalCase aliases (its "VS Code compatible format", one
+ * heading per pair in the reference) by our names: snake_case input.
+ */
+export const AGENT_IMPORT_COPILOT_PASCAL_EVENTS: Readonly<Record<string, string>> = {
+  SessionStart: 'SessionStart',
+  SessionEnd: 'SessionEnd',
+  UserPromptSubmit: 'UserPromptSubmit',
+  PreToolUse: 'PreToolUse',
+  PermissionRequest: 'PermissionRequest',
+  PostToolUse: 'PostToolUse',
+  PostToolUseFailure: 'PostToolUseFailure',
+  PreCompact: 'PreCompact',
+  Stop: 'Stop',
+  SubagentStop: 'SubagentStop',
+  ErrorOccurred: 'StopFailure',
+}
+/** The VS Code Local harness's events (code.visualstudio.com hooks reference), by the same names. */
+export const AGENT_IMPORT_VSCODE_EVENTS: readonly string[] = [
+  'SessionStart',
+  'UserPromptSubmit',
+  'PreToolUse',
+  'PostToolUse',
+  'PreCompact',
+  'SubagentStart',
+  'SubagentStop',
+  'Stop',
+]
+/** Copilot CLI's runtime tool names (its "Tool names for hook matching") by ours. */
+export const AGENT_IMPORT_COPILOT_TOOLS: Readonly<Record<string, readonly string[]>> = {
+  bash: ['bash'],
+  powershell: ['powershell'],
+  view: ['Read'],
+  create: ['Write'],
+  edit: ['Edit'],
+  str_replace_editor: ['Edit'],
+  apply_patch: ['Edit'],
+  grep: ['Grep'],
+  rg: ['Grep'],
+  web_fetch: ['web_fetch'],
+  ask_user: ['ask_user'],
+  update_todo: ['todo_write'],
+  glob: [],
+  web_search: [],
+  task: [],
+}
+/**
+ * The Claude tool names a Copilot PascalCase `PreToolUse` or
+ * `PermissionRequest` matcher may also use (its Claude-format matchers).
+ */
+export const AGENT_IMPORT_COPILOT_CLAUDE_TOOLS: Readonly<Record<string, readonly string[]>> = {
+  Bash: ['Bash'],
+  Read: ['Read'],
+  Write: ['Write'],
+  Edit: ['Edit'],
+  Grep: ['Grep'],
+  WebFetch: ['web_fetch'],
+  AskUserQuestion: ['ask_user'],
+  TodoWrite: ['todo_write'],
+  Glob: [],
+  WebSearch: [],
+  Agent: [],
+  Task: [],
+}
+/**
+ * Windsurf's hook events (docs.devin.ai/desktop/cascade/hooks) by our event
+ * and the matcher for their kind. Exit codes only: pre hooks stay
+ * synchronous so a block still blocks; `post_cascade_response` observes a
+ * finished turn asynchronously.
+ */
+export const AGENT_IMPORT_WINDSURF_EVENTS: Readonly<
+  Record<string, { readonly event: string; readonly matcher?: string; readonly async?: true }>
+> = {
+  pre_read_code: { event: 'PreToolUse', matcher: 'Read' },
+  post_read_code: { event: 'PostToolUse', matcher: 'Read' },
+  pre_write_code: { event: 'PreToolUse', matcher: 'Edit|Write' },
+  post_write_code: { event: 'PostToolUse', matcher: 'Edit|Write' },
+  pre_run_command: { event: 'PreToolUse', matcher: 'Bash' },
+  post_run_command: { event: 'PostToolUse', matcher: 'Bash' },
+  pre_mcp_tool_use: { event: 'PreToolUse', matcher: 'mcp__.*' },
+  post_mcp_tool_use: { event: 'PostToolUse', matcher: 'mcp__.*' },
+  pre_user_prompt: { event: 'UserPromptSubmit' },
+  post_cascade_response: { event: 'Stop', async: true },
+  post_setup_worktree: { event: 'WorktreeCreate' },
+}
+/** Kiro's command triggers (kiro.dev/docs/hooks) that map one to one. */
+export const AGENT_IMPORT_KIRO_EVENTS: Readonly<Record<string, string>> = {
+  SessionStart: 'SessionStart',
+  SessionEnd: 'SessionEnd',
+  UserPromptSubmit: 'UserPromptSubmit',
+  PreToolUse: 'PreToolUse',
+  PostToolUse: 'PostToolUse',
+  Stop: 'Stop',
+  // Run only when the user starts it (PLAN.md D70).
+  Manual: 'Manual',
+}
+/** Kiro's spec-task triggers by our todo-item events. */
+export const AGENT_IMPORT_KIRO_TASK_EVENTS: Readonly<Record<string, string>> = {
+  PreTaskExec: 'TaskCreated',
+  PostTaskExec: 'TaskCompleted',
+}
+/** Kiro's file triggers, each run on file tools with this matcher. */
+export const AGENT_IMPORT_KIRO_FILE_TRIGGERS: readonly string[] = [
+  'PostFileCreate',
+  'PostFileSave',
+  'PostFileDelete',
+]
+/** Kiro's file-trigger matcher on our file tools; its path regex stays with the entry. */
+export const AGENT_IMPORT_KIRO_FILE_MATCHER = 'Edit|Write'
+/**
+ * Kiro's tool names, aliases and built-in categories (its "Tool name
+ * aliases") by the names our matchers take; `@` forms are translated by rule.
+ */
+export const AGENT_IMPORT_KIRO_TOOLS: Readonly<Record<string, readonly string[]>> = {
+  fs_read: ['Read'],
+  read: ['Read'],
+  fs_write: ['Write', 'Edit'],
+  write: ['Write', 'Edit'],
+  execute_bash: ['Bash'],
+  shell: ['Bash'],
+  web: ['web_fetch'],
+  use_aws: [],
+  aws: [],
+  spec: [],
+}
+/**
+ * Cline v1 per-event scripts (cline/cline 901d1b5c97) by our events. A task
+ * is a session here, not a todo item, so its start and end map to the
+ * session's own events; the record keeps which script it was.
+ */
+export const AGENT_IMPORT_CLINE_EVENTS: Readonly<Record<string, string>> = {
+  TaskStart: 'SessionStart',
+  TaskResume: 'SessionStart',
+  TaskCancel: 'SessionEnd',
+  TaskComplete: 'SessionEnd',
+  PreToolUse: 'PreToolUse',
+  PostToolUse: 'PostToolUse',
+  UserPromptSubmit: 'UserPromptSubmit',
+  PreCompact: 'PreCompact',
+}
+/** Cline v1 on Windows runs only `<HookName>.ps1`; elsewhere only an extensionless executable. */
+export const AGENT_IMPORT_CLINE_WINDOWS_EXTENSION = '.ps1'
 /** Muse Code's `mcpServers` entry never blocks startup when it fails (the migrate skill's rule). */
 export const MUSE_MCP_OPTIONAL_MODE = 'optional'
 /** How many broken links in a row M83's confinement follows before it refuses (Linux's MAXSYMLINKS). */
@@ -2202,6 +2807,10 @@ export const WEB_FETCH_BUNDLE_FILE = 'webFetch.js'
 // The Auto reviewer on Muse Code (M90, PLAN.md D69, D6): its side session and
 // queue, loaded on the first review.
 export const MUSE_CODE_REVIEWER_BUNDLE_FILE = 'museCodeReviewer.js'
+// The both-backend extension hooks' bundle (M91, PLAN.md D70, D6): the
+// window's hook runner, loaded the first time a both-backend hook event
+// fires (a watched file, a folder, Run Setup Hooks, Run Hook).
+export const EXTENSION_HOOKS_BUNDLE_FILE = 'extensionHooks.js'
 // The empty folder under the extension's global storage the reviewer's side
 // session runs in: outside every workspace, so no History lists it, and
 // with no rules, skills or files of the user's to read.
@@ -3827,7 +4436,14 @@ export const AGENT_IMPORT_SOURCE_NAMES = {
   claudeCode: 'Claude Code',
   codex: 'Codex',
   cursor: 'Cursor',
-} as const
+  gemini: 'Gemini CLI',
+  copilot: 'Copilot and VS Code',
+  windsurf: 'Windsurf',
+  kiro: 'Kiro',
+  cline: 'Cline',
+  amp: 'Amp',
+  opencode: 'OpenCode',
+} as const satisfies Readonly<Record<AgentImportSource, string>>
 
 // M83: an imported rules file's section in AGENTS.md, which the model reads.
 // Only the import's bundle (dist/agentImport.js) writes it.
@@ -3972,6 +4588,9 @@ export const CODE_INTEL_MODEL_TEXT = {
 // ACP loaders can discard it without changing any words; the bundle-split
 // gate fails when dist/extension.js or dist/acp.js carries it (PLAN.md D6).
 export const MODEL_API_MODEL_TEXT = {
+  // M91 lane E: BeforeToolSelection's tail note, and TeammateIdle's default.
+  hookToolsUnavailable: 'Tools unavailable for this turn:',
+  hookTeammateContinue: 'Continue the current task; a TeammateIdle hook requested another check.',
   // M73 (PLAN.md D49): observation packing. The placeholder names the
   // packed output's id, size and first and last lines; recall_output pages
   // the original back. Placeholders never reach the transcript: only the
@@ -4267,6 +4886,19 @@ export const REVIEW_MODEL_TEXT = {
   reviewListCut: '… and {count} more',
   // A comment on a removed line in the review pane: the line it was.
   reviewRemovedLine: '{path} (a line this change removed; it was line {line})',
+} as const
+
+// The prompt/agent hook handlers' text for the model (M91, PLAN.md D70),
+// English whatever the display language. A block of its own beside
+// REVIEW_MODEL_TEXT so that a bundle that never runs hooks does not carry
+// it: only the hook model entry (the hook turn's text) reads it.
+export const HOOK_MODEL_TEXT = {
+  hookPromptRole:
+    'You are a hook of the Muse Spark coding agent, judging the one operation the user message describes. Answer with a JSON object only.',
+  hookAgentRole:
+    'You are a hook of the Muse Spark coding agent, judging the one operation the user message describes. Answer with a JSON object only. You may call only the read-only tools offered (read, grep, list, code intelligence): no writes, no shell, no network.',
+  hookAnswer:
+    'To let the operation proceed, answer {}. To add context for the agent, answer {"hookSpecificOutput":{"hookEventName":"<the payload\'s event name>","additionalContext":"..."}}. To refuse it, answer {"decision":"block","reason":"..."}. Your answer never grants a permission, a model, a path or a paid use: it can only refuse, narrow or add context.',
 } as const
 // --- Paired efficiency evaluation (M75, PLAN.md D49) ---
 

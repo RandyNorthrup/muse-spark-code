@@ -8,6 +8,7 @@ import {
   type EffortLevel,
   type ExportFormat,
   ISSUES_URL,
+  HOOK_RUN_SLASH_COMMAND,
   MUSE_DOCS_URL,
   type PaidFeature,
   type PermissionMode,
@@ -53,6 +54,7 @@ export type PaletteAction =
   /** `/goal ` in the prompt, for the objective (M45). */
   | { readonly type: 'startGoal' }
   | { readonly type: 'startLoop' }
+  | { readonly type: 'startHook' }
   | { readonly type: 'compact' }
   /** `/handoff …` in the prompt, for the new conversation's goal (M74). */
   | { readonly type: 'startHandoff' }
@@ -562,7 +564,7 @@ export function buildPalette(context: PaletteContext): readonly PaletteGroup[] {
         {
           id: 'importFromAgents',
           label: UI_TEXT.agentImportItem,
-          detail: UI_TEXT.agentImportDetail,
+          detail: UI_TEXT.agentImportDetailEvery,
           action: { type: 'importFromAgents' },
         },
         // Muse Code's memory (M49): the same notes on both backends.
@@ -622,6 +624,12 @@ export function buildPalette(context: PaletteContext): readonly PaletteGroup[] {
       id: 'slash',
       title: UI_TEXT.groupSlashCommands,
       items: [
+        {
+          id: 'hookRun',
+          label: `/${HOOK_RUN_SLASH_COMMAND}`,
+          detail: UI_TEXT.manualHookSlashDetail,
+          action: { type: 'startHook' },
+        },
         {
           id: 'agents',
           label: UI_TEXT.agentsCommand,

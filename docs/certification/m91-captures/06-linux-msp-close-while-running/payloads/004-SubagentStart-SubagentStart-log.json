@@ -1,0 +1,11 @@
+{
+  "child_session_id": "f92d4df6-5d3d-400a-a42f-5daf60dbfad9",
+  "cwd": "<workspace>",
+  "hook_event_name": "SubagentStart",
+  "model": "echo",
+  "permission_mode": "default",
+  "session_id": "f92d4df6-5d3d-400a-a42f-5daf60dbfad9",
+  "subagent_id": "skill-reminder",
+  "transcript_path": null,
+  "turn_id": "f92d4df6-5d3d-400a-a42f-5daf60dbfad9"
+}

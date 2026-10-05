@@ -55,10 +55,17 @@ const UNTITLED_SCHEME = 'untitled'
 /** Built when asked, so the labels come from the table installed at activation. */
 function sourceChoices(): readonly SourceChoice[] {
   return [
-    { label: UI_TEXT.agentImportSourceAll, choice: 'all' },
+    { label: UI_TEXT.agentImportSourceEvery, choice: 'all' },
     { label: UI_TEXT.importSourceClaude, choice: 'claudeCode' },
     { label: UI_TEXT.importSourceCodex, choice: 'codex' },
     { label: UI_TEXT.agentImportSourceCursor, choice: 'cursor' },
+    { label: UI_TEXT.agentImportSourceGemini, choice: 'gemini' },
+    { label: UI_TEXT.agentImportSourceCopilot, choice: 'copilot' },
+    { label: UI_TEXT.agentImportSourceWindsurf, choice: 'windsurf' },
+    { label: UI_TEXT.agentImportSourceKiro, choice: 'kiro' },
+    { label: UI_TEXT.agentImportSourceCline, choice: 'cline' },
+    { label: UI_TEXT.agentImportSourceAmp, choice: 'amp' },
+    { label: UI_TEXT.agentImportSourceOpenCode, choice: 'opencode' },
   ]
 }
 

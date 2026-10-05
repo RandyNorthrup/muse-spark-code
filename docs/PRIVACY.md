@@ -249,6 +249,8 @@ independent $1/day journal is excluded. ACP and headless policies are unchanged.
   Model API key are left out. What a hook does with that is up to the hook:
   it can write it to disk or send it anywhere, so read a hook before you
   turn the setting on. No hook runs while the folder is in Restricted Mode.
+  Hooks imported from other agents into `spark-hooks.json` get the same
+  bounded data, in the shape their own agent sends it.
 - **Workspace rules, skills, agents and memory.** In a trusted workspace the
   agent reads `AGENTS.md` (or `CLAUDE.md`), the skills under `.agents/skills`
   and `~/.config/muse/skills`, on the Model API backend the custom agents

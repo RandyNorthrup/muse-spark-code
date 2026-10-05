@@ -245,33 +245,36 @@ unchanged. Verify exact
 round-trip values, loading/retry/localization and client dispatch, drill these
 properties, and retain all existing caps. No new artifact or dependency.
 
-| Artifact                   | Budget (minified, uncompressed)                                                                                                                                                                                   |
-| -------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `dist/tab.js`              | ≤ 75 KiB (M94: provider, completion engine and daily ledger, loaded on first request or menu; status item stays in activation)                                                                                    |
-| `dist/extension.js`        | ≤ 600 KiB (the M7 Model API client fit without raising it; the activation bundle since M57)                                                                                                                       |
-| `dist/modelApi.js`         | ≤ 475 KiB (M57: the Model API backend, loaded when it first starts; revisited after M77/M78/M82 at 402.8 KiB, see Q-M78b)                                                                                         |
-| `dist/review.js`           | ≤ 50 KiB (M70: git's material, the review turn's text, the Plan-mode hold and edit review; 40.8 KiB when split)                                                                                                   |
-| `dist/searchWorker.js`     | ≤ 50 KiB                                                                                                                                                                                                          |
-| `dist/pageWorker.js`       | ≤ 300 KiB (M69: web fetch's page converter, parse5 and its parts, on a worker started for each page; 212.3 KiB when split)                                                                                        |
-| `dist/webview/main.js`     | ≤ 900 KiB including React, Markdown and highlighting; all transitively eager ESM chunks count                                                                                                                     |
-| `dist/webview/main.js`     | ≤ 900 KiB for the entry and all static JavaScript imports, including React, the markdown renderer and highlight.js (Git and Account & usage load on demand)                                                       |
-| `.vsix`                    | ≤ 2200 KiB compressed (2026-10-03, M77/M78/M82 cohort: 1,938,910 bytes with its four lazy bundles; +15%, rounded up to 25 KiB; was 1850 KiB from REL's 1,633,017 bytes; `check-vsix-size.mjs` in the package job) |
-| `dist/acp.js`              | ≤ 850 KiB (the ACP agent, installed once, never loaded by VS Code; 713.2 KiB when set, see below)                                                                                                                 |
-| `dist/planMarkdown.js`     | ≤ 150 KiB (M79: the plan reader, the panel's Markdown parser, loaded on the first plan action; 139.0 KiB with the brief writer)                                                                                   |
-| `dist/checkpointStore.js`  | ≤ 225 KiB (M72: synchronous checkpoint factory and legacy reader; measured 187.0 KiB plus 15%, rounded up to 25 KiB)                                                                                              |
-| `dist/uiText.js`           | ≤ 125 KiB (shared English fallback for Node bundles; 2026-10-04: measured 104.9 KiB plus 15%, rounded up to 25 KiB; was 100 KiB from 72.7 KiB on the build-only baseline; lazy, so activation is unchanged)       |
-| `dist/sessionBoard.js`     | ≤ 75 KiB (M78b: first board/best-of-N action; measured 61.0 KiB plus 15%, rounded up to 25 KiB)                                                                                                                   |
-| `dist/reviewer.js`         | ≤ 75 KiB (M78b: paid Auto review after consent; measured 55.2 KiB plus 15%, rounded up to 25 KiB)                                                                                                                 |
-| `dist/agentImport.js`      | ≤ 125 KiB (M83: import scan, converters, file access, native UI and smol-toml, loaded on first import)                                                                                                            |
-| `dist/bundledSkills.js`    | ≤ 50 KiB (M89: the bundled skills installer for Muse Code, loaded on first install, removal or offer; 22.6 KiB when split, plus 15%, rounded up to 25 KiB)                                                        |
-| `dist/codeIntel.js`        | ≤ 100 KiB (2026-10-03: code intelligence's `ide` answers, loaded on the first call; measured 80.3 KiB plus 15%, rounded up to 25 KiB)                                                                             |
-| `dist/voice.js`            | ≤ 50 KiB (2026-10-03: both voice engines' drivers, loaded on the first recording; measured 34.5 KiB plus 15%, rounded up to 25 KiB)                                                                               |
-| `dist/museCodeReviewer.js` | ≤ 75 KiB (M90: the Auto reviewer on Muse Code, its side session and approvals with M78's reviewer core, loaded on the first review; measured 45.4 KiB plus 15%, rounded up to 25 KiB)                             |
-| `dist/browserCheck.js`     | ≤ 75 KiB (M81: the browser check's pipe, run, proxy, canaries and processes, loaded on the first check; 50.5 KiB after A1's first review round plus 15%, rounded up to 25 KiB)                                    |
-| `dist/browserRuntime.js`   | ≤ 50 KiB (M81 A1: the browser check runtime's pin, download, ZIP reader and store, loaded only to prepare it; 37.2 KiB plus 15%, rounded up to 25 KiB)                                                            |
-| `dist/whatsNew.js`         | ≤ 50 KiB (M99, D79: What's New's renderer, content schema and tab, loaded on the first page or notice; measured 34.8 KiB plus 15%, rounded up to 25 KiB)                                                          |
-| `dist/whatsNew.json`       | ≤ 40 KiB raw (M99, D79: newest two releases' full notes and the newest earlier Highlights when needed; hard content cap independent of VSIX compression)                                                          |
-| `dist/webview/whatsNew.js` | ≤ 25 KiB (M99: What's New's page script, which only passes clicks back; 0.7 KiB when made, plus 15%, rounded up to 25 KiB)                                                                                        |
+| Artifact                   | Budget (minified, uncompressed)                                                                                                                                                                                                                                                                                                                                                                        |
+| -------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `dist/extension.js`        | ≤ 600 KiB (the M7 Model API client fit without raising it; the activation bundle since M57)                                                                                                                                                                                                                                                                                                            |
+| `dist/modelApi.js`         | ≤ 475 KiB (M57: the Model API backend, loaded when it first starts; revisited after M77/M78/M82 at 402.8 KiB, see Q-M78b; M91 brought it to 486.1 KiB, and moving the hook and MCP-form runtime and the imported records' reader out took it to 463.7 KiB, 466.8 KiB on 0.13.0, 2026-10-05: the cap held)                                                                                              |
+| `dist/review.js`           | ≤ 50 KiB (M70: git's material, the review turn's text, the Plan-mode hold and edit review; 40.8 KiB when split)                                                                                                                                                                                                                                                                                        |
+| `dist/searchWorker.js`     | ≤ 50 KiB                                                                                                                                                                                                                                                                                                                                                                                               |
+| `dist/pageWorker.js`       | ≤ 300 KiB (M69: web fetch's page converter, parse5 and its parts, on a worker started for each page; 212.3 KiB when split)                                                                                                                                                                                                                                                                             |
+| `dist/webview/main.js`     | ≤ 900 KiB including React, Markdown and highlighting; all transitively eager ESM chunks count                                                                                                                                                                                                                                                                                                          |
+| `.vsix`                    | ≤ 2200 KiB compressed (2026-10-03, M77/M78/M82 cohort: 1,938,910 bytes with its four lazy bundles; +15%, rounded up to 25 KiB; was 1850 KiB from REL's 1,633,017 bytes; `check-vsix-size.mjs` in the package job)                                                                                                                                                                                      |
+| `dist/acp.js`              | ≤ 850 KiB (the ACP agent, installed once, never loaded by VS Code; 713.2 KiB when set, see below)                                                                                                                                                                                                                                                                                                      |
+| `dist/planMarkdown.js`     | ≤ 150 KiB (M79: the plan reader, the panel's Markdown parser, loaded on the first plan action; 139.0 KiB with the brief writer)                                                                                                                                                                                                                                                                        |
+| `dist/checkpointStore.js`  | ≤ 225 KiB (M72: synchronous checkpoint factory and legacy reader; measured 187.0 KiB plus 15%, rounded up to 25 KiB)                                                                                                                                                                                                                                                                                   |
+| `dist/uiText.js`           | ≤ 125 KiB (shared English fallback for Node bundles; 2026-10-04: measured 104.9 KiB plus 15%, rounded up to 25 KiB; was 100 KiB from 72.7 KiB on the build-only baseline; lazy, so activation is unchanged)                                                                                                                                                                                            |
+| `dist/sessionBoard.js`     | ≤ 75 KiB (M78b: first board/best-of-N action; measured 61.0 KiB plus 15%, rounded up to 25 KiB)                                                                                                                                                                                                                                                                                                        |
+| `dist/reviewer.js`         | ≤ 75 KiB (M78b: paid Auto review after consent; measured 55.2 KiB plus 15%, rounded up to 25 KiB)                                                                                                                                                                                                                                                                                                      |
+| `dist/foreignHooks.js`     | ≤ 100 KiB (M91 lane W: the adapters for hooks imported from other agents, lane P's contracts and engine, loaded the first time a session holding one runs a hook; measured 64.9 KiB, 68.0 KiB with lane X's Cline contract, 85.7 KiB once the imported records' reader moved in from `dist/modelApi.js`; 2026-10-05 on 0.13.0's shared `dist/validation.js`: 65.4 KiB, plus 15%, rounded up to 25 KiB) |
+| `dist/hookRuntime.js`      | ≤ 50 KiB (M91: the hook and MCP-form runtime, lane E's spark-hooks.json reader and dispatcher, lane H's typed handlers and lane M's form checks, moved out of `dist/modelApi.js` and loaded when a spark-hooks.json exists, a typed handler runs or a server asks for a form; 67.1 KiB when split out, 41.7 KiB on 0.13.0's shared `dist/validation.js` (2026-10-05), plus 15%, rounded up to 25 KiB)  |
+| `dist/pluginHooks.js`      | ≤ 50 KiB (M91b: the Amp and OpenCode plugin host, loaded on the first plugin hook; 51.6 KiB when split out, 33.8 KiB on 0.13.0's shared `dist/validation.js` (2026-10-05), plus 15%, rounded up to 25 KiB)                                                                                                                                                                                             |
+| `dist/agentImport.js`      | ≤ 125 KiB (M83: import scan, converters, file access, native UI and smol-toml, loaded on first import; M91 lane I's readers for every agent's hooks: 147.7 KiB on 2026-10-04, 108.1 KiB on 0.13.0's shared `dist/validation.js` on 2026-10-05, within the unchanged budget)                                                                                                                            |
+| `dist/bundledSkills.js`    | ≤ 50 KiB (M89: the bundled skills installer for Muse Code, loaded on first install, removal or offer; 22.6 KiB when split, plus 15%, rounded up to 25 KiB)                                                                                                                                                                                                                                             |
+| `dist/codeIntel.js`        | ≤ 100 KiB (2026-10-03: code intelligence's `ide` answers, loaded on the first call; measured 80.3 KiB plus 15%, rounded up to 25 KiB)                                                                                                                                                                                                                                                                  |
+| `dist/voice.js`            | ≤ 50 KiB (2026-10-03: both voice engines' drivers, loaded on the first recording; measured 34.5 KiB plus 15%, rounded up to 25 KiB)                                                                                                                                                                                                                                                                    |
+| `dist/museCodeReviewer.js` | ≤ 75 KiB (M90: the Auto reviewer on Muse Code, its side session and approvals with M78's reviewer core, loaded on the first review; measured 45.4 KiB plus 15%, rounded up to 25 KiB)                                                                                                                                                                                                                  |
+| `dist/extensionHooks.js`   | ≤ 75 KiB (M91 E: both-backend window hooks, loaded on first use; Kubuntu measured 48.8 KiB plus 15%, rounded up to 25 KiB)                                                                                                                                                                                                                                                                             |
+| `dist/browserCheck.js`     | ≤ 75 KiB (M81: the browser check's pipe, run, proxy, canaries and processes, loaded on the first check; 50.5 KiB after A1's first review round plus 15%, rounded up to 25 KiB)                                                                                                                                                                                                                         |
+| `dist/browserRuntime.js`   | ≤ 50 KiB (M81 A1: the browser check runtime's pin, download, ZIP reader and store, loaded only to prepare it; 37.2 KiB plus 15%, rounded up to 25 KiB)                                                                                                                                                                                                                                                 |
+| `dist/whatsNew.js`         | ≤ 50 KiB (M99, D79: What's New's renderer, content schema and tab, loaded on the first page or notice; measured 34.8 KiB plus 15%, rounded up to 25 KiB)                                                                                                                                                                                                                                               |
+| `dist/whatsNew.json`       | ≤ 40 KiB raw (M99, D79: newest two releases' full notes and the newest earlier Highlights when needed; hard content cap independent of VSIX compression)                                                                                                                                                                                                                                               |
+| `dist/webview/whatsNew.js` | ≤ 25 KiB (M99: What's New's page script, which only passes clicks back; 0.7 KiB when made, plus 15%, rounded up to 25 KiB)                                                                                                                                                                                                                                                                             |
+| `dist/tab.js`              | ≤ 75 KiB (M94: provider, completion engine and daily ledger, loaded on first request or menu; status item stays in activation)                                                                                                                                                                                                                                                                         |
 
 **TRAIN13B (2026-10-05):** `dist/validation.js` shares only the used
 Node zod/mini runtime exports (40,416 bytes measured; new 50 KiB cap by
@@ -4723,6 +4726,246 @@ Decisions (the owner chose the reviewer on 2026-10-03):
   report; when it lands, the extension prefers it and keeps this reviewer as
   the fallback.
 
+### D70 — Hooks from every popular agent (M91, 2026-10-04)
+
+The owner asked on 2026-10-04: "we should have all of the hooks from the most
+popular [agents], no?". When the first draft left ten concepts out, he added:
+"i dont really want to leave the hooks out can you find a safe and robust way
+to add them all". The research is in `docs/certification/m91-research.md`
+(the agents' own documentation, 39 hook concepts, three echo-provider runs).
+The step 1 captures are in `docs/certification/m91.md`.
+
+- **The safety principle.** Every hook is the user's own code in a separate
+  process, behind M51's gates: a trusted workspace, the
+  `museSpark.modelApiHooks` opt-in, a per-session snapshot, an allowlisted
+  environment, size and time caps, and a process-tree kill.
+  - A hook may observe, refuse, narrow or suggest.
+  - Anything that widens goes through the approval or paid-consent path that
+    already guards it, or is refused. That covers skipping a card, paying,
+    sending data off the machine, and choosing a path, a model or a tool.
+  - An imported hook is never weaker than in its source agent.
+  - No hook gains power (as M51): none grants a permission, a model, a path
+    or a paid use.
+- **Muse Code's own file** (`.muse/hooks.json` and the settings `hooks`
+  block) keeps Muse Code's 19 events: the documented 17, plus `Interrupt`
+  (1.4.0) and `SessionFork` (in the 1.4.2 binary, which accepts it). The
+  1.4.0 PostToolUseFailure `updatedInput` correction is supported. The
+  step 1 captures (2026-10-04, 1.4.2-R4684.1, echo provider, 0 model calls)
+  found:
+  - **Interrupt fires whenever a running turn is cancelled:**
+    - `turn/cancel`, during or before the model step;
+    - `turn/interrupt`;
+    - a UserPromptSubmit block, after which the turn ends `cancelled` with
+      the hook's reason;
+    - the host closing while a turn runs.
+
+    It does not fire when an idle session closes. Its stdin is
+    `hook_event_name`, `session_id`, `turn_id`, `cwd`, `transcript_path`
+    (null), `model` and `permission_mode`. Stop and StopFailure do not fire
+    on a cancelled turn.
+
+  - **SessionFork is accepted but never run by 1.4.2.** No hook process
+    started for any of these:
+    - seven `session/fork` calls over `muse serve` on Linux, in every
+      verdict mode;
+    - seven TUI `/fork`s on Linux.
+
+    On Windows `session/fork` is still refused (`forkBoundaryInvalid`,
+    WriteFailed, sdk #31) before any hook. There is no payload to capture
+    (AGENTS.md rule 13). So the Model API backend accepts it the same way and
+    runs nothing, and the two backends agree. Its veto is wired in the release
+    whose capture shows it running. Filed upstream as
+    [meta-models/muse-code-sdk#84](https://github.com/meta-models/muse-code-sdk/issues/84).
+
+  - **StopFailure did not fire under `muse serve`** on two turns that
+    failed (`modelError`). This matches the 1.4.2 trace schema's
+    "production-dark" note. The Model API backend keeps firing it, and the
+    Hooks picker says so.
+  - **PostToolBatch cannot be reached without a model.** The echo provider
+    makes no tool calls. A user shell command (`session/userShell`) runs
+    PreToolUse and then PostToolUse or PostToolUseFailure (`tool_name`
+    `shell`), but no batch. M91's live check captures it.
+- **Extension-only events live in `spark-hooks.json`**, which Muse Code
+  never reads:
+  - project: `.muse/spark-hooks.json`, under the protected `.muse`;
+  - user: `<config>/muse/spark-hooks.json`, beside Muse Code's
+    `settings.json`.
+
+  The file has Muse Code's shape and is parsed by the same
+  `parseHookConfig`, with the extension's event list.
+  - **Names.** The names are Claude Code's, unprefixed: Claude's names are
+    the de facto standard, and the file itself is the namespace. Where Claude
+    has no such event, the source agent's name in PascalCase is used
+    (`BeforeToolSelection`, `AfterAgentThought`, `Manual`).
+  - **Why a separate file.** Muse Code warns about an unknown name on every
+    CLI start (research run A). It would also change the name's meaning if
+    it adopted the name later. So extension names never go in Muse Code's
+    file.
+  - **No hook runs twice.** A name that Muse Code runs is refused in
+    spark-hooks.json with "configure it in .muse/hooks.json". `Setup` is the
+    exception: Muse Code recognises it but refuses to run it, so it lives in
+    spark-hooks.json.
+  - **Adoption.** When Muse Code adopts one of these names, the event moves
+    to `HOOK_EVENTS` in the release that verifies it.
+
+- **Every concept is adopted** (the owner, 2026-10-04): 21 extension events
+  (`EXTENSION_HOOK_EVENTS`).
+  - **Eleven fire at operations the extension already has:**
+    InstructionsLoaded, UserPromptExpansion, PermissionDenied,
+    PreModelSwitch, PostModelSwitch, TaskCreated, TaskCompleted,
+    FileChanged, ConfigChange, WorktreeCreate and WorktreeRemove.
+  - **Ten more get their operation built or narrowed, so that they are
+    real:**
+    - **Setup** (Claude). Its operations are **Muse Spark: Run Setup Hooks**
+      and the ACP agent's `--trust-workspace setup [--maintenance]`, which
+      runs the Setup hooks and exits with no model call. The matcher is
+      `init` or `maintenance`. Observation only.
+      - Claude's `--init` and `--maintenance` flags do not go on headless
+        `exec`: it refuses workspace trust (D65), so it runs no hooks at all.
+    - **DirectoryAdded** (Claude; Cursor's workspaceOpen). It fires when a
+      trusted workspace activates and when a folder is added to the window
+      (`onDidChangeWorkspaceFolders`). Observation only.
+    - **CwdChanged** (Claude). The Model API shell keeps its working
+      directory between calls. This is new, in lane S:
+      - The directory is confined to the workspace. A directory outside it,
+        or one reached through a link out of it, resets to the root, and the
+        model is told.
+      - The tool row shows the directory.
+      - CwdChanged fires on a real change. Observation only.
+    - **Elicitation and ElicitationResult** (Claude). The Model API's MCP
+      client answers `elicitation/create` with a form in the panel. This is
+      new, in lane M; the ACP agent's form path is `src/acp/questions.ts`.
+      - A project hook may only decline or cancel.
+      - A user hook may answer, and its answer is validated against the
+        server's schema.
+      - ElicitationResult observes. A project hook sees the field names and
+        the action, never what the user typed.
+    - **TeammateIdle** (Claude). It fires when a Best-of-N attempt or a
+      background subagent is about to stop while its siblings run.
+      - A block sends its reason back and keeps that one working.
+      - This stays inside the run the user already consented to, and counts
+        toward `HOOK_MAX_STOP_CONTINUATIONS` and the session budget.
+      - It never starts a new attempt.
+    - **MessageDisplay** (Claude). A display-only rewrite of an assistant
+      message.
+      - It shows with an "edited by a hook" marker that the hook cannot
+        remove, and a one-click way to see the original.
+      - The model's history, copy, export and every approval card use the
+        original.
+    - **BeforeToolSelection** (Gemini). Narrow only, enforced at call
+      admission (SoL-Pi rule 1 below). The declared tool list never changes.
+    - **AfterAgentThought** (Cursor). It observes a finished reasoning
+      block, bounded like PostLLMCall's previews and passed through the M54
+      preview scrubber.
+    - **Manual** (Kiro). Its operations are **Muse Spark: Run Hook…** and
+      `/hook run <name>`. It runs only when the user starts it. Observation
+      only; its output is shown.
+- **Which backend runs them.**
+  - Events at the Model API runtime's operations run on that backend only.
+  - Setup, Manual, DirectoryAdded, ConfigChange, FileChanged and
+    MessageDisplay are the extension's own operations. The extension runs
+    them on both backends, under the same gates.
+  - The Hooks picker says which backend runs each file.
+- **Handler types.** `command` stays as it is today. Four more are added:
+  - **`http`**, user scope only:
+    - HTTPS only, and only to hosts in a machine-scoped allowlist setting,
+      empty by default;
+    - only while the network posture allows the network;
+    - no redirects;
+    - the same bounded payload and answer schema as a command;
+    - no credential name expanded into a header.
+  - **`mcp_tool`**: a tool on a configured MCP server, through that tool's
+    own approval path.
+  - **`prompt` and `agent`**, and Kiro's agent actions, which start a model
+    turn:
+    - On the Model API they are paid uses under D30 and D48: available by
+      default (owner ruling 2026-10-04, FINM91H/m91h-prompt.md),
+      priced, asked in the paid-use popup, tallied on their own usage line,
+      and within the M82 budget.
+    - On Muse Code each is one turn of a hidden side session on the user's
+      subscription, as M90's reviewer runs, and its notice says so.
+    - Their answer is parsed like a command's: it can only refuse, narrow or
+      add context.
+- **Other formats** (Gemini, Cursor, Copilot and VS Code, Windsurf, Kiro,
+  Cline v1) import only into spark-hooks.json, with a `format` tag.
+  - An in-process adapter translates their stdin and stdout.
+  - Renaming the event alone would fail open: a foreign guard's answer does
+    not validate, and a failed PreToolUse hook does not block.
+  - Each adapter keeps its source's fail-closed rules and none of its
+    grants.
+- **Plugin systems.**
+  - Amp's plugins and OpenCode's (its typed hooks and a subset of its event
+    bus) run out of process: in a Node child, with a shim for the hook
+    subset, and with the same environment and limits. They never run in the
+    extension host.
+  - The shim offers no shell helper, no client and no model access. A call
+    to one fails that hook.
+  - Cline's per-event scripts run as command hooks through a `cline`
+    adapter: TaskStart, TaskResume, TaskCancel, TaskComplete, PreToolUse,
+    PostToolUse, UserPromptSubmit and PreCompact.
+  - This part may move to M91b if the bundle budget needs it.
+- **Codex** shares Muse Code's format (rust-v0.160.0): 11 of its 12 events
+  use Claude's names, matcher grammar and JSON, and the 12th is Muse Code's
+  `Interrupt`. Its hooks convert into Muse Code's files. This corrects M83.
+- **Cursor's Tab hooks** (`beforeTabFileRead`, `afterTabFileEdit`). They are
+  imported, kept, and listed as waiting for inline completions. **Resolved
+  2026-10-04 (owner): a Tab-completions milestone.** M94 builds inline
+  completions (`feature/m94-tab`), and its lane K gives these two hooks
+  their operation. Until it lands they run nothing.
+- **The SoL-Pi rules.** The owner (2026-10-04): nothing in M91 may break the
+  optimisations taken from NVIDIA's SoL-Pi (D49, M68, M73, M74, M75).
+  1. **A cache-stable prefix.**
+     - Hooks never change the bytes of an earlier request: its
+       instructions, its tool list or its earlier messages. So the
+       `prompt_cache_key` (D43) stays the same.
+     - Hook context (SessionStart, UserPromptSubmit, PostToolUse
+       `additionalContext` and the rest) is appended at the tail, in that
+       turn's new messages, and is never re-inserted earlier.
+     - BeforeToolSelection keeps the declared tool list byte-stable. A call
+       to a tool it removed is refused at admission with a fixed reason, and
+       a short tail note names the tools unavailable this turn.
+  2. **ObservationPack (M73).**
+     - A hook may replace a tool's output: an adapter's equivalent of
+       Claude's `updatedMCPToolOutput` (Muse Code's schema has none). That
+       replacement applies before packing. So the archived original is what
+       the model saw, and `recall_output` returns those bytes.
+     - The swap stays sticky: the prefix breaks once per output.
+     - Hook stdin carries the bounded preview, never the archived original.
+  3. **The Evidence-Preserving Reducer (M73)** is not a hook point. The
+     `prompt` and `agent` handlers share its paid-consent rules and the hard
+     budget, never bypass them, and are tallied separately.
+  4. **Action Fusion (`then_run`, M68).**
+     - Its command keeps the shell tool's path, hooks included.
+     - Imported shell guards see it too: Cursor beforeShellExecution,
+       Windsurf pre_run_command, Gemini run_shell_command, Kiro execute_bash.
+     - `then_run` and `run_checks` run at the workspace root, as M68 built
+       them. They neither read nor move the shell's kept directory, and fire
+       no CwdChanged.
+  5. **Online compaction (M74).** When M74's automatic compaction lands:
+     - A PreCompact block may stop the optional, todo-triggered compaction.
+     - A compaction at the window's hard limit still runs. The hook is told,
+       and its block reason is logged, so no hook can overflow the window.
+     - The hidden "restate your todo list" follow-up and the memory flush
+       are not user prompts. UserPromptSubmit, UserPromptExpansion and the
+       other prompt hooks never fire on them.
+     - A TaskCompleted refusal comes before M74's compaction check, so a
+       refused completion triggers nothing.
+  6. **The M75 evaluation.**
+     - It runs with hooks off, or records the hook set in its results, so
+       token and capability numbers stay comparable.
+     - The savings ledger shows the tokens that hooks add on a line of their
+       own, "added by hooks", never netted against the savings.
+  7. **Plain cost.** With hooks off, a conversation's request bytes and tool
+     list are identical to main's before M91. A golden request comparison
+     against a fixture recorded before M91's changes proves it. The kept
+     shell directory adds bytes only to a result whose directory is not the
+     workspace root.
+- **Other agents' configuration folders become protected writes:**
+  `.claude`, `.codex`, `.cursor`, `.gemini`, `.github/hooks`,
+  `.github/copilot`, `.devin`, `.windsurf`, `.kiro` and `.clinerules`. They
+  hold hooks and MCP servers that those agents run outside our sandbox. This
+  ships early as its own fix (`fix/protect-agent-folders`, 2026-10-04).
+
 ### D79 — What's New after an update (M99, 2026-10-04)
 
 The owner asked (2026-10-04): "after the app updates it opens a whats new/
@@ -5487,6 +5730,7 @@ remains a separate prerequisite only for a future machine-wide guarantee.
   `isInlineEdit`/`showRange` to reach a stable `vscode.d.ts` (D73, research
   V16 and V17). Each VS Code release's notes are read for it. When it lands,
   M94b is planned against that release and the engine floor it needs.
+- **M91 Cursor's Tab hooks (D70).** **Resolved 2026-10-04 (owner): (a), a Tab-completions milestone.** M94 builds inline completions on `feature/m94-tab`, and its lane K wires `beforeTabFileRead` and `afterTabFileEdit` to them. Until then M91 imports them as "waiting for inline completions", where they run nothing.
 
 | #   | Question                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     | Default until answered                                                                  |
 | --- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------- |
@@ -5762,6 +6006,14 @@ cached: "0.15", currency: "USD" }`, `isDefault`, `isActive`, `releaseDate`.
   extension must track the child PID and kill the tree on dispose.
 
 ## 6. Milestones
+
+### TRAIN14B — Complete the 0.14.0 release train (2026-10-05)
+
+- [~] Merge origin-main (#121), M91/M91b, M93, Knip constants, DEFLAKE4 and M98 phase 1 in the brief's order, retaining every source head and both split-check speed fixes. Skip unready m94/kw and ci/refresh-badges for the lead.
+- [ ] Connect metered Judge claim/settle/refund/lookupByClaimId/latestDay to D78's shared daily ledger and test shared reservation plus subscription-only consent behavior.
+- [ ] Adapt ACTDIET prototype commits after the merges; activation at most 600,000 bytes, shared English under the original 125 KiB, webview startup under 921,600 bytes, all other caps unchanged.
+- [ ] Prepare 0.14.0 with one dated changelog section, at most five Highlights, byte-identical older releases, and matching full/Marketplace README sections and install versions.
+- [ ] Run full quality directly on Kubuntu and measure a CI-shaped VSIX with the checksum-verified universal helper from the authorized 0.13.0 archive. Record conflicts, sizes, drills, gate tail and PR description in the train certification. Local hook-on commits only, no push, rebase, paid/live call; 180-minute time box.
 
 ### TRAIN14A — Start the 0.14.0 release batch (2026-10-05)
 
@@ -11897,7 +12149,11 @@ evaluation is authorized by these repairs.
     so both arms of a pair share the conditions of the moment.
   - No new setting, command, panel string or paid feature: the
     evaluation is developer tooling. M73 and M74 add their own
-    off-by-default settings with their passing runs.
+    off-by-default settings with their passing runs. M91 lane S's
+    `museSpark.modelApiShellKeepsDirectory` is the exception M91 step 4
+    names: M75 records the setting, pinned off in the eval driver to match
+    the recorded baseline, which predates it. The shipped default stays on;
+    turning it on for eval runs needs a fresh baseline run.
 
 ### M73 — Observation packing (D49)
 
@@ -13736,8 +13992,11 @@ The 2026-09-28 certification is historical (`docs/certification/m83.md`).
     a source. Cursor: `mcp.json`, `agents/` and `commands/` in `~/.cursor`
     and the project's `.cursor`, rules in `.cursor/rules/*.mdc` (their
     `description` and `globs` kept in the section) and `.cursorrules`.
-    Cursor's and Codex's hooks are not read: their events do not share
-    Muse Code's names.
+    Cursor's hooks are not read: its events do not share Muse Code's names.
+    Codex's hooks were left unread for the same reason, but that was wrong
+    (corrected 2026-10-04, D70). Codex rust-v0.160.0 uses Muse Code's event
+    names (Claude Code's), matcher grammar and JSON shape for 11 of its 12
+    events, and the 12th is Muse Code's `Interrupt`. M91 lane I imports them.
   - **The scope rule.** The user's own folders go only to the user's
     files; they are theirs, so links in them are followed. A repository's
     folders are read only in a trusted workspace that is not the home
@@ -15390,6 +15649,584 @@ live) and the controller filters its id as well.
   - [x] Live check recorded with its call count.
   - [x] README, PRIVACY, CHANGELOG, PLAN D7 and this record updated.
 
+### M91 — Hooks from every popular agent (D70)
+
+**Status 2026-10-05: integrated on `feature/m91-hooks-parity`; pull request
+next, in the 0.14.0 batch.**
+
+- The step 1 captures are recorded (`docs/certification/m91.md`,
+  `docs/certification/m91-captures/`).
+- Lane 0 is built: 88 strings in all 14 tables, and the hook region's four
+  constants.
+- Every lane is merged on the branch: G, R, P, I, S, X, H, M and E, with
+  the fix rounds of R (RVM91R), P (RVM91P3) and I (FIXM91I3). Lane H's
+  branch brought main with it. Lane W's wiring is built
+  (`docs/certification/m91.md`, "Lane W"):
+  - imported hooks on Muse Code's events run through lane P's adapters;
+  - the Hooks picker lists both files per scope;
+  - the panel marks a MessageDisplay rewrite.
+- **M91b** (below) is merged: Amp and OpenCode plugin dispatch
+  (`m91/w-plugins` at `797e31fc`), in the same 0.14.0 batch. Imported hooks
+  on extension events stay planned there; the importer refuses them.
+- **Main 0.13.0** (`928a9200`) is merged. Lane G's golden hooks-off fixtures
+  were regenerated on main itself, with M91's test, and M91 matches them
+  byte for byte (`m91.md`, "After main and M91b").
+- **Size (D6).** M91 took `dist/modelApi.js` to 486.1 KiB of its 475. Lanes
+  E, H and M's runtime moved into `dist/hookRuntime.js` and the imported
+  records' reader into `dist/foreignHooks.js`, both loaded on first use, and
+  the cap held: 467.6 KiB with main and M91b. `dist/extension.js` is
+  596.9 KiB of 600 and the webview 896.3 of 900.
+- **Integration fixes:** semgrep's prototype-pollution finding in lane P's
+  engine (own keys only, prototype segments refused); a duplicate-key check
+  in `check-l10n`; lane S's unused setting-name constant is gone. knip is
+  still blind to `constants.ts` for a reason not yet found (`m91.md`, drill
+  W22).
+- **Lane I round 3 (FIXM91I3, RVM91I2):** repair all eleven findings
+  within the importer: unknown source switches refuse hooks; Cline executable
+  references are rechecked after awaits and during planning, quoted as
+  literal paths and retain their source 30-second bound; strict Copilot inline blocks refuse together; nonexact
+  matcher translations refuse; Gemini lifecycle filters stay exact and
+  sequential policy spans merged settings; Cursor records match adapter
+  source-event selection at `d8e609aa` and require version 1. Each finding
+  gets a regression and a SHA-256-restored red drill in `m91-i.md`.
+  The lane also removes its six duplication-gate clones using existing
+  scanner/converter functions and replaces the heavy Model API name-builder
+  import with bounded canonical-name checks against the pinned 20/64 contract,
+  verified by tests against the real builder; the import bundle keeps its
+  existing 125 KiB cap. No new layer or dependency.
+
+**Lane P review corrections (RVM91P3, 2026-10-04).** Keep the declarative
+contracts and public entry points. Translate Gemini tool inputs only where the
+saved captures or examples establish the fields; an unsupported blocking call
+returns `refused` with `blockOperation: true`, which the dispatcher must enforce
+before execution. Preserve tool whitelists while refusing forced selection,
+validate captured model request/response shapes, merge argument patches against
+the original execution input, retain advisory observations beside ignored
+controls, and carry Notification details. Replay the vendor's own data-dependent
+scripts and narrow certification claims to the checks actually performed.
+Each finding gets a failing regression and a byte-exact restored red drill in
+`docs/certification/m91-p.md`. No live call or new dependency is authorized.
+
+The early protected-paths fix is its own pull request,
+`fix/protect-agent-folders`.
+
+- **Goal.** A hook written for any of these agents runs on the Model API
+  backend at the same point, and with no more power, wherever this extension
+  has that point: Muse Code, Claude Code, Codex, Gemini CLI, Cursor,
+  Copilot and VS Code, Windsurf, Kiro, Cline, Amp or OpenCode. Every hook
+  concept in the research has such a point (D70). Muse Code's own 1.4 hooks
+  behave the same on both backends. Nothing breaks the SoL-Pi optimisations.
+- **Scope.**
+  - Muse parity: Interrupt, SessionFork's acceptance, and the
+    PostToolUseFailure correction.
+  - The 21 extension events, with the operations that ten of them need: the
+    kept shell directory, MCP elicitation, the Setup and Manual commands,
+    added folders, TeammateIdle, the MessageDisplay marker,
+    BeforeToolSelection's admission check, and AfterAgentThought.
+  - spark-hooks.json, with its rows in the Hooks picker.
+  - The handler types `http`, `mcp_tool`, `prompt` and `agent`.
+  - Importers for Codex, Gemini, Cursor, Copilot and VS Code, Windsurf, Kiro
+    and Cline, plus Claude Code's extended set.
+  - The format adapters, and the out-of-process plugin host for Amp and
+    OpenCode.
+  - Strings in all 14 tables.
+  - Docs: README, PRIVACY, CHANGELOG, AGENTS.md, CONTRIBUTING, this plan
+    (D70 and the M83 Codex correction), and `docs/certification/m91.md`.
+- **Depends on.** `fix/protect-agent-folders` (acceptance 7 ships there).
+  The two items under M74 (SoL-Pi rule 5's compaction cases) wait on Q-M74,
+  the owner's contract for automatic compaction.
+- **Upstream.** Two items wait on Meta:
+  - [meta-models/muse-code-sdk#84](https://github.com/meta-models/muse-code-sdk/issues/84):
+    1.4.2 accepts SessionFork as runnable but never starts it.
+    **SessionFork waits on #84 (Meta-blocked).** Lane R parses it, so the
+    same file is accepted on both backends. The Model API fires it only once
+    Meta confirms what it means.
+  - [meta-models/muse-code-sdk#85](https://github.com/meta-models/muse-code-sdk/issues/85):
+    Muse Code's own reminder agents fire SubagentStart and SubagentStop, and
+    PreLLMCall and PostLLMCall. Their payloads carry only the child session
+    id, with no parent session or turn.
+
+  [#31](https://github.com/meta-models/muse-code-sdk/issues/31)
+  (`session/fork` refused on Windows) is still open on 1.4.2.
+
+- **Internal helper turns.** Today the Model API runtime fires hooks for a
+  call it makes for itself only where M51 documents it.
+  - Compaction's summary request runs PreLLMCall and PostLLMCall, between
+    PreCompact and PostCompact.
+  - These run no hooks at all: the Auto reviewer's calls (M78), side chats
+    (M51), and Best-of-N attempt hosts (M77: `isHooksEnabled` is off in
+    `modelApiBackendManager.ts`).
+
+  M91 keeps it so. A `prompt` or `agent` handler's own model call fires no
+  hook, so a hook cannot recurse. Neither do M74's hidden follow-up and
+  memory flush, once built (SoL-Pi rule 5). So TeammateIdle for a Best-of-N
+  attempt fires from the parent session's snapshot in the coordinator, never
+  inside the attempt, which still runs no hooks.
+
+- **Event behaviour.** The Muse Code events first, then the 21 extension
+  events.
+
+  | Event                                  | Fires at                                                                                       | Behaviour                                                                                                                              | Backends                      |
+  | -------------------------------------- | ---------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------- |
+  | Interrupt                              | A running turn or compaction is cancelled: Stop, a UserPromptSubmit block, the session closing | Async only; observation; never when an idle session closes (captured)                                                                  | Both                          |
+  | SessionFork                            | Accepted, not run: 1.4.2 never runs it (captured)                                              | Sync only. When a capture shows it running: before forkSession copies anything; a refusal ends the fork; side chats still run no hooks | Both                          |
+  | PostToolUseFailure with `updatedInput` | A failed tool call                                                                             | The same tool only, as a new call through PreToolUse, policy, path confinement and approval; bounded by `HOOK_ON_FAILURE_MAX_DEPTH`    | Model API (Muse runs its own) |
+  | InstructionsLoaded                     | Rules or a skill read into the context (`instructionsFor`, the touched path's rules)           | Observation; a workspace-relative path and a reason, never content                                                                     | Model API                     |
+  | UserPromptExpansion                    | A slash command or a skill expands                                                             | Can refuse, with a visible reason                                                                                                      | Model API                     |
+  | PermissionDenied                       | The Auto reviewer, a refusal or a mode refuses a call                                          | Observation; no `retry`                                                                                                                | Model API                     |
+  | PreModelSwitch                         | `setModel`                                                                                     | Can refuse only; model ids only                                                                                                        | Model API                     |
+  | PostModelSwitch                        | After `setModel`                                                                               | Observation                                                                                                                            | Model API                     |
+  | TaskCreated                            | `todo_write` adds an item                                                                      | Can refuse, with a visible reason; counts toward `HOOK_MAX_STOP_CONTINUATIONS`; the subject and description bounded                    | Model API                     |
+  | TaskCompleted                          | `todo_write` completes an item                                                                 | As TaskCreated; runs before M74's compaction check                                                                                     | Model API                     |
+  | FileChanged                            | A file changed outside the agent (`noteExternalEdit`, the watcher)                             | Observation; matcher required; debounced per path; capped per minute; never starts a model request; path and reason only               | Both                          |
+  | ConfigChange                           | A settings or hook file changes                                                                | Observation                                                                                                                            | Both                          |
+  | WorktreeCreate                         | After Best-of-N creates its worktree                                                           | A non-zero exit fails that attempt; cannot choose a path                                                                               | Model API                     |
+  | WorktreeRemove                         | Before Best-of-N removes it                                                                    | Observation                                                                                                                            | Model API                     |
+  | Setup                                  | **Run Setup Hooks**; the ACP agent's `setup` (`--maintenance` for that matcher)                | Observation; matcher `init` or `maintenance`                                                                                           | Both                          |
+  | DirectoryAdded                         | A trusted workspace activates; a folder is added to the window                                 | Observation                                                                                                                            | Both                          |
+  | CwdChanged                             | The kept shell directory changes                                                               | Observation; old and new directory, workspace-relative                                                                                 | Model API                     |
+  | Elicitation                            | An MCP server sends `elicitation/create`                                                       | A project hook may decline or cancel; a user hook may answer, validated against the server's schema                                    | Model API                     |
+  | ElicitationResult                      | The user answered                                                                              | Observation; a project hook sees field names and the action only                                                                       | Model API                     |
+  | TeammateIdle                           | A Best-of-N attempt or a background subagent is about to stop while siblings run               | A block keeps it working inside its consented run; counts toward `HOOK_MAX_STOP_CONTINUATIONS` and the budget                          | Model API                     |
+  | MessageDisplay                         | An assistant message is about to show                                                          | A display-only rewrite with a marker the hook cannot remove and a one-click original                                                   | Both                          |
+  | BeforeToolSelection                    | Before each model request                                                                      | Narrow only, enforced at call admission; the declared tool list never changes                                                          | Model API                     |
+  | AfterAgentThought                      | A reasoning block finished                                                                     | Observation; bounded; through the M54 preview scrubber                                                                                 | Model API                     |
+  | Manual                                 | **Run Hook…** or `/hook run <name>`                                                            | The user starts it; observation; output shown                                                                                          | Both                          |
+
+- **Lanes.** One branch, `feature/m91-hooks-parity`.
+  - Lane 0 goes first. Then R, E, I, P, S, M, H and X run in parallel, and
+    W goes last.
+  - Region rules are as in M87. Each lane adds its tunables beside the hook
+    region of `src/shared/constants.ts`, never at the file's end.
+  - `hooks.ts` is region-owned: lane R owns its events, lane H its handler
+    fields.
+  - **Settings and commands.** A lane that adds a setting or a command adds
+    all of it in one commit:
+    - its constant and `SETTING_DEFAULTS` entry, and its place among the
+      machine-scoped settings;
+    - its `package.json` contribution;
+    - its text in `package.nls.json` and the 14 `package.nls.<lang>.json`;
+    - its registration.
+
+    `manifest.test.ts` holds every contributed command to a registered one,
+    and check-l10n holds every manifest string to its use, so none can land
+    ahead. `package.json` and the 15 `package.nls*.json` are region-owned:
+    each lane edits only its own entries, beside the related ones.
+
+    | Lane | Adds                                                                                                                                                                                           |
+    | ---- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+    | S    | `museSpark.modelApiShellKeepsDirectory`: boolean, default `true`, machine-scoped                                                                                                               |
+    | H    | `museSpark.hookHttpAllowedHosts`: string array, default empty, machine-scoped; the paid feature `hookModels` and its `museSpark.modelApiHookModels` (boolean, default `false`, machine-scoped) |
+    | E    | the commands `museSpark.runSetupHooks` (Run Setup Hooks) and `museSpark.runHook` (Run Hook…), and `/hook run` in the slash menu                                                                |
+
+  | Lane                    | Owns                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
+  | ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+  | 0 Strings and constants | `src/shared/l10n/en.ts`, the 14 `l10n/ui.*.json` and `l10n/untranslated.json`; the hook region of `src/shared/constants.ts` (`SPARK_HOOKS_SEGMENTS`, `EXTENSION_HOOK_EVENTS`, `HOOK_FILE_CHANGED_DEBOUNCE_MS`, `HOOK_FILE_CHANGED_MAX_PER_MINUTE`)                                                                                                                                                                                                                                         |
+  | R Muse parity           | `hooks.ts`'s events (Interrupt, SessionFork's acceptance, PostToolUseFailure `updatedInput`); the cancel, dispose, forkSession and tool-failure regions of `ModelApiHost.ts`; the modelApiHooks tests                                                                                                                                                                                                                                                                                      |
+  | E Extension events      | the new `src/core/backends/modelapi/extensionHooks.ts`; `toolHookPayload.ts`; the setModel, todo_write, skill-invocation, touchPath/rules, autoReview/refused, noteExternalEdit, request (BeforeToolSelection's admission), reasoning and message regions of `ModelApiHost.ts`; `bestOfNRunner.ts` and `worktrees.ts`; the watcher, configuration, folders and command regions of `extension.ts`; the ACP agent's `setup` command (`src/runtime/cliArgs.ts`, `src/runtime/main.ts`); tests |
+  | I Import                | `agentImport.ts`, `importConvert.ts`, the `AGENT_IMPORT_*` constants (new sources gemini, copilot, windsurf, kiro and cline; their paths; per-source event and tool maps); tests                                                                                                                                                                                                                                                                                                           |
+  | P Adapters              | the new `src/core/backends/modelapi/hookFormats.ts` (formats gemini, cursor, copilot, windsurf, kiro and cline); tests                                                                                                                                                                                                                                                                                                                                                                     |
+  | S Shell directory       | the shell tool's directory: its regions of `tools.ts`, `ModelApiHost.ts` and `src/host/backend/toolIo.ts`; the tool row's directory; tests                                                                                                                                                                                                                                                                                                                                                 |
+  | M MCP elicitation       | `src/core/backends/modelapi/mcp/` (the capability, `elicitation/create`, the answer); the panel's form and its protocol messages; the ACP agent's form (`src/acp/questions.ts`); tests                                                                                                                                                                                                                                                                                                     |
+  | H Handler types         | `hooks.ts`'s handler fields; the new `src/core/backends/modelapi/hookHandlers.ts` (`http`, `mcp_tool`, `prompt`, `agent`); the paid gate's new feature and its tally; the Muse Code side session for `prompt` and `agent`; tests                                                                                                                                                                                                                                                           |
+  | X Plugin host           | the new `src/core/backends/modelapi/pluginHost.ts` and its child entry (its own bundle if D6 needs it; M91b if the budget does); the Amp and OpenCode shims; tests                                                                                                                                                                                                                                                                                                                         |
+  | W Wiring                | the Hooks picker (`museConfigCommands.ts`); the MessageDisplay marker in the panel; README, PRIVACY, CHANGELOG, AGENTS.md, CONTRIBUTING, PLAN, `docs/certification/m91.md`; the full gate                                                                                                                                                                                                                                                                                                  |
+
+- **Steps.**
+  1. **Capture first: done 2026-10-04** (`docs/certification/m91.md`). The
+     echo provider, empty folders, an isolated home, 0 model calls. The
+     findings are in D70. Nothing uncaptured is wired: SessionFork's veto
+     waits for a release that runs it.
+  2. **Lane R.**
+     - Interrupt is async only. It fires when a running turn or compaction
+       is cancelled: by Stop, by a UserPromptSubmit block, or by the session
+       closing while the turn runs. That is when Muse Code fires it
+       (captured). It never fires when an idle session closes.
+     - SessionFork must be sync and is accepted. It runs nothing until
+       upstream #84 is answered and a capture shows it running.
+     - The PostToolUseFailure `updatedInput` correction takes the same tool
+       only, as a new call through PreToolUse, policy, path confinement and
+       approval, bounded by `HOOK_ON_FAILURE_MAX_DEPTH`.
+  3. **Lane E.**
+     - spark-hooks.json loads together with Muse Code's sources: in the same
+       per-session snapshot, behind the same trust gate and
+       `museSpark.modelApiHooks` opt-in.
+     - The 21 events fire at their operations, with the behaviour in the
+       table above.
+     - BeforeToolSelection narrows at admission and leaves the declared tool
+       list as it was.
+  4. **Lane S.** The shell keeps its directory between calls.
+     - The shell tool's declared description and schema stay byte-stable
+       (SoL-Pi rule 1). The kept directory is reported at the tail of a
+       result whose directory is not the root, and in the tool row.
+     - A machine-scoped setting turns it off; M75 records it.
+     - `then_run` and `run_checks` still run at the root.
+  5. **Lane M.** MCP elicitation's form mode on the Model API backend's
+     client.
+     - The form shows in the panel, and in the ACP agent through its form
+       path.
+     - The answer is accept, decline or cancel, validated against the
+       requested schema.
+     - Elicitation and ElicitationResult follow the event table.
+  6. **Lane P.** One adapter per format, translating stdin and mapping each
+     answer onto `HookAnswer`.
+     - Each source's fail-closed rules are kept: Cursor's invalid JSON on
+       permission hooks and its `failClosed`; Copilot's preToolUse errors.
+     - An adapter parse failure counts as a failure, never as allow.
+     - A foreign `allow` never skips an approval card.
+  7. **Lane I.** Readers and converters, per the research's importer table.
+     - Codex hooks go into Muse Code's files (TOML read with smol-toml).
+     - The other formats go into spark-hooks.json with their format tag.
+     - Concepts this milestone adopts are no longer refused.
+     - A source event that can block where ours cannot is still refused, so
+       an imported guard is never weaker: Claude's WorktreeCreate (it
+       chooses the path) and ConfigChange (it can block), and Cursor's
+       subagentStart.
+     - Every refusal is listed with its reason; the preview shows metadata
+       only.
+     - M83's rules apply: unsaved edits that the user saves, D64 exposure,
+       project sources only when trusted.
+  8. **Lane H.** The four handler types, as D70 says. A `prompt` or `agent`
+     handler is a paid use on the Model API, and a side-session turn on Muse
+     Code. None of them widens.
+     Lane H's receipt is `docs/certification/m91-h.md`. The shared daily
+     budget setting is absent in this lane's base; its owner must wire
+     `ModelApiPaidHooks.hookModelDailyBudget` (reserve/check/settle) and the
+     popup cap. Lane R must consume the Muse Code helper factory. Until
+     those integrations are proved, handler acceptance 11 stays open.
+  9. **Lane X.** The plugin child and its shims for Amp and OpenCode, and
+     Cline's scripts through the `cline` adapter. The plugins' events map
+     onto the event list above, and lane X records the mapping in this plan
+     before its code.
+- **Lane X event mapping (recorded 2026-10-05, before lane X code).**
+  Sources are the saved research under `hooks-parity/` (cited per row);
+  nothing here is captured live. A plugin answer can only refuse, narrow or
+  add context — never grant; a crash or timeout follows the event's
+  fail-closed rule; the child is killed with the session and bounded in
+  memory and time. The shim offers no shell helper, no client and no model
+  access: a call to one fails that hook.
+  - **Amp** (in-process `amp.on` plugins; `hooks-parity/raw/amp_plugin-api.md`).
+    Runtimes: the user's system `node` ≥ 22.18, plain JS or TS through
+    Node's built-in type stripping; never the extension host's Node.
+
+    | Amp event                                    | Muse event       | Answer mapping                                                                                                                                                                                                                                                                        |
+    | -------------------------------------------- | ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+    | `session.start` (`amp_plugin-api.md:1929`)   | SessionStart     | Observation; the thread id only                                                                                                                                                                                                                                                       |
+    | `tool.call` (`:1953`, results `:1962`)       | PreToolUse       | `allow` → completed; `reject-and-continue{message}` → blocked with the message; `modify{input}` → completed with `updatedInput` (same tool only); `synthesize{result}` → completed with a tool-result replacement; `error{message}` → failed (blocked where the event is fail-closed) |
+    | `tool.result` (`:2044`, replacement `:2052`) | PostToolUse      | `void` → completed; a returned `{status, output?, error?}` → completed with a tool-result replacement                                                                                                                                                                                 |
+    | `agent.start` (`:2074`, result `:2097`)      | UserPromptSubmit | `void` → completed; `{message:{content}}` → completed with context                                                                                                                                                                                                                    |
+    | `agent.end` (`:2109`, result `:2130`)        | Stop             | `void` → completed; `{action:'continue', userMessage}` → blocked with the user message as the reason (the turn continues); `maxContinuations` is capped by `HOOK_MAX_STOP_CONTINUATIONS`                                                                                              |
+    | `changes.prompt` (`:2148`)                   | Refused          | No Ship/Push workflow here; refused with a reason                                                                                                                                                                                                                                     |
+    | (no `session.end`; `:29`)                    | SessionEnd       | Refused: Amp has no matching event                                                                                                                                                                                                                                                    |
+
+  - **OpenCode typed hooks** (`hooks-parity/raw/oc_plugin_index.ts`; the docs
+    list at `hooks-parity/raw/oc_plugins.mdx`). OpenCode is Bun-native, so
+    its plugins run under the user's installed `bun`; when `bun` is absent
+    the hook is refused with a reason. Handler order across plugins is
+    undefined upstream (`raw-kiro-amp-opencode-continue.md:29`); each
+    registered handler runs in load order and one's block ends the chain.
+
+    | OpenCode hook (`oc_plugin_index.ts`)                                                                                      | Muse event          | Answer mapping                                                                                           |
+    | ------------------------------------------------------------------------------------------------------------------------- | ------------------- | -------------------------------------------------------------------------------------------------------- |
+    | `tool.execute.before` (`:266`, throw blocks, mutate `output.args`)                                                        | PreToolUse          | Throw → blocked with the thrown message; mutated `args` → completed with `updatedInput` (same tool only) |
+    | `tool.execute.after` (`:274`, mutate `output.output`)                                                                     | PostToolUse         | Throw → failed; mutated `output` → completed with a tool-result replacement                              |
+    | `permission.ask` (`:261`, `output.status`)                                                                                | PermissionRequest   | `deny` → deny; `ask` → ask; `allow` is never applied (completed without a grant)                         |
+    | `command.execute.before` (`:262`)                                                                                         | UserPromptExpansion | Throw → blocked with the reason; otherwise completed                                                     |
+    | `chat.message` (`:234`)                                                                                                   | UserPromptSubmit    | Observation only; a mutated message is not applied                                                       |
+    | `experimental.session.compacting` (`:305`, `context`/`prompt`)                                                            | PreCompact          | `context` entries → context; a full `prompt` replacement is not applied (the prefix stays byte-stable)   |
+    | `chat.params` (`:242`), `chat.headers` (`:258`), `experimental.provider.small_model` (`:297`), `tool.definition` (`:332`) | Refused             | They choose a model, headers, params or the tool list; refused with a reason                             |
+    | `experimental.chat.messages.transform` (`:282`), `experimental.chat.system.transform` (`:291`)                            | Refused             | They rewrite earlier request bytes (SoL-Pi rule 1); refused with a reason                                |
+    | `experimental.compaction.autocontinue` (`:316`), `experimental.text.complete` (`:327`)                                    | Refused             | No equivalent operation (auto-continue control, display rewrite); refused with a reason                  |
+    | `shell.env` (`:270`)                                                                                                      | Refused             | Environment edits are a secret risk (as Copilot `env`); refused with a reason                            |
+    | `config`, `tool`, `auth`, `provider`, `dispose` (`:223`)                                                                  | Refused             | Registration, not hook points; refused with a reason                                                     |
+
+  - **OpenCode event-bus subset** (bus list `raw-kiro-amp-opencode-continue.md:36;
+the `event`hook at`oc_plugin_index.ts:224`). The `event`handler
+returns`void`, so every bus mapping is observation only; a throw fails
+    the hook, never blocks it.
+
+    | Bus event                                                                                                                                                                                               | Muse event                                                                          |
+    | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------- |
+    | `session.created`                                                                                                                                                                                       | SessionStart (observation)                                                          |
+    | `session.deleted`                                                                                                                                                                                       | SessionEnd (observation)                                                            |
+    | `session.compacted`                                                                                                                                                                                     | PostCompact (observation)                                                           |
+    | `todo.updated`                                                                                                                                                                                          | TaskCreated/TaskCompleted (by the item's status; observation, refusals not applied) |
+    | `permission.asked`                                                                                                                                                                                      | PermissionRequest (observation only)                                                |
+    | `permission.replied` denied                                                                                                                                                                             | PermissionDenied (observation only)                                                 |
+    | `file.watcher.updated`                                                                                                                                                                                  | FileChanged (observation; path only)                                                |
+    | `file.edited`                                                                                                                                                                                           | PostToolUse for Edit\|Write (observation)                                           |
+    | `message.updated`                                                                                                                                                                                       | MessageDisplay (observation; a rewrite is not applied)                              |
+    | `session.error`                                                                                                                                                                                         | StopFailure (observation)                                                           |
+    | `tool.execute.before` / `tool.execute.after` on the bus                                                                                                                                                 | As the typed hooks above (a plugin subscribed to both fires twice, as upstream)     |
+    | `tui.*`, `lsp.*`, `server.connected`, `installation.updated`, `message.part.*`, `message.removed`, `session.diff`, `session.status`, `session.updated`, `command.executed`, `session.idle`, `shell.env` | Refused: TUI/display internals, no equivalent operation, or covered by a typed hook |
+
+  - **Cline v1 scripts** (per-event scripts in `.clinerules/hooks/` and
+    `~/Documents/Cline/Hooks/`; `hooks-parity/raw-copilot-cline.md:13-15,24-26`;
+    the full `cline-hooks-901d1b5c97.mdx` and `cline/src_*` copies named there
+    are not on this rig, so field shapes below stay conservative and every
+    gap is labelled). They run as command hooks through the `cline` contract
+    table, interpreted by the shared engine; no hand-written per-event
+    translator. The newer SDK/CLI file-hook contract
+    (`raw-copilot-cline.md:26`: `tool_call`/`tool_result`/`agent_start` with
+    `cancel`/`review`/`overrideInput`) is a different contract and is
+    refused with a reason. Discovery follows the source platform rules:
+    Windows runs `<HookName>.ps1` only, Unix runs the extensionless
+    `<HookName>` only and it must be executable; anything else is ignored,
+    never converted. Timeout 30 s; a `contextModification` over 50,000 chars
+    is capped; a non-zero exit without JSON does not block
+    (`raw-copilot-cline.md:25`).
+
+    | Cline script                                                                  | Muse event       | Notes                                                                                                                                                     |
+    | ----------------------------------------------------------------------------- | ---------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
+    | TaskStart                                                                     | SessionStart     | `cancel` → blocked; `contextModification` → context (see #13554, `raw-copilot-cline.md:27`: upstream may drop it for non-cancelling hooks; ours keeps it) |
+    | TaskResume                                                                    | SessionStart     | As TaskStart (a resumed task starts the session)                                                                                                          |
+    | TaskCancel                                                                    | SessionEnd       | Observation; `cancel` has nothing left to block                                                                                                           |
+    | TaskComplete                                                                  | Stop             | `cancel` → blocked with the reason (the turn continues); context kept                                                                                     |
+    | PreToolUse                                                                    | PreToolUse       | JSON `cancel` → blocked; a non-zero exit without JSON does not block (`raw-copilot-cline.md:25`)                                                          |
+    | PostToolUse                                                                   | PostToolUse      | Observation; context kept                                                                                                                                 |
+    | UserPromptSubmit                                                              | UserPromptSubmit | As TaskStart                                                                                                                                              |
+    | PreCompact                                                                    | PreCompact       | `cancel` → blocked (the optional compaction stops; the hard-limit compaction still runs)                                                                  |
+    | Notification (in `VALID_HOOK_TYPES`, `raw-copilot-cline.md:24`, undocumented) | Notification     | Observation; context kept                                                                                                                                 |
+  10. **Lane W.**
+      - The Hooks picker lists both files per scope and says which backend
+        runs each.
+      - The MessageDisplay marker and the original.
+      - Then the docs, the certification and the full gate.
+
+- **Acceptance.**
+  1. **Interrupt and SessionFork.** One `.muse/hooks.json` with Interrupt
+     and SessionFork behaves the same on both backends:
+     - Interrupt fires on Stop during a turn or a compaction, on a
+       UserPromptSubmit block, and on a close with a turn running. It never
+       fires on an idle close.
+     - A sync Interrupt is refused.
+     - SessionFork is accepted only as sync, and runs nothing, as on Muse
+       Code 1.4.2.
+  2. **The correction.** The PostToolUseFailure correction re-runs the same
+     tool once per chain step, through the full path. A correction to
+     another tool, to a path outside the workspace, or past the depth bound
+     is refused.
+  3. **Extension events.** Each extension event fires once at its
+     operation, with its documented fields, and never when the operation did
+     not happen. Blocking events refuse with a visible reason; observation
+     events cannot block.
+  4. **The two files.** A Muse Code name in spark-hooks.json is refused with
+     a warning. An extension name in `.muse/hooks.json` is skipped with Muse
+     Code's warning.
+  5. **Import.** Each source imports per the research's importer table, as
+     amended by D70. Every refusal is listed, and nothing is written until
+     the user saves.
+  6. **Guards.** For each format, a PreToolUse-type guard that denies,
+     returns an invalid answer or crashes blocks exactly when its source
+     agent would.
+  7. **Protected folders.** Writes to other agents' configuration folders
+     ask in every mode except Bypass. This ships early, in
+     `fix/protect-agent-folders`.
+  8. **The Hooks picker** lists both files for each scope, and the backend
+     that runs each.
+  9. **The kept shell directory.**
+     - It survives between shell calls and is shown in the tool row.
+     - It resets to the root, with a note to the model, when it would leave
+       the workspace or follow a link out of it.
+     - CwdChanged fires once per change.
+     - `then_run` and `run_checks` run at the root.
+  10. **Elicitation.**
+      - A server's elicitation shows as a form.
+      - Accept, decline and cancel reach the server, and an answer outside
+        the requested schema is refused.
+      - A project hook can only decline or cancel; a user hook can answer.
+      - ElicitationResult never gives a project hook what the user typed.
+  11. **Handler types.**
+      - `http` reaches only allowlisted hosts over HTTPS, follows no
+        redirect, and is refused in project files.
+      - `mcp_tool` goes through the tool's own approval.
+      - `prompt` and `agent` are refused while their paid feature is off.
+        When it is on, they ask in the paid-use popup, are tallied on their
+        own line and stop at the budget. On Muse Code they run in a side
+        session.
+      - None of them widens.
+  12. **Plugins.**
+      - Amp's and OpenCode's plugins run in the plugin child, never in the
+        extension host, under the hook limits.
+      - A shim call they are not offered fails that hook.
+      - Cline's scripts run through the `cline` adapter.
+  13. **The ten new operations.**
+      - Setup, DirectoryAdded and Manual fire only at their operations.
+      - TeammateIdle keeps an attempt working within its bound.
+      - MessageDisplay's marker cannot be removed, and the history, copy and
+        export keep the original.
+      - BeforeToolSelection can only narrow: a call to a removed tool is
+        refused.
+      - AfterAgentThought sends bounded, scrubbed text.
+  14. **The SoL-Pi rules hold** (D70):
+      - a. With hooks active, request N+1 begins with request N's whole
+        bytes, and the `prompt_cache_key` does not change.
+      - b. A packed output after a hook's rewrite recalls exactly the bytes
+        the model saw, and a hook's stdin holds only the bounded preview.
+      - c. `prompt` and `agent` handlers never bypass the paid gate or the
+        hard budget, and are tallied apart from the reducer.
+      - d. An imported shell guard blocks a `then_run` command.
+      - e. M74's compaction cases, once M74's automatic compaction lands.
+      - f. The M75 evaluation records the hook set or runs with hooks off,
+        and the ledger keeps "added by hooks" separate.
+      - g. With hooks off, the request bytes and tool list equal the
+        pre-M91 fixture.
+  15. **Cursor's Tab hooks.** They import and are listed as waiting for
+      inline completions, until M94's lane K gives them their operation
+      (§3, resolved 2026-10-04).
+- **Tests.** Every one must be able to fail, with a red drill recorded in
+  `m91.md`.
+  - Interrupt fires on cancel, on a UserPromptSubmit block and on a close
+    with a turn running, and not on an idle close. Drill: fire it from an
+    idle dispose.
+  - A sync Interrupt is refused. Drill: remove the async check.
+  - An async SessionFork is refused, and a sync one runs nothing. Drill:
+    remove the sync check.
+  - A correction to another tool is refused. Drill: remove the same-tool
+    check.
+  - The correction depth bound holds. Drill: raise it.
+  - One test per extension event, on fake I/O.
+  - A Muse Code name in spark-hooks.json is refused. Drill: remove the
+    check; the hook runs twice.
+  - The FileChanged debounce and per-minute cap hold. Drill: remove the
+    debounce.
+  - FileChanged never queues a turn.
+  - An untrusted workspace, or the opt-in off, loads nothing.
+  - Format adapters:
+    - recorded stdin and stdout pairs;
+    - the fail-closed cases (drill: make Cursor's invalid JSON fail open);
+    - a foreign `allow` still shows the card.
+  - Importer:
+    - each mapping row and each refusal reason;
+    - TOML `[hooks]`; Gemini ms → s; Copilot camelCase and PascalCase;
+      Windsurf powershell; Kiro v1;
+    - the preview carries no command text.
+  - Shell directory:
+    - it is kept;
+    - it resets outside the workspace (drill: drop the confinement);
+    - CwdChanged fires once per change;
+    - `then_run` runs at the root after a `cd`.
+  - Elicitation:
+    - an answer outside the schema is refused (drill: skip the
+      validation);
+    - a project hook's answer is refused;
+    - ElicitationResult's project payload has no values.
+  - Handlers:
+    - `http` off-list host, plain HTTP and redirect refused (drill: allow
+      redirects);
+    - `prompt` refused with the paid feature off (drill: skip the gate).
+  - Plugins: a plugin's shell or client call fails its hook, and the
+    plugin's process is not the extension host's.
+  - The ten new operations, one test each. BeforeToolSelection's drill:
+    filter the declared list instead, and SoL-Pi test (a) fails.
+  - SoL-Pi tests:
+    - (a) the byte-prefix comparison across a turn with SessionStart,
+      UserPromptSubmit and PostToolUse context and a BeforeToolSelection
+      narrowing (drill: put the context into the instructions);
+    - (b) a pack after a hook rewrite (drill: archive the pre-hook output);
+    - (c) the paid gate and the separate tally;
+    - (d) a `then_run` command blocked by an imported Cursor
+      beforeShellExecution guard (drill: skip the adapter for `then_run`);
+    - (f) the evaluation's hook record and the ledger line;
+    - (g) the golden request comparison against a fixture recorded on main
+      before M91 (drill: change one byte of the tool list with hooks off).
+  - Protected paths: one test per folder. Drill: remove a segment.
+  - One live check on the contributor model, in an empty workspace. State
+    the expected number of model calls first, and count them from the trace
+    afterwards.
+    - A Codex PreToolUse deny guard and a Cursor one each stop one bash
+      call.
+    - On Muse Code, one turn with a tool call captures PostToolBatch.
+- **Gates.**
+  - The full quality gate.
+  - The Model API bundle within its D6 budget: the adapters and the plugin
+    host load lazily if needed, and X moves to M91b if they cannot fit.
+  - check-l10n.
+  - host-API.
+- **Security.**
+  - **Trust** as in M51: a trusted workspace, the `museSpark.modelApiHooks`
+    opt-in, a per-session snapshot, and nothing in Restricted Mode.
+  - **Environment and limits** as in M51:
+    - an allowlisted environment (`HOOK_FORBIDDEN_ENV_NAMES`);
+    - 256 KiB stdin, and 16 KiB stdout and stderr;
+    - a 600 s timeout cap;
+    - four running commands at most;
+    - cancel kills the process tree;
+    - a closed output schema per event.
+
+    The plugin child, `http` and `mcp_tool` take the same caps.
+
+  - **Payload privacy** as in M51 and M54: bounded previews, and no media
+    bytes or credentials.
+    - FileChanged, InstructionsLoaded, CwdChanged and DirectoryAdded send a
+      workspace-relative path and a reason, never content.
+    - PreModelSwitch sends model ids only.
+    - TaskCreated sends the subject and description, bounded.
+    - ElicitationResult sends values to user hooks only.
+  - **No new power.** Adapters keep each source's fail-closed rules and none
+    of its grants.
+    - `http` is user scope only, HTTPS to allowlisted hosts.
+    - `prompt` and `agent` are paid uses under D30 and D48.
+    - MessageDisplay cannot touch a card, a tool row or a notice.
+- **Certification checklist.**
+  - [x] Step 1 captures recorded (2026-10-04, 0 model calls).
+  - [x] Lane 0's keys in all 14 tables, and its constants (2026-10-04,
+        `check-l10n` 0 problems).
+  - [ ] Acceptance 1–14, each with its test and drill; 14e waits on Q-M74.
+  - [ ] SessionFork's veto: waits on meta-models/muse-code-sdk#84 (Meta-blocked).
+  - [x] Acceptance 15: the owner's answer (2026-10-04: M94 builds Tab
+        completions; the hooks wait for its lane K).
+  - [ ] Live check and its call count.
+  - [ ] Docs: README, PRIVACY, CHANGELOG, AGENTS.md, CONTRIBUTING, PLAN,
+        m91.md.
+
+### M91b — Amp and OpenCode plugin dispatch (D70)
+
+**Status 2026-10-05: done on `m91/w-plugins` (`5a2aa619` and its docs
+commit); it ships with M91 in the 0.14.0 batch, not as a separate pull
+request.** Split from M91 at the lead's 07:00 checkpoint, after the RVM91X
+fixes (`22e9e7ff`). The record is `docs/certification/m91-wp.md`: 28 red
+drills, Kubuntu and Win11 green. Its residuals are in §9 ("Amp and
+OpenCode plugin hooks").
+
+- **Scope, exactly this list:**
+  - dispatch in `foreignHooksEntry.ts`, with the session's `dispose` ending
+    plugin children;
+  - the plugin records in `spark-hooks.json` (`format` amp or opencode, a
+    `plugin` path, a `{ type: 'plugin' }` handler) and the `plugin`
+    ForeignPreparation, run under the host-wide cap and the same judge;
+  - the tool-name and argument maps, from the saved sources only;
+  - `src/core/import/pluginImport.ts` and its glue in the importer;
+  - the bundle move: the plugin host in `dist/pluginHooks.js`, required on
+    the first plugin hook (D6);
+  - RVM91X P2s 9, 10, 12 and 15.
+- **The lead's rulings (2026-10-05):**
+  - Amp's `tool.call` `error` matches Amp: the tool never runs and the turn
+    ends with the plugin's reason. The fail-open and fail-closed rules cover
+    transport failures only.
+  - Windows job preparation: a hook never runs without a tree. A failure is
+    retried once after a short delay, then stays, with a notice in the
+    user's language, until **Muse Spark: Retry Plugin Hooks**.
+  - P2 12: Windows bounds the job's memory; Linux bounds bun with `prlimit
+--data`; elsewhere bun is refused rather than run unbounded.
+- **Still planned, not in M91b's build: imported hooks on extension
+  events** (lane W, 2026-10-05):
+  - Cursor `workspaceOpen` and `afterAgentThought`;
+  - Windsurf `post_setup_worktree`;
+  - Kiro `PreTaskExec` and `PostTaskExec` (and `Manual`, which lane I
+    refuses as unmapped);
+  - Gemini `BeforeToolSelection`.
+
+  They need the adapters in lane E's dispatcher (`dispatchExtensionHooks`)
+  and in the window's runner, which loads `dist/foreignHooks.js` lazily.
+  Until then the importer refuses them, and the preview gives the reason in
+  the user's language: `weaker` where the source event can refuse or narrow
+  (`HOOK_IMPORT_REFUSING_EXTENSION_SOURCES`: Gemini `BeforeToolSelection`,
+  Kiro `PreTaskExec`), otherwise `unsupported`. Gemini's
+  `BeforeToolSelection` also needs a source-shaped `llm_request` (lane P,
+  RVM91P3). The Kiro spec-task note (`agentImportKiroTaskNote`) shows again
+  once they import.
+
 ### M99 — What's New after an update (D79)
 
 **Status 2026-10-04: built on `feature/m99-whats-new`; record in
@@ -16327,6 +17164,36 @@ joined with M57, M58 and PR #49's sign-in
 
 ## 7. Gates
 
+**FIXM91P4 lane-scope deferrals (2026-10-04, not gate exceptions).** The required
+commands ran directly on the Mac mini. `check:host-api` fails on the review base
+as well as this correction: its generated record says 65 `node:path` importers,
+the scanner finds 66. **P-host-api-baseline:** W/lead must regenerate and review
+`docs/ide-compatibility/host-api.md` with `npm run check:host-api -- --write`.
+`npm run build` compiles and passes all size caps, then the unchanged split gate
+rejects all eleven unwired adapter modules as on neither list. The same original
+sources reproduce those eleven errors. **P-bundle-map-baseline:** W must register
+the files' actual bundle/type membership while wiring them, then rerun the build.
+Both target files are outside lane P's permitted edits. Neither gate, ignore nor
+cap was changed; neither failing command is claimed green. Certification and
+PLAN §9 name the residuals. Full quality remains the lead's integration gate,
+as the shared lane rules expressly forbid running it in the lane.
+
+**Resolved in integration (lane W, 2026-10-05).** The bundle map is registered: lane P's modules ship in `dist/foreignHooks.js` (`FOREIGN_HOOKS_ONLY`) and its type-only `contract.ts` is listed as such. The host-API record is regenerated with the integration's full gate.
+
+**M91-I-Bundle-budget deferral (FIXM91I3, 2026-10-04).** The required
+production build was run and the import bundle alone exceeds its unchanged
+125 KiB cap: 148.5 KiB after removing the new heavy name-builder import and
+all six duplication-gate clones. An in-memory build of the starting commit
+`d1eeaadbb791c93a9440e36d358b9cfdc7f2c9f1`, with the production options and
+shared English fallback, is already 147.7 KiB. This is a blocking packaging
+deferral, not a gate waiver or support claim. Splitting a bundle needs build,
+bundle-split and host entry changes outside lane I's owned files; the lane
+brief forbids widening there and common.md says to stop and report when a
+bundle cannot fit. Follow-up: W/lead splits the importer under the existing
+budgets and reruns the production build and full quality gate before landing.
+No cap, threshold, ignore or rule level changed.
+
+**Resolved in integration (lane W, 2026-10-04, accepted by the lead).** The import bundle's cap is 175 KiB under the D6 rule (147.7 KiB measured, plus 15%, rounded up to 25 KiB); see the D6 table.
 **TRAIN13B (2026-10-05).** The owner authorizes recovering the two size
 failures and running the complete quality gate directly on Kubuntu within
 120 minutes. No cap, threshold, skip or user-facing feature may be weakened.
@@ -16930,6 +17797,15 @@ Every lint or scanner suppression (`eslint-disable`, `@ts-expect-error`, `nosemg
 | `src/runtime/main.ts`, `exitHeadless`                        | `eslint-disable-next-line unicorn/no-process-exit`   | A standalone headless command owns its process. It must end within the deadline/grace/force bounds even if a pipe or late backend setup never closes, including usage errors. Writes remain async and bounded before exit.                                                                                                                                                                                                                                                                                                                                             | 2026-10-02 |
 | `src/runtime/exec/execClient.ts`, constructor session router | Reflection of SDK 1.4.0's private `builder.handlers` | The SDK's constructor-installed session router validates a closed union before custom notification parsers, dropping future variants. This headless instance uses `request()` and no active-session helpers; remove only its single constructor handler after validating the exact descriptor `client-session-update-router`. The SDK's original builder and public handler/request/connection APIs remain in use. Structural checking fails closed if this pinned seam changes; real JSON-RPC and real-engine tests cover it. No dependency or SDK source is patched. | 2026-10-02 |
 
+**M91 provisional budget (lead decision, 2026-10-05).** `dist/uiText.js`,
+the English fallback on the startup path, is at 126.8 KiB with M91's strings
+on 0.13.0. Its budget goes from 125 to 150 KiB (D6's rule) only until the
+0.14.0 batch applies ACTDIET's per-bundle English split, which a separate
+lane is measuring on Kubuntu. That split brings it back under 125 KiB, and
+the budget returns to 125 with it. TRAIN14B restores the 125 KiB cap on the
+merged tree: round one already packs the fallback losslessly, and the
+ACTDIET split further reduces startup loading. The provisional exception is closed.
+
 **M81 accepted residuals (lead decision, 2026-10-04).** The §7 positive
 controls that change a test machine (planted Chrome policies including G8 DoH,
 G11's synthetic client certificate and test CA, G5/G6's synthetic Windows and
@@ -17021,6 +17897,109 @@ before a repaired one loads (2026-09-30).
 
 ## 9. Security assumptions and accepted residual risk
 
+- **M91-E-M74 (lane E, SoL-Pi rule 5).** M74's automatic compaction and its
+  hidden follow-ups are not built (Q-M74). So M91 certifies only the
+  compaction that exists, the manual one: PreCompact may block it, and
+  PostCompact observes. These are unproved until M74 lands:
+  - a hard-limit compaction that no hook can stop;
+  - the hidden "restate your todo list" turn and the memory flush firing no
+    prompt hooks;
+  - a TaskCompleted refusal coming before the compaction check.
+
+  Safe for now: no such operation runs. Follow-up: M74's own tests take
+  acceptance 14e.
+
+- **M91-E-FileChanged-provenance (lane E).** FileChanged fires from the
+  window's watcher and from `noteExternalEdit`. Two things are not
+  certified, and the event has no field for either:
+  - that a change the agent itself made never reaches it;
+  - what a deleted file does.
+
+  Safe for now: FileChanged observes and cannot block, debounces per path,
+  caps runs per minute, never starts a model request and sends only a
+  workspace-relative path. Follow-up: a host-runner test for agent writes
+  and deletions, and a deleted-file reason once a capture of Claude Code's
+  behaviour gives it one.
+
+- **M91-W-platform (lanes E and W).** Imported hooks are dispatched on
+  Windows through PowerShell for Copilot, Windsurf and Cline. The unit
+  suites cover that with `platform: 'win32'` on Linux and macOS rigs. The
+  full gate runs on Kubuntu, and the pull request runs CI's three-OS matrix.
+  Not run here:
+  - a native Windows run of an imported PowerShell guard;
+  - the VS Code integration suite with an imported hook configured.
+
+  Safe for now: the adapters are fail-closed where their sources are, and a
+  guard that cannot start fails as its source fails. Follow-up: one Win11
+  VM run of a Copilot and a Cline guard, and the live check in M91's plan.
+
+- **M91-W-knip-constants (dead-code gate). Resolved by
+  `fix/knip-constants` (`5b3f2614`, 0.14.0 batch):** `execSchema.test.ts`'s
+  `Object.entries(constants)` marked every export used, and knip's defaults
+  left namespace imports unchecked; the fix imports by name and turns on
+  knip's namespace checks, and planted value and type drills exit 1. The
+  record as found: knip 6.38.0 recorded no export
+  of `src/shared/constants.ts` at all. `--trace-export` finds none of them,
+  `WINDOWS_POWERSHELL_COMMAND_ARGS` included, while it traces
+  `ModelApiHost.ts` (461 KB) and `paid.ts`. oxc-parser reads the file with
+  0 errors and 1,099 static exports. No namespace import, `export *`,
+  dynamic import, entry or ignore names the file, and moving the three
+  `vi.mock` tests aside changes nothing. Drill W22: an unused export there
+  leaves knip at exit 0; the same export in `paid.ts` exits 1.
+
+  It was safe meanwhile: a dead constant costs bytes, not behaviour, and
+  each lane checked its constants by search, as lane 0 did.
+
+- **M91 lane P source qualifications (RVM91P3).** The adapters remain unwired
+  in this lane. `blockOperation: true` on an unsupported blocking stdin is an
+  execution refusal, never a disposable hook failure; lane W must enforce it
+  before dispatch, and apply Gemini tool-name restrictions at admission.
+  **P-Gemini-native-inputs:** no complete replace-tool argument capture exists;
+  Muse's recursive glob operation is not Gemini list_directory. These calls
+  and unsupported native argument fields are refused, safe because no guarded
+  operation is admitted. Follow-up: capture the missing tool schemas before
+  adding mappings; native read-range patches also veto until source-default
+  semantics can be preserved. **P-source-fidelity:** doc-derived vendors' top-level
+  fixtures do not certify arbitrary guards on nested arguments; Copilot
+  permissionRequest lacks a complete source stdin schema and Kiro IDE/CLI exit
+  policies differ. Follow-up: W/I refuse unestablished blocking imports/flavors
+  until a capture or authoritative schema establishes them. No generic closure
+  or source-fidelity claim is made by lane P's unit suite.
+  **P-host-api-baseline** and **P-bundle-map-baseline** (gate deferrals in §7):
+  the generated host record is stale and eleven unwired adapter modules lack
+  bundle classifications on the review base. Safe for this unshipped lane
+  because adapters remain unwired and the gates continue to reject release;
+  W/lead must update the record and classify/wire the files before integration
+  can be certified. The passing size checks do not close the split gate.
+- **M91-I-Bundle-budget (FIXM91I3).** The import bundle is 148.5/125 KiB;
+  the starting commit is already 147.7/125 KiB (see §7's recorded deferral).
+  Safe for now only as an unmerged, unsupported milestone lane: packaging
+  and full quality remain blocked, so this does not authorize release.
+  Follow-up W/lead: split the lazy importer with unchanged budgets and certify
+  the resulting production artifacts before merging or publishing.
+
+- **M91-I-Manual-adapter (FIXM91I3).** No numbered RVM91I2 finding is
+  left open on the importer side. The pinned P adapter at `d8e609aa` has no
+  Kiro Manual row, so the importer now refuses Manual as `unmapped` and
+  emits no runnable record. Safe for now because it runs nothing. Follow-up:
+  P adds and certifies its Manual contract, then I lifts that refusal.
+- **M91-I-Foreign-wiring (FIXM91I3).** Import records remain inert in this
+  tree: the native parser skips foreign group fields and W has not wired
+  dispatch. Importer tests and the pinned adapter's eighteen Cursor stdin
+  entries do not certify execution. Safe for now because no native fallback
+  executes these records. Follow-up W/P/H/X: validate the foreign record;
+  apply commandPattern, Kiro pathPattern/file operation and template
+  substitutions, Cursor loop_limit (default 5), source cwd/shell/environment,
+  adapter input and model payloads, runtime MCP registry identity binding,
+  fail-closed results, and paid handler admission; certify integrated guards
+  before declaring support.
+- **M91-I-Live-Cline-reference (FIXM91I3).** Scan and planning now reject
+  retargeted executable references, and generated Unix/PowerShell commands
+  quote literal paths with the source's 30-second timeout. A file can still
+  change after the unsaved edit is planned. Safe for now under the inert
+  foreign-record boundary above. Follow-up W/X: invoke sourceEntry.path as
+  a path under live canonical scope and workspace trust checks immediately
+  before spawning, and prove the real Unix and Windows execution paths.
 - **M92e-COMMIT-STAGED (architectural skip, 2026-10-04):** the extension
   has no dedicated commit-writing path. A model's `git commit` goes through
   the shell-command guard, which scans the command text and does not inspect
@@ -17294,6 +18273,31 @@ before a repaired one loads (2026-09-30).
   repository admin bypasses both for direct pushes and releases, and every
   bypass is logged by GitHub. A moved tag, as with 0.5.2, is then a
   deliberate bypass rather than a habit.
+
+- Amp and OpenCode plugin hooks (M91b, `docs/certification/m91-wp.md`).
+  The plugin is the user's own code, run as the user. These residuals are
+  accepted, and each is stated in the README:
+  1. **Five OpenCode hooks are not imported:** `command.execute.before`
+     (UserPromptExpansion) and the bus's `todo.updated`,
+     `permission.replied`, `file.watcher.updated` and `message.updated`.
+     Their extension events have no imported-hook dispatch yet. The import
+     lists them, so nothing weaker runs in their place.
+  2. **OpenCode arguments beyond `read.filePath` and `bash.command`** keep
+     our names, since no saved source shows theirs. A guard that reads
+     another name throws, and at `tool.execute.before` that blocks: never
+     weaker, sometimes stricter than OpenCode.
+  3. **macOS refuses OpenCode plugins**, because nothing enforces a data
+     limit for `bun` there. Elsewhere the memory bound is 1 GiB
+     (`PLUGIN_CHILD_MAX_MEMORY_BYTES`): `node` does not start under a 512 MiB
+     data limit.
+  4. **The ACP agent** supplies no plugin host side, so plugin hooks are
+     refused there, and `dist/pluginHooks.js` is not in its package.
+  5. **Plugin paths** are capped at 256 characters
+     (`HOOK_MATCHER_VALUE_MAX_CHARS`, reused).
+  6. **Kubuntu tests run on real `bun`.** `bun` 1.3.14 was installed there
+     (`~/.bun`, from bun.sh's installer) for the real `prlimit` tests, under
+     the owner's install authorization. Those tests skip wherever `bun` is
+     absent, CI included.
 
 ## 10. Definition of done and release records
 
