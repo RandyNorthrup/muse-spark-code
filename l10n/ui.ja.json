@@ -1884,8 +1884,7 @@
   "acpProvidersNone": "プロバイダーが設定されていません。",
   "acpProviderAdded": "プロバイダー {id} を追加しました。",
   "acpProviderRemoved": "プロバイダー {id} を削除しました。",
-  "execProviderNotConfigured": "プロバイダー {id} は設定されていません。"
-,
+  "execProviderNotConfigured": "プロバイダー {id} は設定されていません。",
   "modelsEmpty": "モデルプロバイダーがまだありません。独自のモデルを使うには追加してください。",
   "panelNoMatches": "一致するものがありません。",
   "modelFilterLabels": {

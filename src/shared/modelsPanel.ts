@@ -241,14 +241,23 @@ export type PanelSuggestion = z.infer<typeof suggestionSchema>
  * `errors` and `blockers` arrive in plain words (**Save** stays disabled
  * while `blockers` is non-empty).
  */
-export const panelDraftSchema = z.strictObject({
+/**
+ * The endpoint fields a preset's origin allows: a fixed origin names it,
+ * Azure takes a resource and deployment, loopback a port, a custom server
+ * an address and format. Shared by the draft and the prefill message.
+ */
+const endpointFields = {
   presetId: z.optional(z.string()),
-  step: wizardStepSchema,
   address: z.optional(z.string()),
   azureResource: z.optional(z.string()),
   deployment: z.optional(z.string()),
   loopbackPort: z.optional(z.number()),
   customFormat: z.optional(customFormatSchema),
+}
+
+export const panelDraftSchema = z.strictObject({
+  ...endpointFields,
+  step: wizardStepSchema,
   auth: z.enum(['apiKey', 'none']),
   /** A key was entered (the host holds it; never the webview, never here). */
   keyPresent: z.boolean(),
@@ -267,9 +276,7 @@ export const panelDraftSchema = z.strictObject({
   defaultModel: z.optional(z.string()),
   sessionBudgetUsd: z.optional(z.number()),
   /** The confirm step's summary: what is saved, and who receives the code. */
-  summary: z.optional(
-    z.strictObject({ origin: z.string(), lines: z.array(z.string()) }),
-  ),
+  summary: z.optional(z.strictObject({ origin: z.string(), lines: z.array(z.string()) })),
   errors: z.array(z.string()),
   blockers: z.array(z.string()),
 })
@@ -330,12 +337,7 @@ export type ModelsPanelState = z.infer<typeof modelsPanelStateSchema>
 
 /** The wizard's editable fields (every key optional; absent leaves it). */
 export const prefillFieldsSchema = z.strictObject({
-  presetId: z.optional(z.string()),
-  address: z.optional(z.string()),
-  azureResource: z.optional(z.string()),
-  deployment: z.optional(z.string()),
-  loopbackPort: z.optional(z.number()),
-  customFormat: z.optional(customFormatSchema),
+  ...endpointFields,
   privacy: z.optional(openRouterPrivacySchema),
   providerOrder: z.optional(z.array(z.string())),
   allowFallbacks: z.optional(z.boolean()),
@@ -382,7 +384,10 @@ export const panelToHostMessageSchema = z.discriminatedUnion('type', [
   // `next` and `back` walk the wizard; `cancel` discards the open draft
   // (the wizard's, or one provider's edit) with nothing saved. Confirming
   // is `providers/save`.
-  z.strictObject({ type: z.literal('providers/wizard'), event: z.enum(['next', 'back', 'cancel']) }),
+  z.strictObject({
+    type: z.literal('providers/wizard'),
+    event: z.enum(['next', 'back', 'cancel']),
+  }),
   // Without a provider it confirms the wizard; with one it applies that
   // provider's edit draft. `useNow` also sets the conversation's model.
   z.strictObject({
@@ -450,8 +455,7 @@ export const hostToPanelMessageSchema = z.discriminatedUnion('type', [
 export type HostToPanelMessage = z.infer<typeof hostToPanelMessageSchema>
 
 export type ModelsPanelParseResult<T> =
-  | { readonly ok: true; readonly message: T }
-  | { readonly ok: false; readonly error: string }
+  { readonly ok: true; readonly message: T } | { readonly ok: false; readonly error: string }
 
 function parseWith<T>(schema: z.ZodMiniType<T>, input: unknown): ModelsPanelParseResult<T> {
   const result = schema.safeParse(input)
@@ -461,12 +465,16 @@ function parseWith<T>(schema: z.ZodMiniType<T>, input: unknown): ModelsPanelPars
 }
 
 /** Validates a panel-to-host message; a smuggled credential field fails it. */
-export function parsePanelToHostMessage(input: unknown): ModelsPanelParseResult<PanelToHostMessage> {
+export function parsePanelToHostMessage(
+  input: unknown,
+): ModelsPanelParseResult<PanelToHostMessage> {
   return parseWith(panelToHostMessageSchema, input)
 }
 
 /** Validates the host-owned state (or a deep link) before the panel renders it. */
-export function parseHostToPanelMessage(input: unknown): ModelsPanelParseResult<HostToPanelMessage> {
+export function parseHostToPanelMessage(
+  input: unknown,
+): ModelsPanelParseResult<HostToPanelMessage> {
   return parseWith(hostToPanelMessageSchema, input)
 }
 

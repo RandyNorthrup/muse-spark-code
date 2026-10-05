@@ -2094,8 +2094,7 @@
   "acpProvidersNone": "Nie skonfigurowano dostawców.",
   "acpProviderAdded": "Dodano dostawcę {id}.",
   "acpProviderRemoved": "Usunięto dostawcę {id}.",
-  "execProviderNotConfigured": "Dostawca {id} nie jest skonfigurowany."
-,
+  "execProviderNotConfigured": "Dostawca {id} nie jest skonfigurowany.",
   "modelsEmpty": "Nie ma jeszcze dostawców modeli. Dodaj jednego, aby używać własnych modeli.",
   "panelNoMatches": "Brak wyników.",
   "modelFilterLabels": {

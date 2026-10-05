@@ -61,9 +61,7 @@ describe('KeyState', () => {
         }}
       />,
     )
-    expect(
-      screen.getByRole('alert').textContent,
-    ).toBe(
+    expect(screen.getByRole('alert').textContent).toBe(
       fill(UI_TEXT.originBindingMismatch, {
         expected: 'https://openrouter.ai',
         actual: 'https://example.com',
@@ -77,7 +75,9 @@ describe('CostNotice', () => {
     const onAccept = vi.fn()
     const onDecline = vi.fn()
     render(<CostNotice costUsd={0.000002} onAccept={onAccept} onDecline={onDecline} />)
-    expect(screen.getByText(fill(UI_TEXT.providerTestPaid, { cost: formatTestCost(0.000002) }))).toBeDefined()
+    expect(
+      screen.getByText(fill(UI_TEXT.providerTestPaid, { cost: formatTestCost(0.000002) })),
+    ).toBeDefined()
     fireEvent.click(screen.getByRole('button', { name: UI_TEXT.suggestionAccept }))
     expect(onAccept).toHaveBeenCalledTimes(1)
     fireEvent.click(screen.getByRole('button', { name: UI_TEXT.wizardCancel }))
@@ -95,7 +95,9 @@ describe('UndoBar', () => {
     const onUndo = vi.fn()
     const { container, rerender } = render(<UndoBar removals={[]} onUndo={onUndo} />)
     expect(container.textContent).toBe('')
-    rerender(<UndoBar removals={[{ providerId: 'openrouter', label: 'OpenRouter' }]} onUndo={onUndo} />)
+    rerender(
+      <UndoBar removals={[{ providerId: 'openrouter', label: 'OpenRouter' }]} onUndo={onUndo} />,
+    )
     expect(screen.getByText(fill(UI_TEXT.providerRemoved, { id: 'openrouter' }))).toBeDefined()
     fireEvent.click(screen.getByRole('button', { name: UI_TEXT.undoAction }))
     expect(onUndo).toHaveBeenCalledWith('openrouter')
@@ -106,7 +108,9 @@ describe('ScanStatus', () => {
   it('asks for the first scan, reports a running one, and can cancel it', () => {
     const onRefresh = vi.fn()
     const onCancel = vi.fn()
-    const { rerender } = render(<ScanStatus scan={undefined} onRefresh={onRefresh} onCancel={onCancel} />)
+    const { rerender } = render(
+      <ScanStatus scan={undefined} onRefresh={onRefresh} onCancel={onCancel} />,
+    )
     expect(screen.getByText(UI_TEXT.modelsNotScanned)).toBeDefined()
     fireEvent.click(screen.getByRole('button', { name: UI_TEXT.refreshModels }))
     expect(onRefresh).toHaveBeenCalledTimes(1)
@@ -203,23 +207,23 @@ const SELECT_CHIPS = [
   { value: 'local', label: 'On this computer' },
 ]
 
-describe('SearchableSelect', () => {
-  function show(onSelect: (value: string) => void = vi.fn()) {
-    return render(
-      <SearchableSelect
-        label="Provider"
-        placeholder="Search providers…"
-        options={SELECT_OPTIONS}
-        chips={SELECT_CHIPS}
-        activeChip={undefined}
-        onChip={vi.fn()}
-        onSelect={onSelect}
-      />,
-    )
-  }
+function showSelect(onSelect: (value: string) => void = vi.fn()) {
+  return render(
+    <SearchableSelect
+      label="Provider"
+      placeholder="Search providers…"
+      options={SELECT_OPTIONS}
+      chips={SELECT_CHIPS}
+      activeChip={undefined}
+      onChip={vi.fn()}
+      onSelect={onSelect}
+    />,
+  )
+}
 
+describe('SearchableSelect', () => {
   it('filters by name and description as it is typed', () => {
-    show()
+    showSelect()
     const box = screen.getByRole('combobox')
     fireEvent.focus(box)
     fireEvent.change(box, { target: { value: 'computer' } })
@@ -231,7 +235,7 @@ describe('SearchableSelect', () => {
 
   it('walks with arrows and picks with Enter, and leaves with Escape', () => {
     const onSelect = vi.fn()
-    show(onSelect)
+    showSelect(onSelect)
     const box = screen.getByRole('combobox')
     fireEvent.focus(box)
     fireEvent.keyDown(box, { key: 'ArrowDown' })
@@ -241,7 +245,7 @@ describe('SearchableSelect', () => {
 
   it('closes on Escape without picking', () => {
     const onSelect = vi.fn()
-    show(onSelect)
+    showSelect(onSelect)
     const box = screen.getByRole('combobox')
     fireEvent.focus(box)
     expect(screen.getAllByRole('option').length).toBe(3)
@@ -346,7 +350,7 @@ describe('FilterBar', () => {
     fireEvent.change(screen.getByLabelText(UI_TEXT.modelFilterLabels.contextMin), {
       target: { value: '32000' },
     })
-    expect(onChange).toHaveBeenCalledWith({ contextMin: 32000 })
+    expect(onChange).toHaveBeenCalledWith({ contextMin: 32_000 })
     fireEvent.click(screen.getByRole('button', { name: UI_TEXT.modelFilterLabels.clear }))
     expect(onClear).toHaveBeenCalledTimes(1)
   })

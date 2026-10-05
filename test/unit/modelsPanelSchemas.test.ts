@@ -3,6 +3,7 @@
 // either direction (M95 acceptance 5 and 17).
 
 import { describe, expect, it } from 'vitest'
+import { makeDraft } from './modelsPanelFixtures.js'
 import {
   type HostToPanelMessage,
   parseHostToPanelMessage,
@@ -37,7 +38,7 @@ const messages: readonly PanelToHostMessage[] = [
   { type: 'providers/connect' },
   { type: 'providers/connect', providerId: 'openrouter' },
   { type: 'providers/save', useNow: false, providerId: 'ollama' },
-  { type: 'models/numCtx', providerId: 'ollama', ref: 'ollama/qwen3:8b', numCtx: 32768 },
+  { type: 'models/numCtx', providerId: 'ollama', ref: 'ollama/qwen3:8b', numCtx: 32_768 },
   { type: 'providers/test', acceptCost: false },
   { type: 'providers/test', acceptCost: true },
   { type: 'providers/wizard', event: 'next' },
@@ -64,7 +65,7 @@ const messages: readonly PanelToHostMessage[] = [
   { type: 'models/pin', providerId: 'ollama', ref: 'ollama/qwen3:8b', pinned: true },
   {
     type: 'models/filter',
-    filter: { toolCalling: true, contextMin: 32000, providerId: 'ollama' },
+    filter: { toolCalling: true, contextMin: 32_000, providerId: 'ollama' },
     sort: { key: 'input-price', direction: 'asc' },
   },
   { type: 'suggestions/accept', kind: 'defaultModel' },
@@ -106,9 +107,9 @@ describe('modelsPanel schemas', () => {
   })
 
   it('refuses a deep link to an unknown section', () => {
-    expect(
-      parseHostToPanelMessage({ type: 'modelsPanel/navigate', section: 'roles' }).ok,
-    ).toBe(false)
+    expect(parseHostToPanelMessage({ type: 'modelsPanel/navigate', section: 'roles' }).ok).toBe(
+      false,
+    )
   })
 
   it('refuses a filter with an unknown sort key', () => {
@@ -166,20 +167,10 @@ describe('modelsPanel carries no credential', () => {
         drafts: {
           edits: {},
           wizard: {
-            step: 'credential',
-            auth: 'apiKey',
-            keyPresent: false,
-            keyShapeOk: false,
-            connected: false,
-            costAccepted: false,
-            models: [],
-            privacy: 'zdr',
-            providerOrder: [],
-            allowFallbacks: true,
-            privateConfirmed: false,
-            privateAsked: false,
-            errors: [],
-            blockers: ['Enter the key or connect the account first.'],
+            ...makeDraft({
+              step: 'credential',
+              blockers: ['Enter the key or connect the account first.'],
+            }),
             token: 'sk-test-plant',
           },
         },

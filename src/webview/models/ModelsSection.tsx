@@ -4,7 +4,7 @@
 // filters, sorts and badges (lane P's pure functions); this posts the
 // facet messages and renders the rows it gets back.
 
-import { UI_TEXT } from '../../shared/constants'
+import { OLLAMA_NUM_CTX_OPTIONS, UI_TEXT } from '../../shared/constants'
 import { fill, formatNumber, formatUsd, plural } from '../../shared/l10n/text'
 import type { ModelPriceNote, ModelRow, ModelSort } from '../../shared/modelsPanel'
 import { Badge, type BadgeKind } from './components/Badge'
@@ -12,8 +12,6 @@ import { DataTable, type DataColumn } from './components/DataTable'
 import { FilterBar } from './components/FilterBar'
 import { ScanStatus } from './components/ScanStatus'
 import type { SectionProps } from './sections'
-
-const NUM_CTX_OPTIONS = [32768, 65536, 131072]
 
 function PriceNote({ priceNote }: { readonly priceNote: ModelPriceNote }) {
   switch (priceNote) {
@@ -33,6 +31,42 @@ function PriceNote({ priceNote }: { readonly priceNote: ModelPriceNote }) {
       return null
     }
   }
+}
+
+function sortKeyFor(key: string): ModelSort['key'] {
+  switch (key) {
+    case 'context':
+    case 'input-price':
+    case 'output-price': {
+      return key
+    }
+    default: {
+      return 'name'
+    }
+  }
+}
+
+function contextCell(row: ModelRow): string {
+  return row.contextTokens === undefined ? '—' : formatNumber(row.contextTokens)
+}
+
+function inputPriceCell(row: ModelRow) {
+  return row.priceNote === 'priced' ? (
+    row.inputPerMillion === undefined ? (
+      '—'
+    ) : (
+      formatUsd(row.inputPerMillion, 2)
+    )
+  ) : (
+    <PriceNote priceNote={row.priceNote} />
+  )
+}
+
+function outputPriceCell(row: ModelRow): string {
+  if (row.priceNote !== 'priced') {
+    return ''
+  }
+  return row.outputPerMillion === undefined ? '—' : formatUsd(row.outputPerMillion, 2)
 }
 
 function RowBadges({ row }: { readonly row: ModelRow }) {
@@ -71,7 +105,7 @@ export function ModelsSection({ panelState, post, highlightedItem }: SectionProp
     { key: 'pinned', label: UI_TEXT.modelsColumnPinned, sortable: false },
   ]
   const onSort = (key: string): void => {
-    const sortKey = key === 'input-price' || key === 'output-price' || key === 'context' ? key : 'name'
+    const sortKey = sortKeyFor(key)
     const sort: ModelSort =
       panelState.sort.key === sortKey
         ? { key: sortKey, direction: panelState.sort.direction === 'asc' ? 'desc' : 'asc' }
@@ -110,25 +144,16 @@ export function ModelsSection({ panelState, post, highlightedItem }: SectionProp
           id: row.ref,
           label: row.ref,
           cells: [
-            <span key="name" className={highlightedItem === row.ref ? 'models-row-highlight' : undefined}>
+            <span
+              key="name"
+              className={highlightedItem === row.ref ? 'models-row-highlight' : undefined}
+            >
               {row.label ?? row.modelId}
               <RowBadges row={row} />
             </span>,
-            <span key="context">
-              {row.contextTokens !== undefined ? formatNumber(row.contextTokens) : '—'}
-            </span>,
-            <span key="input">
-              {row.priceNote === 'priced'
-                ? (row.inputPerMillion !== undefined ? formatUsd(row.inputPerMillion, 2) : '—')
-                : (
-                  <PriceNote priceNote={row.priceNote} />
-                )}
-            </span>,
-            <span key="output">
-              {row.priceNote === 'priced'
-                ? (row.outputPerMillion !== undefined ? formatUsd(row.outputPerMillion, 2) : '—')
-                : ''}
-            </span>,
+            <span key="context">{contextCell(row)}</span>,
+            <span key="input">{inputPriceCell(row)}</span>,
+            <span key="output">{outputPriceCell(row)}</span>,
             <input
               key="offered"
               type="checkbox"
@@ -196,9 +221,9 @@ export function ModelsSection({ panelState, post, highlightedItem }: SectionProp
                     })
                   }}
                 >
-                  {NUM_CTX_OPTIONS.map((option) => (
-                    <option key={option} value={option}>
-                      {`${String(option / 1024)}k`}
+                  {OLLAMA_NUM_CTX_OPTIONS.map((option) => (
+                    <option key={option.tokens} value={option.tokens}>
+                      {option.label}
                     </option>
                   ))}
                 </select>

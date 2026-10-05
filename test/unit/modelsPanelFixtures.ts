@@ -68,7 +68,7 @@ export function makeRow(overrides: Partial<ModelRow> = {}): ModelRow {
     toolCalling: true,
     vision: false,
     reasoning: true,
-    contextTokens: 131072,
+    contextTokens: 131_072,
     inputPerMillion: 0,
     outputPerMillion: 0,
     cachedPerMillion: 0,

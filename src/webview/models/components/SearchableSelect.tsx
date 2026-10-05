@@ -33,10 +33,7 @@ export interface SearchableSelectProps {
 
 function isMatch(option: SelectOption, needle: string): boolean {
   const query = needle.trim().toLowerCase()
-  if (query === '') {
-    return true
-  }
-  return `${option.label} ${option.description}`.toLowerCase().includes(query)
+  return query === '' || `${option.label} ${option.description}`.toLowerCase().includes(query)
 }
 
 export function SearchableSelect({
@@ -58,10 +55,12 @@ export function SearchableSelect({
     () =>
       options.filter(
         (option) =>
+          isMatch(option, query) &&
           // A custom server is the user's own endpoint, not one provider's:
           // it stays listed under every chip.
-          (activeChip === undefined || option.category === activeChip || option.category === 'custom') &&
-          isMatch(option, query),
+          (activeChip === undefined ||
+            option.category === activeChip ||
+            option.category === 'custom'),
       ),
     [options, activeChip, query],
   )
@@ -72,41 +71,46 @@ export function SearchableSelect({
   const close = (): void => {
     setIsOpen(false)
   }
+  const step = (delta: number): void => {
+    open()
+    const next = wrapIndex(activeIndex, delta, matches.length)
+    setActiveIndex(next)
+    const row = matches[next]
+    if (row !== undefined) {
+      scrollRowIntoView(`${baseId}-option-`, row.value)
+    }
+  }
   const onKeyDown = (event: KeyboardEvent<HTMLInputElement>): void => {
-    if (event.key === 'ArrowDown' || (event.key === 'ArrowUp' && !isOpen)) {
-      event.preventDefault()
-      open()
-      const next = wrapIndex(activeIndex, event.key === 'ArrowDown' ? 1 : -1, matches.length)
-      setActiveIndex(next)
-      const row = matches[next]
-      if (row !== undefined) {
-        scrollRowIntoView(`${baseId}-option-`, row.value)
-      }
+    if (
+      event.key !== 'ArrowDown' &&
+      event.key !== 'ArrowUp' &&
+      event.key !== 'Enter' &&
+      event.key !== 'Escape'
+    ) {
       return
     }
-    if (event.key === 'ArrowUp') {
-      event.preventDefault()
-      const next = wrapIndex(activeIndex, -1, matches.length)
-      setActiveIndex(next)
-      const row = matches[next]
-      if (row !== undefined) {
-        scrollRowIntoView(`${baseId}-option-`, row.value)
+    event.preventDefault()
+    switch (event.key) {
+      case 'ArrowDown': {
+        step(1)
+        break
       }
-      return
-    }
-    if (event.key === 'Enter') {
-      if (isOpen && active !== undefined) {
-        event.preventDefault()
-        onSelect(active.value)
+      case 'ArrowUp': {
+        step(-1)
+        break
       }
-      return
-    }
-    if (event.key === 'Escape') {
-      if (isOpen) {
-        event.preventDefault()
-        close()
+      case 'Enter': {
+        if (isOpen && active !== undefined) {
+          onSelect(active.value)
+        }
+        break
       }
-      return
+      case 'Escape': {
+        if (isOpen) {
+          close()
+        }
+        break
+      }
     }
   }
   return (
@@ -116,7 +120,9 @@ export function SearchableSelect({
           <button
             key={chip.value}
             type="button"
-            className={activeChip === chip.value ? 'models-chip models-chip-pressed' : 'models-chip'}
+            className={
+              activeChip === chip.value ? 'models-chip models-chip-pressed' : 'models-chip'
+            }
             aria-pressed={activeChip === chip.value}
             onClick={() => {
               onChip(activeChip === chip.value ? undefined : chip.value)
@@ -137,7 +143,9 @@ export function SearchableSelect({
         aria-expanded={isOpen}
         aria-controls={listId}
         aria-autocomplete="list"
-        aria-activedescendant={active === undefined ? undefined : `${baseId}-option-${active.value}`}
+        aria-activedescendant={
+          active === undefined ? undefined : `${baseId}-option-${active.value}`
+        }
         placeholder={placeholder}
         autoComplete="off"
         value={query}

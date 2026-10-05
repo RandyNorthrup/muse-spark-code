@@ -1884,8 +1884,7 @@
   "acpProvidersNone": "未設定提供者。",
   "acpProviderAdded": "已新增提供者 {id}。",
   "acpProviderRemoved": "已移除提供者 {id}。",
-  "execProviderNotConfigured": "提供者 {id} 未設定。"
-,
+  "execProviderNotConfigured": "提供者 {id} 未設定。",
   "modelsEmpty": "尚無模型供應商。新增一個以使用自己的模型。",
   "panelNoMatches": "沒有相符項目。",
   "modelFilterLabels": {

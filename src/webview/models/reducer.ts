@@ -66,11 +66,11 @@ function reduceNavigation(state: PanelUiState, action: PanelUiAction): PanelUiSt
  * the host owns the draft, so a gone draft cannot stay open.
  */
 export function panelUiReducer(state: PanelUiState, action: PanelUiAction): PanelUiState {
-  const navigated = reduceNavigation(state, action)
   // A deep link names a registered section: the host's schema rejects any
   // other before this reducer ever sees it.
-  return MODEL_SECTIONS.reduce(
-    (current, section) => section.reduceSection(current, action),
-    navigated,
-  )
+  let current = reduceNavigation(state, action)
+  for (const section of MODEL_SECTIONS) {
+    current = section.reduceSection(current, action)
+  }
+  return current
 }

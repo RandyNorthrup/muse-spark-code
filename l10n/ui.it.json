@@ -2024,8 +2024,7 @@
   "acpProvidersNone": "Nessun provider configurato.",
   "acpProviderAdded": "Provider {id} aggiunto.",
   "acpProviderRemoved": "Provider {id} rimosso.",
-  "execProviderNotConfigured": "Il provider {id} non è configurato."
-,
+  "execProviderNotConfigured": "Il provider {id} non è configurato.",
   "modelsEmpty": "Ancora nessun provider di modelli. Aggiunga un provider per usare i propri modelli.",
   "panelNoMatches": "Nessun risultato.",
   "modelFilterLabels": {

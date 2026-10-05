@@ -34,9 +34,7 @@ describe('MODEL_SECTIONS', () => {
     // The models section ignores overlay actions (identity fold).
     expect(models.reduceSection(INITIAL_PANEL_UI, { type: 'open-wizard' })).toBe(INITIAL_PANEL_UI)
     // The providers section handles its own and ignores navigation.
-    expect(providers.reduceSection(INITIAL_PANEL_UI, { type: 'open-wizard' }).wizardOpen).toBe(
-      true,
-    )
+    expect(providers.reduceSection(INITIAL_PANEL_UI, { type: 'open-wizard' }).wizardOpen).toBe(true)
     const navigated = providers.reduceSection(INITIAL_PANEL_UI, {
       type: 'navigate',
       section: 'models',

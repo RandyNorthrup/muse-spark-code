@@ -29,6 +29,10 @@ import {
   makeTest,
 } from './modelsPanelFixtures'
 
+function fail(message: string): never {
+  throw new Error(message)
+}
+
 function props(
   state: ModelsPanelState,
   post: (message: PanelToHostMessage) => void,
@@ -95,7 +99,7 @@ describe('ProvidersSection', () => {
     })
     expect(post).toHaveBeenCalledWith({
       type: 'providers/prefill',
-      fields: { loopbackPort: 11434 },
+      fields: { loopbackPort: 11_434 },
     })
   })
 
@@ -200,15 +204,13 @@ describe('ProvidersSection', () => {
     const acceptButtons = screen.getAllByRole('button', { name: UI_TEXT.suggestionAccept })
     fireEvent.click(acceptButtons[0] ?? fail('default accept missing'))
     expect(post).toHaveBeenCalledWith({ type: 'suggestions/accept', kind: 'defaultModel' })
-    fireEvent.change(screen.getByLabelText(UI_TEXT.suggestSessionBudget), { target: { value: '5' } })
+    fireEvent.change(screen.getByLabelText(UI_TEXT.suggestSessionBudget), {
+      target: { value: '5' },
+    })
     const changeButtons = screen.getAllByRole('button', { name: UI_TEXT.suggestionChange })
     fireEvent.click(changeButtons[1] ?? fail('budget change missing'))
     expect(post).toHaveBeenCalledWith({ type: 'suggestions/change', kind: 'sessionBudget', usd: 5 })
   })
-
-function fail(message: string): never {
-  throw new Error(message)
-}
 
   it('keeps Save disabled until the form is valid, with each blocker inline', () => {
     const post = vi.fn()
@@ -289,10 +291,7 @@ function fail(message: string): never {
     expect(screen.getByText(UI_TEXT.importUntrusted)).toBeDefined()
     expect(screen.getByText(UI_TEXT.importNeedsKey)).toBeDefined()
     const confirm = screen.getAllByRole('button', { name: UI_TEXT.providerImport }).at(-1)
-    if (confirm === undefined) {
-      throw new Error('import confirm missing')
-    }
-    fireEvent.click(confirm)
+    fireEvent.click(confirm ?? fail('import confirm missing'))
     expect(post).toHaveBeenCalledWith({
       type: 'providers/import',
       json: '',
@@ -304,7 +303,7 @@ function fail(message: string): never {
 describe('Wizard', () => {
   // Every step renders its own screen (M95 acceptance 18: the harness
   // covers each state; this pins the step switch underneath it).
-  const steps: ReadonlyArray<{ readonly step: ModelsWizardStep; readonly marker: string }> = [
+  const steps: readonly { readonly step: ModelsWizardStep; readonly marker: string }[] = [
     { step: 'pick-provider', marker: UI_TEXT.wizardPickProvider },
     { step: 'configure', marker: 'https://openrouter.ai' },
     { step: 'credential', marker: UI_TEXT.enterKey },

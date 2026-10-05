@@ -1954,8 +1954,7 @@
   "acpProvidersNone": "Nincs beállítva szolgáltató.",
   "acpProviderAdded": "{id} szolgáltató hozzáadva.",
   "acpProviderRemoved": "{id} szolgáltató eltávolítva.",
-  "execProviderNotConfigured": "{id} szolgáltató nincs beállítva."
-,
+  "execProviderNotConfigured": "{id} szolgáltató nincs beállítva.",
   "modelsEmpty": "Még nincsenek modellszolgáltatók. Adjon hozzá egyet saját modellek használatához.",
   "panelNoMatches": "Nincs találat.",
   "modelFilterLabels": {

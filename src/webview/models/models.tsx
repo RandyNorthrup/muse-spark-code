@@ -31,13 +31,13 @@ class PanelBoundary extends Component<
   { readonly children: ReactNode; readonly onError: (error: unknown) => void },
   CrashState
 > {
+  static getDerivedStateFromError(): CrashState {
+    return { crashed: true }
+  }
+
   constructor(props: { readonly children: ReactNode; readonly onError: (error: unknown) => void }) {
     super(props)
     this.state = { crashed: false }
-  }
-
-  static getDerivedStateFromError(): CrashState {
-    return { crashed: true }
   }
 
   override componentDidCatch(error: unknown): void {
@@ -68,7 +68,13 @@ class PanelBoundary extends Component<
   }
 }
 
-function ModelsApp({ host, report }: { readonly host: HostBridge; readonly report: ErrorReporter }) {
+function ModelsApp({
+  host,
+  report,
+}: {
+  readonly host: HostBridge
+  readonly report: ErrorReporter
+}) {
   const [ui, dispatch] = useReducer(panelUiReducer, INITIAL_PANEL_UI)
   const [panelState, setPanelState] = useState<ModelsPanelState | undefined>(undefined)
   useEffect(() => {
@@ -108,30 +114,32 @@ function ModelsApp({ host, report }: { readonly host: HostBridge; readonly repor
   )
 }
 
-const host = vsCodeHostBridge(window)
+// The panel boots once and keeps no module state besides the bridge it
+// renders with. What throws on the way reaches the host's log (M39): a
+// render the boundary caught, an error or a rejected promise nothing
+// handled, a host message — all through the same bridge as the chat panel.
+function startModelsPanel(root: Element, bridge: HostBridge): void {
+  const report: ErrorReporter = (source, error) => {
+    bridge.post(webviewErrorReport(source, error))
+  }
+  window.addEventListener('unhandledrejection', (event) => {
+    const reason: unknown = event.reason
+    report('promise', reason)
+  })
+  window.addEventListener('error', (event) => {
+    const error: unknown = event.error ?? event.message
+    report('window', error)
+  })
+  // The table came from the host, so a refused one is logged as a host message's.
+  const tableError = installEmbeddedTable(document)
+  if (tableError !== undefined) {
+    report('hostMessage', tableError)
+  }
+  createRoot(root).render(<ModelsApp host={bridge} report={report} />)
+}
+
 const rootElement = document.querySelector(`#${WEBVIEW_ROOT_ELEMENT_ID}`)
 if (rootElement === null) {
   throw new Error(`Webview root element #${WEBVIEW_ROOT_ELEMENT_ID} is missing`)
 }
-
-// What throws here reaches the host's log (M39): a render the boundary
-// caught, an error or a rejected promise nothing handled, a host message.
-const report: ErrorReporter = (source, error) => {
-  host.post(webviewErrorReport(source, error))
-}
-window.addEventListener('error', (event) => {
-  const error: unknown = event.error ?? event.message
-  report('window', error)
-})
-window.addEventListener('unhandledrejection', (event) => {
-  const reason: unknown = event.reason
-  report('promise', reason)
-})
-
-// The table came from the host, so a refused one is logged as a host message's.
-const tableError = installEmbeddedTable(document)
-if (tableError !== undefined) {
-  report('hostMessage', tableError)
-}
-
-createRoot(rootElement).render(<ModelsApp host={host} report={report} />)
+startModelsPanel(rootElement, vsCodeHostBridge(window))

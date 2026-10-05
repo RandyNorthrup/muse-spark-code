@@ -13,6 +13,7 @@ import type {
   ProviderState,
   ProviderTest,
 } from '../../shared/modelsPanel'
+import { formatTestCost } from './components/CostNotice'
 import { InlineError } from './components/InlineError'
 import { KeyState } from './components/KeyState'
 import { ScanStatus } from './components/ScanStatus'
@@ -20,9 +21,12 @@ import { UndoBar } from './components/UndoBar'
 import type { SectionProps } from './sections'
 import { Wizard } from './Wizard'
 
-function TestLine({ provider, onTest }: {
+function TestLine({
+  provider,
+  onTest,
+}: {
   readonly provider: ProviderState
-  readonly onTest: (acceptCost: boolean) => void
+  readonly onTest: (isAccepted: boolean) => void
 }) {
   // Declining the paid check only puts it away; the next Test asks again.
   const [costDismissed, setCostDismissed] = useState(false)
@@ -46,10 +50,10 @@ function TestLine({ provider, onTest }: {
       <InlineError messages={[fill(UI_TEXT.providerTestFailed, { detail: test.detail ?? '' })]} />
     )
   }
-  if (test.status === 'needs-cost' && test.costUsd !== undefined && !costDismissed) {
+  if (!costDismissed && test.status === 'needs-cost' && test.costUsd !== undefined) {
     return (
       <div className="models-cost-notice">
-        <p>{fill(UI_TEXT.providerTestPaid, { cost: formatUsd(test.costUsd, 6) })}</p>
+        <p>{fill(UI_TEXT.providerTestPaid, { cost: formatTestCost(test.costUsd) })}</p>
         <button
           type="button"
           className="models-button-primary"
@@ -79,7 +83,7 @@ function KeyUsage({ provider }: { readonly provider: ProviderState }) {
   if (usage === undefined) {
     return null
   }
-  const rows: Array<readonly [string, number]> = []
+  const rows: (readonly [string, number])[] = []
   if (usage.dayUsd !== undefined) {
     rows.push([UI_TEXT.usageToday, usage.dayUsd])
   }
@@ -108,7 +112,13 @@ function KeyUsage({ provider }: { readonly provider: ProviderState }) {
   )
 }
 
-function EditForm({ draft, editId, onSave, onCancel, onPrefill }: {
+function EditForm({
+  draft,
+  editId,
+  onSave,
+  onCancel,
+  onPrefill,
+}: {
   readonly draft: PanelDraft
   readonly editId: string
   readonly onSave: () => void
@@ -168,7 +178,11 @@ const PICK_DRAFT: PanelDraft = {
   blockers: ['Pick a provider first.'],
 }
 
-function ProviderRow({ provider, panelState, props }: {
+function ProviderRow({
+  provider,
+  panelState,
+  props,
+}: {
   readonly provider: ProviderState
   readonly panelState: ModelsPanelState
   readonly props: SectionProps
@@ -176,9 +190,9 @@ function ProviderRow({ provider, panelState, props }: {
   const { post } = props
   const [editing, setEditing] = useState(false)
   const editDraft = panelState.drafts.edits[provider.id]
-  const highlighted = props.highlightedItem === provider.id
+  const isHighlighted = props.highlightedItem === provider.id
   return (
-    <li className={highlighted ? 'models-provider models-provider-highlight' : 'models-provider'}>
+    <li className={isHighlighted ? 'models-provider models-provider-highlight' : 'models-provider'}>
       <h3 className="models-provider-name">{provider.label}</h3>
       {provider.address !== undefined && provider.address !== '' && (
         <p className="models-origin">{provider.address}</p>
@@ -277,7 +291,11 @@ function ProviderRow({ provider, panelState, props }: {
   )
 }
 
-function ImportPane({ panelState, post, onClose }: {
+function ImportPane({
+  panelState,
+  post,
+  onClose,
+}: {
   readonly panelState: ModelsPanelState
   readonly post: SectionProps['post']
   readonly onClose: () => void
@@ -371,7 +389,12 @@ export function ProvidersSection(props: SectionProps) {
       )}
       <ul className="models-providers">
         {panelState.providers.map((provider) => (
-          <ProviderRow key={provider.id} provider={provider} panelState={panelState} props={props} />
+          <ProviderRow
+            key={provider.id}
+            provider={provider}
+            panelState={panelState}
+            props={props}
+          />
         ))}
       </ul>
       {wizardOpen && (

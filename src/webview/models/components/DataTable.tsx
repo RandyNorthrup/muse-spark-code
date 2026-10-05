@@ -53,12 +53,14 @@ export function DataTable({
 }: DataTableProps) {
   const [activeId, setActiveId] = useState<string | undefined>(undefined)
   const activeIndex = rows.findIndex((row) => row.id === activeId)
+  if (rows.length === 0) {
+    return <p className="models-table-empty">{emptyText}</p>
+  }
   const move = (delta: number): void => {
     if (rows.length === 0) {
       return
     }
-    const next =
-      activeIndex === -1 ? (delta > 0 ? 0 : rows.length - 1) : activeIndex + delta
+    const next = activeIndex === -1 ? (delta > 0 ? 0 : rows.length - 1) : activeIndex + delta
     const wrapped = (next + rows.length) % rows.length
     const row = rows[wrapped]
     if (row !== undefined) {
@@ -87,7 +89,7 @@ export function DataTable({
       }
       case 'End': {
         event.preventDefault()
-        const last = rows[rows.length - 1]
+        const last = rows.at(-1)
         if (last !== undefined) {
           setActiveId(last.id)
         }
@@ -111,9 +113,6 @@ export function DataTable({
         break
       }
     }
-  }
-  if (rows.length === 0) {
-    return <p className="models-table-empty">{emptyText}</p>
   }
   return (
     <table

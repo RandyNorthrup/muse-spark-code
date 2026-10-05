@@ -80,7 +80,7 @@
   margin: 8px 0;
 }
 
-ul.models-error {
+.models-error-list {
   padding-left: 18px;
 }
 
@@ -158,7 +158,7 @@ ul.models-error {
 
 .models-button:disabled,
 .models-button-primary:disabled {
-  opacity: 0.55;
+  opacity: 55%;
   cursor: default;
 }
 
@@ -183,7 +183,8 @@ ul.models-error {
 .models-field textarea,
 .models-search input,
 .models-facet select,
-.models-range input {
+.models-range input,
+.models-select input {
   background: var(--vscode-input-background);
   color: var(--vscode-input-foreground);
   border: 1px solid var(--vscode-input-border);
@@ -303,11 +304,6 @@ ul.models-error {
 .models-select input {
   width: 100%;
   box-sizing: border-box;
-  background: var(--vscode-input-background);
-  color: var(--vscode-input-foreground);
-  border: 1px solid var(--vscode-input-border);
-  border-radius: 4px;
-  padding: 4px 8px;
 }
 
 .models-select-list {

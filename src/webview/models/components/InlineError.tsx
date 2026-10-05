@@ -14,7 +14,7 @@ export function InlineError({ messages }: { readonly messages: readonly string[]
     )
   }
   return (
-    <ul className="models-error" role="alert">
+    <ul className="models-error models-error-list" role="alert">
       {messages.map((message) => (
         <li key={message}>{message}</li>
       ))}

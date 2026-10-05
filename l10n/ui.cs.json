@@ -2094,8 +2094,7 @@
   "acpProvidersNone": "Nejsou nastaveni žádní poskytovatelé.",
   "acpProviderAdded": "Poskytovatel {id} přidán.",
   "acpProviderRemoved": "Poskytovatel {id} odebrán.",
-  "execProviderNotConfigured": "Poskytovatel {id} není nastaven."
-,
+  "execProviderNotConfigured": "Poskytovatel {id} není nastaven.",
   "modelsEmpty": "Zatím žádní poskytovatelé modelů. Přidejte jednoho, abyste mohli používat vlastní modely.",
   "panelNoMatches": "Žádné shody.",
   "modelFilterLabels": {

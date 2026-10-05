@@ -1954,8 +1954,7 @@
   "acpProvidersNone": "Keine Anbieter konfiguriert.",
   "acpProviderAdded": "Anbieter {id} hinzugefügt.",
   "acpProviderRemoved": "Anbieter {id} entfernt.",
-  "execProviderNotConfigured": "Anbieter {id} ist nicht konfiguriert."
-,
+  "execProviderNotConfigured": "Anbieter {id} ist nicht konfiguriert.",
   "modelsEmpty": "Noch keine Modellanbieter. Fügen Sie einen hinzu, um Ihre eigenen Modelle zu verwenden.",
   "panelNoMatches": "Keine Treffer.",
   "modelFilterLabels": {

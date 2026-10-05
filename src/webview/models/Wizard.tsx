@@ -84,6 +84,32 @@ function WizardNav({
   )
 }
 
+/**
+ * The closing block of every wizard step except confirm: the step's
+ * errors, then Continue with Back and Cancel beside it.
+ */
+function StepFoot({
+  errors,
+  post,
+  onClose,
+}: {
+  readonly errors: readonly string[]
+  readonly post: (message: PanelToHostMessage) => void
+  readonly onClose: () => void
+}) {
+  return (
+    <>
+      <InlineError messages={errors} />
+      <WizardNav
+        post={post}
+        onClose={onClose}
+        showBack={true}
+        continueLabel={UI_TEXT.wizardContinue}
+      />
+    </>
+  )
+}
+
 function PickStep({ panelState, post, onClose }: Omit<WizardProps, 'draft' | 'onNavigateModels'>) {
   const [chip, setChip] = useState<string | undefined>(undefined)
   const filters = UI_TEXT.providerFilters
@@ -132,7 +158,12 @@ function PickStep({ panelState, post, onClose }: Omit<WizardProps, 'draft' | 'on
   )
 }
 
-function ConfigureStep({ panelState, draft, post, onClose }: Omit<WizardProps, 'onNavigateModels'>) {
+function ConfigureStep({
+  panelState,
+  draft,
+  post,
+  onClose,
+}: Omit<WizardProps, 'onNavigateModels'>) {
   const preset = presetOf(panelState, draft)
   const fields = UI_TEXT.providerDetailFields
   const edit = (patch: {
@@ -147,11 +178,7 @@ function ConfigureStep({ panelState, draft, post, onClose }: Omit<WizardProps, '
   return (
     <div className="models-wizard-step">
       <h3>{preset?.label ?? UI_TEXT.providerFields.provider}</h3>
-      {preset?.originKind === 'fixed' && (
-        <p className="models-origin">
-          {preset.originDisplay}
-        </p>
-      )}
+      {preset?.originKind === 'fixed' && <p className="models-origin">{preset.originDisplay}</p>}
       {preset?.originKind === 'azure-resource' && (
         <>
           <label className="models-field" htmlFor="models-azure-resource">
@@ -229,21 +256,24 @@ function ConfigureStep({ panelState, draft, post, onClose }: Omit<WizardProps, '
           </label>
         </>
       )}
-      <InlineError messages={draft.errors} />
-      <WizardNav post={post} onClose={onClose} showBack={true} continueLabel={UI_TEXT.wizardContinue} />
+      <StepFoot errors={draft.errors} post={post} onClose={onClose} />
     </div>
   )
 }
 
-function CredentialStep({ panelState, draft, post, onClose }: Omit<WizardProps, 'onNavigateModels'>) {
+function CredentialStep({
+  panelState,
+  draft,
+  post,
+  onClose,
+}: Omit<WizardProps, 'onNavigateModels'>) {
   const preset = presetOf(panelState, draft)
   const [connecting, setConnecting] = useState(false)
   if (draft.auth === 'none') {
     return (
       <div className="models-wizard-step">
         <h3>{preset?.label ?? UI_TEXT.providerFields.provider}</h3>
-        <InlineError messages={draft.errors} />
-        <WizardNav post={post} onClose={onClose} showBack={true} continueLabel={UI_TEXT.wizardContinue} />
+        <StepFoot errors={draft.errors} post={post} onClose={onClose} />
       </div>
     )
   }
@@ -297,8 +327,7 @@ function CredentialStep({ panelState, draft, post, onClose }: Omit<WizardProps, 
           {fill(UI_TEXT.providerConnectWaiting, { provider: preset?.label ?? '' })}
         </p>
       )}
-      <InlineError messages={draft.errors} />
-      <WizardNav post={post} onClose={onClose} showBack={true} continueLabel={UI_TEXT.wizardContinue} />
+      <StepFoot errors={draft.errors} post={post} onClose={onClose} />
     </div>
   )
 }
@@ -357,8 +386,7 @@ function TestStep({ panelState, draft, post, onClose }: Omit<WizardProps, 'onNav
           }}
         />
       )}
-      <InlineError messages={draft.errors} />
-      <WizardNav post={post} onClose={onClose} showBack={true} continueLabel={UI_TEXT.wizardContinue} />
+      <StepFoot errors={draft.errors} post={post} onClose={onClose} />
     </div>
   )
 }
@@ -400,19 +428,18 @@ function WizardModelsStep({
           </li>
         ))}
       </ul>
-      <InlineError messages={draft.errors} />
-      <WizardNav post={post} onClose={onClose} showBack={true} continueLabel={UI_TEXT.wizardContinue} />
+      <StepFoot errors={draft.errors} post={post} onClose={onClose} />
     </div>
   )
 }
 
 function PrivacyStep({ panelState, draft, post, onClose }: Omit<WizardProps, 'onNavigateModels'>) {
   const preset = presetOf(panelState, draft)
-  const choices: ReadonlyArray<{
+  const choices: readonly {
     readonly value: ModelsPrivacy
     readonly label: string
     readonly detail: string
-  }> = [
+  }[] = [
     {
       value: 'zdr',
       label: UI_TEXT.privacyNoRetention,
@@ -432,9 +459,17 @@ function PrivacyStep({ panelState, draft, post, onClose }: Omit<WizardProps, 'on
   return (
     <div className="models-wizard-step">
       <h3>{UI_TEXT.providerFields.privacy}</h3>
-      <div className="models-radio-group" role="radiogroup" aria-label={UI_TEXT.providerFields.privacy}>
+      <div
+        className="models-radio-group"
+        role="radiogroup"
+        aria-label={UI_TEXT.providerFields.privacy}
+      >
         {choices.map((choice) => (
-          <label key={choice.value} className="models-radio" htmlFor={`models-privacy-${choice.value}`}>
+          <label
+            key={choice.value}
+            className="models-radio"
+            htmlFor={`models-privacy-${choice.value}`}
+          >
             <input
               id={`models-privacy-${choice.value}`}
               type="radio"
@@ -488,8 +523,7 @@ function PrivacyStep({ panelState, draft, post, onClose }: Omit<WizardProps, 'on
           {UI_TEXT.spendLimitLink}
         </button>
       )}
-      <InlineError messages={draft.errors} />
-      <WizardNav post={post} onClose={onClose} showBack={true} continueLabel={UI_TEXT.wizardContinue} />
+      <StepFoot errors={draft.errors} post={post} onClose={onClose} />
     </div>
   )
 }
@@ -577,21 +611,24 @@ function SuggestionsStep({ panelState, draft, post, onClose, onNavigateModels }:
           {fill(UI_TEXT.lastDefaultHint, { model: panelState.lastChoices.defaultModelRef })}
         </p>
       )}
-      <InlineError messages={draft.errors} />
-      <WizardNav post={post} onClose={onClose} showBack={true} continueLabel={UI_TEXT.wizardContinue} />
+      <StepFoot errors={draft.errors} post={post} onClose={onClose} />
     </div>
   )
 }
 
-function ConfirmStep({ draft, post, onClose }: Omit<WizardProps, 'panelState' | 'onNavigateModels'>) {
+function ConfirmStep({
+  draft,
+  post,
+  onClose,
+}: Omit<WizardProps, 'panelState' | 'onNavigateModels'>) {
   // **Save** stays disabled until the form is valid, with each blocker
   // inline in plain words.
-  const blocked = draft.blockers.length > 0
-  const save = (useNow: boolean): void => {
-    if (blocked) {
+  const isBlocked = draft.blockers.length > 0
+  const save = (shouldUseNow: boolean): void => {
+    if (isBlocked) {
       return
     }
-    post({ type: 'providers/save', useNow })
+    post({ type: 'providers/save', useNow: shouldUseNow })
   }
   return (
     <div className="models-wizard-step">
@@ -616,7 +653,7 @@ function ConfirmStep({ draft, post, onClose }: Omit<WizardProps, 'panelState' | 
         <button
           type="button"
           className="models-button-primary"
-          disabled={blocked}
+          disabled={isBlocked}
           onClick={() => {
             save(false)
           }}
@@ -626,7 +663,7 @@ function ConfirmStep({ draft, post, onClose }: Omit<WizardProps, 'panelState' | 
         <button
           type="button"
           className="models-button-primary"
-          disabled={blocked}
+          disabled={isBlocked}
           onClick={() => {
             save(true)
           }}
@@ -671,4 +708,3 @@ export function Wizard(props: WizardProps) {
     }
   }
 }
-

@@ -74,7 +74,11 @@ export function FilterBar({
 }: FilterBarProps) {
   const labels = UI_TEXT.modelFilterLabels
   const toggle = (facet: 'toolCalling' | 'vision' | 'reasoning' | 'freeOrLocal'): void => {
-    onChange({ ...filter, [facet]: filter[facet] === true ? undefined : true })
+    if (filter[facet] === true) {
+      onChange({ ...filter, [facet]: undefined })
+    } else {
+      onChange({ ...filter, [facet]: true })
+    }
   }
   return (
     <div className="models-filter-bar">
@@ -86,8 +90,7 @@ export function FilterBar({
           placeholder={searchPlaceholder}
           value={filter.search ?? ''}
           onChange={(event) => {
-            const search = event.target.value
-            onChange({ ...filter, search: search === '' ? undefined : search })
+            onChange({ ...filter, search: event.target.value || undefined })
           }}
         />
       </label>
