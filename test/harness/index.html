@@ -3725,6 +3725,97 @@
       const collectWebviewErrors = () => {
         harnessErrors.push(...webviewErrors)
       }
+      // A page is scanned only once its scenario is ready, as a test waits on
+      // the event it tests (docs/certification/a11y-focus.md): every page
+      // waits for its fonts, for no finite animation or transition still
+      // running and for two frames; a scenario that declares its own
+      // condition waits for that too. One that is not ready in time fails the
+      // page with its name; it is never skipped, and never scanned
+      // half-played. The page's focus is scripts/a11y.mjs's (emulated), so
+      // nothing here asks for the window's.
+      const READY_TIMEOUT_MS = 10_000
+      const READY_POLL_MS = 50
+      // A window in the background paints no frames: a frame is also over
+      // when this much time has passed.
+      const FRAME_FALLBACK_MS = 50
+      const SCENARIO_READY = {
+        // The "/" list for "/co", rendered with its options.
+        'slash-commands': () => document.querySelector('.slash-menu [role="option"]') !== null,
+      }
+      const nextFrame = () =>
+        new Promise((resolve) => {
+          requestAnimationFrame(() => resolve())
+          later(FRAME_FALLBACK_MS, resolve)
+        })
+      // An infinite animation (the caret's blink, a spinner) is a steady
+      // state: it never finishes, so it is not waited for.
+      const finiteAnimations = () =>
+        document
+          .getAnimations()
+          .filter(
+            (animation) =>
+              animation.playState === 'running' &&
+              animation.effect?.getComputedTiming().endTime !== Infinity,
+          )
+      const whenReady = async (name) => {
+        const deadline = performance.now() + READY_TIMEOUT_MS
+        const byDeadline = (promise) =>
+          Promise.race([
+            promise,
+            new Promise((resolve) => {
+              later(Math.max(0, deadline - performance.now()), resolve)
+            }),
+          ])
+        const isReady = SCENARIO_READY[name] ?? (() => true)
+        for (;;) {
+          if (isReady()) {
+            await byDeadline(document.fonts.ready)
+            await byDeadline(
+              Promise.all(
+                finiteAnimations().map((animation) => animation.finished.catch(() => {})),
+              ),
+            )
+            await byDeadline(nextFrame())
+            await byDeadline(nextFrame())
+            if (isReady() && finiteAnimations().length === 0) {
+              return
+            }
+          }
+          if (performance.now() >= deadline) {
+            throw new Error(
+              `scenario ${name} never became ready within ${String(READY_TIMEOUT_MS / 1000)} s`,
+            )
+          }
+          await new Promise((resolve) => {
+            later(READY_POLL_MS, resolve)
+          })
+        }
+      }
+      // A scan holds only for the state it began in: a window that loses its
+      // focus or is hidden while axe runs closes the composer's menus under
+      // it (a menu axe already matched then reads as a bare :root), so that
+      // scan is void and fails the page with the reason, never a finding.
+      const scanWhileFocused = async () => {
+        let lost = ''
+        const onBlur = () => {
+          lost ||= 'lost its focus'
+        }
+        const onVisibility = () => {
+          lost ||= document.visibilityState === 'visible' ? '' : 'was hidden'
+        }
+        window.addEventListener('blur', onBlur)
+        document.addEventListener('visibilitychange', onVisibility)
+        try {
+          const result = await runAxe()
+          if (lost !== '') {
+            throw new Error(`the window ${lost} while axe ran, so the scan is void`)
+          }
+          return result
+        } finally {
+          window.removeEventListener('blur', onBlur)
+          document.removeEventListener('visibilitychange', onVisibility)
+        }
+      }
       const themed = params.has('theme') ? applyTheme(params.get('theme')) : Promise.resolve()
       if (params.get('axe') === '1') {
         themed
@@ -3734,8 +3825,9 @@
                 later(AXE_AFTER_MS, resolve)
               }),
           )
+          .then(() => whenReady(params.get('scenario') ?? 'none'))
           .then(collectWebviewErrors)
-          .then(runAxe)
+          .then(scanWhileFocused)
           .then(
             (result) => {
               writeAxeResult({ ...result, harnessErrors })
