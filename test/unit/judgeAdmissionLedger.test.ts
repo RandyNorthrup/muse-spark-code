@@ -12,7 +12,7 @@ import path from 'node:path'
 import { afterAll, describe, expect, it } from 'vitest'
 import type { StoredSession } from '../../src/core/backends/modelapi/sessionStore'
 import { admitJudgeCall, verifyJudgeDispatch } from '../../src/core/judge/admission'
-import type { JudgeDailyLedger } from '../../src/core/judge/admission'
+import type { JudgeDailyLedger, JudgeLedgerClaim } from '../../src/core/judge/admission'
 import { createSessionBudgetJournal } from '../../src/host/backend/sessionBudgetJournal'
 import { removeFolder } from './helpers/temporaryFolders'
 
@@ -26,6 +26,8 @@ afterAll(async () => {
 })
 
 function snapshot(): StoredSession {
+  const createdAt = '2026-10-05T00:00:00.000Z'
+  const usage = { inputTokens: 0, outputTokens: 0, cachedTokens: 0, reasoningTokens: 0 }
   return {
     version: 1,
     sessionId: SESSION,
@@ -34,14 +36,14 @@ function snapshot(): StoredSession {
     modelId: MODEL,
     approvalMode: 'allowAll',
     effort: 'high',
-    createdAt: '2026-09-29T00:00:00.000Z',
-    lastActivityAt: '2026-09-29T00:00:00.000Z',
+    createdAt,
+    lastActivityAt: createdAt,
     turnIds: [],
     todos: [],
     replay: [],
     transcript: [],
     outputs: {},
-    usage: { inputTokens: 0, outputTokens: 0, cachedTokens: 0, reasoningTokens: 0 },
+    usage,
     budgetSpentUsd: 0,
   }
 }
@@ -55,21 +57,21 @@ function freshDirectory(): string {
 type Journal = ReturnType<typeof createSessionBudgetJournal>
 
 /** The test-scope adapter: one session scope of the journal as the ledger. */
-function ledgerFor(journal: Journal, capUsd: number): JudgeDailyLedger {
+function ledgerFor(journal: Journal, capUsd: number | (() => number)): JudgeDailyLedger {
+  const currentCap = typeof capUsd === 'function' ? capUsd : () => capUsd
   return {
     async remainingUsd(): Promise<number> {
       const total = await journal.read(SESSION, ACCOUNT)
-      return capUsd - total.spentUsd
+      return currentCap() - total.spentUsd
     },
-    async reserve(
-      costUsd: number,
-    ): Promise<{ claimId: string; reservedUsd: number; settle(a: number): Promise<void> }> {
+    async reserve(costUsd: number): Promise<JudgeLedgerClaim> {
       const claim = await journal.reserve(SESSION, ACCOUNT, costUsd)
-      // The journal's synchronous final admission after the (test) key read.
-      claim.check(capUsd)
       return {
         claimId: claim.claimId,
         reservedUsd: claim.reservedUsd,
+        check(): void {
+          claim.check(currentCap())
+        },
         async settle(actualCostUsd: number): Promise<void> {
           await claim.settle(actualCostUsd)
         },
@@ -82,7 +84,7 @@ function journalAt(directory: string): Journal {
   return createSessionBudgetJournal({
     directory,
     loadSession: () => Promise.resolve(snapshot()),
-    sleep: () => Promise.resolve(),
+    sleep: () => Promise.resolve(undefined),
   })
 }
 
@@ -97,16 +99,20 @@ function binding(consent: 'granted' | 'declined' = 'granted') {
   }
 }
 
+function journalAdmission(directory: string, capUsd = 1) {
+  return admitJudgeCall({
+    binding: binding(),
+    billing: { kind: 'metered', ledger: ledgerFor(journalAt(directory), capUsd) },
+    estimatedInputTokens: 1000,
+    maxOutputTokens: 100,
+  })
+}
+
 describe('admission over the real journal', () => {
   it('keeps a kill-after-dispatch claim as liability across a restart', async () => {
     const directory = freshDirectory()
     const capUsd = 1
-    const admission = await admitJudgeCall({
-      binding: binding(),
-      billing: { kind: 'metered', ledger: ledgerFor(journalAt(directory), capUsd) },
-      estimatedInputTokens: 1000,
-      maxOutputTokens: 100,
-    })
+    const admission = await journalAdmission(directory, capUsd)
     if (!admission.admitted) {
       throw new Error('expected admission')
     }
@@ -121,12 +127,7 @@ describe('admission over the real journal', () => {
   it('settles known usage and refunds a known non-send through the store', async () => {
     const directory = freshDirectory()
     const capUsd = 1
-    const settled = await admitJudgeCall({
-      binding: binding(),
-      billing: { kind: 'metered', ledger: ledgerFor(journalAt(directory), capUsd) },
-      estimatedInputTokens: 1000,
-      maxOutputTokens: 100,
-    })
+    const settled = await journalAdmission(directory, capUsd)
     if (!settled.admitted) {
       throw new Error('expected admission')
     }
@@ -138,12 +139,7 @@ describe('admission over the real journal', () => {
     let total = await journalAt(directory).read(SESSION, ACCOUNT)
     expect(total.spentUsd).toBeCloseTo(actual, 12)
 
-    const refunded = await admitJudgeCall({
-      binding: binding(),
-      billing: { kind: 'metered', ledger: ledgerFor(journalAt(directory), capUsd) },
-      estimatedInputTokens: 1000,
-      maxOutputTokens: 100,
-    })
+    const refunded = await journalAdmission(directory, capUsd)
     if (!refunded.admitted) {
       throw new Error('expected admission')
     }
@@ -154,12 +150,7 @@ describe('admission over the real journal', () => {
 
   it('leaves an uncertain claim reserved after a restart', async () => {
     const directory = freshDirectory()
-    const admission = await admitJudgeCall({
-      binding: binding(),
-      billing: { kind: 'metered', ledger: ledgerFor(journalAt(directory), 1) },
-      estimatedInputTokens: 1000,
-      maxOutputTokens: 100,
-    })
+    const admission = await journalAdmission(directory)
     if (!admission.admitted) {
       throw new Error('expected admission')
     }
@@ -171,12 +162,7 @@ describe('admission over the real journal', () => {
 
   it('refuses fail-closed on a corrupt store', async () => {
     const directory = freshDirectory()
-    const admission = await admitJudgeCall({
-      binding: binding(),
-      billing: { kind: 'metered', ledger: ledgerFor(journalAt(directory), 1) },
-      estimatedInputTokens: 1000,
-      maxOutputTokens: 100,
-    })
+    const admission = await journalAdmission(directory)
     if (!admission.admitted) {
       throw new Error('expected admission')
     }
@@ -195,30 +181,93 @@ describe('admission over the real journal', () => {
     })
   })
 
-  it('admits one window for the last of the budget', async () => {
+  it('interleaves two windows reading the last budget and refunds the losing reservation', async () => {
     const directory = freshDirectory()
     const capUsd = 0.002
-    // Window A reserves the worst case of one call (~0.001675).
-    const first = await admitJudgeCall({
+    const firstLedger = ledgerFor(journalAt(directory), capUsd)
+    const secondLedger = ledgerFor(journalAt(directory), capUsd)
+    // Seed before the race; both windows must read the SAME old balance.
+    await firstLedger.remainingUsd()
+    const bothRead = Promise.withResolvers<undefined>()
+    const releaseReads = Promise.withResolvers<undefined>()
+    const secondReserving = Promise.withResolvers<undefined>()
+    const releaseSecond = Promise.withResolvers<undefined>()
+    const balances: number[] = []
+    const nonsentRefunds: number[] = []
+    const controlled = (ledger: JudgeDailyLedger, isSecond: boolean): JudgeDailyLedger => ({
+      async remainingUsd(): Promise<number> {
+        const balance = await ledger.remainingUsd()
+        balances.push(balance)
+        if (balances.length === 2) bothRead.resolve(undefined)
+        await releaseReads.promise
+        return balance
+      },
+      async reserve(costUsd: number): Promise<JudgeLedgerClaim> {
+        if (isSecond) {
+          secondReserving.resolve(undefined)
+          await releaseSecond.promise
+        }
+        const claim = await ledger.reserve(costUsd)
+        return {
+          ...claim,
+          async settle(actualCostUsd: number): Promise<void> {
+            if (isSecond) nonsentRefunds.push(actualCostUsd)
+            await claim.settle(actualCostUsd)
+          },
+        }
+      },
+    })
+    const firstPending = admitJudgeCall({
       binding: binding(),
-      billing: { kind: 'metered', ledger: ledgerFor(journalAt(directory), capUsd) },
+      billing: { kind: 'metered', ledger: controlled(firstLedger, false) },
       estimatedInputTokens: 1000,
       maxOutputTokens: 100,
     })
-    if (!first.admitted) {
-      throw new Error('expected the first window admitted')
-    }
-    // Window B, a fresh instance over the same scope, finds the remainder
-    // under a second worst case and is refused without reserving.
-    const second = await admitJudgeCall({
+    const secondPending = admitJudgeCall({
       binding: binding(),
-      billing: { kind: 'metered', ledger: ledgerFor(journalAt(directory), capUsd) },
+      billing: { kind: 'metered', ledger: controlled(secondLedger, true) },
       estimatedInputTokens: 1000,
       maxOutputTokens: 100,
     })
-    expect(second).toEqual({ admitted: false, refusal: 'over-budget' })
+    await bothRead.promise
+    expect(balances).toEqual([capUsd, capUsd])
+    releaseReads.resolve(undefined)
+    await secondReserving.promise
+    const first = await firstPending
+    releaseSecond.resolve(undefined)
+    const second = await secondPending
+    expect(second).toEqual({ admitted: false, refusal: 'ledger-unavailable' })
+    expect(nonsentRefunds).toEqual([0])
+    if (!first.admitted) throw new Error('expected the first window admitted')
     const total = await journalAt(directory).read(SESSION, ACCOUNT)
     expect(total.spentUsd).toBeCloseTo(first.claim.reservedUsd, 12)
+    expect(await verifyJudgeDispatch(first.claim, binding(), firstLedger)).toEqual({
+      proceed: true,
+    })
+  })
+
+  it('refuses a lowered daily cap through the real claim guard', async () => {
+    const directory = freshDirectory()
+    const journal = journalAt(directory)
+    const historical = await journal.reserve(SESSION, ACCOUNT, 0.6)
+    await historical.settle(0.6)
+    let cap = 1
+    const ledger = ledgerFor(journal, () => cap)
+    const admission = await admitJudgeCall({
+      binding: binding(),
+      billing: { kind: 'metered', ledger },
+      estimatedInputTokens: 1000,
+      maxOutputTokens: 100,
+    })
+    if (!admission.admitted) throw new Error('expected admission')
+    cap = 0.5
+    expect(await ledger.remainingUsd()).toBeLessThan(0)
+    expect(await verifyJudgeDispatch(admission.claim, binding(), ledger)).toEqual({
+      proceed: false,
+      reason: 'ledger-unavailable',
+    })
+    const total = await journalAt(directory).read(SESSION, ACCOUNT)
+    expect(total.spentUsd).toBeCloseTo(0.601675, 12)
   })
 
   it('settles idempotently by claim id in the store', async () => {
@@ -232,12 +281,7 @@ describe('admission over the real journal', () => {
 
   it('refuses a revoked consent after the wait without touching the store', async () => {
     const directory = freshDirectory()
-    const admission = await admitJudgeCall({
-      binding: binding(),
-      billing: { kind: 'metered', ledger: ledgerFor(journalAt(directory), 1) },
-      estimatedInputTokens: 1000,
-      maxOutputTokens: 100,
-    })
+    const admission = await journalAdmission(directory)
     if (!admission.admitted) {
       throw new Error('expected admission')
     }

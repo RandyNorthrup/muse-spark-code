@@ -17,13 +17,13 @@
 // questions, answers or probabilities (D77 privacy).
 
 import { randomUUID } from 'node:crypto'
-import { estimateCostUsd } from '../usage/insights'
 import { MODEL_API_PRICES_PER_MILLION, TOKENS_PER_MILLION } from '../../shared/constants'
 import { modelApiPaidTier } from '../../shared/paid'
 
 /** Per-million-token prices a reservation is computed from. */
 export interface JudgeTokenPrices {
   readonly input: number
+  readonly cachedInput: number
   readonly output: number
 }
 
@@ -59,6 +59,22 @@ function assertUsableCount(value: number, name: string): void {
   }
 }
 
+function verifiedPrices(
+  modelId: string,
+  priceOf: (modelId: string) => JudgeTokenPrices | undefined,
+): JudgeTokenPrices {
+  const price = priceOf(modelId)
+  if (price === undefined) {
+    throw new JudgeUnpricedError(modelId)
+  }
+  for (const rate of [price.input, price.cachedInput, price.output]) {
+    if (!Number.isFinite(rate) || rate < 0) {
+      throw new JudgeLedgerError('priced model has an unusable tariff')
+    }
+  }
+  return price
+}
+
 /**
  * The worst-case uncached price of one judge call: the estimated input at
  * the full input rate plus the whole output allowance at the output rate,
@@ -76,18 +92,7 @@ export function worstCaseJudgeCostUsd(args: {
   if (args.maxOutputTokens < 1) {
     throw new TypeError('Judge admission max output tokens must be at least 1')
   }
-  const price = (args.priceOf ?? judgePriceOf)(args.modelId)
-  if (price === undefined) {
-    throw new JudgeUnpricedError(args.modelId)
-  }
-  if (
-    !Number.isFinite(price.input) ||
-    !Number.isFinite(price.output) ||
-    price.input < 0 ||
-    price.output < 0
-  ) {
-    throw new JudgeLedgerError('priced model has an unusable tariff')
-  }
+  const price = verifiedPrices(args.modelId, args.priceOf ?? judgePriceOf)
   const costUsd =
     (args.estimatedInputTokens * price.input + args.maxOutputTokens * price.output) /
     TOKENS_PER_MILLION
@@ -111,15 +116,22 @@ export type JudgeAdmissionConsent = 'granted' | 'not-required' | 'needed' | 'dec
  * delayed dispatch) the claim is re-bound to the current binding, and any
  * change refuses the dispatch while keeping the liability.
  */
-export interface JudgeAdmissionBinding {
+interface JudgeBindingIdentity {
   readonly ownerId: string
-  readonly backend: JudgeBackend
   readonly modelId: string
   /** Raw `museSpark.judge.engine` value; parsed here, unknown fails closed. */
   readonly engine: unknown
   readonly confidential: boolean
-  readonly consent: JudgeAdmissionConsent
 }
+
+export type JudgeAdmissionBinding = JudgeBindingIdentity &
+  (
+    | {
+        readonly backend: 'modelApi'
+        readonly consent: Exclude<JudgeAdmissionConsent, 'not-required'>
+      }
+    | { readonly backend: 'museCode'; readonly consent: JudgeAdmissionConsent }
+  )
 
 /**
  * One durable claim in the daily ledger. Settlement is idempotent by claim
@@ -129,6 +141,8 @@ export interface JudgeAdmissionBinding {
 export interface JudgeLedgerClaim {
   readonly claimId: string
   readonly reservedUsd: number
+  /** D78's synchronous guard: current cap/day/stop/cancellation and claim validity. */
+  check(): void
   settle(actualCostUsd: number): Promise<void>
 }
 
@@ -164,6 +178,8 @@ export type JudgeAdmissionRefusal =
 
 export interface JudgeAdmissionRequest {
   readonly binding: JudgeAdmissionBinding
+  /** Read replaced session/consent state after waits; defaults to the supplied binding. */
+  readonly currentBinding?: () => JudgeAdmissionBinding
   readonly billing: JudgeBilling
   readonly estimatedInputTokens: number
   readonly maxOutputTokens: number
@@ -193,6 +209,10 @@ export interface JudgeAdmissionClaim {
   readonly binding: JudgeAdmissionBinding
   /** Whether a ledger claim backs this admission (`metered`) or not. */
   readonly billed: boolean
+  /** Closure belongs to this claim id; equal dollar amounts never mean open. */
+  status(): 'open' | 'settling' | 'settled' | 'refunded'
+  /** Synchronous final guard; call again if the sender waits after verification. */
+  check(): void
   /** The reservation while open, the settled cost once closed. */
   outstandingUsd(): number
   settleKnown(usage: JudgeKnownUsage): Promise<number>
@@ -224,6 +244,16 @@ function isJudgeAdmissionConsent(value: unknown): value is JudgeAdmissionConsent
   return JUDGE_ADMISSION_CONSENTS.has(value)
 }
 
+function consentRefusal(
+  backend: JudgeBackend,
+  consent: JudgeAdmissionConsent,
+): 'consent-needed' | 'consent-declined' | undefined {
+  if (consent === 'declined') return 'consent-declined'
+  return consent === 'needed' || (backend === 'modelApi' && consent !== 'granted')
+    ? 'consent-needed'
+    : undefined
+}
+
 function isValidBinding(binding: JudgeAdmissionBinding): boolean {
   return (
     binding.ownerId.length > 0 &&
@@ -242,8 +272,10 @@ function wrapLedgerError(error: unknown): JudgeLedgerError {
 }
 
 interface ClaimState {
+  status: ReturnType<JudgeAdmissionClaim['status']>
   settledUsd: number | undefined
-  ledger: JudgeLedgerClaim | undefined
+  settlingCost: number | undefined
+  settling: Promise<void> | undefined
 }
 
 function createClaim(args: {
@@ -254,25 +286,44 @@ function createClaim(args: {
   readonly priceOf: (modelId: string) => JudgeTokenPrices | undefined
   readonly ledger: JudgeLedgerClaim | undefined
 }): JudgeAdmissionClaim {
-  const state: ClaimState = { settledUsd: undefined, ledger: args.ledger }
+  const state: ClaimState = {
+    status: 'open',
+    settledUsd: undefined,
+    settlingCost: undefined,
+    settling: undefined,
+  }
   const closeAt = async (actualCostUsd: number): Promise<void> => {
     if (!Number.isFinite(actualCostUsd) || actualCostUsd < 0) {
       throw new JudgeLedgerError('settlement cost is not a finite nonnegative amount')
     }
-    if (state.settledUsd !== undefined) {
+    if (state.status === 'settled' || state.status === 'refunded') {
       if (state.settledUsd !== actualCostUsd) {
         throw new JudgeLedgerError(`claim ${args.claimId} is already settled`)
       }
       return
     }
-    if (state.ledger !== undefined) {
-      try {
-        await state.ledger.settle(actualCostUsd)
-      } catch (error: unknown) {
-        throw wrapLedgerError(error)
-      }
+    if (state.settlingCost !== undefined && state.settlingCost !== actualCostUsd) {
+      throw new JudgeLedgerError(`claim ${args.claimId} has a conflicting settlement`)
     }
-    state.settledUsd = actualCostUsd
+    // Close admission synchronously, before a store wait can race dispatch.
+    // A failed write keeps both the liability and this dispatch prohibition.
+    state.status = 'settling'
+    state.settlingCost = actualCostUsd
+    state.settling ??= (async () => {
+      if (args.ledger !== undefined) {
+        await args.ledger.settle(actualCostUsd)
+      }
+      state.settledUsd = actualCostUsd
+      state.status = actualCostUsd === 0 ? 'refunded' : 'settled'
+    })()
+    const pending = state.settling
+    try {
+      await pending
+    } catch (error: unknown) {
+      throw wrapLedgerError(error)
+    } finally {
+      if (state.settling === pending) state.settling = undefined
+    }
   }
   return {
     claimId: args.claimId,
@@ -280,6 +331,13 @@ function createClaim(args: {
     modelId: args.modelId,
     binding: { ...args.binding },
     billed: args.ledger !== undefined,
+    status: () => state.status,
+    check: () => {
+      if (state.status !== 'open') {
+        throw new JudgeLedgerError(`claim ${args.claimId} is already closing or closed`)
+      }
+      args.ledger?.check()
+    },
     outstandingUsd: () => state.settledUsd ?? args.reservedUsd,
     settleKnown: async (usage: JudgeKnownUsage): Promise<number> => {
       assertUsableCount(usage.inputTokens, 'settled input tokens')
@@ -288,14 +346,14 @@ function createClaim(args: {
       if (usage.cachedTokens > usage.inputTokens) {
         throw new TypeError('Judge admission settled cached tokens exceed input tokens')
       }
-      if (args.priceOf(args.modelId) === undefined) {
-        // The tariff vanished after admission: keep the liability rather
-        // than settle a guessed cost.
-        throw new JudgeLedgerError(
-          `model ${args.modelId} lost its verified price before settlement`,
-        )
-      }
-      const actualCostUsd = estimateCostUsd(usage, args.modelId)
+      // Use the same verified source as reservation, including its cache
+      // rate. A missing tariff throws JudgeUnpricedError and keeps liability.
+      const price = verifiedPrices(args.modelId, args.priceOf)
+      const actualCostUsd =
+        ((usage.inputTokens - usage.cachedTokens) * price.input +
+          usage.cachedTokens * price.cachedInput +
+          usage.outputTokens * price.output) /
+        TOKENS_PER_MILLION
       await closeAt(actualCostUsd)
       return actualCostUsd
     },
@@ -309,34 +367,42 @@ function createClaim(args: {
  * Admit one judge call: reserve its worst-case uncached price before
  * dispatch. Fail-closed order: an invalid binding, a missing or declined
  * paid consent, an unpriced model, a call over the remaining budget, and an
- * unreadable ledger each refuse, and a refusal reserves nothing. A batch is
- * one call; a retry admits again for a new claim.
+ * unreadable ledger each refuse. Any owned known nonsent reservation is
+ * refunded on refusal; a failed refund retains liability. A batch is one
+ * call; a retry admits again for a new claim.
  */
 export async function admitJudgeCall(request: JudgeAdmissionRequest): Promise<JudgeAdmission> {
   assertUsableCount(request.estimatedInputTokens, 'estimated input tokens')
   assertUsableCount(request.maxOutputTokens, 'max output tokens')
-  if (!isValidBinding(request.binding)) {
+  const before = { ...request.binding }
+  const readBinding = request.currentBinding ?? (() => request.binding)
+  const bindingRefusal = (): JudgeAdmissionRefusal | undefined => {
+    const rebound = rebindBinding(before, readBinding())
+    if (rebound.rebound) return
+    return rebound.reason === 'consent-needed' || rebound.reason === 'consent-declined'
+      ? rebound.reason
+      : 'binding-invalid'
+  }
+  if (!isValidBinding(before)) {
     return { admitted: false, refusal: 'binding-invalid' }
   }
   if (
-    (request.binding.backend === 'modelApi') !== (request.billing.kind === 'metered') ||
-    (request.binding.backend === 'museCode') !== (request.billing.kind === 'subscription')
+    (before.backend === 'modelApi') !== (request.billing.kind === 'metered') ||
+    (before.backend === 'museCode') !== (request.billing.kind === 'subscription')
   ) {
     // A Model API call without a ledger claim would bill nothing; a Muse
     // Code call against the ledger would charge the subscription twice over.
     return { admitted: false, refusal: 'binding-invalid' }
   }
-  if (request.binding.consent === 'needed') {
-    return { admitted: false, refusal: 'consent-needed' }
-  }
-  if (request.binding.consent === 'declined') {
-    return { admitted: false, refusal: 'consent-declined' }
+  const initialRefusal = bindingRefusal()
+  if (initialRefusal !== undefined) {
+    return { admitted: false, refusal: initialRefusal }
   }
   const priceOf = request.priceOf ?? judgePriceOf
   let reservedUsd: number
   try {
     reservedUsd = worstCaseJudgeCostUsd({
-      modelId: request.binding.modelId,
+      modelId: before.modelId,
       estimatedInputTokens: request.estimatedInputTokens,
       maxOutputTokens: request.maxOutputTokens,
       priceOf,
@@ -353,8 +419,8 @@ export async function admitJudgeCall(request: JudgeAdmissionRequest): Promise<Ju
       claim: createClaim({
         claimId: randomUUID(),
         reservedUsd,
-        modelId: request.binding.modelId,
-        binding: request.binding,
+        modelId: before.modelId,
+        binding: before,
         priceOf,
         ledger: undefined,
       }),
@@ -367,6 +433,8 @@ export async function admitJudgeCall(request: JudgeAdmissionRequest): Promise<Ju
   } catch {
     return { admitted: false, refusal: 'ledger-unavailable' }
   }
+  const afterRemaining = bindingRefusal()
+  if (afterRemaining !== undefined) return { admitted: false, refusal: afterRemaining }
   if (!Number.isFinite(remainingUsd) || remainingUsd < 0) {
     // A ledger that reports nonsense is unreadable: fail closed.
     return { admitted: false, refusal: 'ledger-unavailable' }
@@ -380,24 +448,35 @@ export async function admitJudgeCall(request: JudgeAdmissionRequest): Promise<Ju
   } catch {
     return { admitted: false, refusal: 'ledger-unavailable' }
   }
-  if (reserved.claimId.length === 0 || reserved.reservedUsd !== reservedUsd) {
-    // The store answered with a claim that is not this reservation: it
-    // cannot back the dispatch, so fail closed with the funds unheld.
+  let refusal = bindingRefusal()
+  if (refusal === undefined) {
+    try {
+      if (reserved.claimId.length === 0 || reserved.reservedUsd !== reservedUsd) {
+        throw new JudgeLedgerError('store returned a mismatched reservation')
+      }
+      // A competing reservation, lowered cap, new day or Stop can invalidate
+      // an earlier remainingUsd read. Only D78's per-claim guard admits it.
+      reserved.check()
+    } catch {
+      refusal = 'ledger-unavailable'
+    }
+  }
+  if (refusal !== undefined) {
+    // We own a known nonsent reservation even if its final guard refused it.
     try {
       await reserved.settle(0)
     } catch {
-      // The mismatched claim stays the ledger's liability, never ours to
-      // spend: the dispatch is still refused.
+      return { admitted: false, refusal: 'ledger-unavailable' }
     }
-    return { admitted: false, refusal: 'ledger-unavailable' }
+    return { admitted: false, refusal: bindingRefusal() ?? refusal }
   }
   return {
     admitted: true,
     claim: createClaim({
       claimId: reserved.claimId,
       reservedUsd,
-      modelId: request.binding.modelId,
-      binding: request.binding,
+      modelId: before.modelId,
+      binding: before,
       priceOf,
       ledger: reserved,
     }),
@@ -426,10 +505,16 @@ export function rebindJudgeClaim(
   claim: JudgeAdmissionClaim,
   current: JudgeAdmissionBinding,
 ): { readonly rebound: true } | { readonly rebound: false; readonly reason: JudgeRebindRefusal } {
+  return rebindBinding(claim.binding, current)
+}
+
+function rebindBinding(
+  before: JudgeAdmissionBinding,
+  current: JudgeAdmissionBinding,
+): ReturnType<typeof rebindJudgeClaim> {
   if (!isValidBinding(current)) {
     return { rebound: false, reason: 'owner-changed' }
   }
-  const before = claim.binding
   if (current.ownerId !== before.ownerId) {
     return { rebound: false, reason: 'owner-changed' }
   }
@@ -445,12 +530,8 @@ export function rebindJudgeClaim(
   if (current.confidential !== before.confidential) {
     return { rebound: false, reason: 'confidential-changed' }
   }
-  if (current.consent === 'needed') {
-    return { rebound: false, reason: 'consent-needed' }
-  }
-  return current.consent === 'declined'
-    ? { rebound: false, reason: 'consent-declined' }
-    : { rebound: true }
+  const refusal = consentRefusal(current.backend, current.consent)
+  return refusal === undefined ? { rebound: true } : { rebound: false, reason: refusal }
 }
 
 /**
@@ -462,16 +543,17 @@ export function rebindJudgeClaim(
  */
 export async function verifyJudgeDispatch(
   claim: JudgeAdmissionClaim,
-  current: JudgeAdmissionBinding,
+  current: JudgeAdmissionBinding | (() => JudgeAdmissionBinding),
   ledger?: JudgeDailyLedger,
 ): Promise<
   { readonly proceed: true } | { readonly proceed: false; readonly reason: JudgeRebindRefusal }
 > {
-  const rebound = rebindJudgeClaim(claim, current)
+  const readBinding = typeof current === 'function' ? current : () => current
+  const rebound = rebindJudgeClaim(claim, readBinding())
   if (!rebound.rebound) {
     return { proceed: false, reason: rebound.reason }
   }
-  if (claim.outstandingUsd() !== claim.reservedUsd) {
+  if (claim.status() !== 'open') {
     return { proceed: false, reason: 'already-settled' }
   }
   if (!claim.billed) {
@@ -482,6 +564,14 @@ export async function verifyJudgeDispatch(
   }
   try {
     await ledger.remainingUsd()
+  } catch {
+    return { proceed: false, reason: 'ledger-unavailable' }
+  }
+  const afterWait = rebindJudgeClaim(claim, readBinding())
+  if (!afterWait.rebound) return { proceed: false, reason: afterWait.reason }
+  if (claim.status() !== 'open') return { proceed: false, reason: 'already-settled' }
+  try {
+    claim.check()
   } catch {
     return { proceed: false, reason: 'ledger-unavailable' }
   }
