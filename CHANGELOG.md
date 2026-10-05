@@ -116,6 +116,27 @@ happened, not what was planned; superseded entries are kept.
   readback before prompting. Abort signals interrupt startup and pending
   turns; failure and completion dispose sessions and owned ACP children.
 
+- **Team workspaces and integration (M96 lane I).** `src/core/team/` holds the
+  `agents/<role>/<task-id>` workspaces on the Best-of-N infrastructure
+  (shared clones with no remote, scratch copies for read-only workers, the
+  end-of-task commit and fetch), the ref fence (the worker git guard, the
+  read-only shell list, the credential-free environment, the `agents/` ref
+  check), the per-file three-way merge with `git merge-file` (conflicts with
+  markers, protected paths, `write-paths`, Undo merge), and review-before-merge
+  with the reviewer pick that differs from every author.
+
+### Fixed
+
+- **Team workspace security (RVM96B lane I).** Read-only commands require
+  exact arguments and trusted Git execution; worker environments cannot
+  restore Git helpers or SSH agents. Cleanup refuses linked storage parents,
+  task publication uses atomic ref compare-and-swap, untracked source enters
+  the worker base, and ignored scratch writes count as breaches. Merges
+  re-read live task refs, validate every path ancestor, honour charter globs,
+  handle multiple conflict hunks, and return conflicts to the task copy for
+  rework. Executable modes survive merge/Undo, and completed review provenance
+  enforces a different-model requirement.
+
 ## [0.12.1] - 2026-10-04
 
 ### Changed

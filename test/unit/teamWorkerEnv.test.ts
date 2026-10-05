@@ -46,10 +46,12 @@ describe('scrubWorkerEnv', () => {
   it('pins git to no prompt, no helper and a refusing ssh', () => {
     const env = scrubWorkerEnv({ platform: 'linux', baseEnv: BASE })
     expect(env['GIT_TERMINAL_PROMPT']).toBe('0')
-    expect(env['GIT_CONFIG_COUNT']).toBe('1')
+    expect(env['GIT_CONFIG_COUNT']).toBe('2')
     expect(env['GIT_CONFIG_KEY_0']).toBe('credential.helper')
     expect(env['GIT_CONFIG_VALUE_0']).toBe('')
-    expect(env['GIT_SSH_COMMAND']).toBe('false')
+    expect(env['GIT_SSH_COMMAND']).toBe('muse-spark-refuses-ssh')
+    expect(env['GIT_CONFIG_KEY_1']).toBe('core.askpass')
+    expect(env['GIT_CONFIG_VALUE_1']).toBe('')
     expect(env['GIT_CONFIG_NOSYSTEM']).toBe('1')
     expect(env['GIT_CONFIG_GLOBAL']).toBe('/dev/null')
   })
@@ -67,24 +69,32 @@ describe('scrubWorkerEnv', () => {
       SSH_AUTH_SOCK: '/fake/socket',
       SSH_ASKPASS: '/fake/askpass',
       NODE_OPTIONS: '--require=/fake/module',
+      LD_PRELOAD: '/fake/module',
+      DYLD_INSERT_LIBRARIES: '/fake/module',
+      BASH_ENV: '/fake/startup',
+      ENV: '/fake/startup',
     }
     for (const platform of ['linux', 'darwin', 'win32'] as const) {
       const env = scrubWorkerEnv({
         platform,
         baseEnv: { ...BASE, ...dangerous },
-        passthrough: Object.keys(dangerous).filter((name) => name !== 'NODE_OPTIONS'),
+        passthrough: Object.keys(dangerous),
       })
+      expect(env['NODE_OPTIONS']).toBeUndefined()
+      expect(env['LD_PRELOAD']).toBeUndefined()
+      expect(env['DYLD_INSERT_LIBRARIES']).toBeUndefined()
+      expect(env['BASH_ENV']).toBeUndefined()
+      expect(env['ENV']).toBeUndefined()
       expect(env['GIT_CONFIG_PARAMETERS']).toBeUndefined()
-      expect(env['GIT_CONFIG_SYSTEM']).toBeUndefined()
-      expect(env['GIT_CONFIG_COUNT']).toBe('1')
+      expect(env['GIT_CONFIG_SYSTEM']).toBe(platform === 'win32' ? 'NUL' : '/dev/null')
+      expect(env['GIT_CONFIG_COUNT']).toBe('2')
       expect(env['GIT_CONFIG_KEY_0']).toBe('credential.helper')
       expect(env['GIT_CONFIG_VALUE_0']).toBe('')
       expect(env['GIT_CONFIG_GLOBAL']).toBe(platform === 'win32' ? 'NUL' : '/dev/null')
-      expect(env['GIT_SSH_COMMAND']).toBe(platform === 'win32' ? 'cmd /c exit 1' : 'false')
+      expect(env['GIT_SSH_COMMAND']).toBe('muse-spark-refuses-ssh')
       expect(env['GIT_ASKPASS']).toBeUndefined()
       expect(env['SSH_ASKPASS']).toBeUndefined()
       expect(env['SSH_AUTH_SOCK']).toBeUndefined()
-      expect(env['NODE_OPTIONS']).toBeUndefined()
     }
   })
 
