@@ -165,19 +165,25 @@ export function readComposer(snapshot: LegalFileSnapshot): EcosystemResult {
     }
     for (const entry of entries) {
       const parsedEntry = readLockPackage(entry)
-      if (parsedEntry !== undefined && !installed.has(parsedEntry.name)) {
-        installed.set(parsedEntry.name, { ...parsedEntry, file })
+      if (
+        parsedEntry !== undefined &&
+        !installed.has(`${parsedEntry.name}@${parsedEntry.version ?? ''}`)
+      ) {
+        installed.set(`${parsedEntry.name}@${parsedEntry.version ?? ''}`, { ...parsedEntry, file })
       }
     }
   }
 
   const dependencies = Array.from(locked.values(), (entry) => {
-    const present = installed.get(entry.name)
+    const present =
+      entry.version === undefined ? undefined : installed.get(`${entry.name}@${entry.version}`)
     const licenseRaw = entry.licenseRaw ?? present?.licenseRaw
     const manifest = requirements.find((requirement) => requirement.name === entry.name)
     return dependency(
       'composer',
-      licenseRaw !== undefined && present !== undefined ? present.file : entry.file,
+      entry.licenseRaw === undefined && present?.licenseRaw !== undefined
+        ? present.file
+        : entry.file,
       entry.name,
       {
         version: entry.version,
@@ -202,7 +208,8 @@ export function readComposer(snapshot: LegalFileSnapshot): EcosystemResult {
 
   const listed8 = locked.values()
   for (const entry of listed8) {
-    const present = installed.get(entry.name)
+    const present =
+      entry.version === undefined ? undefined : installed.get(`${entry.name}@${entry.version}`)
     if (!(
       present?.licenseRaw !== undefined &&
       entry.licenseRaw !== undefined &&

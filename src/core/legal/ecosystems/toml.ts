@@ -8,13 +8,36 @@ import type { LegalFileSnapshot } from '../files'
 /** A section value: a quoted string, an inline table, or string items. */
 export type TomlValue = string | readonly string[]
 
+function stripTomlComment(line: string): string {
+  let quote = ''
+  let isEscaped = false
+  for (let index = 0; index < line.length; index += 1) {
+    if (isEscaped) {
+      isEscaped = false
+      continue
+    }
+    const char = line[index] ?? ''
+    if (quote === '"' && char === '\\') {
+      isEscaped = true
+      continue
+    }
+    if (quote !== '') {
+      if (char === quote) quote = ''
+      continue
+    }
+    if (char === '"' || char === "'") quote = char
+    else if (char === '#') return line.slice(0, index).trimEnd()
+  }
+  return line
+}
+
 /**
  * The key/value pairs of one `[section]` table. Multi-line arrays are
  * joined; nested tables, array tables and non-string values are skipped.
  */
 export function parseTomlSection(text: string, section: string): Map<string, TomlValue> {
   const found = new Map<string, TomlValue>()
-  const lines = text.split('\n')
+  const lines = text.split('\n').map((line) => stripTomlComment(line))
   let current = ''
   let index = 0
   while (index < lines.length) {

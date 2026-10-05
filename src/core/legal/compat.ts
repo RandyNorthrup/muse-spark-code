@@ -115,17 +115,17 @@ function branchKind(
     if (PERMISSIVE.has(id) || project.has(id)) {
       continue
     }
-    if (STRONG_COPYLEFT.has(id)) {
+    if (STRONG_COPYLEFT.has(id) || /^(?:A?GPL)-(?:1|2|3)\.0\+?$/.test(id)) {
       return 'strong'
     }
-    if (WEAK_COPYLEFT.has(id)) {
+    if (WEAK_COPYLEFT.has(id) || /^LGPL-(?:2\.0|2\.1|3\.0)\+?$/.test(id)) {
       kind = 'weak'
     } else if (RESTRICTED.has(id) || isRestrictedReference(id)) {
       if (kind !== 'weak') {
         kind = 'restricted'
       }
     } else {
-      return 'unknown'
+      if (kind === 'clean') kind = 'unknown'
     }
   }
   return kind
@@ -153,25 +153,7 @@ export function evaluateCompatibility(
     if (!dep.parsed.ok) {
       continue
     }
-    const exceptions = dep.parsed.licenses.flatMap((license) =>
-      license.exception === undefined ? [] : [license.exception.id],
-    )
-    if (exceptions.length > 0) {
-      findings.push({
-        severity: dep.shipped ? 'should-fix' : 'advice',
-        category: 'dependencyLicense',
-        file: dep.dependency.evidenceFile,
-        packageName: dep.dependency.name,
-        evidenceSource: dep.dependency.evidenceSource,
-        confidence: 0.5,
-        explanation: `${describeVersion(dep)} declares WITH ${exceptions.join(', ')}; the exception changes the obligations and needs review against the exact use.`,
-        recommendation:
-          'Read the exception and license together before deciding distribution obligations.',
-        fixable: false,
-      })
-      continue
-    }
-    const alternatives = orAlternatives(dep.parsed.root)
+    const alternatives = orAlternatives(dep.parsed.root, true)
     const kinds = alternatives.map((branch) => branchKind(branch, project))
     if (kinds.every((kind) => kind === 'clean')) {
       continue
@@ -201,6 +183,16 @@ export function evaluateCompatibility(
         explanation: `${describeVersion(dep)} is dual-licensed; ${cleanBranch.join(' AND ')} is a clean choice beside ${flagged.join(', ')}. Confirm the chosen terms before shipping.`,
         recommendation: 'Record which license branch the distribution complies with.',
         evidenceExcerpt: excerpt(cleanBranch.join(' AND ')),
+      })
+      continue
+    }
+    if (kinds.includes('strong') && kinds.includes('weak')) {
+      findings.push({
+        ...evidence,
+        severity: isShipped ? 'should-fix' : 'advice',
+        confidence: 0.6,
+        explanation: `${describeVersion(dep)} declares ${flagged.join(', ')} as alternative copyleft terms; distribution requires choosing and satisfying the applicable source and linking obligations.`,
+        recommendation: 'Confirm the chosen license branch and its obligations with a lawyer.',
       })
       continue
     }
@@ -269,9 +261,10 @@ export function evaluateCompatibility(
       })
       continue
     }
+    const hasException = flagged.some((id) => id.includes(' WITH '))
     findings.push({
       ...evidence,
-      severity: 'advice',
+      severity: hasException && isShipped ? 'should-fix' : 'advice',
       confidence: 0.5,
       explanation: `${describeVersion(dep)} declares ${flagged.join(', ')}, which this reader does not classify: confirm the terms by hand.`,
       recommendation: 'Review the license text against this distribution.',

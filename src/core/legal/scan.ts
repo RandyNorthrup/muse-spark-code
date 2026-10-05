@@ -1,3 +1,4 @@
+import { fingerprint } from '../verify/fingerprint'
 import { compareLegalText } from './files'
 // The deterministic scan (M97, PLAN.md D76): every reader over one
 // bounded snapshot, findings sorted before stable ids are assigned, and
@@ -335,7 +336,9 @@ export function scanLegal(snapshot: LegalFileSnapshot, options: LegalScanOptions
   incomplete.push(...shipped.incomplete)
 
   const licensed = evaluateDependencyLicenses(dependencies, (dep) =>
-    shipped.shippedNames.has(dep.name),
+    shipped.shippedDependencies.has(
+      JSON.stringify([dep.ecosystem, dep.name, dep.version, dep.evidenceFile]),
+    ),
   )
   incomplete.push(...licensed.incomplete)
   const compat = evaluateCompatibility(licensed.evaluated, project.licenses)
@@ -429,8 +432,23 @@ export function scanLegal(snapshot: LegalFileSnapshot, options: LegalScanOptions
       scrubLegalText(entry).slice(0, LEGAL_TEXT_MAX_CHARS),
     ),
     findings: results,
+    evidenceFiles: [...cache].flatMap(([path, text]) =>
+      text === undefined
+        ? []
+        : [
+            {
+              path,
+              hash: snapshot.readFileHash?.(path) ?? fingerprint(text),
+            },
+          ],
+    ),
   }
-  const parsed = legalScanResultSchema.safeParse(result)
+  const scrubbed: unknown = JSON.parse(
+    JSON.stringify(result, (_key, value: unknown) =>
+      typeof value === 'string' ? scrubLegalText(value) : value,
+    ),
+  )
+  const parsed = legalScanResultSchema.safeParse(scrubbed)
   if (!parsed.success) {
     throw new LegalScanError(`The scan built an invalid result: ${parsed.error.message}`)
   }

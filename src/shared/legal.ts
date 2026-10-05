@@ -18,6 +18,7 @@ import {
   LEGAL_EXCLUSIONS_MAX,
   LEGAL_FINDING_ID_MAX_CHARS,
   LEGAL_FINDINGS_MAX,
+  LEGAL_FILES_SCANNED_MAX,
   LEGAL_HEADER_POLICIES,
   LEGAL_INCOMPLETE_MAX,
   LEGAL_PATH_MAX_CHARS,
@@ -99,6 +100,17 @@ export const legalScanResultSchema = z.strictObject({
   exclusions: z.array(pathSchema).check(z.maxLength(LEGAL_EXCLUSIONS_MAX)),
   incompleteChecks: z.array(textSchema).check(z.maxLength(LEGAL_INCOMPLETE_MAX)),
   findings: z.array(legalFindingSchema).check(z.maxLength(LEGAL_FINDINGS_MAX)),
+  /** SHA-256 of every text file read by the scanner; host-owned fix baseline. */
+  evidenceFiles: z.optional(
+    z
+      .array(
+        z.strictObject({
+          path: pathSchema,
+          hash: z.string().check(z.regex(/^[a-f0-9]{64}$/)),
+        }),
+      )
+      .check(z.maxLength(LEGAL_FILES_SCANNED_MAX)),
+  ),
 })
 export type LegalScanResult = z.infer<typeof legalScanResultSchema>
 

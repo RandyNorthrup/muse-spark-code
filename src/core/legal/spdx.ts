@@ -269,14 +269,28 @@ export function parseSpdxExpression(text: string): SpdxExpression {
  * alternative; an `AND` of licenses is one alternative holding several
  * ids. The compatibility reader treats an alternative as a choice.
  */
-export function orAlternatives(root: SpdxNode): readonly (readonly string[])[] {
-  if (root.kind === 'license') return [[root.license.canonicalId ?? root.license.id]]
+export function orAlternatives(
+  root: SpdxNode,
+  shouldIncludeExceptions = false,
+): readonly (readonly string[])[] {
+  if (root.kind === 'license') {
+    const id = root.license.canonicalId ?? root.license.id
+    return [
+      [
+        shouldIncludeExceptions && root.license.exception !== undefined
+          ? `${id} WITH ${root.license.exception.id}`
+          : id,
+      ],
+    ]
+  }
   if (root.kind === 'or')
-    return root.children.flatMap((child) => orAlternatives(child)).slice(0, LEGAL_FINDINGS_MAX)
+    return root.children
+      .flatMap((child) => orAlternatives(child, shouldIncludeExceptions))
+      .slice(0, LEGAL_FINDINGS_MAX)
   let alternatives: readonly (readonly string[])[] = [[]]
   const listed1 = root.children
   for (const child of listed1) {
-    const choices = orAlternatives(child)
+    const choices = orAlternatives(child, shouldIncludeExceptions)
     if (alternatives.length * choices.length > LEGAL_FINDINGS_MAX)
       return [collectLicenses(root).map((license) => license.canonicalId ?? license.id)]
     alternatives = alternatives.flatMap((left) => choices.map((right) => [...left, ...right]))

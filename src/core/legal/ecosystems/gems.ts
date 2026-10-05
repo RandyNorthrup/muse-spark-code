@@ -249,9 +249,17 @@ export function readGems(snapshot: LegalFileSnapshot): EcosystemResult {
     incomplete.push(
       `not checked: ${file} is read statically; computed Ruby metadata and conditional assignments are not evaluated`,
     )
-    if (parsed.name !== undefined && parsed.licenses.length > 0) {
-      installedLicenses.set(parsed.name, { licenseRaw: parsed.licenses.join(' OR '), file })
-    }
+    if (parsed.name === undefined || parsed.licenses.length === 0) continue
+    const base = baseNameOf(file)
+    const prefix = `${parsed.name}-`
+    const filenameVersion = base.startsWith(prefix)
+      ? base.slice(prefix.length, -'.gemspec'.length)
+      : undefined
+    const version = parsed.version ?? filenameVersion
+    installedLicenses.set(`${parsed.name}@${version ?? ''}`, {
+      licenseRaw: parsed.licenses.join(' OR '),
+      file,
+    })
   }
 
   const names = new Map<string, GemRequirement>()
@@ -270,7 +278,9 @@ export function readGems(snapshot: LegalFileSnapshot): EcosystemResult {
   }
 
   const dependencies = Array.from(names.values(), (requirement) => {
-    const present = installedLicenses.get(requirement.name)
+    const version = requirement.version ?? locked.get(requirement.name)
+    const present =
+      version === undefined ? undefined : installedLicenses.get(`${requirement.name}@${version}`)
     return dependency('gems', present?.file ?? requirement.file, requirement.name, {
       version: requirement.version ?? locked.get(requirement.name),
       scope: requirement.scope,

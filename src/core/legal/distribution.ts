@@ -7,7 +7,7 @@ import { compareLegalText } from './files'
 // scan never rebuilds or packs to obtain it.
 
 import type { EvaluatedDependency } from './depLicenses'
-import type { LegalDependency } from './dependencies'
+import { parseJson, recordOf, type LegalDependency } from './dependencies'
 import type { LegalFindingDraft } from './finding'
 import type { LegalFileSnapshot } from './files'
 import { excerpt, isLegalGlobMatch } from './files'
@@ -29,6 +29,8 @@ export interface DistributionEvidence {
 export interface ShippedSet {
   /** Dependency names known to ship (material inside the shipped set). */
   readonly shippedNames: ReadonlySet<string>
+  readonly shippedDependencies: ReadonlySet<string>
+  readonly shippedFiles: ReadonlySet<string> | undefined
   /** Production dependencies with no material or no distribution evidence. */
   readonly unknownNames: readonly string[]
   /** One sentence naming what the obligations were read against. */
@@ -48,10 +50,30 @@ export function materialInSnapshot(snapshot: LegalFileSnapshot, dep: LegalDepend
     case 'npm': {
       if (dep.evidenceFile.includes('node_modules/')) {
         const dir = dep.evidenceFile.slice(0, dep.evidenceFile.lastIndexOf('/') + 1)
-        return snapshot.files.filter((file) => file.startsWith(dir))
+        return snapshot.files.filter(
+          (file) => file.startsWith(dir) && !file.slice(dir.length).includes('node_modules/'),
+        )
       }
-      const files = snapshot.files.filter((file) => file.includes(`node_modules/${dep.name}/`))
-      return files
+      const manifests = snapshot.files.filter((file) =>
+        file.endsWith(`node_modules/${dep.name}/package.json`),
+      )
+      const matching = manifests.filter((file) => {
+        const text = snapshot.readFile(file)
+        if (text === undefined) return false
+        const manifest = recordOf(parseJson(text))
+        return dep.version !== undefined && manifest?.['version'] === dep.version
+      })
+      // A lone installed location with no manifest remains approximate; multiple
+      // locations without exact-version evidence never borrow one another.
+      const roots: string[] = []
+      if (matching.length > 0)
+        roots.push(...matching.map((file) => file.slice(0, -'package.json'.length)))
+      else if (manifests.length === 0) roots.push(`node_modules/${dep.name}/`)
+      return snapshot.files.filter((file) =>
+        roots.some(
+          (dir) => file.startsWith(dir) && !file.slice(dir.length).includes('node_modules/'),
+        ),
+      )
     }
     case 'pip': {
       if (dep.evidenceFile.includes('.dist-info/')) {
@@ -223,6 +245,7 @@ export function computeShipped(
 
   const shippedSet = shippedFiles === undefined ? undefined : new Set(shippedFiles)
   const shippedNames = new Set<string>()
+  const shippedDependencies = new Set<string>()
   const unknownNames: string[] = []
   for (const dep of dependencies) {
     if (shippedSet === undefined) {
@@ -232,12 +255,22 @@ export function computeShipped(
     const material = materialInSnapshot(snapshot, dep).filter((file) => shippedSet.has(file))
     if (material.length > 0) {
       shippedNames.add(dep.name)
+      shippedDependencies.add(
+        JSON.stringify([dep.ecosystem, dep.name, dep.version, dep.evidenceFile]),
+      )
     } else if (dep.scope === 'production') {
       unknownNames.push(dep.name)
     }
   }
 
-  return { shippedNames, unknownNames, summary, incomplete }
+  return {
+    shippedNames,
+    shippedDependencies,
+    shippedFiles: shippedSet,
+    unknownNames,
+    summary,
+    incomplete,
+  }
 }
 
 /**
@@ -255,6 +288,9 @@ export function checkNotices(
   const findings: LegalFindingDraft[] = []
   const incomplete: string[] = []
   const { shippedNames, unknownNames } = shipped
+  notices = notices.filter(
+    (notice) => shipped.shippedFiles === undefined || shipped.shippedFiles.has(notice.path),
+  )
   if (shippedNames.size > 0 || unknownNames.length > 0) {
     const unnamed = [...shippedNames, ...unknownNames].filter(
       (name) => noticesMention(notices, name) === undefined,
@@ -288,7 +324,13 @@ export function checkNotices(
   }
 
   for (const { dependency: dep, parsed } of evaluated) {
-    if (!parsed.ok || (!shippedNames.has(dep.name) && !unknownNames.includes(dep.name))) {
+    if (
+      !parsed.ok ||
+      (!shipped.shippedDependencies.has(
+        JSON.stringify([dep.ecosystem, dep.name, dep.version, dep.evidenceFile]),
+      ) &&
+        !unknownNames.includes(dep.name))
+    ) {
       continue
     }
     const isApache = parsed.licenses.some((license) => license.canonicalId === 'Apache-2.0')

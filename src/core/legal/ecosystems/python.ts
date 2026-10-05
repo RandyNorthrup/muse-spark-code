@@ -178,6 +178,13 @@ export function readPython(snapshot: LegalFileSnapshot): EcosystemResult {
     } else if (textTarget !== undefined) {
       projectLicenses.push({ raw: textTarget, file })
     }
+    for (const [name, value] of parseTomlSection(text, 'tool.poetry.dependencies')) {
+      if (name === 'python') continue
+      const constraint = typeof value === 'string' ? value : undefined
+      const version =
+        constraint !== undefined && /^\d+(?:\.\d+)*$/.test(constraint) ? constraint : undefined
+      dependencies.push(requirementDependency(file, name, version, 'production'))
+    }
     const requirements = project.get('dependencies')
     if (requirements !== undefined && typeof requirements !== 'string') {
       for (const requirement of requirements) {
