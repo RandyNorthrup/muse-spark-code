@@ -66,6 +66,8 @@ happened, not what was planned; superseded entries are kept.
   hold, signed-out routing, strict reserved-command usage, turn/Stop admission,
   trust rechecks, registry redirect refusal, error redaction, JSON disclaimer
   and version-aware bundled-skill links.
+- Kept queued cancellation in the canonical scanner entry using the existing
+  Node global scheduler, without adding a scanner import exception.
 - Reused the legal scan's bounded schema fields and factored repeated legal
   test fixtures after the unchanged zero-duplication gate rejected the merge.
 - Documented the candidate's limits. The selected-fix applier, requested

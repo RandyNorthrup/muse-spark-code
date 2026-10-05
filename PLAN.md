@@ -13934,6 +13934,12 @@ joined with M57, M58 and PR #49's sign-in
   The full coverage run also caught M80's isolated packaging fixture missing
   M97's new bundle/data inputs. Extend that fixture and its packed-content
   assertions; preserve every existing headless/package guard.
+  The combined coverage run caught the canonical entry importing a timer
+  module outside the scanner's strict import boundary. Use the existing Node
+  global scheduler for the same event-loop yield; preserve final cancellation
+  admission and the unchanged guard. Three unrelated timing failures on the
+  shared rig are retried with two test workers, preserving every deadline and
+  coverage threshold.
 - **Certification checklist.**
   - [x] Owner request, D76 design, lanes and source-grounded research recorded.
   - [ ] Acceptance 1–10, each with its failing drill and passing receipt.

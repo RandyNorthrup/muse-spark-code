@@ -1,5 +1,4 @@
 // Production legalScan.js entry: local reads only, shared by both loaders.
-import { scheduler } from 'node:timers/promises'
 import { SETTING_DEFAULTS } from '../../shared/constants'
 import { legalScanInputSchema } from '../../shared/legal'
 import type {
@@ -37,7 +36,10 @@ export async function runLegalScan(request: LegalScanRequest): Promise<LegalScan
       }
     }
   }
-  await scheduler.yield()
+  // Let pending Stop messages run before final report admission.
+  await new Promise<void>((resolve) => {
+    setImmediate(resolve)
+  })
   request.signal?.throwIfAborted()
   return { result, registryTargets }
 }
