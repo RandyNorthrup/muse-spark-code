@@ -654,6 +654,11 @@ function shipped(output) {
 }
 const TEXT_BLOCKS = [
   {
+    block: 'CONVERSATION_MODEL_TEXT',
+    sentinels: ['planBriefRequest', 'replyContextLead'],
+    readers: ['dist/conversation.js', BUNDLES.modelApi.output],
+  },
+  {
     block: 'TAB_MODEL_TEXT',
     sentinels: ['tabSystem', 'tabUserTemplate'],
     readers: ['dist/tab.js'],

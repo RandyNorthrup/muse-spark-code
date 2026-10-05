@@ -68,7 +68,7 @@ import {
   REVIEW_PANE_MAX_LINES,
   MODEL_API_IMPORT_MAX_REPLAY_BYTES,
   GIT_MODEL_TEXT,
-  MODEL_TEXT,
+  CONVERSATION_MODEL_TEXT,
   MSP_READ_OUTPUT_CONCURRENCY,
   REVIEW_MODEL_TEXT,
   MUSE_CODE_REVIEWER_BUNDLE_FILE,
@@ -5428,7 +5428,7 @@ describe('ConversationController: session history (M6)', () => {
         text: fill(UI_TEXT.planFromImportedMode, { mode: UI_TEXT.permissionModes.manual }),
       })
       const body = JSON.stringify(api.responseBodies()[1])
-      expect(body).toContain(MODEL_TEXT.planBriefFromFile.slice(0, 40))
+      expect(body).toContain(CONVERSATION_MODEL_TEXT.planBriefFromFile.slice(0, 40))
       expect(body).not.toContain('The user approved the plan')
     },
   )
@@ -11938,14 +11938,14 @@ describe('ConversationController: plans as files (M79)', () => {
     const start = t.server.requestsFor('turn/start')[1]?.params
     expect(start).toMatchObject({
       input: [
-        { type: 'text', text: fill(MODEL_TEXT.planBriefRequest, { path: PLAN_PATH }) },
+        { type: 'text', text: fill(CONVERSATION_MODEL_TEXT.planBriefRequest, { path: PLAN_PATH }) },
         {
           type: 'text',
           text: `Attached text file ${JSON.stringify(PLAN_PATH)}:\n\n${briefText(CAPTURED_PLAN_BODY)}`,
         },
         {
           type: 'text',
-          text: `${fill(MODEL_TEXT.planBriefApproved, { name: JSON.stringify(PLAN_PATH) })} ${MODEL_TEXT.planBriefTodosAsk}`,
+          text: `${fill(CONVERSATION_MODEL_TEXT.planBriefApproved, { name: JSON.stringify(PLAN_PATH) })} ${CONVERSATION_MODEL_TEXT.planBriefTodosAsk}`,
         },
         NOTE,
       ],
@@ -12055,7 +12055,7 @@ describe('ConversationController: plans as files (M79)', () => {
     // The model does not see the list otherwise: the note names the steps it was set to.
     expect(body).toContain(
       JSON.stringify(
-        fill(MODEL_TEXT.planBriefTodosSet, {
+        fill(CONVERSATION_MODEL_TEXT.planBriefTodosSet, {
           steps: '1. Add the toggle.\n2. Test it with the guide <https://a.example/g>.',
         }),
       ).slice(1, -1),
@@ -12118,13 +12118,15 @@ describe('ConversationController: plans as files (M79)', () => {
     expect(t.server.requestsFor('session/start')[0]?.params).toMatchObject({
       approvalMode: 'promptUnmatched',
     })
-    const note = fill(MODEL_TEXT.planBriefFromFile, { name: JSON.stringify(FILE_PATH) })
+    const note = fill(CONVERSATION_MODEL_TEXT.planBriefFromFile, {
+      name: JSON.stringify(FILE_PATH),
+    })
     expect(t.server.requestsFor('turn/start')[0]?.params).toMatchObject({
       input: [
-        { type: 'text', text: fill(MODEL_TEXT.planBriefRequest, { path: FILE_PATH }) },
+        { type: 'text', text: fill(CONVERSATION_MODEL_TEXT.planBriefRequest, { path: FILE_PATH }) },
         // A file is briefed as a plan reply is shown: its link's destination as text.
         { type: 'text', text: expect.stringContaining(briefText(file)) },
-        { type: 'text', text: `${note} ${MODEL_TEXT.planBriefTodosAsk}` },
+        { type: 'text', text: `${note} ${CONVERSATION_MODEL_TEXT.planBriefTodosAsk}` },
         NOTE,
       ],
     })
@@ -13044,7 +13046,7 @@ describe('ConversationController: handoff to a new conversation (M74)', () => {
     // untrusted-content rule (PLAN.md D49). Both sides are JSON text, so
     // the expectation is encoded the same way.
     const request = JSON.stringify(api.responseBodies().at(-1)?.['input'])
-    expect(request).toContain(JSON.stringify(MODEL_TEXT.handoffRequest).slice(1, -1))
+    expect(request).toContain(JSON.stringify(CONVERSATION_MODEL_TEXT.handoffRequest).slice(1, -1))
     expect(request).toContain('Ship it')
     expect(request).toContain('[untrusted]')
     // Nothing started: the conversation was not cleared.
@@ -13118,7 +13120,7 @@ describe('ConversationController: handoff to a new conversation (M74)', () => {
       expect(api.responseBodies().length).toBeGreaterThan(before)
     })
     const body = JSON.stringify(api.responseBodies().at(-1)?.['input'])
-    const note = fill(MODEL_TEXT.handoffTodosSet, { steps: `1. ${long}` })
+    const note = fill(CONVERSATION_MODEL_TEXT.handoffTodosSet, { steps: `1. ${long}` })
     expect(body).toContain(JSON.stringify(note).slice(1, -1))
     expect(body).not.toContain('shortened')
   })

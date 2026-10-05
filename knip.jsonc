@@ -15,6 +15,7 @@
 
   "entry": [
     "src/extension.ts",
+    "src/host/conversation/conversationEntry.ts",
     "src/shared/validationEntry.ts",
     // Tab's lazy provider, engine and ledger (M94), loaded by path.
     "src/host/tab/tabEntry.ts",

@@ -8,7 +8,7 @@ import {
   type ExportPreviewChoice,
 } from '../../src/host/conversation/exportConversation'
 import type { ItemSnapshot } from '../../src/shared/agentEvents'
-import { MODEL_TEXT, SESSION_EXPORT_MAX_ITEMS } from '../../src/shared/constants'
+import { CONVERSATION_MODEL_TEXT, SESSION_EXPORT_MAX_ITEMS } from '../../src/shared/constants'
 
 function fakes(
   kind: BackendKind,
@@ -134,7 +134,7 @@ describe('exportConversation', () => {
       expect(t.json).toEqual([['muse-share-me-2026-09-24.json', shown?.content]])
       const parsed = parseSessionExport(JSON.parse(shown?.content ?? ''))
       expect(parsed.ok && parsed.doc.transcript[0]?.text).toBe(
-        `Read ${MODEL_TEXT.exportRedactedPath} and ${MODEL_TEXT.exportRedactedPath}`,
+        `Read ${CONVERSATION_MODEL_TEXT.exportRedactedPath} and ${CONVERSATION_MODEL_TEXT.exportRedactedPath}`,
       )
       expect(parsed.ok && parsed.doc.sourceBackend).toBe(kind)
       expect(shown?.content).not.toContain('Northrup')

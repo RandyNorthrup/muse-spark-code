@@ -71,6 +71,17 @@ export const DEFERRED = [
 // The Model API backend keeps its own copy of code intelligence.
 export const ON_FIRST_USE = [
   {
+    output: 'dist/conversation.js',
+    metafile: 'dist/meta/conversation.json',
+    use: 'the first chat surface',
+    files: [
+      'src/host/conversation/conversationEntry.ts',
+      'src/host/conversation/conversationController.ts',
+      'src/host/conversation/sessionImport.ts',
+      'src/core/export/transcriptMarkdown.ts',
+    ],
+  },
+  {
     output: 'dist/judge.js',
     metafile: 'dist/meta/judge.json',
     use: 'the first eligible Judge approval',

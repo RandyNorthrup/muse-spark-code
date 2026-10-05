@@ -4187,3 +4187,7 @@ Production packages store UI translation tables with Brotli compression and
 read them with a bounded decoder; source tables remain readable JSON. The
 packaged localization check compares every decoded value with its source.
 The shared production Node English fallback uses the same built-in compression.
+
+The conversation implementation loads when the first chat surface needs it. The
+first opening includes that local load; commands and backend restart handling
+remain registered at activation.

@@ -69,6 +69,8 @@ const isWatch = args.has('--watch')
 
 const HOST_ENTRY = 'src/extension.ts'
 const HOST_OUTFILE = 'dist/extension.js'
+const CONVERSATION_ENTRY = 'src/host/conversation/conversationEntry.ts'
+const CONVERSATION_OUTFILE = 'dist/conversation.js'
 // One immutable English fallback shared by Node bundles; each keeps its own
 // mutable installed-language state. The browser keeps its fallback bundled.
 const TAB_ENTRY = 'src/host/tab/tabEntry.ts'
@@ -175,6 +177,13 @@ const hostOptions = {
   format: 'cjs',
   target: HOST_NODE_TARGET,
   external: ['vscode'],
+}
+
+/** @type {import('esbuild').BuildOptions} */
+const conversationOptions = {
+  ...hostOptions,
+  entryPoints: [CONVERSATION_ENTRY],
+  outfile: CONVERSATION_OUTFILE,
 }
 
 /** @type {import('esbuild').BuildOptions} */
@@ -539,6 +548,7 @@ console.log(
 if (isWatch) {
   const contexts = await Promise.all([
     esbuild.context(hostOptions),
+    esbuild.context(conversationOptions),
     esbuild.context(tabOptions),
     esbuild.context(modelApiOptions),
     esbuild.context(reviewOptions),
@@ -575,6 +585,7 @@ if (isWatch) {
 } else {
   const shipped = {
     extension: esbuild.build(hostOptions),
+    conversation: esbuild.build(conversationOptions),
     tab: esbuild.build(tabOptions),
     modelApi: esbuild.build(modelApiOptions),
     review: esbuild.build(reviewOptions),
@@ -624,6 +635,7 @@ if (isWatch) {
   }
   console.log('bundle sizes:')
   reportSize(HOST_OUTFILE)
+  reportSize(CONVERSATION_OUTFILE)
   reportSize(TAB_OUTFILE)
   reportSize(MODEL_API_OUTFILE)
   reportSize(REVIEW_OUTFILE)

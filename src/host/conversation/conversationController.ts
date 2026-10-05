@@ -1,4 +1,3 @@
-import { MspError } from '@muse-code/sdk'
 import { startApprovalJudge } from '../../core/judge/use'
 // One conversation per surface: owns the MSP session for that surface, turns
 // webview requests into backend calls, and streams AgentEvents back. Also the
@@ -63,7 +62,7 @@ import type { BestOfNGitGuard } from '../../core/bestOfN/bestOfNRunner'
 import { type BestOfNError, isBestOfNError } from '../../core/bestOfN/bestOfNError'
 import type { BestOfNCoordinator } from '../../core/bestOfN/bestOfNCoordinator'
 import type { BoardSession, PendingPrompts } from '../../core/sessionBoard'
-import { failureForLog, stderrForLog } from '../../core/backends/musecode/logText'
+import { failureForLog, isMspFailure, stderrForLog } from '../../core/backends/musecode/logText'
 import { chatReferenceText } from '../../core/chatReference'
 import type { PlanModeHold, PlanModeRestore } from '../../core/review/planModeHold'
 import type { ReviewMaterial } from '../../core/review/reviewMaterial'
@@ -107,7 +106,7 @@ import {
   PLAN_FILE_MAX_KB,
   PLAN_TODO_PENDING_STATUS,
   MENTION_RESULT_LIMIT,
-  MODEL_TEXT,
+  CONVERSATION_MODEL_TEXT,
   MSP_READ_OUTPUT_CONCURRENCY,
   MSP_REQUESTED_CAPABILITIES,
   MUSE_EVENT_LOG_FAULT,
@@ -677,7 +676,7 @@ function describe(error: unknown): string {
 
 /** CLI errors are logged by kind/code; their message is for the redacted panel only. */
 function describeForLog(error: unknown): string {
-  return error instanceof MspError ? failureForLog(error) : describe(error)
+  return isMspFailure(error) ? failureForLog(error) : describe(error)
 }
 
 // The two tables below are built when used, never at module load: the
@@ -892,18 +891,23 @@ function planBrief(
   return {
     label: planLogName(path.posix.basename(relativePath)),
     displayText: fill(UI_TEXT.planBriefText, { path: relativePath }),
-    modelText: fill(MODEL_TEXT.planBriefRequest, { path: relativePath }),
+    modelText: fill(CONVERSATION_MODEL_TEXT.planBriefRequest, { path: relativePath }),
     attachment: { name: relativePath, bytes },
     modelNote: (hasSetTodos) => {
-      const lead = fill(isApproved ? MODEL_TEXT.planBriefApproved : MODEL_TEXT.planBriefFromFile, {
-        name,
-      })
+      const lead = fill(
+        isApproved
+          ? CONVERSATION_MODEL_TEXT.planBriefApproved
+          : CONVERSATION_MODEL_TEXT.planBriefFromFile,
+        {
+          name,
+        },
+      )
       if (steps.length === 0) {
         return lead
       }
       const todos = hasSetTodos
-        ? fill(MODEL_TEXT.planBriefTodosSet, { steps: numberedSteps(steps) })
-        : MODEL_TEXT.planBriefTodosAsk
+        ? fill(CONVERSATION_MODEL_TEXT.planBriefTodosSet, { steps: numberedSteps(steps) })
+        : CONVERSATION_MODEL_TEXT.planBriefTodosAsk
       return `${lead} ${todos}`
     },
     todos: steps.map((step) => ({ text: step, status: PLAN_TODO_PENDING_STATUS })),
@@ -936,14 +940,16 @@ function handoffBrief(
     attachment: undefined,
     modelNote: (hasSetTodos) => {
       const lead =
-        goal === undefined ? MODEL_TEXT.handoffNote : fill(MODEL_TEXT.handoffNoteWithGoal, { goal })
+        goal === undefined
+          ? CONVERSATION_MODEL_TEXT.handoffNote
+          : fill(CONVERSATION_MODEL_TEXT.handoffNoteWithGoal, { goal })
       if (todos.length === 0) {
         return lead
       }
       const steps = todos.map((todo) => todo.text)
       const list = hasSetTodos
-        ? fill(MODEL_TEXT.handoffTodosSet, { steps: numberedSteps(steps) })
-        : MODEL_TEXT.handoffTodosAsk
+        ? fill(CONVERSATION_MODEL_TEXT.handoffTodosSet, { steps: numberedSteps(steps) })
+        : CONVERSATION_MODEL_TEXT.handoffTodosAsk
       return `${lead} ${list}`
     },
     todos,
@@ -1003,24 +1009,7 @@ function errorKind(error: unknown): string {
   return error instanceof Error ? error.name : typeof error
 }
 
-/**
- * The extension's existing restart sequence (D25/D26), shared with its tests
- * so a Muse-only recovery proves both controller and host isolation.
- */
-export async function restartConversationBackends(
-  controllers: Iterable<ConversationController>,
-  museCode: { dispose: () => Promise<void> },
-  modelApi: { dispose: () => Promise<void> },
-  isConversationEnding: boolean,
-  isMuseCodeOnly: boolean,
-): Promise<void> {
-  await Promise.all(
-    Array.from(controllers, (controller) =>
-      controller.backendStopping(isConversationEnding, isMuseCodeOnly ? 'museCode' : undefined),
-    ),
-  )
-  await Promise.all([museCode.dispose(), ...(isMuseCodeOnly ? [] : [modelApi.dispose()])])
-}
+export { restartConversationBackends } from './conversationBackends'
 
 export class ConversationController {
   // Revert owns turn admission until file I/O settles; pending sends own it
@@ -1400,7 +1389,7 @@ export class ConversationController {
    * (M39): "Open log" and a support report hold every failure the user saw.
    */
   private notice(level: NoticeLevel, text: string, redoRestoreId?: string, error?: unknown): void {
-    const logged = error instanceof MspError ? failureForLog(error) : redactSecrets(text)
+    const logged = isMspFailure(error) ? failureForLog(error) : redactSecrets(text)
     if (level === 'error') {
       this.deps.log.error(`${NOTICE_PREFIX}${logged}`)
     } else if (level === 'warning') {
@@ -5266,8 +5255,8 @@ export class ConversationController {
       this.post({ type: 'briefSubmitted', localId, text: cardText, attachments: [] })
       const modelText =
         goal === undefined
-          ? MODEL_TEXT.handoffRequest
-          : `${MODEL_TEXT.handoffRequest} ${fill(MODEL_TEXT.handoffRequestGoal, { goal })}`
+          ? CONVERSATION_MODEL_TEXT.handoffRequest
+          : `${CONVERSATION_MODEL_TEXT.handoffRequest} ${fill(CONVERSATION_MODEL_TEXT.handoffRequestGoal, { goal })}`
       const sent = await this.send(
         localId,
         modelText,
@@ -8903,7 +8892,7 @@ export class ConversationController {
       await this.dispatch(message)
     } catch (error: unknown) {
       this.deps.log.error(
-        `${message.type} failed: ${error instanceof MspError ? describeForLog(error) : errorDetail(error)}`,
+        `${message.type} failed: ${isMspFailure(error) ? describeForLog(error) : errorDetail(error)}`,
       )
       if (this.isFirstShowing(error)) {
         this.say('error', `${UI_TEXT.actionFailed}: ${describe(error)}`)

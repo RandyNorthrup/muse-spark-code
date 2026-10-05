@@ -250,6 +250,10 @@ happened, not what was planned; superseded entries are kept.
 
 ### Changed
 
+- Load the conversation implementation on the first chat surface, install its
+  caller's display language, and keep backend restart handling eager. Move
+  conversation-only model prompts beside their lazy readers.
+
 - Package translated UI values in one bounded lossless archive; installed
   values stay identical, while source and ACP tables keep their JSON format.
 

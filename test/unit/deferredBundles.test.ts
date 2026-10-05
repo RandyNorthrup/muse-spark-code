@@ -54,6 +54,7 @@ beforeAll(async () => {
       ...common,
       entryPoints: {
         extension: 'src/extension.ts',
+        conversation: 'src/host/conversation/conversationEntry.ts',
         modelApi: 'src/host/backend/modelApiEntry.ts',
         sessionBoard: 'src/host/sessionBoardEntry.ts',
         reviewer: 'src/core/backends/modelapi/reviewerEntry.ts',
@@ -214,7 +215,8 @@ describe('deferred cohort bundles', () => {
 
   it('loads the activation entry without requiring either action bundle', () => {
     const entry = bundleFile('extension')
-    expect(bundleText('extension')).toContain('./sessionBoard.js')
+    expect(bundleText('extension')).toContain('conversation.js')
+    expect(bundleText('conversation')).toContain('./sessionBoard.js')
     expect(bundleText('modelApi')).toContain('./reviewer.js')
     const nativeRequire = createRequire(entry)
     const loaded: string[] = []
@@ -240,6 +242,19 @@ describe('deferred cohort bundles', () => {
     expect(module.exports).toHaveProperty('activate', expect.any(Function))
     expect(loaded).not.toContain('./sessionBoard.js')
     expect(loaded).not.toContain('./reviewer.js')
+    expect(loaded).not.toContain('./conversation.js')
+  })
+
+  it('keeps the conversation implementation behind its first-surface factory', () => {
+    for (const file of [
+      'src/host/conversation/conversationEntry.ts',
+      'src/host/conversation/conversationController.ts',
+      'src/host/conversation/sessionImport.ts',
+      'src/core/export/transcriptMarkdown.ts',
+    ]) {
+      expect(inputs('extension')).not.toContain(file)
+      expect(inputs('conversation')).toContain(file)
+    }
   })
 
   it('keeps board and best-of-N execution out of activation', () => {
@@ -360,6 +375,7 @@ describe('deferred cohort bundles', () => {
 
   it.each([
     ['extension', 'src/host/bestOfN/bestOfNManager.ts', 'on its first action'],
+    ['extension', 'src/host/conversation/conversationController.ts', 'on the first chat surface'],
     // M91b: the plugin host, required by the adapters on the first plugin hook.
     ['foreignHooks', 'src/core/backends/modelapi/pluginHost.ts', 'on the first plugin hook'],
     ['modelApi', 'src/core/backends/modelapi/pluginChild.ts', 'on its first action'],
