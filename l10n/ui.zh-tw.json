@@ -125,7 +125,7 @@
     "permissionMode": "選擇 Muse 行動前如何徵求確認。",
     "focusView": "隱藏焦點之外的步驟。",
     "ctrlEnter": "用 Ctrl+Enter 而不是 Enter 傳送訊息。",
-    "importFromAgents": "從 Claude Code、Codex 或 Cursor 複製 MCP 伺服器、掛鉤、代理、命令和規則。",
+    "importFromAgents": "從 Claude Code、Codex 或 Cursor 複製 MCP 伺服器、鉤子、代理、命令和規則。",
     "memory": "Muse 為後續工作階段保留的筆記。",
     "settings": "開啟設定。",
     "keybindings": "鍵盤快速鍵。",

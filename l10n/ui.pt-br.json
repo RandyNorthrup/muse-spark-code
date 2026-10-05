@@ -125,7 +125,7 @@
     "permissionMode": "Escolha como o Muse pergunta antes de agir.",
     "focusView": "Oculta as etapas fora do seu foco.",
     "ctrlEnter": "Envie mensagens com Ctrl+Enter em vez de Enter.",
-    "importFromAgents": "Copiar servidores MCP, hooks, agentes, comandos e regras do Claude Code, Codex ou Cursor.",
+    "importFromAgents": "Copiar servidores MCP, ganchos, agentes, comandos e regras do Claude Code, Codex ou Cursor.",
     "memory": "As notas que o Muse guarda para sessões futuras.",
     "settings": "Abrir configurações.",
     "keybindings": "Atalhos de teclado.",

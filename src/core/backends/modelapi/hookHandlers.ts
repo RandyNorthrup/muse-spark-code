@@ -91,6 +91,12 @@ export interface HookHandlerRunners {
   readonly httpPost?: HookHttpPost | undefined
   readonly callMcpTool?: HookMcpCall | undefined
   readonly runModelTurn?: HookModelTurnRunner | undefined
+  /**
+   * `runTypedHandler` itself, lent from the hook runtime's bundle
+   * (dist/hookRuntime.js, M91) so dist/modelApi.js does not carry the
+   * runners. Absent, a typed handler is skipped with a warning.
+   */
+  readonly runTyped?: typeof runTypedHandler | undefined
 }
 
 /** One prompt/agent handler's own model call: its answer text and billable use. */

@@ -148,7 +148,7 @@
     "issue": "Notificar un problema.",
     "docs": "Abre la documentación de Muse Code.",
     "mcpServers": "A qué se conecta Muse Code; iniciar sesión en un servidor.",
-    "hooks": "De dónde proceden los ganchos de Muse Code.",
+    "hooks": "De dónde proceden los hooks de Muse Code.",
     "paid:imageGeneration": "Activa o desactiva la generación de imágenes de pago.",
     "paid:voice": "Activa o desactiva Muse Voice de pago.",
     "manageSkills": "Activar o desactivar las aptitudes de Muse Code.",

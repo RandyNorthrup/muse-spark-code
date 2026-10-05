@@ -94,7 +94,6 @@
   "config.modelApiBestOfN.description": "付費功能，預設關閉。在 Model API 後端，相同的提示詞會同時在 2–5 個工作樹中執行，由您選用其中一個。啟用時會要求您接受權杖價格。除非您在此工作區中一律允許 N 選最優，否則每次執行均須核准一次並註明嘗試次數和每次嘗試請求上限，在所有權限模式下皆然，包括 略過權限 模式。嘗試的權杖已包含在用量估算中，絕不計入訂閱。",
   "config.modelApiHooks.description": "在 Model API 後端執行 Muse Code 鉤子命令。預設關閉。命令僅在受信任的工作區中以您的權限在代理沙箱之外執行。啟用前請在 Muse Spark: 鉤子 中檢查命令。Model API 金鑰不會傳給鉤子程序。",
   "config.modelApiShellKeepsDirectory.description": "在呼叫之間保留 Model API 後端 shell 的工作目錄。預設開啟：一次 shell 命令中的 cd 會延續到同一交談的下一次呼叫，工作區之外的目錄會重設回工作區根目錄。檢查命令和 then_run 仍在根目錄執行。",
-  "config.modelApiHooks.description": "在 Model API 後端執行 Muse Code 鉤子命令。預設關閉。命令僅在受信任的工作區中以您的權限在代理沙箱之外執行。啟用前請在 Muse Spark: Hooks 中檢查命令。Model API 金鑰不會傳給鉤子程序。",
   "config.modelApiHookModels.description": "付費，預設開啟。在 Model API 後端，prompt 和 agent 鉤子在回答前各自詢問模型。除非您允許在此工作區一律允許模型鉤子，否則每次執行都會連同價格詢問一次，適用於包括 Bypass 在內的每種許可模式。鉤子的回答只能拒絕、收窄或新增內容。絕不會計入訂閱帳單。",
   "config.hookHttpAllowedHosts.description": "http 鉤子可以呼叫的主機：精確名稱，或僅用於子網域的 *.example.com。預設為空，因此不會執行任何 http 鉤子。僅 HTTPS，無重新導向，且僅在視窗網路設定允許網路時執行。存放庫無法設定此項。",
   "config.modelApiRepoMap.description": "在 Model API 後端的系統提示詞中加入儲存庫地圖：用 VS Code 語言服務排序的工作區中最常用的檔案與定義，每次對話產生一次，約 1,000 個權杖。預設關閉：它會在每個請求中加入這些權杖，並向您的 Model API 金鑰計費。無論是否開啟，repo_map 工具都可依需求提供同一張地圖。",

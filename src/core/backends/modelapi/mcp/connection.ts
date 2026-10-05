@@ -20,14 +20,7 @@ import {
   MILLISECONDS_PER_SECOND,
 } from '../../../../shared/constants'
 import { clipForLog, type CoreLogger } from '../../../logging'
-import {
-  checkElicitationOutcome,
-  type ElicitationOutcome,
-  type McpElicitationHandler,
-  parseElicitationParams,
-  validateElicitationSchema,
-  validateElicitationValues,
-} from './elicitation'
+import type { ElicitationOutcome, McpElicitationHandler } from './elicitation'
 import {
   type CallToolResult,
   callToolResultSchema,
@@ -282,7 +275,15 @@ export class McpConnection {
     let refusal = 'the elicitation handler failed'
     try {
       // The params crossed the wire parsed (rule 7); the answer is checked
-      // into shape before it goes back the same way.
+      // into shape before it goes back the same way. The checks load with the
+      // hook and MCP-form runtime (dist/hookRuntime.js, M91): a bundle that
+      // cannot load refuses the request, never accepts it.
+      const {
+        checkElicitationOutcome,
+        parseElicitationParams,
+        validateElicitationSchema,
+        validateElicitationValues,
+      } = await import('../hookRuntimeEntry.js')
       let parsed
       try {
         parsed = parseElicitationParams(params)

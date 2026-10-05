@@ -57,6 +57,8 @@ import {
   AGENT_IMPORT_SPARK_PATH_MATCHED,
   AGENT_IMPORT_VSCODE_EVENTS,
   AGENT_IMPORT_WINDSURF_EVENTS,
+  EXTENSION_HOOK_EVENTS,
+  HOOK_IMPORT_REFUSING_EXTENSION_SOURCES,
   HOOK_MATCHER_MAX_CHARS,
   HOOK_MAX_TIMEOUT_SECONDS,
   MCP_FUNCTION_NAME_MAX_CHARS,
@@ -1167,6 +1169,17 @@ function sparkHook(
   handler: JsonObject,
   dropped: readonly string[] = [],
 ): Conversion<MuseHook> {
+  // M91 lane W: imported hooks run through the adapters on Muse Code's
+  // events; on an extension event they wait for M91b's route there. Until
+  // then the entry is refused, never offered as if it ran, and a guard that
+  // could refuse where it came from says it would be weaker.
+  if (EXTENSION_EVENT_NAMES.has(event)) {
+    const source = `${record.format}:${record.sourceEvent}`
+    return {
+      ok: false,
+      reason: HOOK_IMPORT_REFUSING_EXTENSION_SOURCES.includes(source) ? 'weaker' : 'unsupported',
+    }
+  }
   return {
     ok: true,
     value: {
@@ -1186,6 +1199,7 @@ function sparkHook(
   }
 }
 
+const EXTENSION_EVENT_NAMES: ReadonlySet<string> = new Set(EXTENSION_HOOK_EVENTS)
 const MATCHER_FIELD = 'matcher'
 const TIMEOUT_FIELD = 'timeout'
 

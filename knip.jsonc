@@ -20,6 +20,8 @@
     "src/host/sessionBoardEntry.ts",
     "src/core/backends/modelapi/reviewerEntry.ts",
     "src/core/backends/modelapi/foreignHooksEntry.ts",
+    // M91: the hook and MCP-form runtime, imported by path on first use.
+    "src/core/backends/modelapi/hookRuntimeEntry.ts",
     // The plan reader's own bundle (M79), required by path on the first plan action.
     "src/host/planMarkdownEntry.ts",
     // The checkpoint store's own bundle (M72), required by path at construction.

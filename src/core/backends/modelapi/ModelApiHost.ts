@@ -222,6 +222,7 @@ import type {
   reviewPaidCall as ReviewPaidCall,
 } from './reviewerEntry'
 import type { createForeignHookAdapter as CreateForeignHookAdapter } from './foreignHooksEntry'
+import type * as HookRuntime from './hookRuntimeEntry'
 import {
   type ConfirmedModelRequest,
   MissingApiKeyError,
@@ -275,7 +276,6 @@ import {
   afterAgentThoughtFields,
   beforeToolSelectionFields,
   createFileChangedThrottle,
-  dispatchExtensionHooks,
   emptyExtensionDispatch,
   extensionHookPayload,
   fileChangedFields,
@@ -309,9 +309,6 @@ import {
   type ElicitationHookSeam,
   elicitationFieldNames,
   type ElicitationOutcome,
-  parseElicitationParams,
-  validateElicitationSchema,
-  validateElicitationValues,
 } from './mcp/elicitation'
 import type {
   McpElicitationHandler,
@@ -2235,6 +2232,17 @@ export class ModelApiSession implements AgentSession {
   }
 
   /**
+   * The hook and MCP-form runtime (dist/hookRuntime.js, M91, D6): lane E's
+   * dispatcher, lane H's typed handlers and lane M's form checks, loaded the
+   * first time this session needs one. A bundle that cannot load rejects,
+   * and each caller fails its own safe way: a hook is skipped and logged, a
+   * form is refused, never accepted.
+   */
+  private async hookRuntime(): Promise<typeof HookRuntime> {
+    return await import('./hookRuntimeEntry.js')
+  }
+
+  /**
    * A call's arguments as its PreToolUse hooks see them. A rename also names
    * the files it would write (M67), planned only when a hook would run and
    * the mode allows the edit at all; the call then writes that same plan
@@ -2306,8 +2314,13 @@ export class ModelApiSession implements AgentSession {
       // M91 typed handlers (D70, lane H): the http POST over the host's
       // pinned path when wired, the MCP tool call through its own approval
       // path, the allowlist setting, and the trust posture re-checked at
-      // every run. Absent runners skip their handlers.
+      // every run. Absent runners skip their handlers. The runner itself
+      // loads with the hook runtime on the first typed handler.
       {
+        runTyped: async (...args) => {
+          const runtime = await this.hookRuntime()
+          return await runtime.runTypedHandler(...args)
+        },
         ...(runHookHttp !== undefined && {
           httpPost: async (url, payload, hookSignal) => {
             this.noteProcessRan()
@@ -2443,8 +2456,17 @@ export class ModelApiSession implements AgentSession {
     if (hooks.length === 0) {
       return undefined
     }
+    let runtime: typeof HookRuntime
+    try {
+      runtime = await this.hookRuntime()
+    } catch {
+      this.deps.log.warn(
+        `Model API extension hooks: ${event}: the hook runtime could not be loaded; no hook ran`,
+      )
+      return emptyExtensionDispatch()
+    }
     const runHook = this.deps.io.runHook?.bind(this.deps.io)
-    const result = await dispatchExtensionHooks({
+    const result = await runtime.dispatchExtensionHooks({
       hooks,
       event,
       payload: extensionHookPayload(event, this.extensionHookContext(turnId), fields),
@@ -4699,12 +4721,13 @@ export class ModelApiSession implements AgentSession {
     const { server, params, signal } = request
     // Already parsed at the connection's boundary (rule 7); parsed again
     // for use here. A refusal throws to the connection's error answer.
-    const parsed = parseElicitationParams(params)
+    const forms = await this.hookRuntime()
+    const parsed = forms.parseElicitationParams(params)
     const seam =
       this.deps.isHooksEnabled?.() === false
         ? ALLOW_ELICITATION_SEAM
         : (this.deps.elicitationHooks ?? ALLOW_ELICITATION_SEAM)
-    const checked = validateElicitationSchema(parsed.requestedSchema)
+    const checked = forms.validateElicitationSchema(parsed.requestedSchema)
     if (!checked.ok) {
       this.deps.log.warn(`MCP server ${server} elicitation declined: ${checked.reason}`)
       return await this.finishElicitation(server, [], 'decline')
@@ -4740,7 +4763,7 @@ export class ModelApiSession implements AgentSession {
         return await this.finishElicitation(server, fieldNames, 'decline')
       }
       const values = verdict.values ?? {}
-      const answered = validateElicitationValues(fields, values)
+      const answered = forms.validateElicitationValues(fields, values)
       if (!answered.ok) {
         this.deps.log.warn(
           `MCP server ${server} elicitation: a hook's answer does not fit the schema and is refused`,
@@ -4829,25 +4852,27 @@ export class ModelApiSession implements AgentSession {
   }
 
   /** Settles a waiting elicitation form with `reply`. */
-  private settleElicitationForm(elicitationId: string, reply: ElicitationReply): Promise<void> {
+  private async settleElicitationForm(
+    elicitationId: string,
+    reply: ElicitationReply,
+  ): Promise<void> {
     const found = this.pendingElicitations.get(elicitationId)
     if (found === undefined) {
-      return Promise.reject(new Error(UI_TEXT.elicitationExpired))
+      throw new Error(UI_TEXT.elicitationExpired)
     }
     if (reply.kind !== 'accepted') {
       found.pending.resolve(reply)
-      return Promise.resolve()
+      return
     }
+    // Loaded already: the form's own schema was checked with it.
+    const { validateElicitationValues } = await this.hookRuntime()
     const checked = validateElicitationValues(found.fields, reply.values)
     if (!checked.ok) {
-      return Promise.reject(
-        new Error(
-          fill(UI_TEXT.elicitationInvalid, { field: checked.refusal.field, server: found.server }),
-        ),
+      throw new Error(
+        fill(UI_TEXT.elicitationInvalid, { field: checked.refusal.field, server: found.server }),
       )
     }
     found.pending.resolve({ kind: 'accepted', content: checked.content })
-    return Promise.resolve()
   }
 
   /**

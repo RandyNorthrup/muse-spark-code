@@ -65,6 +65,11 @@ const REVIEWER_OUTFILE = 'dist/reviewer.js'
 // loaded the first time a session holding one runs a hook.
 const FOREIGN_HOOKS_ENTRY = 'src/core/backends/modelapi/foreignHooksEntry.ts'
 const FOREIGN_HOOKS_OUTFILE = 'dist/foreignHooks.js'
+// M91: the hook and MCP-form runtime (lane E's spark-hooks.json reader and
+// dispatcher, lane H's typed handlers, lane M's form checks), loaded the first
+// time a session with hooks on, or a server's form, needs it.
+const HOOK_RUNTIME_ENTRY = 'src/core/backends/modelapi/hookRuntimeEntry.ts'
+const HOOK_RUNTIME_OUTFILE = 'dist/hookRuntime.js'
 const PLAN_MARKDOWN_ENTRY = 'src/host/planMarkdownEntry.ts'
 const PLAN_MARKDOWN_OUTFILE = 'dist/planMarkdown.js'
 const REVIEW_ENTRY = 'src/host/review/reviewEntry.ts'
@@ -124,6 +129,7 @@ const DEFERRED_OUTFILES = new Map([
   [path.resolve(SESSION_BOARD_ENTRY), SESSION_BOARD_OUTFILE],
   [path.resolve(REVIEWER_ENTRY), REVIEWER_OUTFILE],
   [path.resolve(FOREIGN_HOOKS_ENTRY), FOREIGN_HOOKS_OUTFILE],
+  [path.resolve(HOOK_RUNTIME_ENTRY), HOOK_RUNTIME_OUTFILE],
   [path.resolve(WEB_FETCH_ENTRY), WEB_FETCH_OUTFILE],
 ])
 /** @type {import('esbuild').Plugin} */
@@ -133,7 +139,7 @@ const deferredCohort = {
     build.onResolve(
       {
         filter:
-          /\/(?:sessionBoardEntry|reviewerEntry|foreignHooksEntry|webFetchEntry)(?:\.[jt]s)?$/,
+          /\/(?:sessionBoardEntry|reviewerEntry|foreignHooksEntry|hookRuntimeEntry|webFetchEntry)(?:\.[jt]s)?$/,
       },
       (args) => {
         if (args.kind !== 'dynamic-import') return
@@ -199,6 +205,13 @@ const foreignHooksOptions = {
   ...modelApiOptions,
   entryPoints: [FOREIGN_HOOKS_ENTRY],
   outfile: FOREIGN_HOOKS_OUTFILE,
+}
+
+/** @type {import('esbuild').BuildOptions} */
+const hookRuntimeOptions = {
+  ...modelApiOptions,
+  entryPoints: [HOOK_RUNTIME_ENTRY],
+  outfile: HOOK_RUNTIME_OUTFILE,
 }
 
 /** @type {import('esbuild').BuildOptions} */
@@ -379,6 +392,7 @@ if (isWatch) {
     esbuild.context(sessionBoardOptions),
     esbuild.context(reviewerOptions),
     esbuild.context(foreignHooksOptions),
+    esbuild.context(hookRuntimeOptions),
     esbuild.context(planMarkdownOptions),
     esbuild.context(checkpointStoreOptions),
     esbuild.context(agentImportOptions),
@@ -403,6 +417,7 @@ if (isWatch) {
     sessionBoard: esbuild.build(sessionBoardOptions),
     reviewer: esbuild.build(reviewerOptions),
     foreignHooks: esbuild.build(foreignHooksOptions),
+    hookRuntime: esbuild.build(hookRuntimeOptions),
     planMarkdown: esbuild.build(planMarkdownOptions),
     checkpointStore: esbuild.build(checkpointStoreOptions),
     agentImport: esbuild.build(agentImportOptions),
@@ -440,6 +455,7 @@ if (isWatch) {
   reportSize(SESSION_BOARD_OUTFILE)
   reportSize(REVIEWER_OUTFILE)
   reportSize(FOREIGN_HOOKS_OUTFILE)
+  reportSize(HOOK_RUNTIME_OUTFILE)
   reportSize(PLAN_MARKDOWN_OUTFILE)
   reportSize(CHECKPOINT_STORE_OUTFILE)
   reportSize(AGENT_IMPORT_OUTFILE)

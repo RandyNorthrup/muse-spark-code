@@ -14,6 +14,7 @@
 //   CH:707), and a guard that could not run fails as its source fails.
 //
 // No answer grants: lane P never produces an allow, and hooks.ts strips one.
+// The records' reader loads here too, so dist/modelApi.js does not carry it.
 
 import { Buffer } from 'node:buffer'
 import path from 'node:path'
@@ -47,6 +48,8 @@ import {
   type HookDefinition,
   type HookEvent,
 } from './hooks'
+
+export { loadForeignHookDefinitions } from './hooks'
 
 export interface ForeignHookAdapterDeps {
   readonly workspaceRoot: string

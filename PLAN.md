@@ -217,28 +217,29 @@ quality`) and as a CI job.
 
 ### D6 — Bundle budgets (Phase 6)
 
-| Artifact                   | Budget (minified, uncompressed)                                                                                                                                                                                                                           |
-| -------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `dist/extension.js`        | ≤ 600 KiB (the M7 Model API client fit without raising it; the activation bundle since M57)                                                                                                                                                               |
-| `dist/modelApi.js`         | ≤ 475 KiB (M57: the Model API backend, loaded when it first starts; revisited after M77/M78/M82 at 402.8 KiB, see Q-M78b)                                                                                                                                 |
-| `dist/review.js`           | ≤ 50 KiB (M70: git's material, the review turn's text, the Plan-mode hold and edit review; 40.8 KiB when split)                                                                                                                                           |
-| `dist/searchWorker.js`     | ≤ 50 KiB                                                                                                                                                                                                                                                  |
-| `dist/pageWorker.js`       | ≤ 300 KiB (M69: web fetch's page converter, parse5 and its parts, on a worker started for each page; 212.3 KiB when split)                                                                                                                                |
-| `dist/webview/main.js`     | ≤ 900 KiB including React, the markdown renderer and highlight.js (one bundle)                                                                                                                                                                            |
-| `.vsix`                    | ≤ 2200 KiB compressed (2026-10-03, M77/M78/M82 cohort: 1,938,910 bytes with its four lazy bundles; +15%, rounded up to 25 KiB; was 1850 KiB from REL's 1,633,017 bytes; `check-vsix-size.mjs` in the package job)                                         |
-| `dist/acp.js`              | ≤ 850 KiB (the ACP agent, installed once, never loaded by VS Code; 713.2 KiB when set, see below)                                                                                                                                                         |
-| `dist/planMarkdown.js`     | ≤ 150 KiB (M79: the plan reader, the panel's Markdown parser, loaded on the first plan action; 139.0 KiB with the brief writer)                                                                                                                           |
-| `dist/checkpointStore.js`  | ≤ 225 KiB (M72: synchronous checkpoint factory and legacy reader; measured 187.0 KiB plus 15%, rounded up to 25 KiB)                                                                                                                                      |
-| `dist/uiText.js`           | ≤ 125 KiB (shared English fallback for Node bundles; 2026-10-04: measured 104.9 KiB plus 15%, rounded up to 25 KiB; was 100 KiB from 72.7 KiB on the build-only baseline; lazy, so activation is unchanged)                                               |
-| `dist/sessionBoard.js`     | ≤ 75 KiB (M78b: first board/best-of-N action; measured 61.0 KiB plus 15%, rounded up to 25 KiB)                                                                                                                                                           |
-| `dist/reviewer.js`         | ≤ 75 KiB (M78b: paid Auto review after consent; measured 55.2 KiB plus 15%, rounded up to 25 KiB)                                                                                                                                                         |
-| `dist/foreignHooks.js`     | ≤ 75 KiB (M91 lane W: the adapters for hooks imported from other agents, lane P's contracts and engine, loaded the first time a session holding one runs a hook; measured 64.9 KiB plus 15%, rounded up to 25 KiB; 68.0 KiB with lane X's Cline contract) |
-| `dist/agentImport.js`      | ≤ 175 KiB (M83: import scan, converters, file access, native UI and smol-toml, loaded on first import; 2026-10-04, M91 lane I's readers for every agent's hooks: measured 147.7 KiB plus 15%, rounded up to 25 KiB)                                       |
-| `dist/bundledSkills.js`    | ≤ 50 KiB (M89: the bundled skills installer for Muse Code, loaded on first install, removal or offer; 22.6 KiB when split, plus 15%, rounded up to 25 KiB)                                                                                                |
-| `dist/codeIntel.js`        | ≤ 100 KiB (2026-10-03: code intelligence's `ide` answers, loaded on the first call; measured 80.3 KiB plus 15%, rounded up to 25 KiB)                                                                                                                     |
-| `dist/voice.js`            | ≤ 50 KiB (2026-10-03: both voice engines' drivers, loaded on the first recording; measured 34.5 KiB plus 15%, rounded up to 25 KiB)                                                                                                                       |
-| `dist/museCodeReviewer.js` | ≤ 75 KiB (M90: the Auto reviewer on Muse Code, its side session and approvals with M78's reviewer core, loaded on the first review; measured 45.4 KiB plus 15%, rounded up to 25 KiB)                                                                     |
-| `dist/extensionHooks.js`   | ≤ 75 KiB (M91 E: both-backend window hooks, loaded on first use; Kubuntu measured 48.8 KiB plus 15%, rounded up to 25 KiB)                                                                                                                                |
+| Artifact                   | Budget (minified, uncompressed)                                                                                                                                                                                                                                                                                                                      |
+| -------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `dist/extension.js`        | ≤ 600 KiB (the M7 Model API client fit without raising it; the activation bundle since M57)                                                                                                                                                                                                                                                          |
+| `dist/modelApi.js`         | ≤ 475 KiB (M57: the Model API backend, loaded when it first starts; revisited after M77/M78/M82 at 402.8 KiB, see Q-M78b; M91 brought it to 486.1 KiB, and the hook and MCP-form runtime and the imported records' reader moved out took it to 463.7 KiB, 2026-10-05: the cap held)                                                                  |
+| `dist/review.js`           | ≤ 50 KiB (M70: git's material, the review turn's text, the Plan-mode hold and edit review; 40.8 KiB when split)                                                                                                                                                                                                                                      |
+| `dist/searchWorker.js`     | ≤ 50 KiB                                                                                                                                                                                                                                                                                                                                             |
+| `dist/pageWorker.js`       | ≤ 300 KiB (M69: web fetch's page converter, parse5 and its parts, on a worker started for each page; 212.3 KiB when split)                                                                                                                                                                                                                           |
+| `dist/webview/main.js`     | ≤ 900 KiB including React, the markdown renderer and highlight.js (one bundle)                                                                                                                                                                                                                                                                       |
+| `.vsix`                    | ≤ 2200 KiB compressed (2026-10-03, M77/M78/M82 cohort: 1,938,910 bytes with its four lazy bundles; +15%, rounded up to 25 KiB; was 1850 KiB from REL's 1,633,017 bytes; `check-vsix-size.mjs` in the package job)                                                                                                                                    |
+| `dist/acp.js`              | ≤ 850 KiB (the ACP agent, installed once, never loaded by VS Code; 713.2 KiB when set, see below)                                                                                                                                                                                                                                                    |
+| `dist/planMarkdown.js`     | ≤ 150 KiB (M79: the plan reader, the panel's Markdown parser, loaded on the first plan action; 139.0 KiB with the brief writer)                                                                                                                                                                                                                      |
+| `dist/checkpointStore.js`  | ≤ 225 KiB (M72: synchronous checkpoint factory and legacy reader; measured 187.0 KiB plus 15%, rounded up to 25 KiB)                                                                                                                                                                                                                                 |
+| `dist/uiText.js`           | ≤ 125 KiB (shared English fallback for Node bundles; 2026-10-04: measured 104.9 KiB plus 15%, rounded up to 25 KiB; was 100 KiB from 72.7 KiB on the build-only baseline; lazy, so activation is unchanged)                                                                                                                                          |
+| `dist/sessionBoard.js`     | ≤ 75 KiB (M78b: first board/best-of-N action; measured 61.0 KiB plus 15%, rounded up to 25 KiB)                                                                                                                                                                                                                                                      |
+| `dist/reviewer.js`         | ≤ 75 KiB (M78b: paid Auto review after consent; measured 55.2 KiB plus 15%, rounded up to 25 KiB)                                                                                                                                                                                                                                                    |
+| `dist/foreignHooks.js`     | ≤ 100 KiB (M91 lane W: the adapters for hooks imported from other agents, lane P's contracts and engine, loaded the first time a session holding one runs a hook; measured 64.9 KiB, 68.0 KiB with lane X's Cline contract; 2026-10-05: 85.7 KiB once the imported records' reader moved in from `dist/modelApi.js`, plus 15%, rounded up to 25 KiB) |
+| `dist/hookRuntime.js`      | ≤ 100 KiB (M91: the hook and MCP-form runtime, lane E's spark-hooks.json reader and dispatcher, lane H's typed handlers and lane M's form checks, moved out of `dist/modelApi.js` and loaded on first use; measured 67.1 KiB on 2026-10-05, plus 15%, rounded up to 25 KiB)                                                                          |
+| `dist/agentImport.js`      | ≤ 150 KiB (M83: import scan, converters, file access, native UI and smol-toml, loaded on first import; M91 lane I's readers for every agent's hooks: 147.7 KiB on 2026-10-04 (175 KiB then), 126.5 KiB on the integrated branch on 2026-10-05, plus 15%, rounded up to 25 KiB)                                                                       |
+| `dist/bundledSkills.js`    | ≤ 50 KiB (M89: the bundled skills installer for Muse Code, loaded on first install, removal or offer; 22.6 KiB when split, plus 15%, rounded up to 25 KiB)                                                                                                                                                                                           |
+| `dist/codeIntel.js`        | ≤ 100 KiB (2026-10-03: code intelligence's `ide` answers, loaded on the first call; measured 80.3 KiB plus 15%, rounded up to 25 KiB)                                                                                                                                                                                                                |
+| `dist/voice.js`            | ≤ 50 KiB (2026-10-03: both voice engines' drivers, loaded on the first recording; measured 34.5 KiB plus 15%, rounded up to 25 KiB)                                                                                                                                                                                                                  |
+| `dist/museCodeReviewer.js` | ≤ 75 KiB (M90: the Auto reviewer on Muse Code, its side session and approvals with M78's reviewer core, loaded on the first review; measured 45.4 KiB plus 15%, rounded up to 25 KiB)                                                                                                                                                                |
+| `dist/extensionHooks.js`   | ≤ 75 KiB (M91 E: both-backend window hooks, loaded on first use; Kubuntu measured 48.8 KiB plus 15%, rounded up to 25 KiB)                                                                                                                                                                                                                           |
 
 `npm run build` prints bundle sizes; `scripts/check-bundle-size.mjs` holds their
 numbers and fails over budget or when a bundle is missing. The compressed VSIX
@@ -13985,19 +13986,34 @@ live) and the controller filters its id as well.
 
 ### M91 — Hooks from every popular agent (D70)
 
-**Status 2026-10-04: in progress on `feature/m91-hooks-parity`.**
+**Status 2026-10-05: integrated on `feature/m91-hooks-parity`; pull request
+next, in the 0.14.0 batch.**
 
 - The step 1 captures are recorded (`docs/certification/m91.md`,
   `docs/certification/m91-captures/`).
 - Lane 0 is built: 88 strings in all 14 tables, and the hook region's four
   constants.
-- Lanes G, R, P, I, S and X are merged on the branch, and lane W's wiring
-  is built (`docs/certification/m91.md`, "Lane W"): imported hooks run
-  through lane P's adapters, the Hooks picker lists both files per scope,
-  and the panel marks a MessageDisplay rewrite.
-- Lanes E, M and H, and the fix rounds of R, P and I, are next. Amp and
-  OpenCode plugin dispatch is being wired, time-boxed to 06:00 on
-  2026-10-05; if it is not green by then it moves to M91b.
+- Every lane is merged on the branch: G, R, P, I, S, X, H, M and E, with
+  the fix rounds of R (RVM91R), P (RVM91P3) and I (FIXM91I3). Lane H's
+  branch brought main with it. Lane W's wiring is built
+  (`docs/certification/m91.md`, "Lane W"):
+  - imported hooks on Muse Code's events run through lane P's adapters;
+  - the Hooks picker lists both files per scope;
+  - the panel marks a MessageDisplay rewrite.
+- **M91b** (below) takes the plugin dispatch and the imported hooks on
+  extension events (lead decision, 2026-10-05). Lane X's plugin host merged
+  with its RVM91X fixes, unwired.
+- **Size (D6).** M91 took `dist/modelApi.js` to 486.1 KiB of its 475. Lanes
+  E, H and M's runtime moved into `dist/hookRuntime.js` and the imported
+  records' reader into `dist/foreignHooks.js`, both loaded on first use:
+  463.7 KiB, and the cap held. `dist/extension.js` is unchanged at
+  575.1 KiB. The webview's 907.0 KiB waits for main's panel deferral
+  (0.13.0 batch); main is merged again before the pull request.
+- **Integration fixes:** semgrep's prototype-pollution finding in lane P's
+  engine (own keys only, prototype segments refused); a duplicate-key check
+  in `check-l10n`; lane S's unused setting-name constant is gone. knip is
+  still blind to `constants.ts` for a reason not yet found (`m91.md`, drill
+  W22).
 - **Lane I round 3 (FIXM91I3, RVM91I2):** repair all eleven findings
   within the importer: unknown source switches refuse hooks; Cline executable
   references are rechecked after awaits and during planning, quoted as
@@ -14496,6 +14512,56 @@ returns`void`, so every bus mapping is observation only; a throw fails
   - [ ] Live check and its call count.
   - [ ] Docs: README, PRIVACY, CHANGELOG, AGENTS.md, CONTRIBUTING, PLAN,
         m91.md.
+
+### M91b — Plugin dispatch, and imported hooks on extension events (D70)
+
+**Status 2026-10-05: planned, its own pull request after M91** (lead
+decision, 2026-10-05). M91 ships lane X's plugin host unwired: no plugin
+runs, and `check-bundle-split.mjs` lists `pluginHost.ts`, `pluginChild.ts`
+and `hookFormats/clineDiscover.ts` as not bundled. M91 merges lane X's fixes
+for RVM91X's seven P1 findings and four of its P2s.
+
+- **Moved here from M91**, exactly:
+  - the dispatch: `foreignHooksEntry.ts` runs the `amp` and `opencode`
+    formats through `PluginSession.run`, under the same host-wide cap, the
+    fail-closed rule per event and the rule that no answer grants;
+  - the plugin records in `spark-hooks.json`:
+    `{ format: 'amp'|'opencode', sourceEvent, plugin, hooks: [{ type: 'plugin' }] }`;
+  - the per-system tool-name and argument maps, so a guard sees the names
+    and fields its source shows;
+  - `pluginImport.ts`: the importer's Amp and OpenCode sources and their
+    discovery (`.amp/plugins/`, `~/.config/amp/plugins/`,
+    `.opencode/plugins/`, `~/.config/opencode/plugins/`);
+  - moving the plugin host into `dist/foreignHooks.js`;
+  - **imported hooks on extension events** (lane W, 2026-10-05):
+    - Cursor `workspaceOpen` and `afterAgentThought`;
+    - Windsurf `post_setup_worktree`;
+    - Kiro `PreTaskExec` and `PostTaskExec` (and `Manual`, which lane I
+      refuses as unmapped);
+    - Gemini `BeforeToolSelection`.
+
+    They need the adapters in lane E's dispatcher (`dispatchExtensionHooks`)
+    and in the window's runner, which loads `dist/foreignHooks.js` lazily.
+    Until then the importer refuses them, and the preview gives the reason in
+    the user's language: `weaker` where the source event can refuse or narrow
+    (`HOOK_IMPORT_REFUSING_EXTENSION_SOURCES`: Gemini `BeforeToolSelection`,
+    Kiro `PreTaskExec`), otherwise `unsupported`. Gemini's
+    `BeforeToolSelection` also needs a source-shaped `llm_request` (lane P,
+    RVM91P3). The Kiro spec-task note (`agentImportKiroTaskNote`) shows again
+    once they import.
+- **RVM91X P2s left for M91b** (`scratchpad/codex/RVM91X.report.md`):
+  - **9.** OpenCode's in-place `output.args` rewrite is lost: the comparison
+    aliases the payload (`pluginChild.ts:188`).
+  - **10.** Named OpenCode plugin exports (`export const MyPlugin = …`) are
+    refused (`pluginChild.ts:162`).
+  - **12.** OpenCode children have no memory bound: the heap cap reaches
+    only Node, never `bun` (`pluginHost.ts:159`).
+  - **15.** Amp `tool.result` and `agent.end` drop `toolUseID` and
+    `messages` (`pluginChild.ts:107`).
+- **Acceptance.** Each of these has a regression and a red drill. A real
+  Amp default-export guard blocks a call. An OpenCode throw blocks a call.
+  An allow never grants. A session's dispose kills its children on all
+  three platforms. The foreignHooks bundle stays within its D6 budget.
 
 ### M41 — Install Muse Code from the panel (folded into M55)
 
@@ -15343,6 +15409,42 @@ before a repaired one loads (2026-09-30).
 | `test/harness/index.html` (`isActiveDescendantList`), printed by `scripts/a11y.mjs` | The accessibility gate exempts axe's `scrollable-region-focusable` | The composer's `/` and `@` lists follow WAI-ARIA's combobox pattern: the box keeps the focus and moves `aria-activedescendant` through the listbox's options, and `Composer.tsx` scrolls the active option into view, so the list is keyboard operable (WCAG 2.1.1) without being a Tab stop. axe cannot see activedescendant-driven scrolling. The exemption holds only for a region that contains a listbox whose id is in the `aria-controls` of a focused or focusable element whose active descendant is one of that listbox's options; drills show a plain scrollable region and a listbox no control drives are still reported, and removing the exemption reports the composer's list again. Every exempt element is printed under its own "Exempt:" heading and counted. No `tabindex` was added to the list. | 2026-10-04 |
 
 ## 9. Security assumptions and accepted residual risk
+
+- **M91-E-M74 (lane E, SoL-Pi rule 5).** M74's automatic compaction and its
+  hidden follow-ups are not built (Q-M74). So M91 certifies only the
+  compaction that exists, the manual one: PreCompact may block it, and
+  PostCompact observes. These are unproved until M74 lands:
+  - a hard-limit compaction that no hook can stop;
+  - the hidden "restate your todo list" turn and the memory flush firing no
+    prompt hooks;
+  - a TaskCompleted refusal coming before the compaction check.
+
+  Safe for now: no such operation runs. Follow-up: M74's own tests take
+  acceptance 14e.
+
+- **M91-E-FileChanged-provenance (lane E).** FileChanged fires from the
+  window's watcher and from `noteExternalEdit`. Two things are not
+  certified, and the event has no field for either:
+  - that a change the agent itself made never reaches it;
+  - what a deleted file does.
+
+  Safe for now: FileChanged observes and cannot block, debounces per path,
+  caps runs per minute, never starts a model request and sends only a
+  workspace-relative path. Follow-up: a host-runner test for agent writes
+  and deletions, and a deleted-file reason once a capture of Claude Code's
+  behaviour gives it one.
+
+- **M91-W-platform (lanes E and W).** Imported hooks are dispatched on
+  Windows through PowerShell for Copilot, Windsurf and Cline. The unit
+  suites cover that with `platform: 'win32'` on Linux and macOS rigs. The
+  full gate runs on Kubuntu, and the pull request runs CI's three-OS matrix.
+  Not run here:
+  - a native Windows run of an imported PowerShell guard;
+  - the VS Code integration suite with an imported hook configured.
+
+  Safe for now: the adapters are fail-closed where their sources are, and a
+  guard that cannot start fails as its source fails. Follow-up: one Win11
+  VM run of a Copilot and a Cline guard, and the live check in M91's plan.
 
 - **M91 lane P source qualifications (RVM91P3).** The adapters remain unwired
   in this lane. `blockOperation: true` on an unsupported blocking stdin is an

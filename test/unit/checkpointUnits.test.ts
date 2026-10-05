@@ -6,7 +6,6 @@
 import { rm } from 'node:fs/promises'
 import path from 'node:path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import type * as constants from '../../src/shared/constants'
 import { turnKey } from '../../src/core/checkpoints/turnKey'
 import {
   finishCheckpointTurn,
@@ -44,7 +43,7 @@ import {
 } from './helpers/checkpointHarness'
 
 vi.mock('../../src/shared/constants', async (importOriginal) => ({
-  ...(await importOriginal<typeof constants>()),
+  ...(await importOriginal<Record<string, unknown>>()),
   CHECKPOINT_UNIT_INTENTS_MAX: 2,
 }))
 

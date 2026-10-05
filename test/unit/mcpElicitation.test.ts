@@ -517,7 +517,11 @@ describe('the connection (M91 lane M)', () => {
   it('aborts a pending form when its connection closes', async () => {
     const { t, seen, connection } = watchedConnection()
     t.receive({ jsonrpc: '2.0', id: 'form', method: 'elicitation/create', params: FORM_PARAMS })
-    expect(seen).toHaveLength(1)
+    // The form's checks load with the hook runtime first (M91), so the
+    // handler starts a tick later.
+    await vi.waitFor(() => {
+      expect(seen).toHaveLength(1)
+    })
     await connection.close()
     expect(seen[0]?.aborted).toBe(true)
   })

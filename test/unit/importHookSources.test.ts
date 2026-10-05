@@ -8,7 +8,7 @@
 import { spawnSync } from 'node:child_process'
 import { describe, expect, it } from 'vitest'
 import { mcpFunctionName } from '../../src/core/backends/modelapi/mcp/functions'
-import { AGENT_IMPORT_CURSOR_EVENTS } from '../../src/shared/constants'
+import { AGENT_IMPORT_CURSOR_EVENTS, EXTENSION_HOOK_EVENTS } from '../../src/shared/constants'
 import {
   type HookDefinition,
   matchingHooks,
@@ -630,21 +630,25 @@ describe('RVM91I-13 adopted events', () => {
     ).toEqual({ ok: false, reason: 'field', field: 'matcher' })
   })
 
-  it('maps Cursor workspaceOpen and afterAgentThought (cursor_com_docs_hooks_md.out:686-690)', () => {
-    expect(convertCursorHook(foreign('workspaceOpen', { command: './r.sh' }))).toMatchObject({
-      ok: true,
-      value: { event: 'DirectoryAdded', group: { sourceEvent: 'workspaceOpen' } },
+  // M91 lane W: imported hooks on the extension events wait for M91b's
+  // adapter route there (PLAN.md M91b). Cursor workspaceOpen and
+  // afterAgentThought (cursor_com_docs_hooks_md.out:686-690) only observe.
+  it('refuses Cursor workspaceOpen and afterAgentThought as unsupported until M91b', () => {
+    expect(convertCursorHook(foreign('workspaceOpen', { command: './r.sh' }))).toEqual({
+      ok: false,
+      reason: 'unsupported',
     })
-    expect(convertCursorHook(foreign('afterAgentThought', { command: './t.sh' }))).toMatchObject({
-      ok: true,
-      value: { event: 'AfterAgentThought' },
+    expect(convertCursorHook(foreign('afterAgentThought', { command: './t.sh' }))).toEqual({
+      ok: false,
+      reason: 'unsupported',
     })
   })
 
-  it('refuses Kiro Manual without its adapter and maps Gemini BeforeToolSelection', () => {
+  it('refuses Kiro Manual without its adapter, and Gemini BeforeToolSelection as weaker', () => {
     expect(
       kiroOne({ name: 'hand', trigger: 'Manual', action: { type: 'command', command: 'run' } }),
     ).toEqual({ ok: false, reason: 'unmapped' })
+    // It narrows the tools where it came from: here it would not, yet.
     expect(
       convertGeminiHook({
         event: 'BeforeToolSelection',
@@ -652,7 +656,17 @@ describe('RVM91I-13 adopted events', () => {
         raw: { type: 'command', command: 'pick' },
         group: {},
       }),
-    ).toMatchObject({ ok: true, value: { event: 'BeforeToolSelection' } })
+    ).toEqual({ ok: false, reason: 'weaker' })
+  })
+
+  it('refuses Kiro PreTaskExec as weaker and PostTaskExec as unsupported until M91b', () => {
+    // PreTaskExec blocks on exit 2 in Kiro; PostTaskExec only observes.
+    expect(
+      kiroOne({ name: 'pre', trigger: 'PreTaskExec', action: { type: 'command', command: 'c' } }),
+    ).toEqual({ ok: false, reason: 'weaker' })
+    expect(
+      kiroOne({ name: 'post', trigger: 'PostTaskExec', action: { type: 'command', command: 'c' } }),
+    ).toEqual({ ok: false, reason: 'unsupported' })
   })
 })
 
@@ -832,8 +846,14 @@ describe('RVM91I2 exact admission and records', () => {
   // P d8e609aa engine.selectRow requires flavor equality. Cursor rows have
   // no flavor/defaultFlavor; sourceEvent alone identifies all eighteen rows.
   it('R2-8 emits every Cursor adapter source event without an incompatible flavor', () => {
+    const extensionEvents: ReadonlySet<string> = new Set(EXTENSION_HOOK_EVENTS)
     for (const [event, mapped] of Object.entries(AGENT_IMPORT_CURSOR_EVENTS)) {
       const converted = convertCursorHook(foreign(event, { command: 'guard' }))
+      // The extension events wait for M91b (lane W); every other row emits.
+      if (extensionEvents.has(mapped)) {
+        expect(converted).toEqual({ ok: false, reason: 'unsupported' })
+        continue
+      }
       expect(converted.ok).toBe(true)
       if (!converted.ok) {
         continue

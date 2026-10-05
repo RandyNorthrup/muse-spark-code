@@ -30,26 +30,47 @@ import {
 import { applyTransform, toolClassOf, type TransformResult } from './transforms'
 
 const EVENT_NAME_SOURCE = '@event'
+// Path segments that reach or replace an object's prototype. A dotted path
+// holding one reads nothing and writes nothing (M91 lane W, semgrep
+// prototype-pollution-loop): the tables never name one, and a hook's output
+// that carries one is data, never a route to Object.prototype.
+const UNSAFE_PATH_KEYS: ReadonlySet<string> = new Set(['__proto__', 'constructor', 'prototype'])
+
+/** The record's own value at `key`; inherited and prototype keys read as absent. */
+function ownValue(value: unknown, key: string): unknown {
+  return !UNSAFE_PATH_KEYS.has(key) && isRecord(value) && Object.hasOwn(value, key)
+    ? value[key]
+    : undefined
+}
 
 export function pathValue(root: unknown, dotted: string): unknown {
   let current: unknown = root
   for (const key of dotted.split('.')) {
-    if (!isRecord(current)) return undefined
-    current = current[key]
+    const next = ownValue(current, key)
+    if (next === undefined) return undefined
+    current = next
   }
   return current
 }
 
-function setPath(target: Record<string, unknown>, dotted: string, item: unknown): void {
+/** Whether no segment of `dotted` names a prototype key. */
+export function isSafePath(dotted: string): boolean {
+  return dotted.split('.').every((key) => !UNSAFE_PATH_KEYS.has(key))
+}
+
+/** Sets `dotted` on `target`; an unsafe path writes nothing (`isSafePath`). */
+export function setPath(target: Record<string, unknown>, dotted: string, item: unknown): void {
+  if (!isSafePath(dotted)) return
   const keys = dotted.split('.')
   const last = keys.pop()
   if (last === undefined) return
   let current = target
   for (const key of keys) {
-    const next = current[key]
+    const next = ownValue(current, key)
     if (isRecord(next)) current = next
     else {
-      const created: Record<string, unknown> = {}
+      // A null prototype: the record built for stdin inherits nothing.
+      const created: Record<string, unknown> = Object.create(null) as Record<string, unknown>
       current[key] = created
       current = created
     }
@@ -165,7 +186,10 @@ export function buildStdin(
     if (result.kind === 'refused') return refuse(`${where}: ${result.reason}`)
     if (result.kind === 'absent') {
       if (spec.required === true) return refuse(`${where} is required`)
-    } else setPath(stdin, spec.to, result.value)
+    } else {
+      if (!isSafePath(spec.to)) return refuse(`${where}: unsafe path`)
+      setPath(stdin, spec.to, result.value)
+    }
   }
   return { outcome: 'run', stdin: JSON.stringify(stdin) }
 }

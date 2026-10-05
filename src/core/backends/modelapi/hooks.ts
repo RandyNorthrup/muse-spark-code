@@ -47,7 +47,6 @@ import {
   HOOK_MODEL_EVENTS,
   type HookHandlerType,
   type TypedHookAnswer,
-  runTypedHandler,
   type TypedHookHandlers,
 } from './hookHandlers'
 
@@ -1174,6 +1173,13 @@ async function runTypedHook(
   if (type === 'command') {
     throw new Error('a command handler never reaches the typed runner')
   }
+  // The runners load with the hook runtime (dist/hookRuntime.js, M91); the
+  // host lends them. Without them the handler is skipped, as without a runner.
+  const run = typed?.runTyped
+  if (run === undefined) {
+    warn(`${event}: ${type} hook runner is unavailable`)
+    return undefined
+  }
   const timeout = AbortSignal.timeout(hook.timeoutSeconds * MILLISECONDS_PER_SECOND)
   const combined = signal === undefined ? timeout : AbortSignal.any([signal, timeout])
   const runFallback = (): Promise<HookAnswer | undefined> =>
@@ -1184,7 +1190,7 @@ async function runTypedHook(
   try {
     combined.throwIfAborted()
     answer = await unlessAborted(
-      runTypedHandler(
+      run(
         {
           type,
           event,

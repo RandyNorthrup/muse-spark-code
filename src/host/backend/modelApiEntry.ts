@@ -8,12 +8,45 @@
 // available when this backend is loaded outside the extension.
 
 import { ModelApiClient } from '../../core/backends/modelapi/client'
-import { loadSparkHookDefinitions } from '../../core/backends/modelapi/extensionHooks'
-import { loadForeignHookDefinitions, loadHookDefinitions } from '../../core/backends/modelapi/hooks'
+import type { ExtensionHookDefinition } from '../../core/backends/modelapi/extensionHooks'
+import {
+  type HookDefinition,
+  type HookLoadDeps,
+  loadHookDefinitions,
+} from '../../core/backends/modelapi/hooks'
 import { McpServerPool } from '../../core/backends/modelapi/mcp/pool'
 import { ModelApiHost } from '../../core/backends/modelapi/ModelApiHost'
 import { setUiText } from '../../shared/l10n/text'
 import type { ModelApiBundleDeps } from './modelApiBundle'
+
+/**
+ * Hooks imported in another agent's format, read by the adapters' own bundle
+ * (dist/foreignHooks.js, M91 lane W) only when hooks are on. A bundle that
+ * cannot load leaves them out and says so in the log, as an unreadable file
+ * does.
+ */
+async function loadForeignHooks(sources: HookLoadDeps): Promise<readonly HookDefinition[]> {
+  let entry
+  try {
+    entry = await import('../../core/backends/modelapi/foreignHooksEntry.js')
+  } catch {
+    sources.warn('the imported hooks bundle could not be loaded; imported hooks are off')
+    return []
+  }
+  return await entry.loadForeignHookDefinitions(sources)
+}
+
+/** spark-hooks.json's extension-event hooks, read by the hook runtime (M91). */
+async function loadSparkHooks(sources: HookLoadDeps): Promise<readonly ExtensionHookDefinition[]> {
+  let entry
+  try {
+    entry = await import('../../core/backends/modelapi/hookRuntimeEntry.js')
+  } catch {
+    sources.warn('the hook runtime bundle could not be loaded; spark-hooks.json is off')
+    return []
+  }
+  return await entry.loadSparkHookDefinitions(sources)
+}
 
 /** The host over the given dependencies, its stored sessions read. */
 export async function createModelApiHost(deps: ModelApiBundleDeps): Promise<ModelApiHost> {
@@ -42,14 +75,14 @@ export async function createModelApiHost(deps: ModelApiBundleDeps): Promise<Mode
       // join the same per-session snapshot, after Muse Code's (M91 lane W).
       return sources === undefined
         ? []
-        : [...(await loadHookDefinitions(sources)), ...(await loadForeignHookDefinitions(sources))]
+        : [...(await loadHookDefinitions(sources)), ...(await loadForeignHooks(sources))]
     },
     // spark-hooks.json loads beside Muse Code's sources, under the same
     // trust gate and opt-in, into the same per-session snapshot (M91 lane E).
     loadExtensionHooks: async () => {
       const sources = sourcesFor()
       if (sources === undefined) return []
-      const definitions = await loadSparkHookDefinitions(sources)
+      const definitions = await loadSparkHooks(sources)
       // FileChanged belongs to the window runner, once for every backend.
       return definitions.filter((hook) => hook.event !== 'FileChanged')
     },

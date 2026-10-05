@@ -17,7 +17,7 @@ differs from the source. Do not edit it by hand.
 | `capabilities.untrustedWorkspaces` | `limited`                                                                                                                    |
 | `enabledApiProposals`              | none                                                                                                                         |
 | `activationEvents`                 | `onWebviewPanel:museSpark.chatPanel`                                                                                         |
-| `contributes`                      | `commands` (31), `configuration` (2), `keybindings` (7), `menus` (2), `views` (1), `viewsContainers` (1), `walkthroughs` (1) |
+| `contributes`                      | `commands` (33), `configuration` (2), `keybindings` (7), `menus` (2), `views` (1), `viewsContainers` (1), `walkthroughs` (1) |
 
 ## Build targets
 
@@ -72,7 +72,7 @@ These never reach `vscode` through their imports, type-only ones included; the g
 - `src/host/conversation/conversationController.ts`
 - `src/host/ide/ideMcpServer.ts`
 
-## VS Code API used at run time (279)
+## VS Code API used at run time (283)
 
 Functions, variables, classes, enums and members declared in `@types/vscode`; the members of a VS Code interface the code implements (a provider, an options object); and the members of a VS Code object handed to code that takes it by shape.
 
@@ -305,6 +305,7 @@ Functions, variables, classes, enums and members declared in `@types/vscode`; th
 | `WorkspaceEdit.entries`                                                              | `src/host/codeIntel/languageServices.ts`                                                                                                                                                                                |
 | `WorkspaceEdit.replace`                                                              | `src/host/agentImportHost.ts`                                                                                                                                                                                           |
 | `WorkspaceFolder.uri`                                                                | `src/extension.ts`, `src/host/agentImportHost.ts`, `src/host/cliFeatures.ts`                                                                                                                                            |
+| `WorkspaceFoldersChangeEvent.added`                                                  | `src/extension.ts`                                                                                                                                                                                                      |
 | `commands.executeCommand`                                                            | `src/extension.ts`, `src/host/cliFeatures.ts`, `src/host/codeIntel/languageServices.ts`, `src/host/editor/verifyEditor.ts`, `src/host/views/tasksPanel.ts`, `src/host/worktreeFeatures.ts`                              |
 | `commands.getCommands`                                                               | `src/host/views/tasksPanel.ts`                                                                                                                                                                                          |
 | `commands.registerCommand`                                                           | `src/extension.ts`                                                                                                                                                                                                      |
@@ -365,26 +366,26 @@ Functions, variables, classes, enums and members declared in `@types/vscode`; th
 
 | Module                 | Files |
 | ---------------------- | ----- |
-| `node:buffer`          | 30    |
-| `node:child_process`   | 9     |
+| `node:buffer`          | 32    |
+| `node:child_process`   | 10    |
 | `node:crypto`          | 33    |
 | `node:dns`             | 1     |
 | `node:dns/promises`    | 2     |
-| `node:fs`              | 24    |
-| `node:fs/promises`     | 35    |
+| `node:fs`              | 25    |
+| `node:fs/promises`     | 36    |
 | `node:http`            | 2     |
 | `node:https`           | 1     |
 | `node:module`          | 1     |
 | `node:net`             | 4     |
-| `node:os`              | 6     |
-| `node:path`            | 66    |
+| `node:os`              | 7     |
+| `node:path`            | 69    |
 | `node:process`         | 1     |
 | `node:stream`          | 9     |
 | `node:string_decoder`  | 1     |
 | `node:timers/promises` | 3     |
 | `node:tls`             | 1     |
 | `node:url`             | 3     |
-| `node:util`            | 4     |
+| `node:util`            | 5     |
 | `node:vm`              | 1     |
 | `node:worker_threads`  | 4     |
 | `node:zlib`            | 1     |

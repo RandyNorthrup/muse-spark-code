@@ -196,10 +196,6 @@ export const SANDBOX_NETWORK_DENIED: SandboxNetworkMode = 'restricted'
 export const SANDBOX_NETWORK_SETTING = 'museSpark.sandboxNetwork'
 export const BYPASS_SETTING = 'museSpark.allowDangerouslySkipPermissions'
 export const MODEL_API_HOOKS_SETTING = 'museSpark.modelApiHooks'
-// The Model API shell keeps its directory between calls (M91 lane S, PLAN.md
-// D70): a `cd` in one shell call carries into the next call of the same
-// session. A machine setting must explicitly turn it off.
-export const MODEL_API_SHELL_KEEPS_DIRECTORY_SETTING = 'museSpark.modelApiShellKeepsDirectory'
 // Settings `muse serve` takes at spawn: changing one restarts it (PLAN.md D25).
 export const CLI_PROCESS_SETTINGS = [
   'museSpark.museBinaryPath',
@@ -544,6 +540,18 @@ export const HOOK_FORMAT_NAME_KEYS = {
 // Cursor's stop and subagentStop follow-up limit for a script that sets no
 // `loop_limit` ("Default is 5 for Cursor hooks", cursor.com/docs/hooks).
 export const HOOK_CURSOR_DEFAULT_LOOP_LIMIT = 5
+// An imported hook on one of the extension events waits for M91b's adapter
+// route there, so the importer refuses it (M91 lane W). These source events,
+// as `format:event`, can refuse or narrow where they come from, so their
+// refusal says the guard would be weaker; every other one is unsupported.
+// Gemini BeforeToolSelection narrows the tools (geminicli.com hooks
+// reference, "BeforeToolSelection"); Kiro PreTaskExec blocks on exit 2
+// (lane P's contracts/kiro.ts). Cursor workspaceOpen and afterAgentThought,
+// Windsurf post_setup_worktree and Kiro PostTaskExec only observe.
+export const HOOK_IMPORT_REFUSING_EXTENSION_SOURCES: readonly string[] = [
+  'gemini:BeforeToolSelection',
+  'kiro:PreTaskExec',
+]
 // cmd.exe's longest command line (learn.microsoft.com, "Command prompt line
 // string limitation"): an imported PowerShell hook's encoded command past it
 // is refused rather than cut.

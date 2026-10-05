@@ -127,6 +127,22 @@ happened, not what was planned; superseded entries are kept.
     Elicitation hook may decline or cancel (a user hook may answer) and
     ElicitationResult observes with field names and the action only, through
     a narrow seam until lane E wires the dispatch.
+  - **Integration (lane W, 2026-10-05).**
+    - A hook imported onto one of the extension events is not imported yet,
+      and the preview says why in the user's language: "weaker" where the
+      source can block (Gemini BeforeToolSelection, Kiro PreTaskExec),
+      otherwise "not supported". M91b routes them, and Amp and OpenCode
+      plugin dispatch moves to M91b with them.
+    - Lanes E, H and M's runtime (the spark-hooks.json reader and
+      dispatcher, the typed handlers, the form checks) loads from its own
+      bundle, `dist/hookRuntime.js`, and the imported records' reader from
+      `dist/foreignHooks.js`. `dist/modelApi.js` went from 486.1 KiB to
+      463.7 KiB, under its 475 KiB cap.
+    - The format adapters' dotted paths never reach an object's prototype
+      (semgrep's prototype-pollution-loop finding).
+    - The localization check fails when a JSON file names a key twice in one
+      object: a stale `config.modelApiHooks.description` in ko, pt-br and
+      zh-tw had been hiding the new one.
 
 - **A live receipt workflow for the GitHub Action (M80 LA).**
   `.github/workflows/action-live.yml` runs the real Action, on the agent

@@ -38,6 +38,8 @@ function httpHook(overrides: Partial<HookDefinition> = {}): HookDefinition {
 
 function handlers(overrides: Partial<TypedHookHandlers> = {}): TypedHookHandlers {
   return {
+    // The host lends the runner from the hook runtime's bundle (M91).
+    runTyped: runTypedHandler,
     httpPost: () => Promise.resolve({ status: 200, headers: {}, bodyText: '{}' }),
     httpAllowlist: () => ['hooks.example.com'],
     isNetworkAllowed: () => true,
@@ -497,6 +499,24 @@ describe('http handler runs (M91 D70)', () => {
         (_e, _c, o) => parseAnswer(o),
       ),
     ).toBeUndefined()
+  })
+
+  it('skips a typed handler when the host lends no runner from the hook runtime (M91)', async () => {
+    const warn = vi.fn()
+    const httpPost = vi.fn(() => Promise.resolve(hosted('{"decision":"block","reason":"no"}')))
+    const result = await dispatchHooks(
+      [httpHook()],
+      'PreToolUse',
+      { cwd: '/ws' },
+      'Bash',
+      {},
+      undefined,
+      warn,
+      handlers({ runTyped: undefined, httpPost }),
+    )
+    expect(result).toMatchObject({ blockedReason: undefined, contexts: [] })
+    expect(httpPost).not.toHaveBeenCalled()
+    expect(warn).toHaveBeenCalledWith('PreToolUse: http hook runner is unavailable')
   })
 
   it('runs an http hook through the dispatcher and keeps its context', async () => {
