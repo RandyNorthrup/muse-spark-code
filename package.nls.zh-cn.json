@@ -118,5 +118,9 @@
   "config.modelApiPermissionProfile.markdownDescription": "Model API 后端：生效的权限配置文件，按其在 `museSpark.modelApiPermissionProfiles` 中的名称指定；留空表示无。配置文件开启期间，除“绕过权限”外，每条 shell 命令和 MCP 工具调用都会询问，因为 shell 和 MCP 服务器在配置文件的文件规则之外运行。仅限用户和计算机设置。",
   "config.modelApiRepositoryRules.markdownDescription": "Model API 后端：存储库可以在其 `.vscode/settings.json` 中添加的规则：询问或禁止的 `commandRules`，以及 `denyRead` glob。它们只能收紧您自己的规则，因此此处的允许规则不会应用。",
   "config.modelApiAutoReviewer.description": "付费，默认关闭。在 Model API 后端的自动模式下，一次单独的模型调用会评判每个没有规则决定的有风险操作，看起来安全时不询问直接运行；它拒绝或失败时由您决定。它绝不会允许被禁止的命令、您的规则要求询问的命令、受保护的写入或付费调用。每次审查按对话模型的令牌费率计入您的 Model API 密钥，除非您在此工作区中始终允许审查，否则会先询问。",
-  "config.museCodeAutoReviewer.description": "默认开启。在 Muse Code 的自动模式下，只有当前轮次中没有规则作出决定的批准请求才符合审查条件：在隐藏的规划会话中使用您的订阅进行一次简短的 Muse Code 轮次。受保护的写入、付费调用、子任务、提问、重放或升级的请求、未知对象、没有仅允许一次选项的请求以及多个面板共享的会话都不会被审查。成功的审查可以允许一次；拒绝、失败、会话繁忙、超时或熔断器触发时会显示批准卡片。宿主进程退出后会重新创建辅助会话。"
+  "config.museCodeAutoReviewer.description": "默认开启。在 Muse Code 的自动模式下，只有当前轮次中没有规则作出决定的批准请求才符合审查条件：在隐藏的规划会话中使用您的订阅进行一次简短的 Muse Code 轮次。受保护的写入、付费调用、子任务、提问、重放或升级的请求、未知对象、没有仅允许一次选项的请求以及多个面板共享的会话都不会被审查。成功的审查可以允许一次；拒绝、失败、会话繁忙、超时或熔断器触发时会显示批准卡片。宿主进程退出后会重新创建辅助会话。",
+  "config.judge.engine.description": "`auto`（您自己的聊天模型；第1阶段即`same`）和`same`只能给没有规则决定的有风险的Auto操作增加谨慎：就绪的提醒会将允许变为提问，或在审批卡上添加备注。`off`不运行评判器。在Model API后端，每次评判计入您的密钥并先询问一次；在Muse Code上改走您的订阅。",
+  "config.judge.engine.enumDescriptions.auto": "您自己的聊天模型评判（第1阶段即`same`）；配置单独的评判器后会加入。",
+  "config.judge.engine.enumDescriptions.same": "仅您自己的聊天模型评判；从不切换模型。",
+  "config.judge.engine.enumDescriptions.off": "无评判器：审批与没有评判器时完全一致。"
 }

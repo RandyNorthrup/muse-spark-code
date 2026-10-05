@@ -1701,6 +1701,11 @@
   "usagePaidAutoReviews": {
     "other": "審查 {count} 次"
   },
+  "paidJudgeName": "評判器",
+  "paidConfirmJudge": "您的聊天模型自身會評判每個沒有規則決定的有風險的Auto操作，且只能增加謹慎：就緒的提醒會將允許變為提問，或在審批卡上新增備註。每次評判依對話模型的權杖費率計入您的Model API金鑰：\n{price}\n除非您在此工作區中一律允許評判，否則每次評判前都會先詢問。在Muse Code上，相同的呼叫改走您的訂閱。",
+  "usagePaidJudgeCalls": {
+    "other": "評判 {count} 次"
+  },
   "commandRuleInvalid": "{setting}：規則 {index} 無效，未套用（{detail}）。",
   "commandRuleInvalidKept": "{setting}：規則 {index}（{pattern}）無效（{detail}）。它仍依其模式詢問或禁止，因為這只會收緊。",
   "commandRuleExampleFailed": "{setting}：允許規則 {index}（{pattern}）的行為與其範例「{detail}」不符，因此未套用。",

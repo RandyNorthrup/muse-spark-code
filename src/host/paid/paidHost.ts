@@ -76,6 +76,7 @@ function confirmationDetail(feature: PaidFeature): string {
     subagents: UI_TEXT.paidConfirmSubagents,
     autoReviewer: UI_TEXT.paidConfirmAutoReviewer,
     bestOfN: UI_TEXT.paidConfirmBestOfN,
+    judge: UI_TEXT.paidConfirmJudge,
   }
   return fill(details[feature], { price: paidFeaturePrice(feature) })
 }
@@ -150,9 +151,12 @@ export function createPaidFeatures(deps: PaidFeaturesDeps): PaidFeatures {
   const gate = new PaidFeatureGate({
     isSettingOn: deps.isSettingOn,
     setSetting: async (feature, isOn) => {
+      // The judge's switch is the engine enum, not a boolean (M98, PLAN.md
+      // D77): turning it off parks it at `off`, turning it on restores `auto`.
+      const value = feature === 'judge' ? (isOn ? 'auto' : 'off') : isOn
       await vscode.workspace
         .getConfiguration(SETTINGS_SECTION)
-        .update(PAID_FEATURE_SETTINGS[feature], isOn, vscode.ConfigurationTarget.Global)
+        .update(PAID_FEATURE_SETTINGS[feature], value, vscode.ConfigurationTarget.Global)
     },
     readAccepted,
     writeAccepted: async (accepted) => {
