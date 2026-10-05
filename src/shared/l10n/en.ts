@@ -2440,6 +2440,56 @@ export const EN = {
   acpProviderAdded: 'Added provider {id}.',
   acpProviderRemoved: 'Removed provider {id}.',
   execProviderNotConfigured: 'Provider {id} is not configured.',
+  // M95-M (the Models panel's framework, PLAN.md D74): the table, filter
+  // and form labels the panel's shared components read. Lane 0 tabled the
+  // M95 flows above; these rows are the panel's own.
+  modelsEmpty: 'No model providers yet. Add one to use your own models.',
+  panelNoMatches: 'No matches.',
+  modelFilterLabels: {
+    toolCalling: 'Tool calling',
+    vision: 'Vision',
+    reasoning: 'Reasoning',
+    contextMin: 'Min context',
+    contextMax: 'Max context',
+    maxInput: 'Max input price',
+    maxOutput: 'Max output price',
+    maxCached: 'Max cached price',
+    freeOrLocal: 'Free or local',
+    provider: 'Provider',
+    family: 'Family',
+    clear: 'Clear filters',
+    any: 'Any',
+  },
+  // {model}: the qualified model reference.
+  tickModel: 'Offer {model} in the model picker',
+  // {model}: the qualified model reference.
+  pinModel: 'Pin {model} as a favourite',
+  modelsColumnOffered: 'Offered',
+  modelsColumnPinned: 'Pinned',
+  providerDetailFields: {
+    azureResource: 'Azure resource',
+    deployment: 'Deployment',
+    loopbackPort: 'Local port',
+    customFormat: 'Wire format',
+  },
+  providerDocs: 'Documentation',
+  providerDataUse: 'How your data is used',
+  numCtxLabel: 'Context size',
+  suggestUnavailable: 'No suggestion: no model here qualifies.',
+  // {model}: the last default's qualified reference.
+  lastDefaultHint: 'Last default: {model}',
+  importUntrusted: 'This file is untrusted: check every address before importing.',
+  openRouterOrder: 'Preferred provider order',
+  openRouterFallback: 'Fall back to other providers',
+  keyMissing: 'No key stored',
+  testRunning: 'Testing…',
+  // {shown}: the filtered rows; {count}: every row.
+  modelsShownCount: forms({
+    one: '{shown} of {count} model',
+    other: '{shown} of {count} models',
+  }),
+  pricePerMillion: 'Prices per million tokens.',
+  modelsNotScanned: 'Refresh to list this provider’s models.',
 }
 
 /** The shape every table has: English's keys, with any language's plural forms. */

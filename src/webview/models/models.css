@@ -1,0 +1,546 @@
+/* The Models & Agents panel's styles (M95). Theme tokens only
+ * (`--vscode-*`, set by the host page or the harness); no fixed colours,
+ * so the four themes and the accessibility gate's contrast checks hold.
+ * The panel root is a container: under 340 px the Models table reflows
+ * from a grid to a list of cards. Motion: none (nothing here animates).
+ */
+
+.models-panel {
+  container-type: inline-size;
+  color: var(--vscode-foreground);
+  font-family: var(--vscode-font-family);
+  font-size: var(--vscode-font-size);
+  padding: 12px;
+  max-width: 880px;
+}
+
+.models-panel button,
+.models-panel input,
+.models-panel select,
+.models-panel textarea {
+  font: inherit;
+  color: inherit;
+}
+
+.models-panel :focus-visible {
+  outline: 1px solid var(--vscode-focusBorder);
+  outline-offset: 1px;
+}
+
+.models-visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.models-nav {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 12px;
+  border-bottom: 1px solid var(--vscode-panel-border);
+  padding-bottom: 8px;
+}
+
+.models-nav-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: none;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  padding: 4px 10px;
+  cursor: pointer;
+}
+
+.models-nav-item:hover {
+  background: var(--vscode-toolbar-hoverBackground);
+}
+
+.models-nav-item-active {
+  border-color: var(--vscode-focusBorder);
+}
+
+.models-hint {
+  color: var(--vscode-descriptionForeground);
+  margin: 8px 0;
+}
+
+.models-notice {
+  border: 1px solid var(--vscode-panel-border);
+  border-radius: 4px;
+  padding: 8px 10px;
+  margin: 8px 0;
+}
+
+.models-error {
+  color: var(--vscode-errorForeground);
+  margin: 8px 0;
+}
+
+ul.models-error {
+  padding-left: 18px;
+}
+
+.models-providers {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.models-provider {
+  border: 1px solid var(--vscode-panel-border);
+  border-radius: 6px;
+  padding: 10px 12px;
+}
+
+.models-provider-highlight {
+  border-color: var(--vscode-focusBorder);
+}
+
+.models-provider-name {
+  margin: 0 0 4px;
+  font-size: 1.05em;
+}
+
+.models-origin {
+  color: var(--vscode-descriptionForeground);
+  word-break: break-all;
+  margin: 4px 0;
+}
+
+.models-key-state-warning {
+  color: var(--vscode-errorForeground);
+}
+
+.models-usage {
+  margin: 8px 0;
+}
+
+.models-usage-row {
+  display: flex;
+  gap: 8px;
+}
+
+.models-usage-row dd {
+  margin: 0;
+}
+
+.models-row-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 8px 0;
+}
+
+.models-button {
+  background: var(--vscode-button-secondaryBackground);
+  color: var(--vscode-button-secondaryForeground);
+  border: 1px solid var(--vscode-input-border);
+  border-radius: 4px;
+  padding: 4px 12px;
+  cursor: pointer;
+}
+
+.models-button-primary {
+  background: var(--vscode-button-background);
+  color: var(--vscode-button-foreground);
+  border: 1px solid transparent;
+  border-radius: 4px;
+  padding: 4px 12px;
+  cursor: pointer;
+}
+
+.models-button:disabled,
+.models-button-primary:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+.models-link {
+  background: none;
+  border: none;
+  padding: 0;
+  color: var(--vscode-textLink-foreground);
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+.models-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 8px 0;
+}
+
+.models-field input,
+.models-field select,
+.models-field textarea,
+.models-search input,
+.models-facet select,
+.models-range input {
+  background: var(--vscode-input-background);
+  color: var(--vscode-input-foreground);
+  border: 1px solid var(--vscode-input-border);
+  border-radius: 4px;
+  padding: 4px 8px;
+}
+
+.models-check,
+.models-tick {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin: 8px 0;
+}
+
+.models-tick-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.models-wizard-step {
+  border: 1px solid var(--vscode-panel-border);
+  border-radius: 6px;
+  padding: 10px 12px;
+  margin: 12px 0;
+}
+
+.models-radio-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 8px 0;
+}
+
+.models-radio {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+}
+
+.models-radio-label {
+  display: block;
+  font-weight: 600;
+}
+
+.models-radio-detail {
+  display: block;
+  color: var(--vscode-descriptionForeground);
+}
+
+.models-summary {
+  margin: 8px 0;
+  padding-left: 18px;
+}
+
+.models-cost-notice {
+  border: 1px solid var(--vscode-panel-border);
+  border-radius: 6px;
+  padding: 10px 12px;
+  margin: 8px 0;
+}
+
+.models-undo-bar {
+  margin: 8px 0;
+}
+
+.models-undo-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid var(--vscode-panel-border);
+  border-radius: 4px;
+  padding: 6px 10px;
+}
+
+.models-scan-status {
+  margin: 8px 0;
+}
+
+.models-scan-diff {
+  margin: 8px 0;
+  padding-left: 18px;
+}
+
+.models-suggestion {
+  border: 1px solid var(--vscode-panel-border);
+  border-radius: 6px;
+  padding: 10px 12px;
+  margin: 8px 0;
+}
+
+.models-suggestion-title {
+  margin: 0 0 4px;
+}
+
+.models-suggestion-value {
+  font-weight: 600;
+  margin: 4px 0;
+  word-break: break-all;
+}
+
+.models-suggestion-reason {
+  color: var(--vscode-descriptionForeground);
+  margin: 4px 0;
+}
+
+.models-select {
+  margin: 8px 0;
+}
+
+.models-select-label {
+  display: block;
+  margin: 8px 0 4px;
+}
+
+.models-select input {
+  width: 100%;
+  box-sizing: border-box;
+  background: var(--vscode-input-background);
+  color: var(--vscode-input-foreground);
+  border: 1px solid var(--vscode-input-border);
+  border-radius: 4px;
+  padding: 4px 8px;
+}
+
+.models-select-list {
+  list-style: none;
+  margin: 4px 0;
+  padding: 0;
+  border: 1px solid var(--vscode-input-border);
+  border-radius: 4px;
+  max-height: 240px;
+  overflow-y: auto;
+}
+
+.models-select-list [role='option'] {
+  padding: 6px 10px;
+  cursor: pointer;
+}
+
+.models-select-list [role='option'][aria-selected='true'] {
+  background: var(--vscode-list-activeSelectionBackground);
+  color: var(--vscode-list-activeSelectionForeground);
+}
+
+.models-select-label-row {
+  display: block;
+  font-weight: 600;
+}
+
+.models-select-description {
+  display: block;
+  color: var(--vscode-descriptionForeground);
+}
+
+.models-select-empty {
+  padding: 6px 10px;
+  color: var(--vscode-descriptionForeground);
+}
+
+.models-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 8px 0;
+}
+
+.models-chip {
+  background: var(--vscode-badge-background);
+  color: var(--vscode-badge-foreground);
+  border: 1px solid var(--vscode-input-border);
+  border-radius: 12px;
+  padding: 2px 12px;
+  cursor: pointer;
+}
+
+.models-chip-pressed {
+  border-color: var(--vscode-focusBorder);
+}
+
+.models-filter-bar {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 8px 0;
+}
+
+.models-search input {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.models-ranges,
+.models-facets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: flex-end;
+}
+
+.models-range,
+.models-facet {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.models-count {
+  color: var(--vscode-descriptionForeground);
+}
+
+.models-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 8px 0;
+}
+
+.models-table th,
+.models-table td {
+  text-align: left;
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--vscode-panel-border);
+  vertical-align: top;
+}
+
+.models-table th[aria-sort='ascending'] .models-sort::after {
+  content: ' ▲';
+}
+
+.models-table th[aria-sort='descending'] .models-sort::after {
+  content: ' ▼';
+}
+
+.models-sort {
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.models-table tr[aria-selected='true'] {
+  background: var(--vscode-list-activeSelectionBackground);
+  color: var(--vscode-list-activeSelectionForeground);
+}
+
+.models-row-highlight {
+  font-weight: 600;
+}
+
+.models-badges {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-left: 6px;
+}
+
+.models-badge {
+  background: var(--vscode-badge-background);
+  color: var(--vscode-badge-foreground);
+  border-radius: 4px;
+  padding: 1px 6px;
+  font-size: 0.85em;
+  white-space: nowrap;
+}
+
+.models-table-empty {
+  color: var(--vscode-descriptionForeground);
+}
+
+.models-numctx {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 8px 0;
+}
+
+.models-import {
+  border: 1px solid var(--vscode-panel-border);
+  border-radius: 6px;
+  padding: 10px 12px;
+  margin: 12px 0;
+}
+
+.models-import-preview ul {
+  list-style: none;
+  margin: 8px 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.models-needs-key {
+  color: var(--vscode-descriptionForeground);
+  margin-left: 6px;
+}
+
+.models-edit-form {
+  margin-top: 8px;
+  border-top: 1px solid var(--vscode-panel-border);
+  padding-top: 8px;
+}
+
+.models-empty {
+  border: 1px dashed var(--vscode-panel-border);
+  border-radius: 6px;
+  padding: 16px 12px;
+  margin: 12px 0;
+  text-align: center;
+}
+
+/* Narrow: the table becomes a list of cards; actions and ranges stack. */
+@container (max-width: 340px) {
+  .models-panel {
+    padding: 8px;
+  }
+
+  .models-table,
+  .models-table thead,
+  .models-table tbody,
+  .models-table tr,
+  .models-table th,
+  .models-table td {
+    display: block;
+  }
+
+  .models-table thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
+  .models-table tr {
+    border: 1px solid var(--vscode-panel-border);
+    border-radius: 6px;
+    margin-bottom: 8px;
+    padding: 6px 10px;
+  }
+
+  .models-table td {
+    border-bottom: none;
+    padding: 2px 0;
+  }
+
+  .models-row-actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .models-ranges,
+  .models-facets {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}

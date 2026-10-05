@@ -305,6 +305,11 @@ export const modelsPanelStateSchema = z.strictObject({
   totalModels: z.number(),
   filter: modelFilterSchema,
   sort: modelSortSchema,
+  /** The provider and family facet values over every row (lane P's rule). */
+  facets: z.strictObject({
+    providers: z.array(z.string()),
+    families: z.array(z.string()),
+  }),
   scans: z.record(z.string(), scanStateSchema),
   suggestions: z.array(suggestionSchema),
   /** The last choices made (a stated assumption with no history). */
@@ -360,12 +365,31 @@ export const panelToHostMessageSchema = z.discriminatedUnion('type', [
     mode: z.enum(['new', 'change']),
     providerId: z.optional(z.string()),
   }),
-  z.strictObject({ type: z.literal('providers/connect') }),
-  z.strictObject({ type: z.literal('providers/test'), acceptCost: z.boolean() }),
-  // `next` and `back` walk the wizard; `cancel` discards the draft with
-  // nothing saved. Confirming is `providers/save`.
+  // Without a provider it connects the wizard's draft; with one it
+  // reconnects that saved provider's account.
+  z.strictObject({
+    type: z.literal('providers/connect'),
+    providerId: z.optional(z.string()),
+  }),
+  // Without a provider it tests the wizard's draft; with one it tests
+  // that saved provider. Where no free check exists the host answers
+  // `needs-cost`, and the one-token request waits for `acceptCost`.
+  z.strictObject({
+    type: z.literal('providers/test'),
+    acceptCost: z.boolean(),
+    providerId: z.optional(z.string()),
+  }),
+  // `next` and `back` walk the wizard; `cancel` discards the open draft
+  // (the wizard's, or one provider's edit) with nothing saved. Confirming
+  // is `providers/save`.
   z.strictObject({ type: z.literal('providers/wizard'), event: z.enum(['next', 'back', 'cancel']) }),
-  z.strictObject({ type: z.literal('providers/save'), useNow: z.boolean() }),
+  // Without a provider it confirms the wizard; with one it applies that
+  // provider's edit draft. `useNow` also sets the conversation's model.
+  z.strictObject({
+    type: z.literal('providers/save'),
+    useNow: z.boolean(),
+    providerId: z.optional(z.string()),
+  }),
   z.strictObject({ type: z.literal('providers/remove'), providerId: z.string() }),
   z.strictObject({ type: z.literal('providers/undoRemove'), providerId: z.string() }),
   z.strictObject({ type: z.literal('providers/scanLocal') }),
@@ -377,10 +401,13 @@ export const panelToHostMessageSchema = z.discriminatedUnion('type', [
   }),
   z.strictObject({ type: z.literal('models/scan'), providerId: z.string() }),
   z.strictObject({ type: z.literal('models/cancelScan'), providerId: z.string() }),
+  // One row (un)ticked: a delta, so ticking from a filtered table never
+  // drops the rows the filter hides.
   z.strictObject({
     type: z.literal('models/tick'),
     scope: tickScopeSchema,
-    refs: z.array(z.string()),
+    ref: z.string(),
+    ticked: z.boolean(),
   }),
   z.strictObject({
     type: z.literal('models/pin'),
@@ -392,6 +419,13 @@ export const panelToHostMessageSchema = z.discriminatedUnion('type', [
     type: z.literal('models/filter'),
     filter: modelFilterSchema,
     sort: modelSortSchema,
+  }),
+  // The context an Ollama model runs with (32k, 64k or 128k).
+  z.strictObject({
+    type: z.literal('models/numCtx'),
+    providerId: z.string(),
+    ref: z.string(),
+    numCtx: z.number(),
   }),
   z.strictObject({ type: z.literal('suggestions/accept'), kind: suggestionKindSchema }),
   z.strictObject({
