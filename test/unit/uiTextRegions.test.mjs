@@ -7,10 +7,12 @@ import vm from 'node:vm'
 import { build } from 'esbuild'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import { EN } from '../../src/shared/l10n/en'
+import { compactEnglishSource } from '../../src/shared/l10n/compactEnglish'
 import {
   UI_TEXT_REGIONS,
   regionalUiText,
   uiTextProperties,
+  compactBrowserEnglish,
 } from '../../scripts/lib/uiTextRegions.mjs'
 
 import { removeFolder } from './helpers/temporaryFolders'
@@ -145,4 +147,24 @@ describe('regional Node English fallback', () => {
     const serializedState = JSON.stringify(a.text.UI_TEXT)
     expect(JSON.parse(serializedState)).toEqual(EN)
   })
+})
+
+it('round-trips every browser English key, value and plural form inline', async () => {
+  const result = await build({
+    entryPoints: ['src/shared/l10n/en.ts'],
+    bundle: true,
+    write: false,
+    minify: true,
+    platform: 'browser',
+    format: 'cjs',
+    plugins: [compactBrowserEnglish],
+  })
+  const module = { exports: {} }
+  vm.runInNewContext(result.outputFiles[0].text, { module, exports: module.exports })
+  expect(module.exports.EN).toEqual(EN)
+  expect(JSON.stringify(module.exports.EN)).toBe(JSON.stringify(EN))
+})
+
+it('refuses an English value that collides with reserved dictionary tokens', () => {
+  expect(() => compactEnglishSource({ label: '\u{E000}' })).toThrow('reserved dictionary token')
 })

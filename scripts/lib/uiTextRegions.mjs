@@ -5,6 +5,7 @@
 import { readFileSync } from 'node:fs'
 import path from 'node:path'
 import ts from 'typescript'
+import { loadL10n } from './l10nSource.mjs'
 
 const TABLE = 'src/shared/l10n/en.ts'
 export const UI_TEXT_REGIONS = [
@@ -81,4 +82,20 @@ export function regionalUiText(name) {
       })
     },
   }
+}
+
+/** The browser still carries all English; repeated fragments share a dictionary. */
+export const compactBrowserEnglish = {
+  name: 'compact-browser-english',
+  setup(build) {
+    build.onLoad({ filter: /[/\\]l10n[/\\]en\.ts$/ }, async (args) => {
+      if (path.resolve(args.path) !== path.resolve(TABLE)) return
+      const { EN, compactEnglishSource } = await loadL10n(process.cwd())
+      return {
+        contents: compactEnglishSource(EN),
+        loader: 'js',
+        watchFiles: [args.path, 'src/shared/l10n/compactEnglish.ts', 'src/shared/constants.ts'],
+      }
+    })
+  },
 }

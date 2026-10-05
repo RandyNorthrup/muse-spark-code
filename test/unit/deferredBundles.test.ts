@@ -13,6 +13,7 @@ import {
   deferredCohort,
   sharedUiText,
   sharedValidation,
+  sharedWire,
 } from '../../scripts/lib/deferredBundles.mjs'
 import type * as validation from '../../src/shared/validationEntry'
 
@@ -79,15 +80,20 @@ beforeAll(async () => {
         pageWorker: 'src/host/web/pageWorker.ts',
         searchWorker: 'src/host/backend/searchWorker.ts',
       },
-      plugins: [sharedUiText, sharedValidation, deferredCohort],
+      plugins: [sharedUiText, sharedValidation, deferredCohort, sharedWire],
       external: ['vscode', '@napi-rs/keyring'],
     }),
     build({
       ...common,
       target: 'node22',
       entryPoints: { acp: 'src/runtime/main.ts' },
-      plugins: [sharedUiText, sharedValidation, deferredCohort],
+      plugins: [sharedUiText, sharedValidation, deferredCohort, sharedWire],
       external: ['@napi-rs/keyring'],
+    }),
+    build({
+      ...common,
+      entryPoints: { wire: 'src/shared/wireEntry.ts' },
+      plugins: [sharedUiText, sharedValidation],
     }),
     build({
       ...common,
@@ -337,6 +343,21 @@ describe('deferred cohort bundles', () => {
     expect(bundleText('acp')).toContain('./recorder.js')
     expect(inputs('acp')).not.toContain('src/host/support/recorderEntry.ts')
     expect(inputs('acp')).not.toContain('src/host/support/reportJournal.ts')
+  })
+
+  it('rejects duplicated wire schemas in an activation input map', () => {
+    const original = bundleInputs({
+      output: 'dist/extension.js',
+      metafile: 'dist/meta/extension.json',
+    })
+    const changed = new Map(original)
+    changed.set('src/shared/protocol.ts', 1)
+    expect(
+      checkDeferredBundles((bundle) =>
+        bundle.output === 'dist/extension.js' ? changed : bundleInputs(bundle),
+      ),
+    ).toContain('dist/extension.js duplicates shared wire schemas in src/shared/protocol.ts')
+    expect(checkDeferredBundles(bundleInputs)).toEqual([])
   })
 
   it('keeps the plugin host out of the adapters’ bundle until a plugin hook runs (M91b)', () => {

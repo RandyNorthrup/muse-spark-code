@@ -32,6 +32,7 @@ for (const file of [
     'uiTextHooks.js',
     'uiTextSurfaces.js',
     'validation.js',
+    'wire.js',
   ].map((name) => path.join(SOURCE, 'dist', name)),
   ...['exec-result-v1.schema.json', 'exec-event-v1.schema.json'].map((name) =>
     path.join(SOURCE, 'schemas', name),

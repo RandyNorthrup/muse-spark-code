@@ -100,15 +100,13 @@ import {
 } from './state/uiState'
 import { isChildRunning } from './workflowDetails'
 import type { QuoteIntent } from './components/QuoteMenu'
+import { SessionBoardDialog } from './components/SessionBoardDialog'
+import { ShareView } from './components/ShareView'
 import { DeferredSurface } from './components/DeferredSurface'
 
 const HistoryDialog = lazy(async () => {
   const module = await import('./components/HistoryDialog')
   return { default: module.HistoryDialog }
-})
-const SessionBoardDialog = lazy(async () => {
-  const module = await import('./components/SessionBoardDialog')
-  return { default: module.SessionBoardDialog }
 })
 const AgentMap = lazy(async () => {
   const module = await import('./components/AgentMap')
@@ -125,10 +123,6 @@ const BestOfNDialog = lazy(async () => {
 const ReviewPane = lazy(async () => {
   const module = await import('./components/ReviewPane')
   return { default: module.ReviewPane }
-})
-const ShareView = lazy(async () => {
-  const module = await import('./components/ShareView')
-  return { default: module.ShareView }
 })
 
 export interface AppProps {

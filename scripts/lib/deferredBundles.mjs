@@ -262,6 +262,14 @@ export function checkDeferredBundles(inputsOf) {
         `${BUNDLES.acp.output} carries ${file}, which loads only from the recorder bundle`,
       )
   }
+  const wire = { output: 'dist/wire.js', metafile: 'dist/meta/wire.json' }
+  for (const file of ['src/shared/protocol.ts', 'src/shared/agentEvents.ts']) {
+    if (!inputsOf(wire).has(file)) problems.push(`${wire.output} no longer carries ${file}`)
+    for (const bundle of [...Object.values(BUNDLES), ...DEFERRED, ...ON_FIRST_USE]) {
+      if (inputsOf(bundle).has(file))
+        problems.push(`${bundle.output} duplicates shared wire schemas in ${file}`)
+    }
+  }
   return problems
 }
 
@@ -323,5 +331,19 @@ export const deferredCohort = {
           : { path: `./${path.basename(output)}`, external: true }
       },
     )
+  },
+}
+
+const WIRE_SOURCES = new Set(
+  ['src/shared/protocol.ts', 'src/shared/agentEvents.ts'].map((file) => path.resolve(file)),
+)
+/** @type {import('esbuild').Plugin} */
+export const sharedWire = {
+  name: 'shared-wire',
+  setup(build) {
+    build.onResolve({ filter: /(?:^|\/)(?:protocol|agentEvents)(?:\.ts)?$/ }, (args) => {
+      const source = path.resolve(args.resolveDir, `${args.path.replace(/\.ts$/, '')}.ts`)
+      return WIRE_SOURCES.has(source) ? { path: './wire.js', external: true } : undefined
+    })
   },
 }

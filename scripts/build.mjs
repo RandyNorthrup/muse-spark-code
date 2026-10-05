@@ -55,10 +55,20 @@ import { mkdirSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync }
 import path from 'node:path'
 import { runInNewContext } from 'node:vm'
 import { brotliCompressSync, constants as zlibConstants } from 'node:zlib'
-import { UI_TEXT_REGIONS, regionalUiText, uiTextProperties } from './lib/uiTextRegions.mjs'
+import {
+  UI_TEXT_REGIONS,
+  regionalUiText,
+  uiTextProperties,
+  compactBrowserEnglish,
+} from './lib/uiTextRegions.mjs'
 import { loadL10n } from './lib/l10nSource.mjs'
 import * as esbuild from 'esbuild'
-import { sharedUiText, sharedValidation, deferredCohort } from './lib/deferredBundles.mjs'
+import {
+  sharedUiText,
+  sharedValidation,
+  deferredCohort,
+  sharedWire,
+} from './lib/deferredBundles.mjs'
 import {
   CONTENT_FILE as WHATS_NEW_CONTENT_OUTFILE,
   writeWhatsNewContent,
@@ -171,7 +181,7 @@ const common = {
 /** @type {import('esbuild').BuildOptions} */
 const hostOptions = {
   ...common,
-  plugins: [sharedUiText, sharedValidation, deferredCohort],
+  plugins: [sharedUiText, sharedValidation, deferredCohort, sharedWire],
   entryPoints: [HOST_ENTRY],
   outfile: HOST_OUTFILE,
   platform: 'node',
@@ -190,7 +200,7 @@ const conversationOptions = {
 /** @type {import('esbuild').BuildOptions} */
 const modelApiOptions = {
   ...common,
-  plugins: [sharedUiText, sharedValidation, deferredCohort],
+  plugins: [sharedUiText, sharedValidation, deferredCohort, sharedWire],
   entryPoints: [MODEL_API_ENTRY],
   outfile: MODEL_API_OUTFILE,
   platform: 'node',
@@ -236,7 +246,7 @@ const pluginHooksOptions = {
 /** @type {import('esbuild').BuildOptions} */
 const reviewOptions = {
   ...common,
-  plugins: [sharedUiText, sharedValidation],
+  plugins: [sharedUiText, sharedValidation, sharedWire],
   entryPoints: [REVIEW_ENTRY],
   outfile: REVIEW_OUTFILE,
   platform: 'node',
@@ -250,7 +260,7 @@ const reviewOptions = {
 /** @type {import('esbuild').BuildOptions} */
 const reportOptions = {
   ...common,
-  plugins: [sharedUiText, sharedValidation],
+  plugins: [sharedUiText, sharedValidation, sharedWire],
   entryPoints: [REPORT_ENTRY],
   outfile: REPORT_OUTFILE,
   platform: 'node',
@@ -263,7 +273,7 @@ const reportOptions = {
 /** @type {import('esbuild').BuildOptions} */
 const recorderOptions = {
   ...common,
-  plugins: [sharedUiText, sharedValidation],
+  plugins: [sharedUiText, sharedValidation, sharedWire],
   entryPoints: [RECORDER_ENTRY],
   outfile: RECORDER_OUTFILE,
   platform: 'node',
@@ -274,7 +284,7 @@ const recorderOptions = {
 /** @type {import('esbuild').BuildOptions} */
 const planMarkdownOptions = {
   ...common,
-  plugins: [sharedUiText, sharedValidation],
+  plugins: [sharedUiText, sharedValidation, sharedWire],
   entryPoints: [PLAN_MARKDOWN_ENTRY],
   outfile: PLAN_MARKDOWN_OUTFILE,
   platform: 'node',
@@ -317,7 +327,7 @@ const museCodeReviewerOptions = {
 /** @type {import('esbuild').BuildOptions} */
 const whatsNewOptions = {
   ...common,
-  plugins: [sharedUiText, sharedValidation],
+  plugins: [sharedUiText, sharedValidation, sharedWire],
   entryPoints: [WHATS_NEW_ENTRY],
   outfile: WHATS_NEW_OUTFILE,
   platform: 'node',
@@ -343,7 +353,7 @@ const judgeOptions = {
 /** @type {import('esbuild').BuildOptions} */
 const agentImportOptions = {
   ...common,
-  plugins: [sharedUiText, sharedValidation],
+  plugins: [sharedUiText, sharedValidation, sharedWire],
   entryPoints: [AGENT_IMPORT_ENTRY],
   outfile: AGENT_IMPORT_OUTFILE,
   platform: 'node',
@@ -362,7 +372,7 @@ const tabOptions = {
 /** @type {import('esbuild').BuildOptions} */
 const bundledSkillsOptions = {
   ...common,
-  plugins: [sharedUiText, sharedValidation],
+  plugins: [sharedUiText, sharedValidation, sharedWire],
   entryPoints: [BUNDLED_SKILLS_ENTRY],
   outfile: BUNDLED_SKILLS_OUTFILE,
   platform: 'node',
@@ -384,7 +394,7 @@ const searchWorkerOptions = {
 /** @type {import('esbuild').BuildOptions} */
 const conversationGitOptions = {
   ...common,
-  plugins: [sharedUiText, sharedValidation],
+  plugins: [sharedUiText, sharedValidation, sharedWire],
   entryPoints: [CONVERSATION_GIT_ENTRY],
   outfile: CONVERSATION_GIT_OUTFILE,
   platform: 'node',
@@ -396,7 +406,7 @@ const conversationGitOptions = {
 /** @type {import('esbuild').BuildOptions} */
 const checkpointStoreOptions = {
   ...common,
-  plugins: [sharedUiText, sharedValidation],
+  plugins: [sharedUiText, sharedValidation, sharedWire],
   entryPoints: [CHECKPOINT_STORE_ENTRY],
   outfile: CHECKPOINT_STORE_OUTFILE,
   platform: 'node',
@@ -407,7 +417,7 @@ const checkpointStoreOptions = {
 /** @type {import('esbuild').BuildOptions} */
 const browserCheckOptions = {
   ...common,
-  plugins: [sharedUiText, sharedValidation],
+  plugins: [sharedUiText, sharedValidation, sharedWire],
   entryPoints: [BROWSER_CHECK_ENTRY],
   outfile: BROWSER_CHECK_OUTFILE,
   platform: 'node',
@@ -418,7 +428,7 @@ const browserCheckOptions = {
 /** @type {import('esbuild').BuildOptions} */
 const browserRuntimeOptions = {
   ...common,
-  plugins: [sharedUiText, sharedValidation],
+  plugins: [sharedUiText, sharedValidation, sharedWire],
   entryPoints: [BROWSER_RUNTIME_ENTRY],
   outfile: BROWSER_RUNTIME_OUTFILE,
   platform: 'node',
@@ -429,7 +439,7 @@ const browserRuntimeOptions = {
 /** @type {import('esbuild').BuildOptions} */
 const acpOptions = {
   ...common,
-  plugins: [sharedUiText, sharedValidation, deferredCohort],
+  plugins: [sharedUiText, sharedValidation, deferredCohort, sharedWire],
   entryPoints: [ACP_ENTRY],
   outfile: ACP_OUTFILE,
   platform: 'node',
@@ -503,6 +513,13 @@ const validationOptions = {
   outfile: VALIDATION_OUTFILE,
 }
 
+const wireOptions = {
+  ...modelApiOptions,
+  plugins: [sharedUiText, sharedValidation],
+  entryPoints: ['src/shared/wireEntry.ts'],
+  outfile: 'dist/wire.js',
+}
+
 /** @type {import('esbuild').BuildOptions} */
 const pageWorkerOptions = {
   ...common,
@@ -517,6 +534,7 @@ const pageWorkerOptions = {
 /** @type {import('esbuild').BuildOptions} */
 const webviewOptions = {
   ...common,
+  plugins: isProduction ? [compactBrowserEnglish] : [],
   charset: 'utf8',
   entryPoints: [WEBVIEW_ENTRY],
   outdir: WEBVIEW_OUTDIR,
@@ -597,6 +615,7 @@ if (isWatch) {
     esbuild.context(uiTextOptions),
     ...uiTextRegionOptions.map((options) => esbuild.context(options)),
     esbuild.context(validationOptions),
+    esbuild.context(wireOptions),
     esbuild.context(browserCheckOptions),
     esbuild.context(browserRuntimeOptions),
     esbuild.context(searchWorkerOptions),
@@ -640,6 +659,7 @@ if (isWatch) {
       ]),
     ),
     validation: esbuild.build(validationOptions),
+    wire: esbuild.build(wireOptions),
     browserCheck: esbuild.build(browserCheckOptions),
     browserRuntime: esbuild.build(browserRuntimeOptions),
     searchWorker: esbuild.build(searchWorkerOptions),

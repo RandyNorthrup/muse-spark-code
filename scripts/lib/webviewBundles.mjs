@@ -22,7 +22,5 @@ export const DEFERRED_WEBVIEW_SURFACES = [
   'BestOfNDialog',
   'ReviewPane',
   'HistoryDialog',
-  'SessionBoardDialog',
   'ReportDialog',
-  'ShareView',
 ]

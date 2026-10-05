@@ -29,6 +29,7 @@
 !dist/uiTextHooks.js
 !dist/uiTextSurfaces.js
 !dist/validation.js
+!dist/wire.js
 !dist/searchWorker.js
 !dist/pageWorker.js
 !dist/report.js

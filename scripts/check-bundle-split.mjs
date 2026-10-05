@@ -744,7 +744,7 @@ const TEXT_BLOCKS = [
   {
     block: 'REVIEW_COMMENT_MODEL_TEXT',
     sentinels: ['reviewRemovedLine'],
-    readers: ['dist/webview/main.js'],
+    readers: webviewConstants.map(({ output }) => output),
   },
   // Web fetch's own words (M69): the window's fetch, the Model API
   // backend's URL checks and the ACP agent's fetch.

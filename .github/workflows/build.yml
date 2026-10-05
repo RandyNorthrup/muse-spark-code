@@ -340,7 +340,7 @@ jobs:
             extension/dist/pageWorker.js extension/dist/planMarkdown.js extension/dist/checkpointStore.js \
             extension/dist/review.js extension/dist/agentImport.js extension/dist/conversationGit.js extension/dist/bundledSkills.js \
             extension/dist/uiTextRuntime.js extension/dist/uiTextHooks.js extension/dist/uiTextSurfaces.js \
-            extension/dist/uiText.js extension/dist/validation.js extension/dist/browserCheck.js extension/dist/browserRuntime.js \
+            extension/dist/uiText.js extension/dist/validation.js extension/dist/wire.js extension/dist/browserCheck.js extension/dist/browserRuntime.js \
             extension/dist/sessionBoard.js extension/dist/reviewer.js \
             extension/dist/foreignHooks.js extension/dist/hookRuntime.js extension/dist/extensionHooks.js extension/dist/pluginHooks.js \
             extension/dist/codeIntel.js extension/dist/voice.js extension/dist/museCodeReviewer.js \
@@ -367,7 +367,7 @@ jobs:
         run: |
           listing="$(tar -tzf dist/muse-spark-code-acp-*.tgz)"
           for entry in package/package.json package/dist/uiTextRuntime.js package/dist/uiTextHooks.js package/dist/uiTextSurfaces.js \
-            package/dist/acp.js package/dist/modelApi.js package/dist/uiText.js package/dist/validation.js package/dist/reviewer.js \
+            package/dist/acp.js package/dist/modelApi.js package/dist/uiText.js package/dist/validation.js package/dist/wire.js package/dist/reviewer.js \
             package/dist/foreignHooks.js package/dist/hookRuntime.js package/dist/extensionHooks.js \
             package/dist/recorder.js \
             package/dist/searchWorker.js package/dist/pageWorker.js \

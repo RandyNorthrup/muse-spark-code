@@ -41,6 +41,7 @@ const BUNDLES = [
   'uiTextSurfaces.js',
   'extensionHooks.js',
   'validation.js',
+  'wire.js',
   'searchWorker.js',
   'pageWorker.js',
 ]

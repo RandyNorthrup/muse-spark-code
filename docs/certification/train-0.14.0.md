@@ -295,3 +295,64 @@ bound makes each owning suite exit 1, followed by exact restoration:
 The ACTDIET handoff file is checked from 18:15 through 18:45 UTC and remains
 absent. Continue from preview/actdiet’s four commits and its committed
 certification, preserving this tree’s M71/M98 behavior and DEFLAKE4 fixtures.
+
+### Adapted ACTDIET prototypes and final split repair
+
+The absent handoff report was checked every few minutes for 30 minutes. The
+committed prototype record supplied the fallback, after every ordered merge.
+
+| Prototype | Adapted commit | Conflict files and retained behavior                                                                                                                                                  |
+| --------- | -------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| dc3e3690  | 7a06a5b3       | 9: first-surface conversation factory, eager restart helper, caller language, M71 trust and Judge dependencies; structural MSP failure checks across bundles; pure DEFLAKE4 fixtures. |
+| 8079c5df  | 0baa10d9       | 7: descriptor-preserving regional English, Windows paths, per-region/core Brotli adapted to this train’s packed fallback; original 125-KiB cap.                                       |
+| b4b1c1ca  | fdbf0f23       | 5: shared recorder before ACP reports/startup, factory before Tasks allocation, preserved current shared guards and in-memory drills.                                                 |
+| 6e711d04  | fed44e0c       | 3: browser-only review-comment block, UTF-8 output, lazy Report focus snapshot, existing Git/Judge behavior and pure deferred fixtures.                                               |
+
+Two measured adaptations finish the prototype on the complete tree: the
+review-comment reader is the actual shared ESM constants chunk, and Share
+and Session Board remain eager to fit the unchanged deferred cap. The
+browser’s entire English fallback stays synchronous and inline, encoded
+losslessly with a build-only fragment dictionary over values and label keys.
+A real generated bundle round-trips every canonical key, value, nested label
+and plural form. Reserved-token collisions refuse at build time.
+
+Existing Node protocol/agent-event schemas move once to `dist/wire.js`
+(41,370 bytes, new 50-KiB cap from D6’s measured sizing rule); all consumers
+share their existing zod parsers, while browser/integration retain theirs.
+Packaging, licenses, cycles, globals and split guards cover this new artifact.
+No existing cap, timeout, retry, ignore, user copy or dependency changes.
+
+| Production bytes                  | After ordered merges/D78 | After adapted startup/package repair |
+| --------------------------------- | -----------------------: | -----------------------------------: |
+| Activation                        |                  644,937 |                              447,165 |
+| Model API                         |                  487,729 |                              457,238 |
+| Shared core English               |                   50,593 |                               49,133 |
+| ACP                               |                  884,025 |                              836,141 |
+| Browser startup, all eager chunks |                  953,851 |                              914,566 |
+| Browser deferred JS               |                   50,263 |                               50,846 |
+
+Conversation is 197,720 bytes under its new 250-KiB prototype cap. Every
+production size and split check passes. App/English/deferred: 183 tests pass;
+then restored English/deferred/conversation: 37 pass. Host TypeScript and
+changed-source lint pass after fixing typed RegExp iteration.
+
+Local new-guard drills (each exits 1, followed by SHA-identical restoration):
+
+| Drill                  | File                                        | Restored SHA-256                                                 |
+| ---------------------- | ------------------------------------------- | ---------------------------------------------------------------- |
+| wire-guard             | scripts/lib/deferredBundles.mjs             | 8a442a5a0f7355928a511cfd485d0591bbb5732a582e5635c30e73bbb0b5f29c |
+| browser-decode         | src/shared/l10n/compactEnglish.ts           | 7ae67aebfae122d0ea239764502fc8fe1b927c8c570df271606137414606a781 |
+| browser-collision      | src/shared/l10n/compactEnglish.ts           | 7ae67aebfae122d0ea239764502fc8fe1b927c8c570df271606137414606a781 |
+| english-direct-import  | dist/meta/extension.json                    | 69e3a8ac5a56fa07e03e418a4d2a2937669ec1f50e8d9616a9c79530d519c019 |
+| english-missing-region | dist/meta/uiTextRuntime.json                | 64d65fe148dff508a4e2e8c4b0848eb113d7eba9fa401e8b3c3483a111959616 |
+| english-missing-link   | dist/meta/uiText.json                       | 47104106ce6d6e98bf562ee561544fa2e5be947c3f78e0a81384db2e269a2691 |
+| acp-recorder-link      | dist/meta-acp/acp.json                      | 903a2831305578ed582aced54fd79f389c96f2c068e48d0eac1aeceef526db68 |
+| conversation-eager     | dist/meta/extension.json                    | 69e3a8ac5a56fa07e03e418a4d2a2937669ec1f50e8d9616a9c79530d519c019 |
+| review-comment-node    | dist/modelApi.js                            | 87c4f4df182faa8c637531b055b5fd9a3d1df9e6c0a292fa334ad56685d6cf20 |
+| conversation-factory   | src/host/conversation/conversationBundle.ts | acbd77bd6b023c9fa1a0013b77351c193578dbf66cc35591dd08f31247c7c850 |
+
+Metafile drills mutate emitted `outputs[*].inputs`, the production guard’s
+actual byte map. An initial scratch attempt removed only a source inventory
+row, which leaves emitted code intact; another named a nonexistent source.
+Those attempts are not counted as gate-fire receipts. All originals were
+restored; the corrected emitted-code mutations give the recorded refusals.

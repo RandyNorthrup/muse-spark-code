@@ -125,6 +125,8 @@ const BUDGETS = [
   { path: 'dist/uiTextSurfaces.js', budgetKiB: 25 },
   // TRAIN13B: used Node mini-parser API, 39.5 KiB + 15%, rounded to 25 KiB.
   { path: 'dist/validation.js', budgetKiB: 50 },
+  // Shared existing Node boundary schemas: 41.3 KB plus 15%, rounded to 25 KiB.
+  { path: 'dist/wire.js', budgetKiB: 50 },
   { path: 'dist/searchWorker.js', budgetKiB: 50 },
   // Web fetch's page converter (M69), on a worker started for each page:
   // 201.2 KiB when split out (parse5 122.7 of it), plus room.
