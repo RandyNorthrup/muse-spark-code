@@ -1971,5 +1971,11 @@
   "agentImportIgnoredToTracked": "spowodowałoby to skopiowanie pliku ignorowanego przez Git do pliku śledzonego",
   "agentImportEditPrompt": "Otworzyć przekonwertowane wpisy w {path} jako niezapisaną zmianę do przejrzenia i zapisania? Zapisz ją tylko pod tą ścieżką, nigdy w innym pliku.",
   "agentImportEditAction": "Edytuj i otwórz plik",
-  "agentImportPreviewLegacyKey": "Plik używa starego klucza `mcp_servers`. Zmień jego nazwę na `mcpServers`, dodając te wpisy: Muse Code nie wczytuje żadnego, gdy oba są obecne."
+  "agentImportPreviewLegacyKey": "Plik używa starego klucza `mcp_servers`. Zmień jego nazwę na `mcpServers`, dodając te wpisy: Muse Code nie wczytuje żadnego, gdy oba są obecne.",
+  "judgeSourceSame": "Własny model czatu",
+  "judgeSourceSeparate": "Osobny oceniający",
+  "judgeSourceBoth": "Własny model i osobny oceniający",
+  "judgeLocalUnverified": "Niezweryfikowany lokalny punkt końcowy",
+  "judgeSourceUntested": "Eksperymentalne, nieprzetestowane; wymagana wyraźna zgoda",
+  "judgeNoAnswer": "Brak odpowiedzi oceniającego ({reason}). Dotychczasowe kontrole i zatwierdzenia nadal obowiązują."
 }
