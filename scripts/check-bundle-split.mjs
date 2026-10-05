@@ -73,88 +73,39 @@ import { existsSync, readdirSync, readFileSync } from 'node:fs'
 import path from 'node:path'
 import ts from 'typescript'
 import { createRequire } from 'node:module'
+import {
+  BUNDLES,
+  DEFERRED,
+  ON_FIRST_USE,
+  DEFERRED_ONLY,
+  FOREIGN_HOOKS_ONLY,
+  HOOK_RUNTIME_ONLY,
+  PLUGIN_HOOKS_ONLY,
+  checkDeferredBundles,
+} from './lib/deferredBundles.mjs'
 import { DEFERRED_WEBVIEW_SURFACES, webviewStartupOutputs } from './lib/webviewBundles.mjs'
 
 const MODEL_API_DIR = 'src/core/backends/modelapi'
 const ENTRY = 'src/host/backend/modelApiEntry.ts'
-const BUNDLES = {
-  activation: { output: 'dist/extension.js', metafile: 'dist/meta/extension.json' },
-  modelApi: { output: 'dist/modelApi.js', metafile: 'dist/meta/modelApi.json' },
-  acp: { output: 'dist/acp.js', metafile: 'dist/meta-acp/acp.json' },
-}
-const DEFERRED_ONLY = ['reviewerEntry.ts', 'hookModelEntry.ts']
 // M91 lane W: the adapters for hooks imported in another agent's format (lane
 // P's contracts and engine), dist/foreignHooks.js, loaded the first time a
 // session holding one runs a hook.
-const FOREIGN_HOOKS_ONLY = [
-  'foreignHooksEntry.ts',
-  'hookFormats.ts',
-  'hookFormats/core.ts',
-  'hookFormats/engine.ts',
-  'hookFormats/transforms.ts',
-  'hookFormats/contracts/cline.ts',
-  'hookFormats/contracts/copilot.ts',
-  'hookFormats/contracts/cursor.ts',
-  'hookFormats/contracts/gemini.ts',
-  'hookFormats/contracts/kiro.ts',
-  'hookFormats/contracts/vscode.ts',
-  'hookFormats/contracts/windsurf.ts',
-]
+
 // M91: the hook and MCP-form runtime, dist/hookRuntime.js (lane E's
 // spark-hooks.json reader and dispatcher, lane H's typed handlers, lane M's
 // form checks), loaded the first time a session needs one of them. The
 // modules it re-exports stay LAZY_ONLY: dist/modelApi.js keeps their types,
 // field builders and constants, and esbuild leaves the runners out of it.
-const HOOK_RUNTIME_ONLY = ['hookRuntimeEntry.ts']
 // M91b: the Amp and OpenCode plugin host, its child's source and its event
 // mapping, dist/pluginHooks.js, which the adapters require on the first
 // plugin hook (the import bundle reads the mapping too).
-const PLUGIN_HOOKS_ONLY = [
-  'pluginHooksEntry.ts',
-  'pluginHost.ts',
-  'pluginChild.ts',
-  'pluginFormats.ts',
-]
+
 // Files of type declarations only, which no bundle carries: lane P's contract
 // shapes, read by the adapters' compiler and never at run time.
 const TYPES_ONLY = new Set(['hookFormats/contract.ts'])
 // M91 lane X's Cline discovery, which no bundle carries until its dispatcher
 // wiring lands (PLAN.md M91, lane X; the lead's call).
 const UNBUNDLED = new Set(['hookFormats/clineDiscover.ts'])
-const DEFERRED = [
-  {
-    output: 'dist/sessionBoard.js',
-    metafile: 'dist/meta/sessionBoard.json',
-    files: [
-      'src/host/sessionBoardEntry.ts',
-      'src/host/sessionBoard.ts',
-      'src/host/bestOfN/bestOfNManager.ts',
-      'src/core/bestOfN/bestOfNRunner.ts',
-      'src/core/bestOfN/worktreeConversationHost.ts',
-      'src/core/bestOfN/bestOfN.ts',
-    ],
-  },
-  {
-    output: 'dist/reviewer.js',
-    metafile: 'dist/meta/reviewer.json',
-    files: DEFERRED_ONLY.map((name) => `${MODEL_API_DIR}/${name}`),
-  },
-  {
-    output: 'dist/foreignHooks.js',
-    metafile: 'dist/meta/foreignHooks.json',
-    files: FOREIGN_HOOKS_ONLY.map((name) => `${MODEL_API_DIR}/${name}`),
-  },
-  {
-    output: 'dist/hookRuntime.js',
-    metafile: 'dist/meta/hookRuntime.json',
-    files: HOOK_RUNTIME_ONLY.map((name) => `${MODEL_API_DIR}/${name}`),
-  },
-  {
-    output: 'dist/pluginHooks.js',
-    metafile: 'dist/meta/pluginHooks.json',
-    files: PLUGIN_HOOKS_ONLY.map((name) => `${MODEL_API_DIR}/${name}`),
-  },
-]
 
 // The backend's files the activation bundle may carry, each with its reason.
 const ACTIVATION_ALLOWED = new Map([
@@ -291,30 +242,6 @@ for (const file of ['src/host/extensionHooksEntry.ts', 'src/host/extensionHooksR
   }
   if (!extensionHooks.has(file)) problems.push(`dist/extensionHooks.js no longer carries ${file}`)
 }
-for (const bundle of DEFERRED) {
-  const inputs = inputsOf(bundle)
-  for (const file of bundle.files) {
-    for (const parent of [BUNDLES.activation, BUNDLES.modelApi, BUNDLES.acp]) {
-      if (inputsOf(parent).has(file)) {
-        problems.push(`${parent.output} carries ${file}, which loads only on its first action`)
-      }
-    }
-    if (!inputs.has(file)) problems.push(`${bundle.output} no longer carries ${file}`)
-  }
-}
-// The plugin host loads only on the first plugin hook: the adapters' bundle
-// requires it rather than carry it (M91b).
-{
-  const adapters = inputsOf(DEFERRED.find((bundle) => bundle.output === 'dist/foreignHooks.js'))
-  for (const name of PLUGIN_HOOKS_ONLY) {
-    const file = `${MODEL_API_DIR}/${name}`
-    if (adapters.has(file)) {
-      problems.push(
-        `dist/foreignHooks.js carries ${file}, which loads only on the first plugin hook`,
-      )
-    }
-  }
-}
 // The bundles that load the backend from dist/modelApi.js rather than carry it.
 const loaders = [
   [BUNDLES.activation.output, activation],
@@ -426,117 +353,7 @@ const BUNDLED_SKILLS = {
 }
 // Split out of activation on 2026-10-03 (D6): each loads on its first use.
 // The Model API backend keeps its own copy of code intelligence.
-const ON_FIRST_USE = [
-  {
-    output: 'dist/tab.js',
-    metafile: 'dist/meta/tab.json',
-    use: 'the first Tab request or menu',
-    files: [
-      'src/host/tab/tabEntry.ts',
-      'src/host/tab/tabProvider.ts',
-      'src/host/tab/tabStatus.ts',
-      'src/host/tab/tabLedger.ts',
-      'src/host/tab/tabSpendGate.ts',
-      ...readdirSync('src/core/tab')
-        .filter((file) => file.endsWith('.ts'))
-        .map((file) => `src/core/tab/${file}`),
-    ],
-  },
-  {
-    output: 'dist/codeIntel.js',
-    metafile: 'dist/meta/codeIntel.json',
-    use: 'the first code intelligence call',
-    files: [
-      'src/host/ide/codeIntelEntry.ts',
-      'src/core/codeIntel/codeIntelQuery.ts',
-      'src/core/codeIntel/codeIntelTools.ts',
-      'src/core/codeIntel/codeText.ts',
-      'src/core/codeIntel/rename.ts',
-      'src/core/codeIntel/repoMap.ts',
-    ],
-  },
-  {
-    output: 'dist/voice.js',
-    metafile: 'dist/meta/voice.json',
-    use: 'the first recording',
-    files: [
-      'src/host/voice/voiceEntry.ts',
-      'src/host/voice/voiceProcesses.ts',
-      'src/core/voice/dictation.ts',
-      'src/core/voice/museVoice.ts',
-      'src/core/voice/recorderHelper.ts',
-    ],
-  },
-  // The window's web fetch (M69), split out on 2026-10-04: the Model API
-  // backend keeps its own URL checks, the ACP agent its own fetch.
-  {
-    output: 'dist/webFetch.js',
-    metafile: 'dist/meta/webFetch.json',
-    use: 'the first web fetch',
-    files: [
-      'src/host/web/webFetchEntry.ts',
-      'src/host/web/webFetcher.ts',
-      'src/host/web/pinnedRequest.ts',
-      'src/core/web/webFetch.ts',
-      'src/core/web/fetchFailure.ts',
-      'src/core/web/pageUrl.ts',
-      'src/core/web/publicAddress.ts',
-      'src/core/web/mimeType.ts',
-      'src/core/web/textDecoding.ts',
-    ],
-  },
-  {
-    output: 'dist/museCodeReviewer.js',
-    metafile: 'dist/meta/museCodeReviewer.json',
-    use: 'the first review',
-    files: [
-      'src/host/review/museCodeReviewerEntry.ts',
-      'src/host/review/museCodeReviewer.ts',
-      'src/core/backends/modelapi/autoReviewer.ts',
-    ],
-  },
-  // The report dialog (M93, PLAN.md D72), split out from the start.
-  {
-    output: 'dist/report.js',
-    metafile: 'dist/meta/report.json',
-    use: 'the first report dialog',
-    files: [
-      'src/host/support/reportEntry.ts',
-      'src/host/conversation/reportProblemHandler.ts',
-      'src/host/support/reportProblem.ts',
-      'src/core/support/problemReport.ts',
-    ],
-  },
-  // The flight recorder's journal (M93, PLAN.md D6, D72): activation keeps
-  // only the front that answers and queues; the journal, its policy and the
-  // frame mapping load just after activation or at the first failure.
-  {
-    output: 'dist/recorder.js',
-    metafile: 'dist/meta/recorder.json',
-    use: 'the journal, just after activation',
-    files: [
-      'src/host/support/recorderEntry.ts',
-      'src/host/support/reportJournal.ts',
-      'src/host/support/hostFrames.ts',
-      'src/core/support/flightRecorder.ts',
-      'src/core/support/journalEvents.ts',
-    ],
-  },
-  // What's New (M99, D79): activation keeps the update check, the claim and
-  // the loader; the page is required on the first page or notice.
-  {
-    output: 'dist/whatsNew.js',
-    metafile: 'dist/meta/whatsNew.json',
-    use: 'the first What’s New page or notice',
-    files: [
-      'src/host/whatsNew/whatsNewEntry.ts',
-      'src/host/whatsNew/whatsNewPanel.ts',
-      'src/host/whatsNew/whatsNewHtml.ts',
-      'src/core/whatsNew/whatsNewContent.ts',
-      'src/shared/whatsNewMessages.ts',
-    ],
-  },
-]
+
 const uiText = inputsOf(UI_TEXT)
 if (!uiText.has(ENGLISH_TABLE)) {
   problems.push(`${UI_TEXT.output} no longer carries ${ENGLISH_TABLE}`)
@@ -763,19 +580,13 @@ for (const file of BUNDLED_SKILLS_ONLY) {
   }
 }
 
-for (const bundle of ON_FIRST_USE) {
-  const inputs = inputsOf(bundle)
-  for (const file of bundle.files) {
-    if (activation.has(file)) {
-      problems.push(
-        `${BUNDLES.activation.output} carries ${file}, which loads only on ${bundle.use}`,
-      )
-    }
-    if (!inputs.has(file)) {
-      problems.push(`${bundle.output} no longer carries ${file}`)
-    }
-  }
+// Keep Tab's full source inventory guarded when adding an engine module.
+const tabFiles = ON_FIRST_USE.find((bundle) => bundle.output === 'dist/tab.js').files
+for (const file of readdirSync('src/core/tab')) {
+  if (file.endsWith('.ts') && !tabFiles.includes(`src/core/tab/${file}`))
+    problems.push(`src/core/tab/${file} is absent from the deferred Tab inventory`)
 }
+problems.push(...checkDeferredBundles(inputsOf))
 
 // What's New's page script (M99) is a few lines that pass clicks back: it
 // carries no package, not the display table and not constants.ts (which

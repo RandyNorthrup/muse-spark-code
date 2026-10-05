@@ -57,6 +57,7 @@ import { runInNewContext } from 'node:vm'
 import { brotliCompressSync, constants as zlibConstants } from 'node:zlib'
 import { loadL10n } from './lib/l10nSource.mjs'
 import * as esbuild from 'esbuild'
+import { sharedUiText, sharedValidation, deferredCohort } from './lib/deferredBundles.mjs'
 import {
   CONTENT_FILE as WHATS_NEW_CONTENT_OUTFILE,
   writeWhatsNewContent,
@@ -151,68 +152,6 @@ const BYTES_PER_KIB = 1024
 const METAFILE_DIR = 'dist/meta'
 // Hashed browser chunks from an earlier build must not enter the package.
 rmSync(path.join(WEBVIEW_OUTDIR, 'chunks'), { recursive: true, force: true })
-
-/** @type {import('esbuild').Plugin} */
-const sharedUiText = {
-  name: 'shared-ui-text',
-  setup(build) {
-    // esbuild sends this filter to Go RE2, which rejects JavaScript's u flag.
-    // `en`, `en.js` and `en.ts` all name the table's TypeScript source.
-    build.onResolve({ filter: /\/en(?:\.[jt]s)?$/ }, (args) =>
-      path.resolve(args.resolveDir, args.path.replace(/(?:\.[jt]s)?$/, '.ts')) ===
-      path.resolve(UI_TEXT_ENTRY)
-        ? { path: './uiText.js', external: true }
-        : undefined,
-    )
-  },
-}
-
-// Each deferred entry's bundle: the board and best-of-N (M77), the paid Auto
-// reviewer (M78), the report dialog and the flight recorder (M93).
-// Share the used mini-parser API across Node bundles; browsers and integration
-// test bundles still inline it. The split gate checks every runtime member.
-/** @type {import('esbuild').Plugin} */
-const sharedValidation = {
-  name: 'shared-validation',
-  setup(build) {
-    build.onResolve({ filter: /^zod\/mini$/ }, () => ({
-      path: './validation.js',
-      external: true,
-    }))
-  },
-}
-
-// Keep dynamic imports dynamic: these entries run only on their first action.
-const DEFERRED_OUTFILES = new Map([
-  [path.resolve(REPORT_ENTRY), REPORT_OUTFILE],
-  [path.resolve(RECORDER_ENTRY), RECORDER_OUTFILE],
-  [path.resolve(SESSION_BOARD_ENTRY), SESSION_BOARD_OUTFILE],
-  [path.resolve(REVIEWER_ENTRY), REVIEWER_OUTFILE],
-  [path.resolve(FOREIGN_HOOKS_ENTRY), FOREIGN_HOOKS_OUTFILE],
-  [path.resolve(HOOK_RUNTIME_ENTRY), HOOK_RUNTIME_OUTFILE],
-  [path.resolve(WEB_FETCH_ENTRY), WEB_FETCH_OUTFILE],
-  [path.resolve(PLUGIN_HOOKS_ENTRY), PLUGIN_HOOKS_OUTFILE],
-])
-/** @type {import('esbuild').Plugin} */
-const deferredCohort = {
-  name: 'deferred-cohort',
-  setup(build) {
-    build.onResolve(
-      {
-        filter:
-          /\/(?:sessionBoardEntry|reviewerEntry|foreignHooksEntry|hookRuntimeEntry|pluginHooksEntry|webFetchEntry|reportEntry|recorderEntry)(?:\.[jt]s)?$/,
-      },
-      (args) => {
-        if (args.kind !== 'dynamic-import') return
-        const source = path.resolve(args.resolveDir, `${args.path.replace(/\.[jt]s$/, '')}.ts`)
-        const output = DEFERRED_OUTFILES.get(source)
-        return output === undefined
-          ? undefined
-          : { path: `./${path.basename(output)}`, external: true }
-      },
-    )
-  },
-}
 
 /** @type {import('esbuild').BuildOptions} */
 const common = {

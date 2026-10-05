@@ -1,17 +1,23 @@
-// Build the real shipped entries: separation is a property of their output,
-// rather than a source-import mock. The production build is serial here.
-import { execFileSync, spawnSync } from 'node:child_process'
+// Build the real shipped Node entries once with the production plugins.
+// Each drill changes its own metafile copy, never shared dist/ files.
 import { createHash } from 'node:crypto'
-import { readFileSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import { createRequire } from 'node:module'
 import vm from 'node:vm'
-import { beforeAll, describe, expect, it } from 'vitest'
+import { build } from 'esbuild'
+import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import * as z from 'zod/mini'
 import { EN } from '../../src/shared/l10n/en'
+import {
+  checkDeferredBundles,
+  deferredCohort,
+  sharedUiText,
+  sharedValidation,
+} from '../../scripts/lib/deferredBundles.mjs'
 import type * as validation from '../../src/shared/validationEntry'
 
 const metafileSchema = z.looseObject({
+  inputs: z.record(z.string(), z.unknown()),
   outputs: z.record(
     z.string(),
     z.looseObject({
@@ -20,22 +26,159 @@ const metafileSchema = z.looseObject({
   ),
 })
 
-beforeAll(() => {
-  execFileSync(process.execPath, ['scripts/build.mjs', '--production'], { stdio: 'pipe' })
+const fixtures = new Map<string, { bytes: Buffer; meta: z.infer<typeof metafileSchema> }>()
+const bundleTexts = new Map<string, string>()
+const inputMaps = new Map<string, ReadonlyMap<string, number>>()
+const supportModules = new Map<string, unknown>()
+const parserSchema = z.object({
+  object: z.custom<typeof validation.object>((value) => typeof value === 'function'),
+  string: z.custom<typeof validation.string>((value) => typeof value === 'function'),
+})
+const parsers: z.infer<typeof parserSchema>[] = []
+
+beforeAll(async () => {
+  const common = {
+    outdir: 'dist',
+    write: false,
+    bundle: true,
+    minify: true,
+    metafile: true,
+    platform: 'node',
+    format: 'cjs',
+    target: 'node20.18',
+    logLevel: 'silent',
+    define: { 'process.env.NODE_ENV': '"production"' },
+  } as const
+  const builds = await Promise.all([
+    build({
+      ...common,
+      entryPoints: {
+        extension: 'src/extension.ts',
+        modelApi: 'src/host/backend/modelApiEntry.ts',
+        sessionBoard: 'src/host/sessionBoardEntry.ts',
+        reviewer: 'src/core/backends/modelapi/reviewerEntry.ts',
+        foreignHooks: 'src/core/backends/modelapi/foreignHooksEntry.ts',
+        hookRuntime: 'src/core/backends/modelapi/hookRuntimeEntry.ts',
+        pluginHooks: 'src/core/backends/modelapi/pluginHooksEntry.ts',
+        tab: 'src/host/tab/tabEntry.ts',
+        report: 'src/host/support/reportEntry.ts',
+        recorder: 'src/host/support/recorderEntry.ts',
+        codeIntel: 'src/host/ide/codeIntelEntry.ts',
+        voice: 'src/host/voice/voiceEntry.ts',
+        webFetch: 'src/host/web/webFetchEntry.ts',
+        museCodeReviewer: 'src/host/review/museCodeReviewerEntry.ts',
+        whatsNew: 'src/host/whatsNew/whatsNewEntry.ts',
+        browserCheck: 'src/host/browser/browserCheckEntry.ts',
+        browserRuntime: 'src/host/browser/browserRuntimeEntry.ts',
+        checkpointStore: 'src/host/checkpoints/checkpointStoreEntry.ts',
+        pageWorker: 'src/host/web/pageWorker.ts',
+        searchWorker: 'src/host/backend/searchWorker.ts',
+      },
+      plugins: [sharedUiText, sharedValidation, deferredCohort],
+      external: ['vscode', '@napi-rs/keyring'],
+    }),
+    build({
+      ...common,
+      target: 'node22',
+      entryPoints: { acp: 'src/runtime/main.ts' },
+      plugins: [sharedUiText, sharedValidation, deferredCohort],
+      external: ['@napi-rs/keyring'],
+    }),
+    build({
+      ...common,
+      entryPoints: {
+        uiText: 'src/shared/l10n/en.ts',
+        validation: 'src/shared/validationEntry.ts',
+      },
+    }),
+  ])
+  for (const { metafile, outputFiles } of builds) {
+    for (const output of outputFiles)
+      bundleTexts.set(path.basename(output.path, '.js'), output.text)
+    for (const [output, details] of Object.entries(metafile.outputs)) {
+      const name = path.basename(output, '.js')
+      const meta = metafileSchema.parse({
+        inputs: Object.fromEntries(
+          Object.keys(details.inputs).map((file) => [file, metafile.inputs[file]]),
+        ),
+        outputs: { [`dist/${name}.js`]: details },
+      })
+      fixtures.set(`dist/${name === 'acp' ? 'meta-acp' : 'meta'}/${name}.json`, {
+        bytes: Buffer.from(JSON.stringify(meta)),
+        meta,
+      })
+    }
+  }
+  parsers.push(parserSchema.parse(loadSupportBundle('validation')))
+  expect(checkDeferredBundles(bundleInputs)).toEqual([])
 })
 
-function inputs(name: string): string[] {
-  const raw: unknown = JSON.parse(readFileSync(`dist/meta/${name}.json`, 'utf8'))
-  if (typeof raw !== 'object' || raw === null || !('inputs' in raw)) {
-    throw new Error('Invalid build metafile')
+afterAll(() => {
+  for (const { bytes, meta } of fixtures.values()) {
+    expect(createHash('sha256').update(JSON.stringify(meta)).digest('hex')).toBe(
+      createHash('sha256').update(bytes).digest('hex'),
+    )
   }
-  if (typeof raw.inputs !== 'object' || raw.inputs === null) {
-    throw new Error('Missing build inputs')
-  }
-  return Object.keys(raw.inputs).map((file) => file.split(path.sep).join('/'))
+})
+
+function bundleFile(name: string) {
+  return path.resolve('dist', `${name}.js`)
 }
 
-const SPLIT_GUARD_TIMEOUT_MS = 120_000
+function loadSupportBundle(name: string): unknown {
+  if (supportModules.has(name)) return supportModules.get(name)
+  const module: { exports: unknown } = { exports: {} }
+  const entry = bundleFile(name)
+  const run = vm.compileFunction(
+    bundleText(name),
+    ['require', 'module', 'exports', '__dirname', '__filename'],
+    { filename: entry },
+  )
+  Reflect.apply(run, undefined, [
+    createRequire(entry),
+    module,
+    module.exports,
+    path.dirname(entry),
+    entry,
+  ])
+  supportModules.set(name, module.exports)
+  return module.exports
+}
+
+function bundleText(name: string) {
+  const text = bundleTexts.get(name)
+  if (text === undefined) throw new Error(`Missing built bundle: ${name}`)
+  return text
+}
+
+function fixture(file: string) {
+  const built = fixtures.get(file)
+  if (built === undefined) throw new Error(`Missing build metafile: ${file}`)
+  return built
+}
+
+function bundleInputs({ output, metafile }: { output: string; metafile: string }) {
+  let inputs = inputMaps.get(output)
+  if (inputs === undefined) {
+    inputs = outputInputs(fixture(metafile).meta, output)
+    inputMaps.set(output, inputs)
+  }
+  return inputs
+}
+
+function outputInputs(meta: z.infer<typeof metafileSchema>, output: string) {
+  const built = meta.outputs[output]
+  if (built === undefined) throw new Error(`Missing bundle output: ${output}`)
+  return new Map(
+    Object.entries(built.inputs).map(([file, { bytesInOutput }]) => [file, bytesInOutput]),
+  )
+}
+
+function inputs(name: string): string[] {
+  return Object.keys(fixture(`dist/meta/${name}.json`).meta.inputs).map((file) =>
+    file.split(path.sep).join('/'),
+  )
+}
 
 describe('deferred cohort bundles', () => {
   it('decodes the complete production English fallback without changing any value', () => {
@@ -45,8 +188,8 @@ describe('deferred cohort bundles', () => {
   })
 
   it('uses the real shared parser for boundary checks without inlining it in Node bundles', () => {
-    const require = createRequire(path.resolve('dist/validation.js'))
-    const parser: typeof validation = require(path.resolve('dist/validation.js'))
+    const parser = parsers[0]
+    if (parser === undefined) throw new Error('Missing built parser')
     expect(parser.object({ value: parser.string() }).safeParse({ value: 1 }).success).toBe(false)
     expect(parser.object({ value: parser.string() }).safeParse({ value: 'captured' }).success).toBe(
       true,
@@ -64,26 +207,29 @@ describe('deferred cohort bundles', () => {
       expect(inputs(name).filter((file) => file.startsWith('node_modules/zod/v4/mini/'))).toEqual(
         [],
       )
-      expect(readFileSync(`dist/${name}.js`, 'utf8')).toContain('./validation.js')
+      expect(bundleText(name)).toContain('./validation.js')
     }
   })
 
   it('loads the activation entry without requiring either action bundle', () => {
-    const entry = path.resolve('dist/extension.js')
-    expect(readFileSync(entry, 'utf8')).toContain('./sessionBoard.js')
-    expect(readFileSync('dist/modelApi.js', 'utf8')).toContain('./reviewer.js')
+    const entry = bundleFile('extension')
+    expect(bundleText('extension')).toContain('./sessionBoard.js')
+    expect(bundleText('modelApi')).toContain('./reviewer.js')
     const nativeRequire = createRequire(entry)
     const loaded: string[] = []
     const module: { exports: unknown } = { exports: {} }
     const run = vm.compileFunction(
-      readFileSync(entry, 'utf8'),
+      bundleText('extension'),
       ['require', 'module', 'exports', '__dirname', '__filename'],
       { filename: entry },
     )
     Reflect.apply(run, undefined, [
       (file: string): unknown => {
         loaded.push(file)
-        return file === 'vscode' ? {} : nativeRequire(file)
+        if (file === 'vscode') return {}
+        return file === './validation.js' || file === './uiText.js'
+          ? loadSupportBundle(path.basename(file, '.js'))
+          : nativeRequire(file)
       },
       module,
       module.exports,
@@ -134,7 +280,7 @@ describe('deferred cohort bundles', () => {
   })
 
   it('keeps the imported hooks’ adapters out of the session bundle (M91 lane W)', () => {
-    expect(readFileSync('dist/modelApi.js', 'utf8')).toContain('./foreignHooks.js')
+    expect(bundleText('modelApi')).toContain('./foreignHooks.js')
     for (const file of [
       'src/core/backends/modelapi/foreignHooksEntry.ts',
       'src/core/backends/modelapi/hookFormats/engine.ts',
@@ -146,7 +292,7 @@ describe('deferred cohort bundles', () => {
   })
 
   it('keeps the hook and MCP-form runtime out of the session bundle (M91)', () => {
-    const session = readFileSync('dist/modelApi.js', 'utf8')
+    const session = bundleText('modelApi')
     expect(session).toContain('./hookRuntime.js')
     expect(inputs('modelApi')).not.toContain('src/core/backends/modelapi/hookRuntimeEntry.ts')
     for (const file of [
@@ -158,7 +304,7 @@ describe('deferred cohort bundles', () => {
       expect(inputs('hookRuntime')).toContain(file)
     }
     // The runners themselves: their fixed diagnostics live only in the runtime.
-    const runtime = readFileSync('dist/hookRuntime.js', 'utf8')
+    const runtime = bundleText('hookRuntime')
     for (const text of [
       'spark-hooks.json exceeds the session handler limit',
       'http hook runner is unavailable',
@@ -169,7 +315,7 @@ describe('deferred cohort bundles', () => {
   })
 
   it('keeps the plugin host out of the adapters’ bundle until a plugin hook runs (M91b)', () => {
-    expect(readFileSync('dist/foreignHooks.js', 'utf8')).toContain('./pluginHooks.js')
+    expect(bundleText('foreignHooks')).toContain('./pluginHooks.js')
     for (const file of [
       'src/core/backends/modelapi/pluginHooksEntry.ts',
       'src/core/backends/modelapi/pluginHost.ts',
@@ -181,6 +327,34 @@ describe('deferred cohort bundles', () => {
       }
       expect(inputs('pluginHooks')).toContain(file)
     }
+  })
+
+  it('rejects a missing deferred input and restores its metafile byte-exact', () => {
+    const file = 'dist/meta/reviewer.json'
+    const meta = structuredClone(fixture(file).meta)
+    const original = JSON.stringify(meta)
+    const hash = createHash('sha256').update(original).digest('hex')
+    const output = meta.outputs['dist/reviewer.js']
+    if (output === undefined) throw new Error('Missing reviewer output')
+    const source = 'src/core/backends/modelapi/reviewerEntry.ts'
+    const input = output.inputs[source]
+    if (input === undefined) throw new Error('Missing reviewer input')
+    const originalInputs = structuredClone(output.inputs)
+    const check = () => {
+      const changed = outputInputs(meta, 'dist/reviewer.js')
+      return checkDeferredBundles((bundle) =>
+        bundle.metafile === file ? changed : bundleInputs(bundle),
+      )
+    }
+    expect(check()).toEqual([])
+    try {
+      Reflect.deleteProperty(output.inputs, source)
+      expect(check()).toEqual([`dist/reviewer.js no longer carries ${source}`])
+    } finally {
+      output.inputs = originalInputs
+    }
+    expect(createHash('sha256').update(JSON.stringify(meta)).digest('hex')).toBe(hash)
+    expect(check()).toEqual([])
   })
 
   it.each([
@@ -202,29 +376,27 @@ describe('deferred cohort bundles', () => {
     'fires the %s split guard for %s and restores its metafile byte-exact',
     (name, source, use) => {
       const file = `dist/meta/${name}.json`
-      const original = readFileSync(file)
+      const meta = structuredClone(fixture(file).meta)
+      const original = JSON.stringify(meta)
       const hash = createHash('sha256').update(original).digest('hex')
-      const meta = metafileSchema.parse(JSON.parse(original.toString('utf8')))
       const output = meta.outputs[`dist/${name}.js`]
       if (output === undefined) throw new Error('Missing bundle output')
+      const check = () => {
+        const changed = outputInputs(meta, `dist/${name}.js`)
+        return checkDeferredBundles((bundle) =>
+          bundle.metafile === file ? changed : bundleInputs(bundle),
+        )
+      }
+      expect(check()).toEqual([])
+      expect(output.inputs).not.toHaveProperty(source)
       try {
         output.inputs[source] = { bytesInOutput: 1 }
-        writeFileSync(file, JSON.stringify(meta))
-        const red = spawnSync(process.execPath, ['scripts/check-bundle-split.mjs'], {
-          encoding: 'utf8',
-        })
-        expect(red.status).toBe(1)
-        expect(red.stderr).toContain(`carries ${source}, which loads only ${use}`)
+        expect(check()).toContain(`dist/${name}.js carries ${source}, which loads only ${use}`)
       } finally {
-        writeFileSync(file, original)
+        Reflect.deleteProperty(output.inputs, source)
       }
-      expect(createHash('sha256').update(readFileSync(file)).digest('hex')).toBe(hash)
-      const green = spawnSync(process.execPath, ['scripts/check-bundle-split.mjs'], {
-        encoding: 'utf8',
-      })
-      expect(green.status, green.stderr).toBe(0)
+      expect(createHash('sha256').update(JSON.stringify(meta)).digest('hex')).toBe(hash)
+      expect(check()).toEqual([])
     },
-    // Two runs of the split check each; a loaded rig must not time them out.
-    SPLIT_GUARD_TIMEOUT_MS,
   )
 })

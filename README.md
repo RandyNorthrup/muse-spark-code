@@ -3984,6 +3984,13 @@ as Meta documents); the extension never sets it. The tooling also reads
 `MUSE_LIVE_E2E`, `MUSE_LIVE_MODEL_API`, `MUSE_EVAL_TASKS`,
 `MUSE_EVAL_REPORT` and `CHROME_PATH`, as described above.
 
+**Deferred-bundle drills.** `test/unit/deferredBundles.test.ts` builds its
+checked Node entries once in memory. It shares the production plugins,
+bundle declarations and callable split guard in
+`scripts/lib/deferredBundles.mjs`; every injected split violation must be
+rejected, then restored byte-exact and accepted. See the
+[timing and gate-fire record](docs/certification/deflake4.md).
+
 **Project structure.**
 
 ```

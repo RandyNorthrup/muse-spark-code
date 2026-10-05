@@ -6154,6 +6154,32 @@ runs and integration merges/pushes. The lead retains full quality, coverage,
 accessibility and integration certification; this lane runs the required
 scoped checks directly on macmini, with all existing gates unchanged.
 
+### DEFLAKE4 — Deterministic deferred-bundle split drills (2026-10-05)
+
+Scope: remove repeated child-process/full-repository split scans from
+`test/unit/deferredBundles.test.ts` without changing a timeout, retry,
+platform condition or gate. Reuse the production build and the actual gate's
+deferred-bundle declarations and checks; a small callable tooling module is
+needed because importing the current CLI executes every gate and exits.
+
+- [x] D4-A: build real shipped entries once per test file and cache their
+      metafiles; each case mutates an isolated in-memory copy.
+- [x] D4-B: every existing split drill observes its exact rejection and
+      restored green, with SHA-256 byte-exact restoration; deliberate guard
+      defects must make the owning tests fail.
+- [x] D4-C: run the entire owning file 50 times on this Windows host with
+      another Vitest run alongside; report each test's maximum and mean,
+      comfortably below 2 seconds, in `docs/certification/deflake4.md`.
+- [x] D4-D: run the lane's scoped/static/build gates, update changelog and
+      certification, then commit explicit paths with hooks enabled.
+
+Readiness: the existing build already runs once in `beforeAll`; each of five
+drills launches the full split CLI twice, repeatedly reading all outputs and
+source files and parsing TypeScript. Preserve the canonical declarations,
+diagnostics and every parent/destination check. No UI, protocol, dependency,
+paid call or release change. The named brief authorizes local parallel Vitest
+for D4-C despite common.md's ordinary rig-only/one-process rules.
+
 ### TRAIN13B — Release-train size recovery and complete Kubuntu gate (2026-10-05)
 
 - [x] Confirm both checkpoint test files pass in the cleared normal temporary directory.
@@ -17439,6 +17465,14 @@ the lead's gates. The namespace export/type checks extend Knip's existing
 issue set without an ignore or lowered severity; value/type plants prove
 both guards fire. Scoped macmini evidence is recorded in
 `docs/certification/knip-constants.md`.
+**DEFLAKE4 lane (2026-10-05).** The named brief and common.md assign full
+quality, coverage and hosted certification to the lead; this lane runs the
+owning test file and scoped gates only. Full quality remains required before
+integration. The feature-delivery ledger validator cannot validate this
+existing section-based roadmap (`expected exactly one quality-ledger fence`);
+retain its canonical format and record that structural check as deferred.
+Current receipts and any remaining blockers belong in
+`docs/certification/deflake4.md`.
 
 **TRAIN13B (2026-10-05).** The owner authorizes recovering the two size
 failures and running the complete quality gate directly on Kubuntu within

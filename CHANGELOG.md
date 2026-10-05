@@ -285,6 +285,11 @@ happened, not what was planned; superseded entries are kept.
 
 - Restore dead-export checks for shared constants: the exec schema tests use named imports instead of enumerating the whole module, and Knip also checks unused namespace values and types.
 
+- Deferred-bundle split drills now build the checked Node entries once in
+  memory and call the production guard directly. They retain rejection and
+  byte-exact restoration checks without repeated full-repository scans,
+  child processes, shared `dist/` mutations or longer timeouts.
+
 ### Security
 
 - Tab uses held-project trust for completions and rechecks it at the native Git entry for ignore lookups, so a held pull-request worktree runs no automatic Tab Git command.
