@@ -20,6 +20,15 @@ happened, not what was planned; superseded entries are kept.
   page within the 2,000-character encoded-URL cap (falling back to copy plus
   the unfilled form), copy to the clipboard, or save to a picked file, each
   with a clear failure message. The extension never sends anything itself.
+- **Report-a-problem preview UI (M93 lane W, PLAN.md D72).** The panel's
+  preview dialog lists every item the report will contain (each removable),
+  shows lane P's final draft byte-identical, and exports through its paths
+  with the on-screen draft's seal — any change since the preview
+  re-previews instead of exporting, and failures are stated plainly on the
+  dialog. Entry points: error rows and notices that carry a recorded
+  failure's sanitized reference (never row text), and the render-failure
+  screen; the webview↔host transport carries bounded identifiers only.
+  Includes the `report`/`report-narrow` harness scenarios.
 
 ### Changed
 

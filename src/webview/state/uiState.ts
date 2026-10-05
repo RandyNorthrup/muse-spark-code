@@ -47,6 +47,10 @@ import type {
   MentionItem,
   ModelOption,
   NoticeAction,
+  ReportDraftItem,
+  ReportEventRef,
+  ReportExportChannel,
+  ReportExportReason,
   ReviewFile,
   SettingsSnapshot,
   SignInMethod,
@@ -121,6 +125,35 @@ export interface SharePreview {
   readonly modelId: string
   readonly redacted: boolean
   readonly items: readonly ItemSnapshot[]
+}
+
+/** What the last export attempt answered, in the host's fixed words (M93 lane W). */
+export interface ReportExportStatus {
+  readonly via: ReportExportChannel
+  readonly ok: boolean
+  /** The over-long draft, copied with a paste note; rides only on an opened issue page. */
+  readonly issueFallback?: boolean | undefined
+  readonly reason?: ReportExportReason | undefined
+}
+
+/** The report-a-problem preview dialog's state (M93 lane W). */
+export interface ReportDialogState {
+  /** The description the draft was built with, echoed by the host. */
+  readonly description: string
+  readonly includeFacts: boolean
+  readonly includeEvents: boolean
+  /** Every item the draft contains that the user can remove. */
+  readonly items: readonly ReportDraftItem[]
+  /** Lane P's exact final draft: the preview shows `text` byte-identical. */
+  readonly title: string
+  readonly text: string
+  /** The draft's seal, carried back by the export. */
+  readonly hash: string
+  /** The VS Code reporter action shows only while its command exists. */
+  readonly canUseVscodeReporter: boolean
+  readonly recordingUnavailable: boolean
+  /** The last export attempt's answer; cleared by the next draft. */
+  readonly exportStatus: ReportExportStatus | undefined
 }
 
 export interface OutputPage {
@@ -343,6 +376,13 @@ export interface UiState {
   /** A local share file open read-only (M84); undefined when none is open. */
   readonly share: SharePreview | undefined
   /**
+   * The report-a-problem preview (M93 lane W): lane P's sealed draft as the
+   * host built it, with the removable items it contains. Undefined while
+   * the dialog is closed; never saved (a reload re-offers through the crash
+   * offer, whose journal indexes are current).
+   */
+  readonly report: ReportDialogState | undefined
+  /**
    * The conversation in the transcript holds imported history (M84, the
    * host's `historyLoaded`): its code blocks offer Copy, never Insert or Apply.
    */
@@ -428,6 +468,8 @@ export type UiAction =
   | { readonly type: 'reviewHunkReverting'; readonly key: string }
   /** The × (or Escape, or the backdrop) on the share-file modal (M84). */
   | { readonly type: 'shareClosed' }
+  /** Cancel (or Escape, the × or the backdrop) on the report dialog (M93 lane W). */
+  | { readonly type: 'reportClosed' }
 
 export const initialUiState: UiState = {
   pendingApprovalResolutions: [],
@@ -504,6 +546,7 @@ export const initialUiState: UiState = {
   pendingRestore: undefined,
   pendingClearEchoes: 0,
   share: undefined,
+  report: undefined,
   isImported: false,
 }
 
@@ -866,6 +909,7 @@ function withNotice(
   text: string,
   redoRestoreId?: string,
   actions?: readonly NoticeAction[],
+  reportRef?: ReportEventRef,
 ): UiState {
   const localSequence = state.localSequence + 1
   const repeatIndex =
@@ -887,6 +931,7 @@ function withNotice(
         ...(redoRestoreId !== undefined && { redoRestoreId }),
         ...(actions !== undefined && actions.length > 0 && { actions }),
         ...(repeatCount !== undefined && { repeatCount }),
+        ...(reportRef !== undefined && { reportRef }),
       },
     ],
   }
@@ -2588,6 +2633,7 @@ function applyHostMessage(state: UiState, message: HostToWebviewMessage, at: num
         message.text,
         message.redoRestoreId,
         message.actions,
+        message.reportRef,
       )
       return announce(
         message.level === 'error'
@@ -2595,6 +2641,47 @@ function applyHostMessage(state: UiState, message: HostToWebviewMessage, at: num
           : noticed,
         message.level === 'info' ? undefined : message.text,
       )
+    }
+    case 'reportDraft': {
+      // The preview dialog's draft (M93 lane W): shown byte-identical, so a
+      // fresh draft clears the last export's answer. Opening moves focus
+      // into the dialog (the app watches `report`); an update while typing
+      // must not steal it, so nothing is announced here — the dialog's own
+      // status line reads export outcomes out.
+      return {
+        ...state,
+        report: {
+          description: message.description,
+          includeFacts: message.includeFacts,
+          includeEvents: message.includeEvents,
+          items: message.items,
+          title: message.title,
+          text: message.text,
+          hash: message.hash,
+          canUseVscodeReporter: message.canUseVscodeReporter,
+          recordingUnavailable: message.recordingUnavailable,
+          exportStatus: undefined,
+        },
+      }
+    }
+    case 'reportExported': {
+      // An export attempt's answer in fixed words (M93 lane W): shown on
+      // the dialog's status line. An answer for a closed dialog is dropped.
+      if (state.report === undefined) {
+        return state
+      }
+      return {
+        ...state,
+        report: {
+          ...state.report,
+          exportStatus: {
+            via: message.via,
+            ok: message.ok,
+            ...(message.issueFallback !== undefined && { issueFallback: message.issueFallback }),
+            ...(message.reason !== undefined && { reason: message.reason }),
+          },
+        },
+      }
     }
     case 'outputPage': {
       const key = outputPageKey(message.itemId, message.outputRef)
@@ -2853,6 +2940,9 @@ export function uiReducer(state: UiState, action: UiAction): UiState {
     }
     case 'shareClosed': {
       return { ...state, share: undefined }
+    }
+    case 'reportClosed': {
+      return { ...state, report: undefined }
     }
     case 'conversationCleared': {
       return {

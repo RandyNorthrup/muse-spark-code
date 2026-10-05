@@ -543,11 +543,25 @@ export const EN = {
   reportSaveFailed: 'The report could not be saved.',
   reportUrlTooLong:
     'The report is too long to open in a browser address. Copy it instead, then paste it into the new-issue form.',
-  reportRecordingUnavailable: 'Event recording was unavailable, so this report has no recent events.',
+  reportRecordingUnavailable:
+    'Event recording was unavailable, so this report has no recent events.',
   reportDescriptionWarning:
     'Anything you write above is sent exactly as written. Do not include passwords, keys or other confidential information.',
   reportVscodeReporterNote:
     'The VS Code issue reporter adds its own data, may search GitHub for similar issues, and controls sign-in and submission.',
+  // Report a problem (M93 lane W): the preview dialog's item list, its
+  // export outcomes and its updating state. Item labels stay identifiers
+  // (an event kind, a relative age), so the preview matches the export.
+  reportItemsLabel: 'What this report contains',
+  reportRemoveItem: 'Remove {item}',
+  reportFactsItem: 'Support facts',
+  reportEventItem: '{kind} · {age}',
+  reportUpdating: 'Updating the preview…',
+  reportStaleDraft:
+    'The report changed while exporting. The preview below is current — export again.',
+  reportIssueOpened: 'The issue page was opened in the browser.',
+  reportVscodeReporterOpened: 'The VS Code issue reporter was opened.',
+  reportVscodeReporterFailed: 'The VS Code issue reporter could not be opened.',
   openDocs: 'Muse Code documentation',
   modelListLabel: 'Models',
   thinkingOff: 'No thinking',

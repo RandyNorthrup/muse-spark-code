@@ -47,6 +47,7 @@ import type {
   ChatReference,
   LineRange,
   NoticeAction,
+  ReportEventRef,
   ReviewFile,
   SignInMethod,
   WebviewToHostMessage,
@@ -66,6 +67,7 @@ import { SessionBoardDialog } from './components/SessionBoardDialog'
 import { BestOfNDialog } from './components/BestOfNDialog'
 import { UsageDialog } from './components/UsageDialog'
 import { HandoffDialog } from './components/HandoffDialog'
+import { ReportDialogHost } from './components/ReportDialog'
 import { ShareView } from './components/ShareView'
 import { AddContextIcon, ExpandChevron, UploadIcon } from './components/icons'
 import { modeIcon } from './components/modeIcons'
@@ -1243,6 +1245,17 @@ export function App({
     },
     [store, dispatch, postMessage],
   )
+  // "Report this" on a recorded failure (M93 lane W): the row's
+  // sanitized event reference opens the report workflow, never its text.
+  const onReportProblem = useCallback(
+    (_entryId: string, ref: ReportEventRef) => {
+      postMessage({ type: 'openReport', ref })
+    },
+    [postMessage],
+  )
+  const onReportClosed = useCallback(() => {
+    dispatch({ type: 'reportClosed' })
+  }, [dispatch])
   // A Muse Code fault's way on (D26): the header's New conversation, or a
   // restart the host runs.
   const onNoticeAction = useCallback(
@@ -1760,6 +1773,7 @@ export function App({
           }
           onRedo={state.checkpoints.canRestore ? onRedo : undefined}
           onNoticeAction={onNoticeAction}
+          onReportProblem={onReportProblem}
           restoreNote={restoreNoteOf(state)}
           conversationNote={
             state.sessionId !== undefined && !state.canEditSessions
@@ -1982,9 +1996,17 @@ export function App({
         onCancel={onHandoffCancel}
       />
     )
+  // The report-a-problem preview (M93 lane W): the sealed draft the host
+  // built, shown byte-identical. Beside the other modals (never under one:
+  // `isModalOpen` covers it), and over the crash screen too (main.tsx
+  // renders the same host there, so a render failure keeps its way on).
+  const reportDialog =
+    state.report === undefined ? null : (
+      <ReportDialogHost report={state.report} postMessage={postMessage} onClose={onReportClosed} />
+    )
   // Behind a modal nothing takes focus or clicks (M25): the modal traps Tab,
   // the rest of the panel is inert.
-  const isModalOpen = isOtherModalOpen || state.handoff !== undefined
+  const isModalOpen = isOtherModalOpen || state.handoff !== undefined || state.report !== undefined
 
   return (
     <div className="app">
@@ -2014,6 +2036,7 @@ export function App({
       </div>
       {usageDialog}
       {handoffDialog}
+      {reportDialog}
       {agentMap}
       {reviewPane}
       {state.share === undefined ? null : (

@@ -23,7 +23,7 @@ import {
   workflowRunFields,
 } from '../../shared/agentEvents'
 import { PAID_FEATURES, TASK_REQUESTS } from '../../shared/constants'
-import { NOTICE_ACTIONS, NOTICE_LEVELS } from '../../shared/protocol'
+import { NOTICE_ACTIONS, NOTICE_LEVELS, reportEventRefSchema } from '../../shared/protocol'
 
 const pendingApprovalSchema = z.object({
   approvalId: z.string(),
@@ -269,7 +269,17 @@ const itemEntrySchema = z.object({
   text: z.optional(z.string()),
 })
 
-const errorEntrySchema = z.object({ kind: z.literal('error'), id: z.string(), text: z.string() })
+const errorEntrySchema = z.object({
+  kind: z.literal('error'),
+  id: z.string(),
+  text: z.string(),
+  /**
+   * The sanitized handoff when the host recorded this failure (M93 lane W):
+   * which journal event the row means, never its text. The row offers
+   * "Report this" only while it is present.
+   */
+  reportRef: z.optional(reportEventRefSchema),
+})
 
 export type NoticeLevel = (typeof NOTICE_LEVELS)[number]
 
@@ -284,6 +294,12 @@ const noticeEntrySchema = z.object({
   isRedoUsed: z.optional(z.boolean()),
   /** A Muse Code fault's way on (D26): its buttons. */
   actions: z.optional(z.readonly(z.array(z.enum(NOTICE_ACTIONS)))),
+  /**
+   * The sanitized handoff when the host recorded this failure (M93 lane W):
+   * which journal event the row means, never its text. The row offers
+   * "Report this" only while it is present.
+   */
+  reportRef: z.optional(reportEventRefSchema),
   /**
    * How many times the same notice was said (D26), set from the second: the
    * repeats are this one row. Optional, so a snapshot saved before it reads.

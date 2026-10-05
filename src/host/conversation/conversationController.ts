@@ -180,6 +180,12 @@ import {
   readTransferDocument,
   type SessionTransferFiles,
 } from './sessionImport'
+import {
+  createReportProblemHandler,
+  logReportWebviewError,
+  type ReportDataSource,
+  type ReportProblemMessage,
+} from './reportProblemHandler'
 
 /**
  * One subscription on the current host (list stream, usage stream),
@@ -373,6 +379,12 @@ export interface ConversationDeps {
   readonly exports: ConversationExports
   /** Session import and share files (M84, PLAN.md D49): pick a JSON file, confirm the import. */
   readonly transferFiles: SessionTransferFiles
+  /**
+   * Report a problem (M93 lane W, PLAN.md D72): the dialog's facts, journal
+   * and scrub context. Undefined until lane I wires the recorder and the
+   * activation's facts; the dialog then says plainly that it did not work.
+   */
+  readonly reportSource?: ReportDataSource | undefined
   /** Saved plans (M79); undefined without a workspace folder. */
   readonly plans: PlanFiles | undefined
   /** The palette's paid-feature toggles (M33, PLAN.md D30): on asks for the price first. */
@@ -1130,6 +1142,8 @@ export class ConversationController {
    * waiting in the dialog. One at a time; a new conversation drops it.
    */
   private pendingHandoff: PendingHandoff | undefined
+  /** Report a problem (M93 lane W): the dialog's report-only handler, one per surface. */
+  private reportHandler: { handle: (message: ReportProblemMessage) => Promise<void> } | undefined
 
   public constructor(private readonly deps: ConversationDeps) {
     this.modelId = deps.modelId
@@ -6977,6 +6991,28 @@ export class ConversationController {
    * new conversation on the Model API backend, on the user's own model, in a
    * mode that asks (`adopt` applies it, as on every later opening).
    */
+  /**
+   * Report a problem (M93 lane W): the preview dialog's report-only
+   * messages. Needs no sign-in and starts no session (D72): the dialog
+   * builds from the journal and local facts alone.
+   */
+  private async handleReportMessage(message: ReportProblemMessage): Promise<void> {
+    this.reportHandler ??= createReportProblemHandler({
+      post: (posted) => {
+        this.post(posted)
+      },
+      noticeError: (text) => {
+        this.notice('error', text)
+      },
+      log: this.deps.log,
+      source: this.deps.reportSource,
+      onReportWebviewError: (error) => {
+        logReportWebviewError(this.deps.log, error)
+      },
+    })
+    await this.reportHandler.handle(message)
+  }
+
   private async importSession(): Promise<void> {
     if (this.deps.surface.isSideChat === true) {
       this.notice('warning', UI_TEXT.sideChatSessionOnly)
@@ -7745,6 +7781,13 @@ export class ConversationController {
       }
       case 'forgetPaidUse': {
         await this.deps.forgetPaidUse()
+        break
+      }
+      case 'openReport':
+      case 'updateReport':
+      case 'exportReport':
+      case 'reportWebviewError': {
+        await this.handleReportMessage(message)
         break
       }
     }

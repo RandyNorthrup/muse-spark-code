@@ -3368,6 +3368,59 @@
             'Could not switch model: Muse Code did not answer session/setModel within 60 s',
           )
         },
+        // --- M93 lane W: report a problem — a recorded failure's row and
+        // the preview dialog over the host's sealed draft ---
+        report: () => {
+          send({
+            type: 'notice',
+            level: 'error',
+            text: 'Muse Code exited before the turn began.',
+            reportRef: { kind: 'backendExit', entryIndex: 3 },
+          })
+          send({
+            type: 'reportDraft',
+            description: '',
+            includeFacts: true,
+            includeEvents: true,
+            items: [
+              { kind: 'facts', label: 'Support facts' },
+              { kind: 'event', eventIndex: 2, label: 'toolCallFailed · 45s ago' },
+              { kind: 'event', eventIndex: 3, label: 'backendExit · 2m ago' },
+            ],
+            title: 'Problem report: Muse Spark 0.12.1 on linux',
+            text: [
+              'Muse Spark problem report',
+              '',
+              'Support facts:',
+              'extension: 0.12.1',
+              'vscode: 1.99.0',
+              'node: 22.20.4',
+              'platform: linux',
+              'backend: museCode',
+              'cli: found (version 1.4.2); signed in: yes',
+              'stored model api key: no; META_API_KEY in environment: no',
+              'shell sandbox: sandboxed',
+              'settings (names only): museSpark.backend',
+              '',
+              'Recent events (2):',
+              '- 45s ago toolCallFailed exit1',
+              '  src/host/conversation/conversationController.ts:7420:8',
+              '- 2m ago backendExit unknown',
+            ].join('\n'),
+            hash: '0'.repeat(64),
+            canUseVscodeReporter: true,
+            recordingUnavailable: false,
+          })
+        },
+        'report-narrow': () => {
+          document.body.style.maxWidth = '300px'
+          steps['report']()
+          // A refused clipboard, stated on the dialog: the preview stays, so
+          // its text can still be copied by hand.
+          later(200, () =>
+            send({ type: 'reportExported', via: 'copy', ok: false, reason: 'copyFailed' }),
+          )
+        },
         // --- M84: a share file open read-only: Copy on its code, no Insert or Apply ---
         share: () => {
           send({
