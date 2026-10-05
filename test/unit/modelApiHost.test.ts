@@ -14,6 +14,7 @@ import {
   GOAL_OBJECTIVE_MAX_CHARS,
   HOOK_MAX_STOP_CONTINUATIONS,
   MAX_MODEL_API_TEXT_ATTACHMENT_BYTES,
+  MACHINE_APPROVAL_TTL_MS,
   MODEL_API_IMPORT_MAX_REPLAY_BYTES,
   MODEL_API_MAX_OUTPUT_TOKENS,
   MODEL_API_MAX_RETRIES,
@@ -266,6 +267,7 @@ function setup(
     bundledSkills?: ModelApiHostDeps['bundledSkills']
     personalAgentsRoot?: string
     isTrusted?: boolean | (() => boolean)
+    isUnattended?: ModelApiHostDeps['isUnattended']
     isConfidentialWorkspace?: boolean | (() => boolean)
     confirmContributorModel?: (modelId: string) => Promise<boolean>
     store?: SessionStore
@@ -393,6 +395,7 @@ function setup(
     personalSkillsRoot: options.personalSkillsRoot,
     bundledSkills: options.bundledSkills,
     personalAgentsRoot: options.personalAgentsRoot,
+    ...(options.isUnattended !== undefined && { isUnattended: options.isUnattended }),
     isWorkspaceTrusted: () =>
       typeof options.isTrusted === 'function' ? options.isTrusted() : (options.isTrusted ?? true),
     isConfidentialWorkspace: confidentialOf(options.isConfidentialWorkspace),
@@ -487,6 +490,118 @@ async function startSession(
   })) as ModelApiSession
   return { session, ...watchSessionTurns(session) }
 }
+
+describe('M103-G hardware dispatch boundary', () => {
+  const call = {
+    name: 'bash',
+    arguments: JSON.stringify({
+      command: 'pio run -t upload',
+      confirm: true,
+      token: 'model-chosen',
+    }),
+  }
+
+  it.each(['promptUnmatched', 'onRequest', 'allowAll'])(
+    'a hook allow never answers hardware in %s',
+    async (mode) => {
+      const t = setup({ hooks: hooksFor('PermissionRequest', 'allow'), runHook: permitHook })
+      const { session, events, turnDone } = await startSession(t, mode)
+      t.api.script({ calls: [call] }, { text: 'done' })
+      await session.sendTurn([{ type: 'text', text: 'flash' }])
+      const request = await approvalRequest(events, 0)
+      expect(request.availableChoices.map((choice) => choice.choiceId)).toEqual([
+        'allow_once',
+        'abort',
+      ])
+      expect(t.shellCalls).toHaveLength(0)
+      await session.decideApproval({
+        approvalId: request.approvalId,
+        requirementId: request.requirementId,
+        choiceId: 'abort',
+      })
+      await turnDone()
+      expect(t.shellCalls).toHaveLength(0)
+    },
+  )
+
+  it('refuses irreversible actions and unattended actions before asking or dispatching', async () => {
+    for (const isUnattended of [false, true]) {
+      const t = setup({ isUnattended: () => isUnattended })
+      const { session, events, turnDone } = await startSession(t, 'allowAll')
+      const failures: unknown[] = []
+      session.onEvent((event) => {
+        if (event.type === 'approvalRequested')
+          void session
+            .decideApproval({
+              approvalId: event.approvalId,
+              requirementId: event.requirementId,
+              choiceId: 'allow_once',
+            })
+            .catch((error: unknown) => {
+              failures.push(error)
+            })
+      })
+      t.api.script(
+        {
+          calls: [
+            {
+              name: 'bash',
+              arguments: JSON.stringify({
+                command: isUnattended ? 'pio run -t upload' : 'espefuse burn-key KEY0 key.bin',
+              }),
+            },
+          ],
+        },
+        { text: 'done' },
+      )
+      await session.sendTurn([{ type: 'text', text: 'device action' }])
+      await turnDone()
+      expect(failures).toEqual([])
+      expect(events.some((event) => event.type === 'approvalRequested')).toBe(false)
+      expect(t.shellCalls).toHaveLength(0)
+      expect(JSON.stringify(t.api.responseBodies())).toContain('Physical device operation refused')
+    }
+  })
+
+  it('rejects a late once answer and never dispatches', async () => {
+    const t = setup()
+    const { session, events, turnDone } = await startSession(t, 'allowAll')
+    t.api.script({ calls: [call] }, { text: 'done' })
+    await session.sendTurn([{ type: 'text', text: 'flash' }])
+    const request = await approvalRequest(events, 0)
+    t.advanceClock(MACHINE_APPROVAL_TTL_MS)
+    await session.decideApproval({
+      approvalId: request.approvalId,
+      requirementId: request.requirementId,
+      choiceId: 'allow_once',
+    })
+    await turnDone()
+    expect(t.shellCalls).toHaveLength(0)
+  })
+
+  it('requires a fresh once answer for each dispatch', async () => {
+    const t = setup()
+    const { session, events, turnDone } = await startSession(t, 'allowAll')
+    t.api.script({ calls: [call] }, { calls: [call] }, { text: 'done' })
+    await session.sendTurn([{ type: 'text', text: 'flash twice' }])
+    const first = await approvalRequest(events, 0)
+    await session.decideApproval({
+      approvalId: first.approvalId,
+      requirementId: first.requirementId,
+      choiceId: 'allow_once',
+    })
+    const second = await approvalRequest(events, 1)
+    expect(t.shellCalls).toHaveLength(1)
+    expect(second.approvalId).not.toBe(first.approvalId)
+    await session.decideApproval({
+      approvalId: second.approvalId,
+      requirementId: second.requirementId,
+      choiceId: 'abort',
+    })
+    await turnDone()
+    expect(t.shellCalls).toHaveLength(1)
+  })
+})
 
 /** Waits for the n-th approval request (0-based) and returns it. */
 async function approvalRequest(

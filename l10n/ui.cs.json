@@ -2195,5 +2195,10 @@
   "paidDailyReachedDetail": "Dnešní limit je {budget}. Tento požadavek a stávající rezervace potřebují {needed}. Zvyšte dnešní limit, nebo zastavte placené doplňky do zítřka.",
   "paidDailyRaise": "Zvýšit pro dnešek",
   "paidDailyStop": "Zastavit do zítřka",
-  "paidDailyRaisePrompt": "Zadejte dnešní limit v USD (0.50–500), který pokryje čekající rezervace."
+  "paidDailyRaisePrompt": "Zadejte dnešní limit v USD (0.50–500), který pokryje čekající rezervace.",
+  "approvalHardwareNote": "Akce fyzického zařízení. Otevření sériového portu může resetovat desku. Zkontrolujte přesný příkaz a cíl; schválení platí jednou a vyprší za dvě minuty.",
+  "hardwareRefused": "Tato operace zařízení je odmítnuta. Zkontrolujte příkaz a spusťte jej sami ve vlastním terminálu.",
+  "hardwareUnattended": "Akce fyzických zařízení jsou při běhu bez obsluhy odmítnuty.",
+  "hardwareExpired": "Schválení akce zařízení vypršelo. Nic nebylo odesláno.",
+  "hardwareBypassNotice": "Ochrana hardwaru zakazuje obcházení oprávnění. Použijte automatický nebo ruční režim a každou akci zařízení schvalte jednorázově."
 }

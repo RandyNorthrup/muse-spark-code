@@ -2119,5 +2119,10 @@
   "paidDailyReachedDetail": "La limite d’aujourd’hui est {budget}. Cette requête et les réservations existantes nécessitent {needed}. Augmentez la limite pour aujourd’hui ou arrêtez les options payantes jusqu’à demain.",
   "paidDailyRaise": "Augmenter pour aujourd’hui",
   "paidDailyStop": "Arrêter jusqu’à demain",
-  "paidDailyRaisePrompt": "Saisissez la limite d’aujourd’hui en USD (0.50–500), suffisante pour les réservations en attente."
+  "paidDailyRaisePrompt": "Saisissez la limite d’aujourd’hui en USD (0.50–500), suffisante pour les réservations en attente.",
+  "approvalHardwareNote": "Action sur un appareil physique. Ouvrir un port série peut réinitialiser la carte. Vérifiez la commande exacte et la cible ; l’autorisation est valable une seule fois et expire après deux minutes.",
+  "hardwareRefused": "Cette opération sur l’appareil est refusée. Vérifiez la commande et exécutez-la vous-même dans votre propre terminal.",
+  "hardwareUnattended": "Les actions sur des appareils physiques sont refusées lors des exécutions sans surveillance.",
+  "hardwareExpired": "L’autorisation de l’appareil a expiré. Rien n’a été envoyé.",
+  "hardwareBypassNotice": "La protection matérielle désactive le contournement des autorisations. Utilisez le mode automatique ou manuel et autorisez chaque action une seule fois."
 }

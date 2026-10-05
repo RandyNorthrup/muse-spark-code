@@ -197,7 +197,7 @@ describe('BestOfNManager', () => {
     expect(host.started).toHaveLength(2)
     expect(host.started[0]).toMatchObject({
       modelId: 'muse-spark-1.3',
-      approvalMode: 'onRequest',
+      approvalMode: 'promptUnmatched',
     })
     expect(host.started[0]?.workspaceRoot).toContain('.worktrees')
     const [first, second] = host.sessions

@@ -292,7 +292,7 @@ describe('MuseCodeHost', () => {
     const session = await host.startSession(startOptions)
     await session.setModel('muse-spark-1.2')
     await session.setReasoningEffort('xhigh')
-    await session.setApprovalMode('allowAll')
+    await session.setApprovalMode('onRequest')
     expect(session.modelId).toBe('muse-spark-1.2')
     expect(server.requestsFor('session/setModel')[0]?.params).toMatchObject({
       sessionId: session.sessionId,
@@ -304,7 +304,7 @@ describe('MuseCodeHost', () => {
     })
     expect(server.requestsFor('session/setApprovalMode')[0]?.params).toMatchObject({
       sessionId: session.sessionId,
-      mode: 'allowAll',
+      mode: 'onRequest',
     })
     const sessionCommands = server.requests.filter((r) => r.method?.startsWith('session/set'))
     expect(sessionCommands).toHaveLength(3)
@@ -2012,7 +2012,7 @@ describe('MuseCodeHost: a permission mode above the ceiling', () => {
   it('says why the session did not start, in words the user can act on', async () => {
     const { host, server } = setup()
     server.handle('session/start', rejectionFor('approval_mode_ceiling'))
-    const refusal = host.startSession({ ...startOptions, approvalMode: 'allowAll' })
+    const refusal = host.startSession({ ...startOptions, approvalMode: 'onRequest' })
     await expect(refusal).rejects.toThrow(UI_TEXT.approvalModeCeiling)
     await expect(refusal).rejects.toMatchObject({ cause: expect.any(Error) })
   })

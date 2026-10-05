@@ -2043,5 +2043,10 @@
   "paidDailyReachedDetail": "Das heutige Limit ist {budget}. Diese Anfrage und bestehende Reservierungen benötigen {needed}. Erhöhen Sie das Limit für heute oder stoppen Sie kostenpflichtige Extras bis morgen.",
   "paidDailyRaise": "Für heute erhöhen",
   "paidDailyStop": "Bis morgen stoppen",
-  "paidDailyRaisePrompt": "Heutiges Limit in USD (0.50–500) eingeben, ausreichend für die ausstehenden Reservierungen."
+  "paidDailyRaisePrompt": "Heutiges Limit in USD (0.50–500) eingeben, ausreichend für die ausstehenden Reservierungen.",
+  "approvalHardwareNote": "Aktion an einem physischen Gerät. Das Öffnen eines seriellen Ports kann die Platine zurücksetzen. Prüfen Sie den genauen Befehl und das Ziel; die Genehmigung gilt einmal und läuft nach zwei Minuten ab.",
+  "hardwareRefused": "Dieser Gerätebefehl wird verweigert. Prüfen Sie den Befehl und führen Sie ihn selbst in Ihrem eigenen Terminal aus.",
+  "hardwareUnattended": "Aktionen an physischen Geräten werden bei unbeaufsichtigten Ausführungen verweigert.",
+  "hardwareExpired": "Die Gerätegenehmigung ist abgelaufen. Es wurde nichts gesendet.",
+  "hardwareBypassNotice": "Der Hardwareschutz deaktiviert das Umgehen von Berechtigungen. Verwenden Sie Auto oder Manuell und genehmigen Sie jede Geräteaktion einmal."
 }

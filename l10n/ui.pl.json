@@ -2195,5 +2195,10 @@
   "paidDailyReachedDetail": "Dzisiejszy limit to {budget}. To żądanie i istniejące rezerwacje wymagają {needed}. Zwiększ limit na dziś lub wstrzymaj płatne dodatki do jutra.",
   "paidDailyRaise": "Zwiększ na dziś",
   "paidDailyStop": "Wstrzymaj do jutra",
-  "paidDailyRaisePrompt": "Wpisz dzisiejszy limit w USD (0.50–500), wystarczający na oczekujące rezerwacje."
+  "paidDailyRaisePrompt": "Wpisz dzisiejszy limit w USD (0.50–500), wystarczający na oczekujące rezerwacje.",
+  "approvalHardwareNote": "Działanie na urządzeniu fizycznym. Otwarcie portu szeregowego może zresetować płytkę. Sprawdź dokładne polecenie i cel; zgoda jest jednorazowa i wygasa po dwóch minutach.",
+  "hardwareRefused": "Ta operacja urządzenia jest zabroniona. Sprawdź polecenie i uruchom je samodzielnie we własnym terminalu.",
+  "hardwareUnattended": "Działania na urządzeniach fizycznych są zabronione podczas pracy bez nadzoru.",
+  "hardwareExpired": "Zgoda na działanie urządzenia wygasła. Nic nie wysłano.",
+  "hardwareBypassNotice": "Ochrona sprzętu wyłącza pomijanie uprawnień. Użyj trybu automatycznego lub ręcznego i zatwierdzaj każdą operację urządzenia jednorazowo."
 }

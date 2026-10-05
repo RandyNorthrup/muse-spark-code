@@ -2043,5 +2043,10 @@
   "paidDailyReachedDetail": "Bugünkü sınır {budget}. Bu istek ve mevcut ayırmalar {needed} gerektiriyor. Bugünkü sınırı artırın veya ücretli ek özellikleri yarına kadar durdurun.",
   "paidDailyRaise": "Bugün için artır",
   "paidDailyStop": "Yarına kadar durdur",
-  "paidDailyRaisePrompt": "Bekleyen ayırmalara yetecek bugünkü USD sınırını girin (0.50–500)."
+  "paidDailyRaisePrompt": "Bekleyen ayırmalara yetecek bugünkü USD sınırını girin (0.50–500).",
+  "approvalHardwareNote": "Fiziksel aygıt işlemi. Seri bağlantı noktasını açmak kartı sıfırlayabilir. Tam komutu ve hedefi inceleyin; onay bir kez geçerlidir ve iki dakika sonra sona erer.",
+  "hardwareRefused": "Bu aygıt işlemi reddedildi. Komutu inceleyip kendi terminalinizde kendiniz çalıştırın.",
+  "hardwareUnattended": "Gözetimsiz çalıştırmalarda fiziksel aygıt işlemleri reddedilir.",
+  "hardwareExpired": "Aygıt onayının süresi doldu. Hiçbir şey gönderilmedi.",
+  "hardwareBypassNotice": "Donanım koruması izinleri atlamayı devre dışı bırakır. Otomatik veya elle modunu kullanın ve her aygıt işlemini bir kez onaylayın."
 }

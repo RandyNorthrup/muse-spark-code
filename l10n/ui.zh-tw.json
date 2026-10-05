@@ -1967,5 +1967,10 @@
   "paidDailyReachedDetail": "今天的上限為 {budget}。此請求與現有預留需要 {needed}。請提高今天的上限，或將付費附加功能停止至明天。",
   "paidDailyRaise": "提高今天的上限",
   "paidDailyStop": "停止至明天",
-  "paidDailyRaisePrompt": "請輸入足以涵蓋待處理預留的今日美元上限（0.50–500）。"
+  "paidDailyRaisePrompt": "請輸入足以涵蓋待處理預留的今日美元上限（0.50–500）。",
+  "approvalHardwareNote": "實體裝置操作。開啟序列埠可能會重設開發板。請檢查完整命令與目標；核准僅限一次，並在兩分鐘後失效。",
+  "hardwareRefused": "此裝置操作已遭拒絕。請檢查命令，並在您自己的終端機中親自執行。",
+  "hardwareUnattended": "無人值守執行時禁止操作實體裝置。",
+  "hardwareExpired": "裝置操作核准已過期。未傳送任何內容。",
+  "hardwareBypassNotice": "硬體保護會停用略過權限。請使用自動或手動模式，並逐次核准每項裝置操作。"
 }

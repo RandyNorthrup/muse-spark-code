@@ -1967,5 +1967,10 @@
   "paidDailyReachedDetail": "오늘 한도는 {budget}입니다. 이 요청과 기존 예약에는 {needed}이 필요합니다. 오늘 한도를 높이거나 유료 기능을 내일까지 중지하세요.",
   "paidDailyRaise": "오늘 한도 높이기",
   "paidDailyStop": "내일까지 중지",
-  "paidDailyRaisePrompt": "대기 중인 예약을 충족하는 오늘의 USD 한도를 입력하세요(0.50–500)."
+  "paidDailyRaisePrompt": "대기 중인 예약을 충족하는 오늘의 USD 한도를 입력하세요(0.50–500).",
+  "approvalHardwareNote": "물리 장치 작업입니다. 직렬 포트를 열면 보드가 초기화될 수 있습니다. 정확한 명령과 대상을 확인하세요. 승인은 한 번만 유효하며 2분 후 만료됩니다.",
+  "hardwareRefused": "이 장치 작업은 거부됩니다. 명령을 검토하고 본인의 터미널에서 직접 실행하세요.",
+  "hardwareUnattended": "무인 실행에서는 물리 장치 작업이 거부됩니다.",
+  "hardwareExpired": "장치 작업 승인이 만료되었습니다. 아무것도 전송되지 않았습니다.",
+  "hardwareBypassNotice": "하드웨어 보호는 권한 우회를 비활성화합니다. 자동 또는 수동 모드를 사용하고 각 장치 작업을 한 번씩 승인하세요."
 }

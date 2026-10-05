@@ -7,6 +7,9 @@
 // through a fake in-memory transport.
 
 import { Buffer } from 'node:buffer'
+import { scrubHardwareApproval, approvalHardwareAction } from '../../agent/approvalHardware'
+import { isDeviceAction, isPhysicalTool } from '../../maker/guard/actionClass'
+import { HardwareApproval } from '../../maker/ports'
 import { type Connection, MspError, ProtocolError } from '@muse-code/sdk'
 import * as z from 'zod/mini'
 import {
@@ -639,6 +642,8 @@ export class MuseSession implements AgentSession {
   private readonly prompts = new PromptLedger()
   /** A stage's callers share its eventual result, and Stop waits for it. */
   private readonly decisionsInFlight = new Map<string, Promise<void>>()
+  private readonly hardwareApprovals = new Map<string, HardwareApproval>()
+  private readonly hardwareTimers = new Map<string, ReturnType<typeof setTimeout>>()
   /**
    * What arrived before anyone listened (D26): the events right after
    * `session/resume` (the re-issued prompts, a running turn's stream) land
@@ -699,6 +704,9 @@ export class MuseSession implements AgentSession {
   }
 
   private finishDispose(): void {
+    for (const timer of this.hardwareTimers.values()) clearTimeout(timer)
+    this.hardwareTimers.clear()
+    this.hardwareApprovals.clear()
     this.isDisposed = true
     this.listeners.clear()
     this.logDamagedListeners.clear()
@@ -922,9 +930,55 @@ export class MuseSession implements AgentSession {
     if (this.isDisposed) {
       return
     }
+    if (event.type === 'approvalRequested' || event.type === 'approvalUpdated') {
+      const toolName =
+        event.type === 'approvalRequested'
+          ? event.toolName
+          : this.prompts.pending(event.approvalId)?.toolName
+      if (isPhysicalTool(toolName ?? ''))
+        event = { ...event, subject: { ...event.subject, toolName } }
+      event = scrubHardwareApproval(event)
+    }
     const admitted = this.prompts.admit(event)
     if (admitted === undefined) {
       return
+    }
+    if (admitted.type === 'approvalRequested' || admitted.type === 'approvalUpdated') {
+      const key = `${admitted.approvalId}\u{0}${String(admitted.requirementId.sourceIndex)}`
+      const action = approvalHardwareAction(admitted.subject)
+      let hardware = this.hardwareApprovals.get(key)
+      if (hardware === undefined && isDeviceAction(action)) {
+        hardware = new HardwareApproval(
+          admitted.approvalId,
+          JSON.stringify(admitted.subject),
+          {
+            address: admitted.subject.command ?? admitted.subject.toolName ?? admitted.subject.kind,
+          },
+          action ?? 'actuate',
+          Date.now(),
+        )
+        this.hardwareApprovals.set(key, hardware)
+      }
+      if (hardware !== undefined && !this.hardwareTimers.has(key)) {
+        if (hardware.request.action === 'refused') {
+          void this.rejectWaitingStage(admitted.approvalId)
+          return
+        }
+        const approvalId = admitted.approvalId
+        const sourceIndex = admitted.requirementId.sourceIndex
+        this.hardwareTimers.set(
+          key,
+          setTimeout(
+            () => {
+              if (this.prompts.pending(approvalId)?.requirementId.sourceIndex === sourceIndex)
+                void this.rejectWaitingStage(approvalId)
+              this.hardwareTimers.delete(key)
+              this.hardwareApprovals.delete(key)
+            },
+            Math.max(0, hardware.request.expiresAt - Date.now()),
+          ),
+        )
+      }
     }
     if (this.early !== undefined) {
       this.early.push(admitted)
@@ -1030,6 +1084,7 @@ export class MuseSession implements AgentSession {
 
   /** Select one of the host's preconfigured approval modes. */
   public async setApprovalMode(mode: string): Promise<void> {
+    if (mode === 'allowAll') throw new Error(UI_TEXT.hardwareBypassNotice)
     try {
       await this.command('session/setApprovalMode', { mode })
     } catch (error: unknown) {
@@ -1074,6 +1129,30 @@ export class MuseSession implements AgentSession {
       )
       throw new PromptSettledError('movedOn', `${stage}: the approval moved on`)
     }
+    const hardware = this.hardwareApprovals.get(key)
+    const offered = this.prompts
+      .pending(approvalId)
+      ?.availableChoices.find((choice) => choice.choiceId === decision.choiceId)
+    if (
+      hardware !== undefined &&
+      offered?.decision === 'approved' &&
+      hardware.request.payload !== JSON.stringify(this.prompts.pending(approvalId)?.subject)
+    )
+      throw new Error(UI_TEXT.hardwareRefused)
+    if (
+      hardware !== undefined &&
+      offered?.decision === 'approved' &&
+      !hardware.accept(
+        { id: approvalId, digest: hardware.request.digest, decision: 'sendOnce' },
+        hardware.request.target,
+        Date.now(),
+      )
+    )
+      throw new Error(UI_TEXT.hardwareExpired)
+    if (hardware !== undefined && offered === undefined) throw new Error(UI_TEXT.hardwareRefused)
+    this.hardwareApprovals.delete(key)
+    clearTimeout(this.hardwareTimers.get(key))
+    this.hardwareTimers.delete(key)
     this.prompts.markDecided(requirementId)
     const pending = this.sendApprovalDecision(decision)
     this.decisionsInFlight.set(key, pending)
@@ -1787,6 +1866,7 @@ export class MuseCodeHost implements AgentHost {
   }
 
   public async startSession(options: StartSessionOptions): Promise<MuseSession> {
+    if (options.approvalMode === 'allowAll') throw new Error(UI_TEXT.hardwareBypassNotice)
     return await this.opened(async () => {
       let result: unknown
       try {

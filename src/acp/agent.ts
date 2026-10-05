@@ -213,6 +213,7 @@ class AcpSession {
     private modelId: string,
   ) {
     this.sessionId = session.sessionId
+    if (this.mode === 'bypassPermissions') this.mode = 'auto'
     this.translator = new UpdateTranslator(cwd, false)
     this.unsubscribe = session.onEvent((event) => {
       this.onEvent(event)

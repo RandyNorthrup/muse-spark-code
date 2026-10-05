@@ -55,6 +55,7 @@ export function permissionModeDetail(
   backend: BackendKind | undefined,
   reviewers: AutoReviewers = NO_AUTO_REVIEWERS,
 ): string {
+  if (mode === 'bypassPermissions') return UI_TEXT.hardwareBypassNotice
   if (backend === 'modelApi') {
     if (mode === 'auto' && reviewers.modelApi) {
       return UI_TEXT.modelApiReviewedAutoDetail
@@ -94,18 +95,17 @@ const PROMPTING_MODES: ReadonlySet<ApprovalMode> = new Set(['promptUnmatched', '
  * would hang the turn, so it degrades to `denyUnmatched`.
  */
 export function approvalModeFor(mode: PermissionMode, hasApprovalUi: boolean): ApprovalMode {
-  const mapped = mspApprovalMode(mode)
+  const mapped = mode === 'bypassPermissions' ? 'onRequest' : mspApprovalMode(mode)
   return !hasApprovalUi && PROMPTING_MODES.has(mapped) ? 'denyUnmatched' : mapped
 }
 
 /** The modes the Modes menu lists, in the Claude Code order. */
 export function availablePermissionModes(
-  canBypass: boolean,
+  _canBypass: boolean,
 ): readonly [PermissionMode, ...PermissionMode[]] {
   const [first, ...rest] = PERMISSION_MODES
-  return canBypass
-    ? PERMISSION_MODES
-    : [first, ...rest.filter((mode) => mode !== 'bypassPermissions')]
+  // Parameter remains for existing callers; no setting disables the guard.
+  return [first, ...rest.filter((mode) => mode !== 'bypassPermissions')]
 }
 
 /**

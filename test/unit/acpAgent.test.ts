@@ -549,10 +549,10 @@ describe('the ACP agent (M63)', () => {
     expect(effort).toMatchObject({ id: 'effort', category: 'thought_level', currentValue: 'high' })
   })
 
-  it('lists contributor models and Bypass permissions only when the flags allow them', async () => {
+  it('lists opted-in contributor models but keeps Bypass unavailable', async () => {
     const h = harness({ canBypass: true, allowsContributorModels: true })
     const created = await h.run((client) => start(client))
-    expect(created.modes?.availableModes.map((mode) => mode.id)).toContain('bypassPermissions')
+    expect(created.modes?.availableModes.map((mode) => mode.id)).not.toContain('bypassPermissions')
     const [model] = created.configOptions ?? []
     expect(model && 'options' in model ? model.options.length : 0).toBe(2)
   })
@@ -1087,10 +1087,12 @@ describe('the ACP agent (M63)', () => {
         expect(h.host.sessions.at(-1)?.setApprovalMode).toHaveBeenCalledWith(
           approvalModeFor(safeMode, true),
         )
-        await client.request('session/set_mode', {
-          sessionId: 'old-1',
-          modeId: 'bypassPermissions',
-        })
+        await expect(
+          client.request('session/set_mode', {
+            sessionId: 'old-1',
+            modeId: 'bypassPermissions',
+          }),
+        ).rejects.toThrow()
         const resumed = await client.request('session/resume', { sessionId: 'old-1', cwd: CWD })
         expect(resumed.modes?.currentModeId).toBe(safeMode)
         expect(h.host.sessions.at(-1)?.setApprovalMode).toHaveBeenCalledWith(
@@ -1106,7 +1108,9 @@ describe('the ACP agent (M63)', () => {
       const h = harness({ canBypass: true, initialMode })
       await h.run(async (client) => {
         const loaded = await loadOldSession(client)
-        expect(loaded.modes?.currentModeId).toBe(initialMode)
+        expect(loaded.modes?.currentModeId).toBe(
+          initialMode === 'bypassPermissions' ? 'auto' : initialMode,
+        )
         expect(h.host.sessions.at(-1)?.setApprovalMode).toHaveBeenCalledWith(
           approvalModeFor(initialMode, true),
         )

@@ -66,12 +66,14 @@ import type { ApprovalChoice } from '../../../shared/agentEvents'
 import { UI_TEXT } from '../../../shared/constants'
 import type { ApprovalMode } from '../../../shared/permissionModes'
 import { countSecretMatches } from '../../redact'
+import { hardwareAction, isHardwareStop } from '../../maker/guard/hardwareCommands'
+import { isDeviceAction, isPhysicalTool } from '../../maker/guard/actionClass'
 import { type CommandRule, isEvaluator, judgeCommand } from './commandRules'
 import type { PermissionPolicy } from './permissionPolicy'
 import { commandShape, type ShellDialect } from './shellSyntax'
 
 export type ToolClass =
-  'read' | 'edit' | 'shell' | 'interactive' | 'paid' | 'mcp' | 'spawn' | 'network'
+  'read' | 'edit' | 'shell' | 'interactive' | 'paid' | 'mcp' | 'spawn' | 'network' | 'device'
 
 export type PermissionVerdict = 'allow' | 'ask' | 'deny'
 
@@ -131,6 +133,7 @@ export function verdictFor(
   isProtected = false,
   isReadOnly = false,
 ): PermissionVerdict {
+  if (toolClass === 'device') return mode === 'denyUnmatched' ? 'deny' : 'ask'
   if (toolClass === 'paid') {
     return mode === 'denyUnmatched' ? 'deny' : 'ask'
   }
@@ -216,6 +219,10 @@ export interface PermissionQuery {
   readonly isProtected?: boolean
   /** An MCP tool its server marks read-only (M50). */
   readonly isReadOnly?: boolean
+  /** A host-owned physical MCP marking; never an MCP annotation or argument. */
+  readonly isPhysical?: boolean
+  /** Child/worker/candidate/remote/headless callers cannot operate devices. */
+  readonly isUnattended?: boolean
 }
 
 /** What settled a shell command's verdict beyond the mode (M78, M92e). */
@@ -227,6 +234,7 @@ export type SettledBy =
   | 'complexCommand'
   /** M92e (PLAN.md D71): the command holds a detected secret, so it always asks. */
   | 'secretDetected'
+  | 'hardwareDetected'
 
 /** The verdict on a call, and what the card and the Auto reviewer may do about an ask. */
 export interface PermissionJudgement {
@@ -286,6 +294,8 @@ export class PermissionEngine {
     query: PermissionQuery & { readonly command: string },
     policy: PermissionPolicy,
   ): PermissionJudgement {
+    if (isHardwareStop(query.command) && countSecretMatches(query.command, []) === 0)
+      return settled('allow', 'hardwareDetected')
     const { decision, rule } = judgeCommand(
       policy.commandRules,
       query.command,
@@ -293,6 +303,16 @@ export class PermissionEngine {
     )
     if (decision === 'forbid') {
       return settled('deny', 'forbidRule', rule)
+    }
+    const action = hardwareAction(query.command, query.dialect, commandShape)
+    if (isDeviceAction(action)) {
+      return settled(
+        action === 'refused' || query.isUnattended === true || this.mode === 'denyUnmatched'
+          ? 'deny'
+          : 'ask',
+        'hardwareDetected',
+        rule,
+      )
     }
     if (byMode === 'deny') {
       return settled(byMode)
@@ -363,6 +383,18 @@ export class PermissionEngine {
   }
 
   public judge(query: PermissionQuery, policy: PermissionPolicy = NO_POLICY): PermissionJudgement {
+    if (query.toolName === 'machine_stop' && query.toolClass === 'device')
+      return settled('allow', 'hardwareDetected')
+    if (
+      query.toolClass === 'device' ||
+      query.isPhysical === true ||
+      isPhysicalTool(query.toolName)
+    ) {
+      return settled(
+        query.isUnattended === true || this.mode === 'denyUnmatched' ? 'deny' : 'ask',
+        'hardwareDetected',
+      )
+    }
     const isProtected = query.isProtected === true
     const isMcp = query.toolClass === 'mcp'
     const isShell = query.toolClass === 'shell'

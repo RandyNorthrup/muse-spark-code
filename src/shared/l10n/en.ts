@@ -2568,6 +2568,15 @@ export const EN = {
     other:
       'The checks still failed after {count} rounds of fixes in a row, so they will not run again automatically until your next message.',
   }),
+  // M103-G: the always-on physical-action guard.
+  approvalHardwareNote:
+    'Physical device action. Opening a serial port may reset the board. Review the exact command and target; approval applies once and expires after two minutes.',
+  hardwareRefused:
+    'This device operation is refused. Review and run the command yourself in your own terminal.',
+  hardwareUnattended: 'Physical device actions are refused in unattended runs.',
+  hardwareExpired: 'The device approval expired. Nothing was sent.',
+  hardwareBypassNotice:
+    'The hardware guard disables Bypass permissions. Use Auto or Manual and approve each device action once.',
   exportThenRunLabel: 'Then ran:',
   // {command}: the then_run command; {outcome}: why it did not run.
   exportThenRunSkipped: 'then_run `{command}`: {outcome}',

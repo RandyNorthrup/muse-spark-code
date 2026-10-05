@@ -2119,5 +2119,10 @@
   "paidDailyReachedDetail": "El límite de hoy es {budget}. Esta solicitud y las reservas existentes necesitan {needed}. Aumente el límite de hoy o detenga los extras de pago hasta mañana.",
   "paidDailyRaise": "Aumentar para hoy",
   "paidDailyStop": "Detener hasta mañana",
-  "paidDailyRaisePrompt": "Introduzca el límite de hoy en USD (0.50–500), suficiente para las reservas pendientes."
+  "paidDailyRaisePrompt": "Introduzca el límite de hoy en USD (0.50–500), suficiente para las reservas pendientes.",
+  "approvalHardwareNote": "Acción sobre un dispositivo físico. Abrir un puerto serie puede reiniciar la placa. Revise el comando exacto y el destino; la autorización vale una sola vez y caduca en dos minutos.",
+  "hardwareRefused": "Se rechaza esta operación del dispositivo. Revise el comando y ejecútelo usted mismo en su propio terminal.",
+  "hardwareUnattended": "Se rechazan las acciones sobre dispositivos físicos en ejecuciones sin supervisión.",
+  "hardwareExpired": "La autorización del dispositivo ha caducado. No se envió nada.",
+  "hardwareBypassNotice": "La protección de hardware desactiva la omisión de permisos. Use el modo automático o manual y autorice cada acción del dispositivo una sola vez."
 }

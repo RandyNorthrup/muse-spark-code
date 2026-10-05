@@ -270,6 +270,7 @@ function modelApiManager(
     isConfidentialWorkspace: () => false,
     confirmContributorModel: () => Promise.resolve(options.allowsContributorModels),
     isWorkspaceTrusted,
+    isUnattended: () => deps.exec !== undefined,
     store: deps.exec === undefined ? store : headlessStore,
     describeEnvironment: () =>
       describeEnvironment({

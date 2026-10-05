@@ -2043,5 +2043,10 @@
   "paidDailyReachedDetail": "A mai korlát {budget}. Ez a kérés és a meglévő foglalások {needed} összeget igényelnek. Emelje a mai korlátot, vagy állítsa le a fizetős extrákat holnapig.",
   "paidDailyRaise": "Emelés mára",
   "paidDailyStop": "Leállítás holnapig",
-  "paidDailyRaisePrompt": "Adja meg a mai USD-korlátot (0.50–500), amely fedezi a függő foglalásokat."
+  "paidDailyRaisePrompt": "Adja meg a mai USD-korlátot (0.50–500), amely fedezi a függő foglalásokat.",
+  "approvalHardwareNote": "Fizikai eszközművelet. A soros port megnyitása újraindíthatja a panelt. Ellenőrizze a pontos parancsot és a célt; a jóváhagyás egyszer használható, és két perc után lejár.",
+  "hardwareRefused": "Ez az eszközművelet tiltott. Ellenőrizze a parancsot, és futtassa saját maga a saját termináljában.",
+  "hardwareUnattended": "Felügyelet nélküli futtatáskor a fizikai eszközműveletek tiltottak.",
+  "hardwareExpired": "Az eszközművelet jóváhagyása lejárt. Semmi nem lett elküldve.",
+  "hardwareBypassNotice": "A hardvervédelem letiltja az engedélyek megkerülését. Használja az automatikus vagy kézi módot, és minden eszközműveletet egyszeri alkalomra hagyjon jóvá."
 }

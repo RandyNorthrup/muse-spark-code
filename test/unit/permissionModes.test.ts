@@ -21,7 +21,7 @@ describe('approvalModeFor', () => {
       'promptUnmatched',
       'denyUnmatched',
       'onRequest',
-      'allowAll',
+      'onRequest',
     ])
   })
 
@@ -31,24 +31,24 @@ describe('approvalModeFor', () => {
       'denyUnmatched',
       'denyUnmatched',
       'denyUnmatched',
-      'allowAll',
+      'denyUnmatched',
     ])
   })
 })
 
 describe('availablePermissionModes', () => {
-  it('lists Bypass permissions only when the setting allows it', () => {
-    expect(availablePermissionModes(true)).toEqual(PERMISSION_MODES)
+  it('keeps Bypass unavailable while the always-on hardware guard is active', () => {
+    expect(availablePermissionModes(true)).toEqual(['manual', 'acceptEdits', 'plan', 'auto'])
     expect(availablePermissionModes(false)).toEqual(['manual', 'acceptEdits', 'plan', 'auto'])
   })
 })
 
 describe('nextPermissionMode', () => {
-  it('cycles through the Claude Code order and wraps, including Bypass when allowed', () => {
+  it('cycles through the available order without entering Bypass', () => {
     expect(nextPermissionMode('manual', true)).toBe('acceptEdits')
     expect(nextPermissionMode('acceptEdits', true)).toBe('plan')
     expect(nextPermissionMode('plan', true)).toBe('auto')
-    expect(nextPermissionMode('auto', true)).toBe('bypassPermissions')
+    expect(nextPermissionMode('auto', true)).toBe('manual')
     expect(nextPermissionMode('bypassPermissions', true)).toBe('manual')
   })
 

@@ -2119,5 +2119,10 @@
   "paidDailyReachedDetail": "Il limite di oggi è {budget}. Questa richiesta e le riserve esistenti richiedono {needed}. Aumenta il limite per oggi o sospendi gli extra a pagamento fino a domani.",
   "paidDailyRaise": "Aumenta per oggi",
   "paidDailyStop": "Sospendi fino a domani",
-  "paidDailyRaisePrompt": "Inserisci il limite di oggi in USD (0.50–500), sufficiente per le riserve in attesa."
+  "paidDailyRaisePrompt": "Inserisci il limite di oggi in USD (0.50–500), sufficiente per le riserve in attesa.",
+  "approvalHardwareNote": "Azione su un dispositivo fisico. L’apertura di una porta seriale può riavviare la scheda. Controlla il comando esatto e la destinazione; l’autorizzazione vale una sola volta e scade dopo due minuti.",
+  "hardwareRefused": "Questa operazione sul dispositivo è rifiutata. Controlla il comando ed eseguilo personalmente nel tuo terminale.",
+  "hardwareUnattended": "Le azioni sui dispositivi fisici sono rifiutate nelle esecuzioni senza supervisione.",
+  "hardwareExpired": "L’autorizzazione del dispositivo è scaduta. Non è stato inviato nulla.",
+  "hardwareBypassNotice": "La protezione hardware disattiva l’aggiramento delle autorizzazioni. Usa la modalità automatica o manuale e autorizza ogni azione sul dispositivo una sola volta."
 }

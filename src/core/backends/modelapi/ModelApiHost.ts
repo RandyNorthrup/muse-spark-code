@@ -1,4 +1,6 @@
 import { redactDiagnosticEvent } from '../../redact'
+import { HardwareApproval } from '../../maker/ports'
+import { hardwareAction } from '../../maker/guard/hardwareCommands'
 // The Model API backend (PLAN.md D1, M7): sessions held in this process,
 // each a replayed conversation on `POST /v1/responses` (stateless reasoning
 // replay, `store: false`) with the in-process tool harness, the permission
@@ -422,6 +424,8 @@ export interface ModelApiHostDeps extends ModelApiPaidHooks {
   readonly personalAgentsRoot: string | undefined
   /** VS Code workspace trust: gates rules, skills, memory and the shell (D13). */
   readonly isWorkspaceTrusted: () => boolean
+  /** Host-owned unattended context (headless, workers, candidates and remote lanes). */
+  readonly isUnattended?: () => boolean
   /** `museSpark.confidentialWorkspace`: contributor-tier agent models are blocked. */
   readonly isConfidentialWorkspace: () => boolean
   /** One explicit yes before a contributor-tier agent model is used (M76). */
@@ -687,6 +691,7 @@ interface ActiveTurn {
   modelFailure?: unknown
   /** A goal accepted after the current model request began needs another round. */
   goalWakePending: boolean
+  readonly isGoalWake: boolean
   /** The prompt's answer to the web search popup (M58); false until it is asked. */
   isWebSearchAllowed: boolean
   /** Run as the Reviewer (M70): its prompt, and only the tools that read. */
@@ -1299,6 +1304,7 @@ type ReviewedAsk =
 
 /** Why a card asks beyond the mode, as the card says under the command (M78). */
 function cardNote(judgement: PermissionJudgement | undefined): string | undefined {
+  if (judgement?.settledBy === 'hardwareDetected') return UI_TEXT.approvalHardwareNote
   if (judgement?.settledBy === 'profile') {
     return UI_TEXT.approvalProfileNote
   }
@@ -3875,7 +3881,9 @@ export class ModelApiSession implements AgentSession {
     // take: the card asks with the value redacted.
     const isSettledAsk =
       judgement.settledBy !== undefined &&
-      ['askRule', 'profile', 'complexCommand', 'secretDetected'].includes(judgement.settledBy)
+      ['askRule', 'profile', 'complexCommand', 'secretDetected', 'hardwareDetected'].includes(
+        judgement.settledBy,
+      )
     if (
       !requiresUserApproval &&
       !isSettledAsk &&
@@ -3906,6 +3914,16 @@ export class ModelApiSession implements AgentSession {
     }
     const note = cardNote(judgement) ?? (review?.decision === 'ask' ? review.note : undefined)
     const approvalId = this.deps.newId()
+    const hardware =
+      judgement.settledBy === 'hardwareDetected'
+        ? new HardwareApproval(
+            approvalId,
+            call.arguments,
+            { address: query.command ?? query.toolName },
+            hardwareAction(query.command ?? '', query.dialect) ?? 'actuate',
+            this.deps.now(),
+          )
+        : undefined
     const request: Extract<AgentEvent, { type: 'approvalRequested' }> = {
       type: 'approvalRequested',
       approvalId,
@@ -3924,13 +3942,27 @@ export class ModelApiSession implements AgentSession {
     }
     let decision: ApprovalDecision
     const stopNotifying = this.notifyWhileAsking(call, signal)
+    let hardwareTimer: ReturnType<typeof setTimeout> | undefined
     try {
       decision = await waitFor<ApprovalDecision>(signal, (pending) => {
         this.pendingApprovals.set(approvalId, pending)
         this.pendingApprovalEvents.set(approvalId, request)
+        if (hardware !== undefined) {
+          hardwareTimer = setTimeout(
+            () => {
+              pending.resolve({
+                approvalId,
+                requirementId: request.requirementId,
+                choiceId: APPROVAL_CHOICE_IDS.abort,
+              })
+            },
+            Math.max(0, hardware.request.expiresAt - this.deps.now()),
+          )
+        }
         this.emit(request)
       })
     } finally {
+      clearTimeout(hardwareTimer)
       this.pendingApprovalEvents.delete(approvalId)
       this.pendingApprovals.delete(approvalId)
       stopNotifying()
@@ -3956,6 +3988,16 @@ export class ModelApiSession implements AgentSession {
     const isApproved =
       isStillPermitted &&
       isOffered &&
+      (hardware === undefined ||
+        hardware.accept(
+          {
+            id: approvalId,
+            digest: hardware.request.digest,
+            decision: decision.choiceId === APPROVAL_CHOICE_IDS.allowOnce ? 'sendOnce' : 'reject',
+          },
+          { address: query.command ?? query.toolName },
+          this.deps.now(),
+        )) &&
       (decision.choiceId === APPROVAL_CHOICE_IDS.allowOnce ||
         decision.choiceId === APPROVAL_CHOICE_IDS.allowSession)
     this.emit({
@@ -6552,6 +6594,19 @@ export class ModelApiSession implements AgentSession {
 
   /** A refused call: by a forbid rule (M78), or by the mode. */
   private refused(call: FunctionCallItem, judgement: PermissionJudgement): CallResult {
+    if (judgement.settledBy === 'hardwareDetected')
+      return {
+        outcome: toolFailure(
+          MODEL_API_MODEL_TEXT.hardwareRefused,
+          this.isSubagent ||
+            this.deps.isUnattended?.() === true ||
+            this.active?.confirmedRequest !== undefined ||
+            this.active?.isGoalWake === true
+            ? UI_TEXT.hardwareUnattended
+            : UI_TEXT.hardwareRefused,
+        ),
+        isRejected: true,
+      }
     return judgement.settledBy === 'forbidRule'
       ? { outcome: refusedByRule(call, judgement), isRejected: true }
       : this.refusedByMode(call)
@@ -7227,6 +7282,11 @@ export class ModelApiSession implements AgentSession {
     const query: PermissionQuery = {
       toolName: call.name,
       toolClass: childTask === undefined ? toolClass : 'spawn',
+      isUnattended:
+        this.isSubagent ||
+        this.deps.isUnattended?.() === true ||
+        this.active?.confirmedRequest !== undefined ||
+        this.active?.isGoalWake === true,
       command: toolClass === 'shell' ? pick(argumentsOf(call), 'command') : undefined,
       // The shell tool runs the platform's shell, whatever the call is named.
       dialect: this.deps.platform === 'win32' ? 'powershell' : 'bash',
@@ -8543,6 +8603,7 @@ export class ModelApiSession implements AgentSession {
       acceptedTextAttachmentBytes: textAttachmentBytes(queued.parts),
       modelFailure: undefined,
       goalWakePending: false,
+      isGoalWake: queued.isGoalWake,
       isWebSearchAllowed: false,
       isReview: queued.isReview === true,
       ranProcesses: this.hasLiveCommands(),

@@ -28,6 +28,8 @@ import {
 import { isProtectedFileAccess } from '../protectedPaths'
 
 import { hasApprovalSecret } from './approvalSecrets'
+import { approvalHardwareAction } from './approvalHardware'
+import { isDeviceAction, isPhysicalTool } from '../maker/guard/actionClass'
 
 const EDIT_AUTOMATICALLY_MODE: PermissionMode = 'acceptEdits'
 // Approval subjects that are a plain file write: the Model API's own, and
@@ -116,6 +118,8 @@ export function isReviewableApproval(
     // M92e (PLAN.md D71): a shell command holding a detected secret is never
     // answered on the user's behalf; the card asks with the value redacted.
     hasApprovalSecret(event.subject) ||
+    isDeviceAction(approvalHardwareAction(event.subject)) ||
+    isPhysicalTool(event.toolName) ||
     !REVIEWABLE_SUBJECTS.has(event.subject.kind)
   ) {
     return false
