@@ -47,6 +47,10 @@ export const paidTallySchema = z.object({
   bestOfNUnknownRequests: z.optional(z.int().check(z.nonnegative())),
   bestOfNTokens: z.optional(z.int().check(z.nonnegative())),
   bestOfNCostUsd: z.optional(z.number().check(z.nonnegative())),
+  // Same-model judge calls this window (M98, PLAN.md D77); absent means none.
+  judgeCalls: z.optional(z.int().check(z.nonnegative())),
+  judgeTokens: z.optional(z.int().check(z.nonnegative())),
+  judgeCostUsd: z.optional(z.number().check(z.nonnegative())),
 })
 export type PaidTally = z.infer<typeof paidTallySchema>
 
@@ -188,6 +192,10 @@ export function paidCostUsd(feature: PaidFeature, tally: PaidTally): number {
       // estimate. Count only reported costs here, not unknown HTTP tries.
       return tally.bestOfNCostUsd ?? 0
     }
+    case 'judge': {
+      // Billed apart from the conversation, so counted here alone.
+      return tally.judgeCostUsd ?? 0
+    }
   }
 }
 
@@ -207,7 +215,8 @@ export function listedPaidFeatures(
       (feature === 'scheduledPrompts' && tally.scheduledRuns > 0) ||
       (feature === 'subagents' && (tally.subagentRequests ?? 0) > 0) ||
       (feature === 'autoReviewer' && (tally.autoReviews ?? 0) > 0) ||
-      (feature === 'bestOfN' && (tally.bestOfNAttempts ?? 0) > 0),
+      (feature === 'bestOfN' && (tally.bestOfNAttempts ?? 0) > 0) ||
+      (feature === 'judge' && (tally.judgeCalls ?? 0) > 0),
   )
 }
 
@@ -236,6 +245,7 @@ export function paidFeatureName(feature: PaidFeature): string {
     subagents: UI_TEXT.paidSubagentsName,
     autoReviewer: UI_TEXT.paidAutoReviewerName,
     bestOfN: UI_TEXT.paidBestOfNName,
+    judge: UI_TEXT.paidJudgeName,
   }
   return names[feature]
 }
@@ -312,7 +322,9 @@ export function paidFeaturePrice(feature: PaidFeature): string {
       return fill(UI_TEXT.paidVoicePrice, { price: formatUsd(PAID_PRICES_USD.voicePerHour, 2) })
     }
     case 'scheduledPrompts':
-    case 'autoReviewer': {
+    case 'autoReviewer':
+    case 'judge': {
+      // The judge runs on the conversation's own model, at its token rates.
       return tokenRatesByTier()
     }
     case 'subagents': {

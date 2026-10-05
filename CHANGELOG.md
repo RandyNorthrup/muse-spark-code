@@ -7,6 +7,15 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+### Added
+
+- **Muse Judge contract and strings (M98 lane 0, PLAN.md D77).** New
+  `src/core/judge/schema.ts` (zod request/answer/`muse` schemas, bounds,
+  labels, option letters, log summary); the named judge limits in
+  `src/shared/constants.ts`; the `judge` paid feature; `museSpark.judge.engine`
+  (`auto`, `same`, `off`; `auto` by default) with English and translated
+  descriptions. Phase 1 only: the same-model judge. No judge runs yet.
+
 ### Changed
 
 - **Tiered CI, ready for a merge queue.** The full gate now runs as parallel

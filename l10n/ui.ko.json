@@ -1701,6 +1701,11 @@
   "usagePaidAutoReviews": {
     "other": "검토 {count}회"
   },
+  "paidJudgeName": "판단자",
+  "paidConfirmJudge": "자신의 채팅 모델이 어떤 규칙으로도 결정되지 않은 위험한 Auto 작업을 판단하며, 주의만 추가할 수 있습니다. 준비된 주의는 허용을 질문으로 바꾸거나 승인 카드에 메모합니다. 각 판단은 대화 모델의 토큰 요금으로 Model API 키에 청구됩니다.\n{price}\n이 작업 영역에서 판단을 항상 허용하지 않는 한 각 판단 전에 먼저 확인합니다. Muse Code에서는 동일한 호출이 구독으로 실행됩니다.",
+  "usagePaidJudgeCalls": {
+    "other": "판단 {count}회"
+  },
   "commandRuleInvalid": "{setting}: 규칙 {index}은(는) 유효하지 않아 적용되지 않습니다({detail}).",
   "commandRuleInvalidKept": "{setting}: 규칙 {index}({pattern})은(는) 유효하지 않습니다({detail}). 제한을 강화하기만 하므로 패턴에 따라 계속 확인하거나 금지합니다.",
   "commandRuleExampleFailed": "{setting}: 허용 규칙 {index}({pattern})이(가) 예시 \"{detail}\"대로 동작하지 않으므로 적용되지 않습니다.",

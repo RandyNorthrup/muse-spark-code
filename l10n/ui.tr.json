@@ -1767,6 +1767,12 @@
     "one": "{count} inceleme",
     "other": "{count} inceleme"
   },
+  "paidJudgeName": "Değerlendirici",
+  "paidConfirmJudge": "Kendi sohbet modeliniz, hiçbir kuralın karara bağlamadığı her riskli Auto işlemini değerlendirir ve yalnızca dikkat ekleyebilir: hazır bir uyarı izni soruya dönüştürür ya da onay kartına not ekler. Her değerlendirme, konuşma modelinin token ücretleri üzerinden Model API anahtarınıza faturalandırılır:\n{price}\nBu çalışma alanında değerlendirmelere her zaman izin vermediğiniz sürece her değerlendirme önce onay ister. Muse Code’da aynı çağrılar bunun yerine aboneliğinizden çalışır.",
+  "usagePaidJudgeCalls": {
+    "one": "{count} değerlendirme",
+    "other": "{count} değerlendirme"
+  },
   "commandRuleInvalid": "{setting}: {index}. kural geçerli değil ve uygulanmıyor ({detail}).",
   "commandRuleInvalidKept": "{setting}: {index}. kural ({pattern}) geçerli değil ({detail}). Kalıbına göre onay istemeye veya yasaklamaya devam eder, çünkü bu yalnızca sıkılaştırabilir.",
   "commandRuleExampleFailed": "{setting}: {index}. izin kuralı ({pattern}) “{detail}” örneğinin söylediğini yapmıyor, bu yüzden uygulanmıyor.",

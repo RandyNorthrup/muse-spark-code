@@ -1833,6 +1833,13 @@
     "many": "{count} revues",
     "other": "{count} revues"
   },
+  "paidJudgeName": "Évaluateur",
+  "paidConfirmJudge": "Votre propre modèle de conversation évalue chaque action Auto risquée qu’aucune règle ne tranche, et ne peut qu’ajouter de la prudence : un avertissement prêt transforme une autorisation en question, ou en note sur la carte d’approbation. Chaque jugement est facturé sur votre clé Model API aux tarifs par jeton du modèle de la conversation :\n{price}\nChaque jugement demande d’abord votre accord, sauf si vous autorisez toujours les jugements dans cet espace de travail. Sur Muse Code, les mêmes appels passent par votre abonnement.",
+  "usagePaidJudgeCalls": {
+    "one": "{count} jugement",
+    "many": "{count} jugements",
+    "other": "{count} jugements"
+  },
   "commandRuleInvalid": "{setting} : la règle {index} n’est pas valide et n’est pas appliquée ({detail}).",
   "commandRuleInvalidKept": "{setting} : la règle {index} ({pattern}) n’est pas valide ({detail}). Elle demande ou interdit toujours selon son motif, puisque cela ne peut que restreindre.",
   "commandRuleExampleFailed": "{setting} : la règle d’autorisation {index} ({pattern}) ne fait pas ce que dit son exemple « {detail} » ; elle n’est donc pas appliquée.",

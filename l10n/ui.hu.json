@@ -1767,6 +1767,12 @@
     "one": "{count} ellenőrzés",
     "other": "{count} ellenőrzés"
   },
+  "paidJudgeName": "Értékelő",
+  "paidConfirmJudge": "Saját csevegőmodellje értékel minden kockázatos Auto műveletet, amelyről egyetlen szabály sem dönt, és csak óvatosságot adhat hozzá: az elkészült figyelmeztetés az engedélyt kérdéssé alakítja, vagy megjegyzést fűz a jóváhagyási kártyához. Minden értékelés díja a Model API-kulcsára terhelődik a beszélgetés modelljének tokenáraival:\n{price}\nMinden értékelés előbb engedélyt kér, hacsak nem engedélyezi mindig az értékeléseket ezen a munkaterületen. Muse Code rendszerben ugyanezek a hívások ehelyett az előfizetésére futnak.",
+  "usagePaidJudgeCalls": {
+    "one": "{count} értékelés",
+    "other": "{count} értékelés"
+  },
   "commandRuleInvalid": "{setting}: a(z) {index}. szabály érvénytelen, és nem lép életbe ({detail}).",
   "commandRuleInvalidKept": "{setting}: a(z) {index}. szabály ({pattern}) érvénytelen ({detail}). A mintája szerint továbbra is rákérdez vagy tilt, mert ez csak szigoríthat.",
   "commandRuleExampleFailed": "{setting}: a(z) {index}. engedélyező szabály ({pattern}) nem azt teszi, amit a(z) „{detail}” példája mond, ezért nem lép életbe.",

@@ -1833,6 +1833,13 @@
     "many": "{count} revisioni",
     "other": "{count} revisioni"
   },
+  "paidJudgeName": "Valutatore",
+  "paidConfirmJudge": "Il tuo modello di conversazione valuta ogni azione Auto rischiosa che nessuna regola decide e può solo aggiungere cautela: una cautela pronta trasforma un’autorizzazione in una domanda, o in una nota sulla scheda di approvazione. Ogni giudizio viene addebitato alla tua chiave Model API alle tariffe per token del modello della conversazione:\n{price}\nOgni giudizio chiede prima conferma, a meno che tu non consenta sempre i giudizi in questa area di lavoro. Su Muse Code le stesse chiamate usano il tuo abbonamento.",
+  "usagePaidJudgeCalls": {
+    "one": "{count} giudizio",
+    "many": "{count} giudizi",
+    "other": "{count} giudizi"
+  },
   "commandRuleInvalid": "{setting}: la regola {index} non è valida e non viene applicata ({detail}).",
   "commandRuleInvalidKept": "{setting}: la regola {index} ({pattern}) non è valida ({detail}). Continua a chiedere conferma o a vietare in base al suo schema, perché ciò può solo restringere.",
   "commandRuleExampleFailed": "{setting}: la regola di consenso {index} ({pattern}) non fa ciò che dice il suo esempio “{detail}”, quindi non viene applicata.",

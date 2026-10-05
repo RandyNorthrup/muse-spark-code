@@ -1899,6 +1899,14 @@
     "many": "{count} kontroly",
     "other": "{count} kontrol"
   },
+  "paidJudgeName": "Posuzovatel",
+  "paidConfirmJudge": "Váš vlastní chatovací model posuzuje každou rizikovou akci Auto, kterou nerozhodne žádné pravidlo, a může jen přidat opatrnost: připravená výstraha změní povolení na dotaz nebo na poznámku na schvalovací kartě. Každé posouzení se účtuje vašemu klíči Model API podle cen za tokeny modelu konverzace:\n{price}\nKaždé posouzení se nejprve zeptá, pokud posuzování v tomto pracovním prostoru nepovolíte vždy. Na Muse Code běží stejná volání místo toho na vaše předplatné.",
+  "usagePaidJudgeCalls": {
+    "one": "{count} posouzení",
+    "few": "{count} posouzení",
+    "many": "{count} posouzení",
+    "other": "{count} posouzení"
+  },
   "commandRuleInvalid": "{setting}: pravidlo {index} není platné a nepoužije se ({detail}).",
   "commandRuleInvalidKept": "{setting}: pravidlo {index} ({pattern}) není platné ({detail}). Podle svého vzoru se dál ptá nebo zakazuje, protože to může jen zpřísnit.",
   "commandRuleExampleFailed": "{setting}: povolovací pravidlo {index} ({pattern}) nedělá to, co říká jeho příklad „{detail}“, a proto se nepoužije.",

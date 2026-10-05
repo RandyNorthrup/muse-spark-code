@@ -859,6 +859,22 @@
           "default": true,
           "description": "%config.museCodeAutoReviewer.description%",
           "scope": "machine"
+        },
+        "museSpark.judge.engine": {
+          "type": "string",
+          "enum": [
+            "auto",
+            "same",
+            "off"
+          ],
+          "enumDescriptions": [
+            "%config.judge.engine.enumDescriptions.auto%",
+            "%config.judge.engine.enumDescriptions.same%",
+            "%config.judge.engine.enumDescriptions.off%"
+          ],
+          "default": "auto",
+          "description": "%config.judge.engine.description%",
+          "scope": "machine"
         }
       }
     },

@@ -1701,6 +1701,11 @@
   "usagePaidAutoReviews": {
     "other": "レビュー {count} 回"
   },
+  "paidJudgeName": "ジャッジ",
+  "paidConfirmJudge": "あなたのチャットモデル自身が、どのルールでも決まらないリスクのあるAuto操作を判定し、注意の追加だけを行います。準備のできた注意は許可を質問に変え、または承認カードに注記します。各判定は会話のモデルのトークン料金でModel APIキーに請求されます:\n{price}\nこのワークスペースでジャッジを常に許可しない限り、各判定の前に確認します。Muse Codeでは同じ呼び出しがサブスクリプションで実行されます。",
+  "usagePaidJudgeCalls": {
+    "other": "ジャッジ {count} 回"
+  },
   "commandRuleInvalid": "{setting}: ルール {index} は無効なため適用されません ({detail})。",
   "commandRuleInvalidKept": "{setting}: ルール {index} ({pattern}) は無効です ({detail})。制限を強めることしかできないため、パターンに従って引き続き確認または禁止します。",
   "commandRuleExampleFailed": "{setting}: 許可ルール {index} ({pattern}) は例「{detail}」のとおりに動作しないため、適用されません。",

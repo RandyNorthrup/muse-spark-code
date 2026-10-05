@@ -2215,6 +2215,11 @@ export const EN = {
   paidUseAutoReviewerDetail:
     '{action}\n\nA separate call to {model} judges whether it may run without asking you. Billed to your Model API key: {price}. Total varies with tokens used. Deny shows you the approval card instead.',
   usagePaidAutoReviews: forms({ one: '{count} review', other: '{count} reviews' }),
+  // The Muse Judge (M98, PLAN.md D77): its name, confirmation and tally.
+  paidJudgeName: 'Judge',
+  paidConfirmJudge:
+    'Your own chat model judges each risky Auto action that no rule settles, and can only add caution: a ready caution turns an allow into a question, or into a note on the approval card. Each judgment is billed to your Model API key at the conversation model’s token rates:\n{price}\nEvery judgment asks first, unless you allow judging always in this workspace. On Muse Code the same calls run on your subscription instead.',
+  usagePaidJudgeCalls: forms({ one: '{count} judgment', other: '{count} judgments' }),
   // Problems in the permission settings, each said once in the conversation.
   // {setting}: the setting's name; {index}: the rule's place in it, from 1;
   // {pattern}: the rule's words; {detail}: the error, or the failing example.
