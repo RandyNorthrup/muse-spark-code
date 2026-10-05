@@ -17,8 +17,29 @@ import {
 const CONTEXT: TabFilterContext = {
   mode: 'fast',
   suffix: '\n}\n',
+  cursorLineBefore: '  return ',
   lineAbove: 'export function add(a: number, b: number) {',
   linesBelow: ['', '  return total;', '}'],
+  secretLiterals: [],
+}
+
+/** The cursor at the end of a TypeScript block opener, the body still empty. */
+const AT_BLOCK: TabFilterContext = {
+  mode: 'multiline',
+  suffix: '\n}\n',
+  cursorLineBefore: 'function answer() {',
+  lineAbove: '',
+  linesBelow: ['}'],
+  secretLiterals: [],
+}
+
+/** The cursor at column zero on the line below a Python block opener. */
+const PYTHON_BODY: TabFilterContext = {
+  mode: 'multiline',
+  suffix: '\n',
+  cursorLineBefore: '',
+  lineAbove: 'def answer():',
+  linesBelow: [],
   secretLiterals: [],
 }
 
@@ -100,8 +121,9 @@ describe('suggestFromReply', () => {
   })
 
   it('drops an empty reply and an empty completion', () => {
-    expect(suggestFromReply('   ', CONTEXT)).toEqual({ drop: 'empty' })
-    expect(suggestFromReply(tagged('   '), CONTEXT)).toEqual({ drop: 'empty' })
+    expect(suggestFromReply(' '.repeat(3), CONTEXT)).toEqual({ drop: 'empty' })
+    expect(suggestFromReply(tagged(' '.repeat(3)), CONTEXT)).toEqual({ drop: 'empty' })
+    expect(suggestFromReply(tagged('\n  \n'), AT_BLOCK)).toEqual({ drop: 'empty' })
   })
 
   it('drops a reply outside the tags', () => {
@@ -138,6 +160,60 @@ describe('suggestFromReply', () => {
     expect(suggestFromReply(tagged('));'), CONTEXT)).toEqual({ drop: 'unbalancedClose' })
     expect(completionOf(tagged('));'), { ...CONTEXT, mode: 'multiline' })).toBe('));')
     expect(completionOf(tagged('foo(bar);'))).toBe('foo(bar);')
+  })
+
+  it('keeps a line break and indentation the model supplied after a block opener', () => {
+    expect(completionOf(tagged('\n  return 42;'), AT_BLOCK)).toBe('\n  return 42;')
+  })
+
+  it('keeps a Python body’s indentation with the cursor at column zero', () => {
+    expect(completionOf(tagged('    return 42'), PYTHON_BODY)).toBe('    return 42')
+  })
+
+  it('keeps the space that separates the completion from the suffix', () => {
+    const beforeCall: TabFilterContext = {
+      ...CONTEXT,
+      cursorLineBefore: '  ',
+      suffix: 'foobar()\n}\n',
+      linesBelow: ['}'],
+    }
+    expect(completionOf(tagged('return foo'), beforeCall)).toBe('return ')
+  })
+
+  it('adds the line break a body left out after a block opener', () => {
+    expect(completionOf(tagged('  return 42;'), AT_BLOCK)).toBe('\n  return 42;')
+    const python = { ...PYTHON_BODY, cursorLineBefore: 'def answer():' }
+    expect(completionOf(tagged('    return 42'), python)).toBe('\n    return 42')
+    const call = { ...AT_BLOCK, cursorLineBefore: 'configure(' }
+    expect(completionOf(tagged('\tverbose: true,'), call)).toBe('\n\tverbose: true,')
+    const list = { ...AT_BLOCK, cursorLineBefore: 'const sizes = [  ' }
+    expect(completionOf(tagged('  1,\n  2,'), list)).toBe('\n  1,\n  2,')
+  })
+
+  it('adds no line break where the reply continues the cursor’s line', () => {
+    const annotation = { ...AT_BLOCK, cursorLineBefore: 'let total:', suffix: '\n' }
+    expect(completionOf(tagged(' number = 0'), annotation)).toBe(' number = 0')
+    const call = { ...AT_BLOCK, cursorLineBefore: 'configure(', suffix: '\n' }
+    expect(completionOf(tagged('options)'), call)).toBe('options)')
+    const closed = { ...AT_BLOCK, cursorLineBefore: 'configure(', suffix: ')\n' }
+    expect(completionOf(tagged('  options'), closed)).toBe('  options')
+  })
+
+  it('drops indentation the user already typed on a blank line', () => {
+    const indented = { ...PYTHON_BODY, cursorLineBefore: ' '.repeat(4) }
+    expect(completionOf(tagged('    return total\n    print(total)'), indented)).toBe(
+      'return total\n    print(total)',
+    )
+    expect(completionOf(tagged('        return total'), indented)).toBe('    return total')
+  })
+
+  it('drops a stray trailing line break and a whitespace-only last line', () => {
+    // At the end of the file, so no suffix overlap can take the break away.
+    const atEnd = { ...CONTEXT, suffix: '' }
+    expect(completionOf(tagged('a + b;\n'), atEnd)).toBe('a + b;')
+    expect(completionOf(tagged('a + b;\n  '), atEnd)).toBe('a + b;')
+    const blockAtEnd = { ...AT_BLOCK, suffix: '' }
+    expect(completionOf(tagged('\n  return 42;\n'), blockAtEnd)).toBe('\n  return 42;')
   })
 
   it('drops a secret, a known literal and the redactor’s mark', () => {

@@ -1,8 +1,9 @@
 // A Tab reply's tags and filters (M94, PLAN.md D73): the suggestion is the
-// text between the two fixed tags, cut to the mode and refused when it only
-// repeats existing text, runs away, closes what it never opened, or holds a
-// secret. Pure: no `vscode` import. "Repeats" means equal after trimming
-// whitespace.
+// text between the two fixed tags, placed against the cursor, cut to the
+// mode and refused when it only repeats existing text, runs away, closes
+// what it never opened, or holds a secret. Pure: no `vscode` import.
+// "Repeats" means equal after trimming whitespace; the suggestion itself
+// keeps its code whitespace.
 
 import {
   REDACTED_MARK,
@@ -19,6 +20,24 @@ import type { TabMode } from './tabContext'
 const LINE_BREAK = '\n'
 const CODE_FENCE = '```'
 
+/** A line ending in one of these opens a block whose body starts below. */
+const BLOCK_OPENERS: readonly string[] = ['{', '(', '[', ':']
+
+/**
+ * A first line that is a new line's body: it starts with indentation (a
+ * tab, or two spaces or more) and holds code. A lone space is not: `x:`
+ * followed by ` number` continues the cursor's line.
+ */
+const BODY_LINE = /^(?:\t| {2})\s*\S/u
+
+/** Each closing bracket and the opening one it needs. */
+const BRACKET_PAIRS: ReadonlyMap<string, string> = new Map([
+  [')', '('],
+  [']', '['],
+  ['}', '{'],
+])
+const OPENING_BRACKETS: ReadonlySet<string> = new Set(BRACKET_PAIRS.values())
+
 /** A fence wrapping the whole reply, before the tags are read. */
 export function stripReplyWrapper(reply: string): string {
   let text = reply.trim()
@@ -33,10 +52,10 @@ export function stripReplyWrapper(reply: string): string {
 }
 
 /**
- * The text between the first complete tag pair. A lead-in sentence before
- * the tags and anything after them are not read. Missing, unterminated, or
- * stray tags (a close with no open before it) mean no suggestion; of
- * duplicate pairs the first wins.
+ * The text between the first complete tag pair, whitespace and all. A
+ * lead-in sentence before the tags and anything after them are not read.
+ * Missing, unterminated, or stray tags (a close with no open before it)
+ * mean no suggestion; of duplicate pairs the first wins.
  */
 export function extractCompletion(reply: string): string | undefined {
   const stripped = stripReplyWrapper(reply)
@@ -45,16 +64,15 @@ export function extractCompletion(reply: string): string | undefined {
     return undefined
   }
   const close = stripped.indexOf(TAB_REPLY_CLOSE_TAG, open + TAB_REPLY_OPEN_TAG.length)
-  if (close === -1) {
-    return undefined
-  }
-  return stripped.slice(open + TAB_REPLY_OPEN_TAG.length, close)
+  return close === -1 ? undefined : stripped.slice(open + TAB_REPLY_OPEN_TAG.length, close)
 }
 
 /**
  * The completion as shown: it ends at the first blank line after the first
  * line, then at the mode's line cap, then at `TAB_MAX_COMPLETION_CHARS`
- * (at a line boundary when one fits).
+ * (at a line boundary when one fits). Ending at a blank line also drops a
+ * stray trailing line break and a whitespace-only last line; spaces at the
+ * end of a line with code stay.
  */
 export function cutCompletion(completion: string, mode: TabMode): string {
   const maxLines = mode === 'fast' ? TAB_FAST_MAX_LINES : TAB_MULTILINE_MAX_LINES
@@ -109,28 +127,22 @@ function hasRepeatedLines(completion: string): boolean {
 }
 
 /** Whether the completion closes a bracket type more often than it opens it. */
-function closesUnopened(completion: string): boolean {
-  const opens = new Map<string, number>([
-    ['(', 0],
-    ['[', 0],
-    ['{', 0],
-  ])
+function hasUnopenedClose(completion: string): boolean {
+  const depths = new Map<string, number>()
   for (const char of completion) {
-    if (char === '(' || char === '[' || char === '{') {
-      opens.set(char, (opens.get(char) ?? 0) + 1)
-    } else if (char === ')' || char === ']' || char === '}') {
-      let open = '('
-      if (char === ']') {
-        open = '['
-      } else if (char === '}') {
-        open = '{'
-      }
-      const depth = opens.get(open) ?? 0
-      if (depth === 0) {
-        return true
-      }
-      opens.set(open, depth - 1)
+    if (OPENING_BRACKETS.has(char)) {
+      depths.set(char, (depths.get(char) ?? 0) + 1)
+      continue
     }
+    const open = BRACKET_PAIRS.get(char)
+    if (open === undefined) {
+      continue
+    }
+    const depth = depths.get(open) ?? 0
+    if (depth === 0) {
+      return true
+    }
+    depths.set(open, depth - 1)
   }
   return false
 }
@@ -151,6 +163,8 @@ export interface TabFilterContext {
   readonly mode: TabMode
   /** The text after the cursor, for the suffix-repeat check. */
   readonly suffix: string
+  /** The cursor's line before the cursor, to place the completion against. */
+  readonly cursorLineBefore: string
   /** The line above the cursor (`''` when there is none). */
   readonly lineAbove: string
   /** The lines below the cursor's line; the first non-blank one counts. */
@@ -159,11 +173,40 @@ export interface TabFilterContext {
   readonly secretLiterals: readonly string[]
 }
 
+/** The text up to the first line break (all of it when there is none). */
+function firstLineOf(text: string): string {
+  const end = text.indexOf(LINE_BREAK)
+  return end === -1 ? text : text.slice(0, end)
+}
+
+/**
+ * The completion placed against the cursor, its code whitespace otherwise
+ * kept (a body's indentation, a line break the model supplied):
+ * - after a block opener with nothing left on the cursor's line, a body
+ *   that starts on the cursor's line gets the line break the model left out;
+ * - on a line holding only indentation, the first line drops that same
+ *   indentation, which the user already typed.
+ */
+function placeAtCursor(completion: string, context: TabFilterContext): string {
+  const before = context.cursorLineBefore
+  const opened = before.trimEnd()
+  if (
+    BLOCK_OPENERS.some((opener) => opened.endsWith(opener)) &&
+    firstLineOf(context.suffix).trim() === '' &&
+    BODY_LINE.test(firstLineOf(completion))
+  ) {
+    return `${LINE_BREAK}${completion}`
+  }
+  const hasTypedIndent = opened === '' && before !== '' && completion.startsWith(before)
+  return hasTypedIndent ? completion.slice(before.length) : completion
+}
+
 /**
  * The reply's suggestion, or why there is none. The pipeline is extract,
- * cut, then refuse: what is cut away cannot refuse, and the kept text has
- * the suffix overlap trimmed first, so accepting it never duplicates the
- * suffix.
+ * place against the cursor, cut, then refuse: what is cut away cannot
+ * refuse, and the kept text has the suffix overlap trimmed first, so
+ * accepting it never duplicates the suffix. What the overlap trim leaves
+ * (a space or a line break before the suffix) stays: it separates the two.
  */
 export function suggestFromReply(reply: string, context: TabFilterContext): TabSuggestion {
   if (reply.trim() === '') {
@@ -173,34 +216,34 @@ export function suggestFromReply(reply: string, context: TabFilterContext): TabS
   if (extracted === undefined) {
     return { drop: 'untagged' }
   }
-  const trimmed = extracted.trim()
-  if (trimmed === '') {
+  if (extracted.trim() === '') {
     return { drop: 'empty' }
   }
-  const cut = cutCompletion(trimmed, context.mode)
-  const completion = trimTrailingOverlap(cut, context.suffix).trimEnd()
-  if (completion === '' || context.suffix.trimStart().startsWith(completion)) {
+  const cut = cutCompletion(placeAtCursor(extracted, context), context.mode)
+  if (cut.trim() === '') {
+    return { drop: 'empty' }
+  }
+  const completion = trimTrailingOverlap(cut, context.suffix)
+  const bare = completion.trim()
+  if (bare === '' || context.suffix.trimStart().startsWith(bare)) {
     return { drop: 'suffixRepeat' }
   }
   const above = context.lineAbove.trim()
-  if (above !== '' && completion === above) {
+  if (above !== '' && bare === above) {
     return { drop: 'lineAboveRepeat' }
   }
   const below = context.linesBelow.find((line) => line.trim() !== '')
-  if (below !== undefined && completion === below.trim()) {
+  if (bare === below?.trim()) {
     return { drop: 'lineBelowRepeat' }
   }
   if (hasRepeatedLines(completion)) {
     return { drop: 'repeatedLines' }
   }
-  if (context.mode === 'fast' && closesUnopened(completion)) {
+  if (context.mode === 'fast' && hasUnopenedClose(completion)) {
     return { drop: 'unbalancedClose' }
   }
-  if (
-    completion.includes(REDACTED_MARK) ||
+  return completion.includes(REDACTED_MARK) ||
     countSecretMatches(completion, context.secretLiterals) > 0
-  ) {
-    return { drop: 'secret' }
-  }
-  return { completion }
+    ? { drop: 'secret' }
+    : { completion }
 }
