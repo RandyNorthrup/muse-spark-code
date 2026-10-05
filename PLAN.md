@@ -6352,7 +6352,8 @@ summary, files?, checks?, sources?, questions?, next? }`. `blocked`
         - For each file that two tasks both changed, the prediction runs the
           merge queue's own merge routine in memory: D75's per-file merge
           (`git merge-file` for text, the explicit rules for binary, added
-          and deleted files) and the CHANGELOG merge for a changelog file.
+          and deleted files), the JSON table merge for a JSON table, and the
+          CHANGELOG merge for a changelog file.
         - So the prediction is what landing would do, and no repository
           program runs;
       - **each task against the integration state:** the files changed on
@@ -6373,19 +6374,66 @@ summary, files?, checks?, sources?, questions?, next? }`. `blocked`
       the current integration state anyway, and a conflict comes back as a
       conflict rework.
     - **Shared hot files.** The team's **shared files** list names files
-      that many tasks touch. A task that writes a shared file must declare
-      it, so tasks on one shared file serialize on it.
-      - **The built-in entries** are `CHANGELOG.md` and `CHANGES.md`, which
-        merge as changelogs (below), so they serialize nothing; and
-        `package.nls*.json`, `l10n/*.json`, `locales/**/*.json` and
-        `i18n/**/*.json`.
+      that many tasks touch, each with how it merges:
+      - **`changelog`:** the CHANGELOG merge (below). Tasks never serialize
+        on it.
+      - **`json-table`:** the JSON table merge (below). Tasks never
+        serialize on it.
+      - **`text`:** a plain file. A task that writes it must declare it, and
+        tasks on one such file serialize on it.
+      - **The built-in entries** are:
+        - `CHANGELOG.md` and `CHANGES.md` as `changelog`;
+        - `package.nls*.json`, `l10n/*.json`, `locales/**/*.json` and
+          `i18n/**/*.json` as `json-table`, when the file's top level is a
+          JSON object.
       - **Who adds entries.** The user adds files in the Roles section.
         `.muse/team.json` may add shared files too: a shared file only adds
-        order, never power.
-      - **What waits for M96d.** Region ownership inside a file (named
-        regions, M87's lane rules as a product) and the by-key merge of JSON
-        tables. Until then, the orchestrator can mirror M87's "Lane 0 goes
-        first": one task writes the strings, and the others depend on it.
+        order, or a stricter merge, never power.
+      - **What waits for M96d.** Region ownership inside a source file
+        (named regions, M87's lane rules as a product).
+    - **JSON tables merged by key.** Every feature lane edits the l10n
+      tables and the `package.nls*.json` tables (15 files each in this
+      repository). Serializing on them would allow one strings change at a
+      time, against the owner's "maximize the available lanes" (the lead's
+      decision, 2026-10-04).
+      - **The merge.** A three-way merge by key, for flat or nested JSON
+        objects: the base (the task's base commit), ours (the integration
+        state) and theirs (the task's branch), parsed by a parser that
+        refuses duplicate keys.
+        - A key that only one side added, changed or removed takes that
+          side's change.
+        - A key that both sides changed to the same value takes it once.
+        - Nested objects merge the same way, key by key. An array, a string
+          or a number is one value.
+        - **A conflict** is a key that both sides changed to different
+          values, or that one side removed while the other changed it. The
+          merge never picks one side silently. The task goes back as a
+          conflict rework, whatever `on_conflict` says: markers would make
+          the file invalid JSON.
+        - A file that is not a JSON object on all three sides, or that holds
+          a duplicate key, is merged as `text` instead.
+        - This is the lead's `json-merge3` practice, from 2026-10-03, when
+          the 14 tables conflicted on every main merge.
+      - **Key order.** The result keeps the integration state's keys in
+        their order. A key the branch added goes right after the key that
+        precedes it in the branch's file, or at the end of its object when
+        that key is gone. A removed key leaves its neighbours in place.
+      - **Formatting.**
+        - The merge writes the result in the integration state's own style:
+          its indentation, line endings, final newline and string escaping.
+        - The staging copy then runs the formatter the project already uses
+          on the merged JSON files, as it runs the checks (M68's
+          format-on-edit formatter), so the bytes tested are the bytes that
+          land.
+        - The merge step itself, like `git merge-file`, runs no repository
+          program.
+      - **Nothing lost.** After every merge, every key path of the
+        integration state must still be there, with the same value, unless
+        the branch's own change since its base changed or removed exactly
+        that key. Otherwise the merge is refused. Content the branch did not
+        touch stays as it was.
+      - Prediction uses this same merge, so two tasks adding different keys
+        are never predicted to conflict.
     - **A CHANGELOG without locks.**
       - **The changelog merge.**
         - It reads Keep a Changelog structure: release headings, then
@@ -7042,6 +7090,11 @@ path>` lease, so two windows never land into one tree at once.
       authorized delta; released sections never change; never a union.**
       - Why: the lead's record, and a kept check that accepts the edits the
         merge itself makes.
+    - **JSON tables merge by key in this delivery; a same-key conflict always
+      goes back to rework; regions inside source files wait for M96d.**
+      - Why: every feature lane edits the 15 l10n tables and the 15
+        `package.nls*.json` tables, so serializing on them would cap the team
+        at one strings change at a time (the lead's decision on round 2).
     - **One coordinator process per machine, elected by exclusive hard links
       and proved alive by kernel-held endpoints; the release of anything
       requires the holder, proof of exit, or the user.**
@@ -18051,8 +18104,8 @@ delivery Codex proposed: the optimisations wait in M96d, named there.
     are checked.
   - **Collisions.** Declared write-sets are leased per attempt and
     serialize by file. Conflicts are predicted with the landing's own merge
-    routine, against other tasks and the integration state. The CHANGELOG
-    merges without locks.
+    routine, against other tasks and the integration state. The JSON
+    tables merge by key and the CHANGELOG by bullet, both without locks.
   - **Integration.** The orchestrator's merge queue lands only what it
     tested, bound to the whole snapshot and the check identity. A red batch
     falls back to serial, cumulative admission. Landing is exclusive until
@@ -18083,7 +18136,7 @@ delivery Codex proposed: the optimisations wait in M96d, named there.
   - write-set leases per attempt, inheritance, cycle refusal, conflict
     prediction with the landing's merge, and refreshes at attempt
     boundaries;
-  - shared files (per-file serialization) and the CHANGELOG merge;
+  - shared files, the JSON table merge by key, and the CHANGELOG merge;
   - the merge queue: the order, snapshot-bound admission, batches with the
     serial fallback, conflicts, the landing journal and its recovery,
     branch hygiene, and the checkout guard;
@@ -18127,7 +18180,7 @@ delivery Codex proposed: the optimisations wait in M96d, named there.
 | --------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | 0c Strings, constants and schemas | M96c's keys in `src/shared/l10n/en.ts`, the 14 tables and `package.nls*.json`; the scheduler block of the Team region of `src/shared/constants.ts` (`TEAM_BOARD_MAX` (64), `TEAM_PRIORITY_WEIGHTS`, `TEAM_SIZE_MINUTES`, `TEAM_AGING_MS`, `TEAM_STARVATION_MS`, `TEAM_SCHED_TICK_MS`, `TEAM_STALL_MS`, `TEAM_STALL_RATE_LIMIT_MS`, `TEAM_RETIRE_WAIT_MS` (30,000), `TEAM_HANDOFF_TOOL_CALLS`, `TEAM_MAX_REASSIGNMENTS`, `TEAM_DIVERGE_REPEATS`, `TEAM_DIVERGE_SIZE_FACTOR`, `TEAM_START_STAGGER_MS`, `TEAM_DIFF_POLL_MS`, `TEAM_MERGE_BATCH_MAX`, `TEAM_MERGE_BATCH_SMALL_LINES`, `TEAM_MERGE_FLAKE_RETRIES`, `TEAM_BLAST_WEIGHTS`, `TEAM_HEAVY_COMMAND_SECONDS`, `RUNNER_CONNECT_TIMEOUT_MS` (10,000), `RUNNER_HEALTH_MS` (60,000), `RUNNER_SELFTEST_TIMEOUT_MS` (10,000)); the scheduler text of `TEAM_MODEL_TEXT`; the board, task fields, attempts, write-sets, states, events, metrics and runners in `src/shared/team.ts` |
 | S Scheduler                       | the new `src/core/team/scheduler/`: `board.ts` (the DAG, states, cycle and edge refusals, the two dependency kinds, attempt numbers and stale-event refusal, the reload pause), `criticalPath.ts`, `pick.ts` (the score, aging, the starvation bound, priority inheritance, fair share between conversations, work-stealing within a role, preemption only between tasks, staggered starts), `retire.ts` (retirement per worker kind, the bounded escalation, uncertain attempts, **Hand off anyway** and quarantine), `stalls.ts` (detection, the checkpoint after retirement, the handoff, where it goes, bounds, divergence), `reviewFlow.ts` (the integration flow, the automatic review, class reviews and their merge, full re-review after a change, rework rounds, `redesign`, claim checks); the scheduler region of `teamPool.ts`                                                                                     |
-| C Collisions                      | `src/core/team/writeSets.ts` (glob expansion, per-file overlap, attempt leases through the coordinator, inheritance, growth, clipping, exclusive writers), `src/core/team/waitFor.ts` (the wait-for graph and cycle refusal), `src/core/team/conflictPredict.ts` (diff polling, prediction through lane Q's merge routine, the integration state), `src/core/team/sharedFiles.ts` (the list and the built-in entries), `src/core/team/merge/changelog.ts` (bullet identity, the authorized delta, released sections, the kept check, fragments); the `sharedFiles` key in `teamConfig.ts`'s `team.json` region                                                                                                                                                                                                                                                                                                                  |
+| C Collisions                      | `src/core/team/writeSets.ts` (glob expansion, per-file overlap, attempt leases through the coordinator, inheritance, growth, clipping, exclusive writers), `src/core/team/waitFor.ts` (the wait-for graph and cycle refusal), `src/core/team/conflictPredict.ts` (diff polling, prediction through lane Q's merge routine, the integration state), `src/core/team/sharedFiles.ts` (the list and the built-in entries), `src/core/team/merge/changelog.ts` (bullet identity, the authorized delta, released sections, the kept check, fragments), `src/core/team/merge/jsonTable.ts` (the duplicate-refusing parse, the three-way merge by key for flat and nested objects, same-key conflicts, key order, the file's own style, the kept check, the fallback to text) and the staging copy's formatter step for merged JSON files (with lane Q); the `sharedFiles` key in `teamConfig.ts`'s `team.json` region                  |
 | Q Merge queue and hygiene         | `src/core/team/mergeQueue.ts` (the order, batches closed under dependency, the flaky rerun, serial cumulative admission, `on_conflict`), `src/core/team/mergeRoutine.ts` (the one merge routine landing and prediction share), `src/host/team/stagingCopy.ts` (the whole snapshot through a temporary index, its tree hash, the check identity, the staging clone), `src/host/team/landingJournal.ts` (the write-ahead journal and recovery by M86's rule), `src/host/team/teamCleanup.ts` (link-safe removal, `\\?\` paths, the orphan sweep, quarantined copies, disk use), the checkout guard in `teamWorkspaces.ts`'s region, the landing region of `teamMerge.ts` (the `land:` lease and the snapshot comparison)                                                                                                                                                                                                          |
 | O Check slots and runners         | `src/core/runners/` (`runnerConfig.ts`, the zod schema of `runners.json`; `routing.ts`, labels, affinity, load and fallback; `health.ts`), `src/host/runners/sshRunner.ts` (the user's `ssh` and `git` with the fixed options, the snapshot push, the lockfile-keyed setup, streaming, run ids, the remote end check, the Windows self-test), `native/runner/runner-helper.sh` and `runner-helper.ps1` (run incarnations and exit markers; installed by rename), `src/host/team/checkSlots.ts` (persistent slots, per-lockfile installs, reset, the copy-on-write option), the bridge's `run_checks` tool in `mcpBridge.ts`'s region, the test-command routing region of `engineWorker.ts`                                                                                                                                                                                                                                      |
 | T2 Tools                          | `teamTools.ts`'s regions for `delegate`'s new fields, `merge`'s enqueue and `reschedule`; the live parts of `roster` and `collect` and the state-change note's new events in `roster.ts`; the `team` server's tool list                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
@@ -18295,9 +18348,26 @@ delivery Codex proposed: the optimisations wait in M96d, named there.
   15. **Refreshes.** A new attempt starts with the integration state merged
       into its branch when that merge is clean. A running worker's tree
       never changes, and a waiting task is not refreshed.
-  16. **Shared files.** A shared file must be declared, and tasks on one
-      shared file serialize on it. The built-in entries apply, and
-      `team.json` may add shared files.
+  16. **Shared files and JSON tables.**
+      - A `text` shared file must be declared, and tasks on one serialize on
+        it. `changelog` and `json-table` files serialize nothing.
+      - The built-in entries apply, and `team.json` may add shared files.
+      - **Ten tasks, all the tables.** Ten branches from one base each add
+        different keys to all 15 `l10n/*.json` tables and all 15
+        `package.nls*.json` tables, some nested. All ten land with no
+        conflict.
+        - Every key appears exactly once, with its value.
+        - The integration state's keys keep their order, and each added key
+          follows the key before it in its branch.
+        - Each merged file's bytes equal the project formatter's output.
+        - Every key that was there before is kept, with its value.
+      - **A same-key conflict.** Two tasks change one key to different
+        values. The second is refused at its merge and goes back as a
+        conflict rework, even with `on_conflict: markers`, and no file gets
+        markers.
+      - A key removed on one side and changed on the other is a conflict
+        too. The same change on both sides is not.
+      - A table with a duplicate key, or not an object, merges as `text`.
   17. **The CHANGELOG.**
       - **Ten parallel tasks.** Ten branches from one base each add a
         bullet under `[Unreleased]`, some in the same section. After the
@@ -18516,6 +18586,19 @@ delivery Codex proposed: the optimisations wait in M96d, named there.
       lands inside `[1.2.0]`, and the case fails.
     - Drill: require every earlier bullet literally; the authorized edit
       and removal are refused, and the case fails.
+  - **JSON tables across ten parallel tasks** (lane C, real repositories,
+    acceptance 16's fixture over this repository's 30 tables).
+    - Drill: merge the tables with plain `git merge-file`; ten tasks
+      appending keys at the same spot conflict, and the case fails.
+    - Drill: on a same-key conflict, take the branch's value; the refusal
+      case fails.
+    - Drill: write markers for `on_conflict: markers`; the invalid-JSON
+      case fails.
+    - Drill: drop the kept check, with a seeded merge bug that loses an
+      untouched key; the lost key lands, and the case fails.
+    - Drill: sort keys alphabetically; the order case fails.
+    - Drill: land the merge step's own output without the formatter step;
+      the bytes case fails.
   - **The global cap holds across windows** (M96 lane K, again here). Three
     processes' boards race for slots. The sum never passes the cap, and a
     freed slot goes to the fair ticket. Drill: count per window; the case
@@ -18579,8 +18662,9 @@ delivery Codex proposed: the optimisations wait in M96d, named there.
     - **Cycles in `delegate`.** Drill: accept a cycle; the case fails.
   - **Lane C, further.**
     - **Prediction is the landing.** Drill: predict with plain
-      `merge-file`; two CHANGELOG additions are predicted to conflict
-      although landing merges them, and the case fails.
+      `merge-file`; two CHANGELOG additions, and two tasks adding different
+      keys to one l10n table, are predicted to conflict although landing
+      merges them, and the case fails.
     - **Against the integration state.** Drill: compare tasks only; the
       user's edit goes unseen, and the case fails.
     - **Lease growth.** Drill: refuse a write outside the plan; the case
@@ -18657,18 +18741,18 @@ delivery Codex proposed: the optimisations wait in M96d, named there.
   - No new dependency: git, ssh and Node's own modules.
 - **Security and privacy.**
 
-| #   | Threat                                                                                      | What stops it                                                                                                                                                                                                                                  |
-| --- | ------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| T20 | A repository adds a runner, changes its command, or sends code to a machine of its choosing | Runners are user-level only, in `runners.json`, and never read from a repository; a repository's checks run on a runner only in a trusted workspace, as they would locally                                                                     |
-| T21 | A credential reaches a runner, or SSH is driven into accepting an unknown host              | The runner's environment is its own plus allowlisted names, never a credential variable; `BatchMode=yes`, `StrictHostKeyChecking=yes`, `ForwardAgent=no`; the extension never reads SSH keys or configuration; workers never get the SSH agent |
-| T22 | Untested or broken code lands in the user's tree                                            | Admission bound to the whole snapshot and the check identity; a new snapshot compared before landing; serial cumulative admission after a red batch, landing only the combination that passed; **Land without checks** asks in every mode      |
-| T23 | A merge brings in conflict markers or a repository program                                  | `rework` by default, so markers stay in the task's branch; `git merge-file` and the TypeScript CHANGELOG merge run no repository program; the kept check refuses a lossy CHANGELOG merge                                                       |
-| T24 | A frozen or crashed window writes after another window was admitted                         | The `land:` lease is released only by its holder or on proof of its exit; landing writes are in the holder's own process; recovery rolls back its journal by M86's rule before the next landing                                                |
-| T25 | Cleanup deletes outside a working copy                                                      | Links and junctions are unlinked, never recursed; canonical paths checked against the storage folder; nothing unmerged is deleted without the user                                                                                             |
-| T26 | A worker escapes into the user's checkout                                                   | The checkout guard at start and at every command; only `in-place`, set by the user, may run there                                                                                                                                              |
-| T27 | The board floods: endless tasks, reassignments or reviews                                   | `TEAM_BOARD_MAX`; tasks per turn; two reassignments per task; three review rounds; every attempt counted under D75's caps and budgets                                                                                                          |
-| T28 | A scheduler event or report steers the orchestrator                                         | Events are structured fields in tool answers and the state-change note, never instructions; reports and handoff text are data (T1)                                                                                                             |
-| T29 | A stalled worker keeps writing after its replacement starts                                 | Retirement by proof per worker kind; processes proved exited by incarnation; an unproved attempt blocks the handoff, keeps its counts, and its copy is never reused; stale events refused by attempt number                                    |
+| #   | Threat                                                                                      | What stops it                                                                                                                                                                                                                                                                                                                                                        |
+| --- | ------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| T20 | A repository adds a runner, changes its command, or sends code to a machine of its choosing | Runners are user-level only, in `runners.json`, and never read from a repository; a repository's checks run on a runner only in a trusted workspace, as they would locally                                                                                                                                                                                           |
+| T21 | A credential reaches a runner, or SSH is driven into accepting an unknown host              | The runner's environment is its own plus allowlisted names, never a credential variable; `BatchMode=yes`, `StrictHostKeyChecking=yes`, `ForwardAgent=no`; the extension never reads SSH keys or configuration; workers never get the SSH agent                                                                                                                       |
+| T22 | Untested or broken code lands in the user's tree                                            | Admission bound to the whole snapshot and the check identity; a new snapshot compared before landing; serial cumulative admission after a red batch, landing only the combination that passed; **Land without checks** asks in every mode                                                                                                                            |
+| T23 | A merge brings in conflict markers, a silently picked value, or a repository program        | `rework` by default, so markers stay in the task's branch, and always for a JSON table; `git merge-file` and the TypeScript CHANGELOG and JSON table merges run no repository program (the project's formatter runs only in the staging copy, as the checks do); same-key changes are conflicts, never picks; the kept checks refuse a lossy CHANGELOG or JSON merge |
+| T24 | A frozen or crashed window writes after another window was admitted                         | The `land:` lease is released only by its holder or on proof of its exit; landing writes are in the holder's own process; recovery rolls back its journal by M86's rule before the next landing                                                                                                                                                                      |
+| T25 | Cleanup deletes outside a working copy                                                      | Links and junctions are unlinked, never recursed; canonical paths checked against the storage folder; nothing unmerged is deleted without the user                                                                                                                                                                                                                   |
+| T26 | A worker escapes into the user's checkout                                                   | The checkout guard at start and at every command; only `in-place`, set by the user, may run there                                                                                                                                                                                                                                                                    |
+| T27 | The board floods: endless tasks, reassignments or reviews                                   | `TEAM_BOARD_MAX`; tasks per turn; two reassignments per task; three review rounds; every attempt counted under D75's caps and budgets                                                                                                                                                                                                                                |
+| T28 | A scheduler event or report steers the orchestrator                                         | Events are structured fields in tool answers and the state-change note, never instructions; reports and handoff text are data (T1)                                                                                                                                                                                                                                   |
+| T29 | A stalled worker keeps writing after its replacement starts                                 | Retirement by proof per worker kind; processes proved exited by incarnation; an unproved attempt blocks the handoff, keeps its counts, and its copy is never reused; stale events refused by attempt number                                                                                                                                                          |
 
 - **Residuals, recorded.**
   - **Runners execute project code** on the user's machines, as local checks
@@ -18802,11 +18886,12 @@ release, the whole-snapshot admission, and single-model mode untouched.
   A field whose intersection leaves the task unable to run refuses the
   steal (`RVM96C` finding 9).
 
-- **Regions and JSON tables.** Named regions inside shared files (VS Code's
-  folding markers, or anchors beside an existing block: M87's lane rules
-  as a product), region-level leases, and the by-key merge of JSON tables
-  such as the l10n tables (the lead's `json-merge3` practice). Prediction
-  keeps using the landing's own merge routine.
+- **Regions inside source files.** Named regions inside shared source files
+  (VS Code's folding markers, or anchors beside an existing block: M87's
+  lane rules as a product), with region-level leases and merges, for files
+  such as `src/shared/constants.ts` and `src/shared/l10n/en.ts`. Prediction
+  keeps using the landing's own merge routine. (The by-key merge of JSON
+  tables moved back into M96c on the lead's decision of 2026-10-04.)
 - **Tests and drills** for each, as M96c's are, and the docs.
 
 ### M41 — Install Muse Code from the panel (folded into M55)

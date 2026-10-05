@@ -1242,8 +1242,10 @@ day:
 - **The lead's region ownership becomes write-set leases.** Attempts lease
   files. Overlaps are predicted with the landing's own merge routine. The
   CHANGELOG merges by bullet identity (changelog-rebase, the kept check
-  and the released-section guard; never a union). Regions and the by-key
-  merge of the l10n tables wait for M96d.
+  and the released-section guard; never a union). The l10n and
+  `package.nls*.json` tables merge by key (json-merge3), with same-key
+  conflicts sent back to rework. Regions inside source files wait for
+  M96d.
 - **The lead's serial queue becomes the merge queue.** It is ordered by
   dependency, priority, conflicts and blast radius. It lands only what it
   tested, bound to the whole snapshot. It batches small changes, retries a
