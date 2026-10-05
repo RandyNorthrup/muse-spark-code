@@ -588,6 +588,9 @@ export const EXTENSION_HOOK_EVENTS = [
   'BeforeToolSelection',
   'AfterAgentThought',
   'Manual',
+  // Cursor's own Tab names and contract (M94 lane K, D73).
+  'beforeTabFileRead',
+  'afterTabFileEdit',
 ] as const
 // A save storm or a build's output changes a path many times in a burst, so FileChanged fires once per path in this quiet window.
 export const HOOK_FILE_CHANGED_DEBOUNCE_MS = 500
