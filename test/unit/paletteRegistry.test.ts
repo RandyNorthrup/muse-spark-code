@@ -370,7 +370,7 @@ describe('buildPalette', () => {
       expect(row, String(backend)).toEqual({
         id: 'importFromAgents',
         label: EN.agentImportItem,
-        detail: EN.agentImportDetail,
+        detail: EN.agentImportDetailEvery,
         action: { type: 'importFromAgents' },
       })
     }

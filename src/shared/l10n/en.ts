@@ -295,6 +295,9 @@ export const EN = {
   agentImportSkippedUnknownFormat: 'its file is in a format this version does not read',
   agentImportKeptWaiting:
     'kept, waiting for inline completions, which this extension does not have yet',
+  // Kiro's spec-task triggers map to the todo-item events (M91, PLAN.md D70):
+  // the preview says so in plain words.
+  agentImportKiroTaskNote: 'Kiro spec-task triggers run on todo items here',
   exportNothing: 'There is no conversation to export yet.',
   exportFailed: 'The conversation could not be exported',
   exportSaved: 'Conversation exported to {path}',

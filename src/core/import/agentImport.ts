@@ -36,6 +36,7 @@ import {
   AGENT_IMPORT_DIR_MAX_ENTRIES,
   AGENT_IMPORT_FILE_MAX_BYTES,
   AGENT_IMPORT_ID_MAX_CHARS,
+  AGENT_IMPORT_JSON_EXTENSION,
   AGENT_IMPORT_MARKDOWN_EXTENSION,
   AGENT_IMPORT_PATHS,
   AGENT_IMPORT_ROOT_CHANGED_CODE,
@@ -56,6 +57,8 @@ import {
   SKILL_FILE_MAX_BYTES,
   SKILL_FILE_NAME,
   SKILL_ID_PATTERN,
+  SPARK_HOOKS_SEGMENTS,
+  UI_TEXT,
 } from '../../shared/constants'
 import { readMcpServerEntries } from '../backends/musecode/museConfigView'
 import { decodeContextText } from '../context/contextFiles'
@@ -64,19 +67,44 @@ import type { EditedFile } from '../verify/diagnosticsReport'
 import { pathModule } from '../workspaceRoot'
 import {
   appendSeparator,
+  clineEventForFile,
   commandToSkill,
   type Conversion,
   type ConversionRefusal,
+  convertClaudeSparkHook,
+  convertClineHook,
+  convertCodexHook,
   convertCodexServer,
+  convertCopilotHook,
+  convertCursorHook,
+  convertGeminiHook,
   convertHook,
   convertJsonServer,
+  convertKiroHook,
+  convertWindsurfHook,
+  copilotFlavorOf,
+  type ForeignHooksRead,
+  type FoundHook,
   type FoundServer,
+  geminiSequentialEvents,
+  type HookSwitches,
+  type KiroHooksRead,
   type MuseHook,
   type MuseMcpEntry,
+  hasCodexNotify,
   readClaudeHooks,
   readClaudeState,
   readCodexConfig,
+  isCodexHooksOff,
+  readCodexHooksToml,
+  readCopilotHooks,
+  readCursorHooks,
+  hasDisableAllHooks,
+  readGeminiSwitches,
+  readKiroHooks,
   readMcpFile,
+  readWindsurfHooks,
+  withSwitches,
   rulesHeading,
   rulesSection,
   splitFrontMatter,
@@ -103,6 +131,11 @@ export interface ImportIo extends RealPathIo {
   isIgnored(absolutePath: string, workspaceRoot: string): Promise<boolean>
   /** The directory's entries; undefined when it is missing; throws on any other failure. */
   listDirectory(absolutePath: string): Promise<readonly ImportDirEntry[] | undefined>
+  /**
+   * Whether the file has an execute bit (Cline v1's on switch off Windows);
+   * without this, no Cline script there counts as on.
+   */
+  isExecutable?(absolutePath: string): Promise<boolean>
 }
 
 export interface ImportScanInput {
@@ -113,6 +146,8 @@ export interface ImportScanInput {
   readonly claudeConfigDir: string | undefined
   /** `CODEX_HOME` as the environment gives it. */
   readonly codexHome: string | undefined
+  /** `COPILOT_HOME` as the environment gives it: it replaces `~/.copilot`. */
+  readonly copilotHome?: string | undefined
   readonly workspaceRoot: string | undefined
   /** All folders open in the window, read live at each classification. */
   readonly workspaceRoots?: () => readonly string[]
@@ -162,7 +197,12 @@ export type ImportTarget =
     }
   | { readonly kind: 'server'; readonly name: string; readonly entry: MuseMcpEntry }
   | { readonly kind: 'hook'; readonly file: ImportCopyFile; readonly hook: MuseHook }
-  | { readonly kind: 'none'; readonly reason: ImportSkipReason }
+  | {
+      readonly kind: 'none'
+      readonly reason: ImportSkipReason
+      /** Set only with `field`: the source's field with no equivalent here. */
+      readonly field?: string | undefined
+    }
 
 export interface ImportCandidate {
   readonly id: string
@@ -176,6 +216,8 @@ export interface ImportCandidate {
   readonly target: ImportTarget
   /** The source entry's fields that are not carried over. */
   readonly dropped: readonly string[]
+  /** A plain-words line the preview shows under this entry, if any. */
+  readonly previewNote?: string | undefined
 }
 
 export interface ImportScan {
@@ -184,8 +226,13 @@ export interface ImportScan {
   readonly warnings: readonly string[]
 }
 
-/** Where the copied entries go: Muse Code's settings file, or the project's hooks file. */
-export type ImportCopyFile = 'settings' | 'hooks'
+/**
+ * Where the copied entries go: Muse Code's settings file, the project's
+ * hooks file, or the extension's own `spark-hooks.json` (M91, PLAN.md D70)
+ * beside the settings file and in the project. Foreign formats convert only
+ * into the spark files, with a `format` tag for lane P's adapters.
+ */
+export type ImportCopyFile = 'settings' | 'hooks' | 'sparkUser' | 'sparkProject'
 
 interface Scan {
   readonly input: ImportScanInput
@@ -195,7 +242,19 @@ interface Scan {
   readonly taken: Set<string>
   /** Per id base, the first suffix not yet tried: duplicate labels register in O(1) amortized. */
   readonly nextSuffix: Map<string, number>
+  /**
+   * Each source file read once per scan: a source's switches (Claude's and
+   * Copilot's `disableAllHooks`, Gemini's `hooksConfig`, Codex's
+   * `[features]`) are read before its hooks, from the same text.
+   */
+  readonly reads: Map<string, Promise<SourceRead>>
 }
+
+type SourceRead =
+  | { readonly status: 'missing' }
+  | { readonly status: 'text'; readonly text: string }
+  /** There but refused or unreadable; the warning is already logged. */
+  | { readonly status: 'failed' }
 
 interface Found {
   readonly source: AgentImportSource
@@ -205,6 +264,7 @@ interface Found {
   readonly originPath: string
   readonly target: ImportTarget
   readonly dropped?: readonly string[]
+  readonly previewNote?: string | undefined
 }
 
 const USER_RULES_REFUSAL: ImportTarget = { kind: 'none', reason: 'userRules' }
@@ -287,12 +347,22 @@ function add(scan: Scan, found: Found): void {
     scan.nextSuffix.set(base, index)
   }
   taken.add(id)
-  scan.candidates.push({ ...found, id, sourceExposure: undefined, dropped: found.dropped ?? [] })
+  scan.candidates.push({
+    ...found,
+    id,
+    sourceExposure: undefined,
+    dropped: found.dropped ?? [],
+    ...(found.previewNote !== undefined && { previewNote: found.previewNote }),
+  })
 }
 
-/** A converter's refusal as the entry's target. */
+/** A converter's refusal as the entry's target, naming its field when it names one. */
 function refusalOf(refusal: Exclude<Conversion<unknown>, { readonly ok: true }>): ImportTarget {
-  return { kind: 'none', reason: refusal.reason }
+  return {
+    kind: 'none',
+    reason: refusal.reason,
+    ...(refusal.field !== undefined && { field: refusal.field }),
+  }
 }
 
 export type ImportExposure = 'personal' | 'project-local' | 'project-tracked'
@@ -373,15 +443,14 @@ async function isConfined(
   return confined.ok
 }
 
-/** A file's text; undefined when it is missing or cannot be used, with a warning for the latter. */
-async function readText(
+async function readSourceOnce(
   scan: Scan,
   absolutePath: string,
   origin: ImportOrigin,
-  maxBytes: number = AGENT_IMPORT_FILE_MAX_BYTES,
-): Promise<string | undefined> {
+  maxBytes: number,
+): Promise<SourceRead> {
   if (!(await isConfined(scan, absolutePath, origin)) || !canReadOrigin(scan, origin)) {
-    return undefined
+    return { status: 'failed' }
   }
   let read: ImportRead
   try {
@@ -392,29 +461,57 @@ async function readText(
     )
   } catch {
     scan.warnings.push(`could not be read (failed)`)
-    return undefined
+    return { status: 'failed' }
   }
   switch (read.status) {
     case 'missing': {
-      return undefined
+      return { status: 'missing' }
     }
     case 'notFile': {
       scan.warnings.push(`is not a file, skipped`)
-      return undefined
+      return { status: 'failed' }
     }
     case 'tooLarge': {
       scan.warnings.push(`is over the ${String(maxBytes)} byte limit, skipped`)
-      return undefined
+      return { status: 'failed' }
     }
     case 'read': {
       const decoded = decodeContextText(read.bytes)
       if (!decoded.ok) {
         scan.warnings.push(`${decoded.reason}, skipped`)
-        return undefined
+        return { status: 'failed' }
       }
-      return decoded.text
+      return { status: 'text', text: decoded.text }
     }
   }
+}
+
+/** A source file, read once per scan behind the live trust gate; missing, its text, or failed. */
+async function readSource(
+  scan: Scan,
+  absolutePath: string,
+  origin: ImportOrigin,
+  maxBytes: number = AGENT_IMPORT_FILE_MAX_BYTES,
+): Promise<SourceRead> {
+  const key = [origin, String(maxBytes), absolutePath].join('\0')
+  let pending = scan.reads.get(key)
+  if (pending === undefined) {
+    pending = readSourceOnce(scan, absolutePath, origin, maxBytes)
+    scan.reads.set(key, pending)
+  }
+  const read = await pending
+  return canReadOrigin(scan, origin) ? read : { status: 'failed' }
+}
+
+/** A file's text; undefined when it is missing or cannot be used, with a warning for the latter. */
+async function readText(
+  scan: Scan,
+  absolutePath: string,
+  origin: ImportOrigin,
+  maxBytes: number = AGENT_IMPORT_FILE_MAX_BYTES,
+): Promise<string | undefined> {
+  const read = await readSource(scan, absolutePath, origin, maxBytes)
+  return read.status === 'text' ? read.text : undefined
 }
 
 async function listEntries(
@@ -519,25 +616,6 @@ async function collectMcpFile(
   addServers(scan, { source, origin, originPath: file, servers, convert: convertJsonServer })
 }
 
-async function collectCodexConfig(scan: Scan, origin: ImportOrigin, file: string): Promise<void> {
-  const text = await readText(scan, file, origin)
-  if (text === undefined) {
-    return
-  }
-  const servers = readCodexConfig(text)
-  if (servers === undefined) {
-    scan.warnings.push(`is not a readable Codex configuration, skipped`)
-    return
-  }
-  addServers(scan, {
-    source: 'codex',
-    origin,
-    originPath: file,
-    servers,
-    convert: convertCodexServer,
-  })
-}
-
 async function collectClaudeState(scan: Scan, file: string): Promise<void> {
   const text = await readText(scan, file, 'user', AGENT_IMPORT_CLAUDE_STATE_MAX_BYTES)
   if (text === undefined) {
@@ -559,8 +637,38 @@ async function collectClaudeState(scan: Scan, file: string): Promise<void> {
 }
 
 // --- Hooks ---
+//
+// Codex hooks convert into Muse Code's own files and run on both backends.
+// Claude Code's extension events and every other agent's format convert into
+// `spark-hooks.json` with a `format` tag for lane P's adapters. Labels are
+// event and hook names only: the preview never shows command text.
 
-async function collectHooks(scan: Scan, origin: ImportOrigin, file: string): Promise<void> {
+/** The spark file an origin converts into: beside the settings, or in the project. */
+function sparkFileOf(origin: ImportOrigin): 'sparkUser' | 'sparkProject' {
+  return origin === 'user' ? 'sparkUser' : 'sparkProject'
+}
+
+function addHook(
+  scan: Scan,
+  found: Omit<Found, 'kind' | 'target' | 'dropped'> & { readonly previewNote?: string | undefined },
+  converted: Conversion<MuseHook>,
+  file: ImportCopyFile,
+): void {
+  add(scan, {
+    ...found,
+    kind: 'hook',
+    target: converted.ok ? { kind: 'hook', file, hook: converted.value } : refusalOf(converted),
+    dropped: converted.ok ? converted.dropped : [],
+    ...(found.previewNote !== undefined && { previewNote: found.previewNote }),
+  })
+}
+
+async function collectHooks(
+  scan: Scan,
+  origin: ImportOrigin,
+  file: string,
+  isOff: boolean,
+): Promise<void> {
   const text = await readText(scan, file, origin)
   if (text === undefined) {
     return
@@ -570,18 +678,458 @@ async function collectHooks(scan: Scan, origin: ImportOrigin, file: string): Pro
     scan.warnings.push(`is not a readable settings file, skipped`)
     return
   }
-  for (const hook of hooks) {
-    const converted = convertHook(hook)
-    add(scan, {
+  const switched = withSwitches(hooks, { isOff })
+  for (const hook of switched) {
+    const base = {
       source: 'claudeCode',
       origin,
-      kind: 'hook',
       label: hook.event,
       originPath: file,
-      target: converted.ok
-        ? { kind: 'hook', file: origin === 'user' ? 'settings' : 'hooks', hook: converted.value }
-        : refusalOf(converted),
+    } as const
+    const converted = convertHook(hook)
+    if (converted.ok || converted.reason !== 'unmapped') {
+      addHook(scan, base, converted, origin === 'user' ? 'settings' : 'hooks')
+      continue
+    }
+    addHook(scan, base, convertClaudeSparkHook(hook), sparkFileOf(origin))
+  }
+}
+
+async function collectCodexHooks(
+  scan: Scan,
+  origin: ImportOrigin,
+  file: string,
+  isOff: boolean,
+): Promise<void> {
+  const text = await readText(scan, file, origin)
+  if (text === undefined) {
+    return
+  }
+  const hooks = readClaudeHooks(text)
+  if (hooks === undefined) {
+    scan.warnings.push(`is not a readable Codex hooks file, skipped`)
+    return
+  }
+  const switched = withSwitches(hooks, { isOff })
+  for (const hook of switched) {
+    addHook(
+      scan,
+      { source: 'codex', origin, label: hook.event, originPath: file },
+      convertCodexHook(hook),
+      origin === 'user' ? 'settings' : 'hooks',
+    )
+  }
+}
+
+/**
+ * One read of a Codex `config.toml` for its servers, its `notify` program
+ * and its inline `hooks` table: a file that is not TOML warns once, whatever
+ * was wanted from it.
+ */
+async function collectCodexConfigFile(
+  scan: Scan,
+  origin: ImportOrigin,
+  file: string,
+  isOff: boolean,
+): Promise<void> {
+  const text = await readText(scan, file, origin)
+  if (text === undefined) {
+    return
+  }
+  const servers = readCodexConfig(text)
+  if (servers === undefined) {
+    scan.warnings.push(`is not a readable Codex configuration, skipped`)
+    return
+  }
+  addServers(scan, {
+    source: 'codex',
+    origin,
+    originPath: file,
+    servers,
+    convert: convertCodexServer,
+  })
+  if (hasCodexNotify(text)) {
+    add(scan, {
+      source: 'codex',
+      origin,
+      kind: 'hook',
+      label: 'notify',
+      originPath: file,
+      target: { kind: 'none', reason: 'notify' },
     })
+  }
+  const hooks = readCodexHooksToml(text)
+  if (hooks === undefined) {
+    scan.warnings.push(`is not a readable Codex hooks table, skipped`)
+    return
+  }
+  const switched = withSwitches(hooks, { isOff })
+  for (const hook of switched) {
+    addHook(
+      scan,
+      { source: 'codex', origin, label: hook.event, originPath: file },
+      convertCodexHook(hook),
+      origin === 'user' ? 'settings' : 'hooks',
+    )
+  }
+}
+
+/** One foreign hooks file's entries as spark candidates, each with its import record. */
+function collectForeignHooks(
+  scan: Scan,
+  options: {
+    readonly source: AgentImportSource
+    readonly origin: ImportOrigin
+    readonly originPath: string
+    readonly found: readonly FoundHook[]
+    readonly convert: (hook: FoundHook) => Conversion<MuseHook>
+  },
+): void {
+  for (const hook of options.found) {
+    addHook(
+      scan,
+      {
+        source: options.source,
+        origin: options.origin,
+        label: hook.event,
+        originPath: options.originPath,
+      },
+      options.convert(hook),
+      sparkFileOf(options.origin),
+    )
+  }
+}
+
+/** A file in a format this version does not read: one refused candidate naming the file. */
+function addUnknownFormat(
+  scan: Scan,
+  source: AgentImportSource,
+  origin: ImportOrigin,
+  file: string,
+): void {
+  add(scan, {
+    source,
+    origin,
+    kind: 'hook',
+    label: scan.p.basename(file),
+    originPath: file,
+    target: { kind: 'none', reason: 'unknownFormat' },
+  })
+}
+
+/** The texts of a source's switch files, for the switches read before its hooks. */
+async function switchTexts(
+  scan: Scan,
+  files: readonly { readonly file: string; readonly origin: ImportOrigin }[],
+): Promise<readonly string[]> {
+  const texts: string[] = []
+  for (const { file, origin } of files) {
+    const text = await readText(scan, file, origin)
+    if (text !== undefined) {
+      texts.push(text)
+    }
+  }
+  return texts
+}
+
+/**
+ * Gemini's switches over every settings file read: `hooksConfig` off in any
+ * one, or a name disabled in any one, keeps those hooks off. Gemini merges
+ * user and project settings, and an import is never more on than its source.
+ */
+function mergedGeminiSwitches(texts: readonly string[]): HookSwitches {
+  const switches = texts.map((text) => readGeminiSwitches(text))
+  return {
+    isOff: switches.some((entry) => entry.isOff),
+    offNames: new Set(switches.flatMap((entry) => [...(entry.offNames ?? [])])),
+  }
+}
+
+async function collectGeminiHooks(
+  scan: Scan,
+  origin: ImportOrigin,
+  file: string,
+  switches: HookSwitches,
+): Promise<void> {
+  const text = await readText(scan, file, origin)
+  if (text === undefined) {
+    return
+  }
+  const read = readClaudeHooks(text)
+  if (read === undefined) {
+    scan.warnings.push(`is not a readable Gemini settings file, skipped`)
+    return
+  }
+  const hooks = withSwitches(read, switches)
+  const sequential = geminiSequentialEvents(hooks)
+  collectForeignHooks(scan, {
+    source: 'gemini',
+    origin,
+    originPath: file,
+    found: hooks,
+    convert: (hook) => convertGeminiHook(hook, sequential),
+  })
+}
+
+async function collectCursorHooks(scan: Scan, origin: ImportOrigin, file: string): Promise<void> {
+  const text = await readText(scan, file, origin)
+  if (text === undefined) {
+    return
+  }
+  const read: ForeignHooksRead = readCursorHooks(text)
+  switch (read.status) {
+    case 'ok': {
+      collectForeignHooks(scan, {
+        source: 'cursor',
+        origin,
+        originPath: file,
+        found: read.hooks,
+        convert: convertCursorHook,
+      })
+      return
+    }
+    case 'unknownFormat': {
+      addUnknownFormat(scan, 'cursor', origin, file)
+      return
+    }
+    case 'unreadable': {
+      scan.warnings.push(`is not a readable hooks file, skipped`)
+    }
+  }
+}
+
+/**
+ * One Copilot-location hooks file or inline settings block. Each entry
+ * keeps its contract: a VS Code Local file (PascalCase, no `version`) or a
+ * Copilot CLI one. `disableAllHooks` in the file, or in a settings file of
+ * the same scan (`isOff`), keeps every entry off.
+ */
+async function collectCopilotHooks(
+  scan: Scan,
+  origin: ImportOrigin,
+  file: string,
+  options: { readonly isSettingsBlock: boolean; readonly isOff: boolean },
+): Promise<void> {
+  const text = await readText(scan, file, origin)
+  if (text === undefined) {
+    return
+  }
+  const read = readCopilotHooks(text)
+  switch (read.status) {
+    case 'ok': {
+      const switched = withSwitches(read.hooks, { isOff: options.isOff })
+      for (const hook of switched) {
+        const flavor = copilotFlavorOf(hook.event, read.isVersioned, options.isSettingsBlock)
+        addHook(
+          scan,
+          { source: 'copilot', origin, label: hook.event, originPath: file },
+          convertCopilotHook(hook, flavor),
+          sparkFileOf(origin),
+        )
+      }
+      return
+    }
+    case 'unknownFormat': {
+      addUnknownFormat(scan, 'copilot', origin, file)
+      return
+    }
+    case 'unreadable': {
+      // An inline settings block is optional: a settings file without one is not a warning.
+      if (!options.isSettingsBlock) {
+        scan.warnings.push(`is not a readable hooks file, skipped`)
+      }
+    }
+  }
+}
+
+/** Every `*.json` hooks file in a hooks folder. */
+async function collectHooksFolder(
+  scan: Scan,
+  origin: ImportOrigin,
+  directory: string,
+  collect: (scan: Scan, origin: ImportOrigin, file: string) => Promise<void>,
+): Promise<void> {
+  const entries = await listEntries(scan, directory, origin)
+  for (const entry of entries) {
+    if (!entry.isDirectory && hasExtension(entry.name, AGENT_IMPORT_JSON_EXTENSION)) {
+      await collect(scan, origin, scan.p.join(directory, entry.name))
+    }
+  }
+}
+
+/** A Windsurf hooks file's entries, or why it gave none. */
+async function readWindsurfFile(
+  scan: Scan,
+  origin: ImportOrigin,
+  file: string,
+): Promise<'missing' | 'failed' | readonly FoundHook[]> {
+  const read = await readSource(scan, file, origin)
+  if (read.status !== 'text') {
+    return read.status
+  }
+  const hooks = readWindsurfHooks(read.text)
+  if (hooks === undefined) {
+    scan.warnings.push(`is not a readable Windsurf hooks file, skipped`)
+    return 'failed'
+  }
+  return hooks
+}
+
+function addWindsurfHooks(
+  scan: Scan,
+  origin: ImportOrigin,
+  file: string,
+  hooks: readonly FoundHook[],
+): void {
+  collectForeignHooks(scan, {
+    source: 'windsurf',
+    origin,
+    originPath: file,
+    found: hooks,
+    convert: convertWindsurfHook,
+  })
+}
+
+async function collectKiroHooks(scan: Scan, origin: ImportOrigin, file: string): Promise<void> {
+  const text = await readText(scan, file, origin)
+  if (text === undefined) {
+    return
+  }
+  const read: KiroHooksRead = readKiroHooks(text)
+  switch (read.status) {
+    case 'ok': {
+      for (const hook of read.hooks) {
+        addHook(
+          scan,
+          {
+            source: 'kiro',
+            origin,
+            label: hook.name ?? hook.trigger,
+            originPath: file,
+            ...((hook.trigger === 'PreTaskExec' || hook.trigger === 'PostTaskExec') && {
+              previewNote: UI_TEXT.agentImportKiroTaskNote,
+            }),
+          },
+          convertKiroHook(hook),
+          sparkFileOf(origin),
+        )
+      }
+      return
+    }
+    case 'unknownFormat': {
+      addUnknownFormat(scan, 'kiro', origin, file)
+      return
+    }
+    case 'unreadable': {
+      scan.warnings.push(`is not a readable Kiro hooks file, skipped`)
+    }
+  }
+}
+
+/** Whether a canonical path lies in any folder open in the window. */
+async function isInOpenWorkspace(scan: Scan, absolutePath: string): Promise<boolean> {
+  const file = await scan.input.io.realPath(absolutePath)
+  const roots =
+    scan.input.workspaceRoots?.() ??
+    (scan.input.workspaceRoot === undefined ? [] : [scan.input.workspaceRoot])
+  for (const workspace of roots) {
+    const canonical = await scan.input.io.realPath(workspace)
+    if (resolveWorkspacePath(canonical, file, scan.input.platform).ok) return true
+  }
+  return false
+}
+
+/**
+ * A Cline script checked one by one, as the JSON readers check a file: its
+ * canonical path confined to its scope behind the live trust gate, a
+ * regular file (no link beneath a project root), and a personal script never
+ * one that leads into a folder open in the window (a personal hook would run
+ * that project's code everywhere). `refused` is offered with its reason;
+ * `skip` is missing or already warned.
+ */
+async function checkClineScript(
+  scan: Scan,
+  file: string,
+  origin: ImportOrigin,
+): Promise<'ok' | 'refused' | 'skip'> {
+  try {
+    if (
+      origin === 'user' &&
+      scan.input.isWorkspaceTrusted() &&
+      (await isInOpenWorkspace(scan, file))
+    ) {
+      return 'refused'
+    }
+  } catch {
+    scan.warnings.push(`could not be resolved (failed)`)
+    return 'skip'
+  }
+  if (!(await isConfined(scan, file, origin)) || !canReadOrigin(scan, origin)) {
+    return 'skip'
+  }
+  let read: ImportRead
+  try {
+    // Zero bytes: only whether it is a regular file is read, never the script.
+    read = await scan.input.io.readFile(
+      file,
+      0,
+      origin === 'project' ? scan.input.workspaceRoot : undefined,
+    )
+  } catch {
+    scan.warnings.push(`could not be read (failed)`)
+    return 'skip'
+  }
+  if (read.status === 'notFile') {
+    scan.warnings.push(`is not a file, skipped`)
+  }
+  return read.status === 'read' || read.status === 'tooLarge' ? 'ok' : 'skip'
+}
+
+/** Whether Cline would run the script: off Windows only while it is executable. */
+async function isClineScriptOn(scan: Scan, file: string): Promise<boolean | undefined> {
+  if (scan.input.platform === 'win32') {
+    return true
+  }
+  try {
+    return (await scan.input.io.isExecutable?.(file)) ?? false
+  } catch {
+    scan.warnings.push(`could not be checked (failed)`)
+    return undefined
+  }
+}
+
+async function collectClineHooks(
+  scan: Scan,
+  origin: ImportOrigin,
+  directory: string,
+): Promise<void> {
+  const entries = await listEntries(scan, directory, origin)
+  for (const entry of entries) {
+    if (entry.isDirectory) {
+      continue
+    }
+    const classified = clineEventForFile(entry.name, scan.input.platform)
+    if (classified.kind === 'ignore') {
+      continue
+    }
+    const file = scan.p.join(directory, entry.name)
+    if (classified.kind === 'unknownFormat') {
+      addUnknownFormat(scan, 'cline', origin, file)
+      continue
+    }
+    const base = { source: 'cline', origin, label: entry.name, originPath: file } as const
+    const checked = await checkClineScript(scan, file, origin)
+    if (checked === 'skip') {
+      continue
+    }
+    if (checked === 'refused') {
+      add(scan, { ...base, kind: 'hook', target: { kind: 'none', reason: 'outside' } })
+      continue
+    }
+    const isOn = await isClineScriptOn(scan, file)
+    if (isOn !== undefined) {
+      addHook(scan, base, convertClineHook(classified.sourceEvent, file, isOn), sparkFileOf(origin))
+    }
   }
 }
 
@@ -883,13 +1431,31 @@ async function scanClaudeCode(scan: Scan, isProjectRead: boolean): Promise<void>
     names.configDirVariable,
     p.join(input.homeDir, names.dir),
   )
+  const root = input.workspaceRoot
+  const projectDir = root === undefined ? undefined : p.join(root, names.dir)
+  const settingsFiles = [
+    ...(configDir === undefined
+      ? []
+      : [{ file: p.join(configDir, names.userSettingsFile), origin: 'user' as const }]),
+    ...(projectDir === undefined || !isProjectRead
+      ? []
+      : names.projectSettingsFiles.map((settings) => ({
+          file: p.join(projectDir, settings),
+          origin: 'project' as const,
+        }))),
+  ]
   if (configDir !== undefined) {
     const stateDir =
       input.claudeConfigDir === undefined || input.claudeConfigDir === ''
         ? input.homeDir
         : configDir
     await collectClaudeState(scan, p.join(stateDir, names.stateFile))
-    await collectHooks(scan, 'user', p.join(configDir, names.userSettingsFile))
+  }
+  // `disableAllHooks` anywhere in this scan keeps every Claude Code hook off.
+  const settingsTexts = await switchTexts(scan, settingsFiles)
+  const isOff = settingsTexts.some((text) => hasDisableAllHooks(text))
+  if (configDir !== undefined) {
+    await collectHooks(scan, 'user', p.join(configDir, names.userSettingsFile), isOff)
     await collectMarkdown(scan, {
       source: 'claudeCode',
       origin: 'user',
@@ -906,14 +1472,12 @@ async function scanClaudeCode(scan: Scan, isProjectRead: boolean): Promise<void>
     })
     await collectUserRules(scan, 'claudeCode', p.join(configDir, names.rulesFile))
   }
-  const root = input.workspaceRoot
-  if (root === undefined || !isProjectRead) {
+  if (root === undefined || projectDir === undefined || !isProjectRead) {
     return
   }
-  const projectDir = p.join(root, names.dir)
   await collectMcpFile(scan, 'claudeCode', 'project', p.join(root, names.projectMcpFile))
   for (const settings of names.projectSettingsFiles) {
-    await collectHooks(scan, 'project', p.join(projectDir, settings))
+    await collectHooks(scan, 'project', p.join(projectDir, settings), isOff)
   }
   await collectMarkdown(scan, {
     source: 'claudeCode',
@@ -942,8 +1506,21 @@ async function scanCodex(scan: Scan, isProjectRead: boolean): Promise<void> {
     names.homeVariable,
     p.join(input.homeDir, names.dir),
   )
+  const root = input.workspaceRoot
+  const projectDir = root === undefined || !isProjectRead ? undefined : p.join(root, names.dir)
+  // `[features] hooks = false` in either layer keeps every Codex hook off.
+  const configTexts = await switchTexts(scan, [
+    ...(home === undefined
+      ? []
+      : [{ file: p.join(home, names.configFile), origin: 'user' as const }]),
+    ...(projectDir === undefined
+      ? []
+      : [{ file: p.join(projectDir, names.configFile), origin: 'project' as const }]),
+  ])
+  const isOff = configTexts.some((text) => isCodexHooksOff(text))
   if (home !== undefined) {
-    await collectCodexConfig(scan, 'user', p.join(home, names.configFile))
+    await collectCodexConfigFile(scan, 'user', p.join(home, names.configFile), isOff)
+    await collectCodexHooks(scan, 'user', p.join(home, names.hooksFile), isOff)
     await collectMarkdown(scan, {
       source: 'codex',
       origin: 'user',
@@ -954,10 +1531,11 @@ async function scanCodex(scan: Scan, isProjectRead: boolean): Promise<void> {
     await collectUserRules(scan, 'codex', p.join(home, names.rulesFile))
   }
   // A repository's root AGENTS.md is Muse Code's own rules file already.
-  const root = input.workspaceRoot
-  if (root !== undefined && isProjectRead) {
-    await collectCodexConfig(scan, 'project', p.join(root, names.dir, names.configFile))
+  if (projectDir === undefined) {
+    return
   }
+  await collectCodexConfigFile(scan, 'project', p.join(projectDir, names.configFile), isOff)
+  await collectCodexHooks(scan, 'project', p.join(projectDir, names.hooksFile), isOff)
 }
 
 async function scanCursor(scan: Scan, isProjectRead: boolean): Promise<void> {
@@ -965,6 +1543,7 @@ async function scanCursor(scan: Scan, isProjectRead: boolean): Promise<void> {
   const names = AGENT_IMPORT_PATHS.cursor
   const userDir = p.join(input.homeDir, names.dir)
   await collectMcpFile(scan, 'cursor', 'user', p.join(userDir, names.mcpFile))
+  await collectCursorHooks(scan, 'user', p.join(userDir, names.hooksFile))
   const folders = [
     { kind: 'agent', directory: names.agentsDir },
     { kind: 'command', directory: names.commandsDir },
@@ -984,6 +1563,7 @@ async function scanCursor(scan: Scan, isProjectRead: boolean): Promise<void> {
   }
   const projectDir = p.join(root, names.dir)
   await collectMcpFile(scan, 'cursor', 'project', p.join(projectDir, names.mcpFile))
+  await collectCursorHooks(scan, 'project', p.join(projectDir, names.hooksFile))
   for (const folder of folders) {
     await collectMarkdown(scan, {
       source: 'cursor',
@@ -995,6 +1575,129 @@ async function scanCursor(scan: Scan, isProjectRead: boolean): Promise<void> {
   }
   await collectCursorRules(scan, p.join(projectDir, names.rulesDir))
   await collectProjectRules(scan, 'cursor', p.join(root, names.legacyRulesFile), false)
+}
+
+async function scanGemini(scan: Scan, isProjectRead: boolean): Promise<void> {
+  const { p, input } = scan
+  const names = AGENT_IMPORT_PATHS.gemini
+  const root = input.workspaceRoot
+  const files = [
+    { file: p.join(input.homeDir, names.dir, names.settingsFile), origin: 'user' as const },
+    ...(root === undefined || !isProjectRead
+      ? []
+      : [{ file: p.join(root, names.dir, names.settingsFile), origin: 'project' as const }]),
+  ]
+  const switches = mergedGeminiSwitches(await switchTexts(scan, files))
+  for (const { file, origin } of files) {
+    await collectGeminiHooks(scan, origin, file, switches)
+  }
+}
+
+async function scanCopilot(scan: Scan, isProjectRead: boolean): Promise<void> {
+  const { p, input } = scan
+  const names = AGENT_IMPORT_PATHS.copilot
+  const userDir = homeFromVariable(
+    scan,
+    input.copilotHome,
+    names.homeVariable,
+    p.join(input.homeDir, names.userDir),
+  )
+  const root = input.workspaceRoot
+  const projectSettings =
+    root === undefined || !isProjectRead
+      ? []
+      : names.projectSettingsFiles.map((settings) => ({
+          file: p.join(root, names.projectDir, names.projectSettingsDir, settings),
+          origin: 'project' as const,
+        }))
+  const settings = [
+    ...(userDir === undefined
+      ? []
+      : [{ file: p.join(userDir, names.userSettingsFile), origin: 'user' as const }]),
+    ...projectSettings,
+  ]
+  // `disableAllHooks` in a settings file skips every hook from every source.
+  const settingsTexts = await switchTexts(scan, settings)
+  const isOff = settingsTexts.some((text) => hasDisableAllHooks(text))
+  const hooksFile =
+    (isSettingsBlock: boolean) =>
+    async (target: Scan, origin: ImportOrigin, file: string): Promise<void> => {
+      await collectCopilotHooks(target, origin, file, { isSettingsBlock, isOff })
+    }
+  if (userDir !== undefined) {
+    await collectHooksFolder(scan, 'user', p.join(userDir, names.userHooksDir), hooksFile(false))
+  }
+  if (root !== undefined && isProjectRead) {
+    await collectHooksFolder(
+      scan,
+      'project',
+      p.join(root, names.projectDir, names.projectHooksDir),
+      hooksFile(false),
+    )
+  }
+  for (const { file, origin } of settings) {
+    await hooksFile(true)(scan, origin, file)
+  }
+}
+
+async function scanWindsurf(scan: Scan, isProjectRead: boolean): Promise<void> {
+  const { p, input } = scan
+  const names = AGENT_IMPORT_PATHS.windsurf
+  const userFile = p.join(input.homeDir, names.userDir, ...names.userHooksSegments)
+  const user = await readWindsurfFile(scan, 'user', userFile)
+  if (typeof user !== 'string') {
+    addWindsurfHooks(scan, 'user', userFile, user)
+  }
+  const root = input.workspaceRoot
+  if (root === undefined || !isProjectRead) {
+    return
+  }
+  // `.devin/hooks.json` is the active file; the legacy `.windsurf/hooks.json`
+  // runs only when that one is absent or defines no hooks.
+  const primary = p.join(root, names.dir, names.hooksFile)
+  const active = await readWindsurfFile(scan, 'project', primary)
+  if (typeof active !== 'string' && active.length > 0) {
+    addWindsurfHooks(scan, 'project', primary, active)
+    return
+  }
+  if (active === 'failed') {
+    return
+  }
+  const legacy = p.join(root, names.legacyDir, names.hooksFile)
+  const fallback = await readWindsurfFile(scan, 'project', legacy)
+  if (typeof fallback !== 'string') {
+    addWindsurfHooks(scan, 'project', legacy, fallback)
+  }
+}
+
+async function scanKiro(scan: Scan, isProjectRead: boolean): Promise<void> {
+  const { p, input } = scan
+  const names = AGENT_IMPORT_PATHS.kiro
+  const userDir = p.join(input.homeDir, names.userDir, names.hooksDir)
+  await collectHooksFolder(scan, 'user', userDir, collectKiroHooks)
+  const root = input.workspaceRoot
+  if (root !== undefined && isProjectRead) {
+    await collectHooksFolder(
+      scan,
+      'project',
+      p.join(root, names.dir, names.hooksDir),
+      collectKiroHooks,
+    )
+  }
+}
+
+async function scanCline(scan: Scan, isProjectRead: boolean): Promise<void> {
+  const { p, input } = scan
+  const names = AGENT_IMPORT_PATHS.cline
+  await collectClineHooks(
+    scan,
+    'user',
+    p.join(input.homeDir, names.userDir, ...names.userHooksSegments),
+  )
+  const root = input.workspaceRoot
+  if (root !== undefined && isProjectRead) {
+    await collectClineHooks(scan, 'project', p.join(root, names.projectDir, names.projectHooksDir))
+  }
 }
 
 /**
@@ -1030,12 +1733,18 @@ export async function scanAgentImports(input: ImportScanInput): Promise<ImportSc
     candidates: [],
     taken: new Set(),
     nextSuffix: new Map(),
+    reads: new Map(),
   }
   const isProjectRead = await shouldReadProject(scan)
   const scanners: Readonly<Record<AgentImportSource, typeof scanCodex>> = {
     claudeCode: scanClaudeCode,
     codex: scanCodex,
     cursor: scanCursor,
+    gemini: scanGemini,
+    copilot: scanCopilot,
+    windsurf: scanWindsurf,
+    kiro: scanKiro,
+    cline: scanCline,
   }
   for (const source of input.sources) {
     await scanners[source](scan, isProjectRead)
@@ -1158,6 +1867,8 @@ export interface ImportCopy {
 export interface ImportSkip {
   readonly candidateId: string
   readonly reason: ImportSkipReason
+  /** Set only with `field`: the source's field with no equivalent here. */
+  readonly field?: string | undefined
 }
 
 export interface ImportPlan {
@@ -1205,7 +1916,7 @@ export function copyForCurrentFile(copy: ImportCopy, isNewFile: boolean): Import
   if (copy.isNewFile === isNewFile) {
     return copy
   }
-  if (copy.file === 'hooks') {
+  if (copy.file !== 'settings') {
     return { ...copy, isNewFile }
   }
   const members = z.record(z.string(), z.unknown()).parse(JSON.parse(copy.text))
@@ -1242,6 +1953,28 @@ function fileRefusal(file: ImportPlanFile): 'outside' | 'unreadable' | undefined
   return file.status === 'outside' || file.status === 'unreadable' ? file.status : undefined
 }
 
+/**
+ * Why a hook copy's file refuses it; spark files carry no pre-read state,
+ * so their standing is checked live when the copy is offered.
+ */
+function hookCopyRefusal(
+  state: ImportPlanState,
+  file: ImportCopyFile,
+): 'outside' | 'unreadable' | undefined {
+  switch (file) {
+    case 'settings': {
+      return fileRefusal(state.museSettings)
+    }
+    case 'hooks': {
+      return hooksFileRefusal(state.hooksFile)
+    }
+    case 'sparkUser':
+    case 'sparkProject': {
+      return undefined
+    }
+  }
+}
+
 interface PlanBuilder {
   readonly destinations: ImportDestinations
   readonly state: ImportPlanState
@@ -1257,8 +1990,17 @@ interface PlanBuilder {
   readonly targetExposures: Map<string, ImportExposure>
 }
 
-function skip(builder: PlanBuilder, candidate: ImportCandidate, reason: ImportSkipReason): void {
-  builder.skipped.push({ candidateId: candidate.id, reason })
+function skip(
+  builder: PlanBuilder,
+  candidate: ImportCandidate,
+  reason: ImportSkipReason,
+  field?: string,
+): void {
+  builder.skipped.push({
+    candidateId: candidate.id,
+    reason,
+    ...(field !== undefined && { field }),
+  })
 }
 
 async function planFile(
@@ -1383,10 +2125,34 @@ async function planCandidate(builder: PlanBuilder, candidate: ImportCandidate): 
         break
       }
       case 'hook': {
-        file =
-          target.file === 'settings'
-            ? destinations.museSettingsFile
-            : p.join(destinations.workspaceRoot ?? '', ...PROJECT_HOOKS_SEGMENTS)
+        switch (target.file) {
+          case 'settings': {
+            file = destinations.museSettingsFile
+
+            break
+          }
+          case 'hooks': {
+            file = p.join(destinations.workspaceRoot ?? '', ...PROJECT_HOOKS_SEGMENTS)
+
+            break
+          }
+          case 'sparkUser': {
+            file = p.join(destinations.personalRoot, SPARK_HOOKS_SEGMENTS.user[1])
+
+            break
+          }
+          default: {
+            const projectSpark =
+              destinations.workspaceRoot === undefined
+                ? undefined
+                : p.join(destinations.workspaceRoot, ...SPARK_HOOKS_SEGMENTS.project)
+            if (projectSpark === undefined) {
+              skip(builder, candidate, 'outside')
+              return
+            }
+            file = projectSpark
+          }
+        }
         break
       }
     }
@@ -1408,7 +2174,7 @@ async function planCandidate(builder: PlanBuilder, candidate: ImportCandidate): 
   }
   switch (target.kind) {
     case 'none': {
-      skip(builder, candidate, target.reason)
+      skip(builder, candidate, target.reason, target.field)
       return
     }
     case 'file': {
@@ -1424,10 +2190,9 @@ async function planCandidate(builder: PlanBuilder, candidate: ImportCandidate): 
       return
     }
     case 'hook': {
-      const refusal =
-        target.file === 'settings'
-          ? fileRefusal(builder.state.museSettings)
-          : hooksFileRefusal(builder.state.hooksFile)
+      // Spark files carry no pre-read state: their standing is checked live
+      // when the copy is offered, like every other copy target.
+      const refusal = hookCopyRefusal(builder.state, target.file)
       if (refusal !== undefined) {
         skip(builder, candidate, refusal)
         return
@@ -1444,6 +2209,20 @@ function sourceExposureOf(builder: PlanBuilder, ids: readonly string[]): ImportE
   const classes = new Set(ids.map((id) => builder.exposures.get(id)))
   if (classes.has('personal') || classes.has(undefined)) return 'personal'
   return classes.has('project-local') ? 'project-local' : 'project-tracked'
+}
+
+/** A spark copy's file: the user's beside the settings, the project's under the workspace. */
+function sparkCopyFile(
+  destinations: ImportDestinations,
+  file: 'sparkUser' | 'sparkProject',
+): string | undefined {
+  const p = pathModule(destinations.platform)
+  if (file === 'sparkUser') {
+    return p.join(destinations.personalRoot, SPARK_HOOKS_SEGMENTS.user[1])
+  }
+  return destinations.workspaceRoot === undefined
+    ? undefined
+    : p.join(destinations.workspaceRoot, ...SPARK_HOOKS_SEGMENTS.project)
 }
 
 function copiesOf(builder: PlanBuilder): readonly ImportCopy[] {
@@ -1489,6 +2268,27 @@ function copiesOf(builder: PlanBuilder): readonly ImportCopy[] {
       candidateIds: copyIds.hooks,
     })
   }
+  for (const spark of ['sparkUser', 'sparkProject'] as const) {
+    const absolutePath = sparkCopyFile(destinations, spark)
+    // Whether the file exists is read live when the copy is offered; the
+    // plan marks it new and the offer reconciles it without changing members.
+    if (absolutePath !== undefined && copyIds[spark].length > 0) {
+      copies.push({
+        file: spark,
+        isProject: spark === 'sparkProject',
+        sourceExposure: sourceExposureOf(builder, copyIds[spark]),
+        homeDir: destinations.homeDir,
+        workspaceRoot: destinations.workspaceRoot,
+        ...(destinations.workspaceRoots !== undefined && {
+          workspaceRoots: destinations.workspaceRoots,
+        }),
+        absolutePath,
+        text: copyJson({ hooks: hooks[spark] }, {}),
+        isNewFile: true,
+        candidateIds: copyIds[spark],
+      })
+    }
+  }
   return copies
 }
 
@@ -1520,8 +2320,8 @@ export async function planImportApply(
       museSettings.status === 'read' ? museSettings.entries.map((entry) => entry.view.name) : [],
     ),
     servers: new Map(),
-    hooks: { settings: {}, hooks: {} },
-    copyIds: { settings: [], hooks: [] },
+    hooks: { settings: {}, hooks: {}, sparkUser: {}, sparkProject: {} },
+    copyIds: { settings: [], hooks: [], sparkUser: [], sparkProject: [] },
     exposures: new Map(),
     targetExposures: new Map(),
   }

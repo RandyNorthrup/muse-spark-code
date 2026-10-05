@@ -41,6 +41,7 @@ export async function importFromAgents(
     ...rest,
     claudeConfigDir: environment[AGENT_IMPORT_PATHS.claudeCode.configDirVariable],
     codexHome: environment[AGENT_IMPORT_PATHS.codex.homeVariable],
+    copilotHome: environment[AGENT_IMPORT_PATHS.copilot.homeVariable],
     io: fileImportIo,
     writer: fileImportWriter,
     isPresent: isPathPresent,

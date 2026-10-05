@@ -2071,6 +2071,7 @@
   "agentImportSkippedNeedsMatcher": "FileChanged wymaga pola matcher wskazującego pliki do obserwowania",
   "agentImportSkippedUnknownFormat": "jego plik ma format, którego ta wersja nie odczytuje",
   "agentImportKeptWaiting": "zachowany, czeka na uzupełnienia w wierszu, których to rozszerzenie jeszcze nie ma",
+  "agentImportKiroTaskNote": "Wyzwalacze zadań spec Kiro są tutaj uruchamiane na elementach todo",
   "agentImportPersonalToProject": "spowodowałoby to skopiowanie pliku osobistego do projektu",
   "agentImportIgnoredToTracked": "spowodowałoby to skopiowanie pliku ignorowanego przez Git do pliku śledzonego",
   "agentImportEditPrompt": "Otworzyć przekonwertowane wpisy w {path} jako niezapisaną zmianę do przejrzenia i zapisania? Zapisz ją tylko pod tą ścieżką, nigdy w innym pliku.",

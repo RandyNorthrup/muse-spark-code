@@ -1858,6 +1858,7 @@
   "agentImportSkippedNeedsMatcher": "FileChanged 需要一個指定要監看哪些檔案的比對器",
   "agentImportSkippedUnknownFormat": "其檔案採用此版本無法讀取的格式",
   "agentImportKeptWaiting": "已保留，等待此擴充功能尚未提供的內嵌自動完成功能",
+  "agentImportKiroTaskNote": "Kiro spec 任務觸發器在此處作用於待辦事項",
   "agentImportPersonalToProject": "這會將個人檔案複製到專案中",
   "agentImportIgnoredToTracked": "這會將 Git 忽略的檔案複製到受追蹤的檔案中",
   "agentImportEditPrompt": "將轉換後的項目在 {path} 中作為未儲存的編輯開啟，以供檢查和儲存？請只儲存到該路徑，切勿儲存到其他檔案。",

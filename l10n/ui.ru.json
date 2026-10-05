@@ -2071,6 +2071,7 @@
   "agentImportSkippedNeedsMatcher": "для FileChanged нужен шаблон (matcher) с именами отслеживаемых файлов",
   "agentImportSkippedUnknownFormat": "его файл в формате, который эта версия не читает",
   "agentImportKeptWaiting": "сохранено и ожидает встроенных автодополнений, которых в этом расширении пока нет",
+  "agentImportKiroTaskNote": "Триггеры spec-задач Kiro срабатывают здесь на todo-элементах",
   "agentImportPersonalToProject": "это скопировало бы личный файл в проект",
   "agentImportIgnoredToTracked": "это скопировало бы игнорируемый Git файл в отслеживаемый",
   "agentImportEditPrompt": "Открыть преобразованные записи в {path} как несохранённую правку для проверки и сохранения? Сохраняйте её только по этому пути, никогда в другой файл.",

@@ -1858,6 +1858,7 @@
   "agentImportSkippedNeedsMatcher": "FileChanged には、監視するファイルを指定するマッチャーが必要です",
   "agentImportSkippedUnknownFormat": "ファイルの形式をこのバージョンでは読み取れません",
   "agentImportKeptWaiting": "保持済み。この拡張機能がまだ備えていないインライン補完を待っています",
+  "agentImportKiroTaskNote": "Kiroのspecタスクトリガーはここではtodoアイテムで実行されます",
   "agentImportPersonalToProject": "個人用ファイルをプロジェクトにコピーすることになります",
   "agentImportIgnoredToTracked": "Gitで無視されたファイルを追跡対象のファイルにコピーすることになります",
   "agentImportEditPrompt": "変換した項目を {path} に未保存の編集として開き、確認して保存しますか？保存先はそのパスだけにし、別のファイルには保存しないでください。",

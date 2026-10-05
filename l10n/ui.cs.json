@@ -2071,6 +2071,7 @@
   "agentImportSkippedNeedsMatcher": "událost FileChanged potřebuje vzor (matcher), který určí sledované soubory",
   "agentImportSkippedUnknownFormat": "jeho soubor je ve formátu, který tato verze neumí číst",
   "agentImportKeptWaiting": "ponecháno, čeká na vložené dokončování kódu, které toto rozšíření zatím nemá",
+  "agentImportKiroTaskNote": "Triggery spec-úloh Kiro se zde spouštějí na todo položkách",
   "agentImportPersonalToProject": "tím by se osobní soubor zkopíroval do projektu",
   "agentImportIgnoredToTracked": "tím by se soubor ignorovaný Gitem zkopíroval do sledovaného souboru",
   "agentImportEditPrompt": "Otevřít převedené položky v {path} jako neuloženou úpravu ke kontrole a uložení? Uložte ji pouze do této cesty, nikdy do jiného souboru.",

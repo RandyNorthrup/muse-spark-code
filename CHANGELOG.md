@@ -36,6 +36,14 @@ happened, not what was planned; superseded entries are kept.
     for a plain turn, a tool call, an `edit_file` with `then_run`, a packed
     long output, a manual compaction, a subagent child turn, and a turn with
     skills and rules loaded. Later lanes must not move these bytes.
+  - **Lane I:** importers for every agent's hooks. Codex `hooks.json` and
+    the inline `[hooks]` table of `config.toml` convert into Muse Code's
+    own files and run on both backends. Gemini, Cursor, Copilot and VS
+    Code, Windsurf, Kiro v1 and Cline v1 convert into `spark-hooks.json`
+    with a `format` tag for lane P's adapters, as does Claude Code's
+    extension set. Every refusal carries its reason
+    (`agentImportSkipped*`); the preview shows metadata only, never
+    command text. The golden hooks-off requests are unchanged.
 
 ## [0.12.1] - 2026-10-04
 

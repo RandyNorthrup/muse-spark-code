@@ -694,3 +694,390 @@ describe('refusals', () => {
     expect(setup.io.files.get(`${WS}/AGENTS.md`)).toBe(nearlyFull)
   })
 })
+
+// Every agent's hooks (M91, PLAN.md D70): Codex into Muse Code's files, the
+// extended Claude Code set and every other format into `spark-hooks.json`
+// with its import record, every refusal with its reason.
+const CLINE_SCRIPT = `${WS}/.clinerules/hooks/PreToolUse`
+const HOOK_FIXTURES: Record<string, string> = {
+  // Claude Code extension events, user and project.
+  [`${HOME}/.claude/settings.json`]: JSON.stringify({
+    hooks: {
+      TaskCreated: [{ hooks: [{ type: 'command', command: 'todo' }] }],
+      WorktreeCreate: [{ hooks: [{ type: 'command', command: 'wt' }] }],
+      FileChanged: [{ hooks: [{ type: 'command', command: 'watch' }] }],
+    },
+  }),
+  [`${WS}/.claude/settings.json`]: JSON.stringify({
+    hooks: {
+      FileChanged: [{ matcher: '*.ts', hooks: [{ type: 'command', command: 'watch' }] }],
+      Setup: [{ hooks: [{ type: 'command', command: 'init' }] }],
+    },
+  }),
+  // Codex: hooks.json, the config's servers, notify program and [hooks] table.
+  [`${HOME}/.codex/hooks.json`]: JSON.stringify({
+    hooks: { Stop: [{ hooks: [{ type: 'command', command: 'halt' }] }] },
+  }),
+  [`${HOME}/.codex/config.toml`]: [
+    'notify = "ping"',
+    '[mcp_servers.docs]',
+    'command = "docs-mcp"',
+    '[[hooks.PreToolUse]]',
+    'matcher = "apply_patch"',
+    '[[hooks.PreToolUse.hooks]]',
+    'type = "command"',
+    'command = "guard"',
+    '',
+  ].join('\n'),
+  [`${WS}/.codex/hooks.json`]: JSON.stringify({
+    hooks: {
+      Interrupt: [{ hooks: [{ type: 'command', command: 'note', async: true }] }],
+      PostToolUseFailure: [{ hooks: [{ type: 'command', command: 'x' }] }],
+    },
+  }),
+  // Cursor: a guard, a weaker watch, and a Tab hook that waits.
+  [`${HOME}/.cursor/hooks.json`]: JSON.stringify({
+    version: 1,
+    hooks: {
+      preToolUse: [{ command: 'guard', matcher: 'Shell' }],
+      subagentStart: [{ command: 'watch' }],
+      beforeTabFileRead: [{ command: 'tab' }],
+    },
+  }),
+  // Gemini: a tool guard and a narrowing tool selection.
+  [`${HOME}/.gemini/settings.json`]: JSON.stringify({
+    hooks: {
+      BeforeTool: [
+        {
+          matcher: 'run_shell_command',
+          hooks: [{ type: 'command', command: 'guard', timeout: 5000 }],
+        },
+      ],
+      BeforeToolSelection: [{ hooks: [{ type: 'command', command: 'pick' }] }],
+    },
+  }),
+  // Copilot: a project CLI file, a user VS Code Local file, and inline settings with an env.
+  [`${WS}/.github/hooks/audit.json`]: JSON.stringify({
+    version: 1,
+    hooks: { preToolUse: [{ type: 'command', bash: './audit.sh' }] },
+  }),
+  [`${HOME}/.copilot/hooks/session.json`]: JSON.stringify({
+    hooks: { SessionStart: [{ type: 'command', command: 'hello' }] },
+  }),
+  [`${HOME}/.copilot/settings.json`]: JSON.stringify({
+    hooks: { preToolUse: [{ bash: 'guard', env: { TOKEN: 'secret' } }] },
+  }),
+  // Windsurf: only the legacy file, so it is the one in effect.
+  [`${WS}/.windsurf/hooks.json`]: JSON.stringify({
+    hooks: {
+      pre_write_code: [{ command: 'guard' }],
+      post_cascade_response_with_transcript: [{ command: 'x' }],
+    },
+  }),
+  // Kiro v1: a file trigger, a spec-task trigger, a Manual trigger, and a newer format.
+  [`${WS}/.kiro/hooks/lint.json`]: JSON.stringify({
+    version: 'v1',
+    hooks: [
+      {
+        name: 'lint',
+        trigger: 'PostFileSave',
+        matcher: String.raw`\.ts$`,
+        action: { type: 'command', command: 'lint' },
+      },
+      { name: 'spec', trigger: 'PreTaskExec', action: { type: 'command', command: 'check' } },
+      { name: 'hand', trigger: 'Manual', action: { type: 'command', command: 'run' } },
+    ],
+  }),
+  [`${HOME}/.kiro/hooks/new.json`]: JSON.stringify({ version: 'v2', hooks: [] }),
+  // Cline v1: an executable per-event script and a newer-format file.
+  [CLINE_SCRIPT]: '#!/bin/sh\nguard\n',
+  [`${WS}/.clinerules/hooks/hooks.json`]: JSON.stringify({ version: 1 }),
+}
+
+const HOOK_SOURCES: readonly AgentImportSource[] = [
+  'claudeCode',
+  'codex',
+  'cursor',
+  'gemini',
+  'copilot',
+  'windsurf',
+  'kiro',
+  'cline',
+]
+
+function hookInput(tree: MemoryImportTree, overrides: Partial<ImportScanInput> = {}) {
+  return input(
+    { files: HOOK_FIXTURES, executables: [CLINE_SCRIPT], ...tree },
+    { ...overrides, sources: overrides.sources ?? HOOK_SOURCES },
+  )
+}
+
+function sparkGroups(text: string | undefined, event: string): readonly Record<string, unknown>[] {
+  const parsed = JSON.parse(text ?? '{}') as { hooks?: Record<string, Record<string, unknown>[]> }
+  return parsed.hooks?.[event] ?? []
+}
+
+describe('scanAgentImports: every agent’s hooks', () => {
+  it('converts Codex into Muse files and everything else into spark files, refusals listed', async () => {
+    const scan = await scanAgentImports(hookInput({}))
+    expect(summary(scan.candidates)).toEqual([
+      'hook claudeCode user TaskCreated -> hook:sparkUser',
+      'hook claudeCode user WorktreeCreate -> none:weaker',
+      'hook claudeCode user FileChanged -> none:needsMatcher',
+      'hook claudeCode project FileChanged -> hook:sparkProject',
+      'hook claudeCode project Setup -> hook:sparkProject',
+      'mcpServer codex user docs -> server',
+      'hook codex user notify -> none:notify',
+      'hook codex user PreToolUse -> hook:settings',
+      'hook codex user Stop -> hook:settings',
+      'hook codex project Interrupt -> hook:hooks',
+      'hook codex project PostToolUseFailure -> none:unmapped',
+      'hook cursor user preToolUse -> hook:sparkUser',
+      'hook cursor user subagentStart -> none:weaker',
+      'hook cursor user beforeTabFileRead -> none:keptWaiting',
+      'hook gemini user BeforeTool -> hook:sparkUser',
+      'hook gemini user BeforeToolSelection -> hook:sparkUser',
+      'hook copilot user SessionStart -> hook:sparkUser',
+      'hook copilot project preToolUse -> hook:sparkProject',
+      'hook copilot user preToolUse -> none:field',
+      'hook windsurf project pre_write_code -> hook:sparkProject',
+      'hook windsurf project post_cascade_response_with_transcript -> none:unmapped',
+      'hook kiro user new.json -> none:unknownFormat',
+      'hook kiro project lint -> hook:sparkProject',
+      'hook kiro project spec -> hook:sparkProject',
+      'hook kiro project hand -> hook:sparkProject',
+      'hook cline project hooks.json -> none:unknownFormat',
+      'hook cline project PreToolUse -> hook:sparkProject',
+    ])
+    expect(scan.warnings).toEqual([])
+  })
+
+  it('plans Muse copies without records and spark copies with each source’s record', async () => {
+    const setup = hookInput({})
+    const scan = await scanAgentImports(setup)
+    const plan = await planImportApply(scan.candidates, DESTINATIONS, planState(setup.io))
+    expect(plan.copies.map((copy) => copy.file)).toEqual([
+      'settings',
+      'hooks',
+      'sparkUser',
+      'sparkProject',
+    ])
+    const textOf = (file: string): string | undefined =>
+      plan.copies.find((copy) => copy.file === file)?.text
+    // Muse Code's own files carry no import record: its parser refuses unknown group fields.
+    for (const file of ['settings', 'hooks']) {
+      expect(textOf(file)).not.toContain('"format"')
+      expect(textOf(file)).not.toContain('"sourceEntry"')
+    }
+    expect(JSON.parse(textOf('settings') ?? '{}')).toMatchObject({
+      mcpServers: { docs: { command: 'docs-mcp' } },
+      hooks: { PreToolUse: [{ matcher: 'Edit|Write' }], Stop: [{}] },
+    })
+    const spark = `${textOf('sparkUser') ?? ''}${textOf('sparkProject') ?? ''}`
+    for (const format of ['gemini', 'cursor', 'copilot', 'windsurf', 'kiro', 'cline']) {
+      expect(spark).toContain(`"format": "${format}"`)
+    }
+    expect(sparkGroups(textOf('sparkUser'), 'PreToolUse')).toMatchObject([
+      { format: 'cursor', sourceEvent: 'preToolUse', flavor: 'generic' },
+      { format: 'gemini', sourceEvent: 'BeforeTool' },
+    ])
+    expect(sparkGroups(textOf('sparkProject'), 'PostToolUse')).toMatchObject([
+      { format: 'kiro', sourceEvent: 'PostFileSave', pathPattern: String.raw`\.ts$` },
+    ])
+    expect(sparkGroups(textOf('sparkUser'), 'SessionStart')).toMatchObject([
+      { format: 'copilot', flavor: 'vscode', sourceEvent: 'SessionStart' },
+    ])
+    expect(plan.skipped).toContainEqual(expect.objectContaining({ reason: 'field', field: 'env' }))
+  })
+
+  it('notes the Kiro task meaning in plain words on its candidates', async () => {
+    const scan = await scanAgentImports(hookInput({}))
+    const spec = scan.candidates.find((candidate) => candidate.label === 'spec')
+    expect(spec?.previewNote).toBe('Kiro spec-task triggers run on todo items here')
+    const lint = scan.candidates.find((candidate) => candidate.label === 'lint')
+    expect(lint?.previewNote).toBeUndefined()
+  })
+
+  it('shows metadata only: no command text reaches labels, notes, dropped fields or reasons', async () => {
+    const scan = await scanAgentImports(hookInput({}))
+    const commands = ['guard', 'halt', 'audit', 'lint', 'check', 'hello', './audit.sh', 'ping']
+    for (const candidate of scan.candidates) {
+      for (const text of [candidate.label, candidate.previewNote ?? '', ...candidate.dropped]) {
+        for (const command of commands) {
+          expect(text.includes(command) && text !== command).toBe(false)
+        }
+      }
+    }
+  })
+
+  it('reads no project hook without live trust (the scope drill)', async () => {
+    const setup = hookInput({}, { isWorkspaceTrusted: () => false })
+    const scan = await scanAgentImports(setup)
+    expect(scan.candidates.length).toBeGreaterThan(0)
+    expect(scan.candidates.every((candidate) => candidate.origin === 'user')).toBe(true)
+    expect(setup.io.reads.filter((path) => path.startsWith(`${WS}/`))).toEqual([])
+  })
+
+  it('lists a broken Kiro file in fixed words, never with its content', async () => {
+    const scan = await scanAgentImports(
+      hookInput({ files: { ...HOOK_FIXTURES, [`${WS}/.kiro/hooks/bad.json`]: '{ broken' } }),
+    )
+    expect(scan.candidates.some((candidate) => candidate.label === 'bad.json')).toBe(false)
+    expect(scan.warnings).toContain('is not a readable Kiro hooks file, skipped')
+    expect(scan.warnings.join('\n')).not.toContain('broken')
+  })
+})
+
+// RVM91I round 2: the scanner-level regressions.
+function only(
+  files: Record<string, string>,
+  sources: readonly AgentImportSource[],
+  tree: Omit<MemoryImportTree, 'files'> = {},
+) {
+  return input({ files, ...tree }, { sources })
+}
+
+describe('scanAgentImports: RVM91I scanner regressions', () => {
+  it('RVM91I-2 reads Gemini and Codex switches before their hooks, across user and project', async () => {
+    const gemini = await scanAgentImports(
+      only(
+        {
+          [`${HOME}/.gemini/settings.json`]: JSON.stringify({
+            hooks: { BeforeTool: [{ hooks: [{ type: 'command', command: 'g' }] }] },
+          }),
+          [`${WS}/.gemini/settings.json`]: JSON.stringify({ hooksConfig: { enabled: false } }),
+        },
+        ['gemini'],
+      ),
+    )
+    expect(summary(gemini.candidates)).toEqual(['hook gemini user BeforeTool -> none:disabled'])
+    const codex = await scanAgentImports(
+      only(
+        {
+          [`${HOME}/.codex/hooks.json`]: JSON.stringify({
+            hooks: { Stop: [{ hooks: [{ type: 'command', command: 'halt' }] }] },
+          }),
+          [`${WS}/.codex/config.toml`]: '[features]\nhooks = false\n',
+        },
+        ['codex'],
+      ),
+    )
+    expect(summary(codex.candidates)).toEqual(['hook codex user Stop -> none:disabled'])
+  })
+
+  it('RVM91I-6 refuses a personal Cline script that leads into the open project', async () => {
+    const hooksDir = `${HOME}/Documents/Cline/Hooks`
+    const userScript = `${hooksDir}/PreToolUse`
+    const tree = { [`${WS}/scripts/guard`]: '#!/bin/sh\n', [`${hooksDir}/README.txt`]: 'notes' }
+    const setup = only(tree, ['cline'], {
+      links: { [userScript]: `${WS}/scripts/guard` },
+      executables: [`${WS}/scripts/guard`],
+    })
+    const scan = await scanAgentImports(setup)
+    expect(summary(scan.candidates)).toEqual(['hook cline user PreToolUse -> none:outside'])
+    const plan = await planImportApply(scan.candidates, DESTINATIONS, planState(setup.io))
+    expect(plan.copies).toEqual([])
+    // Untrusted, it is not offered and the script is not touched.
+    const untrusted = input(
+      { files: tree, links: { [userScript]: `${WS}/scripts/guard` } },
+      { sources: ['cline'], isWorkspaceTrusted: () => false },
+    )
+    const untrustedScan = await scanAgentImports(untrusted)
+    expect(untrustedScan.candidates).toEqual([])
+    expect(untrusted.io.reads).toEqual([])
+  })
+
+  it('RVM91I-8/9 offers each lifecycle script once, and only by Cline’s discovery rules', async () => {
+    const dir = `${WS}/.clinerules/hooks`
+    const files = {
+      [`${dir}/TaskStart`]: 'x',
+      [`${dir}/TaskComplete`]: 'x',
+      [`${dir}/PreToolUse.sh`]: 'x',
+      [`${dir}/PostToolUse`]: 'x',
+    }
+    const scan = await scanAgentImports(
+      only(files, ['cline'], { executables: [`${dir}/TaskStart`, `${dir}/TaskComplete`] }),
+    )
+    expect(summary(scan.candidates)).toEqual([
+      'hook cline project PostToolUse -> none:disabled',
+      'hook cline project TaskComplete -> hook:sparkProject',
+      'hook cline project TaskStart -> hook:sparkProject',
+    ])
+    // Off Windows a `.ps1` is ignored, and a script without an execute bit is off.
+    const wrongPlatform = await scanAgentImports(
+      input(
+        { files: { [`${dir}/PreToolUse.ps1`]: 'x', [`${dir}/PreToolUse`]: 'x' } },
+        { sources: ['cline'], platform: 'linux' },
+      ),
+    )
+    expect(summary(wrongPlatform.candidates)).toEqual([
+      'hook cline project PreToolUse -> none:disabled',
+    ])
+  })
+
+  it('RVM91I-14 takes .devin/hooks.json over the legacy .windsurf/hooks.json', async () => {
+    const both = {
+      [`${WS}/.devin/hooks.json`]: JSON.stringify({
+        hooks: { pre_run_command: [{ command: 'active' }] },
+      }),
+      [`${WS}/.windsurf/hooks.json`]: JSON.stringify({
+        hooks: { pre_read_code: [{ command: 'obsolete' }] },
+      }),
+    }
+    const scan = await scanAgentImports(only(both, ['windsurf']))
+    expect(summary(scan.candidates)).toEqual([
+      'hook windsurf project pre_run_command -> hook:sparkProject',
+    ])
+    expect(scan.candidates[0]?.originPath).toBe(`${WS}/.devin/hooks.json`)
+    // The legacy file is used when the active one defines no hooks.
+    const empty = await scanAgentImports(
+      only({ ...both, [`${WS}/.devin/hooks.json`]: JSON.stringify({ hooks: {} }) }, ['windsurf']),
+    )
+    expect(summary(empty.candidates)).toEqual([
+      'hook windsurf project pre_read_code -> hook:sparkProject',
+    ])
+  })
+
+  it('RVM91I-15 reads the repository settings blocks as project hooks and honours COPILOT_HOME', async () => {
+    const files = {
+      [`${WS}/.github/copilot/settings.json`]: JSON.stringify({
+        hooks: { preToolUse: [{ type: 'command', bash: 'repo-guard' }] },
+      }),
+      [`${WS}/.github/copilot/settings.local.json`]: JSON.stringify({
+        hooks: { postToolUse: [{ type: 'command', bash: 'local-log' }] },
+      }),
+      [`${HOME}/alt-copilot/hooks/mine.json`]: JSON.stringify({
+        version: 1,
+        hooks: { sessionStart: [{ type: 'command', bash: 'hi' }] },
+      }),
+      [`${HOME}/.copilot/hooks/ignored.json`]: JSON.stringify({
+        version: 1,
+        hooks: { sessionEnd: [{ type: 'command', bash: 'bye' }] },
+      }),
+    }
+    const scan = await scanAgentImports(
+      input({ files }, { sources: ['copilot'], copilotHome: `${HOME}/alt-copilot` }),
+    )
+    expect(summary(scan.candidates)).toEqual([
+      'hook copilot user sessionStart -> hook:sparkUser',
+      'hook copilot project preToolUse -> hook:sparkProject',
+      'hook copilot project postToolUse -> hook:sparkProject',
+    ])
+  })
+
+  it('RVM91I-2 keeps every Copilot hook off under a repository disableAllHooks', async () => {
+    const scan = await scanAgentImports(
+      only(
+        {
+          [`${WS}/.github/copilot/settings.json`]: JSON.stringify({ disableAllHooks: true }),
+          [`${WS}/.github/hooks/a.json`]: JSON.stringify({
+            version: 1,
+            hooks: { preToolUse: [{ type: 'command', bash: 'g' }] },
+          }),
+        },
+        ['copilot'],
+      ),
+    )
+    expect(summary(scan.candidates)).toEqual(['hook copilot project preToolUse -> none:disabled'])
+  })
+})
