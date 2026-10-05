@@ -18,12 +18,10 @@ import {
   LEGAL_FIX_OUTCOMES,
   LEGAL_FIX_REFUSALS,
   LEGAL_PATH_MAX_CHARS,
-  LEGAL_RESULT_VERSION,
   LEGAL_TEXT_MAX_CHARS,
-  LEGAL_VERSION_MAX_CHARS,
   PERMISSION_MODES,
 } from './constants'
-import { legalFindingSchema } from './legal'
+import { legalFindingSchema, legalScanResultSchema } from './legal'
 
 const idSchema = z.string().check(z.minLength(1), z.maxLength(LEGAL_FINDING_ID_MAX_CHARS))
 const pathSchema = z.string().check(z.minLength(1), z.maxLength(LEGAL_PATH_MAX_CHARS))
@@ -51,10 +49,10 @@ export const legalFixFileHashSchema = z.strictObject({
  * whose live state differs in any of these is refused as stale.
  */
 export const legalFixSnapshotSchema = z.strictObject({
-  version: z.literal(LEGAL_RESULT_VERSION),
-  ruleVersion: z.string().check(z.minLength(1), z.maxLength(LEGAL_VERSION_MAX_CHARS)),
-  dataVersion: z.string().check(z.minLength(1), z.maxLength(LEGAL_VERSION_MAX_CHARS)),
-  scope: z.string().check(z.maxLength(LEGAL_PATH_MAX_CHARS)),
+  version: legalScanResultSchema.shape.version,
+  ruleVersion: legalScanResultSchema.shape.ruleVersion,
+  dataVersion: legalScanResultSchema.shape.dataVersion,
+  scope: legalScanResultSchema.shape.scope,
   evidence: z.array(legalFixEvidenceSchema).check(z.maxLength(LEGAL_FINDINGS_MAX)),
   fileHashes: z.array(legalFixFileHashSchema).check(z.maxLength(LEGAL_FINDINGS_MAX)),
   workspacePath: z.string().check(z.maxLength(LEGAL_PATH_MAX_CHARS)),
@@ -67,9 +65,9 @@ export type LegalFixSnapshot = z.infer<typeof legalFixSnapshotSchema>
  * echoed so the preview's snapshot names the exact scan it guards.
  */
 export const legalFixScanMetaSchema = z.strictObject({
-  ruleVersion: z.string().check(z.minLength(1), z.maxLength(LEGAL_VERSION_MAX_CHARS)),
-  dataVersion: z.string().check(z.minLength(1), z.maxLength(LEGAL_VERSION_MAX_CHARS)),
-  scope: z.string().check(z.maxLength(LEGAL_PATH_MAX_CHARS)),
+  ruleVersion: legalScanResultSchema.shape.ruleVersion,
+  dataVersion: legalScanResultSchema.shape.dataVersion,
+  scope: legalScanResultSchema.shape.scope,
 })
 
 /**

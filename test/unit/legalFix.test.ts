@@ -348,6 +348,17 @@ const HOST_STATE = (
   applier: undefined,
 })
 
+async function singleHeaderPreview() {
+  const { files } = fakeFiles({ 'src/a.ts': 'header' })
+  const state = HOST_STATE(files)
+  const previews = new LegalFixPreviews()
+  const preview = await previews.preview(
+    { type: 'requestLegalFix', scan: SCAN, findings: [HEADER], includeProjectLicense: false },
+    state,
+  )
+  return { state, previews, preview }
+}
+
 describe('LegalFixPreviews', () => {
   it('previews exactly the selected findings and hashes their files', async () => {
     const { files } = fakeFiles({ 'src/a.ts': 'header', 'package.json': '{}' })
@@ -416,18 +427,13 @@ describe('LegalFixPreviews', () => {
   })
 
   it('refuses an unknown preview, and forgets on dispose', async () => {
-    const { files } = fakeFiles({ 'src/a.ts': 'header' })
-    const previews = new LegalFixPreviews()
-    const preview = await previews.preview(
-      { type: 'requestLegalFix', scan: SCAN, findings: [HEADER], includeProjectLicense: false },
-      HOST_STATE(files),
-    )
+    const { state, previews, preview } = await singleHeaderPreview()
     expect(preview.snapshot).toBeDefined()
     previews.dispose()
     const result = await previews.confirm(
       { type: 'confirmLegalFix', previewId: preview.previewId },
       {
-        ...HOST_STATE(files),
+        ...state,
         applier: { apply: () => Promise.resolve({ applied: [], failed: [] }) },
       },
     )
@@ -542,16 +548,11 @@ describe('LegalFixPreviews', () => {
   })
 
   it('applies cleanly and reports the applied outcome', async () => {
-    const { files } = fakeFiles({ 'src/a.ts': 'header' })
-    const previews = new LegalFixPreviews()
-    const preview = await previews.preview(
-      { type: 'requestLegalFix', scan: SCAN, findings: [HEADER], includeProjectLicense: false },
-      HOST_STATE(files),
-    )
+    const { state, previews, preview } = await singleHeaderPreview()
     const result = await previews.confirm(
       { type: 'confirmLegalFix', previewId: preview.previewId },
       {
-        ...HOST_STATE(files),
+        ...state,
         applier: { apply: () => Promise.resolve({ applied: ['src/a.ts'], failed: [] }) },
       },
     )
@@ -559,15 +560,10 @@ describe('LegalFixPreviews', () => {
   })
 
   it('refuses a guarded confirm while no applier is wired', async () => {
-    const { files } = fakeFiles({ 'src/a.ts': 'header' })
-    const previews = new LegalFixPreviews()
-    const preview = await previews.preview(
-      { type: 'requestLegalFix', scan: SCAN, findings: [HEADER], includeProjectLicense: false },
-      HOST_STATE(files),
-    )
+    const { state, previews, preview } = await singleHeaderPreview()
     const result = await previews.confirm(
       { type: 'confirmLegalFix', previewId: preview.previewId },
-      HOST_STATE(files),
+      state,
     )
     expect(result).toMatchObject({ outcome: 'refused', refusal: 'fixUnavailable' })
   })

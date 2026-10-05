@@ -79,33 +79,38 @@ const RESULT: LegalScanResult = {
 }
 
 const SCAN_META = { ruleVersion: '1', dataVersion: '2026-10-04', scope: '' }
-
-function deliver(data: HostToWebviewMessage) {
-  act(() => {
-    window.dispatchEvent(new MessageEvent('message', { data }))
-  })
+const HEADER_REQUEST = {
+  type: 'requestLegalFix',
+  scan: SCAN_META,
+  findings: [HEADER],
+  includeProjectLicense: false,
 }
 
 function renderReady() {
   const postMessage = vi.fn<(message: WebviewToHostMessage) => void>()
   let ids = 0
-  render(
-    <App
-      postMessage={postMessage}
-      newLocalId={() => {
-        ids += 1
-        return `local-${String(ids)}`
-      }}
-    />,
-  )
-  deliver({
-    type: 'init',
-    emptyStateHint: 'hint',
-    composerPlaceholder: 'placeholder',
-    settings: testSettings,
-  })
-  deliver({ type: 'authState', status: 'signedIn' })
+  const newLocalId = () => {
+    ids += 1
+    return `local-${String(ids)}`
+  }
+  render(<App postMessage={postMessage} newLocalId={newLocalId} />)
+  const messages: HostToWebviewMessage[] = [
+    {
+      type: 'init',
+      emptyStateHint: 'hint',
+      composerPlaceholder: 'placeholder',
+      settings: testSettings,
+    },
+    { type: 'authState', status: 'signedIn' },
+  ]
+  for (const message of messages) deliver(message)
   return postMessage
+}
+
+function deliver(data: HostToWebviewMessage) {
+  act(() => {
+    window.dispatchEvent(new MessageEvent('message', { data }))
+  })
 }
 
 function openReport() {
@@ -126,6 +131,20 @@ const SNAPSHOT: LegalFixSnapshot = {
   fileHashes: [{ path: 'src/a.ts', hash: 'a'.repeat(64) }],
   workspacePath: '/ws',
   permissionMode: 'manual',
+}
+
+const HEADER_PREVIEW: Extract<HostToWebviewMessage, { type: 'legalFixPreview' }> = {
+  type: 'legalFixPreview',
+  previewId: 'p1',
+  snapshot: SNAPSHOT,
+  eligible: ['header/1/1'],
+  excluded: [],
+  paths: ['src/a.ts'],
+}
+
+function requestHeaderPreview(dialog: HTMLElement) {
+  fireEvent.click(within(dialog).getByLabelText('Fix header/1/1'))
+  fireEvent.click(within(dialog).getByRole('button', { name: UI_TEXT.legalPreviewFixes }))
 }
 
 describe('the legal report (M97 lane W)', () => {
@@ -172,14 +191,7 @@ describe('the legal report (M97 lane W)', () => {
     fireEvent.click(within(dialog).getByLabelText('Fix header/1/1'))
     expect(within(dialog).getByText('1 selected')).toBeDefined()
     fireEvent.click(within(dialog).getByRole('button', { name: UI_TEXT.legalPreviewFixes }))
-    expect(posted(postMessage, 'requestLegalFix')).toEqual([
-      {
-        type: 'requestLegalFix',
-        scan: SCAN_META,
-        findings: [HEADER],
-        includeProjectLicense: false,
-      },
-    ])
+    expect(posted(postMessage, 'requestLegalFix')).toEqual([HEADER_REQUEST])
   })
 
   it('fixes all safe ones without the unfixable or the project license', () => {
@@ -202,27 +214,14 @@ describe('the legal report (M97 lane W)', () => {
     expect(within(dialog).getByLabelText(UI_TEXT.legalFixSeparateConfirm)).toBeDefined()
     fireEvent.click(within(dialog).getByRole('button', { name: UI_TEXT.legalPreviewFixes }))
     expect(posted(postMessage, 'requestLegalFix')).toEqual([
-      {
-        type: 'requestLegalFix',
-        scan: SCAN_META,
-        findings: [LICENSE_PROJECT],
-        includeProjectLicense: false,
-      },
+      { ...HEADER_REQUEST, findings: [LICENSE_PROJECT] },
     ])
   })
 
   it('shows the host preview with its files and exclusions, and confirms exactly it', () => {
     const { postMessage, dialog } = openReport()
-    fireEvent.click(within(dialog).getByLabelText('Fix header/1/1'))
-    fireEvent.click(within(dialog).getByRole('button', { name: UI_TEXT.legalPreviewFixes }))
-    deliver({
-      type: 'legalFixPreview',
-      previewId: 'p1',
-      snapshot: SNAPSHOT,
-      eligible: ['header/1/1'],
-      excluded: [{ id: 'dep/1/1', reason: 'notFixable' }],
-      paths: ['src/a.ts'],
-    })
+    requestHeaderPreview(dialog)
+    deliver({ ...HEADER_PREVIEW, excluded: [{ id: 'dep/1/1', reason: 'notFixable' }] })
     expect(within(dialog).getByText(UI_TEXT.legalFixPreviewTitle)).toBeDefined()
     expect(within(dialog).getByText('src/a.ts')).toBeDefined()
     expect(within(dialog).getByText(`dep/1/1: ${UI_TEXT.legalFixReasonNotFixable}`)).toBeDefined()
@@ -234,8 +233,7 @@ describe('the legal report (M97 lane W)', () => {
 
   it('shows a refused preview in words', () => {
     const { dialog } = openReport()
-    fireEvent.click(within(dialog).getByLabelText('Fix header/1/1'))
-    fireEvent.click(within(dialog).getByRole('button', { name: UI_TEXT.legalPreviewFixes }))
+    requestHeaderPreview(dialog)
     deliver({
       type: 'legalFixPreview',
       previewId: 'p1',
@@ -249,16 +247,8 @@ describe('the legal report (M97 lane W)', () => {
 
   it('shows a stale outcome after confirming the preview, with a rescan hint', () => {
     const { dialog } = openReport()
-    fireEvent.click(within(dialog).getByLabelText('Fix header/1/1'))
-    fireEvent.click(within(dialog).getByRole('button', { name: UI_TEXT.legalPreviewFixes }))
-    deliver({
-      type: 'legalFixPreview',
-      previewId: 'p1',
-      snapshot: SNAPSHOT,
-      eligible: ['header/1/1'],
-      excluded: [],
-      paths: ['src/a.ts'],
-    })
+    requestHeaderPreview(dialog)
+    deliver(HEADER_PREVIEW)
     fireEvent.click(within(dialog).getByRole('button', { name: UI_TEXT.legalFixApply }))
     // The file changed between the preview and the confirm: refuse, rescan.
     deliver({
@@ -307,16 +297,8 @@ describe('the legal report (M97 lane W)', () => {
 
   it('drops a stale preview when a new scan answers', () => {
     const { dialog } = openReport()
-    fireEvent.click(within(dialog).getByLabelText('Fix header/1/1'))
-    fireEvent.click(within(dialog).getByRole('button', { name: UI_TEXT.legalPreviewFixes }))
-    deliver({
-      type: 'legalFixPreview',
-      previewId: 'p1',
-      snapshot: SNAPSHOT,
-      eligible: ['header/1/1'],
-      excluded: [],
-      paths: ['src/a.ts'],
-    })
+    requestHeaderPreview(dialog)
+    deliver(HEADER_PREVIEW)
     expect(within(dialog).getByText(UI_TEXT.legalFixPreviewTitle)).toBeDefined()
     deliver({ type: 'legalScanReport', requestId: 'r2', result: RESULT })
     const again = screen.getByRole('dialog', { name: UI_TEXT.legalScanTitle })
@@ -339,14 +321,7 @@ describe('the legal report state', () => {
     const previewed = uiReducer(opened, {
       type: 'hostMessage',
       at,
-      message: {
-        type: 'legalFixPreview',
-        previewId: 'p1',
-        snapshot: SNAPSHOT,
-        eligible: ['header/1/1'],
-        excluded: [],
-        paths: ['src/a.ts'],
-      },
+      message: HEADER_PREVIEW,
     })
     expect(previewed.legalFixPreview?.previewId).toBe('p1')
     const rescanned = uiReducer(previewed, {

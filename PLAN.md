@@ -13928,6 +13928,9 @@ joined with M57, M58 and PR #49's sign-in
   Markdown export, scanner-prose translations, registry consent/network review,
   optional explanations and installed/Windows checks remain open; no full M97
   delivery or compliance certification is claimed.
+  The continuation's unchanged zero-duplication gate caught repeated legal
+  schema fields and test setup. Reuse the scan contract's field schemas and
+  local fixture helpers, retaining strict validation and every assertion.
 - **Certification checklist.**
   - [x] Owner request, D76 design, lanes and source-grounded research recorded.
   - [ ] Acceptance 1–10, each with its failing drill and passing receipt.
