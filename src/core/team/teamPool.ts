@@ -11,7 +11,7 @@
 // it in the ledger row). No `vscode` here.
 
 import { UI_TEXT } from '../../shared/constants'
-import { fill, formatNumber } from '../../shared/l10n/text'
+import { fill, formatNumber, formatUsd } from '../../shared/l10n/text'
 
 /** D75's cap measures: `tokens` is input plus output. */
 export type TeamMeasure = 'tokens' | 'inputTokens' | 'outputTokens' | 'spendUsd' | 'tasks'
@@ -192,11 +192,15 @@ export class TeamAgentMarks {
   private readonly marks = new Map<string, TeamAgentMark>()
 
   public markRateLimited(agentKey: string, untilMs: number): void {
-    this.marks.set(agentKey, { kind: 'rateLimited', untilMs })
+    if (untilMs > (this.marks.get(agentKey)?.untilMs ?? -Infinity)) {
+      this.marks.set(agentKey, { kind: 'rateLimited', untilMs })
+    }
   }
 
   public markUsageLimit(agentKey: string, untilMs: number): void {
-    this.marks.set(agentKey, { kind: 'usageLimit', untilMs })
+    if (untilMs > (this.marks.get(agentKey)?.untilMs ?? -Infinity)) {
+      this.marks.set(agentKey, { kind: 'usageLimit', untilMs })
+    }
   }
 
   public clear(agentKey: string): void {
@@ -702,5 +706,5 @@ export function notStaffedText(roleId: string): string {
 
 /** Formats a used/of amount for a measure: tokens plain, dollars with two decimals. */
 export function formatTeamAmount(measure: TeamMeasure, amount: number): string {
-  return measure === 'spendUsd' ? `$${amount.toFixed(2)}` : formatNumber(amount)
+  return measure === 'spendUsd' ? formatUsd(amount, 2) : formatNumber(amount)
 }

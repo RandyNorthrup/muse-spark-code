@@ -47,13 +47,13 @@ export interface TeamCeilingSource {
 
 /**
  * The ceiling for one agent: the lowest of the provider's limit, our hard
- * ceiling and the machine's, always at least 1. Where the provider documents
+ * ceiling and the machine's, including zero. Where the provider documents
  * none (Gemini), 429s decide: the provider side drops out until throttling
  * halves the entry below it.
  */
 export function computeTeamCeiling(source: TeamCeilingSource): number {
   return Math.max(
-    1,
+    0,
     Math.min(
       providerCeilingSide(source),
       hardCeilingSide(source.kind),
@@ -72,14 +72,15 @@ function providerCeilingSide(source: TeamCeilingSource): number {
       return TEAM_EXTERNAL_AGENT_CEILING
     }
     case 'engine': {
-      if (source.providerRpm === undefined || source.providerTpm === undefined) {
-        return Infinity
-      }
       const workerRpm = source.workerRpm ?? TEAM_WORKER_RPM_ESTIMATE
       const workerTpm = source.workerTpm ?? TEAM_WORKER_TPM_ESTIMATE
       return Math.min(
-        Math.floor((TEAM_PROVIDER_LIMIT_SHARE * source.providerRpm) / Math.max(1, workerRpm)),
-        Math.floor((TEAM_PROVIDER_LIMIT_SHARE * source.providerTpm) / Math.max(1, workerTpm)),
+        source.providerRpm === undefined
+          ? Infinity
+          : Math.floor((TEAM_PROVIDER_LIMIT_SHARE * source.providerRpm) / Math.max(1, workerRpm)),
+        source.providerTpm === undefined
+          ? Infinity
+          : Math.floor((TEAM_PROVIDER_LIMIT_SHARE * source.providerTpm) / Math.max(1, workerTpm)),
       )
     }
   }

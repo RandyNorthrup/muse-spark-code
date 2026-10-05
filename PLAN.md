@@ -16658,6 +16658,16 @@ live) and the controller filters its id as well.
 
 ### M96 — Agent roles and the team (D75)
 
+**FIXM96A review repairs (2026-10-05).** Address RVM96C F01–F11 inside
+lane A: model/provider/tariff-scoped consent, serialized generation-aware
+ledger publication and bounded redacted retries, zero/partial ceilings,
+reset baselines for continuing tasks, monotonic cooldowns, cross-day
+retention, honest translated token ceilings, the key-paid feature list,
+and locale currency formatting. Regression tests and byte-exact red drills
+are recorded in `docs/certification/m96-a.md`. The rig brief forbids full
+quality and integration merges here; the lead owns those checks. No new
+dependency or live/paid call.
+
 **Status 2026-10-04: planned on `feature/m96-agent-roles` from main
 `1e93c67c`.** The plan is D75 (with its decisions on the open questions),
 M96b, M96c and this section. The research is

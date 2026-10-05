@@ -9,6 +9,9 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- **M96 review repairs:** computed worker ceilings preserve zero and partial
+  provider limits; cooldowns only lengthen, and spend caps use the UI locale.
+
 - **M96 lane A, round 4:** uncertain descendants retain worker and shell slots;
   replacement admission needs spare capacity. Pool budgets include the first
   request and throttle recovery respects lowered ceilings. Recovery requires
