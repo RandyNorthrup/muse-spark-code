@@ -1884,6 +1884,11 @@ export const WEB_FETCH_BUNDLE_FILE = 'webFetch.js'
 // The Auto reviewer on Muse Code (M90, PLAN.md D69, D6): its side session and
 // queue, loaded on the first review.
 export const MUSE_CODE_REVIEWER_BUNDLE_FILE = 'museCodeReviewer.js'
+// The deterministic legal scanner (M97, PLAN.md D76, D6): lane S's scanner,
+// loaded on the first legal scan; the tool list and the `/legal` routing stay
+// in dist/extension.js. Lane R adds the build entry; until then the loader
+// reports the scanner unavailable.
+export const LEGAL_SCAN_BUNDLE_FILE = 'legalScan.js'
 // The empty folder under the extension's global storage the reviewer's side
 // session runs in: outside every workspace, so no History lists it, and
 // with no rules, skills or files of the user's to read.

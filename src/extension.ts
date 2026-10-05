@@ -94,6 +94,8 @@ import { pageConverter } from './host/web/pageConverter'
 import { lazyPageUrlCheck, lazyWebFetcher, webFetchLoader } from './host/web/webFetchBundle'
 import { ideCodeIntelTools } from './host/ide/codeIntelTools'
 import { codeIntelLoader } from './host/ide/codeIntelBundle'
+import { ideLegalScanTools, isIdeLegalScanOffered } from './host/ide/legalScanTool'
+import { legalScanLoader } from './host/ide/legalScanBundle'
 import { vscodeLanguageServices } from './host/codeIntel/languageServices'
 import { usablePaidFeatures } from './shared/paid'
 import { agentImportLoader } from './host/agentImportBundle'
@@ -176,6 +178,7 @@ import {
   BUNDLED_SKILLS_SETTING,
   CHECKPOINT_STORE_BUNDLE_FILE,
   CODE_INTEL_BUNDLE_FILE,
+  LEGAL_SCAN_BUNDLE_FILE,
   WEB_FETCH_BUNDLE_FILE,
   VOICE_BUNDLE_FILE,
   MUSE_CODE_REVIEWER_BUNDLE_FILE,
@@ -1253,10 +1256,23 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     bundlePath: vscode.Uri.joinPath(context.extensionUri, 'dist', CODE_INTEL_BUNDLE_FILE).fsPath,
     log,
   })
+  // The deterministic legal scan (M97, PLAN.md D76): dist/legalScan.js (D6),
+  // required on the first scan; the tool list stays at activation.
+  const legalScanBundle = legalScanLoader({
+    bundlePath: vscode.Uri.joinPath(context.extensionUri, 'dist', LEGAL_SCAN_BUNDLE_FILE).fsPath,
+    log,
+  })
   const ideServer = new IdeMcpServer(
     () => [
       diagnostics,
       ...ideCodeIntelTools(codeIntel, codeIntelBundle),
+      // Read-only and trust-gated, like the code intelligence tools: listed
+      // only in a trusted workspace, refused while it is not.
+      ...ideLegalScanTools({
+        isOffered: () => isIdeLegalScanOffered(vscode.workspace.isTrusted),
+        runScan: async (input, signal) => await legalScanBundle().runLegalScan(input, signal),
+        log,
+      }),
       // The server is attached in Restricted Mode too, and has no session
       // identity: the tool is listed only in a trusted workspace whose
       // sandbox network setting allows the network, and every call asks.
