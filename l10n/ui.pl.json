@@ -1963,5 +1963,41 @@
   "agentImportIgnoredToTracked": "spowodowałoby to skopiowanie pliku ignorowanego przez Git do pliku śledzonego",
   "agentImportEditPrompt": "Otworzyć przekonwertowane wpisy w {path} jako niezapisaną zmianę do przejrzenia i zapisania? Zapisz ją tylko pod tą ścieżką, nigdy w innym pliku.",
   "agentImportEditAction": "Edytuj i otwórz plik",
-  "agentImportPreviewLegacyKey": "Plik używa starego klucza `mcp_servers`. Zmień jego nazwę na `mcpServers`, dodając te wpisy: Muse Code nie wczytuje żadnego, gdy oba są obecne."
+  "agentImportPreviewLegacyKey": "Plik używa starego klucza `mcp_servers`. Zmień jego nazwę na `mcpServers`, dodając te wpisy: Muse Code nie wczytuje żadnego, gdy oba są obecne.",
+  "legalScanTitle": "Kontrola prawna",
+  "legalScanDisclaimer": "Nie stanowi to porady prawnej; w sprawie decyzji dotyczących rozpowszechniania skonsultuj się z prawnikiem.",
+  "legalScanEmpty": "Kontrola zakończona bez ustaleń.",
+  "legalFindingsCount": {
+    "one": "{count} ustalenie",
+    "few": "{count} ustalenia",
+    "many": "{count} ustaleń",
+    "other": "{count} ustalenia"
+  },
+  "legalFilesScanned": "Przeskanowane pliki: {count}",
+  "legalScanIncomplete": "Niepełna: {checks}",
+  "legalScanFailed": "Kontrola prawna nie powiodła się: {reason}",
+  "legalScanUnavailable": "Nie można załadować skanera prawnego; zainstaluj ponownie rozszerzenie i załaduj ponownie okno. Szczegóły są w dzienniku.",
+  "legalSeverities": {
+    "blocker": "Blokujący",
+    "should-fix": "Do poprawy",
+    "advice": "Wskazówka"
+  },
+  "legalCategories": {
+    "license": "Licencja",
+    "copyrightHeader": "Nagłówek praw autorskich",
+    "spdxIdentifier": "Identyfikator SPDX",
+    "noticeFile": "Plik powiadomień",
+    "dependencyLicense": "Licencja zależności",
+    "distribution": "Dystrybucja",
+    "codeQualityHeader": "Nagłówek jakości kodu"
+  },
+  "legalHeaderPolicies": {
+    "required": "Wymagane",
+    "optional": "Opcjonalne",
+    "off": "Wyłączone"
+  },
+  "legalFixable": "Naprawialne",
+  "legalNotFixable": "Tylko zalecenie",
+  "legalEvidenceLabel": "Dowód: {evidence}",
+  "legalConfidenceLabel": "Pewność: {confidence}"
 }

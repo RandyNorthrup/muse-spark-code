@@ -358,6 +358,13 @@ export const SETTING_DEFAULTS = {
   // hidden side session before the user. On until turned off; machine scoped,
   // since a repository must not choose what is approved or spent.
   museCodeAutoReviewer: true,
+  // Copyright/SPDX header hygiene for the read-only legal scan (M97, PLAN.md
+  // D76): `required` flags every project-owned source file without a matching
+  // header, `optional` only a header contradicting the detected project style
+  // or its REUSE declarations, `off` skips header checks. Default `optional`:
+  // the report chooses no license or owner. A repository may set it: it
+  // describes the project's own source style, not what runs or is billed.
+  legalHeaderPolicy: 'optional' as LegalHeaderPolicy,
 } as const
 export const ARCHIVE_DAY_CHOICES = [1, 2, 7, 14, 0] as const
 // Settings a repository's `.vscode/settings.json` must never set (PLAN.md
@@ -3823,6 +3830,71 @@ export const EVAL_REPORT_VERSION = 2
 // Decimals for the report's dollar amounts: a task costs a few
 // ten-thousandths of a dollar on the contributor tier.
 export const EVAL_COST_DECIMALS = 4
+
+// --- Read-only legal scan (M97, PLAN.md D76) ---
+
+// What a finding asks of the user (D76): a `blocker` names a suspected
+// unmet distribution obligation, `should-fix` a mismatch to reconcile before
+// shipping, `advice` a review note. The words are D76's own.
+export const LEGAL_SEVERITIES = ['blocker', 'should-fix', 'advice'] as const
+export type LegalSeverity = (typeof LEGAL_SEVERITIES)[number]
+// What a finding is about: the project's own license declarations, its
+// copyright headers, SPDX identifiers, notice files, dependencies' licenses,
+// what is actually distributed, or header hygiene as code quality (D76).
+export const LEGAL_CATEGORIES = [
+  'license',
+  'copyrightHeader',
+  'spdxIdentifier',
+  'noticeFile',
+  'dependencyLicense',
+  'distribution',
+  'codeQualityHeader',
+] as const
+export type LegalCategory = (typeof LEGAL_CATEGORIES)[number]
+// The header-policy setting's vocabulary (`museSpark.legalHeaderPolicy`,
+// D76): `required` / `optional` / `off`, default `optional`.
+export const LEGAL_HEADER_POLICIES = ['required', 'optional', 'off'] as const
+export type LegalHeaderPolicy = (typeof LEGAL_HEADER_POLICIES)[number]
+// The result envelope's version: a reader that does not know it refuses the
+// report instead of guessing at unknown fields.
+export const LEGAL_RESULT_VERSION = 1
+// Bounds every scan and result stays inside (D76: bound all reads, file
+// counts and result sizes through named constants). Each has its reason.
+// Files read per scan: a large workspace holds tens of thousands of files,
+// but manifests, locks, license texts and headers number in the hundreds;
+// past this the scan stops and says it is incomplete instead of hanging a
+// machine on generated folders.
+export const LEGAL_FILES_SCANNED_MAX = 20_000
+// Findings kept per report: past this the scan keeps the blockers and
+// should-fix findings first and says the report is truncated.
+export const LEGAL_FINDINGS_MAX = 500
+// The only raw file content a finding may carry: a short excerpt around the
+// evidence (a header block, a license line), never a whole file, so a report
+// stays free of secret/PII values and confidential bodies.
+export const LEGAL_EVIDENCE_EXCERPT_MAX_CHARS = 500
+// Source lines read from the top of each file for header checks: license
+// and copyright headers live at the top, past shebangs and mode lines;
+// a longer window only invites matching code as headers.
+export const LEGAL_HEADER_LINE_WINDOW = 20
+// A finding's stable id (`rule/version/counter`), short enough to quote in
+// the report and to sort deterministically.
+export const LEGAL_FINDING_ID_MAX_CHARS = 128
+// Workspace-relative paths in findings and inputs: VS Code paths stay well
+// under this; longer ones are refused rather than truncated silently.
+export const LEGAL_PATH_MAX_CHARS = 1024
+// Explanations, recommendations, evidence sources and distribution
+// assumptions: a paragraph each, not an essay; the report links the file
+// instead of retelling it.
+export const LEGAL_TEXT_MAX_CHARS = 2000
+// Rule/data versions (`2026-10-04`, a dataset tag): a tag, not prose.
+export const LEGAL_VERSION_MAX_CHARS = 64
+// Explicit file subset a tool call may name: small enough to stay a subset,
+// not a second whole scan past the file bound by another name.
+export const LEGAL_SCAN_PATHS_MAX = 100
+// Exclusions and incomplete checks listed per report: enough for a
+// workspace's ignore story, bounded so the envelope stays small.
+export const LEGAL_EXCLUSIONS_MAX = 200
+export const LEGAL_INCOMPLETE_MAX = 100
 
 // What the user reads, in the display language (PLAN.md D33).
 export { UI_TEXT } from './l10n/text'

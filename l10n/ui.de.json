@@ -1831,5 +1831,39 @@
   "agentImportIgnoredToTracked": "dadurch würde eine von Git ignorierte Datei in eine versionierte Datei kopiert",
   "agentImportEditPrompt": "Konvertierte Einträge in {path} als ungespeicherte Änderung zum Prüfen und Speichern öffnen? Speichern Sie sie nur unter diesem Pfad, nie in einer anderen Datei.",
   "agentImportEditAction": "Datei bearbeiten und öffnen",
-  "agentImportPreviewLegacyKey": "Die Datei verwendet den veralteten Schlüssel `mcp_servers`. Benennen Sie ihn in `mcpServers` um, wenn Sie diese hinzufügen: Muse Code lädt keinen von beiden, wenn beide vorhanden sind."
+  "agentImportPreviewLegacyKey": "Die Datei verwendet den veralteten Schlüssel `mcp_servers`. Benennen Sie ihn in `mcpServers` um, wenn Sie diese hinzufügen: Muse Code lädt keinen von beiden, wenn beide vorhanden sind.",
+  "legalScanTitle": "Legal-Scan",
+  "legalScanDisclaimer": "Keine Rechtsberatung; wenden Sie sich für Entscheidungen über die Verbreitung an einen Anwalt.",
+  "legalScanEmpty": "Die Prüfung wurde ohne Befunde abgeschlossen.",
+  "legalFindingsCount": {
+    "one": "{count} Befund",
+    "other": "{count} Befunde"
+  },
+  "legalFilesScanned": "Geprüfte Dateien: {count}",
+  "legalScanIncomplete": "Unvollständig: {checks}",
+  "legalScanFailed": "Der Legal-Scan ist fehlgeschlagen: {reason}",
+  "legalScanUnavailable": "Der Scanner für den Legal-Scan konnte nicht geladen werden; installieren Sie die Erweiterung neu und laden Sie das Fenster neu. Details stehen im Protokoll.",
+  "legalSeverities": {
+    "blocker": "Blockierend",
+    "should-fix": "Sollte behoben werden",
+    "advice": "Hinweis"
+  },
+  "legalCategories": {
+    "license": "Lizenz",
+    "copyrightHeader": "Copyright-Vermerk",
+    "spdxIdentifier": "SPDX-Kennung",
+    "noticeFile": "Hinweisdatei",
+    "dependencyLicense": "Abhängigkeitslizenz",
+    "distribution": "Verbreitung",
+    "codeQualityHeader": "Header zur Code-Qualität"
+  },
+  "legalHeaderPolicies": {
+    "required": "Erforderlich",
+    "optional": "Fakultativ",
+    "off": "Aus"
+  },
+  "legalFixable": "Behebbar",
+  "legalNotFixable": "Nur Empfehlung",
+  "legalEvidenceLabel": "Beleg: {evidence}",
+  "legalConfidenceLabel": "Verlässlichkeit: {confidence}"
 }

@@ -2285,6 +2285,46 @@ export const EN = {
   exportThenRunLabel: 'Then ran:',
   // {command}: the then_run command; {outcome}: why it did not run.
   exportThenRunSkipped: 'then_run `{command}`: {outcome}',
+  // The read-only legal scan (M97, PLAN.md D76): the report's title and
+  // counts, the severity and category names, the uncertainty and fixability
+  // markers, the disclaimer every surface shows, and why a scan is missing
+  // or partial. {count} is a number; {checks} lists the incomplete checks;
+  // {reason} and {evidence} are the scanner's own words.
+  legalScanTitle: 'Legal scan',
+  legalScanDisclaimer: 'Not legal advice; for distribution decisions consult a lawyer.',
+  legalScanEmpty: 'The scan completed with no findings.',
+  legalFindingsCount: forms({
+    one: '{count} finding',
+    other: '{count} findings',
+  }),
+  legalFilesScanned: 'Files scanned: {count}',
+  legalScanIncomplete: 'Incomplete: {checks}',
+  legalScanFailed: 'The legal scan failed: {reason}',
+  legalScanUnavailable:
+    'The legal scanner could not be loaded; reinstall the extension and reload the window. The log has the details.',
+  legalSeverities: {
+    blocker: 'Blocker',
+    'should-fix': 'Should fix',
+    advice: 'Advice',
+  },
+  legalCategories: {
+    license: 'License',
+    copyrightHeader: 'Copyright header',
+    spdxIdentifier: 'SPDX identifier',
+    noticeFile: 'Notice file',
+    dependencyLicense: 'Dependency license',
+    distribution: 'Distribution',
+    codeQualityHeader: 'Code quality header',
+  },
+  legalHeaderPolicies: {
+    required: 'Required',
+    optional: 'Optional',
+    off: 'Off',
+  },
+  legalFixable: 'Fixable',
+  legalNotFixable: 'Recommendation only',
+  legalEvidenceLabel: 'Evidence: {evidence}',
+  legalConfidenceLabel: 'Confidence: {confidence}',
 }
 
 /** The shape every table has: English's keys, with any language's plural forms. */

@@ -1765,5 +1765,38 @@
   "agentImportIgnoredToTracked": "Git에서 무시하는 파일을 추적하는 파일로 복사하게 됩니다",
   "agentImportEditPrompt": "변환한 항목을 {path}에서 저장하지 않은 편집으로 열어 검토하고 저장하시겠습니까? 그 경로에만 저장하고 다른 파일에는 저장하지 마십시오.",
   "agentImportEditAction": "파일 편집 및 열기",
-  "agentImportPreviewLegacyKey": "파일이 이전 `mcp_servers` 키를 사용합니다. 이 항목을 추가할 때 이름을 `mcpServers`로 바꾸세요. 둘 다 있으면 Muse Code는 어느 것도 로드하지 않습니다."
+  "agentImportPreviewLegacyKey": "파일이 이전 `mcp_servers` 키를 사용합니다. 이 항목을 추가할 때 이름을 `mcpServers`로 바꾸세요. 둘 다 있으면 Muse Code는 어느 것도 로드하지 않습니다.",
+  "legalScanTitle": "법률 검사",
+  "legalScanDisclaimer": "법률 자문이 아닙니다. 배포 결정에 대해서는 변호사에게 문의하세요.",
+  "legalScanEmpty": "검사가 완료되었으며 발견 사항이 없습니다.",
+  "legalFindingsCount": {
+    "other": "{count}개의 발견 사항"
+  },
+  "legalFilesScanned": "검사한 파일: {count}",
+  "legalScanIncomplete": "불완전: {checks}",
+  "legalScanFailed": "법률 검사에 실패했습니다: {reason}",
+  "legalScanUnavailable": "법률 스캐너를 로드할 수 없습니다. 확장을 다시 설치하고 창을 다시 로드하세요. 자세한 내용은 로그를 참조하세요.",
+  "legalSeverities": {
+    "blocker": "차단",
+    "should-fix": "수정 필요",
+    "advice": "조언"
+  },
+  "legalCategories": {
+    "license": "라이선스",
+    "copyrightHeader": "저작권 헤더",
+    "spdxIdentifier": "SPDX 식별자",
+    "noticeFile": "고지 파일",
+    "dependencyLicense": "종속성 라이선스",
+    "distribution": "배포",
+    "codeQualityHeader": "코드 품질 헤더"
+  },
+  "legalHeaderPolicies": {
+    "required": "필수",
+    "optional": "선택",
+    "off": "끄기"
+  },
+  "legalFixable": "수정 가능",
+  "legalNotFixable": "권장 사항만",
+  "legalEvidenceLabel": "근거: {evidence}",
+  "legalConfidenceLabel": "신뢰도: {confidence}"
 }

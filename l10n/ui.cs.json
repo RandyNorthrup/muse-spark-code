@@ -1963,5 +1963,41 @@
   "agentImportIgnoredToTracked": "tím by se soubor ignorovaný Gitem zkopíroval do sledovaného souboru",
   "agentImportEditPrompt": "Otevřít převedené položky v {path} jako neuloženou úpravu ke kontrole a uložení? Uložte ji pouze do této cesty, nikdy do jiného souboru.",
   "agentImportEditAction": "Upravit a otevřít soubor",
-  "agentImportPreviewLegacyKey": "Soubor používá starý klíč `mcp_servers`. Při přidávání těchto položek jej přejmenujte na `mcpServers`: když jsou přítomny oba, Muse Code nenačte ani jeden."
+  "agentImportPreviewLegacyKey": "Soubor používá starý klíč `mcp_servers`. Při přidávání těchto položek jej přejmenujte na `mcpServers`: když jsou přítomny oba, Muse Code nenačte ani jeden.",
+  "legalScanTitle": "Právní kontrola",
+  "legalScanDisclaimer": "Nejedná se o právní radu; rozhodnutí o distribuci konzultujte s právníkem.",
+  "legalScanEmpty": "Kontrola proběhla bez nálezů.",
+  "legalFindingsCount": {
+    "one": "{count} nález",
+    "few": "{count} nálezy",
+    "many": "{count} nálezů",
+    "other": "{count} nálezu"
+  },
+  "legalFilesScanned": "Zkontrolované soubory: {count}",
+  "legalScanIncomplete": "Neúplná: {checks}",
+  "legalScanFailed": "Právní kontrola se nezdařila: {reason}",
+  "legalScanUnavailable": "Právní skener se nepodařilo načíst; přeinstalujte rozšíření a znovu načtěte okno. Podrobnosti jsou v protokolu.",
+  "legalSeverities": {
+    "blocker": "Blokující",
+    "should-fix": "K opravě",
+    "advice": "Doporučení"
+  },
+  "legalCategories": {
+    "license": "Licence",
+    "copyrightHeader": "Hlavička autorských práv",
+    "spdxIdentifier": "Identifikátor SPDX",
+    "noticeFile": "Oznamovací soubor",
+    "dependencyLicense": "Licence závislosti",
+    "distribution": "Distribuce",
+    "codeQualityHeader": "Hlavička kvality kódu"
+  },
+  "legalHeaderPolicies": {
+    "required": "Povinné",
+    "optional": "Volitelné",
+    "off": "Vypnuto"
+  },
+  "legalFixable": "Opravitelné",
+  "legalNotFixable": "Pouze doporučení",
+  "legalEvidenceLabel": "Důkaz: {evidence}",
+  "legalConfidenceLabel": "Jistota: {confidence}"
 }

@@ -1897,5 +1897,40 @@
   "agentImportIgnoredToTracked": "cela copierait un fichier ignoré par Git dans un fichier suivi",
   "agentImportEditPrompt": "Ouvrir les entrées converties dans {path} comme modification non enregistrée à vérifier et enregistrer ? Enregistrez-la uniquement à cet emplacement, jamais dans un autre fichier.",
   "agentImportEditAction": "Modifier et ouvrir le fichier",
-  "agentImportPreviewLegacyKey": "Le fichier utilise l’ancienne clé `mcp_servers`. Renommez-la en `mcpServers` en ajoutant ceux-ci : Muse Code ne charge ni l’une ni l’autre quand les deux sont présentes."
+  "agentImportPreviewLegacyKey": "Le fichier utilise l’ancienne clé `mcp_servers`. Renommez-la en `mcpServers` en ajoutant ceux-ci : Muse Code ne charge ni l’une ni l’autre quand les deux sont présentes.",
+  "legalScanTitle": "Analyse juridique",
+  "legalScanDisclaimer": "Ceci ne constitue pas un avis juridique ; consultez un avocat pour les décisions de distribution.",
+  "legalScanEmpty": "L’analyse s’est terminée sans constat.",
+  "legalFindingsCount": {
+    "one": "{count} constat",
+    "many": "{count} constats",
+    "other": "{count} constats"
+  },
+  "legalFilesScanned": "Fichiers analysés : {count}",
+  "legalScanIncomplete": "Incomplète : {checks}",
+  "legalScanFailed": "L’analyse juridique a échoué : {reason}",
+  "legalScanUnavailable": "Le moteur d’analyse juridique n’a pas pu être chargé ; réinstallez l’extension et rechargez la fenêtre. Le journal contient les détails.",
+  "legalSeverities": {
+    "blocker": "Bloquant",
+    "should-fix": "À corriger",
+    "advice": "Conseil"
+  },
+  "legalCategories": {
+    "license": "Licence",
+    "copyrightHeader": "En-tête de copyright",
+    "spdxIdentifier": "Identifiant SPDX",
+    "noticeFile": "Fichier de mentions",
+    "dependencyLicense": "Licence de dépendance",
+    "distribution": "Diffusion",
+    "codeQualityHeader": "En-tête de qualité du code"
+  },
+  "legalHeaderPolicies": {
+    "required": "Requis",
+    "optional": "Facultatif",
+    "off": "Désactivé"
+  },
+  "legalFixable": "Corrigeable",
+  "legalNotFixable": "Recommandation uniquement",
+  "legalEvidenceLabel": "Preuve : {evidence}",
+  "legalConfidenceLabel": "Confiance : {confidence}"
 }

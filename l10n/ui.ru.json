@@ -1963,5 +1963,41 @@
   "agentImportIgnoredToTracked": "это скопировало бы игнорируемый Git файл в отслеживаемый",
   "agentImportEditPrompt": "Открыть преобразованные записи в {path} как несохранённую правку для проверки и сохранения? Сохраняйте её только по этому пути, никогда в другой файл.",
   "agentImportEditAction": "Изменить и открыть файл",
-  "agentImportPreviewLegacyKey": "Файл использует устаревший ключ `mcp_servers`. При добавлении этих записей переименуйте его в `mcpServers`: если есть оба, Muse Code не загружает ни один."
+  "agentImportPreviewLegacyKey": "Файл использует устаревший ключ `mcp_servers`. При добавлении этих записей переименуйте его в `mcpServers`: если есть оба, Muse Code не загружает ни один.",
+  "legalScanTitle": "Юридическая проверка",
+  "legalScanDisclaimer": "Не является юридической консультацией; по вопросам распространения обратитесь к юристу.",
+  "legalScanEmpty": "Проверка завершена, замечаний нет.",
+  "legalFindingsCount": {
+    "one": "{count} замечание",
+    "few": "{count} замечания",
+    "many": "{count} замечаний",
+    "other": "{count} замечания"
+  },
+  "legalFilesScanned": "Проверено файлов: {count}",
+  "legalScanIncomplete": "Неполная проверка: {checks}",
+  "legalScanFailed": "Юридическая проверка не удалась: {reason}",
+  "legalScanUnavailable": "Не удалось загрузить модуль юридической проверки; переустановите расширение и перезагрузите окно. Подробности — в журнале.",
+  "legalSeverities": {
+    "blocker": "Блокирующий",
+    "should-fix": "Следует исправить",
+    "advice": "Совет"
+  },
+  "legalCategories": {
+    "license": "Лицензия",
+    "copyrightHeader": "Заголовок авторских прав",
+    "spdxIdentifier": "Идентификатор SPDX",
+    "noticeFile": "Файл уведомлений",
+    "dependencyLicense": "Лицензия зависимости",
+    "distribution": "Распространение",
+    "codeQualityHeader": "Заголовок качества кода"
+  },
+  "legalHeaderPolicies": {
+    "required": "Обязательно",
+    "optional": "Необязательно",
+    "off": "Выключено"
+  },
+  "legalFixable": "Исправимо",
+  "legalNotFixable": "Только рекомендация",
+  "legalEvidenceLabel": "Доказательство: {evidence}",
+  "legalConfidenceLabel": "Уверенность: {confidence}"
 }

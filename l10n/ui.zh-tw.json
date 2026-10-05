@@ -1765,5 +1765,38 @@
   "agentImportIgnoredToTracked": "這會將 Git 忽略的檔案複製到受追蹤的檔案中",
   "agentImportEditPrompt": "將轉換後的項目在 {path} 中作為未儲存的編輯開啟，以供檢查和儲存？請只儲存到該路徑，切勿儲存到其他檔案。",
   "agentImportEditAction": "編輯並開啟檔案",
-  "agentImportPreviewLegacyKey": "此檔案使用舊版 `mcp_servers` 索引鍵。新增這些項目時請將其重新命名為 `mcpServers`：兩者同時存在時 Muse Code 都不會載入。"
+  "agentImportPreviewLegacyKey": "此檔案使用舊版 `mcp_servers` 索引鍵。新增這些項目時請將其重新命名為 `mcpServers`：兩者同時存在時 Muse Code 都不會載入。",
+  "legalScanTitle": "法律掃描",
+  "legalScanDisclaimer": "不構成法律建議；如需做出散佈決策，請諮詢律師。",
+  "legalScanEmpty": "掃描完成，未發現問題。",
+  "legalFindingsCount": {
+    "other": "{count} 個發現"
+  },
+  "legalFilesScanned": "已掃描檔案：{count}",
+  "legalScanIncomplete": "不完整：{checks}",
+  "legalScanFailed": "法律掃描失敗：{reason}",
+  "legalScanUnavailable": "法律掃描器無法載入；請重新安裝擴充功能並重新載入視窗。詳細資訊請見記錄。",
+  "legalSeverities": {
+    "blocker": "阻止",
+    "should-fix": "應修復",
+    "advice": "建議"
+  },
+  "legalCategories": {
+    "license": "授權條款",
+    "copyrightHeader": "版權標頭",
+    "spdxIdentifier": "SPDX 識別碼",
+    "noticeFile": "聲明檔案",
+    "dependencyLicense": "相依性授權",
+    "distribution": "散佈",
+    "codeQualityHeader": "程式碼品質標頭"
+  },
+  "legalHeaderPolicies": {
+    "required": "必要",
+    "optional": "選用",
+    "off": "關閉"
+  },
+  "legalFixable": "可修復",
+  "legalNotFixable": "僅為建議",
+  "legalEvidenceLabel": "證據：{evidence}",
+  "legalConfidenceLabel": "信心度：{confidence}"
 }

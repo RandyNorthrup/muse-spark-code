@@ -1765,5 +1765,38 @@
   "agentImportIgnoredToTracked": "Gitで無視されたファイルを追跡対象のファイルにコピーすることになります",
   "agentImportEditPrompt": "変換した項目を {path} に未保存の編集として開き、確認して保存しますか？保存先はそのパスだけにし、別のファイルには保存しないでください。",
   "agentImportEditAction": "ファイルを編集して開く",
-  "agentImportPreviewLegacyKey": "ファイルは古い `mcp_servers` キーを使用しています。これらを追加するときに `mcpServers` に名前を変更してください。両方あると Muse Code はどちらも読み込みません。"
+  "agentImportPreviewLegacyKey": "ファイルは古い `mcp_servers` キーを使用しています。これらを追加するときに `mcpServers` に名前を変更してください。両方あると Muse Code はどちらも読み込みません。",
+  "legalScanTitle": "ライセンススキャン",
+  "legalScanDisclaimer": "法的助言ではありません。配布の判断については弁護士にご相談ください。",
+  "legalScanEmpty": "スキャンは問題なく完了し、検出事項はありませんでした。",
+  "legalFindingsCount": {
+    "other": "{count} 件の検出事項"
+  },
+  "legalFilesScanned": "スキャン済みファイル: {count}",
+  "legalScanIncomplete": "不完全: {checks}",
+  "legalScanFailed": "ライセンススキャンに失敗しました: {reason}",
+  "legalScanUnavailable": "ライセンススキャナーを読み込めませんでした。拡張機能を再インストールしてウィンドウを再読み込みしてください。詳細はログをご覧ください。",
+  "legalSeverities": {
+    "blocker": "ブロッカー",
+    "should-fix": "要修正",
+    "advice": "助言"
+  },
+  "legalCategories": {
+    "license": "ライセンス",
+    "copyrightHeader": "著作権ヘッダー",
+    "spdxIdentifier": "SPDX 識別子",
+    "noticeFile": "通知ファイル",
+    "dependencyLicense": "依存ライセンス",
+    "distribution": "配布",
+    "codeQualityHeader": "コード品質ヘッダー"
+  },
+  "legalHeaderPolicies": {
+    "required": "必須",
+    "optional": "任意",
+    "off": "オフ"
+  },
+  "legalFixable": "修正可能",
+  "legalNotFixable": "推奨のみ",
+  "legalEvidenceLabel": "根拠: {evidence}",
+  "legalConfidenceLabel": "信頼度: {confidence}"
 }

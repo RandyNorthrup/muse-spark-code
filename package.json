@@ -859,6 +859,21 @@
           "default": true,
           "description": "%config.museCodeAutoReviewer.description%",
           "scope": "machine"
+        },
+        "museSpark.legalHeaderPolicy": {
+          "type": "string",
+          "enum": [
+            "required",
+            "optional",
+            "off"
+          ],
+          "enumDescriptions": [
+            "%config.legalHeaderPolicy.enumDescriptions.required%",
+            "%config.legalHeaderPolicy.enumDescriptions.optional%",
+            "%config.legalHeaderPolicy.enumDescriptions.off%"
+          ],
+          "default": "optional",
+          "description": "%config.legalHeaderPolicy.description%"
         }
       }
     },

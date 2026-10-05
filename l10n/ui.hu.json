@@ -1831,5 +1831,39 @@
   "agentImportIgnoredToTracked": "ez Git által figyelmen kívül hagyott fájlt másolna egy követett fájlba",
   "agentImportEditPrompt": "Megnyitja az átalakított bejegyzéseket itt: {path}, nem mentett módosításként, ellenőrzésre és mentésre? Csak erre az útvonalra mentse, soha ne másik fájlba.",
   "agentImportEditAction": "Fájl szerkesztése és megnyitása",
-  "agentImportPreviewLegacyKey": "A fájl az elavult `mcp_servers` kulcsot használja. Ezek hozzáadásakor nevezze át `mcpServers` névre: ha mindkettő jelen van, a Muse Code egyiket sem tölti be."
+  "agentImportPreviewLegacyKey": "A fájl az elavult `mcp_servers` kulcsot használja. Ezek hozzáadásakor nevezze át `mcpServers` névre: ha mindkettő jelen van, a Muse Code egyiket sem tölti be.",
+  "legalScanTitle": "Jogi ellenőrzés",
+  "legalScanDisclaimer": "Nem minősül jogi tanácsadásnak; a terjesztési döntésekhez forduljon ügyvédhez.",
+  "legalScanEmpty": "Az ellenőrzés megállapítás nélkül befejeződött.",
+  "legalFindingsCount": {
+    "one": "{count} megállapítás",
+    "other": "{count} megállapítás"
+  },
+  "legalFilesScanned": "Ellenőrzött fájlok: {count}",
+  "legalScanIncomplete": "Hiányos: {checks}",
+  "legalScanFailed": "A jogi ellenőrzés sikertelen: {reason}",
+  "legalScanUnavailable": "A jogi ellenőrzőt nem sikerült betölteni; telepítse újra a bővítményt, és töltse be újra az ablakot. A részletek a naplóban.",
+  "legalSeverities": {
+    "blocker": "Blokkoló",
+    "should-fix": "Javítandó",
+    "advice": "Tanács"
+  },
+  "legalCategories": {
+    "license": "Licenc",
+    "copyrightHeader": "Szerzői jogi fejléc",
+    "spdxIdentifier": "SPDX-azonosító",
+    "noticeFile": "Közleményfájl",
+    "dependencyLicense": "Függőséglicenc",
+    "distribution": "Terjesztés",
+    "codeQualityHeader": "Kódminőségi fejléc"
+  },
+  "legalHeaderPolicies": {
+    "required": "Kötelező",
+    "optional": "Választható",
+    "off": "Ki"
+  },
+  "legalFixable": "Javítható",
+  "legalNotFixable": "Csak ajánlás",
+  "legalEvidenceLabel": "Bizonyíték: {evidence}",
+  "legalConfidenceLabel": "Megbízhatóság: {confidence}"
 }

@@ -1897,5 +1897,40 @@
   "agentImportIgnoredToTracked": "esto copiaría un archivo ignorado por Git a uno con seguimiento",
   "agentImportEditPrompt": "¿Abrir las entradas convertidas en {path} como una edición sin guardar para revisarla y guardarla? Guárdela solo en esa ruta, nunca en otro archivo.",
   "agentImportEditAction": "Editar y abrir el archivo",
-  "agentImportPreviewLegacyKey": "El archivo usa la clave antigua `mcp_servers`. Cámbiele el nombre a `mcpServers` al añadir estos: Muse Code no carga ninguna de las dos cuando están ambas."
+  "agentImportPreviewLegacyKey": "El archivo usa la clave antigua `mcp_servers`. Cámbiele el nombre a `mcpServers` al añadir estos: Muse Code no carga ninguna de las dos cuando están ambas.",
+  "legalScanTitle": "Análisis legal",
+  "legalScanDisclaimer": "No constituye asesoramiento jurídico; consulte a un abogado para las decisiones de distribución.",
+  "legalScanEmpty": "El análisis finalizó sin hallazgos.",
+  "legalFindingsCount": {
+    "one": "{count} hallazgo",
+    "many": "{count} hallazgos",
+    "other": "{count} hallazgos"
+  },
+  "legalFilesScanned": "Archivos analizados: {count}",
+  "legalScanIncomplete": "Incompleto: {checks}",
+  "legalScanFailed": "El análisis legal falló: {reason}",
+  "legalScanUnavailable": "No se pudo cargar el analizador legal; reinstale la extensión y vuelva a cargar la ventana. Los detalles están en el registro.",
+  "legalSeverities": {
+    "blocker": "Bloqueante",
+    "should-fix": "Debe corregirse",
+    "advice": "Consejo"
+  },
+  "legalCategories": {
+    "license": "Licencia",
+    "copyrightHeader": "Encabezado de copyright",
+    "spdxIdentifier": "Identificador SPDX",
+    "noticeFile": "Archivo de avisos",
+    "dependencyLicense": "Licencia de dependencia",
+    "distribution": "Distribución",
+    "codeQualityHeader": "Encabezado de calidad del código"
+  },
+  "legalHeaderPolicies": {
+    "required": "Obligatorio",
+    "optional": "Opcional",
+    "off": "Desactivado"
+  },
+  "legalFixable": "Corregible",
+  "legalNotFixable": "Solo recomendación",
+  "legalEvidenceLabel": "Evidencia: {evidence}",
+  "legalConfidenceLabel": "Confianza: {confidence}"
 }

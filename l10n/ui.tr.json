@@ -1831,5 +1831,39 @@
   "agentImportIgnoredToTracked": "bu, Git tarafından yok sayılan bir dosyayı izlenen bir dosyaya kopyalar",
   "agentImportEditPrompt": "Dönüştürülen girdiler {path} içinde inceleyip kaydetmeniz için kaydedilmemiş bir düzenleme olarak açılsın mı? Yalnızca bu yola kaydedin, asla başka bir dosyaya kaydetmeyin.",
   "agentImportEditAction": "Dosyayı düzenle ve aç",
-  "agentImportPreviewLegacyKey": "Dosya eski `mcp_servers` anahtarını kullanıyor. Bunları eklerken adını `mcpServers` olarak değiştirin: ikisi birden olduğunda Muse Code hiçbirini yüklemez."
+  "agentImportPreviewLegacyKey": "Dosya eski `mcp_servers` anahtarını kullanıyor. Bunları eklerken adını `mcpServers` olarak değiştirin: ikisi birden olduğunda Muse Code hiçbirini yüklemez.",
+  "legalScanTitle": "Yasal tarama",
+  "legalScanDisclaimer": "Hukuki tavsiye niteliğinde değildir; dağıtım kararları için bir avukata danışın.",
+  "legalScanEmpty": "Tarama bulgu olmadan tamamlandı.",
+  "legalFindingsCount": {
+    "one": "{count} bulgu",
+    "other": "{count} bulgu"
+  },
+  "legalFilesScanned": "Taranan dosyalar: {count}",
+  "legalScanIncomplete": "Eksik: {checks}",
+  "legalScanFailed": "Yasal tarama başarısız oldu: {reason}",
+  "legalScanUnavailable": "Yasal tarayıcı yüklenemedi; uzantıyı yeniden yükleyip pencereyi yeniden yükleyin. Ayrıntılar günlükte.",
+  "legalSeverities": {
+    "blocker": "Engelleyici",
+    "should-fix": "Düzeltilmeli",
+    "advice": "Öneri"
+  },
+  "legalCategories": {
+    "license": "Lisans",
+    "copyrightHeader": "Telif hakkı başlığı",
+    "spdxIdentifier": "SPDX tanımlayıcısı",
+    "noticeFile": "Bildirim dosyası",
+    "dependencyLicense": "Bağımlılık lisansı",
+    "distribution": "Dağıtım",
+    "codeQualityHeader": "Kod kalitesi başlığı"
+  },
+  "legalHeaderPolicies": {
+    "required": "Gerekli",
+    "optional": "İsteğe bağlı",
+    "off": "Kapalı"
+  },
+  "legalFixable": "Düzeltilebilir",
+  "legalNotFixable": "Yalnızca öneri",
+  "legalEvidenceLabel": "Kanıt: {evidence}",
+  "legalConfidenceLabel": "Güven: {confidence}"
 }
