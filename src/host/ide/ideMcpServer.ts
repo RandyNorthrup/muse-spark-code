@@ -8,9 +8,8 @@
 // `notifications/cancelled` naming it) is told through its signal. The
 // JSON-RPC handling itself is pure (src/core/mcp.ts).
 
-import { randomBytes, timingSafeEqual } from 'node:crypto'
-import { Buffer } from 'node:buffer'
-import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http'
+import { randomBytes } from 'node:crypto'
+import type { IncomingMessage, Server, ServerResponse } from 'node:http'
 import {
   handleMcpMessage,
   type McpOutcome,
@@ -27,6 +26,7 @@ import {
   IDE_MCP_TOKEN_BYTES,
 } from '../../shared/constants'
 import type { Logger } from '../logger'
+import { isSameLoopbackSecret, listenLoopback, readLoopbackBody } from '../mcpLoopback'
 
 /** What `session/start` is told: where the server is and how to authenticate. */
 export interface IdeMcpEndpoint {
@@ -38,31 +38,6 @@ const AUTHORIZATION_HEADER = 'authorization'
 const BEARER_PREFIX = 'Bearer '
 const JSON_CONTENT_TYPE = 'application/json'
 const POST = 'POST'
-
-function readBody(request: IncomingMessage, maxBytes: number): Promise<string | undefined> {
-  return new Promise((resolve) => {
-    const chunks: Buffer[] = []
-    let size = 0
-    request.on('data', (chunk: Buffer) => {
-      size += chunk.length
-      if (size <= maxBytes) {
-        chunks.push(chunk)
-      }
-    })
-    request.on('end', () => {
-      resolve(size > maxBytes ? undefined : Buffer.concat(chunks).toString('utf8'))
-    })
-    request.on('error', () => {
-      resolve(undefined)
-    })
-  })
-}
-
-function isSameSecret(presented: string, expected: string): boolean {
-  const left = Buffer.from(presented)
-  const right = Buffer.from(expected)
-  return left.length === right.length && timingSafeEqual(left, right)
-}
 
 export class IdeMcpServer {
   private readonly token = randomBytes(IDE_MCP_TOKEN_BYTES).toString('hex')
@@ -129,7 +104,7 @@ export class IdeMcpServer {
     return (
       typeof header === 'string' &&
       header.startsWith(BEARER_PREFIX) &&
-      isSameSecret(header.slice(BEARER_PREFIX.length), this.token)
+      isSameLoopbackSecret(header.slice(BEARER_PREFIX.length), this.token)
     )
   }
 
@@ -147,7 +122,7 @@ export class IdeMcpServer {
       response.writeHead(HTTP_STATUS.unauthorized).end()
       return
     }
-    const body = await readBody(request, CLI_OUTPUT_MAX_BYTES)
+    const body = await readLoopbackBody(request, CLI_OUTPUT_MAX_BYTES)
     if (body === undefined) {
       response.writeHead(HTTP_STATUS.badRequest).end()
       return
@@ -193,27 +168,16 @@ export class IdeMcpServer {
   }
 
   private async listen(): Promise<IdeMcpEndpoint> {
-    const server = createServer((request, response) => {
-      void this.respond(request, response)
-    })
+    const { server, port } = await listenLoopback(
+      (request, response) => {
+        void this.respond(request, response)
+      },
+      this.log,
+      'IDE tool server',
+    )
     this.server = server
-    await new Promise<void>((resolve, reject) => {
-      server.once('error', reject)
-      server.listen(0, IDE_MCP_LOOPBACK_HOST, () => {
-        server.off('error', reject)
-        resolve()
-      })
-    })
-    // Errors after the listen (a socket fault) are logged, never thrown at the host.
-    server.on('error', (error) => {
-      this.log.error(`IDE tool server error: ${error.message}`)
-    })
-    const address = server.address()
-    if (address === null || typeof address === 'string') {
-      throw new Error('IDE tool server has no TCP address')
-    }
     this.endpoint = {
-      url: `http://${IDE_MCP_LOOPBACK_HOST}:${String(address.port)}${IDE_MCP_PATH}`,
+      url: `http://${IDE_MCP_LOOPBACK_HOST}:${String(port)}${IDE_MCP_PATH}`,
       headers: { Authorization: `${BEARER_PREFIX}${this.token}` },
     }
     this.log.info(`IDE tool server listening on ${this.endpoint.url}`)

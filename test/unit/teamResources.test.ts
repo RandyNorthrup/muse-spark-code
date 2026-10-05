@@ -4,79 +4,22 @@
 // after every call is terminal, Take back, and the hint question.
 
 import { describe, expect, it } from 'vitest'
-import {
-  busyText,
-  defaultResourceKind,
-  type LeaseHolder,
-  type RegistryClock,
-  ResourceRegistry,
-} from '../../src/core/team/resources'
-
-const RESEARCHER: LeaseHolder = { role: 'research', taskId: 'task-a', attempt: 1 }
-const ENGINEER: LeaseHolder = { role: 'engineering', taskId: 'task-b', attempt: 1 }
-const ORCHESTRATOR: LeaseHolder = { role: 'orchestrator', taskId: 'main', attempt: 1 }
-
-interface Scheduled {
-  callback: () => void
-  at: number
-  cancelled: boolean
-}
-
-interface Delayed {
-  resolve: () => void
-  at: number
-}
-
-/** A clock the test drives: `advance` fires due timers and delays in order. */
-function fakeClock() {
-  let now = 1000
-  const scheduled: Scheduled[] = []
-  const delayed: Delayed[] = []
-  const clock: RegistryClock = {
-    now: () => now,
-    delay: (ms: number) =>
-      new Promise<void>((resolve) => {
-        delayed.push({ resolve, at: now + ms })
-      }),
-    schedule: (callback: () => void, ms: number) => {
-      const entry: Scheduled = { callback, at: now + ms, cancelled: false }
-      scheduled.push(entry)
-      return {
-        cancel: () => {
-          entry.cancelled = true
-        },
-      }
-    },
-  }
-  return {
-    clock,
-    advance(ms: number): void {
-      now += ms
-      const due = scheduled.splice(0).toSorted((left, right) => left.at - right.at)
-      for (const entry of due) {
-        if (!entry.cancelled && entry.at <= now) {
-          entry.callback()
-        } else if (!entry.cancelled) {
-          scheduled.push(entry)
-        }
-      }
-      for (const entry of delayed.splice(0)) {
-        if (entry.at <= now) {
-          entry.resolve()
-        } else {
-          delayed.push(entry)
-        }
-      }
-    },
-  }
-}
+import { busyText, defaultResourceKind, ResourceRegistry } from '../../src/core/team/resources'
+import { createManualClock } from './helpers/manualClock'
+import { ENGINEER, ORCHESTRATOR, RESEARCHER } from './helpers/teamHolders'
 
 function drivenRegistry() {
-  const driven = fakeClock()
+  const driven = createManualClock()
   return {
     ...driven,
     registry: new ResourceRegistry({ clock: driven.clock, waitMs: 60_000, idleMs: 120_000 }),
   }
+}
+
+/** The lease tests’ shared setup: an exclusive chrome held by the researcher. */
+async function heldChrome(registry: ResourceRegistry): Promise<void> {
+  registry.declare({ name: 'chrome', kind: 'exclusive' })
+  await registry.acquire('chrome', RESEARCHER)
 }
 
 describe('defaultResourceKind', () => {
@@ -169,7 +112,10 @@ describe('idle release', () => {
     registry.callStarted('chrome', RESEARCHER)
     registry.callEnded('chrome', RESEARCHER, true)
     advance(119_999)
-    expect(registry.checkCall('chrome', ENGINEER).status).toBe('not-holder')
+    expect(registry.checkCall('chrome', ENGINEER)).toEqual({
+      status: 'not-holder',
+      holder: RESEARCHER,
+    })
     advance(1)
     await expect(registry.acquire('chrome', ENGINEER)).resolves.toEqual({ status: 'held' })
   })
@@ -181,7 +127,10 @@ describe('idle release', () => {
     registry.callStarted('chrome', RESEARCHER)
     advance(1_000_000)
     // Idle counts from the last terminal answer, never from the call's start.
-    expect(registry.checkCall('chrome', ENGINEER).status).toBe('not-holder')
+    expect(registry.checkCall('chrome', ENGINEER)).toEqual({
+      status: 'not-holder',
+      holder: RESEARCHER,
+    })
     registry.callEnded('chrome', RESEARCHER, true)
     advance(1_000_000)
     expect(registry.checkCall('chrome', RESEARCHER)).toEqual({
@@ -197,7 +146,10 @@ describe('idle release', () => {
     registry.callStarted('chrome', RESEARCHER)
     registry.callEnded('chrome', RESEARCHER, false)
     advance(1_000_000)
-    expect(registry.checkCall('chrome', ENGINEER).status).toBe('not-holder')
+    expect(registry.checkCall('chrome', ENGINEER)).toEqual({
+      status: 'not-holder',
+      holder: RESEARCHER,
+    })
     // The late answer ends the uncertainty; the idle wait starts there.
     registry.callEnded('chrome', RESEARCHER, true)
     advance(119_999)
@@ -230,8 +182,7 @@ describe('retired holders', () => {
 
   it('hears a waiter retired while waiting at once', async () => {
     const { registry } = drivenRegistry()
-    registry.declare({ name: 'chrome', kind: 'exclusive' })
-    await registry.acquire('chrome', RESEARCHER)
+    await heldChrome(registry)
     const waiting = registry.acquire('chrome', ENGINEER)
     registry.retireAttempt('task-b', 1)
     await expect(waiting).resolves.toEqual({ status: 'stale' })
@@ -317,8 +268,7 @@ describe('the hint question', () => {
 describe('closing', () => {
   it('stops the timers and tells every waiter', async () => {
     const { registry } = drivenRegistry()
-    registry.declare({ name: 'chrome', kind: 'exclusive' })
-    await registry.acquire('chrome', RESEARCHER)
+    await heldChrome(registry)
     const waiting = registry.acquire('chrome', ENGINEER)
     registry.close()
     await expect(waiting).resolves.toEqual({ status: 'closed' })

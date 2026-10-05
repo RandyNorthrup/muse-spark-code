@@ -11,21 +11,12 @@ import type {
   McpPoolSnapshot,
   McpToolRef,
 } from '../../src/core/backends/modelapi/mcp/pool'
-import {
-  type LeaseHolder,
-  type RegistryClock,
-  ResourceRegistry,
-} from '../../src/core/team/resources'
-import {
-  type BridgeEndpoint,
-  type TeamBridgePool,
-  TeamMcpBridge,
-} from '../../src/host/team/mcpBridge'
+import { ResourceRegistry } from '../../src/core/team/resources'
+import { type TeamBridgePool, TeamMcpBridge } from '../../src/host/team/mcpBridge'
 import { FakeLogOutputChannel } from './helpers/fakes'
-
-const RESEARCHER: LeaseHolder = { role: 'research', taskId: 'task-a', attempt: 1 }
-const ENGINEER: LeaseHolder = { role: 'engineering', taskId: 'task-b', attempt: 1 }
-const ORCHESTRATOR: LeaseHolder = { role: 'orchestrator', taskId: 'main', attempt: 1 }
+import { postLoopback, postLoopbackJson } from './helpers/loopbackHttp'
+import { createManualClock } from './helpers/manualClock'
+import { ENGINEER, ORCHESTRATOR, RESEARCHER } from './helpers/teamHolders'
 
 const NAVIGATE = 'mcp__chrome__navigate'
 const SCREENSHOT = 'mcp__chrome__screenshot'
@@ -118,48 +109,6 @@ function fakePool() {
   }
 }
 
-function fakeClock() {
-  let now = 1000
-  const scheduled: { callback: () => void; at: number; cancelled: boolean }[] = []
-  const delayed: { resolve: () => void; at: number }[] = []
-  const clock: RegistryClock = {
-    now: () => now,
-    delay: (ms: number) =>
-      new Promise<void>((resolve) => {
-        delayed.push({ resolve, at: now + ms })
-      }),
-    schedule: (callback: () => void, ms: number) => {
-      const entry = { callback, at: now + ms, cancelled: false }
-      scheduled.push(entry)
-      return {
-        cancel: () => {
-          entry.cancelled = true
-        },
-      }
-    },
-  }
-  return {
-    clock,
-    advance(ms: number): void {
-      now += ms
-      for (const entry of scheduled.splice(0)) {
-        if (!entry.cancelled && entry.at <= now) {
-          entry.callback()
-        } else if (!entry.cancelled) {
-          scheduled.push(entry)
-        }
-      }
-      for (const entry of delayed.splice(0)) {
-        if (entry.at <= now) {
-          entry.resolve()
-        } else {
-          delayed.push(entry)
-        }
-      }
-    },
-  }
-}
-
 const bridges: TeamMcpBridge[] = []
 
 afterEach(() => {
@@ -169,7 +118,7 @@ afterEach(() => {
 })
 
 async function started(pool: TeamBridgePool, waitMs = 60_000) {
-  const driven = fakeClock()
+  const driven = createManualClock()
   const leases = new ResourceRegistry({ clock: driven.clock, waitMs, idleMs: 120_000 })
   const bridge = new TeamMcpBridge({
     pool,
@@ -184,21 +133,20 @@ async function started(pool: TeamBridgePool, waitMs = 60_000) {
   return { bridge, leases, ...driven }
 }
 
-async function post(
-  endpoint: BridgeEndpoint,
-  body: string,
-  headers: Record<string, string> = endpoint.headers,
-): Promise<Response> {
-  return await fetch(endpoint.url, {
-    method: 'POST',
-    headers: { ...headers, 'content-type': 'application/json' },
-    body,
-  })
-}
-
-async function postJson(endpoint: BridgeEndpoint, body: unknown): Promise<unknown> {
-  const response = await post(endpoint, JSON.stringify(body))
-  return await response.json()
+/** Two workers calling the exclusive chrome, the second queued behind the first. */
+async function queuedChromeCalls(waitMs = 60_000) {
+  const fake = fakePool()
+  const gate = fake.hold()
+  const launched = await started(fake.pool, waitMs)
+  launched.bridge.registerCaller({ id: 'task-a', holder: RESEARCHER, readOnly: false })
+  launched.bridge.registerCaller({ id: 'task-b', holder: ENGINEER, readOnly: false })
+  const signal = new AbortController().signal
+  const pendingFirst = launched.bridge.callAs('task-a', SCREENSHOT, '{}', signal)
+  const pendingSecond = launched.bridge.callAs('task-b', SCREENSHOT, '{}', signal)
+  while (fake.calls.length === 0) {
+    await new Promise((resolve) => setTimeout(resolve, 1))
+  }
+  return { fake, gate, ...launched, pendingFirst, pendingSecond }
 }
 
 function textOf(result: unknown): string {
@@ -218,13 +166,13 @@ describe('endpoints and tokens', () => {
     expect(main.url).not.toBe(worker.url)
     expect(main.headers).not.toEqual(worker.headers)
 
-    const first = await postJson(main, {
+    const first = await postLoopbackJson(main, {
       jsonrpc: '2.0',
       id: 1,
       method: 'tools/call',
       params: { name: NAVIGATE, arguments: {} },
     })
-    const second = await postJson(worker, {
+    const second = await postLoopbackJson(worker, {
       jsonrpc: '2.0',
       id: 1,
       method: 'tools/call',
@@ -241,10 +189,10 @@ describe('endpoints and tokens', () => {
     const { bridge } = await started(fake.pool)
     const main = bridge.registerCaller({ id: 'main', holder: ORCHESTRATOR, readOnly: false })
     const body = JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'ping' })
-    const denied = await post(main, body, { Authorization: 'Bearer [REDACTED]' })
+    const denied = await postLoopback(main, body, { Authorization: 'Bearer [REDACTED]' })
     expect(denied.status).toBe(401)
     const unknown = { ...main, url: main.url.replace('/main', '/elsewhere') }
-    const missing = await post(unknown, body)
+    const missing = await postLoopback(unknown, body)
     expect(missing.status).toBe(404)
     const plainGet = await fetch(main.url)
     expect(plainGet.status).toBe(405)
@@ -255,19 +203,19 @@ describe('endpoints and tokens', () => {
     const fake = fakePool()
     const { bridge } = await started(fake.pool)
     const main = bridge.registerCaller({ id: 'main', holder: ORCHESTRATOR, readOnly: false })
-    const hello = (await postJson(main, {
+    const hello = (await postLoopbackJson(main, {
       jsonrpc: '2.0',
       id: 1,
       method: 'initialize',
       params: { protocolVersion: '2025-06-18' },
     })) as { result: { serverInfo: { name: string } } }
     expect(hello.result.serverInfo.name).toBe('muse-spark-team-bridge')
-    const pong = await postJson(main, { jsonrpc: '2.0', id: 2, method: 'ping' })
+    const pong = await postLoopbackJson(main, { jsonrpc: '2.0', id: 2, method: 'ping' })
     expect(pong).toEqual({ jsonrpc: '2.0', id: 2, result: {} })
-    const garbage = await post(main, '{nope')
+    const garbage = await postLoopback(main, '{nope')
     const garbageBody = (await garbage.json()) as { error: { code: number } }
     expect(garbageBody.error.code).toBe(-32_700)
-    const missing = await postJson(main, { jsonrpc: '2.0', id: 3, method: 'tools/fly' })
+    const missing = await postLoopbackJson(main, { jsonrpc: '2.0', id: 3, method: 'tools/fly' })
     expect(missing).toEqual({
       jsonrpc: '2.0',
       id: 3,
@@ -279,7 +227,7 @@ describe('endpoints and tokens', () => {
     const fake = fakePool()
     const { bridge } = await started(fake.pool)
     const main = bridge.registerCaller({ id: 'main', holder: ORCHESTRATOR, readOnly: false })
-    const response = await post(
+    const response = await postLoopback(
       main,
       JSON.stringify({ jsonrpc: '2.0', method: 'notifications/initialized' }),
     )
@@ -293,7 +241,7 @@ describe('endpoints and tokens', () => {
     const main = bridge.registerCaller({ id: 'main', holder: ORCHESTRATOR, readOnly: false })
     expect(() => bridge.registerCaller({ id: 'main', holder: ENGINEER, readOnly: false })).toThrow()
     bridge.unregisterCaller('main')
-    const gone = await post(main, JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'ping' }))
+    const gone = await postLoopback(main, JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'ping' }))
     expect(gone.status).toBe(404)
     expect(() => bridge.listTools('main')).toThrow()
   })
@@ -322,13 +270,13 @@ describe('routing by caller and request id', () => {
     const first = bridge.registerCaller({ id: 'task-a', holder: RESEARCHER, readOnly: false })
     const second = bridge.registerCaller({ id: 'task-b', holder: ENGINEER, readOnly: false })
     const call = { jsonrpc: '2.0', id: 7, method: 'tools/call', params: { name: READ_NOTE } }
-    const pendingFirst = post(first, JSON.stringify(call))
-    const pendingSecond = post(second, JSON.stringify(call))
+    const pendingFirst = postLoopback(first, JSON.stringify(call))
+    const pendingSecond = postLoopback(second, JSON.stringify(call))
     while (fake.calls.length < 2) {
       await new Promise((resolve) => setTimeout(resolve, 1))
     }
     // Cancelling the first worker's call stops only its own.
-    await post(
+    await postLoopback(
       first,
       JSON.stringify({
         jsonrpc: '2.0',
@@ -389,17 +337,7 @@ describe('worker configuration isolation', () => {
 
 describe('lease admission per call', () => {
   it('queues a second worker behind the first, then runs it', async () => {
-    const fake = fakePool()
-    const gate = fake.hold()
-    const { bridge, leases } = await started(fake.pool)
-    bridge.registerCaller({ id: 'task-a', holder: RESEARCHER, readOnly: false })
-    bridge.registerCaller({ id: 'task-b', holder: ENGINEER, readOnly: false })
-    const signal = new AbortController().signal
-    const pendingFirst = bridge.callAs('task-a', SCREENSHOT, '{}', signal)
-    const pendingSecond = bridge.callAs('task-b', SCREENSHOT, '{}', signal)
-    while (fake.calls.length === 0) {
-      await new Promise((resolve) => setTimeout(resolve, 1))
-    }
+    const { fake, gate, leases, pendingFirst, pendingSecond } = await queuedChromeCalls()
     expect(fake.calls).toHaveLength(1)
     gate.resolve({ content: [{ type: 'text', text: 'shot' }] })
     await expect(pendingFirst).resolves.toEqual({
@@ -414,17 +352,8 @@ describe('lease admission per call', () => {
   })
 
   it('answers busy past the wait, and refuses a retired attempt’s late call', async () => {
-    const fake = fakePool()
-    const gate = fake.hold()
-    const { bridge, leases, advance } = await started(fake.pool, 50)
-    bridge.registerCaller({ id: 'task-a', holder: RESEARCHER, readOnly: false })
-    bridge.registerCaller({ id: 'task-b', holder: ENGINEER, readOnly: false })
-    const signal = new AbortController().signal
-    const pendingFirst = bridge.callAs('task-a', SCREENSHOT, '{}', signal)
-    const pendingSecond = bridge.callAs('task-b', SCREENSHOT, '{}', signal)
-    while (fake.calls.length === 0) {
-      await new Promise((resolve) => setTimeout(resolve, 1))
-    }
+    const { bridge, gate, leases, advance, pendingFirst, pendingSecond } =
+      await queuedChromeCalls(50)
     advance(50)
     const busy = await pendingSecond
     expect(busy.isError).toBe(true)
@@ -435,7 +364,7 @@ describe('lease admission per call', () => {
       content: [{ type: 'text', text: 'shot' }],
     })
     // A call from the retired attempt, arriving after, is refused.
-    const late = await bridge.callAs('task-a', NAVIGATE, '{}', signal)
+    const late = await bridge.callAs('task-a', NAVIGATE, '{}', new AbortController().signal)
     expect(late.isError).toBe(true)
     expect(textOf({ result: late })).toBe('The task’s attempt 1 ended; the call is refused')
   })

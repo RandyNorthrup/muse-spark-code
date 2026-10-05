@@ -24,9 +24,8 @@
 // incoming message is parsed with a zod schema before use. Wire failures
 // answer 500 instead of leaving an unhandled rejection (D25).
 
-import { Buffer } from 'node:buffer'
-import { randomBytes, timingSafeEqual } from 'node:crypto'
-import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http'
+import { randomBytes } from 'node:crypto'
+import type { IncomingMessage, Server, ServerResponse } from 'node:http'
 import * as z from 'zod/mini'
 import type { SessionMcpServer } from '../../core/agent/agentBackend'
 import type { CallToolResult } from '../../core/backends/modelapi/mcp/protocol'
@@ -35,7 +34,7 @@ import type {
   McpPoolSnapshot,
   McpToolRef,
 } from '../../core/backends/modelapi/mcp/pool'
-import { type McpRequestKey } from '../../core/mcp'
+import { messageSchema, type McpRequestKey } from '../../core/mcp'
 import {
   busyText,
   type LeaseHolder,
@@ -51,6 +50,7 @@ import {
   MCP_PROTOCOL_VERSION,
 } from '../../shared/constants'
 import type { Logger } from '../logger'
+import { isSameLoopbackSecret, listenLoopback, readLoopbackBody } from '../mcpLoopback'
 
 /** What M50's pool gives the bridge: the single instance of every server. */
 export interface TeamBridgePool {
@@ -101,16 +101,13 @@ const BEARER_PREFIX = 'Bearer '
 const JSON_CONTENT_TYPE = 'application/json'
 const POST = 'POST'
 
-const bridgeMessageSchema = z.object({
-  jsonrpc: z.literal('2.0'),
-  id: z.optional(z.union([z.string(), z.number(), z.null()])),
-  method: z.optional(z.string()),
-  params: z.optional(z.record(z.string(), z.unknown())),
-})
-
 const bridgeCallSchema = z.object({
   name: z.string(),
   arguments: z.optional(z.unknown()),
+})
+
+const bridgeInitializeSchema = z.object({
+  protocolVersion: z.optional(z.string()),
 })
 
 const bridgeCancelledSchema = z.object({
@@ -120,31 +117,6 @@ const bridgeCancelledSchema = z.object({
 
 function keyOfId(id: string | number): McpRequestKey {
   return typeof id === 'number' ? `n:${String(id)}` : `s:${id}`
-}
-
-function readBody(request: IncomingMessage, maxBytes: number): Promise<string | undefined> {
-  return new Promise((resolve) => {
-    const chunks: Buffer[] = []
-    let size = 0
-    request.on('data', (chunk: Buffer) => {
-      size += chunk.length
-      if (size <= maxBytes) {
-        chunks.push(chunk)
-      }
-    })
-    request.on('end', () => {
-      resolve(size > maxBytes ? undefined : Buffer.concat(chunks).toString('utf8'))
-    })
-    request.on('error', () => {
-      resolve(undefined)
-    })
-  })
-}
-
-function isSameSecret(presented: string, expected: string): boolean {
-  const left = Buffer.from(presented)
-  const right = Buffer.from(expected)
-  return left.length === right.length && timingSafeEqual(left, right)
 }
 
 function describe(error: unknown): string {
@@ -278,7 +250,7 @@ export class TeamMcpBridge {
     return (
       typeof header === 'string' &&
       header.startsWith(BEARER_PREFIX) &&
-      isSameSecret(header.slice(BEARER_PREFIX.length), caller.token)
+      isSameLoopbackSecret(header.slice(BEARER_PREFIX.length), caller.token)
     )
   }
 
@@ -309,9 +281,10 @@ export class TeamMcpBridge {
   ): Promise<BridgeAnswer> {
     switch (method) {
       case 'initialize': {
-        const requested = params?.['protocolVersion']
+        const hello = bridgeInitializeSchema.safeParse(params ?? {})
+        const requested = hello.success ? hello.data.protocolVersion : undefined
         return {
-          protocolVersion: typeof requested === 'string' ? requested : MCP_PROTOCOL_VERSION,
+          protocolVersion: requested ?? MCP_PROTOCOL_VERSION,
           capabilities: { tools: {} },
           serverInfo: { name: BRIDGE_SERVER_NAME, version: this.deps.clientVersion },
         }
@@ -330,12 +303,12 @@ export class TeamMcpBridge {
           }
         }
         const rawArgs = call.data.arguments
-        const argsJson =
-          rawArgs === undefined || rawArgs === null
-            ? '{}'
-            : typeof rawArgs === 'string'
-              ? rawArgs
-              : JSON.stringify(rawArgs)
+        let argsJson = '{}'
+        if (typeof rawArgs === 'string') {
+          argsJson = rawArgs
+        } else if (rawArgs !== undefined && rawArgs !== null) {
+          argsJson = JSON.stringify(rawArgs)
+        }
         return await this.invoke(caller.caller, call.data.name, argsJson, signal)
       }
       default: {
@@ -369,7 +342,7 @@ export class TeamMcpBridge {
       response.writeHead(HTTP_STATUS.unauthorized).end()
       return
     }
-    const body = await readBody(request, CLI_OUTPUT_MAX_BYTES)
+    const body = await readLoopbackBody(request, CLI_OUTPUT_MAX_BYTES)
     if (body === undefined) {
       response.writeHead(HTTP_STATUS.badRequest).end()
       return
@@ -383,7 +356,7 @@ export class TeamMcpBridge {
         .end(this.errorBody(null, JSON_RPC_ERRORS.parseError, 'Parse error'))
       return
     }
-    const message = bridgeMessageSchema.safeParse(parsed)
+    const message = messageSchema.safeParse(parsed)
     if (!message.success) {
       response
         .writeHead(HTTP_STATUS.ok, { 'content-type': JSON_CONTENT_TYPE })
@@ -459,28 +432,16 @@ export class TeamMcpBridge {
   }
 
   private async listen(): Promise<void> {
-    const server = createServer((request, response) => {
-      void this.respond(request, response)
-    })
-    this.server = server
-    await new Promise<void>((resolve, reject) => {
-      server.once('error', reject)
-      server.listen(0, IDE_MCP_LOOPBACK_HOST, () => {
-        server.off('error', reject)
-        resolve()
-      })
-    })
-    server.on('error', (error) => {
-      this.deps.log.error(`Team MCP bridge error: ${error.message}`)
-    })
-    const address = server.address()
-    if (address === null || typeof address === 'string') {
-      throw new Error('Team MCP bridge has no TCP address')
-    }
-    this.port = address.port
-    this.deps.log.info(
-      `Team MCP bridge listening on ${IDE_MCP_LOOPBACK_HOST}:${String(address.port)}`,
+    const { server, port } = await listenLoopback(
+      (request, response) => {
+        void this.respond(request, response)
+      },
+      this.deps.log,
+      'Team MCP bridge',
     )
+    this.server = server
+    this.port = port
+    this.deps.log.info(`Team MCP bridge listening on ${IDE_MCP_LOOPBACK_HOST}:${String(port)}`)
   }
 
   /** The filtered `tools/list`: the role's servers, and only read-only tools for a read-only role. */
