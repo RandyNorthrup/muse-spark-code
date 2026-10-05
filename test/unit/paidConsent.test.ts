@@ -143,9 +143,12 @@ function tabConsentWith(
     answers?: readonly PaidUseAnswer[]
     canRemember?: boolean
     windowOnce?: readonly PaidFeature[]
+    /** The shared price-acceptance generation every window reads. */
+    generation?: { value: number }
   } = {},
 ) {
   const on = new Set<PaidFeature>(options.on ?? ['tab'])
+  const { generation } = options
   let grants = new Set<PaidFeature>(options.grants)
   const answers = [...(options.answers ?? [])]
   const asked: PaidUseRequest[] = []
@@ -154,6 +157,7 @@ function tabConsentWith(
     ...(options.windowOnce !== undefined && {
       windowOnceFeatures: new Set(options.windowOnce),
     }),
+    ...(generation !== undefined && { windowOnceGeneration: () => generation.value }),
     canRemember: () => options.canRemember ?? false,
     readGrants: () => grants,
     writeGrants: (next) => {
@@ -230,12 +234,26 @@ describe('window-scoped Allow once (M94 Q-M94a)', () => {
   })
 
   it('does not persist past the window: a new instance asks again', async () => {
-    const first = tabConsentWith({ windowOnce: ['tab'], answers: ['once'] })
+    // The same shared generation throughout: only the window's memory is new.
+    const generation = { value: 3 }
+    const first = tabConsentWith({ windowOnce: ['tab'], generation, answers: ['once'] })
     await expect(first.consent.allows(TAB_REQUEST)).resolves.toBe(true)
     expect(first.grants().size).toBe(0)
-    const second = tabConsentWith({ windowOnce: ['tab'], answers: ['deny'] })
+    const second = tabConsentWith({ windowOnce: ['tab'], generation, answers: ['deny'] })
     await expect(second.consent.allows(TAB_REQUEST)).resolves.toBe(false)
     expect(second.asked).toHaveLength(1)
+  })
+
+  it('holds only while the price acceptance it was given under is current (RVM94LC finding 7)', async () => {
+    const generation = { value: 0 }
+    const tab = tabConsentWith({ windowOnce: ['tab'], generation, answers: ['once', 'deny'] })
+    await expect(tab.consent.allows(TAB_REQUEST)).resolves.toBe(true)
+    await expect(tab.consent.allows(TAB_REQUEST)).resolves.toBe(true)
+    expect(tab.asked).toHaveLength(1)
+    // Another window withdrew the price and accepted it again.
+    generation.value = 2
+    await expect(tab.consent.allows(TAB_REQUEST)).resolves.toBe(false)
+    expect(tab.asked).toHaveLength(2)
   })
 
   it('asks again after the price acceptance changes', async () => {

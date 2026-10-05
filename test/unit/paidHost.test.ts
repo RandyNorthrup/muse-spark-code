@@ -351,6 +351,32 @@ describe('M94 Tab wording and window question (lane L, PLAN.md D73)', () => {
     await expect(paid.consent.allows(TAB)).resolves.toBe(true)
     expect(confirmModal).toHaveBeenCalledTimes(2)
   })
+
+  it('asks again after another window withdrew and accepted the price anew (RVM94LC finding 7)', async () => {
+    // Two windows: each its own memory, one shared global state.
+    const data = new Map<string, unknown>([[GLOBAL_STATE_KEYS.paidConfirmations, ['tab']]])
+    const windowA = paidWithSettings(data, ['tab'])
+    const windowB = paidWithSettings(data, ['tab'])
+    answerWith(UI_TEXT.allowOnce)
+    await expect(windowA.paid.consent.allows(TAB)).resolves.toBe(true)
+    // Window B withdraws Tab's price, then accepts it again.
+    windowB.settings.delete('tab')
+    await windowB.paid.gate.review()
+    windowB.settings.add('tab')
+    answerWith(UI_TEXT.paidConfirmAccept)
+    await windowB.paid.gate.review()
+    expect(data.get(GLOBAL_STATE_KEYS.paidGrantGenerations)).toEqual({ tab: 2 })
+    expect(windowA.paid.gate.isOn('tab')).toBe(true)
+    // Window A's once was given under the withdrawn acceptance: it asks.
+    answerWith(UI_TEXT.paidDeny)
+    await expect(windowA.paid.consent.allows(TAB)).resolves.toBe(false)
+    expect(confirmModal).toHaveBeenCalledTimes(3)
+    // A reload keeps nothing either: it asks under the current acceptance.
+    const reloaded = paidWithSettings(data, ['tab'])
+    answerWith(UI_TEXT.paidDeny)
+    await expect(reloaded.paid.consent.allows(TAB)).resolves.toBe(false)
+    expect(confirmModal).toHaveBeenCalledTimes(4)
+  })
 })
 
 describe('M48 paid child task price', () => {

@@ -136,6 +136,13 @@ export interface PaidUseConsentDeps {
    * feature, window-once ones included.
    */
   readonly windowOnceFeatures?: ReadonlySet<PaidFeature>
+  /**
+   * The feature's shared price-acceptance generation, as workspace grants
+   * are checked against (M58). A window-once grant holds only while the
+   * generation it was given under is current, so a price withdrawn and
+   * accepted again in another window makes this window ask again.
+   */
+  readonly windowOnceGeneration?: (feature: PaidFeature) => number
   /** A trusted workspace with a folder open: the only place "always" is offered and kept. */
   readonly canRemember: () => boolean
   /** The features allowed always in this workspace, still valid (the host drops lapsed ones). */
@@ -148,8 +155,11 @@ export interface PaidUseConsentDeps {
 
 export class PaidUseConsent {
   private readonly listeners = new Set<() => void>()
-  /** Window-once grants this instance gave: memory only, never stored. */
-  private readonly windowOnce = new Set<PaidFeature>()
+  /**
+   * Window-once grants this instance gave, each with the price-acceptance
+   * generation it was given under: memory only, never stored.
+   */
+  private readonly windowOnce = new Map<PaidFeature, number | undefined>()
   /**
    * A window-once feature's first question while it is open: ordinary uses
    * that arrive meanwhile share it and its answer instead of asking again.
@@ -163,9 +173,16 @@ export class PaidUseConsent {
     return this.deps.windowOnceFeatures?.has(feature) ?? false
   }
 
-  /** Whether an "Allow once" for the feature covers this window. */
+  /**
+   * Whether an "Allow once" for the feature covers this window: given here,
+   * under the price acceptance that is still current in every window.
+   */
   private isWindowOnce(feature: PaidFeature): boolean {
-    return this.isWindowOnceFeature(feature) && this.windowOnce.has(feature)
+    return (
+      this.isWindowOnceFeature(feature) &&
+      this.windowOnce.has(feature) &&
+      this.windowOnce.get(feature) === this.deps.windowOnceGeneration?.(feature)
+    )
   }
 
   private notify(): void {
@@ -213,7 +230,7 @@ export class PaidUseConsent {
       this.deps.log.info(`Paid use of ${feature}: allowed always in this workspace`)
       this.notify()
     } else if (answer === 'once' && this.isWindowOnceFeature(feature)) {
-      this.windowOnce.add(feature)
+      this.windowOnce.set(feature, this.deps.windowOnceGeneration?.(feature))
       this.deps.log.info(`Paid use of ${feature}: allowed once in this window`)
     } else {
       this.deps.log.info(`Paid use of ${feature}: allowed once`)
@@ -277,8 +294,10 @@ export class PaidUseConsent {
   }
 
   /**
-   * A price acceptance changed (the host calls this from `writeAccepted`):
-   * this window's once was given under the old price, so it asks again.
+   * A price acceptance changed in this window (the host calls this from
+   * `writeAccepted`): this window's once was given under the old price, so
+   * it asks again. A change in another window shows through
+   * `windowOnceGeneration`.
    */
   public revokeWindowOnce(feature: PaidFeature): void {
     if (this.windowOnce.delete(feature)) {

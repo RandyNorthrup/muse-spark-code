@@ -205,6 +205,10 @@ export function createPaidFeatures(deps: PaidFeaturesDeps): PaidFeatures {
     // memory only, so it never persists past the window. "Allow always"
     // stays workspace-scoped, as for every feature.
     windowOnceFeatures: new Set<PaidFeature>(['tab']),
+    // The once holds only under the price acceptance it was given under,
+    // shared by every window (the generations "always" is checked against):
+    // another window's withdrawal and new acceptance makes this one ask again.
+    windowOnceGeneration: (feature) => generationOf(readGenerations(), feature),
     canRemember: deps.canRememberPaidUse,
     readGrants: () => {
       const parsed = generationsSchema.safeParse(
