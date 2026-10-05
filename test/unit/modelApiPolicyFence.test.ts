@@ -21,6 +21,7 @@ import {
 } from '../../src/core/backends/modelapi/tools'
 import type { VerifyHooks } from '../../src/core/backends/modelapi/verifyLoop'
 import type { LanguageServiceHost } from '../../src/core/codeIntel/languageService'
+import { isTeamTool } from '../../src/core/team/teamTools'
 import type { McpTool } from '../../src/core/mcp'
 import type { PermissionSettings } from '../../src/core/permissionSettings'
 import type { WebFetcher } from '../../src/core/web/webFetch'
@@ -112,6 +113,7 @@ type HoldPoint =
   | 'shell'
   | 'question'
   | 'childReply'
+  | 'team'
 
 type Hold =
   | { readonly at: HoldPoint; readonly path?: string }
@@ -191,6 +193,28 @@ function childControl(tool: string, args: unknown): FenceCase {
 }
 
 const CASES: readonly FenceCase[] = [
+  {
+    tool: 'roster',
+    args: {},
+    hold: { at: 'none', reason: 'The roster is synchronous after admission.' },
+    change: { kind: 'trust' },
+    leak: null,
+  },
+  ...[
+    {
+      tool: 'delegate',
+      args: {
+        tasks: [{ role: 'qa', brief: 'Test.', reason: { code: 'specialty', detail: 'Tests.' } }],
+      },
+    },
+    { tool: 'collect', args: { task_ids: ['t1'] } },
+    { tool: 'cancel', args: { task_ids: ['t1'] } },
+    { tool: 'merge', args: { task_id: 't1' } },
+  ].map((tool): FenceCase => ({
+    ...tool,
+    hold: { at: 'team' },
+    change: { kind: 'trust' },
+  })),
   {
     tool: 'read_file',
     args: { path: 'private.txt' },
@@ -684,6 +708,53 @@ function fixture(c: FenceCase) {
   const log = new FakeLogOutputChannel()
   const host = new ModelApiHost({
     ...disabledPaidFeatures,
+    ...(isTeamTool(c.tool) && {
+      teamDecisionSource: () => ({
+        teamSwitchOn: true,
+        soloTemplate: false,
+        orchestratorModelId: 'muse-spark-1.3',
+        teamWorkersOn: false,
+        customEntries: [
+          {
+            entryId: 'other',
+            modelId: 'other',
+            kind: 'engine',
+            billsKey: false,
+            isAvailable: true,
+          },
+        ],
+        isSameModel: (a: string, b: string) => a === b,
+        isEntryReady: () => true,
+      }),
+      teamRosterData: () => ({ stable: [] }),
+      teamRunner: {
+        preview: async () => {
+          count()
+          await held.hold()
+          return { output: MARKER, visibleOutput: '' }
+        },
+        delegate: async () => {
+          count()
+          await held.hold()
+          return { output: MARKER, visibleOutput: '' }
+        },
+        collect: async () => {
+          count()
+          await held.hold()
+          return { output: MARKER, visibleOutput: '' }
+        },
+        cancel: async () => {
+          count()
+          await held.hold()
+          return { output: MARKER, visibleOutput: '' }
+        },
+        merge: async () => {
+          count()
+          await held.hold()
+          return { output: MARKER, visibleOutput: '' }
+        },
+      },
+    }),
     isPaidFeatureOn: (feature) => PAID.has(feature),
     allowsPaidUse: () => Promise.resolve(true),
     notePaidUse: (feature) => {

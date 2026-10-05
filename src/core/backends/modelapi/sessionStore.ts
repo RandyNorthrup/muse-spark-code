@@ -21,6 +21,7 @@ import { APPROVAL_MODES, type ApprovalMode } from '../../../shared/permissionMod
 import type { AgentRuntime } from '../../context/customAgents'
 import type { SessionRecord } from '../../agent/agentBackend'
 import { type GoalRecord, goalRecordSchema } from './goalRecord'
+import type { TeamCommandRecord } from '../../team/teamTools'
 import type { SessionBudgetJournal } from './sessionBudget'
 import {
   functionCallItemSchema,
@@ -134,6 +135,16 @@ export interface StoredSession {
   /** Completed children whose results have not entered the next model request. */
   readonly pendingChildResults?: readonly StoredPendingChildResult[]
   readonly spawnCommands?: Readonly<Record<string, string>>
+  /**
+   * M96 lane T: the conversation's declared delegation family, decided at
+   * its first request and kept on resume. Absent on conversations saved
+   * before teams, which keep their single-model declared set.
+   */
+  readonly teamMode?: 'single-model' | 'team'
+  /** M96 lane T: the roster's stable part as the first request sent it, never rewritten. */
+  readonly teamRoster?: string
+  /** M96 lane T: `command_id` claims and their recorded answers. */
+  readonly teamCommands?: Readonly<Record<string, TeamCommandRecord>>
 }
 
 /**
@@ -331,6 +342,11 @@ export const storedSessionSchema = z.object({
     ),
   ),
   spawnCommands: z.optional(z.record(z.string(), z.string())),
+  teamMode: z.optional(z.enum(['single-model', 'team'])),
+  teamRoster: z.optional(z.string()),
+  teamCommands: z.optional(
+    z.record(z.string(), z.object({ tasksFingerprint: z.string(), answer: z.string() })),
+  ),
 })
 
 export type StoredSessionParse =
@@ -373,6 +389,9 @@ export function parseStoredSession(raw: unknown): StoredSessionParse {
     children,
     pendingChildResults,
     spawnCommands,
+    teamMode,
+    teamRoster,
+    teamCommands,
     budgetSpentUsd,
     budgetIsFreshFork,
     agent,
@@ -436,6 +455,9 @@ export function parseStoredSession(raw: unknown): StoredSessionParse {
         ),
       }),
       ...(spawnCommands !== undefined && { spawnCommands }),
+      ...(teamMode !== undefined && { teamMode }),
+      ...(teamRoster !== undefined && { teamRoster }),
+      ...(teamCommands !== undefined && { teamCommands }),
       ...(agent !== undefined && { agent }),
       ...(packedTokensAvoided !== undefined && { packedTokensAvoided }),
     },

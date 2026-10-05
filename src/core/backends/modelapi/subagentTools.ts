@@ -153,3 +153,12 @@ export function isSubagentTool(name: string): boolean {
   const names: readonly string[] = Object.values(MODEL_API_SUBAGENT_TOOLS)
   return names.includes(name)
 }
+
+/**
+ * Which delegation family a conversation declares (M96, PLAN.md D75): a team
+ * conversation declares the team's five tools and none of M48's six; every
+ * other conversation declares exactly what it declares today. Never both.
+ */
+export function delegationFamily(teamMode: 'single-model' | 'team'): 'team' | 'subagents' {
+  return teamMode === 'team' ? 'team' : 'subagents'
+}

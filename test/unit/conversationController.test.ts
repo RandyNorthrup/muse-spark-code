@@ -2,6 +2,7 @@ import { Buffer } from 'node:buffer'
 import { randomUUID } from 'node:crypto'
 import {
   copyFileSync,
+  mkdirSync,
   mkdtempSync,
   readFileSync,
   realpathSync,
@@ -12,6 +13,7 @@ import { mkdir, readFile, rename, symlink, unlink, writeFile } from 'node:fs/pro
 import { createRequire } from 'node:module'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
+import { fileURLToPath } from 'node:url'
 import vm from 'node:vm'
 import { build } from 'esbuild'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
@@ -320,6 +322,9 @@ function setup(
     ideMcpEndpoint?: SessionMcpHttpServer
     /** How long the IDE tool server takes to answer (a retried start, D25). */
     ideMcpStartMs?: number
+    /** M96 lane T: the `team` server and the orchestrator slot. */
+    teamMcp?: ConversationDeps['teamMcp']
+    orchestratorSlot?: ConversationDeps['orchestratorSlot']
     grantedCapabilities?: readonly string[]
     shellSandbox?: ShellSandboxPosture
     /** Contributor-tier guard (M7). */
@@ -745,6 +750,8 @@ function setup(
           resolve(options.ideMcpEndpoint)
         }, options.ideMcpStartMs ?? 0)
       }),
+    ...(options.teamMcp !== undefined && { teamMcp: options.teamMcp }),
+    ...(options.orchestratorSlot !== undefined && { orchestratorSlot: options.orchestratorSlot }),
     newAttachmentId: () => {
       attachmentCount += 1
       return `att-${String(attachmentCount)}`
@@ -3071,6 +3078,210 @@ describe('ConversationController: editor integration (M5)', () => {
       mcpServers: { ide: { url: endpoint.url } },
     })
   })
+})
+
+/** A JSON-string envelope keeps the raw frame bytes through fixture formatting. */
+function frameOf(params: unknown): string {
+  // The SDK appends its generated command id; every other byte stays literal.
+  const frame = JSON.stringify(params).replaceAll('team-token-1', '<team-token>')
+  const normalized = frame.replace(/"commandId":"[^"]+"(?=}$)/, '"commandId":"<command-id>"')
+  return `${JSON.stringify(`${normalized}\n`)}\n`
+}
+
+describe('ConversationController: team server and orchestrator slot (M96 lane T)', () => {
+  // The Muse Code `session/start` golden frames: the single-model frame
+  // equals main's, byte for byte; the team frame adds the `team` server.
+  // Regenerate with MUSE_SPARK_UPDATE_GOLDEN_REQUESTS=1, which refuses under CI.
+  const FRAMES = path.join(
+    path.dirname(fileURLToPath(import.meta.url)),
+    '..',
+    'fixtures',
+    'golden-frames',
+  )
+  const SHOULD_UPDATE_FRAMES = process.env['MUSE_SPARK_UPDATE_GOLDEN_REQUESTS'] === '1'
+  if (SHOULD_UPDATE_FRAMES && process.env['CI'] !== undefined)
+    throw new Error('Golden frames cannot be updated under CI')
+  const IDE = { url: 'http://127.0.0.1:1/mcp', headers: { Authorization: 'Bearer ide-token' } }
+  const TEAM = { url: 'http://127.0.0.1:2/mcp', headers: { Authorization: 'Bearer team-token-1' } }
+
+  function framePath(name: string): string {
+    return path.join(FRAMES, `${name}.json`)
+  }
+
+  function checkFrame(name: string, params: unknown): void {
+    if (SHOULD_UPDATE_FRAMES) {
+      mkdirSync(FRAMES, { recursive: true })
+      writeFileSync(framePath(name), frameOf(params))
+      return
+    }
+    expect(frameOf(params)).toBe(readFileSync(framePath(name), 'utf8'))
+  }
+
+  function teamMcp(mode: () => 'single-model' | 'team') {
+    return {
+      modeForNewConversation: mode,
+      endpointForConversation: () => Promise.resolve(TEAM),
+    }
+  }
+
+  it('starts a single-model session with the ide server only', async () => {
+    const t = setup({ ideMcpEndpoint: IDE, grantedCapabilities: ['sessionMcp'] })
+    await t.send('l1', 'hi')
+    const params = t.server.requestsFor('session/start')[0]?.params
+    expect(params?.['config']).toMatchObject({ mcpServers: { ide: { url: IDE.url } } })
+    expect(params?.['config']).not.toHaveProperty('mcpServers.team')
+    checkFrame('musecode-session-start-single', params)
+  })
+
+  it('starts a team session with the team server beside the ide server', async () => {
+    const mode: 'single-model' | 'team' = 'team'
+    const t = setup({
+      ideMcpEndpoint: IDE,
+      grantedCapabilities: ['sessionMcp'],
+      teamMcp: teamMcp(() => mode),
+    })
+    await t.send('l1', 'hi')
+    const params = t.server.requestsFor('session/start')[0]?.params
+    expect(params?.['config']).toEqual({
+      mcpServers: {
+        ide: { transport: 'streamableHttp', url: IDE.url, headers: IDE.headers, mode: 'optional' },
+        team: {
+          transport: 'streamableHttp',
+          url: TEAM.url,
+          headers: TEAM.headers,
+          mode: 'optional',
+        },
+      },
+    })
+    checkFrame('musecode-session-start-team', params)
+  })
+
+  it('keeps the attached set at resume when the mode flips mid-conversation', async () => {
+    let mode: 'single-model' | 'team' = 'team'
+    const t = setup({
+      ideMcpEndpoint: IDE,
+      grantedCapabilities: ['sessionMcp'],
+      teamMcp: teamMcp(() => mode),
+    })
+    await t.send('l1', 'hi')
+    expect(t.server.requestsFor('session/start')).toHaveLength(1)
+    // The team goes away mid-conversation: the open session keeps its server.
+    mode = 'single-model'
+    t.server.handle('session/resume', () => envelope({ ...storedSession, sessionId: 's1' }))
+    t.controller.hostExited({
+      description: 'Muse Code failed with an unhandled error (exit 1)',
+      isExpected: false,
+      isPersistent: false,
+    })
+    await t.send('l2', 'again')
+    const resumed = t.server.requestsFor('session/resume')[0]?.params
+    expect(resumed?.['config']).toMatchObject({ mcpServers: { team: { url: TEAM.url } } })
+    checkFrame('musecode-session-resume-team', resumed)
+  })
+
+  it('keeps a single-model resume byte-identical after the setup gains another model', async () => {
+    let mode: 'single-model' | 'team' = 'single-model'
+    const endpoint = vi.fn(() => Promise.resolve(TEAM))
+    const t = setup({
+      ideMcpEndpoint: IDE,
+      grantedCapabilities: ['sessionMcp'],
+      teamMcp: { modeForNewConversation: () => mode, endpointForConversation: endpoint },
+    })
+    await t.send('l1', 'hi')
+    mode = 'team'
+    t.server.handle('session/resume', () => envelope({ ...storedSession, sessionId: 's1' }))
+    t.controller.hostExited({ description: 'stopped', isExpected: false, isPersistent: false })
+    await t.send('l2', 'again')
+    expect(endpoint).not.toHaveBeenCalled()
+    checkFrame('musecode-session-resume-single', t.server.requestsFor('session/resume')[0]?.params)
+  })
+
+  it('restores history from its saved decision and keeps a team token out of another session', async () => {
+    const modes = new Map<string, 'single-model' | 'team'>([['old', 'team']])
+    const endpoint = vi.fn(() => Promise.resolve(TEAM))
+    const t = withHistory({
+      ideMcpEndpoint: IDE,
+      grantedCapabilities: ['sessionMcp'],
+      teamMcp: {
+        modeForNewConversation: () => 'single-model',
+        modeForSession: (id) => modes.get(id) ?? 'single-model',
+        rememberMode: (id, mode) => {
+          modes.set(id, mode)
+          return Promise.resolve()
+        },
+        endpointForConversation: endpoint,
+      },
+    })
+    await t.controller.handle({ type: 'resumeSession', sessionId: 'old' })
+    expect(endpoint).toHaveBeenCalledWith('old')
+    expect(t.server.requestsFor('session/resume')[0]?.params?.['config']).toMatchObject({
+      mcpServers: { team: { url: TEAM.url } },
+    })
+    await t.controller.handle({ type: 'clearConversation' })
+    await t.send('l1', 'new')
+    expect(modes.get('s1')).toBe('single-model')
+    expect(endpoint).toHaveBeenCalledTimes(1)
+    await t.controller.handle({ type: 'resumeSession', sessionId: 'page2' })
+    expect(t.server.requestsFor('session/resume').at(-1)?.params?.['config']).not.toMatchObject({
+      mcpServers: { team: {} },
+    })
+    expect(endpoint).toHaveBeenCalledTimes(1)
+  })
+
+  it('decides again for a new conversation', async () => {
+    let mode: 'single-model' | 'team' = 'single-model'
+    const t = setup({
+      ideMcpEndpoint: IDE,
+      grantedCapabilities: ['sessionMcp'],
+      teamMcp: teamMcp(() => mode),
+    })
+    await t.send('l1', 'hi')
+    expect(t.server.requestsFor('session/start')[0]?.params?.['config']).toMatchObject({
+      mcpServers: { ide: { url: IDE.url } },
+    })
+    expect(t.server.requestsFor('session/start')[0]?.params?.['config']).not.toMatchObject({
+      mcpServers: { team: {} },
+    })
+    mode = 'team'
+    await t.controller.handle({ type: 'clearConversation' })
+    await t.send('l2', 'a new topic')
+    expect(t.server.requestsFor('session/start')).toHaveLength(2)
+    expect(t.server.requestsFor('session/start')[1]?.params?.['config']).toMatchObject({
+      mcpServers: { team: { url: TEAM.url } },
+    })
+  })
+
+  it('starts a new conversation on the orchestrator override, and the pill shows it', async () => {
+    const t = setup({
+      ideMcpEndpoint: IDE,
+      grantedCapabilities: ['sessionMcp'],
+      orchestratorSlot: { modelForNewConversation: () => 'opus-override' },
+    })
+    await t.send('l1', 'hi')
+    expect(t.server.requestsFor('session/start')[0]?.params?.['modelId']).toBe('opus-override')
+    const infos = t.surface.posted.filter((message) => message.type === 'sessionInfo')
+    expect(infos.at(-1)).toMatchObject({ modelId: 'opus-override' })
+  })
+
+  it.each([
+    { isConfidentialWorkspace: true, confirmsContributor: true, prompts: [] },
+    {
+      isConfidentialWorkspace: false,
+      confirmsContributor: false,
+      prompts: ['muse-spark-1.3-contributor'],
+    },
+  ])(
+    'keeps the picker when a contributor override is refused ($isConfidentialWorkspace)',
+    async (options) => {
+      const t = setup({
+        ...options,
+        orchestratorSlot: { modelForNewConversation: () => 'muse-spark-1.3-contributor' },
+      })
+      await t.send('l1', 'hi')
+      expect(t.server.requestsFor('session/start')[0]?.params?.['modelId']).toBe('muse-spark-1.3')
+      expect(t.contributorPrompts).toEqual(options.prompts)
+    },
+  )
 })
 
 describe('ConversationController: other messages', () => {
