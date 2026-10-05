@@ -61,6 +61,8 @@ export interface TabHooksDeps {
   readonly isHooksEnabled: () => boolean
   /** Changes whenever either scope's hook snapshot changes. */
   readonly configurationVersion: () => string
+  /** Production loads the snapshot lazily; no matching guard must preserve the old read. */
+  readonly hasHooks?: ((event: TabHookEvent) => Promise<boolean>) | undefined
   readonly run: (request: TabHookRun) => Promise<readonly ShellResult[] | undefined>
   /** Counts and fixed status words only: no payload, output, reason or path. */
   readonly log: (message: string) => void
@@ -127,6 +129,13 @@ export function createTabHooks(deps: TabHooksDeps) {
   ): Promise<boolean> {
     if (isDisposed || !deps.isWorkspaceTrusted()) return false
     if (!deps.isHooksEnabled()) return true
+    if (deps.hasHooks !== undefined) {
+      try {
+        if (!(await deps.hasHooks('beforeTabFileRead'))) return !isDisposed && deps.isWorkspaceTrusted()
+      } catch {
+        return false
+      }
+    }
     const capturedVersion = currentVersion()
     const digest = createHash('sha256').update(content).digest('hex')
     const key = JSON.stringify([filePath, digest])

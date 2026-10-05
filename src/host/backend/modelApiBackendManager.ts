@@ -19,7 +19,7 @@ import type {
   ModelApiHostDeps,
   ModelApiPaidHooks,
 } from '../../core/backends/modelapi/ModelApiHost'
-import type { ResponseAttemptGuard } from '../../core/backends/modelapi/client'
+import type { ResponseAttemptGuard, ModelApiClientDeps } from '../../core/backends/modelapi/client'
 import type { OwnedSessionBudgetScope } from '../../core/backends/modelapi/sessionBudget'
 import type { SessionStore } from '../../core/backends/modelapi/sessionStore'
 import type { ScheduleStore } from '../../shared/schedule'
@@ -32,6 +32,7 @@ import type { McpTool } from '../../core/mcp'
 import type { MemoryStore } from '../../core/memory/memoryStore'
 import type { PermissionSettings } from '../../core/permissionSettings'
 import type { WebFetcher } from '../../core/web/webFetch'
+import type { BrowserCheckHost } from '../../core/browser/browserTool'
 import type { SubagentUsage } from '../../shared/paid'
 import { BestOfNError } from '../../core/bestOfN/bestOfNError'
 import { WorkspaceEdits, type WorkspaceEditRecorder } from '../../core/verify/workspaceEdits'
@@ -55,6 +56,7 @@ import {
 } from './modelApiBundle'
 
 export interface ModelApiBackendManagerDeps extends ModelApiPaidHooks {
+  readonly reservePaidRequest?: ModelApiClientDeps['reservePaidRequest']
   readonly log: Logger
   readonly getApiKey: () => Promise<string | undefined>
   readonly workspaceRoot: string | undefined
@@ -109,6 +111,8 @@ export interface ModelApiBackendManagerDeps extends ModelApiPaidHooks {
   readonly ideTools?: readonly McpTool[] | undefined
   /** The window's web fetch, run in this bundle for the backend's `web_fetch` (M69). */
   readonly webFetch?: WebFetcher | undefined
+  /** The window's browser check, run in its own bundle for `browser_check` (M81). */
+  readonly browserCheck?: BrowserCheckHost | undefined
   /** VS Code's language services, for the code intelligence tools (M67). */
   readonly codeIntel?: LanguageServiceHost | undefined
   /** `museSpark.modelApiRepoMap`, read per turn (M67). */
@@ -152,6 +156,7 @@ interface HostVariant {
   readonly workspaceEdits: WorkspaceEdits
   readonly sessionWorkspaceRoot: string | undefined
   readonly permissionSettings: ModelApiBackendManagerDeps['permissionSettings']
+  readonly browserCheck: BrowserCheckHost | undefined
   readonly webFetch: ModelApiBackendManagerDeps['webFetch']
   readonly codeIntel: ModelApiBackendManagerDeps['codeIntel']
   readonly isRepoMapInPrompt: ModelApiBackendManagerDeps['isRepoMapInPrompt']
@@ -250,6 +255,9 @@ export class ModelApiBackendManager {
       uiText: UI_TEXT,
       uiLocale: uiLocale(),
       client: {
+        ...(this.deps.reservePaidRequest !== undefined && {
+          reservePaidRequest: this.deps.reservePaidRequest,
+        }),
         fetch: this.deps.fetch,
         ...(this.deps.streamIdleMs !== undefined && { streamIdleMs: this.deps.streamIdleMs }),
         baseUrl: MODEL_API_BASE_URL,
@@ -291,6 +299,7 @@ export class ModelApiBackendManager {
         showReplyUsage: this.deps.showReplyUsage,
         ideTools: variant.ideTools,
         webFetch: variant.webFetch,
+        browserCheck: variant.browserCheck,
         codeIntel: variant.codeIntel,
         isRepoMapInPrompt: variant.isRepoMapInPrompt,
         observationPacking: this.deps.isObservationPackingOn,
@@ -331,6 +340,7 @@ export class ModelApiBackendManager {
       sessionWorkspaceRoot: this.deps.sessionWorkspaceRoot,
       permissionSettings: this.deps.permissionSettings,
       webFetch: this.deps.webFetch,
+      browserCheck: this.deps.browserCheck,
       codeIntel: this.deps.codeIntel,
       isRepoMapInPrompt: this.deps.isRepoMapInPrompt,
       io: this.deps.io,
@@ -388,6 +398,7 @@ export class ModelApiBackendManager {
         budgetScope,
         permissionSettings: this.deps.permissionSettings,
         webFetch: undefined,
+        browserCheck: undefined,
         codeIntel: undefined,
         isRepoMapInPrompt: undefined,
         io: {
@@ -410,6 +421,7 @@ export class ModelApiBackendManager {
             admitRequest(keyDigest)
           },
           {
+            paidFeature: 'bestOfN' as const,
             onRequestStarted: () => {
               admitRequest.onRequestStarted?.()
             },

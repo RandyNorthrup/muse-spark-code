@@ -28,9 +28,9 @@ describe('M50 compiled Windows job executable', () => {
       if (args[0] === '--self-test') return 'muse-spark-mcp-job-ready\n'
       const script = args.join('\n')
       scripts.push(script)
-      const match = /-OutputAssembly '([^']+)'/.exec(script)
-      if (match?.[1] === undefined) throw new Error('compiler output was not named')
-      await writeFile(match[1], 'executable')
+      const output = args.find((arg) => arg.startsWith('/out:'))?.slice('/out:'.length)
+      if (output === undefined) throw new Error('compiler output was not named')
+      await writeFile(output, 'executable')
       return ''
     }
     const logged: string[] = []
@@ -53,8 +53,13 @@ describe('M50 compiled Windows job executable', () => {
       ['MuseSparkJob-live.dll', name].toSorted((a, b) => a.localeCompare(b)),
     )
     expect(scripts).toHaveLength(1)
-    expect(scripts[0]).toContain('-OutputType ConsoleApplication')
-    expect(scripts[0]).toContain('-ReferencedAssemblies')
+    expect(scripts[0]).toContain('/target:exe')
+    expect(scripts[0]).toContain(
+      String.raw`/reference:C:\Windows\Microsoft.NET\Framework\v4.0.30319\System.Runtime.Serialization.dll`,
+    )
+    expect(scripts[0]).toContain(
+      String.raw`/reference:C:\Windows\Microsoft.NET\Framework\v4.0.30319\System.Xml.dll`,
+    )
     expect(logged).toEqual([])
     let didRunAgain = false
     expect(

@@ -7,6 +7,7 @@
 // keeps its own installed-language state beside the activation's.
 
 import { createTabEngine } from '../../core/tab/tabEngine'
+import { createTabHooks } from '../../core/tab/tabHooks'
 import type { UiText } from '../../shared/l10n/en'
 import { setUiText } from '../../shared/l10n/text'
 import {
@@ -63,7 +64,20 @@ export function createTabServices(deps: TabServicesDeps): TabServices {
 
 export function createTabProvider(deps: TabProviderDeps & TabBundleTable): TabProviderHandle {
   setUiText(deps.uiTable, deps.locale)
-  return createProvider(deps)
+  if (deps.hooks !== undefined || deps.hookDispatch === undefined) return createProvider(deps)
+  const hooks = createTabHooks({
+    ...deps.hookDispatch,
+    isWorkspaceTrusted: deps.isTrusted,
+    log: (message) => deps.log.info(message),
+  })
+  return createProvider({
+    ...deps,
+    hooks: {
+      beforeRead: hooks.beforeRead,
+      afterEdit: (edit) => hooks.afterEdit({ ...edit, acceptance: edit.inferred ? 'partial' : 'full' }, edit),
+      dispose: hooks.dispose,
+    },
+  })
 }
 
 export async function showTabMenu(deps: TabStatusDeps & TabBundleTable): Promise<void> {

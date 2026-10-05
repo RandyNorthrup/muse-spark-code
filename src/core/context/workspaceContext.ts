@@ -107,15 +107,26 @@ export class WorkspaceContext {
     if (this.deps.personalSkillsRoot !== undefined) {
       roots.push({ directory: this.deps.personalSkillsRoot, source: 'user', confineTo: undefined })
     }
-    // The extension's own files, read only from its own package (M89).
+    // The extension's own files, read only from its own folders: the
+    // vendored package (M89) and the first-party skills beside it (M92).
+    // The first-party root comes first, so the extension's own skill wins an
+    // id the vendored package also holds.
     const { bundledSkills } = this.deps
     if (bundledSkills?.isEnabled() === true) {
-      roots.push({
-        directory: bundledSkillsRoot(bundledSkills.packageRoot, this.deps.platform),
-        source: 'bundled',
-        confineTo: bundledSkills.packageRoot,
-        packageRoot: bundledSkills.packageRoot,
-      })
+      roots.push(
+        {
+          directory: bundledSkills.firstPartyRoot,
+          source: 'bundled',
+          confineTo: bundledSkills.firstPartyRoot,
+          packageRoot: bundledSkills.firstPartyRoot,
+        },
+        {
+          directory: bundledSkillsRoot(bundledSkills.packageRoot, this.deps.platform),
+          source: 'bundled',
+          confineTo: bundledSkills.packageRoot,
+          packageRoot: bundledSkills.packageRoot,
+        },
+      )
     }
     return roots
   }

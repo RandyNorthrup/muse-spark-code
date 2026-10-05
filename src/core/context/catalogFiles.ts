@@ -47,6 +47,8 @@ export type CatalogParse<Entry> =
 export interface CatalogEntry<Entry, Source> {
   readonly id: string
   readonly source: Source
+  /** The root directory that yielded the entry (M92: one source may read two roots). */
+  readonly directory: string
   readonly entry: Entry
 }
 
@@ -245,7 +247,7 @@ export async function loadCatalogFiles<Entry, Source extends string>(
         )
       }
       seen.set(id, root.source)
-      entries.push({ id, source: root.source, entry: parsed.entry })
+      entries.push({ id, source: root.source, directory: root.directory, entry: parsed.entry })
     }
   }
   return { entries, roots: rootLoads, warnings }

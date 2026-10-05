@@ -72,7 +72,7 @@ describe('webFetchLoader', () => {
 
 describe('the shipped web fetch bundle', () => {
   // It reads WEB_FETCH_MODEL_TEXT only.
-  shippedTextCases(built, WEB_FETCH_MODEL_TEXT.webFetchUntrusted)
+  shippedTextCases(built, WEB_FETCH_MODEL_TEXT.webFetchUntrusted, [WEB_FETCH_MODEL_TEXT])
 
   it('checks a URL as the source does', () => {
     const check = lazyPageUrlCheck(shipped())

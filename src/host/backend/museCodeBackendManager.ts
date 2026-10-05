@@ -222,6 +222,13 @@ export class MuseCodeBackendManager {
     this.deps.log.info(
       `Shell sandbox ${posture.isSandboxed ? 'on' : 'off'} (${posture.reason}) for this host`,
     )
+    if (!posture.isSandboxed) {
+      // Meta's permissions page: --disable-sandbox "also removes workspace
+      // confinement from the file tools" (musecode-write-asks, 2026-10-04).
+      this.deps.log.warn(
+        'Without the sandbox, Muse Code’s file tools can write outside the workspace without asking',
+      )
+    }
     const network = this.deps.getSandboxNetwork()
     if (network !== 'default' && !isSandboxNetworkApplied(network, posture)) {
       this.deps.log.warn(

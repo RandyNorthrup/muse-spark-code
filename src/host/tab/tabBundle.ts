@@ -10,6 +10,7 @@
 // hooks stay an optional dependency until lane K lands.
 
 import * as vscode from 'vscode'
+import type { TabHookContext, TabHooksDeps } from '../../core/tab/tabHooks'
 import type {
   TabEngine,
   TabEngineRequest,
@@ -171,9 +172,10 @@ export interface TabAcceptedEdit {
   readonly generationId: string
   /** The model the suggestion came from. */
   readonly model: string
-  /** 1-based, as Cursor sends them. */
-  readonly oldLine: number
-  readonly newLine: number
+  /** Actual line text around the accepted insertion. */
+  readonly oldLine: string
+  readonly newLine: string
+  readonly workspaceRoots: readonly string[]
   /** 1-based start/end line and column. */
   readonly range: {
     readonly startLineNumber: number
@@ -195,8 +197,9 @@ export interface TabAcceptedEdit {
  * read is allowed and every accept unobserved.
  */
 export interface TabHookBridge {
-  beforeRead(absolutePath: string, content: string): Promise<boolean>
+  beforeRead(absolutePath: string, content: string, context: TabHookContext): Promise<boolean>
   afterEdit(edit: TabAcceptedEdit): void
+  dispose?(): void
 }
 
 /** The last failure's class, fixed technical words (never code or a path). */
@@ -259,6 +262,7 @@ export interface TabProviderDeps {
   readonly consent: TabUseConsent
   /** Lane K's hooks (absent until lane K lands). */
   readonly hooks?: TabHookBridge | undefined
+  readonly hookDispatch?: Omit<TabHooksDeps, 'isWorkspaceTrusted' | 'log'> | undefined
   /** The outcome of each trigger: the status bar follows it. */
   readonly onOutcome: (outcome: TabOutcome) => void
   readonly log: Logger
@@ -817,6 +821,7 @@ export interface TabActivationDeps {
   readonly consent: TabUseConsent
   /** Lane K's hooks (absent until lane K lands). */
   readonly hooks?: TabHookBridge | undefined
+  readonly hookDispatch?: TabProviderDeps['hookDispatch']
 }
 
 interface ActiveTab {
@@ -942,6 +947,7 @@ export function createTabActivation(deps: TabActivationDeps): TabActivation {
       spend,
       consent,
       hooks: deps.hooks,
+      hookDispatch: deps.hookDispatch,
       onOutcome: (outcome) => {
         // Deny snoozes the window (Q-M94a): set it before the status redraws.
         if (outcome.kind === 'quiet' && outcome.reason === 'consent-denied') {

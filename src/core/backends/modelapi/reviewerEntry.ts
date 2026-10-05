@@ -222,6 +222,10 @@ async function callReviewer(
         required(actualKeyDigest)
       },
       {
+        paidFeature: 'autoReviewer' as const,
+        ...(required.paidEstimatedInputTokens !== undefined && {
+          paidEstimatedInputTokens: required.paidEstimatedInputTokens,
+        }),
         onRequestStarted: () => {
           required.onRequestStarted?.()
           confirmed.onRequestStarted()

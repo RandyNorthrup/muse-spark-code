@@ -61,7 +61,6 @@ import {
   HOOK_IMPORT_REFUSING_EXTENSION_SOURCES,
   HOOK_MATCHER_MAX_CHARS,
   HOOK_MAX_TIMEOUT_SECONDS,
-  AGENT_IMPORT_MODEL_TEXT,
   MCP_FUNCTION_NAME_MAX_CHARS,
   MCP_TRANSPORTS,
   MILLISECONDS_PER_SECOND,
@@ -1174,7 +1173,10 @@ function sparkHook(
   // events; on an extension event they wait for M91b's route there. Until
   // then the entry is refused, never offered as if it ran, and a guard that
   // could refuse where it came from says it would be weaker.
-  if (EXTENSION_EVENT_NAMES.has(event)) {
+  if (
+    EXTENSION_EVENT_NAMES.has(event) &&
+    !(record.format === 'cursor' && (event === 'beforeTabFileRead' || event === 'afterTabFileEdit'))
+  ) {
     const source = `${record.format}:${record.sourceEvent}`
     return {
       ok: false,
@@ -1343,6 +1345,8 @@ const CURSOR_ENTRY_FIELDS: ReadonlySet<string> = new Set([
 ])
 /** Cursor's specialised events by their fixed matcher on our tools. */
 const CURSOR_SPECIALIZED: Readonly<Record<string, string>> = {
+  beforeTabFileRead: 'TabRead',
+  afterTabFileEdit: 'TabWrite',
   beforeShellExecution: 'Bash',
   afterShellExecution: 'Bash',
   beforeMCPExecution: `${OUR_MCP_PREFIX}.*`,

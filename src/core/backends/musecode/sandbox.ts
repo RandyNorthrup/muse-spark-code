@@ -130,12 +130,14 @@ function isInsideDirectory(directory: string, candidate: string): boolean {
 }
 
 /**
- * A Windows workspace under `C:\Users\<user>`, where Muse Code's sandbox runs
- * shell commands in PowerShell's own folder instead (meta-models/muse-code-sdk#26;
- * verified live on 1.3.0 on 2026-09-22 and on 1.4.0 on 2026-09-27). No release
- * has fixed it, so this holds for every version until one is verified; an
- * earlier version ceiling of 1.3.0 hid the warning on 1.4.0, which is still
- * affected (docs/certification/m4.md, release-0.9.1.md).
+ * A Windows workspace under `C:\Users\<user>`, where Muse Code's sandbox does
+ * not reliably run shell commands (meta-models/muse-code-sdk#26). 1.3.0 and
+ * 1.4.0 started them in PowerShell's own folder (verified live on 2026-09-22
+ * and 2026-09-27). 1.4.2-R4684.1 ran them in place on the owner's machine,
+ * but on a freshly set-up Windows 11 rig its sandboxed command never
+ * finished, even after Muse Code's read-access worker had run (2026-10-04,
+ * docs/certification/musecode-write-asks.md). So this holds for every
+ * version until one is verified on a fresh setup.
  */
 export function isProfileWorkspace(
   platform: NodeJS.Platform,
@@ -167,22 +169,27 @@ export type ShellSandboxReason = 'setting' | 'profileWorkspace' | 'default'
 export interface ShellSandboxPosture {
   readonly isSandboxed: boolean
   readonly reason: ShellSandboxReason
+  /**
+   * A Windows profile workspace (#26): the sandbox, when the setting forces
+   * it on, may start commands in PowerShell's folder here or never finish them.
+   */
+  readonly isUnsupportedWorkspace: boolean
 }
 
 /** The `muse serve` posture for this window (fixed for the host's lifetime). */
 export function resolveShellSandbox(probe: ShellSandboxProbe): ShellSandboxPosture {
-  if (probe.mode === 'muse') {
-    return { isSandboxed: true, reason: 'setting' }
-  }
-  if (probe.mode === 'off') {
-    return { isSandboxed: false, reason: 'setting' }
-  }
-  const isLimited =
+  const isUnsupportedWorkspace =
     probe.workspaceRoot !== undefined &&
     isProfileWorkspace(probe.platform, probe.workspaceRoot, probe.userProfileDir)
-  return isLimited
-    ? { isSandboxed: false, reason: 'profileWorkspace' }
-    : { isSandboxed: true, reason: 'default' }
+  if (probe.mode === 'muse') {
+    return { isSandboxed: true, reason: 'setting', isUnsupportedWorkspace }
+  }
+  if (probe.mode === 'off') {
+    return { isSandboxed: false, reason: 'setting', isUnsupportedWorkspace }
+  }
+  return isUnsupportedWorkspace
+    ? { isSandboxed: false, reason: 'profileWorkspace', isUnsupportedWorkspace }
+    : { isSandboxed: true, reason: 'default', isUnsupportedWorkspace }
 }
 
 /**

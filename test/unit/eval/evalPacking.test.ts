@@ -27,9 +27,9 @@ const MIDDLE_RECORDS: Readonly<Record<string, string>> = {
 
 const toolListSchema = z.array(z.object({ name: z.optional(z.string()), type: z.string() }))
 
-function toolsOffered(api: FakeModelApi): string[] {
+function toolsOffered(api: FakeModelApi, requestIndex = 0): string[] {
   return toolListSchema
-    .parse(api.responseBodies()[0]?.['tools'])
+    .parse(api.responseBodies()[requestIndex]?.['tools'])
     .map((tool) => tool.name ?? tool.type)
 }
 
@@ -75,7 +75,11 @@ describe('the observation packing arm', () => {
 
   it('offers recall_output and packs the long output on its third send', async () => {
     const api = await readBigThenSmall(true)
-    expect(toolsOffered(api)).toContain(MODEL_API_TOOLS.recallOutput)
+    // D78: unused packing leaves the first requests and their tool list intact.
+    for (const requestIndex of [0, 1, 2]) {
+      expect(toolsOffered(api, requestIndex)).not.toContain(MODEL_API_TOOLS.recallOutput)
+    }
+    expect(toolsOffered(api, 3)).toContain(MODEL_API_TOOLS.recallOutput)
     // Whole on the two requests after the read…
     expect(responseOutputsByCall(api, 1).get('c1')).toContain('line 200')
     expect(responseOutputsByCall(api, 2).get('c1')).toContain('line 200')

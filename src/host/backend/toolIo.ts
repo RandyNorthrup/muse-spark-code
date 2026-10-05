@@ -47,6 +47,7 @@ import {
   BYTES_PER_MIB,
   FILE_REFUSAL_MODEL_TEXT,
   HOOK_FORBIDDEN_ENV_NAMES,
+  HOOK_MAX_RUNNING_COMMANDS,
   HOOK_OUTPUT_MAX_BYTES,
   HOOK_STDIN_MAX_BYTES,
   MAX_DOCUMENT_BYTES,
@@ -507,6 +508,28 @@ export function toolImagePreviewIo(
 }
 
 export function createToolIo(deps: ToolIoDeps): ToolIo {
+  // One production runner serves every session and the lazy window/Tab bundles.
+  // Their module-local dispatch caps cannot cap one another across bundles.
+  let runningHooks = 0
+  const hookWaiters: (() => void)[] = []
+  async function acquireHook(signal: AbortSignal | undefined): Promise<void> {
+    while (runningHooks >= HOOK_MAX_RUNNING_COMMANDS) {
+      await new Promise<void>((resolve, reject) => {
+        const ready = () => { signal?.removeEventListener('abort', cancel); resolve() }
+        const cancel = () => {
+          const index = hookWaiters.indexOf(ready)
+          if (index !== -1) hookWaiters.splice(index, 1)
+          signal?.removeEventListener('abort', cancel)
+          reject(new Error('hook command cancelled'))
+        }
+        hookWaiters.push(ready)
+        signal?.addEventListener('abort', cancel, { once: true })
+        if (signal?.aborted === true) cancel()
+      })
+    }
+    if (signal?.aborted === true) throw new Error('hook command cancelled')
+    runningHooks += 1
+  }
   const interpreter = shellInterpreter(deps.platform, deps.systemRoot, deps.env(), existsSync)
   const hasUnsavedChanges = (absolutePath: string) =>
     deps.unsavedFiles().some((open) => isSamePath(open, absolutePath, deps.platform))
@@ -729,6 +752,8 @@ export function createToolIo(deps: ToolIoDeps): ToolIo {
             )
           : ['-c', command]
       deps.assertWorkspaceCurrent?.()
+      await acquireHook(signal)
+      try {
       return await runCommand({
         file,
         args,
@@ -741,6 +766,10 @@ export function createToolIo(deps: ToolIoDeps): ToolIo {
         stdin: payload,
         maxOutputBytes: HOOK_OUTPUT_MAX_BYTES,
       })
+      } finally {
+        runningHooks -= 1
+        hookWaiters.shift()?.()
+      }
     },
     async runHookHttp(url, payload, signal) {
       // dispatchHooks and hookHandlers enforce this too. Keep the adapter

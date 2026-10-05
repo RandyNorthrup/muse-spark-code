@@ -22,7 +22,8 @@
 // A protected write (PLAN.md D24) asks in every mode but Bypass and Plan,
 // session rules included: a file that configures or runs code outside the
 // edit itself (git's hooks and config, the editor's tasks, CI workflows,
-// the agent's own rules and skills) never changes without a card.
+// the agent's own rules and skills, other coding agents' hooks and
+// settings) never changes without a card.
 //
 // An MCP server's tool (M50, PLAN.md D42) is arbitrary code: it asks like a
 // shell command, "always allow in this session" included, and Plan refuses
@@ -55,10 +56,16 @@
 // a PermissionRequest hook may deny it or ask, but its "allow" does not
 // replace the card (ModelApiHost.askApproval). Plan refuses it: its rules allow reads of the workspace, not of the
 // network. Restricted Mode refuses it before the engine is asked.
+//
+// A browser check (M81, PLAN.md D49) is judged the same way, per host. A
+// host beyond loopback and the user's setting is reached only once the user
+// allowed it on a card: that call's, or an "always" chosen on one in this
+// session; Bypass alone does not widen it (ModelApiHost asks the card).
 
 import type { ApprovalChoice } from '../../../shared/agentEvents'
 import { UI_TEXT } from '../../../shared/constants'
 import type { ApprovalMode } from '../../../shared/permissionModes'
+import { countSecretMatches } from '../../redact'
 import { type CommandRule, isEvaluator, judgeCommand } from './commandRules'
 import type { PermissionPolicy } from './permissionPolicy'
 import { commandShape, type ShellDialect } from './shellSyntax'
@@ -211,8 +218,15 @@ export interface PermissionQuery {
   readonly isReadOnly?: boolean
 }
 
-/** What settled a shell command's verdict beyond the mode (M78). */
-export type SettledBy = 'forbidRule' | 'askRule' | 'allowRule' | 'profile' | 'complexCommand'
+/** What settled a shell command's verdict beyond the mode (M78, M92e). */
+export type SettledBy =
+  | 'forbidRule'
+  | 'askRule'
+  | 'allowRule'
+  | 'profile'
+  | 'complexCommand'
+  /** M92e (PLAN.md D71): the command holds a detected secret, so it always asks. */
+  | 'secretDetected'
 
 /** The verdict on a call, and what the card and the Auto reviewer may do about an ask. */
 export interface PermissionJudgement {
@@ -280,6 +294,16 @@ export class PermissionEngine {
     if (decision === 'forbid') {
       return settled('deny', 'forbidRule', rule)
     }
+    if (byMode === 'deny') {
+      return settled(byMode)
+    }
+    // M92e (PLAN.md D71): a command holding a detected secret always asks.
+    // No allow rule, session rule, profile or ask rule runs it on its own;
+    // the card shows the value redacted with no session choice, and the Auto
+    // reviewer never sees it. Read from the one shared table in redact.ts.
+    if (countSecretMatches(query.command, []) > 0) {
+      return settled('ask', 'secretDetected', rule)
+    }
     if (byMode !== 'ask') {
       return settled(byMode)
     }
@@ -327,6 +351,15 @@ export class PermissionEngine {
    */
   public allowForSession(toolName: string, command?: string): void {
     this.allowed.add(ruleKey(toolName, command))
+  }
+
+  /**
+   * Whether the user chose "always allow" for this call on a card in this
+   * session, whatever the mode says: what widens a browser check beyond
+   * loopback when no card is shown (M81), since Bypass alone never does.
+   */
+  public isAllowedForSession(query: PermissionQuery): boolean {
+    return this.allowed.has(ruleKey(query.toolName, query.command))
   }
 
   public judge(query: PermissionQuery, policy: PermissionPolicy = NO_POLICY): PermissionJudgement {

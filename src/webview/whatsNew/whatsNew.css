@@ -1,0 +1,159 @@
+/* What's New (M99, PLAN.md D79). Colours and fonts come only from VS Code's
+   theme variables, so the page follows light, dark and both high-contrast
+   themes; high-contrast themes set --vscode-contrastBorder, which the
+   borders below fall back to. The CSP blocks inline styles, so every rule
+   lives here. One column, readable from 320 px up. */
+
+:root {
+  --ms-gap: 8px;
+  --ms-radius: 4px;
+  --ms-measure: 760px;
+}
+
+body {
+  margin: 0;
+  padding: calc(var(--ms-gap) * 2);
+  color: var(--vscode-foreground);
+  font-family: var(--vscode-font-family);
+  font-size: var(--vscode-font-size);
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+  background: var(--vscode-editor-background);
+}
+
+main {
+  max-width: var(--ms-measure);
+  margin: 0 auto;
+}
+
+footer {
+  margin-top: calc(var(--ms-gap) * 4);
+  padding-top: calc(var(--ms-gap) * 2);
+  border-top: 1px solid var(--vscode-contrastBorder, var(--vscode-widget-border, transparent));
+}
+
+footer p {
+  margin: 0 0 var(--ms-gap);
+}
+
+h1 {
+  margin: 0 0 var(--ms-gap);
+  font-size: 1.6em;
+  line-height: 1.25;
+}
+
+h2 {
+  margin: calc(var(--ms-gap) * 3) 0 0;
+  padding-top: calc(var(--ms-gap) * 2);
+  font-size: 1.3em;
+  border-top: 1px solid var(--vscode-contrastBorder, var(--vscode-widget-border, transparent));
+}
+
+h3 {
+  margin: calc(var(--ms-gap) * 2) 0 var(--ms-gap);
+  font-size: 1.1em;
+}
+
+h4 {
+  margin: var(--ms-gap) 0;
+  font-size: 1em;
+}
+
+.lead,
+.date,
+.note {
+  margin: 0 0 var(--ms-gap);
+  color: var(--vscode-descriptionForeground);
+}
+
+ul,
+ol {
+  padding-left: calc(var(--ms-gap) * 3);
+}
+
+li + li {
+  margin-top: calc(var(--ms-gap) / 2);
+}
+
+.highlights > li {
+  padding: var(--ms-gap);
+  list-style: none;
+  border: 1px solid var(--vscode-contrastBorder, var(--vscode-widget-border, transparent));
+  border-radius: var(--ms-radius);
+}
+
+.highlights {
+  padding-left: 0;
+}
+
+.highlights p {
+  margin: 0;
+}
+
+.tries {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--ms-gap);
+  margin-top: var(--ms-gap);
+}
+
+a {
+  color: var(--vscode-textLink-foreground);
+}
+
+a:hover {
+  color: var(--vscode-textLink-activeForeground, var(--vscode-textLink-foreground));
+}
+
+code {
+  font-family: var(--vscode-editor-font-family);
+  font-size: 0.95em;
+  color: var(--vscode-textPreformat-foreground, inherit);
+}
+
+pre {
+  padding: var(--ms-gap);
+  overflow-x: auto;
+  background: var(--vscode-textCodeBlock-background, var(--vscode-editorWidget-background));
+  border-radius: var(--ms-radius);
+}
+
+pre code {
+  overflow-wrap: normal;
+  color: inherit;
+}
+
+blockquote {
+  margin: var(--ms-gap) 0;
+  padding-left: var(--ms-gap);
+  border-left: 3px solid var(--vscode-textBlockQuote-border, var(--vscode-contrastBorder));
+}
+
+button {
+  padding: calc(var(--ms-gap) / 2) calc(var(--ms-gap) * 1.5);
+  font: inherit;
+  color: var(--vscode-button-foreground);
+  background: var(--vscode-button-background);
+  border: 1px solid var(--vscode-button-border, var(--vscode-contrastBorder, transparent));
+  border-radius: var(--ms-radius);
+  cursor: pointer;
+}
+
+button:hover {
+  background: var(--vscode-button-hoverBackground);
+}
+
+a:focus-visible,
+button:focus-visible,
+input:focus-visible,
+pre:focus-visible {
+  outline: 1px solid var(--vscode-focusBorder);
+  outline-offset: 2px;
+}
+
+label {
+  display: inline-flex;
+  gap: var(--ms-gap);
+  align-items: center;
+  cursor: pointer;
+}
