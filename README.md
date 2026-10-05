@@ -2716,6 +2716,14 @@ The table below describes Meta Muse. M95's provider core resolves capabilities
 per configured provider and native model, with user overrides taking precedence
 over captures, model lists, the catalogue and presets. Unknown support does not
 permit tools or media. Images and PDFs have separate support and limits.
+Native image evidence retains the existing 10 MiB application byte bound;
+Anthropic uses its documented, smaller 10 MB bound. Enabled budgeted thinking
+uses a positive default even when the catalogue permits zero. Effort is sent
+only when the record explicitly lists the selected native level; otherwise
+supported thinking uses its native default. Effort-only metadata establishes
+its reasoning mode, and sparse model rows retain their original native JSON.
+Media omitted from replay explains unsupported capability, MIME refusal or
+individual model limits separately from limits consumed by newer media.
 Final provider dispatch remains an integration milestone; this core change is
 not a claim that every listed vendor is supported in the installed extension.
 

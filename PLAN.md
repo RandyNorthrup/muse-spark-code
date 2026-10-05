@@ -14436,6 +14436,17 @@ live) and the controller filters its id as well.
 
 #### Capability record v2 (lead decision 2026-10-05)
 
+**FIXM95N review correction (2026-10-05).** Repair all seven RVM95N
+findings within lane N: enabled thinking's positive budget floor; effort
+admission only with affirmative selected-level evidence; reasoning mode from
+effort-only metadata; documented provider image byte bounds; unconditional
+native list retention; honest Gemini 2.5 mode provenance; and media omission
+reasons distinguishing capability/MIME refusal from exhausted limits. Each
+repair gets a joined regression and a hash-exact red drill in
+`docs/certification/m95-n.md`. Meta goldens remain byte-identical; no live
+calls, dependency, host dispatch or gate changes. Full quality is delegated
+to the lead by FIXM95N/common.md; scoped checks run on the supplied rigs.
+
 Lane N (CAPREC) resolves one record per configured provider/native model.
 `Known<T>` distinguishes yes (value and source), no (source), and unknown.
 Evidence precedence is user override > capture > models-list > catalogue >
@@ -15781,6 +15792,18 @@ its sections 1–2 (harness), "BYO n" its section 3 (providers).
 
 ## 7. Gates
 
+**FIXM95N scoped proof and delegation (2026-10-05).** The user-invoked
+FIXM95N/common.md brief forbids a full quality run in this lane and delegates
+combined certification to the lead. All seven review findings are fixed:
+477 owning tests across 12 files pass on Mac mini; subsequent affected media
+and fixture sweeps pass; all 12 mutations fail their named regressions,
+restore SHA-256 exact and pass restored suites. Required typecheck, changed
+lint/format, deadcode, cycles, duplication, localization, host API and full
+production build/split/globals/notices checks pass, without gate changes.
+Exact receipts and the initial lint/duplication corrections are in
+`docs/certification/m95-n.md`. Full quality, package/editor/live proof and
+the missing release ref remain named lead-owned residuals in §9.
+
 **M95 N package gate remains open (2026-10-05).** CAPREC's eight targeted
 static/build gates and final owning suites pass; all seven red drills fail
 as intended and restore hash-exact. The real universal-helper VSIX is
@@ -16411,6 +16434,23 @@ before a repaired one loads (2026-09-30).
 | `test/unit/providerCredentialRecords.test.ts` | `eslint-disable-next-line unicorn/prefer-https` on one origin-binding assertion     | The test proves a downgraded `http:` scheme is refused as a different origin; an `https:` URL cannot exercise that leg. One literal, test-only.                                                                                                             | 2026-10-05 |
 
 ## 9. Security assumptions and accepted residual risk
+
+- **FIXM95N findings (2026-10-05):** all five RVM95N P2 and both P3 findings
+  are repaired; no numbered finding is left as a residual. Joined regressions
+  and exact-source mutation receipts are in `docs/certification/m95-n.md`.
+  Native media support still requires affirmative model evidence. Its byte
+  policy applies Anthropic's documented 10 MB bound and otherwise preserves
+  the application's 10 MiB image bound; those bounds do not establish vision.
+- **FIXM95N-RELEASE-REF:** `integrate/m72-on-24ff` is absent locally; the
+  prescribed merge returns 1 without changing the tree. Local `origin/main`
+  cannot establish that it contains an absent required ref. Safe for lane
+  review because no publication or release is attempted. Lead supplies the
+  exact release candidate and merges by meaning before combined certification.
+- **FIXM95N-COMBINED-CERT:** full quality, package/editor matrix, lane I's
+  dispatch and new live Haiku/Gemini 2.5 receipts remain with the lead under
+  the lane brief. Offline scoped proof does not certify installed dispatch,
+  service behavior or the inherited universal package debt. Follow-up: run
+  those gates on the combined exact release tree before a release claim.
 
 - **FIXM95P (2026-10-05):** all thirteen assigned RVM95A findings
   (1, 2, 4–8, 12–15, 18, 19) are repaired with regressions and deliberate

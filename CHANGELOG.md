@@ -9,6 +9,14 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- M95 capability review repairs keep enabled thinking above zero, omit
+  unsupported effort without disabling supported thinking, and derive the
+  reasoning mode from native/catalogue effort evidence. Sparse Anthropic and
+  Gemini list rows retain native metadata; Anthropic image admission enforces
+  its documented 10 MB bound. Gemini 2.5 fallback mode cites research rather
+  than an uncaptured wire claim. Media refusals explain capability, MIME and
+  individual limits separately from exhausted replay budgets.
+
 - M95 model capabilities now retain evidence sources and distinguish unknown
   from unsupported. Native model lists retain reasoning, limits, modalities,
   structured-output and sampling metadata; custom model overrides are validated

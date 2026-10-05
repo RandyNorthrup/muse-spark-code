@@ -1294,7 +1294,13 @@ describe('error envelope and models list', () => {
       native: capture.response.bodySummary.sample[0],
     })
     expect(parseAnthropicModelsList({ data: [{ id: 'bare' }] })).toEqual([
-      { id: 'bare', displayName: undefined, maxInputTokens: undefined, maxTokens: undefined },
+      {
+        id: 'bare',
+        displayName: undefined,
+        maxInputTokens: undefined,
+        maxTokens: undefined,
+        native: { id: 'bare' },
+      },
     ])
   })
 

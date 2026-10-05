@@ -360,19 +360,20 @@ export function encodeAnthropicRequest(
   if (isThinking && !modes.includes('manual') && !modes.includes('adaptive'))
     throw codecError('unsupported_thinking_mode')
   const isManual = isThinking && modes.includes('manual') && !modes.includes('adaptive')
-  const effort = isThinking && !isManual ? anthropicEffort(options.effort) : undefined
-  if (
-    effort !== undefined &&
+  const selectedEffort = isThinking && !isManual ? anthropicEffort(options.effort) : undefined
+  const effort =
+    selectedEffort !== undefined &&
     record.reasoning.effortLevels.state === 'yes' &&
-    !record.reasoning.effortLevels.value.includes(effort)
-  )
-    throw codecError('unsupported_reasoning_effort')
+    record.reasoning.effortLevels.value.includes(selectedEffort)
+      ? selectedEffort
+      : undefined
   const budget =
-    options.thinkingBudget ?? record.reasoning.budget?.min ?? PROVIDER_MANUAL_THINKING_BUDGET
+    options.thinkingBudget ??
+    Math.max(record.reasoning.budget?.min ?? 0, PROVIDER_MANUAL_THINKING_BUDGET)
   if (
     isManual &&
     (!Number.isSafeInteger(budget) ||
-      budget < (record.reasoning.budget?.min ?? PROVIDER_MANUAL_THINKING_BUDGET) ||
+      budget < Math.max(record.reasoning.budget?.min ?? 0, PROVIDER_MANUAL_THINKING_BUDGET) ||
       budget > (record.reasoning.budget?.max ?? Infinity) ||
       budget >= options.maxTokens)
   )
@@ -1215,6 +1216,6 @@ export function parseAnthropicModelsList(body: unknown): AnthropicListedModel[] 
     displayName: entry.display_name,
     maxInputTokens: entry.max_input_tokens,
     maxTokens: entry.max_tokens,
-    ...(entry.capabilities !== undefined && { native: nativeModelMetadataSchema.parse(entry) }),
+    native: nativeModelMetadataSchema.parse(entry),
   }))
 }

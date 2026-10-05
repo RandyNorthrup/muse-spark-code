@@ -918,7 +918,17 @@ describe('parseGeminiModelsList', () => {
       ],
     })
     expect(models).toEqual([
-      { id: 'gemini-3.5-flash-lite', inputTokenLimit: 1_048_576, outputTokenLimit: 65_536 },
+      {
+        id: 'gemini-3.5-flash-lite',
+        inputTokenLimit: 1_048_576,
+        outputTokenLimit: 65_536,
+        native: {
+          name: 'models/gemini-3.5-flash-lite',
+          inputTokenLimit: 1_048_576,
+          outputTokenLimit: 65_536,
+          supportedGenerationMethods: ['generateContent', 'countTokens'],
+        },
+      },
     ])
   })
 

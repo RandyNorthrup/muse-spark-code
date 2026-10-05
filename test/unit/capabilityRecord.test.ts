@@ -9,6 +9,7 @@ import {
   type CapabilityEvidence,
 } from '../../src/core/providers/capabilities'
 import { nativeCapabilityEvidence } from '../../src/core/providers/modelMetadata'
+import { capturedCapabilities } from '../../src/core/providers/capturedCapabilities'
 import { providersFileSchema, readProvidersFile } from '../../src/core/providers/providersFile'
 import {
   parseAnthropicModelsList,
@@ -62,6 +63,214 @@ function samples(provider: string, file = '01-models-list.json'): unknown {
     throw new Error('Missing sample')
   return summary.sample
 }
+
+function catalogueModel(provider: string, id: string): unknown {
+  const snapshot: unknown = JSON.parse(
+    readFileSync(new URL('../../vendor/models-dev/snapshot.json', import.meta.url), 'utf8'),
+  )
+  if (typeof snapshot !== 'object' || snapshot === null || !('providers' in snapshot))
+    throw new Error('Missing catalogue')
+  const providers = snapshot.providers
+  if (typeof providers !== 'object' || providers === null) throw new Error('Missing providers')
+  const section: unknown = Reflect.get(providers, provider)
+  if (typeof section !== 'object' || section === null || !('models' in section))
+    throw new Error('Missing models')
+  const models = section.models
+  if (typeof models !== 'object' || models === null) throw new Error('Missing rows')
+  return Reflect.get(models, id)
+}
+
+describe('RVM95N joined regressions', () => {
+  it('keeps enabled Gemini thinking positive through a zero catalogue minimum', () => {
+    const model = 'gemini-2.5-flash'
+    const resolved = resolveModelCapabilities(
+      { provider: 'gemini', nativeModel: model, format: 'gemini' },
+      [nativeCapabilityEvidence('gemini', catalogueModel('gemini', model), { kind: 'catalogue' })],
+    )
+    expect(resolved.reasoning.budget?.min).toBe(0)
+    expect(encodeGeminiRequest(body, model, resolved).body['generationConfig']).toMatchObject({
+      thinkingConfig: { thinkingBudget: 1024, includeThoughts: true },
+    })
+    expect(() => encodeGeminiRequest(body, model, resolved, 0)).toThrow(/thinking_budget/)
+    expect(
+      encodeGeminiRequest(
+        { ...body, reasoning: { effort: 'none', summary: 'auto' } },
+        model,
+        resolved,
+      ).body['generationConfig'],
+    ).toMatchObject({ thinkingConfig: { thinkingBudget: 0 } })
+    const manual = record({ reasoning: { modes: yes(['manual']), budget: { min: 0 } } })
+    expect(
+      encodeAnthropicRequest(body, {
+        model: 'claude-haiku-4-5-20251001',
+        maxTokens: 4096,
+        effort: 'high',
+        capabilityRecord: manual,
+      }).body.thinking,
+    ).toEqual({ type: 'enabled', budget_tokens: 1024 })
+  })
+
+  it.each([{ state: 'no' as const }, { state: 'unknown' as const }, yes(['low'])])(
+    'omits unsupported effort while keeping adaptive and level thinking (%j)',
+    (effortLevels) => {
+      const adaptive = record({ reasoning: { modes: yes(['adaptive']), effortLevels } })
+      const anthropic = encodeAnthropicRequest(body, {
+        model: 'claude-sonnet-5-5',
+        maxTokens: 4096,
+        effort: 'high',
+        capabilityRecord: adaptive,
+      }).body
+      expect(anthropic.thinking).toEqual({ type: 'adaptive' })
+      expect(anthropic).not.toHaveProperty('output_config')
+      const level = record({ reasoning: { modes: yes(['level']), effortLevels } })
+      expect(
+        encodeGeminiRequest(body, 'gemini-3.5-flash-lite', level).body['generationConfig'],
+      ).toEqual({ maxOutputTokens: 4096, thinkingConfig: { includeThoughts: true } })
+    },
+  )
+
+  it('derives Gemini level mode from committed effort-only catalogue evidence', () => {
+    const model = 'gemini-3.5-flash-lite'
+    const row = parseGeminiModelsList({ models: samples('gemini') }).find(
+      (item) => item.id === model,
+    )
+    const resolved = resolveModelCapabilities(
+      { provider: 'gemini', nativeModel: model, format: 'gemini' },
+      [
+        nativeCapabilityEvidence('gemini', row?.native, { kind: 'models-list' }),
+        nativeCapabilityEvidence('gemini', catalogueModel('gemini', model), { kind: 'catalogue' }),
+      ],
+    )
+    expect(resolved.reasoning.modes).toMatchObject({
+      value: ['level'],
+      source: { kind: 'catalogue' },
+    })
+    expect(encodeGeminiRequest(body, model, resolved).body['generationConfig']).toMatchObject({
+      thinkingConfig: { thinkingLevel: 'high', includeThoughts: true },
+    })
+    expect(
+      nativeCapabilityEvidence('xai', { reasoning: { supported_efforts: ['low', 'high'] } }, source)
+        .fields.reasoning?.modes,
+    ).toMatchObject({ value: ['level'] })
+    const anthropic = nativeCapabilityEvidence(
+      'anthropic',
+      {
+        capabilities: { effort: { supported: true, high: { supported: true } } },
+      },
+      source,
+    )
+    const adaptive = resolveModelCapabilities({ ...identity, format: 'anthropic' }, [anthropic])
+    expect(
+      encodeAnthropicRequest(body, {
+        model: 'native',
+        maxTokens: 4096,
+        effort: 'high',
+        capabilityRecord: adaptive,
+      }).body,
+    ).toMatchObject({ thinking: { type: 'adaptive' }, output_config: { effort: 'high' } })
+  })
+
+  it('enforces documented Anthropic image bytes from captured list evidence at admission and replay', () => {
+    const row = parseAnthropicModelsList({
+      data: samples('anthropic', '01-models-list-x-api-key.json'),
+    })[0]
+    const resolved = resolveModelCapabilities(
+      { provider: 'anthropic', nativeModel: row?.id ?? '', format: 'anthropic' },
+      [nativeCapabilityEvidence('anthropic', row?.native, { kind: 'models-list' })],
+    )
+    expect(resolved.modalities.image).toMatchObject({ value: { maxBytes: 10_000_000 } })
+    const png = new Uint8Array(12 * 1024 * 1024)
+    png.set([
+      0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0, 0, 0, 13, 0x49, 0x48, 0x44, 0x52, 0, 0, 0,
+      1, 0, 0, 0, 1,
+    ])
+    expect(new AttachmentStore(() => 'image').add('large.png', png, true, false, resolved).ok).toBe(
+      false,
+    )
+    const image = {
+      type: 'input_image' as const,
+      image_url: `data:image/png;base64,${Buffer.from(png).toString('base64')}`,
+      detail: 'auto' as const,
+    }
+    expect(
+      new MediaBudget().fit([{ type: 'message', role: 'user', content: [image] }], resolved)[0],
+    ).toMatchObject({ content: [{ type: 'input_text' }] })
+  })
+
+  it('retains sparse native Anthropic versions and Gemini generation methods', () => {
+    const anthropic = {
+      id: 'bare',
+      version: 'fixture-version',
+      max_input_tokens: 8192,
+      max_tokens: 4096,
+    }
+    const a = parseAnthropicModelsList({ data: [anthropic] })[0]
+    expect(a?.native).toEqual(anthropic)
+    expect(nativeCapabilityEvidence('anthropic', a?.native, source).fields.servedVersion).toBe(
+      'fixture-version',
+    )
+    const gemini = {
+      name: 'models/bare',
+      inputTokenLimit: 8192,
+      outputTokenLimit: 4096,
+      supportedGenerationMethods: ['generateContent', 'countTokens', 'createCachedContent'],
+    }
+    expect(parseGeminiModelsList({ models: [gemini] })[0]?.native).toEqual(gemini)
+  })
+
+  it('attributes uncaptured Gemini 2.5 budget mode to research without capture precedence', () => {
+    const fallback = capturedCapabilities('gemini', 'gemini-2.5-pro')
+    expect(fallback.reasoning.modes).toMatchObject({
+      value: ['budget'],
+      source: { kind: 'preset', ref: 'docs/certification/m95-research.md' },
+    })
+    expect(fallback.sources['reasoning.modes']?.kind).toBe('preset')
+  })
+
+  it.each(['support', 'mime', 'limit'] as const)(
+    'explains media %s refusal without blaming newer media',
+    (reason) => {
+      const image = {
+        type: 'input_image' as const,
+        image_url: 'data:image/png;base64,AQ==',
+        detail: 'auto' as const,
+      }
+      const resolved = record(
+        reason === 'support'
+          ? undefined
+          : {
+              modalities: {
+                image: yes({
+                  mimes: [reason === 'mime' ? 'image/jpeg' : 'image/png'],
+                  maxBytes: 1,
+                }),
+              },
+            },
+      )
+      const part = {
+        ...image,
+        image_url: reason === 'limit' ? 'data:image/png;base64,AQID' : image.image_url,
+      }
+      const budget = new MediaBudget()
+      const user = budget.fit([{ type: 'message', role: 'user', content: [part] }], resolved)
+      const tool = budget.fit(
+        [{ type: 'function_call_output', call_id: 'image', output: [part] }],
+        resolved,
+      )
+      const phrases = { support: 'support', mime: 'MIME', limit: 'model media limits' }
+      const phrase = phrases[reason]
+      expect(user[0]).toMatchObject({
+        content: [{ type: 'input_text', text: expect.stringContaining(phrase) }],
+      })
+      expect(tool[0]).toMatchObject({
+        output: [{ type: 'input_text', text: expect.stringContaining(phrase) }],
+      })
+      expect(JSON.stringify(user)).not.toContain('newer media')
+      expect(JSON.stringify(tool)).not.toContain('newer media')
+      expect(budget.omitted).toBe(true)
+    },
+  )
+})
 
 describe('normalized capability record', () => {
   it('unknown never proves tools, reasoning, images or parallel calls', () => {
@@ -376,27 +585,14 @@ describe('native metadata and reasoning encoding', () => {
     })
   })
   it('re-parses sealed catalogue efforts and partial budget bounds', () => {
-    const snapshot: unknown = JSON.parse(
-      readFileSync(new URL('../../vendor/models-dev/snapshot.json', import.meta.url), 'utf8'),
-    )
-    if (typeof snapshot !== 'object' || snapshot === null || !('providers' in snapshot))
-      throw new Error('Missing catalogue')
-    const providers = snapshot.providers
-    if (typeof providers !== 'object' || providers === null) throw new Error('Missing providers')
     const entries = [
       ['openai', 'gpt-5.4', ['none', 'low', 'medium', 'high', 'xhigh']],
       ['anthropic', 'claude-opus-5-5', ['low', 'medium', 'high', 'xhigh', 'max']],
     ] as const
     for (const [provider, id, expected] of entries) {
-      const section: unknown = Reflect.get(providers, provider)
-      if (typeof section !== 'object' || section === null || !('models' in section))
-        throw new Error('Missing models')
-      const models = section.models
-      if (typeof models !== 'object' || models === null) throw new Error('Missing rows')
-      const native: unknown = Reflect.get(models, id)
       expect(
-        nativeCapabilityEvidence(provider, native, { kind: 'catalogue' }).fields.reasoning
-          ?.effortLevels,
+        nativeCapabilityEvidence(provider, catalogueModel(provider, id), { kind: 'catalogue' })
+          .fields.reasoning?.effortLevels,
       ).toMatchObject({ value: expected })
     }
     const fields = nativeCapabilityEvidence(

@@ -3,6 +3,7 @@ import {
   resolveModelCapabilities,
   type ModelCapabilityRecord,
   type CapabilityOverrides,
+  type CapabilitySource,
 } from './capabilityRecord'
 
 /** Fallback for direct codec callers until lane I supplies the configured record. */
@@ -10,8 +11,8 @@ export function capturedCapabilities(
   format: 'anthropic' | 'gemini',
   nativeModel: string,
 ): ModelCapabilityRecord {
-  const source = {
-    kind: 'capture' as const,
+  let source: CapabilitySource = {
+    kind: 'capture',
     ref: `docs/certification/m95-captures/${format}/01-models-list${format === 'anthropic' ? '-x-api-key' : ''}.json`,
   }
   const yes = <T>(value: T) => ({ state: 'yes' as const, value, source })
@@ -27,13 +28,23 @@ export function capturedCapabilities(
         },
       }
   } else if (['gemini-2.5-flash', 'gemini-2.5-pro'].includes(nativeModel)) {
+    source = { kind: 'preset', ref: 'docs/certification/m95-research.md' }
     fields = { reasoning: { modes: yes(['budget']) } }
   } else if (nativeModel === 'gemini-3.5-flash-lite') {
     // The served 3.5 request is capture 02, rather than the trimmed list sample.
-    source.ref = 'docs/certification/m95-captures/gemini/02-tool-call-stream.json'
+    source = {
+      kind: 'capture',
+      ref: 'docs/certification/m95-captures/gemini/02-tool-call-stream.json',
+    }
     fields = { reasoning: { modes: yes(['level']) } }
   }
   const evidence = [{ source, fields }]
+  if (format === 'gemini' && nativeModel === 'gemini-3.5-flash-lite') {
+    evidence.push({
+      source: { kind: 'catalogue', ref: 'vendor/models-dev/snapshot.json' },
+      fields: { reasoning: { effortLevels: yes(['minimal', 'low', 'medium', 'high']) } },
+    })
+  }
   if (format === 'anthropic' && fields.reasoning !== undefined) {
     return resolveModelCapabilities({ provider: format, nativeModel, format }, [
       {

@@ -467,23 +467,25 @@ export function encodeGeminiRequest(
   const budget =
     body.reasoning.effort === 'none'
       ? 0
-      : (thinkingBudget ?? record.reasoning.budget?.min ?? PROVIDER_MANUAL_THINKING_BUDGET)
+      : (thinkingBudget ??
+        Math.max(record.reasoning.budget?.min ?? 0, PROVIDER_MANUAL_THINKING_BUDGET))
   if (
     isBudgetUsed &&
     (!Number.isSafeInteger(budget) ||
       budget < (record.reasoning.budget?.min ?? 0) ||
+      (body.reasoning.effort !== 'none' && budget <= 0) ||
       budget > (record.reasoning.budget?.max ?? Infinity) ||
       budget >= body.max_output_tokens)
   )
     throw new Error(`${UI_TEXT.providerCapabilityUnsupported} (gemini_invalid_thinking_budget)`)
   if (thinkingLevel !== undefined && !isBudgetUsed && !modes.includes('level'))
     throw new Error(`${UI_TEXT.providerCapabilityUnsupported} (gemini_unknown_thinking_mode)`)
-  if (
+  const supportedLevel =
     thinkingLevel !== undefined &&
     record.reasoning.effortLevels.state === 'yes' &&
-    !record.reasoning.effortLevels.value.includes(thinkingLevel)
-  )
-    throw new Error(`${UI_TEXT.providerCapabilityUnsupported} (gemini_unsupported_thinking_level)`)
+    record.reasoning.effortLevels.value.includes(thinkingLevel)
+      ? thinkingLevel
+      : undefined
   const request: Record<string, unknown> = {
     ...(body.instructions !== '' && {
       systemInstruction: { parts: [{ text: body.instructions }] },
@@ -499,7 +501,10 @@ export function encodeGeminiRequest(
     ...(isBudgetUsed
       ? { thinkingConfig: { thinkingBudget: budget, includeThoughts: true } }
       : thinkingLevel !== undefined && {
-          thinkingConfig: { thinkingLevel, includeThoughts: true },
+          thinkingConfig: {
+            ...(supportedLevel !== undefined && { thinkingLevel: supportedLevel }),
+            includeThoughts: true,
+          },
         }),
   }
   return { path: geminiStreamPath(nativeModelId), body: request }
@@ -850,12 +855,7 @@ export function parseGeminiModelsList(body: unknown): readonly GeminiListedModel
       id: entry.name.startsWith('models/') ? entry.name.slice('models/'.length) : entry.name,
       inputTokenLimit: entry.inputTokenLimit,
       outputTokenLimit: entry.outputTokenLimit,
-      ...(Object.keys(entry).some(
-        (key) =>
-          !['name', 'inputTokenLimit', 'outputTokenLimit', 'supportedGenerationMethods'].includes(
-            key,
-          ),
-      ) && { native: nativeModelMetadataSchema.parse(entry) }),
+      native: nativeModelMetadataSchema.parse(entry),
     })
   }
   return models

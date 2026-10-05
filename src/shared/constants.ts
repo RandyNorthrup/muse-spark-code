@@ -656,6 +656,9 @@ export const IMAGE_EXTENSIONS: Readonly<Record<string, ImageMediaType>> = {
   '.webp': 'image/webp',
 }
 export const MAX_IMAGE_BYTES = 10 * 1024 * 1024
+// Documented Anthropic image limit: 10 MB, not the product's 10 MiB default
+// (docs/certification/m95-research.md §1.5, A-vi).
+export const ANTHROPIC_MAX_IMAGE_BYTES = 10_000_000
 // Images and PDFs together (M54).
 export const MAX_ATTACHMENTS_PER_MESSAGE = 20
 
@@ -3627,6 +3630,10 @@ export const MODEL_API_MODEL_TEXT = {
     '[An image attached earlier is left out of this request because newer media fill the request limit.]',
   pdfLeftOut:
     '[The PDF {name}, attached earlier, is left out of this request because newer media fill the request limit.]',
+  mediaLeftOut: '[Media is left out of this request because {reason}.]',
+  mediaSupportRefused: 'the selected model does not have established support for this media',
+  mediaMimeRefused: 'the selected model does not support this image MIME type',
+  mediaLimitExceeded: 'the media exceeds the selected model media limits',
   // M67 (PLAN.md D49): the code intelligence tools in the system prompt, and
   // rename_symbol's write, which only the Model API backend applies itself.
   codeIntelInstructions:

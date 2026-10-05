@@ -1,7 +1,11 @@
 // Reinterpret captured native metadata without discarding its JSON fields.
 // A field absent from a list stays unknown; a price never proves a feature.
 import * as z from 'zod/mini'
-import { IMAGE_MEDIA_TYPES } from '../../shared/constants'
+import {
+  ANTHROPIC_MAX_IMAGE_BYTES,
+  IMAGE_MEDIA_TYPES,
+  MAX_IMAGE_BYTES,
+} from '../../shared/constants'
 import type { CapabilityEvidence, CapabilityOverrides, CapabilitySource } from './capabilityRecord'
 
 export const nativeModelMetadataSchema = z.record(z.string(), z.json())
@@ -43,6 +47,12 @@ export function nativeCapabilityEvidence(
   const limits: NonNullable<CapabilityOverrides['limits']> = {}
   const modalities: NonNullable<CapabilityOverrides['modalities']> = {}
   const sampling: NonNullable<CapabilityOverrides['sampling']> = {}
+  // Native support is required. Research supplies Anthropic's provider bound;
+  // other providers retain the product's existing conservative image bound.
+  const imagePolicy = {
+    mimes: [...IMAGE_MEDIA_TYPES],
+    maxBytes: preset === 'anthropic' ? ANTHROPIC_MAX_IMAGE_BYTES : MAX_IMAGE_BYTES,
+  }
   const context =
     read(numeric, 'limit', 'context') ??
     read(numeric, 'context_length') ??
@@ -86,7 +96,10 @@ export function nativeCapabilityEvidence(
     read(strings, 'reasoning', 'supported_efforts')
   if (efforts !== undefined) {
     reasoning.effortLevels = yes(efforts)
-    if (efforts.some((effort) => effort !== 'none')) reasoning.supported = yes(true)
+    if (efforts.some((effort) => effort !== 'none')) {
+      reasoning.supported = yes(true)
+      reasoning.modes = yes([preset === 'anthropic' ? 'adaptive' : 'level'])
+    }
   }
   const budgetOption = reasoningOptions?.find((option) => option.type === 'budget_tokens')
   if (budgetOption !== undefined) {
@@ -107,16 +120,13 @@ export function nativeCapabilityEvidence(
     read(strings, 'modalities', 'input') ??
     (Array.isArray(native['modalities']) ? strings.parse(native['modalities']) : undefined)
   if (inputs !== undefined) {
-    modalities.image = inputs.includes('image')
-      ? yes({ mimes: [...IMAGE_MEDIA_TYPES] })
-      : { state: 'no', source }
+    modalities.image = inputs.includes('image') ? yes(imagePolicy) : { state: 'no', source }
     modalities.audio = flag(inputs.includes('audio'))
     // Generic "file" does not establish PDF support.
     if (inputs.includes('pdf')) modalities.pdf = yes({})
   }
   const vision = read(z.boolean(), 'capabilities', 'vision')
-  if (vision !== undefined)
-    modalities.image = vision ? yes({ mimes: [...IMAGE_MEDIA_TYPES] }) : { state: 'no', source }
+  if (vision !== undefined) modalities.image = vision ? yes(imagePolicy) : { state: 'no', source }
   const temperature = native['temperature']
   if (typeof temperature === 'boolean') sampling.temperature = flag(temperature)
   if (typeof temperature === 'number' || read(numeric, 'default_model_temperature') !== undefined)
@@ -157,6 +167,12 @@ export function nativeCapabilityEvidence(
             ),
           )
         : { state: 'no', source }
+    if (
+      reasoning.modes === undefined &&
+      reasoning.effortLevels?.state === 'yes' &&
+      reasoning.effortLevels.value.some((effort) => effort !== 'none')
+    )
+      reasoning.modes = yes(['adaptive'])
     for (const [key, nativeKey] of [
       ['image', 'image_input'],
       ['pdf', 'pdf_input'],
@@ -164,9 +180,7 @@ export function nativeCapabilityEvidence(
       const supportedMedia = read(z.boolean(), 'capabilities', nativeKey, 'supported')
       if (supportedMedia !== undefined) {
         if (key === 'image')
-          modalities.image = supportedMedia
-            ? yes({ mimes: [...IMAGE_MEDIA_TYPES] })
-            : { state: 'no', source }
+          modalities.image = supportedMedia ? yes(imagePolicy) : { state: 'no', source }
         else modalities.pdf = supportedMedia ? yes({}) : { state: 'no', source }
       }
     }
