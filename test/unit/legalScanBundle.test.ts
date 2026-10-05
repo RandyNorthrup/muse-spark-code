@@ -22,12 +22,19 @@ function logger() {
   return { log: createLogger(channel), channel }
 }
 
+function noLegalHold(): never {
+  throw new Error('no bundle here')
+}
+
 describe('isLegalScanBundle', () => {
-  it('takes the scan export, nothing else', () => {
+  it('takes the scan and hold exports, nothing less', () => {
     const runLegalScan = (() => Promise.reject(new Error('no'))) as LegalScanRunner
-    expect(isLegalScanBundle({ runLegalScan })).toBe(true)
+    const createHold = noLegalHold
+    expect(isLegalScanBundle({ runLegalScan, createHold })).toBe(true)
     expect(isLegalScanBundle({})).toBe(false)
-    expect(isLegalScanBundle({ runLegalScan: 'scan' })).toBe(false)
+    expect(isLegalScanBundle({ runLegalScan: 'scan', createHold })).toBe(false)
+    // A scan without the hold would scan a live conversation unheld.
+    expect(isLegalScanBundle({ runLegalScan })).toBe(false)
     expect(isLegalScanBundle(undefined)).toBe(false)
   })
 })
@@ -35,11 +42,12 @@ describe('isLegalScanBundle', () => {
 describe('legalScanLoader', () => {
   it('loads once and keeps the bundle', () => {
     const runLegalScan = vi.fn() as unknown as LegalScanRunner
-    const loadBundle = vi.fn(() => ({ runLegalScan }))
+    const createHold = vi.fn()
+    const loadBundle = vi.fn(() => ({ runLegalScan, createHold }))
     const { log } = logger()
     const load = legalScanLoader({ bundlePath: '/dist/legalScan.js', log, loadBundle })
-    expect(load()).toEqual({ runLegalScan })
-    expect(load()).toEqual({ runLegalScan })
+    expect(load()).toEqual({ runLegalScan, createHold })
+    expect(load()).toEqual({ runLegalScan, createHold })
     expect(loadBundle).toHaveBeenCalledTimes(1)
   })
 

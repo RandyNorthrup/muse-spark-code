@@ -2029,6 +2029,11 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
         },
         editReview: review.editReview,
         review,
+        // The deterministic legal scan (M97, PLAN.md D76): dist/legalScan.js
+        // (D6) on the first scan; until lane R builds it the scan refuses
+        // with the unavailable words and `/legal` says so.
+        legalScan: async (input, signal) => await legalScanBundle().runLegalScan(input, signal),
+        createLegalHold: (holdDeps) => legalScanBundle().createHold(holdDeps),
         openDocument,
         openFile,
         readToolImage: async (imagePath) =>

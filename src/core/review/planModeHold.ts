@@ -111,6 +111,30 @@ export class PlanModeHold {
   }
 
   /**
+   * Plan mode while `work` runs instead of a turn (a deterministic scan,
+   * M97): the mode the session had comes back after, but only while this
+   * hold still owns it — a release meanwhile (the user chose a mode, the
+   * session went) leaves the user's choice alone. A `work` that throws
+   * still restores first. `isAfterTurn` is false: no turn ran.
+   */
+  public async holding<T>(
+    session: PlanModeSession,
+    work: () => Promise<T>,
+    isCurrent: () => boolean,
+  ): Promise<T> {
+    this.session = session
+    await this.setMode(session, this.deps.planMode)
+    try {
+      if (!isCurrent() || this.hasBeenReleased()) {
+        throw new Error(UI_TEXT.turnStoppedByRestart)
+      }
+      return await work()
+    } finally {
+      await this.restore(false)
+    }
+  }
+
+  /**
    * Plan mode, then the review turn. A send that fails puts the mode back
    * before it rethrows; `isCurrent` false after the mode change stops the
    * send (the session went meanwhile).

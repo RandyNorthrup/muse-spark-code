@@ -14,19 +14,28 @@ import { UI_TEXT } from '../../shared/constants'
 import { lazyBundleLoader } from '../lazyBundle'
 import type { Logger } from '../logger'
 import type { LegalScanRunner } from '../../shared/legal'
+import type { PlanModeHold, PlanModeHoldDeps } from '../../core/review/planModeHold'
 
-/** The scanner bundle's one export: lane 0's contract in and out. */
+/**
+ * The scanner bundle's exports: lane 0's contract in and out, and the
+ * Plan-mode hold a live Muse Code conversation takes for a scan (M70's
+ * hold, D76). Both are required: a bundle without the hold would scan a
+ * live conversation unheld.
+ */
 export interface LegalScanBundle {
   readonly runLegalScan: LegalScanRunner
+  readonly createHold: (deps: PlanModeHoldDeps) => PlanModeHold
 }
 
-/** Whether a required module exports the scan. */
+/** Whether a required module exports the scan and the hold. */
 export function isLegalScanBundle(value: unknown): value is LegalScanBundle {
   return (
     typeof value === 'object' &&
     value !== null &&
     'runLegalScan' in value &&
-    typeof value.runLegalScan === 'function'
+    typeof value.runLegalScan === 'function' &&
+    'createHold' in value &&
+    typeof value.createHold === 'function'
   )
 }
 
