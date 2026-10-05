@@ -15111,6 +15111,11 @@ survives locking and host creation and directs the user to an interactive
 desktop session. Test production parser/dispatch, ACP exposure and sanitized
 failure paths, and record deliberate red drills in `m95b-x.md`. No live or
 paid calls, dependency, merge, rebase or push; the lead runs full quality.
+The runtime factory is exported by the existing `providers.js` entry and
+resolved there by the ACP build's dynamic-import plugin. This is required by
+the unchanged provider-core exclusion guard; the factory installs the caller's
+language table before use. Parser-only grammar stays in cliArgs, so help,
+invalid arguments and headless/Meta-only command parsing load no provider core.
 
 **Status 2026-10-04: planned with M95; research in
 `docs/certification/m95-research.md` §6. Starts when M95's seam (lanes P, T
@@ -15760,6 +15765,23 @@ its sections 1–2 (harness), "BYO n" its section 3 (providers).
 
 ## 7. Gates
 
+**FIXM95BX scoped gate delegation (2026-10-05).** The rig brief/common.md
+reserve full quality for the lead and prohibit merge/rebase/push. Run scoped
+whole-file suites and local type/lint/format/deadcode/duplication/l10n/build
+checks without changing a gate. `providersPolicy`'s simultaneous-save test
+intermittently hits Windows EPERM on rename. This was reproduced with the
+byte-original `9e4be782` providersFile source (24 pass, one fail), then the
+repair source was restored with SHA-256 equality. The unrelated atomic-writer
+repair belongs to lane P/integration; this is a named validation deferral,
+not a green receipt or a relaxed assertion. The existing broad execStdio
+suite cannot start without Bash on this rig; the focused real npm-pack
+regressions run here without it.
+The host API check retains exactly the four stale Node import counts in the
+original RVM95BX report (crypto 35→36, http 3→4, net 4→5,
+timers/promises 3→4). Regenerating that shared inventory belongs to the
+integration lane; record BX-HOST-API-INVENTORY rather than expanding this
+repair's file ownership or claiming a green check.
+
 **M95INT final whole-chain rerun — deferred under the 120-minute rig brief.**
 The final 548-page rerun still returns 1: `dark/models-pick` has one selected
 description at 4.41:1 contrast (4.5:1 required), and `hc-light/models-table`
@@ -16380,6 +16402,32 @@ before a repaired one loads (2026-09-30).
 | `test/unit/providerCredentialRecords.test.ts` | `eslint-disable-next-line unicorn/prefer-https` on one origin-binding assertion     | The test proves a downgraded `http:` scheme is refused as a different origin; an `https:` URL cannot exercise that leg. One literal, test-only.                                                                                                             | 2026-10-05 |
 
 ## 9. Security assumptions and accepted residual risk
+
+- **FIXM95BX review findings:** RVM95BX P2 command reachability and P2
+  sanitized store recovery are both repaired with production parser/dispatch,
+  ACP, packaging and failure regressions. No assigned finding is deferred.
+- **BX-WIN32-ATOMIC-RENAME:** the pre-existing simultaneous providers-file
+  writer can fail with EPERM on Windows. Baseline reproduction and the
+  unchanged test are in `m95b-x.md`; failures remain explicit, and failed
+  ChatGPT setup attempts revocation and local grant deletion. The grant lock
+  serializes ChatGPT commands; cross-editor/general-file transactions remain
+  lane P/integration's follow-up. No success is substituted for a failed save.
+- **BX-NATIVE-STORE-CERTIFICATION:** native persistence/rotation still needs
+  a logged-in desktop rig session, as the original certificate records.
+  Synthetic platform errors and real process locking certify the recovery
+  category, not an actual unlocked OS store. The brief forbids real credential
+  reads and live/paid calls; the lead reruns the native certification.
+- **BX-HOST-API-INVENTORY:** the generated host API inventory has exactly the
+  four stale Node import counts already reported by RVM95BX; the portable
+  boundary check reports no new violation. No new host API permission or
+  runtime capability follows from a count. Integration must regenerate and
+  review the shared record before its full quality gate can pass.
+- **BX-AGGREGATE-M95B:** this repair completes executable/editor sign-in
+  management and account-catalogue configuration. Combined model dispatch,
+  per-editor acceptance and the owner's raw capture workspace/receipts remain
+  the M95b integration gate. No inference or paid feature is enabled by these
+  commands. Native and aggregate limitations are certification dependencies,
+  not outstanding RVM95BX fixes.
 
 - **FIXM95P (2026-10-05):** all thirteen assigned RVM95A findings
   (1, 2, 4–8, 12–15, 18, 19) are repaired with regressions and deliberate

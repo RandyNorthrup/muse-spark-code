@@ -421,7 +421,10 @@ describe('providersFile', () => {
       ok: true,
     })
     const read = await readProvidersFile(filePath)
-    expect(read.ok && read.file.providers[0]?.routing).toEqual(routing)
+    const provider = read.ok ? read.file.providers[0] : undefined
+    expect(provider !== undefined && 'routing' in provider ? provider.routing : undefined).toEqual(
+      routing,
+    )
     const card = userPriceCard(userPrices, 'gpt-5.6-luna')
     expect(card).toMatchObject({ input: 2e-6, output: 8e-6, source: 'user' })
     expect(userPriceCard(userPrices, 'no-such-model')).toBeUndefined()

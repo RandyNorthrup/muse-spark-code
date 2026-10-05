@@ -29,7 +29,7 @@ export class StoreUnavailableError extends Error {
   }
 }
 
-async function storeOperation<T>(work: () => Promise<T>): Promise<T> {
+export async function storeOperation<T>(work: () => Promise<T>): Promise<T> {
   try {
     return await work()
   } catch {

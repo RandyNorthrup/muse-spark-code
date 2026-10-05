@@ -2004,6 +2004,24 @@
   "acpProvidersNone": "구성된 공급자가 없습니다.",
   "acpProviderAdded": "공급자 {id} 추가됨.",
   "acpProviderRemoved": "공급자 {id} 제거됨.",
+  "acpChatGpt": {
+    "usage": "사용법: muse-spark-code-acp providers add|remove|status chatgpt",
+    "actions": {
+      "add": "ChatGPT로 계속",
+      "remove": "ChatGPT 로그인 제거",
+      "status": "ChatGPT 로그인 확인"
+    },
+    "notice": "ChatGPT Plus 또는 Pro가 필요합니다. 요청은 플랜 이용 한도를 사용하며, ChatGPT에서 추가 크레딧을 활성화한 경우 OpenAI가 이를 사용할 수 있습니다. 브라우저에서 로그인하세요.",
+    "alreadyAdded": "ChatGPT가 이미 추가되어 있습니다. 다시 로그인하기 전에 제거하세요.",
+    "states": {
+      "signed-in": "ChatGPT에 로그인되어 있습니다.",
+      "expired": "ChatGPT 로그인이 만료되었습니다. 사용 시 갱신되거나, 제거한 뒤 다시 로그인하세요.",
+      "signed-out": "ChatGPT에 로그인되어 있지 않습니다."
+    },
+    "callback": "ChatGPT 로그인이 완료되었습니다. 편집기 또는 터미널로 돌아가세요.",
+    "failure": "ChatGPT 로그인을 완료할 수 없습니다. 다시 시도하거나 제거한 뒤 다시 로그인하세요.",
+    "storeUnavailable": "이 컴퓨터의 자격 증명 저장소를 사용할 수 없습니다. 저장소가 잠금 해제된 대화형 데스크톱 세션에서 로그인하세요. Linux에서는 먼저 Secret Service를 시작하세요."
+  },
   "execProviderNotConfigured": "공급자 {id}가 구성되지 않았습니다.",
   "providerText": {
     "wizard": {

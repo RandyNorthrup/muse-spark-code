@@ -2235,6 +2235,24 @@
   "acpProvidersNone": "Поставщики не настроены.",
   "acpProviderAdded": "Поставщик {id} добавлен.",
   "acpProviderRemoved": "Поставщик {id} удалён.",
+  "acpChatGpt": {
+    "usage": "Использование: muse-spark-code-acp providers add|remove|status chatgpt",
+    "actions": {
+      "add": "Продолжить с ChatGPT",
+      "remove": "Удалить вход в ChatGPT",
+      "status": "Проверить вход в ChatGPT"
+    },
+    "notice": "Требуется ChatGPT Plus или Pro. Запросы расходуют лимит вашего плана; OpenAI может использовать дополнительные кредиты, если вы включили их в ChatGPT. Войдите в браузере.",
+    "alreadyAdded": "ChatGPT уже добавлен. Удалите его перед повторным входом.",
+    "states": {
+      "signed-in": "Вход в ChatGPT выполнен.",
+      "expired": "Срок входа в ChatGPT истёк; он обновится при использовании, либо удалите его и войдите снова.",
+      "signed-out": "Вход в ChatGPT не выполнен."
+    },
+    "callback": "Вход в ChatGPT завершён. Вернитесь в редактор или терминал.",
+    "failure": "Не удалось завершить вход в ChatGPT. Повторите попытку либо удалите его и войдите снова.",
+    "storeUnavailable": "Хранилище учётных данных этого компьютера недоступно. Войдите из интерактивного сеанса рабочего стола с разблокированным хранилищем; в Linux сначала запустите Secret Service."
+  },
   "execProviderNotConfigured": "Поставщик {id} не настроен.",
   "providerText": {
     "wizard": {

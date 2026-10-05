@@ -2582,6 +2582,27 @@ export const EN = {
   // {id}: the provider id, as written.
   acpProviderAdded: 'Added provider {id}.',
   acpProviderRemoved: 'Removed provider {id}.',
+  acpChatGpt: {
+    usage: 'Usage: muse-spark-code-acp providers add|remove|status chatgpt',
+    actions: {
+      add: 'Continue with ChatGPT',
+      remove: 'Remove ChatGPT sign-in',
+      status: 'Check ChatGPT sign-in',
+    },
+    notice:
+      'ChatGPT Plus or Pro is required. Requests use your plan allowance; OpenAI may spend additional credits if you enabled them in ChatGPT. Continue in your browser to sign in.',
+    alreadyAdded: 'ChatGPT is already added. Remove it before signing in again.',
+    states: {
+      'signed-in': 'ChatGPT is signed in.',
+      expired:
+        'ChatGPT sign-in has expired; it will refresh on use, or remove it and sign in again.',
+      'signed-out': 'ChatGPT is not signed in.',
+    },
+    callback: 'ChatGPT sign-in is complete. Return to your editor or terminal.',
+    failure: 'ChatGPT sign-in could not be completed. Try again or remove it and sign in again.',
+    storeUnavailable:
+      'This computer’s credential store is unavailable. Sign in from an interactive desktop session with an unlocked credential store; on Linux, start Secret Service first.',
+  },
   execProviderNotConfigured: 'Provider {id} is not configured.',
   // M95 providers: evaluated through UI_TEXT at use time.
   providerText: {

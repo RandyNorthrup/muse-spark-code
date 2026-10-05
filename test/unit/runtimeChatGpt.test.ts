@@ -1,13 +1,28 @@
 import { generateKeyPairSync, sign } from 'node:crypto'
-import { readFile } from 'node:fs/promises'
+import { readFile, mkdtemp, writeFile } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
+import path from 'node:path'
+import { createRequire } from 'node:module'
+import { runInNewContext } from 'node:vm'
+import { build } from 'esbuild'
 import { describe, expect, it, vi } from 'vitest'
 import { ChatGptSignIn, type ChatGptRecord } from '../../src/core/providers/subscriptions/chatgpt'
 import { createRuntimeChatGptHost } from '../../src/runtime/chatGptHost'
 import {
   runChatGptProviderCommand,
-  parseChatGptProviderAction,
   type ChatGptCommandText,
+  runtimeChatGptCommandDeps,
+  chatGptAuthenticationMethods,
+  chatGptCommandText,
 } from '../../src/runtime/chatGptProviderCommands'
+import { parseCommandLine, parseChatGptProviderAction } from '../../src/runtime/cliArgs'
+import {
+  emptyProvidersFile,
+  readProvidersFile,
+  writeProvidersFileAtomic,
+} from '../../src/core/providers/providersFile'
+import { UI_TEXT } from '../../src/shared/constants'
+import { removeFolder } from './helpers/temporaryFolders'
 import { keyringSecretStore, StoreUnavailableError } from '../../src/runtime/keyStore'
 
 const ACCOUNT = 'museSpark.provider.chatgpt'
@@ -25,6 +40,107 @@ const TEXT: ChatGptCommandText = {
 }
 
 const fail = () => Promise.reject(new Error('synthetic-private-detail'))
+
+const mainBundle: { code: string | undefined } = { code: undefined }
+async function runMain(args: string[], run: ReturnType<typeof rig>, configHome: string) {
+  if (mainBundle.code === undefined) {
+    const bundle = await build({
+      entryPoints: [path.resolve('src/runtime/main.ts')],
+      bundle: true,
+      write: false,
+      platform: 'node',
+      format: 'cjs',
+      plugins: [
+        {
+          name: 'synthetic-keyring',
+          setup(builder) {
+            builder.onResolve({ filter: /^@napi-rs\/keyring$/ }, () => ({
+              path: 'keyring',
+              namespace: 'synthetic',
+            }))
+            builder.onLoad({ filter: /^keyring$/, namespace: 'synthetic' }, () => ({
+              contents: 'module.exports = globalThis.testKeyring',
+            }))
+          },
+        },
+      ],
+    })
+    mainBundle.code = bundle.outputFiles[0]?.text
+  }
+  if (mainBundle.code === undefined) throw new Error('No main bundle')
+  const finished = Promise.withResolvers<number>()
+  const output: string[] = [],
+    errors: string[] = []
+  let handoff = Promise.resolve()
+  const nativeRequire = createRequire(import.meta.url)
+  const fakeProcess = {
+    argv: ['node', 'acp.js', ...args],
+    env: { XDG_CONFIG_HOME: configHome, LANG: 'en' },
+    stdout: {
+      write: (line: string) => {
+        output.push(line.trim())
+        if (line.startsWith('https://auth.openai.com/')) handoff = run.openBrowser(line.trim())
+      },
+    },
+    stderr: {
+      write: (line: string) => {
+        errors.push(line.trim())
+      },
+    },
+    set exitCode(code: number) {
+      finished.resolve(code)
+    },
+  }
+  runInNewContext(mainBundle.code, {
+    require: (name: string) => {
+      const loaded: unknown = name === 'node:process' ? fakeProcess : nativeRequire(name)
+      return loaded
+    },
+    module: { exports: {} },
+    exports: {},
+    __dirname: path.resolve('dist'),
+    process: fakeProcess,
+    Buffer,
+    URL,
+    URLSearchParams,
+    Response,
+    Request,
+    AbortSignal,
+    AbortController,
+    TextEncoder,
+    TextDecoder,
+    Headers,
+    ReadableStream,
+    WritableStream,
+    TransformStream,
+    queueMicrotask,
+    setTimeout,
+    clearTimeout,
+    performance,
+    fetch: run.fetcher,
+    testKeyring: {
+      AsyncEntry: class {
+        constructor(
+          _service: string,
+          private readonly account: string,
+        ) {}
+        async getPassword() {
+          return await run.secrets.get(this.account)
+        }
+        async setPassword(value: string) {
+          await run.secrets.store(this.account, value)
+        }
+        async deletePassword() {
+          await run.secrets.delete(this.account)
+          return true
+        }
+      },
+    },
+  })
+  const code = await finished.promise
+  await handoff
+  return { code, output, errors }
+}
 
 function record(): ChatGptRecord {
   return {
@@ -106,21 +222,22 @@ function rig(initial?: ChatGptRecord) {
   const printed: string[] = []
   const errors: string[] = []
   const controller = new AbortController()
+  const openBrowser = async (url: string) => {
+    printed.push(url)
+    const params = new URL(url).searchParams
+    nonce = params.get('nonce') ?? ''
+    callbackUrl = params.get('redirect_uri') ?? ''
+    await fetch(
+      `${callbackUrl}?${new URLSearchParams({ code: 'synthetic-code', state: params.get('state') ?? '', client_id: 'oaiapp_synthetic', scope: SCOPE }).toString()}`,
+    )
+  }
   const createHost = () =>
     createRuntimeChatGptHost({
       secrets,
       fetch: fetcher,
       signal: controller.signal,
       callbackText: () => 'Synthetic callback done.',
-      openBrowser: async (url) => {
-        printed.push(url)
-        const params = new URL(url).searchParams
-        nonce = params.get('nonce') ?? ''
-        callbackUrl = params.get('redirect_uri') ?? ''
-        await fetch(
-          `${callbackUrl}?${new URLSearchParams({ code: 'synthetic-code', state: params.get('state') ?? '', client_id: 'oaiapp_synthetic', scope: SCOPE }).toString()}`,
-        )
-      },
+      openBrowser,
     })
   const deps = {
     createHost,
@@ -146,6 +263,8 @@ function rig(initial?: ChatGptRecord) {
     controller,
     deps,
     createHost,
+    openBrowser,
+    fetcher,
     callback: () => callbackUrl,
     setStatus: (value: number) => {
       status = value
@@ -153,7 +272,255 @@ function rig(initial?: ChatGptRecord) {
   }
 }
 
+function catalogueDeps(run: ReturnType<typeof rig>, configFile: string, catalogue: unknown) {
+  return runtimeChatGptCommandDeps({
+    uiText: UI_TEXT,
+    locale: 'en',
+    secrets: run.secrets,
+    fetch: (url, init) =>
+      (url instanceof Request ? url.url : String(url)).endsWith('/v1/models')
+        ? Promise.resolve(Response.json(catalogue))
+        : run.fetcher(url, init),
+    openBrowser: run.openBrowser,
+    callbackText: () => UI_TEXT.acpChatGpt.callback,
+    configFile,
+    print: run.deps.print,
+    printError: run.deps.printError,
+  })
+}
+
 describe('ACP ChatGPT OS-store adapter and commands', () => {
+  it('parses real provider commands and rejects extra credentials and options without echoing them', () => {
+    for (const action of ['add', 'remove', 'status'])
+      expect(parseCommandLine(['providers', action, 'chatgpt'])).toEqual({
+        command: 'chatGptProvider',
+        action,
+      })
+    for (const args of [
+      ['providers', 'add', 'chatgpt', 'synthetic-private-detail'],
+      ['providers', 'add', 'chatgpt', '--backend', 'modelApi'],
+      ['providers', 'add', 'copilot'],
+      ['providers', 'other', 'chatgpt'],
+    ]) {
+      expect(parseCommandLine(args)).toEqual({
+        command: 'invalid',
+        reason: UI_TEXT.acpChatGpt.usage,
+      })
+    }
+  })
+
+  it('dispatches real main add, status and remove using only the captured account models and atomic configuration', async () => {
+    const dir = await mkdtemp(path.join(tmpdir(), 'chatgpt-main-'))
+    const run = rig()
+    const originalFetch = run.fetcher
+    run.fetcher = (url, init) =>
+      (url instanceof Request ? url.url : String(url)).endsWith('/v1/models')
+        ? Promise.resolve(
+            Response.json({
+              models: [
+                { slug: 'synthetic-allowed', visibility: 'list', supported_in_api: true },
+                { slug: 'synthetic-hidden', visibility: 'hide', supported_in_api: true },
+                { slug: 'synthetic-web', visibility: 'list', supported_in_api: false },
+              ],
+            }),
+          )
+        : originalFetch(url, init)
+    try {
+      const added = await runMain(['providers', 'add', 'chatgpt'], run, dir)
+      expect(added.code).toBe(0)
+      expect(added.errors).toEqual([])
+      expect(added.output[0]).toBe(UI_TEXT.acpChatGpt.notice)
+      expect(added.output.at(-1)).toBe('Added provider chatgpt.')
+      const file = path.join(dir, 'muse-spark-code', 'providers.json')
+      const stored = await readProvidersFile(file)
+      expect(stored).toMatchObject({
+        ok: true,
+        file: {
+          providers: [
+            {
+              id: 'chatgpt',
+              auth: 'subscription',
+              address: 'https://api.openai.com',
+              format: 'responses',
+              models: ['synthetic-allowed'],
+            },
+          ],
+        },
+      })
+      const text = await readFile(file, 'utf8')
+      expect(text).not.toMatch(
+        /accessToken|refreshToken|synthetic-rotated|synthetic-hidden|synthetic-web/u,
+      )
+      const count = run.requests.length
+      const status = await runMain(['providers', 'status', 'chatgpt'], run, dir)
+      expect(status).toEqual({
+        code: 0,
+        output: [UI_TEXT.acpChatGpt.states['signed-in']],
+        errors: [],
+      })
+      expect(run.requests).toHaveLength(count)
+      expect(
+        await writeProvidersFileAtomic(file, {
+          ...(stored.ok ? stored.file : emptyProvidersFile()),
+          defaultModel: 'chatgpt/synthetic-allowed',
+        }),
+      ).toEqual({ ok: true })
+      const removed = await runMain(['providers', 'remove', 'chatgpt'], run, dir)
+      expect(removed).toEqual({ code: 0, output: ['Removed provider chatgpt.'], errors: [] })
+      expect(await readProvidersFile(file)).toEqual({ ok: true, file: emptyProvidersFile() })
+      expect(run.values.has(ACCOUNT)).toBe(false)
+      const absent = await runMain(['providers', 'status', 'chatgpt'], run, dir)
+      expect(absent.code).toBe(1)
+    } finally {
+      await removeFolder(dir)
+    }
+  })
+
+  it.each([
+    {
+      catalogue: {
+        models: [{ slug: 'synthetic-hidden', visibility: 'hide', supported_in_api: true }],
+      },
+      failure: 'sign-in-required',
+    },
+    {
+      catalogue: {
+        models: [{ slug: 'synthetic-bad', visibility: 'list', supported_in_api: 'yes' }],
+      },
+      failure: 'invalid-token',
+    },
+    {
+      catalogue: { models: [{ slug: '', visibility: 'list', supported_in_api: true }] },
+      failure: 'invalid-token',
+    },
+  ])(
+    'rolls back sign-in when the captured catalogue has no usable model or is malformed: %j',
+    async ({ catalogue, failure }) => {
+      const dir = await mkdtemp(path.join(tmpdir(), 'chatgpt-config-'))
+      const run = rig()
+      const deps = catalogueDeps(run, path.join(dir, 'providers.json'), catalogue)
+      try {
+        expect(await runChatGptProviderCommand('add', { ...deps, text: TEXT })).toBe(1)
+        expect(run.errors).toEqual([`Synthetic failure ${failure}`])
+        expect(run.values.has(ACCOUNT)).toBe(false)
+        expect(run.requests.at(-1)?.url).toContain('/oauth/revoke')
+        const saved = await readProvidersFile(path.join(dir, 'providers.json'))
+        expect(saved.ok).toBe(false)
+      } finally {
+        await removeFolder(dir)
+      }
+    },
+  )
+
+  it('reports an actionable native store failure from the real main without raw text', async () => {
+    const dir = await mkdtemp(path.join(tmpdir(), 'chatgpt-store-error-'))
+    const run = rig()
+    run.secrets = { get: fail, store: fail, delete: fail }
+    try {
+      expect(await runMain(['providers', 'status', 'chatgpt'], run, dir)).toEqual({
+        code: 1,
+        output: [],
+        errors: [UI_TEXT.acpChatGpt.storeUnavailable],
+      })
+      expect(run.requests).toEqual([])
+    } finally {
+      await removeFolder(dir)
+    }
+  })
+
+  it.each([
+    'synthetic-private-detail',
+    JSON.stringify({
+      v: 1,
+      providers: [
+        {
+          id: 'chatgpt',
+          preset: 'chatgpt',
+          address: 'https://api.openai.com',
+          format: 'responses',
+          auth: 'subscription',
+          models: ['synthetic-existing'],
+        },
+      ],
+    }),
+  ])(
+    'preserves invalid or existing provider configuration and rolls back the grant: %s',
+    async (invalid) => {
+      const dir = await mkdtemp(path.join(tmpdir(), 'chatgpt-invalid-config-'))
+      const run = rig()
+      const file = path.join(dir, 'providers.json')
+      const deps = catalogueDeps(run, file, {
+        models: [{ slug: 'synthetic-new', visibility: 'list', supported_in_api: true }],
+      })
+      try {
+        await writeFile(file, invalid)
+        expect(await runChatGptProviderCommand('add', deps)).toBe(1)
+        expect(await readFile(file, 'utf8')).toBe(invalid)
+        expect(run.values.has(ACCOUNT)).toBe(false)
+        expect(run.requests.at(-1)?.url).toContain('/oauth/revoke')
+        expect(run.errors).toEqual([UI_TEXT.acpChatGpt.failure])
+      } finally {
+        await removeFolder(dir)
+      }
+    },
+  )
+
+  it('pins subscription configuration without widening existing auth or origin guards', async () => {
+    const dir = await mkdtemp(path.join(tmpdir(), 'chatgpt-schema-'))
+    const entry = {
+      id: 'chatgpt',
+      preset: 'chatgpt',
+      address: 'https://api.openai.com',
+      format: 'responses',
+      auth: 'subscription',
+      models: ['synthetic'],
+    }
+    try {
+      for (const change of [
+        { id: 'other' },
+        { address: 'https://evil.example' },
+        { format: 'chat' },
+        { preset: 'custom' },
+        { models: [] },
+        { models: [''] },
+        { accessToken: 'synthetic' },
+      ]) {
+        const saved = await writeProvidersFileAtomic(path.join(dir, 'providers.json'), {
+          v: 1,
+          providers: [{ ...entry, ...change }],
+        })
+        expect(saved.ok).toBe(false)
+      }
+    } finally {
+      await removeFolder(dir)
+    }
+  })
+
+  it('supplies an actionable fixed store-unavailable message and verifies provider actions independently of Meta', async () => {
+    expect(chatGptCommandText().failure('store-unavailable')).toBe(
+      UI_TEXT.acpChatGpt.storeUnavailable,
+    )
+    expect(chatGptCommandText().failure('store-unavailable')).toContain(
+      'interactive desktop session',
+    )
+    const run = rig(record())
+    const methods = chatGptAuthenticationMethods(run.createHost)
+    expect(methods.map((method) => method.args)).toEqual([
+      ['providers', 'add', 'chatgpt'],
+      ['providers', 'remove', 'chatgpt'],
+      ['providers', 'status', 'chatgpt'],
+    ])
+    await expect(methods[0]?.verify?.()).resolves.toBeUndefined()
+    await expect(methods[1]?.verify?.()).resolves.toBe(UI_TEXT.acpChatGpt.failure)
+    run.values.delete(ACCOUNT)
+    await expect(methods[0]?.verify?.()).resolves.toBe(UI_TEXT.acpChatGpt.failure)
+    await expect(methods[1]?.verify?.()).resolves.toBeUndefined()
+    await expect(methods[2]?.verify?.()).resolves.toBeUndefined()
+    const broken = chatGptAuthenticationMethods(fail)
+    await expect(broken[0]?.verify?.()).resolves.toBe(UI_TEXT.acpChatGpt.failure)
+    expect(run.requests).toEqual([])
+  })
+
   it.each([
     'Windows ERROR_NO_SUCH_LOGON_SESSION synthetic-private-detail',
     'macOS errSecInteractionNotAllowed synthetic-private-detail',
@@ -182,6 +549,22 @@ describe('ACP ChatGPT OS-store adapter and commands', () => {
           callbackText: () => '',
         })
       await expect(createHost()).rejects.toThrow(/^chatgpt.store-unavailable$/u)
+      await expect(
+        createRuntimeChatGptHost({
+          secrets: { get: () => Promise.reject(new Error(message)), store: fail, delete: fail },
+          fetch,
+          openBrowser: () => Promise.resolve(),
+          callbackText: () => '',
+        }),
+      ).rejects.toThrow(/^chatgpt.store-unavailable$/u)
+      await expect(
+        createRuntimeChatGptHost({
+          secrets: { get: () => Promise.resolve(undefined), store: fail, delete: fail },
+          fetch,
+          openBrowser: () => Promise.resolve(),
+          callbackText: () => '',
+        }),
+      ).rejects.toThrow(/^chatgpt.store-unavailable$/u)
       expect(await runChatGptProviderCommand('status', { ...run.deps, createHost })).toBe(1)
       expect(run.errors).toEqual(['Synthetic failure store-unavailable'])
       const host = await run.createHost()
@@ -204,6 +587,29 @@ describe('ACP ChatGPT OS-store adapter and commands', () => {
       () => unavailable.delete(ACCOUNT),
     ])
       await expect(operation()).rejects.toThrow(/^store-unavailable$/u)
+  })
+
+  it('classifies every failing injected record operation inside the grant lock', async () => {
+    const run = rig()
+    await run.createHost()
+    const host = await createRuntimeChatGptHost({
+      secrets: {
+        get: (name) => (name === ACCOUNT ? fail() : run.secrets.get(name)),
+        store: fail,
+        delete: fail,
+      },
+      fetch: run.fetcher,
+      openBrowser: run.openBrowser,
+      callbackText: () => '',
+    })
+    for (const operation of [
+      () => host.readRecord(),
+      () => host.writeRecord(record()),
+      () => host.deleteRecord(),
+    ]) {
+      await expect(host.withRefreshLock(operation)).rejects.toThrow(/^chatgpt.store-unavailable$/u)
+    }
+    expect(run.requests).toEqual([])
   })
 
   it('accepts only the three exact ChatGPT provider commands', () => {
@@ -408,7 +814,7 @@ describe('ACP ChatGPT OS-store adapter and commands', () => {
         openBrowser: () => Promise.resolve(),
         callbackText: () => '',
       }),
-    ).rejects.toThrow('chatgpt.request-failed')
+    ).rejects.toThrow('chatgpt.store-unavailable')
   })
 
   it('sanitizes a secret-bearing command dependency failure', async () => {

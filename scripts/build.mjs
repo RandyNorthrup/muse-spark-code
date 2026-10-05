@@ -138,16 +138,31 @@ const sharedValidation = {
 const deferredCohort = {
   name: 'deferred-cohort',
   setup(build) {
-    build.onResolve({ filter: /\/(?:sessionBoardEntry|reviewerEntry)(?:\.[jt]s)?$/ }, (args) => {
-      if (args.kind !== 'dynamic-import') return
-      const source = path.resolve(args.resolveDir, `${args.path.replace(/\.[jt]s$/, '')}.ts`)
-      let output
-      if (source === path.resolve(SESSION_BOARD_ENTRY)) output = SESSION_BOARD_OUTFILE
-      else if (source === path.resolve(REVIEWER_ENTRY)) output = REVIEWER_OUTFILE
-      return output === undefined
-        ? undefined
-        : { path: `./${path.basename(output)}`, external: true }
-    })
+    build.onResolve(
+      { filter: /\/(?:sessionBoardEntry|reviewerEntry|chatGptProviderCommands)(?:\.[jt]s)?$/ },
+      (args) => {
+        if (args.kind !== 'dynamic-import') return
+        const source = path.resolve(args.resolveDir, `${args.path.replace(/\.[jt]s$/, '')}.ts`)
+        let output
+        switch (source) {
+          case path.resolve(SESSION_BOARD_ENTRY): {
+            output = SESSION_BOARD_OUTFILE
+            break
+          }
+          case path.resolve(REVIEWER_ENTRY): {
+            output = REVIEWER_OUTFILE
+            break
+          }
+          case path.resolve('src/runtime/chatGptProviderCommands.ts'): {
+            output = PROVIDERS_OUTFILE
+            break
+          }
+        }
+        return output === undefined
+          ? undefined
+          : { path: `./${path.basename(output)}`, external: true }
+      },
+    )
   },
 }
 
@@ -317,7 +332,7 @@ const checkpointStoreOptions = {
 /** @type {import('esbuild').BuildOptions} */
 const acpOptions = {
   ...common,
-  plugins: [sharedUiText, sharedValidation],
+  plugins: [sharedUiText, sharedValidation, deferredCohort],
   entryPoints: [ACP_ENTRY],
   outfile: ACP_OUTFILE,
   platform: 'node',

@@ -6,8 +6,9 @@ import { readFileSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import { createRequire } from 'node:module'
 import vm from 'node:vm'
-import { beforeAll, describe, expect, it } from 'vitest'
+import { beforeAll, describe, expect, it, vi } from 'vitest'
 import * as z from 'zod/mini'
+import { EN } from '../../src/shared/l10n/en'
 
 const metafileSchema = z.looseObject({
   outputs: z.record(
@@ -34,6 +35,80 @@ function inputs(name: string): string[] {
 }
 
 describe('deferred cohort bundles', () => {
+  it('installs the caller language before translated ChatGPT failures leave the lazy bundle', () => {
+    const loaded: unknown = createRequire(path.resolve('dist/acp.js'))('./providers.js')
+    if (
+      typeof loaded !== 'object' ||
+      loaded === null ||
+      !('runtimeChatGptCommandDeps' in loaded) ||
+      typeof loaded.runtimeChatGptCommandDeps !== 'function' ||
+      !('setUiText' in loaded) ||
+      typeof loaded.setUiText !== 'function'
+    )
+      throw new Error('Missing provider factory')
+    const table = {
+      ...EN,
+      acpChatGpt: { ...EN.acpChatGpt, storeUnavailable: 'synthetic French desktop recovery' },
+    }
+    try {
+      const deps: unknown = Reflect.apply(loaded.runtimeChatGptCommandDeps, undefined, [
+        {
+          uiText: table,
+          locale: 'fr',
+          configFile: 'synthetic-unused.json',
+          secrets: {
+            get: () => Promise.resolve(undefined),
+            store: () => Promise.resolve(),
+            delete: () => Promise.resolve(),
+          },
+          fetch,
+          openBrowser: () => Promise.resolve(),
+          callbackText: () => '',
+          print: vi.fn(),
+          printError: vi.fn(),
+        },
+      ])
+      if (
+        typeof deps !== 'object' ||
+        deps === null ||
+        !('text' in deps) ||
+        typeof deps.text !== 'object' ||
+        deps.text === null ||
+        !('failure' in deps.text) ||
+        typeof deps.text.failure !== 'function'
+      )
+        throw new Error('Missing translated command text')
+      const message: unknown = Reflect.apply(deps.text.failure, undefined, ['store-unavailable'])
+      expect(message).toBe(table.acpChatGpt.storeUnavailable)
+    } finally {
+      Reflect.apply(loaded.setUiText, undefined, [EN, 'en'])
+    }
+  })
+  it('keeps ChatGPT runtime and core in providers.js behind the real ACP dynamic import', () => {
+    const raw: unknown = JSON.parse(readFileSync('dist/meta-acp/acp.json', 'utf8'))
+    if (
+      typeof raw !== 'object' ||
+      raw === null ||
+      !('inputs' in raw) ||
+      typeof raw.inputs !== 'object' ||
+      raw.inputs === null
+    )
+      throw new Error('Missing ACP inputs')
+    const acpInputs = Object.keys(raw.inputs)
+    expect(readFileSync('dist/acp.js', 'utf8')).toContain('./providers.js')
+    for (const file of [
+      'src/runtime/chatGptProviderCommands.ts',
+      'src/runtime/chatGptHost.ts',
+      'src/core/providers/subscriptions/chatgpt.ts',
+    ]) {
+      expect(inputs('providers')).toContain(file)
+      expect(acpInputs).not.toContain(file)
+    }
+    const bundle: unknown = createRequire(path.resolve('dist/acp.js'))('./providers.js')
+    expect(bundle).toHaveProperty('runtimeChatGptCommandDeps', expect.any(Function))
+    expect(bundle).toHaveProperty('runChatGptProviderCommand', expect.any(Function))
+    expect(bundle).toHaveProperty('chatGptAuthenticationMethods', expect.any(Function))
+  })
   it('loads the activation entry without requiring either action bundle', () => {
     const entry = path.resolve('dist/extension.js')
     expect(readFileSync(entry, 'utf8')).toContain('./sessionBoard.js')

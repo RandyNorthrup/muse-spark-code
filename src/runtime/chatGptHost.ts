@@ -10,6 +10,7 @@ import type { SecretStore } from '../host/auth/credentialStore'
 import { PKCE_STATE_BYTES, PROVIDER_SECRET_PREFIX } from '../shared/constants'
 import { startChatGptCallback } from './chatGptCallback'
 import { withChatGptRefreshLock, type ChatGptLockOptions } from './chatGptRefreshLock'
+import { storeOperation } from './keyStore'
 
 const RECORD_ACCOUNT = `${PROVIDER_SECRET_PREFIX}chatgpt`
 const HOST_ACCOUNT = `${RECORD_ACCOUNT}.host-id`
@@ -30,13 +31,15 @@ export async function createRuntimeChatGptHost(
   const lock = { ...options.lock, ...(options.signal !== undefined && { signal: options.signal }) }
   try {
     const hostId = await withChatGptRefreshLock(async () => {
-      const stored = await options.secrets.get(HOST_ACCOUNT)
+      const stored = await storeOperation(async () => await options.secrets.get(HOST_ACCOUNT))
       if (stored !== undefined) {
         if (!isPkceState(stored)) throw new ChatGptSignInError('invalid-token')
         return stored
       }
       const created = pkceRandom(PKCE_STATE_BYTES)
-      await options.secrets.store(HOST_ACCOUNT, created)
+      await storeOperation(async () => {
+        await options.secrets.store(HOST_ACCOUNT, created)
+      })
       return created
     }, lock)
     return {
@@ -56,7 +59,7 @@ export async function createRuntimeChatGptHost(
       startCallback: (state, timeoutMs) =>
         startChatGptCallback(state, timeoutMs, options.callbackText, options.signal),
       readRecord: async () => {
-        const stored = await options.secrets.get(RECORD_ACCOUNT)
+        const stored = await storeOperation(async () => await options.secrets.get(RECORD_ACCOUNT))
         if (stored === undefined) return
         try {
           const value: unknown = JSON.parse(stored)
@@ -70,10 +73,14 @@ export async function createRuntimeChatGptHost(
       writeRecord: async (record) => {
         const parsed = chatGptRecordSchema.safeParse(record)
         if (!parsed.success) throw new ChatGptSignInError('invalid-token')
-        await options.secrets.store(RECORD_ACCOUNT, JSON.stringify(parsed.data))
+        await storeOperation(async () => {
+          await options.secrets.store(RECORD_ACCOUNT, JSON.stringify(parsed.data))
+        })
       },
       deleteRecord: async () => {
-        await options.secrets.delete(RECORD_ACCOUNT)
+        await storeOperation(async () => {
+          await options.secrets.delete(RECORD_ACCOUNT)
+        })
       },
       withRefreshLock: (work) => withChatGptRefreshLock(work, lock),
     }

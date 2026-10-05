@@ -24,14 +24,142 @@ Whole-file validation: runtimeChatGpt, runtimeChatGptLock and acpRuntime,
 
 | Drill | Deliberate break                                       | Named failure                                                           | Result                               |
 | ----- | ------------------------------------------------------ | ----------------------------------------------------------------------- | ------------------------------------ |
-| BX1   | Return generic private error from native store wrapper | Both classification regressions above                                   | exit 1, 5 failures; SHA-256 restored |
-| BX2   | Remove store category mapping in refresh lock          | `classifies native store unavailability through factory and grant lock` | exit 1, 4 failures; SHA-256 restored |
-| BX3   | Remove category preservation in host factory           | Same four platform cases                                                | exit 1, 4 failures; SHA-256 restored |
+| BX1   | Return generic private error from native store wrapper | Both classification regressions above and real main                     | exit 1, 8 failures; SHA-256 restored |
+| BX2   | Remove store category mapping in refresh lock          | `classifies native store unavailability through factory and grant lock` | exit 1, 7 failures; SHA-256 restored |
+| BX3   | Remove category preservation in host factory           | Same four platform cases and real main                                  | exit 1, 6 failures; SHA-256 restored |
 
 Receipts: ignored `temp/fixm95bx-drills.json` and per-drill logs. Each mutation
 ran the whole runtimeChatGpt file and restored its original bytes in finally,
 with SHA-256 equality checked. Native persistence/rotation remains the
 previous environment certification limit below, not an outstanding review fix.
+These three drills were repeated after wrapping the SecretStore interface:
+host-id get/store and record get/store/delete also reduce directly injected
+raw errors to the same fixed category. The four platform cases test native
+and direct host-port failures; record-operation tests hold the grant lock.
+
+**Finding 1:** cliArgs parses only the exact provider grammar and main dispatches
+it to the production runtime factory. ACP advertises add/remove/status as
+terminal methods, or full manual commands when the editor lacks terminal auth.
+Authentication verifies each action's own local result independently of Meta
+and refuses unadvertised methods. Every ACP editor uses this same path;
+no editor-specific sign-in implementation or credential bridge was added.
+
+Add reads the owner's captured account catalogue (`models[]`, `slug`,
+`visibility`, `supported_in_api`) and atomically saves eligible visible models.
+No model slug is invented. The shared file accepts a separate strict variant
+pinned to `chatgpt`, its preset, Responses and `https://api.openai.com`; existing
+API-key/local guards are unchanged. Invalid or duplicate configuration refuses
+and rolls back the grant; removal clears its default model as well as its row.
+Notices, actions, status, failure and ACP-neutral callback text are in English
+and all fourteen translated tables. Store recovery now says to sign in from an
+interactive desktop session with an unlocked store and names Linux's Secret
+Service prerequisite, without raw error interpolation.
+
+The unchanged split guard requires provider core exclusively in providers.js.
+The existing entry now exports the runtime factory; the ACP dynamic import
+resolves to it, installs the caller's language and stays within both budgets.
+Packaging includes providers.js and rejects its absence before replacing the
+stage. The real main regression bundles the entry with an explicitly synthetic
+keyring and HTTP transport, and drives the real callback on loopback; no native
+store or live endpoint is reached. README's three new commands each completed
+successfully through that entry. The focused package suite executes the real
+packager and extracts the provider member from its actual npm tarball.
+
+Production build exited 0 with size, split, host globals and 84-package notices:
+activation **553.1/600 KiB**, Model API **413.4/475**, providers **110.5/125**,
+Models host **51.0/75**, Models browser **412.4/475**, conversation browser and
+its shared chunk **897.3/900**, ACP **800.2/850**, checkpoint store **88.4/225**.
+No cap, dependency, suppression, cast or gate changed.
+
+**Named residuals (also PLAN §9):** BX-WIN32-ATOMIC-RENAME is an inherited
+Windows EPERM in the simultaneous-save test, reproduced with the original
+9e4be782 writer and then restored byte-exact; the writer is unchanged except
+the exact subscription schema. Its command failures remain explicit and setup
+rolls back. Lane P/integration owns the transaction/retry follow-up.
+BX-NATIVE-STORE-CERTIFICATION needs a logged-in desktop session; the brief
+forbids native credential reads here. BX-AGGREGATE-M95B retains combined
+inference/per-editor acceptance and the owner's precise raw capture receipts
+(findings summary: acdc0f60 and 577bc807, 0 + 1 model attempts, revoked grants).
+The commands themselves make no inference request. Neither assigned P2 remains.
+The attempted broad execStdio file could not collect tests because the rig has
+no Bash; it is unchanged in the final Git diff. Focused npm-pack regressions pass (2/2),
+and actual deferred-bundle regressions pass (28/28).
+BX-HOST-API-INVENTORY is exactly the inherited stale Node import inventory
+from RVM95BX: crypto 35→36, http 3→4, net 4→5, timers/promises 3→4.
+The check finds no portable-boundary violation; integration owns regeneration
+and review of that shared record. No assigned finding is deferred by this
+inventory failure.
+
+### Final scoped validation
+
+All checks ran directly on win11. Test commands ran whole files, at most three
+per invocation, with `--maxWorkers=3 --testTimeout=120000`.
+
+| Check                                                                      | Result                                                                                                                                                                      |
+| -------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| runtimeChatGpt, acpAgent, runtimeChatGptPackage                            | Exit 0; 127/127 (35 + 90 + 2)                                                                                                                                               |
+| runtimeChatGptCallback, runtimeChatGptLock, acpRuntime                     | Exit 0; 59/59 (18 + 5 + 36)                                                                                                                                                 |
+| deferredBundles, actual production build                                   | Exit 0; 28/28                                                                                                                                                               |
+| providersPolicy                                                            | 24/25 on the failing Windows run; the identical simultaneous-rename failure reproduces with the original writer. Earlier whole-file runs also passed; no assertion changed. |
+| npm run typecheck                                                          | All five projects, exit 0                                                                                                                                                   |
+| Scoped ESLint, max-warnings=0; Prettier on changed files                   | Exit 0                                                                                                                                                                      |
+| npm run deadcode; npx jscpd                                                | Exit 0; duplication reports zero clones                                                                                                                                     |
+| node scripts/check-l10n.mjs                                                | Exit 0; 14 languages, 127 manifest strings and 497 source files, zero problems                                                                                              |
+| node scripts/check-host-api.mjs                                            | Exit 1; BX-HOST-API-INVENTORY only, same four counts as baseline review                                                                                                     |
+| npm run build                                                              | Exit 0; unchanged size/split/globals/notices gates, sizes above                                                                                                             |
+| node scripts/package-acp.mjs; staged acp.js --help; tar member listing     | Exit 0; actual 0.12.1 tarball includes providers.js, and the packaged entry prints the provider grammar without a native store or network call                              |
+| Full quality, native store, live inference and installed-editor acceptance | Reserved for the lead or prohibited by this rig brief; not claimed                                                                                                          |
+
+The worktree's pre-commit hook runs serial lint-staged and staged redacted
+gitleaks. The rig's portable sh lacks Bash, so ignored temp/hook-bin/npx
+delegates to the already installed npm CLI; no hook, Git configuration or
+machine setting is changed. The first repair commit passed both hook steps.
+
+### Additional red drills
+
+Every row below exited **1**, failed the named whole-file regression and
+restored the original source bytes in finally with matching SHA-256. All
+Vitest invocations used `--maxWorkers=3 --testTimeout=120000`; no name filter
+or new skipped test. BX21/BX22 run the whole deferredBundles file, including
+its real production build; BX20 runs the real npm-pack fixture suite.
+Receipts and per-drill logs are in ignored temp/fixm95bx-integration-drills.json,
+temp/fixm95bx-port-drills.json and temp/fixm95bx-schema-drills.json.
+
+| Drill | Guard broken                       | Named failed regression                                                                                                            |
+| ----- | ---------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
+| BX4   | Real CLI provider parser           | `parses real provider commands and rejects extra credentials and options without echoing them`                                     |
+| BX5   | Main dispatch                      | `dispatches real main add, status and remove using only the captured account models and atomic configuration`                      |
+| BX6   | ACP action advertisement           | `exposes all three ChatGPT actions to terminal and manual editors and verifies them independently of Meta`                         |
+| BX7   | ACP action verification route      | Same ACP regression                                                                                                                |
+| BX8   | Unadvertised method refusal        | Same ACP regression, ready backend with unknown method                                                                             |
+| BX9   | Pinned subscription origin         | `pins subscription configuration without widening existing auth or origin guards`                                                  |
+| BX10  | Strict secret-free entry           | Same schema regression                                                                                                             |
+| BX11  | Captured boolean catalogue field   | `rolls back sign-in when the captured catalogue has no usable model or is malformed`                                               |
+| BX12  | Hidden-model exclusion             | Real main add/status/remove regression                                                                                             |
+| BX13  | API eligibility filter             | Real main add/status/remove regression                                                                                             |
+| BX14  | Invalid provider-file refusal      | `preserves invalid or existing provider configuration and rolls back the grant`                                                    |
+| BX15  | Duplicate provider refusal         | Same configuration regression                                                                                                      |
+| BX16  | Removed default-model reference    | Real main add/status/remove regression                                                                                             |
+| BX17  | Actionable store message           | `reports an actionable native store failure from the real main without raw text`                                                   |
+| BX18  | Add requires a local grant         | `supplies an actionable fixed store-unavailable message and verifies provider actions independently of Meta`                       |
+| BX19  | Remove requires local absence      | Same action verification regression                                                                                                |
+| BX20  | Required packaged provider bundle  | `ships the lazy ChatGPT runtime in the actual npm tarball`; missing-member stage-preservation regression also fails                |
+| BX21  | Lazy bundle language installation  | `installs the caller language before translated ChatGPT failures leave the lazy bundle`                                            |
+| BX22  | ACP/provider split mapping         | `keeps ChatGPT runtime and core in providers.js behind the real ACP dynamic import`; the unchanged split guard rejects leaked core |
+| BX23  | Host-id read error classification  | Four native/direct factory classification cases                                                                                    |
+| BX24  | Host-id write error classification | Same four factory cases                                                                                                            |
+| BX25  | Record read error classification   | `classifies every failing injected record operation inside the grant lock`                                                         |
+| BX26  | Record write error classification  | Same record-operation regression                                                                                                   |
+| BX27  | Record delete error classification | Same record-operation regression                                                                                                   |
+| BX28  | Empty usable catalogue refusal     | Catalogue rollback regression requires the fixed sign-in-required code                                                             |
+| BX29  | Nonempty configured model list     | Pinned schema regression                                                                                                           |
+| BX30  | Pinned provider id                 | Pinned schema regression                                                                                                           |
+| BX31  | Pinned preset                      | Pinned schema regression                                                                                                           |
+| BX32  | Pinned Responses format            | Pinned schema regression                                                                                                           |
+| BX33  | Nonempty configured model id       | Pinned schema regression                                                                                                           |
+| BX34  | Nonempty captured catalogue slug   | Catalogue rollback regression requires invalid-token before file commit                                                            |
+
+## Original lane record (historical; the repair above supersedes its dispatch boundary)
 
 Worktree `C:/lanes/M95BX`, branch `m95b/x`, base `180c85b2`, Windows 11
 rig, 2026-10-05. This certifies the offline runtime adapter and injected
