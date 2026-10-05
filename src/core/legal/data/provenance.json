@@ -20,6 +20,7 @@
         }
       ],
       "license": "CC0-1.0",
+      "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
       "attribution": "Shinnosuke Watanabe. Identifier data only (CC0 public-domain dedication); the license texts the identifiers name keep their own terms and are not vendored here.",
       "modifications": "JSON whitespace normalized by Prettier; identifier values unchanged."
     },
@@ -42,6 +43,7 @@
         }
       ],
       "license": "CC-BY-3.0",
+      "licenseUrl": "https://creativecommons.org/licenses/by/3.0/",
       "attribution": "The Linux Foundation, Kyle E. Mitchell. Used under CC-BY-3.0 with this attribution preserved; exception identifiers only, not the exception texts.",
       "modifications": "JSON whitespace normalized by Prettier; identifier values unchanged."
     }

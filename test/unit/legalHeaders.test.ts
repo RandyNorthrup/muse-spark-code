@@ -14,7 +14,8 @@ export const value = 1
 
 describe('scanHeaders', () => {
   it('stays silent for a headed file under any active policy', () => {
-    for (const policy of ['required', 'optional'] as const) {
+    const listed1 = ['required', 'optional'] as const
+    for (const policy of listed1) {
       const result = scanHeaders(snapshotFrom({ 'src/ok.ts': headed }), policy, ['MIT'])
       expect(result.findings).toEqual([])
       expect(result.excluded).toEqual([])
@@ -22,25 +23,36 @@ describe('scanHeaders', () => {
   })
 
   it('requires both lines under the required policy', () => {
-    const result = scanHeaders(snapshotFrom({ 'src/bare.ts': 'export const value = 1\n' }), 'required', ['MIT'])
+    const result = scanHeaders(
+      snapshotFrom({ 'src/bare.ts': 'export const value = 1\n' }),
+      'required',
+      ['MIT'],
+    )
     expect(result.findings).toHaveLength(2)
-    expect(result.findings.map((finding) => finding.category).toSorted()).toEqual([
-      'copyrightHeader',
-      'spdxIdentifier',
-    ])
+    expect(
+      result.findings
+        .map((finding) => finding.category)
+        .toSorted((a, b) => a.localeCompare(b, 'en')),
+    ).toEqual(['copyrightHeader', 'spdxIdentifier'])
     expect(result.findings.every((finding) => finding.severity === 'should-fix')).toBe(true)
     expect(result.findings.every((finding) => finding.fixable)).toBe(true)
   })
 
   it('reports one hygiene note under the optional policy', () => {
-    const result = scanHeaders(snapshotFrom({ 'src/bare.ts': 'export const value = 1\n' }), 'optional', ['MIT'])
+    const result = scanHeaders(
+      snapshotFrom({ 'src/bare.ts': 'export const value = 1\n' }),
+      'optional',
+      ['MIT'],
+    )
     expect(result.findings).toHaveLength(1)
     expect(result.findings[0]?.category).toBe('codeQualityHeader')
     expect(result.findings[0]?.severity).toBe('advice')
   })
 
   it('skips checks under the off policy with an incomplete marker', () => {
-    const result = scanHeaders(snapshotFrom({ 'src/bare.ts': 'export const value = 1\n' }), 'off', ['MIT'])
+    const result = scanHeaders(snapshotFrom({ 'src/bare.ts': 'export const value = 1\n' }), 'off', [
+      'MIT',
+    ])
     expect(result.findings).toEqual([])
     expect(result.incomplete).toEqual(['not checked: copyright header checks are off by policy'])
   })
@@ -63,11 +75,15 @@ value = 1
 
   it('flags a header identifier outside the project licenses', () => {
     const result = scanHeaders(
-      snapshotFrom({ 'src/foreign.ts': '// Copyright (c) 2026 Other\n// SPDX-License-Identifier: Apache-2.0\n' }),
+      snapshotFrom({
+        'src/foreign.ts': '// Copyright (c) 2026 Other\n// SPDX-License-Identifier: Apache-2.0\n',
+      }),
       'required',
       ['MIT'],
     )
-    const mismatch = result.findings.find((finding) => finding.explanation.includes('outside the project'))
+    const mismatch = result.findings.find((finding) =>
+      finding.explanation.includes('outside the project'),
+    )
     expect(mismatch?.severity).toBe('should-fix')
     expect(mismatch?.fixable).toBe(false)
   })
@@ -75,7 +91,8 @@ value = 1
   it('accepts a dual-licensed header with a matching branch', () => {
     const result = scanHeaders(
       snapshotFrom({
-        'src/dual.ts': '// Copyright (c) 2026 Example\n// SPDX-License-Identifier: MIT OR GPL-3.0-only\n',
+        'src/dual.ts':
+          '// Copyright (c) 2026 Example\n// SPDX-License-Identifier: MIT OR GPL-3.0-only\n',
       }),
       'required',
       ['MIT'],
@@ -85,7 +102,9 @@ value = 1
 
   it('flags malformed header identifiers', () => {
     const result = scanHeaders(
-      snapshotFrom({ 'src/broken.ts': '// Copyright (c) 2026 Example\n// SPDX-License-Identifier: MIT or\n' }),
+      snapshotFrom({
+        'src/broken.ts': '// Copyright (c) 2026 Example\n// SPDX-License-Identifier: MIT or\n',
+      }),
       'required',
       ['MIT'],
     )
@@ -96,7 +115,8 @@ value = 1
   it('flags custom, deprecated and unknown header terms as advice', () => {
     const result = scanHeaders(
       snapshotFrom({
-        'src/custom.ts': '// Copyright (c) 2026 Example\n// SPDX-License-Identifier: LicenseRef-Mine\n',
+        'src/custom.ts':
+          '// Copyright (c) 2026 Example\n// SPDX-License-Identifier: LicenseRef-Mine\n',
         'src/old.ts': '// Copyright (c) 2026 Example\n// SPDX-License-Identifier: GPL-2.0\n',
       }),
       'optional',
@@ -130,16 +150,21 @@ value = 1
       ['MIT'],
     )
     expect(result.findings).toEqual([])
-    expect(result.excluded.toSorted()).toEqual(['dist/bundle.js', 'src/gen.ts'])
+    expect(result.excluded.toSorted((a, b) => a.localeCompare(b, 'en'))).toEqual([
+      'dist/bundle.js',
+      'src/gen.ts',
+    ])
   })
 
   it('honors REUSE.toml, sidecars and dep5 coverage', () => {
     const result = scanHeaders(
       snapshotFrom({
-        'REUSE.toml': '[[annotations]]\npath = "src/toml.ts"\nSPDX-License-Identifier = "MIT"\n',
+        'REUSE.toml':
+          '[[annotations]]\npath = "src/toml.ts"\nSPDX-License-Identifier = "MIT"\nSPDX-FileCopyrightText = "2026 Example"\n',
         'src/toml.ts': 'export const value = 1\n',
         'src/sidecar.ts': 'export const value = 1\n',
-        'src/sidecar.ts.license': 'SPDX-License-Identifier: MIT\n',
+        'src/sidecar.ts.license':
+          'SPDX-License-Identifier: MIT\nSPDX-FileCopyrightText: 2026 Example\n',
         '.reuse/dep5': 'Files: src/dep5/*\nCopyright: 2026 Example\nSPDX-License-Identifier: MIT\n',
         'src/dep5/covered.ts': 'export const value = 1\n',
       }),
@@ -150,7 +175,7 @@ value = 1
   })
 
   it('skips binary files and non-source extensions', () => {
-    const binary = `wOF2${String.fromCharCode(0)}Copyright 2026 inside binary`
+    const binary = `wOF2${String.fromCodePoint(0)}Copyright 2026 inside binary`
     const result = scanHeaders(
       snapshotFrom({
         'src/blob.ts': binary,
@@ -164,12 +189,16 @@ value = 1
   })
 
   it('misses headers past the line window instead of matching code', () => {
-    const lines = Array.from({ length: 30 }, (_, index) => `const v${index} = ${index}`).join('\n')
+    const lines = Array.from(
+      { length: 30 },
+      (_, index) => `const v${String(index)} = ${String(index)}`,
+    ).join('\n')
     const result = scanHeaders(
       snapshotFrom({ 'src/late.ts': `${lines}\n// Copyright (c) 2026 Example\n` }),
       'required',
       ['MIT'],
     )
     expect(result.findings.length).toBeGreaterThan(0)
+    expect(result.findings.some((finding) => finding.category === 'copyrightHeader')).toBe(true)
   })
 })

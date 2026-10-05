@@ -248,9 +248,14 @@ export function readNuGet(snapshot: LegalFileSnapshot): EcosystemResult {
       continue
     }
     const { expression } = readNuspecLicense(text)
-    if (!nuspecs.has(identity.id)) {
-      nuspecs.set(identity.id, { expression, file })
-    }
+    const identityKey = `${identity.id.toLowerCase()}@${identity.version ?? ''}`
+    const existing = nuspecs.get(identityKey)
+    if (existing !== undefined && existing.expression !== expression) {
+      incomplete.push(
+        `not checked: license metadata conflict for ${identityKey} between ${existing.file} and ${file}: ${existing.expression ?? 'unknown'} versus ${expression ?? 'unknown'}`,
+      )
+      nuspecs.set(identityKey, { expression: undefined, file })
+    } else nuspecs.set(identityKey, { expression, file })
     if (
       expression !== undefined &&
       !referenced.has(identity.id) &&
@@ -262,8 +267,8 @@ export function readNuGet(snapshot: LegalFileSnapshot): EcosystemResult {
 
   const dependencies = references.map((reference) => {
     const version =
-      reference.version ?? centralVersions.get(reference.name) ?? lockedVersions.get(reference.name)
-    const present = nuspecs.get(reference.name)
+      lockedVersions.get(reference.name) ?? reference.version ?? centralVersions.get(reference.name)
+    const present = nuspecs.get(`${reference.name.toLowerCase()}@${version ?? ''}`)
     return dependency('nuget', present?.file ?? reference.file, reference.name, {
       version,
       scope: reference.scope,
@@ -273,7 +278,7 @@ export function readNuGet(snapshot: LegalFileSnapshot): EcosystemResult {
 
   for (const [name, version] of lockedVersions) {
     if (dependencies.some((dep) => dep.name === name)) continue
-    const present = nuspecs.get(name)
+    const present = nuspecs.get(`${name.toLowerCase()}@${version}`)
     dependencies.push(
       dependency('nuget', present?.file ?? 'packages.lock.json', name, {
         version,

@@ -110,6 +110,8 @@ function readVendored(
     return { licenseRaw: undefined, file: candidate }
   }
   const project = parseTomlSection(text, 'package')
+  if (project.get('name') !== name || project.get('version') !== version)
+    return { licenseRaw: undefined, file: candidate }
   const license = project.get('license')
   if (typeof license === 'string' && license !== '') {
     return { licenseRaw: license, file: candidate }
@@ -164,7 +166,10 @@ export function readCargo(snapshot: LegalFileSnapshot): EcosystemResult {
     }
   }
 
-  const locked = new Map<string, { readonly version: string | undefined; readonly file: string }>()
+  const locked = new Map<
+    string,
+    { readonly name: string; readonly version: string | undefined; readonly file: string }
+  >()
   const listed3 = snapshot.files
     .filter((file) => baseNameOf(file) === 'Cargo.lock')
     .toSorted((a, b) => compareLegalText(a, b))
@@ -178,13 +183,15 @@ export function readCargo(snapshot: LegalFileSnapshot): EcosystemResult {
       if (stanza.source === undefined) {
         continue
       }
-      if (!locked.has(stanza.name)) {
-        locked.set(stanza.name, { version: stanza.version, file })
-      }
+      const identity = `${stanza.name}@${stanza.version ?? ''}:${stanza.source}`
+      if (!locked.has(identity))
+        locked.set(identity, { name: stanza.name, version: stanza.version, file })
     }
   }
 
-  const dependencies = [...locked].map(([name, entry]) => {
+  const lockedNames = new Set(Array.from(locked.values(), (entry) => entry.name))
+  const dependencies = Array.from(locked.values(), (entry) => {
+    const name = entry.name
     const vendored =
       entry.version === undefined
         ? { licenseRaw: undefined, file: undefined }
@@ -197,7 +204,7 @@ export function readCargo(snapshot: LegalFileSnapshot): EcosystemResult {
     })
   })
   for (const manifestDep of manifestDeps) {
-    if (!locked.has(manifestDep.name)) {
+    if (!lockedNames.has(manifestDep.name)) {
       dependencies.push(
         dependency('cargo', manifestDep.file, manifestDep.name, {
           version: undefined,
@@ -215,7 +222,7 @@ export function readCargo(snapshot: LegalFileSnapshot): EcosystemResult {
       `not checked: ${String(withoutLicense)} Cargo lock entries carry no license metadata in the lock and no vendored crate manifest covers them`,
     )
   }
-  const unresolved = manifestDeps.filter((dep) => !locked.has(dep.name)).length
+  const unresolved = manifestDeps.filter((dep) => !lockedNames.has(dep.name)).length
   if (unresolved > 0) {
     incomplete.push(
       `not checked: ${String(unresolved)} Cargo requirements have no resolved version in any Cargo.lock`,

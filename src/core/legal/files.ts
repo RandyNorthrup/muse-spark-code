@@ -121,6 +121,24 @@ export function compareLegalText(a: string, b: string): number {
   return a < b ? -1 : 1
 }
 
+/** Basic star glob without compiling untrusted patterns into a RegExp. */
+export function isLegalGlobMatch(pattern: string, file: string): boolean {
+  if (pattern.length > LEGAL_PATH_MAX_CHARS) return false
+  const parts = pattern.split('*')
+  if (parts.length === 1) return pattern === file
+  const first = parts[0] ?? ''
+  if (!file.startsWith(first)) return false
+  let position = first.length
+  const middle = parts.slice(1, -1)
+  for (const part of middle) {
+    const found = file.indexOf(part, position)
+    if (found === -1) return false
+    position = found + part.length
+  }
+  const last = parts.at(-1) ?? ''
+  return file.endsWith(last) && file.length - last.length >= position
+}
+
 function hasControlCharacter(text: string): boolean {
   for (let index = 0; index < text.length; index += 1) {
     if ((text.codePointAt(index) ?? 0) < (' '.codePointAt(0) ?? 0)) return true

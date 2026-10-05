@@ -106,10 +106,18 @@ function readPomLicenses(text: string): string[] {
   return found
 }
 
-function readPomProject(text: string): { readonly artifact: string | undefined } {
+function readPomProject(text: string): {
+  readonly artifact: string | undefined
+  readonly group: string | undefined
+  readonly version: string | undefined
+} {
   const withoutParent = text.replace(/<parent>[\s\S]*?<\/parent>/, '')
   const head = withoutParent.split('<dependencies>', 1)[0] ?? withoutParent
-  return { artifact: tagContents(head, 'artifactId') }
+  return {
+    artifact: tagContents(head, 'artifactId'),
+    group: tagContents(head, 'groupId'),
+    version: tagContents(head, 'version'),
+  }
 }
 
 const GRADLE_COORDINATES =
@@ -200,6 +208,15 @@ export function readJvm(snapshot: LegalFileSnapshot): EcosystemResult {
   const incomplete: string[] = []
   const projectLicenses: ManifestLicenseDeclaration[] = []
   const poms = new Map<string, { readonly licenses: readonly string[]; readonly file: string }>()
+  const retainPom = (identity: string, licenses: readonly string[], file: string): void => {
+    const existing = poms.get(identity)
+    if (existing !== undefined && existing.licenses.join(' OR ') !== licenses.join(' OR ')) {
+      incomplete.push(
+        `not checked: license metadata conflict for ${identity} between ${existing.file} and ${file}: ${existing.licenses.join(' OR ')} versus ${licenses.join(' OR ')}`,
+      )
+      poms.set(identity, { licenses: [], file })
+    } else poms.set(identity, { licenses, file })
+  }
   const manifestDeps: (MavenDependency & { readonly file: string })[] = []
   const gradleDeps: {
     readonly name: string
@@ -223,9 +240,9 @@ export function readJvm(snapshot: LegalFileSnapshot): EcosystemResult {
     if (licenses.length > 0) {
       projectLicenses.push({ raw: licenses.join(' OR '), file })
     }
-    const { artifact } = readPomProject(text)
-    if (artifact !== undefined) {
-      poms.set(artifact, { licenses, file })
+    const { artifact, group, version } = readPomProject(text)
+    if (artifact !== undefined && group !== undefined && version !== undefined) {
+      retainPom(`${group}/${artifact}@${version}`, licenses, file)
     }
     const listed7 = readPomDependencies(text)
     for (const dep of listed7) {
@@ -293,16 +310,16 @@ export function readJvm(snapshot: LegalFileSnapshot): EcosystemResult {
     if (text === undefined) {
       continue
     }
-    const { artifact } = readPomProject(text)
-    if (artifact !== undefined && !poms.has(artifact)) {
-      poms.set(artifact, { licenses: readPomLicenses(text), file })
+    const { artifact, group, version } = readPomProject(text)
+    if (artifact !== undefined && group !== undefined && version !== undefined) {
+      retainPom(`${group}/${artifact}@${version}`, readPomLicenses(text), file)
     }
   }
 
   const dependencies = [
     ...manifestDeps.map((dep) => {
       const name = `${dep.group}/${dep.artifact}`
-      const present = poms.get(dep.artifact)
+      const present = poms.get(`${name}@${dep.version ?? ''}`)
       const license =
         present === undefined || present.licenses.length === 0
           ? undefined
@@ -320,7 +337,7 @@ export function readJvm(snapshot: LegalFileSnapshot): EcosystemResult {
     }),
     ...gradleDeps.map((dep) => {
       const version = dep.version ?? resolvedVersions.get(dep.name)
-      const present = poms.get(dep.name.split('/', 2)[1] ?? dep.name)
+      const present = poms.get(`${dep.name}@${version ?? ''}`)
       const license =
         present === undefined || present.licenses.length === 0
           ? undefined
@@ -340,8 +357,7 @@ export function readJvm(snapshot: LegalFileSnapshot): EcosystemResult {
 
   for (const [name, version] of resolvedVersions) {
     if (dependencies.some((dep) => dep.name === name)) continue
-    const artifact = name.split('/', 2)[1] ?? name
-    const present = poms.get(artifact)
+    const present = poms.get(`${name}@${version}`)
     dependencies.push(
       dependency('gradle', present?.file ?? 'gradle.lockfile', name, {
         version,

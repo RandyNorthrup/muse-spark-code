@@ -22,7 +22,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND.`
 
 const APACHE_TEXT = `Apache License
 Version 2.0, January 2004
-http://www.apache.org/licenses/
+https://www.apache.org/licenses/
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.`
@@ -32,6 +32,14 @@ function manifest(raw: string, file = 'package.json'): ManifestLicenseDeclaratio
 }
 
 describe('scanProjectLicense', () => {
+  it('treats reordered equivalent expressions as the same declaration', () => {
+    const result = scanProjectLicense(snapshotFrom({}), [
+      { file: 'package.json', raw: 'MIT OR Apache-2.0' },
+      { file: 'Cargo.toml', raw: 'Apache-2.0 OR MIT' },
+    ])
+    expect(result.findings.some((finding) => finding.explanation.includes('disagree'))).toBe(false)
+  })
+
   it('stays silent when the license file and manifest agree', () => {
     const result = scanProjectLicense(
       snapshotFrom({
@@ -74,7 +82,10 @@ describe('scanProjectLicense', () => {
   })
 
   it('keeps unrecognized license text visible with its excerpt', () => {
-    const result = scanProjectLicense(snapshotFrom({ LICENSE: 'The Example License grants nothing yet.' }), [])
+    const result = scanProjectLicense(
+      snapshotFrom({ LICENSE: 'The Example License grants nothing yet.' }),
+      [],
+    )
     expect(result.findings).toHaveLength(1)
     expect(result.findings[0]?.severity).toBe('advice')
     expect(result.findings[0]?.evidenceExcerpt).toContain('Example License')
@@ -84,7 +95,9 @@ describe('scanProjectLicense', () => {
     const result = scanProjectLicense(snapshotFrom({}), [manifest('UNLICENSED')])
     expect(result.findings).toHaveLength(1)
     expect(result.findings[0]?.explanation).toContain('UNLICENSED')
-    expect(result.findings.some((finding) => finding.explanation.includes('No LICENSE file'))).toBe(false)
+    expect(result.findings.some((finding) => finding.explanation.includes('No LICENSE file'))).toBe(
+      false,
+    )
   })
 
   it('reports a license pointer at an absent file', () => {
@@ -95,10 +108,9 @@ describe('scanProjectLicense', () => {
   })
 
   it('accepts a license pointer at a present file', () => {
-    const result = scanProjectLicense(
-      snapshotFrom({ 'LICENSE.txt': MIT_TEXT }),
-      [manifest('SEE LICENSE IN LICENSE.txt')],
-    )
+    const result = scanProjectLicense(snapshotFrom({ 'LICENSE.txt': MIT_TEXT }), [
+      manifest('SEE LICENSE IN LICENSE.txt'),
+    ])
     expect(result.findings).toEqual([])
   })
 
@@ -121,7 +133,10 @@ describe('scanProjectLicense', () => {
   })
 
   it('reports manifests that disagree with no file to settle it', () => {
-    const result = scanProjectLicense(snapshotFrom({}), [manifest('MIT'), manifest('Apache-2.0', 'pyproject.toml')])
+    const result = scanProjectLicense(snapshotFrom({}), [
+      manifest('MIT'),
+      manifest('Apache-2.0', 'pyproject.toml'),
+    ])
     const conflict = result.findings.find((finding) => finding.severity === 'should-fix')
     expect(conflict?.explanation).toContain('disagree')
     expect(conflict?.explanation).toContain('pyproject.toml')

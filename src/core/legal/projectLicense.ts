@@ -1,3 +1,5 @@
+const UNKNOWN_TEXT_CONFIDENCE = 0.5
+import { compareLegalText } from './files'
 // The project's own license declarations (M97, PLAN.md D76): LICENSE
 // and COPYING files read as license texts, the manifests' license fields
 // (collected by the ecosystem readers, which already parse them), and the
@@ -10,14 +12,14 @@ import type { LegalFindingDraft } from './finding'
 import type { LegalFileSnapshot } from './files'
 import {
   baseNameOf,
-  containsBinary,
+  hasBinaryContent,
   dirNameOf,
   excerpt,
   isLicenseFileName,
   topLines,
 } from './files'
-import { canonicalLicenseId } from './data'
-import { parseSpdxExpression } from './spdx'
+import { canonicalLicenseId, canonicalExceptionId } from './data'
+import { parseSpdxExpression, type SpdxNode } from './spdx'
 
 /** What the project-license reader established, for later readers. */
 export interface ProjectLicenseResult {
@@ -63,7 +65,7 @@ const BSD_SOURCE_BINARY = /\bredistribution and use in source and binary forms\b
  * which meet the same prose inside vendored packages.
  */
 export function identifyLicenseText(text: string): LicenseTextMatch | undefined {
-  const title = topLines(text, 5).join('\n')
+  const title = topLines(text).join('\n')
   for (const candidate of TITLE_PATTERNS) {
     if (candidate.pattern.test(title) || candidate.pattern.test(text)) {
       return { id: candidate.id, confidence: 1 }
@@ -73,27 +75,22 @@ export function identifyLicenseText(text: string): LicenseTextMatch | undefined 
     if (kind.pattern.test(text)) {
       const version = GPL_VERSION.exec(text)?.[1] ?? ''
       const suffix = GPL_OR_LATER.test(text) ? '-or-later' : '-only'
-      if (kind.id === 'LGPL' && (version === '2' || version === '2.1')) {
-        return { id: `LGPL-2.1${suffix}`, confidence: 1 }
+      if (kind.id === 'LGPL' && ['2', '2.1', '3'].includes(version)) {
+        const precise = version === '2.1' ? version : `${version}.0`
+        return { id: `LGPL-${precise}${suffix}`, confidence: 1 }
       }
-      if ((version === '2' || version === '3') && (kind.id === 'GPL' || kind.id === 'AGPL')) {
-        return { id: `${kind.id}-${version}.0${suffix}`, confidence: 1 }
-      }
-      return { id: kind.id, confidence: 0.6 }
+      return (version === '2' || version === '3') && (kind.id === 'GPL' || kind.id === 'AGPL')
+        ? { id: `${kind.id}-${version}.0${suffix}`, confidence: 1 }
+        : { id: kind.id, confidence: 0.6 }
     }
   }
-  if (BSD_SOURCE_BINARY.test(text)) {
-    return { id: 'BSD-2-Clause', confidence: 0.8 }
-  }
-  return undefined
+  return BSD_SOURCE_BINARY.test(text) ? { id: 'BSD-2-Clause', confidence: 0.8 } : undefined
 }
 
 const TEXT_FILE_SUFFIXES: ReadonlySet<string> = new Set(['txt', 'md', 'rst', 'text', 'textile'])
 
-function licenseFileSuffixIsKnown(base: string): boolean {
-  const dash = base.indexOf('-')
-  const dot = base.indexOf('.')
-  const cut = dash === -1 ? dot : dot === -1 ? dash : Math.min(dash, dot)
+function isLicenseFileSuffixKnown(base: string): boolean {
+  const cut = base.search(/[.-]/)
   if (cut === -1) {
     return true
   }
@@ -105,27 +102,29 @@ function licenseFileSuffixIsKnown(base: string): boolean {
 function rootLicenseFiles(snapshot: LegalFileSnapshot): string[] {
   return snapshot.files
     .filter((file) => dirNameOf(file) === '' && isLicenseFileName(baseNameOf(file)))
-    .filter((file) => licenseFileSuffixIsKnown(baseNameOf(file)))
-    .toSorted()
+    .filter((file) => isLicenseFileSuffixKnown(baseNameOf(file)))
+    .toSorted((a, b) => compareLegalText(a, b))
 }
 
 /** License files below the root: vendored code until proven otherwise. */
 function nestedLicenseFiles(snapshot: LegalFileSnapshot): string[] {
   return snapshot.files
     .filter((file) => dirNameOf(file) !== '' && isLicenseFileName(baseNameOf(file)))
-    .filter((file) => licenseFileSuffixIsKnown(baseNameOf(file)))
+    .filter((file) => isLicenseFileSuffixKnown(baseNameOf(file)))
     .filter((file) => !file.includes('node_modules/'))
-    .toSorted()
+    .toSorted((a, b) => compareLegalText(a, b))
 }
 
 const README_FILE = /^readme(\.[a-z0-9]+)?$/i
 const LICENSE_HEADING = /^#{0,6}\s*licen[sc]e\b/im
 const HEADER_SPDX = /SPDX-License-Identifier:\s*(\S+)/i
 
-function readmeLicense(snapshot: LegalFileSnapshot): { readonly raw: string; readonly file: string } | undefined {
+function readmeLicense(
+  snapshot: LegalFileSnapshot,
+): { readonly raw: string; readonly file: string } | undefined {
   const readme = snapshot.files
     .filter((file) => dirNameOf(file) === '' && README_FILE.test(baseNameOf(file)))
-    .toSorted()[0]
+    .toSorted((a, b) => compareLegalText(a, b))[0]
   if (readme === undefined) {
     return undefined
   }
@@ -134,23 +133,20 @@ function readmeLicense(snapshot: LegalFileSnapshot): { readonly raw: string; rea
     return undefined
   }
   const heading = LICENSE_HEADING.exec(text)
-  const section =
-    heading === null ? text.split('\n').slice(0, 40).join('\n') : text.slice(heading.index)
+  const section = heading === null ? topLines(text).join('\n') : text.slice(heading.index)
   const spdx = HEADER_SPDX.exec(section)
   if (spdx?.[1] !== undefined) {
     return { raw: spdx[1], file: readme }
   }
-  const opening = section.split('\n').slice(0, 15).join('\n')
-  for (const word of opening.match(/[A-Za-z0-9][A-Za-z0-9.+:-]*/g) ?? []) {
+  const opening = topLines(section).join('\n')
+  const listed1 = opening.match(/[A-Za-z0-9][A-Za-z0-9.+:-]*/g) ?? []
+  for (const word of listed1) {
     if (canonicalLicenseId(word) !== undefined) {
       return { raw: word, file: readme }
     }
   }
   const identified = identifyLicenseText(opening)
-  if (identified !== undefined) {
-    return { raw: identified.id, file: readme }
-  }
-  return undefined
+  return identified === undefined ? undefined : { raw: identified.id, file: readme }
 }
 
 /** Canonical ids in an expression: recognized ids plus custom references. */
@@ -160,7 +156,8 @@ function canonicalIdsOf(raw: string): string[] {
     return []
   }
   const ids: string[] = []
-  for (const license of parsed.licenses) {
+  const listed2 = parsed.licenses
+  for (const license of listed2) {
     const canonical = license.canonicalId ?? (license.custom ? license.id : undefined)
     if (canonical !== undefined && !ids.includes(canonical)) {
       ids.push(canonical)
@@ -171,7 +168,33 @@ function canonicalIdsOf(raw: string): string[] {
 
 const LICENSE_POINTER = 'SEE LICENSE IN '
 
-function malformedManifestFinding(manifest: ManifestLicenseDeclaration, error: string): LegalFindingDraft {
+function expressionTerms(node: SpdxNode, kind: 'and' | 'or'): string[] {
+  return node.kind === kind
+    ? node.children.flatMap((child) => expressionTerms(child, kind))
+    : [normalizedExpression(node)]
+}
+
+function normalizedExpression(node: SpdxNode): string {
+  if (node.kind === 'license') {
+    const license = node.license
+    const id = `${license.canonicalId ?? license.id}${license.plus ? '+' : ''}`
+    return license.exception === undefined
+      ? id
+      : `${id} WITH ${canonicalExceptionId(license.exception.id) ?? license.exception.id}`
+  }
+  const terms = [...new Set(expressionTerms(node, node.kind))].toSorted(compareLegalText)
+  return `(${terms.join(node.kind === 'and' ? ' AND ' : ' OR ')})`
+}
+
+function projectExpressionKey(raw: string): string {
+  const parsed = parseSpdxExpression(raw)
+  return parsed.ok ? normalizedExpression(parsed.root) : raw.trim()
+}
+
+function malformedManifestFinding(
+  manifest: ManifestLicenseDeclaration,
+  error: string,
+): LegalFindingDraft {
   return {
     severity: 'should-fix',
     category: 'license',
@@ -206,10 +229,14 @@ export function scanProjectLicense(
   const incomplete: string[] = []
 
   const licenseFiles = rootLicenseFiles(snapshot)
+  if (licenseFiles.length > 0)
+    incomplete.push(
+      'not checked: full SPDX text matching and modified terms; title and clause matching is heuristic',
+    )
   const fileIds = new Map<string, number>()
   for (const file of licenseFiles) {
     const text = snapshot.readFile(file)
-    if (text === undefined || containsBinary(text)) {
+    if (text === undefined || hasBinaryContent(text)) {
       continue
     }
     const match = identifyLicenseText(text)
@@ -223,7 +250,7 @@ export function scanProjectLicense(
         explanation: `${file} reads as no recognized license text; its terms need a human read.`,
         recommendation: 'Confirm what license the file grants and declare it in the manifest.',
         fixable: false,
-        evidenceExcerpt: excerpt(topLines(text, 5).join('\n')),
+        evidenceExcerpt: excerpt(topLines(text).join('\n')),
       })
       continue
     }
@@ -232,7 +259,9 @@ export function scanProjectLicense(
       fileIds.set(match.id, match.confidence)
     }
   }
-  const fileIdList = [...fileIds.keys()].toSorted()
+  const fileIdList = Array.from(fileIds.keys(), (entry) => entry).toSorted((a, b) =>
+    compareLegalText(a, b),
+  )
   const fileIdSet = new Set(fileIdList)
 
   const seen = new Set<string>()
@@ -268,7 +297,8 @@ export function scanProjectLicense(
         evidenceSource: `project license reader at ${manifest.file}`,
         confidence: 1,
         explanation: `${manifest.file} marks the project UNLICENSED: proprietary, all rights reserved by default.`,
-        recommendation: 'Ship it only to its intended recipients; a public distribution needs a license grant.',
+        recommendation:
+          'Ship it only to its intended recipients; a public distribution needs a license grant.',
         fixable: false,
         evidenceExcerpt: excerpt(manifest.raw),
       })
@@ -290,16 +320,17 @@ export function scanProjectLicense(
         continue
       }
       const assessmentSet = new Set(assessment.ids)
-      const differs =
-        assessment.ids.some((id) => !fileIdSet.has(id)) || fileIdList.some((id) => !assessmentSet.has(id))
-      if (differs) {
+      const isDiffers =
+        assessment.ids.some((id) => !fileIdSet.has(id)) ||
+        fileIdList.some((id) => !assessmentSet.has(id))
+      if (isDiffers) {
         findings.push({
           severity: 'should-fix',
           category: 'license',
           file: assessment.manifest.file,
           evidenceSource: `project license reader at ${assessment.manifest.file} and ${licenseFiles[0] ?? 'a license file'}`,
           confidence: 0.9,
-          explanation: `${assessment.manifest.file} declares ${assessment.manifest.raw} but the license file reads as ${fileIdList.join(', ') || 'an unrecognized text'}.`,
+          explanation: `${assessment.manifest.file} declares ${assessment.manifest.raw} but the license file reads as ${fileIdList.join(', ')}.`,
           recommendation:
             'Reconcile the two before shipping: fix the metadata or replace the license file, with explicit confirmation for a license change.',
           fixable: false,
@@ -313,14 +344,16 @@ export function scanProjectLicense(
       if (assessment.ids.length === 0) {
         continue
       }
-      const key = [...assessment.ids].toSorted().join(' OR ')
+      const key = projectExpressionKey(assessment.manifest.raw)
       const group = groups.get(key) ?? []
       group.push(assessment.manifest)
       groups.set(key, group)
     }
     if (groups.size > 1) {
-      const names = [...groups.entries()]
-        .map(([ids, sources]) => `${sources.map((source) => source.file).join(', ')} declares ${ids}`)
+      const names = [...groups]
+        .map(
+          ([ids, sources]) => `${sources.map((source) => source.file).join(', ')} declares ${ids}`,
+        )
         .join('; ')
       findings.push({
         severity: 'should-fix',
@@ -328,13 +361,28 @@ export function scanProjectLicense(
         evidenceSource: 'project license reader',
         confidence: 0.9,
         explanation: `The manifests disagree with no license file to settle it: ${names}.`,
-        recommendation: 'Reconcile the manifests before shipping, with explicit confirmation for a license change.',
+        recommendation:
+          'Reconcile the manifests before shipping, with explicit confirmation for a license change.',
         fixable: false,
       })
     }
   }
 
-  const manifestUnion = [...new Set(assessments.flatMap((assessment) => assessment.ids))].toSorted()
+  if (licenseFiles.length === 0 && assessments.some((assessment) => assessment.ids.length > 0)) {
+    findings.push({
+      severity: 'should-fix',
+      category: 'license',
+      evidenceSource: 'project license reader',
+      confidence: 1,
+      explanation: 'The manifest declares terms but no root license file was found.',
+      recommendation:
+        'Add the applicable license text from verified ownership before distribution.',
+      fixable: false,
+    })
+  }
+  const manifestUnion = [...new Set(assessments.flatMap((assessment) => assessment.ids))].toSorted(
+    (a, b) => compareLegalText(a, b),
+  )
   const declared = fileIdList.length > 0 ? fileIdList : manifestUnion
   const declaredSet = new Set(declared)
 
@@ -369,8 +417,8 @@ export function scanProjectLicense(
     })
   }
 
-  const declaredAnything = assessments.length > 0 || licenseFiles.length > 0
-  if (declared.length === 0 && readmeIds.length === 0 && !declaredAnything) {
+  const isDeclaredAnything = assessments.length > 0 || licenseFiles.length > 0
+  if (!isDeclaredAnything && declared.length === 0 && readmeIds.length === 0) {
     findings.push({
       severity: 'advice',
       category: 'license',
@@ -378,14 +426,16 @@ export function scanProjectLicense(
       confidence: 0.8,
       explanation:
         'No LICENSE file, manifest license field or README declaration found: undistributed code is all rights reserved by default.',
-      recommendation: 'Choose a license with explicit confirmation and declare it in a LICENSE file and the manifest.',
+      recommendation:
+        'Choose a license with explicit confirmation and declare it in a LICENSE file and the manifest.',
       fixable: false,
     })
   }
 
-  for (const nested of nestedLicenseFiles(snapshot)) {
+  const listed3 = nestedLicenseFiles(snapshot)
+  for (const nested of listed3) {
     const text = snapshot.readFile(nested)
-    if (text === undefined || containsBinary(text)) {
+    if (text === undefined || hasBinaryContent(text)) {
       continue
     }
     const match = identifyLicenseText(text)
@@ -394,14 +444,15 @@ export function scanProjectLicense(
       category: 'noticeFile',
       file: nested,
       evidenceSource: `project license reader at ${nested}`,
-      confidence: match === undefined ? 0.5 : 0.8,
+      confidence: match?.confidence ?? UNKNOWN_TEXT_CONFIDENCE,
       explanation:
         match === undefined
           ? `${nested} carries license-like text the reader does not recognize: vendored code needs attribution in the notices.`
           : `${nested} carries ${match.id} terms inside the workspace: vendored code needs attribution in the notices.`,
-      recommendation: 'Confirm the vendored code is attributed in THIRD_PARTY_NOTICES or the equivalent notice file.',
+      recommendation:
+        'Confirm the vendored code is attributed in THIRD_PARTY_NOTICES or the equivalent notice file.',
       fixable: false,
-      evidenceExcerpt: excerpt(topLines(text, 5).join('\n')),
+      evidenceExcerpt: excerpt(topLines(text).join('\n')),
     })
   }
 
