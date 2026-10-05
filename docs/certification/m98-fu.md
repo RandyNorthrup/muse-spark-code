@@ -351,3 +351,31 @@ delivery; suggested Unreleased repair note: “Identical held judge actions
 share one dispatch, and resolving one approval preserves the other held
 approvals' cautions.” This repair performs **0 live/paid/local model calls**,
 credential reads, installs, network requests, merges, rebases or pushes.
+
+### FIXM98FU final checks
+
+Implementation commit `2d8b8c7f47cd47ec30384cda952dc98c99cebdba` used the
+worktree's enabled pre-commit hook: ESLint/Prettier and staged gitleaks pass.
+The production hash above still matches after hooks and build. All checks
+below ran directly on macmini; no aggregate quality/full-suite run.
+
+| Check                                      | Result                                                                                |
+| ------------------------------------------ | ------------------------------------------------------------------------------------- |
+| `npm run typecheck`                        | All five projects pass; final fixture changes also pass `npm run typecheck:unit`      |
+| Scoped ESLint / Prettier / diff whitespace | Pass, no suppressions                                                                 |
+| Three whole owning Vitest files, rig flags | **52/52 pass**                                                                        |
+| Original-source control + six guard drills | Red exit 1, byte-exact restore, whole reviewer file green after each                  |
+| `npm run deadcode`                         | Pass; inherited vendor configuration hint only                                        |
+| `npm run cycles`                           | Pass, 403 files, no cycles                                                            |
+| `npx jscpd`                                | Pass, 859 files, zero clones                                                          |
+| `node scripts/check-l10n.mjs`              | Pass, 14 tables, 127 manifest strings, 433 source files; 0 problems                   |
+| `npm run build`                            | Pass, all 18 size caps, bundle split/model-text readers, host globals, notices        |
+| `npm run check:host-api`                   | Exit 1: exactly the three inherited P0/FIXM98J snapshot differences; no FU difference |
+
+Unchanged bundle sizes: extension **566,613 bytes / 600 KiB**, Model API
+**436,630 bytes / 475 KiB**, checkpoint store **109.1 / 225 KiB**.
+The production activation metafile has **zero core/host judge inputs**.
+The host-API differences remain `paidHost.ts` 11 → 12 calls, that file added
+to `WorkspaceConfiguration.get`, and `node:crypto` 32 → 33, as PLAN §7
+already delegates. Z/lead refreshes/reviews that snapshot and runs integrated
+quality/coverage/host certification; the review's sole P2 is fully repaired.
