@@ -11,6 +11,7 @@ import type { AgentEvent } from '../../src/shared/agentEvents'
 import {
   CLARIFICATION_MAX_CHARS,
   HOOK_MAX_STOP_CONTINUATIONS,
+  HOOK_ON_FAILURE_MAX_DEPTH,
   MODEL_API_MAX_OUTPUT_TOKENS,
   MODEL_API_MAX_RETRIES,
   MODEL_API_MAX_TOOL_ROUNDS,
@@ -45,7 +46,14 @@ import {
 import { FakeLogOutputChannel } from './helpers/fakes'
 import { estimateCostUsd, formatUsd } from '../../src/core/usage/insights'
 import { EN } from '../../src/shared/l10n/en'
-import { BASE_LOCALE, fill, formatBytes, formatNumber, setUiText } from '../../src/shared/l10n/text'
+import {
+  BASE_LOCALE,
+  fill,
+  formatBytes,
+  formatNumber,
+  plural,
+  setUiText,
+} from '../../src/shared/l10n/text'
 import {
   estimateInput,
   requestParts,
@@ -140,6 +148,29 @@ function hooksFor(event: string, command: string): readonly HookDefinition[] {
     'project',
     'linux',
   ).hooks
+}
+
+/** An async hook, the only form Muse Code 1.4.2 accepts for Interrupt (M91 lane R). */
+function asyncHooksFor(event: string, command: string): readonly HookDefinition[] {
+  return parseHookConfig(
+    JSON.stringify({
+      hooks: {
+        [event]: [{ hooks: [{ type: 'command', command, async: true }] }],
+      },
+    }),
+    'project',
+    'linux',
+  ).hooks
+}
+
+/** The Interrupt payloads among recorded hook payloads (M91 lane R). */
+function interruptPayloadsOf(payloads: readonly unknown[]): Record<string, unknown>[] {
+  return payloads.filter(
+    (payload): payload is Record<string, unknown> =>
+      typeof payload === 'object' &&
+      payload !== null &&
+      (payload as { hook_event_name?: unknown }).hook_event_name === 'Interrupt',
+  )
 }
 
 function permitHook() {
@@ -5490,8 +5521,10 @@ describe('ModelApiSession: hook boundaries (M51)', () => {
     const { session, events, turnDone } = await startSession(t)
     await session.sendTurn([{ type: 'text', text: 'blocked prompt' }])
     await turnDone()
+    // Muse Code ends a UserPromptSubmit block cancelled with the hook's reason
+    // (M91 capture run 5), so Interrupt fires for it; other hook stops fail.
     expect(events.find((event) => event.type === 'turnCompleted')).toMatchObject({
-      terminal: 'failed',
+      terminal: 'cancelled',
       reason: 'prompt blocked',
     })
     expect(JSON.stringify(t.log.warn.mock.calls)).not.toContain('prompt blocked')
@@ -5526,6 +5559,390 @@ describe('ModelApiSession: hook boundaries (M51)', () => {
       terminal: 'completed',
     })
     expect(t.api.responseBodies()).toHaveLength(1)
+  })
+
+  describe('Muse parity: Interrupt, SessionFork, PostToolUseFailure correction (M91 lane R)', () => {
+    it('fires Interrupt on Stop during a turn, and never on an idle cancel', async () => {
+      const payloads: unknown[] = []
+      const t = setup({
+        hooks: asyncHooksFor('Interrupt', 'note'),
+        runHook: (_command, payload) => {
+          payloads.push(JSON.parse(payload) as unknown)
+          return hookReply()
+        },
+      })
+      const { session, events, turnDone } = await startSession(t)
+      // An idle cancel fires nothing, even with a completed turn behind it:
+      // the captures' idle closes all followed completed turns.
+      await answerFirst(t, session, turnDone)
+      await session.cancel()
+      // Let the fire-and-forget dispatch settle: an illicit Interrupt would
+      // have run by now.
+      await delay(50)
+      expect(payloads).toEqual([])
+
+      t.api.script({
+        calls: [{ name: 'bash', arguments: '{"command":"sleep","description":"d"}' }],
+      })
+      const submitted = await session.sendTurn([{ type: 'text', text: 'run it' }])
+      await approvalRequest(events, 0)
+      await session.cancel()
+      await turnDone()
+      expect(events.at(-2)).toMatchObject({ type: 'turnCompleted', terminal: 'cancelled' })
+      const interrupts = interruptPayloadsOf(payloads)
+      expect(interrupts).toHaveLength(1)
+      expect(interrupts[0]).toMatchObject({
+        hook_event_name: 'Interrupt',
+        turn_id: submitted.turnId,
+      })
+    })
+
+    it('fires Interrupt when a UserPromptSubmit block cancels the turn', async () => {
+      const payloads: unknown[] = []
+      const t = setup({
+        hooks: [...hooksFor('UserPromptSubmit', 'guard'), ...asyncHooksFor('Interrupt', 'note')],
+        runHook: (_command, payload) => {
+          const parsed = JSON.parse(payload) as { hook_event_name: string }
+          payloads.push(parsed)
+          return parsed.hook_event_name === 'UserPromptSubmit'
+            ? Promise.resolve({
+                stdout: '',
+                stderr: 'prompt blocked',
+                exitCode: 2,
+                isTimedOut: false,
+                isCancelled: false,
+              })
+            : hookReply()
+        },
+      })
+      const { session, events, turnDone } = await startSession(t)
+      const submitted = await session.sendTurn([{ type: 'text', text: 'blocked prompt' }])
+      await turnDone()
+      expect(events.find((event) => event.type === 'turnCompleted')).toMatchObject({
+        terminal: 'cancelled',
+        reason: 'prompt blocked',
+      })
+      expect(t.api.responseBodies()).toHaveLength(0)
+      const interrupts = interruptPayloadsOf(payloads)
+      expect(interrupts).toHaveLength(1)
+      expect(interrupts[0]).toMatchObject({ turn_id: submitted.turnId })
+    })
+
+    it('fires Interrupt on dispose with a running turn, and not on an idle dispose', async () => {
+      const idlePayloads: unknown[] = []
+      const idle = setup({
+        hooks: asyncHooksFor('Interrupt', 'note'),
+        runHook: (_command, payload) => {
+          idlePayloads.push(JSON.parse(payload) as unknown)
+          return hookReply()
+        },
+      })
+      const idleStarted = await startSession(idle)
+      // A completed turn behind the dispose still fires nothing while idle.
+      idle.api.script({ text: 'first reply' })
+      await idleStarted.session.sendTurn([{ type: 'text', text: 'first' }])
+      await idleStarted.turnDone()
+      idleStarted.session.dispose()
+      // Let the fire-and-forget dispatch settle: an illicit Interrupt would
+      // have run by now.
+      await delay(50)
+      expect(idlePayloads).toEqual([])
+      await idle.host.close()
+
+      const payloads: unknown[] = []
+      const t = setup({
+        hooks: asyncHooksFor('Interrupt', 'note'),
+        runHook: (_command, payload) => {
+          payloads.push(JSON.parse(payload) as unknown)
+          return hookReply()
+        },
+      })
+      const { session, events } = await startSession(t)
+      t.api.script({
+        calls: [{ name: 'bash', arguments: '{"command":"sleep","description":"d"}' }],
+      })
+      const submitted = await session.sendTurn([{ type: 'text', text: 'run it' }])
+      await approvalRequest(events, 0)
+      session.dispose()
+      await vi.waitFor(() => {
+        expect(interruptPayloadsOf(payloads)).toHaveLength(1)
+      })
+      expect(interruptPayloadsOf(payloads)[0]).toMatchObject({ turn_id: submitted.turnId })
+      await t.host.close()
+    })
+
+    it('accepts a sync SessionFork and runs nothing when forking', async () => {
+      const forkHooks = hooksFor('SessionFork', 'veto')
+      expect(forkHooks).toMatchObject([{ event: 'SessionFork', isAsync: false }])
+      const payloads: unknown[] = []
+      const t = setup({
+        hooks: [...hooksFor('SessionStart', 'record'), ...forkHooks],
+        runHook: (_command, payload) => {
+          payloads.push(JSON.parse(payload) as unknown)
+          return hookReply()
+        },
+      })
+      const { session, turnDone } = await startSession(t)
+      await answerFirst(t, session, turnDone)
+      const fork = await t.host.forkSession(session.sessionId, 'muse-spark-1.3')
+      expect(fork.record.forkedFrom).toMatchObject({ sessionId: session.sessionId })
+      expect(
+        payloads.filter(
+          (payload) => (payload as { hook_event_name?: unknown }).hook_event_name === 'SessionFork',
+        ),
+      ).toEqual([])
+      // The fork still runs its SessionStart hooks: only SessionFork stays silent.
+      expect(
+        payloads.filter(
+          (payload) =>
+            (payload as { hook_event_name?: unknown }).hook_event_name === 'SessionStart',
+        ),
+      ).toHaveLength(2)
+    })
+
+    it('reruns a failed tool with corrected input through PreToolUse and approval', async () => {
+      // A non-zero shell exit is model data on this backend, not a failure:
+      // the first attempt is refused by its PreToolUse guard instead, which
+      // fails the call and fires PostToolUseFailure.
+      let preCalls = 0
+      const payloads: { hook_event_name: string; tool_input?: unknown }[] = []
+      const t = setup({
+        hooks: [...hooksFor('PreToolUse', 'guard'), ...hooksFor('PostToolUseFailure', 'fix')],
+        runHook: (_command, payload) => {
+          const parsed = JSON.parse(payload) as {
+            hook_event_name: string
+            tool_input?: unknown
+          }
+          payloads.push(parsed)
+          if (parsed.hook_event_name === 'PreToolUse') {
+            preCalls += 1
+            return preCalls === 1
+              ? Promise.resolve({
+                  stdout: '',
+                  stderr: 'too dangerous',
+                  exitCode: 2,
+                  isTimedOut: false,
+                  isCancelled: false,
+                })
+              : hookReply()
+          }
+          return parsed.hook_event_name === 'PostToolUseFailure'
+            ? hookReply(
+                JSON.stringify({
+                  hookSpecificOutput: {
+                    hookEventName: 'PostToolUseFailure',
+                    updatedInput: { command: 'echo fixed', description: 'd' },
+                  },
+                }),
+              )
+            : hookReply()
+        },
+      })
+      const { session, events, turnDone } = await startSession(t)
+      t.api.script(
+        {
+          calls: [
+            {
+              name: 'bash',
+              arguments: '{"command":"echo bad","description":"d"}',
+              callId: 'c1',
+            },
+          ],
+        },
+        { text: 'done' },
+      )
+      await session.sendTurn([{ type: 'text', text: 'fix it' }])
+      // Only the corrected call reaches approval: the refused one never runs.
+      const request = await approvalRequest(events, 0)
+      await session.decideApproval({
+        approvalId: request.approvalId,
+        choiceId: 'allow_once',
+        requirementId: request.requirementId,
+      })
+      await turnDone()
+      // The blocked call never ran; the corrected one did, through its own card.
+      expect(t.shellCalls.map((call) => call.command)).toEqual(['echo fixed'])
+      // The corrected call went through PreToolUse again, with the new input.
+      const preInputs = payloads
+        .filter((payload) => payload.hook_event_name === 'PreToolUse')
+        .map((payload) => payload.tool_input)
+      expect(preInputs).toHaveLength(2)
+      expect(preInputs[0]).toMatchObject({ command: 'echo bad' })
+      expect(preInputs[1]).toMatchObject({ command: 'echo fixed' })
+      // ... and through its own approval card.
+      expect(
+        events.filter((event) => event.type === 'approvalRequested').map((event) => event.subject),
+      ).toEqual([{ kind: 'shell', command: 'echo fixed' }])
+      // Each attempt keeps its row, but one call_id answers once: the success.
+      expect(
+        events
+          .filter((event) => event.type === 'itemCompleted' && event.item.kind === 'toolCall')
+          .map((event) => event.type === 'itemCompleted' && event.item.status),
+      ).toEqual(['rejected', 'completed'])
+      const outputs = session
+        .snapshot()
+        .replay.filter(
+          (entry) => entry.item.type === 'function_call_output' && entry.item.call_id === 'c1',
+        )
+      expect(outputs).toHaveLength(1)
+      expect(JSON.stringify(outputs[0])).toContain('fixed')
+      expect(events.at(-2)).toMatchObject({ type: 'turnCompleted', terminal: 'completed' })
+    })
+
+    it('refuses a correction naming another tool', async () => {
+      const t = setup({
+        hooks: [...hooksFor('PreToolUse', 'guard'), ...hooksFor('PostToolUseFailure', 'fix')],
+        runHook: (_command, payload) => {
+          const parsed = JSON.parse(payload) as { hook_event_name: string }
+          if (parsed.hook_event_name === 'PreToolUse') {
+            return Promise.resolve({
+              stdout: '',
+              stderr: 'too dangerous',
+              exitCode: 2,
+              isTimedOut: false,
+              isCancelled: false,
+            })
+          }
+          return parsed.hook_event_name === 'PostToolUseFailure'
+            ? hookReply(
+                JSON.stringify({
+                  hookSpecificOutput: {
+                    hookEventName: 'PostToolUseFailure',
+                    updatedInput: {
+                      tool_name: 'write_file',
+                      command: 'echo fixed',
+                      description: 'd',
+                    },
+                  },
+                }),
+              )
+            : hookReply()
+        },
+      })
+      const { session, events, turnDone } = await startSession(t)
+      t.api.script(
+        {
+          calls: [
+            {
+              name: 'bash',
+              arguments: '{"command":"echo bad","description":"d"}',
+              callId: 'c1',
+            },
+          ],
+        },
+        { text: 'done' },
+      )
+      await session.sendTurn([{ type: 'text', text: 'fix it' }])
+      await turnDone()
+      // The refused call never ran, the correction never ran, and no card
+      // ever asked: the refusal names its reason for the model instead.
+      expect(t.shellCalls).toEqual([])
+      expect(hasApprovalCard(events)).toBe(false)
+      expect(JSON.stringify(session.snapshot().replay)).toContain(
+        fill(UI_TEXT.hookCorrectionRefused, { reason: UI_TEXT.hookCorrectionOtherTool }),
+      )
+      expect(events.at(-2)).toMatchObject({ type: 'turnCompleted', terminal: 'completed' })
+    })
+
+    it('refuses a correction reaching outside the workspace', async () => {
+      const t = setup({
+        hooks: [...hooksFor('PreToolUse', 'guard'), ...hooksFor('PostToolUseFailure', 'fix')],
+        runHook: (_command, payload) => {
+          const parsed = JSON.parse(payload) as { hook_event_name: string }
+          if (parsed.hook_event_name === 'PreToolUse') {
+            return Promise.resolve({
+              stdout: '',
+              stderr: 'no write',
+              exitCode: 2,
+              isTimedOut: false,
+              isCancelled: false,
+            })
+          }
+          return parsed.hook_event_name === 'PostToolUseFailure'
+            ? hookReply(
+                JSON.stringify({
+                  hookSpecificOutput: {
+                    hookEventName: 'PostToolUseFailure',
+                    updatedInput: { path: '../outside.txt', content: 'x' },
+                  },
+                }),
+              )
+            : hookReply()
+        },
+      })
+      const { session, events, turnDone } = await startSession(t)
+      scriptWriteCalls(t, { path: 'notes.txt', content: 'x', callId: 'c1' })
+      await session.sendTurn([{ type: 'text', text: 'write' }])
+      await turnDone()
+      // The blocked call never ran, and the corrected path never wrote.
+      expect(t.files.has(`${ROOT}/notes.txt`)).toBe(false)
+      expect(JSON.stringify(session.snapshot().replay)).toContain(
+        fill(UI_TEXT.hookCorrectionRefused, { reason: UI_TEXT.hookCorrectionOutside }),
+      )
+      expect(events.at(-2)).toMatchObject({ type: 'turnCompleted', terminal: 'completed' })
+    })
+
+    it('holds the correction depth bound', async () => {
+      // Every attempt is refused by its PreToolUse guard, and every failure
+      // is "corrected": the chain runs one first attempt plus one rerun per
+      // step, then the bound refuses. Nothing ever executes or asks.
+      const payloads: { hook_event_name: string }[] = []
+      const t = setup({
+        hooks: [...hooksFor('PreToolUse', 'guard'), ...hooksFor('PostToolUseFailure', 'fix')],
+        runHook: (_command, payload) => {
+          const parsed = JSON.parse(payload) as { hook_event_name: string }
+          payloads.push(parsed)
+          if (parsed.hook_event_name === 'PreToolUse') {
+            return Promise.resolve({
+              stdout: '',
+              stderr: 'still dangerous',
+              exitCode: 2,
+              isTimedOut: false,
+              isCancelled: false,
+            })
+          }
+          return parsed.hook_event_name === 'PostToolUseFailure'
+            ? hookReply(
+                JSON.stringify({
+                  hookSpecificOutput: {
+                    hookEventName: 'PostToolUseFailure',
+                    updatedInput: { command: 'echo again', description: 'd' },
+                  },
+                }),
+              )
+            : hookReply()
+        },
+      })
+      const { session, events, turnDone } = await startSession(t)
+      t.api.script(
+        {
+          calls: [
+            {
+              name: 'bash',
+              arguments: '{"command":"echo again","description":"d"}',
+              callId: 'c1',
+            },
+          ],
+        },
+        { text: 'done' },
+      )
+      await session.sendTurn([{ type: 'text', text: 'again' }])
+      await turnDone()
+      expect(payloads.filter((payload) => payload.hook_event_name === 'PreToolUse')).toHaveLength(
+        1 + HOOK_ON_FAILURE_MAX_DEPTH,
+      )
+      expect(
+        payloads.filter((payload) => payload.hook_event_name === 'PostToolUseFailure'),
+      ).toHaveLength(1 + HOOK_ON_FAILURE_MAX_DEPTH)
+      expect(t.shellCalls).toEqual([])
+      expect(hasApprovalCard(events)).toBe(false)
+      expect(JSON.stringify(session.snapshot().replay)).toContain(
+        fill(UI_TEXT.hookCorrectionRefused, {
+          reason: plural(UI_TEXT.hookCorrectionTooDeep, HOOK_ON_FAILURE_MAX_DEPTH),
+        }),
+      )
+      expect(events.at(-2)).toMatchObject({ type: 'turnCompleted', terminal: 'completed' })
+    })
   })
 
   it('rechecks permissions after a hook rewrites a tool to a protected path', async () => {
