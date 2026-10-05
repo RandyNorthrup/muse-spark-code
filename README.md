@@ -2652,7 +2652,8 @@ applier is unavailable; it changes no files. Requested Markdown export,
 registry consent in the panel and bounded model explanations are not delivered.
 Scanner explanations remain English, although the report controls and setting
 are translated in all 14 languages. Installed-VSIX and Windows receipts are
-pending. See [the certification record](docs/certification/m97.md) for the
+pending. The independent S/W review also has unresolved security, evidence
+and UI findings awaiting its fix lane. See [the certification record](docs/certification/m97.md) for the
 acceptance gaps and measured gates; M97 is not fully certified.
 
 The ACP package also provides a separate, offline headless `legal` command;

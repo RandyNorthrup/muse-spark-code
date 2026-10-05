@@ -1,6 +1,8 @@
 **
 !dist/extension.js
 !dist/modelApi.js
+!dist/legalScan.js
+!dist/legal-data/**
 !dist/sessionBoard.js
 !dist/reviewer.js
 !dist/planMarkdown.js
@@ -8,9 +10,6 @@
 !dist/review.js
 !dist/agentImport.js
 !dist/bundledSkills.js
-!dist/legalScan.js
-!src/core/legal/data/NOTICE.md
-!src/core/legal/data/provenance.json
 !dist/codeIntel.js
 !dist/voice.js
 !dist/webFetch.js

@@ -26,7 +26,7 @@ describe('parseLegalPrompt', () => {
     expect(parseLegalPrompt('')).toBeUndefined()
   })
 
-  it('never invents an option: a dash word is ordinary text', () => {
+  it('refuses option syntax in the reserved command', () => {
     expect(parseLegalPrompt('/legal --fix')).toBeUndefined()
     expect(parseLegalPrompt('/legal src -r')).toBeUndefined()
   })

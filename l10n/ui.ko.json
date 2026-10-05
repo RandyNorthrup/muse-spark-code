@@ -1800,6 +1800,7 @@
   "legalEvidenceLabel": "근거: {evidence}",
   "legalConfidenceLabel": "신뢰도: {confidence}",
   "legalScanItem": "/legal",
+  "legalCommandUsage": "사용법: /legal [작업 영역의 상대 경로 …]. 옵션은 지원되지 않습니다.",
   "legalScanItemDetail": "라이선스, 저작자 표시, 헤더 소견에 대해 작업 영역을 검사합니다",
   "legalScanBusy": "현재 턴이 끝나면 법률 검사가 시작됩니다.",
   "legalScanUntrusted": "법률 검사는 작업 영역을 읽지만, 제한 모드에서는 허용되지 않습니다. 사용하려면 작업 영역을 신뢰하세요.",

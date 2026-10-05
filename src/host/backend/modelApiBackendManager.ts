@@ -22,6 +22,7 @@ import type {
 import type { ResponseAttemptGuard } from '../../core/backends/modelapi/client'
 import type { OwnedSessionBudgetScope } from '../../core/backends/modelapi/sessionBudget'
 import type { SessionStore } from '../../core/backends/modelapi/sessionStore'
+import type { LegalScanRunner } from '../../shared/legal'
 import type { ScheduleStore } from '../../shared/schedule'
 import type { ToolIo } from '../../core/backends/modelapi/tools'
 import type { VerifyHooks } from '../../core/backends/modelapi/verifyLoop'
@@ -29,7 +30,6 @@ import type { ContextIo } from '../../core/context/contextFiles'
 import type { BundledSkillsSource } from '../../core/context/skills'
 import type { LanguageServiceHost } from '../../core/codeIntel/languageService'
 import type { McpTool } from '../../core/mcp'
-import type { LegalScanRunner } from '../../shared/legal'
 import type { MemoryStore } from '../../core/memory/memoryStore'
 import type { PermissionSettings } from '../../core/permissionSettings'
 import type { WebFetcher } from '../../core/web/webFetch'
@@ -104,12 +104,12 @@ export interface ModelApiBackendManagerDeps extends ModelApiPaidHooks {
     | ((workspaceRoot: string, newPool: McpPoolFactory) => McpToolSource | Promise<McpToolSource>)
     | undefined
   /** The extension's own IDE tools, offered in process (M50). */
+  readonly legalScan?: LegalScanRunner | undefined
   readonly ideTools?: readonly McpTool[] | undefined
   /** The window's web fetch, run in this bundle for the backend's `web_fetch` (M69). */
   readonly webFetch?: WebFetcher | undefined
   /** VS Code's language services, for the code intelligence tools (M67). */
   readonly codeIntel?: LanguageServiceHost | undefined
-  readonly legalScan?: LegalScanRunner | undefined
   /** `museSpark.modelApiRepoMap`, read per turn (M67). */
   readonly isRepoMapInPrompt?: (() => boolean) | undefined
   /** `museSpark.modelApiObservationPacking`, read when a conversation starts or resumes (M73). */
@@ -151,7 +151,6 @@ interface HostVariant {
   readonly permissionSettings: ModelApiBackendManagerDeps['permissionSettings']
   readonly webFetch: ModelApiBackendManagerDeps['webFetch']
   readonly codeIntel: ModelApiBackendManagerDeps['codeIntel']
-  readonly legalScan: ModelApiBackendManagerDeps['legalScan']
   readonly isRepoMapInPrompt: ModelApiBackendManagerDeps['isRepoMapInPrompt']
   readonly io: ToolIo
   readonly budgetScope?: OwnedSessionBudgetScope | undefined
@@ -162,6 +161,7 @@ interface HostVariant {
   readonly scheduleStore: ScheduleStore | undefined
   readonly describeEnvironment: () => Promise<EnvironmentFacts>
   readonly isPaidFeatureOn: ModelApiBackendManagerDeps['isPaidFeatureOn']
+  readonly legalScan: LegalScanRunner | undefined
   readonly ideTools: readonly McpTool[] | undefined
   readonly allowsPaidUse: ModelApiBackendManagerDeps['allowsPaidUse']
   readonly isPaidUseRemembered: ModelApiBackendManagerDeps['isPaidUseRemembered']
@@ -286,10 +286,10 @@ export class ModelApiBackendManager {
         promptCacheRetention: this.deps.promptCacheRetention,
         sessionBudgetUsd: this.deps.sessionBudgetUsd,
         showReplyUsage: this.deps.showReplyUsage,
+        legalScan: variant.legalScan,
         ideTools: variant.ideTools,
         webFetch: variant.webFetch,
         codeIntel: variant.codeIntel,
-        legalScan: variant.legalScan,
         isRepoMapInPrompt: variant.isRepoMapInPrompt,
         observationPacking: this.deps.isObservationPackingOn,
         allowsPaidUse: variant.allowsPaidUse,
@@ -325,13 +325,13 @@ export class ModelApiBackendManager {
       permissionSettings: this.deps.permissionSettings,
       webFetch: this.deps.webFetch,
       codeIntel: this.deps.codeIntel,
-      legalScan: this.deps.legalScan,
       isRepoMapInPrompt: this.deps.isRepoMapInPrompt,
       io: this.deps.io,
       store: this.deps.store,
       scheduleStore: this.deps.scheduleStore,
       describeEnvironment: this.deps.describeEnvironment,
       isPaidFeatureOn: this.deps.isPaidFeatureOn,
+      legalScan: this.deps.legalScan,
       ideTools: this.deps.ideTools,
       allowsPaidUse: this.deps.allowsPaidUse,
       isPaidUseRemembered: this.deps.isPaidUseRemembered,
@@ -382,7 +382,6 @@ export class ModelApiBackendManager {
         permissionSettings: this.deps.permissionSettings,
         webFetch: undefined,
         codeIntel: undefined,
-        legalScan: undefined,
         isRepoMapInPrompt: undefined,
         io: {
           ...this.deps.io,
@@ -414,6 +413,7 @@ export class ModelApiBackendManager {
         scheduleStore: undefined,
         describeEnvironment: () => this.deps.describeAttemptEnvironment(worktreeRoot),
         isPaidFeatureOn: () => false,
+        legalScan: undefined,
         ideTools: undefined,
         allowsPaidUse: () => Promise.resolve(false),
         isPaidUseRemembered: () => false,

@@ -53,6 +53,7 @@ import type {
   SkillOption,
 } from '../../shared/protocol'
 import { EMPTY_PAID_TALLY, type PaidState } from '../../shared/paid'
+import { isLegalPrompt } from '../../shared/legalCommand'
 import type { LegalScanResult } from '../../shared/legal'
 import type { LegalFixPreviewMessage, LegalFixResultMessage } from '../../shared/legalFix'
 import type { ScheduleView } from '../../shared/schedule'
@@ -2952,6 +2953,7 @@ export function userShellCommandOf(draft: string): string | undefined {
 
 /** Whether the composer may submit right now (a running turn is steered; `!` needs a command). */
 export function canSend(state: UiState): boolean {
+  if (isLegalPrompt(state.draft)) return true
   if (state.auth.status !== 'signedIn') {
     return false
   }

@@ -78,7 +78,7 @@ muse-spark-code-acp, Muse Spark Code (Unofficial) for editors that speak the
 Agent Client Protocol
 
 The agent's bundles (dist/acp.js, dist/modelApi.js, dist/reviewer.js, dist/uiText.js, dist/searchWorker.js and
-dist/pageWorker.js) include code from the packages below, each under its
+dist/pageWorker.js and dist/legalScan.js) include code from the packages below, each under its
 own licence, reproduced here as the package ships it. The keyring binding (@napi-rs/keyring) is installed
 beside it as a dependency, with its own licence.
 
@@ -168,7 +168,8 @@ function render(packages, isAcp) {
     const names = group.map((entry) => `${entry.name} (${entry.licence})\n  ${entry.url}`)
     return `${RULE}\n${names.join('\n')}\n${THIN_RULE}\n\n${text}\n`
   })
-  return `${header}\n${blocks.join('\n')}`
+  const legalData = normalise(readFileSync('src/core/legal/data/NOTICE.md', 'utf8'))
+  return `${header}\n${blocks.join('\n')}\n${RULE}\nSPDX identifier data\n${THIN_RULE}\n\n${legalData}\n`
 }
 
 /** The file `--acp` names; undefined without the flag. */
@@ -191,12 +192,6 @@ const metafiles =
     : ACP_METAFILES
 const problems = []
 const packages = shippedPackageDirs(metafiles).map((dir) => describePackage(dir, problems))
-packages.push({
-  name: 'SPDX identifier data (spdx-license-ids 3.0.24; spdx-exceptions 2.5.0)',
-  licence: 'CC0-1.0 / CC-BY-3.0',
-  url: 'https://github.com/kemitchell/spdx-exceptions.json',
-  text: normalise(readFileSync('src/core/legal/data/NOTICE.md', 'utf8')),
-})
 if (acpOutput === undefined) {
   packages.push({
     name: 'high-quality-projects-skill',

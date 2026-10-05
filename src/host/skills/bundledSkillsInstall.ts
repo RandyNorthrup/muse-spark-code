@@ -27,6 +27,7 @@ import {
   BUNDLED_SKILLS_RETIRED_WORD,
   BUNDLED_SKILLS_STAGING_WORD,
   BUNDLED_SKILLS_VENDOR_FILE,
+  EXTENSION_QUALIFIED_ID,
   SKILL_FILE_NAME,
   SKILL_ID_PATTERN,
 } from '../../shared/constants'
@@ -258,6 +259,18 @@ function isSamePath(a: string, b: string): boolean {
   return path.relative(a, b) === ''
 }
 
+/** An extension-owned skill in any installed version directory, identified by product id. */
+function isExtensionSkillTarget(target: string, id: string): boolean {
+  if (path.basename(target) !== id || path.basename(path.dirname(target)) !== BUNDLED_SKILLS_DIR)
+    return false
+  const directory = path.basename(path.dirname(path.dirname(target))).toLowerCase()
+  const prefix = `${EXTENSION_QUALIFIED_ID.toLowerCase()}-`
+  return (
+    directory.startsWith(prefix) &&
+    /^\d+\.\d+\.\d+(?:-[\w.-]+)?$/.test(directory.slice(prefix.length))
+  )
+}
+
 /** Whether `child` lies strictly inside `parent` (case-insensitively on Windows, as `path` compares). */
 function isInside(parent: string, child: string): boolean {
   const relative = path.relative(parent, child)
@@ -287,7 +300,11 @@ async function copyTree(from: string, to: string): Promise<void> {
 }
 
 /** The links in Muse Code's skills folder that lead into the copy's `skills/`, by name. */
-async function linksInto(skillsRoot: string, copySkills: string): Promise<readonly string[]> {
+async function linksInto(
+  skillsRoot: string,
+  copySkills: string,
+  isExtension = false,
+): Promise<readonly string[]> {
   let names: readonly string[]
   try {
     names = await fs.readdir(skillsRoot)
@@ -300,7 +317,10 @@ async function linksInto(skillsRoot: string, copySkills: string): Promise<readon
   const ours: string[] = []
   for (const name of names) {
     const target = await linkTarget(path.join(skillsRoot, name))
-    if (target !== undefined && isInside(copySkills, target)) {
+    if (
+      target !== undefined &&
+      (isInside(copySkills, target) || (isExtension && isExtensionSkillTarget(target, name)))
+    ) {
       ours.push(name)
     }
   }
@@ -436,6 +456,20 @@ export async function installBundledSkills(
       // Ours only when it leads to this very skill of the copy.
       if (existing !== undefined && isSamePath(existing, target)) {
         installed.push(id)
+      } else if (
+        existing !== undefined &&
+        extensionRoot !== undefined &&
+        isInside(extensionRoot, target) &&
+        isExtensionSkillTarget(existing, id)
+      ) {
+        await fs.unlink(link)
+        try {
+          await makeLink(target, link, linkType)
+        } catch (error: unknown) {
+          await fs.symlink(existing, link, linkType)
+          throw error
+        }
+        installed.push(id)
       } else {
         skipped.push(id)
       }
@@ -444,7 +478,7 @@ export async function installBundledSkills(
     at = deps.skillsRoot
     const ourLinks = [...(await linksInto(deps.skillsRoot, copySkills))]
     if (extensionRoot !== undefined) {
-      ourLinks.push(...(await linksInto(deps.skillsRoot, extensionRoot)))
+      ourLinks.push(...(await linksInto(deps.skillsRoot, extensionRoot, true)))
     }
     for (const name of ourLinks) {
       if (vendor.skillIds.includes(name) || extra.includes(name)) {
@@ -497,7 +531,7 @@ export async function removeBundledSkills(
     if (state.kind !== 'ours') {
       if (paths.extensionSkillsRoot !== undefined) {
         at = paths.skillsRoot
-        const extraLinks = await linksInto(paths.skillsRoot, paths.extensionSkillsRoot)
+        const extraLinks = await linksInto(paths.skillsRoot, paths.extensionSkillsRoot, true)
         for (const name of extraLinks) {
           at = path.join(paths.skillsRoot, name)
           await fs.unlink(at)
@@ -509,7 +543,7 @@ export async function removeBundledSkills(
     at = paths.skillsRoot
     const ourLinks = [...(await linksInto(paths.skillsRoot, path.join(folder, BUNDLED_SKILLS_DIR)))]
     if (paths.extensionSkillsRoot !== undefined) {
-      ourLinks.push(...(await linksInto(paths.skillsRoot, paths.extensionSkillsRoot)))
+      ourLinks.push(...(await linksInto(paths.skillsRoot, paths.extensionSkillsRoot, true)))
     }
     for (const name of ourLinks) {
       at = path.join(paths.skillsRoot, name)

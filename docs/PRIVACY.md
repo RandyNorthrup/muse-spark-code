@@ -13,8 +13,10 @@ package manager, hook, formatter or build. The report is held in the panel;
 scan does not save it to a file. The headless `legal` command writes a report
 only with an explicit `--out` destination. Reports can identify local paths,
 package names/versions, source URLs and bounded evidence excerpts. Known
-credential formats and email values are scrubbed; other identifying text may
-remain, so treat exported reports as workspace information.
+credential formats and email values are scrubbed in findings. The independent
+S/W review found selected scope paths bypass that scrubber; its fix remains a
+release blocker. Other identifying text may remain, so treat exported reports
+as workspace information.
 
 The Model API native tool and Muse Code's authenticated loopback `ide` tool
 use the same scanner. When a model requests the tool in a normal coding turn,

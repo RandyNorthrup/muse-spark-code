@@ -31,7 +31,7 @@ function managerOn(
   extra: Partial<
     Pick<
       ModelApiBackendManagerDeps,
-      'createMcpServers' | 'ideTools' | 'isObservationPackingOn' | 'newId'
+      'createMcpServers' | 'ideTools' | 'legalScan' | 'isObservationPackingOn' | 'newId'
     >
   > = {},
 ) {
@@ -63,7 +63,7 @@ function manager(workspaceRoot: string | undefined) {
 }
 
 describe('ModelApiBackendManager', () => {
-  it('forwards the scanner only to the workspace host, never a best-of-N worktree', async () => {
+  it('forwards the legal scanner to production host construction, never to a best-of-N worktree', async () => {
     const create = vi.spyOn(modelApiEntry, 'createModelApiHost')
     const api = fakeModelApi()
     const legalScan = vi.fn(() => Promise.reject(new Error('scan not requested')))

@@ -12,8 +12,6 @@ const BYTES_PER_KIB = 1024
  */
 const BUDGETS = [
   { path: 'dist/extension.js', budgetKiB: 600 },
-  // M97: 127.5 KiB scanner probe + 15%, rounded to 25 KiB (PLAN.md D6).
-  { path: 'dist/legalScan.js', budgetKiB: 150 },
   // The Model API backend, loaded when it first starts (M57). Revisited on
   // purpose after M77, M78 and M82 (2026-10-02): 402.8 KiB measured, plus 15%,
   // rounded up to 25 KiB (PLAN.md D6).
@@ -44,6 +42,8 @@ const BUDGETS = [
   // voice's drivers (M9, M35), loaded on the first recording: split out on
   // 2026-10-03 at 80.3 and 34.5 KiB. Measured size plus 15%, rounded up to
   // 25 KiB (PLAN.md D6).
+  // M97: local legal scanner, 128.8 KiB measured; plus 15%, rounded to 25 KiB.
+  { path: 'dist/legalScan.js', budgetKiB: 150 },
   { path: 'dist/codeIntel.js', budgetKiB: 100 },
   { path: 'dist/voice.js', budgetKiB: 50 },
   // The window's web fetch (M69), loaded on the first fetch: each hop's

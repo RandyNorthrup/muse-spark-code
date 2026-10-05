@@ -1,5 +1,5 @@
 // The legal scanner as the activation bundle sees it (M97, PLAN.md D76,
-// D6): dist/legalScan.js, lane S's scanner built from its entry by lane R,
+// D6): dist/legalScan.js, the shared production scanner entry,
 // required on the first legal scan. Only types come from the tool's side
 // here: a value imported from the entry would carry the scanner back into
 // dist/extension.js, which the bundle-split gate refuses. The bundle's shape
@@ -13,30 +13,8 @@
 import { UI_TEXT } from '../../shared/constants'
 import { lazyBundleLoader } from '../lazyBundle'
 import type { Logger } from '../logger'
-import type * as LegalScanEntry from './legalScanEntry'
-
-/**
- * The scanner bundle's exports: lane 0's contract in and out, and the
- * Plan-mode hold a live Muse Code conversation takes for a scan (M70's
- * hold, D76). Both are required: a bundle without the hold would scan a
- * live conversation unheld.
- */
-export interface LegalScanBundle {
-  readonly runLegalScan: typeof LegalScanEntry.runLegalScan
-  readonly createHold: typeof LegalScanEntry.createHold
-}
-
-/** Whether a required module exports the scan and the hold. */
-export function isLegalScanBundle(value: unknown): value is LegalScanBundle {
-  return (
-    typeof value === 'object' &&
-    value !== null &&
-    'runLegalScan' in value &&
-    typeof value.runLegalScan === 'function' &&
-    'createHold' in value &&
-    typeof value.createHold === 'function'
-  )
-}
+import { isLegalScanBundle, type LegalScanBundle } from '../../shared/legalScanEntry'
+export { isLegalScanBundle } from '../../shared/legalScanEntry'
 
 export interface LegalScanLoaderDeps {
   /** dist/legalScan.js beside the running bundle. */

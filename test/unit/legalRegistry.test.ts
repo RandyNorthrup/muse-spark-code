@@ -95,6 +95,29 @@ describe('M97 registry targets (lane R)', () => {
 })
 
 describe('M97 registry reads (lane R)', () => {
+  it('refuses every redirect and discloses exactly the attempted requests', async () => {
+    const fetch = vi.fn((_url: string | URL | Request, init?: RequestInit) => {
+      if (init?.redirect !== 'manual')
+        throw new Error('redirect policy would allow an undisclosed request')
+      return Promise.resolve(
+        new Response('', {
+          status: 302,
+          headers: { location: 'http://127.0.0.1/private-license' },
+        }),
+      )
+    })
+    const report = await enrichFromRegistries({
+      targets: [target(), target({ ecosystem: 'pypi', name: 'Django', version: '5.0' })],
+      fetch,
+    })
+    expect(fetch).toHaveBeenCalledTimes(2)
+    expect(report.queried).toHaveLength(2)
+    expect(report.licenses).toMatchObject([
+      { status: 'error', httpStatus: 302 },
+      { status: 'error', httpStatus: 302 },
+    ])
+    expect(report.queried.every((url) => url.startsWith('https://'))).toBe(true)
+  })
   it('reads npm and PyPI licenses from the captured shapes', async () => {
     const requested: string[] = []
     const fetch = scriptedFetch(

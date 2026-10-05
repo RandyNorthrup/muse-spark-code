@@ -32,12 +32,8 @@ import {
   type LegalRegistryEcosystem,
 } from '../../shared/constants'
 
-/** What the scanner asks to enrich: the ecosystem it saw the package in. */
-export interface LegalRegistryTarget {
-  readonly ecosystem: LegalRegistryEcosystem
-  readonly name: string
-  readonly version: string
-}
+import type { LegalRegistryTarget } from '../../shared/legalScanEntry'
+export type { LegalRegistryTarget } from '../../shared/legalScanEntry'
 
 export type LegalRegistryStatus = 'found' | 'unknown' | 'refused' | 'error'
 
@@ -214,7 +210,7 @@ async function queryOne(
 ): Promise<LegalRegistryLicense> {
   // No headers, no credentials: the registries' public documents need none.
   // The deadline arrives with the signal: each attempt owns one (see above).
-  const response = await input.fetch(url, { signal: input.signal })
+  const response = await input.fetch(url, { signal: input.signal, redirect: 'manual' })
   const { status } = response
   if (status === HTTP_STATUS.notFound) {
     await discardBody(response)

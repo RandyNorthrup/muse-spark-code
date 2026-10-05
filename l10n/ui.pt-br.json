@@ -1934,6 +1934,7 @@
   "legalEvidenceLabel": "Evidência: {evidence}",
   "legalConfidenceLabel": "Confiança: {confidence}",
   "legalScanItem": "/legal",
+  "legalCommandUsage": "Uso: /legal [caminho relativo ao espaço de trabalho …]. Opções não são aceitas.",
   "legalScanItemDetail": "Verificar o workspace quanto a achados de licenciamento, atribuição e cabeçalhos",
   "legalScanBusy": "A verificação legal começa quando o turno atual terminar.",
   "legalScanUntrusted": "A verificação legal lê o workspace, o que o modo restrito não permite. Confie no workspace para usá-la.",

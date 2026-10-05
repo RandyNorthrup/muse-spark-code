@@ -1800,6 +1800,7 @@
   "legalEvidenceLabel": "证据：{evidence}",
   "legalConfidenceLabel": "置信度：{confidence}",
   "legalScanItem": "/legal",
+  "legalCommandUsage": "用法：/legal [相对于工作区的路径 …]。不支持选项。",
   "legalScanItemDetail": "扫描工作区中的许可、署名和标头问题",
   "legalScanBusy": "当前回合结束后才会开始法律扫描。",
   "legalScanUntrusted": "法律扫描需要读取工作区，但受限模式不允许。信任此工作区即可使用。",

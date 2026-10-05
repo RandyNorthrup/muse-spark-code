@@ -152,6 +152,37 @@ function renderReady(status: 'signedIn' | 'signedOut' = 'signedIn') {
   return postMessage
 }
 
+describe('M97 deterministic legal command routing', () => {
+  it.each(['museCode', 'modelApi'] as const)(
+    'routes signed-out /legal on %s without a model message',
+    (backend) => {
+      const postMessage = renderReady('signedOut')
+      deliver({ type: 'authState', status: 'signedOut', backend })
+      fireEvent.change(textarea(), { target: { value: '/legal src' } })
+      fireEvent.keyDown(textarea(), { key: 'Enter' })
+      expect(postMessage).toHaveBeenCalledWith({
+        type: 'requestLegalScan',
+        input: { paths: ['src'] },
+      })
+      expect(postMessage.mock.calls.some(([message]) => message.type === 'sendMessage')).toBe(false)
+    },
+  )
+  it.each(['/legal --format json', '/legal ' + 'x'.repeat(1025), '/legal -fix'])(
+    'refuses malformed syntax without posting a model message: %s',
+    (draft) => {
+      const postMessage = renderReady()
+      fireEvent.change(textarea(), { target: { value: draft } })
+      fireEvent.keyDown(textarea(), { key: 'Enter' })
+      expect(
+        postMessage.mock.calls.some(
+          ([message]) => message.type === 'sendMessage' || message.type === 'requestLegalScan',
+        ),
+      ).toBe(false)
+      expect(screen.getAllByText(UI_TEXT.legalCommandUsage).length).toBeGreaterThan(0)
+    },
+  )
+})
+
 function textarea() {
   return screen.getByLabelText<HTMLTextAreaElement>('Message Muse')
 }

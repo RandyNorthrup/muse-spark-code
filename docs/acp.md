@@ -71,7 +71,7 @@ These invocations use the packaged local scanner. No model, backend, sign-in,
 credential store, package manager, build or ACP connection is started. The
 scan is free and offline by default. `--out` writes only the report destination
 you explicitly name; ordinary scans do not change the workspace. JSON stdout
-is one `{ result, registry }` envelope, with no ACP frames; status words go to
+is one `{ disclaimer, result, registry }` envelope, with no ACP frames; status words go to
 stderr. Keep reports private when they contain package names, paths or source
 URLs. Known secret formats and email values are scrubbed; universal PII
 recognition is not promised.
@@ -90,13 +90,18 @@ command is top-level `legal`, rather than D76's planned
 `exec legal-scan --json`; `should-fix` also takes exit 1. These deviations are
 recorded in [M97 certification](certification/m97.md).
 
+The current scanner also lists human review, full license-text matching and
+artifact freshness as incomplete checks on every real run. Even a fixture
+with no findings therefore returns exit 2; the complete exit-0/1 branches are
+tested with injected reports and are not yet real-scanner CI receipts.
+
 Registry enrichment is unfinished for release: the implementation has an
 explicit flag and supports npm/PyPI metadata, but exact prior query consent,
 private-name disclosure and the extension's network posture still require
 review. Keep the default offline. No optional model explanation is delivered.
-Scanner prose is currently English. The text report includes the disclaimer;
-the JSON contract still needs a disclaimer field before full acceptance 8 can
-be certified. **Not legal advice; for distribution decisions consult a lawyer.**
+Scanner prose is currently English. Text and JSON reports include the
+translated disclaimer. Requested Markdown export and tool-report disclaimer
+coverage remain incomplete. **Not legal advice; for distribution decisions consult a lawyer.**
 
 ## Choose who pays
 

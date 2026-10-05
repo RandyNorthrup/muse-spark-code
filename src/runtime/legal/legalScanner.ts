@@ -1,9 +1,5 @@
-// The headless `legal` command's seam to the scanner (M97 lanes R+S, PLAN.md
-// D76): what lane S's scanner provides, and how the command loads it. Lane S
-// owns `src/core/legal/**`; this file owns only the interface and the lazy
-// load of the `dist/legalScan.js` bundle beside the running one, validated
-// before use. Until that bundle ships, the load fails with fixed words and
-// the command reports incomplete coverage (exit 2), never an empty success.
+// Shared production scanner contract, required lazily beside the running ACP bundle.
+// A missing or malformed scanner reports incomplete coverage, never empty success.
 
 import path from 'node:path'
 import { requireFile } from '../../host/lazyBundle'
@@ -12,45 +8,19 @@ import {
   SETTING_DEFAULTS,
   type LegalHeaderPolicy,
 } from '../../shared/constants'
-import {
-  legalScanResultSchema,
-  type LegalScanInput,
-  type LegalScanResult,
-} from '../../shared/legal'
+import { legalScanResultSchema, type LegalScanResult } from '../../shared/legal'
 import { isRegistryTarget, type LegalRegistryTarget } from './legalRegistry'
 
-/** What one scan yields: the contract result plus the scanner's own enrichment targets. */
-export interface LegalScanHandle {
-  readonly result: LegalScanResult
-  /** Packages whose license the scanner could not see; the registry reader's input. */
-  readonly registryTargets: readonly LegalRegistryTarget[]
-}
+import {
+  isLegalScanBundle,
+  type LegalScanBundle,
+  type LegalScanRequest,
+  type LegalScanHandle,
+} from '../../shared/legalScanEntry'
+export type { LegalScanHandle } from '../../shared/legalScanEntry'
 
-/** Lane S's scanner behind the interface lane R calls (never the module). */
 export interface LegalScanner {
-  scan(request: {
-    readonly workspaceRoot: string
-    readonly input: LegalScanInput
-    readonly signal?: AbortSignal
-  }): Promise<LegalScanHandle>
-}
-
-/** The bundle's one export; signatures are taken on trust, results are not. */
-interface LegalScanBundle {
-  runLegalScan: (request: {
-    readonly workspaceRoot: string
-    readonly input: LegalScanInput
-    readonly signal?: AbortSignal
-  }) => Promise<unknown>
-}
-
-function isLegalScanBundle(value: unknown): value is LegalScanBundle {
-  return (
-    typeof value === 'object' &&
-    value !== null &&
-    'runLegalScan' in value &&
-    typeof value.runLegalScan === 'function'
-  )
+  scan(request: LegalScanRequest): Promise<LegalScanHandle>
 }
 
 /** A load or shape failure's fixed technical reason; the command wraps it for the user. */

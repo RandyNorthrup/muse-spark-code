@@ -62,13 +62,17 @@ happened, not what was planned; superseded entries are kept.
 - Added the translated command-palette contribution and real-scanner adapter
   regressions. Fixed merged duplicate constants, an optional-options test type
   and incomplete logger doubles without weakening gates.
+- Integrated the B/R review fixes: one shared scanner entry, host-owned Plan
+  hold, signed-out routing, strict reserved-command usage, turn/Stop admission,
+  trust rechecks, registry redirect refusal, error redaction, JSON disclaimer
+  and version-aware bundled-skill links.
 - Reused the legal scan's bounded schema fields and factored repeated legal
   test fixtures after the unchanged zero-duplication gate rejected the merge.
 - Documented the candidate's limits. The selected-fix applier, requested
   Markdown export, scanner-prose translations, enrichment consent/network
   review, optional explanations and installed/Windows certification remain
   open. Headless uses top-level `legal` and treats `should-fix` as exit 1;
-  JSON still needs the disclaimer field. The scan is not a legal certificate.
+  real scans always report incomplete coverage. The scan is not a legal certificate.
 
 ## [0.12.1] - 2026-10-04
 

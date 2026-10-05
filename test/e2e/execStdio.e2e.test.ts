@@ -88,6 +88,15 @@ function command(
   })
 }
 
+function packedText(archive: string, member: string): string {
+  const extracted = spawnSync(TAR, ['-xOzf', archive, `package/${member}`], {
+    encoding: 'utf8',
+    timeout: TIMEOUT,
+  })
+  expect(extracted.status, extracted.stderr).toBe(0)
+  return extracted.stdout
+}
+
 function packagingFixture() {
   const dir = mkdtempSync(path.join(WORK, 'package space-'))
   for (const folder of [
@@ -118,7 +127,15 @@ function packagingFixture() {
       devDependencies: { '@napi-rs/keyring': '2.1.0' },
     }),
   )
-  for (const bundle of ['acp', 'modelApi', 'reviewer', 'uiText', 'searchWorker', 'pageWorker']) {
+  for (const bundle of [
+    'acp',
+    'modelApi',
+    'reviewer',
+    'uiText',
+    'legalScan',
+    'searchWorker',
+    'pageWorker',
+  ]) {
     writeFileSync(path.join(dir, 'dist', `${bundle}.js`), '// test-owned inert bundle\n')
   }
   for (const file of ['MuseSparkJob.cs', 'MuseSparkMcpJob.cs']) {
@@ -129,6 +146,9 @@ function packagingFixture() {
   writeFileSync(path.join(dir, 'docs', 'acp.md'), '# Test-owned guide\n')
   writeFileSync(path.join(dir, 'docs', 'npm-readme.md'), '# Test-owned npm page\n')
   cpSync(path.join(ROOT, 'docs', 'schemas'), path.join(dir, 'docs', 'schemas'), { recursive: true })
+  cpSync(path.join(ROOT, 'src', 'core', 'legal', 'data'), path.join(dir, 'dist/legal-data'), {
+    recursive: true,
+  })
   writeFileSync(
     path.join(dir, 'test', 'action', 'exec-test-launcher.ts'),
     'console.log("TEST ONLY")\n',
@@ -147,18 +167,23 @@ describe('M80 D package guards', { timeout: TIMEOUT }, () => {
       expect(readFileSync(path.join(stage, 'schemas', schema))).toEqual(
         readFileSync(path.join(ROOT, 'docs', 'schemas', schema)),
       )
-      const extracted = spawnSync(TAR, ['-xOzf', packed, `package/schemas/${schema}`], {
-        encoding: 'utf8',
-        timeout: TIMEOUT,
-      })
-      expect(extracted.status, extracted.stderr).toBe(0)
-      expect(extracted.stdout).toBe(
+      expect(packedText(packed, `schemas/${schema}`)).toBe(
         readFileSync(path.join(ROOT, 'docs', 'schemas', schema), 'utf8'),
       )
     }
     const manifest: unknown = JSON.parse(readFileSync(path.join(stage, 'package.json'), 'utf8'))
     expect(manifest).toMatchObject({ bin: { 'muse-spark-code-acp': 'dist/acp.js' } })
     expect(existsSync(path.join(stage, 'dist', 'exec-test-launcher.js'))).toBe(false)
+    for (const member of [
+      'dist/legalScan.js',
+      'dist/legal-data/NOTICE.md',
+      'dist/legal-data/provenance.json',
+    ]) {
+      const source = member.startsWith('dist/legal-data/')
+        ? path.join(ROOT, 'src/core/legal/data', path.basename(member))
+        : path.join(dir, member)
+      expect(packedText(packed, member)).toBe(readFileSync(source, 'utf8'))
+    }
   })
 
   it.each(['missing', 'directory', 'invalid-json'])(

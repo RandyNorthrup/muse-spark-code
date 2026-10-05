@@ -2001,6 +2001,7 @@
   "legalEvidenceLabel": "Dowód: {evidence}",
   "legalConfidenceLabel": "Pewność: {confidence}",
   "legalScanItem": "/legal",
+  "legalCommandUsage": "Użycie: /legal [ścieżka względem obszaru roboczego …]. Opcje nie są obsługiwane.",
   "legalScanItemDetail": "Sprawdź obszar roboczy pod kątem ustaleń licencyjnych, dotyczących autorstwa i nagłówków",
   "legalScanBusy": "Kontrola prawna rozpocznie się po zakończeniu bieżącej tury.",
   "legalScanUntrusted": "Kontrola prawna odczytuje obszar roboczy, na co tryb ograniczony nie zezwala. Aby jej użyć, uznaj obszar roboczy za zaufany.",

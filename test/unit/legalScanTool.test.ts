@@ -111,6 +111,18 @@ describe('ideLegalScanTools', () => {
     expect(calls).toEqual([])
   })
 
+  it('refuses evidence after trust is revoked during the scan', async () => {
+    let isTrusted = true
+    const { deps: offered } = deps({
+      isOffered: () => isTrusted,
+      runScan: () => {
+        isTrusted = false
+        return Promise.resolve(result())
+      },
+    })
+    await expect(call(offered, {})).rejects.toThrow('untrusted')
+  })
+
   it('starts nothing for a caller that already stopped waiting', async () => {
     const { deps: offered, calls } = deps()
     const controller = new AbortController()

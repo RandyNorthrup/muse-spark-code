@@ -26,11 +26,9 @@ suite('M97 shipped scanner', () => {
     assert.ok(extension)
     assert.ok(root)
     const loaded = requireFile(path.join(extension.extensionPath, 'dist', 'legalScan.js'))
-    assert.ok(isLegalScanBundle(loaded), 'missing scanner/hold exports')
+    assert.ok(isLegalScanBundle(loaded), 'missing scanner export')
     for (const name of ['NOTICE.md', 'provenance.json']) {
-      assert.ok(
-        existsSync(path.join(extension.extensionPath, 'src', 'core', 'legal', 'data', name)),
-      )
+      assert.ok(existsSync(path.join(extension.extensionPath, 'dist', 'legal-data', name)))
     }
     const signal = new AbortController().signal
     const runner = async () => {

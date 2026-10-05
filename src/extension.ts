@@ -1,3 +1,4 @@
+import { legalScanResultSchema, type LegalScanRunner } from './shared/legal'
 // Extension host entry point. Kept to registration and adapter wiring; the
 // behaviour lives in src/host (VS Code adapters) and src/core (pure logic).
 
@@ -96,7 +97,6 @@ import { ideCodeIntelTools } from './host/ide/codeIntelTools'
 import { codeIntelLoader } from './host/ide/codeIntelBundle'
 import { ideLegalScanTools, isIdeLegalScanOffered } from './host/ide/legalScanTool'
 import { legalScanLoader } from './host/ide/legalScanBundle'
-import type { LegalScanRunner } from './shared/legal'
 import { vscodeLanguageServices } from './host/codeIntel/languageServices'
 import { usablePaidFeatures } from './shared/paid'
 import { agentImportLoader } from './host/agentImportBundle'
@@ -1266,18 +1266,13 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   })
   const runLegalScan: LegalScanRunner = async (input, signal) => {
     if (!vscode.workspace.isTrusted) throw new Error(UI_TEXT.legalScanUntrusted)
-    if (workspaceRoot === undefined) throw new Error(UI_TEXT.modelApiNeedsFolder)
+    if (workspaceRoot === undefined) throw new Error(UI_TEXT.noWorkspaceReason)
     const handle = await legalScanBundle().runLegalScan({
       workspaceRoot,
-      input: {
-        ...input,
-        headerPolicy: input.headerPolicy ?? currentSettings().legalHeaderPolicy,
-      },
+      input: { ...input, headerPolicy: input.headerPolicy ?? currentSettings().legalHeaderPolicy },
       signal,
-      uiText: UI_TEXT,
-      uiLocale: uiLocale(),
     })
-    return handle.result
+    return legalScanResultSchema.parse(handle.result)
   }
   const ideServer = new IdeMcpServer(
     () => [
@@ -1286,7 +1281,8 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
       // Read-only and trust-gated, like the code intelligence tools: listed
       // only in a trusted workspace, refused while it is not.
       ...ideLegalScanTools({
-        isOffered: () => isIdeLegalScanOffered(vscode.workspace.isTrusted),
+        isOffered: () =>
+          workspaceRoot !== undefined && isIdeLegalScanOffered(vscode.workspace.isTrusted),
         runScan: runLegalScan,
         log,
       }),
@@ -1555,7 +1551,6 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
         })
   const modelApi = new ModelApiBackendManager({
     log,
-    legalScan: runLegalScan,
     // Each Model API turn's unit (M86): its record before it runs, its own
     // recorded writes while it does, then its writes drained, its unit folded
     // and sealed, and its running mark withdrawn.
@@ -1694,6 +1689,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
           log,
         }),
       ),
+    legalScan: workspaceRoot === undefined ? undefined : runLegalScan,
     ideTools,
     webFetch,
     codeIntel: languageServices,
@@ -2051,10 +2047,9 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
         editReview: review.editReview,
         review,
         // The deterministic legal scan (M97, PLAN.md D76): dist/legalScan.js
-        // (D6) on the first scan; until lane R builds it the scan refuses
-        // with the unavailable words and `/legal` says so.
+        // (D6) on the first scan; the Plan hold stays in the host review bundle.
         legalScan: runLegalScan,
-        createLegalHold: (holdDeps) => legalScanBundle().createHold(holdDeps),
+        createLegalHold: (holdDeps) => review.createHold(holdDeps),
         openDocument,
         openFile,
         readToolImage: async (imagePath) =>

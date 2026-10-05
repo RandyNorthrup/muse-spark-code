@@ -2,12 +2,13 @@
 // rather than a source-import mock. The production build is serial here.
 import { execFileSync, spawnSync } from 'node:child_process'
 import { createHash } from 'node:crypto'
-import { readFileSync, writeFileSync } from 'node:fs'
+import { readFileSync, writeFileSync, rmSync } from 'node:fs'
 import path from 'node:path'
 import { createRequire } from 'node:module'
 import vm from 'node:vm'
 import { beforeAll, describe, expect, it } from 'vitest'
 import * as z from 'zod/mini'
+import { legalReportEnvelopeSchema } from '../../src/runtime/legal/runLegal'
 
 const metafileSchema = z.looseObject({
   outputs: z.record(
@@ -19,6 +20,9 @@ const metafileSchema = z.looseObject({
 })
 
 beforeAll(() => {
+  // Stale artifacts must not make an omitted production entry look built.
+  rmSync('dist/legalScan.js', { force: true })
+  rmSync('dist/meta/legalScan.json', { force: true })
   execFileSync(process.execPath, ['scripts/build.mjs', '--production'], { stdio: 'pipe' })
 })
 
@@ -59,6 +63,89 @@ describe('deferred cohort bundles', () => {
     expect(module.exports).toHaveProperty('activate', expect.any(Function))
     expect(loaded).not.toContain('./sessionBoard.js')
     expect(loaded).not.toContain('./reviewer.js')
+    expect(loaded).not.toContain('./legalScan.js')
+  })
+
+  it('emits the legal scanner once and keeps it out of both initial bundles', () => {
+    expect(inputs('legalScan')).toContain('src/core/legal/entry.ts')
+    expect(inputs('extension')).not.toContain('src/core/legal/entry.ts')
+    const acp: unknown = JSON.parse(readFileSync('dist/meta-acp/acp.json', 'utf8'))
+    expect(metafileSchema.parse(acp).outputs['dist/acp.js']?.inputs).not.toHaveProperty(
+      'src/core/legal/entry.ts',
+    )
+  })
+  it('runs the production headless scanner with pure JSON and no network, backend or keyring', () => {
+    const entry = path.resolve('dist/acp.js')
+    const wrapper = `
+      const entry = process.argv[1];
+      const denied = (surface) => { process.stderr.write('unexpected ' + surface); throw new Error(surface); };
+      globalThis.fetch = () => denied('network');
+      require('node:child_process').spawn = () => denied('backend');
+      const Module = require('node:module');
+      const original = Module._load;
+      Module._load = function(request, ...rest) {
+        if (request === '@napi-rs/keyring') return denied('keyring');
+        return Reflect.apply(original, this, [request, ...rest]);
+      };
+      process.argv = [process.execPath, entry, 'legal', '--format', 'json'];
+      require(entry);
+    `
+    const result = spawnSync(process.execPath, ['-e', wrapper, entry], {
+      cwd: path.resolve('test/fixtures/legal/tree'),
+      encoding: 'utf8',
+      timeout: 120_000,
+    })
+    expect(result.error).toBeUndefined()
+    expect([0, 1, 2]).toContain(result.status)
+    // Locale diagnostics belong on stderr; any forbidden surface emits our sentinel.
+    expect(result.stderr).not.toContain('unexpected')
+    const body: unknown = JSON.parse(result.stdout)
+    const report = legalReportEnvelopeSchema.parse(body)
+    expect(report.result.ruleVersion).not.toBe('unavailable')
+    expect(report.registry).toMatchObject({ enabled: false, queried: [] })
+    expect(report.disclaimer.length).toBeGreaterThan(0)
+  })
+
+  it('fires the legal scanner cap and restores the artifact byte-exact', () => {
+    const file = 'dist/legalScan.js'
+    const original = readFileSync(file)
+    const hash = createHash('sha256').update(original).digest('hex')
+    try {
+      writeFileSync(file, Buffer.alloc(150 * 1024 + 1))
+      const red = spawnSync(process.execPath, ['scripts/check-bundle-size.mjs'], {
+        encoding: 'utf8',
+      })
+      expect(red.status).toBe(1)
+      expect(red.stdout).toContain('OVER dist/legalScan.js')
+    } finally {
+      writeFileSync(file, original)
+    }
+    expect(createHash('sha256').update(readFileSync(file)).digest('hex')).toBe(hash)
+    const green = spawnSync(process.execPath, ['scripts/check-bundle-size.mjs'], {
+      encoding: 'utf8',
+    })
+    expect(green.status, green.stderr).toBe(0)
+  })
+
+  it('fires the legal scanner host-global guard and restores the artifact byte-exact', () => {
+    const file = 'dist/legalScan.js'
+    const original = readFileSync(file)
+    const hash = createHash('sha256').update(original).digest('hex')
+    try {
+      writeFileSync(file, Buffer.concat([original, Buffer.from('\nvoid navigator;\n')]))
+      const red = spawnSync(process.execPath, ['scripts/check-host-globals.mjs'], {
+        encoding: 'utf8',
+      })
+      expect(red.status).toBe(1)
+      expect(red.stdout).toContain('FAIL dist/legalScan.js')
+    } finally {
+      writeFileSync(file, original)
+    }
+    expect(createHash('sha256').update(readFileSync(file)).digest('hex')).toBe(hash)
+    const green = spawnSync(process.execPath, ['scripts/check-host-globals.mjs'], {
+      encoding: 'utf8',
+    })
+    expect(green.status, green.stderr).toBe(0)
   })
 
   it('keeps board and best-of-N execution out of activation', () => {
@@ -105,6 +192,7 @@ describe('deferred cohort bundles', () => {
     // Split out of activation on 2026-10-03 (PLAN.md D6).
     ['extension', 'src/core/codeIntel/codeIntelQuery.ts', 'on the first code intelligence call'],
     ['extension', 'src/core/voice/museVoice.ts', 'on the first recording'],
+    ['extension', 'src/core/legal/entry.ts', 'on the first legal scan'],
     // M90: the Auto reviewer on Muse Code, required on the first review.
     ['extension', 'src/host/review/museCodeReviewer.ts', 'on the first review'],
   ])(

@@ -13931,6 +13931,9 @@ joined with M57, M58 and PR #49's sign-in
   The continuation's unchanged zero-duplication gate caught repeated legal
   schema fields and test setup. Reuse the scan contract's field schemas and
   local fixture helpers, retaining strict validation and every assertion.
+  The full coverage run also caught M80's isolated packaging fixture missing
+  M97's new bundle/data inputs. Extend that fixture and its packed-content
+  assertions; preserve every existing headless/package guard.
 - **Certification checklist.**
   - [x] Owner request, D76 design, lanes and source-grounded research recorded.
   - [ ] Acceptance 1–10, each with its failing drill and passing receipt.
@@ -14628,8 +14631,8 @@ These are unresolved delivery/security gaps, not accepted legal conclusions:
   English; all 14 report-control translations do not close AGENTS rule 5.
 - I-R2: the fix applier is unavailable. No production edit/patch preview,
   ownership check, per-patch admission or partial-failure rescan is certified.
-- I-R3: requested Markdown export and a disclaimer in JSON/tool reports are
-  missing; text/panel disclaimers alone do not satisfy D76.
+- I-R3: requested Markdown export and a disclaimer in native/MCP tool reports
+  remain missing; the B/R fix adds the disclaimer to headless JSON.
 - I-R4: enrichment lacks prior exact-query consent/private-name disclosure and
   needs D43 proxy/TLS/public-address review. Offline scans make no such request.
 - I-R5: no bounded optional explanation or paid-use/confinement receipt exists;
@@ -14639,9 +14642,17 @@ These are unresolved delivery/security gaps, not accepted legal conclusions:
   unless an explicit receipt is added to the aggregate certification record.
 - I-R7: runtime command/exit contract differs: top-level `legal --format json`
   rather than reserved `exec legal-scan --json`; complete should-fix takes exit 1.
+  Real scans always list human-review/full-matching/freshness limitations as
+  incomplete; even the no-finding fixture returns 2. Complete exit-0/1 receipts
+  currently cover injected reports only.
 - I-R8: current scanner recognizes pinned identifiers and heuristic license
   titles, not a complete license-text matching corpus or full legal analysis.
   Static readers cannot resolve arbitrary build logic, linkage or stale artifacts.
+- I-R9: the independent S/W review reports 20 findings (3 P1, 17 P2),
+  including scope redaction and fix evidence/lifecycle guards. FIXM97SW owns
+  those repairs; no fix branch is locally available at this receipt. Existing
+  component passes do not waive that review. Do not release before integration
+  and exact-tree verification. See the aggregate certification record.
 
 ## 10. Definition of done and release records
 

@@ -10,6 +10,7 @@
 // the network-off default and stdout purity without touching either.
 
 import * as z from 'zod/mini'
+import { redactSecrets } from '../../core/redact'
 import {
   HTTP_STATUS_MAX,
   LEGAL_EXIT,
@@ -49,9 +50,11 @@ export interface RunLegalResult {
 }
 
 const registryLicenseSchema = z.strictObject({
-  ecosystem: z.enum(['npm', 'pypi']),
-  name: z.string(),
-  version: z.string(),
+  target: z.strictObject({
+    ecosystem: z.enum(['npm', 'pypi']),
+    name: z.string(),
+    version: z.string(),
+  }),
   status: z.enum(['found', 'unknown', 'refused', 'error']),
   license: z.optional(z.string()),
   httpStatus: z.optional(z.number().check(z.int(), z.gte(100), z.lte(HTTP_STATUS_MAX))),
@@ -79,6 +82,7 @@ const registrySectionSchema = z.strictObject({
 
 /** The JSON surface: lane 0's contract result beside the registry disclosure. */
 export const legalReportEnvelopeSchema = z.strictObject({
+  disclaimer: z.string().check(z.minLength(1)),
   result: legalScanResultSchema,
   registry: registrySectionSchema,
 })
@@ -111,7 +115,7 @@ function degradedResult(reason: string): LegalScanResult {
 
 function shortReason(error: unknown): string {
   const message = error instanceof Error ? error.message : String(error)
-  return message.slice(0, LEGAL_TEXT_MAX_CHARS)
+  return redactSecrets(message).slice(0, LEGAL_TEXT_MAX_CHARS)
 }
 
 function exitOf(result: LegalScanResult): LegalExitCode {
@@ -248,14 +252,13 @@ async function finish(input: {
   readonly err: string
 }): Promise<RunLegalResult> {
   const { options, deps, result, registry } = input
-  const envelopeBody = { result, registry }
+  const envelopeBody = { disclaimer: UI_TEXT.legalScanDisclaimer, result, registry }
   const rendered =
     options.format === 'json'
       ? `${JSON.stringify(envelopeBody, null, 2)}\n`
       : renderText(result, registry)
   try {
-    const envelope: unknown =
-      options.format === 'json' ? JSON.parse(rendered) : { result, registry }
+    const envelope: unknown = options.format === 'json' ? JSON.parse(rendered) : envelopeBody
     legalReportEnvelopeSchema.parse(envelope)
   } catch {
     return { exitCode: LEGAL_EXIT.incomplete, out: '', err: UI_TEXT.execFileTooLarge }

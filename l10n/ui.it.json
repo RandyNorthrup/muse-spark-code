@@ -1934,6 +1934,7 @@
   "legalEvidenceLabel": "Prova: {evidence}",
   "legalConfidenceLabel": "Affidabilità: {confidence}",
   "legalScanItem": "/legal",
+  "legalCommandUsage": "Uso: /legal [percorso relativo all’area di lavoro …]. Le opzioni non sono supportate.",
   "legalScanItemDetail": "Analizza l’area di lavoro alla ricerca di risultati su licenze, attribuzioni e intestazioni",
   "legalScanBusy": "L’analisi legale inizia al termine del turno corrente.",
   "legalScanUntrusted": "L’analisi legale legge l’area di lavoro, cosa che la modalità con restrizioni non consente. Considera attendibile l’area di lavoro per usarla.",

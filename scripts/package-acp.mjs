@@ -31,9 +31,9 @@ const STAGE = path.join('dist', 'acp-package')
 const BUNDLES = [
   'acp.js',
   'modelApi.js',
+  'legalScan.js',
   'reviewer.js',
   'uiText.js',
-  'legalScan.js',
   'searchWorker.js',
   'pageWorker.js',
 ]
@@ -93,11 +93,11 @@ for (const schema of SCHEMAS) {
 for (const bundle of BUNDLES) {
   copyFileSync(path.join('dist', bundle), path.join(STAGE, 'dist', bundle))
 }
+cpSync('dist/legal-data', path.join(STAGE, 'dist', 'legal-data'), { recursive: true })
 for (const source of JOB_SOURCES) {
   mkdirSync(path.join(STAGE, path.dirname(source)), { recursive: true })
   copyFileSync(source, path.join(STAGE, source))
 }
-cpSync('src/core/legal/data', path.join(STAGE, 'legal-data'), { recursive: true })
 cpSync('l10n', path.join(STAGE, 'l10n'), {
   recursive: true,
   filter: (source) => !source.endsWith('untranslated.json'),
@@ -140,7 +140,7 @@ const agentManifest = {
     'llm',
   ],
   bin: { [PACKAGE_NAME]: 'dist/acp.js' },
-  files: ['dist', 'native', 'l10n', 'legal-data', 'schemas', 'README.md', 'LICENSE', NOTICES],
+  files: ['dist', 'native', 'l10n', 'schemas', 'README.md', 'LICENSE', NOTICES],
   engines: { node: manifest.engines.node },
   dependencies: { [NATIVE_DEPENDENCY]: keyringVersion },
 }
