@@ -1800,9 +1800,11 @@
   "legalEvidenceLabel": "证据：{evidence}",
   "legalConfidenceLabel": "置信度：{confidence}",
   "legalDistributionLine": "分发：{distribution}",
-  "legalRegistryLine": "注册表：{detail}",
+  "legalRegistryLine": "注册表（{hosts}）：已查询 {queried}，找到 {found}，跳过 {skipped}，接收 {bytes}。",
   "legalRegistryOff": "未启用注册表补充。使用 --registry 重新运行以补充缺失的许可证。",
   "legalWroteFile": "法律扫描报告已写入 {path}。",
   "legalFormatInvalid": "格式必须是 text 或 json。",
-  "legalUsage": "legal [--format text|json] [--out <file>] [--registry]"
+  "legalUsage": "legal [--format text|json] [--out <file>] [--registry]",
+  "legalExclusionsLine": "已排除：{exclusions}",
+  "legalScanNoDistribution": "扫描未完成，因此未假设任何分发。"
 }

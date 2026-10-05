@@ -3927,6 +3927,9 @@ export type LegalRegistryEcosystem = keyof typeof LEGAL_REGISTRY_HOSTS
 // Packages enriched per run: one request per package@version, so the count
 // bounds the requests, the identifiers that leave the machine, and the wait.
 export const LEGAL_REGISTRY_MAX_QUERIES = 50
+// A registry package name past this is refused, not encoded into a URL: npm
+// itself rejects names past 214 characters, and PyPI names are shorter.
+export const LEGAL_REGISTRY_NAME_MAX_CHARS = 214
 // A version or project document past this is refused instead of buffered:
 // the license shapes both registries use fit in kilobytes.
 export const LEGAL_REGISTRY_RESPONSE_MAX_BYTES = 262_144

@@ -2331,10 +2331,15 @@ export const EN = {
   // disclosure (hosts, queries, bytes); {path} stays as typed; {reason} is
   // the scanner's own words.
   legalDistributionLine: 'Distribution: {distribution}',
-  legalRegistryLine: 'Registry: {detail}',
+  // {hosts} are the registries asked; the counts are pre-formatted numbers.
+  legalRegistryLine:
+    'Registry ({hosts}): {queried} queried, {found} found, {skipped} skipped, {bytes} received.',
   legalRegistryOff: 'Registry enrichment off. Rerun with --registry to enrich missing licenses.',
   legalWroteFile: 'Legal scan report written to {path}.',
   legalFormatInvalid: 'The format must be text or json.',
+  // {exclusions} lists the scanner's workspace-relative exclusion globs.
+  legalExclusionsLine: 'Excluded: {exclusions}',
+  legalScanNoDistribution: 'The scan did not complete, so no distribution was assumed.',
   // Command syntax stays English (l10n/untranslated.json).
   legalUsage: 'legal [--format text|json] [--out <file>] [--registry]',
 }

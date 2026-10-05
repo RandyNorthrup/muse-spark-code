@@ -1800,9 +1800,11 @@
   "legalEvidenceLabel": "根拠: {evidence}",
   "legalConfidenceLabel": "信頼度: {confidence}",
   "legalDistributionLine": "配布: {distribution}",
-  "legalRegistryLine": "レジストリ: {detail}",
+  "legalRegistryLine": "レジストリ（{hosts}）: {queried} 件照会、{found} 件取得、{skipped} 件スキップ、受信 {bytes}。",
   "legalRegistryOff": "レジストリによる補完はオフです。不足しているライセンスを補完するには --registry を付けて再実行してください。",
   "legalWroteFile": "リーガルスキャンのレポートを {path} に書き込みました。",
   "legalFormatInvalid": "形式は text または json にしてください。",
-  "legalUsage": "legal [--format text|json] [--out <file>] [--registry]"
+  "legalUsage": "legal [--format text|json] [--out <file>] [--registry]",
+  "legalExclusionsLine": "除外: {exclusions}",
+  "legalScanNoDistribution": "スキャンが完了しなかったため、配布の前提はありません。"
 }

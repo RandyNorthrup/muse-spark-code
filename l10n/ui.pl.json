@@ -2001,9 +2001,11 @@
   "legalEvidenceLabel": "Dowód: {evidence}",
   "legalConfidenceLabel": "Pewność: {confidence}",
   "legalDistributionLine": "Dystrybucja: {distribution}",
-  "legalRegistryLine": "Rejestr: {detail}",
+  "legalRegistryLine": "Rejestr ({hosts}): zapytano {queried}, znaleziono {found}, pominięto {skipped}, odebrano {bytes}.",
   "legalRegistryOff": "Wzbogacanie z rejestru wyłączone. Uruchom ponownie z --registry, aby uzupełnić brakujące licencje.",
   "legalWroteFile": "Raport ze skanowania prawnego zapisano w {path}.",
   "legalFormatInvalid": "Format musi być text lub json.",
-  "legalUsage": "legal [--format text|json] [--out <file>] [--registry]"
+  "legalUsage": "legal [--format text|json] [--out <file>] [--registry]",
+  "legalExclusionsLine": "Wykluczono: {exclusions}",
+  "legalScanNoDistribution": "Skanowanie nie zostało ukończone, więc nie przyjęto żadnej dystrybucji."
 }

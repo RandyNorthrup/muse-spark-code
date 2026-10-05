@@ -1800,9 +1800,11 @@
   "legalEvidenceLabel": "證據：{evidence}",
   "legalConfidenceLabel": "信心度：{confidence}",
   "legalDistributionLine": "散佈：{distribution}",
-  "legalRegistryLine": "登錄檔：{detail}",
+  "legalRegistryLine": "登錄檔（{hosts}）：已查詢 {queried}，找到 {found}，略過 {skipped}，接收 {bytes}。",
   "legalRegistryOff": "未啟用登錄檔補充。使用 --registry 重新執行以補充缺少的授權。",
   "legalWroteFile": "法律掃描報告已寫入 {path}。",
   "legalFormatInvalid": "格式必須是 text 或 json。",
-  "legalUsage": "legal [--format text|json] [--out <file>] [--registry]"
+  "legalUsage": "legal [--format text|json] [--out <file>] [--registry]",
+  "legalExclusionsLine": "已排除：{exclusions}",
+  "legalScanNoDistribution": "掃描未完成，因此未假設任何散佈。"
 }

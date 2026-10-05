@@ -470,6 +470,39 @@ for (const file of BUNDLED_SKILLS_ONLY) {
   }
 }
 
+// M97 lane R: the headless `legal` command lives in the ACP agent's runtime
+// and must never reach activation. The scanner itself (lane S,
+// src/core/legal/**) loads lazily as dist/legalScan.js; while it is absent
+// the second half passes vacuously, and it starts guarding the day it lands.
+const LEGAL_RUNTIME_ONLY = [
+  'src/runtime/legal/legalArgs.ts',
+  'src/runtime/legal/legalRegistry.ts',
+  'src/runtime/legal/legalScanner.ts',
+  'src/runtime/legal/runLegal.ts',
+]
+for (const file of LEGAL_RUNTIME_ONLY) {
+  for (const bundle of [BUNDLES.activation, BUNDLES.modelApi]) {
+    if (inputsOf(bundle).has(file)) {
+      problems.push(`${bundle.output} carries ${file}, which belongs to the headless command`)
+    }
+  }
+  if (!inputsOf(BUNDLES.acp).has(file)) {
+    problems.push(`${BUNDLES.acp.output} no longer carries ${file}`)
+  }
+}
+const legalScannerFiles = existsSync('src/core/legal')
+  ? readdirSync('src/core/legal', { recursive: true })
+      .map((name) => `src/core/legal/${String(name).split(path.sep).join('/')}`)
+      .filter((name) => name.endsWith('.ts'))
+  : []
+for (const file of legalScannerFiles) {
+  if (activation.has(file)) {
+    problems.push(
+      `${BUNDLES.activation.output} carries ${file}, which loads only with the legal scan`,
+    )
+  }
+}
+
 for (const bundle of ON_FIRST_USE) {
   const inputs = inputsOf(bundle)
   for (const file of bundle.files) {

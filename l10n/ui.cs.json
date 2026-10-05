@@ -2001,9 +2001,11 @@
   "legalEvidenceLabel": "Důkaz: {evidence}",
   "legalConfidenceLabel": "Jistota: {confidence}",
   "legalDistributionLine": "Distribuce: {distribution}",
-  "legalRegistryLine": "Registr: {detail}",
+  "legalRegistryLine": "Registr ({hosts}): {queried} dotázáno, {found} nalezeno, {skipped} přeskočeno, přijato {bytes}.",
   "legalRegistryOff": "Obohacování z registru je vypnuté. Zopakujte s --registry pro doplnění chybějících licencí.",
   "legalWroteFile": "Zpráva z kontroly licencí byla zapsána do {path}.",
   "legalFormatInvalid": "Formát musí být text nebo json.",
-  "legalUsage": "legal [--format text|json] [--out <file>] [--registry]"
+  "legalUsage": "legal [--format text|json] [--out <file>] [--registry]",
+  "legalExclusionsLine": "Vyloučeno: {exclusions}",
+  "legalScanNoDistribution": "Skenování se nedokončilo, takže nebyla předpokládána žádná distribuce."
 }

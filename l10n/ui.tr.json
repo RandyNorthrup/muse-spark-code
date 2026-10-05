@@ -1867,9 +1867,11 @@
   "legalEvidenceLabel": "Kanıt: {evidence}",
   "legalConfidenceLabel": "Güven: {confidence}",
   "legalDistributionLine": "Dağıtım: {distribution}",
-  "legalRegistryLine": "Paket registry: {detail}",
+  "legalRegistryLine": "Paket registry ({hosts}): {queried} sorgulandı, {found} bulundu, {skipped} atlandı, {bytes} alındı.",
   "legalRegistryOff": "Registry zenginleştirme kapalı. Eksik lisansları tamamlamak için --registry ile yeniden çalıştırın.",
   "legalWroteFile": "Yasal tarama raporu {path} konumuna yazıldı.",
   "legalFormatInvalid": "Biçim text veya json olmalıdır.",
-  "legalUsage": "legal [--format text|json] [--out <file>] [--registry]"
+  "legalUsage": "legal [--format text|json] [--out <file>] [--registry]",
+  "legalExclusionsLine": "Hariç: {exclusions}",
+  "legalScanNoDistribution": "Tarama tamamlanamadı, bu nedenle dağıtım varsayılmadı."
 }

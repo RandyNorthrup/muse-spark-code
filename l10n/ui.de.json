@@ -1867,9 +1867,11 @@
   "legalEvidenceLabel": "Beleg: {evidence}",
   "legalConfidenceLabel": "Verlässlichkeit: {confidence}",
   "legalDistributionLine": "Verbreitung: {distribution}",
-  "legalRegistryLine": "Paket-Registry: {detail}",
+  "legalRegistryLine": "Paket-Registry ({hosts}): {queried} abgefragt, {found} gefunden, {skipped} übersprungen, {bytes} empfangen.",
   "legalRegistryOff": "Die Registry-Anreicherung ist aus. Erneut mit --registry ausführen, um fehlende Lizenzen zu ergänzen.",
   "legalWroteFile": "Der Legal-Scan-Bericht wurde nach {path} geschrieben.",
   "legalFormatInvalid": "Das Format muss text oder json sein.",
-  "legalUsage": "legal [--format text|json] [--out <file>] [--registry]"
+  "legalUsage": "legal [--format text|json] [--out <file>] [--registry]",
+  "legalExclusionsLine": "Ausgeschlossen: {exclusions}",
+  "legalScanNoDistribution": "Der Scan wurde nicht abgeschlossen, daher wurde keine Verbreitung angenommen."
 }

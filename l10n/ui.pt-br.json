@@ -1934,9 +1934,11 @@
   "legalEvidenceLabel": "Evidência: {evidence}",
   "legalConfidenceLabel": "Confiança: {confidence}",
   "legalDistributionLine": "Distribuição: {distribution}",
-  "legalRegistryLine": "Registro: {detail}",
+  "legalRegistryLine": "Registro ({hosts}): {queried} consultados, {found} encontrados, {skipped} ignorados, {bytes} recebidos.",
   "legalRegistryOff": "Enriquecimento do registro desativado. Execute novamente com --registry para completar as licenças ausentes.",
   "legalWroteFile": "Relatório da verificação jurídica gravado em {path}.",
   "legalFormatInvalid": "O formato deve ser text ou json.",
-  "legalUsage": "legal [--format text|json] [--out <file>] [--registry]"
+  "legalUsage": "legal [--format text|json] [--out <file>] [--registry]",
+  "legalExclusionsLine": "Excluído: {exclusions}",
+  "legalScanNoDistribution": "A verificação não foi concluída, portanto nenhuma distribuição foi presumida."
 }

@@ -2001,9 +2001,11 @@
   "legalEvidenceLabel": "Доказательство: {evidence}",
   "legalConfidenceLabel": "Уверенность: {confidence}",
   "legalDistributionLine": "Распространение: {distribution}",
-  "legalRegistryLine": "Реестр: {detail}",
+  "legalRegistryLine": "Реестр ({hosts}): запрошено {queried}, найдено {found}, пропущено {skipped}, получено {bytes}.",
   "legalRegistryOff": "Обогащение из реестра выключено. Повторите с --registry, чтобы дополнить недостающие лицензии.",
   "legalWroteFile": "Отчёт сканирования лицензий записан в {path}.",
   "legalFormatInvalid": "Формат должен быть text или json.",
-  "legalUsage": "legal [--format text|json] [--out <file>] [--registry]"
+  "legalUsage": "legal [--format text|json] [--out <file>] [--registry]",
+  "legalExclusionsLine": "Исключено: {exclusions}",
+  "legalScanNoDistribution": "Сканирование не завершено, поэтому распространение не предполагалось."
 }

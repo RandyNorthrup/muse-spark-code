@@ -1867,9 +1867,11 @@
   "legalEvidenceLabel": "Bizonyíték: {evidence}",
   "legalConfidenceLabel": "Megbízhatóság: {confidence}",
   "legalDistributionLine": "Terjesztés: {distribution}",
-  "legalRegistryLine": "Csomagregistry: {detail}",
+  "legalRegistryLine": "Csomagregistry ({hosts}): {queried} lekérdezve, {found} megtalálva, {skipped} kihagyva, fogadva {bytes}.",
   "legalRegistryOff": "A registry-kiegészítés ki van kapcsolva. Futtassa újra --registry kapcsolóval a hiányzó licencek kiegészítéséhez.",
   "legalWroteFile": "A jogi vizsgálati jelentés ide lett írva: {path}.",
   "legalFormatInvalid": "A formátum text vagy json lehet.",
-  "legalUsage": "legal [--format text|json] [--out <file>] [--registry]"
+  "legalUsage": "legal [--format text|json] [--out <file>] [--registry]",
+  "legalExclusionsLine": "Kizárt: {exclusions}",
+  "legalScanNoDistribution": "A vizsgálat nem fejeződött be, ezért nincs feltételezett terjesztés."
 }

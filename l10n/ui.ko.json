@@ -1800,9 +1800,11 @@
   "legalEvidenceLabel": "근거: {evidence}",
   "legalConfidenceLabel": "신뢰도: {confidence}",
   "legalDistributionLine": "배포: {distribution}",
-  "legalRegistryLine": "레지스트리: {detail}",
+  "legalRegistryLine": "레지스트리({hosts}): {queried}개 조회, {found}개 확인, {skipped}개 건너뜀, {bytes} 수신.",
   "legalRegistryOff": "레지스트리 보강이 꺼져 있습니다. 누락된 라이선스를 보강하려면 --registry와 함께 다시 실행하세요.",
   "legalWroteFile": "법률 검사 보고서를 {path}에 썼습니다.",
   "legalFormatInvalid": "형식은 text 또는 json이어야 합니다.",
-  "legalUsage": "legal [--format text|json] [--out <file>] [--registry]"
+  "legalUsage": "legal [--format text|json] [--out <file>] [--registry]",
+  "legalExclusionsLine": "제외: {exclusions}",
+  "legalScanNoDistribution": "검사가 완료되지 않아 배포를 가정하지 않았습니다."
 }
