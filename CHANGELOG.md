@@ -154,6 +154,10 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- **CI reliability:** the checkpoint-copy count test crosses a small test-only
+  budget with six real copies, then checks the exact read bound and reuse of
+  the same directory cursor. It avoids hundreds of unnecessary disk operations
+  and no longer accepts repeated traversal restarts as eventual success.
 - **CI reliability:** Windows MCP and shell job helpers compile directly with the .NET compiler, avoiding PowerShell startup and module discovery under load; failures retain compiler diagnostics and termination details.
 - A blocked M80 `v0` tag update now reports that an administrator must move it,
   while preserving the four release channels' outcomes. Updates require a
