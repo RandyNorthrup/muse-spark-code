@@ -224,7 +224,23 @@ async function openUsageBrowser(input: string): Promise<void> {
   // The fixed OS opener receives only a checked loopback URL and no credential
   // environment; argument arrays never pass through a shell (D82, rule 8).
   try {
-    await runProgram(executable, args, process.env)
+    if (process.platform === 'linux') {
+      await new Promise<void>((resolve, reject) => {
+        // nosemgrep: javascript.lang.security.detect-child-process.detect-child-process -- Fixed OS opener, validated loopback URL, credential-stripped environment and shell-free arguments (D82, PLAN.md §8).
+        const handler = spawn(executable, args, {
+          env: process.env,
+          detached: true,
+          stdio: 'ignore',
+        })
+        handler.once('error', reject)
+        handler.once('spawn', () => {
+          // A valid xdg-open handler may stay foreground with the browser.
+          // Its lifetime cannot hold the launcher or decide the page's lifetime.
+          handler.unref()
+          resolve()
+        })
+      })
+    } else await runProgram(executable, args, process.env)
   } catch {
     // Opener stderr can repeat the private fragment; it never reaches a log.
     throw new Error(UI_TEXT.actionFailed)

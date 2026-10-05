@@ -16064,6 +16064,17 @@ joined with M57, M58 and PR #49's sign-in
 
 ## 7. Gates
 
+**FIXM102E / RVM102E scoped receipt (2026-10-05).** Both P2 findings are
+repaired; 147/147 targeted tests and seven byte-exact restored red drills pass
+on Kubuntu. All five type projects, changed-file lint/format, plain knip,
+duplication and production build/size/split/globals/notices pass. Localization
+still exits 1 with the same 17 integration problems (L's 14 missing usage
+tables, W's three unused manifest references); host API still exits 1 with the
+same generated-record difference, no portable-boundary violation. The brief
+reserves full quality and integration for the lead and forbids merging here.
+No gate is weakened; W/L and the lead own those carried deferrals. See
+`docs/certification/m102-e.md` and the named integration limits in §9.
+
 **M95INT round-two whole-chain receipt (2026-10-05) — still deferred.**
 The single full `npm run quality` authorized by the 150-minute rig brief
 passes format, lint, all five type projects, localization, host API, dead
@@ -16605,6 +16616,10 @@ M78b (2026-10-02) runs scoped gates on Kubuntu per the implementation brief; ful
 
 ## 8. Escape hatches register
 
+| File                                       | Construct                                             | Reason                                                                                                                                                                                                                                                           | Added      |
+| ------------------------------------------ | ----------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
+| `src/runtime/main.ts` (`openUsageBrowser`) | `nosemgrep` on Linux `spawn` (`detect-child-process`) | Only the fixed OS opener receives a validated loopback companion URL, in an argument array without a shell, after credential variables have been removed. Detached spawn acknowledgement avoids waiting for a foreground browser handler (FIXM102E / RVM102E 2). | 2026-10-05 |
+
 | M95 K repair file                     | Construct                                                    | Reason                                                                                                                                                    | Added      |
 | ------------------------------------- | ------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
 | `src/host/models/modelsPanelEntry.ts` | `eslint-disable-next-line @typescript-eslint/unbound-method` | Capture the exact surface method for restoration and invoke it with its original receiver through `call`; the receipt test covers forwarding and refusal. | 2026-10-05 |
@@ -16706,6 +16721,22 @@ before a repaired one loads (2026-09-30).
 | `test/unit/providerCredentialRecords.test.ts` | `eslint-disable-next-line unicorn/prefer-https` on one origin-binding assertion     | The test proves a downgraded `http:` scheme is refused as a different origin; an `https:` URL cannot exercise that leg. One literal, test-only.                                                                                                             | 2026-10-05 |
 
 ## 9. Security assumptions and accepted residual risk
+
+- **FIXM102E / RVM102E (2026-10-05):** both assigned P2 findings are repaired
+  with SDK/process regressions and seven restored red drills in
+  `docs/certification/m102-e.md`; no assigned review finding is deferred.
+- **M102E-NATIVE-DIALOG-TRANSPORT (carried integration limit):** the bare
+  `usage serve --stdio` route cannot supply native chooser/confirmation ports
+  through the frozen page protocol. It refuses those writes/deletions instead
+  of accepting page-supplied approval; the companion remains the interim route.
+  M64/M65/integration must add the trusted dialog transport and certify native
+  export/delete equivalence. No transport redesign in this adapter repair.
+- **M102E-INTEGRATION-GATES (carried integration limit):** the isolated adapter
+  branch still depends on L's usage translations and W's manifest/host record,
+  and S/U's real service, companion and page assets. Targeted fake-only repairs
+  do not certify installation or full editor equivalence. W/L and the lead must
+  compose the lanes and pass full quality/editor checks before release; the rig
+  brief explicitly reserves that full gate and prohibits a merge here.
 
 - **FIXM95P (2026-10-05):** all thirteen assigned RVM95A findings
   (1, 2, 4–8, 12–15, 18, 19) are repaired with regressions and deliberate
