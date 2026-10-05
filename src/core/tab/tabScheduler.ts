@@ -39,6 +39,12 @@ const START_WINDOW_MS = SECONDS_PER_MINUTE * MILLISECONDS_PER_SECOND
 
 export class TabScheduler {
   private pending: TabScheduledWork | undefined
+  /**
+   * The waiting work is ready: its debounce has elapsed, or it was an
+   * Invoke. Only ready work waits for capacity, so a settle never sends
+   * work whose debounce is still running.
+   */
+  private pendingReady = false
   private timer: ReturnType<typeof setTimeout> | undefined
   private running = 0
   private readonly starts: number[] = []
@@ -50,51 +56,18 @@ export class TabScheduler {
   }
 
   private clearTimer(): void {
-    if (this.timer !== undefined) {
-      clearTimeout(this.timer)
-      this.timer = undefined
-    }
-  }
-
-  private prune(): void {
-    const since = this.now() - START_WINDOW_MS
-    while (
-      this.starts.length > 0 &&
-      (this.starts[0] ?? Number.POSITIVE_INFINITY) <= since
-    ) {
-      this.starts.shift()
-    }
-  }
-
-  /**
-   * Queue work: Automatic waits out the debounce, Invoke fires at once.
-   * Either replaces a waiting trigger, which is then never sent.
-   */
-  public trigger(work: TabScheduledWork, options?: TabTriggerOptions): void {
-    this.clearTimer()
-    this.pending = work
-    if (options?.immediate === true) {
-      this.flush()
+    if (this.timer === undefined) {
       return
     }
-    this.timer = setTimeout(() => {
-      this.timer = undefined
-      this.flush()
-    }, TAB_DEBOUNCE_MS)
+    clearTimeout(this.timer)
+    this.timer = undefined
   }
 
-  /** Drop a waiting trigger, unsent; a sent request runs on. */
-  public cancelPending(): void {
-    this.clearTimer()
-    this.pending = undefined
-  }
-
-  public get hasPending(): boolean {
-    return this.pending !== undefined
-  }
-
-  public get inFlightCount(): number {
-    return this.running
+  /** Forget the starts that left the minute window. */
+  private prune(): void {
+    const since = this.now() - START_WINDOW_MS
+    const kept = this.starts.findIndex((start) => start > since)
+    this.starts.splice(0, kept === -1 ? this.starts.length : kept)
   }
 
   /** Send the waiting trigger when a slot is free, else keep waiting. */
@@ -102,6 +75,7 @@ export class TabScheduler {
     this.clearTimer()
     const work = this.pending
     this.pending = undefined
+    this.pendingReady = false
     if (work === undefined) {
       return
     }
@@ -119,11 +93,25 @@ export class TabScheduler {
     }
     this.starts.push(this.now())
     this.running += 1
-    const done = (): void => {
+    void this.runToEnd(work)
+  }
+
+  /**
+   * Sent work runs to its end; its outcome is the work's own to report.
+   * Its slot then frees for work already waiting for one, and only that:
+   * a debounce still running keeps its timer and its cancellation window.
+   */
+  private async runToEnd(work: TabScheduledWork): Promise<void> {
+    try {
+      await work.run()
+    } catch {
+      // The work reports its own failure; the scheduler only frees the slot.
+    } finally {
       this.running -= 1
-      this.flush()
+      if (this.pendingReady) {
+        this.flush()
+      }
     }
-    work.run().then(done, done)
   }
 
   /**
@@ -133,6 +121,7 @@ export class TabScheduler {
    */
   private park(work: TabScheduledWork): void {
     this.pending = work
+    this.pendingReady = true
     this.prune()
     const oldest = this.starts[0] ?? this.now()
     const delay = Math.max(oldest + START_WINDOW_MS - this.now(), 0)
@@ -140,5 +129,40 @@ export class TabScheduler {
       this.timer = undefined
       this.flush()
     }, delay)
+  }
+
+  /**
+   * Queue work: Automatic waits out the debounce, Invoke fires at once.
+   * Either replaces a waiting trigger, which is then never sent.
+   */
+  public trigger(work: TabScheduledWork, options?: TabTriggerOptions): void {
+    this.clearTimer()
+    this.pending = work
+    this.pendingReady = false
+    if (options?.immediate === true) {
+      this.pendingReady = true
+      this.flush()
+      return
+    }
+    this.timer = setTimeout(() => {
+      this.timer = undefined
+      this.pendingReady = true
+      this.flush()
+    }, TAB_DEBOUNCE_MS)
+  }
+
+  /** Drop a waiting trigger, unsent; a sent request runs on. */
+  public cancelPending(): void {
+    this.clearTimer()
+    this.pending = undefined
+    this.pendingReady = false
+  }
+
+  public get hasPending(): boolean {
+    return this.pending !== undefined
+  }
+
+  public get inFlightCount(): number {
+    return this.running
   }
 }

@@ -28,22 +28,35 @@ afterEach(() => {
   vi.useRealTimers()
 })
 
+/** A run hook that logs `name` into `log`. */
+function record(log: string[], name: string): () => void {
+  return () => {
+    log.push(name)
+  }
+}
+
 /** Work whose run the test starts and settles by hand. */
-function hanging(token: { cancelled: boolean }, onRun: () => void): {
+function hanging(
+  token: { cancelled: boolean },
+  onRun: () => void,
+): {
   work: TabScheduledWork
   settle: () => void
 } {
-  let release: (() => void) | undefined
+  const gate = Promise.withResolvers<undefined>()
   const work: TabScheduledWork = {
     token,
-    run: () => {
+    run: async () => {
       onRun()
-      return new Promise<void>((resolve) => {
-        release = resolve
-      })
+      await gate.promise
     },
   }
-  return { work, settle: () => release?.() }
+  return {
+    work,
+    settle: () => {
+      gate.resolve(undefined)
+    },
+  }
 }
 
 describe('debounce', () => {
@@ -83,6 +96,56 @@ describe('debounce', () => {
     expect(scheduler.hasPending).toBe(false)
   })
 
+  it('never sends newer Automatic work early when older work settles', async () => {
+    const { scheduler, advance } = setup()
+    const started: string[] = []
+    const older = hanging({ cancelled: false }, record(started, 'A'))
+    scheduler.trigger(older.work, { immediate: true })
+    await advance(0)
+    expect(started).toEqual(['A'])
+    scheduler.trigger({
+      token: { cancelled: false },
+      run: () => {
+        started.push('B')
+        return Promise.resolve()
+      },
+    })
+    const settleAt = 100
+    await advance(settleAt)
+    older.settle()
+    await advance(0)
+    expect(started).toEqual(['A'])
+    expect(scheduler.hasPending).toBe(true)
+    await advance(TAB_DEBOUNCE_MS - settleAt - 1)
+    expect(started).toEqual(['A'])
+    await advance(1)
+    expect(started).toEqual(['A', 'B'])
+    await advance(TAB_DEBOUNCE_MS)
+    expect(started).toEqual(['A', 'B'])
+  })
+
+  it('keeps the cancellation window after older work settles', async () => {
+    const { scheduler, advance } = setup()
+    const started: string[] = []
+    const older = hanging({ cancelled: false }, record(started, 'A'))
+    scheduler.trigger(older.work, { immediate: true })
+    await advance(0)
+    const token = { cancelled: false }
+    scheduler.trigger({
+      token,
+      run: () => {
+        started.push('B')
+        return Promise.resolve()
+      },
+    })
+    older.settle()
+    await advance(0)
+    token.cancelled = true
+    await advance(TAB_DEBOUNCE_MS)
+    expect(started).toEqual(['A'])
+    expect(scheduler.hasPending).toBe(false)
+  })
+
   it('skips the wait on Invoke', async () => {
     const { scheduler, advance } = setup()
     let runs = 0
@@ -105,18 +168,15 @@ describe('never abort', () => {
   it('lets a sent request run to its end after its token is cancelled', async () => {
     const { scheduler, advance } = setup()
     const token = { cancelled: false }
-    let release: (() => void) | undefined
-    let finished = false
-    const gate = new Promise<void>((resolve) => {
-      release = resolve
-    })
+    let isFinished = false
+    const gate = Promise.withResolvers<undefined>()
     scheduler.trigger(
       {
         token,
-        run: () =>
-          gate.then(() => {
-            finished = true
-          }),
+        run: async () => {
+          await gate.promise
+          isFinished = true
+        },
       },
       { immediate: true },
     )
@@ -124,9 +184,9 @@ describe('never abort', () => {
     expect(scheduler.inFlightCount).toBe(1)
     // The scheduler holds no abort handle: cancelling only stops unsent work.
     token.cancelled = true
-    release?.()
+    gate.resolve(undefined)
     await advance(0)
-    expect(finished).toBe(true)
+    expect(isFinished).toBe(true)
     expect(scheduler.inFlightCount).toBe(0)
   })
 })
@@ -135,9 +195,9 @@ describe('caps', () => {
   it(`keeps at most ${String(TAB_MAX_IN_FLIGHT)} requests open`, async () => {
     const { scheduler, advance } = setup()
     const started: string[] = []
-    const first = hanging({ cancelled: false }, () => started.push('first'))
-    const second = hanging({ cancelled: false }, () => started.push('second'))
-    const third = hanging({ cancelled: false }, () => started.push('third'))
+    const first = hanging({ cancelled: false }, record(started, 'first'))
+    const second = hanging({ cancelled: false }, record(started, 'second'))
+    const third = hanging({ cancelled: false }, record(started, 'third'))
     scheduler.trigger(first.work, { immediate: true })
     scheduler.trigger(second.work, { immediate: true })
     scheduler.trigger(third.work, { immediate: true })
