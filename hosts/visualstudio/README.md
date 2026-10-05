@@ -27,8 +27,9 @@ npm.cmd run build
 node hosts/visualstudio/build-assets.mjs
 & 'C:/Program Files/Microsoft Visual Studio/2022/Community/MSBuild/Current/Bin/MSBuild.exe' hosts/visualstudio/MuseSpark.VisualStudio.csproj /restore /p:Configuration=Release /v:minimal
 dotnet test hosts/visualstudio/Test/MuseSpark.VisualStudio.Test.csproj --no-restore
-dotnet format hosts/visualstudio/MuseSpark.VisualStudio.csproj --no-restore --verify-no-changes
-dotnet format hosts/visualstudio/Test/MuseSpark.VisualStudio.Test.csproj --no-restore --verify-no-changes
+$rigRoot = (Get-Location).Path
+$rigSources = @(rg --files "$rigRoot/hosts/visualstudio" -g '*.cs')
+dotnet format whitespace "$rigRoot/hosts/visualstudio" --folder --include $rigSources --verify-no-changes
 ```
 
 The package is `bin/Release/net48/MuseSpark.VisualStudio.vsix`. It includes the
