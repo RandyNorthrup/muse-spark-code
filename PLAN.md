@@ -17682,6 +17682,15 @@ full integration quality remains the lead's gate. The feature-delivery JSON
 validator is deferred: the canonical historical plan is prose, and introducing
 a competing ledger is outside this redesign's scope.
 
+**REDM96B foundation verification (2026-10-05).** Lease/call state-machine
+redesign implemented; 82 complete foundation tests, 29 pool/connection tests
+and 17 byte-exact red drills pass on macmini after the 0.13.0 main merge.
+Compiler, focused lint/format, localization, deadcode, duplication and build
+caps pass. The inherited shared host API inventory remains lead-owned
+(`M96B-HOST-API-RECORD`); full integration quality and installed-editor/team
+wiring acceptance stay open. Evidence: `docs/certification/m96-b.md` and
+`docs/certification/m96-b-round3-drills.json`.
+
 **Status 2026-10-04: planned on `feature/m96-agent-roles` from main
 `1e93c67c`.** The plan is D75 (with its decisions on the open questions),
 M96b, M96c and this section. The research is

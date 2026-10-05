@@ -3,7 +3,7 @@
   "rig": "macmini",
   "node": "24.21.0",
   "npm": "11.19.0",
-  "snapshot": "28934e76454ccce0a09a478ce410b82470c6d763",
+  "snapshot": "c7f26dd9b7ce29229c8f6abc32f3d9a53db33a14",
   "command": [
     "npx",
     "--no-install",
@@ -17,7 +17,7 @@
   ],
   "source_checksums": {
     "src/core/team/resources.ts": "c805b8e7a26e03d4a62cf736c5a2c68127c83ff5392aa6cd4b68d7b16b4c5cc2",
-    "src/host/team/mcpBridge.ts": "44474dca02db68e4eb1a5e58fafbd5d9e31eb501b5d357f55a517b930c5c2b2e",
+    "src/host/team/mcpBridge.ts": "c2eeb8320e1d51d482adb2652380f73d15aa62b29cad9b0923374e699043ac62",
     "src/host/ide/ideMcpServer.ts": "820464dfa30564292a330620a080097f7d2f6a558965cd6bbf8ad994f0e1a052",
     "test/unit/teamResources.test.ts": "cf11b4dd482545bb367a4d344db09da46366dfa9aed2aabe1e532b92e9ef3a82",
     "test/unit/teamMcpBridge.test.ts": "86d6553a76651483fbfda2f3e100650e9caf4ab76e09eea92f003590faf3855b",
@@ -114,9 +114,9 @@
           "diagnostic": "AssertionError: expected [] to deeply equal [ { role: 'research', \u2026(2) } ]"
         }
       ],
-      "before_checksum": "44474dca02db68e4eb1a5e58fafbd5d9e31eb501b5d357f55a517b930c5c2b2e",
-      "mutated_checksum": "19d58763f2009a97fc649eb5fdfdd893193d7f7c5e14e3a99c23c76955b6dd9f",
-      "restored_checksum": "44474dca02db68e4eb1a5e58fafbd5d9e31eb501b5d357f55a517b930c5c2b2e"
+      "before_checksum": "c2eeb8320e1d51d482adb2652380f73d15aa62b29cad9b0923374e699043ac62",
+      "mutated_checksum": "a9ff9919783fd9175c676e5cfe74a57614c13125faa8ded4927a63ad71b3aeb9",
+      "restored_checksum": "c2eeb8320e1d51d482adb2652380f73d15aa62b29cad9b0923374e699043ac62"
     },
     {
       "drill": "local-validation",
@@ -132,9 +132,9 @@
           "diagnostic": "AssertionError: expected [ { role: 'research', \u2026(2) } ] to deeply equal []"
         }
       ],
-      "before_checksum": "44474dca02db68e4eb1a5e58fafbd5d9e31eb501b5d357f55a517b930c5c2b2e",
-      "mutated_checksum": "2fac8aaa6a2024c2e1379ffacc293dc1737cb3d6ec45a944cf345fc2f0b0e56c",
-      "restored_checksum": "44474dca02db68e4eb1a5e58fafbd5d9e31eb501b5d357f55a517b930c5c2b2e"
+      "before_checksum": "c2eeb8320e1d51d482adb2652380f73d15aa62b29cad9b0923374e699043ac62",
+      "mutated_checksum": "c4c19869ce43403442d6b637bda07cc68380d6c54180a024d090eccc3622b1a4",
+      "restored_checksum": "c2eeb8320e1d51d482adb2652380f73d15aa62b29cad9b0923374e699043ac62"
     },
     {
       "drill": "shared-call-cap",
@@ -172,9 +172,9 @@
           "diagnostic": "AssertionError: expected [ { \u2026(2) } ] to have a length of 2 but got 1"
         }
       ],
-      "before_checksum": "44474dca02db68e4eb1a5e58fafbd5d9e31eb501b5d357f55a517b930c5c2b2e",
-      "mutated_checksum": "7130a99b1f2260b2a24c57cbe63e0e0dab2b2ac89e423c45a60d66bc23200f8e",
-      "restored_checksum": "44474dca02db68e4eb1a5e58fafbd5d9e31eb501b5d357f55a517b930c5c2b2e"
+      "before_checksum": "c2eeb8320e1d51d482adb2652380f73d15aa62b29cad9b0923374e699043ac62",
+      "mutated_checksum": "17702ac9a53974d44bef0f62b638eaaad7f4c50fc907ce20448ba75b61736236",
+      "restored_checksum": "c2eeb8320e1d51d482adb2652380f73d15aa62b29cad9b0923374e699043ac62"
     },
     {
       "drill": "duplicate-call-id",
@@ -226,9 +226,9 @@
           "diagnostic": "Error: promise resolved \"undefined\" instead of rejecting"
         }
       ],
-      "before_checksum": "44474dca02db68e4eb1a5e58fafbd5d9e31eb501b5d357f55a517b930c5c2b2e",
-      "mutated_checksum": "607bd3e0b264bf868bb3e67cf997c5453de59ca5d9e649e5eae58c7a50d41acc",
-      "restored_checksum": "44474dca02db68e4eb1a5e58fafbd5d9e31eb501b5d357f55a517b930c5c2b2e"
+      "before_checksum": "c2eeb8320e1d51d482adb2652380f73d15aa62b29cad9b0923374e699043ac62",
+      "mutated_checksum": "036c90241ceadffa885620005748a50bbc5cce760156519b4ab1029e925d6436",
+      "restored_checksum": "c2eeb8320e1d51d482adb2652380f73d15aa62b29cad9b0923374e699043ac62"
     },
     {
       "drill": "explicit-assignment",
@@ -338,9 +338,14 @@
           "diagnostic": "AssertionError: expected { jsonrpc: '2.0', id: 1, \u2026(1) } to match object { result: { isError: true } }"
         }
       ],
-      "before_checksum": "44474dca02db68e4eb1a5e58fafbd5d9e31eb501b5d357f55a517b930c5c2b2e",
-      "mutated_checksum": "c764a7c9de26d2d5325b6a017f113d452736515d8ccc8bcb5cec72c9af10ee75",
-      "restored_checksum": "44474dca02db68e4eb1a5e58fafbd5d9e31eb501b5d357f55a517b930c5c2b2e"
+      "before_checksum": "c2eeb8320e1d51d482adb2652380f73d15aa62b29cad9b0923374e699043ac62",
+      "mutated_checksum": "9edd06ef8046a72c3f31e9864bf45340c02f38423934ae69bacbcf0d25e7f573",
+      "restored_checksum": "c2eeb8320e1d51d482adb2652380f73d15aa62b29cad9b0923374e699043ac62"
     }
-  ]
+  ],
+  "integration_source_checksums": {
+    "src/core/backends/modelapi/mcp/pool.ts": "a0a0e641522e1cf1553344613a4ad2cdbc077cab76122321f9450af9adfe0a72",
+    "src/host/mcpLoopback.ts": "c7391a11d7886835e560823c1f485f1a4d2fc3a380b090f218fb93cad7061f6b"
+  },
+  "merged_main": "8c894b60aeb4c8c8ea67b8d08e25992f4b732f3f"
 }
