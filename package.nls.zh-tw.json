@@ -90,6 +90,7 @@
   "config.modelApiSubagents.description": "付費功能，預設關閉。在 Model API 後端，子代理程式使用您的 Model API 金鑰。啟用時會要求您接受權杖價格。除非您在此工作區中一律允許子代理程式，否則每項新子工作都須核准，包括 略過權限 模式；每項工作最多四次請求，包含重試。子代理程式權杖費用已包含在對話估算中。",
   "config.modelApiBestOfN.description": "付費功能，預設關閉。在 Model API 後端，相同的提示詞會同時在 2–5 個工作樹中執行，由您選用其中一個。啟用時會要求您接受權杖價格。除非您在此工作區中一律允許 N 選最優，否則每次執行均須核准一次並註明嘗試次數和每次嘗試請求上限，在所有權限模式下皆然，包括 略過權限 模式。嘗試的權杖已包含在用量估算中，絕不計入訂閱。",
   "config.modelApiHooks.description": "在 Model API 後端執行 Muse Code 鉤子命令。預設關閉。命令僅在受信任的工作區中以您的權限在代理沙箱之外執行。啟用前請在 Muse Spark: Hooks 中檢查命令。Model API 金鑰不會傳給鉤子程序。",
+  "config.modelApiShellKeepsDirectory.description": "在呼叫之間保留 Model API 後端 shell 的工作目錄。預設開啟：一次 shell 命令中的 cd 會延續到同一交談的下一次呼叫，工作區之外的目錄會重設回工作區根目錄。檢查命令和 then_run 仍在根目錄執行。",
   "config.modelApiRepoMap.description": "在 Model API 後端的系統提示詞中加入儲存庫地圖：用 VS Code 語言服務排序的工作區中最常用的檔案與定義，每次對話產生一次，約 1,000 個權杖。預設關閉：它會在每個請求中加入這些權杖，並向您的 Model API 金鑰計費。無論是否開啟，repo_map 工具都可依需求提供同一張地圖。",
   "config.modelApiObservationPacking.description": "在 Model API 後端打包較長的工具輸出。預設關閉。超過 8,000 個字元的工具輸出在前兩次要求中完整傳送，之後以簡短預留位置（其 ID、大小以及首尾幾行）傳送，模型需要時以 recall_output 工具讀回原文。長對話傳送的輸入權杖較少；帳戶與使用量會顯示估計值。對話在開始或繼續時讀取此設定。",
   "config.modelApiScheduledPrompts.description": "付費功能，預設關閉。到期的 /loop 提示詞只有在您接受權杖價格並允許本次執行後，或您在此工作區中一律允許排程執行時，才能透過 Model API 後端執行。已排程的提示詞絕不會在無人確認時執行；每次執行均依模型公布的權杖費率向您的 Model API 金鑰計費。",

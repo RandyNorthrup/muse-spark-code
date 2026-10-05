@@ -6,7 +6,9 @@
 // Sessions live for the host's lifetime (this VS Code window).
 
 import { Buffer } from 'node:buffer'
-import { createHash } from 'node:crypto'
+import { createHash, randomUUID } from 'node:crypto'
+import { mkdir, rm } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
 import type {
   AgentEvent,
   ApprovalSubject,
@@ -177,8 +179,9 @@ import type { CoreLogger } from '../../logging'
 import { textFileInput } from '../../textAttachment'
 import { withDeadline } from '../../timeouts'
 import { isProtectedPath } from '../../protectedPaths'
+import { isSamePath } from '../../paths'
 import { ShellEntryError } from '../../shellResult'
-import { confineWorkspacePath } from '../../workspacePath'
+import { confineWorkspacePath, isBelow } from '../../workspacePath'
 import { pathModule } from '../../workspaceRoot'
 import { type CheckScope, type RunSnapshot, VerifyLedger } from './verifyLedger'
 import { WorkspaceEdits, type WorkspaceEditRecorder } from '../../verify/workspaceEdits'
@@ -315,6 +318,8 @@ import {
   readSkillArgs,
   webFetchArgs,
   type ShellResult,
+  parseShellDirectoryReport,
+  shellDirectoryTrailer,
   shellOutcome,
   shellText,
   ShellTimeLimit,
@@ -434,6 +439,18 @@ export interface ModelApiHostDeps extends ModelApiPaidHooks {
    * false packs nothing and offers no `recall_output`.
    */
   readonly observationPacking?: (() => boolean) | undefined
+  /**
+   * The shell keeps its directory between calls (M91 lane S, PLAN.md D70):
+   * `museSpark.modelApiShellKeepsDirectory`, read per shell call. Absent or
+   * false runs every call at the workspace root, as before.
+   */
+  readonly shellKeepsDirectory?: (() => boolean) | undefined
+  /**
+   * Where the shell's per-session side files live (M91 lane S): the
+   * extension's temp dir holds one file per session. Tests pass their own;
+   * the operating system's temp dir is the default.
+   */
+  readonly shellSidecarDir?: string | undefined
   /** A smaller replay cap for focused media-budget verification. */
   readonly mediaBudgetMaxEncodedChars?: number
   /** Extension-owned, workspace-local schedules; absent without workspace storage. */
@@ -1513,6 +1530,28 @@ function commandOf(argsJson: string): string {
   return pick(parsedArguments(argsJson), 'command') ?? argsJson
 }
 
+/** A shell call's kept-directory tracking (M91 lane S, PLAN.md D70). */
+interface ShellDirectoryTracking {
+  /** False runs the user's command untouched at the workspace root, as before. */
+  readonly tracked: boolean
+  /** The arguments executeTool sees: the user's command plus the trailer when tracked. */
+  readonly argsJson: string
+  /** The command's start directory: the kept one when tracked. */
+  readonly cwd: string | undefined
+  /** The session's side file the trailer reports to. */
+  readonly sideFile: string
+  /** The report nonce this call's trailer writes. */
+  readonly sequence: number
+}
+
+// The shell's per-session side files under the temp dir (M91 lane S): one
+// `<session>.<object>.cwd` file per live session object, holding the last
+// call's sequence and final directory. A call whose trailer never ran leaves
+// a stale sequence, which reads back as "no report".
+const SHELL_SIDECAR_DIR = 'muse-spark-shell'
+/** What never names a side file: the rest of a session id is replaced. */
+const SIDECAR_UNSAFE = /[^A-Za-z0-9_-]/g
+
 /**
  * The paid feature a tool call bills (M34): its row is marked paid, and the
  * paid-use popup asks before it (M58). Undefined for every free tool.
@@ -1686,6 +1725,26 @@ export class ModelApiSession implements AgentSession {
   private repoMapText: string | undefined
   private repoMapPolicy: PermissionPolicy['files'] | undefined
   private repoMapTries = 0
+  /**
+   * The shell's kept directory (M91 lane S, PLAN.md D70): the canonical
+   * absolute path the last shell call ended in, or undefined at the
+   * workspace root. Per session: a new session starts at the root, and a
+   * child task keeps its own. Never a path outside the workspace: one
+   * reported there resets to the root with a note to the model.
+   */
+  private keptShellDir: string | undefined
+  /** The shell call sequence, nonce for the session's side-file reports. */
+  private shellCallSequence = 0
+  /** The session's side-file folder, made on the first tracked call. */
+  private shellSidecarMade = false
+  /** The session's side file, removed when the session is disposed. */
+  private shellSidecarFile: string | undefined
+  /**
+   * This session object's side-file token (M91 lane S): two live surfaces on
+   * one session (PLAN.md D25) must not share a report file, even with the
+   * same session id and sequence.
+   */
+  private readonly shellSidecarToken = randomUUID()
   private readonly pendingApprovals = new Map<string, Pending<ApprovalDecision>>()
   /** Live cards for a second surface joining while a decision is still pending. */
   private readonly pendingApprovalEvents = new Map<
@@ -4578,6 +4637,139 @@ export class ModelApiSession implements AgentSession {
   }
 
   /**
+   * A shell call's kept directory (M91 lane S, PLAN.md D70): where the
+   * command starts, and what executeTool runs. The user's command is wrapped
+   * after admission, so the approval card, the session rules and the hook
+   * payloads see exactly what the model wrote; the trailer only reports
+   * the final directory to the session's side file. `then_run` and
+   * `run_checks` never pass through here: they run at the workspace root.
+   */
+  private async beginShellDirectory(call: FunctionCallItem): Promise<ShellDirectoryTracking> {
+    const untracked = (): ShellDirectoryTracking => ({
+      tracked: false,
+      argsJson: call.arguments,
+      cwd: undefined,
+      sideFile: '',
+      sequence: 0,
+    })
+    if (this.deps.shellKeepsDirectory?.() !== true) {
+      return untracked()
+    }
+    const parsed = parsedArguments(call.arguments)
+    const command = pick(parsed, 'command')
+    if (command === undefined) {
+      // No command names none: executeTool refuses it, and nothing is tracked.
+      return untracked()
+    }
+    const p = pathModule(this.deps.platform)
+    const sideFile = p.join(
+      this.deps.shellSidecarDir ?? p.join(tmpdir(), SHELL_SIDECAR_DIR),
+      `${this.sessionId.replaceAll(SIDECAR_UNSAFE, '_')}.${this.shellSidecarToken}.cwd`,
+    )
+    if (!this.shellSidecarMade) {
+      try {
+        await mkdir(p.dirname(sideFile), { recursive: true })
+      } catch (error: unknown) {
+        // Nowhere to report to: the command still runs at the root, as before.
+        this.deps.log.warn(`The shell's directory tracking is off: ${describe(error)}`)
+        return untracked()
+      }
+      this.shellSidecarMade = true
+      this.shellSidecarFile = sideFile
+    }
+    const sequence = (this.shellCallSequence += 1)
+    return {
+      tracked: true,
+      argsJson: JSON.stringify({
+        ...parsed,
+        command: `${command}${shellDirectoryTrailer(this.deps.platform, sideFile, sequence)}`,
+      }),
+      cwd: this.keptShellDir ?? this.deps.workspaceRoot,
+      sideFile,
+      sequence,
+    }
+  }
+
+  /**
+   * Reads a tracked call's report back and moves the kept directory: the
+   * tail of a result whose directory is not the root names it
+   * (`UI_TEXT.shellDirectory`), and a directory outside the workspace
+   * resets to the root with a note to the model
+   * (`UI_TEXT.shellDirectoryReset`). A result at the root carries nothing:
+   * no earlier request bytes change (SoL-Pi rule 1). The CwdChanged hook
+   * point for lane E is the assignment to `keptShellDir` below: the old and
+   * new directories are both in hand here.
+   */
+  private async endShellDirectory(
+    tracking: ShellDirectoryTracking,
+    outcome: ToolOutcome,
+  ): Promise<ToolOutcome> {
+    if (!tracking.tracked) {
+      return outcome
+    }
+    let text: string | undefined
+    try {
+      text = await this.deps.io.readFile(tracking.sideFile)
+    } catch (error: unknown) {
+      this.deps.log.warn(`The shell's directory report could not be read: ${describe(error)}`)
+    }
+    const reported = parseShellDirectoryReport(text, tracking.sequence)
+    if (reported === undefined) {
+      // The trailer never ran: keep the previous directory, silently.
+      return outcome
+    }
+    const resolved = await this.resolveShellDirectory(reported)
+    this.keptShellDir = resolved.dir
+    if (resolved.tail === undefined) {
+      return outcome
+    }
+    return {
+      ...outcome,
+      output: outcome.output === '' ? resolved.tail : `${outcome.output}\n${resolved.tail}`,
+      visibleOutput:
+        outcome.visibleOutput === '' ? resolved.tail : `${outcome.visibleOutput}\n${resolved.tail}`,
+    }
+  }
+
+  /**
+   * A reported final directory, kept or refused (M91 lane S): the canonical
+   * forms of the root and the report, links and junctions resolved, decide
+   * (PLAN.md D24). The root itself keeps nothing; anything not below it
+   * resets with a note naming the canonical path when known.
+   */
+  private async resolveShellDirectory(
+    reported: string,
+  ): Promise<{ readonly dir: string | undefined; readonly tail: string | undefined }> {
+    const platform = this.deps.platform
+    const p = pathModule(platform)
+    if (!p.isAbsolute(reported)) {
+      return { dir: undefined, tail: fill(UI_TEXT.shellDirectoryReset, { path: reported }) }
+    }
+    let realTarget: string
+    let realRoot: string
+    try {
+      ;[realTarget, realRoot] = await Promise.all([
+        this.deps.io.realPath(reported),
+        this.deps.io.realPath(this.deps.workspaceRoot),
+      ])
+    } catch {
+      // The file system refuses to say: fail closed, back to the root.
+      return { dir: undefined, tail: fill(UI_TEXT.shellDirectoryReset, { path: reported }) }
+    }
+    if (isSamePath(realTarget, realRoot, platform)) {
+      return { dir: undefined, tail: undefined }
+    }
+    const relative = p.relative(realRoot, realTarget)
+    if (!isBelow(relative, p)) {
+      return { dir: undefined, tail: fill(UI_TEXT.shellDirectoryReset, { path: realTarget }) }
+    }
+    return {
+      dir: realTarget,
+      tail: fill(UI_TEXT.shellDirectory, { path: relative.split(p.sep).join('/') }),
+    }
+  }
+
+  /**
    * The shell tool, movable to the background while it runs (M46, PLAN.md
    * D39). Until it moves, the turn's Stop ends it and its time limit holds;
    * once moved, the call answers the model at once, the command runs on with
@@ -4605,10 +4797,12 @@ export class ModelApiSession implements AgentSession {
     const limit = new ShellTimeLimit()
     let refusal: ToolOutcome | undefined
     const run = async (): Promise<ToolOutcome> => {
-      const outcome = await executeTool(call.name, call.arguments, {
+      const tracking = await this.beginShellDirectory(call)
+      const outcome = await executeTool(call.name, tracking.argsJson, {
         workspaceRoot: this.deps.workspaceRoot,
         platform: this.deps.platform,
         io: this.deps.io,
+        shellCwd: tracking.cwd,
         signal: stop.signal,
         limit,
         seen: this.seenFiles,
@@ -4619,7 +4813,7 @@ export class ModelApiSession implements AgentSession {
           if (refusal !== undefined) throw new AbortedError()
         },
       })
-      return refusal ?? outcome
+      return refusal ?? (await this.endShellDirectory(tracking, outcome))
     }
     const running = run()
     // Not `Promise.withResolvers`: VS Code 1.99 and 1.100 run Node 20 (PLAN.md M62).
@@ -9625,6 +9819,15 @@ export class ModelApiSession implements AgentSession {
       return
     }
     this.isDisposed = true
+    if (this.shellSidecarFile !== undefined) {
+      // The session's side file goes with it; a tracked call still running
+      // reads back "no report" and keeps the previous directory.
+      const sideFile = this.shellSidecarFile
+      this.shellSidecarFile = undefined
+      void rm(sideFile, { force: true }).catch(() => {
+        // Best effort: the operating system cleans its own temp dir.
+      })
+    }
     this.workspaceEdits.delete(this.ledger)
     if (this.scheduleTimer !== undefined) {
       clearInterval(this.scheduleTimer)

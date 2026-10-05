@@ -49,6 +49,8 @@ export interface ExtensionSettings extends SettingsSnapshot {
   readonly modelApiBestOfN: boolean
   /** Explicit machine opt-in for external hook commands (M51). */
   readonly modelApiHooks: boolean
+  /** The Model API shell keeps its directory between calls (M91 lane S): on until turned off. */
+  readonly modelApiShellKeepsDirectory: boolean
   /**
    * M78 (PLAN.md D49): each kept whole here; the Model API bundle parses
    * every rule and profile and reports what it refuses (permissionPolicy.ts).
@@ -110,6 +112,7 @@ const settingSchemas = {
   modelApiSubagents: z.boolean(),
   modelApiBestOfN: z.boolean(),
   modelApiHooks: z.boolean(),
+  modelApiShellKeepsDirectory: z.boolean(),
   modelApiCommandRules: z.array(z.unknown()),
   modelApiPermissionProfiles: z.record(z.string(), z.unknown()),
   modelApiPermissionProfile: z.unknown(),
@@ -194,6 +197,7 @@ export function readSettings(config: SettingsSource, log: Logger): ExtensionSett
     modelApiSubagents: readSetting(config, 'modelApiSubagents', log),
     modelApiBestOfN: readSetting(config, 'modelApiBestOfN', log),
     modelApiHooks: readSetting(config, 'modelApiHooks', log),
+    modelApiShellKeepsDirectory: readSetting(config, 'modelApiShellKeepsDirectory', log),
     diagnosticsAfterEdits: readSetting(config, 'diagnosticsAfterEdits', log),
     checkCommands: readSetting(config, 'checkCommands', log),
     formatOnEdit: readSetting(config, 'formatOnEdit', log),
