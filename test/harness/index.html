@@ -3322,6 +3322,69 @@
           document.body.style.maxWidth = '300px'
           steps['review-pane']()
         },
+        // --- M97 lane W: the legal report, with a selection made ---
+        'legal': () => {
+          send({
+            type: 'legalScanReport',
+            requestId: 'r1',
+            result: {
+              version: 1,
+              ruleVersion: '1',
+              dataVersion: '2026-10-04',
+              scope: '',
+              distribution: 'source checkout, undistributed',
+              exclusions: [],
+              incompleteChecks: ['private registry names were not queried'],
+              findings: [
+                {
+                  id: 'header/1/1',
+                  severity: 'advice',
+                  category: 'codeQualityHeader',
+                  file: 'src/a.ts',
+                  line: 1,
+                  evidenceSource: 'header reader',
+                  confidence: 1,
+                  explanation: 'The file has no copyright header.',
+                  recommendation: 'Add the project copyright header.',
+                  fixable: true,
+                  evidenceExcerpt: '// no header here',
+                },
+                {
+                  id: 'license/1/1',
+                  severity: 'should-fix',
+                  category: 'license',
+                  evidenceSource: 'project manifest',
+                  confidence: 0.9,
+                  explanation: 'The project declares no license.',
+                  recommendation: 'Choose a license and confirm it separately.',
+                  fixable: true,
+                },
+                {
+                  id: 'dep/1/1',
+                  severity: 'blocker',
+                  category: 'dependencyLicense',
+                  packageName: 'leftpad',
+                  packageVersion: '1.0.0',
+                  licenseExpression: 'GPL-3.0-only',
+                  evidenceSource: 'npm lock',
+                  confidence: 0.9,
+                  explanation: 'A dependency may oblige source distribution.',
+                  recommendation: 'Review the obligation with its evidence.',
+                  fixable: false,
+                },
+              ],
+            },
+          })
+          // The first enabled checkbox (the project license): the shot shows
+          // a selection with its separate confirmation.
+          whenFound('.legal-finding input:not([disabled])', (box) => {
+            box.click()
+          })
+        },
+        'legal-narrow': () => {
+          document.body.style.maxWidth = '300px'
+          steps['legal']()
+        },
         // A change accepted, one reverted, one refused, and a comment open on a line.
         'review-comment': () => {
           steps['review-pane']()

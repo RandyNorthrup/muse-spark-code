@@ -40,6 +40,12 @@ import { reviewRequestSchema } from './reviewCommand'
 import { scheduleCadenceSchema } from './schedule'
 import { bestOfNRunSchema } from './bestOfN'
 import { legalScanReportMessageSchema, legalScanRequestMessageSchema } from './legal'
+import {
+  confirmLegalFixMessageSchema,
+  legalFixPreviewMessageSchema,
+  legalFixResultMessageSchema,
+  requestLegalFixMessageSchema,
+} from './legalFix'
 import { boardRowSchema } from './sessionBoard'
 import { sessionRowSchema } from './sessions'
 import { accountFactsSchema, subscriptionUsageSchema, usageInsightsSchema } from './usage'
@@ -496,6 +502,12 @@ const webviewToHostMessageSchema = z.discriminatedUnion('type', [
   // The read-only legal scan (M97, PLAN.md D76): the report asks the host
   // to run the deterministic scanner; answered by `legalScanReport`.
   legalScanRequestMessageSchema,
+  // The selected-fix handoff (M97 lane W): the report asks the host to
+  // preview fixes for exactly the selected findings, then confirms exactly
+  // the preview it showed; answered by `legalFixPreview` and
+  // `legalFixResult`.
+  requestLegalFixMessageSchema,
+  confirmLegalFixMessageSchema,
   z.object({
     type: z.literal('activateBoardSession'),
     sessionId: z.string(),
@@ -654,6 +666,9 @@ const hostToWebviewMessageSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('sessionBoard'), rows: z.array(boardRowSchema) }),
   // The read-only legal scan's report (M97, PLAN.md D76).
   legalScanReportMessageSchema,
+  // The selected-fix handoff's answers (M97 lane W).
+  legalFixPreviewMessageSchema,
+  legalFixResultMessageSchema,
   // Best-of-N (M77): the run after every change: attempts starting and
   // finishing, their diff stats, the take and the end.
   z.object({ type: z.literal('bestOfNUpdate'), run: bestOfNRunSchema }),

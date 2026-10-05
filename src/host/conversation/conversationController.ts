@@ -153,6 +153,7 @@ import type { AccountFacts, SubscriptionUsage, UsageInsights } from '../../share
 import type { AuthPort } from '../auth/authService'
 import type { CheckpointPort } from '../checkpoints/checkpointHost'
 import type { DescribedFile, EditReviewActions } from '../editor/editReview'
+import { LegalFixPreviews, type LegalFixFileAccess } from '../legalFix'
 import type { ReviewCollection } from '../review/reviewCollector'
 import type { ReviewTurnFeatures } from '../review/reviewBundle'
 import { errorDetail, type Logger } from '../logger'
@@ -1110,6 +1111,12 @@ export class ConversationController {
    */
   private readonly revertedHunks = new Map<string, symbol>()
   /**
+   * The legal report's stored fix previews (M97 lane W): each confirm
+   * rechecks the preview's evidence and file hashes, so a changed file,
+   * a lost trust, or a dropped session refuses instead of writing.
+   */
+  private readonly legalFixPreviews = new LegalFixPreviews()
+  /**
    * The turns this panel started in Plan mode that finished with the panel
    * in Plan mode throughout (M79): only their replies are plans. A restart
    * keeps them (the resumed session has the same turns); a new conversation
@@ -1433,6 +1440,9 @@ export class ConversationController {
     this.reviewModeSettling = undefined
     this.permissionModeSelection += 1
     this.revertedHunks.clear()
+    // A dropped session's fix previews go with it (M97 lane W): later
+    // confirms refuse with `previewExpired` instead of authorizing.
+    this.legalFixPreviews.dispose()
     const didHaveSkills = this.skills !== undefined
     this.skills = undefined
     this.skillsRefresh = undefined
@@ -5901,6 +5911,61 @@ export class ConversationController {
   }
 
   /**
+   * The legal report's selected-fix handoff (M97 lane W): preview fixes for
+   * exactly the selected findings, then confirm exactly the shown preview.
+   * Needs no session or backend (deterministic, like the scan); the guards
+   * recheck the live mode, trust, workspace and hashes before any write.
+   * Applying the authorized paths is lane B's router through the normal
+   * edit tools; until it is wired, a guarded confirm refuses explicitly.
+   */
+  private legalFixFiles(): LegalFixFileAccess {
+    return {
+      resolveRelativePath: async (relativePath) => {
+        const root = this.deps.workspaceRoot
+        if (root === undefined) {
+          return
+        }
+        const confined = await this.deps.files.canonicalRelativePath(
+          path.resolve(root, relativePath),
+        )
+        return confined?.canonical === relativePath ? confined.checkedAbsolute : undefined
+      },
+      readBytes: async (absolutePath, maxBytes) => {
+        const read = await this.deps.files.readFile(absolutePath, maxBytes, absolutePath)
+        return read.bytes
+      },
+    }
+  }
+
+  private async previewLegalFix(
+    message: Extract<ConversationMessage, { type: 'requestLegalFix' }>,
+  ): Promise<void> {
+    const preview = await this.legalFixPreviews.preview(message, {
+      permissionMode: this.permissionMode,
+      workspacePath: this.deps.workspaceRoot ?? '',
+      isTrusted: this.deps.isWorkspaceTrusted(),
+      files: this.legalFixFiles(),
+      // Lane B's router supplies the applier through the normal edit tools.
+      applier: undefined,
+    })
+    this.post(preview)
+  }
+
+  private async confirmLegalFix(
+    message: Extract<ConversationMessage, { type: 'confirmLegalFix' }>,
+  ): Promise<void> {
+    const result = await this.legalFixPreviews.confirm(message, {
+      permissionMode: this.permissionMode,
+      workspacePath: this.deps.workspaceRoot ?? '',
+      isTrusted: this.deps.isWorkspaceTrusted(),
+      files: this.legalFixFiles(),
+      // Lane B's router supplies the applier through the normal edit tools.
+      applier: undefined,
+    })
+    this.post(result)
+  }
+
+  /**
    * A command on the session (a submission, a goal verb), once more on the
    * resumed session when the host says it no longer holds this one (MSP
    * `sessionNotLoaded`: evicted or closed, D25).
@@ -7487,6 +7552,14 @@ export class ConversationController {
       }
       case 'revertReviewHunk': {
         await this.revertReviewHunk(message)
+        break
+      }
+      case 'requestLegalFix': {
+        await this.previewLegalFix(message)
+        break
+      }
+      case 'confirmLegalFix': {
+        await this.confirmLegalFix(message)
         break
       }
       case 'rewindConversation': {

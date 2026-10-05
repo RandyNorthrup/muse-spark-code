@@ -2325,6 +2325,33 @@ export const EN = {
   legalNotFixable: 'Recommendation only',
   legalEvidenceLabel: 'Evidence: {evidence}',
   legalConfidenceLabel: 'Confidence: {confidence}',
+  // The selected-fix handoff (M97 lane W, PLAN.md D76): the report's
+  // selection, preview and refusal words. {id} is a finding id, {count} a
+  // number; every refusal names why no write happened.
+  legalReportFindings: 'Legal findings',
+  legalFixSelect: 'Fix {id}',
+  legalSelectedCount: '{count} selected',
+  legalFixAllSafe: 'Fix all safe ones',
+  legalPreviewFixes: 'Preview fixes',
+  legalFixPreviewTitle: 'Fix preview',
+  legalFixApply: 'Apply fixes',
+  legalFixFiles: 'Files to change',
+  legalFixExcluded: 'Not included',
+  legalFixReasonNotFixable: 'No safe fix; recommendation only.',
+  legalFixReasonProjectLicense: 'Project license changes need separate confirmation.',
+  legalFixReasonUnknown: 'Not part of this scan.',
+  legalFixReasonTooLarge: 'Too large to guard; fix it by hand.',
+  legalFixNothingSelected:
+    'Select at least one finding to fix, even in Bypass mode. Nothing is pre-authorized by the scan.',
+  legalFixSeparateConfirm: 'I separately confirm the project license change.',
+  legalFixRefusedPlan: 'Fixes are refused in Plan mode, which never writes.',
+  legalFixRefusedTrust: 'Fixes are refused while the workspace is untrusted.',
+  legalFixRefusedWorkspace: 'The workspace changed since the preview. Ask for a fresh preview.',
+  legalFixRefusedStale: 'The evidence changed since the preview. Run a fresh scan.',
+  legalFixRefusedExpired: 'The preview expired. Ask for a fresh preview.',
+  legalFixRefusedUnavailable: 'Applying fixes is unavailable in this build.',
+  legalFixRescanHint: 'Run a fresh scan to confirm what remains.',
+  legalScanAgain: 'Scan again',
 }
 
 /** The shape every table has: English's keys, with any language's plural forms. */

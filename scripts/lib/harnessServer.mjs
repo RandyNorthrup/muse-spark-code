@@ -125,6 +125,8 @@ export const SCENARIOS = [
   'review-pane',
   'review-pane-narrow',
   'review-comment',
+  'legal',
+  'legal-narrow',
 ]
 const CONTENT_TYPES = {
   '.html': 'text/html; charset=utf-8',
