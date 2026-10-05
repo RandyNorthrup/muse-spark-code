@@ -15618,9 +15618,9 @@ Anthropic breakpoint exclusion, stable capability-gated recall with literal
 search, sticky ids across resume/fork/rewind, a persisted local session date,
 and log-only capability-gated cache diagnostics. Twenty red drills restore
 byte-exact; deliberate golden changes, the provider matrix and production
-byte deltas are in `docs/certification/m101-a.md`. Owning suites and static/
-bundle gates pass; the final importing-suite sweep and compiler receipt are
-in progress. Integration must supply the new `modelFacts` callback from M95's
+byte deltas are in `docs/certification/m101-a.md`. Owning suites, all five compiler projects and static/bundle gates pass;
+the complete 282-file importing sweep has five reproducible pre-existing
+UI failures, recorded in §7 and the certification. Integration must supply the new `modelFacts` callback from M95's
 pending host registry seam, reconcile this base's off-by-default manifest with
 D81.6, and exclude the suffix from OpenRouter's separate chat breakpoints.
 Those owners' files remain untouched; full quality and live M75/cache receipts
@@ -15767,6 +15767,28 @@ importing suites in batches of at most three, all static gates and production
 caps directly on Kubuntu. It prohibits a full `npm run quality` and integration
 merges here. The integrator owns full quality on the combined tree; no gate,
 threshold, exemption or ignore is changed. Receipts: `docs/certification/m101-a.md`.
+
+**M101-A untouched UI-test deferral (2026-10-05).** The complete scoped
+282-file sweep reports 6,367 passed, five failed and 29 existing platform
+skips. Four `ChatViewProvider.test.ts` / `chatPanel.test.ts` assertions expect
+`<script nonce=`, while the base's `src/host/html.ts` emits `<script
+type="module" nonce=`. One `handoffDialog.test.tsx` case expects the base's
+lazy Account & usage dialog synchronously. All four files match `60bf96aa`
+byte-exact; a three-file rerun with the base English table reproduces all
+five failures, followed by exact SHA-256 restoration of Lane A's English
+source. These UI-owned files are outside the lane's edit authorization.
+Keep the gate failing and assigned to integration; no assertion, ignore,
+timeout or threshold is weakened. Owning suites, five-project typecheck,
+static gates and production caps pass. Receipts: `docs/certification/m101-a.md`.
+
+**M101-A untouched package-fixture deferral (2026-10-05).** The fake-only
+exec/ACP/launcher run reports 23 passed, 22 failed and six launcher rows not
+reached after its package hook fails. Base packaging scripts already require
+`validation.js`; both base package fixtures omit it. The scripts and tests
+match `60bf96aa` byte-exact. ACP and built exec conversations pass; the
+separate fake CLI/account/README batch passes all 41 tests. The fixture repair
+belongs to integration, outside Lane A. No test is filtered or weakened, and
+no failed package rows are claimed green. Receipts: `docs/certification/m101-a.md`.
 
 **M95INT final whole-chain rerun — deferred under the 120-minute rig brief.**
 The final 548-page rerun still returns 1: `dark/models-pick` has one selected
