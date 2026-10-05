@@ -33,6 +33,7 @@ const ACP_METAFILES = [
   path.join('dist', 'meta-acp', 'acp.json'),
   path.join(METAFILE_DIR, 'modelApi.json'),
   path.join(METAFILE_DIR, 'reviewer.json'),
+  path.join(METAFILE_DIR, 'foreignHooks.json'),
   path.join(METAFILE_DIR, 'searchWorker.json'),
   path.join(METAFILE_DIR, 'pageWorker.json'),
 ]
@@ -56,8 +57,8 @@ const HEADER = `THIRD-PARTY SOFTWARE NOTICES
 Muse Spark Code (Unofficial)
 
 The extension's bundles (dist/extension.js, dist/modelApi.js,
-dist/sessionBoard.js, dist/reviewer.js, dist/planMarkdown.js, dist/checkpointStore.js,
-dist/review.js, dist/agentImport.js, dist/codeIntel.js, dist/voice.js, dist/museCodeReviewer.js,
+dist/sessionBoard.js, dist/reviewer.js, dist/foreignHooks.js, dist/planMarkdown.js,
+dist/checkpointStore.js, dist/review.js, dist/agentImport.js, dist/codeIntel.js, dist/voice.js, dist/museCodeReviewer.js,
 dist/uiText.js, dist/searchWorker.js, dist/pageWorker.js,
 dist/webview/main.js and
 dist/webview/main.css)
@@ -76,7 +77,7 @@ const ACP_HEADER = `THIRD-PARTY SOFTWARE NOTICES
 muse-spark-code-acp, Muse Spark Code (Unofficial) for editors that speak the
 Agent Client Protocol
 
-The agent's bundles (dist/acp.js, dist/modelApi.js, dist/reviewer.js, dist/uiText.js, dist/searchWorker.js and
+The agent's bundles (dist/acp.js, dist/modelApi.js, dist/reviewer.js, dist/foreignHooks.js, dist/uiText.js, dist/searchWorker.js and
 dist/pageWorker.js) include code from the packages below, each under its
 own licence, reproduced here as the package ships it. The keyring binding (@napi-rs/keyring) is installed
 beside it as a dependency, with its own licence.

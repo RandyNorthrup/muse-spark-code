@@ -361,6 +361,7 @@
   "pluginApiUnavailable": "{name} 플러그 인이 플러그 인 호스트에서 제공하지 않는 {api}을(를) 호출하여 해당 후크가 실패했습니다.",
   "hookAdapterUnreadable": "{format} 형식 후크가 이 창에서 읽을 수 없는 응답을 반환하여 실패로 간주합니다.",
   "hookAdapterFailClosed": "{format} 형식 보호 후크가 실패하여 {format} 자체와 마찬가지로 호출을 차단했습니다.",
+  "hookOutputReplaced": "후크가 이 도구의 출력 중 모델이 보는 내용을 바꿨습니다. 행에는 실제 출력이 표시됩니다.",
   "memoryItem": "메모리…",
   "memoryItemDetail": "Muse가 이후 세션을 위해 보관하는 노트",
   "memoryTitle": "Muse 메모리",

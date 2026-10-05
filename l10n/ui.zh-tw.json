@@ -361,6 +361,7 @@
   "pluginApiUnavailable": "{name} 外掛程式呼叫了外掛程式主機未提供的 {api}，因此該鉤子失敗。",
   "hookAdapterUnreadable": "{format} 格式的鉤子傳回了此視窗無法讀取的回應，因此視為失敗。",
   "hookAdapterFailClosed": "{format} 格式的防護鉤子失敗，因此與 {format} 本身的做法相同，封鎖了該呼叫。",
+  "hookOutputReplaced": "鉤子取代了模型看到的此工具輸出；該列顯示的是實際輸出。",
   "memoryItem": "記憶…",
   "memoryItemDetail": "Muse 為後續工作階段保留的筆記",
   "memoryTitle": "Muse 記憶",

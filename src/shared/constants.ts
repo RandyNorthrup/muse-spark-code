@@ -463,6 +463,23 @@ export const HOOK_FORBIDDEN_ENV_NAMES: ReadonlySet<string> = new Set([
   'ANTHROPIC_KEY',
   'META_KEY',
 ])
+// M91 lane W (PLAN.md D70): the formats lane P's adapters translate. A
+// spark-hooks.json group names one in its `format` tag; a group in any other
+// format (Cline's, which lane X's plugin host runs) is skipped with a warning.
+export const HOOK_FORMATS = ['gemini', 'cursor', 'copilot', 'windsurf', 'kiro'] as const
+// Each format's source agent by its name in the import picker, for the Hooks
+// picker's rows and the adapters' notices; Cline's for lane X's plugin host.
+export const HOOK_FORMAT_NAME_KEYS = {
+  gemini: 'agentImportSourceGemini',
+  cursor: 'agentImportSourceCursor',
+  copilot: 'agentImportSourceCopilot',
+  windsurf: 'agentImportSourceWindsurf',
+  kiro: 'agentImportSourceKiro',
+  cline: 'agentImportSourceCline',
+} as const
+// Cursor's stop and subagentStop follow-up limit for a script that sets no
+// `loop_limit` ("Default is 5 for Cursor hooks", cursor.com/docs/hooks).
+export const HOOK_CURSOR_DEFAULT_LOOP_LIMIT = 5
 // Hooks from every popular agent (M91, PLAN.md D70), landed by lane 0 before
 // the lanes that read them. Muse Code's own two new events, Interrupt (1.4.0)
 // and SessionFork (1.4.2), join `HOOK_EVENTS` in hooks.ts (lane R).

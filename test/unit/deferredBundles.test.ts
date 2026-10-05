@@ -99,9 +99,23 @@ describe('deferred cohort bundles', () => {
     expect(inputs('reviewer')).toContain('src/core/backends/modelapi/reviewerEntry.ts')
   })
 
+  it('keeps the imported hooks’ adapters out of the session bundle (M91 lane W)', () => {
+    expect(readFileSync('dist/modelApi.js', 'utf8')).toContain('./foreignHooks.js')
+    for (const file of [
+      'src/core/backends/modelapi/foreignHooksEntry.ts',
+      'src/core/backends/modelapi/hookFormats/engine.ts',
+      'src/core/backends/modelapi/hookFormats/contracts/cursor.ts',
+    ]) {
+      expect(inputs('modelApi')).not.toContain(file)
+      expect(inputs('foreignHooks')).toContain(file)
+    }
+  })
+
   it.each([
     ['extension', 'src/host/bestOfN/bestOfNManager.ts', 'on its first action'],
     ['modelApi', 'src/core/backends/modelapi/reviewerEntry.ts', 'on its first action'],
+    // M91 lane W: the imported hooks' adapters, required on first use.
+    ['modelApi', 'src/core/backends/modelapi/hookFormats/engine.ts', 'on its first action'],
     // Split out of activation on 2026-10-03 (PLAN.md D6).
     ['extension', 'src/core/codeIntel/codeIntelQuery.ts', 'on the first code intelligence call'],
     ['extension', 'src/core/voice/museVoice.ts', 'on the first recording'],

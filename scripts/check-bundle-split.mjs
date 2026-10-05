@@ -49,6 +49,25 @@ const BUNDLES = {
   acp: { output: 'dist/acp.js', metafile: 'dist/meta-acp/acp.json' },
 }
 const DEFERRED_ONLY = ['reviewerEntry.ts']
+// M91 lane W: the adapters for hooks imported in another agent's format (lane
+// P's contracts and engine), dist/foreignHooks.js, loaded the first time a
+// session holding one runs a hook.
+const FOREIGN_HOOKS_ONLY = [
+  'foreignHooksEntry.ts',
+  'hookFormats.ts',
+  'hookFormats/core.ts',
+  'hookFormats/engine.ts',
+  'hookFormats/transforms.ts',
+  'hookFormats/contracts/copilot.ts',
+  'hookFormats/contracts/cursor.ts',
+  'hookFormats/contracts/gemini.ts',
+  'hookFormats/contracts/kiro.ts',
+  'hookFormats/contracts/vscode.ts',
+  'hookFormats/contracts/windsurf.ts',
+]
+// Files of type declarations only, which no bundle carries: lane P's contract
+// shapes, read by the adapters' compiler and never at run time.
+const TYPES_ONLY = new Set(['hookFormats/contract.ts'])
 const DEFERRED = [
   {
     output: 'dist/sessionBoard.js',
@@ -66,6 +85,11 @@ const DEFERRED = [
     output: 'dist/reviewer.js',
     metafile: 'dist/meta/reviewer.json',
     files: DEFERRED_ONLY.map((name) => `${MODEL_API_DIR}/${name}`),
+  },
+  {
+    output: 'dist/foreignHooks.js',
+    metafile: 'dist/meta/foreignHooks.json',
+    files: FOREIGN_HOOKS_ONLY.map((name) => `${MODEL_API_DIR}/${name}`),
   },
 ]
 
@@ -152,14 +176,22 @@ for (const name of onDisk) {
   const lists =
     Number(ACTIVATION_ALLOWED.has(name)) +
     Number(lazy.has(name)) +
-    Number(DEFERRED_ONLY.includes(name))
+    Number(DEFERRED_ONLY.includes(name)) +
+    Number(FOREIGN_HOOKS_ONLY.includes(name)) +
+    Number(TYPES_ONLY.has(name))
   if (lists !== 1) {
     problems.push(
       `${MODEL_API_DIR}/${name} is on ${lists === 0 ? 'neither list' : 'both lists'} in scripts/check-bundle-split.mjs`,
     )
   }
 }
-for (const name of [...ACTIVATION_ALLOWED.keys(), ...lazy, ...DEFERRED_ONLY]) {
+for (const name of [
+  ...ACTIVATION_ALLOWED.keys(),
+  ...lazy,
+  ...DEFERRED_ONLY,
+  ...FOREIGN_HOOKS_ONLY,
+  ...TYPES_ONLY,
+]) {
   if (!onDisk.has(name)) {
     problems.push(`${MODEL_API_DIR}/${name} is listed but does not exist`)
   }

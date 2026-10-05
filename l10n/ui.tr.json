@@ -373,6 +373,7 @@
   "pluginApiUnavailable": "{name} eklentisi, eklenti konağının sunmadığı {api} API’sini çağırdı; bu yüzden o kanca başarısız oldu.",
   "hookAdapterUnreadable": "{format} biçimindeki bir kanca, bu pencerenin okuyamadığı bir yanıt verdi; bu yüzden hata sayılır.",
   "hookAdapterFailClosed": "{format} biçimindeki bir koruma kancası başarısız oldu; bu yüzden çağrı, tıpkı {format} uygulamasının kendisinin yapacağı gibi engellendi.",
+  "hookOutputReplaced": "Bir kanca, modelin bu aracın çıktısından gördüğünü değiştirdi; satır gerçek çıktıyı gösterir.",
   "memoryItem": "Bellek…",
   "memoryItemDetail": "Muse'un sonraki oturumlar için sakladığı notlar",
   "memoryTitle": "Muse belleği",

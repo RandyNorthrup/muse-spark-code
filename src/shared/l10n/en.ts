@@ -586,6 +586,9 @@ export const EN = {
     'A {format}-format hook gave an answer this window cannot read, so it counts as a failure.',
   hookAdapterFailClosed:
     'A {format}-format guard failed, so the call was blocked, as {format} itself would block it.',
+  // A hook in another agent's format replaced a tool's output for the model.
+  hookOutputReplaced:
+    'A hook replaced what the model sees of this tool’s output; the row shows the real output.',
   // Memory (M49, D41): the notes Muse Code keeps, on both backends.
   memoryItem: 'Memory…',
   memoryItemDetail: 'The notes Muse keeps for later sessions',

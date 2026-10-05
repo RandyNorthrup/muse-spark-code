@@ -60,6 +60,10 @@ const SESSION_BOARD_ENTRY = 'src/host/sessionBoardEntry.ts'
 const SESSION_BOARD_OUTFILE = 'dist/sessionBoard.js'
 const REVIEWER_ENTRY = 'src/core/backends/modelapi/reviewerEntry.ts'
 const REVIEWER_OUTFILE = 'dist/reviewer.js'
+// M91 lane W: the adapters for hooks imported in another agent's format,
+// loaded the first time a session holding one runs a hook.
+const FOREIGN_HOOKS_ENTRY = 'src/core/backends/modelapi/foreignHooksEntry.ts'
+const FOREIGN_HOOKS_OUTFILE = 'dist/foreignHooks.js'
 const PLAN_MARKDOWN_ENTRY = 'src/host/planMarkdownEntry.ts'
 const PLAN_MARKDOWN_OUTFILE = 'dist/planMarkdown.js'
 const REVIEW_ENTRY = 'src/host/review/reviewEntry.ts'
@@ -111,20 +115,26 @@ const sharedUiText = {
 }
 
 // Keep dynamic imports dynamic: these entries run only on their first action.
+const DEFERRED_OUTFILES = new Map([
+  [path.resolve(SESSION_BOARD_ENTRY), SESSION_BOARD_OUTFILE],
+  [path.resolve(REVIEWER_ENTRY), REVIEWER_OUTFILE],
+  [path.resolve(FOREIGN_HOOKS_ENTRY), FOREIGN_HOOKS_OUTFILE],
+])
 /** @type {import('esbuild').Plugin} */
 const deferredCohort = {
   name: 'deferred-cohort',
   setup(build) {
-    build.onResolve({ filter: /\/(?:sessionBoardEntry|reviewerEntry)(?:\.[jt]s)?$/ }, (args) => {
-      if (args.kind !== 'dynamic-import') return
-      const source = path.resolve(args.resolveDir, `${args.path.replace(/\.[jt]s$/, '')}.ts`)
-      let output
-      if (source === path.resolve(SESSION_BOARD_ENTRY)) output = SESSION_BOARD_OUTFILE
-      else if (source === path.resolve(REVIEWER_ENTRY)) output = REVIEWER_OUTFILE
-      return output === undefined
-        ? undefined
-        : { path: `./${path.basename(output)}`, external: true }
-    })
+    build.onResolve(
+      { filter: /\/(?:sessionBoardEntry|reviewerEntry|foreignHooksEntry)(?:\.[jt]s)?$/ },
+      (args) => {
+        if (args.kind !== 'dynamic-import') return
+        const source = path.resolve(args.resolveDir, `${args.path.replace(/\.[jt]s$/, '')}.ts`)
+        const output = DEFERRED_OUTFILES.get(source)
+        return output === undefined
+          ? undefined
+          : { path: `./${path.basename(output)}`, external: true }
+      },
+    )
   },
 }
 
@@ -173,6 +183,13 @@ const reviewerOptions = {
   ...modelApiOptions,
   entryPoints: [REVIEWER_ENTRY],
   outfile: REVIEWER_OUTFILE,
+}
+
+/** @type {import('esbuild').BuildOptions} */
+const foreignHooksOptions = {
+  ...modelApiOptions,
+  entryPoints: [FOREIGN_HOOKS_ENTRY],
+  outfile: FOREIGN_HOOKS_OUTFILE,
 }
 
 /** @type {import('esbuild').BuildOptions} */
@@ -338,6 +355,7 @@ if (isWatch) {
     esbuild.context(reviewOptions),
     esbuild.context(sessionBoardOptions),
     esbuild.context(reviewerOptions),
+    esbuild.context(foreignHooksOptions),
     esbuild.context(planMarkdownOptions),
     esbuild.context(checkpointStoreOptions),
     esbuild.context(agentImportOptions),
@@ -359,6 +377,7 @@ if (isWatch) {
     review: esbuild.build(reviewOptions),
     sessionBoard: esbuild.build(sessionBoardOptions),
     reviewer: esbuild.build(reviewerOptions),
+    foreignHooks: esbuild.build(foreignHooksOptions),
     planMarkdown: esbuild.build(planMarkdownOptions),
     checkpointStore: esbuild.build(checkpointStoreOptions),
     agentImport: esbuild.build(agentImportOptions),
@@ -393,6 +412,7 @@ if (isWatch) {
   reportSize(REVIEW_OUTFILE)
   reportSize(SESSION_BOARD_OUTFILE)
   reportSize(REVIEWER_OUTFILE)
+  reportSize(FOREIGN_HOOKS_OUTFILE)
   reportSize(PLAN_MARKDOWN_OUTFILE)
   reportSize(CHECKPOINT_STORE_OUTFILE)
   reportSize(AGENT_IMPORT_OUTFILE)

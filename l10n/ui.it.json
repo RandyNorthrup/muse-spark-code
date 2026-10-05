@@ -385,6 +385,7 @@
   "pluginApiUnavailable": "Il plug-in {name} ha chiamato {api}, che l’host dei plug-in non offre, quindi quell’hook non è riuscito.",
   "hookAdapterUnreadable": "Un hook in formato {format} ha dato una risposta che questa finestra non riesce a leggere, quindi conta come errore.",
   "hookAdapterFailClosed": "Una protezione in formato {format} non è riuscita, quindi la chiamata è stata bloccata, come la bloccherebbe {format} stesso.",
+  "hookOutputReplaced": "Un hook ha sostituito ciò che il modello vede dell’output di questo strumento; la riga mostra l’output reale.",
   "memoryItem": "Memoria…",
   "memoryItemDetail": "Le note che Muse conserva per le sessioni successive",
   "memoryTitle": "Memoria di Muse",

@@ -373,6 +373,7 @@
   "pluginApiUnavailable": "Das Plug-in {name} hat {api} aufgerufen, das der Plug-in-Host nicht anbietet, daher ist dieser Hook fehlgeschlagen.",
   "hookAdapterUnreadable": "Ein Hook im {format}-Format hat eine Antwort gegeben, die dieses Fenster nicht lesen kann, daher zählt sie als Fehlschlag.",
   "hookAdapterFailClosed": "Ein Schutz-Hook im {format}-Format ist fehlgeschlagen, daher wurde der Aufruf blockiert, so wie {format} selbst ihn blockieren würde.",
+  "hookOutputReplaced": "Ein Hook hat ersetzt, was das Modell von der Ausgabe dieses Werkzeugs sieht; die Zeile zeigt die echte Ausgabe.",
   "memoryItem": "Gedächtnis…",
   "memoryItemDetail": "Die Notizen, die Muse für spätere Sitzungen aufbewahrt",
   "memoryTitle": "Muse-Gedächtnis",

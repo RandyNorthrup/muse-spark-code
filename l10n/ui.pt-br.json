@@ -385,6 +385,7 @@
   "pluginApiUnavailable": "O plug-in {name} chamou {api}, que o host de plug-ins não oferece; por isso, esse gancho falhou.",
   "hookAdapterUnreadable": "Um gancho no formato {format} deu uma resposta que esta janela não consegue ler; por isso, conta como falha.",
   "hookAdapterFailClosed": "Uma proteção no formato {format} falhou; por isso, a chamada foi bloqueada, como o próprio {format} a bloquearia.",
+  "hookOutputReplaced": "Um gancho substituiu o que o modelo vê da saída desta ferramenta; a linha mostra a saída real.",
   "memoryItem": "Memória…",
   "memoryItemDetail": "As notas que o Muse guarda para sessões futuras",
   "memoryTitle": "Memória do Muse",

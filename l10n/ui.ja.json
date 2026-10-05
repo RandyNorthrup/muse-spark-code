@@ -361,6 +361,7 @@
   "pluginApiUnavailable": "{name} プラグインがプラグイン ホストにない {api} を呼び出したため、そのフックは失敗しました。",
   "hookAdapterUnreadable": "{format} 形式のフックがこのウィンドウで読み取れない応答を返したため、失敗として扱います。",
   "hookAdapterFailClosed": "{format} 形式の保護フックが失敗したため、{format} 自体と同様に呼び出しをブロックしました。",
+  "hookOutputReplaced": "フックが、このツールの出力のうちモデルが見る内容を置き換えました。行には実際の出力が表示されます。",
   "memoryItem": "メモリ…",
   "memoryItemDetail": "Muse が後のセッションのために保存するノート",
   "memoryTitle": "Muse のメモリ",

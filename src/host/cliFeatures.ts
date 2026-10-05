@@ -16,6 +16,7 @@ import {
   MODEL_API_HOOKS_SETTING,
   MUSE_SKILLS_TIMEOUT_MS,
   PROJECT_HOOKS_SEGMENTS,
+  SPARK_HOOKS_SEGMENTS,
   type SkillImportSource,
   UI_TEXT,
 } from '../shared/constants'
@@ -158,6 +159,13 @@ export function createCliFeatures(deps: CliFeatureDeps): CliFeatures {
         deps.workspaceRoot === undefined
           ? undefined
           : path.join(deps.workspaceRoot, ...PROJECT_HOOKS_SEGMENTS),
+      // spark-hooks.json, the extension's own hook file (M91, PLAN.md D70).
+      sparkProjectPath:
+        deps.workspaceRoot === undefined
+          ? undefined
+          : path.join(deps.workspaceRoot, ...SPARK_HOOKS_SEGMENTS.project),
+      sparkUserPath: path.join(path.dirname(settingsPath), SPARK_HOOKS_SEGMENTS.user[1]),
+      readTextFile: readTextIfPresent,
       fileExists: existsSync,
       isWorkspaceTrusted: () => vscode.workspace.isTrusted,
       pick: showPickOne,

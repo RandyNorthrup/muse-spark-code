@@ -385,6 +385,7 @@
   "pluginApiUnavailable": "El complemento {name} llamó a {api}, que el host de complementos no ofrece, así que ese hook falló.",
   "hookAdapterUnreadable": "Un hook con formato {format} dio una respuesta que esta ventana no puede leer, así que cuenta como un fallo.",
   "hookAdapterFailClosed": "Una protección con formato {format} falló, así que se bloqueó la llamada, como la bloquearía el propio {format}.",
+  "hookOutputReplaced": "Un hook reemplazó lo que el modelo ve de la salida de esta herramienta; la fila muestra la salida real.",
   "memoryItem": "Memoria…",
   "memoryItemDetail": "Las notas que Muse guarda para sesiones posteriores",
   "memoryTitle": "Memoria de Muse",

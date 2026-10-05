@@ -8,7 +8,7 @@
 // available when this backend is loaded outside the extension.
 
 import { ModelApiClient } from '../../core/backends/modelapi/client'
-import { loadHookDefinitions } from '../../core/backends/modelapi/hooks'
+import { loadForeignHookDefinitions, loadHookDefinitions } from '../../core/backends/modelapi/hooks'
 import { McpServerPool } from '../../core/backends/modelapi/mcp/pool'
 import { ModelApiHost } from '../../core/backends/modelapi/ModelApiHost'
 import { setUiText } from '../../shared/l10n/text'
@@ -22,19 +22,27 @@ export async function createModelApiHost(deps: ModelApiBundleDeps): Promise<Mode
     ...hostDeps,
     client: new ModelApiClient(deps.client),
     mcpServers: await deps.createMcpServers?.((poolDeps) => new McpServerPool(poolDeps)),
-    loadHooks: async () =>
-      hookSettingsPath !== undefined && hostDeps.isHooksEnabled?.() === true
-        ? await loadHookDefinitions({
-            io: hostDeps.contextIo,
-            platform: hostDeps.platform,
-            settingsPath: hookSettingsPath,
-            workspaceRoot: hostDeps.workspaceRoot,
-            isWorkspaceTrusted: hostDeps.isWorkspaceTrusted,
-            warn: (message) => {
-              hostDeps.log.warn(`Hooks: ${message}`)
-            },
-          })
-        : [],
+    loadHooks: async () => {
+      if (hookSettingsPath === undefined || hostDeps.isHooksEnabled?.() !== true) {
+        return []
+      }
+      const sources = {
+        io: hostDeps.contextIo,
+        platform: hostDeps.platform,
+        settingsPath: hookSettingsPath,
+        workspaceRoot: hostDeps.workspaceRoot,
+        isWorkspaceTrusted: hostDeps.isWorkspaceTrusted,
+        warn: (message: string) => {
+          hostDeps.log.warn(`Hooks: ${message}`)
+        },
+      }
+      // Hooks imported in another agent's format live in spark-hooks.json and
+      // join the same per-session snapshot, after Muse Code's (M91 lane W).
+      return [
+        ...(await loadHookDefinitions(sources)),
+        ...(await loadForeignHookDefinitions(sources)),
+      ]
+    },
   })
   await host.load()
   return host

@@ -248,5 +248,12 @@ export const KIRO_CONTRACT: VendorContract = {
       },
       { aliases: ['postTaskExecution'] },
     ),
+    // M91 lane W: Kiro's on-demand hook (T:267-269), which runs here only when
+    // the user starts it (Run Hook…, `/hook run`). Its stdin is undocumented:
+    // the common fields and the trigger name, as for the task triggers.
+    row('Manual', 'Manual', 'Manual', [], result(false, 'text'), {
+      input: `${TYPES}:267-269 (stdin undocumented)`,
+      output: `${ACTIONS}:32-34`,
+    }),
   ],
 }

@@ -373,6 +373,7 @@
   "pluginApiUnavailable": "A(z) {name} beépülő modul meghívta a következőt: {api}, amelyet a beépülő modulok gazdafolyamata nem kínál, ezért ez a hook sikertelen volt.",
   "hookAdapterUnreadable": "Egy {format} formátumú hook olyan választ adott, amelyet ez az ablak nem tud beolvasni, ezért hibának számít.",
   "hookAdapterFailClosed": "Egy {format} formátumú védelmi hook sikertelen volt, ezért a hívás le lett tiltva, ahogy maga a(z) {format} is letiltaná.",
+  "hookOutputReplaced": "Egy hook lecserélte, amit a modell ennek az eszköznek a kimenetéből lát; a sor a valódi kimenetet mutatja.",
   "memoryItem": "Memória…",
   "memoryItemDetail": "A jegyzetek, amelyeket a Muse a későbbi munkamenetekhez megőriz",
   "memoryTitle": "Muse-memória",

@@ -361,6 +361,7 @@
   "pluginApiUnavailable": "{name} 插件调用了插件宿主不提供的 {api}，因此该钩子失败。",
   "hookAdapterUnreadable": "{format} 格式的钩子返回了此窗口无法读取的应答，因此计为失败。",
   "hookAdapterFailClosed": "{format} 格式的防护钩子失败，因此与 {format} 自身的做法一样，阻止了该调用。",
+  "hookOutputReplaced": "钩子替换了模型看到的此工具输出；该行显示的是实际输出。",
   "memoryItem": "记忆…",
   "memoryItemDetail": "Muse 为后续会话保留的笔记",
   "memoryTitle": "Muse 记忆",

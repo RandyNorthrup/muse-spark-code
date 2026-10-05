@@ -15,6 +15,7 @@ import {
   HOOK_CONFIG_MAX_BYTES,
   HOOK_DEFAULT_TIMEOUT_SECONDS,
   HOOK_FORBIDDEN_ENV_NAMES,
+  HOOK_FORMATS,
   HOOK_MATCHER_MAX_CHARS,
   HOOK_MATCHER_COMPILE_TIMEOUT_MS,
   HOOK_MATCHER_TIMEOUT_MS,
@@ -35,6 +36,7 @@ import {
   MILLISECONDS_PER_SECOND,
   MODEL_API_TOOLS,
   PROJECT_HOOKS_SEGMENTS,
+  SPARK_HOOKS_SEGMENTS,
 } from '../../../shared/constants'
 import { type ContextIo, decodeContextText } from '../../context/contextFiles'
 import { confineWorkspacePath } from '../../workspacePath'
@@ -75,9 +77,88 @@ export interface HookDefinition {
   readonly extraEnvNames?: readonly string[]
   readonly isAsync: boolean
   readonly onFailure?: HookDefinition
+  /**
+   * A hook imported in another agent's format (M91 lane W, PLAN.md D70): it
+   * never runs natively. Its stdin and answer go through lane P's adapter,
+   * which `dispatchHooks` takes from the caller; without one it is skipped.
+   */
+  readonly foreign?: ForeignHookSpec
 }
 
-type HookMatcher =
+/** A `spark-hooks.json` group's import record (docs/certification/m91-i.md). */
+export interface ForeignHookSpec {
+  /** The source format: one of `HOOK_FORMATS`. */
+  readonly format: string
+  /** The source's own event name, verbatim. */
+  readonly sourceEvent: string
+  /** Copilot's contract: `copilot` (CLI) or `vscode` (VS Code Local). */
+  readonly flavor?: string | undefined
+  /** Cursor's per-script failClosed. */
+  readonly failClosed?: boolean | undefined
+  /** Kiro's file-path regex, applied by the adapter before the hook runs. */
+  readonly pathPattern?: string | undefined
+  /** Cursor's shell-command regex, applied before the hook runs. */
+  readonly commandPattern?: string | undefined
+  /** Cursor's stop and subagentStop continuation bound; null is none of its own. */
+  readonly loopLimit?: number | null | undefined
+  /** The definition's workspace-relative working directory (Copilot, VS Code Local). */
+  readonly cwd?: string | undefined
+  /** Kiro's hook name. */
+  readonly description?: string | undefined
+}
+
+/** A documented output replacement, applied before packing (D70 SoL-Pi rule 2). */
+export interface HookReplacement {
+  readonly target: 'toolResult' | 'subagentResponse'
+  readonly value: string | Readonly<Record<string, unknown>>
+}
+
+/** How a foreign hook's process ended, for its adapter to judge by its source's rules. */
+export type ForeignRunResult =
+  | {
+      readonly kind: 'exit'
+      readonly exitCode: number | null
+      readonly stdout: string
+      readonly stderr: string
+    }
+  /** Killed at its timeout: Copilot fails open; the others treat it as a crash. */
+  | { readonly kind: 'timeout' }
+  /** Could not start, or its output went past the cap. */
+  | { readonly kind: 'crash' }
+  /** Never started: its stdin could not be translated, or its directory left the workspace. */
+  | { readonly kind: 'refused'; readonly reason: string }
+
+export type ForeignPreparation =
+  | { readonly outcome: 'run'; readonly stdin: string; readonly cwd: string }
+  /** The source would not run it here, and that is not a failure. */
+  | { readonly outcome: 'skip'; readonly reason: string }
+  | { readonly outcome: 'refused'; readonly reason: string }
+
+/** What a running operation tells foreign adapters beyond the payload (Kiro's file triggers). */
+export interface ForeignDispatchContext {
+  /** An edit-family call's effect: a file it created, or one it changed. */
+  readonly fileOperation?: 'create' | 'save' | undefined
+}
+
+/** Lane P's adapters behind one door, given by the caller so this module stays small. */
+export interface ForeignHookAdapter {
+  prepare(
+    hook: HookDefinition,
+    spec: ForeignHookSpec,
+    event: HookEvent,
+    payload: Readonly<Record<string, unknown>>,
+    context: ForeignDispatchContext | undefined,
+  ): Promise<ForeignPreparation>
+  answer(
+    hook: HookDefinition,
+    spec: ForeignHookSpec,
+    event: HookEvent,
+    result: ForeignRunResult,
+    payload: Readonly<Record<string, unknown>>,
+  ): HookAnswer
+}
+
+export type HookMatcher =
   | { readonly kind: 'exact'; readonly names: ReadonlySet<string> }
   | { readonly kind: 'regex'; readonly pattern: string }
 
@@ -515,6 +596,271 @@ export function parseHookConfig(
   return { hooks, warnings }
 }
 
+// --- Imported hooks in spark-hooks.json (M91 lane W, PLAN.md D70) ---
+//
+// Lane I writes each foreign hook as one group with its import record
+// (docs/certification/m91-i.md). The record is checked field by field here,
+// with the handler and matcher parsed by the native rules above, so an
+// imported hook is bounded exactly as a native one is. Groups without a
+// `format` tag, and extension events, are lane E's parser's.
+
+const FOREIGN_GROUP_FIELDS = new Set([
+  'matcher',
+  'hooks',
+  'format',
+  'sourceEvent',
+  'flavor',
+  'sourceEntry',
+  'pathPattern',
+  'commandPattern',
+  'failClosed',
+  'loop_limit',
+  'description',
+  'async',
+])
+const FOREIGN_HANDLER_FIELDS = new Set(['type', 'command', 'commandWindows', 'timeout', 'cwd'])
+const FOREIGN_FORMATS: ReadonlySet<string> = new Set(HOOK_FORMATS)
+const FOREIGN_FLAVORS: Readonly<Record<string, ReadonlySet<string>>> = {
+  copilot: new Set(['copilot', 'vscode']),
+  cursor: new Set(['generic', 'specialized']),
+}
+const FOREIGN_LOOP_EVENTS = new Set<HookEvent>(['Stop', 'SubagentStop'])
+
+/** A source regex, compiled once under the bounded deadline; a string says why it is refused. */
+function sourcePattern(value: unknown, name: string): string | undefined {
+  if (typeof value !== 'string' || value === '') {
+    return `${name} must be a non-empty string`
+  }
+  if (value.length > HOOK_MATCHER_MAX_CHARS) {
+    return `${name} is too long`
+  }
+  try {
+    COMPILE_VALUES.pattern = value
+    const compiled: unknown = MATCH_COMPILE_SCRIPT.runInContext(COMPILE_CONTEXT, {
+      timeout: HOOK_MATCHER_COMPILE_TIMEOUT_MS,
+    })
+    return typeof compiled === 'string' ? undefined : `${name} is not a valid regular expression`
+  } catch {
+    return `${name} is not a valid regular expression`
+  }
+}
+
+/** A definition's working directory: relative, and inside the workspace by its text. */
+function relativeCwd(value: unknown, platform: NodeJS.Platform): string | undefined {
+  if (typeof value !== 'string' || value.trim() === '') {
+    return undefined
+  }
+  const p = platform === 'win32' ? path.win32 : path.posix
+  if (p.isAbsolute(value) || path.posix.isAbsolute(value) || /^[a-z]:/i.test(value)) {
+    return undefined
+  }
+  const normalized = p.normalize(value)
+  return normalized === '..' || normalized.startsWith(`..${p.sep}`) ? undefined : normalized
+}
+
+/** The import record's own fields, each checked against its format. */
+function foreignSpec(group: HookRecord, event: HookEvent): ForeignHookSpec | string {
+  const { format, sourceEvent, flavor } = group
+  if (typeof format !== 'string' || !FOREIGN_FORMATS.has(format)) {
+    return `format ${typeof format === 'string' ? format : typeof format} has no adapter in this version`
+  }
+  if (
+    typeof sourceEvent !== 'string' ||
+    sourceEvent === '' ||
+    sourceEvent.length > HOOK_MATCHER_MAX_CHARS
+  ) {
+    return 'sourceEvent must name the source event'
+  }
+  if (
+    flavor !== undefined &&
+    (typeof flavor !== 'string' || !FOREIGN_FLAVORS[format]?.has(flavor))
+  ) {
+    return `flavor ${typeof flavor === 'string' ? flavor : typeof flavor} is not a ${format} contract`
+  }
+  const isCursor = format === 'cursor'
+  const checks: readonly (readonly [boolean, string])[] = [
+    [group['pathPattern'] !== undefined && format !== 'kiro', 'pathPattern is Kiro’s only'],
+    [group['commandPattern'] !== undefined && !isCursor, 'commandPattern is Cursor’s only'],
+    [group['failClosed'] !== undefined && !isCursor, 'failClosed is Cursor’s only'],
+    [
+      group['failClosed'] !== undefined && typeof group['failClosed'] !== 'boolean',
+      'failClosed must be a boolean',
+    ],
+    [
+      group['loop_limit'] !== undefined && (!isCursor || !FOREIGN_LOOP_EVENTS.has(event)),
+      'loop_limit is Cursor’s, on Stop and SubagentStop only',
+    ],
+    [
+      group['description'] !== undefined && typeof group['description'] !== 'string',
+      'description must be a string',
+    ],
+  ]
+  const failed = checks.find(([isFailed]) => isFailed)
+  if (failed !== undefined) {
+    return failed[1]
+  }
+  const limit = group['loop_limit']
+  let loopLimit: number | null | undefined
+  if (limit === null || (typeof limit === 'number' && Number.isSafeInteger(limit) && limit >= 0)) {
+    loopLimit = limit
+  } else if (limit !== undefined) {
+    return 'loop_limit must be a non-negative integer or null'
+  }
+  for (const name of ['pathPattern', 'commandPattern'] as const) {
+    const problem = group[name] === undefined ? undefined : sourcePattern(group[name], name)
+    if (problem !== undefined) {
+      return problem
+    }
+  }
+  return {
+    format,
+    sourceEvent,
+    ...(typeof flavor === 'string' && { flavor }),
+    ...(typeof group['failClosed'] === 'boolean' && { failClosed: group['failClosed'] }),
+    ...(typeof group['pathPattern'] === 'string' && { pathPattern: group['pathPattern'] }),
+    ...(typeof group['commandPattern'] === 'string' && {
+      commandPattern: group['commandPattern'],
+    }),
+    ...(loopLimit !== undefined && { loopLimit }),
+    ...(typeof group['description'] === 'string' && { description: group['description'] }),
+  }
+}
+
+/** One foreign group as a definition, or why it is refused. */
+function foreignGroup(
+  group: HookRecord,
+  event: HookEvent,
+  source: HookSource,
+  platform: NodeJS.Platform,
+): HookDefinition | string {
+  const extra = Object.keys(group).find((key) => !FOREIGN_GROUP_FIELDS.has(key))
+  if (extra !== undefined) {
+    return `unsupported group field ${extra}`
+  }
+  if (group.async !== undefined && typeof group.async !== 'boolean') {
+    return 'async must be a boolean'
+  }
+  const spec = foreignSpec(group, event)
+  if (typeof spec === 'string') {
+    return spec
+  }
+  const entries: unknown = group.hooks
+  const entry: unknown = Array.isArray(entries) && entries.length === 1 ? entries[0] : undefined
+  if (!isRecord(entry)) {
+    return 'an imported group holds exactly one handler'
+  }
+  const unknownField = Object.keys(entry).find((key) => !FOREIGN_HANDLER_FIELDS.has(key))
+  if (unknownField !== undefined) {
+    return `unsupported handler field ${unknownField}`
+  }
+  let cwd: string | undefined
+  if (entry.cwd !== undefined) {
+    cwd = relativeCwd(entry.cwd, platform)
+    if (cwd === undefined) {
+      return 'cwd must be a relative directory inside the workspace'
+    }
+  }
+  const matcher = matcherFor(group.matcher, event)
+  if (typeof matcher === 'string') {
+    return matcher
+  }
+  const parsed = handler(
+    {
+      type: entry.type,
+      command: entry.command,
+      ...(entry.commandWindows !== undefined && { commandWindows: entry.commandWindows }),
+      ...(entry.timeout !== undefined && { timeout: entry.timeout }),
+      ...(group.async !== undefined && { async: group.async }),
+    },
+    event,
+    source,
+    platform,
+    matcher,
+  )
+  return typeof parsed === 'string'
+    ? parsed
+    : { ...parsed, foreign: { ...spec, ...(cwd !== undefined && { cwd }) } }
+}
+
+/**
+ * The imported hooks of one spark-hooks.json: its groups that carry a
+ * `format` tag, on Muse Code's events. Everything else in the file is lane
+ * E's (the extension events and the native groups) and is passed over here.
+ */
+export function parseForeignHooks(
+  text: string | undefined,
+  source: Extract<HookSource, 'user' | 'project'>,
+  platform: NodeJS.Platform,
+): HookConfigResult {
+  if (text === undefined) {
+    return { hooks: [], warnings: [] }
+  }
+  let document: unknown
+  try {
+    document = JSON.parse(text)
+  } catch {
+    // Lane E's parser reports the file's own faults once.
+    return { hooks: [], warnings: [] }
+  }
+  if (!isRecord(document) || !isRecord(document.hooks)) {
+    return { hooks: [], warnings: [] }
+  }
+  const warnings: string[] = []
+  const hooks: HookDefinition[] = []
+  for (const [name, groups] of Object.entries(document.hooks)) {
+    if (!isEvent(name) || !Array.isArray(groups)) {
+      continue
+    }
+    for (const group of groups) {
+      if (!isRecord(group) || group['format'] === undefined) {
+        continue
+      }
+      const parsed = foreignGroup(group, name, source, platform)
+      if (typeof parsed === 'string') {
+        warnings.push(`${source} spark-hooks.json: ${name}: ${parsed}`)
+        continue
+      }
+      if (hooks.length >= HOOK_SOURCE_MAX_HANDLERS) {
+        return { hooks: [], warnings: [`${source} spark-hooks.json exceeds the handler limit`] }
+      }
+      hooks.push(parsed)
+    }
+  }
+  return { hooks, warnings }
+}
+
+/**
+ * The imported hooks of both spark-hooks.json files, under M51's gates: an
+ * untrusted workspace loads none, the project's file is confined to the
+ * workspace, and the caller keeps the per-session snapshot.
+ */
+export async function loadForeignHookDefinitions(
+  deps: HookLoadDeps,
+): Promise<readonly HookDefinition[]> {
+  if (!deps.isWorkspaceTrusted()) {
+    return []
+  }
+  const userFile = path.join(path.dirname(deps.settingsPath), SPARK_HOOKS_SEGMENTS.user[1])
+  const projectFile = path.join(deps.workspaceRoot, ...SPARK_HOOKS_SEGMENTS.project)
+  const sources = [
+    { source: 'user', text: await readHookText(deps, userFile, undefined) },
+    { source: 'project', text: await readHookText(deps, projectFile, deps.workspaceRoot) },
+  ] as const
+  const hooks: HookDefinition[] = []
+  for (const { source, text } of sources) {
+    const parsed = parseForeignHooks(text, source, deps.platform)
+    for (const warning of parsed.warnings) {
+      deps.warn(warning)
+    }
+    hooks.push(...parsed.hooks)
+    if (hooks.length > HOOK_TOTAL_MAX_HANDLERS) {
+      deps.warn('imported hooks exceed the session handler limit; none loaded')
+      return []
+    }
+  }
+  return hooks
+}
+
 /** Matcher grammar is from Muse Code 1.3.0; tool aliases are resolved by caller. */
 export function matchingHooks(
   hooks: readonly HookDefinition[],
@@ -571,6 +917,8 @@ export interface HookAnswer {
   readonly updatedInput?: Record<string, unknown> | undefined
   readonly stopReason?: string | undefined
   readonly approvalDecision?: 'allow' | 'deny' | undefined
+  /** A foreign adapter's documented output replacement (never a native answer's). */
+  readonly replacement?: HookReplacement | undefined
 }
 
 export interface HookDispatch {
@@ -581,6 +929,8 @@ export interface HookDispatch {
   readonly forceApproval: boolean
   readonly stopReason: string | undefined
   readonly approvalDecision: 'allow' | 'deny' | undefined
+  /** The last replacement a foreign hook asked for; the caller applies it before packing. */
+  readonly replacement?: HookReplacement | undefined
 }
 
 interface HookWaiter {
@@ -696,7 +1046,96 @@ async function runHandler(
   return answer
 }
 
-/** Execute matching commands. No hook can grant a tool permission or paid use. */
+/** A foreign answer's grant, if it ever carried one, removed: no hook grants (M51, D70). */
+function withoutGrant(answer: HookAnswer): HookAnswer {
+  return {
+    ...answer,
+    permissionDecision:
+      answer.permissionDecision === 'allow' ? undefined : answer.permissionDecision,
+    approvalDecision: answer.approvalDecision === 'allow' ? undefined : answer.approvalDecision,
+  }
+}
+
+/**
+ * One imported hook (M91 lane W): its adapter builds the stdin its source
+ * agent would send, the process runs under the same cap, environment and
+ * kill as a native hook, and the adapter reads the ending by that source's
+ * rules. A timeout is told apart from a crash, since Copilot lets a timed-out
+ * guard through and Cursor's failClosed blocks on either. A failure never
+ * becomes feedback, and an answer is never a grant.
+ */
+async function runForeignHandler(
+  hook: HookDefinition,
+  spec: ForeignHookSpec,
+  event: HookEvent,
+  payload: Readonly<Record<string, unknown>>,
+  runner: NonNullable<ToolIo['runHook']>,
+  signal: AbortSignal | undefined,
+  adapter: ForeignHookAdapter,
+  context: ForeignDispatchContext | undefined,
+  warn: (message: string) => void,
+): Promise<HookAnswer | undefined> {
+  const label = `${event}: ${spec.format}-format ${hook.source} hook`
+  const judge = (result: ForeignRunResult): HookAnswer | undefined => {
+    const answer = withoutGrant(adapter.answer(hook, spec, event, result, payload))
+    if (answer.status !== 'failed') {
+      return answer
+    }
+    warn(`${label} failed`)
+    return answer.systemMessage === undefined
+      ? undefined
+      : { status: 'completed', systemMessage: answer.systemMessage }
+  }
+  let prepared: ForeignPreparation
+  try {
+    prepared = await adapter.prepare(hook, spec, event, payload, context)
+  } catch {
+    prepared = { outcome: 'refused', reason: 'its input could not be prepared' }
+  }
+  if (prepared.outcome === 'skip') {
+    return undefined
+  }
+  if (prepared.outcome === 'refused') {
+    warn(`${label} was not started: ${prepared.reason}`)
+    return judge({ kind: 'refused', reason: prepared.reason })
+  }
+  if (Buffer.byteLength(prepared.stdin) > HOOK_STDIN_MAX_BYTES) {
+    warn(`${label} input exceeds limit; it was not started`)
+    return judge({ kind: 'refused', reason: 'hook input exceeds limit' })
+  }
+  let result: ShellResult
+  try {
+    result = await runBoundedHook(hook, prepared.stdin, prepared.cwd, runner, signal)
+  } catch {
+    if (signal?.aborted === true) {
+      return undefined
+    }
+    warn(`${label} could not start`)
+    return judge({ kind: 'crash' })
+  }
+  if (result.isCancelled) {
+    return undefined
+  }
+  if (result.isTimedOut) {
+    warn(`${label} timed out`)
+    return judge({ kind: 'timeout' })
+  }
+  if (result.isOutputTooLarge === true) {
+    warn(`${label} exceeded output limit`)
+    return judge({ kind: 'crash' })
+  }
+  return judge({
+    kind: 'exit',
+    exitCode: result.exitCode,
+    stdout: result.stdout,
+    stderr: result.stderr,
+  })
+}
+
+/**
+ * Execute matching commands. No hook can grant a tool permission or paid use.
+ * Imported hooks run only through `adapter`; without one they are skipped.
+ */
 export async function dispatchHooks(
   hooks: readonly HookDefinition[],
   event: HookEvent,
@@ -705,6 +1144,8 @@ export async function dispatchHooks(
   io: Pick<ToolIo, 'runHook'>,
   signal: AbortSignal | undefined,
   warn: (message: string) => void,
+  adapter?: ForeignHookAdapter,
+  context?: ForeignDispatchContext,
 ): Promise<HookDispatch> {
   const selected = matchingHooks(hooks, event, matcherValue, warn)
   const serialized = JSON.stringify(payload)
@@ -731,12 +1172,39 @@ export async function dispatchHooks(
   let isForceApproval = false
   let stopReason: string | undefined
   let approvalDecision: 'allow' | 'deny' | undefined
+  let replacement: HookReplacement | undefined
   const executions =
     runner === undefined || signal?.aborted === true
       ? []
-      : selected.map((hook) =>
-          runHandler(hook, event, serialized, String(payload['cwd']), runner, signal, warn),
-        )
+      : selected.map(async (hook) => {
+          const { foreign } = hook
+          if (foreign === undefined) {
+            return await runHandler(
+              hook,
+              event,
+              serialized,
+              String(payload['cwd']),
+              runner,
+              signal,
+              warn,
+            )
+          }
+          if (adapter === undefined) {
+            warn(`${event}: ${foreign.format}-format hook skipped: no adapter here`)
+            return
+          }
+          return await runForeignHandler(
+            hook,
+            foreign,
+            event,
+            payload,
+            runner,
+            signal,
+            adapter,
+            context,
+            warn,
+          )
+        })
   for (const [index, execution] of executions.entries()) {
     const hook = selected[index]
     if (hook?.isAsync === true) {
@@ -769,6 +1237,9 @@ export async function dispatchHooks(
     if (answer.updatedInput !== undefined) {
       updatedInput = answer.updatedInput
     }
+    if (answer.replacement !== undefined) {
+      replacement = answer.replacement
+    }
     if (answer.permissionDecision === 'ask') {
       isForceApproval = true
     }
@@ -789,6 +1260,7 @@ export async function dispatchHooks(
     forceApproval: isForceApproval,
     stopReason,
     approvalDecision,
+    ...(replacement !== undefined && { replacement }),
   }
 }
 

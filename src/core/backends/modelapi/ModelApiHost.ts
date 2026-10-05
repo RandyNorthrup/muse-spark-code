@@ -8,7 +8,7 @@
 import { Buffer } from 'node:buffer'
 import { createHash, randomUUID } from 'node:crypto'
 import { mkdir, rm } from 'node:fs/promises'
-import { tmpdir } from 'node:os'
+import { homedir, tmpdir } from 'node:os'
 import type {
   AgentEvent,
   ApprovalSubject,
@@ -209,6 +209,7 @@ import {
 import type { PermissionSettings } from '../../permissionSettings'
 import { ReviewBreaker } from './autoReviewer'
 import type { reviewPaidCall as ReviewPaidCall } from './reviewerEntry'
+import type { createForeignHookAdapter as CreateForeignHookAdapter } from './foreignHooksEntry'
 import {
   type ConfirmedModelRequest,
   MissingApiKeyError,
@@ -233,9 +234,12 @@ import { type EnvironmentFacts, instructionsFor } from './instructions'
 import {
   dispatchHooks,
   matchingHooks,
+  type ForeignDispatchContext,
+  type ForeignHookAdapter,
   type HookDefinition,
   type HookDispatch,
   type HookEvent,
+  type HookReplacement,
   toolMatcherNames,
 } from './hooks'
 import { postModelCallFields, preModelCallFields } from './modelCallHooks'
@@ -1197,6 +1201,32 @@ function childResultsTouched(children: readonly ChildRecord[]): TouchedFiles {
   return { names: [], complete: false, revisions: children.map((child) => child.policyRevision) }
 }
 
+function isPlainRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
+}
+
+/**
+ * What an edit-family call did, from its own patch document (M91 lane W):
+ * a file it created, or one it changed. Kiro's file triggers run by it
+ * (PostFileCreate, PostFileSave); undefined for a call with no patch.
+ */
+function fileOperationOf(outcome: ToolOutcome): ForeignDispatchContext['fileOperation'] {
+  const document = outcome.patch?.document
+  if (document === undefined) {
+    return undefined
+  }
+  try {
+    const parsed: unknown = JSON.parse(document)
+    const files = isPlainRecord(parsed) ? parsed['files'] : undefined
+    return Array.isArray(files) &&
+      files.some((file: unknown) => isPlainRecord(file) && file['created'] === true)
+      ? 'create'
+      : 'save'
+  } catch {
+    return 'save'
+  }
+}
+
 /** A subagent call refused: the model's reason, and the row's when it has one of its own. */
 function subagentFailure(reason: string, visibleReason?: string): ToolOutcome {
   const visible = visibleReason ?? UI_TEXT.agentControlFailed
@@ -1830,6 +1860,10 @@ export class ModelApiSession implements AgentSession {
   private readonly ledger = new VerifyLedger()
   /** Rename plans made for a call's PreToolUse hooks, which the call then writes (M67). */
   private readonly hookRenamePlans = new WeakMap<FunctionCallItem, Promise<RenamePlanResult>>()
+  /** The imported hooks' adapters, loaded on first use (M91 lane W). */
+  private foreignAdapter: Promise<ForeignHookAdapter | undefined> | undefined
+  /** A SubagentStop hook's documented replacement of this child's reply, by turn (M91). */
+  private readonly hookReplies = new Map<string, string>()
   /** Keeps each request within the page and encoded-media budgets (M54, PLAN.md D47). */
   private readonly budget: MediaBudget
   /** Packed tool outputs and the savings ledger (M73): undefined unless packing is on. */
@@ -2028,6 +2062,34 @@ export class ModelApiSession implements AgentSession {
   }
 
   /**
+   * Lane P's adapters for imported hooks (M91 lane W), from their own bundle
+   * (dist/foreignHooks.js, D6), loaded the first time this session runs a
+   * hook while it holds one. One per session: a Cursor stop script's loop
+   * count lives as long as the conversation. Undefined when the bundle cannot
+   * load: the imported hooks are then skipped, said in the log.
+   */
+  private async foreignHookAdapter(): Promise<ForeignHookAdapter | undefined> {
+    this.foreignAdapter ??= (async () => {
+      try {
+        const entry = await import('./foreignHooksEntry.js')
+        const exported: unknown = entry.createForeignHookAdapter
+        if (typeof exported !== 'function') throw new Error('Invalid hook adapter export')
+        const create: typeof CreateForeignHookAdapter = entry.createForeignHookAdapter
+        return create({
+          workspaceRoot: this.deps.workspaceRoot,
+          platform: this.deps.platform,
+          io: this.deps.io,
+          homeDir: homedir(),
+        })
+      } catch {
+        this.deps.log.warn('Model API hooks: the imported-hook adapters could not be loaded')
+        return
+      }
+    })()
+    return await this.foreignAdapter
+  }
+
+  /**
    * A call's arguments as its PreToolUse hooks see them. A rename also names
    * the files it would write (M67), planned only when a hook would run and
    * the mode allows the edit at all; the call then writes that same plan
@@ -2070,10 +2132,15 @@ export class ModelApiSession implements AgentSession {
     signal: AbortSignal | undefined,
     shouldReplayContext = true,
     shouldShowMessages = true,
+    foreignContext?: ForeignDispatchContext,
   ): Promise<HookDispatch> {
     const runHook = this.deps.io.runHook?.bind(this.deps.io)
+    const hooks = this.enabledHooks()
+    const adapter = hooks.some((hook) => hook.foreign !== undefined)
+      ? await this.foreignHookAdapter()
+      : undefined
     const result = await dispatchHooks(
-      this.enabledHooks(),
+      hooks,
       event,
       this.hookPayload(event, turnId, fields),
       matcher,
@@ -2090,6 +2157,8 @@ export class ModelApiSession implements AgentSession {
       (warning) => {
         this.deps.log.warn(`Model API hooks: ${warning}`)
       },
+      adapter,
+      foreignContext,
     )
     if (shouldShowMessages) {
       for (const message of result.messages) {
@@ -5006,8 +5075,9 @@ export class ModelApiSession implements AgentSession {
         (entry) => entry.turnId === event.turnId && entry.item.kind === 'agentMessage',
       )
       const isTaskRefusal = event.errorKind?.startsWith('subagent_') === true
+      const replied = child.session.hookReplyFor(event.turnId) ?? reply?.item.text
       const text =
-        (isTaskRefusal ? event.reason : (reply?.item.text ?? event.reason)) ??
+        (isTaskRefusal ? event.reason : (replied ?? event.reason)) ??
         MODEL_API_MODEL_TEXT.subagentNoReply
       const modelText = isTaskRefusal ? (modelChildFailure(event.errorKind, text) ?? text) : text
       child.result = {
@@ -7709,6 +7779,28 @@ export class ModelApiSession implements AgentSession {
     }
   }
 
+  /**
+   * An imported PostToolUse hook's documented replacement of what the model
+   * sees (Cursor `updated_mcp_tool_output`, Copilot `modifiedResult`; M91
+   * lane W, D70 SoL-Pi rule 2). It replaces the call's replay output in
+   * place, before the next request is built, so packing archives what the
+   * model saw and `recall_output` returns those bytes. Anything the call had
+   * queued behind its output (an image, a read file) goes with it. The row
+   * keeps the real output, and a notice says the model saw the hook's.
+   */
+  private replaceOutput(replay: ReplayItem, outcome: ToolOutcome, value: HookReplacement['value']) {
+    const index = this.replay.indexOf(replay)
+    if (index === -1 || replay.item.type !== 'function_call_output') {
+      return
+    }
+    this.supersedeReplayOutput(replay, outcome)
+    this.replay.splice(index, 0, {
+      ...replay,
+      item: { ...replay.item, output: typeof value === 'string' ? value : JSON.stringify(value) },
+    })
+    this.emit({ type: 'backendNotice', level: 'info', text: UI_TEXT.hookOutputReplaced })
+  }
+
   /** Permission check, execution and the transcript row for one tool call. */
   private async runCall(
     turnId: string,
@@ -7843,7 +7935,17 @@ export class ModelApiSession implements AgentSession {
           },
       toolMatcherNames(effectiveCall.name),
       signal,
+      true,
+      true,
+      { fileOperation: fileOperationOf(outcome) },
     )
+    if (
+      attemptReplay !== undefined &&
+      outcome.failureReason === undefined &&
+      post.replacement?.target === 'toolResult'
+    ) {
+      this.replaceOutput(attemptReplay, outcome, post.replacement.value)
+    }
     const blocked = [
       ...(post.stopReason === undefined && post.blockedReason !== undefined
         ? [post.blockedReason]
@@ -8465,6 +8567,15 @@ export class ModelApiSession implements AgentSession {
           const requiredAfterStopHook = this.requiredMcpFailure(this.deps.mcpServers?.snapshot())
           if (requiredAfterStopHook !== undefined) {
             throw requiredAfterStopHook
+          }
+          // An imported SubagentStop hook's documented replacement of the
+          // child's reply (Copilot `modifiedResponse`): what the parent reads.
+          if (this.isSubagent && stop.replacement?.target === 'subagentResponse') {
+            const { value } = stop.replacement
+            this.hookReplies.set(
+              turn.turnId,
+              typeof value === 'string' ? value : JSON.stringify(value),
+            )
           }
           if (stop.stopReason !== undefined) {
             return
@@ -9392,6 +9503,11 @@ export class ModelApiSession implements AgentSession {
   }
 
   // --- AgentSession ---
+
+  /** A SubagentStop hook's replacement of this child's reply in a turn, if one asked (M91). */
+  public hookReplyFor(turnId: string): string | undefined {
+    return this.hookReplies.get(turnId)
+  }
 
   /** A proven host-origin write: aliases reread instead of retaining old fingerprints. */
   public noteExternalEdit(file: EditedFile): void {

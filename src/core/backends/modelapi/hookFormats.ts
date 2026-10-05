@@ -1,7 +1,11 @@
 // M91 lane P public API. Round 3 (contract-first): each vendor's hook contract
 // is a declarative table under hookFormats/contracts/, and hookFormats/engine.ts
 // is its only interpreter. Dispatcher wiring is lane W.
-import { HOOK_MAX_TIMEOUT_SECONDS, MILLISECONDS_PER_SECOND } from '../../../shared/constants'
+import {
+  type HOOK_FORMATS,
+  HOOK_MAX_TIMEOUT_SECONDS,
+  MILLISECONDS_PER_SECOND,
+} from '../../../shared/constants'
 import {
   type AdapterOptions,
   type ForeignHookAnswer,
@@ -23,7 +27,9 @@ export {
 } from './hookFormats/contract'
 export { confineHookCwd } from './hookFormats/transforms'
 
-export const HOOK_FORMATS = ['gemini', 'cursor', 'copilot', 'windsurf', 'kiro'] as const
+// The list lives in constants.ts (lane W), so the session's config parser can
+// name the formats without loading the adapters.
+export { HOOK_FORMATS } from '../../../shared/constants'
 export type HookFormat = (typeof HOOK_FORMATS)[number]
 
 /** Every vendor table, for the property suite and lane W's admission checks. */

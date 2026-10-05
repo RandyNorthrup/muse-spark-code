@@ -24,6 +24,10 @@ const BUDGETS = [
   { path: 'dist/sessionBoard.js', budgetKiB: 75 },
   // M78b: paid Auto review after consent, 55.2 KiB with the same rule.
   { path: 'dist/reviewer.js', budgetKiB: 75 },
+  // M91 lane W: the imported hooks' adapters (lane P's contracts and engine),
+  // loaded the first time a session holding one runs a hook: 64.9 KiB when
+  // split out (2026-10-04), plus 15%, rounded up to 25 KiB (PLAN.md D6).
+  { path: 'dist/foreignHooks.js', budgetKiB: 75 },
   // The plan reader, the panel's Markdown parser, loaded on the first plan
   // action (M79): 114.7 KiB when split out, 139.0 KiB with the brief's writer.
   { path: 'dist/planMarkdown.js', budgetKiB: 150 },
@@ -33,7 +37,9 @@ const BUDGETS = [
   // M83: the import from other agents (the scan, the converters, the file
   // access, the flow and smol-toml), loaded on the first import: 100.0 KiB
   // when split out. Measured size plus 15%, rounded up to 25 KiB (PLAN.md D6).
-  { path: 'dist/agentImport.js', budgetKiB: 125 },
+  // M91 lane I: the readers and converters for every agent's hooks took it to
+  // 147.7 KiB (2026-10-04); plus 15%, rounded up to 25 KiB (PLAN.md D6).
+  { path: 'dist/agentImport.js', budgetKiB: 175 },
   // M89: the bundled skills installer for Muse Code (the copy, the links and
   // zod's parser for the vendor record and the mark), loaded on first use:
   // 22.6 KiB when split out. Measured size plus 15%, rounded up to 25 KiB.

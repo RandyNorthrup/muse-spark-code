@@ -19,6 +19,7 @@
     "src/host/backend/modelApiEntry.ts",
     "src/host/sessionBoardEntry.ts",
     "src/core/backends/modelapi/reviewerEntry.ts",
+    "src/core/backends/modelapi/foreignHooksEntry.ts",
     // The plan reader's own bundle (M79), required by path on the first plan action.
     "src/host/planMarkdownEntry.ts",
     // The checkpoint store's own bundle (M72), required by path at construction.
