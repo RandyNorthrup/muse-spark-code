@@ -15845,6 +15845,14 @@ another OS.
 
 ##### 2h — Lint within the declared jevlint limits
 
+- **FIXM98H execution (2026-10-05).** Run the pinned native parser and
+  offline doctor/eval on win11 with a portable, worktree-local Go/C
+  toolchain. Compare real query captures against H's dependency-injected
+  syntax adapter for declarations, documentation, related types, localized
+  regions and depth-one callees across the seven supported grammars.
+  Parser/package loading remains Z/G's responsibility; H consumes validated
+  raw tree/query captures and adds no production dependency. Deterministic
+  loopback responses certify mechanics only, with zero model attempts.
 - **Scope.** Strict `jevlint.json`, packs and evals at upstream
   `73a7a94ab08a4e314709d68c2863687a4646f29b`; Muse options only in
   `.muse/judge-lint.json` or flags. Symbols cover function/type/field where

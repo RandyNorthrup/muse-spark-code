@@ -1,0 +1,1070 @@
+[
+  {
+    "file": "src/core/judge/lint/config.ts",
+    "suite": "judgeLintConfig",
+    "name": "accept unknown ruleSchema fields",
+    "before": "const ruleSchema = z.strictObject(",
+    "after": "const ruleSchema = z.object(",
+    "failures": [
+      "FAIL  test/unit/judgeLintConfig.test.ts > pinned upstream JSON contracts > rejects unknown fields at every boundary 4"
+    ],
+    "redExit": 1,
+    "greenExit": 0,
+    "sha256Before": "765d8e2b7ec90bb7fda414388667f96ea90f5086a55587d44fcd81d0eea19a79",
+    "sha256After": "765d8e2b7ec90bb7fda414388667f96ea90f5086a55587d44fcd81d0eea19a79"
+  },
+  {
+    "file": "src/core/judge/lint/config.ts",
+    "suite": "judgeLintConfig",
+    "name": "accept unknown languageSchema fields",
+    "before": "const languageSchema = z.strictObject(",
+    "after": "const languageSchema = z.object(",
+    "failures": [
+      "FAIL  test/unit/judgeLintConfig.test.ts > pinned upstream JSON contracts > rejects unknown fields at every boundary 2"
+    ],
+    "redExit": 1,
+    "greenExit": 0,
+    "sha256Before": "765d8e2b7ec90bb7fda414388667f96ea90f5086a55587d44fcd81d0eea19a79",
+    "sha256After": "765d8e2b7ec90bb7fda414388667f96ea90f5086a55587d44fcd81d0eea19a79"
+  },
+  {
+    "file": "src/core/judge/lint/config.ts",
+    "suite": "judgeLintConfig",
+    "name": "accept unknown packRefSchema fields",
+    "before": "const packRefSchema = z.strictObject(",
+    "after": "const packRefSchema = z.object(",
+    "failures": [
+      "FAIL  test/unit/judgeLintConfig.test.ts > pinned upstream JSON contracts > rejects unknown fields at every boundary 6"
+    ],
+    "redExit": 1,
+    "greenExit": 0,
+    "sha256Before": "765d8e2b7ec90bb7fda414388667f96ea90f5086a55587d44fcd81d0eea19a79",
+    "sha256After": "765d8e2b7ec90bb7fda414388667f96ea90f5086a55587d44fcd81d0eea19a79"
+  },
+  {
+    "file": "src/core/judge/lint/config.ts",
+    "suite": "judgeLintConfig",
+    "name": "accept unknown configSchema fields",
+    "before": "const configSchema = z.strictObject(",
+    "after": "const configSchema = z.object(",
+    "failures": [
+      "FAIL  test/unit/judgeLintConfig.test.ts > pinned upstream JSON contracts > rejects unknown fields at every boundary 0",
+      "FAIL  test/unit/judgeLintConfig.test.ts > pinned upstream JSON contracts > rejects unknown fields at every boundary 1"
+    ],
+    "redExit": 1,
+    "greenExit": 0,
+    "sha256Before": "765d8e2b7ec90bb7fda414388667f96ea90f5086a55587d44fcd81d0eea19a79",
+    "sha256After": "765d8e2b7ec90bb7fda414388667f96ea90f5086a55587d44fcd81d0eea19a79"
+  },
+  {
+    "file": "src/core/judge/lint/config.ts",
+    "suite": "judgeLintConfig",
+    "name": "accept unknown context fields",
+    "before": "context: z.nullish(z.strictObject(",
+    "after": "context: z.nullish(z.object(",
+    "failures": [
+      "FAIL  test/unit/judgeLintConfig.test.ts > pinned upstream JSON contracts > rejects unknown fields at every boundary 5"
+    ],
+    "redExit": 1,
+    "greenExit": 0,
+    "sha256Before": "765d8e2b7ec90bb7fda414388667f96ea90f5086a55587d44fcd81d0eea19a79",
+    "sha256After": "765d8e2b7ec90bb7fda414388667f96ea90f5086a55587d44fcd81d0eea19a79"
+  },
+  {
+    "file": "src/core/judge/lint/config.ts",
+    "suite": "judgeLintConfig",
+    "name": "accept illegal localization category",
+    "before": "z.array(z.enum(['comment', 'docComment', 'field', 'statement']))",
+    "after": "z.array(z.enum(lintKinds))",
+    "failures": [
+      "FAIL  test/unit/judgeLintConfig.test.ts > pinned upstream JSON contracts > rejects upstream semantic errors 22"
+    ],
+    "redExit": 1,
+    "greenExit": 0,
+    "sha256Before": "765d8e2b7ec90bb7fda414388667f96ea90f5086a55587d44fcd81d0eea19a79",
+    "sha256After": "765d8e2b7ec90bb7fda414388667f96ea90f5086a55587d44fcd81d0eea19a79"
+  },
+  {
+    "file": "src/core/judge/lint/config.ts",
+    "suite": "judgeLintConfig",
+    "name": "remove confidence bounds",
+    "before": "z.number().check(z.minimum(0), z.maximum(1))",
+    "after": "z.number()",
+    "failures": [
+      "FAIL  test/unit/judgeLintConfig.test.ts > pinned upstream JSON contracts > rejects upstream semantic errors 13",
+      "FAIL  test/unit/judgeLintConfig.test.ts > pinned upstream JSON contracts > rejects upstream semantic errors 14"
+    ],
+    "redExit": 1,
+    "greenExit": 0,
+    "sha256Before": "765d8e2b7ec90bb7fda414388667f96ea90f5086a55587d44fcd81d0eea19a79",
+    "sha256After": "765d8e2b7ec90bb7fda414388667f96ea90f5086a55587d44fcd81d0eea19a79"
+  },
+  {
+    "file": "src/core/judge/lint/config.ts",
+    "suite": "judgeLintConfig",
+    "name": "enable an empty language map",
+    "before": "if (Object.keys(cfg.languages).length === 0) invalid()",
+    "after": "",
+    "failures": [
+      "FAIL  test/unit/judgeLintConfig.test.ts > pinned upstream JSON contracts > rejects upstream semantic errors 0"
+    ],
+    "redExit": 1,
+    "greenExit": 0,
+    "sha256Before": "765d8e2b7ec90bb7fda414388667f96ea90f5086a55587d44fcd81d0eea19a79",
+    "sha256After": "765d8e2b7ec90bb7fda414388667f96ea90f5086a55587d44fcd81d0eea19a79"
+  },
+  {
+    "file": "src/core/judge/lint/config.ts",
+    "suite": "judgeLintConfig",
+    "name": "accept unknown language preset",
+    "before": "if (!presets.has(id)) invalid()",
+    "after": "",
+    "failures": [
+      "FAIL  test/unit/judgeLintConfig.test.ts > pinned upstream JSON contracts > rejects upstream semantic errors 1"
+    ],
+    "redExit": 1,
+    "greenExit": 0,
+    "sha256Before": "765d8e2b7ec90bb7fda414388667f96ea90f5086a55587d44fcd81d0eea19a79",
+    "sha256After": "765d8e2b7ec90bb7fda414388667f96ea90f5086a55587d44fcd81d0eea19a79"
+  },
+  {
+    "file": "src/core/judge/lint/config.ts",
+    "suite": "judgeLintConfig",
+    "name": "accept empty query override",
+    "before": "values.length === 0 || values.some((value) => isBlank(value))",
+    "after": "false",
+    "failures": [
+      "FAIL  test/unit/judgeLintConfig.test.ts > pinned upstream JSON contracts > rejects upstream semantic errors 2",
+      "FAIL  test/unit/judgeLintConfig.test.ts > pinned upstream JSON contracts > rejects upstream semantic errors 8",
+      "FAIL  test/unit/judgeLintConfig.test.ts > pinned upstream JSON contracts > rejects upstream semantic errors 9",
+      "FAIL  test/unit/judgeLintConfig.test.ts > pinned upstream JSON contracts > rejects upstream semantic errors 10"
+    ],
+    "redExit": 1,
+    "greenExit": 0,
+    "sha256Before": "765d8e2b7ec90bb7fda414388667f96ea90f5086a55587d44fcd81d0eea19a79",
+    "sha256After": "765d8e2b7ec90bb7fda414388667f96ea90f5086a55587d44fcd81d0eea19a79"
+  },
+  {
+    "file": "src/core/judge/lint/config.ts",
+    "suite": "judgeLintConfig",
+    "name": "accept duplicate extension assignments",
+    "before": "extensions.has(extension)",
+    "after": "false",
+    "failures": [
+      "FAIL  test/unit/judgeLintConfig.test.ts > pinned upstream JSON contracts > rejects upstream semantic errors 6",
+      "FAIL  test/unit/judgeLintConfig.test.ts > pinned upstream JSON contracts > rejects upstream semantic errors 7"
+    ],
+    "redExit": 1,
+    "greenExit": 0,
+    "sha256Before": "765d8e2b7ec90bb7fda414388667f96ea90f5086a55587d44fcd81d0eea19a79",
+    "sha256After": "765d8e2b7ec90bb7fda414388667f96ea90f5086a55587d44fcd81d0eea19a79"
+  },
+  {
+    "file": "src/core/judge/lint/config.ts",
+    "suite": "judgeLintConfig",
+    "name": "accept empty region category",
+    "before": "if (values == null || values.length === 0 || values.some((value) => isBlank(value))) invalid()",
+    "after": "",
+    "failures": [
+      "FAIL  test/unit/judgeLintConfig.test.ts > pinned upstream JSON contracts > rejects upstream semantic errors 11",
+      "FAIL  test/unit/judgeLintConfig.test.ts > pinned upstream JSON contracts > rejects upstream semantic errors 12"
+    ],
+    "redExit": 1,
+    "greenExit": 0,
+    "sha256Before": "765d8e2b7ec90bb7fda414388667f96ea90f5086a55587d44fcd81d0eea19a79",
+    "sha256After": "765d8e2b7ec90bb7fda414388667f96ea90f5086a55587d44fcd81d0eea19a79"
+  },
+  {
+    "file": "src/core/judge/lint/config.ts",
+    "suite": "judgeLintConfig",
+    "name": "accept duplicate rule ids",
+    "before": "if (isBlank(rule.id) || ruleIds.has(rule.id)) invalid()",
+    "after": "",
+    "failures": [
+      "FAIL  test/unit/judgeLintConfig.test.ts > pinned upstream JSON contracts > rejects upstream semantic errors 15",
+      "FAIL  test/unit/judgeLintConfig.test.ts > pinned upstream JSON contracts > rejects upstream semantic errors 16"
+    ],
+    "redExit": 1,
+    "greenExit": 0,
+    "sha256Before": "765d8e2b7ec90bb7fda414388667f96ea90f5086a55587d44fcd81d0eea19a79",
+    "sha256After": "765d8e2b7ec90bb7fda414388667f96ea90f5086a55587d44fcd81d0eea19a79"
+  },
+  {
+    "file": "src/core/judge/lint/config.ts",
+    "suite": "judgeLintConfig",
+    "name": "accept incomplete project rule",
+    "before": "if ((cfg.packs?.length ?? 0) === 0 && !isComplete(rule)) invalid()",
+    "after": "",
+    "failures": [
+      "FAIL  test/unit/judgeLintConfig.test.ts > pinned upstream JSON contracts > rejects upstream semantic errors 17",
+      "FAIL  test/unit/judgeLintConfig.test.ts > pinned upstream JSON contracts > rejects upstream semantic errors 18",
+      "FAIL  test/unit/judgeLintConfig.test.ts > pinned upstream JSON contracts > refuses unresolved, mismatched, duplicate and unavailable-language packs"
+    ],
+    "redExit": 1,
+    "greenExit": 0,
+    "sha256Before": "765d8e2b7ec90bb7fda414388667f96ea90f5086a55587d44fcd81d0eea19a79",
+    "sha256After": "765d8e2b7ec90bb7fda414388667f96ea90f5086a55587d44fcd81d0eea19a79"
+  },
+  {
+    "file": "src/core/judge/lint/config.ts",
+    "suite": "judgeLintConfig",
+    "name": "accept empty pack rules",
+    "before": ".strictObject({ rules: z.array(ruleSchema).check(z.minLength(1)) })",
+    "after": ".strictObject({ rules: z.array(ruleSchema) })",
+    "failures": [
+      "FAIL  test/unit/judgeLintConfig.test.ts > pinned upstream JSON contracts > rejects empty or unknown-field pack rule documents"
+    ],
+    "redExit": 1,
+    "greenExit": 0,
+    "sha256Before": "765d8e2b7ec90bb7fda414388667f96ea90f5086a55587d44fcd81d0eea19a79",
+    "sha256After": "765d8e2b7ec90bb7fda414388667f96ea90f5086a55587d44fcd81d0eea19a79"
+  },
+  {
+    "file": "src/core/judge/lint/config.ts",
+    "suite": "judgeLintConfig",
+    "name": "normalize unresolved overlay as success",
+    "before": "if (description == null || severity == null || isBlank(description)) invalid()",
+    "after": "",
+    "failures": [
+      "FAIL  test/unit/judgeLintConfig.test.ts > pinned upstream JSON contracts > refuses unresolved, mismatched, duplicate and unavailable-language packs"
+    ],
+    "redExit": 1,
+    "greenExit": 0,
+    "sha256Before": "765d8e2b7ec90bb7fda414388667f96ea90f5086a55587d44fcd81d0eea19a79",
+    "sha256After": "765d8e2b7ec90bb7fda414388667f96ea90f5086a55587d44fcd81d0eea19a79"
+  },
+  {
+    "file": "src/core/judge/lint/config.ts",
+    "suite": "judgeLintConfig",
+    "name": "lose upstream default unit kinds",
+    "before": "kinds: rule.kinds?.length ? rule.kinds : ['function', 'type']",
+    "after": "kinds: rule.kinds ?? []",
+    "failures": [
+      "FAIL  test/unit/judgeLintConfig.test.ts > pinned upstream JSON contracts > normalizes upstream defaults, confidence inheritance and selected regions"
+    ],
+    "redExit": 1,
+    "greenExit": 0,
+    "sha256Before": "765d8e2b7ec90bb7fda414388667f96ea90f5086a55587d44fcd81d0eea19a79",
+    "sha256After": "765d8e2b7ec90bb7fda414388667f96ea90f5086a55587d44fcd81d0eea19a79"
+  },
+  {
+    "file": "src/core/judge/lint/config.ts",
+    "suite": "judgeLintConfig",
+    "name": "lose rule confidence override",
+    "before": "minConfidence: rule.minConfidence ?? cfg.minConfidence ?? 0",
+    "after": "minConfidence: cfg.minConfidence ?? 0",
+    "failures": [
+      "FAIL  test/unit/judgeLintConfig.test.ts > pinned upstream JSON contracts > normalizes upstream defaults, confidence inheritance and selected regions",
+      "FAIL  test/unit/judgeLintConfig.test.ts > pinned upstream JSON contracts > merges in upstream order and overlays only upstream fields"
+    ],
+    "redExit": 1,
+    "greenExit": 0,
+    "sha256Before": "765d8e2b7ec90bb7fda414388667f96ea90f5086a55587d44fcd81d0eea19a79",
+    "sha256After": "765d8e2b7ec90bb7fda414388667f96ea90f5086a55587d44fcd81d0eea19a79"
+  },
+  {
+    "file": "src/core/judge/lint/formats.ts",
+    "suite": "judgeLintConfig",
+    "name": "accept unknown manifest keys",
+    "before": "const manifestSchema = z.strictObject(",
+    "after": "const manifestSchema = z.object(",
+    "failures": [
+      "FAIL  test/unit/judgeLintConfig.test.ts > pinned upstream JSON contracts > rejects invalid pack manifests 3"
+    ],
+    "redExit": 1,
+    "greenExit": 0,
+    "sha256Before": "c0787285bccd08ca95a32d13d197dd567d14f64c2dccf2565ab5b38d7b0c5836",
+    "sha256After": "c0787285bccd08ca95a32d13d197dd567d14f64c2dccf2565ab5b38d7b0c5836"
+  },
+  {
+    "file": "src/core/judge/lint/formats.ts",
+    "suite": "judgeLintConfig",
+    "name": "accept unknown eval keys",
+    "before": "const evalSchema = z.strictObject(",
+    "after": "const evalSchema = z.object(",
+    "failures": [
+      "FAIL  test/unit/judgeLintConfig.test.ts > pinned upstream JSON contracts > validates strict upstream eval cases and duplicate canonical rule/file pairs"
+    ],
+    "redExit": 1,
+    "greenExit": 0,
+    "sha256Before": "c0787285bccd08ca95a32d13d197dd567d14f64c2dccf2565ab5b38d7b0c5836",
+    "sha256After": "c0787285bccd08ca95a32d13d197dd567d14f64c2dccf2565ab5b38d7b0c5836"
+  },
+  {
+    "file": "src/core/judge/lint/formats.ts",
+    "suite": "judgeLintConfig",
+    "name": "accept invalid pack version",
+    "before": "version: z.literal(1)",
+    "after": "version: z.number()",
+    "failures": [
+      "FAIL  test/unit/judgeLintConfig.test.ts > pinned upstream JSON contracts > rejects invalid pack manifests 0"
+    ],
+    "redExit": 1,
+    "greenExit": 0,
+    "sha256Before": "c0787285bccd08ca95a32d13d197dd567d14f64c2dccf2565ab5b38d7b0c5836",
+    "sha256After": "c0787285bccd08ca95a32d13d197dd567d14f64c2dccf2565ab5b38d7b0c5836"
+  },
+  {
+    "file": "src/core/judge/lint/formats.ts",
+    "suite": "judgeLintConfig",
+    "name": "allow a pack path escape",
+    "before": "if (name) validatePackPath(name)",
+    "after": "",
+    "failures": [
+      "FAIL  test/unit/judgeLintConfig.test.ts > pinned upstream JSON contracts > rejects unsafe pack path ../rules.json",
+      "FAIL  test/unit/judgeLintConfig.test.ts > pinned upstream JSON contracts > rejects unsafe pack path /rules.json",
+      "FAIL  test/unit/judgeLintConfig.test.ts > pinned upstream JSON contracts > rejects unsafe pack path C:\\rules.json",
+      "FAIL  test/unit/judgeLintConfig.test.ts > pinned upstream JSON contracts > rejects unsafe pack path C:rules.json",
+      "FAIL  test/unit/judgeLintConfig.test.ts > pinned upstream JSON contracts > rejects unsafe pack path \\\\host\\rules.json",
+      "FAIL  test/unit/judgeLintConfig.test.ts > pinned upstream JSON contracts > rejects unsafe pack path ..\\rules.json"
+    ],
+    "redExit": 1,
+    "greenExit": 0,
+    "sha256Before": "c0787285bccd08ca95a32d13d197dd567d14f64c2dccf2565ab5b38d7b0c5836",
+    "sha256After": "c0787285bccd08ca95a32d13d197dd567d14f64c2dccf2565ab5b38d7b0c5836"
+  },
+  {
+    "file": "src/core/judge/lint/formats.ts",
+    "suite": "judgeLintConfig",
+    "name": "omit pin cardinality check",
+    "before": "if (pins.length !== loaded.length) throw new Error('lint-pack-pin-mismatch')",
+    "after": "",
+    "failures": [
+      "FAIL  test/unit/judgeLintConfig.test.ts > pinned upstream JSON contracts > refuses unresolved, mismatched, duplicate and unavailable-language packs"
+    ],
+    "redExit": 1,
+    "greenExit": 0,
+    "sha256Before": "c0787285bccd08ca95a32d13d197dd567d14f64c2dccf2565ab5b38d7b0c5836",
+    "sha256After": "c0787285bccd08ca95a32d13d197dd567d14f64c2dccf2565ab5b38d7b0c5836"
+  },
+  {
+    "file": "src/core/judge/lint/formats.ts",
+    "suite": "judgeLintConfig",
+    "name": "omit pin identity check",
+    "before": "if (pack.manifest.id !== pins[index]?.id) throw new Error('lint-pack-pin-mismatch')",
+    "after": "",
+    "failures": [
+      "FAIL  test/unit/judgeLintConfig.test.ts > pinned upstream JSON contracts > refuses unresolved, mismatched, duplicate and unavailable-language packs"
+    ],
+    "redExit": 1,
+    "greenExit": 0,
+    "sha256Before": "c0787285bccd08ca95a32d13d197dd567d14f64c2dccf2565ab5b38d7b0c5836",
+    "sha256After": "c0787285bccd08ca95a32d13d197dd567d14f64c2dccf2565ab5b38d7b0c5836"
+  },
+  {
+    "file": "src/core/judge/lint/formats.ts",
+    "suite": "judgeLintConfig",
+    "name": "accept duplicate pack rules",
+    "before": "if (rules.has(rule.id)) throw new Error('lint-rule-id-duplicate')",
+    "after": "",
+    "failures": [
+      "FAIL  test/unit/judgeLintConfig.test.ts > pinned upstream JSON contracts > refuses unresolved, mismatched, duplicate and unavailable-language packs"
+    ],
+    "redExit": 1,
+    "greenExit": 0,
+    "sha256Before": "c0787285bccd08ca95a32d13d197dd567d14f64c2dccf2565ab5b38d7b0c5836",
+    "sha256After": "c0787285bccd08ca95a32d13d197dd567d14f64c2dccf2565ab5b38d7b0c5836"
+  },
+  {
+    "file": "src/core/judge/lint/formats.ts",
+    "suite": "judgeLintConfig",
+    "name": "lose empty include overlay",
+    "before": "if (overlay.include != null) result.include = overlay.include",
+    "after": "",
+    "failures": [
+      "FAIL  test/unit/judgeLintConfig.test.ts > pinned upstream JSON contracts > merges in upstream order and overlays only upstream fields"
+    ],
+    "redExit": 1,
+    "greenExit": 0,
+    "sha256Before": "c0787285bccd08ca95a32d13d197dd567d14f64c2dccf2565ab5b38d7b0c5836",
+    "sha256After": "c0787285bccd08ca95a32d13d197dd567d14f64c2dccf2565ab5b38d7b0c5836"
+  },
+  {
+    "file": "src/core/judge/lint/formats.ts",
+    "suite": "judgeLintConfig",
+    "name": "lose confidence overlay",
+    "before": "if (overlay.minConfidence != null) result.minConfidence = overlay.minConfidence",
+    "after": "",
+    "failures": [
+      "FAIL  test/unit/judgeLintConfig.test.ts > pinned upstream JSON contracts > merges in upstream order and overlays only upstream fields"
+    ],
+    "redExit": 1,
+    "greenExit": 0,
+    "sha256Before": "c0787285bccd08ca95a32d13d197dd567d14f64c2dccf2565ab5b38d7b0c5836",
+    "sha256After": "c0787285bccd08ca95a32d13d197dd567d14f64c2dccf2565ab5b38d7b0c5836"
+  },
+  {
+    "file": "src/core/judge/lint/formats.ts",
+    "suite": "judgeLintConfig",
+    "name": "lose selected localization overlay",
+    "before": "if (overlay.localize != null) result.localize = overlay.localize",
+    "after": "",
+    "failures": [
+      "FAIL  test/unit/judgeLintConfig.test.ts > pinned upstream JSON contracts > merges in upstream order and overlays only upstream fields"
+    ],
+    "redExit": 1,
+    "greenExit": 0,
+    "sha256Before": "c0787285bccd08ca95a32d13d197dd567d14f64c2dccf2565ab5b38d7b0c5836",
+    "sha256After": "c0787285bccd08ca95a32d13d197dd567d14f64c2dccf2565ab5b38d7b0c5836"
+  },
+  {
+    "file": "src/core/judge/lint/formats.ts",
+    "suite": "judgeLintConfig",
+    "name": "accept duplicate canonical eval cases",
+    "before": "if (seen.has(identity)) throw new Error('lint-eval-duplicate')",
+    "after": "",
+    "failures": [
+      "FAIL  test/unit/judgeLintConfig.test.ts > pinned upstream JSON contracts > validates strict upstream eval cases and duplicate canonical rule/file pairs"
+    ],
+    "redExit": 1,
+    "greenExit": 0,
+    "sha256Before": "c0787285bccd08ca95a32d13d197dd567d14f64c2dccf2565ab5b38d7b0c5836",
+    "sha256After": "c0787285bccd08ca95a32d13d197dd567d14f64c2dccf2565ab5b38d7b0c5836"
+  },
+  {
+    "file": "src/core/judge/lint/context.ts",
+    "suite": "judgeLintContext",
+    "name": "accept unknown grammar call fields",
+    "before": "z.strictObject({ name: z.string(), path: z.string() })",
+    "after": "z.object({ name: z.string(), path: z.string() })",
+    "failures": [
+      "FAIL  test/unit/judgeLintContext.test.ts > pinned upstream direct callee semantics > validates grammar call records and declaration ranges"
+    ],
+    "redExit": 1,
+    "greenExit": 0,
+    "sha256Before": "2c843da37a2d7206e64afeab8be3282b3bb8cd3bbf78b0ba5f09e07d91851dd6",
+    "sha256After": "2c843da37a2d7206e64afeab8be3282b3bb8cd3bbf78b0ba5f09e07d91851dd6"
+  },
+  {
+    "file": "src/core/judge/lint/context.ts",
+    "suite": "judgeLintContext",
+    "name": "bind qualified external calls by bare name",
+    "before": "if (call.path || !call.name || call.name === caller.unit.name) continue",
+    "after": "if (!call.name || call.name === caller.unit.name) continue",
+    "failures": [
+      "FAIL  test/unit/judgeLintContext.test.ts > pinned upstream direct callee semantics > refuses qualified, recursive, missing, non-function and ambiguous callees"
+    ],
+    "redExit": 1,
+    "greenExit": 0,
+    "sha256Before": "2c843da37a2d7206e64afeab8be3282b3bb8cd3bbf78b0ba5f09e07d91851dd6",
+    "sha256After": "2c843da37a2d7206e64afeab8be3282b3bb8cd3bbf78b0ba5f09e07d91851dd6"
+  },
+  {
+    "file": "src/core/judge/lint/context.ts",
+    "suite": "judgeLintContext",
+    "name": "attach recursion as depth-one context",
+    "before": "if (call.path || !call.name || call.name === caller.unit.name) continue",
+    "after": "if (call.path || !call.name) continue",
+    "failures": [
+      "FAIL  test/unit/judgeLintContext.test.ts > pinned upstream direct callee semantics > refuses qualified, recursive, missing, non-function and ambiguous callees"
+    ],
+    "redExit": 1,
+    "greenExit": 0,
+    "sha256Before": "2c843da37a2d7206e64afeab8be3282b3bb8cd3bbf78b0ba5f09e07d91851dd6",
+    "sha256After": "2c843da37a2d7206e64afeab8be3282b3bb8cd3bbf78b0ba5f09e07d91851dd6"
+  },
+  {
+    "file": "src/core/judge/lint/context.ts",
+    "suite": "judgeLintContext",
+    "name": "ignore same-file preference",
+    "before": "const pool = sameFile.length > 0 ? sameFile : candidates",
+    "after": "const pool = candidates",
+    "failures": [
+      "FAIL  test/unit/judgeLintContext.test.ts > pinned upstream direct callee semantics > prefers one same-file declaration then one unambiguous project declaration"
+    ],
+    "redExit": 1,
+    "greenExit": 0,
+    "sha256Before": "2c843da37a2d7206e64afeab8be3282b3bb8cd3bbf78b0ba5f09e07d91851dd6",
+    "sha256After": "2c843da37a2d7206e64afeab8be3282b3bb8cd3bbf78b0ba5f09e07d91851dd6"
+  },
+  {
+    "file": "src/core/judge/lint/context.ts",
+    "suite": "judgeLintContext",
+    "name": "choose arbitrary ambiguous declaration",
+    "before": "if (pool.length !== 1) continue",
+    "after": "if (pool.length === 0) continue",
+    "failures": [
+      "FAIL  test/unit/judgeLintContext.test.ts > pinned upstream direct callee semantics > refuses qualified, recursive, missing, non-function and ambiguous callees"
+    ],
+    "redExit": 1,
+    "greenExit": 0,
+    "sha256Before": "2c843da37a2d7206e64afeab8be3282b3bb8cd3bbf78b0ba5f09e07d91851dd6",
+    "sha256After": "2c843da37a2d7206e64afeab8be3282b3bb8cd3bbf78b0ba5f09e07d91851dd6"
+  },
+  {
+    "file": "src/core/judge/lint/context.ts",
+    "suite": "judgeLintContext",
+    "name": "attach a type as callee",
+    "before": "target.unit.kind === 'function' && target.unit.name === call.name",
+    "after": "target.unit.name === call.name",
+    "failures": [
+      "FAIL  test/unit/judgeLintContext.test.ts > pinned upstream direct callee semantics > refuses qualified, recursive, missing, non-function and ambiguous callees"
+    ],
+    "redExit": 1,
+    "greenExit": 0,
+    "sha256Before": "2c843da37a2d7206e64afeab8be3282b3bb8cd3bbf78b0ba5f09e07d91851dd6",
+    "sha256After": "2c843da37a2d7206e64afeab8be3282b3bb8cd3bbf78b0ba5f09e07d91851dd6"
+  },
+  {
+    "file": "src/core/judge/lint/context.ts",
+    "suite": "judgeLintContext",
+    "name": "attach duplicate direct callees",
+    "before": "if (seen.has(identity)) continue",
+    "after": "",
+    "failures": [
+      "FAIL  test/unit/judgeLintContext.test.ts > pinned upstream direct callee semantics > deduplicates and stops at depth one without following callee calls"
+    ],
+    "redExit": 1,
+    "greenExit": 0,
+    "sha256Before": "2c843da37a2d7206e64afeab8be3282b3bb8cd3bbf78b0ba5f09e07d91851dd6",
+    "sha256After": "2c843da37a2d7206e64afeab8be3282b3bb8cd3bbf78b0ba5f09e07d91851dd6"
+  },
+  {
+    "file": "src/core/judge/lint/context.ts",
+    "suite": "judgeLintContext",
+    "name": "ignore direct-callee count bound",
+    "before": "if (callees.length >= limits.maxCallees) break",
+    "after": "",
+    "failures": [
+      "FAIL  test/unit/judgeLintContext.test.ts > pinned upstream direct callee semantics > bounds count and UTF-8 source bytes, skipping a too-large callee"
+    ],
+    "redExit": 1,
+    "greenExit": 0,
+    "sha256Before": "2c843da37a2d7206e64afeab8be3282b3bb8cd3bbf78b0ba5f09e07d91851dd6",
+    "sha256After": "2c843da37a2d7206e64afeab8be3282b3bb8cd3bbf78b0ba5f09e07d91851dd6"
+  },
+  {
+    "file": "src/core/judge/lint/context.ts",
+    "suite": "judgeLintContext",
+    "name": "count UTF-16 instead of UTF-8 bytes",
+    "before": "const size = Buffer.byteLength(source, 'utf8')",
+    "after": "const size = source.length",
+    "failures": [
+      "FAIL  test/unit/judgeLintContext.test.ts > pinned upstream direct callee semantics > bounds count and UTF-8 source bytes, skipping a too-large callee"
+    ],
+    "redExit": 1,
+    "greenExit": 0,
+    "sha256Before": "2c843da37a2d7206e64afeab8be3282b3bb8cd3bbf78b0ba5f09e07d91851dd6",
+    "sha256After": "2c843da37a2d7206e64afeab8be3282b3bb8cd3bbf78b0ba5f09e07d91851dd6"
+  },
+  {
+    "file": "src/core/judge/lint/context.ts",
+    "suite": "judgeLintContext",
+    "name": "attach oversized callee source",
+    "before": "if (bytes + size > limits.maxCalleeBytes) continue",
+    "after": "",
+    "failures": [
+      "FAIL  test/unit/judgeLintContext.test.ts > pinned upstream direct callee semantics > bounds count and UTF-8 source bytes, skipping a too-large callee"
+    ],
+    "redExit": 1,
+    "greenExit": 0,
+    "sha256Before": "2c843da37a2d7206e64afeab8be3282b3bb8cd3bbf78b0ba5f09e07d91851dd6",
+    "sha256After": "2c843da37a2d7206e64afeab8be3282b3bb8cd3bbf78b0ba5f09e07d91851dd6"
+  },
+  {
+    "file": "src/core/judge/lint/evaluate.ts",
+    "suite": "judgeLintEvaluate",
+    "name": "drop complete localized parent source",
+    "before": "parentSource: file.source.slice(parent.start, parent.end)",
+    "after": "parentSource: ''",
+    "failures": [
+      "FAIL  test/unit/judgeLintEvaluate.test.ts > batched lint evaluation > preserves localized source, complete parent context and parent callees"
+    ],
+    "redExit": 1,
+    "greenExit": 0,
+    "sha256Before": "2dd9f4ba1df24eba7ee107cd58be19fcdb0d92ab57a32b1ff217a9f47a860753",
+    "sha256After": "2dd9f4ba1df24eba7ee107cd58be19fcdb0d92ab57a32b1ff217a9f47a860753"
+  },
+  {
+    "file": "src/core/judge/lint/evaluate.ts",
+    "suite": "judgeLintEvaluate",
+    "name": "resolve localized callees from the region",
+    "before": "await evaluator.callees(file, parent ?? unit)",
+    "after": "await evaluator.callees(file, unit)",
+    "failures": [
+      "FAIL  test/unit/judgeLintEvaluate.test.ts > batched lint evaluation > preserves localized source, complete parent context and parent callees"
+    ],
+    "redExit": 1,
+    "greenExit": 0,
+    "sha256Before": "2dd9f4ba1df24eba7ee107cd58be19fcdb0d92ab57a32b1ff217a9f47a860753",
+    "sha256After": "2dd9f4ba1df24eba7ee107cd58be19fcdb0d92ab57a32b1ff217a9f47a860753"
+  },
+  {
+    "file": "src/core/judge/lint/evaluate.ts",
+    "suite": "judgeLintEvaluate",
+    "name": "lose parent-specific upstream instructions",
+    "before": "lintQuestion(rule, evaluator.wording, parent !== undefined)",
+    "after": "lintQuestion(rule, evaluator.wording, false)",
+    "failures": [
+      "FAIL  test/unit/judgeLintEvaluate.test.ts > batched lint evaluation > preserves localized source, complete parent context and parent callees"
+    ],
+    "redExit": 1,
+    "greenExit": 0,
+    "sha256Before": "2dd9f4ba1df24eba7ee107cd58be19fcdb0d92ab57a32b1ff217a9f47a860753",
+    "sha256After": "2dd9f4ba1df24eba7ee107cd58be19fcdb0d92ab57a32b1ff217a9f47a860753"
+  },
+  {
+    "file": "src/core/judge/lint/evaluate.ts",
+    "suite": "judgeLintEvaluate",
+    "name": "charge metadata against source-byte bound",
+    "before": "callees.reduce((bytes, callee) => bytes + Buffer.byteLength(callee.source, 'utf8'), 0)",
+    "after": "Buffer.byteLength(JSON.stringify(callees), 'utf8')",
+    "failures": [
+      "FAIL  test/unit/judgeLintEvaluate.test.ts > batched lint evaluation > admits exactly the upstream source-byte callee limit without charging metadata against it"
+    ],
+    "redExit": 1,
+    "greenExit": 0,
+    "sha256Before": "2dd9f4ba1df24eba7ee107cd58be19fcdb0d92ab57a32b1ff217a9f47a860753",
+    "sha256After": "2dd9f4ba1df24eba7ee107cd58be19fcdb0d92ab57a32b1ff217a9f47a860753"
+  },
+  {
+    "file": "src/runtime/judge/lint.ts",
+    "suite": "judgeLintRuntime",
+    "name": "localize unselected region categories",
+    "before": "const regions = suppliedRegions.filter((region) =>\n            result.rule.localize.includes(region.kind),\n          )",
+    "after": "const regions = suppliedRegions",
+    "failures": [
+      "FAIL  test/unit/judgeLintRuntime.test.ts > judge lint runtime entry > localizes only the explicitly selected upstream region categories"
+    ],
+    "redExit": 1,
+    "greenExit": 0,
+    "sha256Before": "f957da00c180dc6ab9ed320a82e51568bbaca99915031987cb302000a2454f5d",
+    "sha256After": "f957da00c180dc6ab9ed320a82e51568bbaca99915031987cb302000a2454f5d"
+  },
+  {
+    "file": "src/core/judge/lint/config.ts",
+    "suite": "judgeLintConfig",
+    "name": "accept duplicate pack pins",
+    "before": "packIds.has(pack.id)",
+    "after": "false",
+    "failures": [
+      "FAIL  test/unit/judgeLintConfig.test.ts > pinned upstream JSON contracts > rejects upstream semantic errors 27"
+    ],
+    "redExit": 1,
+    "greenExit": 0,
+    "sha256Before": "765d8e2b7ec90bb7fda414388667f96ea90f5086a55587d44fcd81d0eea19a79",
+    "sha256After": "765d8e2b7ec90bb7fda414388667f96ea90f5086a55587d44fcd81d0eea19a79"
+  },
+  {
+    "file": "src/core/judge/lint/config.ts",
+    "suite": "judgeLintConfig",
+    "name": "accept empty file patterns",
+    "before": "if (\n      (rule.include ?? []).some((value) => isBlank(value)) ||\n      (rule.exclude ?? []).some((value) => isBlank(value))\n    )\n      invalid()",
+    "after": "",
+    "failures": [
+      "FAIL  test/unit/judgeLintConfig.test.ts > pinned upstream JSON contracts > rejects upstream semantic errors 24",
+      "FAIL  test/unit/judgeLintConfig.test.ts > pinned upstream JSON contracts > rejects upstream semantic errors 25"
+    ],
+    "redExit": 1,
+    "greenExit": 0,
+    "sha256Before": "765d8e2b7ec90bb7fda414388667f96ea90f5086a55587d44fcd81d0eea19a79",
+    "sha256After": "765d8e2b7ec90bb7fda414388667f96ea90f5086a55587d44fcd81d0eea19a79"
+  },
+  {
+    "file": "src/core/judge/lint/formats.ts",
+    "suite": "judgeLintConfig",
+    "name": "accept missing required pack language",
+    "before": "if ((pack.manifest.languages ?? []).some((id) => !Object.hasOwn(cfg.languages, id))) {\n      throw new Error('lint-pack-language-missing')\n    }",
+    "after": "",
+    "failures": [
+      "FAIL  test/unit/judgeLintConfig.test.ts > pinned upstream JSON contracts > refuses unresolved, mismatched, duplicate and unavailable-language packs"
+    ],
+    "redExit": 1,
+    "greenExit": 0,
+    "sha256Before": "e7eb5499a7dc8766e5f42c5ef36c7a16ba5f97f8fba020596d3346432dea0081",
+    "sha256After": "e7eb5499a7dc8766e5f42c5ef36c7a16ba5f97f8fba020596d3346432dea0081"
+  },
+  {
+    "file": "src/core/judge/lint/formats.ts",
+    "suite": "judgeLintConfig",
+    "name": "accept invalid owner/name pack ids",
+    "before": "const packId = z.string().check(z.regex(/^[\\dA-Za-z][\\w.-]*\\/[\\dA-Za-z][\\w.-]*$/u))",
+    "after": "const packId = z.string()",
+    "failures": [
+      "FAIL  test/unit/judgeLintConfig.test.ts > pinned upstream JSON contracts > rejects invalid pack manifests 1",
+      "FAIL  test/unit/judgeLintConfig.test.ts > pinned upstream JSON contracts > rejects invalid pack manifests 2"
+    ],
+    "redExit": 1,
+    "greenExit": 0,
+    "sha256Before": "e7eb5499a7dc8766e5f42c5ef36c7a16ba5f97f8fba020596d3346432dea0081",
+    "sha256After": "e7eb5499a7dc8766e5f42c5ef36c7a16ba5f97f8fba020596d3346432dea0081"
+  },
+  {
+    "file": "src/core/judge/lint/formats.ts",
+    "suite": "judgeLintConfig",
+    "name": "lose full criterion description overlay",
+    "before": "if (overlay.description) result.description = overlay.description",
+    "after": "",
+    "failures": [
+      "FAIL  test/unit/judgeLintConfig.test.ts > pinned upstream JSON contracts > preserves upstream full overlays, null retention and pinned policy flags"
+    ],
+    "redExit": 1,
+    "greenExit": 0,
+    "sha256Before": "e7eb5499a7dc8766e5f42c5ef36c7a16ba5f97f8fba020596d3346432dea0081",
+    "sha256After": "e7eb5499a7dc8766e5f42c5ef36c7a16ba5f97f8fba020596d3346432dea0081"
+  },
+  {
+    "file": "src/core/judge/lint/formats.ts",
+    "suite": "judgeLintConfig",
+    "name": "lose severity overlay",
+    "before": "if (overlay.severity != null) result.severity = overlay.severity",
+    "after": "",
+    "failures": [
+      "FAIL  test/unit/judgeLintConfig.test.ts > pinned upstream JSON contracts > preserves upstream full overlays, null retention and pinned policy flags"
+    ],
+    "redExit": 1,
+    "greenExit": 0,
+    "sha256Before": "e7eb5499a7dc8766e5f42c5ef36c7a16ba5f97f8fba020596d3346432dea0081",
+    "sha256After": "e7eb5499a7dc8766e5f42c5ef36c7a16ba5f97f8fba020596d3346432dea0081"
+  },
+  {
+    "file": "src/core/judge/lint/formats.ts",
+    "suite": "judgeLintConfig",
+    "name": "lose rule exclude overlay",
+    "before": "if (overlay.exclude != null) result.exclude = overlay.exclude",
+    "after": "",
+    "failures": [
+      "FAIL  test/unit/judgeLintConfig.test.ts > pinned upstream JSON contracts > merges in upstream order and overlays only upstream fields"
+    ],
+    "redExit": 1,
+    "greenExit": 0,
+    "sha256Before": "e7eb5499a7dc8766e5f42c5ef36c7a16ba5f97f8fba020596d3346432dea0081",
+    "sha256After": "e7eb5499a7dc8766e5f42c5ef36c7a16ba5f97f8fba020596d3346432dea0081"
+  },
+  {
+    "file": "src/core/judge/lint/formats.ts",
+    "suite": "judgeLintConfig",
+    "name": "lose explicit exceptions overlay",
+    "before": "if (overlay.exceptions != null) result.exceptions = overlay.exceptions",
+    "after": "",
+    "failures": [
+      "FAIL  test/unit/judgeLintConfig.test.ts > pinned upstream JSON contracts > merges in upstream order and overlays only upstream fields",
+      "FAIL  test/unit/judgeLintConfig.test.ts > pinned upstream JSON contracts > preserves upstream full overlays, null retention and pinned policy flags"
+    ],
+    "redExit": 1,
+    "greenExit": 0,
+    "sha256Before": "e7eb5499a7dc8766e5f42c5ef36c7a16ba5f97f8fba020596d3346432dea0081",
+    "sha256After": "e7eb5499a7dc8766e5f42c5ef36c7a16ba5f97f8fba020596d3346432dea0081"
+  },
+  {
+    "file": "src/core/judge/lint/formats.ts",
+    "suite": "judgeLintConfig",
+    "name": "lose unit kind overlay",
+    "before": "if (overlay.kinds != null) result.kinds = overlay.kinds",
+    "after": "",
+    "failures": [
+      "FAIL  test/unit/judgeLintConfig.test.ts > pinned upstream JSON contracts > merges in upstream order and overlays only upstream fields",
+      "FAIL  test/unit/judgeLintConfig.test.ts > pinned upstream JSON contracts > preserves upstream full overlays, null retention and pinned policy flags"
+    ],
+    "redExit": 1,
+    "greenExit": 0,
+    "sha256Before": "e7eb5499a7dc8766e5f42c5ef36c7a16ba5f97f8fba020596d3346432dea0081",
+    "sha256After": "e7eb5499a7dc8766e5f42c5ef36c7a16ba5f97f8fba020596d3346432dea0081"
+  },
+  {
+    "file": "src/core/judge/lint/formats.ts",
+    "suite": "judgeLintConfig",
+    "name": "alter pinned skip/abstain/context policy by overlay",
+    "before": "const result = { ...base }",
+    "after": "const result = { ...base, allowSkip: overlay.allowSkip, allowAbstain: overlay.allowAbstain, context: overlay.context }",
+    "failures": [
+      "FAIL  test/unit/judgeLintConfig.test.ts > pinned upstream JSON contracts > merges in upstream order and overlays only upstream fields",
+      "FAIL  test/unit/judgeLintConfig.test.ts > pinned upstream JSON contracts > preserves upstream full overlays, null retention and pinned policy flags"
+    ],
+    "redExit": 1,
+    "greenExit": 0,
+    "sha256Before": "e7eb5499a7dc8766e5f42c5ef36c7a16ba5f97f8fba020596d3346432dea0081",
+    "sha256After": "e7eb5499a7dc8766e5f42c5ef36c7a16ba5f97f8fba020596d3346432dea0081"
+  },
+  {
+    "file": "src/core/judge/lint/formats.ts",
+    "suite": "judgeLintConfig",
+    "name": "accept unknown eval case fields",
+    "before": "z.strictObject({\n        name: z.nullish(z.string()),",
+    "after": "z.object({\n        name: z.nullish(z.string()),",
+    "failures": [
+      "FAIL  test/unit/judgeLintConfig.test.ts > pinned upstream JSON contracts > validates strict upstream eval cases and duplicate canonical rule/file pairs"
+    ],
+    "redExit": 1,
+    "greenExit": 0,
+    "sha256Before": "e7eb5499a7dc8766e5f42c5ef36c7a16ba5f97f8fba020596d3346432dea0081",
+    "sha256After": "e7eb5499a7dc8766e5f42c5ef36c7a16ba5f97f8fba020596d3346432dea0081"
+  },
+  {
+    "file": "src/core/judge/lint/formats.ts",
+    "suite": "judgeLintConfig",
+    "name": "accept unknown eval rule",
+    "before": "if ((cfg.rules ?? []).every((rule) => rule.id !== item.rule)) {\n      throw new Error('lint-eval-rule-unknown')\n    }",
+    "after": "",
+    "failures": [
+      "FAIL  test/unit/judgeLintConfig.test.ts > pinned upstream JSON contracts > validates strict upstream eval cases and duplicate canonical rule/file pairs"
+    ],
+    "redExit": 1,
+    "greenExit": 0,
+    "sha256Before": "e7eb5499a7dc8766e5f42c5ef36c7a16ba5f97f8fba020596d3346432dea0081",
+    "sha256After": "e7eb5499a7dc8766e5f42c5ef36c7a16ba5f97f8fba020596d3346432dea0081"
+  },
+  {
+    "file": "src/core/judge/lint/context.ts",
+    "suite": "judgeLintContext",
+    "name": "accept invalid callee declaration source range",
+    "before": "if (unit.start < 0 || unit.end <= unit.start || unit.end > file.source.length) {\n      throw new Error('lint-extraction-invalid')\n    }",
+    "after": "",
+    "failures": [
+      "FAIL  test/unit/judgeLintContext.test.ts > pinned upstream direct callee semantics > validates grammar call records and declaration ranges"
+    ],
+    "redExit": 1,
+    "greenExit": 0,
+    "sha256Before": "2c843da37a2d7206e64afeab8be3282b3bb8cd3bbf78b0ba5f09e07d91851dd6",
+    "sha256After": "2c843da37a2d7206e64afeab8be3282b3bb8cd3bbf78b0ba5f09e07d91851dd6"
+  },
+  {
+    "file": "src/runtime/judge/lint.ts",
+    "suite": "judgeLintRuntime",
+    "name": "filter unselected malformed regions before validation",
+    "before": "const suppliedRegions = z.array(regionSchema).parse(rawRegions)",
+    "after": "const suppliedRegions = z.array(regionSchema).parse(rawRegions).filter((region) => result.rule.localize.includes(region.kind))",
+    "failures": [
+      "FAIL  test/unit/judgeLintRuntime.test.ts > judge lint runtime entry > validates even unselected regions before filtering categories"
+    ],
+    "redExit": 1,
+    "greenExit": 0,
+    "sha256Before": "4b6997c842a55bff86a9443f637c2161b1aa7e4682885a9dc1fb1475ebeedd9d",
+    "sha256After": "4b6997c842a55bff86a9443f637c2161b1aa7e4682885a9dc1fb1475ebeedd9d"
+  },
+  {
+    "file": "src/core/judge/lint/evals.ts",
+    "suite": "judgeLintEvals",
+    "name": "ignore reported failure in eval scoring",
+    "before": "if (decisions.some((decision) => decision.outcome === 'fail' && decision.confidence >= floor))\n    return 'fail'",
+    "after": "",
+    "failures": [
+      "FAIL  test/unit/judgeLintEvals.test.ts > upstream eval scoring mechanics > scores [\"pass\",\"fail\"] as fail",
+      "FAIL  test/unit/judgeLintEvals.test.ts > upstream eval scoring mechanics > scores [\"fail\",\"abstain\"] as fail",
+      "FAIL  test/unit/judgeLintEvals.test.ts > upstream eval scoring mechanics > matches an independently labelled failure and never matches inconclusive"
+    ],
+    "redExit": 1,
+    "greenExit": 0,
+    "sha256Before": "7357724a12f155c5698877b1fbeed8547de742f398dd28a4e35873baaba088d2",
+    "sha256After": "7357724a12f155c5698877b1fbeed8547de742f398dd28a4e35873baaba088d2"
+  },
+  {
+    "file": "src/core/judge/lint/evals.ts",
+    "suite": "judgeLintEvals",
+    "name": "report below-floor failure",
+    "before": "decision.outcome === 'fail' && decision.confidence >= floor",
+    "after": "decision.outcome === 'fail'",
+    "failures": [
+      "FAIL  test/unit/judgeLintEvals.test.ts > upstream eval scoring mechanics > keeps below-floor failures inconclusive even with an explicit pass"
+    ],
+    "redExit": 1,
+    "greenExit": 0,
+    "sha256Before": "7357724a12f155c5698877b1fbeed8547de742f398dd28a4e35873baaba088d2",
+    "sha256After": "7357724a12f155c5698877b1fbeed8547de742f398dd28a4e35873baaba088d2"
+  },
+  {
+    "file": "src/core/judge/lint/evals.ts",
+    "suite": "judgeLintEvals",
+    "name": "hide below-floor failure behind an explicit pass",
+    "before": "(decision.outcome === 'fail' && decision.confidence < floor)",
+    "after": "false",
+    "failures": [
+      "FAIL  test/unit/judgeLintEvals.test.ts > upstream eval scoring mechanics > keeps below-floor failures inconclusive even with an explicit pass"
+    ],
+    "redExit": 1,
+    "greenExit": 0,
+    "sha256Before": "7357724a12f155c5698877b1fbeed8547de742f398dd28a4e35873baaba088d2",
+    "sha256After": "7357724a12f155c5698877b1fbeed8547de742f398dd28a4e35873baaba088d2"
+  },
+  {
+    "file": "src/core/judge/lint/evals.ts",
+    "suite": "judgeLintEvals",
+    "name": "hide an unsure answer behind pass",
+    "before": "decision.outcome === 'inconclusive' ||",
+    "after": "",
+    "failures": [
+      "FAIL  test/unit/judgeLintEvals.test.ts > upstream eval scoring mechanics > keeps below-floor failures inconclusive even with an explicit pass"
+    ],
+    "redExit": 1,
+    "greenExit": 0,
+    "sha256Before": "7357724a12f155c5698877b1fbeed8547de742f398dd28a4e35873baaba088d2",
+    "sha256After": "7357724a12f155c5698877b1fbeed8547de742f398dd28a4e35873baaba088d2"
+  },
+  {
+    "file": "src/core/judge/lint/evals.ts",
+    "suite": "judgeLintEvals",
+    "name": "score skip/abstain-only cases as pass",
+    "before": "return decisions.some((decision) => decision.outcome === 'pass') ? 'pass' : 'inconclusive'",
+    "after": "return 'pass'",
+    "failures": [
+      "FAIL  test/unit/judgeLintEvals.test.ts > upstream eval scoring mechanics > scores [\"skip\"] as inconclusive",
+      "FAIL  test/unit/judgeLintEvals.test.ts > upstream eval scoring mechanics > scores [\"abstain\"] as inconclusive"
+    ],
+    "redExit": 1,
+    "greenExit": 0,
+    "sha256Before": "7357724a12f155c5698877b1fbeed8547de742f398dd28a4e35873baaba088d2",
+    "sha256After": "7357724a12f155c5698877b1fbeed8547de742f398dd28a4e35873baaba088d2"
+  },
+  {
+    "file": "src/core/judge/lint/evals.ts",
+    "suite": "judgeLintEvals",
+    "name": "score absent units instead of refusing",
+    "before": "if (decisions.length === 0) throw new Error('lint-eval-no-units')",
+    "after": "",
+    "failures": [
+      "FAIL  test/unit/judgeLintEvals.test.ts > upstream eval scoring mechanics > rejects missing rules and propagates failed fixture reads"
+    ],
+    "redExit": 1,
+    "greenExit": 0,
+    "sha256Before": "7357724a12f155c5698877b1fbeed8547de742f398dd28a4e35873baaba088d2",
+    "sha256After": "7357724a12f155c5698877b1fbeed8547de742f398dd28a4e35873baaba088d2"
+  },
+  {
+    "file": "src/core/judge/lint/evals.ts",
+    "suite": "judgeLintEvals",
+    "name": "ignore eval cancellation fences",
+    "before": "signal.throwIfAborted()",
+    "after": "",
+    "failures": [
+      "FAIL  test/unit/judgeLintEvals.test.ts > upstream eval scoring mechanics > checks cancellation before reading, after reading and after evaluating"
+    ],
+    "redExit": 1,
+    "greenExit": 0,
+    "sha256Before": "7357724a12f155c5698877b1fbeed8547de742f398dd28a4e35873baaba088d2",
+    "sha256After": "7357724a12f155c5698877b1fbeed8547de742f398dd28a4e35873baaba088d2"
+  },
+  {
+    "file": "src/core/judge/lint/evals.ts",
+    "suite": "judgeLintEvals",
+    "name": "ignore missing eval rule",
+    "before": "if (rule === undefined) throw new Error('lint-eval-rule-unknown')",
+    "after": "",
+    "failures": [
+      "FAIL  test/unit/judgeLintEvals.test.ts > upstream eval scoring mechanics > rejects missing rules and propagates failed fixture reads"
+    ],
+    "redExit": 1,
+    "greenExit": 0,
+    "sha256Before": "7357724a12f155c5698877b1fbeed8547de742f398dd28a4e35873baaba088d2",
+    "sha256After": "7357724a12f155c5698877b1fbeed8547de742f398dd28a4e35873baaba088d2"
+  },
+  {
+    "file": "src/core/judge/lint/evals.ts",
+    "suite": "judgeLintEvals",
+    "name": "score mismatching cases as successful",
+    "before": "cases.length > 0 && cases.every((item) => item.matched) ? 0 : 1",
+    "after": "cases.length > 0 ? 0 : 1",
+    "failures": [
+      "FAIL  test/unit/judgeLintEvals.test.ts > upstream eval scoring mechanics > scores [\"pass\",\"fail\"] as fail",
+      "FAIL  test/unit/judgeLintEvals.test.ts > upstream eval scoring mechanics > scores [\"fail\",\"abstain\"] as fail",
+      "FAIL  test/unit/judgeLintEvals.test.ts > upstream eval scoring mechanics > scores [\"inconclusive\"] as inconclusive",
+      "FAIL  test/unit/judgeLintEvals.test.ts > upstream eval scoring mechanics > scores [\"skip\"] as inconclusive",
+      "FAIL  test/unit/judgeLintEvals.test.ts > upstream eval scoring mechanics > scores [\"abstain\"] as inconclusive",
+      "FAIL  test/unit/judgeLintEvals.test.ts > upstream eval scoring mechanics > matches an independently labelled failure and never matches inconclusive",
+      "FAIL  test/unit/judgeLintEvals.test.ts > upstream eval scoring mechanics > keeps below-floor failures inconclusive even with an explicit pass"
+    ],
+    "redExit": 1,
+    "greenExit": 0,
+    "sha256Before": "7357724a12f155c5698877b1fbeed8547de742f398dd28a4e35873baaba088d2",
+    "sha256After": "7357724a12f155c5698877b1fbeed8547de742f398dd28a4e35873baaba088d2"
+  },
+  {
+    "file": "test/fixtures/judge/lint/upstream/capture.json",
+    "suite": "judgeLintUpstream",
+    "name": "misidentify the captured source revision",
+    "before": "73a7a94ab08a4e314709d68c2863687a4646f29b",
+    "after": "wrong-revision",
+    "failures": [
+      "FAIL  test/unit/judgeLintUpstream.test.ts > actual pinned upstream JSON reference > retains licensed source data at the PLAN pin with normalized-byte hashes"
+    ],
+    "redExit": 1,
+    "greenExit": 0,
+    "sha256Before": "10adff512b6a0bc2a13d34770bebafcfd1b95a1278970ae4d4a0536da76bb0fe",
+    "sha256After": "10adff512b6a0bc2a13d34770bebafcfd1b95a1278970ae4d4a0536da76bb0fe"
+  },
+  {
+    "file": "test/fixtures/judge/lint/upstream/pinned-jevlint.txt",
+    "suite": "judgeLintUpstream",
+    "name": "drop a preset from actual upstream data",
+    "before": "\"typescript\":",
+    "after": "\"unrecognized\":",
+    "failures": [
+      "FAIL  test/unit/judgeLintUpstream.test.ts > actual pinned upstream JSON reference > retains licensed source data at the PLAN pin with normalized-byte hashes",
+      "FAIL  test/unit/judgeLintUpstream.test.ts > actual pinned upstream JSON reference > decodes all thirteen upstream presets, twenty-six rules and 674 labelled evals"
+    ],
+    "redExit": 1,
+    "greenExit": 0,
+    "sha256Before": "2fc045e6ef6a96dbd27c1261d98a54313a58e31ec19d6e18af7f78124d21e924",
+    "sha256After": "2fc045e6ef6a96dbd27c1261d98a54313a58e31ec19d6e18af7f78124d21e924"
+  },
+  {
+    "file": "test/fixtures/judge/lint/upstream/pinned-pack.txt",
+    "suite": "judgeLintUpstream",
+    "name": "change actual upstream example pack identity",
+    "before": "codegirl-007/database-joins",
+    "after": "codegirl-007/other",
+    "failures": [
+      "FAIL  test/unit/judgeLintUpstream.test.ts > actual pinned upstream JSON reference > retains licensed source data at the PLAN pin with normalized-byte hashes",
+      "FAIL  test/unit/judgeLintUpstream.test.ts > actual pinned upstream JSON reference > decodes the actual upstream example manifest and pack rule document"
+    ],
+    "redExit": 1,
+    "greenExit": 0,
+    "sha256Before": "28132d2730bc985f20c6e7f5d6527f996bb0c8f301a8b07aebca4bf5527800e4",
+    "sha256After": "28132d2730bc985f20c6e7f5d6527f996bb0c8f301a8b07aebca4bf5527800e4"
+  },
+  {
+    "file": "src/core/judge/lint/config.ts",
+    "suite": "judgeLintUpstream",
+    "name": "allow Muse settings in real upstream configuration",
+    "before": "const configSchema = z.strictObject(",
+    "after": "const configSchema = z.object(",
+    "failures": [
+      "FAIL  test/unit/judgeLintUpstream.test.ts > actual pinned upstream JSON reference > rejects a Muse setting added to the captured upstream config"
+    ],
+    "redExit": 1,
+    "greenExit": 0,
+    "sha256Before": "765d8e2b7ec90bb7fda414388667f96ea90f5086a55587d44fcd81d0eea19a79",
+    "sha256After": "765d8e2b7ec90bb7fda414388667f96ea90f5086a55587d44fcd81d0eea19a79"
+  },
+  {
+    "file": "src/core/judge/lint/rules.ts",
+    "suite": "judgeLintUpstream",
+    "name": "drop localized upstream instructions",
+    "before": "isLocalized ? text.localizedInstructionPrefix : text.instructionPrefix",
+    "after": "text.instructionPrefix",
+    "failures": [
+      "FAIL  test/unit/judgeLintUpstream.test.ts > actual pinned upstream JSON reference > preserves upstream criteria and base/localized exception instructions"
+    ],
+    "redExit": 1,
+    "greenExit": 0,
+    "sha256Before": "9d5d1523b1813a004e00c4ea4edf9d98f8abfbbfda90be0293b68dde5a098f02",
+    "sha256After": "9d5d1523b1813a004e00c4ea4edf9d98f8abfbbfda90be0293b68dde5a098f02"
+  },
+  {
+    "file": "src/core/judge/lint/rules.ts",
+    "suite": "judgeLintUpstream",
+    "name": "drop upstream explicit exception text",
+    "before": "text.exceptionsPrefix + rule.exceptions.map((exception) => `\\n- ${exception}`).join('')",
+    "after": "''",
+    "failures": [
+      "FAIL  test/unit/judgeLintUpstream.test.ts > actual pinned upstream JSON reference > preserves upstream criteria and base/localized exception instructions"
+    ],
+    "redExit": 1,
+    "greenExit": 0,
+    "sha256Before": "9d5d1523b1813a004e00c4ea4edf9d98f8abfbbfda90be0293b68dde5a098f02",
+    "sha256After": "9d5d1523b1813a004e00c4ea4edf9d98f8abfbbfda90be0293b68dde5a098f02"
+  },
+  {
+    "file": "src/core/judge/lint/rules.ts",
+    "suite": "judgeLintUpstream",
+    "name": "include exception heading without exceptions",
+    "before": "rule.exceptions.length === 0",
+    "after": "false",
+    "failures": [
+      "FAIL  test/unit/judgeLintUpstream.test.ts > actual pinned upstream JSON reference > preserves upstream criteria and base/localized exception instructions"
+    ],
+    "redExit": 1,
+    "greenExit": 0,
+    "sha256Before": "9d5d1523b1813a004e00c4ea4edf9d98f8abfbbfda90be0293b68dde5a098f02",
+    "sha256After": "9d5d1523b1813a004e00c4ea4edf9d98f8abfbbfda90be0293b68dde5a098f02"
+  }
+]
