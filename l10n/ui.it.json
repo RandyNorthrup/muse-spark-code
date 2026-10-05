@@ -1348,6 +1348,8 @@
   "usagePaidBestOfNIncluded": "Stima dei token segnalati: {cost}",
   "paidTeamWorkersName": "Agenti del team",
   "paidTeamWorkerRates": "{model}: {input} per l’input, {cached} per l’input memorizzato nella cache e {output} per l’output, per milione di token; fino a {tokens} token per attività.",
+  "paidTeamWorkerUnpriced": "Il prezzo è sconosciuto; fino a {tokens} token per attività. Si applicano i limiti giornalieri di token.",
+  "paidTeamWorkerTokenBudget": "Limite giornaliero condiviso di token del team: {tokens} token.",
   "paidTeamWorkerLine": "{role} su {model}: {rates}",
   "paidTeamWorkerBudget": "Budget giornaliero condiviso del team: {budget}.",
   "paidTeamWorkersTitle": "Approvare le attività a pagamento del team?",

@@ -1348,6 +1348,8 @@
   "usagePaidBestOfNIncluded": "Estimation des jetons déclarés : {cost}",
   "paidTeamWorkersName": "Agents d’équipe",
   "paidTeamWorkerRates": "{model} : {input} en entrée, {cached} en entrée mise en cache et {output} en sortie par million de jetons ; jusqu’à {tokens} jetons par tâche.",
+  "paidTeamWorkerUnpriced": "Le prix est inconnu ; jusqu’à {tokens} jetons par tâche. Les limites quotidiennes de jetons s’appliquent.",
+  "paidTeamWorkerTokenBudget": "Plafond quotidien partagé de jetons de l’équipe : {tokens} jetons.",
   "paidTeamWorkerLine": "{role} sur {model} : {rates}",
   "paidTeamWorkerBudget": "Budget quotidien partagé de l’équipe : {budget}.",
   "paidTeamWorkersTitle": "Approuver les tâches d’équipe payantes ?",

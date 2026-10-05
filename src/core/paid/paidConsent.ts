@@ -15,7 +15,12 @@
 // words are here, so VS Code's modal and the ACP agent's permission request
 // (D62) say the same.
 
-import { PAID_FEATURES, type PaidFeature, UI_TEXT } from '../../shared/constants'
+import {
+  MODEL_API_PRICES_PER_MILLION,
+  PAID_FEATURES,
+  type PaidFeature,
+  UI_TEXT,
+} from '../../shared/constants'
 import { fill, formatNumber } from '../../shared/l10n/text'
 import {
   paidFeaturePrice,
@@ -25,6 +30,7 @@ import {
   scheduledRunPrice,
   subagentTaskPrice,
   teamWorkerPrice,
+  modelApiPaidTier,
 } from '../../shared/paid'
 import type { CoreLogger } from '../logging'
 
@@ -111,7 +117,7 @@ export function paidUseQuestion(request: PaidUseRequest): {
       return {
         title: UI_TEXT.paidTeamWorkersTitle,
         detail: fill(UI_TEXT.paidTeamWorkersDetail, {
-          tasks: teamWorkerPrice(request.tasks, request.dailyBudgetUsd),
+          tasks: teamWorkerPrice(request.tasks, request.dailyBudgetUsd, request.dailyBudgetTokens),
         }),
       }
     }
@@ -126,6 +132,11 @@ export interface PaidUseConsentDeps {
   /** The features allowed always in this workspace, still valid (the host drops lapsed ones). */
   readonly readGrants: () => ReadonlySet<PaidFeature>
   readonly writeGrants: (grants: ReadonlySet<PaidFeature>) => Promise<void>
+  /** Valid workspace scopes, invalidated with price acceptance/setting changes like ordinary grants.
+   * Both stores are required to offer team Always; a feature-only legacy grant never authorizes it.
+   */
+  readonly readTeamGrants?: () => ReadonlySet<string>
+  readonly writeTeamGrants?: (grants: ReadonlySet<string>) => Promise<void>
   /** The popup; "always" is offered only when `canRemember` is true. */
   readonly ask: (request: PaidUseRequest, canRemember: boolean) => Promise<PaidUseAnswer>
   readonly log: CoreLogger
@@ -159,6 +170,18 @@ export class PaidUseConsent {
     }
   }
 
+  private async rememberTeam(scopes: readonly string[]): Promise<boolean> {
+    if (this.deps.readTeamGrants === undefined || this.deps.writeTeamGrants === undefined)
+      return false
+    try {
+      await this.deps.writeTeamGrants(new Set([...this.deps.readTeamGrants(), ...scopes]))
+      return true
+    } catch {
+      this.deps.log.warn('Paid team use: scoped Always could not be kept; allowed once')
+      return false
+    }
+  }
+
   public onDidChange(listener: () => void): () => void {
     this.listeners.add(listener)
     return () => {
@@ -168,7 +191,12 @@ export class PaidUseConsent {
 
   /** Whether the feature is on and allowed always here, so its next use asks nothing. */
   public isRemembered(feature: PaidFeature): boolean {
-    return this.deps.isOn(feature) && this.deps.canRemember() && this.deps.readGrants().has(feature)
+    return (
+      feature !== 'teamWorkers' &&
+      this.deps.isOn(feature) &&
+      this.deps.canRemember() &&
+      this.deps.readGrants().has(feature)
+    )
   }
 
   /** The features that no longer ask in this workspace, in their fixed order. */
@@ -187,11 +215,34 @@ export class PaidUseConsent {
     if (!this.deps.isOn(feature)) {
       return false
     }
-    if (!requiresAsking && this.isRemembered(feature)) {
+    const teamScopes =
+      request.feature === 'teamWorkers'
+        ? request.tasks.map((task) => {
+            const tier = modelApiPaidTier(task.modelId)
+            return JSON.stringify([
+              task.provider ?? 'meta',
+              task.modelId,
+              task.priceTier ?? tier ?? 'unpriced',
+              tier === undefined ? null : MODEL_API_PRICES_PER_MILLION[tier],
+            ])
+          })
+        : undefined
+    const teamStore = this.deps.writeTeamGrants
+    const isRemembered =
+      teamScopes === undefined
+        ? this.isRemembered(feature)
+        : teamScopes.length > 0 &&
+          this.deps.canRemember() &&
+          teamStore !== undefined &&
+          teamScopes.every((scope) => this.deps.readTeamGrants?.().has(scope) === true)
+    if (!requiresAsking && isRemembered) {
       this.deps.log.info(`Paid use of ${feature}: allowed always in this workspace`)
       return true
     }
-    const canRemember = this.deps.canRemember()
+    const canRemember =
+      this.deps.canRemember() &&
+      (teamScopes === undefined ||
+        (teamStore !== undefined && this.deps.readTeamGrants !== undefined))
     const answer = await this.deps.ask(request, canRemember)
     if (answer === 'deny') {
       this.deps.log.info(`Paid use of ${feature}: denied`)
@@ -205,7 +256,7 @@ export class PaidUseConsent {
       answer === 'always' &&
       canRemember &&
       this.deps.canRemember() &&
-      (await this.remember(feature))
+      (await (teamScopes === undefined ? this.remember(feature) : this.rememberTeam(teamScopes)))
     ) {
       this.deps.log.info(`Paid use of ${feature}: allowed always in this workspace`)
       this.notify()
@@ -217,10 +268,11 @@ export class PaidUseConsent {
 
   /** Account & usage's "Ask again": every feature asks again in this workspace. */
   public async forget(): Promise<void> {
-    if (this.deps.readGrants().size === 0) {
+    if (this.deps.readGrants().size === 0 && (this.deps.readTeamGrants?.().size ?? 0) === 0) {
       return
     }
     await this.deps.writeGrants(new Set())
+    await this.deps.writeTeamGrants?.(new Set())
     this.deps.log.info('Paid uses ask again in this workspace')
     this.notify()
   }

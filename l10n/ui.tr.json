@@ -1310,6 +1310,8 @@
   "usagePaidBestOfNIncluded": "Bildirilen token tahmini: {cost}",
   "paidTeamWorkersName": "Ekip çalışanları",
   "paidTeamWorkerRates": "{model}: milyon giriş tokeni için {input}, önbelleğe alınmış giriş için {cached}, çıkış için {output}; görev başına en fazla {tokens} token.",
+  "paidTeamWorkerUnpriced": "Fiyat bilinmiyor; görev başına en fazla {tokens} token. Günlük token sınırları geçerlidir.",
+  "paidTeamWorkerTokenBudget": "Takımın paylaşılan günlük token üst sınırı: {tokens} token.",
   "paidTeamWorkerLine": "{model} üzerinde {role}: {rates}",
   "paidTeamWorkerBudget": "Paylaşılan günlük ekip bütçesi: {budget}.",
   "paidTeamWorkersTitle": "Ekibin ücretli görevlerini onaylıyor musunuz?",

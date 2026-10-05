@@ -11,6 +11,13 @@ happened, not what was planned; superseded entries are kept.
 
 - **M96 review repairs:** computed worker ceilings preserve zero and partial
   provider limits; cooldowns only lengthen, and spend caps use the UI locale.
+  Ledger publications and resets serialize with generation acknowledgements;
+  timer failures log fixed words and retry with bounded backoff. Resets count
+  later settlement deltas, and retention consults every day's task state.
+  Paid team consent scopes Always to provider/model/tariff; unpriced popups
+  show task/day token ceilings, with translations in all 14 languages. Key-billed
+  team work is available in the Muse Code paid-feature list. The integration
+  host must supply scoped grant persistence before offering team Always.
 
 - **M96 lane A, round 4:** uncertain descendants retain worker and shell slots;
   replacement admission needs spare capacity. Pool budgets include the first

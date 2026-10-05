@@ -1386,6 +1386,8 @@
   "usagePaidBestOfNIncluded": "Оценка стоимости указанных токенов: {cost}",
   "paidTeamWorkersName": "Агенты команды",
   "paidTeamWorkerRates": "{model}: {input} за миллион входных токенов, {cached} за миллион кешированных входных токенов и {output} за миллион выходных; до {tokens} токенов на задачу.",
+  "paidTeamWorkerUnpriced": "Цена неизвестна; до {tokens} токенов на задачу. Действуют дневные лимиты токенов.",
+  "paidTeamWorkerTokenBudget": "Общий дневной лимит токенов команды: {tokens} токенов.",
   "paidTeamWorkerLine": "{role} на {model}: {rates}",
   "paidTeamWorkerBudget": "Общий дневной бюджет команды: {budget}.",
   "paidTeamWorkersTitle": "Одобрить платные задачи команды?",

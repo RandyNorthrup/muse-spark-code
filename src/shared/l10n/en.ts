@@ -1902,6 +1902,9 @@ export const EN = {
   paidTeamWorkersName: 'Team workers',
   paidTeamWorkerRates:
     '{model}: {input} input, {cached} cached input, {output} output per million tokens; up to {tokens} tokens per task.',
+  paidTeamWorkerUnpriced:
+    'The price is unknown; up to {tokens} tokens per task. Daily token limits apply.',
+  paidTeamWorkerTokenBudget: 'Shared daily team token ceiling: {tokens} tokens.',
   paidTeamWorkerLine: '{role} on {model}: {rates}',
   paidTeamWorkerBudget: 'Shared daily team budget: {budget}.',
   paidTeamWorkersTitle: 'Approve paid team tasks?',

@@ -1272,6 +1272,8 @@
   "usagePaidBestOfNIncluded": "已回報權杖的估算費用：{cost}",
   "paidTeamWorkersName": "團隊代理",
   "paidTeamWorkerRates": "{model}：每百萬輸入權杖{input}、快取輸入{cached}、輸出{output}；每項工作最多{tokens}個權杖。",
+  "paidTeamWorkerUnpriced": "價格未知；每項任務最多使用 {tokens} 個權杖。適用每日權杖限額。",
+  "paidTeamWorkerTokenBudget": "團隊共用每日權杖上限：{tokens} 個權杖。",
   "paidTeamWorkerLine": "{model}上的{role}：{rates}",
   "paidTeamWorkerBudget": "共用團隊每日預算：{budget}。",
   "paidTeamWorkersTitle": "核准團隊的付費工作？",

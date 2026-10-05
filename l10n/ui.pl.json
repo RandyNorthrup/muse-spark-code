@@ -1386,6 +1386,8 @@
   "usagePaidBestOfNIncluded": "Szacunkowy koszt zgłoszonych tokenów: {cost}",
   "paidTeamWorkersName": "Agenci zespołu",
   "paidTeamWorkerRates": "{model}: {input} za tokeny wejściowe, {cached} za tokeny wejściowe z pamięci podręcznej i {output} za tokeny wyjściowe na milion tokenów; maksymalnie {tokens} tokenów na zadanie.",
+  "paidTeamWorkerUnpriced": "Cena jest nieznana; maksymalnie {tokens} tokenów na zadanie. Obowiązują dzienne limity tokenów.",
+  "paidTeamWorkerTokenBudget": "Wspólny dzienny limit tokenów zespołu: {tokens} tokenów.",
   "paidTeamWorkerLine": "{role} na {model}: {rates}",
   "paidTeamWorkerBudget": "Wspólny dzienny budżet zespołu: {budget}.",
   "paidTeamWorkersTitle": "Zatwierdzić płatne zadania zespołu?",

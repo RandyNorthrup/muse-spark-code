@@ -1386,6 +1386,8 @@
   "usagePaidBestOfNIncluded": "Odhad ceny nahlášených tokenů: {cost}",
   "paidTeamWorkersName": "Týmoví agenti",
   "paidTeamWorkerRates": "{model}: {input} za vstup, {cached} za vstup z mezipaměti a {output} za výstup na milion tokenů; nejvýše {tokens} tokenů na úkol.",
+  "paidTeamWorkerUnpriced": "Cena není známá; nejvýše {tokens} tokenů na úkol. Platí denní limity tokenů.",
+  "paidTeamWorkerTokenBudget": "Sdílený denní limit tokenů týmu: {tokens} tokenů.",
   "paidTeamWorkerLine": "{role} na {model}: {rates}",
   "paidTeamWorkerBudget": "Sdílený denní rozpočet týmu: {budget}.",
   "paidTeamWorkersTitle": "Schválit placené úkoly týmu?",

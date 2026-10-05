@@ -19802,6 +19802,14 @@ joined with M57, M58 and PR #49's sign-in
 
 ## 7. Gates
 
+**FIXM96A focused rig certification (2026-10-05).** The rig brief explicitly
+forbids full quality and integration merges in this repair lane. Its complete
+owned/adjacent test files, typechecks, changed-file lint/format, localization,
+host API, dead-code, duplication and production build run directly on macmini.
+The lead retains the full quality matrix, editor/UI and live integration
+certification; no rule, threshold, ignore or timeout is weakened. Record:
+`docs/certification/m96-a.md`.
+
 **MG69 merged-source proof (2026-10-02).** Kubuntu passes 49 owning/merged
 files (2,056 tests; two existing Windows-only cases platform-skipped), all
 five compiler projects and every required static gate. Both review and import
@@ -20245,6 +20253,22 @@ before a repaired one loads (2026-09-30).
 | `test/harness/index.html` (`isActiveDescendantList`), printed by `scripts/a11y.mjs` | The accessibility gate exempts axe's `scrollable-region-focusable` | The composer's `/` and `@` lists follow WAI-ARIA's combobox pattern: the box keeps the focus and moves `aria-activedescendant` through the listbox's options, and `Composer.tsx` scrolls the active option into view, so the list is keyboard operable (WCAG 2.1.1) without being a Tab stop. axe cannot see activedescendant-driven scrolling. The exemption holds only for a region that contains a listbox whose id is in the `aria-controls` of a focused or focusable element whose active descendant is one of that listbox's options; drills show a plain scrollable region and a listbox no control drives are still reported, and removing the exemption reports the composer's list again. Every exempt element is printed under its own "Exempt:" heading and counted. No `tabindex` was added to the list. | 2026-10-04 |
 
 ## 9. Security assumptions and accepted residual risk
+
+- **FIXM96A integration prerequisite — scoped team consent persistence.**
+  RVM96C F01–F11 are repaired in lane A; none is deferred. Lane T must supply
+  `PaidUseConsentDeps.readTeamGrants/writeTeamGrants` from workspace state,
+  invalidate scopes with the D78 price/setting generation, and provide the
+  provider/tariff identity and current shared day token ceiling. Until those
+  stores are injected, team consent offers only Once/Deny and ignores legacy
+  feature-wide team grants. This is safe while the existing readiness and
+  durable-journal prerequisites keep team dispatch unavailable, and it still
+  asks per use if a caller enables readiness without a scoped store. Ordinary
+  grants cannot authorize another model. Follow-up: wire and certify these
+  stores and an accessible scoped-grant revoke action with the team host
+  before enabling Always in integration. Legacy
+  private reset markers without a usage baseline keep their old clearing
+  semantics; every new Reset persists its baseline. No shipped team ledger
+  exists to migrate. Record: `docs/certification/m96-a.md`.
 
 - Code intelligence (M67) shows what VS Code's language services say. A
   result located outside the workspace is left out and a hover defined only

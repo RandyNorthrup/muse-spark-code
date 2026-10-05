@@ -1310,6 +1310,8 @@
   "usagePaidBestOfNIncluded": "Jelentett tokenek becsült költsége: {cost}",
   "paidTeamWorkersName": "Csapatügynökök",
   "paidTeamWorkerRates": "{model}: {input} bemenetért, {cached} gyorsítótárazott bemenetért és {output} kimenetért egymillió tokenenként; feladatonként legfeljebb {tokens} token.",
+  "paidTeamWorkerUnpriced": "Az ár ismeretlen; feladatonként legfeljebb {tokens} token. A napi tokenkorlátok érvényesek.",
+  "paidTeamWorkerTokenBudget": "A csapat közös napi tokenkorlátja: {tokens} token.",
   "paidTeamWorkerLine": "{role} ezen: {model}: {rates}",
   "paidTeamWorkerBudget": "Megosztott napi csapatkeret: {budget}.",
   "paidTeamWorkersTitle": "Jóváhagyja a csapat fizetős feladatait?",

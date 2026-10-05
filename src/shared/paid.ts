@@ -77,6 +77,10 @@ export interface SubagentUsage {
 
 /** One key-billed team task the popup names (M96 lane A, PLAN.md D75). */
 export interface TeamWorkerConfirmation {
+  /** Meta until the provider adapter supplies a different key-billed provider. */
+  readonly provider?: string
+  /** The adapter's tariff identity; changing it asks again even for the same model. */
+  readonly priceTier?: string
   readonly role: string
   readonly modelId: string
   /** The task's token ceiling, from the entry's `task` caps or the level. */
@@ -87,12 +91,13 @@ export interface TeamWorkerConfirmation {
 export function teamWorkerPrice(
   tasks: readonly TeamWorkerConfirmation[],
   dailyBudgetUsd: number | undefined,
+  dailyBudgetTokens?: number,
 ): string {
   const lines = tasks.map((task) => {
     const tier = modelApiPaidTier(task.modelId)
     const rates =
       tier === undefined
-        ? UI_TEXT.subagentTariffUnknown
+        ? fill(UI_TEXT.paidTeamWorkerUnpriced, { tokens: formatNumber(task.taskCeilingTokens) })
         : fill(UI_TEXT.paidTeamWorkerRates, {
             model: task.modelId,
             input: formatUsd(MODEL_API_PRICES_PER_MILLION[tier].input, MODEL_API_PRICE_DECIMALS),
@@ -111,6 +116,9 @@ export function teamWorkerPrice(
   })
   if (dailyBudgetUsd !== undefined) {
     lines.push(fill(UI_TEXT.paidTeamWorkerBudget, { budget: formatUsd(dailyBudgetUsd, 2) }))
+  }
+  if (dailyBudgetTokens !== undefined) {
+    lines.push(fill(UI_TEXT.paidTeamWorkerTokenBudget, { tokens: formatNumber(dailyBudgetTokens) }))
   }
   return lines.join('\n')
 }
@@ -194,12 +202,14 @@ export type PaidUseRequest =
       readonly tasks: readonly TeamWorkerConfirmation[]
       /** The shared daily team budget the popup names; undefined while lanes 0/X land the setting. */
       readonly dailyBudgetUsd: number | undefined
+      /** Required by the unpriced-provider admission path before it dispatches. */
+      readonly dailyBudgetTokens?: number
     }
 
 /**
  * The paid features a window can use (M44, PLAN.md D37): every one on the
- * Model API backend; on Muse Code, the ones billed to a stored key that it
- * has no subscription equivalent for; none otherwise.
+ * Model API backend; on Muse Code, the extension's features billed to a
+ * stored key, including key-billed team tasks; none without that key.
  */
 export function usablePaidFeatures(
   backend: BackendKind | undefined,

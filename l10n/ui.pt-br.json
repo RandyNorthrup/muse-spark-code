@@ -1348,6 +1348,8 @@
   "usagePaidBestOfNIncluded": "Estimativa dos tokens informados: {cost}",
   "paidTeamWorkersName": "Agentes da equipe",
   "paidTeamWorkerRates": "{model}: {input} por milhão de tokens de entrada, {cached} de entrada em cache e {output} de saída; até {tokens} tokens por tarefa.",
+  "paidTeamWorkerUnpriced": "O preço é desconhecido; até {tokens} tokens por tarefa. Aplicam-se limites diários de tokens.",
+  "paidTeamWorkerTokenBudget": "Limite diário compartilhado de tokens da equipe: {tokens} tokens.",
   "paidTeamWorkerLine": "{role} em {model}: {rates}",
   "paidTeamWorkerBudget": "Orçamento diário compartilhado da equipe: {budget}.",
   "paidTeamWorkersTitle": "Aprovar tarefas pagas da equipe?",

@@ -1272,6 +1272,8 @@
   "usagePaidBestOfNIncluded": "已报告令牌的估算费用：{cost}",
   "paidTeamWorkersName": "团队代理",
   "paidTeamWorkerRates": "{model}：每百万输入令牌{input}、缓存输入{cached}、输出{output}；每项任务最多{tokens}个令牌。",
+  "paidTeamWorkerUnpriced": "价格未知；每项任务最多使用 {tokens} 个令牌。适用每日令牌限额。",
+  "paidTeamWorkerTokenBudget": "团队共享每日令牌上限：{tokens} 个令牌。",
   "paidTeamWorkerLine": "{model}上的{role}：{rates}",
   "paidTeamWorkerBudget": "共享团队每日预算：{budget}。",
   "paidTeamWorkersTitle": "批准团队的付费任务？",

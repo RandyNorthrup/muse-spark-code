@@ -1272,6 +1272,8 @@
   "usagePaidBestOfNIncluded": "報告されたトークンの推定費用：{cost}",
   "paidTeamWorkersName": "チームワーカー",
   "paidTeamWorkerRates": "{model}：入力100万トークンあたり{input}、キャッシュ済み入力{cached}、出力{output}。タスクごとに最大{tokens}トークン。",
+  "paidTeamWorkerUnpriced": "料金は不明です。タスクごとに最大{tokens}トークンです。1日あたりのトークン上限が適用されます。",
+  "paidTeamWorkerTokenBudget": "チーム共通の1日あたりのトークン上限：{tokens}トークン。",
   "paidTeamWorkerLine": "{model}の{role}：{rates}",
   "paidTeamWorkerBudget": "共有チーム日次予算：{budget}。",
   "paidTeamWorkersTitle": "チームの有料タスクを承認しますか？",

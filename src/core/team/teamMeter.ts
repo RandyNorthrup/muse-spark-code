@@ -58,7 +58,7 @@ export interface TeamMeterRow {
   readonly taskId: string
   /** Local day the row's usage belongs to (`teamDayKey`). */
   readonly dayKey: string
-  /** When the row's usage started: resets clear rows before their own time. */
+  /** When the delegation began, not the time of a later usage settlement. */
   readonly startMs: number
   readonly usage: TeamMeterUsage
   /** True where the provider reports nothing and the extension measured. */
@@ -66,6 +66,13 @@ export interface TeamMeterRow {
   /** Reset rows only: the window cleared, for one entry or (undefined) all. */
   readonly clearedWindow?: TeamWindow
   readonly clearedEntryId?: string
+  /** Persisted cumulative usage at Reset, so later settlements count their delta. */
+  readonly clearedUsage?: readonly {
+    readonly entryId: string
+    readonly taskId: string
+    readonly dayKey: string
+    readonly usage: TeamMeterUsage
+  }[]
 }
 
 /** The local day a timestamp belongs to: the `day` window and the ledger file. */
@@ -263,9 +270,8 @@ function isRowInScope(
   entryId: string,
   window: TeamWindow,
   scope: { readonly taskId: string; readonly dayKey: string },
-  resetMs: number,
 ): boolean {
-  if (row.kind === 'reset' || row.entryId !== entryId || row.startMs < resetMs) {
+  if (row.kind === 'reset' || row.entryId !== entryId) {
     return false
   }
   switch (window) {
@@ -293,8 +299,8 @@ export class TeamMeter {
   public constructor(private readonly source: TeamMeterSource) {}
 
   /**
-   * The latest reset clearing an entry's window (0 when none): rows before
-   * it do not count. A reset names exactly one window; a `task` window is
+   * The latest reset clearing an entry's window (0 when none): its persisted
+   * baseline is subtracted from later usage. A reset names one window; a `task` window is
    * per task and needs none.
    */
   public lastResetMs(entryId: string | undefined, window: TeamWindow): number {
@@ -324,14 +330,36 @@ export class TeamMeter {
     scope: { readonly taskId: string; readonly dayKey: string },
   ): TeamMeterReading {
     const resetMs = this.lastResetMs(entryId, cap.window)
+    const reset = this.source
+      .rows()
+      .find(
+        (candidate) =>
+          candidate.kind === 'reset' &&
+          candidate.startMs === resetMs &&
+          candidate.clearedWindow === cap.window &&
+          (candidate.clearedEntryId === undefined || candidate.clearedEntryId === entryId),
+      )
     let value = 0
     let isEstimated = false
     for (const row of this.source.rows()) {
-      if (!isRowInScope(row, entryId, cap.window, scope, resetMs)) {
+      if (!isRowInScope(row, entryId, cap.window, scope)) {
         continue
       }
-      value += usageAmount(cap.measure, row.usage)
-      isEstimated ||= row.estimated
+      const baseline = reset?.clearedUsage?.find(
+        (cleared) =>
+          cleared.entryId === row.entryId &&
+          cleared.taskId === row.taskId &&
+          cleared.dayKey === row.dayKey,
+      )
+      // Old markers without a baseline keep their original clearing semantics.
+      if (reset?.clearedUsage === undefined && row.startMs < resetMs) continue
+      const amount = Math.max(
+        0,
+        usageAmount(cap.measure, row.usage) -
+          (baseline === undefined ? 0 : usageAmount(cap.measure, baseline.usage)),
+      )
+      value += amount
+      if (amount > 0) isEstimated ||= row.estimated
     }
     for (const reservation of this.source.openReservations()) {
       if (reservation.entryId !== entryId) {

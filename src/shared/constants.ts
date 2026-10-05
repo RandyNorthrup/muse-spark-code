@@ -479,9 +479,9 @@ export const PAID_FEATURES = [
 ] as const
 // The paid features the Muse Code backend can use too, billed to a stored
 // Model API key (M44, PLAN.md D37): images through the `ide` server and
-// Muse Voice. Web search is not among them: Muse Code searches on the
-// subscription with its own tool.
-export const MUSE_CODE_PAID_FEATURES = ['imageGeneration', 'voice'] as const
+// Muse Voice, and key-billed team tasks through the extension (M96).
+// Muse Code's own web search runs on its subscription.
+export const MUSE_CODE_PAID_FEATURES = ['imageGeneration', 'voice', 'teamWorkers'] as const
 export type PaidFeature = (typeof PAID_FEATURES)[number]
 /** Each feature's setting, relative to the `museSpark` section. */
 export const PAID_FEATURE_SETTINGS = {
@@ -3818,6 +3818,8 @@ export const POSIX_TERMINAL_SHELL = '/bin/sh'
 // usage survives a crash (D75: "on usage at most every TEAM_LEDGER_FLUSH_MS
 // (2 seconds)").
 export const TEAM_LEDGER_FLUSH_MS = 2000
+/** Failed periodic publications retry exponentially, capped at one minute. */
+export const TEAM_LEDGER_RETRY_MAX_MS = 60_000
 // A throttled entry's running cap grows back one step per this interval
 // without another 429, up to its configured cap (D75: 60 seconds).
 export const TEAM_THROTTLE_RECOVER_MS = 60_000

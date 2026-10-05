@@ -1310,6 +1310,8 @@
   "usagePaidBestOfNIncluded": "Gemeldete Tokenschätzung: {cost}",
   "paidTeamWorkersName": "Team-Agenten",
   "paidTeamWorkerRates": "{model}: {input} für Eingabe, {cached} für zwischengespeicherte Eingabe und {output} für Ausgabe je Million Token; höchstens {tokens} Token pro Aufgabe.",
+  "paidTeamWorkerUnpriced": "Der Preis ist unbekannt; bis zu {tokens} Token pro Aufgabe. Es gelten tägliche Tokenlimits.",
+  "paidTeamWorkerTokenBudget": "Gemeinsames tägliches Tokenlimit des Teams: {tokens} Token.",
   "paidTeamWorkerLine": "{role} auf {model}: {rates}",
   "paidTeamWorkerBudget": "Gemeinsames Team-Tagesbudget: {budget}.",
   "paidTeamWorkersTitle": "Kostenpflichtige Team-Aufgaben genehmigen?",

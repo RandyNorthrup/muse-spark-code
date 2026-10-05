@@ -1272,6 +1272,8 @@
   "usagePaidBestOfNIncluded": "보고된 토큰 예상 비용: {cost}",
   "paidTeamWorkersName": "팀 워커",
   "paidTeamWorkerRates": "{model}: 입력 토큰 100만 개당 {input}, 캐시된 입력 {cached}, 출력 {output}; 작업당 최대 {tokens}개 토큰.",
+  "paidTeamWorkerUnpriced": "가격을 알 수 없습니다. 작업당 최대 {tokens}개 토큰입니다. 일일 토큰 한도가 적용됩니다.",
+  "paidTeamWorkerTokenBudget": "팀 공통 일일 토큰 한도: {tokens}개 토큰.",
   "paidTeamWorkerLine": "{model}의 {role}: {rates}",
   "paidTeamWorkerBudget": "공유 팀 일일 예산: {budget}.",
   "paidTeamWorkersTitle": "팀 유료 작업을 승인하시겠습니까?",
