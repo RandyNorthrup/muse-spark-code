@@ -2,7 +2,8 @@ import { createHash } from 'node:crypto'
 import { open, realpath } from 'node:fs/promises'
 import path from 'node:path'
 import { LOCAL_JUDGE_HASH_CHUNK_BYTES } from '../../../shared/constants'
-import { handleIdentity, sameFile, statIdentity } from '../../fs/fileIdentity'
+import { handleIdentity, statIdentity } from '../../fs/fileIdentity'
+import { isSameLocalFileMetadata } from './snapshot'
 
 /** A vetted install digest, never learned from a responding endpoint. */
 export async function requireLocalExecutable(
@@ -31,12 +32,8 @@ export async function requireLocalExecutable(
     signal.throwIfAborted()
     if (
       hash.digest('hex') !== digest ||
-      !sameFile(before, after) ||
-      !sameFile(before, named) ||
-      before.size !== after.size ||
-      before.size !== named.size ||
-      before.mtimeNs !== after.mtimeNs ||
-      before.mtimeNs !== named.mtimeNs
+      !isSameLocalFileMetadata(before, after) ||
+      !isSameLocalFileMetadata(before, named)
     )
       throw new Error('unverified-runtime')
   } finally {

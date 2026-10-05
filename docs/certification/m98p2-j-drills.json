@@ -628,5 +628,18 @@
     "greenExit": 0,
     "before": "30730a7bd6dc4c904cd27cb754d299f70c3319cd1d6fb375e06c75da883067ca",
     "after": "30730a7bd6dc4c904cd27cb754d299f70c3319cd1d6fb375e06c75da883067ca"
+  },
+  {
+    "guard": "shared native file metadata comparison",
+    "file": "src/core/judge/local/snapshot.ts",
+    "test": "test/unit/judgeLocalModel.test.ts",
+    "namedFailures": [
+      "test/unit/judgeLocalModel.test.ts > M98-2j captured model provenance > refuses a pathname replacement while the original blob handle remains valid"
+    ],
+    "mutationIndex": 46,
+    "exit": 1,
+    "greenExit": 0,
+    "before": "598aa4d9d2eac8f13460ae20d8616d88c363f71deb7bcbae9436b5003072cebd",
+    "after": "598aa4d9d2eac8f13460ae20d8616d88c363f71deb7bcbae9436b5003072cebd"
   }
 ]

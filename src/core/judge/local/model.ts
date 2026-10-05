@@ -12,6 +12,7 @@ import {
   LOCAL_JUDGE_HASH_CHUNK_BYTES,
 } from '../../../shared/constants'
 import { handleIdentity, sameFile, statIdentity } from '../../fs/fileIdentity'
+import { isSameLocalFileMetadata } from './snapshot'
 
 const hex = z
   .string()
@@ -102,12 +103,8 @@ export async function verifyDiskModel(
       const after = await handleIdentity(handle)
       const named = await statIdentity(blobPath)
       if (
-        !sameFile(before, after) ||
-        !sameFile(before, named) ||
-        before.mtimeNs !== named.mtimeNs ||
-        before.size !== named.size ||
-        before.mtimeNs !== after.mtimeNs ||
-        before.size !== after.size ||
+        !isSameLocalFileMetadata(before, after) ||
+        !isSameLocalFileMetadata(before, named) ||
         digest !== blob.digest
       )
         throw new Error('unverified-blob-digest')
@@ -124,12 +121,8 @@ export async function verifyDiskModel(
       const named = await statIdentity(file)
       if (
         actual !== digest ||
-        !sameFile(before, after) ||
-        !sameFile(before, named) ||
-        before.size !== after.size ||
-        before.size !== named.size ||
-        before.mtimeNs !== after.mtimeNs ||
-        before.mtimeNs !== named.mtimeNs ||
+        !isSameLocalFileMetadata(before, after) ||
+        !isSameLocalFileMetadata(before, named) ||
         before.ctimeNs !== after.ctimeNs ||
         before.ctimeNs !== named.ctimeNs ||
         (await realpath(file)) !== file
