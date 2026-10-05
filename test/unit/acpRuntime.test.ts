@@ -567,6 +567,7 @@ describe('createRuntimeBackend', () => {
       const api = fakeModelApi()
       const root = folder()
       const literal = 'line 200 .* [needle]'
+      writeFileSync(path.join(root, 'small.txt'), 'one\n')
       writeFileSync(
         path.join(root, 'big.txt'),
         Array.from(
@@ -594,8 +595,8 @@ describe('createRuntimeBackend', () => {
         const { turnDone } = watchSessionTurns(session)
         api.script(
           { calls: [{ name: 'read_file', arguments: '{"path":"big.txt"}', callId: 'read' }] },
-          { text: 'read' },
-          { text: 'again' },
+          { calls: [{ name: 'read_file', arguments: '{"path":"small.txt"}', callId: 'small1' }] },
+          { calls: [{ name: 'read_file', arguments: '{"path":"small.txt"}', callId: 'small2' }] },
           {
             calls: [
               {
@@ -607,10 +608,10 @@ describe('createRuntimeBackend', () => {
           },
           { text: 'recalled' },
         )
-        for (const text of ['read big.txt', 'again', 'find the literal']) {
-          await session.sendTurn([{ type: 'text', text }])
-          await turnDone()
-        }
+        // Headless exec owns one user turn; packing and recall must work
+        // within that turn's tool loop as they do in an ACP editor.
+        await session.sendTurn([{ type: 'text', text: 'Read big.txt and find the literal' }])
+        await turnDone()
         expect(JSON.stringify(api.responseBodies()[0]?.['tools'])).toContain(
           MODEL_API_TOOLS.recallOutput,
         )

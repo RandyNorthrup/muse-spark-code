@@ -1246,6 +1246,31 @@ function probeBody(): CreateResponseBody {
 
 describe('chat codec breakpoints', () => {
   it.each(['anthropic', 'last'] as const)(
+    '%s leaves progress uncached when instruction text and history are empty',
+    (cacheBreakpoints) => {
+      const encoded = encodeChatRequest(
+        tinyBody({
+          instructions: '',
+          input: [
+            {
+              type: 'message',
+              role: 'developer',
+              content: [{ type: 'input_text', text: 'Goal progress: 10%' }],
+            },
+          ],
+        }),
+        'anthropic/claude-sonnet-5.5',
+        OPENROUTER,
+        { cacheBreakpoints },
+      )
+      expect(encoded.body.messages.at(-1)).toEqual({
+        role: 'system',
+        content: [{ type: 'text', text: 'Goal progress: 10%' }],
+      })
+    },
+  )
+
+  it.each(['anthropic', 'last'] as const)(
     '%s keeps the rolling marker on history before transient progress',
     (cacheBreakpoints) => {
       const histories: CreateResponseBody['input'][] = [
