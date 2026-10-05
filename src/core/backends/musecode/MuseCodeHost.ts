@@ -637,7 +637,7 @@ export class MuseSession implements AgentSession {
 
   public constructor(
     public readonly sessionId: string,
-    public readonly modelId: string,
+    public modelId: string,
     private readonly channel: CommandChannel,
     private readonly onDispose: () => void,
     /** The host granted `userShell` at the handshake (M46): `!` commands may run. */
@@ -961,6 +961,7 @@ export class MuseSession implements AgentSession {
   /** Durable model selection; applies from the next model call. */
   public async setModel(modelId: string): Promise<void> {
     await this.command('session/setModel', { model: { modelId } })
+    this.modelId = modelId
   }
 
   /** The session's standing reasoning-effort default (wire vocabulary). */
@@ -1276,16 +1277,16 @@ export class MuseCodeHost implements AgentHost {
       try {
         this.dispatch(notification)
       } catch (error: unknown) {
-        this.log.error(`MSP ${notification.method} could not be handled: ${String(error)}`)
+        this.log.error(`MSP ${notification.method} could not be handled: ${failureForLog(error)}`)
       }
     })
     host.connection.onServerRequest((request) => {
       this.channel.liveness.heard()
       return this.serverRequest(request)
     })
-    // A dropped or unreadable frame is logged by kind, never with its content.
-    host.connection.onProtocolError((error) => {
-      this.log.warn(`MSP protocol error: ${error.message}`)
+    // A dropped or unreadable frame gets fixed words, never its content.
+    host.connection.onProtocolError(() => {
+      this.log.warn('MSP protocol error (frame not logged)')
     })
     // A connection that ends while the process lives (a framing violation)
     // is as good as dead: the process is closed so the exit is reported.

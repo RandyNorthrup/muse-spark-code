@@ -26,14 +26,14 @@ Use this order for a candidate branch:
 1. Integrate the planned milestones onto the current `main` in order. Resolve
    conflicts and stage the candidate with no unstaged changes. Record its
    `git write-tree` hash.
-2. Run `npm ci` and `npm run quality` on that exact staged tree. Before
-   pushing, test the same candidate on the maintainer's Mac mini, Kubuntu VM
-   and Windows 11 VM as well as the Windows host. Use isolated checkouts;
-   record the tree hash, OS and tool versions, commands and process exit
-   codes. Include full platform gates and the affected real filesystem,
-   process and packaging paths. Temporary-directory aliases and Windows
-   short names are part of those paths. An unavailable rig remains a named
-   blocker; hosted CI does not substitute for the missing local proof.
+2. Run `npm ci` and `npm run quality` on that exact staged tree. Hosted CI
+   is the platform gate: the merge queue runs every OS once on the commit
+   that lands, so the maintainer's Mac mini, Kubuntu VM and Windows 11 VM
+   serve targeted runs and reproductions only (the affected real
+   filesystem, process and packaging paths, temporary-directory aliases and
+   Windows short names), never a full suite before each push. Record the
+   tree hash, OS and tool versions, commands and process exit codes of any
+   such run.
 3. Have an independent agent review the staged diff and acceptance evidence.
    Scan the staged changes for secrets too: local `security:secrets` scans
    committed history, so it cannot see the index before commit. Fix findings,
@@ -41,21 +41,23 @@ Use this order for a candidate branch:
    platform checks. Commit only after the final tree passes; verify the
    commit's tree matches the tested `git write-tree` hash.
 4. Push the reviewed commit to its feature branch and open one pull request.
-   Its `pull_request` event starts CI's seven jobs (the required checks) and,
-   when their paths match, the Hosts, Action check and Forks workflows. Do not also dispatch
-   `ci.yml` manually for the same commit; `workflow_dispatch` remains available
-   when an explicit branch check is needed without a pull request.
+   Its `pull_request` event starts the fast Ubuntu tier (the full tier until
+   the merge queue is on; see below). Do not also dispatch `ci.yml` manually
+   for the same commit; `workflow_dispatch` remains available for an explicit
+   full branch check without a pull request.
 5. Use `gh run watch RUN_ID --exit-status`, then
    `gh run view RUN_ID --json headSha,jobs`. Match `headSha` to the pushed
-   commit and check every job: Ubuntu, Windows and macOS quality; Linux and
-   Windows accessibility and VS Code integration; macOS dictation; packaging;
-   gitleaks; and semgrep. Fix failures and repeat from the exact-tree gate.
-   Later branch changes need a fresh pull-request run. Merging does not rerun
-   `ci.yml` on `main` (`hosts.yml` runs again when its paths change); release
-   tags still build.
-6. Add the pull-request run ID, `headSha`, seven conclusions, independent
-   review, and any unproved platform or live gate to the PR proof once checks
-   finish. A printed success line without the process exit status is not a
+   commit and inspect all seven required conclusions. After the PR checks and
+   review pass, choose **Merge when ready** (`gh pr merge N --merge`) to put
+   the PR in GitHub's merge queue. The `merge_group` event runs the full tier
+   once on the merge commit that will become `main`; the queue merges it only
+   if all seven pass, and removes the PR otherwise. Fix failures and repeat
+   from the exact-tree gate; later branch changes need fresh PR checks and a
+   fresh queue entry. Do not merge `main` into a PR just to refresh it: the
+   queue tests the combination itself.
+6. Add the PR run and the queue run (IDs and SHAs), the required conclusions,
+   independent review, and any unproved platform or live gate to the PR
+   proof. A printed success line without the process exit status is not a
    gate result.
 
 - Run `npm run quality` and make it green. It runs every local gate except
@@ -64,11 +66,12 @@ Use this order for a candidate branch:
   stylelint, the PowerShell lint, type checks, the localization and host-API
   checks, dead-code and cycle detection, duplication, unit tests with coverage thresholds, the
   production build with bundle budgets and the bundle split, `npm audit`,
-  the accessibility gate, secret scanning and semgrep. CI runs the gates on
-  Ubuntu, Windows and macOS, the accessibility gate and the integration
-  tests on Ubuntu and Windows, and gitleaks and semgrep as jobs of their
-  own; the PowerShell lint runs only on Windows (elsewhere it reports a skip
-  and exits 0), so a green run on one platform is not quite the whole set.
+  the accessibility gate, secret scanning and semgrep. CI's full tier runs
+  the gates on Ubuntu, Windows and macOS, the complete accessibility gate on
+  Ubuntu and integration tests on Ubuntu and Windows, and gitleaks and
+  semgrep as jobs of their own; the PowerShell lint runs only where Windows
+  PowerShell exists, so a green run on one platform is not quite the whole
+  set.
 - Add or change tests with the code. A new check must be seen to fail once
   on purpose; the certification records under `docs/certification/`
   show how that is written down.
@@ -99,6 +102,51 @@ Use this order for a candidate branch:
   (`v*`) cannot be moved or deleted, except by a repository admin (both
   rulesets let the Admin role bypass them).
 
+## CI tiers and required checks
+
+`ci.yml` calls `build.yml` with `fast: true` only for a `pull_request` while
+the repository variable `CI_MERGE_QUEUE` is `on`. That tier runs formatting,
+ESLint/stylelint, all five compiler projects, localization, host API, knip,
+cycles, duplication, the production build and its size/split/host-global/
+notices checks, audit, and every unit/process-e2e test on Ubuntu (no
+coverage). Gitleaks and semgrep also run. Expected wall time is at most about
+12 minutes, pending hosted measurement.
+
+Everything else selects the full tier: `merge_group`, manual dispatch, the
+release workflow's fallback build, and every PR while `CI_MERGE_QUEUE` is not
+`on`. Static gates run on all three OSes. Each OS runs four Vitest shards
+(Windows files stay serial within a shard), uploads blob reports, checks that
+all four arrived, then merges them and enforces the unchanged coverage
+thresholds once per OS. The 448-page a11y harness runs once on Ubuntu against
+the production webview from the static gate; its pages, themes and scenarios
+do not depend on the OS. Linux/Windows VS Code integration, the macOS helper
+and the universal VSIX/ACP package checks remain. Expected wall time is
+roughly 10–15 minutes, pending hosted proof. In a merge group, gitleaks runs
+its pinned CLI (checksum-checked) over every commit the group reaches, since
+the gitleaks action refuses the `merge_group` event.
+
+The seven required names stay: `build / quality (ubuntu-latest)`,
+`build / quality (windows-latest)`, `build / quality (macos-latest)`,
+`build / gitleaks`, `build / semgrep`, `build / dictation helper (macos)` and
+`build / package (.vsix)`. The quality/helper/package names come from one
+aggregate job that fails unless every job of the selected tier succeeded
+(failed, cancelled and unexpectedly skipped all fail). On a fast PR run they
+mean the fast tier passed; in the queue, the full tier. Artifact names and
+contents stay unchanged. Hosts and Action check are not required by the main
+ruleset and keep their existing triggers.
+
+Maintainer rollout, in this order: land the workflows (their PR runs the full
+tier); add the merge-queue rule to the main ruleset (merge commits, one PR
+per group, all entries green, a 30-minute check timeout) with the seven names
+kept and `strict_required_status_checks_policy` set to `false`; then
+`gh variable set CI_MERGE_QUEUE --body on` to switch PRs to the fast tier.
+Deleting the variable switches them back. Never set it without the queue
+rule: a fast-only PR would then merge without the full gate. GitHub's
+documentation offers merge queues only in organization-owned repositories,
+and this one belongs to a user account: until the owner decides otherwise,
+PRs keep the full tier. Settings and evidence:
+[`docs/certification/ciflow.md`](docs/certification/ciflow.md).
+
 ## Style
 
 Prettier and ESLint decide formatting and style; the hooks apply them on
@@ -122,8 +170,12 @@ never a literal in the code:
   `package.json` with its English in `package.nls.json`.
 - **Text the model reads** is `MODEL_TEXT` in constants.ts and stays
   English; a feature only a lazily loaded bundle reads keeps a block of its
-  own beside it (`REVIEW_MODEL_TEXT`), so the activation bundle does not
-  carry it. No checked Node bundle carries the English table itself: each
+  own beside it (`REVIEW_MODEL_TEXT`, `MODEL_API_MODEL_TEXT`,
+  `CODE_INTEL_MODEL_TEXT`, `WEB_FETCH_MODEL_TEXT`…), so the activation bundle
+  does not carry it: one object is carried whole, and `npm run build` fails a
+  `MODEL_TEXT` key that no file of `dist/extension.js` reads, a block found in
+  a shipped bundle that is not among its declared readers, and a new block
+  that `scripts/check-bundle-split.mjs` does not guard. No checked Node bundle carries the English table itself: each
   loads the shared `dist/uiText.js`, and `npm run build` fails if one
   duplicates `en.ts` or stops loading it. Each lazily loaded bundle keeps its
   own language state, so one that reads `UI_TEXT` must install the caller's

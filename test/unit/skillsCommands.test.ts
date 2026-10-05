@@ -254,8 +254,32 @@ describe('manageSkills', () => {
     const warned = t.log.warn.mock.calls.map(([line]) => String(line)).join('\n')
     expect(warned).toContain('Skill changes that failed')
     expect(warned).not.toContain(secret)
-    expect(warned).toContain('[redacted]')
+    expect(warned).toContain('not logged')
   })
+
+  it.each(['stderr', 'stdout'])(
+    'keeps private skill activation %s out of the log',
+    async (channel) => {
+      const privateText = 'alice@example.test /Users/alice/private-project'
+      const t = harness({
+        cli: (args) =>
+          args[1] === 'list'
+            ? ok(CATALOG)
+            : {
+                exitCode: 1,
+                stdout: channel === 'stdout' ? privateText : '',
+                stderr: channel === 'stderr' ? privateText : '',
+              },
+        picks: () => new Set(['bundled:grill', 'user:caveman']),
+      })
+      await manageSkills(t.manage)
+      expect(t.errors[0]).toContain(privateText)
+      const logs = t.log.warn.mock.calls.map(([line]) => String(line)).join('\n')
+      expect(logs).toContain('Skill changes that failed')
+      expect(logs).not.toContain('alice@example.test')
+      expect(logs).not.toContain('/Users/alice/private-project')
+    },
+  )
 
   it('reports a CLI that disappears between the list and a change', async () => {
     const t = harness({ cli: () => ok(CATALOG), picks: () => new Set<string>() })

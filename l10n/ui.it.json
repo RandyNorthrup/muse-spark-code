@@ -440,6 +440,7 @@
   "webFetchProxyRefused": "Un proxy o un altro computer intermedio ha risposto {status} invece di connettersi in modo sicuro a {address} ({host}). Non è stato letto nulla.",
   "webFetchUnreachable": "Impossibile raggiungere {host} all’indirizzo {address}. ({detail})",
   "webFetchNetwork": "La richiesta non è riuscita: {detail}",
+  "webFetchUnavailable": "Non è stato possibile caricare il recupero delle pagine, quindi non è stato recuperato nulla; reinstalla l’estensione e ricarica la finestra. I dettagli sono nel log.",
   "webFetchMoved": "La pagina ha reindirizzato a {location}, su un altro host. Muse può recuperarla con una nuova chiamata, che chiederà di nuovo.",
   "webFetchRestrictedMode": "Il recupero delle pagine è disattivato in modalità con restrizioni. Considera attendibile l’area di lavoro per usarlo.",
   "packRecalled": "Recuperati i caratteri da {start} a {end} su {total} dall’output impacchettato {id}",

@@ -109,7 +109,7 @@ function liveState(server: McpServerView, snapshot: McpPoolSnapshot | undefined)
         : connected
     }
     case 'failed': {
-      return fill(UI_TEXT.mcpStateFailed, { reason: state.reason })
+      return fill(UI_TEXT.mcpStateFailed, { reason: redactSecrets(state.reason) })
     }
     case 'disabled': {
       return UI_TEXT.mcpDisabled

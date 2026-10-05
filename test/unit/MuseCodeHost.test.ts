@@ -284,6 +284,7 @@ describe('MuseCodeHost', () => {
     await session.setModel('muse-spark-1.2')
     await session.setReasoningEffort('xhigh')
     await session.setApprovalMode('allowAll')
+    expect(session.modelId).toBe('muse-spark-1.2')
     expect(server.requestsFor('session/setModel')[0]?.params).toMatchObject({
       sessionId: session.sessionId,
       model: { modelId: 'muse-spark-1.2' },
@@ -1265,7 +1266,21 @@ describe('MuseCodeHost: prompts, receipts and resume (D26)', () => {
     const { server, log } = setup()
     server.incoming.push('{"secret": not json}\n')
     await settle()
-    expect(log.warn).toHaveBeenCalledWith('MSP protocol error: inbound frame is not valid JSON')
+    expect(log.warn).toHaveBeenCalledWith('MSP protocol error (frame not logged)')
+  })
+
+  it('keeps private notification failure text out of the CLI log', async () => {
+    const { host, server, log } = setup()
+    const session = await host.startSession(startOptions)
+    session.onEvent(() => {
+      throw new Error('failed for alice@example.test /Users/alice/private-project')
+    })
+    server.notify('turn/started', { sessionId: session.sessionId, turnId: 't1' })
+    await settle()
+    const lines = log.error.mock.calls.map(([line]) => String(line)).join('\n')
+    expect(lines).toContain('could not be handled: Error')
+    expect(lines).not.toContain('alice@example.test')
+    expect(lines).not.toContain('/Users/alice/private-project')
   })
 
   it('refuses a command too large for the frame cap before sending it', async () => {

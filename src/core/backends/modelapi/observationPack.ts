@@ -20,9 +20,8 @@
 import { randomBytes } from 'node:crypto'
 import * as z from 'zod/mini'
 import {
-  MODEL_API_TOOLS,
   MODEL_API_MODEL_TEXT,
-  MODEL_TEXT,
+  MODEL_API_TOOLS,
   OBS_PACK_CHARS_PER_TOKEN,
   OBS_PACK_HEAD_LINES,
   OBS_PACK_MARKER_BYTES,
@@ -301,7 +300,7 @@ export class ObservationPack {
       let known = this.ids.slice(-OBS_PACK_RECALL_ID_LIMIT).join(', ')
       const omitted = this.ids.length - OBS_PACK_RECALL_ID_LIMIT
       if (omitted > 0) {
-        known = fill(MODEL_TEXT.packKnownIdsMore, { known, count: String(omitted) })
+        known = fill(MODEL_API_MODEL_TEXT.packKnownIdsMore, { known, count: String(omitted) })
       }
       return failure(
         fill(MODEL_API_MODEL_TEXT.packUnknownId, { id, known: known === '' ? 'none' : known }),

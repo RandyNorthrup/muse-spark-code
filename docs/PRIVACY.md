@@ -243,9 +243,12 @@ security notes for contributors are in `PLAN.md` §9.
 - **Contributor-tier models.** Meta may use traffic to the models whose id
   ends in `-contributor` to train its models. The extension asks before a
   panel first uses one (and again for a different contributor model), and
-  refuses them whenever one is chosen while the
-  `museSpark.confidentialWorkspace` setting is on, even one the panel
-  already confirmed.
+  refuses them at model selection and each message dispatch while
+  `museSpark.confidentialWorkspace` is on, even after a prior confirmation.
+  Checks repeat after pending confirmations and setup before switching or
+  resuming. Turning the setting on cancels and retires contributor sessions;
+  select a standard model before sending again. Already dispatched requests
+  cannot be recalled.
 
 - **Voice dictation**, the free default, never sends audio to Meta or to
   this extension's author. On Windows, speech is recognised by the
@@ -465,7 +468,14 @@ generation fields, never raw configuration or failed-command output.
   its global storage folder.
 - The "Muse Spark" output channel logs what the extension does, with known
   key and token shapes redacted. VS Code keeps the channel as a log file in
-  its logs folder; the extension writes no log file of its own.
+  its logs folder; the extension writes no log file of its own. Muse Code
+  RPC failures and asynchronous failure reasons are logged in fixed words;
+  skill activation stdout/stderr is described by fixed words or length.
+  Panel diagnostic events/notices, backend failed-turn reasons, MCP picker
+  failures and voice failure notices redact known key/token shapes before
+  display and webview snapshots. This covers diagnostic text; ordinary
+  conversation and tool content is kept as sent. Unknown credential shapes
+  are not recognised by the redactor.
 - **The bundled skills for Muse Code** (M89) are installed only when you
   click Install or Update on the panel's offer or run **Muse Spark: Install
   Bundled Skills for Muse Code**. The install writes only under Muse Code's

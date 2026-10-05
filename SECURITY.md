@@ -49,12 +49,16 @@ Releases and npm.
   Meta's current `LLM_…` form and the older `LLM|<id>|<secret>` one; it
   cannot catch a path or an e-mail address, so free text Muse Code writes
   (sign-in endings, MSP error messages, `muse serve` and `muse skills`
-  stderr) is logged in fixed words, by its kind, or by its length where
-  the log helpers are used. Any other external text that reaches the log
-  or the panel (an MSP error in a notice, the first stderr or stdout line
-  of a failed skill activation, git's errors, MCP server and helper
-  process errors) passes through the same redaction first, so a
-  secret-shaped value in it is redacted, never logged or shown as sent.
+  stderr/stdout, including failed skill activation) is logged in fixed
+  words, by its kind/code or by its length. MSP RPC notices retain redacted detail while their logs use the
+  kind/code summary. Both backends redact diagnostic event reasons before
+  event subscribers receive them; the panel boundary applies the shared
+  redactor to diagnostic events and notices before webview snapshots.
+  Failed MCP picker details and voice error/close notices use this redactor
+  too. Other external error text (git, MCP/helper processes, Model API
+  failures) redacts known credential shapes. Ordinary conversation/tool
+  content remains intact; credential shapes outside the known patterns
+  remain unrecognised.
 - **Workspace trust.** In VS Code's Restricted Mode the agent loads no
   workspace rules, skills, custom agents or memory, runs no shell commands, and the
   extension runs no `git` (a repository's `.git/config` can name programs

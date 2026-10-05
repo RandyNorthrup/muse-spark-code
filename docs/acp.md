@@ -1,5 +1,7 @@
 # Muse Spark in other editors (ACP)
 
+> The package's npm landing page is [`muse-spark-code-acp`](https://www.npmjs.com/package/muse-spark-code-acp); this file is the full guide.
+
 `muse-spark-code-acp` runs Muse Spark as an agent for editors that speak
 the [Agent Client Protocol](https://agentclientprotocol.com): Zed, the
 JetBrains IDEs through AI Assistant, Xcode 27, Qt Creator, Neovim, Emacs,
@@ -397,7 +399,11 @@ delivered result keeps its first-stop status and logical exit code.
 
 Scanner is local-only, whole UTF-8 file up to 16 MiB, with a 30-second deadline
 including key/stdout. It prints only match count: 0 clean, 10 found, 2 input/error/
-timeout/cancelled (a repeated signal forces 130/143, or 1 on Windows). It never prints a match, path excerpt or secret. It catches
+timeout/cancelled. On POSIX a repeated signal forces the earliest latched
+stop code (130/143 when a signal came first, 6 when timeout came first); an
+earlier non-signal stop keeps its own code. Windows forced process exit is
+1; a delivered result retains its logical first-stop code. It never prints a
+match, path excerpt or secret. It catches
 known patterns and the exact key literal, not every unknown secret.
 
 Read [the complete CLI/CI guide](https://github.com/RandyNorthrup/muse-spark-code/blob/main/docs/ci.md)
@@ -407,5 +413,5 @@ and `schemas/exec-event-v1.schema.json`; canonical
 [result](https://github.com/RandyNorthrup/muse-spark-code/blob/main/docs/schemas/exec-result-v1.schema.json),
 [event](https://github.com/RandyNorthrup/muse-spark-code/blob/main/docs/schemas/exec-event-v1.schema.json)
 and [receipts](https://github.com/RandyNorthrup/muse-spark-code/blob/main/docs/certification/m80.md)
-use absolute links because this guide ships as npm README. Registry Action
+use absolute links because npm does not resolve relative links. Registry Action
 support still requires post-release LR, beyond unsigned candidate acceptance.

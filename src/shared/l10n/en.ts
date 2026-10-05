@@ -604,6 +604,9 @@ export const EN = {
     'A proxy or another machine in the way answered {status} instead of connecting securely to {address} ({host}). Nothing was read.',
   webFetchUnreachable: '{host} could not be reached at {address}. ({detail})',
   webFetchNetwork: 'The request failed: {detail}',
+  // Web fetch is its own bundle (dist/webFetch.js, PLAN.md D6): a damaged install.
+  webFetchUnavailable:
+    'Web fetch could not be loaded, so nothing was fetched; reinstall the extension and reload the window. The log has the details.',
   // A redirect to another host, handed back to the model on the Model API
   // backend; and the refusal in Restricted Mode.
   webFetchMoved:

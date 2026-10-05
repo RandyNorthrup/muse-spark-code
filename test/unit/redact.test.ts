@@ -3,6 +3,7 @@ import {
   countSecretMatches,
   MAY_HOLD_SECRET,
   redactableSlices,
+  redactDiagnosticEvent,
   redactSecrets,
   SECRET_RULES,
   type SecretRule,
@@ -529,5 +530,46 @@ describe('redactableSlices', () => {
     // `Bearer` then a line break then `Bearer` is a credential: never cut.
     expect(redactableSlices(text, 64)).toEqual([text])
     expect(performance.now() - started).toBeLessThan(LINEAR_SCAN_MS)
+  })
+})
+
+// Diagnostics are distinct from user/model/tool content, even with token-shaped text.
+describe('diagnostic event boundary', () => {
+  it('redacts retry, withdrawal, completion and notice diagnostics', () => {
+    const secret = `ghp_${'a'.repeat(36)}`
+    expect(
+      redactDiagnosticEvent({
+        type: 'turnRetry',
+        turnId: 't',
+        attempt: 1,
+        maxAttempts: 2,
+        retryDelayMs: 100,
+        reason: secret,
+      }),
+    ).toMatchObject({ reason: '[redacted]' })
+    expect(
+      redactDiagnosticEvent({ type: 'turnWithdrawn', turnId: 't', reason: secret }),
+    ).toMatchObject({ reason: '[redacted]' })
+    expect(
+      redactDiagnosticEvent({
+        type: 'turnCompleted',
+        turnId: 't',
+        terminal: 'failed',
+        reason: secret,
+        errorKind: secret,
+      }),
+    ).toMatchObject({ reason: '[redacted]', errorKind: '[redacted]' })
+    expect(
+      redactDiagnosticEvent({ type: 'backendNotice', level: 'warning', text: secret }),
+    ).toMatchObject({ text: '[redacted]' })
+  })
+  it('preserves ordinary streamed conversation text', () => {
+    const event = {
+      type: 'textDelta',
+      itemId: 'i',
+      field: 'text',
+      delta: `ghp_${'a'.repeat(36)}`,
+    } as const
+    expect(redactDiagnosticEvent(event)).toBe(event)
   })
 })

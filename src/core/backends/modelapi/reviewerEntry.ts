@@ -20,12 +20,12 @@ import {
 import { estimateCostUsd } from '../../usage/insights'
 import type { AgentEvent, ItemSnapshot } from '../../../shared/agentEvents'
 import {
-  AUTO_REVIEWER_MAX_OUTPUT_TOKENS,
-  AUTO_REVIEWER_TIMEOUT_MS,
   AUTO_REVIEW_ROW_TOOL,
+  AUTO_REVIEWER_MAX_OUTPUT_TOKENS,
+  AUTO_REVIEWER_MODEL_TEXT,
+  AUTO_REVIEWER_TIMEOUT_MS,
   MODEL_API_EFFORT_OFF,
   MODEL_API_MAX_RETRIES,
-  MODEL_TEXT,
   UI_TEXT,
 } from '../../../shared/constants'
 import { fill, setUiText } from '../../../shared/l10n/text'
@@ -167,7 +167,7 @@ async function callReviewer(
   let body = context.keyed({
     model: confirmed.modelId,
     input: [{ type: 'message', role: 'user', content: [{ type: 'input_text', text: input }] }],
-    instructions: MODEL_TEXT.autoReviewerInstructions,
+    instructions: AUTO_REVIEWER_MODEL_TEXT.autoReviewerInstructions,
     tools: [],
     tool_choice: 'auto',
     reasoning: { effort: MODEL_API_EFFORT_OFF, summary: 'auto' },

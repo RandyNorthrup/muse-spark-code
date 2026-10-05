@@ -15,7 +15,11 @@ import path from 'node:path'
 import vm from 'node:vm'
 import { build } from 'esbuild'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
-import type { AgentHost, SessionMcpHttpServer } from '../../src/core/agent/agentBackend'
+import type {
+  AgentHost,
+  SessionMcpHttpServer,
+  SessionEventListener,
+} from '../../src/core/agent/agentBackend'
 import { verifyGuidance } from '../../src/core/verify/checkCommands'
 import {
   ModelApiHost,
@@ -2470,8 +2474,10 @@ describe('ConversationController: transcript actions (M4)', () => {
       level: 'warning',
       text: `${UI_TEXT.outputLoadFailed}: missing. ${UI_TEXT.outputLoadRetry}`,
     })
-    // What the panel said is in the log too (M39).
-    expect(t.log.warn).toHaveBeenCalledWith(expect.stringMatching(/^Shown in the panel: .*missing/))
+    // The panel keeps the detail; the CLI log names the failure by kind/code.
+    expect(t.log.warn).toHaveBeenCalledWith(
+      'Shown in the panel: commandRejected (MSP error -32000)',
+    )
   })
 
   it('joins an output read in flight instead of sending it again (D26)', async () => {
@@ -2519,7 +2525,7 @@ describe('ConversationController: transcript actions (M4)', () => {
     }
     expect(notices()).toHaveLength(before + 1)
     expect(t.log.warn).toHaveBeenCalledWith(
-      `${UI_TEXT.outputLoadFailed}: busy (item g; said once in the panel)`,
+      'commandRejected (MSP error -32000) (item g; said once in the panel)',
     )
     // A read that succeeds lets the next failure be said again.
     t.server.handle('item/readOutput', (params) => ({
@@ -2578,6 +2584,29 @@ describe('ConversationController: transcript actions (M4)', () => {
       level: 'error',
       text: 'That did not work (the Muse Spark log has the details): clipboard busy',
     })
+  })
+
+  it('keeps an uncaught MSP failure and its stack out of the action log', async () => {
+    const t = setup()
+    t.server.handle('model/list', () => {
+      throw new Error('failed for alice@example.test /Users/alice/private-project')
+    })
+    const controller = new ConversationController({
+      ...t.deps,
+      copyText: async () => {
+        await t.host.listModels()
+      },
+    })
+    try {
+      await controller.handle({ type: 'copyText', text: 'x' })
+      const lines = t.log.error.mock.calls.map(([line]) => String(line)).join('\n')
+      expect(lines).toContain('copyText failed:')
+      expect(lines).toContain('MSP error')
+      expect(lines).not.toContain('alice@example.test')
+      expect(lines).not.toContain('/Users/alice/private-project')
+    } finally {
+      controller.dispose()
+    }
   })
 
   it('copies and inserts code, explaining when no editor is open', async () => {
@@ -3132,7 +3161,7 @@ describe('ConversationController: other messages', () => {
     expect(t.auth.calls.some((call) => call.startsWith('error:'))).toBe(false)
     // A turn ended here gets its end line too (the review of PR #20).
     expect(t.log.info).toHaveBeenCalledWith(
-      'Turn t1 failed: Muse Code stopped unexpectedly (Muse Code failed with an unhandled error (exit 1)) after 0 ms',
+      'Turn t1 failed: a line of 82 characters (not logged: it may name a path or an account) after 0 ms',
     )
     t.server.handle('session/resume', () => envelope({ ...storedSession, sessionId: 's1' }))
     await t.send('l2', 'again')
@@ -5115,7 +5144,7 @@ describe('ConversationController: backends and tiers (M7)', () => {
     const warnings = t.log.warn.mock.calls.map(([line]) => String(line))
     expect(warnings.some((line) => line.includes('skill/list failed'))).toBe(true)
     expect(warnings.join('\n')).not.toContain(secret)
-    expect(warnings.join('\n')).toContain('[redacted]')
+    expect(warnings.join('\n')).toContain('MSP error')
     t.server.handle('session/setModel', () => {
       throw new Error(`switch refused: ${secret}`)
     })
@@ -5152,6 +5181,324 @@ describe('ConversationController: backends and tiers (M7)', () => {
     await t.controller.handle({ type: 'setModel', modelId: 'muse-spark-1.3-contributor' })
     expect(t.contributorPrompts).toEqual(['muse-spark-1.3-contributor'])
     expect(t.server.requestsFor('session/setModel')).toHaveLength(2)
+  })
+
+  it.each([false, true])(
+    'refuses contributor dispatch after confidential turns on (running=%s)',
+    async (running) => {
+      const options = { isConfidentialWorkspace: false }
+      const t = setup(options)
+      await t.send('first', 'public')
+      await t.controller.handle({ type: 'setModel', modelId: 'muse-spark-1.3-contributor' })
+      if (!running) t.finishTurn()
+      await settle()
+      const before =
+        t.server.requestsFor('turn/start').length + t.server.requestsFor('turn/steer').length
+      options.isConfidentialWorkspace = true
+      await t.send('private', 'private source')
+      expect(
+        t.server.requestsFor('turn/start').length + t.server.requestsFor('turn/steer').length,
+      ).toBe(before)
+      expect(t.surface.posted).toContainEqual(
+        expect.objectContaining({
+          type: 'sendFailed',
+          localId: 'private',
+          reason: UI_TEXT.contributorBlocked,
+        }),
+      )
+    },
+  )
+
+  it('refuses a contributor confirmation that became confidential while awaiting', async () => {
+    const options = { isConfidentialWorkspace: false }
+    const t = setup(options)
+    await t.send('first', 'public')
+    let confirmations = 0
+    const controller = new ConversationController({
+      ...t.deps,
+      confirmContributor: () => {
+        confirmations += 1
+        if (confirmations === 1) options.isConfidentialWorkspace = true
+        return Promise.resolve(true)
+      },
+    })
+    try {
+      await controller.handle({ type: 'setModel', modelId: 'muse-spark-1.3-contributor' })
+      await controller.handle({
+        type: 'sendMessage',
+        localId: 'private',
+        text: 'private',
+        attachmentIds: [],
+      })
+      expect(t.server.requestsFor('session/setModel')).toHaveLength(0)
+      expect(t.server.requestsFor('session/start').at(-1)?.params).toMatchObject({
+        modelId: 'muse-spark-1.3',
+      })
+      options.isConfidentialWorkspace = false
+      await controller.handle({ type: 'setModel', modelId: 'muse-spark-1.3-contributor' })
+      expect(confirmations).toBe(2)
+    } finally {
+      controller.dispose()
+    }
+  })
+
+  it('keeps account and profile text out of MSP failure logs', async () => {
+    const t = setup()
+    const privateText = 'alice@example.test /Users/alice/private-project'
+    t.server.handle('skill/list', () => {
+      throw new Error(`catalog unavailable for ${privateText}`)
+    })
+    await t.send('first', 'public')
+    await t.controller.handle({ type: 'listSkills' })
+    const logs = t.log.warn.mock.calls.map(([line]) => String(line)).join('\n')
+    expect(logs).toContain('skill/list failed')
+    expect(logs).not.toContain('alice@example.test')
+    expect(logs).not.toContain('/Users/alice/private-project')
+  })
+
+  it('redacts asynchronous failed-turn reasons before the panel saves them', async () => {
+    const t = setup()
+    const secret = `ghp_${'a'.repeat(36)}`
+    await t.send('first', 'public')
+    t.server.notify('turn/completed', {
+      sessionId: 's1',
+      turnId: 't1',
+      terminal: 'failed',
+      reason: `failed: ${secret}`,
+    })
+    await settle()
+    const failure = agentEvents(t).findLast((event) => event.type === 'turnCompleted')
+    expect(failure).toMatchObject({ type: 'turnCompleted', reason: 'failed: [redacted]' })
+    expect(JSON.stringify(failure)).not.toContain(secret)
+  })
+
+  it('retires and cancels a contributor session on the configuration change', async () => {
+    const options = { isConfidentialWorkspace: false }
+    const t = setup(options)
+    await t.send('first', 'public')
+    await t.controller.handle({ type: 'setModel', modelId: 'muse-spark-1.3-contributor' })
+    options.isConfidentialWorkspace = true
+    t.controller.confidentialWorkspaceChanged()
+    await settle()
+    expect(t.server.requestsFor('turn/cancel')).toHaveLength(1)
+    await t.send('private', 'private source')
+    expect(t.server.requestsFor('turn/start')).toHaveLength(1)
+    expect(t.server.requestsFor('turn/steer')).toHaveLength(0)
+    expect(t.server.requestsFor('session/start')).toHaveLength(1)
+    options.isConfidentialWorkspace = false
+    await t.controller.handle({ type: 'setModel', modelId: 'muse-spark-1.3-contributor' })
+    expect(t.contributorPrompts).toHaveLength(1)
+  })
+
+  it('rechecks confidentiality after autosave before steering an existing session', async () => {
+    const options = { isConfidentialWorkspace: false, isAutosaveEnabled: true }
+    const t = setup(options)
+    await t.send('first', 'public')
+    await t.controller.handle({ type: 'setModel', modelId: 'muse-spark-1.3-contributor' })
+    t.saveAll.mockImplementationOnce(() => {
+      options.isConfidentialWorkspace = true
+      return Promise.resolve()
+    })
+    await t.send('private', 'private source')
+    expect(t.server.requestsFor('turn/steer')).toHaveLength(0)
+    expect(t.server.requestsFor('turn/start')).toHaveLength(1)
+  })
+
+  it.each(['resume', 'start'])(
+    'rechecks confidentiality before %s after host setup',
+    async (action) => {
+      const options = { isConfidentialWorkspace: false }
+      const t = setup(options)
+      const controller = new ConversationController({
+        ...t.deps,
+        ensureHost: () => {
+          options.isConfidentialWorkspace = true
+          return Promise.resolve(t.host)
+        },
+      })
+      try {
+        await controller.handle({ type: 'setModel', modelId: 'muse-spark-1.3-contributor' })
+        await controller.handle(
+          action === 'resume'
+            ? { type: 'resumeSession', sessionId: 'old' }
+            : {
+                type: 'sendMessage',
+                localId: 'private',
+                text: 'private startup',
+                attachmentIds: [],
+              },
+        )
+        expect(
+          t.server.requestsFor(action === 'resume' ? 'session/resume' : 'session/start'),
+        ).toHaveLength(0)
+        expect(JSON.stringify(t.surface.posted)).toContain(UI_TEXT.contributorBlocked)
+      } finally {
+        controller.dispose()
+      }
+    },
+  )
+
+  it('redacts raw backend diagnostic events at the panel boundary', async () => {
+    const t = setup()
+    const start = t.host.startSession.bind(t.host)
+    let emit: SessionEventListener | undefined
+    vi.spyOn(t.host, 'startSession').mockImplementation(async (options) => {
+      const session = await start(options)
+      const subscribe = session.onEvent.bind(session)
+      vi.spyOn(session, 'onEvent').mockImplementation((listener) => {
+        emit = listener
+        return subscribe(listener)
+      })
+      return session
+    })
+    await t.send('first', 'public')
+    const secret = `ghp_${'a'.repeat(36)}`
+    expect(emit).toBeDefined()
+    emit?.({ type: 'backendNotice', level: 'error', text: `notice: ${secret}` })
+    emit?.({ type: 'turnCompleted', turnId: 't1', terminal: 'failed', reason: `failed: ${secret}` })
+    expect(t.surface.posted).toContainEqual({
+      type: 'notice',
+      level: 'error',
+      text: 'notice: [redacted]',
+    })
+    expect(agentEvents(t)).toContainEqual(
+      expect.objectContaining({ type: 'turnCompleted', reason: 'failed: [redacted]' }),
+    )
+    expect(JSON.stringify(agentEvents(t))).not.toContain(secret)
+  })
+
+  it('redacts Model API asynchronous failure before subscribers and panel persistence', async () => {
+    const t = setup()
+    const secret = `ghp_${'a'.repeat(36)}`
+    const { api, host, controller } = modelApiController(t)
+    api.script({ failed: { code: 'invalid_request_error', message: `provider failed: ${secret}` } })
+    const events: Parameters<SessionEventListener>[0][] = []
+    const start = host.startSession.bind(host)
+    vi.spyOn(host, 'startSession').mockImplementation(async (options) => {
+      const session = await start(options)
+      session.onEvent((event) => {
+        events.push(event)
+      })
+      return session
+    })
+    try {
+      await controller.handle({
+        type: 'sendMessage',
+        localId: 'first',
+        text: 'public',
+        attachmentIds: [],
+      })
+      await vi.waitFor(() => {
+        expect(events.some((event) => event.type === 'turnCompleted')).toBe(true)
+      })
+      const diagnostic = events.find((event) => event.type === 'turnCompleted')
+      expect(diagnostic).toMatchObject({ reason: expect.stringContaining('[redacted]') })
+      expect(JSON.stringify(events)).not.toContain(secret)
+      expect(JSON.stringify(agentEvents(t))).not.toContain(secret)
+    } finally {
+      controller.dispose()
+      await host.close()
+    }
+  })
+
+  it('rejects a prepared queued text-file send after confidential turns on during autosave', async () => {
+    const options = {
+      isConfidentialWorkspace: false,
+      isAutosaveEnabled: true,
+      indexed: ['notes.txt'],
+    }
+    const t = setup(options)
+    await t.send('first', 'public')
+    await t.controller.handle({ type: 'setModel', modelId: 'muse-spark-1.3-contributor' })
+    t.setPicked([{ name: 'notes.txt', fsPath: '/ws/notes.txt', relativePath: 'notes.txt' }])
+    await t.controller.handle({ type: 'pickFile' })
+    t.saveAll.mockImplementationOnce(() => {
+      options.isConfidentialWorkspace = true
+      return Promise.resolve()
+    })
+    await t.send('private', 'private file', ['att-1'])
+    expect(t.server.requestsFor('turn/start')).toHaveLength(1)
+    expect(t.server.requestsFor('turn/steer')).toHaveLength(0)
+  })
+
+  it('uses the successfully selected standard model after leaving a contributor session', async () => {
+    const options = { isConfidentialWorkspace: false }
+    const t = setup(options)
+    await t.controller.handle({ type: 'setModel', modelId: 'muse-spark-1.3-contributor' })
+    await t.send('first', 'public')
+    await t.controller.handle({ type: 'setModel', modelId: 'muse-spark-1.3' })
+    options.isConfidentialWorkspace = true
+    await t.send('private', 'private source on standard')
+    expect(
+      t.server.requestsFor('turn/start').length + t.server.requestsFor('turn/steer').length,
+    ).toBe(2)
+  })
+
+  it('keeps account and profile text out of asynchronous CLI failure logs', async () => {
+    const t = setup()
+    await t.send('first', 'public')
+    t.server.notify('turn/completed', {
+      sessionId: 's1',
+      turnId: 't1',
+      terminal: 'failed',
+      reason: 'failed for alice@example.test /Users/alice/private-project',
+    })
+    await settle()
+    const lines = t.log.info.mock.calls.map(([line]) => String(line)).join('\n')
+    expect(lines).toContain('Turn t1 failed')
+    expect(lines).toContain('not logged')
+    expect(lines).not.toContain('alice@example.test')
+    expect(lines).not.toContain('/Users/alice/private-project')
+  })
+
+  it('rechecks confidentiality after a refused steer before falling back to a new turn', async () => {
+    const options = { isConfidentialWorkspace: false }
+    const t = setup(options)
+    await t.send('first', 'public')
+    await t.controller.handle({ type: 'setModel', modelId: 'muse-spark-1.3-contributor' })
+    const refuse = rejectionFor('invalid_target')
+    t.server.handle('turn/steer', () => {
+      options.isConfidentialWorkspace = true
+      return refuse()
+    })
+    await t.send('private', 'private source')
+    expect(t.server.requestsFor('turn/steer')).toHaveLength(1)
+    expect(t.server.requestsFor('turn/start')).toHaveLength(1)
+  })
+
+  it('rechecks confidentiality after the model guard resolves before session/setModel', async () => {
+    const t = setup()
+    let isConfidential = false
+    let isConfirmed = false
+    let hasScheduled = false
+    const controller = new ConversationController({
+      ...t.deps,
+      confirmContributor: () => {
+        isConfirmed = true
+        return Promise.resolve(true)
+      },
+      isConfidentialWorkspace: () => {
+        if (isConfirmed && !hasScheduled) {
+          hasScheduled = true
+          queueMicrotask(() => {
+            isConfidential = true
+          })
+        }
+        return isConfidential
+      },
+    })
+    try {
+      await controller.handle({
+        type: 'sendMessage',
+        localId: 'first',
+        text: 'public',
+        attachmentIds: [],
+      })
+      await controller.handle({ type: 'setModel', modelId: 'muse-spark-1.3-contributor' })
+      expect(t.server.requestsFor('session/setModel')).toHaveLength(0)
+    } finally {
+      controller.dispose()
+    }
   })
 
   it('explains the Model API backend once per session instead of the sandbox notice', async () => {
@@ -5229,6 +5576,24 @@ describe('ConversationController: voice dictation (M9)', () => {
     await t.controller.handle({ type: 'dictation', action: 'start' })
     expect(t.surface.posted).toEqual([unavailable])
   })
+
+  it.each(['error frame', 'close reason'])(
+    'redacts voice failure %s at the notice boundary',
+    async (source) => {
+      const { setup: dictation, driver } = fakeDictation()
+      const t = setup({ dictation })
+      const secret = `ghp_${'a'.repeat(36)}`
+      await t.controller.handle({ type: 'dictation', action: 'start' })
+      driver.listener?.onError(`${source}: ${secret}`)
+      const notice = t.surface.posted.findLast((message) => message.type === 'notice')
+      expect(notice).toMatchObject({
+        type: 'notice',
+        text: `Voice dictation failed: ${source}: [redacted]`,
+      })
+      expect(JSON.stringify(notice)).not.toContain(secret)
+      expect(JSON.stringify(t.log.error.mock.calls)).not.toContain(secret)
+    },
+  )
 
   it('creates the driver on the first press, relays status, inserts phrases with a space, and reports errors', async () => {
     const { setup: dictation, driver } = fakeDictation()
@@ -6103,7 +6468,10 @@ describe('ConversationController: permission hardening (D24)', () => {
     await vi.waitFor(() => {
       expect(agentEvents(t).some((event) => event.type === 'approvalRequested')).toBe(true)
     })
-    expect(String(t.log.warn.mock.calls.at(-1)?.[0])).toContain('stale requirement')
+    expect(String(t.log.warn.mock.calls.at(-1)?.[0])).toContain(
+      'commandRejected (MSP error -32000)',
+    )
+    expect(String(t.log.warn.mock.calls.at(-1)?.[0])).not.toContain('stale requirement')
   })
 
   it('drops a conversation out of Bypass when the setting is turned off', async () => {

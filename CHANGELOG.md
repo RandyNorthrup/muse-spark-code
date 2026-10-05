@@ -9,16 +9,21 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
-- **External error text is redacted before it reaches the log or the panel.**
-  MSP errors, the first stderr/stdout line of a failed skill activation,
-  git's errors and MCP server/process errors pass through the shared
-  secret redaction first, so a secret-shaped value in them is redacted
-  instead of logged or shown as sent (SECURITY.md said so again).
-- **A confidential workspace blocks contributor models even after an earlier
-  yes.** The confidential check runs before the per-panel confirmation
-  shortcut, so turning `museSpark.confidentialWorkspace` on refuses a
-  contributor model the panel already confirmed; turning it off lets the
-  earlier confirmation stand.
+- **Diagnostic failures redact known key/token shapes before display.**
+  A shared event redactor covers both backends' failed-turn/retry reasons;
+  the panel boundary also covers raw diagnostic events and notices before
+  webview snapshots. MCP picker failures and voice error/close notices are
+  covered. Muse Code RPC/failure logs and skill activation stdout/stderr use
+  fixed kind/code/length summaries, keeping account/profile text out of
+  those failure logs. Ordinary conversation and tool content stays intact.
+- **Confidential workspaces block contributor dispatch after an earlier yes.**
+  Every send/steer, queued/timed preparation, review and resume checks the
+  current setting; checks repeat after confirmations and setup awaits.
+  Configuration changes cancel and retire existing contributor sessions.
+  Turning the setting off retains the panel's earlier confirmation.
+- **Scanner forced-signal docs preserve the first stop.** On POSIX an earlier
+  latched timeout retains exit 6 when repeated signals force cleanup; only a
+  signal that latched first selects 130/143. Windows forced process exit is 1.
 - **Docs, setting descriptions and panel hints now match the code** (a
   truth audit of the 0.12.0 tree). The README, PRIVACY.md, SECURITY.md,
   acp.md, ci.md, RELEASING.md, CONTRIBUTING.md, the walkthrough and the
@@ -31,6 +36,68 @@ happened, not what was planned; superseded entries are kept.
   release recovery run and hosted Action check status. The Modes menu's Auto
   line on the Model API names the paid Auto reviewer while it is on, and the
   panel's focus shortcuts name Cmd+Esc on macOS.
+
+- A blocked M80 `v0` tag update now reports that an administrator must move it,
+  while preserving the four release channels' outcomes. Updates require a
+  fast-forward; the release guide documents the administrator's recovery command.
+
+### Changed
+
+- **Tiered CI, ready for a merge queue.** The full gate now runs as parallel
+  jobs:
+  - the static gates on all three platforms;
+  - the unit/e2e tests in four coverage shards per platform, merged before
+    the unchanged thresholds apply;
+  - the accessibility harness once, on Ubuntu;
+  - integration on Ubuntu and Windows;
+  - the macOS helper and the universal packages.
+
+  A `merge_group` run checks the commit that will land. Once the maintainer
+  turns on the queue and sets `CI_MERGE_QUEUE=on`, pull requests run only a
+  fast Ubuntu tier: the static gates, the build, every test, gitleaks and
+  semgrep. Until then every pull request keeps the full tier. The seven
+  required check names and the release artifacts are unchanged. In a merge
+  group, gitleaks runs its pinned, checksum-checked CLI, because the gitleaks
+  action refuses that event.
+- **The extension loads less at startup**: `dist/extension.js` is
+  552.6 KiB, down from 590.6 KiB, under its unchanged 600 KiB budget
+  (PLAN.md D6, 2026-10-03 and 2026-10-04). Model text that only a lazily
+  loaded bundle or the ACP agent reads is no longer carried at activation
+  (same words, in blocks by reader), and the window's web fetch loads with
+  its own bundle, `dist/webFetch.js` (budget 75 KiB), on the first fetch; if
+  it cannot load, that fetch fails with the reason ("Web fetch could not be
+  loaded", in all 14 languages) and the next one tries again. The lazily
+  loaded bundles shrink too (the Model API backend, the checkpoint store,
+  the import, code intelligence and both reviewers by 4 to 27 KiB each).
+  `npm run build` now fails when a shipped bundle carries a model-text
+  block it does not read, or when `MODEL_TEXT` holds a key no source file
+  of `dist/extension.js` reads; the code intelligence and web fetch
+  bundles' tests check that neither carries any key or value of `MODEL_TEXT`.
+- Releases reuse verified universal CI packages when the successful own-repository
+  PR, merge-queue or main CI build has exactly the tag's source tree, with recorded
+  SHA-256/version checks and 30-day retention; tag-push misses run the full gates.
+- Manual release recovery uses the same verified staging path while preserving
+  the earlier run's original bytes; invalid recovery and cancelled runs cannot publish.
+
+## [0.12.1] - 2026-10-04
+
+### Changed
+
+- **The ACP agent's npm page has a proper README**: a banner, badges, a
+  short pitch, install, a quick start for Zed, JetBrains, Neovim, Emacs and
+  JupyterLab, headless `exec` and the GitHub Action, backends and cost,
+  privacy, and links, all with absolute links. The detailed guide stays at
+  `docs/acp.md`. The package also gets a clearer description, editor
+  keywords, the repository homepage and the donate link.
+
+### Fixed
+
+- **A release can no longer lose its CHANGELOG section.** 0.12.0's first
+  release run passed every check and then stopped, because the CHANGELOG at
+  its tag had no `[0.12.0]` section (a merge dropped the heading). A test
+  now fails any change whose `package.json` version has no
+  `## [x.y.z]` section, so a release PR catches it in minutes; a release
+  run can also publish an earlier run's tested packages without rebuilding.
 
 ## [0.12.0] - 2026-10-04
 

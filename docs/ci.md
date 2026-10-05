@@ -268,7 +268,10 @@ replaces the latest response completion/accounting record.
 Scanner reads exact bounded staged bytes locally, valid UTF-8, at most 16 MiB.
 It prints only a localized count, never matches, excerpts or a path. Exits:
 0 clean, 10 secrets found, 2 unreadable/oversize/invalid-key/cancelled/error;
-a repeated signal forces 130/143 (1 on Windows).
+On POSIX, a repeated signal forces the earliest latched stop code: 130/143
+if a signal came first, or 6 if the deadline had already latched timeout.
+An earlier non-signal stop keeps its own code. Windows forced process exit
+is 1; a delivered result retains its logical first-stop code.
 Its 30-second deadline includes key reading and output flush. Private key stdin
 stops at LF, clears references in finally and never touches an OS keyring.
 The scanner's protection covers known patterns/exact literal only.

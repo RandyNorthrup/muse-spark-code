@@ -33,7 +33,31 @@
 // Replacements are functions, not strings, so no `$` sequence in the mark is
 // interpreted (unicorn/no-unsafe-string-replacement).
 
+import type { AgentEvent } from '../shared/agentEvents'
 import { REDACTED_MARK } from '../shared/constants'
+
+/** Diagnostic text only: ordinary conversation and tool content stays intact. */
+export function redactDiagnosticEvent(event: AgentEvent): AgentEvent {
+  switch (event.type) {
+    case 'turnCompleted': {
+      return {
+        ...event,
+        ...(event.reason !== undefined && { reason: redactSecrets(event.reason) }),
+        ...(event.errorKind !== undefined && { errorKind: redactSecrets(event.errorKind) }),
+      }
+    }
+    case 'turnRetry':
+    case 'turnWithdrawn': {
+      return { ...event, reason: redactSecrets(event.reason) }
+    }
+    case 'backendNotice': {
+      return { ...event, text: redactSecrets(event.text) }
+    }
+    default: {
+      return event
+    }
+  }
+}
 
 /** The mark alone, in place of the whole match. */
 function mark(): string {

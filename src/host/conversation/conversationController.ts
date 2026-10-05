@@ -1,3 +1,4 @@
+import { MspError } from '@muse-code/sdk'
 // One conversation per surface: owns the MSP session for that surface, turns
 // webview requests into backend calls, and streams AgentEvents back. Also the
 // source of truth for the composer settings that outlive a webview reload
@@ -57,9 +58,9 @@ import type { BestOfNGitGuard } from '../../core/bestOfN/bestOfNRunner'
 import { type BestOfNError, isBestOfNError } from '../../core/bestOfN/bestOfNError'
 import type { BestOfNCoordinator } from '../../core/bestOfN/bestOfNCoordinator'
 import type { BoardSession, PendingPrompts } from '../../core/sessionBoard'
-import { failureForLog } from '../../core/backends/musecode/logText'
+import { failureForLog, stderrForLog } from '../../core/backends/musecode/logText'
 import { chatReferenceText } from '../../core/chatReference'
-import { redactSecrets } from '../../core/redact'
+import { redactDiagnosticEvent, redactSecrets } from '../../core/redact'
 import type { PlanModeHold, PlanModeRestore } from '../../core/review/planModeHold'
 import type { ReviewMaterial } from '../../core/review/reviewMaterial'
 import { isPrivateFileName } from '../../shared/privateFiles'
@@ -567,6 +568,11 @@ const NOTICE_PREFIX = 'Shown in the panel: '
 // CLI output) is redacted first, since it can carry a secret-shaped value.
 function describe(error: unknown): string {
   return redactSecrets(error instanceof Error ? error.message : String(error))
+}
+
+/** CLI errors are logged by kind/code; their message is for the redacted panel only. */
+function describeForLog(error: unknown): string {
+  return error instanceof MspError ? failureForLog(error) : describe(error)
 }
 
 // The two tables below are built when used, never at module load: the
@@ -1177,7 +1183,13 @@ export class ConversationController {
   private post(message: HostToWebviewMessage): void {
     // Streamed text still waiting goes first, so nothing overtakes it.
     this.flushDelta()
-    this.deps.surface.post(message)
+    if (message.type === 'agentEvent') {
+      this.deps.surface.post({ ...message, event: redactDiagnosticEvent(message.event) })
+    } else if (message.type === 'notice') {
+      this.deps.surface.post({ ...message, text: redactSecrets(message.text) })
+    } else {
+      this.deps.surface.post(message)
+    }
   }
 
   /**
@@ -1215,11 +1227,12 @@ export class ConversationController {
    * Says `text` in the panel. A warning or an error goes to the log as well
    * (M39): "Open log" and a support report hold every failure the user saw.
    */
-  private notice(level: NoticeLevel, text: string, redoRestoreId?: string): void {
+  private notice(level: NoticeLevel, text: string, redoRestoreId?: string, error?: unknown): void {
+    const logged = error instanceof MspError ? failureForLog(error) : redactSecrets(text)
     if (level === 'error') {
-      this.deps.log.error(`${NOTICE_PREFIX}${text}`)
+      this.deps.log.error(`${NOTICE_PREFIX}${logged}`)
     } else if (level === 'warning') {
-      this.deps.log.warn(`${NOTICE_PREFIX}${text}`)
+      this.deps.log.warn(`${NOTICE_PREFIX}${logged}`)
     }
     this.say(level, text, redoRestoreId)
   }
@@ -1418,7 +1431,7 @@ export class ConversationController {
     try {
       await session.cancel()
     } catch (error: unknown) {
-      this.deps.log.warn(`turn/cancel before leaving the session failed: ${describe(error)}`)
+      this.deps.log.warn(`turn/cancel before leaving the session failed: ${describeForLog(error)}`)
     }
   }
 
@@ -1510,7 +1523,11 @@ export class ConversationController {
 
   /** A turn's end in the log, and its clock gone (M39). */
   private endTurnClock(event: Extract<AgentEvent, { type: 'turnCompleted' }>): void {
-    this.deps.log.info(turnEndLine(event, this.turnClocks.get(event.turnId), this.deps.now()))
+    const logged =
+      this.sessionKind === 'museCode' && event.reason !== undefined
+        ? { ...event, reason: stderrForLog(event.reason) }
+        : event
+    this.deps.log.info(turnEndLine(logged, this.turnClocks.get(event.turnId), this.deps.now()))
     this.turnClocks.delete(event.turnId)
   }
 
@@ -1567,7 +1584,7 @@ export class ConversationController {
       })
     } catch (error: unknown) {
       this.autoApproved.delete(event.approvalId)
-      this.deps.log.warn(`Edit automatically could not approve: ${describe(error)}`)
+      this.deps.log.warn(`Edit automatically could not approve: ${describeForLog(error)}`)
       this.forward(event)
     }
   }
@@ -1618,7 +1635,7 @@ export class ConversationController {
       })
     } catch (error: unknown) {
       this.deps.log.warn(
-        `The Auto reviewer could not be loaded; the user decides: ${describe(error)}`,
+        `The Auto reviewer could not be loaded; the user decides: ${describeForLog(error)}`,
       )
       const card = { ...event, note: UI_TEXT.autoReviewerFailed }
       this.forward(card)
@@ -1730,7 +1747,12 @@ export class ConversationController {
         this.notice('info', UI_TEXT.viewGapReloaded)
       } catch (error: unknown) {
         if (generation === this.sendInvalidationEpoch && this.session === session) {
-          this.notice('warning', `${UI_TEXT.viewGapReloadFailed}: ${describe(error)}`)
+          this.notice(
+            'warning',
+            `${UI_TEXT.viewGapReloadFailed}: ${describe(error)}`,
+            undefined,
+            error,
+          )
         }
       }
     }
@@ -2167,7 +2189,7 @@ export class ConversationController {
       // run on. The card offers the choice again only when the host still
       // waits on this stage (one decision per stage, D26); otherwise it
       // follows the host's own events.
-      this.notice('warning', `${UI_TEXT.decisionErrorNotice}: ${describe(error)}`)
+      this.notice('warning', `${UI_TEXT.decisionErrorNotice}: ${describe(error)}`, undefined, error)
       if (isDecisionNotAppliedError(error)) {
         this.post({ type: 'approvalReopened', approvalId: message.approvalId })
       }
@@ -2209,7 +2231,7 @@ export class ConversationController {
         this.promptSettled(error, { userInputId })
         return
       }
-      this.notice('error', `${UI_TEXT.questionCancelFailed}: ${describe(error)}`)
+      this.notice('error', `${UI_TEXT.questionCancelFailed}: ${describe(error)}`, undefined, error)
     }
   }
 
@@ -2226,7 +2248,7 @@ export class ConversationController {
         this.promptSettled(error, { userInputId: message.userInputId })
         return
       }
-      this.notice('error', `${UI_TEXT.answerNotAccepted}: ${describe(error)}`)
+      this.notice('error', `${UI_TEXT.answerNotAccepted}: ${describe(error)}`, undefined, error)
     }
   }
 
@@ -2246,7 +2268,7 @@ export class ConversationController {
         return
       }
       // An error notice unlocks the card, as a refused answer does (M25).
-      this.notice('error', `${UI_TEXT.clarifyNotAccepted}: ${describe(error)}`)
+      this.notice('error', `${UI_TEXT.clarifyNotAccepted}: ${describe(error)}`, undefined, error)
     }
   }
 
@@ -2268,7 +2290,7 @@ export class ConversationController {
     try {
       await run(session)
     } catch (error: unknown) {
-      this.notice('warning', `${failure}: ${describe(error)}`)
+      this.notice('warning', `${failure}: ${describe(error)}`, undefined, error)
       this.post({ type: 'taskRefused', itemId })
     }
   }
@@ -2295,7 +2317,7 @@ export class ConversationController {
     try {
       await this.session.stopAllTasks()
     } catch (error: unknown) {
-      this.notice('warning', `${UI_TEXT.stopTaskFailed}: ${describe(error)}`)
+      this.notice('warning', `${UI_TEXT.stopTaskFailed}: ${describe(error)}`, undefined, error)
     }
   }
 
@@ -2413,11 +2435,13 @@ export class ConversationController {
       }
       const text = `${UI_TEXT.outputLoadFailed}: ${describe(error)}`
       if (this.hasSaidOutputFailure) {
-        this.deps.log.warn(`${text} (item ${message.itemId}; said once in the panel)`)
+        this.deps.log.warn(
+          `${describeForLog(error)} (item ${message.itemId}; said once in the panel)`,
+        )
         return
       }
       this.hasSaidOutputFailure = true
-      this.notice('warning', `${text}. ${UI_TEXT.outputLoadRetry}`)
+      this.notice('warning', `${text}. ${UI_TEXT.outputLoadRetry}`, undefined, error)
     }
   }
 
@@ -2488,7 +2512,7 @@ export class ConversationController {
           : { startLine: message.startLine, endLine: message.endLine },
       )
     } catch (error: unknown) {
-      this.notice('error', `${UI_TEXT.openFileFailed}: ${describe(error)}`)
+      this.notice('error', `${UI_TEXT.openFileFailed}: ${describe(error)}`, undefined, error)
     }
   }
 
@@ -2520,7 +2544,7 @@ export class ConversationController {
       await this.deps.openDocument(title, stored ?? message.text)
     } catch (error: unknown) {
       if (this.isCurrentSessionAction(session, generation)) {
-        this.notice('error', `${UI_TEXT.openOutputFailed}: ${describe(error)}`)
+        this.notice('error', `${UI_TEXT.openOutputFailed}: ${describe(error)}`, undefined, error)
       }
     }
   }
@@ -2638,7 +2662,7 @@ export class ConversationController {
       return notices.every((notice) => notice.level === 'info')
     } catch (error: unknown) {
       if (this.isCurrentSessionAction(session, generation)) {
-        this.notice('error', `${UI_TEXT.editReviewFailed}: ${describe(error)}`)
+        this.notice('error', `${UI_TEXT.editReviewFailed}: ${describe(error)}`, undefined, error)
       }
       return false
     }
@@ -2764,7 +2788,7 @@ export class ConversationController {
       if (this.session !== session || this.attachmentGeneration !== generation || this.isDisposed) {
         return
       }
-      this.deps.log.warn(`skill/list failed: ${describe(error)}`)
+      this.deps.log.warn(`skill/list failed: ${describeForLog(error)}`)
       this.skills = []
     }
     this.postSkills()
@@ -2809,6 +2833,12 @@ export class ConversationController {
     session: AgentSession,
     origin: SessionOrigin,
   ): Promise<void> {
+    try {
+      this.requireNonConfidentialModel(session.modelId)
+    } catch (error: unknown) {
+      session.dispose()
+      throw error
+    }
     const generation = this.attachmentGeneration
     if (origin === 'started' && this.deps.surface.isSideChat === true) {
       this.sideSessionIds.add(session.sessionId)
@@ -2866,7 +2896,7 @@ export class ConversationController {
     void this.refreshSkills(session)
     if (session.schedules !== undefined) {
       void session.schedules.list().catch((error: unknown) => {
-        this.deps.log.warn(`Scheduled prompts could not be loaded: ${describe(error)}`)
+        this.deps.log.warn(`Scheduled prompts could not be loaded: ${describeForLog(error)}`)
       })
     }
   }
@@ -2917,6 +2947,7 @@ export class ConversationController {
     }
     const mcpServers = await this.mcpServersFor(host)
     this.requireCurrentOpening(generation)
+    this.requireNonConfidentialModel(this.modelId)
     const session = await host.startSession({
       workspaceRoot,
       modelId: this.modelId,
@@ -2959,7 +2990,7 @@ export class ConversationController {
       this.post({ type: 'notice', level: 'info', text: offer.text, actions: [...offer.actions] })
     } catch (error: unknown) {
       // Nothing to offer is better than a wrong offer; the log says why.
-      this.deps.log.warn(`The bundled skills could not be offered: ${describe(error)}`)
+      this.deps.log.warn(`The bundled skills could not be offered: ${describeForLog(error)}`)
     }
   }
 
@@ -2989,6 +3020,7 @@ export class ConversationController {
     let loaded: LoadedSession
     const mcpServers = await this.mcpServersFor(host)
     try {
+      this.requireNonConfidentialModel(this.modelId)
       loaded = await host.resumeSession(
         target.sessionId,
         this.modelId,
@@ -2999,7 +3031,7 @@ export class ConversationController {
         this.ideSessions.add(loaded.session)
       }
     } catch (error: unknown) {
-      this.notice('warning', `${UI_TEXT.sessionNotContinued}: ${describe(error)}`)
+      this.notice('warning', `${UI_TEXT.sessionNotContinued}: ${describe(error)}`, undefined, error)
       return undefined
     }
     if (!this.canLoadIntoSurface(host, loaded)) {
@@ -3030,7 +3062,12 @@ export class ConversationController {
         approvalModeFor(this.permissionMode, this.deps.hasApprovalUi),
       )
     } catch (error: unknown) {
-      this.notice('warning', `${UI_TEXT.permissionModeNotApplied}: ${describe(error)}`)
+      this.notice(
+        'warning',
+        `${UI_TEXT.permissionModeNotApplied}: ${describe(error)}`,
+        undefined,
+        error,
+      )
     }
     this.notice('info', UI_TEXT.sessionContinued)
     return loaded.session
@@ -3138,6 +3175,7 @@ export class ConversationController {
       return undefined
     }
     const session = await this.ensureSession(this.deps.workspaceRoot)
+    this.requireNonConfidentialModel(session.modelId)
     if (!this.isCurrentSessionAction(session, generation)) {
       return undefined
     }
@@ -3225,7 +3263,7 @@ export class ConversationController {
       this.postSessionList()
     } catch (error: unknown) {
       if (generation === this.sendInvalidationEpoch) {
-        this.notice('error', `${UI_TEXT.historyUnavailable}: ${describe(error)}`)
+        this.notice('error', `${UI_TEXT.historyUnavailable}: ${describe(error)}`, undefined, error)
       }
     }
   }
@@ -3245,7 +3283,7 @@ export class ConversationController {
       }
       return bundle
     } catch (error: unknown) {
-      this.deps.log.error(`The session board bundle could not be loaded: ${describe(error)}`)
+      this.deps.log.error(`The session board bundle could not be loaded: ${describeForLog(error)}`)
       throw new Error(UI_TEXT.boardUnavailable, { cause: error })
     }
   }
@@ -3299,7 +3337,7 @@ export class ConversationController {
     if (isBestOfNError(error)) {
       this.notice('warning', this.bestOfNErrorText(error, attemptId))
     } else {
-      this.notice('error', `${UI_TEXT.bestOfNTitle}: ${describe(error)}`)
+      this.notice('error', `${UI_TEXT.bestOfNTitle}: ${describe(error)}`, undefined, error)
     }
   }
 
@@ -3400,7 +3438,7 @@ export class ConversationController {
       this.post({ type: 'sessionBoard', rows: [...rows] })
     } catch (error: unknown) {
       if (generation === this.sendInvalidationEpoch) {
-        this.notice('error', `${UI_TEXT.boardTitle}: ${describe(error)}`)
+        this.notice('error', `${UI_TEXT.boardTitle}: ${describe(error)}`, undefined, error)
       }
     }
   }
@@ -3553,7 +3591,10 @@ export class ConversationController {
       loaded.session.dispose()
       return false
     }
-    if (!isModelAllowed) {
+    if (
+      !isModelAllowed ||
+      (this.deps.isConfidentialWorkspace() && isContributorModel(this.modelId))
+    ) {
       const fallback =
         models.find((model) => model.isDefault && !isContributorModel(model.modelId)) ??
         models.find((model) => !isContributorModel(model.modelId))
@@ -3614,7 +3655,12 @@ export class ConversationController {
       await loaded.session.setApprovalMode(target)
     } catch (error: unknown) {
       if (generation === this.sendInvalidationEpoch) {
-        this.notice('warning', `${UI_TEXT.permissionModeNotApplied}: ${describe(error)}`)
+        this.notice(
+          'warning',
+          `${UI_TEXT.permissionModeNotApplied}: ${describe(error)}`,
+          undefined,
+          error,
+        )
       }
     }
     return generation === this.sendInvalidationEpoch && !this.isDisposed
@@ -3640,6 +3686,7 @@ export class ConversationController {
       }
       this.watchList(host)
       const mcpServers = await this.mcpServersFor(host)
+      this.requireNonConfidentialModel(this.modelId)
       const loaded = await host.resumeSession(
         sessionId,
         this.modelId,
@@ -3659,9 +3706,9 @@ export class ConversationController {
         return
       }
       if (this.isFirstShowing(error)) {
-        this.notice('error', `${UI_TEXT.resumeFailed}: ${describe(error)}`)
+        this.notice('error', `${UI_TEXT.resumeFailed}: ${describe(error)}`, undefined, error)
       } else {
-        this.deps.log.error(`resumeSession failed (shown already): ${describe(error)}`)
+        this.deps.log.error(`resumeSession failed (shown already): ${describeForLog(error)}`)
       }
     }
   }
@@ -3701,7 +3748,7 @@ export class ConversationController {
       await this.adopt(host, loaded, UI_TEXT.forkedNotice, 'forked')
     } catch (error: unknown) {
       if (generation === this.sendInvalidationEpoch) {
-        this.notice('error', `${UI_TEXT.forkFailed}: ${describe(error)}`)
+        this.notice('error', `${UI_TEXT.forkFailed}: ${describe(error)}`, undefined, error)
       }
     }
   }
@@ -3816,7 +3863,12 @@ export class ConversationController {
       return { message, source, host, generation, images }
     } catch (error: unknown) {
       if (generation === this.sendInvalidationEpoch && this.accountStopsInFlight === 0) {
-        this.notice('error', `${UI_TEXT.rewindConversationFailed}: ${describe(error)}`)
+        this.notice(
+          'error',
+          `${UI_TEXT.rewindConversationFailed}: ${describe(error)}`,
+          undefined,
+          error,
+        )
       }
       return undefined
     }
@@ -3853,7 +3905,12 @@ export class ConversationController {
       return true
     } catch (error: unknown) {
       if (generation === this.sendInvalidationEpoch && this.accountStopsInFlight === 0) {
-        this.notice('error', `${UI_TEXT.rewindConversationFailed}: ${describe(error)}`)
+        this.notice(
+          'error',
+          `${UI_TEXT.rewindConversationFailed}: ${describe(error)}`,
+          undefined,
+          error,
+        )
       }
       return false
     }
@@ -3901,7 +3958,7 @@ export class ConversationController {
       }
     } catch (error: unknown) {
       if (generation === this.sendInvalidationEpoch && this.accountStopsInFlight === 0) {
-        this.notice('error', `${UI_TEXT.sideChatFailed}: ${describe(error)}`)
+        this.notice('error', `${UI_TEXT.sideChatFailed}: ${describe(error)}`, undefined, error)
       }
     }
   }
@@ -4826,7 +4883,7 @@ export class ConversationController {
       }
     } catch (error: unknown) {
       if (generation === this.sendInvalidationEpoch && this.session === session) {
-        this.notice('error', `${UI_TEXT.renameFailed}: ${describe(error)}`)
+        this.notice('error', `${UI_TEXT.renameFailed}: ${describe(error)}`, undefined, error)
       }
     }
   }
@@ -4940,7 +4997,7 @@ export class ConversationController {
         message.turnId,
       )
     } catch (error: unknown) {
-      this.deps.log.warn(`The transcript for a restore could not be read: ${describe(error)}`)
+      this.deps.log.warn(`The transcript for a restore could not be read: ${describeForLog(error)}`)
     }
     if (turnIds === undefined || this.session !== session || this.isTurnRunning()) {
       this.notice(
@@ -5005,7 +5062,7 @@ export class ConversationController {
         )
         return this.session === session && !this.isTurnRunning() ? ids : undefined
       } catch (error: unknown) {
-        this.deps.log.warn(`The transcript for a Redo could not be read: ${describe(error)}`)
+        this.deps.log.warn(`The transcript for a Redo could not be read: ${describeForLog(error)}`)
         return
       }
     })
@@ -5041,6 +5098,7 @@ export class ConversationController {
     if (!isCurrent()) {
       throw new Error(UI_TEXT.turnStoppedByRestart)
     }
+    this.requireNonConfidentialModel(session.modelId)
     if (!shouldQueueForDisplayText && this.activeTurnId !== undefined) {
       try {
         return await session.steer(this.activeTurnId, parts)
@@ -5063,6 +5121,7 @@ export class ConversationController {
     if (!isCurrent()) {
       throw new Error(UI_TEXT.turnStoppedByRestart)
     }
+    this.requireNonConfidentialModel(session.modelId)
     return await session.sendTurn(parts, displayText)
   }
 
@@ -5092,7 +5151,7 @@ export class ConversationController {
       try {
         await this.deps.saveAll()
       } catch (error: unknown) {
-        this.deps.log.warn(`Autosave before the turn failed: ${describe(error)}`)
+        this.deps.log.warn(`Autosave before the turn failed: ${describeForLog(error)}`)
       }
     }
     this.noteUnsaved()
@@ -5338,7 +5397,9 @@ export class ConversationController {
     } catch (error: unknown) {
       this.checkpoints.dropPending(checkpoint)
       const reason = describe(error)
-      this.deps.log.error(`sendMessage failed: ${isComposerMessage ? reason : errorKind(error)}`)
+      this.deps.log.error(
+        `sendMessage failed: ${isComposerMessage ? describeForLog(error) : errorKind(error)}`,
+      )
       if (seededSession !== undefined) {
         this.takeBackTodos(seededSession)
       }
@@ -5616,6 +5677,7 @@ export class ConversationController {
     if (!isCurrent()) {
       throw new Error(UI_TEXT.turnStoppedByRestart)
     }
+    this.requireNonConfidentialModel(session.modelId)
     if (session.review !== undefined) {
       return await session.review(parts, text)
     }
@@ -5640,7 +5702,10 @@ export class ConversationController {
     this.permissionMode = 'plan'
     this.postComposerState()
     try {
-      return await hold.send(session, parts, text, isCurrent)
+      return await hold.send(session, parts, text, () => {
+        this.requireNonConfidentialModel(session.modelId)
+        return isCurrent()
+      })
     } catch (error: unknown) {
       // Plan mode was refused (nothing to put back), or the send failed and
       // the hold put the mode back already.
@@ -6022,12 +6087,12 @@ export class ConversationController {
         return
       }
       if (isGoalRefusedError(error)) {
-        this.deps.log.info(`Goal ${verb} refused: ${redactSecrets(error.message)}`)
+        this.deps.log.info(`Goal ${verb} refused: ${error.refusal}`)
         this.say('warning', goalRefusalText(verb, error.refusal))
         result(false)
         return
       }
-      this.notice('error', `${UI_TEXT.goalCommandFailed}: ${describe(error)}`)
+      this.notice('error', `${UI_TEXT.goalCommandFailed}: ${describe(error)}`, undefined, error)
       result(false)
     }
   }
@@ -6084,7 +6149,7 @@ export class ConversationController {
       }
       this.post({ type: 'agentEvent', event: { type: 'goalChanged', goal } })
     } catch (error: unknown) {
-      this.deps.log.warn(`goal refresh failed: ${describe(error)}`)
+      this.deps.log.warn(`goal refresh failed: ${describeForLog(error)}`)
     }
   }
 
@@ -6108,7 +6173,7 @@ export class ConversationController {
         this.say('info', fill(UI_TEXT.scheduleCreated, { id: job.id }))
       }
     } catch (error: unknown) {
-      this.notice('error', `${UI_TEXT.scheduleCommandFailed}: ${describe(error)}`)
+      this.notice('error', `${UI_TEXT.scheduleCommandFailed}: ${describe(error)}`, undefined, error)
     }
   }
 
@@ -6120,7 +6185,7 @@ export class ConversationController {
         this.say('info', UI_TEXT.scheduleNone)
       }
     } catch (error: unknown) {
-      this.notice('error', `${UI_TEXT.scheduleCommandFailed}: ${describe(error)}`)
+      this.notice('error', `${UI_TEXT.scheduleCommandFailed}: ${describe(error)}`, undefined, error)
     }
   }
 
@@ -6136,7 +6201,7 @@ export class ConversationController {
         fill(isRemoved ? UI_TEXT.scheduleCancelled : UI_TEXT.scheduleUnknown, { id }),
       )
     } catch (error: unknown) {
-      this.notice('error', `${UI_TEXT.scheduleCommandFailed}: ${describe(error)}`)
+      this.notice('error', `${UI_TEXT.scheduleCommandFailed}: ${describe(error)}`, undefined, error)
     }
   }
 
@@ -6206,10 +6271,16 @@ export class ConversationController {
         }
         return
       }
+      this.requireNonConfidentialModel(session.modelId)
       await session.schedules.run(id, occurrenceMs, confirmed)
     } catch (error: unknown) {
       if (generation === this.sendInvalidationEpoch && this.accountStopsInFlight === 0) {
-        this.notice('error', `${UI_TEXT.scheduleCommandFailed}: ${describe(error)}`)
+        this.notice(
+          'error',
+          `${UI_TEXT.scheduleCommandFailed}: ${describe(error)}`,
+          undefined,
+          error,
+        )
       }
     }
   }
@@ -6221,7 +6292,17 @@ export class ConversationController {
     try {
       await this.session.cancel()
     } catch (error: unknown) {
-      this.deps.log.warn(`turn/cancel failed: ${describe(error)}`)
+      this.deps.log.warn(`turn/cancel failed: ${describeForLog(error)}`)
+    }
+  }
+
+  /** A fresh check immediately before dispatch, with no asynchronous gap. */
+  private requireNonConfidentialModel(modelId: string): void {
+    if (
+      this.deps.isConfidentialWorkspace() &&
+      (isContributorModel(modelId) || isContributorModel(this.modelId))
+    ) {
+      throw new Error(UI_TEXT.contributorBlocked)
     }
   }
 
@@ -6240,12 +6321,19 @@ export class ConversationController {
     if (!(await this.deps.confirmContributor(modelId))) {
       return false
     }
+    if (this.deps.isConfidentialWorkspace() && isContributorModel(modelId)) {
+      this.notice('warning', UI_TEXT.contributorBlocked)
+      return false
+    }
     this.confirmedContributor = modelId
     return true
   }
 
   private async setModel(modelId: string): Promise<void> {
-    if (!(await this.allowsModel(modelId))) {
+    if (
+      !(await this.allowsModel(modelId)) ||
+      (this.deps.isConfidentialWorkspace() && isContributorModel(modelId))
+    ) {
       this.postSessionInfo(this.modelId)
       return
     }
@@ -6259,7 +6347,7 @@ export class ConversationController {
         await this.session.setModel(modelId)
       } catch (error: unknown) {
         this.modelId = previous
-        this.notice('error', `${UI_TEXT.modelSwitchFailed}: ${describe(error)}`)
+        this.notice('error', `${UI_TEXT.modelSwitchFailed}: ${describe(error)}`, undefined, error)
         return
       }
     }
@@ -6405,7 +6493,12 @@ export class ConversationController {
         }
         this.permissionMode = previous
         this.restorePlanTurns(leftPlanTurns)
-        this.notice('error', `${UI_TEXT.permissionModeChangeFailed}: ${describe(error)}`)
+        this.notice(
+          'error',
+          `${UI_TEXT.permissionModeChangeFailed}: ${describe(error)}`,
+          undefined,
+          error,
+        )
       }
     }
     if (isCurrent()) {
@@ -6487,7 +6580,7 @@ export class ConversationController {
       if (reason.includes(MISSING_RUN_REASON)) {
         this.notice('info', UI_TEXT.nothingToCompact)
       } else {
-        this.notice('error', `${UI_TEXT.compactionFailed}: ${reason}`)
+        this.notice('error', `${UI_TEXT.compactionFailed}: ${reason}`, undefined, error)
       }
     }
   }
@@ -6506,7 +6599,7 @@ export class ConversationController {
     try {
       session = await this.sessionForAction()
     } catch (error: unknown) {
-      this.deps.log.warn(`The skills were not listed: ${describe(error)}`)
+      this.deps.log.warn(`The skills were not listed: ${describeForLog(error)}`)
       return
     }
     if (session !== undefined) {
@@ -6519,7 +6612,7 @@ export class ConversationController {
       const items = await this.deps.mentions.search(query, MENTION_RESULT_LIMIT)
       this.post({ type: 'mentionResults', requestId, items: [...items] })
     } catch (error: unknown) {
-      this.deps.log.warn(`mention search failed: ${describe(error)}`)
+      this.deps.log.warn(`mention search failed: ${describeForLog(error)}`)
       this.post({ type: 'mentionResults', requestId, items: [] })
     }
   }
@@ -6613,7 +6706,7 @@ export class ConversationController {
       if (!this.isCurrentAttachmentGeneration(generation)) {
         return { kind: 'stale' }
       }
-      this.deps.log.warn(`text attachment path check failed: ${describe(error)}`)
+      this.deps.log.warn(`text attachment path check failed: ${describeForLog(error)}`)
       return { kind: 'mention' }
     }
     if (!this.isCurrentAttachmentGeneration(generation)) {
@@ -6704,7 +6797,7 @@ export class ConversationController {
           if (!this.isCurrentAttachmentGeneration(generation)) {
             return
           }
-          this.deps.log.warn(`attachment read failed: ${describe(error)}`)
+          this.deps.log.warn(`attachment read failed: ${describeForLog(error)}`)
           this.post({
             type: 'attachmentRejected',
             name: file.name,
@@ -6791,7 +6884,12 @@ export class ConversationController {
     try {
       await this.deps.runHostAction(action)
     } catch (error: unknown) {
-      this.notice('error', `${fill(UI_TEXT.hostActionFailed, { action })}: ${describe(error)}`)
+      this.notice(
+        'error',
+        `${fill(UI_TEXT.hostActionFailed, { action })}: ${describe(error)}`,
+        undefined,
+        error,
+      )
       return
     }
     if (restartedFault === undefined) {
@@ -6836,7 +6934,7 @@ export class ConversationController {
       }
       await this.postUsage(host, subscription)
     } catch (error: unknown) {
-      this.notice('error', `${UI_TEXT.usageUnavailable}: ${describe(error)}`)
+      this.notice('error', `${UI_TEXT.usageUnavailable}: ${describe(error)}`, undefined, error)
     }
   }
 
@@ -6888,7 +6986,7 @@ export class ConversationController {
       await session.controlSubagent(subagentId, action)
     } catch (error: unknown) {
       if (this.isCurrentSessionAction(session, generation)) {
-        this.notice('error', `${UI_TEXT.agentControlFailed}: ${describe(error)}`)
+        this.notice('error', `${UI_TEXT.agentControlFailed}: ${describe(error)}`, undefined, error)
       }
     }
   }
@@ -6907,7 +7005,7 @@ export class ConversationController {
       await session.messageSubagent(subagentId, body.trim(), isFollowup)
     } catch (error: unknown) {
       if (this.isCurrentSessionAction(session, generation)) {
-        this.notice('error', `${UI_TEXT.agentControlFailed}: ${describe(error)}`)
+        this.notice('error', `${UI_TEXT.agentControlFailed}: ${describe(error)}`, undefined, error)
       }
     }
   }
@@ -6940,7 +7038,7 @@ export class ConversationController {
         this.notice(notice.level, notice.text)
       }
     } catch (error: unknown) {
-      this.notice('error', `${UI_TEXT.exportFailed}: ${describe(error)}`)
+      this.notice('error', `${UI_TEXT.exportFailed}: ${describe(error)}`, undefined, error)
     }
   }
 
@@ -6956,7 +7054,7 @@ export class ConversationController {
     try {
       picked = await this.deps.transferFiles.pickTransferFile(title)
     } catch (error: unknown) {
-      this.notice('error', `${failure}: ${describe(error)}`)
+      this.notice('error', `${failure}: ${describe(error)}`, undefined, error)
       return undefined
     }
     if (this.isDisposed || picked.kind === 'dismissed') {
@@ -7046,7 +7144,7 @@ export class ConversationController {
       await this.adopt(host, loaded, UI_TEXT.importedNotice, 'imported')
     } catch (error: unknown) {
       if (generation === this.sendInvalidationEpoch) {
-        this.notice('error', `${UI_TEXT.importSessionFailed}: ${describe(error)}`)
+        this.notice('error', `${UI_TEXT.importSessionFailed}: ${describe(error)}`, undefined, error)
       }
     }
   }
@@ -7091,7 +7189,12 @@ export class ConversationController {
       })
     } catch (error: unknown) {
       if (generation === this.sendInvalidationEpoch) {
-        this.notice('warning', `${UI_TEXT.agentTranscriptFailed}: ${describe(error)}`)
+        this.notice(
+          'warning',
+          `${UI_TEXT.agentTranscriptFailed}: ${describe(error)}`,
+          undefined,
+          error,
+        )
       }
     }
   }
@@ -7335,7 +7438,7 @@ export class ConversationController {
         this.postSessionInfo(this.modelId)
       }
     } catch (error: unknown) {
-      this.deps.log.warn(`model warm-up failed: ${describe(error)}`)
+      this.deps.log.warn(`model warm-up failed: ${describeForLog(error)}`)
       // Whatever else waited on the same start fails with it now; a message's
       // own card says it better, so this says it only if nothing else did.
       await new Promise((resolve) => setImmediate(resolve))
@@ -7765,6 +7868,20 @@ export class ConversationController {
     })
   }
 
+  /** A setting change retires contributor work, including in-flight preparations. */
+  public confidentialWorkspaceChanged(): void {
+    if (
+      this.deps.isConfidentialWorkspace() &&
+      (isContributorModel(this.modelId) ||
+        (this.session !== undefined && isContributorModel(this.session.modelId)))
+    ) {
+      this.notice('warning', UI_TEXT.contributorBlocked)
+      this.dropSession()
+    }
+    this.forgetModels()
+    void this.warmModels()
+  }
+
   /** Whether checkpoints run changed (trust granted, the setting): the panel is told (M72). */
   public checkpointsChanged(): void {
     void this.checkpoints.refresh()
@@ -7828,7 +7945,9 @@ export class ConversationController {
     try {
       await this.dispatch(message)
     } catch (error: unknown) {
-      this.deps.log.error(`${message.type} failed: ${errorDetail(error)}`)
+      this.deps.log.error(
+        `${message.type} failed: ${error instanceof MspError ? describeForLog(error) : errorDetail(error)}`,
+      )
       if (this.isFirstShowing(error)) {
         this.say('error', `${UI_TEXT.actionFailed}: ${describe(error)}`)
       }
@@ -7925,7 +8044,7 @@ export class ConversationController {
         if (!this.isCurrentSessionAction(session, generation)) {
           return
         }
-        this.deps.log.warn(`Bypass revocation: the mode change failed (${describe(error)})`)
+        this.deps.log.warn(`Bypass revocation: the mode change failed (${describeForLog(error)})`)
         this.retireBypassSession()
         return
       }
@@ -8116,7 +8235,7 @@ export class ConversationController {
         try {
           await session.cancel()
         } catch (error: unknown) {
-          this.deps.log.warn(`turn/cancel before the restart failed: ${describe(error)}`)
+          this.deps.log.warn(`turn/cancel before the restart failed: ${describeForLog(error)}`)
         }
         this.endTurnLocally('cancelled', UI_TEXT.turnStoppedByRestart)
       }

@@ -450,6 +450,7 @@
   "webFetchProxyRefused": "Proxy nebo jiný počítač v cestě odpověděl {status}, místo aby se zabezpečeně připojil k {address} ({host}). Nic nebylo přečteno.",
   "webFetchUnreachable": "{host} se nepodařilo zastihnout na adrese {address}. ({detail})",
   "webFetchNetwork": "Požadavek selhal: {detail}",
+  "webFetchUnavailable": "Kód pro načítání stránek se nepodařilo načíst, takže se nic nenačetlo; přeinstalujte rozšíření a znovu načtěte okno. Podrobnosti jsou v protokolu.",
   "webFetchMoved": "Stránka přesměrovala na {location}, na jiného hostitele. Muse ji může načíst dalším voláním, které se znovu zeptá.",
   "webFetchRestrictedMode": "V omezeném režimu je načítání stránek vypnuté. Chcete-li ho použít, označte pracovní prostor jako důvěryhodný.",
   "packRecalled": "Načteny znaky {start} až {end} z {total} ze sbaleného výstupu {id}",

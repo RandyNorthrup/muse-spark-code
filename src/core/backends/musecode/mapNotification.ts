@@ -1,3 +1,4 @@
+import { redactDiagnosticEvent } from '../../redact'
 // Maps Muse Session Protocol notifications onto backend-agnostic AgentEvents.
 // Pure and total: an unknown method is `UNKNOWN_METHOD` and params that fail
 // their schema are `MALFORMED_PARAMS`, and the caller decides how loudly to
@@ -155,7 +156,7 @@ function isMappedMethod(method: string): method is MappedMethod {
 /** The default delta field when the host omits one. */
 const DEFAULT_DELTA_FIELD = 'text'
 
-export function mapNotification(notification: WireNotification): MapOutcome {
+function rawNotification(notification: WireNotification): MapOutcome {
   const { method } = notification
   if (!isMappedMethod(method)) {
     return UNKNOWN_METHOD
@@ -386,4 +387,12 @@ export function mapNotification(notification: WireNotification): MapOutcome {
       }
     }
   }
+}
+
+/** Diagnostic events are safe before any backend subscriber sees them. */
+export function mapNotification(notification: WireNotification): MapOutcome {
+  const mapped = rawNotification(notification)
+  return typeof mapped === 'string' || !('event' in mapped)
+    ? mapped
+    : { ...mapped, event: redactDiagnosticEvent(mapped.event) }
 }
