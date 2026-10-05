@@ -12,7 +12,6 @@ namespace MuseSpark.VisualStudio.Protocol
   // Validate the committed export itself: no hand-maintained copy of wire types.
   public sealed class SchemaContract
   {
-    public const int MaximumFrameChars = 1048576;
     public const int MaximumFrameBytes = 16777216;
     public const int MaximumJsonDepth = 64;
     private static readonly TimeSpan PatternTimeout = TimeSpan.FromSeconds(1);

@@ -37,6 +37,28 @@ namespace MuseSpark.VisualStudio.Test
       }
     }
     [TestMethod]
+    public async Task PausesUpstreamReadsAtCapacityAndReleasesReservationsOnCompletion()
+    {
+      using (var output = new StringWriter())
+      {
+        var writer = new MhpWriter(output, SchemaContract.Load(true));
+        using (var first = writer.ReserveResponse())
+        using (var second = writer.ReserveResponse())
+        {
+          var waiting = writer.WaitForCapacityAsync(CancellationToken.None);
+          Assert.IsFalse(waiting.IsCompleted);
+          Assert.ThrowsException<MhpException>(() => writer.ReserveResponse());
+          await writer.EnqueueAsync(new JObject { ["result"] = null }, first);
+          Assert.IsTrue(waiting.IsCompleted);
+          await waiting;
+        }
+        using (var first = writer.ReserveResponse())
+        using (var second = writer.ReserveResponse()) Assert.IsFalse(writer.WaitForCapacityAsync(CancellationToken.None).IsCompleted);
+        Assert.IsTrue(writer.WaitForCapacityAsync(CancellationToken.None).IsCompleted);
+      }
+    }
+
+    [TestMethod]
     public async Task BoundsQueuedUtf8BytesAndCountsOnlyUnwrittenSurfaceDrops()
     {
       using (var output = new BlockedWriter())

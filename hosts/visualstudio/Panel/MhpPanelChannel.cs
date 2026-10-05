@@ -106,6 +106,7 @@ namespace MuseSpark.VisualStudio.Panel
       var frame = SchemaContract.ParseObject(json);
       if (frame["bridge"] != null)
       {
+        if (frame["bridge"]?.Type != JTokenType.String) throw Invalid();
         var properties = new JObject { ["bridge"] = new JObject { ["const"] = frame.Value<string>("bridge") == "state" ? "state" : "subscribed" } };
         var required = new JArray("bridge");
         if (frame.Value<string>("bridge") == "state")
@@ -128,13 +129,20 @@ namespace MuseSpark.VisualStudio.Panel
 
     private void ValidateEnvelope(JToken frame, string direction, long sequence)
     {
-      SchemaContract.Validate(frame, Schema("envelope"));
+      var variants = Schema("envelope")["oneOf"] as JArray ?? throw Invalid();
+      var receivedDirection = frame["direction"]?.Type == JTokenType.String ? frame.Value<string>("direction") : null;
+      var shape = variants.FirstOrDefault(v => v["properties"]?["direction"]?.Value<string>("const") == receivedDirection)?.DeepClone() as JObject;
+      if (shape == null) throw new MhpException("invalidParams", "MHP_PANEL_INVALID_ENVELOPE");
+      if (!(shape["properties"] is JObject properties)) throw Invalid();
+      properties["payload"] = new JObject();
+      try { SchemaContract.Validate(frame, shape); }
+      catch (MhpException) { throw new MhpException("invalidParams", "MHP_PANEL_INVALID_ENVELOPE"); }
+      if (System.Text.Encoding.UTF8.GetByteCount(frame.ToString(Formatting.None)) > SchemaContract.MaximumFrameBytes) throw new MhpException("invalidParams", "MHP_PANEL_TOO_LARGE");
       if (closed || frame.Value<string>("surface") != Surface) throw new MhpException("invalidRequest", "MHP_PANEL_UNKNOWN_SURFACE");
       if (frame.Value<string>("direction") != direction) throw new MhpException("invalidRequest", "MHP_PANEL_WRONG_DIRECTION");
       if (frame.Value<long>("seq") != sequence) throw new MhpException("invalidRequest", "MHP_PANEL_OUT_OF_ORDER");
       if (!ready) throw new MhpException("invalidRequest", "MHP_PANEL_NOT_READY");
       var payload = frame["payload"] ?? throw Invalid();
-      var variants = Schema("envelope")["oneOf"] as JArray ?? throw Invalid();
       var vocabulary = variants.First(v => v["properties"]?["direction"]?.Value<string>("const") == direction)["properties"]?["payload"]?["anyOf"] as JArray ?? throw Invalid();
       var chosen = Kind == "tasks" ? vocabulary[1] : Kind == "whatsNew" && direction == "toHost" ? vocabulary[2] : vocabulary[0];
       if (Kind == "whatsNew" && direction == "toPanel") throw Invalid();
@@ -158,19 +166,20 @@ namespace MuseSpark.VisualStudio.Panel
       {
         lock (gate)
         {
-          if (frame.Value<string>("kind") == "panelError")
+          if (frame["kind"]?.Type == JTokenType.String && frame.Value<string>("kind") == "panelError")
           {
             SchemaContract.Validate(frame, Schema("error")); warning(frame.Value<string>("code") ?? throw Invalid()); return Task.CompletedTask;
           }
           ValidateEnvelope(frame, "toPanel", incoming);
-          if (System.Text.Encoding.UTF8.GetByteCount(frame.ToString(Formatting.None)) > SchemaContract.MaximumFrameBytes) throw new MhpException("invalidParams", "MHP_PANEL_TOO_LARGE");
           incoming++;
         }
         MessageReceived?.Invoke(this, frame); return Task.CompletedTask;
       }
       catch (MhpException error)
       {
-        var refusal = new JObject { ["mhp"] = "1.1", ["kind"] = "panelError", ["surface"] = frame["surface"]?.Type == JTokenType.String ? frame["surface"] : JValue.CreateNull(), ["seq"] = frame["seq"]?.Type == JTokenType.Integer ? frame["seq"] : JValue.CreateNull(), ["code"] = error.Message.StartsWith("MHP_PANEL_", StringComparison.Ordinal) ? error.Message : "MHP_PANEL_INVALID_PAYLOAD" };
+        var surface = frame["surface"]?.Type == JTokenType.String && !string.IsNullOrEmpty(frame.Value<string>("surface")) ? frame["surface"] : JValue.CreateNull();
+        var seq = frame["seq"]?.Type == JTokenType.Integer && frame.Value<double>("seq") >= 0 && frame.Value<double>("seq") <= 9007199254740991 ? frame["seq"] : JValue.CreateNull();
+        var refusal = new JObject { ["mhp"] = "1.1", ["kind"] = "panelError", ["surface"] = surface, ["seq"] = seq, ["code"] = error.Message.StartsWith("MHP_PANEL_", StringComparison.Ordinal) ? error.Message : "MHP_PANEL_INVALID_PAYLOAD" };
         return peer.WritePanelAsync(refusal);
       }
     }

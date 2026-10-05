@@ -61,7 +61,7 @@ and uses one native undo transaction. Agent edits refuse dirty or changed
 buffers before opening a transaction.
 
 The headless suite exercises the actual MHP peer, exported-schema validator,
-edit/completion planners, message inbox and asset/environment policy. A fake
+edit/completion planners, panel channel, bounded writer and asset/environment policy. A fake
 runtime runs through the production Windows job helper and creates a real
 descendant; shutdown must terminate both. It negotiates 1.1 and exchanges panel
 and lifecycle frames through the actual process transport. Browser tests cover

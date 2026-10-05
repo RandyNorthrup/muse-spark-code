@@ -60,6 +60,7 @@ namespace MuseSpark.VisualStudio.Protocol
       {
         while (!lifetime.IsCancellationRequested)
         {
+          await writer.WaitForCapacityAsync(lifetime.Token).ConfigureAwait(false);
           var line = await ReadFrameAsync(reader).ConfigureAwait(false);
           if (line == null) break;
           work.RemoveAll(t => t.IsCompletedSuccessfully());
@@ -103,9 +104,14 @@ namespace MuseSpark.VisualStudio.Protocol
       if (frame["mhp"] != null)
       {
         if (ProtocolVersion != "mhp/1.1.0") throw new MhpException("incompatibleVersion", "MHP_INCOMPATIBLE_VERSION");
-        var kind = frame.Value<string>("kind");
-        if (kind != "panel" && kind != "panelError") throw new MhpException("invalidRequest", "MHP_PANEL_WRONG_DIRECTION");
-        if (PanelReceiverAsync == null) throw new MhpException("invalidRequest", "MHP_PANEL_UNKNOWN_SURFACE");
+        var kind = frame["kind"]?.Type == JTokenType.String ? frame.Value<string>("kind") : null;
+        if (kind != "panel" && kind != "panelError" || PanelReceiverAsync == null)
+        {
+          if (kind == "panelError") { SchemaContract.Validate(frame, contract.Export["panel"]?["error"] ?? throw new MhpException("internalError", "MHP_CONTRACT_ERROR")); return; }
+          var code = kind == "surface" ? "MHP_PANEL_WRONG_DIRECTION" : kind == "panel" ? "MHP_PANEL_UNKNOWN_SURFACE" : "MHP_PANEL_INVALID_ENVELOPE";
+          await WritePanelAsync(new JObject { ["mhp"] = "1.1", ["kind"] = "panelError", ["surface"] = null, ["seq"] = null, ["code"] = code }).ConfigureAwait(false);
+          return;
+        }
         await PanelReceiverAsync(frame).ConfigureAwait(false); return;
       }
       if (frame["method"] == null) { ReceiveResult(frame); return; }
@@ -113,6 +119,7 @@ namespace MuseSpark.VisualStudio.Protocol
       try { SchemaContract.Validate(id, contract.Export["failure"]?["properties"]?["id"] ?? throw new MhpException("internalError", "MHP_CONTRACT_ERROR")); }
       catch (MhpException) { id = JValue.CreateNull(); }
       CancellationTokenSource? cancellation = null;
+      MhpWriter.ResponseReservation? reservation = null;
       var key = IdKey(id);
       try
       {
@@ -140,20 +147,25 @@ namespace MuseSpark.VisualStudio.Protocol
         {
           RequireReady(definition.Value<string>("capability") ?? throw new MhpException("internalError", "MHP_CONTRACT_ERROR"));
           if (method == "shutdown") result = JValue.CreateNull();
-          else result = await services.InvokeAsync(method, parameters, cancellation.Token).ConfigureAwait(false);
+          else
+          {
+            reservation = writer.ReserveResponse();
+            result = await services.InvokeAsync(method, parameters, cancellation.Token).ConfigureAwait(false);
+          }
         }
         cancellation.Token.ThrowIfCancellationRequested();
         var response = new JObject { ["jsonrpc"] = "2.0", ["id"] = id, ["result"] = result };
         contract.ValidateResult(method, response);
-        await WriteAsync(response).ConfigureAwait(false);
+        await writer.EnqueueAsync(response, reservation).ConfigureAwait(false);
         if (method == "initialize") { lock (stateLock) { foreach (var waiter in readyWaiters) waiter.TrySetResult(true); } }
         if (method == "shutdown") Stop();
       }
-      catch (OperationCanceledException) { await FailAsync(id, new MhpException("cancelled", "MHP_CANCELLED")).ConfigureAwait(false); }
-      catch (MhpException error) { await FailAsync(id, error).ConfigureAwait(false); }
-      catch (Exception) { await FailAsync(id, new MhpException("internalError", "MHP_HOST_FAILED")).ConfigureAwait(false); }
+      catch (OperationCanceledException) { await FailAsync(id, new MhpException("cancelled", "MHP_CANCELLED"), reservation).ConfigureAwait(false); }
+      catch (MhpException error) { await FailAsync(id, error, reservation).ConfigureAwait(false); }
+      catch (Exception) { await FailAsync(id, new MhpException("internalError", "MHP_HOST_FAILED"), reservation).ConfigureAwait(false); }
       finally
       {
+        reservation?.Dispose();
         if (cancellation != null) { lock (stateLock) { active.Remove(key); } cancellation.Dispose(); }
       }
     }
@@ -267,11 +279,11 @@ namespace MuseSpark.VisualStudio.Protocol
       return frame;
     }
 
-    private Task FailAsync(JToken id, MhpException error)
+    private Task FailAsync(JToken id, MhpException error, MhpWriter.ResponseReservation? reservation = null)
     {
       var frame = new JObject { ["jsonrpc"] = "2.0", ["id"] = id, ["error"] = new JObject { ["code"] = contract.Export["errorCodes"]?[error.CodeKey], ["message"] = error.Message } };
       contract.ValidateFailure(frame);
-      return WriteAsync(frame);
+      return writer.EnqueueAsync(frame, reservation);
     }
 
     public Task WritePanelAsync(JObject frame)

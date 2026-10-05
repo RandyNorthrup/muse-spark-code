@@ -2,7 +2,9 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.VisualStudio.Threading;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 
@@ -20,6 +22,13 @@ namespace MuseSpark.VisualStudio.Protocol
     private int bytes;
     private bool running;
     private bool stopped;
+    private readonly AsyncManualResetEvent capacity = new AsyncManualResetEvent(true);
+    public sealed class ResponseReservation : IDisposable
+    {
+      private MhpWriter? owner;
+      internal ResponseReservation(MhpWriter owner) { this.owner = owner; }
+      public void Dispose() { Interlocked.Exchange(ref owner, null)?.ReleaseReservation(); }
+    }
     private sealed class Write
     {
       public string Text { get; }
@@ -36,16 +45,34 @@ namespace MuseSpark.VisualStudio.Protocol
       maximumMessages = limits.Value<int>("maximumQueuedMessages"); maximumBytes = limits.Value<int>("maximumQueuedBytes");
     }
 
-    public Task EnqueueAsync(JObject frame)
+    public ResponseReservation ReserveResponse()
+    {
+      lock (gate)
+      {
+        if (stopped) throw new MhpException("cancelled", "MHP_DISCONNECTED");
+        // A request reserves enough for its largest legal response before editor effects.
+        if (messages + 1 > maximumMessages || bytes + SchemaContract.MaximumFrameBytes > maximumBytes) throw new MhpException("internalError", "MHP_PANEL_BACKPRESSURE");
+        messages++; bytes += SchemaContract.MaximumFrameBytes; UpdateCapacity();
+        return new ResponseReservation(this);
+      }
+    }
+
+    private void ReleaseReservation() { lock (gate) { messages--; bytes -= SchemaContract.MaximumFrameBytes; UpdateCapacity(); } }
+    private void UpdateCapacity() { if (stopped || (messages < maximumMessages && bytes < maximumBytes)) capacity.Set(); else capacity.Reset(); }
+    public Task WaitForCapacityAsync(CancellationToken cancellation) => capacity.WaitAsync().WithCancellation(cancellation);
+
+    public Task EnqueueAsync(JObject frame, ResponseReservation? reservation = null)
     {
       var completion = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
       var item = new Write(frame.ToString(Formatting.None), frame.Value<string>("surface"), completion);
       if (item.Bytes > SchemaContract.MaximumFrameBytes) throw new MhpException("invalidParams", "MHP_PANEL_TOO_LARGE");
       lock (gate)
       {
+        reservation?.Dispose();
         if (stopped) throw new MhpException("cancelled", "MHP_DISCONNECTED");
         if (messages + 1 > maximumMessages || bytes + item.Bytes > maximumBytes) throw new MhpException("internalError", "MHP_PANEL_BACKPRESSURE");
         queue.AddLast(item); messages++; bytes += item.Bytes;
+        UpdateCapacity();
         if (!running) { running = true; _ = DrainAsync(); }
       }
       return completion.Task;
@@ -71,7 +98,7 @@ namespace MuseSpark.VisualStudio.Protocol
       return dropped;
     }
 
-    private void Release(Write item) { messages--; bytes -= item.Bytes; }
+    private void Release(Write item) { messages--; bytes -= item.Bytes; UpdateCapacity(); }
 
     private async Task DrainAsync()
     {
@@ -103,6 +130,7 @@ namespace MuseSpark.VisualStudio.Protocol
       lock (gate)
       {
         stopped = true;
+        UpdateCapacity();
         foreach (var item in queue) { Release(item); item.Completion.TrySetException(new MhpException("cancelled", "MHP_DISCONNECTED")); }
         queue.Clear();
       }
