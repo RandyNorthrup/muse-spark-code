@@ -106,8 +106,8 @@ key to the CLI.
   [Session board and best-of-N](#session-board-and-best-of-n)): the
   header's board button lists the window's open conversations on either
   backend and this backend's saved ones, with state, branch, changed files
-  in its worktree and waiting approvals. Best-of-N (Model API, paid, off by
-  default: `museSpark.modelApiBestOfN`; a trusted folder) runs one prompt in
+  in its worktree and waiting approvals. Best-of-N (Model API, paid, available by default)
+  (`museSpark.modelApiBestOfN`; a trusted folder) runs one prompt in
   2 to 5 worktrees, asks once per run with the prices unless you allow it
   always in the workspace, and applies and stages the attempt you take onto
   your unchanged checkout, without committing.
@@ -115,7 +115,7 @@ key to the CLI.
   default) caps what each Model API conversation may spend: a request that
   cannot fit what is left is not sent. Child tasks can still go past it,
   and web search and paid Muse Voice are off while a cap is set.
-  `museSpark.modelApiReplyUsage` (off by default) prints each Model API
+  `museSpark.modelApiReplyUsage` (on by default) prints each Model API
   reply's tokens and estimated cost, and Account & usage shows what the
   prompt cache saved. While the window is unfocused, a notification says
   when a turn of a minute or more ends or a turn waits for you, on either
@@ -125,7 +125,7 @@ key to the CLI.
   command rules that allow, ask or forbid, checked against your examples;
   repository rules that can only tighten them; permission profiles that hide
   files from the file tools (while one is on, commands and MCP calls ask,
-  outside Bypass); and an optional paid Auto reviewer (off by default:
+  outside Bypass); and an paid Auto reviewer (available by default:
   `museSpark.modelApiAutoReviewer`) that never allows a forbidden command,
   an ask rule, a protected write or a paid call. After a change to them,
   what a call already running brings back is judged again before it reaches
@@ -179,7 +179,7 @@ key to the CLI.
 - **Session export, import and share** as a file. A shared file opens
   read-only in the panel; an imported conversation resumes on the Model API
   backend in Manual (or Plan).
-- **Observation packing** (off by default, Model API backend): a long tool
+- **Observation packing** (on by default, Model API backend): a long tool
   output goes to the model whole twice, then as a short placeholder it can
   recall; the transcript always keeps all of it.
 - **Muse Code 1.4.2** support, and checksums, SBOMs and build attestations
@@ -232,7 +232,7 @@ key to the CLI.
   - opt-in hooks and subagents.
 - **Paid extras, opt in and loud.** Web search, image generation and edits,
   Muse Voice, subagents and scheduled `/loop` prompts on your Model API key.
-  Each is off until you turn it on and accept its price, every use is
+  Each is available by default on Model API; spending requires paid-use consent, every use is
   marked paid, and Account & usage tallies them.
 - **Rewind the conversation, or take a side chat.** Any sent message can
   branch the conversation before itself; **Side chat** opens a Plan-mode
@@ -288,7 +288,7 @@ Every change is in the [CHANGELOG](CHANGELOG.md).
   you turn on Muse Voice.
 - **Paid extras, only if you ask.** On a Model API key: web search with its
   sources, image files made on request, and Meta's Muse Voice for
-  dictation. Each is off until you turn it on and accept its price, marked
+  dictation. Each is available by default on Model API; spending requires paid-use consent, marked
   paid wherever it is used, and tallied in Account & usage.
 - **Scheduled prompts under your control.** On the Model API backend,
   `/loop` saves a recurring prompt in this conversation. A due prompt waits
@@ -351,6 +351,37 @@ so they match the build.
     <td align="center"><img src="media/readme/voice.png" alt="The composer listening: the red microphone and the Listening placeholder over a new conversation with its keyboard tips"><br><sub>Voice dictation: tap or hold, <code>Ctrl+D</code></sub></td>
   </tr>
 </table>
+
+## What's on out of the box
+
+| Enhancement                                               | Default                                 | First use                                                                      |
+| --------------------------------------------------------- | --------------------------------------- | ------------------------------------------------------------------------------ |
+| Observation packing                                       | On, Model API                           | Long outputs shrink after two requests; originals remain recallable            |
+| Hooks                                                     | On, Model API                           | Inert without configured hooks; trusted workspaces only                        |
+| Reply tokens and cost                                     | On, Model API                           | Display only                                                                   |
+| Images, Auto reviewer, child agents and scheduled prompts | Available, Model API                    | Price and shared daily budget in Allow once / Allow always / Deny popup        |
+| Hosted search and Muse Voice                              | Available, Model API                    | Transport refused under the finite daily cap until billing bounds are verified |
+| Best-of-N                                                 | Available as a separate explicit action | Ordinary turns still use one model; its dialog and consent name extra attempts |
+| Dictation                                                 | Free OS recognizer                      | Paid engine choice is separate (`dictationEngine`)                             |
+| Repo map in the prompt                                    | Off                                     | Q11 awaits its paired M75 arm; the repo-map tool remains available             |
+
+Explicit `false` settings stay off. Interactive paid extras share
+`museSpark.paidDailyBudgetUsd`: $5/day by default, $0.50–$500, machine-scoped,
+across windows, workspaces and keys in this extension profile. The local
+calendar day owns each durable reservation. Known usage settles its estimate;
+unknown sent usage keeps its full reservation. Corrupt or incomplete storage
+counts as budget reached and refuses paid requests. At the limit choose
+**Raise for today** or **Stop until tomorrow**; both choices are shared on disk.
+Stop remains in force even if another window's pending raise finishes later.
+Cancelling admission refunds an unsent request; late budget-dialog answers
+cannot change today's policy. Switching backends preserves accepted prices
+and workspace **Allow always** grants; explicitly turning a feature off
+withdraws them. Packing adds recall only when a request carries packed output,
+so enabling unused packing keeps the ordinary request and cache key unchanged.
+Tab's $1/day cap is separate and is never charged into this extras ledger.
+The optional per-conversation cap still applies independently. ACP and
+headless execution retain explicit flags and their hard budget policy.
+Muse Code's subscription and its existing explicit key-paid opt-ins are unchanged.
 
 ## Get started
 
@@ -424,10 +455,10 @@ The model pill shows the model as soon as the panel opens.
 
 ## Backends
 
-| Backend                                                                      | Sign-in                                                          | Billing                | Tools                                                                                                                                                                                                                                                        |
-| ---------------------------------------------------------------------------- | ---------------------------------------------------------------- | ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| **Muse Code CLI** (`muse serve`, Muse Session Protocol via `@muse-code/sdk`) | The CLI's own device-code browser sign-in                        | Your Muse subscription | The CLI's, inside its OS sandbox where that works (see `shellSandbox`); its bundled skills, your user rules, its own memory, subagents, and the Problems panel through the extension                                                                         |
-| **Meta Model API** (`https://api.meta.ai/v1`)                                | A key from dev.meta.ai, kept in SecretStorage, sent only to Meta | Pay as you go          | The extension tools: read, edit, write, search, list, shell, skills, questions, todos, goals, memory and diagnostics; configured MCP servers; opt-in hooks and bounded subagents; paid web search and image tools when turned on; workspace rules and skills |
+| Backend                                                                      | Sign-in                                                          | Billing                | Tools                                                                                                                                                                                                                                                                              |
+| ---------------------------------------------------------------------------- | ---------------------------------------------------------------- | ---------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Muse Code CLI** (`muse serve`, Muse Session Protocol via `@muse-code/sdk`) | The CLI's own device-code browser sign-in                        | Your Muse subscription | The CLI's, inside its OS sandbox where that works (see `shellSandbox`); its bundled skills, your user rules, its own memory, subagents, and the Problems panel through the extension                                                                                               |
+| **Meta Model API** (`https://api.meta.ai/v1`)                                | A key from dev.meta.ai, kept in SecretStorage, sent only to Meta | Pay as you go          | The extension tools: read, edit, write, search, list, shell, skills, questions, todos, goals, memory and diagnostics; configured MCP servers; trusted configured hooks and bounded paid subagents; paid extras with consent and daily budget admission; workspace rules and skills |
 
 `museSpark.backend` picks: `auto` (default) uses the CLI when it is installed
 and signed in, otherwise the Model API when a key is stored; `museCode` and
@@ -1213,7 +1244,7 @@ hooks from `.muse/hooks.json`. `MCP servers…` and `Hooks…` show configuratio
   trust its folder.
 
 On the **Model API backend**, `museSpark.modelApiHooks` is a machine-scoped
-setting, off by default. When enabled, a new session in a trusted workspace
+setting, on by default and inert without a hooks file. A new session in a trusted workspace
 reads the same managed, user and project hook sources. No hook loads or runs
 while the folder is in Restricted Mode.
 The implementation currently fires `SessionStart`, `UserPromptSubmit`,
@@ -1518,7 +1549,7 @@ panel cannot present an authoritative native job list or direct cancel.
 
 ## Observation packing (Model API)
 
-Off by default (`museSpark.modelApiObservationPacking`, machine-scoped).
+On by default (`museSpark.modelApiObservationPacking`, machine-scoped).
 Every request of a Model API conversation carries the tool outputs before
 it. With packing on, a tool output over 8,000 characters is sent whole for
 its first two requests, then as a short placeholder: its id, its size, and
@@ -2502,10 +2533,9 @@ tokens, the background tasks, and each agent's own transcript.
   conversation and the same workspace tools and approvals, but cannot spawn
   again or ask you a question. Children share the workspace and use your
   Model API key; their tokens count in the conversation's usage. Paid
-  subagents are off by default. Enabling them accepts the published model
-  rates; each new child task then asks again before it starts, including in
-  Bypass mode, unless you allowed subagents always in this workspace (a
-  child on another model still asks). Plan refuses the task. A spawn that would start no child asks
+  subagents are available by default. Each new child task asks with the published
+  rates and shared daily budget before it starts, including in
+  Bypass mode, unless you allowed subagents always in this workspace (a child on another model still asks). Plan refuses the task. A spawn that would start no child asks
   nothing: one past the 64, one asking for worktree isolation, or one reusing
   an earlier spawn's command id for a different task is refused first, and a
   retry of the same spawn under its command id answers with that child.
@@ -2601,7 +2631,7 @@ rate instead of a "warm for N minutes" countdown.
   `museSpark.notifyOnBackgroundTurn`. VS Code gives extensions no
   operating-system notification, so the notice waits in VS Code's corner
   until you come back.
-- **Tokens and cost per reply** (Model API, off by default):
+- **Tokens and cost per reply** (Model API, on by default):
   `museSpark.modelApiReplyUsage` prints the input and output tokens and the
   dollar estimate under each reply. A line covers every request since the
   previous line in that turn, tool steps included, so a turn's lines add up
@@ -2772,7 +2802,7 @@ device is available", and step markers on stderr name where a start failed.
 
 Seven settings gate what costs money on your Model API key beyond an ordinary
 chat turn. They are always billed to your Model API key, never to your Muse
-Code subscription, and all seven are **off until you turn them on**. All seven
+Code subscription, and all seven are **available by default on Model API**. All seven
 work on the Model API backend; images and Muse Voice also work on the Muse
 Code backend while a key is stored (web search is Muse Code's own there, on
 the subscription):
@@ -2788,23 +2818,23 @@ the subscription):
 | Auto reviewer     | The conversation model's published input, cached input and output token rates | In Auto on the Model API backend, a separate model call judges a plain command or MCP call that would ask and that no rule or permission profile settles |
 
 Scheduled prompts use ordinary Model API tokens, rather than an extra
-per-run service fee. The off-by-default paid gate names both standard
+per-run service fee. The paid-use popup names both standard
 ($1.25/$0.15/$4.25) and contributor ($0.10/$0.002/$0.20) rates per million
 input/cached/output tokens. Each due run names only its selected model's
 exact tier before any model call; an unpriced model cannot be approved.
 Other paid tools you have enabled may
 add their own charges during that confirmed turn.
 
-Turn one on from the palette (**Account & usage** group, where the backend
+Manage availability in the palette (**Account & usage** group, where the backend
 can use it) or with its setting (`museSpark.modelApiWebSearch`,
 `modelApiImageGeneration`, `modelApiVoice`, `modelApiSubagents`,
-`modelApiBestOfN`, `modelApiScheduledPrompts`, `modelApiAutoReviewer`). Either way a confirmation
-names the price first; declining it turns the setting back off, and turning
-a setting off means the next time asks again. The settings are
+`modelApiBestOfN`, `modelApiScheduledPrompts`, `modelApiAutoReviewer`). Default-on
+availability causes no startup price dialog. Explicitly turning a feature OFF
+and ON again confirms its price; the first paid use still asks separately. The settings are
 machine-scoped, so a repository cannot turn one on.
 
 **Every paid use then asks first, in a popup**, in every permission mode,
-Bypass included. The popup names what is about to be billed and its price,
+Bypass included. The popup names what is about to be billed, its price and the shared daily budget,
 and offers three answers:
 
 - **Allow once**: this use only.
@@ -3034,34 +3064,36 @@ Bypass at once.
 | `shellSandbox`                    | `auto`      | `auto`: Muse Code's OS sandbox, except for Windows workspaces under your profile, where it cannot reliably run commands; `muse`: always the sandbox; `off`: commands run directly as you, gated by approvals (Claude Code style). Without the sandbox Muse Code's file tools can also write anywhere outside the workspace without asking, in every mode, and the panel warns once per window. Changing it restarts the host                                                                                                                                                                                                                                                                                   |
 | `sandboxNetwork`                  | `default`   | The network Muse Code's shell sandbox gives commands: `proxy-only` asks before each new destination, `restricted` allows none, `enabled` allows all; `default` passes nothing, leaving Muse Code's own default (`proxy-only`) or your administrator's managed configuration. For commands it applies while the sandbox is on. Changing it restarts the host. At `restricted`, Muse Code is also not offered [web fetch](#web-fetch), sandbox or not; the Model API backend's web fetch follows its permission modes                                                                                                                                                                                            |
 | `museBinaryPath`                  | `""`        | Absolute path to the Muse Code executable (a relative one is refused); empty discovers it on `PATH` or the install dir. Changing it restarts the host                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
-| `modelApiWebSearch`               | `false`     | [Paid](#paid-features): web search on the Model API backend, $2.50 per 1,000 searches; asks you to confirm the price when turned on, then asks before each prompt that may search                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
-| `modelApiImageGeneration`         | `false`     | [Paid](#paid-features): the model creates PNG files in the workspace or edits workspace images into new ones, $0.01 per image, on the Model API backend and on Muse Code while a key is stored (billed to the key); every image asks first, in every mode (Plan refuses images on the Model API backend), unless allowed always in this workspace                                                                                                                                                                                                                                                                                                                                                              |
-| `modelApiVoice`                   | `false`     | [Paid](#paid-features): Muse Voice as the microphone's engine, $0.18 per hour of audio, on the Model API backend and on Muse Code while a key is stored; each recording asks first                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
+| `modelApiWebSearch`               | `true`      | Hosted web search ($2.50 per 1,000 searches); unavailable under a finite budget because no hard query bound is verified. Available by default on Model API. Before spending, asks Allow once / Allow always in this workspace / Deny with the price and shared daily budget. Explicit false disables it.                                                                                                                                                                                                                                                                                                                                                                                                       |
+| `modelApiImageGeneration`         | `true`      | Image generation and editing ($0.01 per image). Available by default on Model API. Before spending, asks Allow once / Allow always in this workspace / Deny with the price and shared daily budget. Explicit false disables it.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
+| `modelApiVoice`                   | `true`      | Offers Muse Voice ($0.18 per audio hour); free OS dictation remains the default. Muse Voice is unavailable under a finite budget. Available by default on Model API. Before spending, asks Allow once / Allow always in this workspace / Deny with the price and shared daily budget. Explicit false disables it.                                                                                                                                                                                                                                                                                                                                                                                              |
 | `modelApiPromptCacheRetention`    | `in_memory` | How long Meta is asked to keep the cached start of Model API requests: `in_memory` by default, or up to `24h` when you choose it. Both have the same cached-input price; longer retention may improve cache hits after a pause. Meta may evict sooner. Machine-scoped, so a repository cannot extend it                                                                                                                                                                                                                                                                                                                                                                                                        |
-| `modelApiSubagents`               | `false`     | [Paid](#paid-features): Model API child tasks, with a model-rate confirmation and a four-request popup for every new task unless subagents are allowed always in this workspace                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
-| `modelApiScheduledPrompts`        | `false`     | [Paid](#scheduled-prompts-model-api): a due prompt can run only after this machine-scoped gate and a separate confirmation of that occurrence's Model API token rates (unless scheduled prompts are allowed always in this workspace); never unattended                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
-| `modelApiHooks`                   | `false`     | Run Muse Code's hook commands on the Model API backend in a trusted workspace: your administrator's, yours and the project's. They run as you, unsandboxed, without the Model API key; review them with **Muse Spark: Hooks** first. Machine-scoped                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
+| `modelApiSubagents`               | `true`      | Bounded paid child agents, with up to four requests per task including retries. Available by default on Model API. Before spending, asks Allow once / Allow always in this workspace / Deny with the price and shared daily budget. Explicit false disables it.                                                                                                                                                                                                                                                                                                                                                                                                                                                |
+| `modelApiScheduledPrompts`        | `true`      | Explicit scheduled Model API runs at the selected model’s token prices. Available by default on Model API. Before spending, asks Allow once / Allow always in this workspace / Deny with the price and shared daily budget. Explicit false disables it.                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
+| `modelApiHooks`                   | `true`      | On by default; inert without a hooks file. Runs your configured commands outside the agent sandbox, only in trusted workspaces. Review them in Muse Spark: Hooks. Provider credentials are withheld.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
 | `environmentVariables`            | `[]`        | `{ name, value }` pairs for the Muse Code process and the terminals that run the CLI (Open in Terminal, MCP sign-in, `muse logout`); an `XDG_CONFIG_HOME` here is where the extension looks for the CLI's sign-in and settings too. Never put API keys here; use Sign in. Changing it restarts the host                                                                                                                                                                                                                                                                                                                                                                                                        |
 | `modelApiRepoMap`                 | `false`     | Put a [repo map](#code-intelligence) in the Model API backend's instructions in a trusted workspace: the workspace's most used files and definitions, made once per conversation in about 1,000 tokens, which every request then carries (billed to your key). Machine-scoped                                                                                                                                                                                                                                                                                                                                                                                                                                  |
-| `modelApiObservationPacking`      | `false`     | [Observation packing](#observation-packing-model-api) on the Model API backend: a tool output over 8,000 characters rides whole for two requests, then as a short placeholder, and the model pages it back with `recall_output`. Read when a conversation starts or is reopened. Machine-scoped                                                                                                                                                                                                                                                                                                                                                                                                                |
+| `modelApiObservationPacking`      | `true`      | On by default. Packs old long tool outputs after two requests; recall_output reads the originals. The M75 evaluation passed. Read when a conversation starts or resumes.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
 | `turnCheckpoints`                 | `true`      | Records the model’s own file-tool writes for **Restore files to here** and Redo while each file still holds exactly what the model left. Commands, hooks, MCP tools, your edits and other windows’ writes are never undone. Requires a connected Model API session, git and confirmed process safety; copies stay in extension storage, outside the workspace’s `.git`. Off in Restricted Mode. Machine-scoped                                                                                                                                                                                                                                                                                                 |
 | `bundledSkills`                   | `true`      | The [bundled skills](#bundled-skills) (`project_setup`, `feature_delivery`, `quality_retrofit`): a skill source on the Model API backend, after the project's and your own, and the install offer for Muse Code (once per window until you choose Install or Not now). Off removes them from the Model API catalogue at once; an install for Muse Code stays until **Remove Bundled Skills from Muse Code**. Machine-scoped                                                                                                                                                                                                                                                                                    |
 | `diagnosticsAfterEdits`           | `true`      | [Checking edits](#checking-edits): after each round of edits the Model API model gets the errors and warnings of up to 8 edited files from VS Code's language servers; Muse Code is told to read them itself. Machine-scoped                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
 | `checkCommands`                   | `[]`        | [Checking edits](#checking-edits): `{ name, command, changedFiles?, timeoutSeconds? }` lint, test or type-check commands the Model API backend runs after each round of edits, each asking wherever a shell command asks; Muse Code is told to run them. Machine-scoped                                                                                                                                                                                                                                                                                                                                                                                                                                        |
 | `formatOnEdit`                    | `false`     | [Checking edits](#checking-edits): run the file's formatter on each file `write_file` or `edit_file` writes on the Model API backend, in a trusted workspace; never on a file the editor runs as code. Machine-scoped                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
-| `modelApiBestOfN`                 | `false`     | [Paid](#paid-features): best-of-N on the Model API backend: the same prompt in 2 to 5 worktrees at once, one paid popup per run (unless allowed always in this workspace) with the attempt count and per-attempt request ceiling, then take one                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
+| `modelApiBestOfN`                 | `true`      | Offers best-of-N as a separate explicit action. Ordinary turns use one model unless you choose more attempts. Available by default on Model API. Before spending, asks Allow once / Allow always in this workspace / Deny with the price and shared daily budget. Explicit false disables it.                                                                                                                                                                                                                                                                                                                                                                                                                  |
 | `modelApiCommandRules`            | `[]`        | Machine-scoped standing allow/ask/forbid prefix rules, each with matching examples and optional nonmatching ones.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
 | `modelApiPermissionProfiles`      | `{}`        | Machine-scoped named file-denial globs and explicit additional read roots.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
 | `modelApiPermissionProfile`       | `""`        | Machine-scoped selected profile; unknown or malformed selections deny file access.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
 | `modelApiRepositoryRules`         | `{}`        | Repository rules may add ask/forbid commands and file denials, never standing allows or extra roots.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
-| `modelApiAutoReviewer`            | `false`     | Machine-scoped paid Auto reviewer (Auto only); price acceptance required, and each review asks unless reviews are allowed always in this workspace.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
+| `modelApiAutoReviewer`            | `true`      | In Auto, a paid review judges unresolved risky actions; it cannot override forbidden commands, protected writes or required questions. Available by default on Model API. Before spending, asks Allow once / Allow always in this workspace / Deny with the price and shared daily budget. Explicit false disables it.                                                                                                                                                                                                                                                                                                                                                                                         |
 | `museCodeAutoReviewer`            | `true`      | Machine-scoped. In Auto on the Muse Code backend, eligible approvals Muse Code raises for the running turn go to [the reviewer](#the-auto-reviewer-on-muse-code) first: one short Muse Code turn per review on your subscription; it allows once or leaves the card to you.                                                                                                                                                                                                                                                                                                                                                                                                                                    |
 | `notifyOnBackgroundTurn`          | `true`      | A VS Code notification when a turn of a minute or more ends, or a turn waits for your approval or answer, while the VS Code window is unfocused; never while it is focused                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
-| `modelApiReplyUsage`              | `false`     | Show the input and output tokens and the dollar estimate under each Model API reply, counting every request since the previous line in that turn                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
+| `modelApiReplyUsage`              | `true`      | On by default. Shows tokens and estimated cost under each Model API reply; display only.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
 | `modelApiSessionBudgetUsd`        | `0`         | Spend cap in dollars for each Model API conversation (`0`: no cap). Shared durable reservations cover the conversation's own token requests and image fees; working storage is required. Paid subagent requests keep their own consent and request ceiling: their reported cost is counted, but it is not reserved against this cap and can take the conversation past it. Unknown sent usage retains its full liability and cannot retry an ambiguous failure under the same allowance. Capped web search is unavailable until its billed query bound is verified, and paid Muse Voice is unavailable while a cap is set. Input estimates and published prices may differ from actual billing. Machine-scoped |
 | `browserCheckExtraHosts`          | `[]`        | [Browser check](#browser-check): hosts beyond this computer a checked page may open and reach, as plain host names or IP addresses (no ports, paths or wildcards; one that is not refuses the list); listing a loopback name also lets a local page use `https` and WebSockets. Empty means plain `http` to this computer only, unless you allow a host on a card or in the dialog for one check. `https` and WebSocket traffic to a listed host is encrypted and not inspected, and a site there may sign in as you with this computer's account (on Windows in particular). Only you widen it, never the model. Machine-scoped                                                                               |
 | `browserCheckRuntime`             | `'ask'`     | [Browser check](#browser-check): how the check gets its browser, Google's Chrome for Testing headless shell pinned to this extension version (about 100 to 120 MB per version, from `storage.googleapis.com` into the extension's storage): `ask` asks before downloading it, `download` downloads it when a check needs it without asking (for every later pinned version too), `off` offers no browser check and downloads nothing. Machine-scoped                                                                                                                                                                                                                                                           |
 | `showWhatsNewOnUpdate`            | `true`      | Open What's New after the extension updates: the page after a release with Highlights, a quiet notification after a fixes-only patch; off shows nothing on updates ([What's New after an update](#whats-new-after-an-update))                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
+| `paidDailyBudgetUsd`              | `5`         | Shared interactive extras budget in USD, $0.50–$500; machine-scoped. Daily reservations persist across windows; Tab uses its own separate ledger.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
+| `dictationEngine`                 | `"system"`  | Model API dictation engine: `system` (free default) or `museVoice` (paid, currently refused under the finite cap). Muse Code retains its explicit voice opt-in.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
 
 The Model API backend's shell tool applies `terminal.integrated.env.*` the
 way VS Code's terminal does. A restart of Muse Code, for a setting, trust
@@ -3172,13 +3204,12 @@ stopped and the next message resumes the same session.
   or when its confirmation is declined. Requests already dispatched cannot
   be recalled.
 - Voice audio stays on the machine on Windows; on macOS Apple recognises on
-  the device or on its servers under Apple's terms. With Muse Voice on (paid,
-  off by default), the recording goes to Meta's Muse Voice Transcribe while
+  the device or on its servers under Apple's terms. With Muse Voice selected (paid; free OS dictation is the default), the recording goes to Meta's Muse Voice Transcribe while
   you record, and nowhere else.
 - The paid features (web search, image generation, Muse Voice, Model API
-  subagents, scheduled prompts, best-of-N and the Model API Auto reviewer)
-  are off until you turn one on and accept
-  its price; a repository's settings cannot turn one on.
+  subagents, Auto reviewer, best-of-N and scheduled prompts) are available by
+  default on Model API; nothing is billed before paid-use consent and budget
+  admission. A repository cannot change their machine-scoped settings.
 - Turn checkpoints keep the model's own file-tool bytes, including ignored
   files its tools change, under this extension profile's global storage,
   `checkpoints/<canonical-root-key>`, as described in the Panel section.

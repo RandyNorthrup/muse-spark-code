@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import { permissionSettingsOf, readSettings, toSettingsSnapshot } from '../../src/host/settings'
 import { SETTING_DEFAULTS } from '../../src/shared/constants'
@@ -10,6 +11,51 @@ function retentionOf(value: unknown): number {
 }
 
 describe('readSettings', () => {
+  it('documents Best-of-N default availability consistently with the manifest and fallback', () => {
+    const readme = readFileSync('README.md', 'utf8')
+    expect(SETTING_DEFAULTS.modelApiBestOfN).toBe(true)
+    expect(/Best-of-N \(Model API, paid, available by\s+default\)/.test(readme)).toBe(true)
+    expect(/Best-of-N \(Model API, paid, off by\s+default/.test(readme)).toBe(false)
+  })
+
+  it('enables D78 enhancements and respects each explicit false', () => {
+    const keys = [
+      'modelApiObservationPacking',
+      'modelApiHooks',
+      'modelApiReplyUsage',
+      'modelApiWebSearch',
+      'modelApiImageGeneration',
+      'modelApiVoice',
+      'modelApiAutoReviewer',
+      'modelApiSubagents',
+      'modelApiScheduledPrompts',
+      'modelApiBestOfN',
+    ] as const
+    const log = new FakeLogOutputChannel()
+    const defaults = readSettings(fakeSettingsSource({}), log)
+    expect(keys).toHaveLength(10)
+    for (const key of keys) {
+      expect(defaults[key], key).toBe(true)
+      expect(readSettings(fakeSettingsSource({ [key]: false }), log)[key], key).toBe(false)
+    }
+    expect(defaults.modelApiRepoMap).toBe(false)
+    expect(defaults.paidDailyBudgetUsd).toBe(5)
+    expect(defaults.dictationEngine).toBe('system')
+  })
+
+  it('validates the daily budget bounds and defaults invalid values to five dollars', () => {
+    const log = new FakeLogOutputChannel()
+    for (const value of [0.5, 5, 500]) {
+      expect(
+        readSettings(fakeSettingsSource({ paidDailyBudgetUsd: value }), log).paidDailyBudgetUsd,
+      ).toBe(value)
+    }
+    for (const value of [0, 0.49, 500.01, NaN, '5']) {
+      expect(
+        readSettings(fakeSettingsSource({ paidDailyBudgetUsd: value }), log).paidDailyBudgetUsd,
+      ).toBe(5)
+    }
+  })
   it('returns the documented defaults when nothing is configured', () => {
     const log = new FakeLogOutputChannel()
     expect(readSettings(fakeSettingsSource({}), log)).toEqual(SETTING_DEFAULTS)
@@ -66,9 +112,9 @@ describe('readSettings', () => {
     expect(settings.shellSandbox).toBe('off')
     expect(settings.backend).toBe('modelApi')
     expect(settings.modelApiHooks).toBe(true)
-    // M73: observation packing, off by default.
+    // D78: observation packing is on by default.
     expect(settings.modelApiObservationPacking).toBe(true)
-    expect(SETTING_DEFAULTS.modelApiObservationPacking).toBe(false)
+    expect(SETTING_DEFAULTS.modelApiObservationPacking).toBe(true)
   })
 
   it('reads the retention period as a whole number of days, 0 keeping for ever (D26)', () => {
@@ -240,7 +286,7 @@ describe('toSettingsSnapshot', () => {
     expect(snapshot).not.toHaveProperty('modelApiHooks')
     expect(snapshot).not.toHaveProperty('notifyOnBackgroundTurn')
     expect(snapshot).not.toHaveProperty('modelApiSessionBudgetUsd')
-    expect(snapshot.modelApiReplyUsage).toBe(false)
+    expect(snapshot.modelApiReplyUsage).toBe(true)
     expect(snapshot.preferredLocation).toBe(SETTING_DEFAULTS.preferredLocation)
   })
 })

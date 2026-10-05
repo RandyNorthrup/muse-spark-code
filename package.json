@@ -537,19 +537,19 @@
         },
         "museSpark.modelApiWebSearch": {
           "type": "boolean",
-          "default": false,
+          "default": true,
           "description": "%config.modelApiWebSearch.description%",
           "scope": "machine"
         },
         "museSpark.modelApiImageGeneration": {
           "type": "boolean",
-          "default": false,
+          "default": true,
           "description": "%config.modelApiImageGeneration.description%",
           "scope": "machine"
         },
         "museSpark.modelApiVoice": {
           "type": "boolean",
-          "default": false,
+          "default": true,
           "description": "%config.modelApiVoice.description%",
           "scope": "machine"
         },
@@ -569,25 +569,25 @@
         },
         "museSpark.modelApiScheduledPrompts": {
           "type": "boolean",
-          "default": false,
+          "default": true,
           "description": "%config.modelApiScheduledPrompts.description%",
           "scope": "machine"
         },
         "museSpark.modelApiSubagents": {
           "type": "boolean",
-          "default": false,
+          "default": true,
           "description": "%config.modelApiSubagents.description%",
           "scope": "machine"
         },
         "museSpark.modelApiBestOfN": {
           "type": "boolean",
-          "default": false,
+          "default": true,
           "description": "%config.modelApiBestOfN.description%",
           "scope": "machine"
         },
         "museSpark.modelApiHooks": {
           "type": "boolean",
-          "default": false,
+          "default": true,
           "description": "%config.modelApiHooks.description%",
           "scope": "machine"
         },
@@ -651,7 +651,7 @@
         },
         "museSpark.modelApiReplyUsage": {
           "type": "boolean",
-          "default": false,
+          "default": true,
           "description": "%config.modelApiReplyUsage.description%"
         },
         "museSpark.modelApiSessionBudgetUsd": {
@@ -669,7 +669,7 @@
         },
         "museSpark.modelApiObservationPacking": {
           "type": "boolean",
-          "default": false,
+          "default": true,
           "description": "%config.modelApiObservationPacking.description%",
           "scope": "machine"
         },
@@ -871,7 +871,7 @@
         },
         "museSpark.modelApiAutoReviewer": {
           "type": "boolean",
-          "default": false,
+          "default": true,
           "description": "%config.modelApiAutoReviewer.description%",
           "scope": "machine"
         },
@@ -905,6 +905,24 @@
           ],
           "default": "ask",
           "description": "%config.browserCheckRuntime.description%",
+          "scope": "machine"
+        },
+        "museSpark.paidDailyBudgetUsd": {
+          "type": "number",
+          "default": 5,
+          "minimum": 0.5,
+          "maximum": 500,
+          "description": "%config.paidDailyBudgetUsd.description%",
+          "scope": "machine"
+        },
+        "museSpark.dictationEngine": {
+          "type": "string",
+          "enum": [
+            "system",
+            "museVoice"
+          ],
+          "default": "system",
+          "description": "%config.dictationEngine.description%",
           "scope": "machine"
         }
       }

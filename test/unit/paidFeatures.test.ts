@@ -21,6 +21,7 @@ function gateWith(
     accepted?: readonly PaidFeature[]
     answers?: readonly boolean[]
     isFocused?: boolean
+    defaultOn?: readonly PaidFeature[]
   } = {},
 ) {
   const settings = new Set<PaidFeature>(options.settings)
@@ -29,6 +30,7 @@ function gateWith(
   const asked: PaidFeature[] = []
   const focus = { isFocused: options.isFocused ?? true }
   const gate = new PaidFeatureGate({
+    isDefaultOn: (feature) => options.defaultOn?.includes(feature) === true,
     isSettingOn: (feature) => settings.has(feature),
     setSetting: (feature, isOn) => {
       if (isOn) {
@@ -56,6 +58,17 @@ function gateWith(
 }
 
 describe('PaidFeatureGate (M33, PLAN.md D30)', () => {
+  it('offers default-on extras without a startup price modal, while explicit false stays off', async () => {
+    const t = gateWith({ settings: ['imageGeneration'], defaultOn: ['imageGeneration', 'voice'] })
+    await t.gate.review()
+    expect(t.gate.features()).toEqual(['imageGeneration'])
+    expect(t.asked).toEqual([])
+    await t.gate.turnOff('imageGeneration')
+    expect(t.gate.isOn('imageGeneration')).toBe(false)
+    // The explicit palette OFF-to-ON action still asks, even on a default-on feature.
+    await expect(t.gate.turnOn('imageGeneration')).resolves.toBe(false)
+    expect(t.asked).toEqual(['imageGeneration'])
+  })
   it('has every feature off by default and never asks for one that is off', async () => {
     const t = gateWith()
     await t.gate.review()

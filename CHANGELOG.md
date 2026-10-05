@@ -238,6 +238,19 @@ happened, not what was planned; superseded entries are kept.
   SHA-256/version checks and 30-day retention; tag-push misses run the full gates.
 - Manual release recovery uses the same verified staging path while preserving
   the earlier run's original bytes; invalid recovery and cancelled runs cannot publish.
+- **Enhancements available out of the box (D78).** Model API observation
+  packing, trusted configured hooks and per-reply usage are on by default.
+  Paid images, Auto review, child agents, schedules and explicit best-of-N
+  are available by default; their first use still asks with the price and
+  shared daily budget. Explicit false settings stay off. Interactive extras
+  share a machine-scoped $5/day cap (`paidDailyBudgetUsd`, $0.50–$500), with
+  durable cross-window reservations, fail-closed storage, and a shared
+  raise-for-today or stop-until-tomorrow choice. Hosted search and Muse Voice
+  remain refused under a finite cap until billing bounds are verified.
+  Free OS dictation stays the default (`dictationEngine`); ordinary turns
+  still use one model. Repo-map prompt injection remains off pending Q11's
+  paired evaluation. Tab's separate budget, Muse Code, ACP and headless
+  policies are unchanged.
 
 ### Fixed
 
@@ -316,6 +329,14 @@ happened, not what was planned; superseded entries are kept.
   ready (a page not ready in 10 s fails); no rule or exemption changed.
   Tooling only.
 - **A cancelled browser check no longer leaves its folder behind (M81).** A Stop, lost admission or the deadline while the folder is still being created now removes the folder when it finishes arriving, and a folder whose creation fails part way is removed at once; the M81 bullet already promised the profile deleted afterwards. A normal run still removes it exactly once.
+
+- **Interactive extras preserve consent and daily Stop (D78, FIXDEF).** A
+  delayed raise cannot clear another window's Stop until tomorrow. Cancelling
+  budget admission refunds unsent requests and rejects late dialog answers
+  and limit publication. Backend switches preserve accepted prices and
+  workspace Always grants. Unused observation packing keeps the original
+  request tools and cache key; recall is offered with packed observations.
+  The Best-of-N overview now agrees with its default availability.
 
 ### Security
 

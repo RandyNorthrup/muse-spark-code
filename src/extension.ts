@@ -157,6 +157,7 @@ import { createDictationSetup, createMuseVoiceSetup } from './host/voice/dictati
 import { voiceLoader } from './host/voice/voiceBundle'
 import { museCodeReviewerPort } from './host/review/museCodeReviewerBundle'
 import { createPaidFeatures } from './host/paid/paidHost'
+import { createPaidDailyBudget } from './host/paid/paidDailyBudget'
 import { imageUseRequest } from './core/backends/modelapi/imageGeneration'
 import {
   BACKEND_SETTING,
@@ -199,6 +200,8 @@ import {
   TURN_CHECKPOINTS_SETTING,
   MODEL_API_SESSIONS_DIR,
   PAID_FEATURE_SETTINGS,
+  PAID_DAILY_BUDGET,
+  type PaidFeature,
   PERSONAL_SKILLS_GLOB,
   PROJECT_SKILLS_GLOB,
   GLOBAL_STATE_KEYS,
@@ -716,10 +719,28 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   // offers the key's paid images and voice. Read at start and after every
   // sign-in change, never from anywhere but the secret store.
   let isKeyStored = false
+  let paidBackend: 'modelApi' | 'museCode' | undefined
+  const isDefaultPaidOn = (feature: PaidFeature) =>
+    vscode.workspace
+      .getConfiguration(SETTINGS_SECTION)
+      .inspect<boolean>(PAID_FEATURE_SETTINGS[feature])?.globalValue === undefined
+  const dailyPaid = createPaidDailyBudget({
+    directory: path.join(context.globalStorageUri.fsPath, PAID_DAILY_BUDGET.directory),
+    now: Date.now,
+    capUsd: () => currentSettings().paidDailyBudgetUsd,
+    isModelApi: () => paidBackend === 'modelApi',
+    sleep: (ms) =>
+      new Promise((resolve) => {
+        setTimeout(resolve, ms)
+      }),
+  })
   const paid = createPaidFeatures({
     globalState: context.globalState,
     workspaceState: context.workspaceState,
     isSettingOn: (feature) => currentSettings()[PAID_FEATURE_SETTINGS[feature]],
+    isAvailable: (feature) => paidBackend === 'modelApi' || !isDefaultPaidOn(feature),
+    isDefaultOn: isDefaultPaidOn,
+    dailyBudgetUsd: () => (paidBackend === 'modelApi' ? dailyPaid.capUsd() : undefined),
     isKeyStored: () => isKeyStored,
     // "Allow always in this workspace" (M58) needs a workspace to keep it,
     // and never in Restricted Mode.
@@ -1132,6 +1153,8 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
       if (message.type !== 'authState') {
         return
       }
+      paidBackend = message.backend
+      broadcastPaidState()
       // A key pasted or signed out of changes what the Muse Code backend offers (M44).
       void refreshKeyPresence()
       // The backend decides which engine the microphone uses (M35).
@@ -1784,6 +1807,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     // The session budget cap and the per-reply usage line (M82), read per
     // request and per reply so a changed setting applies at once.
     sessionBudgetUsd: () => currentSettings().modelApiSessionBudgetUsd,
+    reservePaidRequest: dailyPaid.reserve,
     showReplyUsage: () => currentSettings().modelApiReplyUsage,
     // Muse Code's MCP servers, run by this window for the Model API backend
     // (M50, PLAN.md D42): started in a trusted workspace only, stopped with
@@ -2225,11 +2249,19 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
         isRestorable: surface.id === SIDEBAR_SURFACE_ID,
         dictation,
         // Muse Voice on the Model API backend, and on Muse Code with a stored key (M44).
-        museVoice: () =>
-          paid.gate.isOn('voice') &&
-          usablePaidFeatures(auth.current.backend, isKeyStored).includes('voice')
-            ? museVoiceSetup
-            : undefined,
+        museVoice: () => {
+          if (
+            !paid.gate.isOn('voice') ||
+            !usablePaidFeatures(auth.current.backend, isKeyStored).includes('voice')
+          )
+            return
+          if (auth.current.backend === 'modelApi') {
+            return currentSettings().dictationEngine === 'system'
+              ? undefined
+              : { isAvailable: false, reason: UI_TEXT.sessionBudgetVoiceUnavailable }
+          }
+          return museVoiceSetup
+        },
         modelApiSessionBudgetUsd: () => currentSettings().modelApiSessionBudgetUsd,
         voiceAccountId: () => modelApi.accountId(),
         ownedVoiceBudgetScope: async (sessionId) => {

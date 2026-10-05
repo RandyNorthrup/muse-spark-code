@@ -8,6 +8,7 @@ import { widenedHost } from '../core/browser/browserPolicy'
 import { checkCommandsSchema } from '../core/verify/checkCommands'
 import {
   BACKEND_MODES,
+  PAID_DAILY_BUDGET,
   type BackendMode,
   BROWSER_CHECK_EXTRA_HOSTS_MAX,
   BROWSER_RUNTIME_MODES,
@@ -28,6 +29,8 @@ import { type SettingsSnapshot, settingsSnapshotShape } from '../shared/protocol
 import type { Logger } from './logger'
 
 export interface ExtensionSettings extends SettingsSnapshot {
+  readonly paidDailyBudgetUsd: number
+  readonly dictationEngine: 'system' | 'museVoice'
   /** Absolute path to the `muse` executable; empty means "discover". */
   readonly museBinaryPath: string
   readonly environmentVariables: readonly EnvironmentVariable[]
@@ -39,7 +42,7 @@ export interface ExtensionSettings extends SettingsSnapshot {
   readonly enableNewConversationShortcut: boolean
   /** Days an idle Model API conversation is kept; 0 keeps it (PLAN.md D26). */
   readonly cleanupPeriodDays: number
-  /** The paid Model API features (M33–M35, PLAN.md D30): on only with the price accepted too. */
+  /** D78 availability flags; paid consent and daily admission authorize spending. */
   readonly modelApiWebSearch: boolean
   readonly modelApiImageGeneration: boolean
   readonly modelApiVoice: boolean
@@ -49,9 +52,9 @@ export interface ExtensionSettings extends SettingsSnapshot {
   readonly modelApiPromptCacheRetention: PromptCacheRetention
   readonly modelApiScheduledPrompts: boolean
   readonly modelApiSubagents: boolean
-  /** Best-of-N parallel attempts (M77, PLAN.md D49): on only with the price accepted too. */
+  /** Best-of-N availability; an explicit run and consent choose its extra attempts. */
   readonly modelApiBestOfN: boolean
-  /** Explicit machine opt-in for external hook commands (M51). */
+  /** Configured hooks are enabled by default (D78), in trusted workspaces only. */
   readonly modelApiHooks: boolean
   /**
    * M78 (PLAN.md D49): each kept whole here; the Model API bundle parses
@@ -61,7 +64,7 @@ export interface ExtensionSettings extends SettingsSnapshot {
   readonly modelApiPermissionProfiles: Readonly<Record<string, unknown>>
   readonly modelApiPermissionProfile: unknown
   readonly modelApiRepositoryRules: unknown
-  /** The paid Auto reviewer (M78): on only with its price accepted too. */
+  /** Paid Auto reviewer availability (M78, D78); each use needs consent. */
   readonly modelApiAutoReviewer: boolean
   /** The verify loop (M68, PLAN.md D49): diagnostics after edits, check commands, format on edit. */
   readonly diagnosticsAfterEdits: boolean
@@ -143,6 +146,10 @@ const settingSchemas = {
   showWhatsNewOnUpdate: z.boolean(),
   notifyOnBackgroundTurn: z.boolean(),
   modelApiReplyUsage: z.boolean(),
+  paidDailyBudgetUsd: z
+    .number()
+    .check(z.minimum(PAID_DAILY_BUDGET.minimumUsd), z.maximum(PAID_DAILY_BUDGET.maximumUsd)),
+  dictationEngine: z.enum(['system', 'museVoice']),
   modelApiSessionBudgetUsd: z.number().check(z.nonnegative()),
 } as const
 
@@ -224,6 +231,8 @@ export function readSettings(config: SettingsSource, log: Logger): ExtensionSett
     showWhatsNewOnUpdate: readSetting(config, 'showWhatsNewOnUpdate', log),
     notifyOnBackgroundTurn: readSetting(config, 'notifyOnBackgroundTurn', log),
     modelApiReplyUsage: readSetting(config, 'modelApiReplyUsage', log),
+    paidDailyBudgetUsd: readSetting(config, 'paidDailyBudgetUsd', log),
+    dictationEngine: readSetting(config, 'dictationEngine', log),
     modelApiSessionBudgetUsd: readSetting(config, 'modelApiSessionBudgetUsd', log),
     modelApiCommandRules: readSetting(config, 'modelApiCommandRules', log),
     modelApiPermissionProfiles: readSetting(config, 'modelApiPermissionProfiles', log),

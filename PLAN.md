@@ -4559,6 +4559,72 @@ on the package's shared `scripts/` (Bash, PowerShell and Python helpers),
 - **Requirements stay the package's.** The delivery helpers need Python 3;
   the README says so, and a missing Python is the script's own error.
 
+### D78 — Enhancements available out of the box (owner, 2026-10-04)
+
+The owner chose: "On, ask once first — active out of the box and visible.
+Before the first charge it asks once (Allow / Allow always / Not now)
+showing the price and a daily budget. Nothing is spent without that one yes."
+This supersedes D48's off-by-default clause for interactive VS Code Model
+API extras. It preserves paid badges, rows, tally, revocable per-workspace
+"always", and paid-use consent in Bypass. Allow once still authorizes one
+use; subsequent uses ask unless "always" was chosen. Existing explicit
+false settings remain false. Default-on availability needs no startup price
+dialog; an explicit OFF-to-ON change still confirms its price.
+
+Observation packing (M73's passing M75 run), hooks (inert without a file,
+trusted workspace only), and reply usage default on. Web search, images,
+Muse Voice availability, Auto reviewer, subagents, schedules and best-of-N
+default on for Model API. Free OS dictation remains the selected engine.
+Best-of-N stays an explicit separate action: an ordinary turn runs one
+model; no setting multiplies every turn's cost.
+
+Interactive extras share `museSpark.paidDailyBudgetUsd`, machine scoped,
+USD 5 by default, USD 0.50–500. Reuse M82's durable claim journal under
+global extension storage, one local-calendar-day scope across windows and
+keys. Reserve before dispatch; recheck synchronously at send; settle known
+usage, refund known nonsends, retain uncertain liability. Unreadable or
+incomplete storage refuses spending. At the cap offer raise for today or
+stop until tomorrow; a raise is shared on disk and expires with the day.
+M94 Tab's USD 1/day ledger remains independent; Tab does not enter this
+extras journal. M94 is not present in this lane's base tree.
+
+M82 already refuses hosted search and Muse Voice under a finite cap: no
+captured hard query bound or billed-duration receipt exists. Preserve those
+refusals under the daily cap rather than inventing a wire limit. Availability
+is visible, but those two transports remain refused pending verified bounds.
+Muse Code's existing explicit paid opt-ins, confidential-workspace policy,
+ACP flags and headless explicit flag plus hard budget remain unchanged.
+
+No request prefix, tool description or golden fixture changes are authorized.
+Packing stays request-local and sticky; hooks-off bodies must stay exact.
+M91 is absent from this base; run its golden requests after lead integration.
+No live evaluation is authorized. Q11 repo-map default stays off: next run
+must add a repo-map-only M75 arm versus baseline on the same twelve paired
+tasks, seven accept and five held-out (floors 6/7 and 4/5 on both arms),
+`muse-spark-1.3-contributor`, fixed 1,024-token map, identical other flags,
+and the existing USD 0.50 bound. Record input/cache/output tokens, total
+cost, latency and engagement before deciding whether to flip Q11.
+
+DEFAULTS acceptance: manifest and fallback defaults agree; explicit false
+survives; trusted hooks only; first-use consent precedes fetch; daily claims
+refuse over-cap, corrupt storage and concurrent overspend; price and daily
+cap are localized; request bodies and single-model turns remain unchanged.
+Reuse `paidFeatures`, `paidConsent`, `sessionBudgetJournal` and the final
+HTTP admission guard. Evidence: `docs/certification/defaults.md`.
+
+FIXDEF review follow-up (2026-10-04): a committed daily Stop must survive
+every pending raise, including a delayed atomic replacement. Use a separate
+monotonic day marker; never remove it when raising the numeric cap. Pass the
+request's cancellation through daily admission, refund nonsends, and reject
+late dialog answers/publications. Offer packed recall only when the request
+contains a packed observation, preserving unused packing's whole request and
+cache key. Keep setting state separate from backend availability so changing
+backends cannot withdraw accepted prices or workspace grants. Correct the
+Best-of-N overview. Each finding needs a Kubuntu regression/red drill.
+Search's proposed one-search bound and voice's proposed 180-second bound
+require verified server/billing contracts, not invented wire fields or a
+recorder timer alone; live calls remain outside this lane's authorization.
+
 ### D69 — Auto on Muse Code: an extension-side reviewer (M90, 2026-10-03)
 
 The owner reported clicking as many approvals in Auto as in Manual on the
@@ -5063,6 +5129,16 @@ cached: "0.15", currency: "USD" }`, `isDefault`, `isActive`, `releaseDate`.
   extension must track the child PID and kill the tree on dispose.
 
 ## 6. Milestones
+
+### DEFAULTS — Available enhancements and interactive daily paid admission (D78)
+
+Scope and acceptance are in D78. The existing paid gate and consent remain
+canonical; the daily adapter reuses M82's journal, while the final HTTP
+guard reserves and settles only interactive extras. No new dependency,
+wire shape or prompt text. Separate `dictationEngine` selection preserves
+the free system default. Test/quality evidence lives in
+`docs/certification/defaults.md`. M91 golden fixtures and M94 Tab are not
+in this base; their integrated-tree proof remains the lead's next step.
 
 Every milestone carries the same certification checklist (§6.0) plus its own
 acceptance criteria. **A milestone is not complete until its checklist passes.**

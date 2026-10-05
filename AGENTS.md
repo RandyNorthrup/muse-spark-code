@@ -108,7 +108,10 @@ them, the milestone plan, and the certification checklist.
 12. **Anything that costs money is opt in and loud** (the owner's rule,
     PLAN.md D30, D34). A paid call runs only while `PaidFeatureGate.isOn`
     (`src/core/paid/paidFeatures.ts`) says so: its setting on, machine-scoped
-    and off by default, and its price accepted in the confirmation. It is
+    and available by default on interactive Model API (D78), with consent
+    naming its price and the shared daily budget before spending. Existing
+    explicit false settings remain off; explicit OFF-to-ON changes still
+    confirm the price. ACP/headless defaults and Muse Code opt-ins are unchanged. It is
     named in the composer's badge, shown as its own row marked paid
     (`paid` on the item), counted in `PaidUsage` for Account & usage, and
     billed to the Model API key: offered on the Model API backend, and on

@@ -331,23 +331,21 @@ export const SETTING_DEFAULTS = {
   // conversation while a Muse surface is focused. Read only by the
   // keybinding's `when` clause (`config.museSpark.…`), off by default.
   enableNewConversationShortcut: false,
-  // The paid Model API features (M33–M35, PLAN.md D30): off until the user
-  // turns one on and accepts its price in the confirmation.
-  modelApiWebSearch: false,
-  modelApiImageGeneration: false,
-  modelApiVoice: false,
+  // D78: available on Model API; consent and daily admission precede spending.
+  modelApiWebSearch: true,
+  modelApiImageGeneration: true,
+  modelApiVoice: true,
   // M56 (PLAN.md D43): Muse Code's own network default, and Meta's shorter
   // in-memory prompt-cache retention until the user chooses 24h.
   sandboxNetwork: 'default' as SandboxNetworkMode,
   modelApiPromptCacheRetention: 'in_memory' as PromptCacheRetention,
-  modelApiScheduledPrompts: false,
-  modelApiSubagents: false,
+  modelApiScheduledPrompts: true,
+  modelApiSubagents: true,
   // Best-of-N parallel attempts (M77, PLAN.md D49): N worktree-rooted
   // conversations per run, each billed to the key.
-  modelApiBestOfN: false,
-  // Hook commands are user code outside the agent sandbox (M51). A machine
-  // setting must explicitly enable them on the Model API backend.
-  modelApiHooks: false,
+  modelApiBestOfN: true,
+  // D78: inert without a hooks file; Restricted Mode loads and runs none.
+  modelApiHooks: true,
   // M78 (PLAN.md D49): the command rules, the permission profiles and the
   // one in force, what a repository adds (it can only tighten), and the
   // paid Auto reviewer. None set, nothing changes.
@@ -355,7 +353,7 @@ export const SETTING_DEFAULTS = {
   modelApiPermissionProfiles: {} as Readonly<Record<string, unknown>>,
   modelApiPermissionProfile: '',
   modelApiRepositoryRules: {} as unknown,
-  modelApiAutoReviewer: false,
+  modelApiAutoReviewer: true,
   // The verify loop (M68, PLAN.md D49): the edited files' errors and warnings
   // after each round of edits, on by default; the check commands and the
   // formatter run only once the user names or turns them on.
@@ -367,9 +365,8 @@ export const SETTING_DEFAULTS = {
   // spends tokens on every request, so it is off until the user turns it on.
   modelApiRepoMap: false,
   // M73 (PLAN.md D49): observation packing on the Model API backend. Its M75
-  // run held the capability floors (docs/certification/m73.md); it changes
-  // what every request carries, so it is off until the user turns it on.
-  modelApiObservationPacking: false,
+  // run held the capability floors (docs/certification/m73.md); D78 enables it.
+  modelApiObservationPacking: true,
   // Restore by the tools' own writes (M86, PLAN.md D63): each Model API turn
   // records what its file tools write, with nothing of the workspace
   // captured, so it is on by default.
@@ -392,10 +389,12 @@ export const SETTING_DEFAULTS = {
   // owner's ruling that enhancements are on). Off shows nothing on updates;
   // the command still opens the page.
   showWhatsNewOnUpdate: true,
-  // Tokens and the dollar estimate under each Model API reply (M82): off
-  // until turned on. Muse Code reports no per-reply totals on its protocol
+  // Tokens and the dollar estimate under each Model API reply (M82): on
+  // by default (D78). Muse Code reports no per-reply totals on its protocol
   // (PLAN.md D26), so its replies never carry one. Display only.
-  modelApiReplyUsage: false,
+  modelApiReplyUsage: true,
+  paidDailyBudgetUsd: 5,
+  dictationEngine: 'system' as 'system' | 'museVoice',
   // A session budget cap in US dollars for each Model API conversation
   // (M82): 0 is no cap. Kept by reservation (sessionBudget.ts); machine
   // scoped, since a repository must not set what is billed.
@@ -405,6 +404,16 @@ export const SETTING_DEFAULTS = {
   // hidden side session before the user. On until turned off; machine scoped,
   // since a repository must not choose what is approved or spent.
   museCodeAutoReviewer: true,
+} as const
+export const PAID_DAILY_BUDGET = {
+  minimumUsd: 0.5,
+  maximumUsd: 500,
+  directory: 'paid-daily',
+  // One machine-wide scope, independent of the selected key and workspace.
+  accountId: '0000000000000000000000000000000000000000000000000000000000000000',
+  overrideFile: 'limit.json',
+  // Monotonic for this day: a delayed numeric override cannot clear Stop.
+  stopDirectory: 'stopped',
 } as const
 export const ARCHIVE_DAY_CHOICES = [1, 2, 7, 14, 0] as const
 // Settings a repository's `.vscode/settings.json` must never set (PLAN.md
@@ -456,6 +465,8 @@ export const MACHINE_SCOPED_SETTINGS = [
   'bundledSkills',
   // A repository must not set what a conversation may spend (M82).
   'modelApiSessionBudgetUsd',
+  'paidDailyBudgetUsd',
+  'dictationEngine',
   // What may approve a command for the user, on their subscription (M90).
   'museCodeAutoReviewer',
   // A page that opens on its own after an update is the user's choice, never a repository's (M99).
