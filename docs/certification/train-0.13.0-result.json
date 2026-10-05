@@ -1,422 +1,1098 @@
 {
-  "disposition": "release blocked; implementation stopped at budget failures",
-  "testedHead": "390760c028c66ded5d7a9a1b4290eb93b4c52162",
+  "disposition": "Kubuntu complete quality and CI-shaped package gates green; hosted/native acceptance remains external",
+  "startingHead": "42b9165ae0d8318544bec095a7ad860adb0948b2",
   "machine": "Kubuntu",
   "quality": {
     "command": "VITEST_MAX_WORKERS=3 npm run quality",
-    "exitCode": 1,
+    "exitCode": 0,
     "testFiles": {
-      "passed": 387,
-      "failed": 2,
+      "passed": 391,
+      "failed": 0,
       "skipped": 6,
-      "total": 395
+      "total": 397
     },
     "tests": {
-      "passed": 7758,
-      "failed": 2,
+      "passed": 7782,
+      "failed": 0,
       "skipped": 65,
-      "total": 7825
+      "total": 7847
     },
-    "testDurationSeconds": 275.76,
-    "failure": "unchanged checkpoint tests; /tmp EDQUOT reproduced in both scoped normal-path failures",
-    "coverageSummaryEmitted": false,
-    "a11yReached": false,
-    "dependencyAuditReached": false,
-    "historySecretScanReached": false,
-    "semgrepReached": false
+    "testDurationSeconds": 260.17,
+    "coverage": {
+      "statements": 94.3,
+      "branches": 89.97,
+      "functions": 95.65,
+      "lines": 94.48,
+      "thresholdsUnchanged": true
+    },
+    "a11y": {
+      "pages": 564,
+      "scenarios": 141,
+      "themes": 4,
+      "violatedRules": 0,
+      "undecidedRules": 0,
+      "exemptions": 8,
+      "pagesWithoutResult": 0,
+      "unseenContrastElements": 1393,
+      "glyphOnlyContrastElements": 20
+    },
+    "audit": {
+      "exitCode": 0,
+      "advisories": 2,
+      "existingExceptions": 1,
+      "newExceptions": 0
+    },
+    "historySecretScan": {
+      "exitCode": 0,
+      "commitsScannedBeforeLaneCommits": 1357,
+      "leaks": 0
+    },
+    "semgrep": {
+      "exitCode": 0,
+      "rulesRun": 287,
+      "targetsScanned": 831,
+      "findings": 0
+    },
+    "existingLinuxPowerShellLintSkipRetained": true,
+    "recoveryAttempts": [
+      "Moved diagnostic snapshots into the already ignored harness-shots directory; no ignore rule changed.",
+      "Updated ACP package fixtures for validation.js and four panel assertions for a module script with nonce.",
+      "Replaced fixed-delay nested deferred interactions with existing bounded whenFound and final-state readiness; 16 focused pages passed."
+    ]
   },
   "build": {
     "command": "npm run build",
-    "exitCode": 1,
-    "failedGate": "bundle size",
+    "exitCode": 0,
     "bundles": [
       {
         "path": "dist/extension.js",
-        "bytes": 613570,
+        "beforeBytes": 613570,
+        "bytes": 596065,
         "budgetBytes": 614400,
-        "remainingBytes": 830,
-        "pass": true
+        "remainingBytes": 18335,
+        "passed": true
       },
       {
         "path": "dist/modelApi.js",
-        "bytes": 457409,
+        "beforeBytes": 457409,
+        "bytes": 439642,
         "budgetBytes": 486400,
-        "remainingBytes": 28991,
-        "pass": true
+        "remainingBytes": 46758,
+        "passed": true
       },
       {
         "path": "dist/review.js",
-        "bytes": 45297,
+        "beforeBytes": 45297,
+        "bytes": 28918,
         "budgetBytes": 51200,
-        "remainingBytes": 5903,
-        "pass": true
+        "remainingBytes": 22282,
+        "passed": true
       },
       {
         "path": "dist/sessionBoard.js",
-        "bytes": 69660,
+        "beforeBytes": 69660,
+        "bytes": 49604,
         "budgetBytes": 76800,
-        "remainingBytes": 7140,
-        "pass": true
+        "remainingBytes": 27196,
+        "passed": true
       },
       {
         "path": "dist/reviewer.js",
-        "bytes": 30572,
+        "beforeBytes": 30572,
+        "bytes": 13717,
         "budgetBytes": 76800,
-        "remainingBytes": 46228,
-        "pass": true
+        "remainingBytes": 63083,
+        "passed": true
       },
       {
         "path": "dist/planMarkdown.js",
+        "beforeBytes": 147608,
         "bytes": 147608,
         "budgetBytes": 153600,
         "remainingBytes": 5992,
-        "pass": true
+        "passed": true
       },
       {
         "path": "dist/checkpointStore.js",
-        "bytes": 112710,
+        "beforeBytes": 112710,
+        "bytes": 91147,
         "budgetBytes": 230400,
-        "remainingBytes": 117690,
-        "pass": true
+        "remainingBytes": 139253,
+        "passed": true
       },
       {
         "path": "dist/agentImport.js",
-        "bytes": 94012,
+        "beforeBytes": 94012,
+        "bytes": 75212,
         "budgetBytes": 128000,
-        "remainingBytes": 33988,
-        "pass": true
+        "remainingBytes": 52788,
+        "passed": true
       },
       {
         "path": "dist/browserCheck.js",
-        "bytes": 52229,
+        "beforeBytes": 52229,
+        "bytes": 38524,
         "budgetBytes": 76800,
-        "remainingBytes": 24571,
-        "pass": true
+        "remainingBytes": 38276,
+        "passed": true
       },
       {
         "path": "dist/browserRuntime.js",
-        "bytes": 38219,
+        "beforeBytes": 38219,
+        "bytes": 19762,
         "budgetBytes": 51200,
-        "remainingBytes": 12981,
-        "pass": true
+        "remainingBytes": 31438,
+        "passed": true
       },
       {
         "path": "dist/bundledSkills.js",
-        "bytes": 28735,
+        "beforeBytes": 28735,
+        "bytes": 14341,
         "budgetBytes": 51200,
-        "remainingBytes": 22465,
-        "pass": true
+        "remainingBytes": 36859,
+        "passed": true
       },
       {
         "path": "dist/codeIntel.js",
-        "bytes": 56956,
+        "beforeBytes": 56956,
+        "bytes": 39453,
         "budgetBytes": 102400,
-        "remainingBytes": 45444,
-        "pass": true
+        "remainingBytes": 62947,
+        "passed": true
       },
       {
         "path": "dist/voice.js",
-        "bytes": 36503,
+        "beforeBytes": 36503,
+        "bytes": 18578,
         "budgetBytes": 51200,
-        "remainingBytes": 14697,
-        "pass": true
+        "remainingBytes": 32622,
+        "passed": true
       },
       {
         "path": "dist/webFetch.js",
-        "bytes": 48970,
+        "beforeBytes": 48970,
+        "bytes": 35911,
         "budgetBytes": 76800,
-        "remainingBytes": 27830,
-        "pass": true
+        "remainingBytes": 40889,
+        "passed": true
       },
       {
         "path": "dist/museCodeReviewer.js",
+        "beforeBytes": 18584,
         "bytes": 18584,
         "budgetBytes": 76800,
         "remainingBytes": 58216,
-        "pass": true
+        "passed": true
       },
       {
         "path": "dist/whatsNew.js",
-        "bytes": 36807,
+        "beforeBytes": 36807,
+        "bytes": 16997,
         "budgetBytes": 51200,
-        "remainingBytes": 14393,
-        "pass": true
+        "remainingBytes": 34203,
+        "passed": true
       },
       {
         "path": "dist/uiText.js",
+        "beforeBytes": 122182,
         "bytes": 122182,
         "budgetBytes": 128000,
         "remainingBytes": 5818,
-        "pass": true
+        "passed": true
+      },
+      {
+        "path": "dist/validation.js",
+        "beforeBytes": null,
+        "bytes": 40416,
+        "budgetBytes": 51200,
+        "remainingBytes": 10784,
+        "passed": true
       },
       {
         "path": "dist/searchWorker.js",
-        "bytes": 18571,
+        "beforeBytes": 18571,
+        "bytes": 4969,
         "budgetBytes": 51200,
-        "remainingBytes": 32629,
-        "pass": true
+        "remainingBytes": 46231,
+        "passed": true
       },
       {
         "path": "dist/pageWorker.js",
-        "bytes": 208040,
+        "beforeBytes": 208040,
+        "bytes": 193171,
         "budgetBytes": 307200,
-        "remainingBytes": 99160,
-        "pass": true
+        "remainingBytes": 114029,
+        "passed": true
       },
       {
         "path": "dist/webview/main.js",
-        "bytes": 928507,
+        "beforeBytes": 928507,
+        "bytes": 898355,
         "budgetBytes": 921600,
-        "remainingBytes": -6907,
-        "pass": false
+        "remainingBytes": 23245,
+        "passed": true
       },
       {
         "path": "dist/webview/whatsNew.js",
+        "beforeBytes": 708,
         "bytes": 708,
         "budgetBytes": 25600,
         "remainingBytes": 24892,
-        "pass": true
+        "passed": true
       },
       {
         "path": "dist/acp.js",
-        "bytes": 815561,
+        "beforeBytes": 815561,
+        "bytes": 823526,
         "budgetBytes": 870400,
-        "remainingBytes": 54839,
-        "pass": true
+        "remainingBytes": 46874,
+        "passed": true
       },
       {
         "path": "dist/whatsNew.json",
+        "beforeBytes": 34410,
         "bytes": 34410,
         "budgetBytes": 40960,
         "remainingBytes": 6550,
-        "pass": true
+        "passed": true
+      },
+      {
+        "path": "dist/webview deferred JS",
+        "beforeBytes": 0,
+        "bytes": 39484,
+        "budgetBytes": 51200,
+        "remainingBytes": 11716,
+        "passed": true
       }
     ],
-    "webviewLargestInputs": [
+    "webviewChunks": [
       {
-        "path": "node_modules/react-dom/cjs/react-dom-client.production.js",
-        "bytes": 205683
+        "path": "dist/webview/chunks/AgentMap-LPUZHIEP.js",
+        "bytes": 8009,
+        "eager": false
       },
       {
-        "path": "src/shared/l10n/en.ts",
-        "bytes": 121687
+        "path": "dist/webview/chunks/BestOfNDialog-YX53KGBH.js",
+        "bytes": 7043,
+        "eager": false
       },
       {
-        "path": "src/webview/state/uiState.ts",
-        "bytes": 40947
+        "path": "dist/webview/chunks/HistoryDialog-KV2LQAES.js",
+        "bytes": 3433,
+        "eager": false
       },
       {
-        "path": "src/webview/App.tsx",
-        "bytes": 30008
+        "path": "dist/webview/chunks/ReviewPane-UQIGRIQ7.js",
+        "bytes": 5582,
+        "eager": false
       },
       {
-        "path": "node_modules/highlight.js/lib/core.js",
-        "bytes": 20984
+        "path": "dist/webview/chunks/SessionBoardDialog-J5AP3TW2.js",
+        "bytes": 2286,
+        "eager": false
       },
       {
-        "path": "node_modules/zod/v4/core/schemas.js",
-        "bytes": 15269
+        "path": "dist/webview/chunks/UsageDialog-WIF6SKXO.js",
+        "bytes": 11254,
+        "eager": false
       },
       {
-        "path": "node_modules/highlight.js/es/languages/css.js",
-        "bytes": 13446
+        "path": "dist/webview/chunks/chunk-2IMK2LJV.js",
+        "bytes": 946,
+        "eager": true
       },
       {
-        "path": "src/webview/components/Transcript.tsx",
-        "bytes": 12905
+        "path": "dist/webview/chunks/chunk-5D5OIGMZ.js",
+        "bytes": 165,
+        "eager": true
       },
       {
-        "path": "src/shared/constants.ts",
-        "bytes": 12115
+        "path": "dist/webview/chunks/chunk-5OYIARPN.js",
+        "bytes": 0,
+        "eager": true
       },
       {
-        "path": "src/webview/components/Composer.tsx",
-        "bytes": 12047
+        "path": "dist/webview/chunks/chunk-AFH65HPM.js",
+        "bytes": 372,
+        "eager": true
       },
       {
-        "path": "src/webview/components/UsageDialog.tsx",
-        "bytes": 10807
+        "path": "dist/webview/chunks/chunk-CPCWHKL4.js",
+        "bytes": 72031,
+        "eager": true
       },
       {
-        "path": "node_modules/mdast-util-from-markdown/lib/index.js",
-        "bytes": 10345
+        "path": "dist/webview/chunks/chunk-DNVKS4PV.js",
+        "bytes": 210,
+        "eager": true
       },
       {
-        "path": "node_modules/property-information/lib/svg.js",
-        "bytes": 10116
+        "path": "dist/webview/chunks/chunk-FLQ4MYD3.js",
+        "bytes": 7051,
+        "eager": true
       },
       {
-        "path": "src/shared/protocol.ts",
-        "bytes": 9660
+        "path": "dist/webview/chunks/chunk-H3C37OEY.js",
+        "bytes": 148264,
+        "eager": true
       },
       {
-        "path": "node_modules/react/cjs/react.production.js",
-        "bytes": 8014
+        "path": "dist/webview/chunks/chunk-H423DP7K.js",
+        "bytes": 1877,
+        "eager": false
       },
       {
-        "path": "src/webview/components/ToolRow.tsx",
-        "bytes": 7880
+        "path": "dist/webview/chunks/chunk-M3IDBAAM.js",
+        "bytes": 1549,
+        "eager": true
       },
       {
-        "path": "node_modules/highlight.js/es/languages/typescript.js",
-        "bytes": 7775
+        "path": "dist/webview/chunks/chunk-OEALNJ7J.js",
+        "bytes": 31962,
+        "eager": true
       },
       {
-        "path": "src/shared/palette.ts",
-        "bytes": 7673
+        "path": "dist/webview/chunks/chunk-S76IJPNW.js",
+        "bytes": 1143,
+        "eager": true
       },
       {
-        "path": "src/webview/components/AgentMap.tsx",
-        "bytes": 7614
+        "path": "dist/webview/chunks/chunk-UUZMLMHR.js",
+        "bytes": 5498,
+        "eager": true
       },
       {
-        "path": "src/webview/components/icons.tsx",
-        "bytes": 6959
+        "path": "dist/webview/chunks/chunk-WKCHX755.js",
+        "bytes": 8335,
+        "eager": true
+      },
+      {
+        "path": "dist/webview/chunks/chunk-WROIWOFY.js",
+        "bytes": 4040,
+        "eager": true
+      },
+      {
+        "path": "dist/webview/main.js",
+        "bytes": 616789,
+        "eager": true
       }
-    ]
+    ],
+    "webviewStylesheets": [
+      {
+        "path": "dist/webview/main.css",
+        "bytes": 51888,
+        "budgetBytes": null
+      },
+      {
+        "path": "dist/webview/whatsNew.css",
+        "bytes": 2534,
+        "budgetBytes": null
+      }
+    ],
+    "trainInputRanking": {
+      "before": {
+        "head": "244d5905",
+        "bytes": 909415
+      },
+      "after": {
+        "head": "42b9165a",
+        "bytes": 928507
+      },
+      "largestAddedInputs": [
+        {
+          "file": "src/shared/l10n/en.ts",
+          "before": 112359,
+          "after": 121687,
+          "delta": 9328
+        },
+        {
+          "file": "src/shared/redact.ts",
+          "before": 0,
+          "after": 4331,
+          "delta": 4331
+        },
+        {
+          "file": "src/webview/state/uiState.ts",
+          "before": 38660,
+          "after": 40947,
+          "delta": 2287
+        },
+        {
+          "file": "src/webview/App.tsx",
+          "before": 29171,
+          "after": 30008,
+          "delta": 837
+        },
+        {
+          "file": "src/shared/browserCheckConstants.ts",
+          "before": 0,
+          "after": 784,
+          "delta": 784
+        },
+        {
+          "file": "src/webview/components/SecretPromptDialog.tsx",
+          "before": 0,
+          "after": 596,
+          "delta": 596
+        },
+        {
+          "file": "src/webview/components/ApprovalCard.tsx",
+          "before": 2712,
+          "after": 2952,
+          "delta": 240
+        },
+        {
+          "file": "src/shared/constants.ts",
+          "before": 11904,
+          "after": 12115,
+          "delta": 211
+        },
+        {
+          "file": "src/webview/state/snapshot.ts",
+          "before": 2157,
+          "after": 2360,
+          "delta": 203
+        },
+        {
+          "file": "src/shared/protocol.ts",
+          "before": 9557,
+          "after": 9660,
+          "delta": 103
+        },
+        {
+          "file": "src/shared/permissionModes.ts",
+          "before": 323,
+          "after": 417,
+          "delta": 94
+        },
+        {
+          "file": "src/shared/palette.ts",
+          "before": 7607,
+          "after": 7673,
+          "delta": 66
+        },
+        {
+          "file": "src/shared/agentEvents.ts",
+          "before": 3964,
+          "after": 3976,
+          "delta": 12
+        }
+      ]
+    },
+    "nodeParserTradeoff": {
+      "activationPlusParserIncreaseBytes": 22911,
+      "acpBundleIncreaseBytes": 7965
+    }
   },
   "vsix": {
-    "purpose": "private measurement only; ordinary prepublish remains blocked",
-    "manifestVersion": "0.12.1",
-    "bytes": 2330538,
+    "bytes": 2206151,
     "budgetBytes": 2252800,
-    "excessBytes": 77738,
-    "gateExitCode": 1,
-    "sha256": "94dd12e859d1c4fcf847380ad3629eb8704289eea401c6d1a694d9ea7ed01ab7",
-    "entries": 124,
-    "rawContentBytes": 7211091,
-    "compressedContentBytes": 2307900,
-    "zipOverheadBytes": 22638,
-    "universalMacHelperPresent": false,
-    "groups": {
-      "dist": {
-        "files": 24,
-        "compressedBytes": 1024976,
-        "rawBytes": 3254681
-      },
-      "l10n": {
-        "files": 14,
-        "compressedBytes": 613642,
-        "rawBytes": 2230115
-      },
-      "root files + VSIX metadata": {
-        "files": 22,
-        "compressedBytes": 334921,
-        "rawBytes": 1100885
-      },
-      "resources": {
-        "files": 8,
-        "compressedBytes": 159823,
-        "rawBytes": 173072
-      },
-      "vendor": {
-        "files": 47,
-        "compressedBytes": 139197,
-        "rawBytes": 361264
-      },
-      "docs": {
-        "files": 1,
-        "compressedBytes": 17023,
-        "rawBytes": 45868
-      },
-      "native": {
-        "files": 5,
-        "compressedBytes": 11769,
-        "rawBytes": 36344
-      },
-      "media": {
-        "files": 2,
-        "compressedBytes": 5064,
-        "rawBytes": 5983
-      },
-      "first-party-skills": {
-        "files": 1,
-        "compressedBytes": 1485,
-        "rawBytes": 2879
-      }
-    },
+    "remainingBytes": 46649,
+    "sha256": "598520a485781d459781bd17189c3bc64353a7e3e3d06711ef91feefc4c3d94e",
+    "entries": 147,
+    "rawContentBytes": 6730871,
+    "compressedContentBytes": 2179209,
     "largestEntries": [
       {
         "path": "extension/dist/webview/main.js",
-        "compressedBytes": 282974,
-        "rawBytes": 928507
+        "bytes": 616789,
+        "compressedBytes": 190894
       },
       {
         "path": "extension/dist/extension.js",
-        "compressedBytes": 190208,
-        "rawBytes": 613570
+        "bytes": 596065,
+        "compressedBytes": 181964
       },
       {
         "path": "extension/dist/modelApi.js",
-        "compressedBytes": 144541,
-        "rawBytes": 457409
+        "bytes": 439642,
+        "compressedBytes": 136221
       },
       {
-        "path": "extension/readme.md",
-        "compressedBytes": 102787,
-        "rawBytes": 350896
-      },
-      {
-        "path": "extension/changelog.md",
-        "compressedBytes": 85723,
-        "rawBytes": 232006
-      },
-      {
-        "path": "extension/dist/pageWorker.js",
-        "compressedBytes": 62877,
-        "rawBytes": 208040
+        "path": "extension/native/darwin/muse-dictate",
+        "bytes": 414832,
+        "compressedBytes": 119342
       },
       {
         "path": "extension/resources/walkthrough/open.png",
-        "compressedBytes": 59085,
-        "rawBytes": 63012
+        "bytes": 63012,
+        "compressedBytes": 59085
+      },
+      {
+        "path": "extension/dist/pageWorker.js",
+        "bytes": 193171,
+        "compressedBytes": 58398
       },
       {
         "path": "extension/l10n/ui.ru.json",
-        "compressedBytes": 50992,
-        "rawBytes": 223941
+        "bytes": 214054,
+        "compressedBytes": 50229
+      },
+      {
+        "path": "extension/dist/webview/chunks/chunk-H3C37OEY.js",
+        "bytes": 148264,
+        "compressedBytes": 47754
       },
       {
         "path": "extension/resources/walkthrough/chat.png",
-        "compressedBytes": 46165,
-        "rawBytes": 49242
-      },
-      {
-        "path": "extension/l10n/ui.pl.json",
-        "compressedBytes": 45203,
-        "rawBytes": 157792
-      },
-      {
-        "path": "extension/l10n/ui.cs.json",
-        "compressedBytes": 45132,
-        "rawBytes": 156165
+        "bytes": 49242,
+        "compressedBytes": 46165
       },
       {
         "path": "extension/dist/planMarkdown.js",
-        "compressedBytes": 44986,
-        "rawBytes": 147608
+        "bytes": 147608,
+        "compressedBytes": 44986
+      },
+      {
+        "path": "extension/l10n/ui.pl.json",
+        "bytes": 147905,
+        "compressedBytes": 44379
+      },
+      {
+        "path": "extension/l10n/ui.cs.json",
+        "bytes": 146278,
+        "compressedBytes": 44223
       },
       {
         "path": "extension/l10n/ui.hu.json",
-        "compressedBytes": 44892,
-        "rawBytes": 158612
+        "bytes": 149669,
+        "compressedBytes": 44129
       },
       {
         "path": "extension/l10n/ui.ja.json",
-        "compressedBytes": 44264,
-        "rawBytes": 176068
+        "bytes": 167597,
+        "compressedBytes": 43688
       },
       {
         "path": "extension/l10n/ui.fr.json",
-        "compressedBytes": 44157,
-        "rawBytes": 164129
+        "bytes": 154714,
+        "compressedBytes": 43458
+      },
+      {
+        "path": "extension/l10n/ui.de.json",
+        "bytes": 148543,
+        "compressedBytes": 43112
+      },
+      {
+        "path": "extension/l10n/ui.it.json",
+        "bytes": 148754,
+        "compressedBytes": 41918
+      },
+      {
+        "path": "extension/l10n/ui.es.json",
+        "bytes": 146196,
+        "compressedBytes": 41839
+      },
+      {
+        "path": "extension/l10n/ui.ko.json",
+        "bytes": 147691,
+        "compressedBytes": 41710
+      },
+      {
+        "path": "extension/l10n/ui.pt-br.json",
+        "bytes": 144686,
+        "compressedBytes": 41679
+      }
+    ],
+    "universalMacHelper": [
+      {
+        "path": "extension/native/darwin/muse-dictate",
+        "bytes": 414832,
+        "compressedBytes": 119342
+      }
+    ],
+    "zipOverheadBytes": 26942,
+    "previousWithoutMacHelperBytes": 2330538,
+    "reconstructedPreviousWithMacHelperBytes": 2450044,
+    "reconstructedBaselineIsFreshBuild": false,
+    "manifestVersion": "0.12.1",
+    "helperSource": "https://github.com/RandyNorthrup/muse-spark-code/releases/download/v0.12.1/muse-spark-code-0.12.1.vsix",
+    "helperSha256": "97d8d06dab53a91696cdaa82ab1a33b9d12709cc8486b42945b29a8bf45925a5",
+    "helperZipEntryOverheadBytes": 164,
+    "command": "npm run package",
+    "exitCode": 0,
+    "gateExitCode": 0,
+    "universalMacHelperPresent": true,
+    "reductionAgainstReconstructedBaselineBytes": 243893
+  },
+  "checkpointQuotaRecovery": {
+    "command": "npx vitest run test/unit/checkpointHost.test.ts test/unit/checkpointStoreGuards.test.ts --maxWorkers=3 --testTimeout=120000",
+    "exitCode": 0,
+    "testFilesPassed": 2,
+    "testsPassed": 61,
+    "seconds": 7.9,
+    "temporaryDirectoryRelocated": false,
+    "codeOrTestsChanged": false
+  },
+  "drills": {
+    "count": 20,
+    "allRegressionsFail": true,
+    "modifiedFilesRestoredByteExact": true,
+    "createdStaleChunkRemoved": true,
+    "record": "train-0.13.0-size-drills.json"
+  },
+  "externalAcceptance": [
+    "fresh macOS helper compilation",
+    "hosted OS matrix and installed-editor/native acceptance",
+    "M80 live receipts remain pending"
+  ],
+  "previousLane": {
+    "disposition": "release blocked; implementation stopped at budget failures",
+    "testedHead": "390760c028c66ded5d7a9a1b4290eb93b4c52162",
+    "machine": "Kubuntu",
+    "quality": {
+      "command": "VITEST_MAX_WORKERS=3 npm run quality",
+      "exitCode": 1,
+      "testFiles": {
+        "passed": 387,
+        "failed": 2,
+        "skipped": 6,
+        "total": 395
+      },
+      "tests": {
+        "passed": 7758,
+        "failed": 2,
+        "skipped": 65,
+        "total": 7825
+      },
+      "testDurationSeconds": 275.76,
+      "failure": "unchanged checkpoint tests; /tmp EDQUOT reproduced in both scoped normal-path failures",
+      "coverageSummaryEmitted": false,
+      "a11yReached": false,
+      "dependencyAuditReached": false,
+      "historySecretScanReached": false,
+      "semgrepReached": false
+    },
+    "build": {
+      "command": "npm run build",
+      "exitCode": 1,
+      "failedGate": "bundle size",
+      "bundles": [
+        {
+          "path": "dist/extension.js",
+          "bytes": 613570,
+          "budgetBytes": 614400,
+          "remainingBytes": 830,
+          "pass": true
+        },
+        {
+          "path": "dist/modelApi.js",
+          "bytes": 457409,
+          "budgetBytes": 486400,
+          "remainingBytes": 28991,
+          "pass": true
+        },
+        {
+          "path": "dist/review.js",
+          "bytes": 45297,
+          "budgetBytes": 51200,
+          "remainingBytes": 5903,
+          "pass": true
+        },
+        {
+          "path": "dist/sessionBoard.js",
+          "bytes": 69660,
+          "budgetBytes": 76800,
+          "remainingBytes": 7140,
+          "pass": true
+        },
+        {
+          "path": "dist/reviewer.js",
+          "bytes": 30572,
+          "budgetBytes": 76800,
+          "remainingBytes": 46228,
+          "pass": true
+        },
+        {
+          "path": "dist/planMarkdown.js",
+          "bytes": 147608,
+          "budgetBytes": 153600,
+          "remainingBytes": 5992,
+          "pass": true
+        },
+        {
+          "path": "dist/checkpointStore.js",
+          "bytes": 112710,
+          "budgetBytes": 230400,
+          "remainingBytes": 117690,
+          "pass": true
+        },
+        {
+          "path": "dist/agentImport.js",
+          "bytes": 94012,
+          "budgetBytes": 128000,
+          "remainingBytes": 33988,
+          "pass": true
+        },
+        {
+          "path": "dist/browserCheck.js",
+          "bytes": 52229,
+          "budgetBytes": 76800,
+          "remainingBytes": 24571,
+          "pass": true
+        },
+        {
+          "path": "dist/browserRuntime.js",
+          "bytes": 38219,
+          "budgetBytes": 51200,
+          "remainingBytes": 12981,
+          "pass": true
+        },
+        {
+          "path": "dist/bundledSkills.js",
+          "bytes": 28735,
+          "budgetBytes": 51200,
+          "remainingBytes": 22465,
+          "pass": true
+        },
+        {
+          "path": "dist/codeIntel.js",
+          "bytes": 56956,
+          "budgetBytes": 102400,
+          "remainingBytes": 45444,
+          "pass": true
+        },
+        {
+          "path": "dist/voice.js",
+          "bytes": 36503,
+          "budgetBytes": 51200,
+          "remainingBytes": 14697,
+          "pass": true
+        },
+        {
+          "path": "dist/webFetch.js",
+          "bytes": 48970,
+          "budgetBytes": 76800,
+          "remainingBytes": 27830,
+          "pass": true
+        },
+        {
+          "path": "dist/museCodeReviewer.js",
+          "bytes": 18584,
+          "budgetBytes": 76800,
+          "remainingBytes": 58216,
+          "pass": true
+        },
+        {
+          "path": "dist/whatsNew.js",
+          "bytes": 36807,
+          "budgetBytes": 51200,
+          "remainingBytes": 14393,
+          "pass": true
+        },
+        {
+          "path": "dist/uiText.js",
+          "bytes": 122182,
+          "budgetBytes": 128000,
+          "remainingBytes": 5818,
+          "pass": true
+        },
+        {
+          "path": "dist/searchWorker.js",
+          "bytes": 18571,
+          "budgetBytes": 51200,
+          "remainingBytes": 32629,
+          "pass": true
+        },
+        {
+          "path": "dist/pageWorker.js",
+          "bytes": 208040,
+          "budgetBytes": 307200,
+          "remainingBytes": 99160,
+          "pass": true
+        },
+        {
+          "path": "dist/webview/main.js",
+          "bytes": 928507,
+          "budgetBytes": 921600,
+          "remainingBytes": -6907,
+          "pass": false
+        },
+        {
+          "path": "dist/webview/whatsNew.js",
+          "bytes": 708,
+          "budgetBytes": 25600,
+          "remainingBytes": 24892,
+          "pass": true
+        },
+        {
+          "path": "dist/acp.js",
+          "bytes": 815561,
+          "budgetBytes": 870400,
+          "remainingBytes": 54839,
+          "pass": true
+        },
+        {
+          "path": "dist/whatsNew.json",
+          "bytes": 34410,
+          "budgetBytes": 40960,
+          "remainingBytes": 6550,
+          "pass": true
+        }
+      ],
+      "webviewLargestInputs": [
+        {
+          "path": "node_modules/react-dom/cjs/react-dom-client.production.js",
+          "bytes": 205683
+        },
+        {
+          "path": "src/shared/l10n/en.ts",
+          "bytes": 121687
+        },
+        {
+          "path": "src/webview/state/uiState.ts",
+          "bytes": 40947
+        },
+        {
+          "path": "src/webview/App.tsx",
+          "bytes": 30008
+        },
+        {
+          "path": "node_modules/highlight.js/lib/core.js",
+          "bytes": 20984
+        },
+        {
+          "path": "node_modules/zod/v4/core/schemas.js",
+          "bytes": 15269
+        },
+        {
+          "path": "node_modules/highlight.js/es/languages/css.js",
+          "bytes": 13446
+        },
+        {
+          "path": "src/webview/components/Transcript.tsx",
+          "bytes": 12905
+        },
+        {
+          "path": "src/shared/constants.ts",
+          "bytes": 12115
+        },
+        {
+          "path": "src/webview/components/Composer.tsx",
+          "bytes": 12047
+        },
+        {
+          "path": "src/webview/components/UsageDialog.tsx",
+          "bytes": 10807
+        },
+        {
+          "path": "node_modules/mdast-util-from-markdown/lib/index.js",
+          "bytes": 10345
+        },
+        {
+          "path": "node_modules/property-information/lib/svg.js",
+          "bytes": 10116
+        },
+        {
+          "path": "src/shared/protocol.ts",
+          "bytes": 9660
+        },
+        {
+          "path": "node_modules/react/cjs/react.production.js",
+          "bytes": 8014
+        },
+        {
+          "path": "src/webview/components/ToolRow.tsx",
+          "bytes": 7880
+        },
+        {
+          "path": "node_modules/highlight.js/es/languages/typescript.js",
+          "bytes": 7775
+        },
+        {
+          "path": "src/shared/palette.ts",
+          "bytes": 7673
+        },
+        {
+          "path": "src/webview/components/AgentMap.tsx",
+          "bytes": 7614
+        },
+        {
+          "path": "src/webview/components/icons.tsx",
+          "bytes": 6959
+        }
+      ]
+    },
+    "vsix": {
+      "purpose": "private measurement only; ordinary prepublish remains blocked",
+      "manifestVersion": "0.12.1",
+      "bytes": 2330538,
+      "budgetBytes": 2252800,
+      "excessBytes": 77738,
+      "gateExitCode": 1,
+      "sha256": "94dd12e859d1c4fcf847380ad3629eb8704289eea401c6d1a694d9ea7ed01ab7",
+      "entries": 124,
+      "rawContentBytes": 7211091,
+      "compressedContentBytes": 2307900,
+      "zipOverheadBytes": 22638,
+      "universalMacHelperPresent": false,
+      "groups": {
+        "dist": {
+          "files": 24,
+          "compressedBytes": 1024976,
+          "rawBytes": 3254681
+        },
+        "l10n": {
+          "files": 14,
+          "compressedBytes": 613642,
+          "rawBytes": 2230115
+        },
+        "root files + VSIX metadata": {
+          "files": 22,
+          "compressedBytes": 334921,
+          "rawBytes": 1100885
+        },
+        "resources": {
+          "files": 8,
+          "compressedBytes": 159823,
+          "rawBytes": 173072
+        },
+        "vendor": {
+          "files": 47,
+          "compressedBytes": 139197,
+          "rawBytes": 361264
+        },
+        "docs": {
+          "files": 1,
+          "compressedBytes": 17023,
+          "rawBytes": 45868
+        },
+        "native": {
+          "files": 5,
+          "compressedBytes": 11769,
+          "rawBytes": 36344
+        },
+        "media": {
+          "files": 2,
+          "compressedBytes": 5064,
+          "rawBytes": 5983
+        },
+        "first-party-skills": {
+          "files": 1,
+          "compressedBytes": 1485,
+          "rawBytes": 2879
+        }
+      },
+      "largestEntries": [
+        {
+          "path": "extension/dist/webview/main.js",
+          "compressedBytes": 282974,
+          "rawBytes": 928507
+        },
+        {
+          "path": "extension/dist/extension.js",
+          "compressedBytes": 190208,
+          "rawBytes": 613570
+        },
+        {
+          "path": "extension/dist/modelApi.js",
+          "compressedBytes": 144541,
+          "rawBytes": 457409
+        },
+        {
+          "path": "extension/readme.md",
+          "compressedBytes": 102787,
+          "rawBytes": 350896
+        },
+        {
+          "path": "extension/changelog.md",
+          "compressedBytes": 85723,
+          "rawBytes": 232006
+        },
+        {
+          "path": "extension/dist/pageWorker.js",
+          "compressedBytes": 62877,
+          "rawBytes": 208040
+        },
+        {
+          "path": "extension/resources/walkthrough/open.png",
+          "compressedBytes": 59085,
+          "rawBytes": 63012
+        },
+        {
+          "path": "extension/l10n/ui.ru.json",
+          "compressedBytes": 50992,
+          "rawBytes": 223941
+        },
+        {
+          "path": "extension/resources/walkthrough/chat.png",
+          "compressedBytes": 46165,
+          "rawBytes": 49242
+        },
+        {
+          "path": "extension/l10n/ui.pl.json",
+          "compressedBytes": 45203,
+          "rawBytes": 157792
+        },
+        {
+          "path": "extension/l10n/ui.cs.json",
+          "compressedBytes": 45132,
+          "rawBytes": 156165
+        },
+        {
+          "path": "extension/dist/planMarkdown.js",
+          "compressedBytes": 44986,
+          "rawBytes": 147608
+        },
+        {
+          "path": "extension/l10n/ui.hu.json",
+          "compressedBytes": 44892,
+          "rawBytes": 158612
+        },
+        {
+          "path": "extension/l10n/ui.ja.json",
+          "compressedBytes": 44264,
+          "rawBytes": 176068
+        },
+        {
+          "path": "extension/l10n/ui.fr.json",
+          "compressedBytes": 44157,
+          "rawBytes": 164129
+        }
+      ]
+    },
+    "drills": {
+      "count": 9,
+      "allRegressionsFail": true,
+      "restoredByteExact": true,
+      "record": "train-0.13.0-drills.json"
+    }
+  },
+  "testedHead": "3e04f6f5d3fbf354db27338a5ec26321ceace154",
+  "packagingVerification": {
+    "localeFilesMatchStageAndSource": 29,
+    "runtimeJsMatchesFinalBuild": true,
+    "helperExecutable": true,
+    "productionTarballUnchangedByPrivatePackaging": true,
+    "acp": [
+      {
+        "path": "dist/muse-spark-code-acp-0.12.1.tgz",
+        "bytes": 1088347,
+        "sha256": "649a3156146b16cd35b406acea5f8e1c992fd4a6e1fa9042bdbbc2f3cbd7a6e2",
+        "entries": 29,
+        "privateFakeOnly": false
+      },
+      {
+        "path": "dist/muse-spark-code-acp-test-0.12.1.tgz",
+        "bytes": 1152464,
+        "sha256": "55f7c31de28b6daf507b50b249792edb35fba3433b4d830f0412ce88cfa9b3d0",
+        "entries": 30,
+        "privateFakeOnly": true
       }
     ]
   },
-  "drills": {
-    "count": 9,
-    "allRegressionsFail": true,
-    "restoredByteExact": true,
-    "record": "train-0.13.0-drills.json"
-  }
+  "packageCommands": [
+    {
+      "command": "npm run check:l10n -- --packaged dist/vsix-package",
+      "exitCode": 0
+    },
+    {
+      "command": "npm run package:acp",
+      "exitCode": 0
+    },
+    {
+      "command": "node scripts/package-acp-test.mjs",
+      "exitCode": 0
+    }
+  ]
 }

@@ -1,11 +1,16 @@
 # TRAIN13 — 0.13.0 release train
 
+Current TRAIN13B result: **complete Kubuntu quality and CI-shaped VSIX gates pass**.
+The implementation is `3e04f6f5d3fbf354db27338a5ec26321ceace154`; the final receipt commit
+changes documentation only. See [TRAIN13B recovery](#train13b-size-recovery-2026-10-05)
+and the current [PR description](#pr-description). Historical train failures follow first.
+
 Worktree: `/home/randy/lanes/TRAIN13`, branch `release/train-0.13.0`.
 Base: `244d5905` (`main-sync`, PR #117). Tests run directly on Kubuntu.
 The task is integration only: no push, rebase, squash, live or paid model call.
 All existing quality thresholds and budgets remain unchanged.
 
-Final disposition: **release blocked**. The unchanged webview and VSIX size
+Historical TRAIN13 disposition: **release blocked**. The unchanged webview and VSIX size
 gates fail; implementation stops at the owner's budget-stop instruction.
 The final full quality run also stops on two `/tmp` disk-quota failures in
 unchanged checkpoint tests. This train is not certified green.
@@ -199,7 +204,7 @@ bytes are in [train-0.13.0-result.json](train-0.13.0-result.json).
 Implementation stops at both confirmed budget failures as instructed.
 Quota recovery, full certification and package reduction remain unresolved.
 
-## PR description
+## Historical TRAIN13 PR description
 
 Title: Integrate the reviewed 0.13.0 release train
 
@@ -223,3 +228,276 @@ accessibility/security gates are unverified. Release is blocked by the
 helper. Nine deliberate regression drills fail and restore byte-exact.
 Caps and thresholds stay unchanged; implementation stops at the required
 budget boundary. No publication or remote operation was performed.
+
+## TRAIN13B size recovery (2026-10-05)
+
+Worktree `/home/randy/lanes/TRAIN13B`, branch `release/train-0.13.0-fix`,
+starting head `42b9165ae0d8318544bec095a7ad860adb0948b2`. The specific rig
+brief authorizes the complete gate and read-only release-asset download;
+no merges, pushes, live/paid model calls, credential access or gate relaxation.
+The preceding sections preserve the previous lane's historical failures.
+
+Both unchanged checkpoint files were run **first**, using their normal
+`/tmp` paths after the lead's cleanup: **61 tests passed**, two files, 7.90 s.
+No `TMPDIR` relocation or checkpoint implementation/test change. This resolves
+the earlier quota blocker on this rig.
+
+### First paint and archive trade-offs
+
+The original esbuild inputs were ranked against pre-train `244d5905`:
+English fallback +9,328 emitted bytes, shared redaction +4,331, UI state
++2,287, App +837, browser-check constants +784, secret dialog +596,
+approval card +240, shared constants +211, snapshot +203, protocol +103.
+The large shared tables, consent and security code stay available at startup.
+Account & usage, Agent map, best-of-N, review pane, history and session board
+now load through six React lazy imports when opened. Their loading state is
+announced, Close/Escape cancels even during import, and late completion cannot
+reopen a closed surface. Existing ErrorBoundary handles a failed import.
+The nonce-bearing ESM entry retains the nonce-only script CSP. The full eager
+import graph is counted once against the **unchanged 900 KiB cap**, including
+static shared chunks; the full browser JS graph grows 9,332 raw bytes due to
+splitting/loading overhead while first paint shrinks. Optional JavaScript has its own new measured 50 KiB
+aggregate cap. Split and packaging checks require every emitted chunk and
+reject an eager surface, an unlisted dynamic entry or a stale chunk.
+
+Node bundles share the **used** zod/mini API through `dist/validation.js`;
+browser and integration bundles retain their inline parser. The shared
+runtime is in VSIX, ACP and private fake-only packages, with split/API/global
+and inventory guards. An unrestricted export-star prototype was rejected
+because it carried 433,860 bytes; the actual runtime is 40,416 bytes.
+This is an archive-size trade-off: activation alone falls by 17,505 bytes,
+but activation plus its new parser rises by **22,911 raw bytes**; ACP itself
+rises by **7,965 bytes**, within its existing cap. Repeated parsers are removed
+from deferred Node bundles. Existing parser schemas and boundary behavior are
+unchanged; compiled-runtime valid/invalid parse controls also pass.
+
+VSCE's actual allowlist is staged beneath `dist/vsix-package`. Only shipped
+UI/manifest JSON and generated What's New data are compacted; parsed values
+must equal their readable source. The normal localization gate also reads
+the **exact staged bytes**, checking every translated table and manifest.
+Vendor files stay byte-identical, preserving their recorded hashes. The
+package uses a concise marketplace guide linking the complete source README;
+Unreleased and the newest two releases remain in its changelog with a complete
+history link. Full repository docs/history remain intact. Privacy, skills,
+walkthrough images, notices, native helpers and runtime features still ship.
+Packaging tests forbid PLAN/AGENTS, certification, tests/fixtures/source,
+metafiles/maps, unused README media, packaging-source docs and localization
+allowlists. Shorter packaged docs reduce offline documentation depth; the
+full guide/history are available through their explicit links.
+
+The universal macOS helper is the actual executable extracted from the public
+[0.12.1 release asset](https://github.com/RandyNorthrup/muse-spark-code/releases/download/v0.12.1/muse-spark-code-0.12.1.vsix):
+414,832 raw bytes, **119,342 compressed bytes** and 164 bytes of ZIP entry
+overhead. Added to the original helper-less measurement, it reconstructs a
+CI-shaped baseline of **2,450,044 bytes** (not a fresh baseline build).
+The new local archive includes that executable with executable permissions.
+Fresh macOS compilation and the hosted OS matrix remain external acceptance;
+the release binary establishes size, not a new native-build receipt.
+
+### Verification and drills
+
+All scoped Vitest commands use `--maxWorkers=3 --testTimeout=120000`, at most
+three files per invocation. New deferred/package tests pass, as do App,
+review, handoff, HTML, bundle, manifest and compiled-parser tests. The full
+suite exposed ACP packaging fixtures lacking the new required runtime and
+four panel assertions tied to script attribute order. Fixtures now include
+that runtime and panel assertions require the module script **and nonce**;
+the two package e2e files pass all 42 tests, the two panel files all 18.
+No skip, timeout, threshold or existing security assertion is weakened.
+
+Focused accessibility: all six deferred surfaces across four VS Code themes,
+**24 pages**, zero violations, undecided checks or missing pages. Browser
+execution under the production nonce-only script policy opens all six actual
+surfaces with zero CSP violations or page errors. DeferredSurface tests also
+cover pending close, late completion, latest props and import failure.
+
+**20 deliberate regressions exit 1**, recorded in
+[train-0.13.0-size-drills.json](train-0.13.0-size-drills.json). They cover
+all six eager-surface regressions, parser re-inlining, missing compiled API,
+new unsupported source API, stale chunks, startup/deferred overages, host
+browser globals, development-file inclusion, missing package chunks,
+uncompacted JSON, historical changelog return, bypassed loading and differing
+shipped translation values, plus a nested scenario that never becomes ready. Nineteen drills modify a file and restore it byte-exact with
+before/after SHA-256 receipts; one drill creates only a stale chunk,
+which is removed. Restored gates/tests pass. These hashes prove restoration
+at drill time; they are not the final artifact digest manifest.
+
+The first complete tail reached all 564 accessibility pages with zero violations
+but failed two nested-surface interactions that used fixed delays. Those
+interactions now use the existing bounded `whenFound` helper; four nested
+scenarios also require their actual final state before a scan. All 16 focused
+pages pass. A deliberate impossible readiness selector fails all four themes
+at the unchanged ten-second deadline, then restores byte-exact.
+
+Full gate receipt and final artifact inventory follow below.
+
+### Exact artifact bytes
+
+All byte counts below are raw, except the VSIX. Existing caps are unchanged;
+only the new parser and optional-JS totals receive new independent caps.
+`webview/main.js` denotes its **transitive eager JS total** in the budget row.
+
+| Artifact                   | Before bytes | After bytes | Cap bytes | Headroom bytes |
+| -------------------------- | -----------: | ----------: | --------: | -------------: |
+| `dist/extension.js`        |      613,570 |     596,065 |   614,400 |         18,335 |
+| `dist/modelApi.js`         |      457,409 |     439,642 |   486,400 |         46,758 |
+| `dist/review.js`           |       45,297 |      28,918 |    51,200 |         22,282 |
+| `dist/sessionBoard.js`     |       69,660 |      49,604 |    76,800 |         27,196 |
+| `dist/reviewer.js`         |       30,572 |      13,717 |    76,800 |         63,083 |
+| `dist/planMarkdown.js`     |      147,608 |     147,608 |   153,600 |          5,992 |
+| `dist/checkpointStore.js`  |      112,710 |      91,147 |   230,400 |        139,253 |
+| `dist/agentImport.js`      |       94,012 |      75,212 |   128,000 |         52,788 |
+| `dist/browserCheck.js`     |       52,229 |      38,524 |    76,800 |         38,276 |
+| `dist/browserRuntime.js`   |       38,219 |      19,762 |    51,200 |         31,438 |
+| `dist/bundledSkills.js`    |       28,735 |      14,341 |    51,200 |         36,859 |
+| `dist/codeIntel.js`        |       56,956 |      39,453 |   102,400 |         62,947 |
+| `dist/voice.js`            |       36,503 |      18,578 |    51,200 |         32,622 |
+| `dist/webFetch.js`         |       48,970 |      35,911 |    76,800 |         40,889 |
+| `dist/museCodeReviewer.js` |       18,584 |      18,584 |    76,800 |         58,216 |
+| `dist/whatsNew.js`         |       36,807 |      16,997 |    51,200 |         34,203 |
+| `dist/uiText.js`           |      122,182 |     122,182 |   128,000 |          5,818 |
+| `dist/validation.js`       |          new |      40,416 |    51,200 |         10,784 |
+| `dist/searchWorker.js`     |       18,571 |       4,969 |    51,200 |         46,231 |
+| `dist/pageWorker.js`       |      208,040 |     193,171 |   307,200 |        114,029 |
+| `dist/webview/main.js`     |      928,507 |     898,355 |   921,600 |         23,245 |
+| `dist/webview/whatsNew.js` |          708 |         708 |    25,600 |         24,892 |
+| `dist/acp.js`              |      815,561 |     823,526 |   870,400 |         46,874 |
+| `dist/whatsNew.json`       |       34,410 |      34,410 |    40,960 |          6,550 |
+| `dist/webview deferred JS` |            0 |      39,484 |    51,200 |         11,716 |
+
+Webview startup falls **30,152 bytes**, with **23,245 bytes (22.70 KiB)**
+left under the cap, exceeding the requested 20 KiB headroom. Optional JS is
+39,484 bytes with 11,716 bytes of its new 50 KiB aggregate budget left.
+
+Each emitted browser file is listed below. Eager files share the startup cap;
+optional files share the deferred aggregate cap, rather than separate caps.
+
+| Browser file                                         |   Bytes | Loaded at first paint |
+| ---------------------------------------------------- | ------: | --------------------- |
+| `dist/webview/chunks/AgentMap-LPUZHIEP.js`           |   8,009 | on demand             |
+| `dist/webview/chunks/BestOfNDialog-YX53KGBH.js`      |   7,043 | on demand             |
+| `dist/webview/chunks/HistoryDialog-KV2LQAES.js`      |   3,433 | on demand             |
+| `dist/webview/chunks/ReviewPane-UQIGRIQ7.js`         |   5,582 | on demand             |
+| `dist/webview/chunks/SessionBoardDialog-J5AP3TW2.js` |   2,286 | on demand             |
+| `dist/webview/chunks/UsageDialog-WIF6SKXO.js`        |  11,254 | on demand             |
+| `dist/webview/chunks/chunk-2IMK2LJV.js`              |     946 | yes                   |
+| `dist/webview/chunks/chunk-5D5OIGMZ.js`              |     165 | yes                   |
+| `dist/webview/chunks/chunk-5OYIARPN.js`              |       0 | yes                   |
+| `dist/webview/chunks/chunk-AFH65HPM.js`              |     372 | yes                   |
+| `dist/webview/chunks/chunk-CPCWHKL4.js`              |  72,031 | yes                   |
+| `dist/webview/chunks/chunk-DNVKS4PV.js`              |     210 | yes                   |
+| `dist/webview/chunks/chunk-FLQ4MYD3.js`              |   7,051 | yes                   |
+| `dist/webview/chunks/chunk-H3C37OEY.js`              | 148,264 | yes                   |
+| `dist/webview/chunks/chunk-H423DP7K.js`              |   1,877 | on demand             |
+| `dist/webview/chunks/chunk-M3IDBAAM.js`              |   1,549 | yes                   |
+| `dist/webview/chunks/chunk-OEALNJ7J.js`              |  31,962 | yes                   |
+| `dist/webview/chunks/chunk-S76IJPNW.js`              |   1,143 | yes                   |
+| `dist/webview/chunks/chunk-UUZMLMHR.js`              |   5,498 | yes                   |
+| `dist/webview/chunks/chunk-WKCHX755.js`              |   8,335 | yes                   |
+| `dist/webview/chunks/chunk-WROIWOFY.js`              |   4,040 | yes                   |
+| `dist/webview/main.js`                               | 616,789 | yes                   |
+
+### Complete gate and final package
+
+`VITEST_MAX_WORKERS=3 npm run quality` **exits 0**, including every stage:
+formatting, JavaScript/CSS lint, all five TypeScript projects, localization,
+host APIs, Knip, cycles, zero duplication, unit/e2e coverage, production
+budgets/split/globals/notices, audit, accessibility, history secret scan and
+Semgrep. PowerShell lint retains its existing Windows-only policy on Linux.
+No caps, thresholds, skips, deadlines, ignore rules or audit exceptions change.
+
+- **391 files passed, 6 existing skips (397); 7,782 tests passed, 65 existing
+  skips (7,847)**, zero failures, 260.17 s. Coverage: **94.30% statements,
+  89.97% branches, 95.65% functions, 94.48% lines**, above the unchanged
+  90/85/90/90 thresholds.
+- Localization: 14 tables, 131 manifest strings, 474 source files, zero
+  problems. Host API inventory: 296 APIs, 24 VS Code-importing files,
+  25 Node built-ins, 61 theme variables, zero problems. Notices: 83 packages.
+- Accessibility: **564 pages (141 scenarios × four themes)**, zero violations,
+  undecided rules or missing results. The eight existing scrollable-listbox
+  exemptions remain. Axe cannot measure contrast for 1,393 covered/offscreen
+  elements and 20 glyph-only elements, under its existing documented policy.
+- Audit passes with two advisories and one existing reviewed exception
+  (`braces`, high; `serialize-javascript`, low). No exception is added.
+- History secret scan: 1,357 commits before this lane's commits, zero leaks.
+  Commit hooks also scan each staged patch; history is scanned again after
+  both local commits. Semgrep: 287 applicable rules, 831 targets, zero findings.
+
+`npm run package` **exits 0**, running the production build, exact staged
+localization and unchanged compressed-size gate. The documented
+`npm run check:l10n -- --packaged dist/vsix-package` also exits 0.
+
+| VSIX measurement                            |         Bytes |     Cap bytes | Headroom bytes |
+| ------------------------------------------- | ------------: | ------------: | -------------: |
+| Previous Linux, helper absent               |     2,330,538 |     2,252,800 |        −77,738 |
+| Reconstructed baseline with release helper  |     2,450,044 |     2,252,800 |       −197,244 |
+| **Final CI-shaped archive, helper present** | **2,206,151** | **2,252,800** |     **46,649** |
+
+Reduction against the reconstructed helper-inclusive baseline:
+**243,893 bytes**. The archive has 147 entries,
+6,730,871 raw content bytes, 2,179,209
+compressed content bytes and 26,942 ZIP overhead bytes.
+SHA-256: `598520a485781d459781bd17189c3bc64353a7e3e3d06711ef91feefc4c3d94e`.
+The preliminary 2,206,108-byte measurement is superseded by this final
+`npm run package` result. Manifest version stays **0.12.1**, as versioning
+was outside this brief.
+
+Compressed ranking from `unzip -lv`, in bytes:
+
+| Entry                                               | Previous compressed bytes | Final compressed bytes |
+| --------------------------------------------------- | ------------------------: | ---------------------: |
+| Webview main (its eager shared chunks now separate) |                   282,974 |                190,894 |
+| Activation                                          |                   190,208 |                181,964 |
+| Model API                                           |                   144,541 |                136,221 |
+| Universal helper                                    |                    absent |                119,342 |
+| README                                              |                   102,787 |                  1,879 |
+| Changelog                                           |                    85,723 |                 21,546 |
+| Page worker                                         |                    62,877 |                 58,398 |
+| Walkthrough open image                              |                    59,085 |                 59,085 |
+
+The complete final largest-entry ranking is in the JSON receipt. Every
+packaged JavaScript byte matches the final production build; all **29** UI and
+manifest locale files match both the exact stage and their source values.
+The universal helper is executable and `file` identifies both x86_64 and
+arm64 Mach-O architectures. Its SHA-256 is
+`97d8d06dab53a91696cdaa82ab1a33b9d12709cc8486b42945b29a8bf45925a5`.
+
+`npm run package:acp` and `node scripts/package-acp-test.mjs` exit 0. The
+production tarball is **1,088,347 bytes / 29 entries**; the private unsigned
+fake-only tarball is **1,152,464 bytes / 30 entries**. Both contain the
+shared parser and exact committed schemas. The production tarball has no
+test launcher; the fake variant is marked private, uses its distinct name/bin,
+and leaves the product tarball's digest unchanged. Digests and inventories
+are recorded in [train-0.13.0-result.json](train-0.13.0-result.json). Nothing is
+published. Fresh native builds, installed-editor/hosted OS acceptance and
+M80's pending live receipts remain outside this Kubuntu gate.
+
+## PR description
+
+Title: Fit the integrated 0.13.0 train under startup and universal VSIX caps
+
+The combined train exceeded the chat startup and VSIX caps. Defer Account &
+usage, Agent map, best-of-N, history, session board and edit review with
+accessible loading/cancellation, and count every eager browser chunk. Share
+the used Node validation API; stage compact shipped JSON and shorter landing
+docs with links to the complete source guides/history. Preserve runtime
+features, consent/security guards, privacy, skills, notices and native helpers.
+The reviewed #116, #87, #118, #119, D78 defaults and M92/M92e integrations
+remain intact, with their merge history preserved.
+
+Webview startup: **928,507 → 898,355 bytes**, **23,245 bytes** of headroom.
+CI-shaped VSIX: reconstructed **2,450,044 → 2,206,151 bytes**,
+**46,649 bytes** of headroom, including the actual universal
+0.12.1 helper. All existing caps are unchanged. The Node parser sharing
+reduces archive duplication but increases activation plus parser by 22,911
+raw bytes; the full source docs remain linked, with less offline history
+in the package.
+
+Validation at implementation `3e04f6f5d3fbf354db27338a5ec26321ceace154`: complete
+`npm run quality` exits 0; 7,782 tests pass with 65 existing skips, coverage
+clears all unchanged thresholds, and all 564 accessibility pages pass.
+Audit, history secret scan, Semgrep, production/package guards and both ACP
+package inventories pass. **20 deliberate regression drills** fail and restore
+exactly. Hooks remain on. Manifest version is unchanged; fresh hosted/native
+and pending M80 live acceptance remain external. Local commits only; no push
+or publication.
