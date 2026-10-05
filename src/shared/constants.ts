@@ -524,6 +524,14 @@ export const HOOK_FORBIDDEN_ENV_NAMES: ReadonlySet<string> = new Set([
   'OPENAI_KEY',
   'ANTHROPIC_KEY',
   'META_KEY',
+  // M95 (PLAN.md D74): the BYO providers' credential variables that do not
+  // end in `_API_KEY`. Every other preset's key variable does, so
+  // `isCredentialVariable`'s suffix rule already strips it; these three need
+  // their names listed: Bedrock's auth variable, the Anthropic-gateway token,
+  // and the Hugging Face token.
+  'AWS_BEARER_TOKEN_BEDROCK',
+  'ANTHROPIC_AUTH_TOKEN',
+  'HF_TOKEN',
 ])
 
 // --- Paid features on the Model API backend (M33–M35, PLAN.md D30) ---

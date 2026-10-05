@@ -71,6 +71,22 @@ happened, not what was planned; superseded entries are kept.
   accessibility checks; five German, French and Italian labels are
   translated without localization exceptions.
 
+- **M95 Ollama codec review repairs.** Native tool identities preserve
+  growing-session history, reasoning replays only to its producing model,
+  stream buffers and output retention are bounded, and the native terminal
+  line closes the source. Nine local Ollama 0.35.1 receipts replace invented
+  decode fixtures; five byte goldens and translated codec errors cover the
+  repaired seam. Provider integration and full milestone certification remain
+  separate gates.
+- **Provider account IDs stay redacted across session export boundaries.**
+  Whole-string redaction validates slice cuts, including `team id` followed
+  by a newline and UUID; serialized OpenAI and Anthropic account headers
+  are redacted in logs and exports while retaining JSON names and quotes.
+- **Offline provider catalogue replay avoids deep Buffer assertion cost.**
+  Tests compare byte length and SHA-256 without changing the default timeout
+  or the sealed snapshot integrity checks.
+
+
 ### Added
 
 - **Bring-your-own-model keys and panel host (M95 lane K).** The `Start
@@ -92,16 +108,6 @@ happened, not what was planned; superseded entries are kept.
   the composer pill names the provider; Account & usage lists per-provider
   tallies with OpenRouter key usage and unpriced/local costs. A confidential
   workspace hides training models from the list and refuses them on switch.
-
-- **M95 Ollama codec review repairs.** Native tool identities preserve
-  growing-session history, reasoning replays only to its producing model,
-  stream buffers and output retention are bounded, and the native terminal
-  line closes the source. Nine local Ollama 0.35.1 receipts replace invented
-  decode fixtures; five byte goldens and translated codec errors cover the
-  repaired seam. Provider integration and full milestone certification remain
-  separate gates.
-
-### Added
 
 - **A live receipt workflow for the GitHub Action (M80 LA).**
   `.github/workflows/action-live.yml` runs the real Action, on the agent

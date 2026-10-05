@@ -14462,6 +14462,21 @@ plain text without a hosted declaration; packed-output and compaction
 requests gain checked-in byte goldens. Each fix has a regression and a
 byte-exact-restored red drill in `docs/certification/m95-h.md`. No dependency,
 paid/live call or guard widening. Bundle registration remains lane W's work.
+**FIXM95SC review corrections (2026-10-05, implemented).** RVM95SC findings
+1–3 are owned by `m95/scfix`: protect export cuts using the whole-string
+redaction matches, redact JSON-serialized provider account headers, and
+compare offline catalogue replay by SHA-256 and byte length within the
+unchanged default test deadline. Regression tests and byte-exact red drills
+are required in `docs/certification/m95-s.md` and `m95-c.md`. No dependency,
+wire-shape change or gate relaxation. The lane runs scoped checks on rigs;
+the lead retains the full quality and final package gates.
+Scoped closure: Mac mini passes 306 tests in five complete files at default
+deadlines, all five compiler projects, lint, dead-code/duplication and the
+production build under unchanged caps. Local localization and formatting
+pass. Host API's five generated-count deltas remain the named gate deferral
+RVM95SC-R-host-api-record (§§7, 9); full quality/package and the separate
+RVM95SC-R-shell-env item remain open for the lead. No numbered review finding
+is deferred; all five fix drills fired and restored SHA-256-exact source.
 
 **Status 2026-10-04: planned on `feature/m95-byo-providers` from main
 `1e93c67c`; research in `docs/certification/m95-research.md`. Step 13's
@@ -15538,6 +15553,20 @@ integrated gate. Chat's existing bundle-split registration failure belongs
 to lane W, which the brief explicitly forbids this lane from editing. Keep
 the gate unchanged and record its exact failure and passed size budgets in
 `docs/certification/m95-h.md` before integration.
+**FIXM95SC gate deferral: RVM95SC-R-host-api-record (2026-10-05).** After
+required merges, `npm run check:host-api` exits 1 solely because generated
+`docs/ide-compatibility/host-api.md` has stale Node import counts:
+`node:crypto` 32→33, `node:fs/promises` 34→35, `node:net` 3→4,
+`node:os` 6→7, `node:path` 65→66. Membership and API rows have no reported
+difference; the fresh receipt reports 279 VS Code APIs, 19 importing files,
+23 Node built-ins and 57 theme variables. FIXM95SC's redactor import is
+unchanged; its new imports are test-only. The generated record is outside
+the lane brief's allowed files, so lane W/lead must run
+`npm run check:host-api -- --write`, review these five counts and rerun the
+unchanged gate on the integrated tree. No gate is disabled or weakened, and
+this lane does not claim all gates or full quality green. See §9 and the
+S/C certification records.
+
 **DEFLAKE2 bounded-lane result (2026-10-04).** Direct Win11 owning tests
 and the required static/build gates passed; two deliberate regressions
 failed and were restored byte-exact. The rig brief prohibits integration
@@ -16179,6 +16208,23 @@ before a repaired one loads (2026-09-30).
   has 34 commands while the generated host record has 31. Safe only as an
   unmerged scaffold; follow-up: lane W regenerates/reviews the record before
   milestone certification. Both are observed gate failures, not green gates.
+- **Open documentation residual RVM95SC-R-host-api-record (2026-10-05).**
+  The required merges leave five generated Node-import counts stale. The
+  source/API membership is unchanged by the owned fixes, and actual counts
+  are retained in the failed gate receipt, so this does not weaken a runtime
+  boundary. The host API gate remains red and aggregate certification stays
+  open. Lane W/lead must regenerate, inspect and recheck the record; its path
+  is outside FIXM95SC's file scope. Exact count deltas are in §7.
+
+- **Open integration item RVM95SC-R-shell-env (2026-10-05).** The extension's
+  inherited shell environment still forwards the user's `HF_TOKEN`,
+  `ANTHROPIC_AUTH_TOKEN` and `AWS_BEARER_TOKEN_BEDROCK`; hooks and ACP strip
+  them. This predates M95-S's changes and is outside FIXM95SC's authorized
+  redactor/test files. Stored keys are not injected by this lane, but that
+  fact does not certify shell isolation. Lane I/X/W must decide intended
+  inheritance versus stripping and test the shell boundary before broader
+  provider security certification. This is an open gate, not newly accepted
+  risk; see `docs/certification/m95-s.md`.
 
 - Code intelligence (M67) shows what VS Code's language services say. A
   result located outside the workspace is left out and a hover defined only
