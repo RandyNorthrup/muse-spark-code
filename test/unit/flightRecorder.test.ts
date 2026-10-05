@@ -42,6 +42,7 @@ import {
   REPORT_JOURNAL_MAX_BYTES,
   REPORT_RECENT_EVENT_COUNT,
   REPORT_STORAGE_DIR,
+  REPORT_VERSION_MAX_CHARS,
 } from '../../src/shared/constants'
 import { FakeLogOutputChannel } from './helpers/fakes'
 
@@ -149,6 +150,13 @@ class MapFs implements ReportJournalFs {
     }
   }
 }
+
+describe('lane-R storage tunables', () => {
+  it('keeps journals in one global-storage folder with short version tokens', () => {
+    expect(REPORT_STORAGE_DIR).toBe('reports')
+    expect(REPORT_VERSION_MAX_CHARS).toBe(32)
+  })
+})
 
 describe('buildFlightRecord', () => {
   it('builds a minimal valid record', () => {
@@ -589,6 +597,11 @@ describe('ReportJournal crash markers', () => {
     const next = journal(dir, 'next', { pid: 2002, isAlive: (pid) => pid !== 2001 })
     expect(await next.recorder.startup()).toEqual({ offerReport: true })
     await next.recorder.shutdown()
+    // The stale marker was consumed by the offer: the same dead window
+    // offers nothing more.
+    const reread = journal(dir, 'reread', { pid: 2006, isAlive: (pid) => pid !== 2001 })
+    expect(await reread.recorder.startup()).toEqual({ offerReport: false })
+    await reread.recorder.shutdown()
     const later = journal(dir, 'later', { pid: 2003, isAlive: () => true })
     expect(await later.recorder.startup()).toEqual({ offerReport: false })
     await later.recorder.shutdown()
@@ -717,6 +730,8 @@ describe('ReportJournal storage failure', () => {
     await recorder.record(event({}))
     expect(await recorder.readMerged()).toEqual({ entries: [], total: 0, skipped: 0 })
     await recorder.shutdown()
+    // A second startup on the dead store stays quiet too.
+    expect(await recorder.startup()).toEqual({ offerReport: false })
     const seen = warnings(log)
     expect(seen).toHaveLength(1)
     expect(seen[0]).toContain('EACCES')
