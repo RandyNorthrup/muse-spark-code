@@ -32,6 +32,11 @@ describe('usage host bridges', () => {
       expect(host.savedState()).toEqual({ sessionId: 's' })
       host.saveState({ sessionId: 'next' })
       expect(port.saveState).toHaveBeenCalledWith({ sessionId: 'next' })
+      const received = listen(host)
+      window.dispatchEvent(
+        new MessageEvent('message', { data: '{"type":"usage/error","code":"unsupported"}' }),
+      )
+      expect(received).toEqual([{ type: 'usage/error', code: 'unsupported' }])
       expect(() => {
         host.post({ type: 'ready' })
       }).toThrow('Invalid usage request')
@@ -58,6 +63,11 @@ describe('usage host bridges', () => {
     expect(host.savedState()).toBeUndefined()
     host.saveState({})
     expect(port.saveState).toHaveBeenCalledWith({})
+    const received = listen(host)
+    window.dispatchEvent(
+      new MessageEvent('message', { data: { type: 'usage/error', code: 'unsupported' } }),
+    )
+    expect(received).toEqual([{ type: 'usage/error', code: 'unsupported' }])
   })
 
   it('checks JSON and structured replies and makes malformed replies explicit', () => {

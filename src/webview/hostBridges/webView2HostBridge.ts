@@ -1,6 +1,6 @@
 import type { HostBridge, MessageSource } from '../hostBridge'
 import type { WebviewState } from '../state/snapshot'
-import { checkedUsageRequest } from './usageBridge'
+import { checkedUsageRequest, checkedUsageReplies } from './usageBridge'
 
 export interface WebView2UsagePort {
   /** Bound chrome.webview.postMessage, supplied by the native document host. */
@@ -11,6 +11,7 @@ export interface WebView2UsagePort {
 }
 
 export function webView2HostBridge(port: WebView2UsagePort): HostBridge {
+  const messages = checkedUsageReplies(port.messages)
   return {
     post: (message) => {
       port.postMessage(checkedUsageRequest(message))
@@ -19,6 +20,6 @@ export function webView2HostBridge(port: WebView2UsagePort): HostBridge {
     saveState: (state) => {
       port.saveState(state)
     },
-    messages: port.messages,
+    messages,
   }
 }

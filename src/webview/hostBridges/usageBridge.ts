@@ -35,8 +35,17 @@ export function deliverUsageReply(messages: EventTarget, input: unknown): void {
   messages.dispatchEvent(new MessageEvent('message', { data }))
 }
 
+/** Native hosts share the same checked message delivery. */
+export function checkedUsageReplies(source: MessageSource): EventTarget {
+  const messages = new EventTarget()
+  source.addEventListener('message', (event: MessageEvent<unknown>) => {
+    deliverUsageReply(messages, event.data)
+  })
+  return messages
+}
 /** The host owns persistence; this adapter does not acquire another host's API. */
 export function nativeUsageBridge(port: NativeUsagePort): HostBridge {
+  const messages = checkedUsageReplies(port.messages)
   return {
     post: (message) => {
       port.send(JSON.stringify(checkedUsageRequest(message)))
@@ -45,6 +54,6 @@ export function nativeUsageBridge(port: NativeUsagePort): HostBridge {
     saveState: (state) => {
       port.saveState(state)
     },
-    messages: port.messages,
+    messages,
   }
 }
