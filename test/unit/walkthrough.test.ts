@@ -61,6 +61,7 @@ describe('walkthrough resources', () => {
   it('opens the wizard from the own-model step and its page (M95)', () => {
     const own = steps.find((step) => step.id === 'ownModel')
     expect(own?.completionEvents).toContain('onCommand:museSpark.startWithOwnModel')
+    // package.nls.json is the manifest's locale table: string keys to strings.
     const nls = JSON.parse(readFileSync(path.join(root, 'package.nls.json'), 'utf8')) as Record<
       string,
       string
