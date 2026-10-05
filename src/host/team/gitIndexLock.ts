@@ -1,4 +1,5 @@
 import { open, unlink } from 'node:fs/promises'
+import { randomUUID } from 'node:crypto'
 import path from 'node:path'
 import { setTimeout as delay } from 'node:timers/promises'
 import * as z from 'zod/mini'
@@ -20,7 +21,11 @@ import { isMissingPath } from '../canonicalPath'
 import { isOwnedFile } from '../fsAtomic'
 
 const DEFAULT_LOCK_CLOCK = { now: Date.now, sleep: delay, waitMs: TEAM_RETIRE_WAIT_MS }
-const ownerSchema = z.strictObject({ landingId: z.string(), windowInstanceId: z.string() })
+const ownerSchema = z.strictObject({
+  landingId: z.string(),
+  windowInstanceId: z.string(),
+  leaseId: z.optional(z.string()),
+})
 type LockOwner = z.infer<typeof ownerSchema>
 export type RepositoryHolder =
   | { readonly kind: 'lock'; readonly path: string; readonly owner: LockOwner | null }
@@ -81,9 +86,17 @@ export async function knownRepositoryHolder(
   windowInstanceId: string,
   hints: readonly LandingHint[],
   platform: NodeJS.Platform = process.platform,
+  ownedLock?: IndexLockLease,
 ): Promise<RepositoryHolder | undefined> {
   const lock = await indexLockHolder(gitDirectory)
-  if (lock !== undefined) return lock
+  if (ownedLock === undefined) {
+    if (lock !== undefined) return lock
+  } else if (
+    ownedLock.path !== path.join(gitDirectory, 'index.lock') ||
+    !(await ownedLock.isHeld())
+  ) {
+    return lock ?? { kind: 'lock', path: path.join(gitDirectory, 'index.lock'), owner: null }
+  }
   const hint = hints.find(
     (hint) =>
       hint.fresh &&
@@ -113,6 +126,8 @@ export async function knownRepositoryHolder(
 
 export interface IndexLockLease {
   readonly path: string
+  /** Exact file identity and owner bytes, never just matching owner ids. */
+  readonly isHeld: () => Promise<boolean>
   /** False if somebody removed/replaced this lock: their new file stays untouched. */
   readonly release: () => Promise<boolean>
 }
@@ -147,7 +162,7 @@ export async function takeIndexLock(
   | { readonly kind: 'busy'; readonly holder: RepositoryHolder }
 > {
   const target = path.join(gitDirectory, 'index.lock')
-  const content = JSON.stringify(ownerSchema.parse(owner))
+  const content = JSON.stringify(ownerSchema.parse({ ...owner, leaseId: randomUUID() }))
   const deadline = clock.now() + clock.waitMs
   for (;;) {
     let handle
@@ -183,6 +198,11 @@ export async function takeIndexLock(
       kind: 'taken',
       lease: {
         path: target,
+        isHeld: async () =>
+          !isReleased &&
+          (await isOwnedFile(target, held)) &&
+          (await readOwnedLock(target, held)) === content &&
+          (await isOwnedFile(target, held)),
         release: async () => {
           if (isReleased) return false
           isReleased = true

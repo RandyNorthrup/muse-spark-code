@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 import { BoardRefusal, TaskBoard } from '../../src/core/team/scheduler/board'
 import { TEAM_BOARD_MAX, TEAM_SCHED_HISTORY_MAX } from '../../src/shared/constants'
-import { teamBoardSchema } from '../../src/shared/team'
+import { teamBoardSchema, type TeamBoardTask } from '../../src/shared/team'
 import {
   attempt,
   makeBoard,
@@ -11,6 +11,89 @@ import {
 } from './helpers/teamScheduler'
 
 describe('window task board', () => {
+  it('keeps quarantined older attempts chargeable and records their late retirement after archival', () => {
+    const { board, archived } = makeBoard()
+    board.submit([submission('reader')], 0)
+    board.begin('reader', attempt())
+    board.finishAttempt('reader', 1, { state: 'uncertain' })
+    board.prepareNext('reader', 1, 2, 'stall', true)
+    board.begin('reader', attempt(2), true)
+    retireBoardAttempt(board, 'reader')
+    board.transition('reader', 2, 'done', 3)
+    board.submit([submission('next')], 4)
+    const charge = vi.fn()
+    expect(
+      board.applyEvent(
+        {
+          workspaceId: 'workspace',
+          taskId: 'reader',
+          attempt: 1,
+          at: 4,
+          kind: 'usage',
+          usage: attempt().usage,
+        },
+        charge,
+      ),
+    ).toBe(true)
+    expect(charge).toHaveBeenCalledOnce()
+    expect(
+      board.finishAttempt('reader', 1, {
+        state: 'retired',
+        endedAt: 5,
+        retirement: { kind: 'proved', method: 'linuxCgroup' },
+      }),
+    ).toBe(true)
+    expect(archived.get('reader')?.attempts[0]?.state).toBe('retired')
+    expect(board.task('reader').state).toBe('done')
+  })
+
+  it('admits new work over long archived dependency chains without a stack or history limit', () => {
+    const archived = new Map<string, TeamBoardTask>()
+    const length = TEAM_SCHED_HISTORY_MAX * TEAM_BOARD_MAX
+    for (let index = 0; index < length; index++) {
+      const id = `old-${String(index)}`
+      archived.set(
+        id,
+        readyTask(id, {
+          state: 'cancelled',
+          depends_on:
+            index + 1 === length ? [] : [{ task: `old-${String(index + 1)}`, on: 'done' }],
+        }),
+      )
+    }
+    const { board } = makeBoard(archived)
+    expect(() =>
+      board.submit(
+        [
+          submission('child', {
+            fields: { ...submission('child').fields, depends_on: [{ task: 'old-0' }] },
+          }),
+        ],
+        0,
+      ),
+    ).not.toThrow()
+    expect(board.task('child').state).toBe('blocked')
+    expect(board.snapshot().tasks).toHaveLength(1)
+  })
+
+  it('refuses cycles through archived task dependencies without changing the board', () => {
+    const { board } = makeBoard()
+    board.submit(
+      [
+        submission('a', { fields: { ...submission('a').fields, depends_on: [{ task: 'b' }] } }),
+        submission('b'),
+      ],
+      0,
+    )
+    board.transition('a', 0, 'cancelled', 1)
+    board.submit([submission('c')], 2)
+    const before = board.snapshot()
+    expect(() => {
+      board.reschedule({ task_ids: ['b'], depends_on: [{ task: 'a' }] }, 3)
+    }).toThrow('cycle')
+    expect(board.snapshot()).toEqual(before)
+  })
+
   it('continues delegation after terminal history fills the old board envelope, including reload', () => {
     const { board } = makeBoard()
     for (let index = 0; index < TEAM_SCHED_HISTORY_MAX; index++) {

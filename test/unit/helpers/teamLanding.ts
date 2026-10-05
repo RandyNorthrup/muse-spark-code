@@ -68,7 +68,8 @@ export async function teamLandingFixture(
     snapshot: (root) => repo.staging.snapshot(root),
     checkIdentity: () => Promise.resolve('checks-one'),
     invalidate: vi.fn().mockResolvedValue(undefined),
-    knownHolder: () => knownRepositoryHolder(repo.root, gitDirectory, 'window-one', []),
+    knownHolder: (_root, ownedLock) =>
+      knownRepositoryHolder(repo.root, gitDirectory, 'window-one', [], process.platform, ownedLock),
     takeLock: async (_root, id) => {
       const result = await takeIndexLock(
         gitDirectory,
@@ -82,9 +83,10 @@ export async function teamLandingFixture(
     confirmWithoutChecks: vi.fn().mockResolvedValue(false),
     prepare: (intent) => journal.prepare(intent),
     close: (intent, status, conflicts) => journal.close(intent, status, conflicts),
-    replace: (_root, file) => access.replace(file.path, file.before, file.after),
-    recover: (intent: LandingIntent) => journal.recover(intent, access),
-    undo: (intent, taskId) => journal.undo(intent, taskId, access),
+    replace: (_root, file, canWrite) =>
+      access.replace(file.path, file.before, file.after, canWrite),
+    recover: (intent: LandingIntent, canWrite) => journal.recover(intent, access, canWrite),
+    undo: (intent, taskId, canWrite) => journal.undo(intent, taskId, access, canWrite),
     authorizeRecovery: vi.fn().mockResolvedValue(true),
   }
   return {

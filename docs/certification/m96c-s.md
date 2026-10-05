@@ -285,8 +285,8 @@ move into the existing team ledger through required `BoardContext.archive`
 and `archivedTask` callbacks. Submission and legacy restore keep only open
 rows in the bounded board envelope; its schema and attempt caps are unchanged.
 Archived rows still resolve dependencies and reports, refuse reused ids and
-keys, and charge late usage only for known attempts. Terminal attempt updates
-are refused. Archive records are parsed and checked for id, workspace, terminal
+keys, and charge late usage only for known attempts. Terminal attempts cannot become active again; late retirement metadata is
+retained. Archive records are parsed and checked for id, workspace, terminal
 state and retirement. A failed archive leaves board admission unchanged.
 
 X2 must supply the ledger archive adapter and journal the ledger plus board
@@ -308,6 +308,107 @@ Red drills (each exit 1; source restored byte-exact after each):
 | open-only retention               | continues delegation after terminal history fills the old board envelope, including reload; keeps archived dependencies, reports, duplicate refusals and late usage across reload; archives legacy full terminal snapshots and preserves failed-dependency blocking |
 | terminal transfer to ledger       | keeps archived dependencies, reports, duplicate refusals and late usage across reload; archives legacy full terminal snapshots and preserves failed-dependency blocking; keeps board admission atomic if archival fails and rejects invalid archived records        |
 | archive identity/state validation | keeps board admission atomic if archival fails and rejects invalid archived records                                                                                                                                                                                 |
-| terminal attempt updates refused  | keeps archived dependencies, reports, duplicate refusals and late usage across reload                                                                                                                                                                               |
+| terminal state cannot regress     | keeps archived dependencies, reports, duplicate refusals and late usage across reload                                                                                                                                                                               |
 
-Restored `board.ts` SHA-256: `92c9677ebbc9e0c04d4735a9396069f50d78dd129aac501d0a43529af859f645`.
+Restored `board.ts` SHA-256: `a8233e376b7f5023b5d2486299a80940e972b691e7c83b97451393979f1b3b0f`.
+
+## FIXM96CSQ final verification (2026-10-05, Kubuntu)
+
+All four RVM96CSQ P2 findings are fixed in the assigned lane logic; none is
+left as a residual. Merged `m96c/q` (`892f15bb`) first, with `--no-ff`, as
+requested. All work is local, with hooks enabled and explicit staged paths.
+No push, main merge, rebase, dependency addition, credential access, live call
+or paid call. Runtime wiring, public docs and full milestone certification
+still belong to X2/the lead under the original lane ownership.
+
+Owned Vitest suites (direct runs, at most three files per run,
+`--maxWorkers=3 --testTimeout=120000`):
+
+| Files                                     | Result    |
+| ----------------------------------------- | --------- |
+| Board, Pick, Review                       | 42 passed |
+| Retire, Stalls, Pool                      | 29 passed |
+| Landing, StagingCopy, GitIndexLock        | 49 passed |
+| MergeQueue, MergeBatchRepository, Cleanup | 18 passed |
+
+**138 tests passed across 12 files** (S: 71, Q: 67). The 17 distinct guard
+drills above/in the companion lane record all produced named failures and
+byte-exact restoration, with SHA-256 receipts. Both final journal guards were
+repeated after the declaration-order duplication fix.
+
+`npm run typecheck` passed all five projects. Focused ESLint and Prettier
+passed on changed files. `npm run deadcode` passed (the existing vendor-ignore
+advisory remains); `npx jscpd` passed with zero clones; `npm run check:l10n`
+passed with 14 tables, 120 manifest strings, 435 source files and zero problems.
+`git diff --check` passed. No gate threshold, ignore, rule or timeout was changed.
+
+`npm run build` passed all size, split, host-globals and notices checks. Main
+sizes: extension **590.7/600 KiB**, Model API **430.2/475**, checkpoint store
+**135.7/225**, webview JS **866.2/900**, shared English **110.5/125**, ACP
+**801.0/850**. All 17 production metafiles have zero team source inputs; these
+are receipts for the currently shipped graph, not the future integrated team
+bundle.
+
+**Open integration gate:** `npm run check:host-api` exits 1 only because the
+generated import counts in `docs/ide-compatibility/host-api.md` are stale.
+That file is X2-owned and outside this fix lane; X2 must regenerate and review
+it. The remaining inventory is unchanged: 271 VS Code APIs, 18 files importing
+VS Code, 23 Node built-in kinds and 59 theme variables. Current counts:
+
+| Node import            | Recorded | Source now |
+| ---------------------- | -------- | ---------- |
+| `node:buffer`          | 27       | 28         |
+| `node:crypto`          | 32       | 34         |
+| `node:fs/promises`     | 34       | 38         |
+| `node:path`            | 65       | 70         |
+| `node:timers/promises` | 3        | 5          |
+
+Full `npm run quality` was not run: the shared rig brief explicitly forbids
+full-suite lane runs and assigns the complete gate to the lead. Native Windows
+and macOS receipts remain with integration; permission-blind mode behavior
+here was exercised on Kubuntu with real Git and `core.filemode=false`.
+
+### Final archive DAG review
+
+A final review added full dependency traversal through archived rows, so
+archival cannot widen the existing cycle/unknown/foreign-edge refusals. The
+regression “refuses cycles through archived task dependencies without changing
+the board” failed before this correction. The walk is iterative: a chain of
+16,384 archived dependencies cannot turn the JavaScript stack into a hidden
+history cap. That chain's regression passes with just one open board row.
+
+Repeated all four archive drills on this final source; each still fired. Two
+additional drills also fired, with byte and SHA-256 restoration after each:
+
+| Broken guard                       | Named failing regression                                                              |
+| ---------------------------------- | ------------------------------------------------------------------------------------- |
+| archived dependency traversal      | refuses cycles through archived task dependencies without changing the board          |
+| iterative archived dependency walk | admits new work over long archived dependency chains without a stack or history limit |
+
+Final restored `board.ts` SHA-256: `a8233e376b7f5023b5d2486299a80940e972b691e7c83b97451393979f1b3b0f`.
+
+### Quarantined attempts after archival
+
+Only the current attempt must be retired for a terminal archive row. An
+older quarantined attempt may remain uncertain: its late usage is still
+charged, and its eventual trusted retirement is written back to the ledger
+archive without reopening the terminal task. The regression “keeps quarantined
+older attempts chargeable and records their late retirement after archival”
+failed under the overly strict all-attempts-retired check and passes after
+this correction. No slot/resource release is inferred from archival.
+
+Repeated all archive controls on the final source. Every row below exited 1
+with the named regression, then restored byte-exact with matching SHA-256:
+
+| Broken guard                                 | Named failing regression                                                                                                                                                                                                                                                                                                                                                                                                                 |
+| -------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| open-only retention                          | keeps quarantined older attempts chargeable and records their late retirement after archival; continues delegation after terminal history fills the old board envelope, including reload; keeps archived dependencies, reports, duplicate refusals and late usage across reload; archives legacy full terminal snapshots and preserves failed-dependency blocking                                                                        |
+| terminal transfer to ledger                  | keeps quarantined older attempts chargeable and records their late retirement after archival; refuses cycles through archived task dependencies without changing the board; keeps archived dependencies, reports, duplicate refusals and late usage across reload; archives legacy full terminal snapshots and preserves failed-dependency blocking; keeps board admission atomic if archival fails and rejects invalid archived records |
+| archive identity/state validation            | keeps board admission atomic if archival fails and rejects invalid archived records                                                                                                                                                                                                                                                                                                                                                      |
+| terminal state cannot regress                | keeps archived dependencies, reports, duplicate refusals and late usage across reload                                                                                                                                                                                                                                                                                                                                                    |
+| archived dependency traversal                | refuses cycles through archived task dependencies without changing the board                                                                                                                                                                                                                                                                                                                                                             |
+| quarantined older attempts remain admissible | keeps quarantined older attempts chargeable and records their late retirement after archival                                                                                                                                                                                                                                                                                                                                             |
+| archived late retirement persistence         | keeps quarantined older attempts chargeable and records their late retirement after archival                                                                                                                                                                                                                                                                                                                                             |
+| iterative archived dependency walk           | admits new work over long archived dependency chains without a stack or history limit                                                                                                                                                                                                                                                                                                                                                    |
+
+Final `board.ts` SHA-256: `a8233e376b7f5023b5d2486299a80940e972b691e7c83b97451393979f1b3b0f`.

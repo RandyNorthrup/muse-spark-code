@@ -1,6 +1,7 @@
 import { createHash, randomUUID } from 'node:crypto'
 import { lstat, mkdir, readFile, readlink, rm, rmdir, writeFile } from 'node:fs/promises'
 import path from 'node:path'
+import * as z from 'zod/mini'
 import {
   CHECKPOINT_STORAGE_MODE,
   GIT_METADATA_OPTIONS,
@@ -53,6 +54,7 @@ export function checkIdentity(identity: TeamCheckIdentity): string {
 
 const MERGE_FILE_ERROR_EXIT = 128
 const EXECUTABLE_BITS = 0o111
+const fileModeSchema = z.enum(['100644', '100755', '120000'])
 const NO_PROGRAMS = [
   '-c',
   'core.hooksPath=/dev/null',
@@ -122,10 +124,75 @@ export class StagingCopy {
     return await this.run(root, ['cat-file', 'blob', oid])
   }
 
+  /** Git's retained mode wins on filesystems where execute bits are not authoritative. */
+  public async fileModes(
+    root: string,
+    head: string,
+  ): Promise<{
+    readonly modes: ReadonlyMap<string, MergeVersion['mode']>
+    readonly usesFilesystemMode: boolean
+  }> {
+    const modes = new Map<string, MergeVersion['mode']>()
+    const tree = await this.run(root, ['ls-tree', '-r', '-z', head])
+    const index = await this.run(root, ['ls-files', '--stage', '-z'])
+    for (const entry of [
+      ...tree.toString('utf8').split('\0'),
+      ...index.toString('utf8').split('\0'),
+    ]) {
+      const tab = entry.indexOf('\t')
+      if (tab === -1) continue
+      const mode = fileModeSchema.safeParse(entry.slice(0, entry.indexOf(' ')))
+      if (mode.success) modes.set(entry.slice(tab + 1), mode.data)
+    }
+    const difference = await this.run(root, [
+      'diff-files',
+      '--raw',
+      '-z',
+      '--no-ext-diff',
+      '--no-textconv',
+    ])
+    const entries = difference.toString('utf8').split('\0')
+    for (const [offset, header] of entries.entries()) {
+      if (!header.startsWith(':')) continue
+      const file = entries[offset + 1]
+      const mode = fileModeSchema.safeParse(header.split(' ', 2)[1])
+      if (file !== undefined && mode.success) modes.set(file, mode.data)
+    }
+    const configured = await this.run(root, [
+      'config',
+      '--type=bool',
+      '--default=false',
+      '--get',
+      'core.filemode',
+    ])
+    return {
+      modes,
+      usesFilesystemMode:
+        process.platform !== 'win32' && configured.toString('utf8').trim() === 'true',
+    }
+  }
+
+  public regularFileMode(
+    file: string,
+    filesystemMode: number,
+    retained: Awaited<ReturnType<StagingCopy['fileModes']>>,
+  ): '100644' | '100755' {
+    const gitMode = retained.modes.get(file)
+    const observedMode = (filesystemMode & EXECUTABLE_BITS) === 0 ? '100644' : '100755'
+    if (gitMode === '100644' || gitMode === '100755') {
+      if (observedMode !== gitMode && retained.usesFilesystemMode)
+        throw new Error(UI_TEXT.checkpointFailed)
+      return gitMode
+    }
+    // Untracked files have no retained Git mode yet; POSIX supplies their first index entry.
+    return retained.usesFilesystemMode ? observedMode : '100644'
+  }
+
   /** The Git-visible whole tree: HEAD plus tracked edits/deletions and nonignored untracked files. */
   public async snapshot(root: string): Promise<TeamSnapshot> {
     const canonical = await canonicalPath(root)
     const head = await this.head(root)
+    const retainedModes = await this.fileModes(root, head)
     await mkdir(this.temporaryRoot, { recursive: true, mode: CHECKPOINT_STORAGE_MODE })
     const index = path.join(this.temporaryRoot, `${randomUUID()}.index`)
     const blobs = new Map<string, SnapshotBlob>()
@@ -161,7 +228,7 @@ export class StagingCopy {
           } else {
             if (!info.isFile()) throw new Error(UI_TEXT.checkpointFailed)
             bytes = await readFile(target)
-            mode = (info.mode & EXECUTABLE_BITS) === 0 ? '100644' : '100755'
+            mode = this.regularFileMode(name, info.mode, retainedModes)
           }
         } catch (error: unknown) {
           if (!isMissingPath(error)) throw error

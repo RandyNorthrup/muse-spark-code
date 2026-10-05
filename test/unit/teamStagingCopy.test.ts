@@ -1,4 +1,4 @@
-import { mkdir, readFile, readdir, rm } from 'node:fs/promises'
+import { chmod, mkdir, readFile, readdir, rm } from 'node:fs/promises'
 import path from 'node:path'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { checkIdentity, formatStagedTables, StagingCopy } from '../../src/host/team/stagingCopy'
@@ -12,6 +12,41 @@ describe('team staging copies', () => {
   })
   afterEach(async () => {
     await repo.dispose()
+  })
+
+  it('preserves Git executable modes on a permission-blind checkout and staging clone', async () => {
+    await repo.permissionBlindExecutable()
+    expect(await repo.git(['diff', '--stat'])).toBe('')
+    const snapshot = await repo.staging.snapshot(repo.root)
+    expect(snapshot.blobs.get('run.sh')?.mode).toBe('100755')
+    const copy = path.join(repo.storage, 'executable-copy')
+    await repo.staging.clone(repo.root, snapshot, copy)
+    expect(await repo.git(['ls-files', '--stage', 'run.sh'], copy)).toMatch(/^100755 /u)
+  })
+
+  it('uses staged mode changes ahead of the HEAD mode on a permission-blind checkout', async () => {
+    await repo.git(['config', 'core.filemode', 'false'])
+    await repo.git(['update-index', '--chmod=+x', 'a.txt'])
+    const snapshot = await repo.staging.snapshot(repo.root)
+    expect(snapshot.blobs.get('a.txt')?.mode).toBe('100755')
+    expect(await repo.git(['ls-tree', 'HEAD', 'a.txt'])).toMatch(/^100644 /u)
+  })
+
+  it('cross-checks POSIX filesystem mode after Git mode capture', async () => {
+    await repo.git(['config', 'core.filemode', 'true'])
+    const staging = new StagingCopy(
+      async (args, options) => {
+        const output = await repo.processGit(args, options)
+        if (args.includes('diff-files')) await chmod(path.join(repo.root, 'a.txt'), 0o755)
+        return output
+      },
+      repo.env,
+      path.join(repo.storage, 'mode-race'),
+    )
+    if (process.platform === 'win32') {
+      const snapshot = await staging.snapshot(repo.root)
+      expect(snapshot.blobs.get('a.txt')?.mode).toBe('100644')
+    } else await expect(staging.snapshot(repo.root)).rejects.toThrow(UI_TEXT.checkpointFailed)
   })
 
   it('snapshots all visible files through a temporary index, preserving the real index and raw blobs', async () => {

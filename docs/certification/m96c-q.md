@@ -284,3 +284,122 @@ Final implementation fingerprints (SHA-256):
 | `src/host/team/landingJournal.ts` | `37a76b695d0f7e11f6357f248f1ad5cabc60ef462b9c70dc5ba59bc13fc942a5` |
 | `src/host/team/gitIndexLock.ts`   | `12ac239641e6d6b3f73870d28eb5aac6906c984565cfacd58ca8c4b7727ad8f0` |
 | `src/host/team/teamCleanup.ts`    | `d707cb8822d991730e1ea2263e0d9dff66113b4602cf469a3411059d0bd441e0` |
+
+## RVM96CSQ findings 1 and 2 (2026-10-05, Kubuntu)
+
+Finding 1 fixed: refresh all known operation markers, fresh hints and locks
+after acquisition, before each landing file, and inside the final conditional
+rename/removal guard for landing, Recover and Undo. The acquired lease may be
+ignored only after its path, native file identity and exact owner bytes are
+verified. Each acquisition adds a fresh lease nonce: owner ids alone do not
+identify an incarnation, and POSIX can immediately reuse a removed inode.
+Lost/changed/foreign locks remain holders and are never removed by release.
+
+`TeamLandingDeps` adapters must forward the held lease to the holder reader
+and forward the required `canWrite` callback through replace/recover/undo to
+`LandingFileAccess.replace`. The callback is required, with no permissive
+default. X2 owns runtime wiring, as before; these suites exercise the real
+repository adapters and crash child.
+
+Finding 2 fixed: snapshots and landing/recovery reads use the same Git modes
+from HEAD, the index (taking precedence), and Git's raw working-tree mode diff.
+A tracked executable is `100755` on every platform even when its filesystem
+execute bits are absent and `core.filemode=false`. On POSIX with Git filemode
+tracking enabled, filesystem bits cross-check Git's mode and a capture race
+is refused. Untracked files have no retained Git mode; their first index entry
+uses POSIX bits when supported, otherwise `100644`. User index bytes stay
+untouched. The regressions use real Git fixtures; no native Windows receipt
+or service/model wire capture is claimed, and model attempts/cost are zero.
+
+Before fixes: four post-acquisition operation regressions plus the pre-file
+regression failed (`landed` instead of `branched`/`changed`), while all 16
+existing landing tests passed. The permission-blind executable snapshot and
+staged-mode regressions failed (`100644` instead of `100755`); the landing
+read regression failed with the same wrong mode. Added coverage includes
+Recover/Undo acquisition and final guards, deletion, exact owned locks, fresh
+hints, unique acquisition bytes and the POSIX mode capture cross-check.
+
+Red drills (each exit 1; each file restored byte-exact before the next run):
+
+| Broken guard                   | Named failing regression                                                                                                                                                                                                                                                                                                                                                                                                |
+| ------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Q1 post-acquisition refresh    | defers an operation appearing during lock acquisition: rebase-merge; defers an operation appearing during lock acquisition: rebase-apply; defers an operation appearing during lock acquisition: MERGE_HEAD; defers an operation appearing during lock acquisition: CHERRY_PICK_HEAD; refuses recover when an operation arrives during lock acquisition; refuses undo when an operation arrives during lock acquisition |
+| Q1 pre-file refresh            | stops landing writes when an operation appears after the first file                                                                                                                                                                                                                                                                                                                                                     |
+| Q1 final rename refresh        | rechecks holders at the final staged-file guard for land; rechecks holders at the final staged-file guard for recover; rechecks holders at the final staged-file guard for undo                                                                                                                                                                                                                                         |
+| Q1 final deletion refresh      | checks holders immediately before deleting a matching file                                                                                                                                                                                                                                                                                                                                                              |
+| Q1 exact owned-lock validation | ignores only the exact owned lock while still observing operations and fresh hints                                                                                                                                                                                                                                                                                                                                      |
+| Q1 unique lease incarnation    | gives each acquisition distinct owner bytes even for the same landing and window; ignores only the exact owned lock while still observing operations and fresh hints                                                                                                                                                                                                                                                    |
+| Q2 retained Git mode           | lands and undoes an indexed executable on a permission-blind checkout; preserves Git executable modes on a permission-blind checkout and staging clone; uses staged mode changes ahead of the HEAD mode on a permission-blind checkout                                                                                                                                                                                  |
+| Q2 POSIX mode cross-check      | cross-checks POSIX filesystem mode after Git mode capture                                                                                                                                                                                                                                                                                                                                                               |
+
+Restored source fingerprints (SHA-256):
+
+| File                              | SHA-256                                                            |
+| --------------------------------- | ------------------------------------------------------------------ |
+| `src/core/team/teamMerge.ts`      | `1cfc77914fa6ed25aa45254b4a16bbfb5a05a767d93c1f05a7394e95ed6cbd30` |
+| `src/host/team/landingJournal.ts` | `da5dc73a96ed4ebdb0e5986344b6dc3013c5666af439072d0bf0dc59a986a48d` |
+| `src/host/team/gitIndexLock.ts`   | `3b31b7a7302e530756bef8dc75ae92985fe825d41172964f2029de748fbdef64` |
+| `src/host/team/stagingCopy.ts`    | `af85adc1d39a6d1398aaa61161218a169730f9886bbcdde006349b3baa07e3bf` |
+
+The duplication gate initially found three clones. Reused the executable
+checkout setup in the existing repository fixture, factored repeated owner
+input in the lock test, and reordered the journal recovery declarations.
+`npx jscpd` then passed with zero clones. Repeated both final journal guard
+drills on this final source; each again produced the named failures and
+restored both bytes and the SHA-256 above.
+
+## FIXM96CSQ final verification (2026-10-05, Kubuntu)
+
+All four RVM96CSQ P2 findings are fixed in the assigned lane logic; none is
+left as a residual. Merged `m96c/q` (`892f15bb`) first, with `--no-ff`, as
+requested. All work is local, with hooks enabled and explicit staged paths.
+No push, main merge, rebase, dependency addition, credential access, live call
+or paid call. Runtime wiring, public docs and full milestone certification
+still belong to X2/the lead under the original lane ownership.
+
+Owned Vitest suites (direct runs, at most three files per run,
+`--maxWorkers=3 --testTimeout=120000`):
+
+| Files                                     | Result    |
+| ----------------------------------------- | --------- |
+| Board, Pick, Review                       | 42 passed |
+| Retire, Stalls, Pool                      | 29 passed |
+| Landing, StagingCopy, GitIndexLock        | 49 passed |
+| MergeQueue, MergeBatchRepository, Cleanup | 18 passed |
+
+**138 tests passed across 12 files** (S: 71, Q: 67). The 17 distinct guard
+drills above/in the companion lane record all produced named failures and
+byte-exact restoration, with SHA-256 receipts. Both final journal guards were
+repeated after the declaration-order duplication fix.
+
+`npm run typecheck` passed all five projects. Focused ESLint and Prettier
+passed on changed files. `npm run deadcode` passed (the existing vendor-ignore
+advisory remains); `npx jscpd` passed with zero clones; `npm run check:l10n`
+passed with 14 tables, 120 manifest strings, 435 source files and zero problems.
+`git diff --check` passed. No gate threshold, ignore, rule or timeout was changed.
+
+`npm run build` passed all size, split, host-globals and notices checks. Main
+sizes: extension **590.7/600 KiB**, Model API **430.2/475**, checkpoint store
+**135.7/225**, webview JS **866.2/900**, shared English **110.5/125**, ACP
+**801.0/850**. All 17 production metafiles have zero team source inputs; these
+are receipts for the currently shipped graph, not the future integrated team
+bundle.
+
+**Open integration gate:** `npm run check:host-api` exits 1 only because the
+generated import counts in `docs/ide-compatibility/host-api.md` are stale.
+That file is X2-owned and outside this fix lane; X2 must regenerate and review
+it. The remaining inventory is unchanged: 271 VS Code APIs, 18 files importing
+VS Code, 23 Node built-in kinds and 59 theme variables. Current counts:
+
+| Node import            | Recorded | Source now |
+| ---------------------- | -------- | ---------- |
+| `node:buffer`          | 27       | 28         |
+| `node:crypto`          | 32       | 34         |
+| `node:fs/promises`     | 34       | 38         |
+| `node:path`            | 65       | 70         |
+| `node:timers/promises` | 3        | 5          |
+
+Full `npm run quality` was not run: the shared rig brief explicitly forbids
+full-suite lane runs and assigns the complete gate to the lead. Native Windows
+and macOS receipts remain with integration; permission-blind mode behavior
+here was exercised on Kubuntu with real Git and `core.filemode=false`.

@@ -86,11 +86,12 @@ export class TaskBoard {
     const input = this.context.archivedTask(id)
     if (input === undefined) return undefined
     const task = teamBoardTaskSchema.parse(input)
+    const last = task.attempts.at(-1)
     if (
       task.id !== id ||
       task.workspaceId !== this.board.workspaceId ||
       !terminal.has(task.state) ||
-      task.attempts.some((attempt) => attempt.state !== 'retired')
+      (last !== undefined && last.state !== 'retired')
     )
       throw new BoardRefusal('state', [id])
     return task
@@ -116,24 +117,32 @@ export class TaskBoard {
     const byId = new Map(tasks.map((task) => [task.id, task]))
     const visited = new Set<string>()
     const visiting: string[] = []
-    const visit = (id: string): void => {
-      if (visiting.includes(id)) throw new BoardRefusal('cycle', [...visiting, id])
-      if (visited.has(id)) return
-      visiting.push(id)
-      const edges = byId.get(id)?.depends_on ?? []
-      for (const edge of edges) {
-        if (!byId.has(edge.task)) {
-          if (this.archivedTask(edge.task)) continue
+    const active = new Set<string>()
+    const visit = (root: string): void => {
+      const pending = [{ id: root, isLeaving: false }]
+      for (let step = pending.pop(); step !== undefined; step = pending.pop()) {
+        if (step.isLeaving) {
+          visiting.pop()
+          active.delete(step.id)
+          visited.add(step.id)
+          continue
+        }
+        if (active.has(step.id)) throw new BoardRefusal('cycle', [...visiting, step.id])
+        if (visited.has(step.id)) continue
+        visiting.push(step.id)
+        active.add(step.id)
+        const edges = (byId.get(step.id) ?? this.requireTask(step.id)).depends_on ?? []
+        for (const edge of edges) {
+          if (byId.has(edge.task) || this.archivedTask(edge.task)) continue
           const workspace = this.context.workspaceFor(edge.task)
           throw new BoardRefusal(
             workspace && workspace !== this.board.workspaceId ? 'crossWorkspace' : 'unknownTask',
-            [id, edge.task],
+            [step.id, edge.task],
           )
         }
-        visit(edge.task)
+        pending.push({ id: step.id, isLeaving: true })
+        for (const edge of edges.toReversed()) pending.push({ id: edge.task, isLeaving: false })
       }
-      visiting.pop()
-      visited.add(id)
     }
     for (const task of tasks) visit(task.id)
   }
@@ -355,7 +364,7 @@ export class TaskBoard {
     outcome: Pick<TeamAttempt, 'state' | 'endedAt' | 'retirement'>,
   ): boolean {
     const task = this.requireTask(id)
-    if (terminal.has(task.state)) return false
+    if (terminal.has(task.state) && outcome.state !== 'retired') return false
     const attempt = task.attempts.find((candidate) => candidate.number === number)
     if (!attempt || (number !== task.currentAttempt && outcome.state !== 'retired')) return false
     const updated = { ...attempt, ...outcome }
@@ -363,7 +372,8 @@ export class TaskBoard {
       ...task,
       attempts: task.attempts.map((item) => (item === attempt ? updated : item)),
     })
-    task.attempts = checked.attempts
+    if (this.board.tasks.some((item) => item.id === id)) task.attempts = checked.attempts
+    else this.context.archive([checked])
     return true
   }
 

@@ -32,11 +32,11 @@ async function main() {
   await journal.prepare(config.intent);
   const access = api.landingFileAccess(config.intent.root, staging, { validateTarget: () => Promise.resolve() });
   for (const file of config.intent.files.slice(0, config.pauseAfter)) {
-    if (!await access.replace(file.path, file.before, file.after)) throw new Error('changed');
+    if (!await access.replace(file.path, file.before, file.after, taken.lease.isHeld)) throw new Error('changed');
   }
   process.stdout.write('paused\n');
   await once(process.stdin, 'data');
-  for (const file of config.intent.files.slice(config.pauseAfter)) await access.replace(file.path, file.before, file.after);
+  for (const file of config.intent.files.slice(config.pauseAfter)) await access.replace(file.path, file.before, file.after, taken.lease.isHeld);
   await journal.close(config.intent, 'landed', []);
   await taken.lease.release();
 }
@@ -50,6 +50,51 @@ describe('git index ownership and killed landers', () => {
   })
   afterEach(async () => {
     await repo.dispose()
+  })
+
+  it('gives each acquisition distinct owner bytes even for the same landing and window', async () => {
+    const directory = await repo.staging.gitDirectory(repo.root)
+    const owner = { landingId: 'same', windowInstanceId: 'same-window' }
+    const first = await takeIndexLock(directory, owner)
+    if (first.kind !== 'taken') throw new Error('expected lock')
+    const bytes = await readFile(first.lease.path, 'utf8')
+    expect(await first.lease.release()).toBe(true)
+    const second = await takeIndexLock(directory, owner)
+    if (second.kind !== 'taken') throw new Error('expected lock')
+    try {
+      expect(await readFile(second.lease.path, 'utf8')).not.toBe(bytes)
+      expect(await second.lease.isHeld()).toBe(true)
+    } finally {
+      await second.lease.release()
+    }
+  })
+
+  it('ignores only the exact owned lock while still observing operations and fresh hints', async () => {
+    const directory = await repo.staging.gitDirectory(repo.root)
+    const owner = { landingId: 'one', windowInstanceId: 'window-one' }
+    const taken = await takeIndexLock(directory, owner)
+    if (taken.kind !== 'taken') throw new Error('expected lock')
+    const holder = (hints: Parameters<typeof knownRepositoryHolder>[3] = []) =>
+      knownRepositoryHolder(
+        repo.root,
+        directory,
+        'window-one',
+        hints,
+        process.platform,
+        taken.lease,
+      )
+    expect(await holder()).toBeUndefined()
+    expect(
+      await holder([{ workingTree: repo.root, windowInstanceId: 'other', fresh: true }]),
+    ).toMatchObject({ kind: 'hint' })
+    await repo.write('.git/rebase-merge/marker', 'operation')
+    expect(await holder()).toMatchObject({ kind: 'operation' })
+    await unlink(taken.lease.path)
+    expect(await holder()).toMatchObject({ kind: 'lock' })
+    await writeFile(taken.lease.path, JSON.stringify(owner))
+    expect(await holder()).toMatchObject({ kind: 'lock' })
+    expect(await taken.lease.release()).toBe(false)
+    expect(await readFile(taken.lease.path, 'utf8')).toContain('window-one')
   })
 
   it('waits the full bound on a foreign lock, never removes it, and retries only after user removal', async () => {

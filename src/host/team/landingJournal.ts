@@ -75,6 +75,7 @@ export interface LandingFileAccess {
     file: string,
     expected: LandingFile['before'],
     replacement: LandingFile['before'],
+    canWrite: () => Promise<boolean>,
   ) => Promise<boolean>
 }
 
@@ -110,15 +111,16 @@ export class LandingJournal {
   public async recover(
     record: LandingIntent,
     access: LandingFileAccess,
+    canWrite: () => Promise<boolean>,
   ): Promise<readonly string[]> {
-    const parsed = recordSchema.parse(record)
     const conflicts: string[] = []
+    const parsed = recordSchema.parse(record)
     for (const file of parsed.files.toReversed()) {
       const current = await access.read(file.path)
       if (isSameBlob(current, file.before)) continue
       if (
         !isSameBlob(current, file.after) ||
-        !(await access.replace(file.path, file.after, file.before))
+        !(await access.replace(file.path, file.after, file.before, canWrite))
       )
         conflicts.push(file.path)
     }
@@ -131,6 +133,7 @@ export class LandingJournal {
     record: LandingIntent,
     taskId: string | null,
     access: LandingFileAccess,
+    canWrite: () => Promise<boolean>,
   ): Promise<readonly string[]> {
     const parsed = recordSchema.parse(record)
     const conflicts: string[] = []
@@ -138,15 +141,13 @@ export class LandingJournal {
       if (taskId !== null && !file.tasks.includes(taskId)) continue
       if (
         (taskId !== null && file.tasks.length > 1) ||
-        !(await access.replace(file.path, file.after, file.before))
+        !(await access.replace(file.path, file.after, file.before, canWrite))
       )
         conflicts.push(file.path)
     }
     return conflicts
   }
 }
-
-const EXECUTABLE_BITS = 0o111
 
 /** The same raw-byte conditional mutations serve landing, Recover and Undo. */
 export function landingFileAccess(
@@ -180,7 +181,11 @@ export function landingFileAccess(
       if (!info.isFile()) throw new Error(UI_TEXT.checkpointFailed)
       return {
         oid: await staging.blob(root, await readFile(target)),
-        mode: (info.mode & EXECUTABLE_BITS) === 0 ? '100644' : '100755',
+        mode: staging.regularFileMode(
+          file,
+          info.mode,
+          await staging.fileModes(root, await staging.head(root)),
+        ),
       }
     } catch (error: unknown) {
       if (isMissingPath(error)) return null
@@ -189,14 +194,18 @@ export function landingFileAccess(
   }
   return {
     read,
-    replace: async (file, expected, replacement) => {
+    replace: async (file, expected, replacement, canWrite) => {
       const target = await targetOf(file)
       if (!isSameBlob(await read(file), expected)) return false
       if (replacement === null) {
         if (expected === null) return true
         const held = await lstatIdentity(target)
         await targetOf(file)
-        if (!isSameBlob(await read(file), expected) || !(await isOwnedFile(target, held)))
+        if (
+          !isSameBlob(await read(file), expected) ||
+          !(await isOwnedFile(target, held)) ||
+          !(await canWrite())
+        )
           return false
         await unlink(target)
         return true
@@ -208,7 +217,7 @@ export function landingFileAccess(
           target,
           async () => {
             await targetOf(file)
-            return isSameBlob(await read(file), expected)
+            return isSameBlob(await read(file), expected) && (await canWrite())
           },
           bytes,
           {

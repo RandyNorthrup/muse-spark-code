@@ -1,4 +1,4 @@
-import { mkdir, mkdtemp, rm, symlink, writeFile } from 'node:fs/promises'
+import { chmod, mkdir, mkdtemp, rm, symlink, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import { processGitProcess } from '../../../src/host/git'
 import { StagingCopy } from '../../../src/host/team/stagingCopy'
@@ -54,6 +54,14 @@ export async function teamRepository() {
     git,
     write,
     staging,
+    permissionBlindExecutable: async () => {
+      await write('run.sh', '#!/bin/sh\nexit 0\n')
+      await git(['add', 'run.sh'])
+      await git(['update-index', '--chmod=+x', 'run.sh'])
+      await git(['commit', '-m', 'executable'])
+      await git(['config', 'core.filemode', 'false'])
+      await chmod(path.join(root, 'run.sh'), 0o644)
+    },
     outsideLink: async (name: string) => {
       const canary = path.join(folder, 'canary')
       await write('a.txt', 'outside', canary)

@@ -42,6 +42,12 @@ export type LandingOutcome =
       readonly intent: LandingIntent
     }
 
+export interface LandingLock {
+  readonly path: string
+  readonly isHeld: () => Promise<boolean>
+  readonly release: () => Promise<boolean>
+}
+
 export interface TeamLandingDeps {
   readonly windowInstanceId: string
   readonly canonicalRoot: (root: string) => Promise<string>
@@ -51,11 +57,11 @@ export interface TeamLandingDeps {
   readonly checkIdentity: () => Promise<string>
   /** Void this admission and enqueue a fresh merge/check; Pause queue can hold it. */
   readonly invalidate: (admission: LandingAdmission) => Promise<void>
-  readonly knownHolder: (root: string) => Promise<{ readonly kind: string } | undefined>
-  readonly takeLock: (
+  readonly knownHolder: (
     root: string,
-    id: string,
-  ) => Promise<{ readonly release: () => Promise<boolean> } | null>
+    ownedLock?: LandingLock,
+  ) => Promise<{ readonly kind: string } | undefined>
+  readonly takeLock: (root: string, id: string) => Promise<LandingLock | null>
   readonly defer: (root: string, admission: LandingAdmission) => Promise<string>
   /** The ordinary landing card; mode policy belongs to the host. */
   readonly confirmLanding: (admission: LandingAdmission) => Promise<boolean>
@@ -68,9 +74,20 @@ export interface TeamLandingDeps {
     conflicts: readonly string[],
   ) => Promise<void>
   /** Repeat M77 canonical/protected/ref checks before each conditional mutation. */
-  readonly replace: (root: string, file: LandingIntent['files'][number]) => Promise<boolean>
-  readonly recover: (intent: LandingIntent) => Promise<readonly string[]>
-  readonly undo: (intent: LandingIntent, taskId: string | null) => Promise<readonly string[]>
+  readonly replace: (
+    root: string,
+    file: LandingIntent['files'][number],
+    canWrite: () => Promise<boolean>,
+  ) => Promise<boolean>
+  readonly recover: (
+    intent: LandingIntent,
+    canWrite: () => Promise<boolean>,
+  ) => Promise<readonly string[]>
+  readonly undo: (
+    intent: LandingIntent,
+    taskId: string | null,
+    canWrite: () => Promise<boolean>,
+  ) => Promise<readonly string[]>
   readonly authorizeRecovery: (intent: LandingIntent) => Promise<boolean>
 }
 
@@ -92,18 +109,22 @@ export class TeamLanding {
     const root = await this.deps.canonicalRoot(intent.root)
     if (this.active.has(root)) return { status: 'busy' }
     this.active.add(root)
-    let lock: { readonly release: () => Promise<boolean> } | null = null
+    let lock: LandingLock | null = null
     let canRelease = true
     try {
       if (!(await this.deps.authorizeRecovery(intent))) return { status: 'denied' }
       if ((await this.deps.knownHolder(root)) !== undefined) return { status: 'busy' }
       lock = await this.deps.takeLock(root, intent.id)
       if (lock === null) return { status: 'busy' }
+      const ownedLock = lock
+      const canWrite = async (): Promise<boolean> =>
+        (await this.deps.knownHolder(root, ownedLock)) === undefined
+      if (!(await canWrite())) return { status: 'busy' }
       canRelease = false
       const paths =
         taskId === undefined
-          ? await this.deps.recover(intent)
-          : await this.deps.undo(intent, taskId)
+          ? await this.deps.recover(intent, canWrite)
+          : await this.deps.undo(intent, taskId, canWrite)
       canRelease = true
       return { status: paths.length === 0 ? 'landed' : 'changed', paths, intent }
     } finally {
@@ -120,7 +141,7 @@ export class TeamLanding {
     const canonical = await this.deps.canonicalRoot(root)
     if (this.active.has(canonical)) return { status: 'busy' }
     this.active.add(canonical)
-    let lock: { readonly release: () => Promise<boolean> } | null = null
+    let lock: LandingLock | null = null
     let canRelease = true
     try {
       if (await this.deps.hasOpenLanding(canonical)) return { status: 'busy' }
@@ -134,6 +155,16 @@ export class TeamLanding {
         return { status: 'branched', holder, branch: await this.deps.defer(canonical, admission) }
       lock = await this.deps.takeLock(canonical, admission.id)
       if (lock === null) return { status: 'busy' }
+      const ownedLock = lock
+      const currentHolder = await this.deps.knownHolder(canonical, ownedLock)
+      if (currentHolder !== undefined)
+        return {
+          status: 'branched',
+          holder: currentHolder,
+          branch: await this.deps.defer(canonical, admission),
+        }
+      const canWrite = async (): Promise<boolean> =>
+        (await this.deps.knownHolder(canonical, ownedLock)) === undefined
       const fresh = await this.deps.snapshot(canonical)
       if (
         fresh.tree !== admission.snapshot.tree ||
@@ -168,7 +199,7 @@ export class TeamLanding {
       canRelease = false
       const changed = new Set<string>()
       for (const file of files) {
-        if (!(await this.deps.replace(canonical, file))) {
+        if (!(await canWrite()) || !(await this.deps.replace(canonical, file, canWrite))) {
           changed.add(file.path)
           break
         }
