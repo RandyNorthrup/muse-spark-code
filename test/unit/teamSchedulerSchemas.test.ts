@@ -194,6 +194,7 @@ describe('scheduler field boundaries', () => {
       { depends_on: [{ task: 'a', on: 'running' }] },
       { writes: Array.from({ length: 257 }, () => 'src/a.ts') },
       { key: ' ' },
+      { key: 'a b' },
       { writes: ['src/\0a'] },
     ]) {
       expect(teamSchedulerFieldsSchema.safeParse(input).success).toBe(false)
@@ -293,6 +294,7 @@ describe('attempt, board and event boundaries', () => {
     expect(teamSchedulerEventSchema.parse(event)).toEqual(event)
     expect(teamSchedulerEventSchema.safeParse({ ...event, attempt: 0 }).success).toBe(false)
     expect(teamUsageSchema.safeParse({ ...usage, costUsd: -1 }).success).toBe(false)
+    expect(teamUsageSchema.safeParse({ ...usage, inputTokens: -1 }).success).toBe(false)
     expect(teamUsageSchema.safeParse({ ...usage, modelCalls: 0.5 }).success).toBe(false)
     expect(teamSchedulerEventSchema.safeParse({ ...event, prompt: 'extra' }).success).toBe(false)
   })
