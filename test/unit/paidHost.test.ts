@@ -363,19 +363,20 @@ describe('M94 Tab wording and window question (lane L, PLAN.md D73)', () => {
     windowB.settings.delete('tab')
     await windowB.paid.gate.review()
     windowB.settings.add('tab')
-    answerWith(UI_TEXT.paidConfirmAccept)
+    // No turn-on modal for Tab (M94, owner 2026-10-04): the acceptance
+    // follows the setting, and the generation still moves.
     await windowB.paid.gate.review()
     expect(data.get(GLOBAL_STATE_KEYS.paidGrantGenerations)).toEqual({ tab: 2 })
     expect(windowA.paid.gate.isOn('tab')).toBe(true)
     // Window A's once was given under the withdrawn acceptance: it asks.
     answerWith(UI_TEXT.paidDeny)
     await expect(windowA.paid.consent.allows(TAB)).resolves.toBe(false)
-    expect(confirmModal).toHaveBeenCalledTimes(3)
+    expect(confirmModal).toHaveBeenCalledTimes(2)
     // A reload keeps nothing either: it asks under the current acceptance.
     const reloaded = paidWithSettings(data, ['tab'])
     answerWith(UI_TEXT.paidDeny)
     await expect(reloaded.paid.consent.allows(TAB)).resolves.toBe(false)
-    expect(confirmModal).toHaveBeenCalledTimes(4)
+    expect(confirmModal).toHaveBeenCalledTimes(3)
   })
 })
 
