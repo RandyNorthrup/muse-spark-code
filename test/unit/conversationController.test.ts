@@ -91,6 +91,7 @@ import {
   ledgerFault,
   RACE_APPROVAL_ID,
   raceRequested,
+  raceUpdated,
   REPLAY_FAULT_MESSAGE,
   replayFault,
 } from './helpers/stageRaceCapture'
@@ -5837,10 +5838,7 @@ describe('ConversationController: permission hardening (D24)', () => {
     expect(cards[0]).toMatchObject({
       subject: { kind: 'shell', command: 'deploy --token [redacted]' },
       note: UI_TEXT.approvalSecretNote,
-      availableChoices: [
-        { choiceId: 'allow_once' },
-        { choiceId: 'abort' },
-      ],
+      availableChoices: [{ choiceId: 'allow_once' }, { choiceId: 'abort' }],
     })
     expect(JSON.stringify(t.surface.posted)).not.toContain(secret)
   })
@@ -13158,6 +13156,31 @@ describe('ConversationController: the Auto reviewer on Muse Code (M90, PLAN.md D
         }),
       })
     })
+  })
+
+  it('scrubs a secret introduced while the reviewer holds the captured approval (RVM92E P1)', async () => {
+    const t = reviewed()
+    await asked(t)
+    await vi.waitFor(() => {
+      expect(sideTurns(t)).toHaveLength(1)
+    })
+    const secret = `mgst_${'A'.repeat(42)}A`
+    const command = `echo ${secret}`
+    t.server.notify('approval/updated', {
+      ...raceUpdated('s1', 1),
+      subject: { kind: 'shell', command },
+    })
+    await vi.waitFor(() => {
+      expect(cards(t)).toHaveLength(1)
+    })
+    const card = cards(t)[0]
+    expect(JSON.stringify(card).includes(secret)).toBe(false)
+    expect(card).toMatchObject({ note: UI_TEXT.approvalSecretNote })
+    expect(card?.availableChoices.map((choice) => choice.choiceId)).toEqual(['allow_once', 'abort'])
+    sideReplies(t, CAPTURED_REPLY)
+    await settle()
+    expect(t.server.requestsFor('approval/decide')).toHaveLength(0)
+    t.controller.dispose()
   })
 
   it('shows the card with the reviewer’s reason when it asks', async () => {

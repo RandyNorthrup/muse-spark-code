@@ -13693,8 +13693,8 @@ joined with M57, M58 and PR #49's sign-in
       redacted text. The host scans a plain composer send, posts
       `secretPromptDetected` with the redacted text instead of starting the
       turn, and only sends on with an explicit `secretAccepted` re-post. The
-      webview cannot scan itself (`src/webview/tsconfig.json` forbids
-      `src/core` imports). The session store keeps the raw text once the user
+      browser scans through the same pure table in `src/shared/redact.ts`
+      without importing host or core code. The session store keeps the raw text once the user
       accepts (resume needs it); the panel transcript, the logs and the
       exports never hold it. Slash-command, review, goal, handoff, loop and
       `!`-command sends are out of scope: only the plain-message path warns.
@@ -13710,9 +13710,23 @@ joined with M57, M58 and PR #49's sign-in
       value shown redacted, a secret note, session-scoped approve choices
       dropped) on both backends. The Auto reviewer on Muse Code never sees
       one (`isReviewableApproval` excludes them). An explicit user approval
-      still runs the command as proposed. Bypass mode still runs without a
-      card, as it does for every gate: it is an explicit run-everything
-      choice, not an allow rule.
+      still runs the command as proposed. Model API Bypass asks too. Muse
+      Code Bypass can execute without an approval event; see the named §9
+      residual, RVM92E-BYPASS-MUSE.
+- **RVM92E corrections (2026-10-04, FIXM92E).** Fix all four P1s and
+  the prompt concurrency, explicit resend and approval-note P2s with failing
+  regressions and byte-exact red drills. The pure shared detection table must
+  also run before the browser creates a user card and when it replays history;
+  place its existing implementation in `src/shared/redact.ts`, keeping the
+  `src/core/redact.ts` entry for existing consumers. Persist redacted draft
+  recovery and redact Markdown content and its filename. Keep all pending
+  sends by local id; Send anyway sends the held text, attachments and reference
+  without consuming a newer composer draft. Scrub every reviewer fallback,
+  redact whole stage lines and omit standing-prefix metadata, remove every
+  non-once approve choice, and propagate update notes. Model API secret shell
+  calls ask in Bypass too, while forbids and denied modes still deny.
+  Muse Code Bypass cannot be intercepted when the CLI sends no approval;
+  record that named redesign residual in §9 and narrow the public claim.
 - **Acceptance.**
   1. A valid `mgst_` token is redacted everywhere the shared table applies, and
      `scan-secrets` counts it. Near-misses (wrong last character or length,
@@ -13752,6 +13766,12 @@ joined with M57, M58 and PR #49's sign-in
         commit-writing path exists
 
 ## 7. Gates
+
+**FIXM92E lane boundary (2026-10-04).** The rig brief and shared lane
+rules prohibit aggregate quality/full unit runs and merging in this worktree.
+Use focused owning tests and the required static gates/build, with hooks on;
+full quality, coverage, cross-platform and hosted checks remain the lead's
+integration gate. No gate configuration changes.
 
 **MG69 merged-source proof (2026-10-02).** Kubuntu passes 49 owning/merged
 files (2,056 tests; two existing Windows-only cases platform-skipped), all
@@ -14196,6 +14216,16 @@ before a repaired one loads (2026-09-30).
 | `test/harness/index.html` (`isActiveDescendantList`), printed by `scripts/a11y.mjs` | The accessibility gate exempts axe's `scrollable-region-focusable` | The composer's `/` and `@` lists follow WAI-ARIA's combobox pattern: the box keeps the focus and moves `aria-activedescendant` through the listbox's options, and `Composer.tsx` scrolls the active option into view, so the list is keyboard operable (WCAG 2.1.1) without being a Tab stop. axe cannot see activedescendant-driven scrolling. The exemption holds only for a region that contains a listbox whose id is in the `aria-controls` of a focused or focusable element whose active descendant is one of that listbox's options; drills show a plain scrollable region and a listbox no control drives are still reported, and removing the exemption reports the composer's list again. Every exempt element is printed under its own "Exempt:" heading and counted. No `tabindex` was added to the list. | 2026-10-04 |
 
 ## 9. Security assumptions and accepted residual risk
+
+- **RVM92E-BYPASS-MUSE (P2, 2026-10-04):** Muse Code in Bypass receives
+  `allowAll` and may execute a secret-bearing shell command without emitting
+  an approval. The extension cannot inspect an event it never receives.
+  Changing that requires redesigning CLI execution admission or disabling
+  Bypass, beyond this lane's files and the instruction not to widen guards.
+  Model API Bypass is fixed to ask; every emitted CLI approval is scrubbed
+  and offers only one-time approval. Safe for the current explicit Bypass
+  contract, with the exception stated in README/CHANGELOG. Follow-up: lead
+  decision on CLI admission/BYPASS support before claiming universal asks.
 
 - Code intelligence (M67) shows what VS Code's language services say. A
   result located outside the workspace is left out and a hover defined only

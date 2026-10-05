@@ -11,6 +11,8 @@ import {
   scrubSecretSubject,
   shellSecretText,
 } from '../../src/core/agent/approvalSecrets'
+import { mapNotification } from '../../src/core/backends/musecode/mapNotification'
+import { raceRequested } from './helpers/stageRaceCapture'
 import { UI_TEXT } from '../../src/shared/constants'
 import type { AgentEvent, ApprovalSubject } from '../../src/shared/agentEvents'
 
@@ -121,6 +123,50 @@ describe('scrubSecretChoices', () => {
 })
 
 describe('scrubSecretApproval', () => {
+  it('removes the captured workspace standing choice from a secret card (RVM92E P1)', () => {
+    const frame = raceRequested('s1')
+    const command = `deploy --token ${secretValue()}`
+    const mapped = mapNotification({
+      method: 'approval/requested',
+      params: { ...frame, subject: { kind: 'shell', command } },
+    })
+    if (
+      typeof mapped === 'string' ||
+      !('event' in mapped) ||
+      mapped.event.type !== 'approvalRequested'
+    ) {
+      throw new Error('captured approval did not map')
+    }
+    expect(
+      scrubSecretApproval(mapped.event).availableChoices.map((choice) => choice.choiceId),
+    ).toEqual(['allow_once', 'abort'])
+  })
+
+  it('redacts contextual credentials across stage arguments and removes prefix metadata (RVM92E P1)', () => {
+    const value = 'opaque-' + 'q'.repeat(24)
+    const command = `echo Bearer ${value}`
+    const request = shellRequest(command)
+    const scrubbed = scrubSecretApproval({
+      ...request,
+      subject: {
+        ...request.subject,
+        stages: [
+          {
+            requirementId: request.requirementId,
+            position: 1,
+            totalStages: 1,
+            argv: ['echo', 'Bearer', value],
+            suggestedPrefix: { argvPrefix: ['echo', 'Bearer', value], label: command },
+          },
+        ],
+      },
+    })
+    expect(JSON.stringify(scrubbed).includes(value)).toBe(false)
+    expect(scrubbed.subject.stages[0]?.argv.join(' ')).toBe('echo Bearer [redacted]')
+    expect(scrubbed.subject.stages[0]?.suggestedPrefix).toBeUndefined()
+    expect(scrubbed.subject.stages[0]?.requirementId).toEqual(request.requirementId)
+  })
+
   it('redacts the card, notes the secret and keeps the decision ids', () => {
     const secret = secretValue()
     const command = `deploy --token ${secret}`
@@ -165,7 +211,7 @@ describe('scrubSecretApproval', () => {
     }
     const scrubbed = scrubSecretApproval(updated)
     expect(scrubbed.subject.stages?.map((stage) => stage.argv)).toEqual([
-      ['deploy', '--token', '[redacted]'],
+      ['deploy --token [redacted]'],
     ])
     expect(scrubbed.note).toBe(UI_TEXT.approvalSecretNote)
   })

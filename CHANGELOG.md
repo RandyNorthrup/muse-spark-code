@@ -13,6 +13,8 @@ happened, not what was planned; superseded entries are kept.
 
 ### Security
 
+- Secret approval cards now remove workspace standing grants, redact contextual credentials across shell stage arguments, scrub reviewer fallback updates, and show the secret note when an existing card changes.
+
 - Muse Gadgets SDK tokens (`mgst_…`) are now redacted from logs and transcripts and counted by `scan-secrets`. A valid-length prefix glued to more token characters (a trailing `-` or `-extra`) is an overlength near-miss, not a token, and is left alone.
 - A prompt holding a detected secret is held before sending: the panel warns (Send anyway / Edit) and the transcript shows the redacted text either way. A shell command holding one always asks, shows its card redacted with a secret note, and is never auto-approved by an allow rule. Both read the one shared detection table; the extension writes no commits, so there is no commit guard to add.
 

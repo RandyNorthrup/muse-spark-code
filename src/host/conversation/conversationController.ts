@@ -1603,7 +1603,7 @@ export class ConversationController {
     try {
       this.reviews ??= port.reviewer().conversation({
         showCard: (held, note) => {
-          const card = note === undefined ? held : { ...held, note }
+          const card = scrubSecretApproval(note === undefined ? held : { ...held, note })
           this.forward(card)
           this.track(card)
         },

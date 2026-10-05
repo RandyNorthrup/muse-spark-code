@@ -12,7 +12,7 @@ import { countSecretMatches, redactSecrets } from '../redact'
 
 const SHELL_SUBJECT = 'shell'
 const APPROVED_DECISION_PREFIX = 'approved'
-const SESSION_SCOPE = 'session'
+const ONCE_SCOPE = 'once'
 
 /** A shell approval's command text: its command and every stage's argv. */
 export function shellSecretText(subject: ApprovalSubject): string | undefined {
@@ -41,16 +41,21 @@ export function scrubSecretSubject(subject: ApprovalSubject): ApprovalSubject {
     ...subject,
     ...(subject.command !== undefined && { command: redactSecrets(subject.command) }),
     ...(subject.stages !== undefined && {
+      // Scan the displayed line as one string: contextual credentials can
+      // span arguments. Prefix metadata serves standing grants, which this
+      // card cannot offer, and must not retain unsanitized argument values.
       stages: subject.stages.map((stage) => ({
-        ...stage,
-        argv: stage.argv.map((arg) => redactSecrets(arg)),
+        requirementId: stage.requirementId,
+        position: stage.position,
+        totalStages: stage.totalStages,
+        argv: [redactSecrets(stage.argv.join(' '))],
       })),
     }),
   }
 }
 
 /**
- * The choices with no standing approve left (a session-scoped approve would
+ * The choices with no standing approve left (a non-once approve would
  * auto-allow the secret command later) and display text redacted. The abort
  * and allow-once choices never name the command.
  */
@@ -58,7 +63,7 @@ export function scrubSecretChoices(choices: readonly ApprovalChoice[]): Approval
   return choices
     .filter(
       (choice) =>
-        !(choice.scope === SESSION_SCOPE && choice.decision.startsWith(APPROVED_DECISION_PREFIX)),
+        choice.scope === ONCE_SCOPE || !choice.decision.startsWith(APPROVED_DECISION_PREFIX),
     )
     .map((choice) => ({
       ...choice,
