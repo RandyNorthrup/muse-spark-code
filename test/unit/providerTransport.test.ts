@@ -16,7 +16,13 @@ import {
   type TransportDeps,
 } from '../../src/core/backends/modelapi/transport'
 import { parseSse } from '../../src/core/backends/modelapi/sse'
-import { streamEventSchema } from '../../src/core/backends/modelapi/schemas'
+import { ModelApiClient } from '../../src/core/backends/modelapi/client'
+import {
+  streamEventSchema,
+  isMessageItem,
+  type StreamEvent,
+} from '../../src/core/backends/modelapi/schemas'
+import { redactSecrets } from '../../src/core/redact'
 import { CREDENTIAL_RECORD_VERSION, PROVIDER_HTTP_BODY_MAX_BYTES } from '../../src/shared/constants'
 import { FakeLogOutputChannel } from './helpers/fakes'
 import { metaGoldenBodies } from './helpers/m95MetaBodies'
@@ -377,6 +383,254 @@ describe('shared provider transport', () => {
 })
 
 describe('CodecClient injected seam', () => {
+  it('never exposes body fragments from successful HTTP JSON parser failures', async () => {
+    for (const text of ['opaque95', 'opaque95-with-a-long-truncated-parser-echo']) {
+      const client = new CodecClient(
+        codecDeps({ transport: deps({ fetch: () => Promise.resolve(new Response(text)) }) }),
+      )
+      for (const run of [() => client.listModels(), () => client.countInputTokens(body)]) {
+        await expect(run()).rejects.toMatchObject({ kind: 'malformed_json' })
+        await expect(run()).rejects.not.toThrow('opaque95')
+      }
+    }
+  })
+
+  it('redacts every successful-HTTP parser, codec, reader and canonical failure path', async () => {
+    const account = 'account@fixture.test'
+    const echo = `${KEY} ${account} Authorization: Bearer ${KEY}`
+    const auth = {
+      headers: async (url: string) => {
+        const headers = await codecDeps().auth.headers(url)
+        return { ...headers, redact: (text: string) => redactSecrets(text, [KEY, account]) }
+      },
+    }
+    const failures = [
+      new Error(echo),
+      new ModelApiError(echo, 200, echo, echo),
+      new SyntaxError('Unexpected token opaque-"quo'),
+    ]
+    for (const failure of failures) {
+      const configuration = codecDeps({ auth })
+      const broken: WireCodec = {
+        ...configuration.codec,
+        models: {
+          path: '/models',
+          parse: () => {
+            throw failure
+          },
+        },
+        countTokens: {
+          encode: () => ({ path: '/count', body: {} }),
+          parse: () => {
+            throw failure
+          },
+        },
+        decode: async function* () {
+          await Promise.resolve()
+          yield { type: 'response.output_text.delta', item_id: 'a', delta: 'first' }
+          throw failure
+        },
+      }
+      const client = new CodecClient({ ...configuration, codec: broken })
+      for (const run of [
+        () => client.listModels(),
+        () => client.countInputTokens(body),
+        () => Array.fromAsync(client.streamResponse(body, new AbortController().signal)),
+      ]) {
+        let caught: unknown
+        try {
+          await run()
+        } catch (error: unknown) {
+          caught = error
+        }
+        expect(caught).toBeInstanceOf(ModelApiError)
+        if (!(caught instanceof ModelApiError)) {
+          throw new Error('Expected protected failure')
+        }
+        const surfaced = JSON.stringify({
+          message: caught.message,
+          kind: caught.kind,
+          code: caught.code,
+        })
+        expect(surfaced).not.toContain('opaque-')
+        expect(surfaced).not.toContain(account)
+      }
+    }
+    const events: StreamEvent[] = [
+      { type: 'error', message: echo, code: echo },
+      ...(
+        [
+          'response.created',
+          'response.in_progress',
+          'response.completed',
+          'response.failed',
+          'response.incomplete',
+        ] as const
+      ).map((type) => ({
+        type,
+        response: {
+          id: 'r',
+          status: 'incomplete',
+          output: [],
+          error: { message: echo, code: echo },
+          incomplete_details: { reason: echo },
+        },
+      })),
+      { type: 'response.output_text.delta', item_id: 'a', delta: echo },
+    ]
+    const client = new CodecClient(
+      codecDeps({
+        auth,
+        codec: {
+          ...codec(),
+          decode: async function* () {
+            await Promise.resolve()
+            yield* events
+          },
+        },
+      }),
+    )
+    const surfaced = JSON.stringify(
+      await Array.fromAsync(client.streamResponse(body, new AbortController().signal)),
+    )
+    expect(surfaced).not.toContain('quoted')
+    expect(surfaced).not.toContain(account)
+    expect(surfaced).toContain('[redacted]')
+    const source = new ReadableStream<Uint8Array>({
+      start(controller) {
+        controller.error(new Error(echo))
+      },
+    })
+    const readerClient = new CodecClient(
+      codecDeps({ auth, transport: deps({ fetch: () => Promise.resolve(new Response(source)) }) }),
+    )
+    await expect(
+      Array.fromAsync(readerClient.streamResponse(body, new AbortController().signal)),
+    ).rejects.toThrow('[redacted]')
+  })
+
+  it('yields parsed canonical items so malformed known fields cannot reach item guards', async () => {
+    const captured: WireCodec = {
+      ...codec(),
+      decode: async function* () {
+        await Promise.resolve()
+        const item = { type: 'message', id: 'm', role: 'assistant', content: 'malformed' }
+        yield { type: 'response.output_item.done', item }
+      },
+    }
+    const events = await Array.fromAsync(
+      new CodecClient(codecDeps({ codec: captured })).streamResponse(
+        body,
+        new AbortController().signal,
+      ),
+    )
+    const event = events[0]
+    expect(event).toEqual({ type: 'response.output_item.done', item: { type: 'message', id: 'm' } })
+    if (event === undefined || !('item' in event)) {
+      throw new Error('Expected parsed item')
+    }
+    expect(isMessageItem(event.item)).toBe(false)
+  })
+
+  it.each(['CodecClient', 'Meta'])(
+    '%s stalls on comment bytes or partial frames without a parsed event',
+    async (kind) => {
+      vi.useFakeTimers()
+      try {
+        const fragments = [
+          ':keepalive\n\n',
+          kind === 'Meta' ? 'data: {"type":"future.event"}\n\n' : 'data: ',
+        ]
+        for (const fragment of fragments) {
+          const cancel = vi.fn()
+          let chunks = 0
+          let timer: ReturnType<typeof setInterval>
+          const source = new ReadableStream<Uint8Array>({
+            start(controller) {
+              timer = setInterval(() => {
+                chunks += 1
+                if (chunks === 20) {
+                  clearInterval(timer)
+                  controller.close()
+                } else {
+                  controller.enqueue(new TextEncoder().encode(fragment))
+                }
+              }, 5)
+            },
+            cancel() {
+              clearInterval(timer)
+              cancel()
+            },
+          })
+          const fetch = () => Promise.resolve(new Response(source))
+          const client =
+            kind === 'Meta'
+              ? new ModelApiClient({
+                  ...deps(),
+                  apiKey: () => Promise.resolve(KEY),
+                  fetch,
+                  streamIdleMs: 20,
+                })
+              : new CodecClient(
+                  codecDeps({
+                    streamIdleMs: 20,
+                    transport: deps({ fetch }),
+                  }),
+                )
+          const rejected = expect(
+            Array.fromAsync(client.streamResponse(body, new AbortController().signal)),
+          ).rejects.toMatchObject({ status: 0 })
+          await vi.advanceTimersByTimeAsync(110)
+          await rejected
+          expect(cancel).toHaveBeenCalledOnce()
+          expect(chunks).toBeLessThan(20)
+          expect(source.locked).toBe(false)
+        }
+      } finally {
+        vi.useRealTimers()
+      }
+    },
+  )
+
+  it('renews the idle deadline after each parsed event despite prefetched bytes', async () => {
+    vi.useFakeTimers()
+    try {
+      let timer: ReturnType<typeof setInterval>
+      let chunks = 0
+      const source = new ReadableStream<Uint8Array>({
+        start(controller) {
+          timer = setInterval(() => {
+            chunks += 1
+            if (chunks === 6) {
+              clearInterval(timer)
+              controller.close()
+            } else {
+              controller.enqueue(
+                new TextEncoder().encode(
+                  'data: {"type":"response.output_text.delta","item_id":"a","delta":"hi"}\n\n',
+                ),
+              )
+            }
+          }, 10)
+        },
+        cancel() {
+          clearInterval(timer)
+        },
+      })
+      const client = new CodecClient(
+        codecDeps({
+          streamIdleMs: 20,
+          transport: deps({ fetch: () => Promise.resolve(new Response(source)) }),
+        }),
+      )
+      const result = Array.fromAsync(client.streamResponse(body, new AbortController().signal))
+      await vi.advanceTimersByTimeAsync(70)
+      expect(await result).toHaveLength(5)
+      expect(vi.getTimerCount()).toBe(0)
+    } finally {
+      vi.useRealTimers()
+    }
+  })
   it('keeps additional codec usage fields but refuses invalid canonical usage', async () => {
     for (const input of [1, NaN]) {
       const usage = { input_tokens: input, output_tokens: 1, cost: 0.1 }

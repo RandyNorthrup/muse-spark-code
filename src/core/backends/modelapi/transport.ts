@@ -51,6 +51,38 @@ export interface TransportResponse {
   readonly redact: (text: string) => string
 }
 
+export interface TransportStreamResponse extends TransportResponse {
+  /** Only a validated canonical event renews the idle deadline. */
+  readonly eventParsed: () => void
+}
+
+/** JSON syntax diagnostics must never include a body fragment or partial credential. */
+async function readBoundedJson(response: Response): Promise<unknown> {
+  const text = await readBoundedText(response)
+  try {
+    return JSON.parse(text)
+  } catch {
+    throw new ModelApiError(
+      fill(UI_TEXT.webFetchNetwork, { detail: 'malformed_json' }),
+      response.status,
+      'malformed_json',
+      undefined,
+    )
+  }
+}
+
+/** Keep the response's privacy boundary around every JSON/codec parser. */
+export async function parseJsonResponse<T>(
+  result: TransportResponse,
+  parse: (value: unknown) => T,
+): Promise<T> {
+  try {
+    return parse(await readBoundedJson(result.response))
+  } catch (error: unknown) {
+    throw redactModelApiError(error, result.redact, result.response.status)
+  }
+}
+
 /** Bounded HTTP JSON/error body; cancel before an untrusted response fills memory. */
 export async function readBoundedText(response: Response): Promise<string> {
   if (response.body === null) {
@@ -121,7 +153,9 @@ export function redactModelApiError(
   fallbackStatus: number,
 ): ModelApiError {
   return new ModelApiError(
-    redact(error instanceof Error ? error.message : String(error)),
+    error instanceof SyntaxError
+      ? fill(UI_TEXT.webFetchNetwork, { detail: 'malformed_json' })
+      : redact(error instanceof Error ? error.message : String(error)),
     isModelApiError(error) ? error.status : fallbackStatus,
     isModelApiError(error) && error.kind !== undefined ? redact(error.kind) : undefined,
     isModelApiError(error) && error.code !== undefined ? redact(error.code) : undefined,
@@ -311,7 +345,7 @@ export class RequestTransport {
     return credentials.keyDigest
   }
 
-  /** Headers and each stream read have the same idle deadline; cancellation owns the reader. */
+  /** Headers and parsed-event progress have an idle deadline; cancellation owns the reader. */
   public async streamRequest(
     path: string,
     init: {
@@ -325,7 +359,7 @@ export class RequestTransport {
     admitAttempt?: ResponseAttemptGuard,
     confirmed?: ConfirmedModelRequest,
     idleMs = MODEL_API_STREAM_IDLE_MS,
-  ): Promise<TransportResponse> {
+  ): Promise<TransportStreamResponse> {
     const stall = new AbortController()
     const combined = AbortSignal.any([signal, stall.signal])
     const message = fill(UI_TEXT.modelApiStalled, {
@@ -367,20 +401,32 @@ export class RequestTransport {
     }
     const reader: ReadableStreamDefaultReader<Uint8Array> = response.body.getReader()
     let isClosed = false
+    let idleTimer: ReturnType<typeof setTimeout> | undefined
+    const eventParsed = () => {
+      clearTimeout(idleTimer)
+      if (!isClosed) {
+        idleTimer = setTimeout(() => {
+          stall.abort()
+        }, idleMs)
+      }
+    }
     const close = () => {
       if (isClosed) {
         return
       }
       isClosed = true
+      clearTimeout(idleTimer)
       combined.removeEventListener('abort', close)
       void reader.cancel().catch(ignoreClosingError)
       reader.releaseLock()
     }
     combined.addEventListener('abort', close, { once: true })
+    eventParsed()
     const body = new ReadableStream<Uint8Array>({
       pull: async (controller) => {
+        const aborted = whenAborted(combined)
         try {
-          const next = await within(reader.read())
+          const next = await Promise.race([reader.read(), aborted.promise])
           // Cancellation can close the reader before the abort promise wins the race.
           if (combined.aborted) {
             throw new ModelApiError(signal.aborted ? 'cancelled' : message, 0, undefined, undefined)
@@ -396,8 +442,10 @@ export class RequestTransport {
           controller.error(
             combined.aborted && !(error instanceof ModelApiError)
               ? new ModelApiError(signal.aborted ? 'cancelled' : message, 0, undefined, undefined)
-              : error,
+              : redactModelApiError(error, result.redact, response.status),
           )
+        } finally {
+          aborted.dispose()
         }
       },
       cancel: () => {
@@ -407,6 +455,7 @@ export class RequestTransport {
     })
     return {
       ...result,
+      eventParsed,
       response: new Response(body, {
         status: response.status,
         statusText: response.statusText,

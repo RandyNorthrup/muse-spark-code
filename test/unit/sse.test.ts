@@ -20,6 +20,27 @@ function text(...parts: readonly string[]): ReadableStream<Uint8Array> {
 }
 
 describe('parseSse', () => {
+  it('counts exact CRLF wire bytes including terminators split across chunks', async () => {
+    for (const parts of [['data: abc\r\n\r\n'], ['data: abc\r', '\n\r', '\n']]) {
+      await expect(Array.fromAsync(parseSse(text(...parts), { frameBytes: 11 }))).rejects.toThrow(
+        'frame_limit',
+      )
+      expect(await Array.fromAsync(parseSse(text(...parts), { frameBytes: 13 }))).toEqual([
+        { event: undefined, data: 'abc' },
+      ])
+    }
+  })
+
+  it.each(['data: abc', 'data: abc\n\n', 'data: abc\r\r', 'data: abc\r\n\r\n'])(
+    'accepts exact frame wire budget without inventing an EOF terminator: %j',
+    async (wire) => {
+      expect(
+        await Array.fromAsync(
+          parseSse(text(wire), { frameBytes: encoder.encode(wire).byteLength }),
+        ),
+      ).toEqual([{ event: undefined, data: 'abc' }])
+    },
+  )
   it.each([
     ['frame_limit', 'data: ééééé\n\n', { frameBytes: 10 }],
     ['frame_limit', 'data: one\ndata: two\n\n', { frameBytes: 15 }],

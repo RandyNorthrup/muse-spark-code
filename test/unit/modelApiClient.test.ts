@@ -71,6 +71,55 @@ function collect(stream: AsyncIterable<StreamEvent>): Promise<StreamEvent[]> {
   return Array.fromAsync(stream)
 }
 
+describe('Meta transport regression boundaries', () => {
+  it('uses body-free diagnostics on every successful-HTTP JSON endpoint', async () => {
+    const { client } = setup('opaque95', () => Promise.resolve(new Response('opaque95')))
+    const image = {
+      model: 'image',
+      prompt: 'fixture',
+      n: 1,
+      size: '1024x1024',
+      response_format: 'b64_json',
+      output_format: 'png',
+    } as const
+    for (const run of [
+      () => client.listModels(),
+      () => client.countInputTokens(body),
+      () => client.createImage(image, new AbortController().signal),
+      () => client.editImage({ ...image, images: [] }, new AbortController().signal),
+    ]) {
+      await expect(run()).rejects.toMatchObject({ kind: 'malformed_json' })
+      await expect(run()).rejects.not.toThrow('opaque95')
+    }
+  })
+
+  it('redacts failure fields on every response discriminator under HTTP 200', async () => {
+    const key = 'opaque95'
+    const events = [
+      'response.created',
+      'response.in_progress',
+      'response.completed',
+      'response.failed',
+      'response.incomplete',
+    ].map((type) => ({
+      type,
+      response: {
+        id: 'r',
+        status: 'incomplete',
+        output: [],
+        error: { message: key, code: key },
+        incomplete_details: { reason: key },
+      },
+    }))
+    const wire = events.map((event) => `data: ${JSON.stringify(event)}\n\n`).join('')
+    const { client } = setup(key, () => Promise.resolve(new Response(wire)))
+    const result = await collect(client.streamResponse(body, new AbortController().signal))
+    expect(result).toHaveLength(events.length)
+    expect(JSON.stringify(result)).not.toContain(key)
+    expect(JSON.stringify(result)).toContain('[redacted]')
+  })
+})
+
 /** A fetch behind a network that inspects HTTPS: Node's "fetch failed" and its cause (M56). */
 function untrusted(): Promise<Response> {
   return Promise.reject(

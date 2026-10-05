@@ -11,6 +11,8 @@ import {
   RequestTransport,
   ignoreClosingError,
   ModelApiError,
+  parseJsonResponse,
+  redactModelApiError,
   type ConfirmedModelRequest,
   type ResponseAttemptGuard,
   type RetryBudget,
@@ -101,7 +103,7 @@ export class ModelApiClient implements ProviderClient {
     signal: AbortSignal,
     admitAttempt?: ResponseAttemptGuard,
   ): Promise<ImagesResponse> {
-    const { response } = await this.transport.request(
+    const result = await this.transport.request(
       path,
       { method: 'POST', body, accept: JSON_MEDIA_TYPE, retries: 'rateLimitOnly' },
       AbortSignal.any([signal, AbortSignal.timeout(IMAGE_REQUEST_TIMEOUT_MS)]),
@@ -109,7 +111,7 @@ export class ModelApiClient implements ProviderClient {
       undefined,
       admitAttempt,
     )
-    return imagesResponseSchema.parse(await response.json())
+    return await parseJsonResponse(result, (json) => imagesResponseSchema.parse(json))
   }
 
   /** Bind a one-use child consent to the stored key without retaining it. */
@@ -130,23 +132,23 @@ export class ModelApiClient implements ProviderClient {
   /** The chat model ids the key can use, as the catalogue lists them. */
   public async listModels(): Promise<readonly string[]> {
     // No turn to stop it: a deadline instead, so a panel never waits for ever (D25).
-    const { response } = await this.transport.request(
+    const result = await this.transport.request(
       '/models',
       { method: 'GET', accept: JSON_MEDIA_TYPE },
       AbortSignal.timeout(MODEL_API_REQUEST_TIMEOUT_MS),
     )
-    const parsed = modelListSchema.parse(await response.json())
-    return parsed.data.map((model) => model.id)
+    const parsed = await parseJsonResponse(result, (json) => modelListSchema.parse(json))
+    return parsed.data.map((model) => result.redact(model.id))
   }
 
   /** Tokens the rendered input would occupy; not billed (dev.meta.ai/docs/token-counting). */
   public async countInputTokens(body: Omit<CreateResponseBody, 'stream'>): Promise<number> {
-    const { response } = await this.transport.request(
+    const result = await this.transport.request(
       '/responses/input_tokens',
       { method: 'POST', body, accept: JSON_MEDIA_TYPE },
       AbortSignal.timeout(MODEL_API_REQUEST_TIMEOUT_MS),
     )
-    return inputTokensSchema.parse(await response.json()).input_tokens
+    return await parseJsonResponse(result, (json) => inputTokensSchema.parse(json).input_tokens)
   }
 
   /**
@@ -190,7 +192,7 @@ export class ModelApiClient implements ProviderClient {
     ) {
       throw new Error(UI_TEXT.scheduleConfirmationExpired)
     }
-    const { response, redact } = await this.transport.streamRequest(
+    const { response, redact, eventParsed } = await this.transport.streamRequest(
       '/responses',
       { body, accept: EVENT_STREAM_MEDIA_TYPE },
       signal,
@@ -229,18 +231,12 @@ export class ModelApiClient implements ProviderClient {
             undefined,
           )
         }
-        if (
-          typeof json === 'object' &&
-          json !== null &&
-          'type' in json &&
-          (json.type === 'error' || json.type === 'response.failed')
-        ) {
-          json = JSON.parse(JSON.stringify(json), (_key, value: unknown) =>
-            typeof value === 'string' ? redact(value) : value,
-          )
-        }
+        json = JSON.parse(JSON.stringify(json), (_key, value: unknown) =>
+          typeof value === 'string' ? redact(value) : value,
+        )
         const known = streamEventSchema.safeParse(json)
         if (known.success) {
+          eventParsed()
           yield known.data
           continue
         }
@@ -260,6 +256,8 @@ export class ModelApiClient implements ProviderClient {
         this.ignoredEventTypes.add(typed.data.type)
         this.deps.log.info(`Model API stream events of type ${redact(typed.data.type)} are ignored`)
       }
+    } catch (error: unknown) {
+      throw redactModelApiError(error, redact, response.status)
     } finally {
       // An early end (a malformed frame, a stall, the caller stopping)
       // closes the parser, which releases the response body (the review of

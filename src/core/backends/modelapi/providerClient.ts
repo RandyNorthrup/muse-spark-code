@@ -1,5 +1,6 @@
 // M95-T: canonical client seam. Codecs/registry load only in the BYO bundle.
 import type { ModelCapabilities } from '../../providers/capabilities'
+import * as z from 'zod/mini'
 import type { CredentialAuth } from '../../providers/credentialRecord'
 import type { ProviderFormat } from '../../providers/providersFile'
 import { presetById } from '../../providers/presets'
@@ -9,7 +10,7 @@ import {
   ignoreClosingError,
   redactModelApiError,
   ModelApiError,
-  readBoundedText,
+  parseJsonResponse,
   type TransportDeps,
   type ConfirmedModelRequest,
   type ResponseAttemptGuard,
@@ -19,11 +20,20 @@ import {
 import type { AuthSource } from './authSource'
 import { MODEL_API_REQUEST_TIMEOUT_MS, UI_TEXT } from '../../../shared/constants'
 import { fill } from '../../../shared/l10n/text'
-import { streamEventSchema } from './schemas'
+import { streamEventSchema, usageSchema } from './schemas'
 
-/** Validate the consumed canonical shape without stripping the codec's additional fields. */
-function assertCanonicalEvent(value: unknown): asserts value is StreamEvent {
-  streamEventSchema.parse(value)
+// Only usage metadata is extensible here; item guards consume the stripped,
+// parsed canonical representation, never a codec's unvalidated original.
+const extendedUsageSchema = z.object({
+  response: z.object({ usage: z.optional(z.nullable(z.looseObject(usageSchema.shape))) }),
+})
+function parseCanonicalEvent(value: unknown): StreamEvent {
+  const parsed = streamEventSchema.parse(value)
+  if ('response' in parsed) {
+    const metadata = extendedUsageSchema.parse(value)
+    return { ...parsed, response: { ...parsed.response, ...metadata.response } }
+  }
+  return parsed
 }
 
 export interface ProviderIdentity {
@@ -139,13 +149,13 @@ export class CodecClient implements ProviderClient {
     this.waitBeforeRetry = this.transport.pause.bind(this.transport)
   }
   public async listModels(): Promise<readonly string[]> {
-    const { response } = await this.transport.request(
+    const result = await this.transport.request(
       this.deps.codec.models.path,
       { method: 'GET', accept: 'application/json' },
       AbortSignal.timeout(MODEL_API_REQUEST_TIMEOUT_MS),
     )
-    const json: unknown = JSON.parse(await readBoundedText(response))
-    return this.deps.codec.models.parse(json).map((model) => model.id)
+    const models = await parseJsonResponse(result, (json) => this.deps.codec.models.parse(json))
+    return models.map((model) => result.redact(model.id))
   }
   public async countInputTokens(body: Omit<CreateResponseBody, 'stream'>): Promise<number> {
     const counter = this.deps.codec.countTokens
@@ -158,7 +168,7 @@ export class CodecClient implements ProviderClient {
       )
     }
     const request = counter.encode(body, this.deps.modelFor(body.model))
-    const { response } = await this.transport.request(
+    const result = await this.transport.request(
       request.path,
       {
         method: 'POST',
@@ -168,8 +178,7 @@ export class CodecClient implements ProviderClient {
       },
       AbortSignal.timeout(MODEL_API_REQUEST_TIMEOUT_MS),
     )
-    const json: unknown = JSON.parse(await readBoundedText(response))
-    const count = counter.parse(json)
+    const count = await parseJsonResponse(result, (json) => counter.parse(json))
     if (!Number.isSafeInteger(count) || count < 0) {
       throw new ModelApiError(
         fill(UI_TEXT.webFetchNetwork, { detail: 'invalid_token_count' }),
@@ -195,7 +204,7 @@ export class CodecClient implements ProviderClient {
     }
     const model = this.deps.modelFor(body.model)
     const request = this.deps.codec.encode(body, model)
-    const { response, redact } = await this.transport.streamRequest(
+    const { response, redact, eventParsed } = await this.transport.streamRequest(
       request.path,
       {
         body: request.body,
@@ -211,16 +220,13 @@ export class CodecClient implements ProviderClient {
     )
     try {
       for await (const event of this.deps.codec.decode(response, model)) {
-        assertCanonicalEvent(event)
-        if (event.type === 'error' || event.type === 'response.failed') {
-          const safe: unknown = JSON.parse(JSON.stringify(event), (_key, value: unknown) =>
-            typeof value === 'string' ? redact(value) : value,
-          )
-          assertCanonicalEvent(safe)
-          yield safe
-        } else {
-          yield event
-        }
+        const parsed = parseCanonicalEvent(event)
+        const safe: unknown = JSON.parse(JSON.stringify(parsed), (_key, value: unknown) =>
+          typeof value === 'string' ? redact(value) : value,
+        )
+        const validated = parseCanonicalEvent(safe)
+        eventParsed()
+        yield validated
       }
     } catch (error: unknown) {
       throw redactModelApiError(error, redact, response.status)

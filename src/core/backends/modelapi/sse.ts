@@ -44,7 +44,7 @@ export interface SseEvent {
 }
 
 const FIELD_SEPARATOR = ':'
-const LINE_BREAK = /\r\n|\r|\n/
+const LINE_BREAK = /(\r\n|\r|\n)/
 const CARRIAGE_RETURN = '\r'
 
 interface PendingEvent {
@@ -92,8 +92,8 @@ export async function* parseSse(
   let frameBytes = 0
   let frames = 0
   const encoder = new TextEncoder()
-  const isCompleteAfter = (line: string): boolean => {
-    frameBytes += encoder.encode(line).byteLength + 1
+  const isCompleteAfter = (line: string, terminatorBytes: number): boolean => {
+    frameBytes += encoder.encode(line).byteLength + terminatorBytes
     if (frameBytes > (limits.frameBytes ?? PROVIDER_STREAM_FRAME_MAX_BYTES)) {
       throw streamLimitError('frame_limit')
     }
@@ -122,8 +122,8 @@ export async function* parseSse(
     const isCarriageReturnHeld = buffered.endsWith(CARRIAGE_RETURN)
     const lines = (isCarriageReturnHeld ? buffered.slice(0, -1) : buffered).split(LINE_BREAK)
     buffered = `${lines.pop() ?? ''}${isCarriageReturnHeld ? CARRIAGE_RETURN : ''}`
-    for (const line of lines) {
-      if (isCompleteAfter(line)) {
+    for (let index = 0; index < lines.length; index += 2) {
+      if (isCompleteAfter(lines[index] ?? '', (lines[index + 1] ?? '').length)) {
         yield flush()
       }
     }
@@ -135,8 +135,9 @@ export async function* parseSse(
     }
   }
   buffered += decoder.decode()
-  for (const line of buffered.split(LINE_BREAK)) {
-    if (isCompleteAfter(line)) {
+  const tail = buffered.split(LINE_BREAK)
+  for (let index = 0; index < tail.length; index += 2) {
+    if (isCompleteAfter(tail[index] ?? '', (tail[index + 1] ?? '').length)) {
       yield flush()
     }
   }
