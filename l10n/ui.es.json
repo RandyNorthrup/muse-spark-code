@@ -1943,5 +1943,9 @@
     "one": "{count} cambio impuesto por los límites",
     "many": "{count} cambios impuestos por los límites",
     "other": "{count} cambios impuestos por los límites"
-  }
+  },
+  "teamCapInvalidAmount": "Use un límite finito y positivo; los recuentos de tokens y tareas deben ser enteros",
+  "teamCapInvalidConcurrent": "La concurrencia debe ser un número entero de al menos uno",
+  "teamPreviewCostUnknown": "Unos {tokens} tokens; precio desconocido",
+  "teamLevelCostUnknown": "{tokens} tokens por hora; precio desconocido"
 }

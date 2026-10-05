@@ -1943,5 +1943,9 @@
     "one": "{count} cambio imposto dai tetti",
     "many": "{count} cambi imposti dai tetti",
     "other": "{count} cambi imposti dai tetti"
-  }
+  },
+  "teamCapInvalidAmount": "Usa un limite finito e positivo; i conteggi di token e attività devono essere interi",
+  "teamCapInvalidConcurrent": "Il numero di attività simultanee deve essere un intero di almeno uno",
+  "teamPreviewCostUnknown": "Circa {tokens} token; prezzo sconosciuto",
+  "teamLevelCostUnknown": "{tokens} token all’ora; prezzo sconosciuto"
 }

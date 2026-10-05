@@ -2010,5 +2010,9 @@
     "few": "{count} przełączenia wymuszone limitami",
     "many": "{count} przełączeń wymuszonych limitami",
     "other": "{count} przełączenia wymuszone limitami"
-  }
+  },
+  "teamCapInvalidAmount": "Użyj skończonego dodatniego limitu; liczby tokenów i zadań muszą być całkowite",
+  "teamCapInvalidConcurrent": "Liczba równocześnie uruchomionych zadań musi być całkowita i wynosić co najmniej jeden",
+  "teamPreviewCostUnknown": "Około {tokens} tokenów; cena nieznana",
+  "teamLevelCostUnknown": "{tokens} tokenów na godzinę; cena nieznana"
 }

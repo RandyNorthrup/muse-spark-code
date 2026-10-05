@@ -1943,5 +1943,9 @@
     "one": "{count} troca imposta pelos tetos",
     "many": "{count} trocas impostas pelos tetos",
     "other": "{count} trocas impostas pelos tetos"
-  }
+  },
+  "teamCapInvalidAmount": "Use um limite finito e positivo; as contagens de tokens e tarefas devem ser inteiras",
+  "teamCapInvalidConcurrent": "A quantidade de tarefas simultâneas deve ser um inteiro de pelo menos um",
+  "teamPreviewCostUnknown": "Cerca de {tokens} tokens; preço desconhecido",
+  "teamLevelCostUnknown": "{tokens} tokens por hora; preço desconhecido"
 }

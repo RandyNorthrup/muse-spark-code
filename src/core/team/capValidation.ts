@@ -6,12 +6,13 @@
 // value, `warning` shows beside it and still saves.
 
 import { UI_TEXT } from '../../shared/constants'
-import { fill, formatUsd } from '../../shared/l10n/text'
+import { fill, formatNumber, formatUsd } from '../../shared/l10n/text'
+import type { TeamCapDraft } from './templates'
 
 /** One request's minimum tokens (D75): the role's prefix plus this. */
 export const TEAM_MIN_REQUEST_TOKENS = 2048
 
-export type TeamCapMeasure = 'tokens' | 'usd' | 'tasks' | 'minutes'
+export type TeamCapMeasure = TeamCapDraft['measure']
 export type TeamCapWindow = 'task' | 'day' | 'lifetime'
 
 /** One cap the user typed, with the role's prefix for the minimum. */
@@ -37,6 +38,7 @@ export interface TeamCapBudgets {
   readonly maxConcurrent: number
   /** The team's daily budget in dollars (`museSpark.teamDailyBudgetUsd`). */
   readonly teamDailyBudgetUsd: number
+  readonly teamDailyBudgetTokens: number
 }
 
 export type TeamCapIssueCode =
@@ -46,6 +48,8 @@ export type TeamCapIssueCode =
   | 'unpricedKeyNeedsCaps'
   | 'concurrentAboveGlobal'
   | 'dayAboveBudget'
+  | 'invalidAmount'
+  | 'invalidConcurrent'
 
 export interface TeamCapIssue {
   readonly code: TeamCapIssueCode
@@ -75,38 +79,38 @@ export function validateCap(
   siblingTaskAmount: number | undefined,
 ): readonly TeamCapIssue[] {
   const issues: TeamCapIssue[] = []
+  if (
+    !Number.isFinite(cap.amount) ||
+    cap.amount <= 0 ||
+    (cap.measure !== 'spendUsd' && !Number.isSafeInteger(cap.amount))
+  ) {
+    issues.push({ code: 'invalidAmount', severity: 'error', message: UI_TEXT.teamCapInvalidAmount })
+    return issues
+  }
   if (cap.measure === 'tokens' && cap.amount < cap.prefixTokens + TEAM_MIN_REQUEST_TOKENS) {
     issues.push(tokenCapTooSmall(cap.prefixTokens + TEAM_MIN_REQUEST_TOKENS))
   }
-  if (
-    siblingDayAmount !== undefined &&
-    cap.measure === 'tokens' &&
-    cap.window === 'task' &&
-    cap.amount > siblingDayAmount
-  ) {
+  if (siblingDayAmount !== undefined && cap.window === 'task' && cap.amount > siblingDayAmount) {
     issues.push({ code: 'taskAboveDay', severity: 'error', message: UI_TEXT.teamCapTaskAboveDay })
   }
-  if (
-    siblingTaskAmount !== undefined &&
-    cap.measure === 'tokens' &&
-    cap.window === 'day' &&
-    siblingTaskAmount > cap.amount
-  ) {
+  if (siblingTaskAmount !== undefined && cap.window === 'day' && siblingTaskAmount > cap.amount) {
     issues.push({ code: 'taskAboveDay', severity: 'error', message: UI_TEXT.teamCapTaskAboveDay })
   }
-  if (cap.measure === 'usd' && model.usdPerMTok === undefined) {
+  if (cap.measure === 'spendUsd' && model.usdPerMTok === undefined) {
     issues.push({
       code: 'dollarCapUnpriced',
       severity: 'error',
       message: UI_TEXT.teamCapDollarUnpriced,
     })
   }
-  if (cap.window === 'day' && cap.measure === 'usd' && cap.amount > budgets.teamDailyBudgetUsd) {
+  const dayBudget =
+    cap.measure === 'spendUsd' ? budgets.teamDailyBudgetUsd : budgets.teamDailyBudgetTokens
+  if (cap.window === 'day' && cap.measure !== 'tasks' && cap.amount > dayBudget) {
     issues.push({
       code: 'dayAboveBudget',
       severity: 'error',
       message: fill(UI_TEXT.teamCapDayAboveBudget, {
-        budget: formatUsd(budgets.teamDailyBudgetUsd, 2),
+        budget: cap.measure === 'spendUsd' ? formatUsd(dayBudget, 2) : formatNumber(dayBudget),
       }),
     })
   }
@@ -133,7 +137,13 @@ export function validateEntryCaps(
       taskAmountFor(caps, cap.measure),
     ),
   )
-  if (concurrent > budgets.maxConcurrent) {
+  if (!Number.isSafeInteger(concurrent) || concurrent < 1) {
+    issues.push({
+      code: 'invalidConcurrent',
+      severity: 'error',
+      message: UI_TEXT.teamCapInvalidConcurrent,
+    })
+  } else if (concurrent > budgets.maxConcurrent) {
     issues.push({
       code: 'concurrentAboveGlobal',
       severity: 'error',
@@ -141,8 +151,20 @@ export function validateEntryCaps(
     })
   }
   if (model.billedToKey && model.usdPerMTok === undefined) {
-    const hasTask = caps.some((cap) => cap.measure === 'tokens' && cap.window === 'task')
-    const hasDay = caps.some((cap) => cap.measure === 'tokens' && cap.window === 'day')
+    const hasTask = caps.some(
+      (cap) =>
+        cap.measure === 'tokens' &&
+        cap.window === 'task' &&
+        Number.isSafeInteger(cap.amount) &&
+        cap.amount >= cap.prefixTokens + TEAM_MIN_REQUEST_TOKENS,
+    )
+    const hasDay = caps.some(
+      (cap) =>
+        cap.measure === 'tokens' &&
+        cap.window === 'day' &&
+        Number.isSafeInteger(cap.amount) &&
+        cap.amount >= cap.prefixTokens + TEAM_MIN_REQUEST_TOKENS,
+    )
     if (!hasTask || !hasDay) {
       issues.push({
         code: 'unpricedKeyNeedsCaps',

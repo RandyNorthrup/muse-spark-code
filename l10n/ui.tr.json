@@ -1876,5 +1876,9 @@
   "teamPreviewSwitches": {
     "one": "Üst sınırların zorladığı {count} geçiş",
     "other": "Üst sınırların zorladığı {count} geçiş"
-  }
+  },
+  "teamCapInvalidAmount": "Sonlu ve pozitif bir sınır kullanın; token ve görev sayıları tam sayı olmalıdır",
+  "teamCapInvalidConcurrent": "Eşzamanlı çalışan görev sayısı en az bir olan bir tam sayı olmalıdır",
+  "teamPreviewCostUnknown": "Yaklaşık {tokens} token; fiyat bilinmiyor",
+  "teamLevelCostUnknown": "Saatte {tokens} token; fiyat bilinmiyor"
 }

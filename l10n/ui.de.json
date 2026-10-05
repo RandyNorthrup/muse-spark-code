@@ -1876,5 +1876,9 @@
   "teamPreviewSwitches": {
     "one": "{count} Wechsel durch Obergrenzen erzwungen",
     "other": "{count} Wechsel durch Obergrenzen erzwungen"
-  }
+  },
+  "teamCapInvalidAmount": "Verwenden Sie ein endliches positives Limit; Token- und Aufgabenanzahlen müssen ganzzahlig sein",
+  "teamCapInvalidConcurrent": "Die Anzahl gleichzeitig laufender Aufgaben muss eine ganze Zahl von mindestens eins sein",
+  "teamPreviewCostUnknown": "Etwa {tokens} Token; Preis unbekannt",
+  "teamLevelCostUnknown": "{tokens} Token pro Stunde; Preis unbekannt"
 }

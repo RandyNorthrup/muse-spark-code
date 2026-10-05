@@ -15,7 +15,11 @@ import { formatNumber } from '../../src/shared/l10n/text'
 const PRICED: TeamCapModelInfo = { usdPerMTok: 3, billedToKey: true }
 const UNPRICED_KEY: TeamCapModelInfo = { usdPerMTok: undefined, billedToKey: true }
 const LOCAL: TeamCapModelInfo = { usdPerMTok: undefined, billedToKey: false }
-const BUDGETS: TeamCapBudgets = { maxConcurrent: 8, teamDailyBudgetUsd: 50 }
+const BUDGETS: TeamCapBudgets = {
+  maxConcurrent: 8,
+  teamDailyBudgetUsd: 50,
+  teamDailyBudgetTokens: 25_000_000,
+}
 
 function tokens(window: 'task' | 'day' | 'lifetime', amount: number): TeamCapInput {
   return { measure: 'tokens', window, amount, prefixTokens: 500 }
@@ -43,13 +47,13 @@ describe('validateCap', () => {
   })
 
   it('refuses a dollar cap on an unpriced model', () => {
-    const cap: TeamCapInput = { measure: 'usd', window: 'day', amount: 5, prefixTokens: 500 }
+    const cap: TeamCapInput = { measure: 'spendUsd', window: 'day', amount: 5, prefixTokens: 500 }
     const issues = validateCap(cap, UNPRICED_KEY, BUDGETS, undefined, undefined)
     expect(issues.map((issue) => issue.code)).toContain('dollarCapUnpriced')
   })
 
   it('refuses a day dollar cap above the team daily budget', () => {
-    const cap: TeamCapInput = { measure: 'usd', window: 'day', amount: 60, prefixTokens: 500 }
+    const cap: TeamCapInput = { measure: 'spendUsd', window: 'day', amount: 60, prefixTokens: 500 }
     const issues = validateCap(cap, PRICED, BUDGETS, undefined, undefined)
     expect(issues.map((issue) => issue.code)).toContain('dayAboveBudget')
   })
@@ -66,6 +70,85 @@ describe('validateCap', () => {
 })
 
 describe('validateEntryCaps', () => {
+  it('compares task and day caps for every D75 measure', () => {
+    const measures: readonly TeamCapInput['measure'][] = [
+      'tokens',
+      'inputTokens',
+      'outputTokens',
+      'spendUsd',
+      'tasks',
+    ]
+    for (const measure of measures) {
+      const issues = validateEntryCaps(
+        [
+          { measure, window: 'task', amount: 20_000, prefixTokens: 0 },
+          { measure, window: 'day', amount: 10_000, prefixTokens: 0 },
+        ],
+        PRICED,
+        BUDGETS,
+        1,
+      )
+      expect(
+        issues.filter((issue) => issue.code === 'taskAboveDay'),
+        measure,
+      ).toHaveLength(2)
+    }
+  })
+
+  it('bounds daily token measures by the supplied team token budget', () => {
+    const measures: readonly TeamCapInput['measure'][] = ['tokens', 'inputTokens', 'outputTokens']
+    for (const measure of measures) {
+      const cap: TeamCapInput = { measure, window: 'day', amount: 30_000_000, prefixTokens: 0 }
+      expect(
+        validateCap(cap, PRICED, BUDGETS, undefined, undefined).map((issue) => issue.code),
+      ).toContain('dayAboveBudget')
+      expect(
+        validateCap(
+          { ...cap, amount: BUDGETS.teamDailyBudgetTokens },
+          PRICED,
+          BUDGETS,
+          undefined,
+          undefined,
+        ),
+      ).toEqual([])
+      expect(
+        validateCap(
+          { ...cap, amount: 5000 },
+          PRICED,
+          { ...BUDGETS, teamDailyBudgetTokens: 4000 },
+          undefined,
+          undefined,
+        ).map((issue) => issue.code),
+      ).toContain('dayAboveBudget')
+    }
+  })
+
+  it('rejects unusable numeric caps and concurrency', () => {
+    for (const amount of [-5, 0, NaN, Infinity]) {
+      expect(
+        validateEntryCaps(
+          [{ measure: 'spendUsd', window: 'task', amount, prefixTokens: 0 }],
+          PRICED,
+          BUDGETS,
+          1,
+        ).map((issue) => issue.code),
+      ).toContain('invalidAmount')
+    }
+    expect(
+      validateEntryCaps([tokens('task', 5000.5)], PRICED, BUDGETS, 1).map((issue) => issue.code),
+    ).toContain('invalidAmount')
+    for (const concurrent of [-1, 0, 1.5, NaN, Infinity]) {
+      expect(
+        validateEntryCaps([], PRICED, BUDGETS, concurrent).map((issue) => issue.code),
+      ).toContain('invalidConcurrent')
+    }
+    expect(
+      validateEntryCaps([tokens('task', NaN), tokens('day', 5000)], UNPRICED_KEY, BUDGETS, 1).map(
+        (issue) => issue.code,
+      ),
+    ).toContain('unpricedKeyNeedsCaps')
+  })
+
   it('refuses concurrent above the global caps', () => {
     const issues = validateEntryCaps([tokens('task', 400_000)], PRICED, BUDGETS, 9)
     expect(issues.map((issue) => issue.code)).toContain('concurrentAboveGlobal')

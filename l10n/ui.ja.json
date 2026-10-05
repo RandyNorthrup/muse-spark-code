@@ -1809,5 +1809,9 @@
   "teamImportMissingEntry": "{model} はここにインストールされていません。お持ちのモデルに割り当てるか削除してください",
   "teamPreviewSwitches": {
     "other": "上限により強制された切り替え {count} 件"
-  }
+  },
+  "teamCapInvalidAmount": "有限の正の上限を指定してください。トークン数とタスク数は整数である必要があります",
+  "teamCapInvalidConcurrent": "同時実行数は1以上の整数である必要があります",
+  "teamPreviewCostUnknown": "約{tokens}トークン。価格は不明です",
+  "teamLevelCostUnknown": "1時間あたり{tokens}トークン。価格は不明です"
 }

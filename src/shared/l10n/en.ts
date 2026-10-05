@@ -2311,6 +2311,8 @@ export const EN = {
   teamSettingCostContextCap: 'A lower cap compacts earlier and bounds each reservation',
   // {minimum}: the token floor below which a cap cannot serve one request.
   teamCapTokenTooSmall: 'Below one request’s minimum of {minimum} tokens',
+  teamCapInvalidAmount: 'Use a finite positive cap; token and task counts must be whole numbers',
+  teamCapInvalidConcurrent: 'Running concurrency must be a whole number of at least one',
   teamCapTaskAboveDay: 'A task cap cannot pass the same measure’s day cap',
   teamCapDollarUnpriced: 'A dollar cap needs a priced model; use a token cap',
   // {budget}: the team's daily budget.
@@ -2333,6 +2335,8 @@ export const EN = {
   // {low}, {high}: the estimated cost range; {tokens}: the token figure.
   teamPreviewCost: '{low}–{high} for about {tokens} tokens',
   teamPreviewCostTokens: 'About {tokens} tokens; no priced entry takes part',
+  teamPreviewCostUnknown: 'About {tokens} tokens; price unknown',
+  teamLevelCostUnknown: '{tokens} tokens per hour; price unknown',
   // {count}: the steps the caps moved off the first entry.
   teamPreviewSwitches: forms({
     one: '{count} switch forced by caps',

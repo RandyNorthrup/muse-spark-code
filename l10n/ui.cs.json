@@ -2010,5 +2010,9 @@
     "few": "{count} přepnutí vynucená stropy",
     "many": "{count} přepnutí vynucených stropy",
     "other": "{count} přepnutí vynucená stropy"
-  }
+  },
+  "teamCapInvalidAmount": "Použijte konečný kladný limit; počty tokenů a úloh musí být celá čísla",
+  "teamCapInvalidConcurrent": "Počet souběžně běžících úloh musí být celé číslo alespoň jedna",
+  "teamPreviewCostUnknown": "Přibližně {tokens} tokenů; cena neznámá",
+  "teamLevelCostUnknown": "{tokens} tokenů za hodinu; cena neznámá"
 }

@@ -38,6 +38,61 @@ const STORED: readonly TeamStoredRole[] = [
 ]
 
 describe('buildTeamExport', () => {
+  it('allowlists nested caps before export and its own strict import', () => {
+    const cap = {
+      measure: 'tokens',
+      window: 'task',
+      amount: 400_000,
+      unexpectedField: 'private-marker',
+    } as const
+    const stored = STORED.map((role) => ({
+      ...role,
+      pool: [{ modelRef: 'muse-spark-1.3', caps: [cap] }],
+    }))
+    const document = buildTeamExport('full', stored)
+    expect(document.roles[0]?.pool[0]?.caps[0]).toEqual({
+      measure: 'tokens',
+      window: 'task',
+      amount: 400_000,
+    })
+    expect(JSON.stringify(document)).not.toContain('private-marker')
+    expect(isTeamImportRefusal(parseTeamImport(document, ['muse-spark-1.3']))).toBe(false)
+    expect(cap.unexpectedField).toBe('private-marker')
+  })
+
+  it('round-trips role policies and entry concurrency without unknown fields', () => {
+    const roles = STORED.map((role) => ({
+      ...role,
+      exhausted: 'self' as const,
+      continueOnNext: true,
+      pool: role.pool.map((entry) => ({ ...entry, concurrent: 2 })),
+    }))
+    const document = buildTeamExport('full', roles)
+    expect(document.roles[0]).toMatchObject({ exhausted: 'self', continueOnNext: true })
+    expect(document.roles[0]?.pool[0]?.concurrent).toBe(2)
+    const parsed = parseTeamImport(document, ['muse-spark-1.3', 'codex-cli'])
+    if (isTeamImportRefusal(parsed)) {
+      throw new Error(parsed.reason)
+    }
+    expect(parsed.draft.roles[0]).toMatchObject({ exhausted: 'self', continueOnNext: true })
+    expect(parsed.draft.roles[0]?.pool[0]?.concurrent).toBe(2)
+    const falsePolicy = parseTeamImport(
+      {
+        ...document,
+        roles: document.roles.map((role) => ({
+          ...role,
+          continueOnNext: false,
+          exhausted: 'queue',
+        })),
+      },
+      [],
+    )
+    if (isTeamImportRefusal(falsePolicy)) {
+      throw new Error(falsePolicy.reason)
+    }
+    expect(falsePolicy.draft.roles[0]?.continueOnNext).toBe(false)
+  })
+
   it('holds roles, charters, pools and caps with the format marker', () => {
     const document = buildTeamExport('full', STORED)
     expect(document.format).toBe(TEAM_EXPORT_FORMAT)
@@ -58,6 +113,65 @@ describe('buildTeamExport', () => {
 })
 
 describe('parseTeamImport', () => {
+  it('accepts every D75 cap measure into a draft', () => {
+    const document = buildTeamExport('full', STORED)
+    for (const measure of ['tokens', 'inputTokens', 'outputTokens', 'spendUsd', 'tasks']) {
+      const parsed = parseTeamImport(
+        {
+          ...document,
+          roles: [
+            {
+              ...document.roles[0],
+              pool: [{ modelRef: 'm', caps: [{ measure, window: 'task', amount: 5000 }] }],
+            },
+          ],
+        },
+        ['m'],
+      )
+      if (isTeamImportRefusal(parsed)) {
+        throw new Error(`${measure}: ${parsed.reason}`)
+      }
+      expect(parsed.draft.roles[0]?.pool[0]?.caps[0]?.measure).toBe(measure)
+    }
+  })
+
+  it('refuses invalid imported amounts and concurrency', () => {
+    const document = buildTeamExport('full', STORED)
+    for (const amount of [-5, 0, NaN, Infinity]) {
+      expect(
+        isTeamImportRefusal(
+          parseTeamImport(
+            {
+              ...document,
+              roles: [
+                {
+                  ...document.roles[0],
+                  pool: [
+                    { modelRef: 'm', caps: [{ measure: 'spendUsd', window: 'task', amount }] },
+                  ],
+                },
+              ],
+            },
+            [],
+          ),
+        ),
+      ).toBe(true)
+    }
+    for (const concurrent of [-1, 0, 1.5, NaN, Infinity]) {
+      expect(
+        isTeamImportRefusal(
+          parseTeamImport(
+            {
+              ...document,
+              roles: [{ ...document.roles[0], pool: [{ modelRef: 'm', caps: [], concurrent }] }],
+            },
+            [],
+          ),
+        ),
+      ).toBe(true)
+    }
+  })
+
   it('round-trips an export into a draft with no missing entries', () => {
     const parsed = parseTeamImport(buildTeamExport('full', STORED), ['muse-spark-1.3', 'codex-cli'])
     if (isTeamImportRefusal(parsed)) {

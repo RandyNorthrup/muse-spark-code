@@ -1809,5 +1809,9 @@
   "teamImportMissingEntry": "{model} 未安裝於此處；請對應到您的某個模型或將其移除",
   "teamPreviewSwitches": {
     "other": "被上限強制切換 {count} 次"
-  }
+  },
+  "teamCapInvalidAmount": "請使用有限的正數上限；權杖數和任務數必須為整數",
+  "teamCapInvalidConcurrent": "同時執行數必須為至少為一的整數",
+  "teamPreviewCostUnknown": "約 {tokens} 個權杖；價格未知",
+  "teamLevelCostUnknown": "每小時 {tokens} 個權杖；價格未知"
 }

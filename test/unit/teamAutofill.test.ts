@@ -208,7 +208,7 @@ describe('budget caps and learning', () => {
     const draft = buildTemplateDraft('pair', [
       { modelRef: 'muse-spark-1.3', vendor: 'meta', payKind: 'key' },
     ])
-    const dayCap: TeamCapDraft = { measure: 'usd', window: 'day', amount: 5 }
+    const dayCap: TeamCapDraft = { measure: 'spendUsd', window: 'day', amount: 5 }
     const capped = {
       ...draft,
       roles: draft.roles.map((role) =>

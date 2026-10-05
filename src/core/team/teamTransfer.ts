@@ -19,15 +19,18 @@ import type { TeamCapDraft, TeamDraft, TeamEntryDraft, TeamRoleDraft } from './t
 export const TEAM_EXPORT_FORMAT = 'muse-spark-team'
 export const TEAM_EXPORT_VERSION = 1
 
-const teamCapSchema = z.object({
-  measure: z.enum(['tokens', 'usd', 'tasks', 'minutes']),
-  window: z.enum(['task', 'day', 'lifetime']),
-  amount: z.number(),
-})
+const teamCapSchema = z
+  .object({
+    measure: z.enum(['tokens', 'inputTokens', 'outputTokens', 'spendUsd', 'tasks']),
+    window: z.enum(['task', 'day', 'lifetime']),
+    amount: z.number().check(z.positive()),
+  })
+  .check(z.refine((cap) => cap.measure === 'spendUsd' || Number.isSafeInteger(cap.amount)))
 
 const teamEntrySchema = z.object({
   modelRef: z.string(),
   caps: z.array(teamCapSchema),
+  concurrent: z.optional(z.int().check(z.positive())),
 })
 
 const teamRoleSchema = z.object({
@@ -36,6 +39,8 @@ const teamRoleSchema = z.object({
   toolGroups: z.array(z.string()),
   charterText: z.optional(z.string()),
   pool: z.array(teamEntrySchema),
+  exhausted: z.optional(z.enum(['ask', 'queue', 'self'])),
+  continueOnNext: z.optional(z.boolean()),
 })
 
 /**
@@ -53,8 +58,16 @@ const teamImportSchema = z.object({
 export type TeamImportDocument = z.infer<typeof teamImportSchema>
 
 const KNOWN_TOP_KEYS: readonly string[] = ['format', 'version', 'template', 'roles']
-const KNOWN_ROLE_KEYS: readonly string[] = ['role', 'mode', 'toolGroups', 'charterText', 'pool']
-const KNOWN_ENTRY_KEYS: readonly string[] = ['modelRef', 'caps']
+const KNOWN_ROLE_KEYS: readonly string[] = [
+  'role',
+  'mode',
+  'toolGroups',
+  'charterText',
+  'pool',
+  'exhausted',
+  'continueOnNext',
+]
+const KNOWN_ENTRY_KEYS: readonly string[] = ['modelRef', 'caps', 'concurrent']
 const KNOWN_CAP_KEYS: readonly string[] = ['measure', 'window', 'amount']
 
 function unknownKeyOf(value: unknown, known: readonly string[]): string | undefined {
@@ -159,6 +172,8 @@ export function parseTeamImport(
       role: role.role,
       mode: role.mode,
       toolGroups: [...role.toolGroups],
+      ...(role.exhausted !== undefined && { exhausted: role.exhausted }),
+      ...(role.continueOnNext !== undefined && { continueOnNext: role.continueOnNext }),
       pool: role.pool.map((entry) => {
         if (!knownModelRefs.includes(entry.modelRef)) {
           missing.push({
@@ -168,7 +183,11 @@ export function parseTeamImport(
           })
         }
         const caps: TeamCapDraft[] = entry.caps.map((cap) => ({ ...cap }))
-        const draftEntry: TeamEntryDraft = { modelRef: entry.modelRef, caps }
+        const draftEntry: TeamEntryDraft = {
+          modelRef: entry.modelRef,
+          caps,
+          ...(entry.concurrent !== undefined && { concurrent: entry.concurrent }),
+        }
         return draftEntry
       }),
     })),
@@ -187,9 +206,12 @@ export interface TeamStoredRole {
   readonly mode: TeamRoleDraft['mode']
   readonly toolGroups: readonly string[]
   readonly charterText: string | undefined
+  readonly exhausted?: TeamRoleDraft['exhausted']
+  readonly continueOnNext?: boolean
   readonly pool: readonly {
     readonly modelRef: string
     readonly caps: readonly TeamCapDraft[]
+    readonly concurrent?: number
     readonly credentialRecord?: unknown
     readonly endpoint?: unknown
     readonly provider?: unknown
@@ -216,9 +238,16 @@ export function buildTeamExport(
       mode: role.mode,
       toolGroups: [...role.toolGroups],
       ...(role.charterText !== undefined && { charterText: role.charterText }),
+      ...(role.exhausted !== undefined && { exhausted: role.exhausted }),
+      ...(role.continueOnNext !== undefined && { continueOnNext: role.continueOnNext }),
       pool: role.pool.map((entry) => ({
         modelRef: entry.modelRef,
-        caps: entry.caps.map((cap) => ({ ...cap })),
+        caps: entry.caps.map((cap) => ({
+          measure: cap.measure,
+          window: cap.window,
+          amount: cap.amount,
+        })),
+        ...(entry.concurrent !== undefined && { concurrent: entry.concurrent }),
       })),
     })),
   }

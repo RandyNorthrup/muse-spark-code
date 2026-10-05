@@ -16644,6 +16644,17 @@ live) and the controller filters its id as well.
 
 ### M96 — Agent roles and the team (D75)
 
+**Lane F review correction (FIXM96F, 2026-10-05).** Address all 15 P2
+findings in `RVM96F.report.md` within the seven lane-F core modules and
+their tests: D75 tool groups and cap vocabulary; numeric and daily-budget
+validation; current-level Re-apply and zero ceilings; learned budget
+shares; provider-ordered settings and thinking budgets; Default preview
+selection and unknown prices; billable-only hourly costs; policy and
+concurrency transfer with nested export allowlists. Each correction needs
+a regression and a SHA-256-verified red drill in
+`docs/certification/m96-f.md`. No dependency or guard relaxation; full
+quality and integration remain the lead's gates under the rig brief.
+
 **Status 2026-10-04: planned on `feature/m96-agent-roles` from main
 `1e93c67c`.** The plan is D75 (with its decisions on the open questions),
 M96b, M96c and this section. The research is

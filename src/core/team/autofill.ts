@@ -236,7 +236,7 @@ function suggestBudgetCaps(context: TeamAutofillContext): readonly TeamSuggestio
       continue
     }
     const hasDayCap = role.pool.some((entry) =>
-      entry.caps.some((cap) => cap.measure === 'usd' && cap.window === 'day'),
+      entry.caps.some((cap) => cap.measure === 'spendUsd' && cap.window === 'day'),
     )
     if (hasDayCap) {
       continue

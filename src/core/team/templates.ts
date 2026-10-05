@@ -35,7 +35,7 @@ export type TeamWorkspaceMode = 'read-only' | 'own-branch' | 'in-place'
 
 /** A cap on a pool entry: a measure, an amount and its window (D75). */
 export interface TeamCapDraft {
-  readonly measure: 'tokens' | 'usd' | 'tasks' | 'minutes'
+  readonly measure: 'tokens' | 'inputTokens' | 'outputTokens' | 'spendUsd' | 'tasks'
   readonly window: 'task' | 'day' | 'lifetime'
   readonly amount: number
 }
@@ -45,6 +45,7 @@ export interface TeamEntryDraft {
   /** M95's model reference, or `default` for the orchestrator slot's model. */
   readonly modelRef: string
   readonly caps: readonly TeamCapDraft[]
+  readonly concurrent?: number
 }
 
 /** One role in the draft: its key, mode, tool groups and ordered pool. */
@@ -54,6 +55,8 @@ export interface TeamRoleDraft {
   /** Tool-group names from `TEAM_ROLE_TOOLSETS` (lane 0). */
   readonly toolGroups: readonly string[]
   readonly pool: readonly TeamEntryDraft[]
+  readonly exhausted?: 'ask' | 'queue' | 'self'
+  readonly continueOnNext?: boolean
 }
 
 /** The unsaved workspace draft a template prefills. */
@@ -154,25 +157,55 @@ export function defaultModeFor(role: TeamRoleKey): TeamWorkspaceMode {
 export function defaultToolGroupsFor(role: TeamRoleKey): readonly string[] {
   switch (role) {
     case 'research': {
-      return ['read', 'search', 'web']
+      return [
+        'read',
+        'codeIntel',
+        'readOnlyShell',
+        'webFetch',
+        'webSearch',
+        'memoryRead',
+        'skills',
+        'report',
+      ]
     }
     case 'design': {
-      return ['read', 'write', 'search']
+      return ['read', 'write', 'webFetch', 'images', 'skills', 'report']
     }
     case 'marketing': {
-      return ['read', 'write', 'web']
+      return ['read', 'write', 'webFetch', 'webSearch', 'images', 'skills', 'report']
     }
     case 'engineering': {
-      return ['read', 'write', 'shell', 'search']
+      return [
+        'read',
+        'codeIntel',
+        'rename',
+        'write',
+        'shell',
+        'checks',
+        'diagnostics',
+        'webFetch',
+        'memoryRead',
+        'skills',
+        'report',
+      ]
     }
     case 'qa': {
-      return ['read', 'shell', 'search']
+      return [
+        'read',
+        'codeIntel',
+        'write',
+        'testShell',
+        'checks',
+        'diagnostics',
+        'skills',
+        'report',
+      ]
     }
     case 'code-review': {
-      return ['read', 'search']
+      return ['read', 'codeIntel', 'readOnlyShell', 'diagnostics', 'skills', 'report']
     }
     case 'docs': {
-      return ['read', 'write', 'search']
+      return ['read', 'codeIntel', 'write', 'skills', 'report']
     }
   }
 }

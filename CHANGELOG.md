@@ -17,7 +17,15 @@ happened, not what was planned; superseded entries are kept.
   validation, the no-model-call preview with cost ranges, and credential-
   free export with strict import. Strings in all 14 tables.
 
+### Fixed
+
+- **Team configuration validation and transfer (M96 lane F).** Templates
+  use D75's enforced tool groups, all planned cap measures are accepted,
+  numeric limits and daily token budgets are validated, and exports keep
+  role policies and entry concurrency while stripping extra nested fields.
+
 ## [0.12.1] - 2026-10-04
+
 
 ### Changed
 

@@ -13,11 +13,44 @@ import {
   templateRoles,
   TEAM_ROLE_TYPICAL_TASK_TOKENS,
   type TeamAgentOffer,
+  type TeamRoleKey,
 } from '../../src/core/team/templates'
 
 const META: TeamAgentOffer = { modelRef: 'muse-spark-1.3', vendor: 'meta', payKind: 'key' }
 const CODEX: TeamAgentOffer = { modelRef: 'codex-cli', vendor: 'openai', payKind: 'subscription' }
 const LOCAL: TeamAgentOffer = { modelRef: 'ollama-qwen', vendor: 'ollama', payKind: 'local' }
+
+// Independent expectations from D75's enforced tool-set table.
+const D75_GROUPS: Readonly<Record<TeamRoleKey, readonly string[]>> = {
+  research: [
+    'read',
+    'codeIntel',
+    'readOnlyShell',
+    'webFetch',
+    'webSearch',
+    'memoryRead',
+    'skills',
+    'report',
+  ],
+  design: ['read', 'write', 'webFetch', 'images', 'skills', 'report'],
+  marketing: ['read', 'write', 'webFetch', 'webSearch', 'images', 'skills', 'report'],
+  engineering: [
+    'read',
+    'codeIntel',
+    'rename',
+    'write',
+    'shell',
+    'checks',
+    'diagnostics',
+    'webFetch',
+    'memoryRead',
+    'skills',
+    'report',
+  ],
+  qa: ['read', 'codeIntel', 'write', 'testShell', 'checks', 'diagnostics', 'skills', 'report'],
+  'code-review': ['read', 'codeIntel', 'readOnlyShell', 'diagnostics', 'skills', 'report'],
+  docs: ['read', 'codeIntel', 'write', 'skills', 'report'],
+}
 
 describe('templateRoles', () => {
   it('names the four templates', () => {
@@ -68,7 +101,7 @@ describe('buildTemplateDraft', () => {
     for (const key of templateRoles('full')) {
       const role = draft.roles.find((entry) => entry.role === key)
       expect(role?.mode).toBe(defaultModeFor(key))
-      expect(role?.toolGroups).toEqual(defaultToolGroupsFor(key))
+      expect(role?.toolGroups).toEqual(D75_GROUPS[key])
       const [taskCap] = role?.pool[0]?.caps ?? []
       expect(taskCap?.measure).toBe('tokens')
       expect(taskCap?.window).toBe('task')
@@ -90,7 +123,7 @@ describe('buildTemplateDraft', () => {
     for (const role of draft.roles) {
       expect(role.pool).toEqual([])
     }
-    expect(defaultToolGroupsFor('marketing')).toEqual(['read', 'write', 'web'])
+    expect(defaultToolGroupsFor('marketing')).toEqual(D75_GROUPS.marketing)
   })
 
   it('prefills the task cap from the role typical use', () => {

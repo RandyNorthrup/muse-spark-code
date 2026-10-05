@@ -1876,5 +1876,9 @@
   "teamPreviewSwitches": {
     "one": "{count} korlátok által kikényszerített váltás",
     "other": "{count} korlátok által kikényszerített váltás"
-  }
+  },
+  "teamCapInvalidAmount": "Véges pozitív korlátot adjon meg; a tokenek és feladatok száma egész szám legyen",
+  "teamCapInvalidConcurrent": "Az egyidejűleg futó feladatok száma legalább egy egész szám legyen",
+  "teamPreviewCostUnknown": "Körülbelül {tokens} token; az ár ismeretlen",
+  "teamLevelCostUnknown": "{tokens} token óránként; az ár ismeretlen"
 }

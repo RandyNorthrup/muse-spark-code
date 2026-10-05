@@ -1943,5 +1943,9 @@
     "one": "{count} bascule imposée par les plafonds",
     "many": "{count} bascules imposées par les plafonds",
     "other": "{count} bascules imposées par les plafonds"
-  }
+  },
+  "teamCapInvalidAmount": "Utilisez un plafond fini et positif ; les nombres de tokens et de tâches doivent être entiers",
+  "teamCapInvalidConcurrent": "Le nombre de tâches simultanées doit être un entier supérieur ou égal à un",
+  "teamPreviewCostUnknown": "Environ {tokens} tokens ; prix inconnu",
+  "teamLevelCostUnknown": "{tokens} tokens par heure ; prix inconnu"
 }

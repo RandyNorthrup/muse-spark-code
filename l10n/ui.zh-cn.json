@@ -1809,5 +1809,9 @@
   "teamImportMissingEntry": "{model} 未安装在此处；请映射到您的某个模型或将其移除",
   "teamPreviewSwitches": {
     "other": "被上限强制切换 {count} 次"
-  }
+  },
+  "teamCapInvalidAmount": "请使用有限的正数上限；令牌数和任务数必须为整数",
+  "teamCapInvalidConcurrent": "并发运行数必须为至少为一的整数",
+  "teamPreviewCostUnknown": "约 {tokens} 个令牌；价格未知",
+  "teamLevelCostUnknown": "每小时 {tokens} 个令牌；价格未知"
 }
