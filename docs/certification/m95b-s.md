@@ -1,0 +1,176 @@
+# M95b S — shared subscription sign-in core
+
+Worktree `/home/randy/lanes/M95BS`, branch `m95b/s`, base `60bf96aaa`,
+Kubuntu rig, 2026-10-05. This record certifies lane S's offline work, not
+aggregate M95b or live subscription support. No network or paid model call,
+other application's credential read, dependency, cast, suppression, gate
+change, push, merge or rebase was made.
+
+## Evidence and implemented contract
+
+Read PLAN D74 and M95b in full, `docs/certification/m95-research.md` §6,
+`docs/certification/m95-captures.md`, and the owner's shared
+`_ctx/codex/M95B-FINDINGS.md`. That finding records two owner sign-ins on
+2026-10-05, runs `acdc0f60…` and `577bc807…`, with **0 + 1 model attempts**,
+and both refresh tokens revoked with HTTP 200. The findings confirm dynamic
+registration, callback fields (`code`, `scope`, `state`, `client_id`), PKCE
+S256, RS256/JWKS verification and granted `chatgpt.tokens.use.direct` scope.
+The research documents the fixed endpoints and OAuth/OIDC fields used here.
+Tests contain generated RSA keys and synthetic grants only, never owner tokens.
+
+- `subscriptions/chatgpt.ts`: authorize URL and captured callback fields;
+  issuer discovery pins; ID-token signature, issuer, audience, authorized
+  party, expiry and nonce validation; direct-plan scope; a validated
+  origin-bound secret record; code exchange, refresh rotation and revocation.
+  Identity claims are discarded. HTTP redirects are refused. Wire and host
+  failures leave the core only as technical codes, not their supplied text.
+- `ChatGptHostPort` supplies a persistent opaque installation id, browser,
+  one-shot callback with the ten-minute deadline, SecretStorage / OS keystore
+  reads/writes/deletion, clock, HTTP transport, and an inter-process lock.
+  All three grant mutations hold that lock; access re-reads the secret
+  inside it, so two processes cannot rotate a stale copy. Hosts translate
+  error codes; credentials never cross the UI bridge. The concrete callback,
+  lock and storage implementations remain V/X's ownership.
+- Access tokens bind to `https://api.openai.com`, refresh tokens to
+  `https://auth.openai.com`. The caller supplies the required validity
+  margin; there is no background refresh. Lifetime starts when the token
+  response is received, before fetching JWKS, so a slow key fetch does not
+  extend expiry. Removal attempts revocation and deletes the local record
+  even when revocation or parsing fails; such failure is still reported.
+- `subscriptions/planUsage.ts`: validated, immutable, per-provider local
+  request tallies; reported and estimated tokens counted separately. Every
+  dispatched attempt counts, including a 200 stream with a limit error and
+  no usage. Missing token usage is represented by the gap between total,
+  reported and estimated requests. There is no dollar or quota guess.
+- `presets.ts`'s new plan-key region exports the captured Mistral API-key
+  preset with `pricing.kind = plan` and its subscription-limits link.
+  `PLAN_KEY_PRESETS` is separate from the active pay-as-you-go list: W
+  must install plan pricing when registering it, never offer it with API
+  pricing first. Descriptions and key hints remain live language getters.
+
+No model slug is hard-coded. Catalogue selection, preview codec rules,
+no-Content-Type SSE parsing, rewritten cache keys and the usage-limit error
+inside HTTP 200 belong to C/U/W; this core makes no inference request.
+Single-model behavior and the existing paid policy are untouched.
+No new user text was needed; the plan preset reuses the translated Mistral
+text. New failure identifiers are technical host-port codes, to be mapped by
+V/X/0 rather than displayed verbatim.
+
+## Capture and integration dependencies still open
+
+The supplied findings are a summary, not the raw discovery/token/refresh
+frames. The lead must attach their precise capture workspace and receipts
+before claiming rule-13 live certification. In particular the documented
+`earliest_refresh_at` field's wire type, unit and refresh response were not
+supplied: this lane does not guess or parse it. Refresh tests prove standard
+OAuth rotation with an injected cross-process lock, not a live refresh or
+OpenAI's earliest-refresh admission policy.
+
+MiniMax and Alibaba plan endpoints, model-list/key-test shapes and their
+capture receipts were not supplied. Neither is fabricated or listed;
+Mistral reuses its existing 2026-10-04 capture. Hugging Face OAuth remains
+conditional on the owner's app registration and capture; no registered app
+id or OAuth response was supplied, so no placeholder `huggingface.ts` was
+added. The existing token preset remains available. A request for those
+missing rig capture paths was sent while independent work continued.
+
+V/X must adapt the new record directly to their secret stores: M95's
+API-key `{secret}` schema is not a subscription record. They must implement
+and drill a real inter-process lock and the exact `/auth/callback` one-shot
+loopback, close/cancellation/deadline behavior, and the remote-window route.
+W owns providers-file/registry/bundle wiring, README, PRIVACY, CHANGELOG,
+PLAN and aggregate certification; no other lane's files were edited.
+
+## Regression and deliberate red evidence
+
+All commands run directly on Kubuntu, at most three files per Vitest run,
+`--maxWorkers=3 --testTimeout=120000`, no test-name filter or skipped test.
+Every mutation ran its **whole file** and restored the source's original
+bytes in `finally`, with SHA-256 equality checked. The ledger and complete
+logs remain in ignored `temp/m95b-s/`.
+
+Three ordinary regressions were also observed before fixing them:
+module-load translation capture (one failed test); secret-bearing browser
+and secret-store errors (five failed tests); expiry moved by a delayed JWKS
+read (both sign-in and refresh tests failed). All pass after the fixes.
+
+One initial drill did **not** fire: removing the single-audience authorized-
+party check was still covered for the old multiple-audience test by the
+separate multiple-audience guard. Added the missing single-audience wrong-
+`azp` case; the corrected drill then failed as intended. The initial
+non-firing run is retained in `drills-first-pass.json` and is not counted.
+
+The first 51 drills preceded the final host-error/lifetime fixes; those
+fixes added drills 52–53. None of the original guards was removed. Final
+restoration and whole-file tests cover the combined implementation.
+
+| #   | Guard broken                 | Named failed test (substring)                                                     | Result               |
+| --- | ---------------------------- | --------------------------------------------------------------------------------- | -------------------- |
+| 1   | PKCE S256                    | `requests the dynamic client`                                                     | exit 1; SHA restored |
+| 2   | Loopback host                | `refuses an unsafe redirect`                                                      | exit 1; SHA restored |
+| 3   | Loopback scheme              | `refuses an unsafe redirect`                                                      | exit 1; SHA restored |
+| 4   | Callback path                | `refuses an unsafe redirect`                                                      | exit 1; SHA restored |
+| 5   | Authorize query              | `refuses an unsafe redirect`                                                      | exit 1; SHA restored |
+| 6   | Opaque installation id       | `refuses a non-opaque hostId`                                                     | exit 1; SHA restored |
+| 7   | Callback state               | `refuses a wrong state`                                                           | exit 1; SHA restored |
+| 8   | Duplicate callback fields    | `refuses duplicate`                                                               | exit 1; SHA restored |
+| 9   | Callback origin              | `refuses another callback origin`                                                 | exit 1; SHA restored |
+| 10  | Issued client                | `refuses another callback origin`                                                 | exit 1; SHA restored |
+| 11  | ID-token signature           | `refuses a signature from another key`                                            | exit 1; SHA restored |
+| 12  | ID-token issuer              | `refuses invalid issuer claims`                                                   | exit 1; SHA restored |
+| 13  | ID-token audience            | `refuses invalid audience claims`                                                 | exit 1; SHA restored |
+| 14  | ID-token expiry              | `refuses invalid expiry claims`                                                   | exit 1; SHA restored |
+| 15  | ID-token nonce               | `refuses invalid nonce claims`                                                    | exit 1; SHA restored |
+| 16  | ID-token algorithm           | `refuses an untrusted header`                                                     | exit 1; SHA restored |
+| 17  | ID-token key id              | `refuses an untrusted header`                                                     | exit 1; SHA restored |
+| 18  | Multiple audiences           | `refuses invalid multiple audiences without azp claims`                           | exit 1; SHA restored |
+| 19  | Authorized party             | `refuses invalid single audience wrong azp claims`                                | exit 1; SHA restored |
+| 20  | Unique JWKS key              | `refuses duplicate key ids`                                                       | exit 1; SHA restored |
+| 21  | JWKS algorithm               | `refuses an unsuitable JWKS key`                                                  | exit 1; SHA restored |
+| 22  | JWKS signing use             | `refuses an unsuitable JWKS key`                                                  | exit 1; SHA restored |
+| 23  | Plan scope                   | `refuses missing plan scope`                                                      | exit 1; SHA restored |
+| 24  | Initial ID token required    | `refuses malformed initial token response`                                        | exit 1; SHA restored |
+| 25  | Access-token origin          | `refuses access-token origin escape`                                              | exit 1; SHA restored |
+| 26  | Stored access origin         | `refuses an altered stored origin`                                                | exit 1; SHA restored |
+| 27  | Stored refresh issuer        | `refuses an altered stored issuer`                                                | exit 1; SHA restored |
+| 28  | Discovery token pin          | `refuses an altered discovery token_endpoint`                                     | exit 1; SHA restored |
+| 29  | JWKS origin pin              | `refuses an altered discovery jwks_uri`                                           | exit 1; SHA restored |
+| 30  | HTTP refusal                 | `asks to sign in again for a revoked grant`                                       | exit 1; SHA restored |
+| 31  | Delete on revoke refusal     | `deletes the record even when revocation is refused`                              | exit 1; SHA restored |
+| 32  | Redirect refusal             | `stores the issued client`                                                        | exit 1; SHA restored |
+| 33  | Callback cleanup             | `closes the callback when the browser cannot open`                                | exit 1; SHA restored |
+| 34  | No other credential store    | `has no dependency on another application credential path`                        | exit 1; SHA restored |
+| 35  | Positive token lifetime      | `refuses malformed initial token response`                                        | exit 1; SHA restored |
+| 36  | Freshness check              | `serializes rotation across two windows`                                          | exit 1; SHA restored |
+| 37  | Refresh lock                 | `serializes rotation across two windows`                                          | exit 1; SHA restored |
+| 38  | Always count attempts        | `counts a dispatch even when the 200 SSE stream fails`                            | exit 1; SHA restored |
+| 39  | Separate token estimates     | `keeps reported tokens separate from estimates`                                   | exit 1; SHA restored |
+| 40  | Integer token counts         | `refuses invalid token count 0.5`                                                 | exit 1; SHA restored |
+| 41  | Consistent request counts    | `refuses invalid provider ids, duplicate rows and inconsistent reported requests` | exit 1; SHA restored |
+| 42  | Unique provider tally        | `refuses invalid provider ids, duplicate rows and inconsistent reported requests` | exit 1; SHA restored |
+| 43  | Counter overflow             | `refuses overflow`                                                                | exit 1; SHA restored |
+| 44  | Caller data untouched        | `does not mutate caller-owned rows`                                               | exit 1; SHA restored |
+| 45  | Plan billing marker          | `reuses Mistral keys, endpoint and wire`                                          | exit 1; SHA restored |
+| 46  | Runtime language lookup      | `reads the plan description and key hint`                                         | exit 1; SHA restored |
+| 47  | Discovery authorize pin      | `refuses an altered discovery authorization_endpoint`                             | exit 1; SHA restored |
+| 48  | Discovery revocation pin     | `refuses an altered discovery revocation_endpoint`                                | exit 1; SHA restored |
+| 49  | PKCE verifier shape          | `refuses a non-opaque verifier`                                                   | exit 1; SHA restored |
+| 50  | Runtime key hint lookup      | `reads the plan description and key hint`                                         | exit 1; SHA restored |
+| 51  | Provider id validation       | `refuses invalid provider ids`                                                    | exit 1; SHA restored |
+| 52  | Secret-bearing host failures | `does not expose a secret-bearing host`                                           | exit 1; SHA restored |
+| 53  | Lifetime anchored at receipt | `anchors sign-in expiry to token receipt`                                         | exit 1; SHA restored |
+
+Each source version restored during the drills:
+
+- `src/core/providers/presets.ts`: `0571e1c6d1c0e5b427d610790898530d0691db0c28cce2a4ba28b24803112ad4`
+- `src/core/providers/subscriptions/chatgpt.ts`: `57308d61a9f673ffb2d4893d64f00eac1a6b680e7056617025df70b6e3ab1648`
+- `src/core/providers/subscriptions/chatgpt.ts`: `849ab12ca58c117780b46d7234391943ad1501b54357bcc849d5597f0968bd96`
+- `src/core/providers/subscriptions/planUsage.ts`: `1b70d72001833faeffb1735e0ec31473b8032ac9145826ff1a3645f605e75949`
+
+## Checks
+
+Focused final suites: **95/95** before the final drill restores (83 sign-in,
+9 plan-usage, 3 plan-key tests). Five-project typecheck passed before the
+last error/lifetime regressions were added; final checks are recorded below.
+Full `npm run quality` is expressly reserved for the lead by the lane's
+`common.md`; it is not claimed here. No gate was weakened.
