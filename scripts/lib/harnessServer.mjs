@@ -59,6 +59,10 @@ export const SCENARIOS = [
   'checkpoint-legacy',
   'agents',
   'agents-off',
+  // M96 lane U2: the team tree (and at 320 px), and the transcript cards.
+  'team-tree',
+  'team-tree-320',
+  'team-cards',
   'usage-api',
   'reply-usage',
   'banner',
