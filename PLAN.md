@@ -14434,6 +14434,19 @@ live) and the controller filters its id as well.
 
 ### M95 — Bring-your-own model providers (D74)
 
+**Lane I host integration (2026-10-05, Mac mini; in progress).** Resolve
+every host and Auto reviewer request through the configured model registry;
+persist reasoning producer identity, bind held confirmations and retries,
+read capabilities through `modelPolicy.ts`, and use the price-card public
+functions for admission and settlement. Preserve bare Meta request bytes,
+packing, `then_run` and consent behavior. Compaction body/tools and context
+pressure belong to M101 C1/O; price-card arithmetic belongs to P2; CAPREC
+replaces this lane's policy adapter after integration. The starting checkout
+lacks lane T's ProviderClient/transport and the registry; its exact dependency
+is being clarified. No dependency merge or live/paid call is implied.
+Focused gates and byte-exact red drills are recorded in `m95-i.md`; the lead
+owns full quality and release certification.
+
 **M95INT round-two scope (2026-10-05, kubuntu).** The rig brief authorizes
 ordered `--no-ff` merges of `m95/kfix`, `m95/mufix`, `m95/hfix`, `m95/ofix`
 and `m95/scfix`; the last brings the 0.13.0 release at `928a9200`. Preserve

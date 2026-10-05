@@ -30,9 +30,22 @@ import {
   webSearchActionSchema,
 } from './schemas'
 
+/** The configured provider and exact model that produced opaque reasoning. */
+export interface ReplayProducer {
+  readonly provider: string
+  readonly model: string
+}
+
+/** Bare references remain Meta's; qualified references name their configured provider. */
+export function replayProducer(model: string): ReplayProducer {
+  const slash = model.indexOf('/')
+  return { provider: slash === -1 ? 'meta' : model.slice(0, slash), model }
+}
+
 export interface StoredReplayItem {
   readonly turnId: string
   readonly item: InputItem
+  readonly producer?: ReplayProducer | undefined
   /** The transcript user card that supplied this exact replay message (M53). */
   readonly userMessageId?: string
   /** Identifies a background task's terminal model note across fork cuts. */
@@ -266,6 +279,7 @@ const storedSessionFields = {
     z.object({
       turnId: z.string(),
       item: storedInputItemSchema,
+      producer: z.optional(z.object({ provider: z.string(), model: z.string() })),
       userMessageId: z.optional(z.string()),
       backgroundTaskId: z.optional(z.string()),
     }),

@@ -52,7 +52,6 @@ import {
   MODEL_API_CLOSE_SETTLE_MS,
   MODEL_API_CONTEXT_WINDOW,
   MODEL_API_EFFORT_OFF,
-  MODEL_API_HOOK_PROVIDER,
   MODEL_API_MAX_OUTPUT_TOKENS,
   MODEL_API_MAX_RETRIES,
   MODEL_API_MAX_TOOL_ROUNDS,
@@ -283,9 +282,11 @@ import { sanitizeImportedSession, type SessionExport } from '../../export/sessio
 import {
   headerOf,
   recordOf,
+  replayProducer,
   type SessionStore,
   type StoredPendingChildResult,
   type StoredReplayItem,
+  type ReplayProducer,
   type StoredSession,
   type StoredSessionHeader,
 } from './sessionStore'
@@ -524,6 +525,7 @@ const NO_PERMISSION_SETTINGS: PermissionSettings = {
 type UnkeyedBody = Omit<CreateResponseBody, 'prompt_cache_key' | 'prompt_cache_retention'>
 
 interface ReplayItem {
+  readonly producer?: ReplayProducer | undefined
   readonly turnId: string
   readonly item: InputItem
   readonly userMessageId?: string
@@ -1947,7 +1949,9 @@ export class ModelApiSession implements AgentSession {
       cwd: this.deps.workspaceRoot,
       transcript_path: null,
       model: this.modelId,
-      model_provider: 'meta',
+      model_provider: replayProducer(
+        typeof fields['model'] === 'string' ? fields['model'] : this.modelId,
+      ).provider,
       permission_mode: this.permissions.currentMode,
       ...fields,
     }
@@ -2059,7 +2063,7 @@ export class ModelApiSession implements AgentSession {
       'PreLLMCall',
       turnId,
       preModelCallFields(body, requestId, attempt, step),
-      MODEL_API_HOOK_PROVIDER,
+      replayProducer(body.model).provider,
       signal,
       false,
     )
@@ -2538,6 +2542,7 @@ export class ModelApiSession implements AgentSession {
     const role = this.agentRole()
     return {
       instructions: instructionsFor({
+        identity: replayProducer(this.modelId),
         workspaceRoot: this.deps.workspaceRoot,
         platform: this.deps.platform,
         shellToolName: shell.name,
@@ -2570,9 +2575,19 @@ export class ModelApiSession implements AgentSession {
     }
   }
 
+  /** Opaque reasoning never crosses a producing provider/model boundary. */
+  private requestReplay(): ReplayItem[] {
+    const current = replayProducer(this.modelId)
+    return this.replay.filter(
+      (entry) =>
+        entry.item.type !== 'reasoning' ||
+        (entry.producer?.provider === current.provider && entry.producer.model === current.model),
+    )
+  }
+
   private body(): CreateResponseBody {
     this.drainChildResults()
-    const fitted = this.budget.fit(this.replay.map((entry) => entry.item))
+    const fitted = this.budget.fit(this.requestReplay().map((entry) => entry.item))
     // Packing projects per request only: the replay keeps the originals, so
     // a later request (or a restore) packs from the full outputs again.
     // Reviewer tools cannot recall packed output: retain the full observations.
@@ -3572,7 +3587,7 @@ export class ModelApiSession implements AgentSession {
     await this.refreshBudgetSpend()
     const body = this.budgeted(this.body())
     const reservation = this.sending(body)
-    const requestReplay = [...this.replay]
+    const requestReplay = this.requestReplay()
     let final: ResponseObject | undefined
     const admitAttempt = this.responseAttemptGuard(body)
     const responseStream = this.deps.client.streamResponse(
@@ -3618,7 +3633,7 @@ export class ModelApiSession implements AgentSession {
       'PostLLMCall',
       turnId,
       postModelCallFields(body, final, requestId, attempt, step, this.sessionId),
-      MODEL_API_HOOK_PROVIDER,
+      replayProducer(body.model).provider,
       signal,
       false,
     )
@@ -3684,12 +3699,14 @@ export class ModelApiSession implements AgentSession {
     // A reasoning item must be followed by a message or a call before the
     // next user message, or the next request is a 400 (protocols/responses).
     let isReasoningLast = false
+    const producer = replayProducer(this.sendingModelId ?? this.modelId)
     for (const [index, item] of response.output.entries()) {
       const wireId = item.id ?? String(index)
       if (isMessageItem(item)) {
         isReasoningLast = false
         this.replay.push({
           turnId,
+          producer,
           item: {
             type: 'message',
             role: 'assistant',
@@ -3707,6 +3724,7 @@ export class ModelApiSession implements AgentSession {
       } else if (isWebSearchCallItem(item)) {
         this.replay.push({
           turnId,
+          producer,
           item: {
             type: 'web_search_call',
             ...(item.id !== undefined && { id: item.id }),
@@ -3722,12 +3740,12 @@ export class ModelApiSession implements AgentSession {
         // Only replayable with its encrypted content; a bare summary is
         // dropped. Replayed, it needs its summary, empty or not (the docs).
         if (typeof item.encrypted_content === 'string') {
-          this.replay.push({ turnId, item: { ...item, summary: item.summary ?? [] } })
+          this.replay.push({ turnId, producer, item: { ...item, summary: item.summary ?? [] } })
           isReasoningLast = true
         }
       } else if (isFunctionCallItem(item)) {
         isReasoningLast = false
-        this.replay.push({ turnId, item })
+        this.replay.push({ turnId, producer, item })
         calls.push(item)
       }
     }
@@ -8745,7 +8763,7 @@ export class ModelApiSession implements AgentSession {
       'PostLLMCall',
       turnId,
       postModelCallFields(body, response, requestId, 1, 0, this.sessionId),
-      MODEL_API_HOOK_PROVIDER,
+      replayProducer(body.model).provider,
       signal,
       false,
     )
@@ -9871,7 +9889,13 @@ export class ModelApiSession implements AgentSession {
 
   /** Fills a fresh session from its stored form; the session is idle afterwards. */
   public adopt(stored: StoredSession): void {
-    this.replay.push(...stored.replay)
+    this.replay.push(
+      ...stored.replay.map((entry) =>
+        entry.producer === undefined && !stored.modelId.includes('/')
+          ? { ...entry, producer: replayProducer(stored.modelId) }
+          : entry,
+      ),
+    )
     this.transcript.push(...withoutRunning(stored.transcript))
     this.turnIds.push(...stored.turnIds)
     this.compactedThroughTurnId = stored.compactedThroughTurnId

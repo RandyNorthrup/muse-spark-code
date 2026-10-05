@@ -3579,6 +3579,8 @@ export const CODE_INTEL_MODEL_TEXT = {
 // ACP loaders can discard it without changing any words; the bundle-split
 // gate fails when dist/extension.js or dist/acp.js carries it (PLAN.md D6).
 export const MODEL_API_MODEL_TEXT = {
+  providerIdentity:
+    'You are {model}, served by {provider}, a coding agent working inside Visual Studio Code through the Muse Spark Code (Unofficial) extension.',
   // M73 (PLAN.md D49): observation packing. The placeholder names the
   // packed output's id, size and first and last lines; recall_output pages
   // the original back. Placeholders never reach the transcript: only the
