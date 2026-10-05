@@ -1885,4 +1885,47 @@
   "acpProviderAdded": "공급자 {id} 추가됨.",
   "acpProviderRemoved": "공급자 {id} 제거됨.",
   "execProviderNotConfigured": "공급자 {id}가 구성되지 않았습니다."
+,
+  "modelsEmpty": "아직 모델 공급자가 없습니다. 직접 모델을 사용하려면 추가하세요.",
+  "panelNoMatches": "일치하는 항목이 없습니다.",
+  "modelFilterLabels": {
+    "toolCalling": "도구 호출",
+    "vision": "비전",
+    "reasoning": "추론",
+    "contextMin": "최소 컨텍스트",
+    "contextMax": "최대 컨텍스트",
+    "maxInput": "최대 입력 가격",
+    "maxOutput": "최대 출력 가격",
+    "maxCached": "최대 캐시 가격",
+    "freeOrLocal": "무료 또는 로컬",
+    "provider": "공급자",
+    "family": "패밀리",
+    "clear": "필터 지우기",
+    "any": "전체"
+  },
+  "tickModel": "모델 선택기에 {model} 표시",
+  "pinModel": "{model} 즐겨찾기로 고정",
+  "modelsColumnOffered": "표시됨",
+  "modelsColumnPinned": "고정됨",
+  "providerDetailFields": {
+    "azureResource": "Azure 리소스",
+    "deployment": "배포",
+    "loopbackPort": "로컬 포트",
+    "customFormat": "프로토콜 형식"
+  },
+  "providerDocs": "문서",
+  "providerDataUse": "데이터 사용 방식",
+  "numCtxLabel": "컨텍스트 크기",
+  "suggestUnavailable": "제안 없음: 조건을 만족하는 모델이 없습니다.",
+  "lastDefaultHint": "마지막 기본값: {model}",
+  "importUntrusted": "이 파일은 신뢰할 수 없습니다. 가져오기 전에 모든 주소를 확인하세요.",
+  "openRouterOrder": "선호 공급자 순서",
+  "openRouterFallback": "다른 공급자로 대체",
+  "keyMissing": "저장된 키가 없습니다",
+  "testRunning": "테스트 중…",
+  "modelsShownCount": {
+    "other": "{count}개 중 {shown}개"
+  },
+  "pricePerMillion": "백만 토큰당 가격.",
+  "modelsNotScanned": "이 공급자의 모델을 나열하려면 새로 고치세요."
 }

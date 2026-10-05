@@ -2095,4 +2095,50 @@
   "acpProviderAdded": "Поставщик {id} добавлен.",
   "acpProviderRemoved": "Поставщик {id} удалён.",
   "execProviderNotConfigured": "Поставщик {id} не настроен."
+,
+  "modelsEmpty": "Поставщиков моделей пока нет. Добавьте поставщика, чтобы использовать собственные модели.",
+  "panelNoMatches": "Нет совпадений.",
+  "modelFilterLabels": {
+    "toolCalling": "Вызовы инструментов",
+    "vision": "Зрение",
+    "reasoning": "Рассуждения",
+    "contextMin": "Мин. контекст",
+    "contextMax": "Макс. контекст",
+    "maxInput": "Макс. цена входа",
+    "maxOutput": "Макс. цена выхода",
+    "maxCached": "Макс. цена кэша",
+    "freeOrLocal": "Бесплатно или локально",
+    "provider": "Поставщик",
+    "family": "Семейство",
+    "clear": "Очистить фильтры",
+    "any": "Все"
+  },
+  "tickModel": "Предложить {model} в выборе моделей",
+  "pinModel": "Закрепить {model} как избранную",
+  "modelsColumnOffered": "Предложена",
+  "modelsColumnPinned": "Закреплена",
+  "providerDetailFields": {
+    "azureResource": "Ресурс Azure",
+    "deployment": "Развертывание",
+    "loopbackPort": "Локальный порт",
+    "customFormat": "Формат протокола"
+  },
+  "providerDocs": "Документация",
+  "providerDataUse": "Как используются ваши данные",
+  "numCtxLabel": "Размер контекста",
+  "suggestUnavailable": "Нет предложения: ни одна модель не подходит.",
+  "lastDefaultHint": "Последняя по умолчанию: {model}",
+  "importUntrusted": "Этот файл ненадежен: проверьте каждый адрес перед импортом.",
+  "openRouterOrder": "Предпочитаемый порядок поставщиков",
+  "openRouterFallback": "Переходить к другим поставщикам",
+  "keyMissing": "Нет сохраненного ключа",
+  "testRunning": "Проверка…",
+  "modelsShownCount": {
+    "one": "{shown} из {count} модели",
+    "few": "{shown} из {count} модели",
+    "many": "{shown} из {count} моделей",
+    "other": "{shown} из {count} моделей"
+  },
+  "pricePerMillion": "Цены за миллион токенов.",
+  "modelsNotScanned": "Обновите, чтобы вывести модели этого поставщика."
 }

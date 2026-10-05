@@ -1955,4 +1955,48 @@
   "acpProviderAdded": "{id} szolgáltató hozzáadva.",
   "acpProviderRemoved": "{id} szolgáltató eltávolítva.",
   "execProviderNotConfigured": "{id} szolgáltató nincs beállítva."
+,
+  "modelsEmpty": "Még nincsenek modellszolgáltatók. Adjon hozzá egyet saját modellek használatához.",
+  "panelNoMatches": "Nincs találat.",
+  "modelFilterLabels": {
+    "toolCalling": "Eszközhívások",
+    "vision": "Látás",
+    "reasoning": "Érvelés",
+    "contextMin": "Min. kontextus",
+    "contextMax": "Max. kontextus",
+    "maxInput": "Max. bemeneti ár",
+    "maxOutput": "Max. kimeneti ár",
+    "maxCached": "Max. gyorsítótár-ár",
+    "freeOrLocal": "Ingyenes vagy helyi",
+    "provider": "Szolgáltató",
+    "family": "Család",
+    "clear": "Szűrők törlése",
+    "any": "Mind"
+  },
+  "tickModel": "{model} felkínálása a modellválasztóban",
+  "pinModel": "{model} rögzítése kedvencként",
+  "modelsColumnOffered": "Felkínálva",
+  "modelsColumnPinned": "Rögzítve",
+  "providerDetailFields": {
+    "azureResource": "Azure-erőforrás",
+    "deployment": "Üzembe helyezés",
+    "loopbackPort": "Helyi port",
+    "customFormat": "Protokollformátum"
+  },
+  "providerDocs": "Dokumentáció",
+  "providerDataUse": "Adatai felhasználása",
+  "numCtxLabel": "Kontextusméret",
+  "suggestUnavailable": "Nincs javaslat: egyetlen itteni modell sem felel meg.",
+  "lastDefaultHint": "Utolsó alapértelmezett: {model}",
+  "importUntrusted": "Ez a fájl nem megbízható: importálás előtt ellenőrizze mindegyik címet.",
+  "openRouterOrder": "Előnyben részesített szolgáltatói sorrend",
+  "openRouterFallback": "Váltás más szolgáltatókra",
+  "keyMissing": "Nincs tárolt kulcs",
+  "testRunning": "Tesztelés…",
+  "modelsShownCount": {
+    "one": "{shown} / {count} modell",
+    "other": "{shown} / {count} modell"
+  },
+  "pricePerMillion": "Árak millió tokenenként.",
+  "modelsNotScanned": "Frissítsen a szolgáltató modelljeinek listázásához."
 }

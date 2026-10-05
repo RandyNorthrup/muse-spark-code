@@ -1955,4 +1955,48 @@
   "acpProviderAdded": "Anbieter {id} hinzugefügt.",
   "acpProviderRemoved": "Anbieter {id} entfernt.",
   "execProviderNotConfigured": "Anbieter {id} ist nicht konfiguriert."
+,
+  "modelsEmpty": "Noch keine Modellanbieter. Fügen Sie einen hinzu, um Ihre eigenen Modelle zu verwenden.",
+  "panelNoMatches": "Keine Treffer.",
+  "modelFilterLabels": {
+    "toolCalling": "Werkzeugaufrufe",
+    "vision": "Vision",
+    "reasoning": "Reasoning",
+    "contextMin": "Mindestkontext",
+    "contextMax": "Max. Kontext",
+    "maxInput": "Max. Eingabepreis",
+    "maxOutput": "Max. Ausgabepreis",
+    "maxCached": "Max. Cache-Preis",
+    "freeOrLocal": "Kostenlos oder lokal",
+    "provider": "Anbieter",
+    "family": "Familie",
+    "clear": "Filter löschen",
+    "any": "Alle"
+  },
+  "tickModel": "{model} in der Modellauswahl anbieten",
+  "pinModel": "{model} als Favorit anheften",
+  "modelsColumnOffered": "Angeboten",
+  "modelsColumnPinned": "Angeheftet",
+  "providerDetailFields": {
+    "azureResource": "Azure-Ressource",
+    "deployment": "Bereitstellung",
+    "loopbackPort": "Lokaler Port",
+    "customFormat": "Schnittstellenformat"
+  },
+  "providerDocs": "Dokumentation",
+  "providerDataUse": "Wie Ihre Daten verwendet werden",
+  "numCtxLabel": "Kontextgröße",
+  "suggestUnavailable": "Kein Vorschlag: Kein Modell erfüllt hier die Voraussetzungen.",
+  "lastDefaultHint": "Letzter Standard: {model}",
+  "importUntrusted": "Diese Datei ist nicht vertrauenswürdig: Prüfen Sie jede Adresse vor dem Importieren.",
+  "openRouterOrder": "Bevorzugte Anbieterreihenfolge",
+  "openRouterFallback": "Auf andere Anbieter zurückgreifen",
+  "keyMissing": "Kein Schlüssel gespeichert",
+  "testRunning": "Wird getestet…",
+  "modelsShownCount": {
+    "one": "{shown} von {count} Modell",
+    "other": "{shown} von {count} Modellen"
+  },
+  "pricePerMillion": "Preise pro Million Token.",
+  "modelsNotScanned": "Aktualisieren Sie, um die Modelle dieses Anbieters aufzulisten."
 }

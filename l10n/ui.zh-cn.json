@@ -1885,4 +1885,47 @@
   "acpProviderAdded": "已添加提供方 {id}。",
   "acpProviderRemoved": "已移除提供方 {id}。",
   "execProviderNotConfigured": "提供方 {id} 未配置。"
+,
+  "modelsEmpty": "还没有模型供应商。添加一个以使用自己的模型。",
+  "panelNoMatches": "没有匹配项。",
+  "modelFilterLabels": {
+    "toolCalling": "工具调用",
+    "vision": "视觉",
+    "reasoning": "推理",
+    "contextMin": "最小上下文",
+    "contextMax": "最大上下文",
+    "maxInput": "最高输入价格",
+    "maxOutput": "最高输出价格",
+    "maxCached": "最高缓存价格",
+    "freeOrLocal": "免费或本地",
+    "provider": "供应商",
+    "family": "系列",
+    "clear": "清除筛选器",
+    "any": "全部"
+  },
+  "tickModel": "在模型选择器中提供 {model}",
+  "pinModel": "将 {model} 固定为收藏",
+  "modelsColumnOffered": "已提供",
+  "modelsColumnPinned": "已固定",
+  "providerDetailFields": {
+    "azureResource": "Azure 资源",
+    "deployment": "部署",
+    "loopbackPort": "本地端口",
+    "customFormat": "协议格式"
+  },
+  "providerDocs": "文档",
+  "providerDataUse": "数据的使用方式",
+  "numCtxLabel": "上下文大小",
+  "suggestUnavailable": "无建议：此处没有符合条件的模型。",
+  "lastDefaultHint": "上次默认：{model}",
+  "importUntrusted": "此文件不可信：导入前请检查每个地址。",
+  "openRouterOrder": "首选供应商顺序",
+  "openRouterFallback": "回退到其他供应商",
+  "keyMissing": "未存储密钥",
+  "testRunning": "正在测试…",
+  "modelsShownCount": {
+    "other": "共 {count} 个模型，显示 {shown} 个"
+  },
+  "pricePerMillion": "每百万 token 价格。",
+  "modelsNotScanned": "刷新以列出此供应商的模型。"
 }
