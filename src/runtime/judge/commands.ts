@@ -79,15 +79,45 @@ function isAligned(request: JudgeRequest, outcome: JudgeOutcome): boolean {
     ids.every((id) => {
       const question = request.questions[id]
       const answer = answers[id]
-      if (question === undefined || answer?.type !== question.type) return false
-      return answer.type === 'choice' && question.type === 'choice'
-        ? Object.hasOwn(question.criteria, answer.choice) &&
-            Object.keys(answer.probabilities).every((option) =>
-              Object.hasOwn(question.criteria, option),
-            )
-        : answer.type !== 'score' ||
-            question.type !== 'score' ||
-            (answer.score >= 0 && answer.score <= question.criteria.length - 1)
+      const meta = outcome.result.muse[id]
+      if (question === undefined || meta === undefined || answer?.type !== question.type)
+        return false
+      const probabilities = answer.probabilities
+      const keys = Object.keys(probabilities)
+      // Accumulated IEEE-754 rounding only, never a model confidence threshold.
+      const rounding = Number.EPSILON * 100
+      const total = Object.values(probabilities).reduce((sum, probability) => sum + probability, 0)
+      if (Math.abs(total - 1) > rounding) return false
+      if (answer.type === 'noul') {
+        return Math.abs(answer.noul - answer.probabilities.true) <= rounding
+      }
+      if (answer.type === 'choice' && question.type === 'choice') {
+        const selected = answer.probabilities[answer.choice]
+        return (
+          selected !== undefined &&
+          Object.hasOwn(question.criteria, answer.choice) &&
+          keys.every((option) => Object.hasOwn(question.criteria, option)) &&
+          (keys.length === Object.keys(question.criteria).length || meta.partial) &&
+          Object.values(probabilities).every((probability) => probability <= selected)
+        )
+      }
+      if (answer.type === 'score' && question.type === 'score') {
+        const levels = question.criteria.map((_description, index) => String(index))
+        const expected = keys.reduce(
+          (sum, level) => sum + Number(level) * (answer.probabilities[level] ?? 0),
+          0,
+        )
+        return (
+          keys.every((level) => levels.includes(level)) &&
+          (keys.length === levels.length || meta.partial) &&
+          Object.keys(answer.legend).length === levels.length &&
+          levels.every((level, index) => answer.legend[level] === question.criteria[index]) &&
+          answer.score >= 0 &&
+          answer.score <= question.criteria.length - 1 &&
+          Math.abs(answer.score - expected) <= rounding
+        )
+      }
+      return false
     })
   )
 }
@@ -201,7 +231,8 @@ export async function runJudgeCommand(
         let outcome: JudgeOutcome
         try {
           outcome = await untilAborted(judge(request, signal), signal)
-        } catch {
+        } catch (error: unknown) {
+          if (error instanceof JudgeCliInputError) throw error
           outcome = noAnswer(signal.aborted ? 'timeout' : 'engine-failure')
         }
         io.stdout.write(`${JSON.stringify(outcome)}\n`)

@@ -7,6 +7,7 @@ import {
   EXEC_FORCE_WRITE_MS,
   IDE_MCP_SERVER_INFO,
   JUDGE_MAX_BODY_BYTES,
+  MCP_CANCELLED_NOTIFICATION,
   UI_TEXT,
 } from '../../shared/constants'
 import { fill } from '../../shared/l10n/text'
@@ -15,6 +16,12 @@ import { JudgeCliInputError } from './args'
 
 type JudgeCall = (request: unknown, signal: AbortSignal) => Promise<JudgeOutcome>
 const toolErrorSchema = z.object({ isError: z.literal(true) })
+const cancelledNotificationSchema = z.object({
+  jsonrpc: z.literal('2.0'),
+  id: z.optional(z.never()),
+  method: z.literal(MCP_CANCELLED_NOTIFICATION),
+  params: z.object({ requestId: z.union([z.string(), z.number()]) }),
+})
 
 /** Reuse the captured MCP server protocol; only a bounded advisory tool is exposed. */
 function judgeTool(judge: JudgeCall, fail: (code: number) => void): McpTool {
@@ -86,7 +93,12 @@ export async function runJudgeMcp(
   signal.addEventListener('abort', abort, { once: true })
   const submit = (line: string) => {
     const keys = mcpRequestKeys(line)
-    if (keys.cancelled !== undefined) {
+    // The shared key extractor also reads malformed envelopes. A cancellation
+    // side effect requires the complete captured JSON-RPC notification first.
+    if (
+      keys.cancelled !== undefined &&
+      cancelledNotificationSchema.safeParse(JSON.parse(line)).success
+    ) {
       const controllers = active.get(keys.cancelled) ?? []
       for (const controller of controllers) controller.abort()
     }

@@ -7,8 +7,9 @@ import {
 } from '../../src/core/backends/modelapi/mcp/protocol'
 import { runJudgeCommand } from '../../src/runtime/judge/commands'
 import { runJudgeMcp } from '../../src/runtime/judge/mcp'
+import { JudgeCliInputError } from '../../src/runtime/judge/args'
 import { JUDGE_MAX_BODY_BYTES } from '../../src/shared/constants'
-import { answered, command, io, REQUEST, source, writer } from './judgeCliFixtures'
+import { answered, command, evidenceCases, io, REQUEST, source, writer } from './judgeCliFixtures'
 
 function frame(method: string, id: number, params?: unknown): string {
   return `${JSON.stringify({ jsonrpc: '2.0', id, method, params })}\n`
@@ -24,6 +25,77 @@ function messages(text: string): unknown[] {
 }
 
 describe('judge MCP stdio', () => {
+  it.each(evidenceCases())(
+    'validates MCP answer evidence: $name',
+    async ({ request, outcome, valid }) => {
+      const fake = source()
+      fake.judge.mockResolvedValue(outcome)
+      const streams = io(call(1, request))
+      expect(
+        await runJudgeCommand(command('mcp'), streams, {
+          resolveSource: () => Promise.resolve(fake.value),
+        }),
+      ).toBe(valid ? 0 : 4)
+      const reply = incomingMessageSchema.parse(messages(streams.output())[0])
+      const result = callToolResultSchema.parse(reply.result)
+      const block = contentBlockSchema.parse(result.content?.[0])
+      if (block.type !== 'text') throw new Error('fixture')
+      if (valid) expect(JSON.parse(block.text)).toEqual(outcome.result)
+      else {
+        expect(result.isError).toBe(true)
+        expect(block.text).toContain('engine-failure')
+      }
+    },
+  )
+  it('preserves MCP source configuration errors as exit 2', async () => {
+    const streams = io(call())
+    const resolveSource = vi.fn(() => Promise.reject(new JudgeCliInputError()))
+    expect(await runJudgeCommand(command('mcp'), streams, { resolveSource })).toBe(2)
+    expect(messages(streams.output())).toMatchObject([{ result: { isError: true } }])
+    expect(streams.output()).not.toContain('engine-failure')
+    expect(resolveSource).toHaveBeenCalledOnce()
+  })
+  it.each([
+    { jsonrpc: '1.0', method: 'notifications/cancelled', params: { requestId: 1 } },
+    { method: 'notifications/cancelled', params: { requestId: 1 } },
+    { jsonrpc: '2.0', id: 2, method: 'notifications/cancelled', params: { requestId: 1 } },
+    { jsonrpc: '2.0', id: null, method: 'notifications/cancelled', params: { requestId: 1 } },
+  ])('ignores malformed cancellation envelope: %j', async (notification) => {
+    const stdin = new PassThrough()
+    const streams = { ...io(), stdin }
+    const fake = source()
+    let finish: (() => void) | undefined
+    let engineSignal: AbortSignal | undefined
+    fake.judge.mockImplementation((_request, signal) => {
+      engineSignal = signal
+      return new Promise((resolve) => {
+        finish = () => {
+          resolve(answered())
+        }
+      })
+    })
+    const running = runJudgeCommand(command('mcp'), streams, {
+      resolveSource: () => Promise.resolve(fake.value),
+    })
+    stdin.write(call())
+    await vi.waitFor(() => {
+      expect(fake.judge).toHaveBeenCalledOnce()
+    })
+    stdin.write(`${JSON.stringify(notification)}\n`)
+    await new Promise<void>((resolve) => {
+      setImmediate(resolve)
+    })
+    const wasAborted = engineSignal?.aborted
+    finish?.()
+    stdin.end()
+    expect(await running).toBe(notification.jsonrpc === '2.0' && notification.id === null ? 0 : 2)
+    expect(wasAborted).toBe(false)
+    expect(messages(streams.output())[0]).toMatchObject({
+      id: 1,
+      result: { content: expect.any(Array) },
+    })
+    expect(streams.output()).not.toContain('cancelled')
+  })
   it('initializes and lists only the bounded read-only advisory tool without inference', async () => {
     const resolveSource = vi.fn(() => Promise.resolve(source().value))
     const streams = io(

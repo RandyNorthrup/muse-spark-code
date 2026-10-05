@@ -3,10 +3,41 @@ import * as z from 'zod/mini'
 import { describe, expect, it, vi } from 'vitest'
 import type { JudgeResult } from '../../src/core/judge/schema'
 import { runJudgeCommand, type JudgeCliDeps } from '../../src/runtime/judge/commands'
+import { JudgeCliInputError } from '../../src/runtime/judge/args'
 import { JUDGE_MAX_BODY_BYTES, MILLISECONDS_PER_SECOND } from '../../src/shared/constants'
-import { answered, command, io, REQUEST, source, writer } from './judgeCliFixtures'
+import { answered, command, evidenceCases, io, REQUEST, source, writer } from './judgeCliFixtures'
 
 describe('judge CLI bounded advisory commands', () => {
+  it.each(evidenceCases())(
+    'validates answer evidence: $name',
+    async ({ request, outcome, valid }) => {
+      const fake = source()
+      fake.judge.mockResolvedValue(outcome)
+      const streams = io(JSON.stringify(request))
+      expect(
+        await runJudgeCommand(command(), streams, {
+          resolveSource: () => Promise.resolve(fake.value),
+        }),
+      ).toBe(valid ? 0 : 4)
+      expect(JSON.parse(streams.output())).toEqual(
+        valid
+          ? outcome
+          : {
+              outcome: 'no-answer',
+              reason: 'engine-failure',
+            },
+      )
+    },
+  )
+  it('preserves source configuration errors as exit 2 without private text', async () => {
+    const streams = io()
+    const resolveSource = vi.fn(() => Promise.reject(new JudgeCliInputError()))
+    expect(await runJudgeCommand(command(), streams, { resolveSource })).toBe(2)
+    expect(streams.output()).toBe('')
+    expect(streams.error()).not.toContain('engine-failure')
+    expect(streams.error()).not.toBe('')
+    expect(resolveSource).toHaveBeenCalledOnce()
+  })
   it('answers only with the explicit available same model', async () => {
     const fake = source()
     const streams = io()
