@@ -21,10 +21,15 @@ export const SCENARIOS = [
   'signin-error',
   'signin-history',
   'signin-history-narrow',
+  // M95: the first-run screen with its own-model choice, in both states.
+  'signin-byo',
+  'signin-nocli-byo',
   'usage-install',
   'usage-install-narrow',
   'palette',
   'models',
+  // M95: the picker grouped by provider, pinned first, with its rows.
+  'models-byo',
   'pill-toggle',
   'mention',
   'chips',
@@ -60,6 +65,8 @@ export const SCENARIOS = [
   'agents',
   'agents-off',
   'usage-api',
+  // M95: Account & usage with per-provider rows and key usage.
+  'usage-providers',
   'reply-usage',
   'banner',
   'jump',

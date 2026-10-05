@@ -213,7 +213,7 @@ describe('Palette (models view)', () => {
         {
           modelId: 'openrouter/deepseek/deepseek-v3',
           displayLabel: 'DeepSeek V3',
-          contextLimit: 64000,
+          contextLimit: 64_000,
           isDefault: true,
           providerId: 'openrouter',
           providerLabel: 'OpenRouter',
@@ -225,7 +225,7 @@ describe('Palette (models view)', () => {
         {
           modelId: 'ollama/qwen3:8b',
           displayLabel: 'qwen3:8b',
-          contextLimit: 32768,
+          contextLimit: 32_768,
           isDefault: false,
           providerId: 'ollama',
           providerLabel: 'Ollama',

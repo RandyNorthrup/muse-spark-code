@@ -90,7 +90,7 @@ describe('M95 first-run wire', () => {
       {
         modelId: 'openrouter/deepseek/deepseek-v3',
         displayLabel: 'DeepSeek V3',
-        contextLimit: 64000,
+        contextLimit: 64_000,
         isDefault: true,
         providerId: 'openrouter',
         providerLabel: 'OpenRouter',

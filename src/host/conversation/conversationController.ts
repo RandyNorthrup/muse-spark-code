@@ -912,6 +912,12 @@ export class ConversationController {
   private session: AgentSession | undefined
   private unsubscribe: (() => void) | undefined
   private models: readonly ModelOption[] | undefined
+  /**
+   * Models the host flagged as training on the content, from the unfiltered
+   * listing (M95): the picker never sees them where confidential, and neither
+   * does a stale `setModel`. Refreshed with every listing, forgotten with it.
+   */
+  private readonly trainingModelIds = new Set<string>()
   private modelListing: Promise<void> | undefined
   /** The backend the model catalogue was listed from; a new backend or sign-in starts a new one. */
   private modelGeneration = 0
@@ -2650,6 +2656,7 @@ export class ConversationController {
     const didHaveModels = this.models !== undefined
     this.modelGeneration += 1
     this.models = undefined
+    this.trainingModelIds.clear()
     this.modelListing = undefined
     if (didHaveModels && !this.isDisposed) {
       this.post({ type: 'modelList', models: [] })
@@ -2679,6 +2686,13 @@ export class ConversationController {
     }
     // A confidential workspace hides the contributor tier and any BYO model
     // whose provider or route may train on the content (M95, PLAN.md D74).
+    // The refused ids stay known for a stale `setModel` naming one.
+    this.trainingModelIds.clear()
+    for (const model of listed) {
+      if (model.trainsOnContent === true) {
+        this.trainingModelIds.add(model.modelId)
+      }
+    }
     const models = this.deps.isConfidentialWorkspace()
       ? listed.filter(
           (model) => !isContributorModel(model.modelId) && model.trainsOnContent !== true,
@@ -6241,14 +6255,14 @@ export class ConversationController {
    * Whether the model may be used here: a contributor-tier model is blocked
    * or confirmed once, and a BYO model the listing flagged as training on
    * the content is refused in a confidential workspace (M95, PLAN.md D74).
-   * Unknown to the listing (never listed, e.g. the wizard's first save), a
-   * model is allowed: the listing is the guard, and the wizard knows the
-   * route.
+   * Never listed or flagged (e.g. the wizard's first save), a model is
+   * allowed: the listing is the guard, and the wizard knows the route.
    */
   private async allowsModel(modelId: string): Promise<boolean> {
-    const trains =
-      this.models?.find((model) => model.modelId === modelId)?.trainsOnContent === true
-    if (trains && this.deps.isConfidentialWorkspace()) {
+    const isTraining =
+      this.models?.find((model) => model.modelId === modelId)?.trainsOnContent === true ||
+      this.trainingModelIds.has(modelId)
+    if (isTraining && this.deps.isConfidentialWorkspace()) {
       this.notice('warning', UI_TEXT.trainingBlocked)
       return false
     }

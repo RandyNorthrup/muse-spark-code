@@ -716,6 +716,9 @@
                         type: 'usageReport',
                         backend: 'modelApi',
                         account: { signInMethod: 'apiKey' },
+                        ...(window.harnessProviders === undefined
+                          ? {}
+                          : { providers: window.harnessProviders }),
                       }
                     : {
                         type: 'usageReport',
@@ -1223,6 +1226,22 @@
             detail: 'muse was not found on PATH (searched 12 directories).',
           })
         },
+        // --- M95: the first-run screen with its own-model choice ---
+        'signin-byo': () => {
+          send({
+            type: 'authState',
+            status: 'signedOut',
+            methods: ['browser', 'apiKey', 'byo'],
+          })
+        },
+        'signin-nocli-byo': () => {
+          send({
+            type: 'authState',
+            status: 'noCli',
+            detail: 'muse was not found on PATH (searched 12 directories).',
+            methods: ['apiKey', 'byo'],
+          })
+        },
         // The same gate as the host sends it since M55, with Meta's install
         // command: Install Muse Code first, the Model API key beside it.
         'signin-install': () => {
@@ -1307,6 +1326,42 @@
           setDraft('/co')
         },
         models: () => {
+          click('Model')
+        },
+        // --- M95: the picker grouped by provider, pinned first ---
+        'models-byo': () => {
+          send({
+            type: 'modelList',
+            models: [
+              {
+                modelId: 'muse-spark-1.3',
+                displayLabel: 'muse-spark-1.3',
+                contextLimit: 1007997,
+                isDefault: false,
+              },
+              {
+                modelId: 'openrouter/deepseek/deepseek-v3',
+                displayLabel: 'DeepSeek V3',
+                contextLimit: 64000,
+                isDefault: true,
+                providerId: 'openrouter',
+                providerLabel: 'OpenRouter',
+                pricing: 'priced',
+                inputUsdPerMTokens: 0.27,
+                outputUsdPerMTokens: 1.1,
+                isPinned: true,
+              },
+              {
+                modelId: 'ollama/qwen3:8b',
+                displayLabel: 'qwen3:8b',
+                contextLimit: 32768,
+                isDefault: false,
+                providerId: 'ollama',
+                providerLabel: 'Ollama',
+                pricing: 'local',
+              },
+            ],
+          })
           click('Model')
         },
         'pill-toggle': () => {
@@ -1877,6 +1932,43 @@
         // since M82 also what the prompt cache saved) ---
         'usage-api': () => {
           window.harnessBackend = 'modelApi'
+          send({
+            type: 'agentEvent',
+            event: {
+              type: 'tokenUsage',
+              inputTokens: 20_804,
+              cachedTokens: 10_481,
+              outputTokens: 210,
+              reasoningTokens: 120,
+            },
+          })
+          click('Commands')
+          whenFound('.palette-filter', (filter) => {
+            setValue(filter, HTMLInputElement.prototype, '/usage')
+            filter.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }))
+          })
+        },
+        // --- M95: Account & usage with per-provider rows and key usage ---
+        'usage-providers': () => {
+          window.harnessBackend = 'modelApi'
+          window.harnessProviders = [
+            {
+              providerId: 'openrouter',
+              providerLabel: 'OpenRouter',
+              pricing: 'priced',
+              inputTokens: 20804,
+              outputTokens: 210,
+              costUsd: 0.0059,
+              keyUsage: { todayUsd: 0.4, monthUsd: 2.1, limitUsd: 10, remainingUsd: 7.9 },
+            },
+            {
+              providerId: 'ollama',
+              providerLabel: 'Ollama',
+              pricing: 'local',
+              inputTokens: 8000,
+              outputTokens: 1000,
+            },
+          ]
           send({
             type: 'agentEvent',
             event: {

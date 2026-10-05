@@ -3118,6 +3118,7 @@ describe('uiReducer: the session goal (M45)', () => {
         backend: 'museCode',
         subscription: undefined,
         account: { signInMethod: 'cli' },
+        providers: undefined,
         insights: undefined,
       },
       editorContext: { relativePath: 'private-a.ts', startLine: 1, endLine: 2, isEmpty: false },

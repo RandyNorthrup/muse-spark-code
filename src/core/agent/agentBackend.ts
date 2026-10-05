@@ -12,11 +12,7 @@ import type {
   SessionGoal,
   TodoItem,
 } from '../../shared/agentEvents'
-import type {
-  GoalCommandVerb,
-  ModelPricing,
-  SubagentAction,
-} from '../../shared/constants'
+import type { GoalCommandVerb, ModelPricing, SubagentAction } from '../../shared/constants'
 import type { SubscriptionUsage } from '../../shared/usage'
 import type {
   ScheduleCadence,

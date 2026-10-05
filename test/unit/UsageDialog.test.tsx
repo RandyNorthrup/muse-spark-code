@@ -401,6 +401,7 @@ describe('UsageDialog in another display language (M40)', () => {
         backend: 'museCode',
         subscription: undefined,
         account: { signInMethod: 'cli' },
+        providers: undefined,
         insights: {
           day: {
             attempts: 1000,
@@ -433,6 +434,7 @@ describe('UsageDialog insights fallback (M18)', () => {
         backend: 'museCode',
         subscription,
         account: { signInMethod: 'cli', cliVersion: '1.3.0', delegationMode: 'off' },
+        providers: undefined,
         insights: undefined,
       },
     })
@@ -447,6 +449,7 @@ describe('UsageDialog insights fallback (M18)', () => {
         backend: 'modelApi',
         subscription: undefined,
         account: { signInMethod: 'apiKey' },
+        providers: undefined,
         insights: undefined,
       },
     })
@@ -461,6 +464,7 @@ describe('UsageDialog: paid features (M33, PLAN.md D30)', () => {
         backend: 'modelApi',
         subscription: undefined,
         account: undefined,
+        providers: undefined,
         insights: undefined,
       },
       paid: {
@@ -644,7 +648,9 @@ describe('UsageDialog: paid features (M33, PLAN.md D30)', () => {
       modelPricing: 'unpriced',
     })
     const dialog = screen.getByRole('dialog')
-    expect(dialog).toHaveTextContent('This model has no price card, so only its tokens are counted.')
+    expect(dialog).toHaveTextContent(
+      'This model has no price card, so only its tokens are counted.',
+    )
     expect(screen.queryByText('Estimated cost')).toBeNull()
   })
 

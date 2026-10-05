@@ -115,8 +115,9 @@ describe('SignIn', () => {
     const browser = screen.getByText('Sign in with your Meta account')
     const key = screen.getByText('Use a Model API key')
     const own = screen.getByText('Start with your own model')
-    expect(screen.getByText('Add a model provider with an API key and pick a model.'))
-      .toBeInTheDocument()
+    expect(
+      screen.getByText('Add a model provider with an API key and pick a model.'),
+    ).toBeInTheDocument()
     for (const button of [browser, key, own]) {
       expect(button.tagName).toBe('BUTTON')
       expect(button).toHaveClass('button-primary')

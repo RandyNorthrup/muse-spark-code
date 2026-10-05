@@ -13254,7 +13254,7 @@ describe('ConversationController: BYO models (M95, PLAN.md D74)', () => {
     {
       modelId: 'openrouter/deepseek/deepseek-v3',
       displayLabel: 'DeepSeek V3',
-      contextLimit: 64000,
+      contextLimit: 64_000,
       isDefault: true,
       isActive: false,
       providerId: 'openrouter',
@@ -13267,7 +13267,7 @@ describe('ConversationController: BYO models (M95, PLAN.md D74)', () => {
     {
       modelId: 'ollama/qwen3:8b',
       displayLabel: 'qwen3:8b',
-      contextLimit: 32768,
+      contextLimit: 32_768,
       isDefault: false,
       isActive: false,
       providerId: 'ollama',
@@ -13288,15 +13288,10 @@ describe('ConversationController: BYO models (M95, PLAN.md D74)', () => {
   ]
 
   /** A panel whose host lists the BYO catalogue instead of the CLI's. */
-  function byoPanel(confidential: boolean) {
-    const t = setup({ isConfidentialWorkspace: confidential })
-    const host = Object.create(t.host)
-    host.listModels = () => Promise.resolve(BYO_MODELS)
-    const controller = new ConversationController({
-      ...t.deps,
-      ensureHost: () => Promise.resolve(host),
-    })
-    return { t, controller }
+  function byoPanel(isConfidential: boolean) {
+    const t = setup({ isConfidentialWorkspace: isConfidential })
+    vi.spyOn(t.host, 'listModels').mockResolvedValue(BYO_MODELS)
+    return t
   }
 
   async function listedModels(
@@ -13315,8 +13310,8 @@ describe('ConversationController: BYO models (M95, PLAN.md D74)', () => {
   }
 
   it('passes provider fields through to the picker', async () => {
-    const { t, controller } = byoPanel(false)
-    expect(await listedModels(controller, t.surface)).toEqual({
+    const t = byoPanel(false)
+    expect(await listedModels(t.controller, t.surface)).toEqual({
       type: 'modelList',
       models: [
         {
@@ -13328,7 +13323,7 @@ describe('ConversationController: BYO models (M95, PLAN.md D74)', () => {
         {
           modelId: 'openrouter/deepseek/deepseek-v3',
           displayLabel: 'DeepSeek V3',
-          contextLimit: 64000,
+          contextLimit: 64_000,
           isDefault: true,
           providerId: 'openrouter',
           providerLabel: 'OpenRouter',
@@ -13340,7 +13335,7 @@ describe('ConversationController: BYO models (M95, PLAN.md D74)', () => {
         {
           modelId: 'ollama/qwen3:8b',
           displayLabel: 'qwen3:8b',
-          contextLimit: 32768,
+          contextLimit: 32_768,
           isDefault: false,
           providerId: 'ollama',
           providerLabel: 'Ollama',
@@ -13360,41 +13355,36 @@ describe('ConversationController: BYO models (M95, PLAN.md D74)', () => {
   })
 
   it('hides a training model where the workspace is confidential', async () => {
-    const { t, controller } = byoPanel(true)
-    const listed = await listedModels(controller, t.surface)
+    const t = byoPanel(true)
+    const listed = await listedModels(t.controller, t.surface)
     expect(listed).toMatchObject({ type: 'modelList' })
-    const ids =
-      listed.type === 'modelList' ? listed.models.map((model) => model.modelId) : []
-    expect(ids).toEqual([
-      'muse-spark-1.3',
-      'openrouter/deepseek/deepseek-v3',
-      'ollama/qwen3:8b',
-    ])
+    const ids = listed.type === 'modelList' ? listed.models.map((model) => model.modelId) : []
+    expect(ids).toEqual(['muse-spark-1.3', 'openrouter/deepseek/deepseek-v3', 'ollama/qwen3:8b'])
   })
 
   it('refuses a training model where confidential, and still switches it elsewhere', async () => {
-    const { t, controller } = byoPanel(true)
-    await listedModels(controller, t.surface)
-    await controller.handle({ type: 'setModel', modelId: 'openrouter/any/model' })
+    const t = byoPanel(true)
+    await listedModels(t.controller, t.surface)
+    await t.controller.handle({ type: 'setModel', modelId: 'openrouter/any/model' })
     const notice = t.surface.posted.findLast((message) => message.type === 'notice')
     expect(notice).toMatchObject({ level: 'warning', text: UI_TEXT.trainingBlocked })
     const info = t.surface.posted.findLast((message) => message.type === 'sessionInfo')
     expect(info).toMatchObject({ modelId: 'muse-spark-1.3' })
 
     const open = byoPanel(false)
-    await listedModels(open.controller, open.t.surface)
+    await listedModels(open.controller, open.surface)
     await open.controller.handle({ type: 'setModel', modelId: 'openrouter/any/model' })
-    expect(
-      open.t.surface.posted.findLast((message) => message.type === 'sessionInfo'),
-    ).toMatchObject({ modelId: 'openrouter/any/model' })
+    expect(open.surface.posted.findLast((message) => message.type === 'sessionInfo')).toMatchObject(
+      { modelId: 'openrouter/any/model' },
+    )
   })
 
   it('allows a never-listed model where confidential, for the wizard’s first save', async () => {
-    const { t, controller } = byoPanel(true)
-    await controller.handle({ type: 'setModel', modelId: 'openrouter/brand/new' })
-    expect(
-      t.surface.posted.findLast((message) => message.type === 'sessionInfo'),
-    ).toMatchObject({ modelId: 'openrouter/brand/new' })
+    const t = byoPanel(true)
+    await t.controller.handle({ type: 'setModel', modelId: 'openrouter/brand/new' })
+    expect(t.surface.posted.findLast((message) => message.type === 'sessionInfo')).toMatchObject({
+      modelId: 'openrouter/brand/new',
+    })
     expect(t.surface.posted.some((message) => message.type === 'notice')).toBe(false)
   })
 

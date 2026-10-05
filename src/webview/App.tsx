@@ -207,10 +207,9 @@ export function modelLabelFor(state: UiState): string {
   // label, else the reference's provider, so a bare id reads as it did.
   const option = state.models.find((model) => model.modelId === state.model?.modelId)
   const provider = option?.providerLabel ?? providerOf(state.model.modelId)
-  if (provider === undefined) {
-    return `${state.model.modelId} ${effort}`
-  }
-  return `${provider} · ${option?.displayLabel ?? state.model.modelId} ${effort}`
+  return provider === undefined
+    ? `${state.model.modelId} ${effort}`
+    : `${provider} · ${option?.displayLabel ?? state.model.modelId} ${effort}`
 }
 
 /** The reference's provider (`openrouter` of `openrouter/…`); undefined for Meta's bare ids. */
@@ -1454,6 +1453,8 @@ export function App({
           closeOverlay()
           break
         }
+        // Panel-opening actions, including the models view's footer rows
+        // (M95): the host runs lane K's commands through host actions.
         case 'manageSkills':
         case 'importSkills':
         case 'importFromAgents':
@@ -1462,8 +1463,6 @@ export function App({
         case 'showMemory':
         case 'newWorktree':
         case 'removeWorktree':
-        // The models view's footer rows (M95): the host runs lane K's
-        // commands through the matching host actions.
         case 'addModelProvider':
         case 'manageModels': {
           postMessage({ type: 'hostAction', action: action.type })
@@ -1973,9 +1972,7 @@ export function App({
         usage={state.usage}
         context={state.context}
         modelId={state.model?.modelId}
-        modelPricing={
-          state.models.find((model) => model.modelId === state.model?.modelId)?.pricing
-        }
+        modelPricing={state.models.find((model) => model.modelId === state.model?.modelId)?.pricing}
         paid={state.paid}
         now={now}
         onOpenExternal={onOpenExternal}
@@ -2100,7 +2097,7 @@ export function App({
       )}
       <div className="composer-area" inert={isModalOpen}>
         {floating}
-        {state.setupComplete === undefined || isBodyGated ? null : (
+        {isBodyGated || state.setupComplete === undefined ? null : (
           <SetupBanner
             provider={state.setupComplete.provider}
             model={state.setupComplete.model}

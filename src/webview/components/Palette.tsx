@@ -213,7 +213,7 @@ export function modelSections(
     sections.push({
       key: 'pinned',
       title: UI_TEXT.pickerPinnedGroup,
-      rows: pinned.map(rowFor),
+      rows: pinned.map((model) => rowFor(model)),
     })
   }
   const groups = new Map<string, { readonly title: string; readonly rows: PaletteRow[] }>()
@@ -354,30 +354,29 @@ function layoutModels(
   onAction: (action: PaletteAction) => void,
 ): { readonly entries: readonly PaletteEntry[]; readonly rows: readonly PaletteRow[] } {
   const needle = filter.toLowerCase()
-  const matches = (text: string | undefined): boolean =>
-    text !== undefined && text.toLowerCase().includes(needle)
+  const isMatch = (text: string | undefined): boolean =>
+    text?.toLowerCase().includes(needle) ?? false
   const matching = models.filter(
     (model) =>
-      matches(model.displayLabel) || matches(model.providerLabel) || matches(model.modelId),
+      isMatch(model.displayLabel) || isMatch(model.providerLabel) || isMatch(model.modelId),
   )
   const sections = modelSections(matching, currentModelId, onSelectModel)
-  // One group keeps today's flat list; titles name groups only past that.
-  const showsTitles = sections.length > 1
+  const isGrouped = sections.length > 1
   const rows: PaletteRow[] = []
   const entries: PaletteEntry[] = []
   for (const section of sections) {
-    if (showsTitles) {
-      entries.push({ kind: 'title', key: `title:${section.key}`, title: section.title })
-    }
+    // One group keeps today's flat list; titles name groups only past that.
+    const title: readonly PaletteEntry[] = isGrouped
+      ? [{ kind: 'title', key: `title:${section.key}`, title: section.title }]
+      : []
+    entries.push(...title)
     for (const row of section.rows) {
       entries.push({ kind: 'row', key: row.id, index: rows.length })
       rows.push(row)
     }
   }
-  for (const row of providerRows(onAction)) {
-    if (needle !== '' && !matches(row.label)) {
-      continue
-    }
+  const footer = providerRows(onAction).filter((row) => needle === '' || isMatch(row.label))
+  for (const row of footer) {
     entries.push({ kind: 'row', key: row.id, index: rows.length })
     rows.push(row)
   }
@@ -391,12 +390,13 @@ export function Palette(props: PaletteProps) {
   const filterBox = useRef<HTMLInputElement>(null)
   const [storedIndex, setActiveIndex] = useState(0)
 
-  const layout = useMemo(() => {
-    if (view === 'models') {
-      return layoutModels(models, filter, currentModelId, onSelectModel, onAction)
-    }
-    return layoutActions(filterPalette(groups, filter), onAction)
-  }, [view, filter, models, currentModelId, onSelectModel, groups, onAction])
+  const layout = useMemo(
+    () =>
+      view === 'models'
+        ? layoutModels(models, filter, currentModelId, onSelectModel, onAction)
+        : layoutActions(filterPalette(groups, filter), onAction),
+    [view, filter, models, currentModelId, onSelectModel, groups, onAction],
+  )
   const { entries, rows } = layout
 
   // The stored index may point past the end after the filter narrowed the

@@ -3003,7 +3003,7 @@ describe('App BYO picker and setup (M95)', () => {
     {
       modelId: 'openrouter/deepseek/deepseek-v3',
       displayLabel: 'DeepSeek V3',
-      contextLimit: 64000,
+      contextLimit: 64_000,
       isDefault: true,
       providerId: 'openrouter',
       providerLabel: 'OpenRouter',
@@ -3019,7 +3019,7 @@ describe('App BYO picker and setup (M95)', () => {
     deliver({
       type: 'sessionInfo',
       modelId: 'openrouter/deepseek/deepseek-v3',
-      contextLimit: 64000,
+      contextLimit: 64_000,
     })
     expect(screen.getByLabelText('Model')).toHaveTextContent('OpenRouter · DeepSeek V3 High')
   })

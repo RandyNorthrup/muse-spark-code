@@ -7,6 +7,17 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+### Added
+
+- **First-run and usage UI for bring-your-own providers (M95 lane U).**
+  The sign-in gate offers Start with your own model beside the other two
+  (ranked equally with no backend set up); a finished setup confirms once
+  with Manage providers. The model picker groups by provider with pinned
+  favourites first, priced/unpriced/local/plan details and provider rows;
+  the composer pill names the provider; Account & usage lists per-provider
+  tallies with OpenRouter key usage and unpriced/local costs. A confidential
+  workspace hides training models from the list and refuses them on switch.
+
 ## [0.12.1] - 2026-10-04
 
 ### Changed
