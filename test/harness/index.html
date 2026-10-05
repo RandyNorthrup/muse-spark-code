@@ -91,6 +91,14 @@
       body {
         width: 690px;
       }
+
+      /* A still capture. Headless Chrome's fast-forwarded clock runs the
+         scenario's timers but not CSS animations, so a shot or a scan could
+         catch the menu's pills mid-burst; they are drawn where they rest.
+         The burst itself is the stylesheet's, under reduced motion too. */
+      .gooey-menu-pill {
+        animation: none;
+      }
     </style>
     <script>
       // The fake host: answers the webview the way the extension would.
@@ -417,6 +425,24 @@
           outbox.push(message)
           document.title = `harness: ${message.type}`
           switch (message.type) {
+            case 'tasksReady': {
+              send({
+                type: 'tasksState',
+                conversation: 'Panel polish',
+                items: [
+                  { text: 'Read the capture', status: 'completed' },
+                  {
+                    text: 'Render tool rows',
+                    status: 'inProgress',
+                    activeForm: 'Rendering tool rows',
+                  },
+                  { text: 'Write the certification', status: 'pending' },
+                ],
+                ended: scenarioName === 'tasks-tab-ended',
+                canMoveToWindow: scenarioName !== 'tasks-tab-plain',
+              })
+              break
+            }
             case 'ready': {
               // The host sends these from its own table, the same one as the page's.
               send({
@@ -427,7 +453,7 @@
                   'Type /model to pick the right tool for the job.',
                 composerPlaceholder:
                   harnessL10n.table?.composerPlaceholder ??
-                  'ctrl esc (ctrl alt esc on Windows) to focus or unfocus Muse',
+                  'ctrl esc (cmd esc on macOS, ctrl alt esc on Windows) to focus or unfocus Muse',
                 settings,
               })
               // M25: first, the session and turn the host holds for this surface.
@@ -1002,8 +1028,15 @@
   </head>
   <body>
     <div id="root"></div>
-    <script type="module">
-      import '../../dist/webview/main.js'
+    <script>
+      if (new URLSearchParams(location.search).get('scenario')?.startsWith('tasks-tab')) {
+        document.body.dataset.surface = 'tasks'
+        document.documentElement.style.width = '100%'
+        document.body.style.width = '100%'
+      }
+    </script>
+    <script type="module" src="../../dist/webview/main.js"></script>
+    <script>
       // Scripting errors and dropped host messages are written into the page
       // so a screenshot shows them instead of a silent empty state.
       // A scenario that throws fails the accessibility gate (a11y.mjs), which
@@ -1273,6 +1306,224 @@
           },
         ],
       })
+      // M87 (the owner's requests of 2026-10-04): the chat column. A reply,
+      // a queued steer, the working line, the docked approval card and the
+      // composer with an open file. The column scenarios play it and then
+      // measure the layout (columnGeometry, below).
+      const columnFixture = () => {
+        window.harnessSilent = true
+        send({ type: 'authState', status: 'signedIn', backend: 'modelApi' })
+        send({
+          type: 'editorContext',
+          context: {
+            relativePath: 'src/webview/App.tsx',
+            startLine: 1,
+            endLine: 1,
+            isEmpty: true,
+          },
+        })
+        event({
+          type: 'contextUsage',
+          usedTokens: 420_000,
+          windowTokens: 1_000_000,
+          pressure: 'normal',
+        })
+        setDraft('Start the refactor')
+        key({ key: 'Enter' })
+        event({
+          type: 'itemCompleted',
+          item: {
+            itemId: 'col-reply',
+            kind: 'agentMessage',
+            status: 'completed',
+            text: 'Reading the parser first, then the call sites.',
+          },
+        })
+        send({
+          type: 'briefSubmitted',
+          localId: 'steer-1',
+          text: 'Keep the old names',
+          attachments: [],
+        })
+        send({
+          type: 'turnAccepted',
+          localId: 'steer-1',
+          turnId: 't1',
+          userMessageId: 'u-steer-1',
+          disposition: 'steered',
+        })
+        event({
+          type: 'itemStarted',
+          item: {
+            itemId: 'col-sh',
+            kind: 'toolCall',
+            status: 'inProgress',
+            tool: 'powershell',
+            args: '{"command":"Set-Content -Path x -Value outside"}',
+          },
+        })
+        event({
+          type: 'approvalRequested',
+          approvalId: 'col-a',
+          itemId: 'col-sh',
+          toolName: 'powershell',
+          rawArgs: '{"command":"Set-Content -Path x -Value outside"}',
+          requirementId: { approvalId: 'col-a', sourceIndex: 0 },
+          subject: { kind: 'shell', command: 'Set-Content -Path x -Value outside' },
+          availableChoices: [
+            { choiceId: 'allow_once', label: 'Allow once', decision: 'approved', scope: 'once' },
+            {
+              choiceId: 'allow_local_prefix',
+              label: 'Always allow in this workspace: Set-Content ...',
+              decision: 'approvedPolicyAmendment',
+              scope: 'localPersistent',
+              rulePreview: 'Always allow in this workspace: Set-Content ...',
+            },
+            {
+              choiceId: 'abort',
+              label: 'Reject',
+              decision: 'abort',
+              scope: 'once',
+              acceptsFeedback: true,
+            },
+          ],
+          isJudgeEscalated: false,
+          isProtectedWrite: false,
+        })
+      }
+      const COLUMN_NARROW_PX = 320
+      const COLUMN_WIDE_PX = 1400
+      // Sub-pixel layout rounding.
+      const EDGE_TOLERANCE_PX = 0.5
+      // The column's geometry, measured once the fixture has drawn. A miss
+      // throws, naming each part and its numbers, which fails the
+      // accessibility gate (a11y.mjs) and shows on the screenshot. The
+      // tokens are read from the stylesheet, so a value changed there moves
+      // the check with it; one that is gone fails it.
+      const columnGeometry = () => {
+        const root = getComputedStyle(document.documentElement)
+        const token = (name) => {
+          const value = Number.parseFloat(root.getPropertyValue(name))
+          if (!Number.isFinite(value)) {
+            throw new Error(`column geometry: ${name} is not set`)
+          }
+          return value
+        }
+        const element = (selector) => {
+          const found = document.querySelector(selector)
+          if (found === null) {
+            throw new Error(`column geometry: never rendered: ${selector}`)
+          }
+          return found
+        }
+        const near = (a, b) => Math.abs(a - b) <= EDGE_TOLERANCE_PX
+        const round = (value) => String(Math.round(value * 10) / 10)
+        const centre = (rect) => rect.top + rect.height / 2
+        // The end of a scroller's content: its scrollbar, when it shows one,
+        // takes room there and nowhere else.
+        const contentEnd = (scroller) =>
+          scroller.getBoundingClientRect().left +
+          scroller.clientWidth -
+          Number.parseFloat(getComputedStyle(scroller).paddingRight)
+        const misses = []
+        // One column: each part has the composer box's start edge, and its
+        // end edge unless its scroller's scrollbar takes that room.
+        const composer = element('.composer').getBoundingClientRect()
+        for (const [selector, scroller] of [
+          ['.transcript', '.body'],
+          ['.message-queued', '.body'],
+          ['.status-line', '.body'],
+          ['.approval', '.approval-dock'],
+        ]) {
+          const part = element(selector).getBoundingClientRect()
+          const end = Math.min(composer.right, contentEnd(element(scroller)))
+          if (!near(part.left, composer.left) || !near(part.right, end)) {
+            misses.push(
+              `${selector} spans ${round(part.left)}–${round(part.right)}, not ${round(composer.left)}–${round(end)}`,
+            )
+          }
+        }
+        // Capped and centred: the column, its gutters included, is at most
+        // --ms-column-max-width wide, in the middle of the panel.
+        const gap = token('--ms-gap')
+        const panel = element('.app').getBoundingClientRect().width
+        const column = Math.min(panel, token('--ms-column-max-width'))
+        const left = (panel - column) / 2 + gap
+        if (!near(composer.width, column - 2 * gap) || !near(composer.left, left)) {
+          misses.push(
+            `the composer is ${round(composer.width)} px wide at ${round(composer.left)}, not ${round(column - 2 * gap)} at ${round(left)}`,
+          )
+        }
+        // The approval choices: one height, one line of text each, and every
+        // row of them starting at the same edge.
+        const buttonHeight = token('--ms-button-height')
+        const choices = [...document.querySelectorAll('.approval-choices > button')]
+        const rowStart = choices[0].getBoundingClientRect().left
+        for (const choice of choices) {
+          const rect = choice.getBoundingClientRect()
+          const text = document.createRange()
+          text.selectNodeContents(choice)
+          const lines = new Set([...text.getClientRects()].map((line) => Math.round(line.top)))
+          const isRowStart =
+            choice === choices[0] ||
+            rect.top > choice.previousElementSibling.getBoundingClientRect().top
+          if (!near(rect.height, buttonHeight) || lines.size !== 1) {
+            misses.push(
+              `the choice "${choice.textContent}" is ${round(rect.height)} px tall on ${String(lines.size)} lines, not ${round(buttonHeight)} on 1`,
+            )
+          }
+          if (isRowStart && !near(rect.left, rowStart)) {
+            misses.push(
+              `the choice "${choice.textContent}" starts a row at ${round(rect.left)}, not ${round(rowStart)}`,
+            )
+          }
+        }
+        // The composer's controls: one height on one centre line.
+        const controlSize = token('--ms-control-size')
+        const controls = [
+          ...document.querySelectorAll('.composer-toolbar button:not(.chip-remove)'),
+        ]
+        const line = centre(controls[0].getBoundingClientRect())
+        for (const control of controls) {
+          const rect = control.getBoundingClientRect()
+          if (!near(rect.height, controlSize) || !near(centre(rect), line)) {
+            misses.push(
+              `the control "${control.getAttribute('aria-label')}" is ${round(rect.height)} px tall centred at ${round(centre(rect))}, not ${round(controlSize)} at ${round(line)}`,
+            )
+          }
+        }
+        // The model pill's fill and the open-file chip: the chips' height.
+        const chipHeight = token('--ms-chip-height')
+        const pill = element('.pill')
+        const pillStyle = getComputedStyle(pill)
+        const fill =
+          pill.getBoundingClientRect().height -
+          Number.parseFloat(pillStyle.borderTopWidth) -
+          Number.parseFloat(pillStyle.borderBottomWidth)
+        const chip = element('.editor-chip').getBoundingClientRect()
+        if (!near(fill, chipHeight) || !near(chip.height, chipHeight)) {
+          misses.push(
+            `the pill's fill is ${round(fill)} px and the chip ${round(chip.height)} px, not ${round(chipHeight)}`,
+          )
+        }
+        if (misses.length > 0) {
+          throw new Error(`column geometry at ${String(panel)} px: ${misses.join('; ')}`)
+        }
+        document.body.dataset.columnChecked = 'true'
+      }
+      // Plays the fixture at the viewport width the runner gave (the scenario
+      // names it), the page as wide as the viewport, then measures it.
+      const columnScenario = (width) => {
+        if (width !== undefined) {
+          if (window.innerWidth !== width) {
+            throw new Error(`this scenario requires a ${String(width)} px viewport`)
+          }
+          document.documentElement.style.width = '100%'
+          document.body.style.width = '100%'
+        }
+        columnFixture()
+        whenFound('.approval-choices > button', () => later(SETTLE_MS, columnGeometry))
+      }
       const steps = {
         empty: () => {},
         // --- The pre-sign-in gate (M1/M7): what the panel shows before a
@@ -1360,6 +1611,56 @@
         palette: () => {
           click('Commands')
         },
+        // M87: the context meter as the host's reported usage draws it, at
+        // 42 % (normal), 70 % (the warning level) and over the window.
+        'context-meter': () => {
+          event({
+            type: 'contextUsage',
+            usedTokens: 420_000,
+            windowTokens: 1_000_000,
+            pressure: 'normal',
+          })
+        },
+        'context-meter-warning': () => {
+          event({
+            type: 'contextUsage',
+            usedTokens: 700_000,
+            windowTokens: 1_000_000,
+            pressure: 'normal',
+          })
+        },
+        'context-meter-full': () => {
+          event({
+            type: 'contextUsage',
+            usedTokens: 1_040_000,
+            windowTokens: 1_000_000,
+            pressure: 'normal',
+          })
+          whenFound('.context-meter', (meter) => meter.focus())
+        },
+        'palette-tips': () => {
+          click('Commands')
+          whenFound('.palette-filter', (filter) => {
+            setValue(filter, HTMLInputElement.prototype, 'compact')
+            filter.focus()
+          })
+        },
+        'slash-tips': () => {
+          textarea().focus()
+          setDraft('/co')
+        },
+        'stop-running': () => {
+          event({ type: 'turnStarted', turnId: 'm87a-stop' })
+          whenFound('.send-button-stop', (stop) => stop.focus())
+        },
+        // A running turn's working line (M87): sending the draft starts the
+        // turn locally, so the step bullet, the verb and the heart-monitor
+        // beam the canvas draws show under the message, as in lane B's rows.
+        'status-heartbeat': () => {
+          window.harnessSilent = true
+          setDraft('List the project files')
+          key({ key: 'Enter' })
+        },
         // A "/" typed on an empty prompt (M38): the palette above the box,
         // which keeps the focus and the text.
         'slash-palette': () => {
@@ -1398,6 +1699,39 @@
             setDraft('and steer this')
             key({ key: 'Enter' })
           })
+        },
+        'chat-menu': () => {
+          steps.rewind()
+          later(450, () =>
+            document.querySelector('[aria-haspopup="menu"][role="menuitem"]').click(),
+          )
+        },
+        'chat-menu-narrow': () => {
+          if (window.innerWidth !== 320) {
+            throw new Error('chat-menu-narrow requires a 320 px viewport')
+          }
+          document.documentElement.style.width = '100%'
+          document.body.style.width = '100%'
+          steps['chat-menu']()
+        },
+        // An edit row's menu (D66 item 17): Open output, Review and, with a
+        // session to revert in, Revert.
+        'chat-tool-menu': () => {
+          send({ type: 'sessionInfo', modelId: 'muse-spark-1.3', sessionId: 'harness-tools' })
+          transcriptFixture({ isDone: true })
+          later(300, () => {
+            document.querySelector('.steps-toggle').click()
+            later(100, () =>
+              document.querySelector('[data-entry-id="ed1"] .row-actions-button').click(),
+            )
+          })
+        },
+        'chat-tool-menu-narrow': () => {
+          if (window.innerWidth !== 320)
+            throw new Error('chat-tool-menu-narrow requires a 320 px viewport')
+          document.documentElement.style.width = '100%'
+          document.body.style.width = '100%'
+          steps['chat-tool-menu']()
         },
         shifttab: () => {
           textarea().focus()
@@ -1441,9 +1775,12 @@
               isEmpty: true,
             },
           })
+          // Two digits in the meter: axe leaves a single character's
+          // contrast undecided; the number's contrast is measured in
+          // docs/certification/m87-w-contrast.json.
           event({
             type: 'contextUsage',
-            usedTokens: 20_160,
+            usedTokens: 201_600,
             windowTokens: 1_007_997,
             pressure: 'low',
           })
@@ -1481,6 +1818,15 @@
         },
         tools: () => {
           transcriptFixture()
+        },
+        // The same turn with its folded steps opened (M87): thinking, the
+        // read, the edit with its diff, the write and the shell row, as the
+        // README's turn.png shows them.
+        'tools-open': () => {
+          transcriptFixture()
+          whenFound('.steps-toggle', (summary) => {
+            summary.click()
+          })
         },
         approval: () => {
           transcriptFixture()
@@ -1641,6 +1987,13 @@
             ],
           })
         },
+        'todo-collapsed': () => {
+          steps.todo()
+          whenFound('.todo-title', (button) => button.click())
+        },
+        'tasks-tab': () => {},
+        'tasks-tab-ended': () => {},
+        'tasks-tab-plain': () => {},
         // A 10k-token reply streamed in 100-character deltas: the visual check
         // that a long markdown answer renders; render cost is measured in Node
         // (scripts/measure-markdown.mjs), not here, because headless Chrome's
@@ -1674,6 +2027,131 @@
         focus: () => {
           send({ type: 'settingsChanged', settings: { ...settings, focusView: true } })
           transcriptFixture()
+        },
+        // --- M87 lane C: the default view folds a run of finished steps under
+        // what they did (a failure named, with its dot), shown folded and open.
+        'steps-summary': () => {
+          window.harnessSilent = true
+          setDraft('Tidy the notes, then run the check')
+          key({ key: 'Enter' })
+          const done = (itemId, tool, args, extra = {}) =>
+            event({
+              type: 'itemCompleted',
+              item: { itemId, kind: 'toolCall', status: 'completed', tool, args, ...extra },
+            })
+          done('s1', 'read_file', '{"path":"notes.md"}', { visibleOutput: '1|# Notes' })
+          done('s2', 'read_file', '{"path":"todo.md"}', { visibleOutput: '1|- tidy' })
+          done('s3', 'edit_file', '{"path":"notes.md"}', {
+            patchSummary: { files: 1, added: 2, removed: 1 },
+          })
+          done('s4', 'powershell', '{"command":"npm test","description":"Run the check"}', {
+            status: 'failed',
+            failureReason: 'exit code 1',
+          })
+          event({
+            type: 'itemCompleted',
+            item: {
+              itemId: 's5',
+              kind: 'agentMessage',
+              status: 'completed',
+              text: 'The notes are tidy; the check failed once on a stale snapshot.',
+            },
+          })
+          event({ type: 'turnCompleted', turnId: 't1', terminal: 'completed' })
+        },
+        'steps-summary-open': () => {
+          steps['steps-summary']()
+          whenFound('.steps-toggle', (summary) => {
+            summary.click()
+            summary.focus()
+          })
+        },
+        // A card with no button of its own (no session, so no rewind): its
+        // time is the keyboard stop, shown with the focus ring.
+        'message-time': () => {
+          window.harnessSilent = true
+          setDraft('What changed since this morning?')
+          key({ key: 'Enter' })
+          event({
+            type: 'itemCompleted',
+            item: {
+              itemId: 'mt1',
+              kind: 'agentMessage',
+              status: 'completed',
+              text: 'Two files: `notes.md` and `todo.md`.',
+              recordedAt: new Date().toISOString(),
+            },
+          })
+          event({ type: 'turnCompleted', turnId: 't1', terminal: 'completed' })
+          whenFound('.message-user time[tabindex]', (time) => time.focus())
+        },
+        // A message steered into the running Muse Code turn: its "…" menu
+        // says it was delivered.
+        'queued-menu': () => {
+          window.harnessSilent = true
+          setDraft('Start the refactor')
+          key({ key: 'Enter' })
+          send({
+            type: 'briefSubmitted',
+            localId: 'steer-1',
+            text: 'Keep the old names',
+            attachments: [],
+          })
+          send({ type: 'turnAccepted', localId: 'steer-1', turnId: 't1', disposition: 'steered' })
+          whenFound('[data-role="user"] .row-actions-button', (button) => button.click())
+        },
+        // The Edit variant: a Model API steer no request has read yet, so its
+        // "…" menu offers Edit (it goes back into the prompt box).
+        'queued-menu-edit': () => {
+          window.harnessSilent = true
+          send({ type: 'authState', status: 'signedIn', backend: 'modelApi' })
+          setDraft('Start the refactor')
+          key({ key: 'Enter' })
+          send({
+            type: 'briefSubmitted',
+            localId: 'steer-1',
+            text: 'Keep the old names',
+            attachments: [],
+          })
+          send({
+            type: 'turnAccepted',
+            localId: 'steer-1',
+            turnId: 't1',
+            userMessageId: 'u-steer-1',
+            disposition: 'steered',
+          })
+          whenFound('[data-entry-id="steer-1"] .row-actions-button', (button) => button.click())
+        },
+        // The chat column at the panel width the runner gives (690 px), at
+        // 320 px and at 1400 px (SIZED_SCENARIOS in scripts/lib/harnessServer.mjs).
+        column: () => {
+          columnScenario()
+        },
+        'column-narrow': () => {
+          columnScenario(COLUMN_NARROW_PX)
+        },
+        // A transcript long enough to scroll, with the 10 px scrollbar VS
+        // Code's webviews draw (the runner keeps scrollbars for this one), so
+        // the check sees that it moves nothing.
+        'column-wide': () => {
+          const scrollbar = document.createElement('style')
+          scrollbar.textContent = [
+            '::-webkit-scrollbar { width: 10px; height: 10px; }',
+            '::-webkit-scrollbar-thumb { background-color: var(--vscode-scrollbarSlider-background, rgb(121 121 121 / 40%)); }',
+          ].join('\n')
+          document.head.append(scrollbar)
+          columnScenario(COLUMN_WIDE_PX)
+          for (const index of [1, 2, 3, 4, 5, 6]) {
+            event({
+              type: 'itemCompleted',
+              item: {
+                itemId: `col-step-${String(index)}`,
+                kind: 'agentMessage',
+                status: 'completed',
+                text: 'Another step of the refactor, so that the transcript scrolls.',
+              },
+            })
+          }
         },
         'add-context': () => {
           click('Attach')
@@ -1727,7 +2205,7 @@
             sessionId: 's1',
           })
           transcriptFixture({ isDone: true })
-          later(300, () => document.querySelector('.rewind-button').click())
+          later(300, () => document.querySelector('[data-role="user"] .row-actions-button').click())
         },
         // --- M72: a turn with a checkpoint: Restore files, Both, and a
         // restore's notice with its Redo ---
@@ -1757,7 +2235,7 @@
             level: 'warning',
             text: 'Not restorable, changed by a command with no earlier copy: server.log',
           })
-          later(300, () => document.querySelector('.rewind-button').click())
+          later(300, () => document.querySelector('[data-role="user"] .row-actions-button').click())
         },
         // --- M72: Restricted Mode, and Muse Code on Windows: the menu says
         // why rows are missing ---
@@ -1777,7 +2255,7 @@
             sessionId: 's1',
             turnIds: [],
           })
-          later(300, () => document.querySelector('.rewind-button').click())
+          later(300, () => document.querySelector('[data-role="user"] .row-actions-button').click())
         },
         'checkpoint-read-only': () => {
           send({
@@ -1802,7 +2280,7 @@
             text: 'Saved restore remains readable.',
             redoRestoreId: 'old-redo',
           })
-          later(300, () => document.querySelector('.rewind-button').click())
+          later(300, () => document.querySelector('[data-role="user"] .row-actions-button').click())
         },
         'checkpoint-read-only-narrow': () => {
           document.documentElement.style.width = '100%'
@@ -1861,13 +2339,15 @@
         },
         'agents-details': () => {
           steps.agents()
-          later(600, () => document.querySelector('.agent-node-clickable').click())
+          whenFound('.agent-node-clickable', (node) => node.click())
         },
         'agents-result': () => {
           window.harnessBackend = 'modelApi'
           send({ type: 'authState', status: 'signedIn', backend: 'modelApi' })
           steps.agents()
-          later(600, () => document.querySelectorAll('.agent-node-clickable')[1].click())
+          whenFound('.agent-node-clickable', () =>
+            document.querySelectorAll('.agent-node-clickable')[1].click(),
+          )
         },
         'agents-closed': () => {
           window.harnessBackend = 'modelApi'
@@ -1886,7 +2366,9 @@
               },
             }),
           )
-          later(600, () => document.querySelectorAll('.agent-node-clickable')[1].click())
+          whenFound('.agent-node-clickable', () =>
+            document.querySelectorAll('.agent-node-clickable')[1].click(),
+          )
         },
         'agents-off': () => {
           send({
@@ -2458,6 +2940,61 @@
             delta: 'Comparing the two folders and deciding which file to edit first.',
           })
         },
+        // --- M87: a shell row's IN and OUT joined, five lines each with Show more,
+        // the user's own `!` row the same, and the working trace below them.
+        'tool-io': () => {
+          window.harnessSilent = true
+          setDraft('List the project files')
+          key({ key: 'Enter' })
+          event({
+            type: 'itemCompleted',
+            item: {
+              itemId: 'm87-shell',
+              kind: 'toolCall',
+              status: 'completed',
+              tool: 'powershell',
+              args: JSON.stringify({
+                command:
+                  "Write-Output 'src'\nWrite-Output 'test'\nWrite-Output 'docs'\nWrite-Output 'media'\nWrite-Output 'scripts'\nWrite-Output 'resources'",
+              }),
+              visibleOutput: 'src\ntest\ndocs\nmedia\nscripts\nresources',
+            },
+          })
+          event({
+            type: 'itemCompleted',
+            item: {
+              itemId: 'm87-user-shell',
+              kind: 'userShell',
+              status: 'completed',
+              commandText: 'git status --short',
+              visibleOutput:
+                ' M src/parser.ts\n M test/parser.test.ts\n M docs/guide.md\n M README.md\n M CHANGELOG.md\n?? media/icon.png',
+              exitCode: 0,
+              durationMs: 563,
+            },
+          })
+        },
+        'tool-io-expanded': () => {
+          steps['tool-io']()
+          whenFound('.shell .tool-more', () => {
+            for (const toggle of document.querySelectorAll('.shell .tool-more')) {
+              toggle.click()
+            }
+            document.querySelector('.shell .tool-more')?.focus()
+          })
+        },
+        // The working indicator alone: the pulsing bullet, the verb and the
+        // heartbeat trace centred in the chat; narrow, it never covers the verb.
+        'status-heartbeat': () => {
+          window.harnessSilent = true
+          setDraft('Run the parser tests')
+          key({ key: 'Enter' })
+          whenFound('.status-line', () => {})
+        },
+        'status-heartbeat-narrow': () => {
+          document.body.style.maxWidth = '320px'
+          steps['status-heartbeat']()
+        },
         // --- M16: the question card filled in, on its second tab ---
         'question-filled': () => {
           steps.question()
@@ -2474,14 +3011,18 @@
         // --- M17: a reply's actions menu, and the reference chip it sets ---
         'reply-menu': () => {
           transcriptFixture({ isDone: true })
-          later(300, () => document.querySelector('.response-menu-button').click())
+          later(300, () =>
+            document.querySelector('[data-role="assistant"] .row-actions-button').click(),
+          )
         },
         'reply-chip': () => {
           transcriptFixture({ isDone: true })
           later(300, () => {
-            document.querySelector('.response-menu-button').click()
+            document.querySelector('[data-role="assistant"] .row-actions-button').click()
             later(100, () => {
-              document.querySelector('.response-actions .rewind-menu-item').click()
+              document
+                .querySelector('[data-role="assistant"] .gooey-menu-pill:nth-child(2)')
+                .click()
               setDraft('Why two files and not three?')
             })
           })
@@ -2511,15 +3052,23 @@
             const selection = window.getSelection()
             selection.removeAllRanges()
             selection.addRange(range)
+            // Right-clicked inside the passage, as a pointer would: the
+            // pills fan out from there, not from the page's corner.
+            const box = passage.getBoundingClientRect()
             passage.dispatchEvent(
-              new MouseEvent('contextmenu', { bubbles: true, cancelable: true }),
+              new MouseEvent('contextmenu', {
+                bubbles: true,
+                cancelable: true,
+                clientX: box.left + box.width / 2,
+                clientY: box.top + box.height / 2,
+              }),
             )
           })
         },
         'quote-chip': () => {
           steps['quote-menu']()
           later(600, () => {
-            document.querySelector('.quote-menu .rewind-menu-item').click()
+            document.querySelector('.quote-menu .gooey-menu-pill').click()
             setDraft('Are you sure about the count?')
           })
         },
@@ -2605,8 +3154,7 @@
         // --- M25: the keyboard stays in the search box through Show archived ---
         'history-archived': () => {
           click('Session history')
-          later(300, () => {
-            const toggle = document.querySelector('.history-toggle input')
+          whenFound('.history-toggle input', (toggle) => {
             toggle.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, cancelable: true }))
             toggle.click()
             later(100, () => {
@@ -3098,6 +3646,23 @@
               ],
             })
           })
+        },
+        // --- M87: the conversation's edits added up above the goal strip: one
+        // patch naming eight files (8 files, +313 −96). Review waits for M70.
+        'diff-tally': () => {
+          steps.goal()
+          event({
+            type: 'itemCompleted',
+            item: {
+              itemId: 'tally-edit',
+              kind: 'toolCall',
+              status: 'completed',
+              tool: 'apply_patch',
+              args: '{}',
+              patchSummary: { files: 8, added: 313, removed: 96 },
+            },
+          })
+          whenFound('.diff-tally', () => {})
         },
         // --- M45: a paused goal with its objective open for a change ---
         'goal-edit': () => {
@@ -3718,7 +4283,9 @@
       // 400 ms it always waited. A fixed delay alone raced the first render
       // on a loaded machine (M40: `agents` and `dictation` found no composer).
       if (scenario !== null && scenario in steps) {
-        later(100, () => whenFound('textarea, .gate, [role="alert"]', () => steps[scenario]()))
+        later(100, () =>
+          whenFound('textarea, .gate, .todo-surface, [role="alert"]', () => steps[scenario]()),
+        )
       }
 
       // `?theme=<kind>` applies the colours VS Code gives a webview in one of
@@ -3895,6 +4462,104 @@
       const collectWebviewErrors = () => {
         harnessErrors.push(...webviewErrors)
       }
+      // A page is scanned only once its scenario is ready, as a test waits on
+      // the event it tests (docs/certification/a11y-focus.md): every page
+      // waits for its fonts, for no finite animation or transition still
+      // running and for two frames; a scenario that declares its own
+      // condition waits for that too. One that is not ready in time fails the
+      // page with its name; it is never skipped, and never scanned
+      // half-played. The page's focus is scripts/a11y.mjs's (emulated), so
+      // nothing here asks for the window's.
+      const READY_TIMEOUT_MS = 10_000
+      const READY_POLL_MS = 50
+      // A window in the background paints no frames: a frame is also over
+      // when this much time has passed.
+      const FRAME_FALLBACK_MS = 50
+      const SCENARIO_READY = {
+        // The "/" list for "/co", rendered with its options (M87's tips too).
+        'slash-commands': () => document.querySelector('.slash-menu [role="option"]') !== null,
+        'slash-tips': () => document.querySelector('.slash-menu [role="option"]') !== null,
+        'agents-details': () => document.querySelector('.agent-details') !== null,
+        'agents-result': () => document.querySelector('.agent-details') !== null,
+        'agents-closed': () => document.querySelector('.agent-details') !== null,
+        'history-archived': () => document.querySelector('.history-toggle input:checked') !== null,
+      }
+      const nextFrame = () =>
+        new Promise((resolve) => {
+          requestAnimationFrame(() => resolve())
+          later(FRAME_FALLBACK_MS, resolve)
+        })
+      // An infinite animation (the caret's blink, a spinner) is a steady
+      // state: it never finishes, so it is not waited for.
+      const finiteAnimations = () =>
+        document
+          .getAnimations()
+          .filter(
+            (animation) =>
+              animation.playState === 'running' &&
+              animation.effect?.getComputedTiming().endTime !== Infinity,
+          )
+      const whenReady = async (name) => {
+        const deadline = performance.now() + READY_TIMEOUT_MS
+        const byDeadline = (promise) =>
+          Promise.race([
+            promise,
+            new Promise((resolve) => {
+              later(Math.max(0, deadline - performance.now()), resolve)
+            }),
+          ])
+        const scenarioReady = SCENARIO_READY[name] ?? (() => true)
+        const isReady = () =>
+          document.querySelector('[data-deferred-loading]') === null && scenarioReady()
+        for (;;) {
+          if (isReady()) {
+            await byDeadline(document.fonts.ready)
+            await byDeadline(
+              Promise.all(
+                finiteAnimations().map((animation) => animation.finished.catch(() => {})),
+              ),
+            )
+            await byDeadline(nextFrame())
+            await byDeadline(nextFrame())
+            if (isReady() && finiteAnimations().length === 0) {
+              return
+            }
+          }
+          if (performance.now() >= deadline) {
+            throw new Error(
+              `scenario ${name} never became ready within ${String(READY_TIMEOUT_MS / 1000)} s`,
+            )
+          }
+          await new Promise((resolve) => {
+            later(READY_POLL_MS, resolve)
+          })
+        }
+      }
+      // A scan holds only for the state it began in: a window that loses its
+      // focus or is hidden while axe runs closes the composer's menus under
+      // it (a menu axe already matched then reads as a bare :root), so that
+      // scan is void and fails the page with the reason, never a finding.
+      const scanWhileFocused = async () => {
+        let lost = ''
+        const onBlur = () => {
+          lost ||= 'lost its focus'
+        }
+        const onVisibility = () => {
+          lost ||= document.visibilityState === 'visible' ? '' : 'was hidden'
+        }
+        window.addEventListener('blur', onBlur)
+        document.addEventListener('visibilitychange', onVisibility)
+        try {
+          const result = await runAxe()
+          if (lost !== '') {
+            throw new Error(`the window ${lost} while axe ran, so the scan is void`)
+          }
+          return result
+        } finally {
+          window.removeEventListener('blur', onBlur)
+          document.removeEventListener('visibilitychange', onVisibility)
+        }
+      }
       const themed = params.has('theme') ? applyTheme(params.get('theme')) : Promise.resolve()
       if (params.get('axe') === '1') {
         themed
@@ -3904,8 +4569,9 @@
                 later(AXE_AFTER_MS, resolve)
               }),
           )
+          .then(() => whenReady(params.get('scenario') ?? 'none'))
           .then(collectWebviewErrors)
-          .then(runAxe)
+          .then(scanWhileFocused)
           .then(
             (result) => {
               writeAxeResult({ ...result, harnessErrors })

@@ -4,10 +4,15 @@
 // documented default so one bad key cannot take the whole panel down.
 
 import * as z from 'zod/mini'
+import { widenedHost } from '../core/browser/browserPolicy'
 import { checkCommandsSchema } from '../core/verify/checkCommands'
 import {
   BACKEND_MODES,
+  PAID_DAILY_BUDGET,
   type BackendMode,
+  BROWSER_CHECK_EXTRA_HOSTS_MAX,
+  BROWSER_RUNTIME_MODES,
+  type BrowserRuntimeMode,
   type CheckCommandSetting,
   type EnvironmentVariable,
   PROMPT_CACHE_RETENTIONS,
@@ -24,6 +29,8 @@ import { type SettingsSnapshot, settingsSnapshotShape } from '../shared/protocol
 import type { Logger } from './logger'
 
 export interface ExtensionSettings extends SettingsSnapshot {
+  readonly paidDailyBudgetUsd: number
+  readonly dictationEngine: 'system' | 'museVoice'
   /** Absolute path to the `muse` executable; empty means "discover". */
   readonly museBinaryPath: string
   readonly environmentVariables: readonly EnvironmentVariable[]
@@ -35,7 +42,7 @@ export interface ExtensionSettings extends SettingsSnapshot {
   readonly enableNewConversationShortcut: boolean
   /** Days an idle Model API conversation is kept; 0 keeps it (PLAN.md D26). */
   readonly cleanupPeriodDays: number
-  /** The paid Model API features (M33–M35, PLAN.md D30): on only with the price accepted too. */
+  /** D78 availability flags; paid consent and daily admission authorize spending. */
   readonly modelApiWebSearch: boolean
   readonly modelApiImageGeneration: boolean
   readonly modelApiVoice: boolean
@@ -45,11 +52,11 @@ export interface ExtensionSettings extends SettingsSnapshot {
   readonly modelApiPromptCacheRetention: PromptCacheRetention
   readonly modelApiScheduledPrompts: boolean
   readonly modelApiSubagents: boolean
-  /** Best-of-N parallel attempts (M77, PLAN.md D49): on only with the price accepted too. */
+  /** Best-of-N availability; an explicit run and consent choose its extra attempts. */
   readonly modelApiBestOfN: boolean
   /** Team tasks billed to a key (M96 lane A, PLAN.md D75): on only with the price accepted too. */
   readonly modelApiTeamWorkers: boolean
-  /** Explicit machine opt-in for external hook commands (M51). */
+  /** Configured hooks are enabled by default (D78), in trusted workspaces only. */
   readonly modelApiHooks: boolean
   /**
    * M78 (PLAN.md D49): each kept whole here; the Model API bundle parses
@@ -59,7 +66,7 @@ export interface ExtensionSettings extends SettingsSnapshot {
   readonly modelApiPermissionProfiles: Readonly<Record<string, unknown>>
   readonly modelApiPermissionProfile: unknown
   readonly modelApiRepositoryRules: unknown
-  /** The paid Auto reviewer (M78): on only with its price accepted too. */
+  /** Paid Auto reviewer availability (M78, D78); each use needs consent. */
   readonly modelApiAutoReviewer: boolean
   /** The verify loop (M68, PLAN.md D49): diagnostics after edits, check commands, format on edit. */
   readonly diagnosticsAfterEdits: boolean
@@ -72,8 +79,14 @@ export interface ExtensionSettings extends SettingsSnapshot {
   readonly modelApiObservationPacking: boolean
   /** A checkpoint of the workspace's files at each turn boundary (M72). */
   readonly turnCheckpoints: boolean
+  /** The hosts beyond loopback the browser check may open and reach (M81, PLAN.md D49). */
+  readonly browserCheckExtraHosts: readonly string[]
+  /** Whether the browser check's runtime is asked for, downloaded or off (M81 A1). */
+  readonly browserCheckRuntime: BrowserRuntimeMode
   /** The skills that ship with the extension (M89, PLAN.md D68). */
   readonly bundledSkills: boolean
+  /** What's New after an update (M99, PLAN.md D79). */
+  readonly showWhatsNewOnUpdate: boolean
   /** Notify when a turn needs attention while the window is unfocused (M82). */
   readonly notifyOnBackgroundTurn: boolean
   /** Tokens and the dollar estimate under each Model API reply (M82). */
@@ -125,9 +138,21 @@ const settingSchemas = {
   modelApiRepoMap: z.boolean(),
   modelApiObservationPacking: z.boolean(),
   turnCheckpoints: z.boolean(),
+  // Each entry a plain host name or IP address (no port, path or wildcard):
+  // one that is not refuses the whole list, so a typo warns rather than
+  // widening something else.
+  browserCheckExtraHosts: z
+    .array(z.string().check(z.refine((entry) => widenedHost(entry) !== undefined)))
+    .check(z.maxLength(BROWSER_CHECK_EXTRA_HOSTS_MAX)),
+  browserCheckRuntime: z.enum(BROWSER_RUNTIME_MODES),
   bundledSkills: z.boolean(),
+  showWhatsNewOnUpdate: z.boolean(),
   notifyOnBackgroundTurn: z.boolean(),
   modelApiReplyUsage: z.boolean(),
+  paidDailyBudgetUsd: z
+    .number()
+    .check(z.minimum(PAID_DAILY_BUDGET.minimumUsd), z.maximum(PAID_DAILY_BUDGET.maximumUsd)),
+  dictationEngine: z.enum(['system', 'museVoice']),
   modelApiSessionBudgetUsd: z.number().check(z.nonnegative()),
 } as const
 
@@ -204,9 +229,14 @@ export function readSettings(config: SettingsSource, log: Logger): ExtensionSett
     modelApiRepoMap: readSetting(config, 'modelApiRepoMap', log),
     modelApiObservationPacking: readSetting(config, 'modelApiObservationPacking', log),
     turnCheckpoints: readSetting(config, 'turnCheckpoints', log),
+    browserCheckExtraHosts: readSetting(config, 'browserCheckExtraHosts', log),
+    browserCheckRuntime: readSetting(config, 'browserCheckRuntime', log),
     bundledSkills: readSetting(config, 'bundledSkills', log),
+    showWhatsNewOnUpdate: readSetting(config, 'showWhatsNewOnUpdate', log),
     notifyOnBackgroundTurn: readSetting(config, 'notifyOnBackgroundTurn', log),
     modelApiReplyUsage: readSetting(config, 'modelApiReplyUsage', log),
+    paidDailyBudgetUsd: readSetting(config, 'paidDailyBudgetUsd', log),
+    dictationEngine: readSetting(config, 'dictationEngine', log),
     modelApiSessionBudgetUsd: readSetting(config, 'modelApiSessionBudgetUsd', log),
     modelApiCommandRules: readSetting(config, 'modelApiCommandRules', log),
     modelApiPermissionProfiles: readSetting(config, 'modelApiPermissionProfiles', log),

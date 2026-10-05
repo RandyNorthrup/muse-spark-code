@@ -15,6 +15,7 @@
 
   "entry": [
     "src/extension.ts",
+    "src/shared/validationEntry.ts",
     // The Model API backend's own bundle (M57), required by path at runtime.
     "src/host/backend/modelApiEntry.ts",
     // The Node-only team schema proxy selected by the production resolver (M96, D6).
@@ -25,6 +26,10 @@
     "src/host/planMarkdownEntry.ts",
     // The checkpoint store's own bundle (M72), required by path at construction.
     "src/host/checkpoints/checkpointStoreEntry.ts",
+    // The browser check's own bundle (M81), required by path on the first check.
+    "src/host/browser/browserCheckEntry.ts",
+    // Its runtime acquisition (M81 A1), required by path when a runtime is prepared.
+    "src/host/browser/browserRuntimeEntry.ts",
     // The review's own bundle (M70), required by path on the first review.
     "src/host/review/reviewEntry.ts",
     // The import from other agents' own bundle (M83), required by path on the first import.
@@ -35,8 +40,13 @@
     // path on its first use (D6, 2026-10-03).
     "src/host/ide/codeIntelEntry.ts",
     "src/host/voice/voiceEntry.ts",
+    // The window's web fetch (M69), required by path on the first fetch (D6, 2026-10-04).
+    "src/host/web/webFetchEntry.ts",
     // The Auto reviewer on Muse Code (M90), required on the first review.
     "src/host/review/museCodeReviewerEntry.ts",
+    // What's New (M99), required on the first page or notice, and its page script.
+    "src/host/whatsNew/whatsNewEntry.ts",
+    "src/webview/whatsNew/main.ts",
     "src/host/backend/searchWorker.ts",
     // Web fetch's page converter (M69), a worker bundle started by path.
     "src/host/web/pageWorker.ts",
@@ -57,6 +67,8 @@
     "test/unit/helpers/fakeMcpLauncherParent.mjs",
     "test/unit/helpers/fakeMcpPrebindParent.mjs",
     "test/unit/helpers/fakeMcpStartMarker.mjs",
+    // The never-ending monitor the M92b bounded-run proof starts by path.
+    "test/fixtures/never-ending-monitor.mjs",
     "test/integration/**/*.test.ts",
     // The TypeScript fixture VS Code's language service reads in the code
     // intelligence integration test (M67); main.ts imports the rest.

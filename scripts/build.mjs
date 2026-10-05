@@ -2,13 +2,20 @@
 // Bundles the extension host entry, the Model API backend, the review, the search worker,
 // web fetch's page converter worker (M69: parse5 and the HTML converter,
 // loaded on a worker thread started for each page, never at activation), the
+// browser check (M81, loaded on the first check), its runtime acquisition
+// (M81 A1, loaded when a runtime is prepared or verified),
 // import from other agents (M83: the scan, the converters, the file access and
 // smol-toml, loaded on the first import), the bundled skills installer (M89:
 // the copy and links for Muse Code, loaded on the first install, removal or
 // offer), code intelligence's `ide` answers (M67, loaded on the first call),
-// voice's drivers (M9/M35, loaded on the first recording) and the Auto
-// reviewer on Muse Code (M90, loaded on the first review), the webview, and
-// (in dev mode) the integration tests with esbuild.
+// voice's drivers (M9/M35, loaded on the first recording), the window's web
+// fetch (M69, loaded on the first fetch) and the Auto reviewer on Muse Code
+// (M90, loaded on the first review), What's New (M99: the page's renderer,
+// content schema and tab, loaded on the first page or notice), the webview,
+// What's New's page script, and (in dev mode) the integration tests with
+// esbuild. It first writes What's New's content, dist/whatsNew.json, from
+// CHANGELOG.md (scripts/lib/whatsNewContent.mjs); a Try it naming a command
+// or setting the manifest does not contribute fails the build.
 //
 //   node scripts/build.mjs               dev build + integration test bundles
 //   node scripts/build.mjs --watch       rebuild on change (extension + webview)
@@ -45,6 +52,10 @@ import path from 'node:path'
 import * as esbuild from 'esbuild'
 import { sharedHighlightGrammar } from './lib/highlightGrammar.mjs'
 import { deferredTeamView, deferredCohort } from './lib/deferredTeamView.mjs'
+import {
+  CONTENT_FILE as WHATS_NEW_CONTENT_OUTFILE,
+  writeWhatsNewContent,
+} from './lib/whatsNewContent.mjs'
 
 const args = new Set(process.argv.slice(2))
 const isProduction = args.has('--production')
@@ -56,6 +67,8 @@ const HOST_OUTFILE = 'dist/extension.js'
 // mutable installed-language state. The browser keeps its fallback bundled.
 const UI_TEXT_ENTRY = 'src/shared/l10n/en.ts'
 const UI_TEXT_OUTFILE = 'dist/uiText.js'
+const VALIDATION_ENTRY = 'src/shared/validationEntry.ts'
+const VALIDATION_OUTFILE = 'dist/validation.js'
 const MODEL_API_ENTRY = 'src/host/backend/modelApiEntry.ts'
 const MODEL_API_OUTFILE = 'dist/modelApi.js'
 const SESSION_BOARD_ENTRY = 'src/host/sessionBoardEntry.ts'
@@ -74,18 +87,30 @@ const BUNDLED_SKILLS_ENTRY = 'src/host/skills/bundledSkillsEntry.ts'
 const BUNDLED_SKILLS_OUTFILE = 'dist/bundledSkills.js'
 const CHECKPOINT_STORE_ENTRY = 'src/host/checkpoints/checkpointStoreEntry.ts'
 const CHECKPOINT_STORE_OUTFILE = 'dist/checkpointStore.js'
+// The browser check's own bundle (M81): the pipe, the run, the browser's processes.
+const BROWSER_CHECK_ENTRY = 'src/host/browser/browserCheckEntry.ts'
+const BROWSER_CHECK_OUTFILE = 'dist/browserCheck.js'
+// The runtime's acquisition (M81 A1): the pin, the download, the ZIP reader, the store.
+const BROWSER_RUNTIME_ENTRY = 'src/host/browser/browserRuntimeEntry.ts'
+const BROWSER_RUNTIME_OUTFILE = 'dist/browserRuntime.js'
 const CODE_INTEL_ENTRY = 'src/host/ide/codeIntelEntry.ts'
 const CODE_INTEL_OUTFILE = 'dist/codeIntel.js'
 const VOICE_ENTRY = 'src/host/voice/voiceEntry.ts'
 const VOICE_OUTFILE = 'dist/voice.js'
+const WEB_FETCH_ENTRY = 'src/host/web/webFetchEntry.ts'
+const WEB_FETCH_OUTFILE = 'dist/webFetch.js'
 const MUSE_CODE_REVIEWER_ENTRY = 'src/host/review/museCodeReviewerEntry.ts'
 const MUSE_CODE_REVIEWER_OUTFILE = 'dist/museCodeReviewer.js'
+const WHATS_NEW_ENTRY = 'src/host/whatsNew/whatsNewEntry.ts'
+const WHATS_NEW_OUTFILE = 'dist/whatsNew.js'
 const SEARCH_WORKER_ENTRY = 'src/host/backend/searchWorker.ts'
 const SEARCH_WORKER_OUTFILE = 'dist/searchWorker.js'
 const PAGE_WORKER_ENTRY = 'src/host/web/pageWorker.ts'
 const PAGE_WORKER_OUTFILE = 'dist/pageWorker.js'
 const WEBVIEW_ENTRY = 'src/webview/main.tsx'
 const WEBVIEW_OUTDIR = 'dist/webview'
+const WHATS_NEW_PAGE_ENTRY = 'src/webview/whatsNew/main.ts'
+const WHATS_NEW_PAGE_NAME = 'whatsNew'
 const ACP_ENTRY = 'src/runtime/main.ts'
 const ACP_OUTFILE = 'dist/acp.js'
 const ACP_METAFILE_DIR = 'dist/meta-acp'
@@ -114,6 +139,19 @@ const sharedUiText = {
   },
 }
 
+// Share the used mini-parser API across Node bundles; browsers and integration
+// test bundles still inline it. The split gate checks every runtime member.
+/** @type {import('esbuild').Plugin} */
+const sharedValidation = {
+  name: 'shared-validation',
+  setup(build) {
+    build.onResolve({ filter: /^zod\/mini$/ }, () => ({
+      path: './validation.js',
+      external: true,
+    }))
+  },
+}
+
 /** @type {import('esbuild').BuildOptions} */
 const common = {
   bundle: true,
@@ -127,7 +165,7 @@ const common = {
 /** @type {import('esbuild').BuildOptions} */
 const hostOptions = {
   ...common,
-  plugins: [sharedUiText, deferredCohort, deferredTeamView],
+  plugins: [sharedUiText, sharedValidation, deferredCohort, deferredTeamView],
   entryPoints: [HOST_ENTRY],
   outfile: HOST_OUTFILE,
   platform: 'node',
@@ -139,7 +177,7 @@ const hostOptions = {
 /** @type {import('esbuild').BuildOptions} */
 const modelApiOptions = {
   ...common,
-  plugins: [sharedUiText, deferredCohort, deferredTeamView],
+  plugins: [sharedUiText, sharedValidation, deferredCohort, deferredTeamView],
   entryPoints: [MODEL_API_ENTRY],
   outfile: MODEL_API_OUTFILE,
   platform: 'node',
@@ -157,7 +195,7 @@ const sessionBoardOptions = {
 /** @type {import('esbuild').BuildOptions} */
 const teamOptions = {
   ...modelApiOptions,
-  plugins: [sharedUiText, deferredCohort],
+  plugins: [sharedUiText, sharedValidation, deferredCohort],
   entryPoints: [TEAM_ENTRY],
   outfile: TEAM_OUTFILE,
 }
@@ -172,7 +210,7 @@ const reviewerOptions = {
 /** @type {import('esbuild').BuildOptions} */
 const reviewOptions = {
   ...common,
-  plugins: [sharedUiText],
+  plugins: [sharedUiText, sharedValidation],
   entryPoints: [REVIEW_ENTRY],
   outfile: REVIEW_OUTFILE,
   platform: 'node',
@@ -183,7 +221,7 @@ const reviewOptions = {
 /** @type {import('esbuild').BuildOptions} */
 const planMarkdownOptions = {
   ...common,
-  plugins: [sharedUiText],
+  plugins: [sharedUiText, sharedValidation],
   entryPoints: [PLAN_MARKDOWN_ENTRY],
   outfile: PLAN_MARKDOWN_OUTFILE,
   platform: 'node',
@@ -208,16 +246,37 @@ const voiceOptions = {
 }
 
 /** @type {import('esbuild').BuildOptions} */
+const webFetchOptions = {
+  ...planMarkdownOptions,
+  entryPoints: [WEB_FETCH_ENTRY],
+  outfile: WEB_FETCH_OUTFILE,
+}
+
+/** @type {import('esbuild').BuildOptions} */
 const museCodeReviewerOptions = {
   ...planMarkdownOptions,
   entryPoints: [MUSE_CODE_REVIEWER_ENTRY],
   outfile: MUSE_CODE_REVIEWER_OUTFILE,
 }
 
+// What's New's tab uses `vscode` (the webview panel, openExternal, the
+// commands), which the host provides, as for the import.
+/** @type {import('esbuild').BuildOptions} */
+const whatsNewOptions = {
+  ...common,
+  plugins: [sharedUiText, sharedValidation],
+  entryPoints: [WHATS_NEW_ENTRY],
+  outfile: WHATS_NEW_OUTFILE,
+  platform: 'node',
+  external: ['vscode'],
+  format: 'cjs',
+  target: HOST_NODE_TARGET,
+}
+
 /** @type {import('esbuild').BuildOptions} */
 const agentImportOptions = {
   ...common,
-  plugins: [sharedUiText],
+  plugins: [sharedUiText, sharedValidation],
   entryPoints: [AGENT_IMPORT_ENTRY],
   outfile: AGENT_IMPORT_OUTFILE,
   platform: 'node',
@@ -229,7 +288,7 @@ const agentImportOptions = {
 /** @type {import('esbuild').BuildOptions} */
 const bundledSkillsOptions = {
   ...common,
-  plugins: [sharedUiText],
+  plugins: [sharedUiText, sharedValidation],
   entryPoints: [BUNDLED_SKILLS_ENTRY],
   outfile: BUNDLED_SKILLS_OUTFILE,
   platform: 'node',
@@ -240,6 +299,7 @@ const bundledSkillsOptions = {
 /** @type {import('esbuild').BuildOptions} */
 const searchWorkerOptions = {
   ...common,
+  plugins: [sharedValidation],
   entryPoints: [SEARCH_WORKER_ENTRY],
   outfile: SEARCH_WORKER_OUTFILE,
   platform: 'node',
@@ -250,7 +310,7 @@ const searchWorkerOptions = {
 /** @type {import('esbuild').BuildOptions} */
 const checkpointStoreOptions = {
   ...common,
-  plugins: [sharedUiText],
+  plugins: [sharedUiText, sharedValidation],
   entryPoints: [CHECKPOINT_STORE_ENTRY],
   outfile: CHECKPOINT_STORE_OUTFILE,
   platform: 'node',
@@ -259,9 +319,31 @@ const checkpointStoreOptions = {
 }
 
 /** @type {import('esbuild').BuildOptions} */
+const browserCheckOptions = {
+  ...common,
+  plugins: [sharedUiText, sharedValidation],
+  entryPoints: [BROWSER_CHECK_ENTRY],
+  outfile: BROWSER_CHECK_OUTFILE,
+  platform: 'node',
+  format: 'cjs',
+  target: HOST_NODE_TARGET,
+}
+
+/** @type {import('esbuild').BuildOptions} */
+const browserRuntimeOptions = {
+  ...common,
+  plugins: [sharedUiText, sharedValidation],
+  entryPoints: [BROWSER_RUNTIME_ENTRY],
+  outfile: BROWSER_RUNTIME_OUTFILE,
+  platform: 'node',
+  format: 'cjs',
+  target: HOST_NODE_TARGET,
+}
+
+/** @type {import('esbuild').BuildOptions} */
 const acpOptions = {
   ...common,
-  plugins: [sharedUiText, deferredCohort, deferredTeamView],
+  plugins: [sharedUiText, sharedValidation, deferredCohort, deferredTeamView],
   entryPoints: [ACP_ENTRY],
   outfile: ACP_OUTFILE,
   platform: 'node',
@@ -281,9 +363,16 @@ const uiTextOptions = {
   target: HOST_NODE_TARGET,
 }
 
+const validationOptions = {
+  ...uiTextOptions,
+  entryPoints: [VALIDATION_ENTRY],
+  outfile: VALIDATION_OUTFILE,
+}
+
 /** @type {import('esbuild').BuildOptions} */
 const pageWorkerOptions = {
   ...common,
+  plugins: [sharedValidation],
   entryPoints: [PAGE_WORKER_ENTRY],
   outfile: PAGE_WORKER_OUTFILE,
   platform: 'node',
@@ -304,6 +393,16 @@ const webviewOptions = {
   chunkNames: 'chunks/[name]-[hash]',
   target: BROWSER_TARGET,
   jsx: 'automatic',
+}
+
+// What's New's page script and stylesheet (M99): dist/webview/whatsNew.js
+// and whatsNew.css, beside the panel's, loaded by that page alone.
+/** @type {import('esbuild').BuildOptions} */
+const whatsNewPageOptions = {
+  ...webviewOptions,
+  format: 'iife',
+  splitting: false,
+  entryPoints: { [WHATS_NEW_PAGE_NAME]: WHATS_NEW_PAGE_ENTRY },
 }
 
 function listIntegrationTests() {
@@ -329,8 +428,12 @@ function reportSize(path) {
   console.log(`  ${path}  ${kib} KiB`)
 }
 
-// Hashed chunks from an earlier build must never ship as unused code.
+// Content-hashed chunks from an earlier build must never enter a package.
 rmSync(path.join(WEBVIEW_OUTDIR, 'chunks'), { recursive: true, force: true })
+const whatsNewContent = writeWhatsNewContent()
+console.log(
+  `What's New: ${String(whatsNewContent.releases)} releases from CHANGELOG.md into ${WHATS_NEW_CONTENT_OUTFILE}`,
+)
 
 if (isWatch) {
   const contexts = await Promise.all([
@@ -346,11 +449,17 @@ if (isWatch) {
     esbuild.context(bundledSkillsOptions),
     esbuild.context(codeIntelOptions),
     esbuild.context(voiceOptions),
+    esbuild.context(webFetchOptions),
     esbuild.context(museCodeReviewerOptions),
+    esbuild.context(whatsNewOptions),
     esbuild.context(uiTextOptions),
+    esbuild.context(validationOptions),
+    esbuild.context(browserCheckOptions),
+    esbuild.context(browserRuntimeOptions),
     esbuild.context(searchWorkerOptions),
     esbuild.context(pageWorkerOptions),
     esbuild.context(webviewOptions),
+    esbuild.context(whatsNewPageOptions),
   ])
   await Promise.all(contexts.map((ctx) => ctx.watch()))
   console.log('watching for changes…')
@@ -368,11 +477,17 @@ if (isWatch) {
     bundledSkills: esbuild.build(bundledSkillsOptions),
     codeIntel: esbuild.build(codeIntelOptions),
     voice: esbuild.build(voiceOptions),
+    webFetch: esbuild.build(webFetchOptions),
     museCodeReviewer: esbuild.build(museCodeReviewerOptions),
+    whatsNew: esbuild.build(whatsNewOptions),
     uiText: esbuild.build(uiTextOptions),
+    validation: esbuild.build(validationOptions),
+    browserCheck: esbuild.build(browserCheckOptions),
+    browserRuntime: esbuild.build(browserRuntimeOptions),
     searchWorker: esbuild.build(searchWorkerOptions),
     pageWorker: esbuild.build(pageWorkerOptions),
     webview: esbuild.build(webviewOptions),
+    whatsNewPage: esbuild.build(whatsNewPageOptions),
   }
   const acp = esbuild.build(acpOptions)
   const builds = [...Object.values(shipped), acp]
@@ -403,11 +518,19 @@ if (isWatch) {
   reportSize(BUNDLED_SKILLS_OUTFILE)
   reportSize(CODE_INTEL_OUTFILE)
   reportSize(VOICE_OUTFILE)
+  reportSize(WEB_FETCH_OUTFILE)
   reportSize(MUSE_CODE_REVIEWER_OUTFILE)
+  reportSize(WHATS_NEW_OUTFILE)
+  reportSize(WHATS_NEW_CONTENT_OUTFILE)
   reportSize(UI_TEXT_OUTFILE)
+  reportSize(VALIDATION_OUTFILE)
+  reportSize(BROWSER_CHECK_OUTFILE)
+  reportSize(BROWSER_RUNTIME_OUTFILE)
   reportSize(SEARCH_WORKER_OUTFILE)
   reportSize(PAGE_WORKER_OUTFILE)
   reportSize(path.join(WEBVIEW_OUTDIR, 'main.js'))
   reportSize(path.join(WEBVIEW_OUTDIR, 'main.css'))
+  reportSize(path.join(WEBVIEW_OUTDIR, `${WHATS_NEW_PAGE_NAME}.js`))
+  reportSize(path.join(WEBVIEW_OUTDIR, `${WHATS_NEW_PAGE_NAME}.css`))
   reportSize(ACP_OUTFILE)
 }

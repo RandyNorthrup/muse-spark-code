@@ -188,10 +188,18 @@ export const HOST_ACTIONS = [
   'removeWorktree',
   /** A Muse Code fault's notice: stop `muse serve`, the next message starts it (D26). */
   'restartMuseCode',
+  /**
+   * The task list's "Open in a tab" (M87, PLAN.md D66): an editor tab that
+   * mirrors this conversation's list, which the user can move into a window
+   * of its own. The conversation controller answers it itself.
+   */
+  'openTasksTab',
   /** The bundled skills' offer for Muse Code (M89, PLAN.md D68): Install, Update, Not now. */
   'installBundledSkills',
   'updateBundledSkills',
   'declineBundledSkills',
+  /** The palette's "What's New" (M99, PLAN.md D79): this version's release notes in an editor tab. */
+  'showWhatsNew',
 ] as const
 export type HostAction = (typeof HOST_ACTIONS)[number]
 
@@ -297,6 +305,22 @@ const webviewToHostMessageSchema = z.discriminatedUnion('type', [
     includeEditorContext: z.optional(booleanSchema),
     /** The message replies to an output or quotes a passage (M17). */
     reference: z.optional(chatReferenceSchema),
+    /**
+     * M92e (PLAN.md D71): the user saw the secret prompt for this text and
+     * chose Send anyway. The host skips the secret hold for this send only.
+     */
+    secretAccepted: z.optional(z.boolean()),
+  }),
+  // Edit on a queued message (M87, PLAN.md D66): take it back before the
+  // model has it. The ids are those `turnAccepted` gave its card; the host
+  // acts only on a message it accepted as queued or steered in this
+  // conversation under the same ids, and answers `queuedWithdrawn` or
+  // `withdrawRefused`.
+  z.object({
+    type: z.literal('withdrawQueued'),
+    localId: z.string().check(z.minLength(1)),
+    turnId: z.string().check(z.minLength(1)),
+    userMessageId: z.optional(z.string().check(z.minLength(1))),
   }),
   // The user pressed Stop.
   z.object({ type: z.literal('cancelTurn') }),
@@ -461,6 +485,10 @@ const webviewToHostMessageSchema = z.discriminatedUnion('type', [
   // Edit review (M5): the stored patch of a completed edit-family item in the
   // diff editor (the inline diff's "Click to expand" since M15).
   z.object({ type: z.literal('openEditDiff'), itemId: stringSchema, outputRef: stringSchema }),
+  // An edit row's Revert (M87, PLAN.md D66 item 17): that edit's stored patch
+  // reverse-applied after the file-action confirmation, as one step of
+  // "Rewind code to here" is (M13, M72).
+  z.object({ type: z.literal('revertEdit'), itemId: z.string(), outputRef: z.string() }),
   // A tool row's path: open the file, selecting the changed lines when known (M16, `LineRange`).
   z.object({
     type: z.literal('openFile'),
@@ -773,11 +801,14 @@ const hostToWebviewMessageSchema = z.discriminatedUnion('type', [
     attachments: z.array(attachmentSchema),
   }),
   // The host accepted a sendMessage. Model API also returns its durable user-item ID.
+  // `disposition` (M87, PLAN.md D66) is the backend's word for what became
+  // of it: `started`, `queued` or `steered`, kept open (D36).
   z.object({
     type: z.literal('turnAccepted'),
     localId: stringSchema,
     turnId: stringSchema,
     userMessageId: z.optional(stringSchema.check(z.minLength(1))),
+    disposition: z.optional(stringSchema),
   }),
   // The host could not submit a sendMessage. `attachmentsKept` (M25): the
   // host still holds the message's images, so the composer shows them again;
@@ -787,6 +818,29 @@ const hostToWebviewMessageSchema = z.discriminatedUnion('type', [
     localId: stringSchema,
     reason: stringSchema,
     attachmentsKept: z.optional(booleanSchema),
+  }),
+  // A queued message was taken back (M87, PLAN.md D66): its card goes and
+  // its text returns to the composer. `attachmentsKept`, as on `sendFailed`
+  // (M25): its images are back in the composer, each sent before this as
+  // `attachmentAdded`; absent, the backend could not give them back.
+  z.object({
+    type: z.literal('queuedWithdrawn'),
+    localId: z.string().check(z.minLength(1)),
+    attachmentsKept: z.optional(z.boolean()),
+  }),
+  // The host did not take it back (M87): the card stays, `reason` says why.
+  z.object({
+    type: z.literal('withdrawRefused'),
+    localId: z.string().check(z.minLength(1)),
+    reason: z.string(),
+  }),
+  // M92e (PLAN.md D71): the prompt holds a detected secret, so nothing was
+  // sent. The panel shows its dialog (Send anyway / Edit); the transcript
+  // card already rendered is replaced by this redacted text.
+  z.object({
+    type: z.literal('secretPromptDetected'),
+    localId: z.string(),
+    redactedText: z.string(),
   }),
   // The command's admission result. Correlation protects a newer composer draft.
   z.object({

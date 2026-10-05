@@ -13,10 +13,10 @@ import {
   type CheckCommandSetting,
   MEMORY_DIR,
   MEMORY_INDEX_FILE,
+  type MemoryScope,
+  MODEL_API_MODEL_TEXT,
   MODEL_API_SUBAGENT_TOOLS,
   MODEL_API_TOOLS,
-  MODEL_TEXT,
-  type MemoryScope,
   THEN_RUN_ARGUMENT,
   VERIFY_TOOLS,
 } from '../../../shared/constants'
@@ -94,7 +94,7 @@ function baseText(facts: InstructionFacts): string[] {
   if (hasShellTool) {
     shell = `The shell tool (${facts.shellToolName}) runs one ${facts.shellName} command line in the workspace root. Give a one-line description with every command. Some actions need the user's approval; a refused action comes back as a tool error, so move on instead of retrying it.`
   } else if (facts.hasShell) {
-    shell = MODEL_TEXT.agentNoShell
+    shell = MODEL_API_MODEL_TEXT.agentNoShell
   } else {
     shell =
       "There is no shell tool: the workspace is in VS Code's Restricted Mode, so commands cannot run until the user trusts it. Some actions need the user's approval; a refused action comes back as a tool error, so move on instead of retrying it."
@@ -103,7 +103,7 @@ function baseText(facts: InstructionFacts): string[] {
     'You are Muse Spark, a coding agent working inside Visual Studio Code through the Muse Spark Code extension.',
     `The workspace root is ${facts.workspaceRoot} on ${facts.platform}. Every path you give a tool is relative to it (or absolute inside it); paths outside the workspace are refused.`,
     `Use the tools for everything that touches the workspace: read_file before editing a file, edit_file for changes inside a file (find must match exactly once), write_file to create or replace a file, search and list_files to look around${hasShellTool ? ', and the shell tool to run commands' : ''}.`,
-    ...(facts.hasCodeIntel ? [MODEL_TEXT.codeIntelInstructions] : []),
+    ...(facts.hasCodeIntel ? [MODEL_API_MODEL_TEXT.codeIntelInstructions] : []),
     shell,
     ...(facts.hasWebFetch === true
       ? [
@@ -256,9 +256,11 @@ function agentRoleText(agent: InstructionFacts['agent']): string | undefined {
     return undefined
   }
   const source = AGENT_SOURCE_LABELS[agent.source]
-  return ['# Agent role', fill(MODEL_TEXT.agentRole, { source, id: agent.id }), agent.prompt].join(
-    PARAGRAPH,
-  )
+  return [
+    '# Agent role',
+    fill(MODEL_API_MODEL_TEXT.agentRole, { source, id: agent.id }),
+    agent.prompt,
+  ].join(PARAGRAPH)
 }
 
 export function instructionsFor(facts: InstructionFacts): string {

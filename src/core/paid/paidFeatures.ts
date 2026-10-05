@@ -1,8 +1,9 @@
 // The paid Model API features (M33–M35, PLAN.md D30), "opt in and loud":
 // which are on, and what this window has used of them.
 //
-// A feature is on only when its setting is on AND the user accepted its
-// price in the confirmation; each use then asks again (paidConsent.ts, M58). Turning the setting on anywhere (the palette,
+// D78: a default-on setting offers an interactive Model API feature; every
+// paid use still needs paidConsent.ts and final budget admission. Explicit
+// opt-ins require the accepted price. Turning the setting on in the palette,
 // the Settings editor, settings.json) asks once, naming the price; a
 // declined confirmation turns the setting back off, and turning the setting
 // off forgets the acceptance, so the next time asks again. The confirmation
@@ -30,6 +31,10 @@ export interface PaidFeatureGateDeps {
    * Absence keeps workers unavailable and loads no team code at activation.
    */
   readonly isTeamAvailable?: () => boolean
+  /** Backend availability never changes the user's setting or accepted price. */
+  readonly isAvailable?: (feature: PaidFeature) => boolean
+  /** D78: an unconfigured default offers the feature; use still requires consent. */
+  readonly isDefaultOn?: (feature: PaidFeature) => boolean
   /** Writes the feature's setting in the user's settings. */
   readonly setSetting: (feature: PaidFeature, isOn: boolean) => Promise<void>
   /** The features whose price the user accepted (the extension's own global state). */
@@ -93,7 +98,9 @@ export class PaidFeatureGate {
     // delegate asks through PaidUseConsent, never the activation review.
     return feature === 'teamWorkers'
       ? this.deps.isSettingOn(feature) && this.deps.isTeamAvailable?.() === true
-      : this.deps.isSettingOn(feature) && this.deps.readAccepted().has(feature)
+      : this.deps.isSettingOn(feature) &&
+          this.deps.isAvailable?.(feature) !== false &&
+          (this.deps.isDefaultOn?.(feature) === true || this.deps.readAccepted().has(feature))
   }
 
   /** The features that are on, in their fixed order. */
@@ -126,7 +133,8 @@ export class PaidFeatureGate {
         feature !== 'teamWorkers' &&
         isSettingOn &&
         !isAccepted &&
-        !this.asking.has(feature)
+        !this.asking.has(feature) &&
+        this.deps.isDefaultOn?.(feature) !== true
       ) {
         pending.push(feature)
       }

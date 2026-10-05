@@ -1,6 +1,6 @@
 // A tool row entry and the transcript's props, for the tests that render the
 // conversation (Transcript, the tool rows of M43).
-import { render } from '@testing-library/react'
+import { fireEvent, render } from '@testing-library/react'
 import { vi } from 'vitest'
 import { AgentMap, type AgentMapProps } from '../../../src/webview/components/AgentMap'
 import { Transcript, type TranscriptProps } from '../../../src/webview/components/Transcript'
@@ -121,6 +121,29 @@ export function renderAgentMap(overrides: Partial<AgentMapProps> = {}) {
   return props
 }
 
+/**
+ * Opens every run of steps folded under its summary (M87, PLAN.md D66): two
+ * or more finished steps fold by default, so a test about the rows
+ * themselves opens them first, as the user would.
+ */
+export function openStepGroups(): void {
+  for (const summary of document.querySelectorAll<HTMLButtonElement>(
+    '.steps-toggle[aria-expanded="false"]',
+  )) {
+    fireEvent.click(summary)
+  }
+}
+
+/** The transcript with every folded run of steps opened (M87). */
+export function renderSteps(
+  entries: readonly TranscriptEntry[],
+  overrides: Partial<TranscriptProps> = {},
+) {
+  const props = renderTranscript(entries, overrides)
+  openStepGroups()
+  return props
+}
+
 /** A transcript that can be rendered again with changed props, as the app does. */
 export function mountTranscript(
   entries: readonly TranscriptEntry[],
@@ -133,5 +156,18 @@ export function mountTranscript(
     rerender: (changes: Partial<TranscriptProps>) => {
       view.rerender(<Transcript {...props} {...changes} />)
     },
+  }
+}
+
+/** Select a real DOM passage; return cleanup so tests cannot leak a selection. */
+export function selectPassage(element: HTMLElement): () => void {
+  const selection = globalThis.getSelection()
+  if (selection === null) throw new Error('DOM selection unavailable')
+  const range = document.createRange()
+  range.selectNodeContents(element)
+  selection.removeAllRanges()
+  selection.addRange(range)
+  return () => {
+    selection.removeAllRanges()
   }
 }

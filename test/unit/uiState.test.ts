@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest'
+import { scrubSecretApproval } from '../../src/core/agent/approvalSecrets'
 import type { AgentEvent, ItemSnapshot } from '../../src/shared/agentEvents'
 import { UI_TEXT } from '../../src/shared/constants'
-import type { HostToWebviewMessage } from '../../src/shared/protocol'
+import type { AttachmentSummary, HostToWebviewMessage } from '../../src/shared/protocol'
 import type { TeamTreeData } from '../../src/shared/teamView'
 import { restoredUiState, webviewStateOf } from '../../src/webview/state/snapshot'
 import type { ScheduleView } from '../../src/shared/schedule'
@@ -26,6 +27,12 @@ import {
 } from '../../src/webview/state/uiState'
 import { toSnapshot, wireItemSchema } from '../../src/core/backends/musecode/sessionRecords'
 import { testSettings } from './helpers/fakes'
+import {
+  CAPTURED_UNQUEUE_SESSION,
+  LAUNCHED_REPLY_ITEM,
+  LAUNCHED_USER_ITEM,
+  UNQUEUE_HISTORY_ITEMS,
+} from './helpers/m87Capture'
 import {
   QUESTION_CLARIFIED,
   SHELL_CALL_BACKGROUNDED,
@@ -215,6 +222,27 @@ describe('uiReducer: sending', () => {
     expect(state.transcript).toEqual([
       { kind: 'user', seq: 1, id: 'l1', text: 'hello', status: 'pending', attachments: [] },
     ])
+  })
+
+  it('times the echo from its send, and keeps that time through the acceptance (M87)', () => {
+    const sentAt = Date.UTC(2026, 9, 4, 14, 5)
+    const pending = reduceAll([
+      {
+        type: 'submitted',
+        localId: 'l1',
+        text: 'hello',
+        attachments: [],
+        contextLabel: undefined,
+        at: sentAt,
+      },
+    ])
+    expect(pending.transcript[0]).toMatchObject({ status: 'pending', atMs: sentAt })
+    const accepted = uiReducer(pending, {
+      type: 'hostMessage',
+      message: { type: 'turnAccepted', localId: 'l1', turnId: 't1' },
+      at: sentAt + 900,
+    })
+    expect(accepted.transcript[0]).toMatchObject({ status: 'sent', atMs: sentAt })
   })
 
   it('marks the echo sent and the turn active on turnAccepted', () => {
@@ -537,8 +565,9 @@ describe('uiReducer: agent events', () => {
       agent({ type: 'textDelta', itemId: 'm1', field: 'text', delta: 'lo' }),
     ])
     expect(state.activeTurnId).toBe('t1')
+    // A live reply shows when it began arriving (M87) until its recorded time comes.
     expect(state.transcript).toEqual([
-      { kind: 'assistant', id: 'm1', text: 'hello', isStreaming: true },
+      { kind: 'assistant', id: 'm1', text: 'hello', isStreaming: true, atMs: NOW },
     ])
     const done = reduceAll(
       [
@@ -551,7 +580,7 @@ describe('uiReducer: agent events', () => {
       state,
     )
     expect(done.transcript).toEqual([
-      { kind: 'assistant', id: 'm1', text: 'hello!', isStreaming: false },
+      { kind: 'assistant', id: 'm1', text: 'hello!', isStreaming: false, atMs: NOW },
     ])
     expect(done.activeTurnId).toBeUndefined()
   })
@@ -2074,7 +2103,7 @@ describe('subagent child output routing (M18)', () => {
     expect(state.transcript.map((entry) => entry.kind)).toEqual(['subagent', 'assistant'])
     expect(state.childTranscripts['child-1']).toEqual({
       name: 'say ALPHA',
-      entries: [{ kind: 'assistant', id: 'cm1', text: 'ALPHA', isStreaming: false }],
+      entries: [{ kind: 'assistant', id: 'cm1', text: 'ALPHA', isStreaming: false, atMs: 1000 }],
     })
     state = run(state, {
       type: 'itemCompleted',
@@ -2400,7 +2429,7 @@ describe("a subagent's items before the row that names its session (M25)", () =>
     expect(state.transcript.map((entry) => entry.id)).toEqual(['l1', 'sa1'])
     expect(state.childTranscripts['child-1']).toEqual({
       name: 'edit notes',
-      entries: [{ kind: 'assistant', id: 'cm1', text: 'ALPHA!', isStreaming: true }],
+      entries: [{ kind: 'assistant', id: 'cm1', text: 'ALPHA!', isStreaming: true, atMs: NOW }],
     })
   })
 
@@ -2637,6 +2666,416 @@ describe('clears, restores and refusals (M25)', () => {
       outputChunk(9, 'zz'),
     ])
     expect(state.outputPages['i:o']).toEqual({ content: 'abcde', isEof: false, nextOffset: 5 })
+  })
+})
+
+/** A running turn t1, then a second message `l2` accepted as `accepted` says (M87). */
+function secondMessage(
+  text: string,
+  accepted: {
+    readonly turnId: string
+    readonly disposition: string
+    readonly userMessageId?: string
+  },
+  attachments: readonly AttachmentSummary[] = [],
+): UiState {
+  return reduceAll([
+    { type: 'submitted', localId: 'l1', text: 'first', attachments: [], contextLabel: undefined },
+    host({ type: 'turnAccepted', localId: 'l1', turnId: 't1', disposition: 'started' }),
+    agent({ type: 'turnStarted', turnId: 't1' }),
+    { type: 'submitted', localId: 'l2', text, attachments, contextLabel: undefined },
+    host({ type: 'turnAccepted', localId: 'l2', ...accepted }),
+  ])
+}
+
+/** A running turn t1, then `queued` accepted as its own queued turn t2 (M87), and `draft`. */
+function queuedBehindRunning(draft: string): UiState {
+  return uiReducer(secondMessage('queued', { turnId: 't2', disposition: 'queued' }), {
+    type: 'draftChanged',
+    draft,
+  })
+}
+
+/** A running turn t1 with `l2` steered into it as user item `u2` (the Model API's). */
+function steeredIntoRunning(): UiState {
+  return secondMessage('steer', { turnId: 't1', userMessageId: 'u2', disposition: 'steered' })
+}
+
+describe('uiReducer: a queued message taken back (M87, PLAN.md D66)', () => {
+  it('marks a queued message queued on its acceptance, with its disposition and time', () => {
+    const state = queuedBehindRunning('')
+    expect(entryOf(state, 'l2')).toMatchObject({
+      status: 'queued',
+      disposition: 'queued',
+      turnId: 't2',
+      atMs: NOW,
+    })
+    // A started one is sent at once.
+    expect(entryOf(state, 'l1')).toMatchObject({ status: 'sent', disposition: 'started' })
+  })
+
+  it('keeps a queued card queued until its turn starts', () => {
+    const before = queuedBehindRunning('')
+    const ended = uiReducer(
+      before,
+      agent({ type: 'turnCompleted', turnId: 't1', terminal: 'completed' }),
+    )
+    expect(entryOf(ended, 'l2')).toMatchObject({ status: 'queued' })
+    const started = uiReducer(ended, agent({ type: 'turnStarted', turnId: 't2' }))
+    expect(entryOf(started, 'l2')).toMatchObject({ status: 'sent', turnId: 't2' })
+  })
+
+  it('keeps a steered card queued until a request reads it, under its user item id', () => {
+    const before = steeredIntoRunning()
+    expect(entryOf(before, 'l2')).toMatchObject({
+      status: 'queued',
+      disposition: 'steered',
+      replayItemId: 'u2',
+    })
+    expect(uiReducer(before, agent({ type: 'messageAdmitted', userMessageId: 'u9' }))).toBe(before)
+    const admitted = uiReducer(before, agent({ type: 'messageAdmitted', userMessageId: 'u2' }))
+    expect(entryOf(admitted, 'l2')).toMatchObject({ status: 'sent' })
+    expect(entryOf(admitted, 'l1')).toBe(entryOf(before, 'l1'))
+  })
+
+  it('follows a steer the turn left unread to its own turn, queued, until that one starts', () => {
+    const moved = reduceAll(
+      [agent({ type: 'userMessageTurnChanged', userMessageId: 'u2', turnId: 't5' })],
+      steeredIntoRunning(),
+    )
+    expect(entryOf(moved, 'l2')).toMatchObject({
+      status: 'queued',
+      disposition: 'queued',
+      turnId: 't5',
+    })
+    const ended = uiReducer(
+      moved,
+      agent({ type: 'turnCompleted', turnId: 't1', terminal: 'completed' }),
+    )
+    expect(entryOf(ended, 'l2')).toMatchObject({ status: 'queued' })
+    expect(
+      entryOf(uiReducer(ended, agent({ type: 'turnStarted', turnId: 't5' })), 'l2'),
+    ).toMatchObject({ status: 'sent' })
+  })
+
+  it('marks a steer sent when the turn it joined ends (Muse Code names no user item)', () => {
+    const state = secondMessage('steer', { turnId: 't1', disposition: 'steered' })
+    expect(entryOf(state, 'l2')).toMatchObject({ status: 'queued', disposition: 'steered' })
+    const ended = uiReducer(
+      state,
+      agent({ type: 'turnCompleted', turnId: 't1', terminal: 'completed' }),
+    )
+    expect(entryOf(ended, 'l2')).toMatchObject({ status: 'sent' })
+  })
+
+  it('marks a message sent when its turn started or finished before the acceptance came', () => {
+    const early = reduceAll([
+      { type: 'submitted', localId: 'l1', text: 'q', attachments: [], contextLabel: undefined },
+      agent({ type: 'turnStarted', turnId: 't2' }),
+      host({ type: 'turnAccepted', localId: 'l1', turnId: 't2', disposition: 'queued' }),
+    ])
+    expect(entryOf(early, 'l1')).toMatchObject({ status: 'sent' })
+    const finished = reduceAll([
+      { type: 'submitted', localId: 'l1', text: 'q', attachments: [], contextLabel: undefined },
+      agent({ type: 'turnStarted', turnId: 't2' }),
+      agent({ type: 'turnCompleted', turnId: 't2', terminal: 'completed' }),
+      host({ type: 'turnAccepted', localId: 'l1', turnId: 't2', disposition: 'steered' }),
+    ])
+    expect(entryOf(finished, 'l1')).toMatchObject({ status: 'sent' })
+  })
+
+  it('says when a withdrawn message’s images could not come back, and only then', () => {
+    const withImage = secondMessage('see', { turnId: 't2', disposition: 'queued' }, [attachment])
+    const lost = uiReducer(
+      withImage,
+      host({ type: 'queuedWithdrawn', localId: 'l2', attachmentsKept: false }),
+    )
+    expect(entryOf(lost, 'l2')).toBeUndefined()
+    expect(lost.draft).toBe('see')
+    expect(lost.transcript.at(-1)).toMatchObject({
+      kind: 'notice',
+      level: 'warning',
+      text: UI_TEXT.queuedImagesNotReturned,
+    })
+    expect(lost.announcement).toMatchObject({ text: UI_TEXT.queuedImagesNotReturned })
+    const kept = uiReducer(
+      withImage,
+      host({ type: 'queuedWithdrawn', localId: 'l2', attachmentsKept: true }),
+    )
+    expect(kept.transcript.some((entry) => entry.kind === 'notice')).toBe(false)
+    // A card with no picture loses nothing.
+    const plain = uiReducer(
+      queuedBehindRunning(''),
+      host({ type: 'queuedWithdrawn', localId: 'l2' }),
+    )
+    expect(plain.transcript.some((entry) => entry.kind === 'notice')).toBe(false)
+  })
+
+  it('takes the card out and puts its text alone into an empty prompt box', () => {
+    const before = queuedBehindRunning('')
+    const state = uiReducer(before, host({ type: 'queuedWithdrawn', localId: 'l2' }))
+    expect(entryOf(state, 'l2')).toBeUndefined()
+    expect(entryOf(state, 'l1')).toEqual(entryOf(before, 'l1'))
+    expect(state.activeTurnId).toBe(before.activeTurnId)
+    expect(state.draft).toBe('queued')
+    expect(state.focusRequests).toBe(before.focusRequests + 1)
+  })
+
+  it('puts its text before the draft with a blank line, so no draft is lost', () => {
+    const state = uiReducer(
+      queuedBehindRunning('half a thought'),
+      host({ type: 'queuedWithdrawn', localId: 'l2', attachmentsKept: true }),
+    )
+    expect(state.draft).toBe('queued\n\nhalf a thought')
+  })
+
+  it('keeps the merged draft from a command that was waiting on the old one', () => {
+    const waiting = uiReducer(queuedBehindRunning('/goal ship'), {
+      type: 'goalSubmitted',
+      requestId: 'g1',
+    })
+    const state = reduceAll(
+      [
+        host({ type: 'queuedWithdrawn', localId: 'l2' }),
+        host({ type: 'goalCommandResult', requestId: 'g1', accepted: true }),
+      ],
+      waiting,
+    )
+    expect(state.draft).toBe('queued\n\n/goal ship')
+  })
+
+  it('leaves the images the host sent back in the composer beside the draft', () => {
+    const state = reduceAll(
+      [
+        host({ type: 'attachmentAdded', attachment }),
+        host({ type: 'queuedWithdrawn', localId: 'l2', attachmentsKept: true }),
+      ],
+      queuedBehindRunning(''),
+    )
+    expect(state.attachments).toEqual([attachment])
+    expect(state.attachmentsToRelease).toEqual([])
+  })
+
+  it('changes nothing for a card it does not hold, or one that is not a message', () => {
+    const before = reduceAll(
+      [
+        agent({
+          type: 'itemCompleted',
+          item: { itemId: 'r1', kind: 'agentMessage', status: 'completed', text: 'x' },
+        }),
+      ],
+      queuedBehindRunning('draft'),
+    )
+    expect(uiReducer(before, host({ type: 'queuedWithdrawn', localId: 'gone' }))).toBe(before)
+    expect(uiReducer(before, host({ type: 'queuedWithdrawn', localId: 'r1' }))).toBe(before)
+  })
+
+  it('keeps the card when the host refuses, and says why', () => {
+    const before = queuedBehindRunning('draft')
+    const state = uiReducer(
+      before,
+      host({ type: 'withdrawRefused', localId: 'l2', reason: UI_TEXT.queuedTooLate }),
+    )
+    expect(entryOf(state, 'l2')).toEqual(entryOf(before, 'l2'))
+    expect(state.draft).toBe('draft')
+    expect(state.transcript.at(-1)).toMatchObject({
+      kind: 'notice',
+      level: 'warning',
+      text: UI_TEXT.queuedTooLate,
+    })
+    expect(state.announcement).toMatchObject({ text: UI_TEXT.queuedTooLate })
+  })
+
+  it('marks a steer sent when a request read it before its acceptance came (the review of lane C)', () => {
+    const early = reduceAll([
+      { type: 'submitted', localId: 'l1', text: 'first', attachments: [], contextLabel: undefined },
+      host({ type: 'turnAccepted', localId: 'l1', turnId: 't1', disposition: 'started' }),
+      agent({ type: 'turnStarted', turnId: 't1' }),
+      { type: 'submitted', localId: 'l2', text: 'steer', attachments: [], contextLabel: undefined },
+      agent({ type: 'messageAdmitted', userMessageId: 'u2' }),
+    ])
+    expect(early.admittedMessageIds).toEqual(['u2'])
+    const accepted = uiReducer(
+      early,
+      host({
+        type: 'turnAccepted',
+        localId: 'l2',
+        turnId: 't1',
+        userMessageId: 'u2',
+        disposition: 'steered',
+      }),
+    )
+    expect(entryOf(accepted, 'l2')).toMatchObject({ status: 'sent', replayItemId: 'u2' })
+    expect(accepted.admittedMessageIds).toEqual([])
+  })
+
+  it('shows nothing new when a message no card names reaches a request', () => {
+    const before = queuedBehindRunning('')
+    expect(uiReducer(before, agent({ type: 'messageAdmitted', userMessageId: 'u2' }))).toBe(before)
+  })
+})
+
+/** A Muse Code user item of turn t1 saying "continue", recorded at `recordedAt`. */
+function userItem(itemId: string, recordedAt: string) {
+  return { ...LAUNCHED_USER_ITEM, itemId, turnId: 't1', text: 'continue', recordedAt }
+}
+
+describe('uiReducer: message times (M87, PLAN.md D66)', () => {
+  it('reads the captured recorded times from a Muse Code history, user and reply alike', () => {
+    const state = reduceAll([
+      host({
+        type: 'historyLoaded',
+        sessionId: CAPTURED_UNQUEUE_SESSION,
+        items: [...UNQUEUE_HISTORY_ITEMS],
+        todos: [],
+      }),
+    ])
+    expect(
+      state.transcript.map((entry) => [entry.kind, 'atMs' in entry ? entry.atMs : undefined]),
+    ).toEqual(
+      UNQUEUE_HISTORY_ITEMS.map((item) => [
+        item.kind === 'userMessage' ? 'user' : 'assistant',
+        Date.parse(item.recordedAt),
+      ]),
+    )
+  })
+
+  it('shows no time for an item that records none or one that does not parse', () => {
+    const state = reduceAll([
+      host({
+        type: 'historyLoaded',
+        sessionId: 's',
+        items: [
+          // A Model API session stored before M87: no stamp, and no guess.
+          { itemId: 'u1', kind: 'userMessage', status: 'completed', text: 'old' },
+          { itemId: 'a1', kind: 'agentMessage', status: 'completed', text: 'old reply' },
+          { ...LAUNCHED_USER_ITEM, itemId: 'u2', recordedAt: 'yesterday' },
+          { ...LAUNCHED_REPLY_ITEM, itemId: 'a2', recordedAt: '2026-10-04' },
+          { ...LAUNCHED_REPLY_ITEM, itemId: 'a3', recordedAt: '2026-13-40T99:00:00Z' },
+        ],
+        todos: [],
+      }),
+    ])
+    for (const entry of state.transcript) {
+      expect(entry).not.toHaveProperty('atMs', expect.anything())
+    }
+  })
+
+  it('stamps a live card when the host accepts it, then takes Muse Code’s recorded time', () => {
+    const accepted = reduceAll([
+      {
+        type: 'submitted',
+        localId: 'l1',
+        text: LAUNCHED_USER_ITEM.text,
+        attachments: [],
+        contextLabel: undefined,
+      },
+      host(
+        {
+          type: 'turnAccepted',
+          localId: 'l1',
+          turnId: LAUNCHED_USER_ITEM.turnId,
+          disposition: 'started',
+        },
+        NOW + 5,
+      ),
+    ])
+    expect(entryOf(accepted, 'l1')).toMatchObject({ atMs: NOW + 5 })
+    // Another turn's item, or another text, changes nothing.
+    for (const item of [
+      { ...LAUNCHED_USER_ITEM, turnId: 'other' },
+      { ...LAUNCHED_USER_ITEM, text: 'other text' },
+    ]) {
+      expect(uiReducer(accepted, agent({ type: 'itemCompleted', item }))).toBe(accepted)
+    }
+    const recorded = uiReducer(accepted, agent({ type: 'itemCompleted', item: LAUNCHED_USER_ITEM }))
+    expect(entryOf(recorded, 'l1')).toMatchObject({
+      atMs: Date.parse(LAUNCHED_USER_ITEM.recordedAt),
+    })
+    // The item itself is still not a row of its own.
+    expect(recorded.transcript).toHaveLength(1)
+  })
+
+  it('gives two equal messages of one turn each its own recorded time (the review of lane C)', () => {
+    // Muse Code names no user item on acceptance: the turn and the text match.
+    const muse = reduceAll([
+      {
+        type: 'submitted',
+        localId: 'l1',
+        text: 'continue',
+        attachments: [],
+        contextLabel: undefined,
+      },
+      host({ type: 'turnAccepted', localId: 'l1', turnId: 't1', disposition: 'started' }),
+      agent({ type: 'turnStarted', turnId: 't1' }),
+      {
+        type: 'submitted',
+        localId: 'l2',
+        text: 'continue',
+        attachments: [],
+        contextLabel: undefined,
+      },
+      host({ type: 'turnAccepted', localId: 'l2', turnId: 't1', disposition: 'steered' }),
+      agent({ type: 'itemCompleted', item: userItem('i1', '2026-10-04T04:00:00Z') }),
+      agent({ type: 'itemCompleted', item: userItem('i2', '2026-10-04T04:05:00Z') }),
+    ])
+    expect(entryOf(muse, 'l1')).toMatchObject({ atMs: Date.parse('2026-10-04T04:00:00Z') })
+    expect(entryOf(muse, 'l2')).toMatchObject({ atMs: Date.parse('2026-10-04T04:05:00Z') })
+    // The same item again names its own card, and changes nothing.
+    expect(
+      uiReducer(muse, agent({ type: 'itemUpdated', item: userItem('i1', '2026-10-04T04:00:00Z') })),
+    ).toBe(muse)
+    // An exact user item id wins over the turn and the text.
+    const exact = reduceAll([
+      {
+        type: 'submitted',
+        localId: 'l1',
+        text: 'continue',
+        attachments: [],
+        contextLabel: undefined,
+      },
+      host({
+        type: 'turnAccepted',
+        localId: 'l1',
+        turnId: 't1',
+        userMessageId: 'u1',
+        disposition: 'started',
+      }),
+      {
+        type: 'submitted',
+        localId: 'l2',
+        text: 'continue',
+        attachments: [],
+        contextLabel: undefined,
+      },
+      host({
+        type: 'turnAccepted',
+        localId: 'l2',
+        turnId: 't1',
+        userMessageId: 'u2',
+        disposition: 'steered',
+      }),
+      agent({ type: 'itemCompleted', item: userItem('u2', '2026-10-04T04:05:00Z') }),
+    ])
+    expect(entryOf(exact, 'l1')).toMatchObject({ atMs: NOW })
+    expect(entryOf(exact, 'l2')).toMatchObject({ atMs: Date.parse('2026-10-04T04:05:00Z') })
+    // An item no card names stamps none of them.
+    expect(
+      uiReducer(
+        exact,
+        agent({ type: 'itemCompleted', item: userItem('zz', '2026-10-04T04:09:00Z') }),
+      ),
+    ).toBe(exact)
+  })
+
+  it('shows a live reply’s arrival until its completion brings the recorded time', () => {
+    const { recordedAt: _recordedAt, ...started } = LAUNCHED_REPLY_ITEM
+    const arriving = reduceAll([
+      agent({ type: 'itemStarted', item: { ...started, status: 'inProgress', text: '' } }),
+    ])
+    expect(arriving.transcript[0]).toMatchObject({ kind: 'assistant', atMs: NOW })
+    const done = reduceAll([agent({ type: 'itemCompleted', item: LAUNCHED_REPLY_ITEM })], arriving)
+    expect(done.transcript[0]).toMatchObject({ atMs: Date.parse(LAUNCHED_REPLY_ITEM.recordedAt) })
   })
 })
 
@@ -3735,5 +4174,202 @@ describe('uiReducer: share files read-only (M84)', () => {
     const other = host({ type: 'historyLoaded', sessionId: 'old', items: [], todos: [] })
     expect(reduceAll([imported, other]).isImported).toBe(false)
     expect(uiReducer(reduceAll([imported]), { type: 'conversationCleared' }).isImported).toBe(false)
+  })
+})
+
+describe('uiReducer: the secret-prompt hold (M92e, PLAN.md D71)', () => {
+  // Built at runtime: no secret-shaped literal sits in the repository.
+  const text = `deploy with sk-${'k'.repeat(24)} now`
+  const redacted = 'deploy with [redacted] now'
+  const submit = {
+    type: 'submitted',
+    localId: 'l1',
+    text,
+    attachments: [],
+    contextLabel: undefined,
+  } as const
+  const held = host({ type: 'secretPromptDetected', localId: 'l1', redactedText: redacted })
+
+  it('redacts the first card and persisted draft recovery before the host hold (RVM92E P1)', () => {
+    const secret = `mgst_${'A'.repeat(42)}A`
+    const state = reduceAll([
+      { type: 'draftChanged', draft: `use ${secret}` },
+      { ...submit, text: `use ${secret}` },
+    ])
+    expect(state.transcript[0]).toMatchObject({ text: 'use [redacted]' })
+    expect(JSON.stringify(webviewStateOf(state, true)).includes(secret)).toBe(false)
+  })
+
+  it('redacts accepted user history on replay and persistence (RVM92E P1)', () => {
+    const secret = `mgst_${'A'.repeat(42)}A`
+    const state = reduceAll([
+      host({
+        type: 'historyLoaded',
+        sessionId: 's1',
+        todos: [],
+        items: [{ itemId: 'u1', kind: 'userMessage', status: 'completed', text: `use ${secret}` }],
+      }),
+    ])
+    expect(state.transcript[0]).toMatchObject({ text: 'use [redacted]' })
+    expect(JSON.stringify(webviewStateOf(state, true)).includes(secret)).toBe(false)
+  })
+
+  it('keeps a valid older hold after another send and preserves the newer draft (RVM92E P2)', () => {
+    const chip = { id: 'img1', name: 'first.png', mediaType: 'image/png', sizeBytes: 1 }
+    const reference = { intent: 'reply', role: 'assistant', entryId: 'e1', text: 'why?' } as const
+    const state = reduceAll([
+      { type: 'draftChanged', draft: text },
+      { ...submit, attachments: [chip], reference },
+      { type: 'draftChanged', draft: 'second send' },
+      { ...submit, localId: 'l2', text: 'second send' },
+      { type: 'draftChanged', draft: 'newer draft' },
+      held,
+    ])
+    expect(state.secretPrompt).toMatchObject({
+      draft: text,
+      redactedText: redacted,
+      attachments: [chip],
+      reference,
+    })
+    expect(state.draft).toBe('newer draft')
+    expect(state.pendingSendDraft?.localId).toBe('l2')
+    expect(state.unsentAttachments['l1']).toBeUndefined()
+    expect(state.transcript.map((entry) => entry.id)).toEqual(['l2'])
+  })
+
+  it('queues two valid secret holds instead of replacing the first warning (RVM92E P2)', () => {
+    const twice = reduceAll([
+      { type: 'draftChanged', draft: text },
+      submit,
+      { type: 'draftChanged', draft: text + ' again' },
+      { ...submit, localId: 'l2', text: text + ' again' },
+      held,
+      host({ type: 'secretPromptDetected', localId: 'l2', redactedText: redacted + ' again' }),
+    ])
+    expect(twice.secretPrompt?.draft).toBe(text)
+    const next = uiReducer(twice, { type: 'secretPromptDismissed' })
+    expect(next.secretPrompt?.draft).toBe(text + ' again')
+    expect(uiReducer(next, { type: 'secretPromptDismissed' }).secretPrompt).toBeUndefined()
+  })
+
+  it('drops holds and pending raw drafts when another session replaces the conversation', () => {
+    const armed = reduceAll([
+      { type: 'draftChanged', draft: text },
+      submit,
+      held,
+      { type: 'draftChanged', draft: 'another pending send' },
+      { ...submit, localId: 'l2', text: 'another pending send' },
+    ])
+    const replaced = reduceAll(
+      [host({ type: 'historyLoaded', sessionId: 'other', todos: [], items: [] })],
+      armed,
+    )
+    expect(replaced.secretPrompt).toBeUndefined()
+    expect(replaced.secretPromptQueue).toEqual([])
+    expect(replaced.pendingSendDrafts).toEqual({})
+    expect(replaced.pendingSendDraft).toBeUndefined()
+  })
+
+  it('returns hidden held attachments to the composer when Edit dismisses an older hold', () => {
+    const chip = { id: 'img1', name: 'first.png', mediaType: 'image/png', sizeBytes: 1 }
+    const armed = reduceAll([
+      { type: 'draftChanged', draft: text },
+      { ...submit, attachments: [chip] },
+      { type: 'draftChanged', draft: 'newer draft' },
+      held,
+    ])
+    expect(armed.attachments).toEqual([])
+    const edited = uiReducer(armed, { type: 'secretPromptDismissed' })
+    expect(edited.attachments).toEqual([chip])
+    expect(edited.draft).toBe('newer draft')
+  })
+
+  it('removes the optimistic card, restores the draft and arms Send anyway', () => {
+    const state = reduceAll([{ type: 'draftChanged', draft: text }, submit, held])
+    expect(state.transcript).toEqual([])
+    expect(state.draft).toBe(text)
+    expect(state.secretPrompt).toMatchObject({ draft: text, redactedText: redacted })
+    expect(state.announcement?.text).toBe(UI_TEXT.secretPromptTitle)
+  })
+
+  it('shows the redacted text on the accepted resend', () => {
+    const state = reduceAll([
+      { type: 'draftChanged', draft: text },
+      submit,
+      held,
+      {
+        type: 'submitted',
+        localId: 'l2',
+        isSecretResend: true,
+        text,
+        attachments: [],
+        contextLabel: undefined,
+      },
+    ])
+    expect(state.secretPrompt).toBeUndefined()
+    expect(state.transcript).toEqual([
+      { kind: 'user', seq: 2, id: 'l2', text: redacted, status: 'pending', attachments: [] },
+    ])
+  })
+
+  it('scans a changed draft again instead of reusing the arm', () => {
+    const state = reduceAll([
+      { type: 'draftChanged', draft: text },
+      submit,
+      held,
+      { type: 'draftChanged', draft: 'something else' },
+      {
+        type: 'submitted',
+        localId: 'l2',
+        text: 'something else',
+        attachments: [],
+        contextLabel: undefined,
+      },
+    ])
+    expect(state.secretPrompt?.draft).toBe(text)
+    expect(state.transcript[0]).toMatchObject({ id: 'l2', text: 'something else' })
+  })
+
+  it('ignores a hold for a send it does not know', () => {
+    const before = reduceAll([{ type: 'draftChanged', draft: text }, submit])
+    const after = reduceAll([
+      { type: 'draftChanged', draft: text },
+      submit,
+      host({ type: 'secretPromptDetected', localId: 'other', redactedText: redacted }),
+    ])
+    expect(after).toEqual(before)
+  })
+
+  it('dismissing the dialog keeps the restored draft and refocuses the composer', () => {
+    const armed = reduceAll([{ type: 'draftChanged', draft: text }, submit, held])
+    const state = uiReducer(armed, { type: 'secretPromptDismissed' })
+    expect(state.secretPrompt).toBeUndefined()
+    expect(state.draft).toBe(text)
+    expect(state.focusRequests).toBe(armed.focusRequests + 1)
+    expect(uiReducer(state, { type: 'secretPromptDismissed' })).toBe(state)
+  })
+
+  it('restores the reference chip with the draft', () => {
+    const reference = { intent: 'reply', role: 'assistant', entryId: 'e1', text: 'why?' } as const
+    const state = reduceAll([{ type: 'draftChanged', draft: text }, { ...submit, reference }, held])
+    expect(state.reference).toEqual(reference)
+  })
+})
+
+describe('uiReducer: secret approval updates (RVM92E P2)', () => {
+  it('shows the note when an update first detects a secret', () => {
+    const state = reduceAll([
+      agent(SHELL_APPROVAL),
+      agent(
+        scrubSecretApproval({
+          type: 'approvalUpdated',
+          approvalId: SHELL_APPROVAL.approvalId,
+          requirementId: SHELL_APPROVAL.requirementId,
+          subject: { kind: 'shell', command: `echo sk-${'k'.repeat(24)}` },
+          availableChoices: SHELL_APPROVAL.availableChoices,
+        }),
+      ),
+    ])
+    expect(waitingApprovals(state.transcript)[0]?.approval.note).toBe(UI_TEXT.approvalSecretNote)
   })
 })

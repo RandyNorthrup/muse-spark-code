@@ -64,6 +64,14 @@ describe('buildWebviewHtml', () => {
     expect(html).toContain('<div id="root"></div>')
   })
 
+  it('marks only the read-only tasks document and keeps its CSP', () => {
+    const tasks = buildWebviewHtml({ ...options, surface: 'tasks' })
+    expect(tasks).toContain('<body data-surface="tasks">')
+    expect(html).toContain('<body>')
+    expect(tasks).toContain("script-src 'nonce-NONCE123'")
+    expect(tasks).not.toContain('unsafe-inline')
+  })
+
   it('names the document language and embeds the table as data before the bundle (D33)', () => {
     const german = buildWebviewHtml({
       ...options,

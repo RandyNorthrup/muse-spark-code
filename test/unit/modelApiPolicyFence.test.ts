@@ -11,7 +11,7 @@
 import { Buffer } from 'node:buffer'
 import { describe, expect, it, vi } from 'vitest'
 import type { AgentEvent } from '../../src/shared/agentEvents'
-import { MODEL_TEXT, type PaidFeature } from '../../src/shared/constants'
+import { MODEL_API_MODEL_TEXT, type PaidFeature } from '../../src/shared/constants'
 import { ModelApiHost, type ModelApiSession } from '../../src/core/backends/modelapi/ModelApiHost'
 import {
   classifiedToolNames,
@@ -110,6 +110,7 @@ type HoldPoint =
   | 'mcp'
   | 'ide'
   | 'fetch'
+  | 'browser'
   | 'shell'
   | 'shellEntry'
   | 'question'
@@ -466,6 +467,12 @@ const CASES: readonly FenceCase[] = [
     leak: null,
   },
   {
+    tool: 'browser_check',
+    args: { url: 'http://localhost:3000/' },
+    hold: { at: 'browser' },
+    change: { kind: 'deny', path: 'private.txt' },
+  },
+  {
     tool: 'web_fetch',
     args: { url: 'https://docs.example.com/guide' },
     hold: { at: 'fetch' },
@@ -801,6 +808,24 @@ function fixture(c: FenceCase) {
     mcpServers: mcp,
     ideTools: [ide],
     webFetch,
+    browserCheck: {
+      check: async () => {
+        count()
+        if (point === 'browser') await held.hold()
+        return {
+          ok: true,
+          report: {
+            finalUrl: 'http://localhost:3000/',
+            consoleErrors: { shown: [MARKER], more: 0 },
+            failedRequests: { shown: [], more: 0 },
+            blockedRequests: { shown: [], more: 0 },
+            screenshot: undefined,
+          },
+        }
+      },
+      extraHosts: () => [],
+      isOffered: () => true,
+    },
     codeIntel: heldService(service, point === 'service', held, count),
     // Packing (M73) offers recall_output: only its row packs.
     observationPacking: () => c.tool === 'recall_output',
@@ -983,7 +1008,7 @@ const ELSEWHERE_ROWS = HELD.filter(
 /** Asserts the row's outcome was refused and nothing it brought back reached a request. */
 function expectRefused(c: FenceCase, f: Fixture): void {
   expect(outputOf(f, 'fenced')).toContain(
-    `Error: ${c.tool} ${MODEL_TEXT.toolRefusedByPolicyChange}`,
+    `Error: ${c.tool} ${MODEL_API_MODEL_TEXT.toolRefusedByPolicyChange}`,
   )
   const leak = c.leak === undefined ? MARKER : c.leak
   if (leak !== null) {
@@ -1000,6 +1025,7 @@ const ALL_TOOLS: ToolDefinitionOptions = {
   hasPackedRecall: true,
   checks: [CHECK],
   hasWebFetch: true,
+  hasBrowserCheck: true,
   hasCodeIntel: true,
 }
 
@@ -1046,7 +1072,7 @@ describe("the dispatcher's live policy fence over every tool (M78)", () => {
           expectRefused(c, f)
           return
         }
-        expect(outputOf(f, 'fenced')).not.toContain(MODEL_TEXT.toolRefusedByPolicyChange)
+        expect(outputOf(f, 'fenced')).not.toContain(MODEL_API_MODEL_TEXT.toolRefusedByPolicyChange)
         // What it read did reach the model: the deny elsewhere left it.
         const delivered = c.leak === undefined ? MARKER : c.leak
         if (delivered !== null) {
@@ -1067,7 +1093,7 @@ describe("the dispatcher's live policy fence over every tool (M78)", () => {
         expect(ioAround.end).toBe(ioAround.start)
         const output = outputOf(f, 'fenced')
         expect(output).toBeDefined()
-        expect(output).not.toContain(MODEL_TEXT.toolRefusedByPolicyChange)
+        expect(output).not.toContain(MODEL_API_MODEL_TEXT.toolRefusedByPolicyChange)
       } finally {
         await f.host.close()
       }
@@ -1187,7 +1213,7 @@ describe("the dispatcher's live policy fence over every tool (M78)", () => {
       await turnEnd(await session.sendTurn([{ type: 'text', text: 'and now?' }]))
       const sent = JSON.stringify(f.api.requests)
       expect(sent).not.toContain(MARKER)
-      expect(sent).toContain(`${CHILD}: ${MODEL_TEXT.subagentResultWithheld}`)
+      expect(sent).toContain(`${CHILD}: ${MODEL_API_MODEL_TEXT.subagentResultWithheld}`)
     } finally {
       childHold.resolve(undefined)
       await session.settled()
@@ -1217,13 +1243,13 @@ describe("the dispatcher's live policy fence over every tool (M78)", () => {
     )
     try {
       await turnEnd(await session.sendTurn([{ type: 'text', text: 'delegate' }]))
-      expect(outputOf(f, 'wait')).not.toContain(MODEL_TEXT.toolRefusedByPolicyChange)
+      expect(outputOf(f, 'wait')).not.toContain(MODEL_API_MODEL_TEXT.toolRefusedByPolicyChange)
       for (const [callId, tool] of [
         ['status', 'subagent_status'],
         ['read', 'subagent_read_result'],
       ] as const) {
         expect(outputOf(f, callId)).toContain(
-          `Error: ${tool} ${MODEL_TEXT.toolRefusedByPolicyChange}`,
+          `Error: ${tool} ${MODEL_API_MODEL_TEXT.toolRefusedByPolicyChange}`,
         )
       }
     } finally {

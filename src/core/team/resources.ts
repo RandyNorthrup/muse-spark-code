@@ -4,13 +4,16 @@
 //
 // A resource is an MCP server, a device, a port, or anything else two tasks
 // must not use at once. Each is one of three kinds: `exclusive` (one holder
-// at a time), `shared` (up to its limit at once) or `free` (no lease). A
+// at a time), `shared` (up to its concurrent-call limit) or `free` (no
+// capacity limit). A
 // command can be declared to need a resource too (`npm run dev` needs
 // `port:3000`); the worker's shell takes that lease before running it.
 //
 // Leases are held by the window's scheduler (M96c), which owns the single
 // `ResourceRegistry` per window, in memory. A lease records its holder (the
-// task and its attempt); a late call from an earlier attempt is refused.
+// task and its attempt), window, server and generation under a unique id.
+// Each call has its own id and state; a late completion cannot settle a
+// replacement. A late call from an earlier attempt is refused.
 // Across windows there is no lease: a window that sees an exclusive server in
 // another window's fresh hint asks the user before starting its own (lane K
 // asks; this module names the collision through `externalUserOf`).
@@ -33,10 +36,12 @@ export type ResourceKind = 'exclusive' | 'shared' | 'free'
 
 export const resourceKindSchema = z.enum(['exclusive', 'shared', 'free'])
 
+const sharedLimitSchema = z.int().check(z.gte(1))
+
 export const resourceDeclarationSchema = z.object({
   name: z.string(),
   kind: resourceKindSchema,
-  sharedLimit: z.optional(z.number()),
+  sharedLimit: z.optional(sharedLimitSchema),
   idleRelease: z.optional(z.boolean()),
   commandPatterns: z.optional(z.array(z.string())),
   assignedRoles: z.optional(z.array(z.string())),
@@ -110,7 +115,7 @@ export interface ResourceDeclarationInit {
 export const repositoryResourceSchema = z.object({
   name: z.string(),
   kind: z.optional(resourceKindSchema),
-  sharedLimit: z.optional(z.number()),
+  sharedLimit: z.optional(sharedLimitSchema),
 })
 
 export type RepositoryResource = z.infer<typeof repositoryResourceSchema>
@@ -124,7 +129,7 @@ export interface LeaseHolder {
 }
 
 export type AcquireOutcome =
-  | { readonly status: 'held' }
+  | { readonly status: 'held'; readonly lease: LeaseToken }
   | { readonly status: 'busy'; readonly holder: LeaseHolder }
   | { readonly status: 'stale' }
   | { readonly status: 'closed' }
@@ -160,29 +165,83 @@ const systemClock: RegistryClock = {
   },
 }
 
+/** Identity required for every release; holder identity alone cannot release a lease. */
+export interface LeaseToken {
+  readonly id: string
+  readonly generation: number
+  readonly windowId: string
+  readonly resourceName: string
+  readonly holder: LeaseHolder
+}
+
+export interface CallToken {
+  readonly id: string
+  readonly lease: LeaseToken
+}
+
+/** A tool's locally resolved identity, captured before it waits for admission. */
+export interface ToolCallBinding {
+  readonly server: string
+  readonly catalogueGeneration: number
+  readonly tool: string
+  readonly isReadOnly: boolean
+}
+
+/** Current catalogue and assignment readers run synchronously at dispatch. */
+export interface ToolCallAdmission {
+  readonly binding: ToolCallBinding
+  readonly resolve: () => ToolCallBinding | undefined
+  readonly allowedServers: () => readonly string[]
+}
+
+export type AcquireCallOutcome =
+  | Exclude<AcquireOutcome, { readonly status: 'held' | 'cancelled' }>
+  | { readonly status: 'held'; readonly call: CallToken; readonly signal: AbortSignal }
+  | { readonly status: 'cancelled'; readonly reason: unknown }
+  | { readonly status: 'duplicate' }
+
+type LeaseState = 'requested' | 'granted' | 'releasing' | 'released'
+type CallState = 'pending' | 'dispatched' | 'answered' | 'failed' | 'abandoned'
+
 interface HeldLease {
-  holder: LeaseHolder
-  openCalls: number
-  uncertainCalls: number
-  lastTerminalAt: number | undefined
+  readonly token: LeaseToken
+  state: LeaseState
+  readonly calls: Map<string, LiveCall>
   idleTimer: { cancel(): void } | undefined
-  /** Release is deferred until all earlier calls have terminal answers. */
-  releaseRequested: boolean
+  lastTerminalAt: number | undefined
+  /** Generic acquisition (a command) must not be undone by a cancelled call. */
+  explicitOwner: boolean
+}
+
+interface LiveCall {
+  readonly token: CallToken
+  readonly clientId: string
+  readonly requestId: string
+  readonly controller: AbortController
+  readonly detach: () => void
+  readonly tool: ToolCallAdmission | undefined
+  state: CallState
+  admitted: boolean
 }
 
 interface Waiter {
-  holder: LeaseHolder
-  deadline: number
-  resolve: (outcome: AcquireOutcome) => void
+  readonly lease: HeldLease
+  readonly call: LiveCall | undefined
+  readonly deadline: number
+  readonly finish: (outcome: AcquireOutcome) => void
 }
 
 interface LiveResource {
   declaration: ResourceDeclaration
+  transitioning: boolean
+  generation: number
   leases: HeldLease[]
   waiters: Waiter[]
   readonly takenBack: Map<string, LeaseHolder>
   takeBackTo: LeaseHolder | undefined
 }
+
+const windowSequence = { next: 0 }
 
 function holderKey(holder: LeaseHolder): string {
   return `${holder.taskId}\n${String(holder.attempt)}`
@@ -201,6 +260,7 @@ export function busyText(holder: LeaseHolder): string {
 }
 
 export interface RegistryDeps {
+  readonly windowId?: string | undefined
   readonly clock?: RegistryClock | undefined
   /** How long a waiter waits: `TEAM_LEASE_WAIT_MS` unless a test shortens it. */
   readonly waitMs?: number | undefined
@@ -227,8 +287,16 @@ export class ResourceRegistry {
   private readonly resources = new Map<string, LiveResource>()
   private readonly retired = new Map<string, number>()
   private closed = false
+  private readonly windowId: string
+  private readonly registryId: number
+  private nextId = 0
+  private readonly leases = new Map<string, HeldLease>()
+  private readonly calls = new Map<string, LiveCall>()
 
   public constructor(deps: RegistryDeps = {}) {
+    windowSequence.next += 1
+    this.registryId = windowSequence.next
+    this.windowId = deps.windowId ?? `window:${String(windowSequence.next)}`
     this.clock = deps.clock ?? systemClock
     this.waitMs = deps.waitMs ?? TEAM_LEASE_WAIT_MS
     this.idleMs = deps.idleMs ?? TEAM_LEASE_IDLE_MS
@@ -251,72 +319,231 @@ export class ResourceRegistry {
     return (this.retired.get(holder.taskId) ?? -1) >= holder.attempt
   }
 
-  private grant(live: LiveResource, holder: LeaseHolder): void {
-    live.leases.push({
-      holder,
-      openCalls: 0,
-      uncertainCalls: 0,
-      lastTerminalAt: undefined,
+  private newLease(live: LiveResource, holder: LeaseHolder): HeldLease {
+    this.nextId += 1
+    live.generation += 1
+    const lease: HeldLease = {
+      token: {
+        id: `${this.windowId}:${String(this.registryId)}:lease:${String(this.nextId)}`,
+        generation: live.generation,
+        windowId: this.windowId,
+        resourceName: live.declaration.name,
+        holder: { ...holder },
+      },
+      state: 'requested',
+      calls: new Map(),
       idleTimer: undefined,
-      releaseRequested: false,
-    })
+      lastTerminalAt: undefined,
+      explicitOwner: false,
+    }
+    live.leases.push(lease)
+    this.leases.set(lease.token.id, lease)
+    return lease
   }
 
-  /** Hands freed capacity to the queue's head, in order; expired waiters hear "busy". */
-  private pump(name: string): void {
-    const live = this.live(name)
-    if (live === undefined || this.closed) {
+  private leaseFor(token: LeaseToken): HeldLease | undefined {
+    const lease = this.leases.get(token.id)
+    return lease?.token.generation === token.generation &&
+      lease.token.windowId === token.windowId &&
+      lease.token.resourceName === token.resourceName &&
+      holderKey(lease.token.holder) === holderKey(token.holder)
+      ? lease
+      : undefined
+  }
+
+  private callFor(token: CallToken): LiveCall | undefined {
+    const call = this.calls.get(token.id)
+    return call?.token.lease.id === token.lease.id && this.leaseFor(token.lease) !== undefined
+      ? call
+      : undefined
+  }
+
+  private active(live: LiveResource): HeldLease[] {
+    return live.leases.filter((lease) => lease.state === 'granted' || lease.state === 'releasing')
+  }
+
+  private canAdmit(live: LiveResource, lease: HeldLease, call: LiveCall | undefined): boolean {
+    if (
+      lease.state === 'releasing' ||
+      lease.state === 'released' ||
+      (live.takeBackTo !== undefined &&
+        holderKey(live.takeBackTo) !== holderKey(lease.token.holder))
+    ) {
+      return false
+    }
+    if (live.declaration.kind === 'exclusive') {
+      return this.active(live).every((other) => other === lease)
+    }
+    if (call === undefined || live.declaration.kind === 'free') {
+      return true
+    }
+    let running = 0
+    for (const other of live.leases) {
+      for (const entry of other.calls.values()) {
+        if (entry.admitted) running += 1
+      }
+    }
+    return running < this.capacityOf(live.declaration)
+  }
+
+  private finishCall(call: LiveCall, state: 'answered' | 'failed' | 'abandoned'): void {
+    call.state = state
+    call.detach()
+    this.calls.delete(call.token.id)
+    const lease = this.leaseFor(call.token.lease)
+    lease?.calls.delete(call.token.id)
+    if (lease === undefined) {
       return
     }
-    const now = this.clock.now()
-    const takeBackTo = live.takeBackTo
+    if (state !== 'abandoned') {
+      lease.lastTerminalAt = this.clock.now()
+    }
+    this.idleOrRelease(lease)
+  }
+
+  private idleOrRelease(lease: HeldLease): void {
+    if (lease.calls.size > 0) {
+      return
+    }
+    const live = this.live(lease.token.resourceName)
+    if (live === undefined || live.waiters.some((waiter) => waiter.lease === lease)) {
+      return
+    }
     if (
-      takeBackTo !== undefined &&
-      live.leases.every((lease) => holderKey(lease.holder) === holderKey(takeBackTo))
+      lease.state === 'releasing' ||
+      lease.state === 'requested' ||
+      (!lease.explicitOwner && lease.lastTerminalAt === undefined)
     ) {
+      this.release(lease.token)
+      return
+    }
+    if (
+      this.closed ||
+      live.declaration.idleRelease === false ||
+      lease.lastTerminalAt === undefined
+    ) {
+      return
+    }
+    lease.idleTimer?.cancel()
+    lease.idleTimer = this.clock.schedule(
+      () => {
+        this.release(lease.token)
+      },
+      Math.max(0, this.idleMs - (this.clock.now() - lease.lastTerminalAt)),
+    )
+  }
+
+  /** FIFO admission; every granted pending call reserves capacity before its continuation runs. */
+  private pump(name: string): void {
+    const live = this.live(name)
+    if (live === undefined || this.closed || live.transitioning) {
+      return
+    }
+    const to = live.takeBackTo
+    if (to !== undefined && this.active(live).length === 0) {
       live.takeBackTo = undefined
-      if (!this.isRetired(takeBackTo) && live.leases.length === 0) {
-        this.grant(live, takeBackTo)
+      if (!this.isRetired(to)) {
+        const lease =
+          live.leases.find((entry) => holderKey(entry.token.holder) === holderKey(to)) ??
+          this.newLease(live, to)
+        lease.state = 'granted'
+        lease.explicitOwner = true
       }
     }
-    while (live.waiters.length > 0) {
-      const waiter = live.waiters[0]
-      if (waiter === undefined) {
-        return
-      }
-      if (this.isRetired(waiter.holder)) {
-        live.waiters.shift()
-        waiter.resolve({ status: 'stale' })
-        continue
-      }
-      if (now >= waiter.deadline) {
-        live.waiters.shift()
-        const holder = live.leases[0]?.holder ?? waiter.holder
-        waiter.resolve({ status: 'busy', holder })
-        continue
-      }
-      const takenBackBy = live.takenBack.get(holderKey(waiter.holder))
-      if (takenBackBy !== undefined) {
-        live.waiters.shift()
-        waiter.resolve({ status: 'busy', holder: takenBackBy })
-        continue
-      }
-      if (live.leases.every((lease) => holderKey(lease.holder) !== holderKey(waiter.holder))) {
-        if (
-          live.takeBackTo !== undefined ||
-          live.leases.length >= this.capacityOf(live.declaration)
-        ) {
-          return
+    for (const waiter of live.waiters) {
+      const holder = waiter.lease.token.holder
+      const taken = live.takenBack.get(holderKey(holder))
+      if (this.isRetired(holder)) {
+        waiter.finish({ status: 'stale' })
+      } else if (taken !== undefined || this.clock.now() >= waiter.deadline) {
+        waiter.finish({
+          status: 'busy',
+          holder: taken ?? this.active(live)[0]?.token.holder ?? holder,
+        })
+      } else if (this.canAdmit(live, waiter.lease, waiter.call)) {
+        waiter.lease.state = 'granted'
+        if (waiter.call === undefined) {
+          waiter.lease.explicitOwner = true
+        } else {
+          waiter.call.admitted = true
         }
-        this.grant(live, waiter.holder)
+        waiter.finish({ status: 'held', lease: waiter.lease.token })
       }
-      live.waiters.shift()
-      waiter.resolve({ status: 'held' })
     }
   }
 
   private wake(name: string): void {
     this.pump(name)
+  }
+
+  private refusal(
+    resourceName: string,
+    holder: LeaseHolder,
+    signal?: AbortSignal,
+  ): Exclude<AcquireOutcome, { readonly status: 'held' }> | undefined {
+    if (this.closed) return { status: 'closed' }
+    if (signal?.aborted === true) return { status: 'cancelled' }
+    if (this.isRetired(holder)) return { status: 'stale' }
+    const taken = this.live(resourceName)?.takenBack.get(holderKey(holder))
+    return taken === undefined ? undefined : { status: 'busy', holder: taken }
+  }
+
+  private requestedLease(resourceName: string, holder: LeaseHolder): HeldLease {
+    if (this.live(resourceName) === undefined) {
+      this.declare({ name: resourceName, kind: 'free' })
+    }
+    const live = this.live(resourceName)
+    if (live === undefined) throw new Error('Resource declaration failed')
+    return (
+      live.leases.find(
+        (lease) =>
+          lease.state !== 'releasing' && holderKey(lease.token.holder) === holderKey(holder),
+      ) ?? this.newLease(live, holder)
+    )
+  }
+
+  private wait(
+    lease: HeldLease,
+    call: LiveCall | undefined,
+    signal?: AbortSignal,
+  ): Promise<AcquireOutcome> {
+    const live = this.live(lease.token.resourceName)
+    if (live === undefined) return Promise.resolve({ status: 'closed' })
+    lease.idleTimer?.cancel()
+    lease.idleTimer = undefined
+    return new Promise((resolve) => {
+      let isFinished = false
+      const waiter: Waiter = {
+        lease,
+        call,
+        deadline: this.clock.now() + this.waitMs,
+        finish: (outcome) => {
+          if (isFinished) return
+          isFinished = true
+          live.waiters = live.waiters.filter((entry) => entry !== waiter)
+          timer.cancel()
+          signal?.removeEventListener('abort', onAbort)
+          if (outcome.status !== 'held') {
+            if (call === undefined) {
+              this.idleOrRelease(lease)
+            } else {
+              this.finishCall(call, 'abandoned')
+            }
+          }
+          resolve(outcome)
+        },
+      }
+      const onAbort = () => {
+        waiter.finish({ status: 'cancelled' })
+        this.wake(lease.token.resourceName)
+      }
+      const timer = this.clock.schedule(() => {
+        this.pump(lease.token.resourceName)
+      }, this.waitMs)
+      live.waiters.push(waiter)
+      signal?.addEventListener('abort', onAbort, { once: true })
+      this.pump(lease.token.resourceName)
+    })
   }
 
   /**
@@ -329,7 +556,7 @@ export class ResourceRegistry {
       throw new Error('A resource needs a name')
     }
     const sharedLimit = init.sharedLimit ?? TEAM_SHARED_RESOURCE_DEFAULT_LIMIT
-    if (!Number.isSafeInteger(sharedLimit) || sharedLimit < 1) {
+    if (!sharedLimitSchema.safeParse(sharedLimit).success) {
       throw new Error(`A shared resource's limit is at least 1: ${init.name}`)
     }
     const declaration: ResourceDeclaration = {
@@ -344,6 +571,8 @@ export class ResourceRegistry {
     if (live === undefined) {
       this.resources.set(init.name, {
         declaration,
+        transitioning: false,
+        generation: 0,
         leases: [],
         waiters: [],
         takenBack: new Map(),
@@ -420,6 +649,13 @@ export class ResourceRegistry {
     const accepted: string[] = []
     const refused: RepositoryRefusal[] = []
     for (const entry of entries) {
+      if (
+        entry.sharedLimit !== undefined &&
+        !sharedLimitSchema.safeParse(entry.sharedLimit).success
+      ) {
+        refused.push({ name: entry.name, reason: 'invalid shared limit' })
+        continue
+      }
       const live = this.resources.get(entry.name)
       if (live === undefined) {
         refused.push({ name: entry.name, reason: 'unknown resource' })
@@ -472,237 +708,230 @@ export class ResourceRegistry {
     return Array.from(this.resources.values(), (live) => ({
       name: live.declaration.name,
       kind: live.declaration.kind,
-      holders: live.leases.map((lease) => lease.holder),
-      waiters: live.waiters.map((waiter) => waiter.holder),
+      holders:
+        live.declaration.kind === 'free'
+          ? []
+          : this.active(live).map((lease) => lease.token.holder),
+      waiters: live.waiters.map((waiter) => waiter.lease.token.holder),
     }))
   }
 
   /**
-   * Takes the lease, waiting in its queue up to the wait. One holder's
-   * re-entry (its next call's admission) answers at once. Unknown resources
-   * are free: held with no lease tracked.
+   * Reserves ownership without dispatching work. A command uses acquireCall
+   * and dispatch until proved process exit; release names the returned lease.
    */
   public acquire(
     resourceName: string,
     holder: LeaseHolder,
     signal?: AbortSignal,
   ): Promise<AcquireOutcome> {
-    if (this.closed) {
-      return Promise.resolve({ status: 'closed' })
-    }
-    if (signal?.aborted === true) {
-      return Promise.resolve({ status: 'cancelled' })
-    }
-    if (this.isRetired(holder)) {
-      return Promise.resolve({ status: 'stale' })
-    }
-    const live = this.live(resourceName)
-    if (live === undefined) {
-      return Promise.resolve({ status: 'held' })
-    }
-    const takenBackBy = live.takenBack.get(holderKey(holder))
-    if (takenBackBy !== undefined) {
-      return Promise.resolve({ status: 'busy', holder: takenBackBy })
-    }
-    if (live.declaration.kind === 'free') {
-      return Promise.resolve({ status: 'held' })
-    }
-    if (live.leases.some((lease) => holderKey(lease.holder) === holderKey(holder))) {
-      return Promise.resolve({ status: 'held' })
-    }
-    if (live.takeBackTo === undefined && live.leases.length < this.capacityOf(live.declaration)) {
-      this.grant(live, holder)
-      return Promise.resolve({ status: 'held' })
-    }
-    const deadline = this.clock.now() + this.waitMs
-    return new Promise<AcquireOutcome>((resolve) => {
-      const waiter: Waiter = {
-        holder,
-        deadline,
-        resolve: (outcome) => {
-          timer.cancel()
-          signal?.removeEventListener('abort', onAbort)
-          resolve(outcome)
-        },
-      }
-      const onAbort = () => {
-        live.waiters = live.waiters.filter((candidate) => candidate !== waiter)
-        waiter.resolve({ status: 'cancelled' })
-        this.wake(resourceName)
-      }
-      const timer = this.clock.schedule(() => {
-        this.pump(resourceName)
-      }, this.waitMs)
-      live.waiters.push(waiter)
-      signal?.addEventListener('abort', onAbort, { once: true })
-    })
+    const refused = this.refusal(resourceName, holder, signal)
+    return refused === undefined
+      ? this.wait(this.requestedLease(resourceName, holder), undefined, signal)
+      : Promise.resolve(refused)
   }
 
-  /** Requests release; open or uncertain calls keep ownership until terminal (D75). */
-  public release(resourceName: string, holder: LeaseHolder): void {
-    const live = this.live(resourceName)
-    if (live === undefined) {
-      return
+  /** Called only after local validation. Each admission gets an independent call record. */
+  public async acquireCall(
+    resourceName: string,
+    holder: LeaseHolder,
+    clientId: string,
+    requestId: string,
+    signal: AbortSignal,
+    tool?: ToolCallAdmission,
+  ): Promise<AcquireCallOutcome> {
+    const refused = this.refusal(resourceName, holder, signal)
+    if (refused !== undefined) {
+      return refused.status === 'cancelled' ? { ...refused, reason: signal.reason } : refused
     }
-    const key = holderKey(holder)
-    const lease = live.leases.find((candidate) => holderKey(candidate.holder) === key)
-    if (lease === undefined) {
-      return
+    for (const call of this.calls.values()) {
+      if (call.clientId === clientId && call.requestId === requestId) {
+        return { status: 'duplicate' }
+      }
     }
-    lease.releaseRequested = true
+    const lease = this.requestedLease(resourceName, holder)
+    this.nextId += 1
+    const token: CallToken = {
+      id: `${this.windowId}:${String(this.registryId)}:call:${String(this.nextId)}`,
+      lease: lease.token,
+    }
+    const controller = new AbortController()
+    const onAbort = () => {
+      this.cancelCall(token, signal.reason)
+    }
+    const call: LiveCall = {
+      token,
+      clientId,
+      requestId,
+      controller,
+      tool: tool === undefined ? undefined : { ...tool, binding: { ...tool.binding } },
+      detach: () => {
+        signal.removeEventListener('abort', onAbort)
+      },
+      state: 'pending',
+      admitted: false,
+    }
+    lease.calls.set(token.id, call)
+    this.calls.set(token.id, call)
+    signal.addEventListener('abort', onAbort, { once: true })
+    const outcome = await this.wait(lease, call, controller.signal)
+    if (outcome.status === 'held') return { status: 'held', call: token, signal: controller.signal }
+    return outcome.status === 'cancelled'
+      ? { ...outcome, reason: controller.signal.reason }
+      : outcome
+  }
+
+  /** Atomic pending-to-dispatched transition: cancellation/revocation before this creates no liability. */
+  public dispatch(token: CallToken): AbortSignal | undefined {
+    const call = this.callFor(token)
+    const lease = this.leaseFor(token.lease)
+    if (call === undefined || lease === undefined || call.state !== 'pending') return undefined
+    if (call.tool !== undefined) {
+      const admitted = call.tool.binding
+      const current = call.tool.resolve()
+      if (
+        current?.server !== admitted.server ||
+        current.catalogueGeneration !== admitted.catalogueGeneration ||
+        current.tool !== admitted.tool ||
+        current.isReadOnly !== admitted.isReadOnly ||
+        admitted.server !== lease.token.resourceName ||
+        !call.tool.allowedServers().includes(current.server)
+      ) {
+        this.cancelCall(token, UI_TEXT.teamToolBindingChanged)
+        return undefined
+      }
+    }
+    if (
+      !call.admitted ||
+      lease.state !== 'granted' ||
+      this.refusal(token.lease.resourceName, lease.token.holder, call.controller.signal) !==
+        undefined
+    ) {
+      this.cancelCall(token, call.tool === undefined ? undefined : UI_TEXT.teamToolBindingChanged)
+      return undefined
+    }
+    call.state = 'dispatched'
+    return call.controller.signal
+  }
+
+  /** Terminal server answers alone settle dispatched liability. Duplicate/old completions do nothing. */
+  public settle(token: CallToken, state: 'answered' | 'failed'): void {
+    const call = this.callFor(token)
+    if (call?.state !== 'dispatched') return
+    this.finishCall(call, state)
+    this.wake(token.lease.resourceName)
+  }
+
+  public cancelCall(token: CallToken, reason?: unknown): void {
+    const call = this.callFor(token)
+    if (call === undefined) return
+    // Delete a pending record only after the waiter has heard its abort.
+    call.controller.abort(reason)
+    if (call.state === 'pending' && this.calls.has(token.id)) this.finishCall(call, 'abandoned')
+    this.wake(token.lease.resourceName)
+  }
+
+  public cancelClient(clientId: string, resourceName?: string, requestId?: string): void {
+    const tokens: CallToken[] = []
+    for (const call of this.calls.values()) {
+      if (
+        call.clientId === clientId &&
+        (resourceName === undefined || call.token.lease.resourceName === resourceName) &&
+        (requestId === undefined || call.requestId === requestId)
+      )
+        tokens.push(call.token)
+    }
+    // Snapshot matching identities before abort listeners can re-enter.
+    for (const token of tokens) this.cancelCall(token)
+  }
+
+  /** Release requires exact lease id/generation and waits for every pending/dispatched call. */
+  public release(token: LeaseToken): void {
+    const lease = this.leaseFor(token)
+    if (lease === undefined) return
+    lease.state = 'releasing'
     lease.idleTimer?.cancel()
     lease.idleTimer = undefined
-    if (lease.openCalls !== 0 || lease.uncertainCalls !== 0) {
-      return
+    for (const call of lease.calls.values()) {
+      if (call.state === 'pending') {
+        this.cancelCall(
+          call.token,
+          call.tool === undefined ? undefined : UI_TEXT.teamToolBindingChanged,
+        )
+      }
     }
-    // Replace the list so retirement and Take back can safely iterate the old one.
-    live.leases = live.leases.filter((candidate) => candidate !== lease)
-    this.wake(resourceName)
+    if (lease.calls.size > 0) return
+    const live = this.live(token.resourceName)
+    if (live === undefined || live.waiters.some((waiter) => waiter.lease === lease)) return
+    lease.state = 'released'
+    this.leases.delete(token.id)
+    live.leases = live.leases.filter((entry) => entry !== lease)
+    this.wake(token.resourceName)
   }
 
-  /**
-   * Retires the attempt: new calls are refused immediately; its leases
-   * remain held until every earlier call is terminal (D75).
-   */
   public retireAttempt(taskId: string, attempt: number): void {
     this.retired.set(taskId, Math.max(this.retired.get(taskId) ?? -1, attempt))
-    // Every queue is pumped, not only the changed ones: a waiter retired
-    // while waiting hears it at once instead of at its deadline.
     for (const [name, live] of this.resources) {
       for (const lease of live.leases) {
-        if (lease.holder.taskId === taskId && lease.holder.attempt <= attempt) {
-          this.release(name, lease.holder)
+        if (lease.token.holder.taskId === taskId && lease.token.holder.attempt <= attempt) {
+          this.release(lease.token)
         }
       }
       this.wake(name)
     }
   }
 
-  /** Every call carries its lease (D75): admits the holder's call, or refuses it. */
   public checkCall(resourceName: string, holder: LeaseHolder): CallAdmission {
-    if (this.isRetired(holder)) {
-      return { status: 'stale-attempt' }
-    }
+    if (this.isRetired(holder)) return { status: 'stale-attempt' }
     const live = this.live(resourceName)
-    if (live === undefined || live.declaration.kind === 'free') {
-      return { status: 'ok' }
-    }
-    const takenBackBy = live.takenBack.get(holderKey(holder))
-    if (takenBackBy !== undefined) {
-      return { status: 'taken-back', holder: takenBackBy }
-    }
-    return live.leases.some((lease) => holderKey(lease.holder) === holderKey(holder))
+    if (live === undefined || live.declaration.kind === 'free') return { status: 'ok' }
+    const taken = live.takenBack.get(holderKey(holder))
+    if (taken !== undefined) return { status: 'taken-back', holder: taken }
+    return this.active(live).some(
+      (lease) => lease.state === 'granted' && holderKey(lease.token.holder) === holderKey(holder),
+    )
       ? { status: 'ok' }
-      : { status: 'not-holder', holder: live.leases[0]?.holder }
+      : { status: 'not-holder', holder: this.active(live)[0]?.token.holder }
   }
 
-  /** A call started: idle release waits while any call is open. */
-  public callStarted(resourceName: string, holder: LeaseHolder): void {
-    const lease = this.live(resourceName)?.leases.find(
-      (candidate) => holderKey(candidate.holder) === holderKey(holder),
-    )
-    if (lease === undefined) {
-      return
-    }
-    lease.openCalls += 1
-    lease.idleTimer?.cancel()
-    lease.idleTimer = undefined
-  }
-
-  /**
-   * A call ended. `isTerminal` is false for a cancelled call the server
-   * never answered: it stays uncertain and keeps the lease (D75). Idle time
-   * is counted from the last terminal answer, never from the call's start.
-   */
-  public callEnded(resourceName: string, holder: LeaseHolder, isTerminal: boolean): void {
-    const live = this.live(resourceName)
-    const lease = live?.leases.find(
-      (candidate) => holderKey(candidate.holder) === holderKey(holder),
-    )
-    if (live === undefined || lease === undefined) {
-      return
-    }
-    if (isTerminal) {
-      if (lease.openCalls > 0) {
-        lease.openCalls -= 1
-      } else if (lease.uncertainCalls > 0) {
-        lease.uncertainCalls -= 1
-      }
-      lease.lastTerminalAt = this.clock.now()
-    } else if (lease.openCalls > 0) {
-      lease.openCalls -= 1
-      lease.uncertainCalls += 1
-    }
-    if (lease.openCalls !== 0 || lease.uncertainCalls !== 0) {
-      return
-    }
-    if (lease.releaseRequested) {
-      this.release(resourceName, holder)
-      return
-    }
-    if (live.declaration.idleRelease === false) {
-      return
-    }
-    lease.idleTimer?.cancel()
-    lease.idleTimer = this.clock.schedule(() => {
-      const current = this.live(resourceName)?.leases.find(
-        (candidate) => holderKey(candidate.holder) === holderKey(holder),
-      )
-      if (current === undefined) {
-        return
-      }
-      if (current.openCalls === 0 && current.uncertainCalls === 0) {
-        this.release(resourceName, holder)
-      }
-    }, this.idleMs)
-  }
-
-  /**
-   * Take it back (D75): revoke old callers now, then move the lease only
-   * once every earlier call is terminal (or the user explicitly releases).
-   */
   public takeBack(resourceName: string, to: LeaseHolder): void {
     const live = this.live(resourceName)
-    if (live === undefined) {
-      return
-    }
+    if (live === undefined) return
     live.takeBackTo = to
     live.takenBack.delete(holderKey(to))
     for (const lease of live.leases) {
-      if (holderKey(lease.holder) !== holderKey(to)) {
-        live.takenBack.set(holderKey(lease.holder), to)
+      if (holderKey(lease.token.holder) === holderKey(to)) {
+        continue
       }
-    }
-    for (const lease of live.leases) {
-      if (holderKey(lease.holder) !== holderKey(to)) {
-        this.release(resourceName, lease.holder)
-      }
+
+      live.takenBack.set(holderKey(lease.token.holder), to)
+      this.release(lease.token)
     }
     this.wake(resourceName)
   }
 
-  /**
-   * **Restart server** (D75): a server the window started (stdio) whose
-   * process has exited. Every lease on it is released, uncertain calls with
-   * them, and the queue moves.
-   */
+  /** Proved process exit, or explicit user override: abandon old calls, then release those exact leases. */
   public markServerExited(resourceName: string): void {
     const live = this.live(resourceName)
-    if (live === undefined) {
-      return
+    if (live === undefined) return
+    // Keep never-dispatched waiters; abandon only the generations that used
+    // the exited server. Queue pumping waits for the complete transition.
+    live.transitioning = true
+    try {
+      for (const lease of this.active(live)) {
+        lease.state = 'releasing'
+        for (const call of lease.calls.values()) {
+          call.controller.abort()
+          this.finishCall(call, 'abandoned')
+        }
+        this.release(lease.token)
+      }
+    } finally {
+      live.transitioning = false
     }
-    for (const lease of live.leases) {
-      lease.idleTimer?.cancel()
-    }
-    live.leases = []
     this.wake(resourceName)
   }
 
-  /**
-   * **Release anyway** (D75): a remote server's uncertain call, released as
-   * the user's decision, not as proof. The earlier call may still be acting
-   * on the resource.
-   */
   public releaseAnyway(resourceName: string): void {
     this.markServerExited(resourceName)
   }
@@ -722,17 +951,16 @@ export class ResourceRegistry {
       : undefined
   }
 
-  /** The window going away: timers stop, and every waiter hears it. */
+  /** Closing cancels pending calls and timers; dispatched uncertainty remains owned. */
   public close(): void {
     this.closed = true
     for (const live of this.resources.values()) {
+      for (const waiter of live.waiters) waiter.finish({ status: 'closed' })
       for (const lease of live.leases) {
         lease.idleTimer?.cancel()
         lease.idleTimer = undefined
-      }
-      const waiters = live.waiters.splice(0)
-      for (const waiter of waiters) {
-        waiter.resolve({ status: 'closed' })
+        this.release(lease.token)
+        for (const call of lease.calls.values()) this.cancelCall(call.token)
       }
     }
   }

@@ -17,6 +17,15 @@
 // - web fetch's page converter (M69: parse5, the HTML converter and what
 //   they use) is in dist/extension.js or dist/modelApi.js, or missing from
 //   its worker, dist/pageWorker.js, started for each page.
+// - the browser check's pipe, run, proxy, canaries and processes (M81) are
+//   in dist/extension.js, dist/modelApi.js, dist/acp.js or
+//   dist/browserRuntime.js, or missing from their own bundle,
+//   dist/browserCheck.js, required on the first check.
+// - the browser check's runtime acquisition (M81 A1: the pin manifest, the
+//   downloader, the ZIP reader, hashing, staging and publication) is in any
+//   bundle but dist/browserRuntime.js, or missing from it (design spec v4
+//   §9.1: dist/browserCheck.js keeps its 50 KiB and never carries the
+//   extractor).
 // - the review (M70: git's material, the review turn's text, the Plan-mode
 //   hold and edit review) is in dist/extension.js, dist/modelApi.js or
 //   dist/acp.js, or missing from dist/review.js, which dist/extension.js
@@ -29,10 +38,25 @@
 //   dist/bundledSkills.js, or that bundle carries its own English table.
 // - code intelligence's `ide` answers (M67: the queries, the read tools, the
 //   repo map and the rename), voice's drivers (M9, M35: the dictation
-//   driver, Muse Voice's stream, the processes and the socket) or the Auto
-//   reviewer on Muse Code (M90: its side session, with M78's reviewer core)
-//   are in dist/extension.js, or missing from dist/codeIntel.js,
-//   dist/voice.js or dist/museCodeReviewer.js.
+//   driver, Muse Voice's stream, the processes and the socket), the window's
+//   web fetch (M69: each hop's checks and pins, the transport, the decoders,
+//   the failures) or the Auto reviewer on Muse Code (M90: its side session,
+//   with M78's reviewer core) are in dist/extension.js, or missing from
+//   dist/codeIntel.js, dist/voice.js, dist/webFetch.js or
+//   dist/museCodeReviewer.js.
+// - What's New (M99: the page's renderer, content schema and tab) is in
+//   dist/extension.js or missing from dist/whatsNew.js; or its page script,
+//   dist/webview/whatsNew.js, carries any package, the display table or
+//   constants.ts, or no longer carries the page script.
+// - a model text block beside MODEL_TEXT (MODEL_API_, CODE_INTEL_,
+//   CHECKPOINT_, AGENT_IMPORT_, REVIEW_, WEB_FETCH_, EXEC_,
+//   AUTO_REVIEWER_MODEL_TEXT) is
+//   in any shipped bundle but the ones declared to read it, or no longer in
+//   one of those; a block is declared that this check does not guard;
+//   FILE_REFUSAL_MODEL_TEXT, which activation carries by design, holds other
+//   keys than its pinned ones; or a key of MODEL_TEXT, which every bundle
+//   reading any key of it carries whole, is read by no source file of
+//   dist/extension.js (it belongs in the block of the bundle that reads it).
 //
 // Exits 1 on any problem.
 //
@@ -40,6 +64,9 @@
 
 import { existsSync, readdirSync, readFileSync } from 'node:fs'
 import path from 'node:path'
+import ts from 'typescript'
+import { createRequire } from 'node:module'
+import { DEFERRED_WEBVIEW_SURFACES, webviewStartupOutputs } from './lib/webviewBundles.mjs'
 
 const MODEL_API_DIR = 'src/core/backends/modelapi'
 const ENTRY = 'src/host/backend/modelApiEntry.ts'
@@ -115,6 +142,8 @@ const LAZY_ONLY = [
   'subagentTools.ts',
   'toolHookPayload.ts',
   'tools.ts',
+  // M81: what a browser check hands the model and the row.
+  'browserCalls.ts',
   // The verify loop's session side and its tool surface (M68).
   'verifyLedger.ts',
   'verifyLoop.ts',
@@ -343,6 +372,24 @@ const ON_FIRST_USE = [
       'src/core/voice/recorderHelper.ts',
     ],
   },
+  // The window's web fetch (M69), split out on 2026-10-04: the Model API
+  // backend keeps its own URL checks, the ACP agent its own fetch.
+  {
+    output: 'dist/webFetch.js',
+    metafile: 'dist/meta/webFetch.json',
+    use: 'the first web fetch',
+    files: [
+      'src/host/web/webFetchEntry.ts',
+      'src/host/web/webFetcher.ts',
+      'src/host/web/pinnedRequest.ts',
+      'src/core/web/webFetch.ts',
+      'src/core/web/fetchFailure.ts',
+      'src/core/web/pageUrl.ts',
+      'src/core/web/publicAddress.ts',
+      'src/core/web/mimeType.ts',
+      'src/core/web/textDecoding.ts',
+    ],
+  },
   {
     output: 'dist/museCodeReviewer.js',
     metafile: 'dist/meta/museCodeReviewer.json',
@@ -353,10 +400,94 @@ const ON_FIRST_USE = [
       'src/core/backends/modelapi/autoReviewer.ts',
     ],
   },
+  // What's New (M99, D79): activation keeps the update check, the claim and
+  // the loader; the page is required on the first page or notice.
+  {
+    output: 'dist/whatsNew.js',
+    metafile: 'dist/meta/whatsNew.json',
+    use: 'the first What’s New page or notice',
+    files: [
+      'src/host/whatsNew/whatsNewEntry.ts',
+      'src/host/whatsNew/whatsNewPanel.ts',
+      'src/host/whatsNew/whatsNewHtml.ts',
+      'src/core/whatsNew/whatsNewContent.ts',
+      'src/shared/whatsNewMessages.ts',
+    ],
+  },
 ]
 const uiText = inputsOf(UI_TEXT)
 if (!uiText.has(ENGLISH_TABLE)) {
   problems.push(`${UI_TEXT.output} no longer carries ${ENGLISH_TABLE}`)
+}
+// M81: the browser check's pipe, run, proxy, canaries and processes live in
+// their own bundle, required on the first check; activation keeps the
+// loader, the tool and the lifetime both bundles' callers share.
+const BROWSER_CHECK = { output: 'dist/browserCheck.js', metafile: 'dist/meta/browserCheck.json' }
+const BROWSER_ONLY = [
+  'src/host/browser/browserCheckEntry.ts',
+  'src/host/browser/browserProcess.ts',
+  'src/core/browser/browserRun.ts',
+  'src/core/browser/pageCheck.ts',
+  'src/core/browser/canaries.ts',
+  'src/core/browser/checkProxy.ts',
+  'src/core/browser/browserLaunch.ts',
+  'src/core/browser/requestLog.ts',
+  'src/core/browser/cdpPipe.ts',
+]
+// M81 A1: the runtime's acquisition, loaded only when a runtime is prepared
+// or verified; no other bundle carries any of it.
+const BROWSER_RUNTIME = {
+  output: 'dist/browserRuntime.js',
+  metafile: 'dist/meta/browserRuntime.json',
+}
+const RUNTIME_ONLY = [
+  'src/host/browser/browserRuntimeEntry.ts',
+  'src/host/browser/runtime/browserRuntime.json',
+  'src/host/browser/runtime/runtimeStore.ts',
+  'src/host/browser/runtime/zipExtract.ts',
+  'src/core/browser/runtime/runtimeManifest.ts',
+]
+const browserCheck = inputsOf(BROWSER_CHECK)
+const browserRuntime = inputsOf(BROWSER_RUNTIME)
+for (const file of BROWSER_ONLY) {
+  for (const [output, inputs] of [
+    ...loaders,
+    [BUNDLES.modelApi.output, modelApi],
+    [BROWSER_RUNTIME.output, browserRuntime],
+  ]) {
+    if (inputs.has(file)) {
+      problems.push(`${output} carries ${file}, which belongs to the browser check bundle`)
+    }
+  }
+  if (!browserCheck.has(file)) {
+    problems.push(`${BROWSER_CHECK.output} no longer carries ${file}`)
+  }
+}
+for (const file of RUNTIME_ONLY) {
+  for (const [output, inputs] of [
+    ...loaders,
+    [BUNDLES.modelApi.output, modelApi],
+    [BROWSER_CHECK.output, browserCheck],
+    [CHECKPOINT_STORE.output, inputsOf(CHECKPOINT_STORE)],
+  ]) {
+    if (inputs.has(file)) {
+      problems.push(`${output} carries ${file}, which belongs to the browser runtime bundle`)
+    }
+  }
+  if (!browserRuntime.has(file)) {
+    problems.push(`${BROWSER_RUNTIME.output} no longer carries ${file}`)
+  }
+}
+// M81 A1: the browser check and its runtime store return a closed failure
+// union and show no text of their own, so neither loads the English table;
+// neither may carry a copy of it either.
+for (const [output, inputs] of [
+  [BROWSER_RUNTIME.output, browserRuntime],
+  [BROWSER_CHECK.output, browserCheck],
+]) {
+  if (inputs.has(ENGLISH_TABLE)) {
+    problems.push(`${output} duplicates ${ENGLISH_TABLE}`)
+  }
 }
 for (const bundle of [
   BUNDLES.activation,
@@ -490,15 +621,15 @@ for (const bundle of ON_FIRST_USE) {
 // renderers must occur exclusively beyond dynamic-import edges.
 const webview = JSON.parse(readFileSync('dist/meta/webview.json', 'utf8'))
 const initialWebview = new Set()
-function visitWebview(output) {
+function visitTeamWebview(output) {
   if (initialWebview.has(output)) return
   initialWebview.add(output)
   const imports = webview.outputs[output].imports
   for (const entry of imports) {
-    if (!entry.external && entry.kind === 'import-statement') visitWebview(entry.path)
+    if (!entry.external && entry.kind === 'import-statement') visitTeamWebview(entry.path)
   }
 }
-visitWebview('dist/webview/main.js')
+visitTeamWebview('dist/webview/main.js')
 const TEAM_UI_ONLY = ['src/webview/components/TeamTree.tsx', 'src/webview/components/TeamCards.tsx']
 for (const file of TEAM_UI_ONLY) {
   const carrying = Object.entries(webview.outputs).filter(
@@ -509,6 +640,329 @@ for (const file of TEAM_UI_ONLY) {
     if (initialWebview.has(output))
       problems.push(`${output} carries ${file} in the initial webview graph`)
   }
+}
+
+// What's New's page script (M99) is a few lines that pass clicks back: it
+// carries no package, not the display table and not constants.ts (which
+// re-exports that table), only the script and its markup contract.
+const WHATS_NEW_PAGE = {
+  output: 'dist/webview/whatsNew.js',
+  metafile: 'dist/meta/whatsNewPage.json',
+  script: 'src/webview/whatsNew/whatsNewPage.ts',
+  never: ['node_modules/', 'src/shared/l10n/', 'src/shared/constants.ts'],
+}
+const whatsNewPage = inputsOf(WHATS_NEW_PAGE)
+for (const prefix of WHATS_NEW_PAGE.never) {
+  if (hasPrefix(whatsNewPage, prefix)) {
+    problems.push(
+      `${WHATS_NEW_PAGE.output} carries ${prefix}, which What’s New’s page script never needs`,
+    )
+  }
+}
+if (!whatsNewPage.has(WHATS_NEW_PAGE.script)) {
+  problems.push(`${WHATS_NEW_PAGE.output} no longer carries ${WHATS_NEW_PAGE.script}`)
+}
+
+// Model text (PLAN.md D6, 2026-10-03). One object is carried whole by every
+// bundle that reads any key of it: esbuild does not tree-shake by key. So
+// text that only lazily loaded bundles read is a block of its own in
+// src/shared/constants.ts, and esbuild keeps property names, so a block's
+// sentinel key in a bundle's output means that bundle carries the block.
+// Each sentinel must also still be in the bundles that read the block, so a
+// renamed key cannot quietly turn the check off. A block's readers are
+// declared; every other shipped bundle, lazily loaded ones included, must
+// not carry it (the review of the diet, P2-2: a lazy bundle that read one key
+// of another lazy bundle's block would carry the whole block).
+const CONSTANTS = 'src/shared/constants.ts'
+/** Every JavaScript bundle the production build ships, from its metafiles. */
+function shippedBundles() {
+  return ['dist/meta', 'dist/meta-acp'].flatMap((dir) =>
+    readdirSync(dir)
+      .filter((name) => name.endsWith('.json'))
+      .flatMap((name) => {
+        const metafile = `${dir}/${name}`
+        const { outputs } = JSON.parse(readFileSync(metafile, 'utf8'))
+        return Object.keys(outputs)
+          .filter((output) => output.endsWith('.js') && !output.startsWith('dist/webview/chunks/'))
+          .map((output) => ({ output, metafile }))
+      }),
+  )
+}
+const SHIPPED = shippedBundles()
+/** The shipped bundle that `output` names; a missing one is a problem. */
+function shipped(output) {
+  const bundle = SHIPPED.find((entry) => entry.output === output)
+  if (bundle === undefined) {
+    problems.push(`${output} is not among the shipped bundles' metafiles`)
+  }
+  return bundle ?? { output, metafile: '' }
+}
+const TEXT_BLOCKS = [
+  { block: 'TEAM_MODEL_TEXT', sentinels: ['toolTheRoleToRunEG'], readers: ['dist/team.js'] },
+  {
+    block: 'TEAM_BOOTSTRAP_MODEL_TEXT',
+    sentinels: ['undeclaredTool'],
+    readers: ['dist/team.js', BUNDLES.modelApi.output],
+  },
+  {
+    block: 'MODEL_API_MODEL_TEXT',
+    sentinels: ['compactionPrompt', 'goalUnfinishedExists', 'verifyUncheckedCodeLoading'],
+    readers: [BUNDLES.modelApi.output],
+  },
+  {
+    block: 'CODE_INTEL_MODEL_TEXT',
+    sentinels: ['codeIntelNoSymbolNamed', 'repoMapBudgetTooSmall'],
+    readers: ['dist/codeIntel.js', BUNDLES.modelApi.output],
+  },
+  {
+    block: 'CHECKPOINT_MODEL_TEXT',
+    sentinels: ['writeNotRecorded'],
+    readers: [CHECKPOINT_STORE.output],
+  },
+  {
+    block: 'AGENT_IMPORT_MODEL_TEXT',
+    sentinels: ['importedRulesHeading'],
+    readers: [AGENT_IMPORT.output],
+  },
+  // The review turn's text (M70): the review's bundle, the Model API's
+  // built-in Reviewer, and the review pane's removed-line note.
+  {
+    block: 'REVIEW_MODEL_TEXT',
+    sentinels: ['reviewerRole', 'reviewMuseCodeRole'],
+    readers: [REVIEW.output, BUNDLES.modelApi.output, 'dist/webview/main.js'],
+  },
+  // Web fetch's own words (M69): the window's fetch, the Model API
+  // backend's URL checks and the ACP agent's fetch.
+  {
+    block: 'WEB_FETCH_MODEL_TEXT',
+    sentinels: ['webFetchUntrusted', 'webFetchMovedOpen'],
+    readers: ['dist/webFetch.js', BUNDLES.modelApi.output, BUNDLES.acp.output],
+  },
+  // A headless run's attached files (M80): the ACP agent's runtime only.
+  {
+    block: 'EXEC_MODEL_TEXT',
+    sentinels: ['execUntrustedLead'],
+    readers: [BUNDLES.acp.output],
+  },
+  // The Auto reviewer (M78, M90): the paid reviewer and the reviewer on Muse
+  // Code. dist/modelApi.js carries autoReviewer.ts for its types and policy
+  // but none of the calls that read this text.
+  {
+    block: 'AUTO_REVIEWER_MODEL_TEXT',
+    sentinels: ['autoReviewerInstructions', 'museCodeReviewerTurn'],
+    readers: ['dist/reviewer.js', 'dist/museCodeReviewer.js'],
+  },
+].map((entry) => ({
+  ...entry,
+  readers: entry.readers.map((output) => shipped(output)),
+  others: SHIPPED.filter(({ output }) => !entry.readers.includes(output)),
+}))
+// The refusals a file tool gives are read at activation (memoryStore,
+// toolIo, fsAtomic) and by lazily loaded bundles alike, so every bundle
+// that reads one carries the block by design and it takes no `others`. Its
+// keys are pinned instead: a key added here rides into dist/extension.js
+// and dist/acp.js, so it must be one that activation reads anyway.
+const FILE_REFUSAL = {
+  block: 'FILE_REFUSAL_MODEL_TEXT',
+  keys: ['fileHasUnsavedChanges', 'pathChangedAfterApproval'],
+}
+const constantsSource = readFileSync(CONSTANTS, 'utf8')
+/** The keys of one `export const NAME = { … } as const` block of constants.ts. */
+function blockKeys(name) {
+  const start = constantsSource.indexOf(`export const ${name} = {`)
+  const end = constantsSource.indexOf('} as const', start)
+  if (start === -1 || end === -1) {
+    problems.push(`${CONSTANTS} no longer declares ${name}`)
+    return []
+  }
+  return constantsSource
+    .slice(start, end)
+    .matchAll(/^ {2}(\w+):/gm)
+    .map((match) => match[1])
+    .toArray()
+}
+const outputText = new Map()
+function textOf(output) {
+  if (!outputText.has(output)) {
+    const files =
+      output === 'dist/webview/main.js'
+        ? Object.keys(JSON.parse(readFileSync('dist/meta/webview.json', 'utf8')).outputs).filter(
+            (file) => file.endsWith('.js'),
+          )
+        : [output]
+    outputText.set(output, files.map((file) => readFileSync(file, 'utf8')).join('\n'))
+  }
+  return outputText.get(output)
+}
+for (const { block, sentinels, readers, others } of TEXT_BLOCKS) {
+  const keys = new Set(blockKeys(block))
+  for (const sentinel of sentinels) {
+    if (!keys.has(sentinel)) {
+      problems.push(`${block} has no key ${sentinel}: pick another sentinel for it`)
+    }
+    const declared = new RegExp(`[{,]${sentinel}:`)
+    for (const { output } of others) {
+      if (declared.test(textOf(output))) {
+        problems.push(
+          `${output} carries ${block} (its key ${sentinel}), which only ${readers.map((reader) => reader.output).join(', ')} read`,
+        )
+      }
+    }
+    for (const { output } of readers) {
+      if (!declared.test(textOf(output))) {
+        problems.push(`${output} no longer carries ${block} (its key ${sentinel})`)
+      }
+    }
+  }
+}
+// Every model text block beside MODEL_TEXT is guarded: a new one needs an
+// entry above (or is FILE_REFUSAL_MODEL_TEXT, pinned below).
+const guarded = new Set([...TEXT_BLOCKS.map(({ block }) => block), FILE_REFUSAL.block])
+for (const [, block] of constantsSource.matchAll(/^export const (\w+_MODEL_TEXT) = \{/gm)) {
+  if (!guarded.has(block)) {
+    problems.push(
+      `${CONSTANTS} declares ${block}, which scripts/check-bundle-split.mjs does not guard`,
+    )
+  }
+}
+const fileRefusalKeys = blockKeys(FILE_REFUSAL.block)
+if (fileRefusalKeys.join(', ') !== FILE_REFUSAL.keys.join(', ')) {
+  problems.push(
+    `${FILE_REFUSAL.block} holds ${fileRefusalKeys.join(', ')}, not ${FILE_REFUSAL.keys.join(', ')}: every bundle that reads a key of it, dist/extension.js among them, carries all of it`,
+  )
+}
+// What stays in MODEL_TEXT is what dist/extension.js reads: a key no source
+// file of the activation bundle reads makes every bundle carry it for
+// nothing, and belongs in the block of the bundle that does read it.
+const activationReads = new Set()
+for (const input of activation.keys()) {
+  if (input === CONSTANTS || !input.startsWith('src/')) {
+    continue
+  }
+  const source = readFileSync(input, 'utf8')
+  if (/\bMODEL_TEXT\[/.test(source)) {
+    problems.push(`${input} reads MODEL_TEXT by a computed key, which this check cannot follow`)
+  }
+  for (const match of source.matchAll(/\bMODEL_TEXT\.(\w+)/g)) {
+    activationReads.add(match[1])
+  }
+}
+const modelTextKeys = blockKeys('MODEL_TEXT')
+for (const key of modelTextKeys) {
+  if (!activationReads.has(key)) {
+    problems.push(
+      `MODEL_TEXT.${key} is read by no source file of ${BUNDLES.activation.output}: move it to the block of the bundle that reads it`,
+    )
+  }
+}
+
+// All six optional surfaces must remain behind dynamic imports. Every
+// emitted JS chunk must be reachable and packaged; stale output is refused.
+const webviewMeta = JSON.parse(readFileSync('dist/meta/webview.json', 'utf8'))
+const eagerWebview = new Set(webviewStartupOutputs(webviewMeta))
+const reachableWebview = new Set()
+const visitWebview = (file) => {
+  if (reachableWebview.has(file)) return
+  reachableWebview.add(file)
+  const output = webviewMeta.outputs[file]
+  if (!output) {
+    problems.push(`Missing webview chunk ${file}`)
+    return
+  }
+  for (const imported of output.imports) if (!imported.external) visitWebview(imported.path)
+}
+visitWebview('dist/webview/main.js')
+for (const surface of DEFERRED_WEBVIEW_SURFACES) {
+  const source = `src/webview/components/${surface}.tsx`
+  const outputs = Object.entries(webviewMeta.outputs).filter(([, output]) =>
+    Object.hasOwn(output.inputs, source),
+  )
+  if (outputs.length !== 1 || eagerWebview.has(outputs[0]?.[0])) {
+    problems.push(`${source} must occur in exactly one deferred webview chunk`)
+  }
+}
+for (const [file, output] of Object.entries(webviewMeta.outputs)) {
+  if (!file.endsWith('.js')) continue
+  if (!reachableWebview.has(file) || !existsSync(file))
+    problems.push(`Unreachable or missing webview chunk ${file}`)
+  if (
+    output.entryPoint &&
+    output.entryPoint !== 'src/webview/main.tsx' &&
+    DEFERRED_WEBVIEW_SURFACES.every(
+      (name) => output.entryPoint !== `src/webview/components/${name}.tsx`,
+    )
+  ) {
+    problems.push(`Unlisted deferred webview surface ${output.entryPoint}`)
+  }
+}
+const chunks = 'dist/webview/chunks'
+const builtChunks = readdirSync(chunks).filter((name) => name.endsWith('.js'))
+for (const file of builtChunks) {
+  if (!reachableWebview.has(`${chunks}/${file}`)) problems.push(`Stale webview chunk ${file}`)
+}
+
+// TRAIN13B: Node consumers share exactly the mini-parser API they read.
+const validationMeta = JSON.parse(readFileSync('dist/meta/validation.json', 'utf8'))
+const validationExports = new Set(
+  Object.keys(createRequire(import.meta.url)(path.resolve('dist/validation.js'))),
+)
+const nodeMetafiles = readdirSync('dist/meta')
+  .filter((name) => !['validation.json', 'webview.json', 'whatsNewPage.json'].includes(name))
+  .map((name) => `dist/meta/${name}`)
+nodeMetafiles.push('dist/meta-acp/acp.json')
+const validationReaders = new Set()
+for (const file of nodeMetafiles) {
+  const meta = JSON.parse(readFileSync(file, 'utf8'))
+  for (const [output, details] of Object.entries(meta.outputs)) {
+    if (
+      Object.keys(details.inputs).some((input) => input.startsWith('node_modules/zod/v4/mini/'))
+    ) {
+      problems.push(`${output} inlines the shared mini-parser`)
+    }
+  }
+  const sourceInputs = Object.keys(meta.inputs).filter((name) => name.startsWith('src/'))
+  for (const input of sourceInputs) {
+    validationReaders.add(input)
+  }
+}
+for (const input of validationReaders) {
+  const source = ts.createSourceFile(
+    input,
+    readFileSync(input, 'utf8'),
+    ts.ScriptTarget.Latest,
+    true,
+  )
+  const aliases = new Set()
+  for (const statement of source.statements) {
+    if (
+      ts.isImportDeclaration(statement) &&
+      ts.isStringLiteral(statement.moduleSpecifier) &&
+      statement.moduleSpecifier.text === 'zod/mini' &&
+      statement.importClause?.namedBindings &&
+      ts.isNamespaceImport(statement.importClause.namedBindings)
+    ) {
+      aliases.add(statement.importClause.namedBindings.name.text)
+    }
+  }
+  const visit = (node) => {
+    if (
+      ts.isPropertyAccessExpression(node) &&
+      ts.isIdentifier(node.expression) &&
+      aliases.has(node.expression.text) &&
+      !validationExports.has(node.name.text)
+    ) {
+      problems.push(`${input} reads zod/mini.${node.name.text}, absent from validation.js`)
+    }
+    ts.forEachChild(node, visit)
+  }
+  visit(source)
+}
+if (
+  Object.keys(validationMeta.inputs).every(
+    (input) => !input.startsWith('node_modules/zod/v4/mini/'),
+  )
+) {
+  problems.push('dist/validation.js no longer carries the mini-parser')
 }
 
 if (problems.length > 0) {
@@ -552,10 +1006,19 @@ console.log(
   `ok   ${CHECKPOINT_STORE.output}: carries the checkpoint implementation; activation keeps the port and synchronous loader`,
 )
 console.log(
+  `ok   ${BROWSER_CHECK.output}: carries the browser check's pipe, run, proxy, canaries and processes; activation keeps the loaders and the tool`,
+)
+console.log(
+  `ok   ${BROWSER_RUNTIME.output}: carries the runtime's acquisition (pin, download, ZIP reader, store); no other bundle does`,
+)
+console.log(
   `ok   ${REVIEW.output}: carries the review and edit review; ${BUNDLES.activation.output} keeps the loader`,
 )
 console.log(
   `ok   ${AGENT_IMPORT.output}: carries the import (scan, converters, file access, smol-toml); ${BUNDLES.activation.output} carries none of it`,
+)
+console.log(
+  `ok   model text: ${TEXT_BLOCKS.map(({ block }) => block).join(', ')} each in its readers and in no other of the ${String(SHIPPED.length)} shipped bundles; ${FILE_REFUSAL.block} pinned to ${String(FILE_REFUSAL.keys.length)} keys; ${String(modelTextKeys.length)} MODEL_TEXT keys, each read at activation`,
 )
 console.log(`ok   ${UI_TEXT.output}: Node bundles share the English fallback`)
 console.log(
@@ -565,3 +1028,4 @@ for (const bundle of DEFERRED) console.log(`ok   ${bundle.output}: loads only on
 for (const bundle of ON_FIRST_USE) {
   console.log(`ok   ${bundle.output}: loads only on ${bundle.use}, never at activation`)
 }
+console.log(`ok   ${WHATS_NEW_PAGE.output}: the page script alone, no package and no display table`)

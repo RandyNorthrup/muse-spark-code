@@ -7,12 +7,13 @@ import { describe, expect, it } from 'vitest'
 import { handleMcpMessage } from '../../src/core/mcp'
 import type { WebFetcher, WebFetchResult } from '../../src/core/web/webFetch'
 import { webFetchFailure } from '../../src/core/web/fetchFailure'
+import { checkPageUrl, type PageUrlCheck } from '../../src/core/web/pageUrl'
 import {
   ideWebFetchTools,
   isIdeWebFetchOffered,
   oneQuestionPerUrl,
 } from '../../src/host/ide/webFetchTool'
-import { IDE_MCP_SERVER_INFO, MODEL_TEXT } from '../../src/shared/constants'
+import { IDE_MCP_SERVER_INFO, MODEL_TEXT, WEB_FETCH_MODEL_TEXT } from '../../src/shared/constants'
 import { FakeLogOutputChannel } from './helpers/fakes'
 
 // The same page over plain HTTP, which the fetch refuses.
@@ -39,6 +40,8 @@ function setup(
     held?: Promise<boolean>
     /** Runs while the page is being fetched. */
     onFetch?: () => void
+    /** The URL's first checks; the source's own unless a test replaces them. */
+    checkUrl?: (raw: string) => PageUrlCheck
   } = {},
 ) {
   const asked: { url: string; host: string }[] = []
@@ -56,6 +59,7 @@ function setup(
   const tools = () =>
     ideWebFetchTools({
       isOffered: () => isOffered,
+      checkUrl: options.checkUrl ?? checkPageUrl,
       fetchPage,
       confirm: (url, host) => {
         asked.push({ url, host })
@@ -152,8 +156,23 @@ describe('the ide server web fetch (M69)', () => {
     expect(declined.fetched).toEqual([])
     const t = setup()
     await expect(t.call({ url: 'https://169.254.169.254/' })).rejects.toThrow(/not a public/)
-    await expect(t.call({ url: PLAIN_HTTP })).rejects.toThrow(MODEL_TEXT.webFetchNotHttps)
+    await expect(t.call({ url: PLAIN_HTTP })).rejects.toThrow(WEB_FETCH_MODEL_TEXT.webFetchNotHttps)
     await expect(t.call({ link: 'x' })).rejects.toThrow(/invalid arguments/)
+    expect(t.asked).toEqual([])
+    expect(t.fetched).toEqual([])
+  })
+
+  // The checks come from the web fetch bundle (PLAN.md D6): while it cannot
+  // be loaded, every call is the bundle's refusal, before any modal.
+  it('asks nothing and fetches nothing while the checks cannot be loaded', async () => {
+    const t = setup({
+      checkUrl: () => {
+        throw new Error(MODEL_TEXT.webFetchUnavailable)
+      },
+    })
+    await expect(t.call({ url: 'https://docs.example.com/' })).rejects.toThrow(
+      MODEL_TEXT.webFetchUnavailable,
+    )
     expect(t.asked).toEqual([])
     expect(t.fetched).toEqual([])
   })

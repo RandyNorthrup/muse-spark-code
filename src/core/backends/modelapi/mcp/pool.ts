@@ -16,7 +16,6 @@ import {
   MCP_TRANSPORTS,
   MILLISECONDS_PER_SECOND,
   MODEL_API_MODEL_TEXT,
-  MODEL_TEXT,
 } from '../../../../shared/constants'
 import type { CoreLogger } from '../../../logging'
 import { withDeadline } from '../../../timeouts'
@@ -74,6 +73,11 @@ export interface McpToolRef {
   readonly isReadOnly: boolean
 }
 
+/** The bridge pins an admission to this server's current offered catalogue. */
+export interface BridgeToolRef extends McpToolRef {
+  readonly catalogueGeneration: number
+}
+
 /**
  * One offered function with its server's raw MCP tool (M96 lane B): the team
  * bridge's `tools/list` serves the server's own description, not the Model
@@ -127,6 +131,7 @@ interface OfferedTool {
 
 interface LiveServer {
   readonly spec: McpServerSpec
+  catalogueGeneration: number
   state: McpServerState
   connection: McpConnection | undefined
   tools: readonly OfferedTool[]
@@ -191,6 +196,7 @@ export class McpServerPool implements McpToolSource {
     this.fault = undefined
     this.servers = plan.specs.map((spec) => ({
       spec,
+      catalogueGeneration: 0,
       state: initialState(spec, isTrusted),
       connection: undefined,
       tools: [],
@@ -327,6 +333,7 @@ export class McpServerPool implements McpToolSource {
   }
 
   private withdraw(server: LiveServer): void {
+    server.catalogueGeneration += 1
     for (const offered of server.tools) {
       this.byFunction.delete(offered.functionName)
     }
@@ -400,7 +407,7 @@ export class McpServerPool implements McpToolSource {
       args = undefined
     }
     if (typeof args !== 'object' || args === null || Array.isArray(args)) {
-      throw new McpError(MODEL_TEXT.mcpArgumentsNotObject)
+      throw new McpError(MODEL_API_MODEL_TEXT.mcpArgumentsNotObject)
     }
     return Object.fromEntries(Object.entries(args))
   }
@@ -435,12 +442,13 @@ export class McpServerPool implements McpToolSource {
     return this.servers.flatMap((server) => server.tools.map((offered) => offered.definition))
   }
 
-  public find(functionName: string): McpToolRef | undefined {
+  public find(functionName: string): BridgeToolRef | undefined {
     const found = this.byFunction.get(functionName)
     return found === undefined
       ? undefined
       : {
           server: found.server.spec.name,
+          catalogueGeneration: found.server.catalogueGeneration,
           tool: found.offered.tool.name,
           isReadOnly: found.offered.isReadOnly,
         }

@@ -48,7 +48,9 @@
       "execScanUsage",
       "teamRoleFileRefused",
       "teamJsonRefused",
-      "teamSwitchRow"
+      "teamSwitchRow",
+      "contextMeterUnderOne",
+      "diffTallyLines"
     ],
     "cs": [
       "groupModel",

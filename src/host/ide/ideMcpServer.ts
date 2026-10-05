@@ -43,6 +43,7 @@ export class IdeMcpServer {
   private readonly token = randomBytes(IDE_MCP_TOKEN_BYTES).toString('hex')
   private server: Server | undefined
   private endpoint: IdeMcpEndpoint | undefined
+  private generation = 0
   /** A start in flight: concurrent callers share it instead of opening two ports. */
   private starting: Promise<IdeMcpEndpoint> | undefined
   /** The calls being answered, by request id, so a cancellation can stop them (M69). */
@@ -168,6 +169,7 @@ export class IdeMcpServer {
   }
 
   private async listen(): Promise<IdeMcpEndpoint> {
+    const generation = this.generation
     const { server, port } = await listenLoopback(
       (request, response) => {
         void this.respond(request, response)
@@ -175,6 +177,10 @@ export class IdeMcpServer {
       this.log,
       'IDE tool server',
     )
+    if (generation !== this.generation) {
+      server.close()
+      throw new Error('IDE tool server closed during start')
+    }
     this.server = server
     this.endpoint = {
       url: `http://${IDE_MCP_LOOPBACK_HOST}:${String(port)}${IDE_MCP_PATH}`,
@@ -202,6 +208,7 @@ export class IdeMcpServer {
   }
 
   public close(): void {
+    this.generation += 1
     this.server?.close()
     this.server = undefined
     this.endpoint = undefined
