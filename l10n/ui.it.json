@@ -1470,6 +1470,7 @@
   "subagentWebSearchOff": "La ricerca web è stata disattivata prima di questa richiesta dell’attività secondaria; non è stata inviata alcuna richiesta.",
   "teamInPlaceOrchestratorRefused": "Un worker del team sta scrivendo in quest’area di lavoro: modifiche, shell e merge attendono la fine della sua attività.",
   "teamSingleModelAgain": "Un solo modello è pronto: il team si applica a partire da una nuova conversazione.",
+  "teamRunnerUnavailable": "{tool} non è disponibile: il componente di esecuzione del team non è stato caricato in questa finestra.",
   "webSearchFailed": "La ricerca non è riuscita",
   "citationsHeading": "Fonti",
   "dictationPaidLabel": "Registra voce con Muse Voice (a pagamento)",

@@ -4,20 +4,35 @@
 
 import { describe, expect, it } from 'vitest'
 import {
+  TeamCommandRegistry,
+  cancelArgs,
   clampCollectWait,
+  collectArgs,
   delegateArgs,
+  type DelegateArgs,
   fingerprintDelegateTasks,
   isTeamTool,
+  mergeArgs,
   parseTeamArgs,
+  rosterArgs,
   singleModelAgainRefusal,
   teamMcpToolList,
   teamRunnerMissing,
+  TEAM_TOOL_DEFINITIONS,
+  TEAM_TOOL_SCHEMAS,
   teamToolNotDeclared,
   teamToolsForWorker,
   TEAM_TOOL_NAMES,
   TEAM_WORKER_TOOL_NAMES,
 } from '../../src/core/team/teamTools'
-import { TEAM_COLLECT_WAIT_MAX_SECONDS } from '../../src/core/team/teamConstants'
+import {
+  TEAM_BRIEF_FILES_MAX_BYTES,
+  TEAM_BRIEF_MAX_CHARS,
+  TEAM_COLLECT_PAGE_CHARS,
+  TEAM_COLLECT_WAIT_MAX_SECONDS,
+  TEAM_DELEGATE_MAX,
+  type TeamReasonCode,
+} from '../../src/core/team/teamConstants'
 
 describe('team tool names', () => {
   it('declares the five orchestrator tools, in order', () => {
@@ -99,7 +114,7 @@ describe('delegate arguments', () => {
 describe('collect wait bound', () => {
   it('clamps a longer wait to the backend bound, never refusing', () => {
     expect(clampCollectWait(TEAM_COLLECT_WAIT_MAX_SECONDS + 1)).toBe(TEAM_COLLECT_WAIT_MAX_SECONDS)
-    expect(clampCollectWait(5)).toBe(5)
+    expect(clampCollectWait(0)).toBe(0)
     expect(clampCollectWait(undefined)).toBe(undefined)
   })
 })
@@ -127,6 +142,41 @@ describe('refusal texts', () => {
   })
 })
 
+describe('plan contracts', () => {
+  it('pins the plan’s tunables the lanes code against (D75)', () => {
+    expect(TEAM_DELEGATE_MAX).toBe(6)
+    expect(TEAM_COLLECT_PAGE_CHARS).toBe(16_000)
+    expect(TEAM_BRIEF_MAX_CHARS).toBe(8000)
+    expect(TEAM_BRIEF_FILES_MAX_BYTES).toBe(65_536)
+    const code: TeamReasonCode = 'parallel'
+    const task: DelegateArgs = {
+      tasks: [{ role: 'qa', brief: 'Test it.', reason: { code, detail: 'Two pieces.' } }],
+    }
+    expect(task.tasks).toHaveLength(1)
+  })
+
+  it('declares the same five tools on the Model API as on the team server', () => {
+    expect(TEAM_TOOL_DEFINITIONS.map((tool) => tool.name)).toEqual([...TEAM_TOOL_NAMES])
+    for (const name of TEAM_TOOL_NAMES) {
+      const definition = TEAM_TOOL_DEFINITIONS.find((tool) => tool.name === name)
+      expect(definition?.description).toBe(TEAM_TOOL_SCHEMAS[name].description)
+      expect(definition?.required).toEqual([...TEAM_TOOL_SCHEMAS[name].required])
+    }
+  })
+
+  it('validates every tool’s arguments before anything runs', () => {
+    expect(rosterArgs.safeParse({}).success).toBe(true)
+    expect(collectArgs.safeParse({ wait_seconds: 5, part: 'diff', offset: 0 }).success).toBe(true)
+    expect(collectArgs.safeParse({ wait_seconds: -1 }).success).toBe(false)
+    expect(collectArgs.safeParse({ part: 'everything' }).success).toBe(false)
+    expect(cancelArgs.safeParse({ task_ids: ['t1'] }).success).toBe(true)
+    expect(cancelArgs.safeParse({ task_ids: [] }).success).toBe(false)
+    expect(mergeArgs.safeParse({ task_id: 't1' }).success).toBe(true)
+    expect(mergeArgs.safeParse({ task_id: 't1', on_conflict: 'markers' }).success).toBe(true)
+    expect(mergeArgs.safeParse({ task_id: 't1', on_conflict: 'force' }).success).toBe(false)
+  })
+})
+
 describe('team MCP tool list', () => {
   it('lists the five tools with stable, role-free descriptions', () => {
     const first = teamMcpToolList()
@@ -146,5 +196,51 @@ describe('team MCP tool list', () => {
     expect(byName.get('collect')?.annotations).toMatchObject({ readOnlyHint: true })
     expect(byName.get('delegate')?.annotations).toBeUndefined()
     expect(byName.get('merge')?.annotations).toBeUndefined()
+  })
+})
+
+describe('concurrent command retries', () => {
+  it('shares pending work, rejects changed nested reasons and persists replay', async () => {
+    const commands = new TeamCommandRegistry()
+    const pending = Promise.withResolvers<{ output: string; visibleOutput: string }>()
+    let starts = 0
+    const tasks = [{ role: 'qa', reason: { code: 'specialty', detail: 'Tests.' } }]
+    const start = () => {
+      starts += 1
+      return pending.promise
+    }
+    const first = commands.run('retry', tasks, start)
+    const retry = commands.run(
+      'retry',
+      [{ reason: { detail: 'Tests.', code: 'specialty' }, role: 'qa' }],
+      start,
+    )
+    expect(starts).toBe(1)
+    await expect(
+      commands.run(
+        'retry',
+        [{ role: 'qa', reason: { code: 'parallel', detail: 'Tests.' } }],
+        start,
+      ),
+    ).rejects.toThrow('different tasks')
+    pending.resolve({ output: 'task-1', visibleOutput: 'Started.' })
+    const firstAnswer = await first
+    const retryAnswer = await retry
+    expect(firstAnswer.output).toBe('task-1')
+    expect(retryAnswer.output).toBe('task-1')
+    const restored = new TeamCommandRegistry()
+    restored.restore(commands.snapshot())
+    const restoredAnswer = await restored.run('retry', tasks, start)
+    expect(restoredAnswer.output).toBe('task-1')
+    expect(starts).toBe(1)
+  })
+
+  it('rejects empty retry ids and oversized briefs before a runner sees them', () => {
+    const task = { role: 'qa', brief: 'Test.', reason: { code: 'specialty', detail: 'Tests.' } }
+    expect(delegateArgs.safeParse({ tasks: [task], command_id: ' ' }).success).toBe(false)
+    expect(
+      delegateArgs.safeParse({ tasks: [{ ...task, brief: 'x'.repeat(TEAM_BRIEF_MAX_CHARS + 1) }] })
+        .success,
+    ).toBe(false)
   })
 })

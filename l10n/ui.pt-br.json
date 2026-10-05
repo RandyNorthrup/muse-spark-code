@@ -1470,6 +1470,7 @@
   "subagentWebSearchOff": "A pesquisa na web foi desativada antes desta solicitação do subagente; nenhuma solicitação foi enviada.",
   "teamInPlaceOrchestratorRefused": "Um worker da equipe está escrevendo neste workspace: edições, shell e merges aguardam o fim da tarefa.",
   "teamSingleModelAgain": "Só há um modelo pronto: a equipe vale a partir de uma nova conversa.",
+  "teamRunnerUnavailable": "{tool} não está disponível: o executor da equipe não foi carregado nesta janela.",
   "webSearchFailed": "A pesquisa falhou",
   "citationsHeading": "Fontes",
   "dictationPaidLabel": "Gravar voz com o Muse Voice (pago)",

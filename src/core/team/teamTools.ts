@@ -17,9 +17,11 @@
 
 import * as z from 'zod/mini'
 import type { McpTool } from '../mcp'
+import type { TeamToolResult } from './teamSeams'
 import {
   TEAM_COLLECT_WAIT_MAX_SECONDS,
   TEAM_DELEGATE_MAX,
+  TEAM_BRIEF_MAX_CHARS,
   TEAM_REASON_CODES,
 } from './teamConstants'
 
@@ -31,8 +33,9 @@ export type TeamToolName = (typeof TEAM_TOOL_NAMES)[number]
 export const TEAM_WORKER_TOOL_NAMES = ['roster', 'delegate', 'collect', 'cancel'] as const
 
 /** Whether a tool is one of the five. */
-export function isTeamTool(name: string): boolean {
-  return (TEAM_TOOL_NAMES as readonly string[]).includes(name)
+export function isTeamTool(name: string): name is TeamToolName {
+  const names: readonly string[] = TEAM_TOOL_NAMES
+  return names.includes(name)
 }
 
 /**
@@ -136,6 +139,7 @@ export const TEAM_TOOL_SCHEMAS: Record<TeamToolName, TeamToolSchema> = {
         description:
           'Optional request id; a retry with the same id and tasks reuses the tasks already started',
       },
+      pipeline: { type: 'string', description: 'The configured pipeline to run' },
       dry_run: {
         type: 'boolean',
         description: 'Answer the plan without starting or spending anything',
@@ -182,6 +186,22 @@ export const TEAM_TOOL_SCHEMAS: Record<TeamToolName, TeamToolSchema> = {
   },
 }
 
+/**
+ * The Model API declaration, in `SUBAGENT_TOOL_DEFINITIONS` shape: name,
+ * description, properties and required, in declaration order.
+ */
+export const TEAM_TOOL_DEFINITIONS: readonly {
+  readonly name: string
+  readonly description: string
+  readonly properties: Record<string, unknown>
+  readonly required: readonly string[]
+}[] = TEAM_TOOL_NAMES.map((name) => ({
+  name,
+  description: TEAM_TOOL_SCHEMAS[name].description,
+  properties: TEAM_TOOL_SCHEMAS[name].properties,
+  required: TEAM_TOOL_SCHEMAS[name].required,
+}))
+
 /** The `team` MCP server's tool list, byte-identical across sessions and team edits. */
 export function teamMcpToolList(): readonly McpTool[] {
   return TEAM_TOOL_NAMES.map((name) => {
@@ -215,7 +235,7 @@ export const delegateArgs = z.object({
     .array(
       z.object({
         role: z.string().check(z.trim(), z.minLength(1)),
-        brief: z.string().check(z.trim(), z.minLength(1)),
+        brief: z.string().check(z.trim(), z.minLength(1), z.maxLength(TEAM_BRIEF_MAX_CHARS)),
         reason: reasonSchema,
         files: z.optional(z.array(z.string())),
         entry: z.optional(z.string().check(z.trim(), z.minLength(1))),
@@ -231,7 +251,8 @@ export const delegateArgs = z.object({
       }),
     ),
   ),
-  command_id: z.optional(z.string()),
+  command_id: z.optional(z.string().check(z.trim(), z.minLength(1))),
+  pipeline: z.optional(z.string().check(z.trim(), z.minLength(1))),
   dry_run: z.optional(z.boolean()),
 })
 export type DelegateArgs = z.infer<typeof delegateArgs>
@@ -242,7 +263,6 @@ export const collectArgs = z.object({
   part: z.optional(z.enum(['report', 'diff', 'transcript'])),
   offset: z.optional(z.int().check(z.nonnegative())),
 })
-export type CollectArgs = z.infer<typeof collectArgs>
 
 /**
  * `wait_seconds` within the backend's bound: a larger wait is clamped, never
@@ -275,7 +295,9 @@ const TEAM_ARG_SCHEMAS = {
 export function parseTeamArgs(
   name: TeamToolName,
   args: unknown,
-): { readonly ok: true; readonly args: unknown } | { readonly ok: false; readonly reason: string } {
+):
+  | { readonly ok: true; readonly args: Readonly<Record<string, unknown>> }
+  | { readonly ok: false; readonly reason: string } {
   const result = TEAM_ARG_SCHEMAS[name].safeParse(args)
   return result.success
     ? { ok: true, args: result.data }
@@ -294,17 +316,17 @@ export interface TeamCommandRecord {
 
 /** Stable fingerprint of a `delegate` call's tasks: key order cannot change it. */
 export function fingerprintDelegateTasks(tasks: readonly unknown[]): string {
-  return JSON.stringify(
-    tasks.map((task) =>
-      typeof task !== 'object' || task === null
-        ? task
-        : Object.fromEntries(
-            Object.entries(task as Record<string, unknown>).toSorted(([a], [b]) =>
-              a < b ? -1 : a > b ? 1 : 0,
-            ),
-          ),
-    ),
-  )
+  const sorted = (value: unknown): unknown => {
+    if (Array.isArray(value)) return value.map((item: unknown) => sorted(item))
+    return typeof value !== 'object' || value === null
+      ? value
+      : Object.fromEntries(
+          Object.entries(value)
+            .toSorted(([a], [b]) => a.localeCompare(b))
+            .map(([key, entry]) => [key, sorted(entry)]),
+        )
+  }
+  return JSON.stringify(sorted(tasks))
 }
 
 /**
@@ -315,6 +337,40 @@ export function fingerprintDelegateTasks(tasks: readonly unknown[]): string {
  */
 export class TeamCommandRegistry {
   private readonly records = new Map<string, TeamCommandRecord>()
+  private readonly pending = new Map<
+    string,
+    { fingerprint: string; result: Promise<TeamToolResult> }
+  >()
+
+  /** Concurrent retries share the first call, before its answer is recorded. */
+  public async run(
+    commandId: string | undefined,
+    tasks: readonly unknown[],
+    start: () => Promise<TeamToolResult>,
+  ): Promise<TeamToolResult> {
+    const fingerprint = fingerprintDelegateTasks(tasks)
+    const claim = this.claim(commandId, fingerprint)
+    if (claim.kind === 'refused') throw new Error('command_id was already used for different tasks')
+    if (claim.kind === 'replay') return { output: claim.answer, visibleOutput: '' }
+    if (commandId === undefined) return await start()
+    const pending = this.pending.get(commandId)
+    if (pending !== undefined) {
+      if (pending.fingerprint !== fingerprint)
+        throw new Error('command_id was already used for different tasks')
+      const result = await pending.result
+      return { output: result.output, visibleOutput: '' }
+    }
+    const run = async (): Promise<TeamToolResult> => await start()
+    const result = run()
+    this.pending.set(commandId, { fingerprint, result })
+    try {
+      const answer = await result
+      this.complete(commandId, { tasksFingerprint: fingerprint, answer: answer.output })
+      return answer
+    } finally {
+      this.pending.delete(commandId)
+    }
+  }
 
   public restore(records: Readonly<Record<string, TeamCommandRecord>>): void {
     for (const [commandId, record] of Object.entries(records)) {
@@ -367,4 +423,13 @@ export function teamRunnerMissing(tool: string): string {
 /** A team tool called where the conversation never declared it. */
 export function teamToolNotDeclared(tool: string): string {
   return `Error: unknown tool ${tool}`
+}
+
+/**
+ * An orchestrator writing tool called while an `in-place` worker task runs:
+ * edits, `rename_symbol`, the shell, `then_run` and `merge` wait (D75). The
+ * transcript's visible line is `UI_TEXT.teamInPlaceOrchestratorRefused`.
+ */
+export function inPlaceRefusal(): string {
+  return 'A worker is writing in place: edits, rename_symbol, the shell, then_run and merge wait until its task ends.'
 }

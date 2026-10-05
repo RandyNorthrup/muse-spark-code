@@ -92,16 +92,28 @@ export interface TeamRosterLive {
   readonly budgetLeft: string
 }
 
+/** Authority and lifetime of the calling orchestrator, for runner admission. */
+export interface TeamToolContext {
+  readonly sessionId: string
+  readonly approvalMode: string
+  readonly signal: AbortSignal
+}
+
 /**
  * The team runner lanes A (pools, admission), W (workers) and I (merge)
  * supply. Lane T declares the tools and refuses honestly without one: a
  * missing runner is an explicit error, never an empty success.
+ * The runner enforces the batch approval, key consent, paid gates, limits and
+ * merge approval before dispatching a worker or writing. Arguments arrive as
+ * unknown: the runner validates its own input, as every JSON boundary does.
  */
 export interface TeamToolRunner {
-  readonly delegate: (args: Readonly<Record<string, unknown>>) => Promise<TeamToolResult>
-  readonly collect: (args: Readonly<Record<string, unknown>>) => Promise<TeamToolResult>
-  readonly cancel: (args: Readonly<Record<string, unknown>>) => Promise<TeamToolResult>
-  readonly merge: (args: Readonly<Record<string, unknown>>) => Promise<TeamToolResult>
+  /** Select and report the same task plan, without starting workers or buying requests. */
+  readonly preview: (args: unknown, context: TeamToolContext) => Promise<TeamToolResult>
+  readonly delegate: (args: unknown, context: TeamToolContext) => Promise<TeamToolResult>
+  readonly collect: (args: unknown, context: TeamToolContext) => Promise<TeamToolResult>
+  readonly cancel: (args: unknown, context: TeamToolContext) => Promise<TeamToolResult>
+  readonly merge: (args: unknown, context: TeamToolContext) => Promise<TeamToolResult>
 }
 
 /** One answered team tool call, as the model and the transcript read it. */

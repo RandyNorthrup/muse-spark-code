@@ -1470,6 +1470,7 @@
   "subagentWebSearchOff": "La recherche web a été désactivée avant cette requête de la tâche enfant ; aucune requête n’a été envoyée.",
   "teamInPlaceOrchestratorRefused": "Un worker d’équipe écrit dans cet espace de travail : les modifications, le shell et les fusions attendent la fin de sa tâche.",
   "teamSingleModelAgain": "Un seul modèle est prêt : l’équipe s’applique à partir d’une nouvelle conversation.",
+  "teamRunnerUnavailable": "{tool} n’est pas disponible : le moteur d’exécution de l’équipe n’a pas été chargé dans cette fenêtre.",
   "webSearchFailed": "La recherche a échoué",
   "citationsHeading": "Sources",
   "dictationPaidLabel": "Enregistrer la voix avec Muse Voice (payant)",

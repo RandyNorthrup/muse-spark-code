@@ -1424,6 +1424,7 @@
   "subagentWebSearchOff": "Web araması bu alt görev isteğinden önce kapatıldı; istek gönderilmedi.",
   "teamInPlaceOrchestratorRefused": "Bir ekip çalışanı bu çalışma alanında yazıyor: görevi bitene kadar düzenlemeler, kabuk ve birleştirmeler bekler.",
   "teamSingleModelAgain": "Yalnızca bir model hazır: ekip yeni bir konuşmadan itibaren geçerlidir.",
+  "teamRunnerUnavailable": "{tool} kullanılamıyor: ekip çalıştırıcısı bu pencerede yüklenmedi.",
   "webSearchFailed": "Arama başarısız oldu",
   "citationsHeading": "Kaynaklar",
   "dictationPaidLabel": "Muse Voice ile ses kaydet (ücretli)",

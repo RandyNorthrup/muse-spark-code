@@ -6,6 +6,8 @@ import { describe, expect, it } from 'vitest'
 import {
   decideTeamConversationMode,
   readTeamWorkspaceHint,
+  readTeamConversationMode,
+  storeTeamConversationMode,
   TEAM_WORKSPACE_KEYS,
   type TeamConversationDecision,
 } from '../../src/core/team/singleModel'
@@ -156,5 +158,26 @@ describe('readTeamWorkspaceHint', () => {
         key === TEAM_WORKSPACE_KEYS.team ? { template: 'Full team' } : undefined,
     }
     expect(readTeamWorkspaceHint(state)).toEqual({ soloTemplate: false, hasStoredTeam: true })
+  })
+})
+
+describe('conversation mode storage', () => {
+  it('keeps each session decision and treats unknown sessions as single-model', async () => {
+    let stored: unknown
+    const state = {
+      get: () => stored,
+      update: (_key: string, value: unknown) => {
+        stored = value
+        return Promise.resolve()
+      },
+    }
+    expect(readTeamConversationMode(state, 'old')).toBe('single-model')
+    await storeTeamConversationMode(state, 'team-session', 'team')
+    await storeTeamConversationMode(state, 'solo-session', 'single-model')
+    expect(readTeamConversationMode(state, 'team-session')).toBe('team')
+    expect(readTeamConversationMode(state, 'solo-session')).toBe('single-model')
+    expect(readTeamConversationMode(state, 'old')).toBe('single-model')
+    stored = { old: 'invalid' }
+    expect(readTeamConversationMode(state, 'old')).toBe('single-model')
   })
 })

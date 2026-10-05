@@ -2035,6 +2035,7 @@ export const EN = {
   // M96 (PLAN.md D75): a team conversation whose last ready entry went away
   // keeps its tools; from the next turn `delegate` is refused.
   teamSingleModelAgain: 'Only one model is ready: the team applies from a new conversation.',
+  teamRunnerUnavailable: '{tool} is unavailable: the team runner has not loaded in this window.',
   webSearchFailed: 'The search failed',
   // Under a reply that cites web pages (M33).
   citationsHeading: 'Sources',

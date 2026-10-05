@@ -14,11 +14,11 @@
 // LANE-T-SEAM (lane 0): the English templates relocate into
 // `TEAM_MODEL_TEXT` in `src/shared/constants.ts` at integration.
 
-import type { TeamRosterLive, TeamStableRole } from './teamSeams'
+import type { TeamRosterLive, TeamStableRole, TeamStableEntry } from './teamSeams'
 
-function entryLine(index: number, entry: { agentLabel: string; caps: readonly string[] }): string {
+function entryLine(index: number, entry: TeamStableEntry): string {
   const caps = entry.caps.length === 0 ? 'no caps' : entry.caps.join(', ')
-  return `${String(index + 1)} ${entry.agentLabel}: ${caps}`
+  return `${String(index + 1)} ${entry.agentLabel}: ${caps} (${entry.entryId}; ${entry.modelId}; ${entry.kind})`
 }
 
 function roleLines(role: TeamStableRole): readonly string[] {

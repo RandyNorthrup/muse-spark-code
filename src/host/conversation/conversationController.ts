@@ -127,6 +127,8 @@ import {
   USER_SHELL_ITEM_KIND,
   USER_SHELL_SANDBOX_FAILURE_MARKER,
 } from '../../shared/constants'
+// M96 lane T (LANE-T-SEAM, lane 0): from shared constants at integration.
+import { TEAM_MCP_SERVER_NAME } from '../../core/team/teamConstants'
 import { effortForThinking, effortLevelsFor, isEffortLevel } from '../../shared/effort'
 import type { AgentEvent, ApprovalChoice, ItemSnapshot, TodoItem } from '../../shared/agentEvents'
 import { fill, plural } from '../../shared/l10n/text'
@@ -346,6 +348,34 @@ export interface ConversationDeps {
   readonly readToolImage: (path: string) => Promise<ToolImageResult>
   /** The IDE tool server for `session/start`, when it is listening. */
   readonly ideMcpEndpoint: () => Promise<SessionMcpHttpServer | undefined>
+  /**
+   * M96 lane T: the `team` server for `session/start`, on team conversations
+   * only (lanes B/T own the server; extension.ts wires it). Absent: every
+   * Muse Code session starts exactly as today.
+   */
+  readonly teamMcp?:
+    | {
+        /** Whether a new conversation here runs the team; read at session start. */
+        readonly modeForNewConversation: () => 'single-model' | 'team'
+        readonly modeForSession?: (sessionId: string) => 'single-model' | 'team'
+        readonly rememberMode?: (sessionId: string, mode: 'single-model' | 'team') => Promise<void>
+        /** This conversation's endpoint: one token per conversation, refused elsewhere. */
+        readonly endpointForConversation: (
+          sessionId?: string,
+        ) => Promise<SessionMcpHttpServer | undefined>
+      }
+    | undefined
+  /**
+   * M96 lane T: the orchestrator slot. A new conversation starts on the
+   * workspace override, or the picker's model; the pill then shows the
+   * resolved model (lanes R/U1 own the Roles section; M95's lane U owns the
+   * picker's listModels/setModel regions).
+   */
+  readonly orchestratorSlot?:
+    | {
+        readonly modelForNewConversation: (pickerModelId: string) => string
+      }
+    | undefined
   readonly newAttachmentId: () => string
   /** Session history (M6). */
   readonly sessions: SessionMemory
@@ -1130,6 +1160,14 @@ export class ConversationController {
    * waiting in the dialog. One at a time; a new conversation drops it.
    */
   private pendingHandoff: PendingHandoff | undefined
+
+  /**
+   * M96 lane T: whether this conversation's sessions carry the `team`
+   * server. Decided at session start, kept unchanged at every resume in this
+   * window and workspace metadata; older sessions keep today's single-model set.
+   */
+  private teamServerAttached: boolean | undefined
+  private teamServerSessionId: string | undefined
 
   public constructor(private readonly deps: ConversationDeps) {
     this.modelId = deps.modelId
@@ -2783,15 +2821,38 @@ export class ConversationController {
     }
   }
 
-  /** The IDE tool server config for a new or resumed session, when granted. */
   private async mcpServersFor(
     host: AgentHost,
+    resumeSessionId?: string,
   ): Promise<Readonly<Record<string, SessionMcpHttpServer>> | undefined> {
     if (!host.info.grantedCapabilities.includes(IDE_MCP_CAPABILITY)) {
       return undefined
     }
     const ideEndpoint = await this.deps.ideMcpEndpoint()
-    return ideEndpoint === undefined ? undefined : { [IDE_MCP_SERVER_NAME]: ideEndpoint }
+    const servers: Record<string, SessionMcpHttpServer> = {}
+    if (ideEndpoint !== undefined) {
+      servers[IDE_MCP_SERVER_NAME] = ideEndpoint
+    }
+    // The `team` server rides beside the `ide` server on team conversations
+    // only; single-model sessions carry today's set, byte for byte.
+    if (host.info.kind === 'museCode') {
+      if (resumeSessionId === undefined) {
+        this.teamServerAttached =
+          !this.isSideChat && this.deps.teamMcp?.modeForNewConversation() === 'team'
+        this.teamServerSessionId = undefined
+      } else if (resumeSessionId !== this.teamServerSessionId) {
+        this.teamServerAttached =
+          !this.isSideChat && this.deps.teamMcp?.modeForSession?.(resumeSessionId) === 'team'
+        this.teamServerSessionId = resumeSessionId
+      }
+      if (this.teamServerAttached) {
+        const team = await this.deps.teamMcp?.endpointForConversation(resumeSessionId)
+        if (team !== undefined) {
+          servers[TEAM_MCP_SERVER_NAME] = team
+        }
+      }
+    }
+    return Object.keys(servers).length === 0 ? undefined : servers
   }
 
   private sideResumeOptions(host: AgentHost): { readonly requireSideChat: true } | undefined {
@@ -2914,9 +2975,17 @@ export class ConversationController {
     }
     const mcpServers = await this.mcpServersFor(host)
     this.requireCurrentOpening(generation)
+    // M96 lane T: the orchestrator slot. A new conversation starts on the
+    // workspace override, or the picker's model; the pill then shows the
+    // resolved model through postSessionInfo.
+    let modelId = this.deps.orchestratorSlot?.modelForNewConversation(this.modelId) ?? this.modelId
+    if (modelId !== this.modelId && !(await this.allowsModel(modelId))) {
+      modelId = this.modelId
+    }
+    this.requireCurrentOpening(generation)
     const session = await host.startSession({
       workspaceRoot,
-      modelId: this.modelId,
+      modelId,
       approvalMode: approvalModeFor(this.permissionMode, this.deps.hasApprovalUi),
       ...(this.isSideChat && { sideChat: true }),
       ...(mcpServers !== undefined && { mcpServers }),
@@ -2930,6 +2999,14 @@ export class ConversationController {
       this.requireCurrentOpening(generation)
     }
     this.modelId = session.modelId
+    if (host.info.kind === 'museCode') {
+      this.teamServerSessionId = session.sessionId
+      await this.deps.teamMcp?.rememberMode?.(
+        session.sessionId,
+        this.teamServerAttached === true ? 'team' : 'single-model',
+      )
+      this.requireCurrentOpening(generation)
+    }
     await this.attach(host, session, 'started')
     this.requireCurrentOpening(generation)
     if (host.info.kind === 'modelApi') {
@@ -2984,7 +3061,7 @@ export class ConversationController {
       return undefined
     }
     let loaded: LoadedSession
-    const mcpServers = await this.mcpServersFor(host)
+    const mcpServers = await this.mcpServersFor(host, target.sessionId)
     try {
       loaded = await host.resumeSession(
         target.sessionId,
@@ -3636,7 +3713,7 @@ export class ConversationController {
         return
       }
       this.watchList(host)
-      const mcpServers = await this.mcpServersFor(host)
+      const mcpServers = await this.mcpServersFor(host, sessionId)
       const loaded = await host.resumeSession(
         sessionId,
         this.modelId,

@@ -1378,6 +1378,7 @@
   "subagentWebSearchOff": "この子タスクのリクエスト前にウェブ検索がオフになりました。リクエストは送信されませんでした。",
   "teamInPlaceOrchestratorRefused": "チームワーカーがこのワークスペースに書き込み中です。タスクが終わるまで編集、シェル、マージは待機します。",
   "teamSingleModelAgain": "準備ができたモデルは1つだけです。チームは新しい会話から適用されます。",
+  "teamRunnerUnavailable": "{tool} は利用できません。このウィンドウにチーム実行機能が読み込まれていません。",
   "webSearchFailed": "検索に失敗しました",
   "citationsHeading": "出典",
   "dictationPaidLabel": "Muse Voice で音声を録音 (有料)",

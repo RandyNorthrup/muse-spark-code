@@ -1424,6 +1424,7 @@
   "subagentWebSearchOff": "A webes keresést kikapcsolták az alfeladat kérése előtt; a kérés nem lett elküldve.",
   "teamInPlaceOrchestratorRefused": "A csapat egyik workere ír ebbe a munkaterületbe: a szerkesztések, a shell és az összefésülések a feladata végéig várnak.",
   "teamSingleModelAgain": "Csak egy modell áll készen: a csapat új beszélgetéstől érvényes.",
+  "teamRunnerUnavailable": "A(z) {tool} nem érhető el: a csapat futtatója nem töltődött be ebben az ablakban.",
   "webSearchFailed": "A keresés sikertelen",
   "citationsHeading": "Források",
   "dictationPaidLabel": "Hangfelvétel a Muse Voice használatával (fizetős)",

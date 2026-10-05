@@ -1516,6 +1516,7 @@
   "subagentWebSearchOff": "Wyszukiwanie w internecie wyłączono przed tym żądaniem zadania podrzędnego; żądanie nie zostało wysłane.",
   "teamInPlaceOrchestratorRefused": "Proces roboczy zespołu zapisuje w tym obszarze roboczym: edycje, powłoka i scalenia czekają na zakończenie jego zadania.",
   "teamSingleModelAgain": "Gotowy jest tylko jeden model: zespół obowiązuje od nowej rozmowy.",
+  "teamRunnerUnavailable": "Narzędzie {tool} jest niedostępne: moduł wykonawczy zespołu nie został załadowany w tym oknie.",
   "webSearchFailed": "Wyszukiwanie nie powiodło się",
   "citationsHeading": "Źródła",
   "dictationPaidLabel": "Nagraj głos przez Muse Voice (płatne)",

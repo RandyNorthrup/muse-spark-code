@@ -15,10 +15,9 @@ export const TEAM_COLLECT_PAGE_CHARS = 16_000
 /**
  * The longest a `collect` waits, in seconds. PENDING step 1 (lane P): the
  * measured safe wait under `muse serve`'s MCP call timeout, less a margin.
- * Until it lands, 300 s clamps from above only: a collect that returns early
- * is correct, just less patient, so this errs safe.
+ * Until that capture lands, return immediately; no positive timeout is assumed.
  */
-export const TEAM_COLLECT_WAIT_MAX_SECONDS = 300
+export const TEAM_COLLECT_WAIT_MAX_SECONDS = 0
 
 /** The brief a task carries is at most this many characters. */
 export const TEAM_BRIEF_MAX_CHARS = 8000

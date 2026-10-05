@@ -8,6 +8,7 @@
 // baseline): a workspace with no distinct custom entry, with Solo, or with
 // the team off sends nothing for the team at any time.
 
+import * as z from 'zod/mini'
 import type { TeamDecisionSource } from './teamSeams'
 
 /** Why the conversation stays single-model, or runs the team. */
@@ -73,6 +74,7 @@ export const TEAM_WORKSPACE_KEYS = {
   team: 'museSpark.team.config',
   /** The orchestrator slot's workspace override (lane T owns the shape). */
   orchestratorOverride: 'museSpark.team.orchestrator',
+  conversationModes: 'museSpark.team.conversations',
 } as const
 
 /** The narrowest workspace-state read: `get` only, never `update`. */
@@ -97,9 +99,33 @@ export function readTeamWorkspaceHint(state: TeamWorkspaceStateReader): {
   if (typeof stored !== 'object') {
     return { soloTemplate: false, hasStoredTeam: false }
   }
-  const template: unknown = (stored as Record<string, unknown>)['template']
+  const template: unknown = 'template' in stored ? stored.template : undefined
   return {
     soloTemplate: template === 'Solo',
     hasStoredTeam: true,
   }
+}
+
+const conversationModesSchema = z.record(z.string(), z.enum(['single-model', 'team']))
+
+/** Unknown/older sessions stay single-model, irrespective of today's setup. */
+export function readTeamConversationMode(
+  state: TeamWorkspaceStateReader,
+  sessionId: string,
+): TeamConversationMode {
+  const parsed = conversationModesSchema.safeParse(state.get(TEAM_WORKSPACE_KEYS.conversationModes))
+  return parsed.success ? (parsed.data[sessionId] ?? 'single-model') : 'single-model'
+}
+
+/** The declared set is workspace metadata, never reconstructed from new probes on resume. */
+export async function storeTeamConversationMode(
+  state: TeamWorkspaceStateReader & { update(key: string, value: unknown): unknown },
+  sessionId: string,
+  mode: TeamConversationMode,
+): Promise<void> {
+  const parsed = conversationModesSchema.safeParse(state.get(TEAM_WORKSPACE_KEYS.conversationModes))
+  await state.update(TEAM_WORKSPACE_KEYS.conversationModes, {
+    ...(parsed.success && parsed.data),
+    [sessionId]: mode,
+  })
 }
