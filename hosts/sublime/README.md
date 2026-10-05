@@ -29,7 +29,8 @@ processes this package owns. Cancel an ACP turn or a turn opened through a
 supplied URL in its ACP client or shared panel. There is no process-wide
 kill. A duplicate start in one window is refused; distinct windows are
 independent. Browser and runtime children receive sanitized environments
-and raw stdout/stderr are discarded. Failures show only `EPANEL_LAUNCH`.
+and raw stdout/stderr are discarded. Launch failures show `EPANEL_LAUNCH`;
+Stop failures show `EPANEL_STOP`, and unexpected exits show `EPANEL_EXIT`.
 
 The default opener is `open` on macOS and `xdg-open` on Linux. Set `opener`
 to a browser argv list on Windows. Every spawn uses `shell=False`.
