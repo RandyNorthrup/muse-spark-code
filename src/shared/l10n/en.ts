@@ -2028,6 +2028,13 @@ export const EN = {
     'No verified price is available for this model. The child task cannot start.',
   subagentPlanMode: 'Plan mode refuses paid child tasks; switch mode and approve a new task.',
   subagentWebSearchOff: 'Web search was turned off before this child request; no request was sent.',
+  // M96 (PLAN.md D75): the orchestrator's writing tools wait while an
+  // in-place worker task runs, in every mode.
+  teamInPlaceOrchestratorRefused:
+    'A team worker is writing in this workspace: edits, the shell and merges wait until its task ends.',
+  // M96 (PLAN.md D75): a team conversation whose last ready entry went away
+  // keeps its tools; from the next turn `delegate` is refused.
+  teamSingleModelAgain: 'Only one model is ready: the team applies from a new conversation.',
   webSearchFailed: 'The search failed',
   // Under a reply that cites web pages (M33).
   citationsHeading: 'Sources',

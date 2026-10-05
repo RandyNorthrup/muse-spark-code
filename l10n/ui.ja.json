@@ -1376,6 +1376,8 @@
   "subagentTariffUnknown": "このモデルの確認済み料金がありません。子タスクを開始できません。",
   "subagentPlanMode": "プランモードでは有料の子タスクを拒否します。モードを切り替え、新しいタスクを承認してください。",
   "subagentWebSearchOff": "この子タスクのリクエスト前にウェブ検索がオフになりました。リクエストは送信されませんでした。",
+  "teamInPlaceOrchestratorRefused": "チームワーカーがこのワークスペースに書き込み中です。タスクが終わるまで編集、シェル、マージは待機します。",
+  "teamSingleModelAgain": "準備ができたモデルは1つだけです。チームは新しい会話から適用されます。",
   "webSearchFailed": "検索に失敗しました",
   "citationsHeading": "出典",
   "dictationPaidLabel": "Muse Voice で音声を録音 (有料)",

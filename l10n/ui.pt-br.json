@@ -1468,6 +1468,8 @@
   "subagentTariffUnknown": "Não há preço verificado para este modelo. A tarefa de subagente não pode começar.",
   "subagentPlanMode": "O modo Plano recusa tarefas pagas de subagentes. Altere o modo e aprove uma nova tarefa.",
   "subagentWebSearchOff": "A pesquisa na web foi desativada antes desta solicitação do subagente; nenhuma solicitação foi enviada.",
+  "teamInPlaceOrchestratorRefused": "Um worker da equipe está escrevendo neste workspace: edições, shell e merges aguardam o fim da tarefa.",
+  "teamSingleModelAgain": "Só há um modelo pronto: a equipe vale a partir de uma nova conversa.",
   "webSearchFailed": "A pesquisa falhou",
   "citationsHeading": "Fontes",
   "dictationPaidLabel": "Gravar voz com o Muse Voice (pago)",

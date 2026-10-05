@@ -1376,6 +1376,8 @@
   "subagentTariffUnknown": "此模型沒有經過驗證的價格。無法開始子工作。",
   "subagentPlanMode": "規劃模式會拒絕付費子工作。請切換模式並核准新工作。",
   "subagentWebSearchOff": "網頁搜尋已在這次子工作請求前關閉；未送出請求。",
+  "teamInPlaceOrchestratorRefused": "團隊工作器正在此工作區中寫入：在其工作結束之前，編輯、shell 和合併將等待。",
+  "teamSingleModelAgain": "只有一個模型就緒：團隊自新對話起生效。",
   "webSearchFailed": "搜尋失敗",
   "citationsHeading": "來源",
   "dictationPaidLabel": "使用 Muse Voice 錄製語音（付費）",
