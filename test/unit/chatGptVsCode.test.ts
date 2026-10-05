@@ -123,6 +123,36 @@ describe('ChatGPT callback port', () => {
     }
   })
 
+  it('accepts at most one pipelined callback before a response finishes', async () => {
+    const server = await startChatGptCallback(STATE, 1000)
+    const url = new URL(callbackUrl(server.redirectUri))
+    const socket = connect(Number(url.port), url.hostname)
+    let received = ''
+    const closed = new Promise<void>((resolve) => {
+      socket.once('close', () => {
+        resolve()
+      })
+    })
+    try {
+      socket.on('data', (chunk: Buffer) => {
+        received += chunk.toString('utf8')
+      })
+      await new Promise<void>((resolve) => {
+        socket.once('connect', () => {
+          resolve()
+        })
+      })
+      const request = `GET ${url.pathname}${url.search} HTTP/1.1\r\nHost: 127.0.0.1\r\n\r\n`
+      socket.write(request + request)
+      await closed
+      expect(received.match(/HTTP\/1\.1 200/gu)).toHaveLength(1)
+      await expect(server.waitForCallback()).resolves.toBe(url.href)
+    } finally {
+      socket.destroy()
+      server.close()
+    }
+  })
+
   it.each(['state=wrong', `state=${STATE}&state=duplicate`, `state=${STATE}&error=access_denied`])(
     'rejects untrusted callback %s without exposing provider text',
     async (query) => {
