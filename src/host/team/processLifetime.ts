@@ -585,7 +585,7 @@ function windowsTeamDriver(assembly: string, systemRoot: string): TeamProcessDri
               if (parsed.success) confirm(parsed.data)
               else fail(new Error('TEAM_WINDOWS_CONFIRMATION_INVALID'))
             } else if (line === 'END proved') {
-              proof({ childExited: true, descendants: 'proved' })
+              result.end = { childExited: true, descendants: 'proved' }
               // Release the native control reader on natural command exit.
               // Waiting for helper exit to close this pipe would deadlock it.
               socket.end()
@@ -631,14 +631,18 @@ function windowsTeamDriver(assembly: string, systemRoot: string): TeamProcessDri
         .catch(() => {
           /* Caller receives confirmation failure. */
         })
-      const closed = () => {
-        clearTimeout(timeout)
-        fail(new Error('TEAM_CONFIRMATION_LOST'))
-        proof({ childExited: true, descendants: 'uncertain' })
-        for (const server of servers) server.close()
-      }
-      child.once('exit', closed)
-      child.once('error', closed)
+      // END proves the job's descendants ended; the helper can still hold
+      // its cwd and stdio. Disposal must also wait for those handles to close.
+      const closed = new Promise<void>((resolve) => {
+        child.once('close', () => {
+          clearTimeout(timeout)
+          fail(new Error('TEAM_CONFIRMATION_LOST'))
+          proof(result.end ?? { childExited: true, descendants: 'uncertain' })
+          for (const server of servers) server.close()
+          resolve()
+        })
+      })
+      child.once('error', fail)
       return {
         child,
         confirmation,
@@ -646,6 +650,7 @@ function windowsTeamDriver(assembly: string, systemRoot: string): TeamProcessDri
         async retire() {
           if (stop === undefined) child.kill()
           else stop()
+          await closed
           return await ended
         },
       }

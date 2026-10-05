@@ -98,7 +98,11 @@ public static class MuseSparkJob {
       if (!AssignProcessToJobObject(job, GetCurrentProcess())) throw new Win32Exception();
       if (belowNormal) System.Diagnostics.Process.GetCurrentProcess().PriorityClass =
         System.Diagnostics.ProcessPriorityClass.BelowNormal;
-      using (var status = new NamedPipeClientStream(".", statusPipe, PipeDirection.InOut)) {
+      // An overlapped handle permits the control read and retirement write
+      // concurrently. A synchronous PipeStream serializes them on one lock:
+      // ReadLine waits for STOP/EOF while END waits for that read to finish.
+      using (var status = new NamedPipeClientStream(".", statusPipe, PipeDirection.InOut,
+        PipeOptions.Asynchronous)) {
         status.Connect(5000);
         var writer = new StreamWriter(status, new UTF8Encoding(false));
         writer.AutoFlush = true;

@@ -6,7 +6,7 @@ import path from 'node:path'
 import { setTimeout as delay } from 'node:timers/promises'
 import { build } from 'esbuild'
 import * as z from 'zod/mini'
-import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest'
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import { jobSourceReader } from '../../src/host/backend/jobSource'
 import { createNativeOrphanDriver, createOrphanRecovery } from '../../src/host/team/orphanRecovery'
 import {
@@ -90,7 +90,7 @@ async function standaloneOwner(directory: string, code: string, env?: NodeJS.Pro
   const launcher = path.join(directory, 'owner.cjs')
   await build({
     stdin: {
-      contents: `const {createNativeTeamProcessDriver}=require('./src/host/team/processLifetime'); const sources=require('./src/host/backend/jobSource'); (async()=>{ const driver=await createNativeTeamProcessDriver({killGraceMs:100,windows:{storageDir:${JSON.stringify(native.directory)},systemRoot:process.env.SystemRoot,readJobSource:sources.jobSourceReader(process.cwd()),log:()=>{}}});const child=driver.launch({command:process.execPath,args:['-e',${JSON.stringify(code)}],cwd:process.cwd(),taskId:'owner',env:{SystemRoot:process.env.SystemRoot,PATH:process.env.PATH},priority:'belowNormal'},${JSON.stringify(randomUUID())}); await child.confirmation;setInterval(()=>{},1000) })().catch(()=>process.exit(1))`,
+      contents: String.raw`const {createNativeTeamProcessDriver}=require('./src/host/team/processLifetime'); const sources=require('./src/host/backend/jobSource'); (async()=>{ const driver=await createNativeTeamProcessDriver({killGraceMs:100,windows:{storageDir:${JSON.stringify(native.directory)},systemRoot:process.env.SystemRoot,readJobSource:sources.jobSourceReader(process.cwd()),log:()=>{}}});const child=driver.launch({command:process.execPath,args:['-e',${JSON.stringify(code)}],cwd:process.cwd(),taskId:'owner',env:{SystemRoot:process.env.SystemRoot,PATH:process.env.PATH},priority:'belowNormal'},${JSON.stringify(randomUUID())}); await child.confirmation;process.stdout.write("READY\n");setInterval(()=>{},1000) })().catch(error=>{process.stderr.write(String(error));process.exit(1)})`,
       resolveDir: process.cwd(),
       loader: 'ts',
     },
@@ -109,9 +109,31 @@ async function standaloneOwner(directory: string, code: string, env?: NodeJS.Pro
       resolve()
     }),
   )
+  const parentClosed = new Promise<void>((resolve) =>
+    parent.once('close', () => {
+      resolve()
+    }),
+  )
   stops.push(async () => {
     parent.kill()
-    await parentExited
+    await parentClosed
+  })
+  // A crash fixture must have a confirmed live owner before the observation
+  // clock starts. Preparation still runs within Vitest's unchanged deadline.
+  await new Promise<void>((resolve, reject) => {
+    let status = ''
+    let errors = ''
+    parent.stderr.on('data', (chunk: Buffer) => {
+      errors += chunk.toString('utf8')
+    })
+    parent.stdout.on('data', (chunk: Buffer) => {
+      status += chunk.toString('utf8')
+      if (status === 'READY\n') resolve()
+    })
+    parent.once('error', reject)
+    parent.once('exit', () => {
+      reject(new Error(`native owner exited before readiness: ${errors}`))
+    })
   })
   return { parent, parentExited }
 }
@@ -152,11 +174,20 @@ describe('M96 K real native lifetime', () => {
     const launched = await f.lifetime.launch(f.request('setTimeout(()=>process.exit(7),700)'))
     const exit =
       launched.child.exitCode ??
-      (await new Promise<number | null>((resolve) => {
-        launched.child.once('exit', resolve)
-      }))
+      (await Promise.race([
+        new Promise<number | null>((resolve) => {
+          launched.child.once('exit', resolve)
+        }),
+        delay(2000, null),
+      ]))
     expect(exit).toBe(7)
-    await launched.ended
+    const end = await launched.ended
+    if (process.platform !== 'win32') {
+      return
+    }
+
+    expect(end).toEqual({ childExited: true, descendants: 'proved' })
+    expect(await f.lifetime.recoveryRecords(f.journal)).toEqual([])
   })
   it('reconciles foreign journals before startup returns and preserves all foreign bytes', async () => {
     const f = await fixture()
@@ -202,7 +233,7 @@ describe('M96 K real native lifetime', () => {
     const child = await f.lifetime.launch(f.request(code))
     await until(async () => {
       try {
-        await readFile(output)
+        JSON.parse(await readFile(output, 'utf8'))
         return true
       } catch {
         return false
@@ -222,6 +253,7 @@ describe('M96 K real native lifetime', () => {
         : expect.stringMatching(/linuxScope|processGroup/),
     )
     const outcome = await child.retire()
+    if (process.platform === 'win32') expect(child.child.exitCode).not.toBeNull()
     expect(outcome.childExited).toBe(true)
     if (process.platform === 'win32') expect(outcome.descendants).toBe('proved')
   })
@@ -235,7 +267,7 @@ describe('M96 K real native lifetime', () => {
       const child = await f.lifetime.launch(f.request(code))
       await until(async () => {
         try {
-          await readFile(output)
+          JSON.parse(await readFile(output, 'utf8'))
           return true
         } catch {
           return false
@@ -276,35 +308,43 @@ describe('M96 K real native lifetime', () => {
   }
 
   if (process.platform === 'win32') {
-    it('hard host death closes jobs and ends detached grandchildren', async () => {
-      const directory = await realpath(await mkdtemp(path.join(os.tmpdir(), 'm96-owner-')))
-      directories.push(directory)
-      const output = path.join(directory, 'descendant.json')
-      const descendant = `require('node:fs').writeFileSync(${JSON.stringify(output)},JSON.stringify({pid:process.pid}));setTimeout(()=>{},20000)`
-      const code = `require('node:child_process').spawn(process.execPath,['-e',${JSON.stringify(descendant)}],{detached:true,stdio:'ignore'});setTimeout(()=>{},20000)`
-      const { parent, parentExited } = await standaloneOwner(directory, code)
-      await until(async () => {
-        try {
-          await readFile(output)
-          return true
-        } catch {
-          return false
-        }
+    describe('prepared Windows owner', () => {
+      let owner: Awaited<ReturnType<typeof standaloneOwner>> | undefined
+      let output = ''
+      beforeEach(async () => {
+        const directory = await realpath(await mkdtemp(path.join(os.tmpdir(), 'm96-owner-')))
+        directories.push(directory)
+        output = path.join(directory, 'descendant.json')
+        const descendant = `require('node:fs').writeFileSync(${JSON.stringify(output)},JSON.stringify({pid:process.pid}));setTimeout(()=>{},20000)`
+        const code = `require('node:child_process').spawn(process.execPath,['-e',${JSON.stringify(descendant)}],{detached:true,stdio:'ignore'});setTimeout(()=>{},20000)`
+        owner = await standaloneOwner(directory, code)
       })
-      const pid: unknown = z
-        .strictObject({ pid: z.number() })
-        .parse(JSON.parse(await readFile(output, 'utf8'))).pid
-      if (typeof pid !== 'number') throw new Error('missing descendant pid')
-      expect(() => process.kill(pid, 0)).not.toThrow()
-      parent.kill()
-      await parentExited
-      await until(() => {
-        try {
-          process.kill(pid, 0)
-          return Promise.resolve(false)
-        } catch {
-          return Promise.resolve(true)
-        }
+      it('hard host death closes jobs and ends detached grandchildren', async () => {
+        if (owner === undefined) throw new Error('native owner not prepared')
+        const { parent, parentExited } = owner
+        await until(async () => {
+          try {
+            JSON.parse(await readFile(output, 'utf8'))
+            return true
+          } catch {
+            return false
+          }
+        })
+        const pid: unknown = z
+          .strictObject({ pid: z.number() })
+          .parse(JSON.parse(await readFile(output, 'utf8'))).pid
+        if (typeof pid !== 'number') throw new Error('missing descendant pid')
+        expect(() => process.kill(pid, 0)).not.toThrow()
+        parent.kill()
+        await parentExited
+        await until(() => {
+          try {
+            process.kill(pid, 0)
+            return Promise.resolve(false)
+          } catch {
+            return Promise.resolve(true)
+          }
+        })
       })
     })
   } else if (process.platform === 'linux') {
@@ -319,7 +359,7 @@ describe('M96 K real native lifetime', () => {
       const { parent, parentExited } = await standaloneOwner(f.directory, code, { PATH: bin })
       await until(async () => {
         try {
-          await readFile(output)
+          JSON.parse(await readFile(output, 'utf8'))
           return true
         } catch {
           return false

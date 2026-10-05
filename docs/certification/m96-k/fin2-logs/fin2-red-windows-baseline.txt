@@ -1,0 +1,68 @@
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - ESM syntax in a file loaded as CommonJS (vitest.config.ts:1:1). Use a `.mjs` extension or set `"type": "module"` in the closest package.json
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+
+ RUN  v5.0.2 C:/Users/Randy/Coding/mx-m96k
+
+ ❯ test/unit/teamNativeLifetime.test.ts (5 tests | 2 failed) 34180ms
+   ❯ M96 K real native lifetime (5)
+     × starts a separate journalled team Muse Code host over real fake-CLI pipes 5698ms
+     ❯ prepared Windows owner (1)
+       × hard host death closes jobs and ends detached grandchildren 9426ms
+ ❯ test/unit/teamHintsAndLoad.test.ts (9 tests | 1 failed) 6586ms
+   ❯ M96 K advisory hints (5)
+     × uses state home and secures a real native owner-only hints folder 5083ms
+
+⎯⎯⎯⎯⎯⎯ Failed Suites 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  test/unit/teamNativeLifetime.test.ts [ test/unit/teamNativeLifetime.test.ts ]
+Error: EPERM: operation not permitted, unlink 'C:\Users\Randy\AppData\Local\Temp\m96-driver-PfU5uA\shell-job\MuseSparkJob-cd99e8eeada7ff1b.dll'
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/4]⎯
+
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 3 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  test/unit/teamHintsAndLoad.test.ts > M96 K advisory hints > uses state home and secures a real native owner-only hints folder
+Error: Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ test/unit/teamHintsAndLoad.test.ts:77:3
+     75|
+     76| describe('M96 K advisory hints', () => {
+     77|   it('uses state home and secures a real native owner-only hints folde…
+       |   ^
+     78|     const f = await hintFixture()
+     79|     const stateHome = windowHintsDirectory(
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/4]⎯
+
+ FAIL  test/unit/teamNativeLifetime.test.ts > M96 K real native lifetime > starts a separate journalled team Muse Code host over real fake-CLI pipes
+Error: Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ test/unit/teamNativeLifetime.test.ts:137:3
+    135|
+    136| describe('M96 K real native lifetime', () => {
+    137|   it('starts a separate journalled team Muse Code host over real fake-…
+       |   ^
+    138|     const f = await fixture()
+    139|     const host = await startTeamMuseCodeHost({
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/4]⎯
+
+ FAIL  test/unit/teamNativeLifetime.test.ts > M96 K real native lifetime > prepared Windows owner > hard host death closes jobs and ends detached grandchildren
+SyntaxError: Unexpected end of JSON input
+ ❯ test/unit/teamNativeLifetime.test.ts:328:23
+    326|         const pid: unknown = z
+    327|           .strictObject({ pid: z.number() })
+    328|           .parse(JSON.parse(await readFile(output, 'utf8'))).pid
+       |                       ^
+    329|         if (typeof pid !== 'number') throw new Error('missing descenda…
+    330|         expect(() => process.kill(pid, 0)).not.toThrow()
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/4]⎯
+
+
+ Test Files  2 failed | 1 passed (3)
+      Tests  3 failed | 26 passed (29)
+   Start at  08:53:37
+   Duration  66.52s (tests 74%, import 12%, setup 7%, transform 7%)
+
