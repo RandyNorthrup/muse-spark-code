@@ -102,10 +102,18 @@ Commands run serially, directly in this worktree:
   `test/unit/chatgptResponsesCap.test.ts` file: **17 failed, 2 passed**.
 - Final focused suite (all three codec files, `--maxWorkers=3 --testTimeout=120000`):
   **77 passed** (45 existing Responses, 13 ChatGPT request/error, 19 cap).
-- `npm run typecheck`: all five projects passed.
-- `npx eslint --max-warnings=0 src/core/backends/modelapi/codecs/responses.ts test/unit/chatgptResponsesCodec.test.ts`:
-  passed; the cap test file also passes.
-- Prettier applied to the changed source, tests and golden.
+- `npm run typecheck`: all five projects passed again after the cap piece.
+- `npx eslint --max-warnings=0 src/core/backends/modelapi/codecs/responses.ts test/unit/chatgptResponsesCodec.test.ts test/unit/chatgptResponsesCap.test.ts`:
+  passed.
+- `npx prettier --check` on all five changed files: passed.
+- `npm run deadcode`: passed (the existing `vendor/**` configuration hint).
+- `npx jscpd`: passed, 0 clones.
+- `node scripts/check-l10n.mjs`: 14 tables, 127 manifest strings,
+  **0 problems**. This lane adds no localization key or manifest text.
+- `npm run check:host-api`: passed, 283 APIs, **0 problems**.
+- `npm run build`: **exit 0**. Production compilation, every size cap,
+  bundle split, host globals and third-party notices all passed. The
+  codec/profile loads exclusively from `dist/providers.js`.
 - `.husky/_/pre-commit` exists, `core.hooksPath` is `.husky/_`, and
   `gitleaks` is available; commits run the normal lint-staged and staged
   secret scan hooks.
@@ -113,6 +121,19 @@ Commands run serially, directly in this worktree:
 The rig/common rules explicitly forbid a full `npm run quality` on a lane;
 the lead owns that gate. No gate is weakened. The rig note's prohibition
 on merge/rebase overrides common.md's old integration instruction.
+
+Measured production bundles (all existing caps unchanged):
+
+| Bundle                              |      Size |     Cap |
+| ----------------------------------- | --------: | ------: |
+| `dist/providers.js`                 |  97.3 KiB | 125 KiB |
+| `dist/extension.js`                 | 553.1 KiB | 600 KiB |
+| `dist/modelApi.js`                  | 413.3 KiB | 475 KiB |
+| `dist/modelsPanel.js`               |  51.0 KiB |  75 KiB |
+| `dist/webview/models.js`            | 411.4 KiB | 475 KiB |
+| `dist/checkpointStore.js`           |  88.4 KiB | 225 KiB |
+| `dist/webview/main.js` (startup JS) | 896.4 KiB | 900 KiB |
+| `dist/acp.js`                       | 798.8 KiB | 850 KiB |
 
 ## Request/error red drills
 
@@ -161,3 +182,20 @@ compared SHA-256 before/after:
 | Item boundary               | Bypass item-event cap                 | checks a final item without deltas through the host counter                         |
 | Delta boundary              | Bypass delta-event cap                | aborts before yielding an over-cap response.output_text.delta and closes the source |
 | API-key compatibility       | Apply the ChatGPT cap to API profiles | does not enforce the ChatGPT cap on an API-key profile                              |
+
+## Handoff
+
+Implementation commits: `10b8acfe` (request and typed limits), `1cec83e4`
+(mandatory host output-cap interface and guards). Both normal commit hooks
+passed ESLint, Prettier and staged gitleaks. The worktree stayed within lane
+C's five files; no other lane's production, shared strings or documentation
+was edited. No push, merge, rebase, live call, paid call, credential read or
+dependency change occurred.
+
+The lead's integration supplies the namespace, host counter/cancellation,
+auth/transport subscription record, UI mapping for typed errors, and lane
+W's PLAN/CHANGELOG/README/PRIVACY updates. Full quality remains the lead's
+gate. Raw capture byte comparison and the success/tool-call observations
+listed above remain open; this record does not certify a live plan turn.
+The owner's automatic enhancements/paid-consent rulings do not change this
+pure codec; plan usage remains separate from API-key paid-use policy.
