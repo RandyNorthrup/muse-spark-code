@@ -39,6 +39,7 @@ import {
   HTTP_UNAUTHORIZED,
   HOOK_MAX_STOP_CONTINUATIONS,
   HOOK_NOTIFICATION_DELAY_MS,
+  HOOK_ON_FAILURE_MAX_DEPTH,
   HOOK_SESSION_END_TIMEOUT_MS,
   IDE_MCP_SERVER_NAME,
   MODEL_API_CLOSE_SETTLE_MS,
@@ -1042,6 +1043,18 @@ class HookStoppedError extends Error {
   }
 }
 
+/**
+ * A UserPromptSubmit block ends the turn cancelled with the hook's reason, as
+ * on Muse Code 1.4.2 (M91 capture run 5), so Interrupt fires for it. Other
+ * hook stops still fail the turn.
+ */
+class HookCancelledError extends Error {
+  public constructor(public readonly reason: string) {
+    super(reason)
+    this.name = 'HookCancelledError'
+  }
+}
+
 function describe(error: unknown): string {
   return error instanceof Error ? error.message : String(error)
 }
@@ -1275,6 +1288,11 @@ function refusedByRule(call: FunctionCallItem, judgement: PermissionJudgement): 
 /** A path the permission settings deny the file tools (M78). */
 function deniedPath(display: string): ToolOutcome {
   return toolFailure(`${display} ${MODEL_TEXT.pathDeniedByPolicy}`)
+}
+
+/** A refused PostToolUseFailure correction names its reason for the model (M91). */
+function refusedCorrection(reason: string): { ok: false; reason: string } {
+  return { ok: false, reason: fill(UI_TEXT.hookCorrectionRefused, { reason }) }
 }
 
 /** A call the permission settings stopped allowing at its I/O (M78): the model's reason, the row's in the user's language. */
@@ -2023,6 +2041,20 @@ export class ModelApiSession implements AgentSession {
       this.appendHookContexts(turnId, result.contexts)
     }
     return result
+  }
+
+  /**
+   * Muse Code's Interrupt (1.4.0, captured in docs/certification/m91.md): an
+   * async-only observation fired when a running turn or compaction is
+   * cancelled, never on an idle close. Fire-and-forget with no abort signal,
+   * so a turn unwind does not suppress it; async answers apply nothing.
+   */
+  private fireInterrupt(): void {
+    const turnId = this.active?.turnId ?? this.turnIds.at(-1)
+    if (turnId === undefined) {
+      return
+    }
+    void this.runHooks('Interrupt', turnId, {}, undefined, undefined, false, false)
   }
 
   /** Pre-call veto and context use the same boundary for turns and compaction. */
@@ -7384,7 +7416,7 @@ export class ModelApiSession implements AgentSession {
     call: FunctionCallItem,
     outcome: ToolOutcome,
     status: string,
-  ): void {
+  ): ReplayItem {
     const { itemId } = started
     const outputRef = outcome.patch === undefined ? undefined : `${OUTPUT_REF_PREFIX}${itemId}`
     if (outputRef !== undefined && outcome.patch !== undefined) {
@@ -7421,6 +7453,66 @@ export class ModelApiSession implements AgentSession {
     if (outcome.visibleFile !== undefined) {
       this.readFiles.push(outcome.visibleFile)
     }
+    return replay
+  }
+
+  /**
+   * A PostToolUseFailure hook's corrected call (Muse 1.4.0, M91 lane R): the
+   * same tool only, as a new call through PreToolUse, policy, path
+   * confinement and approval, bounded by HOOK_ON_FAILURE_MAX_DEPTH. A refusal
+   * names its reason for the model; the original failure stands.
+   */
+  private async correctionFor(
+    call: FunctionCallItem,
+    updatedInput: Record<string, unknown>,
+    correctionsUsed: number,
+    signal: AbortSignal,
+  ): Promise<{ ok: true; call: FunctionCallItem } | { ok: false; reason: string }> {
+    signal.throwIfAborted()
+    if (correctionsUsed >= HOOK_ON_FAILURE_MAX_DEPTH) {
+      return refusedCorrection(plural(UI_TEXT.hookCorrectionTooDeep, HOOK_ON_FAILURE_MAX_DEPTH))
+    }
+    const { tool_name: named, ...args } = updatedInput
+    // updatedInput replaces the arguments; only a tool_name restating this
+    // same tool may ride along. Anything else naming a tool is refused: the
+    // correction never switches tools.
+    if (named !== undefined && (typeof named !== 'string' || named !== call.name)) {
+      return refusedCorrection(UI_TEXT.hookCorrectionOtherTool)
+    }
+    const corrected: FunctionCallItem = { ...call, arguments: JSON.stringify(args) }
+    // The full path re-vets the corrected call, but a path outside the
+    // workspace is refused here with its reason instead of running at all. A
+    // memory note's path is under its scope's root, not the workspace.
+    if (isMemoryTool(call.name)) {
+      signal.throwIfAborted()
+      return { ok: true, call: corrected }
+    }
+    const target = await this.editTarget(corrected)
+    if (target !== undefined && !target.ok) {
+      return refusedCorrection(UI_TEXT.hookCorrectionOutside)
+    }
+    signal.throwIfAborted()
+    return { ok: true, call: corrected }
+  }
+
+  /**
+   * A corrected call supersedes its failed attempt: the row stays in History,
+   * but the attempt's output leaves the replay so one call_id answers once,
+   * with nothing the model never saw queued behind it.
+   */
+  private supersedeReplayOutput(replay: ReplayItem, outcome: ToolOutcome): void {
+    const index = this.replay.indexOf(replay)
+    if (index !== -1) {
+      this.replay.splice(index, 1)
+    }
+    this.pendingOutputMedia.delete(replay)
+    if (outcome.visibleFile === undefined) {
+      return
+    }
+    const queued = this.readFiles.lastIndexOf(outcome.visibleFile)
+    if (queued !== -1) {
+      this.readFiles.splice(queued, 1)
+    }
   }
 
   /** Permission check, execution and the transcript row for one tool call. */
@@ -7429,6 +7521,7 @@ export class ModelApiSession implements AgentSession {
     call: FunctionCallItem,
     signal: AbortSignal,
     goalCommandRevision: number,
+    correctionsUsed = 0,
   ): Promise<HookToolResult> {
     const itemId = this.deps.newId()
     const startedAt = this.deps.now()
@@ -7509,6 +7602,7 @@ export class ModelApiSession implements AgentSession {
     // The one point every outcome crosses: no await from here to the model's
     // replay. A rejection brought nothing back and keeps its own words.
     let outcome = isRejected ? result.outcome : this.fencedOutcome(admission, result.outcome)
+    let attemptReplay: ReplayItem | undefined
     if (running === undefined) {
       if (!this.canQueueToolMedia(outcome)) {
         outcome = {
@@ -7521,7 +7615,7 @@ export class ModelApiSession implements AgentSession {
       if (outcome.failureReason !== undefined) {
         status = isRejected ? REJECTED : FAILED
       }
-      this.finishCall(turnId, started, effectiveCall, outcome, status)
+      attemptReplay = this.finishCall(turnId, started, effectiveCall, outcome, status)
     } else {
       this.continueInBackground(turnId, started, effectiveCall, outcome, running, admission)
     }
@@ -7569,6 +7663,42 @@ export class ModelApiSession implements AgentSession {
           type: 'message',
           role: 'user',
           content: [{ type: 'input_text', text: reason }],
+        },
+      })
+    }
+    // A PostToolUseFailure hook's corrected call (Muse 1.4.0, M91): the same
+    // tool only, as a new call through the full path, bounded by
+    // HOOK_ON_FAILURE_MAX_DEPTH. A stop still stops: no corrected call runs
+    // after it. A backgrounded call is still running, so it is never
+    // corrected either.
+    if (
+      attemptReplay !== undefined &&
+      outcome.failureReason !== undefined &&
+      post.updatedInput !== undefined &&
+      post.stopReason === undefined
+    ) {
+      const correction = await this.correctionFor(
+        effectiveCall,
+        post.updatedInput,
+        correctionsUsed,
+        signal,
+      )
+      if (correction.ok) {
+        this.supersedeReplayOutput(attemptReplay, outcome)
+        return await this.runCall(
+          turnId,
+          correction.call,
+          signal,
+          goalCommandRevision,
+          correctionsUsed + 1,
+        )
+      }
+      this.replay.push({
+        turnId,
+        item: {
+          type: 'message',
+          role: 'user',
+          content: [{ type: 'input_text', text: correction.reason }],
         },
       })
     }
@@ -8417,7 +8547,9 @@ export class ModelApiSession implements AgentSession {
         )
         if (submitted.blockedReason !== undefined) {
           // A rejected prompt stays visible in History, but never reaches a
-          // later model request through the replay (M51).
+          // later model request through the replay (M51). On Muse Code the
+          // turn ends cancelled with the hook's reason and Interrupt fires
+          // (M91 capture run 5), so this turn does the same.
           this.replay.splice(replayBeforeSubmit)
           const userIndex = this.replay.findLastIndex(
             (entry) =>
@@ -8428,7 +8560,8 @@ export class ModelApiSession implements AgentSession {
           if (userIndex !== -1) {
             this.replay.splice(userIndex, 1)
           }
-          throw new HookStoppedError(submitted.blockedReason)
+          this.fireInterrupt()
+          throw new HookCancelledError(submitted.blockedReason)
         }
         // Admitted: a user's message starts the verify loop afresh (M68). A
         // goal's wake carries on, and a parent model's message to a subagent
@@ -8443,8 +8576,14 @@ export class ModelApiSession implements AgentSession {
         !this.isReviewing() && (await this.webSearchConsent(turn.abort.signal))
       await this.loop(turn)
     } catch (error: unknown) {
-      if (turn.abort.signal.aborted) {
+      if (turn.abort.signal.aborted || error instanceof HookCancelledError) {
         terminal = CANCELLED
+        if (error instanceof HookCancelledError) {
+          reason = error.reason
+          // Fixed words only: the reason carries the hook's stderr, which the
+          // redactor would not catch (AGENTS.md rule 8).
+          this.deps.log.warn(`Model API turn ${turn.turnId} cancelled by a hook`)
+        }
       } else {
         terminal = FAILED
         reason = error instanceof ChildTaskRefusedError ? error.visible : describe(error)
@@ -9188,7 +9327,8 @@ export class ModelApiSession implements AgentSession {
         reason: UI_TEXT.queuedTurnDropped,
       })
     }
-    if (this.active !== undefined || this.compacting !== undefined) {
+    const hasRunning = this.active !== undefined || this.compacting !== undefined
+    if (hasRunning) {
       // Pause the goal Stop targeted now. A replacement accepted while an
       // aborted turn unwinds must remain active and get its own wake.
       this.pauseGoalAfterStop()
@@ -9196,6 +9336,12 @@ export class ModelApiSession implements AgentSession {
     this.active?.abort.abort()
     if (this.compacting !== undefined) {
       this.compacting.abort()
+    }
+    // Muse Code's Interrupt fires on a cancelled running turn or compaction,
+    // never on an idle close (M91, docs/certification/m91.md). Disposal and
+    // host close reach it through here.
+    if (hasRunning) {
+      this.fireInterrupt()
     }
     return Promise.resolve()
   }

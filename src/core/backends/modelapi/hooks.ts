@@ -2,6 +2,10 @@
 // The config, matcher and result contracts are documented by Muse Code SDK
 // 1.3.0: https://meta-models.github.io/muse-code-sdk/next/guides/extend/hooks/
 // and https://meta-models.github.io/muse-code-sdk/next/guides/plugins/reference/hook-events/.
+// Interrupt (1.4.0) and SessionFork (1.4.2) join HOOK_EVENTS here (M91 lane
+// R): Interrupt fires async-only where the captures show Muse Code firing it
+// (docs/certification/m91.md), and SessionFork parses sync-only but fires
+// nothing until upstream meta-models/muse-code-sdk#84 is answered.
 
 import * as z from 'zod/mini'
 import path from 'node:path'
@@ -54,6 +58,8 @@ export const HOOK_EVENTS = [
   'StopFailure',
   'SessionEnd',
   'Notification',
+  'Interrupt',
+  'SessionFork',
 ] as const
 
 export type HookEvent = (typeof HOOK_EVENTS)[number]
@@ -285,6 +291,8 @@ const WIRED_EVENTS = new Set<HookEvent>([
   'StopFailure',
   'SessionEnd',
   'Notification',
+  'Interrupt',
+  'SessionFork',
 ])
 
 function isRecord(value: unknown): value is HookRecord {
@@ -302,7 +310,9 @@ function matcherFor(value: unknown, event: HookEvent): HookMatcher | undefined |
   if (typeof value !== 'string') {
     return 'matcher must be a string'
   }
-  if (event === 'PostToolBatch') {
+  // Neither carries a match dimension: a batch names many tools, and a fork
+  // names none (SessionFork fires nothing until upstream #84 is answered).
+  if (event === 'PostToolBatch' || event === 'SessionFork') {
     return undefined
   }
   if (MATCH_EVERYTHING.has(value)) {
@@ -389,6 +399,14 @@ function handler(
   }
   if (depth > 0 && value.async === true) {
     return 'onFailure cannot be asynchronous'
+  }
+  // Research run C: Muse Code 1.4.2 accepts Interrupt only as async and
+  // SessionFork only as sync (the fork waits on its verdict).
+  if (event === 'Interrupt' && value.async !== true) {
+    return 'Interrupt must be asynchronous'
+  }
+  if (event === 'SessionFork' && value.async === true) {
+    return 'SessionFork cannot be asynchronous'
   }
   if (value.statusMessage !== undefined && typeof value.statusMessage !== 'string') {
     return 'handler statusMessage must be a string'
@@ -918,7 +936,14 @@ export function parseHookAnswer(
   if (event !== 'PreToolUse' && specific?.permissionDecision !== undefined) {
     return { status: 'failed', reason: 'permissionDecision is not valid on this event' }
   }
-  if (event !== 'PreToolUse' && specific?.updatedInput !== undefined) {
+  // The 1.4.0 changelog lets a PostToolUseFailure hook return updatedInput: a
+  // corrected call to the same tool, re-run through the full path (M91 lane
+  // R). Every other event still refuses it.
+  if (
+    event !== 'PreToolUse' &&
+    event !== 'PostToolUseFailure' &&
+    specific?.updatedInput !== undefined
+  ) {
     return { status: 'failed', reason: 'updatedInput is not valid on this event' }
   }
   if (specific?.permissionDecision === 'deny' && !specific.permissionDecisionReason?.trim()) {
