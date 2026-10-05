@@ -16694,6 +16694,15 @@ VSIX using the published 0.13.0 macOS helper and record its bytes against
 2,252,800. Run lane A and moved-module suites plus the scoped static/build
 gates; round 3b integrations and full quality remain with the lead.
 
+The production comparison also exposes the unused role tool table, retained
+as a potential side effect of property reads. Mark its known local constant
+factory and the immutable role-id copy pure, retaining the values
+for every actual consumer. Reuse identical optional scalar validators in the
+paid tally and item boundary, preserving every field and constraint, to avoid
+repeated schema construction after the M96 fields are added. Verify boundary
+and team constants tests and request goldens, and fire the table-retention
+guard alongside the deferred schema/pricing graph checks.
+
 **M96INT round 2 (2026-10-05, Windows 11 rig).** Integrate T/W/I/U2/L
 review branches in that order, retaining round 1's lazy boundary. Resolve
 the W/I environment seam through I's canonical helper, retaining W's safe
@@ -19982,14 +19991,41 @@ passes its 2200 KiB cap at 2,243,169 bytes. Evidence is in
 A's second fixes, K, M96c, main 0.13.0/0.14.0 and full quality remain outside
 the round 2 brief. The earlier record below remains round 1's history.
 
-**M96INT-R2-ACTIVATION-GROWTH (acceptance 31, still open).** The final
+**M96INT round 3a proof (2026-10-05, Windows 11 rig).** Final lane A
+`273a9131` is merged with both intents retained. The completed follow-up
+moves Node team-view validators and team pricing/scoped consent into the
+existing deferred team bundle, shares identical scalar validators and
+discards unused role constant factories. Activation is 608,883 bytes versus
+the reproduced 604,810-byte pre-M96 source baseline: **+4,073**, within the
+unchanged 4,096-byte acceptance limit by 23. This resolves the round 2
+growth residual below; the main train's separate 600,000-byte diet is not
+integrated or claimed. Named graph/byte tests, seven raw request scenarios,
+611 owning tests, eight fired source drills with byte-exact restorations,
+five compiler projects and scoped static/build gates pass. Every one of the
+18 existing bundle caps passes. The merge hook captured a partial relocation;
+the merge and completed follow-up form the review unit, not the transitional
+merge alone. Evidence: `docs/certification/m96-int.md` and
+`m96-int-round3a-results.json`.
+
+**M96INT-R3A-UNIVERSAL-SIZE (release blocker, no gate waiver).** The
+CI-shaped universal VSIX now includes the exact published 0.13.0 macOS
+helper and all required members. It measures **2,324,725 bytes**; the
+unchanged 2,252,800-byte gate exits 1, an excess of **71,925 bytes**. The
+packaging proof is complete, superseding the missing-helper residual below,
+but the size acceptance remains red. Keep the cap unchanged and reduce
+packaged bytes on the integrated train before release. This measurement
+uses the brief's released helper, not a fresh native build for the worktree's
+0.12.1 manifest. Round 3b wiring, current main and full quality stay with
+the lead; M96 is not shipped or certified by this scoped lane.
+
+**M96INT-R2-ACTIVATION-GROWTH (acceptance 31, resolved by round 3a above).** The final
 activation is 611,874 bytes (hard 600 KiB cap passes), versus the independent
 pre-M96 measurement of 604,810: +7,064. The separate 4,096-byte growth
 target remains unsatisfied by 2,968 bytes. Combined transport/schema and
 review additions consume that growth; keep the target unchanged for the
 lead's follow-up before M96 certification. No gate is lowered or waived.
 
-**M96INT-R2-UNIVERSAL-VSIX (packaging proof, still open).** This rig has no
+**M96INT-R2-UNIVERSAL-VSIX (historical; measured by round 3a above).** This rig has no
 compiled `native/darwin/muse-dictate`; only the real Windows-targeted package
 is built and cap-checked. A universal package including the macOS helper
 requires the lead's packaging rig. The browser has only 264 bytes of cap
@@ -20436,6 +20472,10 @@ M78b (2026-10-02) runs scoped gates on Kubuntu per the implementation brief; ful
 ## 8. Escape hatches register
 
 Every lint or scanner suppression (`eslint-disable`, `@ts-expect-error`, `nosemgrep`), every cast the compiler cannot verify, and every error swallowed inside generated shell, C# or Swift must be listed here with its reason. A TypeScript `catch {}` needs only an inline comment saying why the error is dropped.
+
+| M96INT round 3a location                         | Construct                                                  | Reason                                                                                                                                                                                                      | Date       |
+| ------------------------------------------------ | ---------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
+| `src/host/teamViewBundle.ts`, `isTeamViewBundle` | Factory signature trusted after export/function validation | The Node proxy and `team.js` are built and shipped together. The owning compiled-bundle test uses the actual factory; a missing or malformed export refuses. No unchecked wire value crosses this boundary. | 2026-10-05 |
 
 | M96 lane W location                                 | Escape hatch                                                | Reason                                                                                                                                                                                                                                                                                                                                 | Date       |
 | --------------------------------------------------- | ----------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |

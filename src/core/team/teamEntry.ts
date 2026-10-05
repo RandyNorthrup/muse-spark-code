@@ -12,6 +12,13 @@ import {
 import { buildStableRosterSection, buildRosterLive, formatStateChangeNote } from './roster'
 import { setUiText } from '../../shared/l10n/text'
 import type { UiText } from '../../shared/l10n/en'
+import { teamWorkerPrice, teamWorkerQuestion, canUseTeam } from './teamPaid'
+import { teamTreeSchema, teamUsageSchema, teamItemFields } from '../../shared/teamView'
+
+/** The Node schema proxies load these only when a team payload is present. */
+export function createTeamViewSchemas() {
+  return { teamTreeSchema, teamUsageSchema, teamItemFields }
+}
 
 export function createTeamRuntime(table: UiText, locale: string) {
   setUiText(table, locale)
@@ -27,5 +34,8 @@ export function createTeamRuntime(table: UiText, locale: string) {
     buildStableRosterSection,
     buildRosterLive,
     formatStateChangeNote,
+    teamWorkerPrice,
+    teamWorkerQuestion,
+    canUseTeam,
   }
 }

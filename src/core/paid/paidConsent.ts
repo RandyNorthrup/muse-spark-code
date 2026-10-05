@@ -15,11 +15,7 @@
 // words are here, so VS Code's modal and the ACP agent's permission request
 // (D62) say the same.
 
-import {
-  PAID_FEATURES,
-  type PaidFeature,
-  UI_TEXT,
-} from '../../shared/constants'
+import { PAID_FEATURES, type PaidFeature, UI_TEXT } from '../../shared/constants'
 import { fill, formatNumber, uiLocale } from '../../shared/l10n/text'
 import {
   paidFeaturePrice,
@@ -115,14 +111,7 @@ export async function paidUseQuestion(request: PaidUseRequest): Promise<{
     }
     case 'teamWorkers': {
       const runtime = await paidTeamRuntime()
-      // One popup for the whole `delegate` call: each model's prices, each
-      // task's ceiling and the shared daily budget (M96, acceptance 23).
-      return {
-        title: UI_TEXT.paidTeamWorkersTitle,
-        detail: fill(UI_TEXT.paidTeamWorkersDetail, {
-          tasks: runtime.teamWorkerPrice(request.tasks, request.dailyBudgetUsd, request.dailyBudgetTokens),
-        }),
-      }
+      return runtime.teamWorkerQuestion(request)
     }
   }
 }
@@ -173,18 +162,6 @@ export class PaidUseConsent {
     }
   }
 
-  private async rememberTeam(scopes: readonly string[]): Promise<boolean> {
-    if (this.deps.readTeamGrants === undefined || this.deps.writeTeamGrants === undefined)
-      return false
-    try {
-      await this.deps.writeTeamGrants(new Set([...this.deps.readTeamGrants(), ...scopes]))
-      return true
-    } catch {
-      this.deps.log.warn('Paid team use: scoped Always could not be kept; allowed once')
-      return false
-    }
-  }
-
   public onDidChange(listener: () => void): () => void {
     this.listeners.add(listener)
     return () => {
@@ -218,27 +195,18 @@ export class PaidUseConsent {
     if (!this.deps.isOn(feature)) {
       return false
     }
-    const teamScopes = request.feature === 'teamWorkers'
-      ? (await paidTeamRuntime()).teamWorkerScopes(request.tasks)
-      : undefined
-    // Loading can yield; recheck the paid gate before asking or using a grant.
-    if (!this.deps.isOn(feature)) return false
-    const teamStore = this.deps.writeTeamGrants
-    const isRemembered =
-      teamScopes === undefined
-        ? this.isRemembered(feature)
-        : teamScopes.length > 0 &&
-          this.deps.canRemember() &&
-          teamStore !== undefined &&
-          teamScopes.every((scope) => this.deps.readTeamGrants?.().has(scope) === true)
+    if (request.feature === 'teamWorkers') {
+      const runtime = await paidTeamRuntime()
+      return await runtime.canUseTeam(this.deps, request, requiresAsking, () => {
+        this.notify()
+      })
+    }
+    const isRemembered = this.isRemembered(feature)
     if (!requiresAsking && isRemembered) {
       this.deps.log.info(`Paid use of ${feature}: allowed always in this workspace`)
       return true
     }
-    const canRemember =
-      this.deps.canRemember() &&
-      (teamScopes === undefined ||
-        (teamStore !== undefined && this.deps.readTeamGrants !== undefined))
+    const canRemember = this.deps.canRemember()
     const answer = await this.deps.ask(request, canRemember)
     if (answer === 'deny') {
       this.deps.log.info(`Paid use of ${feature}: denied`)
@@ -252,7 +220,7 @@ export class PaidUseConsent {
       answer === 'always' &&
       canRemember &&
       this.deps.canRemember() &&
-      (await (teamScopes === undefined ? this.remember(feature) : this.rememberTeam(teamScopes)))
+      (await this.remember(feature))
     ) {
       this.deps.log.info(`Paid use of ${feature}: allowed always in this workspace`)
       this.notify()

@@ -1706,31 +1706,36 @@ export const TEAM_DELEGATE_TOOLS: readonly string[] = ['roster', 'delegate', 'co
  * the shell tools; the command restriction is enforced at call admission
  * (lane I), not here.
  */
-export const TEAM_TOOL_GROUP_TOOLS: Readonly<Record<TeamToolGroup, readonly string[]>> = {
-  read: [MODEL_API_TOOLS.readFile, MODEL_API_TOOLS.listFiles, MODEL_API_TOOLS.search],
-  codeIntel: [
-    CODE_INTEL_TOOLS.findDefinition,
-    CODE_INTEL_TOOLS.findReferences,
-    CODE_INTEL_TOOLS.workspaceSymbols,
-    CODE_INTEL_TOOLS.documentSymbols,
-    CODE_INTEL_TOOLS.hover,
-    CODE_INTEL_TOOLS.callHierarchy,
-    CODE_INTEL_TOOLS.repoMap,
-  ],
-  rename: [CODE_INTEL_TOOLS.renameSymbol],
-  write: [MODEL_API_TOOLS.editFile, MODEL_API_TOOLS.writeFile],
-  shell: [MODEL_API_TOOLS.bash, MODEL_API_TOOLS.powershell],
-  readOnlyShell: [MODEL_API_TOOLS.bash, MODEL_API_TOOLS.powershell],
-  testShell: [MODEL_API_TOOLS.bash, MODEL_API_TOOLS.powershell],
-  checks: [TEAM_CHECKS_TOOL],
-  diagnostics: [TEAM_DIAGNOSTICS_TOOL],
-  webFetch: [MODEL_API_TOOLS.webFetch],
-  webSearch: [MODEL_API_WEB_SEARCH_TOOL],
-  images: [MODEL_API_TOOLS.generateImage, MODEL_API_TOOLS.editImage],
-  memoryRead: [MODEL_API_TOOLS.readMemory],
-  skills: [MODEL_API_TOOLS.readSkill],
-  report: [TEAM_REPORT_TOOL],
-}
+// This table only reads our immutable constants. The pure factory lets ordinary
+// bundles discard it; its consumers load with the team rather than activation.
+export const TEAM_TOOL_GROUP_TOOLS: Readonly<Record<TeamToolGroup, readonly string[]>> =
+  /* @__PURE__ */ (() => {
+    return {
+      read: [MODEL_API_TOOLS.readFile, MODEL_API_TOOLS.listFiles, MODEL_API_TOOLS.search],
+      codeIntel: [
+        CODE_INTEL_TOOLS.findDefinition,
+        CODE_INTEL_TOOLS.findReferences,
+        CODE_INTEL_TOOLS.workspaceSymbols,
+        CODE_INTEL_TOOLS.documentSymbols,
+        CODE_INTEL_TOOLS.hover,
+        CODE_INTEL_TOOLS.callHierarchy,
+        CODE_INTEL_TOOLS.repoMap,
+      ],
+      rename: [CODE_INTEL_TOOLS.renameSymbol],
+      write: [MODEL_API_TOOLS.editFile, MODEL_API_TOOLS.writeFile],
+      shell: [MODEL_API_TOOLS.bash, MODEL_API_TOOLS.powershell],
+      readOnlyShell: [MODEL_API_TOOLS.bash, MODEL_API_TOOLS.powershell],
+      testShell: [MODEL_API_TOOLS.bash, MODEL_API_TOOLS.powershell],
+      checks: [TEAM_CHECKS_TOOL],
+      diagnostics: [TEAM_DIAGNOSTICS_TOOL],
+      webFetch: [MODEL_API_TOOLS.webFetch],
+      webSearch: [MODEL_API_WEB_SEARCH_TOOL],
+      images: [MODEL_API_TOOLS.generateImage, MODEL_API_TOOLS.editImage],
+      memoryRead: [MODEL_API_TOOLS.readMemory],
+      skills: [MODEL_API_TOOLS.readSkill],
+      report: [TEAM_REPORT_TOOL],
+    }
+  })()
 
 /**
  * Each built-in role's groups: the one definition. TEAM_ROLE_WRITE_PATHS
@@ -4113,7 +4118,9 @@ export const POSIX_TERMINAL_SHELL = '/bin/sh'
 // The seven built-in roles (D75). A user role has any other id; a project
 // role shadows one of these or starts read-only with the `read` and
 // `codeIntel` groups.
-export const TEAM_ROLE_IDS = [...TEAM_BUILTIN_ROLE_IDS] as const
+export const TEAM_ROLE_IDS = /* @__PURE__ */ (() => {
+  return [...TEAM_BUILTIN_ROLE_IDS] as const
+})()
 export type TeamRoleId = (typeof TEAM_ROLE_IDS)[number]
 
 // The write roots each role with a `write` group is confined to (D75's

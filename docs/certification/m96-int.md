@@ -339,10 +339,178 @@ and A's ledger regressions; keep the central team constants and add A's
 bounded retry constant once; apply A's absent/partial provider-limit fix
 using the canonical `TEAM_ORCHESTRATOR_HEADROOM` constant.
 
-All nine complete lane-A/adjacent suites pass: pool/admission/ceilings 42,
+Before starting relocation, all nine complete lane-A/adjacent suites pass: pool/admission/ceilings 42,
 meter/claims/ledger 59, workers-paid/features/consent 44. Host API and notices
 are regenerated. The unchanged production build passes every cap, split,
 host-global and notice check. Activation after this merge is 613,036 bytes;
 the startup relocation and universal packaging proof follow below. A's
 record retains its fired regression drills and live-cap adapter prerequisite;
 this merge does not implement round 3b's production wiring.
+
+The merge is `fb935dcc` (parents `46f3e700` and `273a9131`). Its running
+lint-staged hook captured the beginning of the pending pricing relocation,
+including async caller changes. It is a transitional commit, not a separately
+certified build. Review the merge together with the completed follow-up below;
+the final head is the validated source. No history is rewritten.
+
+### Round 3a startup proof
+
+`m96-int-round3a-results.json` records the module contributions, all owning
+test files, byte-exact drill hashes, bundle bytes and universal member proof.
+The pre-M96 baseline is rebuilt from the 201 source files at `e23ec61c`,
+using the same production esbuild options, shared English fallback and
+deferred entry resolver. Its **604,810 bytes** reproduce the previous
+independent baseline. No main branch is merged, and this measurement does
+not certify the separate 0.14.0 main diet to 600,000 bytes.
+
+| Activation measurement               |   Bytes | Growth against pre-M96 |
+| ------------------------------------ | ------: | ---------------------: |
+| Pre-M96 `e23ec61c`                   | 604,810 |                      0 |
+| Round 2                              | 611,874 |                  7,064 |
+| Lane A integrated, before relocation | 613,036 |                  8,226 |
+| Completed round 3a                   | 608,883 |                  4,073 |
+
+The unchanged **4,096-byte growth target passes with 23 bytes remaining**.
+The relocation saves 4,153 bytes against the A-integrated build, or 2,991
+against round 2. The following table lists every positive activation
+contribution delta before relocation; the JSON also records all negative
+deltas and final contributions. Minified symbol allocation can cause tiny
+deltas in otherwise unchanged modules; these are measurements, not claims
+that every listed module contains new implementation.
+
+| Module                                            | Added bytes before relocation |
+| ------------------------------------------------- | ----------------------------: |
+| `src/shared/teamView.ts`                          |                         1,735 |
+| `src/host/conversation/conversationController.ts` |                         1,169 |
+| `src/core/paid/paidConsent.ts`                    |                           960 |
+| `src/shared/paid.ts`                              |                           931 |
+| `src/shared/constants.ts`                         |                           860 |
+| `src/core/paid/paidFeatures.ts`                   |                           814 |
+| `src/host/mcpLoopback.ts`                         |                           716 |
+| `src/shared/protocol.ts`                          |                           646 |
+| `node_modules/zod/v4/core/schemas.js`             |                           468 |
+| `src/core/backends/modelapi/sessionStore.ts`      |                           290 |
+| `node_modules/zod/v4/mini/schemas.js`             |                           123 |
+| `src/host/settings.ts`                            |                            73 |
+| `src/host/paid/paidHost.ts`                       |                            37 |
+| `src/core/backends/modelapi/client.ts`            |                            15 |
+| `src/core/web/webFetch.ts`                        |                            14 |
+| `src/host/html.ts`                                |                            14 |
+| `src/host/auth/deviceSignIn.ts`                   |                             6 |
+| `src/shared/agentEvents.ts`                       |                             6 |
+| `src/host/backend/toolIo.ts`                      |                             2 |
+| `src/core/verify/checkCommands.ts`                |                             1 |
+
+The loopback helper replaces code in `ideMcpServer.ts`, which decreases
+610 bytes; its net addition is 106 bytes before minifier overhead. The
+remaining small negative deltas and generated overhead explain the total.
+
+The real team-view validators now reside only in `team.js` for Node bundles.
+`src/host/teamViewBundle.ts` supplies checked synchronous schema proxies;
+ordinary item parsing does not load the bundle, while a present team payload
+loads and uses the existing validator before consumption. The browser retains
+its actual synchronous schemas. An outer optional and a pipe are necessary:
+Zod consults a lazy getter's metadata even when an optional field is absent.
+Compiled tests cover all six item payloads, valid/invalid tree and usage
+messages, stripping unknown fields, and missing/malformed bundle factories.
+
+Team price identity, formatted questions and scoped Always decisions move
+from the eager paid modules into `src/core/team/teamPaid.ts`, exposed by the
+existing `createTeamRuntime` factory. Every lazy factory installs the caller's
+language and locale. A feature disabled during import is denied before using
+a grant or showing a popup; ACP also checks prompt lifetime after the awaited
+price question, before emitting a paid card or requesting permission.
+
+Pure local factories let esbuild discard the unused role tool table and
+immutable role-id copy. Identical scalar boundary validators share instances,
+and team/best-of-N tally settlement shares the existing validation and update
+logic without mixing counters. No payload field, constraint, price identity,
+tool, role, budget or public tally is removed.
+
+The production activation, Model API and ACP graphs exclude
+`src/shared/teamView.ts`, `src/core/team/teamPaid.ts`, every
+`src/core/team/**`/`src/host/team/**` module and `src/shared/team.ts`.
+The named `teamStartup.test.mjs` uses the actual production resolver and
+checks both the excluded inputs and the raw activation-byte growth limit.
+Knip and cycle detection explicitly include the build-selected Node proxy.
+Seven original golden blobs remain unchanged; all seven raw bodies pass
+under nine single-model configurations (63 assertions plus six controls).
+
+### Round 3a owning tests and failure drills
+
+All **611 tests in 24 complete files** pass in eight sequential batches,
+at most three files per invocation, with `--maxWorkers=3 --testTimeout=120000`.
+Counts by batch: pool/admission/ceilings 42; meter/claims/ledger 59;
+workers-paid/features/consent 46; startup/goldens/protocol-loading 77;
+constants/tools/roster 89; protocol/paid-host/ACP-paid 152;
+ACP-agent/activation-graph/declaration 113; Model-API-bundle/toolsets/roles 33.
+After the drills and final immutable-copy correction, the complete guard
+group passes 110 and the constants group passes 89 again. These repeats
+are not added to the distinct 611 total. No cases are skipped or filtered.
+
+Each deliberate regression runs a complete owning file, exits 1, and is
+restored in `finally` with identical before/after SHA-256. The JSON preserves
+the hashes and exact source/test names.
+
+| Deliberate regression                                            | Failing cases |
+| ---------------------------------------------------------------- | ------------: |
+| Resolve Node team views back to their eager implementation       |             4 |
+| Retain the unused role tool table                                |             2 |
+| Skip bundle factory export validation                            |             2 |
+| Skip the post-import paid feature gate                           |             1 |
+| Skip installing the caller's locale in the compiled team factory |             1 |
+| Skip ACP's post-question prompt-lifetime check                   |             2 |
+| Retain the immutable role-id copy                                |             2 |
+
+Both role-retention drills also fire the raw startup-byte assertion: 609,458
+and 608,971 bytes respectively exceed the unchanged 608,906-byte limit.
+The final restored production output is 608,883 bytes.
+
+An eighth source drill restores the eager view resolver and runs the full
+production build. The new bundle-split gate exits 1 and names the eager
+validators in all three ordinary Node bundles. The resolver restores with
+identical SHA-256; a fresh production build then passes all 18 caps, splits,
+host-global checks and notices. This independently proves the CLI gate fires,
+in addition to the seven complete-file test drills above.
+
+### Round 3a gates and universal package
+
+All five typecheck projects pass. Full JavaScript/CSS/PowerShell lint and
+final changed-file ESLint pass; the rig's existing pinned PowerShell analyzer
+uses a process-local module path only. Full prettier passes. Plain knip,
+zero-clone duplication, localization (14 tables, 121 manifest strings, 470
+source files, zero problems), cycles (411 files), regenerated host API and
+check (271 VS Code APIs, 18 importing files, 24 Node built-ins, 59 theme
+variables), regenerated notices (83 packages), and production build pass.
+All **18 unchanged build caps**, bundle splits and host-global checks pass;
+the result JSON lists each byte measurement. The aggregate browser JS is
+919,786 bytes against 921,600. Full quality is intentionally not run under
+the rig brief; round 3b production wiring and the lead's aggregate gate remain.
+
+The published 0.13.0 VSIX's actual helper member is
+`extension/native/darwin/muse-dictate`. Its 289,568 bytes are copied exactly
+into the worktree's ignored native helper path. SHA-256 is
+`f42e757a0d78a6bc6a6af22c3bcf34fc7d082eb9e8130d9336024a55c19f0f36`
+in both the extracted file and the built package; its compressed member is
+81,327 bytes. It is not committed or rebuilt on Windows.
+
+`npm.cmd run package -- --out temp/round3/m96int-universal.vsix` runs the
+production prepublish build and produces **123 entries**. The manifest has
+no target platform. Every release-workflow required member, both native
+helper lanes, all 14 translated tables and the new `team.js` are present.
+This is a size/member proof using the brief's released helper, not a fresh
+native version/build or install certification: the worktree manifest remains
+0.12.1 while the provided helper comes from 0.13.0.
+
+**The universal size gate is red:**
+`node scripts/check-vsix-size.mjs temp/round3/m96int-universal.vsix` exits 1
+at **2,324,725 bytes**, exceeding the unchanged **2,252,800-byte cap** by
+**71,925 bytes**. PLAN §7 records this remaining release blocker. No cap,
+threshold, rule or ignore is weakened; neither this lane nor M96 is declared
+shipped. The round 2 Windows-targeted package is not substituted for this
+universal measurement.
+
+Local commits use the unchanged serial lint-staged and gitleaks hooks. The
+rig's existing `temp/hook-bin` wrapper is prepended to PATH for the commit
+process only, then PATH is restored. No push, main merge, rebase, paid/live
+call, installation, credential read or machine/user setting change occurs.

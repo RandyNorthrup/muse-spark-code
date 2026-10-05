@@ -18,6 +18,8 @@ import {
   type PaidUseRequest,
 } from '../../src/shared/paid'
 import { FakeLogOutputChannel } from './helpers/fakes'
+import { EN } from '../../src/shared/l10n/en'
+import { setUiText } from '../../src/shared/l10n/text'
 
 describe('teamWorkers paid use (M96)', () => {
   it('single-model activation asks nothing; a runnable team asks in the first paid-use popup', async () => {
@@ -175,14 +177,13 @@ describe('teamWorkers paid use (M96)', () => {
     expect(price).toContain('25,000,000')
     expect(price).toContain('price is unknown')
     expect(price).not.toContain('cannot start')
-    expect(
-      (await paidUseQuestion({
-        feature: 'teamWorkers',
-        tasks: [{ role: 'engineering', modelId: 'unpriced-model', taskCeilingTokens: 200_000 }],
-        dailyBudgetUsd: undefined,
-        dailyBudgetTokens: 25_000_000,
-      })).detail,
-    ).toContain('25,000,000')
+    const question = await paidUseQuestion({
+      feature: 'teamWorkers',
+      tasks: [{ role: 'engineering', modelId: 'unpriced-model', taskCeilingTokens: 200_000 }],
+      dailyBudgetUsd: undefined,
+      dailyBudgetTokens: 25_000_000,
+    })
+    expect(question.detail).toContain('25,000,000')
 
     // No budget line while lanes 0/X land the shared budget setting.
     expect(price).not.toContain('Shared daily team budget')
@@ -190,6 +191,38 @@ describe('teamWorkers paid use (M96)', () => {
 })
 
 describe('F01 scoped team Always consent', () => {
+  it('refuses a team use turned off while the runtime import yields', async () => {
+    let isEnabled = true
+    const ask = vi.fn(() => Promise.resolve('once' as const))
+    const consent = new PaidUseConsent({
+      isOn: () => isEnabled,
+      canRemember: () => false,
+      readGrants: () => new Set(),
+      writeGrants: () => Promise.resolve(),
+      ask,
+      log: new FakeLogOutputChannel(),
+    })
+    const allowed = consent.allows({ feature: 'teamWorkers', tasks: [], dailyBudgetUsd: 1 })
+    isEnabled = false
+    expect(await allowed).toBe(false)
+    expect(ask).not.toHaveBeenCalled()
+  })
+
+  it('installs the caller language before the deferred price question', async () => {
+    setUiText({ ...EN, paidTeamWorkersTitle: 'Translated team title' }, 'de')
+    try {
+      const question = await paidUseQuestion({
+        feature: 'teamWorkers',
+        tasks: [],
+        dailyBudgetUsd: 1,
+      })
+      expect(question.title).toBe('Translated team title')
+      expect(question.detail).toContain('1,00')
+    } finally {
+      setUiText(EN, 'en')
+    }
+  })
+
   it('A2-F04 questions identify provider and tariff without quoting unrelated Meta rates', async () => {
     let scopes: ReadonlySet<string> = new Set()
     const questions: Awaited<ReturnType<typeof paidUseQuestion>>[] = []
@@ -295,10 +328,9 @@ describe('F01 scoped team Always consent', () => {
     }
     expect(await consent.allows(standard)).toBe(true)
     expect(ask).toHaveBeenCalledTimes(2)
-    expect((await paidUseQuestion(ask.mock.calls[1]?.[0] ?? standard)).detail).toContain('$1.250')
-    expect((await paidUseQuestion(ask.mock.calls[1]?.[0] ?? standard)).detail).toContain(
-      'Shared daily team budget',
-    )
+    const standardQuestion = await paidUseQuestion(ask.mock.calls[1]?.[0] ?? standard)
+    expect(standardQuestion.detail).toContain('$1.250')
+    expect(standardQuestion.detail).toContain('Shared daily team budget')
     expect(
       await consent.allows({ ...request, tasks: [{ ...contributor, provider: 'other' }] }),
     ).toBe(true)

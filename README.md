@@ -3258,6 +3258,9 @@ Both receive the current display language. M96's team tools and roster
 load from `dist/team.js` only for a team
 conversation supplied by its wiring seam. The synchronous mode decision
 uses known readiness; ordinary conversations load no team runtime. The
+team bundle also supplies paid-team pricing and the Node validators for team
+trees, usage and transcript cards. Ordinary Node messages parse without loading
+it; the browser retains its synchronous boundary validators. The
 team bundle receives the caller's display language and ships with both
 the extension and ACP package, with an initial 75 KiB cap. The session
 board and reviewer each retain their own 75 KiB

@@ -60,6 +60,11 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- M96's team view validators and paid-team pricing load from the existing
+  team bundle on use. Ordinary startup discards unused role tables and shares
+  identical scalar validators and paid-usage settlement code. Paid questions
+  recheck cancellation and feature state after loading.
+
 - **Project-role restrictions (M96 lane R).** Every project role, including
   a new id with a hash allowance, refuses in-place work, model selection
   and skills. Missing permission modes resolve to the strictest ceiling.

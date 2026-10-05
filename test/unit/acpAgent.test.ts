@@ -3,6 +3,7 @@ import { MspError } from '@muse-code/sdk'
 import { describe, expect, it, vi } from 'vitest'
 import { type AcpAgentDeps, type BackendReadiness, createAcpAgent } from '../../src/acp/agent'
 import { AcpPaidUse } from '../../src/acp/paid'
+import * as paidConsent from '../../src/core/paid/paidConsent'
 import type { AgentHost, AgentSession, ModelSummary } from '../../src/core/agent/agentBackend'
 import type {
   AgentEvent,
@@ -1661,6 +1662,43 @@ describe('paid features in the agent (M63c, M58)', () => {
     // Nothing more reaches the editor for a session it closed (Grok on ca263c53).
     expect(h.updates.filter((update) => update.sessionUpdate === 'tool_call_update')).toEqual([])
   })
+
+  it.each(['cancelled', 'completed'])(
+    'emits no paid card if the prompt is %s while the price question loads',
+    async (terminal) => {
+      const entered = Promise.withResolvers<undefined>()
+      const released = Promise.withResolvers<undefined>()
+      const question = paidConsent.paidUseQuestion
+      const loading = vi
+        .spyOn(paidConsent, 'paidUseQuestion')
+        .mockImplementationOnce(async (request) => {
+          entered.resolve(undefined)
+          await released.promise
+          return await question(request)
+        })
+      const h = harness({
+        kind: 'modelApi',
+        paid: ['webSearch'],
+        answer: choose('paid-allow-once'),
+      })
+      try {
+        await h.run(async (client) => {
+          const active = await running(h, client)
+          const { sessionId } = active
+          const allowed = h.paid.allows(CWD, sessionId, WEB_SEARCH, false)
+          await entered.promise
+          await finishRunningPrompt(client, active, terminal)
+          released.resolve(undefined)
+          expect(await allowed).toBe(false)
+        })
+        expect(h.permissions).toEqual([])
+        expect(h.updates.filter((update) => update.sessionUpdate === 'tool_call')).toEqual([])
+      } finally {
+        released.resolve(undefined)
+        loading.mockRestore()
+      }
+    },
+  )
 
   it('denies without asking a feature it has no flag for, and subagents always', async () => {
     const h = harness({ kind: 'modelApi', paid: ['webSearch'], answer: choose('paid-allow-once') })

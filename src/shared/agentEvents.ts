@@ -10,16 +10,24 @@ import { scheduleViewSchema } from './schedule'
 import { teamItemFields } from './teamView'
 import { CHECK_OUTCOMES, CHECK_SKIPS, PAID_FEATURES, PERMISSION_MODES } from './constants'
 
+const stringSchema = z.string()
+const numberSchema = z.number()
+const booleanSchema = z.boolean()
+
+const optionalString = z.optional(stringSchema)
+const optionalNumber = z.optional(numberSchema)
+const optionalBoolean = z.optional(booleanSchema)
+
 /**
  * One check command as a row reports it (M68): its name, how it ended, why
  * it did not run, and that reason's detail (the user's feedback on Reject,
  * or a hook's words).
  */
 export const checkSummarySchema = z.object({
-  name: z.string(),
+  name: stringSchema,
   outcome: z.enum(CHECK_OUTCOMES),
   skip: z.optional(z.enum(CHECK_SKIPS)),
-  detail: z.optional(z.string()),
+  detail: optionalString,
 })
 export type CheckSummary = z.infer<typeof checkSummarySchema>
 
@@ -29,31 +37,31 @@ export type CheckSummary = z.infer<typeof checkSummarySchema>
  * could not be read), how many files it could not read, and each check.
  */
 export const verifySummarySchema = z.object({
-  files: z.array(z.string()),
-  errors: z.optional(z.number()),
-  warnings: z.optional(z.number()),
-  unchecked: z.optional(z.number()),
+  files: z.array(stringSchema),
+  errors: optionalNumber,
+  warnings: optionalNumber,
+  unchecked: optionalNumber,
   checks: z.array(checkSummarySchema),
 })
 export type VerifySummary = z.infer<typeof verifySummarySchema>
 
 /** An edit's `then_run` (M68): the second result of the same call. */
 export const thenRunResultSchema = z.object({
-  command: z.string(),
+  command: stringSchema,
   outcome: z.enum(CHECK_OUTCOMES),
   skip: z.optional(z.enum(CHECK_SKIPS)),
-  detail: z.optional(z.string()),
-  output: z.string(),
-  exitCode: z.optional(z.number()),
+  detail: optionalString,
+  output: stringSchema,
+  exitCode: optionalNumber,
 })
 export type ThenRunResult = z.infer<typeof thenRunResultSchema>
 
 /** A source a reply cites: the page's URL and, when Meta sent one, its title (M33). */
-export const citationSchema = z.object({ url: z.string(), title: z.optional(z.string()) })
+export const citationSchema = z.object({ url: stringSchema, title: optionalString })
 export type CitationSummary = z.infer<typeof citationSchema>
 
 /** A stored-output handle (`item/readOutput` fetches the bytes by `id`). */
-export const outputRefSchema = z.object({ id: z.string(), byteLen: z.number() })
+export const outputRefSchema = z.object({ id: stringSchema, byteLen: numberSchema })
 
 /**
  * A user message's image, as the durable log echoes it (MSP
@@ -61,20 +69,20 @@ export const outputRefSchema = z.object({ id: z.string(), byteLen: z.number() })
  * Model API backend sent (M54, `type: "file"`): its name, size and pages.
  */
 const messageAttachmentSchema = z.object({
-  type: z.string(),
-  mediaType: z.string(),
-  width: z.optional(z.number()),
-  height: z.optional(z.number()),
-  name: z.optional(z.string()),
-  sizeBytes: z.optional(z.number()),
-  pageCount: z.optional(z.number()),
+  type: stringSchema,
+  mediaType: stringSchema,
+  width: optionalNumber,
+  height: optionalNumber,
+  name: optionalString,
+  sizeBytes: optionalNumber,
+  pageCount: optionalNumber,
 })
 
 /** Server-authored edit summary: line counts, never hunks or bytes. */
 export const patchSummarySchema = z.object({
-  files: z.number(),
-  added: z.number(),
-  removed: z.number(),
+  files: numberSchema,
+  added: numberSchema,
+  removed: numberSchema,
 })
 export type PatchSummary = z.infer<typeof patchSummarySchema>
 
@@ -86,18 +94,18 @@ export type PatchSummary = z.infer<typeof patchSummarySchema>
  */
 /** Provider-reported tokens (`session/tokenUsage`, a subagent's transitive usage). */
 export const tokenUsageSchema = z.object({
-  inputTokens: z.number(),
-  outputTokens: z.number(),
-  cachedTokens: z.number(),
-  reasoningTokens: z.number(),
+  inputTokens: numberSchema,
+  outputTokens: numberSchema,
+  cachedTokens: numberSchema,
+  reasoningTokens: numberSchema,
 })
 export type TokenUsage = z.infer<typeof tokenUsageSchema>
 
 /** A subagent's result envelope, the parts the map shows. */
 const subagentResultSchema = z.object({
-  summary: z.string(),
-  text: z.optional(z.string()),
-  errorKind: z.optional(z.string()),
+  summary: stringSchema,
+  text: optionalString,
+  errorKind: optionalString,
 })
 
 /**
@@ -106,42 +114,42 @@ const subagentResultSchema = z.object({
  * the transcript's saved row share these.
  */
 export const workflowRunFields = {
-  workflowRunId: z.optional(z.string()),
-  entryId: z.optional(z.string()),
-  scriptId: z.optional(z.string()),
-  triggerSource: z.optional(z.string()),
+  workflowRunId: optionalString,
+  entryId: optionalString,
+  scriptId: optionalString,
+  triggerSource: optionalString,
 } as const
 
 export const itemSnapshotFields = {
-  itemId: z.string(),
-  kind: z.string(),
-  status: z.string(),
-  turnId: z.optional(z.string()),
+  itemId: stringSchema,
+  kind: stringSchema,
+  status: stringSchema,
+  turnId: optionalString,
   /** `agentMessage` / `userMessage`: the text; `reasoning`: raw text if exposed. */
-  text: z.optional(z.string()),
+  text: optionalString,
   /** `reasoning`: summary parts, streamed as `summary.N` deltas. */
-  summary: z.optional(z.array(z.string())),
+  summary: z.optional(z.array(stringSchema)),
   /** `toolCall`: tool name and the model-authored argument JSON, verbatim. */
-  tool: z.optional(z.string()),
-  args: z.optional(z.string()),
+  tool: optionalString,
+  args: optionalString,
   /** `toolCall` / `userShell`: transcript-visible result text (streams as `output`). */
-  visibleOutput: z.optional(z.string()),
-  failureReason: z.optional(z.string()),
+  visibleOutput: optionalString,
+  failureReason: optionalString,
   outputRef: z.optional(outputRefSchema),
   patchRef: z.optional(outputRefSchema),
   patchSummary: z.optional(patchSummarySchema),
   /** Server one-liner for kinds the UI does not know. */
-  fallbackText: z.optional(z.string()),
+  fallbackText: optionalString,
   /** `userMessage`: image attachment metadata (no bytes), for replayed history (M6). */
   attachments: z.optional(z.array(messageAttachmentSchema)),
   /** `subagent`: the child as spawned, its control state and transitive usage (M14). */
-  role: z.optional(z.string()),
-  objective: z.optional(z.string()),
-  subagentId: z.optional(z.string()),
-  childSessionId: z.optional(z.string()),
-  depth: z.optional(z.number()),
-  durationMs: z.optional(z.number()),
-  controlStatus: z.optional(z.string()),
+  role: optionalString,
+  objective: optionalString,
+  subagentId: optionalString,
+  childSessionId: optionalString,
+  depth: optionalNumber,
+  durationMs: optionalNumber,
+  controlStatus: optionalString,
   /**
    * `agentMessage`: the response's tokens (M82, Model API only, and only
    * while its setting is on; Muse Code reports no per-reply totals on its
@@ -150,16 +158,16 @@ export const itemSnapshotFields = {
   usage: z.optional(tokenUsageSchema),
   result: z.optional(subagentResultSchema),
   /** `toolCall`: durably backgrounded, and by whom (M14). */
-  background: z.optional(z.boolean()),
-  backgroundInitiator: z.optional(z.string()),
+  background: optionalBoolean,
+  backgroundInitiator: optionalString,
   /**
    * `userShell` (M46, captured live 2026-09-25): the command as the user
    * typed it, and how it ended, an exit code or a signal number (MSP
    * `exitSignal`, verbatim). `durationMs` above is its run time.
    */
-  commandText: z.optional(z.string()),
-  exitCode: z.optional(z.number()),
-  exitSignal: z.optional(z.number()),
+  commandText: optionalString,
+  exitCode: optionalNumber,
+  exitSignal: optionalNumber,
   /** `toolCall`: a call billed on top of tokens (M33, PLAN.md D30), marked paid in its row. */
   paid: z.optional(z.enum(PAID_FEATURES)),
   /**
@@ -177,7 +185,7 @@ export const itemSnapshotFields = {
    * and only while its setting is on). Muse Code reports no per-reply
    * totals on its protocol, and its cost is never invented (PLAN.md D26).
    */
-  costUsd: z.optional(z.number()),
+  costUsd: optionalNumber,
   /**
    * `workflow` (M47, captured live 2026-09-25): the run as above, and the
    * reconciled message it ends with. Its `children` are taken as they come
@@ -186,7 +194,7 @@ export const itemSnapshotFields = {
    */
   ...workflowRunFields,
   children: z.optional(z.array(z.unknown())),
-  message: z.optional(z.string()),
+  message: optionalString,
   /** `toolCall` of the verify loop (M68): its files, counts and checks. */
   verifySummary: z.optional(verifySummarySchema),
   /** `toolCall` of an edit with `then_run` (M68): the command's result beside the edit's. */
@@ -204,17 +212,20 @@ const itemSnapshotSchema = z.object(itemSnapshotFields)
 export type ItemSnapshot = z.infer<typeof itemSnapshotSchema>
 
 export const approvalChoiceSchema = z.object({
-  choiceId: z.string(),
-  label: z.string(),
-  decision: z.string(),
-  scope: z.string(),
-  acceptsFeedback: z.optional(z.boolean()),
-  rulePreview: z.optional(z.string()),
+  choiceId: stringSchema,
+  label: stringSchema,
+  decision: stringSchema,
+  scope: stringSchema,
+  acceptsFeedback: optionalBoolean,
+  rulePreview: optionalString,
 })
 export type ApprovalChoice = z.infer<typeof approvalChoiceSchema>
 
 /** Stage token echoed back on `approval/decide`. */
-export const requirementRefSchema = z.object({ approvalId: z.string(), sourceIndex: z.number() })
+export const requirementRefSchema = z.object({
+  approvalId: stringSchema,
+  sourceIndex: numberSchema,
+})
 export type RequirementRef = z.infer<typeof requirementRefSchema>
 
 /**
@@ -223,61 +234,61 @@ export type RequirementRef = z.infer<typeof requirementRefSchema>
  */
 export const approvalStageSchema = z.object({
   requirementId: requirementRefSchema,
-  position: z.number(),
-  totalStages: z.number(),
-  argv: z.array(z.string()),
+  position: numberSchema,
+  totalStages: numberSchema,
+  argv: z.array(stringSchema),
   /**
    * The rule "Always allow in this workspace" would add for this stage; its
    * `label` is the label and preview Muse Code gives that choice while this
    * stage is current (captured 2026-10-02, Muse Code 1.4.0 and 1.4.2).
    */
-  suggestedPrefix: z.optional(z.object({ argvPrefix: z.array(z.string()), label: z.string() })),
+  suggestedPrefix: z.optional(z.object({ argvPrefix: z.array(stringSchema), label: stringSchema })),
 })
 export type ApprovalStage = z.infer<typeof approvalStageSchema>
 
 /** What the approval is about (`ApprovalSubject`, open discriminator). */
 export const approvalSubjectSchema = z.object({
-  kind: z.string(),
-  command: z.optional(z.string()),
-  path: z.optional(z.string()),
+  kind: stringSchema,
+  command: optionalString,
+  path: optionalString,
   /** `fileAccess` subjects: what access is asked for (`read` / `write`). */
-  access: z.optional(z.string()),
-  host: z.optional(z.string()),
-  target: z.optional(z.string()),
-  toolName: z.optional(z.string()),
+  access: optionalString,
+  host: optionalString,
+  target: optionalString,
+  toolName: optionalString,
   stages: z.optional(z.array(approvalStageSchema)),
 })
 export type ApprovalSubject = z.infer<typeof approvalSubjectSchema>
 
 export const questionOptionSchema = z.object({
-  label: z.string(),
-  description: z.optional(z.string()),
+  label: stringSchema,
+  description: optionalString,
 })
 export const questionSchema = z.object({
-  id: z.string(),
-  header: z.string(),
-  question: z.string(),
+  id: stringSchema,
+  header: stringSchema,
+  question: stringSchema,
   selection: z.object({
-    mode: z.string(),
-    minSelections: z.optional(z.number()),
-    maxSelections: z.optional(z.number()),
+    mode: stringSchema,
+    minSelections: optionalNumber,
+    maxSelections: optionalNumber,
   }),
   options: z.array(questionOptionSchema),
 })
 export type Question = z.infer<typeof questionSchema>
 
 export const answerSchema = z.object({
-  questionId: z.string(),
-  selectedLabel: z.optional(z.string()),
-  selectedLabels: z.optional(z.array(z.string())),
-  freeText: z.optional(z.string()),
+  questionId: stringSchema,
+  selectedLabel: optionalString,
+  selectedLabels: z.optional(z.array(stringSchema)),
+  freeText: optionalString,
 })
 export type QuestionAnswer = z.infer<typeof answerSchema>
 
 export const todoItemSchema = z.object({
-  text: z.string(),
-  status: z.string(),
-  activeForm: z.optional(z.string()),
+  text: stringSchema,
+  status: stringSchema,
+  activeForm: optionalString,
 })
 export type TodoItem = z.infer<typeof todoItemSchema>
 
@@ -289,47 +300,47 @@ export type TodoItem = z.infer<typeof todoItemSchema>
  * The Model API backend's goal takes the same shape.
  */
 export const sessionGoalSchema = z.object({
-  objective: z.string(),
-  status: z.string(),
-  percentComplete: z.number(),
-  currentWork: z.optional(z.string()),
-  nextWork: z.optional(z.string()),
+  objective: stringSchema,
+  status: stringSchema,
+  percentComplete: numberSchema,
+  currentWork: optionalString,
+  nextWork: optionalString,
 })
 export type SessionGoal = z.infer<typeof sessionGoalSchema>
 
 const agentEventSchema = z.discriminatedUnion('type', [
-  z.object({ type: z.literal('turnStarted'), turnId: z.string() }),
+  z.object({ type: z.literal('turnStarted'), turnId: stringSchema }),
   /** An accepted steer needed its own later turn after the previous one ended. */
   z.object({
     type: z.literal('userMessageTurnChanged'),
-    userMessageId: z.string(),
-    turnId: z.string(),
+    userMessageId: stringSchema,
+    turnId: stringSchema,
   }),
   z.object({ type: z.literal('itemStarted'), item: itemSnapshotSchema }),
   z.object({
     type: z.literal('textDelta'),
-    itemId: z.string(),
-    field: z.string(),
-    delta: z.string(),
+    itemId: stringSchema,
+    field: stringSchema,
+    delta: stringSchema,
   }),
   /** A non-terminal change deltas cannot express: the whole item again. */
   z.object({ type: z.literal('itemUpdated'), item: itemSnapshotSchema }),
   z.object({ type: z.literal('itemCompleted'), item: itemSnapshotSchema }),
   z.object({
     type: z.literal('turnCompleted'),
-    turnId: z.string(),
-    terminal: z.string(),
-    reason: z.optional(z.string()),
-    errorKind: z.optional(z.string()),
-    durationMs: z.optional(z.number()),
+    turnId: stringSchema,
+    terminal: stringSchema,
+    reason: optionalString,
+    errorKind: optionalString,
+    durationMs: optionalNumber,
   }),
   z.object({
     type: z.literal('turnRetry'),
-    turnId: z.string(),
-    attempt: z.number(),
-    maxAttempts: z.number(),
-    retryDelayMs: z.number(),
-    reason: z.string(),
+    turnId: stringSchema,
+    attempt: numberSchema,
+    maxAttempts: numberSchema,
+    retryDelayMs: numberSchema,
+    reason: stringSchema,
   }),
   // The session's totals on both backends (PLAN.md D26): prompt tokens counted
   // once and output tokens. Cached and reasoning totals only where the
@@ -338,26 +349,26 @@ const agentEventSchema = z.discriminatedUnion('type', [
   // observation packing left out of the requests, defined only while it runs.
   z.object({
     type: z.literal('tokenUsage'),
-    inputTokens: z.number(),
-    outputTokens: z.number(),
-    cachedTokens: z.optional(z.number()),
-    reasoningTokens: z.optional(z.number()),
-    modelId: z.optional(z.string()),
-    packedTokensAvoided: z.optional(z.number()),
+    inputTokens: numberSchema,
+    outputTokens: numberSchema,
+    cachedTokens: optionalNumber,
+    reasoningTokens: optionalNumber,
+    modelId: optionalString,
+    packedTokensAvoided: optionalNumber,
   }),
   z.object({
     type: z.literal('contextUsage'),
-    usedTokens: z.number(),
-    windowTokens: z.optional(z.number()),
-    pressure: z.string(),
+    usedTokens: numberSchema,
+    windowTokens: optionalNumber,
+    pressure: stringSchema,
   }),
-  z.object({ type: z.literal('modelChanged'), modelId: z.string() }),
-  z.object({ type: z.literal('sessionStatus'), status: z.string() }),
-  z.object({ type: z.literal('sessionNamed'), name: z.string() }),
+  z.object({ type: z.literal('modelChanged'), modelId: stringSchema }),
+  z.object({ type: z.literal('sessionStatus'), status: stringSchema }),
+  z.object({ type: z.literal('sessionNamed'), name: stringSchema }),
   // The session's standing reasoning effort changed (wire vocabulary).
-  z.object({ type: z.literal('effortChanged'), effort: z.string() }),
+  z.object({ type: z.literal('effortChanged'), effort: stringSchema }),
   // The session's approval mode changed (wire vocabulary).
-  z.object({ type: z.literal('approvalModeChanged'), mode: z.string() }),
+  z.object({ type: z.literal('approvalModeChanged'), mode: stringSchema }),
   // The session's user-invocable skill set changed; re-list.
   z.object({ type: z.literal('skillsChanged') }),
   /** Extension-owned Model API schedules, never Muse Code's native cron jobs (M52). */
@@ -365,67 +376,67 @@ const agentEventSchema = z.discriminatedUnion('type', [
   // The host is waiting for a decision on a gated tool call.
   z.object({
     type: z.literal('approvalRequested'),
-    approvalId: z.string(),
-    itemId: z.string(),
-    toolName: z.string(),
-    rawArgs: z.string(),
+    approvalId: stringSchema,
+    itemId: stringSchema,
+    toolName: stringSchema,
+    rawArgs: stringSchema,
     requirementId: requirementRefSchema,
     subject: approvalSubjectSchema,
     availableChoices: z.array(approvalChoiceSchema),
-    isJudgeEscalated: z.boolean(),
-    isProtectedWrite: z.boolean(),
+    isJudgeEscalated: booleanSchema,
+    isProtectedWrite: booleanSchema,
     /**
      * Why the card asks beyond the mode (M78): the user's ask rule, the
      * permission profile, or the Auto reviewer's reason. The extension's
      * own; Muse Code sends none.
      */
-    note: z.optional(z.string()),
+    note: optionalString,
     /**
      * A custom child's own `permission-mode`: the client answers it under
      * the less automatic of this and its own mode (childPermissionMode).
      */
     permissionMode: z.optional(z.enum(PERMISSION_MODES)),
     /** A pending card shown to a later surface; joining never approves it automatically. */
-    isReplayed: z.optional(z.boolean()),
+    isReplayed: optionalBoolean,
     /**
      * The turn that asked (Muse Code's `turnId`, captured 2026-10-02): the
      * Auto reviewer answers only the running parent turn's (M90).
      */
-    turnId: z.optional(z.string()),
+    turnId: optionalString,
   }),
   // A stage was decided and the next one is pending: new choices, same card.
   z.object({
     type: z.literal('approvalUpdated'),
-    approvalId: z.string(),
+    approvalId: stringSchema,
     requirementId: requirementRefSchema,
     subject: approvalSubjectSchema,
     availableChoices: z.array(approvalChoiceSchema),
   }),
   z.object({
     type: z.literal('approvalResolved'),
-    approvalId: z.string(),
-    itemId: z.string(),
-    decision: z.string(),
-    resolvedBy: z.string(),
+    approvalId: stringSchema,
+    itemId: stringSchema,
+    decision: stringSchema,
+    resolvedBy: stringSchema,
     /** Why the one who answered allowed it (the Auto reviewer on Muse Code, M90); the extension's own. */
-    reason: z.optional(z.string()),
+    reason: optionalString,
   }),
   // The agent asked the user something (`request_user_input`).
   z.object({
     type: z.literal('questionRequested'),
-    userInputId: z.string(),
-    itemId: z.string(),
+    userInputId: stringSchema,
+    itemId: stringSchema,
     questions: z.array(questionSchema),
     /** A pending question shown to a later surface (M82): it raises no new notice. */
-    isReplayed: z.optional(z.boolean()),
+    isReplayed: optionalBoolean,
   }),
   z.object({
     type: z.literal('questionSettled'),
-    userInputId: z.string(),
-    outcome: z.string(),
+    userInputId: stringSchema,
+    outcome: stringSchema,
     answers: z.array(answerSchema),
     /** The explanation given instead of an answer (`clarified`, M46). */
-    clarification: z.optional(z.string()),
+    clarification: optionalString,
   }),
   // The full todo list, replaced wholesale.
   z.object({ type: z.literal('todoChanged'), items: z.array(todoItemSchema) }),
@@ -434,7 +445,7 @@ const agentEventSchema = z.discriminatedUnion('type', [
   // A queued message that will never run (D26): the host withdrew it
   // (`turn/unqueued`) or Stop cleared the queue. Only its message is marked;
   // the running turn, if any, runs on.
-  z.object({ type: z.literal('turnWithdrawn'), turnId: z.string(), reason: z.string() }),
+  z.object({ type: z.literal('turnWithdrawn'), turnId: stringSchema, reason: stringSchema }),
   // The two below are the controller's, never forwarded (PLAN.md D26): live
   // delivery dropped events, so the transcript is reloaded from the host...
   z.object({ type: z.literal('viewGap') }),
@@ -442,7 +453,7 @@ const agentEventSchema = z.discriminatedUnion('type', [
   z.object({
     type: z.literal('backendNotice'),
     level: z.enum(['info', 'warning', 'error']),
-    text: z.string(),
+    text: stringSchema,
   }),
 ])
 

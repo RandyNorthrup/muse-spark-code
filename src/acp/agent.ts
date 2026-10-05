@@ -539,6 +539,7 @@ class AcpSession {
     // Unique for the client's lifetime: a session loaded again starts afresh.
     const toolCallId = `${ACP_PAID_TOOL_CALL_PREFIX}${randomUUID()}`
     const { title, detail } = await paidUseQuestion(request)
+    if (!this.isCurrentPaidPrompt(pending, preparing)) return 'deny'
     const content = [{ type: 'content' as const, content: { type: 'text' as const, text: detail } }]
     this.send({
       sessionUpdate: 'tool_call',

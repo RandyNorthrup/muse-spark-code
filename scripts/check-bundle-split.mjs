@@ -173,6 +173,12 @@ for (const name of [...ACTIVATION_ALLOWED.keys(), ...lazy, ...DEFERRED_ONLY]) {
 const activation = inputsOf(BUNDLES.activation)
 const modelApi = inputsOf(BUNDLES.modelApi)
 const acp = inputsOf(BUNDLES.acp)
+// M96 round 3a: the Node proxies defer concrete view validators to team.js.
+for (const bundle of [BUNDLES.activation, BUNDLES.modelApi, BUNDLES.acp]) {
+  if (inputsOf(bundle).has('src/shared/teamView.ts')) {
+    problems.push(`${bundle.output} carries the eager team view validators`)
+  }
+}
 // M96 acceptance 47: the team factory installs these validators on activation.
 // A single-model user must never pay their eager loading cost in any backend.
 for (const bundle of [BUNDLES.activation, BUNDLES.modelApi, BUNDLES.acp]) {

@@ -44,6 +44,7 @@ import { mkdirSync, readdirSync, rmSync, statSync, writeFileSync } from 'node:fs
 import path from 'node:path'
 import * as esbuild from 'esbuild'
 import { sharedHighlightGrammar } from './lib/highlightGrammar.mjs'
+import { deferredTeamView, deferredCohort } from './lib/deferredTeamView.mjs'
 
 const args = new Set(process.argv.slice(2))
 const isProduction = args.has('--production')
@@ -113,28 +114,6 @@ const sharedUiText = {
   },
 }
 
-// Keep dynamic imports dynamic: these entries run only on their first action.
-/** @type {import('esbuild').Plugin} */
-const deferredCohort = {
-  name: 'deferred-cohort',
-  setup(build) {
-    build.onResolve(
-      { filter: /\/(?:sessionBoardEntry|reviewerEntry|teamEntry)(?:\.[jt]s)?$/ },
-      (args) => {
-        if (args.kind !== 'dynamic-import') return
-        const source = path.resolve(args.resolveDir, `${args.path.replace(/\.[jt]s$/, '')}.ts`)
-        let output
-        if (source === path.resolve(TEAM_ENTRY)) output = TEAM_OUTFILE
-        if (source === path.resolve(SESSION_BOARD_ENTRY)) output = SESSION_BOARD_OUTFILE
-        else if (source === path.resolve(REVIEWER_ENTRY)) output = REVIEWER_OUTFILE
-        return output === undefined
-          ? undefined
-          : { path: `./${path.basename(output)}`, external: true }
-      },
-    )
-  },
-}
-
 /** @type {import('esbuild').BuildOptions} */
 const common = {
   bundle: true,
@@ -148,7 +127,7 @@ const common = {
 /** @type {import('esbuild').BuildOptions} */
 const hostOptions = {
   ...common,
-  plugins: [sharedUiText, deferredCohort],
+  plugins: [sharedUiText, deferredCohort, deferredTeamView],
   entryPoints: [HOST_ENTRY],
   outfile: HOST_OUTFILE,
   platform: 'node',
@@ -160,7 +139,7 @@ const hostOptions = {
 /** @type {import('esbuild').BuildOptions} */
 const modelApiOptions = {
   ...common,
-  plugins: [sharedUiText, deferredCohort],
+  plugins: [sharedUiText, deferredCohort, deferredTeamView],
   entryPoints: [MODEL_API_ENTRY],
   outfile: MODEL_API_OUTFILE,
   platform: 'node',
@@ -178,6 +157,7 @@ const sessionBoardOptions = {
 /** @type {import('esbuild').BuildOptions} */
 const teamOptions = {
   ...modelApiOptions,
+  plugins: [sharedUiText, deferredCohort],
   entryPoints: [TEAM_ENTRY],
   outfile: TEAM_OUTFILE,
 }
@@ -281,7 +261,7 @@ const checkpointStoreOptions = {
 /** @type {import('esbuild').BuildOptions} */
 const acpOptions = {
   ...common,
-  plugins: [sharedUiText],
+  plugins: [sharedUiText, deferredCohort, deferredTeamView],
   entryPoints: [ACP_ENTRY],
   outfile: ACP_OUTFILE,
   platform: 'node',

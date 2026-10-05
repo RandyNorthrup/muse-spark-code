@@ -363,7 +363,7 @@ Functions, variables, classes, enums and members declared in `@types/vscode`; th
 | `node:fs/promises`     | 37    |
 | `node:http`            | 5     |
 | `node:https`           | 1     |
-| `node:module`          | 1     |
+| `node:module`          | 2     |
 | `node:net`             | 3     |
 | `node:os`              | 8     |
 | `node:path`            | 69    |

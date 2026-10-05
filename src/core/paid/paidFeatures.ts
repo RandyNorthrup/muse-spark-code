@@ -183,6 +183,33 @@ export class PaidUsage {
 
   public constructor(private readonly log: CoreLogger) {}
 
+  private addTaskUsage(
+    kind: 'teamWorker' | 'bestOfN',
+    modelId: string,
+    usage: SubagentUsage,
+  ): void {
+    if (modelApiPaidTier(modelId) === undefined) {
+      throw new Error('Cannot estimate ' + kind + ' use for an unpriced model')
+    }
+    if (
+      Object.values(usage).some((value) => !Number.isSafeInteger(value) || value < 0) ||
+      usage.cachedTokens > usage.inputTokens
+    ) {
+      throw new Error(kind + ' usage must be valid nonnegative token counts')
+    }
+    const unknownKey = `${kind}UnknownRequests` as const
+    const tokenKey = `${kind}Tokens` as const
+    const costKey = `${kind}CostUsd` as const
+    const unknown = this.tally[unknownKey] ?? 0
+    if (unknown === 0) return
+    this.tally = {
+      ...this.tally,
+      [unknownKey]: unknown - 1,
+      [tokenKey]: (this.tally[tokenKey] ?? 0) + usage.inputTokens + usage.outputTokens,
+      [costKey]: (this.tally[costKey] ?? 0) + estimateCostUsd(usage, modelId),
+    }
+    for (const listener of this.listeners) listener()
+  }
   public get current(): PaidTally {
     return this.tally
   }
@@ -303,46 +330,12 @@ export class PaidUsage {
 
   /** One team task's reported usage; never replayed from storage (M96 lane A). */
   public addTeamWorkerUsage(modelId: string, usage: SubagentUsage): void {
-    if (modelApiPaidTier(modelId) === undefined) {
-      throw new Error('Cannot estimate team worker use for an unpriced model')
-    }
-    if (
-      Object.values(usage).some((value) => !Number.isSafeInteger(value) || value < 0) ||
-      usage.cachedTokens > usage.inputTokens
-    ) {
-      throw new Error('Team worker usage must be valid nonnegative token counts')
-    }
-    const unknown = this.tally.teamWorkerUnknownRequests ?? 0
-    if (unknown === 0) return
-    this.tally = {
-      ...this.tally,
-      teamWorkerUnknownRequests: unknown - 1,
-      teamWorkerTokens: (this.tally.teamWorkerTokens ?? 0) + usage.inputTokens + usage.outputTokens,
-      teamWorkerCostUsd: (this.tally.teamWorkerCostUsd ?? 0) + estimateCostUsd(usage, modelId),
-    }
-    for (const listener of this.listeners) listener()
+    this.addTaskUsage('teamWorker', modelId, usage)
   }
 
   /** One owned host's per-response delta, never a cumulative/replayed frame. */
   public addBestOfNUsage(modelId: string, usage: SubagentUsage): void {
-    if (modelApiPaidTier(modelId) === undefined) {
-      throw new Error('Cannot estimate best-of-N use for an unpriced model')
-    }
-    if (
-      Object.values(usage).some((value) => !Number.isSafeInteger(value) || value < 0) ||
-      usage.cachedTokens > usage.inputTokens
-    ) {
-      throw new Error('Best-of-N usage must be valid nonnegative token counts')
-    }
-    const unknown = this.tally.bestOfNUnknownRequests ?? 0
-    if (unknown === 0) return
-    this.tally = {
-      ...this.tally,
-      bestOfNUnknownRequests: unknown - 1,
-      bestOfNTokens: (this.tally.bestOfNTokens ?? 0) + usage.inputTokens + usage.outputTokens,
-      bestOfNCostUsd: (this.tally.bestOfNCostUsd ?? 0) + estimateCostUsd(usage, modelId),
-    }
-    for (const listener of this.listeners) listener()
+    this.addTaskUsage('bestOfN', modelId, usage)
   }
 }
 
