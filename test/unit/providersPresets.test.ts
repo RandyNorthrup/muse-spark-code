@@ -176,6 +176,8 @@ describe('the preset table', () => {
     expect(customQuirksFor('chat', undefined).sendsParallelToolCalls).toBe(
       FORMAT_QUIRKS.chat.sendsParallelToolCalls,
     )
+    // An explicitly-unset override never blanks a required quirk.
+    expect(customQuirksFor('chat', { toolChoice: undefined })).toEqual(FORMAT_QUIRKS.chat)
   })
 
   it('gates strict tool schemas per capable server (M101 item 24)', () => {

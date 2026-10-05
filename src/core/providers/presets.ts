@@ -233,13 +233,34 @@ export function quirksOf(preset: ProviderPreset): FormatQuirks {
 /**
  * A custom server's effective quirks (M101 BYO 14): its chosen format's
  * defaults plus its stored compatibility overrides. Presets keep their own
- * quirks; overrides ride only on `custom` entries.
+ * quirks; overrides ride only on `custom` entries. Each override applies
+ * only when set: the schema types an absent override as undefined, and an
+ * undefined must never blank a required quirk.
  */
 export function customQuirksFor(
   format: ProviderFormat,
   compat: CustomCompat | undefined,
 ): FormatQuirks {
-  return { ...FORMAT_QUIRKS[format], ...compat }
+  if (compat === undefined) {
+    return { ...FORMAT_QUIRKS[format] }
+  }
+  return {
+    ...FORMAT_QUIRKS[format],
+    ...(compat.outputCapParam !== undefined && { outputCapParam: compat.outputCapParam }),
+    ...(compat.toolChoice !== undefined && { toolChoice: compat.toolChoice }),
+    ...(compat.sendsParallelToolCalls !== undefined && {
+      sendsParallelToolCalls: compat.sendsParallelToolCalls,
+    }),
+    ...(compat.reasoningField !== undefined && { reasoningField: compat.reasoningField }),
+    ...(compat.reasoningReplay !== undefined && { reasoningReplay: compat.reasoningReplay }),
+    ...(compat.usageOnFinishChunk !== undefined && {
+      usageOnFinishChunk: compat.usageOnFinishChunk,
+    }),
+    ...(compat.usageNeedsOptIn !== undefined && { usageNeedsOptIn: compat.usageNeedsOptIn }),
+    ...(compat.supportsStrictTools !== undefined && {
+      supportsStrictTools: compat.supportsStrictTools,
+    }),
+  }
 }
 
 // The presets. Origins, headers, key shapes, key tests and quirks are from
