@@ -302,6 +302,16 @@ const BUNDLED_SKILLS = {
 // The Model API backend keeps its own copy of code intelligence.
 const ON_FIRST_USE = [
   {
+    output: 'dist/legalScan.js',
+    metafile: 'dist/meta/legalScan.json',
+    use: 'the first legal scan',
+    files: readdirSync('src/core/legal', { recursive: true })
+      .map(String)
+      // The public re-export index and finding's type-only interface emit no runtime code.
+      .filter((name) => name.endsWith('.ts') && !['index.ts', 'finding.ts'].includes(name))
+      .map((name) => `src/core/legal/${name.split(path.sep).join('/')}`),
+  },
+  {
     output: 'dist/codeIntel.js',
     metafile: 'dist/meta/codeIntel.json',
     use: 'the first code intelligence call',

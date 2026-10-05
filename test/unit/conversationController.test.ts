@@ -13359,6 +13359,27 @@ describe('ConversationController: legal scan (M97)', () => {
       text: fill(UI_TEXT.legalScanFailed, { reason: 'first failure' }),
     })
   })
+  it('refuses a scan while a model send is preparing before its turn acknowledgement', async () => {
+    const t = legalSetup({ backendKind: 'museCode', hasApprovalUi: true, isAutosaveEnabled: true })
+    await liveLegalConversation(t)
+    const saving = Promise.withResolvers<undefined>()
+    t.saveAll.mockClear()
+    t.saveAll.mockImplementationOnce(() => saving.promise)
+    const sending = t.send('l2', 'next turn')
+    await vi.waitFor(() => {
+      expect(t.saveAll).toHaveBeenCalledOnce()
+    })
+    try {
+      await t.controller.handle({ type: 'requestLegalScan' })
+      expect(t.inputs).toHaveLength(0)
+      expect(legalApprovalModes(t)).toHaveLength(0)
+      expect(legalNotices(t).at(-1)).toMatchObject({ text: UI_TEXT.legalScanBusy })
+    } finally {
+      saving.resolve(undefined)
+      await sending
+    }
+  })
+
   it('holds a new model turn until the scan and mode restoration settle', async () => {
     const gate = Promise.withResolvers<undefined>()
     const t = legalSetup({ backendKind: 'museCode', hasApprovalUi: true, scanGate: gate.promise })

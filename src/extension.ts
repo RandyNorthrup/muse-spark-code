@@ -1,3 +1,4 @@
+import { legalScanResultSchema, type LegalScanRunner } from './shared/legal'
 // Extension host entry point. Kept to registration and adapter wiring; the
 // behaviour lives in src/host (VS Code adapters) and src/core (pure logic).
 
@@ -1263,6 +1264,15 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     bundlePath: vscode.Uri.joinPath(context.extensionUri, 'dist', LEGAL_SCAN_BUNDLE_FILE).fsPath,
     log,
   })
+  const runLegalScan: LegalScanRunner = async (input, signal) => {
+    if (workspaceRoot === undefined) throw new Error(UI_TEXT.noWorkspaceReason)
+    const handle = await legalScanBundle().runLegalScan({
+      workspaceRoot,
+      input: { ...input, headerPolicy: input.headerPolicy ?? currentSettings().legalHeaderPolicy },
+      signal,
+    })
+    return legalScanResultSchema.parse(handle.result)
+  }
   const ideServer = new IdeMcpServer(
     () => [
       diagnostics,
@@ -1270,8 +1280,9 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
       // Read-only and trust-gated, like the code intelligence tools: listed
       // only in a trusted workspace, refused while it is not.
       ...ideLegalScanTools({
-        isOffered: () => isIdeLegalScanOffered(vscode.workspace.isTrusted),
-        runScan: async (input, signal) => await legalScanBundle().runLegalScan(input, signal),
+        isOffered: () =>
+          workspaceRoot !== undefined && isIdeLegalScanOffered(vscode.workspace.isTrusted),
+        runScan: runLegalScan,
         log,
       }),
       // The server is attached in Restricted Mode too, and has no session
@@ -1677,6 +1688,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
           log,
         }),
       ),
+    legalScan: workspaceRoot === undefined ? undefined : runLegalScan,
     ideTools,
     webFetch,
     codeIntel: languageServices,
@@ -2034,10 +2046,9 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
         editReview: review.editReview,
         review,
         // The deterministic legal scan (M97, PLAN.md D76): dist/legalScan.js
-        // (D6) on the first scan; until lane R builds it the scan refuses
-        // with the unavailable words and `/legal` says so.
-        legalScan: async (input, signal) => await legalScanBundle().runLegalScan(input, signal),
-        createLegalHold: (holdDeps) => legalScanBundle().createHold(holdDeps),
+        // (D6) on the first scan; the Plan hold stays in the host review bundle.
+        legalScan: runLegalScan,
+        createLegalHold: (holdDeps) => review.createHold(holdDeps),
         openDocument,
         openFile,
         readToolImage: async (imagePath) =>

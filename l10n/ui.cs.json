@@ -2001,6 +2001,7 @@
   "legalEvidenceLabel": "Důkaz: {evidence}",
   "legalConfidenceLabel": "Jistota: {confidence}",
   "legalScanItem": "/legal",
+  "legalCommandUsage": "Použití: /legal [cesta relativní k pracovnímu prostoru …]. Volby nejsou podporovány.",
   "legalScanItemDetail": "Zkontrolovat pracovní prostor z hlediska licencí, uvedení autorů a nálezů v hlavičkách",
   "legalScanBusy": "Právní kontrola začne, až skončí aktuální kolo.",
   "legalScanUntrusted": "Právní kontrola čte pracovní prostor, což omezený režim neumožňuje. Chcete-li ji použít, označte pracovní prostor jako důvěryhodný.",

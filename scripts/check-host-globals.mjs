@@ -21,6 +21,7 @@ const HOST_BUNDLES = [
   'dist/checkpointStore.js',
   'dist/agentImport.js',
   'dist/bundledSkills.js',
+  'dist/legalScan.js',
   'dist/codeIntel.js',
   'dist/voice.js',
   'dist/webFetch.js',

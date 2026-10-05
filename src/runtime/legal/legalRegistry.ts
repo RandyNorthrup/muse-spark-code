@@ -32,12 +32,8 @@ import {
   type LegalRegistryEcosystem,
 } from '../../shared/constants'
 
-/** What the scanner asks to enrich: the ecosystem it saw the package in. */
-export interface LegalRegistryTarget {
-  readonly ecosystem: LegalRegistryEcosystem
-  readonly name: string
-  readonly version: string
-}
+import type { LegalRegistryTarget } from '../../shared/legalScanEntry'
+export type { LegalRegistryTarget } from '../../shared/legalScanEntry'
 
 export type LegalRegistryStatus = 'found' | 'unknown' | 'refused' | 'error'
 

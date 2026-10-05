@@ -1867,6 +1867,7 @@
   "legalEvidenceLabel": "Bizonyíték: {evidence}",
   "legalConfidenceLabel": "Megbízhatóság: {confidence}",
   "legalScanItem": "/legal",
+  "legalCommandUsage": "Használat: /legal [munkaterülethez viszonyított útvonal …]. A kapcsolók nem támogatottak.",
   "legalScanItemDetail": "A munkaterület átvizsgálása licencelési, szerzőfeltüntetési és fejléc-megállapítások után",
   "legalScanBusy": "A jogi ellenőrzés az aktuális kör befejeződése után indul.",
   "legalScanUntrusted": "A jogi ellenőrzés a munkaterületet olvassa, amit a korlátozott mód nem engedélyez. A használatához jelölje megbízhatónak a munkaterületet.",

@@ -30,7 +30,7 @@ import {
   type ReviewRequest,
   reviewRequestSchema,
 } from '../shared/reviewCommand'
-import { parseLegalPrompt } from '../shared/legalCommand'
+import { isLegalPrompt, parseLegalPrompt } from '../shared/legalCommand'
 import type { LegalScanRequestMessage } from '../shared/legal'
 import { editorContextLabel } from '../shared/editorContext'
 import type { LegalFinding } from '../shared/legal'
@@ -568,18 +568,24 @@ export function App({
   // always posts as parsed.
   const onLegalScan = useCallback(
     (text: string): boolean => {
+      if (!isLegalPrompt(text)) return false
       const input = parseLegalPrompt(text)
       if (input === undefined) {
-        return false
+        dispatch({ type: 'noticeRaised', level: 'warning', text: UI_TEXT.legalCommandUsage })
+        return true
       }
       postMessage({ type: 'requestLegalScan', input } satisfies LegalScanRequestMessage)
       setIsPinnedToEnd(true)
       return true
     },
-    [postMessage],
+    [dispatch, postMessage],
   )
   const onSubmit = useCallback(() => {
     const current = store.getState()
+    if (onLegalScan(current.draft.trim())) {
+      dispatch({ type: 'draftChanged', draft: '' })
+      return
+    }
     if (!canSend(current)) {
       return
     }
@@ -600,12 +606,6 @@ export function App({
       if (onReview(review, text)) {
         dispatch({ type: 'draftChanged', draft: '' })
       }
-      return
-    }
-    // `/legal …` (M97): a deterministic scan, its report rendered by lane W.
-    // Not a legal command (options, overlong words) falls through to a message.
-    if (onLegalScan(text)) {
-      dispatch({ type: 'draftChanged', draft: '' })
       return
     }
     // `/goal …` is a command to the backend, not a message (M45): no card.

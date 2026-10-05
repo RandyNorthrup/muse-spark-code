@@ -1128,6 +1128,8 @@ export class ConversationController {
   private legalScanStart: Promise<void> | undefined
   private legalScanStop: AbortController | undefined
   private legalScanSequence = 0
+  /** Preparation and acknowledgement still belong to a model send before activeTurnId is set. */
+  private sendsInFlight = 0
   /** Mode choices and revocation wait for the outstanding owned request; the newest wins. */
   private reviewModeSettling: Promise<void> | undefined
   private permissionModeSelection = 0
@@ -5180,6 +5182,7 @@ export class ConversationController {
     cardText?: string,
     handoff?: PendingHandoff,
   ): Promise<SendOutcome> {
+    this.sendsInFlight += 1
     const isComposerMessage = brief === undefined
     let seededSession: AgentSession | undefined
     // The running mark this message's turn takes over (M72), dropped if it is not sent.
@@ -5399,6 +5402,8 @@ export class ConversationController {
         this.noteMuseCodeFault(error)
       }
       return { isAccepted: false, hasSetTodos: false, turnId: undefined }
+    } finally {
+      this.sendsInFlight -= 1
     }
   }
 
@@ -5655,6 +5660,7 @@ export class ConversationController {
     }
     if (
       this.activeTurnId !== undefined ||
+      this.sendsInFlight > 0 ||
       this.reviewStart !== undefined ||
       this.planHold !== undefined ||
       this.legalScanStart !== undefined

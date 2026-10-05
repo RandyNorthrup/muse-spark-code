@@ -2329,6 +2329,7 @@ export const EN = {
   // `/legal` in the prompt and its palette row (M97, lane B): the command
   // reads the same in every language; the detail says what it does.
   legalScanItem: '/legal',
+  legalCommandUsage: 'Usage: /legal [workspace-relative path …]. Options are not supported.',
   legalScanItemDetail: 'Scan the workspace for licensing, attribution and header findings',
   // Why a scan did not start, as a notice (lane B; lane W renders the report).
   legalScanBusy: 'A legal scan starts once the current turn has ended.',

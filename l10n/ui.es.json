@@ -1934,6 +1934,7 @@
   "legalEvidenceLabel": "Evidencia: {evidence}",
   "legalConfidenceLabel": "Confianza: {confidence}",
   "legalScanItem": "/legal",
+  "legalCommandUsage": "Uso: /legal [ruta relativa al espacio de trabajo …]. No se admiten opciones.",
   "legalScanItemDetail": "Analizar el área de trabajo en busca de hallazgos de licencias, atribuciones y encabezados",
   "legalScanBusy": "El análisis legal empezará cuando termine el turno actual.",
   "legalScanUntrusted": "El análisis legal lee el área de trabajo, lo que el modo restringido no permite. Confíe en el área de trabajo para usarlo.",

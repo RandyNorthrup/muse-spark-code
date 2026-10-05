@@ -41,9 +41,14 @@
 // does, and its package ships that file (scripts/package-acp.mjs), so the
 // backend is built once for both.
 
-import { mkdirSync, readdirSync, statSync, writeFileSync } from 'node:fs'
+import { cpSync, mkdirSync, readdirSync, statSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import * as esbuild from 'esbuild'
+
+mkdirSync('dist/legal-data', { recursive: true })
+// Dataset attribution and provenance accompany both packaged scanner bundles.
+cpSync('src/core/legal/data/NOTICE.md', 'dist/legal-data/NOTICE.md', { force: true })
+cpSync('src/core/legal/data/provenance.json', 'dist/legal-data/provenance.json', { force: true })
 
 const args = new Set(process.argv.slice(2))
 const isProduction = args.has('--production')
@@ -63,6 +68,8 @@ const REVIEWER_ENTRY = 'src/core/backends/modelapi/reviewerEntry.ts'
 const REVIEWER_OUTFILE = 'dist/reviewer.js'
 const PLAN_MARKDOWN_ENTRY = 'src/host/planMarkdownEntry.ts'
 const PLAN_MARKDOWN_OUTFILE = 'dist/planMarkdown.js'
+const LEGAL_SCAN_ENTRY = 'src/core/legal/entry.ts'
+const LEGAL_SCAN_OUTFILE = 'dist/legalScan.js'
 const REVIEW_ENTRY = 'src/host/review/reviewEntry.ts'
 const REVIEW_OUTFILE = 'dist/review.js'
 const AGENT_IMPORT_ENTRY = 'src/host/agentImportEntry.ts'
@@ -202,6 +209,13 @@ const planMarkdownOptions = {
 
 // Neither imports `vscode`, so it is not external there and a stray import
 // fails this build, as for the Model API backend.
+/** @type {import('esbuild').BuildOptions} */
+const legalScanOptions = {
+  ...planMarkdownOptions,
+  entryPoints: [LEGAL_SCAN_ENTRY],
+  outfile: LEGAL_SCAN_OUTFILE,
+}
+
 /** @type {import('esbuild').BuildOptions} */
 const codeIntelOptions = {
   ...planMarkdownOptions,
@@ -352,6 +366,7 @@ if (isWatch) {
     esbuild.context(checkpointStoreOptions),
     esbuild.context(agentImportOptions),
     esbuild.context(bundledSkillsOptions),
+    esbuild.context(legalScanOptions),
     esbuild.context(codeIntelOptions),
     esbuild.context(voiceOptions),
     esbuild.context(webFetchOptions),
@@ -374,6 +389,7 @@ if (isWatch) {
     checkpointStore: esbuild.build(checkpointStoreOptions),
     agentImport: esbuild.build(agentImportOptions),
     bundledSkills: esbuild.build(bundledSkillsOptions),
+    legalScan: esbuild.build(legalScanOptions),
     codeIntel: esbuild.build(codeIntelOptions),
     voice: esbuild.build(voiceOptions),
     webFetch: esbuild.build(webFetchOptions),
@@ -409,6 +425,7 @@ if (isWatch) {
   reportSize(CHECKPOINT_STORE_OUTFILE)
   reportSize(AGENT_IMPORT_OUTFILE)
   reportSize(BUNDLED_SKILLS_OUTFILE)
+  reportSize(LEGAL_SCAN_OUTFILE)
   reportSize(CODE_INTEL_OUTFILE)
   reportSize(VOICE_OUTFILE)
   reportSize(WEB_FETCH_OUTFILE)

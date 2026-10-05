@@ -1867,6 +1867,7 @@
   "legalEvidenceLabel": "Beleg: {evidence}",
   "legalConfidenceLabel": "Verlässlichkeit: {confidence}",
   "legalScanItem": "/legal",
+  "legalCommandUsage": "Verwendung: /legal [Pfad relativ zum Arbeitsbereich …]. Optionen werden nicht unterstützt.",
   "legalScanItemDetail": "Den Arbeitsbereich auf Lizenzen, Zuschreibungen und Header-Funde prüfen",
   "legalScanBusy": "Ein Legal-Scan beginnt, sobald der aktuelle Durchgang beendet ist.",
   "legalScanUntrusted": "Der Legal-Scan liest den Arbeitsbereich, was der eingeschränkte Modus nicht erlaubt. Vertrauen Sie dem Arbeitsbereich, um ihn zu nutzen.",

@@ -1934,6 +1934,7 @@
   "legalEvidenceLabel": "Preuve : {evidence}",
   "legalConfidenceLabel": "Confiance : {confidence}",
   "legalScanItem": "/legal",
+  "legalCommandUsage": "Utilisation : /legal [chemin relatif à l’espace de travail …]. Les options ne sont pas prises en charge.",
   "legalScanItemDetail": "Analyser l’espace de travail à la recherche de constats de licence, d’attribution et d’en-tête",
   "legalScanBusy": "L’analyse juridique démarrera une fois le tour en cours terminé.",
   "legalScanUntrusted": "L’analyse juridique lit l’espace de travail, ce que le mode restreint ne permet pas. Faites confiance à l’espace de travail pour l’utiliser.",

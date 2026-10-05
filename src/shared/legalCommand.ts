@@ -5,9 +5,9 @@
 //   /legal <path> …        an explicit file subset (workspace-relative)
 //
 // Words after `/legal` are paths, never options: a word starting with a dash
-// makes the prompt ordinary text, so the parser never invents an option the
-// schema refuses. Bounds come from lane 0's contract: a word too long for a
-// path, or more words than a subset may name, is not a legal command either.
+// is refused as command syntax; it never becomes a model request. Bounds
+// come from lane 0's contract: a word too long for a
+// path, or more words than a subset may name, is invalid command syntax.
 // Pure; the webview posts the input instead of sending a message.
 
 import { LEGAL_PATH_MAX_CHARS, LEGAL_SCAN_PATHS_MAX, LEGAL_SLASH_COMMAND } from './constants'
@@ -16,6 +16,11 @@ import { legalScanInputSchema, type LegalScanInput } from './legal'
 const PROMPT = new RegExp(String.raw`^\/${LEGAL_SLASH_COMMAND}(?:\s+([\s\S]*))?$`)
 const WORDS = /\s+/
 const OPTION_DASH = '-'
+
+/** Recognize the reserved command even when its arguments are invalid. */
+export function isLegalPrompt(text: string): boolean {
+  return PROMPT.test(text.trim())
+}
 
 /**
  * The scan a prompt asks for, or undefined for any other text. The result
