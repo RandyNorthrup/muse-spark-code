@@ -395,7 +395,7 @@
   "reportSaveFailed": "Le rapport n’a pas pu être enregistré.",
   "reportUrlTooLong": "Le rapport est trop long pour être ouvert dans une adresse de navigateur. Copiez-le, puis collez-le dans le formulaire de nouveau ticket.",
   "reportRecordingUnavailable": "L’enregistrement des événements n’était pas disponible, ce rapport ne contient donc aucun événement récent.",
-  "reportDescriptionWarning": "Tout ce que vous écrivez ci-dessus est envoyé tel quel. N’y incluez ni mots de passe, ni clés, ni autres informations confidentielles.",
+  "reportDescriptionWarning": "Vérifiez l’aperçu après suppression des données sensibles avant de le partager. Votre description peut encore révéler des informations confidentielles ; n’incluez ni mots de passe ni clés.",
   "reportVscodeReporterNote": "Le rapporteur de problèmes de VS Code ajoute ses propres données, peut rechercher des tickets similaires sur GitHub, et contrôle la connexion et l’envoi.",
   "reportItemsLabel": "Ce que contient ce rapport",
   "reportRemoveItem": "Retirer {item}",

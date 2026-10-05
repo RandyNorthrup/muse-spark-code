@@ -404,7 +404,7 @@
   "reportSaveFailed": "Hlášení se nepodařilo uložit.",
   "reportUrlTooLong": "Hlášení je příliš dlouhé na otevření v adrese prohlížeče. Zkopírujte je a vložte do formuláře nového problému.",
   "reportRecordingUnavailable": "Záznam událostí nebyl k dispozici, takže toto hlášení neobsahuje žádné nedávné události.",
-  "reportDescriptionWarning": "Vše, co napíšete výše, se odešle přesně tak, jak je napsáno. Neuvádějte hesla, klíče ani jiné důvěrné informace.",
+  "reportDescriptionWarning": "Před sdílením zkontrolujte náhled po odstranění citlivých údajů. Váš popis může stále odhalit důvěrné informace; neuvádějte hesla ani klíče.",
   "reportVscodeReporterNote": "Ohlašovač problémů VS Code přidává vlastní data, může vyhledávat podobné problémy na GitHubu a řídí přihlášení a odeslání.",
   "reportItemsLabel": "Co tato zpráva obsahuje",
   "reportRemoveItem": "Odebrat {item}",

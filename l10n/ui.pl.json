@@ -404,7 +404,7 @@
   "reportSaveFailed": "Nie można zapisać zgłoszenia.",
   "reportUrlTooLong": "Zgłoszenie jest zbyt długie, aby otworzyć je w adresie przeglądarki. Skopiuj je i wklej do formularza nowego problemu.",
   "reportRecordingUnavailable": "Rejestrowanie zdarzeń było niedostępne, więc to zgłoszenie nie zawiera ostatnich zdarzeń.",
-  "reportDescriptionWarning": "Wszystko, co napisano powyżej, jest wysyłane dokładnie w takiej postaci. Nie podawaj haseł, kluczy ani innych poufnych informacji.",
+  "reportDescriptionWarning": "Przed udostępnieniem sprawdź podgląd po usunięciu danych wrażliwych. Opis nadal może ujawniać poufne informacje; nie podawaj haseł ani kluczy.",
   "reportVscodeReporterNote": "Narzędzie zgłaszania problemów VS Code dodaje własne dane, może wyszukiwać podobne problemy w GitHubie oraz kontroluje logowanie i wysyłanie.",
   "reportItemsLabel": "Zawartość tego zgłoszenia",
   "reportRemoveItem": "Usuń {item}",

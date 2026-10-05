@@ -17,13 +17,11 @@
 // transport bounds alone cannot see (absolute paths, traversal, URLs).
 
 import * as z from 'zod/mini'
-import {
-  BACKEND_KINDS,
-  reportWebviewErrorSchema,
-  type BackendKind,
-} from '../../shared/protocol'
+import { BACKEND_KINDS, reportWebviewErrorSchema, type BackendKind } from '../../shared/protocol'
 import {
   REPORT_ERROR_CODE_MAX_CHARS,
+  REPORT_ERROR_CODES,
+  REPORT_PACKAGE_FRAME_PATHS,
   REPORT_EVENT_KINDS,
   REPORT_FRAME_PATH_MAX_CHARS,
   REPORT_JOURNAL_ENTRY_MAX_BYTES,
@@ -37,10 +35,8 @@ import {
 } from '../../shared/constants'
 import { redactSecrets } from '../redact'
 
-/** An error class as a short token (an errno, an exit word), never a sentence. */
-const CODE_TOKEN = /^[A-Za-z0-9][A-Za-z0-9_.:-]{0,63}$/
 /** A version as a short token (a dotted triple), never a sentence. */
-const VERSION_TOKEN = /^[A-Za-z0-9][A-Za-z0-9.+_-]{0,31}$/
+const VERSION_TOKEN = /^\d+\.\d+\.\d+(?:[-+][A-Za-z0-9.-]+)?$/
 /** A URI scheme prefix (`https:`, `file:`, `vscode-remote:`): never a journal path. */
 const URI_SCHEME = /^[A-Za-z][A-Za-z0-9+.-]*:/
 /** A Windows drive root (`C:/`): never a journal path. */
@@ -52,15 +48,13 @@ const JOURNAL_NAME = /^journal-([A-Za-z0-9][A-Za-z0-9_-]{0,63})\.jsonl$/
 /** A marker file name, capturing the owning instance. */
 const MARKER_NAME = /^marker-([A-Za-z0-9][A-Za-z0-9_-]{0,63})\.json$/
 /** Crash-left atomic-write stages, swept at startup. */
-const TEMP_NAME = /^[A-Za-z0-9_.-]+\.tmp-\d+$/
+const TEMP_NAME =
+  /^(?:journal-[A-Za-z0-9_-]+\.jsonl|marker-[A-Za-z0-9_-]+\.json)\.tmp-(\d+)(?:-[A-Za-z0-9-]+)?$/
 
-const flightFrameSchema = z.strictObject({
-  /** A package-relative path the recorder already verified. */
-  path: z.string().check(z.minLength(1), z.maxLength(REPORT_FRAME_PATH_MAX_CHARS)),
-  line: z.int().check(z.gte(1)),
-  column: z.int().check(z.gte(0)),
-})
-export type FlightFrame = z.infer<typeof flightFrameSchema>
+// Reuse the exact bounded, strict transport frame shape; membership is
+// revalidated separately at both journal boundaries.
+const flightFramesSchema = reportWebviewErrorSchema.shape.frames
+export type FlightFrame = z.infer<typeof flightFramesSchema>[number]
 
 export const flightRecordSchema = z.strictObject({
   v: z.literal(REPORT_JOURNAL_VERSION),
@@ -78,14 +72,14 @@ export const flightRecordSchema = z.strictObject({
   /** A small count, such as the attempt number. */
   count: z.optional(z.int().check(z.gte(0))),
   /** The scrubbed stack's verified frames, most recent call first. */
-  frames: z.array(flightFrameSchema).check(z.maxLength(REPORT_STACK_MAX_FRAMES)),
+  frames: flightFramesSchema,
 })
 export type FlightRecord = z.infer<typeof flightRecordSchema>
 
 export const flightMarkerSchema = z.strictObject({
   v: z.literal(REPORT_JOURNAL_VERSION),
   /** The window instance that owns this marker. */
-  instance: z.string().check(z.minLength(1), z.maxLength(64)),
+  instance: z.string().check(z.minLength(1), z.maxLength(REPORT_ERROR_CODE_MAX_CHARS)),
   /** The extension host process that wrote it. */
   pid: z.int().check(z.gte(0)),
   /** Milliseconds since the epoch: when the activation started. */
@@ -113,7 +107,8 @@ export interface FlightEventInput {
 }
 
 /** Why a record was refused: fixed words, never the offending text. */
-export type FlightRefusal = 'unknownKind' | 'badVersion' | 'badBackend' | 'badCount' | 'invalid' | 'oversize'
+export type FlightRefusal =
+  'unknownKind' | 'badVersion' | 'badBackend' | 'badCount' | 'invalid' | 'oversize'
 
 export type BuiltFlightRecord =
   | { readonly ok: true; readonly record: FlightRecord }
@@ -128,22 +123,29 @@ export interface ParsedJournal {
   readonly torn: boolean
 }
 
+const KNOWN_EVENT_KINDS: ReadonlySet<string> = new Set(REPORT_EVENT_KINDS)
+const KNOWN_BACKEND_KINDS: ReadonlySet<string> = new Set(BACKEND_KINDS)
+
 function isEventKind(kind: string): kind is ReportEventKind {
-  return REPORT_EVENT_KINDS.some((known) => known === kind)
+  return KNOWN_EVENT_KINDS.has(kind)
 }
 
 function isBackendKind(backend: string): backend is BackendKind {
-  return BACKEND_KINDS.some((known) => known === backend)
+  return KNOWN_BACKEND_KINDS.has(backend)
 }
 
 function scrubCode(code: string): string {
   const scrubbed = redactSecrets(code)
-  return CODE_TOKEN.test(scrubbed) ? scrubbed : REPORT_UNKNOWN_ERROR_CODE
+  return scrubbed === code && REPORT_ERROR_CODES.has(code) ? code : REPORT_UNKNOWN_ERROR_CODE
 }
 
 function scrubVersion(version: string): string | undefined {
   const scrubbed = redactSecrets(version)
-  return VERSION_TOKEN.test(scrubbed) ? scrubbed : undefined
+  return scrubbed === version &&
+    scrubbed.length <= REPORT_VERSION_MAX_CHARS &&
+    VERSION_TOKEN.test(scrubbed)
+    ? scrubbed
+    : undefined
 }
 
 /**
@@ -154,16 +156,13 @@ function scrubVersion(version: string): string | undefined {
  */
 function scrubFramePath(path: string): string | undefined {
   const scrubbed = redactSecrets(path)
-  if (scrubbed !== path) return undefined
-  if (scrubbed.length < 1 || scrubbed.length > REPORT_FRAME_PATH_MAX_CHARS) return undefined
+  if (scrubbed !== path || !REPORT_PACKAGE_FRAME_PATHS.has(path)) return undefined
+  if (scrubbed.length === 0 || scrubbed.length > REPORT_FRAME_PATH_MAX_CHARS) return undefined
   if (scrubbed.includes('\\')) return undefined
   if (scrubbed.startsWith('/')) return undefined
   if (DRIVE_ROOT.test(scrubbed) || URI_SCHEME.test(scrubbed)) return undefined
   const segments = scrubbed.split('/')
-  if (segments.some((segment) => segment === '' || segment === '.' || segment === '..')) {
-    return undefined
-  }
-  return scrubbed
+  return segments.some((segment) => ['', '.', '..'].includes(segment)) ? undefined : scrubbed
 }
 
 function scrubFrames(frames: readonly FlightFrameInput[] | undefined): FlightFrame[] {
@@ -172,9 +171,14 @@ function scrubFrames(frames: readonly FlightFrameInput[] | undefined): FlightFra
   for (const frame of frames) {
     if (kept.length >= REPORT_STACK_MAX_FRAMES) break
     const path = scrubFramePath(frame.path)
-    if (path === undefined) continue
-    if (!Number.isInteger(frame.line) || frame.line < 1) continue
-    if (!Number.isInteger(frame.column) || frame.column < 0) continue
+    if (
+      path === undefined ||
+      !Number.isSafeInteger(frame.line) ||
+      frame.line < 1 ||
+      !Number.isSafeInteger(frame.column) ||
+      frame.column < 0
+    )
+      continue
     kept.push({ path, line: frame.line, column: frame.column })
   }
   return kept
@@ -198,10 +202,10 @@ function assemble(input: {
   if (input.backend !== undefined && !isBackendKind(input.backend)) {
     return { ok: false, reason: 'badBackend' }
   }
-  if (input.count !== undefined && (!Number.isInteger(input.count) || input.count < 0)) {
+  if (input.count !== undefined && (!Number.isSafeInteger(input.count) || input.count < 0)) {
     return { ok: false, reason: 'badCount' }
   }
-  if (!Number.isInteger(input.at) || input.at < 0) return { ok: false, reason: 'invalid' }
+  if (!Number.isSafeInteger(input.at) || input.at < 0) return { ok: false, reason: 'invalid' }
   const candidate = {
     v: REPORT_JOURNAL_VERSION,
     kind: input.kind,
@@ -209,16 +213,16 @@ function assemble(input: {
     code: scrubCode(input.code),
     ext,
     host,
-    ...(input.backend === undefined ? {} : { backend: input.backend }),
-    ...(input.count === undefined ? {} : { count: input.count }),
+    ...(input.backend !== undefined && { backend: input.backend }),
+    ...(input.count !== undefined && { count: input.count }),
     frames: scrubFrames(input.frames),
   }
   const parsed = flightRecordSchema.safeParse(candidate)
   if (!parsed.success) return { ok: false, reason: 'invalid' }
-  if (Buffer.byteLength(serializeFlightRecord(parsed.data), 'utf8') > REPORT_JOURNAL_ENTRY_MAX_BYTES) {
-    return { ok: false, reason: 'oversize' }
-  }
-  return { ok: true, record: parsed.data }
+  return Buffer.byteLength(serializeFlightRecord(parsed.data), 'utf8') >
+    REPORT_JOURNAL_ENTRY_MAX_BYTES
+    ? { ok: false, reason: 'oversize' }
+    : { ok: true, record: parsed.data }
 }
 
 /** Scrub and validate a host-observed failure; refused records never reach the file. */
@@ -271,9 +275,12 @@ export function serializeFlightRecord(record: FlightRecord): string {
  * tampered with after writing and is skipped, never trusted or exported.
  */
 function isStoredRecord(record: FlightRecord): boolean {
-  if (!CODE_TOKEN.test(record.code)) return false
-  if (!VERSION_TOKEN.test(record.ext) || !VERSION_TOKEN.test(record.host)) return false
-  return record.frames.every((frame) => scrubFramePath(frame.path) === frame.path)
+  return (
+    scrubCode(record.code) === record.code &&
+    scrubVersion(record.ext) === record.ext &&
+    scrubVersion(record.host) === record.host &&
+    record.frames.every((frame) => scrubFramePath(frame.path) === frame.path)
+  )
 }
 
 /**
@@ -286,9 +293,9 @@ export function parseJournalText(text: string): ParsedJournal {
   const entries: FlightRecord[] = []
   let skipped = 0
   let body = text
-  let torn = false
+  let isTorn = false
   if (body !== '' && !body.endsWith('\n')) {
-    torn = true
+    isTorn = true
     const cut = body.lastIndexOf('\n')
     body = cut === -1 ? '' : body.slice(0, cut + 1)
   }
@@ -312,7 +319,7 @@ export function parseJournalText(text: string): ParsedJournal {
     }
     entries.push(parsed.data)
   }
-  return { entries, skipped, torn }
+  return { entries, skipped, torn: isTorn }
 }
 
 /**
@@ -320,10 +327,16 @@ export function parseJournalText(text: string): ParsedJournal {
  * (an entry exactly at the boundary is kept), then the oldest entries while
  * the journal stays past the byte cap. The input is never mutated.
  */
-export function pruneFlightEntries(entries: readonly FlightRecord[], now: number): readonly FlightRecord[] {
+export function pruneFlightEntries(
+  entries: readonly FlightRecord[],
+  now: number,
+): readonly FlightRecord[] {
   const cutoff = now - REPORT_JOURNAL_MAX_AGE_MS
   const fresh = entries.filter((entry) => entry.at >= cutoff)
-  const lines = fresh.map((entry) => ({ entry, bytes: Buffer.byteLength(serializeFlightRecord(entry), 'utf8') }))
+  const lines = fresh.map((entry) => ({
+    entry,
+    bytes: Buffer.byteLength(serializeFlightRecord(entry), 'utf8'),
+  }))
   let total = 0
   for (const line of lines) total += line.bytes
   let first = 0
@@ -338,8 +351,7 @@ export function pruneFlightEntries(entries: readonly FlightRecord[], now: number
 
 /** The journal file this instance owns; undefined when the instance is not file-safe. */
 export function journalNameFor(instance: string): string | undefined {
-  if (!INSTANCE_STEM.test(instance)) return undefined
-  return `journal-${instance}.jsonl`
+  return INSTANCE_STEM.test(instance) ? `journal-${instance}.jsonl` : undefined
 }
 
 /** The instance owning a journal file name; undefined for anything unexpected. */
@@ -349,8 +361,7 @@ export function parseJournalName(name: string): string | undefined {
 
 /** The marker file this instance owns; undefined when the instance is not file-safe. */
 export function markerNameFor(instance: string): string | undefined {
-  if (!INSTANCE_STEM.test(instance)) return undefined
-  return `marker-${instance}.json`
+  return INSTANCE_STEM.test(instance) ? `marker-${instance}.json` : undefined
 }
 
 /** The instance owning a marker file name; undefined for anything unexpected. */
@@ -358,17 +369,26 @@ export function parseMarkerName(name: string): string | undefined {
   return MARKER_NAME.exec(name)?.[1]
 }
 
-/** A crash-left atomic-write stage, safe to sweep at startup. */
+/** An owned atomic-write stage; its process must be dead before sweeping. */
 export function isTempName(name: string): boolean {
-  return TEMP_NAME.test(name)
+  return tempOwnerPid(name) !== undefined
+}
+
+/** The stage's writer, including legacy stages: live writers must be left alone. */
+export function tempOwnerPid(name: string): number | undefined {
+  const matched = TEMP_NAME.exec(name)?.[1]
+  if (matched === undefined) return undefined
+  const pid = Number(matched)
+  return Number.isSafeInteger(pid) && pid > 0 ? pid : undefined
 }
 
 /** The marker this activation sets before normal startup. */
 export function buildMarkerText(instance: string, pid: number, at: number): string | undefined {
   if (!INSTANCE_STEM.test(instance)) return undefined
-  if (!Number.isInteger(pid) || pid < 0) return undefined
-  if (!Number.isInteger(at) || at < 0) return undefined
-  return `${JSON.stringify({ v: REPORT_JOURNAL_VERSION, instance, pid, at })}\n`
+  if (!Number.isSafeInteger(pid) || pid < 0) return undefined
+  return !Number.isSafeInteger(at) || at < 0
+    ? undefined
+    : `${JSON.stringify({ v: REPORT_JOURNAL_VERSION, instance, pid, at })}\n`
 }
 
 /**
@@ -386,8 +406,7 @@ export function parseMarkerText(name: string, text: string): FlightMarker | unde
     return undefined
   }
   const parsed = flightMarkerSchema.safeParse(candidate)
-  if (!parsed.success || parsed.data.instance !== owned) return undefined
-  return parsed.data
+  return !parsed.success || parsed.data.instance !== owned ? undefined : parsed.data
 }
 
 /**
@@ -395,7 +414,10 @@ export function parseMarkerText(name: string, text: string): FlightMarker | unde
  * process is gone. A live window's marker — including this window's own —
  * is never a crash, so a second live window is never reported as one.
  */
-export function isStaleMarker(marker: FlightMarker, ownInstance: string, isAlive: (pid: number) => boolean): boolean {
-  if (marker.instance === ownInstance) return false
-  return !isAlive(marker.pid)
+export function isStaleMarker(
+  marker: FlightMarker,
+  ownInstance: string,
+  isAlive: (pid: number) => boolean,
+): boolean {
+  return marker.instance !== ownInstance && !isAlive(marker.pid)
 }

@@ -377,7 +377,7 @@
   "reportSaveFailed": "レポートを保存できませんでした。",
   "reportUrlTooLong": "レポートが長すぎてブラウザーのアドレスで開けません。コピーして、新規 issue フォームに貼り付けてください。",
   "reportRecordingUnavailable": "イベント記録が利用できなかったため、このレポートに最近のイベントは含まれません。",
-  "reportDescriptionWarning": "上に入力した内容はそのまま送信されます。パスワード、キー、その他の機密情報を含めないでください。",
+  "reportDescriptionWarning": "共有する前に、機密データを除去したプレビューを確認してください。説明には機密情報が残る可能性があります。パスワードやキーを含めないでください。",
   "reportVscodeReporterNote": "VS Code の問題レポーターは独自のデータを追加し、GitHub で類似の問題を検索する場合があり、サインインと送信を制御します。",
   "reportItemsLabel": "このレポートの内容",
   "reportRemoveItem": "{item} を削除",

@@ -13794,6 +13794,15 @@ joined with M57, M58 and PR #49's sign-in
   | A ACP/headless      | `src/runtime/**` report subcommand and recorder adapter; ACP error-observer region; runtime/stdio owning tests; `docs/acp.md`                                                                                                                                                           | No backend/auth/model startup; local capped data; stdout is text only in standalone report mode      |
   | I Integration/docs  | Report registration/activation/error-observer regions in `src/extension.ts` and backend managers; `src/shared/palette.ts`, `package.json`, build/split scripts if needed; README, `docs/PRIVACY.md`, CHANGELOG, PLAN, `docs/ide-compatibility/host-api.md`, `docs/certification/m93.md` | Both backends; native-command disclosure/fallback; D6 measured; invariant and complete gate receipts |
 
+- **Lane R review correction (FIXM93R, 2026-10-04).** Address RVM93R
+  findings 1–12 with fixed error/package-file vocabularies, confined native
+  storage, live-owner-aware cleanup, append-time age/byte pruning, bounded
+  malformed-file recovery, visible read failures and shutdown cleanup. Correct
+  the description warning in all languages and prove each corrected guard with
+  a named regression and byte-exact red drill in `docs/certification/m93-r.md`.
+  An aggregate on-disk cap across live processes requires a shared transaction
+  protocol; record that redesign explicitly in §9 if it cannot fit this lane.
+
 - **Acceptance and red drills.** Each row needs a real failing test, restored
   source SHA-256, then passing receipt in `docs/certification/m93.md`.
 
@@ -14058,6 +14067,24 @@ Installed M68 tools were reused only after lock/npmrc and installed package
 metadata equality checks; fresh `npm ci`, full quality and rig gates remain
 required. See `docs/certification/m75.md`. No packing or model run occurred.
 
+**FIXM93R gate boundary (2026-10-04).** The rig brief and shared lane rules
+forbid `npm run quality` and full-suite tests, reserve aggregate certification
+for the lead, and prohibit merging/rebasing/pushing in this worktree. Run the
+named suites and all requested static/build gates directly on Kubuntu, serially;
+commit with hooks enabled. Record pending integration gates without weakening
+any rule, threshold or ignore. The correction and red-drill receipts are in
+`docs/certification/m93-r.md`.
+
+- **FIXM93R-G-L10N:** `check:l10n` still rejects lane 0's unused
+  `command.reportProblem.title` in `package.nls.json`. Command registration is
+  owned by lane I and outside this repair lane; all fourteen UI tables remain
+  valid. Keep the gate unchanged and re-run after real registration.
+- **FIXM93R-G-HOSTAPI:** `check:host-api` reports four stale Node import counts
+  in lane I's generated `docs/ide-compatibility/host-api.md` (crypto 32→33,
+  fs 24→25, fs/promises 34→35, path 65→66). The VS Code API set is unchanged.
+  Leave that generated integration-owned file untouched; lane I must regenerate
+  and review it on the integrated source. This is not a host API gate pass.
+
 **M93 planning lane (2026-10-04).** Documentation only. Its task-specific
 `common.md` forbids a local aggregate quality run and delegates it to the lead;
 the lane verifies changed Markdown and commits with hooks enabled. Product
@@ -14310,16 +14337,40 @@ before a repaired one loads (2026-09-30).
 | -------------------------------------    | ------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
 | `test/unit/verifyEditor.test.ts`         | `as unknown as` on five `vscode` stubs                             | The `vscode` mock has no `TextDocument`, `TextEditor`, `Diagnostic`, `TextEdit` or `WorkspaceConfiguration` classes; the M68 verify editor's tests stub only the members it reads (a document's `uri`, `isDirty`, `eol`, `getText`, `offsetAt`; an editor's `document.uri`; a diagnostic's severity, range start, message and source; an edit's range and text; a configuration's `get`), so a structural cast is the honest shape. Test-only.                                                                                                                                         | 2026-09-28 |
 
-| File                             | Construct                                                                      | Reason                                                                                                                                                                                                                                                                                                      | Added      |
-| -------------------------------- | ------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
-| `test/unit/modelApiHost.test.ts` | `as ModelApiSession` in `resumeWithChild` and the custom-agent fork regression | The fake host constructs Model API sessions, but the shared resume/fork interface returns `AgentSession`; these two test-only casts expose `history()` for child-result assertions. Inline comments name that invariant. Production mode narrowing now selects a member of `APPROVAL_MODES` without a cast. | 2026-09-30 |
-| `test/unit/flightRecorder.test.ts` | `as never` on a hostile event kind and backend | The refusal branches are reachable only with values outside `REPORT_EVENT_KINDS`/`BACKEND_KINDS`, which a typed test cannot spell; the two test-only casts feed them in. Inline comments name that invariant. Lane R product code holds no cast. | 2026-10-05 |
+| File                               | Construct                                                                      | Reason                                                                                                                                                                                                                                                                                                      | Added      |
+| ---------------------------------- | ------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
+| `test/unit/modelApiHost.test.ts`   | `as ModelApiSession` in `resumeWithChild` and the custom-agent fork regression | The fake host constructs Model API sessions, but the shared resume/fork interface returns `AgentSession`; these two test-only casts expose `history()` for child-result assertions. Inline comments name that invariant. Production mode narrowing now selects a member of `APPROVAL_MODES` without a cast. | 2026-09-30 |
+| `test/unit/flightRecorder.test.ts` | `as never` on a hostile event kind and backend                                 | The refusal branches are reachable only with values outside `REPORT_EVENT_KINDS`/`BACKEND_KINDS`, which a typed test cannot spell; the two test-only casts feed them in. Inline comments name that invariant. Lane R product code holds no cast.                                                            | 2026-10-05 |
 
 | File                                                                                | Construct                                                          | Reason                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 | Added      |
 | ----------------------------------------------------------------------------------- | ------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
 | `test/harness/index.html` (`isActiveDescendantList`), printed by `scripts/a11y.mjs` | The accessibility gate exempts axe's `scrollable-region-focusable` | The composer's `/` and `@` lists follow WAI-ARIA's combobox pattern: the box keeps the focus and moves `aria-activedescendant` through the listbox's options, and `Composer.tsx` scrolls the active option into view, so the list is keyboard operable (WCAG 2.1.1) without being a Tab stop. axe cannot see activedescendant-driven scrolling. The exemption holds only for a region that contains a listbox whose id is in the `aria-controls` of a focused or focusable element whose active descendant is one of that listbox's options; drills show a plain scrollable region and a listbox no control drives are still reported, and removing the exemption reports the composer's list again. Every exempt element is printed under its own "Exempt:" heading and counted. No `tabindex` was added to the list. | 2026-10-04 |
 
 ## 9. Security assumptions and accepted residual risk
+
+- **FIXM93R-R7 — aggregate journal disk budget (RVM93R finding 7, P2).**
+  Residual requiring redesign: the unchanged 256-KiB bound is enforced per
+  owned journal, and against the merged report, but several retained/live
+  journals can exceed 256 KiB on disk in aggregate. A peer cannot enforce an
+  aggregate disk budget by rewriting a live journal outside its append queue.
+  This is safe for the current unintegrated recorder lane: all retained fields
+  remain scrubbed and each journal is bounded and expires on next eligible use;
+  live peer files wait for their own queue (append/read or a later closed-file
+  sweep), while merged reads filter their expired entries immediately.
+  No report command is shipped by this lane. It is not the D72 aggregate disk
+  guarantee. Follow-up: a cross-process storage transaction/ownership protocol
+  that serializes admission, append and oldest-first aggregate eviction, with
+  native concurrent-process tests, before claiming that guarantee. The R7
+  regression demonstrates both the bounded merged report and this disk limit.
+- **FIXM93R native-directory race boundary (finding 3 correction).**
+  Static links/junctions, hard-linked leaves and unexpected file types are
+  refused; no-follow opens, exact handle identity, canonical-directory checks
+  and exclusive random stages cover ordinary redirects. Node has no portable
+  directory-relative open/rename/unlink API: a local actor with the same user's
+  storage permissions can swap an ancestor between the final check and the
+  syscall. This remains within D72's local-user/admin residual, as for the
+  existing atomic writer; it is not a guarantee against that actor. Follow-up
+  if that threat enters scope: native directory-handle operations.
 
 - **M93 (planned).** Support recording accepts facts, not arbitrary log text;
   write-time validation/scrub and export-time validation/scrub are separate

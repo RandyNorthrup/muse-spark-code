@@ -9,13 +9,26 @@
 // nothing here throws into the extension, and the failure itself is never
 // recorded back into the journal.
 
-import { appendFile, mkdir, readdir, readFile, rename, unlink, writeFile } from 'node:fs/promises'
+import { randomUUID } from 'node:crypto'
+import { constants, type BigIntStats } from 'node:fs'
+import {
+  lstat,
+  mkdir,
+  open,
+  readdir,
+  realpath,
+  rename,
+  unlink,
+  type FileHandle,
+} from 'node:fs/promises'
+import { handleIdentity, lstatIdentity, sameFile } from '../../core/fs/fileIdentity'
 import path from 'node:path'
 import {
   buildFlightRecord,
   buildMarkerText,
   isStaleMarker,
   isTempName,
+  tempOwnerPid,
   journalNameFor,
   markerNameFor,
   parseJournalName,
@@ -28,9 +41,12 @@ import {
   type FlightRecord,
 } from '../../core/support/flightRecorder'
 import {
+  REPORT_ERROR_CODES,
   REPORT_JOURNAL_MAX_BYTES,
   REPORT_RECENT_EVENT_COUNT,
   REPORT_STORAGE_DIR,
+  REPORT_STORAGE_FILE_MODE,
+  REPORT_STORAGE_LINK_COUNT,
 } from '../../shared/constants'
 import { isMissingPath } from '../canonicalPath'
 import type { Logger } from '../logger'
@@ -52,12 +68,75 @@ export interface ReportJournalFs {
   remove(file: string): Promise<void>
 }
 
-/** The real file system: appends land in place, rewrites go through a crash-left-safe rename. */
+/** Reject redirects and unexpected storage types before opening or mutating bytes. */
+async function assertStorageDirectory(dir: string): Promise<void> {
+  const root = path.dirname(dir)
+  const rootInfo = await lstat(root)
+  const info = await lstat(dir)
+  if (
+    path.basename(dir) !== REPORT_STORAGE_DIR ||
+    rootInfo.isSymbolicLink() ||
+    !rootInfo.isDirectory() ||
+    info.isSymbolicLink() ||
+    !info.isDirectory() ||
+    (await realpath(dir)) !== path.join(await realpath(root), REPORT_STORAGE_DIR)
+  )
+    throw Object.assign(new Error('Unconfined report storage'), { code: 'EACCES' })
+}
+
+async function assertStorageFile(file: string): Promise<void> {
+  await assertStorageDirectory(path.dirname(file))
+  const name = path.basename(file)
+  if (
+    parseJournalName(name) === undefined &&
+    parseMarkerName(name) === undefined &&
+    !isTempName(name)
+  ) {
+    throw Object.assign(new Error('Unexpected report file'), { code: 'EACCES' })
+  }
+  try {
+    const info = await lstat(file)
+    if (!info.isFile() || info.isSymbolicLink() || info.nlink !== 1) {
+      throw Object.assign(new Error('Redirected report file'), { code: 'EACCES' })
+    }
+  } catch (error: unknown) {
+    if (!isMissingPath(error)) throw error
+  }
+}
+
+/** One identity/type check shared by native reads, appends and staging. */
+async function checkedStorageHandle(file: string, handle: FileHandle): Promise<BigIntStats> {
+  const info = await handleIdentity(handle)
+  if (
+    !info.isFile() ||
+    info.nlink !== REPORT_STORAGE_LINK_COUNT ||
+    !sameFile(info, await lstatIdentity(file))
+  )
+    throw new Error('Report file changed')
+  await assertStorageDirectory(path.dirname(file))
+  return info
+}
+
+/** Native storage refuses links, opens without following a leaf, and stages exclusively. */
 export const nodeReportJournalFs: ReportJournalFs = {
-  async mkdir(dir: string): Promise<void> {
-    await mkdir(dir, { recursive: true })
+  async mkdir(dir): Promise<void> {
+    if (path.basename(dir) !== REPORT_STORAGE_DIR) throw new Error('Unexpected report directory')
+    await mkdir(path.dirname(dir), { recursive: true })
+    try {
+      await mkdir(dir)
+    } catch (error: unknown) {
+      if (!(
+        typeof error === 'object' &&
+        error !== null &&
+        'code' in error &&
+        error.code === 'EEXIST'
+      ))
+        throw error
+    }
+    await assertStorageDirectory(dir)
   },
-  async readDir(dir: string): Promise<readonly ReportDirEntry[]> {
+  async readDir(dir): Promise<readonly ReportDirEntry[]> {
+    await assertStorageDirectory(dir)
     const entries = await readdir(dir, { withFileTypes: true })
     return entries.map((entry) => ({
       name: entry.name,
@@ -65,18 +144,71 @@ export const nodeReportJournalFs: ReportJournalFs = {
       isSymbolicLink: entry.isSymbolicLink(),
     }))
   },
-  async readFile(file: string): Promise<string> {
-    return await readFile(file, 'utf8')
+  async readFile(file): Promise<string> {
+    await assertStorageFile(file)
+    const handle = await open(
+      file,
+      constants.O_RDONLY | constants.O_NOFOLLOW | constants.O_NONBLOCK,
+    )
+    try {
+      const info = await checkedStorageHandle(file, handle)
+      // Read at most one cap from the tail. Drop a cut first line rather than
+      // materializing an unbounded corrupt file; complete newest records survive.
+      const size = Number(info.size)
+      const readCap = REPORT_JOURNAL_MAX_BYTES - 2
+      const start = Math.max(0, size - readCap)
+      const bytes = Buffer.alloc(Math.min(size, readCap))
+      let read = 0
+      while (read < bytes.length) {
+        const result = await handle.read(bytes, read, bytes.length - read, start + read)
+        if (result.bytesRead === 0) break
+        read += result.bytesRead
+      }
+      const held = bytes.subarray(0, read)
+      const cut = start === 0 ? -1 : held.indexOf('\n')
+      const text = cut === -1 && start > 0 ? '' : held.subarray(cut + 1).toString('utf8')
+      // A fixed invalid line makes pruning repair the physical oversized file.
+      return start > 0 ? `0\n${text}` : text
+    } finally {
+      await handle.close()
+    }
   },
-  async appendFile(file: string, data: string): Promise<void> {
-    await appendFile(file, data)
+  async appendFile(file, data): Promise<void> {
+    await assertStorageFile(file)
+    const handle = await open(
+      file,
+      constants.O_WRONLY |
+        constants.O_APPEND |
+        constants.O_CREAT |
+        constants.O_NOFOLLOW |
+        constants.O_NONBLOCK,
+      REPORT_STORAGE_FILE_MODE,
+    )
+    try {
+      await checkedStorageHandle(file, handle)
+      await handle.writeFile(data, 'utf8')
+    } finally {
+      await handle.close()
+    }
   },
-  async writeTempAndRename(file: string, data: string): Promise<void> {
-    const stage = `${file}.tmp-${process.pid}`
-    await writeFile(stage, data)
+  async writeTempAndRename(file, data): Promise<void> {
+    await assertStorageFile(file)
+    const stage = `${file}.tmp-${String(process.pid)}-${randomUUID()}`
+    const handle = await open(stage, 'wx', REPORT_STORAGE_FILE_MODE)
+    let identity: BigIntStats
+    try {
+      identity = await checkedStorageHandle(stage, handle)
+      await handle.writeFile(data, 'utf8')
+      await handle.sync()
+    } finally {
+      await handle.close()
+    }
+    await assertStorageFile(file)
+    if (!sameFile(identity, await lstatIdentity(stage))) throw new Error('Report stage changed')
     await rename(stage, file)
   },
-  async remove(file: string): Promise<void> {
+  async remove(file): Promise<void> {
+    await assertStorageFile(file)
     await unlink(file)
   },
 }
@@ -115,8 +247,13 @@ export type ReportEventInput = Omit<FlightEventInput, 'ext' | 'host'>
 
 /** An errno-shaped word for the log, or nothing: paths never reach the log. */
 function errorCodeForLog(error: unknown): string {
-  if (typeof error === 'object' && error !== null && 'code' in error && typeof error.code === 'string') {
-    return /^[A-Za-z0-9_.-]{1,16}$/.test(error.code) ? ` (${error.code})` : ''
+  if (
+    typeof error === 'object' &&
+    error !== null &&
+    'code' in error &&
+    typeof error.code === 'string'
+  ) {
+    return REPORT_ERROR_CODES.has(error.code) ? ` (${error.code})` : ''
   }
   return ''
 }
@@ -143,7 +280,7 @@ export class ReportJournal {
   private tail: Promise<void> = Promise.resolve()
   private disabled = false
   private warned = false
-  private ownBytes = 0
+  private stopped = false
 
   public constructor(options: ReportJournalOptions) {
     const journal = journalNameFor(options.instance)
@@ -164,47 +301,70 @@ export class ReportJournal {
     this.log = options.log
   }
 
-  /** False after a storage failure: recording is a no-op from then on. */
-  public get isAvailable(): boolean {
-    return !this.disabled
-  }
-
   private disable(error: unknown): void {
     this.disabled = true
-    if (!this.warned) {
-      this.warned = true
-      this.log.warn(`Flight recorder storage failed${errorCodeForLog(error)}; event recording is off`)
+    if (this.warned) {
+      return
     }
+
+    this.warned = true
+    this.log.warn(`Flight recorder storage failed${errorCodeForLog(error)}; event recording is off`)
   }
 
   private enqueue<T>(work: () => Promise<T>): Promise<T> {
-    const run = this.tail.then(work, work)
-    this.tail = run.then(
-      () => undefined,
-      () => undefined,
-    )
+    // The async body captures the preceding tail before the next one is assigned.
+    const run = (async () => {
+      await this.tail
+      return await work()
+    })()
+    this.tail = (async () => {
+      try {
+        await run
+      } catch {
+        // The calling method reports failure. Keep later cleanup in the queue.
+      }
+    })()
     return run
   }
 
-  /** Prune one journal file's entries, rewriting or deleting it when pruning changed anything. */
-  private async pruneFile(file: string, now: number): Promise<readonly FlightRecord[]> {
+  /** A peer can write only while its activation marker exists. Never mutate a live peer. */
+  private async mayPrune(file: string): Promise<boolean> {
+    if (file === this.ownJournal) return true
+    const instance = parseJournalName(path.basename(file))
+    if (instance === undefined) return false
+    const name = markerNameFor(instance)
+    if (name === undefined) return false
+    try {
+      const marker = parseMarkerText(name, await this.store.readFile(path.join(this.dir, name)))
+      // An unreadable or malformed ownership record cannot authorize a rewrite.
+      return marker !== undefined && !this.isAlive(marker.pid)
+    } catch (error: unknown) {
+      if (isMissingPath(error)) return true
+      throw error
+    }
+  }
+
+  /** Repair malformed/torn bytes and expire entries in our own or a closed journal. */
+  private async pruneFile(
+    file: string,
+    now: number,
+  ): Promise<{ readonly entries: readonly FlightRecord[]; readonly skipped: number }> {
     let text: string
     try {
       text = await this.store.readFile(file)
     } catch (error: unknown) {
-      if (isMissingPath(error)) return []
+      if (isMissingPath(error)) return { entries: [], skipped: 0 }
       throw error
     }
     const parsed = parseJournalText(text)
-    const pruned = pruneFlightEntries(parsed.entries, now)
-    if (pruned.length !== parsed.entries.length) {
-      if (pruned.length === 0) {
-        await this.store.remove(file)
-      } else {
-        await this.store.writeTempAndRename(file, pruned.map(serializeFlightRecord).join(''))
-      }
+    const entries = pruneFlightEntries(parsed.entries, now)
+    const clean = entries.map((entry) => serializeFlightRecord(entry)).join('')
+    // Zero valid entries also removes an empty or over-cap invalid-only file.
+    if ((clean !== text || entries.length === 0) && (await this.mayPrune(file))) {
+      if (entries.length === 0) await this.store.remove(file)
+      else await this.store.writeTempAndRename(file, clean)
     }
-    return pruned
+    return { entries, skipped: parsed.skipped + (parsed.torn ? 1 : 0) }
   }
 
   /**
@@ -214,6 +374,11 @@ export class ReportJournal {
    * belonged to an instance whose process is gone. Dismissal is remembered
    * because the marker is consumed; a new abnormal exit leaves a new one.
    */
+  /** False after a storage failure: callers can disclose unavailable evidence. */
+  public get isAvailable(): boolean {
+    return !this.disabled
+  }
+
   public startup(): Promise<{ readonly offerReport: boolean }> {
     return this.enqueue(async () => {
       try {
@@ -233,25 +398,26 @@ export class ReportJournal {
         this.disable(error)
         return { offerReport: false }
       }
-      let entries: readonly string[]
+      let entries: readonly ReportDirEntry[]
       try {
-        entries = (await this.store.readDir(this.dir)).map((entry) => entry.name)
+        entries = await this.store.readDir(this.dir)
       } catch (error: unknown) {
         this.disable(error)
         return { offerReport: false }
       }
       const now = this.clock()
-      let offerReport = false
-      for (const name of [...entries].sort()) {
+      let isOfferReport = false
+      const sorted = entries.toSorted((left, right) => left.name.localeCompare(right.name))
+      for (const entry of sorted) {
+        if (!entry.isFile || entry.isSymbolicLink) continue
+        const name = entry.name
         const file = path.join(this.dir, name)
         try {
           if (isTempName(name)) {
-            await this.store.remove(file)
+            const owner = tempOwnerPid(name)
+            if (owner !== undefined && !this.isAlive(owner)) await this.store.remove(file)
           } else if (parseJournalName(name) !== undefined) {
-            const pruned = await this.pruneFile(file, now)
-            if (file === this.ownJournal) {
-              this.ownBytes = pruned.map((entry) => Buffer.byteLength(serializeFlightRecord(entry), 'utf8')).reduce((a, b) => a + b, 0)
-            }
+            await this.pruneFile(file, now)
           } else if (parseMarkerName(name) !== undefined) {
             if (file === this.ownMarker) continue
             try {
@@ -265,22 +431,20 @@ export class ReportJournal {
               // produces an offer, so a second live window is never a crash.
               if (!isStaleMarker(marker, this.instance, this.isAlive)) continue
               await this.store.remove(file)
-              offerReport = true
-            } catch {
+              isOfferReport = true
+            } catch (error: unknown) {
+              if (!isMissingPath(error)) this.disable(error)
               // A marker a peer just consumed races as missing: consumed
               // elsewhere, so no offer from here. Anything else stays for
               // the next start rather than producing an offer from garbage.
               continue
             }
           }
-        } catch {
-          // One unreadable file never stops startup: it stays for the next
-          // start (or its window), and recording continues. A dead store
-          // shows itself on the next write instead.
-          continue
+        } catch (error: unknown) {
+          if (!isMissingPath(error)) this.disable(error)
         }
       }
-      return { offerReport }
+      return { offerReport: isOfferReport }
     })
   }
 
@@ -289,44 +453,40 @@ export class ReportJournal {
    * records (untrusted versions, oversize entries) never reach the file, and
    * a dead store disables recording with one warning instead of throwing.
    */
-  public record(input: ReportEventInput): Promise<void> {
-    return this.enqueue(async () => {
-      if (this.disabled) return
-      const built = buildFlightRecord({ ...input, ext: this.ext, host: this.host }, this.clock())
-      if (!built.ok) return
-      const line = serializeFlightRecord(built.record)
-      try {
-        await this.store.appendFile(this.ownJournal, line)
-      } catch (error: unknown) {
-        if (isMissingPath(error)) {
-          try {
-            await this.store.mkdir(this.dir)
-            await this.store.appendFile(this.ownJournal, line)
-          } catch (retryError: unknown) {
-            this.disable(retryError)
+  public async record(input: ReportEventInput): Promise<void> {
+    try {
+      await this.enqueue(async () => {
+        if (this.disabled || this.stopped) return
+        const built = buildFlightRecord({ ...input, ext: this.ext, host: this.host }, this.clock())
+        if (!built.ok) return
+        const line = serializeFlightRecord(built.record)
+        try {
+          // Recover a torn tail before appending; otherwise it swallows the new event.
+          await this.pruneFile(this.ownJournal, this.clock())
+          await this.store.appendFile(this.ownJournal, line)
+        } catch (error: unknown) {
+          if (isMissingPath(error)) {
+            try {
+              await this.store.mkdir(this.dir)
+              await this.store.appendFile(this.ownJournal, line)
+            } catch (retryError: unknown) {
+              this.disable(retryError)
+              return
+            }
+          } else {
+            this.disable(error)
             return
           }
-        } else {
-          this.disable(error)
-          return
         }
-      }
-      this.ownBytes += Buffer.byteLength(line, 'utf8')
-      if (this.ownBytes > REPORT_JOURNAL_MAX_BYTES) {
         try {
-          const pruned = await this.pruneFile(this.ownJournal, this.clock())
-          this.ownBytes = pruned.map((entry) => Buffer.byteLength(serializeFlightRecord(entry), 'utf8')).reduce((a, b) => a + b, 0)
+          await this.pruneFile(this.ownJournal, this.clock())
         } catch (error: unknown) {
           if (!isMissingPath(error)) this.disable(error)
-          else this.ownBytes = 0
         }
-      }
-    }).then(
-      () => undefined,
-      (error: unknown) => {
-        this.disable(error)
-      },
-    )
+      })
+    } catch (error: unknown) {
+      this.disable(error)
+    }
   }
 
   /**
@@ -347,47 +507,42 @@ export class ReportJournal {
         return empty
       }
       const names = dirEntries
-        .filter((entry) => entry.isFile && !entry.isSymbolicLink && parseJournalName(entry.name) !== undefined)
+        .filter(
+          (entry) =>
+            entry.isFile && !entry.isSymbolicLink && parseJournalName(entry.name) !== undefined,
+        )
         .map((entry) => entry.name)
-        .sort()
+        .toSorted((left, right) => left.localeCompare(right))
       const now = this.clock()
-      const merged: { readonly record: FlightRecord; readonly name: string; readonly index: number }[] = []
+      const merged: {
+        readonly record: FlightRecord
+        readonly name: string
+        readonly index: number
+      }[] = []
       let skipped = 0
       for (const name of names) {
         const file = path.join(this.dir, name)
-        let text: string
         try {
-          text = await this.store.readFile(file)
-        } catch {
-          continue
-        }
-        const parsed = parseJournalText(text)
-        skipped += parsed.skipped + (parsed.torn ? 1 : 0)
-        const pruned = pruneFlightEntries(parsed.entries, now)
-        if (pruned.length !== parsed.entries.length) {
-          try {
-            if (pruned.length === 0) {
-              await this.store.remove(file)
-            } else {
-              await this.store.writeTempAndRename(file, pruned.map(serializeFlightRecord).join(''))
-            }
-          } catch (error: unknown) {
-            if (!isMissingPath(error)) {
-              this.disable(error)
-              return {
-                entries: merged.map((held) => held.record),
-                total: merged.length,
-                skipped,
-              }
-            }
+          const parsed = await this.pruneFile(file, now)
+          skipped += parsed.skipped
+          for (const [index, record] of parsed.entries.entries())
+            merged.push({ record, name, index })
+        } catch (error: unknown) {
+          if (!isMissingPath(error)) {
+            this.disable(error)
+            return empty
           }
         }
-        for (const [index, record] of pruned.entries()) {
-          merged.push({ record, name, index })
-        }
       }
-      merged.sort((left, right) => left.record.at - right.record.at || (left.name < right.name ? -1 : left.name > right.name ? 1 : 0) || left.index - right.index)
-      const records = merged.map((held) => held.record)
+      const sorted = merged.toSorted((left, right) => {
+        if (left.record.at !== right.record.at) return left.record.at - right.record.at
+        if (left.name !== right.name) return left.name < right.name ? -1 : 1
+        return left.index - right.index
+      })
+      const records = pruneFlightEntries(
+        sorted.map((held) => held.record),
+        now,
+      )
       return {
         entries: records.slice(Math.max(0, records.length - Math.max(0, Math.floor(limit)))),
         total: records.length,
@@ -397,19 +552,18 @@ export class ReportJournal {
   }
 
   /** Clear only this activation's marker on deactivate. Never throws. */
-  public shutdown(): Promise<void> {
-    return this.enqueue(async () => {
-      if (this.disabled) return
-      try {
-        await this.store.remove(this.ownMarker)
-      } catch (error: unknown) {
-        if (!isMissingPath(error)) this.disable(error)
-      }
-    }).then(
-      () => undefined,
-      (error: unknown) => {
-        this.disable(error)
-      },
-    )
+  public async shutdown(): Promise<void> {
+    try {
+      await this.enqueue(async () => {
+        this.stopped = true
+        try {
+          await this.store.remove(this.ownMarker)
+        } catch (error: unknown) {
+          if (!isMissingPath(error)) this.disable(error)
+        }
+      })
+    } catch (error: unknown) {
+      this.disable(error)
+    }
   }
 }

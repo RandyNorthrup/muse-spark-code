@@ -377,7 +377,7 @@
   "reportSaveFailed": "无法保存报告。",
   "reportUrlTooLong": "报告太长，无法在浏览器地址中打开。请复制报告，然后粘贴到新建问题表单中。",
   "reportRecordingUnavailable": "事件记录不可用，因此此报告没有最近的事件。",
-  "reportDescriptionWarning": "您在上方填写的任何内容都将按原样发送。请勿包含密码、密钥或其他机密信息。",
+  "reportDescriptionWarning": "分享前请检查已去除敏感数据的预览。您的描述仍可能泄露机密信息；请勿包含密码或密钥。",
   "reportVscodeReporterNote": "VS Code 问题报告器会添加其自身数据，可能会在 GitHub 上搜索类似问题，并控制登录和提交。",
   "reportItemsLabel": "此报告包含的内容",
   "reportRemoveItem": "移除 {item}",

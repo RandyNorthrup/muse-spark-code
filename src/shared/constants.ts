@@ -3153,8 +3153,84 @@ export const REPORT_STACK_MAX_FRAMES = 16
 // folder of this name under ExtensionContext.globalStorageUri, never Settings
 // Sync or workspace storage. Lane P reads the journals for the report draft.
 export const REPORT_STORAGE_DIR = 'reports'
+// Journal/marker bytes are private to the operating-system user.
+export const REPORT_STORAGE_FILE_MODE = 0o600
+// A storage inode has only its owned name; hard links can redirect appends.
+export const REPORT_STORAGE_LINK_COUNT = 1n
 // A version string is a dotted triple, never a sentence.
 export const REPORT_VERSION_MAX_CHARS = 32
+// Local diagnostic vocabulary, never arbitrary caller or backend text.
+export const REPORT_ERROR_CODES: ReadonlySet<string> = new Set([
+  REPORT_UNKNOWN_ERROR_CODE,
+  'Error',
+  'TypeError',
+  'RangeError',
+  'ReferenceError',
+  'SyntaxError',
+  'URIError',
+  'EvalError',
+  'AggregateError',
+  'AbortError',
+  'TimeoutError',
+  'EACCES',
+  'EADDRINUSE',
+  'EADDRNOTAVAIL',
+  'EAGAIN',
+  'EBADF',
+  'EBUSY',
+  'ECANCELED',
+  'ECONNABORTED',
+  'ECONNREFUSED',
+  'ECONNRESET',
+  'EEXIST',
+  'EFAULT',
+  'EFBIG',
+  'EHOSTUNREACH',
+  'EINTR',
+  'EINVAL',
+  'EIO',
+  'EISDIR',
+  'ELOOP',
+  'EMFILE',
+  'ENAMETOOLONG',
+  'ENETDOWN',
+  'ENETUNREACH',
+  'ENFILE',
+  'ENOENT',
+  'ENOMEM',
+  'ENOSPC',
+  'ENOSYS',
+  'ENOTDIR',
+  'ENOTEMPTY',
+  'ENOTSUP',
+  'EPERM',
+  'EPIPE',
+  'EROFS',
+  'ETIMEDOUT',
+  'EXDEV',
+  'E2BIG',
+])
+// Exact JavaScript files shipped in the VSIX (.vscodeignore), verified by the
+// owning test. Register new bundles before retaining their stack frames.
+export const REPORT_PACKAGE_FRAME_PATHS: ReadonlySet<string> = new Set([
+  'dist/extension.js',
+  'dist/uiText.js',
+  'dist/modelApi.js',
+  'dist/sessionBoard.js',
+  'dist/reviewer.js',
+  'dist/planMarkdown.js',
+  'dist/review.js',
+  'dist/agentImport.js',
+  'dist/bundledSkills.js',
+  'dist/checkpointStore.js',
+  'dist/codeIntel.js',
+  'dist/voice.js',
+  'dist/webFetch.js',
+  'dist/museCodeReviewer.js',
+  'dist/searchWorker.js',
+  'dist/pageWorker.js',
+  'dist/webview/main.js',
+])
 // The panel keeps its conversation in VS Code's webview state so the crash
 // screen's Reload, or a panel moved to another window, comes back with it:
 // saved at most this often while it changes, and at once before a reload.

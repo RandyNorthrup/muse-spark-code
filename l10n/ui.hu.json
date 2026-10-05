@@ -386,7 +386,7 @@
   "reportSaveFailed": "A jelentést nem sikerült menteni.",
   "reportUrlTooLong": "A jelentés túl hosszú ahhoz, hogy böngészőcímben megnyíljon. Másolja ki, majd illessze be az új hiba űrlapjába.",
   "reportRecordingUnavailable": "Az eseményrögzítés nem volt elérhető, ezért ez a jelentés nem tartalmaz legutóbbi eseményeket.",
-  "reportDescriptionWarning": "Amit fent ír, az pontosan úgy kerül elküldésre, ahogyan leírta. Ne adjon meg jelszavakat, kulcsokat vagy más bizalmas adatokat.",
+  "reportDescriptionWarning": "Megosztás előtt ellenőrizze az érzékeny adatoktól megtisztított előnézetet. A leírás továbbra is felfedhet bizalmas információkat; ne adjon meg jelszavakat vagy kulcsokat.",
   "reportVscodeReporterNote": "A VS Code hibabejelentő saját adatokat ad hozzá, hasonló hibákra kereshet a GitHubon, valamint kezeli a bejelentkezést és a beküldést.",
   "reportItemsLabel": "A jelentés tartalma",
   "reportRemoveItem": "{item} eltávolítása",

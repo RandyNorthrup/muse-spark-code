@@ -37,6 +37,19 @@ happened, not what was planned; superseded entries are kept.
   In ACP mode the agent observes its own failures into the runtime journal as
   fixed kind-plus-code facts, without changing ACP stdout.
 
+### Fixed
+
+- **M93 support-recorder review corrections.** Failure codes and stack files
+  use fixed vocabularies, including read-time revalidation. Native journal and
+  marker storage refuses filesystem redirects and bounds corrupt-file reads;
+  cleanup preserves live writers, repairs malformed/torn bytes, and prunes age
+  and size on actual appends. Read failures expose unavailable recording, and
+  normal shutdown clears its marker after recording fails. The description
+  warning now asks users to inspect the scrubbed preview in all 14 languages.
+  The aggregate on-disk retention budget remains an explicit redesign residual
+  (PLAN §9, FIXM93R-R7); the merged report and individual journals stay bounded.
+  This lane does not register or certify the complete report workflow.
+
 ### Changed
 
 - **Tiered CI, ready for a merge queue.** The full gate now runs as parallel
