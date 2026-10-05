@@ -986,7 +986,10 @@ service. The extension helps you build gadgets; it never becomes one:
   chat, never into a command — and never commit a generated `sdkconfig`
   containing it (`sdkconfig.defaults` is tracked input and token-free). A
   prompt holding a detected secret is held before sending (Send anyway /
-  Edit), and a shell command holding one always asks with its card redacted.
+  Edit). On the Model API backend a shell command holding one asks in every
+  mode, including Bypass. Every approval Muse Code emits has its card redacted
+  and offers only one-time approval; Muse Code Bypass can execute without
+  emitting an approval, so the extension cannot warn before those commands.
 - **Device commands stay bounded.** A monitor never exits by itself, so the
   shell tool's `timeout_ms` ends it and returns what it captured: flash, then
   capture N seconds of serial output, in one call, with no process left
@@ -2098,8 +2101,10 @@ conversation as Markdown where you choose: messages, thinking, and tool calls
 with their arguments and visible output. Your `!` commands include an exit
 code or termination signal when Muse Code reports one. On the CLI backend **Export session
 log…** also saves Muse Code's own JSON record of the session (`muse
-export`), which includes everything, stored outputs too; it needs a folder
-on this machine. An export asked for while a reply runs is refused until it
+export`), which includes everything, stored outputs too, as a raw backend
+record. Accepted prompts can therefore retain secrets in that native log;
+Markdown and portable JSON exports remove recognized credentials. The native
+log needs a folder on this machine. An export asked for while a reply runs is refused until it
 finishes, and a conversation too long for Muse Code to replay is pointed to
 the session log.
 

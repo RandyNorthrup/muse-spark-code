@@ -634,10 +634,6 @@ export function App({
     }
     const localId = newLocalId()
     const attachmentIds = current.attachments.map((attachment) => attachment.id)
-    // M92e: a resend past the secret dialog (its trimmed text still the
-    // refused draft) carries the acceptance; the card shows the redacted
-    // text (the reducer substitutes it).
-    const isSecretAccepted = current.secretPrompt?.draft.trim() === text
     // The open-file chip travels with the message: the host adds the context.
     const editorContext = visibleEditorContext(current)
     dispatch({
@@ -655,17 +651,38 @@ export function App({
       attachmentIds,
       includeEditorContext: editorContext !== undefined,
       ...(current.reference !== undefined && { reference: current.reference }),
-      ...(isSecretAccepted && { secretAccepted: true }),
     })
     // The reader's own message always lands in view (M15).
     setIsPinnedToEnd(true)
   }, [store, dispatch, newLocalId, postMessage, onGoalCommand, onReview, onHandoff])
-  // M92e: the secret dialog's Send anyway resubmits the restored draft,
-  // which still matches the refused text, so it carries the acceptance.
-  // Edit only closes the dialog: the draft is already back in the composer.
+  // Send exactly the payload the dialog previewed. The composer may now
+  // hold a newer draft, different chips or a different reference.
   const onSecretPromptSendAnyway = useCallback(() => {
-    onSubmit()
-  }, [onSubmit])
+    const current = store.getState()
+    const held = current.secretPrompt
+    if (held === undefined || current.auth.status !== 'signedIn') return
+    const localId = newLocalId()
+    const text = held.draft.trim()
+    dispatch({
+      type: 'submitted',
+      localId,
+      text,
+      isSecretResend: true,
+      attachments: held.attachments,
+      contextLabel: held.contextLabel,
+      ...(held.reference !== undefined && { reference: held.reference }),
+    })
+    postMessage({
+      type: 'sendMessage',
+      localId,
+      text,
+      secretAccepted: true,
+      attachmentIds: held.attachments.map((attachment) => attachment.id),
+      includeEditorContext: held.contextLabel !== undefined,
+      ...(held.reference !== undefined && { reference: held.reference }),
+    })
+    setIsPinnedToEnd(true)
+  }, [store, dispatch, newLocalId, postMessage])
   const onSecretPromptDismiss = useCallback(() => {
     dispatch({ type: 'secretPromptDismissed' })
   }, [dispatch])

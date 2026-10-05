@@ -1313,6 +1313,36 @@ describe('ConversationController.sendMessage', () => {
   })
 
   // M92e (PLAN.md D71): the secret is built at runtime, never as a literal.
+  it('keeps an accepted secret prompt redacted on history replay and Markdown export (RVM92E P1)', async () => {
+    const t = withHistory()
+    const secret = `mgst_${'A'.repeat(42)}A`
+    const text = `use ${secret}`
+    await t.controller.handle({
+      type: 'sendMessage',
+      localId: 'l1',
+      text,
+      attachmentIds: [],
+      secretAccepted: true,
+    })
+    t.server.notify('turn/completed', { sessionId: 's1', turnId: 't1', terminal: 'completed' })
+    await settle()
+    serveHistoryItems(t, [historyUserItem('u1', 't1', text)])
+    await t.controller.handle({ type: 'clearConversation' })
+    await t.controller.handle({ type: 'resumeSession', sessionId: 's1' })
+    const replay = t.surface.posted.findLast((message) => message.type === 'historyLoaded')
+    expect(JSON.stringify(replay).includes(secret)).toBe(false)
+    expect(replay?.type === 'historyLoaded' && replay.items[0]?.text === 'use [redacted]').toBe(
+      true,
+    )
+    // Raw accepted text remains only in the backend history needed to resume.
+    const history = await t.host.readSession('s1')
+    expect(history.items[0]?.text === text).toBe(true)
+    await t.controller.handle({ type: 'exportConversation', format: 'markdown' })
+    expect(t.exported.markdown).toHaveLength(1)
+    expect(JSON.stringify(t.exported.markdown).includes(secret)).toBe(false)
+    t.controller.dispose()
+  })
+
   it('holds a prompt with a detected secret, and sends it on once accepted', async () => {
     const t = setup()
     const secret = `sk-${'k'.repeat(24)}`

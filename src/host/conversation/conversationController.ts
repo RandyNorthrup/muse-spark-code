@@ -3495,7 +3495,11 @@ export class ConversationController {
       type: 'historyLoaded',
       sessionId,
       ...(history.sideChat !== undefined && { sideChat: history.sideChat }),
-      items: [...history.items],
+      items: history.items.map((item) =>
+        item.kind === USER_MESSAGE_KIND && item.text !== undefined
+          ? { ...item, text: redactSecrets(item.text) }
+          : item,
+      ),
       ...(history.name !== undefined && { name: history.name }),
       todos: [...history.todos],
       // Absent when the history could not say (M45): the panel keeps what it knew.

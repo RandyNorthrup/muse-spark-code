@@ -5,6 +5,7 @@
 // conversation saved across a reload is validated before it comes back (M25).
 
 import * as z from 'zod/mini'
+import { redactSecrets } from '../../shared/redact'
 import {
   type AgentEvent,
   type ItemSnapshot,
@@ -299,13 +300,33 @@ export interface UiState {
         readonly reference?: ChatReference | undefined
       }
     | undefined
+  /** In-memory drafts by local id: a delayed hold must survive another send. */
+  readonly pendingSendDrafts: Readonly<
+    Record<
+      string,
+      NonNullable<UiState['pendingSendDraft']> & {
+        readonly contextLabel?: string | undefined
+      }
+    >
+  >
   /**
    * A held prompt's Send anyway arm (M92e, PLAN.md D71): the refused draft
-   * and its redacted text. A send whose trimmed text still matches it is the
-   * accepted resend: the card shows the redacted text and the post carries
-   * `secretAccepted`. Anything else clears it and scans again.
+   * and its redacted text, attachments and reference. Only the dialog's
+   * explicit resend carries `secretAccepted`; a newer composer draft stays
+   * independent and receives its own scan.
    */
-  readonly secretPrompt: { readonly draft: string; readonly redactedText: string } | undefined
+  readonly secretPrompt:
+    | {
+        readonly localId: string
+        readonly draft: string
+        readonly redactedText: string
+        readonly attachments: readonly AttachmentSummary[]
+        readonly reference?: ChatReference | undefined
+        readonly contextLabel?: string | undefined
+      }
+    | undefined
+  /** Delayed holds are shown in arrival order, each with its own payload. */
+  readonly secretPromptQueue: readonly NonNullable<UiState['secretPrompt']>[]
   /**
    * Images of a refused message the host may still hold but the composer no
    * longer shows (M25): the app asks the host to drop them, so none linger
@@ -386,6 +407,8 @@ export type UiAction =
       readonly text: string
       readonly attachments: readonly AttachmentSummary[]
       readonly contextLabel: string | undefined
+      /** True only for the dialog's explicit resend of its held payload. */
+      readonly isSecretResend?: boolean
       /** What the message replies to or quotes (M17); absent for a plain send. */
       readonly reference?: ChatReference | undefined
     }
@@ -500,7 +523,9 @@ export const initialUiState: UiState = {
   strayItems: {},
   unsentAttachments: {},
   pendingSendDraft: undefined,
+  pendingSendDrafts: {},
   secretPrompt: undefined,
+  secretPromptQueue: [],
   attachmentsToRelease: [],
   banner: undefined,
   announcement: undefined,
@@ -1221,7 +1246,7 @@ function replayedUserEntry(item: ItemSnapshot, seq: number, isPlanTurn = false):
     kind: 'user',
     id: item.itemId,
     seq,
-    text: item.text ?? '',
+    text: redactSecrets(item.text ?? ''),
     status: 'sent',
     attachments: (item.attachments ?? []).map((attachment, index) => ({
       id: `${item.itemId}:${String(index)}`,
@@ -1741,6 +1766,7 @@ function applyAgentEvent(state: UiState, event: AgentEvent, at: number): UiState
                   requirementId: event.requirementId,
                   subject: event.subject,
                   availableChoices: event.availableChoices,
+                  note: event.note ?? entry.approval.note,
                 },
               }
             : entry,
@@ -1979,7 +2005,9 @@ function clearedConversation(state: UiState): UiState {
     pendingReplayTurns: {},
     unsentAttachments: {},
     pendingSendDraft: undefined,
+    pendingSendDrafts: {},
     secretPrompt: undefined,
+    secretPromptQueue: [],
     attachmentsToRelease: [],
     banner: undefined,
     title: undefined,
@@ -2389,6 +2417,10 @@ function applyHostMessage(state: UiState, message: HostToWebviewMessage, at: num
             ...editor,
             pendingGoalCommand: isSameSession ? state.pendingGoalCommand : undefined,
             pendingHandoffCommand: isSameSession ? state.pendingHandoffCommand : undefined,
+            pendingSendDraft: isSameSession ? state.pendingSendDraft : undefined,
+            pendingSendDrafts: isSameSession ? state.pendingSendDrafts : {},
+            secretPrompt: isSameSession ? state.secretPrompt : undefined,
+            secretPromptQueue: isSameSession ? state.secretPromptQueue : [],
             schedules: isSameSession ? state.schedules : [],
             activeTurnId: message.activeTurnId,
             lastCompletedTurnId: undefined,
@@ -2437,6 +2469,7 @@ function applyHostMessage(state: UiState, message: HostToWebviewMessage, at: num
         strayItems: without(state.strayItems, turnId),
         pendingReplayTurns: boundedReplayTurns(pending, pendingCount),
         unsentAttachments: without(state.unsentAttachments, message.localId),
+        pendingSendDrafts: without(state.pendingSendDrafts, message.localId),
         pendingSendDraft:
           state.pendingSendDraft?.localId === message.localId ? undefined : state.pendingSendDraft,
         transcript: updateEntry(state.transcript, message.localId, (entry) =>
@@ -2533,6 +2566,7 @@ function applyHostMessage(state: UiState, message: HostToWebviewMessage, at: num
           ...state,
           draft: shouldRestoreDraft ? pending.text : state.draft,
           pendingSendDraft: pending?.localId === message.localId ? undefined : pending,
+          pendingSendDrafts: without(state.pendingSendDrafts, message.localId),
           attachments: isKept ? [...unsent, ...others] : state.attachments,
           attachmentsToRelease: isKept
             ? state.attachmentsToRelease
@@ -2546,13 +2580,10 @@ function applyHostMessage(state: UiState, message: HostToWebviewMessage, at: num
       )
     }
     case 'secretPromptDetected': {
-      // M92e: the host held the prompt for a detected secret. The optimistic
-      // card never sent, so it is removed rather than failed: the transcript
-      // never holds the raw value. The draft, chips and reference go back to
-      // the composer unless the user already typed on (never replace a newer
-      // draft); the redacted text arms the Send anyway resend.
-      const pending = state.pendingSendDraft
-      if (pending?.localId !== message.localId) {
+      const pending =
+        own(state.pendingSendDrafts, message.localId) ??
+        (state.pendingSendDraft?.localId === message.localId ? state.pendingSendDraft : undefined)
+      if (pending === undefined) {
         return state
       }
       const unsent = own(state.unsentAttachments, message.localId) ?? []
@@ -2560,14 +2591,30 @@ function applyHostMessage(state: UiState, message: HostToWebviewMessage, at: num
         unsent.every((chip) => chip.id !== attachment.id),
       )
       const shouldRestore = pending.revision === state.draftRevision
+      const prompt = {
+        localId: message.localId,
+        draft: pending.text,
+        redactedText: message.redactedText,
+        attachments: unsent,
+        reference: pending.reference,
+        contextLabel: own(state.pendingSendDrafts, message.localId)?.contextLabel,
+      }
       return announce(
         {
           ...state,
           draft: shouldRestore ? pending.text : state.draft,
           ...(shouldRestore && pending.reference !== undefined && { reference: pending.reference }),
-          pendingSendDraft: undefined,
-          secretPrompt: { draft: pending.text, redactedText: message.redactedText },
-          attachments: [...unsent, ...others],
+          pendingSendDraft:
+            state.pendingSendDraft?.localId === message.localId
+              ? undefined
+              : state.pendingSendDraft,
+          pendingSendDrafts: without(state.pendingSendDrafts, message.localId),
+          secretPrompt: state.secretPrompt ?? prompt,
+          secretPromptQueue:
+            state.secretPrompt === undefined
+              ? state.secretPromptQueue
+              : [...state.secretPromptQueue, prompt],
+          attachments: shouldRestore ? [...unsent, ...others] : state.attachments,
           unsentAttachments: without(state.unsentAttachments, message.localId),
           transcript: state.transcript.filter(
             (entry) => !(entry.kind === 'user' && entry.id === message.localId),
@@ -2816,41 +2863,62 @@ export function uiReducer(state: UiState, action: UiAction): UiState {
       return { ...state, focusRequests: state.focusRequests + 1 }
     }
     case 'submitted': {
-      // M92e: a resend past the secret dialog (its trimmed text still the
-      // refused draft) shows the redacted text the host held it for; any
-      // other send scans again. The arm is spent either way.
       const arm =
-        state.secretPrompt?.draft.trim() === action.text.trim() ? state.secretPrompt : undefined
+        action.isSecretResend === true && state.secretPrompt?.draft.trim() === action.text.trim()
+          ? state.secretPrompt
+          : undefined
+      const shouldClear = arm === undefined || state.draft === arm.draft
+      const revision = state.draftRevision + (shouldClear ? 1 : 0)
+      const pending = {
+        localId: action.localId,
+        text: arm?.draft ?? (state.draft.trim() === action.text.trim() ? state.draft : action.text),
+        revision,
+        ...(action.reference !== undefined && { reference: action.reference }),
+        ...(action.contextLabel !== undefined && { contextLabel: action.contextLabel }),
+      }
       return withPendingCard(
         {
           ...state,
-          draft: '',
-          draftRevision: state.draftRevision + 1,
-          pendingSendDraft: {
-            localId: action.localId,
-            text: state.draft,
-            revision: state.draftRevision + 1,
-            ...(action.reference !== undefined && { reference: action.reference }),
-          },
-          secretPrompt: undefined,
+          draft: shouldClear ? '' : state.draft,
+          draftRevision: revision,
+          pendingSendDraft: pending,
+          pendingSendDrafts: { ...state.pendingSendDrafts, [action.localId]: pending },
+          secretPrompt: arm === undefined ? state.secretPrompt : state.secretPromptQueue[0],
+          secretPromptQueue:
+            arm === undefined ? state.secretPromptQueue : state.secretPromptQueue.slice(1),
           pendingGoalCommand: undefined,
           pendingHandoffCommand: undefined,
-          attachments: [],
-          reference: undefined,
+          attachments:
+            arm === undefined
+              ? []
+              : state.attachments.filter((chip) =>
+                  arm.attachments.every((held) => held.id !== chip.id),
+                ),
+          reference: shouldClear ? undefined : state.reference,
         },
         {
           ...action,
-          text: arm?.redactedText ?? action.text,
+          text: redactSecrets(action.text),
           isPlanTurn: state.permissionMode === 'plan',
         },
       )
     }
     case 'secretPromptDismissed': {
-      // The draft, chips and reference are already back (restored when the
-      // hold arrived); the dialog hands the focus back to the prompt.
-      return state.secretPrompt === undefined
+      const prompt = state.secretPrompt
+      return prompt === undefined
         ? state
-        : { ...state, secretPrompt: undefined, focusRequests: state.focusRequests + 1 }
+        : {
+            ...state,
+            secretPrompt: state.secretPromptQueue[0],
+            secretPromptQueue: state.secretPromptQueue.slice(1),
+            attachments: [
+              ...prompt.attachments,
+              ...state.attachments.filter((chip) =>
+                prompt.attachments.every((held) => held.id !== chip.id),
+              ),
+            ],
+            focusRequests: state.focusRequests + 1,
+          }
     }
     case 'editorContextDismissed': {
       return { ...state, dismissedEditorPath: state.editorContext?.relativePath }

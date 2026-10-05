@@ -288,7 +288,7 @@ export class PermissionEngine {
     if (decision === 'forbid') {
       return settled('deny', 'forbidRule', rule)
     }
-    if (byMode !== 'ask') {
+    if (byMode === 'deny') {
       return settled(byMode)
     }
     // M92e (PLAN.md D71): a command holding a detected secret always asks.
@@ -297,6 +297,9 @@ export class PermissionEngine {
     // reviewer never sees it. Read from the one shared table in redact.ts.
     if (countSecretMatches(query.command, []) > 0) {
       return settled('ask', 'secretDetected', rule)
+    }
+    if (byMode !== 'ask') {
+      return settled(byMode)
     }
     if (policy.profileName !== undefined) {
       return settled('ask', 'profile')

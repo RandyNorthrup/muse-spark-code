@@ -212,4 +212,31 @@ describe('the saved conversation (M25)', () => {
       transcript: [],
     })
   })
+  it('redacts a secret still being typed before persisting draft recovery (RVM92E P1)', () => {
+    const secret = `mgst_${'A'.repeat(42)}A`
+    const typed = uiReducer(shown, { type: 'draftChanged', draft: secret })
+    expect(JSON.stringify(webviewStateOf(typed, true)).includes(secret)).toBe(false)
+    expect(typed.draft === secret).toBe(true)
+  })
+
+  it('redacts a legacy stored user card and draft recovery on restore (RVM92E P1)', () => {
+    const secret = `mgst_${'A'.repeat(42)}A`
+    const saved = webviewStateOf(shown, true)
+    const snapshot = saved.snapshot
+    if (typeof snapshot !== 'object' || snapshot === null) throw new Error('snapshot missing')
+    const restored = restoredUiState({
+      ...saved,
+      snapshot: {
+        ...snapshot,
+        draft: secret,
+        pendingSendDraft: { localId: 'l9', text: secret, revision: 1 },
+        transcript: [
+          { kind: 'user', id: 'u1', seq: 1, text: secret, status: 'sent', attachments: [] },
+        ],
+      },
+    })
+    expect(JSON.stringify(restored).includes(secret)).toBe(false)
+    expect(restored.draft).toBe('[redacted]')
+    expect(restored.transcript[0]).toMatchObject({ text: '[redacted]' })
+  })
 })

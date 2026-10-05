@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { scrubSecretApproval } from '../../src/core/agent/approvalSecrets'
 import type { AgentEvent, ItemSnapshot } from '../../src/shared/agentEvents'
 import { UI_TEXT } from '../../src/shared/constants'
 import type { HostToWebviewMessage } from '../../src/shared/protocol'
@@ -3652,15 +3653,105 @@ describe('uiReducer: the secret-prompt hold (M92e, PLAN.md D71)', () => {
   } as const
   const held = host({ type: 'secretPromptDetected', localId: 'l1', redactedText: redacted })
 
-  it('removes the optimistic card, restores the draft and arms Send anyway', () => {
+  it('redacts the first card and persisted draft recovery before the host hold (RVM92E P1)', () => {
+    const secret = `mgst_${'A'.repeat(42)}A`
     const state = reduceAll([
+      { type: 'draftChanged', draft: `use ${secret}` },
+      { ...submit, text: `use ${secret}` },
+    ])
+    expect(state.transcript[0]).toMatchObject({ text: 'use [redacted]' })
+    expect(JSON.stringify(webviewStateOf(state, true)).includes(secret)).toBe(false)
+  })
+
+  it('redacts accepted user history on replay and persistence (RVM92E P1)', () => {
+    const secret = `mgst_${'A'.repeat(42)}A`
+    const state = reduceAll([
+      host({
+        type: 'historyLoaded',
+        sessionId: 's1',
+        todos: [],
+        items: [{ itemId: 'u1', kind: 'userMessage', status: 'completed', text: `use ${secret}` }],
+      }),
+    ])
+    expect(state.transcript[0]).toMatchObject({ text: 'use [redacted]' })
+    expect(JSON.stringify(webviewStateOf(state, true)).includes(secret)).toBe(false)
+  })
+
+  it('keeps a valid older hold after another send and preserves the newer draft (RVM92E P2)', () => {
+    const chip = { id: 'img1', name: 'first.png', mediaType: 'image/png', sizeBytes: 1 }
+    const reference = { intent: 'reply', role: 'assistant', entryId: 'e1', text: 'why?' } as const
+    const state = reduceAll([
+      { type: 'draftChanged', draft: text },
+      { ...submit, attachments: [chip], reference },
+      { type: 'draftChanged', draft: 'second send' },
+      { ...submit, localId: 'l2', text: 'second send' },
+      { type: 'draftChanged', draft: 'newer draft' },
+      held,
+    ])
+    expect(state.secretPrompt).toMatchObject({
+      draft: text,
+      redactedText: redacted,
+      attachments: [chip],
+      reference,
+    })
+    expect(state.draft).toBe('newer draft')
+    expect(state.pendingSendDraft?.localId).toBe('l2')
+    expect(state.unsentAttachments['l1']).toBeUndefined()
+    expect(state.transcript.map((entry) => entry.id)).toEqual(['l2'])
+  })
+
+  it('queues two valid secret holds instead of replacing the first warning (RVM92E P2)', () => {
+    const twice = reduceAll([
+      { type: 'draftChanged', draft: text },
+      submit,
+      { type: 'draftChanged', draft: text + ' again' },
+      { ...submit, localId: 'l2', text: text + ' again' },
+      held,
+      host({ type: 'secretPromptDetected', localId: 'l2', redactedText: redacted + ' again' }),
+    ])
+    expect(twice.secretPrompt?.draft).toBe(text)
+    const next = uiReducer(twice, { type: 'secretPromptDismissed' })
+    expect(next.secretPrompt?.draft).toBe(text + ' again')
+    expect(uiReducer(next, { type: 'secretPromptDismissed' }).secretPrompt).toBeUndefined()
+  })
+
+  it('drops holds and pending raw drafts when another session replaces the conversation', () => {
+    const armed = reduceAll([
       { type: 'draftChanged', draft: text },
       submit,
       held,
+      { type: 'draftChanged', draft: 'another pending send' },
+      { ...submit, localId: 'l2', text: 'another pending send' },
     ])
+    const replaced = reduceAll(
+      [host({ type: 'historyLoaded', sessionId: 'other', todos: [], items: [] })],
+      armed,
+    )
+    expect(replaced.secretPrompt).toBeUndefined()
+    expect(replaced.secretPromptQueue).toEqual([])
+    expect(replaced.pendingSendDrafts).toEqual({})
+    expect(replaced.pendingSendDraft).toBeUndefined()
+  })
+
+  it('returns hidden held attachments to the composer when Edit dismisses an older hold', () => {
+    const chip = { id: 'img1', name: 'first.png', mediaType: 'image/png', sizeBytes: 1 }
+    const armed = reduceAll([
+      { type: 'draftChanged', draft: text },
+      { ...submit, attachments: [chip] },
+      { type: 'draftChanged', draft: 'newer draft' },
+      held,
+    ])
+    expect(armed.attachments).toEqual([])
+    const edited = uiReducer(armed, { type: 'secretPromptDismissed' })
+    expect(edited.attachments).toEqual([chip])
+    expect(edited.draft).toBe('newer draft')
+  })
+
+  it('removes the optimistic card, restores the draft and arms Send anyway', () => {
+    const state = reduceAll([{ type: 'draftChanged', draft: text }, submit, held])
     expect(state.transcript).toEqual([])
     expect(state.draft).toBe(text)
-    expect(state.secretPrompt).toEqual({ draft: text, redactedText: redacted })
+    expect(state.secretPrompt).toMatchObject({ draft: text, redactedText: redacted })
     expect(state.announcement?.text).toBe(UI_TEXT.secretPromptTitle)
   })
 
@@ -3672,6 +3763,7 @@ describe('uiReducer: the secret-prompt hold (M92e, PLAN.md D71)', () => {
       {
         type: 'submitted',
         localId: 'l2',
+        isSecretResend: true,
         text,
         attachments: [],
         contextLabel: undefined,
@@ -3697,7 +3789,7 @@ describe('uiReducer: the secret-prompt hold (M92e, PLAN.md D71)', () => {
         contextLabel: undefined,
       },
     ])
-    expect(state.secretPrompt).toBeUndefined()
+    expect(state.secretPrompt?.draft).toBe(text)
     expect(state.transcript[0]).toMatchObject({ id: 'l2', text: 'something else' })
   })
 
@@ -3722,11 +3814,25 @@ describe('uiReducer: the secret-prompt hold (M92e, PLAN.md D71)', () => {
 
   it('restores the reference chip with the draft', () => {
     const reference = { intent: 'reply', role: 'assistant', entryId: 'e1', text: 'why?' } as const
-    const state = reduceAll([
-      { type: 'draftChanged', draft: text },
-      { ...submit, reference },
-      held,
-    ])
+    const state = reduceAll([{ type: 'draftChanged', draft: text }, { ...submit, reference }, held])
     expect(state.reference).toEqual(reference)
+  })
+})
+
+describe('uiReducer: secret approval updates (RVM92E P2)', () => {
+  it('shows the note when an update first detects a secret', () => {
+    const state = reduceAll([
+      agent(SHELL_APPROVAL),
+      agent(
+        scrubSecretApproval({
+          type: 'approvalUpdated',
+          approvalId: SHELL_APPROVAL.approvalId,
+          requirementId: SHELL_APPROVAL.requirementId,
+          subject: { kind: 'shell', command: `echo sk-${'k'.repeat(24)}` },
+          availableChoices: SHELL_APPROVAL.availableChoices,
+        }),
+      ),
+    ])
+    expect(waitingApprovals(state.transcript)[0]?.approval.note).toBe(UI_TEXT.approvalSecretNote)
   })
 })

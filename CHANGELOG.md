@@ -11,12 +11,15 @@ happened, not what was planned; superseded entries are kept.
 
 - Bundled `muse_gadgets` skill (Model API backend, listed while `museSpark.bundledSkills` is on): ESP32 build, flash and monitor guidance with the bounded-monitor pattern, the SDK token rules, and the never-a-gadget warning. A timed-out shell command is proven to return its captured output with `isTimedOut` and leave no process behind on Windows, macOS and Linux. README gains a "Muse Gadgets" section.
 
+### Fixed
+
+- Secret prompts are redacted on their first transcript card, history replay, saved draft recovery and Markdown export (including filenames). Delayed warnings survive a later send; Send anyway resends the held text, attachments and reference while preserving newer typing.
+
 ### Security
 
 - Secret approval cards now remove workspace standing grants, redact contextual credentials across shell stage arguments, scrub reviewer fallback updates, and show the secret note when an existing card changes.
-
 - Muse Gadgets SDK tokens (`mgst_…`) are now redacted from logs and transcripts and counted by `scan-secrets`. A valid-length prefix glued to more token characters (a trailing `-` or `-extra`) is an overlength near-miss, not a token, and is left alone.
-- A prompt holding a detected secret is held before sending: the panel warns (Send anyway / Edit) and the transcript shows the redacted text either way. A shell command holding one always asks, shows its card redacted with a secret note, and is never auto-approved by an allow rule. Both read the one shared detection table; the extension writes no commits, so there is no commit guard to add.
+- A prompt holding a detected secret is held before sending: the panel warns (Send anyway / Edit) and the transcript shows the redacted text either way. On the Model API backend a shell command holding one asks even in Bypass. Every emitted Muse Code approval shows its card redacted with a secret note and no standing grant; Muse Code Bypass can execute without an approval event and cannot be intercepted here. Both read the one shared detection table; the extension writes no commits, so there is no commit guard to add.
 
 ## [0.12.0] - 2026-10-04
 

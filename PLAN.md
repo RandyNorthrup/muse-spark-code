@@ -13695,19 +13695,20 @@ joined with M57, M58 and PR #49's sign-in
       turn, and only sends on with an explicit `secretAccepted` re-post. The
       browser scans through the same pure table in `src/shared/redact.ts`
       without importing host or core code. The session store keeps the raw text once the user
-      accepts (resume needs it); the panel transcript, the logs and the
-      exports never hold it. Slash-command, review, goal, handoff, loop and
+      accepts (resume needs it); the panel transcript, extension logs and
+      extension-rendered exports never hold it. Native CLI session logs
+      remain raw backend records, as the export guide states. Slash-command, review, goal, handoff, loop and
       `!`-command sends are out of scope: only the plain-message path warns.
     - the commit guard is skipped: no commit-writing path exists. `git.ts`
       only runs git, best-of-N snapshots with `write-tree` explicitly without
       a commit, and review only reads messages and diffs. The user commits
       outside the extension by definition; a `git commit` the agent proposes
       as a shell command meets the shell guard.
-    - a shell command holding a detected secret always asks: the Model API
-      engine settles it `secretDetected` (no allow-rule or session-rule
+    - a shell command holding a detected secret requires explicit approval
+      before execution on the Model API backend: the engine settles it `secretDetected` (no allow-rule or session-rule
       auto-allow, no Auto reviewer, no session choice, no hook auto-allow),
       and the controller scrubs every approval card before the panel (the
-      value shown redacted, a secret note, session-scoped approve choices
+      value shown redacted, a secret note, all non-once approve choices
       dropped) on both backends. The Auto reviewer on Muse Code never sees
       one (`isReviewableApproval` excludes them). An explicit user approval
       still runs the command as proposed. Model API Bypass asks too. Muse
@@ -13727,6 +13728,9 @@ joined with M57, M58 and PR #49's sign-in
   calls ask in Bypass too, while forbids and denied modes still deny.
   Muse Code Bypass cannot be intercepted when the CLI sends no approval;
   record that named redesign residual in §9 and narrow the public claim.
+  The duplication gate also exposes copied M92 secret-dialog boot setup;
+  replace that owned test setup with an initialized UI store, preserving all
+  assertions and the zero-duplication threshold.
 - **Acceptance.**
   1. A valid `mgst_` token is redacted everywhere the shared table applies, and
      `scan-secrets` counts it. Near-misses (wrong last character or length,
@@ -13742,9 +13746,10 @@ joined with M57, M58 and PR #49's sign-in
   5. A prompt holding a detected secret warns before sending (Send anyway /
      Edit); the transcript card shows the redacted text either way.
   6. A shell command holding a detected secret shows its card with the value
-     redacted and a secret note, offers no "allow for this session", and is
-     never auto-approved by an allow rule, a session rule, a hook or the Auto
-     reviewer.
+     redacted and a secret note and offers no standing approve choice. On
+     Model API it is never auto-approved by an allow rule, a session rule,
+     a hook or the Auto reviewer; on Muse Code every emitted approval is
+     scrubbed and excluded from the reviewer (CLI admission residual in §9).
 - **Tests.** Unit tests for each item, each red-drilled. M92b's process-tree
   proof runs on the three rigs (targeted files only). No hardware, network or
   model call is needed.
@@ -14216,6 +14221,14 @@ before a repaired one loads (2026-09-30).
 | `test/harness/index.html` (`isActiveDescendantList`), printed by `scripts/a11y.mjs` | The accessibility gate exempts axe's `scrollable-region-focusable` | The composer's `/` and `@` lists follow WAI-ARIA's combobox pattern: the box keeps the focus and moves `aria-activedescendant` through the listbox's options, and `Composer.tsx` scrolls the active option into view, so the list is keyboard operable (WCAG 2.1.1) without being a Tab stop. axe cannot see activedescendant-driven scrolling. The exemption holds only for a region that contains a listbox whose id is in the `aria-controls` of a focused or focusable element whose active descendant is one of that listbox's options; drills show a plain scrollable region and a listbox no control drives are still reported, and removing the exemption reports the composer's list again. Every exempt element is printed under its own "Exempt:" heading and counted. No `tabindex` was added to the list. | 2026-10-04 |
 
 ## 9. Security assumptions and accepted residual risk
+
+- **M92e-COMMIT-STAGED (architectural skip, 2026-10-04):** the extension
+  has no dedicated commit-writing path. A model's `git commit` goes through
+  the shell-command guard, which scans the command text and does not inspect
+  staged contents. Safe within the current contract, which claims no staged
+  diff refusal; users commit outside the extension and the skill prohibits
+  token-bearing files. Follow-up: staged-diff refusal if a native commit flow
+  is introduced (the review explicitly permitted this skip).
 
 - **RVM92E-BYPASS-MUSE (P2, 2026-10-04):** Muse Code in Bypass receives
   `allowAll` and may execute a secret-bearing shell command without emitting

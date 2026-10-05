@@ -7,6 +7,8 @@
 import { act, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { UI_TEXT } from '../../src/shared/constants'
+import { createUiStore } from '../../src/webview/state/store'
+import { initialUiState } from '../../src/webview/state/uiState'
 import type { HostToWebviewMessage, WebviewToHostMessage } from '../../src/shared/protocol'
 import { App } from '../../src/webview/App'
 import { testSettings } from './helpers/fakes'
@@ -19,30 +21,24 @@ const HOLD: Extract<HostToWebviewMessage, { type: 'secretPromptDetected' }> = {
   redactedText: REDACTED,
 }
 
-function deliver(data: HostToWebviewMessage) {
-  act(() => {
-    window.dispatchEvent(new MessageEvent('message', { data }))
-  })
-}
-
 function renderPanel() {
+  const store = createUiStore({
+    ...initialUiState,
+    phase: 'ready',
+    sessionId: 's1',
+    auth: { ...initialUiState.auth, status: 'signedIn', backend: 'modelApi' },
+    settings: testSettings,
+  })
   const postMessage = vi.fn<(message: WebviewToHostMessage) => void>()
-  render(<App postMessage={postMessage} newLocalId={() => 'local-1'} />)
-  // A signed-in Model API panel with an open conversation.
-  const boot: readonly HostToWebviewMessage[] = [
-    {
-      type: 'init',
-      emptyStateHint: 'hint',
-      composerPlaceholder: 'placeholder',
-      settings: testSettings,
+  render(<App store={store} postMessage={postMessage} newLocalId={() => 'local-1'} />)
+  return {
+    postMessage,
+    deliver: (message: HostToWebviewMessage) => {
+      act(() => {
+        store.dispatch({ type: 'hostMessage', message, at: 0 })
+      })
     },
-    { type: 'authState', status: 'signedIn', backend: 'modelApi' },
-    { type: 'sessionInfo', modelId: 'muse-spark-1.3', sessionId: 's1' },
-  ]
-  for (const message of boot) {
-    deliver(message)
   }
-  return postMessage
 }
 
 function submit(text: string) {
@@ -60,7 +56,7 @@ afterEach(() => {
 
 describe('the secret-prompt hold (M92e)', () => {
   it('holds the send, shows the dialog over the restored draft, and sends on anyway with the acceptance', () => {
-    const postMessage = renderPanel()
+    const { postMessage, deliver } = renderPanel()
     submit(TEXT)
     expect(postMessage).toHaveBeenCalledWith(
       expect.objectContaining({ type: 'sendMessage', localId: 'local-1', text: TEXT }),
@@ -80,7 +76,7 @@ describe('the secret-prompt hold (M92e)', () => {
   })
 
   it('edits with the draft kept and nothing resent', () => {
-    const postMessage = renderPanel()
+    const { postMessage, deliver } = renderPanel()
     submit(TEXT)
     deliver(HOLD)
     fireEvent.click(screen.getByRole('button', { name: UI_TEXT.secretPromptEdit }))

@@ -429,6 +429,33 @@ describe('secret-bearing shell commands (M92e, PLAN.md D71)', () => {
     })
   })
 
+  it('asks in Bypass for secrets, while preserving forbids and denied modes (RVM92E P2)', () => {
+    expect(new PermissionEngine('allowAll').judge(bash(secretCommand), secretPolicy)).toMatchObject(
+      {
+        verdict: 'ask',
+        settledBy: 'secretDetected',
+        isReviewable: false,
+        hasSessionChoice: false,
+      },
+    )
+    expect(new PermissionEngine('denyUnmatched').judge(bash(secretCommand))).toMatchObject({
+      verdict: 'deny',
+    })
+    const denied = compilePolicy(
+      {
+        commandRules: [{ pattern: ['deploy'], decision: 'forbid', match: ['deploy --dry-run'] }],
+        profiles: {},
+        profile: '',
+        repositoryRules: {},
+      },
+      'linux',
+    )
+    expect(new PermissionEngine('allowAll').judge(bash(secretCommand), denied)).toMatchObject({
+      verdict: 'deny',
+      settledBy: 'forbidRule',
+    })
+  })
+
   it('still runs a clean command the allow rule matches', () => {
     expect(
       new PermissionEngine('onRequest').judge(bash('deploy --dry-run'), secretPolicy),
