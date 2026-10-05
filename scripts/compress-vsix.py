@@ -1,4 +1,5 @@
-"""Recompress the locally produced VSIX without changing its entries."""
+"""Compact UI JSON whitespace and recompress every VSIX asset atomically."""
+import json
 import os
 import sys
 import tempfile
@@ -14,8 +15,17 @@ try:
     ) as compressed:
         compressed.comment = original.comment
         for entry in original.infolist():
+            content = original.read(entry)
+            is_ui_json = (
+                entry.filename.startswith("extension/l10n/ui.")
+                or entry.filename.startswith("extension/package.nls.")
+            ) and entry.filename.endswith(".json")
+            if is_ui_json:
+                content = (json.dumps(
+                    json.loads(content), ensure_ascii=False, separators=(",", ":")
+                ) + "\n").encode("utf-8")
             compressed.writestr(
-                entry, original.read(entry), compress_type=ZIP_DEFLATED, compresslevel=9
+                entry, content, compress_type=ZIP_DEFLATED, compresslevel=9
             )
     with ZipFile(destination) as checked:
         if checked.testzip() is not None:

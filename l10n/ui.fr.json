@@ -1973,5 +1973,8 @@
   "legalFixRefusedExpired": "L’aperçu a expiré. Demandez un nouvel aperçu.",
   "legalFixRefusedUnavailable": "L’application des corrections est indisponible dans cette version.",
   "legalFixRescanHint": "Lancez une nouvelle analyse pour confirmer ce qu’il reste.",
-  "legalScanAgain": "Analyser à nouveau"
+  "legalScanAgain": "Analyser à nouveau",
+  "legalFixOwnership": "Confirmez que ces fichiers appartiennent au projet et que la licence et les droits d’auteur de l’aperçu s’y appliquent : {paths}",
+  "legalFixDenied": "Les modifications n’ont pas été approuvées.",
+  "legalExportMarkdown": "Exporter en Markdown…"
 }

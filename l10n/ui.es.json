@@ -1973,5 +1973,8 @@
   "legalFixRefusedExpired": "La vista previa caducó. Pida una vista previa nueva.",
   "legalFixRefusedUnavailable": "Aplicar correcciones no está disponible en esta compilación.",
   "legalFixRescanHint": "Ejecute un nuevo análisis para confirmar lo que queda.",
-  "legalScanAgain": "Analizar de nuevo"
+  "legalScanAgain": "Analizar de nuevo",
+  "legalFixOwnership": "Confirma que estos archivos pertenecen al proyecto y que la licencia y los derechos de autor de la vista previa se aplican a ellos: {paths}",
+  "legalFixDenied": "No se aprobaron las modificaciones.",
+  "legalExportMarkdown": "Exportar Markdown…"
 }

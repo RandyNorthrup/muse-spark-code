@@ -1837,5 +1837,8 @@
   "legalFixRefusedExpired": "プレビューの有効期限が切れました。新しいプレビューを要求してください。",
   "legalFixRefusedUnavailable": "このビルドでは修正の適用は利用できません。",
   "legalFixRescanHint": "残りを確認するため、新しいスキャンを実行してください。",
-  "legalScanAgain": "再スキャン"
+  "legalScanAgain": "再スキャン",
+  "legalFixOwnership": "これらのファイルがプロジェクトの所有物であり、プレビューのライセンスと著作権が適用されることを確認してください: {paths}",
+  "legalFixDenied": "編集は承認されませんでした。",
+  "legalExportMarkdown": "Markdown をエクスポート…"
 }

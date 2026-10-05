@@ -392,6 +392,8 @@ function setup(
     /** The window's Auto reviewer on Muse Code (M90). */
     museCodeReviewer?: ConversationDeps['museCodeReviewer']
     /** The deterministic legal scanner (M97); undefined until lane R wires the bundle. */
+    legalFixApplier?: ConversationDeps['legalFixApplier']
+    legalMarkdown?: ConversationDeps['legalMarkdown']
     legalScan?: ConversationDeps['legalScan']
     /** The Plan-mode hold a live Muse Code conversation takes for a scan (M97). */
     createLegalHold?: ConversationDeps['createLegalHold']
@@ -741,6 +743,8 @@ function setup(
     review:
       options.review ??
       reviewParts(() => Promise.resolve({ kind: 'refused', refusal: 'notRepository' })),
+    ...(options.legalFixApplier !== undefined && { legalFixApplier: options.legalFixApplier }),
+    ...(options.legalMarkdown !== undefined && { legalMarkdown: options.legalMarkdown }),
     ...(options.legalScan !== undefined && { legalScan: options.legalScan }),
     ...(options.createLegalHold !== undefined && { createLegalHold: options.createLegalHold }),
     openDocument: (title: string, content: string) => {
@@ -13603,8 +13607,11 @@ describe('the legal selected-fix handoff (M97 lane W)', () => {
   }
   const scan = { scanId: 'legal-1', ruleVersion: '1', dataVersion: '2026-10-04', scope: '' }
 
-  const ready = async () => {
+  const ready = async (
+    over: Pick<Partial<ConversationDeps>, 'legalFixApplier' | 'legalMarkdown'> = {},
+  ) => {
     const t = setup({
+      ...over,
       createLegalHold: (holdDeps) => new PlanModeHold(holdDeps),
       legalScan: () =>
         Promise.resolve({
@@ -13666,5 +13673,47 @@ describe('the legal selected-fix handoff (M97 lane W)', () => {
     expect(t.surface.posted.findLast((message) => message.type === 'legalFixResult')).toMatchObject(
       { outcome: 'refused', refusal: 'previewExpired' },
     )
+  })
+
+  it('rescans after a partial apply and retains its per-path failure after the fresh report', async () => {
+    const apply = vi
+      .fn<NonNullable<ConversationDeps['legalFixApplier']>['apply']>()
+      .mockResolvedValue({
+        applied: [],
+        failed: [{ path: 'src/a.ts', reason: 'Changed bytes' }],
+      })
+    const t = await ready({
+      legalFixApplier: {
+        prepare: () => Promise.resolve([{ path: 'src/a.ts', diff: '+// verified header' }]),
+        apply,
+      },
+    })
+    await t.controller.handle({
+      type: 'requestLegalFix',
+      scan,
+      findings: [header],
+      includeProjectLicense: false,
+    })
+    const preview = t.surface.posted.findLast((message) => message.type === 'legalFixPreview')
+    if (preview?.type !== 'legalFixPreview') throw new Error('missing preview')
+    await t.controller.handle({ type: 'confirmLegalFix', previewId: preview.previewId })
+    expect(apply).toHaveBeenCalledOnce()
+    expect(t.surface.posted.filter((message) => message.type === 'legalScanReport')).toHaveLength(2)
+    expect(t.surface.posted.at(-1)).toMatchObject({
+      type: 'legalFixResult',
+      outcome: 'partial',
+      failed: [{ path: 'src/a.ts', reason: 'Changed bytes' }],
+    })
+  })
+
+  it('exports only the host-owned report after an explicit request, without starting a backend', async () => {
+    const render = vi
+      .fn<(result: LegalScanResult) => string>()
+      .mockReturnValue('legal Markdown with disclaimer')
+    const t = await ready({ legalMarkdown: render })
+    expect(t.exported.markdown).toHaveLength(0)
+    await t.controller.handle({ type: 'exportLegalReport' })
+    expect(render).toHaveBeenCalledOnce()
+    expect(t.exported.markdown).toHaveLength(1)
   })
 })

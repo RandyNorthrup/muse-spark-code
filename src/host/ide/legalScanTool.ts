@@ -11,6 +11,7 @@
 import * as z from 'zod/mini'
 import type { McpTool } from '../../core/mcp'
 import {
+  UI_TEXT,
   IDE_LEGAL_SCAN_TOOL,
   LEGAL_HEADER_POLICIES,
   MCP_ANNOTATIONS_READ_ONLY,
@@ -70,7 +71,7 @@ async function callLegalScan(
     deps.log.error(`The legal scan returned an invalid result: ${z.prettifyError(checked.error)}`)
     throw new Error('the legal scan returned an invalid result')
   }
-  return JSON.stringify(checked.data)
+  return JSON.stringify({ ...checked.data, disclaimer: UI_TEXT.legalScanDisclaimer })
 }
 
 /** The tool as it stands now: none while the workspace is untrusted. */

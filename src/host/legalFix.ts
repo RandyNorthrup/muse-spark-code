@@ -6,11 +6,8 @@
 // refused with a LEGAL_FIX_REFUSALS word; an unknown or disposed preview
 // refuses with `previewExpired`.
 //
-// Applying the authorized paths through the normal edit tools is lane B's
-// router, through the injected `LegalFixApplier`: this module never edits,
-// installs, builds or shells. Until that applier is wired, a confirm that
-// passes every guard refuses with `fixUnavailable` rather than reporting an
-// empty success.
+// The injected production applier publishes selected paths through the normal
+// checkpoint and conditional edit tools. An absent applier refuses explicitly.
 
 import { createHash, randomUUID } from 'node:crypto'
 import {
@@ -148,6 +145,10 @@ export class LegalFixPreviews {
     this.disposed = true
     this.invalidate()
     this.scan = undefined
+  }
+
+  get report(): LegalScanResult | undefined {
+    return this.scan === undefined ? undefined : structuredClone(this.scan.result)
   }
 
   get size(): number {

@@ -10,6 +10,7 @@ import {
 } from '../../src/core/backends/modelapi/legalScanTool'
 import { classifyTool, toolDefinitions } from '../../src/core/backends/modelapi/tools'
 import {
+  UI_TEXT,
   LEGAL_RESULT_VERSION,
   MODEL_API_MODEL_TEXT,
   MODEL_API_TOOLS,
@@ -74,7 +75,10 @@ describe('runLegalScanCall', () => {
     const { run, calls } = runner()
     const outcome = await runLegalScanCall({ paths: ['package.json'] }, run, true, SIGNAL)
     expect(calls).toEqual([{ paths: ['package.json'] }])
-    expect(outcome).toEqual({ ok: true, json: JSON.stringify(result()) })
+    expect(outcome).toEqual({
+      ok: true,
+      json: JSON.stringify({ ...result(), disclaimer: UI_TEXT.legalScanDisclaimer }),
+    })
   })
 
   it('scans the whole workspace on empty arguments', async () => {

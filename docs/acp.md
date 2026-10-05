@@ -62,7 +62,7 @@ script as the first argument, before the others:
 From the workspace you want to inspect, run:
 
 ```sh
-muse-spark-code-acp legal --format json
+muse-spark-code-acp exec legal-scan --json
 muse-spark-code-acp legal --format text
 muse-spark-code-acp legal --format json --out legal-report.json
 ```
@@ -76,19 +76,19 @@ no ACP frames; `--out` leaves stdout empty. Status words go to stderr. Keep repo
 URLs. Known secret formats and email values are scrubbed; universal PII
 recognition is not promised.
 
-| Exit | Meaning                                                                            |
-| ---- | ---------------------------------------------------------------------------------- |
-| 0    | Complete coverage, with no blocker or should-fix finding; advice alone is allowed. |
-| 1    | Complete coverage, with a blocker or should-fix finding.                           |
-| 2    | Incomplete coverage, invalid input, interruption or operational failure.           |
+| Exit | Meaning                                                                         |
+| ---- | ------------------------------------------------------------------------------- |
+| 0    | Complete coverage, with no blocker; should-fix and advice findings are allowed. |
+| 1    | Complete coverage, with a blocker.                                              |
+| 2    | Incomplete coverage, invalid input, interruption or operational failure.        |
 
 A missing lock, unresolved license, binary file, excluded link or read bound
 can make coverage incomplete even when there are no blockers. Findings,
 rule/data versions, distribution assumptions, exclusions and incomplete checks
-are in `result`. No automatic fix is available. The candidate's reserved
-command is top-level `legal`, rather than D76's planned
-`exec legal-scan --json`; `should-fix` also takes exit 1. These deviations are
-recorded in [M97 certification](certification/m97.md).
+are in `result`. No automatic fix is available. The reserved
+`exec legal-scan --json` route is admitted before prompt, credential and paid
+argument parsing. The older `legal --format json` invocation remains an alias.
+Both refuse prompt text and model/credential flags.
 
 The current scanner also lists human review, full license-text matching and
 artifact freshness as incomplete checks on every real run. Even a fixture
@@ -100,8 +100,8 @@ explicit flag and supports npm/PyPI metadata, but exact prior query consent,
 private-name disclosure and the extension's network posture still require
 review. Keep the default offline. No optional model explanation is delivered.
 Scanner prose is currently English. Text and JSON reports include the
-translated disclaimer. Requested Markdown export and tool-report disclaimer
-coverage remain incomplete. **Not legal advice; for distribution decisions consult a lawyer.**
+translated disclaimer. The panel supports requested Markdown export, and both native/MCP tool
+reports include the disclaimer. **Not legal advice; for distribution decisions consult a lawyer.**
 
 ## Choose who pays
 

@@ -68,3 +68,12 @@ describe('M97 legal args (lane R)', () => {
     expect(parseCommandLine([]).command).toBe('serve')
   })
 })
+
+it('reserves exec legal-scan before prompt and paid argument parsing', () => {
+  expect(parseCommandLine(['exec', 'legal-scan', '--json'])).toEqual({
+    command: 'legal',
+    options: { format: 'json', out: undefined, registry: false },
+  })
+  expect(parseCommandLine(['exec', 'legal-scan', '--key-stdin']).command).toBe('invalid')
+  expect(parseCommandLine(['exec', 'legal-scan', 'a prompt']).command).toBe('invalid')
+})

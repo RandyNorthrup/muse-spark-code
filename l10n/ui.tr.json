@@ -1905,5 +1905,8 @@
   "legalFixRefusedExpired": "Önizlemenin süresi doldu. Yeni bir önizleme isteyin.",
   "legalFixRefusedUnavailable": "Düzeltmeleri uygulamak bu derlemede kullanılamıyor.",
   "legalFixRescanHint": "Kalanları doğrulamak için yeni bir tarama çalıştırın.",
-  "legalScanAgain": "Yeniden tara"
+  "legalScanAgain": "Yeniden tara",
+  "legalFixOwnership": "Bu dosyaların projeye ait olduğunu ve önizlemedeki lisans ve telif hakkının onlar için geçerli olduğunu onaylayın: {paths}",
+  "legalFixDenied": "Düzenlemeler onaylanmadı.",
+  "legalExportMarkdown": "Markdown dışa aktar…"
 }

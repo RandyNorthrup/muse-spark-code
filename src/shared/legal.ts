@@ -90,6 +90,7 @@ export type LegalScanInput = z.infer<typeof legalScanInputSchema>
  * evidence. Changing only the model or backend never changes these facts.
  */
 export const legalScanResultSchema = z.strictObject({
+  disclaimer: z.optional(textSchema),
   version: z.literal(LEGAL_RESULT_VERSION),
   ruleVersion: z.string().check(z.minLength(1), z.maxLength(LEGAL_VERSION_MAX_CHARS)),
   dataVersion: z.string().check(z.minLength(1), z.maxLength(LEGAL_VERSION_MAX_CHARS)),

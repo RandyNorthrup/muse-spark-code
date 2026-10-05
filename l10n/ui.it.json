@@ -1973,5 +1973,8 @@
   "legalFixRefusedExpired": "L’anteprima è scaduta. Richiedi una nuova anteprima.",
   "legalFixRefusedUnavailable": "L’applicazione delle correzioni non è disponibile in questa build.",
   "legalFixRescanHint": "Esegui una nuova analisi per confermare cosa resta.",
-  "legalScanAgain": "Analizza di nuovo"
+  "legalScanAgain": "Analizza di nuovo",
+  "legalFixOwnership": "Conferma che questi file appartengono al progetto e che la licenza e il copyright dell’anteprima si applicano a essi: {paths}",
+  "legalFixDenied": "Le modifiche non sono state approvate.",
+  "legalExportMarkdown": "Esporta Markdown…"
 }

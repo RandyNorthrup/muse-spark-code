@@ -4,7 +4,7 @@
 
 import { describe, expect, it, vi } from 'vitest'
 import type { LegalFinding, LegalScanResult } from '../../src/shared/legal'
-import { LEGAL_RESULT_VERSION } from '../../src/shared/constants'
+import { UI_TEXT, LEGAL_RESULT_VERSION } from '../../src/shared/constants'
 import { ideLegalScanTools, type IdeLegalScanDeps } from '../../src/host/ide/legalScanTool'
 
 function finding(): LegalFinding {
@@ -76,7 +76,10 @@ describe('ideLegalScanTools', () => {
     const { deps: offered, calls } = deps()
     const text = await call(offered, { paths: ['package.json'] })
     expect(calls).toEqual([{ paths: ['package.json'] }])
-    expect(JSON.parse(String(text))).toEqual(result())
+    expect(JSON.parse(String(text))).toEqual({
+      ...result(),
+      disclaimer: UI_TEXT.legalScanDisclaimer,
+    })
   })
 
   it('scans the whole workspace on empty arguments', async () => {

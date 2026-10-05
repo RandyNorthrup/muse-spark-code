@@ -1,5 +1,5 @@
 import { spawnSync } from 'node:child_process'
-import { mkdirSync, mkdtempSync, rmSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, readFileSync, rmSync } from 'node:fs'
 import path from 'node:path'
 import { describe, expect, it } from 'vitest'
 
@@ -13,7 +13,7 @@ function python(args) {
 }
 
 describe('VSIX maximum compression', () => {
-  it('preserves entry order, content, archive comment and executable metadata', () => {
+  it('preserves archive metadata, ordinary bytes and every translated value', () => {
     mkdirSync(path.resolve('temp'), { recursive: true })
     const dir = mkdtempSync(path.resolve('temp/m97-vsix-'))
     const archive = path.join(dir, 'fixture.vsix')
@@ -21,7 +21,7 @@ describe('VSIX maximum compression', () => {
       const made = python([
         '-c',
         `
-import sys
+import sys, json
 from zipfile import ZipFile, ZipInfo, ZIP_DEFLATED
 with ZipFile(sys.argv[1], 'w', compression=ZIP_DEFLATED) as z:
     z.comment = b'archive comment'
@@ -30,6 +30,10 @@ with ZipFile(sys.argv[1], 'w', compression=ZIP_DEFLATED) as z:
     entry.date_time = (2026, 10, 4, 12, 0, 0)
     z.writestr(entry, b'content' * 10000, compress_type=ZIP_DEFLATED)
     z.writestr('extension/LICENSE', b'license terms')
+    ui = json.dumps({'title': 'Žluťoučký kůň', 'paragraph': 'two  spaces', 'forms': {'one': 'one ' + '{' + 'n}', 'other': 'other ' + '{' + 'n}'}}, ensure_ascii=False, indent=2).encode()
+    z.writestr('extension/l10n/ui.cs.json', ui)
+    z.writestr('extension/package.nls.cs.json', ui)
+    z.writestr('extension/dist/legal-data/provenance.json', ui)
 `,
         archive,
       ])
@@ -41,10 +45,16 @@ with ZipFile(sys.argv[1], 'w', compression=ZIP_DEFLATED) as z:
       const checked = python([
         '-c',
         `
-import sys
+import sys, json
 from zipfile import ZipFile
 with ZipFile(sys.argv[1]) as z:
-    assert z.namelist() == ['extension/tool', 'extension/LICENSE']
+    assert z.namelist() == ['extension/tool', 'extension/LICENSE', 'extension/l10n/ui.cs.json', 'extension/package.nls.cs.json', 'extension/dist/legal-data/provenance.json']
+    expected = {'title': 'Žluťoučký kůň', 'paragraph': 'two  spaces', 'forms': {'one': 'one ' + '{' + 'n}', 'other': 'other ' + '{' + 'n}'}}
+    pretty = json.dumps(expected, ensure_ascii=False, indent=2).encode()
+    for name in ['extension/l10n/ui.cs.json', 'extension/package.nls.cs.json']:
+        assert json.loads(z.read(name)) == expected
+        assert len(z.read(name)) < len(pretty)
+    assert z.read('extension/dist/legal-data/provenance.json') == pretty
     assert z.comment == b'archive comment'
     assert z.read('extension/tool') == b'content' * 10000
     assert z.read('extension/LICENSE') == b'license terms'
@@ -55,6 +65,27 @@ with ZipFile(sys.argv[1]) as z:
         archive,
       ])
       expect(checked.status, checked.stderr).toBe(0)
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
+  it('refuses malformed translated JSON without replacing the original archive', () => {
+    mkdirSync(path.resolve('temp'), { recursive: true })
+    const dir = mkdtempSync(path.resolve('temp/m97-vsix-'))
+    const archive = path.join(dir, 'fixture.vsix')
+    try {
+      const made = python([
+        '-c',
+        "import sys; from zipfile import ZipFile; z=ZipFile(sys.argv[1], 'w'); z.writestr('extension/l10n/ui.cs.json', b'{invalid'); z.close()",
+        archive,
+      ])
+      expect(made.status, made.stderr).toBe(0)
+      const before = readFileSync(archive)
+      const run = spawnSync(process.execPath, ['scripts/compress-vsix.mjs', archive], {
+        encoding: 'utf8',
+      })
+      expect(run.status).not.toBe(0)
+      expect(readFileSync(archive)).toEqual(before)
     } finally {
       rmSync(dir, { recursive: true, force: true })
     }

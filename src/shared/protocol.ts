@@ -502,6 +502,7 @@ const webviewToHostMessageSchema = z.discriminatedUnion('type', [
   // The read-only legal scan (M97, PLAN.md D76): the report asks the host
   // to run the deterministic scanner; answered by `legalScanReport`.
   legalScanRequestMessageSchema,
+  z.strictObject({ type: z.literal('exportLegalReport') }),
   // The selected-fix handoff (M97 lane W): the report asks the host to
   // preview fixes for exactly the selected findings, then confirms exactly
   // the preview it showed; answered by `legalFixPreview` and

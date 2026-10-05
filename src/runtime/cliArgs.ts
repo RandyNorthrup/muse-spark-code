@@ -89,6 +89,8 @@ function paidFeaturesOf(values: Readonly<Record<string, unknown>>): AcpPaidFeatu
 }
 
 export function parseCommandLine(argv: readonly string[]): RuntimeCommand {
+  if (argv[0] === 'exec' && argv[1] === 'legal-scan')
+    return parseLegalCommand(['legal', ...argv.slice(2)])
   if (argv[0] === 'exec' || argv[0] === 'scan-secrets') return parseHeadless(argv)
   if (argv[0] === 'legal') return parseLegalCommand(argv)
   let parsed: ReturnType<typeof parseCommandLineStrictly>
@@ -229,6 +231,7 @@ function parseLegalCommand(argv: readonly string[]): RuntimeCommand {
       allowPositionals: true,
       strict: true,
       options: {
+        json: { type: 'boolean' },
         format: { type: 'string' },
         out: { type: 'string' },
         registry: { type: 'boolean' },

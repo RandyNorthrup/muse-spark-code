@@ -8,6 +8,7 @@ import { compareLegalText } from './files'
 // distribution stay workspace facts.
 
 import {
+  UI_TEXT,
   LEGAL_EXCLUSIONS_MAX,
   LEGAL_FILES_SCANNED_MAX,
   LEGAL_FINDINGS_MAX,
@@ -22,6 +23,7 @@ import {
   type LegalHeaderPolicy,
 } from '../../shared/constants'
 import { legalScanResultSchema, type LegalScanResult } from '../../shared/legal'
+import { prepareLegalHeaderPatches } from './headerFix'
 import { evaluateCompatibility } from './compat'
 import { SPDX_DATA_VERSION } from './data'
 import { evaluateDependencyLicenses } from './depLicenses'
@@ -406,6 +408,17 @@ export function scanLegal(snapshot: LegalFileSnapshot, options: LegalScanOptions
   })
   results.sort((a, b) => compareLegalText(a.id, b.id))
 
+  const repairable = new Set(
+    prepareLegalHeaderPatches(
+      bounded,
+      results.filter((finding) => finding.fixable),
+    ).map((entry) => entry.patch.path),
+  )
+  for (const finding of results) {
+    if (finding.fixable && (finding.file === undefined || !repairable.has(finding.file)))
+      finding.fixable = false
+  }
+
   const exclusions = headers.excluded.slice(0, LEGAL_EXCLUSIONS_MAX)
   if (headers.excluded.length > LEGAL_EXCLUSIONS_MAX) {
     incomplete.push(
@@ -422,6 +435,7 @@ export function scanLegal(snapshot: LegalFileSnapshot, options: LegalScanOptions
       : incomplete
 
   const result = {
+    disclaimer: UI_TEXT.legalScanDisclaimer,
     version: LEGAL_RESULT_VERSION,
     ruleVersion: LEGAL_SCANNER_RULE_VERSION,
     dataVersion: SPDX_DATA_VERSION,

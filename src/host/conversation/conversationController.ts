@@ -134,6 +134,7 @@ import {
   TEXT_ATTACHMENT_EXTENSIONS,
   TEXT_FILE_DISPLAY_MARKER,
   UNSUPPORTED_BINARY_ATTACHMENT_EXTENSIONS,
+  LEGAL_MARKDOWN_EXPORT_FILE,
   UI_TEXT,
   USER_SHELL_ITEM_KIND,
   USER_SHELL_SANDBOX_FAILURE_MARKER,
@@ -164,7 +165,7 @@ import type { AccountFacts, SubscriptionUsage, UsageInsights } from '../../share
 import type { AuthPort } from '../auth/authService'
 import type { CheckpointPort } from '../checkpoints/checkpointHost'
 import type { DescribedFile, EditReviewActions } from '../editor/editReview'
-import { LegalFixPreviews, type LegalFixFileAccess } from '../legalFix'
+import { LegalFixPreviews, type LegalFixFileAccess, type LegalFixApplier } from '../legalFix'
 import type { ReviewCollection } from '../review/reviewCollector'
 import type { ReviewTurnFeatures } from '../review/reviewBundle'
 import { errorDetail, type Logger } from '../logger'
@@ -354,6 +355,8 @@ export interface ConversationDeps {
    * The deterministic legal scanner (M97, PLAN.md D76): lane S's scan
    * through lane 0's contract; undefined until lane R wires the bundle.
    */
+  readonly legalMarkdown?: ((result: LegalScanResult) => string) | undefined
+  readonly legalFixApplier?: LegalFixApplier | undefined
   readonly legalScan?: LegalScanRunner | undefined
   /**
    * The Plan-mode hold a live Muse Code conversation takes for a `/legal`
@@ -6129,8 +6132,8 @@ export class ConversationController {
    * exactly the selected findings, then confirm exactly the shown preview.
    * Needs no session or backend (deterministic, like the scan); the guards
    * recheck the live mode, trust, workspace and hashes before any write.
-   * Applying the authorized paths is lane B's router through the normal
-   * edit tools; until it is wired, a guarded confirm refuses explicitly.
+   * The injected applier publishes through checkpoint and conditional writes.
+   * A host without that capability refuses explicitly.
    */
   private legalFixFiles(): LegalFixFileAccess {
     return {
@@ -6166,7 +6169,7 @@ export class ConversationController {
         return isTrusted()
       },
       files: this.legalFixFiles(),
-      applier: undefined,
+      applier: this.deps.legalFixApplier,
     }
   }
 
@@ -6181,6 +6184,7 @@ export class ConversationController {
     message: Extract<ConversationMessage, { type: 'confirmLegalFix' }>,
   ): Promise<void> {
     const result = await this.legalFixPreviews.confirm(message, this.legalFixHostState())
+    if (result.outcome !== 'refused') await this.startLegalScan(undefined)
     this.post(result)
   }
 
@@ -7777,6 +7781,18 @@ export class ConversationController {
       }
       case 'revertReviewHunk': {
         await this.revertReviewHunk(message)
+        break
+      }
+      case 'exportLegalReport': {
+        const report = this.legalFixPreviews.report
+        if (report === undefined || this.deps.legalMarkdown === undefined) {
+          this.notice('warning', UI_TEXT.legalScanUnavailable)
+          break
+        }
+        await this.deps.exports.saveMarkdown(
+          LEGAL_MARKDOWN_EXPORT_FILE,
+          this.deps.legalMarkdown(report),
+        )
         break
       }
       case 'requestLegalFix': {

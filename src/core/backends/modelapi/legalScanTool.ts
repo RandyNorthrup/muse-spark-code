@@ -7,6 +7,7 @@
 
 import * as z from 'zod/mini'
 import {
+  UI_TEXT,
   LEGAL_HEADER_POLICIES,
   MODEL_API_MODEL_TEXT,
   MODEL_API_TOOLS,
@@ -78,6 +79,9 @@ export async function runLegalScanCall(
   throwIfCancelled(signal)
   const checked = legalScanResultSchema.safeParse(result)
   return checked.success
-    ? { ok: true, json: JSON.stringify(checked.data) }
+    ? {
+        ok: true,
+        json: JSON.stringify({ ...checked.data, disclaimer: UI_TEXT.legalScanDisclaimer }),
+      }
     : refused('the legal scan returned an invalid result')
 }

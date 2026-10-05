@@ -10,6 +10,7 @@
 // with `legalScanUnavailable` (the log has the cause), and the next scan
 // tries again.
 
+import { uiLocale } from '../../shared/l10n/text'
 import { UI_TEXT } from '../../shared/constants'
 import { lazyBundleLoader } from '../lazyBundle'
 import type { Logger } from '../logger'
@@ -26,10 +27,15 @@ export interface LegalScanLoaderDeps {
 
 /** The scanner, required on the first scan and kept from then on. */
 export function legalScanLoader(deps: LegalScanLoaderDeps): () => LegalScanBundle {
-  return lazyBundleLoader({
+  const load = lazyBundleLoader({
     ...deps,
     isBundle: isLegalScanBundle,
     label: 'legal scanner',
     unavailable: () => UI_TEXT.legalScanUnavailable,
   })
+  return () => {
+    const bundle = load()
+    bundle.setLanguage?.(UI_TEXT, uiLocale())
+    return bundle
+  }
 }

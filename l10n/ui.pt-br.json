@@ -1973,5 +1973,8 @@
   "legalFixRefusedExpired": "A prévia expirou. Peça uma nova prévia.",
   "legalFixRefusedUnavailable": "Aplicar correções está indisponível nesta compilação.",
   "legalFixRescanHint": "Execute uma nova verificação para confirmar o que resta.",
-  "legalScanAgain": "Verificar novamente"
+  "legalScanAgain": "Verificar novamente",
+  "legalFixOwnership": "Confirme que estes arquivos pertencem ao projeto e que a licença e os direitos autorais da prévia se aplicam a eles: {paths}",
+  "legalFixDenied": "As edições não foram aprovadas.",
+  "legalExportMarkdown": "Exportar Markdown…"
 }

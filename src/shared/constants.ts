@@ -4012,6 +4012,9 @@ export const LEGAL_FIX_DIGEST_MAX_CHARS = 128
 // manifest files, never dumps; past this a file is refused as too large to
 // guard rather than hashed truncated (a suffix change must still refuse).
 export const LEGAL_FIX_FILE_READ_MAX_BYTES = 1_048_576
+// Adversarial attribution-reader certification: bounded malformed workspace text.
+export const LEGAL_ATTRIBUTION_STRESS_CHARS = 100_000
+export const LEGAL_ATTRIBUTION_PARSE_BUDGET_MS = 5000
 
 // What the user reads, in the display language (PLAN.md D33).
 export { UI_TEXT } from './l10n/text'
@@ -4024,3 +4027,5 @@ export const WEBVIEW_L10N_ELEMENT_ID = 'muse-l10n'
 export const WINDOWS_POWERSHELL_TERMINAL_PATH = String.raw`\System32\WindowsPowerShell\v1.0\powershell.exe`
 // The login / TUI terminal's shell off Windows (PLAN.md D25): POSIX syntax, always there.
 export const POSIX_TERMINAL_SHELL = '/bin/sh'
+
+export const LEGAL_MARKDOWN_EXPORT_FILE = 'legal-report.md'

@@ -14,6 +14,20 @@ happened, not what was planned; superseded entries are kept.
 
 ### Changed
 
+- **M97 selected header repairs and report export.** Exact patches are prepared
+  from existing project evidence, require ownership confirmation, and use the
+  existing guarded edit path with live admission and evidence rechecks. Partial
+  failures remain visible after an automatic rescan. Markdown export preserves
+  the disclaimer and scrubbed facts, and both tool reports include it. The ACP
+  agent reserves `exec legal-scan --json` before model/prompt parsing; complete
+  should-fix findings no longer produce blocker exit 1. All new controls are
+  translated in the 14 tables; scanner prose remains a named release blocker.
+- Package UI JSON is compacted without changing any translated value; every
+  other asset stays byte-exact and malformed JSON refuses publication. SAST
+  bounds worker contention at two while keeping every rule and deadline.
+- The accessibility gate reuses real Chrome workers and checks narrow scenarios
+  at 320px, retaining every scenario, theme, axe rule and failure condition.
+
 - **Tiered CI, ready for a merge queue.** The full gate now runs as parallel
   jobs:
   - the static gates on all three platforms;

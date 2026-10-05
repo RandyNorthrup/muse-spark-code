@@ -2059,6 +2059,9 @@ export function App({
         permissionMode={state.permissionMode}
         onRequestFix={onRequestLegalFix}
         onConfirm={onConfirmLegalFix}
+        onExport={() => {
+          postMessage({ type: 'exportLegalReport' })
+        }}
         onRescan={onRescanLegal}
         onOpenFile={onOpenFile}
         onClose={onCloseLegalReport}

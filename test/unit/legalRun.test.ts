@@ -247,13 +247,16 @@ describe('M97 legal run (lane R)', () => {
       expect(outcome.out).toContain(part)
     }
   })
-  it.each(['blocker', 'should-fix'] as const)('exits 1 on a %s finding', async (severity) => {
-    const { outcome, envelope } = await runJsonScan(
-      fakeScan(scanResult({ findings: [finding({ severity })] })),
-    )
-    expect(outcome.exitCode).toBe(LEGAL_EXIT.findings)
-    expect(envelope.result.findings).toHaveLength(1)
-  })
+  it.each(['blocker', 'should-fix'] as const)(
+    'uses blocker-only exit semantics for a %s finding',
+    async (severity) => {
+      const { outcome, envelope } = await runJsonScan(
+        fakeScan(scanResult({ findings: [finding({ severity })] })),
+      )
+      expect(outcome.exitCode).toBe(severity === 'blocker' ? LEGAL_EXIT.findings : LEGAL_EXIT.ok)
+      expect(envelope.result.findings).toHaveLength(1)
+    },
+  )
   it('exits 2 on incomplete coverage, even with blockers beside it', async () => {
     const context = deps({
       scan: fakeScan(

@@ -1905,5 +1905,8 @@
   "legalFixRefusedExpired": "Die Vorschau ist abgelaufen. Fordern Sie eine neue Vorschau an.",
   "legalFixRefusedUnavailable": "Das Anwenden von Korrekturen ist in diesem Build nicht verfügbar.",
   "legalFixRescanHint": "Führen Sie einen neuen Scan aus, um zu bestätigen, was bleibt.",
-  "legalScanAgain": "Erneut scannen"
+  "legalScanAgain": "Erneut scannen",
+  "legalFixOwnership": "Bestätigen Sie, dass diese Dateien dem Projekt gehören und die Lizenz und das Copyright in der Vorschau für sie gelten: {paths}",
+  "legalFixDenied": "Die Änderungen wurden nicht genehmigt.",
+  "legalExportMarkdown": "Markdown exportieren…"
 }

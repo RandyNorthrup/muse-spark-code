@@ -6,6 +6,9 @@ import type {
   LegalScanHandle,
   LegalRegistryTarget,
 } from '../../shared/legalScanEntry'
+import type { LegalFinding } from '../../shared/legal'
+import type { LegalPreparedPatch } from '../../shared/legalScanEntry'
+import { prepareLegalHeaderPatches } from './headerFix'
 import { readNpm } from './ecosystems/npm'
 import { readPython } from './ecosystems/python'
 import { scanLegal } from './scan'
@@ -43,3 +46,13 @@ export async function runLegalScan(request: LegalScanRequest): Promise<LegalScan
   request.signal?.throwIfAborted()
   return { result, registryTargets }
 }
+
+export function prepareLegalFixes(
+  workspaceRoot: string,
+  findings: readonly LegalFinding[],
+): Promise<readonly LegalPreparedPatch[]> {
+  return Promise.resolve(prepareLegalHeaderPatches(createLegalSnapshot(workspaceRoot), findings))
+}
+
+export { renderLegalMarkdown } from './markdown'
+export { setUiText as setLanguage } from '../../shared/l10n/text'

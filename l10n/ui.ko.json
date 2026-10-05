@@ -1837,5 +1837,8 @@
   "legalFixRefusedExpired": "미리 보기가 만료되었습니다. 새 미리 보기를 요청하세요.",
   "legalFixRefusedUnavailable": "이 빌드에서는 수정 적용을 사용할 수 없습니다.",
   "legalFixRescanHint": "남은 내용을 확인하려면 새 검사를 실행하세요.",
-  "legalScanAgain": "다시 검사"
+  "legalScanAgain": "다시 검사",
+  "legalFixOwnership": "이 파일들이 프로젝트 소유이며 미리 보기의 라이선스와 저작권이 적용됨을 확인하세요: {paths}",
+  "legalFixDenied": "편집이 승인되지 않았습니다.",
+  "legalExportMarkdown": "Markdown 내보내기…"
 }

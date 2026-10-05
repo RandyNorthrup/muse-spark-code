@@ -2041,5 +2041,8 @@
   "legalFixRefusedExpired": "Náhled vypršel. Požádejte o nový náhled.",
   "legalFixRefusedUnavailable": "Použití oprav není v tomto sestavení k dispozici.",
   "legalFixRescanHint": "Spusťte nové skenování a potvrďte, co zbývá.",
-  "legalScanAgain": "Skenovat znovu"
+  "legalScanAgain": "Skenovat znovu",
+  "legalFixOwnership": "Potvrďte, že tyto soubory patří projektu a že se na ně vztahuje licence a autorská práva z náhledu: {paths}",
+  "legalFixDenied": "Úpravy nebyly schváleny.",
+  "legalExportMarkdown": "Exportovat Markdown…"
 }

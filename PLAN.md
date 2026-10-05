@@ -13945,12 +13945,14 @@ joined with M57, M58 and PR #49's sign-in
   project headers only: prepare exact diffs, confirm project ownership, admit
   each selected edit through the existing checkpoint/conditional-write path,
   recheck live mode/trust/evidence, list failures and rescan. No guessed owner
-  or license is permitted. Add requested Markdown export and tool disclaimers.
+  or license is permitted. Keep attribution patterns linear on malformed
+  whitespace. Add requested Markdown export and tool disclaimers.
   Remove dynamic scanner regex construction and review historical gitleaks
   findings without exposing values; only exact benign fingerprints may be
   ignored. Run every full-quality gate and package cap unchanged. A persistent
   Chrome driver may replace the slow per-page CLI launch while retaining all
-  456 pages, harness assertions, axe rules and fail-closed result admission.
+  all 460 pages (including S/W additions), harness assertions, axe rules and
+  fail-closed result admission.
   Remaining cross-platform/live/explanation and translation gaps keep explicit
   owners and release-blocking dispositions in §9 until their receipts exist.
 - **Certification checklist.**
@@ -13995,7 +13997,7 @@ organization-owned repositories, and this one is user-owned. Until that is
 settled, PRs keep the full tier and no check is weaker than before. Record:
 `docs/certification/ciflow.md`.
 
-**M97 integration gate blockers (2026-10-05, lane I).** Full quality did not
+**M97 integration gate blockers (earlier 2026-10-05, lane I; superseded by M97FIN receipts).** Full quality did not
 exit 0. Source coverage and every production cap pass, but the 456-page a11y
 run was stopped within the lane time box after very slow Chrome progress.
 Gitleaks reports five historical `authSource.test.ts` findings; only redacted
@@ -14003,6 +14005,24 @@ metadata was inspected. SAST reports five non-literal RegExp findings in the
 legal ecosystem readers and rule timeouts. No history, ignore, threshold or
 rule was changed. These are release blockers, not waivers; exact receipts are
 in `docs/certification/m97.md`. Installed-host certification remains pending.
+
+**M97FIN SAST resource correction (2026-10-05, before implementation).**
+The default full run reports five rule timeouts on the existing large host,
+controller and webview files. A full-scope `--jobs 2` probe runs the same 529
+rules on the same 766 targets with zero findings and zero timeouts. Bound the
+SAST worker count at two for shared rigs. Keep every rule, file selection,
+per-rule timeout and timeout threshold unchanged; this limits contention
+rather than suppressing analysis. Restore the old dynamic TOML constructor
+once to prove the configured gate still fails, then rerun full quality.
+
+**M97FIN package follow-up (2026-10-05, before implementation).** The new
+verified fixes/export/translation controls measure 2,256,312 bytes, 3,512 over
+the unchanged VSIX cap. Higher DEFLATE-memory/strategy probes do not fit.
+Whitespace-only compaction of packaged UI/nls JSON measures 2,247,264 bytes;
+all parsed values are identical. Compact only those archive entries, leaving
+source tables and every runtime/scanner/attribution asset byte-exact. Retain
+entry order/comments/metadata and atomic replacement; malformed JSON refuses
+rather than publishing. Tests must prove values, ordinary bytes and refusal.
 
 **M97 package compression (lane I, before changing the package script).**
 The universal VSIX initially measures 2,260,558 bytes, 7,758 bytes above the
@@ -14652,38 +14672,44 @@ before a repaired one loads (2026-09-30).
   bypass is logged by GitHub. A moved tag, as with 0.5.2, is then a
   deliberate bypass rather than a habit.
 
-**M97 candidate residuals (2026-10-04; see `docs/certification/m97.md`).**
-These are unresolved delivery/security gaps, not accepted legal conclusions:
+**M97 finish dispositions (2026-10-05; see `docs/certification/m97.md`).**
+Unresolved items remain delivery/security gaps, not accepted legal conclusions:
 
-- I-R1: scanner-generated findings, labels and incomplete/error prose remain
-  English; all 14 report-control translations do not close AGENTS rule 5.
-- I-R2: the fix applier is unavailable. No production edit/patch preview,
-  ownership check, per-patch admission or partial-failure rescan is certified.
-- I-R3: requested Markdown export and a disclaimer in native/MCP tool reports
-  remain missing; the B/R fix adds the disclaimer to headless JSON.
-- I-R4: enrichment lacks prior exact-query consent/private-name disclosure and
-  needs D43 proxy/TLS/public-address review. Offline scans make no such request.
-- I-R5: no bounded optional explanation or paid-use/confinement receipt exists;
-  normal tool use in a coding turn retains that backend's ordinary billing.
-- I-R6: installed VSIX on both backends, Windows reparse/path checks, zoom,
-  pseudo-locale visuals and cross-platform hosted receipts remain outstanding
-  unless an explicit receipt is added to the aggregate certification record.
-- I-R7: runtime command/exit contract differs: top-level `legal --format json`
-  rather than reserved `exec legal-scan --json`; complete should-fix takes exit 1.
-  Real scans always list human-review/full-matching/freshness limitations as
-  incomplete; even the no-finding fixture returns 2. Complete exit-0/1 receipts
-  currently cover injected reports only.
-- I-R8: current scanner recognizes pinned identifiers and heuristic license
-  titles, not a complete license-text matching corpus or full legal analysis.
-  Static readers cannot resolve arbitrary build logic, linkage or stale artifacts.
-- I-R10: M97-GATE-A11Y, M97-GATE-SECRETS and M97-GATE-SAST remain open;
-  full quality has no exit-0 receipt. See §7 and aggregate certification.
-- I-R9: the independent S/W review reports 20 findings (3 P1, 17 P2),
-  including scope redaction and fix evidence/lifecycle guards. FIXM97SW owns
-  those repairs. Rig snapshot `c88fec94` is local, but its final verification
-  is pending and no finished `m97/swfix` branch is available. Existing
-  component passes do not waive that review. Do not release before integration
-  and exact-tree verification. See the aggregate certification record.
+- I-R1 — **open, release blocker; owner: lead/localization lane.** Scanner
+  findings, labels and incomplete/error prose still need the full UI_TEXT and
+  14-language conversion. The three new controls and report disclaimer are
+  translated; a passing inventory does not certify scanner prose.
+- I-R2 — **closed for supported missing headers; owner: M97FIN.** Production
+  exact patches require verified root license/holder evidence, explicit
+  ownership consent, live mode/trust/workspace admission, confined conditional
+  writes and per-path failures followed by rescan. Unsupported license,
+  notice and manifest repairs remain recommendations rather than guessed edits.
+- I-R3 — **closed; owner: M97FIN.** Markdown export retains all report fields
+  and the disclaimer; native and MCP tool reports include that disclaimer.
+- I-R4 — **open; owner: registry/runtime lane and lead.** Enrichment needs
+  prior exact-query consent/private-name disclosure and D43 proxy/TLS/public-
+  address review. Offline scans make no registry request.
+- I-R5 — **open; owner: paid/backend lane and lead.** Bounded optional
+  explanation, paid-use and read-only confinement receipts are absent. This
+  lane made no paid/live calls. Ordinary coding-turn billing remains ordinary.
+- I-R6 — **open; owner: lead/platform rigs.** Exact-tree installed VSIX on
+  both active backends, Windows reparse/path checks and hosted platform
+  receipts remain outstanding unless expressly recorded in certification.
+- I-R7 — **command contract closed; owner: M97FIN.** Reserved
+  `exec legal-scan --json` and legacy `legal --format json` share the scanner;
+  complete should-fix exits 0 and blocker exits 1. Real scans retain documented
+  human-review/full-matching/freshness limitations and therefore exit 2.
+- I-R8 — **open, documented scanner limit; owner: scanner lane and lead.**
+  Identifier/title heuristics are not complete license-text matching or legal
+  analysis; static readers cannot resolve arbitrary build logic or linkage.
+- I-R9 — **closed; owner: M97FIN.** Merge `242a47f2` incorporates all 20
+  finished S/W findings from `aa181639`; combined targeted suites pass.
+- I-R10 — **verification in progress; owner: M97FIN/lead.** All 460 a11y
+  pages pass with unchanged rules; synthetic history findings have exact
+  fingerprint-only exceptions; all five dynamic RegExp findings are removed.
+  The first full quality run exits 0; final source/package receipts are pending.
+  Two-worker SAST runs every rule/target with zero findings and zero timeouts;
+  per-rule deadlines and failure thresholds remain unchanged.
 
 ## 10. Definition of done and release records
 

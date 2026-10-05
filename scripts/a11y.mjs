@@ -12,13 +12,12 @@
 //   node scripts/a11y.mjs --lang=pseudo      in the pseudo-locale table
 //   CHROME_PATH=/path/to/chrome node scripts/a11y.mjs
 
-import { execFile } from 'node:child_process'
 import { existsSync } from 'node:fs'
 import { mkdtemp, rm } from 'node:fs/promises'
 import { availableParallelism, tmpdir } from 'node:os'
 import path from 'node:path'
 import process from 'node:process'
-import { promisify } from 'node:util'
+import { chromium } from 'playwright-core'
 import { findChrome } from './lib/chrome.mjs'
 import { harnessArgs, langQuery, prepareLang } from './lib/harnessLang.mjs'
 import {
@@ -27,21 +26,15 @@ import {
   PAGE_TIMEOUT_MS,
   SCENARIOS,
   serveRepo,
-  withNarrowPage,
 } from './lib/harnessServer.mjs'
 
 const THEMES = ['light', 'dark', 'hc-dark', 'hc-light']
 const BUNDLE_PATH = 'dist/webview/main.js'
-const WINDOW_SIZE = '690,760'
-// Virtual time: the scenario plays, the harness waits 5 s, axe runs.
-const VIRTUAL_TIME_BUDGET_MS = 30_000
+const WIDE_VIEWPORT = { width: 690, height: 760 }
+const NARROW_VIEWPORT = { width: 320, height: 760 }
 const MAX_WORKERS = 6
-// Windows headless Chrome stalled on the long transcript plus jump button
-// with four concurrent pages (M46); two workers passed twice with all rules.
+// Bound concurrent axe work on Windows as before; every page still runs.
 const WINDOWS_MAX_WORKERS = 2
-const OUTPUT_MAX_BYTES = 64 * 1024 * 1024
-const RESULT = /<pre id="axe-result" hidden="">([\s\S]*?)<\/pre>/
-const ENTITIES = { '&amp;': '&', '&lt;': '<', '&gt;': '>', '&quot;': '"', '&#39;': "'" }
 // axe's reasons (messageKey) for a contrast it could not decide: the text is
 // covered, or it could not see the background behind it; or the content is
 // glyphs, not text.
@@ -60,42 +53,17 @@ const EXEMPT_REASONS = new Map([
     'scrollable-region-focusable on a listbox its focused control drives with aria-activedescendant (WCAG 2.1.1 is met: the arrows move through the options and the active one is scrolled into view, so the region needs no Tab stop of its own)',
   ],
 ])
-const execFileAsync = promisify(execFile)
 const repoRoot = process.cwd()
 
-function decodeEntities(text) {
-  return text.replaceAll(/&(amp|lt|gt|quot|#39);/g, (entity) => ENTITIES[entity] ?? entity)
-}
-
-/** One page: `{ violations }` from axe, or `{ error }` saying why there is none. */
-async function scan(chrome, port, page, lang, profileDir) {
+/** One real Chrome page; fail closed if the harness throws or axe never answers. */
+async function scan(tab, port, page, lang) {
   const url = `http://${LOOPBACK}:${String(port)}/${HARNESS_PATH}?scenario=${page.scenario}&theme=${page.theme}&axe=1${langQuery(lang)}`
   try {
-    if (page.scenario === 'share-narrow') {
-      return await withNarrowPage(chrome, profileDir, url, async (tab) => {
-        const result = tab.locator('#axe-result')
-        await result.waitFor({ state: 'attached', timeout: PAGE_TIMEOUT_MS })
-        return JSON.parse(await result.textContent())
-      })
-    }
-    const { stdout } = await execFileAsync(
-      chrome,
-      [
-        '--headless=new',
-        '--disable-gpu',
-        '--no-first-run',
-        `--user-data-dir=${profileDir}`,
-        `--window-size=${WINDOW_SIZE}`,
-        `--virtual-time-budget=${String(VIRTUAL_TIME_BUDGET_MS)}`,
-        '--dump-dom',
-        url,
-      ],
-      { timeout: PAGE_TIMEOUT_MS, maxBuffer: OUTPUT_MAX_BYTES, windowsHide: true },
-    )
-    const match = RESULT.exec(stdout)
-    return match === null
-      ? { error: 'the page wrote no axe result (did the scenario throw?)' }
-      : JSON.parse(decodeEntities(match[1]))
+    await tab.setViewportSize(page.scenario.endsWith('-narrow') ? NARROW_VIEWPORT : WIDE_VIEWPORT)
+    await tab.goto(url)
+    const result = tab.locator('#axe-result')
+    await result.waitFor({ state: 'attached', timeout: PAGE_TIMEOUT_MS })
+    return JSON.parse(await result.textContent())
   } catch (error) {
     return { error: String(error.message ?? error) }
   }
@@ -189,10 +157,21 @@ async function main() {
     // Each worker has a Chrome profile of its own and takes the next page.
     await Promise.all(
       profiles.map(async (profileDir) => {
-        while (next < pages.length) {
-          const page = pages[next]
-          next += 1
-          results.push({ ...page, ...(await scan(chrome, port, page, lang, profileDir)) })
+        const browser = await chromium.launchPersistentContext(profileDir, {
+          ...(path.isAbsolute(chrome) ? { executablePath: chrome } : { channel: 'chrome' }),
+          viewport: WIDE_VIEWPORT,
+          timeout: PAGE_TIMEOUT_MS,
+        })
+        try {
+          const tab = await browser.newPage()
+          tab.setDefaultNavigationTimeout(PAGE_TIMEOUT_MS)
+          while (next < pages.length) {
+            const page = pages[next]
+            next += 1
+            results.push({ ...page, ...(await scan(tab, port, page, lang)) })
+          }
+        } finally {
+          await browser.close()
         }
       }),
     )

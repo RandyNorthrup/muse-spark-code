@@ -30,7 +30,9 @@ export function parseLegalArgs(
   positionals: readonly string[],
 ): LegalArgs {
   if (positionals.length > 0) return { ok: false, reason: UI_TEXT.legalUsage }
-  const format = values['format'] ?? 'text'
+  const format = values['format'] ?? (values['json'] === true ? 'json' : 'text')
+  if (format !== 'json' && values['json'] === true)
+    return { ok: false, reason: UI_TEXT.legalFormatInvalid }
   if (!isFormat(format)) return { ok: false, reason: UI_TEXT.legalFormatInvalid }
   const out = values['out']
   return out !== undefined &&

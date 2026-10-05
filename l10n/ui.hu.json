@@ -1905,5 +1905,8 @@
   "legalFixRefusedExpired": "Az előnézet lejárt. Kérjen új előnézetet.",
   "legalFixRefusedUnavailable": "A javítások alkalmazása ebben a buildben nem érhető el.",
   "legalFixRescanHint": "Futtasson új vizsgálatot annak megerősítésére, hogy mi maradt.",
-  "legalScanAgain": "Új vizsgálat"
+  "legalScanAgain": "Új vizsgálat",
+  "legalFixOwnership": "Erősítse meg, hogy ezek a fájlok a projekt tulajdonában vannak, és az előnézet licence és szerzői joga vonatkozik rájuk: {paths}",
+  "legalFixDenied": "A módosításokat nem hagyták jóvá.",
+  "legalExportMarkdown": "Markdown exportálása…"
 }

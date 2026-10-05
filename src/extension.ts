@@ -1,3 +1,4 @@
+import { createLegalFixApplier, legalFixFileEdits } from './host/legalFixApplier'
 import { legalScanResultSchema, type LegalScanRunner } from './shared/legal'
 // Extension host entry point. Kept to registration and adapter wiring; the
 // behaviour lives in src/host (VS Code adapters) and src/core (pure logic).
@@ -2049,6 +2050,43 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
         // The deterministic legal scan (M97, PLAN.md D76): dist/legalScan.js
         // (D6) on the first scan; the Plan hold stays in the host review bundle.
         legalScan: runLegalScan,
+        legalMarkdown: (report) => {
+          const render = legalScanBundle().renderLegalMarkdown
+          if (render === undefined) throw new Error(UI_TEXT.legalScanUnavailable)
+          return render(report)
+        },
+        legalFixApplier: createLegalFixApplier({
+          prepare: async (findings) => {
+            if (workspaceRoot === undefined || !vscode.workspace.isTrusted) return []
+            const prepare = legalScanBundle().prepareLegalFixes
+            if (prepare === undefined) throw new Error(UI_TEXT.legalFixRefusedUnavailable)
+            return await prepare(workspaceRoot, findings)
+          },
+          ...legalFixFileEdits({
+            workspaceRoot,
+            platform: process.platform,
+            io: toolIo,
+            withAdmission: async (check, canPublish) => {
+              const workspaceCheck = backend.workspaceActionGuard(nativeStarts.signal)
+              const assertCanWrite = () => {
+                workspaceCheck()
+                check()
+              }
+              return await withCheckpointEdit(
+                checkpoints,
+                log,
+                assertCanWrite,
+                async () => await canPublish(assertCanWrite),
+              )
+            },
+          }),
+          approveOwnership: async (paths) =>
+            (await vscode.window.showWarningMessage(
+              fill(UI_TEXT.legalFixOwnership, { paths: paths.join(', ') }),
+              { modal: true },
+              UI_TEXT.legalFixApply,
+            )) === UI_TEXT.legalFixApply,
+        }),
         createLegalHold: (holdDeps) => review.createHold(holdDeps),
         openDocument,
         openFile,

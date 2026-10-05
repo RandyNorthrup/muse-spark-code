@@ -31,6 +31,7 @@ export interface LegalReportProps {
     isProjectLicenseIncluded: boolean,
   ) => void
   readonly onConfirm: (previewId: string) => void
+  readonly onExport?: (() => void) | undefined
   readonly onRescan: () => void
   readonly onOpenFile: (path: string, range: LineRange | undefined) => void
   readonly onClose: () => void
@@ -173,6 +174,7 @@ export function LegalReport({
   permissionMode,
   onRequestFix,
   onConfirm,
+  onExport,
   onRescan,
   onOpenFile,
   onClose,
@@ -229,16 +231,12 @@ export function LegalReport({
     previewHeading.current?.focus()
   }, [preview, flow])
   useEffect(() => {
-    if (
-      fixResult === undefined ||
-      flow !== 'done' ||
-      focusedResult.current === fixResult.previewId
-    ) {
+    if (fixResult === undefined || focusedResult.current === fixResult.previewId) {
       return
     }
     focusedResult.current = fixResult.previewId
     resultHeading.current?.focus()
-  }, [fixResult, flow])
+  }, [fixResult])
 
   const toggle = (id: string, isChecked: boolean) => {
     setShowsNothingSelected(false)
@@ -441,7 +439,7 @@ export function LegalReport({
             )}
           </section>
         )}
-        {fixResult === undefined || flow !== 'done' ? null : (
+        {fixResult === undefined ? null : (
           <section aria-label={UI_TEXT.legalFixPreviewTitle}>
             <h3
               id={resultHeadingId}
@@ -481,6 +479,11 @@ export function LegalReport({
           </section>
         )}
         <div className="legal-buttons">
+          {onExport === undefined ? null : (
+            <button type="button" className="button-secondary" onClick={onExport}>
+              {UI_TEXT.legalExportMarkdown}
+            </button>
+          )}
           <button type="button" className="button-secondary" onClick={onRescan}>
             {UI_TEXT.legalScanAgain}
           </button>

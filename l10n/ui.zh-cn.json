@@ -1837,5 +1837,8 @@
   "legalFixRefusedExpired": "预览已过期。请请求新的预览。",
   "legalFixRefusedUnavailable": "此版本不支持应用修复。",
   "legalFixRescanHint": "请运行新的扫描以确认剩余内容。",
-  "legalScanAgain": "重新扫描"
+  "legalScanAgain": "重新扫描",
+  "legalFixOwnership": "请确认这些文件属于项目，且预览中的许可证和版权适用于这些文件：{paths}",
+  "legalFixDenied": "编辑未获批准。",
+  "legalExportMarkdown": "导出 Markdown…"
 }

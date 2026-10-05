@@ -2041,5 +2041,8 @@
   "legalFixRefusedExpired": "Podgląd wygasł. Poproś o nowy podgląd.",
   "legalFixRefusedUnavailable": "Stosowanie poprawek jest niedostępne w tej kompilacji.",
   "legalFixRescanHint": "Uruchom nowe skanowanie, aby potwierdzić, co pozostało.",
-  "legalScanAgain": "Skanuj ponownie"
+  "legalScanAgain": "Skanuj ponownie",
+  "legalFixOwnership": "Potwierdź, że te pliki należą do projektu i że dotyczą ich licencja i prawa autorskie z podglądu: {paths}",
+  "legalFixDenied": "Zmiany nie zostały zatwierdzone.",
+  "legalExportMarkdown": "Eksportuj Markdown…"
 }

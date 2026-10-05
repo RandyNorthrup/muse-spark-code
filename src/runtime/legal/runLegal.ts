@@ -120,9 +120,7 @@ function shortReason(error: unknown): string {
 
 function exitOf(result: LegalScanResult): LegalExitCode {
   if (result.incompleteChecks.length > 0) return LEGAL_EXIT.incomplete
-  const hasActionable = result.findings.some(
-    (finding) => finding.severity === 'blocker' || finding.severity === 'should-fix',
-  )
+  const hasActionable = result.findings.some((finding) => finding.severity === 'blocker')
   return hasActionable ? LEGAL_EXIT.findings : LEGAL_EXIT.ok
 }
 

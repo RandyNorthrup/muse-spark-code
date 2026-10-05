@@ -2364,6 +2364,10 @@ export const EN = {
   legalPreviewFixes: 'Preview fixes',
   legalFixPreviewTitle: 'Fix preview',
   legalFixApply: 'Apply fixes',
+  legalFixOwnership:
+    'Confirm that these files are project-owned and that the license and copyright in the preview apply to them: {paths}',
+  legalFixDenied: 'The edits were not approved.',
+  legalExportMarkdown: 'Export Markdown…',
   legalFixFiles: 'Files to change',
   legalFixExcluded: 'Not included',
   legalFixReasonNotFixable: 'No safe fix; recommendation only.',

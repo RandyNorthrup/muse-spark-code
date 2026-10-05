@@ -10,20 +10,22 @@ security notes for contributors are in `PLAN.md` §9.
 An explicit `/legal` request stays local: the deterministic scanner reads a
 bounded workspace snapshot and starts no model, backend, auth, shell command,
 package manager, hook, formatter or build. The report is held in the panel;
-scan does not save it to a file. The headless `legal` command writes a report
+scan does not save it to a file. The reserved headless `exec legal-scan`
+command (and its older `legal` alias) writes a report
 only with an explicit `--out` destination. Reports can identify local paths,
 package names/versions, source URLs and bounded evidence excerpts. Known
-credential formats and email values are scrubbed in findings. The independent
-S/W review found selected scope paths bypass that scrubber; its fix remains a
-release blocker. Other identifying text may remain, so treat exported reports
+credential formats and email values are scrubbed in findings. Scope paths pass the same scrubber after the S/W repairs. Other identifying text may remain, so treat exported reports
 as workspace information.
 
 The Model API native tool and Muse Code's authenticated loopback `ide` tool
 use the same scanner. When a model requests the tool in a normal coding turn,
 the scrubbed findings become a tool result and can be sent to Meta under that
 backend's existing terms and billing. Running the panel's deterministic scan
-itself makes no paid call. Optional explanations and the selected-fix applier
-are unavailable in this candidate; the fix preview refuses confirmation.
+itself makes no paid call. Optional model explanations are unavailable. Selected header repairs are
+local user edits: the preview stays local, requires separate ownership
+confirmation, and uses guarded conditional writes. Markdown export is saved
+only after an explicit request and destination choice; it uses the same
+scrubbed report facts and disclaimer.
 
 The headless registry reader is a separate, explicit opt-in implementation:
 it queries only npm and PyPI, sends package names and versions, returns bounded

@@ -1,5 +1,5 @@
-// D6's unchanged compressed-package cap: preserve all VSIX entries, then
-// use maximum DEFLATE rather than the packer's default compression level.
+// D6's unchanged cap: compact only UI JSON whitespace, preserve every value
+// and all other asset bytes, then use maximum DEFLATE and atomic replacement.
 import { spawnSync } from 'node:child_process'
 import { readFileSync } from 'node:fs'
 import path from 'node:path'

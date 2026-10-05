@@ -2646,19 +2646,30 @@ dynamic metadata, binary files, links, stale artifacts and bounded-out input
 remain incomplete. Identifier matching is pinned; license-text recognition is
 heuristic. **Not legal advice; for distribution decisions consult a lawyer.**
 
-This integrated candidate still has delivery gaps: the selected-fix preview
-names paths and checks stale bytes, but confirmation refuses because the fix
-applier is unavailable; it changes no files. Requested Markdown export,
-registry consent in the panel and bounded model explanations are not delivered.
-Scanner explanations remain English, although the report controls and setting
-are translated in all 14 languages. Full installed-VSIX and Windows certification remain
-pending. The independent S/W review also has unresolved security, evidence
-and UI findings awaiting its fix lane. See [the certification record](docs/certification/m97.md) for the
-acceptance gaps and measured gates; M97 is not fully certified.
+Select findings or choose **Fix all safe ones** to review exact patches before
+applying them. Supported fixes add missing SPDX/copyright headers from the
+project's existing license and copyright evidence. They preserve old years,
+existing headers, BOMs, shebangs, Python encoding cookies and line endings.
+Ownership and applicable terms require a separate confirmation. Plan and
+Restricted Mode refuse writes; every selected write uses the existing
+checkpoint admission and conditional edit path, rechecking saved bytes and
+live state. Failures are listed, and a fresh scan follows the apply attempt.
+Unknown ownership, conflicting terms, unsupported file syntax, dependency
+files and project-license changes remain recommendations.
 
-The ACP package also provides a separate, offline headless `legal` command;
-see [its guide](docs/acp.md#deterministic-legal-scan-m97). This is distinct
-from a model-backed `exec` prompt and never performs automatic fixes.
+**Export Markdown…** asks for a local destination and saves the report's
+scrubbed evidence, limitations and disclaimer only after that request.
+Scanner explanations still remain English; the report controls, ownership
+confirmation, export action and setting have real translations in all 14
+languages. Registry consent and bounded model explanations are not delivered.
+Full Windows/hosted certification is pending. See [the certification
+record](docs/certification/m97.md) for named owners, acceptance receipts and
+measured gates; M97 is not fully certified.
+
+The ACP package also provides the reserved offline command
+`muse-spark-code-acp exec legal-scan --json`, with the older top-level `legal`
+command retained as an alias; see [its guide](docs/acp.md#deterministic-legal-scan-m97).
+The reserved command never becomes a model prompt and never performs automatic fixes.
 
 ## Commands and keybindings
 
@@ -3326,7 +3337,9 @@ are recorded in [the M78 certification](docs/certification/m78.md).
 The VSIX package step uses Python's standard-library `zipfile` to apply maximum
 DEFLATE compression after `vsce` creates the archive. Python 3 (`python3`,
 `python` or `py`) is required, as for the semgrep toolchain. The step preserves
-entry paths, metadata and uncompressed bytes; the 2200 KiB budget stays fixed.
+entry paths, metadata, every UI JSON value and all other uncompressed bytes.
+Only packaged translation JSON whitespace is compacted; source tables stay
+unchanged and malformed JSON refuses publication. The 2200 KiB budget stays fixed.
 The legal scanner's pinned data is embedded in its lazy bundle, with separate
 notice/provenance files in both packages.
 
