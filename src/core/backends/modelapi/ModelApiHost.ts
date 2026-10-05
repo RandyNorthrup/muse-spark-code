@@ -38,6 +38,7 @@ import {
   HTTP_TOO_MANY_REQUESTS,
   HTTP_UNAUTHORIZED,
   HOOK_MAX_STOP_CONTINUATIONS,
+  HOOK_MODEL_READ_TOOLS,
   HOOK_NOTIFICATION_DELAY_MS,
   HOOK_SESSION_END_TIMEOUT_MS,
   IDE_MCP_SERVER_NAME,
@@ -204,7 +205,10 @@ import {
 } from './codeIntelCalls'
 import type { PermissionSettings } from '../../permissionSettings'
 import { ReviewBreaker } from './autoReviewer'
-import type { reviewPaidCall as ReviewPaidCall } from './reviewerEntry'
+import type {
+  runHookModelTurn as RunHookModelTurn,
+  reviewPaidCall as ReviewPaidCall,
+} from './reviewerEntry'
 import {
   type ConfirmedModelRequest,
   MissingApiKeyError,
@@ -235,6 +239,7 @@ import {
   toolMatcherNames,
 } from './hooks'
 import { postModelCallFields, preModelCallFields } from './modelCallHooks'
+import type { HookMcpOutcome, HookModelTurn, HookModelDailyBudget } from './hookHandlers'
 import { ObservationPack } from './observationPack'
 import { nextScheduleFire } from './schedules'
 import {
@@ -384,6 +389,13 @@ export interface ModelApiPaidHooks {
   readonly noteSubagentUsage: (modelId: string, usage: SubagentUsage) => void
   /** One Auto reviewer call's tokens (M78): billed apart from the conversation. */
   readonly noteReviewerUsage: (modelId: string, usage: SubagentUsage) => void
+  /**
+   * One M91 prompt/agent hook run's tokens (D70): billed apart from the
+   * conversation, on the hookModels tally line. Optional until the host
+   * wires it: without it, runs are still counted, but no cost settles.
+   */
+  readonly noteHookModelUsage?: ((modelId: string, usage: SubagentUsage) => void) | undefined
+  readonly hookModelDailyBudget?: HookModelDailyBudget | undefined
 }
 
 export interface ModelApiHostDeps extends ModelApiPaidHooks {
@@ -446,6 +458,14 @@ export interface ModelApiHostDeps extends ModelApiPaidHooks {
   readonly loadHooks?: () => Promise<readonly HookDefinition[]>
   /** Machine hook opt-in is checked again for every dispatch. */
   readonly isHooksEnabled?: (() => boolean) | undefined
+  /**
+   * M91 http hooks (D70): `museSpark.hookHttpAllowedHosts`, read at every
+   * dispatch. Absent means empty: no http hook runs. Optional until the host
+   * wires the setting.
+   */
+  readonly hookHttpAllowedHosts?: (() => readonly string[]) | undefined
+  /** The workspace sandbox's network posture, re-read before each HTTP hook. */
+  readonly isHookNetworkAllowed?: (() => boolean) | undefined
   /** Tests can shorten the six-second Notification delay without waiting. */
   readonly hookNotificationDelayMs?: number | undefined
   /** The MCP servers of Muse Code's settings (M50, PLAN.md D42), closed with the host. */
@@ -1995,6 +2015,7 @@ export class ModelApiSession implements AgentSession {
     shouldShowMessages = true,
   ): Promise<HookDispatch> {
     const runHook = this.deps.io.runHook?.bind(this.deps.io)
+    const runHookHttp = this.deps.io.runHookHttp?.bind(this.deps.io)
     const result = await dispatchHooks(
       this.enabledHooks(),
       event,
@@ -2012,6 +2033,55 @@ export class ModelApiSession implements AgentSession {
       signal,
       (warning) => {
         this.deps.log.warn(`Model API hooks: ${warning}`)
+      },
+      // M91 typed handlers (D70, lane H): the http POST over the host's
+      // pinned path when wired, the MCP tool call through its own approval
+      // path, the allowlist setting, and the trust posture re-checked at
+      // every run. Absent runners skip their handlers.
+      {
+        ...(runHookHttp !== undefined && {
+          httpPost: async (url, payload, hookSignal) => {
+            this.noteProcessRan()
+            return await runHookHttp(url, payload, hookSignal)
+          },
+        }),
+        callMcpTool: async (server, tool, argsJson, hookSignal) => {
+          this.noteProcessRan()
+          return await this.runHookMcpTool(server, tool, argsJson, hookSignal)
+        },
+        runModelTurn: async (input, hookSignal) => {
+          this.noteProcessRan()
+          return await this.runHookModelTurn(
+            input.kind,
+            input.system,
+            input.user,
+            event,
+            hookSignal,
+          )
+        },
+        httpAllowlist: () => this.deps.hookHttpAllowedHosts?.() ?? [],
+        isNetworkAllowed: () =>
+          this.deps.isWorkspaceTrusted() && this.deps.isHookNetworkAllowed?.() === true,
+        isHookModelsOn: () => this.deps.isPaidFeatureOn('hookModels'),
+        allowsHookModelUse: (request) =>
+          this.deps.allowsPaidUse(
+            {
+              feature: 'hookModels',
+              event: request.event,
+              kind: request.kind,
+              modelId: request.modelId,
+              ...(this.deps.hookModelDailyBudget !== undefined && {
+                dailyBudgetUsd: this.deps.hookModelDailyBudget.capUsd(),
+              }),
+            },
+            false,
+            this.askingSessionId,
+          ),
+        noteHookModelRun: () => {
+          this.deps.notePaidUse('hookModels', 1)
+        },
+        noteHookModelUsage: this.deps.noteHookModelUsage,
+        modelId: this.modelId,
       },
     )
     if (shouldShowMessages) {
@@ -3764,9 +3834,24 @@ export class ModelApiSession implements AgentSession {
     question: { readonly card: ApprovalSubject } | { readonly paid: PaidUseRequest },
     requiresUserApproval = false,
     judgement?: PermissionJudgement,
+    // A hook's own helper call (M91 mcp_tool): the judgement, the trust
+    // check and the card are the tool's own, but no hook fires for it and
+    // the Auto reviewer does not judge it, so a hook can never approve or
+    // review itself into a loop.
+    isHookHelperCall = false,
   ): Promise<ApprovalOutcome> {
     const canReview = judgement?.isReviewable !== false
-    const hook = await this.permissionRequestHook(call, signal)
+    const hook: HookDispatch = isHookHelperCall
+      ? {
+          blockedReason: undefined,
+          contexts: [],
+          messages: [],
+          updatedInput: undefined,
+          forceApproval: false,
+          stopReason: undefined,
+          approvalDecision: undefined,
+        }
+      : await this.permissionRequestHook(call, signal)
     if (hook.blockedReason !== undefined) {
       return { isApproved: false, feedback: hook.blockedReason, deniedByHook: true }
     }
@@ -3797,7 +3882,7 @@ export class ModelApiSession implements AgentSession {
       return { isApproved: true, feedback: undefined }
     }
     let review: ReviewedAsk | undefined
-    if (!requiresUserApproval && judgement.isReviewable) {
+    if (!requiresUserApproval && !isHookHelperCall && judgement.isReviewable) {
       review = await this.autoReview(call, query, signal)
       signal.throwIfAborted()
       judgement = this.permissions.judge(query, this.policy())
@@ -3886,6 +3971,27 @@ export class ModelApiSession implements AgentSession {
    * before. A decline, an unreadable answer, a failure and the breaker all
    * come back as an ask with the reason; only the user's Stop throws.
    */
+  private paidModelObservers(turnId: string) {
+    return {
+      keyed: (request: Omit<CreateResponseBody, 'prompt_cache_key' | 'prompt_cache_retention'>) =>
+        this.keyed(request),
+      guard: (body: CreateResponseBody, budget: DirectResponseBudget) =>
+        this.responseAttemptGuard(body, budget),
+      isCountedUsage,
+      abortError: () => new AbortedError(),
+      isRefused: (error: unknown) =>
+        error instanceof ModelApiError &&
+        (error.status === HTTP_STATUS.badRequest || error.status === HTTP_TOO_MANY_REQUESTS),
+      emit: (event: AgentEvent) => {
+        this.emit(event)
+      },
+      record: (item: ItemSnapshot, isStarted: boolean) => {
+        if (isStarted) this.recordTranscript(turnId, item)
+        else this.rerecordTranscript(item)
+      },
+    }
+  }
+
   private async autoReview(
     call: FunctionCallItem,
     query: PermissionQuery,
@@ -3964,20 +4070,7 @@ export class ModelApiSession implements AgentSession {
         breaker: this.reviewBreaker,
         userRequest: this.lastUserText(),
         recentCalls: this.recentCalls(turnId),
-        keyed: (request) => this.keyed(request),
-        guard: (body, budget) => this.responseAttemptGuard(body, budget),
-        isCountedUsage,
-        abortError: () => new AbortedError(),
-        isRefused: (error) =>
-          error instanceof ModelApiError &&
-          (error.status === HTTP_STATUS.badRequest || error.status === HTTP_TOO_MANY_REQUESTS),
-        emit: (event) => {
-          this.emit(event)
-        },
-        record: (item, isStarted) => {
-          if (isStarted) this.recordTranscript(turnId, item)
-          else this.rerecordTranscript(item)
-        },
+        ...this.paidModelObservers(turnId),
       },
       call.name,
       action,
@@ -4645,6 +4738,213 @@ export class ModelApiSession implements AgentSession {
       outcome: { output: MODEL_API_MODEL_TEXT.shellMovedToBackground, visibleOutput: '' },
       running,
     }
+  }
+
+  /**
+   * An M91 mcp_tool handler's call (D70, lane H): the tool on its configured
+   * MCP server, through that tool's own approval path. The policy judgement,
+   * the trust check and the approval card are the tool's own; the helper
+   * call fires no hook and skips the Auto reviewer, so a hook can never
+   * approve or review itself into a loop. A colliding plain name that is not
+   * this server's tool is missing, never another server's tool.
+   */
+  private async runHookMcpTool(
+    server: string,
+    tool: string,
+    argsJson: string,
+    signal: AbortSignal,
+  ): Promise<HookMcpOutcome> {
+    const servers = this.deps.mcpServers
+    if (servers === undefined) {
+      return { kind: 'missing' }
+    }
+    const candidate = mcpFunctionName(server, tool, new Set())
+    const ref = servers.find(candidate)
+    if (ref?.server !== server || ref.tool !== tool) {
+      return { kind: 'missing' }
+    }
+    if (!this.deps.isWorkspaceTrusted()) {
+      return { kind: 'denied' }
+    }
+    const call: FunctionCallItem = {
+      type: 'function_call',
+      call_id: this.deps.newId(),
+      name: candidate,
+      arguments: argsJson,
+    }
+    const query: PermissionQuery = {
+      toolName: candidate,
+      toolClass: 'mcp',
+      isReadOnly: ref.isReadOnly,
+    }
+    const judgement = this.permissions.judge(query, this.policy())
+    if (judgement.verdict === 'deny') return { kind: 'denied' }
+    const approval =
+      judgement.verdict === 'allow'
+        ? { isApproved: true }
+        : await this.askApproval(
+            this.deps.newId(),
+            call,
+            signal,
+            query,
+            { card: { kind: 'tool', toolName: candidate } },
+            false,
+            undefined,
+            true,
+          )
+    if (!approval.isApproved) {
+      return { kind: 'denied' }
+    }
+    signal.throwIfAborted()
+    if (
+      !this.deps.isWorkspaceTrusted() ||
+      this.permissions.judge(query, this.policy()).verdict === 'deny'
+    ) {
+      return { kind: 'denied' }
+    }
+    const outcome = await servers.call(candidate, argsJson, signal)
+    return {
+      kind: 'called',
+      text: outcome.output,
+      isError: outcome.failureReason !== undefined,
+    }
+  }
+
+  /**
+   * An M91 agent handler's read-only tools (D70, lane H): read, grep, list
+   * and code intelligence. No writes, no shell, no web; rename is not
+   * offered. Whatever is off (code intelligence without the service) is
+   * simply absent.
+   */
+  private hookModelTools(): readonly FunctionToolDefinition[] {
+    return toolDefinitions(this.deps.platform, {
+      hasShell: false,
+      hasSkills: false,
+      isSubagent: true,
+      hasCodeIntel: this.deps.codeIntel !== undefined,
+    }).filter((tool) => HOOK_MODEL_READ_TOOLS.has(tool.name))
+  }
+
+  /** One read-only tool call of a hook's agent turn; any other name is refused. */
+  private fileToolContext(signal: AbortSignal) {
+    return {
+      workspaceRoot: this.deps.workspaceRoot,
+      platform: this.deps.platform,
+      io: this.toolWrites()?.io ?? this.deps.io,
+      signal,
+      seen: this.seenFiles,
+      files: this.policy().files,
+    }
+  }
+
+  private async executeHookModelTool(
+    name: string,
+    argsJson: string,
+    signal: AbortSignal,
+  ): Promise<string> {
+    if (!HOOK_MODEL_READ_TOOLS.has(name)) {
+      throw new Error(`the hook model call cannot use ${name}`)
+    }
+    const intelTool = codeIntelToolOf(name)
+    if (intelTool !== undefined && intelTool !== 'renameSymbol') {
+      if (this.deps.codeIntel === undefined) {
+        throw new Error(`the hook model call cannot use ${name}`)
+      }
+      const outcome = await this.readCode(
+        intelTool,
+        { type: 'function_call', call_id: this.deps.newId(), name, arguments: argsJson },
+        signal,
+      )
+      return outcome.output
+    }
+    const context = this.fileToolContext(signal)
+    const outcome = await executeTool(name, argsJson, {
+      ...context,
+      assertCanWrite: () => {
+        throw new AbortedError()
+      },
+    })
+    return outcome.output
+  }
+
+  /**
+   * An M91 prompt/agent handler's own model call (D70, lane H): one attempt,
+   * no retry, hooks off, on the hookModels tally line apart from the
+   * conversation. The paid gate and popup already allowed this run; the row
+   * keeps it loud.
+   */
+  private async runHookModelTurn(
+    kind: 'prompt' | 'agent',
+    system: string,
+    user: string,
+    event: string,
+    signal: AbortSignal,
+  ): Promise<HookModelTurn> {
+    const modelId = this.modelId
+    const active = this.active
+    const policy = this.policy()
+    const isCurrent = () =>
+      !this.isDisposed &&
+      !signal.aborted &&
+      this.active === active &&
+      this.modelId === modelId &&
+      this.deps.isWorkspaceTrusted() &&
+      this.deps.isPaidFeatureOn('hookModels') &&
+      this.policy() === policy
+    const [keyDigest, budgetScope] = await unlessStopped(
+      Promise.all([this.deps.client.currentKeyDigest(), this.ownedBudgetScope()]),
+      signal,
+    )
+    if (
+      !isCurrent() ||
+      (budgetScope === undefined && this.deps.sessionBudgetUsd() !== 0) ||
+      budgetScope?.isStillAllowed(keyDigest) === false
+    ) {
+      throw new Error('the hook model call could not start')
+    }
+    let runHookModel: typeof RunHookModelTurn
+    try {
+      const entry = await import('./reviewerEntry.js')
+      if (typeof entry.runHookModelTurn !== 'function') {
+        throw new TypeError('Invalid hook model export')
+      }
+      runHookModel = entry.runHookModelTurn
+    } catch {
+      if (signal.aborted) throw new AbortedError()
+      this.deps.log.warn('The hook model bundle could not be loaded')
+      throw new Error('the hook model bundle could not be loaded')
+    }
+    if (!isCurrent()) throw new AbortedError()
+    // The run is tallied when the gate allowed it; the request observer below
+    // counts its attempts for the client's own budget, nothing more.
+    const turnId = this.active?.turnId ?? this.turnIds.at(-1) ?? this.sessionId
+    return await runHookModel(
+      {
+        deps: this.deps,
+        tools: kind === 'agent' ? this.hookModelTools() : [],
+        executeReadOnlyTool: async (name, argsJson, toolSignal) =>
+          await this.executeHookModelTool(name, argsJson, toolSignal),
+        ...this.paidModelObservers(turnId),
+      },
+      { kind, system, user },
+      event,
+      turnId,
+      signal,
+      {
+        modelId,
+        keyDigest,
+        isStillAllowed: () =>
+          isCurrent() &&
+          (budgetScope === undefined
+            ? this.deps.sessionBudgetUsd() === 0
+            : budgetScope.isStillAllowed(keyDigest)),
+        onRequestStarted: () => {
+          // Hook runs are counted by the consenting dispatcher.
+        },
+      },
+      budgetScope,
+      isCurrent,
+    )
   }
 
   /** The IDE tool in process, or the MCP server's tool over its connection (M50). */
@@ -5704,12 +6004,7 @@ export class ModelApiSession implements AgentSession {
         const formatter = this.formatter(assertCanWrite)
         return {
           outcome: await executeTool(call.name, call.arguments, {
-            workspaceRoot: this.deps.workspaceRoot,
-            platform: this.deps.platform,
-            io: this.toolWrites()?.io ?? this.deps.io,
-            signal,
-            seen: this.seenFiles,
-            files: this.policy().files,
+            ...this.fileToolContext(signal),
             assertCanWrite,
             ...(approvedTarget !== undefined && { approvedTarget }),
             ...(formatter !== undefined && { formatter }),

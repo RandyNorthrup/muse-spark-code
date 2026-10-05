@@ -48,7 +48,7 @@ const BUNDLES = {
   modelApi: { output: 'dist/modelApi.js', metafile: 'dist/meta/modelApi.json' },
   acp: { output: 'dist/acp.js', metafile: 'dist/meta-acp/acp.json' },
 }
-const DEFERRED_ONLY = ['reviewerEntry.ts']
+const DEFERRED_ONLY = ['reviewerEntry.ts', 'hookModelEntry.ts']
 const DEFERRED = [
   {
     output: 'dist/sessionBoard.js',
@@ -96,6 +96,7 @@ const LAZY_ONLY = [
   'glob.ts',
   'goals.ts',
   'hooks.ts',
+  'hookHandlers.ts',
   'instructions.ts',
   'mediaBudget.ts',
   'memoryTools.ts',

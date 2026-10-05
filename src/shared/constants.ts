@@ -310,6 +310,17 @@ export const SETTING_DEFAULTS = {
   // Hook commands are user code outside the agent sandbox (M51). A machine
   // setting must explicitly enable them on the Model API backend.
   modelApiHooks: false,
+  // M91 prompt and agent hook handlers (PLAN.md D70): each run is a paid
+  // model call under D30 and D48. OWNER RULING 2026-10-04 supersedes the
+  // plan's "off by default": the feature is available by default, and the
+  // first charge asks once in the paid-use popup. The setting stays as the
+  // machine-scoped kill switch.
+  modelApiHookModels: true,
+  // M91 http hook handlers (PLAN.md D70): the hosts one may call, exact
+  // names or `*.example.com` for subdomains only. Empty by default: with no
+  // entry, no http hook runs. Machine scoped, beside the paid settings: a
+  // repository must not allow hosts.
+  hookHttpAllowedHosts: [] as readonly string[],
   // M78 (PLAN.md D49): the command rules, the permission profiles and the
   // one in force, what a repository adds (it can only tighten), and the
   // paid Auto reviewer. None set, nothing changes.
@@ -381,6 +392,8 @@ export const MACHINE_SCOPED_SETTINGS = [
   'modelApiSubagents',
   'modelApiBestOfN',
   'modelApiHooks',
+  'modelApiHookModels',
+  'hookHttpAllowedHosts',
   // M78: the user's rules and profiles, which loosen as well as tighten.
   // `modelApiRepositoryRules` is not among them: a repository sets it, and
   // everything in it can only tighten.
@@ -444,6 +457,23 @@ export const HOOK_MANAGED_ENV_MAX_NAMES = 64
 export const HOOK_MANAGED_ENV_NAME_MAX_CHARS = 128
 export const HOOK_NOTIFICATION_DELAY_MS = 6000
 export const HOOK_SESSION_END_TIMEOUT_MS = 10_000
+// M91 handler types (PLAN.md D70, lane H): the http, mcp_tool, prompt and
+// agent handlers take the same caps as commands (M91 acceptance: stdin,
+// stdout and timeout caps shared).
+export const HOOK_HTTP_URL_MAX_CHARS = 2048
+export const HOOK_HTTP_ALLOWLIST_ENTRY_MAX_CHARS = 256
+export const HOOK_IP_V4_FAMILY = 4
+export const HOOK_IP_V6_FAMILY = 6
+export const HOOK_HTTP_REDIRECT_MIN_STATUS = 300
+// A prompt or agent handler's own model call: one attempt, no retry, with
+// the hook's answer parsed like a command's.
+export const HOOK_MODEL_TIMEOUT_MS = 60_000
+export const HOOK_MODEL_MAX_OUTPUT_TOKENS = 1024
+// An agent handler's read-only tool loop: this many model requests at most,
+// then its partial answer is parsed as-is.
+export const HOOK_AGENT_MAX_STEPS = 5
+// A prompt/agent hook's transcript row: the paid run is loud, like a review's.
+export const HOOK_MODEL_ROW_TOOL = 'hook_model'
 export const HOOK_FORBIDDEN_ENV_NAMES: ReadonlySet<string> = new Set([
   'AWS_ACCESS_KEY_ID',
   'AWS_SECRET_ACCESS_KEY',
@@ -508,6 +538,10 @@ export const PAID_FEATURES = [
   // M78 (PLAN.md D49): the Auto reviewer's calls.
   'autoReviewer',
   'bestOfN',
+  // M91 (PLAN.md D70): prompt and agent hook handlers. OWNER RULING
+  // 2026-10-04: available by default (its setting defaults on); the price
+  // is asked per use, not at turn-on (see PaidFeatureGate.isOn).
+  'hookModels',
 ] as const
 // The paid features the Muse Code backend can use too, billed to a stored
 // Model API key (M44, PLAN.md D37): images through the `ide` server and
@@ -524,6 +558,7 @@ export const PAID_FEATURE_SETTINGS = {
   subagents: 'modelApiSubagents',
   autoReviewer: 'modelApiAutoReviewer',
   bestOfN: 'modelApiBestOfN',
+  hookModels: 'modelApiHookModels',
 } as const satisfies Readonly<Record<PaidFeature, keyof typeof SETTING_DEFAULTS>>
 // Meta's published prices (dev.meta.ai/docs/pricing-rate-limits, read
 // 2026-09-24), on top of the tokens a turn uses: a web search, an image, and
@@ -1343,6 +1378,16 @@ export const MODEL_API_TOOLS = {
   // M69 (PLAN.md D49, M44b): one public HTTPS page, read by the extension itself.
   webFetch: 'web_fetch',
 } as const
+// An M91 agent handler's tools (PLAN.md D70, lane H): read, grep, list and
+// code intelligence. No writes, no shell, no web; rename is not offered.
+export const HOOK_MODEL_READ_TOOLS: ReadonlySet<string> = new Set([
+  MODEL_API_TOOLS.readFile,
+  MODEL_API_TOOLS.search,
+  MODEL_API_TOOLS.listFiles,
+  ...Object.entries(CODE_INTEL_TOOLS)
+    .filter(([tool]) => tool !== 'renameSymbol')
+    .map(([, name]) => name),
+])
 // --- Web fetch (M69, PLAN.md D49; the network-safety design of M44b) ---
 //
 // The same tool on the `ide` session server for Muse Code, whose own
@@ -3764,6 +3809,19 @@ export const REVIEW_MODEL_TEXT = {
   reviewListCut: '… and {count} more',
   // A comment on a removed line in the review pane: the line it was.
   reviewRemovedLine: '{path} (a line this change removed; it was line {line})',
+} as const
+
+// The prompt/agent hook handlers' text for the model (M91, PLAN.md D70),
+// English whatever the display language. A block of its own beside
+// REVIEW_MODEL_TEXT so that a bundle that never runs hooks does not carry
+// it: only the hook model entry (the hook turn's text) reads it.
+export const HOOK_MODEL_TEXT = {
+  hookPromptRole:
+    'You are a hook of the Muse Spark coding agent, judging the one operation the user message describes. Answer with a JSON object only.',
+  hookAgentRole:
+    'You are a hook of the Muse Spark coding agent, judging the one operation the user message describes. Answer with a JSON object only. You may call only the read-only tools offered (read, grep, list, code intelligence): no writes, no shell, no network.',
+  hookAnswer:
+    'To let the operation proceed, answer {}. To add context for the agent, answer {"hookSpecificOutput":{"hookEventName":"<the payload\'s event name>","additionalContext":"..."}}. To refuse it, answer {"decision":"block","reason":"..."}. Your answer never grants a permission, a model, a path or a paid use: it can only refuse, narrow or add context.',
 } as const
 // --- Paired efficiency evaluation (M75, PLAN.md D49) ---
 

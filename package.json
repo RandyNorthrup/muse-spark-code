@@ -576,6 +576,22 @@
           "description": "%config.modelApiHooks.description%",
           "scope": "machine"
         },
+        "museSpark.modelApiHookModels": {
+          "type": "boolean",
+          "default": true,
+          "description": "%config.modelApiHookModels.description%",
+          "scope": "machine"
+        },
+        "museSpark.hookHttpAllowedHosts": {
+          "type": "array",
+          "default": [],
+          "items": {
+            "type": "string",
+            "maxLength": 256
+          },
+          "description": "%config.hookHttpAllowedHosts.description%",
+          "scope": "machine"
+        },
         "museSpark.diagnosticsAfterEdits": {
           "type": "boolean",
           "default": true,

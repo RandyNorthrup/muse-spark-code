@@ -1480,6 +1480,8 @@
     "many": "{count} запусков хуков",
     "other": "{count} запуска хуков"
   },
+  "paidHookModelDailyBudget": "Общий дневной бюджет платных функций: {budget}.",
+  "hookModelPaidOff": "Хуки с моделью отключены. Включите museSpark.modelApiHookModels, чтобы хуки prompt и agent могли обращаться к модели.",
   "boardTitle": "Доска сеансов",
   "boardUnavailable": "Не удалось загрузить доску сеансов и Best of N. Переустановите расширение и попробуйте снова.",
   "boardEmpty": "Разговоров пока нет. Отправьте сообщение, чтобы начать.",

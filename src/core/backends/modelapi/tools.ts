@@ -58,6 +58,7 @@ import { WEB_FETCH_DESCRIPTION, WEB_FETCH_PARAMETERS } from '../../web/webFetchD
 import { confineWorkspacePath } from '../../workspacePath'
 import { compileGlob, GLOB_LIMITS } from './globLimits'
 import type { GlobLimits } from './glob'
+import type { HookHttpResult } from './hookHandlers'
 import type { FileRules } from './permissionPolicy'
 import {
   EDIT_IMAGE_DESCRIPTION,
@@ -236,6 +237,12 @@ export interface ToolIo {
     signal?: AbortSignal,
     extraEnvNames?: readonly string[],
   ): Promise<ShellResult>
+  /**
+   * An M91 http hook's POST of its bounded JSON payload, through the host's
+   * pinned-request path (HTTPS to the pinned address, no redirects followed;
+   * fixed headers only). Absent until the host wires it: http hooks then skip.
+   */
+  runHookHttp?: (url: string, payload: string, signal: AbortSignal) => Promise<HookHttpResult>
   /**
    * The canonical form of an absolute path: links, junctions and short
    * names resolved through the nearest existing ancestor (PLAN.md D24).

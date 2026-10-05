@@ -1437,6 +1437,8 @@
     "many": "{count} d’exécutions de hooks",
     "other": "{count} exécutions de hooks"
   },
+  "paidHookModelDailyBudget": "Budget quotidien partagé des fonctions payantes : {budget}.",
+  "hookModelPaidOff": "Les hooks de modèle sont désactivés. Activez museSpark.modelApiHookModels pour que les hooks prompt et agent puissent interroger le modèle.",
   "boardTitle": "Tableau des sessions",
   "boardUnavailable": "Impossible de charger le tableau des sessions et Best of N. Réinstallez l’extension et réessayez.",
   "boardEmpty": "Aucune conversation pour l’instant. Envoyez un message pour en démarrer une.",

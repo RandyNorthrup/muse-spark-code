@@ -1351,6 +1351,8 @@
   "usagePaidHookModelRuns": {
     "other": "鉤子執行 {count} 次"
   },
+  "paidHookModelDailyBudget": "付費功能的共用每日預算：{budget}。",
+  "hookModelPaidOff": "模型鉤子已關閉。請開啟 museSpark.modelApiHookModels，以允許 prompt 和 agent 鉤子詢問模型。",
   "boardTitle": "工作階段面板",
   "boardUnavailable": "無法載入工作階段面板和 Best of N。請重新安裝擴充功能後再試一次。",
   "boardEmpty": "還沒有對話。傳送訊息以開始一個。",

@@ -1351,6 +1351,8 @@
   "usagePaidHookModelRuns": {
     "other": "フックの実行 {count} 回"
   },
+  "paidHookModelDailyBudget": "有料機能の共有日次予算: {budget}。",
+  "hookModelPaidOff": "モデルフックはオフです。prompt フックと agent フックがモデルに問い合わせできるよう、museSpark.modelApiHookModels をオンにしてください。",
   "boardTitle": "セッションボード",
   "boardUnavailable": "セッションボードとBest of Nを読み込めませんでした。拡張機能を再インストールして、もう一度お試しください。",
   "boardEmpty": "会話はまだありません。メッセージを送って開始してください。",

@@ -353,17 +353,17 @@ Functions, variables, classes, enums and members declared in `@types/vscode`; th
 
 | Module                 | Files |
 | ---------------------- | ----- |
-| `node:buffer`          | 27    |
+| `node:buffer`          | 30    |
 | `node:child_process`   | 9     |
 | `node:crypto`          | 32    |
 | `node:dns`             | 1     |
-| `node:dns/promises`    | 1     |
+| `node:dns/promises`    | 2     |
 | `node:fs`              | 24    |
-| `node:fs/promises`     | 34    |
+| `node:fs/promises`     | 35    |
 | `node:http`            | 2     |
 | `node:https`           | 1     |
 | `node:module`          | 1     |
-| `node:net`             | 3     |
+| `node:net`             | 4     |
 | `node:os`              | 6     |
 | `node:path`            | 65    |
 | `node:process`         | 1     |

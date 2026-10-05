@@ -1394,6 +1394,8 @@
     "one": "{count} hookfuttatás",
     "other": "{count} hookfuttatás"
   },
+  "paidHookModelDailyBudget": "A fizetős funkciók közös napi kerete: {budget}.",
+  "hookModelPaidOff": "A modellhookok ki vannak kapcsolva. Kapcsolja be a museSpark.modelApiHookModels beállítást, hogy a prompt és agent hookok kérdezhessenek a modelltől.",
   "boardTitle": "Munkamenet-tábla",
   "boardUnavailable": "A munkamenet-tábla és a Best of N nem tölthető be. Telepítse újra a bővítményt, és próbálja újra.",
   "boardEmpty": "Még nincsenek beszélgetések. Küldjön egy üzenetet az indításhoz.",

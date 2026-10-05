@@ -1154,6 +1154,30 @@ Plan still refuses memory writes. Review each source with
 On the Model API backend, that picker shows the machine setting's on/off state
 and opens it. Turning the setting off stops hook dispatch in an open session;
 source file changes are read at the next session start.
+
+The Model API also accepts `http`, `mcp_tool`, `prompt` and `agent` handlers.
+An `http` handler supplies `url` in a user hook file. It uses HTTPS, follows
+no redirects and requires an entry in the machine setting
+`museSpark.hookHttpAllowedHosts` (empty by default): an exact host or
+`*.example.com`, which covers subdomains only. IP literals are refused except
+explicitly allowlisted loopback addresses. Restricted network posture stops it.
+An `mcp_tool` handler supplies `server` and `tool`, and uses that configured
+tool's ordinary permission path. Both receive the bounded event payload.
+
+`prompt` and `agent` supply `prompt`, on `PreToolUse`, `PermissionRequest`,
+`UserPromptSubmit`, `Stop` or `SubagentStop`. These model hooks are available
+by default when hooks are enabled; `museSpark.modelApiHookModels` switches
+them off. Each run asks through the three-choice paid popup with its token
+price, unless remembered for this workspace, and appears separately in
+Account & usage. `agent` can use only read, search, list and read-only code
+intelligence. Hidden model turns fire no hooks. Typed answers can refuse,
+narrow or add context; they cannot approve another operation.
+The existing session budget covers every request. Shared daily-budget
+integration and Muse Code dispatch are pending the other M91 lanes; see
+`docs/certification/m91-h.md` for their exact integration requirements.
+The fake-only guard drill script, `python3 docs/certification/m91-h-drills.py`,
+runs on the Kubuntu test rig and refuses Windows.
+
 Model-call hooks receive bounded summaries without inline image bytes or the
 Model API key. A pre-call veto stops the request before it reaches Meta. A
 post-call veto stops returned tools and follow-up requests. An isolated Muse

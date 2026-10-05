@@ -1437,6 +1437,8 @@
     "many": "{count} de ejecuciones de hooks",
     "other": "{count} ejecuciones de hooks"
   },
+  "paidHookModelDailyBudget": "Presupuesto diario compartido para funciones de pago: {budget}.",
+  "hookModelPaidOff": "Los hooks de modelo están desactivados. Active museSpark.modelApiHookModels para que los hooks prompt y agent puedan consultar al modelo.",
   "boardTitle": "Tablero de sesiones",
   "boardUnavailable": "No se pudieron cargar el tablero de sesiones ni Best of N. Reinstala la extensión e inténtalo de nuevo.",
   "boardEmpty": "Aún no hay conversaciones. Envíe un mensaje para iniciar una.",

@@ -63,6 +63,7 @@ import {
 import { canonicalPath } from '../canonicalPath'
 import { foldersMade, writeFileAtomically, writeFileIfUnchanged } from '../fsAtomic'
 import { killTree, type ProcessTreeDeps, type ShellJob, treeSpawnOptions } from '../processTree'
+import { postHookPayload } from '../web/hookHttpRequest'
 import { joinStatement, newShellJob } from './shellJob'
 
 export interface ToolIoDeps {
@@ -740,6 +741,14 @@ export function createToolIo(deps: ToolIoDeps): ToolIo {
         stdin: payload,
         maxOutputBytes: HOOK_OUTPUT_MAX_BYTES,
       })
+    },
+    async runHookHttp(url, payload, signal) {
+      // dispatchHooks and hookHandlers enforce this too. Keep the adapter
+      // bounded when it is called directly, before any request goes out.
+      if (Buffer.byteLength(payload) > HOOK_STDIN_MAX_BYTES) {
+        throw new RangeError('Hook http payload exceeds the input cap')
+      }
+      return await postHookPayload(url, payload, signal)
     },
   }
 }

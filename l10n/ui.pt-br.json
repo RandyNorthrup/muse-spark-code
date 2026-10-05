@@ -1437,6 +1437,8 @@
     "many": "{count} de execuções de ganchos",
     "other": "{count} execuções de ganchos"
   },
+  "paidHookModelDailyBudget": "Orçamento diário compartilhado das funções pagas: {budget}.",
+  "hookModelPaidOff": "Os ganchos de modelo estão desativados. Ative museSpark.modelApiHookModels para que os ganchos prompt e agent possam consultar o modelo.",
   "boardTitle": "Painel de sessões",
   "boardUnavailable": "Não foi possível carregar o painel de sessões nem o Best of N. Reinstale a extensão e tente novamente.",
   "boardEmpty": "Ainda não há conversas. Envie uma mensagem para começar uma.",

@@ -4341,7 +4341,8 @@ The step 1 captures are in `docs/certification/m91.md`.
     own approval path.
   - **`prompt` and `agent`**, and Kiro's agent actions, which start a model
     turn:
-    - On the Model API they are paid uses under D30 and D48: off by default,
+    - On the Model API they are paid uses under D30 and D48: available by
+      default (owner ruling 2026-10-04, FINM91H/m91h-prompt.md),
       priced, asked in the paid-use popup, tallied on their own usage line,
       and within the M82 budget.
     - On Muse Code each is one turn of a hidden side session on the user's
@@ -13728,6 +13729,11 @@ The early protected-paths fix is its own pull request,
   8. **Lane H.** The four handler types, as D70 says. A `prompt` or `agent`
      handler is a paid use on the Model API, and a side-session turn on Muse
      Code. None of them widens.
+     Lane H's receipt is `docs/certification/m91-h.md`. The shared daily
+     budget setting is absent in this lane's base; its owner must wire
+     `ModelApiPaidHooks.hookModelDailyBudget` (reserve/check/settle) and the
+     popup cap. Lane R must consume the Muse Code helper factory. Until
+     those integrations are proved, handler acceptance 11 stays open.
   9. **Lane X.** The plugin child and its shims for Amp and OpenCode, and
      Cline's scripts through the `cline` adapter. The plugins' events map
      onto the event list above, and lane X records the mapping in this plan

@@ -1394,6 +1394,8 @@
     "one": "{count} kanca çalıştırması",
     "other": "{count} kanca çalıştırması"
   },
+  "paidHookModelDailyBudget": "Ücretli özelliklerin ortak günlük bütçesi: {budget}.",
+  "hookModelPaidOff": "Model kancaları kapalı. prompt ve agent kancalarının modele sorabilmesi için museSpark.modelApiHookModels ayarını açın.",
   "boardTitle": "Oturum panosu",
   "boardUnavailable": "Oturum panosu ve Best of N yüklenemedi. Uzantıyı yeniden yükleyip tekrar deneyin.",
   "boardEmpty": "Henüz konuşma yok. Başlamak için bir ileti gönderin.",

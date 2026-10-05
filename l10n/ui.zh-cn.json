@@ -1351,6 +1351,8 @@
   "usagePaidHookModelRuns": {
     "other": "钩子运行 {count} 次"
   },
+  "paidHookModelDailyBudget": "付费功能的共享每日预算：{budget}。",
+  "hookModelPaidOff": "模型钩子已关闭。请打开 museSpark.modelApiHookModels，以允许 prompt 和 agent 钩子询问模型。",
   "boardTitle": "会话面板",
   "boardUnavailable": "无法加载会话面板和 Best of N。请重新安装扩展后重试。",
   "boardEmpty": "还没有会话。发送消息以开始一个。",

@@ -1480,6 +1480,8 @@
     "many": "{count} uruchomień hooków",
     "other": "{count} uruchomienia hooków"
   },
+  "paidHookModelDailyBudget": "Wspólny dzienny budżet płatnych funkcji: {budget}.",
+  "hookModelPaidOff": "Hooki modelu są wyłączone. Włącz museSpark.modelApiHookModels, aby hooki prompt i agent mogły pytać model.",
   "boardTitle": "Panel sesji",
   "boardUnavailable": "Nie udało się załadować panelu sesji ani funkcji Best of N. Zainstaluj rozszerzenie ponownie i spróbuj jeszcze raz.",
   "boardEmpty": "Brak rozmów. Wyślij wiadomość, aby zacząć.",

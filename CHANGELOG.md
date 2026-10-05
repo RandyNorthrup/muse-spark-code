@@ -36,6 +36,15 @@ happened, not what was planned; superseded entries are kept.
     for a plain turn, a tool call, an `edit_file` with `then_run`, a packed
     long output, a manual compaction, a subagent child turn, and a turn with
     skills and rules loaded. Later lanes must not move these bytes.
+  - **Lane H:** the four new hook handler types. `http` (user files only,
+    HTTPS, machine-scoped `museSpark.hookHttpAllowedHosts`, no redirects);
+    `mcp_tool` (a configured MCP server's tool, through its own approval
+    card); `prompt` and `agent` on the Model API (a paid model call each,
+    allowed by default, first charge asks once, tallied apart); `prompt`
+    and `agent` have a reusable hidden Muse Code side-session runner with
+    a subscription notice (dispatch awaits lane R). The session budget
+    applies; shared daily-budget wiring awaits the defaults lane. Every answer parses like a command's:
+    refuse, narrow or add context only. `command` is unchanged.
 
 ## [0.12.1] - 2026-10-04
 

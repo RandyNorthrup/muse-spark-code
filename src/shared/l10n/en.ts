@@ -2048,6 +2048,10 @@ export const EN = {
   paidConfirmHookModel:
     'Prompt and agent hooks ask the model before they answer, each run billed to your Model API key. {price} Each run asks for approval in every permission mode, including Bypass, unless you allow model hooks always in this workspace. Actual cost depends on tokens used. They can only refuse, narrow or add context. Model API backend only; on Muse Code they use a turn of your subscription instead.',
   usagePaidHookModelRuns: forms({ one: '{count} hook run', other: '{count} hook runs' }),
+  // A prompt or agent hook refused while museSpark.modelApiHookModels is off.
+  hookModelPaidOff:
+    'Model hooks are off. Turn on museSpark.modelApiHookModels to let prompt and agent hooks ask the model.',
+  paidHookModelDailyBudget: 'Shared daily paid budget: {budget}.',
   // The session board (M77, PLAN.md D49).
   boardTitle: 'Session board',
   boardUnavailable:
