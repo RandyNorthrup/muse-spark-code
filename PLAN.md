@@ -21499,6 +21499,12 @@ universal certification. Full quality is required once on the final code head;
 its actual exit and tail must be reported, including any unvisited downstream
 gates, without treating preflight passes as full certification.
 
+The repaired full accessibility matrix passes 596 pages (149 scenarios ×
+four themes), with zero violations, undecided rules or missing results and
+eight unchanged listbox exemptions. Its focused Traffic/runner matrix passes
+20 pages with no exemptions. The harness compiler and final zero-clone scan
+also pass.
+
 The complete-history secret scan also exits 1 with seven inherited findings
 across `star-line.md`, `m95-x.md` and historical `authSource.test.ts` revisions.
 Only file/line/commit metadata is retained in the certification receipt; no

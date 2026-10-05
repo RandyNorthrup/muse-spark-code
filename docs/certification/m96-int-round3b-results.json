@@ -683,12 +683,27 @@
     "notices": 0,
     "accessibility": {
       "exit": 0,
-      "pages": 20,
-      "scenarios": 5,
+      "pages": 596,
+      "scenarios": 149,
       "themes": 4,
       "violations": 0,
+      "undecided": 0,
+      "existingExemptions": 8,
       "withoutResult": 0,
-      "fullMatrix": "pending final rerun"
+      "focusedTrafficRunners": {
+        "exit": 0,
+        "pages": 20,
+        "violations": 0,
+        "undecided": 0,
+        "exemptions": 0,
+        "withoutResult": 0
+      },
+      "beforeHarnessRepair": {
+        "exit": 1,
+        "pages": 596,
+        "violations": 0,
+        "withoutResult": 17
+      }
     },
     "historySecrets": {
       "exit": 1,
@@ -748,7 +763,10 @@
     },
     "build": 1,
     "buildReason": "deferred webview JS exceeds 50 KiB; all other caps pass",
-    "powerShell": "existing Windows platform gate"
+    "powerShell": "existing Windows platform gate",
+    "formatFinal": 0,
+    "typecheckHarness": 0,
+    "duplicationFiles": 1140
   },
   "bundlesBytes": {
     "dist/acp.js": 823357,
@@ -820,5 +838,6 @@
     "helperless VSIX already exceeds unchanged 2252800-byte cap; universal bytes unmeasured",
     "complete-history secret scan reports seven inherited findings; no historical rewrite or ignore changes"
   ],
-  "fullQuality": "Required once after final commit; actual exit and tail are supplied in the final reply. This preflight receipt is not full-quality certification."
+  "fullQuality": "Required once after final commit; actual exit and tail are supplied in the final reply. This preflight receipt is not full-quality certification.",
+  "sourceCommit": "db6edb6fc32ba8fc8004195fcfdd929ebef16589"
 }

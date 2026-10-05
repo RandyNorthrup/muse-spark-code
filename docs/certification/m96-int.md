@@ -645,7 +645,10 @@ loader fails all five again, then restores the HTML SHA-256 byte-exact. The
 complete harness file passes 21 with only the unchanged deferred-cap failure.
 The focused 20-page Traffic/runner accessibility matrix passes with zero
 violations, undecided rules, exemptions or pages without a result; the full
-596-page matrix is rerun after this commit.
+596-page matrix passes on `db6edb6f`: 149 scenarios across four themes,
+zero violations, undecided rules or missing results, and the eight existing
+listbox exemptions unchanged. The harness compiler check also passes; the
+final duplication scan covers 1,140 files with zero clones.
 
 The complete-history secret scan exits 1 with seven findings in inherited
 commits across two certification records and historical auth-source tests.
