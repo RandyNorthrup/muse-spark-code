@@ -102,6 +102,18 @@ export const legalScanResultSchema = z.strictObject({
 })
 export type LegalScanResult = z.infer<typeof legalScanResultSchema>
 
+/**
+ * The deterministic scanner (lane S) as lanes B, W and R call it: lane 0's
+ * input in, lane 0's result out, stopped by the signal. A type only, so both
+ * the activation bundle and the Model API bundle name the same contract
+ * without either carrying the scanner. It never writes, runs a command or
+ * installs; it reads the workspace under lane 0's limits.
+ */
+export type LegalScanRunner = (
+  input: LegalScanInput,
+  signal: AbortSignal,
+) => Promise<LegalScanResult>
+
 /** The webview asks the host to run the deterministic scan (lane W's report). */
 export const legalScanRequestMessageSchema = z.strictObject({
   type: z.literal('requestLegalScan'),

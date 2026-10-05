@@ -13,7 +13,7 @@
 import { UI_TEXT } from '../../shared/constants'
 import { lazyBundleLoader } from '../lazyBundle'
 import type { Logger } from '../logger'
-import type { LegalScanRunner } from './legalScanTool'
+import type { LegalScanRunner } from '../../shared/legal'
 
 /** The scanner bundle's one export: lane 0's contract in and out. */
 export interface LegalScanBundle {

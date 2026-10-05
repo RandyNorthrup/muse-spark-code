@@ -18,20 +18,9 @@ import {
 import {
   legalScanInputSchema,
   legalScanResultSchema,
-  type LegalScanInput,
-  type LegalScanResult,
+  type LegalScanRunner,
 } from '../../shared/legal'
 import type { Logger } from '../logger'
-
-/**
- * The deterministic scanner (lane S) as this lane calls it: lane 0's input
- * in, lane 0's result out, stopped by the signal. It never writes, runs a
- * command or installs; it reads the workspace under lane 0's limits.
- */
-export type LegalScanRunner = (
-  input: LegalScanInput,
-  signal: AbortSignal,
-) => Promise<LegalScanResult>
 
 export interface IdeLegalScanDeps {
   /** A trusted workspace: the tool is listed only then, and each call rechecks. */

@@ -9,7 +9,7 @@ import { isLegalScanBundle, legalScanLoader } from '../../src/host/ide/legalScan
 import { UI_TEXT } from '../../src/shared/constants'
 import { EN } from '../../src/shared/l10n/en'
 import { BASE_LOCALE, setUiText } from '../../src/shared/l10n/text'
-import type { LegalScanRunner } from '../../src/host/ide/legalScanTool'
+import type { LegalScanRunner } from '../../src/shared/legal'
 import { FakeLogOutputChannel } from './helpers/fakes'
 import { logLines } from './helpers/logText'
 

@@ -3736,6 +3736,12 @@ export const MODEL_API_MODEL_TEXT = {
   // backends, so they name "this tool", never a backend's own tool name.
   webFetchRestrictedMode:
     'web fetch is off while the workspace is in Restricted Mode; trust the workspace to enable it',
+  // M97 (PLAN.md D76): the Model API backend's trust refusal for the
+  // deterministic scan. It names "the legal scan", never the tool's own
+  // name; the `ide` tool answers the same refusal in its own words (each
+  // bundle carries only its own text, PLAN.md D6).
+  legalScanRestrictedMode:
+    'the legal scan is off while the workspace is in Restricted Mode; trust the workspace to enable it',
 } as const
 
 // The review's text for the model (M70, PLAN.md D49), English whatever the
