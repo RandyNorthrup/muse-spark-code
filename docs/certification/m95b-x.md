@@ -198,6 +198,17 @@ chunk **896.4/900 KiB**, ACP **798.8/850 KiB**, checkpoint store
 are the current shipped-entry sizes. W must recheck integrated budgets and
 split guards when wiring it. No cap changed.
 
+Implementation commit `dfa2e7ae4018bcfa530dc09bcf44aebc6fbbfa3f` ran the
+unchanged pre-commit hooks: serial lint-staged ESLint/Prettier and staged
+gitleaks (**70,240 bytes**, no leaks). The first commit attempt failed before
+those checks because this portable Windows rig has sh but no Bash, while
+its installed npx launcher requires Bash. An ignored workspace-local
+`temp/m95b-x/hook-bin/npx` invokes the same installed Node/npm npx-cli.js
+through sh; only that commit process's PATH was prefixed. No hook, shared
+installation, machine/user setting or gate was changed. Source checksums
+below remained equal after the successful hooks. The documentation follow-up
+also uses those unchanged hooks and the process-local launcher.
+
 ### Source checksums
 
 - `src/runtime/chatGptCallback.ts`: `455e583a6dc1e4cd5c9cf158dffd875c8eb28d13b86464e55f7a0757aae6af91`
