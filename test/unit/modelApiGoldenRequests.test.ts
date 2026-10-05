@@ -44,6 +44,16 @@ import { fakeModelApi, fakeModelApiClientSettings, type FakeModelApi } from './h
 import { memoryToolIo, type MemoryToolIo } from './helpers/fakeToolIo'
 import { fakeModelApiHostDeps } from './helpers/modelApiHostDeps'
 import { watchSessionTurns } from './helpers/sessionTurns'
+import type { CreateResponseBody } from '../../src/core/backends/modelapi/schemas'
+import { promptCacheKey } from '../../src/core/backends/modelapi/promptCache'
+import { isJudgeEngineOn } from '../../src/core/judge/schema'
+import { redactSecrets } from '../../src/core/redact'
+import {
+  ModelApiSameJudge,
+  type ModelApiJudgeTransport,
+} from '../../src/host/judge/modelApiSameJudge'
+import { JudgeResultCache } from '../../src/core/judge/same/resultCache'
+import { judgeJob, judgeOnce, SpyJudgeStore, startJudgeEntry } from './helpers/judgeSameRig'
 
 const ROOT = '/ws'
 const FIXTURE_DIR = path.join(__dirname, '..', 'fixtures', 'golden-requests')
@@ -401,6 +411,171 @@ describe('M91-G golden requests with hooks off', () => {
     await runTurn(harness, 'Go.')
     expect(harness.api.responseBodies()).toHaveLength(1)
     checkGolden('07-skills-and-rules', harness)
+    await harness.host.close()
+  })
+})
+
+// Lane M98-G: the judge's invariance over the M91-G harness (PLAN.md M98
+// acceptance item 1). No independent baseline: every main-body comparison
+// below reads the fixtures above. The judge is not wired into the host on
+// this tree (lane U), so `off` and `same` both mean the main bytes below —
+// and these tests fail loudly if that wiring ever moves them.
+const G_NOUL = { id: 'risk', kind: 'noul' as const, text: 'Is deleting this risky?' }
+
+function judgeOverMain(main: CreateResponseBody): {
+  readonly entries: SpyJudgeStore
+  readonly sent: CreateResponseBody[]
+  readonly errors: unknown[]
+  readonly judge: ModelApiSameJudge
+} {
+  const entries = new SpyJudgeStore()
+  const cache = new JudgeResultCache()
+  const sent: CreateResponseBody[] = []
+  const errors: unknown[] = []
+  const transport: ModelApiJudgeTransport = {
+    send: (body, _signal) => {
+      sent.push(body)
+      return Promise.resolve({
+        text: '{"answer":"yes","confidence":95}',
+        inputTokens: 10,
+        outputTokens: 5,
+      })
+    },
+  }
+  const judge = new ModelApiSameJudge({
+    modelId: main.model,
+    timeoutMs: 2000,
+    measureTokens: (text) => text.length,
+    entries,
+    cache,
+    onError: (error) => {
+      errors.push(error)
+    },
+    redact: (text) => redactSecrets(text),
+    source: {
+      readMainBody: () => main,
+      keyPrefix: (prefix) => promptCacheKey(prefix),
+      prefixTokens: () => 4357,
+    },
+    transport,
+  })
+  return { entries, sent, errors, judge }
+}
+
+/** The body as the client serializes it, with `input` rebuilt in wire order. */
+function wireString(body: CreateResponseBody, input: readonly unknown[]): string {
+  const rebuilt: Record<string, unknown> = {}
+  for (const [key, value] of Object.entries(body)) {
+    rebuilt[key] = key === 'input' ? input : value
+  }
+  return JSON.stringify(rebuilt)
+}
+
+function heldKey(entries: SpyJudgeStore): string {
+  return startJudgeEntry(entries, {
+    backend: 'model-api',
+    turnId: 't1',
+    tool: 'run_shell',
+    args: { command: 'rm -rf /tmp/x' },
+  })
+}
+
+describe('M98-G judge invariance (Model API)', () => {
+  it('engine off sends nothing beyond the golden bytes', async () => {
+    expect(isJudgeEngineOn('off')).toBe(false)
+    const harness = await setup({})
+    harness.api.script({ text: 'Hello back.' })
+    await runTurn(harness, 'Hello.')
+    expect(harness.api.responseBodies()).toHaveLength(1)
+    checkGolden('01-plain-turn', harness)
+    await harness.host.close()
+  })
+
+  it('engine same with no hint keeps the golden bytes', async () => {
+    expect(isJudgeEngineOn('same')).toBe(true)
+    const harness = await setup({ 'a.txt': 'Alpha.\n' })
+    harness.api.script(
+      { calls: [{ name: 'read_file', arguments: '{"path":"a.txt"}', callId: 'c1' }] },
+      { text: 'It says alpha.' },
+    )
+    await runTurn(harness, 'What is in a.txt?')
+    expect(harness.api.responseBodies()).toHaveLength(2)
+    checkGolden('02-tool-call', harness)
+    await harness.host.close()
+  })
+
+  it('a side request shares the main cached prefix byte-exact', async () => {
+    const harness = await setup({})
+    harness.api.script({ text: 'Hello back.' })
+    await runTurn(harness, 'Hello.')
+    const mainRaw = harness.rawBodies[0]
+    if (mainRaw === undefined) {
+      throw new Error('no main request recorded')
+    }
+    const main: CreateResponseBody = JSON.parse(mainRaw)
+    const before = structuredClone(main)
+    const rig = judgeOverMain(main)
+    const key = heldKey(rig.entries)
+    expect(await judgeOnce(rig.judge, rig.entries, judgeJob(key, 'rm -rf /tmp/x', [G_NOUL]))).toBe(
+      'caution',
+    )
+    expect(rig.sent).toHaveLength(1)
+    const sent = rig.sent[0]
+    if (sent === undefined) {
+      throw new Error('no side request sent')
+    }
+    // The side prefix is the main body byte for byte; only the tail is new.
+    expect(wireString(sent, sent.input.slice(0, -1))).toBe(mainRaw)
+    // The side request reads the main cached prefix: the same cache key over
+    // the same model, instructions and tools triple.
+    expect(sent.prompt_cache_key).toBe(main.prompt_cache_key)
+    expect(
+      promptCacheKey({ model: sent.model, instructions: sent.instructions, tools: sent.tools }),
+    ).toBe(
+      promptCacheKey({ model: main.model, instructions: main.instructions, tools: main.tools }),
+    )
+    expect(sent.input).toHaveLength(main.input.length + 1)
+    // The main body is never edited, reordered or trimmed.
+    expect(main).toEqual(before)
+    expect(rig.errors).toEqual([])
+    await harness.host.close()
+  })
+
+  it('redaction sends a standalone side body carrying only the tail', async () => {
+    const harness = await setup({})
+    harness.api.script({ text: 'Hello back.' })
+    await runTurn(harness, 'Hello.')
+    const mainRaw = harness.rawBodies[0]
+    if (mainRaw === undefined) {
+      throw new Error('no main request recorded')
+    }
+    const clean: CreateResponseBody = JSON.parse(mainRaw)
+    const main: CreateResponseBody = {
+      ...clean,
+      instructions: `${clean.instructions} key: LLM_abcdefghijklmnop`,
+    }
+    const before = structuredClone(main)
+    const rig = judgeOverMain(main)
+    const key = heldKey(rig.entries)
+    expect(await judgeOnce(rig.judge, rig.entries, judgeJob(key, 'rm -rf /tmp/x', [G_NOUL]))).toBe(
+      'caution',
+    )
+    expect(rig.sent).toHaveLength(1)
+    const sent = rig.sent[0]
+    if (sent === undefined) {
+      throw new Error('no side request sent')
+    }
+    // Standalone: the redacted prefix is not reused; only the tail is sent.
+    expect(sent.input).toHaveLength(1)
+    expect(sent.instructions).toBe('')
+    expect(sent.tools).toEqual([])
+    expect(sent.model).toBe(main.model)
+    expect(sent.prompt_cache_key).toBe(
+      promptCacheKey({ model: main.model, instructions: '', tools: [] }),
+    )
+    expect(JSON.stringify(sent)).not.toContain('LLM_abcdefghijklmnop')
+    expect(main).toEqual(before)
+    expect(rig.errors).toEqual([])
     await harness.host.close()
   })
 })
