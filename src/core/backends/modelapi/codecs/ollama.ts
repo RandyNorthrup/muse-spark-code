@@ -133,9 +133,18 @@ const ollamaLineSchema = z.object({
   prompt_eval_count: z.optional(z.number()),
   prompt_eval_cached_count: z.optional(z.number()),
   eval_count: z.optional(z.number()),
+  total_duration: z.optional(z.unknown()),
+  load_duration: z.optional(z.unknown()),
+  prompt_eval_duration: z.optional(z.unknown()),
+  eval_duration: z.optional(z.unknown()),
   error: z.optional(z.string()),
 })
 export type OllamaLine = z.infer<typeof ollamaLineSchema>
+const durationNsSchema = z.number().check(z.gte(0))
+function durationNs(value: unknown): number | undefined {
+  const parsed = durationNsSchema.safeParse(value)
+  return parsed.success ? parsed.data : undefined
+}
 
 /** What the caller injects: the model, its stored context, its thinking. */
 export interface OllamaEncodeOptions {
@@ -383,7 +392,15 @@ export async function* readOllamaLines(chunks: AsyncIterable<Uint8Array>): Async
 // --- decode: native lines to canonical events ---
 
 /** What the decoder needs: the model for the response, the HTTP status for errors. */
+export interface OllamaDurations {
+  readonly totalNs?: number | undefined
+  readonly loadNs?: number | undefined
+  readonly promptEvalNs?: number | undefined
+  readonly evalNs?: number | undefined
+}
 export interface OllamaDecodeOptions {
+  /** Native nanoseconds from the captured final frame; T joins these to its timing. */
+  readonly onDurations?: ((durations: OllamaDurations) => void) | undefined
   readonly model: string
   readonly status: number
   /** Stable, session-unique request identity supplied by the caller; never a clock/random value here. */
@@ -565,6 +582,16 @@ export async function* decodeOllamaStream(
     hasDone = true
     doneReason = frame.done_reason
     usage = usageOf(frame)
+    try {
+      options.onDurations?.({
+        totalNs: durationNs(frame.total_duration),
+        loadNs: durationNs(frame.load_duration),
+        promptEvalNs: durationNs(frame.prompt_eval_duration),
+        evalNs: durationNs(frame.eval_duration),
+      })
+    } catch {
+      // An optional recording observer cannot fail a model response.
+    }
     break
   }
   if (!hasDone) {

@@ -1,9 +1,10 @@
+import type { UsageRecording } from '../../src/core/usage/recording'
 // Captured wire -> codec -> registry -> real host -> workspace tool -> native
 // follow-up. This test-only client stands in for lane T's absent transport.
 // Capture tool names/arguments are relabelled to exercise read_file; shapes,
 // frame order, usage, signatures and terminal outcomes remain captured.
 import { readFileSync } from 'node:fs'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import * as z from 'zod/mini'
 import { ModelApiHost } from '../../src/core/backends/modelapi/ModelApiHost'
 import type { ModelClient } from '../../src/core/backends/modelapi/modelPolicy'
@@ -205,7 +206,14 @@ describe('captured provider wire formats through ModelApiHost', () => {
       const meta = fakeModelApi()
       const log = new FakeLogOutputChannel()
       const io = memoryToolIo({ 'notes.md': 'workspace evidence from read_file' }, '/ws')
+      const recording: UsageRecording = {
+        note: vi.fn(),
+        limit: vi.fn(),
+        today: () => Promise.resolve([]),
+        flush: () => Promise.resolve(),
+      }
       const host = new ModelApiHost({
+        usageRecording: recording,
         ...fakeModelApiHostDeps({
           client: fakeModelApiClient(meta, log),
           workspaceRoot: '/ws',
@@ -235,6 +243,22 @@ describe('captured provider wire formats through ModelApiHost', () => {
         const watched = watchSessionTurns(session)
         await session.sendTurn([{ type: 'text', text: 'Read notes.md' }])
         await watched.turnDone()
+        expect(recording.note).toHaveBeenCalledTimes(2)
+        expect(recording.note).toHaveBeenLastCalledWith(
+          expect.objectContaining({
+            input_tokens: expect.any(Number),
+            output_tokens: expect.any(Number),
+          }),
+          expect.objectContaining({
+            provider: scenario.provider,
+            model: ref,
+            kind: 'turn',
+            pricing: { kind: 'local' },
+          }),
+        )
+        expect(JSON.stringify(vi.mocked(recording.note).mock.calls)).not.toContain(
+          'workspace evidence',
+        )
         expect(nativeRequests, JSON.stringify(watched.events)).toHaveLength(2)
         expect(JSON.stringify(nativeRequests[0])).toContain(scenario.native)
         expect(JSON.stringify(nativeRequests[0])).not.toContain(`"model":"${ref}"`)

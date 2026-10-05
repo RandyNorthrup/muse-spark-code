@@ -1,3 +1,5 @@
+import type { UsageRecording } from '../../core/usage/recording'
+import type { ProviderUsageRow } from '../../shared/usage'
 // One conversation per surface: owns the MSP session for that surface, turns
 // webview requests into backend calls, and streams AgentEvents back. Also the
 // source of truth for the composer settings that outlive a webview reload
@@ -292,6 +294,7 @@ export interface SessionMemory {
 }
 
 export interface ConversationDeps {
+  readonly usageRecording?: UsageRecording | undefined
   readonly surface: ChatSurface
   readonly auth: AuthPort
   readonly ensureHost: () => Promise<AgentHost>
@@ -7316,6 +7319,34 @@ export class ConversationController {
     this.latestUsage = subscription
     const shown = subscription
     const account = await this.deps.accountFacts(host.info.kind)
+    const providers: ProviderUsageRow[] = []
+    if (this.deps.usageRecording !== undefined) {
+      try {
+        const rows = new Map<string, ProviderUsageRow>()
+        const records = await this.deps.usageRecording.today()
+        for (const record of records) {
+          const certainty = record.cost.certainty
+          const pricing = providerPricing(certainty)
+          const prior = rows.get(record.provider)
+          rows.set(record.provider, {
+            providerId: record.provider,
+            providerLabel: record.provider,
+            pricing: prior?.pricing === 'unpriced' ? 'unpriced' : pricing,
+            inputTokens: (prior?.inputTokens ?? 0) + (record.tokens.input ?? 0),
+            outputTokens: (prior?.outputTokens ?? 0) + (record.tokens.output ?? 0),
+            costUsd:
+              record.cost.usd !== undefined &&
+              record.cost.certainty !== 'uncertain' &&
+              (prior === undefined || prior.costUsd !== undefined)
+                ? (prior?.costUsd ?? 0) + record.cost.usd
+                : undefined,
+          })
+        }
+        providers.push(...rows.values())
+      } catch {
+        // The recording port logs its fixed diagnostic once; live sources still render.
+      }
+    }
     const insights = host.info.kind === 'museCode' ? await this.deps.usageInsights() : undefined
     // An older read or a stopped host must not replace a newer observation.
     if (!this.canPostUsage(host) || this.latestUsage !== shown) {
@@ -7325,6 +7356,7 @@ export class ConversationController {
       type: 'usageReport',
       backend: host.info.kind,
       account,
+      ...(providers.length > 0 && { providers }),
       ...(shown !== undefined && { subscription: shown }),
       ...(insights !== undefined && { insights }),
     })
@@ -8698,5 +8730,18 @@ export class ConversationController {
     this.retiredDictation?.dispose()
     this.retiredDictation = undefined
     this.checkpoints.dispose()
+  }
+}
+
+function providerPricing(certainty: string): ProviderUsageRow['pricing'] {
+  switch (certainty) {
+    case 'local':
+    case 'plan':
+    case 'unpriced': {
+      return certainty
+    }
+    default: {
+      return 'priced'
+    }
   }
 }

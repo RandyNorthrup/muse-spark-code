@@ -1,3 +1,4 @@
+import type { RecordedCall, UsageRecording } from '../../usage/recording'
 // The Model API backend (PLAN.md D1, M7): sessions held in this process,
 // each a replayed conversation on `POST /v1/responses` (stateless reasoning
 // replay, `store: false`) with the in-process tool harness, the permission
@@ -210,6 +211,7 @@ import type { reviewPaidCall as ReviewPaidCall } from './reviewerEntry'
 import {
   type ConfirmedModelRequest,
   MissingApiKeyError,
+  type ResponseObservation,
   type ModelApiClient,
   ModelApiError,
   type RetryBudget,
@@ -376,6 +378,8 @@ import {
 
 /** Paid state and usage are injected by the host, never read from workspace settings. */
 export interface ModelApiPaidHooks {
+  readonly usageRecording?: UsageRecording | undefined
+  readonly usageKind?: RecordedCall['kind'] | undefined
   /** Whether a paid feature is on: its machine setting and accepted price. */
   readonly isPaidFeatureOn: (feature: PaidFeature) => boolean
   /** Counts attempts and extra-feature uses for the window. */
@@ -1856,6 +1860,10 @@ export class ModelApiSession implements AgentSession {
    * at that model's rates, whatever the session switched to meanwhile.
    */
   private sendingModelId: string | undefined
+  private recordedCall: RecordedCall | undefined
+  private wasCallSent = false
+  private hasRecordedCall = false
+  private packedBaseline = 0
   private sendingModel: ResolvedModel | undefined
   private sendingImageCount = 0
   private readonly resolvedModels = new Map<string, ResolvedModel>()
@@ -2350,6 +2358,24 @@ export class ModelApiSession implements AgentSession {
     this.sendingImageCount = requestImageCount(body)
     this.sendingModel = this.selectedModel(body.model)
     this.sendingModelId = body.model
+    this.hasRecordedCall = false
+    this.wasCallSent = false
+    this.packedBaseline = this.packing?.savings() ?? 0
+    const parentKind = this.isSideChat ? 'sideChat' : (this.deps.usageKind ?? 'turn')
+    const kind = this.isSubagent ? 'subagent' : parentKind
+    this.recordedCall = {
+      backend: 'modelApi',
+      provider: this.sendingModel.policy.identity.provider,
+      model: body.model,
+      session: this.sessionId,
+      startedAt: this.deps.now(),
+      kind,
+      pricing:
+        this.sendingModel.policy.identity.provider === 'meta'
+          ? undefined
+          : this.sendingModel.policy.pricing,
+      outcome: 'failed',
+    }
     const reservation = this.openReservation
     if (reservation?.hasCap === true) {
       this.deps.log.info(
@@ -2480,6 +2506,27 @@ export class ModelApiSession implements AgentSession {
    */
   private async endRequest(): Promise<void> {
     const reservation = this.openReservation
+    if (!this.hasRecordedCall && this.recordedCall !== undefined) {
+      const stoppedOutcome =
+        this.active?.abort.signal.aborted === true || this.compacting?.signal.aborted === true
+          ? 'cancelled'
+          : this.recordedCall.outcome
+      const outcome = reservation?.isRefused === true ? 'refused' : stoppedOutcome
+      this.deps.usageRecording?.note(undefined, {
+        ...this.recordedCall,
+        durationMs: Math.max(0, this.deps.now() - this.recordedCall.startedAt),
+        ...(this.packing !== undefined && {
+          packedAvoided: Math.max(0, this.packing.savings() - this.packedBaseline),
+        }),
+        uncertain:
+          this.wasCallSent &&
+          reservation?.isRefused !== true &&
+          this.recordedCall.outcome !== 'refused',
+        retainedLiabilityUsd: reservation?.costUsd,
+        outcome,
+      })
+    }
+    this.recordedCall = undefined
     this.openReservation = undefined
     this.sendingModelId = undefined
     this.sendingModel = undefined
@@ -2516,11 +2563,14 @@ export class ModelApiSession implements AgentSession {
   }
 
   private noteRequestRefusal(reservation: OpenReservation | undefined, error: unknown): void {
+    const isRefused =
+      error instanceof ModelApiError &&
+      (error.status === HTTP_STATUS.badRequest || error.status === HTTP_TOO_MANY_REQUESTS)
+    if (isRefused && this.recordedCall !== undefined && reservation?.hasStarted !== true) {
+      this.recordedCall = { ...this.recordedCall, outcome: 'refused' }
+    }
     if (reservation !== undefined) {
-      reservation.isRefused =
-        !reservation.hasStarted &&
-        error instanceof ModelApiError &&
-        (error.status === HTTP_STATUS.badRequest || error.status === HTTP_TOO_MANY_REQUESTS)
+      reservation.isRefused = !reservation.hasStarted && isRefused
     }
   }
 
@@ -3003,7 +3053,35 @@ export class ModelApiSession implements AgentSession {
       this.deps.admitResponseAttempt?.(keyDigest)
     }
     return Object.assign(guard, {
+      observe: (observation: ResponseObservation) => {
+        if (directBudget !== undefined || this.recordedCall === undefined) {
+          return
+        }
+
+        if (
+          observation.headers !== undefined &&
+          (Object.keys(observation.headers).length > 0 || observation.rateLimited === true)
+        ) {
+          this.deps.usageRecording?.limit(
+            {
+              backend: 'modelApi',
+              provider: this.recordedCall.provider,
+              source: 'headers',
+              observedAt: this.deps.now(),
+              windows: [],
+              raw: observation.headers,
+            },
+            observation.rateLimited === true,
+          )
+        }
+        this.recordedCall = {
+          ...this.recordedCall,
+          ...observation,
+          rateLimited: this.recordedCall.rateLimited === true || observation.rateLimited === true,
+        }
+      },
       onRequestStarted: () => {
+        if (directBudget === undefined) this.wasCallSent = true
         if (this.isSubagent && this.childTaskGrant !== undefined) {
           this.childTaskGrant.remainingAttempts -= 1
         }
@@ -3187,7 +3265,14 @@ export class ModelApiSession implements AgentSession {
     this.firstPrompt ??= this.goal?.objective
   }
 
-  private noteUsage(usage: Usage | null | undefined, chargedGoalId: string | undefined): void {
+  private noteUsage(
+    usage: Usage | null | undefined,
+    chargedGoalId: string | undefined,
+    outcome: RecordedCall['outcome'] = 'completed',
+    served?: string,
+  ): void {
+    if (this.recordedCall !== undefined)
+      this.recordedCall = { ...this.recordedCall, outcome, ...(served !== undefined && { served }) }
     if (usage === null || usage === undefined) {
       return
     }
@@ -3232,6 +3317,18 @@ export class ModelApiSession implements AgentSession {
         this.deps.now(),
       )
       this.replaceGoal(spent)
+    }
+    if (!this.hasRecordedCall && this.recordedCall !== undefined) {
+      this.hasRecordedCall = true
+      this.deps.usageRecording?.note(usage, {
+        ...this.recordedCall,
+        outcome,
+        durationMs: Math.max(0, this.deps.now() - this.recordedCall.startedAt),
+        providerCostUsd: usage.provider_cost_usd,
+        ...(this.packing !== undefined && {
+          packedAvoided: Math.max(0, this.packing.savings() - this.packedBaseline),
+        }),
+      })
     }
     this.usage = nextUsage
     const reservation = this.openReservation
@@ -3509,7 +3606,7 @@ export class ModelApiSession implements AgentSession {
         return event.response
       }
       case 'response.failed': {
-        this.noteUsage(event.response.usage, chargedGoalId)
+        this.noteUsage(event.response.usage, chargedGoalId, 'failed', event.response.model)
         const failure = event.response.error
         throw new ModelApiError(
           failure?.message ?? 'The response failed',
@@ -3686,6 +3783,8 @@ export class ModelApiSession implements AgentSession {
     }
     const body = this.budgeted(this.body())
     const reservation = this.sending(body)
+    if (confirmedRequest !== undefined && this.recordedCall !== undefined)
+      this.recordedCall = { ...this.recordedCall, kind: 'schedule' }
     const requestReplay = this.requestReplay()
     let final: ResponseObject | undefined
     const admitAttempt = this.responseAttemptGuard(body)
@@ -3860,7 +3959,12 @@ export class ModelApiSession implements AgentSession {
         },
       })
     }
-    this.noteUsage(response.usage, chargedGoalId)
+    this.noteUsage(
+      response.usage,
+      chargedGoalId,
+      response.status === 'incomplete' ? 'incomplete' : 'completed',
+      response.model,
+    )
     this.noteReplyUsage(response, open, turnId)
     return calls
   }
@@ -8799,7 +8903,7 @@ export class ModelApiSession implements AgentSession {
         return event.delta
       }
       case 'response.failed': {
-        this.noteUsage(event.response.usage, chargedGoalId)
+        this.noteUsage(event.response.usage, chargedGoalId, 'failed', event.response.model)
         throw new ModelApiError(
           event.response.error?.message ?? 'The response failed',
           0,
@@ -8811,11 +8915,11 @@ export class ModelApiSession implements AgentSession {
         throw new ModelApiError(event.message, 0, undefined, event.code ?? undefined)
       }
       case 'response.completed': {
-        this.noteUsage(event.response.usage, chargedGoalId)
+        this.noteUsage(event.response.usage, chargedGoalId, 'completed', event.response.model)
         return ''
       }
       case 'response.incomplete': {
-        this.noteUsage(event.response.usage, chargedGoalId)
+        this.noteUsage(event.response.usage, chargedGoalId, 'incomplete', event.response.model)
         this.deps.log.warn(
           `Model API compaction response ${event.response.id} incomplete: ${event.response.incomplete_details?.reason ?? 'no reason'}`,
         )
@@ -8844,6 +8948,8 @@ export class ModelApiSession implements AgentSession {
     let text = ''
     let response: ResponseObject | undefined
     const reservation = this.sending(request)
+    if (this.recordedCall !== undefined)
+      this.recordedCall = { ...this.recordedCall, kind: 'compaction' }
     const admitAttempt = this.responseAttemptGuard(request)
     const responseStream = resolved.client.streamResponse(
       request,
@@ -8955,7 +9061,26 @@ export class ModelApiSession implements AgentSession {
     const countRevision = this.modelRevision
     try {
       const resolved = await this.resolveModel(countable.model)
-      const counted = await resolved.client.countInputTokens(countable)
+      const startedAt = this.deps.now()
+      let counted: number | undefined
+      try {
+        counted = await resolved.client.countInputTokens(countable)
+      } finally {
+        this.deps.usageRecording?.note(
+          counted === undefined ? undefined : { input_tokens: counted },
+          {
+            backend: 'modelApi',
+            provider: resolved.policy.identity.provider,
+            model: countable.model,
+            kind: 'count',
+            startedAt,
+            session: this.sessionId,
+            outcome: counted === undefined ? 'failed' : 'completed',
+            durationMs: Math.max(0, this.deps.now() - startedAt),
+            providerCostUsd: 0,
+          },
+        )
+      }
       if (countRevision === this.modelRevision) {
         this.noteContext(counted)
       }

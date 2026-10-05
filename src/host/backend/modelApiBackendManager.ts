@@ -1,3 +1,4 @@
+import type { UsageRecording } from '../../core/usage/recording'
 // Owns the Model API host for this extension host (M7): one in-process
 // `ModelApiHost` over the real `fetch`, the stored key and the workspace's
 // files, with the MCP servers of Muse Code's settings (M50), which it starts
@@ -158,6 +159,7 @@ interface HostVariant {
   readonly budgetScope?: OwnedSessionBudgetScope | undefined
   readonly admitResponseAttempt?: ResponseAttemptGuard | undefined
   readonly noteResponseUsage?: ((modelId: string, usage: SubagentUsage) => void) | undefined
+  readonly usageKind?: ModelApiHostDeps['usageKind']
   readonly workspaceRoot: string
   readonly store: SessionStore | undefined
   readonly scheduleStore: ScheduleStore | undefined
@@ -180,6 +182,8 @@ function describe(error: unknown): string {
 }
 
 export class ModelApiBackendManager {
+  /** Runtime/activation injects the same journal into every owned host. */
+  public static usageRecording: UsageRecording | undefined
   private host: ModelApiHost | undefined
   /**
    * The host being built (PLAN.md D25): every caller waits for the stored
@@ -284,6 +288,8 @@ export class ModelApiBackendManager {
         },
         admitResponseAttempt: variant.admitResponseAttempt,
         noteResponseUsage: variant.noteResponseUsage,
+        usageRecording: this.deps.usageRecording ?? ModelApiBackendManager.usageRecording,
+        usageKind: variant.usageKind,
         hasMetaCredential: this.deps.hasMetaCredential,
         ...(variant.budgetScope !== undefined && { budgetScope: variant.budgetScope }),
         describeEnvironment: variant.describeEnvironment,
@@ -392,6 +398,7 @@ export class ModelApiBackendManager {
           listFiles: () => this.deps.listAttemptFiles(worktreeRoot),
           runShell: () => Promise.resolve(unstartedShell(MODEL_TEXT.shellBestOfNAttempt)),
         },
+        usageKind: 'bestOfN',
         noteResponseUsage: (modelId, usage) => {
           if (generation === this.generation) noteUsage?.(modelId, usage)
         },

@@ -1,3 +1,4 @@
+import type { UsageRecording } from '../../src/core/usage/recording'
 import { describe, expect, it, vi } from 'vitest'
 import { ModelApiHost, type ModelApiHostDeps } from '../../src/core/backends/modelapi/ModelApiHost'
 import {
@@ -324,51 +325,101 @@ describe('registry dispatch through the real host', () => {
     }
   })
 
-  it('reviews on the resolved provider with its quote and a distinct profile accounting identity', async () => {
-    const consent = vi.fn(() => Promise.resolve(true))
-    const priced = pricedModel
-    const h = await setup(
-      {
-        isPaidFeatureOn: (feature) => feature === 'autoReviewer',
-        allowsPaidUse: consent,
-        noteReviewerUsage: () => {
-          throw new Error('Legacy observer has no provider tariff')
+  it.each(['completed', 'incomplete', 'failed', 'refused'] as const)(
+    'reviews on the resolved provider with its quote and a distinct profile accounting identity: %s',
+    async (outcome) => {
+      const recording = recordingPort()
+      const consent = vi.fn(() => Promise.resolve(true))
+      const priced = pricedModel
+      const h = await setup(
+        {
+          isPaidFeatureOn: (feature) => feature === 'autoReviewer',
+          allowsPaidUse: consent,
+          usageRecording: recording,
+          noteReviewerUsage: () => {
+            throw new Error('Legacy observer has no provider tariff')
+          },
+          sessionBudgetUsd: () => 1,
+          getAccountId: () => Promise.resolve('profile-owner'),
         },
-        sessionBudgetUsd: () => 1,
-        getAccountId: () => Promise.resolve('profile-owner'),
-      },
-      priced,
-    )
-    try {
-      h.provider.script(
-        { calls: [{ name: 'bash', arguments: '{"command":"npm test"}', callId: 'check' }] },
-        { text: 'ALLOW: runs the requested workspace checks' },
-        { text: 'done' },
+        priced,
       )
-      await h.send()
-      expect(h.provider.responseBodies()).toHaveLength(3)
-      expect(h.meta.responseBodies()).toHaveLength(0)
-      expect(h.provider.responseBodies()[1]).toMatchObject({
-        model: ref,
-        tools: [],
-        max_output_tokens: 100,
+      h.session.onEvent((event) => {
+        if (event.type === 'approvalRequested')
+          void h.session.decideApproval({
+            approvalId: event.approvalId,
+            requirementId: event.requirementId,
+            choiceId: 'allow_once',
+          })
       })
-      expect(consent).toHaveBeenCalledWith(
-        expect.objectContaining({ feature: 'autoReviewer', modelId: ref, pricing: priced.pricing }),
-        false,
-        h.session.sessionId,
-      )
-      const stored = await h.store.load(h.session.sessionId)
-      const total = await h.store.budget?.read(h.session.sessionId, stored?.accountId ?? '')
-      expect(total?.spentUsd).toBeCloseTo(0.00006, 8)
-    } finally {
-      await h.host.close()
-    }
-  })
+      try {
+        h.provider.script(
+          { calls: [{ name: 'bash', arguments: '{"command":"npm test"}', callId: 'check' }] },
+          {
+            text: 'ALLOW: runs the requested workspace checks',
+            usage: { input: 10, output: 5 },
+            ...(outcome === 'incomplete' && { incomplete: { reason: 'max_output_tokens' } }),
+            ...(outcome === 'failed' && { failed: { code: 'model_failure', message: 'failed' } }),
+            ...(outcome === 'refused' && { httpError: { status: 429 } }),
+          },
+          { text: 'done' },
+        )
+        await h.send()
+        expect(recording.note).toHaveBeenCalledTimes(3)
+        expect(vi.mocked(recording.note).mock.calls.map(([, call]) => call.kind)).toEqual([
+          'turn',
+          'reviewer',
+          'turn',
+        ])
+        expect(vi.mocked(recording.note).mock.calls[1]?.[1]).toMatchObject({
+          provider: 'team',
+          model: ref,
+          pricing: priced.pricing,
+          outcome,
+          ...(['completed', 'incomplete'].includes(outcome) && { served: ref }),
+        })
+        if (outcome === 'refused') {
+          expect(recording.limit).toHaveBeenCalledExactlyOnceWith(
+            expect.objectContaining({
+              provider: 'team',
+              raw: {},
+              windows: [],
+              source: 'headers',
+            }),
+            true,
+          )
+          expect(vi.mocked(recording.note).mock.calls[1]?.[1]).toMatchObject({ uncertain: false })
+        }
+        expect(h.provider.responseBodies()).toHaveLength(3)
+        expect(h.meta.responseBodies()).toHaveLength(0)
+        expect(h.provider.responseBodies()[1]).toMatchObject({
+          model: ref,
+          tools: [],
+          max_output_tokens: 100,
+        })
+        expect(consent).toHaveBeenCalledWith(
+          expect.objectContaining({
+            feature: 'autoReviewer',
+            modelId: ref,
+            pricing: priced.pricing,
+          }),
+          false,
+          h.session.sessionId,
+        )
+        const stored = await h.store.load(h.session.sessionId)
+        const total = await h.store.budget?.read(h.session.sessionId, stored?.accountId ?? '')
+        expect(total?.spentUsd).toBeCloseTo(outcome === 'refused' ? 0.00004 : 0.00006, 8)
+      } finally {
+        await h.host.close()
+      }
+    },
+  )
 
   it('retains the reviewer reservation as uncertain when its counted one-hour writes cannot settle', async () => {
+    const recording = recordingPort()
     const h = await setup(
       {
+        usageRecording: recording,
         isPaidFeatureOn: (feature) => feature === 'autoReviewer',
         allowsPaidUse: () => Promise.resolve(true),
         sessionBudgetUsd: () => 1,
@@ -405,6 +456,10 @@ describe('registry dispatch through the real host', () => {
       const total = await h.store.budget?.read(h.session.sessionId, stored?.accountId ?? '')
       expect(total?.hasUnknownHistoricalFees).toBe(true)
       expect(total?.spentUsd).toBeGreaterThan(0)
+      expect(vi.mocked(recording.note).mock.calls[1]?.[0]?.input_tokens_details).toEqual({
+        cache_write_tokens: 100,
+        cache_write_tokens_1h: 50,
+      })
       expect(h.provider.responseBodies()).toHaveLength(2)
     } finally {
       await h.host.close()
@@ -461,3 +516,12 @@ describe('registry dispatch through the real host', () => {
     }
   })
 })
+
+function recordingPort(): UsageRecording {
+  return {
+    note: vi.fn(),
+    limit: vi.fn(),
+    today: () => Promise.resolve([]),
+    flush: () => Promise.resolve(),
+  }
+}

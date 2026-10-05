@@ -1,3 +1,5 @@
+import type { UsageRecording } from '../../src/core/usage/recording'
+import { watchSessionTurns } from './helpers/sessionTurns'
 import { describe, expect, it, vi } from 'vitest'
 import type { SessionStore } from '../../src/core/backends/modelapi/sessionStore'
 import {
@@ -525,3 +527,41 @@ describe('ModelApiBackendManager', () => {
 function managerWith(overrides: { store: SessionStore }) {
   return managerOn('/ws', overrides.store).manager
 }
+
+it('records best-of-N requests once with the attempt kind and its own session', async () => {
+  const api = fakeModelApi()
+  const recording: UsageRecording = {
+    note: vi.fn(),
+    limit: vi.fn(),
+    today: () => Promise.resolve([]),
+    flush: () => Promise.resolve(),
+  }
+  const manager = new ModelApiBackendManager(
+    fakeManagerDeps(api, new FakeLogOutputChannel(), {
+      workspaceRoot: '/ws',
+      sessionBudgetUsd: () => 0,
+      usageRecording: recording,
+      bundlePath: 'source',
+      loadBundle: () => modelApiEntry,
+    }),
+  )
+  const host = await manager.buildAttemptHost('/attempt', () => undefined)
+  try {
+    const session = await host.startSession({
+      workspaceRoot: '/attempt',
+      modelId: 'muse-spark-1.3',
+      approvalMode: 'allowAll',
+    })
+    const turns = watchSessionTurns(session)
+    api.script({ text: 'attempt result' })
+    await session.sendTurn([{ type: 'text', text: 'try' }])
+    await turns.turnDone()
+    expect(recording.note).toHaveBeenCalledExactlyOnceWith(
+      expect.anything(),
+      expect.objectContaining({ kind: 'bestOfN', session: session.sessionId }),
+    )
+  } finally {
+    await host.close()
+    await manager.dispose()
+  }
+})

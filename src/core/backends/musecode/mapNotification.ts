@@ -71,7 +71,10 @@ const schemas = {
   'session/tokenUsage': z.object({
     ...sessionScoped,
     modelId: z.optional(z.nullable(z.string())),
-    cumulative: z.object({ promptTokens: z.number(), outputTokens: z.number() }),
+    cumulative: z.object({
+      promptTokens: z.int().check(z.gte(0)),
+      outputTokens: z.int().check(z.gte(0)),
+    }),
   }),
   'session/contextUsage': z.object({
     ...sessionScoped,
