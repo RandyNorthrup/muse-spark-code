@@ -1,0 +1,1684 @@
+{
+  "version": 1,
+  "executions": [
+    {
+      "id": "json-grammar",
+      "file": "src/core/team/merge/jsonTable.ts",
+      "test": "test/unit/teamJsonTable.test.ts",
+      "rig": "macmini",
+      "exit": 1,
+      "fired": true,
+      "before": "9632982a9bc32c5b62f19a0768efc3c3371ccb3254f374e75ea9a9eb8b247b3b",
+      "mutant": "c62ee92f8de32f7d269ab1931c0db26d51b23a255e5f8e0e8d6a715b5e528b11",
+      "expected": "refuses invalid, duplicate or nonobject",
+      "failures": [
+        " FAIL  test/unit/teamJsonTable.test.ts > team JSON table merge > refuses invalid, duplicate or nonobject side {\"a\":1}junk"
+      ],
+      "restored": "9632982a9bc32c5b62f19a0768efc3c3371ccb3254f374e75ea9a9eb8b247b3b"
+    },
+    {
+      "id": "json-colon",
+      "file": "src/core/team/merge/jsonTable.ts",
+      "test": "test/unit/teamJsonTable.test.ts",
+      "rig": "macmini",
+      "exit": 1,
+      "fired": true,
+      "before": "9632982a9bc32c5b62f19a0768efc3c3371ccb3254f374e75ea9a9eb8b247b3b",
+      "mutant": "22910cf13005956fea058aa853b080f40f12bf04fe7b0fe4dada3bd8e265ce55",
+      "expected": "refuses invalid, duplicate or nonobject",
+      "failures": [
+        " FAIL  test/unit/teamJsonTable.test.ts > team JSON table merge > refuses invalid, duplicate or nonobject side {\"a\";1}"
+      ],
+      "restored": "9632982a9bc32c5b62f19a0768efc3c3371ccb3254f374e75ea9a9eb8b247b3b"
+    },
+    {
+      "id": "json-trailing-comma",
+      "file": "src/core/team/merge/jsonTable.ts",
+      "test": "test/unit/teamJsonTable.test.ts",
+      "rig": "macmini",
+      "exit": 1,
+      "fired": true,
+      "before": "9632982a9bc32c5b62f19a0768efc3c3371ccb3254f374e75ea9a9eb8b247b3b",
+      "mutant": "2f400219509d265783ddca7bdb9c8a1912337ee83eabdde6ea7173d131d0b360",
+      "expected": "refuses invalid, duplicate or nonobject",
+      "failures": [
+        " FAIL  test/unit/teamJsonTable.test.ts > team JSON table merge > refuses invalid, duplicate or nonobject side {\"a\":1,}"
+      ],
+      "restored": "9632982a9bc32c5b62f19a0768efc3c3371ccb3254f374e75ea9a9eb8b247b3b"
+    },
+    {
+      "id": "json-closing",
+      "file": "src/core/team/merge/jsonTable.ts",
+      "test": "test/unit/teamJsonTable.test.ts",
+      "rig": "macmini",
+      "exit": 1,
+      "fired": true,
+      "before": "9632982a9bc32c5b62f19a0768efc3c3371ccb3254f374e75ea9a9eb8b247b3b",
+      "mutant": "8c634dc7fcadbbf5a3b60be630817c114e95cb95c66327426d4faa11a209998a",
+      "expected": "refuses invalid, duplicate or nonobject",
+      "failures": [
+        " FAIL  test/unit/teamJsonTable.test.ts > team JSON table merge > refuses invalid, duplicate or nonobject side {\"a\":1]"
+      ],
+      "restored": "9632982a9bc32c5b62f19a0768efc3c3371ccb3254f374e75ea9a9eb8b247b3b"
+    },
+    {
+      "id": "json-string-grammar",
+      "file": "src/core/team/merge/jsonTable.ts",
+      "test": "test/unit/teamJsonTable.test.ts",
+      "rig": "macmini",
+      "exit": 1,
+      "fired": true,
+      "before": "9632982a9bc32c5b62f19a0768efc3c3371ccb3254f374e75ea9a9eb8b247b3b",
+      "mutant": "100b1149bf1846784158326653fa3bf0f054e0d6931dee31d75841e28aeaa80b",
+      "expected": "refuses invalid, duplicate or nonobject",
+      "failures": [
+        " FAIL  test/unit/teamJsonTable.test.ts > team JSON table merge > refuses invalid, duplicate or nonobject side {\"a\":\"\\q\"}",
+        " FAIL  test/unit/teamJsonTable.test.ts > team JSON table merge > refuses invalid, duplicate or nonobject side {\"nested\":{\"a\":1,\"\\u0061\":2}}",
+        " FAIL  test/unit/teamJsonTable.test.ts > team JSON table merge > accepts identical changes, removals and one-sided type changes"
+      ],
+      "restored": "9632982a9bc32c5b62f19a0768efc3c3371ccb3254f374e75ea9a9eb8b247b3b"
+    },
+    {
+      "id": "json-key-type",
+      "file": "src/core/team/merge/jsonTable.ts",
+      "test": "test/unit/teamJsonTable.test.ts",
+      "rig": "macmini",
+      "exit": 1,
+      "fired": true,
+      "before": "9632982a9bc32c5b62f19a0768efc3c3371ccb3254f374e75ea9a9eb8b247b3b",
+      "mutant": "8042d32a59ce5d00a042972df92a9365734d99aaa129268c6be1c63dbeccf9ff",
+      "expected": "refuses invalid, duplicate or nonobject",
+      "failures": [
+        " FAIL  test/unit/teamJsonTable.test.ts > team JSON table merge > refuses invalid, duplicate or nonobject side {{}:1}"
+      ],
+      "restored": "9632982a9bc32c5b62f19a0768efc3c3371ccb3254f374e75ea9a9eb8b247b3b"
+    },
+    {
+      "id": "json-whitespace",
+      "file": "src/core/team/merge/jsonTable.ts",
+      "test": "test/unit/teamJsonTable.test.ts",
+      "rig": "macmini",
+      "exit": 1,
+      "fired": true,
+      "before": "9632982a9bc32c5b62f19a0768efc3c3371ccb3254f374e75ea9a9eb8b247b3b",
+      "mutant": "6796193f1aaeb5104d7af60de43fc0aa3483c117ae3d3a6e733aaa580bf8ceec",
+      "expected": "refuses invalid, duplicate or nonobject",
+      "failures": [
+        " FAIL  test/unit/teamJsonTable.test.ts > team JSON table merge > refuses invalid, duplicate or nonobject side \u00c2\u00a0{}"
+      ],
+      "restored": "9632982a9bc32c5b62f19a0768efc3c3371ccb3254f374e75ea9a9eb8b247b3b"
+    },
+    {
+      "id": "json-decimal-precision",
+      "file": "src/core/team/merge/jsonTable.ts",
+      "test": "test/unit/teamJsonTable.test.ts",
+      "rig": "macmini",
+      "exit": 1,
+      "fired": true,
+      "before": "9632982a9bc32c5b62f19a0768efc3c3371ccb3254f374e75ea9a9eb8b247b3b",
+      "mutant": "7b65fec85685885d45d5764d3cfec8ab9e5fe3740901e590fa1f5a92d913664c",
+      "expected": "refuses precise large integers",
+      "failures": [
+        " FAIL  test/unit/teamJsonTable.test.ts > team JSON table merge > refuses precise large integers with a key, never markers or a silent pick"
+      ],
+      "restored": "9632982a9bc32c5b62f19a0768efc3c3371ccb3254f374e75ea9a9eb8b247b3b"
+    },
+    {
+      "id": "json-raw-keys",
+      "file": "src/core/team/merge/jsonTable.ts",
+      "test": "test/unit/teamJsonTable.test.ts",
+      "rig": "macmini",
+      "exit": 1,
+      "fired": true,
+      "before": "9632982a9bc32c5b62f19a0768efc3c3371ccb3254f374e75ea9a9eb8b247b3b",
+      "mutant": "c45a74ff1735162fbc28bfb78f9c788c1081deac064b08ae77a2dd9d9e8affd6",
+      "expected": "preserves BOM, CRLF",
+      "failures": [
+        " FAIL  test/unit/teamJsonTable.test.ts > team JSON table merge > preserves BOM, CRLF, indentation, escaped strings and final newline"
+      ],
+      "restored": "9632982a9bc32c5b62f19a0768efc3c3371ccb3254f374e75ea9a9eb8b247b3b"
+    },
+    {
+      "id": "json-raw-string",
+      "file": "src/core/team/merge/jsonTable.ts",
+      "test": "test/unit/teamJsonTable.test.ts",
+      "rig": "macmini",
+      "exit": 1,
+      "fired": true,
+      "before": "9632982a9bc32c5b62f19a0768efc3c3371ccb3254f374e75ea9a9eb8b247b3b",
+      "mutant": "b57c532129dbd277402bd0adadd025372e4a21ae26daf7874929296d06cb5a77",
+      "expected": "preserves BOM, CRLF",
+      "failures": [
+        " FAIL  test/unit/teamJsonTable.test.ts > team JSON table merge > preserves BOM, CRLF, indentation, escaped strings and final newline"
+      ],
+      "restored": "9632982a9bc32c5b62f19a0768efc3c3371ccb3254f374e75ea9a9eb8b247b3b"
+    },
+    {
+      "id": "json-duplicates",
+      "file": "src/core/team/merge/jsonTable.ts",
+      "test": "test/unit/teamJsonTable.test.ts",
+      "rig": "macmini",
+      "exit": 1,
+      "fired": true,
+      "before": "9632982a9bc32c5b62f19a0768efc3c3371ccb3254f374e75ea9a9eb8b247b3b",
+      "mutant": "8c2be9282448659b97384b50ccb59d23fd9fa3b7434076e4bedf93ad3faf5eb3",
+      "expected": "refuses invalid, duplicate or nonobject",
+      "failures": [
+        " FAIL  test/unit/teamJsonTable.test.ts > team JSON table merge > refuses invalid, duplicate or nonobject side {\"a\":1,\"a\":2}",
+        " FAIL  test/unit/teamJsonTable.test.ts > team JSON table merge > refuses invalid, duplicate or nonobject side {\"nested\":{\"a\":1,\"\\u0061\":2}}",
+        " FAIL  test/unit/teamJsonTable.test.ts > team JSON table merge > refuses invalid, duplicate or nonobject side {\"array\":[{\"a\":1,\"a\":2}]}"
+      ],
+      "restored": "9632982a9bc32c5b62f19a0768efc3c3371ccb3254f374e75ea9a9eb8b247b3b"
+    },
+    {
+      "id": "json-decoded-keys",
+      "file": "src/core/team/merge/jsonTable.ts",
+      "test": "test/unit/teamJsonTable.test.ts",
+      "rig": "macmini",
+      "exit": 1,
+      "fired": true,
+      "before": "9632982a9bc32c5b62f19a0768efc3c3371ccb3254f374e75ea9a9eb8b247b3b",
+      "mutant": "b62ac36cd3c1fb644336b88ec056777da55672afc00f91f587c74bb8ae9d130b",
+      "expected": "refuses invalid, duplicate or nonobject",
+      "failures": [
+        " FAIL  test/unit/teamJsonTable.test.ts > team JSON table merge > merges ten parallel changes in all thirty table paths, nested and flat",
+        " FAIL  test/unit/teamJsonTable.test.ts > team JSON table merge > refuses same key with a key, never markers or a silent pick",
+        " FAIL  test/unit/teamJsonTable.test.ts > team JSON table merge > refuses delete/change with a key, never markers or a silent pick",
+        " FAIL  test/unit/teamJsonTable.test.ts > team JSON table merge > refuses arrays are atomic with a key, never markers or a silent pick",
+        " FAIL  test/unit/teamJsonTable.test.ts > team JSON table merge > refuses different type changes with a key, never markers or a silent pick",
+        " FAIL  test/unit/teamJsonTable.test.ts > team JSON table merge > refuses precise large integers with a key, never markers or a silent pick",
+        " FAIL  test/unit/teamJsonTable.test.ts > team JSON table merge > refuses invalid, duplicate or nonobject side {\"nested\":{\"a\":1,\"\\u0061\":2}}",
+        " FAIL  test/unit/teamJsonTable.test.ts > team JSON table merge > keeps raw integer key order, branch predecessor placement and removed neighbours",
+        " FAIL  test/unit/teamJsonTable.test.ts > team JSON table merge > names syntax line and decoded key without relying on native error-message wording",
+        " FAIL  test/unit/teamJsonTable.test.ts > team JSON table merge > preserves BOM, CRLF, indentation, escaped strings and final newline"
+      ],
+      "restored": "9632982a9bc32c5b62f19a0768efc3c3371ccb3254f374e75ea9a9eb8b247b3b"
+    },
+    {
+      "id": "json-conflict",
+      "file": "src/core/team/merge/jsonTable.ts",
+      "test": "test/unit/teamJsonTable.test.ts",
+      "rig": "macmini",
+      "exit": 1,
+      "fired": true,
+      "before": "9632982a9bc32c5b62f19a0768efc3c3371ccb3254f374e75ea9a9eb8b247b3b",
+      "mutant": "0432c32bbc6c2f2c813493e939f32fad32adacc40249ef4745f3423f14c24a22",
+      "expected": "refuses same key",
+      "failures": [
+        " FAIL  test/unit/teamJsonTable.test.ts > team JSON table merge > refuses same key with a key, never markers or a silent pick",
+        " FAIL  test/unit/teamJsonTable.test.ts > team JSON table merge > refuses delete/change with a key, never markers or a silent pick",
+        " FAIL  test/unit/teamJsonTable.test.ts > team JSON table merge > refuses arrays are atomic with a key, never markers or a silent pick",
+        " FAIL  test/unit/teamJsonTable.test.ts > team JSON table merge > refuses different type changes with a key, never markers or a silent pick",
+        " FAIL  test/unit/teamJsonTable.test.ts > team JSON table merge > refuses precise large integers with a key, never markers or a silent pick"
+      ],
+      "restored": "9632982a9bc32c5b62f19a0768efc3c3371ccb3254f374e75ea9a9eb8b247b3b"
+    },
+    {
+      "id": "json-key-order",
+      "file": "src/core/team/merge/jsonTable.ts",
+      "test": "test/unit/teamJsonTable.test.ts",
+      "rig": "macmini",
+      "exit": 1,
+      "fired": true,
+      "before": "9632982a9bc32c5b62f19a0768efc3c3371ccb3254f374e75ea9a9eb8b247b3b",
+      "mutant": "660f13fc557774b302b3376317862c3b9e9f08b47e28c2e02a135a9b6f0a1a94",
+      "expected": "keeps raw integer key order",
+      "failures": [
+        " FAIL  test/unit/teamJsonTable.test.ts > team JSON table merge > keeps raw integer key order, branch predecessor placement and removed neighbours"
+      ],
+      "restored": "9632982a9bc32c5b62f19a0768efc3c3371ccb3254f374e75ea9a9eb8b247b3b"
+    },
+    {
+      "id": "json-bom",
+      "file": "src/core/team/merge/jsonTable.ts",
+      "test": "test/unit/teamJsonTable.test.ts",
+      "rig": "macmini",
+      "exit": 1,
+      "fired": true,
+      "before": "9632982a9bc32c5b62f19a0768efc3c3371ccb3254f374e75ea9a9eb8b247b3b",
+      "mutant": "7d436378cb1288b4a3f3163a2455fd08dfd8c67fb0273c0edd4eafcfde9dc5cc",
+      "expected": "preserves BOM, CRLF",
+      "failures": [
+        " FAIL  test/unit/teamJsonTable.test.ts > team JSON table merge > preserves BOM, CRLF, indentation, escaped strings and final newline"
+      ],
+      "restored": "9632982a9bc32c5b62f19a0768efc3c3371ccb3254f374e75ea9a9eb8b247b3b"
+    },
+    {
+      "id": "json-crlf",
+      "file": "src/core/team/merge/jsonTable.ts",
+      "test": "test/unit/teamJsonTable.test.ts",
+      "rig": "macmini",
+      "exit": 1,
+      "fired": true,
+      "before": "9632982a9bc32c5b62f19a0768efc3c3371ccb3254f374e75ea9a9eb8b247b3b",
+      "mutant": "fa6ea7b57c2af3089539435b2e4a7bac7c7d335f8f69358d0728168833b10356",
+      "expected": "preserves BOM, CRLF",
+      "failures": [
+        " FAIL  test/unit/teamJsonTable.test.ts > team JSON table merge > preserves BOM, CRLF, indentation, escaped strings and final newline"
+      ],
+      "restored": "9632982a9bc32c5b62f19a0768efc3c3371ccb3254f374e75ea9a9eb8b247b3b"
+    },
+    {
+      "id": "json-kept-after-format",
+      "file": "src/core/team/merge/jsonTable.ts",
+      "test": "test/unit/teamJsonTable.test.ts",
+      "rig": "macmini",
+      "exit": 1,
+      "fired": true,
+      "before": "9632982a9bc32c5b62f19a0768efc3c3371ccb3254f374e75ea9a9eb8b247b3b",
+      "mutant": "6956b67a1b13c2d98c8a79cd7622effa25513d9660883f95611bcb1cd02f38c5",
+      "expected": "checks both intents after the formatter",
+      "failures": [
+        " FAIL  test/unit/teamJsonTable.test.ts > team JSON table merge > checks both intents after the formatter, including missing branch additions and removals"
+      ],
+      "restored": "9632982a9bc32c5b62f19a0768efc3c3371ccb3254f374e75ea9a9eb8b247b3b"
+    },
+    {
+      "id": "json-branch-intent",
+      "file": "src/core/team/merge/jsonTable.ts",
+      "test": "test/unit/teamJsonTable.test.ts",
+      "rig": "macmini",
+      "exit": 1,
+      "fired": true,
+      "before": "9632982a9bc32c5b62f19a0768efc3c3371ccb3254f374e75ea9a9eb8b247b3b",
+      "mutant": "266bead0cb3bee24e27fcd4ce226d296edc7053cf8c10e7175d7fb427619aaad",
+      "expected": "checks both intents after the formatter",
+      "failures": [
+        " FAIL  test/unit/teamJsonTable.test.ts > team JSON table merge > checks both intents after the formatter, including missing branch additions and removals"
+      ],
+      "restored": "9632982a9bc32c5b62f19a0768efc3c3371ccb3254f374e75ea9a9eb8b247b3b"
+    },
+    {
+      "id": "json-formatter-order",
+      "file": "src/core/team/merge/jsonTable.ts",
+      "test": "test/unit/teamJsonTable.test.ts",
+      "rig": "macmini",
+      "exit": 1,
+      "fired": true,
+      "before": "9632982a9bc32c5b62f19a0768efc3c3371ccb3254f374e75ea9a9eb8b247b3b",
+      "mutant": "57ec0266fc31b14871606db1ffc0a7b36ba7a59c51f6163b8fe87758d76c7558",
+      "expected": "checks both intents after the formatter",
+      "failures": [
+        " FAIL  test/unit/teamJsonTable.test.ts > team JSON table merge > checks both intents after the formatter, including missing branch additions and removals"
+      ],
+      "restored": "9632982a9bc32c5b62f19a0768efc3c3371ccb3254f374e75ea9a9eb8b247b3b"
+    },
+    {
+      "id": "json-formatter-bom",
+      "file": "src/core/team/merge/jsonTable.ts",
+      "test": "test/unit/teamJsonTable.test.ts",
+      "rig": "macmini",
+      "exit": 1,
+      "fired": true,
+      "before": "9632982a9bc32c5b62f19a0768efc3c3371ccb3254f374e75ea9a9eb8b247b3b",
+      "mutant": "7284a7836d4822c9d3e6610ae21f193c0518bcdeb31e9145d7a1cfa904996081",
+      "expected": "checks both intents after the formatter",
+      "failures": [
+        " FAIL  test/unit/teamJsonTable.test.ts > team JSON table merge > checks both intents after the formatter, including missing branch additions and removals"
+      ],
+      "restored": "9632982a9bc32c5b62f19a0768efc3c3371ccb3254f374e75ea9a9eb8b247b3b"
+    },
+    {
+      "id": "json-formatter-crlf",
+      "file": "src/core/team/merge/jsonTable.ts",
+      "test": "test/unit/teamJsonTable.test.ts",
+      "rig": "macmini",
+      "exit": 1,
+      "fired": true,
+      "before": "9632982a9bc32c5b62f19a0768efc3c3371ccb3254f374e75ea9a9eb8b247b3b",
+      "mutant": "076d10ff4865f7d8f07cbd9f906f583e591519fad2f021f3075b59cdf9b6da00",
+      "expected": "checks both intents after the formatter",
+      "failures": [
+        " FAIL  test/unit/teamJsonTable.test.ts > team JSON table merge > checks both intents after the formatter, including missing branch additions and removals"
+      ],
+      "restored": "9632982a9bc32c5b62f19a0768efc3c3371ccb3254f374e75ea9a9eb8b247b3b"
+    },
+    {
+      "id": "log-released",
+      "file": "src/core/team/merge/changelog.ts",
+      "test": "test/unit/teamChangelog.test.ts",
+      "rig": "macmini",
+      "exit": 1,
+      "fired": true,
+      "before": "0487f6db868af4da1befc31ef06f45ae535bd9e54a36decf8139bef2650f1c03",
+      "mutant": "236f19acae3b2d50f53a8d5f4eeeac48df25295cc6c59b83d4cff5297e591054",
+      "expected": "refuses released changes",
+      "failures": [
+        " FAIL  test/unit/teamChangelog.test.ts > team CHANGELOG merge > refuses released changes and competing edits to one bullet"
+      ],
+      "restored": "0487f6db868af4da1befc31ef06f45ae535bd9e54a36decf8139bef2650f1c03"
+    },
+    {
+      "id": "log-competing-edit",
+      "file": "src/core/team/merge/changelog.ts",
+      "test": "test/unit/teamChangelog.test.ts",
+      "rig": "macmini",
+      "exit": 1,
+      "fired": true,
+      "before": "0487f6db868af4da1befc31ef06f45ae535bd9e54a36decf8139bef2650f1c03",
+      "mutant": "5badb9211cb67fd6d1d22d2ac1abcaf59fc5162fe60b2843a3f282eccf87fbb7",
+      "expected": "refuses released changes",
+      "failures": [
+        " FAIL  test/unit/teamChangelog.test.ts > team CHANGELOG merge > refuses released changes and competing edits to one bullet"
+      ],
+      "restored": "0487f6db868af4da1befc31ef06f45ae535bd9e54a36decf8139bef2650f1c03"
+    },
+    {
+      "id": "log-kept",
+      "file": "src/core/team/merge/changelog.ts",
+      "test": "test/unit/teamChangelog.test.ts",
+      "rig": "macmini",
+      "exit": 1,
+      "fired": true,
+      "before": "0487f6db868af4da1befc31ef06f45ae535bd9e54a36decf8139bef2650f1c03",
+      "mutant": "26450c363bf6670de596a148aa673085e926932a124b1536453192abb9830995",
+      "expected": "applies authorized edits and removals",
+      "failures": [
+        " FAIL  test/unit/teamChangelog.test.ts > team CHANGELOG merge > applies authorized edits and removals while keeping unrelated bullets"
+      ],
+      "restored": "0487f6db868af4da1befc31ef06f45ae535bd9e54a36decf8139bef2650f1c03"
+    },
+    {
+      "id": "log-authorized-removal",
+      "file": "src/core/team/merge/changelog.ts",
+      "test": "test/unit/teamChangelog.test.ts",
+      "rig": "macmini",
+      "exit": 1,
+      "fired": true,
+      "before": "0487f6db868af4da1befc31ef06f45ae535bd9e54a36decf8139bef2650f1c03",
+      "mutant": "67427295dc273969189c1eb02e14e2371043498dc901d80066986003c85ef3fa",
+      "expected": "applies authorized edits and removals",
+      "failures": [
+        " FAIL  test/unit/teamChangelog.test.ts > team CHANGELOG merge > applies authorized edits and removals while keeping unrelated bullets",
+        " FAIL  test/unit/teamChangelog.test.ts > team CHANGELOG merge > preserves BOM/CRLF and existing fragment conventions without folding them"
+      ],
+      "restored": "0487f6db868af4da1befc31ef06f45ae535bd9e54a36decf8139bef2650f1c03"
+    },
+    {
+      "id": "log-release-placement",
+      "file": "src/core/team/merge/changelog.ts",
+      "test": "test/unit/teamChangelog.test.ts",
+      "rig": "macmini",
+      "exit": 1,
+      "fired": true,
+      "before": "0487f6db868af4da1befc31ef06f45ae535bd9e54a36decf8139bef2650f1c03",
+      "mutant": "0693c817ea52bb7e3be4232b29d42e3321a366a4ef424d716b2b47c5fc3076f6",
+      "expected": "keeps ten parallel notes",
+      "failures": [
+        " FAIL  test/unit/teamChangelog.test.ts > team CHANGELOG merge > keeps ten parallel notes across an intervening release",
+        " FAIL  test/unit/teamChangelog.test.ts > team CHANGELOG merge > applies authorized edits and removals while keeping unrelated bullets",
+        " FAIL  test/unit/teamChangelog.test.ts > team CHANGELOG merge > handles new sections, multiline bullets and moved bullets once",
+        " FAIL  test/unit/teamChangelog.test.ts > team CHANGELOG merge > preserves BOM/CRLF and existing fragment conventions without folding them"
+      ],
+      "restored": "0487f6db868af4da1befc31ef06f45ae535bd9e54a36decf8139bef2650f1c03"
+    },
+    {
+      "id": "log-structure",
+      "file": "src/core/team/merge/changelog.ts",
+      "test": "test/unit/teamChangelog.test.ts",
+      "rig": "macmini",
+      "exit": 1,
+      "fired": true,
+      "before": "0487f6db868af4da1befc31ef06f45ae535bd9e54a36decf8139bef2650f1c03",
+      "mutant": "b1955e980830e03219eebd539714cbf7a0767d9354d6b8205060b2f2eb3d3d7f",
+      "expected": "refuses released changes",
+      "failures": [
+        " FAIL  test/unit/teamChangelog.test.ts > team CHANGELOG merge > refuses released changes and competing edits to one bullet"
+      ],
+      "restored": "0487f6db868af4da1befc31ef06f45ae535bd9e54a36decf8139bef2650f1c03"
+    },
+    {
+      "id": "log-fragments",
+      "file": "src/core/team/merge/changelog.ts",
+      "test": "test/unit/teamChangelog.test.ts",
+      "rig": "macmini",
+      "exit": 1,
+      "fired": true,
+      "before": "0487f6db868af4da1befc31ef06f45ae535bd9e54a36decf8139bef2650f1c03",
+      "mutant": "377c3e85f09c7791238df108f8e7240aafd9ae5b8d8c30d9eb4f7cc69f342397",
+      "expected": "existing fragment conventions",
+      "failures": [
+        " FAIL  test/unit/teamChangelog.test.ts > team CHANGELOG merge > preserves BOM/CRLF and existing fragment conventions without folding them"
+      ],
+      "restored": "0487f6db868af4da1befc31ef06f45ae535bd9e54a36decf8139bef2650f1c03"
+    },
+    {
+      "id": "lease-overlap",
+      "file": "src/core/team/writeSets.ts",
+      "test": "test/unit/teamCollisions.test.ts",
+      "rig": "macmini",
+      "exit": 1,
+      "fired": true,
+      "before": "bbddc5891c11bb23c7bc274480079282c134ff2539dcefa849eef778d065c698",
+      "mutant": "74afeb6461ce1153a81ca5b513a70c651d2218a7ed2d42f1399dd452fde5db89",
+      "expected": "serializes overlapping attempts",
+      "failures": [
+        " FAIL  test/unit/teamCollisions.test.ts > team collision leases > serializes overlapping attempts, fills another lane, releases at retirement and reacquires for rework",
+        " FAIL  test/unit/teamCollisions.test.ts > team collision leases > lets delegated children and pipeline steps share their parent lease",
+        " FAIL  test/unit/teamCollisions.test.ts > team collision leases > clips roles, conservatively overlaps future prefixes, and makes whole-tree/in-place writers exclusive"
+      ],
+      "restored": "bbddc5891c11bb23c7bc274480079282c134ff2539dcefa849eef778d065c698"
+    },
+    {
+      "id": "lease-inheritance",
+      "file": "src/core/team/writeSets.ts",
+      "test": "test/unit/teamCollisions.test.ts",
+      "rig": "macmini",
+      "exit": 1,
+      "fired": true,
+      "before": "bbddc5891c11bb23c7bc274480079282c134ff2539dcefa849eef778d065c698",
+      "mutant": "607129383637842bc31bba8112b45958b7e6d0128fd7cf0265cf8d1f21ef3720",
+      "expected": "delegated children and pipeline steps",
+      "failures": [
+        " FAIL  test/unit/teamCollisions.test.ts > team collision leases > lets delegated children and pipeline steps share their parent lease"
+      ],
+      "restored": "bbddc5891c11bb23c7bc274480079282c134ff2539dcefa849eef778d065c698"
+    },
+    {
+      "id": "lease-clipping",
+      "file": "src/core/team/writeSets.ts",
+      "test": "test/unit/teamCollisions.test.ts",
+      "rig": "macmini",
+      "exit": 1,
+      "fired": true,
+      "before": "bbddc5891c11bb23c7bc274480079282c134ff2539dcefa849eef778d065c698",
+      "mutant": "105ad50a5e62542ea2037cafab5a4bd698876b060d99677d2764610a26d5286a",
+      "expected": "clips roles",
+      "failures": [
+        " FAIL  test/unit/teamCollisions.test.ts > team collision leases > clips roles, conservatively overlaps future prefixes, and makes whole-tree/in-place writers exclusive"
+      ],
+      "restored": "bbddc5891c11bb23c7bc274480079282c134ff2539dcefa849eef778d065c698"
+    },
+    {
+      "id": "lease-future-prefix",
+      "file": "src/core/team/writeSets.ts",
+      "test": "test/unit/teamCollisions.test.ts",
+      "rig": "macmini",
+      "exit": 1,
+      "fired": true,
+      "before": "bbddc5891c11bb23c7bc274480079282c134ff2539dcefa849eef778d065c698",
+      "mutant": "0ca5d8289baeb4981a889dc3a55c7837265c3242b0d5d5aba15b1db6f34c736c",
+      "expected": "clips roles",
+      "failures": [
+        " FAIL  test/unit/teamCollisions.test.ts > team collision leases > clips roles, conservatively overlaps future prefixes, and makes whole-tree/in-place writers exclusive"
+      ],
+      "restored": "bbddc5891c11bb23c7bc274480079282c134ff2539dcefa849eef778d065c698"
+    },
+    {
+      "id": "lease-role-growth",
+      "file": "src/core/team/writeSets.ts",
+      "test": "test/unit/teamCollisions.test.ts",
+      "rig": "macmini",
+      "exit": 1,
+      "fired": true,
+      "before": "bbddc5891c11bb23c7bc274480079282c134ff2539dcefa849eef778d065c698",
+      "mutant": "b5a65e8dbb9a5bb2ea3123de014fdcd5e6d0f29e3f5f2115c75843f52585e058",
+      "expected": "clips roles",
+      "failures": [
+        " FAIL  test/unit/teamCollisions.test.ts > team collision leases > clips roles, conservatively overlaps future prefixes, and makes whole-tree/in-place writers exclusive"
+      ],
+      "restored": "bbddc5891c11bb23c7bc274480079282c134ff2539dcefa849eef778d065c698"
+    },
+    {
+      "id": "lease-retirement",
+      "file": "src/core/team/writeSets.ts",
+      "test": "test/unit/teamCollisions.test.ts",
+      "rig": "macmini",
+      "exit": 1,
+      "fired": true,
+      "before": "bbddc5891c11bb23c7bc274480079282c134ff2539dcefa849eef778d065c698",
+      "mutant": "b8d85a85195d651b83726d5a3055cd4c24fda4520eba30049760f3bd5a8c919e",
+      "expected": "serializes overlapping attempts",
+      "failures": [
+        " FAIL  test/unit/teamCollisions.test.ts > team collision leases > serializes overlapping attempts, fills another lane, releases at retirement and reacquires for rework",
+        " FAIL  test/unit/teamCollisions.test.ts > team collision leases > lets delegated children and pipeline steps share their parent lease",
+        " FAIL  test/unit/teamCollisions.test.ts > team collision leases > clips roles, conservatively overlaps future prefixes, and makes whole-tree/in-place writers exclusive"
+      ],
+      "restored": "bbddc5891c11bb23c7bc274480079282c134ff2539dcefa849eef778d065c698"
+    },
+    {
+      "id": "lease-stale",
+      "file": "src/core/team/writeSets.ts",
+      "test": "test/unit/teamCollisions.test.ts",
+      "rig": "macmini",
+      "exit": 1,
+      "fired": true,
+      "before": "bbddc5891c11bb23c7bc274480079282c134ff2539dcefa849eef778d065c698",
+      "mutant": "c526f80ef2e4ed6bc4a8716993fe4684172d4710f8917a2f1a341376e601b798",
+      "expected": "serializes overlapping attempts",
+      "failures": [
+        " FAIL  test/unit/teamCollisions.test.ts > team collision leases > serializes overlapping attempts, fills another lane, releases at retirement and reacquires for rework",
+        " FAIL  test/unit/teamCollisions.test.ts > team collision leases > clips roles, conservatively overlaps future prefixes, and makes whole-tree/in-place writers exclusive"
+      ],
+      "restored": "bbddc5891c11bb23c7bc274480079282c134ff2539dcefa849eef778d065c698"
+    },
+    {
+      "id": "lease-growth-conflict",
+      "file": "src/core/team/writeSets.ts",
+      "test": "test/unit/teamCollisions.test.ts",
+      "rig": "macmini",
+      "exit": 1,
+      "fired": true,
+      "before": "bbddc5891c11bb23c7bc274480079282c134ff2539dcefa849eef778d065c698",
+      "mutant": "165ba2fee009a3d35d28c2752d8dcae6569e8c390f95ebb0ed9a8be4143dbfee",
+      "expected": "grows free paths and predicts occupied growth",
+      "failures": [
+        " FAIL  test/unit/teamCollisions.test.ts > team collision leases > leases no undeclared paths, allows overlaps on request, grows free paths and predicts occupied growth"
+      ],
+      "restored": "bbddc5891c11bb23c7bc274480079282c134ff2539dcefa849eef778d065c698"
+    },
+    {
+      "id": "lease-exclusive",
+      "file": "src/core/team/writeSets.ts",
+      "test": "test/unit/teamCollisions.test.ts",
+      "rig": "macmini",
+      "exit": 1,
+      "fired": true,
+      "before": "bbddc5891c11bb23c7bc274480079282c134ff2539dcefa849eef778d065c698",
+      "mutant": "4c82c599f124d70578812af1689a1dcf5aaa80b8ebb376c1bbcd509de0e78f7e",
+      "expected": "whole-tree/in-place writers exclusive",
+      "failures": [
+        " FAIL  test/unit/teamCollisions.test.ts > team collision leases > clips roles, conservatively overlaps future prefixes, and makes whole-tree/in-place writers exclusive"
+      ],
+      "restored": "bbddc5891c11bb23c7bc274480079282c134ff2539dcefa849eef778d065c698"
+    },
+    {
+      "id": "lease-path-confinement",
+      "file": "src/core/team/writeSets.ts",
+      "test": "test/unit/teamCollisions.test.ts",
+      "rig": "macmini",
+      "exit": 1,
+      "fired": true,
+      "before": "bbddc5891c11bb23c7bc274480079282c134ff2539dcefa849eef778d065c698",
+      "mutant": "2ddaa3b24a96242682d1161ed63fef5c82b8c5da2a616074f89f34e8b133ca8e",
+      "expected": "whole-tree/in-place writers exclusive",
+      "failures": [
+        " FAIL  test/unit/teamCollisions.test.ts > team collision leases > clips roles, conservatively overlaps future prefixes, and makes whole-tree/in-place writers exclusive"
+      ],
+      "restored": "bbddc5891c11bb23c7bc274480079282c134ff2539dcefa849eef778d065c698"
+    },
+    {
+      "id": "hint-expiry",
+      "file": "src/core/team/writeSets.ts",
+      "test": "test/unit/teamCollisions.test.ts",
+      "rig": "macmini",
+      "exit": 1,
+      "fired": true,
+      "before": "bbddc5891c11bb23c7bc274480079282c134ff2539dcefa849eef778d065c698",
+      "mutant": "e9f6b4337fbc7dae869bf1fd732e3b6b5c14938235f64903358fc9e4d6d4828b",
+      "expected": "expires dropped collisions",
+      "failures": [
+        " FAIL  test/unit/teamCollisions.test.ts > team collision leases > asks once per fresh hint collision, skips key/bullet files and expires dropped collisions"
+      ],
+      "restored": "bbddc5891c11bb23c7bc274480079282c134ff2539dcefa849eef778d065c698"
+    },
+    {
+      "id": "wait-cycle",
+      "file": "src/core/team/waitFor.ts",
+      "test": "test/unit/teamCollisions.test.ts",
+      "rig": "macmini",
+      "exit": 1,
+      "fired": true,
+      "before": "26f568ac27b8979f912903de41a26e8536b1e42096aa6ef16e4707c50cd40ea7",
+      "mutant": "df94d19aeb1e4aa04e20f3a2c2ec721748f7866bc03f2b6c532e7080e4521fe5",
+      "expected": "refuses a newer cycle",
+      "failures": [
+        " FAIL  test/unit/teamCollisions.test.ts > team wait graph > refuses a newer cycle across leases, dependencies, children and slots atomically"
+      ],
+      "restored": "26f568ac27b8979f912903de41a26e8536b1e42096aa6ef16e4707c50cd40ea7"
+    },
+    {
+      "id": "shared-json-no-locks",
+      "file": "src/core/team/sharedFiles.ts",
+      "test": "test/unit/teamCollisions.test.ts",
+      "rig": "macmini",
+      "exit": 1,
+      "fired": true,
+      "before": "0daff9f5a316cbf8bb00ccb5984edb943f27df66ba9877317ca882d5c3661b16",
+      "mutant": "6d4fcbb6f7b3942a8474893c7ccaabba0330754d3b7dc5e89ae8c4972b989ab4",
+      "expected": "never serializes built-in JSON/changelog files",
+      "failures": [
+        " FAIL  test/unit/teamCollisions.test.ts > team collision leases > never serializes built-in JSON/changelog files, while declared text shared files serialize"
+      ],
+      "restored": "0daff9f5a316cbf8bb00ccb5984edb943f27df66ba9877317ca882d5c3661b16"
+    },
+    {
+      "id": "shared-root-glob",
+      "file": "src/core/team/sharedFiles.ts",
+      "test": "test/unit/teamCollisions.test.ts",
+      "rig": "macmini",
+      "exit": 1,
+      "fired": true,
+      "before": "0daff9f5a316cbf8bb00ccb5984edb943f27df66ba9877317ca882d5c3661b16",
+      "mutant": "e2b02adca4dd9abfecbc6d5f4eb7376819f3ad797c957b527a63ddc81c8f6bcf",
+      "expected": "never serializes built-in JSON/changelog files",
+      "failures": [
+        " FAIL  test/unit/teamCollisions.test.ts > team collision leases > never serializes built-in JSON/changelog files, while declared text shared files serialize"
+      ],
+      "restored": "0daff9f5a316cbf8bb00ccb5984edb943f27df66ba9877317ca882d5c3661b16"
+    },
+    {
+      "id": "predict-integration",
+      "file": "src/core/team/conflictPredict.ts",
+      "test": "test/unit/teamConflictPredict.test.ts",
+      "rig": "macmini",
+      "exit": 1,
+      "fired": true,
+      "before": "5faf67a83b0f296914dcf140355941c8783dbdd98f5b43e270ab2ad346a5166d",
+      "mutant": "06283f061959ab0a594af96d8bc6fdd8ad9a15f503c146d028e2eb12c788e392",
+      "expected": "predicts integration changes",
+      "failures": [
+        " FAIL  test/unit/teamConflictPredict.test.ts > team conflict prediction > uses landing merges for every common file and predicts integration changes, notifying once",
+        " FAIL  test/unit/teamConflictPredict.test.ts > team conflict prediction > does no setup traffic until started and polls within one interval"
+      ],
+      "restored": "5faf67a83b0f296914dcf140355941c8783dbdd98f5b43e270ab2ad346a5166d"
+    },
+    {
+      "id": "predict-landing-routine",
+      "file": "src/core/team/conflictPredict.ts",
+      "test": "test/unit/teamConflictPredict.test.ts",
+      "rig": "macmini",
+      "exit": 1,
+      "fired": true,
+      "before": "5faf67a83b0f296914dcf140355941c8783dbdd98f5b43e270ab2ad346a5166d",
+      "mutant": "3c98d3635b626b440de79f73e2ee6139f7b6135f34756ff11725f92974dfe146",
+      "expected": "uses landing merges",
+      "failures": [
+        " FAIL  test/unit/teamConflictPredict.test.ts > team conflict prediction > uses landing merges for every common file and predicts integration changes, notifying once",
+        " FAIL  test/unit/teamConflictPredict.test.ts > team conflict prediction > does no setup traffic until started and polls within one interval"
+      ],
+      "restored": "5faf67a83b0f296914dcf140355941c8783dbdd98f5b43e270ab2ad346a5166d"
+    },
+    {
+      "id": "predict-once",
+      "file": "src/core/team/conflictPredict.ts",
+      "test": "test/unit/teamConflictPredict.test.ts",
+      "rig": "macmini",
+      "exit": 1,
+      "fired": true,
+      "before": "5faf67a83b0f296914dcf140355941c8783dbdd98f5b43e270ab2ad346a5166d",
+      "mutant": "b53663f95db2c1a1e33edd4bbc167d5873f1aa9d415a3aa98977103a40aa85fc",
+      "expected": "notifying once",
+      "failures": [
+        " FAIL  test/unit/teamConflictPredict.test.ts > team conflict prediction > uses landing merges for every common file and predicts integration changes, notifying once"
+      ],
+      "restored": "5faf67a83b0f296914dcf140355941c8783dbdd98f5b43e270ab2ad346a5166d"
+    },
+    {
+      "id": "predict-stop",
+      "file": "src/core/team/conflictPredict.ts",
+      "test": "test/unit/teamConflictPredict.test.ts",
+      "rig": "macmini",
+      "exit": 1,
+      "fired": true,
+      "before": "5faf67a83b0f296914dcf140355941c8783dbdd98f5b43e270ab2ad346a5166d",
+      "mutant": "e94d243f2861c93550d79b9d401fb6c264b5d15e1a642dd8062a4d89a8b1240f",
+      "expected": "suppresses late results after stop",
+      "failures": [
+        " FAIL  test/unit/teamConflictPredict.test.ts > team conflict prediction > suppresses late results after stop and reports failed diff reads"
+      ],
+      "restored": "5faf67a83b0f296914dcf140355941c8783dbdd98f5b43e270ab2ad346a5166d"
+    },
+    {
+      "id": "windows-case-fold",
+      "file": "src/core/team/sharedFiles.ts",
+      "test": "test/unit/teamCollisions.test.ts",
+      "rig": "win11",
+      "exit": 1,
+      "fired": true,
+      "before": "0daff9f5a316cbf8bb00ccb5984edb943f27df66ba9877317ca882d5c3661b16",
+      "mutant": "7417609839f213c8d3bd37748280534fea7a2babd8e5e8110fef4441c3e30095",
+      "expected": "never serializes built-in JSON/changelog files",
+      "failures": [
+        " FAIL  test/unit/teamCollisions.test.ts > team collision leases > never serializes built-in JSON/changelog files, while declared text shared files serialize"
+      ],
+      "restored": "0daff9f5a316cbf8bb00ccb5984edb943f27df66ba9877317ca882d5c3661b16"
+    },
+    {
+      "id": "lease-retired-pipeline",
+      "file": "src/core/team/writeSets.ts",
+      "test": "test/unit/teamCollisions.test.ts",
+      "rig": "macmini",
+      "exit": 1,
+      "fired": true,
+      "before": "242b91da10c0ba6ffa5f3beaddcf6ca1e4c282f0458a85e95b9885931c57f5a6",
+      "mutant": "f0e512990e2c1e05553b55d25cc4b6b352914c86ff3d393dd40c9ea32f5ae96f",
+      "expected": "inherits a retired pipeline lineage",
+      "failures": [
+        " FAIL  test/unit/teamCollisions.test.ts > team collision leases > inherits a retired pipeline lineage while refusing late children and superseded parents"
+      ],
+      "restored": "242b91da10c0ba6ffa5f3beaddcf6ca1e4c282f0458a85e95b9885931c57f5a6"
+    },
+    {
+      "id": "lease-overlap",
+      "file": "src/core/team/writeSets.ts",
+      "test": "test/unit/teamCollisions.test.ts",
+      "rig": "macmini",
+      "exit": 1,
+      "fired": true,
+      "before": "242b91da10c0ba6ffa5f3beaddcf6ca1e4c282f0458a85e95b9885931c57f5a6",
+      "mutant": "ee742910325db936a8a7f5b239b7800b9ff7f63bca302f5e56671f5f2c9188ab",
+      "expected": "serializes overlapping attempts",
+      "failures": [
+        " FAIL  test/unit/teamCollisions.test.ts > team collision leases > serializes overlapping attempts, fills another lane, releases at retirement and reacquires for rework",
+        " FAIL  test/unit/teamCollisions.test.ts > team collision leases > lets delegated children and pipeline steps share their parent lease",
+        " FAIL  test/unit/teamCollisions.test.ts > team collision leases > clips roles, conservatively overlaps future prefixes, and makes whole-tree/in-place writers exclusive"
+      ],
+      "restored": "242b91da10c0ba6ffa5f3beaddcf6ca1e4c282f0458a85e95b9885931c57f5a6"
+    },
+    {
+      "id": "lease-inheritance",
+      "file": "src/core/team/writeSets.ts",
+      "test": "test/unit/teamCollisions.test.ts",
+      "rig": "macmini",
+      "exit": 1,
+      "fired": true,
+      "before": "242b91da10c0ba6ffa5f3beaddcf6ca1e4c282f0458a85e95b9885931c57f5a6",
+      "mutant": "16191a9f8c622a669a6edf2ccd3b475e6f6b9f5571ca2eeb3db870d3d01060f5",
+      "expected": "delegated children and pipeline steps",
+      "failures": [
+        " FAIL  test/unit/teamCollisions.test.ts > team collision leases > lets delegated children and pipeline steps share their parent lease"
+      ],
+      "restored": "242b91da10c0ba6ffa5f3beaddcf6ca1e4c282f0458a85e95b9885931c57f5a6"
+    },
+    {
+      "id": "lease-clipping",
+      "file": "src/core/team/writeSets.ts",
+      "test": "test/unit/teamCollisions.test.ts",
+      "rig": "macmini",
+      "exit": 1,
+      "fired": true,
+      "before": "242b91da10c0ba6ffa5f3beaddcf6ca1e4c282f0458a85e95b9885931c57f5a6",
+      "mutant": "e5be24b02839f820d8f406bd6de88359875457337f276fd8f064bb3d846e3c54",
+      "expected": "clips roles",
+      "failures": [
+        " FAIL  test/unit/teamCollisions.test.ts > team collision leases > clips roles, conservatively overlaps future prefixes, and makes whole-tree/in-place writers exclusive"
+      ],
+      "restored": "242b91da10c0ba6ffa5f3beaddcf6ca1e4c282f0458a85e95b9885931c57f5a6"
+    },
+    {
+      "id": "lease-future-prefix",
+      "file": "src/core/team/writeSets.ts",
+      "test": "test/unit/teamCollisions.test.ts",
+      "rig": "macmini",
+      "exit": 1,
+      "fired": true,
+      "before": "242b91da10c0ba6ffa5f3beaddcf6ca1e4c282f0458a85e95b9885931c57f5a6",
+      "mutant": "35f01ad547dfee0568e735aa6ec4471881faf9b36f820d735c07161c8bc2c6a0",
+      "expected": "clips roles",
+      "failures": [
+        " FAIL  test/unit/teamCollisions.test.ts > team collision leases > clips roles, conservatively overlaps future prefixes, and makes whole-tree/in-place writers exclusive"
+      ],
+      "restored": "242b91da10c0ba6ffa5f3beaddcf6ca1e4c282f0458a85e95b9885931c57f5a6"
+    },
+    {
+      "id": "lease-role-growth",
+      "file": "src/core/team/writeSets.ts",
+      "test": "test/unit/teamCollisions.test.ts",
+      "rig": "macmini",
+      "exit": 1,
+      "fired": true,
+      "before": "242b91da10c0ba6ffa5f3beaddcf6ca1e4c282f0458a85e95b9885931c57f5a6",
+      "mutant": "51af90050bf35ee08f2cd46125334f2a410e76709d4355cd3475a5512dc9beb5",
+      "expected": "clips roles",
+      "failures": [
+        " FAIL  test/unit/teamCollisions.test.ts > team collision leases > clips roles, conservatively overlaps future prefixes, and makes whole-tree/in-place writers exclusive"
+      ],
+      "restored": "242b91da10c0ba6ffa5f3beaddcf6ca1e4c282f0458a85e95b9885931c57f5a6"
+    },
+    {
+      "id": "lease-retirement",
+      "file": "src/core/team/writeSets.ts",
+      "test": "test/unit/teamCollisions.test.ts",
+      "rig": "macmini",
+      "exit": 1,
+      "fired": true,
+      "before": "242b91da10c0ba6ffa5f3beaddcf6ca1e4c282f0458a85e95b9885931c57f5a6",
+      "mutant": "bb873be50eae13ca497aa9dc0a06317ffdcfe4db93cea3676f1d1d1e0f28e12c",
+      "expected": "serializes overlapping attempts",
+      "failures": [
+        " FAIL  test/unit/teamCollisions.test.ts > team collision leases > serializes overlapping attempts, fills another lane, releases at retirement and reacquires for rework",
+        " FAIL  test/unit/teamCollisions.test.ts > team collision leases > lets delegated children and pipeline steps share their parent lease",
+        " FAIL  test/unit/teamCollisions.test.ts > team collision leases > inherits a retired pipeline lineage while refusing late children and superseded parents",
+        " FAIL  test/unit/teamCollisions.test.ts > team collision leases > clips roles, conservatively overlaps future prefixes, and makes whole-tree/in-place writers exclusive"
+      ],
+      "restored": "242b91da10c0ba6ffa5f3beaddcf6ca1e4c282f0458a85e95b9885931c57f5a6"
+    },
+    {
+      "id": "lease-stale",
+      "file": "src/core/team/writeSets.ts",
+      "test": "test/unit/teamCollisions.test.ts",
+      "rig": "macmini",
+      "exit": 1,
+      "fired": true,
+      "before": "242b91da10c0ba6ffa5f3beaddcf6ca1e4c282f0458a85e95b9885931c57f5a6",
+      "mutant": "549acfa4fd0b8849798d42b4871f806f22b398f3f23203082d79b4640a7d7e3c",
+      "expected": "serializes overlapping attempts",
+      "failures": [
+        " FAIL  test/unit/teamCollisions.test.ts > team collision leases > serializes overlapping attempts, fills another lane, releases at retirement and reacquires for rework",
+        " FAIL  test/unit/teamCollisions.test.ts > team collision leases > clips roles, conservatively overlaps future prefixes, and makes whole-tree/in-place writers exclusive"
+      ],
+      "restored": "242b91da10c0ba6ffa5f3beaddcf6ca1e4c282f0458a85e95b9885931c57f5a6"
+    },
+    {
+      "id": "lease-growth-conflict",
+      "file": "src/core/team/writeSets.ts",
+      "test": "test/unit/teamCollisions.test.ts",
+      "rig": "macmini",
+      "exit": 1,
+      "fired": true,
+      "before": "242b91da10c0ba6ffa5f3beaddcf6ca1e4c282f0458a85e95b9885931c57f5a6",
+      "mutant": "62acd9900dfbd42129c09a297e39709c7a17b2e075a3f2c412b5682c535aa990",
+      "expected": "grows free paths and predicts occupied growth",
+      "failures": [
+        " FAIL  test/unit/teamCollisions.test.ts > team collision leases > leases no undeclared paths, allows overlaps on request, grows free paths and predicts occupied growth"
+      ],
+      "restored": "242b91da10c0ba6ffa5f3beaddcf6ca1e4c282f0458a85e95b9885931c57f5a6"
+    },
+    {
+      "id": "lease-exclusive",
+      "file": "src/core/team/writeSets.ts",
+      "test": "test/unit/teamCollisions.test.ts",
+      "rig": "macmini",
+      "exit": 1,
+      "fired": true,
+      "before": "242b91da10c0ba6ffa5f3beaddcf6ca1e4c282f0458a85e95b9885931c57f5a6",
+      "mutant": "2505d60ea81b7d749cfe4997fac6c4d2333934fa1dd45d2838ccb01504194f5a",
+      "expected": "whole-tree/in-place writers exclusive",
+      "failures": [
+        " FAIL  test/unit/teamCollisions.test.ts > team collision leases > clips roles, conservatively overlaps future prefixes, and makes whole-tree/in-place writers exclusive"
+      ],
+      "restored": "242b91da10c0ba6ffa5f3beaddcf6ca1e4c282f0458a85e95b9885931c57f5a6"
+    },
+    {
+      "id": "lease-path-confinement",
+      "file": "src/core/team/writeSets.ts",
+      "test": "test/unit/teamCollisions.test.ts",
+      "rig": "macmini",
+      "exit": 1,
+      "fired": true,
+      "before": "242b91da10c0ba6ffa5f3beaddcf6ca1e4c282f0458a85e95b9885931c57f5a6",
+      "mutant": "79357bc198d87af6a5b7c75768e7d1d31e033067aa34f3306b1ce0b2c91f3944",
+      "expected": "whole-tree/in-place writers exclusive",
+      "failures": [
+        " FAIL  test/unit/teamCollisions.test.ts > team collision leases > clips roles, conservatively overlaps future prefixes, and makes whole-tree/in-place writers exclusive"
+      ],
+      "restored": "242b91da10c0ba6ffa5f3beaddcf6ca1e4c282f0458a85e95b9885931c57f5a6"
+    },
+    {
+      "id": "hint-expiry",
+      "file": "src/core/team/writeSets.ts",
+      "test": "test/unit/teamCollisions.test.ts",
+      "rig": "macmini",
+      "exit": 1,
+      "fired": true,
+      "before": "242b91da10c0ba6ffa5f3beaddcf6ca1e4c282f0458a85e95b9885931c57f5a6",
+      "mutant": "0cdb90e28efa1be8490eca61cb394c5b94a2bf485e68cd60e1edb2f5ce949c82",
+      "expected": "expires dropped collisions",
+      "failures": [
+        " FAIL  test/unit/teamCollisions.test.ts > team collision leases > asks once per fresh hint collision, skips key/bullet files and expires dropped collisions"
+      ],
+      "restored": "242b91da10c0ba6ffa5f3beaddcf6ca1e4c282f0458a85e95b9885931c57f5a6"
+    }
+  ],
+  "currentSourceDrills": [
+    {
+      "id": "json-grammar",
+      "file": "src/core/team/merge/jsonTable.ts",
+      "test": "test/unit/teamJsonTable.test.ts",
+      "rig": "macmini",
+      "exit": 1,
+      "fired": true,
+      "before": "9632982a9bc32c5b62f19a0768efc3c3371ccb3254f374e75ea9a9eb8b247b3b",
+      "mutant": "c62ee92f8de32f7d269ab1931c0db26d51b23a255e5f8e0e8d6a715b5e528b11",
+      "expected": "refuses invalid, duplicate or nonobject",
+      "failures": [
+        " FAIL  test/unit/teamJsonTable.test.ts > team JSON table merge > refuses invalid, duplicate or nonobject side {\"a\":1}junk"
+      ],
+      "restored": "9632982a9bc32c5b62f19a0768efc3c3371ccb3254f374e75ea9a9eb8b247b3b"
+    },
+    {
+      "id": "json-colon",
+      "file": "src/core/team/merge/jsonTable.ts",
+      "test": "test/unit/teamJsonTable.test.ts",
+      "rig": "macmini",
+      "exit": 1,
+      "fired": true,
+      "before": "9632982a9bc32c5b62f19a0768efc3c3371ccb3254f374e75ea9a9eb8b247b3b",
+      "mutant": "22910cf13005956fea058aa853b080f40f12bf04fe7b0fe4dada3bd8e265ce55",
+      "expected": "refuses invalid, duplicate or nonobject",
+      "failures": [
+        " FAIL  test/unit/teamJsonTable.test.ts > team JSON table merge > refuses invalid, duplicate or nonobject side {\"a\";1}"
+      ],
+      "restored": "9632982a9bc32c5b62f19a0768efc3c3371ccb3254f374e75ea9a9eb8b247b3b"
+    },
+    {
+      "id": "json-trailing-comma",
+      "file": "src/core/team/merge/jsonTable.ts",
+      "test": "test/unit/teamJsonTable.test.ts",
+      "rig": "macmini",
+      "exit": 1,
+      "fired": true,
+      "before": "9632982a9bc32c5b62f19a0768efc3c3371ccb3254f374e75ea9a9eb8b247b3b",
+      "mutant": "2f400219509d265783ddca7bdb9c8a1912337ee83eabdde6ea7173d131d0b360",
+      "expected": "refuses invalid, duplicate or nonobject",
+      "failures": [
+        " FAIL  test/unit/teamJsonTable.test.ts > team JSON table merge > refuses invalid, duplicate or nonobject side {\"a\":1,}"
+      ],
+      "restored": "9632982a9bc32c5b62f19a0768efc3c3371ccb3254f374e75ea9a9eb8b247b3b"
+    },
+    {
+      "id": "json-closing",
+      "file": "src/core/team/merge/jsonTable.ts",
+      "test": "test/unit/teamJsonTable.test.ts",
+      "rig": "macmini",
+      "exit": 1,
+      "fired": true,
+      "before": "9632982a9bc32c5b62f19a0768efc3c3371ccb3254f374e75ea9a9eb8b247b3b",
+      "mutant": "8c634dc7fcadbbf5a3b60be630817c114e95cb95c66327426d4faa11a209998a",
+      "expected": "refuses invalid, duplicate or nonobject",
+      "failures": [
+        " FAIL  test/unit/teamJsonTable.test.ts > team JSON table merge > refuses invalid, duplicate or nonobject side {\"a\":1]"
+      ],
+      "restored": "9632982a9bc32c5b62f19a0768efc3c3371ccb3254f374e75ea9a9eb8b247b3b"
+    },
+    {
+      "id": "json-string-grammar",
+      "file": "src/core/team/merge/jsonTable.ts",
+      "test": "test/unit/teamJsonTable.test.ts",
+      "rig": "macmini",
+      "exit": 1,
+      "fired": true,
+      "before": "9632982a9bc32c5b62f19a0768efc3c3371ccb3254f374e75ea9a9eb8b247b3b",
+      "mutant": "100b1149bf1846784158326653fa3bf0f054e0d6931dee31d75841e28aeaa80b",
+      "expected": "refuses invalid, duplicate or nonobject",
+      "failures": [
+        " FAIL  test/unit/teamJsonTable.test.ts > team JSON table merge > refuses invalid, duplicate or nonobject side {\"a\":\"\\q\"}",
+        " FAIL  test/unit/teamJsonTable.test.ts > team JSON table merge > refuses invalid, duplicate or nonobject side {\"nested\":{\"a\":1,\"\\u0061\":2}}",
+        " FAIL  test/unit/teamJsonTable.test.ts > team JSON table merge > accepts identical changes, removals and one-sided type changes"
+      ],
+      "restored": "9632982a9bc32c5b62f19a0768efc3c3371ccb3254f374e75ea9a9eb8b247b3b"
+    },
+    {
+      "id": "json-key-type",
+      "file": "src/core/team/merge/jsonTable.ts",
+      "test": "test/unit/teamJsonTable.test.ts",
+      "rig": "macmini",
+      "exit": 1,
+      "fired": true,
+      "before": "9632982a9bc32c5b62f19a0768efc3c3371ccb3254f374e75ea9a9eb8b247b3b",
+      "mutant": "8042d32a59ce5d00a042972df92a9365734d99aaa129268c6be1c63dbeccf9ff",
+      "expected": "refuses invalid, duplicate or nonobject",
+      "failures": [
+        " FAIL  test/unit/teamJsonTable.test.ts > team JSON table merge > refuses invalid, duplicate or nonobject side {{}:1}"
+      ],
+      "restored": "9632982a9bc32c5b62f19a0768efc3c3371ccb3254f374e75ea9a9eb8b247b3b"
+    },
+    {
+      "id": "json-whitespace",
+      "file": "src/core/team/merge/jsonTable.ts",
+      "test": "test/unit/teamJsonTable.test.ts",
+      "rig": "macmini",
+      "exit": 1,
+      "fired": true,
+      "before": "9632982a9bc32c5b62f19a0768efc3c3371ccb3254f374e75ea9a9eb8b247b3b",
+      "mutant": "6796193f1aaeb5104d7af60de43fc0aa3483c117ae3d3a6e733aaa580bf8ceec",
+      "expected": "refuses invalid, duplicate or nonobject",
+      "failures": [
+        " FAIL  test/unit/teamJsonTable.test.ts > team JSON table merge > refuses invalid, duplicate or nonobject side \u00c2\u00a0{}"
+      ],
+      "restored": "9632982a9bc32c5b62f19a0768efc3c3371ccb3254f374e75ea9a9eb8b247b3b"
+    },
+    {
+      "id": "json-decimal-precision",
+      "file": "src/core/team/merge/jsonTable.ts",
+      "test": "test/unit/teamJsonTable.test.ts",
+      "rig": "macmini",
+      "exit": 1,
+      "fired": true,
+      "before": "9632982a9bc32c5b62f19a0768efc3c3371ccb3254f374e75ea9a9eb8b247b3b",
+      "mutant": "7b65fec85685885d45d5764d3cfec8ab9e5fe3740901e590fa1f5a92d913664c",
+      "expected": "refuses precise large integers",
+      "failures": [
+        " FAIL  test/unit/teamJsonTable.test.ts > team JSON table merge > refuses precise large integers with a key, never markers or a silent pick"
+      ],
+      "restored": "9632982a9bc32c5b62f19a0768efc3c3371ccb3254f374e75ea9a9eb8b247b3b"
+    },
+    {
+      "id": "json-raw-keys",
+      "file": "src/core/team/merge/jsonTable.ts",
+      "test": "test/unit/teamJsonTable.test.ts",
+      "rig": "macmini",
+      "exit": 1,
+      "fired": true,
+      "before": "9632982a9bc32c5b62f19a0768efc3c3371ccb3254f374e75ea9a9eb8b247b3b",
+      "mutant": "c45a74ff1735162fbc28bfb78f9c788c1081deac064b08ae77a2dd9d9e8affd6",
+      "expected": "preserves BOM, CRLF",
+      "failures": [
+        " FAIL  test/unit/teamJsonTable.test.ts > team JSON table merge > preserves BOM, CRLF, indentation, escaped strings and final newline"
+      ],
+      "restored": "9632982a9bc32c5b62f19a0768efc3c3371ccb3254f374e75ea9a9eb8b247b3b"
+    },
+    {
+      "id": "json-raw-string",
+      "file": "src/core/team/merge/jsonTable.ts",
+      "test": "test/unit/teamJsonTable.test.ts",
+      "rig": "macmini",
+      "exit": 1,
+      "fired": true,
+      "before": "9632982a9bc32c5b62f19a0768efc3c3371ccb3254f374e75ea9a9eb8b247b3b",
+      "mutant": "b57c532129dbd277402bd0adadd025372e4a21ae26daf7874929296d06cb5a77",
+      "expected": "preserves BOM, CRLF",
+      "failures": [
+        " FAIL  test/unit/teamJsonTable.test.ts > team JSON table merge > preserves BOM, CRLF, indentation, escaped strings and final newline"
+      ],
+      "restored": "9632982a9bc32c5b62f19a0768efc3c3371ccb3254f374e75ea9a9eb8b247b3b"
+    },
+    {
+      "id": "json-duplicates",
+      "file": "src/core/team/merge/jsonTable.ts",
+      "test": "test/unit/teamJsonTable.test.ts",
+      "rig": "macmini",
+      "exit": 1,
+      "fired": true,
+      "before": "9632982a9bc32c5b62f19a0768efc3c3371ccb3254f374e75ea9a9eb8b247b3b",
+      "mutant": "8c2be9282448659b97384b50ccb59d23fd9fa3b7434076e4bedf93ad3faf5eb3",
+      "expected": "refuses invalid, duplicate or nonobject",
+      "failures": [
+        " FAIL  test/unit/teamJsonTable.test.ts > team JSON table merge > refuses invalid, duplicate or nonobject side {\"a\":1,\"a\":2}",
+        " FAIL  test/unit/teamJsonTable.test.ts > team JSON table merge > refuses invalid, duplicate or nonobject side {\"nested\":{\"a\":1,\"\\u0061\":2}}",
+        " FAIL  test/unit/teamJsonTable.test.ts > team JSON table merge > refuses invalid, duplicate or nonobject side {\"array\":[{\"a\":1,\"a\":2}]}"
+      ],
+      "restored": "9632982a9bc32c5b62f19a0768efc3c3371ccb3254f374e75ea9a9eb8b247b3b"
+    },
+    {
+      "id": "json-decoded-keys",
+      "file": "src/core/team/merge/jsonTable.ts",
+      "test": "test/unit/teamJsonTable.test.ts",
+      "rig": "macmini",
+      "exit": 1,
+      "fired": true,
+      "before": "9632982a9bc32c5b62f19a0768efc3c3371ccb3254f374e75ea9a9eb8b247b3b",
+      "mutant": "b62ac36cd3c1fb644336b88ec056777da55672afc00f91f587c74bb8ae9d130b",
+      "expected": "refuses invalid, duplicate or nonobject",
+      "failures": [
+        " FAIL  test/unit/teamJsonTable.test.ts > team JSON table merge > merges ten parallel changes in all thirty table paths, nested and flat",
+        " FAIL  test/unit/teamJsonTable.test.ts > team JSON table merge > refuses same key with a key, never markers or a silent pick",
+        " FAIL  test/unit/teamJsonTable.test.ts > team JSON table merge > refuses delete/change with a key, never markers or a silent pick",
+        " FAIL  test/unit/teamJsonTable.test.ts > team JSON table merge > refuses arrays are atomic with a key, never markers or a silent pick",
+        " FAIL  test/unit/teamJsonTable.test.ts > team JSON table merge > refuses different type changes with a key, never markers or a silent pick",
+        " FAIL  test/unit/teamJsonTable.test.ts > team JSON table merge > refuses precise large integers with a key, never markers or a silent pick",
+        " FAIL  test/unit/teamJsonTable.test.ts > team JSON table merge > refuses invalid, duplicate or nonobject side {\"nested\":{\"a\":1,\"\\u0061\":2}}",
+        " FAIL  test/unit/teamJsonTable.test.ts > team JSON table merge > keeps raw integer key order, branch predecessor placement and removed neighbours",
+        " FAIL  test/unit/teamJsonTable.test.ts > team JSON table merge > names syntax line and decoded key without relying on native error-message wording",
+        " FAIL  test/unit/teamJsonTable.test.ts > team JSON table merge > preserves BOM, CRLF, indentation, escaped strings and final newline"
+      ],
+      "restored": "9632982a9bc32c5b62f19a0768efc3c3371ccb3254f374e75ea9a9eb8b247b3b"
+    },
+    {
+      "id": "json-conflict",
+      "file": "src/core/team/merge/jsonTable.ts",
+      "test": "test/unit/teamJsonTable.test.ts",
+      "rig": "macmini",
+      "exit": 1,
+      "fired": true,
+      "before": "9632982a9bc32c5b62f19a0768efc3c3371ccb3254f374e75ea9a9eb8b247b3b",
+      "mutant": "0432c32bbc6c2f2c813493e939f32fad32adacc40249ef4745f3423f14c24a22",
+      "expected": "refuses same key",
+      "failures": [
+        " FAIL  test/unit/teamJsonTable.test.ts > team JSON table merge > refuses same key with a key, never markers or a silent pick",
+        " FAIL  test/unit/teamJsonTable.test.ts > team JSON table merge > refuses delete/change with a key, never markers or a silent pick",
+        " FAIL  test/unit/teamJsonTable.test.ts > team JSON table merge > refuses arrays are atomic with a key, never markers or a silent pick",
+        " FAIL  test/unit/teamJsonTable.test.ts > team JSON table merge > refuses different type changes with a key, never markers or a silent pick",
+        " FAIL  test/unit/teamJsonTable.test.ts > team JSON table merge > refuses precise large integers with a key, never markers or a silent pick"
+      ],
+      "restored": "9632982a9bc32c5b62f19a0768efc3c3371ccb3254f374e75ea9a9eb8b247b3b"
+    },
+    {
+      "id": "json-key-order",
+      "file": "src/core/team/merge/jsonTable.ts",
+      "test": "test/unit/teamJsonTable.test.ts",
+      "rig": "macmini",
+      "exit": 1,
+      "fired": true,
+      "before": "9632982a9bc32c5b62f19a0768efc3c3371ccb3254f374e75ea9a9eb8b247b3b",
+      "mutant": "660f13fc557774b302b3376317862c3b9e9f08b47e28c2e02a135a9b6f0a1a94",
+      "expected": "keeps raw integer key order",
+      "failures": [
+        " FAIL  test/unit/teamJsonTable.test.ts > team JSON table merge > keeps raw integer key order, branch predecessor placement and removed neighbours"
+      ],
+      "restored": "9632982a9bc32c5b62f19a0768efc3c3371ccb3254f374e75ea9a9eb8b247b3b"
+    },
+    {
+      "id": "json-bom",
+      "file": "src/core/team/merge/jsonTable.ts",
+      "test": "test/unit/teamJsonTable.test.ts",
+      "rig": "macmini",
+      "exit": 1,
+      "fired": true,
+      "before": "9632982a9bc32c5b62f19a0768efc3c3371ccb3254f374e75ea9a9eb8b247b3b",
+      "mutant": "7d436378cb1288b4a3f3163a2455fd08dfd8c67fb0273c0edd4eafcfde9dc5cc",
+      "expected": "preserves BOM, CRLF",
+      "failures": [
+        " FAIL  test/unit/teamJsonTable.test.ts > team JSON table merge > preserves BOM, CRLF, indentation, escaped strings and final newline"
+      ],
+      "restored": "9632982a9bc32c5b62f19a0768efc3c3371ccb3254f374e75ea9a9eb8b247b3b"
+    },
+    {
+      "id": "json-crlf",
+      "file": "src/core/team/merge/jsonTable.ts",
+      "test": "test/unit/teamJsonTable.test.ts",
+      "rig": "macmini",
+      "exit": 1,
+      "fired": true,
+      "before": "9632982a9bc32c5b62f19a0768efc3c3371ccb3254f374e75ea9a9eb8b247b3b",
+      "mutant": "fa6ea7b57c2af3089539435b2e4a7bac7c7d335f8f69358d0728168833b10356",
+      "expected": "preserves BOM, CRLF",
+      "failures": [
+        " FAIL  test/unit/teamJsonTable.test.ts > team JSON table merge > preserves BOM, CRLF, indentation, escaped strings and final newline"
+      ],
+      "restored": "9632982a9bc32c5b62f19a0768efc3c3371ccb3254f374e75ea9a9eb8b247b3b"
+    },
+    {
+      "id": "json-kept-after-format",
+      "file": "src/core/team/merge/jsonTable.ts",
+      "test": "test/unit/teamJsonTable.test.ts",
+      "rig": "macmini",
+      "exit": 1,
+      "fired": true,
+      "before": "9632982a9bc32c5b62f19a0768efc3c3371ccb3254f374e75ea9a9eb8b247b3b",
+      "mutant": "6956b67a1b13c2d98c8a79cd7622effa25513d9660883f95611bcb1cd02f38c5",
+      "expected": "checks both intents after the formatter",
+      "failures": [
+        " FAIL  test/unit/teamJsonTable.test.ts > team JSON table merge > checks both intents after the formatter, including missing branch additions and removals"
+      ],
+      "restored": "9632982a9bc32c5b62f19a0768efc3c3371ccb3254f374e75ea9a9eb8b247b3b"
+    },
+    {
+      "id": "json-branch-intent",
+      "file": "src/core/team/merge/jsonTable.ts",
+      "test": "test/unit/teamJsonTable.test.ts",
+      "rig": "macmini",
+      "exit": 1,
+      "fired": true,
+      "before": "9632982a9bc32c5b62f19a0768efc3c3371ccb3254f374e75ea9a9eb8b247b3b",
+      "mutant": "266bead0cb3bee24e27fcd4ce226d296edc7053cf8c10e7175d7fb427619aaad",
+      "expected": "checks both intents after the formatter",
+      "failures": [
+        " FAIL  test/unit/teamJsonTable.test.ts > team JSON table merge > checks both intents after the formatter, including missing branch additions and removals"
+      ],
+      "restored": "9632982a9bc32c5b62f19a0768efc3c3371ccb3254f374e75ea9a9eb8b247b3b"
+    },
+    {
+      "id": "json-formatter-order",
+      "file": "src/core/team/merge/jsonTable.ts",
+      "test": "test/unit/teamJsonTable.test.ts",
+      "rig": "macmini",
+      "exit": 1,
+      "fired": true,
+      "before": "9632982a9bc32c5b62f19a0768efc3c3371ccb3254f374e75ea9a9eb8b247b3b",
+      "mutant": "57ec0266fc31b14871606db1ffc0a7b36ba7a59c51f6163b8fe87758d76c7558",
+      "expected": "checks both intents after the formatter",
+      "failures": [
+        " FAIL  test/unit/teamJsonTable.test.ts > team JSON table merge > checks both intents after the formatter, including missing branch additions and removals"
+      ],
+      "restored": "9632982a9bc32c5b62f19a0768efc3c3371ccb3254f374e75ea9a9eb8b247b3b"
+    },
+    {
+      "id": "json-formatter-bom",
+      "file": "src/core/team/merge/jsonTable.ts",
+      "test": "test/unit/teamJsonTable.test.ts",
+      "rig": "macmini",
+      "exit": 1,
+      "fired": true,
+      "before": "9632982a9bc32c5b62f19a0768efc3c3371ccb3254f374e75ea9a9eb8b247b3b",
+      "mutant": "7284a7836d4822c9d3e6610ae21f193c0518bcdeb31e9145d7a1cfa904996081",
+      "expected": "checks both intents after the formatter",
+      "failures": [
+        " FAIL  test/unit/teamJsonTable.test.ts > team JSON table merge > checks both intents after the formatter, including missing branch additions and removals"
+      ],
+      "restored": "9632982a9bc32c5b62f19a0768efc3c3371ccb3254f374e75ea9a9eb8b247b3b"
+    },
+    {
+      "id": "json-formatter-crlf",
+      "file": "src/core/team/merge/jsonTable.ts",
+      "test": "test/unit/teamJsonTable.test.ts",
+      "rig": "macmini",
+      "exit": 1,
+      "fired": true,
+      "before": "9632982a9bc32c5b62f19a0768efc3c3371ccb3254f374e75ea9a9eb8b247b3b",
+      "mutant": "076d10ff4865f7d8f07cbd9f906f583e591519fad2f021f3075b59cdf9b6da00",
+      "expected": "checks both intents after the formatter",
+      "failures": [
+        " FAIL  test/unit/teamJsonTable.test.ts > team JSON table merge > checks both intents after the formatter, including missing branch additions and removals"
+      ],
+      "restored": "9632982a9bc32c5b62f19a0768efc3c3371ccb3254f374e75ea9a9eb8b247b3b"
+    },
+    {
+      "id": "log-released",
+      "file": "src/core/team/merge/changelog.ts",
+      "test": "test/unit/teamChangelog.test.ts",
+      "rig": "macmini",
+      "exit": 1,
+      "fired": true,
+      "before": "0487f6db868af4da1befc31ef06f45ae535bd9e54a36decf8139bef2650f1c03",
+      "mutant": "236f19acae3b2d50f53a8d5f4eeeac48df25295cc6c59b83d4cff5297e591054",
+      "expected": "refuses released changes",
+      "failures": [
+        " FAIL  test/unit/teamChangelog.test.ts > team CHANGELOG merge > refuses released changes and competing edits to one bullet"
+      ],
+      "restored": "0487f6db868af4da1befc31ef06f45ae535bd9e54a36decf8139bef2650f1c03"
+    },
+    {
+      "id": "log-competing-edit",
+      "file": "src/core/team/merge/changelog.ts",
+      "test": "test/unit/teamChangelog.test.ts",
+      "rig": "macmini",
+      "exit": 1,
+      "fired": true,
+      "before": "0487f6db868af4da1befc31ef06f45ae535bd9e54a36decf8139bef2650f1c03",
+      "mutant": "5badb9211cb67fd6d1d22d2ac1abcaf59fc5162fe60b2843a3f282eccf87fbb7",
+      "expected": "refuses released changes",
+      "failures": [
+        " FAIL  test/unit/teamChangelog.test.ts > team CHANGELOG merge > refuses released changes and competing edits to one bullet"
+      ],
+      "restored": "0487f6db868af4da1befc31ef06f45ae535bd9e54a36decf8139bef2650f1c03"
+    },
+    {
+      "id": "log-kept",
+      "file": "src/core/team/merge/changelog.ts",
+      "test": "test/unit/teamChangelog.test.ts",
+      "rig": "macmini",
+      "exit": 1,
+      "fired": true,
+      "before": "0487f6db868af4da1befc31ef06f45ae535bd9e54a36decf8139bef2650f1c03",
+      "mutant": "26450c363bf6670de596a148aa673085e926932a124b1536453192abb9830995",
+      "expected": "applies authorized edits and removals",
+      "failures": [
+        " FAIL  test/unit/teamChangelog.test.ts > team CHANGELOG merge > applies authorized edits and removals while keeping unrelated bullets"
+      ],
+      "restored": "0487f6db868af4da1befc31ef06f45ae535bd9e54a36decf8139bef2650f1c03"
+    },
+    {
+      "id": "log-authorized-removal",
+      "file": "src/core/team/merge/changelog.ts",
+      "test": "test/unit/teamChangelog.test.ts",
+      "rig": "macmini",
+      "exit": 1,
+      "fired": true,
+      "before": "0487f6db868af4da1befc31ef06f45ae535bd9e54a36decf8139bef2650f1c03",
+      "mutant": "67427295dc273969189c1eb02e14e2371043498dc901d80066986003c85ef3fa",
+      "expected": "applies authorized edits and removals",
+      "failures": [
+        " FAIL  test/unit/teamChangelog.test.ts > team CHANGELOG merge > applies authorized edits and removals while keeping unrelated bullets",
+        " FAIL  test/unit/teamChangelog.test.ts > team CHANGELOG merge > preserves BOM/CRLF and existing fragment conventions without folding them"
+      ],
+      "restored": "0487f6db868af4da1befc31ef06f45ae535bd9e54a36decf8139bef2650f1c03"
+    },
+    {
+      "id": "log-release-placement",
+      "file": "src/core/team/merge/changelog.ts",
+      "test": "test/unit/teamChangelog.test.ts",
+      "rig": "macmini",
+      "exit": 1,
+      "fired": true,
+      "before": "0487f6db868af4da1befc31ef06f45ae535bd9e54a36decf8139bef2650f1c03",
+      "mutant": "0693c817ea52bb7e3be4232b29d42e3321a366a4ef424d716b2b47c5fc3076f6",
+      "expected": "keeps ten parallel notes",
+      "failures": [
+        " FAIL  test/unit/teamChangelog.test.ts > team CHANGELOG merge > keeps ten parallel notes across an intervening release",
+        " FAIL  test/unit/teamChangelog.test.ts > team CHANGELOG merge > applies authorized edits and removals while keeping unrelated bullets",
+        " FAIL  test/unit/teamChangelog.test.ts > team CHANGELOG merge > handles new sections, multiline bullets and moved bullets once",
+        " FAIL  test/unit/teamChangelog.test.ts > team CHANGELOG merge > preserves BOM/CRLF and existing fragment conventions without folding them"
+      ],
+      "restored": "0487f6db868af4da1befc31ef06f45ae535bd9e54a36decf8139bef2650f1c03"
+    },
+    {
+      "id": "log-structure",
+      "file": "src/core/team/merge/changelog.ts",
+      "test": "test/unit/teamChangelog.test.ts",
+      "rig": "macmini",
+      "exit": 1,
+      "fired": true,
+      "before": "0487f6db868af4da1befc31ef06f45ae535bd9e54a36decf8139bef2650f1c03",
+      "mutant": "b1955e980830e03219eebd539714cbf7a0767d9354d6b8205060b2f2eb3d3d7f",
+      "expected": "refuses released changes",
+      "failures": [
+        " FAIL  test/unit/teamChangelog.test.ts > team CHANGELOG merge > refuses released changes and competing edits to one bullet"
+      ],
+      "restored": "0487f6db868af4da1befc31ef06f45ae535bd9e54a36decf8139bef2650f1c03"
+    },
+    {
+      "id": "log-fragments",
+      "file": "src/core/team/merge/changelog.ts",
+      "test": "test/unit/teamChangelog.test.ts",
+      "rig": "macmini",
+      "exit": 1,
+      "fired": true,
+      "before": "0487f6db868af4da1befc31ef06f45ae535bd9e54a36decf8139bef2650f1c03",
+      "mutant": "377c3e85f09c7791238df108f8e7240aafd9ae5b8d8c30d9eb4f7cc69f342397",
+      "expected": "existing fragment conventions",
+      "failures": [
+        " FAIL  test/unit/teamChangelog.test.ts > team CHANGELOG merge > preserves BOM/CRLF and existing fragment conventions without folding them"
+      ],
+      "restored": "0487f6db868af4da1befc31ef06f45ae535bd9e54a36decf8139bef2650f1c03"
+    },
+    {
+      "id": "lease-overlap",
+      "file": "src/core/team/writeSets.ts",
+      "test": "test/unit/teamCollisions.test.ts",
+      "rig": "macmini",
+      "exit": 1,
+      "fired": true,
+      "before": "242b91da10c0ba6ffa5f3beaddcf6ca1e4c282f0458a85e95b9885931c57f5a6",
+      "mutant": "ee742910325db936a8a7f5b239b7800b9ff7f63bca302f5e56671f5f2c9188ab",
+      "expected": "serializes overlapping attempts",
+      "failures": [
+        " FAIL  test/unit/teamCollisions.test.ts > team collision leases > serializes overlapping attempts, fills another lane, releases at retirement and reacquires for rework",
+        " FAIL  test/unit/teamCollisions.test.ts > team collision leases > lets delegated children and pipeline steps share their parent lease",
+        " FAIL  test/unit/teamCollisions.test.ts > team collision leases > clips roles, conservatively overlaps future prefixes, and makes whole-tree/in-place writers exclusive"
+      ],
+      "restored": "242b91da10c0ba6ffa5f3beaddcf6ca1e4c282f0458a85e95b9885931c57f5a6"
+    },
+    {
+      "id": "lease-inheritance",
+      "file": "src/core/team/writeSets.ts",
+      "test": "test/unit/teamCollisions.test.ts",
+      "rig": "macmini",
+      "exit": 1,
+      "fired": true,
+      "before": "242b91da10c0ba6ffa5f3beaddcf6ca1e4c282f0458a85e95b9885931c57f5a6",
+      "mutant": "16191a9f8c622a669a6edf2ccd3b475e6f6b9f5571ca2eeb3db870d3d01060f5",
+      "expected": "delegated children and pipeline steps",
+      "failures": [
+        " FAIL  test/unit/teamCollisions.test.ts > team collision leases > lets delegated children and pipeline steps share their parent lease"
+      ],
+      "restored": "242b91da10c0ba6ffa5f3beaddcf6ca1e4c282f0458a85e95b9885931c57f5a6"
+    },
+    {
+      "id": "lease-clipping",
+      "file": "src/core/team/writeSets.ts",
+      "test": "test/unit/teamCollisions.test.ts",
+      "rig": "macmini",
+      "exit": 1,
+      "fired": true,
+      "before": "242b91da10c0ba6ffa5f3beaddcf6ca1e4c282f0458a85e95b9885931c57f5a6",
+      "mutant": "e5be24b02839f820d8f406bd6de88359875457337f276fd8f064bb3d846e3c54",
+      "expected": "clips roles",
+      "failures": [
+        " FAIL  test/unit/teamCollisions.test.ts > team collision leases > clips roles, conservatively overlaps future prefixes, and makes whole-tree/in-place writers exclusive"
+      ],
+      "restored": "242b91da10c0ba6ffa5f3beaddcf6ca1e4c282f0458a85e95b9885931c57f5a6"
+    },
+    {
+      "id": "lease-future-prefix",
+      "file": "src/core/team/writeSets.ts",
+      "test": "test/unit/teamCollisions.test.ts",
+      "rig": "macmini",
+      "exit": 1,
+      "fired": true,
+      "before": "242b91da10c0ba6ffa5f3beaddcf6ca1e4c282f0458a85e95b9885931c57f5a6",
+      "mutant": "35f01ad547dfee0568e735aa6ec4471881faf9b36f820d735c07161c8bc2c6a0",
+      "expected": "clips roles",
+      "failures": [
+        " FAIL  test/unit/teamCollisions.test.ts > team collision leases > clips roles, conservatively overlaps future prefixes, and makes whole-tree/in-place writers exclusive"
+      ],
+      "restored": "242b91da10c0ba6ffa5f3beaddcf6ca1e4c282f0458a85e95b9885931c57f5a6"
+    },
+    {
+      "id": "lease-role-growth",
+      "file": "src/core/team/writeSets.ts",
+      "test": "test/unit/teamCollisions.test.ts",
+      "rig": "macmini",
+      "exit": 1,
+      "fired": true,
+      "before": "242b91da10c0ba6ffa5f3beaddcf6ca1e4c282f0458a85e95b9885931c57f5a6",
+      "mutant": "51af90050bf35ee08f2cd46125334f2a410e76709d4355cd3475a5512dc9beb5",
+      "expected": "clips roles",
+      "failures": [
+        " FAIL  test/unit/teamCollisions.test.ts > team collision leases > clips roles, conservatively overlaps future prefixes, and makes whole-tree/in-place writers exclusive"
+      ],
+      "restored": "242b91da10c0ba6ffa5f3beaddcf6ca1e4c282f0458a85e95b9885931c57f5a6"
+    },
+    {
+      "id": "lease-retirement",
+      "file": "src/core/team/writeSets.ts",
+      "test": "test/unit/teamCollisions.test.ts",
+      "rig": "macmini",
+      "exit": 1,
+      "fired": true,
+      "before": "242b91da10c0ba6ffa5f3beaddcf6ca1e4c282f0458a85e95b9885931c57f5a6",
+      "mutant": "bb873be50eae13ca497aa9dc0a06317ffdcfe4db93cea3676f1d1d1e0f28e12c",
+      "expected": "serializes overlapping attempts",
+      "failures": [
+        " FAIL  test/unit/teamCollisions.test.ts > team collision leases > serializes overlapping attempts, fills another lane, releases at retirement and reacquires for rework",
+        " FAIL  test/unit/teamCollisions.test.ts > team collision leases > lets delegated children and pipeline steps share their parent lease",
+        " FAIL  test/unit/teamCollisions.test.ts > team collision leases > inherits a retired pipeline lineage while refusing late children and superseded parents",
+        " FAIL  test/unit/teamCollisions.test.ts > team collision leases > clips roles, conservatively overlaps future prefixes, and makes whole-tree/in-place writers exclusive"
+      ],
+      "restored": "242b91da10c0ba6ffa5f3beaddcf6ca1e4c282f0458a85e95b9885931c57f5a6"
+    },
+    {
+      "id": "lease-stale",
+      "file": "src/core/team/writeSets.ts",
+      "test": "test/unit/teamCollisions.test.ts",
+      "rig": "macmini",
+      "exit": 1,
+      "fired": true,
+      "before": "242b91da10c0ba6ffa5f3beaddcf6ca1e4c282f0458a85e95b9885931c57f5a6",
+      "mutant": "549acfa4fd0b8849798d42b4871f806f22b398f3f23203082d79b4640a7d7e3c",
+      "expected": "serializes overlapping attempts",
+      "failures": [
+        " FAIL  test/unit/teamCollisions.test.ts > team collision leases > serializes overlapping attempts, fills another lane, releases at retirement and reacquires for rework",
+        " FAIL  test/unit/teamCollisions.test.ts > team collision leases > clips roles, conservatively overlaps future prefixes, and makes whole-tree/in-place writers exclusive"
+      ],
+      "restored": "242b91da10c0ba6ffa5f3beaddcf6ca1e4c282f0458a85e95b9885931c57f5a6"
+    },
+    {
+      "id": "lease-growth-conflict",
+      "file": "src/core/team/writeSets.ts",
+      "test": "test/unit/teamCollisions.test.ts",
+      "rig": "macmini",
+      "exit": 1,
+      "fired": true,
+      "before": "242b91da10c0ba6ffa5f3beaddcf6ca1e4c282f0458a85e95b9885931c57f5a6",
+      "mutant": "62acd9900dfbd42129c09a297e39709c7a17b2e075a3f2c412b5682c535aa990",
+      "expected": "grows free paths and predicts occupied growth",
+      "failures": [
+        " FAIL  test/unit/teamCollisions.test.ts > team collision leases > leases no undeclared paths, allows overlaps on request, grows free paths and predicts occupied growth"
+      ],
+      "restored": "242b91da10c0ba6ffa5f3beaddcf6ca1e4c282f0458a85e95b9885931c57f5a6"
+    },
+    {
+      "id": "lease-exclusive",
+      "file": "src/core/team/writeSets.ts",
+      "test": "test/unit/teamCollisions.test.ts",
+      "rig": "macmini",
+      "exit": 1,
+      "fired": true,
+      "before": "242b91da10c0ba6ffa5f3beaddcf6ca1e4c282f0458a85e95b9885931c57f5a6",
+      "mutant": "2505d60ea81b7d749cfe4997fac6c4d2333934fa1dd45d2838ccb01504194f5a",
+      "expected": "whole-tree/in-place writers exclusive",
+      "failures": [
+        " FAIL  test/unit/teamCollisions.test.ts > team collision leases > clips roles, conservatively overlaps future prefixes, and makes whole-tree/in-place writers exclusive"
+      ],
+      "restored": "242b91da10c0ba6ffa5f3beaddcf6ca1e4c282f0458a85e95b9885931c57f5a6"
+    },
+    {
+      "id": "lease-path-confinement",
+      "file": "src/core/team/writeSets.ts",
+      "test": "test/unit/teamCollisions.test.ts",
+      "rig": "macmini",
+      "exit": 1,
+      "fired": true,
+      "before": "242b91da10c0ba6ffa5f3beaddcf6ca1e4c282f0458a85e95b9885931c57f5a6",
+      "mutant": "79357bc198d87af6a5b7c75768e7d1d31e033067aa34f3306b1ce0b2c91f3944",
+      "expected": "whole-tree/in-place writers exclusive",
+      "failures": [
+        " FAIL  test/unit/teamCollisions.test.ts > team collision leases > clips roles, conservatively overlaps future prefixes, and makes whole-tree/in-place writers exclusive"
+      ],
+      "restored": "242b91da10c0ba6ffa5f3beaddcf6ca1e4c282f0458a85e95b9885931c57f5a6"
+    },
+    {
+      "id": "hint-expiry",
+      "file": "src/core/team/writeSets.ts",
+      "test": "test/unit/teamCollisions.test.ts",
+      "rig": "macmini",
+      "exit": 1,
+      "fired": true,
+      "before": "242b91da10c0ba6ffa5f3beaddcf6ca1e4c282f0458a85e95b9885931c57f5a6",
+      "mutant": "0cdb90e28efa1be8490eca61cb394c5b94a2bf485e68cd60e1edb2f5ce949c82",
+      "expected": "expires dropped collisions",
+      "failures": [
+        " FAIL  test/unit/teamCollisions.test.ts > team collision leases > asks once per fresh hint collision, skips key/bullet files and expires dropped collisions"
+      ],
+      "restored": "242b91da10c0ba6ffa5f3beaddcf6ca1e4c282f0458a85e95b9885931c57f5a6"
+    },
+    {
+      "id": "wait-cycle",
+      "file": "src/core/team/waitFor.ts",
+      "test": "test/unit/teamCollisions.test.ts",
+      "rig": "macmini",
+      "exit": 1,
+      "fired": true,
+      "before": "26f568ac27b8979f912903de41a26e8536b1e42096aa6ef16e4707c50cd40ea7",
+      "mutant": "df94d19aeb1e4aa04e20f3a2c2ec721748f7866bc03f2b6c532e7080e4521fe5",
+      "expected": "refuses a newer cycle",
+      "failures": [
+        " FAIL  test/unit/teamCollisions.test.ts > team wait graph > refuses a newer cycle across leases, dependencies, children and slots atomically"
+      ],
+      "restored": "26f568ac27b8979f912903de41a26e8536b1e42096aa6ef16e4707c50cd40ea7"
+    },
+    {
+      "id": "shared-json-no-locks",
+      "file": "src/core/team/sharedFiles.ts",
+      "test": "test/unit/teamCollisions.test.ts",
+      "rig": "macmini",
+      "exit": 1,
+      "fired": true,
+      "before": "0daff9f5a316cbf8bb00ccb5984edb943f27df66ba9877317ca882d5c3661b16",
+      "mutant": "6d4fcbb6f7b3942a8474893c7ccaabba0330754d3b7dc5e89ae8c4972b989ab4",
+      "expected": "never serializes built-in JSON/changelog files",
+      "failures": [
+        " FAIL  test/unit/teamCollisions.test.ts > team collision leases > never serializes built-in JSON/changelog files, while declared text shared files serialize"
+      ],
+      "restored": "0daff9f5a316cbf8bb00ccb5984edb943f27df66ba9877317ca882d5c3661b16"
+    },
+    {
+      "id": "shared-root-glob",
+      "file": "src/core/team/sharedFiles.ts",
+      "test": "test/unit/teamCollisions.test.ts",
+      "rig": "macmini",
+      "exit": 1,
+      "fired": true,
+      "before": "0daff9f5a316cbf8bb00ccb5984edb943f27df66ba9877317ca882d5c3661b16",
+      "mutant": "e2b02adca4dd9abfecbc6d5f4eb7376819f3ad797c957b527a63ddc81c8f6bcf",
+      "expected": "never serializes built-in JSON/changelog files",
+      "failures": [
+        " FAIL  test/unit/teamCollisions.test.ts > team collision leases > never serializes built-in JSON/changelog files, while declared text shared files serialize"
+      ],
+      "restored": "0daff9f5a316cbf8bb00ccb5984edb943f27df66ba9877317ca882d5c3661b16"
+    },
+    {
+      "id": "predict-integration",
+      "file": "src/core/team/conflictPredict.ts",
+      "test": "test/unit/teamConflictPredict.test.ts",
+      "rig": "macmini",
+      "exit": 1,
+      "fired": true,
+      "before": "5faf67a83b0f296914dcf140355941c8783dbdd98f5b43e270ab2ad346a5166d",
+      "mutant": "06283f061959ab0a594af96d8bc6fdd8ad9a15f503c146d028e2eb12c788e392",
+      "expected": "predicts integration changes",
+      "failures": [
+        " FAIL  test/unit/teamConflictPredict.test.ts > team conflict prediction > uses landing merges for every common file and predicts integration changes, notifying once",
+        " FAIL  test/unit/teamConflictPredict.test.ts > team conflict prediction > does no setup traffic until started and polls within one interval"
+      ],
+      "restored": "5faf67a83b0f296914dcf140355941c8783dbdd98f5b43e270ab2ad346a5166d"
+    },
+    {
+      "id": "predict-landing-routine",
+      "file": "src/core/team/conflictPredict.ts",
+      "test": "test/unit/teamConflictPredict.test.ts",
+      "rig": "macmini",
+      "exit": 1,
+      "fired": true,
+      "before": "5faf67a83b0f296914dcf140355941c8783dbdd98f5b43e270ab2ad346a5166d",
+      "mutant": "3c98d3635b626b440de79f73e2ee6139f7b6135f34756ff11725f92974dfe146",
+      "expected": "uses landing merges",
+      "failures": [
+        " FAIL  test/unit/teamConflictPredict.test.ts > team conflict prediction > uses landing merges for every common file and predicts integration changes, notifying once",
+        " FAIL  test/unit/teamConflictPredict.test.ts > team conflict prediction > does no setup traffic until started and polls within one interval"
+      ],
+      "restored": "5faf67a83b0f296914dcf140355941c8783dbdd98f5b43e270ab2ad346a5166d"
+    },
+    {
+      "id": "predict-once",
+      "file": "src/core/team/conflictPredict.ts",
+      "test": "test/unit/teamConflictPredict.test.ts",
+      "rig": "macmini",
+      "exit": 1,
+      "fired": true,
+      "before": "5faf67a83b0f296914dcf140355941c8783dbdd98f5b43e270ab2ad346a5166d",
+      "mutant": "b53663f95db2c1a1e33edd4bbc167d5873f1aa9d415a3aa98977103a40aa85fc",
+      "expected": "notifying once",
+      "failures": [
+        " FAIL  test/unit/teamConflictPredict.test.ts > team conflict prediction > uses landing merges for every common file and predicts integration changes, notifying once"
+      ],
+      "restored": "5faf67a83b0f296914dcf140355941c8783dbdd98f5b43e270ab2ad346a5166d"
+    },
+    {
+      "id": "predict-stop",
+      "file": "src/core/team/conflictPredict.ts",
+      "test": "test/unit/teamConflictPredict.test.ts",
+      "rig": "macmini",
+      "exit": 1,
+      "fired": true,
+      "before": "5faf67a83b0f296914dcf140355941c8783dbdd98f5b43e270ab2ad346a5166d",
+      "mutant": "e94d243f2861c93550d79b9d401fb6c264b5d15e1a642dd8062a4d89a8b1240f",
+      "expected": "suppresses late results after stop",
+      "failures": [
+        " FAIL  test/unit/teamConflictPredict.test.ts > team conflict prediction > suppresses late results after stop and reports failed diff reads"
+      ],
+      "restored": "5faf67a83b0f296914dcf140355941c8783dbdd98f5b43e270ab2ad346a5166d"
+    },
+    {
+      "id": "windows-case-fold",
+      "file": "src/core/team/sharedFiles.ts",
+      "test": "test/unit/teamCollisions.test.ts",
+      "rig": "win11",
+      "exit": 1,
+      "fired": true,
+      "before": "0daff9f5a316cbf8bb00ccb5984edb943f27df66ba9877317ca882d5c3661b16",
+      "mutant": "7417609839f213c8d3bd37748280534fea7a2babd8e5e8110fef4441c3e30095",
+      "expected": "never serializes built-in JSON/changelog files",
+      "failures": [
+        " FAIL  test/unit/teamCollisions.test.ts > team collision leases > never serializes built-in JSON/changelog files, while declared text shared files serialize"
+      ],
+      "restored": "0daff9f5a316cbf8bb00ccb5984edb943f27df66ba9877317ca882d5c3661b16"
+    },
+    {
+      "id": "lease-retired-pipeline",
+      "file": "src/core/team/writeSets.ts",
+      "test": "test/unit/teamCollisions.test.ts",
+      "rig": "macmini",
+      "exit": 1,
+      "fired": true,
+      "before": "242b91da10c0ba6ffa5f3beaddcf6ca1e4c282f0458a85e95b9885931c57f5a6",
+      "mutant": "f0e512990e2c1e05553b55d25cc4b6b352914c86ff3d393dd40c9ea32f5ae96f",
+      "expected": "inherits a retired pipeline lineage",
+      "failures": [
+        " FAIL  test/unit/teamCollisions.test.ts > team collision leases > inherits a retired pipeline lineage while refusing late children and superseded parents"
+      ],
+      "restored": "242b91da10c0ba6ffa5f3beaddcf6ca1e4c282f0458a85e95b9885931c57f5a6"
+    }
+  ],
+  "sourceSha256": {
+    "src/core/team/merge/jsonTable.ts": "9632982a9bc32c5b62f19a0768efc3c3371ccb3254f374e75ea9a9eb8b247b3b",
+    "src/core/team/merge/changelog.ts": "0487f6db868af4da1befc31ef06f45ae535bd9e54a36decf8139bef2650f1c03",
+    "src/core/team/writeSets.ts": "242b91da10c0ba6ffa5f3beaddcf6ca1e4c282f0458a85e95b9885931c57f5a6",
+    "src/core/team/waitFor.ts": "26f568ac27b8979f912903de41a26e8536b1e42096aa6ef16e4707c50cd40ea7",
+    "src/core/team/sharedFiles.ts": "0daff9f5a316cbf8bb00ccb5984edb943f27df66ba9877317ca882d5c3661b16",
+    "src/core/team/conflictPredict.ts": "5faf67a83b0f296914dcf140355941c8783dbdd98f5b43e270ab2ad346a5166d"
+  },
+  "note": "Earlier writeSets executions are retained as history; latest executions match the pipeline-lineage correction."
+}

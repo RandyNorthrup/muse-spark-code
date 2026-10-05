@@ -18442,6 +18442,19 @@ serve`."
 
 ### M96c — Scheduler and traffic (D75)
 
+**M96CINT round 2 integration (2026-10-05).** Finish the existing partial
+integration by merging reviewed C (`52d04b69`) and then O (`19bb0703`) with
+`--no-ff`, preserving every lane's intent. Resolve only integration seams
+between S/C/Q/O/T2/V, retain all translated strings, and regenerate the host
+API inventory and notices through their scripts. Run every merged lane's
+complete owned unit files (at most three per invocation) and typecheck,
+lint, Prettier, deadcode, duplication, localization, cycles, host API, build
+and unchanged caps directly on macmini. Update the lane-A-owned
+`teamPool.ts` reconciliation note and certification receipts. X2 runtime
+wiring, public docs and packaging follow the M96 integration; native Windows
+runner tests remain platform-gated for the lead's Windows rig. No full
+quality, main merge, rebase, push or live/paid model call runs here.
+
 **M96CINT partial integration (2026-10-05).** Merge reviewed S/Q, T2 and V
 in that order, keeping their contracts and fixes. Run their complete owned
 test files and the scoped rig gates. Make Q's cumulative-batch fixture use
@@ -18466,6 +18479,18 @@ entry/agent scoping and preserve existing multiline runner setup commands.
 Each fix gets a failing regression and a byte-exact restored red drill in
 `docs/certification/m96c-v.md`. Production adapter wiring and the full gate
 remain X2/lead work; this rig lane runs owned checks and never merges or pushes.
+
+**Lane C review repairs (FIXM96CC, 2026-10-05).** RVM96CC's seven P2
+findings and P3 fixture deadline are in scope: preserve user merge authority
+and strict built-ins against overlapping repository rules; canonicalize
+paths before declarations, permissions, leases, growth and hint matching;
+recognize contained merge-kind globs; retain hint answers until the actual
+hint drops their collision; identify both prediction attempts; isolate
+pending prediction generations; refuse unrecognized release headings;
+build one real-Git template with plumbing and copy it for each case.
+Each repair requires a failing regression and a byte-exact restored red
+drill in `docs/certification/m96c-c.md`. The rig brief forbids merges,
+rebases, pushes and full quality runs; focused gates run directly on macmini.
 
 **Status 2026-10-04: planned, round 3 (redesign), amended in round 4 for
 Codex's third review (`RVM96C3`: three P1, five P2, one P3).** This milestone
@@ -19828,6 +19853,17 @@ running full quality, merging, rebasing or pushing. Full quality and the
 existing runtime/integration/live handoff remain the lead's work; no gate was
 weakened and neither reviewed finding remains as a residual.
 
+**FIXM96CC lane gate scope (2026-10-05).** The owner's rig brief explicitly
+forbids a full `npm run quality`, merges, rebases and pushes in this lane.
+Focused Vitest, all compiler projects, changed-file lint/format, dead-code,
+duplication, localization, host API and production-build checks run directly
+on macmini. Hooked local commits are checkpoints for the lead; full quality
+and assembled S/K/Q/T2/X2 certification remain the lead's required gates.
+Review-repair receipts are in `docs/certification/m96c-c.md`. Final focused
+checks pass on macmini: 52/52 owned cases (including real Git under the
+unchanged default deadline), all listed static/build gates, and 25 distinct
+byte-exact restored guard drills. No RVM96CC finding is deferred.
+
 **MG69 merged-source proof (2026-10-02).** Kubuntu passes 49 owning/merged
 files (2,056 tests; two existing Windows-only cases platform-skipped), all
 five compiler projects and every required static gate. Both review and import
@@ -20292,6 +20328,16 @@ before a repaired one loads (2026-09-30).
   unchanged; X2 owns regeneration and the full gate before integration.
   The partial integration preserves that ownership and records the failing
   check without weakening it.
+
+**FIXM96CC / RVM96CC (2026-10-05).** The seven P2 findings and the P3
+real-Git fixture deadline are repaired, with no review finding deferred.
+The existing lane C integration seams remain: S supplies consistent volume
+case policy to `SharedFiles` and `expandWriteSet` (Windows/macOS conservatively
+fold by default; the host may explicitly select a sensitive volume or an
+insensitive Linux mount); K supplies complete fresh canonical-repository hint
+snapshots; Q uses the landing routine and final tested blobs. Lexical path
+identity is not filesystem permission or symlink authority. Standalone
+collision tests do not certify these host-owned seams or the assembled team.
 
 - Code intelligence (M67) shows what VS Code's language services say. A
   result located outside the workspace is left out and a hover defined only
