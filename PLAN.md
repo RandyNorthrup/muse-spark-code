@@ -15229,3 +15229,18 @@ against `SHA256SUMS`, installs as 0.11.0 in throwaway profiles on the
 Windows host (VS Code 1.140.0), the Windows 11 VM (1.139.1), the Mac mini
 (1.139.1) and Kubuntu (1.130.0); the GitHub tarball installs on Kubuntu and
 `muse-spark-code-acp --version` prints 0.11.0.
+
+**M97 FIN2 continuation (2026-10-05, before implementation).** Close scanner
+localization with runtime table reads in every scanner reader and all fourteen
+translations. Give scan admission explicit byte, total-byte, per-rule and time
+limits with honest incomplete results and boundary tests. Registry lookup is
+available by default in interactive editors after a one-time disclosure of the
+named public HTTPS registries and package/version identifiers; offline setting
+and headless flag retain local-only scanning. Never read private registry
+configuration or contact its URLs. Reuse D78's shared paid gate for an explicit,
+bounded, scrubbed explanation; deterministic scanning remains free and model
+independent. Add headless platform-gated accessibility receipts/commands and
+record all editors' shared engine paths. Run full quality once on final source,
+report actual exit/tail and rebuild/package under unchanged budgets. No live or
+paid calls, pushes, main merges or rebases. Required Windows execution belongs
+to the Windows rig, as the owner explicitly directed in the FIN2 brief.

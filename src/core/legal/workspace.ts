@@ -16,9 +16,10 @@ import {
 } from 'node:fs'
 import path from 'node:path'
 import {
-  LEGAL_FILES_SCANNED_MAX,
-  LEGAL_FINDINGS_MAX,
-  LEGAL_TEXT_MAX_CHARS,
+  LEGAL_DIRECTORY_ENTRIES_MAX,
+  LEGAL_FILE_MAX_BYTES,
+  LEGAL_TOTAL_MAX_BYTES,
+  LEGAL_SCAN_TIMEOUT_MS,
 } from '../../shared/constants'
 import { sameFile } from '../fs/fileIdentity'
 import {
@@ -46,6 +47,7 @@ function isWithin(root: string, candidate: string): boolean {
 export function createLegalSnapshot(
   rootPath: string,
   signal?: AbortSignal,
+  deadline = Date.now() + LEGAL_SCAN_TIMEOUT_MS,
 ): LegalWorkspaceSnapshot {
   if (signal?.aborted === true) throw new LegalScanError('Legal scan cancelled')
   const root = realpathSync(rootPath)
@@ -54,11 +56,20 @@ export function createLegalSnapshot(
   const hashes = new Map<string, string>()
   const incompleteChecks: string[] = []
   let entriesSeen = 0
+  let bytesRead = 0
+  const cache = new Map<string, string>()
+  const isWithinTime = (): boolean => {
+    if (Date.now() < deadline) return true
+    const message = 'scan stopped at limit: elapsed time'
+    if (!incompleteChecks.includes(message)) incompleteChecks.push(message)
+    return false
+  }
   const checkCancellation = (): void => {
     if (signal?.aborted === true) throw new LegalScanError('Legal scan cancelled')
   }
   const visit = (directory: string, localDirectory: string): void => {
     checkCancellation()
+    if (!isWithinTime()) return
     const before = lstatSync(directory, { bigint: true })
     if (
       before.isSymbolicLink() ||
@@ -74,10 +85,11 @@ export function createLegalSnapshot(
       let entry = dir.readSync()
       while (entry !== null) {
         checkCancellation()
+        if (!isWithinTime()) return
         entriesSeen += 1
-        if (entriesSeen > LEGAL_FILES_SCANNED_MAX) {
+        if (entriesSeen > LEGAL_DIRECTORY_ENTRIES_MAX) {
           incompleteChecks.push(
-            'not checked: directory-entry budget reached; remaining tree not enumerated',
+            'scan stopped at limit: directory-entry budget reached; remaining tree not enumerated',
           )
           return
         }
@@ -94,7 +106,7 @@ export function createLegalSnapshot(
     const sortedNames = names.toSorted((a, b) => compareLegalText(a, b))
     for (const name of sortedNames) {
       checkCancellation()
-      if (entriesSeen > LEGAL_FILES_SCANNED_MAX) return
+      if (entriesSeen > LEGAL_DIRECTORY_ENTRIES_MAX || !isWithinTime()) return
       const local = localDirectory === '' ? name : `${localDirectory}/${name}`
       if (name === '.git') {
         incompleteChecks.push(`not checked: ${local} is repository internals`)
@@ -122,6 +134,8 @@ export function createLegalSnapshot(
     readFile: (local: string): string | undefined => {
       checkCancellation()
       assertWorkspaceRelative(local)
+      if (!isWithinTime()) return undefined
+      if (cache.has(local)) return cache.get(local)
       const expected = admitted.get(local)
       if (expected === undefined) return undefined
       let fd: number | undefined
@@ -142,8 +156,15 @@ export function createLegalSnapshot(
         const held = fstatSync(fd, { bigint: true })
         if (!held.isFile() || !sameFile(expected, held) || !isWithin(root, realpathSync(absolute)))
           return undefined
-        const byteLimit = LEGAL_TEXT_MAX_CHARS * LEGAL_FINDINGS_MAX
-        if (held.size > BigInt(byteLimit)) return undefined
+        if (
+          held.size > BigInt(LEGAL_FILE_MAX_BYTES) ||
+          held.size + BigInt(bytesRead) > BigInt(LEGAL_TOTAL_MAX_BYTES)
+        ) {
+          incompleteChecks.push(
+            `scan stopped at limit: ${local} exceeds the bounded text read budget`,
+          )
+          return undefined
+        }
         const bytes = Buffer.alloc(Number(held.size) + 1)
         const count = readSync(fd, bytes)
         const after = fstatSync(fd, { bigint: true })
@@ -154,9 +175,12 @@ export function createLegalSnapshot(
         )
           return undefined
         checkCancellation()
+        if (!isWithinTime()) return undefined
+        bytesRead += count
         const text = new TextDecoder('utf-8', { fatal: true }).decode(bytes.subarray(0, count))
         const hash = bytesFingerprint(bytes.subarray(0, count))
         if (hash !== undefined) hashes.set(local, hash)
+        cache.set(local, text)
         return text
       } catch {
         checkCancellation()

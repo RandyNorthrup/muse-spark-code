@@ -3900,6 +3900,11 @@ export const LEGAL_FILES_SCANNED_MAX = 20_000
 // Findings kept per report: past this the scan keeps the blockers and
 // should-fix findings first and says the report is truncated.
 export const LEGAL_FINDINGS_MAX = 500
+// Independent admission budgets: UTF-8 bytes, directory entries and findings per rule.
+export const LEGAL_FILE_MAX_BYTES = 1_000_000
+export const LEGAL_TOTAL_MAX_BYTES = 10_000_000
+export const LEGAL_DIRECTORY_ENTRIES_MAX = 20_000
+export const LEGAL_FINDINGS_PER_RULE_MAX = 100
 // The only raw file content a finding may carry: a short excerpt around the
 // evidence (a header block, a license line), never a whole file, so a report
 // stays free of secret/PII values and confidential bodies.

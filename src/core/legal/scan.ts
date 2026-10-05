@@ -11,6 +11,10 @@ import {
   UI_TEXT,
   LEGAL_EXCLUSIONS_MAX,
   LEGAL_FILES_SCANNED_MAX,
+  LEGAL_FILE_MAX_BYTES,
+  LEGAL_TOTAL_MAX_BYTES,
+  LEGAL_FINDINGS_PER_RULE_MAX,
+  LEGAL_SCAN_TIMEOUT_MS,
   LEGAL_FINDINGS_MAX,
   LEGAL_HEADER_POLICIES,
   LEGAL_INCOMPLETE_MAX,
@@ -65,6 +69,7 @@ export const LEGAL_SCANNER_RULE_VERSION = '1'
 
 /** What one scan runs over: policy, an optional file subset, evidence. */
 export interface LegalScanOptions {
+  readonly deadline?: number
   readonly signal?: AbortSignal
   readonly headerPolicy: LegalHeaderPolicy
   /** An explicit per-file subset: limits header checks, not workspace facts. */
@@ -238,11 +243,18 @@ export function scanLegal(snapshot: LegalFileSnapshot, options: LegalScanOptions
     'not checked: assets, copied code provenance, proprietary terms and complete license-text matching require human review',
   ]
   const cache = new Map<string, string | undefined>()
-  let charactersRead = 0
+  let bytesRead = 0
+  const deadline = options.deadline ?? Date.now() + LEGAL_SCAN_TIMEOUT_MS
+  let isTimedOut = false
   const bounded: LegalFileSnapshot = {
     files: [...allowed].toSorted((a, b) => compareLegalText(a, b)),
     readFile: (path: string) => {
       if (options.signal?.aborted === true) throw new LegalScanError('Legal scan cancelled')
+      if (Date.now() >= deadline) {
+        if (!isTimedOut) incomplete.push('scan stopped at limit: elapsed time')
+        isTimedOut = true
+        return
+      }
       if (!allowed.has(path)) return
       if (cache.has(path)) return cache.get(path)
       let text: string | undefined
@@ -254,12 +266,12 @@ export function scanLegal(snapshot: LegalFileSnapshot, options: LegalScanOptions
       }
       if (text === undefined) incomplete.push(`not checked: ${path} cannot be read as text`)
       else if (
-        text.length > LEGAL_TEXT_MAX_CHARS * LEGAL_FINDINGS_MAX ||
-        charactersRead + text.length > LEGAL_FILES_SCANNED_MAX * LEGAL_EVIDENCE_EXCERPT_MAX_CHARS
+        new TextEncoder().encode(text).byteLength > LEGAL_FILE_MAX_BYTES ||
+        bytesRead + new TextEncoder().encode(text).byteLength > LEGAL_TOTAL_MAX_BYTES
       ) {
-        incomplete.push(`not checked: ${path} exceeds the bounded text read budget`)
+        incomplete.push(`scan stopped at limit: ${path} exceeds the bounded text read budget`)
         text = undefined
-      } else charactersRead += text.length
+      } else bytesRead += new TextEncoder().encode(text).byteLength
       cache.set(path, text)
       return text
     },
@@ -380,8 +392,23 @@ export function scanLegal(snapshot: LegalFileSnapshot, options: LegalScanOptions
     }
   }
 
-  const truncated = findings.length - LEGAL_FINDINGS_MAX
-  const kept = truncated > 0 ? findings.slice(0, LEGAL_FINDINGS_MAX) : findings
+  const perRule = new Map<string, number>()
+  const withinRules = findings.filter(({ rule }) => {
+    const count = (perRule.get(rule) ?? 0) + 1
+    perRule.set(rule, count)
+    return count <= LEGAL_FINDINGS_PER_RULE_MAX
+  })
+  for (const [rule, count] of perRule) {
+    if (count > LEGAL_FINDINGS_PER_RULE_MAX)
+      incomplete.push(`scan stopped at limit: report truncated for ${rule}`)
+  }
+  incomplete.push(
+    ...(snapshot.incompleteChecks ?? []).filter((entry) => !incomplete.includes(entry)),
+  )
+  if (Date.now() >= deadline && !incomplete.includes('scan stopped at limit: elapsed time'))
+    incomplete.push('scan stopped at limit: elapsed time')
+  const truncated = withinRules.length - LEGAL_FINDINGS_MAX
+  const kept = truncated > 0 ? withinRules.slice(0, LEGAL_FINDINGS_MAX) : withinRules
   if (truncated > 0) {
     incomplete.push(
       `report truncated: ${String(truncated)} findings omitted past the ${String(LEGAL_FINDINGS_MAX)}-finding bound; blockers and should-fix findings kept first`,

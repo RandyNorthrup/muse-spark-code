@@ -3523,3 +3523,8 @@ via PayPal. Thank you!
 - [docs/PRIVACY.md](docs/PRIVACY.md): what leaves your machine.
 - [SECURITY.md](SECURITY.md) and [CONTRIBUTING.md](CONTRIBUTING.md).
 - [Issues](https://github.com/RandyNorthrup/muse-spark-code/issues).
+
+Legal scanner limits: 20,000 files/directory entries, 1,000,000 UTF-8 bytes per
+file, 10,000,000 bytes per scan, 100 findings per rule (500 total), and 120
+seconds. Reaching a limit is reported as incomplete. License title and clause
+matching remains heuristic; review the original terms before distribution.
