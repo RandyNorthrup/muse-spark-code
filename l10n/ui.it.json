@@ -1904,5 +1904,11 @@
   "agentImportIgnoredToTracked": "questo copierebbe un file ignorato da Git in un file tracciato",
   "agentImportEditPrompt": "Aprire le voci convertite in {path} come modifica non salvata da controllare e salvare? Salvarla solo in quel percorso, mai in un altro file.",
   "agentImportEditAction": "Modifica e apri il file",
-  "agentImportPreviewLegacyKey": "Il file usa la vecchia chiave `mcp_servers`. Rinominala in `mcpServers` quando aggiungi questi: Muse Code non carica nessuna delle due se sono presenti entrambe."
+  "agentImportPreviewLegacyKey": "Il file usa la vecchia chiave `mcp_servers`. Rinominala in `mcpServers` quando aggiungi questi: Muse Code non carica nessuna delle due se sono presenti entrambe.",
+  "judgeSourceSame": "Modello di chat personale",
+  "judgeSourceSeparate": "Valutatore separato",
+  "judgeSourceBoth": "Modello personale e valutatore separato",
+  "judgeLocalUnverified": "Endpoint locale non verificato",
+  "judgeSourceUntested": "Sperimentale, non testato; consenso esplicito richiesto",
+  "judgeNoAnswer": "Nessuna risposta del valutatore ({reason}). Restano valide le verifiche e approvazioni esistenti."
 }

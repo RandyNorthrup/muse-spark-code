@@ -1837,5 +1837,11 @@
   "agentImportIgnoredToTracked": "ez Git által figyelmen kívül hagyott fájlt másolna egy követett fájlba",
   "agentImportEditPrompt": "Megnyitja az átalakított bejegyzéseket itt: {path}, nem mentett módosításként, ellenőrzésre és mentésre? Csak erre az útvonalra mentse, soha ne másik fájlba.",
   "agentImportEditAction": "Fájl szerkesztése és megnyitása",
-  "agentImportPreviewLegacyKey": "A fájl az elavult `mcp_servers` kulcsot használja. Ezek hozzáadásakor nevezze át `mcpServers` névre: ha mindkettő jelen van, a Muse Code egyiket sem tölti be."
+  "agentImportPreviewLegacyKey": "A fájl az elavult `mcp_servers` kulcsot használja. Ezek hozzáadásakor nevezze át `mcpServers` névre: ha mindkettő jelen van, a Muse Code egyiket sem tölti be.",
+  "judgeSourceSame": "Saját csevegőmodell",
+  "judgeSourceSeparate": "Külön értékelő",
+  "judgeSourceBoth": "Saját modell és külön értékelő",
+  "judgeLocalUnverified": "Nem ellenőrzött helyi végpont",
+  "judgeSourceUntested": "Kísérleti, nem tesztelt; kifejezett beleegyezés szükséges",
+  "judgeNoAnswer": "Az értékelő nem válaszolt ({reason}). A meglévő ellenőrzések és jóváhagyások továbbra is érvényesek."
 }
