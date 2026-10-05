@@ -21,6 +21,13 @@
 //     output, `cat .env`, a config file): a PEM private key; GitHub, GitLab,
 //     npm and Google API tokens; AWS access key ids; Slack tokens; `sk-` and
 //     `sk_live_` style API keys
+//   - The BYO providers' key shapes (M95, PLAN.md D74): Groq `gsk_`, xAI
+//     `xai-`, Fireworks `fw_`, Hugging Face `hf_`, Together `tgp_v1_`,
+//     Bedrock `ABSK` and `bedrock-api-key-`
+//   - Account ids the providers' errors and headers carry (M95, PLAN.md
+//     D74): the `user_id`, `creator_user_id` and `workspace_id` fields, the
+//     organization, project and workspace id headers, and a UUID after
+//     "team", "account", "organization" or "project" in prose
 //   - Secrets named by their key, the value replaced and the name kept: an
 //     upper-case environment name that says so (`GITHUB_TOKEN=`), an
 //     `api-key` header, `Authorization: token …`, a quoted JSON field, a URL
@@ -147,6 +154,21 @@ export const SECRET_RULES: readonly SecretRule[] = [
     literals: SECRET_FIELD_LITERALS,
     replace: markAfter,
   },
+  // Account ids the providers' errors and key bodies carry (M95, PLAN.md
+  // D74; captured 2026-10-04): OpenRouter's `user_id` at top level and its
+  // `/key` body's `creator_user_id` and `workspace_id`. The name stays, the
+  // id is replaced, as with secret fields.
+  {
+    pattern:
+      /((?:user_id|creator_user_id|workspace_id)["']?\s*[:=]\s*)(["'])(?:\\.|[^\r\n\\])*?\2/gi,
+    literals: ['user_id', 'creator_user_id', 'workspace_id'],
+    replace: markQuoted,
+  },
+  {
+    pattern: /((?:user_id|creator_user_id|workspace_id)["']?\s*[:=]\s*["']?)[^\s"'&,;}]{1,4096}/gi,
+    literals: ['user_id', 'creator_user_id', 'workspace_id'],
+    replace: markAfter,
+  },
   // Credentials in a URL. The scheme is bounded (real ones are a few
   // letters): unbounded, a long run such as `a.b.c.…` took quadratic time.
   {
@@ -173,6 +195,23 @@ export const SECRET_RULES: readonly SecretRule[] = [
   {
     pattern: /\b(?:sk|rk|pk)_(?:live|test)_[A-Za-z0-9]{16,255}|\bsk-[\w-]{20,255}/g,
     literals: ['_live_', '_test_', 'sk-'],
+    replace: mark,
+  },
+  // The BYO providers' key shapes (M95, PLAN.md D74; the shapes the live
+  // captures scrubbed, `docs/certification/m95-captures.md`). A key with no
+  // such prefix (Mistral, Azure's 32 hex) is caught by the header and field
+  // rules above and by the exact value the transport registers for the life
+  // of each request.
+  { pattern: /\bgsk_[A-Za-z0-9]{20,255}/g, literals: ['gsk_'], replace: mark },
+  { pattern: /\bxai-[\w-]{20,255}/g, literals: ['xai-'], replace: mark },
+  { pattern: /\bfw_[A-Za-z0-9]{20,255}/g, literals: ['fw_'], replace: mark },
+  { pattern: /\bhf_[A-Za-z0-9]{8,255}/g, literals: ['hf_'], replace: mark },
+  { pattern: /\btgp_v1_[A-Za-z0-9]{16,255}/g, literals: ['tgp_v1_'], replace: mark },
+  // Bedrock's keys (the M95c preset; shapes from the research, D74).
+  { pattern: /\bABSK[\w-]{8,255}/g, literals: ['absk'], replace: mark },
+  {
+    pattern: /\bbedrock-api-key-[\w-]{8,255}/g,
+    literals: ['bedrock-api-key-'],
     replace: mark,
   },
   // Secrets named by their key: the value after the name is replaced, the
@@ -216,6 +255,22 @@ export const SECRET_RULES: readonly SecretRule[] = [
     literals: ['api-key'],
     replace: markAfter,
   },
+  // Organization, project and workspace ids the providers' responses carry
+  // as headers (M95, PLAN.md D74; captured 2026-10-04): OpenAI's
+  // `openai-organization` and `openai-project`, Anthropic's
+  // `anthropic-organization-id` and `anthropic-workspace-id`. The header
+  // name stays, the id is replaced.
+  {
+    pattern:
+      /(\b(?:openai-organization|openai-project|anthropic-organization-id|anthropic-workspace-id)\s{0,5}:\s{0,5}["']?)[^\s"'&,;}]{1,4096}/gi,
+    literals: [
+      'openai-organization',
+      'openai-project',
+      'anthropic-organization-id',
+      'anthropic-workspace-id',
+    ],
+    replace: markAfter,
+  },
   {
     pattern: /(\bAuthorization\s{0,5}:\s{0,5}token\s{1,5})[^\s"'&,;}]{1,4096}/gi,
     literals: ['token'],
@@ -253,6 +308,17 @@ export const SECRET_RULES: readonly SecretRule[] = [
     ],
     replace: markAfter,
   },
+  // An account id inside error prose: a UUID after "team", "account",
+  // "organization" or "project" (M95, PLAN.md D74; xAI's error names the
+  // team's id, OpenRouter's the user's). Only a UUID is replaced, so "the
+  // project plan" and counts keep their text; the word stays. A non-UUID
+  // id in prose is a residual (noted in `docs/certification/m95-s.md`).
+  {
+    pattern:
+      /(\b(?:team|account|organization|organisation|project)(?: id)?\s*[:#]?\s*)([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})/gi,
+    literals: ['team', 'account', 'organization', 'organisation', 'project'],
+    replace: markAfter,
+  },
 ]
 
 // Every rule's literals, case ignored: text with none of them, which is most
@@ -261,7 +327,7 @@ export const SECRET_RULES: readonly SecretRule[] = [
 // whose literal this misses would never run, so redact.test.ts proves it
 // finds every rule's literals and every rule's real-shaped matches.
 export const MAY_HOLD_SECRET =
-  /LLM|bearer|basic|eyJ|token|secret|passw|api_?key|api-key|private|credential|access_?key|accountkey|_auth|aws_|:\/\/|gh[pousr]_|github_pat_|glpat-|npm_|AIza|AKIA|ASIA|xox|_live_|_test_|sk-|[?&](?:key|sig|signature|auth)=/i
+  /LLM|bearer|basic|eyJ|token|secret|passw|api_?key|api-key|private|credential|access_?key|accountkey|_auth|aws_|:\/\/|gh[pousr]_|github_pat_|glpat-|npm_|AIza|AKIA|ASIA|xox|_live_|_test_|sk-|[?&](?:key|sig|signature|auth)=|gsk_|xai-|fw_|hf_|tgp_v1_|absk|bedrock-api-key|user_id|workspace|team|account|organization|organisation|project/i
 
 function redactPatterns(text: string, matched?: () => void): string {
   if (!MAY_HOLD_SECRET.test(text)) {
