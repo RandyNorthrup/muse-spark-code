@@ -344,25 +344,29 @@ describe('encodeGeminiRequest history', () => {
     expect(JSON.stringify(request.body)).toContain('{"result":"noon"}')
   })
 
+  function imageResultBody(hasText: boolean): CreateResponseBody {
+    return {
+      ...replay,
+      input: replay.input.map((item) =>
+        item.type === 'function_call_output'
+          ? {
+              ...item,
+              output: [
+                ...(hasText
+                  ? [{ type: 'input_text' as const, text: 'picture from view_image' }]
+                  : []),
+                { type: 'input_image', image_url: 'data:image/png;base64,iVBOR', detail: 'auto' },
+              ],
+            }
+          : item,
+      ),
+    }
+  }
+
   it.each([false, true])(
     'sends tool-result images as sibling inlineData on Gemini 3 (text: %s)',
     (hasText) => {
-      const body: CreateResponseBody = {
-        ...replay,
-        input: replay.input.map((item) =>
-          item.type === 'function_call_output'
-            ? {
-                ...item,
-                output: [
-                  ...(hasText
-                    ? [{ type: 'input_text' as const, text: 'picture from view_image' }]
-                    : []),
-                  { type: 'input_image', image_url: 'data:image/png;base64,iVBOR', detail: 'auto' },
-                ],
-              }
-            : item,
-        ),
-      }
+      const body = imageResultBody(hasText)
       const request = encodeGeminiRequest(body, 'gemini-3.5-flash-lite')
       const contents = JSON.stringify(request.body['contents'])
       expect(contents).toContain('"functionResponse":{"id":"call_3117260"')
@@ -374,22 +378,7 @@ describe('encodeGeminiRequest history', () => {
   it.each([false, true])(
     'still refuses tool-result images before Gemini 3 (text: %s)',
     (hasText) => {
-      const body: CreateResponseBody = {
-        ...replay,
-        input: replay.input.map((item) =>
-          item.type === 'function_call_output'
-            ? {
-                ...item,
-                output: [
-                  ...(hasText
-                    ? [{ type: 'input_text' as const, text: 'picture from view_image' }]
-                    : []),
-                  { type: 'input_image', image_url: 'data:image/png;base64,iVBOR', detail: 'auto' },
-                ],
-              }
-            : item,
-        ),
-      }
+      const body = imageResultBody(hasText)
       expect(() => encodeGeminiRequest(body, 'gemini-2.5-flash')).toThrow(
         expect.objectContaining({
           name: 'ModelApiError',

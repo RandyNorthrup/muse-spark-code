@@ -1912,9 +1912,10 @@ describe('M101 lane P1 history hardening (BYO items 1, 3, 13)', () => {
   })
 
   it('drops blank text and marks empty results (BYO item 1)', () => {
+    const calls = callBody('call-1', '')
     const encoded = encodeChatRequest(
       {
-        ...tinyBody(),
+        ...calls,
         input: [
           {
             type: 'message',
@@ -1924,8 +1925,7 @@ describe('M101 lane P1 history hardening (BYO items 1, 3, 13)', () => {
               { type: 'input_text', text: 'hi' },
             ],
           },
-          { type: 'function_call', call_id: 'call-1', name: 'get_time', arguments: '{}' },
-          { type: 'function_call_output', call_id: 'call-1', output: '' },
+          ...calls.input,
         ],
       },
       'm',

@@ -230,21 +230,27 @@ function resolvePointer(root: unknown, pointer: string): unknown {
   return current
 }
 
-function rewriteSchemaNode(node: unknown, root: unknown, resolving: readonly string[]): unknown {
-  // A `$ref` continues with its target instead of recursing: only arrays and
-  // objects branch.
+/**
+ * Follow local `$ref`s to the node a schema walker copies: a `$ref`
+ * continues with its target (external and circular references throw),
+ * while arrays, scalars and ref-less objects are returned as found, with
+ * the chain of refs already resolved. Shared by the subset walker below
+ * and the full-schema walker (BYO item 11).
+ */
+function resolveSchemaNode(
+  node: unknown,
+  root: unknown,
+  resolving: readonly string[],
+): { current: unknown; seen: readonly string[] } {
   let current: unknown = node
   let seen = resolving
   for (;;) {
-    if (Array.isArray(current)) {
-      return current.map((entry) => rewriteSchemaNode(entry, root, seen))
-    }
-    if (!isRecord(current)) {
-      return current
+    if (Array.isArray(current) || !isRecord(current)) {
+      return { current, seen }
     }
     const ref: unknown = current['$ref']
     if (ref === undefined) {
-      break
+      return { current, seen }
     }
     if (typeof ref !== 'string') {
       throw new TypeError('Gemini codec: $ref must be a string')
@@ -257,6 +263,18 @@ function rewriteSchemaNode(node: unknown, root: unknown, resolving: readonly str
     }
     seen = [...seen, ref]
     current = resolvePointer(root, ref.slice(1))
+  }
+}
+
+function rewriteSchemaNode(node: unknown, root: unknown, resolving: readonly string[]): unknown {
+  // A `$ref` continues with its target instead of recursing: only arrays and
+  // objects branch.
+  const { current, seen } = resolveSchemaNode(node, root, resolving)
+  if (Array.isArray(current)) {
+    return current.map((entry) => rewriteSchemaNode(entry, root, seen))
+  }
+  if (!isRecord(current)) {
+    return current
   }
   const out: Record<string, unknown> = {}
   for (const [key, value] of Object.entries(current)) {
@@ -296,37 +314,18 @@ function rewriteFullSchemaNode(
   root: unknown,
   resolving: readonly string[],
 ): unknown {
-  // The same `$ref` handling as the subset walker above: a `$ref` continues
-  // with its target (external and circular references throw), while every
-  // other key rides verbatim, in order.
-  let current: unknown = node
-  let seen = resolving
-  for (;;) {
-    if (Array.isArray(current)) {
-      return current.map((entry) => rewriteFullSchemaNode(entry, root, seen))
-    }
-    if (!isRecord(current)) {
-      return current
-    }
-    const ref: unknown = current['$ref']
-    if (ref === undefined) {
-      break
-    }
-    if (typeof ref !== 'string') {
-      throw new TypeError('Gemini codec: $ref must be a string')
-    }
-    if (!ref.startsWith('#/')) {
-      throw new Error(`Gemini codec: external $ref '${ref}' has no Gemini form`)
-    }
-    if (seen.includes(ref)) {
-      throw new Error(`Gemini codec: circular $ref '${ref}'`)
-    }
-    seen = [...seen, ref]
-    current = resolvePointer(root, ref.slice(1))
+  // `$ref`s resolve through the shared resolver; every other key rides
+  // verbatim, in order.
+  const resolved = resolveSchemaNode(node, root, resolving)
+  if (Array.isArray(resolved.current)) {
+    return resolved.current.map((entry) => rewriteFullSchemaNode(entry, root, resolved.seen))
+  }
+  if (!isRecord(resolved.current)) {
+    return resolved.current
   }
   const out: Record<string, unknown> = {}
-  for (const [key, value] of Object.entries(current)) {
-    out[key] = rewriteFullSchemaNode(value, root, seen)
+  for (const [key, value] of Object.entries(resolved.current)) {
+    out[key] = rewriteFullSchemaNode(value, root, resolved.seen)
   }
   return out
 }

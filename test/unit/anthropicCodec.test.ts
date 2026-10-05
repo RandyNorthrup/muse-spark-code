@@ -1062,84 +1062,36 @@ describe('M101 lane P1 history hardening (BYO items 1, 3, 8, 13)', () => {
   })
 
   it('tolerates a proxy-null usage object (BYO item 8)', async () => {
-    const frames: SseEvent[] = [
-      {
-        event: 'message_start',
-        data: JSON.stringify({ type: 'message_start', message: { id: 'mnull', usage: null } }),
-      },
-      {
-        event: 'content_block_start',
-        data: JSON.stringify({
-          type: 'content_block_start',
-          index: 0,
-          content_block: { type: 'text', text: '' },
-        }),
-      },
-      {
-        event: 'content_block_delta',
-        data: JSON.stringify({
-          type: 'content_block_delta',
-          index: 0,
-          delta: { type: 'text_delta', text: 'tail' },
-        }),
-      },
-      {
-        event: 'content_block_stop',
-        data: JSON.stringify({ type: 'content_block_stop', index: 0 }),
-      },
-      {
-        event: 'message_delta',
-        data: JSON.stringify({
-          type: 'message_delta',
-          delta: { stop_reason: 'end_turn' },
-          usage: { input_tokens: 7, output_tokens: 2 },
-        }),
-      },
-      { event: 'message_stop', data: JSON.stringify({ type: 'message_stop' }) },
-    ]
+    const frames = streamOf(
+      [{ start: { type: 'text', text: '' }, deltas: [{ type: 'text_delta', text: 'tail' }] }],
+      'end_turn',
+    )
+    frames[0] = {
+      event: 'message_start',
+      data: JSON.stringify({ type: 'message_start', message: { id: 'mnull', usage: null } }),
+    }
+    frames[frames.length - 2] = {
+      event: 'message_delta',
+      data: JSON.stringify({
+        type: 'message_delta',
+        delta: { stop_reason: 'end_turn' },
+        usage: { input_tokens: 7, output_tokens: 2 },
+      }),
+    }
     const { terminal } = await decodeCompleted(frames)
     expect(terminal.response.usage?.input_tokens).toBe(7)
   })
 
   it('keeps a tool payload cut off at max_tokens with its partial arguments (BYO item 8)', async () => {
-    const frames: SseEvent[] = [
-      {
-        event: 'message_start',
-        data: JSON.stringify({
-          type: 'message_start',
-          message: { id: 'mcut', usage: { input_tokens: 5, output_tokens: 1 } },
-        }),
-      },
-      {
-        event: 'content_block_start',
-        data: JSON.stringify({
-          type: 'content_block_start',
-          index: 0,
-          content_block: { type: 'tool_use', id: 'toolu_01cut', name: 'get_time' },
-        }),
-      },
-      {
-        event: 'content_block_delta',
-        data: JSON.stringify({
-          type: 'content_block_delta',
-          index: 0,
-          delta: { type: 'input_json_delta', partial_json: '{"timezone":' },
-        }),
-      },
-      {
-        event: 'content_block_stop',
-        data: JSON.stringify({ type: 'content_block_stop', index: 0 }),
-      },
-      {
-        event: 'message_delta',
-        data: JSON.stringify({
-          type: 'message_delta',
-          delta: { stop_reason: 'max_tokens' },
-          usage: { input_tokens: 5, output_tokens: 1 },
-        }),
-      },
-      { event: 'message_stop', data: JSON.stringify({ type: 'message_stop' }) },
-    ]
+    const frames = streamOf(
+      [
+        {
+          start: { type: 'tool_use', id: 'toolu_01cut', name: 'get_time' },
+          deltas: [{ type: 'input_json_delta', partial_json: '{"timezone":' }],
+        },
+      ],
+      'max_tokens',
+    )
     const events = await decodeAll(frames, { model: MODEL })
     const terminal = events.at(-1)
     expect(terminal?.type).toBe('response.incomplete')
