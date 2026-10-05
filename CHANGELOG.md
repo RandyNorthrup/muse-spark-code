@@ -13,6 +13,12 @@ happened, not what was planned; superseded entries are kept.
   before selection, including first setup; unknown models and failed
   resolution are refused. Bare Muse-only pickers retain their existing
   rows and keyboard wrapping.
+- The Models panel requests provider edit drafts explicitly, keeps grid
+  shortcuts within the grid, and clears inaccessible active references.
+  Its JavaScript and CSS now build at the host's expected paths. Theme
+  colors, usage-list markup and checkbox targets pass the four-theme
+  accessibility checks; five German, French and Italian labels are
+  translated without localization exceptions.
 
 ### Added
 

@@ -1963,8 +1963,8 @@
   "panelNoMatches": "Keine Treffer.",
   "modelFilterLabels": {
     "toolCalling": "Werkzeugaufrufe",
-    "vision": "Vision",
-    "reasoning": "Reasoning",
+    "vision": "Bildverarbeitung",
+    "reasoning": "Schlussfolgern",
     "contextMin": "Mindestkontext",
     "contextMax": "Max. Kontext",
     "maxInput": "Max. Eingabepreis",

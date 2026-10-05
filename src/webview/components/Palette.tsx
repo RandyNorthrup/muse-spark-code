@@ -481,39 +481,12 @@ export function Palette(props: PaletteProps) {
   let body
   if (rows.length === 0) {
     body = <p className="menu-empty">{UI_TEXT.paletteNoMatches}</p>
-  } else if (view === 'models') {
-    body = (
-      <ul
-        id={PALETTE_LISTBOX_ID}
-        role="listbox"
-        aria-label={UI_TEXT.modelListLabel}
-        className="palette-list"
-      >
-        {entries.map((entry) => {
-          switch (entry.kind) {
-            case 'title': {
-              return (
-                <li key={entry.key} role="presentation" className="palette-group-title">
-                  {entry.title}
-                </li>
-              )
-            }
-            case 'disabled': {
-              return null
-            }
-            case 'row': {
-              return renderRow(entry.index)
-            }
-          }
-        })}
-      </ul>
-    )
   } else {
     body = (
       <ul
         id={PALETTE_LISTBOX_ID}
         role="listbox"
-        aria-label={UI_TEXT.paletteLabel}
+        aria-label={view === 'models' ? UI_TEXT.modelListLabel : UI_TEXT.paletteLabel}
         className="palette-list"
       >
         {entries.map((entry) => {
@@ -526,7 +499,7 @@ export function Palette(props: PaletteProps) {
               )
             }
             case 'disabled': {
-              return (
+              return view === 'models' ? null : (
                 <li
                   key={entry.key}
                   role="presentation"

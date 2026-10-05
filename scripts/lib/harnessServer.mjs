@@ -12,7 +12,7 @@ export const HARNESS_PATH = 'test/harness/index.html'
 // The bundle a scenario plays in: the Models & Agents panel's own
 // (`?bundle=models`, M95 lane M) for its scenarios, the chat's otherwise.
 export function bundleFor(scenario) {
-  return scenario.startsWith('models-') ? 'models' : 'main'
+  return scenario !== 'models-byo' && scenario.startsWith('models-') ? 'models' : 'main'
 }
 // Real time for one page; a hung browser fails rather than producing an empty result.
 export const PAGE_TIMEOUT_MS = 120_000
@@ -151,6 +151,7 @@ export const SCENARIOS = [
   'models-suggestions',
   'models-confirm',
   'models-providers',
+  'models-edit',
   'models-scanning',
   'models-scan-failed',
   'models-scan-diff',

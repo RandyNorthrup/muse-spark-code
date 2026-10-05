@@ -5,6 +5,12 @@
  * from a grid to a list of cards. Motion: none (nothing here animates).
  */
 
+body {
+  margin: 0;
+  background: var(--vscode-sideBar-background);
+  color: var(--vscode-foreground);
+}
+
 .models-panel {
   container-type: inline-size;
   color: var(--vscode-foreground);
@@ -14,10 +20,7 @@
   max-width: 880px;
 }
 
-.models-panel button,
-.models-panel input,
-.models-panel select,
-.models-panel textarea {
+.models-panel :where(button, input, select, textarea) {
   font: inherit;
   color: inherit;
 }
@@ -76,7 +79,10 @@
 }
 
 .models-error {
-  color: var(--vscode-errorForeground);
+  color: var(--vscode-inputValidation-errorForeground, var(--vscode-foreground));
+  background: var(--vscode-inputValidation-errorBackground, transparent);
+  border-left: 2px solid var(--vscode-inputValidation-errorBorder, var(--vscode-errorForeground));
+  padding: 6px 8px;
   margin: 8px 0;
 }
 
@@ -336,6 +342,10 @@
   color: var(--vscode-descriptionForeground);
 }
 
+.models-select-list [aria-selected='true'] .models-select-description {
+  color: inherit;
+}
+
 .models-select-empty {
   padding: 6px 10px;
   color: var(--vscode-descriptionForeground);
@@ -449,6 +459,11 @@
 
 .models-table-empty {
   color: var(--vscode-descriptionForeground);
+}
+
+.models-table input[type='checkbox'] {
+  width: 24px;
+  height: 24px;
 }
 
 .models-numctx {

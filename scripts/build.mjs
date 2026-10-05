@@ -302,7 +302,7 @@ const pageWorkerOptions = {
 /** @type {import('esbuild').BuildOptions} */
 const webviewOptions = {
   ...common,
-  entryPoints: [WEBVIEW_ENTRY, MODELS_WEBVIEW_ENTRY],
+  entryPoints: { main: WEBVIEW_ENTRY, models: MODELS_WEBVIEW_ENTRY },
   outdir: WEBVIEW_OUTDIR,
   platform: 'browser',
   format: 'iife',

@@ -3,6 +3,11 @@
 // either direction (M95 acceptance 5 and 17).
 
 import { describe, expect, it } from 'vitest'
+import german from '../../l10n/ui.de.json'
+import french from '../../l10n/ui.fr.json'
+import italian from '../../l10n/ui.it.json'
+import { tableProblems } from '../../src/shared/l10n/check'
+import { EN } from '../../src/shared/l10n/en'
 import { makeDraft } from './modelsPanelFixtures.js'
 import {
   type HostToPanelMessage,
@@ -32,7 +37,13 @@ const messages: readonly PanelToHostMessage[] = [
   { type: 'modelsPanel/ready' },
   { type: 'openExternal', url: 'https://platform.openai.com/api-keys' },
   { type: 'providers/select', presetId: 'openrouter' },
+  { type: 'providers/edit', providerId: 'ollama' },
   { type: 'providers/prefill', fields: { address: 'https://openrouter.ai' } },
+  {
+    type: 'providers/prefill',
+    fields: { address: 'http://127.0.0.1:11434' },
+    providerId: 'ollama',
+  },
   { type: 'providers/enterKey', mode: 'new' },
   { type: 'providers/enterKey', mode: 'change', providerId: 'openrouter' },
   { type: 'providers/connect' },
@@ -44,6 +55,7 @@ const messages: readonly PanelToHostMessage[] = [
   { type: 'providers/wizard', event: 'next' },
   { type: 'providers/wizard', event: 'back' },
   { type: 'providers/wizard', event: 'cancel' },
+  { type: 'providers/wizard', event: 'cancel', providerId: 'ollama' },
   { type: 'providers/save', useNow: false },
   { type: 'providers/save', useNow: true },
   { type: 'providers/remove', providerId: 'openrouter' },
@@ -81,6 +93,29 @@ const hostMessages: readonly HostToPanelMessage[] = [
 ]
 
 describe('modelsPanel schemas', () => {
+  it.each([
+    [
+      'de',
+      { vision: EN.modelFilterLabels.vision, reasoning: EN.modelFilterLabels.reasoning },
+      { vision: german.modelFilterLabels.vision, reasoning: german.modelFilterLabels.reasoning },
+    ],
+    [
+      'fr',
+      { vision: EN.modelFilterLabels.vision, docs: EN.providerDocs },
+      { vision: french.modelFilterLabels.vision, docs: french.providerDocs },
+    ],
+    [
+      'it',
+      { provider: EN.modelFilterLabels.provider },
+      { provider: italian.modelFilterLabels.provider },
+    ],
+  ] as const)(
+    'strictly translates the reviewed model filters and provider documentation (%s)',
+    (locale, english, table) => {
+      expect(tableProblems(english, table, { locale, isStrict: true })).toEqual([])
+    },
+  )
+
   it('parses the empty first-run state', () => {
     const parsed = parseModelsPanelState(emptyState)
     expect(parsed.ok).toBe(true)

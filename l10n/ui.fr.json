@@ -2033,7 +2033,7 @@
   "panelNoMatches": "Aucun résultat.",
   "modelFilterLabels": {
     "toolCalling": "Appels d’outils",
-    "vision": "Vision",
+    "vision": "Analyse d’images",
     "reasoning": "Raisonnement",
     "contextMin": "Contexte min",
     "contextMax": "Contexte max",
@@ -2056,7 +2056,7 @@
     "loopbackPort": "Port local",
     "customFormat": "Format du protocole"
   },
-  "providerDocs": "Documentation",
+  "providerDocs": "Guide du fournisseur",
   "providerDataUse": "Utilisation de vos données",
   "numCtxLabel": "Taille du contexte",
   "suggestUnavailable": "Aucune suggestion : aucun modèle ne remplit les conditions.",

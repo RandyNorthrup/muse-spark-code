@@ -10,7 +10,7 @@ import { UI_TEXT } from '../../src/shared/constants'
 import { fill, plural } from '../../src/shared/l10n/text'
 import { Badge } from '../../src/webview/models/components/Badge'
 import { CostNotice, formatTestCost } from '../../src/webview/models/components/CostNotice'
-import { DataTable } from '../../src/webview/models/components/DataTable'
+import { DataTable, type DataTableProps } from '../../src/webview/models/components/DataTable'
 import { FilterBar } from '../../src/webview/models/components/FilterBar'
 import { InlineError } from '../../src/webview/models/components/InlineError'
 import { KeyState } from '../../src/webview/models/components/KeyState'
@@ -249,9 +249,28 @@ describe('SearchableSelect', () => {
     const box = screen.getByRole('combobox')
     fireEvent.focus(box)
     expect(screen.getAllByRole('option').length).toBe(3)
+    const activeId = box.getAttribute('aria-activedescendant')
+    expect(activeId).not.toBeNull()
     fireEvent.keyDown(box, { key: 'Escape' })
     expect(screen.queryByRole('option')).toBe(null)
+    expect(box).not.toHaveAttribute('aria-activedescendant')
+    expect(box).not.toHaveAttribute('aria-controls')
     expect(onSelect).not.toHaveBeenCalled()
+  })
+
+  it('clears active references on blur and when filtering removes all options', () => {
+    showSelect()
+    const box = screen.getByRole('combobox')
+    fireEvent.focus(box)
+    fireEvent.keyDown(box, { key: 'ArrowDown' })
+    fireEvent.change(box, { target: { value: 'no provider' } })
+    expect(box).not.toHaveAttribute('aria-activedescendant')
+    fireEvent.change(box, { target: { value: '' } })
+    const activeId = box.getAttribute('aria-activedescendant')
+    expect(screen.getAllByRole('option').some((option) => option.id === activeId)).toBe(true)
+    fireEvent.blur(box)
+    expect(box).not.toHaveAttribute('aria-activedescendant')
+    expect(box).not.toHaveAttribute('aria-controls')
   })
 
   it('keeps the custom server under every chip', () => {
@@ -284,21 +303,56 @@ describe('DataTable', () => {
     { id: 'a-model', label: 'a-model', cells: ['a-model', 'no'] },
   ]
 
+  function tableProps(onSort = vi.fn(), onRowActivate = vi.fn()): DataTableProps {
+    return {
+      caption: 'Models',
+      columns,
+      rows,
+      sortKey: 'name',
+      sortDirection: 'asc',
+      emptyText: 'No matches.',
+      onSort,
+      onRowActivate,
+    }
+  }
+
+  it('leaves Enter and arrow keys from child controls to those controls', () => {
+    const onSort = vi.fn()
+    const onRowActivate = vi.fn()
+    render(<DataTable {...tableProps(onSort, onRowActivate)} />)
+    const grid = screen.getByRole('grid')
+    fireEvent.keyDown(grid, { key: 'ArrowDown' })
+    const header = screen.getByRole('button', { name: 'Model' })
+    expect(fireEvent.keyDown(header, { key: 'Enter' })).toBe(true)
+    expect(fireEvent.keyDown(header, { key: 'ArrowDown' })).toBe(true)
+    expect(onRowActivate).not.toHaveBeenCalled()
+    fireEvent.click(header)
+    expect(onSort).toHaveBeenCalledWith('name')
+    fireEvent.keyDown(grid, { key: 'Enter' })
+    expect(onRowActivate).toHaveBeenCalledWith('b-model')
+  })
+
+  it('clears the active descendant when filtering removes its row', () => {
+    const onRowActivate = vi.fn()
+    const currentProps = tableProps(vi.fn(), onRowActivate)
+    const { rerender } = render(<DataTable {...currentProps} />)
+    const grid = screen.getByRole('grid')
+    fireEvent.keyDown(grid, { key: 'End' })
+    expect(grid).toHaveAttribute('aria-activedescendant', 'models-row-a-model')
+    rerender(<DataTable {...currentProps} rows={rows.slice(0, 1)} />)
+    expect(grid).not.toHaveAttribute('aria-activedescendant')
+    fireEvent.keyDown(grid, { key: 'Enter' })
+    expect(onRowActivate).not.toHaveBeenCalled()
+    fireEvent.keyDown(grid, { key: 'ArrowDown' })
+    expect(grid).toHaveAttribute('aria-activedescendant', 'models-row-b-model')
+    fireEvent.keyDown(grid, { key: 'Enter' })
+    expect(onRowActivate).toHaveBeenCalledWith('b-model')
+  })
+
   it('sorts from its headers and activates rows from the keyboard', () => {
     const onSort = vi.fn()
     const onRowActivate = vi.fn()
-    render(
-      <DataTable
-        caption="Models"
-        columns={columns}
-        rows={rows}
-        sortKey="name"
-        sortDirection="asc"
-        emptyText="No matches."
-        onSort={onSort}
-        onRowActivate={onRowActivate}
-      />,
-    )
+    render(<DataTable {...tableProps(onSort, onRowActivate)} />)
     fireEvent.click(screen.getByRole('button', { name: 'Model' }))
     expect(onSort).toHaveBeenCalledWith('name')
     const grid = screen.getByRole('grid')
