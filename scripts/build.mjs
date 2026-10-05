@@ -85,6 +85,8 @@ const PAGE_WORKER_ENTRY = 'src/host/web/pageWorker.ts'
 const PAGE_WORKER_OUTFILE = 'dist/pageWorker.js'
 const WEBVIEW_ENTRY = 'src/webview/main.tsx'
 const WEBVIEW_OUTDIR = 'dist/webview'
+const JUDGE_ENTRY = 'src/runtime/judge/judgeEntry.ts'
+const JUDGE_OUTFILE = 'dist/judge.js'
 const ACP_ENTRY = 'src/runtime/main.ts'
 const ACP_OUTFILE = 'dist/acp.js'
 const ACP_METAFILE_DIR = 'dist/meta-acp'
@@ -274,6 +276,14 @@ const checkpointStoreOptions = {
   target: HOST_NODE_TARGET,
 }
 
+// M98 B/D/CS: shared by the extension and ACP package, absent at activation.
+/** @type {import('esbuild').BuildOptions} */
+const judgeOptions = {
+  ...planMarkdownOptions,
+  entryPoints: [JUDGE_ENTRY],
+  outfile: JUDGE_OUTFILE,
+}
+
 /** @type {import('esbuild').BuildOptions} */
 const acpOptions = {
   ...common,
@@ -356,6 +366,7 @@ if (isWatch) {
     esbuild.context(voiceOptions),
     esbuild.context(webFetchOptions),
     esbuild.context(museCodeReviewerOptions),
+    esbuild.context(judgeOptions),
     esbuild.context(uiTextOptions),
     esbuild.context(searchWorkerOptions),
     esbuild.context(pageWorkerOptions),
@@ -378,6 +389,7 @@ if (isWatch) {
     voice: esbuild.build(voiceOptions),
     webFetch: esbuild.build(webFetchOptions),
     museCodeReviewer: esbuild.build(museCodeReviewerOptions),
+    judge: esbuild.build(judgeOptions),
     uiText: esbuild.build(uiTextOptions),
     searchWorker: esbuild.build(searchWorkerOptions),
     pageWorker: esbuild.build(pageWorkerOptions),
@@ -413,6 +425,7 @@ if (isWatch) {
   reportSize(VOICE_OUTFILE)
   reportSize(WEB_FETCH_OUTFILE)
   reportSize(MUSE_CODE_REVIEWER_OUTFILE)
+  reportSize(JUDGE_OUTFILE)
   reportSize(UI_TEXT_OUTFILE)
   reportSize(SEARCH_WORKER_OUTFILE)
   reportSize(PAGE_WORKER_OUTFILE)

@@ -3195,6 +3195,13 @@ Press **F5** to launch the Extension Development Host with a fresh build.
 [CONTRIBUTING.md](CONTRIBUTING.md) has the rules for a pull request;
 [SECURITY.md](SECURITY.md) the way to report a vulnerability.
 
+**Muse Judge phase-2 assembly (M98).** Offline calibration, sampling and
+one-call contrastive techniques, and the authenticated loopback boundary
+are packaged in the separate `dist/judge.js` bundle. They remain absent
+from activation and need an explicitly supplied source and admitted runtime
+before inference. This integration does not register a judge CLI command.
+See [the integration contract and outstanding evidence](docs/judge.md).
+
 **Bundled workflow package (M89).** `vendor/high-quality-projects-skill/`
 contains the pinned v0.7.0 workflow assets and their MIT licence. To refresh
 the pin, run `node scripts/sync-bundled-skills.mjs --tag v0.7.0` (substitute

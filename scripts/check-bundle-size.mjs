@@ -56,6 +56,10 @@ const BUDGETS = [
   // Shared English fallback; existing host budgets stay unchanged. Measured
   // 104.9 KiB (2026-10-04); plus 15%, rounded up to 25 KiB.
   { path: 'dist/uiText.js', budgetKiB: 125 },
+  // M98 B/D/CS: offline calibration, injected techniques and authenticated
+  // boundary, required on an explicit judge action. 59.6 KiB + 15%, rounded
+  // up to 25 KiB; no pre-existing cap changes (PLAN.md D6).
+  { path: 'dist/judge.js', budgetKiB: 75 },
   { path: 'dist/searchWorker.js', budgetKiB: 50 },
   // Web fetch's page converter (M69), on a worker started for each page:
   // 201.2 KiB when split out (parse5 122.7 of it), plus room.

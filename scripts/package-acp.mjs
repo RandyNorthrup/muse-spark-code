@@ -32,6 +32,7 @@ const BUNDLES = [
   'acp.js',
   'modelApi.js',
   'reviewer.js',
+  'judge.js',
   'uiText.js',
   'searchWorker.js',
   'pageWorker.js',

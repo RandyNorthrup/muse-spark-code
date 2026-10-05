@@ -9,6 +9,15 @@ happened, not what was planned; superseded entries are kept.
 
 ### Added
 
+- **Muse Judge phase-2 B/D/CS assembly.** Package offline provider-bound
+  calibration fitting/reports, opt-in sampling, one-call contrastive framing,
+  and the authenticated loopback server in a separate lazy bundle shared by
+  the VSIX and ACP package. Existing activation and conversation bundles stay
+  byte-identical. Inference still requires captured sources, durable admission
+  and independent adoption evidence; CLI registration joins in a later lane.
+- Passive judge settings accept `separate` and `both`, with a machine-scoped
+  separate-source identifier. Defaults remain `auto` with no separate source;
+  configuration alone cannot enable an unverified or unmeasured source.
 - **Muse Judge contract and strings (M98 lane 0, PLAN.md D77).** New
   `src/core/judge/schema.ts` (zod request/answer/`muse` schemas, bounds,
   labels, option letters, log summary); the named judge limits in
@@ -18,6 +27,10 @@ happened, not what was planned; superseded entries are kept.
 
 ### Changed
 
+- The judge boundary refuses macOS extended ACLs, cleans up startup bearer
+  files on fatal exit, and shares one shutdown operation when cancellation
+  callbacks reenter. The generated host API inventory includes the merged
+  boundary and existing paid-budget reads.
 - **Tiered CI, ready for a merge queue.** The full gate now runs as parallel
   jobs:
   - the static gates on all three platforms;

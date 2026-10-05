@@ -12,6 +12,7 @@
 !dist/voice.js
 !dist/webFetch.js
 !dist/museCodeReviewer.js
+!dist/judge.js
 !dist/uiText.js
 !dist/searchWorker.js
 !dist/pageWorker.js

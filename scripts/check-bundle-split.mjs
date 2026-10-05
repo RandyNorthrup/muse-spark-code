@@ -59,6 +59,18 @@ const BUNDLES = {
   modelApi: { output: 'dist/modelApi.js', metafile: 'dist/meta/modelApi.json' },
   acp: { output: 'dist/acp.js', metafile: 'dist/meta-acp/acp.json' },
 }
+const JUDGE = { output: 'dist/judge.js', metafile: 'dist/meta/judge.json' }
+const JUDGE_ONLY = [
+  'src/runtime/judge/judgeEntry.ts',
+  'src/core/judge/calibration/apply.ts',
+  'src/core/judge/calibration/fit.ts',
+  'src/core/judge/calibration/report.ts',
+  'src/core/judge/calibration/schema.ts',
+  'src/core/judge/sampling.ts',
+  'src/core/judge/contrastive.ts',
+  'src/runtime/judge/serve.ts',
+  'src/runtime/judge/tokenFile.ts',
+]
 const DEFERRED_ONLY = ['reviewerEntry.ts']
 const DEFERRED = [
   {
@@ -365,6 +377,7 @@ for (const bundle of [
   ...DEFERRED,
   AGENT_IMPORT,
   BUNDLED_SKILLS,
+  JUDGE,
   ...ON_FIRST_USE,
 ]) {
   const inputs = inputsOf(bundle)
@@ -510,6 +523,17 @@ function shippedBundles() {
   )
 }
 const SHIPPED = shippedBundles()
+// Phase-2 implementations belong only to the explicit-action factory. This
+// includes every other lazy bundle, so an accidental import cannot hide there.
+const judge = inputsOf(JUDGE)
+for (const file of JUDGE_ONLY) {
+  if (!judge.has(file)) problems.push(`${JUDGE.output} no longer carries ${file}`)
+  for (const bundle of SHIPPED) {
+    if (bundle.output !== JUDGE.output && inputsOf(bundle).has(file)) {
+      problems.push(`${bundle.output} carries ${file}, which belongs to the lazy judge bundle`)
+    }
+  }
+}
 /** The shipped bundle that `output` names; a missing one is a problem. */
 function shipped(output) {
   const bundle = SHIPPED.find((entry) => entry.output === output)
@@ -715,6 +739,7 @@ console.log(
   `ok   model text: ${TEXT_BLOCKS.map(({ block }) => block).join(', ')} each in its readers and in no other of the ${String(SHIPPED.length)} shipped bundles; ${FILE_REFUSAL.block} pinned to ${String(FILE_REFUSAL.keys.length)} keys; ${String(modelTextKeys.length)} MODEL_TEXT keys, each read at activation`,
 )
 console.log(`ok   ${UI_TEXT.output}: Node bundles share the English fallback`)
+console.log(`ok   ${JUDGE.output}: B/D/CS load only on an explicit judge action`)
 for (const bundle of DEFERRED) console.log(`ok   ${bundle.output}: loads only on its first action`)
 for (const bundle of ON_FIRST_USE) {
   console.log(`ok   ${bundle.output}: loads only on ${bundle.use}, never at activation`)

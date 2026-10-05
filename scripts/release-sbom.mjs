@@ -20,6 +20,7 @@ const BOM = z
 const ACP_META = [
   'dist/meta-acp/acp.json',
   'dist/meta/modelApi.json',
+  'dist/meta/judge.json',
   'dist/meta/searchWorker.json',
   'dist/meta/pageWorker.json',
 ]

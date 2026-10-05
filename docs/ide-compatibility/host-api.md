@@ -41,7 +41,7 @@ The VS Code adapter: 18 files. Everything else reaches VS Code only through them
 | `src/host/editor/verifyEditor.ts`          | 55                |
 | `src/host/memoryFeatures.ts`               | 17                |
 | `src/host/mention/mentionQuickPick.ts`     | 10                |
-| `src/host/paid/paidHost.ts`                | 11                |
+| `src/host/paid/paidHost.ts`                | 12                |
 | `src/host/popups.ts`                       | 2                 |
 | `src/host/quickPick.ts`                    | 5                 |
 | `src/host/views/ChatViewProvider.ts`       | 11                |
@@ -289,7 +289,7 @@ Functions, variables, classes, enums and members declared in `@types/vscode`; th
 | `WebviewView.webview`                                                                | `src/host/views/ChatViewProvider.ts`                                                                                                                                                                                    |
 | `WebviewViewProvider.resolveWebviewView`                                             | `src/host/views/ChatViewProvider.ts`                                                                                                                                                                                    |
 | `WindowState.focused`                                                                | `src/extension.ts`, `src/host/paid/paidHost.ts`                                                                                                                                                                         |
-| `WorkspaceConfiguration.get`                                                         | `src/extension.ts`, `src/host/editor/verifyEditor.ts`                                                                                                                                                                   |
+| `WorkspaceConfiguration.get`                                                         | `src/extension.ts`, `src/host/editor/verifyEditor.ts`, `src/host/paid/paidHost.ts`                                                                                                                                      |
 | `WorkspaceConfiguration.update`                                                      | `src/extension.ts`, `src/host/paid/paidHost.ts`                                                                                                                                                                         |
 | `WorkspaceEdit`                                                                      | `src/host/agentImportHost.ts`                                                                                                                                                                                           |
 | `WorkspaceEdit.entries`                                                              | `src/host/codeIntel/languageServices.ts`                                                                                                                                                                                |
@@ -353,19 +353,19 @@ Functions, variables, classes, enums and members declared in `@types/vscode`; th
 
 | Module                 | Files |
 | ---------------------- | ----- |
-| `node:buffer`          | 27    |
+| `node:buffer`          | 29    |
 | `node:child_process`   | 9     |
-| `node:crypto`          | 32    |
+| `node:crypto`          | 35    |
 | `node:dns`             | 1     |
 | `node:dns/promises`    | 1     |
-| `node:fs`              | 24    |
-| `node:fs/promises`     | 34    |
-| `node:http`            | 2     |
+| `node:fs`              | 25    |
+| `node:fs/promises`     | 35    |
+| `node:http`            | 3     |
 | `node:https`           | 1     |
 | `node:module`          | 1     |
 | `node:net`             | 3     |
 | `node:os`              | 6     |
-| `node:path`            | 65    |
+| `node:path`            | 66    |
 | `node:process`         | 1     |
 | `node:stream`          | 9     |
 | `node:string_decoder`  | 1     |
