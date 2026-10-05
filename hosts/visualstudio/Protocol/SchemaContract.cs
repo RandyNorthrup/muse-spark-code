@@ -2,6 +2,7 @@ using System;
 using System.IO;
 using System.Linq;
 using System.Reflection;
+using System.Text;
 using System.Text.RegularExpressions;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
@@ -12,6 +13,7 @@ namespace MuseSpark.VisualStudio.Protocol
   public sealed class SchemaContract
   {
     public const int MaximumFrameChars = 1048576;
+    public const int MaximumFrameBytes = 16777216;
     public const int MaximumJsonDepth = 64;
     private static readonly TimeSpan PatternTimeout = TimeSpan.FromSeconds(1);
     public JObject Export { get; }
@@ -20,10 +22,10 @@ namespace MuseSpark.VisualStudio.Protocol
 
     public SchemaContract(JObject export) { Export = export; }
 
-    public static SchemaContract Load()
+    public static SchemaContract Load(bool panel = false)
     {
       var assembly = Assembly.GetExecutingAssembly();
-      var name = assembly.GetManifestResourceNames().Single(n => n.EndsWith("mhp-v1.schema.json", StringComparison.Ordinal));
+      var name = assembly.GetManifestResourceNames().Single(n => n.EndsWith(panel ? "mhp-v1.1.schema.json" : "mhp-v1.schema.json", StringComparison.Ordinal));
       using (var stream = assembly.GetManifestResourceStream(name) ?? throw Invalid())
       using (var reader = new StreamReader(stream))
         return new SchemaContract(ParseObject(reader.ReadToEnd()));
@@ -31,7 +33,7 @@ namespace MuseSpark.VisualStudio.Protocol
 
     public static JObject ParseObject(string json)
     {
-      if (json.Length > MaximumFrameChars) throw Invalid();
+      if (Encoding.UTF8.GetByteCount(json) > MaximumFrameBytes) throw new MhpException("invalidParams", "MHP_PANEL_TOO_LARGE");
       JsonSyntax.Validate(json);
       using (var reader = new JsonTextReader(new StringReader(json)) { MaxDepth = MaximumJsonDepth, DateParseHandling = DateParseHandling.None })
       {
@@ -56,12 +58,14 @@ namespace MuseSpark.VisualStudio.Protocol
       var reference = rules.Value<string>("$ref");
       if (reference != null)
       {
+        if (reference == "#") { Check(value, root, root); return; }
         if (!reference.StartsWith("#/", StringComparison.Ordinal)) throw Invalid();
         var target = root;
         foreach (var part in reference.Substring(2).Split('/')) target = target[part.Replace("~1", "/").Replace("~0", "~")] ?? throw Invalid();
         Check(value, target, root);
       }
       if (rules["anyOf"] is JArray alternatives && !alternatives.Any(s => Matches(value, s, root))) throw Invalid();
+      if (rules["oneOf"] is JArray variants && variants.Count(s => Matches(value, s, root)) != 1) throw Invalid();
       if (rules["const"] is JToken constant && !Equal(value, constant)) throw Invalid();
       if (rules["enum"] is JArray values && !values.Any(v => Equal(value, v))) throw Invalid();
       var type = rules.Value<string>("type");

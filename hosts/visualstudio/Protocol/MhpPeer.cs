@@ -22,8 +22,10 @@ namespace MuseSpark.VisualStudio.Protocol
     private const int MaximumRequestIds = 100000;
     private readonly SchemaContract contract;
     private readonly IHostServices services;
-    private readonly TextWriter writer;
-    private readonly SemaphoreSlim writeLock = new SemaphoreSlim(1);
+    private readonly MhpWriter writer;
+    public SchemaContract Contract => contract;
+    public string? ProtocolVersion { get; private set; }
+    public Func<JObject, Task>? PanelReceiverAsync { get; set; }
     private readonly object stateLock = new object();
     private readonly Dictionary<string, Pending> pending = new Dictionary<string, Pending>(StringComparer.Ordinal);
     private readonly Dictionary<string, string> cancelledRequests = new Dictionary<string, string>(StringComparer.Ordinal);
@@ -47,7 +49,7 @@ namespace MuseSpark.VisualStudio.Protocol
     {
       this.contract = contract;
       this.services = services;
-      this.writer = writer;
+      this.writer = new MhpWriter(writer, contract);
       if (!services.Capabilities.Contains("lifecycle")) throw new ArgumentException("MHP_LIFECYCLE_REQUIRED", nameof(services));
     }
 
@@ -68,6 +70,7 @@ namespace MuseSpark.VisualStudio.Protocol
       {
         Stop();
         await Task.WhenAll(work).ConfigureAwait(false);
+        writer.Stop();
       }
     }
 
@@ -75,11 +78,16 @@ namespace MuseSpark.VisualStudio.Protocol
     {
       var text = new System.Text.StringBuilder();
       var one = new char[1];
+      var bytes = 0;
+      var highSurrogate = false;
       while (await reader.ReadAsync(one, 0, 1).ConfigureAwait(false) != 0)
       {
         if (one[0] == '\n') return text.ToString().TrimEnd('\r');
         text.Append(one[0]);
-        if (text.Length > SchemaContract.MaximumFrameChars) throw new MhpException("invalidRequest", "MHP_FRAME_TOO_LARGE");
+        var c = one[0];
+        bytes += c <= 0x7f ? 1 : c <= 0x7ff ? 2 : char.IsLowSurrogate(c) && highSurrogate ? 1 : 3;
+        highSurrogate = char.IsHighSurrogate(c);
+        if (bytes > SchemaContract.MaximumFrameBytes + 1 || (bytes > SchemaContract.MaximumFrameBytes && c != '\r')) throw new MhpException("invalidRequest", "MHP_PANEL_TOO_LARGE");
       }
       if (text.Length != 0) throw new MhpException("parseError", "MHP_TRUNCATED_FRAME");
       return null;
@@ -92,6 +100,14 @@ namespace MuseSpark.VisualStudio.Protocol
       catch (Exception error) when (error is JsonException || error is MhpException)
       { await FailAsync(JValue.CreateNull(), new MhpException("parseError", "MHP_PARSE_ERROR")).ConfigureAwait(false); return; }
 
+      if (frame["mhp"] != null)
+      {
+        if (ProtocolVersion != "mhp/1.1.0") throw new MhpException("incompatibleVersion", "MHP_INCOMPATIBLE_VERSION");
+        var kind = frame.Value<string>("kind");
+        if (kind != "panel" && kind != "panelError") throw new MhpException("invalidRequest", "MHP_PANEL_WRONG_DIRECTION");
+        if (PanelReceiverAsync == null) throw new MhpException("invalidRequest", "MHP_PANEL_UNKNOWN_SURFACE");
+        await PanelReceiverAsync(frame).ConfigureAwait(false); return;
+      }
       if (frame["method"] == null) { ReceiveResult(frame); return; }
       var id = frame["id"] ?? JValue.CreateNull();
       try { SchemaContract.Validate(id, contract.Export["failure"]?["properties"]?["id"] ?? throw new MhpException("internalError", "MHP_CONTRACT_ERROR")); }
@@ -148,12 +164,14 @@ namespace MuseSpark.VisualStudio.Protocol
       {
         if (initialized || stopped) throw new MhpException("invalidRequest", "MHP_ALREADY_INITIALIZED");
         var range = parameters["protocolRange"] ?? throw new MhpException("invalidParams", "MHP_INVALID_PARAMS");
-        if (CompareVersion(range.Value<string>("minimum") ?? "", contract.Version) > 0 || CompareVersion(contract.Version, range.Value<string>("maximumExclusive") ?? "") >= 0)
-          throw new MhpException("incompatibleVersion", "MHP_INCOMPATIBLE_VERSION");
+        var minimum = range.Value<string>("minimum") ?? "";
+        var maximum = range.Value<string>("maximumExclusive") ?? "";
+        var versions = contract.Version == "mhp/1.1.0" && CompareVersion(maximum, "mhp/1.2.0") <= 0 ? new[] { "mhp/1.1.0", "mhp/1.0.0" } : new[] { "mhp/1.0.0" };
+        ProtocolVersion = versions.FirstOrDefault(v => CompareVersion(minimum, v) <= 0 && CompareVersion(v, maximum) < 0) ?? throw new MhpException("incompatibleVersion", "MHP_INCOMPATIBLE_VERSION");
         var offered = parameters["capabilities"] as JArray ?? throw new MhpException("invalidParams", "MHP_INVALID_PARAMS");
         foreach (var capability in services.Capabilities) if (offered.Values<string>().Contains(capability)) negotiated.Add(capability);
         initialized = true;
-        return new JObject { ["protocolVersion"] = contract.Version, ["capabilities"] = new JArray(negotiated.OrderBy(c => c, StringComparer.Ordinal)) };
+        return new JObject { ["protocolVersion"] = ProtocolVersion, ["capabilities"] = new JArray(negotiated.OrderBy(c => c, StringComparer.Ordinal)) };
       }
     }
 
@@ -256,14 +274,18 @@ namespace MuseSpark.VisualStudio.Protocol
       return WriteAsync(frame);
     }
 
-    private async Task WriteAsync(JObject frame)
+    public Task WritePanelAsync(JObject frame)
     {
-      var text = frame.ToString(Formatting.None);
-      if (text.Length > SchemaContract.MaximumFrameChars) throw new MhpException("internalError", "MHP_FRAME_TOO_LARGE");
-      await writeLock.WaitAsync().ConfigureAwait(false);
-      try { await writer.WriteLineAsync(text).ConfigureAwait(false); await writer.FlushAsync().ConfigureAwait(false); }
-      finally { writeLock.Release(); }
+      RequireReady("lifecycle");
+      if (ProtocolVersion != "mhp/1.1.0") throw new MhpException("incompatibleVersion", "MHP_INCOMPATIBLE_VERSION");
+      var kind = frame.Value<string>("kind");
+      var schema = kind == "surface" ? "lifecycle" : kind == "panelError" ? "error" : kind == "panel" ? "envelope" : throw new MhpException("invalidParams", "MHP_PANEL_INVALID_ENVELOPE");
+      SchemaContract.Validate(frame, contract.Export["panel"]?[schema] ?? throw new MhpException("internalError", "MHP_CONTRACT_ERROR"));
+      return WriteAsync(frame);
     }
+
+    public int DropPanel(string surface) => writer.Drop(surface);
+    private Task WriteAsync(JObject frame) => writer.EnqueueAsync(frame);
 
     private static string IdKey(JToken id) => id.Type == JTokenType.Integer || id.Type == JTokenType.Float
         ? "number:" + id.Value<long>().ToString(System.Globalization.CultureInfo.InvariantCulture)
@@ -273,7 +295,7 @@ namespace MuseSpark.VisualStudio.Protocol
       lock (stateLock) { stopped = true; foreach (var request in pending.Values) request.Completion.TrySetException(new MhpException("cancelled", "MHP_DISCONNECTED")); foreach (var waiter in readyWaiters) waiter.TrySetException(new MhpException("cancelled", "MHP_DISCONNECTED")); }
       lifetime.Cancel();
     }
-    public void Dispose() { Stop(); lifetime.Dispose(); writeLock.Dispose(); }
+    public void Dispose() { Stop(); writer.Stop(); lifetime.Dispose(); }
   }
 
   internal static class TaskStatusExtensions

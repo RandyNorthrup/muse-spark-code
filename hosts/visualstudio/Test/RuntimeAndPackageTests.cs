@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.IO;
 using System.IO.Compression;
@@ -66,6 +67,24 @@ namespace MuseSpark.VisualStudio.Test
           SchemaContract.Load().ValidateResult("documents/list", SchemaContract.ParseObject(File.ReadAllText(marker)));
           childId = int.Parse(File.ReadAllText(marker + ".pid"), System.Globalization.CultureInfo.InvariantCulture);
           Assert.IsTrue(IsRunning(childId), "The fake descendant exited before shutdown was tested.");
+          using (var channel = new MhpPanelChannel(runtime.Peer, "fixture-session", "chat", "script", _ => { }))
+          {
+            var received = new ConcurrentQueue<JToken>(); channel.MessageReceived += (_, frame) => received.Enqueue(frame);
+            await channel.OpenAsync(); await channel.ReadyAsync();
+            for (var attempt = 0; attempt < 100 && received.Count < 1; attempt++) await Task.Delay(50);
+            Assert.AreEqual(1, received.Count);
+            await channel.PostAsync(new JObject { ["mhp"] = "1.1", ["kind"] = "panel", ["surface"] = channel.Surface, ["direction"] = "toHost", ["seq"] = 1, ["payload"] = new JObject { ["type"] = "ready" } }, CancellationToken.None);
+            for (var attempt = 0; attempt < 100 && !File.Exists(marker + ".panel"); attempt++) await Task.Delay(50);
+            Assert.AreEqual(1, SchemaContract.ParseObject(File.ReadAllText(marker + ".panel")).Value<int>("seq"));
+            await channel.ReloadAsync(); await channel.ReadyAsync();
+            for (var attempt = 0; attempt < 100 && received.Count < 2; attempt++) await Task.Delay(50);
+            Assert.AreEqual(2, received.Count); Assert.AreEqual(2, received.Last().Value<int>("seq"));
+            await channel.CloseAsync();
+            for (var attempt = 0; attempt < 100 && !File.Exists(marker + ".closed"); attempt++) await Task.Delay(50);
+            var lifecycle = JArray.Parse(File.ReadAllText(marker + ".closed"));
+            CollectionAssert.AreEqual(new[] { "opened", "ready", "reloaded", "ready", "closed" }, lifecycle.Select(frame => frame.Value<string>("event")).ToArray());
+            Assert.AreEqual("fixture-session", lifecycle.Last().Value<string>("sessionId"));
+          }
           await runtime.CloseAsync();
         }
         for (var attempt = 0; attempt < 100 && IsRunning(childId); attempt++) await Task.Delay(50);
@@ -92,7 +111,7 @@ namespace MuseSpark.VisualStudio.Test
       using (var archive = ZipFile.OpenRead(Path.Combine(root, "bin", "Release", "net48", "MuseSpark.VisualStudio.vsix")))
       {
         var names = archive.Entries.Select(e => e.FullName).ToArray();
-        foreach (var required in new[] { "MuseSpark.VisualStudio.dll", "MuseSpark.VisualStudio.pkgdef", "assets/webview/main.js", "assets/webview/main.css", "assets/runtime/muse-panel-job.exe", "assets/mhp-v1.schema.json", "LICENSE", "assets/licenses/microsoft.web.webview2/1.0.4258.31/LICENSE.txt", "assets/licenses/system.text.encodings.web/9.0.0/LICENSE.TXT" })
+        foreach (var required in new[] { "MuseSpark.VisualStudio.dll", "MuseSpark.VisualStudio.pkgdef", "assets/webview/main.js", "assets/webview/main.css", "assets/embedded-bridge.js", "assets/mhp-v1.1.schema.json", "assets/runtime/muse-panel-job.exe", "assets/mhp-v1.schema.json", "LICENSE", "assets/licenses/microsoft.web.webview2/1.0.4258.31/LICENSE.txt", "assets/licenses/system.text.encodings.web/9.0.0/LICENSE.TXT" })
           Assert.IsTrue(names.Contains(required), required);
         Assert.IsTrue(names.Any(n => n.EndsWith("WebView2Loader.dll", StringComparison.Ordinal)));
         Assert.IsFalse(names.Any(n => n.Contains("fake-runtime") || n.Contains("Test.dll")));
@@ -113,6 +132,8 @@ namespace MuseSpark.VisualStudio.Test
         }
         using (var reader = new StreamReader((archive.GetEntry("assets/mhp-v1.schema.json") ?? throw new InvalidOperationException()).Open()))
           Assert.IsTrue(JToken.DeepEquals(SchemaContract.ParseObject(reader.ReadToEnd()), SchemaContract.Load().Export));
+        using (var reader = new StreamReader((archive.GetEntry("assets/mhp-v1.1.schema.json") ?? throw new InvalidOperationException()).Open()))
+          Assert.IsTrue(JToken.DeepEquals(SchemaContract.ParseObject(reader.ReadToEnd()), SchemaContract.Load(true).Export));
       }
     }
 

@@ -40,12 +40,17 @@ namespace MuseSpark.VisualStudio.Panel
         StandardOutputEncoding = new System.Text.UTF8Encoding(false, true),
         StandardErrorEncoding = new System.Text.UTF8Encoding(false, true)
       };
+      SanitizeEnvironment(info);
+      return info;
+    }
+
+    public static void SanitizeEnvironment(ProcessStartInfo info)
+    {
       // A shell, runtime helper or model process never inherits an IDE credential.
       foreach (var key in info.EnvironmentVariables.Keys.Cast<string>().ToArray())
         if (key.EndsWith("_API_KEY", StringComparison.OrdinalIgnoreCase) || CredentialNames.Contains(key)) info.EnvironmentVariables.Remove(key);
       foreach (var key in new[] { "NODE_OPTIONS", "NODE_PATH", "ELECTRON_RUN_AS_NODE", "DOTNET_STARTUP_HOOKS", "COR_ENABLE_PROFILING", "COR_PROFILER", "CORECLR_ENABLE_PROFILING", "CORECLR_PROFILER" })
         info.EnvironmentVariables.Remove(key);
-      return info;
     }
 
     // Windows CommandLineToArgvW quoting, never a cmd.exe or PowerShell string.

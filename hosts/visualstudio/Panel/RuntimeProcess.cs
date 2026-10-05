@@ -26,11 +26,11 @@ namespace MuseSpark.VisualStudio.Panel
     public MhpPeer Peer { get; }
     private bool disposed;
 
-    public RuntimeProcess(string node, string entry, string workspace, IHostServices host, JoinableTaskFactory taskFactory)
+    public RuntimeProcess(string node, string entry, string workspace, IHostServices host, JoinableTaskFactory taskFactory, string? helperPath = null)
     {
       this.taskFactory = taskFactory;
       var info = AssetPolicy.RuntimeStartInfo(node, entry, workspace);
-      var helper = Path.Combine(Path.GetDirectoryName(node) ?? throw new InvalidOperationException("MHP_RUNTIME_NOT_INSTALLED"), "muse-panel-job.exe");
+      var helper = helperPath ?? Path.Combine(Path.GetDirectoryName(node) ?? throw new InvalidOperationException("MHP_RUNTIME_NOT_INSTALLED"), "muse-panel-job.exe");
       if (!File.Exists(helper)) throw new InvalidOperationException("MHP_JOB_HELPER_NOT_INSTALLED");
       var pipe = "MuseSparkPanel-" + Guid.NewGuid().ToString("N");
       var random = new byte[32];
@@ -59,7 +59,7 @@ namespace MuseSpark.VisualStudio.Panel
       try { if (!process.Start()) throw new InvalidOperationException("MHP_RUNTIME_START_FAILED"); }
       catch { process.Dispose(); control.Dispose(); throw; }
       process.StandardInput.AutoFlush = true;
-      Peer = new MhpPeer(SchemaContract.Load(), host, process.StandardInput);
+      Peer = new MhpPeer(SchemaContract.Load(true), host, process.StandardInput);
       stderr = taskFactory.RunAsync(() => DrainAsync(process.StandardError));
       reading = taskFactory.RunAsync(async () =>
       {

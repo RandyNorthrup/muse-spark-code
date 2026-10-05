@@ -54,13 +54,6 @@ namespace MuseSpark.VisualStudio
       try
       {
         if (!(await GetServiceAsync(typeof(SComponentModel)) is IComponentModel components)) throw new InvalidOperationException("MHP_COMPONENT_MODEL_UNAVAILABLE");
-        // This factory must be supplied by the integrated runtime's authored UI protocol.
-        var factory = components.GetService<IPanelChannelFactory>();
-        if (factory == null)
-        {
-          window.Content = new TextBlock { Text = text["crashTitle"] + Environment.NewLine + "MHP_PANEL_CHANNEL_UNDEFINED", TextWrapping = System.Windows.TextWrapping.Wrap };
-          return;
-        }
         if (!(await GetServiceAsync(typeof(SVsRunningDocumentTable)) is IVsRunningDocumentTable rdt) || !(await GetServiceAsync(typeof(SVsTextManager)) is IVsTextManager textManager))
           throw new InvalidOperationException("MHP_EDITOR_SERVICE_UNAVAILABLE");
         completion = components.GetService<TabCompletion>() ?? throw new InvalidOperationException("MHP_TAB_SERVICE_UNAVAILABLE");
@@ -69,7 +62,9 @@ namespace MuseSpark.VisualStudio
         var workspace = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "MuseSparkCode", "VisualStudio", "scratch");
         if (await GetServiceAsync(typeof(SVsSolution)) is IVsSolution solution && solution.GetSolutionInfo(out var directory, out _, out _) == VSConstants.S_OK && !string.IsNullOrEmpty(directory)) workspace = directory;
         Directory.CreateDirectory(workspace);
-        runtime = new RuntimeProcess(Path.Combine(assets, "runtime", "node.exe"), Path.Combine(assets, "runtime", "dist", "acp.js"), workspace, host, JoinableTaskFactory);
+        var location = await Task.Run(() => RuntimeLocator.Find(assets, Environment.GetEnvironmentVariable("PATH") ?? "", Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData)), DisposalToken);
+        await JoinableTaskFactory.SwitchToMainThreadAsync(DisposalToken);
+        runtime = new RuntimeProcess(location.Node, location.Entry, workspace, host, JoinableTaskFactory, location.Helper);
         host.Peer = runtime.Peer;
         completion.Attach(runtime.Peer, () => text["insertCode"]);
         using (var deadline = CancellationTokenSource.CreateLinkedTokenSource(DisposalToken))
@@ -77,17 +72,19 @@ namespace MuseSpark.VisualStudio
           deadline.CancelAfter(TimeSpan.FromSeconds(30));
           await runtime.Peer.WaitUntilReadyAsync(deadline.Token);
         }
-        var channel = await factory.CreateAsync(runtime.Peer, "visual-studio:chat", DisposalToken);
+        var channel = new MhpPanelChannel(runtime.Peer, Guid.NewGuid().ToString("N"), "chat", File.ReadAllText(Path.Combine(assets, "embedded-bridge.js")), message => ActivityLog.LogWarning("Muse Spark Code (Unofficial)", message));
+        await channel.OpenAsync();
         panel = new PanelView(channel, JoinableTaskFactory);
         window.Content = panel;
         await panel.InitializeAsync(assets, text);
       }
-      catch (Exception)
+      catch (Exception error)
       {
         // Startup errors can contain private paths or accounts; show only a fixed identifier.
         await JoinableTaskFactory.SwitchToMainThreadAsync();
         Release();
-        window.Content = new TextBlock { Text = text["crashTitle"] + Environment.NewLine + "MHP_PANEL_START_FAILED", TextWrapping = System.Windows.TextWrapping.Wrap };
+        var code = error is InvalidOperationException && (error.Message == "MHP_NODE_22_REQUIRED" || error.Message == "MHP_ACP_PANEL_PACKAGE_REQUIRED" || error.Message == "MHP_JOB_HELPER_NOT_INSTALLED") ? error.Message : "MHP_PANEL_START_FAILED";
+        window.Content = new TextBlock { Text = text["crashTitle"] + Environment.NewLine + code, TextWrapping = System.Windows.TextWrapping.Wrap };
       }
       finally { opening = false; }
     }
