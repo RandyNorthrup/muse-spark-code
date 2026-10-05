@@ -25,9 +25,22 @@ export interface PriceCard {
   readonly request?: number | undefined
   /** A flat USD price per image where one exists (OpenRouter). */
   readonly image?: number | undefined
-  /** The long-context tier (xAI bills every token at it from 200k). */
+  /**
+   * The long-context tier (xAI bills every token at it from 200k;
+   * OpenAI's starts at 272k and reprices cached reads and writes too).
+   * A tier cache rate the list does not give falls back to the card's own
+   * cache rate, then to the tier's input rate; nothing is guessed.
+   */
   readonly longContextTier?:
-    { readonly fromTokens: number; readonly input: number; readonly output: number } | undefined
+    | {
+        readonly fromTokens: number
+        readonly input: number
+        readonly output: number
+        readonly cachedInput?: number | undefined
+        readonly cacheWrite?: number | undefined
+        readonly cacheWrite1h?: number | undefined
+      }
+    | undefined
   readonly source: PriceSource
   /** When list prices were fetched (the panel shows it; refreshed on Refresh). */
   readonly fetchedAt?: string | undefined
@@ -53,21 +66,45 @@ export interface PricedUsage {
    * Codecs whose native input excludes read/write must normalize to this total.
    */
   readonly cacheWriteTokens?: number | undefined
+  /**
+   * The 1-hour-written subset of `cacheWriteTokens` (Anthropic's 1-hour
+   * cache, OpenRouter's 1 h write): settled at the 1 h write rate, disjoint
+   * from the 5-minute remainder. Absent where the provider reports none.
+   */
+  readonly cacheWrite1hTokens?: number | undefined
   readonly outputTokens: number
 }
 
-/** Whether every count is a finite, non-negative number with cached at most input. */
+/**
+ * Whether every count is a finite, non-negative number, with read plus
+ * written at most the total and the 1-hour-written at most the written.
+ */
 export function isValidUsage(usage: PricedUsage): boolean {
   const counts = [
     usage.inputTokens,
     usage.outputTokens,
     usage.cachedTokens ?? 0,
     usage.cacheWriteTokens ?? 0,
+    usage.cacheWrite1hTokens ?? 0,
   ]
   return (
     counts.every((count) => Number.isFinite(count) && !(count < 0)) &&
-    (usage.cachedTokens ?? 0) + (usage.cacheWriteTokens ?? 0) <= usage.inputTokens
+    (usage.cachedTokens ?? 0) + (usage.cacheWriteTokens ?? 0) <= usage.inputTokens &&
+    (usage.cacheWrite1hTokens ?? 0) <= (usage.cacheWriteTokens ?? 0)
   )
+}
+
+/**
+ * Written tokens split into the 5-minute remainder and the 1-hour subset,
+ * for a host that prices or stores the two TTLs apart (M101 lane P2; lane I
+ * wires the consumers).
+ */
+export function splitCacheWrites(usage: PricedUsage): {
+  readonly standard: number
+  readonly oneHour: number
+} {
+  const oneHour = usage.cacheWrite1hTokens ?? 0
+  return { standard: (usage.cacheWriteTokens ?? 0) - oneHour, oneHour }
 }
 
 /** Whether a card's own rates are finite and non-negative. */
@@ -85,6 +122,11 @@ export function isValidPriceCard(card: PriceCard): boolean {
     return false
   }
   const tier = card.longContextTier
+  const tierCacheRates = [
+    tier?.cachedInput ?? 0,
+    tier?.cacheWrite ?? 0,
+    tier?.cacheWrite1h ?? 0,
+  ]
   return (
     tier === undefined ||
     (Number.isFinite(tier.fromTokens) &&
@@ -92,7 +134,8 @@ export function isValidPriceCard(card: PriceCard): boolean {
       Number.isFinite(tier.input) &&
       tier.input >= 0 &&
       Number.isFinite(tier.output) &&
-      tier.output >= 0)
+      tier.output >= 0 &&
+      tierCacheRates.every((rate) => Number.isFinite(rate) && rate >= 0))
   )
 }
 
@@ -134,9 +177,21 @@ export function ticksToUsdPerToken(ticks: number): number | undefined {
 export function reserveRequestUsd(card: PriceCard, usage: PricedUsage): number {
   const tier = card.longContextTier
   const isLongContext = tier !== undefined && usage.inputTokens >= tier.fromTokens
-  const inputRate = isLongContext ? tier.input : card.input
-  const outputRate = isLongContext ? tier.output : card.output
-  const writeRate = Math.max(card.cacheWrite ?? inputRate, card.cacheWrite1h ?? inputRate)
+  const inputRate = isLongContext && tier !== undefined ? tier.input : card.input
+  const outputRate = isLongContext && tier !== undefined ? tier.output : card.output
+  // Cold writes are bounded at the dearest applicable write price: the
+  // card's own write rates, plus the tier's where the estimate reaches it.
+  const writeCandidates: number[] = [card.cacheWrite, card.cacheWrite1h].filter(
+    (rate): rate is number => rate !== undefined,
+  )
+  if (isLongContext && tier !== undefined) {
+    writeCandidates.push(
+      ...[tier.cacheWrite, tier.cacheWrite1h].filter(
+        (rate): rate is number => rate !== undefined,
+      ),
+    )
+  }
+  const writeRate = Math.max(inputRate, ...writeCandidates)
   return (
     usage.inputTokens * inputRate +
     (usage.cacheWriteTokens ?? 0) * Math.max(0, writeRate - inputRate) +
@@ -185,15 +240,31 @@ export function settleUsageUsd(
   }
   const tier = card.longContextTier
   const isLongContext = tier !== undefined && usage.inputTokens >= tier.fromTokens
-  const inputRate = isLongContext ? tier.input : card.input
-  const outputRate = isLongContext ? tier.output : card.output
+  const inputRate = isLongContext && tier !== undefined ? tier.input : card.input
+  const outputRate = isLongContext && tier !== undefined ? tier.output : card.output
+  // Long-context tiers reprice cached reads and writes too; a tier cache
+  // rate the list does not give falls back to the card's own, then to the
+  // tier's input rate.
+  const readRate =
+    (isLongContext && tier !== undefined ? tier.cachedInput : undefined) ??
+    card.cachedInput ??
+    inputRate
+  const writeRate =
+    (isLongContext && tier !== undefined ? tier.cacheWrite : undefined) ??
+    card.cacheWrite ??
+    inputRate
+  const write1hRate =
+    (isLongContext && tier !== undefined ? tier.cacheWrite1h : undefined) ??
+    card.cacheWrite1h ??
+    writeRate
   const read = usage.cachedTokens ?? 0
-  const written = usage.cacheWriteTokens ?? 0
-  const fresh = usage.inputTokens - read - written
+  const { standard: written5m, oneHour: written1h } = splitCacheWrites(usage)
+  const fresh = usage.inputTokens - read - written5m - written1h
   return (
     fresh * inputRate +
-    read * (card.cachedInput ?? inputRate) +
-    written * (card.cacheWrite ?? inputRate) +
+    read * readRate +
+    written5m * writeRate +
+    written1h * write1hRate +
     usage.outputTokens * outputRate +
     (card.request ?? 0)
   )
