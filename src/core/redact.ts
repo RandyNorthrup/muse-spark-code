@@ -262,7 +262,7 @@ export const SECRET_RULES: readonly SecretRule[] = [
   // name stays, the id is replaced.
   {
     pattern:
-      /(\b(?:openai-organization|openai-project|anthropic-organization-id|anthropic-workspace-id)\s{0,5}:\s{0,5}["']?)[^\s"'&,;}]{1,4096}/gi,
+      /(\b(?:openai-organization|openai-project|anthropic-organization-id|anthropic-workspace-id)["']?\s{0,5}:\s{0,5}["']?)[^\s"'&,;}]{1,4096}/gi,
     literals: [
       'openai-organization',
       'openai-project',
@@ -329,12 +329,54 @@ export const SECRET_RULES: readonly SecretRule[] = [
 export const MAY_HOLD_SECRET =
   /LLM|bearer|basic|eyJ|token|secret|passw|api_?key|api-key|private|credential|access_?key|accountkey|_auth|aws_|:\/\/|gh[pousr]_|github_pat_|glpat-|npm_|AIza|AKIA|ASIA|xox|_live_|_test_|sk-|[?&](?:key|sig|signature|auth)=|gsk_|xai-|fw_|hf_|tgp_v1_|absk|bedrock-api-key|user_id|workspace|team|account|organization|organisation|project/i
 
-function redactPatterns(text: string, matched?: () => void): string {
+interface SliceCut {
+  /** Offset in the text being redacted, adjusted after each rule. */
+  at: number
+  readonly originalAt: number
+}
+
+/** Drop cuts inside changed matches, then track surviving cuts through replacement. */
+function protectSliceCuts(text: string, rule: SecretRule, cuts: SliceCut[]): void {
+  const kept: SliceCut[] = []
+  let next = 0
+  let shift = 0
+  rule.pattern.lastIndex = 0
+  for (const match of text.matchAll(rule.pattern)) {
+    const replacement = rule.replace(match[0], match[1] ?? '', match[2] ?? '')
+    if (replacement === match[0]) {
+      continue
+    }
+    const end = match.index + match[0].length
+    let cut = cuts[next]
+    while (cut !== undefined && cut.at <= match.index) {
+      kept.push({ ...cut, at: cut.at + shift })
+      next += 1
+      cut = cuts[next]
+    }
+    while (cut !== undefined && cut.at < end) {
+      next += 1
+      cut = cuts[next]
+    }
+    shift += replacement.length - match[0].length
+  }
+  for (const cut of cuts.slice(next)) {
+    kept.push({ ...cut, at: cut.at + shift })
+  }
+  cuts.length = 0
+  for (const cut of kept) {
+    cuts.push(cut)
+  }
+}
+
+function redactPatterns(text: string, matched?: () => void, cuts?: SliceCut[]): string {
   if (!MAY_HOLD_SECRET.test(text)) {
     return text
   }
   let result = text
   for (const rule of SECRET_RULES) {
+    if (cuts !== undefined) {
+      protectSliceCuts(result, rule, cuts)
+    }
     // A function, so no `$` sequence in the mark is interpreted.
     result = result.replaceAll(rule.pattern, (match: string, lead: string, quote: string) => {
       const replacement = rule.replace(match, lead, quote)
@@ -405,8 +447,9 @@ export function countSecretMatches(text: string, literals: readonly string[]): n
 // match: one holding a rule's literal (`MAY_HOLD_SECRET`), ending in `=` or
 // `:`, or `Authorization` (whose rule has no literal of its own before its
 // colon); or unless the break is inside a PEM key. Every lookbehind and `\b`
-// reads a line break as it reads the start of the text, so a piece's edges
-// change no match. redact.test.ts checks this against every rule.
+// reads a line break as it reads the start of the text. This heuristic only
+// proposes cuts: whole-string redaction below removes any inside a changed
+// match, including multiword names such as `team id\nUUID` (RVM95SC #1).
 
 const LINE_BREAK = '\n'
 const WHITESPACE = /\s/
@@ -495,15 +538,27 @@ function safeCut(text: string, from: number, target: number): number | undefined
  * `sliceChars` stays in one piece.
  */
 export function redactableSlices(text: string, sliceChars: number): string[] {
-  const slices: string[] = []
+  const cuts: SliceCut[] = []
   let from = 0
   while (text.length - from > sliceChars) {
     const cut = safeCut(text, from, from + sliceChars)
     if (cut === undefined) {
       break
     }
-    slices.push(text.slice(from, cut))
+    cuts.push({ at: cut, originalAt: cut })
     from = cut
+  }
+  if (cuts.length > 0) {
+    // Validate against the actual ordered redaction of the whole string,
+    // tracking offsets as replacements shrink it. Return original text so
+    // the export still counts redactions and yields between safe pieces.
+    redactPatterns(text, undefined, cuts)
+  }
+  const slices: string[] = []
+  from = 0
+  for (const cut of cuts) {
+    slices.push(text.slice(from, cut.originalAt))
+    from = cut.originalAt
   }
   slices.push(text.slice(from))
   return slices

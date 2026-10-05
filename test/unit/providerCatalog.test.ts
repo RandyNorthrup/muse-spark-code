@@ -569,23 +569,27 @@ describe('sync validation before writes', () => {
     const fetcher = vi.fn<typeof fetch>().mockRejectedValue(new Error('Network forbidden'))
     vi.stubGlobal('fetch', fetcher)
     try {
-      await run(
-        [
-          '--sync',
-          '--from',
-          path.join(ROOT, 'docs/certification/m95-c/api.json.raw'),
-          '--date',
-          manifest.fetchedAt,
-          '--sha256',
-          manifest.downloadSha256,
-        ],
-        dir,
-      )
-      expect(fetcher).not.toHaveBeenCalled()
-      for (const file of ['snapshot.json', 'VENDOR.json', 'LICENSE']) {
-        expect(readFileSync(path.join(dir, file))).toEqual(
-          readFileSync(path.join(VENDOR_ROOT, file)),
+      // Repeated offline syncs must stay byte-identical and fit the normal deadline.
+      for (let replay = 0; replay < 3; replay += 1) {
+        await run(
+          [
+            '--sync',
+            '--from',
+            path.join(ROOT, 'docs/certification/m95-c/api.json.raw'),
+            '--date',
+            manifest.fetchedAt,
+            '--sha256',
+            manifest.downloadSha256,
+          ],
+          dir,
         )
+        expect(fetcher).not.toHaveBeenCalled()
+        for (const file of ['snapshot.json', 'VENDOR.json', 'LICENSE']) {
+          const actual = readFileSync(path.join(dir, file))
+          const expected = readFileSync(path.join(VENDOR_ROOT, file))
+          expect(actual.length).toBe(expected.length)
+          expect(digest(actual)).toBe(digest(expected))
+        }
       }
     } finally {
       vi.unstubAllGlobals()

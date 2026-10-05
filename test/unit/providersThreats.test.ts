@@ -8,10 +8,16 @@
 // token (the convention of `test/unit/redact.test.ts`).
 
 import { describe, expect, it } from 'vitest'
-import { MAY_HOLD_SECRET, redactSecrets } from '../../src/core/redact'
+import { buildSessionExport } from '../../src/core/export/sessionTransfer'
+import { MAY_HOLD_SECRET, redactableSlices, redactSecrets } from '../../src/core/redact'
 import { hookEnvironment, isCredentialVariable } from '../../src/host/backend/toolIo'
+import { createLogger } from '../../src/host/logger'
 import { withoutCredentials } from '../../src/runtime/credentialVariables'
-import { HOOK_FORBIDDEN_ENV_NAMES } from '../../src/shared/constants'
+import {
+  HOOK_FORBIDDEN_ENV_NAMES,
+  SESSION_EXPORT_SCRUB_SLICE_CHARS,
+} from '../../src/shared/constants'
+import { FakeLogOutputChannel } from './helpers/fakes'
 
 const GROQ = `gsk_${'a'.repeat(24)}`
 const XAI = `xai-${'b'.repeat(24)}`
@@ -93,6 +99,74 @@ describe('the prefilter', () => {
 })
 
 describe('account ids', () => {
+  it.each([true, false])(
+    'redacts the team id newline export boundary with redaction %s',
+    async (redact) => {
+      const prefix = `${'x'.repeat(SESSION_EXPORT_SCRUB_SLICE_CHARS)} failed for team id\n`
+      const text = `${prefix}${UUID} end`
+      const built = await buildSessionExport(
+        {
+          backend: 'modelApi',
+          modelId: 'muse-spark-1.3',
+          exportedAt: '2026-10-05T12:00:00.000Z',
+          items: [{ itemId: 'message', kind: 'agentMessage', status: 'completed', text }],
+        },
+        { redact, localRoots: [] },
+      )
+      expect(built.doc.transcript[0]?.text).toBe(`${prefix}[redacted] end`)
+      expect(built.doc.redacted).toBe(redact)
+      expect(built.secrets).toBe(1)
+      expect(JSON.stringify(built.doc)).not.toContain(UUID)
+    },
+  )
+
+  it.each(['team id', 'account id', 'organization id', 'organisation id', 'project id'])(
+    'keeps the whole %s match across whitespace slice boundaries',
+    (lead) => {
+      const prefix = `${'x'.repeat(100)} failed for ${lead}\r\n \n`
+      const text = `${prefix}${UUID} end\n${'ordinary line\n'.repeat(100)}`
+      const slices = redactableSlices(text, 100)
+      expect(slices.length).toBeGreaterThan(1)
+      expect(slices.join('')).toBe(text)
+      expect(slices.map((slice) => redactSecrets(slice)).join('')).toBe(redactSecrets(text))
+      expect(slices.find((slice) => slice.includes(UUID))).toContain(`${lead}\r\n \n${UUID}`)
+    },
+  )
+
+  it('redacts the review JSON header repro through the real logger', () => {
+    const channel = new FakeLogOutputChannel()
+    const headers = { 'openai-organization': 'org_fixture', 'anthropic-workspace-id': UUID }
+    createLogger(channel).error(JSON.stringify(headers))
+    expect(channel.error).toHaveBeenCalledWith(
+      JSON.stringify({
+        'openai-organization': '[redacted]',
+        'anthropic-workspace-id': '[redacted]',
+      }),
+    )
+  })
+
+  it('tracks safe cuts after earlier redactions shrink the whole string', () => {
+    const text = `${GROQ}\n${'x'.repeat(100)} failed for team id\n${UUID} end\n${'line\n'.repeat(100)}`
+    const slices = redactableSlices(text, 100)
+    expect(slices.length).toBeGreaterThan(1)
+    expect(slices.map((slice) => redactSecrets(slice)).join('')).toBe(redactSecrets(text))
+    expect(slices.find((slice) => slice.includes(UUID))).toContain(`team id\n${UUID}`)
+  })
+
+  it.each([
+    'openai-organization',
+    'openai-project',
+    'anthropic-organization-id',
+    'anthropic-workspace-id',
+  ])('redacts JSON-serialized %s headers while preserving names and quotes', (header) => {
+    const text = JSON.stringify({ [header]: UUID, ordinary: 'kept' })
+    expect(redactSecrets(text)).toBe(JSON.stringify({ [header]: '[redacted]', ordinary: 'kept' }))
+    expect(redactSecrets(`'${header}': '${UUID}'`)).toBe(`'${header}': '[redacted]'`)
+    expect(redactSecrets(`"${header.toUpperCase()}" : "${UUID}"`)).toBe(
+      `"${header.toUpperCase()}" : "[redacted]"`,
+    )
+  })
+
   it("redacts OpenRouter's user id at top level and keeps the message", () => {
     const body = '{"error": {"message": "m", "code": 400}, "user_id": "u_123"}'
     expect(redactSecrets(body)).toBe(

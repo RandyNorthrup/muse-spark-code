@@ -7,6 +7,16 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+### Fixed
+
+- **Provider account IDs stay redacted across session export boundaries.**
+  Whole-string redaction validates slice cuts, including `team id` followed
+  by a newline and UUID; serialized OpenAI and Anthropic account headers
+  are redacted in logs and exports while retaining JSON names and quotes.
+- **Offline provider catalogue replay avoids deep Buffer assertion cost.**
+  Tests compare byte length and SHA-256 without changing the default timeout
+  or the sealed snapshot integrity checks.
+
 ### Added
 
 - **A live receipt workflow for the GitHub Action (M80 LA).**
