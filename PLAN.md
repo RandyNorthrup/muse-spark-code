@@ -14256,6 +14256,14 @@ Every lint or scanner suppression (`eslint-disable`, `@ts-expect-error`, `nosemg
 | `src/runtime/main.ts`, `exitHeadless`                        | `eslint-disable-next-line unicorn/no-process-exit`   | A standalone headless command owns its process. It must end within the deadline/grace/force bounds even if a pipe or late backend setup never closes, including usage errors. Writes remain async and bounded before exit.                                                                                                                                                                                                                                                                                                                                             | 2026-10-02 |
 | `src/runtime/exec/execClient.ts`, constructor session router | Reflection of SDK 1.4.0's private `builder.handlers` | The SDK's constructor-installed session router validates a closed union before custom notification parsers, dropping future variants. This headless instance uses `request()` and no active-session helpers; remove only its single constructor handler after validating the exact descriptor `client-session-update-router`. The SDK's original builder and public handler/request/connection APIs remain in use. Structural checking fails closed if this pinned seam changes; real JSON-RPC and real-engine tests cover it. No dependency or SDK source is patched. | 2026-10-02 |
 
+**M81 accepted residuals (lead decision, 2026-10-04).** The §7 positive
+controls that change a test machine (planted Chrome policies including G8 DoH,
+G11's synthetic client certificate and test CA, G5/G6's synthetic Windows and
+GSSAPI sign-ins, G4's permissive-proxy control, and G2/G9/G10/G12's reference
+positives) are not built: a safety classifier stopped them, and they are not
+routed around it. Each guard is isolated by its unit and live drills; only the
+real-machine calibration is missing. Details: `docs/certification/m81.md`.
+
 **REL signing decisions (2026-10-02).** The extension relies on the VS Code
 Marketplace's signing of published extensions and does not self-sign the VSIX:
 no new signing credentials or alternate package bytes. GitHub/Open VSX assets
