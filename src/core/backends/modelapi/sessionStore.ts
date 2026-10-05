@@ -131,6 +131,8 @@ export interface StoredSession {
    * before the ledger was kept, which resumes at zero.
    */
   readonly packedTokensAvoided?: number
+  /** Sticky packing swaps (M101), with originals retained in replay; absent on old files. */
+  readonly packedCallIds?: readonly string[]
   /** Children are nested in the parent's file; they do not appear in History. */
   readonly children?: readonly StoredChild[]
   /** Completed children whose results have not entered the next model request. */
@@ -294,6 +296,7 @@ const storedSessionFields = {
   // Optional, so a session saved before M73 kept its ledger still reads; a
   // corrupt value is dropped before validation (withoutCorruptEstimate).
   packedTokensAvoided: z.optional(z.int().check(z.nonnegative())),
+  packedCallIds: z.optional(z.array(z.string())),
 } as const
 
 export const storedSessionSchema = z.object({
@@ -382,6 +385,7 @@ export function parseStoredSession(raw: unknown): StoredSessionParse {
     budgetIsFreshFork,
     agent,
     packedTokensAvoided,
+    packedCallIds,
     promptDate,
     ...rest
   } = result.data
@@ -444,6 +448,7 @@ export function parseStoredSession(raw: unknown): StoredSessionParse {
       ...(spawnCommands !== undefined && { spawnCommands }),
       ...(agent !== undefined && { agent }),
       ...(packedTokensAvoided !== undefined && { packedTokensAvoided }),
+      ...(packedCallIds !== undefined && { packedCallIds }),
       ...(promptDate !== undefined && { promptDate }),
     },
   }

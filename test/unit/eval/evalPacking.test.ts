@@ -76,6 +76,10 @@ describe('the observation packing arm', () => {
   it('offers recall_output and packs the long output on its third send', async () => {
     const api = await readBigThenSmall(true)
     expect(toolsOffered(api)).toContain(MODEL_API_TOOLS.recallOutput)
+    // M101: the declaration and prefix digest are identical before and after the swap.
+    const bodies = api.responseBodies()
+    expect(new Set(bodies.map((body) => JSON.stringify(body['tools']))).size).toBe(1)
+    expect(new Set(bodies.map((body) => body['prompt_cache_key'])).size).toBe(1)
     // Whole on the two requests after the read…
     expect(responseOutputsByCall(api, 1).get('c1')).toContain('line 200')
     expect(responseOutputsByCall(api, 2).get('c1')).toContain('line 200')

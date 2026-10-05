@@ -256,7 +256,9 @@ import { uiLocale } from '../../../shared/l10n/text'
 import { estimateCostUsd, formatUsd } from '../../usage/insights'
 import { toolHookInput, toolHookOutput } from './toolHookPayload'
 import { type ImagePlan, imageUseRequest, prepareImageCall, runImageCall } from './imageGeneration'
-import { promptCacheKey } from './promptCache'
+import { cacheMissTokens, promptCacheKey } from './promptCache'
+import type { ModelCapabilities } from '../../providers/capabilities'
+import type { FormatQuirks } from '../../providers/presets'
 import {
   isReviewerRole,
   isReviewerTool,
@@ -393,6 +395,13 @@ export interface ModelApiPaidHooks {
 
 export interface ModelApiHostDeps extends ModelApiPaidHooks {
   readonly client: ModelApiClient
+  /** Selected M95 model and preset records; unknown BYO records fail closed. */
+  readonly modelFacts?: (modelId: string) =>
+    | {
+        readonly capabilities: ModelCapabilities
+        readonly quirks: FormatQuirks
+      }
+    | undefined
   readonly workspaceRoot: string
   readonly platform: NodeJS.Platform
   readonly io: ToolIo
@@ -1784,6 +1793,7 @@ export class ModelApiSession implements AgentSession {
    * carries it on instead.
    */
   private restoredPackedTokens: number | undefined
+  private restoredPackedCallIds: readonly string[] | undefined
   private mediaNoticeSent = false
   /**
    * The PDFs and images `read_file` read this round (M54): they follow the
@@ -1836,6 +1846,7 @@ export class ModelApiSession implements AgentSession {
    * at that model's rates, whatever the session switched to meanwhile.
    */
   private sendingModelId: string | undefined
+  private previousCacheUsage: { readonly modelId: string; readonly inputTokens: number } | undefined
   /** Turns and compactions still running, by id: a closing window waits for them to save (M82). */
   private readonly unsettled = new Map<number, Promise<void>>()
   private workCount = 0
@@ -2580,7 +2591,9 @@ export class ModelApiSession implements AgentSession {
     // Packing projects per request only: the replay keeps the originals, so
     // a later request (or a restore) packs from the full outputs again.
     // Reviewer tools cannot recall packed output: retain the full observations.
-    const input = [...(this.isReviewing() ? fitted : (this.packing?.project(fitted) ?? fitted))]
+    const projected =
+      this.isReviewing() || !this.canPack() ? fitted : (this.packing?.project(fitted) ?? fitted)
+    const input = [...projected]
     if (this.budget.omitted && !this.mediaNoticeSent) {
       this.emit({ type: 'backendNotice', level: 'warning', text: UI_TEXT.olderMediaOmitted })
       this.mediaNoticeSent = true
@@ -2685,6 +2698,15 @@ export class ModelApiSession implements AgentSession {
     return this.canRunShell() || allowed?.includes(VERIFY_TOOLS.runChecks) === true
   }
 
+  /** Packing needs the selected model's tool-calling capability for recall. */
+  private canPack(): boolean {
+    return (
+      this.packing !== undefined &&
+      (this.deps.modelFacts?.(this.modelId)?.capabilities.toolCalling ??
+        modelApiPaidTier(this.modelId) !== undefined)
+    )
+  }
+
   /** In-process, IDE, MCP and paid search tools offered to this request. */
   private tools(
     hasShell: boolean,
@@ -2701,7 +2723,7 @@ export class ModelApiSession implements AgentSession {
       hasSubagents: !isSubagent && this.deps.isPaidFeatureOn('subagents'),
       isSubagent,
       hasMemory,
-      hasPackedRecall: this.packing !== undefined,
+      hasPackedRecall: this.canPack(),
       checks: this.checkCommands(),
       // Trusted workspaces only, as the shell (M69).
       hasWebFetch: this.isWebFetchOffered(hasShell),
@@ -3120,6 +3142,20 @@ export class ModelApiSession implements AgentSession {
       cachedTokens: usage.input_tokens_details?.cached_tokens ?? 0,
     }
     const sentModelId = this.sendingModelId ?? this.modelId
+    const fields =
+      this.deps.modelFacts?.(sentModelId)?.quirks.cachedUsageFields ??
+      (modelApiPaidTier(sentModelId) === undefined ? [] : ['input_tokens_details.cached_tokens'])
+    const previous = this.previousCacheUsage
+    const missed = cacheMissTokens(
+      previous?.modelId === sentModelId ? previous.inputTokens : undefined,
+      billable.inputTokens,
+      billable.cachedTokens,
+      fields,
+    )
+    this.previousCacheUsage = { modelId: sentModelId, inputTokens: billable.inputTokens }
+    if (missed !== undefined) {
+      this.deps.log.warn(fill(UI_TEXT.promptCacheMiss, { tokens: missed }))
+    }
     const hasKnownPrice = modelApiPaidTier(sentModelId) !== undefined
     const costUsd = estimateCostUsd(billable, sentModelId)
     const nextUsage = {
@@ -4439,7 +4475,7 @@ export class ModelApiSession implements AgentSession {
    * it anyway is told so, never run.
    */
   private recallPacked(call: FunctionCallItem): ToolOutcome {
-    return this.packing === undefined
+    return !this.canPack() || this.packing === undefined
       ? toolFailure(`unknown tool ${call.name}`)
       : this.packing.recall(call.arguments)
   }
@@ -9808,6 +9844,14 @@ export class ModelApiSession implements AgentSession {
       ? { budgetIsFreshFork: true, budgetSpentUsd: 0 }
       : {}
     const packedTokensAvoided = this.packing?.savings() ?? this.restoredPackedTokens
+    const replayOutputIds = new Set(
+      this.replay.flatMap(({ item }) =>
+        item.type === 'function_call_output' ? [item.call_id] : [],
+      ),
+    )
+    const packedCallIds = (this.packing?.packedCallIds() ?? this.restoredPackedCallIds)?.filter(
+      (id) => replayOutputIds.has(id),
+    )
     return {
       version: STORED_SESSION_VERSION,
       sessionId: this.sessionId,
@@ -9855,6 +9899,7 @@ export class ModelApiSession implements AgentSession {
       ...(budgetSpentUsd > 0 && { budgetSpentUsd }),
       ...freshFork,
       ...(packedTokensAvoided !== undefined && { packedTokensAvoided }),
+      ...(packedCallIds !== undefined && { packedCallIds }),
       ...(this.spawnCommands.size > 0 && { spawnCommands: Object.fromEntries(this.spawnCommands) }),
       ...(this.pendingChildResults.length > 0 && {
         pendingChildResults: this.pendingChildResults.map((pending) => storedPending(pending)),
@@ -9921,6 +9966,11 @@ export class ModelApiSession implements AgentSession {
     // session saved before it was kept carries none, so it starts at zero.
     this.restoredPackedTokens = stored.packedTokensAvoided
     this.packing?.restoreSavings(stored.packedTokensAvoided ?? 0)
+    this.restoredPackedCallIds = stored.packedCallIds
+    this.packing?.restorePackedCallIds(
+      stored.packedCallIds ?? [],
+      this.replay.map((entry) => entry.item),
+    )
     this.status = IDLE
     this.pendingChildResults.push(
       ...(stored.pendingChildResults ?? []).map((stored) => pendingFromStored(stored)),
@@ -10006,6 +10056,17 @@ export class ModelApiSession implements AgentSession {
     const kept = new Set(completed.slice(0, cut + 1))
     kept.add(COMPACTION_TURN_ID)
     target.replay.push(...this.replay.filter((entry) => kept.has(entry.turnId)))
+    const packedIds = this.packing?.packedCallIds() ?? this.restoredPackedCallIds ?? []
+    const keptOutputIds = new Set(
+      target.replay.flatMap(({ item }) =>
+        item.type === 'function_call_output' ? [item.call_id] : [],
+      ),
+    )
+    target.restoredPackedCallIds = packedIds.filter((id) => keptOutputIds.has(id))
+    target.packing?.restorePackedCallIds(
+      target.restoredPackedCallIds,
+      target.replay.map((entry) => entry.item),
+    )
     const retained = this.transcript.filter((entry) => kept.has(entry.turnId))
     target.transcript.push(...withoutRunning(retained))
     target.turnIds.push(...completed.slice(0, cut + 1))

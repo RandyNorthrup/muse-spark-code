@@ -390,5 +390,5 @@ export function goalProgress(
           `Progress has not been reported in the last ${String(stepsSinceProgress)} model calls. Call ${MODEL_API_TOOLS.reportProgress} with current_work, next_work, and percent_complete before continuing unless the goal is already achieved.`,
         ]
       : []
-  return ['# Session goal progress', progress.join('\n'), ...probe].join('\n\n')
+  return [MODEL_API_MODEL_TEXT.goalProgressLead, progress.join('\n'), ...probe].join('\n\n')
 }

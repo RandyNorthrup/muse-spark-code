@@ -247,6 +247,9 @@ describe('M101 request-only suffix breakpoint', () => {
       ],
     })
     const first = encodeAnthropicRequest(body, BASE_OPTIONS)
+    if (role === 'user') {
+      expect(encodedText(body)).toBe(goldenBytes('goal-progress'))
+    }
     expect(first.body.messages[0]?.content).toEqual([
       { type: 'text', text: 'Stable history.', cache_control: { type: 'ephemeral', ttl: '5m' } },
       ...(role === 'user'
@@ -257,13 +260,7 @@ describe('M101 request-only suffix breakpoint', () => {
       {
         ...body,
         input: [
-          {
-            type: 'message',
-            role,
-            content: [
-              { type: role === 'user' ? 'input_text' : 'output_text', text: 'Stable history.' },
-            ],
-          },
+          ...body.input.slice(0, -1),
           {
             type: 'message',
             role: 'developer',

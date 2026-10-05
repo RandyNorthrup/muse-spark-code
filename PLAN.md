@@ -15612,15 +15612,19 @@ its sections 1–2 (harness), "BYO n" its section 3 (providers).
   Gemini, OpenRouter/chat, Ollama/local, custom), with "on / off: reason" in
   every cell.
 
-**Lane A status (2026-10-05, Kubuntu):** Items 1 and 16 implemented: goal
-progress is a request-only suffix, Anthropic caches before it, and the local
-session date survives resume/fork. Focused tests and five byte-exact red drills
-are in `docs/certification/m101-a.md`; recall/search, sticky ids, capability
-injection, cache-miss diagnostics and final affected gates are in progress.
-The base host still uses `ModelApiClient` without M95's provider registry seam;
-Lane A will expose the selected-model facts in its owned request-builder
-interface, leaving provider-host wiring to its owner. The base manifest also
-still defaults packing off; integration must reconcile this with D81.6.
+**Lane A status (2026-10-05, Kubuntu):** Items 1, 2+22, 7, 16 and 17
+are implemented in their owned regions: request-only goal progress and native
+Anthropic breakpoint exclusion, stable capability-gated recall with literal
+search, sticky ids across resume/fork/rewind, a persisted local session date,
+and log-only capability-gated cache diagnostics. Twenty red drills restore
+byte-exact; deliberate golden changes, the provider matrix and production
+byte deltas are in `docs/certification/m101-a.md`. Owning suites and static/
+bundle gates pass; the final importing-suite sweep and compiler receipt are
+in progress. Integration must supply the new `modelFacts` callback from M95's
+pending host registry seam, reconcile this base's off-by-default manifest with
+D81.6, and exclude the suffix from OpenRouter's separate chat breakpoints.
+Those owners' files remain untouched; full quality and live M75/cache receipts
+are delegated by the rig brief to the integrator and Lane E.
 
 **Lanes and file ownership** (so lanes merge without overlapping hunks):
 

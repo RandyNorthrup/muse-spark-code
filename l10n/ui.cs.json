@@ -524,6 +524,8 @@
   "webFetchMoved": "Stránka přesměrovala na {location}, na jiného hostitele. Muse ji může načíst dalším voláním, které se znovu zeptá.",
   "webFetchRestrictedMode": "V omezeném režimu je načítání stránek vypnuté. Chcete-li ho použít, označte pracovní prostor jako důvěryhodný.",
   "packRecalled": "Načteny znaky {start} až {end} z {total} ze sbaleného výstupu {id}",
+  "packRecallNotFound": "V zabaleném výstupu {id} nebyla od znaku {offset} nalezena doslovná shoda.",
+  "promptCacheMiss": "Mezipaměť promptu nevyužila {tokens} znovu použitelných vstupních tokenů.",
   "packRecallInvalid": "Požadavek na načtení byl chybný, takže se nic nenačetlo.",
   "packRecallUnknownId": "Žádný sbalený výstup v této konverzaci nemá ID {id}, takže se nic nenačetlo.",
   "packRecallBadOffset": "Posun není pozicí znaku ve sbaleném výstupu {id} (0 až {last}), takže se nic nenačetlo.",

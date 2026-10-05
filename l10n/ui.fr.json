@@ -514,6 +514,8 @@
   "webFetchMoved": "La page a redirigé vers {location}, sur un autre hôte. Muse peut la récupérer par un nouvel appel, qui redemandera.",
   "webFetchRestrictedMode": "La récupération de pages est désactivée en mode restreint. Faites confiance à l’espace de travail pour l’utiliser.",
   "packRecalled": "Caractères {start} à {end} sur {total} récupérés de la sortie empaquetée {id}",
+  "packRecallNotFound": "Aucune correspondance littérale dans la sortie condensée {id} à partir du caractère {offset}.",
+  "promptCacheMiss": "Le cache du prompt n’a pas réutilisé {tokens} jetons d’entrée réutilisables.",
   "packRecallInvalid": "La demande de récupération était mal formée, donc rien n’a été relu.",
   "packRecallUnknownId": "Aucune sortie empaquetée de cette conversation n’a l’identifiant {id}, donc rien n’a été relu.",
   "packRecallBadOffset": "Le décalage n’est pas une position de caractère dans la sortie empaquetée {id} (de 0 à {last}), donc rien n’a été relu.",

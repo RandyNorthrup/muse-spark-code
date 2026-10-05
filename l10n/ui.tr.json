@@ -504,6 +504,8 @@
   "webFetchMoved": "Sayfa, başka bir ana bilgisayardaki {location} adresine yönlendirdi. Muse onu yeniden soran yeni bir çağrıyla getirebilir.",
   "webFetchRestrictedMode": "Kısıtlı Modda sayfa getirme kapalıdır. Kullanmak için çalışma alanına güvenin.",
   "packRecalled": "{id} paketlenmiş çıktısının {total} karakterinden {start}–{end} arası geri çağrıldı",
+  "packRecallNotFound": "Paketlenmiş {id} çıktısında {offset} karakterinden itibaren birebir eşleşme bulunamadı.",
+  "promptCacheMiss": "İstem önbelleği yeniden kullanılabilir {tokens} giriş belirtecini yeniden kullanamadı.",
   "packRecallInvalid": "Geri çağırma isteği hatalıydı, bu yüzden hiçbir şey geri okunmadı.",
   "packRecallUnknownId": "Bu konuşmada {id} kimliğine sahip paketlenmiş çıktı yok, bu yüzden hiçbir şey geri okunmadı.",
   "packRecallBadOffset": "Ofset, {id} paketlenmiş çıktısında bir karakter konumu değil (0–{last}), bu yüzden hiçbir şey geri okunmadı.",

@@ -9,6 +9,11 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- M101 adds case-sensitive literal search to `recall_output`, keeps its
+  declaration stable for a tool-capable packing session, and restores sticky
+  packing ids across resume, fork and rewind. Cache misses are logged only
+  where the selected format reports cached usage; all new text is translated
+  into the 14 display languages.
 - M101 keeps goal progress outside the cached instruction prefix, places
   Anthropic’s rolling breakpoint before the transient progress message, and
   fixes the local prompt date once per session across resume and fork.

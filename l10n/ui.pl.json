@@ -524,6 +524,8 @@
   "webFetchMoved": "Strona przekierowała do {location}, na innego hosta. Muse może pobrać ją nowym wywołaniem, które zapyta ponownie.",
   "webFetchRestrictedMode": "Pobieranie stron jest wyłączone w trybie ograniczonym. Aby go użyć, uznaj obszar roboczy za zaufany.",
   "packRecalled": "Odczytano ponownie znaki od {start} do {end} z {total} ze spakowanego wyjścia {id}",
+  "packRecallNotFound": "Nie znaleziono dosłownego dopasowania w spakowanym wyniku {id} od znaku {offset}.",
+  "promptCacheMiss": "Pamięć podręczna promptu nie wykorzystała {tokens} tokenów wejściowych nadających się do ponownego użycia.",
   "packRecallInvalid": "Żądanie odczytu było nieprawidłowe, więc niczego nie odczytano.",
   "packRecallUnknownId": "Żadne spakowane wyjście w tej rozmowie nie ma identyfikatora {id}, więc niczego nie odczytano.",
   "packRecallBadOffset": "Przesunięcie nie jest pozycją znaku w spakowanym wyjściu {id} (od 0 do {last}), więc niczego nie odczytano.",

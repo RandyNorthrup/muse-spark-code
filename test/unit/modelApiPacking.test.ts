@@ -12,7 +12,11 @@ import {
   OBS_PACK_THRESHOLD_CHARS,
 } from '../../src/shared/constants'
 import { fill } from '../../src/shared/l10n/text'
-import { ModelApiHost, ModelApiSession } from '../../src/core/backends/modelapi/ModelApiHost'
+import {
+  ModelApiHost,
+  ModelApiSession,
+  type ModelApiHostDeps,
+} from '../../src/core/backends/modelapi/ModelApiHost'
 import { ModelApiClient, type ModelApiClientDeps } from '../../src/core/backends/modelapi/client'
 import { estimatePackTokens } from '../../src/core/backends/modelapi/observationPack'
 import {
@@ -51,6 +55,7 @@ interface Harness {
 async function setup(
   isPacking: boolean,
   clientChanges: Partial<ModelApiClientDeps> = {},
+  hostChanges: Partial<ModelApiHostDeps> = {},
 ): Promise<Harness> {
   const api = fakeModelApi()
   const log = new FakeLogOutputChannel()
@@ -63,6 +68,7 @@ async function setup(
   const host = new ModelApiHost({
     ...fakeModelApiHostDeps({ client, workspaceRoot: ROOT, io, log }),
     ...(isPacking && { observationPacking: () => true }),
+    ...hostChanges,
   })
   const session = await host.startSession({
     workspaceRoot: ROOT,
@@ -212,6 +218,8 @@ describe('observation packing on the host', () => {
     await readThenAsk(harness)
     const bodies = harness.api.responseBodies()
     expect(bodies).toHaveLength(4)
+    expect(new Set(bodies.map((body) => JSON.stringify(body['tools']))).size).toBe(1)
+    expect(new Set(bodies.map((body) => body['prompt_cache_key'])).size).toBe(1)
     const first = responseOutputsByCall(harness.api, 1).get('c1') ?? ''
     const second = responseOutputsByCall(harness.api, 2).get('c1') ?? ''
     const third = responseOutputsByCall(harness.api, 3).get('c1') ?? ''
@@ -230,6 +238,48 @@ describe('observation packing on the host', () => {
       completed?.type === 'itemCompleted' ? (completed.item.visibleOutput ?? '') : '',
     ).toContain('line 399')
     await harness.host.close()
+  })
+
+  it('forks and rewinds with only surviving sticky ids, keeping recall immediately usable', async () => {
+    const source = await setup(true)
+    await readThenAsk(source)
+    const beforeSecond = source.session.snapshot().turnIds.at(-1)
+    if (beforeSecond === undefined) throw new Error('missing cut')
+    source.api.script(
+      { calls: [{ name: 'read_file', arguments: '{"path":"big.txt"}', callId: 'c2' }] },
+      { text: 'second read' },
+      { text: 'pack second' },
+    )
+    await sendText(source, 'read again')
+    await sendText(source, 'pack it')
+    expect(source.session.snapshot().packedCallIds).toEqual(['c1', 'c2'])
+    const fork = await setup(true)
+    source.session.copyInto(fork.session, undefined)
+    expect(fork.session.snapshot().packedCallIds).toEqual(['c1', 'c2'])
+    fork.api.script({ text: 'fork' })
+    await sendText(fork, 'continue')
+    expect(responseOutputsByCall(fork.api, 0).get('c1')).toBe(
+      responseOutputsByCall(source.api, 3).get('c1'),
+    )
+    const rewind = await setup(true)
+    source.session.copyInto(rewind.session, beforeSecond)
+    expect(rewind.session.snapshot().packedCallIds).toEqual(['c1'])
+    const plainCut = await setup(false)
+    source.session.copyInto(plainCut.session, beforeSecond)
+    expect(plainCut.session.snapshot().packedCallIds).toEqual(['c1'])
+    scriptRecall(rewind.api, 'c1', 0, 'recall', 'restored')
+    await sendText(rewind, 'recall now')
+    expect(responseOutputsByCall(rewind.api, 0).get('c1')).toBe(
+      responseOutputsByCall(source.api, 3).get('c1'),
+    )
+    expect(responseOutputsByCall(rewind.api, 0).has('c2')).toBe(false)
+    expect(pageOf(responseOutputsByCall(rewind.api, 1).get('recall') ?? '')).toContain('line 0')
+    await Promise.all([
+      source.host.close(),
+      fork.host.close(),
+      rewind.host.close(),
+      plainCut.host.close(),
+    ])
   })
 
   it('recalls the original bytes back, page by page', async () => {
@@ -392,32 +442,34 @@ describe('observation packing on the host', () => {
     await harness.host.close()
   })
 
-  it('keeps the ledger across a save and resume, the outputs starting fresh', async () => {
+  it('keeps the ledger and sticky placeholders across a save and resume', async () => {
     const first = await setup(true)
     await readThenAsk(first)
     const saved = ledgerOf(first.events).at(-1) ?? 0
     expect(saved).toBeGreaterThan(0)
     const stored = reloaded(first.session.snapshot())
     expect(stored.packedTokensAvoided).toBe(saved)
+    expect(stored.packedCallIds).toEqual(['c1'])
     await first.host.close()
 
     const resumed = await setup(true)
     resumed.session.adopt(stored)
     resumed.api.script({ text: 'back' })
     await sendText(resumed, 'still there?')
-    // The total carries on; the output rides whole again after the resume.
-    expect(ledgerOf(resumed.events).at(-1)).toBe(saved)
-    const full = responseOutputsByCall(resumed.api, 0).get('c1') ?? ''
-    expect(full).toContain('line 399')
-    expect(full).not.toContain('Packed output')
-    expect(resumed.session.snapshot().packedTokensAvoided).toBe(saved)
+    // The first resumed request repeats the exact placeholder and adds its savings.
+    const packed = responseOutputsByCall(first.api, 3).get('c1') ?? ''
+    const full = responseOutputsByCall(first.api, 1).get('c1') ?? ''
+    expect(responseOutputsByCall(resumed.api, 0).get('c1')).toBe(packed)
+    const total = saved + estimatePackTokens(full.length) - estimatePackTokens(packed.length)
+    expect(ledgerOf(resumed.events).at(-1)).toBe(total)
+    expect(resumed.session.snapshot().packedTokensAvoided).toBe(total)
     await resumed.host.close()
   })
 
   it('resumes a session saved before the ledger was kept at zero', async () => {
     const first = await setup(true)
     await readThenAsk(first)
-    const { packedTokensAvoided: _kept, ...older } = first.session.snapshot()
+    const { packedTokensAvoided: _kept, packedCallIds: _ids, ...older } = first.session.snapshot()
     await first.host.close()
     const resumed = await setup(true)
     resumed.session.adopt(reloaded(older))
@@ -425,6 +477,17 @@ describe('observation packing on the host', () => {
     await sendText(resumed, 'still there?')
     expect(ledgerOf(resumed.events).at(-1)).toBe(0)
     await resumed.host.close()
+  })
+
+  it('drops stale sticky ids even while a resumed window has packing off', async () => {
+    const source = await setup(true)
+    await readThenAsk(source)
+    const plain = await setup(false)
+    plain.session.adopt(
+      reloaded({ ...source.session.snapshot(), packedCallIds: ['c1', 'missing'] }),
+    )
+    expect(plain.session.snapshot().packedCallIds).toEqual(['c1'])
+    await Promise.all([source.host.close(), plain.host.close()])
   })
 
   it('keeps a stored ledger through a window that does not pack', async () => {
@@ -438,6 +501,7 @@ describe('observation packing on the host', () => {
     await sendText(plain, 'still there?')
     expect(ledgerOf(plain.events).every((value) => value === undefined)).toBe(true)
     expect(plain.session.snapshot().packedTokensAvoided).toBe(stored.packedTokensAvoided)
+    expect(plain.session.snapshot().packedCallIds).toEqual(stored.packedCallIds)
     await plain.host.close()
   })
 
@@ -460,8 +524,8 @@ describe('observation packing on the host', () => {
       expect(resumed.session.snapshot().packedTokensAvoided).toBe(0)
       resumed.api.script({ text: 'back' })
       await sendText(resumed, 'still there?')
-      expect(ledgerOf(resumed.events).at(-1)).toBe(0)
-      expect(responseOutputsByCall(resumed.api, 0).get('c1')).toContain('line 399')
+      expect(ledgerOf(resumed.events).at(-1)).toBeGreaterThan(0)
+      expect(responseOutputsByCall(resumed.api, 0).get('c1')).toContain('Packed output')
       await resumed.host.close()
     },
   )
