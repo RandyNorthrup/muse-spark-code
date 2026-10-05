@@ -17052,6 +17052,20 @@ next`, the exhausted policy and the queue, the meters, reservations and
   8. **Lane W:** the engine worker (Meta's models now, M95's clients when
      D74 is on main), the Muse Code worker, and the ACP client with its
      process.
+     - **RVM96A repair (2026-10-05, FIXM96W):** findings 3–8 and 15–22
+       bind prompt reads to M54's checks and UTF-8 byte bounds; prove worker
+       roots disjoint by real path before startup; start child environments
+       empty with a safe allowlist and pinned Git isolation; deny unresolved
+       or out-of-role admissions; parse Git global options and worktree
+       operations; require native-server exclusion before startup; correct
+       ACP chunks, auth and capabilities; prove the selected model; allow
+       cancellation during startup/turns and clean up failures; consume full
+       role shell commands; and reject dishonest reports. Finding 37's
+       capture limits, regression tests and byte-exact red drills are recorded
+       in `docs/certification/m96-w.md`. No live/paid calls or dependency
+       changes are authorized in this repair lane.
+       Lane-local final gates also remove unused worker scaffold exports;
+       no ignore or threshold is changed.
   9. **Lane T:** the tools, the roster and rubric, the Model API
      declaration and the `team` server, with the `collect` wait set from
      step 1.
@@ -19896,6 +19910,15 @@ generated host-API record deferral remains owned by X. Findings 1–9 have
 37 firing red drills with byte-exact restoration; final focused/static
 results are recorded in `docs/certification/m96-t.md`.
 
+**M96-W host API inventory deferral (2026-10-05).** The scoped worker repair
+passes the owned suites and production budgets, but `check:host-api` reports
+one pre-existing generated-record mismatch: `node:stream` has 10 source
+importers, while `docs/ide-compatibility/host-api.md` records 9. The unchanged
+import in `src/host/team/acpProcess.ts` exists at lane base `49340fe1`.
+The inventory is outside FIXM96W's owned files; the lead regenerates it
+after integration. No source import, gate, ignore or threshold is hidden
+or weakened. See `docs/certification/m96-w.md` and §9's named residual.
+
 **MG69 merged-source proof (2026-10-02).** Kubuntu passes 49 owning/merged
 files (2,056 tests; two existing Windows-only cases platform-skipped), all
 five compiler projects and every required static gate. Both review and import
@@ -20264,6 +20287,10 @@ M78b (2026-10-02) runs scoped gates on Kubuntu per the implementation brief; ful
 
 Every lint or scanner suppression (`eslint-disable`, `@ts-expect-error`, `nosemgrep`), every cast the compiler cannot verify, and every error swallowed inside generated shell, C# or Swift must be listed here with its reason. A TypeScript `catch {}` needs only an inline comment saying why the error is dropped.
 
+| M96 lane W location                                 | Escape hatch                                                | Reason                                                                                                                                                                                                                                                                                                                                 | Date       |
+| --------------------------------------------------- | ----------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
+| `src/host/team/acpProcess.ts`, `loosenClientRouter` | Reflection of pinned SDK 1.5.0's private `builder.handlers` | This client uses `request()` and custom loose notification parsers, without active-session helpers. Remove only the single constructor router after checking its exact `client-session-update-router` descriptor; refuse SDK shape changes. The real SDK/fake-stdio tests prove the boundary. No SDK source or dependency is modified. | 2026-10-05 |
+
 | M80 lane A location                      | Escape hatch                                   | Reason                                                                                                                                                                                                                                               | Date       |
 | ---------------------------------------- | ---------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
 | `scripts/exec-schema.mjs`, `conditional` | `eslint-disable-next-line unicorn/no-thenable` | JSON Schema requires the literal `then` keyword for conditional validation. This object is serialized as data, never consumed as a Promise. Computed keys and `Object.fromEntries` also trigger the rule; the exception is limited to this property. | 2026-10-02 |
@@ -20400,6 +20427,25 @@ before a repaired one loads (2026-09-30).
   dispatch; no fallback creates duplicate work. Full integrated quality and
   the existing generated host-API record handoff stay with the lead/X.
   Evidence: `docs/certification/m96-t.md` and its review-drill record.
+
+- **M96 W-host-api-inventory (2026-10-05, gate residual):** the generated
+  host API inventory has a pre-existing `node:stream` count of 9 against
+  10 source importers, including the ACP process file already present at
+  `49340fe1`. This is documentation drift with no new host capability;
+  every other host API inventory row agrees. The file is outside the
+  repair lane's scope. Follow-up: the lead runs
+  `npm run check:host-api -- --write`, reviews the one-row change and
+  reruns the gate after integrating the lanes. Full quality remains the
+  lead's gate.
+
+- **M96 W37-live-captures (RVM96A finding 37, 2026-10-05):** the worker
+  repair lane has no authorization for live/paid calls. Its synthetic ACP
+  fixtures prove regression behavior, not vendor certification. Muse Code
+  and external worker admission refuse without captured native-server
+  exclusion proof. Safe for now because uncaptured presets cannot start.
+  Follow-up: the lead runs M96 step 1 in a throwaway workspace and records
+  the capture name, workspace and counted attempts in
+  `docs/certification/m96-w.md` before enabling those presets.
 
 - Code intelligence (M67) shows what VS Code's language services say. A
   result located outside the workspace is left out and a hover defined only

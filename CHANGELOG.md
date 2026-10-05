@@ -100,6 +100,22 @@ happened, not what was planned; superseded entries are kept.
   unavailable endpoints refuse, interrupted startup and metadata saves clean
   up, and team arguments have explicit size limits (M96 lane T, RVM96D).
 
+### Fixed
+
+- **Team worker confinement (M96, RVM96A).** Prompt assembly excludes
+  private/protected file data, bounds UTF-8 bytes and preserves named paths.
+  Child environments start empty with explicit runtime/profile allowlists
+  and pinned Git credential isolation. Reports require a meaningful summary
+  and blocked results require a question. Worker/ACP admission and lifecycle
+  repairs are certified in `docs/certification/m96-w.md`. Worker roots are
+  proven disjoint from the checkout before startup; unresolved/out-of-role
+  requests and Git ref/worktree mutations are refused before approval.
+  Uncaptured native-server exclusion now prevents worker startup.
+  ACP accepts standard object text chunks and authentication errors,
+  advertises only implemented capabilities, and requires selected-model
+  readback before prompting. Abort signals interrupt startup and pending
+  turns; failure and completion dispose sessions and owned ACP children.
+
 ## [0.12.1] - 2026-10-04
 
 ### Changed

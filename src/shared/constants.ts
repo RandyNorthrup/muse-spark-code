@@ -2988,6 +2988,9 @@ export const MUSE_DISABLE_SANDBOX_ARG = '--disable-sandbox'
 // for VS Code's Restricted Mode: no workspace shell execution (PLAN.md D13).
 export const MUSE_TRUST_WORKSPACE_ARG = '--trust-workspace'
 export const MUSE_DISABLE_SHELL_ARG = '--disable-shell'
+// `muse serve --disable-write`: "Disable non-shell workspace filesystem
+// writes" (the 1.4.2 capture, research §4.7, for M96's read-only team host).
+export const MUSE_DISABLE_WRITE_ARG = '--disable-write'
 // `muse serve --sandbox-network <mode>` (M56, PLAN.md D43).
 export const MUSE_SANDBOX_NETWORK_ARG = '--sandbox-network'
 export const MUSE_INSTALL_URL = 'https://dev.meta.ai/products/muse-code/'
@@ -4066,6 +4069,20 @@ export const EVAL_REPORT_VERSION = 2
 // Decimals for the report's dollar amounts: a task costs a few
 // ten-thousandths of a dollar on the contributor tier.
 export const EVAL_COST_DECIMALS = 4
+
+// --- M96 lane W: team workers (PLAN.md D75) ---
+// Lane 0 owns the `TEAM_*` region; these `WORKER_*` names carry the plan's
+// values until lane 0 relocates them, so no second source ever sets them.
+/** A worker's brief cap (D75's `TEAM_BRIEF_MAX_CHARS`). */
+export const WORKER_BRIEF_MAX_CHARS = 8000
+/** Permission requests past this many paths are unresolvable and rejected. */
+export const WORKER_ACP_MAX_PERMISSION_PATHS = 50
+/** Inlined task files' cap (D75's `TEAM_BRIEF_FILES_MAX_BYTES`). */
+export const WORKER_BRIEF_FILES_MAX_BYTES = 64 * 1024
+/** An `unstructured` report's summary clip (acceptance 18). */
+export const WORKER_UNSTRUCTURED_SUMMARY_MAX_CHARS = 2000
+/** Depth 1, or 2 through `delegates`, never more (D75's `TEAM_MAX_DEPTH`). */
+export const WORKER_MAX_DEPTH = 2
 
 // What the user reads, in the display language (PLAN.md D33).
 export { UI_TEXT } from './l10n/text'

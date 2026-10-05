@@ -45,6 +45,8 @@
     "test/e2e/fake-muse/serve.mjs",
     // The fake stdio MCP server the M50 tests start as a child process.
     "test/unit/helpers/fakeMcpServer.mjs",
+    // The fake stdio ACP agent the M96 lane W tests start as a child process.
+    "test/unit/helpers/fakeTeamAcpAgent.mjs",
     // A bounded orphan-child process drill, launched by path at runtime.
     "test/unit/helpers/fakeMcpOrphan.mjs",
     // The Windows job drills launch these finite binary, owner-exit and
