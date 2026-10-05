@@ -2,6 +2,7 @@ import { spawnSync } from 'node:child_process'
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { resolveExecutable } from '../../src/core/executables'
 
 const moveName = 'move the M80 v0 tag after all channels published'
 const reportName = 'report the M80 major-tag outcome'
@@ -59,7 +60,22 @@ ${script.replaceAll(/^ {10}/gm, '')}`
     process.env.ProgramFiles ?? 'C:/Program Files',
     'Git/bin/bash.exe',
   )
-  const bash = process.platform === 'win32' && existsSync(installedBash) ? installedBash : 'bash'
+  let bash = process.platform === 'win32' && existsSync(installedBash) ? installedBash : 'bash'
+  if (process.platform === 'win32' && !existsSync(installedBash)) {
+    const executable = resolveExecutable('git', {
+      platform: process.platform,
+      pathVariable: process.env.PATH,
+      fileExists: existsSync,
+    })
+    if (executable !== undefined) {
+      const shell = path.join(path.dirname(executable), '..', 'usr', 'bin', 'sh.exe')
+      const identification = spawnSync(shell, ['--version'], {
+        encoding: 'utf8',
+        windowsHide: true,
+      })
+      if (identification.status === 0 && identification.stdout.startsWith('GNU bash,')) bash = shell
+    }
+  }
   const child = spawnSync(bash, ['--noprofile', '--norc', '-e', '-o', 'pipefail', '-c', commands], {
     encoding: 'utf8',
     env: {

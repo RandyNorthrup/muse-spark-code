@@ -61,9 +61,14 @@ function bashForTests(): string {
   const fromPath = resolveExecutable('bash', probe)
   const candidates = process.platform === 'win32' ? [portable, besideGit, fromPath] : [fromPath]
   const bash = candidates.find((candidate) => candidate !== undefined && existsSync(candidate))
-  if (bash === undefined)
-    throw new Error('M80 D guards require installed Bash; no shell was started')
-  return bash
+  if (bash !== undefined) return bash
+  // MinGit can ship GNU Bash under its POSIX entry name only.
+  if (git !== undefined && process.platform === 'win32') {
+    const sh = path.resolve(path.dirname(git), '..', 'usr', 'bin', 'sh.exe')
+    const version = spawnSync(sh, ['--version'], { encoding: 'utf8', windowsHide: true })
+    if (version.status === 0 && version.stdout.startsWith('GNU bash,')) return sh
+  }
+  throw new Error('M80 D guards require installed Bash; no shell was started')
 }
 
 const children: ChildProcessWithoutNullStreams[] = []
