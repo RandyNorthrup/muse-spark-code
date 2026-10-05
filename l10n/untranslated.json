@@ -182,6 +182,34 @@
     "zh-tw": ["toolLabels.shell"],
     "hu": ["usageLimit", "toolLabels.shell", "imageBuyPrompt", "agentImportKindHook"]
   },
+  "usage": {
+    "*": ["chartBucket"],
+    "cs": ["editor", "kindHook", "model"],
+    "de": [
+      "editor",
+      "kindHook",
+      "kindReviewer",
+      "kindSubagent",
+      "kindWorker",
+      "nameColumn",
+      "originSubagent"
+    ],
+    "es": ["certaintyLocal", "certaintyPlan", "editor", "kindHook", "kindWorker", "tokens"],
+    "fr": [
+      "dateColumn",
+      "images",
+      "kindHook",
+      "kindTurn",
+      "kindWorker",
+      "originTurn",
+      "priceCatalogue"
+    ],
+    "hu": ["kindHook"],
+    "it": ["editor", "kindHook", "kindWorker", "recordCount.one"],
+    "pl": ["certaintyPlan", "kindHook", "model"],
+    "pt-br": ["certaintyLocal", "editor", "kindHook", "kindWorker", "tokens"],
+    "tr": ["certaintyPlan", "model"]
+  },
   "manifest": {
     "*": ["viewsContainers.museSpark.title", "command.category", "config.title"],
     "cs": ["views.chatView.name"],
