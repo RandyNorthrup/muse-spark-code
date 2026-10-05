@@ -19,7 +19,8 @@ import {
 import { createForeignHookAdapter } from '../../src/core/backends/modelapi/foreignHooksEntry'
 import type { ShellResult } from '../../src/core/shellResult'
 import type { ToolIo } from '../../src/core/backends/modelapi/tools'
-import { UI_TEXT } from '../../src/shared/constants'
+import { Buffer } from 'node:buffer'
+import { UI_TEXT, WINDOWS_POWERSHELL_UTF8_PREAMBLE } from '../../src/shared/constants'
 import { fill } from '../../src/shared/l10n/text'
 
 const ROOT = '/ws'
@@ -456,6 +457,111 @@ describe('the working directory, confined once links resolve', () => {
     ).hooks
     await dispatch(user, 'PreToolUse', shell('ls'), io)
     expect(runs[0]?.cwd).toBe('/home/tester/.cursor')
+  })
+})
+
+/** The script an encoded Windows PowerShell command line carries. */
+function decodedPowerShell(command: string): string {
+  const [program, ...args] = command.split(' ')
+  expect(program).toBe('powershell.exe')
+  expect(args.slice(0, -2)).toEqual(['-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass'])
+  expect(args.at(-2)).toBe('-EncodedCommand')
+  return Buffer.from(args.at(-1) ?? '', 'base64').toString('utf16le')
+}
+
+function importedOnWindows(event: string, group: Record<string, unknown>) {
+  return parseForeignHooks(JSON.stringify({ hooks: { [event]: [group] } }), 'project', 'win32')
+    .hooks
+}
+
+describe('the shell a Windows source runs its hook in', () => {
+  const WIN_ROOT = String.raw`C:\ws`
+  const windows = createForeignHookAdapter({
+    workspaceRoot: WIN_ROOT,
+    platform: 'win32',
+    io: { realPath: (absolutePath) => Promise.resolve(absolutePath) },
+    homeDir: String.raw`C:\Users\tester`,
+  })
+  const winShell = { ...shell('dir'), cwd: WIN_ROOT }
+
+  it('runs Copilot, Windsurf and Cline hooks in PowerShell, as their sources do', async () => {
+    const copilot = importedOnWindows('PreToolUse', {
+      format: 'copilot',
+      sourceEvent: 'preToolUse',
+      flavor: 'copilot',
+      hooks: [{ type: 'command', command: 'Write-Output "{}"', timeout: 30 }],
+    })
+    const windsurf = importedOnWindows('PreToolUse', {
+      matcher: 'Bash',
+      format: 'windsurf',
+      sourceEvent: 'pre_run_command',
+      hooks: [{ type: 'command', command: 'python3 guard.py', timeout: 30 }],
+    })
+    const cline = importedOnWindows('PreToolUse', {
+      format: 'cline',
+      sourceEvent: 'PreToolUse',
+      hooks: [
+        { type: 'command', command: String.raw`C:\Users\o'brien\Cline\Hooks\PreToolUse.ps1` },
+      ],
+    })
+    const { runs, io } = runner()
+    await dispatchHooks(
+      copilot,
+      'PreToolUse',
+      winShell,
+      ['bash'],
+      io,
+      undefined,
+      () => undefined,
+      windows,
+    )
+    await dispatchHooks(
+      windsurf,
+      'PreToolUse',
+      winShell,
+      ['bash', 'Bash'],
+      io,
+      undefined,
+      () => undefined,
+      windows,
+    )
+    await dispatchHooks(
+      cline,
+      'PreToolUse',
+      winShell,
+      ['bash'],
+      io,
+      undefined,
+      () => undefined,
+      windows,
+    )
+    expect(runs.map((ran) => decodedPowerShell(ran.command))).toEqual([
+      `${WINDOWS_POWERSHELL_UTF8_PREAMBLE}Write-Output "{}"`,
+      `${WINDOWS_POWERSHELL_UTF8_PREAMBLE}python3 guard.py`,
+      `${WINDOWS_POWERSHELL_UTF8_PREAMBLE}${String.raw`& 'C:\Users\o''brien\Cline\Hooks\PreToolUse.ps1'`}`,
+    ])
+  })
+
+  it('keeps cmd for the others, and every source’s own command off Windows', async () => {
+    const cursor = importedOnWindows('PreToolUse', {
+      matcher: 'Bash',
+      format: 'cursor',
+      sourceEvent: 'beforeShellExecution',
+      hooks: [{ type: 'command', command: 'guard.cmd' }],
+    })
+    const { runs, io } = runner()
+    await dispatchHooks(
+      cursor,
+      'PreToolUse',
+      winShell,
+      ['bash', 'Bash'],
+      io,
+      undefined,
+      () => undefined,
+      windows,
+    )
+    await dispatch(copilotGuard(), 'PreToolUse', shell('ls'), io)
+    expect(runs.map((ran) => ran.command)).toEqual(['guard.cmd', './policy.sh'])
   })
 })
 

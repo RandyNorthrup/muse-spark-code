@@ -988,6 +988,7 @@ function entryFor(item: ItemSnapshot, at: number, seq: number): TranscriptEntry 
         kind: 'assistant',
         id: item.itemId,
         text: item.text ?? '',
+        displayText: item.displayText,
         isStreaming: item.status === IN_PROGRESS,
         citations: item.citations,
         usage: item.usage,
@@ -1036,6 +1037,7 @@ function mergeItem(entry: TranscriptEntry, item: ItemSnapshot, at: number): Tran
       return {
         ...entry,
         text: item.text ?? entry.text,
+        displayText: item.displayText ?? entry.displayText,
         isStreaming: item.status === IN_PROGRESS,
         citations: item.citations ?? entry.citations,
         usage: item.usage ?? entry.usage,

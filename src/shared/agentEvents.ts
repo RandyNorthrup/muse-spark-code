@@ -118,6 +118,14 @@ export const itemSnapshotFields = {
   turnId: z.optional(z.string()),
   /** `agentMessage` / `userMessage`: the text; `reasoning`: raw text if exposed. */
   text: z.optional(z.string()),
+  /**
+   * `agentMessage`: a MessageDisplay hook's display-only rewrite (M91).
+   * `text` stays the original, so history, copy and export keep it; the
+   * panel shows this with the hook's marker and the original one click
+   * away. A hook cannot set or remove the marker itself: the panel adds it
+   * whenever this differs from `text`.
+   */
+  displayText: z.optional(z.string()),
   /** `reasoning`: summary parts, streamed as `summary.N` deltas. */
   summary: z.optional(z.array(z.string())),
   /** `toolCall`: tool name and the model-authored argument JSON, verbatim. */

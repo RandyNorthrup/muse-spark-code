@@ -487,6 +487,10 @@ export const HOOK_FORMAT_NAME_KEYS = {
 // Cursor's stop and subagentStop follow-up limit for a script that sets no
 // `loop_limit` ("Default is 5 for Cursor hooks", cursor.com/docs/hooks).
 export const HOOK_CURSOR_DEFAULT_LOOP_LIMIT = 5
+// cmd.exe's longest command line (learn.microsoft.com, "Command prompt line
+// string limitation"): an imported PowerShell hook's encoded command past it
+// is refused rather than cut.
+export const HOOK_WINDOWS_COMMAND_MAX_CHARS = 8191
 // Hooks from every popular agent (M91, PLAN.md D70), landed by lane 0 before
 // the lanes that read them. Muse Code's own two new events, Interrupt (1.4.0)
 // and SessionFork (1.4.2), join `HOOK_EVENTS` in hooks.ts (lane R).

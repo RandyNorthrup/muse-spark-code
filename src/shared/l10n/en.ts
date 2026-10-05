@@ -203,10 +203,7 @@ export const EN = {
   importFailed: 'Muse Code could not import skills',
   // Import from Claude Code, Codex and Cursor (M83, D49).
   agentImportItem: 'Import from other agents…',
-  agentImportDetail:
-    'Copy MCP servers, hooks, agents, commands and rules from Claude Code, Codex or Cursor',
   agentImportSourceTitle: 'Import from',
-  agentImportSourceAll: 'All three',
   agentImportSourceCursor: 'Cursor',
   agentImportPickTitle: 'What to import',
   agentImportPickPlaceholder: 'Checked entries are previewed before anything is written',

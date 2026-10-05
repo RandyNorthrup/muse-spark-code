@@ -129,7 +129,13 @@ export type ForeignRunResult =
   | { readonly kind: 'refused'; readonly reason: string }
 
 export type ForeignPreparation =
-  | { readonly outcome: 'run'; readonly stdin: string; readonly cwd: string }
+  | {
+      readonly outcome: 'run'
+      readonly stdin: string
+      readonly cwd: string
+      /** The command line in place of the hook's own (a Windows PowerShell source). */
+      readonly command?: string | undefined
+    }
   /** The source would not run it here, and that is not a failure. */
   | { readonly outcome: 'skip'; readonly reason: string }
   | { readonly outcome: 'refused'; readonly reason: string }
@@ -1105,7 +1111,8 @@ async function runForeignHandler(
   }
   let result: ShellResult
   try {
-    result = await runBoundedHook(hook, prepared.stdin, prepared.cwd, runner, signal)
+    const run = prepared.command === undefined ? hook : { ...hook, command: prepared.command }
+    result = await runBoundedHook(run, prepared.stdin, prepared.cwd, runner, signal)
   } catch {
     if (signal?.aborted === true) {
       return undefined

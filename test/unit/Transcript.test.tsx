@@ -25,6 +25,41 @@ const attachment = {
 const longOutput = Array.from({ length: 20 }, (_, index) => `line ${String(index + 1)}`).join('\n')
 
 describe('Transcript', () => {
+  it('marks a MessageDisplay hook’s rewrite and keeps the original one click away (M91)', () => {
+    const copied: string[] = []
+    renderTranscript(
+      [
+        {
+          kind: 'assistant',
+          id: 'a1',
+          text: 'the model wrote this',
+          displayText: 'a hook wrote this',
+          isStreaming: false,
+        },
+        { kind: 'assistant', id: 'a2', text: 'same', displayText: 'same', isStreaming: false },
+      ],
+      {
+        onCopy: (text: string) => {
+          copied.push(text)
+        },
+      },
+    )
+    expect(screen.getByText('a hook wrote this')).toBeTruthy()
+    expect(screen.queryByText('the model wrote this')).toBeNull()
+    expect(screen.getAllByRole('note')).toHaveLength(1)
+    expect(screen.getByRole('note').textContent).toContain(UI_TEXT.hookMessageEdited)
+    fireEvent.click(screen.getByRole('button', { name: UI_TEXT.hookMessageShowOriginal }))
+    expect(screen.getByText('the model wrote this')).toBeTruthy()
+    expect(screen.queryByText('a hook wrote this')).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: UI_TEXT.hookMessageShowEdited }))
+    expect(screen.getByText('a hook wrote this')).toBeTruthy()
+    // Copy takes the original, whichever version shows.
+    const copyButtons = screen.getAllByRole('button', { name: UI_TEXT.copyResponse })
+    expect(copyButtons).toHaveLength(2)
+    fireEvent.click(copyButtons[0] ?? document.body)
+    expect(copied).toEqual(['the model wrote this'])
+  })
+
   it('renders every entry kind', () => {
     renderTranscript([
       { kind: 'user', seq: 0, id: 'u1', text: 'hello', status: 'sent', attachments: [attachment] },

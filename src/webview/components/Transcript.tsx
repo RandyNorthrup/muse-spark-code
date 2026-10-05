@@ -413,6 +413,29 @@ interface AssistantRowProps {
   readonly quoteMenu: ReactNode
 }
 
+/**
+ * A MessageDisplay hook's display-only rewrite (M91, PLAN.md D70): the panel
+ * marks it whenever the hook's version differs from the reply, outside the
+ * Markdown the hook wrote, so no hook can hide the marker. The original is
+ * one click away; copy, history and export always use the original.
+ */
+function HookEditedMarker({
+  isOriginalShown,
+  onToggle,
+}: {
+  readonly isOriginalShown: boolean
+  readonly onToggle: () => void
+}) {
+  return (
+    <div className="hook-edited" role="note">
+      <span>{UI_TEXT.hookMessageEdited}</span>
+      <button type="button" className="button-secondary" onClick={onToggle}>
+        {isOriginalShown ? UI_TEXT.hookMessageShowEdited : UI_TEXT.hookMessageShowOriginal}
+      </button>
+    </div>
+  )
+}
+
 /** "Save plan" and "Implement in a fresh conversation" under a Plan-mode reply (M79). */
 function PlanActions({
   entryId,
@@ -463,7 +486,12 @@ const AssistantRow = memo(function AssistantRow({
   onImplementPlan,
   quoteMenu,
 }: AssistantRowProps) {
-  const text = useDeferredValue(entry.text)
+  const [isOriginalShown, setOriginalShown] = useState(false)
+  const isHookEdited =
+    !entry.isStreaming && entry.displayText !== undefined && entry.displayText !== entry.text
+  const text = useDeferredValue(
+    isHookEdited && !isOriginalShown ? (entry.displayText ?? entry.text) : entry.text,
+  )
   const { head, tail } = entry.isStreaming ? splitForStreaming(text) : { head: '', tail: text }
   const { closed, open } = entry.isStreaming
     ? splitOpenFence(tail)
@@ -486,6 +514,14 @@ const AssistantRow = memo(function AssistantRow({
     >
       <span className="tool-dot tool-dot-muted" aria-hidden="true" />
       <div className="message-body">
+        {isHookEdited ? (
+          <HookEditedMarker
+            isOriginalShown={isOriginalShown}
+            onToggle={() => {
+              setOriginalShown((shown) => !shown)
+            }}
+          />
+        ) : null}
         {head === '' ? null : <MarkdownView text={head} {...actions} />}
         {closed === '' ? null : (
           // The reply a plan action would save is shown as its brief would read (M79).

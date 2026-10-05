@@ -15,12 +15,16 @@
 //
 // No answer grants: lane P never produces an allow, and hooks.ts strips one.
 
+import { Buffer } from 'node:buffer'
 import path from 'node:path'
 import {
   HOOK_CURSOR_DEFAULT_LOOP_LIMIT,
   HOOK_FORMAT_NAME_KEYS,
   HOOK_FORMATS,
+  HOOK_WINDOWS_COMMAND_MAX_CHARS,
   UI_TEXT,
+  WINDOWS_POWERSHELL_COMMAND_ARGS,
+  WINDOWS_POWERSHELL_UTF8_PREAMBLE,
 } from '../../../shared/constants'
 import { fill } from '../../../shared/l10n/text'
 import { confineWorkspacePath, type RealPathIo } from '../../workspacePath'
@@ -59,6 +63,8 @@ const KIRO_FILE_TRIGGERS: Readonly<Record<string, ForeignDispatchContext['fileOp
   PostFileDelete: undefined,
 }
 const LOOP_EVENTS: ReadonlySet<HookEvent> = new Set(['Stop', 'SubagentStop'])
+const POWERSHELL = 'powershell.exe'
+const ENCODED_COMMAND = '-EncodedCommand'
 const TRUNCATED = '[truncated]'
 const CURSOR_HOME = '.cursor'
 
@@ -100,6 +106,45 @@ function isCommandSelected(pattern: string, payload: Readonly<Record<string, unk
     state.isUnsure = true
   })
   return state.isUnsure || matched.length > 0
+}
+
+/**
+ * The command line a Windows source runs in PowerShell, or undefined to keep
+ * the hook's own. Copilot CLI runs `powershell`, and `command` copied to it,
+ * in PowerShell (gh/copilot_reference_hooks-configuration.md:124,128);
+ * Windsurf runs both through `powershell -Command` (devin
+ * cascade_hooks_md.out:104-119); Cline runs its `<HookName>.ps1` with
+ * PowerShell (cline-hooks-901d1b5c97.md:157,169). A hook here runs through
+ * cmd.exe, as Muse Code's do, so a guard written for PowerShell would fail
+ * there and, where its source fails open, let the call through. It goes to
+ * Windows PowerShell as an encoded command instead: nothing in it crosses
+ * cmd's quoting, and its output is UTF-8.
+ */
+function powerShellCommand(
+  hook: HookDefinition,
+  spec: ForeignHookSpec,
+): { readonly command: string } | { readonly reason: string } | undefined {
+  const isPowerShell =
+    spec.format === 'windsurf' ||
+    spec.format === 'cline' ||
+    (spec.format === 'copilot' && spec.flavor !== 'vscode')
+  if (!isPowerShell) {
+    return undefined
+  }
+  const script =
+    spec.format === 'cline' ? `& '${hook.command.replaceAll("'", "''")}'` : hook.command
+  const encoded = Buffer.from(`${WINDOWS_POWERSHELL_UTF8_PREAMBLE}${script}`, 'utf16le').toString(
+    'base64',
+  )
+  const command = [
+    POWERSHELL,
+    ...WINDOWS_POWERSHELL_COMMAND_ARGS.filter((arg) => arg !== '-Command'),
+    ENCODED_COMMAND,
+    encoded,
+  ].join(' ')
+  return command.length > HOOK_WINDOWS_COMMAND_MAX_CHARS
+    ? { reason: `${spec.format}: the PowerShell command is too long for cmd.exe` }
+    : { command }
 }
 
 class ForeignHooks implements ForeignHookAdapter {
@@ -191,9 +236,19 @@ class ForeignHooks implements ForeignHookAdapter {
       return built
     }
     const directory = await this.directory(hook, spec, payload)
-    return 'reason' in directory
-      ? { outcome: 'refused', reason: directory.reason }
-      : { outcome: 'run', stdin: built.stdin, cwd: directory.cwd }
+    if ('reason' in directory) {
+      return { outcome: 'refused', reason: directory.reason }
+    }
+    const shell = this.deps.platform === 'win32' ? powerShellCommand(hook, spec) : undefined
+    if (shell !== undefined && 'reason' in shell) {
+      return { outcome: 'refused', reason: shell.reason }
+    }
+    return {
+      outcome: 'run',
+      stdin: built.stdin,
+      cwd: directory.cwd,
+      ...(shell !== undefined && { command: shell.command }),
+    }
   }
 
   public answer(

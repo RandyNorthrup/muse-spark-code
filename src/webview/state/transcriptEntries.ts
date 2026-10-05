@@ -108,6 +108,7 @@ const assistantEntrySchema = z.object({
   kind: z.literal('assistant'),
   id: z.string(),
   text: z.string(),
+  displayText: z.optional(z.string()),
   isStreaming: z.boolean(),
   /** The web pages the reply cites (M33), listed under it as links. */
   citations: z.optional(z.readonly(z.array(citationSchema))),
