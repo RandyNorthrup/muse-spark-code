@@ -20,6 +20,17 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- **Windows overlap-refusal fixture cost (WINI96C).** The overlap regression
+  imports its real task commit with Git fast-import, avoiding a separate
+  task-tree copy and checkout that its parent-directory destination never
+  uses. Overlap refusal, untouched user bytes and default deadlines remain
+  checked; native timings and repeated runs are in lane I's certification.
+  A subsequent junction-delete timeout receives the same unused-copy
+  removal; shared docs-base setup uses fast-import and a real index reset,
+  retaining junction, outside-content, sentinel and ref checks.
+  The overlap assertion also requires the specific refusal message, so a
+  generic Git failure cannot hide a missing overlap guard.
+
 - **Remaining Windows team fixture cost (WINI96B).** The repository-program
   canary uses one owned Node program and a prepared repository, without a
   redundant task-tree copy. Two real writers commit concurrently behind an

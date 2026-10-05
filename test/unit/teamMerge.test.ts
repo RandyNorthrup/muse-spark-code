@@ -155,12 +155,18 @@ async function replaceDocsParent(root: string, linkType: 'dir' | 'junction'): Pr
   return outside
 }
 
-async function commitDocsBase(root: string): Promise<string> {
+async function commitDocsBase(root: string, parent: string): Promise<string> {
   await mkdir(path.join(root, 'docs'), { recursive: true })
   await writeFile(path.join(root, 'docs', 'ok.md'), 'before\n')
-  await runGit(['add', '--all'], root)
-  await runGit(['commit', '-qm', 'docs base'], root)
-  return await revOf(root, 'HEAD')
+  const head = await teamFixtureCommit(
+    runGit,
+    root,
+    parent,
+    { 'docs/ok.md': 'before\n' },
+    'refs/heads/main',
+  )
+  await runGit(['read-tree', '--reset', 'main'], root)
+  return head
 }
 
 describe('applyTeamMerge', () => {
@@ -201,11 +207,16 @@ describe('applyTeamMerge', () => {
 
   it('refuses rework into a task root overlapping the user tree', async () => {
     const { root, head: base } = await teamFixtureRepo(runGit)
-    const head = await taskBranch(root, base, { 'shared.txt': 'theirs\n' })
+    // The rework destination is the user's parent, so no separate task tree
+    // is used. Import its real branch commit without copying or checking out.
+    const head = await teamFixtureCommit(runGit, root, base, { 'shared.txt': 'theirs\n' })
     await writeFile(path.join(root, 'shared.txt'), 'ours\n')
     await expect(
       applyTeamMerge(io(), spec(root, base, head, { taskFolder: path.dirname(root) })),
-    ).rejects.toMatchObject({ code: 'mergeFailed' })
+    ).rejects.toMatchObject({
+      code: 'mergeFailed',
+      message: 'Conflicts need the task copy for rework',
+    })
     expect(await readFile(path.join(root, 'shared.txt'), 'utf8')).toBe('ours\n')
   })
 
@@ -770,7 +781,7 @@ describe('undoTeamMerge', () => {
     'refuses a replaced parent for %s without touching outside bytes',
     async (change) => {
       const { root, head: initial } = await teamFixtureRepo(runGit)
-      const base = change === 'modified' ? await commitDocsBase(root) : initial
+      const base = change === 'modified' ? await commitDocsBase(root, initial) : initial
       const head = await taskBranch(root, base, { 'docs/ok.md': 'merged\n' })
       const result = await applyTeamMerge(io(), spec(root, base, head))
       const outside = await replaceDocsParent(
@@ -855,8 +866,9 @@ describe('Windows merge paths', () => {
       }
       const { root, head: initial } = await teamFixtureRepo(runGit)
       await mkdir(path.join(root, 'docs'))
-      const base = change === 'added' ? initial : await commitDocsBase(root)
-      const head = await taskBranch(root, base, {
+      const base = change === 'added' ? initial : await commitDocsBase(root, initial)
+      // The junction is refused before rework, so no task tree is used.
+      const head = await teamFixtureCommit(runGit, root, base, {
         'docs/ok.md': change === 'deleted' ? undefined : 'changed\n',
       })
       await mkdir(path.join(root, 'docs'), { recursive: true })

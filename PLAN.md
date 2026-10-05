@@ -20965,6 +20965,20 @@ joined with M57, M58 and PR #49's sign-in
 
 ## 7. Gates
 
+**WINI96C fixture proof (2026-10-05).** Overlap and junction setup use real
+fast-import without unused task copies; docs-base setup preserves the real
+index with read-tree. The overlap test additionally requires its domain
+refusal message after a deliberate guard removal exposed a generic-error
+false positive. Mac snapshot `86e32b4e` passes all 214 owning cases, all five
+compiler projects and the scoped static/build matrix; overlap and native
+junction control drills fail as intended and restore SHA-256-exact. Native
+full proof remains required: the plain source before message refinement is
+211/214, with workspace base-capture, two-writer and drive-alias timeouts.
+No deadline, assertion or gate is weakened, and no Windows/CI green is
+claimed. Full quality/coverage and hosted certification remain the lead's
+gates under common.md. Evidence and exact remaining actions are in the
+WINI96C section of `docs/certification/m96-i.md`.
+
 **WINM96I Windows follow-up (2026-10-05).** Complete owning files pass on
 Windows: teamWorkspaces 39, teamRefFence 89, teamMerge 45 and reviewGate /
 reviewerPick 16 (189 total; four existing POSIX-only bodies return). Junction
@@ -21610,6 +21624,30 @@ before a repaired one loads (2026-09-30).
   is proposed, with assertions and deadlines unchanged. No blind rerun.
   Fresh POSIX 214/214, three restored guard drills and all scoped
   static/build gates pass. See the WINI96B certification section.
+  WINI96C (2026-10-05) authorizes the proposed overlap-refusal fixture
+  repair, restarting the two-attempt rule for this case. Replace only its
+  unused task-copy setup with the existing real Git fast-import helper;
+  retain overlap refusal, untouched-user-bytes assertions and all default
+  deadlines. Profile the complete owning file before the change, then
+  require three consecutive complete lane-I Windows passes at three
+  workers and one at normal workers. Record per-case timings, direct Git
+  children, observed filesystem calls and an exact-restored overlap guard
+  drill in the same certification record. Native runs are this brief's
+  explicit rig-only exception; full quality, coverage, hosted CI and final
+  milestone integration remain the lead's gates.
+  The first WINI96C normal-worker run passes the overlap case at 1.200 s
+  but exposes a junction-delete fixture timeout at 9.463 s (213/214).
+  Continue the same lane-I fixture-cost work with no blind retry: use
+  captured profiles to remove its unused task copy and replace docs-base
+  porcelain with fast-import plus a real index reset. Keep actual junctions,
+  outside-byte/sentinel/ref assertions and deadlines. Prove the junction
+  fixture control fails when its link is deliberately removed, restore
+  byte-exact, then obtain fresh final-source native repeats and normal proof.
+  The overlap guard drill initially survives: a generic Git error is wrapped
+  with the same `mergeFailed` code. Retain the code and untouched-byte checks
+  and additionally require the specific overlap-refusal message; re-drill
+  the real guard and restore exactly. Workspace timeouts remain explicit
+  pending proof; no normal-worker success is inferred from an earlier tree.
   The integrator must unify lane I's tokenizer and lane W's shared Git
   classifier in round 3b, and honour TeamGit's explicit isolated environment
   argument. Proof and remaining checks are in `docs/certification/m96-i.md`.
