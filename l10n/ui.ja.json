@@ -970,7 +970,8 @@
     "mcp__ide__renameSymbol": "名前の変更",
     "auto_review": "自動レビュー",
     "run_checks": "チェックを実行",
-    "verify_edits": "編集をチェック"
+    "verify_edits": "編集をチェック",
+    "judge": "ジャッジ"
   },
   "mcpToolLabel": "{tool} ({server})",
   "memoryScopes": {
@@ -1770,5 +1771,15 @@
   "agentImportIgnoredToTracked": "Gitで無視されたファイルを追跡対象のファイルにコピーすることになります",
   "agentImportEditPrompt": "変換した項目を {path} に未保存の編集として開き、確認して保存しますか？保存先はそのパスだけにし、別のファイルには保存しないでください。",
   "agentImportEditAction": "ファイルを編集して開く",
-  "agentImportPreviewLegacyKey": "ファイルは古い `mcp_servers` キーを使用しています。これらを追加するときに `mcpServers` に名前を変更してください。両方あると Muse Code はどちらも読み込みません。"
+  "agentImportPreviewLegacyKey": "ファイルは古い `mcp_servers` キーを使用しています。これらを追加するときに `mcpServers` に名前を変更してください。両方あると Muse Code はどちらも読み込みません。",
+  "judgeCaution": "Muse Judge は慎重な判断を勧めています。決めるのはあなたです。この操作を承認することはできません。",
+  "judgeSubscriptionNotice": "Muse Judge は Muse サブスクリプションでチャットモデルを使用し、その利用枠を消費します。各バッチには、分離された新しいプランモードのセッションを使います。ツールを検出すると保護機能がセッションを中止しますが、ツールが実行されなかったことは証明できません。慎重な判断を勧めることだけができます。",
+  "judgeStatusSame": "同じモデル",
+  "judgeStatusOff": "オフ",
+  "judgeStatusUnavailable": "オフ：ソースが利用できないか、常時許可ルールがあります",
+  "judgeStatusConsent": "初回課金前の同意を待っています",
+  "judgeStatusDeclined": "オフ：有料利用が拒否されました",
+  "judgeStatusSlow": "既定でオフ：レビュー担当の判定時に準備できる結果が少なすぎます",
+  "judgeStatusSubscription": "サブスクリプション",
+  "judgeStatusPaid": "有料"
 }

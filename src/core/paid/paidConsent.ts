@@ -16,7 +16,7 @@
 // (D62) say the same.
 
 import { PAID_FEATURES, type PaidFeature, UI_TEXT } from '../../shared/constants'
-import { fill, formatNumber } from '../../shared/l10n/text'
+import { fill, formatNumber, formatUsd } from '../../shared/l10n/text'
 import {
   paidFeaturePrice,
   autoReviewPrice,
@@ -36,6 +36,22 @@ export function paidUseQuestion(request: PaidUseRequest): {
   readonly detail: string
 } {
   switch (request.feature) {
+    case 'judge': {
+      const price = autoReviewPrice(request.modelId)
+      if (
+        price === undefined ||
+        !Number.isFinite(request.dailyBudgetUsd) ||
+        request.dailyBudgetUsd < 0
+      )
+        throw new Error('Judge use needs a verified tariff and daily budget')
+      return {
+        title: fill(UI_TEXT.paidConfirmTitle, { feature: UI_TEXT.paidJudgeName }),
+        detail: fill(UI_TEXT.paidConfirmJudge, {
+          price,
+          budget: formatUsd(request.dailyBudgetUsd, 2),
+        }),
+      }
+    }
     case 'webSearch': {
       return {
         title: UI_TEXT.paidUseWebSearchTitle,
@@ -110,6 +126,9 @@ export function paidUseQuestion(request: PaidUseRequest): {
 export interface PaidUseConsentDeps {
   /** Whether the feature may be used at all: its setting on and its price accepted. */
   readonly isOn: (feature: PaidFeature) => boolean
+  /** Judge defaults on; its first actual paid use accepts price in this same popup. */
+  readonly isJudgeEnabled?: (() => boolean) | undefined
+  readonly acceptJudgePrice?: (() => Promise<boolean>) | undefined
   /** A trusted workspace with a folder open: the only place "always" is offered and kept. */
   readonly canRemember: () => boolean
   /** The features allowed always in this workspace, still valid (the host drops lapsed ones). */
@@ -173,7 +192,11 @@ export class PaidUseConsent {
    */
   public async allows(request: PaidUseRequest, requiresAsking = false): Promise<boolean> {
     const { feature } = request
-    if (!this.deps.isOn(feature)) {
+    const isEnabled = () =>
+      feature === 'judge'
+        ? (this.deps.isJudgeEnabled?.() ?? this.deps.isOn(feature))
+        : this.deps.isOn(feature)
+    if (!isEnabled()) {
       return false
     }
     if (!requiresAsking && this.isRemembered(feature)) {
@@ -186,10 +209,16 @@ export class PaidUseConsent {
       this.deps.log.info(`Paid use of ${feature}: denied`)
       return false
     }
-    if (!this.deps.isOn(feature)) {
+    if (!isEnabled()) {
       this.deps.log.info(`Paid use of ${feature}: turned off while the popup was open`)
       return false
     }
+    if (
+      feature === 'judge' &&
+      this.deps.acceptJudgePrice !== undefined &&
+      (!(await this.deps.acceptJudgePrice()) || !isEnabled())
+    )
+      return false
     if (
       answer === 'always' &&
       canRemember &&

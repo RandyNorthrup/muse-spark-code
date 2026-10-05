@@ -1,3 +1,4 @@
+import { isJudgeEngineOn } from './core/judge/engine'
 // Extension host entry point. Kept to registration and adapter wiring; the
 // behaviour lives in src/host (VS Code adapters) and src/core (pure logic).
 
@@ -692,6 +693,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     // The subscription source must never receive a Model API price popup.
     isSettingOn: (feature) =>
       feature !== 'judge' && currentSettings()[PAID_FEATURE_SETTINGS[feature]],
+    isJudgeOn: () => isJudgeEngineOn(currentSettings()['judge.engine']),
     isKeyStored: () => isKeyStored,
     // "Allow always in this workspace" (M58) needs a workspace to keep it,
     // and never in Restricted Mode.

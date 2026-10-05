@@ -51,6 +51,8 @@ export interface PaidFeaturesDeps {
   readonly workspaceState: MementoLike
   /** Whether the feature's setting is on, as the settings reader validated it. */
   readonly isSettingOn: (feature: PaidFeature) => boolean
+  /** Separate from startup review, since subscription judging has no price popup. */
+  readonly isJudgeOn?: (() => boolean) | undefined
   /** Whether a Model API key is stored, as last read (M44). */
   readonly isKeyStored: () => boolean
   /** A trusted workspace with a folder open: "always" is offered and kept only there. */
@@ -62,6 +64,7 @@ export interface PaidFeatures {
   readonly gate: PaidFeatureGate
   readonly consent: PaidUseConsent
   readonly usage: PaidUsage
+  readonly allowsJudgeUse: (modelId: string) => Promise<boolean>
   readonly state: () => PaidState
   /** Whether a change to the configuration touched a paid feature's setting. */
   readonly affects: (event: vscode.ConfigurationChangeEvent) => boolean
@@ -115,7 +118,11 @@ export async function askPaidUse(
   // No verified price, nothing to accept (M48, M78): refused before any popup.
   if (
     (request.feature === 'subagents' && modelApiPaidTier(request.task.modelId) === undefined) ||
-    (request.feature === 'autoReviewer' && autoReviewPrice(request.modelId) === undefined)
+    (request.feature === 'autoReviewer' && autoReviewPrice(request.modelId) === undefined) ||
+    (request.feature === 'judge' &&
+      (autoReviewPrice(request.modelId) === undefined ||
+        !Number.isFinite(request.dailyBudgetUsd) ||
+        request.dailyBudgetUsd < 0))
   ) {
     return 'deny'
   }
@@ -161,7 +168,10 @@ export function createPaidFeatures(deps: PaidFeaturesDeps): PaidFeatures {
     return parsed.success ? parsed.data : {}
   }
   const gate = new PaidFeatureGate({
-    isSettingOn: deps.isSettingOn,
+    isSettingOn: (feature) =>
+      feature === 'judge'
+        ? (deps.isJudgeOn?.() ?? deps.isSettingOn(feature))
+        : deps.isSettingOn(feature),
     setSetting: async (feature, isOn) => {
       // The judge's switch is the engine enum, not a boolean (M98, PLAN.md
       // D77): turning it off parks it at `off`, turning it on restores `auto`.
@@ -194,6 +204,8 @@ export function createPaidFeatures(deps: PaidFeaturesDeps): PaidFeatures {
   })
   const consent = new PaidUseConsent({
     isOn: (feature) => gate.isOn(feature),
+    isJudgeEnabled: () => deps.isKeyStored() && (deps.isJudgeOn?.() ?? deps.isSettingOn('judge')),
+    acceptJudgePrice: () => gate.acceptJudgePrice(),
     canRemember: deps.canRememberPaidUse,
     readGrants: () => {
       const parsed = generationsSchema.safeParse(
@@ -225,6 +237,17 @@ export function createPaidFeatures(deps: PaidFeaturesDeps): PaidFeatures {
     gate,
     consent,
     usage,
+    allowsJudgeUse: async (modelId) => {
+      if (autoReviewPrice(modelId) === undefined) return false
+      const budget = dailyBudgetSchema.safeParse(
+        vscode.workspace.getConfiguration(SETTINGS_SECTION).get('paidDailyBudgetUsd'),
+      )
+      return await consent.allows({
+        feature: 'judge',
+        modelId,
+        dailyBudgetUsd: budget.success ? budget.data : 0,
+      })
+    },
     state: () => paidStateOf(gate, usage, deps.isKeyStored(), consent.remembered()),
     affects: (event) =>
       PAID_FEATURES.some((feature) =>

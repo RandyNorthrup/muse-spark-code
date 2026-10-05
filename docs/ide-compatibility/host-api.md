@@ -41,7 +41,7 @@ The VS Code adapter: 18 files. Everything else reaches VS Code only through them
 | `src/host/editor/verifyEditor.ts`          | 55                |
 | `src/host/memoryFeatures.ts`               | 17                |
 | `src/host/mention/mentionQuickPick.ts`     | 10                |
-| `src/host/paid/paidHost.ts`                | 11                |
+| `src/host/paid/paidHost.ts`                | 12                |
 | `src/host/popups.ts`                       | 2                 |
 | `src/host/quickPick.ts`                    | 5                 |
 | `src/host/views/ChatViewProvider.ts`       | 11                |
@@ -289,7 +289,7 @@ Functions, variables, classes, enums and members declared in `@types/vscode`; th
 | `WebviewView.webview`                                                                | `src/host/views/ChatViewProvider.ts`                                                                                                                                                                                    |
 | `WebviewViewProvider.resolveWebviewView`                                             | `src/host/views/ChatViewProvider.ts`                                                                                                                                                                                    |
 | `WindowState.focused`                                                                | `src/extension.ts`, `src/host/paid/paidHost.ts`                                                                                                                                                                         |
-| `WorkspaceConfiguration.get`                                                         | `src/extension.ts`, `src/host/editor/verifyEditor.ts`                                                                                                                                                                   |
+| `WorkspaceConfiguration.get`                                                         | `src/extension.ts`, `src/host/editor/verifyEditor.ts`, `src/host/paid/paidHost.ts`                                                                                                                                      |
 | `WorkspaceConfiguration.update`                                                      | `src/extension.ts`, `src/host/paid/paidHost.ts`                                                                                                                                                                         |
 | `WorkspaceEdit`                                                                      | `src/host/agentImportHost.ts`                                                                                                                                                                                           |
 | `WorkspaceEdit.entries`                                                              | `src/host/codeIntel/languageServices.ts`                                                                                                                                                                                |
@@ -355,7 +355,7 @@ Functions, variables, classes, enums and members declared in `@types/vscode`; th
 | ---------------------- | ----- |
 | `node:buffer`          | 27    |
 | `node:child_process`   | 9     |
-| `node:crypto`          | 32    |
+| `node:crypto`          | 33    |
 | `node:dns`             | 1     |
 | `node:dns/promises`    | 1     |
 | `node:fs`              | 24    |

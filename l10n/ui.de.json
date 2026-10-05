@@ -993,7 +993,8 @@
     "mcp__ide__renameSymbol": "Umbenennen",
     "auto_review": "Auto-Prüfung",
     "run_checks": "Prüfungen ausführen",
-    "verify_edits": "Änderungen prüfen"
+    "verify_edits": "Änderungen prüfen",
+    "judge": "Beurteiler"
   },
   "mcpToolLabel": "{tool} ({server})",
   "memoryScopes": {
@@ -1837,5 +1838,15 @@
   "agentImportIgnoredToTracked": "dadurch würde eine von Git ignorierte Datei in eine versionierte Datei kopiert",
   "agentImportEditPrompt": "Konvertierte Einträge in {path} als ungespeicherte Änderung zum Prüfen und Speichern öffnen? Speichern Sie sie nur unter diesem Pfad, nie in einer anderen Datei.",
   "agentImportEditAction": "Datei bearbeiten und öffnen",
-  "agentImportPreviewLegacyKey": "Die Datei verwendet den veralteten Schlüssel `mcp_servers`. Benennen Sie ihn in `mcpServers` um, wenn Sie diese hinzufügen: Muse Code lädt keinen von beiden, wenn beide vorhanden sind."
+  "agentImportPreviewLegacyKey": "Die Datei verwendet den veralteten Schlüssel `mcp_servers`. Benennen Sie ihn in `mcpServers` um, wenn Sie diese hinzufügen: Muse Code lädt keinen von beiden, wenn beide vorhanden sind.",
+  "judgeCaution": "Muse Judge empfiehlt Vorsicht. Sie entscheiden; er kann diese Aktion nicht genehmigen.",
+  "judgeSubscriptionNotice": "Muse Judge verwendet Ihr Chatmodell über Ihr Muse-Abonnement und zählt gegen dessen Limits. Jeder Stapel nutzt eine neue isolierte Sitzung im Planmodus. Eine Schutzfunktion bricht die Sitzung bei einem Werkzeugelement ab, kann aber nicht beweisen, dass kein Werkzeug ausgeführt wurde. Er kann nur zur Vorsicht raten.",
+  "judgeStatusSame": "Gleiches Modell",
+  "judgeStatusOff": "Aus",
+  "judgeStatusUnavailable": "Aus: Quelle nicht verfügbar oder dauerhafte Erlaubnisregeln",
+  "judgeStatusConsent": "Warten auf Zustimmung vor der ersten Zahlung",
+  "judgeStatusDeclined": "Aus: kostenpflichtige Nutzung abgelehnt",
+  "judgeStatusSlow": "Standardmäßig aus: zu wenige Ergebnisse beim Urteil des Prüfers bereit",
+  "judgeStatusSubscription": "Abonnement",
+  "judgeStatusPaid": "Kostenpflichtig"
 }

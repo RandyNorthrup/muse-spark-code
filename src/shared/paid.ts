@@ -49,6 +49,7 @@ export const paidTallySchema = z.object({
   bestOfNCostUsd: z.optional(z.number().check(z.nonnegative())),
   // Same-model judge calls this window (M98, PLAN.md D77); absent means none.
   judgeCalls: z.optional(z.int().check(z.nonnegative())),
+  judgeUnknownRequests: z.optional(z.int().check(z.nonnegative())),
   judgeTokens: z.optional(z.int().check(z.nonnegative())),
   judgeCostUsd: z.optional(z.number().check(z.nonnegative())),
 })
@@ -120,6 +121,7 @@ export type PaidState = z.infer<typeof paidStateSchema>
  * to search at all.
  */
 export type PaidUseRequest =
+  | { readonly feature: 'judge'; readonly modelId: string; readonly dailyBudgetUsd: number }
   | { readonly feature: 'webSearch' }
   | { readonly feature: 'voice' }
   | {

@@ -114,9 +114,8 @@ export class PaidFeatureGate {
       if (!isSettingOn && isAccepted) {
         await this.setAccepted(feature, false)
         this.deps.log.info(`Paid feature ${feature} turned off`)
-      } else if (isSettingOn && !isAccepted && !this.asking.has(feature)) {
+      } else if (isSettingOn && !isAccepted && feature !== 'judge' && !this.asking.has(feature))
         pending.push(feature)
-      }
     }
     this.notify()
     if (!this.deps.isWindowFocused()) {
@@ -126,6 +125,14 @@ export class PaidFeatureGate {
     for (const feature of pending) {
       await this.askFor(feature)
     }
+  }
+
+  /** M98: called only after the first-charge three-choice popup accepted the price. */
+  public async acceptJudgePrice(): Promise<boolean> {
+    if (!this.deps.isSettingOn('judge')) return false
+    await this.setAccepted('judge', true)
+    this.notify()
+    return this.isOn('judge')
   }
 
   /** The palette's toggle turning a feature on: the confirmation first, then the setting. */
@@ -225,7 +232,11 @@ export class PaidUsage {
         break
       }
       case 'judge': {
-        this.tally = { ...tally, judgeCalls: (tally.judgeCalls ?? 0) + units }
+        this.tally = {
+          ...tally,
+          judgeCalls: (tally.judgeCalls ?? 0) + units,
+          judgeUnknownRequests: (tally.judgeUnknownRequests ?? 0) + units,
+        }
         break
       }
     }
@@ -233,6 +244,20 @@ export class PaidUsage {
     for (const listener of this.listeners) {
       listener()
     }
+  }
+
+  /** One paid judge receipt, apart from main-thread tokens; unmatched receipts do nothing. */
+  public addJudgeUsage(modelId: string, usage: SubagentUsage): void {
+    const cost = reviewerCost(modelId, usage)
+    const unknown = this.tally.judgeUnknownRequests ?? 0
+    if (unknown === 0) return
+    this.tally = {
+      ...this.tally,
+      judgeUnknownRequests: unknown - 1,
+      judgeTokens: (this.tally.judgeTokens ?? 0) + usage.inputTokens + usage.outputTokens,
+      judgeCostUsd: (this.tally.judgeCostUsd ?? 0) + cost,
+    }
+    for (const listener of this.listeners) listener()
   }
 
   /** One Auto review's tokens and cost (M78), billed apart from the conversation. */

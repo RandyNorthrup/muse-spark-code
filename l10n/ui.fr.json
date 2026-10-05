@@ -1016,7 +1016,8 @@
     "mcp__ide__renameSymbol": "Renommer",
     "auto_review": "Revue auto",
     "run_checks": "Lancer les vérifications",
-    "verify_edits": "Vérifier les modifications"
+    "verify_edits": "Vérifier les modifications",
+    "judge": "Évaluateur"
   },
   "mcpToolLabel": "{tool} ({server})",
   "memoryScopes": {
@@ -1904,5 +1905,15 @@
   "agentImportIgnoredToTracked": "cela copierait un fichier ignoré par Git dans un fichier suivi",
   "agentImportEditPrompt": "Ouvrir les entrées converties dans {path} comme modification non enregistrée à vérifier et enregistrer ? Enregistrez-la uniquement à cet emplacement, jamais dans un autre fichier.",
   "agentImportEditAction": "Modifier et ouvrir le fichier",
-  "agentImportPreviewLegacyKey": "Le fichier utilise l’ancienne clé `mcp_servers`. Renommez-la en `mcpServers` en ajoutant ceux-ci : Muse Code ne charge ni l’une ni l’autre quand les deux sont présentes."
+  "agentImportPreviewLegacyKey": "Le fichier utilise l’ancienne clé `mcp_servers`. Renommez-la en `mcpServers` en ajoutant ceux-ci : Muse Code ne charge ni l’une ni l’autre quand les deux sont présentes.",
+  "judgeCaution": "Muse Judge recommande la prudence. Vous décidez ; il ne peut pas autoriser cette action.",
+  "judgeSubscriptionNotice": "Muse Judge utilise votre modèle de discussion via votre abonnement Muse et compte dans ses limites. Chaque lot utilise une nouvelle session isolée en mode Plan. Une protection annule la session lorsqu’un outil est détecté, mais ne peut pas prouver qu’aucun outil n’a été exécuté. Il peut seulement recommander la prudence.",
+  "judgeStatusSame": "Même modèle",
+  "judgeStatusOff": "Désactivé",
+  "judgeStatusUnavailable": "Désactivé : source indisponible ou règles d’autorisation permanente",
+  "judgeStatusConsent": "En attente du consentement avant la première facturation",
+  "judgeStatusDeclined": "Désactivé : utilisation payante refusée",
+  "judgeStatusSlow": "Désactivé par défaut : trop peu de résultats prêts au verdict du réviseur",
+  "judgeStatusSubscription": "Abonnement",
+  "judgeStatusPaid": "Payant"
 }

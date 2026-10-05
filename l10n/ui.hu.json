@@ -993,7 +993,8 @@
     "mcp__ide__renameSymbol": "Átnevezés",
     "auto_review": "Automatikus ellenőrzés",
     "run_checks": "Ellenőrzések futtatása",
-    "verify_edits": "Szerkesztések ellenőrzése"
+    "verify_edits": "Szerkesztések ellenőrzése",
+    "judge": "Értékelő"
   },
   "mcpToolLabel": "{tool} ({server})",
   "memoryScopes": {
@@ -1837,5 +1838,15 @@
   "agentImportIgnoredToTracked": "ez Git által figyelmen kívül hagyott fájlt másolna egy követett fájlba",
   "agentImportEditPrompt": "Megnyitja az átalakított bejegyzéseket itt: {path}, nem mentett módosításként, ellenőrzésre és mentésre? Csak erre az útvonalra mentse, soha ne másik fájlba.",
   "agentImportEditAction": "Fájl szerkesztése és megnyitása",
-  "agentImportPreviewLegacyKey": "A fájl az elavult `mcp_servers` kulcsot használja. Ezek hozzáadásakor nevezze át `mcpServers` névre: ha mindkettő jelen van, a Muse Code egyiket sem tölti be."
+  "agentImportPreviewLegacyKey": "A fájl az elavult `mcp_servers` kulcsot használja. Ezek hozzáadásakor nevezze át `mcpServers` névre: ha mindkettő jelen van, a Muse Code egyiket sem tölti be.",
+  "judgeCaution": "A Muse Judge óvatosságot javasol. Ön dönt; nem hagyhatja jóvá ezt a műveletet.",
+  "judgeSubscriptionNotice": "A Muse Judge az Ön csevegési modelljét használja a Muse-előfizetésével, és beleszámít annak korlátjaiba. Minden köteg új, elkülönített munkamenetet használ Terv módban. Az eszközészlelési védelem megszakítja a munkamenetet, de nem bizonyíthatja, hogy egyetlen eszköz sem futott. Csak óvatosságot javasolhat.",
+  "judgeStatusSame": "Ugyanaz a modell",
+  "judgeStatusOff": "Kikapcsolva",
+  "judgeStatusUnavailable": "Kikapcsolva: a forrás nem elérhető vagy állandó engedélyezési szabályok vannak",
+  "judgeStatusConsent": "Hozzájárulásra vár az első díj előtt",
+  "judgeStatusDeclined": "Kikapcsolva: a fizetős használat elutasítva",
+  "judgeStatusSlow": "Alapértelmezetten kikapcsolva: túl kevés eredmény kész az ellenőr döntésekor",
+  "judgeStatusSubscription": "Előfizetés",
+  "judgeStatusPaid": "Fizetős"
 }

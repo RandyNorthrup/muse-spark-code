@@ -1039,7 +1039,8 @@
     "mcp__ide__renameSymbol": "Zmiana nazwy",
     "auto_review": "Automatyczna ocena",
     "run_checks": "Uruchom sprawdzenia",
-    "verify_edits": "Sprawdź edycje"
+    "verify_edits": "Sprawdź edycje",
+    "judge": "Oceniający"
   },
   "mcpToolLabel": "{tool} ({server})",
   "memoryScopes": {
@@ -1971,5 +1972,15 @@
   "agentImportIgnoredToTracked": "spowodowałoby to skopiowanie pliku ignorowanego przez Git do pliku śledzonego",
   "agentImportEditPrompt": "Otworzyć przekonwertowane wpisy w {path} jako niezapisaną zmianę do przejrzenia i zapisania? Zapisz ją tylko pod tą ścieżką, nigdy w innym pliku.",
   "agentImportEditAction": "Edytuj i otwórz plik",
-  "agentImportPreviewLegacyKey": "Plik używa starego klucza `mcp_servers`. Zmień jego nazwę na `mcpServers`, dodając te wpisy: Muse Code nie wczytuje żadnego, gdy oba są obecne."
+  "agentImportPreviewLegacyKey": "Plik używa starego klucza `mcp_servers`. Zmień jego nazwę na `mcpServers`, dodając te wpisy: Muse Code nie wczytuje żadnego, gdy oba są obecne.",
+  "judgeCaution": "Muse Judge zaleca ostrożność. Decyzja należy do Ciebie; nie może zatwierdzić tej czynności.",
+  "judgeSubscriptionNotice": "Muse Judge używa Twojego modelu czatu w ramach subskrypcji Muse i zużywa jej limity. Każda partia korzysta z nowej, odizolowanej sesji w trybie Planu. Zabezpieczenie anuluje sesję po wykryciu narzędzia, ale nie może dowieść, że żadne narzędzie nie zostało uruchomione. Może tylko zalecać ostrożność.",
+  "judgeStatusSame": "Ten sam model",
+  "judgeStatusOff": "Wyłączony",
+  "judgeStatusUnavailable": "Wyłączony: źródło niedostępne lub trwałe reguły zezwalania",
+  "judgeStatusConsent": "Oczekiwanie na zgodę przed pierwszą opłatą",
+  "judgeStatusDeclined": "Wyłączony: odmówiono płatnego użycia",
+  "judgeStatusSlow": "Domyślnie wyłączony: zbyt mało wyników gotowych w chwili decyzji recenzenta",
+  "judgeStatusSubscription": "Subskrypcja",
+  "judgeStatusPaid": "Płatne"
 }

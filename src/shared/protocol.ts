@@ -34,6 +34,7 @@ import {
   WEBVIEW_ERROR_SOURCES,
   WEBVIEW_ERROR_STACK_MAX_CHARS,
 } from './constants'
+import { judgeStatusSchema } from './judge'
 import { paidStateSchema } from './paid'
 import { patchHunkSchema } from './patchDocument'
 import { reviewRequestSchema } from './reviewCommand'
@@ -721,6 +722,7 @@ const hostToWebviewMessageSchema = z.discriminatedUnion('type', [
   // D30): the composer's badge, the palette's toggles and the usage dialog.
   // Sent on surfaceReady and on every change.
   z.object({ type: z.literal('paidState'), state: paidStateSchema }),
+  z.object({ type: z.literal('judgeState'), state: judgeStatusSchema }),
   // A message the host sent itself (M79: a plan's brief): the pending card,
   // as the composer's own Send would have made it. `turnAccepted` or
   // `sendFailed` follows with the same `localId`.

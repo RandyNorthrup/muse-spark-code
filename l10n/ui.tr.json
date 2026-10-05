@@ -993,7 +993,8 @@
     "mcp__ide__renameSymbol": "Yeniden adlandır",
     "auto_review": "Otomatik inceleme",
     "run_checks": "Denetimleri çalıştır",
-    "verify_edits": "Düzenlemeleri denetle"
+    "verify_edits": "Düzenlemeleri denetle",
+    "judge": "Değerlendirici"
   },
   "mcpToolLabel": "{tool} ({server})",
   "memoryScopes": {
@@ -1837,5 +1838,15 @@
   "agentImportIgnoredToTracked": "bu, Git tarafından yok sayılan bir dosyayı izlenen bir dosyaya kopyalar",
   "agentImportEditPrompt": "Dönüştürülen girdiler {path} içinde inceleyip kaydetmeniz için kaydedilmemiş bir düzenleme olarak açılsın mı? Yalnızca bu yola kaydedin, asla başka bir dosyaya kaydetmeyin.",
   "agentImportEditAction": "Dosyayı düzenle ve aç",
-  "agentImportPreviewLegacyKey": "Dosya eski `mcp_servers` anahtarını kullanıyor. Bunları eklerken adını `mcpServers` olarak değiştirin: ikisi birden olduğunda Muse Code hiçbirini yüklemez."
+  "agentImportPreviewLegacyKey": "Dosya eski `mcp_servers` anahtarını kullanıyor. Bunları eklerken adını `mcpServers` olarak değiştirin: ikisi birden olduğunda Muse Code hiçbirini yüklemez.",
+  "judgeCaution": "Muse Judge dikkatli olmanızı öneriyor. Kararı siz verirsiniz; bu eylemi onaylayamaz.",
+  "judgeSubscriptionNotice": "Muse Judge, Muse aboneliğiniz üzerinden sohbet modelinizi kullanır ve abonelik sınırlarını tüketir. Her toplu işlem, Plan modunda yeni ve yalıtılmış bir oturum kullanır. Araç algılama koruması oturumu iptal eder ancak hiçbir aracın çalışmadığını kanıtlayamaz. Yalnızca dikkatli olmanızı önerebilir.",
+  "judgeStatusSame": "Aynı model",
+  "judgeStatusOff": "Kapalı",
+  "judgeStatusUnavailable": "Kapalı: kaynak kullanılamıyor veya kalıcı izin kuralları var",
+  "judgeStatusConsent": "İlk ücretlendirme öncesinde onay bekleniyor",
+  "judgeStatusDeclined": "Kapalı: ücretli kullanım reddedildi",
+  "judgeStatusSlow": "Varsayılan olarak kapalı: inceleyici kararında çok az sonuç hazır",
+  "judgeStatusSubscription": "Abonelik",
+  "judgeStatusPaid": "Ücretli"
 }

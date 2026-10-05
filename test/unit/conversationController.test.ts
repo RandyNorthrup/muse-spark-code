@@ -86,6 +86,7 @@ import {
   EVENT_LOG_TURN_REASON,
   eventLogFault,
 } from './helpers/cliRecoveryCapture'
+import { judgeUseRig } from './helpers/judgeUseRig'
 import { FakeLogOutputChannel, fakeSurface } from './helpers/fakes'
 import {
   ledgerFault,
@@ -387,6 +388,7 @@ function setup(
     timeouts?: CommandTimeouts
     /** The window's Auto reviewer on Muse Code (M90). */
     museCodeReviewer?: ConversationDeps['museCodeReviewer']
+    judge?: ConversationDeps['judge']
   } = {},
 ) {
   const planFiles = fakePlanFiles()
@@ -589,6 +591,7 @@ function setup(
   }
   const deps: ConversationDeps = {
     surface,
+    judge: options.judge,
     checkpoints,
     unsavedPaths: () => unsaved.files.map((file) => `/ws/${file}`),
     confirmFileAction: async (title) => {
@@ -13235,5 +13238,78 @@ describe('ConversationController: the Auto reviewer on Muse Code (M90, PLAN.md D
     expect(
       JSON.stringify(t.surface.posted.findLast((message) => message.type === 'sessionList')),
     ).not.toContain(sideSession)
+  })
+})
+
+async function judgeConversation(mode: ConversationDeps['initialPermissionMode']) {
+  const judge = judgeUseRig()
+  const t = setup({ initialPermissionMode: mode, hasApprovalUi: true, judge: judge.judge })
+  acceptApprovalDecisions(t)
+  await t.send('l1', 'Count the lines in notes.md')
+  t.server.notify('turn/started', { sessionId: 's1', turnId: 't1', viewCursor: 'v' })
+  await settle()
+  return { ...t, judge }
+}
+
+async function asking() {
+  const t = await judgeConversation('auto')
+  t.server.notify('approval/requested', { ...raceRequested('s1'), turnId: 't1' })
+  await settle()
+  return t
+}
+
+describe('ConversationController: Muse Judge card lifecycle (M98-U)', () => {
+  it('renders the native card immediately, then adds only a caution', async () => {
+    const t = await asking()
+    expect(agentEvents(t).filter((e) => e.type === 'approvalRequested')).toHaveLength(1)
+    await vi.waitFor(() => {
+      expect(t.judge.jobs).toHaveLength(1)
+    })
+    t.judge.settle('caution')
+    expect(agentEvents(t).filter((e) => e.type === 'approvalCaution')).toHaveLength(1)
+    expect(t.server.requestsFor('approval/decide')).toHaveLength(0)
+    t.controller.dispose()
+  })
+
+  it('drops the advisory as soon as the user answers', async () => {
+    const t = await asking()
+    await vi.waitFor(() => {
+      expect(t.judge.jobs).toHaveLength(1)
+    })
+    await t.controller.handle({
+      type: 'decideApproval',
+      approvalId: RACE_APPROVAL_ID,
+      requirementId: { approvalId: RACE_APPROVAL_ID, sourceIndex: 0 },
+      choiceId: 'allow_once',
+    })
+    await settle()
+    expect(t.judge.settle('caution')).toBe(false)
+    expect(agentEvents(t).filter((e) => e.type === 'approvalCaution')).toHaveLength(0)
+    t.controller.dispose()
+  })
+
+  it('drops pending card work when the surface is disposed', async () => {
+    const t = await asking()
+    await vi.waitFor(() => {
+      expect(t.judge.jobs).toHaveLength(1)
+    })
+    t.controller.dispose()
+    expect(t.judge.settle('caution')).toBe(false)
+    expect(agentEvents(t).filter((e) => e.type === 'approvalCaution')).toHaveLength(0)
+  })
+
+  it('never starts Judge for an immediate native allow in Edit automatically', async () => {
+    const t = await judgeConversation('acceptEdits')
+    t.server.notify('approval/requested', {
+      ...raceRequested('s1'),
+      turnId: 't1',
+      toolName: 'write',
+      rawArgs: '{}',
+      subject: { kind: 'fileAccess', access: 'write', path: '/ws/a.ts' },
+    })
+    await settle()
+    expect(t.judge.prepare).not.toHaveBeenCalled()
+    expect(t.server.requestsFor('approval/decide')).toHaveLength(1)
+    t.controller.dispose()
   })
 })

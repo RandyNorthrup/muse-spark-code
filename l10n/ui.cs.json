@@ -1039,7 +1039,8 @@
     "mcp__ide__renameSymbol": "Přejmenování",
     "auto_review": "Automatická kontrola",
     "run_checks": "Spustit kontroly",
-    "verify_edits": "Kontrola úprav"
+    "verify_edits": "Kontrola úprav",
+    "judge": "Posuzovatel"
   },
   "mcpToolLabel": "{tool} ({server})",
   "memoryScopes": {
@@ -1971,5 +1972,15 @@
   "agentImportIgnoredToTracked": "tím by se soubor ignorovaný Gitem zkopíroval do sledovaného souboru",
   "agentImportEditPrompt": "Otevřít převedené položky v {path} jako neuloženou úpravu ke kontrole a uložení? Uložte ji pouze do této cesty, nikdy do jiného souboru.",
   "agentImportEditAction": "Upravit a otevřít soubor",
-  "agentImportPreviewLegacyKey": "Soubor používá starý klíč `mcp_servers`. Při přidávání těchto položek jej přejmenujte na `mcpServers`: když jsou přítomny oba, Muse Code nenačte ani jeden."
+  "agentImportPreviewLegacyKey": "Soubor používá starý klíč `mcp_servers`. Při přidávání těchto položek jej přejmenujte na `mcpServers`: když jsou přítomny oba, Muse Code nenačte ani jeden.",
+  "judgeCaution": "Muse Judge doporučuje opatrnost. Rozhodujete vy; tuto akci nemůže schválit.",
+  "judgeSubscriptionNotice": "Muse Judge používá váš chatovací model v rámci předplatného Muse a čerpá jeho limity. Každá dávka používá novou izolovanou relaci v režimu Plán. Ochrana při zjištění nástroje relaci zruší, ale nemůže prokázat, že se žádný nástroj nespustil. Může pouze doporučit opatrnost.",
+  "judgeStatusSame": "Stejný model",
+  "judgeStatusOff": "Vypnuto",
+  "judgeStatusUnavailable": "Vypnuto: zdroj není dostupný nebo existují trvalá pravidla povolení",
+  "judgeStatusConsent": "Čeká na souhlas s první platbou",
+  "judgeStatusDeclined": "Vypnuto: placené použití odmítnuto",
+  "judgeStatusSlow": "Ve výchozím nastavení vypnuto: příliš málo výsledků připravených při rozhodnutí kontrolora",
+  "judgeStatusSubscription": "Předplatné",
+  "judgeStatusPaid": "Placené"
 }

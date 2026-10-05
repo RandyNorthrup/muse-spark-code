@@ -1465,6 +1465,59 @@
             isProtectedWrite: false,
           })
         },
+        // --- M98-U: caution-only card and the backend's resolved Judge mode ---
+        judge: () => {
+          steps.approval()
+          send({
+            type: 'judgeState',
+            state: {
+              mode: 'same',
+              reason: 'auto-same',
+              modelId: 'muse-spark-1.3',
+              billing: 'subscription',
+            },
+          })
+          event({
+            type: 'approvalCaution',
+            approvalId: 'a1',
+            requirementId: { approvalId: 'a1', sourceIndex: 0 },
+          })
+        },
+        'judge-narrow': () => {
+          document.body.style.maxWidth = '320px'
+          steps.judge()
+        },
+        'judge-slow': () => {
+          steps.approval()
+          send({
+            type: 'judgeState',
+            state: {
+              mode: 'off',
+              reason: 'ready-rate-low',
+              modelId: 'muse-spark-1.3',
+              billing: 'modelApi',
+            },
+          })
+        },
+        'judge-usage': () => {
+          steps['paid-subagent-usage']()
+          window.harnessPaid = {
+            features: ['judge'],
+            isKeyStored: true,
+            alwaysAllowed: [],
+            tally: {
+              webSearches: 0,
+              images: 0,
+              voiceSeconds: 0,
+              scheduledRuns: 0,
+              judgeCalls: 2,
+              judgeTokens: 1100,
+              judgeCostUsd: 0.001125,
+              judgeUnknownRequests: 1,
+            },
+          }
+          send({ type: 'paidState', state: window.harnessPaid })
+        },
         // --- D26: three approvals waiting; the oldest is docked, with the count ---
         'approval-several': () => {
           steps.approval()

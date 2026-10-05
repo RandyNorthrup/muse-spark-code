@@ -188,6 +188,7 @@ import { fingerprint } from '../../verify/fingerprint'
 import type { McpTool } from '../../mcp'
 import type { WebFetcher, WebFetchResult } from '../../web/webFetch'
 import type { WebFetchFailure } from '../../web/fetchFailure'
+import type { JudgeAdvisory, JudgeFence } from '../../judge/use'
 import { approvalHost } from '../../web/hostName'
 import { checkPageUrl } from '../../web/pageUrl'
 import { IndexLineStoppedError, type MemoryStore } from '../../memory/memoryStore'
@@ -390,6 +391,8 @@ export interface ModelApiPaidHooks {
 }
 
 export interface ModelApiHostDeps extends ModelApiPaidHooks {
+  /** M98: injected same-model source; all paid dispatch admitted by lane A. */
+  readonly judge?: JudgeAdvisory | undefined
   readonly client: ModelApiClient
   readonly workspaceRoot: string
   readonly platform: NodeJS.Platform
@@ -1255,7 +1258,8 @@ function childTaskFailure(kind: ChildTaskRefusal): ToolOutcome {
 /** A refused tool call, with the user's answer when they gave one. */
 /** What the Auto reviewer made of an ask (M78): run the call, or show the card with why. */
 type ReviewedAsk =
-  { readonly decision: 'allow' } | { readonly decision: 'ask'; readonly note: string }
+  | { readonly decision: 'allow' }
+  | { readonly decision: 'ask'; readonly note: string | undefined; readonly judgeCaution?: boolean }
 
 /** Why a card asks beyond the mode, as the card says under the command (M78). */
 function cardNote(judgement: PermissionJudgement | undefined): string | undefined {
@@ -1691,6 +1695,7 @@ export class ModelApiSession implements AgentSession {
   private repoMapText: string | undefined
   private repoMapPolicy: PermissionPolicy['files'] | undefined
   private repoMapTries = 0
+  private readonly judgeCardFences = new Map<string, JudgeFence>()
   private readonly pendingApprovals = new Map<string, Pending<ApprovalDecision>>()
   /** Live cards for a second surface joining while a decision is still pending. */
   private readonly pendingApprovalEvents = new Map<
@@ -3833,6 +3838,7 @@ export class ModelApiSession implements AgentSession {
       availableChoices: [...choicesFor(call.name, query.command, judgement.hasSessionChoice)],
       isJudgeEscalated: requiresUserApproval || review !== undefined,
       isProtectedWrite: query.isProtected === true,
+      ...(review?.decision === 'ask' && review.judgeCaution === true && { judgeCaution: true }),
       ...(note !== undefined && { note }),
       ...(this.agent?.permissionMode !== undefined && {
         permissionMode: this.agent.permissionMode,
@@ -3840,13 +3846,32 @@ export class ModelApiSession implements AgentSession {
     }
     let decision: ApprovalDecision
     const stopNotifying = this.notifyWhileAsking(call, signal)
+    let caution: JudgeFence | undefined
     try {
       decision = await waitFor<ApprovalDecision>(signal, (pending) => {
         this.pendingApprovals.set(approvalId, pending)
         this.pendingApprovalEvents.set(approvalId, request)
         this.emit(request)
+        if (review !== undefined) {
+          return
+        }
+
+        caution = this.startJudge(call)
+        if (caution !== undefined) this.judgeCardFences.set(approvalId, caution)
+        caution?.card(() => {
+          if (
+            this.judgeCardFences.get(approvalId) !== caution ||
+            !this.pendingApprovals.has(approvalId) ||
+            signal.aborted
+          )
+            return
+          this.pendingApprovalEvents.set(approvalId, { ...request, judgeCaution: true })
+          this.emit({ type: 'approvalCaution', approvalId, requirementId: request.requirementId })
+        })
       })
     } finally {
+      caution?.discard()
+      this.judgeCardFences.delete(approvalId)
       this.pendingApprovalEvents.delete(approvalId)
       this.pendingApprovals.delete(approvalId)
       stopNotifying()
@@ -3961,47 +3986,93 @@ export class ModelApiSession implements AgentSession {
     }
     if (!isCurrent()) return undefined
     const turnId = this.active?.turnId ?? this.turnIds.at(-1) ?? this.sessionId
-    return await reviewPaidCall(
+    const caution = this.startJudge(call)
+    let outcome: ReviewedAsk
+    try {
+      outcome = await reviewPaidCall(
+        {
+          deps: this.deps,
+          table: UI_TEXT,
+          locale: uiLocale(),
+          breaker: this.reviewBreaker,
+          userRequest: this.lastUserText(),
+          recentCalls: this.recentCalls(turnId),
+          keyed: (request) => this.keyed(request),
+          guard: (body, budget) => this.responseAttemptGuard(body, budget),
+          isCountedUsage,
+          abortError: () => new AbortedError(),
+          isRefused: (error) =>
+            error instanceof ModelApiError &&
+            (error.status === HTTP_STATUS.badRequest || error.status === HTTP_TOO_MANY_REQUESTS),
+          emit: (event) => {
+            this.emit(event)
+          },
+          record: (item, isStarted) => {
+            if (isStarted) this.recordTranscript(turnId, item)
+            else this.rerecordTranscript(item)
+          },
+        },
+        call.name,
+        action,
+        turnId,
+        signal,
+        {
+          modelId,
+          keyDigest,
+          isStillAllowed: () =>
+            isCurrent() &&
+            (budgetScope === undefined
+              ? this.deps.sessionBudgetUsd() === 0
+              : budgetScope.isStillAllowed(keyDigest)),
+          onRequestStarted: () => {
+            this.deps.notePaidUse('autoReviewer', 1)
+          },
+        },
+        budgetScope,
+        isCurrent,
+      )
+    } catch (error: unknown) {
+      caution?.discard()
+      throw error
+    }
+    const hasJudgeCaution = caution?.read() === 'caution'
+    return hasJudgeCaution
+      ? {
+          decision: 'ask',
+          note: outcome.decision === 'ask' ? outcome.note : undefined,
+          judgeCaution: true,
+        }
+      : outcome
+  }
+
+  private startJudge(call: FunctionCallItem): JudgeFence | undefined {
+    if (
+      this.permissions.currentMode !== 'onRequest' ||
+      this.isSubagent ||
+      this.isSideChat ||
+      this.active === undefined
+    )
+      return undefined
+    let args: unknown
+    try {
+      args = JSON.parse(call.arguments)
+    } catch {
+      return undefined
+    }
+    return this.deps.judge?.start(
       {
-        deps: this.deps,
-        table: UI_TEXT,
-        locale: uiLocale(),
-        breaker: this.reviewBreaker,
+        backend: 'modelApi',
+        sessionId: this.sessionId,
+        turnId: this.active.turnId,
+        tool: call.name,
+        args,
+      },
+      JSON.stringify({
         userRequest: this.lastUserText(),
-        recentCalls: this.recentCalls(turnId),
-        keyed: (request) => this.keyed(request),
-        guard: (body, budget) => this.responseAttemptGuard(body, budget),
-        isCountedUsage,
-        abortError: () => new AbortedError(),
-        isRefused: (error) =>
-          error instanceof ModelApiError &&
-          (error.status === HTTP_STATUS.badRequest || error.status === HTTP_TOO_MANY_REQUESTS),
-        emit: (event) => {
-          this.emit(event)
-        },
-        record: (item, isStarted) => {
-          if (isStarted) this.recordTranscript(turnId, item)
-          else this.rerecordTranscript(item)
-        },
-      },
-      call.name,
-      action,
-      turnId,
-      signal,
-      {
-        modelId,
-        keyDigest,
-        isStillAllowed: () =>
-          isCurrent() &&
-          (budgetScope === undefined
-            ? this.deps.sessionBudgetUsd() === 0
-            : budgetScope.isStillAllowed(keyDigest)),
-        onRequestStarted: () => {
-          this.deps.notePaidUse('autoReviewer', 1)
-        },
-      },
-      budgetScope,
-      isCurrent,
+        recentCalls: this.recentCalls(this.active.turnId),
+        tool: call.name,
+        args,
+      }),
     )
   }
 
@@ -8503,6 +8574,7 @@ export class ModelApiSession implements AgentSession {
         `The turn checkpoint could not be ended: ${error instanceof Error ? error.name : 'unknown failure'}`,
       )
     }
+    this.deps.judge?.discardTurn(this.sessionId, turn.turnId)
     this.active = undefined
     this.status = IDLE
     this.turnCount += 1
@@ -9189,6 +9261,7 @@ export class ModelApiSession implements AgentSession {
    * is ended with a reason instead of vanishing (D26).
    */
   public cancel(): Promise<void> {
+    this.deps.judge?.discardSession(this.sessionId)
     for (const dropped of this.queuedTurns.splice(0)) {
       this.emit({
         type: 'turnWithdrawn',
@@ -9209,6 +9282,7 @@ export class ModelApiSession implements AgentSession {
   }
 
   public setModel(modelId: string): Promise<void> {
+    this.deps.judge?.discardSession(this.sessionId)
     this.modelId = modelId
     this.modelRevision += 1
     // Another model may count the same request differently (M82).
@@ -9235,6 +9309,7 @@ export class ModelApiSession implements AgentSession {
     if (approvalMode === undefined) {
       return Promise.reject(new Error(`unknown approval mode ${mode}`))
     }
+    this.deps.judge?.discardSession(this.sessionId)
     // A custom agent's ceiling survives a session mode switch (M76 review):
     // the child re-narrows instead of running wider than its definition.
     this.permissions.setMode(
@@ -9288,6 +9363,8 @@ export class ModelApiSession implements AgentSession {
     if (!isKnownChoice(decision.choiceId)) {
       return Promise.reject(new Error(`unknown choice ${decision.choiceId}`))
     }
+    this.judgeCardFences.get(decision.approvalId)?.discard()
+    this.judgeCardFences.delete(decision.approvalId)
     pending.resolve(decision)
     return Promise.resolve()
   }

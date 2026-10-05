@@ -1016,7 +1016,8 @@
     "mcp__ide__renameSymbol": "Rinomina",
     "auto_review": "Revisione automatica",
     "run_checks": "Esegui controlli",
-    "verify_edits": "Controlla modifiche"
+    "verify_edits": "Controlla modifiche",
+    "judge": "Valutatore"
   },
   "mcpToolLabel": "{tool} ({server})",
   "memoryScopes": {
@@ -1904,5 +1905,15 @@
   "agentImportIgnoredToTracked": "questo copierebbe un file ignorato da Git in un file tracciato",
   "agentImportEditPrompt": "Aprire le voci convertite in {path} come modifica non salvata da controllare e salvare? Salvarla solo in quel percorso, mai in un altro file.",
   "agentImportEditAction": "Modifica e apri il file",
-  "agentImportPreviewLegacyKey": "Il file usa la vecchia chiave `mcp_servers`. Rinominala in `mcpServers` quando aggiungi questi: Muse Code non carica nessuna delle due se sono presenti entrambe."
+  "agentImportPreviewLegacyKey": "Il file usa la vecchia chiave `mcp_servers`. Rinominala in `mcpServers` quando aggiungi questi: Muse Code non carica nessuna delle due se sono presenti entrambe.",
+  "judgeCaution": "Muse Judge suggerisce cautela. Decidi tu; non può approvare questa azione.",
+  "judgeSubscriptionNotice": "Muse Judge usa il tuo modello di chat tramite l’abbonamento Muse e ne consuma i limiti. Ogni gruppo usa una nuova sessione isolata in modalità Piano. Una protezione annulla la sessione quando rileva uno strumento, ma non può dimostrare che nessuno strumento sia stato eseguito. Può solo suggerire cautela.",
+  "judgeStatusSame": "Stesso modello",
+  "judgeStatusOff": "Disattivato",
+  "judgeStatusUnavailable": "Disattivato: fonte non disponibile o regole di autorizzazione permanente",
+  "judgeStatusConsent": "In attesa del consenso prima del primo addebito",
+  "judgeStatusDeclined": "Disattivato: uso a pagamento rifiutato",
+  "judgeStatusSlow": "Disattivato per impostazione predefinita: pochi risultati pronti al verdetto del revisore",
+  "judgeStatusSubscription": "Abbonamento",
+  "judgeStatusPaid": "A pagamento"
 }

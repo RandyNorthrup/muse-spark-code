@@ -1,3 +1,4 @@
+import { JudgeStatusLine } from './components/JudgeStatusLine'
 import {
   type ReactNode,
   useCallback,
@@ -2079,6 +2080,7 @@ export function App({
       )}
       <div className="composer-area" inert={isModalOpen}>
         {floating}
+        <JudgeStatusLine status={state.judge} />
         <Composer
           draft={state.draft}
           placeholder={state.composerPlaceholder}

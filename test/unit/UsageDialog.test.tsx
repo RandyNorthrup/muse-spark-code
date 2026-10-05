@@ -571,3 +571,51 @@ describe('UsageDialog: paid features (M33, PLAN.md D30)', () => {
     expect(dialog).toHaveTextContent('Estimated paid total$0.0400')
   })
 })
+
+describe('M98 Judge usage row', () => {
+  it('shows paid judge calls, known tokens, costs and retained unknown calls', () => {
+    renderDialog({
+      ...modelApiCostCase(),
+      paid: {
+        features: ['judge'],
+        isKeyStored: true,
+        alwaysAllowed: [],
+        tally: {
+          ...EMPTY_PAID_TALLY,
+          judgeCalls: 2,
+          judgeUnknownRequests: 1,
+          judgeTokens: 1100,
+          judgeCostUsd: 0.001125,
+        },
+      },
+    })
+    expect(screen.getByText('Judge (on)')).toBeVisible()
+    expect(screen.getByText(/2 judgments/)).toHaveTextContent('1,100 tokens')
+    expect(screen.getByText(/1 request has no reported cost yet/)).toBeVisible()
+  })
+
+  it('does not present an unknown judge bill as zero', () => {
+    renderDialog({
+      ...modelApiCostCase(),
+      paid: {
+        features: ['judge'],
+        isKeyStored: true,
+        alwaysAllowed: [],
+        tally: { ...EMPTY_PAID_TALLY, judgeCalls: 1, judgeUnknownRequests: 1 },
+      },
+    })
+    expect(screen.getByText(/1 judgment/)).not.toHaveTextContent('$0.000')
+  })
+
+  it('never shows subscription judging as a paid key feature', () => {
+    renderDialog({
+      paid: {
+        features: ['judge'],
+        isKeyStored: false,
+        alwaysAllowed: [],
+        tally: { ...EMPTY_PAID_TALLY },
+      },
+    })
+    expect(screen.queryByText('Judge (on)')).toBeNull()
+  })
+})

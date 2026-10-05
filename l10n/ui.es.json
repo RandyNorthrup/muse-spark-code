@@ -1016,7 +1016,8 @@
     "mcp__ide__renameSymbol": "Cambiar nombre",
     "auto_review": "Revisión automática",
     "run_checks": "Ejecutar comprobaciones",
-    "verify_edits": "Comprobar ediciones"
+    "verify_edits": "Comprobar ediciones",
+    "judge": "Evaluador"
   },
   "mcpToolLabel": "{tool} ({server})",
   "memoryScopes": {
@@ -1904,5 +1905,15 @@
   "agentImportIgnoredToTracked": "esto copiaría un archivo ignorado por Git a uno con seguimiento",
   "agentImportEditPrompt": "¿Abrir las entradas convertidas en {path} como una edición sin guardar para revisarla y guardarla? Guárdela solo en esa ruta, nunca en otro archivo.",
   "agentImportEditAction": "Editar y abrir el archivo",
-  "agentImportPreviewLegacyKey": "El archivo usa la clave antigua `mcp_servers`. Cámbiele el nombre a `mcpServers` al añadir estos: Muse Code no carga ninguna de las dos cuando están ambas."
+  "agentImportPreviewLegacyKey": "El archivo usa la clave antigua `mcp_servers`. Cámbiele el nombre a `mcpServers` al añadir estos: Muse Code no carga ninguna de las dos cuando están ambas.",
+  "judgeCaution": "Muse Judge recomienda precaución. Tú decides; no puede aprobar esta acción.",
+  "judgeSubscriptionNotice": "Muse Judge usa tu modelo de chat con tu suscripción a Muse y cuenta para sus límites. Cada lote usa una sesión nueva y aislada en modo Plan. Una protección cancela la sesión al detectar una herramienta, pero no puede demostrar que ninguna herramienta se ejecutó. Solo puede recomendar precaución.",
+  "judgeStatusSame": "Mismo modelo",
+  "judgeStatusOff": "Desactivado",
+  "judgeStatusUnavailable": "Desactivado: fuente no disponible o reglas de autorización permanente",
+  "judgeStatusConsent": "Esperando consentimiento antes del primer cobro",
+  "judgeStatusDeclined": "Desactivado: uso de pago rechazado",
+  "judgeStatusSlow": "Desactivado por defecto: pocos resultados listos al decidir el revisor",
+  "judgeStatusSubscription": "Suscripción",
+  "judgeStatusPaid": "De pago"
 }

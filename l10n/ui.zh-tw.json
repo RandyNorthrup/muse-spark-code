@@ -970,7 +970,8 @@
     "mcp__ide__renameSymbol": "重新命名",
     "auto_review": "自動審查",
     "run_checks": "執行檢查",
-    "verify_edits": "檢查編輯"
+    "verify_edits": "檢查編輯",
+    "judge": "評判器"
   },
   "mcpToolLabel": "{tool}（{server}）",
   "memoryScopes": {
@@ -1770,5 +1771,15 @@
   "agentImportIgnoredToTracked": "這會將 Git 忽略的檔案複製到受追蹤的檔案中",
   "agentImportEditPrompt": "將轉換後的項目在 {path} 中作為未儲存的編輯開啟，以供檢查和儲存？請只儲存到該路徑，切勿儲存到其他檔案。",
   "agentImportEditAction": "編輯並開啟檔案",
-  "agentImportPreviewLegacyKey": "此檔案使用舊版 `mcp_servers` 索引鍵。新增這些項目時請將其重新命名為 `mcpServers`：兩者同時存在時 Muse Code 都不會載入。"
+  "agentImportPreviewLegacyKey": "此檔案使用舊版 `mcp_servers` 索引鍵。新增這些項目時請將其重新命名為 `mcpServers`：兩者同時存在時 Muse Code 都不會載入。",
+  "judgeCaution": "Muse Judge 建議謹慎。由你決定；它不能核准此操作。",
+  "judgeSubscriptionNotice": "Muse Judge 透過你的 Muse 訂閱使用聊天模型，並計入訂閱額度。每個批次都使用全新、隔離的計畫模式工作階段。偵測到工具時，保護機制會取消工作階段，但無法證明沒有工具曾執行。它只能建議謹慎。",
+  "judgeStatusSame": "同一模型",
+  "judgeStatusOff": "關閉",
+  "judgeStatusUnavailable": "關閉：來源無法使用或存在長期允許規則",
+  "judgeStatusConsent": "等待首次收費前的同意",
+  "judgeStatusDeclined": "關閉：已拒絕付費使用",
+  "judgeStatusSlow": "預設關閉：審核員作出決定時就緒的結果太少",
+  "judgeStatusSubscription": "訂閱",
+  "judgeStatusPaid": "付費"
 }

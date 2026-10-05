@@ -3077,3 +3077,11 @@ body {
     transition: none;
   }
 }
+
+/* M98: an advisory status line wraps at narrow panel widths. */
+.judge-status {
+  margin: 0 0 0.5em;
+  color: var(--vscode-foreground);
+  font-size: 0.9em;
+  overflow-wrap: anywhere;
+}

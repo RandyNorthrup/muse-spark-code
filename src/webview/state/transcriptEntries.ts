@@ -33,6 +33,7 @@ const pendingApprovalSchema = z.object({
   availableChoices: z.readonly(z.array(approvalChoiceSchema)),
   isProtectedWrite: z.boolean(),
   isJudgeEscalated: z.boolean(),
+  judgeCaution: z.optional(z.boolean()),
   /** Why the card asks beyond the mode (M78), as the host said it. */
   note: z.optional(z.string()),
   /**

@@ -1,3 +1,4 @@
+import { memento } from './helpers/memento'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type * as vscode from 'vscode'
 import { askPaidUse, createPaidFeatures } from '../../src/host/paid/paidHost'
@@ -25,16 +26,6 @@ beforeEach(() => {
   window.state.focused = true
   vi.mocked(confirmModal).mockReset()
 })
-
-function memento(data: Map<string, unknown>) {
-  return {
-    get: (key: string) => data.get(key),
-    update: (key: string, value: unknown) => {
-      data.set(key, value)
-      return Promise.resolve()
-    },
-  }
-}
 
 function paidWithSettings(
   data: Map<string, unknown>,
@@ -341,11 +332,10 @@ describe('M77 best-of-N feature acceptance', () => {
 
 async function judgeDetail(budget: unknown) {
   const { get } = mockJudgePaidConfiguration(budget)
-  // Drive the existing formatter directly through the host gate's fixture;
-  // activation excludes judge from this legacy review (judgeActivation.test).
+  // U defers the same price text to the actual first-charge three-choice popup.
   const { paid } = paidWithSettings(new Map<string, unknown>(), ['judge'])
-  answerWith(UI_TEXT.paidConfirmAccept)
-  await paid.gate.review()
+  answerWith(UI_TEXT.allowOnce)
+  await paid.allowsJudgeUse('muse-spark-1.3')
   const detail = vi.mocked(confirmModal).mock.calls[0]?.[1]?.detail ?? ''
   return { detail, get }
 }
