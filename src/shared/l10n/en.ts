@@ -1592,6 +1592,13 @@ export const EN = {
   notSignedInReason: 'Sign in before sending a message.',
   noWorkspaceReason: 'Open a folder first; Muse works inside a workspace.',
   nothingToSendReason: 'Type a message or attach an image first.',
+  // M92e (PLAN.md D71): a prompt holding a detected secret, held before
+  // sending. The transcript card shows the redacted text either way.
+  secretPromptTitle: 'This prompt contains a secret',
+  secretPromptDetail:
+    'A secret was detected. The transcript shows it redacted. Send it anyway, or go back and edit the prompt.',
+  secretPromptSendAnyway: 'Send anyway',
+  secretPromptEdit: 'Edit prompt',
   nothingToCompact: 'Nothing to compact yet.',
   // {reason}: the backend's own id for why, such as `noop`.
   nothingToCompactReason: 'Nothing to compact ({reason}).',
@@ -2188,6 +2195,10 @@ export const EN = {
   approvalAskRuleNote: 'Your command rule asks about this command every time.',
   // {why}: the rule's own justification, as the user wrote it.
   approvalAskRuleWhy: 'Your command rule asks about this command every time: {why}',
+  // M92e (PLAN.md D71): a shell command holding a detected secret. The card
+  // shows the value redacted, and no allow rule approves it on its own.
+  approvalSecretNote:
+    'This command contains a detected secret, shown redacted. It always asks: no allow rule approves it on its own.',
   // Who answered a call no card was shown for (the row's "Decided" line).
   autoReviewerResolver: 'Auto reviewer',
   commandRuleResolver: 'Command rule',

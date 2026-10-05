@@ -1310,6 +1310,36 @@ describe('ConversationController.sendMessage', () => {
     })
     expect(t.surface.posted.at(-1)).toMatchObject({ type: 'turnAccepted' })
   })
+
+  // M92e (PLAN.md D71): the secret is built at runtime, never as a literal.
+  it('holds a prompt with a detected secret, and sends it on once accepted', async () => {
+    const t = setup()
+    const secret = `sk-${'k'.repeat(24)}`
+    const text = `deploy with ${secret} now`
+    await t.send('l1', text)
+    await settle()
+    expect(t.server.requestsFor('session/start')).toHaveLength(0)
+    expect(t.server.requestsFor('turn/start')).toHaveLength(0)
+    expect(t.surface.posted.at(-1)).toEqual({
+      type: 'secretPromptDetected',
+      localId: 'l1',
+      redactedText: 'deploy with [redacted] now',
+    })
+    await t.controller.handle({
+      type: 'sendMessage',
+      localId: 'l2',
+      text,
+      attachmentIds: [],
+      secretAccepted: true,
+    })
+    await settle()
+    expect(t.server.requestsFor('turn/start')[0]?.params).toMatchObject({
+      input: [{ type: 'text', text }, NOTE],
+    })
+    expect(t.surface.posted.at(-1)).toMatchObject({ type: 'turnAccepted', localId: 'l2' })
+    // The panel never saw the raw value; the turn carries it to the model.
+    expect(JSON.stringify(t.surface.posted)).not.toContain(secret)
+  })
 })
 
 describe('ConversationController: composer controls', () => {
@@ -5778,6 +5808,41 @@ describe('ConversationController: permission hardening (D24)', () => {
       type: 'agentEvent',
       event: expect.objectContaining({ type: 'approvalRequested', approvalId: 'a1' }),
     })
+  })
+
+  // M92e (PLAN.md D71): the secret is built at runtime, never as a literal.
+  it('scrubs a secret shell command off the approval card', async () => {
+    const t = setup({ hasApprovalUi: true })
+    await t.send('l1', 'hi')
+    const secret = `sk-${'k'.repeat(24)}`
+    const command = `deploy --token ${secret}`
+    requestApproval(t, 'a1', {
+      toolName: 'bash',
+      rawArgs: JSON.stringify({ command }),
+      subject: { kind: 'shell', command },
+      availableChoices: [
+        { choiceId: 'allow_once', label: 'Allow once', decision: 'approved', scope: 'once' },
+        {
+          choiceId: 'allow_session',
+          label: `Always allow: ${command}`,
+          decision: 'approvedPolicyAmendment',
+          scope: 'session',
+        },
+        { choiceId: 'abort', label: 'Reject', decision: 'abort', scope: 'once' },
+      ],
+    })
+    await settle()
+    const cards = agentEvents(t).filter((event) => event.type === 'approvalRequested')
+    expect(cards).toHaveLength(1)
+    expect(cards[0]).toMatchObject({
+      subject: { kind: 'shell', command: 'deploy --token [redacted]' },
+      note: UI_TEXT.approvalSecretNote,
+      availableChoices: [
+        { choiceId: 'allow_once' },
+        { choiceId: 'abort' },
+      ],
+    })
+    expect(JSON.stringify(t.surface.posted)).not.toContain(secret)
   })
 
   it('answers a plain file-write approval itself in Edit automatically, labelled so', async () => {

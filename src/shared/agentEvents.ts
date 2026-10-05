@@ -393,6 +393,11 @@ const agentEventSchema = z.discriminatedUnion('type', [
     requirementId: requirementRefSchema,
     subject: approvalSubjectSchema,
     availableChoices: z.array(approvalChoiceSchema),
+    /**
+     * Why the card asks beyond the mode. The CLI sends none; the controller
+     * sets the secret note here too when it scrubs one in (M92e).
+     */
+    note: z.optional(z.string()),
   }),
   z.object({
     type: z.literal('approvalResolved'),

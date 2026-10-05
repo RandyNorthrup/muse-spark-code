@@ -291,7 +291,21 @@ export interface UiState {
   readonly unsentAttachments: Readonly<Record<string, readonly AttachmentSummary[]>>
   /** The latest pending send's exact draft, restored only on a handoff refusal. */
   readonly pendingSendDraft:
-    { readonly localId: string; readonly text: string; readonly revision: number } | undefined
+    | {
+        readonly localId: string
+        readonly text: string
+        readonly revision: number
+        /** What the send replied to or quoted (M17, M92e): restored with the draft. */
+        readonly reference?: ChatReference | undefined
+      }
+    | undefined
+  /**
+   * A held prompt's Send anyway arm (M92e, PLAN.md D71): the refused draft
+   * and its redacted text. A send whose trimmed text still matches it is the
+   * accepted resend: the card shows the redacted text and the post carries
+   * `secretAccepted`. Anything else clears it and scans again.
+   */
+  readonly secretPrompt: { readonly draft: string; readonly redactedText: string } | undefined
   /**
    * Images of a refused message the host may still hold but the composer no
    * longer shows (M25): the app asks the host to drop them, so none linger
@@ -375,6 +389,8 @@ export type UiAction =
       /** What the message replies to or quotes (M17); absent for a plain send. */
       readonly reference?: ChatReference | undefined
     }
+  /** The secret dialog closed for editing (M92e): the draft is already back. */
+  | { readonly type: 'secretPromptDismissed' }
   /** The composer now replies to an output or quotes a passage (M17). */
   | { readonly type: 'referenceSet'; readonly reference: ChatReference }
   | { readonly type: 'referenceCleared' }
@@ -484,6 +500,7 @@ export const initialUiState: UiState = {
   strayItems: {},
   unsentAttachments: {},
   pendingSendDraft: undefined,
+  secretPrompt: undefined,
   attachmentsToRelease: [],
   banner: undefined,
   announcement: undefined,
@@ -1962,6 +1979,7 @@ function clearedConversation(state: UiState): UiState {
     pendingReplayTurns: {},
     unsentAttachments: {},
     pendingSendDraft: undefined,
+    secretPrompt: undefined,
     attachmentsToRelease: [],
     banner: undefined,
     title: undefined,
@@ -2527,6 +2545,37 @@ function applyHostMessage(state: UiState, message: HostToWebviewMessage, at: num
         message.reason,
       )
     }
+    case 'secretPromptDetected': {
+      // M92e: the host held the prompt for a detected secret. The optimistic
+      // card never sent, so it is removed rather than failed: the transcript
+      // never holds the raw value. The draft, chips and reference go back to
+      // the composer unless the user already typed on (never replace a newer
+      // draft); the redacted text arms the Send anyway resend.
+      const pending = state.pendingSendDraft
+      if (pending?.localId !== message.localId) {
+        return state
+      }
+      const unsent = own(state.unsentAttachments, message.localId) ?? []
+      const others = state.attachments.filter((attachment) =>
+        unsent.every((chip) => chip.id !== attachment.id),
+      )
+      const shouldRestore = pending.revision === state.draftRevision
+      return announce(
+        {
+          ...state,
+          draft: shouldRestore ? pending.text : state.draft,
+          ...(shouldRestore && pending.reference !== undefined && { reference: pending.reference }),
+          pendingSendDraft: undefined,
+          secretPrompt: { draft: pending.text, redactedText: message.redactedText },
+          attachments: [...unsent, ...others],
+          unsentAttachments: without(state.unsentAttachments, message.localId),
+          transcript: state.transcript.filter(
+            (entry) => !(entry.kind === 'user' && entry.id === message.localId),
+          ),
+        },
+        UI_TEXT.secretPromptTitle,
+      )
+    }
     case 'agentEvent': {
       return applyAgentEvent(state, message.event, at)
     }
@@ -2767,6 +2816,11 @@ export function uiReducer(state: UiState, action: UiAction): UiState {
       return { ...state, focusRequests: state.focusRequests + 1 }
     }
     case 'submitted': {
+      // M92e: a resend past the secret dialog (its trimmed text still the
+      // refused draft) shows the redacted text the host held it for; any
+      // other send scans again. The arm is spent either way.
+      const arm =
+        state.secretPrompt?.draft.trim() === action.text.trim() ? state.secretPrompt : undefined
       return withPendingCard(
         {
           ...state,
@@ -2776,14 +2830,27 @@ export function uiReducer(state: UiState, action: UiAction): UiState {
             localId: action.localId,
             text: state.draft,
             revision: state.draftRevision + 1,
+            ...(action.reference !== undefined && { reference: action.reference }),
           },
+          secretPrompt: undefined,
           pendingGoalCommand: undefined,
           pendingHandoffCommand: undefined,
           attachments: [],
           reference: undefined,
         },
-        { ...action, isPlanTurn: state.permissionMode === 'plan' },
+        {
+          ...action,
+          text: arm?.redactedText ?? action.text,
+          isPlanTurn: state.permissionMode === 'plan',
+        },
       )
+    }
+    case 'secretPromptDismissed': {
+      // The draft, chips and reference are already back (restored when the
+      // hold arrived); the dialog hands the focus back to the prompt.
+      return state.secretPrompt === undefined
+        ? state
+        : { ...state, secretPrompt: undefined, focusRequests: state.focusRequests + 1 }
     }
     case 'editorContextDismissed': {
       return { ...state, dismissedEditorPath: state.editorContext?.relativePath }

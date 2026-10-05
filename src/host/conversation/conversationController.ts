@@ -35,6 +35,8 @@ import {
   type TurnSubmission,
 } from '../../core/agent/agentBackend'
 import { editAutomaticallyChoice, isReviewableApproval } from '../../core/agent/approvalRules'
+import { scrubSecretApproval } from '../../core/agent/approvalSecrets'
+import { countSecretMatches, redactSecrets } from '../../core/redact'
 import { toSessionRow } from '../../core/agent/sessionRows'
 import {
   hasUnshownCharacters,
@@ -1830,8 +1832,16 @@ export class ConversationController {
         break
       }
     }
-    this.forward(event)
-    this.track(event)
+    // M92e (PLAN.md D71): the panel never shows a secret a proposed shell
+    // command holds. The decisions above read the raw event; what is
+    // forwarded and tracked is scrubbed, on both backends: the value shown
+    // redacted, a secret note, no standing approve choice.
+    const shown =
+      event.type === 'approvalRequested' || event.type === 'approvalUpdated'
+        ? scrubSecretApproval(event)
+        : event
+    this.forward(shown)
+    this.track(shown)
   }
 
   /** The controller's own bookkeeping for an event the webview was sent. */
@@ -5133,8 +5143,25 @@ export class ConversationController {
     brief?: BriefExtras,
     cardText?: string,
     handoff?: PendingHandoff,
+    isSecretAccepted = false,
   ): Promise<SendOutcome> {
     const isComposerMessage = brief === undefined
+    // M92e (PLAN.md D71): a plain composer prompt holding a detected secret
+    // is held before sending. Nothing starts and nothing is released: the
+    // panel shows its dialog (Send anyway / Edit) over the redacted card,
+    // and only a re-post with `secretAccepted` sends it on. Briefs, review
+    // cards and handoffs never reach this hold. Read from the one shared
+    // table in redact.ts.
+    if (
+      brief === undefined &&
+      cardText === undefined &&
+      handoff === undefined &&
+      !isSecretAccepted &&
+      countSecretMatches(text, []) > 0
+    ) {
+      this.post({ type: 'secretPromptDetected', localId, redactedText: redactSecrets(text) })
+      return { isAccepted: false, hasSetTodos: false, turnId: undefined }
+    }
     let seededSession: AgentSession | undefined
     // The running mark this message's turn takes over (M72), dropped if it is not sent.
     let checkpoint: PendingMark | undefined
@@ -7370,6 +7397,10 @@ export class ConversationController {
           message.attachmentIds,
           message.includeEditorContext === true,
           message.reference,
+          undefined,
+          undefined,
+          undefined,
+          message.secretAccepted === true,
         )
         break
       }

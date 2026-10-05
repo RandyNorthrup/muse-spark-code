@@ -21,6 +21,7 @@ import {
   MODEL_API_SUBAGENT_TOOLS,
   type PermissionMode,
 } from '../../shared/constants'
+import { hasApprovalSecret } from './approvalSecrets'
 
 const EDIT_AUTOMATICALLY_MODE: PermissionMode = 'acceptEdits'
 // Approval subjects that are a plain file write: the Model API's own, and
@@ -105,6 +106,9 @@ export function isReviewableApproval(
     event.isJudgeEscalated ||
     event.turnId === undefined ||
     event.turnId !== parentTurnId ||
+    // M92e (PLAN.md D71): a shell command holding a detected secret is never
+    // answered on the user's behalf; the card asks with the value redacted.
+    hasApprovalSecret(event.subject) ||
     !REVIEWABLE_SUBJECTS.has(event.subject.kind)
   ) {
     return false

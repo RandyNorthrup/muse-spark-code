@@ -59,6 +59,7 @@
 import type { ApprovalChoice } from '../../../shared/agentEvents'
 import { UI_TEXT } from '../../../shared/constants'
 import type { ApprovalMode } from '../../../shared/permissionModes'
+import { countSecretMatches } from '../../redact'
 import { type CommandRule, isEvaluator, judgeCommand } from './commandRules'
 import type { PermissionPolicy } from './permissionPolicy'
 import { commandShape, type ShellDialect } from './shellSyntax'
@@ -211,8 +212,15 @@ export interface PermissionQuery {
   readonly isReadOnly?: boolean
 }
 
-/** What settled a shell command's verdict beyond the mode (M78). */
-export type SettledBy = 'forbidRule' | 'askRule' | 'allowRule' | 'profile' | 'complexCommand'
+/** What settled a shell command's verdict beyond the mode (M78, M92e). */
+export type SettledBy =
+  | 'forbidRule'
+  | 'askRule'
+  | 'allowRule'
+  | 'profile'
+  | 'complexCommand'
+  /** M92e (PLAN.md D71): the command holds a detected secret, so it always asks. */
+  | 'secretDetected'
 
 /** The verdict on a call, and what the card and the Auto reviewer may do about an ask. */
 export interface PermissionJudgement {
@@ -282,6 +290,13 @@ export class PermissionEngine {
     }
     if (byMode !== 'ask') {
       return settled(byMode)
+    }
+    // M92e (PLAN.md D71): a command holding a detected secret always asks.
+    // No allow rule, session rule, profile or ask rule runs it on its own;
+    // the card shows the value redacted with no session choice, and the Auto
+    // reviewer never sees it. Read from the one shared table in redact.ts.
+    if (countSecretMatches(query.command, []) > 0) {
+      return settled('ask', 'secretDetected', rule)
     }
     if (policy.profileName !== undefined) {
       return settled('ask', 'profile')

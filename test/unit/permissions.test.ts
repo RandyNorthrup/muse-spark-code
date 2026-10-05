@@ -395,6 +395,47 @@ describe('PermissionEngine.judge: shell commands under the rules (M78)', () => {
   })
 })
 
+describe('secret-bearing shell commands (M92e, PLAN.md D71)', () => {
+  // Built at runtime: no secret-shaped literal sits in the repository.
+  const secretCommand = `deploy --token sk-${'k'.repeat(24)}`
+  const secretPolicy = compilePolicy(
+    {
+      commandRules: [{ pattern: ['deploy'], decision: 'allow', match: ['deploy --dry-run'] }],
+      profiles: {},
+      profile: '',
+      repositoryRules: {},
+    },
+    'linux',
+  )
+
+  it('asks with no session choice and nothing to review, even when an allow rule matches', () => {
+    expect(new PermissionEngine('onRequest').judge(bash(secretCommand), secretPolicy)).toEqual({
+      verdict: 'ask',
+      settledBy: 'secretDetected',
+      rule: secretPolicy.commandRules[0],
+      isReviewable: false,
+      hasSessionChoice: false,
+    })
+  })
+
+  it('is never answered by a session rule for its exact line', () => {
+    const engine = new PermissionEngine('onRequest')
+    engine.allowForSession('bash', secretCommand)
+    expect(engine.judge(bash(secretCommand), secretPolicy)).toMatchObject({
+      verdict: 'ask',
+      settledBy: 'secretDetected',
+      isReviewable: false,
+      hasSessionChoice: false,
+    })
+  })
+
+  it('still runs a clean command the allow rule matches', () => {
+    expect(
+      new PermissionEngine('onRequest').judge(bash('deploy --dry-run'), secretPolicy),
+    ).toMatchObject({ verdict: 'allow', settledBy: 'allowRule' })
+  })
+})
+
 describe('PermissionEngine.judge: what the Auto reviewer may answer (M78)', () => {
   it('only an unsettled shell or MCP ask in Auto', () => {
     const engine = new PermissionEngine('onRequest')

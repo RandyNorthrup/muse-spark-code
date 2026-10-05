@@ -13683,10 +13683,41 @@ joined with M57, M58 and PR #49's sign-in
   - **M92d, docs:** a README "Muse Gadgets" section (what helps, the phone-ping
     hook recipe after M91, and the never-a-gadget warning); CHANGELOG; this
     plan.
+  - **M92e, secret guards (lead decision 2026-10-05, approved scope "robust
+    and feature rich"):** the M92a lane found no prompt, commit or shell
+    secret warning anywhere, so M92e builds the three asked-for guards on the
+    ONE shared detection table (`src/core/redact.ts`, no second pattern
+    list):
+    - a prompt holding a detected secret is held before sending: the panel
+      shows a dialog (Send anyway / Edit) and the transcript card carries the
+      redacted text. The host scans a plain composer send, posts
+      `secretPromptDetected` with the redacted text instead of starting the
+      turn, and only sends on with an explicit `secretAccepted` re-post. The
+      webview cannot scan itself (`src/webview/tsconfig.json` forbids
+      `src/core` imports). The session store keeps the raw text once the user
+      accepts (resume needs it); the panel transcript, the logs and the
+      exports never hold it. Slash-command, review, goal, handoff, loop and
+      `!`-command sends are out of scope: only the plain-message path warns.
+    - the commit guard is skipped: no commit-writing path exists. `git.ts`
+      only runs git, best-of-N snapshots with `write-tree` explicitly without
+      a commit, and review only reads messages and diffs. The user commits
+      outside the extension by definition; a `git commit` the agent proposes
+      as a shell command meets the shell guard.
+    - a shell command holding a detected secret always asks: the Model API
+      engine settles it `secretDetected` (no allow-rule or session-rule
+      auto-allow, no Auto reviewer, no session choice, no hook auto-allow),
+      and the controller scrubs every approval card before the panel (the
+      value shown redacted, a secret note, session-scoped approve choices
+      dropped) on both backends. The Auto reviewer on Muse Code never sees
+      one (`isReviewableApproval` excludes them). An explicit user approval
+      still runs the command as proposed. Bypass mode still runs without a
+      card, as it does for every gate: it is an explicit run-everything
+      choice, not an allow rule.
 - **Acceptance.**
   1. A valid `mgst_` token is redacted everywhere the shared table applies, and
      `scan-secrets` counts it. Near-misses (wrong last character or length,
-     embedded in a word) are not matched as gadget tokens.
+     embedded in a word, hyphen-glued overlength runs) are not matched as
+     gadget tokens.
   2. A shell command with `timeout_ms` that never exits returns its captured
      output with `isTimedOut: true`, and its process tree is gone afterwards,
      on all three OSes.
@@ -13694,13 +13725,20 @@ joined with M57, M58 and PR #49's sign-in
      off, it isn't.
   4. README states what the extension does and doesn't do with gadgets, with
      the security warning.
+  5. A prompt holding a detected secret warns before sending (Send anyway /
+     Edit); the transcript card shows the redacted text either way.
+  6. A shell command holding a detected secret shows its card with the value
+     redacted and a secret note, offers no "allow for this session", and is
+     never auto-approved by an allow rule, a session rule, a hook or the Auto
+     reviewer.
 - **Tests.** Unit tests for each item, each red-drilled. M92b's process-tree
   proof runs on the three rigs (targeted files only). No hardware, network or
   model call is needed.
 - **Gates.** The full quality gate, check-l10n, host-API, VSIX size.
 - **Security.** A token never appears in a fixture literal (fixtures are built
   at runtime). The skill tells the user to enter tokens themselves. Nothing
-  installs or talks to gadget services.
+  installs or talks to gadget services. M92e adds no pattern list: every
+  guard reads the one shared table.
 - **Certification checklist.**
   - [x] M92a: redaction, consumers and warnings, with drills
         (`docs/certification/m92.md`)
@@ -13709,6 +13747,9 @@ joined with M57, M58 and PR #49's sign-in
   - [x] M92c: bundled skill listed, loaded and toggled
   - [x] M92d: README, CHANGELOG and this record (the phone-ping hook
         recipe waits on M91)
+  - [x] M92e: prompt and shell secret guards, with drills
+        (`docs/certification/m92.md`); the commit guard skipped, no
+        commit-writing path exists
 
 ## 7. Gates
 

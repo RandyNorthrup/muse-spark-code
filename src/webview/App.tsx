@@ -66,6 +66,7 @@ import { SessionBoardDialog } from './components/SessionBoardDialog'
 import { BestOfNDialog } from './components/BestOfNDialog'
 import { UsageDialog } from './components/UsageDialog'
 import { HandoffDialog } from './components/HandoffDialog'
+import { SecretPromptDialog } from './components/SecretPromptDialog'
 import { ShareView } from './components/ShareView'
 import { AddContextIcon, ExpandChevron, UploadIcon } from './components/icons'
 import { modeIcon } from './components/modeIcons'
@@ -633,6 +634,10 @@ export function App({
     }
     const localId = newLocalId()
     const attachmentIds = current.attachments.map((attachment) => attachment.id)
+    // M92e: a resend past the secret dialog (its trimmed text still the
+    // refused draft) carries the acceptance; the card shows the redacted
+    // text (the reducer substitutes it).
+    const isSecretAccepted = current.secretPrompt?.draft.trim() === text
     // The open-file chip travels with the message: the host adds the context.
     const editorContext = visibleEditorContext(current)
     dispatch({
@@ -650,10 +655,20 @@ export function App({
       attachmentIds,
       includeEditorContext: editorContext !== undefined,
       ...(current.reference !== undefined && { reference: current.reference }),
+      ...(isSecretAccepted && { secretAccepted: true }),
     })
     // The reader's own message always lands in view (M15).
     setIsPinnedToEnd(true)
   }, [store, dispatch, newLocalId, postMessage, onGoalCommand, onReview, onHandoff])
+  // M92e: the secret dialog's Send anyway resubmits the restored draft,
+  // which still matches the refused text, so it carries the acceptance.
+  // Edit only closes the dialog: the draft is already back in the composer.
+  const onSecretPromptSendAnyway = useCallback(() => {
+    onSubmit()
+  }, [onSubmit])
+  const onSecretPromptDismiss = useCallback(() => {
+    dispatch({ type: 'secretPromptDismissed' })
+  }, [dispatch])
   const onDismissEditorContext = useCallback(() => {
     dispatch({ type: 'editorContextDismissed' })
   }, [dispatch])
@@ -1982,9 +1997,20 @@ export function App({
         onCancel={onHandoffCancel}
       />
     )
+  // M92e: the secret dialog waits behind any other modal (as the handoff
+  // dialog does), and holds the composer inert while it shows.
+  const secretPromptDialog =
+    isOtherModalOpen || state.secretPrompt === undefined ? null : (
+      <SecretPromptDialog
+        redactedText={state.secretPrompt.redactedText}
+        onSendAnyway={onSecretPromptSendAnyway}
+        onEdit={onSecretPromptDismiss}
+      />
+    )
   // Behind a modal nothing takes focus or clicks (M25): the modal traps Tab,
   // the rest of the panel is inert.
-  const isModalOpen = isOtherModalOpen || state.handoff !== undefined
+  const isModalOpen =
+    isOtherModalOpen || state.handoff !== undefined || state.secretPrompt !== undefined
 
   return (
     <div className="app">
@@ -2014,6 +2040,7 @@ export function App({
       </div>
       {usageDialog}
       {handoffDialog}
+      {secretPromptDialog}
       {agentMap}
       {reviewPane}
       {state.share === undefined ? null : (

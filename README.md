@@ -983,8 +983,10 @@ service. The extension helps you build gadgets; it never becomes one:
 - **Tokens stay secret.** Your per-user SDK token (`mgst_…`) is redacted
   from logs and transcripts like any other secret. Type it yourself, in your
   own terminal, into `idf.py menuconfig` or the Linux installer — never into
-  chat, never into a command — and never commit `sdkconfig` or
-  `sdkconfig.defaults` containing it.
+  chat, never into a command — and never commit a generated `sdkconfig`
+  containing it (`sdkconfig.defaults` is tracked input and token-free). A
+  prompt holding a detected secret is held before sending (Send anyway /
+  Edit), and a shell command holding one always asks with its card redacted.
 - **Device commands stay bounded.** A monitor never exits by itself, so the
   shell tool's `timeout_ms` ends it and returns what it captured: flash, then
   capture N seconds of serial output, in one call, with no process left

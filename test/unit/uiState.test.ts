@@ -3638,3 +3638,95 @@ describe('uiReducer: share files read-only (M84)', () => {
     expect(uiReducer(reduceAll([imported]), { type: 'conversationCleared' }).isImported).toBe(false)
   })
 })
+
+describe('uiReducer: the secret-prompt hold (M92e, PLAN.md D71)', () => {
+  // Built at runtime: no secret-shaped literal sits in the repository.
+  const text = `deploy with sk-${'k'.repeat(24)} now`
+  const redacted = 'deploy with [redacted] now'
+  const submit = {
+    type: 'submitted',
+    localId: 'l1',
+    text,
+    attachments: [],
+    contextLabel: undefined,
+  } as const
+  const held = host({ type: 'secretPromptDetected', localId: 'l1', redactedText: redacted })
+
+  it('removes the optimistic card, restores the draft and arms Send anyway', () => {
+    const state = reduceAll([
+      { type: 'draftChanged', draft: text },
+      submit,
+      held,
+    ])
+    expect(state.transcript).toEqual([])
+    expect(state.draft).toBe(text)
+    expect(state.secretPrompt).toEqual({ draft: text, redactedText: redacted })
+    expect(state.announcement?.text).toBe(UI_TEXT.secretPromptTitle)
+  })
+
+  it('shows the redacted text on the accepted resend', () => {
+    const state = reduceAll([
+      { type: 'draftChanged', draft: text },
+      submit,
+      held,
+      {
+        type: 'submitted',
+        localId: 'l2',
+        text,
+        attachments: [],
+        contextLabel: undefined,
+      },
+    ])
+    expect(state.secretPrompt).toBeUndefined()
+    expect(state.transcript).toEqual([
+      { kind: 'user', seq: 2, id: 'l2', text: redacted, status: 'pending', attachments: [] },
+    ])
+  })
+
+  it('scans a changed draft again instead of reusing the arm', () => {
+    const state = reduceAll([
+      { type: 'draftChanged', draft: text },
+      submit,
+      held,
+      { type: 'draftChanged', draft: 'something else' },
+      {
+        type: 'submitted',
+        localId: 'l2',
+        text: 'something else',
+        attachments: [],
+        contextLabel: undefined,
+      },
+    ])
+    expect(state.secretPrompt).toBeUndefined()
+    expect(state.transcript[0]).toMatchObject({ id: 'l2', text: 'something else' })
+  })
+
+  it('ignores a hold for a send it does not know', () => {
+    const before = reduceAll([{ type: 'draftChanged', draft: text }, submit])
+    const after = reduceAll([
+      { type: 'draftChanged', draft: text },
+      submit,
+      host({ type: 'secretPromptDetected', localId: 'other', redactedText: redacted }),
+    ])
+    expect(after).toEqual(before)
+  })
+
+  it('dismissing the dialog keeps the restored draft and refocuses the composer', () => {
+    const armed = reduceAll([{ type: 'draftChanged', draft: text }, submit, held])
+    const state = uiReducer(armed, { type: 'secretPromptDismissed' })
+    expect(state.secretPrompt).toBeUndefined()
+    expect(state.draft).toBe(text)
+    expect(state.focusRequests).toBe(armed.focusRequests + 1)
+    expect(uiReducer(state, { type: 'secretPromptDismissed' })).toBe(state)
+  })
+
+  it('restores the reference chip with the draft', () => {
+    const reference = { intent: 'reply', role: 'assistant', entryId: 'e1', text: 'why?' } as const
+    const state = reduceAll([
+      { type: 'draftChanged', draft: text },
+      { ...submit, reference },
+      held,
+    ])
+    expect(state.reference).toEqual(reference)
+  })
+})
