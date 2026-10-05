@@ -13,6 +13,37 @@ const unit = { kind: 'function', name: 'outer', start: 0, end: file.source.lengt
 const signal = () => new AbortController().signal
 
 describe('batched lint evaluation', () => {
+  it('retains captured grammar node kinds and related types in base and localized requests', async () => {
+    const evaluator = lintEvaluator()
+    const types = [{ name: 'Input', source: 'interface Input { value: number }' }]
+    const parent = { ...unit, types }
+    const region = {
+      kind: 'statement',
+      name: 'outer:return_statement',
+      start: 19,
+      end: 33,
+      regionKind: 'return_statement',
+      parentSource: file.source,
+      types,
+    } as const
+    await evaluateLintUnit(file, parent, [lintRule()], evaluator, 0, signal())
+    await evaluateLintUnit(file, region, [lintRule()], evaluator, 0, signal(), parent)
+    await evaluateLintUnit(file, region, [lintRule()], evaluator, 0, signal())
+    expect(vi.mocked(evaluator.judgeAdmitted).mock.calls[0]?.[0].state).toMatchObject({ types })
+    expect(vi.mocked(evaluator.judgeAdmitted).mock.calls[1]?.[0].state).toMatchObject({
+      kind: 'region',
+      regionKind: 'return_statement',
+      parentSource: file.source,
+      types,
+    })
+    expect(vi.mocked(evaluator.judgeAdmitted).mock.calls[2]?.[0].state).toMatchObject({
+      kind: 'statement',
+      regionKind: 'return_statement',
+      parentSource: file.source,
+      types,
+    })
+  })
+
   it('keeps cached decisions bound to numeric rule IDs after reordering', async () => {
     const evaluator = lintEvaluator()
     const judgeAdmitted = vi.fn((request: JudgeRequest) => {

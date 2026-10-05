@@ -9,6 +9,24 @@ const file: LintFile = {
 const functionUnit = { kind: 'function', name: 'read', start: 8, end: file.source.length }
 
 describe('lint extraction and coverage', () => {
+  it.each([
+    { types: [{ name: 0, source: 'interface Input {}' }] },
+    { types: [{ name: 'Input', source: 0 }] },
+    { types: [{ name: 'Input', source: 'interface Input {}', extra: true }] },
+    { parentSource: 0 },
+    { regionKind: 0 },
+  ])('rejects malformed captured context metadata %#', async (metadata) => {
+    await expect(
+      extractLintFile(file, ['function'], {
+        symbols: vi.fn().mockResolvedValue({
+          units: [{ ...functionUnit, ...metadata }],
+          coveredKinds: ['function'],
+        }),
+        syntax: vi.fn(),
+      }),
+    ).rejects.toThrow()
+  })
+
   it('uses symbols for declarations and syntax for comments and statements', async () => {
     const symbols = vi.fn().mockResolvedValue({ units: [functionUnit], coveredKinds: ['function'] })
     const syntax = vi.fn().mockResolvedValue({

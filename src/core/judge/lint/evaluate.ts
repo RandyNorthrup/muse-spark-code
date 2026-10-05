@@ -160,9 +160,12 @@ export async function evaluateLintUnit(
           name: unit.name,
           path: file.path,
           source: file.source.slice(unit.start, unit.end),
+          ...(unit.parentSource !== undefined && { parentSource: unit.parentSource }),
+          ...(unit.regionKind !== undefined && { regionKind: unit.regionKind }),
+          ...((parent ?? unit).types !== undefined && { types: (parent ?? unit).types }),
           ...(parent !== undefined && {
             parentSource: file.source.slice(parent.start, parent.end),
-            regionKind: unit.kind,
+            regionKind: unit.regionKind ?? unit.kind,
           }),
           ...(callees.length > 0 && { callees }),
         },

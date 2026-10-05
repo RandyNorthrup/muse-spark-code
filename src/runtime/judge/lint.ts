@@ -15,7 +15,7 @@ import {
 import { isLintRuleApplicable, type LintRule } from '../../core/judge/lint/rules'
 import {
   extractLintFile,
-  lintKinds,
+  unitSchema,
   type LintCoverage,
   type LintExtractors,
   type LintFile,
@@ -44,12 +44,6 @@ export interface JudgeLintDependencies {
   corroborate(file: LintFile, result: LintUnitResult): Promise<boolean>
 }
 
-const regionSchema = z.strictObject({
-  kind: z.enum(lintKinds),
-  name: z.string(),
-  start: z.int().check(z.nonnegative()),
-  end: z.int().check(z.nonnegative()),
-})
 const optionsSchema = z.strictObject({
   changed: z.optional(z.boolean()),
   failOn: z.optional(z.enum(['error', 'warning'])),
@@ -200,7 +194,7 @@ export async function runJudgeLint(
             })
             continue
           }
-          const suppliedRegions = z.array(regionSchema).parse(rawRegions)
+          const suppliedRegions = z.array(unitSchema).parse(rawRegions)
           if (
             suppliedRegions.length > deps.maxLocalizedRegions ||
             suppliedRegions.some(

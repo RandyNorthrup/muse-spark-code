@@ -23,11 +23,14 @@ const languages: ReadonlySet<string> = new Set([
 const symbolKinds: ReadonlySet<LintKind> = new Set(['function', 'type', 'field'])
 const kindSchema = z.enum(lintKinds)
 const offsetSchema = z.int().check(z.nonnegative())
-const unitSchema = z.strictObject({
+export const unitSchema = z.strictObject({
   kind: kindSchema,
   name: z.string(),
   start: offsetSchema,
   end: offsetSchema,
+  parentSource: z.optional(z.string()),
+  regionKind: z.optional(z.string()),
+  types: z.optional(z.array(z.strictObject({ name: z.string(), source: z.string() }))),
 })
 const extractionSchema = z.strictObject({
   units: z.array(unitSchema),
