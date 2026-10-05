@@ -65,7 +65,6 @@
       "agentImportKindHook",
       "agentImportKindAgent",
       "teamTemplates.solo",
-      "teamSwitchRow",
       "teamCapabilityWarning"
     ],
     "tr": [
@@ -75,7 +74,6 @@
       "exportModelLine",
       "usagePlan",
       "teamTemplates.solo",
-      "teamSwitchRow",
       "teamCapabilityWarning"
     ],
     "pl": [
@@ -95,7 +93,6 @@
       "agentImportKindHook",
       "agentImportKindAgent",
       "teamTemplates.solo",
-      "teamSwitchRow",
       "teamCapabilityWarning"
     ],
     "de": [
@@ -126,7 +123,6 @@
       "teamIntensityLevels.max",
       "teamTemplates.solo",
       "teamSetupSteps.pools",
-      "teamSwitchRow",
       "teamCapabilityWarning",
       "teamTemplateSolo"
     ],
@@ -141,7 +137,6 @@
       "teamRolesTitle",
       "teamTemplates.solo",
       "teamSetupSteps.pools",
-      "teamSwitchRow",
       "teamCapabilityWarning"
     ],
     "pt-br": [
@@ -153,7 +148,6 @@
       "agentImportKindHook",
       "teamTemplates.solo",
       "teamSetupSteps.pools",
-      "teamSwitchRow",
       "teamCapabilityWarning"
     ],
     "fr": [
@@ -188,7 +182,6 @@
       "agentImportKindHook",
       "teamIntensityLevels.max",
       "teamTemplates.solo",
-      "teamSwitchRow",
       "teamCapabilityWarning"
     ],
     "zh-cn": ["toolLabels.shell"],
@@ -198,11 +191,10 @@
       "imageBuyPrompt",
       "agentImportKindHook",
       "teamIntensityLevels.max",
-      "teamSwitchRow",
       "teamCapabilityWarning"
     ],
-    "ko": ["teamSwitchRow", "teamCapabilityWarning"],
-    "ru": ["teamSwitchRow", "teamCapabilityWarning"]
+    "ko": ["teamCapabilityWarning"],
+    "ru": ["teamCapabilityWarning"]
   },
   "manifest": {
     "*": ["viewsContainers.museSpark.title", "command.category", "config.title"],

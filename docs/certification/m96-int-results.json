@@ -198,8 +198,8 @@
     {
       "name": "modelApi",
       "baseBytes": 440468,
-      "currentBytes": 447899,
-      "deltaBytes": 7431,
+      "currentBytes": 448164,
+      "deltaBytes": 7696,
       "sourceInputs": 99
     },
     {
@@ -332,6 +332,301 @@
       "exit": 1,
       "summary": "Tests  28 failed | 41 passed (69)",
       "restoredSha256": "ce5b4e0d3e1bf16b079b1d2f25df4eebe3547eafcc9c6c2ea7ace9e40f3f778e"
+    },
+    {
+      "name": "independent-template-expectations",
+      "file": "src/shared/constants.ts",
+      "test": "test/unit/teamTemplates.test.ts",
+      "exit": 1,
+      "summary": "Tests  1 failed | 11 passed (12)",
+      "restoredSha256": "95dd48598dcde94ab724ca2de4ea0e0b528481c106e7879a3f3e5a1c31b24ac6"
     }
-  ]
+  ],
+  "bundleCaps": [
+    {
+      "file": "dist/extension.js",
+      "bytes": 608722,
+      "budgetBytes": 614400
+    },
+    {
+      "file": "dist/modelApi.js",
+      "bytes": 448164,
+      "budgetBytes": 486400
+    },
+    {
+      "file": "dist/review.js",
+      "bytes": 45143,
+      "budgetBytes": 51200
+    },
+    {
+      "file": "dist/sessionBoard.js",
+      "bytes": 64641,
+      "budgetBytes": 76800
+    },
+    {
+      "file": "dist/reviewer.js",
+      "bytes": 57012,
+      "budgetBytes": 76800
+    },
+    {
+      "file": "dist/team.js",
+      "bytes": 44558,
+      "budgetBytes": 76800
+    },
+    {
+      "file": "dist/planMarkdown.js",
+      "bytes": 142363,
+      "budgetBytes": 153600
+    },
+    {
+      "file": "dist/checkpointStore.js",
+      "bytes": 139890,
+      "budgetBytes": 230400
+    },
+    {
+      "file": "dist/agentImport.js",
+      "bytes": 119384,
+      "budgetBytes": 128000
+    },
+    {
+      "file": "dist/bundledSkills.js",
+      "bytes": 24373,
+      "budgetBytes": 51200
+    },
+    {
+      "file": "dist/codeIntel.js",
+      "bytes": 79468,
+      "budgetBytes": 102400
+    },
+    {
+      "file": "dist/voice.js",
+      "bytes": 36470,
+      "budgetBytes": 51200
+    },
+    {
+      "file": "dist/museCodeReviewer.js",
+      "bytes": 44697,
+      "budgetBytes": 76800
+    },
+    {
+      "file": "dist/uiText.js",
+      "bytes": 121692,
+      "budgetBytes": 128000
+    },
+    {
+      "file": "dist/searchWorker.js",
+      "bytes": 18571,
+      "budgetBytes": 51200
+    },
+    {
+      "file": "dist/pageWorker.js",
+      "bytes": 208040,
+      "budgetBytes": 307200
+    },
+    {
+      "file": "dist/webview/main.js",
+      "bytes": 897026,
+      "budgetBytes": 921600
+    },
+    {
+      "file": "dist/acp.js",
+      "bytes": 822153,
+      "budgetBytes": 870400
+    }
+  ],
+  "ordinaryGraphs": [
+    {
+      "name": "extension",
+      "teamRuntimeInputs": []
+    },
+    {
+      "name": "modelApi",
+      "teamRuntimeInputs": []
+    },
+    {
+      "name": "acp",
+      "teamRuntimeInputs": []
+    }
+  ],
+  "gateAttempts": [
+    {
+      "name": "format",
+      "exit": 0,
+      "seconds": 48
+    },
+    {
+      "name": "typecheck",
+      "exit": 1,
+      "seconds": 10
+    },
+    {
+      "name": "lint",
+      "exit": 1,
+      "seconds": 187
+    },
+    {
+      "name": "lint",
+      "exit": 0,
+      "seconds": 173
+    },
+    {
+      "name": "typecheck",
+      "exit": 0,
+      "seconds": 59
+    },
+    {
+      "name": "deadcode",
+      "exit": 1,
+      "seconds": 12
+    },
+    {
+      "revision": "final-source",
+      "name": "format",
+      "exit": 1,
+      "seconds": 46
+    },
+    {
+      "revision": "final-source",
+      "name": "format",
+      "exit": 0,
+      "seconds": 45
+    },
+    {
+      "revision": "final-source",
+      "name": "lint",
+      "exit": 0,
+      "seconds": 175
+    },
+    {
+      "revision": "final-source",
+      "name": "typecheck",
+      "exit": 0,
+      "seconds": 58
+    },
+    {
+      "revision": "final-source",
+      "name": "deadcode",
+      "exit": 0,
+      "seconds": 4
+    },
+    {
+      "revision": "final-source",
+      "name": "duplication",
+      "exit": 1,
+      "seconds": 1
+    },
+    {
+      "revision": "final-source",
+      "name": "duplication",
+      "exit": 0,
+      "seconds": 1
+    },
+    {
+      "revision": "final-source",
+      "name": "l10n",
+      "exit": 1,
+      "seconds": 2
+    },
+    {
+      "revision": "final-source",
+      "name": "l10n",
+      "exit": 0,
+      "seconds": 2
+    },
+    {
+      "revision": "final-source",
+      "name": "cycles",
+      "exit": 0,
+      "seconds": 7
+    },
+    {
+      "revision": "final-source",
+      "name": "host-api-write",
+      "exit": 0,
+      "seconds": 12
+    },
+    {
+      "revision": "final-source",
+      "name": "host-api",
+      "exit": 0,
+      "seconds": 13
+    },
+    {
+      "revision": "final-source",
+      "name": "build",
+      "exit": 0,
+      "seconds": 3
+    }
+  ],
+  "finalGates": {
+    "format": {
+      "revision": "final-source",
+      "name": "format",
+      "exit": 0,
+      "seconds": 45
+    },
+    "lint": {
+      "revision": "final-source",
+      "name": "lint",
+      "exit": 0,
+      "seconds": 175
+    },
+    "typecheck": {
+      "revision": "final-source",
+      "name": "typecheck",
+      "exit": 0,
+      "seconds": 58
+    },
+    "deadcode": {
+      "revision": "final-source",
+      "name": "deadcode",
+      "exit": 0,
+      "seconds": 4
+    },
+    "duplication": {
+      "revision": "final-source",
+      "name": "duplication",
+      "exit": 0,
+      "seconds": 1
+    },
+    "l10n": {
+      "revision": "final-source",
+      "name": "l10n",
+      "exit": 0,
+      "seconds": 2
+    },
+    "cycles": {
+      "revision": "final-source",
+      "name": "cycles",
+      "exit": 0,
+      "seconds": 7
+    },
+    "host-api-write": {
+      "revision": "final-source",
+      "name": "host-api-write",
+      "exit": 0,
+      "seconds": 12
+    },
+    "host-api": {
+      "revision": "final-source",
+      "name": "host-api",
+      "exit": 0,
+      "seconds": 13
+    },
+    "build": {
+      "revision": "final-source",
+      "name": "build",
+      "exit": 0,
+      "seconds": 3
+    }
+  },
+  "implementationCommit": "69b280577c6b01b9b0f7842cd138d6ddc95981a9",
+  "followupChecks": {
+    "templateFocusedLint": 0,
+    "unitTypecheck": 0,
+    "nativeLazyFactory": "five tools; fresh registry",
+    "acpNoticePackages": 7,
+    "powerShellModuleRoot": "C:/Users/Randy/gates/tools/psmodules",
+    "powerShellFindings": 0
+  }
 }

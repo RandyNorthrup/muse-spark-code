@@ -91,6 +91,8 @@ happened, not what was planned; superseded entries are kept.
 - **M96 integration:** ordinary activation, Model API and ACP bundles exclude
   the team runtime. Team conversations load tools and roster from their lazy
   bundle; shared constants and translated message contracts stay consistent.
+  Single-model conversations retain the in-place refusal while another
+  conversation has a worker writing in the workspace.
 
 ## [0.12.1] - 2026-10-04
 

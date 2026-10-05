@@ -74,7 +74,7 @@ temporary test was removed. Base build SHA-256:
 
 Same-options production source overlays also measured the base ordinary
 bundles. Activation is **608,722 bytes**, against **604,810** at the base:
-**+3,912 bytes**, below 4,096. Model API is 447,899 versus 440,468;
+**+3,912 bytes**, below 4,096. Model API is 448,164 versus 440,468;
 ACP is 822,153 versus 820,162. These comparisons externalize the shared
 English table and the existing deferred entries exactly as the production
 build does.
@@ -124,3 +124,54 @@ Before the aggregate run, focused seam runs passed A's pool/ceiling/constants
 (73 tests), B's resources/bridge/IDE server (67), and all seven F files
 (94). The plan-record failure in the aggregate was fixed by restoring
 changelog entries; that complete three-file group then passed (31).
+
+## Final gates and bundles
+
+All required checks exit **0**: all five typechecks; full JavaScript/CSS/
+PowerShell lint; prettier; plain knip; jscpd (0 clones); localization
+(14 tables, 121 manifest strings, 450 source files, 0 problems); dpdm;
+host API generation and check; production build, split, host-global and
+83-package notices checks. The built lazy entry also works through native
+Node dynamic import (five tools and a fresh registry). ACP notices cover
+the new bundle and produce seven package notices.
+
+PowerShell initially could not find its pinned analyzer. The rig already
+has PSScriptAnalyzer 1.25.0 at
+`C:/Users/Randy/gates/tools/psmodules/PSScriptAnalyzer/1.25.0`.
+Prepending its module root to **this process's** `PSModulePath` lets the
+unchanged full lint command pass with 0 findings. The prior value is
+restored in `finally`; no installation or machine/user setting changes.
+
+The duplication gate caught F's independently copied tool-set table after
+the merge. Compact expected strings retain the independent assertions.
+Removing research's `webFetch` from the canonical source fails its owning
+test (1 failed, 11 passed), then SHA-256 restoration and all 12 tests pass.
+Ten localization exceptions were listed in both the shared and locale
+lists; removing the redundant locale entries preserves every allowed key.
+No ignore or threshold changed. The changed test also passes focused lint
+and the unit compiler after the aggregate checks.
+
+| Production artifact |   Bytes | Cap bytes |
+| ------------------- | ------: | --------: |
+| extension.js        | 608,722 |   614,400 |
+| modelApi.js         | 448,164 |   486,400 |
+| review.js           |  45,143 |    51,200 |
+| sessionBoard.js     |  64,641 |    76,800 |
+| reviewer.js         |  57,012 |    76,800 |
+| team.js             |  44,558 |    76,800 |
+| planMarkdown.js     | 142,363 |   153,600 |
+| checkpointStore.js  | 139,890 |   230,400 |
+| agentImport.js      | 119,384 |   128,000 |
+| bundledSkills.js    |  24,373 |    51,200 |
+| codeIntel.js        |  79,468 |   102,400 |
+| voice.js            |  36,470 |    51,200 |
+| museCodeReviewer.js |  44,697 |    76,800 |
+| uiText.js           | 121,692 |   128,000 |
+| searchWorker.js     |  18,571 |    51,200 |
+| pageWorker.js       | 208,040 |   307,200 |
+| webview/main.js     | 897,026 |   921,600 |
+| acp.js              | 822,153 |   870,400 |
+
+`npm run quality` was not run, as the rig brief explicitly prohibits it.
+The D78 production adapter, late-terminal observation residual and remaining
+lanes retain their existing owners; no integration claim marks M96 shipped.

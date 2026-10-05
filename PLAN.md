@@ -19833,16 +19833,16 @@ joined with M57, M58 and PR #49's sign-in
 
 ## 7. Gates
 
-**M96INT integration (2026-10-05, Windows 11 rig).** Merge R/0, A, B,
-F and T in that order, preserving round 4. The integrated activation
-graph exposes T's eager tool/roster imports; repair this seam with the
-planned lazy `dist/team.js`, a shared synchronous conversation-mode read,
-and injected tool definitions. Reconcile lane-local tunables with lane 0's
-constants and retain every translated key contract. Prove ordinary graph
-exclusion and the seven golden request scenarios against a read-only build
-of `e23ec61c`, then run the rig brief's focused unit and static/build gates.
-W/I/U2/L/K and the full quality run remain with the lead. Evidence goes in
-`docs/certification/m96-int.md`.
+**M96INT integrated-source proof (2026-10-05, Windows 11 rig).** R/0, A,
+B, F and T are merged in order, preserving round 4. The repaired lazy
+boundary excludes team runtime modules from activation, Model API and ACP.
+All seven golden scenarios match an independent source-overlay build of
+`e23ec61c`; 1,562 tests pass across 50 owning/adjacent files. All five
+compiler projects, full lint, formatting, knip, zero-clone duplication,
+localization (0 problems), cycles, regenerated host API and production
+build pass. All 18 bundle caps pass; activation grows 3,912 bytes.
+W/I/U2/L/K and full quality remain with the lead. Evidence and byte-exact
+failure drills are in `docs/certification/m96-int.md` and its result JSON.
 
 The lazy-entry regression also covers an older single-model conversation
 while another conversation has an in-place worker: its known refusal stays
@@ -20339,6 +20339,9 @@ before a repaired one loads (2026-09-30).
   on the integrated source, and reruns the unchanged gate before proposing
   the integrated commit. The lane gate failure is recorded in §7 and
   `docs/certification/m96-b.md`.
+  **Resolved by M96INT:** the integrated record is regenerated with
+  `--write`, reviewed, and the unchanged check passes. It now records 24
+  Node built-ins, including crypto in 36 files and HTTP in 5.
 
 - **M96B-LATE-TERMINAL (FIXM96B, RVM96A 10, 2026-10-05): retained
   ownership after a local timeout.** M50 removes a request from its waiting

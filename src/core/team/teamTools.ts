@@ -32,7 +32,8 @@ export { TEAM_TOOL_NAMES } from '../../shared/constants'
 export type TeamToolName = (typeof TEAM_TOOL_NAMES)[number]
 
 /** What a delegating worker gets: the four that never merge. */
-export const TEAM_WORKER_TOOL_NAMES = TEAM_DELEGATE_TOOLS.filter(isTeamTool)
+export const TEAM_WORKER_TOOL_NAMES: readonly TeamToolName[] =
+  TEAM_DELEGATE_TOOLS.filter(isTeamTool)
 
 /** Whether a tool is one of the five. */
 export function isTeamTool(name: string): name is TeamToolName {
