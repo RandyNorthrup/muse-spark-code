@@ -111,8 +111,11 @@ function add(target: Accumulator, value: UsageTotals, histogram: readonly number
     for (const key of ['usd', 'apiEquivalentUsd'] as const)
       if (cost[key] !== undefined) existing[key] = (existing[key] ?? 0) + cost[key]
   }
-  for (const [index, count] of histogram.entries())
-    target.histogram[index] = (target.histogram[index] ?? 0) + count
+  let index = 0
+  for (const count of histogram) {
+    if (count !== 0) target.histogram[index] = (target.histogram[index] ?? 0) + count
+    index += 1
+  }
 }
 /** Upper edge of the containing bucket; overflow uses the last finite edge. */
 function percentile(histogram: readonly number[], share: number): number | undefined {
@@ -152,7 +155,12 @@ function recordRow(record: UsageRecord): UsageAggregateRow {
     histogram[found === -1 ? USAGE_HISTOGRAM_EDGES_MS.length : found] = 1
   }
   return {
-    ...record,
+    day: record.day,
+    client: record.client,
+    backend: record.backend,
+    provider: record.provider,
+    model: record.model,
+    kind: record.kind,
     histogram,
     totals: {
       records: 1,
@@ -236,13 +244,20 @@ export function aggregateUsage(
     const feature = features.get(row.kind) ?? accumulator()
     add(feature, row.totals, row.histogram)
     features.set(row.kind, feature)
-    const weekday = (new Date(row.day).getUTCDay() + DAYS_PER_WEEK - 1) % DAYS_PER_WEEK
-    const day = interval === 'week' ? shiftUsageDay(row.day, -weekday) : row.day
-    const bucketAt = interval === 'hour' && at !== undefined ? at : Date.parse(day)
-    const key = JSON.stringify([day, bucketAt])
+    let day = row.day
+    if (interval === 'week') {
+      const weekday = (new Date(day).getUTCDay() + DAYS_PER_WEEK - 1) % DAYS_PER_WEEK
+      day = shiftUsageDay(day, -weekday)
+    }
+    const key = interval === 'hour' ? `${day}:${String(at ?? Date.parse(day))}` : day
     let bucket = buckets.get(key)
     if (bucket === undefined) {
-      bucket = { at: bucketAt, day, sum: accumulator(), groups: new Map() }
+      bucket = {
+        at: interval === 'hour' && at !== undefined ? at : Date.parse(day),
+        day,
+        sum: accumulator(),
+        groups: new Map(),
+      }
       buckets.set(key, bucket)
     }
     add(bucket.sum, row.totals, row.histogram)
