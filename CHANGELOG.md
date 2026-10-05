@@ -7,6 +7,8 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+- Translate deterministic legal findings, evidence labels, reader failures and limits in every supported language; preserve stable finding ids. Package translations losslessly within the existing size caps.
+
 - Editor legal scans offer disclosed public npm/PyPI metadata lookups, with an offline setting, HTTPS redirect refusal and supplemental licence evidence.
 
 - Legal scanning now bounds UTF-8 bytes, total reads, each rule’s findings and elapsed time independently, and reports incomplete work at every limit.

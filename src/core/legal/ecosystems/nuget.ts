@@ -1,3 +1,5 @@
+import { fill, plural } from '../../../shared/l10n/text'
+import { UI_TEXT } from '../../../shared/constants'
 import { compareLegalText } from '../files'
 // NuGet evidence (M97, PLAN.md D76): project declarations, central
 // package versions, `packages.lock.json`, `project.assets.json` and
@@ -252,7 +254,13 @@ export function readNuGet(snapshot: LegalFileSnapshot): EcosystemResult {
     const existing = nuspecs.get(identityKey)
     if (existing !== undefined && existing.expression !== expression) {
       incomplete.push(
-        `not checked: license metadata conflict for ${identityKey} between ${existing.file} and ${file}: ${existing.expression ?? 'unknown'} versus ${expression ?? 'unknown'}`,
+        fill(UI_TEXT.legalScanner.m165, {
+          v0: identityKey,
+          v1: existing.file,
+          v2: file,
+          v3: existing.expression ?? UI_TEXT.legalScanner.unknown,
+          v4: expression ?? UI_TEXT.legalScanner.unknown,
+        }),
       )
       nuspecs.set(identityKey, { expression: undefined, file })
     } else nuspecs.set(identityKey, { expression, file })
@@ -287,24 +295,17 @@ export function readNuGet(snapshot: LegalFileSnapshot): EcosystemResult {
       }),
     )
   }
-  if (references.length > 0)
-    incomplete.push(
-      'not checked: NuGet conditional or dynamic project declarations, version ranges and multi-framework conflicts require review',
-    )
+  if (references.length > 0) incomplete.push(UI_TEXT.legalScanner.m181)
   const unresolved = dependencies.filter((dep) => dep.version === undefined).length
   if (unresolved > 0) {
-    incomplete.push(
-      `not checked: ${String(unresolved)} NuGet requirements have no resolved version in any lock, asset or central version file`,
-    )
+    incomplete.push(plural(UI_TEXT.legalScanner.m182, unresolved, { v0: unresolved }))
   }
   const withoutLicense = dependencies.filter((dep) => dep.licenseRaw === undefined).length
   if (withoutLicense > 0) {
-    incomplete.push(
-      `not checked: ${String(withoutLicense)} NuGet packages carry no license metadata; present .nuspec files would close the gap`,
-    )
+    incomplete.push(plural(UI_TEXT.legalScanner.m183, withoutLicense, { v0: withoutLicense }))
   }
   if (references.length === 0 && lockedVersions.size === 0) {
-    incomplete.push('not checked: no NuGet declarations, locks or asset files found')
+    incomplete.push(UI_TEXT.legalScanner.m184)
   }
 
   dependencies.sort((a, b) => compareLegalText(a.name, b.name))

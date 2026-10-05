@@ -1,3 +1,5 @@
+import { fill, plural } from '../../../shared/l10n/text'
+import { UI_TEXT } from '../../../shared/constants'
 import type { InstalledLicenseMetadata } from '../dependencies'
 import { compareLegalText } from '../files'
 // pip, uv and Poetry evidence (M97, PLAN.md D76): `pyproject.toml`,
@@ -60,16 +62,15 @@ function readRequirements(
       const dir = dirNameOf(file)
       const isResolved = snapshot.files.includes(dir === '' ? target : `${dir}/${target}`)
       incomplete.push(
-        isResolved
-          ? `not checked: ${file} includes ${target}; arbitrary include names are not recursively resolved`
-          : `not checked: ${file} includes ${target}, which is absent from the workspace`,
+        fill(isResolved ? UI_TEXT.legalScanner.m185 : UI_TEXT.legalScanner.m186, {
+          v0: file,
+          v1: target,
+        }),
       )
       continue
     }
     if (line.startsWith('-')) {
-      incomplete.push(
-        `not checked: ${file} contains a requirements option or editable source not resolved statically`,
-      )
+      incomplete.push(fill(UI_TEXT.legalScanner.m187, { v0: file }))
       continue
     }
     const requirement = requirementName(line)
@@ -85,9 +86,7 @@ function readRequirements(
     )
   }
   if (unparsable > 0) {
-    incomplete.push(
-      `not checked: ${String(unparsable)} requirement lines in ${file} use a form the reader does not parse`,
-    )
+    incomplete.push(plural(UI_TEXT.legalScanner.m188, unparsable, { v0: unparsable, v1: file }))
   }
   return found
 }
@@ -159,7 +158,7 @@ export function readPython(snapshot: LegalFileSnapshot): EcosystemResult {
     const poetry = parseTomlSection(text, 'tool.poetry')
     const name = project.get('name') ?? poetry.get('name')
     if (typeof name !== 'string') {
-      incomplete.push(`not checked: ${file} names no project, so its requirements are unattributed`)
+      incomplete.push(fill(UI_TEXT.legalScanner.m189, { v0: file }))
       continue
     }
     const licenseValue = project.get('license') ?? poetry.get('license')
@@ -243,11 +242,10 @@ export function readPython(snapshot: LegalFileSnapshot): EcosystemResult {
         )
       }
     }
-    if (packages.length === 0)
-      incomplete.push(`not checked: ${file} has no readable package stanzas`)
+    if (packages.length === 0) incomplete.push(fill(UI_TEXT.legalScanner.m190, { v0: file }))
     if (packages.length > 0) {
       incomplete.push(
-        `not checked: ${file} records versions but no license metadata for ${String(packages.length)} packages; present distribution metadata would close the gap`,
+        plural(UI_TEXT.legalScanner.m191, packages.length, { v0: file, v1: packages.length }),
       )
     }
   }
@@ -260,9 +258,7 @@ export function readPython(snapshot: LegalFileSnapshot): EcosystemResult {
     const present =
       dep.version === undefined || candidate?.version === dep.version ? candidate : undefined
     if (candidate !== undefined && present === undefined)
-      incomplete.push(
-        `not checked: installed metadata version differs for ${dep.name}; locked license unknown`,
-      )
+      incomplete.push(fill(UI_TEXT.legalScanner.m192, { v0: dep.name }))
     if (present !== undefined && dep.licenseRaw === undefined && present.licenseRaw !== undefined) {
       return dependency('pip', present.file, dep.name, {
         version: dep.version ?? present.version,
@@ -287,23 +283,17 @@ export function readPython(snapshot: LegalFileSnapshot): EcosystemResult {
   if (
     snapshot.files.some((file) => /(?:pyproject\.toml|requirements.*\.txt|setup\.py)$/.test(file))
   ) {
-    incomplete.push(
-      'not checked: Python static declarations do not establish complete transitive coverage without lock and installed metadata; dynamic build metadata is never evaluated',
-    )
+    incomplete.push(UI_TEXT.legalScanner.m193)
   }
   const withoutLicense = merged.filter((dep) => dep.licenseRaw === undefined).length
   if (withoutLicense > 0)
-    incomplete.push(
-      `not checked: ${String(withoutLicense)} Python packages have no matching license metadata`,
-    )
+    incomplete.push(plural(UI_TEXT.legalScanner.m194, withoutLicense, { v0: withoutLicense }))
   const unresolved = merged.filter((dep) => dep.version === undefined).length
   if (unresolved > 0) {
-    incomplete.push(
-      `not checked: ${String(unresolved)} Python requirements have no resolved version; their transitive licenses are unknown`,
-    )
+    incomplete.push(plural(UI_TEXT.legalScanner.m195, unresolved, { v0: unresolved }))
   }
   if (merged.length === 0 && projectLicenses.length === 0) {
-    incomplete.push('not checked: no Python manifests, locks or distribution metadata found')
+    incomplete.push(UI_TEXT.legalScanner.m196)
   }
 
   merged.sort((a, b) => compareLegalText(a.name, b.name))

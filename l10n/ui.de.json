@@ -1913,5 +1913,304 @@
   "legalRegistryOfflineUnknown": "Offline: Fehlende Abhängigkeitslizenzen bleiben unbekannt, weil Registrierungsabfragen deaktiviert oder abgelehnt wurden.",
   "legalRegistryFact": "{name}@{version}: Die Registrierung gibt {license} an.",
   "legalRegistryRecommendation": "Prüfen Sie die Originalbedingungen und Weitergabepflichten; Registrierungsmetadaten belegen keine Rechte.",
-  "legalRegistryMetadataOnly": "Registrierungsmetadaten ergänzen die Belege; Originalbedingungen und unvollständige lokale Ergebnisse müssen weiter geprüft werden."
+  "legalRegistryMetadataOnly": "Registrierungsmetadaten ergänzen die Belege; Originalbedingungen und unvollständige lokale Ergebnisse müssen weiter geprüft werden.",
+  "legalScanner": {
+    "m001": "Kompatibilitätsprüfung für {v0}",
+    "m002": "{v0} hat zwei Lizenzen; {v1} ist neben {v2} eine unbedenkliche Wahl. Bedingungen vor der Weitergabe bestätigen.",
+    "m003": "Dokumentieren Sie, welchen Lizenzzweig die Weitergabe erfüllt.",
+    "m004": "{v0} nennt {v1} als alternative Copyleft-Bedingungen; bei Weitergabe sind Quellcode- und Verknüpfungspflichten des gewählten Zweigs zu erfüllen.",
+    "m005": "Bestätigen Sie Lizenzzweig und Pflichten mit einem Anwalt.",
+    "m006": "{v0} wird unter {v1} weitergegeben, das Projekt nennt {v2}: Die Kombination kann Quellcodeoffenlegung verlangen. Dies ist eine Frage, kein Urteil.",
+    "m007": "Klären Sie anwaltlich, ob und für welchen Code die Copyleft-Pflichten gelten.",
+    "m008": "{v0} nennt {v1} nur für die Entwicklung.",
+    "m009": "Bestätigen Sie, dass es nie mitgeliefert wird; starkes Copyleft kann Quellcodeoffenlegung verlangen.",
+    "m010": "{v0} nennt {v1}; die Weitergabe ist unbekannt. Eine mitgelieferte Kombination kann Quellcodeoffenlegung verlangen.",
+    "m011": "Klären Sie die Weitergabe und anschließend die Pflichten mit einem Anwalt.",
+    "m012": "{v0} nennt {v1}{v2}: Datei-Copyleft gilt für betroffene Dateien; LGPL-Verknüpfung verlangt Quellcode und erneute Verknüpfbarkeit.",
+    "m013": "Bewahren Sie Dateibedingungen und Hinweise; prüfen Sie die LGPL-Verknüpfung.",
+    "m014": "{v0} nennt {v1}{v2}: quelloffene Einsicht oder eingeschränkte Bedingungen, keine Open-Source-Rechte. Erkennung bedeutet keine Billigung.",
+    "m015": "Prüfen Sie diese Weitergabe anwaltlich, einschließlich BUSL-Änderungsdatum oder Commons-Clause-Geltung.",
+    "m016": "{v0} nennt {v1}, das die Prüfung nicht einordnet; Bedingungen manuell bestätigen.",
+    "m017": "Prüfen Sie den Lizenztext für diese Weitergabe.",
+    "m018": "{v0} wird unter {v1} weitergegeben; eine Lizenzgewährung fehlt.",
+    "m019": "Bestätigen Sie privates Eigentum an genau dieser Version oder entfernen Sie sie aus der Lieferung.",
+    "m020": "{v0} nennt {v1} außerhalb der Lieferung.",
+    "m021": "Bestätigen Sie, dass es nie mitgeliefert wird; proprietäre Abhängigkeiten benötigen Eigentumsnachweise.",
+    "m022": "Nicht geprüft: Für {v0}-Paket {v1}@{v2} fehlen Lizenzbelege.",
+    "m023": "{v0} nennt Lizenz {v1}, keinen gültigen SPDX-Ausdruck: {v2}.",
+    "m024": "Korrigieren Sie die Angabe anhand der Paketmetadaten oder prüfen Sie die Bedingungen manuell.",
+    "m025": "{v0} nennt eigene Referenz {v1}; deren Bedingungen müssen gelesen werden.",
+    "m026": "Bestätigen Sie den referenzierten Text und seine Vereinbarkeit mit der Weitergabe.",
+    "m027": "{v0} nennt veraltete SPDX-Form {v1}; ein abschließendes + benennt spätere Versionen nicht eindeutig.",
+    "m028": "Verwenden Sie den vorgesehenen aktuellen -only- oder -or-later-Bezeichner.",
+    "m029": "{v0} nennt Ausnahme {v1}, die nicht in der SPDX-Ausnahmenliste steht.",
+    "m030": "Prüfen Sie den Ausnahmetext; Ausnahmen ändern die Bewertung.",
+    "m031": "Widersprüchliche Lizenzbelege für {v0}: {v1}. Keine Quelle entscheidet den Widerspruch stillschweigend.",
+    "m032": "Prüfen Sie Original und Angaben gemeinsam, bevor Sie die geltenden Bedingungen bestimmen.",
+    "m033": "Nicht geprüft: Widersprüchliche Lizenzbelege für {v0} verlangen menschliche Prüfung.",
+    "m034": "{v0}-Prüfung bei {v1}",
+    "m035": "Nicht geprüft: Dateinamen allein belegen keine aktuellen Artefakte.",
+    "m036": "Nicht geprüft: Bündeleingaben fehlen oder passen nicht mehr zum Arbeitsbereich.",
+    "m037": {
+      "one": "Weitergabe anhand von {v0} bekannten Bündeleingaben bestimmt",
+      "other": "Weitergabe anhand von {v0} bekannten Bündeleingaben bestimmt"
+    },
+    "m038": "Quellcodebestand, Weitergabe unbekannt: Bündeleingaben und Paketinventar fehlen.",
+    "m039": "Nicht geprüft: Weitergabe unbekannt; ohne Bündel- oder Paketbelege wird keine Lieferung angenommen.",
+    "m040": "Nicht geprüft: Zu viele Paketmuster für das begrenzte Inventar.",
+    "m041": "Nicht geprüft: Nicht unterstützte Paketmuster; Weitergabe nur näherungsweise bestimmt.",
+    "m042": "Nicht geprüft: .vscodeignore-Muster {v0} nutzt nicht unterstützte Syntax; Lieferung nur näherungsweise bestimmt.",
+    "m043": "Nicht geprüft: Paketinventare belegen weder eingebettete Bündeleingaben noch aktuelle Artefakte.",
+    "m044": "Weitergabe aus Paketdateien und .vscodeignore angenähert; ungebaute Artefakte können abweichen.",
+    "m045": "Weitergabeprüfung",
+    "m046": {
+      "one": "{v0} Abhängigkeiten könnten ohne zuordnende Hinweisdatei mitgeliefert werden.",
+      "other": "{v0} Abhängigkeiten könnten ohne zuordnende Hinweisdatei mitgeliefert werden."
+    },
+    "m047": "Fügen Sie THIRD_PARTY_NOTICES oder gleichwertige Hinweise für die Lieferung hinzu.",
+    "m048": "{v0} könnte mitgeliefert werden, wird aber in keiner vorhandenen Hinweisdatei genannt.",
+    "m049": "Nennen Sie das Paket in THIRD_PARTY_NOTICES oder gleichwertigen Hinweisen.",
+    "m050": "Nicht geprüft: {v0} enthält keine lesbare NOTICE-Zuordnung.",
+    "m051": "Weitergabeprüfung bei {v0}",
+    "m052": "{v0} enthält eine ursprüngliche NOTICE-Datei ohne Zuordnung in den vorhandenen Hinweisen.",
+    "m053": "Erhalten Sie die geltende NOTICE-Zuordnung in THIRD_PARTY_NOTICES oder gleichwertigen Hinweisen.",
+    "m054": "Pfad außerhalb des Arbeitsbereichs oder jenseits der Grenzen verweigert",
+    "m055": "Nicht geprüft: Komplexe REUSE-Muster, Vorrang und Eigentumsbezüge; nur vollständige exakte Pfadangaben gelten.",
+    "m056": "Medieninventar bei {v0}",
+    "m057": "{v0} hat keine beobachtete Herkunftsangabe pro Datei; der Dateiname belegt weder Eigentum noch Weitergaberechte.",
+    "m058": "Dokumentieren Sie Quelle, Autor und Bedingungen aus bestätigtem Eigentum in einer Begleitdatei oder REUSE-Angabe.",
+    "m059": "Quellenreferenz bei {v0}",
+    "m060": "{v0} enthält eine zu prüfende Quellenreferenz; sie allein beweist weder Kopieren noch Rechtsverletzung.",
+    "m061": "Prüfen Sie Quelle, Autor, Datum, Lizenz und Zuordnung; erhalten Sie berechtigte ursprüngliche Kopfzeilen.",
+    "m062": "Nicht geprüft: Urheberrechtskopfzeilen sind laut Richtlinie ausgeschaltet.",
+    "m063": "Nicht geprüft: {v0} hat unlesbare oder binäre Kopfzeilen.",
+    "m064": "Kopfzeilenprüfung bei {v0}",
+    "m065": "{v0} hat in den ersten Zeilen keinen Urheberrechtsvermerk, obwohl die Richtlinie ihn verlangt.",
+    "m066": "Ergänzen Sie den Projektvermerk aus bestätigtem Eigentum; ersetzen Sie nie fremde Kopfzeilen.",
+    "m067": "{v0} fehlt die verlangte SPDX-License-Identifier-Zeile.",
+    "m068": "Ergänzen Sie den SPDX-Bezeichner der geltenden Lizenz.",
+    "m069": "{v0} hat in den ersten Zeilen keine {v1}.",
+    "m070": "Ergänzen Sie den optionalen Projektvermerk zur Pflege der Kopfzeilen.",
+    "m071": "{v0} enthält einen Urheberrechtsvermerk, aber {v1}.",
+    "m072": "Korrigieren Sie das Datum mit dem Inhaber; ein früheres Jahr allein ist nicht veraltet.",
+    "m073": "{v0} nennt SPDX-License-Identifier {v1}, der nicht parsebar ist: {v2}.",
+    "m074": "Schreiben Sie einen SPDX-Ausdruck mit AND, OR und WITH in Großbuchstaben.",
+    "m075": "Prüfen Sie den referenzierten Text neben der Datei oder in REUSE.toml.",
+    "m076": "{v0} nennt veraltete SPDX-Form {v1}.",
+    "m077": "Verwenden Sie den aktuellen Bezeichner der SPDX License List.",
+    "m078": "{v0} enthält unterschiedliche SPDX-Angaben {v1} und {v2}.",
+    "m079": "Bestätigen Sie die Bedingungen jeder Angabe; erhalten Sie berechtigte ursprüngliche Lizenzen.",
+    "m080": "{v0} nennt {v1} außerhalb der Projektlizenzen {v2}.",
+    "m081": "Bestätigen Sie fremde Bedingungen und erhalten Sie deren Kopfzeile oder korrigieren Sie den Bezeichner.",
+    "m082": "Projektlizenzprüfung bei {v0}",
+    "m083": "Schreiben Sie einen SPDX-Ausdruck mit AND, OR, WITH und nötigen Klammern.",
+    "m084": "Nicht geprüft: Vollständiger SPDX-Textabgleich und geänderte Bedingungen; Titel- und Klauselabgleich ist heuristisch.",
+    "m085": "{v0} enthält keinen erkannten Lizenztext; Bedingungen manuell lesen.",
+    "m086": "Bestätigen Sie die gewährte Lizenz und tragen Sie sie im Manifest ein.",
+    "m087": "{v0} verweist auf {v1}, das im Arbeitsbereich fehlt.",
+    "m088": "Ergänzen Sie die referenzierte Lizenzdatei oder korrigieren Sie das Manifest.",
+    "m089": "{v0} kennzeichnet das Projekt als UNLICENSED: standardmäßig proprietär, alle Rechte vorbehalten.",
+    "m090": "Geben Sie es nur an vorgesehene Empfänger; öffentliche Weitergabe braucht eine Lizenzgewährung.",
+    "m091": "Projektlizenzprüfung bei {v0} und {v1}",
+    "m092": "{v0} nennt {v1}, aber die Lizenzdatei wird als {v2} erkannt.",
+    "m093": "Gleichen Sie Metadaten und Lizenzdatei vor Weitergabe ab; Lizenzwechsel ausdrücklich bestätigen.",
+    "m094": "Projektlizenzprüfung",
+    "m095": "Widersprüchliche Manifeste ohne entscheidende Lizenzdatei: {v0}.",
+    "m096": "Gleichen Sie Manifeste vor Weitergabe ab; Lizenzwechsel ausdrücklich bestätigen.",
+    "m097": "Das Manifest nennt Bedingungen, aber eine Lizenzdatei im Stamm fehlt.",
+    "m098": "Ergänzen Sie vor Weitergabe den geltenden Lizenztext aus bestätigtem Eigentum.",
+    "m099": "Das README nennt {v0}, das Projekt dagegen {v1}.",
+    "m100": "Gleichen Sie README, Lizenzdatei und Manifest vor Weitergabe ab.",
+    "m101": "Lizenz {v0} steht nur im README; Lizenzdatei und Manifestfeld fehlen.",
+    "m102": "Ergänzen Sie LICENSE und Manifestfeld aus bestätigtem Eigentum.",
+    "m103": "LICENSE, Manifestfeld und README-Angabe fehlen; bei nicht weitergegebenem Code sind alle Rechte vorbehalten.",
+    "m104": "Wählen Sie eine Lizenz mit ausdrücklicher Bestätigung und nennen Sie sie in LICENSE und Manifest.",
+    "m105": "{v0} enthält nicht erkannten lizenzartigen Text; Fremdcode braucht Zuordnung in den Hinweisen.",
+    "m106": "{v0} enthält Bedingungen {v1} im Arbeitsbereich; Fremdcode braucht Zuordnung in den Hinweisen.",
+    "m107": "Bestätigen Sie die Fremdcodezuordnung in THIRD_PARTY_NOTICES oder gleichwertigen Hinweisen.",
+    "m108": "Unbekannte Kopfzeilenrichtlinie",
+    "m109": "Zu viele ausgewählte Pfade",
+    "m110": "Nicht geprüft: Medien, kopierter Code, proprietäre Bedingungen und vollständiger Lizenztextabgleich benötigen menschliche Prüfung.",
+    "m111": "Rechtliche Prüfung abgebrochen",
+    "m112": "Prüfung an Grenze gestoppt: Zeitlimit",
+    "m113": "Nicht geprüft: {v0} kann nicht als Text gelesen werden.",
+    "m114": "Prüfung an Grenze gestoppt: {v0} überschreitet das Textlesebudget.",
+    "m115": {
+      "one": "Nicht geprüft: Nach {v0} Dateien gestoppt; {v1} weitere nicht gelesen.",
+      "other": "Nicht geprüft: Nach {v0} Dateien gestoppt; {v1} weitere nicht gelesen."
+    },
+    "m116": {
+      "one": "Nicht geprüft: Grenze für Abhängigkeitsbelege erreicht; {v0} Einträge ausgelassen.",
+      "other": "Nicht geprüft: Grenze für Abhängigkeitsbelege erreicht; {v0} Einträge ausgelassen."
+    },
+    "m117": "Nicht geprüft: Lizenztext für {v0} bei {v1} nicht erkannt.",
+    "m118": "Lizenztextprüfung bei {v0}",
+    "m119": {
+      "one": "Weitergabe unbekannt bei {v0} Produktionsabhängigkeiten; bewertet wird ein nicht weitergegebener Quellcodebestand.",
+      "other": "Weitergabe unbekannt bei {v0} Produktionsabhängigkeiten; bewertet wird ein nicht weitergegebener Quellcodebestand."
+    },
+    "m120": "Liefern Sie Bündeleingaben oder Paketinventar für genaue Weitergabepflichten.",
+    "m121": "Prüfung an Grenze gestoppt: Bericht für {v0} gekürzt",
+    "m122": {
+      "one": "Bericht gekürzt: {v0} Befunde über der Grenze von {v1} ausgelassen; Blocker und nötige Korrekturen zuerst behalten.",
+      "other": "Bericht gekürzt: {v0} Befunde über der Grenze von {v1} ausgelassen; Blocker und nötige Korrekturen zuerst behalten."
+    },
+    "m123": {
+      "one": "Bericht gekürzt: {v0} erzeugte Ausschlüsse über der Grenze ausgelassen.",
+      "other": "Bericht gekürzt: {v0} erzeugte Ausschlüsse über der Grenze ausgelassen."
+    },
+    "m124": "Die Prüfung erzeugte ein ungültiges Ergebnis: {v0}",
+    "m125": "Nicht geprüft: Ein Belegfeld überschreitet die Berichtsgrenze und wurde gekürzt.",
+    "m126": "Unerwartetes Zeichen {v0}",
+    "m127": "WITH muss eine Lizenzausnahme nennen",
+    "m128": "Unerwartetes Ausdrucksende",
+    "m129": "Schließende Klammer fehlt",
+    "m130": "Unerwarteter Operator ohne benachbarte Lizenz",
+    "m131": "Leerer Lizenzausdruck",
+    "m132": "Unerwarteter Text nach dem Ausdruck",
+    "m133": "Lizenzausdruck überschreitet die Textgrenze",
+    "m134": "Verschachtelung des Lizenzausdrucks überschreitet die Grenze",
+    "m135": "Fehlerhafter Lizenzbezeichner",
+    "m136": "Zu viele Alternativen im Lizenzausdruck",
+    "m137": "Prüfungsstamm ist kein Verzeichnis",
+    "m138": "Nicht geprüft: {v0} ist ein Link oder entkommenes Verzeichnis.",
+    "m139": "Prüfung an Grenze gestoppt: Verzeichniseintragsbudget erreicht; Rest nicht aufgezählt.",
+    "m140": "Nicht geprüft: {v0} änderte sich während der Aufzählung.",
+    "m141": "Nicht geprüft: {v0} ist Repository-intern.",
+    "m142": "Nicht geprüft: {v0} ist ein Link.",
+    "m143": "Nicht geprüft: {v0} ist eine Sonderdatei.",
+    "m144": "Nicht geprüft: {v0} konnte nicht zugelassen werden.",
+    "m145": "Nicht geprüft: {v0} enthält Pfad-Crates mit unbekanntem Eigentum und unbekannten aufgelösten Metadaten.",
+    "m146": "Nicht geprüft: {v0} enthält geerbte oder verschachtelte Cargo-Angaben ohne statische Auflösung.",
+    "m147": {
+      "one": "Nicht geprüft: {v0} Cargo-Sperreinträge haben weder Lizenzmetadaten noch passende Fremd-Crate-Manifeste.",
+      "other": "Nicht geprüft: {v0} Cargo-Sperreinträge haben weder Lizenzmetadaten noch passende Fremd-Crate-Manifeste."
+    },
+    "m148": {
+      "one": "Nicht geprüft: {v0} Cargo-Anforderungen haben keine aufgelöste Version in Cargo.lock.",
+      "other": "Nicht geprüft: {v0} Cargo-Anforderungen haben keine aufgelöste Version in Cargo.lock."
+    },
+    "m149": "Nicht geprüft: Cargo-Manifeste und Sperrdateien fehlen.",
+    "m150": "Nicht geprüft: {v0} ist ungültiges JSON; Anforderungen und Lizenz unbekannt.",
+    "m151": "Nicht geprüft: {v0} ist ungültiges JSON; gesperrte Versionen unbekannt.",
+    "m152": "Nicht geprüft: Lizenzbelege für {v0} widersprechen sich zwischen {v1} und {v2}.",
+    "m153": {
+      "one": "Nicht geprüft: {v0} Composer-Anforderungen haben keine gesperrte Version in composer.lock.",
+      "other": "Nicht geprüft: {v0} Composer-Anforderungen haben keine gesperrte Version in composer.lock."
+    },
+    "m154": {
+      "one": "Nicht geprüft: {v0} Composer-Pakete haben keine Lizenzmetadaten in Sperr- oder Installationsdaten.",
+      "other": "Nicht geprüft: {v0} Composer-Pakete haben keine Lizenzmetadaten in Sperr- oder Installationsdaten."
+    },
+    "m155": "Nicht geprüft: composer.json, composer.lock und installed.json fehlen.",
+    "m156": "Nicht geprüft: {v0} enthält ausführbaren Code; er läuft nie, nur statische Zuweisungen werden gelesen.",
+    "m157": "Nicht geprüft: {v0} wird statisch gelesen; berechnete Ruby-Metadaten und bedingte Zuweisungen bleiben unausgewertet.",
+    "m158": {
+      "one": "Nicht geprüft: {v0} Gem-Anforderungen haben keine gesperrte Version in Gemfile.lock.",
+      "other": "Nicht geprüft: {v0} Gem-Anforderungen haben keine gesperrte Version in Gemfile.lock."
+    },
+    "m159": {
+      "one": "Nicht geprüft: {v0} Gems haben keine Lizenzmetadaten; vorhandene Gem-Spezifikationen könnten helfen.",
+      "other": "Nicht geprüft: {v0} Gems haben keine Lizenzmetadaten; vorhandene Gem-Spezifikationen könnten helfen."
+    },
+    "m160": "Nicht geprüft: Gemfile, Gemfile.lock und gemspec-Dateien fehlen.",
+    "m161": "Nicht geprüft: Go-Ersetzungen, Werkzeugzuordnung und transitive Auswahl benötigen Prüfung; Prüfsummen können ungenutzte Versionen enthalten.",
+    "m162": {
+      "one": "Nicht geprüft: {v0} Go-Module haben keine Lizenzmetadaten; Prüfsummen und Pfade sind keine Lizenzen, Fremdlizenztexte könnten helfen.",
+      "other": "Nicht geprüft: {v0} Go-Module haben keine Lizenzmetadaten; Prüfsummen und Pfade sind keine Lizenzen, Fremdlizenztexte könnten helfen."
+    },
+    "m163": {
+      "one": "Nicht geprüft: {v0} Go-Werkzeuganforderungen haben keine aufgelöste Version; Lizenzen unbekannt.",
+      "other": "Nicht geprüft: {v0} Go-Werkzeuganforderungen haben keine aufgelöste Version; Lizenzen unbekannt."
+    },
+    "m164": "Nicht geprüft: go.mod, go.sum und vendor/modules.txt fehlen.",
+    "m165": "Nicht geprüft: Widersprüchliche Lizenzmetadaten für {v0} zwischen {v1} und {v2}: {v3} gegenüber {v4}.",
+    "m166": "Nicht geprüft: {v0} wird statisch gelesen; ausführbare Logik, Kataloge und berechnete Angaben bleiben unausgewertet.",
+    "m167": "Nicht geprüft: Statische POM-Angaben lösen weder transitive Maven-Graphen noch Elterneigenschaften und Profile auf.",
+    "m168": {
+      "one": "Nicht geprüft: {v0} Maven/Gradle-Anforderungen haben keine aufgelöste Version in Sperrdateien oder Katalogen.",
+      "other": "Nicht geprüft: {v0} Maven/Gradle-Anforderungen haben keine aufgelöste Version in Sperrdateien oder Katalogen."
+    },
+    "m169": {
+      "one": "Nicht geprüft: {v0} Maven/Gradle-Pakete haben keine Lizenzmetadaten; vorhandene Artefakt-POMs könnten helfen.",
+      "other": "Nicht geprüft: {v0} Maven/Gradle-Pakete haben keine Lizenzmetadaten; vorhandene Artefakt-POMs könnten helfen."
+    },
+    "m170": "Nicht geprüft: POMs, Gradle-Angaben, Sperrdateien und Kataloge fehlen.",
+    "m171": "Nicht geprüft: {v0} enthält unlesbare npm-Sperrmetadaten.",
+    "m172": "Nicht geprüft: {v0} nutzt eine nicht unterstützte npm-Sperrversion.",
+    "m173": "Nicht geprüft: {v0} überschreitet die Verschachtelungsgrenze für npm-Sperrdateien.",
+    "m174": {
+      "one": "Nicht geprüft: {v0} npm-Sperreinträge in {v1} haben weder Lizenzmetadaten noch passende installierte Paketdaten.",
+      "other": "Nicht geprüft: {v0} npm-Sperreinträge in {v1} haben weder Lizenzmetadaten noch passende installierte Paketdaten."
+    },
+    "m175": "Nicht geprüft: {v0} hat keine lesbaren Yarn-Paketeinträge.",
+    "m176": {
+      "one": "Nicht geprüft: {v0} erfasst Versionen, aber keine Lizenzen für {v1} Pakete; installierte Daten könnten helfen.",
+      "other": "Nicht geprüft: {v0} erfasst Versionen, aber keine Lizenzen für {v1} Pakete; installierte Daten könnten helfen."
+    },
+    "m177": "Nicht geprüft: {v0} nutzt eine nicht unterstützte pnpm-Sperrversion oder hat keinen lesbaren Paketabschnitt.",
+    "m178": "Nicht geprüft: Widersprüchliche Lizenzbelege für {v0}@{v1} zwischen {v2} und {v3}.",
+    "m179": {
+      "one": "Nicht geprüft: {v0} npm-Anforderungen haben keine aufgelöste Version; transitive Lizenzen unbekannt.",
+      "other": "Nicht geprüft: {v0} npm-Anforderungen haben keine aufgelöste Version; transitive Lizenzen unbekannt."
+    },
+    "m180": "Nicht geprüft: npm-Manifeste, Sperrdateien und installierte Metadaten fehlen.",
+    "m181": "Nicht geprüft: Bedingte/dynamische NuGet-Angaben, Versionsbereiche und Framework-Konflikte benötigen Prüfung.",
+    "m182": {
+      "one": "Nicht geprüft: {v0} NuGet-Anforderungen haben keine aufgelöste Version in Sperr-, Artefakt- oder zentralen Versionsdateien.",
+      "other": "Nicht geprüft: {v0} NuGet-Anforderungen haben keine aufgelöste Version in Sperr-, Artefakt- oder zentralen Versionsdateien."
+    },
+    "m183": {
+      "one": "Nicht geprüft: {v0} NuGet-Pakete haben keine Lizenzmetadaten; vorhandene .nuspec-Dateien könnten helfen.",
+      "other": "Nicht geprüft: {v0} NuGet-Pakete haben keine Lizenzmetadaten; vorhandene .nuspec-Dateien könnten helfen."
+    },
+    "m184": "Nicht geprüft: NuGet-Angaben, Sperr- und Artefaktdateien fehlen.",
+    "m185": "Nicht geprüft: {v0} bindet {v1} ein; beliebige Namen werden nicht rekursiv aufgelöst.",
+    "m186": "Nicht geprüft: {v0} bindet das im Arbeitsbereich fehlende {v1} ein.",
+    "m187": "Nicht geprüft: {v0} enthält eine Anforderungsoption oder bearbeitbare Quelle ohne statische Auflösung.",
+    "m188": {
+      "one": "Nicht geprüft: {v0} Anforderungszeilen in {v1} haben ein nicht parsebares Format.",
+      "other": "Nicht geprüft: {v0} Anforderungszeilen in {v1} haben ein nicht parsebares Format."
+    },
+    "m189": "Nicht geprüft: {v0} nennt kein Projekt; Anforderungen sind nicht zugeordnet.",
+    "m190": "Nicht geprüft: {v0} hat keine lesbaren Paketabschnitte.",
+    "m191": {
+      "one": "Nicht geprüft: {v0} erfasst Versionen ohne Lizenzen für {v1} Pakete; vorhandene Distributionsmetadaten könnten helfen.",
+      "other": "Nicht geprüft: {v0} erfasst Versionen ohne Lizenzen für {v1} Pakete; vorhandene Distributionsmetadaten könnten helfen."
+    },
+    "m192": "Nicht geprüft: Installierte Metadatenversion für {v0} weicht ab; gesperrte Lizenz unbekannt.",
+    "m193": "Nicht geprüft: Statische Python-Angaben ohne Sperr- und Installationsdaten belegen keine vollständige transitive Abdeckung; dynamische Build-Metadaten werden nie ausgeführt.",
+    "m194": {
+      "one": "Nicht geprüft: {v0} Python-Pakete haben keine passenden Lizenzmetadaten.",
+      "other": "Nicht geprüft: {v0} Python-Pakete haben keine passenden Lizenzmetadaten."
+    },
+    "m195": {
+      "one": "Nicht geprüft: {v0} Python-Anforderungen haben keine aufgelöste Version; transitive Lizenzen unbekannt.",
+      "other": "Nicht geprüft: {v0} Python-Anforderungen haben keine aufgelöste Version; transitive Lizenzen unbekannt."
+    },
+    "m196": "Nicht geprüft: Python-Manifeste, Sperrdateien und Distributionsmetadaten fehlen.",
+    "unknown": "unbekannt",
+    "unresolved": "nicht aufgelöst",
+    "noLicense": "keine Lizenz",
+    "shipment": " in der Lieferung",
+    "copyrightSpdxLines": "Urheberrechts- oder SPDX-License-Identifier-Zeilen",
+    "spdxLine": "eine SPDX-License-Identifier-Zeile",
+    "copyrightLine": "eine Urheberrechtszeile",
+    "invalidYear": "das Jahr {value} ist nicht vierstellig",
+    "impossibleYear": "das Jahr {value} ist unmöglich",
+    "reversedYears": "der Zeitraum {value} endet vor seinem Anfang",
+    "selectedPaths": {
+      "one": "{count} ausgewählte Pfade",
+      "other": "{count} ausgewählte Pfade"
+    },
+    "moreUnchecked": {
+      "one": "und {count} weitere ungeprüfte Einträge über der Grenze ausgelassen",
+      "other": "und {count} weitere ungeprüfte Einträge über der Grenze ausgelassen"
+    },
+    "declaration": "{file} nennt {license}",
+    "licenseFile": "eine Lizenzdatei",
+    "bundleLoad": "{file} konnte nicht geladen werden",
+    "bundleShape": "{file} hat eine unerwartete Struktur",
+    "invalidResult": "die Prüfung lieferte ein ungültiges Ergebnis"
+  }
 }

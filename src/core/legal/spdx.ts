@@ -1,3 +1,5 @@
+import { fill } from '../../shared/l10n/text'
+import { UI_TEXT } from '../../shared/constants'
 // SPDX license expressions (M97, PLAN.md D76): `AND`, `OR` and `WITH`
 // with parentheses, parsed against the pinned identifier data. Operators
 // are uppercase, as the SPDX specification writes them; anything else is
@@ -86,7 +88,7 @@ function tokenize(text: string): { readonly tokens: readonly Token[]; readonly e
       index = end
       continue
     }
-    return { tokens, error: `Unexpected character ${JSON.stringify(char)}` }
+    return { tokens, error: fill(UI_TEXT.legalScanner.m126, { v0: JSON.stringify(char) }) }
   }
   return { tokens }
 }
@@ -142,7 +144,7 @@ class ExpressionParser {
     this.position += 1
     const exceptionToken = this.peek()
     if (exceptionToken?.kind !== 'id') {
-      return 'WITH must name a license exception'
+      return UI_TEXT.legalScanner.m127
     }
     this.position += 1
     const exceptionId = exceptionToken.value
@@ -156,7 +158,7 @@ class ExpressionParser {
   private parsePrimary(): SpdxNode | string {
     const token = this.peek()
     if (token === undefined) {
-      return 'Unexpected end of the expression'
+      return UI_TEXT.legalScanner.m128
     }
     if (token.kind === 'open') {
       this.position += 1
@@ -166,7 +168,7 @@ class ExpressionParser {
       }
       const closing = this.peek()
       if (closing?.kind !== 'close') {
-        return 'Missing closing parenthesis'
+        return UI_TEXT.legalScanner.m129
       }
       this.position += 1
       return inner
@@ -175,17 +177,17 @@ class ExpressionParser {
       this.position += 1
       return { kind: 'license', license: recognizeLicense(token.value) }
     }
-    return 'Unexpected operator without a license beside it'
+    return UI_TEXT.legalScanner.m130
   }
   parse(): SpdxNode | string {
     if (this.tokens.length === 0) {
-      return 'Empty license expression'
+      return UI_TEXT.legalScanner.m131
     }
     const root = this.parseOr()
     if (typeof root === 'string') {
       return root
     }
-    return this.position < this.tokens.length ? 'Unexpected text after the expression' : root
+    return this.position < this.tokens.length ? UI_TEXT.legalScanner.m132 : root
   }
 }
 
@@ -227,17 +229,15 @@ function collectLicenses(root: SpdxNode): SpdxLicenseNode[] {
  */
 export function parseSpdxExpression(text: string): SpdxExpression {
   const trimmed = text.trim()
-  if (trimmed.length > LEGAL_TEXT_MAX_CHARS)
-    return { ok: false, error: 'License expression exceeds the text bound' }
+  if (trimmed.length > LEGAL_TEXT_MAX_CHARS) return { ok: false, error: UI_TEXT.legalScanner.m133 }
   let depth = 0
   for (const char of trimmed) {
     if (char === '(') depth += 1
     else if (char === ')') depth -= 1
-    if (depth > LEGAL_HEADER_LINE_WINDOW)
-      return { ok: false, error: 'License expression nesting exceeds the bound' }
+    if (depth > LEGAL_HEADER_LINE_WINDOW) return { ok: false, error: UI_TEXT.legalScanner.m134 }
   }
   if (trimmed === '') {
-    return { ok: false, error: 'Empty license expression' }
+    return { ok: false, error: UI_TEXT.legalScanner.m131 }
   }
   const { tokens, error } = tokenize(trimmed)
   if (error !== undefined) {
@@ -252,12 +252,12 @@ export function parseSpdxExpression(text: string): SpdxExpression {
             !/^[A-Za-z0-9][A-Za-z0-9.-]*\+?$/.test(token.value))),
     )
   )
-    return { ok: false, error: 'Malformed license identifier' }
+    return { ok: false, error: UI_TEXT.legalScanner.m135 }
 
   const parser = new ExpressionParser(tokens)
   const root = parser.parse()
   if (typeof root !== 'string' && alternativeCount(root) > LEGAL_FINDINGS_MAX)
-    return { ok: false, error: 'License expression alternatives exceed the bound' }
+    return { ok: false, error: UI_TEXT.legalScanner.m136 }
   return typeof root === 'string'
     ? { ok: false, error: root }
     : { ok: true, root, licenses: collectLicenses(root) }

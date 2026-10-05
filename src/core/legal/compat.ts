@@ -1,3 +1,5 @@
+import { fill } from '../../shared/l10n/text'
+import { UI_TEXT } from '../../shared/constants'
 // License compatibility review (M97, PLAN.md D76): strong and weak
 // copyleft, source-available and restricted terms in the shipped set,
 // against the project's own licenses. An `OR` alternative is a choice:
@@ -171,7 +173,7 @@ export function evaluateCompatibility(
       category: 'dependencyLicense',
       packageName: dep.dependency.name,
       file: dep.dependency.evidenceFile,
-      evidenceSource: `compatibility reader over ${dep.dependency.evidenceFile}`,
+      evidenceSource: fill(UI_TEXT.legalScanner.m001, { v0: dep.dependency.evidenceFile }),
       fixable: false,
     } as const
 
@@ -180,8 +182,12 @@ export function evaluateCompatibility(
         ...evidence,
         severity: 'advice',
         confidence: 0.5,
-        explanation: `${describeVersion(dep)} is dual-licensed; ${cleanBranch.join(' AND ')} is a clean choice beside ${flagged.join(', ')}. Confirm the chosen terms before shipping.`,
-        recommendation: 'Record which license branch the distribution complies with.',
+        explanation: fill(UI_TEXT.legalScanner.m002, {
+          v0: describeVersion(dep),
+          v1: cleanBranch.join(' AND '),
+          v2: flagged.join(', '),
+        }),
+        recommendation: UI_TEXT.legalScanner.m003,
         evidenceExcerpt: excerpt(cleanBranch.join(' AND ')),
       })
       continue
@@ -191,8 +197,11 @@ export function evaluateCompatibility(
         ...evidence,
         severity: isShipped ? 'should-fix' : 'advice',
         confidence: 0.6,
-        explanation: `${describeVersion(dep)} declares ${flagged.join(', ')} as alternative copyleft terms; distribution requires choosing and satisfying the applicable source and linking obligations.`,
-        recommendation: 'Confirm the chosen license branch and its obligations with a lawyer.',
+        explanation: fill(UI_TEXT.legalScanner.m004, {
+          v0: describeVersion(dep),
+          v1: flagged.join(', '),
+        }),
+        recommendation: UI_TEXT.legalScanner.m005,
       })
       continue
     }
@@ -202,9 +211,12 @@ export function evaluateCompatibility(
           ...evidence,
           severity: 'blocker',
           confidence: 0.6,
-          explanation: `${describeVersion(dep)} ships under ${flagged.join(', ')} while the project declares ${projectLicenses.join(', ') || 'no license'}: distributing the combination may oblige source disclosure of the combined work. This is a question, not a verdict.`,
-          recommendation:
-            'Confirm with a lawyer whether this distribution triggers the copyleft obligations, and on which code.',
+          explanation: fill(UI_TEXT.legalScanner.m006, {
+            v0: describeVersion(dep),
+            v1: flagged.join(', '),
+            v2: projectLicenses.join(', ') || UI_TEXT.legalScanner.noLicense,
+          }),
+          recommendation: UI_TEXT.legalScanner.m007,
           evidenceExcerpt: excerpt(flagged.join(', ')),
         })
       } else if (scope === 'development') {
@@ -212,18 +224,22 @@ export function evaluateCompatibility(
           ...evidence,
           severity: 'advice',
           confidence: 0.6,
-          explanation: `${describeVersion(dep)} declares ${flagged.join(', ')} in development scope only.`,
-          recommendation:
-            'Confirm it never ships; a shipped strong-copyleft dependency may oblige source disclosure.',
+          explanation: fill(UI_TEXT.legalScanner.m008, {
+            v0: describeVersion(dep),
+            v1: flagged.join(', '),
+          }),
+          recommendation: UI_TEXT.legalScanner.m009,
         })
       } else {
         findings.push({
           ...evidence,
           severity: 'should-fix',
           confidence: 0.6,
-          explanation: `${describeVersion(dep)} declares ${flagged.join(', ')} with distribution unknown: if this combination ships, source disclosure may be obliged.`,
-          recommendation:
-            'Establish whether the dependency ships, then confirm the obligations with a lawyer.',
+          explanation: fill(UI_TEXT.legalScanner.m010, {
+            v0: describeVersion(dep),
+            v1: flagged.join(', '),
+          }),
+          recommendation: UI_TEXT.legalScanner.m011,
           evidenceExcerpt: excerpt(flagged.join(', ')),
         })
       }
@@ -234,9 +250,12 @@ export function evaluateCompatibility(
         ...evidence,
         severity: isShipped ? 'should-fix' : 'advice',
         confidence: 0.6,
-        explanation: `${describeVersion(dep)} declares ${flagged.join(', ')}${isShipped ? ' in the shipment' : ''}: file-level copyleft stays with its covered files, and LGPL linking needs its source and relinking terms.`,
-        recommendation:
-          'Keep covered files under their terms, preserve their notices, and confirm LGPL linkage evidence.',
+        explanation: fill(UI_TEXT.legalScanner.m012, {
+          v0: describeVersion(dep),
+          v1: flagged.join(', '),
+          v2: isShipped ? UI_TEXT.legalScanner.shipment : '',
+        }),
+        recommendation: UI_TEXT.legalScanner.m013,
         evidenceExcerpt: excerpt(flagged.join(', ')),
       })
       continue
@@ -254,9 +273,12 @@ export function evaluateCompatibility(
         ...evidence,
         severity,
         confidence: 0.6,
-        explanation: `${describeVersion(dep)} declares ${restricted.join(', ')}${isShipped ? ' in the shipment' : ''}: source-available or restricted terms, not an open-source grant. Recognition is not approval.`,
-        recommendation:
-          'Review the terms against this exact distribution with a lawyer; confirm a BUSL change date or Commons Clause scope where one applies.',
+        explanation: fill(UI_TEXT.legalScanner.m014, {
+          v0: describeVersion(dep),
+          v1: restricted.join(', '),
+          v2: isShipped ? UI_TEXT.legalScanner.shipment : '',
+        }),
+        recommendation: UI_TEXT.legalScanner.m015,
         evidenceExcerpt: excerpt(restricted.join(', ')),
       })
       continue
@@ -266,8 +288,11 @@ export function evaluateCompatibility(
       ...evidence,
       severity: hasException && isShipped ? 'should-fix' : 'advice',
       confidence: 0.5,
-      explanation: `${describeVersion(dep)} declares ${flagged.join(', ')}, which this reader does not classify: confirm the terms by hand.`,
-      recommendation: 'Review the license text against this distribution.',
+      explanation: fill(UI_TEXT.legalScanner.m016, {
+        v0: describeVersion(dep),
+        v1: flagged.join(', '),
+      }),
+      recommendation: UI_TEXT.legalScanner.m017,
       evidenceExcerpt: excerpt(flagged.join(', ')),
     })
   }

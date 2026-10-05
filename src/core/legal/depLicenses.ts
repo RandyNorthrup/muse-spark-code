@@ -1,3 +1,5 @@
+import { fill } from '../../shared/l10n/text'
+import { UI_TEXT } from '../../shared/constants'
 // Per-dependency license declarations (M97, PLAN.md D76): malformed
 // expressions, unknown or deprecated ids, custom references and
 // proprietary markers become findings; absent declarations stay with the
@@ -45,18 +47,16 @@ function proprietaryFinding(
       ...base,
       severity: 'should-fix',
       file: dep.evidenceFile,
-      explanation: `${dep.name} ships under ${raw} terms: no license grant travels with it.`,
-      recommendation:
-        'Confirm private ownership of this exact version, or remove it from the shipment.',
+      explanation: fill(UI_TEXT.legalScanner.m018, { v0: dep.name, v1: raw }),
+      recommendation: UI_TEXT.legalScanner.m019,
     }
   }
   return {
     ...base,
     severity: 'advice',
     file: dep.evidenceFile,
-    explanation: `${dep.name} declares ${raw} terms outside the shipped set.`,
-    recommendation:
-      'Confirm it never ships; a shipped proprietary dependency needs ownership proof.',
+    explanation: fill(UI_TEXT.legalScanner.m020, { v0: dep.name, v1: raw }),
+    recommendation: UI_TEXT.legalScanner.m021,
   }
 }
 
@@ -78,7 +78,11 @@ export function evaluateDependencyLicenses(
     const raw = dep.licenseRaw
     if (raw === undefined) {
       incomplete.push(
-        `not checked: ${dep.ecosystem} package ${dep.name}@${dep.version ?? 'unresolved'} has no license evidence`,
+        fill(UI_TEXT.legalScanner.m022, {
+          v0: dep.ecosystem,
+          v1: dep.name,
+          v2: dep.version ?? UI_TEXT.legalScanner.unresolved,
+        }),
       )
       continue
     }
@@ -95,9 +99,8 @@ export function evaluateDependencyLicenses(
         file: dep.evidenceFile,
         evidenceSource: dep.evidenceSource,
         confidence: 0.9,
-        explanation: `${dep.name} declares the license ${raw}, which is not a well-formed SPDX expression: ${parsed.error}.`,
-        recommendation:
-          'Correct the declaration from the package metadata, or confirm the terms by hand.',
+        explanation: fill(UI_TEXT.legalScanner.m023, { v0: dep.name, v1: raw, v2: parsed.error }),
+        recommendation: UI_TEXT.legalScanner.m024,
         fixable: false,
         evidenceExcerpt: excerpt(raw),
       })
@@ -115,9 +118,8 @@ export function evaluateDependencyLicenses(
           file: dep.evidenceFile,
           evidenceSource: dep.evidenceSource,
           confidence: 0.7,
-          explanation: `${dep.name} declares the custom reference ${license.id}: its terms need a human read.`,
-          recommendation:
-            'Confirm the referenced license text and its compatibility with the distribution.',
+          explanation: fill(UI_TEXT.legalScanner.m025, { v0: dep.name, v1: license.id }),
+          recommendation: UI_TEXT.legalScanner.m026,
           fixable: false,
           evidenceExcerpt: excerpt(raw),
         })
@@ -129,8 +131,8 @@ export function evaluateDependencyLicenses(
           file: dep.evidenceFile,
           evidenceSource: dep.evidenceSource,
           confidence: 0.8,
-          explanation: `${dep.name} declares ${license.id}, a deprecated SPDX identifier form; a trailing + no longer names which later versions apply.`,
-          recommendation: 'Use the current -only or -or-later identifier the package intends.',
+          explanation: fill(UI_TEXT.legalScanner.m027, { v0: dep.name, v1: license.id }),
+          recommendation: UI_TEXT.legalScanner.m028,
           fixable: false,
           evidenceExcerpt: excerpt(raw),
         })
@@ -142,8 +144,8 @@ export function evaluateDependencyLicenses(
           file: dep.evidenceFile,
           evidenceSource: dep.evidenceSource,
           confidence: 0.7,
-          explanation: `${dep.name} declares the exception ${license.exception.id}, which is not on the SPDX exception list.`,
-          recommendation: 'Confirm the exception text; an exception changes the analysis.',
+          explanation: fill(UI_TEXT.legalScanner.m029, { v0: dep.name, v1: license.exception.id }),
+          recommendation: UI_TEXT.legalScanner.m030,
           fixable: false,
           evidenceExcerpt: excerpt(raw),
         })
@@ -171,14 +173,21 @@ export function evaluateDependencyLicenses(
       ...(first.version !== undefined && { packageVersion: first.version }),
       evidenceSource: sources.map((dep) => dep.evidenceSource).join('; '),
       confidence: 0.8,
-      explanation: `License evidence conflict for ${first.name}: ${sources.map((dep) => `${dep.evidenceFile} declares ${dep.licenseRaw ?? 'unknown'}`).join('; ')}. No source silently settles the conflict.`,
-      recommendation:
-        'Review the original license and declarations together before deciding which terms apply.',
+      explanation: fill(UI_TEXT.legalScanner.m031, {
+        v0: first.name,
+        v1: sources
+          .map((dep) =>
+            fill(UI_TEXT.legalScanner.declaration, {
+              file: dep.evidenceFile,
+              license: dep.licenseRaw ?? UI_TEXT.legalScanner.unknown,
+            }),
+          )
+          .join('; '),
+      }),
+      recommendation: UI_TEXT.legalScanner.m032,
       fixable: false,
     })
-    incomplete.push(
-      `not checked: conflicting license evidence for ${first.name} needs human review`,
-    )
+    incomplete.push(fill(UI_TEXT.legalScanner.m033, { v0: first.name }))
   }
   return { findings, evaluated, incomplete }
 }

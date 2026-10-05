@@ -1,3 +1,5 @@
+import { fill, plural } from '../../shared/l10n/text'
+import { UI_TEXT } from '../../shared/constants'
 import { compareLegalText } from './files'
 // What actually ships (M97, PLAN.md D76): the distributed file set
 // from existing bundle inputs or package inventories, and the notice
@@ -183,9 +185,7 @@ export function computeShipped(
   dependencies: readonly LegalDependency[],
   evidence: DistributionEvidence,
 ): ShippedSet {
-  const incomplete: string[] = [
-    'not checked: artifact freshness is not established by file-name evidence alone',
-  ]
+  const incomplete: string[] = [UI_TEXT.legalScanner.m035]
   const fileSet = new Set(snapshot.files)
 
   let shippedFiles: string[] | undefined
@@ -193,16 +193,11 @@ export function computeShipped(
   if (evidence.bundleInputs !== undefined) {
     shippedFiles = evidence.bundleInputs.filter((file) => fileSet.has(file))
     if (shippedFiles.length !== evidence.bundleInputs.length)
-      incomplete.push(
-        'not checked: bundle inputs are absent or stale against the workspace inventory',
-      )
-    summary = `distribution read from ${String(shippedFiles.length)} known bundle inputs`
+      incomplete.push(UI_TEXT.legalScanner.m036)
+    summary = plural(UI_TEXT.legalScanner.m037, shippedFiles.length, { v0: shippedFiles.length })
   } else if (evidence.packageFiles === undefined) {
-    summary =
-      'source checkout, distribution unknown: no bundle inputs or package inventory evidence'
-    incomplete.push(
-      'not checked: distribution set unknown (no bundle metafile or package files evidence); shipped obligations assume nothing ships',
-    )
+    summary = UI_TEXT.legalScanner.m038
+    incomplete.push(UI_TEXT.legalScanner.m039)
   } else {
     const { matchers, unsupported } =
       evidence.vscodeignoreText === undefined
@@ -210,11 +205,9 @@ export function computeShipped(
         : compileIgnore(evidence.vscodeignoreText)
     const allowlist = evidence.packageFiles.slice(0, LEGAL_FINDINGS_MAX)
     if (evidence.packageFiles.length > LEGAL_FINDINGS_MAX)
-      incomplete.push('not checked: package pattern count exceeds the bounded inventory')
+      incomplete.push(UI_TEXT.legalScanner.m040)
     if (allowlist.some((pattern) => !isSupportedPattern(pattern)))
-      incomplete.push(
-        'not checked: package files contains unsupported patterns; distribution is approximate',
-      )
+      incomplete.push(UI_TEXT.legalScanner.m041)
     shippedFiles = snapshot.files.filter((file) =>
       allowlist.some((pattern) => isAllowlistMatch(pattern, file)),
     )
@@ -232,15 +225,10 @@ export function computeShipped(
     }
     shippedFiles.sort((a, b) => compareLegalText(a, b))
     for (const pattern of unsupported) {
-      incomplete.push(
-        `not checked: .vscodeignore pattern ${pattern} uses unsupported syntax, so the shipped set is approximate`,
-      )
+      incomplete.push(fill(UI_TEXT.legalScanner.m042, { v0: pattern }))
     }
-    incomplete.push(
-      'not checked: package inventories do not establish embedded bundle inputs or artifact freshness',
-    )
-    summary =
-      'distribution approximated from package files and .vscodeignore; unbuilt artifacts may differ'
+    incomplete.push(UI_TEXT.legalScanner.m043)
+    summary = UI_TEXT.legalScanner.m044
   }
 
   const shippedSet = shippedFiles === undefined ? undefined : new Set(shippedFiles)
@@ -299,11 +287,12 @@ export function checkNotices(
       findings.push({
         severity: 'should-fix',
         category: 'noticeFile',
-        evidenceSource: 'distribution reader',
+        evidenceSource: UI_TEXT.legalScanner.m045,
         confidence: 0.7,
-        explanation: `${String(shippedNames.size + unknownNames.length)} dependencies may ship with no notice file present to attribute them.`,
-        recommendation:
-          'Add THIRD_PARTY_NOTICES or the equivalent notice file covering the shipped set.',
+        explanation: plural(UI_TEXT.legalScanner.m046, shippedNames.size + unknownNames.length, {
+          v0: shippedNames.size + unknownNames.length,
+        }),
+        recommendation: UI_TEXT.legalScanner.m047,
         fixable: false,
       })
     } else {
@@ -312,11 +301,10 @@ export function checkNotices(
         findings.push({
           severity: 'should-fix',
           category: 'noticeFile',
-          evidenceSource: 'distribution reader',
+          evidenceSource: UI_TEXT.legalScanner.m045,
           confidence: 0.6,
-          explanation: `${name} may ship but no present notice file names it.`,
-          recommendation:
-            'Attribute the package in THIRD_PARTY_NOTICES or the equivalent notice file.',
+          explanation: fill(UI_TEXT.legalScanner.m048, { v0: name }),
+          recommendation: UI_TEXT.legalScanner.m049,
           fixable: false,
         })
       }
@@ -344,7 +332,7 @@ export function checkNotices(
     if (notice === undefined) continue
     const noticeText = snapshot.readFile(notice)
     if (noticeText === undefined || noticeText.trim() === '') {
-      incomplete.push(`not checked: ${notice} has no readable NOTICE attribution`)
+      incomplete.push(fill(UI_TEXT.legalScanner.m050, { v0: notice }))
       continue
     }
     const normalizedNotice = noticeText.replaceAll(/\s+/g, ' ').trim()
@@ -357,11 +345,10 @@ export function checkNotices(
       category: 'noticeFile',
       file: notice,
       packageName: dep.name,
-      evidenceSource: `distribution reader at ${notice}`,
+      evidenceSource: fill(UI_TEXT.legalScanner.m051, { v0: notice }),
       confidence: 0.75,
-      explanation: `${dep.name} carries an upstream NOTICE file with no attribution in the present notices.`,
-      recommendation:
-        'Preserve the applicable NOTICE attribution in THIRD_PARTY_NOTICES or the equivalent notice file.',
+      explanation: fill(UI_TEXT.legalScanner.m052, { v0: dep.name }),
+      recommendation: UI_TEXT.legalScanner.m053,
       fixable: false,
       ...noticeExcerpt,
     })

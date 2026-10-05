@@ -1,4 +1,6 @@
 #!/usr/bin/env node
+import { createRequire } from 'node:module'
+import { tableLayout, packTable } from './lib/packedL10n.mjs'
 // The ACP agent's npm package (M63, PLAN.md D62): `muse-spark-code-acp`,
 // laid out in dist/acp-package/ and packed with `npm pack` into
 // dist/muse-spark-code-acp-<version>.tgz, which each GitHub Release carries
@@ -20,6 +22,7 @@ import {
   existsSync,
   mkdirSync,
   readFileSync,
+  readdirSync,
   rmSync,
   statSync,
   writeFileSync,
@@ -102,6 +105,16 @@ cpSync('l10n', path.join(STAGE, 'l10n'), {
   recursive: true,
   filter: (source) => !source.endsWith('untranslated.json'),
 })
+const layout = tableLayout(createRequire(import.meta.url)('../dist/uiText.js').EN)
+const localeFiles = readdirSync(path.join(STAGE, 'l10n'))
+for (const name of localeFiles) {
+  const file = path.join(STAGE, 'l10n', name)
+  writeFileSync(
+    file,
+    JSON.stringify(packTable(layout, JSON.parse(readFileSync(file, 'utf8')))) + '\n',
+  )
+}
+
 copyFileSync('LICENSE', path.join(STAGE, 'LICENSE'))
 copyFileSync(README, path.join(STAGE, 'README.md'))
 execFileSync(

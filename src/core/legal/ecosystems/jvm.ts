@@ -1,3 +1,5 @@
+import { fill, plural } from '../../../shared/l10n/text'
+import { UI_TEXT } from '../../../shared/constants'
 import { compareLegalText } from '../files'
 // Maven and Gradle evidence (M97, PLAN.md D76): POMs, Gradle
 // declarations, lockfiles and present artifact metadata. POM license
@@ -221,7 +223,13 @@ export function readJvm(snapshot: LegalFileSnapshot): EcosystemResult {
     const existing = poms.get(identity)
     if (existing !== undefined && existing.licenses.join(' OR ') !== licenses.join(' OR ')) {
       incomplete.push(
-        `not checked: license metadata conflict for ${identity} between ${existing.file} and ${file}: ${existing.licenses.join(' OR ')} versus ${licenses.join(' OR ')}`,
+        fill(UI_TEXT.legalScanner.m165, {
+          v0: identity,
+          v1: existing.file,
+          v2: file,
+          v3: existing.licenses.join(' OR '),
+          v4: licenses.join(' OR '),
+        }),
       )
       poms.set(identity, { licenses: [], file })
     } else poms.set(identity, { licenses, file })
@@ -270,9 +278,7 @@ export function readJvm(snapshot: LegalFileSnapshot): EcosystemResult {
       continue
     }
     manifestFiles += 1
-    incomplete.push(
-      `not checked: ${file} is read statically; executable logic, catalogs and computed declarations are not evaluated`,
-    )
+    incomplete.push(fill(UI_TEXT.legalScanner.m166, { v0: file }))
     const listed9 = readGradleFile(text)
     for (const dep of listed9) {
       gradleDeps.push({ ...dep, file })
@@ -378,24 +384,17 @@ export function readJvm(snapshot: LegalFileSnapshot): EcosystemResult {
       }),
     )
   }
-  if (manifestDeps.length > 0)
-    incomplete.push(
-      'not checked: Maven transitive graph, parent properties and profiles are not resolved by static POM declarations',
-    )
+  if (manifestDeps.length > 0) incomplete.push(UI_TEXT.legalScanner.m167)
   const unresolved = dependencies.filter((dep) => dep.version === undefined).length
   if (unresolved > 0) {
-    incomplete.push(
-      `not checked: ${String(unresolved)} Maven/Gradle requirements have no resolved version in any lockfile or catalog`,
-    )
+    incomplete.push(plural(UI_TEXT.legalScanner.m168, unresolved, { v0: unresolved }))
   }
   const withoutLicense = dependencies.filter((dep) => dep.licenseRaw === undefined).length
   if (withoutLicense > 0) {
-    incomplete.push(
-      `not checked: ${String(withoutLicense)} Maven/Gradle packages carry no license metadata; present artifact POMs would close the gap`,
-    )
+    incomplete.push(plural(UI_TEXT.legalScanner.m169, withoutLicense, { v0: withoutLicense }))
   }
   if (manifestFiles === 0 && dependencies.length === 0) {
-    incomplete.push('not checked: no POMs, Gradle declarations, locks or catalogs found')
+    incomplete.push(UI_TEXT.legalScanner.m170)
   }
 
   dependencies.sort((a, b) => compareLegalText(a.name, b.name))

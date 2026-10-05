@@ -1,3 +1,5 @@
+import { fill, plural } from '../../../shared/l10n/text'
+import { UI_TEXT } from '../../../shared/constants'
 import { compareLegalText } from '../files'
 // Composer evidence (M97, PLAN.md D76): `composer.json`, `composer.lock`
 // and present `installed.json` metadata. The lock carries per-package
@@ -99,9 +101,7 @@ export function readComposer(snapshot: LegalFileSnapshot): EcosystemResult {
     const manifest = text === undefined ? undefined : recordOf(parseJson(text))
     if (manifest === undefined) {
       if (text !== undefined) {
-        incomplete.push(
-          `not checked: ${file} is not valid JSON, so its requirements and license are unknown`,
-        )
+        incomplete.push(fill(UI_TEXT.legalScanner.m150, { v0: file }))
       }
       continue
     }
@@ -128,9 +128,7 @@ export function readComposer(snapshot: LegalFileSnapshot): EcosystemResult {
     const lock = text === undefined ? undefined : recordOf(parseJson(text))
     if (lock === undefined) {
       if (text !== undefined) {
-        incomplete.push(
-          `not checked: ${file} is not valid JSON, so its locked versions are unknown`,
-        )
+        incomplete.push(fill(UI_TEXT.legalScanner.m151, { v0: file }))
       }
       continue
     }
@@ -227,23 +225,19 @@ export function readComposer(snapshot: LegalFileSnapshot): EcosystemResult {
       }),
     )
     incomplete.push(
-      `not checked: license evidence conflict for ${entry.name} between ${entry.file} and ${present.file}`,
+      fill(UI_TEXT.legalScanner.m152, { v0: entry.name, v1: entry.file, v2: present.file }),
     )
   }
   const unresolved = dependencies.filter((dep) => dep.version === undefined).length
   if (unresolved > 0) {
-    incomplete.push(
-      `not checked: ${String(unresolved)} Composer requirements have no locked version in any composer.lock`,
-    )
+    incomplete.push(plural(UI_TEXT.legalScanner.m153, unresolved, { v0: unresolved }))
   }
   const withoutLicense = dependencies.filter((dep) => dep.licenseRaw === undefined).length
   if (withoutLicense > 0) {
-    incomplete.push(
-      `not checked: ${String(withoutLicense)} Composer packages carry no license metadata in the lock or installed data`,
-    )
+    incomplete.push(plural(UI_TEXT.legalScanner.m154, withoutLicense, { v0: withoutLicense }))
   }
   if (manifestFiles === 0 && locked.size === 0) {
-    incomplete.push('not checked: no composer.json, composer.lock or installed.json found')
+    incomplete.push(UI_TEXT.legalScanner.m155)
   }
 
   dependencies.sort((a, b) => compareLegalText(a.name, b.name))

@@ -1,3 +1,5 @@
+import { fill } from '../../shared/l10n/text'
+import { UI_TEXT } from '../../shared/constants'
 import { compareLegalText } from './files'
 // Copyright headers and SPDX identifiers (M97, PLAN.md D76): per source
 // file, under the header-policy setting. Shebangs, byte-order marks and
@@ -182,15 +184,15 @@ function dateProblem(holder: string): string | undefined {
     const parts = token.split(YEAR_RANGE_SPLIT).map((part) => part.trim())
     const first = parts[0] ?? ''
     if (!FOUR_DIGIT_YEAR.test(first)) {
-      return `the year ${first} is not a four-digit year`
+      return fill(UI_TEXT.legalScanner.invalidYear, { value: first })
     }
     const start = Number(first)
     if (start < 100) {
-      return `the year ${first} is impossible`
+      return fill(UI_TEXT.legalScanner.impossibleYear, { value: first })
     }
     const second = parts[1] ?? ''
     if (second !== '' && expandEndYear(start, Number(second)) < start) {
-      return `the range ${token.trim()} ends before it starts`
+      return fill(UI_TEXT.legalScanner.reversedYears, { value: token.trim() })
     }
   }
   return undefined
@@ -210,9 +212,7 @@ function readReuseCoverage(snapshot: LegalFileSnapshot): ReuseCoverage {
     if (baseNameOf(file).toLowerCase() !== 'reuse.toml') continue
     const text = snapshot.readFile(file)
     if (text === undefined) continue
-    incomplete.push(
-      'not checked: complex REUSE patterns, precedence and ownership relationships; only complete exact-path annotations are honored',
-    )
+    incomplete.push(UI_TEXT.legalScanner.m055)
     for (const annotation of text.split('[[annotations]]').slice(1)) {
       const fields = parseTomlSection('[annotation]\n' + annotation, 'annotation')
       const paths = fields.get('path')
@@ -295,11 +295,10 @@ export function scanAttributionRisks(snapshot: LegalFileSnapshot): HeaderScanRes
         severity: 'advice',
         category: 'distribution',
         file,
-        evidenceSource: `asset inventory at ${file}`,
+        evidenceSource: fill(UI_TEXT.legalScanner.m056, { v0: file }),
         confidence: 0.5,
-        explanation: `${file} has no observed per-file provenance declaration; its filename alone cannot establish ownership or distribution rights.`,
-        recommendation:
-          'Record the asset source, author and applicable terms from verified ownership in a sidecar or REUSE declaration.',
+        explanation: fill(UI_TEXT.legalScanner.m057, { v0: file }),
+        recommendation: UI_TEXT.legalScanner.m058,
         fixable: false,
       })
     } else if (isSourceFile(file)) {
@@ -311,11 +310,10 @@ export function scanAttributionRisks(snapshot: LegalFileSnapshot): HeaderScanRes
         severity: 'advice',
         category: 'license',
         file,
-        evidenceSource: `source reference at ${file}`,
+        evidenceSource: fill(UI_TEXT.legalScanner.m059, { v0: file }),
         confidence: 0.5,
-        explanation: `${file} contains a source reference whose provenance and applicable terms need review; a reference alone does not prove copying or infringement.`,
-        recommendation:
-          'Verify the original source, author, date, license and attribution for any copied material; keep legitimate upstream headers.',
+        explanation: fill(UI_TEXT.legalScanner.m060, { v0: file }),
+        recommendation: UI_TEXT.legalScanner.m061,
         fixable: false,
         evidenceExcerpt: excerpt(reference),
       })
@@ -339,7 +337,7 @@ export function scanHeaders(
   const excluded: string[] = []
 
   if (policy === 'off') {
-    incomplete.push('not checked: copyright header checks are off by policy')
+    incomplete.push(UI_TEXT.legalScanner.m062)
     return { findings, incomplete, excluded }
   }
 
@@ -355,7 +353,7 @@ export function scanHeaders(
     }
     const text = snapshot.readFile(file)
     if (text === undefined || hasBinaryContent(text)) {
-      incomplete.push(`not checked: ${file} is unreadable or binary header material`)
+      incomplete.push(fill(UI_TEXT.legalScanner.m063, { v0: file }))
       continue
     }
     let lines = topLines(text)
@@ -386,11 +384,10 @@ export function scanHeaders(
             category: 'copyrightHeader',
             file,
             line: 1,
-            evidenceSource: `header reader at ${file}`,
+            evidenceSource: fill(UI_TEXT.legalScanner.m064, { v0: file }),
             confidence: 0.8,
-            explanation: `${file} has no copyright line in its first lines, but the header policy requires one.`,
-            recommendation:
-              'Add the project copyright line from verified ownership; never replace a third-party header.',
+            explanation: fill(UI_TEXT.legalScanner.m065, { v0: file }),
+            recommendation: UI_TEXT.legalScanner.m066,
             fixable: file
               .split('/')
               .every(
@@ -405,10 +402,10 @@ export function scanHeaders(
             category: 'spdxIdentifier',
             file,
             line: 1,
-            evidenceSource: `header reader at ${file}`,
+            evidenceSource: fill(UI_TEXT.legalScanner.m064, { v0: file }),
             confidence: 0.8,
-            explanation: `${file} has no SPDX-License-Identifier line, but the header policy requires one.`,
-            recommendation: 'Add the SPDX identifier matching the applicable license.',
+            explanation: fill(UI_TEXT.legalScanner.m067, { v0: file }),
+            recommendation: UI_TEXT.legalScanner.m068,
             fixable: file
               .split('/')
               .every(
@@ -418,20 +415,19 @@ export function scanHeaders(
           })
         }
       } else {
-        let missing = 'copyright or SPDX-License-Identifier lines'
-        if (!isMissingCopyright) missing = 'an SPDX-License-Identifier line'
-        else if (!isMissingSpdx) missing = 'a copyright line'
+        let missing = UI_TEXT.legalScanner.copyrightSpdxLines
+        if (!isMissingCopyright) missing = UI_TEXT.legalScanner.spdxLine
+        else if (!isMissingSpdx) missing = UI_TEXT.legalScanner.copyrightLine
 
         findings.push({
           severity: 'advice',
           category: 'codeQualityHeader',
           file,
           line: 1,
-          evidenceSource: `header reader at ${file}`,
+          evidenceSource: fill(UI_TEXT.legalScanner.m064, { v0: file }),
           confidence: 0.7,
-          explanation: `${file} has no ${missing} in its first lines.`,
-          recommendation:
-            'Add the project copyright header for hygiene; the policy leaves it optional.',
+          explanation: fill(UI_TEXT.legalScanner.m069, { v0: file, v1: missing }),
+          recommendation: UI_TEXT.legalScanner.m070,
           fixable: file
             .split('/')
             .every(
@@ -454,11 +450,10 @@ export function scanHeaders(
             category: policy === 'required' ? 'copyrightHeader' : 'codeQualityHeader',
             file,
             line: copyrightLine,
-            evidenceSource: `header reader at ${file}`,
+            evidenceSource: fill(UI_TEXT.legalScanner.m064, { v0: file }),
             confidence: 0.85,
-            explanation: `${file} has a copyright line, but ${problem}.`,
-            recommendation:
-              'Correct the date with the holder; an earlier year alone is never stale.',
+            explanation: fill(UI_TEXT.legalScanner.m071, { v0: file, v1: problem }),
+            recommendation: UI_TEXT.legalScanner.m072,
             fixable: false,
             evidenceExcerpt: excerpt(lines[copyrightLine - 1] ?? ''),
           })
@@ -476,11 +471,10 @@ export function scanHeaders(
           category: 'spdxIdentifier',
           file,
           line: spdxLine,
-          evidenceSource: `header reader at ${file}`,
+          evidenceSource: fill(UI_TEXT.legalScanner.m064, { v0: file }),
           confidence: 0.9,
-          explanation: `${file} declares SPDX-License-Identifier ${spdxRaw}, which does not parse: ${parsed.error}.`,
-          recommendation:
-            'Write the identifier as an SPDX expression (AND, OR and WITH in uppercase).',
+          explanation: fill(UI_TEXT.legalScanner.m073, { v0: file, v1: spdxRaw, v2: parsed.error }),
+          recommendation: UI_TEXT.legalScanner.m074,
           fixable: false,
           evidenceExcerpt: excerpt(spdxRaw),
         })
@@ -495,10 +489,10 @@ export function scanHeaders(
             category: 'spdxIdentifier',
             file,
             line: spdxLine,
-            evidenceSource: `header reader at ${file}`,
+            evidenceSource: fill(UI_TEXT.legalScanner.m064, { v0: file }),
             confidence: 0.7,
-            explanation: `${file} declares the custom reference ${license.id}: its terms need a human read.`,
-            recommendation: 'Confirm the referenced text exists beside the file or in REUSE.toml.',
+            explanation: fill(UI_TEXT.legalScanner.m025, { v0: file, v1: license.id }),
+            recommendation: UI_TEXT.legalScanner.m075,
             fixable: false,
             evidenceExcerpt: excerpt(spdxRaw),
           })
@@ -508,10 +502,10 @@ export function scanHeaders(
             category: 'spdxIdentifier',
             file,
             line: spdxLine,
-            evidenceSource: `header reader at ${file}`,
+            evidenceSource: fill(UI_TEXT.legalScanner.m064, { v0: file }),
             confidence: 0.8,
-            explanation: `${file} declares ${license.id}, a deprecated SPDX identifier form.`,
-            recommendation: 'Use the current identifier from the SPDX License List.',
+            explanation: fill(UI_TEXT.legalScanner.m076, { v0: file, v1: license.id }),
+            recommendation: UI_TEXT.legalScanner.m077,
             fixable: false,
             evidenceExcerpt: excerpt(spdxRaw),
           })
@@ -521,10 +515,10 @@ export function scanHeaders(
             category: 'spdxIdentifier',
             file,
             line: spdxLine,
-            evidenceSource: `header reader at ${file}`,
+            evidenceSource: fill(UI_TEXT.legalScanner.m064, { v0: file }),
             confidence: 0.7,
-            explanation: `${file} declares the exception ${license.exception.id}, which is not on the SPDX exception list.`,
-            recommendation: 'Confirm the exception text; an exception changes the analysis.',
+            explanation: fill(UI_TEXT.legalScanner.m029, { v0: file, v1: license.exception.id }),
+            recommendation: UI_TEXT.legalScanner.m030,
             fixable: false,
             evidenceExcerpt: excerpt(spdxRaw),
           })
@@ -537,11 +531,10 @@ export function scanHeaders(
           category: 'spdxIdentifier',
           file,
           line: spdxLine,
-          evidenceSource: `header reader at ${file}`,
+          evidenceSource: fill(UI_TEXT.legalScanner.m064, { v0: file }),
           confidence: 0.8,
-          explanation: `${file} carries distinct SPDX declarations ${firstSpdx} and ${spdxRaw}.`,
-          recommendation:
-            'Confirm the applicable terms for each declaration; preserve legitimate upstream licenses.',
+          explanation: fill(UI_TEXT.legalScanner.m078, { v0: file, v1: firstSpdx, v2: spdxRaw }),
+          recommendation: UI_TEXT.legalScanner.m079,
           fixable: false,
           evidenceExcerpt: excerpt(spdxRaw),
         })
@@ -557,11 +550,14 @@ export function scanHeaders(
             category: 'spdxIdentifier',
             file,
             line: spdxLine,
-            evidenceSource: `header reader at ${file}`,
+            evidenceSource: fill(UI_TEXT.legalScanner.m064, { v0: file }),
             confidence: 0.8,
-            explanation: `${file} declares ${spdxRaw}, outside the project licenses ${[...projectSet].toSorted((a, b) => compareLegalText(a, b)).join(', ')}.`,
-            recommendation:
-              'Confirm the file carries third-party terms (keep its header) or correct the identifier.',
+            explanation: fill(UI_TEXT.legalScanner.m080, {
+              v0: file,
+              v1: spdxRaw,
+              v2: [...projectSet].toSorted((a, b) => compareLegalText(a, b)).join(', '),
+            }),
+            recommendation: UI_TEXT.legalScanner.m081,
             fixable: false,
             evidenceExcerpt: excerpt(spdxRaw),
           })

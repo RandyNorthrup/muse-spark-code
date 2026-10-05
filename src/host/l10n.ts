@@ -6,6 +6,7 @@
 // and the log says why. The same table goes to each webview in its HTML.
 // Pure: the file read and the language are injected.
 
+import { unpackUiTable } from '../shared/l10n/packed'
 import { tableProblems } from '../shared/l10n/check'
 import { EN, type UiText } from '../shared/l10n/en'
 import { TABLE_DIRECTORY, tableFileName, tableLocaleFor } from '../shared/l10n/locales'
@@ -62,7 +63,7 @@ export async function loadUiTable(deps: UiTableDeps): Promise<UiTable> {
   const file = `${TABLE_DIRECTORY}/${fileName}`
   let parsed: unknown
   try {
-    parsed = JSON.parse(await deps.readExtensionFile([TABLE_DIRECTORY, fileName]))
+    parsed = unpackUiTable(JSON.parse(await deps.readExtensionFile([TABLE_DIRECTORY, fileName])))
   } catch (error: unknown) {
     deps.log.warn(`${file} could not be read, so the panel stays in English: ${describe(error)}`)
     return english

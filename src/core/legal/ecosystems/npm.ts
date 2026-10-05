@@ -1,3 +1,5 @@
+import { fill, plural } from '../../../shared/l10n/text'
+import { UI_TEXT } from '../../../shared/constants'
 import type { InstalledLicenseMetadata } from '../dependencies'
 import { LEGAL_HEADER_LINE_WINDOW } from '../../../shared/constants'
 import { compareLegalText } from '../files'
@@ -95,11 +97,11 @@ function readNpmLock(
   const found: LegalDependency[] = []
   let withoutLicense = 0
   if (lock === undefined) {
-    incomplete.push(`not checked: ${file} has unreadable npm lock metadata`)
+    incomplete.push(fill(UI_TEXT.legalScanner.m171, { v0: file }))
     return { dependencies: found, withoutLicense }
   }
   if (!['1', '2', '3'].includes(String(lock['lockfileVersion']))) {
-    incomplete.push(`not checked: ${file} uses an unsupported npm lock version`)
+    incomplete.push(fill(UI_TEXT.legalScanner.m172, { v0: file }))
     return { dependencies: [], withoutLicense: 0 }
   }
   const packages = recordOf(lock['packages'])
@@ -135,7 +137,7 @@ function readNpmLock(
   }
   const visitLegacy = (entries: Record<string, unknown>, depth: number): void => {
     if (depth > LEGAL_HEADER_LINE_WINDOW) {
-      incomplete.push(`not checked: ${file} exceeds the npm nested lock depth bound`)
+      incomplete.push(fill(UI_TEXT.legalScanner.m173, { v0: file }))
       return
     }
     const names = Object.keys(entries).toSorted((a, b) => compareLegalText(a, b))
@@ -319,9 +321,7 @@ export function readNpm(snapshot: LegalFileSnapshot): EcosystemResult {
     }
     const { dependencies, projectLicense, invalid } = readManifest(snapshot, file)
     if (invalid) {
-      incomplete.push(
-        `not checked: ${file} is not valid JSON, so its requirements and license are unknown`,
-      )
+      incomplete.push(fill(UI_TEXT.legalScanner.m150, { v0: file }))
       continue
     }
     manifests.push(...dependencies)
@@ -348,7 +348,7 @@ export function readNpm(snapshot: LegalFileSnapshot): EcosystemResult {
     }
     if (withoutLicense > 0) {
       incomplete.push(
-        `not checked: ${String(withoutLicense)} npm lock entries in ${file} carry no license metadata and no installed package data covers them`,
+        plural(UI_TEXT.legalScanner.m174, withoutLicense, { v0: withoutLicense, v1: file }),
       )
     }
   }
@@ -359,11 +359,10 @@ export function readNpm(snapshot: LegalFileSnapshot): EcosystemResult {
   for (const file of listed8) {
     const entries = readYarnLock(snapshot, file)
     retainEntries(entries, file)
-    if (entries.length === 0)
-      incomplete.push(`not checked: ${file} has no readable Yarn package entries`)
+    if (entries.length === 0) incomplete.push(fill(UI_TEXT.legalScanner.m175, { v0: file }))
     if (entries.length > 0) {
       incomplete.push(
-        `not checked: ${file} records versions but no license metadata for ${String(entries.length)} packages; installed package data would close the gap`,
+        plural(UI_TEXT.legalScanner.m176, entries.length, { v0: file, v1: entries.length }),
       )
     }
   }
@@ -374,15 +373,16 @@ export function readNpm(snapshot: LegalFileSnapshot): EcosystemResult {
   for (const file of listed9) {
     const { dependencies, readable } = readPnpmLock(snapshot, file)
     if (!readable) {
-      incomplete.push(
-        `not checked: ${file} uses an unsupported pnpm lock version or has no readable packages section`,
-      )
+      incomplete.push(fill(UI_TEXT.legalScanner.m177, { v0: file }))
       continue
     }
     retainEntries(dependencies, file)
     if (dependencies.length > 0) {
       incomplete.push(
-        `not checked: ${file} records versions but no license metadata for ${String(dependencies.length)} packages; installed package data would close the gap`,
+        plural(UI_TEXT.legalScanner.m176, dependencies.length, {
+          v0: file,
+          v1: dependencies.length,
+        }),
       )
     }
   }
@@ -417,7 +417,12 @@ export function readNpm(snapshot: LegalFileSnapshot): EcosystemResult {
           }),
         )
         incomplete.push(
-          `not checked: license evidence conflict for ${dep.name}@${dep.version ?? ''} between ${dep.evidenceFile} and ${present.file}`,
+          fill(UI_TEXT.legalScanner.m178, {
+            v0: dep.name,
+            v1: dep.version ?? '',
+            v2: dep.evidenceFile,
+            v3: present.file,
+          }),
         )
       }
     }
@@ -443,12 +448,10 @@ export function readNpm(snapshot: LegalFileSnapshot): EcosystemResult {
 
   const unresolved = manifests.filter((dep) => !lockedNames.has(dep.name)).length
   if (unresolved > 0) {
-    incomplete.push(
-      `not checked: ${String(unresolved)} npm requirements have no resolved version in any lockfile; their transitive licenses are unknown`,
-    )
+    incomplete.push(plural(UI_TEXT.legalScanner.m179, unresolved, { v0: unresolved }))
   }
   if (manifestFiles === 0 && locked.size === 0 && installed.size === 0) {
-    incomplete.push('not checked: no npm manifests, locks or installed metadata found')
+    incomplete.push(UI_TEXT.legalScanner.m180)
   }
 
   dependencies.sort((a, b) => compareLegalText(a.name, b.name))

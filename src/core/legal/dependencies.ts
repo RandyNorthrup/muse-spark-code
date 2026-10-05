@@ -1,3 +1,5 @@
+import { fill } from '../../shared/l10n/text'
+import { UI_TEXT } from '../../shared/constants'
 import * as z from 'zod/mini'
 // Shared dependency evidence (M97, PLAN.md D76): every ecosystem reader
 // returns the same shape — declared packages with their license evidence,
@@ -66,7 +68,7 @@ export function dependency(
     scope: init.scope ?? 'unknown',
     licenseRaw: init.licenseRaw,
     evidenceFile,
-    evidenceSource: `${ecosystem} reader at ${evidenceFile}`,
+    evidenceSource: fill(UI_TEXT.legalScanner.m034, { v0: ecosystem, v1: evidenceFile }),
   }
   return built
 }

@@ -1,3 +1,5 @@
+import { fill, plural } from '../../../shared/l10n/text'
+import { UI_TEXT } from '../../../shared/constants'
 import { compareLegalText } from '../files'
 // Cargo evidence (M97, PLAN.md D76): `Cargo.toml` manifests, `Cargo.lock`
 // and present vendored crate manifests. `license` is already an SPDX
@@ -150,14 +152,9 @@ export function readCargo(snapshot: LegalFileSnapshot): EcosystemResult {
     if (text === undefined) {
       continue
     }
-    if (/\bpath\s*=/.test(text))
-      incomplete.push(
-        `not checked: ${file} contains path crates whose ownership and resolved metadata are unknown`,
-      )
+    if (/\bpath\s*=/.test(text)) incomplete.push(fill(UI_TEXT.legalScanner.m145, { v0: file }))
     if (/\bworkspace\s*=|\[.*dependencies\./.test(text))
-      incomplete.push(
-        `not checked: ${file} contains inherited or nested Cargo declarations not resolved statically`,
-      )
+      incomplete.push(fill(UI_TEXT.legalScanner.m146, { v0: file }))
     manifestFiles.push(file)
     const { dependencies, projectLicense } = readManifestDeps(text, file)
     manifestDeps.push(...dependencies.map((dep) => ({ ...dep, file })))
@@ -175,7 +172,7 @@ export function readCargo(snapshot: LegalFileSnapshot): EcosystemResult {
     .toSorted((a, b) => compareLegalText(a, b))
   for (const file of listed3) {
     if (snapshot.readFile(file) === undefined) {
-      incomplete.push(`not checked: ${file} cannot be read as text`)
+      incomplete.push(fill(UI_TEXT.legalScanner.m113, { v0: file }))
       continue
     }
     const listed4 = readTomlPackageStanzas(snapshot, file)
@@ -218,18 +215,14 @@ export function readCargo(snapshot: LegalFileSnapshot): EcosystemResult {
     (dep) => dep.version !== undefined && dep.licenseRaw === undefined,
   ).length
   if (withoutLicense > 0) {
-    incomplete.push(
-      `not checked: ${String(withoutLicense)} Cargo lock entries carry no license metadata in the lock and no vendored crate manifest covers them`,
-    )
+    incomplete.push(plural(UI_TEXT.legalScanner.m147, withoutLicense, { v0: withoutLicense }))
   }
   const unresolved = manifestDeps.filter((dep) => !lockedNames.has(dep.name)).length
   if (unresolved > 0) {
-    incomplete.push(
-      `not checked: ${String(unresolved)} Cargo requirements have no resolved version in any Cargo.lock`,
-    )
+    incomplete.push(plural(UI_TEXT.legalScanner.m148, unresolved, { v0: unresolved }))
   }
   if (manifestFiles.length === 0 && locked.size === 0) {
-    incomplete.push('not checked: no Cargo manifests or locks found')
+    incomplete.push(UI_TEXT.legalScanner.m149)
   }
 
   dependencies.sort((a, b) => compareLegalText(a.name, b.name))

@@ -221,7 +221,7 @@ export async function runLegalCommand(input: {
     try {
       result = legalScanResultSchema.parse(handle.result)
     } catch {
-      throw new Error('the scanner returned an invalid result')
+      throw new Error(UI_TEXT.legalScanner.invalidResult)
     }
     signal?.throwIfAborted()
     const registry = options.registry

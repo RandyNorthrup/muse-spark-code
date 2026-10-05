@@ -1,3 +1,4 @@
+import { fill, plural } from '../../shared/l10n/text'
 import { fingerprint } from '../verify/fingerprint'
 import { compareLegalText } from './files'
 // The deterministic scan (M97, PLAN.md D76): every reader over one
@@ -124,7 +125,7 @@ function compareDrafts(
     compareLegalText(a.finding.category, b.finding.category) ||
     compareLegalText(a.finding.file ?? '', b.finding.file ?? '') ||
     compareLegalText(a.finding.packageName ?? '', b.finding.packageName ?? '') ||
-    compareLegalText(a.finding.explanation, b.finding.explanation)
+    compareLegalText(a.finding.licenseExpression ?? '', b.finding.licenseExpression ?? '')
   )
 }
 
@@ -223,14 +224,14 @@ function deriveDistribution(snapshot: LegalFileSnapshot): DistributionEvidence {
  */
 export function scanLegal(snapshot: LegalFileSnapshot, options: LegalScanOptions): LegalScanResult {
   if (!LEGAL_HEADER_POLICIES.includes(options.headerPolicy)) {
-    throw new LegalScanError('Unknown header policy')
+    throw new LegalScanError(UI_TEXT.legalScanner.m108)
   }
   const listed2 = snapshot.files
   for (const file of listed2) {
     assertWorkspaceRelative(file)
   }
   const paths = options.paths ?? []
-  if (paths.length > LEGAL_SCAN_PATHS_MAX) throw new LegalScanError('Too many selected paths')
+  if (paths.length > LEGAL_SCAN_PATHS_MAX) throw new LegalScanError(UI_TEXT.legalScanner.m109)
   for (const path of paths) {
     assertWorkspaceRelative(path)
   }
@@ -238,10 +239,7 @@ export function scanLegal(snapshot: LegalFileSnapshot, options: LegalScanOptions
   const sorted = snapshot.files.toSorted((a, b) => compareLegalText(a, b))
   const overCap = sorted.length - LEGAL_FILES_SCANNED_MAX
   const allowed = new Set(overCap > 0 ? sorted.slice(0, LEGAL_FILES_SCANNED_MAX) : sorted)
-  const incomplete: string[] = [
-    ...(snapshot.incompleteChecks ?? []),
-    'not checked: assets, copied code provenance, proprietary terms and complete license-text matching require human review',
-  ]
+  const incomplete: string[] = [...(snapshot.incompleteChecks ?? []), UI_TEXT.legalScanner.m110]
   const cache = new Map<string, string | undefined>()
   let bytesRead = 0
   const deadline = options.deadline ?? Date.now() + LEGAL_SCAN_TIMEOUT_MS
@@ -249,9 +247,9 @@ export function scanLegal(snapshot: LegalFileSnapshot, options: LegalScanOptions
   const bounded: LegalFileSnapshot = {
     files: [...allowed].toSorted((a, b) => compareLegalText(a, b)),
     readFile: (path: string) => {
-      if (options.signal?.aborted === true) throw new LegalScanError('Legal scan cancelled')
+      if (options.signal?.aborted === true) throw new LegalScanError(UI_TEXT.legalScanner.m111)
       if (Date.now() >= deadline) {
-        if (!isTimedOut) incomplete.push('scan stopped at limit: elapsed time')
+        if (!isTimedOut) incomplete.push(UI_TEXT.legalScanner.m112)
         isTimedOut = true
         return
       }
@@ -264,24 +262,27 @@ export function scanLegal(snapshot: LegalFileSnapshot, options: LegalScanOptions
         if (error instanceof LegalScanError) throw error
         text = undefined
       }
-      if (text === undefined) incomplete.push(`not checked: ${path} cannot be read as text`)
+      if (text === undefined) incomplete.push(fill(UI_TEXT.legalScanner.m113, { v0: path }))
       else if (
         new TextEncoder().encode(text).byteLength > LEGAL_FILE_MAX_BYTES ||
         bytesRead + new TextEncoder().encode(text).byteLength > LEGAL_TOTAL_MAX_BYTES
       ) {
-        incomplete.push(`scan stopped at limit: ${path} exceeds the bounded text read budget`)
+        incomplete.push(fill(UI_TEXT.legalScanner.m114, { v0: path }))
         text = undefined
       } else bytesRead += new TextEncoder().encode(text).byteLength
       cache.set(path, text)
       return text
     },
   }
-  if (options.signal?.aborted === true) throw new LegalScanError('Legal scan cancelled')
+  if (options.signal?.aborted === true) throw new LegalScanError(UI_TEXT.legalScanner.m111)
   const headerView = subsetSnapshot(bounded, paths.length > 0 ? paths : undefined, allowed)
 
   if (overCap > 0) {
     incomplete.push(
-      `not checked: the scan stopped after reading ${String(LEGAL_FILES_SCANNED_MAX)} files; ${String(overCap)} more not read`,
+      plural(UI_TEXT.legalScanner.m115, LEGAL_FILES_SCANNED_MAX, {
+        v0: LEGAL_FILES_SCANNED_MAX,
+        v1: overCap,
+      }),
     )
   }
 
@@ -302,7 +303,9 @@ export function scanLegal(snapshot: LegalFileSnapshot, options: LegalScanOptions
     const remaining = LEGAL_FINDINGS_MAX - dependencies.length
     if (result.dependencies.length > remaining)
       incomplete.push(
-        `not checked: dependency evidence bound reached; ${String(result.dependencies.length - remaining)} entries omitted`,
+        plural(UI_TEXT.legalScanner.m116, result.dependencies.length - remaining, {
+          v0: result.dependencies.length - remaining,
+        }),
       )
     dependencies.push(...result.dependencies.slice(0, remaining))
     manifests.push(...result.projectLicenses)
@@ -319,7 +322,7 @@ export function scanLegal(snapshot: LegalFileSnapshot, options: LegalScanOptions
       if (text === undefined) continue
       const match = identifyLicenseText(text)
       if (match === undefined) {
-        incomplete.push(`not checked: license text for ${dep.name} at ${file} is unrecognized`)
+        incomplete.push(fill(UI_TEXT.legalScanner.m117, { v0: dep.name, v1: file }))
         continue
       }
       if (dep.licenseRaw !== match.id)
@@ -327,7 +330,7 @@ export function scanLegal(snapshot: LegalFileSnapshot, options: LegalScanOptions
           ...dep,
           licenseRaw: match.id,
           evidenceFile: file,
-          evidenceSource: `license text reader at ${file}`,
+          evidenceSource: fill(UI_TEXT.legalScanner.m118, { v0: file }),
         })
     }
   }
@@ -372,7 +375,7 @@ export function scanLegal(snapshot: LegalFileSnapshot, options: LegalScanOptions
   ]
   findings.sort(compareDrafts)
 
-  if (project.licenses.length === 0 && shipped.summary.includes('unknown')) {
+  if (project.licenses.length === 0 && shipped.shippedFiles === undefined) {
     const production = dependencies.filter((dep) => dep.scope === 'production').length
     if (production > 0) {
       findings.push({
@@ -380,11 +383,10 @@ export function scanLegal(snapshot: LegalFileSnapshot, options: LegalScanOptions
         finding: {
           severity: 'advice',
           category: 'distribution',
-          evidenceSource: 'distribution reader',
+          evidenceSource: UI_TEXT.legalScanner.m045,
           confidence: 0.6,
-          explanation: `The distribution set is unknown and ${String(production)} production dependencies exist: obligations are read against an undistributed source checkout.`,
-          recommendation:
-            'Supply bundle inputs or package inventory evidence so shipped obligations are exact.',
+          explanation: plural(UI_TEXT.legalScanner.m119, production, { v0: production }),
+          recommendation: UI_TEXT.legalScanner.m120,
           fixable: false,
         },
       })
@@ -400,18 +402,18 @@ export function scanLegal(snapshot: LegalFileSnapshot, options: LegalScanOptions
   })
   for (const [rule, count] of perRule) {
     if (count > LEGAL_FINDINGS_PER_RULE_MAX)
-      incomplete.push(`scan stopped at limit: report truncated for ${rule}`)
+      incomplete.push(fill(UI_TEXT.legalScanner.m121, { v0: rule }))
   }
   incomplete.push(
     ...(snapshot.incompleteChecks ?? []).filter((entry) => !incomplete.includes(entry)),
   )
   if (Date.now() >= deadline && !incomplete.includes('scan stopped at limit: elapsed time'))
-    incomplete.push('scan stopped at limit: elapsed time')
+    incomplete.push(UI_TEXT.legalScanner.m112)
   const truncated = withinRules.length - LEGAL_FINDINGS_MAX
   const kept = truncated > 0 ? withinRules.slice(0, LEGAL_FINDINGS_MAX) : withinRules
   if (truncated > 0) {
     incomplete.push(
-      `report truncated: ${String(truncated)} findings omitted past the ${String(LEGAL_FINDINGS_MAX)}-finding bound; blockers and should-fix findings kept first`,
+      plural(UI_TEXT.legalScanner.m122, truncated, { v0: truncated, v1: LEGAL_FINDINGS_MAX }),
     )
   }
 
@@ -449,7 +451,9 @@ export function scanLegal(snapshot: LegalFileSnapshot, options: LegalScanOptions
   const exclusions = headers.excluded.slice(0, LEGAL_EXCLUSIONS_MAX)
   if (headers.excluded.length > LEGAL_EXCLUSIONS_MAX) {
     incomplete.push(
-      `report truncated: ${String(headers.excluded.length - LEGAL_EXCLUSIONS_MAX)} generated exclusions omitted past the bound`,
+      plural(UI_TEXT.legalScanner.m123, headers.excluded.length - LEGAL_EXCLUSIONS_MAX, {
+        v0: headers.excluded.length - LEGAL_EXCLUSIONS_MAX,
+      }),
     )
   }
 
@@ -457,7 +461,9 @@ export function scanLegal(snapshot: LegalFileSnapshot, options: LegalScanOptions
     incomplete.length > LEGAL_INCOMPLETE_MAX
       ? [
           ...incomplete.slice(0, LEGAL_INCOMPLETE_MAX - 1),
-          `and ${String(incomplete.length - LEGAL_INCOMPLETE_MAX + 1)} more unchecked items omitted past the bound`,
+          plural(UI_TEXT.legalScanner.moreUnchecked, incomplete.length - LEGAL_INCOMPLETE_MAX + 1, {
+            count: incomplete.length - LEGAL_INCOMPLETE_MAX + 1,
+          }),
         ]
       : incomplete
 
@@ -491,14 +497,16 @@ export function scanLegal(snapshot: LegalFileSnapshot, options: LegalScanOptions
   )
   const parsed = legalScanResultSchema.safeParse(scrubbed)
   if (!parsed.success) {
-    throw new LegalScanError(`The scan built an invalid result: ${parsed.error.message}`)
+    throw new LegalScanError(fill(UI_TEXT.legalScanner.m124, { v0: parsed.error.message }))
   }
   return parsed.data
 }
 
 function scanScope(paths: readonly string[]): string {
   if (paths.length === 0) return ''
-  return paths.length === 1 ? (paths[0] ?? '') : `${String(paths.length)} selected paths`
+  return paths.length === 1
+    ? (paths[0] ?? '')
+    : plural(UI_TEXT.legalScanner.selectedPaths, paths.length, { count: paths.length })
 }
 
 function boundedFindingText(key: string, value: string, incomplete: string[]): string {
@@ -508,7 +516,6 @@ function boundedFindingText(key: string, value: string, incomplete: string[]): s
     limit = LEGAL_FINDING_ID_MAX_CHARS
   else if (key === 'evidenceExcerpt') limit = LEGAL_EVIDENCE_EXCERPT_MAX_CHARS
   const scrubbed = scrubLegalText(value)
-  if (scrubbed.length > limit)
-    incomplete.push('not checked: an evidence field exceeds the report bound and was truncated')
+  if (scrubbed.length > limit) incomplete.push(UI_TEXT.legalScanner.m125)
   return scrubbed.slice(0, limit)
 }

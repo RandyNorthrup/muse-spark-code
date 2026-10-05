@@ -1,3 +1,5 @@
+import { fill } from '../../shared/l10n/text'
+import { UI_TEXT } from '../../shared/constants'
 const UNKNOWN_TEXT_CONFIDENCE = 0.5
 import { compareLegalText } from './files'
 // The project's own license declarations (M97, PLAN.md D76): LICENSE
@@ -202,11 +204,14 @@ function malformedManifestFinding(
     severity: 'should-fix',
     category: 'license',
     file: manifest.file,
-    evidenceSource: `project license reader at ${manifest.file}`,
+    evidenceSource: fill(UI_TEXT.legalScanner.m082, { v0: manifest.file }),
     confidence: 0.9,
-    explanation: `${manifest.file} declares the license ${manifest.raw}, which is not a well-formed SPDX expression: ${error}.`,
-    recommendation:
-      'Write the license as an SPDX expression (AND, OR and WITH in uppercase, parentheses where needed).',
+    explanation: fill(UI_TEXT.legalScanner.m023, {
+      v0: manifest.file,
+      v1: manifest.raw,
+      v2: error,
+    }),
+    recommendation: UI_TEXT.legalScanner.m083,
     fixable: false,
     evidenceExcerpt: excerpt(manifest.raw),
   }
@@ -232,10 +237,7 @@ export function scanProjectLicense(
   const incomplete: string[] = []
 
   const licenseFiles = rootLicenseFiles(snapshot)
-  if (licenseFiles.length > 0)
-    incomplete.push(
-      'not checked: full SPDX text matching and modified terms; title and clause matching is heuristic',
-    )
+  if (licenseFiles.length > 0) incomplete.push(UI_TEXT.legalScanner.m084)
   const fileIds = new Map<string, number>()
   for (const file of licenseFiles) {
     const text = snapshot.readFile(file)
@@ -248,10 +250,10 @@ export function scanProjectLicense(
         severity: 'advice',
         category: 'license',
         file,
-        evidenceSource: `project license reader at ${file}`,
+        evidenceSource: fill(UI_TEXT.legalScanner.m082, { v0: file }),
         confidence: 0.5,
-        explanation: `${file} reads as no recognized license text; its terms need a human read.`,
-        recommendation: 'Confirm what license the file grants and declare it in the manifest.',
+        explanation: fill(UI_TEXT.legalScanner.m085, { v0: file }),
+        recommendation: UI_TEXT.legalScanner.m086,
         fixable: false,
         evidenceExcerpt: excerpt(topLines(text).join('\n')),
       })
@@ -281,10 +283,10 @@ export function scanProjectLicense(
           severity: 'should-fix',
           category: 'license',
           file: manifest.file,
-          evidenceSource: `project license reader at ${manifest.file}`,
+          evidenceSource: fill(UI_TEXT.legalScanner.m082, { v0: manifest.file }),
           confidence: 1,
-          explanation: `${manifest.file} points at ${target}, which is absent from the workspace.`,
-          recommendation: 'Add the referenced license file or correct the manifest field.',
+          explanation: fill(UI_TEXT.legalScanner.m087, { v0: manifest.file, v1: target }),
+          recommendation: UI_TEXT.legalScanner.m088,
           fixable: false,
           evidenceExcerpt: excerpt(manifest.raw),
         })
@@ -297,11 +299,10 @@ export function scanProjectLicense(
         severity: 'advice',
         category: 'license',
         file: manifest.file,
-        evidenceSource: `project license reader at ${manifest.file}`,
+        evidenceSource: fill(UI_TEXT.legalScanner.m082, { v0: manifest.file }),
         confidence: 1,
-        explanation: `${manifest.file} marks the project UNLICENSED: proprietary, all rights reserved by default.`,
-        recommendation:
-          'Ship it only to its intended recipients; a public distribution needs a license grant.',
+        explanation: fill(UI_TEXT.legalScanner.m089, { v0: manifest.file }),
+        recommendation: UI_TEXT.legalScanner.m090,
         fixable: false,
         evidenceExcerpt: excerpt(manifest.raw),
       })
@@ -331,11 +332,17 @@ export function scanProjectLicense(
           severity: 'should-fix',
           category: 'license',
           file: assessment.manifest.file,
-          evidenceSource: `project license reader at ${assessment.manifest.file} and ${licenseFiles[0] ?? 'a license file'}`,
+          evidenceSource: fill(UI_TEXT.legalScanner.m091, {
+            v0: assessment.manifest.file,
+            v1: licenseFiles[0] ?? UI_TEXT.legalScanner.licenseFile,
+          }),
           confidence: 0.9,
-          explanation: `${assessment.manifest.file} declares ${assessment.manifest.raw} but the license file reads as ${fileIdList.join(', ')}.`,
-          recommendation:
-            'Reconcile the two before shipping: fix the metadata or replace the license file, with explicit confirmation for a license change.',
+          explanation: fill(UI_TEXT.legalScanner.m092, {
+            v0: assessment.manifest.file,
+            v1: assessment.manifest.raw,
+            v2: fileIdList.join(', '),
+          }),
+          recommendation: UI_TEXT.legalScanner.m093,
           fixable: false,
           evidenceExcerpt: excerpt(assessment.manifest.raw),
         })
@@ -354,18 +361,20 @@ export function scanProjectLicense(
     }
     if (groups.size > 1) {
       const names = [...groups]
-        .map(
-          ([ids, sources]) => `${sources.map((source) => source.file).join(', ')} declares ${ids}`,
+        .map(([ids, sources]) =>
+          fill(UI_TEXT.legalScanner.declaration, {
+            file: sources.map((source) => source.file).join(', '),
+            license: ids,
+          }),
         )
         .join('; ')
       findings.push({
         severity: 'should-fix',
         category: 'license',
-        evidenceSource: 'project license reader',
+        evidenceSource: UI_TEXT.legalScanner.m094,
         confidence: 0.9,
-        explanation: `The manifests disagree with no license file to settle it: ${names}.`,
-        recommendation:
-          'Reconcile the manifests before shipping, with explicit confirmation for a license change.',
+        explanation: fill(UI_TEXT.legalScanner.m095, { v0: names }),
+        recommendation: UI_TEXT.legalScanner.m096,
         fixable: false,
       })
     }
@@ -375,11 +384,10 @@ export function scanProjectLicense(
     findings.push({
       severity: 'should-fix',
       category: 'license',
-      evidenceSource: 'project license reader',
+      evidenceSource: UI_TEXT.legalScanner.m094,
       confidence: 1,
-      explanation: 'The manifest declares terms but no root license file was found.',
-      recommendation:
-        'Add the applicable license text from verified ownership before distribution.',
+      explanation: UI_TEXT.legalScanner.m097,
+      recommendation: UI_TEXT.legalScanner.m098,
       fixable: false,
     })
   }
@@ -397,10 +405,13 @@ export function scanProjectLicense(
       severity: 'should-fix',
       category: 'license',
       file: readme.file,
-      evidenceSource: `project license reader at ${readme.file}`,
+      evidenceSource: fill(UI_TEXT.legalScanner.m082, { v0: readme.file }),
       confidence: 0.7,
-      explanation: `The README declares ${readmeIds.join(', ')} but the project declares ${declared.join(', ')}.`,
-      recommendation: 'Reconcile the README with the license file and manifest before shipping.',
+      explanation: fill(UI_TEXT.legalScanner.m099, {
+        v0: readmeIds.join(', '),
+        v1: declared.join(', '),
+      }),
+      recommendation: UI_TEXT.legalScanner.m100,
       fixable: false,
       evidenceExcerpt: excerpt(readme.raw),
     })
@@ -411,10 +422,10 @@ export function scanProjectLicense(
       severity: 'advice',
       category: 'license',
       file: readme.file,
-      evidenceSource: `project license reader at ${readme.file}`,
+      evidenceSource: fill(UI_TEXT.legalScanner.m082, { v0: readme.file }),
       confidence: 0.6,
-      explanation: `The license ${readmeIds.join(', ')} is declared only in the README; there is no license file or manifest field.`,
-      recommendation: 'Add a LICENSE file and a manifest license field from verified ownership.',
+      explanation: fill(UI_TEXT.legalScanner.m101, { v0: readmeIds.join(', ') }),
+      recommendation: UI_TEXT.legalScanner.m102,
       fixable: false,
       evidenceExcerpt: excerpt(readme.raw),
     })
@@ -425,12 +436,10 @@ export function scanProjectLicense(
     findings.push({
       severity: 'advice',
       category: 'license',
-      evidenceSource: 'project license reader',
+      evidenceSource: UI_TEXT.legalScanner.m094,
       confidence: 0.8,
-      explanation:
-        'No LICENSE file, manifest license field or README declaration found: undistributed code is all rights reserved by default.',
-      recommendation:
-        'Choose a license with explicit confirmation and declare it in a LICENSE file and the manifest.',
+      explanation: UI_TEXT.legalScanner.m103,
+      recommendation: UI_TEXT.legalScanner.m104,
       fixable: false,
     })
   }
@@ -446,14 +455,13 @@ export function scanProjectLicense(
       severity: 'advice',
       category: 'noticeFile',
       file: nested,
-      evidenceSource: `project license reader at ${nested}`,
+      evidenceSource: fill(UI_TEXT.legalScanner.m082, { v0: nested }),
       confidence: match?.confidence ?? UNKNOWN_TEXT_CONFIDENCE,
       explanation:
         match === undefined
-          ? `${nested} carries license-like text the reader does not recognize: vendored code needs attribution in the notices.`
-          : `${nested} carries ${match.id} terms inside the workspace: vendored code needs attribution in the notices.`,
-      recommendation:
-        'Confirm the vendored code is attributed in THIRD_PARTY_NOTICES or the equivalent notice file.',
+          ? fill(UI_TEXT.legalScanner.m105, { v0: nested })
+          : fill(UI_TEXT.legalScanner.m106, { v0: nested, v1: match.id }),
+      recommendation: UI_TEXT.legalScanner.m107,
       fixable: false,
       evidenceExcerpt: excerpt(topLines(text).join('\n')),
     })

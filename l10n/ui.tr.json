@@ -1913,5 +1913,304 @@
   "legalRegistryOfflineUnknown": "Çevrimdışı: kayıt deposu sorguları kapatıldığı veya reddedildiği için eksik bağımlılık lisansları bilinmiyor.",
   "legalRegistryFact": "{name}@{version}: kayıt deposu {license} beyan ediyor.",
   "legalRegistryRecommendation": "Özgün koşulları ve dağıtım yükümlülüklerini doğrulayın; kayıt deposu meta verileri hakları kanıtlamaz.",
-  "legalRegistryMetadataOnly": "Kayıt deposu meta verileri ek bilgidir; özgün koşullar ve eksik yerel bulgular hâlâ incelenmelidir."
+  "legalRegistryMetadataOnly": "Kayıt deposu meta verileri ek bilgidir; özgün koşullar ve eksik yerel bulgular hâlâ incelenmelidir.",
+  "legalScanner": {
+    "m001": "{v0} uyumluluk incelemesi",
+    "m002": "{v0} çift lisanslıdır; {v1}, {v2} yanında uyumlu bir seçenektir. Dağıtımdan önce koşulları doğrulayın.",
+    "m003": "Dağıtımın uyduğu lisans dalını kaydedin.",
+    "m004": "{v0}, alternatif copyleft olarak {v1} bildirir; kaynak ve bağlama yükümlülüklerini seçip yerine getirin.",
+    "m005": "Lisans dalını ve yükümlülükleri avukatla doğrulayın.",
+    "m006": "{v0}, {v1} altında dağıtılırken proje {v2} bildirir; birleşimin dağıtımı kaynak açıklamayı gerektirebilir. Bu bir soru, hüküm değildir.",
+    "m007": "Copyleft yükümlülüklerinin uygulanmasını ve etkilenen kodu avukatla doğrulayın.",
+    "m008": "{v0}, yalnızca geliştirme kapsamında {v1} bildirir.",
+    "m009": "Asla dağıtılmadığını doğrulayın; güçlü copyleft kaynak açıklamayı gerektirebilir.",
+    "m010": "{v0}, {v1} bildirir ve dağıtım bilinmez; birleşim dağıtılırsa kaynak açıklamak gerekebilir.",
+    "m011": "Dağıtılıp dağıtılmadığını belirleyip yükümlülükleri avukatla doğrulayın.",
+    "m012": "{v0}, {v1}{v2} bildirir; dosya copylefti kapsanan dosyalarda kalır, LGPL kaynak ve yeniden bağlama koşulları ister.",
+    "m013": "Dosya koşullarını ve bildirimlerini koruyun; LGPL bağlama kanıtlarını doğrulayın.",
+    "m014": "{v0}, {v1}{v2} bildirir; kaynak görülebilir veya kısıtlı koşullardır, açık kaynak izni değildir. Tanıma onay değildir.",
+    "m015": "Bu dağıtımı avukatla inceleyin; BUSL değişim tarihini veya Commons Clause kapsamını doğrulayın.",
+    "m016": "{v0}, sınıflandırılmayan {v1} bildirir; koşulları elle doğrulayın.",
+    "m017": "Lisans metnini bu dağıtım için inceleyin.",
+    "m018": "{v0}, {v1} koşullarıyla dağıtılır; lisans izni yoktur.",
+    "m019": "Bu sürümün özel mülkiyetini doğrulayın veya dağıtımdan çıkarın.",
+    "m020": "{v0}, dağıtılan küme dışında {v1} bildirir.",
+    "m021": "Asla dağıtılmadığını doğrulayın; özel mülkiyetli bağımlılık mülkiyet kanıtı ister.",
+    "m022": "İncelenmedi: {v0} paketi {v1}@{v2} için lisans kanıtı yok.",
+    "m023": "{v0}, geçersiz SPDX ifadesi {v1} bildirir: {v2}.",
+    "m024": "Bildirimi meta verilerden düzeltin veya koşulları elle doğrulayın.",
+    "m025": "{v0}, özel başvuru {v1} bildirir; koşulları insan okumalıdır.",
+    "m026": "Başvurulan metni ve dağıtımla uyumunu doğrulayın.",
+    "m027": "{v0}, eski SPDX biçimi {v1} bildirir; sondaki + sonraki uygulanabilir sürümleri artık belirtmez.",
+    "m028": "Amaçlanan güncel -only veya -or-later tanımlayıcısını kullanın.",
+    "m029": "{v0}, SPDX istisna listesinde olmayan {v1} bildirir.",
+    "m030": "İstisna metnini doğrulayın; istisna analizi değiştirir.",
+    "m031": "{v0} lisans kanıtları çelişkili: {v1}. Hiçbir kaynak çatışmayı sessizce çözmez.",
+    "m032": "Koşulları seçmeden önce asıl lisansı ve bildirimleri birlikte inceleyin.",
+    "m033": "İncelenmedi: {v0} için çelişkili kanıtlar insan incelemesi gerektirir.",
+    "m034": "{v1} konumunda {v0} incelemesi",
+    "m035": "İncelenmedi: dosya adları çıktıların güncelliğini kanıtlamaz.",
+    "m036": "İncelenmedi: paket girdileri yok veya envantere göre eskimiş.",
+    "m037": {
+      "one": "Dağıtım, bilinen {v0} paket girdisinden belirlendi",
+      "other": "Dağıtım, bilinen {v0} paket girdisinden belirlendi"
+    },
+    "m038": "Yerel kaynak, dağıtım bilinmiyor: paket girdisi veya envanter kanıtı yok.",
+    "m039": "İncelenmedi: dağıtım kümesi bilinmez; paket veya dosya kanıtı yoksa hiçbir şey dağıtılmıyor varsayılır.",
+    "m040": "İncelenmedi: paket desen sayısı sınırlı envanteri aşıyor.",
+    "m041": "İncelenmedi: desteklenmeyen dosya desenleri; dağıtım yaklaşık.",
+    "m042": "İncelenmedi: .vscodeignore deseni {v0} desteklenmeyen söz dizimi kullanıyor; dağıtım yaklaşık.",
+    "m043": "İncelenmedi: envanterler gömülü paket girdilerini veya çıktı güncelliğini kanıtlamaz.",
+    "m044": "Dağıtım dosyalar ve .vscodeignore ile tahmin edildi; derlenmemiş çıktılar farklı olabilir.",
+    "m045": "Dağıtım incelemesi",
+    "m046": {
+      "one": "{v0} bağımlılık, atıf bildirimi olmadan dağıtılabilir.",
+      "other": "{v0} bağımlılık, atıf bildirimi olmadan dağıtılabilir."
+    },
+    "m047": "Dağıtımı kapsayan THIRD_PARTY_NOTICES veya eşdeğer bildirim ekleyin.",
+    "m048": "{v0} dağıtılabilir, ancak mevcut bildirimlerde adı yok.",
+    "m049": "Paketi THIRD_PARTY_NOTICES veya eşdeğer dosyada belirtin.",
+    "m050": "İncelenmedi: {v0} okunabilir NOTICE atfı içermiyor.",
+    "m051": "{v0} dağıtım incelemesi",
+    "m052": "{v0}, asıl NOTICE dosyası içeriyor, ancak mevcut bildirimlerde atıf yok.",
+    "m053": "Geçerli NOTICE atfını THIRD_PARTY_NOTICES veya eşdeğer bildirimde koruyun.",
+    "m054": "Çalışma alanı veya sınırlar dışındaki yol reddedildi",
+    "m055": "İncelenmedi: karmaşık REUSE desenleri, öncelik ve mülkiyet; yalnızca tam ve kesin yol açıklamaları uygulanır.",
+    "m056": "{v0} varlık envanteri",
+    "m057": "{v0} için gözlenen dosya köken bildirimi yok; ad tek başına mülkiyet veya dağıtım hakkı kanıtlamaz.",
+    "m058": "Doğrulanmış mülkiyetten kaynağı, yazarı ve koşulları ek dosyada veya REUSE içinde kaydedin.",
+    "m059": "{v0} kaynak başvurusu",
+    "m060": "{v0}, köken ve koşulları incelenmesi gereken başvuru içeriyor; başvuru tek başına kopyalama veya ihlal kanıtlamaz.",
+    "m061": "Kaynağı, yazarı, tarihi, lisansı ve atfı doğrulayın; meşru asıl başlıkları koruyun.",
+    "m062": "İncelenmedi: politika telif başlığı denetimini kapatıyor.",
+    "m063": "İncelenmedi: {v0} başlıkları okunamıyor veya ikili.",
+    "m064": "{v0} başlık incelemesi",
+    "m065": "{v0} başında politikanın istediği telif satırı yok.",
+    "m066": "Doğrulanmış mülkiyetten proje telif satırı ekleyin; üçüncü taraf başlığını asla değiştirmeyin.",
+    "m067": "{v0} gerekli SPDX-License-Identifier satırını içermiyor.",
+    "m068": "Geçerli lisansa uygun SPDX tanımlayıcısı ekleyin.",
+    "m069": "{v0} ilk satırlarında {v1} yok.",
+    "m070": "Proje telif başlığını düzen için ekleyin; politika bunu isteğe bağlı bırakır.",
+    "m071": "{v0} telif satırı içeriyor, ancak {v1}.",
+    "m072": "Tarihi hak sahibiyle düzeltin; önceki bir yıl tek başına eski değildir.",
+    "m073": "{v0}, ayrıştırılamayan SPDX-License-Identifier {v1} bildirir: {v2}.",
+    "m074": "AND, OR ve WITH büyük harflerle bir SPDX ifadesi yazın.",
+    "m075": "Başvurulan metni dosya yanında veya REUSE.toml içinde doğrulayın.",
+    "m076": "{v0}, eski SPDX biçimi {v1} bildirir.",
+    "m077": "SPDX License List güncel tanımlayıcısını kullanın.",
+    "m078": "{v0}, farklı SPDX bildirimleri {v1} ve {v2} içeriyor.",
+    "m079": "Her bildirimin koşullarını doğrulayın; meşru asıl lisansları koruyun.",
+    "m080": "{v0}, proje lisansları {v2} dışında {v1} bildirir.",
+    "m081": "Üçüncü taraf koşullarını doğrulayıp başlığı koruyun veya tanımlayıcıyı düzeltin.",
+    "m082": "{v0} proje lisansı incelemesi",
+    "m083": "AND, OR, WITH büyük harflerle ve gerekli parantezlerle SPDX yazın.",
+    "m084": "İncelenmedi: tam SPDX eşleştirmesi ve değişen koşullar; başlık ve madde eşleştirmesi sezgiseldir.",
+    "m085": "{v0} tanınan lisans metni değil; insan okuması gerekir.",
+    "m086": "Verilen lisansı doğrulayıp bildirgede belirtin.",
+    "m087": "{v0}, çalışma alanında olmayan {v1} öğesine başvuruyor.",
+    "m088": "Başvurulan lisans dosyasını ekleyin veya bildirgeyi düzeltin.",
+    "m089": "{v0}, projeyi UNLICENSED olarak işaretler: özel mülkiyet, varsayılan olarak tüm haklar saklıdır.",
+    "m090": "Yalnızca amaçlanan alıcılara dağıtın; kamuya dağıtım lisans izni gerektirir.",
+    "m091": "{v0} ve {v1} proje lisansı incelemesi",
+    "m092": "{v0}, {v1} bildirir, ancak lisans dosyası {v2} olarak tanınır.",
+    "m093": "Dağıtımdan önce meta verileri ve lisansı uzlaştırın; lisans değişimini açıkça doğrulayın.",
+    "m094": "Proje lisansı incelemesi",
+    "m095": "Bildirgelere karar verecek lisans dosyası olmadan çelişki var: {v0}.",
+    "m096": "Dağıtımdan önce bildirgeleri uzlaştırıp lisans değişimlerini açıkça doğrulayın.",
+    "m097": "Bildirge koşullar bildirir, ancak kök lisans dosyası bulunamadı.",
+    "m098": "Dağıtımdan önce doğrulanmış mülkiyetten geçerli metni ekleyin.",
+    "m099": "README {v0}, proje ise {v1} bildirir.",
+    "m100": "Dağıtımdan önce README, lisans ve bildirgeyi uzlaştırın.",
+    "m101": "{v0} lisansı yalnızca README içinde; lisans dosyası veya bildirge alanı yok.",
+    "m102": "Doğrulanmış mülkiyetten LICENSE ve bildirge alanı ekleyin.",
+    "m103": "LICENSE, bildirge alanı veya README bildirimi yok; dağıtılmayan kodun tüm hakları varsayılan olarak saklıdır.",
+    "m104": "Lisansı açıkça seçip LICENSE ve bildirgede belirtin.",
+    "m105": "{v0} tanınmayan lisans benzeri metin içeriyor; gömülü üçüncü taraf kodu bildirimlerde atıf gerektirir.",
+    "m106": "{v0} çalışma alanında {v1} koşulları içeriyor; gömülü üçüncü taraf kodu atıf gerektirir.",
+    "m107": "Atfı THIRD_PARTY_NOTICES veya eşdeğer bildirimde doğrulayın.",
+    "m108": "Bilinmeyen başlık politikası",
+    "m109": "Çok fazla seçili yol",
+    "m110": "İncelenmedi: varlıklar, kopya kod, özel mülkiyet koşulları ve tam lisans eşleştirmesi insan incelemesi gerektirir.",
+    "m111": "Hukuk taraması iptal edildi",
+    "m112": "Tarama sınırda durdu: süre",
+    "m113": "İncelenmedi: {v0} metin olarak okunamıyor.",
+    "m114": "Tarama sınırda durdu: {v0} okuma bütçesini aşıyor.",
+    "m115": {
+      "one": "İncelenmedi: {v0} dosyadan sonra durdu; ek {v1} dosya okunmadı.",
+      "other": "İncelenmedi: {v0} dosyadan sonra durdu; ek {v1} dosya okunmadı."
+    },
+    "m116": {
+      "one": "İncelenmedi: bağımlılık kanıtı sınırına ulaşıldı; {v0} kayıt atlandı.",
+      "other": "İncelenmedi: bağımlılık kanıtı sınırına ulaşıldı; {v0} kayıt atlandı."
+    },
+    "m117": "İncelenmedi: {v1} konumundaki {v0} lisans metni tanınmadı.",
+    "m118": "{v0} lisans metni incelemesi",
+    "m119": {
+      "one": "{v0} üretim bağımlılığıyla dağıtım bilinmiyor; yükümlülükler dağıtılmayan kaynaklar üzerinden okunuyor.",
+      "other": "{v0} üretim bağımlılığıyla dağıtım bilinmiyor; yükümlülükler dağıtılmayan kaynaklar üzerinden okunuyor."
+    },
+    "m120": "Kesin yükümlülükler için paket girdileri veya envanter kanıtı sağlayın.",
+    "m121": "Tarama sınırda durdu: {v0} raporu kısaltıldı",
+    "m122": {
+      "one": "Rapor kısaltıldı: {v1} sınırı üstündeki {v0} bulgu atlandı; engeller ve düzeltilmesi gerekenler önce korundu.",
+      "other": "Rapor kısaltıldı: {v1} sınırı üstündeki {v0} bulgu atlandı; engeller ve düzeltilmesi gerekenler önce korundu."
+    },
+    "m123": {
+      "one": "Rapor kısaltıldı: sınırı aşan {v0} üretilmiş dışlama atlandı.",
+      "other": "Rapor kısaltıldı: sınırı aşan {v0} üretilmiş dışlama atlandı."
+    },
+    "m124": "Tarama geçersiz sonuç üretti: {v0}",
+    "m125": "İncelenmedi: kanıt alanı rapor sınırını aşıyor ve kısaltıldı.",
+    "m126": "Beklenmeyen karakter {v0}",
+    "m127": "WITH bir lisans istisnası belirtmelidir",
+    "m128": "Beklenmeyen ifade sonu",
+    "m129": "Kapanış parantezi eksik",
+    "m130": "Yanında lisans olmayan beklenmeyen işleç",
+    "m131": "Boş lisans ifadesi",
+    "m132": "İfadeden sonra beklenmeyen metin",
+    "m133": "Lisans ifadesi metin sınırını aşıyor",
+    "m134": "Lisans ifadesi iç içelik sınırını aşıyor",
+    "m135": "Hatalı lisans tanımlayıcısı",
+    "m136": "Çok fazla lisans alternatifi",
+    "m137": "Tarama kökü bir dizin değil",
+    "m138": "İncelenmedi: {v0} bağlantı veya sınır dışı dizin.",
+    "m139": "Tarama sınırda durdu: dizin kaydı bütçesi doldu; kalan ağaç listelenmedi.",
+    "m140": "İncelenmedi: {v0} listeleme sırasında değişti.",
+    "m141": "İncelenmedi: {v0} depo iç verisi.",
+    "m142": "İncelenmedi: {v0} bağlantı.",
+    "m143": "İncelenmedi: {v0} özel dosya.",
+    "m144": "İncelenmedi: {v0} kabul edilemedi.",
+    "m145": "İncelenmedi: {v0} mülkiyeti ve çözümlenmiş meta verileri bilinmeyen yol crate öğeleri içeriyor.",
+    "m146": "İncelenmedi: {v0} statik çözümlenmeyen miras veya iç içe Cargo bildirimleri içeriyor.",
+    "m147": {
+      "one": "İncelenmedi: {v0} Cargo kilit kaydında lisans veya eşleşen gömülü crate bildirgesi yok.",
+      "other": "İncelenmedi: {v0} Cargo kilit kaydında lisans veya eşleşen gömülü crate bildirgesi yok."
+    },
+    "m148": {
+      "one": "İncelenmedi: {v0} Cargo gereksiniminde Cargo.lock içinde çözümlenmiş sürüm yok.",
+      "other": "İncelenmedi: {v0} Cargo gereksiniminde Cargo.lock içinde çözümlenmiş sürüm yok."
+    },
+    "m149": "İncelenmedi: Cargo bildirgeleri veya kilitleri yok.",
+    "m150": "İncelenmedi: {v0} geçersiz JSON; gereksinimler ve lisans bilinmiyor.",
+    "m151": "İncelenmedi: {v0} geçersiz JSON; kilitli sürümler bilinmiyor.",
+    "m152": "İncelenmedi: {v0} lisans kanıtları {v1} ile {v2} arasında çelişiyor.",
+    "m153": {
+      "one": "İncelenmedi: {v0} Composer gereksiniminde composer.lock içinde kilitli sürüm yok.",
+      "other": "İncelenmedi: {v0} Composer gereksiniminde composer.lock içinde kilitli sürüm yok."
+    },
+    "m154": {
+      "one": "İncelenmedi: {v0} Composer paketinde kilit veya kurulu verilerde lisans yok.",
+      "other": "İncelenmedi: {v0} Composer paketinde kilit veya kurulu verilerde lisans yok."
+    },
+    "m155": "İncelenmedi: composer.json, composer.lock veya installed.json yok.",
+    "m156": "İncelenmedi: {v0} yürütülebilir kodu asla çalışmaz; yalnızca statik atamalar okunur.",
+    "m157": "İncelenmedi: {v0} statik okunur; hesaplanan Ruby meta verileri veya koşullu atamalar değerlendirilmez.",
+    "m158": {
+      "one": "İncelenmedi: {v0} gem gereksiniminde Gemfile.lock içinde kilitli sürüm yok.",
+      "other": "İncelenmedi: {v0} gem gereksiniminde Gemfile.lock içinde kilitli sürüm yok."
+    },
+    "m159": {
+      "one": "İncelenmedi: {v0} gem lisans içermiyor; mevcut belirtimler boşluğu kapatabilir.",
+      "other": "İncelenmedi: {v0} gem lisans içermiyor; mevcut belirtimler boşluğu kapatabilir."
+    },
+    "m160": "İncelenmedi: Gemfile, Gemfile.lock veya gemspec yok.",
+    "m161": "İncelenmedi: Go değiştirmeleri, araç eşleştirmesi ve gömülmemiş geçişli seçim incelenmeli; toplamlar kullanılmayan sürümler içerebilir.",
+    "m162": {
+      "one": "İncelenmedi: {v0} Go modülünde lisans yok; toplamlar ve yollar lisans değildir, gömülü metinler boşluğu kapatabilir.",
+      "other": "İncelenmedi: {v0} Go modülünde lisans yok; toplamlar ve yollar lisans değildir, gömülü metinler boşluğu kapatabilir."
+    },
+    "m163": {
+      "one": "İncelenmedi: {v0} Go araç gereksiniminde çözümlenmiş sürüm yok; lisanslar bilinmiyor.",
+      "other": "İncelenmedi: {v0} Go araç gereksiniminde çözümlenmiş sürüm yok; lisanslar bilinmiyor."
+    },
+    "m164": "İncelenmedi: go.mod, go.sum veya vendor/modules.txt yok.",
+    "m165": "İncelenmedi: {v0} lisans çelişkisi {v1} ile {v2} arasında: {v3} ve {v4}.",
+    "m166": "İncelenmedi: {v0} statik okunur; yürütme mantığı, kataloglar ve hesaplanan bildirimler değerlendirilmez.",
+    "m167": "İncelenmedi: statik POM bildirimleri Maven geçişli grafiğini, üst özellikleri veya profilleri çözümlemez.",
+    "m168": {
+      "one": "İncelenmedi: {v0} Maven/Gradle gereksiniminde kilit veya katalogda çözümlenmiş sürüm yok.",
+      "other": "İncelenmedi: {v0} Maven/Gradle gereksiniminde kilit veya katalogda çözümlenmiş sürüm yok."
+    },
+    "m169": {
+      "one": "İncelenmedi: {v0} Maven/Gradle paketinde lisans yok; mevcut POM boşluğu kapatabilir.",
+      "other": "İncelenmedi: {v0} Maven/Gradle paketinde lisans yok; mevcut POM boşluğu kapatabilir."
+    },
+    "m170": "İncelenmedi: POM, Gradle bildirimi, kilit veya katalog yok.",
+    "m171": "İncelenmedi: {v0} npm kilit meta verileri okunamıyor.",
+    "m172": "İncelenmedi: {v0} desteklenmeyen npm kilit sürümü kullanıyor.",
+    "m173": "İncelenmedi: {v0} npm kilit derinliği sınırını aşıyor.",
+    "m174": {
+      "one": "İncelenmedi: {v1} içindeki {v0} npm kaydında lisans veya eşleşen kurulu veri yok.",
+      "other": "İncelenmedi: {v1} içindeki {v0} npm kaydında lisans veya eşleşen kurulu veri yok."
+    },
+    "m175": "İncelenmedi: {v0} okunabilir Yarn paket kaydı içermiyor.",
+    "m176": {
+      "one": "İncelenmedi: {v0} sürüm kaydeder, ancak {v1} paket için lisans yok; kurulu veriler boşluğu kapatabilir.",
+      "other": "İncelenmedi: {v0} sürüm kaydeder, ancak {v1} paket için lisans yok; kurulu veriler boşluğu kapatabilir."
+    },
+    "m177": "İncelenmedi: {v0} desteklenmeyen pnpm kilidi veya okunamayan paket bölümüdür.",
+    "m178": "İncelenmedi: {v0}@{v1} lisans kanıtları {v2} ile {v3} arasında çelişiyor.",
+    "m179": {
+      "one": "İncelenmedi: {v0} npm gereksiniminde çözümlenmiş sürüm yok; geçişli lisanslar bilinmiyor.",
+      "other": "İncelenmedi: {v0} npm gereksiniminde çözümlenmiş sürüm yok; geçişli lisanslar bilinmiyor."
+    },
+    "m180": "İncelenmedi: npm bildirgesi, kilit veya kurulu meta veriler yok.",
+    "m181": "İncelenmedi: koşullu/dinamik NuGet bildirimleri, sürüm aralıkları ve çatı çelişkileri incelenmeli.",
+    "m182": {
+      "one": "İncelenmedi: {v0} NuGet gereksiniminde kilit, varlık veya merkez sürüm dosyasında çözümlenmiş sürüm yok.",
+      "other": "İncelenmedi: {v0} NuGet gereksiniminde kilit, varlık veya merkez sürüm dosyasında çözümlenmiş sürüm yok."
+    },
+    "m183": {
+      "one": "İncelenmedi: {v0} NuGet paketinde lisans yok; mevcut .nuspec boşluğu kapatabilir.",
+      "other": "İncelenmedi: {v0} NuGet paketinde lisans yok; mevcut .nuspec boşluğu kapatabilir."
+    },
+    "m184": "İncelenmedi: NuGet bildirimi, kilit veya varlık dosyası yok.",
+    "m185": "İncelenmedi: {v0}, {v1} içerir; rastgele içerme adları özyinelemeli çözümlenmez.",
+    "m186": "İncelenmedi: {v0}, çalışma alanında olmayan {v1} içerir.",
+    "m187": "İncelenmedi: {v0} statik çözümlenmeyen gereksinim seçeneği veya düzenlenebilir kaynak içerir.",
+    "m188": {
+      "one": "İncelenmedi: {v1} içinde {v0} gereksinim satırı ayrıştırılmayan biçimdedir.",
+      "other": "İncelenmedi: {v1} içinde {v0} gereksinim satırı ayrıştırılmayan biçimdedir."
+    },
+    "m189": "İncelenmedi: {v0} proje adı belirtmez; gereksinimler ilişkilendirilemez.",
+    "m190": "İncelenmedi: {v0} okunabilir paket bölümü içermiyor.",
+    "m191": {
+      "one": "İncelenmedi: {v0} sürüm kaydeder, ancak {v1} paket için lisans yok; dağıtım meta verileri boşluğu kapatabilir.",
+      "other": "İncelenmedi: {v0} sürüm kaydeder, ancak {v1} paket için lisans yok; dağıtım meta verileri boşluğu kapatabilir."
+    },
+    "m192": "İncelenmedi: {v0} kurulu meta veri sürümü farklı; kilitli lisans bilinmiyor.",
+    "m193": "İncelenmedi: kilit ve kurulu meta veri olmadan Python statik bildirimi tam geçişli kapsamı kanıtlamaz; dinamik derleme meta verisi asla değerlendirilmez.",
+    "m194": {
+      "one": "İncelenmedi: {v0} Python paketinde eşleşen lisans yok.",
+      "other": "İncelenmedi: {v0} Python paketinde eşleşen lisans yok."
+    },
+    "m195": {
+      "one": "İncelenmedi: {v0} Python gereksiniminde çözümlenmiş sürüm yok; geçişli lisanslar bilinmiyor.",
+      "other": "İncelenmedi: {v0} Python gereksiniminde çözümlenmiş sürüm yok; geçişli lisanslar bilinmiyor."
+    },
+    "m196": "İncelenmedi: Python bildirgesi, kilit veya dağıtım meta verisi yok.",
+    "unknown": "bilinmiyor",
+    "unresolved": "çözümlenmemiş",
+    "noLicense": "lisans yok",
+    "shipment": " dağıtımda",
+    "copyrightSpdxLines": "telif veya SPDX-License-Identifier satırları",
+    "spdxLine": "SPDX-License-Identifier satırı",
+    "copyrightLine": "telif satırı",
+    "invalidYear": "{value} yılı dört basamaklı değil",
+    "impossibleYear": "{value} yılı mümkün değil",
+    "reversedYears": "{value} aralığı başlangıcından önce biter",
+    "selectedPaths": {
+      "one": "{count} seçili yol",
+      "other": "{count} seçili yol"
+    },
+    "moreUnchecked": {
+      "one": "ve sınırı aşan {count} ek incelenmemiş öğe atlandı",
+      "other": "ve sınırı aşan {count} ek incelenmemiş öğe atlandı"
+    },
+    "declaration": "{file}, {license} bildirir",
+    "licenseFile": "lisans dosyası",
+    "bundleLoad": "{file} yüklenemedi",
+    "bundleShape": "{file} beklenmeyen biçimde",
+    "invalidResult": "tarama geçersiz sonuç döndürdü"
+  }
 }

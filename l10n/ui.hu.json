@@ -1913,5 +1913,304 @@
   "legalRegistryOfflineUnknown": "Offline: a hiányzó függőségi licencek ismeretlenek maradnak, mert a regiszterlekérdezések ki vannak kapcsolva vagy elutasításra kerültek.",
   "legalRegistryFact": "{name}@{version}: a regiszter {license} licencet jelöl.",
   "legalRegistryRecommendation": "Ellenőrizze az eredeti feltételeket és a terjesztési kötelezettségeket; a regiszter metaadatai nem bizonyítanak jogokat.",
-  "legalRegistryMetadataOnly": "A regiszter metaadatai kiegészítő információk; az eredeti feltételeket és a hiányos helyi eredményeket továbbra is ellenőrizni kell."
+  "legalRegistryMetadataOnly": "A regiszter metaadatai kiegészítő információk; az eredeti feltételeket és a hiányos helyi eredményeket továbbra is ellenőrizni kell.",
+  "legalScanner": {
+    "m001": "{v0} kompatibilitásvizsgálata",
+    "m002": "{v0} kettős licencű; {v1} kompatibilis választás {v2} mellett. Terjesztés előtt erősítse meg a feltételeket.",
+    "m003": "Rögzítse a terjesztés által teljesített licencágat.",
+    "m004": "{v0} alternatív copyleftként jelöli {v1} feltételeit; válasszon és teljesítse a forrás- és kapcsolási kötelezettségeket.",
+    "m005": "Ügyvéddel erősítse meg az ágat és kötelezettségeit.",
+    "m006": "{v0} {v1} alatt terjed, a projekt {v2} feltételeit jelöli: az összekapcsolás forrásközlést követelhet. Ez kérdés, nem ítélet.",
+    "m007": "Ügyvéddel ellenőrizze a copyleft alkalmazását és az érintett kódot.",
+    "m008": "{v0} csak fejlesztési körben jelöli {v1} feltételeit.",
+    "m009": "Erősítse meg, hogy sosem terjed; erős copyleft esetén a terjesztés forrásközlést követelhet.",
+    "m010": "{v0} {v1} feltételeit jelöli, a terjesztés ismeretlen; az összekapcsolás terjesztése forrásközlést követelhet.",
+    "m011": "Állapítsa meg a terjesztést, majd ügyvéddel ellenőrizze a kötelezettségeket.",
+    "m012": "{v0} {v1}{v2} feltételeit jelöli: a fájlszintű copyleft az érintett fájlokra vonatkozik; LGPL esetén forrás és újrakapcsolás szükséges.",
+    "m013": "Őrizze meg a fájlok feltételeit és közleményeit; ellenőrizze az LGPL-kapcsolást.",
+    "m014": "{v0} {v1}{v2} feltételeit jelöli: elérhető forrás vagy korlátozás, nem nyílt licenc. A felismerés nem jóváhagyás.",
+    "m015": "Ügyvéddel vizsgálja ezt a terjesztést, beleértve a BUSL váltási dátumát vagy a Commons Clause hatályát.",
+    "m016": "{v0} a nem besorolt {v1} feltételeit jelöli; ellenőrizze kézzel.",
+    "m017": "Vizsgálja a licencszöveget erre a terjesztésre.",
+    "m018": "{v0} {v1} feltételeivel terjed, licencengedély nélkül.",
+    "m019": "Igazolja ennek a verziónak a magántulajdonát vagy hagyja ki a terjesztésből.",
+    "m020": "{v0} {v1} feltételeit jelöli a terjesztett körön kívül.",
+    "m021": "Igazolja, hogy sosem terjed; zárt függőséghez tulajdonigazolás kell.",
+    "m022": "Nem ellenőrzött: a(z) {v0} {v1}@{v2} csomagnak nincs licencbizonyítéka.",
+    "m023": "{v0} a hibás SPDX-kifejezést jelöli: {v1}; {v2}.",
+    "m024": "Javítsa a deklarációt a metaadatokból vagy erősítse meg kézzel a feltételeket.",
+    "m025": "{v0} saját {v1} hivatkozást jelöl; feltételeit embernek kell elolvasnia.",
+    "m026": "Erősítse meg a hivatkozott szöveget és terjesztési kompatibilitását.",
+    "m027": "{v0} elavult {v1} SPDX-formát jelöl; a záró + nem nevezi meg az alkalmazandó későbbi verziókat.",
+    "m028": "Használja a kívánt jelenlegi -only vagy -or-later azonosítót.",
+    "m029": "{v0} a SPDX-listából hiányzó {v1} kivételt jelöli.",
+    "m030": "Ellenőrizze a kivétel szövegét; az módosítja az elemzést.",
+    "m031": "Ellentmondó licencbizonyítékok ehhez: {v0}; {v1}. Egyetlen forrás sem dönti el csendben a konfliktust.",
+    "m032": "A feltételek kiválasztása előtt együtt vizsgálja az eredetit és a deklarációkat.",
+    "m033": "Nem ellenőrzött: {v0} ellentmondó bizonyítékai emberi ellenőrzést igényelnek.",
+    "m034": "{v0} elemzés itt: {v1}",
+    "m035": "Nem ellenőrzött: a fájlnevek nem bizonyítják a termékek frissességét.",
+    "m036": "Nem ellenőrzött: a csomagbemenetek hiányoznak vagy elavultak a leltárhoz képest.",
+    "m037": {
+      "one": "Terjesztés meghatározva {v0} ismert csomagbemenetből",
+      "other": "Terjesztés meghatározva {v0} ismert csomagbemenetből"
+    },
+    "m038": "Helyi források, ismeretlen terjesztés: nincs csomagbemenet vagy leltár.",
+    "m039": "Nem ellenőrzött: ismeretlen terjesztés; csomag- vagy fájlbizonyíték nélkül semmi nem számít terjesztettnek.",
+    "m040": "Nem ellenőrzött: a csomagminták száma meghaladja a korlátozott leltárt.",
+    "m041": "Nem ellenőrzött: nem támogatott fájlminták; a terjesztés becsült.",
+    "m042": "Nem ellenőrzött: a(z) {v0} .vscodeignore-minta szintaxisa nem támogatott; a terjesztés becsült.",
+    "m043": "Nem ellenőrzött: a leltár nem bizonyítja a beágyazott csomagbemeneteket vagy a termékek frissességét.",
+    "m044": "Terjesztés becsülve fájlokból és .vscodeignore-ból; a fel nem épített termékek eltérhetnek.",
+    "m045": "Terjesztésvizsgálat",
+    "m046": {
+      "one": "{v0} függőség közreműködői közlemény nélkül terjedhet.",
+      "other": "{v0} függőség közreműködői közlemény nélkül terjedhet."
+    },
+    "m047": "Adjon hozzá a terjesztésre vonatkozó THIRD_PARTY_NOTICES vagy egyenértékű közleményt.",
+    "m048": "{v0} terjedhet, de a jelenlegi közlemények nem nevezik meg.",
+    "m049": "Nevezze meg a csomagot THIRD_PARTY_NOTICES vagy egyenértékű fájlban.",
+    "m050": "Nem ellenőrzött: {v0} nem tartalmaz olvasható NOTICE-hivatkozást.",
+    "m051": "Terjesztésvizsgálat itt: {v0}",
+    "m052": "{v0} eredeti NOTICE fájlt tartalmaz, a jelenlegi közleményekből hiányzó hivatkozással.",
+    "m053": "Őrizze meg a NOTICE-hivatkozást THIRD_PARTY_NOTICES vagy egyenértékű közleményben.",
+    "m054": "Munkaterületen vagy korlátokon kívüli útvonal elutasítva",
+    "m055": "Nem ellenőrzött: összetett REUSE-minták, elsőbbség és tulajdon; csak teljes, pontos útvonalú megjegyzések érvényesek.",
+    "m056": "Erőforrásleltár itt: {v0}",
+    "m057": "{v0} nem rendelkezik megfigyelt fájlszintű eredetdeklarációval; a név nem bizonyít tulajdont vagy terjesztési jogot.",
+    "m058": "Igazolt tulajdon alapján rögzítse a forrást, szerzőt és feltételeket kísérőfájlban vagy REUSE-ban.",
+    "m059": "Forráshivatkozás itt: {v0}",
+    "m060": "{v0} ellenőrizendő eredetű és feltételű hivatkozást tartalmaz; önmagában nem bizonyít másolást vagy jogsértést.",
+    "m061": "Ellenőrizze a forrást, szerzőt, dátumot, licencet és megnevezést; őrizze meg a jogos eredeti fejléceket.",
+    "m062": "Nem ellenőrzött: a szabályzat kikapcsolta a szerzői jogi fejlécvizsgálatot.",
+    "m063": "Nem ellenőrzött: {v0} fejléce olvashatatlan vagy bináris.",
+    "m064": "Fejlécvizsgálat itt: {v0}",
+    "m065": "{v0} elejéről hiányzik a szabályzat által megkövetelt szerzői jogi sor.",
+    "m066": "Igazolt tulajdonból adja hozzá a projekt szerzői jogi sorát; idegen fejlécet sose cseréljen le.",
+    "m067": "{v0} nem tartalmazza a kötelező SPDX-License-Identifier sort.",
+    "m068": "Adja hozzá az alkalmazandó licenc SPDX-azonosítóját.",
+    "m069": "{v0} első soraiból hiányzik: {v1}.",
+    "m070": "Adja hozzá a projekt szerzői jogi fejlécét; a szabályzat szerint opcionális.",
+    "m071": "{v0} tartalmaz szerzői jogi sort, de {v1}.",
+    "m072": "Javítsa a dátumot a jogosulttal; a korábbi év önmagában nem elavult.",
+    "m073": "{v0} értelmezhetetlen SPDX-License-Identifier értéket jelöl: {v1}; {v2}.",
+    "m074": "Írjon SPDX-kifejezést nagybetűs AND, OR és WITH szavakkal.",
+    "m075": "Igazolja a hivatkozott szöveget a fájl mellett vagy REUSE.toml-ban.",
+    "m076": "{v0} elavult {v1} SPDX-formát jelöl.",
+    "m077": "Használja a SPDX License List jelenlegi azonosítóját.",
+    "m078": "{v0} eltérő SPDX-deklarációkat tartalmaz: {v1} és {v2}.",
+    "m079": "Igazolja minden deklaráció feltételeit; őrizze meg a jogos eredeti licenceket.",
+    "m080": "{v0} a projekt {v2} licencein kívüli {v1} feltételeit jelöli.",
+    "m081": "Igazolja az idegen feltételeket és tartsa meg a fejlécet, vagy javítsa az azonosítót.",
+    "m082": "Projektlicenc-vizsgálat itt: {v0}",
+    "m083": "Írjon SPDX-t nagybetűs AND, OR, WITH szavakkal és szükséges zárójelekkel.",
+    "m084": "Nem ellenőrzött: teljes SPDX-szövegegyezés és módosított feltételek; a cím- és kikötésegyezés heurisztikus.",
+    "m085": "{v0} nem felismert licencszöveg; emberi olvasás szükséges.",
+    "m086": "Igazolja a nyújtott licencet és deklarálja a jegyzékben.",
+    "m087": "{v0} a munkaterületről hiányzó {v1} elemre mutat.",
+    "m088": "Adja hozzá a hivatkozott licencet vagy javítsa a jegyzéket.",
+    "m089": "{v0} UNLICENSED jelölést ad a projektnek: zárt, alapból minden jog fenntartva.",
+    "m090": "Csak a tervezett címzetteknek adja át; nyilvános terjesztéshez licencengedély kell.",
+    "m091": "Projektlicenc-vizsgálat itt: {v0} és {v1}",
+    "m092": "{v0} {v1} feltételeit jelöli, de a licencfájl {v2} formaként ismert fel.",
+    "m093": "Terjesztés előtt egyeztesse a metaadatokat és a licencet; licencváltáshoz kifejezett megerősítés kell.",
+    "m094": "Projektlicenc-vizsgálat",
+    "m095": "A jegyzékek ellentmondanak döntő licencfájl nélkül: {v0}.",
+    "m096": "Terjesztés előtt egyeztesse a jegyzékeket; a licencváltást külön erősítse meg.",
+    "m097": "A jegyzék feltételeket jelöl, de nincs gyökérszintű licencfájl.",
+    "m098": "Terjesztés előtt adja hozzá az alkalmazandó szöveget igazolt tulajdon alapján.",
+    "m099": "README szerint {v0}, a projekt szerint {v1}.",
+    "m100": "Terjesztés előtt egyeztesse a README-t, licencet és jegyzéket.",
+    "m101": "A(z) {v0} licenc csak a README-ben szerepel; nincs licencfájl vagy jegyzékmező.",
+    "m102": "Igazolt tulajdon alapján adja hozzá a LICENSE-t és jegyzékmezőt.",
+    "m103": "Nincs LICENSE, jegyzékmező vagy README-deklaráció; a nem terjesztett kód minden joga alapból fenntartva.",
+    "m104": "Kifejezetten válasszon licencet és deklarálja LICENSE-ban és a jegyzékben.",
+    "m105": "{v0} fel nem ismert licencszerű szöveget tartalmaz; beemelt idegen kódhoz közreműködői megnevezés kell.",
+    "m106": "{v0} {v1} feltételeit tartalmazza a munkaterületen; beemelt idegen kódhoz megnevezés kell.",
+    "m107": "Igazolja a megnevezést THIRD_PARTY_NOTICES vagy egyenértékű közleményben.",
+    "m108": "Ismeretlen fejlécszabályzat",
+    "m109": "Túl sok kijelölt útvonal",
+    "m110": "Nem ellenőrzött: erőforrások, másolt kód, zárt feltételek és teljes licencegyezés emberi ellenőrzést igényelnek.",
+    "m111": "Jogi vizsgálat megszakítva",
+    "m112": "Vizsgálat korlátnál leállt: idő",
+    "m113": "Nem ellenőrzött: {v0} nem olvasható szövegként.",
+    "m114": "Vizsgálat korlátnál leállt: {v0} meghaladja az olvasási keretet.",
+    "m115": {
+      "one": "Nem ellenőrzött: leállt {v0} fájl után; további {v1} olvasatlan.",
+      "other": "Nem ellenőrzött: leállt {v0} fájl után; további {v1} olvasatlan."
+    },
+    "m116": {
+      "one": "Nem ellenőrzött: függőségi bizonyítékkorlát; {v0} bejegyzés kihagyva.",
+      "other": "Nem ellenőrzött: függőségi bizonyítékkorlát; {v0} bejegyzés kihagyva."
+    },
+    "m117": "Nem ellenőrzött: {v0} licencszövege itt nem ismert fel: {v1}.",
+    "m118": "Licencszöveg-vizsgálat itt: {v0}",
+    "m119": {
+      "one": "Ismeretlen terjesztés {v0} éles függőséggel; a kötelezettségeket nem terjesztett forrásokra értékeljük.",
+      "other": "Ismeretlen terjesztés {v0} éles függőséggel; a kötelezettségeket nem terjesztett forrásokra értékeljük."
+    },
+    "m120": "Pontos kötelezettségekhez adjon csomagbemenetet vagy leltárt.",
+    "m121": "Vizsgálat korlátnál leállt: {v0} jelentése csonkolva",
+    "m122": {
+      "one": "Jelentés csonkolva: {v0} találat kihagyva a(z) {v1} korlát felett; blokkoló és javítandó tételek elsőbbséggel megtartva.",
+      "other": "Jelentés csonkolva: {v0} találat kihagyva a(z) {v1} korlát felett; blokkoló és javítandó tételek elsőbbséggel megtartva."
+    },
+    "m123": {
+      "one": "Jelentés csonkolva: {v0} generált kizárás kihagyva a korlát felett.",
+      "other": "Jelentés csonkolva: {v0} generált kizárás kihagyva a korlát felett."
+    },
+    "m124": "A vizsgálat érvénytelen eredményt készített: {v0}",
+    "m125": "Nem ellenőrzött: egy bizonyítékmező túl hosszú és csonkolva lett.",
+    "m126": "Váratlan karakter: {v0}",
+    "m127": "WITH után licenckivételt kell megnevezni",
+    "m128": "Váratlan kifejezésvég",
+    "m129": "Hiányzó záró zárójel",
+    "m130": "Váratlan operátor szomszédos licenc nélkül",
+    "m131": "Üres licenckifejezés",
+    "m132": "Váratlan szöveg a kifejezés után",
+    "m133": "A licenckifejezés meghaladja a szövegkorlátot",
+    "m134": "A licencbeágyazás meghaladja a korlátot",
+    "m135": "Hibás licencazonosító",
+    "m136": "Túl sok licencalternatíva",
+    "m137": "A vizsgálat gyökere nem könyvtár",
+    "m138": "Nem ellenőrzött: {v0} hivatkozás vagy kilépő könyvtár.",
+    "m139": "Vizsgálat korlátnál leállt: könyvtárbejegyzés-keret kimerült; a többi nincs felsorolva.",
+    "m140": "Nem ellenőrzött: {v0} megváltozott a felsorolás során.",
+    "m141": "Nem ellenőrzött: {v0} belső tárolóadat.",
+    "m142": "Nem ellenőrzött: {v0} hivatkozás.",
+    "m143": "Nem ellenőrzött: {v0} különleges fájl.",
+    "m144": "Nem ellenőrzött: {v0} nem engedhető be.",
+    "m145": "Nem ellenőrzött: {v0} útvonal-crates elemeket tartalmaz ismeretlen tulajdonnal és feloldott metaadatokkal.",
+    "m146": "Nem ellenőrzött: {v0} örökölt vagy beágyazott Cargo-deklarációkat tartalmaz statikus feloldás nélkül.",
+    "m147": {
+      "one": "Nem ellenőrzött: {v0} Cargo-zárbejegyzéshez nincs licenc vagy megfelelő beemelt jegyzék.",
+      "other": "Nem ellenőrzött: {v0} Cargo-zárbejegyzéshez nincs licenc vagy megfelelő beemelt jegyzék."
+    },
+    "m148": {
+      "one": "Nem ellenőrzött: {v0} Cargo-követelményhez nincs feloldott verzió Cargo.lock-ban.",
+      "other": "Nem ellenőrzött: {v0} Cargo-követelményhez nincs feloldott verzió Cargo.lock-ban."
+    },
+    "m149": "Nem ellenőrzött: nincsenek Cargo-jegyzékek vagy zárak.",
+    "m150": "Nem ellenőrzött: {v0} hibás JSON; a követelmények és licenc ismeretlenek.",
+    "m151": "Nem ellenőrzött: {v0} hibás JSON; a zárolt verziók ismeretlenek.",
+    "m152": "Nem ellenőrzött: {v0} bizonyítékai ellentmondanak {v1} és {v2} között.",
+    "m153": {
+      "one": "Nem ellenőrzött: {v0} Composer-követelményhez nincs zárolt verzió composer.lock-ban.",
+      "other": "Nem ellenőrzött: {v0} Composer-követelményhez nincs zárolt verzió composer.lock-ban."
+    },
+    "m154": {
+      "one": "Nem ellenőrzött: {v0} Composer-csomaghoz nincs licenc a zárban vagy telepített adatokban.",
+      "other": "Nem ellenőrzött: {v0} Composer-csomaghoz nincs licenc a zárban vagy telepített adatokban."
+    },
+    "m155": "Nem ellenőrzött: nincs composer.json, composer.lock vagy installed.json.",
+    "m156": "Nem ellenőrzött: {v0} végrehajtható kódja sosem fut; csak statikus hozzárendeléseket olvasunk.",
+    "m157": "Nem ellenőrzött: {v0} statikusan olvasva; számított Ruby-metaadatok és feltételes hozzárendelések nem értékelődnek ki.",
+    "m158": {
+      "one": "Nem ellenőrzött: {v0} gem-követelményhez nincs zárolt verzió Gemfile.lock-ban.",
+      "other": "Nem ellenőrzött: {v0} gem-követelményhez nincs zárolt verzió Gemfile.lock-ban."
+    },
+    "m159": {
+      "one": "Nem ellenőrzött: {v0} gemhez nincs licenc; meglévő specifikációk segíthetnének.",
+      "other": "Nem ellenőrzött: {v0} gemhez nincs licenc; meglévő specifikációk segíthetnének."
+    },
+    "m160": "Nem ellenőrzött: nincs Gemfile, Gemfile.lock vagy gemspec.",
+    "m161": "Nem ellenőrzött: Go-cserék, eszköztérkép és tranzitív választás ellenőrizendő; összegek nem használt verziókat is tartalmazhatnak.",
+    "m162": {
+      "one": "Nem ellenőrzött: {v0} Go-modulhoz nincs licenc; összegek és útvonalak nem licencek, beemelt szövegek segíthetnének.",
+      "other": "Nem ellenőrzött: {v0} Go-modulhoz nincs licenc; összegek és útvonalak nem licencek, beemelt szövegek segíthetnének."
+    },
+    "m163": {
+      "one": "Nem ellenőrzött: {v0} Go-eszközkövetelményhez nincs feloldott verzió; licencek ismeretlenek.",
+      "other": "Nem ellenőrzött: {v0} Go-eszközkövetelményhez nincs feloldott verzió; licencek ismeretlenek."
+    },
+    "m164": "Nem ellenőrzött: nincs go.mod, go.sum vagy vendor/modules.txt.",
+    "m165": "Nem ellenőrzött: {v0} licenckonfliktusa {v1} és {v2} között: {v3} és {v4}.",
+    "m166": "Nem ellenőrzött: {v0} statikusan olvasva; futtatható logika, katalógusok és számított deklarációk nem értékelődnek ki.",
+    "m167": "Nem ellenőrzött: statikus POM nem oldja fel a tranzitív Maven-gráfot, szülőtulajdonságokat és profilokat.",
+    "m168": {
+      "one": "Nem ellenőrzött: {v0} Maven/Gradle-követelményhez nincs feloldott verzió a zárban vagy katalógusban.",
+      "other": "Nem ellenőrzött: {v0} Maven/Gradle-követelményhez nincs feloldott verzió a zárban vagy katalógusban."
+    },
+    "m169": {
+      "one": "Nem ellenőrzött: {v0} Maven/Gradle-csomaghoz nincs licenc; meglévő POM segíthetne.",
+      "other": "Nem ellenőrzött: {v0} Maven/Gradle-csomaghoz nincs licenc; meglévő POM segíthetne."
+    },
+    "m170": "Nem ellenőrzött: nincs POM, Gradle-deklaráció, zár vagy katalógus.",
+    "m171": "Nem ellenőrzött: {v0} npm-zármetaadatai olvashatatlanok.",
+    "m172": "Nem ellenőrzött: {v0} nem támogatott npm-zárverziót használ.",
+    "m173": "Nem ellenőrzött: {v0} meghaladja az npm-zár beágyazási mélységét.",
+    "m174": {
+      "one": "Nem ellenőrzött: {v0} npm-zárbejegyzéshez {v1} fájlban nincs licenc vagy telepített adat.",
+      "other": "Nem ellenőrzött: {v0} npm-zárbejegyzéshez {v1} fájlban nincs licenc vagy telepített adat."
+    },
+    "m175": "Nem ellenőrzött: {v0} nem tartalmaz olvasható Yarn-bejegyzést.",
+    "m176": {
+      "one": "Nem ellenőrzött: {v0} verziókat rögzít licenc nélkül {v1} csomaghoz; telepített adatok segíthetnének.",
+      "other": "Nem ellenőrzött: {v0} verziókat rögzít licenc nélkül {v1} csomaghoz; telepített adatok segíthetnének."
+    },
+    "m177": "Nem ellenőrzött: {v0} nem támogatott pnpm-zár vagy olvashatatlan csomagrész.",
+    "m178": "Nem ellenőrzött: {v0}@{v1} bizonyítékai ellentmondanak {v2} és {v3} között.",
+    "m179": {
+      "one": "Nem ellenőrzött: {v0} npm-követelményhez nincs feloldott verzió; tranzitív licencek ismeretlenek.",
+      "other": "Nem ellenőrzött: {v0} npm-követelményhez nincs feloldott verzió; tranzitív licencek ismeretlenek."
+    },
+    "m180": "Nem ellenőrzött: nincs npm-jegyzék, zár vagy telepített metaadat.",
+    "m181": "Nem ellenőrzött: feltételes/dinamikus NuGet-deklarációk, tartományok és keretrendszer-konfliktusok ellenőrizendők.",
+    "m182": {
+      "one": "Nem ellenőrzött: {v0} NuGet-követelményhez nincs feloldott verzió zárban, erőforrásban vagy központi verzióban.",
+      "other": "Nem ellenőrzött: {v0} NuGet-követelményhez nincs feloldott verzió zárban, erőforrásban vagy központi verzióban."
+    },
+    "m183": {
+      "one": "Nem ellenőrzött: {v0} NuGet-csomaghoz nincs licenc; meglévő .nuspec segíthetne.",
+      "other": "Nem ellenőrzött: {v0} NuGet-csomaghoz nincs licenc; meglévő .nuspec segíthetne."
+    },
+    "m184": "Nem ellenőrzött: nincs NuGet-deklaráció, zár vagy erőforrásfájl.",
+    "m185": "Nem ellenőrzött: {v0} beemeli {v1} elemet; tetszőleges nevek nem oldódnak fel rekurzívan.",
+    "m186": "Nem ellenőrzött: {v0} beemeli a munkaterületről hiányzó {v1} elemet.",
+    "m187": "Nem ellenőrzött: {v0} statikusan fel nem oldott követelményopciót vagy szerkeszthető forrást tartalmaz.",
+    "m188": {
+      "one": "Nem ellenőrzött: {v0} követelménysor {v1} fájlban nem értelmezhető formátumú.",
+      "other": "Nem ellenőrzött: {v0} követelménysor {v1} fájlban nem értelmezhető formátumú."
+    },
+    "m189": "Nem ellenőrzött: {v0} nem nevez meg projektet; követelményei nem rendelhetők hozzá.",
+    "m190": "Nem ellenőrzött: {v0} csomagrészei olvashatatlanok.",
+    "m191": {
+      "one": "Nem ellenőrzött: {v0} verziókat rögzít licenc nélkül {v1} csomaghoz; terjesztési metaadatok segíthetnének.",
+      "other": "Nem ellenőrzött: {v0} verziókat rögzít licenc nélkül {v1} csomaghoz; terjesztési metaadatok segíthetnének."
+    },
+    "m192": "Nem ellenőrzött: {v0} telepített verziója eltér; a zárolt licenc ismeretlen.",
+    "m193": "Nem ellenőrzött: statikus Python zár és telepített metaadat nélkül nem igazol teljes tranzitív lefedettséget; dinamikus build-metaadat sosem értékelődik ki.",
+    "m194": {
+      "one": "Nem ellenőrzött: {v0} Python-csomaghoz nincs megfelelő licenc.",
+      "other": "Nem ellenőrzött: {v0} Python-csomaghoz nincs megfelelő licenc."
+    },
+    "m195": {
+      "one": "Nem ellenőrzött: {v0} Python-követelményhez nincs feloldott verzió; tranzitív licencek ismeretlenek.",
+      "other": "Nem ellenőrzött: {v0} Python-követelményhez nincs feloldott verzió; tranzitív licencek ismeretlenek."
+    },
+    "m196": "Nem ellenőrzött: nincs Python-jegyzék, zár vagy terjesztési metaadat.",
+    "unknown": "ismeretlen",
+    "unresolved": "feloldatlan",
+    "noLicense": "nincs licenc",
+    "shipment": " a terjesztésben",
+    "copyrightSpdxLines": "szerzői jogi vagy SPDX-License-Identifier sorok",
+    "spdxLine": "SPDX-License-Identifier sor",
+    "copyrightLine": "szerzői jogi sor",
+    "invalidYear": "a(z) {value} év nem négyjegyű",
+    "impossibleYear": "a(z) {value} év lehetetlen",
+    "reversedYears": "a(z) {value} tartomány a kezdete előtt ér véget",
+    "selectedPaths": {
+      "one": "{count} kiválasztott útvonal",
+      "other": "{count} kiválasztott útvonal"
+    },
+    "moreUnchecked": {
+      "one": "és további {count} ellenőrizetlen elem kihagyva a korlát felett",
+      "other": "és további {count} ellenőrizetlen elem kihagyva a korlát felett"
+    },
+    "declaration": "{file} szerint {license}",
+    "licenseFile": "licencfájl",
+    "bundleLoad": "{file} nem tölthető be",
+    "bundleShape": "{file} szerkezete váratlan",
+    "invalidResult": "a vizsgálat érvénytelen eredményt adott"
+  }
 }

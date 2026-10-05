@@ -1,3 +1,5 @@
+import { fill, plural } from '../../../shared/l10n/text'
+import { UI_TEXT } from '../../../shared/constants'
 import { compareLegalText } from '../files'
 // Ruby gem evidence (M97, PLAN.md D76): `Gemfile`, `Gemfile.lock` and
 // static gemspec declarations. A gemspec is Ruby code and is never
@@ -187,9 +189,7 @@ export function readGems(snapshot: LegalFileSnapshot): EcosystemResult {
     if (gemspecText === undefined) continue
     {
       if (isGemspecExecutable(gemspecText)) {
-        incomplete.push(
-          `not checked: ${gemspec} uses executable code, which never runs; only its static assignments are read`,
-        )
+        incomplete.push(fill(UI_TEXT.legalScanner.m156, { v0: gemspec }))
       }
       const parsed = readGemspecStatic(gemspecText)
       if (
@@ -251,9 +251,7 @@ export function readGems(snapshot: LegalFileSnapshot): EcosystemResult {
           file,
         })
     }
-    incomplete.push(
-      `not checked: ${file} is read statically; computed Ruby metadata and conditional assignments are not evaluated`,
-    )
+    incomplete.push(fill(UI_TEXT.legalScanner.m157, { v0: file }))
     if (parsed.name === undefined || parsed.licenses.length === 0) continue
     const base = baseNameOf(file)
     const prefix = `${parsed.name}-`
@@ -295,18 +293,14 @@ export function readGems(snapshot: LegalFileSnapshot): EcosystemResult {
 
   const unresolved = dependencies.filter((dep) => dep.version === undefined).length
   if (unresolved > 0) {
-    incomplete.push(
-      `not checked: ${String(unresolved)} gem requirements have no locked version in any Gemfile.lock`,
-    )
+    incomplete.push(plural(UI_TEXT.legalScanner.m158, unresolved, { v0: unresolved }))
   }
   const withoutLicense = dependencies.filter((dep) => dep.licenseRaw === undefined).length
   if (withoutLicense > 0) {
-    incomplete.push(
-      `not checked: ${String(withoutLicense)} gems carry no license metadata; present gem specifications would close the gap`,
-    )
+    incomplete.push(plural(UI_TEXT.legalScanner.m159, withoutLicense, { v0: withoutLicense }))
   }
   if (manifestFiles === 0 && locked.size === 0) {
-    incomplete.push('not checked: no Gemfile, Gemfile.lock or gemspec files found')
+    incomplete.push(UI_TEXT.legalScanner.m160)
   }
 
   dependencies.sort((a, b) => compareLegalText(a.name, b.name))

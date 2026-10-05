@@ -1,9 +1,11 @@
+import { fill, uiLocale } from '../../shared/l10n/text'
 // Shared production scanner contract, required lazily beside the running ACP bundle.
 // A missing or malformed scanner reports incomplete coverage, never empty success.
 
 import path from 'node:path'
 import { requireFile } from '../../host/lazyBundle'
 import {
+  UI_TEXT,
   LEGAL_SCAN_BUNDLE_FILE,
   SETTING_DEFAULTS,
   type LegalHeaderPolicy,
@@ -48,22 +50,23 @@ export function loadLegalScanner(input: {
         try {
           loaded = load(bundleFile)
         } catch {
-          throw failed(`${LEGAL_SCAN_BUNDLE_FILE} could not be loaded`)
+          throw failed(fill(UI_TEXT.legalScanner.bundleLoad, { file: LEGAL_SCAN_BUNDLE_FILE }))
         }
         if (!isLegalScanBundle(loaded)) {
-          throw failed(`${LEGAL_SCAN_BUNDLE_FILE} has an unexpected shape`)
+          throw failed(fill(UI_TEXT.legalScanner.bundleShape, { file: LEGAL_SCAN_BUNDLE_FILE }))
         }
         bundle = loaded
       }
+      bundle.setLanguage?.(UI_TEXT, uiLocale())
       const produced: unknown = await bundle.runLegalScan(request)
       if (typeof produced !== 'object' || produced === null || !('result' in produced)) {
-        throw failed('the scanner returned an invalid result')
+        throw failed(UI_TEXT.legalScanner.invalidResult)
       }
       let result: LegalScanResult
       try {
         result = legalScanResultSchema.parse(produced.result)
       } catch {
-        throw failed('the scanner returned an invalid result')
+        throw failed(UI_TEXT.legalScanner.invalidResult)
       }
       const registryTargets: LegalRegistryTarget[] = []
       if ('registryTargets' in produced && Array.isArray(produced.registryTargets)) {

@@ -15244,3 +15244,9 @@ record all editors' shared engine paths. Run full quality once on final source,
 report actual exit/tail and rebuild/package under unchanged budgets. No live or
 paid calls, pushes, main merges or rebases. Required Windows execution belongs
 to the Windows rig, as the owner explicitly directed in the FIN2 brief.
+
+FIN2 D6 packaging detail: preserve every translated value and plural category
+while packaging sorted English leaf indexes instead of repeating object keys.
+Source JSON stays complete; host/ACP loading expands and validates the entire
+table before installation. English fallback shares lossless phrases to keep
+all unchanged bundle/VSIX caps. Corrupt indexed tables must fail closed.

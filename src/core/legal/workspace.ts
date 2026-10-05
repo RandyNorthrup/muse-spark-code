@@ -1,3 +1,5 @@
+import { fill } from '../../shared/l10n/text'
+import { UI_TEXT } from '../../shared/constants'
 // Read-only filesystem admission for lane S. No links are followed: each
 // file is bound to the exact native identity sampled during enumeration,
 // opened read-only, and checked again before any bytes are read. Runtime
@@ -49,9 +51,9 @@ export function createLegalSnapshot(
   signal?: AbortSignal,
   deadline = Date.now() + LEGAL_SCAN_TIMEOUT_MS,
 ): LegalWorkspaceSnapshot {
-  if (signal?.aborted === true) throw new LegalScanError('Legal scan cancelled')
+  if (signal?.aborted === true) throw new LegalScanError(UI_TEXT.legalScanner.m111)
   const root = realpathSync(rootPath)
-  if (!lstatSync(root).isDirectory()) throw new LegalScanError('Legal scan root is not a directory')
+  if (!lstatSync(root).isDirectory()) throw new LegalScanError(UI_TEXT.legalScanner.m137)
   const admitted = new Map<string, BigIntStats>()
   const hashes = new Map<string, string>()
   const incompleteChecks: string[] = []
@@ -65,7 +67,7 @@ export function createLegalSnapshot(
     return false
   }
   const checkCancellation = (): void => {
-    if (signal?.aborted === true) throw new LegalScanError('Legal scan cancelled')
+    if (signal?.aborted === true) throw new LegalScanError(UI_TEXT.legalScanner.m111)
   }
   const visit = (directory: string, localDirectory: string): void => {
     checkCancellation()
@@ -76,7 +78,7 @@ export function createLegalSnapshot(
       !before.isDirectory() ||
       !isWithin(root, realpathSync(directory))
     ) {
-      incompleteChecks.push(`not checked: ${localDirectory || '.'} is a link or escaped directory`)
+      incompleteChecks.push(fill(UI_TEXT.legalScanner.m138, { v0: localDirectory || '.' }))
       return
     }
     const dir = opendirSync(directory)
@@ -88,9 +90,7 @@ export function createLegalSnapshot(
         if (!isWithinTime()) return
         entriesSeen += 1
         if (entriesSeen > LEGAL_DIRECTORY_ENTRIES_MAX) {
-          incompleteChecks.push(
-            'scan stopped at limit: directory-entry budget reached; remaining tree not enumerated',
-          )
+          incompleteChecks.push(UI_TEXT.legalScanner.m139)
           return
         }
         names.push(entry.name)
@@ -100,7 +100,7 @@ export function createLegalSnapshot(
       dir.closeSync()
     }
     if (!sameFile(before, lstatSync(directory, { bigint: true }))) {
-      incompleteChecks.push(`not checked: ${localDirectory || '.'} changed during enumeration`)
+      incompleteChecks.push(fill(UI_TEXT.legalScanner.m140, { v0: localDirectory || '.' }))
       return
     }
     const sortedNames = names.toSorted((a, b) => compareLegalText(a, b))
@@ -109,20 +109,21 @@ export function createLegalSnapshot(
       if (entriesSeen > LEGAL_DIRECTORY_ENTRIES_MAX || !isWithinTime()) return
       const local = localDirectory === '' ? name : `${localDirectory}/${name}`
       if (name === '.git') {
-        incompleteChecks.push(`not checked: ${local} is repository internals`)
+        incompleteChecks.push(fill(UI_TEXT.legalScanner.m141, { v0: local }))
         continue
       }
       try {
         assertWorkspaceRelative(local)
         const absolute = path.join(directory, name)
         const sample = lstatSync(absolute, { bigint: true })
-        if (sample.isSymbolicLink()) incompleteChecks.push(`not checked: ${local} is a link`)
+        if (sample.isSymbolicLink())
+          incompleteChecks.push(fill(UI_TEXT.legalScanner.m142, { v0: local }))
         else if (sample.isDirectory()) visit(absolute, local)
         else if (sample.isFile()) admitted.set(local, sample)
-        else incompleteChecks.push(`not checked: ${local} is a special file`)
+        else incompleteChecks.push(fill(UI_TEXT.legalScanner.m143, { v0: local }))
       } catch (error) {
         if (signal?.aborted === true) throw error
-        incompleteChecks.push(`not checked: ${local} could not be admitted`)
+        incompleteChecks.push(fill(UI_TEXT.legalScanner.m144, { v0: local }))
       }
     }
   }
@@ -160,9 +161,7 @@ export function createLegalSnapshot(
           held.size > BigInt(LEGAL_FILE_MAX_BYTES) ||
           held.size + BigInt(bytesRead) > BigInt(LEGAL_TOTAL_MAX_BYTES)
         ) {
-          incompleteChecks.push(
-            `scan stopped at limit: ${local} exceeds the bounded text read budget`,
-          )
+          incompleteChecks.push(fill(UI_TEXT.legalScanner.m114, { v0: local }))
           return undefined
         }
         const bytes = Buffer.alloc(Number(held.size) + 1)

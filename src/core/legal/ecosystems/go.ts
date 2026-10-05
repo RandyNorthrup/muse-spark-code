@@ -1,3 +1,5 @@
+import { plural } from '../../../shared/l10n/text'
+import { UI_TEXT } from '../../../shared/constants'
 import { compareLegalText } from '../files'
 // Go module evidence (M97, PLAN.md D76): `go.mod` requirements and tool
 // directives, `go.sum` versions, `vendor/modules.txt` and present
@@ -266,26 +268,19 @@ export function readGo(snapshot: LegalFileSnapshot): EcosystemResult {
       }),
     )
   }
-  if (requirementFiles.length > 0)
-    incomplete.push(
-      'not checked: Go replacement targets, tool-package module mapping and non-vendored transitive selection require review; checksums can include unused versions',
-    )
+  if (requirementFiles.length > 0) incomplete.push(UI_TEXT.legalScanner.m161)
   const checksumOnly = dependencies.filter(
     (dep) => dep.version !== undefined && dep.licenseRaw === undefined,
   ).length
   if (checksumOnly > 0) {
-    incomplete.push(
-      `not checked: ${String(checksumOnly)} Go modules carry no license metadata; checksums and module paths alone are not licenses, so vendored license text would close the gap`,
-    )
+    incomplete.push(plural(UI_TEXT.legalScanner.m162, checksumOnly, { v0: checksumOnly }))
   }
   const unresolved = dependencies.filter((dep) => dep.version === undefined).length
   if (unresolved > 0) {
-    incomplete.push(
-      `not checked: ${String(unresolved)} Go tool requirements have no resolved version; their licenses are unknown`,
-    )
+    incomplete.push(plural(UI_TEXT.legalScanner.m163, unresolved, { v0: unresolved }))
   }
   if (requirementFiles.length === 0 && sumVersions.size === 0 && vendored.size === 0) {
-    incomplete.push('not checked: no go.mod, go.sum or vendor/modules.txt found')
+    incomplete.push(UI_TEXT.legalScanner.m164)
   }
 
   dependencies.sort((a, b) => compareLegalText(a.name, b.name))

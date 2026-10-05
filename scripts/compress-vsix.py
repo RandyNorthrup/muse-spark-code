@@ -7,6 +7,7 @@ from pathlib import Path
 from zipfile import ZIP_DEFLATED, ZipFile
 
 source = Path(sys.argv[1])
+layout = json.loads(Path(sys.argv[2]).read_text(encoding="utf-8"))
 with tempfile.NamedTemporaryFile(dir=source.parent, suffix=".vsix", delete=False) as held:
     destination = Path(held.name)
 try:
@@ -21,8 +22,17 @@ try:
                 or entry.filename.startswith("extension/package.nls.")
             ) and entry.filename.endswith(".json")
             if is_ui_json:
+                table = json.loads(content)
+                if entry.filename.startswith("extension/l10n/ui."):
+                    values = []
+                    for keys in layout:
+                        value = table
+                        for key in keys:
+                            value = value[key]
+                        values.append(value)
+                    table = {"format": 1, "values": values}
                 content = (json.dumps(
-                    json.loads(content), ensure_ascii=False, separators=(",", ":")
+                    table, ensure_ascii=False, separators=(",", ":")
                 ) + "\n").encode("utf-8")
             compressed.writestr(
                 entry, content, compress_type=ZIP_DEFLATED, compresslevel=9

@@ -5,6 +5,7 @@
 
 import { describe, expect, it } from 'vitest'
 import { LEGAL_FILES_SCANNED_MAX, LEGAL_FINDINGS_MAX } from '../../src/shared/constants'
+import { formatNumber } from '../../src/shared/l10n/text'
 import { scanLegal } from '../../src/core/legal/scan'
 import { legalScanResultSchema } from '../../src/shared/legal'
 import { countingSnapshot, snapshotFrom } from './legal/helpers'
@@ -77,7 +78,7 @@ describe('scanLegal', () => {
     const result = scanLegal(snapshot, { headerPolicy: 'optional' })
     expect(
       result.incompleteChecks.some((entry) =>
-        entry.includes(`after reading ${String(LEGAL_FILES_SCANNED_MAX)} files`),
+        entry.includes(`after reading ${formatNumber(LEGAL_FILES_SCANNED_MAX)} files`),
       ),
     ).toBe(true)
     const allowed = new Set(

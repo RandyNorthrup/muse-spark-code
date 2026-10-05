@@ -1,3 +1,4 @@
+import { UI_TEXT } from '../../shared/constants'
 import { redactSecrets } from '../redact'
 import { REDACTED_MARK } from '../../shared/constants'
 // The legal scanner's file access (M97, PLAN.md D76): every read goes
@@ -58,7 +59,7 @@ export function assertWorkspaceRelative(path: string): void {
     path.includes('\\') ||
     segments.has(PARENT_SEGMENT)
   ) {
-    throw new LegalScanError('Refused path outside the workspace or beyond its bounds')
+    throw new LegalScanError(UI_TEXT.legalScanner.m054)
   }
 }
 
