@@ -8,7 +8,7 @@
 // usage row, `/usage` and `/cost`; centred over the transcript with the
 // chat dimmed behind it.
 
-import { useEffect, useState } from 'react'
+import { Fragment, useEffect, useState } from 'react'
 import {
   META_DASHBOARD_URL,
   MILLISECONDS_PER_SECOND,
@@ -41,6 +41,7 @@ import {
   type UsageInsights,
 } from '../../shared/usage'
 import { estimateCostUsd, formatUsd, percentOf } from '../../core/usage/insights'
+import type { TeamUsageFigures, TeamUsageSummary } from '../../shared/teamView'
 import type { ContextSummary, UsageReport, UsageSummary } from '../state/uiState'
 import type { UiState } from '../state/uiState'
 import type { SignInMethod } from '../../shared/protocol'
@@ -52,6 +53,11 @@ export interface UsageDialogProps {
   readonly report: UsageReport | undefined
   readonly usage: UsageSummary | undefined
   readonly context: ContextSummary | undefined
+  /**
+   * The team's tasks, tokens and cost (M96 lane U2); undefined where the
+   * team cannot run: the dialog is today's.
+   */
+  readonly team?: TeamUsageSummary | undefined
   readonly modelId: string | undefined
   /** The paid features that are on and this window's tally (M33, PLAN.md D30). */
   readonly paid: PaidState
@@ -465,6 +471,54 @@ function InsightLine({ share, template }: { readonly share: number; readonly tem
   )
 }
 
+/**
+ * The Usage Team section (M96 lane U2, PLAN.md D75): tasks, tokens and cost
+ * today and in this window, per role and per entry, with key, subscription
+ * and local apart, and estimated figures marked.
+ */
+function teamFiguresText(figures: TeamUsageFigures): string {
+  return `${formatNumber(figures.tasks)} ${UI_TEXT.teamUsageTasks} · ${formatTokenWindow(figures.inputTokens + figures.outputTokens)} · ${formatUsd(figures.costUsd)}`
+}
+
+function TeamFigures({ figures }: { readonly figures: TeamUsageFigures }) {
+  return (
+    <dd>
+      {teamFiguresText(figures)}
+      {figures.estimated ? (
+        <>
+          {' '}
+          <span className="team-estimated">{UI_TEXT.teamEstimated}</span>
+        </>
+      ) : null}
+    </dd>
+  )
+}
+
+function TeamSection({ team }: { readonly team: TeamUsageSummary }) {
+  return (
+    <dl className="usage-facts">
+      <dt>{UI_TEXT.teamUsageToday}</dt>
+      <TeamFigures figures={team.today} />
+      <dt>{UI_TEXT.teamUsageWindow}</dt>
+      <TeamFigures figures={team.window} />
+      {team.byRole.map((row) => (
+        <Fragment key={`role-${row.roleId}`}>
+          <dt>{row.name}</dt>
+          <TeamFigures figures={row.figures} />
+        </Fragment>
+      ))}
+      {team.byEntry.map((row) => (
+        <Fragment key={`entry-${row.entryId}`}>
+          <dt>
+            {row.label} ({row.payKind})
+          </dt>
+          <TeamFigures figures={row.figures} />
+        </Fragment>
+      ))}
+    </dl>
+  )
+}
+
 function InsightsSection({
   insights,
 }: {
@@ -525,6 +579,7 @@ export function UsageDialog({
   report,
   usage,
   context,
+  team,
   modelId,
   paid,
   auth,
@@ -588,6 +643,12 @@ export function UsageDialog({
             <PaidSection paid={paid} features={paidFeatures} onForgetPaidUse={onForgetPaidUse} />
           </>
         ) : null}
+        {team === undefined ? null : (
+          <>
+            <h3 className="usage-heading">{UI_TEXT.teamUsageTitle}</h3>
+            <TeamSection team={team} />
+          </>
+        )}
         <h3 className="usage-heading">{UI_TEXT.usageContributing}</h3>
         {report.insights === undefined ? (
           <p className="usage-row-meta">

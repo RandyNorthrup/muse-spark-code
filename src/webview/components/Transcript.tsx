@@ -645,7 +645,19 @@ function OtherRow({
 }: {
   readonly entry: Exclude<
     TranscriptEntry,
-    StepEntry | { kind: 'user' | 'assistant' | 'userShell' | 'workflow' }
+    | StepEntry
+    | {
+        kind:
+          | 'user'
+          | 'assistant'
+          | 'userShell'
+          | 'workflow'
+          | 'teamPlan'
+          | 'teamSwitch'
+          | 'teamWaiting'
+          | 'teamMerge'
+          | 'teamReport'
+      }
   >
 }) {
   switch (entry.kind) {
@@ -985,6 +997,11 @@ function TranscriptList(props: TranscriptProps) {
       case 'teamReport': {
         return <TeamReportRow key={entry.id} entry={entry} />
       }
+      case 'subagent':
+      case 'item':
+      case 'error': {
+        return <MemoOtherRow key={entry.id} entry={entry} />
+      }
       case 'notice': {
         if (onNoticeAction !== undefined && entry.actions !== undefined) {
           return (
@@ -1006,9 +1023,6 @@ function TranscriptList(props: TranscriptProps) {
             onRedo={onRedo}
           />
         )
-      }
-      default: {
-        return <MemoOtherRow key={entry.id} entry={entry} />
       }
     }
   }

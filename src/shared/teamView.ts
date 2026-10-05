@@ -46,6 +46,8 @@ export const teamEntrySchema = z.object({
   caps: z.readonly(z.array(teamCapSchema)),
   running: z.number(),
   concurrentMax: z.optional(z.number()),
+  /** The headroom as the host phrases it, shown beside the running count. */
+  headroom: z.optional(z.string()),
   state: z.string(),
   stateDetail: z.optional(z.string()),
   warnings: z.readonly(z.array(z.string())),

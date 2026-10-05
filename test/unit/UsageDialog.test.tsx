@@ -571,3 +571,68 @@ describe('UsageDialog: paid features (M33, PLAN.md D30)', () => {
     expect(dialog).toHaveTextContent('Estimated paid total$0.0400')
   })
 })
+
+describe('UsageDialog Team section (M96 lane U2)', () => {
+  const team = {
+    today: { tasks: 3, inputTokens: 80_000, outputTokens: 20_000, costUsd: 1.2, estimated: false },
+    window: { tasks: 5, inputTokens: 100_000, outputTokens: 40_000, costUsd: 2.5, estimated: true },
+    byRole: [
+      {
+        roleId: 'engineering',
+        name: 'engineering',
+        figures: {
+          tasks: 3,
+          inputTokens: 80_000,
+          outputTokens: 20_000,
+          costUsd: 1.2,
+          estimated: false,
+        },
+      },
+    ],
+    byEntry: [
+      {
+        entryId: 'e1',
+        roleId: 'engineering',
+        label: 'engineering · entry 1',
+        payKind: 'key' as const,
+        figures: {
+          tasks: 2,
+          inputTokens: 70_000,
+          outputTokens: 10_000,
+          costUsd: 1,
+          estimated: false,
+        },
+      },
+      {
+        entryId: 'e2',
+        roleId: 'engineering',
+        label: 'engineering · entry 2',
+        payKind: 'local' as const,
+        figures: {
+          tasks: 1,
+          inputTokens: 10_000,
+          outputTokens: 10_000,
+          costUsd: 0,
+          estimated: true,
+        },
+      },
+    ],
+  }
+
+  it('shows today and the window, per role and per entry, with estimated marked', () => {
+    renderDialog({ team })
+    const dialog = screen.getByRole('dialog')
+    expect(dialog).toHaveTextContent('Team')
+    expect(dialog).toHaveTextContent('Today')
+    expect(dialog).toHaveTextContent('This window')
+    expect(dialog).toHaveTextContent('engineering')
+    expect(dialog).toHaveTextContent('engineering · entry 1 (key)')
+    expect(dialog).toHaveTextContent('engineering · entry 2 (local)')
+    expect(dialog).toHaveTextContent('estimated')
+  })
+
+  it('stays today’s dialog without a team', () => {
+    renderDialog({})
+    expect(screen.getByRole('dialog')).not.toHaveTextContent('This window')
+  })
+})

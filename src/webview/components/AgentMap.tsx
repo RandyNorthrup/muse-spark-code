@@ -19,6 +19,7 @@ import type { TokenUsage } from '../../shared/agentEvents'
 import { fill, plural } from '../../shared/l10n/text'
 import { formatTokenWindow } from '../../shared/palette'
 import type { BackendKind } from '../../shared/protocol'
+import type { TeamTreeData } from '../../shared/teamView'
 import {
   type ChildTranscript,
   isRunningTask,
@@ -29,6 +30,7 @@ import { describeTool } from '../toolPresentation'
 import { agentStatusLabel, formatDurationMs } from '../agentFormat'
 import { workflowName, workflowTriggerText } from '../workflowDetails'
 import { Modal } from './Modal'
+import { teamTaskCount, TeamTree, type TeamTreeActions } from './TeamTree'
 import { WorkflowRunView } from './WorkflowRun'
 import { PaidBadge } from './PaidBadge'
 
@@ -62,6 +64,13 @@ export interface AgentMapProps {
   readonly workflows: readonly WorkflowEntry[]
   /** Muse Code's `run.workflow_trigger_mode`; undefined on the Model API backend. */
   readonly workflowTriggerMode: string | undefined
+  /**
+   * The team's live tree (M96 lane U2); undefined where the team cannot run
+   * (off, Solo, single-model mode, no runnable role): the map is today's.
+   */
+  readonly team?: TeamTreeData | undefined
+  /** The tree's actions; absent where the host takes none (history). */
+  readonly teamActions?: TeamTreeActions | undefined
 }
 
 /** Muse keeps captured M18 controls; Model API children also support M48 read/reopen. */
@@ -248,6 +257,21 @@ function entryText(entry: TranscriptEntry): string {
     case 'workflow': {
       return workflowName(entry)
     }
+    case 'teamPlan': {
+      return UI_TEXT.teamPlanTitle
+    }
+    case 'teamSwitch': {
+      return `${entry.roleId}: ${entry.fromEntry} → ${entry.toEntry}`
+    }
+    case 'teamWaiting': {
+      return UI_TEXT.teamWaitingTitle
+    }
+    case 'teamMerge': {
+      return `${UI_TEXT.teamMergeTitle}: ${entry.brief}`
+    }
+    case 'teamReport': {
+      return entry.summary
+    }
     case 'item': {
       return entry.text ?? entry.status
     }
@@ -409,6 +433,8 @@ export function AgentMap({
   onClose,
   workflows,
   workflowTriggerMode,
+  team,
+  teamActions,
 }: AgentMapProps) {
   const selected = agents.find((agent) => agent.id === selectedAgentId)
   const transcript =
@@ -464,6 +490,14 @@ export function AgentMap({
               </div>
             )}
           </div>
+          {team === undefined ? null : (
+            <>
+              <h3 className="team-tree-heading">
+                {UI_TEXT.teamTreeLabel} · {plural(UI_TEXT.teamTasksCount, teamTaskCount(team))}
+              </h3>
+              <TeamTree tree={team} actions={teamActions} />
+            </>
+          )}
           {workflows.length === 0 ? null : (
             <>
               <p className="usage-row-meta">{plural(UI_TEXT.workflowsCount, workflows.length)}</p>
