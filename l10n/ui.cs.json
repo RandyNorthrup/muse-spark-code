@@ -958,6 +958,7 @@
     "offline": "Odpojeno",
     "busy": "Všechny sloty obsazené",
     "testFailed": "Vlastní test stroje selhal",
+    "commandTooLong": "Příkaz spouštěče pro Windows překračuje limit délky příkazového řádku procesu. Zkraťte příkaz nastavení nebo kontroly.",
     "hostKeyNotice": "Připojte se jednou ze svého terminálu a ověřte a přijměte tento klíč hostitele: {fingerprint}.",
     "inputHangNotice": "Vzdálený shell čekal na vstup. Použijte obálku naplánované úlohy a otestujte znovu.",
     "environmentNotice": "Předávají se pouze tyto názvy proměnných prostředí. Přihlašovací údaje jsou vždy vyloučeny.",

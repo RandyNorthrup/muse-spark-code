@@ -958,6 +958,7 @@
     "offline": "Rozłączona",
     "busy": "Wszystkie sloty zajęte",
     "testFailed": "Autotest maszyny nieudany",
+    "commandTooLong": "Polecenie wykonawcy Windows przekracza limit długości wiersza poleceń procesu. Skróć polecenie konfiguracji lub sprawdzania.",
     "hostKeyNotice": "Połącz się raz we własnym terminalu, aby sprawdzić i zaufać temu kluczowi hosta: {fingerprint}.",
     "inputHangNotice": "Zdalna powłoka czekała na wejście. Użyj nakładki zaplanowanego zadania i przetestuj ponownie.",
     "environmentNotice": "Przekazywane są tylko te nazwy zmiennych środowiskowych. Dane uwierzytelniające są zawsze wykluczone.",

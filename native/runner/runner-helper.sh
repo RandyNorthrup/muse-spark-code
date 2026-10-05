@@ -5,6 +5,14 @@ root=$2
 mkdir -p "$root/runs" "$root/slots" "$root/cache"
 action=$1
 decode() { base64 -d; }
+release_cache_lock() {
+  local lock="$root/cache/$cache.creating"
+  # Only the matching creator can release; expiry never proves child retirement.
+  if [[ -f "$lock/owner" ]] && [[ "$(cat "$lock/owner")" == "$id "* ]]; then
+    rm "$lock/owner"
+    rmdir "$lock"
+  fi
+}
 strip_credentials() {
   local name
   while IFS= read -r name; do
@@ -28,7 +36,10 @@ case "$action" in
     if [[ -f "$root/runs/$id/exit.json" ]]; then cat "$root/runs/$id/exit.json"
     elif [[ -d "$root/runs/$id" ]]; then printf '{"runId":"%s","state":"running"}\n' "$id"
     else printf '{"runId":"%s","state":"missing"}\n' "$id"; fi;;
-  output) cat "$root/runs/$3/output" 2>/dev/null || true;;
+  output)
+    printf '{"bytes":"'
+    if [[ -f "$root/runs/$3/output" ]]; then base64 < "$root/runs/$3/output" | tr -d '\r\n'; fi
+    printf '"}\n';;
   start)
     id=$3; max=$4; snapshot=$5; cache=$6; setup=$7; command=$8; timeout=$9
     # Exclusive allocation lock is never stolen on a timer or on a PID check.
@@ -50,6 +61,17 @@ case "$action" in
     trap '' HUP
     strip_credentials
     export GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_SYSTEM=/dev/null
+    # The timeout cannot kill the creator before publishing its owner record:
+    # the surviving supervisor owns creation and cleanup, never the setup child.
+    if [[ ! -f "$root/cache/$cache/ready" ]]; then
+      if ! mkdir "$root/cache/$cache.creating" 2>/dev/null; then
+        touch "$root/runs/$id/cache-busy"
+        printf '{"runId":"%s","state":"ended","exitCode":75,"reason":"cacheBusy"}\n' "$id" > "$root/runs/$id/exit.new"
+        mv "$root/runs/$id/exit.new" "$root/runs/$id/exit.json"
+        exit 0
+      fi
+      printf '%s %s' "$id" "$(( $(date +%s) + timeout ))" > "$root/cache/$cache.creating/owner"
+    fi
     # Job control makes the background job its own process group, including on macOS.
     set -m
     nice -n 10 bash "$0" execute "$root" "$id" "$snapshot" "$cache" "$setup" "$command" &
@@ -65,6 +87,8 @@ case "$action" in
     kill -KILL -- "-$group" 2>/dev/null || true
     while kill -0 -- "-$group" 2>/dev/null; do sleep 0.1; done
     if [[ -f "$root/runs/$id/timed-out" ]]; then code=124; fi
+    # The supervisor survives the deadline kill and releases only after group retirement.
+    release_cache_lock
     reason=
     if [[ -f "$root/runs/$id/cache-busy" ]]; then reason=',"reason":"cacheBusy"'; fi
     printf '{"runId":"%s","state":"ended","exitCode":%s%s}\n' "$id" "$code" "$reason" > "$root/runs/$id/exit.new"
@@ -79,8 +103,7 @@ case "$action" in
     cd "$copy"
     # A cache creator has exclusive create ownership. Others fall back, never steal it.
     if [[ ! -f "$root/cache/$cache/ready" ]]; then
-      if ! mkdir "$root/cache/$cache.creating" 2>/dev/null; then touch "$root/runs/$id/cache-busy"; exit 75; fi
-      trap 'rmdir "$root/cache/$cache.creating"' EXIT
+      if [[ ! -f "$root/cache/$cache.creating/owner" ]] || [[ "$(cat "$root/cache/$cache.creating/owner")" != "$id "* ]]; then exit 1; fi
       # Only this cache's exclusive owner removes an incomplete prior install.
       rm -rf "$root/cache/$cache"
       printf '%s' "$setup" | decode > "$root/runs/$id/setup.sh"

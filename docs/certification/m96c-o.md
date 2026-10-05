@@ -387,7 +387,8 @@ The whole routing file then passed all 10 tests; host typecheck was rerun.
 
 ## RVM96CO repair — FIXM96CO (2026-10-05)
 
-Findings 1–3 are fixed. The bridge performs common unsafe-path validation,
+All seven RVM96CO P2 findings have implementation fixes; native Windows
+certification remains explicitly pending. Findings 1–3 are fixed. The bridge performs common unsafe-path validation,
 then builds and guards the exact scoped command for the selected runner's
 OS (or the local OS on fallback). Hook rewrites retain final-command
 admission; trust, cancellation and the authenticated attempt are checked
@@ -418,4 +419,146 @@ retirement assignment instead of the snapshot wrapper; existing lifecycle
 tests caught it. The targeted snapshot mutation then failed the new test.
 The first object-ownership regression also exposed Git's copied alternates
 file when merely removing `--shared`; `--no-local` fixes that case.
-Findings 4–7 and final verification are being completed in the next piece.
+Findings 4–7 are fixed in the second piece:
+
+- **4 — setup timeout.** The surviving supervisor exclusively creates the
+  cache lease, records its run ID and deadline/expiry, and removes it only
+  after child retirement and an owner match. Setup cannot be killed between
+  taking a lock and publishing its owner record. POSIX timeout/retry and
+  foreign-owner preservation run against the real local helper; Windows
+  ownership/cleanup is covered by source contracts pending native execution.
+- **5 — output bytes.** The bundled helpers return canonical base64 in the
+  strict `{ bytes }` boundary. Windows opens the live log with read/write
+  sharing. The host rejects over-limit and rewritten raw bytes before
+  decoding new bytes with a streaming UTF-8 decoder, flushed on the end
+  marker. Partial `é` and emoji bytes survive polls without replacement or
+  duplicated output. A leading UTF-8 BOM is retained, matching the prior
+  byte-to-text behavior, and an incomplete terminal sequence is flushed
+  only on retirement. Invalid bytes rewritten to different invalid bytes are
+  rejected even when both snapshots would decode to the same text.
+- **6 — Windows command length.** Before dispatch, the host checks the
+  encoded command against the immutable 32,767 UTF-16-unit CreateProcess
+  limit including its terminating NUL. Windows hosts also bound quoted SSH
+  argv including the executable. Before allocation, the helper bounds the
+  longer native `execute` invocation, which also bounds `job`; both C# launch
+  functions check their exact native line. A native `commandTooLong` refusal
+  is strictly parsed and translated; it is never treated as retirement.
+  The schema-valid 179-character root / 8,000-character setup / 1,000-character
+  check regression is rejected before start. An ordinary start still succeeds.
+- **7 — statement separator.** `Initialize-RunnerJob` and the `execute`
+  arguments assignment are separate statements. The real PowerShell parser
+  test also inspects command ASTs, since the old line can parse as a command
+  consuming assignment text without a syntax error. The Windows-only test
+  runs real setup/check through the native job and asserts the exit marker.
+
+The translated refusal requires the only shared-file changes: one immutable
+constant, one English key and real translations in all 14 language tables.
+No new dependency, manifest change, gate change, production fake or paid
+call was introduced. No real SSH connection was made. The cross-OS bridge test executes real
+Bash/Node on macmini and checks the exact sent command on a Windows test
+host, where a Darwin shell is unavailable. The typed internal
+length error keeps translation text out of control-flow classification.
+
+Additional red drills (complete files, no test-name filters):
+
+| Drill                                             | Mutation / regression failure                                                                                                           | Restored SHA-256                                                   |
+| ------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------ |
+| F4-timeout (remove supervisor cleanup)            | releases the owned cache creation lease after a setup timeout and permits retry                                                         | `4bcfb70d584d2381cb9bd6e7a57917fa010d4dd5fb4a68c6545c5beb249c5969` |
+| F4-owner (omit owner match)                       | retains a cache lease whose recorded owner differs from the retired job                                                                 | `4bcfb70d584d2381cb9bd6e7a57917fa010d4dd5fb4a68c6545c5beb249c5969` |
+| F4-Windows (remove native supervisor cleanup)     | keeps the Windows helper slot, job and exit-marker guards explicit for Windows certification                                            | `39d0aafaa8477d90f9f07e6aa63a9bc7ca1cd83da6eed89074e65563dbf58d48` |
+| F5-bytes (compare decoded text)                   | rejects raw output rewrites even when the decoded text stays identical; checks raw output prefixes and decodes split UTF-8 exactly once | `7c00db3bc5911f36b70079e04bf6b31b9d5ed2bbd6a9d6ed045cece46dc67bd5` |
+| F5-decoder (disable streaming decode)             | checks raw output prefixes and decodes split UTF-8 exactly once                                                                         | `7c00db3bc5911f36b70079e04bf6b31b9d5ed2bbd6a9d6ed045cece46dc67bd5` |
+| F6-transport (remove encoded transport bound)     | refuses oversized accepted Windows starts with a translated reason before dispatch                                                      | `7c00db3bc5911f36b70079e04bf6b31b9d5ed2bbd6a9d6ed045cece46dc67bd5` |
+| F6-local (remove quoted local SSH bound)          | includes the local Windows SSH executable and quoted arguments in the launch bound                                                      | `7c00db3bc5911f36b70079e04bf6b31b9d5ed2bbd6a9d6ed045cece46dc67bd5` |
+| F6-native (remove pre-allocation native bound)    | keeps the Windows helper slot, job and exit-marker guards explicit for Windows certification                                            | `39d0aafaa8477d90f9f07e6aa63a9bc7ca1cd83da6eed89074e65563dbf58d48` |
+| F6-refusal (ignore native refusal)                | translates a native Windows command-length refusal without treating it as retirement                                                    | `7c00db3bc5911f36b70079e04bf6b31b9d5ed2bbd6a9d6ed045cece46dc67bd5` |
+| F7-separator (join initialization and assignment) | separates Windows job initialization from the execute arguments assignment                                                              | `39d0aafaa8477d90f9f07e6aa63a9bc7ca1cd83da6eed89074e65563dbf58d48` |
+
+Additional final-command/native-bound drills:
+
+| Drill                                        | Named failure                                                                                | Restored SHA-256                                                   |
+| -------------------------------------------- | -------------------------------------------------------------------------------------------- | ------------------------------------------------------------------ |
+| F1-final-trust (omit trust recheck)          | rechecks trust, cancellation and refusal after the destination-command guard                 | `8549131d6abe7c83e97ff17e64e8b93c87bc28d70c3e84733dbd79dad340ed77` |
+| F1-final-cancel (omit cancellation recheck)  | rechecks trust, cancellation and refusal after the destination-command guard                 | `8549131d6abe7c83e97ff17e64e8b93c87bc28d70c3e84733dbd79dad340ed77` |
+| F1-final-empty (omit empty-command refusal)  | rechecks trust, cancellation and refusal after the destination-command guard                 | `8549131d6abe7c83e97ff17e64e8b93c87bc28d70c3e84733dbd79dad340ed77` |
+| F6-CSharp (remove one exact C# launch bound) | keeps the Windows helper slot, job and exit-marker guards explicit for Windows certification | `39d0aafaa8477d90f9f07e6aa63a9bc7ca1cd83da6eed89074e65563dbf58d48` |
+
+Completion/attempt drills:
+
+| Drill                                           | Named failure                                                                | Restored SHA-256                                                   |
+| ----------------------------------------------- | ---------------------------------------------------------------------------- | ------------------------------------------------------------------ |
+| F1-final-attempt (omit final attempt admission) | rechecks trust, cancellation and refusal after the destination-command guard | `8549131d6abe7c83e97ff17e64e8b93c87bc28d70c3e84733dbd79dad340ed77` |
+| F5-BOM (strip a leading BOM)                    | preserves a UTF-8 BOM and flushes incomplete final bytes only on retirement  | `7b868820ec6217412c23d1db8361f59db192680dc6503a3b88341b50ca9c0520` |
+
+All mutations exited 1 and were restored byte-exact with SHA-256 comparison.
+Windows drills are source/fake-transport assertions; they do not substitute
+for the native Windows parser/runtime receipt.
+
+Named residuals (also recorded in PLAN §9):
+
+- **Native Windows certification pending:** this Mac has no `pwsh` or
+  Windows parser assembly. `runnerHelperNative.test.ts` contains the parser
+  test (runs wherever PowerShell is installed) and native job test
+  (Windows-only). The lead must run both on Windows before certifying the
+  runner. No Windows support claim is made by this repair.
+- **Cache-creator supervisor loss:** an independently killed supervisor
+  may retain its creation lease past expiry. Expiry never proves descendant
+  retirement. Work remains busy, safely retaining exclusion; use a fresh
+  user-selected root after manually retiring the old supervisor. Automatic
+  reclamation requires native retirement-backed recovery in follow-up.
+
+Final validation ran directly in this worktree on **macmini**, one heavy
+process at a time. All Vitest runs used `--maxWorkers=3 --testTimeout=120000`
+and at most three complete files; no test-name filter was used. Only the
+explicitly requested native parser/kernel guards skip tests on this Mac.
+
+| Check                                                     | Result                                                                                                 |
+| --------------------------------------------------------- | ------------------------------------------------------------------------------------------------------ |
+| All five TypeScript projects                              | exit 0; host/unit checked again after final TypeScript changes                                         |
+| ESLint on all nine changed TypeScript files               | exit 0, zero warnings                                                                                  |
+| Plain knip                                                | exit 0                                                                                                 |
+| jscpd                                                     | exit 0, zero clones; the duplicated health fixture was shared rather than weakening the gate           |
+| Localization                                              | 14 tables, 120 manifest strings, 426 source files; 0 problems                                          |
+| Host API                                                  | exit 1, exactly the six pre-existing X2-owned Node import-count changes listed above; record untouched |
+| Production build and size/split/globals/notices gates     | exit 0                                                                                                 |
+| Bash syntax                                               | exit 0                                                                                                 |
+| Embedded C# 5 compiler, installed offline .NET references | exit 0; no native Windows API executed                                                                 |
+| runnerRouting.test.ts                                     | 10 passed                                                                                              |
+| checkSlots.test.ts                                        | 11 passed                                                                                              |
+| bridgeChecks.test.ts                                      | 8 passed                                                                                               |
+| sshRunner.test.ts                                         | 20 passed                                                                                              |
+| runnerHelperNative.test.ts                                | 2 explicitly guarded tests pending PowerShell/Windows                                                  |
+
+Total: **49 passing tests; 19 targeted red drills**, plus the earlier
+ordinary-command retirement mutation described above. Every source
+mutation restored its exact bytes and checked SHA-256. The BOM regression
+also proves incomplete terminal UTF-8 is flushed only at retirement.
+
+Built bundle sizes (unchanged caps): extension **590.7/600 KiB**, Model API
+**430.2/475**, webview **866.3/900**, shared English UI **110.7/125**,
+checkpoint **135.7/225**, ACP **801.0/850**. All other existing caps passed.
+These are the base's wired bundles. X2 still owns the separate lazy runner
+bundle, native packaging and full integration/quality certification.
+Full `quality` was not run, as the rig brief expressly forbids it here.
+
+The two native tests for the lead are named above and live in
+`test/unit/runnerHelperNative.test.ts`. The parser AST check should run via
+PowerShell 5.1 on Windows (or `pwsh` on a Mac where installed); the setup/check
+job test requires Windows APIs. This rig has neither `pwsh` nor a Windows
+parser assembly. Their guards are certification limits, not passing native
+receipts.
+
+Repair commits: first piece `060d47d8` (findings 1–3); the second piece is
+this certification update and findings 4–7. Both use normal commit hooks.
+No push, merge, rebase, new dependency, paid call, live model attempt, real
+SSH connection, or credential read occurred. The host API mismatch and
+supervisor-loss residual are recorded in PLAN §§7/9.
+
+Final implementation hashes (drill hashes above identify the exact versions
+restored during those drills):
+
+- `src/host/team/mcpBridge.ts`: `8549131d6abe7c83e97ff17e64e8b93c87bc28d70c3e84733dbd79dad340ed77`
+- `src/host/team/checkSlots.ts`: `118dccd72117832bca41c8e0ebe81f579593a8fec5b38e27e069edc057dea75c`
+- `src/host/runners/sshRunner.ts`: `7b868820ec6217412c23d1db8361f59db192680dc6503a3b88341b50ca9c0520`
+- `native/runner/runner-helper.sh`: `6820f2827f5265033414b885b63a31f57d03ff554fe29ab323e1480e0b31d478`
+- `native/runner/runner-helper.ps1`: `39d0aafaa8477d90f9f07e6aa63a9bc7ca1cd83da6eed89074e65563dbf58d48`

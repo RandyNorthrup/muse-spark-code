@@ -8,6 +8,7 @@ import { runnerSchema, type Runner } from '../../shared/team'
 import {
   RUNNER_CONNECT_TIMEOUT_MS,
   RUNNER_SELFTEST_TIMEOUT_MS,
+  RUNNER_WINDOWS_COMMAND_MAX_CHARS,
   MILLISECONDS_PER_SECOND,
   GIT_TIMEOUT_MS,
   GIT_METADATA_OPTIONS,
@@ -27,6 +28,11 @@ const runIdSchema = z
   .string()
   .check(z.maxLength(TEAM_SCHED_ID_MAX_CHARS), z.regex(/^[a-z0-9][a-z0-9-]*$/u))
 const runStateSchema = z.union([
+  z.strictObject({
+    runId: runIdSchema,
+    state: z.literal('refused'),
+    reason: z.literal('commandTooLong'),
+  }),
   z.strictObject({ runId: runIdSchema, state: z.enum(['running', 'busy', 'missing']) }),
   z.strictObject({
     runId: runIdSchema,
@@ -43,6 +49,12 @@ export interface SshRunnerDeps extends CheckGit {
   readonly assertWorkingCopy: (cwd: string) => Promise<void>
   readonly now: () => number
   readonly wait: (ms: number) => Promise<void>
+}
+
+class WindowsCommandTooLongError extends Error {
+  public constructor() {
+    super(UI_TEXT.teamRunners.commandTooLong)
+  }
 }
 
 /** The same fixed policy is used by health, upload, run, end checks and Git's SSH. */
@@ -62,9 +74,13 @@ export function runnerSshArgs(runner: Runner): string[] {
   ]
 }
 function remoteCommand(runner: Runner, script: string): string {
-  return runner.os === 'win32'
-    ? `powershell.exe -NoProfile -NonInteractive -InputFormat None -EncodedCommand ${Buffer.from(script, 'utf16le').toString('base64')} < NUL`
-    : script
+  const command =
+    runner.os === 'win32'
+      ? `powershell.exe -NoProfile -NonInteractive -InputFormat None -EncodedCommand ${Buffer.from(script, 'utf16le').toString('base64')} < NUL`
+      : script
+  if (runner.os === 'win32' && command.length >= RUNNER_WINDOWS_COMMAND_MAX_CHARS)
+    throw new WindowsCommandTooLongError()
+  return command
 }
 
 export class SshRunner {
@@ -79,9 +95,20 @@ export class SshRunner {
   }
   private async ssh(runner: Runner, script: string, signal?: AbortSignal): Promise<string> {
     this.admit(signal)
+    const args = [...runnerSshArgs(runner), remoteCommand(runner, script)]
+    if (process.platform === 'win32') {
+      // Bound the local SSH launch too, including quoted argv[0] and escaping.
+      const line = [this.deps.ssh, ...args]
+        .map(
+          (value) =>
+            `"${value.replaceAll(/(\\*)"/gu, String.raw`$1$1\"`).replace(/(\\+)$/u, '$1$1')}"`,
+        )
+        .join(' ')
+      if (line.length >= RUNNER_WINDOWS_COMMAND_MAX_CHARS) throw new WindowsCommandTooLongError()
+    }
     const result = await this.deps.run({
       file: this.deps.ssh,
-      args: [...runnerSshArgs(runner), remoteCommand(runner, script)],
+      args,
       cwd: this.deps.scratch,
       env: runnerEnvironment(this.deps.env, undefined, true),
       timeoutMs: RUNNER_SELFTEST_TIMEOUT_MS,
@@ -322,27 +349,27 @@ export class SshRunner {
         )
         .join(runner.os === 'win32' ? ';' : '\n')
       const encode = (command: string) => Buffer.from(`${prefix}\n${command}`).toString('base64')
+      const start = this.invocation(runner, helper, 'start', [
+        job.runId,
+        String(runner.maxJobs),
+        snapshot,
+        key.digest('hex'),
+        encode(runner.setupCommand),
+        encode(job.command),
+        String(Math.ceil(job.timeoutMs / MILLISECONDS_PER_SECOND)),
+      ])
+      // Check before dispatch uncertainty: every Windows transport command is bounded.
+      remoteCommand(runner, start)
       isDispatched = true
-      const started: unknown = JSON.parse(
-        await this.ssh(
-          runner,
-          this.invocation(runner, helper, 'start', [
-            job.runId,
-            String(runner.maxJobs),
-            snapshot,
-            key.digest('hex'),
-            encode(runner.setupCommand),
-            encode(job.command),
-            String(Math.ceil(job.timeoutMs / MILLISECONDS_PER_SECOND)),
-          ]),
-          job.signal,
-        ),
-      )
+      const started: unknown = JSON.parse(await this.ssh(runner, start, job.signal))
       const initial = runStateSchema.parse(started)
       if (initial.runId !== job.runId) throw new Error(UI_TEXT.teamRunners.testFailed)
       if (initial.state === 'busy') return { kind: 'busy' }
+      if (initial.state === 'refused') throw new WindowsCommandTooLongError()
       const deadline = this.deps.now() + job.timeoutMs + RUNNER_CONNECT_TIMEOUT_MS
       let output = ''
+      let bytes = Buffer.alloc(0)
+      const decoder = new TextDecoder('utf-8', { ignoreBOM: true })
       do {
         this.admit(job.signal)
         const state = await this.end(runner, helper, job.runId)
@@ -351,11 +378,21 @@ export class SshRunner {
           this.invocation(runner, helper, 'output', [job.runId]),
           job.signal,
         )
-        if (Buffer.byteLength(text) > GIT_OUTPUT_MAX_BYTES)
+        const value: unknown = JSON.parse(text)
+        const encoded = z.strictObject({ bytes: z.string() }).parse(value).bytes
+        if (Buffer.byteLength(encoded, 'base64') > GIT_OUTPUT_MAX_BYTES)
           throw new Error(UI_TEXT.teamRunners.testFailed)
-        if (!text.startsWith(output)) throw new Error(UI_TEXT.teamRunners.testFailed)
-        job.onOutput(text.slice(output.length))
-        output = text
+        const next = Buffer.from(encoded, 'base64')
+        if (next.toString('base64') !== encoded || next.length > GIT_OUTPUT_MAX_BYTES)
+          throw new Error(UI_TEXT.teamRunners.testFailed)
+        if (next.length < bytes.length || !next.subarray(0, bytes.length).equals(bytes))
+          throw new Error(UI_TEXT.teamRunners.testFailed)
+        const appended = decoder.decode(next.subarray(bytes.length), {
+          stream: state.state !== 'ended',
+        })
+        if (appended !== '') job.onOutput(appended)
+        output += appended
+        bytes = next
         if (state.state === 'ended' && state.reason === 'cacheBusy') return { kind: 'busy' }
         if (state.state === 'ended')
           return {
@@ -366,8 +403,9 @@ export class SshRunner {
         await this.deps.wait(TEAM_SCHED_TICK_MS)
       } while (this.deps.now() < deadline)
       return { kind: 'uncertain' }
-    } catch {
+    } catch (error: unknown) {
       this.admit(job.signal)
+      if (error instanceof WindowsCommandTooLongError) throw error
       return { kind: isDispatched ? 'uncertain' : 'offline' }
     } finally {
       this.active.delete(job.runId)

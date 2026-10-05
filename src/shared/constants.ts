@@ -1629,6 +1629,8 @@ export const TEAM_HEAVY_COMMAND_SECONDS = 60
 export const RUNNER_CONNECT_TIMEOUT_MS = 10_000
 export const RUNNER_HEALTH_MS = 60_000
 export const RUNNER_SELFTEST_TIMEOUT_MS = 10_000
+/** CreateProcessW includes the terminating NUL in its immutable UTF-16 limit. */
+export const RUNNER_WINDOWS_COMMAND_MAX_CHARS = 32_767
 // Bounds on the extension's own scheduler records and user-level runner config.
 export const TEAM_SCHED_ID_MAX_CHARS = 128
 export const TEAM_SCHED_TEXT_MAX_CHARS = 8000

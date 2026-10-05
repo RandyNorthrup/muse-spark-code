@@ -19788,6 +19788,17 @@ joined with M57, M58 and PR #49's sign-in
 
 ## 7. Gates
 
+**FIXM96CO rig validation (2026-10-05).** The lane brief forbids full
+`quality` and full test suites on the shared rig; the lead runs those after
+integration. Owned files are checked directly on macmini in batches of at
+most three Vitest files, plus typecheck, lint, formatting, knip, duplication,
+localization and build gates. The host API record still fails only on the
+six base Node import-count changes already assigned to X2 (buffer 27→28,
+crypto 32→34, fs 24→25, fs/promises 34→36, path 65→68, zlib 1→2).
+Its gate is unchanged; X2 must regenerate and review its owned record before
+full quality. Native Windows parser/runtime certification is explicitly
+pending in §9 and `docs/certification/m96c-o.md`.
+
 **MG69 merged-source proof (2026-10-02).** Kubuntu passes 49 owning/merged
 files (2,056 tests; two existing Windows-only cases platform-skipped), all
 five compiler projects and every required static gate. Both review and import
@@ -20231,6 +20242,26 @@ before a repaired one loads (2026-09-30).
 | `test/harness/index.html` (`isActiveDescendantList`), printed by `scripts/a11y.mjs` | The accessibility gate exempts axe's `scrollable-region-focusable` | The composer's `/` and `@` lists follow WAI-ARIA's combobox pattern: the box keeps the focus and moves `aria-activedescendant` through the listbox's options, and `Composer.tsx` scrolls the active option into view, so the list is keyboard operable (WCAG 2.1.1) without being a Tab stop. axe cannot see activedescendant-driven scrolling. The exemption holds only for a region that contains a listbox whose id is in the `aria-controls` of a focused or focusable element whose active descendant is one of that listbox's options; drills show a plain scrollable region and a listbox no control drives are still reported, and removing the exemption reports the composer's list again. Every exempt element is printed under its own "Exempt:" heading and counted. No `tabindex` was added to the list. | 2026-10-04 |
 
 ## 9. Security assumptions and accepted residual risk
+
+- **FIXM96CO / RVM96CO native Windows certification pending.** Findings
+  1–7 have regression fixes; macmini has no PowerShell parser or Windows
+  kernel. The real-parser test
+  `parses the helper and keeps Initialize-RunnerJob separate from argument assignment`
+  runs only when PowerShell is installed, and
+  `runs setup and checks through the native job branch and publishes the exit marker`
+  is Windows-guarded. Source/fake-transport checks cannot certify native
+  Windows execution. Safe for integration review because no Windows
+  support claim is made; the lead must run `runnerHelperNative.test.ts` on
+  Windows before runner certification. Details are in `docs/certification/m96c-o.md`.
+- **FIXM96CO cache-creator supervisor loss.** Creation leases record the
+  run owner and expiry; timeout cleanup runs in the surviving supervisor
+  after process-group/job retirement and only clears its own lease. A
+  supervisor killed independently can leave a lease, even past its expiry.
+  Expiry alone cannot prove descendants stopped, so later work stays busy
+  instead of stealing it. Follow-up: native retirement-backed recovery
+  before any automatic reclamation; use a fresh user-selected runner root
+  after manually retiring a lost supervisor. This retains exclusion and
+  never silently permits concurrent setup.
 
 - Code intelligence (M67) shows what VS Code's language services say. A
   result located outside the workspace is left out and a hover defined only

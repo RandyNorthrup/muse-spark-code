@@ -34,6 +34,27 @@ const unprovedTransport: CheckProcess = (request) =>
       : '',
     descendantsEnded: !request.args.includes('-v'),
   })
+function outputTransport(gitFile: string, runId: string, frames: readonly Buffer[]): CheckProcess {
+  let polls = 0
+  return (request) => {
+    const command = request.args.at(-1) ?? ''
+    let text = request.file === gitFile ? 'a'.repeat(40) : ''
+    if (command.includes("'start'")) text = JSON.stringify({ runId, state: 'running' })
+    else if (command.includes("'status'"))
+      text = JSON.stringify({
+        runId,
+        state: polls === frames.length - 1 ? 'ended' : 'running',
+        ...(polls === frames.length - 1 && { exitCode: 0 }),
+      })
+    else if (command.includes("'output'")) {
+      const frame = frames[polls]
+      if (frame === undefined) throw new Error('unexpected output poll')
+      text = JSON.stringify({ bytes: frame.toString('base64') })
+      polls += 1
+    }
+    return Promise.resolve({ exitCode: 0, output: text, descendantsEnded: true })
+  }
+}
 async function fixture(): Promise<{
   deps: SshRunnerDeps
   runner: Runner
@@ -326,6 +347,115 @@ describe('SSH runner over a fake transport and local repositories', () => {
       await run.run(runner, { ...job, runId: 'exit-75', lockfiles: [], command: 'exit 75' }),
     ).toMatchObject({ kind: 'finished', result: { exitCode: 75 } })
   })
+  it('releases the owned cache creation lease after a setup timeout and permits retry', async () => {
+    const { deps, runner, job, folder } = await fixture()
+    const slow: Runner = {
+      ...runner,
+      setupCommand: `if [ ! -f '${folder}/setup-retry' ]; then touch '${folder}/setup-retry'; sleep 3; fi; mkdir -p node_modules; printf seed > node_modules/value`,
+    }
+    const owners: string[] = []
+    const run: CheckProcess = async (request) => {
+      const result = await runProcess(request)
+      if ((request.args.at(-1) ?? '').includes("'status'")) {
+        const names = await readdir(path.join(runner.workFolder, 'cache'))
+        for (const name of names) {
+          if (!name.endsWith('.creating')) continue
+          try {
+            owners.push(
+              await readFile(path.join(runner.workFolder, 'cache', name, 'owner'), 'utf8'),
+            )
+          } catch (error: unknown) {
+            if (!isMissingPath(error)) throw error
+          }
+        }
+      }
+      return result
+    }
+    const host = new SshRunner({ ...deps, run })
+    expect(await host.run(slow, { ...job, timeoutMs: 1000 })).toMatchObject({
+      kind: 'finished',
+      result: { exitCode: 124 },
+    })
+    expect(owners.some((owner) => new RegExp(`^${job.runId} [0-9]+$`, 'u').test(owner))).toBe(true)
+    const remaining = await readdir(path.join(runner.workFolder, 'cache'))
+    expect(remaining.some((name) => name.endsWith('.creating'))).toBe(false)
+    expect(await host.run(slow, { ...job, runId: 'retry-setup' })).toMatchObject({
+      kind: 'finished',
+      result: { exitCode: 0 },
+    })
+  })
+  it('retains a cache lease whose recorded owner differs from the retired job', async () => {
+    const { deps, runner, job } = await fixture()
+    const setupCommand =
+      runner.setupCommand +
+      `; for owner in '${runner.workFolder}'/cache/*.creating/owner; do printf 'another-run 9999999999' > "$owner"; done`
+    expect(await new SshRunner(deps).run({ ...runner, setupCommand }, job)).toMatchObject({
+      kind: 'finished',
+      result: { exitCode: 0 },
+    })
+    const caches = await readdir(path.join(runner.workFolder, 'cache'))
+    const name = caches.find((entry) => entry.endsWith('.creating'))
+    expect(name).toBeDefined()
+    if (name === undefined) throw new Error('foreign lease was removed')
+    expect(await readFile(path.join(runner.workFolder, 'cache', name, 'owner'), 'utf8')).toBe(
+      'another-run 9999999999',
+    )
+  })
+  it('rejects raw output rewrites even when the decoded text stays identical', async () => {
+    const { deps, runner, job } = await fixture()
+    const output = vi.fn<(text: string) => void>()
+    const run = outputTransport(deps.file, job.runId, [Buffer.from([255]), Buffer.from([254])])
+    expect(
+      await new SshRunner({ ...deps, run, wait: () => Promise.resolve() }).run(runner, {
+        ...job,
+        onOutput: output,
+      }),
+    ).toEqual({ kind: 'uncertain' })
+    expect(output).toHaveBeenCalledExactlyOnceWith('�')
+  })
+  it('preserves a UTF-8 BOM and flushes incomplete final bytes only on retirement', async () => {
+    const { deps, runner, job } = await fixture()
+    const output = vi.fn<(text: string) => void>()
+    const run = outputTransport(deps.file, job.runId, [
+      Buffer.from([239, 187]),
+      Buffer.from([239, 187, 191, 195]),
+    ])
+    expect(
+      await new SshRunner({ ...deps, run, wait: () => Promise.resolve() }).run(runner, {
+        ...job,
+        onOutput: output,
+      }),
+    ).toMatchObject({ kind: 'finished', result: { output: '\u{FEFF}�', exitCode: 0 } })
+    expect(output).toHaveBeenCalledExactlyOnceWith('\u{FEFF}�')
+  })
+  it('checks raw output prefixes and decodes split UTF-8 exactly once', async () => {
+    const { deps, runner, job } = await fixture()
+    let hasPartial = false
+    const run: CheckProcess = async (request) => {
+      const result = await runProcess(request)
+      if ((request.args.at(-1) ?? '').includes("'output'")) {
+        const value: unknown = JSON.parse(result.output)
+        const bytes = Buffer.from(
+          z.strictObject({ bytes: z.string() }).parse(value).bytes,
+          'base64',
+        )
+        if (bytes.at(-1) === 195) hasPartial = true
+      }
+      return result
+    }
+    const streamed = vi.fn<(text: string) => void>()
+    const answer = await new SshRunner({ ...deps, run }).run(runner, {
+      ...job,
+      command: String.raw`printf '\303'; sleep 1; printf '\251'; printf '\360'; sleep 1; printf '\237\230\200'`,
+      onOutput: streamed,
+    })
+    expect(hasPartial).toBe(true)
+    expect(answer).toMatchObject({ kind: 'finished', result: { exitCode: 0 } })
+    if (answer.kind !== 'finished') throw new Error('split output did not finish')
+    expect(answer.result.output).toMatch(/é😀$/u)
+    expect(streamed.mock.calls.map(([value]) => value).join('')).toBe(answer.result.output)
+    expect(answer.result.output).not.toContain('�')
+  })
   it('ends the remote process group at timeout and writes the marker only afterwards', async () => {
     const { deps, runner, job } = await fixture()
     const answer = await new SshRunner(deps).run(runner, {
@@ -427,7 +557,11 @@ describe('SSH runner over a fake transport and local repositories', () => {
         } else if (command.includes("'output'")) {
           outputReads += 1
           const ordinary = outputReads === 1 ? 'first' : 'different'
-          text = mode === 'oversized' ? 'x'.repeat(GIT_OUTPUT_MAX_BYTES + 1) : ordinary
+          text = JSON.stringify({
+            bytes: Buffer.from(
+              mode === 'oversized' ? 'x'.repeat(GIT_OUTPUT_MAX_BYTES + 1) : ordinary,
+            ).toString('base64'),
+          })
         }
         const hasProof =
           !(mode === 'transportProof' && request.file === deps.ssh) &&
@@ -523,6 +657,75 @@ describe('SSH runner over a fake transport and local repositories', () => {
       await readFile(path.join(deps.helperFolder, 'runner-helper.ps1')),
     )
   })
+  it('refuses oversized accepted Windows starts with a translated reason before dispatch', async () => {
+    const { deps, runner, job } = await fixture()
+    const run = vi.fn<CheckProcess>((request) => {
+      const script = windowsScript(request)
+      let output = request.file === deps.file ? 'a'.repeat(40) : ''
+      if (script.includes("'start'"))
+        output = JSON.stringify({ runId: job.runId, state: 'running' })
+      if (script.includes("'status'"))
+        output = JSON.stringify({ runId: job.runId, state: 'ended', exitCode: 0 })
+      if (script.includes("'output'")) output = JSON.stringify({ bytes: '' })
+      return Promise.resolve({ exitCode: 0, output, descendantsEnded: true })
+    })
+    const long = {
+      ...windowsRunner(runner),
+      workFolder: 'C:/' + 'r'.repeat(176),
+      setupCommand: 's'.repeat(8000),
+      environmentNames: [],
+    }
+    await expect(
+      new SshRunner({ ...deps, run }).run(long, { ...job, command: 'c'.repeat(1000) }),
+    ).rejects.toThrow(UI_TEXT.teamRunners.commandTooLong)
+    expect(run.mock.calls.some(([request]) => windowsScript(request).includes("'start'"))).toBe(
+      false,
+    )
+    for (const [request] of run.mock.calls)
+      if (request.file === deps.ssh) expect(request.args.at(-1)?.length).toBeLessThan(32_767)
+    run.mockClear()
+    expect(await new SshRunner({ ...deps, run }).run(windowsRunner(runner), job)).toMatchObject({
+      kind: 'finished',
+    })
+    expect(run.mock.calls.some(([request]) => windowsScript(request).includes("'start'"))).toBe(
+      true,
+    )
+  })
+  it('includes the local Windows SSH executable and quoted arguments in the launch bound', async () => {
+    const { deps, runner, job } = await fixture()
+    const run = vi.fn<CheckProcess>(() =>
+      Promise.resolve({ exitCode: 0, output: '', descendantsEnded: true }),
+    )
+    vi.stubGlobal('process', { ...process, platform: 'win32' })
+    try {
+      await expect(
+        new SshRunner({ ...deps, run, ssh: 's'.repeat(32_767) }).run(windowsRunner(runner), job),
+      ).rejects.toThrow(UI_TEXT.teamRunners.commandTooLong)
+      expect(run).not.toHaveBeenCalled()
+    } finally {
+      vi.unstubAllGlobals()
+    }
+  })
+  it('translates a native Windows command-length refusal without treating it as retirement', async () => {
+    const { deps, runner, job } = await fixture()
+    const run: CheckProcess = (request) => {
+      let output = ''
+      if (request.file === deps.file) output = 'a'.repeat(40)
+      else if (windowsScript(request).includes("'start'"))
+        output = JSON.stringify({ runId: job.runId, state: 'refused', reason: 'commandTooLong' })
+      return Promise.resolve({ exitCode: 0, descendantsEnded: true, output })
+    }
+    await expect(new SshRunner({ ...deps, run }).run(windowsRunner(runner), job)).rejects.toThrow(
+      UI_TEXT.teamRunners.commandTooLong,
+    )
+  })
+  it('separates Windows job initialization from the execute arguments assignment', async () => {
+    const text = await readFile(
+      path.join(process.cwd(), 'native', 'runner', 'runner-helper.ps1'),
+      'utf8',
+    )
+    expect(text).toMatch(/Initialize-RunnerJob\r?\n\s+\$arguments=@\('execute'/u)
+  })
   it('keeps the Windows helper slot, job and exit-marker guards explicit for Windows certification', async () => {
     const text = await readFile(
       path.join(process.cwd(), 'native', 'runner', 'runner-helper.ps1'),
@@ -532,6 +735,14 @@ describe('SSH runner over a fake transport and local repositories', () => {
     expect(text).toContain('$claim = [IO.File]::Open($file, [IO.FileMode]::CreateNew')
     expect(text).toContain(
       "$creation=[IO.File]::Open(($cache+'.creating'),[IO.FileMode]::CreateNew",
+    )
+    expect(text).toContain('Remove-CacheLock (Join-Path (Join-Path $Root')
+    expect(text).toContain("$RunId+' '+$expires")
+    expect(text).toContain('[IO.FileShare]::ReadWrite')
+    expect(text).toContain(".StartsWith($Id+' ')")
+    expect(text.match(/command.Length>=32767/gu)).toHaveLength(2)
+    expect(text).toContain(
+      "if ($line.Length -ge 32767) { Write-Protocol @{runId=$RunId;state='refused';reason='commandTooLong'}; break }",
     )
     expect(text).toContain('0x01000000|0x8|0x200|0x4000')
     expect(text).toContain('start.input=Inherit(input)')

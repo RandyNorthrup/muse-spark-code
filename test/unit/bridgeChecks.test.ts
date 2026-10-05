@@ -6,6 +6,9 @@ import { runnerTestProcess } from './helpers/runnerProcesses'
 import type { CheckJob } from '../../src/core/runners/routing'
 import { VERIFY_TOOLS, CHECK_COMMANDS_MAX } from '../../src/shared/constants'
 
+const idleHealth: BridgeChecksDeps['routing']['sample'] = () =>
+  Promise.resolve({ cores: 2, load: 0, freeSlots: 1, inputReady: true })
+
 const denial: BridgeChecksDeps['guard'] = () => Promise.reject(new Error('shell guard denied'))
 
 function dependencies(): BridgeChecksDeps {
@@ -76,14 +79,19 @@ describe('bridge run_checks and engine test-command region', () => {
       cacheKey: 'npm',
       environmentNames: [],
     }
+    const command = `'${process.execPath}' -e 'console.log(JSON.stringify(process.argv.slice(1)))'`
     const remote = vi.fn<BridgeChecksDeps['routing']['remote']>(async (_, job) => {
-      const result = await runnerTestProcess({
-        file: '/bin/bash',
-        args: ['-c', job.command],
-        cwd: process.cwd(),
-        env: {},
-        timeoutMs: 2000,
-      })
+      expect(job.command).toBe([command, '--', String.raw`'test/O'\''Brien.test.ts'`].join(' '))
+      const result =
+        process.platform === 'win32'
+          ? { exitCode: 0, output: JSON.stringify(["test/O'Brien.test.ts"]) + '\n' }
+          : await runnerTestProcess({
+              file: '/bin/bash',
+              args: ['-c', job.command],
+              cwd: process.cwd(),
+              env: {},
+              timeoutMs: 2000,
+            })
       return {
         kind: 'finished',
         result: {
@@ -100,15 +108,14 @@ describe('bridge run_checks and engine test-command region', () => {
       checks: () => [
         {
           name: 'unit',
-          command: `'${process.execPath}' -e 'console.log(JSON.stringify(process.argv.slice(1)))'`,
+          command,
           changedFiles: true,
         },
       ],
       runners: () => [runner],
       routing: {
         ...deps.routing,
-        sample: () =>
-          Promise.resolve({ cores: 2, load: 0, freeSlots: 1, inputReady: true, sampledAt: 0 }),
+        sample: idleHealth,
         remote,
       },
     }).call({ paths: ["test/O'Brien.test.ts"] })
@@ -141,8 +148,7 @@ describe('bridge run_checks and engine test-command region', () => {
         runners: () => [runner],
         routing: {
           ...deps.routing,
-          sample: () =>
-            Promise.resolve({ cores: 2, load: 0, freeSlots: 1, inputReady: true, sampledAt: 0 }),
+          sample: idleHealth,
         },
       }).call({ paths: ['test/a&b.test.ts'] }),
     ).rejects.toThrow()
@@ -150,13 +156,15 @@ describe('bridge run_checks and engine test-command region', () => {
     expect(deps.routing.local).not.toHaveBeenCalled()
   })
   it('rechecks trust, cancellation and refusal after the destination-command guard', async () => {
-    for (const mode of ['trust', 'cancel', 'empty', 'denied']) {
+    for (const mode of ['trust', 'cancel', 'empty', 'denied', 'attempt']) {
       const deps = dependencies()
       const controller = new AbortController()
       let isTrusted = true
+      let isCurrent = true
       let guards = 0
       const guarded = bridgeRunChecks({
         ...deps,
+        isCurrentAndAllowed: () => isCurrent,
         makeJob: (command, timeoutMs) => ({
           ...deps.makeJob(command, timeoutMs),
           signal: controller.signal,
@@ -171,6 +179,10 @@ describe('bridge run_checks and engine test-command region', () => {
               }
               case 'cancel': {
                 controller.abort()
+                break
+              }
+              case 'attempt': {
+                isCurrent = false
                 break
               }
               case 'denied': {

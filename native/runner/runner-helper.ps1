@@ -13,6 +13,11 @@ $ErrorActionPreference = 'Stop'
 foreach ($directory in @('runs','slots','cache')) { [IO.Directory]::CreateDirectory((Join-Path $Root $directory)) | Out-Null }
 function Write-Protocol([hashtable]$Value) { [Console]::WriteLine((ConvertTo-Json -Compress $Value)) }
 function Get-RunPath([string]$Id) { return Join-Path (Join-Path $Root 'runs') $Id }
+function Remove-CacheLock([string]$Cache, [string]$Id) {
+    $lock=$Cache+'.creating'
+    # Expiry never authorizes stealing: the supervisor calls this after native retirement.
+    if ((Test-Path -LiteralPath $lock) -and [IO.File]::ReadAllText($lock).StartsWith($Id+' ')) { [IO.File]::Delete($lock) }
+}
 function Remove-Credentials {
     foreach ($entry in @(Get-ChildItem Env:)) {
         if ($entry.Name -match '_API_KEY$|^GIT_|^SSH_ASKPASS' -or $entry.Name -in @('AWS_ACCESS_KEY_ID','AWS_SECRET_ACCESS_KEY','AWS_SESSION_TOKEN','OPENAI_KEY','ANTHROPIC_KEY','META_KEY','SSH_AUTH_SOCK','GITHUB_TOKEN','GH_TOKEN','ACTIONS_RUNTIME_TOKEN','ACTIONS_ID_TOKEN_REQUEST_TOKEN','ACTIONS_ID_TOKEN_REQUEST_URL','DBUS_SESSION_BUS_ADDRESS','XDG_RUNTIME_DIR','GNOME_KEYRING_CONTROL','GNOME_KEYRING_PID')) {
@@ -62,6 +67,7 @@ public static class MuseRunnerJob {
   }
   [DllImport("kernel32",CharSet=CharSet.Unicode,SetLastError=true)] static extern SafeFileHandle CreateFile(string name,uint access,uint share,IntPtr attributes,uint disposition,uint flags,IntPtr template);
   public static void Start(string application,string command,string output) {
+    if(command.Length>=32767) throw new InvalidOperationException("runner command line exceeds CreateProcess limit");
     // Direct inheritable file handles: no Start-Process pipe pump dies with SSH.
     using(SafeFileHandle input=CreateFile("NUL",0x80000000,3,IntPtr.Zero,3,0,IntPtr.Zero))
     using(FileStream log=new FileStream(output,FileMode.CreateNew,FileAccess.Write,FileShare.ReadWrite)) {
@@ -92,6 +98,7 @@ public static class MuseRunnerJob {
     }
   }
   public static uint Run(string application,string command,uint timeout) {
+    if(command.Length>=32767) throw new InvalidOperationException("runner command line exceeds CreateProcess limit");
     IntPtr job=CreateJobObject(IntPtr.Zero,null); ProcessInfo child=new ProcessInfo();
     if(job==IntPtr.Zero) throw new System.ComponentModel.Win32Exception();
     try {
@@ -154,9 +161,22 @@ switch ($Action) {
     }
     'output' {
         $file = Join-Path (Get-RunPath $RunId) 'output'
-        if (Test-Path -LiteralPath $file) { [Console]::Write([IO.File]::ReadAllText($file)) }; break
+        if (Test-Path -LiteralPath $file) {
+            $stream=[IO.File]::Open($file,[IO.FileMode]::Open,[IO.FileAccess]::Read,[IO.FileShare]::ReadWrite)
+            $bytes=[IO.MemoryStream]::new()
+            try { $stream.CopyTo($bytes); Write-Protocol @{bytes=[Convert]::ToBase64String($bytes.ToArray())} }
+            finally { $bytes.Dispose(); $stream.Dispose() }
+        }
+        else { Write-Protocol @{bytes=''} }; break
     }
     'start' {
+        # Execute has the longest action name. Check both native stages before claiming a slot.
+        $arguments = @('execute',$Root,$RunId,$MaxJobs,$Snapshot,$CacheKey,$Setup,$Command,$Timeout) | ForEach-Object { "'" + $_.Replace("'","''") + "'" }
+        $script = "& '" + $PSCommandPath.Replace("'","''") + "' " + ($arguments -join ' ')
+        $encoded = [Convert]::ToBase64String([Text.Encoding]::Unicode.GetBytes($script))
+        $application=Join-Path $PSHOME 'powershell.exe'
+        $line='"' + $application + '" -NoProfile -NonInteractive -InputFormat None -EncodedCommand ' + $encoded
+        if ($line.Length -ge 32767) { Write-Protocol @{runId=$RunId;state='refused';reason='commandTooLong'}; break }
         $allocation = Join-Path $Root 'allocate'
         try { $owner = [IO.File]::Open($allocation, [IO.FileMode]::CreateNew, [IO.FileAccess]::Write, [IO.FileShare]::None) }
         catch [IO.IOException] { Write-Protocol @{runId=$RunId;state='busy'}; break }
@@ -192,14 +212,32 @@ switch ($Action) {
     'job' {
         Remove-Credentials
         $env:GIT_CONFIG_GLOBAL='NUL'; $env:GIT_CONFIG_SYSTEM='NUL'
+        $run=Get-RunPath $RunId
+        $cache=Join-Path (Join-Path $Root 'cache') $CacheKey
+        $creation=$null
+        # The supervisor owns the lease; terminating setup cannot interrupt its owner record.
+        if (!(Test-Path -LiteralPath (Join-Path $cache 'ready'))) {
+            try { $creation=[IO.File]::Open(($cache+'.creating'),[IO.FileMode]::CreateNew,[IO.FileAccess]::Write,[IO.FileShare]::Read) }
+            catch [IO.IOException] {
+                [IO.File]::WriteAllText((Join-Path $run 'cache-busy'),'')
+                [IO.File]::WriteAllText((Join-Path $run 'exit.new'),(ConvertTo-Json -Compress @{runId=$RunId;state='ended';exitCode=75;reason='cacheBusy'}))
+                Move-Item -LiteralPath (Join-Path $run 'exit.new') -Destination (Join-Path $run 'exit.json'); break
+            }
+            $expires=[DateTimeOffset]::UtcNow.ToUnixTimeSeconds()+[int]$Timeout
+            $ownerBytes=[Text.Encoding]::UTF8.GetBytes($RunId+' '+$expires)
+            try { $creation.Write($ownerBytes,0,$ownerBytes.Length); $creation.Flush() }
+            finally { $creation.Dispose() }
+        }
         # Suspended creation, no breakaway, kill-on-close, then active-count retirement.
-        Initialize-RunnerJob        $arguments=@('execute',$Root,$RunId,$MaxJobs,$Snapshot,$CacheKey,$Setup,$Command,$Timeout) | ForEach-Object { "'" + $_.Replace("'","''") + "'" }
+        Initialize-RunnerJob
+        $arguments=@('execute',$Root,$RunId,$MaxJobs,$Snapshot,$CacheKey,$Setup,$Command,$Timeout) | ForEach-Object { "'" + $_.Replace("'","''") + "'" }
         $script="& '" + $PSCommandPath.Replace("'","''") + "' " + ($arguments -join ' ')
         $encoded=[Convert]::ToBase64String([Text.Encoding]::Unicode.GetBytes($script))
         $application=Join-Path $PSHOME 'powershell.exe'
         $line='"' + $application + '" -NoProfile -NonInteractive -InputFormat None -EncodedCommand ' + $encoded
         $code=[MuseRunnerJob]::Run($application,$line,([uint32]$Timeout * 1000))
         $run=Get-RunPath $RunId
+        Remove-CacheLock (Join-Path (Join-Path $Root 'cache') $CacheKey) $RunId
         $result=@{runId=$RunId;state='ended';exitCode=[int]$code}
         if (Test-Path -LiteralPath (Join-Path $run 'cache-busy')) { $result.reason='cacheBusy' }
         [IO.File]::WriteAllText((Join-Path $run 'exit.new'),(ConvertTo-Json -Compress $result))
@@ -216,24 +254,21 @@ switch ($Action) {
         Set-Location -LiteralPath $copy
         $cache=Join-Path (Join-Path $Root 'cache') $CacheKey
         if (!(Test-Path -LiteralPath (Join-Path $cache 'ready'))) {
-            try { $creation=[IO.File]::Open(($cache+'.creating'),[IO.FileMode]::CreateNew,[IO.FileAccess]::Write,[IO.FileShare]::None) }
-            catch [IO.IOException] { [IO.File]::WriteAllText((Join-Path $run 'cache-busy'),''); exit 75 }
-            try {
-                if (Test-Path -LiteralPath $cache) { Remove-Item -Recurse -Force -LiteralPath $cache }
-                $setupFile=Join-Path $run 'setup.ps1'; [IO.File]::WriteAllText($setupFile,[Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($Setup)),[Text.UTF8Encoding]::new($true))
-                & powershell.exe -NoProfile -NonInteractive -InputFormat None -File $setupFile
-                if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-                [IO.Directory]::CreateDirectory($cache) | Out-Null
-                $install=Join-Path $cache 'install'; [IO.Directory]::CreateDirectory($install) | Out-Null
-                $files=& git -c core.quotePath=false ls-files --others --directory
-                if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-                foreach ($entry in $files) {
-                    $target=Join-Path $install $entry
-                    [IO.Directory]::CreateDirectory((Split-Path -Parent $target)) | Out-Null
-                    Copy-Item -Recurse -LiteralPath (Join-Path $copy $entry) -Destination $target
-                }
-                [IO.File]::WriteAllText((Join-Path $cache 'ready'),'')
-            } finally { $creation.Dispose(); [IO.File]::Delete(($cache+'.creating')) }
+            if (!(Test-Path -LiteralPath ($cache+'.creating')) -or ![IO.File]::ReadAllText(($cache+'.creating')).StartsWith($RunId+' ')) { exit 1 }
+            if (Test-Path -LiteralPath $cache) { Remove-Item -Recurse -Force -LiteralPath $cache }
+            $setupFile=Join-Path $run 'setup.ps1'; [IO.File]::WriteAllText($setupFile,[Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($Setup)),[Text.UTF8Encoding]::new($true))
+            & powershell.exe -NoProfile -NonInteractive -InputFormat None -File $setupFile
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+            [IO.Directory]::CreateDirectory($cache) | Out-Null
+            $install=Join-Path $cache 'install'; [IO.Directory]::CreateDirectory($install) | Out-Null
+            $files=& git -c core.quotePath=false ls-files --others --directory
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+            foreach ($entry in $files) {
+                $target=Join-Path $install $entry
+                [IO.Directory]::CreateDirectory((Split-Path -Parent $target)) | Out-Null
+                Copy-Item -Recurse -LiteralPath (Join-Path $copy $entry) -Destination $target
+            }
+            [IO.File]::WriteAllText((Join-Path $cache 'ready'),'')
         } else { Get-ChildItem -Force -LiteralPath (Join-Path $cache 'install') | ForEach-Object { Copy-Item -Recurse -LiteralPath $_.FullName -Destination $copy } }
         $commandFile=Join-Path $run 'command.ps1'; [IO.File]::WriteAllText($commandFile,[Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($Command)),[Text.UTF8Encoding]::new($true))
         & powershell.exe -NoProfile -NonInteractive -InputFormat None -File $commandFile

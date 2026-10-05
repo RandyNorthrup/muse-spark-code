@@ -13,6 +13,11 @@ happened, not what was planned; superseded entries are kept.
   system and guard the final command before dispatch. Persistent check slots
   own their Git objects and release cancelled snapshots only when every
   launched child has proved retirement.
+- Runner supervisors release their own setup-cache lease after timeout
+  retirement. Output polling checks original bytes before streaming UTF-8,
+  Windows launches refuse commands over the process limit with a translated
+  reason, and the native Windows job separates initialization from argument
+  assignment.
 
 ## [0.12.1] - 2026-10-04
 

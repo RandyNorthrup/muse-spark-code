@@ -916,6 +916,7 @@
     "offline": "Nicht verbunden",
     "busy": "Alle Slots belegt",
     "testFailed": "Selbsttest des Rechners fehlgeschlagen",
+    "commandTooLong": "Der Befehl für den Windows-Runner überschreitet die maximale Befehlszeilenlänge für Prozesse. Kürzen Sie den Einrichtungsbefehl oder die Prüfung.",
     "hostKeyNotice": "Verbinden Sie sich einmal in Ihrem eigenen Terminal, um diesen Hostschlüssel zu prüfen und zu akzeptieren: {fingerprint}.",
     "inputHangNotice": "Die entfernte Shell wartete auf Eingaben. Verwenden Sie den Wrapper für geplante Aufgaben und testen Sie erneut.",
     "environmentNotice": "Nur diese Umgebungsvariablennamen werden weitergegeben. Zugangsdaten sind immer ausgeschlossen.",
