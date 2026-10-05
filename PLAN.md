@@ -11330,7 +11330,7 @@ the obsolete bootstrap/reservation/paid policy wording below with v4's policy.
 | D              | Package/schema distribution, test package, build/release/hosts, E/H tests, documentation | Integrated; the 12 built-process rows run and pass; actionlint 1.7.12 clean                                                      |
 | W              | action-check.yml: W-review/text/image, low-budget, gate drill, apply, local rehearsal    | Written at integration; local rehearsal passes on the rigs; hosted matrix pending                                                |
 | L              | Local contributor text/PNG/PDF captures                                                  | Pending lead review and authorized live execution                                                                                |
-| LA             | Required real Action candidate using `MUSE_MODEL_API_KEY`                                | Pending secure secret setup and actual run receipt                                                                               |
+| LA             | Required real Action candidate using `MUSE_MODEL_API_KEY`                                | Secret set 2026-10-03; `action-live.yml` written (owner dispatch on main only, contributor model, $0.25 cap); pending first run  |
 | LR             | Published npm package provenance and registry Action smoke                               | Pending release; registry support cannot be claimed before this receipt                                                          |
 
 - **Exec:** exactly one bounded UTF-8 prompt; `plan` by default or
