@@ -54,6 +54,8 @@ export interface PaidFeaturesDeps {
   readonly isKeyStored: () => boolean
   /** A trusted workspace with a folder open: "always" is offered and kept only there. */
   readonly canRememberPaidUse: () => boolean
+  /** Tab's budget and, once its ledger was read, today's cross-window total (M94). */
+  readonly tabDay?: () => { readonly budgetUsd: number; readonly todayUsd: number | undefined }
   readonly log: Logger
 }
 
@@ -240,7 +242,20 @@ export function createPaidFeatures(deps: PaidFeaturesDeps): PaidFeatures {
     gate,
     consent,
     usage,
-    state: () => paidStateOf(gate, usage, deps.isKeyStored(), consent.remembered()),
+    state: () => {
+      const state = paidStateOf(gate, usage, deps.isKeyStored(), consent.remembered())
+      const day = deps.tabDay?.()
+      if (day === undefined) {
+        return state
+      }
+      return {
+        ...state,
+        tab:
+          day.todayUsd === undefined
+            ? { budgetUsd: day.budgetUsd }
+            : { budgetUsd: day.budgetUsd, todayUsd: day.todayUsd },
+      }
+    },
     affects: (event) =>
       PAID_FEATURES.some((feature) =>
         event.affectsConfiguration(`${SETTINGS_SECTION}.${PAID_FEATURE_SETTINGS[feature]}`),

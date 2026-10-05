@@ -221,15 +221,22 @@ export interface TabProviderDeps {
   readonly isTrusted: () => boolean
   /** The snooze tabStatus.ts keeps; while set the provider stays quiet. */
   readonly isSnoozed: () => boolean
-  /** `rootRelativePath` over `vscode.Uri` (PLAN.md D27): undefined outside the folders. */
-  readonly relativeInWorkspace: (uri: TabUri) => string | undefined
+  /**
+   * Resolves an absolute path through links (`canonicalPath` in production);
+   * rejects when it cannot. A file whose target leaves its workspace folder,
+   * or whose target is private, is never read (RVM94HU 12).
+   */
+  readonly realPath: (absolutePath: string) => Promise<string>
   /** Non-`museSpark` configuration the yield reads (`github.copilot`, `chat`). */
   readonly foreignSetting: (section: string, key: string) => unknown
   /** Whether a Copilot extension is installed and active (`extensions.getExtension`). */
   readonly isCopilotExtensionPresent: () => boolean
-  /** `files.exclude` for the file's scope, as VS Code configured it. */
-  readonly filesExclude: (uri: TabUri) => Readonly<Record<string, boolean>>
-  /** Whether an ignore file exists at an absolute path (`fs.existsSync` in production). */
+  /** `files.exclude` for the file's scope, as VS Code configured it (conditions kept). */
+  readonly filesExclude: (uri: TabUri) => TabFilesExclude
+  /**
+   * Whether a file exists at an absolute path: the ignore files, and the
+   * sibling a `files.exclude` `when` condition names.
+   */
   readonly ignoreFileExists: (absolutePath: string) => boolean
   /** Runs git with `args` in `cwd` and resolves stdout; rejects on any failure. */
   readonly runGit: (args: readonly string[], cwd: string) => Promise<string>
@@ -259,6 +266,13 @@ export interface TabProviderDeps {
  * bundle carries none of the Tab side). Tests hand in the mock's `FakeUri`.
  */
 export type TabUri = vscode.Uri
+
+/**
+ * A `files.exclude` table as VS Code reads it: a switch per glob, or a
+ * condition (`{ "when": "$(basename).ts" }`) that excludes a match only
+ * while the named sibling exists (RVM94HU 14).
+ */
+export type TabFilesExclude = Readonly<Record<string, boolean | { readonly when: string }>>
 
 /** One document change the provider watches (over `vscode.TextDocumentChangeEvent` in production). */
 export interface TabDocumentChange {
@@ -299,11 +313,17 @@ export const TAB_QUIET_REASONS = [
   'budget',
   'no-suggestion',
   'cancelled-before-send',
+  'secret-at-cursor',
 ] as const
 export type TabQuietReason = (typeof TAB_QUIET_REASONS)[number]
 
-/** The provider's handle: registration plus the accept command's entry. */
+/** The provider's handle: the provider the shim registers, plus the accept command's entry. */
 export interface TabProviderHandle {
+  /**
+   * The provider itself. The shim holds the one registration and delegates
+   * to it, so dist/tab.js loads on the first request (D73, RVM94HU 7).
+   */
+  readonly provider: vscode.InlineCompletionItemProvider
   dispose(): void
   /**
    * The item command's handler (`TAB_COMMAND_IDS.afterAccept`), registered
@@ -516,29 +536,29 @@ export function tabLoader(deps: TabLoaderDeps): () => TabBundle {
 
 /**
  * Defers the secret read (`refreshKeyPresence`, PLAN.md D73) to the first
- * view, panel, command or Tab request: the first call runs the refresh, the
- * rest are the cached flag's. Activation with no view or panel and Tab off
- * then reads no secret, starts no process and requires no lazy bundle.
+ * view, panel, command or Tab request: the first call runs the refresh, and
+ * every call answers its one promise, so a Tab request can wait for the
+ * read instead of finding no key. Activation with no view, panel or Tab
+ * request then reads no secret, starts no process and requires no lazy
+ * bundle.
  */
-export function deferredRefresh(refresh: () => void): () => void {
-  let isStarted = false
+export function deferredRefresh(refresh: () => Promise<void> | void): () => Promise<void> {
+  let started: Promise<void> | undefined
   return () => {
-    if (isStarted) {
-      return
-    }
-    isStarted = true
-    refresh()
+    started ??= Promise.resolve(refresh())
+    return started
   }
 }
 
 // --- The activation shim (the Tab region of src/extension.ts delegates here) ---
 //
-// With the setting off: no bundle load, no request, no secret read, no
-// process. The five user commands register always (cheap, synchronous,
-// secret-free); the bundle, the provider, the status bar and the accept
-// command load only for an explicit Tab command or while the setting is on.
-// The bundle builds the engine and the spend gate (`createTabServices`);
-// the paid question stays in activation with the paid features.
+// With the setting off: no registration, no bundle load, no request, no
+// secret read, no process. The five user commands register always (cheap,
+// synchronous, secret-free). With it on (the default), the shim registers
+// the one inline completion provider and sets `museSpark.tabOn` at once,
+// but the secret read and dist/tab.js wait for the first request or Tab
+// command (D73, RVM94HU 7). The bundle builds the engine and the spend gate
+// (`createTabServices`); the paid question stays in activation.
 
 // Extension-private global state (never machine-wide configuration): the
 // timed snooze's end, in epoch milliseconds, shared by every window.
@@ -568,21 +588,31 @@ export interface TabActivationDeps {
   /** A Model API key is stored, as last read: never read here, never asked for. */
   readonly isKeyStored: () => boolean
   readonly isTrusted: () => boolean
-  /** The deferred secret read: runs once, on the first enable or Tab command. */
-  readonly ensureKeyPresence: () => void
+  /** The deferred secret read: runs once, on the first Tab request or command; settles when read. */
+  readonly ensureKeyPresence: () => Promise<void>
   readonly updateSetting: TabStatusDeps['updateSetting']
   /** Registers one command; the shim pushes the disposable to subscriptions. */
   readonly registerCommand: (
     id: string,
     run: (...args: readonly unknown[]) => unknown,
   ) => { dispose(): void }
-  readonly relativeInWorkspace: (uri: TabUri) => string | undefined
+  /** Resolves an absolute path through links; rejects when it cannot. */
+  readonly realPath: (absolutePath: string) => Promise<string>
   /** Non-`museSpark` configuration the yield reads (`github.copilot`, `chat`). */
   readonly foreignSetting: (section: string, key: string) => unknown
   /** Whether a Copilot extension is installed and active. */
   readonly isCopilotExtensionPresent: () => boolean
-  /** `files.exclude` for the file's scope, as VS Code configured it. */
-  readonly filesExclude: (uri: TabUri) => Readonly<Record<string, boolean>>
+  /** `files.exclude` for the file's scope, as VS Code configured it (conditions kept). */
+  readonly filesExclude: (uri: TabUri) => TabFilesExclude
+  /**
+   * Registers the one inline completion provider for `file` documents
+   * (`languages.registerInlineCompletionItemProvider` in production).
+   */
+  readonly registerProvider: (provider: vscode.InlineCompletionItemProvider) => {
+    dispose(): void
+  }
+  /** Sets the `museSpark.tabOn` context key the Alt+\ binding reads. */
+  readonly setTabOnContext: (isOn: boolean) => void
   /** Absolute workspace folder paths holding the file, innermost first. */
   readonly workspaceRoots: (absolutePath: string) => readonly string[]
   /** Whether an ignore file exists at an absolute path. */
@@ -608,6 +638,8 @@ export interface TabActivationDeps {
   readonly snoozeStore: TabSnoozeStore
   /** What the bundle's engine and spend gate are built from (the budget and log are added here). */
   readonly services: Omit<TabServicesDeps, 'budgetUsd' | 'onTotalChanged' | 'log'>
+  /** Today's ledger total moved: Account & usage follows (RVM94HU 23). */
+  readonly onTodayTotalChanged?: (() => void) | undefined
   /**
    * Lane L's once-per-window question (Q-M94a, D48): the first request asks
    * with the price and the daily budget; nothing is sent before the answer.
@@ -619,6 +651,7 @@ export interface TabActivationDeps {
 
 interface ActiveTab {
   readonly provider: TabProviderHandle
+  readonly spend: TabSpendGate
   readonly status: TabStatusHandle
   readonly snooze: TabSnooze
   readonly showMenu: () => Promise<void>
@@ -633,11 +666,16 @@ export interface TabActivation {
   refresh(): void
   /** Redraws the status bar (settings, editors and spend move under it). */
   refreshStatus(): void
+  /** Whether dist/tab.js is loaded and its provider, status bar and services run. */
   readonly isActive: () => boolean
+  /** Whether the one provider registration stands (the setting is on). */
+  readonly isRegistered: () => boolean
+  /** Today's cross-window ledger total once the bundle runs; undefined before (RVM94HU 23). */
+  readonly todayTotalUsd: () => number | undefined
   dispose(): void
 }
 
-/** The shim: commands always, the bundle only while the setting is on. */
+/** The shim: commands always, the registration while the setting is on, the bundle on first use. */
 export function createTabActivation(deps: TabActivationDeps): TabActivation {
   const load = tabLoader({
     bundlePath: deps.bundlePath,
@@ -646,6 +684,8 @@ export function createTabActivation(deps: TabActivationDeps): TabActivation {
   })
   let active: ActiveTab | undefined
 
+  let registration: { dispose(): void } | undefined
+
   function ensureLoaded(): ActiveTab | undefined {
     if (active !== undefined) {
       return active
@@ -653,7 +693,7 @@ export function createTabActivation(deps: TabActivationDeps): TabActivation {
     if (!deps.isTabSettingOn()) {
       return undefined
     }
-    deps.ensureKeyPresence()
+    void deps.ensureKeyPresence()
     const bundle = load()
     const uiTable = deps.table()
     const locale = deps.locale()
@@ -664,6 +704,7 @@ export function createTabActivation(deps: TabActivationDeps): TabActivation {
       budgetUsd: () => deps.tabSettings().tabDailyBudgetUsd,
       onTotalChanged: () => {
         active?.status.refresh()
+        deps.onTodayTotalChanged?.()
       },
       log: deps.log,
     })
@@ -712,7 +753,7 @@ export function createTabActivation(deps: TabActivationDeps): TabActivation {
       isKeyStored: deps.isKeyStored,
       isTrusted: deps.isTrusted,
       isSnoozed: () => snooze.isSnoozed(Date.now()),
-      relativeInWorkspace: deps.relativeInWorkspace,
+      realPath: deps.realPath,
       foreignSetting: deps.foreignSetting,
       isCopilotExtensionPresent: deps.isCopilotExtensionPresent,
       filesExclude: deps.filesExclude,
@@ -738,10 +779,15 @@ export function createTabActivation(deps: TabActivationDeps): TabActivation {
     })
     const handle: ActiveTab = {
       provider,
+      spend,
       status,
       snooze,
       showMenu: () => status.showMenu(),
-      runSnooze: () => bundle.snoozeTabCommand(snooze, uiTable, locale),
+      runSnooze: async () => {
+        await bundle.snoozeTabCommand(snooze, uiTable, locale)
+        // The palette's snooze redraws the bar, as the menu's rows do (RVM94HU 9).
+        status.refresh()
+      },
       runLanguages: () =>
         bundle.tabLanguagesCommand({
           languages: deps.knownLanguages,
@@ -762,13 +808,50 @@ export function createTabActivation(deps: TabActivationDeps): TabActivation {
     return handle
   }
 
-  function teardown(): void {
-    if (active === undefined) {
+  /**
+   * The one registration, delegating to the bundle's provider: the first
+   * request waits for the secret read, then loads dist/tab.js. A bundle that
+   * cannot load answers nothing (the loader logged why) and is tried again on
+   * the next request.
+   */
+  const delegating: vscode.InlineCompletionItemProvider = {
+    provideInlineCompletionItems: async (document, position, context, token) => {
+      await deps.ensureKeyPresence()
+      let loaded: ActiveTab | undefined
+      try {
+        loaded = ensureLoaded()
+      } catch {
+        return []
+      }
+      return loaded === undefined
+        ? []
+        : await loaded.provider.provider.provideInlineCompletionItems(
+            document,
+            position,
+            context,
+            token,
+          )
+    },
+  }
+
+  function arm(): void {
+    if (registration !== undefined) {
       return
     }
+    registration = deps.registerProvider(delegating)
+    deps.setTabOnContext(true)
+  }
 
-    active.dispose()
+  function teardown(): void {
+    registration?.dispose()
+    const wasOn = registration !== undefined || active !== undefined
+    registration = undefined
+    active?.dispose()
     active = undefined
+    if (wasOn) {
+      // The Alt+\ binding goes with Tab (RVM94HU 8).
+      deps.setTabOnContext(false)
+    }
   }
 
   // The five user commands: always registered, secret-free and process-free.
@@ -801,20 +884,15 @@ export function createTabActivation(deps: TabActivationDeps): TabActivation {
         teardown()
         return
       }
-      if (active !== undefined) {
-        return
-      }
-      // The loader already logged its fixed words; the next change retries.
-      try {
-        ensureLoaded()
-      } catch {
-        teardown()
-      }
+      // Registered at once, loaded on the first request (D73).
+      arm()
     },
     refreshStatus: () => {
       active?.status.refresh()
     },
     isActive: () => active !== undefined,
+    isRegistered: () => registration !== undefined,
+    todayTotalUsd: () => active?.spend.todayTotalUsd(),
     dispose: () => {
       teardown()
       for (const command of commands) {

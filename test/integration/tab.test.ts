@@ -11,6 +11,7 @@
 
 import * as assert from 'node:assert/strict'
 import { mkdtempSync, rmSync } from 'node:fs'
+import { realpath } from 'node:fs/promises'
 import { createServer, type Server } from 'node:http'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
@@ -96,19 +97,14 @@ suite('tab completions', () => {
       isPaidOn: () => true,
       isKeyStored: () => true,
       isTrusted: () => vscode.workspace.isTrusted,
-      ensureKeyPresence: () => undefined,
+      ensureKeyPresence: () => Promise.resolve(),
       updateSetting: () => Promise.resolve(),
       registerCommand: (id, run) =>
         vscode.commands.registerCommand(id, (...args: unknown[]) => run(...args)),
-      relativeInWorkspace: (uri) => {
-        if (uri.scheme !== 'file') {
-          return undefined
-        }
-        const relative = path.relative(root, uri.fsPath)
-        return relative === '' || relative.startsWith('..')
-          ? undefined
-          : relative.split(path.sep).join('/')
-      },
+      realPath: async (absolutePath) => await realpath(absolutePath),
+      registerProvider: (provider) =>
+        vscode.languages.registerInlineCompletionItemProvider({ scheme: 'file' }, provider),
+      setTabOnContext: () => undefined,
       foreignSetting: () => undefined,
       isCopilotExtensionPresent: () => false,
       filesExclude: () => ({}),

@@ -1987,6 +1987,15 @@ describe('App account & usage, onboarding and announcements (M8)', () => {
     expect(screen.getByRole('status')).toHaveTextContent('Connecting to the extension host')
   })
 
+  it('opens Account & usage when the host asks (the Tab menu’s row, RVM94HU 21)', () => {
+    const postMessage = renderReady()
+    expect(screen.queryByRole('dialog', { name: 'Account & usage' })).toBeNull()
+    postMessage.mockClear()
+    deliver({ type: 'openUsage' })
+    expect(screen.getByRole('dialog', { name: 'Account & usage' })).toBeInTheDocument()
+    expect(postMessage).toHaveBeenCalledWith({ type: 'readUsage' })
+  })
+
   it('opens the dialog from the Account & usage row and from /cost', () => {
     const postMessage = renderReady()
     let filter = openPalette()

@@ -46,6 +46,18 @@ happened, not what was planned; superseded entries are kept.
     is asked by its first request's question (Allow once in this window,
     Allow always in this workspace, or Deny, which snoozes Tab), never by a
     turn-on confirmation.
+  - **Review fixes (RVM94LC, RVM94HU).** A ledger reservation settles into
+    its own local day; one first question per window, voided when another
+    window re-accepts the price; completions keep their whitespace and are
+    placed against the cursor; the debounce is never cut short; and the
+    provider re-checks everything after its waits. Tab never reads a file
+    through a link that leaves its folder, a git-ignored, `.cursorignore`d or
+    nested-ignored file, a `files.exclude` match (now with VS Code's `**/`
+    and `when` rules) or a secret split by the cursor, and reads no text of a
+    refused file. With Tab on, its provider is registered at startup and
+    loads on the first request; the status menu's Account & usage opens the
+    dialog, whose Tab row shows the configured budget and today's total
+    across windows.
 
 ### Fixed
 

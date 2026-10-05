@@ -40,10 +40,12 @@ import {
   tabAcceptArgsOf,
   type TabFileCandidate,
 } from '../../src/host/tab/tabProvider'
+import { tabUserText } from '../../src/core/tab/tabRequest'
 import {
   REDACTED_MARK,
   TAB_FAST_MAX_OUTPUT_TOKENS,
   TAB_FILE_MAX_BYTES,
+  TAB_MODEL_TEXT,
   TAB_MULTILINE_MAX_OUTPUT_TOKENS,
 } from '../../src/shared/constants'
 import { FakeCancellationToken, FakeLogOutputChannel, FakeTextDocument } from './helpers/fakes'
@@ -112,6 +114,11 @@ describe('isTabLanguageOn', () => {
   })
 })
 
+/** Only `src/a.ts` exists beside the matches (a `when` condition's sibling). */
+function hasSibling(relativePath: string): boolean {
+  return relativePath === 'src/a.ts'
+}
+
 describe('isFilesExcluded', () => {
   it('matches basenames, segments and alternatives', () => {
     expect(isFilesExcluded('debug.log', { '*.log': true })).toBe(true)
@@ -119,6 +126,19 @@ describe('isFilesExcluded', () => {
     expect(isFilesExcluded('a/b/c.js', { '**/b/**': true })).toBe(true)
     expect(isFilesExcluded('src/a.ts', { 'src/{a,b}.ts': true })).toBe(true)
     expect(isFilesExcluded('src/c.ts', { 'src/{a,b}.ts': true })).toBe(false)
+  })
+
+  it('matches a root file through **/ and everything below an excluded folder (RVM94HU 14)', () => {
+    expect(isFilesExcluded('file.ts', { '**/*.ts': true })).toBe(true)
+    expect(isFilesExcluded('node_modules/pkg/index.js', { '**/node_modules': true })).toBe(true)
+    expect(isFilesExcluded('build/out.js', { build: true })).toBe(true)
+    expect(isFilesExcluded('src/out.js', { build: true })).toBe(false)
+  })
+
+  it('excludes under a when condition only while its sibling exists (RVM94HU 14)', () => {
+    const exclude = { '**/*.js': { when: '$(basename).ts' } }
+    expect(isFilesExcluded('src/a.js', exclude, hasSibling)).toBe(true)
+    expect(isFilesExcluded('src/b.js', exclude, hasSibling)).toBe(false)
   })
 
   it('ignores switched-off and uncompilable patterns', () => {
@@ -264,6 +284,46 @@ describe('TabIgnoreCache', () => {
     expect(await harness.cache.isIgnored('/ws', 'any.ts')).toBe(true)
   })
 
+  it('applies a cursorignore even where git answers not ignored (RVM94HU 10)', async () => {
+    const harness = ignoreHarness(
+      (args) => (args.includes('--no-index') ? Promise.resolve('') : Promise.reject(gitExit(1))),
+      [path.join('/ws', '.cursorignore')],
+    )
+    expect(await harness.cache.isIgnored('/ws', 'src/tracked.ts')).toBe(true)
+  })
+
+  it('reads nothing below a nested ignore file when git is blind (RVM94HU 11)', async () => {
+    const harness = ignoreHarness(
+      () => Promise.reject(new Error('no git')),
+      [path.join('/ws', 'src', '.gitignore')],
+    )
+    expect(await harness.cache.isIgnored('/ws', 'src/sensitive.ts')).toBe(true)
+    expect(await harness.cache.isIgnored('/ws', 'other/free.ts')).toBe(false)
+  })
+
+  it('asks again when an ignore file changes while git answers (RVM94HU 1)', async () => {
+    const state = { isIgnoredNow: false, calls: 0 }
+    const firstAnswer = Promise.withResolvers<undefined>()
+    const harness = ignoreHarness(async () => {
+      state.calls += 1
+      const isIgnored = state.isIgnoredNow
+      if (state.calls === 1) {
+        await firstAnswer.promise
+      }
+      if (isIgnored) {
+        return ''
+      }
+      throw gitExit(1)
+    })
+    const pending = harness.cache.isIgnored('/ws', 'a.ts')
+    // The user adds the exclusion while git still answers under the old rules.
+    state.isIgnoredNow = true
+    harness.fireCleared()
+    firstAnswer.resolve(undefined)
+    expect(await pending).toBe(true)
+    expect(await harness.cache.isIgnored('/ws', 'a.ts')).toBe(true)
+  })
+
   it('allows the folder when git is blind and no ignore file is present', async () => {
     const harness = ignoreHarness(() => Promise.reject(new Error('no git')))
     expect(await harness.cache.isIgnored('/ws', 'any.ts')).toBe(false)
@@ -371,7 +431,18 @@ interface ProviderHarness {
   readonly textListeners: ((event: TabTextChangeEvent) => void)[]
   readonly provider: vscode.InlineCompletionItemProvider
   readonly handle: ReturnType<typeof createTabProvider>
-  serve(text?: string, line?: number, character?: number): Promise<vscode.InlineCompletionItem[]>
+  serve(
+    text?: string,
+    line?: number,
+    character?: number,
+    token?: FakeCancellationToken,
+    file?: string,
+  ): Promise<vscode.InlineCompletionItem[]>
+}
+
+/** The workspace folders holding a path, innermost first: `/ws` in these tests. */
+function wsRoots(absolutePath: string): readonly string[] {
+  return absolutePath.startsWith('/ws/') ? ['/ws'] : []
 }
 
 /** A document outside any file scheme, for the scheme exclusion. */
@@ -402,13 +473,6 @@ function providerHarness(
   const afterEdit = vi.fn((): void => undefined)
   const log = new FakeLogOutputChannel()
   const textListeners: ((event: TabTextChangeEvent) => void)[] = []
-  let provider: vscode.InlineCompletionItemProvider | undefined
-  vi.mocked(languages.registerInlineCompletionItemProvider).mockImplementation(
-    (_selector, found) => {
-      provider = found
-      return { dispose: () => undefined }
-    },
-  )
   const handle = createTabProvider({
     settings: () => ({
       tabModel: 'muse-spark-1.3',
@@ -421,12 +485,11 @@ function providerHarness(
     isKeyStored: () => true,
     isTrusted: () => workspace.isTrusted,
     isSnoozed: () => false,
-    relativeInWorkspace: (uri) =>
-      uri.fsPath.startsWith('/ws/') ? uri.fsPath.slice('/ws/'.length) : undefined,
+    realPath: (absolutePath) => Promise.resolve(absolutePath),
     foreignSetting: () => undefined,
     isCopilotExtensionPresent: () => false,
     filesExclude: () => ({}),
-    workspaceRoots: () => ['/ws'],
+    workspaceRoots: wsRoots,
     ignoreFileExists: () => false,
     runGit: () => Promise.reject(gitExit(1)),
     onIgnoreFilesChanged: () => ({ dispose: () => undefined }),
@@ -449,10 +512,7 @@ function providerHarness(
     log,
     ...deps,
   })
-  if (provider === undefined) {
-    throw new Error('the provider was not registered')
-  }
-  const found = provider
+  const found = handle.provider
   return {
     outcomes,
     snapshots,
@@ -466,8 +526,14 @@ function providerHarness(
     textListeners,
     provider: found,
     handle,
-    serve: async (text = 'const y = ', line = 0, character = 10) => {
-      const document = new FakeTextDocument(Uri.file('/ws/file.ts'), 'typescript', text)
+    serve: async (
+      text = 'const y = ',
+      line = 0,
+      character = 10,
+      token = new FakeCancellationToken(),
+      file = '/ws/file.ts',
+    ) => {
+      const document = new FakeTextDocument(Uri.file(file), 'typescript', text)
       const result = await found.provideInlineCompletionItems(
         document,
         new Position(line, character),
@@ -475,7 +541,7 @@ function providerHarness(
           triggerKind: InlineCompletionTriggerKind.Automatic,
           selectedCompletionInfo: undefined,
         },
-        new FakeCancellationToken(),
+        token,
       )
       if (result === undefined || !Array.isArray(result)) {
         throw new Error('the provider returned no items array')
@@ -526,9 +592,9 @@ describe('createTabProvider', () => {
       ['snoozed', { isSnoozed: () => true }],
       ['paid-off', { isPaidOn: () => false }],
       ['no-key', { isKeyStored: () => false }],
-      ['outside-workspace', { relativeInWorkspace: () => undefined }],
+      ['outside-workspace', { workspaceRoots: () => [] }],
       ['language-off', { settings: languagesOffSettings }],
-      ['ineligible-file', { relativeInWorkspace: () => '.env' }],
+      ['ineligible-file', { filesExclude: () => ({ '*.ts': true }) }],
     ]
     for (const [name, extra] of quietCases) {
       const harness = providerHarness(extra)
@@ -721,19 +787,29 @@ describe('createTabProvider', () => {
   it('infers a partial accept from typing the rest’s start, word by word', async () => {
     const harness = providerHarness({ engineCompletion: 'foo(bar)', withHooks: true })
     await harness.serve('const y = ', 0, 10)
-    const fire = (insertedText: string): void => {
+    const fire = (insertedText: string, at: number): void => {
       for (const listener of harness.textListeners) {
-        listener({ changes: [textChange({ insertedText })] })
+        listener({
+          changes: [textChange({ insertedText, startCharacter: at, endCharacter: at })],
+        })
       }
     }
-    fire('foo(')
+    fire('foo(', 10)
     expect(harness.afterEdit).toHaveBeenCalledWith(
       expect.objectContaining({ newString: 'foo(', inferred: true }),
     )
-    fire('bar)')
+    // The rest now starts where `foo(` ended (RVM94HU 6).
+    fire('bar)', 14)
     expect(harness.afterEdit).toHaveBeenCalledTimes(2)
+    expect(harness.afterEdit).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        newString: 'bar)',
+        inferred: true,
+        range: { startLineNumber: 1, startColumn: 15, endLineNumber: 1, endColumn: 15 },
+      }),
+    )
     // The rest is spent: further typing is not an accept.
-    fire('!')
+    fire('!', 18)
     expect(harness.afterEdit).toHaveBeenCalledTimes(2)
   })
 
@@ -744,6 +820,155 @@ describe('createTabProvider', () => {
       listener({ changes: [textChange({ insertedText: 'f' })] })
     }
     expect(harness.afterEdit).not.toHaveBeenCalled()
+  })
+
+  it('reports a full accept whose document change arrived first, once and exactly (RVM94HU 5)', async () => {
+    const harness = providerHarness({ engineCompletion: 'foo(bar)', withHooks: true })
+    const items = await harness.serve('const y = ', 0, 10)
+    for (const listener of harness.textListeners) {
+      listener({ changes: [textChange({ insertedText: 'foo(bar)' })] })
+    }
+    expect(harness.afterEdit).not.toHaveBeenCalled()
+    harness.handle.acceptNotified(items[0]?.command?.arguments?.[0])
+    expect(harness.afterEdit).toHaveBeenCalledOnce()
+    expect(harness.afterEdit).toHaveBeenCalledWith(
+      expect.objectContaining({ newString: 'foo(bar)', inferred: false }),
+    )
+  })
+
+  it('reads none of a refused file’s text (RVM94HU 17)', async () => {
+    const harness = providerHarness()
+    const document = new FakeTextDocument(Uri.file('/ws/.env'), 'dotenv', 'TOKEN=x')
+    const getText = vi.spyOn(document, 'getText')
+    const result = await harness.provider.provideInlineCompletionItems(
+      document,
+      new Position(0, 6),
+      { triggerKind: InlineCompletionTriggerKind.Invoke, selectedCompletionInfo: undefined },
+      new FakeCancellationToken(),
+    )
+    expect(result).toEqual([])
+    expect(getText).not.toHaveBeenCalled()
+    expect(harness.outcomes).toEqual([{ kind: 'quiet', reason: 'ineligible-file' }])
+  })
+
+  it('never reads a link whose target leaves the folder or is private (RVM94HU 12)', async () => {
+    const outside = providerHarness({
+      realPath: (absolutePath) =>
+        Promise.resolve(absolutePath === '/ws/file.ts' ? '/elsewhere/file.ts' : absolutePath),
+    })
+    await expect(outside.serve()).resolves.toEqual([])
+    const privateTarget = providerHarness({
+      realPath: (absolutePath) =>
+        Promise.resolve(absolutePath === '/ws/file.ts' ? '/ws/.env' : absolutePath),
+    })
+    await expect(privateTarget.serve()).resolves.toEqual([])
+    const unresolved = providerHarness({
+      realPath: () => Promise.reject(new Error('link loop')),
+    })
+    await expect(unresolved.serve()).resolves.toEqual([])
+    for (const harness of [outside, privateTarget, unresolved]) {
+      expect(harness.complete).not.toHaveBeenCalled()
+      expect(harness.outcomes).toEqual([{ kind: 'quiet', reason: 'ineligible-file' }])
+    }
+  })
+
+  it('checks a nested folder’s file relative to that folder, and serves any folder (RVM94HU 13)', async () => {
+    const gitRuns: string[][] = []
+    const harness = providerHarness({
+      workspaceRoots: (absolutePath) => {
+        if (absolutePath.startsWith('/ws/src/')) {
+          return ['/ws/src', '/ws']
+        }
+        return absolutePath.startsWith('/second/') ? ['/second'] : []
+      },
+      runGit: (args, cwd) => {
+        gitRuns.push([...args, `cwd=${cwd}`])
+        return Promise.reject(gitExit(1))
+      },
+    })
+    await harness.serve('const y = ', 0, 10, undefined, '/ws/src/sensitive.ts')
+    expect(gitRuns[0]).toEqual(['check-ignore', '-q', '--', 'sensitive.ts', 'cwd=/ws/src'])
+    expect(harness.snapshots[0]?.relativePath).toBe('sensitive.ts')
+    const second = await harness.serve('const y = ', 0, 10, undefined, '/second/b.ts')
+    expect(second).toHaveLength(1)
+    expect(harness.snapshots[1]?.relativePath).toBe('b.ts')
+  })
+
+  it('sends nothing when a secret spans the cursor (RVM94HU 15)', async () => {
+    const harness = providerHarness()
+    const secret = SYNTHETIC.awsAccessKey
+    const text = `key = "${secret}"`
+    await expect(harness.serve(text, 0, 'key = "'.length + 8)).resolves.toEqual([])
+    expect(harness.complete).not.toHaveBeenCalled()
+    expect(harness.reserve).not.toHaveBeenCalled()
+    expect(harness.outcomes).toEqual([{ kind: 'quiet', reason: 'secret-at-cursor' }])
+  })
+
+  it('prices everything it sends: the instructions and the whole message (RVM94HU 16)', async () => {
+    const harness = providerHarness()
+    await harness.serve()
+    const sent =
+      TAB_MODEL_TEXT.tabSystem +
+      tabUserText({
+        path: 'file.ts',
+        languageId: 'typescript',
+        prefix: 'const y = ',
+        suffix: '',
+        snippets: '',
+      })
+    expect(harness.reserve).toHaveBeenCalledWith(
+      expect.objectContaining({ inputBytes: Buffer.byteLength(sent, 'utf8') }),
+    )
+  })
+
+  it('checks again after the waits, and releases the reservation (RVM94HU 2)', async () => {
+    const state = { isSnoozed: false }
+    const settled: unknown[][] = []
+    const harness = providerHarness({
+      isSnoozed: () => state.isSnoozed,
+      spend: {
+        reserve: () => {
+          // Snoozed while the ledger writes the reservation.
+          state.isSnoozed = true
+          return Promise.resolve(RESERVATION)
+        },
+        settle: (...args) => {
+          settled.push(args)
+        },
+        todayTotalUsd: () => 0,
+        todayRequests: () => 0,
+      },
+    })
+    await expect(harness.serve()).resolves.toEqual([])
+    expect(harness.complete).not.toHaveBeenCalled()
+    expect(settled).toEqual([[RESERVATION, NOTHING_SENT]])
+    expect(harness.outcomes).toEqual([{ kind: 'quiet', reason: 'snoozed' }])
+  })
+
+  it('sends and reports nothing once disposed mid-request (RVM94HU 2)', async () => {
+    const box: { harness?: ProviderHarness } = {}
+    const harness = providerHarness({
+      consent: {
+        requestUse: () => {
+          box.harness?.handle.dispose()
+          return Promise.resolve(true)
+        },
+      },
+    })
+    box.harness = harness
+    await expect(harness.serve()).resolves.toEqual([])
+    expect(harness.complete).not.toHaveBeenCalled()
+    expect(harness.outcomes).toEqual([])
+  })
+
+  it('hands the engine the token’s state for its debounce and slot wait (RVM94HU 3)', async () => {
+    const harness = providerHarness()
+    const token = new FakeCancellationToken()
+    await harness.serve('const y = ', 0, 10, token)
+    const snapshot = harness.snapshots[0]
+    expect(snapshot?.isCancelled()).toBe(false)
+    token.cancel()
+    expect(snapshot?.isCancelled()).toBe(true)
   })
 
   it('reserves the multi-line cap on a blank line', async () => {

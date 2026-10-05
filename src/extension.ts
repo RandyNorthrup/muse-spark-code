@@ -101,6 +101,7 @@ import {
   TAB_BUNDLE_FILE,
   TAB_LEDGER_DIR,
   TAB_SNOOZE_STATE_KEY,
+  type TabFilesExclude,
   createTabActivation,
   deferredRefresh,
 } from './host/tab/tabBundle'
@@ -493,13 +494,22 @@ export async function deactivate(): Promise<void> {
   lifecycle.shutdown = undefined
 }
 
-/** A foreign string table with only its boolean switches kept (Tab, M94). */
-function tabBooleanTable(value: unknown): Readonly<Record<string, boolean>> {
-  const table: Record<string, boolean> = {}
+/** `files.exclude` as Tab reads it: the switches and the `when` conditions (M94). */
+function tabFilesExcludeTable(value: unknown): TabFilesExclude {
+  const table: Record<string, boolean | { readonly when: string }> = {}
   if (typeof value === 'object' && value !== null) {
-    for (const [glob, isOn] of Object.entries(value)) {
-      if (typeof isOn === 'boolean') {
-        table[glob] = isOn
+    const entries: [string, unknown][] = Object.entries(value)
+    for (const [glob, entry] of entries) {
+      if (typeof entry === 'boolean') {
+        table[glob] = entry
+      } else if (
+        typeof entry === 'object' &&
+        entry !== null &&
+        'when' in entry &&
+        typeof entry.when === 'string'
+      ) {
+        // A condition is kept, never dropped (RVM94HU 14).
+        table[glob] = { when: entry.when }
       }
     }
   }
@@ -717,6 +727,12 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     // and never in Restricted Mode.
     canRememberPaidUse: () =>
       vscode.workspace.isTrusted && (vscode.workspace.workspaceFolders?.length ?? 0) > 0,
+    // Account & usage's Tab row reads the configured budget and the ledger's
+    // cross-window day (RVM94HU 23–24); `tab` is read only when it runs.
+    tabDay: () => ({
+      budgetUsd: currentSettings().tabDailyBudgetUsd,
+      todayUsd: tab.todayTotalUsd(),
+    }),
     log,
   })
   // The Auto reviewer on Muse Code (M90, PLAN.md D69): dist/museCodeReviewer.js
@@ -775,9 +791,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   // or panel and Tab off reads no secret, starts no process and requires no
   // lazy bundle; the openers and the view provider below call this, and the
   // shim calls it on the first enable.
-  const ensureKeyPresence = deferredRefresh(() => {
-    void refreshKeyPresence()
-  })
+  const ensureKeyPresence = deferredRefresh(refreshKeyPresence)
   // Inline completions (Tab) (M94, PLAN.md D73): the shim. With the setting
   // off, no bundle load, no request, no secret read, no process: dist/tab.js
   // loads only for an explicit Tab command or while the setting is on. Only
@@ -832,13 +846,19 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
       await updateSetting(key, value)
     },
     registerCommand: (id, run) => registerLoggedCommand(log, id, run),
-    relativeInWorkspace: relativePathInWorkspace,
+    // Links resolved before a file is read (RVM94HU 12).
+    realPath: async (absolutePath) => await canonicalPath(absolutePath),
+    registerProvider: (provider) =>
+      vscode.languages.registerInlineCompletionItemProvider({ scheme: 'file' }, provider),
+    setTabOnContext: (isOn) => {
+      void vscode.commands.executeCommand('setContext', CONTEXT_KEYS.tabOn, isOn)
+    },
     foreignSetting: (section, key) => vscode.workspace.getConfiguration(section).get(key),
     isCopilotExtensionPresent: () =>
       vscode.extensions.getExtension('GitHub.copilot')?.isActive === true ||
       vscode.extensions.getExtension('GitHub.copilot-chat')?.isActive === true,
     filesExclude: (uri) =>
-      tabBooleanTable(vscode.workspace.getConfiguration('files', uri).get('exclude')),
+      tabFilesExcludeTable(vscode.workspace.getConfiguration('files', uri).get('exclude')),
     workspaceRoots: (absolutePath) =>
       (vscode.workspace.workspaceFolders ?? [])
         .map((folder) => folder.uri.fsPath)
@@ -897,8 +917,16 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
       table[languageId] = false
       await config.update('enable', table, vscode.ConfigurationTarget.Global)
     },
+    // The conversation in view opens Account & usage; with none, the sidebar
+    // comes forward and opens it (RVM94HU 21).
     openAccountUsage: async () => {
-      await vscode.commands.executeCommand(`${CHAT_VIEW_ID}.focus`)
+      const surface = registry.active
+      if (surface === undefined) {
+        await openSidebar()
+      } else {
+        surface.reveal()
+      }
+      registry.active?.post({ type: 'openUsage' })
     },
     runCommand: async (command) => {
       await vscode.commands.executeCommand(command)
@@ -929,6 +957,10 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
         paid.usage.addTabUsage(model, usage)
       },
     },
+    // Account & usage's Tab row follows the ledger's day (RVM94HU 23).
+    onTodayTotalChanged: () => {
+      broadcastPaidState()
+    },
     // D48's question, once per window (Q-M94a): the first request asks with
     // the model's rates and today's budget; Deny snoozes the window.
     consent: {
@@ -947,6 +979,9 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
       tab.dispose()
     },
   })
+  // Tab on at startup (the default): the provider is registered now, and
+  // the secret read and dist/tab.js wait for the first request (RVM94HU 7).
+  tab.refresh()
   for (const disposable of tabDisposables) {
     context.subscriptions.push(disposable)
   }
@@ -2449,12 +2484,12 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   const chatViewProvider = new ChatViewProvider(hostContext, registry)
   const openSidebar = () => {
     // Tab's deferred secret read (M94): the first view, panel or command.
-    ensureKeyPresence()
+    void ensureKeyPresence()
     return vscode.commands.executeCommand(`${CHAT_VIEW_ID}.focus`)
   }
   /** A conversation where the setting says new ones open. */
   const openConversation = async (): Promise<void> => {
-    ensureKeyPresence()
+    void ensureKeyPresence()
     if (currentSettings().preferredLocation === 'sidebar') {
       await openSidebar()
       return
@@ -2535,7 +2570,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
         resolveWebviewView: (view) => {
           // Tab's deferred secret read (M94): a restored sidebar view is a
           // first view with no command or panel open behind it.
-          ensureKeyPresence()
+          void ensureKeyPresence()
           chatViewProvider.resolveWebviewView(view)
         },
       },
@@ -2564,6 +2599,10 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
         tab.refresh()
       } else if (event.affectsConfiguration(SETTINGS_SECTION)) {
         tab.refreshStatus()
+      }
+      // Account & usage shows the configured budget (RVM94HU 24).
+      if (event.affectsConfiguration(`${SETTINGS_SECTION}.tabDailyBudgetUsd`)) {
+        broadcastPaidState()
       }
       // The bundled skills on or off: the Model API catalogue follows (M89).
       if (event.affectsConfiguration(BUNDLED_SKILLS_SETTING)) {

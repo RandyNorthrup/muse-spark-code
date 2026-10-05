@@ -190,6 +190,37 @@ describe('createTabStatus', () => {
     expect(restart.item.text).toContain(UI_TEXT.tabMenuSnoozeRestart)
   })
 
+  it('fills the snoozed tooltip, never the template (RVM94HU 26)', () => {
+    const snoozed = statusHarness()
+    void snoozed.snooze.snoozeMinutes(15, Date.now())
+    snoozed.status.refresh()
+    expect(snoozed.item.tooltip).toBe(fill(UI_TEXT.tabStatusSnoozed, { left: 15 }))
+    snoozed.status.dispose()
+  })
+
+  it('shows a timed snooze’s end without another event (RVM94HU 9)', async () => {
+    vi.useFakeTimers()
+    try {
+      const snoozed = statusHarness()
+      await snoozed.snooze.snoozeMinutes(15, Date.now())
+      snoozed.status.refresh()
+      expect(snoozed.item.text).toContain(fill(UI_TEXT.tabStatusSnoozed, { left: 15 }))
+      await vi.advanceTimersByTimeAsync(16 * 60_000)
+      expect(snoozed.item.text).not.toContain(fill(UI_TEXT.tabStatusSnoozed, { left: 1 }))
+      expect(snoozed.item.text).toContain(formatUsd(0.12, 2))
+      snoozed.status.dispose()
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('clears the tabOn context when the item goes (RVM94HU 8)', () => {
+    const harness = statusHarness()
+    vi.mocked(commands.executeCommand).mockClear()
+    harness.status.dispose()
+    expect(commands.executeCommand).toHaveBeenCalledWith('setContext', 'museSpark.tabOn', false)
+  })
+
   it('marks the budget in the warning colour', () => {
     const harness = statusHarness({ isBudgetReached: () => true })
     expect(harness.item.backgroundColor).toMatchObject({ id: 'statusBarItem.warningBackground' })

@@ -113,6 +113,17 @@ export const paidStateSchema = z.object({
   isKeyStored: z.boolean(),
   /** The features that are on and allowed always in this workspace (M58): they no longer ask. */
   alwaysAllowed: z.array(z.enum(PAID_FEATURES)),
+  /**
+   * Tab's day (M94, D73; RVM94HU 23–24): the configured daily budget, and
+   * today's total across every window from the ledger once Tab has run in
+   * this window (absent before: the ledger is read by dist/tab.js).
+   */
+  tab: z.optional(
+    z.object({
+      budgetUsd: z.number().check(z.nonnegative()),
+      todayUsd: z.optional(z.number().check(z.nonnegative())),
+    }),
+  ),
 })
 export type PaidState = z.infer<typeof paidStateSchema>
 

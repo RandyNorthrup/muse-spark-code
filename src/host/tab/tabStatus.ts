@@ -73,6 +73,9 @@ export function createTabStatus(deps: TabStatusDeps): TabStatusHandle {
   item.command = TAB_COMMAND_IDS.menu
   let lastFailure: TabFailureKind | undefined
   let lastContext: boolean | undefined
+  // While a timed snooze runs, the bar redraws each minute, so its minutes
+  // left count down and its end shows without another event (RVM94HU 9).
+  let snoozeTimer: ReturnType<typeof setTimeout> | undefined
 
   const setTabOn = (isOn: boolean): void => {
     if (lastContext === isOn) {
@@ -84,6 +87,10 @@ export function createTabStatus(deps: TabStatusDeps): TabStatusHandle {
   }
 
   function refresh(): void {
+    if (snoozeTimer !== undefined) {
+      clearTimeout(snoozeTimer)
+      snoozeTimer = undefined
+    }
     const table = deps.table()
     if (!deps.isOn()) {
       item.hide()
@@ -102,11 +109,14 @@ export function createTabStatus(deps: TabStatusDeps): TabStatusHandle {
     })
     if (deps.snooze.isSnoozed(Date.now())) {
       const left = deps.snooze.minutesLeft(Date.now())
-      item.text =
-        left === undefined
-          ? `$(clock) ${table.tabMenuSnoozeRestart}`
-          : `$(clock) ${fill(table.tabStatusSnoozed, { left })}`
-      item.tooltip = table.tabStatusSnoozed
+      const snoozedText =
+        left === undefined ? table.tabMenuSnoozeRestart : fill(table.tabStatusSnoozed, { left })
+      item.text = `$(clock) ${snoozedText}`
+      // The filled sentence, never the template (RVM94HU 26).
+      item.tooltip = snoozedText
+      if (left !== undefined) {
+        snoozeTimer = setTimeout(refresh, MS_PER_MINUTE)
+      }
       item.backgroundColor = undefined
     } else if (deps.isBudgetReached()) {
       item.text = `$(warning) ${table.tabStatusBudget}`
@@ -250,6 +260,11 @@ export function createTabStatus(deps: TabStatusDeps): TabStatusHandle {
     showMenu,
     noteOutcome,
     dispose: () => {
+      if (snoozeTimer !== undefined) {
+        clearTimeout(snoozeTimer)
+      }
+      // The Alt+\ binding goes with the item (RVM94HU 8).
+      setTabOn(false)
       item.dispose()
     },
   }

@@ -10,6 +10,7 @@ import { Buffer } from 'node:buffer'
 import path from 'node:path'
 import * as vscode from 'vscode'
 import { isGitExitError } from '../git'
+import { compileGlob } from '../../core/backends/modelapi/globLimits'
 import { redactSecrets } from '../../core/redact'
 import { isProtectedPath } from '../../core/protectedPaths'
 import { contextWindow } from '../../core/tab/tabContext'
@@ -30,6 +31,7 @@ import {
   type TabAcceptArgs,
   type TabCompletionSnapshot,
   type TabDocumentChange,
+  type TabFilesExclude,
   type TabHookBridge,
   type TabProviderDeps,
   type TabProviderHandle,
@@ -39,90 +41,75 @@ import {
 
 // --- `files.exclude` (Acceptance 4) ---
 //
-// Read from the file's own configuration scope and matched here, with VS
-// Code's own rules as far as they can be written small: `*` spans a segment,
-// `**` spans segments, `?` is one character, `{a,b}` is an alternative, and
-// a pattern without a slash matches the name in any folder. A pattern that
-// matches with its switch on excludes; patterns never reach the network.
+// Read from the file's own configuration scope and matched with the
+// extension's own glob compiler (PLAN.md D24: `**/` spans zero or more
+// folders, `*` and `?` stay in one segment, `{a,b}` alternates, `[...]` is
+// a class), so `**/*.ts` excludes a root-level `file.ts` (RVM94HU 14). A
+// pattern excludes a match and everything below it; a pattern without a
+// slash also names a file or folder anywhere below the scope (stricter than
+// VS Code, never looser). A `{ "when": "$(basename).ext" }` condition
+// excludes a match only while that sibling exists. Patterns never reach the
+// network.
 
-function globAlternativeToRegExp(choice: string): string {
-  return `(?:${choice
-    .split(',')
-    .map((branch) => globBodyToRegExp(branch))
-    .join('|')}`
-}
+const BASENAME_SLOT = '$(basename)'
 
-const GLOB_SPECIAL = new Set(['.', '+', '^', '$', '(', ')', '|', '[', ']', '\\', '}'])
-
-/** One glob atom as a regex, and the index past it. */
-function globAtomToRegExp(glob: string, index: number): { text: string; next: number } {
-  const char = glob[index]
-  switch (char) {
-    case '*': {
-      const isDouble = glob[index + 1] === '*'
-      return { text: isDouble ? '.*' : '[^/]*', next: index + (isDouble ? 2 : 1) }
-    }
-    case '?': {
-      return { text: '[^/]', next: index + 1 }
-    }
-    case '{': {
-      const close = glob.indexOf('}', index)
-      if (close === -1) {
-        return { text: String.raw`\{`, next: index + 1 }
-      }
-      return {
-        text: `${globAlternativeToRegExp(glob.slice(index + 1, close))})`,
-        next: close + 1,
-      }
-    }
-    case undefined: {
-      return { text: '', next: index }
-    }
-    default: {
-      // Only regex metacharacters are escaped: `\b` would mean a word
-      // boundary, not a literal `b`.
-      return { text: GLOB_SPECIAL.has(char) ? `\\${char}` : char, next: index + 1 }
-    }
-  }
-}
-
-function globBodyToRegExp(glob: string): string {
-  let out = ''
-  let index = 0
-  while (index < glob.length) {
-    const atom = globAtomToRegExp(glob, index)
-    if (atom.next <= index) {
-      break
-    }
-    out += atom.text
-    index = atom.next
-  }
-  return out
-}
-
-function globToRegExp(glob: string): RegExp {
-  const body = globBodyToRegExp(glob)
-  // A pattern without a slash names a file anywhere below the scope.
-  const anchored = glob.includes('/') ? `^${body}$` : `(?:^|/)${body}$`
-  return new RegExp(anchored)
-}
-
-function isGlobMatch(relativePath: string, glob: string): boolean {
+/** The glob's matcher, or none for a pattern the compiler refuses (the user's typo). */
+function matcherOf(glob: string): ((relativePath: string) => boolean) | undefined {
   try {
-    return globToRegExp(glob).test(relativePath)
+    return compileGlob(glob)
   } catch {
     // An uncompilable pattern excludes nothing: it is the user's own typo,
     // and failing closed here would silence Tab for a bad setting.
-    return false
+    return undefined
   }
 }
 
-/** Whether a `files.exclude` table excludes the workspace-relative path. */
+/** The path or folder (the file itself or an ancestor) the glob matches first. */
+function matchedPathOf(relativePath: string, glob: string): string | undefined {
+  const matches = matcherOf(glob)
+  if (matches === undefined) {
+    return undefined
+  }
+  const segments = relativePath.split('/')
+  const isNameOnly = !glob.includes('/')
+  for (let count = 1; count <= segments.length; count += 1) {
+    const candidate = segments.slice(0, count).join('/')
+    if (matches(candidate) || (isNameOnly && matches(segments[count - 1] ?? ''))) {
+      return candidate
+    }
+  }
+  return undefined
+}
+
+/** The sibling a `when` condition names for a matched path, workspace-relative. */
+function whenSibling(matchedPath: string, when: string): string {
+  const name = path.posix.basename(matchedPath)
+  const dot = name.lastIndexOf('.')
+  const stem = dot > 0 ? name.slice(0, dot) : name
+  const sibling = when.split(BASENAME_SLOT).join(stem)
+  const folder = path.posix.dirname(matchedPath)
+  return folder === '.' ? sibling : `${folder}/${sibling}`
+}
+
+/**
+ * Whether a `files.exclude` table excludes the workspace-relative path. A
+ * condition asks `hasSibling` about its sibling (workspace-relative).
+ */
 export function isFilesExcluded(
   relativePath: string,
-  patterns: Readonly<Record<string, boolean>>,
+  patterns: TabFilesExclude,
+  hasSibling: (relativePath: string) => boolean = () => false,
 ): boolean {
-  return Object.entries(patterns).some(([glob, isOn]) => isOn && isGlobMatch(relativePath, glob))
+  return Object.entries(patterns).some(([glob, value]) => {
+    if (value === false) {
+      return false
+    }
+    const matchedPath = matchedPathOf(relativePath, glob)
+    return (
+      matchedPath !== undefined &&
+      (value === true || hasSibling(whenSibling(matchedPath, value.when)))
+    )
+  })
 }
 
 /** A private file (lane 0 widened the shared list) or a protected path. */
@@ -199,16 +186,23 @@ export function inferTabPartialAccept(
 // --- git's answer, cached (Acceptance 4) ---
 //
 // `git check-ignore` per path: exit 0 is ignored, exit 1 is allowed, any
-// other failure leaves git unable to answer. `.cursorignore` and
-// `.continueignore` go through the same call with `-c
-// core.excludesFile=<file>` and `--no-index`, so a tracked file is caught
-// too. Where git cannot answer and an ignore file is present, nothing in
-// that folder is read. The cache drops when an ignore file changes.
+// other failure leaves git unable to answer. A workspace root's
+// `.cursorignore` and `.continueignore` are always checked too, through the
+// same call with `-c core.excludesFile=<file>` and `--no-index`, so a
+// tracked file is caught even where git's own answer is "not ignored"
+// (RVM94HU 10). Where git cannot answer and an ignore file is present in
+// the file's folder or any folder above it up to the root, nothing there is
+// read (RVM94HU 11). The cache drops when an ignore file changes, and an
+// answer begun before that change is asked again rather than cached
+// (RVM94HU 1).
 
 const IGNORE_FILENAMES = ['.gitignore', '.cursorignore', '.continueignore'] as const
 const CURSOR_IGNORE_FILENAMES = ['.cursorignore', '.continueignore'] as const
 // A bound, not a tuning: the map holds one boolean per path asked about.
 const IGNORE_CACHE_MAX_ENTRIES = 512
+// An answer outdated this many times in a row while it was asked refuses
+// the read: the ignore files keep changing under it.
+const IGNORE_STALE_RETRIES = 3
 
 export interface TabIgnoreDeps {
   /** Runs git with `args` in `cwd` and resolves stdout; rejects on any failure. */
@@ -239,13 +233,28 @@ async function checkIgnore(
   }
 }
 
+/** The folders from the file's own up to the root, workspace-relative (`''` is the root). */
+function foldersUpToRoot(relativePath: string): string[] {
+  const folders: string[] = []
+  let folder = path.posix.dirname(relativePath)
+  while (folder !== '.' && folder !== '/' && folder !== '') {
+    folders.push(folder)
+    folder = path.posix.dirname(folder)
+  }
+  folders.push('')
+  return folders
+}
+
 /** git's ignore answer per path, with the fail-closed blind rule. */
 export class TabIgnoreCache {
   private readonly verdicts = new Map<string, boolean>()
   private readonly watcher: { dispose(): void }
+  /** Moves whenever an ignore file changes: an answer begun before is stale. */
+  private generation = 0
 
   public constructor(private readonly deps: TabIgnoreDeps) {
     this.watcher = deps.onIgnoreFilesChanged(() => {
+      this.generation += 1
       this.verdicts.clear()
     })
   }
@@ -256,9 +265,10 @@ export class TabIgnoreCache {
       ['check-ignore', '-q', '--', relativePath],
       rootAbs,
     )
-    if (ignored !== undefined) {
-      return ignored
+    if (ignored === true) {
+      return true
     }
+    // Cursor's and Continue's files apply whatever git's own answer was.
     for (const name of CURSOR_IGNORE_FILENAMES) {
       const file = path.join(rootAbs, name)
       if (!this.deps.ignoreFileExists(file)) {
@@ -269,33 +279,50 @@ export class TabIgnoreCache {
         ['-c', `core.excludesFile=${file}`, 'check-ignore', '--no-index', '-q', '--', relativePath],
         rootAbs,
       )
-      if (matched === true) {
-        return true
-      }
-      if (matched === undefined) {
-        // git cannot answer this check either: the file is present, so
-        // nothing in the folder is read.
+      // Ignored, or git cannot answer while the file is present: not read.
+      if (matched !== false) {
         return true
       }
     }
-    // git cannot answer the plain check: refuse only where an ignore file is
-    // present, since only then could git have had something to say.
-    return IGNORE_FILENAMES.some((name) => this.deps.ignoreFileExists(path.join(rootAbs, name)))
+    if (ignored === false) {
+      return false
+    }
+    // git cannot answer the plain check: refuse where an ignore file sits in
+    // the file's folder or any folder above it, since only there could git
+    // have had something to say.
+    return foldersUpToRoot(relativePath).some((folder) =>
+      IGNORE_FILENAMES.some((name) =>
+        this.deps.ignoreFileExists(path.join(rootAbs, ...folder.split('/'), name)),
+      ),
+    )
+  }
+
+  /** The ignore files' generation: a check made under an older one is asked again. */
+  public get currentGeneration(): number {
+    return this.generation
   }
 
   /** Whether git ignores the path, or git is blind where an ignore file sits. */
   public async isIgnored(rootAbs: string, relativePath: string): Promise<boolean> {
-    const key = `${rootAbs} ${relativePath}`
-    const cached = this.verdicts.get(key)
-    if (cached !== undefined) {
-      return cached
+    const key = `${rootAbs} ${relativePath}`
+    for (let attempt = 0; attempt < IGNORE_STALE_RETRIES; attempt += 1) {
+      const cached = this.verdicts.get(key)
+      if (cached !== undefined) {
+        return cached
+      }
+      const asked = this.generation
+      const isGitIgnored = await this.askGit(rootAbs, relativePath)
+      if (asked !== this.generation) {
+        // An ignore file changed while git answered: ask again.
+        continue
+      }
+      if (this.verdicts.size >= IGNORE_CACHE_MAX_ENTRIES) {
+        this.verdicts.clear()
+      }
+      this.verdicts.set(key, isGitIgnored)
+      return isGitIgnored
     }
-    const isGitIgnored = await this.askGit(rootAbs, relativePath)
-    if (this.verdicts.size >= IGNORE_CACHE_MAX_ENTRIES) {
-      this.verdicts.clear()
-    }
-    this.verdicts.set(key, isGitIgnored)
-    return isGitIgnored
+    return true
   }
 
   public dispose(): void {
@@ -314,28 +341,43 @@ export interface TabFileCandidate {
 }
 
 export interface TabFileCheckDeps {
-  readonly filesExclude: Readonly<Record<string, boolean>>
+  readonly filesExclude: TabFilesExclude
   readonly ignore: TabIgnoreCache
   /** The innermost workspace folder holding the file (git's cwd). */
   readonly rootAbs: string
+  /** Whether a workspace-relative sibling exists (a `files.exclude` condition). */
+  readonly hasSibling?: ((relativePath: string) => boolean) | undefined
   /** Lane K's bridge; absent until lane K lands (then every failure refuses). */
   readonly hooks?: TabHookBridge | undefined
 }
 
 /**
+ * Whether the path may be read at all, before any of its text is: not
+ * private or protected, not `files.exclude`d and not ignored (Acceptance 4;
+ * RVM94HU 17).
+ */
+export async function isTabPathEligible(
+  relativePath: string,
+  deps: TabFileCheckDeps,
+): Promise<boolean> {
+  return (
+    !isTabForbiddenName(relativePath) &&
+    !isFilesExcluded(relativePath, deps.filesExclude, deps.hasSibling) &&
+    !(await deps.ignore.isIgnored(deps.rootAbs, relativePath))
+  )
+}
+
+/**
  * Whether the file may enter a request, as the current file or as context:
- * inside the workspace, not private or protected, not oversize, not
- * `files.exclude`d, not git-ignored and allowed by `beforeTabFileRead`.
+ * its path eligible, not oversize, and allowed by `beforeTabFileRead`.
  */
 export async function isTabFileEligible(
   candidate: TabFileCandidate,
   deps: TabFileCheckDeps,
 ): Promise<boolean> {
   if (
-    isTabForbiddenName(candidate.relativePath) ||
     candidate.sizeBytes > TAB_FILE_MAX_BYTES ||
-    isFilesExcluded(candidate.relativePath, deps.filesExclude) ||
-    (await deps.ignore.isIgnored(deps.rootAbs, candidate.relativePath))
+    !(await isTabPathEligible(candidate.relativePath, deps))
   ) {
     return false
   }
@@ -350,6 +392,29 @@ export async function isTabFileEligible(
     }
   }
   return true
+}
+
+/** `file` under `root`, forward-slashed, or undefined when it is not inside. */
+function relativeInside(root: string, file: string): string | undefined {
+  const relative = path.relative(root, file)
+  return relative === '' || relative.startsWith('..') || path.isAbsolute(relative)
+    ? undefined
+    : relative.split(path.sep).join('/')
+}
+
+/**
+ * The redacted request halves: the whole text is redacted at the cursor's
+ * split, so no secret is cut by the window's edges, and a secret spanning
+ * the cursor (which neither half would match alone) refuses the request
+ * (RVM94HU 15).
+ */
+function redactedHalves(
+  text: string,
+  offset: number,
+): { readonly before: string; readonly after: string } | undefined {
+  const before = redactSecrets(text.slice(0, offset))
+  const after = redactSecrets(text.slice(offset))
+  return redactSecrets(text) === before + after ? { before, after } : undefined
 }
 
 // --- The provider ---
@@ -400,12 +465,33 @@ export function tabAcceptArgsOf(value: unknown): TabAcceptArgs | undefined {
     : undefined
 }
 
+/** The position after `inserted` is typed at `line`/`character`. */
+function positionAfter(
+  line: number,
+  character: number,
+  inserted: string,
+): { readonly line: number; readonly character: number } {
+  const breaks = inserted.split('\n')
+  return breaks.length === 1
+    ? { line, character: character + inserted.length }
+    : { line: line + breaks.length - 1, character: (breaks.at(-1) ?? '').length }
+}
+
+interface TabTracked extends TabTrackedItem {
+  readonly generationId: string
+  readonly model: string
+  /** The whole suggestion arrived in one change: the item's command follows (V8). */
+  readonly isWholeInserted: boolean
+  /** Some of it was accepted by partial accepts already. */
+  readonly isPartlyAccepted: boolean
+}
+
 /**
  * The `InlineCompletionItemProvider` (V2, V7–V10): quiet wherever D73 says
  * quiet, one item otherwise. Every file the request reads passed
  * `isTabFileEligible`; every byte sent passed `redactSecrets`. The log gets
  * counts, sizes, timings and outcome classes, never code, a completion or a
- * path.
+ * path. The shim registers it (the handle's `provider`).
  */
 export function createTabProvider(deps: TabProviderDeps): TabProviderHandle {
   const ignore = new TabIgnoreCache({
@@ -415,50 +501,48 @@ export function createTabProvider(deps: TabProviderDeps): TabProviderHandle {
     onIgnoreFilesChanged: deps.onIgnoreFilesChanged,
   })
   let generation = 0
-  let tracked: (TabTrackedItem & { generationId: string; model: string }) | undefined
+  let tracked: TabTracked | undefined
+  // Disposed: pending work stops at its next step and reports nothing
+  // (RVM94HU 2).
+  const lifecycle = { isDisposed: false }
+  // Read through a call: a wait may dispose the provider under any branch.
+  const isDisposed = (): boolean => lifecycle.isDisposed
 
   const quiet = (reason: TabQuietReason): vscode.InlineCompletionItem[] => {
-    deps.onOutcome({ kind: 'quiet', reason })
+    if (!isDisposed()) {
+      deps.onOutcome({ kind: 'quiet', reason })
+    }
     return []
   }
 
-  async function provide(
+  /** The cheap state checks D73 quiets on: run first, and again after every wait. */
+  function stateQuietReason(
     document: TabDocument,
-    position: TabPosition,
-    context: TabCompletionRequest,
-    token: vscode.CancellationToken,
-  ): Promise<vscode.InlineCompletionItem[]> {
-    // While the suggest widget has a selection, Tab returns nothing (V2).
-    if (context.selectedCompletionInfo !== undefined) {
-      return quiet('suggest-selection')
-    }
+    rootAbs: string,
+    isInvoke: boolean,
+  ): TabQuietReason | undefined {
     const settings = deps.settings()
-    const isInvoke = context.triggerKind === vscode.InlineCompletionTriggerKind.Invoke
     if (!isInvoke && settings.tabTrigger !== 'automatic') {
-      return quiet('trigger-setting')
+      return 'trigger-setting'
     }
     if (deps.isSnoozed()) {
-      return quiet('snoozed')
+      return 'snoozed'
     }
     if (!deps.isPaidOn()) {
-      return quiet('paid-off')
+      return 'paid-off'
     }
     // No key: no request, and never a prompt for one (Acceptance 2).
     if (!deps.isKeyStored()) {
-      return quiet('no-key')
+      return 'no-key'
     }
     if (!deps.isTrusted()) {
-      return quiet('untrusted')
+      return 'untrusted'
     }
-    if (document.uri.scheme !== 'file') {
-      return quiet('scheme')
-    }
-    const relativePath = deps.relativeInWorkspace(document.uri)
-    if (relativePath === undefined) {
-      return quiet('outside-workspace')
+    if (!deps.workspaceRoots(document.uri.fsPath).includes(rootAbs)) {
+      return 'outside-workspace'
     }
     if (!isTabLanguageOn(settings.tabLanguages, document.languageId)) {
-      return quiet('language-off')
+      return 'language-off'
     }
     if (
       !isInvoke &&
@@ -471,51 +555,109 @@ export function createTabProvider(deps: TabProviderDeps): TabProviderHandle {
         }),
       )
     ) {
-      return quiet('copilot')
+      return 'copilot'
+    }
+    return undefined
+  }
+
+  async function provide(
+    document: TabDocument,
+    position: TabPosition,
+    context: TabCompletionRequest,
+    token: vscode.CancellationToken,
+  ): Promise<vscode.InlineCompletionItem[]> {
+    // While the suggest widget has a selection, Tab returns nothing (V2).
+    if (context.selectedCompletionInfo !== undefined) {
+      return quiet('suggest-selection')
+    }
+    if (document.uri.scheme !== 'file') {
+      return quiet('scheme')
+    }
+    const isInvoke = context.triggerKind === vscode.InlineCompletionTriggerKind.Invoke
+    // The innermost workspace folder holding the file: the path checked,
+    // the path git is asked about and the path the model sees are all
+    // relative to it (RVM94HU 13).
+    const rootAbs = deps.workspaceRoots(document.uri.fsPath).at(0)
+    const relativePath =
+      rootAbs === undefined ? undefined : relativeInside(rootAbs, document.uri.fsPath)
+    if (rootAbs === undefined || relativePath === undefined) {
+      return quiet('outside-workspace')
+    }
+    const firstReason = stateQuietReason(document, rootAbs, isInvoke)
+    if (firstReason !== undefined) {
+      return quiet(firstReason)
+    }
+    const checks: TabFileCheckDeps = {
+      filesExclude: deps.filesExclude(document.uri),
+      ignore,
+      rootAbs,
+      hasSibling: (sibling) => deps.ignoreFileExists(path.join(rootAbs, ...sibling.split('/'))),
+      hooks: deps.hooks,
+    }
+    // Links resolved: the target must stay inside the folder and must not be
+    // private or protected itself (RVM94HU 12).
+    let targetRelative: string | undefined
+    try {
+      const [realFile, realRoot] = await Promise.all([
+        deps.realPath(document.uri.fsPath),
+        deps.realPath(rootAbs),
+      ])
+      targetRelative = relativeInside(realRoot, realFile)
+    } catch {
+      targetRelative = undefined
+    }
+    // Nothing of the text is read before its path passed (RVM94HU 17).
+    if (
+      targetRelative === undefined ||
+      isTabForbiddenName(targetRelative) ||
+      !(await isTabPathEligible(relativePath, checks))
+    ) {
+      return quiet('ineligible-file')
     }
     const startedAt = Date.now()
+    const ignoreGeneration = ignore.currentGeneration
     const text = document.getText()
-    const line = document.lineAt(position.line).text
-    const mode = chooseTabMode(
-      line.slice(0, position.character),
-      line.slice(position.character),
-      settings.tabMultiline,
-      isInvoke,
-    )
-    const rootAbs = deps.workspaceRoots(document.uri.fsPath).at(0)
-    const isEligible =
-      rootAbs !== undefined &&
-      (await isTabFileEligible(
+    if (
+      !(await isTabFileEligible(
         {
           absolutePath: document.uri.fsPath,
           relativePath,
           sizeBytes: Buffer.byteLength(text, 'utf8'),
           content: text,
         },
-        {
-          filesExclude: deps.filesExclude(document.uri),
-          ignore,
-          rootAbs,
-          hooks: deps.hooks,
-        },
+        checks,
       ))
-    if (!isEligible) {
+    ) {
       return quiet('ineligible-file')
+    }
+    if (isDisposed()) {
+      return []
     }
     // The D48 question, once per window (Q-M94a, lane L): Deny sends nothing.
     // The shim snoozes the window on `consent-denied`.
     if (!(await deps.consent.requestUse())) {
       return quiet('consent-denied')
     }
-    // The request's window (lane C's anchored prefix and bounded suffix),
-    // and every byte sent passed `redactSecrets`: a secret reaches the
-    // engine only as the mark (Acceptance 5).
+    const line = document.lineAt(position.line).text
+    const mode = chooseTabMode(
+      line.slice(0, position.character),
+      line.slice(position.character),
+      deps.settings().tabMultiline,
+      isInvoke,
+    )
     const offset = toOffset(text, position)
-    const window = contextWindow(text, offset, mode)
-    const prefix = redactSecrets(window.prefix)
-    const suffix = redactSecrets(window.suffix)
-    // The worst case is priced on what is sent: the instructions and the
-    // one user message (D73, M82's one token per UTF-8 byte).
+    const halves = redactedHalves(text, offset)
+    if (halves === undefined) {
+      return quiet('secret-at-cursor')
+    }
+    // The request's window (lane C's anchored prefix and bounded suffix) over
+    // the redacted text: a secret reaches the engine only as the mark
+    // (Acceptance 5).
+    const window = contextWindow(halves.before + halves.after, halves.before.length, mode)
+    const { prefix, suffix } = window
+    const model = deps.settings().tabModel
+    // The worst case is priced on everything sent: the instructions and the
+    // one user message (D73, M82's one token per UTF-8 byte; RVM94HU 16).
     const sentText =
       TAB_MODEL_TEXT.tabSystem +
       tabUserText({
@@ -526,7 +668,7 @@ export function createTabProvider(deps: TabProviderDeps): TabProviderHandle {
         snippets: '',
       })
     const reservation = await deps.spend.reserve({
-      model: settings.tabModel,
+      model,
       inputBytes: Buffer.byteLength(sentText, 'utf8'),
       maxOutputTokens:
         mode === 'fast' ? TAB_FAST_MAX_OUTPUT_TOKENS : TAB_MULTILINE_MAX_OUTPUT_TOKENS,
@@ -534,8 +676,22 @@ export function createTabProvider(deps: TabProviderDeps): TabProviderHandle {
     if (reservation === undefined) {
       return quiet('budget')
     }
-    const isCancelledBeforeSend = token.isCancellationRequested
-    if (isCancelledBeforeSend) {
+    // Everything checked before the waits is checked again: a snooze, the
+    // setting, the key, trust, the folders, the language, Copilot or the
+    // ignore files may have changed meanwhile (RVM94HU 2). Nothing was sent,
+    // so the reservation is released.
+    const lateReason = isDisposed()
+      ? 'cancelled-before-send'
+      : (stateQuietReason(document, rootAbs, isInvoke) ??
+        (ignore.currentGeneration !== ignoreGeneration &&
+        !(await isTabPathEligible(relativePath, checks))
+          ? 'ineligible-file'
+          : undefined))
+    if (lateReason !== undefined) {
+      deps.spend.settle(reservation, NOTHING_SENT)
+      return quiet(lateReason)
+    }
+    if (token.isCancellationRequested) {
       // Keystrokes inside the wait send nothing, and no request starts: the
       // reservation is released, since nothing was billed.
       deps.spend.settle(reservation, NOTHING_SENT)
@@ -543,7 +699,7 @@ export function createTabProvider(deps: TabProviderDeps): TabProviderHandle {
     }
     const lines = text.split('\n')
     const snapshot: TabCompletionSnapshot = {
-      model: settings.tabModel,
+      model,
       absolutePath: document.uri.fsPath,
       relativePath,
       languageId: document.languageId,
@@ -554,8 +710,9 @@ export function createTabProvider(deps: TabProviderDeps): TabProviderHandle {
       cursorLineBefore: line.slice(0, position.character),
       lineAbove: lines[position.line - 1] ?? '',
       linesBelow: lines.slice(position.line + 1, position.line + 1 + TAB_MULTILINE_MAX_LINES),
-      // Read when the engine's debounce ends: a keystroke since sends nothing.
-      isCancelled: () => token.isCancellationRequested,
+      // Read when the engine's debounce or a free slot ends the wait: a
+      // keystroke since, or a disposed provider, sends nothing (RVM94HU 3).
+      isCancelled: () => token.isCancellationRequested || isDisposed(),
     }
     let completion: string | undefined
     try {
@@ -575,18 +732,21 @@ export function createTabProvider(deps: TabProviderDeps): TabProviderHandle {
     } catch {
       // No usage was reported, so the reservation stands (M82); the log gets
       // the class, never the cause (it may name a path).
-      deps.onOutcome({ kind: 'failed', failure: 'request' })
+      if (!isDisposed()) {
+        deps.onOutcome({ kind: 'failed', failure: 'request' })
+      }
       deps.log.warn('Tab request failed (request)')
       return []
     }
     if (completion === undefined) {
       return quiet('no-suggestion')
     }
-    const isCancelledAfterSend = token.isCancellationRequested
-    if (isCancelledAfterSend) {
+    if (snapshot.isCancelled()) {
       // A sent request runs to its end: its answer reached the engine's
       // cache and its usage the ledger; only the ghost text is dropped.
-      deps.onOutcome({ kind: 'served', mode })
+      if (!isDisposed()) {
+        deps.onOutcome({ kind: 'served', mode })
+      }
       return []
     }
     generation += 1
@@ -598,12 +758,14 @@ export function createTabProvider(deps: TabProviderDeps): TabProviderHandle {
       character: position.character,
       rest: completion,
       generationId,
-      model: settings.tabModel,
+      model,
+      isWholeInserted: false,
+      isPartlyAccepted: false,
     }
     const args: TabAcceptArgs = {
       filePath: document.uri.fsPath,
       generationId,
-      model: settings.tabModel,
+      model,
       positionLine: position.line,
       positionCharacter: position.character,
       completion,
@@ -619,10 +781,35 @@ export function createTabProvider(deps: TabProviderDeps): TabProviderHandle {
     }
     const elapsedMs = Date.now() - startedAt
     deps.log.info(
-      `Tab suggestion served (${mode}, ${String(snapshot.prefix.length + snapshot.suffix.length)} window bytes, ${String(elapsedMs)} ms)`,
+      `Tab suggestion served (${mode}, ${String(prefix.length + suffix.length)} window bytes, ${String(elapsedMs)} ms)`,
     )
     deps.onOutcome({ kind: 'served', mode })
     return [item]
+  }
+
+  /** The hook's edit for text inserted at a 0-based position (1-based, as Cursor sends it). */
+  function emitEdit(at: TabTracked, newString: string, isInferred: boolean): void {
+    if (deps.hooks === undefined) {
+      return
+    }
+    const startLine = at.line + 1
+    const startColumn = at.character + 1
+    deps.hooks.afterEdit({
+      filePath: at.filePath,
+      generationId: at.generationId,
+      model: at.model,
+      oldLine: startLine,
+      newLine: startLine,
+      range: {
+        startLineNumber: startLine,
+        startColumn,
+        endLineNumber: startLine,
+        endColumn: startColumn,
+      },
+      oldString: '',
+      newString,
+      inferred: isInferred,
+    })
   }
 
   function acceptNotified(raw: unknown): void {
@@ -635,33 +822,14 @@ export function createTabProvider(deps: TabProviderDeps): TabProviderHandle {
     }
     const accepted = tracked
     tracked = undefined
-    if (deps.hooks === undefined) {
-      return
-    }
-    // A full accept is known exactly from the item's command (V8). Lines and
-    // columns count from 1; lane K caps the strings and counts the cut.
-    const startLine = accepted.line + 1
-    const startColumn = accepted.character + 1
-    deps.hooks.afterEdit({
-      filePath: accepted.filePath,
-      generationId: accepted.generationId,
-      model: accepted.model,
-      oldLine: startLine,
-      newLine: startLine,
-      range: {
-        startLineNumber: startLine,
-        startColumn,
-        endLineNumber: startLine,
-        endColumn: startColumn,
-      },
-      oldString: '',
-      newString: args.completion,
-      inferred: false,
-    })
+    // A full accept is known exactly from the item's command (V8), whether
+    // its document change arrived first or not (RVM94HU 5). Lane K caps the
+    // strings and counts the cut.
+    emitEdit(accepted, args.completion, false)
   }
 
   function onTextChanged(change: TabDocumentChange): void {
-    if (tracked === undefined) {
+    if (tracked === undefined || tracked.isWholeInserted) {
       return
     }
     const rest = inferTabPartialAccept(tracked, change)
@@ -678,27 +846,16 @@ export function createTabProvider(deps: TabProviderDeps): TabProviderHandle {
       }
       return
     }
-    if (deps.hooks !== undefined) {
-      const startLine = tracked.line + 1
-      const startColumn = tracked.character + 1
-      deps.hooks.afterEdit({
-        filePath: tracked.filePath,
-        generationId: tracked.generationId,
-        model: tracked.model,
-        oldLine: startLine,
-        newLine: startLine,
-        range: {
-          startLineNumber: startLine,
-          startColumn,
-          endLineNumber: startLine,
-          endColumn: startColumn,
-        },
-        oldString: '',
-        newString: change.insertedText,
-        inferred: true,
-      })
+    if (rest === '' && !tracked.isPartlyAccepted) {
+      // The whole suggestion in one change: a full accept, whose command
+      // follows and reports it exactly (RVM94HU 5).
+      tracked = { ...tracked, isWholeInserted: true }
+      return
     }
-    tracked = rest === '' ? undefined : { ...tracked, rest }
+    emitEdit(tracked, change.insertedText, true)
+    // The rest now starts where the accepted text ended (RVM94HU 6).
+    const next = positionAfter(tracked.line, tracked.character, change.insertedText)
+    tracked = rest === '' ? undefined : { ...tracked, ...next, rest, isPartlyAccepted: true }
   }
 
   const provider: vscode.InlineCompletionItemProvider = {
@@ -714,10 +871,6 @@ export function createTabProvider(deps: TabProviderDeps): TabProviderHandle {
       ),
   }
 
-  const registration = vscode.languages.registerInlineCompletionItemProvider(
-    { scheme: 'file' },
-    provider,
-  )
   const textWatcher = deps.onDidChangeTextDocument((event) => {
     for (const change of event.changes) {
       onTextChanged(change)
@@ -725,8 +878,9 @@ export function createTabProvider(deps: TabProviderDeps): TabProviderHandle {
   })
 
   return {
+    provider,
     dispose: () => {
-      registration.dispose()
+      lifecycle.isDisposed = true
       textWatcher.dispose()
       ignore.dispose()
     },

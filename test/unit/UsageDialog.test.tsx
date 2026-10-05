@@ -598,6 +598,8 @@ describe('UsageDialog: Tab completions row (M94 lane U, PLAN.md D73)', () => {
         },
         isKeyStored: true,
         alwaysAllowed: [],
+        // Another window spent too: the ledger's day is not this window's cost.
+        tab: { budgetUsd: 1, todayUsd: 0.62 },
       },
     })
     const dialog = screen.getByRole('dialog')
@@ -605,10 +607,41 @@ describe('UsageDialog: Tab completions row (M94 lane U, PLAN.md D73)', () => {
     expect(dialog).toHaveTextContent('12 Tab requests')
     expect(dialog).toHaveTextContent('45,000 tokens (3,000 cached)')
     expect(dialog).toHaveTextContent('Reported token estimate: $0.1200')
-    expect(dialog).toHaveTextContent('Today: $0.1200')
+    // Today is the ledger's cross-window day, apart from this window (RVM94HU 23).
+    expect(dialog).toHaveTextContent('Today: $0.6200')
     expect(dialog).toHaveTextContent('This window: $0.1200')
     expect(dialog).toHaveTextContent('Daily budget: $1.00')
     expect(dialog).toHaveTextContent('Estimated extra-feature total$0.1200')
+  })
+
+  it('shows the configured budget, no made-up today, and wraps its facts (RVM94HU 23–25)', () => {
+    renderDialog({
+      report: tabReport,
+      paid: {
+        features: ['tab'],
+        tally: {
+          webSearches: 0,
+          images: 0,
+          voiceSeconds: 0,
+          scheduledRuns: 0,
+          tabRequests: 2,
+          tabUnknownRequests: 0,
+          tabTokens: 900,
+          tabCachedTokens: 0,
+          tabCostUsd: 0.01,
+        },
+        isKeyStored: true,
+        alwaysAllowed: [],
+        // The ledger has not been read in this window yet.
+        tab: { budgetUsd: 5 },
+      },
+    })
+    const dialog = screen.getByRole('dialog')
+    expect(dialog).toHaveTextContent('Daily budget: $5.00')
+    expect(dialog).not.toHaveTextContent('Today:')
+    expect(dialog).toHaveTextContent('This window: $0.0100')
+    const label = screen.getByText('Tab completions (on)')
+    expect(label.nextElementSibling).toHaveClass('usage-paid-child')
   })
 
   it('counts one request in the singular', () => {
@@ -696,7 +729,7 @@ describe('UsageDialog: Tab completions row (M94 lane U, PLAN.md D73)', () => {
     const dialog = screen.getByRole('dialog')
     expect(dialog).toHaveTextContent('Tab completions (off)')
     expect(dialog).toHaveTextContent('3 Tab requests')
-    expect(dialog).toHaveTextContent('Today: $0.0200')
+    expect(dialog).toHaveTextContent('This window: $0.0200')
     expect(dialog).toHaveTextContent('Daily budget: $1.00')
   })
 

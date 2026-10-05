@@ -1542,6 +1542,16 @@ export function App({
   const onOpenUsage = useCallback(() => {
     openOverlay('usage')
   }, [openOverlay])
+  // The host asks for Account & usage (the Tab status menu's row, M94).
+  const usageRequests = state.usageRequests
+  const seenUsageRequests = useRef(usageRequests)
+  useEffect(() => {
+    if (usageRequests === seenUsageRequests.current) {
+      return
+    }
+    seenUsageRequests.current = usageRequests
+    openOverlay('usage')
+  }, [usageRequests, openOverlay])
   // The prompt's "/" menus (M38). A row chosen there takes the `/` with it,
   // unless it leaves the palette open; a skill becomes `/selector ` for its
   // arguments.

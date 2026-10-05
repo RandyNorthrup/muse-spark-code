@@ -9,7 +9,8 @@ import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import { build } from 'esbuild'
-import { commands, languages, window } from 'vscode'
+import type * as vscode from 'vscode'
+import { InlineCompletionTriggerKind, Position, Uri, commands, languages, window } from 'vscode'
 import {
   TAB_BUNDLE_FILE,
   TAB_COMMAND_IDS,
@@ -42,7 +43,7 @@ import {
 } from '../../src/host/tab/tabEntry'
 import { UI_TEXT } from '../../src/shared/constants'
 import { BASE_LOCALE } from '../../src/shared/l10n/text'
-import { FakeLogOutputChannel } from './helpers/fakes'
+import { FakeCancellationToken, FakeLogOutputChannel, FakeTextDocument } from './helpers/fakes'
 import { FakeStatusBarItem } from './mocks/vscode'
 import { sharedUiText } from './helpers/modelApiBundle'
 import { removeFolder } from './helpers/temporaryFolders'
@@ -242,11 +243,12 @@ describe('tabLoader', () => {
 })
 
 describe('deferredRefresh', () => {
-  it('runs the refresh once, on the first call', () => {
-    const refresh = vi.fn()
+  it('runs the refresh once, on the first call, and every call shares its promise', async () => {
+    const refresh = vi.fn(() => Promise.resolve())
     const ensure = deferredRefresh(refresh)
-    ensure()
-    ensure()
+    const first = ensure()
+    expect(ensure()).toBe(first)
+    await first
     expect(refresh).toHaveBeenCalledOnce()
   })
 })
@@ -268,7 +270,32 @@ interface ActivationHarness {
   readonly servicesDeps: () => TabServicesDeps | undefined
   readonly consent: TabUseConsent
   readonly services: TabServices
+  /** The providers the shim registered, live ones only. */
+  readonly providers: vscode.InlineCompletionItemProvider[]
+  /** Every `museSpark.tabOn` value the shim set, in order. */
+  readonly tabOnContext: boolean[]
+  readonly statusRefresh: ReturnType<typeof vi.fn>
+  readonly delegated: ReturnType<typeof vi.fn>
   settingOn: boolean
+}
+
+/** Loads the bundle the way a Tab command does (the menu). */
+async function loadThroughMenu(harness: ActivationHarness): Promise<void> {
+  await harness.registered.get(TAB_COMMAND_IDS.menu)?.()
+}
+
+/** One request through the registered provider. */
+async function requestThroughShim(harness: ActivationHarness): Promise<unknown> {
+  const provider = harness.providers.at(0)
+  if (provider === undefined) {
+    throw new Error('no provider registered')
+  }
+  return await provider.provideInlineCompletionItems(
+    new FakeTextDocument(Uri.file('/ws/file.ts'), 'typescript', 'const y = '),
+    new Position(0, 10),
+    { triggerKind: InlineCompletionTriggerKind.Invoke, selectedCompletionInfo: undefined },
+    new FakeCancellationToken(),
+  )
 }
 
 /** The services the harness bundle hands out: plain recorders, never sent. */
@@ -320,12 +347,16 @@ function activationHarness(
         createTabSnooze: (store: never) => createTabSnooze(store),
         createTabProvider: (found: TabProviderDeps) => {
           providerFound = found
-          return { dispose: providerDispose, acceptNotified }
+          return {
+            provider: { provideInlineCompletionItems: delegated },
+            dispose: providerDispose,
+            acceptNotified,
+          }
         },
         createTabStatus: (found: TabStatusDeps) => {
           statusFound = found
           return {
-            refresh: () => undefined,
+            refresh: statusRefresh,
             showMenu: () => Promise.resolve(),
             noteOutcome: (outcome: TabOutcome) => {
               seenOutcomes.push(outcome)
@@ -352,8 +383,13 @@ function activationHarness(
     servicesDeps: () => servicesFound,
     consent,
     services,
+    providers: [],
+    tabOnContext: [],
+    statusRefresh: vi.fn(),
+    delegated: vi.fn(() => []),
     settingOn: false,
   }
+  const { statusRefresh, delegated } = harness
   let providerFound: TabProviderDeps | undefined
   let statusFound: TabStatusDeps | undefined
   const seenOutcomes: TabOutcome[] = []
@@ -381,6 +417,7 @@ function activationHarness(
     isTrusted: () => true,
     ensureKeyPresence: () => {
       harness.keyPresence.push('refresh')
+      return Promise.resolve()
     },
     updateSetting: (key, value) => {
       harness.updated.push([key, value])
@@ -392,7 +429,18 @@ function activationHarness(
       harness.disposables.push(dispose)
       return { dispose }
     },
-    relativeInWorkspace: () => 'file.ts',
+    realPath: (absolutePath) => Promise.resolve(absolutePath),
+    registerProvider: (provider) => {
+      harness.providers.push(provider)
+      return {
+        dispose: () => {
+          harness.providers.splice(harness.providers.indexOf(provider), 1)
+        },
+      }
+    },
+    setTabOnContext: (isOn) => {
+      harness.tabOnContext.push(isOn)
+    },
     foreignSetting: () => undefined,
     isCopilotExtensionPresent: () => false,
     filesExclude: () => ({}),
@@ -450,39 +498,74 @@ describe('createTabActivation', () => {
     expect(harness.keyPresence).toEqual([])
   })
 
-  it('loads once on enable, and tears down when turned off', () => {
+  it('registers at once with the setting on, and loads on the first request only (RVM94HU 7)', async () => {
     const harness = activationHarness()
     harness.settingOn = true
     harness.activation.refresh()
-    expect(harness.activation.isActive()).toBe(true)
+    // Registered and the binding's context set, but no secret read and no bundle yet.
+    expect(harness.activation.isRegistered()).toBe(true)
+    expect(harness.providers).toHaveLength(1)
+    expect(harness.tabOnContext).toEqual([true])
+    expect(harness.loadBundle).not.toHaveBeenCalled()
+    expect(harness.keyPresence).toEqual([])
+    await requestThroughShim(harness)
+    // The first request waits for the deferred secret read (deferredRefresh
+    // runs it once however often it is asked).
+    expect(harness.keyPresence).toContain('refresh')
     expect(harness.loadBundle).toHaveBeenCalledOnce()
-    expect(harness.keyPresence).toEqual(['refresh'])
+    expect(harness.delegated).toHaveBeenCalledOnce()
+    await requestThroughShim(harness)
+    expect(harness.loadBundle).toHaveBeenCalledOnce()
     harness.activation.refresh()
-    expect(harness.loadBundle).toHaveBeenCalledOnce()
+    expect(harness.providers).toHaveLength(1)
+  })
+
+  it('tears down when turned off, and clears the binding’s context (RVM94HU 8)', async () => {
+    const harness = activationHarness()
+    harness.settingOn = true
+    harness.activation.refresh()
+    await loadThroughMenu(harness)
+    expect(harness.activation.isActive()).toBe(true)
     harness.settingOn = false
     harness.activation.refresh()
     expect(harness.activation.isActive()).toBe(false)
+    expect(harness.providers).toEqual([])
+    expect(harness.tabOnContext).toEqual([true, false])
     harness.activation.dispose()
     for (const dispose of harness.disposables) {
       expect(dispose).toHaveBeenCalledOnce()
     }
   })
 
-  it('retries after a missing bundle: the loader logged, the next change loads', () => {
-    const failing = activationHarness({ loadThrows: true })
-    failing.settingOn = true
-    failing.activation.refresh()
-    expect(failing.activation.isActive()).toBe(false)
-    const working = activationHarness()
-    working.settingOn = true
-    working.activation.refresh()
-    expect(working.activation.isActive()).toBe(true)
-  })
-
-  it('snoozes the window on Deny, before the status redraws', () => {
+  it('redraws the bar after the palette’s snooze (RVM94HU 9)', async () => {
     const harness = activationHarness()
     harness.settingOn = true
     harness.activation.refresh()
+    await loadThroughMenu(harness)
+    harness.statusRefresh.mockClear()
+    await harness.registered.get(TAB_COMMAND_IDS.snooze)?.()
+    expect(harness.statusRefresh).toHaveBeenCalled()
+  })
+
+  it('retries after a missing bundle: the loader logged, the next request loads', async () => {
+    const failing = activationHarness({ loadThrows: true })
+    failing.settingOn = true
+    failing.activation.refresh()
+    await expect(requestThroughShim(failing)).resolves.toEqual([])
+    expect(failing.activation.isActive()).toBe(false)
+    expect(failing.activation.isRegistered()).toBe(true)
+    const working = activationHarness()
+    working.settingOn = true
+    working.activation.refresh()
+    await requestThroughShim(working)
+    expect(working.activation.isActive()).toBe(true)
+  })
+
+  it('snoozes the window on Deny, before the status redraws', async () => {
+    const harness = activationHarness()
+    harness.settingOn = true
+    harness.activation.refresh()
+    await loadThroughMenu(harness)
     const providerDeps = harness.providerDeps()
     expect(providerDeps).toBeDefined()
     expect(providerDeps?.isSnoozed()).toBe(false)
@@ -492,13 +575,17 @@ describe('createTabActivation', () => {
     expect(providerDeps?.isSnoozed()).toBe(true)
   })
 
-  it('routes the accept command to the running provider only', () => {
+  it('routes the accept command to the running provider only', async () => {
     const acceptNotified = vi.fn()
     const harness = activationHarness({
       loadModule: {
         createTabServices: () => harnessServices(),
         createTabSnooze: (store: never) => createTabSnooze(store),
-        createTabProvider: () => ({ dispose: () => undefined, acceptNotified }),
+        createTabProvider: () => ({
+          provider: { provideInlineCompletionItems: () => [] },
+          dispose: () => undefined,
+          acceptNotified,
+        }),
         createTabStatus: () => ({
           refresh: () => undefined,
           showMenu: () => Promise.resolve(),
@@ -516,6 +603,7 @@ describe('createTabActivation', () => {
     expect(acceptNotified).not.toHaveBeenCalled()
     harness.settingOn = true
     harness.activation.refresh()
+    await loadThroughMenu(harness)
     afterAccept?.({ generationId: 'live' })
     expect(acceptNotified).toHaveBeenCalledWith({ generationId: 'live' })
   })
@@ -530,21 +618,23 @@ describe('createTabActivation', () => {
     ])
   })
 
-  it('reads the budget state off the bundle’s spend gate', () => {
+  it('reads the budget state off the bundle’s spend gate', async () => {
     const harness = activationHarness({
       bundleServices: harnessServices({ todayTotalUsd: () => 5, todayRequests: () => 21 }),
     })
     harness.settingOn = true
     harness.activation.refresh()
+    await loadThroughMenu(harness)
     const statusDeps = harness.statusDeps()
     expect(statusDeps?.todaySpend()).toEqual({ totalUsd: 5, requests: 21 })
     expect(statusDeps?.isBudgetReached()).toBe(true)
   })
 
-  it('wires the bundle’s engine and ledger and the activation’s question into the provider', () => {
+  it('wires the bundle’s engine and ledger and the activation’s question into the provider', async () => {
     const harness = activationHarness()
     harness.settingOn = true
     harness.activation.refresh()
+    await loadThroughMenu(harness)
     const providerDeps = harness.providerDeps()
     expect(providerDeps?.engine).toBe(harness.services.engine)
     expect(providerDeps?.spend).toBe(harness.services.spend)
@@ -676,7 +766,7 @@ describe('the shipped Tab bundle', () => {
       isKeyStored: () => true,
       isTrusted: () => true,
       isSnoozed: () => false,
-      relativeInWorkspace: () => 'file.ts',
+      realPath: (absolutePath) => Promise.resolve(absolutePath),
       foreignSetting: () => undefined,
       isCopilotExtensionPresent: () => false,
       filesExclude: () => ({}),
