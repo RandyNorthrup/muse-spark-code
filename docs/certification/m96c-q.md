@@ -39,3 +39,35 @@ assertion failure, then restored the source byte-exact and compared SHA-256.
 | default rework               | keeps default rework and structured conflicts out of the admitted tree                                                                                                                                                          | `e222882a2b949758841cf253d59da2e8fb03ad27618b33868bf0ad18e10b300a` |
 | strict shared dispatch       | routes structured files even on unchanged sides, without text fallback                                                                                                                                                          | `0125babeecf19d642c911cc6d3486223f4967a71cd212bef7fbdc5a36bc7e88d` |
 | binary and deletion conflict | handles binary, added, deleted, symlink and executable files explicitly                                                                                                                                                         | `0125babeecf19d642c911cc6d3486223f4967a71cd212bef7fbdc5a36bc7e88d` |
+
+## Whole snapshots and staging
+
+`StagingCopy` captures HEAD, tracked edits/deletions and nonignored untracked
+files through a private index, hashing raw bytes without attributes or
+filters. Ignored untracked installs remain outside the Git snapshot, as in
+the lead's rig snapshot; submodule directories and unsafe paths refuse
+explicitly. The temporary index is removed after use; the user's index and
+HEAD are unchanged. The shared clone has no remote and disables conversion
+before checkout. A local staging result can be fetched into an
+`agents/landing/<id>` ref under Git's ref lock.
+
+`checkIdentity` includes resolved command names, commands, timeouts, platform,
+setup and cache key. `formatStagedTables` delegates the actual formatter and
+both-intent validation to lane C/M68, then callers capture the final blobs.
+The Git process is injected for lane K's lifetime launcher; its environment
+is an explicit allowlist without inherited Git variables or credentials.
+
+The whole `teamStagingCopy.test.ts` file passed (6 tests), using real local
+repositories and real Git. These additional red drills passed their failure
+checks and restored the source byte-exact:
+
+| Mutation                    | Named failing test(s)                                                                                                                                                                  | Restored source SHA-256                                            |
+| --------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------ |
+| temporary index             | snapshots all visible files through a temporary index, preserving the real index and raw blobs; imports a staging result into a landing ref without changing the working tree or index | `56a6b961885f81acb095649559adeb650e6b4f5d4d2a819af54f7a8302d8866c` |
+| untracked dependencies      | snapshots all visible files through a temporary index, preserving the real index and raw blobs; validates both intents after formatting and captures the formatter output              | `56a6b961885f81acb095649559adeb650e6b4f5d4d2a819af54f7a8302d8866c` |
+| check environment identity  | binds resolved commands, platform, setup and cache key into the check identity                                                                                                         | `56a6b961885f81acb095649559adeb650e6b4f5d4d2a819af54f7a8302d8866c` |
+| formatter verification      | validates both intents after formatting and captures the formatter output                                                                                                              | `56a6b961885f81acb095649559adeb650e6b4f5d4d2a819af54f7a8302d8866c` |
+| text conflicts              | uses real git merge-file for both clean text and conflict markers                                                                                                                      | `56a6b961885f81acb095649559adeb650e6b4f5d4d2a819af54f7a8302d8866c` |
+| staged object transfer      | imports a staging result into a landing ref without changing the working tree or index                                                                                                 | `56a6b961885f81acb095649559adeb650e6b4f5d4d2a819af54f7a8302d8866c` |
+| raw blob conversion         | snapshots all visible files through a temporary index, preserving the real index and raw blobs                                                                                         | `56a6b961885f81acb095649559adeb650e6b4f5d4d2a819af54f7a8302d8866c` |
+| child environment allowlist | passes only the child allowlist and private index, never inherited Git configuration                                                                                                   | `56a6b961885f81acb095649559adeb650e6b4f5d4d2a819af54f7a8302d8866c` |
