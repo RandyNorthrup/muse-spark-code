@@ -1195,8 +1195,28 @@ All read on 2026-10-04.
   Stable, Insiders, VSCodium and Cursor each have their own. The ACP agent
   outside VS Code has none.
 
-The round-2 coordinator (D75, lane K) rests on these facts, read the same
-day:
+Round 2's machine coordinator rested on the facts below, read the same day.
+Codex's second review (`RVM96C2`) showed that they do not prove another
+process has stopped, so round 3 made the first release window-scoped and
+moved the coordinator to M96d's design spike. The review reported:
+
+- **macOS** answers a connect to a live Unix socket with `ECONNREFUSED`
+  when its accept queue is full, or allocation fails (Apple's
+  `uipc_usrreq.c` and `uipc_socket2.c`). And unlinking a live socket's path
+  gives `ENOENT` while its owner lives.
+- **`ps -o lstart`** on macOS prints the start time to the second through
+  the local time zone (Apple's `adv_cmds` `ps/print.c`). `proc_pidinfo`
+  holds seconds and microseconds (`proc_info.h`).
+- **A check made before a signal** by process id can be overtaken by id
+  reuse. That is the rationale for Linux's `pidfd_send_signal`.
+- **FAT32 and exFAT** have no hard links or access lists (Microsoft's file
+  system comparison), and `link` can succeed ambiguously on NFS after a
+  server failure.
+- **XDG runtime files** disappear across a reboot or a full logout (the
+  XDG base directory specification).
+
+These are as the review reported them, with its links; the lead has not
+re-read each source. The facts the round-2 design used follow:
 
 - **Unix domain sockets**
   ([man7.org unix(7)](https://man7.org/linux/man-pages/man7/unix.7.html)):
@@ -1255,10 +1275,13 @@ day:
   index, dependency caches are keyed by lockfile, routing follows labels
   and affinity, and helpers are replaced by rename. Windows runners get a
   self-test for the standard-input hang.
-- **The incidents become machine-wide rules.**
-  - One coordinator process for every window. It releases nothing on a
-    timer, only on proof (the facts above), and runs a single instance of
-    each singleton server itself.
+- **The incidents become rules, scoped to the window in the first
+  release.**
+  - One scheduler per window. Every child runs in the window's
+    process-lifetime container, and every launch is journalled before it
+    starts. Windows warn each other through hints, and ask before starting
+    a singleton server another window runs. A machine coordinator waits for
+    M96d's spike.
   - The working copy checked never to be the user's checkout.
   - Below-normal priority, heavy-command slots and a load guard.
   - Cleanup that never follows a link.
