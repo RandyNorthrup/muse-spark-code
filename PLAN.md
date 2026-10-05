@@ -17647,6 +17647,22 @@ live) and the controller filters its id as well.
 
 ### M96 — Agent roles and the team (D75)
 
+#### Final lane-B corrections (FIXM96B4, RVM96B3, 2026-10-05)
+
+Fix both confirmed findings within the existing registry state machine. Each
+tool admission records its resolved server, catalogue generation, tool name
+and permission class beside its exact lease token. Dispatch re-resolves the
+current catalogue and user assignment inside the registry; a changed binding
+or lost lease abandons pending admission with a translated error before any
+transport dispatch. Exercise both review scenarios through the production
+bridge/pool/connection with synthetic stdio children and real loopback HTTP.
+Repository and user declarations share a positive-safe-integer limit schema;
+the application API refuses invalid limits even when called without parsing.
+Every guard gets a named failing regression and a byte-exact red drill in
+`docs/certification/m96-b.md`. No new dependency or guard widening. The rig
+brief forbids merges/pushes and full quality; focused gates run on win11 and
+the lead retains integration gates and the two existing named residuals (§9).
+
 #### Round-3 redesign: leases (REDM96B, 2026-10-05)
 
 The owner's third-round rule replaces lane B's holder counters with explicit

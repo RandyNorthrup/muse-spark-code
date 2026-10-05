@@ -51,10 +51,12 @@ export type ResourceKind = 'exclusive' | 'shared' | 'free'
 
 export const resourceKindSchema = z.enum(['exclusive', 'shared', 'free'])
 
+const sharedLimitSchema = z.int().check(z.gte(1))
+
 export const resourceDeclarationSchema = z.object({
   name: z.string(),
   kind: resourceKindSchema,
-  sharedLimit: z.optional(z.number()),
+  sharedLimit: z.optional(sharedLimitSchema),
   idleRelease: z.optional(z.boolean()),
   commandPatterns: z.optional(z.array(z.string())),
   assignedRoles: z.optional(z.array(z.string())),
@@ -128,7 +130,7 @@ export interface ResourceDeclarationInit {
 export const repositoryResourceSchema = z.object({
   name: z.string(),
   kind: z.optional(resourceKindSchema),
-  sharedLimit: z.optional(z.number()),
+  sharedLimit: z.optional(sharedLimitSchema),
 })
 
 export type RepositoryResource = z.infer<typeof repositoryResourceSchema>
@@ -553,7 +555,7 @@ export class ResourceRegistry {
       throw new Error('A resource needs a name')
     }
     const sharedLimit = init.sharedLimit ?? TEAM_SHARED_RESOURCE_DEFAULT_LIMIT
-    if (!Number.isSafeInteger(sharedLimit) || sharedLimit < 1) {
+    if (!sharedLimitSchema.safeParse(sharedLimit).success) {
       throw new Error(`A shared resource's limit is at least 1: ${init.name}`)
     }
     const declaration: ResourceDeclaration = {
@@ -646,6 +648,13 @@ export class ResourceRegistry {
     const accepted: string[] = []
     const refused: RepositoryRefusal[] = []
     for (const entry of entries) {
+      if (
+        entry.sharedLimit !== undefined &&
+        !sharedLimitSchema.safeParse(entry.sharedLimit).success
+      ) {
+        refused.push({ name: entry.name, reason: 'invalid shared limit' })
+        continue
+      }
       const live = this.resources.get(entry.name)
       if (live === undefined) {
         refused.push({ name: entry.name, reason: 'unknown resource' })

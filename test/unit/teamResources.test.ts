@@ -7,6 +7,8 @@ import {
   type LeaseHolder,
   type LeaseToken,
   type CallToken,
+  repositoryResourceSchema,
+  resourceDeclarationSchema,
 } from '../../src/core/team/resources'
 import { createManualClock } from './helpers/manualClock'
 import { ENGINEER, ORCHESTRATOR, RESEARCHER } from './helpers/teamHolders'
@@ -385,6 +387,40 @@ describe('retirement and take back', () => {
 })
 
 describe('the repository file', () => {
+  it.each([-1, 0, 1.5, Number.MAX_SAFE_INTEGER + 1, Infinity, NaN])(
+    'RVM96B3-2: refuses invalid shared limit %s at both declaration boundaries and application',
+    async (sharedLimit) => {
+      const { registry } = drivenRegistry()
+      registry.declare({ name: 'notes', kind: 'shared', sharedLimit: 2 })
+      expect(repositoryResourceSchema.safeParse({ name: 'notes', sharedLimit }).success).toBe(false)
+      expect(
+        resourceDeclarationSchema.safeParse({ name: 'notes', kind: 'shared', sharedLimit }).success,
+      ).toBe(false)
+      expect(() => registry.declare({ name: 'notes', kind: 'shared', sharedLimit })).toThrow()
+      const result = registry.applyRepositoryResources([{ name: 'notes', sharedLimit }])
+      expect(result.accepted).toEqual([])
+      expect(result.refused).toEqual([{ name: 'notes', reason: 'invalid shared limit' }])
+      expect(registry.list()[0]?.sharedLimit).toBe(2)
+      const admitted = await call(registry, 'still-available', RESEARCHER, 'notes')
+      registry.settle(admitted, 'answered')
+    },
+  )
+
+  it('RVM96B3-2: accepts positive safe integer limits and valid repository lowering', async () => {
+    for (const sharedLimit of [1, 2, Number.MAX_SAFE_INTEGER]) {
+      expect(repositoryResourceSchema.safeParse({ name: 'notes', sharedLimit }).success).toBe(true)
+      expect(
+        resourceDeclarationSchema.safeParse({ name: 'notes', kind: 'shared', sharedLimit }).success,
+      ).toBe(true)
+    }
+    const { registry } = drivenRegistry()
+    registry.declare({ name: 'notes', kind: 'shared', sharedLimit: 2 })
+    const entry = repositoryResourceSchema.parse({ name: 'notes', sharedLimit: 1 })
+    expect(registry.applyRepositoryResources([entry])).toEqual({ accepted: ['notes'], refused: [] })
+    const admitted = await call(registry, 'lowered', RESEARCHER, 'notes')
+    registry.settle(admitted, 'answered')
+  })
+
   it('lowers but never frees, loosens or raises', () => {
     const { registry } = drivenRegistry()
     registry.declare({ name: 'gpu', kind: 'shared', sharedLimit: 4 })

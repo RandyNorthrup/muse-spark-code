@@ -9,6 +9,10 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- **Team repository resource limits.** User and repository declarations now
+  require positive safe integer limits; direct repository application refuses
+  invalid limits without blocking an otherwise available shared server.
+
 - **Team lease and call identities.** The shared-resource foundation now
   gives each lease a window/task/attempt/server-bound id and generation,
   and each call an independent state. Cancelled re-entry and old completions
