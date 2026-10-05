@@ -121,6 +121,13 @@ describe('the preset table', () => {
     expect(isKeyShape(preset('mistral').keyShape, 'long-enough-key-1')).toBe(true)
   })
 
+  it('accepts the captured Fireworks underscore key prefix', () => {
+    const key = ['fw', '_', 'synthetic-fixture-00001'].join('')
+    expect(isKeyShape(preset('fireworks').keyShape, key)).toBe(true)
+    expect(isKeyShape(preset('fireworks').keyShape, key.replace('_', '-'))).toBe(false)
+    expect(preset('fireworks').keyHint).toContain('fw_')
+  })
+
   it('tests keys for free where a check exists, else states a paid token', () => {
     expect(preset('openai').keyTest).toEqual({ kind: 'models-list' })
     expect(preset('openrouter').keyTest).toEqual({ kind: 'provider-key', path: '/api/v1/key' })
@@ -178,10 +185,18 @@ describe('OpenRouter first-class', () => {
     }
     expect(openRouterRoutingRequest('zdr')).toEqual({ provider: { zdr: true } })
     expect(openRouterRoutingRequest('no-training', ['a', 'b'], false)).toEqual({
-      provider: { data_collection: 'deny' },
-      order: ['a', 'b'],
-      allow_fallbacks: false,
+      provider: { data_collection: 'deny', order: ['a', 'b'], allow_fallbacks: false },
     })
+  })
+
+  it('nests explicit routing restrictions for every privacy choice', () => {
+    for (const privacy of ['zdr', 'no-training', 'any'] as const) {
+      const request = openRouterRoutingRequest(privacy, ['vendor'], false)
+      expect(request).toMatchObject({ provider: { order: ['vendor'], allow_fallbacks: false } })
+      expect(request).not.toHaveProperty('order')
+      expect(request).not.toHaveProperty('allow_fallbacks')
+    }
+    expect(openRouterRoutingRequest('any')).toEqual({})
   })
 
   it('builds the connect URL and the single-use exchange', () => {

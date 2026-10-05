@@ -3849,6 +3849,14 @@ export const ENDPOINT_UNSPECIFIED_RANGES: readonly (readonly [string, number])[]
   ['::', 128],
 ]
 
+// Address-value arithmetic for the endpoint classifier (RFC 4291/6052).
+export const ENDPOINT_NO_BITS = 0n
+export const ENDPOINT_OCTET_MASK = 0xffn
+export const ENDPOINT_IPV6_GROUP_BITS = 16n
+export const ENDPOINT_IPV6_GROUPS = 8
+export const ENDPOINT_IPV4_MASK = 0xff_ff_ff_ffn
+export const ENDPOINT_IPV4_SHIFTS = [24n, 16n, 8n, 0n] as const
+
 // What the user reads, in the display language (PLAN.md D33).
 export { UI_TEXT } from './l10n/text'
 // The JSON script element the host writes into each webview's HTML with

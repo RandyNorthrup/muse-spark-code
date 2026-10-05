@@ -428,8 +428,8 @@ const FIREWORKS_PRESET: ProviderPreset = {
   origin: { kind: 'fixed', origin: 'https://api.fireworks.ai' },
   auth: 'apiKey',
   authHeader: 'bearer',
-  keyShape: { kind: 'prefix', prefix: 'fw-', minLength: 20 },
-  keyHint: 'fw-… (fireworks.ai)',
+  keyShape: { kind: 'prefix', prefix: 'fw_', minLength: 20 },
+  keyHint: 'fw_… (fireworks.ai)',
   keyTest: { kind: 'models-list' },
   modelsList: {
     path: '/inference/v1/models',
@@ -715,7 +715,8 @@ export function openRouterRoutingRequest(
   }
   const ordered = order === undefined || order.length === 0 ? {} : { order: [...order] }
   const fallbacked = isFallbackAllowed === undefined ? {} : { allow_fallbacks: isFallbackAllowed }
-  return { ...choice.request, ...ordered, ...fallbacked }
+  const provider = { ...choice.request.provider, ...ordered, ...fallbacked }
+  return Object.keys(provider).length === 0 ? {} : { provider }
 }
 
 /**

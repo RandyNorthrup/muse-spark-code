@@ -13879,6 +13879,21 @@ live) and the controller filters its id as well.
 
 ### M95 — Bring-your-own model providers (D74)
 
+**FIXM95P review repairs (2026-10-05, kubuntu).** Authorized lane P scope:
+RVM95A findings 1, 2, 4–8, 12–15, 18, 19. Use address-value IPv6
+classification; allow HTTP only for literal loopback or localhost; reserve
+all input at the uncached rate and settle disjoint fresh/read/write counts;
+write unique adjacent temporary files with failure cleanup; nest OpenRouter
+routing; validate endpoints and private consent before wizard Save and
+invalidate connection-dependent state on edits; persist required custom
+model windows/output caps; correct Fireworks' prefix; localize every
+provider-facing string in all 14 tables at runtime; report price transitions
+and distinct model counts; require callable models for Recommended.
+No dependencies or live calls. Each finding gets a regression and a
+byte-exact restored red drill in `docs/certification/m95-p.md`. Rig brief
+requires targeted gates, hooks-on local commits, no full quality run or
+integration merge; the lead owns the complete matrix and integration.
+
 **Status 2026-10-04: planned on `feature/m95-byo-providers` from main
 `1e93c67c`; research in `docs/certification/m95-research.md`. Step 13's
 wire captures were recorded 2026-10-04 for the twelve cloud presets the
@@ -15305,6 +15320,9 @@ before a repaired one loads (2026-09-30).
 | File                                                                                | Construct                                                          | Reason                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 | Added      |
 | ----------------------------------------------------------------------------------- | ------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
 | `test/harness/index.html` (`isActiveDescendantList`), printed by `scripts/a11y.mjs` | The accessibility gate exempts axe's `scrollable-region-focusable` | The composer's `/` and `@` lists follow WAI-ARIA's combobox pattern: the box keeps the focus and moves `aria-activedescendant` through the listbox's options, and `Composer.tsx` scrolls the active option into view, so the list is keyboard operable (WCAG 2.1.1) without being a Tab stop. axe cannot see activedescendant-driven scrolling. The exemption holds only for a region that contains a listbox whose id is in the `aria-controls` of a focused or focusable element whose active descendant is one of that listbox's options; drills show a plain scrollable region and a listbox no control drives are still reported, and removing the exemption reports the composer's list again. Every exempt element is printed under its own "Exempt:" heading and counted. No `tabindex` was added to the list. | 2026-10-04 |
+
+| `test/unit/providersPolicy.test.ts` (`checkEndpointUrl`) | `eslint-disable-next-line unicorn/prefer-https` | The regression deliberately supplies insecure HTTP to prove off-loopback transport is refused. | 2026-10-05 |
+| `test/unit/providersPolicy.test.ts` (`isCredentialBound`) | `eslint-disable-next-line unicorn/prefer-https` | The regression deliberately changes HTTPS to HTTP to prove credentials bind the scheme as well as host and port. | 2026-10-05 |
 
 ## 9. Security assumptions and accepted residual risk
 

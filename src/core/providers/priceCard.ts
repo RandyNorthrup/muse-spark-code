@@ -47,7 +47,11 @@ export interface PricedUsage {
   readonly inputTokens: number
   /** Cached input tokens, counted inside `inputTokens`. */
   readonly cachedTokens?: number | undefined
-  /** Cache-write tokens where the provider reports them. */
+  /**
+   * Cache-write tokens counted inside inputTokens, disjoint from cachedTokens.
+   * Canonical input is fresh + read + written (OpenAI captures 02-tool-call/03-tool-result-stream).
+   * Codecs whose native input excludes read/write must normalize to this total.
+   */
   readonly cacheWriteTokens?: number | undefined
   readonly outputTokens: number
 }
@@ -62,7 +66,7 @@ export function isValidUsage(usage: PricedUsage): boolean {
   ]
   return (
     counts.every((count) => Number.isFinite(count) && !(count < 0)) &&
-    (usage.cachedTokens ?? 0) <= usage.inputTokens
+    (usage.cachedTokens ?? 0) + (usage.cacheWriteTokens ?? 0) <= usage.inputTokens
   )
 }
 
@@ -123,22 +127,19 @@ export function ticksToUsdPerToken(ticks: number): number | undefined {
 
 /**
  * The reservation for a request: the worst case. Input at the full input
- * price (the long-context tier when the estimate reaches it), cached input
- * at no less than the read price where one exists, output at the output
- * price, plus a per-request flat price where one exists.
+ * price (the long-context tier when the estimate reaches it), regardless of
+ * estimated cache hits. Known write premiums are reserved in addition;
+ * output and a per-request flat price are reserved too.
  */
 export function reserveRequestUsd(card: PriceCard, usage: PricedUsage): number {
   const tier = card.longContextTier
   const isLongContext = tier !== undefined && usage.inputTokens >= tier.fromTokens
   const inputRate = isLongContext ? tier.input : card.input
   const outputRate = isLongContext ? tier.output : card.output
-  const cached = Math.min(usage.cachedTokens ?? 0, usage.inputTokens)
-  const fresh = usage.inputTokens - cached
-  const readRate = Math.min(card.cachedInput ?? card.input, card.input)
+  const writeRate = Math.max(card.cacheWrite ?? inputRate, card.cacheWrite1h ?? inputRate)
   return (
-    fresh * inputRate +
-    cached * readRate +
-    (usage.cacheWriteTokens ?? 0) * (card.cacheWrite ?? 0) +
+    usage.inputTokens * inputRate +
+    (usage.cacheWriteTokens ?? 0) * Math.max(0, writeRate - inputRate) +
     usage.outputTokens * outputRate +
     (card.request ?? 0)
   )
@@ -179,7 +180,21 @@ export function settleUsageUsd(
       return converted
     }
   }
-  return !isValidPriceCard(card) || !isValidUsage(usage)
-    ? undefined
-    : reserveRequestUsd(card, usage)
+  if (!isValidPriceCard(card) || !isValidUsage(usage)) {
+    return undefined
+  }
+  const tier = card.longContextTier
+  const isLongContext = tier !== undefined && usage.inputTokens >= tier.fromTokens
+  const inputRate = isLongContext ? tier.input : card.input
+  const outputRate = isLongContext ? tier.output : card.output
+  const read = usage.cachedTokens ?? 0
+  const written = usage.cacheWriteTokens ?? 0
+  const fresh = usage.inputTokens - read - written
+  return (
+    fresh * inputRate +
+    read * (card.cachedInput ?? inputRate) +
+    written * (card.cacheWrite ?? inputRate) +
+    usage.outputTokens * outputRate +
+    (card.request ?? 0)
+  )
 }

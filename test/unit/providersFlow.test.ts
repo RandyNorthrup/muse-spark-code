@@ -279,6 +279,27 @@ describe('scanDiff', () => {
     )
   })
 
+  it('reports price appearance and disappearance and counts repriced ids once', () => {
+    const previous = {
+      ...first,
+      models: [{ id: 'a', inputUsd: 1e-6, outputUsd: 2e-6 }, { id: 'b' }],
+    }
+    const current = {
+      ...first,
+      models: [
+        { id: 'a', inputUsd: 2e-6 },
+        { id: 'b', cachedUsd: 1e-7 },
+      ],
+    }
+    const diff = diffModelScans(previous, current)
+    expect(diff.repriced).toEqual([
+      { id: 'a', field: 'inputUsd', before: 1e-6, after: 2e-6 },
+      { id: 'a', field: 'outputUsd', before: 2e-6, after: undefined },
+      { id: 'b', field: 'cachedUsd', before: undefined, after: 1e-7 },
+    ])
+    expect(diff.summary).toBe('2 repriced models since the last scan.')
+  })
+
   it('names a first scan and judges staleness', () => {
     expect(diffModelScans(undefined, first).summary).toBe('First scan: 3 models.')
     expect(isScanStale(1000, 1000 + 25 * 60 * 60 * 1000)).toBe(true)
@@ -419,6 +440,18 @@ describe('modelFilters', () => {
       serverless: false,
     })
     expect(badgesFor(dedicated, [...rows, dedicated]).cheapestCapable).toBe(false)
+  })
+
+  it('recommends only callable serverless models', () => {
+    const dedicated = row({
+      ref: 'together/dedicated',
+      providerId: 'together',
+      modelId: 'dedicated',
+      recommended: true,
+      serverless: false,
+    })
+    expect(badgesFor(dedicated, [dedicated]).recommended).toBe(false)
+    expect(badgesFor({ ...dedicated, serverless: true }, [dedicated]).recommended).toBe(true)
   })
 
   it('reads families off model ids', () => {

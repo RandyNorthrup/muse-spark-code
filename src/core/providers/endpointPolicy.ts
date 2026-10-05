@@ -14,6 +14,13 @@ import {
   ENDPOINT_LOOPBACK_RANGES,
   ENDPOINT_PRIVATE_RANGES,
   ENDPOINT_UNSPECIFIED_RANGES,
+  ENDPOINT_NO_BITS,
+  ENDPOINT_OCTET_MASK,
+  ENDPOINT_IPV6_GROUP_BITS,
+  ENDPOINT_IPV6_GROUPS,
+  ENDPOINT_IPV4_MASK,
+  ENDPOINT_IPV4_SHIFTS,
+  IPV6_EMBEDDED_IPV4_PREFIXES,
 } from '../../shared/constants'
 import { isPublicAddress } from '../web/publicAddress'
 
@@ -27,9 +34,6 @@ export const METADATA_ADDRESSES: ReadonlySet<string> = new Set([
   '168.63.129.16',
   'fd00:ec2::254',
 ])
-
-// An IPv6 form carrying an IPv4 tail (`::ffff:1.2.3.4`) is judged by it.
-const IPV4_TAIL_SEPARATOR = ':'
 
 function buildList(
   ranges: readonly (readonly [string, number])[],
@@ -52,6 +56,34 @@ const v6Loopback = buildList(ENDPOINT_LOOPBACK_RANGES, 'ipv6')
 const v6LinkLocal = buildList(ENDPOINT_LINK_LOCAL_RANGES, 'ipv6')
 const v6Private = buildList(ENDPOINT_PRIVATE_RANGES, 'ipv6')
 const v6Unspecified = buildList(ENDPOINT_UNSPECIFIED_RANGES, 'ipv6')
+const v6Embedded = buildList(IPV6_EMBEDDED_IPV4_PREFIXES, 'ipv6')
+const v6Metadata = new BlockList()
+for (const address of METADATA_ADDRESSES) {
+  if (isIPv6(address)) {
+    v6Metadata.addAddress(address, 'ipv6')
+  }
+}
+
+/** Parse the validated IPv6 spelling to 128 bits before classifying it. */
+function ipv6Value(address: string): bigint {
+  // WHATWG canonicalization converts dotted tails to hexadecimal groups.
+  const canonical = new URL(`http://[${address}]/`).hostname.slice(1, -1)
+  const [left = '', right] = canonical.split('::', 2)
+  const head = left === '' ? [] : left.split(':')
+  const tail = right === undefined || right === '' ? [] : right.split(':')
+  const groups =
+    right === undefined
+      ? head
+      : [
+          ...head,
+          ...Array.from({ length: ENDPOINT_IPV6_GROUPS - head.length - tail.length }, () => '0'),
+          ...tail,
+        ]
+  return groups.reduce(
+    (value, group) => (value << ENDPOINT_IPV6_GROUP_BITS) | BigInt(`0x${group}`),
+    ENDPOINT_NO_BITS,
+  )
+}
 
 function classifyIpv4(address: string): EndpointAddressClass {
   if (v4Unspecified.check(address, 'ipv4')) {
@@ -77,19 +109,24 @@ function classifyIpv6(address: string): EndpointAddressClass {
   if (address.includes('%')) {
     return 'unusable'
   }
-  const lower = address.toLowerCase()
-  if (METADATA_ADDRESSES.has(lower)) {
-    return 'metadata'
-  }
-  const tail = lower.slice(lower.lastIndexOf(IPV4_TAIL_SEPARATOR) + 1)
-  if (tail.includes('.')) {
-    return isIPv4(tail) ? classifyIpv4(tail) : 'unusable'
-  }
+  const value = ipv6Value(address)
   if (v6Unspecified.check(address, 'ipv6')) {
     return 'unusable'
   }
   if (v6Loopback.check(address, 'ipv6')) {
     return 'loopback'
+  }
+  if (v6Metadata.check(address, 'ipv6')) {
+    return 'metadata'
+  }
+  // Only the RFC-defined mapped, compatible and well-known NAT64 /96
+  // forms carry IPv4 here. A dotted suffix on any other prefix is IPv6.
+  if (v6Embedded.check(address, 'ipv6')) {
+    const embedded = value & ENDPOINT_IPV4_MASK
+    const dotted = ENDPOINT_IPV4_SHIFTS.map((shift) =>
+      String((embedded >> shift) & ENDPOINT_OCTET_MASK),
+    ).join('.')
+    return classifyIpv4(dotted)
   }
   if (v6LinkLocal.check(address, 'ipv6')) {
     return 'link-local'
@@ -205,7 +242,12 @@ export function checkEndpointUrl(urlText: string, answers: readonly string[]): E
     return refusal('unusable-address')
   }
   if (classes.every((candidate) => candidate === 'loopback')) {
-    return { kind: 'ok', origin, network: 'local' }
+    const host = url.hostname.replaceAll(/^\[|\]$/g, '')
+    return host !== 'localhost' &&
+      url.protocol === HTTP_SCHEME &&
+      classifyAddress(host) !== 'loopback'
+      ? refusal('http-off-loopback')
+      : { kind: 'ok', origin, network: 'local' }
   }
   if (classes.includes('loopback')) {
     // One answer is loopback and another is not: the name points two ways.

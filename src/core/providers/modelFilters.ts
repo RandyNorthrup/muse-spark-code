@@ -184,7 +184,7 @@ export function badgesFor(row: ModelRow, all: readonly ModelRow[]): ModelBadges 
     capable.length === 0 ? undefined : Math.min(...capable.map((peer) => peer.inputPerMillion ?? 0))
   const widest = Math.max(0, ...all.map((peer) => peer.contextTokens ?? 0))
   return {
-    recommended: row.recommended === true,
+    recommended: row.recommended === true && row.serverless !== false,
     cheapestCapable:
       cheapest !== undefined &&
       row.toolCalling &&

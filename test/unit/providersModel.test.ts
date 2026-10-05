@@ -1,6 +1,7 @@
 // Lane P: model references, capabilities and price cards (M95, D74).
 // Built from parts so no scanner ever sees a whole test key.
 
+import capturedOpenai from '../../docs/certification/m95-captures/openai/02-tool-call-stream.json'
 import { describe, expect, it } from 'vitest'
 import {
   capabilitiesOf,
@@ -140,6 +141,57 @@ describe('priceCard', () => {
       { inputTokens: 1000, cachedTokens: 1000, outputTokens: 0 },
     )
     expect(cached).toBeCloseTo(1000 * 2e-6, 12)
+  })
+
+  it('reserves all input at full price despite estimated cache hits', () => {
+    const usage = { inputTokens: 100_000, cachedTokens: 100_000, outputTokens: 0 }
+    expect(reserveRequestUsd(card, usage)).toBeCloseTo(0.2, 12)
+    expect(
+      reserveRequestUsd(tiered, { ...usage, inputTokens: 200_000, cachedTokens: 200_000 }),
+    ).toBeCloseTo(0.8, 12)
+    expect(settleUsageUsd(card, usage)).toBeCloseTo(0.02, 12)
+  })
+
+  it('settles captured OpenAI cache writes as disjoint input categories', () => {
+    const usage = capturedOpenai.response.events.find(
+      (event) => event.event === 'response.completed',
+    )?.data.response?.usage
+    if (usage == null) {
+      throw new Error('Missing captured OpenAI usage')
+    }
+    expect(usage).toMatchObject({
+      input_tokens: 1447,
+      input_tokens_details: { cache_write_tokens: 1444 },
+      output_tokens: 18,
+    })
+    const captured = {
+      inputTokens: usage.input_tokens,
+      cacheWriteTokens: usage.input_tokens_details.cache_write_tokens,
+      outputTokens: usage.output_tokens,
+    }
+    const capturedCard: PriceCard = {
+      input: 0.2e-6,
+      cacheWrite: 0.25e-6,
+      output: 1.2e-6,
+      source: 'list',
+    }
+    expect(settleUsageUsd(capturedCard, captured)).toBeCloseTo(0.0003832, 12)
+    expect(
+      settleUsageUsd(card, {
+        inputTokens: 100,
+        cachedTokens: 20,
+        cacheWriteTokens: 30,
+        outputTokens: 0,
+      }),
+    ).toBeCloseTo(50 * card.input + 20 * (card.cachedInput ?? 0) + 30 * (card.cacheWrite ?? 0), 12)
+    expect(
+      settleUsageUsd(card, {
+        inputTokens: 100,
+        cachedTokens: 90,
+        cacheWriteTokens: 20,
+        outputTokens: 0,
+      }),
+    ).toBeUndefined()
   })
 
   it('reserves across upstreams at the highest', () => {

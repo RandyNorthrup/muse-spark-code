@@ -2,10 +2,11 @@
 // (M95, D74). No network, no storage of real secrets: answers and keys are
 // injected or synthetic.
 
-import { mkdtemp, rm } from 'node:fs/promises'
+import * as fsPromises from 'node:fs/promises'
+import { mkdir, mkdtemp, readdir, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
   isCredentialBound,
   parseCredentialRecord,
@@ -37,6 +38,8 @@ import {
   type UserPriceCard,
 } from '../../src/core/providers/providersFile'
 
+vi.mock('node:fs/promises', { spy: true })
+
 describe('classifyAddress', () => {
   it('tells loopback, private, link-local and metadata apart', () => {
     expect(classifyAddress('127.0.0.1')).toBe('loopback')
@@ -56,6 +59,26 @@ describe('classifyAddress', () => {
     expect(classifyAddress('fd00:ec2::254')).toBe('metadata')
     expect(classifyAddress('8.8.8.8')).toBe('public')
     expect(classifyAddress('2606:4700:4700::1111')).toBe('public')
+  })
+
+  it('classifies IPv6 by value, never by a dotted suffix', () => {
+    for (const [address, expected] of [
+      ['fe80::8.8.8.8', 'link-local'],
+      ['fc00::127.0.0.1', 'private'],
+      ['fc00::7f00:1', 'private'],
+      ['fd00:ec2:0:0:0:0:0:254', 'metadata'],
+      ['FD00:0EC2::0254', 'metadata'],
+      ['::ffff:7f00:1', 'loopback'],
+      ['0:0:0:0:0:ffff:a9fe:a9fe', 'metadata'],
+      ['::7f00:1', 'loopback'],
+      ['64:ff9b::a9fe:a9fe', 'metadata'],
+      ['64:ff9b::10.0.0.1', 'private'],
+      ['64:ff9b::808:808', 'public'],
+    ]) {
+      expect(classifyAddress(address ?? ''), address).toBe(expected)
+    }
+    expect(checkEndpointUrl('http://[fc00::7f00:1]:8080', ['fc00::127.0.0.1']).kind).toBe('refused')
+    expect(verifyRequestAnswers('private', ['fd00:ec2:0:0:0:0:0:254']).ok).toBe(false)
   })
 
   it('refuses the unspecified address, zones and non-addresses', () => {
@@ -90,6 +113,17 @@ describe('checkEndpointUrl', () => {
       kind: 'refused',
       reason: 'http-off-loopback',
     })
+  })
+
+  it('restricts HTTP hostnames to localhost even with loopback answers', () => {
+    const insecure = new URL('https://provider.example/v1')
+    insecure.protocol = 'http:'
+    expect(checkEndpointUrl(insecure.href, ['127.0.0.1'])).toEqual({
+      kind: 'refused',
+      reason: 'http-off-loopback',
+    })
+    expect(checkEndpointUrl('http://[::1]/v1', ['::1']).kind).toBe('ok')
+    expect(checkEndpointUrl('http://localhost/v1', ['127.0.0.1', '::1']).kind).toBe('ok')
   })
 
   it('asks once for private HTTPS and records nothing yet', () => {
@@ -219,6 +253,7 @@ describe('pkce', () => {
 describe('providersFile', () => {
   let dir = ''
   afterEach(async () => {
+    vi.restoreAllMocks()
     if (dir === '') {
       return
     }
@@ -254,6 +289,72 @@ describe('providersFile', () => {
     expect(await writeProvidersFileAtomic(filePath, file)).toEqual({ ok: true })
     const read = await readProvidersFile(filePath)
     expect(read).toEqual({ ok: true, file })
+  })
+
+  it('keeps simultaneous saves isolated with adjacent temporary files', async () => {
+    dir = await mkdtemp(path.join(tmpdir(), 'providers-'))
+    vi.spyOn(Date, 'now').mockReturnValue(1)
+    const firstPath = path.join(dir, 'a.json')
+    const secondPath = path.join(dir, 'b.json')
+    const second = { ...file, defaultModel: 'openai/other' }
+    expect(
+      await Promise.all([
+        writeProvidersFileAtomic(firstPath, file),
+        writeProvidersFileAtomic(secondPath, second),
+      ]),
+    ).toEqual([{ ok: true }, { ok: true }])
+    expect(await readProvidersFile(firstPath)).toEqual({ ok: true, file })
+    expect(await readProvidersFile(secondPath)).toEqual({ ok: true, file: second })
+    const files = await readdir(dir)
+    expect(files.toSorted((a, b) => a.localeCompare(b))).toEqual(['a.json', 'b.json'])
+  })
+
+  it('cleans an adjacent temporary file when rename fails', async () => {
+    dir = await mkdtemp(path.join(tmpdir(), 'providers-'))
+    const rename = vi.spyOn(fsPromises, 'rename')
+    const destination = path.join(dir, 'occupied')
+    await mkdir(destination)
+    expect(await writeProvidersFileAtomic(destination, file)).toMatchObject({
+      ok: false,
+      reason: 'io-error',
+    })
+    const temporary = rename.mock.calls.at(0)?.[0]
+    expect(typeof temporary).toBe('string')
+    expect(path.dirname(String(temporary))).toBe(dir)
+    expect(await readdir(dir)).toEqual(['occupied'])
+  })
+
+  it('requires custom model windows and output caps and preserves them on reload', async () => {
+    dir = await mkdtemp(path.join(tmpdir(), 'providers-'))
+    const filePath = path.join(dir, 'custom.json')
+    const custom = { ...entry, id: 'custom', preset: 'custom', models: ['unknown'] }
+    const missing = { v: 1, providers: [custom] }
+    expect(await writeProvidersFileAtomic(filePath, missing)).toMatchObject({
+      ok: false,
+      reason: 'invalid',
+    })
+    for (const limits of [
+      { contextTokens: 0, outputTokens: 1 },
+      { contextTokens: 100, outputTokens: -1 },
+      { contextTokens: 100.5, outputTokens: 1 },
+      { contextTokens: 100, outputTokens: 101 },
+      { contextTokens: Infinity, outputTokens: 1 },
+    ]) {
+      expect(
+        await writeProvidersFileAtomic(filePath, {
+          v: 1,
+          providers: [{ ...custom, modelLimits: { unknown: limits } }],
+        }),
+      ).toMatchObject({ ok: false, reason: 'invalid' })
+    }
+    const valid = {
+      v: 1,
+      providers: [
+        { ...custom, modelLimits: { unknown: { contextTokens: 32_768, outputTokens: 4096 } } },
+      ],
+    }
+    expect(await writeProvidersFileAtomic(filePath, valid)).toEqual({ ok: true })
+    expect(await readProvidersFile(filePath)).toEqual({ ok: true, file: valid })
   })
 
   it('reports unparseable and invalid files without repairing them', async () => {

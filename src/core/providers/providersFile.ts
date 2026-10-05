@@ -5,8 +5,8 @@
 // by the Models & Agents panel, the quick pick and
 // `muse-spark-code-acp providers`; read by the extension and the ACP agent.
 
-import { mkdir, readFile, rename, writeFile } from 'node:fs/promises'
-import { tmpdir } from 'node:os'
+import { mkdir, readFile, rename, rm, writeFile } from 'node:fs/promises'
+import { randomUUID } from 'node:crypto'
 import path from 'node:path'
 import * as z from 'zod/mini'
 import { PROVIDERS_FILE_VERSION } from '../../shared/constants'
@@ -41,31 +41,55 @@ export const openRouterRoutingSchema = z.object({
 })
 export type OpenRouterRouting = z.infer<typeof openRouterRoutingSchema>
 
+/** User-supplied custom-server limits; both are finite positive token counts. */
+const modelLimitsSchema = z
+  .object({
+    contextTokens: z.int().check(z.positive()),
+    outputTokens: z.int().check(z.positive()),
+  })
+  .check(
+    z.refine(
+      (limits) => limits.outputTokens <= limits.contextTokens,
+      'Output cap exceeds context window',
+    ),
+  )
+
 /** One configured provider. */
-export const providerEntrySchema = z.object({
-  // `<providerId>`: `^[a-z][a-z0-9-]{0,31}$`, never `meta`.
-  id: z.string().check(z.refine(isProviderId, 'A provider id, never "meta"')),
-  // The preset it was added from (or `custom`).
-  preset: z.string(),
-  // The endpoint address the user gave or confirmed (a preset's fixed
-  // origin, an Azure resource URL, a loopback address or a custom server).
-  address: z.optional(z.string()),
-  // The wire format (a custom server's choice; presets fix their own).
-  format: z.optional(providerFormatSchema),
-  auth: providerAuthSchema,
-  // The chosen models (`<modelId>` as the provider lists them).
-  models: z.array(z.string()),
-  // Pinned favourites, first in the composer's picker.
-  pinned: z.optional(z.array(z.string())),
-  // User-entered prices by model id (`source: 'user'` when read).
-  prices: z.optional(z.record(z.string(), userPriceCardSchema)),
-  // OpenRouter's routing choices (only on an `openrouter` entry).
-  routing: z.optional(openRouterRoutingSchema),
-  // The context each Ollama model runs with (only on an `ollama` entry).
-  numCtx: z.optional(z.record(z.string(), z.number())),
-  // Set once the user answers the private-network question for this entry.
-  privateNetwork: z.optional(z.boolean()),
-})
+export const providerEntrySchema = z
+  .object({
+    // `<providerId>`: `^[a-z][a-z0-9-]{0,31}$`, never `meta`.
+    id: z.string().check(z.refine(isProviderId, 'A provider id, never "meta"')),
+    // The preset it was added from (or `custom`).
+    preset: z.string(),
+    // The endpoint address the user gave or confirmed (a preset's fixed
+    // origin, an Azure resource URL, a loopback address or a custom server).
+    address: z.optional(z.string()),
+    // The wire format (a custom server's choice; presets fix their own).
+    format: z.optional(providerFormatSchema),
+    auth: providerAuthSchema,
+    // The chosen models (`<modelId>` as the provider lists them).
+    models: z.array(z.string()),
+    // Required for every chosen custom model; retained across save/reload.
+    modelLimits: z.optional(z.record(z.string(), modelLimitsSchema)),
+    // Pinned favourites, first in the composer's picker.
+    pinned: z.optional(z.array(z.string())),
+    // User-entered prices by model id (`source: 'user'` when read).
+    prices: z.optional(z.record(z.string(), userPriceCardSchema)),
+    // OpenRouter's routing choices (only on an `openrouter` entry).
+    routing: z.optional(openRouterRoutingSchema),
+    // The context each Ollama model runs with (only on an `ollama` entry).
+    numCtx: z.optional(z.record(z.string(), z.number())),
+    // Set once the user answers the private-network question for this entry.
+    privateNetwork: z.optional(z.boolean()),
+  })
+  .check(
+    z.refine(
+      (entry) =>
+        entry.preset !== 'custom' ||
+        entry.models.every((modelId) => entry.modelLimits?.[modelId] !== undefined),
+      'Custom models require context windows and output caps',
+    ),
+  )
 export type ProviderEntry = z.infer<typeof providerEntrySchema>
 
 export const providersFileSchema = z.object({
@@ -142,7 +166,7 @@ export type ProvidersFileWrite =
 
 /**
  * Validate and write the file atomically: encoded once, written to a
- * unique temporary file in a writable directory, then renamed over the
+ * unique temporary file beside the destination, then renamed over the
  * target, so a crash never leaves half a file. An invalid value is refused
  * before anything is written.
  */
@@ -155,16 +179,19 @@ export async function writeProvidersFileAtomic(
     return { ok: false, reason: 'invalid', detail: parsed.error.message }
   }
   const text = `${JSON.stringify(parsed.data, undefined, 2)}\n`
-  const temporary = path.join(
-    tmpdir(),
-    `providers-${String(process.pid)}-${String(Date.now())}.json`,
-  )
+  const temporary = `${filePath}.${randomUUID()}.tmp`
   try {
     await mkdir(path.dirname(filePath), { recursive: true })
-    await writeFile(temporary, text, 'utf8')
+    await writeFile(temporary, text, { encoding: 'utf8', flag: 'wx' })
     await rename(temporary, filePath)
     return { ok: true }
   } catch (error) {
+    // Cleanup is best-effort; preserve the write/rename failure for the caller.
+    try {
+      await rm(temporary, { force: true })
+    } catch {
+      // An inaccessible directory may also prevent cleanup; report the original IO failure.
+    }
     return { ok: false, reason: 'io-error', detail: String(error) }
   }
 }

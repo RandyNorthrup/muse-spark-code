@@ -26,8 +26,8 @@ export interface ModelScan {
 export interface Reprice {
   readonly id: string
   readonly field: 'inputUsd' | 'outputUsd' | 'cachedUsd'
-  readonly before: number
-  readonly after: number
+  readonly before: number | undefined
+  readonly after: number | undefined
 }
 
 export interface ScanDiff {
@@ -62,7 +62,8 @@ function describeDiff(
     parts.push(pluralize(diff.removedIds.length, 'removed model', 'removed models'))
   }
   if (diff.repriced.length > 0) {
-    parts.push(pluralize(diff.repriced.length, 'repriced model', 'repriced models'))
+    const count = new Set(diff.repriced.map((change) => change.id)).size
+    parts.push(pluralize(count, 'repriced model', 'repriced models'))
   }
   return parts.length === 0
     ? 'No changes since the last scan.'
@@ -97,7 +98,7 @@ export function diffModelScans(previous: ModelScan | undefined, current: ModelSc
       continue
     }
     for (const field of ['inputUsd', 'outputUsd', 'cachedUsd'] as const) {
-      if (old[field] !== model[field] && old[field] !== undefined && model[field] !== undefined) {
+      if (old[field] !== model[field]) {
         repriced.push({ id: model.id, field, before: old[field], after: model[field] })
       }
     }
