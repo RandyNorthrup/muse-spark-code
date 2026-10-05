@@ -4,6 +4,7 @@ import { createPublicKey, verify } from 'node:crypto'
 import * as z from 'zod/mini'
 import {
   CREDENTIAL_RECORD_VERSION,
+  HTTP_STATUS,
   MILLISECONDS_PER_SECOND,
   OAUTH_CODE_TTL_MS,
   PKCE_STATE_BYTES,
@@ -41,6 +42,7 @@ const tokenSchema = z.object({
   id_token: z.optional(nonempty),
   scope: z.optional(nonempty),
 })
+const invalidGrantSchema = z.object({ error: z.literal('invalid_grant') })
 
 /** Secret-store payload only. Never send this record across a UI bridge. */
 export const chatGptRecordSchema = z.object({
@@ -55,6 +57,8 @@ export const chatGptRecordSchema = z.object({
   expiresAt: positive,
   scope: nonempty,
   nonce: nonempty,
+  /** A replacement kept for recovery/revocation, never usable before verification. */
+  pendingRefresh: z.optional(z.object({ idToken: z.optional(nonempty) })),
 })
 export type ChatGptRecord = z.infer<typeof chatGptRecordSchema>
 
@@ -70,6 +74,7 @@ export class ChatGptSignInError extends Error {
       | 'missing-plan-scope'
       | 'origin-mismatch'
       | 'sign-in-required'
+      | 'expired'
       | 'request-failed',
   ) {
     super(`chatgpt.${code}`)
@@ -285,13 +290,18 @@ export interface ChatGptHostPort {
   }>
   /** SecretStorage / OS keystore only; read again while holding the lock. */
   readRecord(): Promise<unknown>
+  /** Atomically replace the whole record; a rejected write preserves its prior value. */
   writeRecord(record: ChatGptRecord): Promise<void>
   deleteRecord(): Promise<void>
   /** An inter-process lock shared by every window/process using this grant. */
   withRefreshLock<T>(work: () => Promise<T>): Promise<T>
 }
 
-/** No retained credentials, background calls, logging, child process or UI bridge. */
+// Failed writes retain the issued grant only for recovery/removal by this host.
+// A shared host port also shares this recovery slot across its core instances.
+const unpersistedRefresh = new WeakMap<ChatGptHostPort, ChatGptRecord>()
+
+/** No background calls, logging, child process or UI bridge. */
 export class ChatGptSignIn {
   public constructor(private readonly host: ChatGptHostPort) {}
 
@@ -315,7 +325,24 @@ export class ChatGptSignIn {
           body: form,
         }),
       })
-      if (!response.ok) throw new ChatGptSignInError('sign-in-required')
+      if (!response.ok) {
+        if (
+          url === `${ISSUER}/api/accounts/oauth/token` &&
+          (response.status === HTTP_STATUS.badRequest ||
+            response.status === HTTP_STATUS.unauthorized)
+        ) {
+          let failure: unknown
+          try {
+            failure = await response.json()
+          } catch {
+            throw new ChatGptSignInError('request-failed')
+          }
+          if (invalidGrantSchema.safeParse(failure).success) {
+            throw new ChatGptSignInError('sign-in-required')
+          }
+        }
+        throw new ChatGptSignInError('request-failed')
+      }
       return response
     } catch (error) {
       if (error instanceof ChatGptSignInError) throw error
@@ -417,6 +444,7 @@ export class ChatGptSignIn {
               'invalid-token',
             ),
           )
+          unpersistedRefresh.delete(this.host)
         } finally {
           callback.close()
         }
@@ -440,50 +468,66 @@ export class ChatGptSignIn {
     }
     return await this.guard(() =>
       this.host.withRefreshLock(async () => {
-        const stored = await this.host.readRecord()
+        const stored = unpersistedRefresh.get(this.host) ?? (await this.host.readRecord())
         if (stored === undefined) throw new ChatGptSignInError('sign-in-required')
-        const record = parse(chatGptRecordSchema, stored, 'invalid-token')
+        let record = parse(chatGptRecordSchema, stored, 'invalid-token')
+        let discovery: z.infer<typeof discoverySchema> | undefined
+        if (record.pendingRefresh === undefined) {
+          checkScope(record.scope)
+          if (record.expiresAt > this.host.now() + minimumValidityMs) return record.accessToken
+          discovery = await this.discovery()
+          const token = parse(
+            tokenSchema,
+            await this.json(
+              discovery.token_endpoint,
+              new URLSearchParams({
+                grant_type: 'refresh_token',
+                client_id: record.clientId,
+                refresh_token: record.refreshToken,
+                resource: RESOURCE,
+              }),
+            ),
+            'invalid-token',
+          )
+          record = {
+            ...record,
+            accessToken: token.access_token,
+            refreshToken: token.refresh_token,
+            expiresAt: this.host.now() + token.expires_in * MILLISECONDS_PER_SECOND,
+            scope: token.scope ?? record.scope,
+            pendingRefresh: { ...(token.id_token !== undefined && { idToken: token.id_token }) },
+          }
+          // Keep the replacement before any storage, key fetch or validation can fail.
+          unpersistedRefresh.set(this.host, record)
+        }
+        await this.host.writeRecord(record)
+        unpersistedRefresh.delete(this.host)
         checkScope(record.scope)
-        if (record.expiresAt > this.host.now() + minimumValidityMs) return record.accessToken
-        const discovery = await this.discovery()
-        const token = parse(
-          tokenSchema,
-          await this.json(
-            discovery.token_endpoint,
-            new URLSearchParams({
-              grant_type: 'refresh_token',
-              client_id: record.clientId,
-              refresh_token: record.refreshToken,
-              resource: RESOURCE,
-            }),
-          ),
-          'invalid-token',
-        )
-        const receivedAt = this.host.now()
-        if (token.id_token !== undefined) {
+        const idToken = record.pendingRefresh?.idToken
+        let jwks: unknown
+        if (idToken !== undefined) {
+          discovery ??= await this.discovery()
+          jwks = await this.json(discovery.jwks_uri)
+        }
+        if (record.expiresAt <= this.host.now() + minimumValidityMs) {
+          throw new ChatGptSignInError('expired')
+        }
+        if (idToken !== undefined) {
           verifyChatGptIdToken({
-            token: token.id_token,
-            jwks: await this.json(discovery.jwks_uri),
+            token: idToken,
+            jwks,
             clientId: record.clientId,
             nonce: record.nonce,
             now: this.host.now(),
             isRefresh: true,
           })
         }
-        const scope = token.scope ?? record.scope
-        checkScope(scope)
-        const refreshed = parse(
-          chatGptRecordSchema,
-          {
-            ...record,
-            accessToken: token.access_token,
-            refreshToken: token.refresh_token,
-            expiresAt: receivedAt + token.expires_in * MILLISECONDS_PER_SECOND,
-            scope,
-          },
-          'invalid-token',
-        )
+        const refreshed = parse(chatGptRecordSchema, record, 'invalid-token')
+        delete refreshed.pendingRefresh
         await this.host.writeRecord(refreshed)
+        if (refreshed.expiresAt <= this.host.now() + minimumValidityMs) {
+          throw new ChatGptSignInError('expired')
+        }
         return refreshed.accessToken
       }),
     )
@@ -494,7 +538,7 @@ export class ChatGptSignIn {
     await this.guard(() =>
       this.host.withRefreshLock(async () => {
         try {
-          const stored = await this.host.readRecord()
+          const stored = unpersistedRefresh.get(this.host) ?? (await this.host.readRecord())
           if (stored === undefined) return
           const record = parse(chatGptRecordSchema, stored, 'invalid-token')
           const discovery = await this.discovery()
@@ -508,6 +552,7 @@ export class ChatGptSignIn {
           )
         } finally {
           await this.host.deleteRecord()
+          unpersistedRefresh.delete(this.host)
         }
       }),
     )

@@ -15100,6 +15100,21 @@ release acceptance are still pending.**
 
 ### M95b — Subscription sign-in: ChatGPT plan, Copilot models, plan keys (D74)
 
+**FIXM95BS review repair (2026-10-05, Windows 11 rig).** Repair all four
+RVM95BS findings in the owned sign-in core and tests: atomically persist a
+replacement grant as a pending refresh before validation, preserve it in
+memory if the secret store refuses the write, and resume validation or revoke
+that replacement without spending the old refresh token again. Pending grants
+are never returned before ID-token/scope validation and the caller's validity
+margin; an insufficient lifetime raises the typed `expired` failure without
+an internal refresh loop. HTTP/network outages remain retryable
+`request-failed`; only token-endpoint HTTP 400/401 `invalid_grant` asks for
+sign-in. Endpoint-specific fakes must prove token/revocation refusals reach
+their named endpoints. Port method signatures stay unchanged; the secret
+record gains an optional pending-refresh validation marker. Regression tests,
+byte-exact red drills and integration/storage limits go in `m95b-s.md` and §9.
+No dependency, guard relaxation, live call or another lane's implementation.
+
 **Status 2026-10-04: planned with M95; research in
 `docs/certification/m95-research.md` §6. Starts when M95's seam (lanes P, T
 and I) has merged.**
@@ -16368,6 +16383,31 @@ before a repaired one loads (2026-09-30).
 | `test/unit/providerCredentialRecords.test.ts` | `eslint-disable-next-line unicorn/prefer-https` on one origin-binding assertion     | The test proves a downgraded `http:` scheme is refused as a different origin; an `https:` URL cannot exercise that leg. One literal, test-only.                                                                                                             | 2026-10-05 |
 
 ## 9. Security assumptions and accepted residual risk
+
+- **FIXM95BS (2026-10-05):** all three RVM95BS P2 findings and its P3
+  endpoint-test finding are repaired; no numbered review finding is deferred.
+  Regression and eleven byte-exact red-drill receipts are in
+  `docs/certification/m95b-s.md`. V/X method signatures are unchanged, but
+  their atomic whole-record stores must preserve the optional
+  `pendingRefresh: { idToken?: string }` marker and map `expired` to an
+  insufficient-lifetime message, `request-failed` to service unavailable /
+  retry, and token HTTP 400/401 `invalid_grant` to sign-in required.
+- **M95BS-R-store-outage-lifetime:** when the first secret-store write fails,
+  recovery retains the replacement only in the live host port's memory.
+  Reuse that port for its grant; distinct processes cannot share this slot,
+  and process death during a total keystore outage cannot durably recover it.
+  Safe for this unintegrated core: access fails closed, no unverified token
+  leaves it, and Remove uses the retained replacement. Follow-up: V/X must
+  certify their atomic stores, process lock, outage recovery and shutdown
+  behavior before aggregate acceptance; no guarantee of durability after an
+  unsuccessful write is made.
+- **M95BS-R-integration-evidence:** exact raw OAuth/refresh/error receipts,
+  `earliest_refresh_at`, host/runtime wiring, plain translated error mapping,
+  CHANGELOG incorporation and composed bundle/platform gates remain with
+  V/X/0/W and the lead. The independent repair has no live/paid calls and does
+  not claim shipped sign-in support. The inherited generated host API count
+  difference (35 → 36 `node:crypto` imports) also remains W/lead's record
+  maintenance, as documented under M95BS-R-host-api-count in certification.
 
 - **FIXM95P (2026-10-05):** all thirteen assigned RVM95A findings
   (1, 2, 4–8, 12–15, 18, 19) are repaired with regressions and deliberate

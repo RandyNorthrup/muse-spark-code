@@ -75,7 +75,7 @@ function rig(initial?: unknown) {
   let queue = Promise.resolve<undefined>(undefined)
   const responses = new Map<string, unknown>()
   const requests: { url: string; init: RequestInit | undefined }[] = []
-  let status = 200
+  const statuses = new Map<string, number>()
   let tokenOverrides: Record<string, unknown> = {}
   const fetcher: typeof fetch = (input, init) => {
     const url = fetchUrl(input)
@@ -108,7 +108,7 @@ function rig(initial?: unknown) {
         }
       }
     }
-    return Promise.resolve(Response.json(body, { status }))
+    return Promise.resolve(Response.json(body, { status: statuses.get(url) ?? 200 }))
   }
   const writeRecord = vi.fn((value: ChatGptRecord) => {
     stored = value
@@ -178,8 +178,8 @@ function rig(initial?: unknown) {
     clock: (value: number) => {
       currentNow = value
     },
-    status: (value: number) => {
-      status = value
+    status: (url: string, value: number) => {
+      statuses.set(url, value)
     },
     callback: (value: string) => {
       callbackValue = value
@@ -414,7 +414,7 @@ describe('shared ChatGPT sign-in, refresh and removal', () => {
 
   it('serializes rotation across two windows and re-reads the stored grant under the lock', async () => {
     const tester = rig({ ...record(), expiresAt: NOW + 1000 })
-    const other = new ChatGptSignIn(tester.host)
+    const other = new ChatGptSignIn({ ...tester.host })
     const result = await Promise.all([
       tester.core.accessToken('https://api.openai.com/v1/responses', 2000),
       other.accessToken('https://api.openai.com/v1/responses', 2000),
@@ -495,11 +495,14 @@ describe('shared ChatGPT sign-in, refresh and removal', () => {
 
   it('asks to sign in again for a revoked grant and leaves the record unrotated', async () => {
     const tester = rig({ ...record(), expiresAt: NOW })
-    tester.status(400)
+    tester.status(DISCOVERY.token_endpoint, 400)
+    tester.responses.set(DISCOVERY.token_endpoint, { error: 'invalid_grant' })
     await expect(tester.core.accessToken('https://api.openai.com/v1/models', 0)).rejects.toThrow(
       'chatgpt.sign-in-required',
     )
     expect(tester.writeRecord).not.toHaveBeenCalled()
+    expect(tokenRequests(tester)).toHaveLength(1)
+    expect(form(tokenRequests(tester)[0]?.init).get('grant_type')).toBe('refresh_token')
   })
 
   it('revokes the refresh token at its issuer before deleting the record', async () => {
@@ -517,8 +520,12 @@ describe('shared ChatGPT sign-in, refresh and removal', () => {
 
   it('deletes the record even when revocation is refused', async () => {
     const tester = rig(record())
-    tester.status(400)
-    await expect(tester.core.remove()).rejects.toThrow('chatgpt.sign-in-required')
+    tester.status(DISCOVERY.revocation_endpoint, 400)
+    await expect(tester.core.remove()).rejects.toThrow('chatgpt.request-failed')
+    const refused = tester.requests.filter((item) => item.url === DISCOVERY.revocation_endpoint)
+    expect(refused).toHaveLength(1)
+    expect(form(refused[0]?.init).get('token')).toBe('synthetic-refresh')
+    expect(tester.deleteRecord).toHaveBeenCalledOnce()
     expect(tester.stored()).toBeUndefined()
   })
 
@@ -537,14 +544,208 @@ describe('shared ChatGPT sign-in, refresh and removal', () => {
     expect(tester.close).toHaveBeenCalledOnce()
   })
 
-  it('refuses reduced scope on refresh without overwriting the prior grant', async () => {
+  it('refuses reduced scope on refresh while preserving the replacement for revocation', async () => {
     const tester = rig({ ...record(), expiresAt: NOW })
     tester.token({ scope: 'openid' })
     await expect(tester.core.accessToken('https://api.openai.com/v1/models', 0)).rejects.toThrow(
       'chatgpt.missing-plan-scope',
     )
-    expect(tester.writeRecord).not.toHaveBeenCalled()
-    expect(tester.stored()).toMatchObject({ refreshToken: 'synthetic-refresh' })
+    expect(tester.stored()).toMatchObject({ refreshToken: 'synthetic-new-refresh' })
+    await tester.core.remove()
+    const revoked = tester.requests.find((item) => item.url === DISCOVERY.revocation_endpoint)
+    expect(form(revoked?.init).get('token')).toBe('synthetic-new-refresh')
+  })
+
+  it('persists a pending rotation before JWKS failure and resumes it in another window', async () => {
+    const tester = rig({ ...record(), expiresAt: NOW })
+    tester.status(DISCOVERY.jwks_uri, 503)
+    await expect(tester.core.accessToken('https://api.openai.com/v1/models', 0)).rejects.toThrow(
+      'chatgpt.request-failed',
+    )
+    expect(tester.stored()).toMatchObject({
+      refreshToken: 'synthetic-new-refresh',
+      pendingRefresh: { idToken: expect.any(String) },
+    })
+    tester.status(DISCOVERY.jwks_uri, 200)
+    const other = new ChatGptSignIn({ ...tester.host })
+    await expect(other.accessToken('https://api.openai.com/v1/models', 0)).resolves.toBe(
+      'synthetic-new-access',
+    )
+    expect(tokenRequests(tester)).toHaveLength(1)
+    expect(tester.stored()).not.toHaveProperty('pendingRefresh')
+  })
+
+  it.each(['access', 'remove'])(
+    'retains a replacement after persistence failure for the next %s operation',
+    async (operation) => {
+      const tester = rig({ ...record(), expiresAt: NOW })
+      tester.writeRecord.mockRejectedValueOnce(new Error('synthetic persistence failure'))
+      await expect(tester.core.accessToken('https://api.openai.com/v1/models', 0)).rejects.toThrow(
+        'chatgpt.request-failed',
+      )
+      expect(tester.requests.some((item) => item.url === DISCOVERY.jwks_uri)).toBe(false)
+      const other = new ChatGptSignIn(tester.host)
+      if (operation === 'access') {
+        await expect(other.accessToken('https://api.openai.com/v1/models', 0)).resolves.toBe(
+          'synthetic-new-access',
+        )
+      } else {
+        await other.remove()
+        const revoked = tester.requests.find((item) => item.url === DISCOVERY.revocation_endpoint)
+        expect(form(revoked?.init).get('token')).toBe('synthetic-new-refresh')
+        await expect(other.accessToken('https://api.openai.com/v1/models', 0)).rejects.toThrow(
+          'chatgpt.sign-in-required',
+        )
+      }
+      expect(tokenRequests(tester)).toHaveLength(1)
+    },
+  )
+
+  it('keeps the pending grant when the final verified-record write fails', async () => {
+    const tester = rig({ ...record(), expiresAt: NOW })
+    const write = tester.writeRecord.getMockImplementation()
+    if (write === undefined) throw new Error('missing fixture writer')
+    tester.writeRecord.mockImplementationOnce((value) => {
+      tester.writeRecord.mockRejectedValueOnce(new Error('synthetic final write failure'))
+      return write(value)
+    })
+    await expect(tester.core.accessToken('https://api.openai.com/v1/models', 0)).rejects.toThrow(
+      'chatgpt.request-failed',
+    )
+    expect(tester.stored()).toMatchObject({ refreshToken: 'synthetic-new-refresh' })
+    await tester.core.remove()
+    const revoked = tester.requests.find((item) => item.url === DISCOVERY.revocation_endpoint)
+    expect(form(revoked?.init).get('token')).toBe('synthetic-new-refresh')
+  })
+
+  it('never returns an unverified pending token after invalid refresh identity claims', async () => {
+    const tester = rig({ ...record(), expiresAt: NOW })
+    tester.token({ id_token: jwt({ nonce: 'changed' }) })
+    for (const core of [tester.core, new ChatGptSignIn(tester.host)]) {
+      await expect(core.accessToken('https://api.openai.com/v1/models', 0)).rejects.toThrow(
+        'chatgpt.invalid-id-token',
+      )
+    }
+    expect(tokenRequests(tester)).toHaveLength(1)
+    await tester.core.remove()
+    const revoked = tester.requests.find((item) => item.url === DISCOVERY.revocation_endpoint)
+    expect(form(revoked?.init).get('token')).toBe('synthetic-new-refresh')
+  })
+
+  it.each([1, 2])(
+    'rejects insufficient refreshed lifetime %s across concurrent windows without rotating twice',
+    async (seconds) => {
+      const tester = rig({ ...record(), expiresAt: NOW })
+      tester.token({ expires_in: seconds })
+      const results = await Promise.allSettled([
+        tester.core.accessToken('https://api.openai.com/v1/models', 2000),
+        new ChatGptSignIn(tester.host).accessToken('https://api.openai.com/v1/models', 2000),
+      ])
+      for (const result of results) {
+        expect(result.status).toBe('rejected')
+        if (result.status === 'rejected') expect(result.reason).toMatchObject({ code: 'expired' })
+      }
+      expect(tokenRequests(tester)).toHaveLength(1)
+      await expect(tester.core.accessToken('https://api.openai.com/v1/models', 0)).resolves.toBe(
+        'synthetic-new-access',
+      )
+    },
+  )
+
+  it.each(['JWKS', 'persistence'])(
+    'rejects a token that expires during %s without returning expired access',
+    async (delay) => {
+      const tester = rig({ ...record(), expiresAt: NOW })
+      tester.token({ expires_in: 1, id_token: jwt({ exp: NOW / 1000 + 1 }) })
+      const core = new ChatGptSignIn({
+        ...tester.host,
+        fetch: (input, init) => {
+          if (delay === 'JWKS' && input === DISCOVERY.jwks_uri) tester.clock(NOW + 2000)
+          return tester.host.fetch(input, init)
+        },
+        writeRecord: async (value) => {
+          await tester.host.writeRecord(value)
+          if (delay === 'persistence' && !('pendingRefresh' in value)) tester.clock(NOW + 2000)
+        },
+      })
+      await expect(core.accessToken('https://api.openai.com/v1/models', 0)).rejects.toThrow(
+        'chatgpt.expired',
+      )
+      expect(tokenRequests(tester)).toHaveLength(1)
+      expect(tester.stored()).toMatchObject({ refreshToken: 'synthetic-new-refresh' })
+    },
+  )
+
+  it.each([
+    ['discovery', `${ISSUER}/.well-known/openid-configuration`],
+    ['token', DISCOVERY.token_endpoint],
+    ['JWKS', DISCOVERY.jwks_uri],
+    ['revocation', DISCOVERY.revocation_endpoint],
+  ])('reports %s outages and throttling as retryable request failures', async (_name, endpoint) => {
+    for (const status of [400, 401, 429, 503]) {
+      const tester = rig({ ...record(), expiresAt: NOW })
+      tester.status(endpoint, status)
+      tester.responses.set(endpoint, {
+        error: 'temporarily_unavailable',
+        secret: 'synthetic-refresh',
+      })
+      const operation =
+        endpoint === DISCOVERY.revocation_endpoint
+          ? tester.core.remove()
+          : tester.core.accessToken('https://api.openai.com/v1/models', 0)
+      await expect(operation).rejects.toThrow(/^chatgpt.request-failed$/)
+      expect(tester.requests.some((item) => item.url === endpoint)).toBe(true)
+    }
+  })
+
+  it.each([400, 401])('requires sign-in only for token HTTP %s invalid_grant', async (status) => {
+    const tester = rig({ ...record(), expiresAt: NOW })
+    tester.status(DISCOVERY.token_endpoint, status)
+    tester.responses.set(DISCOVERY.token_endpoint, { error: 'invalid_grant' })
+    await expect(tester.core.accessToken('https://api.openai.com/v1/models', 0)).rejects.toThrow(
+      /^chatgpt.sign-in-required$/,
+    )
+    expect(tokenRequests(tester)).toHaveLength(1)
+  })
+
+  it('does not treat invalid_grant on an outage or malformed error JSON as a revoked grant', async () => {
+    for (const failure of [
+      Response.json({ error: 'invalid_grant' }, { status: 503 }),
+      new Response('synthetic confidential invalid JSON', { status: 400 }),
+    ]) {
+      const tester = rig({ ...record(), expiresAt: NOW })
+      const core = new ChatGptSignIn({
+        ...tester.host,
+        fetch: (input, init) =>
+          input === DISCOVERY.token_endpoint
+            ? Promise.resolve(failure)
+            : tester.host.fetch(input, init),
+      })
+      await expect(core.accessToken('https://api.openai.com/v1/models', 0)).rejects.toThrow(
+        /^chatgpt.request-failed$/,
+      )
+    }
+  })
+
+  it.each([
+    `${ISSUER}/.well-known/openid-configuration`,
+    DISCOVERY.token_endpoint,
+    DISCOVERY.jwks_uri,
+    DISCOVERY.revocation_endpoint,
+  ])('sanitizes network failures from %s as request-failed', async (endpoint) => {
+    const tester = rig({ ...record(), expiresAt: NOW })
+    const core = new ChatGptSignIn({
+      ...tester.host,
+      fetch: (input, init) =>
+        input === endpoint
+          ? Promise.reject(new Error('synthetic-refresh network confidential'))
+          : tester.host.fetch(input, init),
+    })
+    await expect(
+      endpoint === DISCOVERY.revocation_endpoint
+        ? core.remove()
+        : core.accessToken('https://api.openai.com/v1/models', 0),
+    ).rejects.toThrow(/^chatgpt.request-failed$/)
   })
 
   it('requires a rotated refresh token instead of silently reusing the old one', async () => {

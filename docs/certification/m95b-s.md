@@ -221,3 +221,98 @@ The follow-up hook initially flagged that published source digest under
 keyword. Renamed the descriptive label to “source checksum”; no credential,
 scanner configuration, suppression or ignore was added. The digest and
 its byte-exact proof are unchanged.
+
+## FIXM95BS — RVM95BS review repairs (2026-10-05)
+
+Windows 11 rig, worktree `C:/lanes/FIXM95BS`, branch `m95b/sfix`, base
+`180c85b2`. Read the complete rig brief, shared `common.md`, review report,
+repository rules, PLAN D74/M95b and the owner's existing capture findings.
+The rig brief forbids merging/rebasing/pushing and the shared rules reserve
+full quality for the lead. All verification here runs directly on this rig,
+one resource-heavy check at a time. No dependency, gate change, suppression,
+credential-file read or live/paid/network call was made.
+
+| Finding                                                         | Resolution                                                                                                                                                                                                                                   | Regression                                                                                                                                                                                                                                                                                                                          |
+| --------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| RVM95BS-1 P2: discarded rotation after JWKS/persistence failure | Fixed: persist the full replacement as pending before key fetch or scope/identity validation; retain a refused write in the host's memory; recovery and Remove use that replacement. Final-write failure leaves the persisted pending grant. | `persists a pending rotation before JWKS failure and resumes it in another window`; `retains a replacement after persistence failure for the next access/remove operation`; `keeps the pending grant when the final verified-record write fails`; `never returns an unverified pending token after invalid refresh identity claims` |
+| RVM95BS-2 P2: insufficient/expired refreshed access returned    | Fixed: compare remaining lifetime with the requested margin before finalizing and again after persistence. Raise typed `expired`; a pending short grant is not rotated again by concurrent windows.                                          | `rejects insufficient refreshed lifetime 1/2 across concurrent windows without rotating twice`; `rejects a token that expires during JWKS/persistence without returning expired access`                                                                                                                                             |
+| RVM95BS-3 P2: outages presented as sign-in required             | Fixed: HTTP/network/throttling failures use safe `request-failed`. Only token-endpoint HTTP 400/401 with schema-validated `invalid_grant` requires sign-in. Error response text never escapes.                                               | `reports discovery/token/JWKS/revocation outages and throttling as retryable request failures`; `requires sign-in only for token HTTP 400/401 invalid_grant`; malformed JSON, outage `invalid_grant`, and endpoint network regressions                                                                                              |
+| RVM95BS-4 P3: named endpoint tests fail discovery               | Fixed: fake HTTP status is keyed by URL. Revoked-grant and refused-revocation tests assert their actual endpoint request, form and storage outcome. Revocation refusal now correctly reports a request failure.                              | `asks to sign in again for a revoked grant and leaves the record unrotated`; `deletes the record even when revocation is refused`                                                                                                                                                                                                   |
+
+All four findings are fixed; none is a residual. The updated regression file
+was run against the original production implementation first: **83 passed,
+14 failed, exit 1**, proving the original paths failed. The final focused
+sign-in, plan-usage and plan-key suites pass **115/115**, including equality
+at the requested margin, expired ID-token/access pairs, a separate host port
+resuming a persisted transaction, and memory cleanup after removal.
+
+### Port and storage contract for V/X/0/W
+
+`ChatGptHostPort` method signatures and existing required record fields are
+unchanged. The record gains optional `pendingRefresh: { idToken?: string }`;
+the technical error union gains `expired`. `writeRecord` must atomically
+replace the entire secret-store record, preserving the prior value on a
+rejected write. A pending ID token is retained only inside that secret record
+for deferred verification; decoded identity claims never leave the verifier.
+The marker and ID token are removed after verification. A pending record
+never reaches the cached-access fast path, even when its access expiry is
+still in the future. Reduced scope and invalid identity still refuse access
+while retaining the replacement for revocation.
+
+Hosts translate `request-failed` as service unavailable / retry, `expired`
+as insufficient remaining lifetime, and `sign-in-required` as a fresh sign-in.
+No user-visible strings or other lanes' implementation files were changed.
+W's CHANGELOG entry should record the transaction recovery, lifetime checks,
+safe issuer-outage classification and endpoint-test correction.
+
+**M95BS-R-store-outage-lifetime:** after a refused first write, the recovery
+slot belongs to the live host port (shared by core instances using that port).
+It cannot survive process death or be read by another process during total
+keystore failure. Access fails closed; a later access retries persistence,
+and Remove revokes the retained replacement. V/X must retain/reuse the port,
+certify atomic stores and the inter-process lock, and verify outage/shutdown
+behavior. The injected port cannot promise durable storage after storage
+itself has refused it. This limit is also named in PLAN §9.
+
+**M95BS-R-integration-evidence:** existing exact raw capture and
+`earliest_refresh_at` dependencies, concrete editor/runtime wiring, translated
+error mapping, CHANGELOG and composed platform/bundle gates remain the lead's
+integration work. The new `invalid_grant` refusal is a synthetic regression
+for the OAuth category explicitly required by the repair brief, not a new live
+capture claim. No model call or undocumented provider response is fabricated.
+
+### Red drills 54–64
+
+Each drill ran the entire sign-in test file with
+`npx.cmd vitest run test/unit/chatGptSignIn.test.ts --maxWorkers=3 --testTimeout=120000`.
+Every run exited 1 with the named failure; the mutated file was restored in
+`finally` and SHA-256 compared before continuing. Logs, JSON reports and the
+ledger are in ignored `temp/fixm95bs-drills/`. No test-name filter, skipped test
+or relaxed guard remains in the final tree.
+
+| Drill | Guard broken                            | Named failed regression                                                         |
+| ----- | --------------------------------------- | ------------------------------------------------------------------------------- |
+| 54    | Pending-record persistence before JWKS  | `persists a pending rotation before JWKS failure`                               |
+| 55    | Failed-write recovery slot              | `retains a replacement after persistence failure for the next access operation` |
+| 56    | Pending-access verification             | `never returns an unverified pending token`                                     |
+| 57    | Margin before finalization              | `rejects insufficient refreshed lifetime`                                       |
+| 58    | Margin after persistence                | `rejects a token that expires during persistence`                               |
+| 59    | Retryable HTTP classification           | `reports discovery outages and throttling`                                      |
+| 60    | HTTP 400/401 restriction                | `does not treat invalid_grant on an outage`                                     |
+| 61    | `invalid_grant` body validation         | `reports token outages and throttling`                                          |
+| 62    | Endpoint-specific fake status           | `asks to sign in again for a revoked grant`                                     |
+| 63    | Local deletion after refused revocation | `deletes the record even when revocation is refused`                            |
+| 64    | Recovery cleanup on Remove              | `retains a replacement after persistence failure for the next remove operation` |
+
+Restored source checksum:
+`8cce6bc7742b52f095d3a762a1559e85dbc73596fcce9b94e479d29b9dd6a45e`.
+
+Restored test checksum:
+`29fef7f3b7b949c46cc953eb821b9d1061d1a431ce82697e3884f9867cb6d124`.
+
+### Repair checks
+
+The five-project `npm.cmd run typecheck` passed (exit 0). Final scoped lint,
+formatting, restored suites and remaining required gate results are recorded
+in the closing validation update. The inherited host API record difference
+remains owned by W/lead; this repair adds no Node or VS Code import.
