@@ -76,6 +76,7 @@ function confirmationDetail(feature: PaidFeature): string {
     subagents: UI_TEXT.paidConfirmSubagents,
     autoReviewer: UI_TEXT.paidConfirmAutoReviewer,
     bestOfN: UI_TEXT.paidConfirmBestOfN,
+    hookModels: UI_TEXT.paidConfirmHookModel,
   }
   return fill(details[feature], { price: paidFeaturePrice(feature) })
 }
@@ -110,6 +111,10 @@ export async function askPaidUse(
     return 'deny'
   }
   if (request.feature === 'bestOfN' && modelApiPaidTier(request.modelId) === undefined) {
+    return 'deny'
+  }
+  // No verified price, nothing to accept (M48, M78): refused before any popup.
+  if (request.feature === 'hookModels' && modelApiPaidTier(request.modelId) === undefined) {
     return 'deny'
   }
   const { title, detail } = paidUseQuestion(request)

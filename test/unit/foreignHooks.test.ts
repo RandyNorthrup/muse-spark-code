@@ -132,6 +132,7 @@ async function dispatch(
     (message) => {
       warnings.push(message)
     },
+    undefined,
     options.adapter === null ? undefined : (options.adapter ?? adapter()),
     { fileOperation: options.operation },
   )
@@ -414,6 +415,28 @@ describe('timeouts and crashes, each by its source’s rule', () => {
   })
 })
 
+describe('a blocking guard whose input cannot be built (lane P, RVM91P3)', () => {
+  it('refuses the operation it guards instead of failing open', async () => {
+    const hooks = imported('PreLLMCall', {
+      format: 'gemini',
+      sourceEvent: 'BeforeModel',
+      hooks: [{ type: 'command', command: './model-guard.sh', timeout: 60 }],
+    })
+    const { runs, io } = runner()
+    const { result } = await dispatch(
+      hooks,
+      'PreLLMCall',
+      payload('PreLLMCall', { request_id: 'r1', provider: 'meta' }),
+      io,
+    )
+    expect(runs).toEqual([])
+    expect(result.blockedReason).toContain('llm_request')
+    expect(result.messages).toEqual([
+      fill(UI_TEXT.hookAdapterFailClosed, { format: UI_TEXT.agentImportSourceGemini }),
+    ])
+  })
+})
+
 describe('the working directory, confined once links resolve', () => {
   it('runs in the definition’s directory by its canonical path', async () => {
     const { runs, io } = runner()
@@ -500,8 +523,14 @@ describe('the shell a Windows source runs its hook in', () => {
     const cline = importedOnWindows('PreToolUse', {
       format: 'cline',
       sourceEvent: 'PreToolUse',
+      // Lane I's record: the script quoted for sh, and for PowerShell on Windows.
       hooks: [
-        { type: 'command', command: String.raw`C:\Users\o'brien\Cline\Hooks\PreToolUse.ps1` },
+        {
+          type: 'command',
+          timeout: 30,
+          command: "'/home/o/Documents/Cline/Hooks/PreToolUse'",
+          commandWindows: String.raw`& 'C:\Users\o''brien\Cline\Hooks\PreToolUse.ps1'`,
+        },
       ],
     })
     const { runs, io } = runner()
@@ -513,6 +542,7 @@ describe('the shell a Windows source runs its hook in', () => {
       io,
       undefined,
       () => undefined,
+      undefined,
       windows,
     )
     await dispatchHooks(
@@ -523,6 +553,7 @@ describe('the shell a Windows source runs its hook in', () => {
       io,
       undefined,
       () => undefined,
+      undefined,
       windows,
     )
     await dispatchHooks(
@@ -533,6 +564,7 @@ describe('the shell a Windows source runs its hook in', () => {
       io,
       undefined,
       () => undefined,
+      undefined,
       windows,
     )
     expect(runs.map((ran) => decodedPowerShell(ran.command))).toEqual([
@@ -558,6 +590,7 @@ describe('the shell a Windows source runs its hook in', () => {
       io,
       undefined,
       () => undefined,
+      undefined,
       windows,
     )
     await dispatch(copilotGuard(), 'PreToolUse', shell('ls'), io)
@@ -591,6 +624,7 @@ describe('whether the source would run it at all', () => {
         io,
         undefined,
         () => undefined,
+        undefined,
         adapter(),
         {
           fileOperation: operation,
@@ -643,6 +677,7 @@ describe('whether the source would run it at all', () => {
       io,
       undefined,
       () => undefined,
+      undefined,
       adapter(),
     )
     expect(result.replacement).toEqual({ target: 'toolResult', value: { text: 'redacted' } })

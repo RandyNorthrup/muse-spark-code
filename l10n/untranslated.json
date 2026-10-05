@@ -52,7 +52,9 @@
       "agentImportSourceKiro",
       "agentImportSourceCline",
       "agentImportSourceAmp",
-      "agentImportSourceOpenCode"
+      "agentImportSourceOpenCode",
+      "contextMeterUnderOne",
+      "diffTallyLines"
     ],
     "cs": [
       "groupModel",

@@ -214,24 +214,28 @@ describe('buildPalette', () => {
     expect(skills?.items).toEqual([
       {
         id: 'manageSkills',
+        tip: EN.paletteTips.manageSkills,
         label: 'Manage skills…',
         detail: 'Turn Muse Code’s skills on or off',
         action: { type: 'manageSkills' },
       },
       {
         id: 'importSkills',
+        tip: EN.paletteTips.importSkills,
         label: 'Import skills…',
         detail: 'Copy your Claude Code or Codex skills into Muse Code',
         action: { type: 'importSkills' },
       },
       {
         id: 'skill:fix-bug',
+        tip: 'Fixes a bug',
         label: '/fix-bug',
         detail: 'Fixes a bug',
         action: { type: 'insertSkill', selector: 'fix-bug' },
       },
       {
         id: 'skill:acme:deploy',
+        tip: 'Deploys',
         label: '/acme:deploy',
         detail: 'Deploys — <env>',
         action: { type: 'insertSkill', selector: 'acme:deploy' },
@@ -369,6 +373,7 @@ describe('buildPalette', () => {
         ?.items.find((item) => item.id === 'importFromAgents')
       expect(row, String(backend)).toEqual({
         id: 'importFromAgents',
+        tip: EN.paletteTips.importFromAgents,
         label: EN.agentImportItem,
         detail: EN.agentImportDetailEvery,
         action: { type: 'importFromAgents' },
@@ -383,6 +388,7 @@ describe('buildPalette', () => {
         ?.items.find((item) => item.id === 'memory')
       expect(row, String(backend)).toEqual({
         id: 'memory',
+        tip: EN.paletteTips.memory,
         label: 'Memory…',
         slashName: 'memory',
         detail: 'The notes Muse keeps for later sessions',
@@ -398,6 +404,7 @@ describe('buildPalette', () => {
         ?.items.find((item) => item.id === 'plans')
       expect(row, String(backend)).toEqual({
         id: 'plans',
+        tip: EN.paletteTips.plans,
         label: 'Plans…',
         detail: 'Saved plans in .agents/plans: open one or implement it',
         action: { type: 'showPlans' },
@@ -425,12 +432,14 @@ describe('buildPalette', () => {
     expect(contextRows(both)).toEqual([
       {
         id: 'continue:claude',
+        tip: EN.paletteTips['continue:claude'],
         label: 'Continue a Claude Code session',
         detail: 'Pick up unfinished work in this conversation',
         action: { type: 'insertSkill', selector: 'resume-claude' },
       },
       {
         id: 'continue:codex',
+        tip: EN.paletteTips['continue:codex'],
         label: 'Continue a Codex session',
         detail: 'Pick up unfinished work in this conversation',
         action: { type: 'insertSkill', selector: 'resume-codex' },
@@ -631,4 +640,35 @@ describe('buildPalette: paid features (M33, PLAN.md D30)', () => {
       ],
     ])
   })
+})
+
+describe('M87 palette tips', () => {
+  it('covers every registry row on every backend, except loading and empty notes', () => {
+    for (const backend of ['museCode', 'modelApi', undefined] as const) {
+      for (const skills of [context.skills, undefined, []]) {
+        const rows = buildPalette({ ...context, backend, skills, isKeyStored: true }).flatMap(
+          (group) => group.items,
+        )
+        expect(rows.length).toBeGreaterThan(0)
+        for (const row of rows) {
+          if (row.id === 'skills:loading' || row.id === 'skills:empty') continue
+          expect(row.tip?.trim(), row.id).toBeTruthy()
+        }
+      }
+    }
+  })
+
+  it.each(['', ' '.repeat(3), '  Own description.  '])(
+    'uses the skill description or a named fallback: %j',
+    (description) => {
+      const groups = buildPalette({
+        ...context,
+        skills: [{ selector: 'review', displayName: 'Review code', description }],
+      })
+      const skill = groups.flatMap((group) => group.items).find((row) => row.id === 'skill:review')
+      const expected = description.trim() || 'Run the Review code skill.'
+      expect(skill?.tip).toBe(expected)
+      expect(slashCommandsOf(groups).find((row) => row.name === 'review')?.tip).toBe(expected)
+    },
+  )
 })

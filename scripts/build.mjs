@@ -6,8 +6,9 @@
 // smol-toml, loaded on the first import), the bundled skills installer (M89:
 // the copy and links for Muse Code, loaded on the first install, removal or
 // offer), code intelligence's `ide` answers (M67, loaded on the first call),
-// voice's drivers (M9/M35, loaded on the first recording) and the Auto
-// reviewer on Muse Code (M90, loaded on the first review), the webview, and
+// voice's drivers (M9/M35, loaded on the first recording), the window's web
+// fetch (M69, loaded on the first fetch) and the Auto reviewer on Muse Code
+// (M90, loaded on the first review), the webview, and
 // (in dev mode) the integration tests with esbuild.
 //
 //   node scripts/build.mjs               dev build + integration test bundles
@@ -78,6 +79,8 @@ const CODE_INTEL_ENTRY = 'src/host/ide/codeIntelEntry.ts'
 const CODE_INTEL_OUTFILE = 'dist/codeIntel.js'
 const VOICE_ENTRY = 'src/host/voice/voiceEntry.ts'
 const VOICE_OUTFILE = 'dist/voice.js'
+const WEB_FETCH_ENTRY = 'src/host/web/webFetchEntry.ts'
+const WEB_FETCH_OUTFILE = 'dist/webFetch.js'
 const MUSE_CODE_REVIEWER_ENTRY = 'src/host/review/museCodeReviewerEntry.ts'
 const MUSE_CODE_REVIEWER_OUTFILE = 'dist/museCodeReviewer.js'
 const SEARCH_WORKER_ENTRY = 'src/host/backend/searchWorker.ts'
@@ -119,13 +122,17 @@ const DEFERRED_OUTFILES = new Map([
   [path.resolve(SESSION_BOARD_ENTRY), SESSION_BOARD_OUTFILE],
   [path.resolve(REVIEWER_ENTRY), REVIEWER_OUTFILE],
   [path.resolve(FOREIGN_HOOKS_ENTRY), FOREIGN_HOOKS_OUTFILE],
+  [path.resolve(WEB_FETCH_ENTRY), WEB_FETCH_OUTFILE],
 ])
 /** @type {import('esbuild').Plugin} */
 const deferredCohort = {
   name: 'deferred-cohort',
   setup(build) {
     build.onResolve(
-      { filter: /\/(?:sessionBoardEntry|reviewerEntry|foreignHooksEntry)(?:\.[jt]s)?$/ },
+      {
+        filter:
+          /\/(?:sessionBoardEntry|reviewerEntry|foreignHooksEntry|webFetchEntry)(?:\.[jt]s)?$/,
+      },
       (args) => {
         if (args.kind !== 'dynamic-import') return
         const source = path.resolve(args.resolveDir, `${args.path.replace(/\.[jt]s$/, '')}.ts`)
@@ -228,6 +235,13 @@ const voiceOptions = {
   ...planMarkdownOptions,
   entryPoints: [VOICE_ENTRY],
   outfile: VOICE_OUTFILE,
+}
+
+/** @type {import('esbuild').BuildOptions} */
+const webFetchOptions = {
+  ...planMarkdownOptions,
+  entryPoints: [WEB_FETCH_ENTRY],
+  outfile: WEB_FETCH_OUTFILE,
 }
 
 /** @type {import('esbuild').BuildOptions} */
@@ -362,6 +376,7 @@ if (isWatch) {
     esbuild.context(bundledSkillsOptions),
     esbuild.context(codeIntelOptions),
     esbuild.context(voiceOptions),
+    esbuild.context(webFetchOptions),
     esbuild.context(museCodeReviewerOptions),
     esbuild.context(uiTextOptions),
     esbuild.context(searchWorkerOptions),
@@ -384,6 +399,7 @@ if (isWatch) {
     bundledSkills: esbuild.build(bundledSkillsOptions),
     codeIntel: esbuild.build(codeIntelOptions),
     voice: esbuild.build(voiceOptions),
+    webFetch: esbuild.build(webFetchOptions),
     museCodeReviewer: esbuild.build(museCodeReviewerOptions),
     uiText: esbuild.build(uiTextOptions),
     searchWorker: esbuild.build(searchWorkerOptions),
@@ -419,6 +435,7 @@ if (isWatch) {
   reportSize(BUNDLED_SKILLS_OUTFILE)
   reportSize(CODE_INTEL_OUTFILE)
   reportSize(VOICE_OUTFILE)
+  reportSize(WEB_FETCH_OUTFILE)
   reportSize(MUSE_CODE_REVIEWER_OUTFILE)
   reportSize(UI_TEXT_OUTFILE)
   reportSize(SEARCH_WORKER_OUTFILE)

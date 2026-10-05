@@ -91,7 +91,7 @@ import { ideImageTools } from './host/ide/imageTools'
 import { ideWebFetchTools, isIdeWebFetchOffered, oneQuestionPerUrl } from './host/ide/webFetchTool'
 import { isWebFetchAllowed } from './host/web/webFetchConfirm'
 import { pageConverter } from './host/web/pageConverter'
-import { createWebFetcher } from './host/web/webFetcher'
+import { lazyPageUrlCheck, lazyWebFetcher, webFetchLoader } from './host/web/webFetchBundle'
 import { ideCodeIntelTools } from './host/ide/codeIntelTools'
 import { codeIntelLoader } from './host/ide/codeIntelBundle'
 import { vscodeLanguageServices } from './host/codeIntel/languageServices'
@@ -140,6 +140,7 @@ import { createWorkspaceFileLister, findRootFiles } from './host/mention/workspa
 import { permissionSettingsOf, readSettings, toSettingsSnapshot } from './host/settings'
 import { ChatViewProvider, SIDEBAR_SURFACE_ID } from './host/views/ChatViewProvider'
 import { openChatPanel, restoreChatPanel } from './host/views/chatPanel'
+import { TasksPanel } from './host/views/tasksPanel'
 import { SurfaceRegistry } from './host/views/surfaceRegistry'
 import type { ChatSurface } from './host/views/chatSurface'
 import type { WebviewHostContext } from './host/views/webviewSetup'
@@ -176,6 +177,7 @@ import {
   BUNDLED_SKILLS_SETTING,
   CHECKPOINT_STORE_BUNDLE_FILE,
   CODE_INTEL_BUNDLE_FILE,
+  WEB_FETCH_BUNDLE_FILE,
   VOICE_BUNDLE_FILE,
   MUSE_CODE_REVIEWER_BUNDLE_FILE,
   MUSE_CODE_REVIEWER_DIR,
@@ -540,6 +542,15 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   // controller so the session board marks them window-wide (M77).
   const boardPrompts = new PendingPrompts()
   const bestOfNCoordinator = new BestOfNCoordinator()
+  // A chat's tasks tab; it leaves once both the chat and the tab are closed.
+  const tasksTabs = new Map<string, TasksPanel>()
+  context.subscriptions.push({
+    dispose: () => {
+      for (const tab of tasksTabs.values()) {
+        tab.dispose()
+      }
+    },
+  })
   let isInputFocused = false
   // Ctrl+B belongs to the panel only while the conversation in view runs a
   // command it can move to the background (M46); VS Code's sidebar toggle
@@ -1221,8 +1232,14 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   const ideTools = [diagnostics]
   // Web fetch (M69, PLAN.md D49): resolved, checked and pinned here, for the
   // Model API backend's `web_fetch` and Muse Code's `mcp__ide__webFetch`.
-  // HTML is converted on a worker of its own bundle, started for each page.
-  const webFetch = createWebFetcher(
+  // The fetch is dist/webFetch.js (D6), required on the first use; HTML is
+  // converted on a worker of its own bundle, started for each page.
+  const webFetchBundle = webFetchLoader({
+    bundlePath: vscode.Uri.joinPath(context.extensionUri, 'dist', WEB_FETCH_BUNDLE_FILE).fsPath,
+    log,
+  })
+  const webFetch = lazyWebFetcher(
+    webFetchBundle,
     log,
     pageConverter(vscode.Uri.joinPath(context.extensionUri, 'dist', PAGE_WORKER_FILE).fsPath, log),
   )
@@ -1256,6 +1273,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
       ...ideWebFetchTools({
         isOffered: () =>
           isIdeWebFetchOffered(vscode.workspace.isTrusted, currentSettings().sandboxNetwork),
+        checkUrl: lazyPageUrlCheck(webFetchBundle),
         fetchPage: webFetch,
         confirm: askWebFetch,
         log,
@@ -1563,6 +1581,9 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     confirmContributorModel: isContributorModelAllowed,
     hookSettingsPath: museSettingsPath(museConfig()),
     isHooksEnabled: () => currentSettings().modelApiHooks,
+    hookHttpAllowedHosts: () => currentSettings().hookHttpAllowedHosts,
+    isHookNetworkAllowed: () =>
+      isIdeWebFetchOffered(vscode.workspace.isTrusted, currentSettings().sandboxNetwork),
     // Sessions survive the window (PLAN.md D14) in the workspace storage
     // directory; no folder open, no storage, no persistence.
     store:
@@ -1663,6 +1684,10 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     },
     noteReviewerUsage: (modelId, usage) => {
       paid.usage.addReviewerUsage(modelId, usage)
+    },
+    // M91 prompt/agent hook runs (D70): settled on the hookModels tally line.
+    noteHookModelUsage: (modelId, usage) => {
+      paid.usage.addHookModelUsage(modelId, usage)
     },
     // The command rules and permission profiles (M78), read at each call.
     permissionSettings: () => permissionSettingsOf(currentSettings()),
@@ -1910,8 +1935,23 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   const controllerFor = (surface: ChatSurface): ConversationController => {
     let controller = controllers.get(surface.id)
     if (controller === undefined) {
+      const tasksTab = new TasksPanel(
+        hostContext,
+        () => {
+          if (registry.has(surface)) {
+            surface.reveal()
+          }
+        },
+        (released) => {
+          if (tasksTabs.get(surface.id) === released) {
+            tasksTabs.delete(surface.id)
+          }
+        },
+      )
+      tasksTabs.set(surface.id, tasksTab)
       controller = new ConversationController({
         surface,
+        tasksTab,
         auth,
         ensureHost: ensureSelectedHost,
         workspaceRoot,
@@ -2224,6 +2264,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   registry.onRemoved((surface) => {
     controllers.get(surface.id)?.dispose()
     controllers.delete(surface.id)
+    tasksTabs.get(surface.id)?.release()
   })
   registry.onActiveChanged(refreshTaskContext)
   /** A command for the conversation in view, when there is one. */
@@ -2389,6 +2430,13 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     registerLoggedCommand(log, COMMAND_IDS.openInNewTab, () => {
       openChatPanel(hostContext, registry)
     }),
+    registerLoggedCommand(
+      log,
+      COMMAND_IDS.openTasks,
+      forActiveConversation(async (controller) => {
+        await controller.handle({ type: 'hostAction', action: 'openTasksTab' })
+      }),
+    ),
     registerLoggedCommand(log, COMMAND_IDS.newConversation, async () => {
       const surface = registry.active
       if (surface === undefined) {

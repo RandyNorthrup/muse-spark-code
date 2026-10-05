@@ -51,6 +51,10 @@ export interface ExtensionSettings extends SettingsSnapshot {
   readonly modelApiHooks: boolean
   /** The Model API shell keeps its directory between calls (M91 lane S): on until turned off. */
   readonly modelApiShellKeepsDirectory: boolean
+  /** M91 prompt/agent hook handlers (D70): on by default, the setting is the kill switch. */
+  readonly modelApiHookModels: boolean
+  /** M91 http hook handlers (D70): allowlisted hosts, empty by default. */
+  readonly hookHttpAllowedHosts: readonly string[]
   /**
    * M78 (PLAN.md D49): each kept whole here; the Model API bundle parses
    * every rule and profile and reports what it refuses (permissionPolicy.ts).
@@ -113,6 +117,8 @@ const settingSchemas = {
   modelApiBestOfN: z.boolean(),
   modelApiHooks: z.boolean(),
   modelApiShellKeepsDirectory: z.boolean(),
+  modelApiHookModels: z.boolean(),
+  hookHttpAllowedHosts: z.array(z.string()),
   modelApiCommandRules: z.array(z.unknown()),
   modelApiPermissionProfiles: z.record(z.string(), z.unknown()),
   modelApiPermissionProfile: z.unknown(),
@@ -198,6 +204,8 @@ export function readSettings(config: SettingsSource, log: Logger): ExtensionSett
     modelApiBestOfN: readSetting(config, 'modelApiBestOfN', log),
     modelApiHooks: readSetting(config, 'modelApiHooks', log),
     modelApiShellKeepsDirectory: readSetting(config, 'modelApiShellKeepsDirectory', log),
+    modelApiHookModels: readSetting(config, 'modelApiHookModels', log),
+    hookHttpAllowedHosts: readSetting(config, 'hookHttpAllowedHosts', log),
     diagnosticsAfterEdits: readSetting(config, 'diagnosticsAfterEdits', log),
     checkCommands: readSetting(config, 'checkCommands', log),
     formatOnEdit: readSetting(config, 'formatOnEdit', log),

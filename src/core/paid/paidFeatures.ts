@@ -37,6 +37,15 @@ export interface PaidFeatureGateDeps {
   readonly log: CoreLogger
 }
 
+/**
+ * M91 prompt/agent hooks (PLAN.md D70) are available by default (OWNER
+ * RULING 2026-10-04, superseding the plan's "off by default"): no turn-on
+ * confirmation asks for them. Their price is asked per run in the paid-use
+ * popup instead, so the gate never confirms them and `isOn` reads only the
+ * setting (the machine-scoped kill switch).
+ */
+const AVAILABLE_BY_DEFAULT: ReadonlySet<PaidFeature> = new Set(['hookModels'])
+
 export class PaidFeatureGate {
   /** Features whose confirmation is on screen now: never asked twice at once. */
   private readonly asking = new Set<PaidFeature>()
@@ -83,9 +92,15 @@ export class PaidFeatureGate {
     this.notify()
   }
 
-  /** Whether the feature may be used: setting on and price accepted. */
+  /**
+   * Whether the feature may be used: setting on and price accepted; a
+   * feature available by default reads only its setting, and its price is
+   * asked per use by PaidUseConsent.
+   */
   public isOn(feature: PaidFeature): boolean {
-    return this.deps.isSettingOn(feature) && this.deps.readAccepted().has(feature)
+    return AVAILABLE_BY_DEFAULT.has(feature)
+      ? this.deps.isSettingOn(feature)
+      : this.deps.isSettingOn(feature) && this.deps.readAccepted().has(feature)
   }
 
   /** The features that are on, in their fixed order. */
@@ -109,6 +124,12 @@ export class PaidFeatureGate {
   public async review(): Promise<void> {
     const pending: PaidFeature[] = []
     for (const feature of PAID_FEATURES) {
+      // A feature available by default needs no turn-on confirmation: its
+      // price is asked per use. Nothing is forgotten either: it holds no
+      // acceptance to lose.
+      if (AVAILABLE_BY_DEFAULT.has(feature)) {
+        continue
+      }
       const isSettingOn = this.deps.isSettingOn(feature)
       const isAccepted = this.deps.readAccepted().has(feature)
       if (!isSettingOn && isAccepted) {
@@ -224,6 +245,14 @@ export class PaidUsage {
         this.tally = { ...tally, bestOfNAttempts: (tally.bestOfNAttempts ?? 0) + units }
         break
       }
+      case 'hookModels': {
+        this.tally = {
+          ...tally,
+          hookModelRuns: (tally.hookModelRuns ?? 0) + units,
+          hookModelUnknownRequests: (tally.hookModelUnknownRequests ?? 0) + units,
+        }
+        break
+      }
     }
     this.log.info(`Paid use: ${feature} +${String(units)}`)
     for (const listener of this.listeners) {
@@ -276,6 +305,33 @@ export class PaidUsage {
       ...this.tally,
       bestOfNRequests: (this.tally.bestOfNRequests ?? 0) + 1,
       bestOfNUnknownRequests: (this.tally.bestOfNUnknownRequests ?? 0) + 1,
+    }
+    for (const listener of this.listeners) listener()
+  }
+
+  /** One prompt/agent hook run started; its cost settles when reported. */
+  public addHookModelRun(): void {
+    this.add('hookModels', 1)
+  }
+
+  /** One hook run's reported billable usage; never replayed from storage. */
+  public addHookModelUsage(modelId: string, usage: SubagentUsage): void {
+    if (modelApiPaidTier(modelId) === undefined) {
+      throw new Error('Cannot estimate hook model use for an unpriced model')
+    }
+    if (
+      Object.values(usage).some((value) => !Number.isSafeInteger(value) || value < 0) ||
+      usage.cachedTokens > usage.inputTokens
+    ) {
+      throw new Error('Hook model usage must be valid nonnegative token counts')
+    }
+    const unknown = this.tally.hookModelUnknownRequests ?? 0
+    if (unknown === 0) return
+    this.tally = {
+      ...this.tally,
+      hookModelUnknownRequests: unknown - 1,
+      hookModelTokens: (this.tally.hookModelTokens ?? 0) + usage.inputTokens + usage.outputTokens,
+      hookModelCostUsd: (this.tally.hookModelCostUsd ?? 0) + estimateCostUsd(usage, modelId),
     }
     for (const listener of this.listeners) listener()
   }

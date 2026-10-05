@@ -95,6 +95,9 @@ export interface ModelApiBackendManagerDeps extends ModelApiPaidHooks {
   readonly showReplyUsage: () => boolean
   readonly hookSettingsPath?: string
   readonly isHooksEnabled?: () => boolean
+  /** M91 http hooks (D70): `museSpark.hookHttpAllowedHosts`, read at every dispatch. */
+  readonly hookHttpAllowedHosts?: (() => readonly string[]) | undefined
+  readonly isHookNetworkAllowed?: (() => boolean) | undefined
   /**
    * The MCP servers for a host in this workspace (M50), one set per host,
    * made with the bundle's pool (M57).
@@ -165,6 +168,7 @@ interface HostVariant {
   readonly allowsPaidUse: ModelApiBackendManagerDeps['allowsPaidUse']
   readonly isPaidUseRemembered: ModelApiBackendManagerDeps['isPaidUseRemembered']
   readonly isHooksEnabled: (() => boolean) | undefined
+  readonly hookHttpAllowedHosts: (() => readonly string[]) | undefined
   readonly memory: MemoryStore | undefined
   /** The window's checkpoint turn marks (M72); an attempt works in a worktree, not the workspace. */
   readonly beforeTurnRuns: ModelApiBackendManagerDeps['beforeTurnRuns']
@@ -295,10 +299,14 @@ export class ModelApiBackendManager {
         isPaidUseRemembered: variant.isPaidUseRemembered,
         noteSubagentUsage: this.deps.noteSubagentUsage,
         isHooksEnabled: variant.isHooksEnabled,
+        hookHttpAllowedHosts: variant.hookHttpAllowedHosts,
+        isHookNetworkAllowed: this.deps.isHookNetworkAllowed,
         memory: variant.memory,
         beforeTurnRuns: variant.beforeTurnRuns,
         afterTurnRuns: variant.afterTurnRuns,
         noteReviewerUsage: this.deps.noteReviewerUsage,
+        noteHookModelUsage: this.deps.noteHookModelUsage,
+        hookModelDailyBudget: this.deps.hookModelDailyBudget,
         permissionSettings: variant.permissionSettings,
         verify: variant.verify,
         workspaceEdits: variant.workspaceEdits,
@@ -334,6 +342,7 @@ export class ModelApiBackendManager {
       allowsPaidUse: this.deps.allowsPaidUse,
       isPaidUseRemembered: this.deps.isPaidUseRemembered,
       isHooksEnabled: this.deps.isHooksEnabled,
+      hookHttpAllowedHosts: this.deps.hookHttpAllowedHosts,
       memory: this.deps.memory,
       beforeTurnRuns: this.deps.beforeTurnRuns,
       afterTurnRuns: this.deps.afterTurnRuns,
@@ -415,6 +424,7 @@ export class ModelApiBackendManager {
         allowsPaidUse: () => Promise.resolve(false),
         isPaidUseRemembered: () => false,
         isHooksEnabled: () => false,
+        hookHttpAllowedHosts: undefined,
         memory: undefined,
         beforeTurnRuns: undefined,
         afterTurnRuns: undefined,

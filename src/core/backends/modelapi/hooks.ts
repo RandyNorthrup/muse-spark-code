@@ -16,6 +16,7 @@ import {
   HOOK_DEFAULT_TIMEOUT_SECONDS,
   HOOK_FORBIDDEN_ENV_NAMES,
   HOOK_FORMATS,
+  HOOK_HTTP_URL_MAX_CHARS,
   HOOK_MATCHER_MAX_CHARS,
   HOOK_MATCHER_COMPILE_TIMEOUT_MS,
   HOOK_MATCHER_TIMEOUT_MS,
@@ -40,7 +41,15 @@ import {
 } from '../../../shared/constants'
 import { type ContextIo, decodeContextText } from '../../context/contextFiles'
 import { confineWorkspacePath } from '../../workspacePath'
+import { unlessAborted } from '../../timeouts'
 import type { ShellResult, ToolIo } from './tools'
+import {
+  HOOK_MODEL_EVENTS,
+  type HookHandlerType,
+  type TypedHookAnswer,
+  runTypedHandler,
+  type TypedHookHandlers,
+} from './hookHandlers'
 
 export const HOOK_EVENTS = [
   'SessionStart',
@@ -71,7 +80,16 @@ const HOOK_EVENT_NAMES: ReadonlySet<string> = new Set(HOOK_EVENTS)
 export interface HookDefinition {
   readonly event: HookEvent
   readonly source: HookSource
+  /** `command` runs a process; the M91 types run in hookHandlers.ts. */
+  readonly type?: HookHandlerType
   readonly command: string
+  /** `http`: the configured URL. */
+  readonly httpUrl?: string | undefined
+  /** `mcp_tool`: the configured server and tool names. */
+  readonly mcpServer?: string | undefined
+  readonly mcpTool?: string | undefined
+  /** `prompt` and `agent`: the configured model prompt. */
+  readonly modelPrompt?: string | undefined
   readonly timeoutSeconds: number
   readonly matcher: HookMatcher | undefined
   readonly extraEnvNames?: readonly string[]
@@ -125,8 +143,13 @@ export type ForeignRunResult =
   | { readonly kind: 'timeout' }
   /** Could not start, or its output went past the cap. */
   | { readonly kind: 'crash' }
-  /** Never started: its stdin could not be translated, or its directory left the workspace. */
-  | { readonly kind: 'refused'; readonly reason: string }
+  /**
+   * Never started: its stdin could not be translated, or its directory left
+   * the workspace. `blockOperation`: lane P's rule for a blocking source event
+   * whose input cannot be built: the guarded operation is refused, never let
+   * through as a failed hook.
+   */
+  | { readonly kind: 'refused'; readonly reason: string; readonly blockOperation?: true }
 
 export type ForeignPreparation =
   | {
@@ -138,7 +161,7 @@ export type ForeignPreparation =
     }
   /** The source would not run it here, and that is not a failure. */
   | { readonly outcome: 'skip'; readonly reason: string }
-  | { readonly outcome: 'refused'; readonly reason: string }
+  | { readonly outcome: 'refused'; readonly reason: string; readonly blockOperation?: true }
 
 /** What a running operation tells foreign adapters beyond the payload (Kiro's file triggers). */
 export interface ForeignDispatchContext {
@@ -189,6 +212,10 @@ interface HookRecord extends Record<string, unknown> {
   readonly managed_hooks_path?: unknown
   readonly hooks?: unknown
   readonly type?: unknown
+  readonly url?: unknown
+  readonly server?: unknown
+  readonly tool?: unknown
+  readonly prompt?: unknown
   readonly timeout?: unknown
   readonly async?: unknown
   readonly statusMessage?: unknown
@@ -345,6 +372,10 @@ const MAX_HANDLER_FIELDS = new Set([
   'command',
   'commandWindows',
   'command_windows',
+  'url',
+  'server',
+  'tool',
+  'prompt',
   'timeout',
   'statusMessage',
   'async',
@@ -353,6 +384,11 @@ const MAX_HANDLER_FIELDS = new Set([
   'silent',
   'if',
 ])
+function isHandlerType(value: unknown): value is HookHandlerType {
+  return (
+    typeof value === 'string' && ['command', 'http', 'mcp_tool', 'prompt', 'agent'].includes(value)
+  )
+}
 const GROUP_FIELDS = new Set(['matcher', 'hooks', 'description'])
 const MATCH_EXACT = /^[A-Za-z0-9_|]+$/
 const MATCH_EVERYTHING = new Set(['', '*'])
@@ -454,6 +490,15 @@ function isMatch(matcher: HookMatcher, name: string, warn: (message: string) => 
   }
 }
 
+/** A short configured name: server, tool. Bounded like a matcher value. */
+function configuredName(value: unknown): string | undefined {
+  return typeof value === 'string' &&
+    value.trim() !== '' &&
+    value.length <= HOOK_MATCHER_VALUE_MAX_CHARS
+    ? value
+    : undefined
+}
+
 function handler(
   value: unknown,
   event: HookEvent,
@@ -469,9 +514,10 @@ function handler(
   if (unknownField !== undefined) {
     return `unsupported handler field ${unknownField}`
   }
-  if (value.type !== 'command') {
-    return 'handler type must be command'
+  if (!isHandlerType(value.type)) {
+    return 'handler type must be one of command, http, mcp_tool, prompt, agent'
   }
+  const type = value.type
   if (
     value.timeout !== undefined &&
     (typeof value.timeout !== 'number' || !Number.isSafeInteger(value.timeout) || value.timeout < 0)
@@ -502,12 +548,99 @@ function handler(
     // A selector we do not evaluate must not widen execution.
     return 'handler uses an unsupported selector or output capability'
   }
-  const platformCommand =
-    platform === 'win32'
-      ? (value.commandWindows ?? value.command_windows ?? value.command)
-      : value.command
-  if (typeof platformCommand !== 'string' || platformCommand.trim() === '') {
-    return 'handler command is empty or unavailable on this platform'
+  const hasCommand =
+    value.command !== undefined ||
+    value.commandWindows !== undefined ||
+    value.command_windows !== undefined
+  const hasTypedFields =
+    value.url !== undefined ||
+    value.server !== undefined ||
+    value.tool !== undefined ||
+    value.prompt !== undefined
+  if (type === 'command' && hasTypedFields) {
+    return 'a command handler takes no url, server, tool or prompt field'
+  }
+  if (type !== 'command' && hasCommand) {
+    return `a ${type} handler takes no command field`
+  }
+  const fields: readonly string[] = {
+    command: [],
+    http: ['url'],
+    mcp_tool: ['server', 'tool'],
+    prompt: ['prompt'],
+    agent: ['prompt'],
+  }[type]
+  if (
+    ['url', 'server', 'tool', 'prompt'].some(
+      (field) => value[field] !== undefined && !fields.includes(field),
+    )
+  ) {
+    return `a ${type} handler has fields for another handler type`
+  }
+  let httpUrl: string | undefined
+  let mcpServer: string | undefined
+  let mcpTool: string | undefined
+  let modelPrompt: string | undefined
+  let platformCommand = ''
+  switch (type) {
+    case 'command': {
+      const selected =
+        platform === 'win32'
+          ? (value.commandWindows ?? value.command_windows ?? value.command)
+          : value.command
+      if (typeof selected !== 'string' || selected.trim() === '') {
+        return 'handler command is empty or unavailable on this platform'
+      }
+      platformCommand = selected
+
+      break
+    }
+    case 'http': {
+      if (
+        typeof value.url !== 'string' ||
+        value.url === '' ||
+        value.url.length > HOOK_HTTP_URL_MAX_CHARS
+      ) {
+        return 'http handler url is empty or too long'
+      }
+      let scheme: string
+      try {
+        scheme = new URL(value.url).protocol
+      } catch {
+        return 'http handler url is invalid'
+      }
+      if (scheme !== 'https:') {
+        return 'http handler url must use HTTPS'
+      }
+      if (source !== 'user') {
+        return 'http handler in a project file is refused: http hooks run only from your own files'
+      }
+      httpUrl = value.url
+
+      break
+    }
+    case 'mcp_tool': {
+      mcpServer = configuredName(value.server)
+      mcpTool = configuredName(value.tool)
+      if (mcpServer === undefined || mcpTool === undefined) {
+        return 'mcp_tool handler needs a server and a tool name'
+      }
+
+      break
+    }
+    default: {
+      if (
+        typeof value.prompt !== 'string' ||
+        value.prompt.trim() === '' ||
+        Buffer.byteLength(value.prompt) > HOOK_STDIN_MAX_BYTES
+      ) {
+        return `${type} handler prompt is empty or too long`
+      }
+      if (!HOOK_MODEL_EVENTS.has(event)) {
+        return `${type} handler cannot run on ${event}`
+      }
+      modelPrompt = value.prompt
+    }
   }
   let onFailure: HookDefinition | undefined
   if (value.onFailure !== undefined) {
@@ -518,12 +651,20 @@ function handler(
     if (typeof nested === 'string') {
       return `onFailure: ${nested}`
     }
+    if ((nested.type ?? 'command') !== 'command') {
+      return 'onFailure must be a command handler'
+    }
     onFailure = nested
   }
   return {
     event,
     source,
+    type,
     command: platformCommand,
+    ...(httpUrl !== undefined && { httpUrl }),
+    ...(mcpServer !== undefined && { mcpServer }),
+    ...(mcpTool !== undefined && { mcpTool }),
+    ...(modelPrompt !== undefined && { modelPrompt }),
     timeoutSeconds: Math.max(
       typeof value.timeout === 'number' ? value.timeout : HOOK_DEFAULT_TIMEOUT_SECONDS,
       1,
@@ -624,7 +765,14 @@ const FOREIGN_GROUP_FIELDS = new Set([
   'description',
   'async',
 ])
-const FOREIGN_HANDLER_FIELDS = new Set(['type', 'command', 'commandWindows', 'timeout', 'cwd'])
+const FOREIGN_HANDLER_FIELDS = new Set([
+  'type',
+  'command',
+  'commandWindows',
+  'timeout',
+  'cwd',
+  'prompt',
+])
 const FOREIGN_FORMATS: ReadonlySet<string> = new Set(HOOK_FORMATS)
 const FOREIGN_FLAVORS: Readonly<Record<string, ReadonlySet<string>>> = {
   copilot: new Set(['copilot', 'vscode']),
@@ -770,10 +918,14 @@ function foreignGroup(
   if (typeof matcher === 'string') {
     return matcher
   }
+  const isModelHandler = entry.type === 'prompt'
+  if (isModelHandler !== (entry.prompt !== undefined) || (isModelHandler && cwd !== undefined)) {
+    return 'an imported prompt handler holds a prompt and no command or cwd'
+  }
   const parsed = handler(
     {
       type: entry.type,
-      command: entry.command,
+      ...(isModelHandler ? { prompt: entry.prompt } : { command: entry.command }),
       ...(entry.commandWindows !== undefined && { commandWindows: entry.commandWindows }),
       ...(entry.timeout !== undefined && { timeout: entry.timeout }),
       ...(group.async !== undefined && { async: group.async }),
@@ -783,7 +935,13 @@ function foreignGroup(
     platform,
     matcher,
   )
-  return typeof parsed === 'string'
+  if (typeof parsed === 'string') {
+    return parsed
+  }
+  // A Kiro agent action is lane H's `prompt` handler (lead decision I): its
+  // prompt goes to the model under the paid-use gates, with no stdin to
+  // translate, so it runs as a typed handler, never through an adapter.
+  return isModelHandler
     ? parsed
     : { ...parsed, foreign: { ...spec, ...(cwd !== undefined && { cwd }) } }
 }
@@ -914,15 +1072,8 @@ export function toolMatcherNames(name: string): readonly string[] {
   }
 }
 
-export interface HookAnswer {
-  readonly status: 'completed' | 'blocked' | 'failed'
-  readonly reason?: string | undefined
-  readonly context?: string | undefined
-  readonly systemMessage?: string | undefined
-  readonly permissionDecision?: 'deny' | 'ask' | 'allow' | undefined
-  readonly updatedInput?: Record<string, unknown> | undefined
-  readonly stopReason?: string | undefined
-  readonly approvalDecision?: 'allow' | 'deny' | undefined
+/** A hook's answer; an imported hook's may carry a documented replacement (M91 lane W). */
+export type HookAnswer = TypedHookAnswer & {
   /** A foreign adapter's documented output replacement (never a native answer's). */
   readonly replacement?: HookReplacement | undefined
 }
@@ -1008,6 +1159,79 @@ async function runBoundedHook(
   }
 }
 
+/** One typed handler through hookHandlers.ts, with the hook's timeout and onFailure. */
+async function runTypedHook(
+  hook: HookDefinition,
+  event: HookEvent,
+  serialized: string,
+  cwd: string,
+  runner: NonNullable<ToolIo['runHook']> | undefined,
+  typed: TypedHookHandlers | undefined,
+  signal: AbortSignal | undefined,
+  warn: (message: string) => void,
+): Promise<HookAnswer | undefined> {
+  const type = hook.type ?? 'command'
+  if (type === 'command') {
+    throw new Error('a command handler never reaches the typed runner')
+  }
+  const timeout = AbortSignal.timeout(hook.timeoutSeconds * MILLISECONDS_PER_SECOND)
+  const combined = signal === undefined ? timeout : AbortSignal.any([signal, timeout])
+  const runFallback = (): Promise<HookAnswer | undefined> =>
+    runner === undefined || hook.onFailure === undefined
+      ? Promise.resolve(undefined)
+      : runHandler(hook.onFailure, event, serialized, cwd, runner, signal, warn)
+  let answer: HookAnswer | undefined
+  try {
+    combined.throwIfAborted()
+    answer = await unlessAborted(
+      runTypedHandler(
+        {
+          type,
+          event,
+          source: hook.source,
+          ...(hook.httpUrl !== undefined && { httpUrl: hook.httpUrl }),
+          ...(hook.mcpServer !== undefined && { mcpServer: hook.mcpServer }),
+          ...(hook.mcpTool !== undefined && { mcpTool: hook.mcpTool }),
+          ...(hook.modelPrompt !== undefined && { modelPrompt: hook.modelPrompt }),
+        },
+        serialized,
+        typed,
+        combined,
+        warn,
+        (_eventName, exitCode, stdout, stderr) => {
+          const answer = parseHookAnswer(event, exitCode, stdout, stderr)
+          return {
+            ...answer,
+            approvalDecision:
+              answer.approvalDecision === 'allow' ? undefined : answer.approvalDecision,
+            permissionDecision:
+              answer.permissionDecision === 'allow' ? undefined : answer.permissionDecision,
+          }
+        },
+      ),
+      combined,
+    )
+  } catch {
+    if (signal?.aborted === true) {
+      return undefined
+    }
+    warn(`${event}: ${hook.source} hook failed`)
+    return await runFallback()
+  }
+  if (timeout.aborted && signal?.aborted !== true) {
+    warn(`${event}: ${hook.source} hook timed out`)
+    return await runFallback()
+  }
+  if (answer === undefined) {
+    return undefined
+  }
+  if (answer.status === 'failed') {
+    warn(`${event}: ${hook.source} hook failed`)
+    return await runFallback()
+  }
+  return answer
+}
+
 async function runHandler(
   hook: HookDefinition,
   event: HookEvent,
@@ -1017,6 +1241,9 @@ async function runHandler(
   signal: AbortSignal | undefined,
   warn: (message: string) => void,
 ): Promise<HookAnswer | undefined> {
+  if ((hook.type ?? 'command') !== 'command') {
+    throw new Error('a typed handler never reaches the command runner')
+  }
   let result: ShellResult
   try {
     result = await runBoundedHook(hook, serialized, cwd, runner, signal)
@@ -1103,7 +1330,11 @@ async function runForeignHandler(
   }
   if (prepared.outcome === 'refused') {
     warn(`${label} was not started: ${prepared.reason}`)
-    return judge({ kind: 'refused', reason: prepared.reason })
+    return judge({
+      kind: 'refused',
+      reason: prepared.reason,
+      ...(prepared.blockOperation === true && { blockOperation: true }),
+    })
   }
   if (Buffer.byteLength(prepared.stdin) > HOOK_STDIN_MAX_BYTES) {
     warn(`${label} input exceeds limit; it was not started`)
@@ -1140,7 +1371,7 @@ async function runForeignHandler(
 }
 
 /**
- * Execute matching commands. No hook can grant a tool permission or paid use.
+ * Execute matching handlers. No hook can grant a tool permission or paid use.
  * Imported hooks run only through `adapter`; without one they are skipped.
  */
 export async function dispatchHooks(
@@ -1151,6 +1382,7 @@ export async function dispatchHooks(
   io: Pick<ToolIo, 'runHook'>,
   signal: AbortSignal | undefined,
   warn: (message: string) => void,
+  typed?: TypedHookHandlers,
   adapter?: ForeignHookAdapter,
   context?: ForeignDispatchContext,
   trackAsync?: (execution: Promise<unknown>) => void,
@@ -1170,7 +1402,7 @@ export async function dispatchHooks(
     }
   }
   const runner = io.runHook
-  if (runner === undefined && selected.length > 0) {
+  if (runner === undefined && selected.some((hook) => (hook.type ?? 'command') === 'command')) {
     warn(`${event}: hook runner is unavailable`)
   }
   const contexts: string[] = []
@@ -1182,34 +1414,48 @@ export async function dispatchHooks(
   let approvalDecision: 'allow' | 'deny' | undefined
   let replacement: HookReplacement | undefined
   const executions =
-    runner === undefined || signal?.aborted === true
+    signal?.aborted === true
       ? []
       : selected.map(async (hook) => {
           const { foreign } = hook
-          if (foreign === undefined) {
-            return await runHandler(
+          if (foreign !== undefined) {
+            if (adapter === undefined || runner === undefined) {
+              warn(`${event}: ${foreign.format}-format hook skipped: no adapter here`)
+              return
+            }
+            return await runForeignHandler(
               hook,
+              foreign,
               event,
-              serialized,
-              String(payload['cwd']),
+              payload,
               runner,
               signal,
+              adapter,
+              context,
               warn,
             )
           }
-          if (adapter === undefined) {
-            warn(`${event}: ${foreign.format}-format hook skipped: no adapter here`)
-            return
+          if ((hook.type ?? 'command') === 'command') {
+            return runner === undefined
+              ? undefined
+              : await runHandler(
+                  hook,
+                  event,
+                  serialized,
+                  String(payload['cwd']),
+                  runner,
+                  signal,
+                  warn,
+                )
           }
-          return await runForeignHandler(
+          return await runTypedHook(
             hook,
-            foreign,
             event,
-            payload,
+            serialized,
+            String(payload['cwd']),
             runner,
+            typed,
             signal,
-            adapter,
-            context,
             warn,
           )
         })
