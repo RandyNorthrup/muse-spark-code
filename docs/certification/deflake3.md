@@ -75,14 +75,63 @@ production hash above and the final test hash
 `47F12CCDE8534CA0263D772618B225BAFFFEAD70AB0AC4B5F92502E31C0A194B`.
 The final count case took **24–26 ms** in the initial green runs.
 
-## Verification in progress
+## Verification
 
 All five TypeScript projects and scoped ESLint passed, exit 0, with no
 suppression. Dead-code, duplication, localization, host API and production
 build checks also passed, exit 0. All bundle caps, splits, host-global and
 notice checks passed: extension **562.9/600 KiB**, Model API **428.0/475 KiB**,
 checkpoint store **109.3/225 KiB**. No host API record changed.
-The 300 final-file invocations and complete unit inventory are the remaining
-lane verification.
+The committed file (`417f57b3`, unchanged test hash above) passed **300/300
+consecutive independent invocations**, **1,800/1,800 tests**, zero failures,
+retries or skips, in **14m33.21s**. All 300 logs independently contain the
+six-test pass summary. The first 100 invocations ran under the same parallel
+CPU load; its 89 invocations also passed, 90 tests each. The final count
+case took **25–80 ms**, mean **28.987 ms**, across all 300 runs, compared with
+the original loaded **348–1,561 ms**, mean **507.4 ms**.
+
+Before/after observed failure rates are **0/200 original-file runs** and
+**0/300 strengthened-file runs**; this is improved fixture cost and proven
+guard coverage, not statistical proof that the unobserved hosted flake is
+eliminated. The complete `test/unit` inventory is the remaining lane
+verification: 357 files, in 119 invocations of at most three files, with the
+same rig worker/timeout flags and JSON reports. No new test filtering is
+introduced.
 Local raw logs are in ignored `scratchpad/deflake3/before-*.log` and
 `temp/deflake3/`.
+
+## Commit hooks and scope
+
+The implementation and initial drill receipt are committed as `417f57b3`
+with the normal Husky pre-commit hook enabled. The first attempt failed
+before lint-staged because the rig's installed `npx` shell shim requires
+Bash, which is absent. An ignored worktree-local POSIX `sh` launcher invokes
+that same installed npm `npx-cli.js`, with unchanged arguments. Only the
+commit process's PATH changes; no installed package, Git setting, user
+setting or tracked hook changes. ESLint, Prettier and staged gitleaks all
+passed through the unchanged hook on the successful attempt.
+
+This lane changes `test/unit/checkpointCopies.test.ts`, `PLAN.md`,
+`CHANGELOG.md` and this receipt. There is no new command, setting,
+dependency, wire shape, translation or escape hatch. The rig forbids push,
+merge and rebase. The brief requires full quality only for product changes;
+aggregate coverage/full quality and the hosted Windows recheck remain the
+lead's gates. The original hosted failure's exact trigger remains open.
+
+## PR description draft
+
+**Title:** Harden the Windows checkpoint-copy count and cursor test
+
+The count/cursor test used 258 real copies and more than 1,000 asynchronous
+filesystem operations, while its eventual-deletion loop could pass even
+when the sweep discarded its cursor between passes. Use a four-entry
+test-only budget and six real copies; assert the exact read count,
+remaining-copy count and reuse of the same open `Dir` on the second pass.
+Production sweep limits and safety checks remain unchanged.
+
+The original file passed 100 normal and 100 CPU-loaded Windows runs.
+Both count-bound and cursor-restart mutations fail the strengthened named
+test and are restored byte-exact; the original test accepts the broken
+cursor control. All 300 consecutive final-file runs and static/build checks
+pass; the complete-unit receipt remains in progress. PR #116's exact hosted failure was
+not supplied and has not reproduced, so its trigger is not claimed proved.
