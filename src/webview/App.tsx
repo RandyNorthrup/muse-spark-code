@@ -339,7 +339,7 @@ export function App({
   const state = useSyncExternalStore(store.subscribe, store.getState)
   const { dispatch } = store
   const selectedModel = state.models.find((model) => model.modelId === state.model?.modelId)
-  const selectedProvider = selectedModel?.providerId ?? providerOf(state.model?.modelId ?? '')
+  const selectedProvider = providerOf(state.model?.modelId ?? '') ?? selectedModel?.providerId
   const hasPlan =
     state.auth.status === 'signedIn' &&
     (selectedProvider === 'chatgpt' ||

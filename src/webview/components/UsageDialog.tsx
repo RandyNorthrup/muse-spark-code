@@ -506,17 +506,18 @@ function AccountSection({
   report,
   modelId,
   modelPricing,
-  model,
+  providerId,
+  provider,
 }: {
   readonly report: UsageReport
   readonly modelId: string | undefined
   readonly modelPricing: ModelPricing | undefined
-  readonly model: ModelOption | undefined
+  readonly providerId: string | undefined
+  readonly provider: string
 }) {
   const { account } = report
-  const provider = model?.providerLabel ?? UI_TEXT.modelPlan
   const signIn =
-    model?.providerId === 'chatgpt' || model?.providerId === 'copilot'
+    providerId === 'chatgpt' || providerId === 'copilot'
       ? fill(UI_TEXT.planUi.providerMark, { provider })
       : signInLabel(account?.signInMethod)
   const plan = modelPricing === 'plan' ? UI_TEXT.modelPlan : planFor(report)
@@ -627,7 +628,7 @@ export function UsageDialog({
   usage,
   context,
   modelId,
-  modelPricing,
+  modelPricing: listedPricing,
   paid,
   auth,
   onInstallMuseCode,
@@ -648,6 +649,14 @@ export function UsageDialog({
     }
   }, [])
   const nowMs = now()
+  // The bound reference remains authoritative while the catalogue is recovering.
+  const providerId = modelId?.includes('/') ? modelId.split('/', 1)[0] : undefined
+  const model = models.find((option) => option.modelId === modelId)
+  const provider =
+    (model?.providerId === providerId ? model?.providerLabel : undefined) ??
+    providerId ??
+    UI_TEXT.modelPlan
+  const modelPricing = providerId === 'chatgpt' || providerId === 'copilot' ? 'plan' : listedPricing
   // Priced on the Model API only, whose usage always carries its cached total.
   const cachedTokens = usage?.cachedTokens
   const costUsd =
@@ -679,7 +688,8 @@ export function UsageDialog({
           report={report}
           modelId={modelId}
           modelPricing={modelPricing}
-          model={models.find((option) => option.modelId === modelId)}
+          providerId={providerId}
+          provider={provider}
         />
         <h3 className="usage-heading">{UI_TEXT.usageHeading}</h3>
         {report.subscription === undefined ? (

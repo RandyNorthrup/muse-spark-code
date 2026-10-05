@@ -11,7 +11,7 @@ import {
 } from '../../src/shared/constants'
 import { EN } from '../../src/shared/l10n/en'
 import { planUsageSchema } from '../../src/core/providers/subscriptions/planUsage'
-import { setUiText } from '../../src/shared/l10n/text'
+import { fill, setUiText } from '../../src/shared/l10n/text'
 import { EMPTY_PAID_TALLY } from '../../src/shared/paid'
 import {
   parseHostToWebviewMessage,
@@ -300,6 +300,52 @@ describe('M95b shared subscription UI', () => {
     fireEvent.click(screen.getByRole('button', { name: UI_TEXT.planUi.manage }))
     expect(onOpenExternal).toHaveBeenCalledWith(CHATGPT_MANAGE_USAGE_URL)
   })
+
+  it.each(['chatgpt', 'copilot'])(
+    'keeps %s plan billing tied to the session when the catalogue is cleared or inconsistent',
+    async (providerId) => {
+      const option = { ...model, modelId: `${providerId}/auto`, providerId }
+      const { store, postMessage, container } = showApp(readyStore(option))
+      await screen.findByRole('button', { name: UI_TEXT.planUi.manage })
+      const deliver = (raw: unknown) => {
+        const parsed = parseHostToWebviewMessage(raw)
+        expect(parsed.ok).toBe(true)
+        if (parsed.ok) {
+          act(() => {
+            store.dispatch({ type: 'hostMessage', at: 0, message: parsed.message })
+          })
+        }
+      }
+      deliver({ type: 'modelList', models: [] })
+      deliver({ type: 'usageReport', backend: 'modelApi', plans: tallies })
+      fireEvent.click(screen.getByRole('button', { name: UI_TEXT.commandsTitle }))
+      const filter = screen.getByRole('combobox')
+      fireEvent.change(filter, { target: { value: '/usage' } })
+      fireEvent.keyDown(filter, { key: 'Enter' })
+      const dialog = await screen.findByRole('dialog', { name: UI_TEXT.usageLabel })
+      const assertPlan = () => {
+        expect(within(dialog).queryByText(UI_TEXT.usagePlanPayAsYouGo)).toBeNull()
+        expect(within(dialog).queryByText(UI_TEXT.usageModelApiNote)).toBeNull()
+        expect(within(dialog).queryByText(UI_TEXT.backendModelApi)).toBeNull()
+        expect(within(dialog).queryByText(UI_TEXT.usageAuthKey)).toBeNull()
+        expect(
+          within(dialog).getByText(fill(UI_TEXT.planUi.providerMark, { provider: providerId })),
+        ).toBeTruthy()
+        expect(
+          within(dialog).getByRole('region', { name: UI_TEXT.planUi.usageHeading }),
+        ).toBeTruthy()
+      }
+      assertPlan()
+      deliver({
+        type: 'modelList',
+        models: [{ ...option, providerId: 'meta', providerLabel: 'Meta', pricing: 'priced' }],
+      })
+      assertPlan()
+      expect(container.querySelector('.plan-mark')).not.toBeNull()
+      expect(postMessage).not.toHaveBeenCalledWith(expect.objectContaining({ type: 'sendMessage' }))
+      expect(postMessage).not.toHaveBeenCalledWith(expect.objectContaining({ type: 'setModel' }))
+    },
+  )
 
   it('shows plan rows in Account & usage and never displays an invented dollar cost', () => {
     render(

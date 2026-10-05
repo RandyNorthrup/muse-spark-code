@@ -240,3 +240,34 @@ node scripts/a11y.mjs plan-notice-narrow plan-limit-narrow plan-usage-narrow cop
 All browser runs use the loopback fake host. No sign-in, provider request,
 live model call, paid call, credential read or external message was made.
 No other lane's implementation/manifest/documentation files were changed.
+
+## FIXM95BU review repair — macmini, 2026-10-05
+
+This repair starts at `6c9b85dd` on `m95b/ufix`. The complete RVM95BU
+report contains three P2 findings and no P1/P3 findings. Only U-owned
+implementation/test files and this record/PLAN are changed; W owns the
+aggregate CHANGELOG/README and composed acceptance. The rig brief explicitly
+forbids full quality/coverage, merges and network/live/paid calls; the lead
+runs aggregate quality. Worktree hooks are present and remain enabled.
+
+### Billing disclosure (RVM95BU failure paths / honesty)
+
+The session's qualified reference determines ChatGPT/Copilot plan billing,
+account sign-in wording and backend label even when `modelList` is empty or
+contains inconsistent provider metadata. The same reference takes priority
+in App's plan surface. A valid matching catalogue row supplies the display
+label; otherwise the technical provider id is shown. Plan-key pricing still
+comes from its model metadata. No new UI strings or dependencies.
+
+The new parameterized regression **keeps chatgpt/copilot plan billing tied
+to the session when the catalogue is cleared or inconsistent** drives the
+real App's `/usage` action with schema-validated host messages. Before the
+fix both cases failed on the false **Pay as you go** row (exit 1). With the
+fix the plan/usage batch passes **51/51**. Four deliberate mutations each
+ran the complete plan file and exited 1 on that regression: remove the
+bound-reference pricing override; remove account sign-in recognition;
+trust an inconsistent catalogue label; restore metadata-first App selection.
+Every file was restored byte-exact in `finally` and SHA-256 compared:
+
+- `UsageDialog.tsx`: `93899dfad5994a7ededa53f10423d92346d3c9b50a23398c3a700b397319cfe1`.
+- `App.tsx`: `c047ec10490cebab792a3ad5a5db0b7d9adba204c093740d5a916b54b102a7bd`.

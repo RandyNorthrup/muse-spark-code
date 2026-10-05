@@ -15100,6 +15100,22 @@ release acceptance are still pending.**
 
 ### M95b — Subscription sign-in: ChatGPT plan, Copilot models, plan keys (D74)
 
+**FIXM95BU review repair (2026-10-05, macmini rig).** Repair all three
+RVM95BU P2 findings within lane U: the production notice port keys browser
+acknowledgement by provider plus a host-supplied SHA-256 account-id hash,
+never email/token, and reads again on account/port replacement while mounted.
+The authored `authState.planAccount` bridge field carries only that provider
+and hash; V/W supply it from the verified account, with missing identity
+showing the notice without a persistent acknowledgement. Keep dismissed
+plan limits by turn id in conversation state and its validated snapshot,
+preserving them through model switches/unmounts and clearing them after a
+successful new turn or conversation replacement. Derive plan billing text
+from the bound qualified model reference before optional catalogue metadata,
+including an empty or inconsistent catalogue. Each finding gets regression
+coverage and byte-exact red drills in `docs/certification/m95b-u.md`.
+No dependencies, new service-wire shapes, paid/live calls or relaxed gates;
+W retains aggregate docs and host identity production.
+
 **FIXM95BS review repair (2026-10-05, Windows 11 rig).** Repair all four
 RVM95BS findings in the owned sign-in core and tests: atomically persist a
 replacement grant as a pending refresh before validation, preserve it in
