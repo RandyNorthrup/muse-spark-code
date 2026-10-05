@@ -4053,6 +4053,10 @@ export const TEAM_TASK_MAX_REQUESTS_WRITER_ROLES = ['engineering', 'qa'] as cons
 // is neither merged nor discarded (D75). Nothing unmerged is deleted without
 // the user's action.
 export const TEAM_UNMERGED_NOTICE_DAYS = 7
+// A ledger row is written when its task starts, again at each state change,
+// on usage at most this often, and when the task ends, so partial usage
+// survives a crash (D75).
+export const TEAM_LEDGER_FLUSH_MS = 2_000
 // An exclusive resource's lease (D75): a request for a held resource waits
 // up to this long, then answers "resource busy". An exclusive MCP server's
 // lease also ends after this long idle, counted from the last call's
