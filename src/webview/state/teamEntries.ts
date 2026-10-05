@@ -6,10 +6,14 @@
 // the row (D36: shown as it came, never dropped).
 
 import type { ItemSnapshot } from '../../shared/agentEvents'
+import { TEAM_ITEM_KINDS } from '../../shared/teamView'
 import type { TranscriptEntry } from './transcriptEntries'
 
 /** A team item's card, or undefined when the item carries no card payload. */
 export function teamEntryForItem(item: ItemSnapshot): TranscriptEntry | undefined {
+  if (!TEAM_ITEM_KINDS.has(item.kind)) {
+    return undefined
+  }
   switch (item.kind) {
     case 'teamPlan': {
       if (item.teamPlan === undefined) {

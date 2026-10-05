@@ -10,6 +10,7 @@ import { EN } from '../../src/shared/l10n/en'
 import { BASE_LOCALE, setUiText } from '../../src/shared/l10n/text'
 import type { HostToWebviewMessage, WebviewToHostMessage } from '../../src/shared/protocol'
 import { App } from '../../src/webview/App'
+import type { TeamTreeData } from '../../src/shared/teamView'
 import { testSettings } from './helpers/fakes'
 
 function deliver(data: unknown) {
@@ -25,8 +26,8 @@ const init = {
   settings: testSettings,
 } satisfies HostToWebviewMessage
 
-const tree = {
-  orchestrator: { model: 'muse-spark-1.3', backend: 'modelApi', slot: 'default' as const },
+const tree: TeamTreeData = {
+  orchestrator: { model: 'muse-spark-1.3', backend: 'modelApi', slot: 'default' },
   roles: [
     {
       id: 'engineering',
@@ -38,7 +39,7 @@ const tree = {
           id: 'e1',
           provider: 'Meta',
           model: 'muse-spark-1.3',
-          payKind: 'key' as const,
+          payKind: 'key',
           caps: [],
           running: 1,
           state: 'ready',

@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import type { AgentEvent, ItemSnapshot } from '../../src/shared/agentEvents'
 import { UI_TEXT } from '../../src/shared/constants'
 import type { HostToWebviewMessage } from '../../src/shared/protocol'
+import type { TeamTreeData } from '../../src/shared/teamView'
 import { restoredUiState, webviewStateOf } from '../../src/webview/state/snapshot'
 import type { ScheduleView } from '../../src/shared/schedule'
 import {
@@ -1304,8 +1305,8 @@ describe('uiReducer: account & usage and announcements (M8)', () => {
 })
 
 describe('uiReducer: team tree, usage and cards (M96 lane U2)', () => {
-  const team = {
-    orchestrator: { model: 'muse-spark-1.3', backend: 'modelApi', slot: 'default' as const },
+  const team: TeamTreeData = {
+    orchestrator: { model: 'muse-spark-1.3', backend: 'modelApi', slot: 'default' },
     roles: [],
   }
 

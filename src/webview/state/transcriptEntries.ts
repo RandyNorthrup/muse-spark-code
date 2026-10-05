@@ -25,8 +25,11 @@ import {
 import { PAID_FEATURES, TASK_REQUESTS } from '../../shared/constants'
 import { NOTICE_ACTIONS, NOTICE_LEVELS } from '../../shared/protocol'
 import {
-  TEAM_MERGE_REVIEWS,
-  teamPlanItemSchema,
+  teamMergeFields,
+  teamPlanFields,
+  teamReportFields,
+  teamSwitchFields,
+  teamWaitingFields,
   teamWorkerLabelSchema,
 } from '../../shared/teamView'
 
@@ -290,58 +293,35 @@ const teamPlanEntrySchema = z.object({
   kind: z.literal('teamPlan'),
   id: z.string(),
   status: z.string(),
-  /** Each item delegated or kept, with its rubric reason. */
-  items: z.readonly(z.array(teamPlanItemSchema)),
-  /** A `dry_run`'s card: the plan, before anything is spent. */
-  dryRun: z.boolean(),
+  ...teamPlanFields,
 })
 
 const teamSwitchEntrySchema = z.object({
-  /** One transcript row per switch: the role, from and to, and the reason. */
   kind: z.literal('teamSwitch'),
   id: z.string(),
   status: z.string(),
-  roleId: z.string(),
-  fromEntry: z.string(),
-  toEntry: z.string(),
-  reason: z.string(),
+  ...teamSwitchFields,
 })
 
 const teamWaitingEntrySchema = z.object({
-  /** The all-exhausted `ask` policy's card, with its four choices. */
   kind: z.literal('teamWaiting'),
   id: z.string(),
   status: z.string(),
-  waitingId: z.string(),
-  roleId: z.string(),
-  brief: z.optional(z.string()),
-  reasonText: z.optional(z.string()),
+  ...teamWaitingFields,
 })
 
 const teamMergeEntrySchema = z.object({
-  /** The merge card: the user's approval point (D75). */
   kind: z.literal('teamMerge'),
   id: z.string(),
   status: z.string(),
-  taskId: z.string(),
-  roleId: z.string(),
-  brief: z.string(),
-  branch: z.string(),
-  filesChanged: z.optional(z.number()),
-  review: z.enum(TEAM_MERGE_REVIEWS),
-  branchMoved: z.optional(z.boolean()),
-  conflicted: z.optional(z.boolean()),
+  ...teamMergeFields,
 })
 
 const teamReportEntrySchema = z.object({
-  /** A finished task's report row. */
   kind: z.literal('teamReport'),
   id: z.string(),
   status: z.string(),
-  taskId: z.string(),
-  roleId: z.string(),
-  brief: z.optional(z.string()),
-  summary: z.string(),
+  ...teamReportFields,
 })
 
 const errorEntrySchema = z.object({ kind: z.literal('error'), id: z.string(), text: z.string() })

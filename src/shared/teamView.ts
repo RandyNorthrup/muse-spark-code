@@ -11,7 +11,6 @@ import * as z from 'zod/mini'
 
 /** How the entry's model bills: a key (paid), a plan, or nothing (D75). */
 export const teamPayKindSchema = z.enum(['key', 'subscription', 'local'])
-export type TeamPayKind = z.infer<typeof teamPayKindSchema>
 
 /** One cap as the tree shows it: "used of amount", reported or estimated. */
 export const teamCapSchema = z.object({
@@ -20,7 +19,6 @@ export const teamCapSchema = z.object({
   amount: z.optional(z.number()),
   estimated: z.optional(z.boolean()),
 })
-export type TeamCap = z.infer<typeof teamCapSchema>
 
 /** A pool entry's running or finished worker, as its tree node shows it. */
 export const teamWorkerSchema = z.object({
@@ -76,7 +74,6 @@ export const teamOrchestratorSchema = z.object({
   backend: z.string(),
   slot: z.enum(['default', 'override']),
 })
-export type TeamOrchestrator = z.infer<typeof teamOrchestratorSchema>
 
 /** The Agent map's team tree, the ledger's live view (D75). */
 export const teamTreeSchema = z.object({
@@ -135,7 +132,6 @@ export const teamPlanItemSchema = z.object({
   reason: z.string(),
   entry: z.optional(z.string()),
 })
-export type TeamPlanItem = z.infer<typeof teamPlanItemSchema>
 
 /**
  * A worker's own card, routed to the main panel (D75): the role, the agent
@@ -148,55 +144,62 @@ export const teamWorkerLabelSchema = z.object({
 })
 export type TeamWorkerLabel = z.infer<typeof teamWorkerLabelSchema>
 
+/**
+ * Each card's fields, shared by the host item and the transcript row, so
+ * the two cannot drift apart: the row carries the card's payload with its
+ * kind, id and status.
+ */
+export const teamPlanFields = {
+  /** Each item delegated or kept, with its rubric reason. */
+  items: z.readonly(z.array(teamPlanItemSchema)),
+  /** A `dry_run`'s card: the plan, before anything is spent. */
+  dryRun: z.boolean(),
+} as const
+export const teamSwitchFields = {
+  /** One transcript row per switch: the role, from and to, and the reason. */
+  roleId: z.string(),
+  fromEntry: z.string(),
+  toEntry: z.string(),
+  reason: z.string(),
+} as const
+export const teamWaitingFields = {
+  /** The all-exhausted `ask` policy's card, with its four choices. */
+  waitingId: z.string(),
+  roleId: z.string(),
+  brief: z.optional(z.string()),
+  reasonText: z.optional(z.string()),
+} as const
+export const teamMergeFields = {
+  /** The merge card: the task, its branch, review state and conflicts. */
+  taskId: z.string(),
+  roleId: z.string(),
+  brief: z.string(),
+  branch: z.string(),
+  filesChanged: z.optional(z.number()),
+  review: z.enum(TEAM_MERGE_REVIEWS),
+  branchMoved: z.optional(z.boolean()),
+  conflicted: z.optional(z.boolean()),
+} as const
+export const teamReportFields = {
+  /** A finished task's report row. */
+  taskId: z.string(),
+  roleId: z.string(),
+  brief: z.optional(z.string()),
+  summary: z.string(),
+} as const
+
 /** The host item fields behind each transcript card (M96 lane U2). */
 export const teamItemFields = {
   /** `delegate`'s plan card, or a `dry_run`'s: each item delegated or kept. */
-  teamPlan: z.optional(
-    z.object({
-      items: z.readonly(z.array(teamPlanItemSchema)),
-      dryRun: z.boolean(),
-    }),
-  ),
+  teamPlan: z.optional(z.object(teamPlanFields)),
   /** One transcript row per switch: the role, from and to, and the reason. */
-  teamSwitch: z.optional(
-    z.object({
-      roleId: z.string(),
-      fromEntry: z.string(),
-      toEntry: z.string(),
-      reason: z.string(),
-    }),
-  ),
+  teamSwitch: z.optional(z.object(teamSwitchFields)),
   /** The all-exhausted `ask` policy's four choices. */
-  teamWaiting: z.optional(
-    z.object({
-      waitingId: z.string(),
-      roleId: z.string(),
-      brief: z.optional(z.string()),
-      reasonText: z.optional(z.string()),
-    }),
-  ),
+  teamWaiting: z.optional(z.object(teamWaitingFields)),
   /** The merge card: the task, its branch, review state and conflicts. */
-  teamMerge: z.optional(
-    z.object({
-      taskId: z.string(),
-      roleId: z.string(),
-      brief: z.string(),
-      branch: z.string(),
-      filesChanged: z.optional(z.number()),
-      review: z.enum(TEAM_MERGE_REVIEWS),
-      branchMoved: z.optional(z.boolean()),
-      conflicted: z.optional(z.boolean()),
-    }),
-  ),
+  teamMerge: z.optional(z.object(teamMergeFields)),
   /** A finished task's report row. */
-  teamReport: z.optional(
-    z.object({
-      taskId: z.string(),
-      roleId: z.string(),
-      brief: z.optional(z.string()),
-      summary: z.string(),
-    }),
-  ),
+  teamReport: z.optional(z.object(teamReportFields)),
   /** A worker's own card: the panel draws the label from this (D75). */
   teamWorker: z.optional(teamWorkerLabelSchema),
   /**
@@ -205,8 +208,6 @@ export const teamItemFields = {
    */
   teamDecision: z.optional(z.string()),
 } as const
-export const teamItemFieldsSchema = z.object(teamItemFields)
-export type TeamItemFields = z.infer<typeof teamItemFieldsSchema>
 
 /** The item kinds U2 maps to cards instead of today's `item` row. */
 export const TEAM_ITEM_KINDS: ReadonlySet<string> = new Set([

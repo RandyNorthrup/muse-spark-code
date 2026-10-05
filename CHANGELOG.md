@@ -7,6 +7,20 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+### Added
+
+- **The Agent map's team tree and transcript cards (M96 lane U2).** Once
+  the team runs, the Agent map grows a team tree — the orchestrator at the
+  root, roles with mode and tools, pool entries with caps and headroom, and
+  each entry's workers with Open transcript, Stop, Review diff, Merge and
+  Discard — with WAI-ARIA tree keyboard support and the same items at
+  320 px. The orchestrator's transcript shows the delegation plan, one row
+  per switch, the four-choice "waiting for you" card, the merge card and
+  each task's report row; a worker's own approval or question card carries
+  the panel-drawn role, agent and task label. Account & usage gains a Team
+  section, and the header pill counts team tasks. With one model the panel
+  is exactly today's: no team UI loads or changes requests.
+
 ## [0.12.1] - 2026-10-04
 
 ### Changed

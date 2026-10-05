@@ -2,6 +2,7 @@
 // conversation (Transcript, the tool rows of M43).
 import { render } from '@testing-library/react'
 import { vi } from 'vitest'
+import { AgentMap, type AgentMapProps } from '../../../src/webview/components/AgentMap'
 import { Transcript, type TranscriptProps } from '../../../src/webview/components/Transcript'
 import type { TranscriptEntry } from '../../../src/webview/state/uiState'
 
@@ -82,6 +83,41 @@ export function renderTranscript(
 ) {
   const props = transcriptProps(entries, overrides)
   render(<Transcript {...props} />)
+  return props
+}
+
+/** The Agent map's props with an empty map, for the tests that open it. */
+export function agentMapProps(overrides: Partial<AgentMapProps> = {}): AgentMapProps {
+  return {
+    backend: 'museCode',
+    title: 'Chrome control update',
+    modelId: 'muse-spark-1.3',
+    contextUsedTokens: undefined,
+    agents: [],
+    backgroundTasks: [],
+    delegationMode: undefined,
+    isDelegationEnabled: false,
+    childTranscripts: {},
+    selectedAgentId: undefined,
+    onSelectAgent: vi.fn(),
+    onReadChild: vi.fn(),
+    onControl: vi.fn(),
+    onMessage: vi.fn(),
+    onStopTask: vi.fn(),
+    onStopAllTasks: vi.fn(),
+    onOpenMuseSettings: vi.fn(),
+    onClose: vi.fn(),
+    workflows: [],
+    workflowTriggerMode: undefined,
+    team: undefined,
+    teamActions: undefined,
+    ...overrides,
+  }
+}
+
+export function renderAgentMap(overrides: Partial<AgentMapProps> = {}) {
+  const props = agentMapProps(overrides)
+  render(<AgentMap {...props} />)
   return props
 }
 

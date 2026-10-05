@@ -5,6 +5,7 @@ import { EN } from '../../src/shared/l10n/en'
 import { setUiText } from '../../src/shared/l10n/text'
 import { EMPTY_PAID_TALLY } from '../../src/shared/paid'
 import { UsageDialog, type UsageDialogProps } from '../../src/webview/components/UsageDialog'
+import type { TeamUsageSummary } from '../../src/shared/teamView'
 
 const HOUR = 60 * 60 * 1000
 const DAY = 24 * HOUR
@@ -573,7 +574,7 @@ describe('UsageDialog: paid features (M33, PLAN.md D30)', () => {
 })
 
 describe('UsageDialog Team section (M96 lane U2)', () => {
-  const team = {
+  const team: TeamUsageSummary = {
     today: { tasks: 3, inputTokens: 80_000, outputTokens: 20_000, costUsd: 1.2, estimated: false },
     window: { tasks: 5, inputTokens: 100_000, outputTokens: 40_000, costUsd: 2.5, estimated: true },
     byRole: [
@@ -594,7 +595,7 @@ describe('UsageDialog Team section (M96 lane U2)', () => {
         entryId: 'e1',
         roleId: 'engineering',
         label: 'engineering · entry 1',
-        payKind: 'key' as const,
+        payKind: 'key',
         figures: {
           tasks: 2,
           inputTokens: 70_000,
@@ -607,7 +608,7 @@ describe('UsageDialog Team section (M96 lane U2)', () => {
         entryId: 'e2',
         roleId: 'engineering',
         label: 'engineering · entry 2',
-        payKind: 'local' as const,
+        payKind: 'local',
         figures: {
           tasks: 1,
           inputTokens: 10_000,

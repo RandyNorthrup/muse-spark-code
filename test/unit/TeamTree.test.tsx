@@ -13,8 +13,8 @@ import {
   teamTaskCount,
   type TeamTreeActions,
 } from '../../src/webview/components/TeamTree'
-import { AgentMap } from '../../src/webview/components/AgentMap'
 import { Header } from '../../src/webview/components/Header'
+import { renderAgentMap } from './helpers/transcriptFixtures'
 
 function setup() {
   setUiText(EN, BASE_LOCALE)
@@ -89,15 +89,7 @@ const tree: TeamTreeData = {
   budgetUsdToday: 50,
 }
 
-function actions(): TeamTreeActions & {
-  onOpenTranscript: ReturnType<typeof vi.fn>
-  onStopTask: ReturnType<typeof vi.fn>
-  onReviewDiff: ReturnType<typeof vi.fn>
-  onDecideMerge: ReturnType<typeof vi.fn>
-  onEditRole: ReturnType<typeof vi.fn>
-  onResetEntry: ReturnType<typeof vi.fn>
-  onStopAll: ReturnType<typeof vi.fn>
-} {
+function actions(): TeamTreeActions {
   return {
     onOpenTranscript: vi.fn(),
     onStopTask: vi.fn(),
@@ -207,31 +199,6 @@ describe('TeamTree', () => {
   })
 })
 
-function mapProps() {
-  return {
-    backend: 'museCode' as const,
-    title: 'Chrome control update',
-    modelId: 'muse-spark-1.3',
-    contextUsedTokens: undefined,
-    agents: [],
-    backgroundTasks: [],
-    delegationMode: undefined,
-    isDelegationEnabled: false,
-    childTranscripts: {},
-    selectedAgentId: undefined,
-    onSelectAgent: vi.fn(),
-    onReadChild: vi.fn(),
-    onControl: vi.fn(),
-    onMessage: vi.fn(),
-    onStopTask: vi.fn(),
-    onStopAllTasks: vi.fn(),
-    onOpenMuseSettings: vi.fn(),
-    onClose: vi.fn(),
-    workflows: [],
-    workflowTriggerMode: undefined,
-  }
-}
-
 function headerProps() {
   return {
     title: 'Chrome control update',
@@ -244,14 +211,14 @@ function headerProps() {
 describe('AgentMap team region', () => {
   it('shows the team tree with its task count', () => {
     setup()
-    render(<AgentMap {...mapProps()} team={tree} teamActions={actions()} />)
+    renderAgentMap({ team: tree, teamActions: actions() })
     expect(screen.getByText(/Team · 4 team tasks/)).toBeDefined()
     expect(screen.getByRole('tree', { name: 'Team' })).toBeDefined()
   })
 
   it('stays today’s map without a team', () => {
     setup()
-    render(<AgentMap {...mapProps()} />)
+    renderAgentMap()
     expect(screen.queryByRole('tree')).toBeNull()
     expect(screen.queryByText(/team tasks/)).toBeNull()
   })

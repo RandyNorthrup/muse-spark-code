@@ -185,12 +185,12 @@ export function TeamMergeCard({
           setPending(decision)
           onDecide(entry.taskId, decision)
         }
-  const reviewText =
-    entry.review === 'reviewed'
-      ? undefined
-      : entry.review === 'same-model'
-        ? UI_TEXT.teamMergeSameModel
-        : UI_TEXT.teamMergeNotReviewed
+  // A reviewed merge needs no badge; the other states name themselves.
+  const reviewText = {
+    reviewed: undefined,
+    'same-model': UI_TEXT.teamMergeSameModel,
+    'not-reviewed': UI_TEXT.teamMergeNotReviewed,
+  }[entry.review]
   return (
     <li className="activity activity-team-merge" data-status={entry.status}>
       <span className="activity-kind">{UI_TEXT.teamMergeTitle}</span>
