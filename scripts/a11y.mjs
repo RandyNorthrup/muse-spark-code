@@ -30,15 +30,18 @@ import {
   LOOPBACK,
   PAGE_TIMEOUT_MS,
   SCENARIOS,
+  SIZED_SCENARIOS,
   serveRepo,
+  withSizedPage,
 } from './lib/harnessServer.mjs'
 
 const THEMES = ['light', 'dark', 'hc-dark', 'hc-light']
 const BUNDLE_PATH = 'dist/webview/main.js'
 // The page the gate has always measured: what Chrome's 690x760 window left
-// for the page, and the narrow share check's real 320 px.
+// for the page. A sized scenario (SIZED_SCENARIOS: a real 320 px panel, the
+// 1400 px column) is this tall at its own width.
 const VIEWPORT = { width: 690, height: 673 }
-const NARROW_VIEWPORT = { width: 320, height: 760 }
+const SIZED_VIEWPORT_HEIGHT = 760
 const MAX_WORKERS = 6
 // Windows headless Chrome stalled on the long transcript plus jump button
 // with four concurrent pages (M46); two workers passed twice with all rules.
@@ -76,26 +79,58 @@ async function launchWorker(chrome, profileDir) {
   })
 }
 
+/** The page keeps its focus whatever the machine does with the window. */
+async function keepFocus(tab) {
+  // As a webview the user is typing in does. Playwright turns this on for
+  // every page by default; it is asked for here too, so the gate does not
+  // rest on that default.
+  const session = await tab.context().newCDPSession(tab)
+  await session.send('Emulation.setFocusEmulationEnabled', { enabled: true })
+}
+
+async function axeResultOf(tab) {
+  const result = tab.locator('#axe-result')
+  await result.waitFor({ state: 'attached', timeout: PAGE_TIMEOUT_MS })
+  return JSON.parse(await result.textContent())
+}
+
+/**
+ * A scenario that needs scrollbars (the 1400 px column's check), which the
+ * workers' browsers hide: a browser of its own at its size.
+ */
+async function scanWithScrollbars(chrome, url, sized) {
+  const profileDir = await mkdtemp(path.join(tmpdir(), 'muse-a11y-sized-'))
+  try {
+    return await withSizedPage(chrome, profileDir, url, sized, async (tab) => {
+      await keepFocus(tab)
+      return await axeResultOf(tab)
+    })
+  } finally {
+    await rm(profileDir, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 })
+  }
+}
+
 /** One page: `{ violations }` from axe, or `{ error }` saying why there is none. */
-async function scan(context, port, page, lang) {
+async function scan(chrome, context, port, page, lang) {
   const url = `http://${LOOPBACK}:${String(port)}/${HARNESS_PATH}?scenario=${page.scenario}&theme=${page.theme}&axe=1${langQuery(lang)}`
+  const sized = SIZED_SCENARIOS[page.scenario]
+  if (sized?.hasScrollbars === true) {
+    try {
+      return await scanWithScrollbars(chrome, url, sized)
+    } catch (error) {
+      return { error: String(error.message ?? error) }
+    }
+  }
   const tab = await context.newPage()
   try {
     tab.setDefaultTimeout(PAGE_TIMEOUT_MS)
     tab.setDefaultNavigationTimeout(PAGE_TIMEOUT_MS)
-    // The page keeps its focus whatever the machine does with the window,
-    // as a webview the user is typing in does. Playwright turns this on for
-    // every page by default; it is asked for here too, so the gate does not
-    // rest on that default.
-    const session = await context.newCDPSession(tab)
-    await session.send('Emulation.setFocusEmulationEnabled', { enabled: true })
-    if (page.scenario === 'share-narrow') {
-      await tab.setViewportSize(NARROW_VIEWPORT)
+    await keepFocus(tab)
+    if (sized !== undefined) {
+      await tab.setViewportSize({ width: sized.width, height: SIZED_VIEWPORT_HEIGHT })
     }
     await tab.goto(url)
-    const result = tab.locator('#axe-result')
-    await result.waitFor({ state: 'attached', timeout: PAGE_TIMEOUT_MS })
-    return JSON.parse(await result.textContent())
+    return await axeResultOf(tab)
   } catch (error) {
     return { error: String(error.message ?? error) }
   } finally {
@@ -201,7 +236,7 @@ async function main() {
               while (next < pages.length) {
                 const page = pages[next]
                 next += 1
-                results.push({ ...page, ...(await scan(context, port, page, lang)) })
+                results.push({ ...page, ...(await scan(chrome, context, port, page, lang)) })
               }
             }),
           )

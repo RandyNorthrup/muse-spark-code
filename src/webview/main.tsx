@@ -9,6 +9,7 @@
 import { createRoot } from 'react-dom/client'
 import { WEBVIEW_ROOT_ELEMENT_ID } from '../shared/constants'
 import { App } from './App'
+import { TasksApp } from './TasksApp'
 import { ErrorBoundary } from './components/ErrorBoundary'
 import { type ErrorReporter, webviewErrorReport } from './errorReport'
 import { vsCodeHostBridge } from './hostBridge'
@@ -17,59 +18,79 @@ import { restoredUiState } from './state/snapshot'
 import { createUiStore, listenToHost, persistStore } from './state/store'
 import './styles.css'
 
-const host = vsCodeHostBridge(window)
 const rootElement = document.querySelector(`#${WEBVIEW_ROOT_ELEMENT_ID}`)
 if (rootElement === null) {
   throw new Error(`Webview root element #${WEBVIEW_ROOT_ELEMENT_ID} is missing`)
 }
 
-// What throws here reaches the host's log (M39): a render the boundary
-// caught, an error or a rejected promise nothing handled, a host message.
-const report: ErrorReporter = (source, error) => {
-  host.post(webviewErrorReport(source, error))
-}
-window.addEventListener('error', (event) => {
-  const error: unknown = event.error ?? event.message
-  report('window', error)
-})
-window.addEventListener('unhandledrejection', (event) => {
-  const reason: unknown = event.reason
-  report('promise', reason)
-})
-
-// The table came from the host, so a refused one is logged as a host message's.
-const tableError = installEmbeddedTable(document)
-if (tableError !== undefined) {
-  report('hostMessage', tableError)
-}
-
-const store = createUiStore(restoredUiState(host.savedState()))
-listenToHost(store, host.messages, () => Date.now(), report)
-const persister = persistStore(store, (state) => {
-  host.saveState(state)
-})
-// The document goes away (a reload, the panel closing): save what is shown.
-window.addEventListener('pagehide', () => {
-  persister.flush(store.hasRendered())
-})
-
-createRoot(rootElement).render(
-  <ErrorBoundary
-    onError={(error) => {
-      report('render', error)
-    }}
-    onReload={() => {
-      // A state that crashed the very first render would crash the reloaded
-      // one too: it is saved without its transcript then.
-      persister.flush(store.hasRendered())
-      host.post({ type: 'hostAction', action: 'reload' })
-    }}
-  >
-    <App
-      store={store}
+if (document.body.dataset['surface'] === 'tasks') {
+  const api = acquireVsCodeApi()
+  const tableError = installEmbeddedTable(document)
+  if (tableError !== undefined) {
+    throw tableError
+  }
+  createRoot(rootElement).render(
+    <TasksApp
+      messages={window}
       postMessage={(message) => {
-        host.post(message)
+        api.postMessage(message)
       }}
-    />
-  </ErrorBoundary>,
-)
+    />,
+  )
+} else {
+  mountChat(rootElement)
+}
+
+function mountChat(element: Element): void {
+  const host = vsCodeHostBridge(window)
+  // What throws here reaches the host's log (M39): a render the boundary
+  // caught, an error or a rejected promise nothing handled, a host message.
+  const report: ErrorReporter = (source, error) => {
+    host.post(webviewErrorReport(source, error))
+  }
+  window.addEventListener('error', (event) => {
+    const error: unknown = event.error ?? event.message
+    report('window', error)
+  })
+  window.addEventListener('unhandledrejection', (event) => {
+    const reason: unknown = event.reason
+    report('promise', reason)
+  })
+
+  // The table came from the host, so a refused one is logged as a host message's.
+  const tableError = installEmbeddedTable(document)
+  if (tableError !== undefined) {
+    report('hostMessage', tableError)
+  }
+
+  const store = createUiStore(restoredUiState(host.savedState()))
+  listenToHost(store, host.messages, () => Date.now(), report)
+  const persister = persistStore(store, (state) => {
+    host.saveState(state)
+  })
+  // The document goes away (a reload, the panel closing): save what is shown.
+  window.addEventListener('pagehide', () => {
+    persister.flush(store.hasRendered())
+  })
+
+  createRoot(element).render(
+    <ErrorBoundary
+      onError={(error) => {
+        report('render', error)
+      }}
+      onReload={() => {
+        // A state that crashed the very first render would crash the reloaded
+        // one too: it is saved without its transcript then.
+        persister.flush(store.hasRendered())
+        host.post({ type: 'hostAction', action: 'reload' })
+      }}
+    >
+      <App
+        store={store}
+        postMessage={(message) => {
+          host.post(message)
+        }}
+      />
+    </ErrorBoundary>,
+  )
+}
