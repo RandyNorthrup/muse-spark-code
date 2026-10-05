@@ -10,6 +10,7 @@ import {
   streamEventSchema,
   type CreateResponseBody,
 } from '../../src/core/backends/modelapi/schemas'
+import { MODEL_API_REQUEST_TIMEOUT_MS } from '../../src/shared/constants'
 
 class Text implements vscode.LanguageModelTextPart {
   public constructor(public value: string) {}
@@ -63,10 +64,6 @@ function rig(parts: readonly unknown[] = [new Text('answer')]) {
   let access: boolean | undefined
   const cancel = vi.fn()
   const dispose = vi.fn()
-  const token: vscode.CancellationToken = {
-    isCancellationRequested: false,
-    onCancellationRequested: () => ({ dispose: () => undefined }),
-  }
   const model: vscode.LanguageModelChat = {
     id: 'synthetic-model',
     name: 'Synthetic Model',
@@ -95,7 +92,33 @@ function rig(parts: readonly unknown[] = [new Text('answer')]) {
     text: (text) => new Text(text),
     call: (id, name, input) => new Call(id, name, input),
     result: (id, content) => new Result(id, content),
-    cancellation: () => ({ token, cancel, dispose }),
+    cancellation: vi.fn(() => {
+      const controller = new AbortController()
+      const token: vscode.CancellationToken = {
+        get isCancellationRequested() {
+          return controller.signal.aborted
+        },
+        onCancellationRequested: (listener) => {
+          const notify = (): void => {
+            listener(undefined)
+          }
+          controller.signal.addEventListener('abort', notify, { once: true })
+          return {
+            dispose: () => {
+              controller.signal.removeEventListener('abort', notify)
+            },
+          }
+        },
+      }
+      return {
+        token,
+        cancel: () => {
+          cancel()
+          controller.abort()
+        },
+        dispose,
+      }
+    }),
     isText: (part): part is vscode.LanguageModelTextPart => part instanceof Text,
     isCall: (part): part is vscode.LanguageModelToolCallPart => part instanceof Call,
   }
@@ -142,6 +165,15 @@ async function run(
     events.push(event)
   }
   return events
+}
+
+async function settledResult(work: Promise<unknown>): Promise<string> {
+  try {
+    await work
+    return 'completed'
+  } catch (error) {
+    return error instanceof Error ? error.message : 'invalid-error'
+  }
 }
 
 describe('Copilot VS Code client', () => {
@@ -216,7 +248,8 @@ describe('Copilot VS Code client', () => {
       type: 'response.completed',
       response: { usage: { input_tokens: 12, output_tokens: 2 } },
     })
-    expect(tester.deps.recordEstimatedUsage).toHaveBeenCalledWith(request.model, 12, 2)
+    expect(tester.deps.recordEstimatedUsage).toHaveBeenCalledWith(request.model, 12, 2, 'estimated')
+    expect(tester.deps.recordEstimatedUsage).toHaveBeenCalledOnce()
   })
 
   it.each([
@@ -242,7 +275,8 @@ describe('Copilot VS Code client', () => {
     await expect(run(tester)).rejects.toThrow(`translated.${translated[code] ?? 'request-failed'}`)
     expect(tester.cancel).toHaveBeenCalled()
     expect(tester.dispose).toHaveBeenCalledOnce()
-    expect(tester.deps.recordEstimatedUsage).not.toHaveBeenCalled()
+    expect(tester.deps.recordEstimatedUsage).toHaveBeenCalledOnce()
+    expect(tester.deps.recordEstimatedUsage).toHaveBeenCalledWith(body().model, 6, 0, 'estimated')
   })
 
   it('translates nested quota errors during the stream', async () => {
@@ -261,6 +295,163 @@ describe('Copilot VS Code client', () => {
       })(),
     })
     await expect(run(tester)).rejects.toThrow('translated.quota')
+    expect(tester.deps.recordEstimatedUsage).toHaveBeenCalledOnce()
+    expect(tester.deps.recordEstimatedUsage).toHaveBeenCalledWith(body().model, 6, 2, 'estimated')
+  })
+
+  it.each(['message', 'tools', 'output'])(
+    'Stop settles stalled %s token counting even when the tokenizer ignores cancellation',
+    async (kind) => {
+      const tester = rig()
+      const controller = new AbortController()
+      const started = Promise.withResolvers<vscode.CancellationToken | undefined>()
+      const pending = Promise.withResolvers<number>()
+      vi.mocked(tester.model.countTokens).mockImplementation((input, token) => {
+        if (
+          (kind === 'tools' && typeof input === 'string') ||
+          (kind !== 'tools' &&
+            typeof input !== 'string' &&
+            input.role === tester.api[kind === 'output' ? 'assistant' : 'user']('').role)
+        ) {
+          started.resolve(token)
+          return pending.promise
+        }
+        return Promise.resolve(2)
+      })
+      const result = settledResult(run(tester, body(), controller.signal))
+      try {
+        const token = await started.promise
+        expect(token).toBeDefined()
+        controller.abort()
+        await expect(Promise.race([result, pause(100, 'pending')])).resolves.toBe(
+          'translated.cancelled',
+        )
+        expect(token?.isCancellationRequested).toBe(true)
+        expect(tester.dispose).toHaveBeenCalledOnce()
+        if (kind === 'output') {
+          expect(tester.deps.recordEstimatedUsage).toHaveBeenCalledWith(
+            body().model,
+            6,
+            0,
+            'estimated',
+          )
+        } else {
+          expect(tester.model.sendRequest).not.toHaveBeenCalled()
+          expect(tester.deps.recordEstimatedUsage).not.toHaveBeenCalled()
+        }
+      } finally {
+        pending.resolve(2)
+        await result
+      }
+    },
+  )
+
+  it.each(['request', 'standalone'])(
+    'bounds stalled counting with a deadline in a %s',
+    async (kind) => {
+      const tester = rig()
+      const connected = await client(tester)
+      const started = Promise.withResolvers<boolean>()
+      const pending = Promise.withResolvers<number>()
+      vi.mocked(tester.model.countTokens).mockImplementationOnce(() => {
+        started.resolve(true)
+        return pending.promise
+      })
+      vi.useFakeTimers()
+      const work = kind === 'request' ? run(tester) : connected.countInputTokens(body())
+      const result = settledResult(work)
+      try {
+        await started.promise
+        await vi.advanceTimersByTimeAsync(MODEL_API_REQUEST_TIMEOUT_MS)
+        await expect(Promise.race([result, Promise.resolve('pending')])).resolves.toBe(
+          'translated.request-failed',
+        )
+        expect(tester.cancel).toHaveBeenCalled()
+        expect(tester.dispose).toHaveBeenCalledOnce()
+        expect(tester.model.sendRequest).not.toHaveBeenCalled()
+        expect(tester.deps.recordEstimatedUsage).not.toHaveBeenCalled()
+      } finally {
+        vi.useRealTimers()
+        pending.resolve(2)
+        await result
+      }
+    },
+  )
+
+  it('uses one deadline for all input messages and tools rather than restarting it per count', async () => {
+    const tester = rig()
+    vi.useFakeTimers()
+    vi.mocked(tester.model.countTokens).mockImplementation(() => {
+      vi.setSystemTime(Date.now() + MODEL_API_REQUEST_TIMEOUT_MS / 2)
+      return Promise.resolve(2)
+    })
+    try {
+      const connected = await client(tester)
+      await expect(connected.countInputTokens(body())).rejects.toThrow('translated.request-failed')
+      expect(tester.model.countTokens).toHaveBeenCalledTimes(2)
+      expect(tester.model.sendRequest).not.toHaveBeenCalled()
+      expect(tester.dispose).toHaveBeenCalledOnce()
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('retains the previous output estimate when later output counting fails', async () => {
+    const tester = rig([new Text('counted'), new Text('uncounted')])
+    vi.mocked(tester.model.countTokens).mockImplementation((input) => {
+      return typeof input !== 'string' &&
+        input.role === tester.api.assistant('').role &&
+        input.content.length > 1
+        ? Promise.reject(new Error('synthetic tokenizer failure'))
+        : Promise.resolve(2)
+    })
+    await expect(run(tester)).rejects.toThrow('translated.request-failed')
+    expect(tester.deps.recordEstimatedUsage).toHaveBeenCalledOnce()
+    expect(tester.deps.recordEstimatedUsage).toHaveBeenCalledWith(body().model, 6, 2, 'estimated')
+  })
+
+  it('settles estimates once when the consumer closes immediately after a text delta', async () => {
+    const tester = rig([new Text('partial'), new Text('unconsumed')])
+    const connected = await client(tester)
+    const stream = connected.streamResponse(body(), new AbortController().signal)
+    await stream.next()
+    expect(await stream.next()).toMatchObject({
+      value: { type: 'response.output_text.delta', delta: 'partial' },
+    })
+    await stream.return(undefined)
+    await stream.return(undefined)
+    expect(tester.deps.recordEstimatedUsage).toHaveBeenCalledOnce()
+    expect(tester.deps.recordEstimatedUsage).toHaveBeenCalledWith(body().model, 6, 2, 'estimated')
+  })
+
+  it('retains counted output on Stop after a partial stream', async () => {
+    const tester = rig([new Text('partial'), new Text('unconsumed')])
+    const controller = new AbortController()
+    const connected = await client(tester)
+    const stream = connected.streamResponse(body(), controller.signal)
+    await stream.next()
+    await stream.next()
+    controller.abort()
+    await expect(stream.next()).rejects.toThrow('translated.cancelled')
+    expect(tester.deps.recordEstimatedUsage).toHaveBeenCalledOnce()
+    expect(tester.deps.recordEstimatedUsage).toHaveBeenCalledWith(body().model, 6, 2, 'estimated')
+  })
+
+  it('records no usage when admission refuses before dispatch', async () => {
+    const tester = rig()
+    const connected = await client(tester)
+    const stream = connected.streamResponse(
+      body(),
+      new AbortController().signal,
+      undefined,
+      undefined,
+      () => {
+        throw new Error('denied')
+      },
+    )
+    await expect(stream.next()).rejects.toThrow('translated.request-failed')
+    expect(tester.model.sendRequest).not.toHaveBeenCalled()
+    expect(tester.deps.recordEstimatedUsage).not.toHaveBeenCalled()
   })
 
   it('blocks first-use consent from a background request but allows a previously granted request', async () => {

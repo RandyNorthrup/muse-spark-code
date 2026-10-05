@@ -101,8 +101,10 @@ panel requires other lanes' changes, so V stops at that boundary:
    SecretStorage, `globalStorageUri`, remote state and the host's patched
    fetch; connect removal through `core.remove()` after Undo. Translate
    core errors, including local-window guidance for `invalid-callback`.
-3. U/0 must provide the Continue with ChatGPT and Use my Copilot models
-   rows, Plus/Pro eligibility, one-time plan/credit notices, reduced and
+3. V owns the Continue with ChatGPT and Use my Copilot models rows and
+   the extension command region. Those remain unfinished pending shared
+   contracts; handing them to U/W did not complete V's acceptance. U/0
+   supplies Plus/Pro eligibility, one-time plan/credit notices, reduced and
    estimated labels, report link, and all translations. Copilot's
    `failureText` codes are `unavailable`, `consent-required`, `quota`,
    `rate-limit`, `request-failed`, `unsupported-content`, `confidential`,
@@ -113,8 +115,8 @@ panel requires other lanes' changes, so V stops at that boundary:
    translations and plan tallies. The modern image port requires an
    actual SDK feature detector and a model capability record. Modern
    usage data parts need a capture before they can be interpreted.
-5. W owns command/manifest wiring, README, PRIVACY, CHANGELOG, PLAN and
-   aggregate certification. No command is registered here without its
+5. V owns extension command wiring; W owns the manifest, README, PRIVACY,
+   CHANGELOG, PLAN and aggregate certification. No command is registered here without its
    manifest, translated labels and usable panel path.
 
 All-editor behavior: ChatGPT decisions stay in lane S's shared core;
@@ -237,3 +239,128 @@ Full quality, the complete coverage suite, real VS Code/Copilot consent,
 remote forwarding, and live subscription receipts remain integration/owner
 work. No paid or live call was authorized or attempted here. The lane
 preserves the owner's defaults ruling and today's single-model behavior.
+
+## RVM95BV repair — FIXM95BV, 2026-10-05
+
+Kubuntu, `/home/randy/lanes/FIXM95BV`, branch `m95b/vfix`, review base
+`55ca120f`. The preceding certificate records the original lane snapshot;
+this section supersedes its lock and accounting behavior and corrects the
+ownership handoff. The rig/common brief forbids full quality, complete-suite
+runs and integration merges here. Hooks exist and remain enabled. No
+external network, real credential read, paid/model call, dependency, unchecked
+cast, suppression, guard widening, push, merge or rebase.
+
+| Finding                                               | Outcome                                                           | Regression evidence                                                                                                                                                                                                                                                                         |
+| ----------------------------------------------------- | ----------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| RVM95BV-1, orphaned refresh lock                      | Fixed for the new owner-record lock                               | `recovers a dead lock owner promptly` (future and expired leases), `concurrent recoverers keep the new owner exclusive`, `publishes pid, process start time, window identity and expiry and never steals a live expired owner`                                                              |
+| RVM95BV-2, Stop stuck in token counting               | Fixed                                                             | `Stop settles stalled … token counting even when the tokenizer ignores cancellation` (messages, tools, output), `bounds stalled counting with a deadline` (stream and standalone), `uses one deadline for all input messages and tools`                                                     |
+| RVM95BV-3, partial usage lost                         | Fixed                                                             | `translates nested quota errors during the stream`, `settles estimates once when the consumer closes immediately after a text delta`, `retains counted output on Stop`, `retains the previous output estimate when later output counting fails`, and dispatch refusal/one-settlement checks |
+| RVM95BV-4, Providers rows and command path unfinished | **Residual: RVM95BV-4-SUBSCRIPTION-INTEGRATION; release blocker** | No integrated flow exists to exercise or drill; dependency evidence and required follow-up below.                                                                                                                                                                                           |
+
+The refresh lock is now a directory at `chatgpt.refresh.lock`. A complete,
+validated owner record (PID, process start timestamp, opaque per-factory
+window ID and expiry) is written under a unique filename in a private
+preparation directory, then published by atomic directory rename. No empty
+owner-record interval exists. Dead PIDs recover immediately, including
+before expiry. An expired inactive lease from this process also recovers;
+a live owner stays locked even past expiry. `EPERM`, unknown OS errors,
+unknown filenames and invalid metadata do not prove death. Foreign live PIDs
+are conservatively retained even if their recorded start time differs:
+`kill(pid, 0)` cannot distinguish PID reuse on every supported platform.
+
+Recovery unlinks only the observed owner's unique filename and uses
+`rmdir`, which cannot remove a concurrently published nonempty lock. The
+five-contender regression also refreshes one expired synthetic grant once.
+Release uses the same filename, so it cannot delete a successor's owner.
+The empty ownerless regular-file format from the original unshipped adapter
+remains closed rather than risking a live legacy owner's refresh; see the
+named migration limitation below. No token value is written to lock storage.
+A crash before publication can leave an inert `.chatgpt-lock-*` preparation
+directory; it never blocks acquisition and contains only owner metadata.
+
+Copilot passes the request's SDK cancellation token to every tokenizer call
+and races each call against cancellation and a deadline, so an uncooperative
+asynchronous tokenizer cannot keep Stop pending. Input messages and tools
+share the existing 30-second `MODEL_API_REQUEST_TIMEOUT_MS`; standalone
+counting also owns and disposes its cancellation source. Output counts are
+bounded too. Listeners and timers are removed after each count. No new
+setting or tunable is introduced.
+
+A dispatched attempt settles exactly once on success, SDK request failure,
+stream failure, Stop or generator closure, with the last validated input and
+output counts and explicit certainty `estimated`. Counting happens before
+yielding each output part, preserving the count when the consumer closes
+at that yield. Failure during a later count retains the previous estimate;
+uncounted content stays unknown. Admission, input-counting or consent
+refusals before `sendRequest` produce no dispatched usage. These are plan
+estimates, not reported usage or a dollar charge.
+
+### Repair red drills
+
+Each drill runs the complete owning test file with
+`--maxWorkers=3 --testTimeout=120000`, no test-name filter. The runner restores
+the exact original buffer in `finally` and compares SHA-256. All **15** exit 1
+and the named assertion fails. Raw logs/JSON are in ignored `temp/m95b-v/`.
+
+| Guard deliberately broken       | Named failed test (substring)                    | Failed tests | Restoration       |
+| ------------------------------- | ------------------------------------------------ | ------------ | ----------------- |
+| dead-owner recovery             | `recovers a dead lock owner promptly`            | 4            | SHA-256 identical |
+| active-owner expiry protection  | `never steals a live expired owner`              | 1            | SHA-256 identical |
+| permission failure is not death | `uncertain permission failure`                   | 1            | SHA-256 identical |
+| owner schema                    | `untrusted invalid-owner`                        | 5            | SHA-256 identical |
+| owner filename validation       | `untrusted unknown-file`                         | 1            | SHA-256 identical |
+| nonempty directory fence        | `never steals a live expired owner`              | 7            | SHA-256 identical |
+| tokenizer cancellation argument | `Stop settles stalled message token counting`    | 3            | SHA-256 identical |
+| tokenizer cancellation race     | `Stop settles stalled message token counting`    | 3            | SHA-256 identical |
+| counting deadline               | `bounds stalled counting with a deadline`        | 2            | SHA-256 identical |
+| aggregate input deadline        | `one deadline for all input messages and tools`  | 1            | SHA-256 identical |
+| failure/closure settlement      | `consumer closes immediately after a text delta` | 11           | SHA-256 identical |
+| one settlement                  | `preserves ordered tool calls/results`           | 1            | SHA-256 identical |
+| dispatched attempts only        | `admission refuses before dispatch`              | 4            | SHA-256 identical |
+| estimated certainty             | `retains counted output on Stop`                 | 12           | SHA-256 identical |
+| count before yield              | `consumer closes immediately after a text delta` | 2            | SHA-256 identical |
+
+### Named residuals and release requirements
+
+Restored repair sources:
+
+- `chatgptSignIn.ts` SHA-256: `633a592b14ecb81c609ceee60f2897447b00dddf60ab13594a7142033bd7e1cb`.
+- `copilotClient.ts` SHA-256: `3de091e54651e6ecb535567f137710988088878325ce2ba7d1349fff348453cd`.
+
+**RVM95BV-4-SUBSCRIPTION-INTEGRATION.** This P2 requires coordinated shared
+contract/dispatch changes outside this lane's files, meeting the repair
+brief's redesign exception. `src/core/providers/providersFile.ts`,
+`src/host/providers/providerPorts.ts` and `src/shared/modelsPanel.ts` still
+accept only `apiKey` and `none`; the panel has no subscription actions or
+reduced field. `src/core/backends/modelapi/providerClient.ts` and a
+`ProviderRegistry` do not exist in this base. `src/shared/l10n/en.ts` lacks
+the ChatGPT/Copilot plan notices, consent/error readers and action labels.
+The existing production factory at `src/extension.ts` composes API-key
+provider seams only. No adapter appears in a production bundle input graph.
+
+This is safe only because the adapters are unreachable in production and
+M95b is not certified for release. Registering commands without persistence,
+model selection and harness dispatch, or importing factories solely to put
+them in a bundle, would create an incomplete flow. Follow-up: the lead must
+integrate shared subscription persistence, client dispatch, validated panel
+variants and lane 0/U's translations/notices; V then implements its owned
+rows and command region and proves panel click → consent → model selection →
+harness dispatch → plan tally → removal, plus production membership/size
+and split drills. Full quality and installed-editor/live checks follow.
+The same named blocker is in PLAN §9; the repair does not claim all four
+findings fixed.
+
+**RVM95BV-1-LEGACY-LOCK-MIGRATION.** An ownerless file from the original
+adapter cannot safely establish whether an old host still owns it. It
+continues to refuse. That version was reachable only from tests and never
+shipped, so there is no supported installed-user migration here. Follow-up:
+do not mix the old and new adapters during integration; if supporting an
+old development profile, close all old hosts before explicitly clearing its
+ownerless lock. Never remove such a file on age while a live old host might
+rotate the grant. PID reuse/start-time uncertainty likewise retains a live
+PID's lock rather than stealing it. This conservative availability
+limitation is named in PLAN §9.
+
+All-editor ownership stays as D74: shared ChatGPT decisions remain in lane
+S, and runtime/ACP ports in X; Copilot is offered only by a host supplying
+the sanctioned Language Model API. These repairs alter only VS Code ports.

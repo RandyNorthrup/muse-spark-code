@@ -1,5 +1,5 @@
-import { generateKeyPairSync, sign } from 'node:crypto'
-import { mkdtemp, readFile, readdir, rm, writeFile } from 'node:fs/promises'
+import { generateKeyPairSync, randomUUID, sign } from 'node:crypto'
+import { mkdir, mkdtemp, readFile, readdir, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { connect } from 'node:net'
 import path from 'node:path'
@@ -24,6 +24,7 @@ const DISCOVERY = {
 const keyPair = generateKeyPairSync('rsa', { modulusLength: 2048 })
 const directories: string[] = []
 afterEach(async () => {
+  vi.restoreAllMocks()
   setUiText(EN, 'en')
   for (const directory of directories.splice(0)) await rm(directory, { recursive: true })
 })
@@ -290,6 +291,186 @@ describe('VS Code subscription ports', () => {
     expect(tester.records.size).toBe(0)
     expect(await readdir(tester.directory)).toEqual(['chatgpt.host-id'])
   })
+
+  it.each(['future', 'expired'])(
+    'recovers a dead lock owner promptly with a %s expiry',
+    async (expiry) => {
+      const tester = await rig()
+      const lockPath = path.join(tester.directory, 'chatgpt.refresh.lock')
+      await mkdir(lockPath)
+      await writeFile(
+        path.join(lockPath, `${randomUUID()}.json`),
+        JSON.stringify({
+          pid: 99_999_999,
+          startedAt: 1,
+          windowId: randomUUID(),
+          expiresAt: expiry === 'future' ? Date.now() + 600_000 : 1,
+        }),
+      )
+      const kill = process.kill.bind(process)
+      vi.spyOn(process, 'kill').mockImplementation((pid, signal) => {
+        if (pid === 99_999_999)
+          throw Object.assign(new Error('synthetic dead owner'), { code: 'ESRCH' })
+        return kill(pid, signal)
+      })
+      const core = await createChatGptSignIn({
+        ...tester.deps,
+        lockTimeoutMs: 100,
+        lockPollMs: 1000,
+      })
+      await expect(core.accessToken('https://api.openai.com/v1/models', 0)).rejects.toThrow(
+        'chatgpt.sign-in-required',
+      )
+      expect(await readdir(tester.directory)).toEqual(['chatgpt.host-id'])
+    },
+  )
+
+  it('publishes pid, process start time, window identity and expiry and never steals a live expired owner', async () => {
+    const tester = await rig()
+    const core = await createChatGptSignIn({ ...tester.deps, lockTimeoutMs: 20 })
+    const started = Promise.withResolvers<boolean>()
+    const opened = Promise.withResolvers<boolean>()
+    tester.browser.mockImplementationOnce(() => {
+      started.resolve(true)
+      return opened.promise
+    })
+    const signingIn = core.signIn()
+    const failed = expect(signingIn).rejects.toThrow('chatgpt.request-failed')
+    let abandoned: unknown
+    try {
+      await started.promise
+      const lockPath = path.join(tester.directory, 'chatgpt.refresh.lock')
+      const [file] = await readdir(lockPath)
+      expect(file).toMatch(/\.json$/)
+      const bytes = await readFile(path.join(lockPath, file!), 'utf8')
+      const owner: unknown = JSON.parse(bytes)
+      abandoned = owner
+      expect(owner).toMatchObject({
+        pid: process.pid,
+        startedAt: expect.any(Number),
+        windowId: expect.any(String),
+        expiresAt: expect.any(Number),
+      })
+      await pause(40)
+      await expect(createChatGptSignIn({ ...tester.deps, lockTimeoutMs: 20 })).rejects.toThrow(
+        'chatgpt.request-failed',
+      )
+      expect(await readFile(path.join(lockPath, file!), 'utf8')).toBe(bytes)
+    } finally {
+      opened.resolve(false)
+      await failed
+    }
+    expect(await readdir(tester.directory)).toEqual(['chatgpt.host-id'])
+    // The same process has finished that work; its expired, inactive lease
+    // can be recovered even if cleanup was interrupted before publication.
+    expect(typeof abandoned).toBe('object')
+    const lockPath = path.join(tester.directory, 'chatgpt.refresh.lock')
+    await mkdir(lockPath)
+    if (typeof abandoned !== 'object' || abandoned === null) throw new Error('missing owner')
+    await writeFile(
+      path.join(lockPath, `${randomUUID()}.json`),
+      JSON.stringify({ ...abandoned, expiresAt: 1 }),
+    )
+    await createChatGptSignIn({ ...tester.deps, lockTimeoutMs: 100, lockPollMs: 1000 })
+    expect(await readdir(tester.directory)).toEqual(['chatgpt.host-id'])
+  })
+
+  it('concurrent recoverers keep the new owner exclusive and persist one installation id', async () => {
+    const tester = await rig()
+    const lockPath = path.join(tester.directory, 'chatgpt.refresh.lock')
+    await mkdir(lockPath)
+    await writeFile(
+      path.join(lockPath, `${randomUUID()}.json`),
+      JSON.stringify({
+        pid: 99_999_999,
+        startedAt: 1,
+        windowId: randomUUID(),
+        expiresAt: 1,
+      }),
+    )
+    vi.spyOn(process, 'kill').mockImplementation(() => {
+      throw Object.assign(new Error('synthetic dead owner'), { code: 'ESRCH' })
+    })
+    const cores = await Promise.all(
+      Array.from({ length: 5 }, () => createChatGptSignIn(tester.deps)),
+    )
+    await cores[0]!.signIn()
+    const key = 'museSpark.provider.chatgpt'
+    const record = chatGptRecordSchema.parse(JSON.parse(tester.records.get(key)!))
+    tester.records.set(key, JSON.stringify({ ...record, expiresAt: 1 }))
+    tester.fetcher.mockClear()
+    await Promise.all(cores.map((core) => core.accessToken('https://api.openai.com/v1/models', 0)))
+    expect(
+      tester.fetcher.mock.calls.filter(([url]) => url === DISCOVERY.token_endpoint),
+    ).toHaveLength(1)
+    expect(await readdir(tester.directory)).toEqual(['chatgpt.host-id'])
+  })
+
+  it('keeps a foreign live owner locked on expiry or an uncertain permission failure', async () => {
+    const tester = await rig()
+    const lockPath = path.join(tester.directory, 'chatgpt.refresh.lock')
+    await mkdir(lockPath)
+    const ownerPath = path.join(lockPath, `${randomUUID()}.json`)
+    const record = JSON.stringify({
+      pid: 99_999_999,
+      startedAt: 1,
+      windowId: randomUUID(),
+      expiresAt: 1,
+    })
+    await writeFile(ownerPath, record)
+    vi.spyOn(process, 'kill')
+      .mockReturnValueOnce(true)
+      .mockImplementation(() => {
+        throw Object.assign(new Error('synthetic permission refusal'), { code: 'EPERM' })
+      })
+    await expect(createChatGptSignIn({ ...tester.deps, lockTimeoutMs: 20 })).rejects.toThrow(
+      'chatgpt.request-failed',
+    )
+    expect(await readFile(ownerPath, 'utf8')).toBe(record)
+  })
+
+  it('never treats a different start timestamp as proof that a live pid is gone', async () => {
+    const tester = await rig()
+    const lockPath = path.join(tester.directory, 'chatgpt.refresh.lock')
+    await mkdir(lockPath)
+    const ownerPath = path.join(lockPath, `${randomUUID()}.json`)
+    await writeFile(
+      ownerPath,
+      JSON.stringify({ pid: process.pid, startedAt: 1, windowId: randomUUID(), expiresAt: 1 }),
+    )
+    await expect(createChatGptSignIn({ ...tester.deps, lockTimeoutMs: 20 })).rejects.toThrow(
+      'chatgpt.request-failed',
+    )
+    expect(await readdir(lockPath)).toHaveLength(1)
+  })
+
+  it.each(['invalid-owner', 'unknown-file'])(
+    'keeps an untrusted %s closed instead of assuming a dead owner',
+    async (kind) => {
+      const tester = await rig()
+      const lockPath = path.join(tester.directory, 'chatgpt.refresh.lock')
+      await mkdir(lockPath)
+      const ownerPath = path.join(
+        lockPath,
+        kind === 'unknown-file' ? 'unknown.json' : `${randomUUID()}.json`,
+      )
+      const bytes = JSON.stringify({
+        pid: kind === 'invalid-owner' ? '99_999_999' : 99_999_999,
+        startedAt: 1,
+        windowId: randomUUID(),
+        expiresAt: 1,
+      })
+      await writeFile(ownerPath, bytes)
+      const kill = vi.spyOn(process, 'kill').mockImplementation(() => {
+        throw Object.assign(new Error('synthetic dead owner'), { code: 'ESRCH' })
+      })
+      await expect(createChatGptSignIn({ ...tester.deps, lockTimeoutMs: 20 })).rejects.toThrow(
+        'chatgpt.request-failed',
+      )
+      expect(kill).not.toHaveBeenCalled()
+      expect(await readFile(ownerPath, 'utf8')).toBe(bytes)
+    },
+  )
 
   it('rejects a damaged non-opaque installation id before using it', async () => {
     const tester = await rig()

@@ -1,10 +1,22 @@
 // VS Code ports for the shared subscription core. The global-storage files
 // contain only an opaque installation id and an exclusive lock, never tokens.
-import { mkdir, open, readFile, unlink, writeFile } from 'node:fs/promises'
+import { randomUUID } from 'node:crypto'
+import {
+  mkdir,
+  mkdtemp,
+  readdir,
+  readFile,
+  rename,
+  rm,
+  rmdir,
+  unlink,
+  writeFile,
+} from 'node:fs/promises'
 import { createServer } from 'node:http'
 import path from 'node:path'
 import { setTimeout as pause } from 'node:timers/promises'
 import * as vscode from 'vscode'
+import * as z from 'zod/mini'
 import {
   HTTP_STATUS,
   MILLISECONDS_PER_SECOND,
@@ -114,9 +126,57 @@ export async function startChatGptCallback(
   }
 }
 
-/** Atomic exclusive creation works across extension-host processes/windows. */
+const processStartedAt = Date.now() - process.uptime() * MILLISECONDS_PER_SECOND
+const activeLocks = new Set<string>()
+const lockOwnerSchema = z.strictObject({
+  pid: z.int().check(z.positive()),
+  startedAt: z.number().check(z.positive()),
+  windowId: z.uuid(),
+  expiresAt: z.number().check(z.positive()),
+})
+
+function fileErrorCode(error: unknown): unknown {
+  return error instanceof Error && 'code' in error ? error.code : undefined
+}
+
+/** An expired lease alone never proves a live process has stopped refreshing. */
+function isOwnerGone(owner: z.infer<typeof lockOwnerSchema>, file: string): boolean {
+  if (owner.pid === process.pid && owner.startedAt === processStartedAt)
+    return owner.expiresAt <= Date.now() && !activeLocks.has(file)
+  try {
+    process.kill(owner.pid, 0)
+    return false
+  } catch (error) {
+    // Permission failures and unrecognised OS failures mean uncertainty, not death.
+    return fileErrorCode(error) === 'ESRCH'
+  }
+}
+
+async function hasRecoveredLock(lockPath: string): Promise<boolean> {
+  try {
+    const files = await readdir(lockPath)
+    for (const file of files) {
+      if (!file.endsWith('.json') || !z.uuid().safeParse(file.slice(0, -'.json'.length)).success)
+        continue
+      const ownerPath = path.join(lockPath, file)
+      const raw: unknown = JSON.parse(await readFile(ownerPath, 'utf8'))
+      const parsed = lockOwnerSchema.safeParse(raw)
+      if (parsed.success && isOwnerGone(parsed.data, file)) await unlink(ownerPath)
+    }
+    // Each acquisition has a unique filename. A concurrent recovery can only
+    // unlink that old owner; rmdir cannot remove a new owner's nonempty directory.
+    await rmdir(lockPath)
+    return true
+  } catch (error) {
+    if (['ENOENT', 'ENOTEMPTY', 'ENOTDIR'].includes(String(fileErrorCode(error)))) return false
+    throw error
+  }
+}
+
+/** A complete owner directory is published atomically; a live one is nonempty. */
 async function withFileLock<T>(
   directory: string,
+  windowId: string,
   timeoutMs: number,
   pollMs: number,
   work: () => Promise<T>,
@@ -124,22 +184,44 @@ async function withFileLock<T>(
   await mkdir(directory, { recursive: true })
   const lockPath = path.join(directory, 'chatgpt.refresh.lock')
   const deadline = Date.now() + timeoutMs
-  let handle
-  while (handle === undefined) {
-    try {
-      handle = await open(lockPath, 'wx')
-    } catch (error) {
-      if (!(error instanceof Error) || !('code' in error) || error.code !== 'EEXIST') throw error
-      // Never steal a lock on age: a slow browser flow or refresh still owns it.
-      if (Date.now() >= deadline) throw new ChatGptSignInError('request-failed')
-      await pause(Math.min(pollMs, Math.max(0, deadline - Date.now())))
-    }
-  }
+  const prepared = await mkdtemp(path.join(directory, '.chatgpt-lock-'))
+  const file = `${randomUUID()}.json`
+  let isOwned = false
   try {
+    await writeFile(
+      path.join(prepared, file),
+      JSON.stringify({
+        pid: process.pid,
+        startedAt: processStartedAt,
+        windowId,
+        expiresAt: deadline,
+      }),
+      { flag: 'wx' },
+    )
+    while (!isOwned) {
+      try {
+        await rename(prepared, lockPath)
+        isOwned = true
+        activeLocks.add(file)
+      } catch (error) {
+        if (!['EEXIST', 'ENOTEMPTY', 'ENOTDIR', 'EPERM'].includes(String(fileErrorCode(error))))
+          throw error
+        const isRecovered = await hasRecoveredLock(lockPath)
+        if (Date.now() >= deadline) throw new ChatGptSignInError('request-failed')
+        if (isRecovered) continue
+        await pause(Math.min(pollMs, Math.max(0, deadline - Date.now())))
+      }
+    }
     return await work()
   } finally {
-    await handle.close()
-    await unlink(lockPath)
+    if (isOwned) {
+      try {
+        await unlink(path.join(lockPath, file))
+      } finally {
+        activeLocks.delete(file)
+      }
+      await hasRecoveredLock(lockPath)
+    } else await rm(prepared, { recursive: true, force: true })
   }
 }
 
@@ -158,9 +240,11 @@ export interface ChatGptVsCodeDeps {
 export async function createChatGptSignIn(deps: ChatGptVsCodeDeps): Promise<ChatGptSignIn> {
   try {
     const directory = deps.globalStorageUri.fsPath
+    const windowId = randomUUID()
     const withRefreshLock: ChatGptHostPort['withRefreshLock'] = (work) =>
       withFileLock(
         directory,
+        windowId,
         deps.lockTimeoutMs ?? OAUTH_CODE_TTL_MS,
         deps.lockPollMs ?? MILLISECONDS_PER_SECOND,
         work,

@@ -4,6 +4,7 @@ import { randomUUID } from 'node:crypto'
 import { setTimeout as pause } from 'node:timers/promises'
 import * as vscode from 'vscode'
 import * as z from 'zod/mini'
+import { MODEL_API_REQUEST_TIMEOUT_MS } from '../../shared/constants'
 import type {
   ConfirmedModelRequest,
   ModelApiClient,
@@ -60,7 +61,12 @@ export interface CopilotClientDeps {
   /** The first consent-triggering request must follow the user's click/send. */
   readonly isUserInitiated: () => boolean
   readonly canSendRequest: (model: vscode.LanguageModelChat) => boolean | undefined
-  readonly recordEstimatedUsage: (model: string, input: number, output: number) => void
+  readonly recordEstimatedUsage: (
+    model: string,
+    input: number,
+    output: number,
+    certainty: 'estimated',
+  ) => void
   readonly api?: CopilotPort
   /** 1.106+ host feature detection plus the selected model's vision capability. */
   readonly images?: {
@@ -191,6 +197,58 @@ class CopilotClient implements ProviderClient {
     }
     return messages
   }
+  private async tokens(
+    input: string | vscode.LanguageModelChatMessage,
+    cancellation: vscode.CancellationTokenSource,
+    deadline: number,
+  ): Promise<number> {
+    if (cancellation.token.isCancellationRequested) throw this.fail('cancelled')
+    if (Date.now() >= deadline) {
+      cancellation.cancel()
+      throw this.fail('request-failed')
+    }
+    const completion: { reject?: (error: Error) => void } = {}
+    const stopped = new Promise<number>((_resolve, reject) => {
+      completion.reject = reject
+    })
+    // A tokenizer can synchronously cancel and throw before the race is built.
+    void stopped.catch(() => null)
+    const listener = cancellation.token.onCancellationRequested(() => {
+      completion.reject?.(this.fail('cancelled'))
+    })
+    const timer = setTimeout(
+      () => {
+        completion.reject?.(this.fail('request-failed'))
+        cancellation.cancel()
+      },
+      Math.max(0, deadline - Date.now()),
+    )
+    try {
+      return tokenCountSchema.parse(
+        await Promise.race([this.model.countTokens(input, cancellation.token), stopped]),
+      )
+    } finally {
+      clearTimeout(timer)
+      listener.dispose()
+    }
+  }
+  private async countInput(
+    body: Omit<CreateResponseBody, 'stream'>,
+    cancellation: vscode.CancellationTokenSource,
+  ): Promise<number> {
+    this.check()
+    const deadline = Date.now() + MODEL_API_REQUEST_TIMEOUT_MS
+    try {
+      let count = 0
+      for (const message of this.messages(body))
+        count += await this.tokens(message, cancellation, deadline)
+      count += await this.tokens(JSON.stringify(body.tools), cancellation, deadline)
+      return tokenCountSchema.parse(count)
+    } catch (error) {
+      if (error instanceof CopilotFailureError) throw error
+      throw this.fail('request-failed')
+    }
+  }
   public listModels(): Promise<readonly string[]> {
     return Promise.resolve(this.deps.isConfidential() ? [] : [this.model.id])
   }
@@ -205,16 +263,12 @@ class CopilotClient implements ProviderClient {
     await pause(ms, undefined, { signal })
   }
   public async countInputTokens(body: Omit<CreateResponseBody, 'stream'>): Promise<number> {
-    this.check()
+    const cancellation = this.api.cancellation()
     try {
-      let count = 0
-      for (const message of this.messages(body))
-        count += tokenCountSchema.parse(await this.model.countTokens(message))
-      count += tokenCountSchema.parse(await this.model.countTokens(JSON.stringify(body.tools)))
-      return tokenCountSchema.parse(count)
-    } catch (error) {
-      if (error instanceof CopilotFailureError) throw error
-      throw this.fail('request-failed')
+      return await this.countInput(body, cancellation)
+    } finally {
+      cancellation.cancel()
+      cancellation.dispose()
     }
   }
   public async *streamResponse(
@@ -235,6 +289,15 @@ class CopilotClient implements ProviderClient {
       cancellation.cancel()
     }
     signal.addEventListener('abort', abort, { once: true })
+    let inputTokens = 0
+    let outputTokens = 0
+    let isDispatched = false
+    let isSettled = false
+    const settleUsage = (): void => {
+      if (!isDispatched || isSettled) return
+      isSettled = true
+      this.deps.recordEstimatedUsage(body.model, inputTokens, outputTokens, 'estimated')
+    }
     try {
       if (isAborted(signal)) throw this.fail('cancelled')
       const messages = this.messages(body)
@@ -242,13 +305,14 @@ class CopilotClient implements ProviderClient {
         if (tool.type !== 'function') throw this.fail('unsupported-content')
         return { name: tool.name, description: tool.description, inputSchema: tool.parameters }
       })
-      const inputTokens = await this.countInputTokens(body)
+      inputTokens = await this.countInput(body, cancellation)
       if (inputTokens > this.model.maxInputTokens) throw this.fail('unsupported-content')
       this.check()
       this.checkConsent()
       if (isAborted(signal)) throw this.fail('cancelled')
       admitAttempt?.(undefined)
       admitAttempt?.onRequestStarted?.()
+      isDispatched = true
       const response = await this.model.sendRequest(
         messages,
         { tools, justification: this.deps.justification() },
@@ -258,7 +322,6 @@ class CopilotClient implements ProviderClient {
       const output: OutputItem[] = []
       const assistant = this.api.assistant('')
       let text = ''
-      let outputTokens = 0
       let isIncomplete = false
       yield {
         type: 'response.created',
@@ -266,11 +329,12 @@ class CopilotClient implements ProviderClient {
       }
       for await (const part of response.stream) {
         if (isAborted(signal)) throw this.fail('cancelled')
+        let event: StreamEvent
         if (this.api.isText(part)) {
           const delta = z.string().parse(part.value)
           text += delta
           assistant.content.push(part)
-          yield { type: 'response.output_text.delta', item_id: id, delta }
+          event = { type: 'response.output_text.delta', item_id: id, delta }
         } else if (this.api.isCall(part)) {
           const call = callPartSchema.safeParse(part)
           if (!call.success) throw this.fail('unsupported-content')
@@ -283,11 +347,14 @@ class CopilotClient implements ProviderClient {
             arguments: JSON.stringify(call.data.input),
           }
           output.push(item)
-          yield { type: 'response.output_item.done', item }
+          event = { type: 'response.output_item.done', item }
         } else throw this.fail('unsupported-content')
-        outputTokens = tokenCountSchema.parse(
-          await this.model.countTokens(assistant, cancellation.token),
+        outputTokens = await this.tokens(
+          assistant,
+          cancellation,
+          Date.now() + MODEL_API_REQUEST_TIMEOUT_MS,
         )
+        yield event
         if (outputTokens > body.max_output_tokens) {
           isIncomplete = true
           cancellation.cancel()
@@ -305,7 +372,7 @@ class CopilotClient implements ProviderClient {
         output.unshift(item)
         yield { type: 'response.output_item.done', item }
       }
-      this.deps.recordEstimatedUsage(body.model, inputTokens, outputTokens)
+      settleUsage()
       const final = {
         id,
         model: body.model,
@@ -327,6 +394,7 @@ class CopilotClient implements ProviderClient {
       signal.removeEventListener('abort', abort)
       cancellation.cancel()
       cancellation.dispose()
+      settleUsage()
     }
   }
 }

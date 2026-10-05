@@ -15100,6 +15100,15 @@ release acceptance are still pending.**
 
 ### M95b — Subscription sign-in: ChatGPT plan, Copilot models, plan keys (D74)
 
+**FIXM95BV review repair (2026-10-05).** RVM95BV-1–3 are repaired in
+the VS Code adapters: publish complete lock-owner records atomically, recover
+dead owners without removing live owners, bound and cancel token counting,
+and settle dispatched attempts with the estimates retained through failure
+or consumer closure. Offline regressions and byte-exact red drills belong in
+`docs/certification/m95b-v.md`. RVM95BV-4 requires shared subscription schemas,
+registry dispatch and translations that are absent from this base and outside
+this repair's owned files; see the named release blocker in §9.
+
 **Status 2026-10-04: planned with M95; research in
 `docs/certification/m95-research.md` §6. Starts when M95's seam (lanes P, T
 and I) has merged.**
@@ -15748,6 +15757,14 @@ its sections 1–2 (harness), "BYO n" its section 3 (providers).
 
 ## 7. Gates
 
+**FIXM95BV gate delegation (2026-10-05).** The rig/common brief expressly
+forbids full quality and complete test runs in this repair lane, and the rig
+note forbids integration merges. Run the two owned suites, required scoped
+static checks and production build here, with hooks enabled for every commit.
+The lead must run `npm run quality` after integrating subscription contracts
+and the blocked V panel path. No gate or threshold is weakened; the offline
+adapter certificate does not certify an integrated M95b release.
+
 **M95INT final whole-chain rerun — deferred under the 120-minute rig brief.**
 The final 548-page rerun still returns 1: `dark/models-pick` has one selected
 description at 4.41:1 contrast (4.5:1 required), and `hc-light/models-table`
@@ -16368,6 +16385,29 @@ before a repaired one loads (2026-09-30).
 | `test/unit/providerCredentialRecords.test.ts` | `eslint-disable-next-line unicorn/prefer-https` on one origin-binding assertion     | The test proves a downgraded `http:` scheme is refused as a different origin; an `https:` URL cannot exercise that leg. One literal, test-only.                                                                                                             | 2026-10-05 |
 
 ## 9. Security assumptions and accepted residual risk
+
+- **RVM95BV-4-SUBSCRIPTION-INTEGRATION (FIXM95BV, 2026-10-05), release
+  blocker.** The owned Providers rows and extension command path remain
+  unfinished. This base has no `ProviderRegistry` or shared `ProviderClient`;
+  the provider file, host port and strict Models panel schemas accept only
+  `apiKey`/`none`, and the strings tables contain none of the required ChatGPT
+  or Copilot notices/errors. A working flow requires coordinated shared
+  persistence, dispatch, protocol and localization changes in other lanes,
+  not just importing the factories or attaching inert buttons. Safe only
+  while these adapters remain unreachable in production; this is not an
+  accepted shipping risk or a certification of M95b. Follow-up: integrate
+  those contracts, then V completes its rows and command region, tests the
+  real panel-to-dispatch path and runs production membership/size drills.
+- **RVM95BV-1-LEGACY-LOCK-MIGRATION (FIXM95BV, 2026-10-05).** The new lock
+  publishes complete owner metadata atomically and recovers dead owners.
+  The original, unshipped adapter's ownerless regular file remains closed:
+  age cannot establish whether a live legacy host is rotating a grant. Safe
+  for the current test-only adapters, with no supported installed-user
+  migration. Follow-up: integration must not mix lock layouts; close all
+  legacy development hosts before explicitly clearing an ownerless file.
+  Foreign live PIDs are also retained on start-time uncertainty/PID reuse,
+  since the portable liveness check cannot prove which incarnation owns it.
+  This preserves exclusivity at the cost of conservative availability.
 
 - **FIXM95P (2026-10-05):** all thirteen assigned RVM95A findings
   (1, 2, 4–8, 12–15, 18, 19) are repaired with regressions and deliberate
