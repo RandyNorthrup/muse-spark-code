@@ -76,6 +76,8 @@ const VOICE_ENTRY = 'src/host/voice/voiceEntry.ts'
 const VOICE_OUTFILE = 'dist/voice.js'
 const MUSE_CODE_REVIEWER_ENTRY = 'src/host/review/museCodeReviewerEntry.ts'
 const MUSE_CODE_REVIEWER_OUTFILE = 'dist/museCodeReviewer.js'
+const EXTENSION_HOOKS_ENTRY = 'src/host/extensionHooksEntry.ts'
+const EXTENSION_HOOKS_OUTFILE = 'dist/extensionHooks.js'
 const SEARCH_WORKER_ENTRY = 'src/host/backend/searchWorker.ts'
 const SEARCH_WORKER_OUTFILE = 'dist/searchWorker.js'
 const PAGE_WORKER_ENTRY = 'src/host/web/pageWorker.ts'
@@ -221,6 +223,13 @@ const museCodeReviewerOptions = {
 }
 
 /** @type {import('esbuild').BuildOptions} */
+const extensionHooksOptions = {
+  ...modelApiOptions,
+  entryPoints: [EXTENSION_HOOKS_ENTRY],
+  outfile: EXTENSION_HOOKS_OUTFILE,
+}
+
+/** @type {import('esbuild').BuildOptions} */
 const agentImportOptions = {
   ...common,
   plugins: [sharedUiText],
@@ -345,6 +354,7 @@ if (isWatch) {
     esbuild.context(codeIntelOptions),
     esbuild.context(voiceOptions),
     esbuild.context(museCodeReviewerOptions),
+    esbuild.context(extensionHooksOptions),
     esbuild.context(uiTextOptions),
     esbuild.context(searchWorkerOptions),
     esbuild.context(pageWorkerOptions),
@@ -366,6 +376,7 @@ if (isWatch) {
     codeIntel: esbuild.build(codeIntelOptions),
     voice: esbuild.build(voiceOptions),
     museCodeReviewer: esbuild.build(museCodeReviewerOptions),
+    extensionHooks: esbuild.build(extensionHooksOptions),
     uiText: esbuild.build(uiTextOptions),
     searchWorker: esbuild.build(searchWorkerOptions),
     pageWorker: esbuild.build(pageWorkerOptions),
@@ -400,6 +411,7 @@ if (isWatch) {
   reportSize(CODE_INTEL_OUTFILE)
   reportSize(VOICE_OUTFILE)
   reportSize(MUSE_CODE_REVIEWER_OUTFILE)
+  reportSize(EXTENSION_HOOKS_OUTFILE)
   reportSize(UI_TEXT_OUTFILE)
   reportSize(SEARCH_WORKER_OUTFILE)
   reportSize(PAGE_WORKER_OUTFILE)

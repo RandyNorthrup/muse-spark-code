@@ -38,6 +38,7 @@ import {
   GOAL_SLASH_COMMAND,
   HANDOFF_SLASH_COMMAND,
   LOOP_SLASH_COMMAND,
+  HOOK_RUN_SLASH_COMMAND,
   IME_PROCESS_KEY,
   MAX_ATTACHMENTS_PER_MESSAGE,
   MAX_DOCUMENT_BYTES,
@@ -670,6 +671,10 @@ export function Composer(props: ComposerProps) {
       }
       case 'startLoop': {
         replaceDraft(`/${LOOP_SLASH_COMMAND} `)
+        break
+      }
+      case 'startHook': {
+        replaceDraft(`/${HOOK_RUN_SLASH_COMMAND} `)
         break
       }
       case 'startHandoff': {

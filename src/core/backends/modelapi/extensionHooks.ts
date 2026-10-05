@@ -24,7 +24,6 @@ import {
   EXTENSION_HOOK_EVENTS,
   HOOK_CONFIG_MAX_BYTES,
   HOOK_CONTROL_CODE_LIMIT,
-  HOOK_DEFAULT_TIMEOUT_SECONDS,
   HOOK_DELETE_CODE,
   HOOK_DISPLAY_MESSAGE_MAX_CHARS,
   HOOK_EXPANSION_MAX_CHARS,
@@ -32,7 +31,6 @@ import {
   HOOK_FILE_CHANGED_MAX_PER_MINUTE,
   HOOK_MATCHER_MAX_CHARS,
   HOOK_MATCHER_VALUE_MAX_CHARS,
-  HOOK_MAX_TIMEOUT_SECONDS,
   HOOK_NEWLINE_CODE,
   HOOK_ON_FAILURE_MAX_DEPTH,
   HOOK_OUTPUT_MAX_BYTES,
@@ -47,13 +45,20 @@ import {
   SECONDS_PER_MINUTE,
   SPARK_HOOKS_SEGMENTS,
 } from '../../../shared/constants'
-import { HOOK_EVENTS, type HookLoadDeps, type HookSource } from './hooks'
+import {
+  HOOK_EVENTS,
+  parseHookConfig,
+  type HookDefinition,
+  type HookLoadDeps,
+  type HookSource,
+} from './hooks'
 import { compileGlob } from './globLimits'
 import { boundedHookText } from './toolHookPayload'
 import type { ContextIo } from '../../context/contextFiles'
 import { decodeContextText } from '../../context/contextFiles'
 import { confineWorkspacePath } from '../../workspacePath'
 import type { ShellResult } from '../../shellResult'
+import { NO_EXTENSION_HOOK_DISPATCH } from '../../agent/agentBackend'
 
 export type ExtensionHookEvent = (typeof EXTENSION_HOOK_EVENTS)[number]
 const EXTENSION_EVENT_NAMES: ReadonlySet<string> = new Set(EXTENSION_HOOK_EVENTS)
@@ -124,6 +129,8 @@ export interface ExtensionHookDefinition {
   readonly timeoutSeconds: number
   readonly matcher: ExtensionHookMatcher | undefined
   readonly isAsync: boolean
+  /** The group's own words, for the Run Hook pick (M91 lane E). */
+  readonly description?: string | undefined
   readonly onFailure?: ExtensionHookDefinition | undefined
 }
 
@@ -240,34 +247,9 @@ function sparkHandler(
   if (unknownField !== undefined) {
     return `unsupported handler field ${unknownField}`
   }
-  // Lane H adds the `http`, `mcp_tool`, `prompt` and `agent` handler types;
-  // until then only a command can run (PLAN.md M91).
-  if (value.type !== 'command') {
-    return 'handler type must be command'
-  }
-  if (
-    value.timeout !== undefined &&
-    (typeof value.timeout !== 'number' || !Number.isSafeInteger(value.timeout) || value.timeout < 0)
-  ) {
-    return 'handler timeout must be a non-negative integer'
-  }
-  if (typeof value.timeout === 'number' && value.timeout > HOOK_MAX_TIMEOUT_SECONDS) {
-    return `handler timeout exceeds ${String(HOOK_MAX_TIMEOUT_SECONDS)} seconds`
-  }
-  if (value.async !== undefined && typeof value.async !== 'boolean') {
-    return 'handler async must be a boolean'
-  }
   if (depth > 0 && value.async === true) {
     return 'onFailure cannot be asynchronous'
   }
-  const platformCommand =
-    platform === 'win32'
-      ? (value.commandWindows ?? value.command_windows ?? value.command)
-      : value.command
-  if (typeof platformCommand !== 'string' || platformCommand.trim() === '') {
-    return 'handler command is empty or unavailable on this platform'
-  }
-  let onFailure: ExtensionHookDefinition | undefined
   if (value.onFailure !== undefined) {
     if (depth >= HOOK_ON_FAILURE_MAX_DEPTH) {
       return 'onFailure exceeds three levels'
@@ -276,21 +258,36 @@ function sparkHandler(
     if (typeof nested === 'string') {
       return `onFailure: ${nested}`
     }
-    onFailure = nested
   }
-  return {
-    event,
+  // Reuse M51's handler validation. PreToolUse is a parse-only envelope:
+  // the definition is relabelled, never dispatched as a Muse Code event.
+  const checked = parseHookConfig(
+    JSON.stringify({ hooks: { PreToolUse: [{ hooks: [value] }] } }),
     source,
-    command: platformCommand,
-    timeoutSeconds: Math.max(
-      typeof value.timeout === 'number' ? value.timeout : HOOK_DEFAULT_TIMEOUT_SECONDS,
-      1,
-    ),
+    platform,
+  )
+  const definition = checked.hooks[0]
+  const diagnostic = checked.warnings[0]?.replace(`${source} hooks: PreToolUse: `, '')
+  return definition === undefined
+    ? (diagnostic ?? 'invalid command handler')
+    : extensionDefinition(definition, event, matcher)
+}
+
+function extensionDefinition(
+  hook: HookDefinition,
+  event: ExtensionHookEvent,
+  matcher: ExtensionHookMatcher | undefined,
+): ExtensionHookDefinition {
+  const { onFailure, ...common } = hook
+  return {
+    ...common,
+    event,
     matcher,
-    isAsync: value.async === true,
-    ...(onFailure !== undefined && { onFailure }),
+    ...(onFailure !== undefined && { onFailure: extensionDefinition(onFailure, event, undefined) }),
   }
 }
+
+const sparkDocumentSchema = z.object({ hooks: z.record(z.string(), z.unknown()) })
 
 export interface SparkHookConfigResult {
   readonly hooks: readonly ExtensionHookDefinition[]
@@ -310,14 +307,12 @@ export function parseSparkHooksConfig(
   if (text === undefined) {
     return { hooks: [], warnings: [] }
   }
-  let document: unknown
+  let document: z.infer<typeof sparkDocumentSchema>
   try {
-    document = JSON.parse(text)
-  } catch {
-    return { hooks: [], warnings: [`${source} spark-hooks.json: invalid JSON`] }
-  }
-  if (!isRecord(document) || !isRecord(document.hooks)) {
-    return { hooks: [], warnings: [`${source} spark-hooks.json: missing hooks object`] }
+    document = sparkDocumentSchema.parse(JSON.parse(text))
+  } catch (error: unknown) {
+    const reason = error instanceof SyntaxError ? 'invalid JSON' : 'missing hooks object'
+    return { hooks: [], warnings: [`${source} spark-hooks.json: ${reason}`] }
   }
   const warnings: string[] = []
   const hooks: ExtensionHookDefinition[] = []
@@ -365,7 +360,12 @@ export function parseSparkHooksConfig(
           if (hooks.length >= HOOK_SOURCE_MAX_HANDLERS) {
             return { hooks: [], warnings: [`${source} spark-hooks.json exceeds the handler limit`] }
           }
-          hooks.push(parsed)
+          const description = group['description']
+          hooks.push(
+            typeof description === 'string' && description.trim() !== ''
+              ? { ...parsed, description: description.trim() }
+              : parsed,
+          )
         }
       }
     }
@@ -557,10 +557,6 @@ export function configChangeFields(
   return { path: relativePath, reason }
 }
 
-export function worktreeFields(relativePath: string): Readonly<Record<string, unknown>> {
-  return { path: relativePath }
-}
-
 export function setupFields(trigger: SetupTrigger): Readonly<Record<string, unknown>> {
   return { trigger }
 }
@@ -571,13 +567,6 @@ export function manualFields(name: string): Readonly<Record<string, unknown>> {
 
 export function directoryAddedFields(relativePath: string): Readonly<Record<string, unknown>> {
   return { path: relativePath }
-}
-
-export function elicitationFields(options: {
-  readonly server: string
-  readonly fields: readonly string[]
-}): Readonly<Record<string, unknown>> {
-  return { server: options.server, fields: [...options.fields] }
 }
 
 /**
@@ -849,6 +838,8 @@ export interface ExtensionHookRunIo {
 
 export interface ExtensionHookDispatch {
   readonly refusedReason: string | undefined
+  /** The first hook failure's reason: user-started runs report it (M91 lane E). */
+  readonly failedReason: string | undefined
   readonly messages: readonly string[]
   readonly contexts: readonly string[]
   readonly displayText: string | undefined
@@ -870,6 +861,7 @@ interface ExtensionFoldState {
   isKeepWorking: boolean
   keepReason: string | undefined
   attemptFailed: string | undefined
+  failedReason: string | undefined
 }
 
 /** Fold one answer: first refusal wins, rewrites and narrowings take the last. */
@@ -888,31 +880,29 @@ function foldExtensionAnswer(state: ExtensionFoldState, result: ExtensionHookAns
       state.attemptFailed ??= result.reason ?? 'hook failed the attempt'
       break
     }
-    case 'completed':
+    case 'completed': {
+      break
+    }
     case 'failed': {
+      state.failedReason ??= result.reason ?? 'hook failed'
       break
     }
   }
   state.displayText = result.displayText ?? state.displayText
-  state.allowedTools = result.allowedTools ?? state.allowedTools
+  const nextTools = result.allowedTools
+  if (nextTools !== undefined) {
+    state.allowedTools =
+      state.allowedTools === undefined
+        ? nextTools
+        : state.allowedTools.filter((name) => nextTools.includes(name))
+  }
   state.answer = result.hasAnswer ? result.answer : state.answer
   state.hasAnswer ||= result.hasAnswer
 }
 
-function emptyDispatch(): ExtensionHookDispatch {
-  return {
-    refusedReason: undefined,
-    messages: [],
-    contexts: [],
-    displayText: undefined,
-    allowedTools: undefined,
-    answer: undefined,
-    hasAnswer: false,
-    output: '',
-    keepWorking: false,
-    keepReason: undefined,
-    attemptFailed: undefined,
-  }
+/** No hook ran, so the operation proceeds as before (M91 lane E). */
+export function emptyExtensionDispatch(): ExtensionHookDispatch {
+  return NO_EXTENSION_HOOK_DISPATCH
 }
 
 async function runExtensionHandler(
@@ -943,7 +933,7 @@ async function runExtensionHandler(
     // into the extension log: a configured command may contain a credential.
     warn(`${event}: extension hook could not start`)
     return hook.onFailure === undefined || depth >= HOOK_ON_FAILURE_MAX_DEPTH
-      ? undefined
+      ? parseExtensionHookAnswer(event, 1, '', 'extension hook could not start')
       : await runExtensionHandler(
           hook.onFailure,
           event,
@@ -961,7 +951,7 @@ async function runExtensionHandler(
   if (result.isTimedOut || result.isOutputTooLarge === true) {
     warn(`${event}: extension hook ${result.isTimedOut ? 'timed out' : 'exceeded output limit'}`)
     return hook.onFailure === undefined || depth >= HOOK_ON_FAILURE_MAX_DEPTH
-      ? undefined
+      ? parseExtensionHookAnswer(event, 1, '', 'extension hook exceeded its limit')
       : await runExtensionHandler(
           hook.onFailure,
           event,
@@ -989,7 +979,7 @@ async function runExtensionHandler(
           warn,
           depth + 1,
         )
-      : undefined
+      : answer
   }
   return answer
 }
@@ -1010,6 +1000,7 @@ export async function dispatchExtensionHooks(options: {
   readonly cwd: string
   readonly signal?: AbortSignal | undefined
   readonly warn: (message: string) => void
+  readonly isAllowed?: () => boolean
 }): Promise<ExtensionHookDispatch> {
   const { hooks, event, payload, matcherValue, io, cwd, signal, warn } = options
   const selected = hooks.filter(
@@ -1018,7 +1009,7 @@ export async function dispatchExtensionHooks(options: {
   const serialized = JSON.stringify(payload)
   if (Buffer.byteLength(serialized) > HOOK_STDIN_MAX_BYTES) {
     warn(`${event}: hook input exceeds limit; no hook was started`)
-    return emptyDispatch()
+    return emptyExtensionDispatch()
   }
   const runner = io.runHook
   if (runner === undefined && selected.length > 0) {
@@ -1033,12 +1024,13 @@ export async function dispatchExtensionHooks(options: {
     isKeepWorking: false,
     keepReason: undefined,
     attemptFailed: undefined,
+    failedReason: undefined,
   }
   const messages: string[] = []
   const contexts: string[] = []
   const outputs: string[] = []
   for (const hook of selected) {
-    if (runner === undefined || signal?.aborted === true) {
+    if (runner === undefined || signal?.aborted === true || options.isAllowed?.() === false) {
       break
     }
     const execution = runExtensionHandler(hook, event, serialized, cwd, runner, signal, warn)
@@ -1049,6 +1041,7 @@ export async function dispatchExtensionHooks(options: {
       continue
     }
     const result = await execution
+    if (options.isAllowed?.() === false) break
     if (result === undefined) {
       continue
     }
@@ -1065,6 +1058,7 @@ export async function dispatchExtensionHooks(options: {
   }
   return {
     refusedReason: state.refusedReason,
+    failedReason: state.failedReason,
     messages,
     contexts,
     displayText: state.displayText,
@@ -1076,6 +1070,21 @@ export async function dispatchExtensionHooks(options: {
     keepReason: state.keepReason,
     attemptFailed: state.attemptFailed,
   }
+}
+
+/** Only matched paths consume FileChanged's process budget. */
+export function isFileChangedWatched(
+  hooks: readonly ExtensionHookDefinition[],
+  file: string,
+): boolean {
+  return hooks.some(
+    (hook) =>
+      hook.event === 'FileChanged' &&
+      hook.matcher !== undefined &&
+      isExtensionMatch(hook.matcher, file, () => {
+        // An invalid matcher is a nonmatch; the parser already reports it.
+      }),
+  )
 }
 
 /** BeforeToolSelection narrows at admission; the declared tool list never changes. */

@@ -1134,6 +1134,24 @@ hooks from `.muse/hooks.json`. `MCP servers…` and `Hooks…` show configuratio
   Code's sandbox and approvals, so read a repository's hooks before you
   trust its folder.
 
+**Extension hooks (M91, in progress).** `.muse/spark-hooks.json` and the user
+`spark-hooks.json` beside Muse Code's `settings.json` hold extension events;
+Muse Code never reads these files. The same trust and `museSpark.modelApiHooks`
+opt-in apply. **Muse Spark: Run Setup Hooks** runs `Setup` with matcher `init`;
+**Muse Spark: Run Hook…** and `/hook run <name>` run one `Manual` hook by command
+or description, showing bounded output. These operations work on both backends
+without a model turn. The standalone agent also accepts
+`muse-spark-code-acp --trust-workspace setup [--maintenance]`; headless `exec`
+still refuses trust and never runs hooks.
+
+File changes require a matcher and an indexed workspace path; protected,
+ignored and escaped paths are excluded. Changes are debounced and capped.
+Settings notifications send an empty path and reason `settings`, because
+VS Code's settings event does not identify a file. Hook token additions appear
+separately from packing savings. Full 21-event support, including CwdChanged,
+elicitation, the MessageDisplay marker and automatic-compaction integration,
+still needs the owning lanes; see [lane E evidence](docs/certification/m91-e.md).
+
 On the **Model API backend**, `museSpark.modelApiHooks` is a machine-scoped
 setting, off by default. When enabled, a new session in a trusted workspace
 reads the same managed, user and project hook sources. No hook loads or runs

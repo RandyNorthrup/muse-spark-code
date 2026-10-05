@@ -405,10 +405,36 @@ describe('parseExtensionHookAnswer', () => {
 })
 
 describe('dispatchExtensionHooks', () => {
+  it('intersects tool narrowings so a later hook cannot restore a removed tool', async () => {
+    const hooks = [
+      ...hookFor('BeforeToolSelection', 'first'),
+      ...hookFor('BeforeToolSelection', 'second'),
+    ]
+    const result = await dispatchExtensionHooks({
+      hooks,
+      event: 'BeforeToolSelection',
+      payload,
+      cwd: '/ws',
+      io: {
+        runHook: (command) =>
+          Promise.resolve(
+            shellResult(
+              JSON.stringify({
+                allowedTools: ['read_file', command === 'first' ? 'bash' : 'write_file'],
+              }),
+              '',
+              0,
+            ),
+          ),
+      },
+      warn: () => undefined,
+    })
+    expect(result.allowedTools).toEqual(['read_file'])
+  })
   const payload = { hook_event_name: 'Manual', session_id: 's', cwd: '/ws' } as const
 
   it('runs the matching hook with the payload and collects its message', async () => {
-    const runHook = vi.fn(() =>
+    const runHook = vi.fn((_command: string, _payload: string) =>
       Promise.resolve(shellResult(JSON.stringify({ systemMessage: 'noted' }), '', 0)),
     )
     const seen: string[] = []
@@ -423,12 +449,28 @@ describe('dispatchExtensionHooks', () => {
       },
     })
     expect(runHook).toHaveBeenCalledTimes(1)
-    expect(JSON.parse(String(runHook.mock.calls[0]?.[1]))).toMatchObject({
+    expect(JSON.parse(runHook.mock.calls[0]?.[1] ?? '')).toMatchObject({
       hook_event_name: 'Manual',
     })
     expect(result.messages).toEqual(['noted'])
     expect(result.output).toBe(JSON.stringify({ systemMessage: 'noted' }))
     expect(seen).toEqual([])
+  })
+
+  it('folds a hook failure into failedReason for user-started runs', async () => {
+    const runHook = vi.fn((_command: string, _payload: string) =>
+      Promise.resolve(shellResult('', 'boom', 1)),
+    )
+    const result = await dispatchExtensionHooks({
+      hooks: hookFor('Manual', 'broken'),
+      event: 'Manual',
+      payload,
+      io: { runHook },
+      cwd: '/ws',
+      warn: () => undefined,
+    })
+    expect(result.failedReason).toBe('boom')
+    expect(result.output).toBe('')
   })
 
   it('selects Setup hooks by trigger', async () => {

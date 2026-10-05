@@ -541,10 +541,15 @@ export const EN = {
   setupHooksFailed: 'A Setup hook failed: {reason}',
   manualHookPick: 'Run which hook?',
   manualHookNone: 'No Manual hooks are configured in spark-hooks.json.',
+  // {name}: the name `/hook run` was given.
+  manualHookNoneNamed: 'No Manual hook is named {name}.',
   // {name}: the hook's name in spark-hooks.json.
   manualHookDone: 'Hook {name} finished.',
   manualHookFailed: 'Hook {name} failed: {reason}',
   manualHookSlashDetail: 'Run a Manual hook from spark-hooks.json',
+  // dist/extensionHooks.js failed to load.
+  extensionHooksUnavailable:
+    'The extension hooks could not be loaded, so no hook ran; reinstall the extension and reload the window. The log has the details.',
   // The Model API shell's kept working directory. {path}: workspace-relative.
   shellDirectory: 'In {path}',
   shellDirectoryReset:

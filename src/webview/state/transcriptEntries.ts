@@ -108,6 +108,7 @@ const assistantEntrySchema = z.object({
   kind: z.literal('assistant'),
   id: z.string(),
   text: z.string(),
+  displayText: z.optional(z.string()),
   isStreaming: z.boolean(),
   /** The web pages the reply cites (M33), listed under it as links. */
   citations: z.optional(z.readonly(z.array(citationSchema))),
@@ -319,6 +320,7 @@ export const usageSummarySchema = z.object({
   cachedTokens: z.optional(z.number()),
   // The packing ledger's estimate (M73): absent unless packing runs.
   packedTokensAvoided: z.optional(z.number()),
+  hookTokensAdded: z.optional(z.number()),
 })
 export type UsageSummary = z.infer<typeof usageSummarySchema>
 

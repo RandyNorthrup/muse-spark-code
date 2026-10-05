@@ -33,6 +33,7 @@ const BUNDLES = [
   'modelApi.js',
   'reviewer.js',
   'uiText.js',
+  'extensionHooks.js',
   'searchWorker.js',
   'pageWorker.js',
 ]
