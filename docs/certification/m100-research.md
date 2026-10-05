@@ -381,3 +381,22 @@ model run is made for this docs-only correction. The supplied local
 `origin/main` is `a95f24cfa56fa75c85c8e09f04940f73edfa5a27`; the authorized
 merge and final document checks follow the correction commit. No fetch or
 push is performed.
+
+**Correction commit and main integration:** `1edc4ead` ran the unchanged
+normal hook: serial lint-staged formatting passed and staged redacted
+gitleaks scanned approximately 19.06 KB with no leaks. The authorized merge
+of the main ref above conflicted only at PLAN §7. Keep both the M100 planning/
+FIXM100 notes and main's DEFLAKE2 gate record; CHANGELOG merged automatically
+with both sides retained. No decision or milestone is renumbered. Compared
+with supplied main, only PLAN, CHANGELOG and this record differ, all as text
+additions; no main text or source change is discarded.
+
+**Merged-document verification:** installed Prettier `--check` on PLAN,
+this record, CHANGELOG and the incoming host API record exited **0** (the
+existing CHANGELOG ignore still applies). `git diff --cached --check` and
+the three-document whitespace check against main exited **0**.
+`node scripts/check-host-api.mjs` exited **0** on Windows PC: 279 VS Code
+APIs, 19 importers, 23 Node built-ins, 57 theme variables, zero problems.
+The merge completion uses the same normal hooks; final Git/hook output is
+the completion receipt. Full joined-tree quality and M100 runtime/four-device
+certification remain with the lead and future implementation lanes.

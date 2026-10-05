@@ -140,7 +140,8 @@ export function lazyReview(deps: LazyReviewDeps): ReviewFeatures {
     createHold: (holdDeps) => loaded().createHold(holdDeps),
     editReview: {
       openDiff: async (itemId, patchJson) => await loaded().editReview.openDiff(itemId, patchJson),
-      revert: async (itemId, patchJson) => await loaded().editReview.revert(itemId, patchJson),
+      revert: async (itemId, patchJson, check) =>
+        await loaded().editReview.revert(itemId, patchJson, check),
       describe: async (patchJson) => await loaded().editReview.describe(patchJson),
       revertHunk: async (itemId, patchJson, fileIndex, hunkIndex) =>
         await loaded().editReview.revertHunk(itemId, patchJson, fileIndex, hunkIndex),

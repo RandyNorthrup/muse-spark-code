@@ -8,6 +8,7 @@
   "command.category": "Muse Spark",
   "command.openInSidebar.title": "In Seitenleiste öffnen",
   "command.openInNewTab.title": "In neuer Registerkarte öffnen",
+  "command.openTasks.title": "Aufgaben in einem Tab öffnen",
   "command.focusInput.title": "Fokus umschalten",
   "command.insertMentionReference.title": "@-Erwähnung für Auswahl einfügen",
   "command.toggleFocusView.title": "Fokusansicht umschalten",
