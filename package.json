@@ -576,6 +576,12 @@
           "description": "%config.modelApiHooks.description%",
           "scope": "machine"
         },
+        "museSpark.modelApiShellKeepsDirectory": {
+          "type": "boolean",
+          "default": true,
+          "description": "%config.modelApiShellKeepsDirectory.description%",
+          "scope": "machine"
+        },
         "museSpark.diagnosticsAfterEdits": {
           "type": "boolean",
           "default": true,

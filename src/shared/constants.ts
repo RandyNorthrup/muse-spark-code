@@ -169,6 +169,10 @@ export const SANDBOX_NETWORK_DENIED: SandboxNetworkMode = 'restricted'
 export const SANDBOX_NETWORK_SETTING = 'museSpark.sandboxNetwork'
 export const BYPASS_SETTING = 'museSpark.allowDangerouslySkipPermissions'
 export const MODEL_API_HOOKS_SETTING = 'museSpark.modelApiHooks'
+// The Model API shell keeps its directory between calls (M91 lane S, PLAN.md
+// D70): a `cd` in one shell call carries into the next call of the same
+// session. A machine setting must explicitly turn it off.
+export const MODEL_API_SHELL_KEEPS_DIRECTORY_SETTING = 'museSpark.modelApiShellKeepsDirectory'
 // Settings `muse serve` takes at spawn: changing one restarts it (PLAN.md D25).
 export const CLI_PROCESS_SETTINGS = [
   'museSpark.museBinaryPath',
@@ -310,6 +314,10 @@ export const SETTING_DEFAULTS = {
   // Hook commands are user code outside the agent sandbox (M51). A machine
   // setting must explicitly enable them on the Model API backend.
   modelApiHooks: false,
+  // The Model API shell keeps its directory between calls (M91 lane S, PLAN.md
+  // D70). On by default, the owner's ruling of 2026-10-04 that enhancements
+  // ship on; a machine setting turns it off.
+  modelApiShellKeepsDirectory: true,
   // M78 (PLAN.md D49): the command rules, the permission profiles and the
   // one in force, what a repository adds (it can only tighten), and the
   // paid Auto reviewer. None set, nothing changes.
@@ -381,6 +389,9 @@ export const MACHINE_SCOPED_SETTINGS = [
   'modelApiSubagents',
   'modelApiBestOfN',
   'modelApiHooks',
+  // M91 lane S: what directory the shell runs in is the user's choice, never a
+  // repository's.
+  'modelApiShellKeepsDirectory',
   // M78: the user's rules and profiles, which loosen as well as tighten.
   // `modelApiRepositoryRules` is not among them: a repository sets it, and
   // everything in it can only tighten.

@@ -10278,7 +10278,11 @@ evaluation is authorized by these repairs.
     so both arms of a pair share the conditions of the moment.
   - No new setting, command, panel string or paid feature: the
     evaluation is developer tooling. M73 and M74 add their own
-    off-by-default settings with their passing runs.
+    off-by-default settings with their passing runs. M91 lane S's
+    `museSpark.modelApiShellKeepsDirectory` is the exception M91 step 4
+    names: M75 records the setting, pinned off in the eval driver to match
+    the recorded baseline, which predates it. The shipped default stays on;
+    turning it on for eval runs needs a fresh baseline run.
 
 ### M73 — Observation packing (D49)
 

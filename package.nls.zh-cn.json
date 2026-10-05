@@ -90,6 +90,7 @@
   "config.modelApiSubagents.description": "付费功能，默认关闭。在 Model API 后端，子代理使用您的 Model API 密钥。启用时会请您接受令牌价格。除非您在此工作区中始终允许子代理，否则每项新子任务均需批准，包括 绕过权限 模式；每项任务最多四次请求，包含重试。子代理令牌费用已包含在会话估算中。",
   "config.modelApiBestOfN.description": "付费功能，默认关闭。在 Model API 后端，同一提示词同时在 2–5 个工作树中运行，由您选用其中一个。启用时会请您接受令牌价格。除非您在此工作区中始终允许 N 选最优，否则每次运行均需批准一次并注明尝试次数和每次尝试请求上限，在所有权限模式下均如此，包括 绕过权限 模式。尝试的令牌已包含在用量估算中，从不记入订阅。",
   "config.modelApiHooks.description": "在 Model API 后端运行 Muse Code 钩子命令。默认关闭。命令仅在受信任的工作区中以您的权限在代理沙盒之外运行。启用前请在 Muse Spark: Hooks 中检查命令。Model API 密钥不会传给钩子进程。",
+  "config.modelApiShellKeepsDirectory.description": "在调用之间保留 Model API 后端 shell 的工作目录。默认开启：一次 shell 命令中的 cd 会延续到同一会话的下一次调用，工作区之外的目录会重置回工作区根目录。检查命令和 then_run 仍在根目录运行。",
   "config.modelApiRepoMap.description": "在 Model API 后端的系统提示词中加入仓库地图：用 VS Code 语言服务排序的工作区中最常用的文件和定义，每个对话生成一次，约 1,000 个令牌。默认关闭：它会在每个请求中加入这些令牌，并向您的 Model API 密钥计费。无论是否开启，repo_map 工具都可按需提供同一张地图。",
   "config.modelApiObservationPacking.description": "在 Model API 后端打包较长的工具输出。默认关闭。超过 8,000 个字符的工具输出在前两次请求中完整发送，之后以简短占位符（其 ID、大小以及首尾几行）发送，模型需要时用 recall_output 工具读回原文。长对话发送的输入令牌更少；账户和用量会显示估算值。对话在开始或恢复时读取此设置。",
   "config.modelApiScheduledPrompts.description": "付费功能，默认关闭。到期的 /loop 提示词只有在您接受令牌价格并允许本次运行后，或者您在此工作区中始终允许计划运行时，才能通过 Model API 后端运行。已计划的提示词绝不会在无人确认时运行；每次运行均按模型公布的令牌费率向您的 Model API 密钥计费。",

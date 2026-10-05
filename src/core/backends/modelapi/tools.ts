@@ -53,6 +53,7 @@ import { MODEL_API_CODE_INTEL_DEFINITIONS } from '../../codeIntel/definitions'
 import { readImageInfo } from '../../imageDimensions'
 import type { MemoryWrites } from '../../memory/memoryStore'
 import { isPdf, pdfPageCount } from '../../pdf'
+import { posixQuoted, powerShellQuoted } from '../../shellQuote'
 import { fingerprint } from '../../verify/fingerprint'
 import { WEB_FETCH_DESCRIPTION, WEB_FETCH_PARAMETERS } from '../../web/webFetchDefinition'
 import { confineWorkspacePath } from '../../workspacePath'
@@ -313,6 +314,12 @@ export interface TurnEnd {
 export interface ToolContext {
   readonly workspaceRoot: string
   readonly platform: NodeJS.Platform
+  /**
+   * The shell tool's start directory (M91 lane S, PLAN.md D70): the
+   * session's kept directory. Absent runs at the workspace root, as before.
+   * Only the shell tool reads it; every other tool stays at the root.
+   */
+  readonly shellCwd?: string | undefined
   readonly io: ToolIo
   /** The checked write destination shown to the permission gate before approval. */
   readonly approvedTarget?: {
@@ -1466,13 +1473,71 @@ async function shell(args: z.infer<typeof shellArgs>, context: ToolContext): Pro
   )
   const result = await context.io.runShell(
     args.command,
-    context.workspaceRoot,
+    context.shellCwd ?? context.workspaceRoot,
     timeoutMs,
     context.signal,
     context.limit,
     context.assertCanRun,
   )
   return shellOutcome(result, timeoutMs)
+}
+
+/**
+ * What a shell command carries so the session's kept directory survives it
+ * (M91 lane S, PLAN.md D70; the lead's side-file decision): the trailer
+ * reports the call's sequence and the shell's final directory to the
+ * session's side file, then restores the command's own exit. The trailer
+ * changes neither the output (it writes a file, not a stream) nor how the
+ * command ended:
+ * - bash keeps `$?` across the trailer and exits with it, so a failing
+ *   command still fails; a trailer the command never reaches (`exit`,
+ *   `set -e`, a parse error, a kill) leaves a stale sequence, which reads
+ *   back as "no report".
+ * - Windows PowerShell reports a `-Command`'s last statement, so a bare
+ *   trailer would turn a failure into a success (probed: a failing cmdlet
+ *   exits 1, a succeeding trailer after it exits 0). The trailer reads
+ *   `$?` and `$LASTEXITCODE` first and exits with the same outcome: a
+ *   success stays 0, a native failure keeps its code, anything else fails
+ *   as 1. The 5.1-safe statements (no ternary) write through .NET, so a
+ *   directory with spaces, quotes or `$` needs no quoting at all.
+ * The host reads the file back (never the output, which can be truncated)
+ * and keeps a directory inside the workspace, else resets to the root with
+ * a note. Approval cards, session rules and hook payloads see the user's
+ * own command, which the host wraps after admission.
+ */
+export function shellDirectoryTrailer(
+  platform: NodeJS.Platform,
+  sideFile: string,
+  sequence: number,
+): string {
+  return platform === 'win32'
+    ? `; $__m91code=$LASTEXITCODE; $__m91ok=$?; try { [System.IO.File]::WriteAllText(${powerShellQuoted(sideFile)}, '${String(sequence)}' + "\`n" + (Get-Location).Path) } catch {}; $__m91exit=1; if ($__m91code) { $__m91exit=$__m91code }; if ($__m91ok) { exit 0 } else { exit $__m91exit }`
+    : String.raw`; __m91status=$?; { printf '%s\n' '${String(sequence)}'; pwd; } > ${posixQuoted(sideFile)} || true; exit $__m91status`
+}
+
+/**
+ * A side file's report for `sequence`: the shell's final directory.
+ * Undefined when the trailer never ran (an `exit`, a kill, a timeout, a
+ * parse error) or the file holds another call's report: the caller then
+ * keeps the previous directory. Newlines inside a name survive: everything
+ * after the first line is the directory, less its one trailing newline.
+ */
+export function parseShellDirectoryReport(
+  text: string | undefined,
+  sequence: number,
+): string | undefined {
+  if (text === undefined) {
+    return undefined
+  }
+  const lines = text.split('\n')
+  if (lines[0] !== String(sequence)) {
+    return undefined
+  }
+  const reported = lines
+    .slice(1)
+    .join('\n')
+    .replace(/\r?\n$/, '')
+  return reported === '' ? undefined : reported
 }
 
 /**
