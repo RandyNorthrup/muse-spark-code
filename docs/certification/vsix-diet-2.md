@@ -377,7 +377,8 @@ keeping the seven actual native-import targets ordinary measures
 Static declarations with all lazy code still archived measure
 **2,033,170 bytes / 219,630 headroom**,
 **45,850 bytes smaller**; this design retains the most headroom.
-Both exceed the unchanged 150,000-byte target and 2,252,800-byte cap.
+Both meet the unchanged 150,000-byte headroom target and stay below the
+2,252,800-byte cap.
 The alternate package is an unpublished scratch artifact, not product.
 
 Activation remains **447,145 bytes**, SHA-256
@@ -400,7 +401,7 @@ ESLint/Prettier and staged Gitleaks successfully; no leaks. No review residual.
 All on Kubuntu, directly in this worktree, one tooling run at a time:
 
 - 78 distinct unit tests pass in three complete files:
-  `vsixPackaging.test.mjs` (46), `uiTextRegions.test.mjs` (7), `l10n.test.ts` (25).
+  `vsixPackaging.test.mjs` (46), `uiTextRegions.test.mjs` (6), `l10n.test.ts` (26).
   The restored VSIX suite passes again after its red drill. P2's separate
   fresh-checkout run passed all 45 then-existing tests without `dist/`.
 - Automatic native Node package checks: 34 VSIX + 15 actual ACP tarball
