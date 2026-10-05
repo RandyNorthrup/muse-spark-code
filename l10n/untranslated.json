@@ -45,9 +45,15 @@
       "agentImportSourceCursor",
       "exportThenRunSkipped",
       "execUsage",
-      "execScanUsage"
+      "execScanUsage",
+      "wireFormats.responses",
+      "wireFormats.chat",
+      "wireFormats.anthropic"
     ],
     "cs": [
+      "providerFilters.cloud",
+      "modelColumns.name",
+      "usageLimit",
       "groupModel",
       "usageModel",
       "modelPillLabel",
@@ -62,8 +68,18 @@
       "agentImportKindHook",
       "agentImportKindAgent"
     ],
-    "tr": ["groupModel", "usageModel", "modelPillLabel", "exportModelLine", "usagePlan"],
+    "tr": [
+      "modelColumns.name",
+      "usageLimit",
+      "groupModel",
+      "usageModel",
+      "modelPillLabel",
+      "exportModelLine",
+      "usagePlan"
+    ],
     "pl": [
+      "modelColumns.name",
+      "usageLimit",
       "groupModel",
       "usageModel",
       "modelPillLabel",
@@ -81,6 +97,9 @@
       "agentImportKindAgent"
     ],
     "de": [
+      "providerFilters.cloud",
+      "providerFilters.aggregator",
+      "usageLimit",
       "groupSkills",
       "hooksItem",
       "mcpOptional",
@@ -105,6 +124,7 @@
       "agentImportKindAgent"
     ],
     "es": [
+      "modelLocal",
       "usagePlan",
       "agentTokens",
       "permissionModes.manual",
@@ -114,6 +134,7 @@
       "verifyErrors.one"
     ],
     "pt-br": [
+      "modelLocal",
       "agentTokens",
       "permissionModes.manual",
       "toolLabels.shell",
@@ -122,6 +143,8 @@
       "agentImportKindHook"
     ],
     "fr": [
+      "providerFilters.cloud",
+      "modelLocal",
       "modesTitle",
       "paletteLabel",
       "hooksItem",
@@ -141,6 +164,11 @@
       "agentImportKindAgent"
     ],
     "it": [
+      "providerFilters.cloud",
+      "providerFields.provider",
+      "providerFields.privacy",
+      "modelColumns.inputPrice",
+      "modelColumns.outputPrice",
       "usageAccount",
       "exportOutputLabel",
       "toolLabels.shell",
@@ -149,7 +177,7 @@
     ],
     "zh-cn": ["toolLabels.shell"],
     "zh-tw": ["toolLabels.shell"],
-    "hu": ["toolLabels.shell", "imageBuyPrompt", "agentImportKindHook"]
+    "hu": ["usageLimit", "toolLabels.shell", "imageBuyPrompt", "agentImportKindHook"]
   },
   "manifest": {
     "*": ["viewsContainers.museSpark.title", "command.category", "config.title"],

@@ -2613,6 +2613,18 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
       COMMAND_IDS.openShareFile,
       forActiveConversation((controller) => controller.handle({ type: 'openShareFile' })),
     ),
+    // M95 (PLAN.md D74) lane 0: the ids so the manifest stays whole. Lane K
+    // registers the real handlers; until then each refuses with an explicit
+    // error, never an empty success.
+    registerLoggedCommand(log, COMMAND_IDS.startWithOwnModel, () => {
+      throw new Error(UI_TEXT.modelsPanelUnavailable)
+    }),
+    registerLoggedCommand(log, COMMAND_IDS.modelsAndAgents, () => {
+      throw new Error(UI_TEXT.modelsPanelUnavailable)
+    }),
+    registerLoggedCommand(log, COMMAND_IDS.addModelProvider, () => {
+      throw new Error(UI_TEXT.modelsPanelUnavailable)
+    }),
   )
   log.info(`Activated in ${String(Math.round(performance.now() - activationStartedAt))} ms`)
 }

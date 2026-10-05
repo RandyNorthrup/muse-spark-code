@@ -197,12 +197,20 @@ describe('package.json manifest', () => {
   it('contributes the walkthrough the command opens, completed by our own events (D15)', () => {
     const [walkthrough] = manifest.contributes.walkthroughs
     expect(walkthrough?.id).toBe(WALKTHROUGH_ID)
-    expect(walkthrough?.steps.map((step) => step.id)).toEqual(['welcome', 'open', 'signIn', 'chat'])
+    expect(walkthrough?.steps.map((step) => step.id)).toEqual([
+      'welcome',
+      'open',
+      'signIn',
+      'chat',
+      // M95 (PLAN.md D74): the step whose command link opens the wizard.
+      'ownModel',
+    ])
     const events = walkthrough?.steps.flatMap((step) => step.completionEvents ?? []) ?? []
     expect(events).toContain(`onView:${CHAT_VIEW_ID}`)
     expect(events).toContain(`onCommand:${COMMAND_IDS.openInNewTab}`)
     expect(events).toContain(`onContext:${CONTEXT_KEYS.signedIn}`)
     expect(events).toContain(`onCommand:${COMMAND_IDS.createRulesFile}`)
+    expect(events).toContain(`onCommand:${COMMAND_IDS.startWithOwnModel}`)
   })
 
   it('binds nothing on Windows that Windows itself takes first (M26)', () => {

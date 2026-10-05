@@ -118,5 +118,11 @@
   "config.modelApiPermissionProfile.markdownDescription": "Model API バックエンド: 有効な権限プロファイル。`museSpark.modelApiPermissionProfiles` での名前で指定し、空の場合はなしです。プロファイルが有効な間は、権限バイパス以外では、シェルと MCP サーバーがプロファイルのファイル ルールの外で実行されるため、すべてのシェル コマンドと MCP ツールの呼び出しで確認します。ユーザー設定とマシン設定のみ。",
   "config.modelApiRepositoryRules.markdownDescription": "Model API バックエンド: リポジトリが自身の `.vscode/settings.json` に追加できるルール。確認または禁止する `commandRules` と、`denyRead` の glob です。自分のルールを厳しくすることしかできないため、ここでの許可ルールは適用されません。",
   "config.modelApiAutoReviewer.description": "有料、既定ではオフ。Model API バックエンドの自動モードでは、どのルールでも決まらないリスクのある操作を別のモデル呼び出しが判定し、安全と見なせる場合は確認なしで実行します。拒否または失敗した場合はあなたが判断します。禁止されたコマンド、ルールで確認が必要なコマンド、保護された書き込み、有料の呼び出しは決して許可しません。各レビューは会話のモデルのトークン料金で Model API キーに請求され、このワークスペースでレビューを常に許可しない限り、先に確認します。",
-  "config.museCodeAutoReviewer.description": "既定ではオン。Muse Code の自動モードでは、実行中のターンに対する承認のうち、どのルールでも決まらないものだけが対象です。非表示のプラン セッションで、サブスクリプションを使って短い Muse Code ターンを実行します。保護された書き込み、有料呼び出し、子タスク、質問、再送またはエスカレーションされた要求、不明な対象、1 回だけ許可する選択肢がない要求、複数パネルで共有するセッションはレビューしません。正常なレビューは 1 回だけ許可できます。拒否、失敗、使用中のセッション、タイムアウト、連続失敗による停止では承認カードを表示します。ホスト終了後は補助セッションを作り直します。"
+  "config.museCodeAutoReviewer.description": "既定ではオン。Muse Code の自動モードでは、実行中のターンに対する承認のうち、どのルールでも決まらないものだけが対象です。非表示のプラン セッションで、サブスクリプションを使って短い Muse Code ターンを実行します。保護された書き込み、有料呼び出し、子タスク、質問、再送またはエスカレーションされた要求、不明な対象、1 回だけ許可する選択肢がない要求、複数パネルで共有するセッションはレビューしません。正常なレビューは 1 回だけ許可できます。拒否、失敗、使用中のセッション、タイムアウト、連続失敗による停止では承認カードを表示します。ホスト終了後は補助セッションを作り直します。",
+  "command.startWithOwnModel.title": "自分のモデルで始める",
+  "command.modelsAndAgents.title": "モデルとエージェント",
+  "command.addModelProvider.title": "モデルプロバイダーを追加…",
+  "config.suggestedProvider.description": "ワークスペースはモデルプロバイダーのプリセットを ID で 1 件だけ提案できます。パネルはそのプリセットで「モデルとエージェント」を開くことを提案します。空の場合は何も提案しません。ワークスペースはアドレスや資格情報を設定できません。",
+  "walkthrough.gettingStarted.step.ownModel.title": "自分のモデルで始める",
+  "walkthrough.gettingStarted.step.ownModel.description": "Muse サブスクリプションも Meta API キーもありませんか？自分のモデルプロバイダー (OpenRouter、Anthropic、OpenAI、ローカルサーバー) を追加してモデルを選んでください。\n[自分のモデルで始める](command:museSpark.startWithOwnModel)"
 }
