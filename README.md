@@ -1860,7 +1860,14 @@ Meta's paid web search.
   keeping tools with history, compaction retains the last request's cached
   prefix. A requested tool is discarded and retried without tools; no
   compaction tool executes. Paid hosted-search requests use that tool-less
-  path directly.
+  path directly. Input is rebuilt from the current replay, so Stop's removed
+  media stays removed. File lists include only successful operations and the
+  arguments actually used after hooks. Model changes during hooks resolve the
+  new window and capabilities before dispatch. ACP editors and the headless
+  runtime recognize an exact `/compact` prompt through this same session core;
+  an empty headless session returns a no-op without a model call (exec reports
+  `incomplete`, exit 8, with `no_compactable_history` because there is no model
+  response to certify).
 - **Stop** turns red on hover and keyboard focus; in the high-contrast
   themes its icon and border take the error colour instead.
 - Every row of the palette and the `/` list has a one-sentence tip, as its

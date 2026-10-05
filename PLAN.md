@@ -15626,6 +15626,17 @@ for C2. Meta and Gemini compaction request goldens intentionally adopt the
 structured prompt; other request goldens retain their bytes. No live calls;
 certification is `docs/certification/m101-c1.md`.
 
+**FIXM101C1 review repair (2026-10-05, kubuntu).**
+Resolved all six RVM101C1 P2s before C2 builds on this branch: build summary
+input from current replay, resolve model/window/tools/reasoning/tail after
+hooks at the final request snapshot, roll back nondispatched summary-fork
+history without erasing dispatched liability, derive file metadata from
+successful effective tool results, allow summary forks of already compacted
+sources, and route ACP/headless `/compact` through the shared session core.
+Each finding gets an owning regression and a byte-exact restored red drill;
+no dependency, gate, cap or wire shape changes. The full quality/platform/live
+receipts remain the lead's checks under the rig brief.
+
 **Lanes and file ownership** (so lanes merge without overlapping hunks):
 
 - **Lane A — cache-stable prefix** (items 1, 2 with 22, 7, 16, 17).
@@ -16397,6 +16408,20 @@ before a repaired one loads (2026-09-30).
 | `test/unit/providerCredentialRecords.test.ts` | `eslint-disable-next-line unicorn/prefer-https` on one origin-binding assertion     | The test proves a downgraded `http:` scheme is refused as a different origin; an `https:` URL cannot exercise that leg. One literal, test-only.                                                                                                             | 2026-10-05 |
 
 ## 9. Security assumptions and accepted residual risk
+
+- **FIXM101C1 / RVM101C1:** all six assigned P2 findings are repaired with
+  owning regressions and byte-exact restored red drills in
+  `docs/certification/m101-c1.md`; no assigned P1/P2/P3 is deferred. ACP and
+  headless `/compact` call the existing shared session engine; C2 keeps its
+  settled-boundary `compactContext` seam. There are no paid/live calls.
+- **FIXM101C1-EMPTY-EXEC:** headless always starts a fresh session, so a
+  text-only `/compact` has no history and sends zero model requests. The
+  unchanged response-proof schema correctly reports `incomplete` (exit 8),
+  null terminal and `no_compactable_history`, with a localized no-op reason.
+  It never invents a completed model response or verified usage. Follow-up:
+  define a distinct command-result contract if standalone command success
+  needs exit 0, and certify that contract before claiming product support;
+  C2's in-turn compaction retains real response/ledger evidence.
 
 - **FIXM95P (2026-10-05):** all thirteen assigned RVM95A findings
   (1, 2, 4–8, 12–15, 18, 19) are repaired with regressions and deliberate

@@ -409,3 +409,13 @@ and `schemas/exec-event-v1.schema.json`; canonical
 and [receipts](https://github.com/RandyNorthrup/muse-spark-code/blob/main/docs/certification/m80.md)
 use absolute links because npm does not resolve relative links. Registry Action
 support still requires post-release LR, beyond unsigned candidate acceptance.
+
+ACP advertises `/compact` alongside skills. An exact text-only `/compact`
+prompt calls the backend's shared compaction core and waits for its updates
+before returning. Cancellation stops the compaction; another prompt is refused
+while it runs. The headless runtime uses this same ACP dispatch and its existing
+request/budget ledger. On an empty headless session, `/compact` is a no-op and
+sends no model request. Its exec result retains the response-proof contract:
+`incomplete` (exit 8), null terminal and `no_compactable_history`, rather than
+claiming a completed model response. Attachments or additional arguments remain ordinary
+prompts, rather than being silently discarded as command input.

@@ -49,6 +49,7 @@ import type { AgentEvent } from '../shared/agentEvents'
 import {
   ACP_AGENT_NAME,
   ACP_AGENT_TITLE,
+  ACP_COMPACT_COMMAND,
   ACP_CONFIG_IDS,
   ACP_PAID_TOOL_CALL_PREFIX,
   ACP_SESSION_LIST_LIMIT,
@@ -277,11 +278,16 @@ class AcpSession {
     }
     this.send({
       sessionUpdate: 'available_commands_update',
-      availableCommands: this.skills.map((skill) => ({
-        name: skill.selector,
-        description: skill.description === '' ? skill.displayName : skill.description,
-        input: skill.argumentHint === undefined ? null : { hint: skill.argumentHint },
-      })),
+      availableCommands: [
+        { name: ACP_COMPACT_COMMAND, description: UI_TEXT.compactDetail, input: null },
+        ...this.skills
+          .filter((skill) => skill.selector !== ACP_COMPACT_COMMAND)
+          .map((skill) => ({
+            name: skill.selector,
+            description: skill.description === '' ? skill.displayName : skill.description,
+            input: skill.argumentHint === undefined ? null : { hint: skill.argumentHint },
+          })),
+      ],
     })
   }
 
@@ -354,6 +360,14 @@ class AcpSession {
     }
     this.earlyFinishes.delete(turnId)
     this.settle(pending, early)
+  }
+
+  private finishCompaction(status: string): void {
+    const pending = this.pending
+    this.pending = undefined
+    pending?.resolve(
+      status === CANCELLED_TERMINAL || pending.isCancelled ? 'cancelled' : 'end_turn',
+    )
   }
 
   private finishTurn(event: TurnCompleted): void {
@@ -736,10 +750,22 @@ class AcpSession {
       }
     })
     try {
-      const starting = this.session.sendTurn(this.withSkill(parsed.parts), parsed.displayText)
-      this.starting = starting
-      const submission = await starting
-      this.noteTurnId(submission.turnId)
+      const [part] = parsed.parts
+      if (
+        parsed.parts.length === 1 &&
+        part?.type === 'text' &&
+        part.text.trim() === `/${ACP_COMPACT_COMMAND}`
+      ) {
+        // The same AgentSession core serves interactive ACP and runExec. A
+        // compact starts synchronously, so cancellation need not wait for it.
+        const outcome = await this.session.compact()
+        this.finishCompaction(outcome.status)
+      } else {
+        const starting = this.session.sendTurn(this.withSkill(parsed.parts), parsed.displayText)
+        this.starting = starting
+        const submission = await starting
+        this.noteTurnId(submission.turnId)
+      }
     } catch (error: unknown) {
       this.pending = undefined
       if (this.isDisposed) {

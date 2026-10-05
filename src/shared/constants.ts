@@ -1243,6 +1243,7 @@ export const TOKENS_PER_MILLION = 1_000_000
 export const MODEL_API_CONTEXT_WINDOW = 1_048_576
 export const MODEL_API_MAX_OUTPUT_TOKENS = 32_768
 // M101 C1: keep whole recent turns; summaries and the tail scale down for small windows.
+export const NO_COMPACTABLE_HISTORY = 'no_compactable_history'
 export const COMPACTION_TAIL_MAX_TOKENS = 20_000
 export const COMPACTION_TAIL_WINDOW_FRACTION = 0.08
 export const COMPACTION_SUMMARY_MAX_TOKENS = 8192
@@ -2027,6 +2028,8 @@ export const MODEL_API_OUTPUT_ENCODING = 'utf8'
 export const MODEL_API_SESSIONS_DIR = 'modelapi-sessions'
 // --- The ACP agent (M63, PLAN.md D61, D62) ---
 // The executable other editors run, and how it names itself to them.
+/** Built-in ACP command, also reached by the headless ACP client. */
+export const ACP_COMPACT_COMMAND = 'compact'
 export const ACP_AGENT_NAME = 'muse-spark-code-acp'
 export const ACP_AGENT_TITLE = 'Muse Spark Code (Unofficial)'
 // The OS credential store's entry for the Model API key (D61); the account

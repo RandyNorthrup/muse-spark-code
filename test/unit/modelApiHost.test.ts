@@ -57,6 +57,7 @@ import {
 import type { CreateResponseBody } from '../../src/core/backends/modelapi/schemas'
 import {
   FAKE_MODEL_API_ACCOUNT_ID,
+  FAKE_MODEL_API_KEY,
   fakeModelApi,
   fakeModelApiClient,
   type ScriptedCall,
@@ -5145,24 +5146,7 @@ describe('ModelApiSession: turns', () => {
   })
 
   it('removes a read-file PDF from future replay when Stop interrupts its delivery', async () => {
-    const t = setup()
-    t.io.binaries.set('/ws/docs/report.pdf', pdfFixture(1))
-    const { session, turnDone } = await startSession(t)
-    const held = Promise.withResolvers<undefined>()
-    t.api.script(
-      {
-        calls: [{ name: 'read_file', arguments: '{"path":"docs/report.pdf"}', callId: 'read_pdf' }],
-      },
-      { hold: held.promise, text: 'held response' },
-    )
-    await session.sendTurn([{ type: 'text', text: 'Read the PDF' }])
-    await vi.waitFor(() => {
-      expect(t.api.responseBodies()).toHaveLength(2)
-    })
-    expect(JSON.stringify(t.api.responseBodies()[1]?.['input'])).toContain('input_file')
-    await session.cancel()
-    held.resolve(undefined)
-    await turnDone()
+    const { t, session, turnDone } = await stoppedReadPdfDelivery()
     expect(await nextInputAfterStop(t, session, turnDone)).not.toContain('input_file')
   })
 
@@ -16250,6 +16234,29 @@ describe('ModelApiHost: taking a message back before a request reads it (M87, PL
   })
 })
 
+/** A PDF request that reached dispatch but was stopped before media delivery. */
+async function stoppedReadPdfDelivery() {
+  const t = setup()
+  t.io.binaries.set('/ws/docs/report.pdf', pdfFixture(1))
+  const { session, turnDone } = await startSession(t)
+  const held = Promise.withResolvers<undefined>()
+  t.api.script(
+    {
+      calls: [{ name: 'read_file', arguments: '{"path":"docs/report.pdf"}', callId: 'read_pdf' }],
+    },
+    { hold: held.promise, text: 'held response' },
+  )
+  await session.sendTurn([{ type: 'text', text: 'Read the PDF' }])
+  await vi.waitFor(() => {
+    expect(t.api.responseBodies()).toHaveLength(2)
+  })
+  expect(JSON.stringify(t.api.responseBodies()[1]?.['input'])).toContain('input_file')
+  await session.cancel()
+  held.resolve(undefined)
+  await turnDone()
+  return { t, session, turnDone }
+}
+
 /** A completed ordinary turn before the compaction under test. */
 async function preparedCompaction(t: ReturnType<typeof setup>, mode?: string) {
   const watched = await startSession(t, mode)
@@ -16816,5 +16823,221 @@ describe('M101 C1 summary-fork context', () => {
     expect(t.api.responseBodies().at(-1)?.['instructions']).toContain(
       'Keep the exact project constraint.',
     )
+  })
+})
+
+describe('FIXM101C1 review regressions', () => {
+  it('compacts current replay after Stop scrubbed an undelivered PDF (R1)', async () => {
+    const { t, session } = await stoppedReadPdfDelivery()
+    expect(JSON.stringify(session.snapshot().replay)).not.toContain('input_file')
+    t.api.script({ text: 'summary without undelivered media' })
+    await session.compact()
+    expect(JSON.stringify(t.api.responseBodies().at(-1)?.['input'])).not.toContain('input_file')
+  })
+
+  it('resolves the dispatch model capabilities and retained tail after PreLLMCall (R2)', async () => {
+    const entered = Promise.withResolvers<undefined>()
+    const held = Promise.withResolvers<Awaited<ReturnType<typeof hookReply>>>()
+    let isHolding = false
+    const t = setup({
+      hooks: hooksFor('PreLLMCall', 'hold-model-switch'),
+      runHook: () => {
+        if (!isHolding) return Promise.resolve(hookReply('{}'))
+        entered.resolve(undefined)
+        return held.promise
+      },
+      compactionModel: (modelId) =>
+        modelId === 'custom/small'
+          ? smallCompactionModel({ toolCalling: false, reasoningReplay: 'none' })
+          : { ...smallCompactionModel(), contextTokens: 200_000 },
+    })
+    const { session, turnDone } = await preparedCompaction(t)
+    t.api.script({ text: 'long'.repeat(2000), reasoning: 'old-model-reasoning' })
+    await session.sendTurn([{ type: 'text', text: 'oversized recent turn' }])
+    await turnDone()
+    isHolding = true
+    t.api.script({ text: 'small-model summary' })
+    const compacting = session.compact()
+    await entered.promise
+    await session.setModel('custom/small')
+    held.resolve(hookReply('{}'))
+    await compacting
+    const body = t.api.responseBodies().at(-1)
+    expect(body?.['model']).toBe('custom/small')
+    expect(body?.['max_output_tokens']).toBe(400)
+    expect(body?.['tools']).toEqual([])
+    expect(JSON.stringify(body?.['input'])).not.toContain('encrypted_content')
+    expect(session.snapshot().replay).toHaveLength(1)
+  })
+
+  it('refuses a tool response from an already tool-less compaction without another charge (R2)', async () => {
+    const t = setup({ compactionModel: () => smallCompactionModel({ toolCalling: false }) })
+    const { session } = await preparedCompaction(t)
+    t.api.script(
+      { calls: [{ name: 'read_file', arguments: '{"path":"unrequested.txt"}' }] },
+      { text: 'unadmitted fallback' },
+    )
+    await expect(session.compact()).rejects.toThrow(UI_TEXT.compactionToolCall)
+    expect(t.api.responseBodies()).toHaveLength(2)
+    expect(t.api.responseBodies().at(-1)?.['tools']).toEqual([])
+    expect(session.snapshot().replay[0]?.turnId).not.toBe('compaction')
+  })
+
+  it('refuses a stale compaction snapshot when the model changes during key retrieval (R2)', async () => {
+    const entered = Promise.withResolvers<undefined>()
+    const held = Promise.withResolvers<string>()
+    let isHolding = false
+    const t = setup({
+      getAccountId: () => Promise.resolve(FAKE_MODEL_API_ACCOUNT_ID),
+      apiKey: () => {
+        if (!isHolding) return Promise.resolve(FAKE_MODEL_API_KEY)
+        entered.resolve(undefined)
+        return held.promise
+      },
+    })
+    const { session } = await preparedCompaction(t)
+    isHolding = true
+    const before = JSON.stringify(session.snapshot().replay)
+    const compacting = session.compact()
+    await entered.promise
+    await session.setModel('custom/small')
+    held.resolve(FAKE_MODEL_API_KEY)
+    await expect(compacting).rejects.toThrow()
+    expect(t.api.responseBodies()).toHaveLength(1)
+    expect(JSON.stringify(session.snapshot().replay)).toBe(before)
+  })
+
+  it('removes a saved summary fork when final admission refuses before dispatch (R3)', async () => {
+    const store = memorySessionStore()
+    const t = setup({
+      store,
+      sessionBudgetUsd: 1,
+      admitSummaryFork: () =>
+        Promise.resolve(() => {
+          throw new Error('final admission refused')
+        }),
+    })
+    const { session } = await preparedCompaction(t)
+    await t.host.flush()
+    await expect(
+      t.host.forkSession(session.sessionId, 'muse-spark-1.3', undefined, { withSummary: true }),
+    ).rejects.toThrow('final admission refused')
+    await t.host.flush()
+    expect(t.api.responseBodies()).toHaveLength(1)
+    const listed = await t.host.listSessions({ workspaceRoot: ROOT, limit: 100 })
+    expect(listed.sessions.map((record) => record.sessionId)).toEqual([session.sessionId])
+    expect(store.saved.size).toBe(1)
+    expect(store.saved.has(session.sessionId)).toBe(true)
+    const reopened = setup({ store })
+    await reopened.host.load()
+    const relisted = await reopened.host.listSessions({ workspaceRoot: ROOT, limit: 100 })
+    expect(relisted.sessions.map((record) => record.sessionId)).toEqual([session.sessionId])
+  })
+
+  it('keeps dispatched failed summary-fork usage and liability durable (R3)', async () => {
+    const store = memorySessionStore()
+    const started = vi.fn()
+    const t = setup({
+      store,
+      sessionBudgetUsd: 1,
+      admitSummaryFork: () =>
+        Promise.resolve(Object.assign(() => undefined, { onRequestStarted: started })),
+    })
+    const { session } = await preparedCompaction(t)
+    t.api.script({ text: 'partial billed summary', incomplete: { reason: 'max_output_tokens' } })
+    await expect(
+      t.host.forkSession(session.sessionId, 'muse-spark-1.3', undefined, { withSummary: true }),
+    ).rejects.toThrow('response.incomplete')
+    await t.host.flush()
+    expect(started).toHaveBeenCalledOnce()
+    expect(store.saved.size).toBe(2)
+    expect(store.saved.has(session.sessionId)).toBe(true)
+    for (const stored of store.saved.values()) {
+      if (stored.sessionId === session.sessionId) continue
+      expect(stored.usage.outputTokens).toBeGreaterThan(0)
+      expect(stored.budgetSpentUsd).toBeGreaterThan(0)
+    }
+  })
+
+  it('excludes denied and failed file operations from the durable snapshot (R4)', async () => {
+    const t = setup()
+    const { session, turnDone } = await startSession(t, 'denyUnmatched')
+    t.api.script(
+      {
+        calls: [
+          { name: 'write_file', arguments: '{"path":"new.txt","content":"denied"}' },
+          { name: 'read_file', arguments: '{"path":"missing.txt"}' },
+        ],
+      },
+      { text: 'operations did not succeed' },
+    )
+    await session.sendTurn([{ type: 'text', text: 'try those files' }])
+    await turnDone()
+    expect(t.files.has('/ws/new.txt')).toBe(false)
+    t.api.script({ text: 'summary' })
+    await session.compact()
+    expect(JSON.stringify(session.snapshot().replay)).toContain(
+      JSON.stringify({ read: [], modified: [] })
+        .slice(1, -1)
+        .replaceAll('"', String.raw`\"`),
+    )
+  })
+
+  it('records successful file results with hook-rewritten arguments after resume (R4)', async () => {
+    const store = memorySessionStore()
+    const t = setup({
+      store,
+      hooks: hooksFor('PreToolUse', 'rewrite-path'),
+      runHook: () =>
+        hookReply(
+          JSON.stringify({
+            hookSpecificOutput: {
+              hookEventName: 'PreToolUse',
+              updatedInput: { path: 'effective.txt', content: 'written' },
+            },
+          }),
+        ),
+    })
+    const { session, turnDone } = await startSession(t, 'allowAll')
+    t.api.script(
+      { calls: [{ name: 'write_file', arguments: '{"path":"original.txt","content":"written"}' }] },
+      { text: 'written' },
+    )
+    await session.sendTurn([{ type: 'text', text: 'write' }])
+    await turnDone()
+    expect(t.files.get('/ws/effective.txt')).toBe('written')
+    await t.host.flush()
+    const reopened = setup({ store })
+    await reopened.host.load()
+    const loaded = await reopened.host.resumeSession(session.sessionId, 'muse-spark-1.3')
+    if (!(loaded.session instanceof ModelApiSession)) throw new Error('Expected Model API session')
+    reopened.api.script({ text: 'summary' })
+    await loaded.session.compact()
+    expect(JSON.stringify(loaded.session.snapshot().replay)).toContain(
+      JSON.stringify(['effective.txt']).replaceAll('"', String.raw`\"`),
+    )
+  })
+
+  it('summary-forks an already compacted source while repeated source compact stays NOOP (R5)', async () => {
+    const guard = Object.assign(vi.fn(), { onRequestStarted: vi.fn() })
+    const t = setup({ admitSummaryFork: () => Promise.resolve(guard) })
+    const { session } = await preparedCompaction(t)
+    t.api.script({ text: 'source summary' })
+    await session.compact()
+    await expect(session.compact()).resolves.toMatchObject({ status: 'noop' })
+    await expect(
+      session.compactContext(new AbortController().signal, guard),
+    ).resolves.toMatchObject({ status: 'noop' })
+    expect(guard).not.toHaveBeenCalled()
+
+    const before = JSON.stringify(session.snapshot().replay)
+    t.api.script({ text: 'fork summary' })
+    const fork = await t.host.forkSession(session.sessionId, session.modelId, undefined, {
+      withSummary: true,
+    })
+    expect(JSON.stringify(fork.history)).toContain('Context compacted')
+    expect(t.api.responseBodies()).toHaveLength(3)
+    expect(guard.onRequestStarted).toHaveBeenCalledOnce()
+    expect(JSON.stringify(session.snapshot().replay)).toBe(before)
   })
 })

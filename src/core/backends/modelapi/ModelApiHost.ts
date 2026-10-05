@@ -31,6 +31,7 @@ import {
   COMPACTION_SUMMARY_MAX_TOKENS,
   COMPACTION_SUMMARY_WINDOW_FRACTION,
   COMPACTION_TAIL_MAX_TOKENS,
+  NO_COMPACTABLE_HISTORY,
   COMPACTION_TAIL_WINDOW_FRACTION,
   type CodeIntelTool,
   CONTEXT_PRESSURE_HIGH,
@@ -1001,7 +1002,6 @@ const IDLE = 'idle'
 const RUNNING = 'running'
 const NOOP = 'noop'
 const ACCEPTED = 'accepted'
-const NO_COMPACTABLE_HISTORY = 'no_compactable_history'
 const COMPACTION_TURN_ID = 'compaction'
 // A replayed picture (`contentPartsFor`): `data:<media type>;base64,<data>`.
 const DATA_URL = /^data:([^;,]+);base64,(.+)$/s
@@ -1803,8 +1803,7 @@ export class ModelApiSession implements AgentSession {
   }
   private active: ActiveTurn | undefined
   /** The actual sent prefix, including media omissions and sticky packed placeholders. */
-  private compactionPrefix:
-    { readonly body: CreateResponseBody; readonly replayLength: number } | undefined
+  private compactionPrefix: { readonly body: CreateResponseBody } | undefined
   /** Each file as the model last read or wrote it, for `write_file`'s check (D27). */
   private readonly seenFiles = new Map<string, string>()
   /** Each edited file's diagnostics at its last check, to say what changed (M68). */
@@ -1899,6 +1898,8 @@ export class ModelApiSession implements AgentSession {
   public forkedFrom: string | undefined
   /** Built from an imported file, or forked from such a session (M84, PLAN.md D49). */
   public imported = false
+  /** A failed dispatched summary fork keeps its durable request liability. */
+  public didStartSummaryFork = false
 
   public constructor(
     public readonly sessionId: string,
@@ -2951,7 +2952,7 @@ export class ModelApiSession implements AgentSession {
     return Object.assign(guard, {
       onRequestStarted: () => {
         if (!isCompaction && directBudget === undefined) {
-          this.compactionPrefix = { body: structuredClone(body), replayLength: this.replay.length }
+          this.compactionPrefix = { body: structuredClone(body) }
         }
         if (this.isSubagent && this.childTaskGrant !== undefined) {
           this.childTaskGrant.remainingAttempts -= 1
@@ -8717,6 +8718,7 @@ export class ModelApiSession implements AgentSession {
     signal: AbortSignal,
     extraAdmission?: ResponseAttemptGuard,
   ): Promise<{
+    readonly body: CreateResponseBody
     readonly text: string
     readonly response: ResponseObject
     readonly contexts: readonly string[]
@@ -8731,6 +8733,7 @@ export class ModelApiSession implements AgentSession {
         await this.beforeModelCall(turnId, makeBody(), requestId, attempt, 0, signal)
         await this.refreshBudgetSpend()
         const body = makeBody()
+        const revision = this.modelRevision
         const chargedGoalId = isGoalActive(this.goal) ? this.goal.goal_id : undefined
         let text = ''
         let response: ResponseObject | undefined
@@ -8738,6 +8741,7 @@ export class ModelApiSession implements AgentSession {
         const admitAttempt = this.responseAttemptGuard(body, undefined, true)
         const guarded: ResponseAttemptGuard = Object.assign(
           (keyDigest: string | undefined) => {
+            if (revision !== this.modelRevision) throw new AbortedError()
             admitAttempt(keyDigest)
             extraAdmission?.(keyDigest)
           },
@@ -8796,6 +8800,7 @@ export class ModelApiSession implements AgentSession {
         )
         if (post.blockedReason !== undefined) throw new HookStoppedError(post.blockedReason)
         return {
+          body,
           text:
             text ||
             response.output
@@ -8878,22 +8883,27 @@ export class ModelApiSession implements AgentSession {
     const previous = this.compactionMetadata()
     const read = new Set(previous?.read)
     const modified = new Set(previous?.modified)
-    for (const { item } of this.replay) {
-      if (!isFunctionCallItem(item)) continue
+    const replayTurns = new Set(this.replay.map((entry) => entry.turnId))
+    for (const { item, turnId } of this.transcript) {
       if (
-        item.name !== MODEL_API_TOOLS.readFile &&
-        item.name !== MODEL_API_TOOLS.writeFile &&
-        item.name !== MODEL_API_TOOLS.editFile
+        !replayTurns.has(turnId) ||
+        item.kind !== 'toolCall' ||
+        item.status !== COMPLETED ||
+        item.failureReason !== undefined ||
+        item.args === undefined ||
+        (item.tool !== MODEL_API_TOOLS.readFile &&
+          item.tool !== MODEL_API_TOOLS.writeFile &&
+          item.tool !== MODEL_API_TOOLS.editFile)
       )
         continue
       try {
-        const args = compactionPathSchema.safeParse(JSON.parse(item.arguments))
+        const args = compactionPathSchema.safeParse(JSON.parse(item.args))
         if (args.success) {
-          const paths = item.name === MODEL_API_TOOLS.readFile ? read : modified
+          const paths = item.tool === MODEL_API_TOOLS.readFile ? read : modified
           paths.add(args.data.path)
         }
       } catch {
-        /* Invalid tool arguments do not identify a file. */
+        /* Invalid effective tool arguments do not identify a file. */
       }
     }
     return { read: [...read], modified: [...modified] }
@@ -8903,71 +8913,81 @@ export class ModelApiSession implements AgentSession {
   private async runCompaction(
     signal: AbortSignal,
     extraAdmission?: ResponseAttemptGuard,
+    isSummaryFork = false,
   ): Promise<CompactOutcome> {
-    if (!this.hasCompactableHistory()) {
+    if (!this.hasCompactableHistory(isSummaryFork)) {
       return { status: NOOP, reason: NO_COMPACTABLE_HISTORY }
     }
     await this.context.load()
-    const model = this.deps.compactionModel?.(this.modelId)
-    const windowTokens = model?.contextTokens ?? MODEL_API_CONTEXT_WINDOW
-    const canReplayReasoning =
-      model === undefined
-        ? this.modelId.startsWith(MODEL_API_MODEL_PREFIX)
-        : model.quirks.reasoningReplay === 'same-model'
-    const tail = this.compactionTail(windowTokens).filter(
-      (entry) => canReplayReasoning || !isReasoningItem(entry.item),
-    )
-    const tailTurns = new Set(tail.map((entry) => entry.turnId)).size
-    const snapshot = `${MODEL_API_MODEL_TEXT.compactionFiles}\n${JSON.stringify({ ...this.compactionFiles(), keptEntries: tail.filter((entry) => entry.turnId !== COMPACTION_TURN_ID).length })}\n\n${MODEL_API_MODEL_TEXT.compactionTodos}\n${JSON.stringify(this.todos.filter((todo) => todo.status !== 'completed'))}`
-    const isUpdate = this.replay[0]?.turnId === COMPACTION_TURN_ID
-    const prompt = `${MODEL_API_MODEL_TEXT.compactionPrompt}\n\n${isUpdate ? MODEL_API_MODEL_TEXT.compactionUpdatePrompt : ''}\n${fill(MODEL_API_MODEL_TEXT.compactionTailPrompt, { turns: String(tailTurns) })}\n\n${snapshot}`
-    const append: InputItem = {
-      type: 'message',
-      role: 'user',
-      content: [{ type: 'input_text', text: prompt }],
-    }
-    const prefix = this.compactionPrefix
-    const shouldKeepTools =
-      model === undefined
-        ? this.modelId.startsWith(MODEL_API_MODEL_PREFIX)
-        : model.quirks.keepToolsWithHistory && model.capabilities.toolCalling
-    const canReuse =
-      extraAdmission === undefined &&
-      shouldKeepTools &&
-      (prefix === undefined ||
-        prefix.body.tools.every((tool) => tool.type !== MODEL_API_WEB_SEARCH_TOOL))
-    const summaryBudget = Math.max(
-      1,
-      Math.min(
-        COMPACTION_SUMMARY_MAX_TOKENS,
-        Math.floor(windowTokens * COMPACTION_SUMMARY_WINDOW_FRACTION),
-      ),
-    )
-    const makeBody = (shouldReuse: boolean): CreateResponseBody => {
-      const body =
-        shouldReuse && prefix?.body.model === this.modelId
-          ? {
-              ...prefix.body,
-              input: [
-                ...prefix.body.input,
-                ...this.replay.slice(prefix.replayLength).map((entry) => entry.item),
-                append,
-              ],
-            }
-          : this.keyed({
-              ...this.body(),
-              input: this.budget.fit([...this.replay.map((entry) => entry.item), append]),
-              tools: shouldReuse ? this.body().tools : [],
-              include: ['reasoning.encrypted_content'],
-            })
+    let tail: readonly ReplayItem[] = []
+    let snapshot = ''
+    const makeBody = (canUseTools: boolean): CreateResponseBody => {
+      // collectText calls again after hooks and budget refresh. Capture all model
+      // decisions together, with no await between this projection and reservation.
+      const modelId = this.modelId
+      const model = this.deps.compactionModel?.(modelId)
+      const windowTokens = model?.contextTokens ?? MODEL_API_CONTEXT_WINDOW
+      const canReplayReasoning =
+        model === undefined
+          ? modelId.startsWith(MODEL_API_MODEL_PREFIX)
+          : model.quirks.reasoningReplay === 'same-model'
+      tail = this.compactionTail(windowTokens).filter(
+        (entry) => canReplayReasoning || !isReasoningItem(entry.item),
+      )
+      const tailTurns = new Set(tail.map((entry) => entry.turnId)).size
+      snapshot = `${MODEL_API_MODEL_TEXT.compactionFiles}\n${JSON.stringify({ ...this.compactionFiles(), keptEntries: tail.filter((entry) => entry.turnId !== COMPACTION_TURN_ID).length })}\n\n${MODEL_API_MODEL_TEXT.compactionTodos}\n${JSON.stringify(this.todos.filter((todo) => todo.status !== 'completed'))}`
+      const isUpdate = this.replay[0]?.turnId === COMPACTION_TURN_ID
+      const prompt = `${MODEL_API_MODEL_TEXT.compactionPrompt}\n\n${isUpdate ? MODEL_API_MODEL_TEXT.compactionUpdatePrompt : ''}\n${fill(MODEL_API_MODEL_TEXT.compactionTailPrompt, { turns: String(tailTurns) })}\n\n${snapshot}`
+      const append: InputItem = {
+        type: 'message',
+        role: 'user',
+        content: [{ type: 'input_text', text: prompt }],
+      }
+      const prefix = this.compactionPrefix
+      const shouldKeepTools =
+        model === undefined
+          ? modelId.startsWith(MODEL_API_MODEL_PREFIX)
+          : model.quirks.keepToolsWithHistory && model.capabilities.toolCalling
+      const canReuse =
+        canUseTools &&
+        extraAdmission === undefined &&
+        shouldKeepTools &&
+        (prefix === undefined ||
+          prefix.body.tools.every((tool) => tool.type !== MODEL_API_WEB_SEARCH_TOOL))
+      const summaryBudget = Math.max(
+        1,
+        Math.min(
+          COMPACTION_SUMMARY_MAX_TOKENS,
+          Math.floor(windowTokens * COMPACTION_SUMMARY_WINDOW_FRACTION),
+        ),
+      )
+      const current = this.body()
+      // The last POST supplies cache metadata only. Stop, fitting and hook
+      // rewrites can replace replay entries; its saved input is never replayed.
+      const cached = canReuse && prefix?.body.model === modelId ? prefix.body : undefined
+      const body = this.keyed({
+        ...current,
+        ...(cached !== undefined && {
+          instructions: cached.instructions,
+        }),
+        input: this.budget.fit([
+          ...current.input.filter((item) => canReplayReasoning || !isReasoningItem(item)),
+          append,
+        ]),
+        tools: canReuse ? (cached?.tools ?? current.tools) : [],
+        include: ['reasoning.encrypted_content'],
+      })
       const reserved = this.budgeted({
         ...body,
         max_output_tokens: Math.min(body.max_output_tokens, summaryBudget),
       })
       return { ...reserved, max_output_tokens: Math.min(reserved.max_output_tokens, summaryBudget) }
     }
-    let collected = await this.collectText(() => makeBody(canReuse), signal, extraAdmission)
-    if (canReuse && collected.response.output.some((item) => isFunctionCallItem(item))) {
+    let collected = await this.collectText(() => makeBody(true), signal, extraAdmission)
+    if (
+      collected.body.tools.length > 0 &&
+      collected.response.output.some((item) => isFunctionCallItem(item))
+    ) {
       collected = await this.collectText(() => makeBody(false), signal, extraAdmission)
     }
     if (collected.response.output.some((item) => isFunctionCallItem(item)))
@@ -9311,7 +9331,10 @@ export class ModelApiSession implements AgentSession {
   }
 
   /** A previous summary and its unchanged retained tail need no further model call. */
-  private hasCompactableHistory(): boolean {
+  private hasCompactableHistory(isSummaryFork = false): boolean {
+    // Only a new summary fork overrides the same-session NOOP, never C2's paid guard.
+    if (isSummaryFork && this.replay.some((entry) => entry.turnId === COMPACTION_TURN_ID))
+      return true
     const entries = this.replay.filter((entry) => entry.turnId !== COMPACTION_TURN_ID).length
     return (
       entries > 0 &&
@@ -9344,7 +9367,25 @@ export class ModelApiSession implements AgentSession {
           : await this.deps.admitSummaryFork?.(summaryForkSource, this.modelId, abort.signal)
       if (summaryForkSource !== undefined && admission === undefined)
         throw new Error(UI_TEXT.summaryForkUnavailable)
-      const outcome = await this.compactContext(abort.signal, admission)
+      const guarded =
+        admission === undefined
+          ? undefined
+          : Object.assign(
+              (keyDigest: string | undefined) => {
+                admission(keyDigest)
+              },
+              {
+                onRequestStarted: () => {
+                  this.didStartSummaryFork = true
+                  admission.onRequestStarted?.()
+                },
+              },
+            )
+      const outcome = await this.runCompaction(
+        abort.signal,
+        guarded,
+        summaryForkSource !== undefined,
+      )
       await this.runHooks(
         'PostCompact',
         this.turnIds.at(-1),
@@ -9594,7 +9635,7 @@ export class ModelApiSession implements AgentSession {
   }
 
   public async compact(summaryForkSource?: string): Promise<CompactOutcome> {
-    if (!this.hasCompactableHistory()) {
+    if (!this.hasCompactableHistory(summaryForkSource !== undefined)) {
       return { status: NOOP, reason: NO_COMPACTABLE_HISTORY }
     }
     if (this.active !== undefined || this.compacting !== undefined) {
@@ -10966,7 +11007,27 @@ export class ModelApiHost implements AgentHost {
       }
       await this.requireAccountId()
     } catch (error: unknown) {
-      fork.dispose()
+      try {
+        if (
+          options?.withSummary === true &&
+          fork.didStartSummaryFork &&
+          this.deps.store !== undefined
+        ) {
+          // Failed/incomplete responses still have usage. Retain their settled
+          // snapshot as well as the journal liability before releasing the fork.
+          await this.persist(fork, true)
+        }
+      } finally {
+        fork.dispose()
+      }
+      if (options?.withSummary === true && !fork.didStartSummaryFork) {
+        // Budget preflight may save before the final admission fence. Finish
+        // those writes and remove the clone before making it listable again.
+        await this.saving
+        await this.deps.store?.remove(forkId)
+        this.stored.delete(forkId)
+        this.lastSaved.delete(forkId)
+      }
       throw error
     } finally {
       this.pendingSummaryForks.delete(forkId)

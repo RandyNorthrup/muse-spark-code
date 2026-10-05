@@ -9,6 +9,12 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- Compaction keeps media removed by Stop out of its request and resolves the
+  selected model's capabilities after hooks. File snapshots report successful
+  effective tool results. Final-admission refusal rolls back unsent summary
+  forks; already compacted sources can be summary-forked. ACP editors and
+  headless prompts route `/compact` to the same backend compaction core.
+
 - Model API compaction reuses the sent cached prefix where supported,
   snapshots exact open tasks and replay-derived file paths, and keeps recent
   whole turns and supported reasoning verbatim. Structured summaries update
