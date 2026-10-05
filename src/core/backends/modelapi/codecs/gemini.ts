@@ -364,7 +364,11 @@ function pushParts(build: ContentsBuild, role: 'user' | 'model', parts: unknown[
 
 function convertItem(build: ContentsBuild, item: InputItem): void {
   if (item.type === 'message') {
-    pushParts(build, item.role === 'user' ? 'user' : 'model', toNativeParts(item.content))
+    // Gemini has only user/model contents (research §1.6). Developer
+    // context, including the request-only progress suffix, stays last as
+    // user context so it neither impersonates an answer nor alters the
+    // stable systemInstruction prefix.
+    pushParts(build, item.role === 'assistant' ? 'model' : 'user', toNativeParts(item.content))
     return
   }
   if (item.type === 'function_call_output') {

@@ -1439,8 +1439,9 @@ panel cannot present an authoritative native job list or direct cancel.
 
 ## Observation packing (Model API)
 
-Off by default (`museSpark.modelApiObservationPacking`, machine-scoped).
-Every request of a Model API conversation carries the tool outputs before
+In the panel, off by default (`museSpark.modelApiObservationPacking`, machine-scoped).
+ACP and headless Model API conversations enable the same packing and literal
+recall by default for tool-capable models. Every request of a Model API conversation carries the tool outputs before
 it. With packing on, a tool output over 8,000 characters is sent whole for
 its first two requests, then as a short placeholder: its id, its size, and
 its first and last lines. The placeholder is the same text on every later
@@ -1471,7 +1472,9 @@ miss diagnostics appear only in the log; they trigger no extra model call.
   any other.
 - A conversation reads the setting when it starts or is reopened, and
   keeps it for its life; a child task never packs. The Muse Code backend
-  has no hook for this, and the ACP agent does not pack.
+  has no hook for this. The ACP agent and headless runtime share the same
+  packing engine and `recall_output`, including literal search; they have no
+  VS Code setting to read.
 
 ## Checking edits
 

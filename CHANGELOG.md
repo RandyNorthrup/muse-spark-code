@@ -9,6 +9,11 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- M101 review repairs keep Gemini goal progress as trailing user context and
+  Chat/OpenRouter rolling cache markers on historical messages. Pending
+  Manual approvals preserve sticky packed ids for safe crash recovery, even
+  without a token/spend change. ACP and headless Model API conversations now
+  share observation packing and exact literal `recall_output` with the panel.
 - M101 adds case-sensitive literal search to `recall_output`, keeps its
   declaration stable for a tool-capable packing session, and restores sticky
   packing ids across resume, fork and rewind. Cache misses are logged only

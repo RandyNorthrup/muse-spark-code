@@ -3,7 +3,7 @@
 // `recall_output` paging the original back, the ledger in `tokenUsage`, and
 // nothing packed or offered by default.
 
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import * as z from 'zod/mini'
 import type { AgentEvent } from '../../src/shared/agentEvents'
 import {
@@ -31,6 +31,7 @@ import {
   responseOutputsByCall,
 } from './helpers/fakeModelApi'
 import { memoryToolIo } from './helpers/fakeToolIo'
+import { memorySessionStore } from './helpers/fakeSessionStore'
 import { fakeModelApiHostDeps } from './helpers/modelApiHostDeps'
 import { recalledParts } from './helpers/recalledOutput'
 import { watchSessionTurns } from './helpers/sessionTurns'
@@ -441,6 +442,112 @@ describe('observation packing on the host', () => {
     expect(replayed[0] ?? '').not.toContain('Packed output')
     await harness.host.close()
   })
+
+  it.each([false, true])(
+    'resumes identical packed bytes after a crash during Manual approval (zero usage: %s)',
+    async (zeroUsage) => {
+      const store = memorySessionStore()
+      // No budget journal: zero accounting must still persist a changed sticky id.
+      const { budget: _journal, ...snapshotStore } = store
+      const first = await setup(true, {}, { store: snapshotStore })
+      await first.session.setApprovalMode('promptUnmatched')
+      await readBigOnce(first)
+      await vi.waitFor(() => {
+        expect(store.saved.get(first.session.sessionId)?.packedCallIds).toEqual([])
+      })
+      const before = reloaded(store.saved.get(first.session.sessionId))
+      const usage = zeroUsage ? { input: 0, output: 0 } : { input: 100, output: 10 }
+      const accounting = {
+        usage,
+        ...(zeroUsage && {
+          usageOverride: {
+            input_tokens: 0,
+            output_tokens: 0,
+            total_tokens: 0,
+            input_tokens_details: { cached_tokens: 0 },
+            output_tokens_details: { reasoning_tokens: 0 },
+          },
+        }),
+      }
+      first.api.script(
+        {
+          calls: [{ name: 'read_file', arguments: '{"path":"big.txt"}', callId: 'c2' }],
+          ...accounting,
+        },
+        {
+          calls: [{ name: 'read_file', arguments: '{"path":"small.txt"}', callId: 'small' }],
+          ...accounting,
+        },
+        {
+          calls: [
+            {
+              name: 'write_file',
+              arguments: '{"path":"new.txt","content":"pending"}',
+              callId: 'pending',
+            },
+          ],
+          ...accounting,
+        },
+      )
+      const approval = Promise.withResolvers<undefined>()
+      const unsubscribe = first.session.onEvent((event) => {
+        if (event.type === 'approvalRequested') approval.resolve(undefined)
+      })
+      try {
+        await first.session.sendTurn([{ type: 'text', text: 'Read small.txt, then write new.txt' }])
+        await approval.promise
+        expect(responseOutputsByCall(first.api, 2).get('c1')).toBe(
+          responseOutputsByCall(first.api, 1).get('c1'),
+        )
+        // Wait for the durable pending-tool write, before cancellation can settle the call.
+        await vi.waitFor(() => {
+          expect(store.saved.get(first.session.sessionId)?.packedCallIds).toEqual(['c1'])
+        })
+        const crash = reloaded(store.saved.get(first.session.sessionId))
+        expect(first.session.snapshot().packedCallIds).toEqual(['c1', 'c2'])
+        expect(crash.packedCallIds).toEqual(['c1'])
+        expect(responseOutputsByCall(first.api, 4).get('c1')).toContain('Packed output')
+        expect(crash.replay.filter(({ turnId }) => before.turnIds.includes(turnId))).toEqual(
+          before.replay,
+        )
+        expect(
+          crash.replay.some(
+            ({ item }) => item.type === 'function_call_output' && item.call_id === 'small',
+          ),
+        ).toBe(false)
+        expect(
+          crash.replay.some(
+            ({ item }) => item.type === 'function_call' && item.call_id === 'pending',
+          ),
+        ).toBe(false)
+        if (zeroUsage) {
+          expect(crash.usage).toEqual(before.usage)
+          expect(crash.budgetSpentUsd).toBe(before.budgetSpentUsd)
+        }
+        // Cancellation is cleanup after the crash snapshot was copied. Compare
+        // recovery with the same placeholder the original live session sends.
+        const cancelled = first.turnDone()
+        await first.session.cancel()
+        await cancelled
+        first.api.script({ text: 'live continuation' })
+        await sendText(first, 'continue')
+        const packed = responseOutputsByCall(first.api, 5).get('c1')
+        expect(packed).toBe(responseOutputsByCall(first.api, 4).get('c1'))
+        const resumed = await setup(true)
+        try {
+          resumed.session.adopt(crash)
+          resumed.api.script({ text: 'resumed' })
+          await sendText(resumed, 'continue')
+          expect(responseOutputsByCall(resumed.api, 0).get('c1')).toBe(packed)
+        } finally {
+          await resumed.host.close()
+        }
+      } finally {
+        unsubscribe()
+        await first.host.close()
+      }
+    },
+  )
 
   it('keeps the ledger and sticky placeholders across a save and resume', async () => {
     const first = await setup(true)

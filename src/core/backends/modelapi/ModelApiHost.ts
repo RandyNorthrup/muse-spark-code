@@ -10313,10 +10313,23 @@ export class ModelApiHost implements AgentHost {
     if (last === undefined) {
       return isStrict ? Promise.reject(new Error(UI_TEXT.historyUnavailable)) : Promise.resolve()
     }
+    // Keep newly sticky ids even while replay must stay at its last safe
+    // boundary. An original absent from that boundary cannot be recalled
+    // after a crash, so its id must not be persisted here.
+    const stickyIds = new Set([...(last.packedCallIds ?? []), ...(snapshot.packedCallIds ?? [])])
+    const packedCallIds =
+      last.packedCallIds === undefined && snapshot.packedCallIds === undefined
+        ? undefined
+        : last.replay.flatMap(({ item }) =>
+            item.type === 'function_call_output' && stickyIds.has(item.call_id)
+              ? [item.call_id]
+              : [],
+          )
     if (
       !isStrict &&
       last.budgetSpentUsd === snapshot.budgetSpentUsd &&
-      JSON.stringify(last.usage) === JSON.stringify(snapshot.usage)
+      JSON.stringify(last.usage) === JSON.stringify(snapshot.usage) &&
+      JSON.stringify(last.packedCallIds) === JSON.stringify(packedCallIds)
     ) {
       return Promise.resolve()
     }
@@ -10325,6 +10338,7 @@ export class ModelApiHost implements AgentHost {
       {
         ...saved,
         usage: snapshot.usage,
+        ...(packedCallIds !== undefined && { packedCallIds }),
         ...(snapshot.budgetSpentUsd !== undefined && { budgetSpentUsd: snapshot.budgetSpentUsd }),
       },
       store,

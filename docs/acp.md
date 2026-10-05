@@ -25,6 +25,15 @@ transport is Node's `https` implementation: VS Code proxy/PAC settings do
 not apply. Its proxy and certificate behavior follows the installed Node
 version and environment, rather than VS Code's network patch.
 
+On the Model API backend, ACP and headless conversations pack long tool
+outputs by default for tool-capable models: an output over 8,000 characters
+is sent whole twice, then as a stable placeholder. `recall_output` reads exact
+original pages, with optional case-sensitive literal `search`. Reopened
+conversations keep their sticky placeholders, including after a crash while
+Manual approval is pending. Recall continues the ordinary billed model turn;
+it makes no separate paid-feature request. The VS Code packing setting does
+not apply to this process.
+
 The configuration below names the command and its arguments. Where each
 editor keeps its agent settings is in that editor's documentation, linked
 from [the compatibility plan](https://github.com/RandyNorthrup/muse-spark-code/blob/main/docs/ide-compatibility.md#32-ides-and-editors-reached-through-a-shared-acp-agent);

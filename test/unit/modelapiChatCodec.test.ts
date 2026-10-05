@@ -1245,6 +1245,73 @@ function probeBody(): CreateResponseBody {
 }
 
 describe('chat codec breakpoints', () => {
+  it.each(['anthropic', 'last'] as const)(
+    '%s keeps the rolling marker on history before transient progress',
+    (cacheBreakpoints) => {
+      const histories: CreateResponseBody['input'][] = [
+        probeBody().input,
+        [
+          ...probeBody().input,
+          { type: 'message', role: 'assistant', content: [{ type: 'output_text', text: 'Done' }] },
+        ],
+        [
+          ...probeBody().input,
+          {
+            type: 'function_call',
+            call_id: 'read',
+            name: 'read_file',
+            arguments: '{"path":"a.txt"}',
+          },
+          { type: 'function_call_output', call_id: 'read', output: 'file bytes' },
+        ],
+        [
+          {
+            type: 'message',
+            role: 'user',
+            content: [
+              { type: 'input_text', text: 'Image context' },
+              { type: 'input_image', image_url: 'data:image/png;base64,AA==', detail: 'auto' },
+            ],
+          },
+        ],
+        [],
+      ]
+      for (const input of histories) {
+        const encode = (progress?: string) =>
+          encodeChatRequest(
+            {
+              ...probeBody(),
+              input: [
+                ...input,
+                ...(progress === undefined
+                  ? []
+                  : [
+                      {
+                        type: 'message' as const,
+                        role: 'developer' as const,
+                        content: [{ type: 'input_text' as const, text: progress }],
+                      },
+                    ]),
+              ],
+            },
+            'anthropic/claude-sonnet-5.5',
+            OPENROUTER,
+            { cacheBreakpoints, capabilities: { vision: true } },
+          ).body
+        const historical = encode()
+        const first = encode('Goal progress: 10%')
+        const next = encode('Goal progress: 20%')
+        expect(first.messages.at(-1)).toEqual({
+          role: 'system',
+          content: [{ type: 'text', text: 'Goal progress: 10%' }],
+        })
+        expect(first.messages.slice(0, -1)).toEqual(historical.messages)
+        expect(next.messages.slice(0, -1)).toEqual(first.messages.slice(0, -1))
+        expect(JSON.stringify(next)).toBe(JSON.stringify(first).replace('10%', '20%'))
+      }
+    },
+  )
+
   it('marks the system block as the cache probe shows', () => {
     const frame = frameOf('openrouter', '08-cache-call-1.json')
     const expected = arrayField(frame.requestBody['messages'], 'messages').map((message) =>

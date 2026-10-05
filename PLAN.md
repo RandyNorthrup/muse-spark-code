@@ -15621,10 +15621,23 @@ byte-exact; deliberate golden changes, the provider matrix and production
 byte deltas are in `docs/certification/m101-a.md`. Owning suites, all five compiler projects and static/bundle gates pass;
 the complete 282-file importing sweep has five reproducible pre-existing
 UI failures, recorded in §7 and the certification. Integration must supply the new `modelFacts` callback from M95's
-pending host registry seam, reconcile this base's off-by-default manifest with
-D81.6, and exclude the suffix from OpenRouter's separate chat breakpoints.
-Those owners' files remain untouched; full quality and live M75/cache receipts
+pending host registry seam and reconcile this base's off-by-default panel manifest with
+D81.6. FIXM101A repairs the separate Chat/OpenRouter breakpoints and Gemini
+context role, preserves pending-approval sticky ids, and enables shared packing
+in ACP/headless; its six additional red drills are recorded below. The
+remaining integration owners' files stay untouched; full quality and live M75/cache receipts
 are delegated by the rig brief to the integrator and Lane E.
+
+**FIXM101A review repair scope (2026-10-05).** Repair all three RVM101A
+P2s with minimal codec hunks: Gemini maps developer context to a trailing
+user-role part; Chat/OpenRouter excludes the trailing progress item from both
+rolling cache modes; pending-tool persistence merges newly sticky packed ids
+only for outputs retained in its safe replay and compares those ids before
+skipping a save. Add a Manual-mode crash/resume regression. Under the owner's
+all-editors rule, enable the same shared packing and literal `recall_output`
+in the ACP/headless runtime (no VS Code setting is available there). Tests,
+byte-exact red drills and named integration residuals go in
+`docs/certification/m101-a.md` and §9. No dependency, gate or paid-call change.
 
 **Lanes and file ownership** (so lanes merge without overlapping hunks):
 
@@ -16410,6 +16423,23 @@ before a repaired one loads (2026-09-30).
 | `test/unit/providerCredentialRecords.test.ts` | `eslint-disable-next-line unicorn/prefer-https` on one origin-binding assertion     | The test proves a downgraded `http:` scheme is refused as a different origin; an `https:` URL cannot exercise that leg. One literal, test-only.                                                                                                             | 2026-10-05 |
 
 ## 9. Security assumptions and accepted residual risk
+
+- **FIXM101A assigned findings (2026-10-05):** all three RVM101A P2s and
+  the ACP/headless packing gap are repaired with regressions and six
+  byte-exact red drills; no assigned P2/P3 is left. Acceptance residuals:
+  **FIXM101A-MODEL-FACTS** — the production BYO host must supply selected-model
+  facts from the pending registry seam; unknown BYO records currently refuse
+  packing/recall and diagnostics, so this is safe until composition is wired
+  and tested by integration. **FIXM101A-PANEL-DEFAULT** — the panel's manifest
+  and constants still default packing off on this base; correctness is
+  unchanged while the optimization stays off, and the integrator must
+  reconcile them with D81.6 (ACP/headless now enable packing).
+  **FIXM101A-RELEASE-GATES** — full quality/coverage, packaged editor matrix
+  and live M75/cache receipts are the integrator/Lane E's work. The existing
+  five UI and package-fixture failures in §7 stay visible; scoped offline
+  checks cannot certify release. Follow-up: repair the fixtures/UI, gate the
+  combined tree and collect counted live receipts before acceptance. No live
+  or paid call, dependency, suppression or gate change in this repair.
 
 - **FIXM95P (2026-10-05):** all thirteen assigned RVM95A findings
   (1, 2, 4–8, 12–15, 18, 19) are repaired with regressions and deliberate
