@@ -7,6 +7,16 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+### Added
+
+- **Team templates, autofill, intensity, validation, preview and transfer
+  (M96 lane F).** Pure core: the four team templates with suggested pools,
+  the four suggestion kinds with reasons, dismissals and learning from the
+  local record, the five intensity levels with custom-role keeping and the
+  throttle backoff, per-model settings with cost notes, inline cap
+  validation, the no-model-call preview with cost ranges, and credential-
+  free export with strict import. Strings in all 14 tables.
+
 ## [0.12.1] - 2026-10-04
 
 ### Changed
