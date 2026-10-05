@@ -12,6 +12,7 @@
 import { existsSync, readFileSync } from 'node:fs'
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http'
 import { createServer as createTcpServer } from 'node:net'
+import path from 'node:path'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import {
   type BrowserCheckRequest,
@@ -23,6 +24,7 @@ import {
 import { hostBrowserRunDeps } from '../../src/host/browser/browserProcess'
 import manifest from '../../src/host/browser/runtime/browserRuntime.json'
 import { prepareRuntime } from '../../src/host/browser/runtime/runtimeStore'
+import { isWithinFolder } from '../../src/host/checkpoints/shadowGit'
 import { processesNaming, tcpListenersOf } from './helpers/browserProcesses'
 import { LiveServers, OWN_ADDRESS } from './helpers/liveBrowser'
 
@@ -310,10 +312,14 @@ describe.skipIf(STORAGE === undefined)(SUITE, () => {
     'talks over the pipe with no TCP listener, in a fresh folder under the extension’s storage it removes',
     async () => {
       const watched: Watched = { isProbed: true }
-      expect(await check(watched, `http://${live.page}/escape`)).toMatchObject({ ok: true })
+      report(await check(watched, `http://${live.page}/escape`))
       expect(watched.args).toContain('--remote-debugging-pipe')
       expect(watched.args?.filter((arg) => arg.includes('remote-debugging-port'))).toEqual([])
-      expect(watched.root?.startsWith(STORAGE ?? '-')).toBe(true)
+      // By path, not by spelling: CI names the storage `D:\a\_temp/muse-browser-storage`,
+      // and the folder the check made comes back joined with the platform's separator.
+      const root = watched.root ?? ''
+      expect(path.relative(STORAGE ?? '', root)).not.toBe('')
+      expect(isWithinFolder(root, STORAGE ?? '')).toBe(true)
       const probe = await watched.probe
       expect(probe?.pids.length).toBeGreaterThan(0)
       expect(probe?.listeners).toEqual([])

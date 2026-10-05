@@ -71,6 +71,12 @@ happened, not what was planned; superseded entries are kept.
 
 ### Changed
 
+- **A smaller package, so the browser check fits the 2200 KiB VSIX budget
+  (M81, PLAN.md D6).** The macOS dictation helper is now built for size
+  (`-Osize`), dead-stripped at link time and stripped of local symbols
+  before it is signed (109,034 to 80,798 bytes deflated on the Mac mini;
+  its disclaim check passes), and the four walkthrough images are
+  recompressed losslessly (identical pixels). The budget is unchanged.
 - **Tiered CI, ready for a merge queue.** The full gate now runs as parallel
   jobs:
   - the static gates on all three platforms;
@@ -109,6 +115,11 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- **The browser check's live suite on Windows CI (M81).** CI names the
+  runtime's storage `D:\a\_temp/muse-browser-storage`, and the check's
+  folder comes back joined with `\`, so the suite's string-prefix check
+  failed though the folder was inside the storage. It now compares by path.
+  Tests only; the product is unchanged.
 - A blocked M80 `v0` tag update now reports that an administrator must move it,
   while preserving the four release channels' outcomes. Updates require a
   fast-forward; the release guide documents the administrator's recovery command.
