@@ -3593,6 +3593,15 @@ ordinary ACP commands and extension activation load no judge schema.
 Source selection, paid admission and offline/surface adapters remain required
 before those commands can succeed. The production MCP initialization and
 tool-list smoke runs without inference; available-source support is pending.
+The factory now loads the reviewed lint library and advisory hook adapter as
+separate children. Lint keeps strict pinned config, stable rule/cache binding,
+complete-state batching and visible extraction omissions; real grammar and
+source/admission adapters remain required. Cursor observation rows work
+through this adapter. Its blocking rows **preToolUse, beforeShellExecution,
+beforeMCPExecution, beforeReadFile and beforeSubmitPrompt are never
+registered**: Cursor has no neutral answer for them, and the judge never
+grants a permission. This library delivery adds no installed hook/lint command
+support claim or automatic hook registration.
 See [the integration contract and outstanding evidence](docs/judge.md).
 
 **Bundled workflow package (M89).** `vendor/high-quality-projects-skill/`

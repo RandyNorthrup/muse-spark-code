@@ -19,6 +19,8 @@
 !dist/webFetch.js
 !dist/museCodeReviewer.js
 !dist/judge.js
+!dist/judgeLint.js
+!dist/judgeHook.js
 !dist/whatsNew.js
 !dist/whatsNew.json
 !dist/uiText.js

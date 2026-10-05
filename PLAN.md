@@ -268,6 +268,8 @@ quality`) and as a CI job.
 | `dist/whatsNew.json`       | ≤ 40 KiB raw (M99, D79: newest two releases' full notes and the newest earlier Highlights when needed; hard content cap independent of VSIX compression)                                                                                                                                                                                                                                               |
 | `dist/webview/whatsNew.js` | ≤ 25 KiB (M99: What's New's page script, which only passes clicks back; 0.7 KiB when made, plus 15%, rounded up to 25 KiB)                                                                                                                                                                                                                                                                             |
 | `dist/validationSchema.js` | ≤ 50 KiB (M98 integration: JSON Schema writer, only loaded when a caller converts a schema; existing parser stays ≤ 50 KiB)                                                                                                                                                                                                                                                                            |
+| `dist/judgeLint.js`        | ≤ 50 KiB (H lint library; child of the explicit-action judge factory)                                                                                                                                                                                                                                                                                                                                  |
+| `dist/judgeHook.js`        | ≤ 100 KiB (GH advisory hook contracts; child of the explicit-action judge factory)                                                                                                                                                                                                                                                                                                                     |
 | `dist/judge.js`            | ≤ 75 KiB (M98 phase-2 B/D/CS: offline calibration, injected sampling/contrastive and authenticated serve factory; explicit-action loading only; 61,039 bytes plus 15%, rounded up to 25 KiB)                                                                                                                                                                                                           |
 
 **TRAIN13B (2026-10-05):** `dist/validation.js` shares only the used
@@ -16989,13 +16991,43 @@ cap, compact only the generated Node table with a lossless encoding and
 prove exact decoded equality; browser/source tables and all translations
 remain complete. Save the resolved merge's artifact hashes before H/GH
 factory wiring and compare startup bytes afterwards; required M91 ancestry
-changes are measured separately from wiring. Regenerate host API/notices
+changes are measured separately from wiring. The eight inherited judge
+activation tests pass on the resolved round-3 tree; GH's historical six
+failures do not reproduce and no fixture or production gate is changed. Regenerate host API/notices
 with their scripts. Owning whole-file tests, typecheck, lint, formatting,
 deadcode, duplication, localization, cycles, host API, every build cap and
 a universal 0.13.0-helper VSIX are required here. Aggregate quality,
 coverage/a11y and installed/live receipts remain lead-owned under the brief.
 
+**Round-3 size boundaries.** H's lint library and GH's contract adapter load
+as `judgeLint.js` and `judgeHook.js` children of the existing judge factory.
+The child logger is created inside the standalone factory (or supplied by a
+future host caller), preserving the parent loader and ACP startup bytes.
+They receive installed language at each call; GH receives the parent's
+existing ask runner instead of duplicating its dispatcher. Existing caps and
+split prohibitions stay unchanged. New child caps follow D6's measured-size
+rule (50 KiB lint, 100 KiB hook); both must appear in all package/watch,
+notice/SBOM, globals, knip, cycle and split inventories. No grammar/runtime
+is fabricated or newly acquired: syntax/host extraction and admission remain
+required injected dependencies. Cursor's registration list excludes all five
+blocking events, even if a future neutral-output parser were to accept them.
+
 ## 7. Gates
+
+**M98P2INT round-3 package-budget deferral (2026-10-05).** The required
+H/GH merges and their M91 ancestry fit all existing JavaScript bundle caps
+with H/GH in separate lazy children. The actual universal VSIX, using the
+exact signed universal helper from the prior 0.13.0 archive, exceeds the
+unchanged 2,252,800-byte cap. The first measurement is 2,379,314 bytes;
+a lossless level-9 ZIP experiment preserves every decompressed entry but
+still measures 2,367,882 bytes. The final default package is 2,382,021 bytes,
+129,221 over the unchanged cap. No member, translation or behavior is removed
+and no cap is raised. Stop package optimization at this hard boundary under
+the shared lane rule; the final exact bytes and inventories are recorded in
+`docs/certification/m98-p2int-round3.md`. This private integration is not
+release-certified; the lead owns the cumulative package reduction/decision,
+full quality, coverage, a11y and installed/live receipts. No supported H/GH
+installed CLI command or inference source is claimed by the factory wiring.
 
 **M98P2INT bounded integration gates (2026-10-05).** The explicit rig brief
 authorizes only the three named branch merges, local hook-on commits and
@@ -17685,6 +17717,10 @@ M78b (2026-10-02) runs scoped gates on Kubuntu per the implementation brief; ful
 
 ## 8. Escape hatches register
 
+| Location                                     | Escape hatch                                 | Reason                                                                                                                                                                                                     | Date       |
+| -------------------------------------------- | -------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
+| `src/runtime/judge/judgeEntry.ts:hasFactory` | Same-build callable child factory predicates | Check the two shipped child factories before using their compiler-checked signatures; the established lazy loader rejects malformed modules and retries repaired files. No service/wire shape is inferred. | 2026-10-05 |
+
 | Location                                      | Escape hatch                         | Reason                                                                                                                                                                         | Date       |
 | --------------------------------------------- | ------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ---------- |
 | `src/host/validationSchema.ts:isSchemaWriter` | Same-build callable export predicate | Node supplies an unknown module from the shipped sibling bundle; check the callable before using the compiler-checked conversion signature. No service/wire shape is inferred. | 2026-10-05 |
@@ -17819,6 +17855,13 @@ before a repaired one loads (2026-09-30).
   integration gates before shipping. Dispatcher/source/consent wiring and the
   six inherited activation-fixture failures remain integration work already
   recorded in `docs/certification/m98-gh.md`.
+  **Closed on round-3 integration:** the host record is regenerated by its
+  script and the shared Node validation module lazily exports canonical
+  `toJSONSchema` conversion; their gates pass. H/GH libraries are available
+  through the judge factory, with source/admission still injected. Installed
+  command/source certification and aggregate gates remain lead-owned. The
+  eight judge activation tests also pass on this resolved tree; the six
+  failures in GH's historical receipt do not reproduce.
 
 - **GH-Cursor-permission-abstention (FIXM98GH, RVM98GH P2).** Cursor's
   `preToolUse`, `beforeShellExecution` and `beforeMCPExecution` require a
@@ -17834,6 +17877,11 @@ before a repaired one loads (2026-09-30).
   them; never substitute an ALLOW grant for a missing answer. Cursor
   observation rows preflight an empty JSON object against their own schema;
   M91 applies `failClosed` only on the contract's blocking rows.
+
+  **Round-3 owner decision enforced:** all five named Cursor blocking rows
+  are permanently excluded from this registration list. Observation rows
+  remain available; the production-factory regression is proved red when
+  that exclusion is removed, then byte-exact restored and green.
 
 - **M91-E-M74 (lane E, SoL-Pi rule 5).** M74's automatic compaction and its
   hidden follow-ups are not built (Q-M74). So M91 certifies only the

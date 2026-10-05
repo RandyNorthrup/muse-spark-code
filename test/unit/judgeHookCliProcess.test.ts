@@ -22,6 +22,7 @@ beforeAll(async () => {
       contents: `
         import { parseJudgeArgs } from './src/runtime/judge/args';
         import { runJudgeHookCommand } from './src/runtime/judge/hook';
+        import { runJudgeCommand } from './src/runtime/judge/commands';
         import { createFdWriter } from './src/runtime/exec/fdWriter';
         const controller = new AbortController();
         const io = {
@@ -35,6 +36,7 @@ beforeAll(async () => {
           const outcome = ${JSON.stringify(riskOutcome())};
           process.exitCode = await runJudgeHookCommand(
             command.options, { format: process.argv[2] }, io, {
+              runAsk: runJudgeCommand,
               question: ${JSON.stringify(QUESTION)},
               cautionText: () => ${JSON.stringify(CAUTION)},
               resolveSource: async (options) => options.separate === 'unavailable' ? undefined : ({

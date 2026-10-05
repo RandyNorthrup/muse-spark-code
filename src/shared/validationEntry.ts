@@ -32,6 +32,7 @@ export {
   number,
   object,
   optional,
+  partialRecord,
   pipe,
   positive,
   prettifyError,

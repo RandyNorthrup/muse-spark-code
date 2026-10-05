@@ -36,6 +36,8 @@ const HOST_BUNDLES = [
   'dist/webFetch.js',
   'dist/museCodeReviewer.js',
   'dist/judge.js',
+  'dist/judgeLint.js',
+  'dist/judgeHook.js',
   'dist/whatsNew.js',
   'dist/searchWorker.js',
   'dist/pageWorker.js',

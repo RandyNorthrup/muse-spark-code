@@ -101,6 +101,8 @@ const BUDGETS = [
   // boundary, required on an explicit judge action. 59.6 KiB + 15%, rounded
   // up to 25 KiB; no pre-existing cap changes (PLAN.md D6).
   { path: 'dist/judge.js', budgetKiB: 75 },
+  { path: 'dist/judgeLint.js', budgetKiB: 50 },
+  { path: 'dist/judgeHook.js', budgetKiB: 100 },
   // TRAIN13B: used Node mini-parser API, 39.5 KiB + 15%, rounded to 25 KiB.
   { path: 'dist/validation.js', budgetKiB: 50 },
   // M98 integration: JSON Schema conversion loads only on explicit tool listing.

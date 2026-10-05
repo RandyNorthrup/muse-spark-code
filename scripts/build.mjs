@@ -127,6 +127,10 @@ const WEBVIEW_ENTRY = 'src/webview/main.tsx'
 const WEBVIEW_OUTDIR = 'dist/webview'
 const JUDGE_ENTRY = 'src/runtime/judge/judgeEntry.ts'
 const JUDGE_OUTFILE = 'dist/judge.js'
+const JUDGE_LINT_ENTRY = 'src/runtime/judge/judgeLintEntry.ts'
+const JUDGE_LINT_OUTFILE = 'dist/judgeLint.js'
+const JUDGE_HOOK_ENTRY = 'src/runtime/judge/judgeHookEntry.ts'
+const JUDGE_HOOK_OUTFILE = 'dist/judgeHook.js'
 const WHATS_NEW_PAGE_ENTRY = 'src/webview/whatsNew/main.ts'
 const WHATS_NEW_PAGE_NAME = 'whatsNew'
 const ACP_ENTRY = 'src/runtime/main.ts'
@@ -394,6 +398,17 @@ const judgeOptions = {
   outfile: JUDGE_OUTFILE,
 }
 
+const judgeLintOptions = {
+  ...judgeOptions,
+  entryPoints: [JUDGE_LINT_ENTRY],
+  outfile: JUDGE_LINT_OUTFILE,
+}
+const judgeHookOptions = {
+  ...judgeOptions,
+  entryPoints: [JUDGE_HOOK_ENTRY],
+  outfile: JUDGE_HOOK_OUTFILE,
+}
+
 /** @type {import('esbuild').BuildOptions} */
 const browserCheckOptions = {
   ...common,
@@ -564,6 +579,8 @@ if (isWatch) {
     esbuild.context(webFetchOptions),
     esbuild.context(museCodeReviewerOptions),
     esbuild.context(judgeOptions),
+    esbuild.context(judgeLintOptions),
+    esbuild.context(judgeHookOptions),
     esbuild.context(extensionHooksOptions),
     esbuild.context(whatsNewOptions),
     esbuild.context(uiTextOptions),
@@ -597,6 +614,8 @@ if (isWatch) {
     webFetch: esbuild.build(webFetchOptions),
     museCodeReviewer: esbuild.build(museCodeReviewerOptions),
     judge: esbuild.build(judgeOptions),
+    judgeLint: esbuild.build(judgeLintOptions),
+    judgeHook: esbuild.build(judgeHookOptions),
     extensionHooks: esbuild.build(extensionHooksOptions),
     whatsNew: esbuild.build(whatsNewOptions),
     uiText: esbuild.build(uiTextOptions),
@@ -642,6 +661,8 @@ if (isWatch) {
   reportSize(WEB_FETCH_OUTFILE)
   reportSize(MUSE_CODE_REVIEWER_OUTFILE)
   reportSize(JUDGE_OUTFILE)
+  reportSize(JUDGE_LINT_OUTFILE)
+  reportSize(JUDGE_HOOK_OUTFILE)
   reportSize(EXTENSION_HOOKS_OUTFILE)
   reportSize(WHATS_NEW_OUTFILE)
   reportSize(WHATS_NEW_CONTENT_OUTFILE)

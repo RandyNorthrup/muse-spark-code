@@ -19,6 +19,30 @@ const judgeFiles = [
   'src/runtime/judge/commands.ts',
   'src/runtime/judge/mcp.ts',
 ]
+const children = [
+  {
+    name: 'judgeLint',
+    sources: [
+      'src/runtime/judge/judgeLintEntry.ts',
+      'src/runtime/judge/lint.ts',
+      'src/host/judge/lint.ts',
+      'src/core/judge/lint/cache.ts',
+      'src/core/judge/lint/config.ts',
+      'src/core/judge/lint/context.ts',
+      'src/core/judge/lint/evals.ts',
+      'src/core/judge/lint/evaluate.ts',
+      'src/core/judge/lint/formats.ts',
+      'src/core/judge/lint/report.ts',
+      'src/core/judge/lint/rules.ts',
+      'src/core/judge/lint/syntax.ts',
+      'src/core/judge/lint/units.ts',
+    ],
+  },
+  {
+    name: 'judgeHook',
+    sources: ['src/runtime/judge/judgeHookEntry.ts', 'src/runtime/judge/hook.ts'],
+  },
+]
 const metaSchema = z.looseObject({
   outputs: z.record(
     z.string(),
@@ -129,6 +153,71 @@ describe('phase-2 judge production delivery', () => {
         `dist/judge.js no longer carries ${source}`,
       )
     }
+  })
+
+  it.each(children.flatMap(({ name, sources }) => sources.map((source) => ({ name, source }))))(
+    'fires each $name child split guard for $source with byte-exact restoration',
+    ({ name, source }) => {
+      for (const [parent, file] of [...targets, ['judge', 'dist/meta/judge.json'] as const]) {
+        guard(
+          file,
+          () => {
+            const { meta, result } = output(file, parent)
+            result.inputs[source] = { bytesInOutput: 1 }
+            writeFileSync(file, JSON.stringify(meta))
+          },
+          'check-bundle-split',
+          `carries ${source}, which belongs to dist/${name}.js`,
+        )
+      }
+      const file = `dist/meta/${name}.json`
+      guard(
+        file,
+        () => {
+          const { meta, result } = output(file, name)
+          Reflect.deleteProperty(result.inputs, source)
+          writeFileSync(file, JSON.stringify(meta))
+        },
+        'check-bundle-split',
+        `dist/${name}.js no longer carries ${source}`,
+      )
+    },
+  )
+
+  it.each([
+    ['judgeLint', 50],
+    ['judgeHook', 100],
+    ['validationSchema', 50],
+  ] as const)('fires %s size, globals and actual package allowlist guards', (name, cap) => {
+    const file = `dist/${name}.js`
+    guard(
+      file,
+      () => {
+        writeFileSync(file, ' '.repeat(cap * 1024 + 1))
+      },
+      'check-bundle-size',
+      `OVER ${file}`,
+    )
+    guard(
+      file,
+      () => {
+        writeFileSync(file, `${readFileSync(file, 'utf8')}\nnavigator\n`)
+      },
+      'check-host-globals',
+      `FAIL ${file}`,
+    )
+    const listing = '.vscodeignore'
+    const original = readFileSync(listing)
+    const hash = digest(listing)
+    expect(vsixListing()).toContain(file)
+    try {
+      writeFileSync(listing, original.toString('utf8').replace(`!${file}\n`, ''))
+      expect(vsixListing()).not.toContain(file)
+    } finally {
+      writeFileSync(listing, original)
+    }
+    expect(digest(listing)).toBe(hash)
+    expect(vsixListing()).toContain(file)
   })
 
   it('refuses duplicated English fallback and a missing shared-table import', () => {

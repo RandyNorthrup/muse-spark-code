@@ -24,6 +24,11 @@ const ACP_META = [
   'dist/meta/validationSchema.json',
   'dist/meta/reviewer.json',
   'dist/meta/judge.json',
+  'dist/meta/judgeLint.json',
+  'dist/meta/judgeHook.json',
+  'dist/meta/foreignHooks.json',
+  'dist/meta/hookRuntime.json',
+  'dist/meta/extensionHooks.json',
   'dist/meta/searchWorker.json',
   'dist/meta/pageWorker.json',
 ]

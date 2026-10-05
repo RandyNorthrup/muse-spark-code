@@ -7,6 +7,7 @@ import {
   type JudgeHookCliDeps,
   type JudgeHookCliSettings,
 } from '../../src/runtime/judge/hook'
+import { runJudgeCommand } from '../../src/runtime/judge/commands'
 import { answered, command, io, source } from './judgeCliFixtures'
 
 export const CAUTION = 'Judge caution: existing checks and approvals still apply.'
@@ -40,6 +41,7 @@ export function hookDeps(selected?: JudgeCliSource): JudgeHookCliDeps {
   const fake = source()
   fake.judge.mockResolvedValue(riskOutcome())
   return {
+    runAsk: runJudgeCommand,
     question: QUESTION,
     cautionText: () => CAUTION,
     resolveSource: vi.fn(() => Promise.resolve(selected ?? fake.value)),

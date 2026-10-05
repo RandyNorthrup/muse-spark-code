@@ -9,6 +9,12 @@ happened, not what was planned; superseded entries are kept.
 
 ### Added
 
+- **M98 reviewed lint and hook libraries.** Explicit judge actions can load
+  H's strict lint/eval library and GH's validated advisory hook adapter through
+  the existing lazy factory. Cursor's five blocking hook rows are permanently
+  excluded from judge registration; observations preserve caution or neutral
+  output. The parent's source, paid admission and budget checks stay in force.
+
 - **Muse Judge phase-2 B/D/CS assembly.** Package offline provider-bound
   calibration fitting/reports, opt-in sampling, one-call contrastive framing,
   and the authenticated loopback server in a separate lazy bundle shared by

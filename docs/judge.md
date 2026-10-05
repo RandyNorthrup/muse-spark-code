@@ -68,3 +68,11 @@ Full quality, coverage and hosted checks run on the lead's final integrated
 tree. This slice made zero live, paid or local model calls; the
 [round-2 integration receipt](certification/m98-p2int-round2.md) records its exact checks,
 drills and artifact hashes.
+
+Round 3 exposes `loadLint()` and `loadHook()` through the same lazy factory.
+Their separate bundles install the caller's language before use. Lint keeps
+its captured-tree/symbol and admission dependencies; the hook adapter borrows
+the parent's existing ask runner. Cursor's five blocking rows are excluded
+from the registration list regardless of later neutral-parser changes;
+observation rows retain validated caution/neutral delivery. Installed command
+and real-source/grammar receipts remain separate acceptance work.

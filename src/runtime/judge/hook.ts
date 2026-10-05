@@ -21,7 +21,7 @@ import {
 import type { FdWriter } from '../exec/fdWriter'
 import { readPromptStdin } from '../exec/keyInput'
 import type { JudgeCliOptions } from './args'
-import { runJudgeCommand, type JudgeCliDeps, type JudgeCliIo } from './commands'
+import type { runJudgeCommand, JudgeCliDeps, JudgeCliIo } from './commands'
 
 const settingsSchema = z.strictObject({
   format: z.enum(['muse', 'claude', 'vscode', ...HOOK_FORMATS]),
@@ -32,6 +32,8 @@ export type JudgeHookCliSettings = z.infer<typeof settingsSchema>
 
 /** P0/Z supply MODEL_TEXT and a localized UI_TEXT read at use time. */
 export interface JudgeHookCliDeps extends JudgeCliDeps {
+  /** Supplied by the parent judge factory; preserves its source and admission policy. */
+  readonly runAsk: typeof runJudgeCommand
   readonly question: Extract<JudgeQuestion, { type: 'noul' }>
   readonly cautionText: () => string
 }
@@ -62,6 +64,32 @@ const toolFieldsSchema = z.strictObject({
   tool_input: z.record(z.string(), z.unknown()),
 })
 const toolArgumentsSchema = z.record(z.string(), z.unknown())
+
+// Cursor requires a grant/veto for these rows and has no advisory neutral.
+// The owner's decision excludes them from judge registration permanently.
+const cursorBlockingEvents: ReadonlySet<string> = new Set([
+  'preToolUse',
+  'beforeShellExecution',
+  'beforeMCPExecution',
+  'beforeReadFile',
+  'beforeSubmitPrompt',
+])
+
+/** Only the captured/native contract's available advisory rows may be registered. */
+export function judgeHookEvents(format: JudgeHookCliSettings['format']): readonly string[] {
+  if (format === 'muse') return [...HOOK_EVENTS, ...EXTENSION_HOOK_EVENTS]
+  if (format === 'claude') return [...claudeEventSchema.options]
+  const vendor = format === 'vscode' ? 'copilot' : format
+  const contract = HOOK_FORMAT_CONTRACTS[vendor]
+  const flavor = format === 'vscode' ? 'vscode' : contract.defaultFlavor
+  return contract.rows
+    .filter(
+      (row) =>
+        (row.flavor ?? contract.defaultFlavor) === flavor &&
+        !(format === 'cursor' && cursorBlockingEvents.has(row.vendor)),
+    )
+    .map((row) => row.vendor)
+}
 
 /** Preflight a caution through M91's existing schema/parser, never a new wire. */
 function prepareOutput(
@@ -146,6 +174,7 @@ function prepareOutput(
     const decoded: unknown = JSON.parse(value)
     if (field.to === 'tool_input' || field.to === 'toolArgs') toolArgumentsSchema.parse(decoded)
   }
+  if (format === 'cursor' && !judgeHookEvents(format).includes(row.vendor)) return undefined
   const result = row.result
   // Cursor permission rows reject absent output. An empty object is neutral
   // only where its own schema accepts it. Rows requiring a decision remain
@@ -256,7 +285,7 @@ export async function runJudgeHookCommand(
           io.stdout.write(`${caution}\n`)
         },
       }
-      code = await runJudgeCommand(
+      code = await deps.runAsk(
         { command: 'judge', action: 'ask', options, surfaceArgs: [] },
         { ...io, stdin: Readable.from([JSON.stringify(request)]), stdout },
         deps,

@@ -89,6 +89,32 @@ const JUDGE_ONLY = [
   'src/runtime/judge/commands.ts',
   'src/runtime/judge/mcp.ts',
 ]
+const JUDGE_CHILDREN = [
+  {
+    output: 'dist/judgeLint.js',
+    metafile: 'dist/meta/judgeLint.json',
+    files: [
+      'src/runtime/judge/judgeLintEntry.ts',
+      'src/runtime/judge/lint.ts',
+      'src/host/judge/lint.ts',
+      'src/core/judge/lint/cache.ts',
+      'src/core/judge/lint/config.ts',
+      'src/core/judge/lint/context.ts',
+      'src/core/judge/lint/evals.ts',
+      'src/core/judge/lint/evaluate.ts',
+      'src/core/judge/lint/formats.ts',
+      'src/core/judge/lint/report.ts',
+      'src/core/judge/lint/rules.ts',
+      'src/core/judge/lint/syntax.ts',
+      'src/core/judge/lint/units.ts',
+    ],
+  },
+  {
+    output: 'dist/judgeHook.js',
+    metafile: 'dist/meta/judgeHook.json',
+    files: ['src/runtime/judge/judgeHookEntry.ts', 'src/runtime/judge/hook.ts'],
+  },
+]
 const DEFERRED_ONLY = ['reviewerEntry.ts', 'hookModelEntry.ts']
 // M91 lane W: the adapters for hooks imported in another agent's format (lane
 // P's contracts and engine), dist/foreignHooks.js, loaded the first time a
@@ -581,6 +607,7 @@ for (const bundle of [
   AGENT_IMPORT,
   BUNDLED_SKILLS,
   JUDGE,
+  ...JUDGE_CHILDREN,
   ...ON_FIRST_USE,
 ]) {
   const inputs = inputsOf(bundle)
@@ -771,6 +798,15 @@ for (const file of JUDGE_ONLY) {
   for (const bundle of SHIPPED) {
     if (bundle.output !== JUDGE.output && inputsOf(bundle).has(file)) {
       problems.push(`${bundle.output} carries ${file}, which belongs to the lazy judge bundle`)
+    }
+  }
+}
+for (const child of JUDGE_CHILDREN) {
+  for (const file of child.files) {
+    if (!inputsOf(child).has(file)) problems.push(`${child.output} no longer carries ${file}`)
+    for (const bundle of SHIPPED) {
+      if (bundle.output !== child.output && inputsOf(bundle).has(file))
+        problems.push(`${bundle.output} carries ${file}, which belongs to ${child.output}`)
     }
   }
 }

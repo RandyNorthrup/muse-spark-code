@@ -33,6 +33,8 @@ const BUNDLES = [
   'modelApi.js',
   'reviewer.js',
   'judge.js',
+  'judgeLint.js',
+  'judgeHook.js',
   'foreignHooks.js',
   'hookRuntime.js',
   'uiText.js',
