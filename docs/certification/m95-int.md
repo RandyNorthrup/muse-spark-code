@@ -164,6 +164,98 @@ brief's single-full-run limit. Its remaining gates run separately below;
 a new complete wrapper/coverage receipt belongs to the lead after the two
 prerequisites are resolved. No assertions, thresholds or deadlines are removed.
 
+### Final round-two receipts
+
+The tested code/package head is `e9c3d21d`; the final receipt commit changes
+only PLAN and this certification record. The remaining sequence is run directly:
+
+```text
+node_modules/.bin/run-s build security:audit test:a11y security:secrets security:sast
+exit 0
+```
+
+| Check                         | Final result                                                                                                         |
+| ----------------------------- | -------------------------------------------------------------------------------------------------------------------- |
+| Format and full lint          | 0; unchanged Windows-only PowerShell check skips on Linux                                                            |
+| Types                         | All five projects 0; unit/e2e repeated after fixture repairs, 0                                                      |
+| Localization                  | 14 tables, 127 manifest strings, 491 source files, 0 problems; duplicate-key check 0                                 |
+| Packaged localization         | 29 exact JSON tables plus manifest equal source values; strict staged check 0                                        |
+| Host API                      | 283 APIs, 23 VS Code import files, 23 built-ins, 57 theme variables; 0 problems                                      |
+| Deadcode, cycles, duplication | 0; duplication repeated after fixture edits, zero clones                                                             |
+| Offline unit/e2e behavior     | 8,092 unique tests pass across the full sweep and repaired whole-file reruns; 57 existing live/platform skips        |
+| Coverage and full wrapper     | Unverified coverage; the one authorized full wrapper exits 1 before its remaining gates                              |
+| Build                         | 0; all size, split, Node-global and 84-package notice checks pass                                                    |
+| Audit                         | 0; existing exception and low-severity note unchanged                                                                |
+| Accessibility                 | 668 pages, 167 scenarios × four themes; zero violated/undecided rules or missing results; eight unchanged exemptions |
+| Full-history secrets          | 1,487 commits / 369.62 MB, 0 leaks                                                                                   |
+| Full serial SAST              | 287 rules / 954 tracked targets, 0 findings, no timeout warnings                                                     |
+| Packaging                     | 0; helper-free diagnostic VSIX only                                                                                  |
+| Deliberate drills             | All 16 exit 1 and restore byte-exact; `m95-int2-drills.json`                                                         |
+
+Exact final artifact bytes (browser startup counts every static JS chunk,
+once per entry; the shared chunks also count in the Models cap):
+
+| Artifact                    |         Bytes | Fixed cap (bytes) |
+| --------------------------- | ------------: | ----------------: |
+| Activation                  |       566,392 |           614,400 |
+| Model API                   |       423,269 |           486,400 |
+| English fallback            |       123,893 |           128,000 |
+| Shared Node validation      |        38,645 |            51,200 |
+| Providers                   |        97,961 |           128,000 |
+| Models host                 |        52,215 |            76,800 |
+| Models browser startup      |       449,227 |           486,400 |
+| Chat browser startup        |       918,418 |           921,600 |
+| Deferred Account & usage    |        12,878 |            25,600 |
+| ACP                         |       817,931 |           870,400 |
+| Helper-free diagnostic VSIX |     2,050,323 |         2,252,800 |
+| Universal-helper VSIX       | Not available |         2,252,800 |
+
+`npm run package` returns 0 on the final code/manifest/changelog state.
+Independent archive inspection confirms all six emitted browser JS outputs,
+the shared parser, Providers, Models host and catalogue, plus exact source
+values for all 29 tables and the manifest. The real universal helper is absent.
+The diagnostic archive is `muse-spark-code-0.12.1.vsix`, ignored and not published.
+The final docs-only receipt does not change any packaged file.
+
+The full-quality tail is retained literally; the successful 73-test repair
+runs and separately successful remaining gates do not replace this failure:
+
+```text
+ Test Files  5 failed | 399 passed | 4 skipped (408)
+      Tests  27 failed | 8059 passed | 63 skipped (8149)
+   Start at  11:33:21
+   Duration  243.43s (tests 71%, import 9%, setup 9%, environment 6%, transform 3%, worker 2%)
+
+    Isolate  408 workers spawned · ~228ms startup each (spawn + environment, per file)
+             at least ~30.78s faster with isolate: false — reuses workers across files instead of one per file
+
+ERROR: "test:unit" exited with 1.
+ERROR: "quality:gates" exited with 1.
+```
+
+The separately completed scanner tail is:
+
+```text
+Findings: 0 (0 blocking)
+Rules run: 287
+Targets scanned: 954
+Ran 287 rules on 954 files: 0 findings.
+```
+
+Local logs and detailed test results live in ignored `temp/m95-int2/`:
+`quality-final.log`, `quality-fixtures-{1,2}.log`, `quality-remaining.log`,
+`package-final.log`, `duplication-final.log` and `artifact-sizes-final.json`.
+All five fix branches were merged in the requested order with `--no-ff`.
+No T/X/I/W implementation, separate main merge, push, rebase, live/paid
+model attempt, credential read, dependency addition or gate weakening.
+
+**Completion remains open.** At the final recheck, `m95/scfix` is still
+`e5a114b4`, without `928a9200`; version remains 0.12.1. The explicit rig
+rule forbids a separate main merge, and the common rule forbids downloading
+the absent real helper without authorization. Both questions remain pending
+in PLAN §3. A 0.13.0 merged-baseline receipt, an actual universal-helper VSIX
+receipt and a fresh complete quality/coverage receipt are not claimed.
+
 ## Round one — historical integration receipts
 
 This branch starts at `1ca53611` and integrates only the eight lanes named

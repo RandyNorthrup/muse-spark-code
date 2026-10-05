@@ -15540,14 +15540,19 @@ script tag, and a handoff test expects synchronous usage-dialog loading.
 The repaired five complete files pass 73/73 with no assertion removed.
 Together with the full run, every offline test has passed, but V8 emits no
 coverage report after the failed suite. Preserve the brief's single-wrapper
-limit: separately run its remaining build, audit, accessibility, secret and
-SAST gates. A fresh whole-chain/coverage receipt belongs to the lead after
+limit: its remaining build, audit, accessibility, secret and SAST gates run
+separately and all return 0. Accessibility covers 668 pages with zero violations,
+undecided rules or missing results; SAST runs 287 rules on 954 targets with
+zero findings and no timeout warnings. The helper-free diagnostic VSIX is
+2,050,323 bytes, under the fixed 2,252,800-byte cap, but is not the requested
+universal package. A fresh whole-chain/coverage receipt belongs to the lead after
 the release/helper prerequisites in §3 are resolved; do not call this
 wrapper green. The earlier four SAST findings, timeout warnings and two
 browser failures are repaired, with red proofs and clean scoped/full scans
 recorded in `docs/certification/m95-int.md`. No gate is weakened.
 
-**M95INT final whole-chain rerun — deferred under the 120-minute rig brief.**
+**M95INT round-one whole-chain receipt — historical 120-minute rig brief.**
+The browser and SAST failures below are historical and repaired in round two.
 The final 548-page rerun still returns 1: `dark/models-pick` has one selected
 description at 4.41:1 contrast (4.5:1 required), and `hc-light/models-table`
 hits the harness readiness error. The other 1,068 initial violated elements
