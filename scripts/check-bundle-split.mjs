@@ -99,13 +99,21 @@ const FOREIGN_HOOKS_ONLY = [
 // modules it re-exports stay LAZY_ONLY: dist/modelApi.js keeps their types,
 // field builders and constants, and esbuild leaves the runners out of it.
 const HOOK_RUNTIME_ONLY = ['hookRuntimeEntry.ts']
+// M91b: the Amp and OpenCode plugin host, its child's source and its event
+// mapping, dist/pluginHooks.js, which the adapters require on the first
+// plugin hook (the import bundle reads the mapping too).
+const PLUGIN_HOOKS_ONLY = [
+  'pluginHooksEntry.ts',
+  'pluginHost.ts',
+  'pluginChild.ts',
+  'pluginFormats.ts',
+]
 // Files of type declarations only, which no bundle carries: lane P's contract
 // shapes, read by the adapters' compiler and never at run time.
 const TYPES_ONLY = new Set(['hookFormats/contract.ts'])
-// M91 lane X's plugin host for Amp and OpenCode (its child's source runs with
-// `-e`, never from a bundle) and its Cline discovery, which no bundle carries
-// until their dispatcher wiring lands (PLAN.md M91, lane X; the lead's call).
-const UNBUNDLED = new Set(['pluginHost.ts', 'pluginChild.ts', 'hookFormats/clineDiscover.ts'])
+// M91 lane X's Cline discovery, which no bundle carries until its dispatcher
+// wiring lands (PLAN.md M91, lane X; the lead's call).
+const UNBUNDLED = new Set(['hookFormats/clineDiscover.ts'])
 const DEFERRED = [
   {
     output: 'dist/sessionBoard.js',
@@ -133,6 +141,11 @@ const DEFERRED = [
     output: 'dist/hookRuntime.js',
     metafile: 'dist/meta/hookRuntime.json',
     files: HOOK_RUNTIME_ONLY.map((name) => `${MODEL_API_DIR}/${name}`),
+  },
+  {
+    output: 'dist/pluginHooks.js',
+    metafile: 'dist/meta/pluginHooks.json',
+    files: PLUGIN_HOOKS_ONLY.map((name) => `${MODEL_API_DIR}/${name}`),
   },
 ]
 
@@ -229,6 +242,7 @@ for (const name of onDisk) {
     Number(DEFERRED_ONLY.includes(name)) +
     Number(FOREIGN_HOOKS_ONLY.includes(name)) +
     Number(HOOK_RUNTIME_ONLY.includes(name)) +
+    Number(PLUGIN_HOOKS_ONLY.includes(name)) +
     Number(TYPES_ONLY.has(name)) +
     Number(UNBUNDLED.has(name))
   if (lists !== 1) {
@@ -243,6 +257,7 @@ for (const name of [
   ...DEFERRED_ONLY,
   ...FOREIGN_HOOKS_ONLY,
   ...HOOK_RUNTIME_ONLY,
+  ...PLUGIN_HOOKS_ONLY,
   ...TYPES_ONLY,
   ...UNBUNDLED,
 ]) {
@@ -277,6 +292,19 @@ for (const bundle of DEFERRED) {
       }
     }
     if (!inputs.has(file)) problems.push(`${bundle.output} no longer carries ${file}`)
+  }
+}
+// The plugin host loads only on the first plugin hook: the adapters' bundle
+// requires it rather than carry it (M91b).
+{
+  const adapters = inputsOf(DEFERRED.find((bundle) => bundle.output === 'dist/foreignHooks.js'))
+  for (const name of PLUGIN_HOOKS_ONLY) {
+    const file = `${MODEL_API_DIR}/${name}`
+    if (adapters.has(file)) {
+      problems.push(
+        `dist/foreignHooks.js carries ${file}, which loads only on the first plugin hook`,
+      )
+    }
   }
 }
 // The bundles that load the backend from dist/modelApi.js rather than carry it.

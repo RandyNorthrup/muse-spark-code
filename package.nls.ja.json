@@ -31,6 +31,7 @@
   "command.hooks.title": "フック",
   "command.runSetupHooks.title": "セットアップフックの実行",
   "command.runHook.title": "フックの実行…",
+  "command.retryPluginHooks.title": "プラグインのフックを再試行",
   "command.memory.title": "メモリ",
   "command.newWorktree.title": "新しいワークツリー…",
   "command.removeWorktree.title": "ワークツリーの削除…",

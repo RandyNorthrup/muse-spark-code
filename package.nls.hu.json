@@ -31,6 +31,7 @@
   "command.hooks.title": "Hookok",
   "command.runSetupHooks.title": "Setup hookok futtatása",
   "command.runHook.title": "Hook futtatása…",
+  "command.retryPluginHooks.title": "Bővítményhookok újrapróbálása",
   "command.memory.title": "Memória",
   "command.newWorktree.title": "Új munkafa…",
   "command.removeWorktree.title": "Munkafa eltávolítása…",

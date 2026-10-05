@@ -31,6 +31,7 @@
   "command.hooks.title": "Hooks",
   "command.runSetupHooks.title": "Exécuter les hooks de configuration",
   "command.runHook.title": "Exécuter un hook…",
+  "command.retryPluginHooks.title": "Réessayer les hooks des plugins",
   "command.memory.title": "Mémoire",
   "command.newWorktree.title": "Nouvelle arborescence de travail…",
   "command.removeWorktree.title": "Supprimer une arborescence de travail…",

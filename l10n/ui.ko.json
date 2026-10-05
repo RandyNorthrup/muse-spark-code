@@ -435,6 +435,8 @@
   "hookAdapterUnreadable": "{format} 형식 후크가 이 창에서 읽을 수 없는 응답을 반환하여 실패로 간주합니다.",
   "hookAdapterFailClosed": "{format} 형식 보호 후크가 실패하여 {format} 자체와 마찬가지로 호출을 차단했습니다.",
   "hookOutputReplaced": "후크가 이 도구의 출력 중 모델이 보는 내용을 바꿨습니다. 행에는 실제 출력이 표시됩니다.",
+  "pluginHooksNoJob": "Amp 및 OpenCode 플러그인 후크가 실행되지 않았습니다. Windows가 이를 담는 작업 개체를 준비하지 못했습니다. 다시 시도하려면 '플러그인 후크 다시 시도'를 실행하세요.",
+  "pluginHooksRetried": "플러그인 후크는 다음에 실행될 때 Windows 작업 개체를 다시 준비합니다.",
   "memoryItem": "메모리…",
   "memoryItemDetail": "Muse가 이후 세션을 위해 보관하는 노트",
   "memoryTitle": "Muse 메모리",

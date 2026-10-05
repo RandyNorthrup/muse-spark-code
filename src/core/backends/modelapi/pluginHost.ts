@@ -32,6 +32,7 @@ import * as z from 'zod/mini'
 import {
   HOOK_FORBIDDEN_ENV_NAMES,
   PLUGIN_CHILD_MAX_HEAP_MB,
+  PLUGIN_CHILD_MAX_MEMORY_BYTES,
   PLUGIN_HOOK_TIMEOUT_MS,
   PLUGIN_NODE_MINIMUM,
   PLUGIN_RESPONSE_MAX_BYTES,
@@ -108,10 +109,11 @@ export interface PluginRunDeps {
   readonly warn?: ((message: string) => void) | undefined
 }
 
-/** What a session lends one call: its live children and whether it closed. */
+/** What a session lends one call: its live children, whether it closed, and the turn's stop. */
 interface RunScope {
   readonly owned: Set<PluginChildHandle>
   readonly isClosed: () => boolean
+  readonly signal?: AbortSignal | undefined
 }
 
 export type RuntimeResolution =
@@ -227,7 +229,41 @@ export async function resolvePluginRuntime(
   } catch {
     return { ok: false, reason: 'opencode: the installed bun runtime is absent' }
   }
-  return { ok: true, command, args: ['-e'] }
+  return boundedBun(command, env, platform, deps)
+}
+
+/**
+ * Bun has no heap flag, so its memory is bounded outside it (RVM91X P2 12):
+ * on Windows by the job's memory limit (the host's tree), on Linux by
+ * util-linux's `prlimit --data`, the data segment and private writable
+ * mappings since Linux 4.7. Elsewhere (macOS does not enforce a data
+ * limit) the hook is refused rather than run unbounded.
+ */
+function boundedBun(
+  bun: string,
+  env: NodeJS.ProcessEnv,
+  platform: NodeJS.Platform,
+  deps: PluginRunDeps,
+): RuntimeResolution {
+  if (platform === 'win32') {
+    return { ok: true, command: bun, args: ['-e'] }
+  }
+  if (platform !== 'linux') {
+    return { ok: false, reason: `opencode: bun's memory cannot be bounded on ${platform}` }
+  }
+  const prlimit = resolveExecutable('prlimit', {
+    platform,
+    pathVariable: environmentValue(env, platform, 'PATH'),
+    fileExists: deps.fileExists ?? isExistingFile,
+  })
+  if (prlimit === undefined) {
+    return { ok: false, reason: 'opencode: prlimit is absent, so bun cannot be bounded' }
+  }
+  return {
+    ok: true,
+    command: prlimit,
+    args: [`--data=${String(PLUGIN_CHILD_MAX_MEMORY_BYTES)}`, '--', bun, '-e'],
+  }
 }
 
 /** Wraps a Node child: the request goes in once, and stderr is drained unread. */
@@ -293,6 +329,59 @@ export const posixProcessTree: PluginProcessTree = {
       // The group is gone already: nothing left to bound.
     }
   },
+}
+
+/** Starts a child inside a kill-on-close job: the host's M50 launcher on Windows. */
+export type PluginJobLaunch = (
+  command: string,
+  args: readonly string[],
+  options: PluginSpawnOptions,
+) => ChildProcess
+
+/**
+ * Children started through a job launcher. Ending the launcher closes the
+ * job's only handle, so kill-on-close ends the runtime and everything it
+ * started; the launcher also returns, closing the job, when the child exits.
+ */
+export function jobProcessTree(launch: PluginJobLaunch): PluginProcessTree {
+  const launchers = new WeakMap<PluginChildHandle, ChildProcess>()
+  return {
+    spawn: (command, args, options) => {
+      const launcher = launch(command, args, options)
+      const handle = nodeChildHandle(launcher)
+      launchers.set(handle, launcher)
+      return Promise.resolve(handle)
+    },
+    killTree: (child) => {
+      try {
+        launchers.get(child)?.kill()
+      } catch {
+        // Already gone: its job closed with it.
+      }
+    },
+  }
+}
+
+/** What the host offers plugin children: a process group, a job, or why neither. */
+export type PluginContainment =
+  | { readonly kind: 'processGroup' }
+  | { readonly kind: 'job'; readonly launch: PluginJobLaunch }
+  /** `notice` is in the user's language: the hook fails by its fail-closed rule and says so. */
+  | { readonly kind: 'unavailable'; readonly notice: string }
+
+/** The tree for a containment, or its notice when there is none. */
+export function containedTree(containment: PluginContainment): PluginProcessTree | string {
+  switch (containment.kind) {
+    case 'processGroup': {
+      return posixProcessTree
+    }
+    case 'job': {
+      return jobProcessTree(containment.launch)
+    }
+    case 'unavailable': {
+      return containment.notice
+    }
+  }
 }
 
 const ANSWER_SCHEMA = z.strictObject({
@@ -464,6 +553,9 @@ async function runInScope(
   }
   return await new Promise<ForeignHookAnswer>((resolve) => {
     scope?.owned.add(child)
+    const onAbort = (): void => {
+      finish(transportFailure(call, 'the plugin call was cancelled'))
+    }
     let isDone = false
     let bytes = 0
     const chunks: Buffer[] = []
@@ -472,6 +564,7 @@ async function runInScope(
       if (isDone) return
       isDone = true
       scope?.owned.delete(child)
+      scope?.signal?.removeEventListener('abort', onAbort)
       clearTimeout(timer)
       endTree(tree, child)
       // A call its session ended answers nothing: the session is gone.
@@ -485,6 +578,7 @@ async function runInScope(
     )
     // Do not let a straggler keep the host alive.
     timer.unref()
+    scope?.signal?.addEventListener('abort', onAbort, { once: true })
     child.onError(() => {
       finish(transportFailure(call, 'the plugin child crashed'))
     })
@@ -539,11 +633,15 @@ export class PluginSession {
 
   public constructor(private readonly deps: PluginRunDeps) {}
 
-  /** Run one hook call; refused when the session is closed, at any await. */
-  public async run(call: PluginCall): Promise<ForeignHookAnswer> {
+  /**
+   * Run one hook call; refused when the session is closed, at any await.
+   * A stopped turn (`signal`) ends the child and answers nothing.
+   */
+  public async run(call: PluginCall, signal?: AbortSignal): Promise<ForeignHookAnswer> {
     return await runInScope(call, this.deps, {
       owned: this.owned,
-      isClosed: () => this.isDisposed,
+      isClosed: () => this.isDisposed || signal?.aborted === true,
+      signal,
     })
   }
 

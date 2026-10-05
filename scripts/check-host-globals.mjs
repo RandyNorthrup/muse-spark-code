@@ -23,6 +23,7 @@ const HOST_BUNDLES = [
   'dist/foreignHooks.js',
   'dist/hookRuntime.js',
   'dist/extensionHooks.js',
+  'dist/pluginHooks.js',
   'dist/planMarkdown.js',
   'dist/checkpointStore.js',
   'dist/browserCheck.js',

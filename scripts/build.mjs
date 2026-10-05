@@ -82,6 +82,10 @@ const FOREIGN_HOOKS_OUTFILE = 'dist/foreignHooks.js'
 // time a session with hooks on, or a server's form, needs it.
 const HOOK_RUNTIME_ENTRY = 'src/core/backends/modelapi/hookRuntimeEntry.ts'
 const HOOK_RUNTIME_OUTFILE = 'dist/hookRuntime.js'
+// M91b: the Amp and OpenCode plugin host, which the adapters require the
+// first time a session dispatches a plugin hook.
+const PLUGIN_HOOKS_ENTRY = 'src/core/backends/modelapi/pluginHooksEntry.ts'
+const PLUGIN_HOOKS_OUTFILE = 'dist/pluginHooks.js'
 const PLAN_MARKDOWN_ENTRY = 'src/host/planMarkdownEntry.ts'
 const PLAN_MARKDOWN_OUTFILE = 'dist/planMarkdown.js'
 const REVIEW_ENTRY = 'src/host/review/reviewEntry.ts'
@@ -166,6 +170,7 @@ const DEFERRED_OUTFILES = new Map([
   [path.resolve(FOREIGN_HOOKS_ENTRY), FOREIGN_HOOKS_OUTFILE],
   [path.resolve(HOOK_RUNTIME_ENTRY), HOOK_RUNTIME_OUTFILE],
   [path.resolve(WEB_FETCH_ENTRY), WEB_FETCH_OUTFILE],
+  [path.resolve(PLUGIN_HOOKS_ENTRY), PLUGIN_HOOKS_OUTFILE],
 ])
 /** @type {import('esbuild').Plugin} */
 const deferredCohort = {
@@ -174,7 +179,7 @@ const deferredCohort = {
     build.onResolve(
       {
         filter:
-          /\/(?:sessionBoardEntry|reviewerEntry|foreignHooksEntry|hookRuntimeEntry|webFetchEntry)(?:\.[jt]s)?$/,
+          /\/(?:sessionBoardEntry|reviewerEntry|foreignHooksEntry|hookRuntimeEntry|pluginHooksEntry|webFetchEntry)(?:\.[jt]s)?$/,
       },
       (args) => {
         if (args.kind !== 'dynamic-import') return
@@ -247,6 +252,13 @@ const hookRuntimeOptions = {
   ...modelApiOptions,
   entryPoints: [HOOK_RUNTIME_ENTRY],
   outfile: HOOK_RUNTIME_OUTFILE,
+}
+
+/** @type {import('esbuild').BuildOptions} */
+const pluginHooksOptions = {
+  ...modelApiOptions,
+  entryPoints: [PLUGIN_HOOKS_ENTRY],
+  outfile: PLUGIN_HOOKS_OUTFILE,
 }
 
 /** @type {import('esbuild').BuildOptions} */
@@ -491,6 +503,7 @@ if (isWatch) {
     esbuild.context(reviewerOptions),
     esbuild.context(foreignHooksOptions),
     esbuild.context(hookRuntimeOptions),
+    esbuild.context(pluginHooksOptions),
     esbuild.context(planMarkdownOptions),
     esbuild.context(checkpointStoreOptions),
     esbuild.context(agentImportOptions),
@@ -521,6 +534,7 @@ if (isWatch) {
     reviewer: esbuild.build(reviewerOptions),
     foreignHooks: esbuild.build(foreignHooksOptions),
     hookRuntime: esbuild.build(hookRuntimeOptions),
+    pluginHooks: esbuild.build(pluginHooksOptions),
     planMarkdown: esbuild.build(planMarkdownOptions),
     checkpointStore: esbuild.build(checkpointStoreOptions),
     agentImport: esbuild.build(agentImportOptions),

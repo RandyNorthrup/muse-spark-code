@@ -153,6 +153,46 @@ happened, not what was planned; superseded entries are kept.
     - The localization check fails when a JSON file names a key twice in one
       object: a stale `config.modelApiHooks.description` in ko, pt-br and
       zh-tw had been hiding the new one.
+  - **M91b, Amp and OpenCode plugins.** Their hooks now run on the Model API
+    backend.
+    - **Import.** Plugin files in Amp's and OpenCode's folders become
+      `spark-hooks.json` entries, one per hook named in the file. Directory
+      plugins and npm plugins are listed and not imported. A personal plugin
+      that leads into the open folder is also refused, as are the five
+      OpenCode hooks with no event to fire on yet.
+    - **Running.** Each call runs in a child process under your `node` or
+      `bun`, in a Windows job or a POSIX process group. A plugin sees our
+      tools and arguments under its agent's names, where the agent's own
+      sources show them. Amp's `error` stops the call and ends the turn.
+    - **Retry Plugin Hooks.** A new command, **Muse Spark: Retry Plugin
+      Hooks** (Windows), turns plugin hooks back on after the job that
+      contains them could not be prepared twice.
+    - **The plugin host** loads from its own bundle, `dist/pluginHooks.js`,
+      the first time a plugin hook runs.
+
+### Changed
+
+- **Plugin limits (M91b).**
+  - OpenCode plugins are refused on macOS, where `bun`'s memory cannot be
+    bounded.
+  - Plugin hooks are refused in the ACP agent.
+  - An OpenCode `tool.execute.before` blocks the call when it throws,
+    crashes or times out. Every other plugin hook fails open.
+- **M50's Windows MCP job launcher** takes an optional job memory limit.
+  MCP servers still start without one.
+
+### Security
+
+- **The plugin child** (RVM91X review, M91):
+  - **Contained.** On Windows it runs in a kill-on-close job, so it cannot
+    leave descendants behind. It sees only the allowlisted hook
+    environment, as does the version probe.
+  - **Memory-bounded.** The limit is 1 GiB: a Windows job limit, a `node`
+    heap cap, or `prlimit` for `bun` on Linux.
+  - **Validated.** Every answer it sends is parsed by a closed schema, and
+    no plugin answer grants a permission.
+  - **Ruled.** A failed answer follows the call's fail-closed rule, and an
+    earlier refusal survives a later handler's failure.
 
 ## [0.13.0] - 2026-10-05
 

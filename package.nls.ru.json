@@ -31,6 +31,7 @@
   "command.hooks.title": "Хуки",
   "command.runSetupHooks.title": "Запустить хуки настройки",
   "command.runHook.title": "Запустить хук…",
+  "command.retryPluginHooks.title": "Повторить хуки плагинов",
   "command.memory.title": "Память",
   "command.newWorktree.title": "Новое рабочее дерево…",
   "command.removeWorktree.title": "Удалить рабочее дерево…",

@@ -31,6 +31,7 @@
   "command.hooks.title": "Hooks",
   "command.runSetupHooks.title": "Run Setup Hooks",
   "command.runHook.title": "Run Hook…",
+  "command.retryPluginHooks.title": "Retry Plugin Hooks",
   "command.memory.title": "Memory",
   "command.newWorktree.title": "New Worktree…",
   "command.removeWorktree.title": "Remove Worktree…",

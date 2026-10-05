@@ -159,8 +159,26 @@ describe('deferred cohort bundles', () => {
     }
   })
 
+  it('keeps the plugin host out of the adapters’ bundle until a plugin hook runs (M91b)', () => {
+    expect(readFileSync('dist/foreignHooks.js', 'utf8')).toContain('./pluginHooks.js')
+    for (const file of [
+      'src/core/backends/modelapi/pluginHooksEntry.ts',
+      'src/core/backends/modelapi/pluginHost.ts',
+      'src/core/backends/modelapi/pluginChild.ts',
+      'src/core/backends/modelapi/pluginFormats.ts',
+    ]) {
+      for (const bundle of ['extension', 'modelApi', 'foreignHooks']) {
+        expect(inputs(bundle)).not.toContain(file)
+      }
+      expect(inputs('pluginHooks')).toContain(file)
+    }
+  })
+
   it.each([
     ['extension', 'src/host/bestOfN/bestOfNManager.ts', 'on its first action'],
+    // M91b: the plugin host, required by the adapters on the first plugin hook.
+    ['foreignHooks', 'src/core/backends/modelapi/pluginHost.ts', 'on the first plugin hook'],
+    ['modelApi', 'src/core/backends/modelapi/pluginChild.ts', 'on its first action'],
     ['modelApi', 'src/core/backends/modelapi/reviewerEntry.ts', 'on its first action'],
     // M91 lane W: the imported hooks' adapters, required on first use.
     ['modelApi', 'src/core/backends/modelapi/hookFormats/engine.ts', 'on its first action'],

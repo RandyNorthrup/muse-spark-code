@@ -7,17 +7,16 @@
 // bundle's table before it builds anything. The English fallback remains
 // available when this backend is loaded outside the extension.
 
-import path from 'node:path'
 import { ModelApiClient } from '../../core/backends/modelapi/client'
 import type { ExtensionHookDefinition } from '../../core/backends/modelapi/extensionHooks'
 import {
   type HookDefinition,
   type HookLoadDeps,
   loadHookDefinitions,
+  sparkHooksFiles,
 } from '../../core/backends/modelapi/hooks'
 import { McpServerPool } from '../../core/backends/modelapi/mcp/pool'
 import { ModelApiHost } from '../../core/backends/modelapi/ModelApiHost'
-import { SPARK_HOOKS_SEGMENTS } from '../../shared/constants'
 import { setUiText } from '../../shared/l10n/text'
 import type { ModelApiBundleDeps } from './modelApiBundle'
 
@@ -29,11 +28,8 @@ import type { ModelApiBundleDeps } from './modelApiBundle'
  */
 async function hasSparkHooksFile(sources: HookLoadDeps): Promise<boolean> {
   if (!sources.isWorkspaceTrusted()) return false
-  const files = [
-    path.join(path.dirname(sources.settingsPath), SPARK_HOOKS_SEGMENTS.user[1]),
-    path.join(sources.workspaceRoot, ...SPARK_HOOKS_SEGMENTS.project),
-  ]
-  for (const file of files) {
+  const { user, project } = sparkHooksFiles(sources)
+  for (const file of [user, project]) {
     if ((await sources.io.readFile(file, 0)) !== undefined) return true
   }
   return false

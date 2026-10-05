@@ -39,6 +39,10 @@ const BUDGETS = [
   // (2026-10-05), 41.7 KiB once main's shared dist/validation.js carried its
   // zod/mini, plus 15%, rounded up to 25 KiB (PLAN.md D6).
   { path: 'dist/hookRuntime.js', budgetKiB: 50 },
+  // M91b: the Amp and OpenCode plugin host (its child's source, the host and
+  // the event mapping), loaded on the first plugin hook: 51.6 KiB
+  // when split out (2026-10-05), plus 15%, rounded up to 25 KiB (PLAN.md D6).
+  { path: 'dist/pluginHooks.js', budgetKiB: 75 },
   // The plan reader, the panel's Markdown parser, loaded on the first plan
   // action (M79): 114.7 KiB when split out, 139.0 KiB with the brief's writer.
   { path: 'dist/planMarkdown.js', budgetKiB: 150 },

@@ -44,6 +44,7 @@ import { fakeModelApi, fakeModelApiClientSettings, type FakeModelApi } from './h
 import { memoryToolIo, type MemoryToolIo } from './helpers/fakeToolIo'
 import { fakeModelApiHostDeps } from './helpers/modelApiHostDeps'
 import { watchSessionTurns } from './helpers/sessionTurns'
+import { editThenRunCall } from './helpers/shellTurns'
 
 const ROOT = '/ws'
 const FIXTURE_DIR = path.join(__dirname, '..', 'fixtures', 'golden-requests')
@@ -310,23 +311,7 @@ describe('M91-G golden requests with hooks off', () => {
 
   it('records an edit_file with then_run', async () => {
     const harness = await setup({ 'owned.ts': 'export const one = 1\n' })
-    harness.api.script(
-      {
-        calls: [
-          {
-            name: 'edit_file',
-            arguments: JSON.stringify({
-              path: 'owned.ts',
-              find: 'one',
-              replace: 'two',
-              then_run: 'echo then',
-            }),
-            callId: 'e1',
-          },
-        ],
-      },
-      { text: 'Renamed, and the command ran.' },
-    )
+    harness.api.script({ calls: [editThenRunCall()] }, { text: 'Renamed, and the command ran.' })
     await runTurn(harness, 'Rename one to two, then run echo then.')
     expect(harness.api.responseBodies()).toHaveLength(2)
     checkGolden('03-edit-then-run', harness)

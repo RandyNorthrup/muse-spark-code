@@ -233,7 +233,10 @@ import type {
   runHookModelTurn as RunHookModelTurn,
   reviewPaidCall as ReviewPaidCall,
 } from './reviewerEntry'
-import type { createForeignHookAdapter as CreateForeignHookAdapter } from './foreignHooksEntry'
+import type {
+  createForeignHookAdapter as CreateForeignHookAdapter,
+  PluginHostDeps,
+} from './foreignHooksEntry'
 import type * as HookRuntime from './hookRuntimeEntry'
 import {
   type ConfirmedModelRequest,
@@ -545,8 +548,20 @@ export interface ModelApiHostDeps extends ModelApiPaidHooks {
   readonly hookHttpAllowedHosts?: (() => readonly string[]) | undefined
   /** The workspace sandbox's network posture, re-read before each HTTP hook. */
   readonly isHookNetworkAllowed?: (() => boolean) | undefined
+  /**
+   * Amp and OpenCode plugin hooks' host side (M91b): M51's allowlisted
+   * environment and the tree their children run in. Without it they are
+   * refused by their fail-closed rule.
+   */
+  readonly pluginHooks?:
+    (Pick<PluginHostDeps, 'containment'> & { readonly env: () => NodeJS.ProcessEnv }) | undefined
   /** Tests can shorten the six-second Notification delay without waiting. */
   readonly hookNotificationDelayMs?: number | undefined
+  /**
+   * Tests give an imported hook's regular-expression match a deadline a
+   * loaded rig cannot lapse; production keeps HOOK_MATCHER_TIMEOUT_MS.
+   */
+  readonly hookMatcherTimeoutMs?: number | undefined
   /** Tests can shorten the elicitation form's wait without waiting. */
   readonly elicitationTimeoutMs?: number | undefined
   /** The MCP servers of Muse Code's settings (M50, PLAN.md D42), closed with the host. */
@@ -2242,11 +2257,29 @@ export class ModelApiSession implements AgentSession {
         const exported: unknown = entry.createForeignHookAdapter
         if (typeof exported !== 'function') throw new Error('Invalid hook adapter export')
         const create: typeof CreateForeignHookAdapter = entry.createForeignHookAdapter
+        const plugins = this.deps.pluginHooks
         return create({
           workspaceRoot: this.deps.workspaceRoot,
           platform: this.deps.platform,
           io: this.deps.io,
           homeDir: homedir(),
+          ...(this.deps.hookMatcherTimeoutMs !== undefined && {
+            matcherTimeoutMs: this.deps.hookMatcherTimeoutMs,
+          }),
+          ...(plugins !== undefined && {
+            plugins: {
+              env: plugins.env(),
+              containment: plugins.containment,
+              warn: (message: string) => {
+                this.deps.log.warn(`Model API hooks: ${message}`)
+              },
+              // A plugin child is a process the running turn started (M86).
+              onProcess: () => {
+                this.noteProcessRan()
+              },
+              now: () => this.deps.now(),
+            },
+          }),
         })
       } catch {
         this.deps.log.warn('Model API hooks: the imported-hook adapters could not be loaded')
@@ -7317,6 +7350,10 @@ export class ModelApiSession implements AgentSession {
     )
     if (!isCurrent()) return { kind: 'skipped', skip: 'refused' }
     effects.contexts.push(...pre.contexts)
+    if (pre.stopReason !== undefined) {
+      // An imported guard that ends the turn (Amp's tool.call `error`, M91b).
+      effects.stopReason ??= pre.stopReason
+    }
     if (pre.blockedReason !== undefined) {
       return { kind: 'skipped', skip: 'hookDenied', detail: pre.blockedReason }
     }
@@ -9327,7 +9364,9 @@ export class ModelApiSession implements AgentSession {
         tool_use_id: itemId,
         tool_response: toolHookOutput(outcome.output),
       },
-      stopReason: post.stopReason ?? hookEffects?.stopReason,
+      // A PreToolUse stop (Amp's tool.call `error`, M91b) refused the call
+      // and ends the turn too.
+      stopReason: post.stopReason ?? hookEffects?.stopReason ?? pre.stopReason,
     }
   }
 
@@ -11616,6 +11655,10 @@ export class ModelApiSession implements AgentSession {
     for (const child of this.children.values()) {
       child.session.disposeAll()
     }
+    // Plugin children still running for an imported hook end with it (M91b).
+    void this.foreignAdapter?.then((adapter) => {
+      adapter?.dispose?.()
+    })
     this.listeners.clear()
     this.onDispose()
   }

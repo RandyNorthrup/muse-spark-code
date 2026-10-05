@@ -36,6 +36,8 @@ import {
   CODE_INTEL_TOOLS,
   MILLISECONDS_PER_SECOND,
   MODEL_API_TOOLS,
+  PLUGIN_FORMATS,
+  PLUGIN_HOOK_TIMEOUT_MS,
   PROJECT_HOOKS_SEGMENTS,
   SPARK_HOOKS_SEGMENTS,
 } from '../../../shared/constants'
@@ -122,6 +124,8 @@ export interface ForeignHookSpec {
   readonly cwd?: string | undefined
   /** Kiro's hook name. */
   readonly description?: string | undefined
+  /** Amp's and OpenCode's plugin file (M91b): absolute and normalized. */
+  readonly plugin?: string | undefined
 }
 
 /** A documented output replacement, applied before packing (D70 SoL-Pi rule 2). */
@@ -158,6 +162,14 @@ export type ForeignPreparation =
       /** The command line in place of the hook's own (a Windows PowerShell source). */
       readonly command?: string | undefined
     }
+  /**
+   * An Amp or OpenCode plugin (M91b): the adapter runs it in its own child
+   * and answers by the source's rules; hooks.ts gives it the host-wide cap.
+   */
+  | {
+      readonly outcome: 'plugin'
+      readonly run: (signal: AbortSignal | undefined) => Promise<HookAnswer>
+    }
   /** The source would not run it here, and that is not a failure. */
   | { readonly outcome: 'skip'; readonly reason: string }
   | { readonly outcome: 'refused'; readonly reason: string; readonly blockOperation?: true }
@@ -184,6 +196,8 @@ export interface ForeignHookAdapter {
     result: ForeignRunResult,
     payload: Readonly<Record<string, unknown>>,
   ): HookAnswer
+  /** Ends what the adapter still runs (plugin children) with the session. */
+  dispose?(): void
 }
 
 export type HookMatcher =
@@ -468,7 +482,12 @@ const MATCH_SCRIPT = new Script('new RegExp(pattern).test(value)')
 const MATCH_VALUES = { pattern: '', value: '' }
 const MATCH_CONTEXT = createContext(MATCH_VALUES)
 
-function isMatch(matcher: HookMatcher, name: string, warn: (message: string) => void): boolean {
+function isMatch(
+  matcher: HookMatcher,
+  name: string,
+  warn: (message: string) => void,
+  timeoutMs: number,
+): boolean {
   if (matcher.kind === 'exact') {
     return matcher.names.has(name)
   }
@@ -479,9 +498,7 @@ function isMatch(matcher: HookMatcher, name: string, warn: (message: string) => 
   try {
     MATCH_VALUES.pattern = matcher.pattern
     MATCH_VALUES.value = name
-    const matched: unknown = MATCH_SCRIPT.runInContext(MATCH_CONTEXT, {
-      timeout: HOOK_MATCHER_TIMEOUT_MS,
-    })
+    const matched: unknown = MATCH_SCRIPT.runInContext(MATCH_CONTEXT, { timeout: timeoutMs })
     return matched === true
   } catch {
     warn('hook regular-expression matcher timed out or failed')
@@ -674,23 +691,40 @@ function handler(
   }
 }
 
+/** A hook file's `hooks` object, or why there is none: no file, bad JSON, no object. */
+type HooksObject =
+  | { readonly ok: true; readonly hooks: Readonly<Record<string, unknown>> }
+  | { readonly ok: false; readonly fault: 'absent' | 'json' | 'shape' }
+
+function hooksObjectOf(text: string | undefined): HooksObject {
+  if (text === undefined) return { ok: false, fault: 'absent' }
+  let document: unknown
+  try {
+    document = JSON.parse(text)
+  } catch {
+    return { ok: false, fault: 'json' }
+  }
+  return isRecord(document) && isRecord(document.hooks)
+    ? { ok: true, hooks: document.hooks }
+    : { ok: false, fault: 'shape' }
+}
+
+const HOOKS_OBJECT_FAULTS = {
+  absent: undefined,
+  json: 'invalid JSON',
+  shape: 'missing hooks object',
+} as const
+
 /** Invalid typed fields reject one whole source; unknown entries warn and skip. */
 export function parseHookConfig(
   text: string | undefined,
   source: HookSource,
   platform: NodeJS.Platform,
 ): HookConfigResult {
-  if (text === undefined) {
-    return { hooks: [], warnings: [] }
-  }
-  let document: unknown
-  try {
-    document = JSON.parse(text)
-  } catch {
-    return { hooks: [], warnings: [`${source} hooks: invalid JSON`] }
-  }
-  if (!isRecord(document) || !isRecord(document.hooks)) {
-    return { hooks: [], warnings: [`${source} hooks: missing hooks object`] }
+  const document = hooksObjectOf(text)
+  if (!document.ok) {
+    const fault = HOOKS_OBJECT_FAULTS[document.fault]
+    return { hooks: [], warnings: fault === undefined ? [] : [`${source} hooks: ${fault}`] }
   }
   const warnings: string[] = []
   const hooks: HookDefinition[] = []
@@ -763,6 +797,7 @@ const FOREIGN_GROUP_FIELDS = new Set([
   'loop_limit',
   'description',
   'async',
+  'plugin',
 ])
 const FOREIGN_HANDLER_FIELDS = new Set([
   'type',
@@ -772,7 +807,9 @@ const FOREIGN_HANDLER_FIELDS = new Set([
   'cwd',
   'prompt',
 ])
-const FOREIGN_FORMATS: ReadonlySet<string> = new Set(HOOK_FORMATS)
+const FOREIGN_FORMATS: ReadonlySet<string> = new Set([...HOOK_FORMATS, ...PLUGIN_FORMATS])
+const PLUGIN_FORMAT_NAMES: ReadonlySet<string> = new Set(PLUGIN_FORMATS)
+const PLUGIN_HANDLER_FIELDS = new Set(['type', 'timeout'])
 const FOREIGN_FLAVORS: Readonly<Record<string, ReadonlySet<string>>> = {
   copilot: new Set(['copilot', 'vscode']),
   cursor: new Set(['generic', 'specialized']),
@@ -847,6 +884,10 @@ function foreignSpec(group: HookRecord, event: HookEvent): ForeignHookSpec | str
       group['description'] !== undefined && typeof group['description'] !== 'string',
       'description must be a string',
     ],
+    [
+      group['plugin'] !== undefined && !PLUGIN_FORMAT_NAMES.has(format),
+      'plugin is Amp’s and OpenCode’s only',
+    ],
   ]
   const failed = checks.find(([isFailed]) => isFailed)
   if (failed !== undefined) {
@@ -879,6 +920,83 @@ function foreignSpec(group: HookRecord, event: HookEvent): ForeignHookSpec | str
   }
 }
 
+/** The one handler an imported group holds, with only `fields`; a string says why not. */
+function onlyEntry(group: HookRecord, fields: ReadonlySet<string>): HookRecord | string {
+  const entries: unknown = group.hooks
+  const entry: unknown = Array.isArray(entries) && entries.length === 1 ? entries[0] : undefined
+  if (!isRecord(entry)) {
+    return 'an imported group holds exactly one handler'
+  }
+  const unknownField = Object.keys(entry).find((key) => !fields.has(key))
+  return unknownField === undefined ? entry : `unsupported handler field ${unknownField}`
+}
+
+/** A plugin path: absolute and already in its normalized form, or undefined. */
+function pluginPath(value: unknown, platform: NodeJS.Platform): string | undefined {
+  if (typeof value !== 'string' || value === '' || value.length > HOOK_MATCHER_VALUE_MAX_CHARS) {
+    return undefined
+  }
+  const p = platform === 'win32' ? path.win32 : path.posix
+  return p.isAbsolute(value) && p.normalize(value) === value ? value : undefined
+}
+
+/**
+ * An Amp or OpenCode plugin group (M91b): one `{ type: 'plugin' }` handler
+ * and the plugin's absolute path. Built here, not by `handler()`, which
+ * takes commands only; its timeout and matcher follow the native rules.
+ */
+function pluginGroup(
+  group: HookRecord,
+  spec: ForeignHookSpec,
+  event: HookEvent,
+  source: HookSource,
+  platform: NodeJS.Platform,
+): HookDefinition | string {
+  const plugin = pluginPath(group['plugin'], platform)
+  if (plugin === undefined) {
+    return 'plugin must be an absolute, normalized path'
+  }
+  const entry = onlyEntry(group, PLUGIN_HANDLER_FIELDS)
+  if (typeof entry === 'string') {
+    return entry
+  }
+  if (entry.type !== 'plugin') {
+    return 'handler type must be plugin'
+  }
+  const { timeout } = entry
+  if (
+    timeout !== undefined &&
+    (typeof timeout !== 'number' || !Number.isSafeInteger(timeout) || timeout < 0)
+  ) {
+    return 'handler timeout must be a non-negative integer'
+  }
+  if (typeof timeout === 'number' && timeout > HOOK_MAX_TIMEOUT_SECONDS) {
+    return `handler timeout exceeds ${String(HOOK_MAX_TIMEOUT_SECONDS)} seconds`
+  }
+  if (event === 'Interrupt' && group.async !== true) {
+    return 'Interrupt must be asynchronous'
+  }
+  if (event === 'SessionFork' && group.async === true) {
+    return 'SessionFork cannot be asynchronous'
+  }
+  const matcher = matcherFor(group.matcher, event)
+  if (typeof matcher === 'string') {
+    return matcher
+  }
+  return {
+    event,
+    source,
+    command: plugin,
+    timeoutSeconds: Math.max(
+      typeof timeout === 'number' ? timeout : PLUGIN_HOOK_TIMEOUT_MS / MILLISECONDS_PER_SECOND,
+      1,
+    ),
+    matcher,
+    isAsync: group.async === true,
+    foreign: { ...spec, plugin },
+  }
+}
+
 /** One foreign group as a definition, or why it is refused. */
 function foreignGroup(
   group: HookRecord,
@@ -897,14 +1015,12 @@ function foreignGroup(
   if (typeof spec === 'string') {
     return spec
   }
-  const entries: unknown = group.hooks
-  const entry: unknown = Array.isArray(entries) && entries.length === 1 ? entries[0] : undefined
-  if (!isRecord(entry)) {
-    return 'an imported group holds exactly one handler'
+  if (PLUGIN_FORMAT_NAMES.has(spec.format)) {
+    return pluginGroup(group, spec, event, source, platform)
   }
-  const unknownField = Object.keys(entry).find((key) => !FOREIGN_HANDLER_FIELDS.has(key))
-  if (unknownField !== undefined) {
-    return `unsupported handler field ${unknownField}`
+  const entry = onlyEntry(group, FOREIGN_HANDLER_FIELDS)
+  if (typeof entry === 'string') {
+    return entry
   }
   let cwd: string | undefined
   if (entry.cwd !== undefined) {
@@ -955,19 +1071,9 @@ export function parseForeignHooks(
   source: Extract<HookSource, 'user' | 'project'>,
   platform: NodeJS.Platform,
 ): HookConfigResult {
-  if (text === undefined) {
-    return { hooks: [], warnings: [] }
-  }
-  let document: unknown
-  try {
-    document = JSON.parse(text)
-  } catch {
-    // Lane E's parser reports the file's own faults once.
-    return { hooks: [], warnings: [] }
-  }
-  if (!isRecord(document) || !isRecord(document.hooks)) {
-    return { hooks: [], warnings: [] }
-  }
+  const document = hooksObjectOf(text)
+  // Lane E's parser reports the file's own faults once.
+  if (!document.ok) return { hooks: [], warnings: [] }
   const warnings: string[] = []
   const hooks: HookDefinition[] = []
   for (const [name, groups] of Object.entries(document.hooks)) {
@@ -1003,11 +1109,10 @@ export async function loadForeignHookDefinitions(
   if (!deps.isWorkspaceTrusted()) {
     return []
   }
-  const userFile = path.join(path.dirname(deps.settingsPath), SPARK_HOOKS_SEGMENTS.user[1])
-  const projectFile = path.join(deps.workspaceRoot, ...SPARK_HOOKS_SEGMENTS.project)
+  const files = sparkHooksFiles(deps)
   const sources = [
-    { source: 'user', text: await readHookText(deps, userFile, undefined) },
-    { source: 'project', text: await readHookText(deps, projectFile, deps.workspaceRoot) },
+    { source: 'user', text: await readHookText(deps, files.user, undefined) },
+    { source: 'project', text: await readHookText(deps, files.project, deps.workspaceRoot) },
   ] as const
   const hooks: HookDefinition[] = []
   for (const { source, text } of sources) {
@@ -1024,7 +1129,12 @@ export async function loadForeignHookDefinitions(
   return hooks
 }
 
-/** Matcher grammar is from Muse Code 1.3.0; tool aliases are resolved by caller. */
+/**
+ * Matcher grammar is from Muse Code 1.3.0; tool aliases are resolved by
+ * caller. `timeoutMs` bounds one regular-expression match; only tests pass
+ * another value, so a loaded rig cannot lapse a deadline the test does not
+ * measure.
+ */
 export function matchingHooks(
   hooks: readonly HookDefinition[],
   event: HookEvent,
@@ -1032,6 +1142,7 @@ export function matchingHooks(
   warn: (message: string) => void = () => {
     // A caller without a diagnostic sink still gets safe nonmatches.
   },
+  timeoutMs: number = HOOK_MATCHER_TIMEOUT_MS,
 ): readonly HookDefinition[] {
   const normalized = typeof value === 'string' ? [value] : value
   const values = normalized ?? ['']
@@ -1039,9 +1150,24 @@ export function matchingHooks(
     const { matcher } = hook
     return (
       hook.event === event &&
-      (matcher === undefined || values.some((name) => isMatch(matcher, name, warn)))
+      (matcher === undefined || values.some((name) => isMatch(matcher, name, warn, timeoutMs)))
     )
   })
+}
+
+/**
+ * Both spark-hooks.json files (M91): the user's beside Muse Code's settings
+ * file, which is the settingsPath (`<config>/muse/settings.json`), and the
+ * project's under `.muse`.
+ */
+export function sparkHooksFiles(deps: Pick<HookLoadDeps, 'settingsPath' | 'workspaceRoot'>): {
+  readonly user: string
+  readonly project: string
+} {
+  return {
+    user: path.join(path.dirname(deps.settingsPath), SPARK_HOOKS_SEGMENTS.user[1]),
+    project: path.join(deps.workspaceRoot, ...SPARK_HOOKS_SEGMENTS.project),
+  }
 }
 
 /** Muse Code matcher aliases for the Model API backend's built-in tools. */
@@ -1296,6 +1422,37 @@ function withoutGrant(answer: HookAnswer): HookAnswer {
 }
 
 /**
+ * A plugin hook (M91b) under the same host-wide cap as every hook process;
+ * its answer goes through the same judge, so no grant survives and a
+ * failure never becomes feedback. A cancelled call answers nothing.
+ */
+async function runPluginHandler(
+  run: (signal: AbortSignal | undefined) => Promise<HookAnswer>,
+  signal: AbortSignal | undefined,
+  judgeAnswer: (answer: HookAnswer) => HookAnswer | undefined,
+  onUnstarted: () => void,
+): Promise<HookAnswer | undefined> {
+  let release: () => void
+  try {
+    release = await acquireCommand(signal)
+  } catch {
+    return undefined
+  }
+  try {
+    const answer = await run(signal)
+    return signal?.aborted === true ? undefined : judgeAnswer(answer)
+  } catch {
+    if (signal?.aborted === true) {
+      return undefined
+    }
+    onUnstarted()
+    return judgeAnswer({ status: 'failed', reason: 'the plugin could not start' })
+  } finally {
+    release()
+  }
+}
+
+/**
  * One imported hook (M91 lane W): its adapter builds the stdin its source
  * agent would send, the process runs under the same cap, environment and
  * kill as a native hook, and the adapter reads the ending by that source's
@@ -1315,8 +1472,8 @@ async function runForeignHandler(
   warn: (message: string) => void,
 ): Promise<HookAnswer | undefined> {
   const label = `${event}: ${spec.format}-format ${hook.source} hook`
-  const judge = (result: ForeignRunResult): HookAnswer | undefined => {
-    const answer = withoutGrant(adapter.answer(hook, spec, event, result, payload))
+  const judgeAnswer = (given: HookAnswer): HookAnswer | undefined => {
+    const answer = withoutGrant(given)
     if (answer.status !== 'failed') {
       return answer
     }
@@ -1325,6 +1482,8 @@ async function runForeignHandler(
       ? undefined
       : { status: 'completed', systemMessage: answer.systemMessage }
   }
+  const judge = (result: ForeignRunResult): HookAnswer | undefined =>
+    judgeAnswer(adapter.answer(hook, spec, event, result, payload))
   let prepared: ForeignPreparation
   try {
     prepared = await adapter.prepare(hook, spec, event, payload, context)
@@ -1340,6 +1499,11 @@ async function runForeignHandler(
       kind: 'refused',
       reason: prepared.reason,
       ...(prepared.blockOperation === true && { blockOperation: true }),
+    })
+  }
+  if (prepared.outcome === 'plugin') {
+    return await runPluginHandler(prepared.run, signal, judgeAnswer, () => {
+      warn(`${label} could not start`)
     })
   }
   if (Buffer.byteLength(prepared.stdin) > HOOK_STDIN_MAX_BYTES) {
@@ -1487,6 +1651,12 @@ export async function dispatchHooks(
     // Muse applies continue:false before any decision from that handler.
     if (answer.stopReason !== undefined) {
       stopReason ??= answer.stopReason
+      // Only an imported hook stops at PreToolUse (Muse's parser refuses
+      // continue there): Amp's tool.call `error` ends the thread, so the
+      // call it guarded never runs either (M91b).
+      if (event === 'PreToolUse' && answer.status === 'blocked') {
+        blockedReason ??= answer.reason ?? answer.stopReason
+      }
       continue
     }
     if (

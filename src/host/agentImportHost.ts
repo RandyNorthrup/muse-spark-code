@@ -55,6 +55,8 @@ function sourceChoices(): readonly SourceChoice[] {
     { label: UI_TEXT.agentImportSourceWindsurf, choice: 'windsurf' },
     { label: UI_TEXT.agentImportSourceKiro, choice: 'kiro' },
     { label: UI_TEXT.agentImportSourceCline, choice: 'cline' },
+    { label: UI_TEXT.agentImportSourceAmp, choice: 'amp' },
+    { label: UI_TEXT.agentImportSourceOpenCode, choice: 'opencode' },
   ]
 }
 

@@ -246,6 +246,8 @@ describe('package.json manifest', () => {
       [COMMAND_IDS.toggleThinking]: `activeWebviewPanelId == '${CHAT_PANEL_VIEW_TYPE}' || view.${CHAT_VIEW_ID}.visible`,
       // The Windows sandbox; a remote window may run on Windows whatever this machine is.
       [COMMAND_IDS.setUpSandbox]: 'isWindows || remoteName',
+      // M91b: only Windows prepares a job for plugin hooks.
+      [COMMAND_IDS.retryPluginHooks]: 'isWindows',
       // Writes AGENTS.md into the workspace folder.
       [COMMAND_IDS.createRulesFile]: 'workspaceFolderCount > 0',
       // Exports the conversation in front of the user (M30).

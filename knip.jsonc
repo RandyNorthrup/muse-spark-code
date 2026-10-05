@@ -23,6 +23,8 @@
     "src/core/backends/modelapi/foreignHooksEntry.ts",
     // M91: the hook and MCP-form runtime, imported by path on first use.
     "src/core/backends/modelapi/hookRuntimeEntry.ts",
+    // The Amp and OpenCode plugin host's own bundle (M91b), required on the first plugin hook.
+    "src/core/backends/modelapi/pluginHooksEntry.ts",
     // The plan reader's own bundle (M79), required by path on the first plan action.
     "src/host/planMarkdownEntry.ts",
     // The checkpoint store's own bundle (M72), required by path at construction.

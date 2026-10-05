@@ -100,6 +100,8 @@ export interface ModelApiBackendManagerDeps extends ModelApiPaidHooks {
   /** M91 http hooks (D70): `museSpark.hookHttpAllowedHosts`, read at every dispatch. */
   readonly hookHttpAllowedHosts?: (() => readonly string[]) | undefined
   readonly isHookNetworkAllowed?: (() => boolean) | undefined
+  /** Amp and OpenCode plugin hooks' host side (M91b). */
+  readonly pluginHooks?: ModelApiHostDeps['pluginHooks']
   /**
    * The MCP servers for a host in this workspace (M50), one set per host,
    * made with the bundle's pool (M57).
@@ -310,6 +312,7 @@ export class ModelApiBackendManager {
         isHooksEnabled: variant.isHooksEnabled,
         hookHttpAllowedHosts: variant.hookHttpAllowedHosts,
         isHookNetworkAllowed: this.deps.isHookNetworkAllowed,
+        pluginHooks: this.deps.pluginHooks,
         memory: variant.memory,
         beforeTurnRuns: variant.beforeTurnRuns,
         afterTurnRuns: variant.afterTurnRuns,

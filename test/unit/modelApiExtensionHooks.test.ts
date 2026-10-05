@@ -6,9 +6,9 @@
 import { describe, expect, it, vi } from 'vitest'
 import * as z from 'zod/mini'
 import { ModelApiHost } from '../../src/core/backends/modelapi/ModelApiHost'
-import {
+import type {
+  ModelApiHostDeps,
   ModelApiSession,
-  type ModelApiHostDeps,
 } from '../../src/core/backends/modelapi/ModelApiHost'
 import { parseHookConfig, type HookDefinition } from '../../src/core/backends/modelapi/hooks'
 import {
@@ -23,7 +23,7 @@ import { memoryToolIo, hookResult } from './helpers/fakeToolIo'
 import { FakeLogOutputChannel } from './helpers/fakes'
 import { fakeModelApiHostDeps } from './helpers/modelApiHostDeps'
 import { memoryStoreOver } from './helpers/fakeMemoryIo'
-import { watchSessionTurns } from './helpers/sessionTurns'
+import { startWatchedSession } from './helpers/sessionTurns'
 import { logLines } from './helpers/logText'
 
 const ROOT = '/ws'
@@ -131,13 +131,7 @@ async function startSession(
   t: ReturnType<typeof setup>,
   approvalMode: 'allowAll' | 'promptUnmatched' | 'onRequest' = 'allowAll',
 ): Promise<{ session: ModelApiSession; events: AgentEvent[]; turnDone: () => Promise<void> }> {
-  const session = await t.host.startSession({
-    workspaceRoot: ROOT,
-    modelId: 'muse-spark-1.3',
-    approvalMode,
-  })
-  if (!(session instanceof ModelApiSession)) throw new Error('expected a Model API session')
-  return { session, ...watchSessionTurns(session) }
+  return await startWatchedSession(t.host, ROOT, approvalMode)
 }
 
 async function runTodoWrites(

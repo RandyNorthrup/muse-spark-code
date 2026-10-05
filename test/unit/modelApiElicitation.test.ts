@@ -7,7 +7,7 @@ import { describe, expect, it, vi } from 'vitest'
 import type { AgentEvent } from '../../src/shared/agentEvents'
 import { UI_TEXT } from '../../src/shared/constants'
 import { fill } from '../../src/shared/l10n/text'
-import { ModelApiHost, ModelApiSession } from '../../src/core/backends/modelapi/ModelApiHost'
+import { ModelApiHost, type ModelApiSession } from '../../src/core/backends/modelapi/ModelApiHost'
 import type { McpToolSource } from '../../src/core/backends/modelapi/mcp/pool'
 import type {
   ElicitationHookSeam,
@@ -18,7 +18,7 @@ import { memoryContextIo } from './helpers/fakeContextIo'
 import { memoryToolIo } from './helpers/fakeToolIo'
 import { FakeLogOutputChannel } from './helpers/fakes'
 import { countLogged, logLines } from './helpers/logText'
-import { watchSessionTurns } from './helpers/sessionTurns'
+import { startWatchedSession } from './helpers/sessionTurns'
 
 const ROOT = '/ws'
 const TOOL = 'mcp__srv__ask'
@@ -140,13 +140,8 @@ async function startTurn(
   t: Setup,
   approvalMode: string,
 ): Promise<{ session: ModelApiSession; events: AgentEvent[]; turnDone: () => Promise<void> }> {
-  const session = await t.host.startSession({
-    workspaceRoot: ROOT,
-    modelId: 'muse-spark-1.3',
-    approvalMode,
-  })
-  if (!(session instanceof ModelApiSession)) throw new Error('expected a Model API session')
-  const watched = watchSessionTurns(session)
+  const watched = await startWatchedSession(t.host, ROOT, approvalMode)
+  const { session } = watched
   const asking = { calls: [{ name: TOOL, arguments: '{}', callId: 'call_1' }] }
   if (t.hasSubagentForm) {
     t.api.script(

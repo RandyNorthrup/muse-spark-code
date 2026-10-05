@@ -17,7 +17,7 @@ differs from the source. Do not edit it by hand.
 | `capabilities.untrustedWorkspaces` | `limited`                                                                                                                    |
 | `enabledApiProposals`              | none                                                                                                                         |
 | `activationEvents`                 | `onWebviewPanel:museSpark.chatPanel`                                                                                         |
-| `contributes`                      | `commands` (35), `configuration` (2), `keybindings` (7), `menus` (2), `views` (1), `viewsContainers` (1), `walkthroughs` (1) |
+| `contributes`                      | `commands` (36), `configuration` (2), `keybindings` (7), `menus` (2), `views` (1), `viewsContainers` (1), `walkthroughs` (1) |
 
 ## Build targets
 
@@ -389,7 +389,7 @@ Functions, variables, classes, enums and members declared in `@types/vscode`; th
 | Module                 | Files |
 | ---------------------- | ----- |
 | `node:buffer`          | 36    |
-| `node:child_process`   | 13    |
+| `node:child_process`   | 12    |
 | `node:crypto`          | 37    |
 | `node:dgram`           | 1     |
 | `node:dns`             | 1     |
@@ -401,7 +401,7 @@ Functions, variables, classes, enums and members declared in `@types/vscode`; th
 | `node:module`          | 1     |
 | `node:net`             | 7     |
 | `node:os`              | 8     |
-| `node:path`            | 76    |
+| `node:path`            | 75    |
 | `node:process`         | 1     |
 | `node:stream`          | 12    |
 | `node:stream/promises` | 2     |

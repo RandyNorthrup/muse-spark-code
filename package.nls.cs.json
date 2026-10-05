@@ -31,6 +31,7 @@
   "command.hooks.title": "Hooky",
   "command.runSetupHooks.title": "Spustit instalační hooky",
   "command.runHook.title": "Spustit hook…",
+  "command.retryPluginHooks.title": "Zkusit znovu hooky pluginů",
   "command.memory.title": "Paměť",
   "command.newWorktree.title": "Nový pracovní strom…",
   "command.removeWorktree.title": "Odebrat pracovní strom…",

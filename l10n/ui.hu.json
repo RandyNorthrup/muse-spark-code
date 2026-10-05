@@ -447,6 +447,8 @@
   "hookAdapterUnreadable": "Egy {format} formátumú hook olyan választ adott, amelyet ez az ablak nem tud beolvasni, ezért hibának számít.",
   "hookAdapterFailClosed": "Egy {format} formátumú védelmi hook sikertelen volt, ezért a hívás le lett tiltva, ahogy maga a(z) {format} is letiltaná.",
   "hookOutputReplaced": "Egy hook lecserélte, amit a modell ennek az eszköznek a kimenetéből lát; a sor a valódi kimenetet mutatja.",
+  "pluginHooksNoJob": "Az Amp és OpenCode bővítményhookok nem futottak le: a Windows nem tudta előkészíteni az őket befoglaló feladatobjektumot. Az újrapróbáláshoz futtassa a „Bővítményhookok újrapróbálása” parancsot.",
+  "pluginHooksRetried": "A bővítményhookok a következő futáskor újra előkészítik a Windows-feladatobjektumukat.",
   "memoryItem": "Memória…",
   "memoryItemDetail": "A jegyzetek, amelyeket a Muse a későbbi munkamenetekhez megőriz",
   "memoryTitle": "Muse-memória",

@@ -43,7 +43,6 @@ import {
   HOOK_TOTAL_MAX_HANDLERS,
   MILLISECONDS_PER_SECOND,
   SECONDS_PER_MINUTE,
-  SPARK_HOOKS_SEGMENTS,
 } from '../../../shared/constants'
 import {
   HOOK_EVENTS,
@@ -51,6 +50,7 @@ import {
   type HookDefinition,
   type HookLoadDeps,
   type HookSource,
+  sparkHooksFiles,
 } from './hooks'
 import { compileGlob } from './globLimits'
 import { boundedHookText } from './toolHookPayload'
@@ -426,19 +426,21 @@ export async function loadSparkHookDefinitions(
   if (!deps.isWorkspaceTrusted()) {
     return []
   }
-  // The user's file sits beside Muse Code's settings file, which is the
-  // settingsPath (`<config>/muse/settings.json`): the user segments' last
-  // part names it.
-  const userFile = path.join(path.dirname(deps.settingsPath), SPARK_HOOKS_SEGMENTS.user[1])
-  const projectFile = path.join(deps.workspaceRoot, ...SPARK_HOOKS_SEGMENTS.project)
+  const files = sparkHooksFiles(deps)
   const sources = [
     {
       source: 'user',
-      text: await readSparkText(deps.io, userFile, undefined, deps.platform, deps.warn),
+      text: await readSparkText(deps.io, files.user, undefined, deps.platform, deps.warn),
     },
     {
       source: 'project',
-      text: await readSparkText(deps.io, projectFile, deps.workspaceRoot, deps.platform, deps.warn),
+      text: await readSparkText(
+        deps.io,
+        files.project,
+        deps.workspaceRoot,
+        deps.platform,
+        deps.warn,
+      ),
     },
   ] as const
   const hooks: ExtensionHookDefinition[] = []

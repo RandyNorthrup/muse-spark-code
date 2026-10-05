@@ -31,6 +31,7 @@
   "command.hooks.title": "후크",
   "command.runSetupHooks.title": "설정 후크 실행",
   "command.runHook.title": "후크 실행…",
+  "command.retryPluginHooks.title": "플러그인 후크 다시 시도",
   "command.memory.title": "메모리",
   "command.newWorktree.title": "새 작업 트리…",
   "command.removeWorktree.title": "작업 트리 제거…",

@@ -246,6 +246,7 @@ quality`) and as a CI job.
 | `dist/reviewer.js`         | ≤ 75 KiB (M78b: paid Auto review after consent; measured 55.2 KiB plus 15%, rounded up to 25 KiB)                                                                                                                                                                                                                                                                                                      |
 | `dist/foreignHooks.js`     | ≤ 100 KiB (M91 lane W: the adapters for hooks imported from other agents, lane P's contracts and engine, loaded the first time a session holding one runs a hook; measured 64.9 KiB, 68.0 KiB with lane X's Cline contract, 85.7 KiB once the imported records' reader moved in from `dist/modelApi.js`; 2026-10-05 on 0.13.0's shared `dist/validation.js`: 65.4 KiB, plus 15%, rounded up to 25 KiB) |
 | `dist/hookRuntime.js`      | ≤ 50 KiB (M91: the hook and MCP-form runtime, lane E's spark-hooks.json reader and dispatcher, lane H's typed handlers and lane M's form checks, moved out of `dist/modelApi.js` and loaded when a spark-hooks.json exists, a typed handler runs or a server asks for a form; 67.1 KiB when split out, 41.7 KiB on 0.13.0's shared `dist/validation.js` (2026-10-05), plus 15%, rounded up to 25 KiB)  |
+| `dist/pluginHooks.js`      | ≤ 75 KiB (M91b: the Amp and OpenCode plugin host, loaded on the first plugin hook; measured 51.6 KiB plus 15%, rounded up to 25 KiB; foreignHooks.js is 69.5 KiB with its glue)                                                                                                                                                                                                                        |
 | `dist/agentImport.js`      | ≤ 125 KiB (M83: import scan, converters, file access, native UI and smol-toml, loaded on first import; M91 lane I's readers for every agent's hooks: 147.7 KiB on 2026-10-04, 108.1 KiB on 0.13.0's shared `dist/validation.js` on 2026-10-05, within the unchanged budget)                                                                                                                            |
 | `dist/bundledSkills.js`    | ≤ 50 KiB (M89: the bundled skills installer for Muse Code, loaded on first install, removal or offer; 22.6 KiB when split, plus 15%, rounded up to 25 KiB)                                                                                                                                                                                                                                             |
 | `dist/codeIntel.js`        | ≤ 100 KiB (2026-10-03: code intelligence's `ide` answers, loaded on the first call; measured 80.3 KiB plus 15%, rounded up to 25 KiB)                                                                                                                                                                                                                                                                  |
@@ -14548,15 +14549,17 @@ next, in the 0.14.0 batch.**
   - imported hooks on Muse Code's events run through lane P's adapters;
   - the Hooks picker lists both files per scope;
   - the panel marks a MessageDisplay rewrite.
-- **M91b** (below) takes the plugin dispatch and the imported hooks on
-  extension events (lead decision, 2026-10-05). Lane X's plugin host merged
-  with its RVM91X fixes, unwired.
+- **M91b** (below) is merged: Amp and OpenCode plugin dispatch
+  (`m91/w-plugins` at `797e31fc`), in the same 0.14.0 batch. Imported hooks
+  on extension events stay planned there; the importer refuses them.
+- **Main 0.13.0** (`928a9200`) is merged. Lane G's golden hooks-off fixtures
+  were regenerated on main itself, with M91's test, and M91 matches them
+  byte for byte (`m91.md`, "After main and M91b").
 - **Size (D6).** M91 took `dist/modelApi.js` to 486.1 KiB of its 475. Lanes
   E, H and M's runtime moved into `dist/hookRuntime.js` and the imported
-  records' reader into `dist/foreignHooks.js`, both loaded on first use:
-  463.7 KiB, and the cap held. `dist/extension.js` is unchanged at
-  575.1 KiB. The webview's 907.0 KiB waits for main's panel deferral
-  (0.13.0 batch); main is merged again before the pull request.
+  records' reader into `dist/foreignHooks.js`, both loaded on first use, and
+  the cap held: 467.6 KiB with main and M91b. `dist/extension.js` is
+  596.9 KiB of 600 and the webview 896.3 of 900.
 - **Integration fixes:** semgrep's prototype-pollution finding in lane P's
   engine (own keys only, prototype segments refused); a duplicate-key check
   in `check-l10n`; lane S's unused setting-name constant is gone. knip is
@@ -15061,55 +15064,52 @@ returns`void`, so every bus mapping is observation only; a throw fails
   - [ ] Docs: README, PRIVACY, CHANGELOG, AGENTS.md, CONTRIBUTING, PLAN,
         m91.md.
 
-### M91b — Plugin dispatch, and imported hooks on extension events (D70)
+### M91b — Amp and OpenCode plugin dispatch (D70)
 
-**Status 2026-10-05: planned, its own pull request after M91** (lead
-decision, 2026-10-05). M91 ships lane X's plugin host unwired: no plugin
-runs, and `check-bundle-split.mjs` lists `pluginHost.ts`, `pluginChild.ts`
-and `hookFormats/clineDiscover.ts` as not bundled. M91 merges lane X's fixes
-for RVM91X's seven P1 findings and four of its P2s.
+**Status 2026-10-05: done on `m91/w-plugins` (`5a2aa619` and its docs
+commit); it ships with M91 in the 0.14.0 batch, not as a separate pull
+request.** Split from M91 at the lead's 07:00 checkpoint, after the RVM91X
+fixes (`22e9e7ff`). The record is `docs/certification/m91-wp.md`: 28 red
+drills, Kubuntu and Win11 green. Its residuals are in §9 ("Amp and
+OpenCode plugin hooks").
 
-- **Moved here from M91**, exactly:
-  - the dispatch: `foreignHooksEntry.ts` runs the `amp` and `opencode`
-    formats through `PluginSession.run`, under the same host-wide cap, the
-    fail-closed rule per event and the rule that no answer grants;
-  - the plugin records in `spark-hooks.json`:
-    `{ format: 'amp'|'opencode', sourceEvent, plugin, hooks: [{ type: 'plugin' }] }`;
-  - the per-system tool-name and argument maps, so a guard sees the names
-    and fields its source shows;
-  - `pluginImport.ts`: the importer's Amp and OpenCode sources and their
-    discovery (`.amp/plugins/`, `~/.config/amp/plugins/`,
-    `.opencode/plugins/`, `~/.config/opencode/plugins/`);
-  - moving the plugin host into `dist/foreignHooks.js`;
-  - **imported hooks on extension events** (lane W, 2026-10-05):
-    - Cursor `workspaceOpen` and `afterAgentThought`;
-    - Windsurf `post_setup_worktree`;
-    - Kiro `PreTaskExec` and `PostTaskExec` (and `Manual`, which lane I
-      refuses as unmapped);
-    - Gemini `BeforeToolSelection`.
+- **Scope, exactly this list:**
+  - dispatch in `foreignHooksEntry.ts`, with the session's `dispose` ending
+    plugin children;
+  - the plugin records in `spark-hooks.json` (`format` amp or opencode, a
+    `plugin` path, a `{ type: 'plugin' }` handler) and the `plugin`
+    ForeignPreparation, run under the host-wide cap and the same judge;
+  - the tool-name and argument maps, from the saved sources only;
+  - `src/core/import/pluginImport.ts` and its glue in the importer;
+  - the bundle move: the plugin host in `dist/pluginHooks.js`, required on
+    the first plugin hook (D6);
+  - RVM91X P2s 9, 10, 12 and 15.
+- **The lead's rulings (2026-10-05):**
+  - Amp's `tool.call` `error` matches Amp: the tool never runs and the turn
+    ends with the plugin's reason. The fail-open and fail-closed rules cover
+    transport failures only.
+  - Windows job preparation: a hook never runs without a tree. A failure is
+    retried once after a short delay, then stays, with a notice in the
+    user's language, until **Muse Spark: Retry Plugin Hooks**.
+  - P2 12: Windows bounds the job's memory; Linux bounds bun with `prlimit
+--data`; elsewhere bun is refused rather than run unbounded.
+- **Still planned, not in M91b's build: imported hooks on extension
+  events** (lane W, 2026-10-05):
+  - Cursor `workspaceOpen` and `afterAgentThought`;
+  - Windsurf `post_setup_worktree`;
+  - Kiro `PreTaskExec` and `PostTaskExec` (and `Manual`, which lane I
+    refuses as unmapped);
+  - Gemini `BeforeToolSelection`.
 
-    They need the adapters in lane E's dispatcher (`dispatchExtensionHooks`)
-    and in the window's runner, which loads `dist/foreignHooks.js` lazily.
-    Until then the importer refuses them, and the preview gives the reason in
-    the user's language: `weaker` where the source event can refuse or narrow
-    (`HOOK_IMPORT_REFUSING_EXTENSION_SOURCES`: Gemini `BeforeToolSelection`,
-    Kiro `PreTaskExec`), otherwise `unsupported`. Gemini's
-    `BeforeToolSelection` also needs a source-shaped `llm_request` (lane P,
-    RVM91P3). The Kiro spec-task note (`agentImportKiroTaskNote`) shows again
-    once they import.
-- **RVM91X P2s left for M91b** (`scratchpad/codex/RVM91X.report.md`):
-  - **9.** OpenCode's in-place `output.args` rewrite is lost: the comparison
-    aliases the payload (`pluginChild.ts:188`).
-  - **10.** Named OpenCode plugin exports (`export const MyPlugin = …`) are
-    refused (`pluginChild.ts:162`).
-  - **12.** OpenCode children have no memory bound: the heap cap reaches
-    only Node, never `bun` (`pluginHost.ts:159`).
-  - **15.** Amp `tool.result` and `agent.end` drop `toolUseID` and
-    `messages` (`pluginChild.ts:107`).
-- **Acceptance.** Each of these has a regression and a red drill. A real
-  Amp default-export guard blocks a call. An OpenCode throw blocks a call.
-  An allow never grants. A session's dispose kills its children on all
-  three platforms. The foreignHooks bundle stays within its D6 budget.
+  They need the adapters in lane E's dispatcher (`dispatchExtensionHooks`)
+  and in the window's runner, which loads `dist/foreignHooks.js` lazily.
+  Until then the importer refuses them, and the preview gives the reason in
+  the user's language: `weaker` where the source event can refuse or narrow
+  (`HOOK_IMPORT_REFUSING_EXTENSION_SOURCES`: Gemini `BeforeToolSelection`,
+  Kiro `PreTaskExec`), otherwise `unsupported`. Gemini's
+  `BeforeToolSelection` also needs a source-shaped `llm_request` (lane P,
+  RVM91P3). The Kiro spec-task note (`agentImportKiroTaskNote`) shows again
+  once they import.
 
 ### M99 — What's New after an update (D79)
 
@@ -16574,6 +16574,31 @@ before a repaired one loads (2026-09-30).
   repository admin bypasses both for direct pushes and releases, and every
   bypass is logged by GitHub. A moved tag, as with 0.5.2, is then a
   deliberate bypass rather than a habit.
+
+- Amp and OpenCode plugin hooks (M91b, `docs/certification/m91-wp.md`).
+  The plugin is the user's own code, run as the user. These residuals are
+  accepted, and each is stated in the README:
+  1. **Five OpenCode hooks are not imported:** `command.execute.before`
+     (UserPromptExpansion) and the bus's `todo.updated`,
+     `permission.replied`, `file.watcher.updated` and `message.updated`.
+     Their extension events have no imported-hook dispatch yet. The import
+     lists them, so nothing weaker runs in their place.
+  2. **OpenCode arguments beyond `read.filePath` and `bash.command`** keep
+     our names, since no saved source shows theirs. A guard that reads
+     another name throws, and at `tool.execute.before` that blocks: never
+     weaker, sometimes stricter than OpenCode.
+  3. **macOS refuses OpenCode plugins**, because nothing enforces a data
+     limit for `bun` there. Elsewhere the memory bound is 1 GiB
+     (`PLUGIN_CHILD_MAX_MEMORY_BYTES`): `node` does not start under a 512 MiB
+     data limit.
+  4. **The ACP agent** supplies no plugin host side, so plugin hooks are
+     refused there, and `dist/pluginHooks.js` is not in its package.
+  5. **Plugin paths** are capped at 256 characters
+     (`HOOK_MATCHER_VALUE_MAX_CHARS`, reused).
+  6. **Kubuntu tests run on real `bun`.** `bun` 1.3.14 was installed there
+     (`~/.bun`, from bun.sh's installer) for the real `prlimit` tests, under
+     the owner's install authorization. Those tests skip wherever `bun` is
+     absent, CI included.
 
 ## 10. Definition of done and release records
 

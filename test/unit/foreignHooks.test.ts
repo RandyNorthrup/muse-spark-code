@@ -22,8 +22,12 @@ import type { ToolIo } from '../../src/core/backends/modelapi/tools'
 import { Buffer } from 'node:buffer'
 import { UI_TEXT, WINDOWS_POWERSHELL_UTF8_PREAMBLE } from '../../src/shared/constants'
 import { fill } from '../../src/shared/l10n/text'
+import { importedHooks } from './helpers/sparkHooks'
 
 const ROOT = '/ws'
+// A regular-expression match's deadline a loaded rig cannot lapse: the
+// command-pattern tests must not depend on wall time (production keeps 25 ms).
+const TEST_MATCHER_TIMEOUT_MS = 60_000
 
 interface Ran {
   readonly command: string
@@ -61,19 +65,12 @@ function adapter(links: Readonly<Record<string, string>> = {}): ForeignHookAdapt
       },
     },
     homeDir: '/home/tester',
+    matcherTimeoutMs: TEST_MATCHER_TIMEOUT_MS,
   })
 }
 
 /** One spark-hooks.json group, as lane I writes it, parsed for the project. */
-function imported(event: string, group: Record<string, unknown>): readonly HookDefinition[] {
-  const parsed = parseForeignHooks(
-    JSON.stringify({ hooks: { [event]: [group] } }),
-    'project',
-    'linux',
-  )
-  expect(parsed.warnings).toEqual([])
-  return parsed.hooks
-}
+const imported = importedHooks
 
 function payload(event: HookEvent, fields: Record<string, unknown>): Record<string, unknown> {
   return {
@@ -195,7 +192,7 @@ describe('the import record in spark-hooks.json', () => {
 
   it('refuses what the record cannot carry, by name', () => {
     const cases: readonly [Record<string, unknown>, string][] = [
-      [{ format: 'amp' }, 'format amp has no adapter in this version'],
+      [{ format: 'continue' }, 'format continue has no adapter in this version'],
       [{ format: 'cursor', sourceEvent: 'preToolUse', extra: 1 }, 'unsupported group field extra'],
       [
         { format: 'gemini', sourceEvent: 'BeforeTool', commandPattern: 'x' },

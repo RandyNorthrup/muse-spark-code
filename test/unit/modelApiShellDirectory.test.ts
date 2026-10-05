@@ -40,6 +40,7 @@ import {
 import { memoryToolIo, refusedAtEntry, type MemoryToolIo } from './helpers/fakeToolIo'
 import { fakeModelApiHostDeps } from './helpers/modelApiHostDeps'
 import { watchSessionTurns } from './helpers/sessionTurns'
+import { editThenRunCall } from './helpers/shellTurns'
 
 const LINUX_ROOT = '/ws'
 const WINDOWS_ROOT = 'C:/ws'
@@ -225,6 +226,19 @@ afterEach(() => {
   }
 })
 
+/** A new Model API session on `host` at `root`. */
+async function startShellSession(host: ModelApiHost, root: string): Promise<ModelApiSession> {
+  const started = await host.startSession({
+    workspaceRoot: root,
+    modelId: 'muse-spark-1.3',
+    approvalMode: 'allowAll',
+  })
+  if (!(started instanceof ModelApiSession)) {
+    throw new TypeError('expected the Model API session')
+  }
+  return started
+}
+
 async function setupShell(options: ShellSetupOptions = {}): Promise<ShellHarness> {
   const platform = options.platform ?? 'linux'
   const root = options.root ?? (platform === 'win32' ? WINDOWS_ROOT : LINUX_ROOT)
@@ -289,14 +303,7 @@ async function setupShell(options: ShellSetupOptions = {}): Promise<ShellHarness
     shellSidecarDir: sidecar,
   }
   const host = new ModelApiHost(deps)
-  const started = await host.startSession({
-    workspaceRoot: root,
-    modelId: 'muse-spark-1.3',
-    approvalMode: 'allowAll',
-  })
-  if (!(started instanceof ModelApiSession)) {
-    throw new TypeError('expected the Model API session')
-  }
+  const started = await startShellSession(host, root)
   const { events, turnDone } = watchSessionTurns(started)
   const harness: ShellHarness = {
     api,
@@ -329,6 +336,28 @@ async function runTurn(harness: ShellHarness, text: string): Promise<void> {
   const submitted = harness.session.sendTurn([{ type: 'text', text }])
   await submitted
   await harness.turnDone()
+}
+
+/** The user's `prompt` turn: the model makes one shell call, then says `reply`. */
+async function shellTurn(
+  harness: ShellHarness,
+  command: string,
+  callId: string,
+  reply: string,
+  prompt: string,
+): Promise<void> {
+  harness.api.script({ calls: [shellCall(harness.shellName, command, callId)] }, { text: reply })
+  await runTurn(harness, prompt)
+}
+
+/** The opening most cases share: `cd sub` as call s1. */
+async function cdSubTurn(harness: ShellHarness): Promise<void> {
+  await shellTurn(harness, 'cd sub', 's1', 'moved', 'Go to sub.')
+}
+
+/** "Where are you?": `pwd` as call `callId`. */
+async function pwdTurn(harness: ShellHarness, callId: string): Promise<void> {
+  await shellTurn(harness, 'pwd', callId, 'here', 'Where are you?')
 }
 
 /** The row the panel shows for a finished tool call, by call order. */
@@ -417,19 +446,29 @@ function escapeRegExp(text: string): string {
   return text.replaceAll(/[$()*+.?[\\\]^{|}]/g, String.raw`\$&`)
 }
 
+/** The directory each shell call ran in, in call order. */
+function expectCwds(harness: ShellHarness, cwds: readonly string[]): void {
+  expect(harness.io.shellCalls.map((call) => call.cwd)).toEqual(cwds)
+}
+
+/** Request `index`'s model-facing output for `callId` ends with `text`. */
+function expectOutputEnd(harness: ShellHarness, index: number, callId: string, text: string): void {
+  expect(modelOutputs(harness, index).get(callId)).toMatch(new RegExp(`${escapeRegExp(text)}$`))
+}
+
+/** The tail naming a kept directory, relative to the root. */
+function directoryTail(relative: string): string {
+  return fill(UI_TEXT.shellDirectory, { path: relative })
+}
+
 describe('the kept shell directory', () => {
   it('carries a cd into the next call, naming it only at the tail past the root', async () => {
     const harness = await setupShell()
-    harness.api.script({ calls: [shellCall(harness.shellName, 'cd sub', 's1')] }, { text: 'moved' })
-    await runTurn(harness, 'Go to sub.')
-    harness.api.script({ calls: [shellCall(harness.shellName, 'pwd', 's2')] }, { text: 'there' })
-    await runTurn(harness, 'Where are you?')
+    await cdSubTurn(harness)
+    await shellTurn(harness, 'pwd', 's2', 'there', 'Where are you?')
     // The second command starts where the first ended.
-    expect(harness.io.shellCalls.map((call) => call.cwd)).toEqual([
-      harness.root,
-      `${harness.root}/sub`,
-    ])
-    const firstTail = fill(UI_TEXT.shellDirectory, { path: 'sub' })
+    expectCwds(harness, [harness.root, `${harness.root}/sub`])
+    const firstTail = directoryTail('sub')
     // The panel's row names the directory at the tail…
     expect(toolRows(harness).map((row) => row.visibleOutput)).toEqual([
       expect.stringMatching(new RegExp(String.raw`\[exit code 0\]\n${escapeRegExp(firstTail)}$`)),
@@ -444,9 +483,8 @@ describe('the kept shell directory', () => {
 
   it('adds nothing at the root', async () => {
     const harness = await setupShell()
-    harness.api.script({ calls: [shellCall(harness.shellName, 'pwd', 's1')] }, { text: 'here' })
-    await runTurn(harness, 'Where are you?')
-    expect(harness.io.shellCalls.map((call) => call.cwd)).toEqual([harness.root])
+    await pwdTurn(harness, 's1')
+    expectCwds(harness, [harness.root])
     expect(toolRows(harness).map((row) => row.visibleOutput)).toEqual(['[exit code 0]'])
     expect(modelOutputs(harness, 1).get('s1')).toBe('[exit code 0]')
     await harness.host.close()
@@ -454,68 +492,42 @@ describe('the kept shell directory', () => {
 
   it('tracks the directory even when the command fails', async () => {
     const harness = await setupShell({ missing: ['/ws/nope'] })
-    harness.api.script(
-      { calls: [shellCall(harness.shellName, 'cd sub; cd /ws/nope', 's1')] },
-      { text: 'moved' },
-    )
-    await runTurn(harness, 'Go to sub.')
+    await shellTurn(harness, 'cd sub; cd /ws/nope', 's1', 'moved', 'Go to sub.')
     // The trailer is unconditional: the failing tail does not hide the cd.
-    expect(harness.io.shellCalls.map((call) => call.cwd)).toEqual([harness.root])
-    const tail = fill(UI_TEXT.shellDirectory, { path: 'sub' })
+    expectCwds(harness, [harness.root])
+    const tail = directoryTail('sub')
     expect(modelOutputs(harness, 1).get('s1')).toContain('exit code 1')
     expect(modelOutputs(harness, 1).get('s1')).toMatch(
       new RegExp(String.raw`\[exit code 1\]\n${escapeRegExp(tail)}$`),
     )
-    harness.api.script({ calls: [shellCall(harness.shellName, 'pwd', 's2')] }, { text: 'here' })
-    await runTurn(harness, 'Where are you?')
-    expect(harness.io.shellCalls.map((call) => call.cwd)).toEqual([
-      harness.root,
-      `${harness.root}/sub`,
-    ])
+    await pwdTurn(harness, 's2')
+    expectCwds(harness, [harness.root, `${harness.root}/sub`])
     await harness.host.close()
   })
 
   it('starts a new session at the root', async () => {
     const harness = await setupShell()
-    harness.api.script({ calls: [shellCall(harness.shellName, 'cd sub', 's1')] }, { text: 'moved' })
-    await runTurn(harness, 'Go to sub.')
-    expect(harness.io.shellCalls.map((call) => call.cwd)).toEqual([harness.root])
-    const second = await harness.host.startSession({
-      workspaceRoot: harness.root,
-      modelId: 'muse-spark-1.3',
-      approvalMode: 'allowAll',
-    })
-    if (!(second instanceof ModelApiSession)) {
-      throw new TypeError('expected the Model API session')
-    }
+    await cdSubTurn(harness)
+    expectCwds(harness, [harness.root])
+    const second = await startShellSession(harness.host, harness.root)
     const watched = watchSessionTurns(second)
     harness.api.script({ calls: [shellCall(harness.shellName, 'pwd', 's2')] }, { text: 'here' })
     await second.sendTurn([{ type: 'text', text: 'Where are you?' }])
     await watched.turnDone()
-    expect(harness.io.shellCalls.map((call) => call.cwd)).toEqual([harness.root, harness.root])
+    expectCwds(harness, [harness.root, harness.root])
     await harness.host.close()
   })
 
   it('leaves a failed cd on the previous directory', async () => {
     const harness = await setupShell({ missing: ['/ws/nope'] })
-    harness.api.script({ calls: [shellCall(harness.shellName, 'cd sub', 's1')] }, { text: 'moved' })
-    await runTurn(harness, 'Go to sub.')
-    harness.api.script(
-      { calls: [shellCall(harness.shellName, 'cd /ws/nope', 's2')] },
-      { text: 'stayed' },
-    )
-    await runTurn(harness, 'Go missing.')
-    harness.api.script({ calls: [shellCall(harness.shellName, 'pwd', 's3')] }, { text: 'here' })
-    await runTurn(harness, 'Where are you?')
-    expect(harness.io.shellCalls.map((call) => call.cwd)).toEqual([
-      harness.root,
-      `${harness.root}/sub`,
-      `${harness.root}/sub`,
-    ])
-    const tail = fill(UI_TEXT.shellDirectory, { path: 'sub' })
+    await cdSubTurn(harness)
+    await shellTurn(harness, 'cd /ws/nope', 's2', 'stayed', 'Go missing.')
+    await pwdTurn(harness, 's3')
+    expectCwds(harness, [harness.root, `${harness.root}/sub`, `${harness.root}/sub`])
+    const tail = directoryTail('sub')
     expect(modelOutputs(harness, 3).get('s2')).toContain('exit code 1')
-    expect(modelOutputs(harness, 3).get('s2')).toMatch(new RegExp(`${escapeRegExp(tail)}$`))
-    expect(modelOutputs(harness, 5).get('s3')).toMatch(new RegExp(`${escapeRegExp(tail)}$`))
+    expectOutputEnd(harness, 3, 's2', tail)
+    expectOutputEnd(harness, 5, 's3', tail)
     await harness.host.close()
   })
 })
@@ -523,23 +535,13 @@ describe('the kept shell directory', () => {
 describe('a directory outside the workspace', () => {
   it('returns to the root silently with cd ..', async () => {
     const harness = await setupShell()
-    harness.api.script({ calls: [shellCall(harness.shellName, 'cd sub', 's1')] }, { text: 'moved' })
-    await runTurn(harness, 'Go to sub.')
-    harness.api.script({ calls: [shellCall(harness.shellName, 'cd ..', 's2')] }, { text: 'back' })
-    await runTurn(harness, 'Go back.')
-    expect(harness.io.shellCalls.map((call) => call.cwd)).toEqual([
-      harness.root,
-      `${harness.root}/sub`,
-    ])
+    await cdSubTurn(harness)
+    await shellTurn(harness, 'cd ..', 's2', 'back', 'Go back.')
+    expectCwds(harness, [harness.root, `${harness.root}/sub`])
     // Back at the root: no tail, no note.
     expect(modelOutputs(harness, 3).get('s2')).toBe('[exit code 0]')
-    harness.api.script({ calls: [shellCall(harness.shellName, 'pwd', 's3')] }, { text: 'here' })
-    await runTurn(harness, 'Where are you?')
-    expect(harness.io.shellCalls.map((call) => call.cwd)).toEqual([
-      harness.root,
-      `${harness.root}/sub`,
-      harness.root,
-    ])
+    await pwdTurn(harness, 's3')
+    expectCwds(harness, [harness.root, `${harness.root}/sub`, harness.root])
     await harness.host.close()
   })
 
@@ -550,20 +552,12 @@ describe('a directory outside the workspace', () => {
     ['a bare cd home', 'cd', POSIX_HOME],
   ])('resets to the root with a note: %s', async (_name, command, outside) => {
     const harness = await setupShell({ links: { linked: '/outside' } })
-    harness.api.script({ calls: [shellCall(harness.shellName, 'cd sub', 's1')] }, { text: 'moved' })
-    await runTurn(harness, 'Go to sub.')
-    harness.api.script({ calls: [shellCall(harness.shellName, command, 's2')] }, { text: 'out' })
-    await runTurn(harness, 'Go out.')
-    harness.api.script({ calls: [shellCall(harness.shellName, 'pwd', 's3')] }, { text: 'here' })
-    await runTurn(harness, 'Where are you?')
+    await cdSubTurn(harness)
+    await shellTurn(harness, command, 's2', 'out', 'Go out.')
+    await pwdTurn(harness, 's3')
     // The escapee ran in sub, but the next call is back at the root.
-    expect(harness.io.shellCalls.map((call) => call.cwd)).toEqual([
-      harness.root,
-      `${harness.root}/sub`,
-      harness.root,
-    ])
-    const note = fill(UI_TEXT.shellDirectoryReset, { path: outside })
-    expect(modelOutputs(harness, 3).get('s2')).toMatch(new RegExp(`${escapeRegExp(note)}$`))
+    expectCwds(harness, [harness.root, `${harness.root}/sub`, harness.root])
+    expectOutputEnd(harness, 3, 's2', fill(UI_TEXT.shellDirectoryReset, { path: outside }))
     // Reset, the result carries no directory tail.
     expect(modelOutputs(harness, 5).get('s3')).toBe('[exit code 0]')
     await harness.host.close()
@@ -573,11 +567,9 @@ describe('a directory outside the workspace', () => {
     const harness = await setupShell()
     // A `realPath` that rejects: fail closed, back to the root.
     harness.io.realPath = () => Promise.reject(new Error('EACCES'))
-    harness.api.script({ calls: [shellCall(harness.shellName, 'cd sub', 's1')] }, { text: 'moved' })
-    await runTurn(harness, 'Go to sub.')
-    harness.api.script({ calls: [shellCall(harness.shellName, 'pwd', 's2')] }, { text: 'here' })
-    await runTurn(harness, 'Where are you?')
-    expect(harness.io.shellCalls.map((call) => call.cwd)).toEqual([harness.root, harness.root])
+    await cdSubTurn(harness)
+    await pwdTurn(harness, 's2')
+    expectCwds(harness, [harness.root, harness.root])
     expect(modelOutputs(harness, 1).get('s1')).toMatch(/is outside the workspace\.$/)
     await harness.host.close()
   })
@@ -588,15 +580,10 @@ describe('the setting off', () => {
     'runs every call at the root, untouched: %s',
     async (mode) => {
       const harness = await setupShell({ keepsDirectory: mode })
-      harness.api.script(
-        { calls: [shellCall(harness.shellName, 'cd sub', 's1')] },
-        { text: 'moved' },
-      )
-      await runTurn(harness, 'Go to sub.')
-      harness.api.script({ calls: [shellCall(harness.shellName, 'pwd', 's2')] }, { text: 'here' })
-      await runTurn(harness, 'Where are you?')
+      await cdSubTurn(harness)
+      await pwdTurn(harness, 's2')
       // Today's behaviour: the root every time, the user's command byte-exact, no tail.
-      expect(harness.io.shellCalls.map((call) => call.cwd)).toEqual([harness.root, harness.root])
+      expectCwds(harness, [harness.root, harness.root])
       expect(harness.io.shellCalls.map((call) => call.command)).toEqual(['cd sub', 'pwd'])
       expect(toolRows(harness).map((row) => row.visibleOutput)).toEqual([
         '[exit code 0]',
@@ -620,28 +607,10 @@ describe('the setting off', () => {
 describe("then_run and the shell's guards", () => {
   it("runs then_run at the root, untrailered, keeping the session's directory", async () => {
     const harness = await setupShell({ files: { 'owned.ts': 'export const one = 1\n' } })
-    harness.api.script({ calls: [shellCall(harness.shellName, 'cd sub', 's1')] }, { text: 'moved' })
-    await runTurn(harness, 'Go to sub.')
-    harness.api.script(
-      {
-        calls: [
-          {
-            name: 'edit_file',
-            arguments: JSON.stringify({
-              path: 'owned.ts',
-              find: 'one',
-              replace: 'two',
-              then_run: 'echo then',
-            }),
-            callId: 'e1',
-          },
-        ],
-      },
-      { text: 'renamed' },
-    )
+    await cdSubTurn(harness)
+    harness.api.script({ calls: [editThenRunCall()] }, { text: 'renamed' })
     await runTurn(harness, 'Rename one to two.')
-    harness.api.script({ calls: [shellCall(harness.shellName, 'pwd', 's3')] }, { text: 'here' })
-    await runTurn(harness, 'Where are you?')
+    await pwdTurn(harness, 's3')
     // The edit's command ran at the root with no trailer; the shell still keeps sub.
     expect(harness.io.shellCalls.map((call) => ({ command: call.command, cwd: call.cwd }))).toEqual(
       [
@@ -655,27 +624,18 @@ describe("then_run and the shell's guards", () => {
         expect(call.command).not.toContain('__m91')
       }
     }
-    const tail = fill(UI_TEXT.shellDirectory, { path: 'sub' })
-    expect(modelOutputs(harness, 5).get('s3')).toMatch(new RegExp(`${escapeRegExp(tail)}$`))
+    expectOutputEnd(harness, 5, 's3', directoryTail('sub'))
     await harness.host.close()
   })
 
   it('keeps the previous directory when the command exits before the trailer', async () => {
     const harness = await setupShell()
-    harness.api.script({ calls: [shellCall(harness.shellName, 'cd sub', 's1')] }, { text: 'moved' })
-    await runTurn(harness, 'Go to sub.')
-    harness.api.script({ calls: [shellCall(harness.shellName, 'exit 3', 's2')] }, { text: 'left' })
-    await runTurn(harness, 'Leave.')
-    harness.api.script({ calls: [shellCall(harness.shellName, 'pwd', 's3')] }, { text: 'here' })
-    await runTurn(harness, 'Where are you?')
-    expect(harness.io.shellCalls.map((call) => call.cwd)).toEqual([
-      harness.root,
-      `${harness.root}/sub`,
-      `${harness.root}/sub`,
-    ])
+    await cdSubTurn(harness)
+    await shellTurn(harness, 'exit 3', 's2', 'left', 'Leave.')
+    await pwdTurn(harness, 's3')
+    expectCwds(harness, [harness.root, `${harness.root}/sub`, `${harness.root}/sub`])
     expect(modelOutputs(harness, 3).get('s2')).toBe('[exit code 3]')
-    const tail = fill(UI_TEXT.shellDirectory, { path: 'sub' })
-    expect(modelOutputs(harness, 5).get('s3')).toMatch(new RegExp(`${escapeRegExp(tail)}$`))
+    expectOutputEnd(harness, 5, 's3', directoryTail('sub'))
     await harness.host.close()
   })
 })
@@ -684,22 +644,13 @@ describe('the kept shell directory on Windows', () => {
   it('carries a cd across calls, drive letters included', async () => {
     const harness = await setupShell({ platform: 'win32' })
     expect(harness.shellName).toBe('powershell')
-    harness.api.script({ calls: [shellCall(harness.shellName, 'cd sub', 's1')] }, { text: 'moved' })
-    await runTurn(harness, 'Go to sub.')
-    harness.api.script(
-      { calls: [shellCall(harness.shellName, 'cd deeper', 's2')] },
-      { text: 'deeper' },
-    )
-    await runTurn(harness, 'Go deeper.')
+    await cdSubTurn(harness)
+    await shellTurn(harness, 'cd deeper', 's2', 'deeper', 'Go deeper.')
     const wroot = harness.root.replaceAll('/', '\\')
-    expect(harness.io.shellCalls.map((call) => call.cwd)).toEqual([
-      harness.root,
-      String.raw`${wroot}\sub`,
-    ])
+    expectCwds(harness, [harness.root, String.raw`${wroot}\sub`])
     // The executed lines carry the PowerShell trailer.
     expect(harness.io.shellCalls[0]?.command).toContain('[System.IO.File]::WriteAllText')
-    const tail = fill(UI_TEXT.shellDirectory, { path: 'sub/deeper' })
-    expect(modelOutputs(harness, 3).get('s2')).toMatch(new RegExp(`${escapeRegExp(tail)}$`))
+    expectOutputEnd(harness, 3, 's2', directoryTail('sub/deeper'))
     await harness.host.close()
   })
 
@@ -709,33 +660,21 @@ describe('the kept shell directory on Windows', () => {
     ['a bare cd home', 'cd', WINDOWS_HOME],
   ])('resets to the root with a note: %s', async (_name, command, outside) => {
     const harness = await setupShell({ platform: 'win32' })
-    harness.api.script({ calls: [shellCall(harness.shellName, command, 's1')] }, { text: 'out' })
-    await runTurn(harness, 'Go out.')
-    expect(harness.io.shellCalls.map((call) => call.cwd)).toEqual([harness.root])
-    const note = fill(UI_TEXT.shellDirectoryReset, { path: outside })
-    expect(modelOutputs(harness, 1).get('s1')).toMatch(new RegExp(`${escapeRegExp(note)}$`))
-    harness.api.script({ calls: [shellCall(harness.shellName, 'pwd', 's2')] }, { text: 'here' })
-    await runTurn(harness, 'Where are you?')
-    expect(harness.io.shellCalls.map((call) => call.cwd)).toEqual([harness.root, harness.root])
+    await shellTurn(harness, command, 's1', 'out', 'Go out.')
+    expectCwds(harness, [harness.root])
+    expectOutputEnd(harness, 1, 's1', fill(UI_TEXT.shellDirectoryReset, { path: outside }))
+    await pwdTurn(harness, 's2')
+    expectCwds(harness, [harness.root, harness.root])
     await harness.host.close()
   })
 
   it('leaves a drive-relative cd on the previous directory', async () => {
     const harness = await setupShell({ platform: 'win32' })
-    harness.api.script({ calls: [shellCall(harness.shellName, 'cd sub', 's1')] }, { text: 'moved' })
-    await runTurn(harness, 'Go to sub.')
-    harness.api.script(
-      { calls: [shellCall(harness.shellName, 'cd C:other', 's2')] },
-      { text: 'stayed' },
-    )
-    await runTurn(harness, 'Go drive-relative.')
+    await cdSubTurn(harness)
+    await shellTurn(harness, 'cd C:other', 's2', 'stayed', 'Go drive-relative.')
     const wroot = harness.root.replaceAll('/', '\\')
-    expect(harness.io.shellCalls.map((call) => call.cwd)).toEqual([
-      harness.root,
-      String.raw`${wroot}\sub`,
-    ])
-    const tail = fill(UI_TEXT.shellDirectory, { path: 'sub' })
-    expect(modelOutputs(harness, 3).get('s2')).toMatch(new RegExp(`${escapeRegExp(tail)}$`))
+    expectCwds(harness, [harness.root, String.raw`${wroot}\sub`])
+    expectOutputEnd(harness, 3, 's2', directoryTail('sub'))
     await harness.host.close()
   })
 })
@@ -789,14 +728,7 @@ describe('the kept shell directory through a real shell', () => {
       shellSidecarDir: sidecar,
     }
     const host = new ModelApiHost(deps)
-    const started = await host.startSession({
-      workspaceRoot: root,
-      modelId: 'muse-spark-1.3',
-      approvalMode: 'allowAll',
-    })
-    if (!(started instanceof ModelApiSession)) {
-      throw new TypeError('expected the Model API session')
-    }
+    const started = await startShellSession(host, root)
     const { events, turnDone } = watchSessionTurns(started)
     const rows = (): (string | undefined)[] =>
       events.flatMap((event) =>

@@ -109,6 +109,7 @@ import {
   rulesSection,
   splitFrontMatter,
 } from './importConvert'
+import { openCodeNpmPlugins, pluginFolder } from './pluginImport'
 
 export type ImportOrigin = 'user' | 'project'
 
@@ -148,6 +149,8 @@ export interface ImportScanInput {
   readonly codexHome: string | undefined
   /** `COPILOT_HOME` as the environment gives it: it replaces `~/.copilot`. */
   readonly copilotHome?: string | undefined
+  /** `XDG_CONFIG_HOME` as the environment gives it: Amp's system plugins live beneath it. */
+  readonly xdgConfigHome?: string | undefined
   readonly workspaceRoot: string | undefined
   /** All folders open in the window, read live at each classification. */
   readonly workspaceRoots?: () => readonly string[]
@@ -1708,6 +1711,72 @@ async function scanCline(scan: Scan, isProjectRead: boolean): Promise<void> {
   }
 }
 
+// --- Amp and OpenCode plugins (M91b): the logic is pluginImport.ts's ---
+
+async function collectPlugins(
+  scan: Scan,
+  format: 'amp' | 'opencode',
+  origin: ImportOrigin,
+  directory: string,
+): Promise<void> {
+  const findings = await pluginFolder(format, origin, directory, {
+    list: (folder) => listEntries(scan, folder, origin),
+    read: (file, maxBytes) => readText(scan, file, origin, maxBytes),
+    isInOpenWorkspace: (file) => isInOpenWorkspace(scan, file),
+    isWorkspaceTrusted: () => scan.input.isWorkspaceTrusted(),
+    join: (...parts) => scan.p.join(...parts),
+    extensionOf: (file) => scan.p.extname(file),
+  })
+  for (const finding of findings) {
+    const base = { source: format, origin, label: finding.label, originPath: finding.file }
+    if (finding.kind === 'outside') {
+      add(scan, { ...base, kind: 'hook', target: { kind: 'none', reason: 'outside' } })
+    } else {
+      addHook(scan, base, finding.converted, sparkFileOf(origin))
+    }
+  }
+}
+
+async function collectOpenCodeNpm(scan: Scan, origin: ImportOrigin, file: string): Promise<void> {
+  const text = await readText(scan, file, origin)
+  const names = text === undefined ? [] : openCodeNpmPlugins(text)
+  if (names === undefined) {
+    scan.warnings.push(`is not a readable OpenCode configuration, skipped`)
+  }
+  const labels = names ?? []
+  for (const label of labels) {
+    const target = { kind: 'none', reason: 'unsupported' } as const
+    add(scan, { source: 'opencode', origin, kind: 'hook', label, originPath: file, target })
+  }
+}
+
+async function scanAmp(scan: Scan, isProjectRead: boolean): Promise<void> {
+  const { p, input } = scan
+  const names = AGENT_IMPORT_PATHS.amp
+  const home = p.join(input.homeDir, names.userConfigDir)
+  const config = homeFromVariable(scan, input.xdgConfigHome, names.configHomeVariable, home)
+  if (config !== undefined) {
+    await collectPlugins(scan, 'amp', 'user', p.join(config, ...names.userSegments))
+  }
+  const root = input.workspaceRoot
+  if (root !== undefined && isProjectRead) {
+    await collectPlugins(scan, 'amp', 'project', p.join(root, ...names.projectSegments))
+  }
+}
+
+async function scanOpenCode(scan: Scan, isProjectRead: boolean): Promise<void> {
+  const { p, input } = scan
+  const names = AGENT_IMPORT_PATHS.opencode
+  await collectPlugins(scan, 'opencode', 'user', p.join(input.homeDir, ...names.userSegments))
+  await collectOpenCodeNpm(scan, 'user', p.join(input.homeDir, ...names.userConfigSegments))
+  const root = input.workspaceRoot
+  if (root === undefined || !isProjectRead) {
+    return
+  }
+  await collectPlugins(scan, 'opencode', 'project', p.join(root, ...names.projectSegments))
+  await collectOpenCodeNpm(scan, 'project', p.join(root, names.configFile))
+}
+
 /**
  * Whether the repository's folders are read: a trusted workspace that is
  * not the home folder itself (whose tool folders are the user's own).
@@ -1754,6 +1823,8 @@ export async function scanAgentImports(input: ImportScanInput): Promise<ImportSc
     windsurf: scanWindsurf,
     kiro: scanKiro,
     cline: scanCline,
+    amp: scanAmp,
+    opencode: scanOpenCode,
   }
   for (const source of input.sources) {
     await scanners[source](scan, isProjectRead)

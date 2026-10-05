@@ -471,6 +471,8 @@
   "hookAdapterUnreadable": "Hook ve formátu {format} vrátil odpověď, kterou toto okno nedokáže přečíst, a proto se počítá jako selhání.",
   "hookAdapterFailClosed": "Ochranný hook ve formátu {format} selhal, takže volání bylo zablokováno, stejně jako by ho zablokoval samotný {format}.",
   "hookOutputReplaced": "Hook nahradil to, co model vidí z výstupu tohoto nástroje; řádek ukazuje skutečný výstup.",
+  "pluginHooksNoJob": "Hooky pluginů Amp a OpenCode se nespustily: Windows nedokázal připravit úlohu, která je ohraničuje. Zkuste to znovu příkazem „Zkusit znovu hooky pluginů“.",
+  "pluginHooksRetried": "Hooky pluginů při příštím spuštění znovu připraví svou úlohu Windows.",
   "memoryItem": "Paměť…",
   "memoryItemDetail": "Poznámky, které si Muse uchovává pro další relace",
   "memoryTitle": "Paměť Muse",

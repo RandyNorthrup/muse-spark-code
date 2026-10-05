@@ -447,6 +447,8 @@
   "hookAdapterUnreadable": "{format} biçimindeki bir kanca, bu pencerenin okuyamadığı bir yanıt verdi; bu yüzden hata sayılır.",
   "hookAdapterFailClosed": "{format} biçimindeki bir koruma kancası başarısız oldu; bu yüzden çağrı, tıpkı {format} uygulamasının kendisinin yapacağı gibi engellendi.",
   "hookOutputReplaced": "Bir kanca, modelin bu aracın çıktısından gördüğünü değiştirdi; satır gerçek çıktıyı gösterir.",
+  "pluginHooksNoJob": "Amp ve OpenCode eklenti kancaları çalışmadı: Windows onları içeren iş nesnesini hazırlayamadı. Yeniden denemek için “Eklenti kancalarını yeniden dene” komutunu çalıştırın.",
+  "pluginHooksRetried": "Eklenti kancaları bir dahaki çalışmada Windows iş nesnelerini yeniden hazırlayacak.",
   "memoryItem": "Bellek…",
   "memoryItemDetail": "Muse'un sonraki oturumlar için sakladığı notlar",
   "memoryTitle": "Muse belleği",

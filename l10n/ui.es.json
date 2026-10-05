@@ -459,6 +459,8 @@
   "hookAdapterUnreadable": "Un hook con formato {format} dio una respuesta que esta ventana no puede leer, así que cuenta como un fallo.",
   "hookAdapterFailClosed": "Una protección con formato {format} falló, así que se bloqueó la llamada, como la bloquearía el propio {format}.",
   "hookOutputReplaced": "Un hook reemplazó lo que el modelo ve de la salida de esta herramienta; la fila muestra la salida real.",
+  "pluginHooksNoJob": "Los ganchos de plugins de Amp y OpenCode no se ejecutaron: Windows no pudo preparar el trabajo que los contiene. Ejecuta «Reintentar ganchos de plugins» para volver a intentarlo.",
+  "pluginHooksRetried": "Los ganchos de plugins volverán a preparar su trabajo de Windows la próxima vez que se ejecute uno.",
   "memoryItem": "Memoria…",
   "memoryItemDetail": "Las notas que Muse guarda para sesiones posteriores",
   "memoryTitle": "Memoria de Muse",

@@ -31,6 +31,7 @@
   "command.hooks.title": "Hooki",
   "command.runSetupHooks.title": "Uruchom hooki konfiguracyjne",
   "command.runHook.title": "Uruchom hook…",
+  "command.retryPluginHooks.title": "Ponów hooki wtyczek",
   "command.memory.title": "Pamięć",
   "command.newWorktree.title": "Nowe drzewo robocze…",
   "command.removeWorktree.title": "Usuń drzewo robocze…",
