@@ -1970,5 +1970,25 @@
   "teamOrphanShowTerminal": "Megjelenítés terminálban",
   "teamJournalBroken": "{file} nem olvasható, félretéve. {unread} feladat nem volt olvasható.",
   "teamNoSubtaskSlot": "Nincs szabad hely részfeladatra: az orkesztrátor végzi el.",
-  "teamHostBusy": "A hoszt elfoglalt"
+  "teamHostBusy": "A hoszt elfoglalt",
+  "teamRestartTeamHost": "A csapathoszt újraindítása",
+  "teamRestartTeamHostDetail": "Csak ennek az ablaknak a csapatworker-munkameneteit fejezi be ({sessions}). A beszélgetés saját munkamenetei érintetlenek.",
+  "teamContinueAnyway": "Folytatás így is",
+  "teamContinueAnywayWarning": "A leállás itt nem bizonyítható (macOS és hatókör nélküli Linux). A folytatás az Ön döntéseként rögzíti, hogy a korábbi kísérlet leállt, nem bizonyítékként.",
+  "teamReleaseAnyway": "Felszabadítás így is",
+  "teamReleaseAnywayWarning": "Felszabadítja a következőt: {server} — az Ön döntéseként, nem bizonyítékként: a korábbi hívás még hathat az erőforrásra.",
+  "teamTakeOver": "Átvétel",
+  "teamTakeOverWarning": "Az átvétel e ablak nyilvántartásában megszakítottként jelöli a régi feladatot, és felajánlja másolata és ága elvetését. Ha a másik ablak még nyitva van, annak feladata megszakad.",
+  "teamContinueHereAsNewTask": "Folytatás itt új feladatként",
+  "teamContinueHereAsNewTaskDetail": "Új feladatot indít friss munkamásolatban a régi feladat utolsó commitjából. A régi feladat megtartja azonosítóját, másolatát, ágát és naplósorát — érintetlenül.",
+  "teamIncludeUncommittedEdits": "Nem commitolt módosítások bevonása",
+  "teamIncludeUncommittedEditsDetail": "Pillanatképet olvas a régi másolatról ideiglenes indexen át: olvasás, soha nem írás.",
+  "teamLandingApply": "Alkalmaz",
+  "teamChangedDuringLanding": {
+    "one": "{count} fájl változott a landolás közben: {files}.",
+    "other": "{count} fájl változott a landolás közben: {files}."
+  },
+  "teamCheckModelsOnOpen": "A csapat modelljeinek ellenőrzése az ablak megnyitásakor",
+  "teamCheckModelsOnOpenDetail": "Ha be van kapcsolva, és egy szerephez eltérő egyéni modell tartozik, a panel az ablak megnyitásakor egyszer ellenőrzi a csapat modelljeit. Ezt a forgalmat egy második modell beállítása engedélyezi.",
+  "teamDuplicateJournal": "Egy másik ablak naplója ({task}) még nyitott ablakhoz tartozhat. Itt semmi sem ír annak másolatába, ágába vagy naplósorába."
 }

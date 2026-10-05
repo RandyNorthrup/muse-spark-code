@@ -2036,5 +2036,26 @@
   "teamOrphanShowTerminal": "Mostrar num terminal",
   "teamJournalBroken": "{file} não pôde ser lido e foi afastado. {unread} tarefas não puderam ser lidas.",
   "teamNoSubtaskSlot": "Sem vaga livre para uma subtarefa: o orquestrador faz.",
-  "teamHostBusy": "Host ocupado"
+  "teamHostBusy": "Host ocupado",
+  "teamRestartTeamHost": "Reiniciar o host da equipe",
+  "teamRestartTeamHostDetail": "Encerra só as sessões de workers da equipe desta janela ({sessions}). As sessões próprias da conversa não são tocadas.",
+  "teamContinueAnyway": "Continuar mesmo assim",
+  "teamContinueAnywayWarning": "A parada não pode ser provada aqui (macOS e Linux sem escopo de usuário). Continuar registra sua decisão de que a tentativa anterior parou, não uma prova.",
+  "teamReleaseAnyway": "Liberar mesmo assim",
+  "teamReleaseAnywayWarning": "Libera {server} como sua decisão, não como prova: a chamada anterior ainda pode estar agindo sobre o recurso.",
+  "teamTakeOver": "Assumir",
+  "teamTakeOverWarning": "Assumir marca a tarefa antiga como interrompida nos registros desta janela e oferece descartar sua cópia e seu branch. Se a outra janela ainda estiver aberta, a tarefa dela quebra.",
+  "teamContinueHereAsNewTask": "Continuar aqui como nova tarefa",
+  "teamContinueHereAsNewTaskDetail": "Inicia uma tarefa nova numa cópia de trabalho fresca a partir do último commit da tarefa antiga. A tarefa antiga mantém seu id, sua cópia, seu branch e sua linha do diário, intactos.",
+  "teamIncludeUncommittedEdits": "Incluir suas edições sem commit",
+  "teamIncludeUncommittedEditsDetail": "Lê um instantâneo da cópia antiga por um índice temporário: uma leitura, nunca uma escrita.",
+  "teamLandingApply": "Aplicar",
+  "teamChangedDuringLanding": {
+    "one": "{count} arquivo mudou durante o landing: {files}.",
+    "many": "{count} arquivos mudaram durante o landing: {files}.",
+    "other": "{count} arquivos mudaram durante o landing: {files}."
+  },
+  "teamCheckModelsOnOpen": "Verificar os modelos da equipe ao abrir esta janela",
+  "teamCheckModelsOnOpenDetail": "Quando ativado e um papel tem um modelo personalizado distinto, o painel sonda os modelos da equipe uma vez ao abrir a janela. Configurar um segundo modelo é o que autoriza esse tráfego.",
+  "teamDuplicateJournal": "O diário de outra janela ({task}) pode pertencer a uma janela ainda aberta. Nada aqui escreve em sua cópia, seu branch ou sua linha do diário."
 }

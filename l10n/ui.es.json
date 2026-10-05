@@ -2036,5 +2036,26 @@
   "teamOrphanShowTerminal": "Mostrar en un terminal",
   "teamJournalBroken": "{file} no se pudo leer y se apartó. {unread} tareas no se pudieron leer.",
   "teamNoSubtaskSlot": "Sin hueco libre para una subtarea: el orquestador lo hace.",
-  "teamHostBusy": "Anfitrión ocupado"
+  "teamHostBusy": "Anfitrión ocupado",
+  "teamRestartTeamHost": "Reiniciar el host del equipo",
+  "teamRestartTeamHostDetail": "Termina solo las sesiones de workers del equipo de esta ventana ({sessions}). Las sesiones propias de la conversación no se tocan.",
+  "teamContinueAnyway": "Continuar de todos modos",
+  "teamContinueAnywayWarning": "La finalización no se puede probar aquí (macOS y Linux sin ámbito de usuario). Continuar registra su decisión de que el intento anterior se detuvo, no una prueba.",
+  "teamReleaseAnyway": "Liberar de todos modos",
+  "teamReleaseAnywayWarning": "Libera {server} como su decisión, no como prueba: la llamada anterior puede seguir actuando sobre el recurso.",
+  "teamTakeOver": "Tomar el control",
+  "teamTakeOverWarning": "Tomar el control marca la tarea anterior como interrumpida en los registros de esta ventana y ofrece descartar su copia y su rama. Si la otra ventana sigue abierta, su tarea se rompe.",
+  "teamContinueHereAsNewTask": "Continuar aquí como tarea nueva",
+  "teamContinueHereAsNewTaskDetail": "Inicia una tarea nueva en una copia de trabajo fresca desde la última confirmación de la tarea anterior. La tarea anterior conserva su id, su copia, su rama y su fila del diario, intactas.",
+  "teamIncludeUncommittedEdits": "Incluir sus ediciones sin confirmar",
+  "teamIncludeUncommittedEditsDetail": "Lee una instantánea de la copia anterior mediante un índice temporal: una lectura, nunca una escritura.",
+  "teamLandingApply": "Aplicar",
+  "teamChangedDuringLanding": {
+    "one": "{count} archivo cambió durante el aterrizaje: {files}.",
+    "many": "{count} archivos cambiaron durante el aterrizaje: {files}.",
+    "other": "{count} archivos cambiaron durante el aterrizaje: {files}."
+  },
+  "teamCheckModelsOnOpen": "Comprobar los modelos del equipo al abrir esta ventana",
+  "teamCheckModelsOnOpenDetail": "Si está activado y un rol tiene un modelo personalizado distinto, el panel comprueba los modelos del equipo una vez al abrir la ventana. Configurar un segundo modelo es lo que autoriza este tráfico.",
+  "teamDuplicateJournal": "El diario de otra ventana ({task}) puede pertenecer a una ventana que sigue abierta. Nada aquí escribe en su copia, su rama ni su fila del diario."
 }

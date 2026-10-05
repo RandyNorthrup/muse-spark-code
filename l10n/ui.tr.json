@@ -1970,5 +1970,25 @@
   "teamOrphanShowTerminal": "Terminalde göster",
   "teamJournalBroken": "{file} okunamadı ve kenara ayrıldı. {unread} görev okunamadı.",
   "teamNoSubtaskSlot": "Alt görev için boş yer yok: orkestratör yapar.",
-  "teamHostBusy": "Ana bilgisayar meşgul"
+  "teamHostBusy": "Ana bilgisayar meşgul",
+  "teamRestartTeamHost": "Ekip ana bilgisayarını yeniden başlat",
+  "teamRestartTeamHostDetail": "Yalnızca bu pencerenin ekip worker oturumlarını sonlandırır ({sessions}). Sohbetin kendi oturumlarına dokunulmaz.",
+  "teamContinueAnyway": "Yine de devam et",
+  "teamContinueAnywayWarning": "Durma burada kanıtlanamaz (macOS ve kullanıcı kapsamı olmayan Linux). Devam etmek, önceki girişimin durduğuna dair sizin kararınızı kaydeder, kanıt değil.",
+  "teamReleaseAnyway": "Yine de serbest bırak",
+  "teamReleaseAnywayWarning": "{server} sunucusunu sizin kararınız olarak serbest bırakır, kanıt olarak değil: önceki çağrı kaynak üzerinde hâlâ işlem yapıyor olabilir.",
+  "teamTakeOver": "Devral",
+  "teamTakeOverWarning": "Devralma, eski görevi bu pencerenin kayıtlarında kesintiye uğramış olarak işaretler ve kopyası ile dalının atılmasını önerir. Diğer pencere hâlâ açıksa görevi bozulur.",
+  "teamContinueHereAsNewTask": "Burada yeni görev olarak devam et",
+  "teamContinueHereAsNewTaskDetail": "Eski görevin son commitinden yeni bir çalışma kopyasında yeni görev başlatır. Eski görev kimliğini, kopyasını, dalını ve günlük satırını olduğu gibi korur.",
+  "teamIncludeUncommittedEdits": "Commitlenmemiş düzenlemeleri dahil et",
+  "teamIncludeUncommittedEditsDetail": "Eski kopyanın anlık görüntüsünü geçici indeks üzerinden okur: okuma, asla yazma değil.",
+  "teamLandingApply": "Uygula",
+  "teamChangedDuringLanding": {
+    "one": "İniş sırasında {count} dosya değişti: {files}.",
+    "other": "İniş sırasında {count} dosya değişti: {files}."
+  },
+  "teamCheckModelsOnOpen": "Bu pencere açıldığında ekip modellerini denetle",
+  "teamCheckModelsOnOpenDetail": "Açıkken ve bir rolde farklı bir özel model varken panel, pencere açıldığında ekip modellerini bir kez yoklar. İkinci bir modeli yapılandırmak bu trafiğe izin verir.",
+  "teamDuplicateJournal": "Başka bir pencerenin günlüğü ({task}) hâlâ açık bir pencereye ait olabilir. Buradaki hiçbir şey kopyasına, dalına veya günlük satırına yazmaz."
 }

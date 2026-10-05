@@ -1904,5 +1904,24 @@
   "teamOrphanShowTerminal": "ターミナルに表示",
   "teamJournalBroken": "{file} を読み取れず退避しました。{unread} 件のタスクを読み取れませんでした。",
   "teamNoSubtaskSlot": "サブタスク用の空き枠がありません: オーケストレーターが対応します。",
-  "teamHostBusy": "ホストが混雑しています"
+  "teamHostBusy": "ホストが混雑しています",
+  "teamRestartTeamHost": "チームホストを再起動",
+  "teamRestartTeamHostDetail": "このウィンドウのチームワーカーセッションのみ終了します({sessions})。会話自体のセッションには触れません。",
+  "teamContinueAnyway": "それでも続行",
+  "teamContinueAnywayWarning": "ここでは停止を証明できません(macOS、およびユーザースコープなしのLinux)。続行すると、以前の試行が停止したというあなたの判断が記録されます。証明ではありません。",
+  "teamReleaseAnyway": "それでも解放",
+  "teamReleaseAnywayWarning": "{server}をあなたの判断として解放します。証明ではありません。以前の呼び出しがリソースに作用している可能性があります。",
+  "teamTakeOver": "引き継ぐ",
+  "teamTakeOverWarning": "引き継ぐと、このウィンドウの記録で古いタスクが中断として記録され、コピーとブランチの破棄が提案されます。他のウィンドウがまだ開いている場合、そのタスクは壊れます。",
+  "teamContinueHereAsNewTask": "ここで新しいタスクとして続行",
+  "teamContinueHereAsNewTaskDetail": "古いタスクの最終コミットから新しい作業コピーで新しいタスクを開始します。古いタスクはID、コピー、ブランチ、ジャーナル行をそのまま保持します。",
+  "teamIncludeUncommittedEdits": "未コミットの編集を含める",
+  "teamIncludeUncommittedEditsDetail": "一時インデックスを介して古いコピーのスナップショットを読み取ります。読み取りであり、書き込みではありません。",
+  "teamLandingApply": "適用",
+  "teamChangedDuringLanding": {
+    "other": "{count} 件のファイルがランディング中に変更されました: {files}。"
+  },
+  "teamCheckModelsOnOpen": "このウィンドウを開いたときにチームのモデルを確認",
+  "teamCheckModelsOnOpenDetail": "オンで、ロールに異なるカスタムモデルがある場合、パネルはウィンドウを開いたときにチームのモデルを1回確認します。2件目のモデルを設定することがこの通信を許可します。",
+  "teamDuplicateJournal": "他のウィンドウのジャーナル({task})は、まだ開いているウィンドウのものかもしれません。ここでの操作は、そのコピー、ブランチ、ジャーナル行に書き込みません。"
 }

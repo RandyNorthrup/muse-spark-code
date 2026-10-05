@@ -2454,6 +2454,40 @@ export const EN = {
   teamJournalBroken: '{file} did not parse and was moved aside. {unread} tasks could not be read.',
   teamNoSubtaskSlot: 'No free slot for a sub-task: the orchestrator does it itself.',
   teamHostBusy: 'Host busy',
+  // Lane M96-0b: recovery and landing actions (round-4 plan). Button labels
+  // use the plan's exact words; each explanation names what the action ends
+  // or risks. {sessions}: the team worker sessions to end; {server}: the
+  // exclusive server; {files}: the files that changed; {task}: the old task.
+  teamRestartTeamHost: 'Restart the team host',
+  teamRestartTeamHostDetail:
+    'Ends only this window’s team worker sessions ({sessions}). The conversation’s own sessions are untouched.',
+  teamContinueAnyway: 'Continue anyway',
+  teamContinueAnywayWarning:
+    'Retirement cannot be proved here (macOS, and Linux without a user scope). Continuing records your decision that the earlier attempt has stopped, not proof.',
+  teamReleaseAnyway: 'Release anyway',
+  teamReleaseAnywayWarning:
+    'Releases {server} as your decision, not as proof: the earlier call may still be acting on the resource.',
+  teamTakeOver: 'Take over',
+  teamTakeOverWarning:
+    'Take over marks the old task interrupted in this window’s records and offers to discard its copy and branch. If the other window is still open, its task breaks.',
+  teamContinueHereAsNewTask: 'Continue here as a new task',
+  teamContinueHereAsNewTaskDetail:
+    'Starts a new task in a fresh working copy from the old task’s last commit. The old task keeps its id, its copy, its branch and its journal row, untouched.',
+  teamIncludeUncommittedEdits: 'Include its uncommitted edits',
+  teamIncludeUncommittedEditsDetail:
+    'Reads a snapshot of the old copy through a temporary index: a read, never a write.',
+  teamLandingApply: 'Apply',
+  teamChangedDuringLanding: forms({
+    one: '{count} file changed during landing: {files}.',
+    other: '{count} files changed during landing: {files}.',
+  }),
+  // A Roles-section setting: probing is setup traffic, authorized by
+  // configuring a second model.
+  teamCheckModelsOnOpen: 'Check the team’s models when this window opens',
+  teamCheckModelsOnOpenDetail:
+    'When on, and a role has a distinct custom model, the panel probes the team’s models once when the window opens. Configuring a second model is what authorizes this traffic.',
+  teamDuplicateJournal:
+    'Another window’s journal ({task}) may belong to a window that is still open. Nothing here writes its copy, branch or journal row.',
 }
 
 /** The shape every table has: English's keys, with any language's plural forms. */

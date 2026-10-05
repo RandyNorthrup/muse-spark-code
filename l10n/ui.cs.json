@@ -2102,5 +2102,27 @@
   "teamOrphanShowTerminal": "Ukázat v terminálu",
   "teamJournalBroken": "{file} nešel přečíst a byl odložen stranou. {unread} úkolů nešlo přečíst.",
   "teamNoSubtaskSlot": "Žádné volné místo pro podúkol: udělá to orchestrátor.",
-  "teamHostBusy": "Host je zaneprázdněn"
+  "teamHostBusy": "Host je zaneprázdněn",
+  "teamRestartTeamHost": "Restartovat host týmu",
+  "teamRestartTeamHostDetail": "Ukončí jen relace workerů týmu tohoto okna ({sessions}). Vlastní relace konverzace zůstanou nedotčeny.",
+  "teamContinueAnyway": "Pokračovat i tak",
+  "teamContinueAnywayWarning": "Ukončení zde nelze prokázat (macOS a Linux bez uživatelského rozsahu). Pokračování zaznamená vaše rozhodnutí, že dřívější pokus skončil, ne důkaz.",
+  "teamReleaseAnyway": "Uvolnit i tak",
+  "teamReleaseAnywayWarning": "Uvolní {server} jako vaše rozhodnutí, ne jako důkaz: dřívější volání může na prostředku stále působit.",
+  "teamTakeOver": "Převzít",
+  "teamTakeOverWarning": "Převzetí označí starý úkol v záznamech tohoto okna jako přerušený a nabídne zahodit jeho kopii a větev. Pokud je druhé okno stále otevřené, jeho úkol se rozbije.",
+  "teamContinueHereAsNewTask": "Pokračovat zde jako nový úkol",
+  "teamContinueHereAsNewTaskDetail": "Zahájí nový úkol v čerstvé pracovní kopii z posledního commitu starého úkolu. Starý úkol si ponechá své id, kopii, větev i řádek žurnálu, nedotčené.",
+  "teamIncludeUncommittedEdits": "Zahrnout jeho necommitnuté úpravy",
+  "teamIncludeUncommittedEditsDetail": "Čte snímek staré kopie přes dočasný index: čtení, nikdy zápis.",
+  "teamLandingApply": "Použít",
+  "teamChangedDuringLanding": {
+    "one": "Během landingu se změnil {count} soubor: {files}.",
+    "few": "Během landingu se změnily {count} soubory: {files}.",
+    "many": "Během landingu se změnilo {count} souboru: {files}.",
+    "other": "Během landingu se změnilo {count} souboru: {files}."
+  },
+  "teamCheckModelsOnOpen": "Kontrolovat modely týmu při otevření tohoto okna",
+  "teamCheckModelsOnOpenDetail": "Je-li zapnuto a má-li role odlišný vlastní model, panel při otevření okna jednou ověří modely týmu. Právě nastavení druhého modelu tento provoz autorizuje.",
+  "teamDuplicateJournal": "Žurnál jiného okna ({task}) může patřit oknu, které je stále otevřené. Nic zde nezapisuje do jeho kopie, větve ani řádku žurnálu."
 }

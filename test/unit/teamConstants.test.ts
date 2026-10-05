@@ -2,6 +2,7 @@
 // region. Every test here can fail: each guards a value or shape another
 // lane builds on, with its red drill recorded in docs/certification/m96-0.md.
 
+import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import {
   TEAM_BRANCH_PREFIX,
@@ -78,7 +79,9 @@ import {
   type TeamRubricReason,
   type TeamToolGroup,
 } from '../../src/shared/constants'
+import { tableProblems } from '../../src/shared/l10n/check'
 import { EN } from '../../src/shared/l10n/en'
+import { TABLE_LOCALES, tableFileName } from '../../src/shared/l10n/locales'
 import { parseHostToWebviewMessage, parseWebviewToHostMessage } from '../../src/shared/protocol'
 import {
   teamAgentKinds,
@@ -747,6 +750,65 @@ describe('team strings', () => {
     expect(EN.teamChoiceRaise).toBe('Raise a limit…')
     expect(EN.teamChoiceCancel).toBe('Cancel')
     expect(EN.teamHostBusy).toBe('Host busy')
+  })
+})
+
+describe('team recovery and landing strings (lane M96-0b)', () => {
+  const recoveryKeys = [
+    'teamRestartTeamHost',
+    'teamRestartTeamHostDetail',
+    'teamContinueAnyway',
+    'teamContinueAnywayWarning',
+    'teamReleaseAnyway',
+    'teamReleaseAnywayWarning',
+    'teamTakeOver',
+    'teamTakeOverWarning',
+    'teamContinueHereAsNewTask',
+    'teamContinueHereAsNewTaskDetail',
+    'teamIncludeUncommittedEdits',
+    'teamIncludeUncommittedEditsDetail',
+    'teamLandingApply',
+    'teamChangedDuringLanding',
+    'teamCheckModelsOnOpen',
+    'teamCheckModelsOnOpenDetail',
+    'teamDuplicateJournal',
+  ] as const
+
+  it('uses the plan’s exact words for every recovery and landing button', () => {
+    expect(EN.teamRestartTeamHost).toBe('Restart the team host')
+    expect(EN.teamContinueAnyway).toBe('Continue anyway')
+    expect(EN.teamReleaseAnyway).toBe('Release anyway')
+    expect(EN.teamRestartServer).toBe('Restart server')
+    expect(EN.teamTakeOver).toBe('Take over')
+    expect(EN.teamContinueHereAsNewTask).toBe('Continue here as a new task')
+    expect(EN.teamHintOpenWindow).toBe('Open that window')
+    expect(EN.teamIncludeUncommittedEdits).toBe('Include its uncommitted edits')
+    expect(EN.teamLandingApply).toBe('Apply')
+    expect(EN.teamUndoMerge).toBe('Undo merge')
+    expect(EN.teamCheckModelsOnOpen).toBe('Check the team’s models when this window opens')
+  })
+
+  it('keeps each recovery and landing string’s slots in English', () => {
+    expect(EN.teamRestartTeamHostDetail).toContain('{sessions}')
+    expect(EN.teamReleaseAnywayWarning).toContain('{server}')
+    expect(EN.teamDuplicateJournal).toContain('{task}')
+    expect(EN.teamChangedDuringLanding).toEqual({
+      one: '{count} file changed during landing: {files}.',
+      other: '{count} files changed during landing: {files}.',
+    })
+  })
+
+  it('carries every recovery and landing string in all 14 tables with its slots', () => {
+    for (const locale of TABLE_LOCALES) {
+      const file = new URL(`../../l10n/${tableFileName(locale)}`, import.meta.url)
+      const table = JSON.parse(readFileSync(file, 'utf8')) as Record<string, unknown>
+      for (const key of recoveryKeys) {
+        const english: Record<string, unknown> = { [key]: EN[key] }
+        expect(tableProblems(english, { [key]: table[key] }, { locale, isStrict: true })).toEqual(
+          [],
+        )
+      }
+    }
   })
 })
 

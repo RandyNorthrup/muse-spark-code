@@ -2102,5 +2102,27 @@
   "teamOrphanShowTerminal": "Pokaż w terminalu",
   "teamJournalBroken": "{file} nie dało się odczytać i odłożono na bok. Nie odczytano {unread} zadań.",
   "teamNoSubtaskSlot": "Brak wolnego miejsca na podzadanie: zrobi to orkiestrator.",
-  "teamHostBusy": "Host zajęty"
+  "teamHostBusy": "Host zajęty",
+  "teamRestartTeamHost": "Uruchom host zespołu ponownie",
+  "teamRestartTeamHostDetail": "Kończy tylko sesje workerów zespołu tego okna ({sessions}). Własne sesje rozmowy pozostają nietknięte.",
+  "teamContinueAnyway": "Kontynuuj mimo to",
+  "teamContinueAnywayWarning": "Zatrzymania nie da się tu udowodnić (macOS i Linux bez zakresu użytkownika). Kontynuacja zapisuje Twoją decyzję, że wcześniejsza próba się zatrzymała — nie dowód.",
+  "teamReleaseAnyway": "Zwolnij mimo to",
+  "teamReleaseAnywayWarning": "Zwalnia {server} jako Twoją decyzję, nie jako dowód: wcześniejsze wywołanie może nadal działać na zasobie.",
+  "teamTakeOver": "Przejmij",
+  "teamTakeOverWarning": "Przejęcie oznacza stare zadanie jako przerwane w zapisach tego okna i proponuje odrzucenie jego kopii i gałęzi. Jeśli drugie okno jest nadal otwarte, jego zadanie się psuje.",
+  "teamContinueHereAsNewTask": "Kontynuuj tutaj jako nowe zadanie",
+  "teamContinueHereAsNewTaskDetail": "Rozpoczyna nowe zadanie w świeżej kopii roboczej z ostatniego commita starego zadania. Stare zadanie zachowuje swoje id, kopię, gałąź i wiersz dziennika — nietknięte.",
+  "teamIncludeUncommittedEdits": "Dołącz jego niezatwierdzone zmiany",
+  "teamIncludeUncommittedEditsDetail": "Odczytuje migawkę starej kopii przez indeks tymczasowy: odczyt, nigdy zapis.",
+  "teamLandingApply": "Zastosuj",
+  "teamChangedDuringLanding": {
+    "one": "{count} plik zmienił się podczas lądowania: {files}.",
+    "few": "{count} pliki zmieniły się podczas lądowania: {files}.",
+    "many": "{count} plików zmieniło się podczas lądowania: {files}.",
+    "other": "{count} pliku zmieniło się podczas lądowania: {files}."
+  },
+  "teamCheckModelsOnOpen": "Sprawdzaj modele zespołu przy otwarciu tego okna",
+  "teamCheckModelsOnOpenDetail": "Gdy włączone i rola ma inny własny model, panel raz sprawdza modele zespołu przy otwarciu okna. Skonfigurowanie drugiego modelu autoryzuje ten ruch.",
+  "teamDuplicateJournal": "Dziennik innego okna ({task}) może należeć do okna, które wciąż jest otwarte. Nic tutaj nie zapisuje do jego kopii, gałęzi ani wiersza dziennika."
 }

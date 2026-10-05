@@ -1904,5 +1904,24 @@
   "teamOrphanShowTerminal": "在终端中显示",
   "teamJournalBroken": "{file} 无法解析，已移走。{unread} 个任务无法读取。",
   "teamNoSubtaskSlot": "子任务无空闲位：由编排器处理。",
-  "teamHostBusy": "主机繁忙"
+  "teamHostBusy": "主机繁忙",
+  "teamRestartTeamHost": "重启团队主机",
+  "teamRestartTeamHostDetail": "仅结束本窗口的团队工作器会话（{sessions}）。本次对话自身的会话不受影响。",
+  "teamContinueAnyway": "仍然继续",
+  "teamContinueAnywayWarning": "此处无法证明已停止（macOS，以及无用户作用域的 Linux）。继续将记录为您认定此前尝试已停止的决定，而非证明。",
+  "teamReleaseAnyway": "仍然释放",
+  "teamReleaseAnywayWarning": "将 {server} 作为您的决定释放，而非证明：此前的调用可能仍在对资源起作用。",
+  "teamTakeOver": "接管",
+  "teamTakeOverWarning": "接管将在本窗口的记录中把旧任务标记为已中断，并提议丢弃其副本与分支。若另一窗口仍处于打开状态，其任务将被破坏。",
+  "teamContinueHereAsNewTask": "在此处作为新任务继续",
+  "teamContinueHereAsNewTaskDetail": "从旧任务的最后一次提交，在全新的工作副本中开始新任务。旧任务保留其 ID、副本、分支与日志行，原样不动。",
+  "teamIncludeUncommittedEdits": "包含其未提交的编辑",
+  "teamIncludeUncommittedEditsDetail": "通过临时索引读取旧副本的快照：只读，从不写入。",
+  "teamLandingApply": "应用",
+  "teamChangedDuringLanding": {
+    "other": "着陆期间有 {count} 个文件发生变化：{files}。"
+  },
+  "teamCheckModelsOnOpen": "打开本窗口时检查团队模型",
+  "teamCheckModelsOnOpenDetail": "开启后，若某角色有不同的自定义模型，面板将在打开窗口时探测一次团队模型。配置第二个模型即是对此流量的授权。",
+  "teamDuplicateJournal": "另一窗口的日志（{task}）可能属于仍处于打开状态的窗口。此处不会写入其副本、分支或日志行。"
 }

@@ -1970,5 +1970,25 @@
   "teamOrphanShowTerminal": "Im Terminal zeigen",
   "teamJournalBroken": "{file} ließ sich nicht lesen und wurde beiseite gelegt. {unread} Aufgaben konnten nicht gelesen werden.",
   "teamNoSubtaskSlot": "Kein freier Platz für eine Unteraufgabe: Der Orchestrator macht es selbst.",
-  "teamHostBusy": "Host ausgelastet"
+  "teamHostBusy": "Host ausgelastet",
+  "teamRestartTeamHost": "Team-Host neu starten",
+  "teamRestartTeamHostDetail": "Beendet nur die Team-Worker-Sitzungen dieses Fensters ({sessions}). Die Sitzungen der Unterhaltung bleiben unberührt.",
+  "teamContinueAnyway": "Trotzdem fortfahren",
+  "teamContinueAnywayWarning": "Das Beenden lässt sich hier nicht nachweisen (macOS und Linux ohne Benutzer-Scope). Fortfahren zeichnet Ihre Entscheidung auf, dass der frühere Versuch gestoppt ist — kein Nachweis.",
+  "teamReleaseAnyway": "Trotzdem freigeben",
+  "teamReleaseAnywayWarning": "Gibt {server} als Ihre Entscheidung frei, nicht als Nachweis: Der frühere Aufruf wirkt möglicherweise noch auf die Ressource.",
+  "teamTakeOver": "Übernehmen",
+  "teamTakeOverWarning": "Übernehmen markiert die alte Aufgabe in den Datensätzen dieses Fensters als unterbrochen und bietet an, ihre Kopie und ihren Branch zu verwerfen. Wenn das andere Fenster noch offen ist, zerbricht seine Aufgabe.",
+  "teamContinueHereAsNewTask": "Hier als neue Aufgabe fortfahren",
+  "teamContinueHereAsNewTaskDetail": "Startet eine neue Aufgabe in einer frischen Arbeitskopie ab dem letzten Commit der alten Aufgabe. Die alte Aufgabe behält ihre Kennung, ihre Kopie, ihren Branch und ihre Journalzeile — unberührt.",
+  "teamIncludeUncommittedEdits": "Uncommittete Änderungen einbeziehen",
+  "teamIncludeUncommittedEditsDetail": "Liest einen Schnappschuss der alten Kopie über einen temporären Index: ein Lesen, niemals ein Schreiben.",
+  "teamLandingApply": "Anwenden",
+  "teamChangedDuringLanding": {
+    "one": "{count} Datei hat sich während des Landens geändert: {files}.",
+    "other": "{count} Dateien haben sich während des Landens geändert: {files}."
+  },
+  "teamCheckModelsOnOpen": "Die Teammodelle beim Öffnen dieses Fensters prüfen",
+  "teamCheckModelsOnOpenDetail": "Wenn aktiv und eine Rolle ein eigenes Modell hat, prüft das Panel die Teammodelle einmal beim Öffnen des Fensters. Erst ein zweites Modell zu konfigurieren autorisiert diesen Verkehr.",
+  "teamDuplicateJournal": "Das Journal eines anderen Fensters ({task}) gehört möglicherweise zu einem Fenster, das noch offen ist. Hier schreibt nichts in seine Kopie, seinen Branch oder seine Journalzeile."
 }

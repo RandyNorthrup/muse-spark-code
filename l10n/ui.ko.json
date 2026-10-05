@@ -1904,5 +1904,24 @@
   "teamOrphanShowTerminal": "터미널에 표시",
   "teamJournalBroken": "{file}을(를) 읽을 수 없어 따로 옮겼습니다. {unread}개 작업을 읽지 못했습니다.",
   "teamNoSubtaskSlot": "하위 작업용 빈 슬롯이 없습니다. 오케스트레이터가 처리합니다.",
-  "teamHostBusy": "호스트 사용 중"
+  "teamHostBusy": "호스트 사용 중",
+  "teamRestartTeamHost": "팀 호스트 다시 시작",
+  "teamRestartTeamHostDetail": "이 창의 팀 워커 세션만 종료합니다({sessions}). 대화 자체의 세션은 건드리지 않습니다.",
+  "teamContinueAnyway": "어쨌든 계속",
+  "teamContinueAnywayWarning": "여기서는 중지를 증명할 수 없습니다(macOS 및 사용자 범위 없는 Linux). 계속하면 이전 시도가 중지됐다는 사용자의 판단이 기록되며, 증명이 아닙니다.",
+  "teamReleaseAnyway": "어쨌든 해제",
+  "teamReleaseAnywayWarning": "{server}을(를) 사용자의 판단으로 해제하며, 증명이 아닙니다. 이전 호출이 리소스에 여전히 작용 중일 수 있습니다.",
+  "teamTakeOver": "인수",
+  "teamTakeOverWarning": "인수하면 이 창의 기록에 이전 작업이 중단으로 표시되고 복사본과 브랜치의 삭제가 제안됩니다. 다른 창이 아직 열려 있으면 해당 작업이 깨집니다.",
+  "teamContinueHereAsNewTask": "여기서 새 작업으로 계속",
+  "teamContinueHereAsNewTaskDetail": "이전 작업의 마지막 커밋에서 새 작업 복사본으로 새 작업을 시작합니다. 이전 작업은 ID, 복사본, 브랜치, 저널 행을 그대로 유지합니다.",
+  "teamIncludeUncommittedEdits": "커밋되지 않은 편집 포함",
+  "teamIncludeUncommittedEditsDetail": "임시 인덱스를 통해 이전 복사본의 스냅샷을 읽습니다. 읽기이며, 쓰기가 아닙니다.",
+  "teamLandingApply": "적용",
+  "teamChangedDuringLanding": {
+    "other": "랜딩 중 변경된 파일 {count}개: {files}."
+  },
+  "teamCheckModelsOnOpen": "이 창을 열 때 팀 모델 확인",
+  "teamCheckModelsOnOpenDetail": "켜져 있고 역할에 다른 사용자 지정 모델이 있으면 패널이 창을 열 때 팀 모델을 한 번 확인합니다. 두 번째 모델을 구성하는 것이 이 트래픽을 허용합니다.",
+  "teamDuplicateJournal": "다른 창의 저널({task})은 아직 열려 있는 창일 수 있습니다. 여기서는 복사본, 브랜치, 저널 행에 쓰지 않습니다."
 }

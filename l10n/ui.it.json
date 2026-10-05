@@ -2036,5 +2036,26 @@
   "teamOrphanShowTerminal": "Mostra in un terminale",
   "teamJournalBroken": "{file} non si legge ed è stato messo da parte. {unread} attività non si sono potute leggere.",
   "teamNoSubtaskSlot": "Nessuno slot libero per una sottoattività: lo fa l'orchestratore.",
-  "teamHostBusy": "Host occupato"
+  "teamHostBusy": "Host occupato",
+  "teamRestartTeamHost": "Riavvia l’host del team",
+  "teamRestartTeamHostDetail": "Termina solo le sessioni worker del team di questa finestra ({sessions}). Le sessioni proprie della conversazione restano intatte.",
+  "teamContinueAnyway": "Continua comunque",
+  "teamContinueAnywayWarning": "L’arresto non è dimostrabile qui (macOS e Linux senza ambito utente). Continuare registra la tua decisione che il tentativo precedente si è fermato, non una prova.",
+  "teamReleaseAnyway": "Rilascia comunque",
+  "teamReleaseAnywayWarning": "Rilascia {server} come tua decisione, non come prova: la chiamata precedente potrebbe agire ancora sulla risorsa.",
+  "teamTakeOver": "Prendi il controllo",
+  "teamTakeOverWarning": "Prendere il controllo segna l’attività precedente come interrotta nei registri di questa finestra e offre di scartarne copia e branch. Se l’altra finestra è ancora aperta, la sua attività si interrompe.",
+  "teamContinueHereAsNewTask": "Continua qui come nuova attività",
+  "teamContinueHereAsNewTaskDetail": "Avvia una nuova attività in una copia di lavoro fresca dall’ultimo commit dell’attività precedente. L’attività precedente conserva id, copia, branch e riga di diario, intatti.",
+  "teamIncludeUncommittedEdits": "Includi le modifiche senza commit",
+  "teamIncludeUncommittedEditsDetail": "Legge un’istantanea della vecchia copia tramite un indice temporaneo: una lettura, mai una scrittura.",
+  "teamLandingApply": "Applica",
+  "teamChangedDuringLanding": {
+    "one": "{count} file è cambiato durante il landing: {files}.",
+    "many": "{count} file sono cambiati durante il landing: {files}.",
+    "other": "{count} file sono cambiati durante il landing: {files}."
+  },
+  "teamCheckModelsOnOpen": "Controlla i modelli del team all’apertura di questa finestra",
+  "teamCheckModelsOnOpenDetail": "Se attivo e un ruolo ha un modello personalizzato distinto, il pannello sonda i modelli del team una volta all’apertura della finestra. Configurare un secondo modello è ciò che autorizza questo traffico.",
+  "teamDuplicateJournal": "Il diario di un’altra finestra ({task}) potrebbe appartenere a una finestra ancora aperta. Niente qui scrive nella sua copia, nel suo branch o nella sua riga di diario."
 }

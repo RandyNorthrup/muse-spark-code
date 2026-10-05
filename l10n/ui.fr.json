@@ -2036,5 +2036,26 @@
   "teamOrphanShowTerminal": "Montrer dans un terminal",
   "teamJournalBroken": "{file} n’a pas pu être lu et a été mis de côté. {unread} tâches n’ont pas pu être lues.",
   "teamNoSubtaskSlot": "Aucune place libre pour une sous-tâche : l’orchestrateur s’en charge.",
-  "teamHostBusy": "Hôte occupé"
+  "teamHostBusy": "Hôte occupé",
+  "teamRestartTeamHost": "Redémarrer l’hôte d’équipe",
+  "teamRestartTeamHostDetail": "Met fin uniquement aux sessions de workers d’équipe de cette fenêtre ({sessions}). Les sessions propres de la discussion ne sont pas touchées.",
+  "teamContinueAnyway": "Continuer quand même",
+  "teamContinueAnywayWarning": "L’arrêt ne peut pas être prouvé ici (macOS, et Linux sans portée utilisateur). Continuer enregistre votre décision que la tentative précédente s’est arrêtée, pas une preuve.",
+  "teamReleaseAnyway": "Libérer quand même",
+  "teamReleaseAnywayWarning": "Libère {server} comme votre décision, pas comme une preuve : l’appel précédent agit peut-être encore sur la ressource.",
+  "teamTakeOver": "Prendre le relais",
+  "teamTakeOverWarning": "Prendre le relais marque l’ancienne tâche interrompue dans les dossiers de cette fenêtre et propose d’écarter sa copie et sa branche. Si l’autre fenêtre est encore ouverte, sa tâche casse.",
+  "teamContinueHereAsNewTask": "Continuer ici comme nouvelle tâche",
+  "teamContinueHereAsNewTaskDetail": "Démarre une nouvelle tâche dans une copie de travail fraîche depuis le dernier commit de l’ancienne tâche. L’ancienne tâche garde son id, sa copie, sa branche et sa ligne de journal, intacts.",
+  "teamIncludeUncommittedEdits": "Inclure ses modifications non validées",
+  "teamIncludeUncommittedEditsDetail": "Lit un instantané de l’ancienne copie via un index temporaire : une lecture, jamais une écriture.",
+  "teamLandingApply": "Appliquer",
+  "teamChangedDuringLanding": {
+    "one": "{count} fichier a changé pendant l’atterrissage : {files}.",
+    "many": "{count} fichiers ont changé pendant l’atterrissage : {files}.",
+    "other": "{count} fichiers ont changé pendant l’atterrissage : {files}."
+  },
+  "teamCheckModelsOnOpen": "Vérifier les modèles de l’équipe à l’ouverture de cette fenêtre",
+  "teamCheckModelsOnOpenDetail": "Quand c’est activé et qu’un rôle a un modèle personnalisé distinct, le panneau sonde les modèles de l’équipe une fois à l’ouverture de la fenêtre. Configurer un second modèle, c’est ce qui autorise ce trafic.",
+  "teamDuplicateJournal": "Le journal d’une autre fenêtre ({task}) appartient peut-être à une fenêtre encore ouverte. Rien ici n’écrit dans sa copie, sa branche ni sa ligne de journal."
 }
