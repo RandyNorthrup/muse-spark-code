@@ -1,0 +1,42 @@
+base=/home/randy/gates/base-c78aedc3ea0dab3c lock=c78aedc3ea0dab3cf7e685e18926e181d01a96535223c740d26598931bce86ce
+base reused
+rig=kubuntu slot=finm96k-red snapshot=09c6b526 base=/home/randy/gates/base-c78aedc3ea0dab3c
+npm notice run muse-spark-code@0.12.1 npx
+npm notice run 'vitest' run test/unit/teamProcessLifetime.test.ts test/unit/teamHintsAndLoad.test.ts test/unit/teamNativeLifetime.test.ts
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - ESM syntax in a file loaded as CommonJS (vitest.config.ts:1:1). Use a `.mjs` extension or set `"type": "module"` in the closest package.json
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+
+ RUN  v5.0.2 /home/randy/gates/rt-finm96k-red
+
+ ✓ test/unit/teamHintsAndLoad.test.ts (9 tests) 86ms
+ ✓ test/unit/teamProcessLifetime.test.ts (15 tests) 335ms
+ ❯ test/unit/teamNativeLifetime.test.ts (7 tests | 1 failed) 2582ms
+   ❯ M96 K real native lifetime (7)
+     ✓ starts a separate journalled team Muse Code host over real fake-CLI pipes 106ms
+     ✓ preserves the real command exit code through its native container 896ms
+     ✓ reconciles foreign journals before startup returns and preserves all foreign bytes 333ms
+     ✓ runs marked child at below-normal priority with intent and OS confirmation on disk 87ms
+     ✓ scans real marked descendants and stops only after click and second identity check 325ms
+     × retains no-scope detached descendants as uncertain after direct child exit 588ms
+     ✓ hard parent death kills the real direct child under setpriv without a user scope 213ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  test/unit/teamNativeLifetime.test.ts > M96 K real native lifetime > retains no-scope detached descendants as uncertain after direct child exit
+AssertionError: expected 0 to be greater than 0
+ ❯ test/unit/teamNativeLifetime.test.ts:272:28
+    270|       const recovery = createOrphanRecovery(createNativeOrphanDriver())
+    271|       const found = await recovery.find(records)
+    272|       expect(found.length).toBeGreaterThan(0)
+       |                            ^
+    273|       for (const orphan of found) await recovery.stop(orphan, true)
+    274|       await child.retire()
+
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+ Test Files  1 failed | 2 passed (3)
+      Tests  1 failed | 30 passed (31)
+   Start at  07:28:28
+   Duration  3.59s (tests 55%, transform 27%, import 10%, setup 8%)

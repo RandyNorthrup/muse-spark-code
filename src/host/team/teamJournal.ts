@@ -28,6 +28,11 @@ export interface TeamJournal {
   write<T>(name: string, value: T, schema: z.core.$ZodType<T>): Promise<void>
   read<T>(name: string, schema: z.core.$ZodType<T>): Promise<JournalRead<T>>
   names(): Promise<readonly string[]>
+  /** Startup discovery reads other windows; it never elects an owner or writes their files. */
+  otherWindows(): Promise<{
+    readonly journals: readonly TeamJournal[]
+    readonly unreadable: readonly string[]
+  }>
 }
 
 /** A foreign journal is read-only until Take over, regardless of hint freshness. */
@@ -64,7 +69,9 @@ export function createTeamJournal(options: {
     }
   }
   const flush = async (target: string) => {
-    const file = await open(target, 'r')
+    // FlushFileBuffers on Windows requires write access. POSIX permits the
+    // read-only descriptor, but it would make every Windows intent fail EPERM.
+    const file = await open(target, 'r+')
     try {
       await file.sync()
     } finally {
@@ -150,6 +157,47 @@ export function createTeamJournal(options: {
         if (storeErrorCode(error) === 'ENOENT') return []
         throw error
       }
+    },
+    async otherWindows() {
+      const root = path.dirname(directory)
+      await assertPath(root)
+      let instances: string[]
+      try {
+        instances = await readdir(root)
+      } catch (error: unknown) {
+        if (storeErrorCode(error) === 'ENOENT') return { journals: [], unreadable: [] }
+        throw error
+      }
+      const journals: TeamJournal[] = []
+      const unreadable: string[] = []
+      for (const instance of instances) {
+        if (instance === options.owner.instanceId || !z.uuid().safeParse(instance).success) continue
+        const foreignDirectory = path.join(root, instance)
+        await assertPath(foreignDirectory)
+        const names = await readdir(foreignDirectory)
+        let owner: WindowIdentity | undefined
+        for (const name of names) {
+          if (!name.endsWith('.json')) continue
+          const file = path.join(foreignDirectory, name)
+          await assertPath(file)
+          try {
+            const content = await readFile(file, 'utf8')
+            if (Buffer.byteLength(content) > options.maxRecordBytes)
+              throw new Error('TEAM_JOURNAL_RECORD_TOO_LARGE')
+            const envelope = envelopeSchema.parse(JSON.parse(content))
+            if (
+              envelope.owner.instanceId !== instance ||
+              (owner !== undefined && envelope.owner.startedAt !== owner.startedAt)
+            )
+              throw new Error('TEAM_JOURNAL_OWNER_CHANGED')
+            owner = envelope.owner
+          } catch {
+            unreadable.push(file)
+          }
+        }
+        if (owner !== undefined) journals.push(createTeamJournal({ ...options, owner }))
+      }
+      return { journals, unreadable }
     },
   }
 }

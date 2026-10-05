@@ -1,10 +1,42 @@
 import { chmod, mkdir, readFile, readdir, rm } from 'node:fs/promises'
 import path from 'node:path'
+import { homedir } from 'node:os'
 import { setTimeout as delay } from 'node:timers/promises'
 import * as z from 'zod/mini'
 import { canonicalPath } from '../canonicalPath'
 import { writeFileAtomically } from '../fsAtomic'
 import { storeErrorCode } from '../backend/storeErrors'
+import { runProgram, windowsPowerShell } from '../processTree'
+import { powerShellQuoted } from '../../core/shellQuote'
+import { WINDOWS_POWERSHELL_COMMAND_ARGS } from '../../shared/constants'
+
+/** Personal state home, never workspace contents or credential storage. */
+export function windowHintsDirectory(
+  platform = process.platform,
+  env = process.env,
+  home = homedir(),
+): string {
+  let root: string | undefined
+  if (platform === 'win32') root = env['LOCALAPPDATA']
+  else if (platform === 'darwin') root = path.join(home, 'Library', 'Application Support')
+  else root = env['XDG_STATE_HOME'] ?? path.join(home, '.local', 'state')
+  if (root === undefined || !path.isAbsolute(root))
+    throw new Error('TEAM_HINT_STATE_HOME_UNAVAILABLE')
+  return path.join(root, 'muse-spark-code', 'hints')
+}
+
+async function secureNativeWindowsDirectory(directory: string): Promise<void> {
+  const systemRoot = process.env['SystemRoot']
+  if (systemRoot === undefined) throw new Error('TEAM_HINT_ACL_UNAVAILABLE')
+  const powershell = windowsPowerShell(systemRoot, { SystemRoot: systemRoot })
+  const script = `$ErrorActionPreference='Stop'; $directory = New-Object IO.DirectoryInfo(${powerShellQuoted(directory)}); $sid = [Security.Principal.WindowsIdentity]::GetCurrent().User; $acl = New-Object Security.AccessControl.DirectorySecurity; $acl.SetOwner($sid); $acl.SetAccessRuleProtection($true,$false); $rule = New-Object Security.AccessControl.FileSystemAccessRule($sid,'FullControl','ContainerInherit,ObjectInherit','None','Allow'); $acl.AddAccessRule($rule); $directory.SetAccessControl($acl); $read = $directory.GetAccessControl(); $rules = @($read.GetAccessRules($true,$true,[Security.Principal.SecurityIdentifier])); if (!$read.AreAccessRulesProtected -or $read.GetOwner([Security.Principal.SecurityIdentifier]).Value -ne $sid.Value -or $rules.Count -ne 1 -or $rules[0].IdentityReference.Value -ne $sid.Value -or $rules[0].AccessControlType -ne 'Allow' -or $rules[0].FileSystemRights -ne 'FullControl') { throw 'TEAM_HINT_ACL_UNVERIFIED' }; 'secured'`
+  const result = await runProgram(
+    powershell.file,
+    [...WINDOWS_POWERSHELL_COMMAND_ARGS, script],
+    powershell.env,
+  )
+  if (result.trim() !== 'secured') throw new Error('TEAM_HINT_ACL_UNVERIFIED')
+}
 
 const OWNER_DIRECTORY_MODE = 0o700
 const countSchema = z.number().check(z.int(), z.nonnegative())
@@ -90,8 +122,7 @@ export function createWindowHints(options: {
     await mkdir(directory, { recursive: true, mode: OWNER_DIRECTORY_MODE })
     await assertHintPath(directory)
     if (options.platform === 'win32') {
-      if (options.secureWindowsDirectory === undefined) throw new Error('TEAM_HINT_ACL_UNAVAILABLE')
-      await options.secureWindowsDirectory(directory)
+      await (options.secureWindowsDirectory ?? secureNativeWindowsDirectory)(directory)
     } else {
       await chmod(directory, OWNER_DIRECTORY_MODE)
     }

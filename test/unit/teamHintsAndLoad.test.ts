@@ -1,10 +1,17 @@
-import { mkdtemp, readFile, realpath, rm, writeFile } from 'node:fs/promises'
+import { mkdtemp, readFile, realpath, rm, stat, writeFile } from 'node:fs/promises'
 import os from 'node:os'
 import path from 'node:path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { createWindowIdentity } from '../../src/host/team/windowIdentity'
 import { createLoadGuard } from '../../src/host/team/loadGuard'
-import { createWindowHints, type WindowHint } from '../../src/host/team/windowHints'
+import {
+  createWindowHints,
+  windowHintsDirectory,
+  type WindowHint,
+} from '../../src/host/team/windowHints'
+import { runProgram, windowsPowerShell } from '../../src/host/processTree'
+import { powerShellQuoted } from '../../src/core/shellQuote'
+import { WINDOWS_POWERSHELL_COMMAND_ARGS } from '../../src/shared/constants'
 import { createOrphanRecovery, type OrphanObservation } from '../../src/host/team/orphanRecovery'
 
 const directories: string[] = []
@@ -67,6 +74,43 @@ const hintState: Omit<WindowHint, 'at' | 'instanceId'> = {
 const intent = { repository: '/repo/.git', paths: ['src/a.ts'], exclusiveServers: [] }
 
 describe('M96 K advisory hints', () => {
+  it('uses state home and secures a real native owner-only hints folder', async () => {
+    const f = await hintFixture()
+    const stateHome = windowHintsDirectory(
+      process.platform,
+      { LOCALAPPDATA: f.directory, XDG_STATE_HOME: f.directory },
+      f.directory,
+    )
+    expect(stateHome.endsWith(path.join('muse-spark-code', 'hints'))).toBe(true)
+    expect(() =>
+      windowHintsDirectory('linux', { XDG_STATE_HOME: 'relative' }, f.directory),
+    ).toThrow('STATE_HOME_UNAVAILABLE')
+    const disabled = vi.fn()
+    const hints = createWindowHints({
+      directory: f.directory,
+      instanceId: createWindowIdentity(Date.now()).instanceId,
+      platform: process.platform,
+      freshMs: 60_000,
+      writeMs: 10_000,
+      maxHintBytes: 8192,
+      now: Date.now,
+      disabled,
+      question: () => Promise.resolve('continue'),
+      overlap: () => [],
+    })
+    await hints.publish(hintState)
+    expect(disabled).not.toHaveBeenCalled()
+    if (process.platform === 'win32') {
+      const ps = windowsPowerShell(process.env['SystemRoot'] ?? '', {})
+      const script = `$d = New-Object IO.DirectoryInfo(${powerShellQuoted(f.directory)}); $acl = $d.GetAccessControl(); $sid = [Security.Principal.WindowsIdentity]::GetCurrent().User; $r = @($acl.GetAccessRules($true,$true,[Security.Principal.SecurityIdentifier])); $acl.AreAccessRulesProtected -and $r.Count -eq 1 -and $r[0].IdentityReference.Value -eq $sid.Value`
+      const result = await runProgram(ps.file, [...WINDOWS_POWERSHELL_COMMAND_ARGS, script], ps.env)
+      expect(result.trim()).toBe('True')
+    } else {
+      const information = await stat(f.directory)
+      expect(information.mode & 0o777).toBe(0o700)
+    }
+    await hints.dispose()
+  })
   it('publishes only the strict projection, sums all windows and removes its own hint', async () => {
     const f = await hintFixture()
     const a = f.make()

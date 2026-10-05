@@ -302,6 +302,33 @@ describe('M96 K launcher contract', () => {
     await lifetime.dispose()
   })
 
+  it('journals a later proved retirement and never downgrades it to uncertain', async () => {
+    const f = await fixture()
+    const real = driver('uncertain', 'linuxScope')
+    let shouldProve = true
+    const launch: TeamProcessDriver['launch'] = (r, id) => {
+      const child = real.launch(r, id)
+      return {
+        ...child,
+        retire: () =>
+          Promise.resolve({ childExited: true, descendants: shouldProve ? 'proved' : 'uncertain' }),
+      }
+    }
+    const lifetime = createTeamProcessLifetime({
+      journal: f.journal,
+      driver: { launch },
+      isHostBusy: () => false,
+    })
+    const child = await lifetime.launch(request)
+    await child.ended
+    expect(await lifetime.recoveryRecords(f.journal)).toHaveLength(1)
+    expect(await child.retire()).toEqual({ childExited: true, descendants: 'proved' })
+    shouldProve = false
+    expect(await child.retire()).toEqual({ childExited: true, descendants: 'proved' })
+    expect(await lifetime.recoveryRecords(f.journal)).toEqual([])
+    await lifetime.dispose()
+  })
+
   it('keeps a failed confirmation child available to dispose when retirement is uncertain', async () => {
     const f = await fixture()
     const real = driver('uncertain')
