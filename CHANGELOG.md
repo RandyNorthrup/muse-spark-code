@@ -7,6 +7,12 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+- Hardened team orchestration against MCP write bypasses and writes admitted
+  before an in-place worker starts; team state changes remain structured tool
+  data. Retry claims survive uncertain starts and conversation reopening,
+  unavailable endpoints refuse, interrupted startup and metadata saves clean
+  up, and team arguments have explicit size limits (M96 lane T, RVM96D).
+
 ## [0.12.1] - 2026-10-04
 
 ### Changed

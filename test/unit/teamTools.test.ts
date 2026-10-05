@@ -5,6 +5,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   TeamCommandRegistry,
+  teamCommandRecordsSchema,
   cancelArgs,
   clampCollectWait,
   collectArgs,
@@ -32,6 +33,13 @@ import {
   TEAM_COLLECT_WAIT_MAX_SECONDS,
   TEAM_DELEGATE_MAX,
   type TeamReasonCode,
+  TEAM_IDENTIFIER_MAX_CHARS,
+  TEAM_REASON_MAX_CHARS,
+  TEAM_PLAN_ITEM_MAX_CHARS,
+  TEAM_PATH_MAX_CHARS,
+  TEAM_FILES_MAX,
+  TEAM_PLAN_ITEMS_MAX,
+  TEAM_TASK_IDS_MAX,
 } from '../../src/core/team/teamConstants'
 
 describe('team tool names', () => {
@@ -215,7 +223,7 @@ describe('concurrent command retries', () => {
       [{ reason: { detail: 'Tests.', code: 'specialty' }, role: 'qa' }],
       start,
     )
-    expect(starts).toBe(1)
+    await expect.poll(() => starts).toBe(1)
     await expect(
       commands.run(
         'retry',
@@ -235,6 +243,101 @@ describe('concurrent command retries', () => {
     expect(starts).toBe(1)
   })
 
+  it('keeps failed and pending start claims durable and refuses uncertain retries', async () => {
+    let persisted: unknown
+    const commands = new TeamCommandRegistry((records) => {
+      persisted = structuredClone(records)
+      return Promise.resolve()
+    })
+    const tasks = [{ role: 'qa' }]
+    let starts = 0
+    await expect(
+      commands.run('failed', tasks, () => {
+        starts += 1
+        throw new Error('started then lost the answer')
+      }),
+    ).rejects.toThrow('lost the answer')
+    expect(commands.snapshot()['failed']?.state).toBe('uncertain')
+    await expect(
+      commands.run('failed', tasks, () => {
+        starts += 1
+        return Promise.resolve({ output: 'duplicate', visibleOutput: '' })
+      }),
+    ).rejects.toThrow('uncertain')
+    const held = Promise.withResolvers<{ output: string; visibleOutput: string }>()
+    const entered = Promise.withResolvers<undefined>()
+    const pending = commands.run('pending', tasks, () => {
+      starts += 1
+      entered.resolve(undefined)
+      return held.promise
+    })
+    await entered.promise
+    const restored = new TeamCommandRegistry()
+    restored.restore(teamCommandRecordsSchema.parse(persisted))
+    await expect(
+      restored.run('pending', tasks, () => {
+        starts += 1
+        return Promise.resolve({ output: 'duplicate', visibleOutput: '' })
+      }),
+    ).rejects.toThrow('uncertain')
+    await expect(restored.run('failed', [{ role: 'other' }], () => held.promise)).rejects.toThrow(
+      'different tasks',
+    )
+    expect(starts).toBe(2)
+    held.reject(new Error('interrupted'))
+    await expect(pending).rejects.toThrow('interrupted')
+    expect(commands.snapshot()['pending']?.state).toBe('uncertain')
+  })
+
+  it('does not dispatch until its retry claim is saved and refuses a failed save', async () => {
+    const saved = Promise.withResolvers<undefined>()
+    let starts = 0
+    const commands = new TeamCommandRegistry(() => saved.promise)
+    const pending = commands.run('save-first', [], () => {
+      starts += 1
+      return Promise.resolve({ output: 'task', visibleOutput: '' })
+    })
+    expect(starts).toBe(0)
+    expect(commands.snapshot()['save-first']?.state).toBe('uncertain')
+    saved.reject(new Error('disk full'))
+    await expect(pending).rejects.toThrow('disk full')
+    expect(starts).toBe(0)
+    await expect(
+      commands.run('save-first', [], () => {
+        starts += 1
+        return Promise.resolve({ output: 'duplicate', visibleOutput: '' })
+      }),
+    ).rejects.toThrow('uncertain')
+  })
+
+  it('serializes durable snapshots across concurrent command ids', async () => {
+    const firstSave = Promise.withResolvers<undefined>()
+    const saves: string[][] = []
+    let starts = 0
+    const commands = new TeamCommandRegistry(async (records) => {
+      saves.push(Object.keys(records))
+      if (saves.length === 1) await firstSave.promise
+    })
+    const start = () => {
+      starts += 1
+      return Promise.resolve({ output: 'task', visibleOutput: '' })
+    }
+    const first = commands.run('first', [], start)
+    await expect.poll(() => saves.length).toBe(1)
+    const second = commands.run('second', [], start)
+    await Promise.resolve()
+    expect(saves).toEqual([['first']])
+    expect(starts).toBe(0)
+    firstSave.resolve(undefined)
+    await Promise.all([first, second])
+    expect(saves.slice(1)).toEqual([
+      ['first', 'second'],
+      ['first', 'second'],
+      ['first', 'second'],
+    ])
+    expect(starts).toBe(2)
+  })
+
   it('rejects empty retry ids and oversized briefs before a runner sees them', () => {
     const task = { role: 'qa', brief: 'Test.', reason: { code: 'specialty', detail: 'Tests.' } }
     expect(delegateArgs.safeParse({ tasks: [task], command_id: ' ' }).success).toBe(false)
@@ -242,5 +345,114 @@ describe('concurrent command retries', () => {
       delegateArgs.safeParse({ tasks: [{ ...task, brief: 'x'.repeat(TEAM_BRIEF_MAX_CHARS + 1) }] })
         .success,
     ).toBe(false)
+    expect(
+      delegateArgs.safeParse({
+        tasks: [{ ...task, brief: `${' '.repeat(TEAM_BRIEF_MAX_CHARS)}x` }],
+      }).success,
+    ).toBe(false)
+  })
+})
+
+describe('shared team argument size limits', () => {
+  const task = { role: 'qa', brief: 'Test.', reason: { code: 'specialty', detail: 'Tests.' } }
+  const plan = { what: 'Review.', reason: task.reason }
+  const oversizedId = 'x'.repeat(TEAM_IDENTIFIER_MAX_CHARS + 1)
+
+  it.each(['role', 'entry', 'continue'])('bounds delegated %s before dispatch', (field) => {
+    expect(delegateArgs.safeParse({ tasks: [{ ...task, [field]: oversizedId }] }).success).toBe(
+      false,
+    )
+    expect(
+      delegateArgs.safeParse({
+        tasks: [{ ...task, [field]: 'x'.repeat(TEAM_IDENTIFIER_MAX_CHARS) }],
+      }).success,
+    ).toBe(true)
+  })
+
+  it.each(['command_id', 'pipeline'])(
+    'bounds delegation %s before retaining a fingerprint',
+    (field) => {
+      expect(delegateArgs.safeParse({ tasks: [task], [field]: oversizedId }).success).toBe(false)
+    },
+  )
+
+  it('bounds every reason, kept-plan text, file path and collection', () => {
+    const oversizedReason = { ...task.reason, detail: 'x'.repeat(TEAM_REASON_MAX_CHARS + 1) }
+    const args = [
+      { tasks: [{ ...task, reason: oversizedReason }] },
+      { tasks: [task], plan: [{ ...plan, reason: oversizedReason }] },
+      { tasks: [task], plan: [{ ...plan, what: 'x'.repeat(TEAM_PLAN_ITEM_MAX_CHARS + 1) }] },
+      { tasks: [task], plan: Array.from({ length: TEAM_PLAN_ITEMS_MAX + 1 }, () => plan) },
+      { tasks: [{ ...task, files: ['x'.repeat(TEAM_PATH_MAX_CHARS + 1)] }] },
+      { tasks: [{ ...task, files: Array.from({ length: TEAM_FILES_MAX + 1 }, () => 'a.ts') }] },
+      { tasks: [{ ...task, files: [' '] }] },
+    ]
+    for (const value of args) expect(delegateArgs.safeParse(value).success).toBe(false)
+    expect(
+      delegateArgs.safeParse({
+        tasks: [
+          {
+            ...task,
+            reason: { ...task.reason, detail: 'x'.repeat(TEAM_REASON_MAX_CHARS) },
+            files: Array.from({ length: TEAM_FILES_MAX }, () => 'x'.repeat(TEAM_PATH_MAX_CHARS)),
+          },
+        ],
+        plan: Array.from({ length: TEAM_PLAN_ITEMS_MAX }, () => ({
+          ...plan,
+          what: 'x'.repeat(TEAM_PLAN_ITEM_MAX_CHARS),
+        })),
+      }).success,
+    ).toBe(true)
+  })
+
+  it.each(['collect', 'cancel'] as const)('bounds %s ids and refuses blank identifiers', (name) => {
+    for (const ids of [
+      [oversizedId],
+      [''],
+      [' '],
+      Array.from({ length: TEAM_TASK_IDS_MAX + 1 }, () => 't'),
+    ])
+      expect(parseTeamArgs(name, { task_ids: ids }).ok).toBe(false)
+    expect(
+      parseTeamArgs(name, { task_ids: Array.from({ length: TEAM_TASK_IDS_MAX }, () => 't') }).ok,
+    ).toBe(true)
+  })
+
+  it('bounds merge identifiers', () => {
+    expect(mergeArgs.safeParse({ task_id: oversizedId }).success).toBe(false)
+    expect(mergeArgs.safeParse({ task_id: 'x'.repeat(TEAM_IDENTIFIER_MAX_CHARS) }).success).toBe(
+      true,
+    )
+  })
+
+  it('publishes the same argument limits to both backends', () => {
+    expect(TEAM_TOOL_SCHEMAS.delegate.properties['command_id']).toMatchObject({
+      maxLength: TEAM_IDENTIFIER_MAX_CHARS,
+    })
+    expect(TEAM_TOOL_SCHEMAS.delegate.properties['tasks']).toMatchObject({
+      maxItems: TEAM_DELEGATE_MAX,
+      items: {
+        properties: {
+          role: { maxLength: TEAM_IDENTIFIER_MAX_CHARS },
+          brief: { maxLength: TEAM_BRIEF_MAX_CHARS },
+          reason: { properties: { detail: { maxLength: TEAM_REASON_MAX_CHARS } } },
+          files: { maxItems: TEAM_FILES_MAX, items: { maxLength: TEAM_PATH_MAX_CHARS } },
+          entry: { maxLength: TEAM_IDENTIFIER_MAX_CHARS },
+          continue: { maxLength: TEAM_IDENTIFIER_MAX_CHARS },
+        },
+      },
+    })
+    expect(TEAM_TOOL_SCHEMAS.delegate.properties['plan']).toMatchObject({
+      maxItems: TEAM_PLAN_ITEMS_MAX,
+      items: { properties: { what: { maxLength: TEAM_PLAN_ITEM_MAX_CHARS } } },
+    })
+    for (const name of ['collect', 'cancel'] as const)
+      expect(TEAM_TOOL_SCHEMAS[name].properties['task_ids']).toMatchObject({
+        maxItems: TEAM_TASK_IDS_MAX,
+        items: { maxLength: TEAM_IDENTIFIER_MAX_CHARS },
+      })
+    expect(TEAM_TOOL_SCHEMAS.merge.properties['task_id']).toMatchObject({
+      maxLength: TEAM_IDENTIFIER_MAX_CHARS,
+    })
   })
 })

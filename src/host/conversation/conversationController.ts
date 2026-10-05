@@ -2825,14 +2825,6 @@ export class ConversationController {
     host: AgentHost,
     resumeSessionId?: string,
   ): Promise<Readonly<Record<string, SessionMcpHttpServer>> | undefined> {
-    if (!host.info.grantedCapabilities.includes(IDE_MCP_CAPABILITY)) {
-      return undefined
-    }
-    const ideEndpoint = await this.deps.ideMcpEndpoint()
-    const servers: Record<string, SessionMcpHttpServer> = {}
-    if (ideEndpoint !== undefined) {
-      servers[IDE_MCP_SERVER_NAME] = ideEndpoint
-    }
     // The `team` server rides beside the `ide` server on team conversations
     // only; single-model sessions carry today's set, byte for byte.
     if (host.info.kind === 'museCode') {
@@ -2845,12 +2837,22 @@ export class ConversationController {
           !this.isSideChat && this.deps.teamMcp?.modeForSession?.(resumeSessionId) === 'team'
         this.teamServerSessionId = resumeSessionId
       }
-      if (this.teamServerAttached) {
-        const team = await this.deps.teamMcp?.endpointForConversation(resumeSessionId)
-        if (team !== undefined) {
-          servers[TEAM_MCP_SERVER_NAME] = team
-        }
-      }
+    }
+    if (!host.info.grantedCapabilities.includes(IDE_MCP_CAPABILITY)) {
+      if (host.info.kind === 'museCode' && this.teamServerAttached === true)
+        throw new Error(fill(UI_TEXT.teamRunnerUnavailable, { tool: TEAM_MCP_SERVER_NAME }))
+      return undefined
+    }
+    const ideEndpoint = await this.deps.ideMcpEndpoint()
+    const servers: Record<string, SessionMcpHttpServer> = {}
+    if (ideEndpoint !== undefined) {
+      servers[IDE_MCP_SERVER_NAME] = ideEndpoint
+    }
+    if (host.info.kind === 'museCode' && this.teamServerAttached) {
+      const team = await this.deps.teamMcp?.endpointForConversation(resumeSessionId)
+      if (team === undefined)
+        throw new Error(fill(UI_TEXT.teamRunnerUnavailable, { tool: TEAM_MCP_SERVER_NAME }))
+      servers[TEAM_MCP_SERVER_NAME] = team
     }
     return Object.keys(servers).length === 0 ? undefined : servers
   }
@@ -3001,11 +3003,17 @@ export class ConversationController {
     this.modelId = session.modelId
     if (host.info.kind === 'museCode') {
       this.teamServerSessionId = session.sessionId
-      await this.deps.teamMcp?.rememberMode?.(
-        session.sessionId,
-        this.teamServerAttached === true ? 'team' : 'single-model',
-      )
-      this.requireCurrentOpening(generation)
+      try {
+        await this.deps.teamMcp?.rememberMode?.(
+          session.sessionId,
+          this.teamServerAttached === true ? 'team' : 'single-model',
+        )
+        this.requireCurrentOpening(generation)
+      } catch (error: unknown) {
+        this.ideSessions.delete(session)
+        session.dispose()
+        throw error
+      }
     }
     await this.attach(host, session, 'started')
     this.requireCurrentOpening(generation)
@@ -3056,12 +3064,13 @@ export class ConversationController {
       this.deps.log.info(`Session ${target.sessionId} is not resumed: its Muse Code log is damaged`)
       throw new Error(UI_TEXT.sessionLogDamaged)
     }
-    this.resumeTarget = undefined
     if (target?.kind !== host.info.kind) {
+      this.resumeTarget = undefined
       return undefined
     }
     let loaded: LoadedSession
     const mcpServers = await this.mcpServersFor(host, target.sessionId)
+    this.resumeTarget = undefined
     try {
       loaded = await host.resumeSession(
         target.sessionId,

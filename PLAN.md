@@ -5330,6 +5330,13 @@ brief, reason, files?, entry?, continue? }`.
       numbers wait for the next tool answer, so the history does not grow
       on every request.
 
+    **T28 correction (lead, RVM96D, 2026-10-05):** state transitions and
+    team-edit descriptions stay structured event data in `roster`, `delegate`
+    and `collect` answers. The former user-role tail note is withdrawn:
+    arbitrary explanations must never become user instructions. The producer
+    retains events until a team answer consumes them; the stable prefix stays
+    unchanged.
+
     Example (one role):
     `research: 1 opus-5.5 (Anthropic key) 3/5 free, 0.4M of 2.0M tokens today; 2 opus-5.5 (OpenRouter) ready; 3 Default (muse-spark-1.3 · Muse Code) ready`.
 
@@ -16644,6 +16651,17 @@ live) and the controller filters its id as well.
 
 ### M96 — Agent roles and the team (D75)
 
+**Lane T review corrections (RVM96D, 2026-10-05).** FIXM96T addresses
+findings 1–9 in the lane's dispatch, conversation and MCP regions:
+capability-based sole-writer refusal (unknown MCP tools refuse), live checks
+after asynchronous planning and before writes, structured state/edit events
+in tool answers, durable command-id claims including uncertain starts,
+conversation-bound retry storage across server recreation, cleanup while
+metadata saving waits, refusal when the declared team endpoint is unavailable,
+startup cancellation that settles all waiters, and named argument bounds.
+Each correction has a regression and a byte-exact restored red drill in
+`docs/certification/m96-t.md`. No live calls, dependencies or wider guards.
+
 **Status 2026-10-04: planned on `feature/m96-agent-roles` from main
 `1e93c67c`.** The plan is D75 (with its decisions on the open questions),
 M96b, M96c and this section. The research is
@@ -19778,6 +19796,13 @@ joined with M57, M58 and PR #49's sign-in
 
 ## 7. Gates
 
+**FIXM96T review correction lane (2026-10-05).** The rig/shared brief
+requires focused checks and prohibits a full `npm run quality` here; the
+lead runs it after integration. No gate is weakened. The existing lane-X
+generated host-API record deferral remains owned by X. Findings 1–9 have
+35 firing red drills with byte-exact restoration; final focused/static
+results are recorded in `docs/certification/m96-t.md`.
+
 **MG69 merged-source proof (2026-10-02).** Kubuntu passes 49 owning/merged
 files (2,056 tests; two existing Windows-only cases platform-skipped), all
 five compiler projects and every required static gate. Both review and import
@@ -20221,6 +20246,18 @@ before a repaired one loads (2026-09-30).
 | `test/harness/index.html` (`isActiveDescendantList`), printed by `scripts/a11y.mjs` | The accessibility gate exempts axe's `scrollable-region-focusable` | The composer's `/` and `@` lists follow WAI-ARIA's combobox pattern: the box keeps the focus and moves `aria-activedescendant` through the listbox's options, and `Composer.tsx` scrolls the active option into view, so the list is keyboard operable (WCAG 2.1.1) without being a Tab stop. axe cannot see activedescendant-driven scrolling. The exemption holds only for a region that contains a listbox whose id is in the `aria-controls` of a focused or focusable element whose active descendant is one of that listbox's options; drills show a plain scrollable region and a listbox no control drives are still reported, and removing the exemption reports the composer's list again. Every exempt element is printed under its own "Exempt:" heading and counted. No `tabindex` was added to the list. | 2026-10-04 |
 
 ## 9. Security assumptions and accepted residual risk
+
+- **M96 lane T retry recovery (RVM96D, FIXM96T, 2026-10-05).** Findings
+  1–9 are corrected, with no deferred finding. An uncertain delegation
+  retains its command-id claim and refuses an automatic retry; lane T has
+  no runner reconciliation for a start whose outcome was lost. Follow-up:
+  lanes A/W/I inspect the existing task before a new command id authorizes
+  another start. Lane X must wire each Muse Code binding's `commandRecords`
+  port to durable, validated conversation storage and restore it on reopen.
+  Until that port is available, delegation with a retry id refuses before
+  dispatch; no fallback creates duplicate work. Full integrated quality and
+  the existing generated host-API record handoff stay with the lead/X.
+  Evidence: `docs/certification/m96-t.md` and its review-drill record.
 
 - Code intelligence (M67) shows what VS Code's language services say. A
   result located outside the workspace is left out and a hover defined only

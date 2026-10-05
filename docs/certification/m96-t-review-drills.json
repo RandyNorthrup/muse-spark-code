@@ -1,0 +1,964 @@
+{
+  "machine": "kubuntu",
+  "liveModelAttempts": 0,
+  "paidCalls": 0,
+  "coverageProbes": [
+    {
+      "name": "Native final write admission",
+      "finding": 2,
+      "path": "src/core/backends/modelapi/ModelApiHost.ts",
+      "test": "modelApiPolicyFence",
+      "old": "      const inPlace = this.inPlaceRefusalFor(call.name)\n      if (inPlace !== undefined) throw new CodeIntelRefusal(inPlace.output, inPlace.visibleOutput)\n",
+      "new": "",
+      "count": 1,
+      "command": [
+        "npx",
+        "vitest",
+        "run",
+        "test/unit/modelApiPolicyFence.test.ts",
+        "--maxWorkers=3",
+        "--testTimeout=120000",
+        "--reporter=json",
+        "--outputFile=/home/randy/lanes/FIXM96T/temp/fixm96t/result-4.json"
+      ],
+      "exitCode": 0,
+      "failures": [],
+      "beforeSha256": "8949524f7fbb557154afa9afa061265f8f05a06ace853732ea491584d635dfce",
+      "afterSha256": "8949524f7fbb557154afa9afa061265f8f05a06ace853732ea491584d635dfce",
+      "seconds": 10.6
+    }
+  ],
+  "drills": [
+    {
+      "name": "MCP writing metadata",
+      "finding": 1,
+      "path": "src/core/backends/modelapi/ModelApiHost.ts",
+      "test": "teamDeclaration",
+      "old": "!isExternalWriter &&",
+      "new": "true &&",
+      "count": 1,
+      "command": [
+        "npx",
+        "vitest",
+        "run",
+        "test/unit/teamDeclaration.test.ts",
+        "--maxWorkers=3",
+        "--testTimeout=120000",
+        "--reporter=json",
+        "--outputFile=/home/randy/lanes/FIXM96T/temp/fixm96t/result-1.json"
+      ],
+      "exitCode": 1,
+      "failures": [
+        "in-place admission refuses mutating and unknown MCP capabilities while allowing proved reads"
+      ],
+      "beforeSha256": "8949524f7fbb557154afa9afa061265f8f05a06ace853732ea491584d635dfce",
+      "afterSha256": "8949524f7fbb557154afa9afa061265f8f05a06ace853732ea491584d635dfce",
+      "seconds": 3.96
+    },
+    {
+      "name": "MCP writing name despite read hint",
+      "finding": 1,
+      "path": "src/core/backends/modelapi/ModelApiHost.ts",
+      "test": "teamDeclaration",
+      "old": "!isWritingName &&",
+      "new": "true &&",
+      "count": 1,
+      "command": [
+        "npx",
+        "vitest",
+        "run",
+        "test/unit/teamDeclaration.test.ts",
+        "--maxWorkers=3",
+        "--testTimeout=120000",
+        "--reporter=json",
+        "--outputFile=/home/randy/lanes/FIXM96T/temp/fixm96t/result-2.json"
+      ],
+      "exitCode": 1,
+      "failures": [
+        "in-place admission refuses mutating and unknown MCP capabilities while allowing proved reads"
+      ],
+      "beforeSha256": "8949524f7fbb557154afa9afa061265f8f05a06ace853732ea491584d635dfce",
+      "afterSha256": "8949524f7fbb557154afa9afa061265f8f05a06ace853732ea491584d635dfce",
+      "seconds": 4.14
+    },
+    {
+      "name": "Unknown MCP refuses",
+      "finding": 1,
+      "path": "src/core/backends/modelapi/ModelApiHost.ts",
+      "test": "teamDeclaration",
+      "old": "!isUnknownMcp &&",
+      "new": "true &&",
+      "count": 1,
+      "command": [
+        "npx",
+        "vitest",
+        "run",
+        "test/unit/teamDeclaration.test.ts",
+        "--maxWorkers=3",
+        "--testTimeout=120000",
+        "--reporter=json",
+        "--outputFile=/home/randy/lanes/FIXM96T/temp/fixm96t/result-3.json"
+      ],
+      "exitCode": 1,
+      "failures": [
+        "in-place admission refuses mutating and unknown MCP capabilities while allowing proved reads"
+      ],
+      "beforeSha256": "8949524f7fbb557154afa9afa061265f8f05a06ace853732ea491584d635dfce",
+      "afterSha256": "8949524f7fbb557154afa9afa061265f8f05a06ace853732ea491584d635dfce",
+      "seconds": 3.75
+    },
+    {
+      "name": "Native final write admission",
+      "finding": 2,
+      "path": "src/core/backends/modelapi/ModelApiHost.ts",
+      "test": "modelApiPolicyFence",
+      "old": "      const inPlace = this.inPlaceRefusalFor(call.name)\n      if (inPlace !== undefined) throw new CodeIntelRefusal(inPlace.output, inPlace.visibleOutput)\n",
+      "new": "",
+      "count": 1,
+      "command": [
+        "npx",
+        "vitest",
+        "run",
+        "test/unit/modelApiPolicyFence.test.ts",
+        "--maxWorkers=3",
+        "--testTimeout=120000",
+        "--reporter=json",
+        "--outputFile=/home/randy/lanes/FIXM96T/temp/fixm96t/result-4.json"
+      ],
+      "exitCode": 1,
+      "failures": [
+        "the dispatcher's live policy fence over every tool (M78) rechecks the in-place writer after awaited native edit_file I/O"
+      ],
+      "beforeSha256": "8949524f7fbb557154afa9afa061265f8f05a06ace853732ea491584d635dfce",
+      "afterSha256": "8949524f7fbb557154afa9afa061265f8f05a06ace853732ea491584d635dfce",
+      "seconds": 9.92
+    },
+    {
+      "name": "Rename every-file admission",
+      "finding": 2,
+      "path": "src/core/backends/modelapi/ModelApiHost.ts",
+      "test": "modelApiPolicyFence",
+      "old": "          const inPlace = this.inPlaceRefusalFor(call.name)\n          if (inPlace !== undefined)\n            throw new CodeIntelRefusal(inPlace.output, inPlace.visibleOutput)\n",
+      "new": "",
+      "count": 1,
+      "command": [
+        "npx",
+        "vitest",
+        "run",
+        "test/unit/modelApiPolicyFence.test.ts",
+        "--maxWorkers=3",
+        "--testTimeout=120000",
+        "--reporter=json",
+        "--outputFile=/home/randy/lanes/FIXM96T/temp/fixm96t/result-5.json"
+      ],
+      "exitCode": 1,
+      "failures": [
+        "the dispatcher's live policy fence over every tool (M78) rechecks the in-place writer after awaited rename afterWrite"
+      ],
+      "beforeSha256": "8949524f7fbb557154afa9afa061265f8f05a06ace853732ea491584d635dfce",
+      "afterSha256": "8949524f7fbb557154afa9afa061265f8f05a06ace853732ea491584d635dfce",
+      "seconds": 10.17
+    },
+    {
+      "name": "Shell checks and then_run live admission",
+      "finding": 2,
+      "path": "src/core/backends/modelapi/ModelApiHost.ts",
+      "test": "modelApiPolicyFence",
+      "old": "current(detached) && this.inPlaceRefusalFor(call.name) === undefined",
+      "new": "current(detached)",
+      "count": 1,
+      "command": [
+        "npx",
+        "vitest",
+        "run",
+        "test/unit/modelApiPolicyFence.test.ts",
+        "--maxWorkers=3",
+        "--testTimeout=120000",
+        "--reporter=json",
+        "--outputFile=/home/randy/lanes/FIXM96T/temp/fixm96t/result-6.json"
+      ],
+      "exitCode": 1,
+      "failures": [
+        "the dispatcher's live policy fence over every tool (M78) rechecks the in-place writer after awaited bash process entry",
+        "the dispatcher's live policy fence over every tool (M78) rechecks the in-place writer after awaited run_checks process entry",
+        "the dispatcher's live policy fence over every tool (M78) rechecks the in-place writer after awaited edit_file process entry"
+      ],
+      "beforeSha256": "8949524f7fbb557154afa9afa061265f8f05a06ace853732ea491584d635dfce",
+      "afterSha256": "8949524f7fbb557154afa9afa061265f8f05a06ace853732ea491584d635dfce",
+      "seconds": 10.36
+    },
+    {
+      "name": "Automatic checks live admission",
+      "finding": 2,
+      "path": "src/core/backends/modelapi/ModelApiHost.ts",
+      "test": "modelApiPolicyFence",
+      "old": "      this.inPlaceRefusalFor(VERIFY_TOOLS.runChecks) === undefined &&\n",
+      "new": "",
+      "count": 1,
+      "command": [
+        "npx",
+        "vitest",
+        "run",
+        "test/unit/modelApiPolicyFence.test.ts",
+        "--maxWorkers=3",
+        "--testTimeout=120000",
+        "--reporter=json",
+        "--outputFile=/home/randy/lanes/FIXM96T/temp/fixm96t/result-7.json"
+      ],
+      "exitCode": 1,
+      "failures": [
+        "the dispatcher's live policy fence over every tool (M78) rechecks the in-place writer after awaited automatic check process entry"
+      ],
+      "beforeSha256": "8949524f7fbb557154afa9afa061265f8f05a06ace853732ea491584d635dfce",
+      "afterSha256": "8949524f7fbb557154afa9afa061265f8f05a06ace853732ea491584d635dfce",
+      "seconds": 9.77
+    },
+    {
+      "name": "State data never gets user role",
+      "finding": 3,
+      "path": "src/core/backends/modelapi/ModelApiHost.ts",
+      "test": "teamDeclaration",
+      "old": "    return events === undefined ? outcome : { ...outcome, output: `${outcome.output}\\n${events}` }",
+      "new": "    if (events !== undefined) this.replay.push({ turnId: this.active?.turnId ?? '', item: noteItem(events) })\n    return outcome",
+      "count": 1,
+      "command": [
+        "npx",
+        "vitest",
+        "run",
+        "test/unit/teamDeclaration.test.ts",
+        "--maxWorkers=3",
+        "--testTimeout=120000",
+        "--reporter=json",
+        "--outputFile=/home/randy/lanes/FIXM96T/temp/fixm96t/result-8.json"
+      ],
+      "exitCode": 1,
+      "failures": [
+        "team request stability and authority keeps instructions fixed, shows current roster and sends state changes only as structured tool data",
+        "team request stability and authority keeps hostile state and edit text out of user-role messages"
+      ],
+      "beforeSha256": "8949524f7fbb557154afa9afa061265f8f05a06ace853732ea491584d635dfce",
+      "afterSha256": "8949524f7fbb557154afa9afa061265f8f05a06ace853732ea491584d635dfce",
+      "seconds": 3.29
+    },
+    {
+      "name": "Roster event JSON envelope",
+      "finding": 3,
+      "path": "src/core/team/roster.ts",
+      "test": "teamRoster",
+      "old": "JSON.stringify({ type: 'team_events', states: changes, edits })",
+      "new": "changes.map((change) => `${change.from} to ${change.to}`).join('; ') + edits.join('; ')",
+      "count": 1,
+      "command": [
+        "npx",
+        "vitest",
+        "run",
+        "test/unit/teamRoster.test.ts",
+        "--maxWorkers=3",
+        "--testTimeout=120000",
+        "--reporter=json",
+        "--outputFile=/home/randy/lanes/FIXM96T/temp/fixm96t/result-9.json"
+      ],
+      "exitCode": 1,
+      "failures": ["formatStateChangeNote encodes each change as structured event data"],
+      "beforeSha256": "e4096b0848f562b51eaaa8357230943e7102c068f3c97dd218f906936a950d50",
+      "afterSha256": "e4096b0848f562b51eaaa8357230943e7102c068f3c97dd218f906936a950d50",
+      "seconds": 1.27
+    },
+    {
+      "name": "Uncertain retry refusal",
+      "finding": 4,
+      "path": "src/core/team/teamTools.ts",
+      "test": "teamTools",
+      "old": "    if (claim.kind === 'uncertain') throw new Error(claim.reason)",
+      "new": "",
+      "count": 1,
+      "command": [
+        "npx",
+        "vitest",
+        "run",
+        "test/unit/teamTools.test.ts",
+        "--maxWorkers=3",
+        "--testTimeout=120000",
+        "--reporter=json",
+        "--outputFile=/home/randy/lanes/FIXM96T/temp/fixm96t/result-10.json"
+      ],
+      "exitCode": 1,
+      "failures": [
+        "concurrent command retries keeps failed and pending start claims durable and refuses uncertain retries",
+        "concurrent command retries does not dispatch until its retry claim is saved and refuses a failed save"
+      ],
+      "beforeSha256": "3f78e9ee6d5d8f9fca549d3f288e2a5baec868414addbee4b969597ffdc37f05",
+      "afterSha256": "3f78e9ee6d5d8f9fca549d3f288e2a5baec868414addbee4b969597ffdc37f05",
+      "seconds": 1.48
+    },
+    {
+      "name": "Durable claim before dispatch",
+      "finding": 4,
+      "path": "src/core/team/teamTools.ts",
+      "test": "teamTools",
+      "old": "      await this.saveRecords()\n      const answer = await start()",
+      "new": "      const answer = await start()\n      await this.saveRecords()",
+      "count": 1,
+      "command": [
+        "npx",
+        "vitest",
+        "run",
+        "test/unit/teamTools.test.ts",
+        "--maxWorkers=3",
+        "--testTimeout=120000",
+        "--reporter=json",
+        "--outputFile=/home/randy/lanes/FIXM96T/temp/fixm96t/result-11.json"
+      ],
+      "exitCode": 1,
+      "failures": [
+        "concurrent command retries keeps failed and pending start claims durable and refuses uncertain retries",
+        "concurrent command retries does not dispatch until its retry claim is saved and refuses a failed save",
+        "concurrent command retries serializes durable snapshots across concurrent command ids"
+      ],
+      "beforeSha256": "3f78e9ee6d5d8f9fca549d3f288e2a5baec868414addbee4b969597ffdc37f05",
+      "afterSha256": "3f78e9ee6d5d8f9fca549d3f288e2a5baec868414addbee4b969597ffdc37f05",
+      "seconds": 1.41
+    },
+    {
+      "name": "Persist pending start claims",
+      "finding": 4,
+      "path": "src/core/team/teamTools.ts",
+      "test": "teamTools",
+      "old": "return Object.fromEntries(this.records)",
+      "new": "return Object.fromEntries([...this.records].filter(([, record]) => record.state !== 'uncertain'))",
+      "count": 1,
+      "command": [
+        "npx",
+        "vitest",
+        "run",
+        "test/unit/teamTools.test.ts",
+        "--maxWorkers=3",
+        "--testTimeout=120000",
+        "--reporter=json",
+        "--outputFile=/home/randy/lanes/FIXM96T/temp/fixm96t/result-12.json"
+      ],
+      "exitCode": 1,
+      "failures": [
+        "concurrent command retries keeps failed and pending start claims durable and refuses uncertain retries",
+        "concurrent command retries does not dispatch until its retry claim is saved and refuses a failed save",
+        "concurrent command retries serializes durable snapshots across concurrent command ids"
+      ],
+      "beforeSha256": "3f78e9ee6d5d8f9fca549d3f288e2a5baec868414addbee4b969597ffdc37f05",
+      "afterSha256": "3f78e9ee6d5d8f9fca549d3f288e2a5baec868414addbee4b969597ffdc37f05",
+      "seconds": 1.58
+    },
+    {
+      "name": "Serialize durable snapshots",
+      "finding": 4,
+      "path": "src/core/team/teamTools.ts",
+      "test": "teamTools",
+      "old": "        await previous",
+      "new": "        void previous",
+      "count": 1,
+      "command": [
+        "npx",
+        "vitest",
+        "run",
+        "test/unit/teamTools.test.ts",
+        "--maxWorkers=3",
+        "--testTimeout=120000",
+        "--reporter=json",
+        "--outputFile=/home/randy/lanes/FIXM96T/temp/fixm96t/result-13.json"
+      ],
+      "exitCode": 1,
+      "failures": [
+        "concurrent command retries serializes durable snapshots across concurrent command ids"
+      ],
+      "beforeSha256": "3f78e9ee6d5d8f9fca549d3f288e2a5baec868414addbee4b969597ffdc37f05",
+      "afterSha256": "3f78e9ee6d5d8f9fca549d3f288e2a5baec868414addbee4b969597ffdc37f05",
+      "seconds": 1.43
+    },
+    {
+      "name": "Stored uncertain state survives validation",
+      "finding": 4,
+      "path": "src/core/backends/modelapi/sessionStore.ts",
+      "test": "teamDeclaration",
+      "old": "        state: z.optional(z.literal('uncertain')),\n",
+      "new": "",
+      "count": 1,
+      "command": [
+        "npx",
+        "vitest",
+        "run",
+        "test/unit/teamDeclaration.test.ts",
+        "--maxWorkers=3",
+        "--testTimeout=120000",
+        "--reporter=json",
+        "--outputFile=/home/randy/lanes/FIXM96T/temp/fixm96t/result-14.json"
+      ],
+      "exitCode": 1,
+      "failures": [
+        "team storage persists pending delegation before dispatch and refuses its retry after reopening"
+      ],
+      "beforeSha256": "7ccd1641df322f4631ed571249b651eea3354ad5f901c51bd758926523e22273",
+      "afterSha256": "7ccd1641df322f4631ed571249b651eea3354ad5f901c51bd758926523e22273",
+      "seconds": 3.27
+    },
+    {
+      "name": "MCP restore durable conversation records",
+      "finding": 5,
+      "path": "src/host/team/teamMcpServer.ts",
+      "test": "teamMcpServer",
+      "old": "if (saved !== undefined) commands.restore(teamCommandRecordsSchema.parse(saved))",
+      "new": "if (saved !== undefined) teamCommandRecordsSchema.parse(saved)",
+      "count": 1,
+      "command": [
+        "npx",
+        "vitest",
+        "run",
+        "test/unit/teamMcpServer.test.ts",
+        "--maxWorkers=3",
+        "--testTimeout=120000",
+        "--reporter=json",
+        "--outputFile=/home/randy/lanes/FIXM96T/temp/fixm96t/result-15.json"
+      ],
+      "exitCode": 1,
+      "failures": [
+        "team MCP admission restores retry answers across rebind and server recreation, without sharing conversations",
+        "team MCP admission refuses uncertain retry claims after revocation while delegation is pending"
+      ],
+      "beforeSha256": "cf845f9677c3560116e02c159382de298dd894b7fd11a4632e1892da325e8b68",
+      "afterSha256": "cf845f9677c3560116e02c159382de298dd894b7fd11a4632e1892da325e8b68",
+      "seconds": 1.98
+    },
+    {
+      "name": "MCP require durable retry storage",
+      "finding": 5,
+      "path": "src/host/team/teamMcpServer.ts",
+      "test": "teamMcpServer",
+      "old": "        if (delegation.command_id !== undefined && binding.commandRecords === undefined)\n          throw new Error('Durable conversation retry storage is unavailable')\n",
+      "new": "",
+      "count": 1,
+      "command": [
+        "npx",
+        "vitest",
+        "run",
+        "test/unit/teamMcpServer.test.ts",
+        "--maxWorkers=3",
+        "--testTimeout=120000",
+        "--reporter=json",
+        "--outputFile=/home/randy/lanes/FIXM96T/temp/fixm96t/result-16.json"
+      ],
+      "exitCode": 1,
+      "failures": [
+        "team MCP admission refuses retry ids when durable conversation storage is unavailable"
+      ],
+      "beforeSha256": "cf845f9677c3560116e02c159382de298dd894b7fd11a4632e1892da325e8b68",
+      "afterSha256": "cf845f9677c3560116e02c159382de298dd894b7fd11a4632e1892da325e8b68",
+      "seconds": 1.99
+    },
+    {
+      "name": "Dispose orphan after metadata await",
+      "finding": 6,
+      "path": "src/host/conversation/conversationController.ts",
+      "test": "conversationController",
+      "old": "        this.ideSessions.delete(session)\n        session.dispose()\n        throw error",
+      "new": "        this.ideSessions.delete(session)\n        throw error",
+      "count": 1,
+      "command": [
+        "npx",
+        "vitest",
+        "run",
+        "test/unit/conversationController.test.ts",
+        "--maxWorkers=3",
+        "--testTimeout=120000",
+        "--reporter=json",
+        "--outputFile=/home/randy/lanes/FIXM96T/temp/fixm96t/result-17.json"
+      ],
+      "exitCode": 1,
+      "failures": [
+        "ConversationController: team server and orchestrator slot (M96 lane T) disposes a new session when metadata saving ends after rejection",
+        "ConversationController: team server and orchestrator slot (M96 lane T) disposes a new session when metadata saving ends after disposal",
+        "ConversationController: team server and orchestrator slot (M96 lane T) disposes a new session when metadata saving ends after restart"
+      ],
+      "beforeSha256": "6a8ba74d210b2f86ab82a6788dbafc11ef55ec5acd6c3018a6d607e96bedfb1c",
+      "afterSha256": "6a8ba74d210b2f86ab82a6788dbafc11ef55ec5acd6c3018a6d607e96bedfb1c",
+      "seconds": 23.61
+    },
+    {
+      "name": "Refuse unavailable team endpoint",
+      "finding": 7,
+      "path": "src/host/conversation/conversationController.ts",
+      "test": "conversationController",
+      "old": "      if (team === undefined)\n        throw new Error(fill(UI_TEXT.teamRunnerUnavailable, { tool: TEAM_MCP_SERVER_NAME }))\n      servers[TEAM_MCP_SERVER_NAME] = team",
+      "new": "      if (team !== undefined) servers[TEAM_MCP_SERVER_NAME] = team",
+      "count": 1,
+      "command": [
+        "npx",
+        "vitest",
+        "run",
+        "test/unit/conversationController.test.ts",
+        "--maxWorkers=3",
+        "--testTimeout=120000",
+        "--reporter=json",
+        "--outputFile=/home/randy/lanes/FIXM96T/temp/fixm96t/result-18.json"
+      ],
+      "exitCode": 1,
+      "failures": [
+        "ConversationController: team server and orchestrator slot (M96 lane T) refuses an unavailable declared team endpoint without starting another declaration",
+        "ConversationController: team server and orchestrator slot (M96 lane T) keeps its resume target while the team endpoint is unavailable"
+      ],
+      "beforeSha256": "6a8ba74d210b2f86ab82a6788dbafc11ef55ec5acd6c3018a6d607e96bedfb1c",
+      "afterSha256": "6a8ba74d210b2f86ab82a6788dbafc11ef55ec5acd6c3018a6d607e96bedfb1c",
+      "seconds": 23.34
+    },
+    {
+      "name": "Refuse missing session MCP capability",
+      "finding": 7,
+      "path": "src/host/conversation/conversationController.ts",
+      "test": "conversationController",
+      "old": "      if (host.info.kind === 'museCode' && this.teamServerAttached === true)\n        throw new Error(fill(UI_TEXT.teamRunnerUnavailable, { tool: TEAM_MCP_SERVER_NAME }))\n",
+      "new": "",
+      "count": 1,
+      "command": [
+        "npx",
+        "vitest",
+        "run",
+        "test/unit/conversationController.test.ts",
+        "--maxWorkers=3",
+        "--testTimeout=120000",
+        "--reporter=json",
+        "--outputFile=/home/randy/lanes/FIXM96T/temp/fixm96t/result-19.json"
+      ],
+      "exitCode": 1,
+      "failures": [
+        "ConversationController: team server and orchestrator slot (M96 lane T) refuses a team declaration when the host lacks its session MCP capability"
+      ],
+      "beforeSha256": "6a8ba74d210b2f86ab82a6788dbafc11ef55ec5acd6c3018a6d607e96bedfb1c",
+      "afterSha256": "6a8ba74d210b2f86ab82a6788dbafc11ef55ec5acd6c3018a6d607e96bedfb1c",
+      "seconds": 23.17
+    },
+    {
+      "name": "Keep resume target after endpoint refusal",
+      "finding": 7,
+      "path": "src/host/conversation/conversationController.ts",
+      "test": "conversationController",
+      "old": "    const mcpServers = await this.mcpServersFor(host, target.sessionId)\n    this.resumeTarget = undefined",
+      "new": "    this.resumeTarget = undefined\n    const mcpServers = await this.mcpServersFor(host, target.sessionId)",
+      "count": 1,
+      "command": [
+        "npx",
+        "vitest",
+        "run",
+        "test/unit/conversationController.test.ts",
+        "--maxWorkers=3",
+        "--testTimeout=120000",
+        "--reporter=json",
+        "--outputFile=/home/randy/lanes/FIXM96T/temp/fixm96t/result-20.json"
+      ],
+      "exitCode": 1,
+      "failures": [
+        "ConversationController: team server and orchestrator slot (M96 lane T) keeps its resume target while the team endpoint is unavailable"
+      ],
+      "beforeSha256": "6a8ba74d210b2f86ab82a6788dbafc11ef55ec5acd6c3018a6d607e96bedfb1c",
+      "afterSha256": "6a8ba74d210b2f86ab82a6788dbafc11ef55ec5acd6c3018a6d607e96bedfb1c",
+      "seconds": 21.1
+    },
+    {
+      "name": "Close settles startup waiters",
+      "finding": 8,
+      "path": "src/host/team/teamMcpServer.ts",
+      "test": "teamMcpServer",
+      "old": "    this.startingAbort?.abort()",
+      "new": "",
+      "count": 1,
+      "command": [
+        "npx",
+        "vitest",
+        "run",
+        "test/unit/teamMcpServer.test.ts",
+        "--maxWorkers=3",
+        "--testTimeout=120000",
+        "--reporter=json",
+        "--outputFile=/home/randy/lanes/FIXM96T/temp/fixm96t/result-21.json"
+      ],
+      "exitCode": 1,
+      "failures": [
+        "team MCP admission settles a shared start on close and permits an immediate restart"
+      ],
+      "beforeSha256": "cf845f9677c3560116e02c159382de298dd894b7fd11a4632e1892da325e8b68",
+      "afterSha256": "cf845f9677c3560116e02c159382de298dd894b7fd11a4632e1892da325e8b68",
+      "seconds": 2.71
+    },
+    {
+      "name": "Close invalidates resolved startup",
+      "finding": 8,
+      "path": "src/host/team/teamMcpServer.ts",
+      "test": "teamMcpServer",
+      "old": "    if (this.lifetime !== lifetime) throw new Error('Team tool server closed during startup')",
+      "new": "",
+      "count": 1,
+      "command": [
+        "npx",
+        "vitest",
+        "run",
+        "test/unit/teamMcpServer.test.ts",
+        "--maxWorkers=3",
+        "--testTimeout=120000",
+        "--reporter=json",
+        "--outputFile=/home/randy/lanes/FIXM96T/temp/fixm96t/result-22.json"
+      ],
+      "exitCode": 1,
+      "failures": [
+        "team MCP admission refuses an endpoint whose already-listening startup was closed before binding"
+      ],
+      "beforeSha256": "cf845f9677c3560116e02c159382de298dd894b7fd11a4632e1892da325e8b68",
+      "afterSha256": "cf845f9677c3560116e02c159382de298dd894b7fd11a4632e1892da325e8b68",
+      "seconds": 1.71
+    },
+    {
+      "name": "Bound Identifiers",
+      "finding": 9,
+      "path": "src/core/team/teamTools.ts",
+      "test": "teamTools",
+      "old": "z.maxLength(TEAM_IDENTIFIER_MAX_CHARS)",
+      "new": "z.maxLength(Number.MAX_SAFE_INTEGER)",
+      "count": null,
+      "command": [
+        "npx",
+        "vitest",
+        "run",
+        "test/unit/teamTools.test.ts",
+        "--maxWorkers=3",
+        "--testTimeout=120000",
+        "--reporter=json",
+        "--outputFile=/home/randy/lanes/FIXM96T/temp/fixm96t/result-23.json"
+      ],
+      "exitCode": 1,
+      "failures": [
+        "shared team argument size limits bounds delegated role before dispatch",
+        "shared team argument size limits bounds delegated entry before dispatch",
+        "shared team argument size limits bounds delegated continue before dispatch",
+        "shared team argument size limits bounds delegation command_id before retaining a fingerprint",
+        "shared team argument size limits bounds delegation pipeline before retaining a fingerprint",
+        "shared team argument size limits bounds collect ids and refuses blank identifiers",
+        "shared team argument size limits bounds cancel ids and refuses blank identifiers",
+        "shared team argument size limits bounds merge identifiers"
+      ],
+      "beforeSha256": "3f78e9ee6d5d8f9fca549d3f288e2a5baec868414addbee4b969597ffdc37f05",
+      "afterSha256": "3f78e9ee6d5d8f9fca549d3f288e2a5baec868414addbee4b969597ffdc37f05",
+      "seconds": 1.5
+    },
+    {
+      "name": "Bound Rubric reasons",
+      "finding": 9,
+      "path": "src/core/team/teamTools.ts",
+      "test": "teamTools",
+      "old": "z.maxLength(TEAM_REASON_MAX_CHARS)",
+      "new": "z.maxLength(Number.MAX_SAFE_INTEGER)",
+      "count": null,
+      "command": [
+        "npx",
+        "vitest",
+        "run",
+        "test/unit/teamTools.test.ts",
+        "--maxWorkers=3",
+        "--testTimeout=120000",
+        "--reporter=json",
+        "--outputFile=/home/randy/lanes/FIXM96T/temp/fixm96t/result-24.json"
+      ],
+      "exitCode": 1,
+      "failures": [
+        "shared team argument size limits bounds every reason, kept-plan text, file path and collection"
+      ],
+      "beforeSha256": "3f78e9ee6d5d8f9fca549d3f288e2a5baec868414addbee4b969597ffdc37f05",
+      "afterSha256": "3f78e9ee6d5d8f9fca549d3f288e2a5baec868414addbee4b969597ffdc37f05",
+      "seconds": 1.42
+    },
+    {
+      "name": "Bound Kept plan text",
+      "finding": 9,
+      "path": "src/core/team/teamTools.ts",
+      "test": "teamTools",
+      "old": "z.maxLength(TEAM_PLAN_ITEM_MAX_CHARS)",
+      "new": "z.maxLength(Number.MAX_SAFE_INTEGER)",
+      "count": null,
+      "command": [
+        "npx",
+        "vitest",
+        "run",
+        "test/unit/teamTools.test.ts",
+        "--maxWorkers=3",
+        "--testTimeout=120000",
+        "--reporter=json",
+        "--outputFile=/home/randy/lanes/FIXM96T/temp/fixm96t/result-25.json"
+      ],
+      "exitCode": 1,
+      "failures": [
+        "shared team argument size limits bounds every reason, kept-plan text, file path and collection"
+      ],
+      "beforeSha256": "3f78e9ee6d5d8f9fca549d3f288e2a5baec868414addbee4b969597ffdc37f05",
+      "afterSha256": "3f78e9ee6d5d8f9fca549d3f288e2a5baec868414addbee4b969597ffdc37f05",
+      "seconds": 1.59
+    },
+    {
+      "name": "Bound File paths",
+      "finding": 9,
+      "path": "src/core/team/teamTools.ts",
+      "test": "teamTools",
+      "old": "z.maxLength(TEAM_PATH_MAX_CHARS)",
+      "new": "z.maxLength(Number.MAX_SAFE_INTEGER)",
+      "count": null,
+      "command": [
+        "npx",
+        "vitest",
+        "run",
+        "test/unit/teamTools.test.ts",
+        "--maxWorkers=3",
+        "--testTimeout=120000",
+        "--reporter=json",
+        "--outputFile=/home/randy/lanes/FIXM96T/temp/fixm96t/result-26.json"
+      ],
+      "exitCode": 1,
+      "failures": [
+        "shared team argument size limits bounds every reason, kept-plan text, file path and collection"
+      ],
+      "beforeSha256": "3f78e9ee6d5d8f9fca549d3f288e2a5baec868414addbee4b969597ffdc37f05",
+      "afterSha256": "3f78e9ee6d5d8f9fca549d3f288e2a5baec868414addbee4b969597ffdc37f05",
+      "seconds": 1.5
+    },
+    {
+      "name": "Bound Files count",
+      "finding": 9,
+      "path": "src/core/team/teamTools.ts",
+      "test": "teamTools",
+      "old": "z.maxLength(TEAM_FILES_MAX)",
+      "new": "z.maxLength(Number.MAX_SAFE_INTEGER)",
+      "count": null,
+      "command": [
+        "npx",
+        "vitest",
+        "run",
+        "test/unit/teamTools.test.ts",
+        "--maxWorkers=3",
+        "--testTimeout=120000",
+        "--reporter=json",
+        "--outputFile=/home/randy/lanes/FIXM96T/temp/fixm96t/result-27.json"
+      ],
+      "exitCode": 1,
+      "failures": [
+        "shared team argument size limits bounds every reason, kept-plan text, file path and collection"
+      ],
+      "beforeSha256": "3f78e9ee6d5d8f9fca549d3f288e2a5baec868414addbee4b969597ffdc37f05",
+      "afterSha256": "3f78e9ee6d5d8f9fca549d3f288e2a5baec868414addbee4b969597ffdc37f05",
+      "seconds": 1.44
+    },
+    {
+      "name": "Bound Plan count",
+      "finding": 9,
+      "path": "src/core/team/teamTools.ts",
+      "test": "teamTools",
+      "old": "z.maxLength(TEAM_PLAN_ITEMS_MAX)",
+      "new": "z.maxLength(Number.MAX_SAFE_INTEGER)",
+      "count": null,
+      "command": [
+        "npx",
+        "vitest",
+        "run",
+        "test/unit/teamTools.test.ts",
+        "--maxWorkers=3",
+        "--testTimeout=120000",
+        "--reporter=json",
+        "--outputFile=/home/randy/lanes/FIXM96T/temp/fixm96t/result-28.json"
+      ],
+      "exitCode": 1,
+      "failures": [
+        "shared team argument size limits bounds every reason, kept-plan text, file path and collection"
+      ],
+      "beforeSha256": "3f78e9ee6d5d8f9fca549d3f288e2a5baec868414addbee4b969597ffdc37f05",
+      "afterSha256": "3f78e9ee6d5d8f9fca549d3f288e2a5baec868414addbee4b969597ffdc37f05",
+      "seconds": 1.36
+    },
+    {
+      "name": "Bound Task ids count",
+      "finding": 9,
+      "path": "src/core/team/teamTools.ts",
+      "test": "teamTools",
+      "old": "z.maxLength(TEAM_TASK_IDS_MAX)",
+      "new": "z.maxLength(Number.MAX_SAFE_INTEGER)",
+      "count": null,
+      "command": [
+        "npx",
+        "vitest",
+        "run",
+        "test/unit/teamTools.test.ts",
+        "--maxWorkers=3",
+        "--testTimeout=120000",
+        "--reporter=json",
+        "--outputFile=/home/randy/lanes/FIXM96T/temp/fixm96t/result-29.json"
+      ],
+      "exitCode": 1,
+      "failures": [
+        "shared team argument size limits bounds collect ids and refuses blank identifiers",
+        "shared team argument size limits bounds cancel ids and refuses blank identifiers"
+      ],
+      "beforeSha256": "3f78e9ee6d5d8f9fca549d3f288e2a5baec868414addbee4b969597ffdc37f05",
+      "afterSha256": "3f78e9ee6d5d8f9fca549d3f288e2a5baec868414addbee4b969597ffdc37f05",
+      "seconds": 1.43
+    },
+    {
+      "name": "Reject blank identifiers",
+      "finding": 9,
+      "path": "src/core/team/teamTools.ts",
+      "test": "teamTools",
+      "old": ".check(z.maxLength(TEAM_IDENTIFIER_MAX_CHARS), z.trim(), z.minLength(1))",
+      "new": ".check(z.maxLength(TEAM_IDENTIFIER_MAX_CHARS))",
+      "count": 1,
+      "command": [
+        "npx",
+        "vitest",
+        "run",
+        "test/unit/teamTools.test.ts",
+        "--maxWorkers=3",
+        "--testTimeout=120000",
+        "--reporter=json",
+        "--outputFile=/home/randy/lanes/FIXM96T/temp/fixm96t/result-30.json"
+      ],
+      "exitCode": 1,
+      "failures": [
+        "delegate arguments reports argument failures through parseTeamArgs",
+        "concurrent command retries rejects empty retry ids and oversized briefs before a runner sees them",
+        "shared team argument size limits bounds collect ids and refuses blank identifiers",
+        "shared team argument size limits bounds cancel ids and refuses blank identifiers"
+      ],
+      "beforeSha256": "3f78e9ee6d5d8f9fca549d3f288e2a5baec868414addbee4b969597ffdc37f05",
+      "afterSha256": "3f78e9ee6d5d8f9fca549d3f288e2a5baec868414addbee4b969597ffdc37f05",
+      "seconds": 1.5
+    },
+    {
+      "name": "Bound raw brief before trim",
+      "finding": 9,
+      "path": "src/core/team/teamTools.ts",
+      "test": "teamTools",
+      "old": "z.maxLength(TEAM_BRIEF_MAX_CHARS), z.trim(), z.minLength(1)",
+      "new": "z.trim(), z.minLength(1), z.maxLength(TEAM_BRIEF_MAX_CHARS)",
+      "count": 1,
+      "command": [
+        "npx",
+        "vitest",
+        "run",
+        "test/unit/teamTools.test.ts",
+        "--maxWorkers=3",
+        "--testTimeout=120000",
+        "--reporter=json",
+        "--outputFile=/home/randy/lanes/FIXM96T/temp/fixm96t/result-31.json"
+      ],
+      "exitCode": 1,
+      "failures": [
+        "concurrent command retries rejects empty retry ids and oversized briefs before a runner sees them"
+      ],
+      "beforeSha256": "3f78e9ee6d5d8f9fca549d3f288e2a5baec868414addbee4b969597ffdc37f05",
+      "afterSha256": "3f78e9ee6d5d8f9fca549d3f288e2a5baec868414addbee4b969597ffdc37f05",
+      "seconds": 1.55
+    },
+    {
+      "name": "Publish identifier limits",
+      "finding": 9,
+      "path": "src/core/team/teamTools.ts",
+      "test": "teamTools",
+      "old": "maxLength: TEAM_IDENTIFIER_MAX_CHARS",
+      "new": "maxLength: Number.MAX_SAFE_INTEGER",
+      "count": null,
+      "command": [
+        "npx",
+        "vitest",
+        "run",
+        "test/unit/teamTools.test.ts",
+        "--maxWorkers=3",
+        "--testTimeout=120000",
+        "--reporter=json",
+        "--outputFile=/home/randy/lanes/FIXM96T/temp/fixm96t/result-32.json"
+      ],
+      "exitCode": 1,
+      "failures": [
+        "shared team argument size limits publishes the same argument limits to both backends"
+      ],
+      "beforeSha256": "3f78e9ee6d5d8f9fca549d3f288e2a5baec868414addbee4b969597ffdc37f05",
+      "afterSha256": "3f78e9ee6d5d8f9fca549d3f288e2a5baec868414addbee4b969597ffdc37f05",
+      "seconds": 1.39
+    },
+    {
+      "name": "Publish collection and text limits",
+      "finding": 9,
+      "path": "src/core/team/teamTools.ts",
+      "test": "teamTools",
+      "old": "maxItems: TEAM_FILES_MAX",
+      "new": "maxItems: Number.MAX_SAFE_INTEGER",
+      "count": 1,
+      "command": [
+        "npx",
+        "vitest",
+        "run",
+        "test/unit/teamTools.test.ts",
+        "--maxWorkers=3",
+        "--testTimeout=120000",
+        "--reporter=json",
+        "--outputFile=/home/randy/lanes/FIXM96T/temp/fixm96t/result-33.json"
+      ],
+      "exitCode": 1,
+      "failures": [
+        "shared team argument size limits publishes the same argument limits to both backends"
+      ],
+      "beforeSha256": "3f78e9ee6d5d8f9fca549d3f288e2a5baec868414addbee4b969597ffdc37f05",
+      "afterSha256": "3f78e9ee6d5d8f9fca549d3f288e2a5baec868414addbee4b969597ffdc37f05",
+      "seconds": 1.37
+    },
+    {
+      "name": "Model API cancellation after claim save",
+      "finding": 4,
+      "path": "src/core/backends/modelapi/ModelApiHost.ts",
+      "test": "teamDeclaration",
+      "old": "      signal.throwIfAborted()\n      return runner.delegate",
+      "new": "      return runner.delegate",
+      "count": 1,
+      "command": [
+        "npx",
+        "vitest",
+        "run",
+        "test/unit/teamDeclaration.test.ts",
+        "--maxWorkers=3",
+        "--testTimeout=120000",
+        "--reporter=json",
+        "--outputFile=/home/randy/lanes/FIXM96T/temp/fixm96t/result-34.json"
+      ],
+      "exitCode": 1,
+      "failures": [
+        "team storage does not start delegation cancelled while its durable claim is saving"
+      ],
+      "beforeSha256": "8949524f7fbb557154afa9afa061265f8f05a06ace853732ea491584d635dfce",
+      "afterSha256": "8949524f7fbb557154afa9afa061265f8f05a06ace853732ea491584d635dfce",
+      "seconds": 3.2
+    },
+    {
+      "name": "MCP revocation after claim save",
+      "finding": 5,
+      "path": "src/host/team/teamMcpServer.ts",
+      "test": "teamMcpServer",
+      "old": "          signal.throwIfAborted()\n          return { output: await binding.run",
+      "new": "          return { output: await binding.run",
+      "count": 1,
+      "command": [
+        "npx",
+        "vitest",
+        "run",
+        "test/unit/teamMcpServer.test.ts",
+        "--maxWorkers=3",
+        "--testTimeout=120000",
+        "--reporter=json",
+        "--outputFile=/home/randy/lanes/FIXM96T/temp/fixm96t/result-35.json"
+      ],
+      "exitCode": 1,
+      "failures": [
+        "team MCP admission does not start a delegation revoked while its claim is saving"
+      ],
+      "beforeSha256": "cf845f9677c3560116e02c159382de298dd894b7fd11a4632e1892da325e8b68",
+      "afterSha256": "cf845f9677c3560116e02c159382de298dd894b7fd11a4632e1892da325e8b68",
+      "seconds": 1.75
+    }
+  ]
+}

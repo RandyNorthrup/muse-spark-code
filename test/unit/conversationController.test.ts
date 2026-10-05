@@ -3156,6 +3156,92 @@ describe('ConversationController: team server and orchestrator slot (M96 lane T)
     checkFrame('musecode-session-start-team', params)
   })
 
+  it('refuses an unavailable declared team endpoint without starting another declaration', async () => {
+    const rememberMode = vi.fn(() => Promise.resolve())
+    const t = setup({
+      ideMcpEndpoint: IDE,
+      grantedCapabilities: ['sessionMcp'],
+      teamMcp: {
+        modeForNewConversation: () => 'team',
+        endpointForConversation: () => Promise.resolve(undefined),
+        rememberMode,
+      },
+    })
+    await t.send('l1', 'hi')
+    expect(t.server.requestsFor('session/start')).toHaveLength(0)
+    expect(rememberMode).not.toHaveBeenCalled()
+    expect(JSON.stringify(t.surface.posted)).toContain(
+      fill(UI_TEXT.teamRunnerUnavailable, { tool: 'team' }),
+    )
+  })
+
+  it('refuses a team declaration when the host lacks its session MCP capability', async () => {
+    const endpoint = vi.fn(() => Promise.resolve(TEAM))
+    const t = setup({
+      teamMcp: { modeForNewConversation: () => 'team', endpointForConversation: endpoint },
+    })
+    await t.send('l1', 'hi')
+    expect(t.server.requestsFor('session/start')).toHaveLength(0)
+    expect(endpoint).not.toHaveBeenCalled()
+    expect(JSON.stringify(t.surface.posted)).toContain(
+      fill(UI_TEXT.teamRunnerUnavailable, { tool: 'team' }),
+    )
+  })
+
+  it('keeps its resume target while the team endpoint is unavailable', async () => {
+    let isAvailable = true
+    let mode: 'team' | 'single-model' = 'team'
+    const t = setup({
+      grantedCapabilities: ['sessionMcp'],
+      teamMcp: {
+        modeForNewConversation: () => mode,
+        endpointForConversation: () => Promise.resolve(isAvailable ? TEAM : undefined),
+      },
+    })
+    await t.send('l1', 'hi')
+    t.server.handle('session/resume', () => envelope({ ...storedSession, sessionId: 's1' }))
+    t.controller.hostExited({ description: 'stopped', isExpected: false, isPersistent: false })
+    isAvailable = false
+    await t.send('l2', 'continue while unavailable')
+    expect(t.server.requestsFor('session/start')).toHaveLength(1)
+    expect(t.server.requestsFor('session/resume')).toHaveLength(0)
+    mode = 'single-model'
+    isAvailable = true
+    await t.send('l3', 'retry continuation')
+    expect(t.server.requestsFor('session/start')).toHaveLength(1)
+    expect(t.server.requestsFor('session/resume')[0]?.params?.['sessionId']).toBe('s1')
+    expect(t.server.requestsFor('session/resume')[0]?.params?.['config']).toMatchObject({
+      mcpServers: { team: { url: TEAM.url } },
+    })
+  })
+
+  it.each(['rejection', 'disposal', 'restart'] as const)(
+    'disposes a new session when metadata saving ends after %s',
+    async (failure) => {
+      const save = Promise.withResolvers<undefined>()
+      const entered = Promise.withResolvers<undefined>()
+      const t = setup({
+        grantedCapabilities: ['sessionMcp'],
+        teamMcp: {
+          ...teamMcp(() => 'team'),
+          rememberMode: () => {
+            entered.resolve(undefined)
+            return save.promise
+          },
+        },
+      })
+      const sending = t.send('l1', 'hi')
+      await entered.promise
+      expect(t.host.sessionCount).toBe(1)
+      if (failure === 'disposal') t.controller.dispose()
+      else if (failure === 'restart') await t.controller.handle({ type: 'clearConversation' })
+      if (failure === 'rejection') save.reject(new Error('metadata disk full'))
+      else save.resolve(undefined)
+      await sending
+      expect(t.host.sessionCount).toBe(0)
+    },
+  )
+
   it('keeps the attached set at resume when the mode flips mid-conversation', async () => {
     let mode: 'single-model' | 'team' = 'team'
     const t = setup({

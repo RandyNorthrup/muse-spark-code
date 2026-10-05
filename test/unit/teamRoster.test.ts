@@ -1,5 +1,5 @@
 // Lane T: the roster. The drills: a live count in the stable part fails the
-// byte-stability case; a team edit reaches the model only as a tail note.
+// byte-stability case; team edits stay structured data in tool answers.
 
 import { describe, expect, it } from 'vitest'
 import {
@@ -128,12 +128,21 @@ describe('formatStateChangeNote', () => {
     expect(formatStateChangeNote([])).toBeUndefined()
   })
 
-  it('names each change in one line', () => {
+  it('encodes each change as structured event data', () => {
     expect(
       formatStateChangeNote([
         { roleId: 'research', entryId: 'e1', from: 'ready', to: 'capped (day tokens)' },
         { roleId: 'qa', entryId: 'e3', from: 'rate-limited', to: 'ready' },
       ]),
-    ).toBe('Team: research e1: ready to capped (day tokens); qa e3: rate-limited to ready.')
+    ).toBe(
+      JSON.stringify({
+        type: 'team_events',
+        states: [
+          { roleId: 'research', entryId: 'e1', from: 'ready', to: 'capped (day tokens)' },
+          { roleId: 'qa', entryId: 'e3', from: 'rate-limited', to: 'ready' },
+        ],
+        edits: [],
+      }),
+    )
   })
 })

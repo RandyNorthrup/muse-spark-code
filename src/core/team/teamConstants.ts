@@ -22,6 +22,15 @@ export const TEAM_COLLECT_WAIT_MAX_SECONDS = 0
 /** The brief a task carries is at most this many characters. */
 export const TEAM_BRIEF_MAX_CHARS = 8000
 
+/** Shared dispatch limits; both Model API and MCP validate these before retaining arguments. */
+export const TEAM_IDENTIFIER_MAX_CHARS = 256
+export const TEAM_REASON_MAX_CHARS = 2000
+export const TEAM_PLAN_ITEM_MAX_CHARS = 8000
+export const TEAM_PATH_MAX_CHARS = 4096
+export const TEAM_FILES_MAX = 128
+export const TEAM_PLAN_ITEMS_MAX = 64
+export const TEAM_TASK_IDS_MAX = 256
+
 const BYTES_PER_KIB = 1024
 const BRIEF_FILES_MAX_KIB = 64
 /** Small text files named by a task are inlined up to this many bytes. */

@@ -8,8 +8,8 @@
 //   request and is never rewritten: it holds nothing that varies by task.
 // - The live part (headroom, states, queue, unmerged tasks, budget left)
 //   rides only in `roster`/`delegate`/`collect` answers and in a one-line
-//   state-change note at the tail of the next request.
-// - A team edit mid-conversation reaches the model only as a tail note.
+//   structured state-change event in the next team tool answer.
+// - A team edit mid-conversation reaches the model only as structured tool data.
 //
 // LANE-T-SEAM (lane 0): the English templates relocate into
 // `TEAM_MODEL_TEXT` in `src/shared/constants.ts` at integration.
@@ -91,19 +91,12 @@ export interface TeamStateChange {
   readonly to: string
 }
 
-/**
- * The one-line note at the tail of the orchestrator's next request, sent
- * only when an entry changes state (ready to capped, rate-limited, at its
- * usage limit, or reset). Plain consumption numbers wait for the next tool
- * answer, so the history does not grow on every request. Undefined when
- * nothing changed.
- */
-export function formatStateChangeNote(changes: readonly TeamStateChange[]): string | undefined {
-  if (changes.length === 0) {
-    return undefined
-  }
-  const parts = changes.map(
-    (change) => `${change.roleId} ${change.entryId}: ${change.from} to ${change.to}`,
-  )
-  return `Team: ${parts.join('; ')}.`
+/** State and edit events are JSON data in tool answers, never user messages. */
+export function formatStateChangeNote(
+  changes: readonly TeamStateChange[],
+  edits: readonly string[] = [],
+): string | undefined {
+  return changes.length === 0 && edits.length === 0
+    ? undefined
+    : JSON.stringify({ type: 'team_events', states: changes, edits })
 }

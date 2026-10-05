@@ -23,6 +23,13 @@ import {
   TEAM_DELEGATE_MAX,
   TEAM_BRIEF_MAX_CHARS,
   TEAM_REASON_CODES,
+  TEAM_IDENTIFIER_MAX_CHARS,
+  TEAM_REASON_MAX_CHARS,
+  TEAM_PLAN_ITEM_MAX_CHARS,
+  TEAM_PATH_MAX_CHARS,
+  TEAM_FILES_MAX,
+  TEAM_PLAN_ITEMS_MAX,
+  TEAM_TASK_IDS_MAX,
 } from './teamConstants'
 
 /** The five tool names, in declaration order. */
@@ -51,9 +58,16 @@ export function teamToolsForWorker(
 const TASK_SCHEMA = {
   type: 'object',
   properties: {
-    role: { type: 'string', description: 'The role to run, e.g. engineering' },
+    role: {
+      type: 'string',
+      minLength: 1,
+      maxLength: TEAM_IDENTIFIER_MAX_CHARS,
+      description: 'The role to run, e.g. engineering',
+    },
     brief: {
       type: 'string',
+      minLength: 1,
+      maxLength: TEAM_BRIEF_MAX_CHARS,
       description:
         'The whole task for a worker that has not seen this conversation: goal, context, files, constraints, done criteria',
     },
@@ -65,18 +79,31 @@ const TASK_SCHEMA = {
           enum: [...TEAM_REASON_CODES],
           description: 'Why this is delegated: one of the rubric codes',
         },
-        detail: { type: 'string', description: 'The reason in one sentence' },
+        detail: {
+          type: 'string',
+          minLength: 1,
+          maxLength: TEAM_REASON_MAX_CHARS,
+          description: 'The reason in one sentence',
+        },
       },
       required: ['code', 'detail'],
     },
     files: {
       type: 'array',
-      items: { type: 'string' },
+      maxItems: TEAM_FILES_MAX,
+      items: { type: 'string', minLength: 1, maxLength: TEAM_PATH_MAX_CHARS },
       description: 'Workspace paths the worker is pointed at',
     },
-    entry: { type: 'string', description: 'One pool entry to use, only if it has headroom' },
+    entry: {
+      type: 'string',
+      minLength: 1,
+      maxLength: TEAM_IDENTIFIER_MAX_CHARS,
+      description: 'One pool entry to use, only if it has headroom',
+    },
     continue: {
       type: 'string',
+      minLength: 1,
+      maxLength: TEAM_IDENTIFIER_MAX_CHARS,
       description: 'A finished task id to reopen with a follow-up on its own branch',
     },
   },
@@ -86,7 +113,12 @@ const TASK_SCHEMA = {
 const PLAN_ITEM_SCHEMA = {
   type: 'object',
   properties: {
-    what: { type: 'string', description: 'The work you keep for yourself' },
+    what: {
+      type: 'string',
+      minLength: 1,
+      maxLength: TEAM_PLAN_ITEM_MAX_CHARS,
+      description: 'The work you keep for yourself',
+    },
     reason: {
       type: 'object',
       properties: {
@@ -95,7 +127,12 @@ const PLAN_ITEM_SCHEMA = {
           enum: [...TEAM_REASON_CODES],
           description: 'Why you keep it: one of the rubric codes',
         },
-        detail: { type: 'string', description: 'The reason in one sentence' },
+        detail: {
+          type: 'string',
+          minLength: 1,
+          maxLength: TEAM_REASON_MAX_CHARS,
+          description: 'The reason in one sentence',
+        },
       },
       required: ['code', 'detail'],
     },
@@ -131,15 +168,23 @@ export const TEAM_TOOL_SCHEMAS: Record<TeamToolName, TeamToolSchema> = {
       },
       plan: {
         type: 'array',
+        maxItems: TEAM_PLAN_ITEMS_MAX,
         items: PLAN_ITEM_SCHEMA,
         description: 'The work you keep for yourself, so the user sees the whole plan',
       },
       command_id: {
         type: 'string',
+        minLength: 1,
+        maxLength: TEAM_IDENTIFIER_MAX_CHARS,
         description:
           'Optional request id; a retry with the same id and tasks reuses the tasks already started',
       },
-      pipeline: { type: 'string', description: 'The configured pipeline to run' },
+      pipeline: {
+        type: 'string',
+        minLength: 1,
+        maxLength: TEAM_IDENTIFIER_MAX_CHARS,
+        description: 'The configured pipeline to run',
+      },
       dry_run: {
         type: 'boolean',
         description: 'Answer the plan without starting or spending anything',
@@ -150,7 +195,11 @@ export const TEAM_TOOL_SCHEMAS: Record<TeamToolName, TeamToolSchema> = {
   collect: {
     description: `Return the reports that are ready, with the tasks still running and their time and consumption. Waits at most wait_seconds. Page a large part with part and offset.`,
     properties: {
-      task_ids: { type: 'array', items: { type: 'string' } },
+      task_ids: {
+        type: 'array',
+        maxItems: TEAM_TASK_IDS_MAX,
+        items: { type: 'string', minLength: 1, maxLength: TEAM_IDENTIFIER_MAX_CHARS },
+      },
       wait_seconds: {
         type: 'integer',
         minimum: 0,
@@ -166,7 +215,12 @@ export const TEAM_TOOL_SCHEMAS: Record<TeamToolName, TeamToolSchema> = {
     description:
       'Stop running tasks, or discard finished ones: their working copies and branches are removed.',
     properties: {
-      task_ids: { type: 'array', minItems: 1, items: { type: 'string' } },
+      task_ids: {
+        type: 'array',
+        minItems: 1,
+        maxItems: TEAM_TASK_IDS_MAX,
+        items: { type: 'string', minLength: 1, maxLength: TEAM_IDENTIFIER_MAX_CHARS },
+      },
     },
     required: ['task_ids'],
   },
@@ -174,7 +228,7 @@ export const TEAM_TOOL_SCHEMAS: Record<TeamToolName, TeamToolSchema> = {
     description:
       'Bring a finished, reviewed task change into the working branch as uncommitted changes: the only path from a worker branch to the user. Asks the user before writing.',
     properties: {
-      task_id: { type: 'string' },
+      task_id: { type: 'string', minLength: 1, maxLength: TEAM_IDENTIFIER_MAX_CHARS },
       on_conflict: {
         type: 'string',
         enum: ['markers', 'rework'],
@@ -223,9 +277,15 @@ export function teamMcpToolList(): readonly McpTool[] {
 
 // --- argument schemas (validated before anything runs) ---
 
+const identifierSchema = z
+  .string()
+  .check(z.maxLength(TEAM_IDENTIFIER_MAX_CHARS), z.trim(), z.minLength(1))
+const pathSchema = z.string().check(z.maxLength(TEAM_PATH_MAX_CHARS), z.trim(), z.minLength(1))
+const taskIdsSchema = z.array(identifierSchema).check(z.maxLength(TEAM_TASK_IDS_MAX))
+
 const reasonSchema = z.object({
   code: z.enum(TEAM_REASON_CODES),
-  detail: z.string().check(z.trim(), z.minLength(1)),
+  detail: z.string().check(z.maxLength(TEAM_REASON_MAX_CHARS), z.trim(), z.minLength(1)),
 })
 
 export const rosterArgs = z.object({})
@@ -234,31 +294,33 @@ export const delegateArgs = z.object({
   tasks: z
     .array(
       z.object({
-        role: z.string().check(z.trim(), z.minLength(1)),
-        brief: z.string().check(z.trim(), z.minLength(1), z.maxLength(TEAM_BRIEF_MAX_CHARS)),
+        role: identifierSchema,
+        brief: z.string().check(z.maxLength(TEAM_BRIEF_MAX_CHARS), z.trim(), z.minLength(1)),
         reason: reasonSchema,
-        files: z.optional(z.array(z.string())),
-        entry: z.optional(z.string().check(z.trim(), z.minLength(1))),
-        continue: z.optional(z.string().check(z.trim(), z.minLength(1))),
+        files: z.optional(z.array(pathSchema).check(z.maxLength(TEAM_FILES_MAX))),
+        entry: z.optional(identifierSchema),
+        continue: z.optional(identifierSchema),
       }),
     )
     .check(z.minLength(1), z.maxLength(TEAM_DELEGATE_MAX)),
   plan: z.optional(
-    z.array(
-      z.object({
-        what: z.string().check(z.trim(), z.minLength(1)),
-        reason: reasonSchema,
-      }),
-    ),
+    z
+      .array(
+        z.object({
+          what: z.string().check(z.maxLength(TEAM_PLAN_ITEM_MAX_CHARS), z.trim(), z.minLength(1)),
+          reason: reasonSchema,
+        }),
+      )
+      .check(z.maxLength(TEAM_PLAN_ITEMS_MAX)),
   ),
-  command_id: z.optional(z.string().check(z.trim(), z.minLength(1))),
-  pipeline: z.optional(z.string().check(z.trim(), z.minLength(1))),
+  command_id: z.optional(identifierSchema),
+  pipeline: z.optional(identifierSchema),
   dry_run: z.optional(z.boolean()),
 })
 export type DelegateArgs = z.infer<typeof delegateArgs>
 
 export const collectArgs = z.object({
-  task_ids: z.optional(z.array(z.string())),
+  task_ids: z.optional(taskIdsSchema),
   wait_seconds: z.optional(z.int().check(z.nonnegative())),
   part: z.optional(z.enum(['report', 'diff', 'transcript'])),
   offset: z.optional(z.int().check(z.nonnegative())),
@@ -275,11 +337,11 @@ export function clampCollectWait(waitSeconds: number | undefined): number | unde
 }
 
 export const cancelArgs = z.object({
-  task_ids: z.array(z.string().check(z.trim(), z.minLength(1))).check(z.minLength(1)),
+  task_ids: taskIdsSchema.check(z.minLength(1)),
 })
 
 export const mergeArgs = z.object({
-  task_id: z.string().check(z.trim(), z.minLength(1)),
+  task_id: identifierSchema,
   on_conflict: z.optional(z.enum(['markers', 'rework'])),
 })
 
@@ -312,6 +374,25 @@ export interface TeamCommandRecord {
   readonly tasksFingerprint: string
   /** The runner's answer, replayed byte for byte on a retried call. */
   readonly answer: string
+  /** A persisted start claim whose final outcome has not been reconciled. */
+  readonly state?: 'uncertain' | undefined
+}
+
+/** Conversation storage shared by the engine and the Muse Code binding. */
+export const teamCommandRecordsSchema = z.record(
+  z.string(),
+  z.object({
+    tasksFingerprint: z.string(),
+    answer: z.string(),
+    state: z.optional(z.literal('uncertain')),
+  }),
+)
+
+export interface TeamCommandStore {
+  /** The persisted conversation's records, validated before restoring. */
+  readonly load: () => unknown
+  /** Resolves only when this exact claim/answer is durable. */
+  readonly save: (records: Readonly<Record<string, TeamCommandRecord>>) => Promise<void>
 }
 
 /** Stable fingerprint of a `delegate` call's tasks: key order cannot change it. */
@@ -337,10 +418,33 @@ export function fingerprintDelegateTasks(tasks: readonly unknown[]): string {
  */
 export class TeamCommandRegistry {
   private readonly records = new Map<string, TeamCommandRecord>()
+  private saving: Promise<void> = Promise.resolve()
   private readonly pending = new Map<
     string,
     { fingerprint: string; result: Promise<TeamToolResult> }
   >()
+
+  public constructor(
+    private readonly persist?: (
+      records: Readonly<Record<string, TeamCommandRecord>>,
+    ) => Promise<void>,
+  ) {}
+
+  /** Serialize snapshots so an earlier slow save cannot erase a later claim. */
+  private async saveRecords(): Promise<void> {
+    const snapshot = this.snapshot()
+    const previous = this.saving
+    const save = async (): Promise<void> => {
+      try {
+        await previous
+      } catch {
+        // Its caller already received that failure; later claims still save.
+      }
+      await this.persist?.(snapshot)
+    }
+    this.saving = save()
+    await this.saving
+  }
 
   /** Concurrent retries share the first call, before its answer is recorded. */
   public async run(
@@ -348,11 +452,8 @@ export class TeamCommandRegistry {
     tasks: readonly unknown[],
     start: () => Promise<TeamToolResult>,
   ): Promise<TeamToolResult> {
-    const fingerprint = fingerprintDelegateTasks(tasks)
-    const claim = this.claim(commandId, fingerprint)
-    if (claim.kind === 'refused') throw new Error('command_id was already used for different tasks')
-    if (claim.kind === 'replay') return { output: claim.answer, visibleOutput: '' }
     if (commandId === undefined) return await start()
+    const fingerprint = fingerprintDelegateTasks(tasks)
     const pending = this.pending.get(commandId)
     if (pending !== undefined) {
       if (pending.fingerprint !== fingerprint)
@@ -360,13 +461,30 @@ export class TeamCommandRegistry {
       const result = await pending.result
       return { output: result.output, visibleOutput: '' }
     }
-    const run = async (): Promise<TeamToolResult> => await start()
+    const claim = this.claim(commandId, fingerprint)
+    if (claim.kind === 'refused') throw new Error('command_id was already used for different tasks')
+    if (claim.kind === 'uncertain') throw new Error(claim.reason)
+    if (claim.kind === 'replay') return { output: claim.answer, visibleOutput: '' }
+    // Claim before invoking the runner. This refusal remains durable even
+    // when its start throws, is interrupted, or never returns an answer.
+    this.complete(commandId, {
+      tasksFingerprint: fingerprint,
+      state: 'uncertain',
+      answer:
+        'Error: command_id has an uncertain delegation outcome; inspect its tasks before issuing a new command_id.',
+    })
+    const run = async (): Promise<TeamToolResult> => {
+      await this.saveRecords()
+      const answer = await start()
+      this.records.set(commandId, { tasksFingerprint: fingerprint, answer: answer.output })
+      await this.saveRecords()
+      return answer
+    }
+    // run waits for persistence before the runner can reenter this registry.
     const result = run()
     this.pending.set(commandId, { fingerprint, result })
     try {
-      const answer = await result
-      this.complete(commandId, { tasksFingerprint: fingerprint, answer: answer.output })
-      return answer
+      return await result
     } finally {
       this.pending.delete(commandId)
     }
@@ -388,7 +506,8 @@ export class TeamCommandRegistry {
   ):
     | { readonly kind: 'claimed' }
     | { readonly kind: 'replay'; readonly answer: string }
-    | { readonly kind: 'refused' } {
+    | { readonly kind: 'refused' }
+    | { readonly kind: 'uncertain'; readonly reason: string } {
     if (commandId === undefined) {
       return { kind: 'claimed' }
     }
@@ -396,9 +515,10 @@ export class TeamCommandRegistry {
     if (record === undefined) {
       return { kind: 'claimed' }
     }
-    return record.tasksFingerprint === tasksFingerprint
-      ? { kind: 'replay', answer: record.answer }
-      : { kind: 'refused' }
+    if (record.tasksFingerprint !== tasksFingerprint) return { kind: 'refused' }
+    return record.state === 'uncertain'
+      ? { kind: 'uncertain', reason: record.answer }
+      : { kind: 'replay', answer: record.answer }
   }
 
   public complete(commandId: string | undefined, answer: TeamCommandRecord): void {
