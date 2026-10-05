@@ -9,6 +9,7 @@
 // charged to the entry that sent it: rows carry their sending entry, and the
 // meter sums rows, never the task's current entry. No `vscode` here.
 
+import { MILLISECONDS_PER_MINUTE } from '../../shared/constants'
 import type { TeamMeasure, TeamWindow } from './teamPool'
 
 /** One task's (or rollup's) usage, by kind, with its provenance. */
@@ -156,7 +157,7 @@ function reservationAmount(measure: TeamMeasure, reservation: TeamReservation): 
 }
 
 /** Whether a row counts for an entry's cap in a window. */
-function rowInScope(
+function isRowInScope(
   row: TeamMeterRow,
   entryId: string,
   window: TeamWindow,
@@ -180,6 +181,14 @@ function rowInScope(
 }
 
 export class TeamMeter {
+  /**
+   * Whether a task past its minutes is stopped (D75): elapsed minutes
+   * against the role's minutes per task.
+   */
+  public static isTaskOverdue(startMs: number, minutesPerTask: number, nowMs: number): boolean {
+    return nowMs - startMs >= minutesPerTask * MILLISECONDS_PER_MINUTE
+  }
+
   public constructor(private readonly source: TeamMeterSource) {}
 
   /**
@@ -215,13 +224,13 @@ export class TeamMeter {
   ): TeamMeterReading {
     const resetMs = this.lastResetMs(entryId, cap.window)
     let value = 0
-    let estimated = false
+    let isEstimated = false
     for (const row of this.source.rows()) {
-      if (!rowInScope(row, entryId, cap.window, scope, resetMs)) {
+      if (!isRowInScope(row, entryId, cap.window, scope, resetMs)) {
         continue
       }
       value += usageAmount(cap.measure, row.usage)
-      estimated = estimated || row.estimated
+      isEstimated ||= row.estimated
     }
     for (const reservation of this.source.openReservations()) {
       if (reservation.entryId !== entryId) {
@@ -231,21 +240,14 @@ export class TeamMeter {
         continue
       }
       const amount = reservationAmount(cap.measure, reservation)
-      if (amount !== 0) {
-        value += amount
-        // A reservation is an estimate until reported usage replaces it.
-        estimated = true
+      if (amount === 0) {
+        continue
       }
+      value += amount
+      // A reservation is an estimate until reported usage replaces it.
+      isEstimated = true
     }
-    return { value, estimated }
-  }
-
-  /**
-   * Whether a task past its minutes is stopped (D75): elapsed minutes
-   * against the role's minutes per task.
-   */
-  public static isTaskOverdue(startMs: number, minutesPerTask: number, nowMs: number): boolean {
-    return nowMs - startMs >= minutesPerTask * 60 * 1000
+    return { value, estimated: isEstimated }
   }
 }
 
@@ -308,29 +310,44 @@ export async function checkAndReserve(
     readonly entryId: string
     readonly agentKey: string
     readonly taskId: string
-    readonly caps: readonly { readonly measure: TeamMeasure; readonly window: TeamWindow; readonly amount: number }[]
+    readonly caps: readonly {
+      readonly measure: TeamMeasure
+      readonly window: TeamWindow
+      readonly amount: number
+    }[]
     readonly tokens: number
     readonly spendUsd: number
     readonly dayKey: string
   },
 ): Promise<
   | { readonly ok: true; readonly reservation: TeamReservation }
-  | { readonly ok: false; readonly measure: TeamMeasure; readonly window: TeamWindow; readonly used: number; readonly amount: number }
+  | {
+      readonly ok: false
+      readonly measure: TeamMeasure
+      readonly window: TeamWindow
+      readonly used: number
+      readonly amount: number
+    }
 > {
   for (const cap of request.caps) {
-    const reading = meter.used(
-      request.entryId,
-      cap,
-      { taskId: request.taskId, dayKey: request.dayKey },
-    )
-    const want =
-      cap.measure === 'spendUsd'
-        ? request.spendUsd
-        : cap.measure === 'tasks'
-          ? 1
-          : request.tokens
+    const reading = meter.used(request.entryId, cap, {
+      taskId: request.taskId,
+      dayKey: request.dayKey,
+    })
+    let want = request.tokens
+    if (cap.measure === 'spendUsd') {
+      want = request.spendUsd
+    } else if (cap.measure === 'tasks') {
+      want = 1
+    }
     if (reading.value + want > cap.amount) {
-      return { ok: false, measure: cap.measure, window: cap.window, used: reading.value, amount: cap.amount }
+      return {
+        ok: false,
+        measure: cap.measure,
+        window: cap.window,
+        used: reading.value,
+        amount: cap.amount,
+      }
     }
   }
   const reservation = await journal.reserve({

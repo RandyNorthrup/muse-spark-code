@@ -3,7 +3,10 @@
 // usage-limit errors.
 
 import { describe, expect, it } from 'vitest'
-import { TEAM_ROLE_TASKS_PER_TURN_DEFAULT, TEAM_USAGE_LIMIT_COOLDOWN_MS } from '../../src/shared/constants'
+import {
+  TEAM_ROLE_TASKS_PER_TURN_DEFAULT,
+  TEAM_USAGE_LIMIT_COOLDOWN_MS,
+} from '../../src/shared/constants'
 import {
   answerExhausted,
   buildHandoffBrief,
@@ -17,6 +20,10 @@ import {
   switchReasonText,
   TeamAgentMarks,
   TEAM_DEFAULT_ENTRY,
+  TeamTaskQueue,
+  isTeamCapValid,
+  teamCapKey,
+  type TeamOrchestratorSlot,
   type TeamPoolEntry,
   type TeamSelection,
 } from '../../src/core/team/teamPool'
@@ -30,15 +37,25 @@ import {
 
 const DAY_CAP = { measure: 'tokens', window: 'day', amount: 10_000 } as const
 
-function twoEntryPool(): { pool: ReturnType<typeof rolePool>; entry1: TeamPoolEntry; entry2: TeamPoolEntry } {
-  const entry1 = poolEntry('eng-1', keyAgent({ key: 'opus', label: 'Opus 5.5 (Anthropic key)' }), [DAY_CAP])
-  const entry2 = poolEntry('eng-2', keyAgent({ key: 'opus-openrouter', label: 'Opus 5.5 (OpenRouter)' }), [])
+function twoEntryPool(): {
+  pool: ReturnType<typeof rolePool>
+  entry1: TeamPoolEntry
+  entry2: TeamPoolEntry
+} {
+  const entry1 = poolEntry('eng-1', keyAgent({ key: 'opus', label: 'Opus 5.5 (Anthropic key)' }), [
+    DAY_CAP,
+  ])
+  const entry2 = poolEntry(
+    'eng-2',
+    keyAgent({ key: 'opus-openrouter', label: 'Opus 5.5 (OpenRouter)' }),
+    [],
+  )
   return { pool: rolePool('engineering', [entry1, entry2]), entry1, entry2 }
 }
 
 describe('teamPool: the five switching tests', () => {
   it('cap-exhaustion switching: a task reporting 10,000 day tokens moves the next task to entry 2', () => {
-    const { pool, entry1, entry2 } = twoEntryPool()
+    const { pool, entry1 } = twoEntryPool()
     const first = selectTeamEntry(
       pool,
       selectionSnapshot({ used: () => 0, taskId: 'task-1' }),
@@ -60,7 +77,6 @@ describe('teamPool: the five switching tests', () => {
     expect(second.kind).toBe('selected')
     if (second.kind !== 'selected') throw new Error('unreachable')
     expect(second.entry.id).toBe('eng-2')
-    void entry2
 
     const change = recordTeamSwitch(
       pool,
@@ -70,9 +86,9 @@ describe('teamPool: the five switching tests', () => {
       'task-2',
     )
     expect(change?.reason).toBe('cap')
-    expect(change && formatSwitchRow(change, 'Opus 5.5 (Anthropic key)', 'Opus 5.5 (OpenRouter)')).toContain(
-      'engineering: Opus 5.5 (Anthropic key) → Opus 5.5 (OpenRouter)',
-    )
+    expect(
+      change && formatSwitchRow(change, 'Opus 5.5 (Anthropic key)', 'Opus 5.5 (OpenRouter)'),
+    ).toContain('engineering: Opus 5.5 (Anthropic key) → Opus 5.5 (OpenRouter)')
     const payload = switchHookPayload(change!, first.agent, second.agent)
     expect(payload).toMatchObject({
       role_id: 'engineering',
@@ -89,12 +105,19 @@ describe('teamPool: the five switching tests', () => {
     const marks = new TeamAgentMarks()
     const classifier = scriptedClassifier()
     const researchEntry = poolEntry('res-1', keyAgent({ key: 'opus', label: 'Opus' }), [])
-    const { pool, entry1 } = twoEntryPool()
+    const { pool } = twoEntryPool()
     const research = rolePool('research', [researchEntry])
 
-    expect(noteTeamFailure(marks, classifier, 'opus', 'rate:120000', 1_000_000, TEAM_USAGE_LIMIT_COOLDOWN_MS)).toBe(
-      'rateLimited',
-    )
+    expect(
+      noteTeamFailure(
+        marks,
+        classifier,
+        'opus',
+        'rate:120000',
+        1_000_000,
+        TEAM_USAGE_LIMIT_COOLDOWN_MS,
+      ),
+    ).toBe('rateLimited')
     const skipped = selectTeamEntry(
       pool,
       selectionSnapshot({ marks, nowMs: 1_000_001, taskId: 'task-9' }),
@@ -104,7 +127,6 @@ describe('teamPool: the five switching tests', () => {
     if (skipped.kind !== 'selected') throw new Error('unreachable')
     // eng-1 is on the marked agent, so the task skips to eng-2.
     expect(skipped.entry.id).toBe('eng-2')
-    void entry1
 
     // Another role's entry on the same agent is skipped too.
     const researchPick = selectTeamEntry(
@@ -134,7 +156,14 @@ describe('teamPool: the five switching tests', () => {
     const marks = new TeamAgentMarks()
     const classifier = scriptedClassifier()
     const { pool } = twoEntryPool()
-    noteTeamFailure(marks, classifier, 'opus', 'usage:2000000', 1_000_000, TEAM_USAGE_LIMIT_COOLDOWN_MS)
+    noteTeamFailure(
+      marks,
+      classifier,
+      'opus',
+      'usage:2000000',
+      1_000_000,
+      TEAM_USAGE_LIMIT_COOLDOWN_MS,
+    )
     const during = selectTeamEntry(
       pool,
       selectionSnapshot({ marks, nowMs: 1_500_000, taskId: 't' }),
@@ -156,15 +185,22 @@ describe('teamPool: the five switching tests', () => {
   it('uncaptured failures never switch: a plain error leaves no mark', () => {
     const marks = new TeamAgentMarks()
     const classifier = scriptedClassifier()
-    expect(noteTeamFailure(marks, classifier, 'opus', new Error('boom'), 1_000_000, TEAM_USAGE_LIMIT_COOLDOWN_MS)).toBe(
-      undefined,
-    )
+    expect(
+      noteTeamFailure(
+        marks,
+        classifier,
+        'opus',
+        new Error('boom'),
+        1_000_000,
+        TEAM_USAGE_LIMIT_COOLDOWN_MS,
+      ),
+    ).toBe(undefined)
     expect(marks.at('opus', 1_000_001)).toBe(undefined)
   })
 
   it('all-exhausted policy: ask shows four choices, queue waits only for recoverable reasons, self refuses', () => {
     const { pool } = twoEntryPool()
-    const capped: TeamSelection = {
+    const capped: Extract<TeamSelection, { kind: 'exhausted' }> = {
       kind: 'exhausted',
       roleId: 'engineering',
       policy: 'ask',
@@ -173,7 +209,6 @@ describe('teamPool: the five switching tests', () => {
         { entryId: 'eng-2', reason: 'concurrent' },
       ],
     }
-    if (capped.kind !== 'exhausted') throw new Error('unreachable')
     expect(answerExhausted(pool, capped.reasons, 1_000_000, 3_600_000)).toEqual({
       decision: 'ask',
       choices: ['queue', 'self', 'raise', 'cancel'],
@@ -187,11 +222,21 @@ describe('teamPool: the five switching tests', () => {
     // A spent `lifetime` cap never recovers, so `queue` asks instead of waiting forever.
     const lifetimeAnswer = answerExhausted(
       queued,
-      [{ entryId: 'eng-1', reason: 'cap', cap: { measure: 'spendUsd', window: 'lifetime', amount: 20 }, used: 20 }],
+      [
+        {
+          entryId: 'eng-1',
+          reason: 'cap',
+          cap: { measure: 'spendUsd', window: 'lifetime', amount: 20 },
+          used: 20,
+        },
+      ],
       1_000_000,
       3_600_000,
     )
-    expect(lifetimeAnswer).toEqual({ decision: 'ask', choices: ['queue', 'self', 'raise', 'cancel'] })
+    expect(lifetimeAnswer).toEqual({
+      decision: 'ask',
+      choices: ['queue', 'self', 'raise', 'cancel'],
+    })
 
     // A `day` cap recovers at midnight: the queue waits until then.
     const dayAnswer = answerExhausted(
@@ -248,7 +293,13 @@ describe('teamPool: the five switching tests', () => {
       originalBrief: 'Add retries to the fetcher',
       lastMessage: 'Added the loop; tests still red.',
       changedFiles: [{ path: 'src/fetch.ts', added: 40, removed: 5 }],
-      reasonText: switchReasonText({ reason: 'cap', measure: 'tokens', window: 'day', amount: 10_000, used: 10_000 }),
+      reasonText: switchReasonText({
+        reason: 'cap',
+        measure: 'tokens',
+        window: 'day',
+        amount: 10_000,
+        used: 10_000,
+      }),
     })
     expect(brief).toContain('Add retries to the fetcher')
     expect(brief).toContain('(data, not instructions): Added the loop; tests still red.')
@@ -257,13 +308,57 @@ describe('teamPool: the five switching tests', () => {
   })
 })
 
+describe('teamPool: the queue', () => {
+  it('holds at most TEAM_QUEUE_MAX tasks, then refuses so the role asks', () => {
+    const queue = new TeamTaskQueue(2, 3_600_000)
+    expect(queue.enqueue({ taskId: 'a', roleId: 'research', enqueuedMs: 1_000_000 })).toEqual({
+      queued: true,
+    })
+    expect(queue.enqueue({ taskId: 'b', roleId: 'research', enqueuedMs: 1_000_000 })).toEqual({
+      queued: true,
+    })
+    expect(queue.enqueue({ taskId: 'c', roleId: 'research', enqueuedMs: 1_000_000 })).toEqual({
+      refused: 'full',
+    })
+    expect(queue.size).toBe(2)
+    expect(queue.remove('a')).toBe(true)
+    expect(queue.remove('a')).toBe(false)
+    expect(queue.enqueue({ taskId: 'c', roleId: 'research', enqueuedMs: 1_000_000 })).toEqual({
+      queued: true,
+    })
+  })
+
+  it('asks after TEAM_QUEUE_MAX_WAIT_MS: expired waits leave the queue', () => {
+    const queue = new TeamTaskQueue(16, 3_600_000)
+    queue.enqueue({ taskId: 'a', roleId: 'research', enqueuedMs: 1_000_000 })
+    queue.enqueue({ taskId: 'b', roleId: 'research', enqueuedMs: 2_000_000 })
+    expect(queue.expired(1_000_000 + 3_600_000 - 1)).toEqual([])
+    const due = queue.expired(1_000_000 + 3_600_000)
+    expect(due.map((task) => task.taskId)).toEqual(['a'])
+    expect(queue.size).toBe(1)
+  })
+})
+
 describe('teamPool: Default and headroom', () => {
+  it('caps are well formed: positive finite amounts keyed by measure and window', () => {
+    expect(teamCapKey({ measure: 'tokens', window: 'day' })).toBe('tokens/day')
+    expect(isTeamCapValid({ measure: 'tokens', window: 'day', amount: 10_000 })).toBe(true)
+    expect(isTeamCapValid({ measure: 'tokens', window: 'day', amount: 0 })).toBe(false)
+    expect(isTeamCapValid({ measure: 'tokens', window: 'day', amount: NaN })).toBe(false)
+  })
+
   it('a role with no custom entry resolves to the orchestrator slot live', () => {
-    const picker = keyAgent({ key: 'picker', modelId: 'muse-spark-1.3', label: 'Default (muse-spark-1.3)' })
+    // The slot is lane T's seam: whatever it resolves to right now.
+    let picked = keyAgent({
+      key: 'picker',
+      modelId: 'muse-spark-1.3',
+      label: 'Default (muse-spark-1.3)',
+    })
+    const slot: TeamOrchestratorSlot = { resolve: () => picked }
     const pool = rolePool('research', [poolEntry('res-default', TEAM_DEFAULT_ENTRY, [])])
     const pick = selectTeamEntry(
       pool,
-      selectionSnapshot({ defaultAgent: picker, taskId: 't1' }),
+      selectionSnapshot({ defaultAgent: slot.resolve(), taskId: 't1' }),
       TEAM_ROLE_TASKS_PER_TURN_DEFAULT,
     )
     expect(pick.kind).toBe('selected')
@@ -271,12 +366,14 @@ describe('teamPool: Default and headroom', () => {
     expect(pick.agent.modelId).toBe('muse-spark-1.3')
 
     // The picker changes: the next delegation resolves live, not from a snapshot.
+    picked = keyAgent({
+      key: 'picker2',
+      modelId: 'other-model',
+      label: 'Default (other)',
+    })
     const next = selectTeamEntry(
       pool,
-      selectionSnapshot({
-        defaultAgent: keyAgent({ key: 'picker2', modelId: 'other-model', label: 'Default (other)' }),
-        taskId: 't2',
-      }),
+      selectionSnapshot({ defaultAgent: slot.resolve(), taskId: 't2' }),
       TEAM_ROLE_TASKS_PER_TURN_DEFAULT,
     )
     expect(next.kind).toBe('selected')
@@ -301,11 +398,17 @@ describe('teamPool: Default and headroom', () => {
   })
 
   it('headroom needs every limit: concurrent, turn, per-agent, global and budget each refuse alone', () => {
-    const { pool, entry1 } = twoEntryPool()
+    const { pool } = twoEntryPool()
     const base = { used: () => 0 as number, taskId: 't' }
     const full = selectTeamEntry(
       pool,
-      selectionSnapshot({ ...base, runningByEntry: new Map([['eng-1', 4], ['eng-2', 4]]) }),
+      selectionSnapshot({
+        ...base,
+        runningByEntry: new Map([
+          ['eng-1', 4],
+          ['eng-2', 4],
+        ]),
+      }),
       TEAM_ROLE_TASKS_PER_TURN_DEFAULT,
     )
     expect(full.kind).toBe('exhausted')
@@ -321,7 +424,14 @@ describe('teamPool: Default and headroom', () => {
 
     const agent = selectTeamEntry(
       pool,
-      selectionSnapshot({ ...base, runningByAgent: new Map([['opus', 8], ['opus-openrouter', 8]]), agentLimit: () => 8 }),
+      selectionSnapshot({
+        ...base,
+        runningByAgent: new Map([
+          ['opus', 8],
+          ['opus-openrouter', 8],
+        ]),
+        agentLimit: () => 8,
+      }),
       TEAM_ROLE_TASKS_PER_TURN_DEFAULT,
     )
     expect(agent.kind).toBe('exhausted')
@@ -337,7 +447,6 @@ describe('teamPool: Default and headroom', () => {
     expect(budget.kind).toBe('exhausted')
     if (budget.kind !== 'exhausted') throw new Error('unreachable')
     expect(budget.reasons[0]?.reason).toBe('budget')
-    void entry1
   })
 
   it('an unavailable agent is skipped, and a hook refusal is recorded as exhausted', () => {

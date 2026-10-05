@@ -55,7 +55,12 @@ describe('teamCeilings', () => {
     expect(computeTeamCeiling({ ...source, machineLimit: 4 })).toBe(4)
     // Our hard ceiling binds a huge provider limit.
     expect(
-      computeTeamCeiling({ ...source, providerRpm: 1_000_000, providerTpm: 1_000_000_000, machineLimit: 64 }),
+      computeTeamCeiling({
+        ...source,
+        providerRpm: 1_000_000,
+        providerTpm: 1_000_000_000,
+        machineLimit: 64,
+      }),
     ).toBe(20)
     // A provider that documents nothing leaves 429s to decide: hard, then machine.
     expect(
@@ -113,7 +118,11 @@ describe('teamCeilings', () => {
 
   it('halves the entry’s running cap on throttle, down to 1, then recovers one step per quiet interval', () => {
     let nowMs = 1_000_000
-    const tracker = new TeamThrottleTracker(() => 8, TEAM_THROTTLE_RECOVER_MS, () => nowMs)
+    const tracker = new TeamThrottleTracker(
+      () => 8,
+      TEAM_THROTTLE_RECOVER_MS,
+      () => nowMs,
+    )
     expect(tracker.cap('eng-1')).toBe(8)
     expect(tracker.isThrottled('eng-1')).toBe(false)
 
@@ -141,21 +150,27 @@ describe('teamCeilings', () => {
   })
 
   it('throttling is per entry: a sibling entry on the same agent keeps its cap', () => {
-    let nowMs = 1_000_000
-    const tracker = new TeamThrottleTracker(() => 8, TEAM_THROTTLE_RECOVER_MS, () => nowMs)
+    const nowMs = 1_000_000
+    const tracker = new TeamThrottleTracker(
+      () => 8,
+      TEAM_THROTTLE_RECOVER_MS,
+      () => nowMs,
+    )
     tracker.noteThrottle('eng-1')
     expect(tracker.cap('eng-1')).toBe(4)
     expect(tracker.cap('eng-2')).toBe(8)
-    void nowMs
   })
 
   it('a reset hands headroom back at once', () => {
-    let nowMs = 1_000_000
-    const tracker = new TeamThrottleTracker(() => 8, TEAM_THROTTLE_RECOVER_MS, () => nowMs)
+    const nowMs = 1_000_000
+    const tracker = new TeamThrottleTracker(
+      () => 8,
+      TEAM_THROTTLE_RECOVER_MS,
+      () => nowMs,
+    )
     tracker.noteThrottle('eng-1')
     expect(tracker.cap('eng-1')).toBe(4)
     tracker.clear('eng-1')
     expect(tracker.cap('eng-1')).toBe(8)
-    void nowMs
   })
 })

@@ -2088,6 +2088,8 @@ export const ATOMIC_TEMPORARY_SUFFIX = '.tmp'
 export const ATOMIC_RENAME_ATTEMPTS = 5
 export const ATOMIC_RENAME_DELAY_MS = 25
 export const MILLISECONDS_PER_DAY = 24 * 60 * 60 * 1000
+// M96 lane A (PLAN.md D75): a task past its minutes per task is stopped.
+export const MILLISECONDS_PER_MINUTE = 60 * 1000
 // Model API schedules (M52): local jobs expire as Muse Code's do, and no
 // occurrence may run without a fresh paid-run confirmation.
 export const SCHEDULE_MIN_INTERVAL_MS = 60 * 1000

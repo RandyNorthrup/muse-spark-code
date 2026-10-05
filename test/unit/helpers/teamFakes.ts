@@ -2,11 +2,10 @@
 // a reservation journal and a limit classifier. Production code never sees
 // these; they live in test/** only.
 
-import { FakeLogOutputChannel } from './fakes'
 import type { TeamReservation, TeamReservationJournal } from '../../../src/core/team/teamMeter'
 import {
-  TEAM_DEFAULT_ENTRY,
   TeamAgentMarks,
+  type TEAM_DEFAULT_ENTRY,
   type TeamAgentProfile,
   type TeamCap,
   type TeamLimitClassification,
@@ -107,18 +106,19 @@ export function scriptedClassifier(): TeamLimitClassifier & { calls: unknown[] }
 
 /** An in-memory reservation journal that records its call order. */
 export class FakeTeamJournal implements TeamReservationJournal {
-  public readonly calls: string[] = []
   private readonly held = new Map<string, TeamReservation>()
   private next = 1
 
-  public async reserve(reservation: Omit<TeamReservation, 'id'>): Promise<TeamReservation> {
+  public readonly calls: string[] = []
+
+  public reserve(reservation: Omit<TeamReservation, 'id'>): Promise<TeamReservation> {
     this.calls.push('reserve')
     const created: TeamReservation = { ...reservation, id: `res-${String(this.next++)}` }
     this.held.set(created.id, created)
-    return created
+    return Promise.resolve(created)
   }
 
-  public async settle(
+  public settle(
     id: string,
     outcome:
       | { readonly kind: 'reported'; readonly tokens: number; readonly spendUsd: number }
@@ -129,13 +129,14 @@ export class FakeTeamJournal implements TeamReservationJournal {
     if (outcome.kind === 'nonsent') {
       this.held.delete(id)
     }
+    return Promise.resolve()
   }
 
-  public async open(): Promise<readonly TeamReservation[]> {
-    return [...this.held.values()]
+  public open(): Promise<readonly TeamReservation[]> {
+    const held: TeamReservation[] = []
+    for (const reservation of this.held.values()) {
+      held.push(reservation)
+    }
+    return Promise.resolve(held)
   }
-}
-
-export function fakeLog(): FakeLogOutputChannel {
-  return new FakeLogOutputChannel()
 }

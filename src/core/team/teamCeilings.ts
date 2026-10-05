@@ -52,26 +52,52 @@ export interface TeamCeilingSource {
  * halves the entry below it.
  */
 export function computeTeamCeiling(source: TeamCeilingSource): number {
-  const workerRpm = source.workerRpm ?? TEAM_WORKER_RPM_ESTIMATE
-  const workerTpm = source.workerTpm ?? TEAM_WORKER_TPM_ESTIMATE
-  const providerSide =
-    source.kind === 'engine' && source.providerRpm !== undefined && source.providerTpm !== undefined
-      ? Math.min(
-          Math.floor((TEAM_PROVIDER_LIMIT_SHARE * source.providerRpm) / Math.max(1, workerRpm)),
-          Math.floor((TEAM_PROVIDER_LIMIT_SHARE * source.providerTpm) / Math.max(1, workerTpm)),
-        )
-      : source.kind === 'museCode'
-        ? TEAM_MUSE_CODE_SESSION_CEILING
-        : source.kind === 'external'
-          ? TEAM_EXTERNAL_AGENT_CEILING
-          : Number.POSITIVE_INFINITY
-  const hardSide =
-    source.kind === 'engine'
-      ? TEAM_HARD_CEILING_ENGINE
-      : source.kind === 'museCode'
-        ? TEAM_HARD_CEILING_MUSE_CODE
-        : TEAM_HARD_CEILING_EXTERNAL
-  return Math.max(1, Math.min(providerSide, hardSide, Math.floor(source.machineLimit)))
+  return Math.max(
+    1,
+    Math.min(
+      providerCeilingSide(source),
+      hardCeilingSide(source.kind),
+      Math.floor(source.machineLimit),
+    ),
+  )
+}
+
+/** The provider's share of its documented (or header-observed) limits, as concurrency. */
+function providerCeilingSide(source: TeamCeilingSource): number {
+  switch (source.kind) {
+    case 'museCode': {
+      return TEAM_MUSE_CODE_SESSION_CEILING
+    }
+    case 'external': {
+      return TEAM_EXTERNAL_AGENT_CEILING
+    }
+    case 'engine': {
+      if (source.providerRpm === undefined || source.providerTpm === undefined) {
+        return Infinity
+      }
+      const workerRpm = source.workerRpm ?? TEAM_WORKER_RPM_ESTIMATE
+      const workerTpm = source.workerTpm ?? TEAM_WORKER_TPM_ESTIMATE
+      return Math.min(
+        Math.floor((TEAM_PROVIDER_LIMIT_SHARE * source.providerRpm) / Math.max(1, workerRpm)),
+        Math.floor((TEAM_PROVIDER_LIMIT_SHARE * source.providerTpm) / Math.max(1, workerTpm)),
+      )
+    }
+  }
+}
+
+/** Our hard ceiling for the kind: no level and no edit passes it. */
+function hardCeilingSide(kind: TeamAgentKind): number {
+  switch (kind) {
+    case 'engine': {
+      return TEAM_HARD_CEILING_ENGINE
+    }
+    case 'museCode': {
+      return TEAM_HARD_CEILING_MUSE_CODE
+    }
+    case 'external': {
+      return TEAM_HARD_CEILING_EXTERNAL
+    }
+  }
 }
 
 /**
@@ -107,29 +133,6 @@ export class TeamThrottleTracker {
     private readonly now: () => number,
   ) {}
 
-  /** The entry's running cap right now: throttled, or recovering. */
-  public cap(entryId: string): number {
-    this.recover(entryId, this.now())
-    return this.current(entryId)
-  }
-
-  /** Whether the Agent map shows "throttled by provider" for the entry. */
-  public isThrottled(entryId: string): boolean {
-    return this.cap(entryId) < this.configuredCap(entryId)
-  }
-
-  /** A 429 or a low remaining header on the entry: halve, down to 1. */
-  public noteThrottle(entryId: string): void {
-    const at = this.now()
-    const current = this.current(entryId)
-    this.state.set(entryId, { current: Math.max(1, Math.floor(current / 2)), changedMs: at })
-  }
-
-  /** A reset or a new day hands headroom back: forget the throttle. */
-  public clear(entryId: string): void {
-    this.state.delete(entryId)
-  }
-
   private current(entryId: string): number {
     return this.state.get(entryId)?.current ?? this.configuredCap(entryId)
   }
@@ -152,5 +155,28 @@ export class TeamThrottleTracker {
     if (changedMs !== kept.changedMs) {
       this.state.set(entryId, { current, changedMs })
     }
+  }
+
+  /** The entry's running cap right now: throttled, or recovering. */
+  public cap(entryId: string): number {
+    this.recover(entryId, this.now())
+    return this.current(entryId)
+  }
+
+  /** Whether the Agent map shows "throttled by provider" for the entry. */
+  public isThrottled(entryId: string): boolean {
+    return this.cap(entryId) < this.configuredCap(entryId)
+  }
+
+  /** A 429 or a low remaining header on the entry: halve, down to 1. */
+  public noteThrottle(entryId: string): void {
+    const at = this.now()
+    const current = this.current(entryId)
+    this.state.set(entryId, { current: Math.max(1, Math.floor(current / 2)), changedMs: at })
+  }
+
+  /** A reset or a new day hands headroom back: forget the throttle. */
+  public clear(entryId: string): void {
+    this.state.delete(entryId)
   }
 }

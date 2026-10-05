@@ -41,6 +41,10 @@ function taskRow(
   }
 }
 
+function emptyScope(): TeamMeterRow[] {
+  return []
+}
+
 function meterWith(rows: TeamMeterRow[]): { meter: TeamMeter } {
   return {
     meter: new TeamMeter({
@@ -61,8 +65,16 @@ describe('teamMeter', () => {
       taskRow('eng-2', 'task-1', 500, 500),
     ]
     const { meter } = meterWith(rows)
-    const entry1 = meter.used('eng-1', { measure: 'tokens', window: 'day' }, { taskId: 'task-1', dayKey: DAY })
-    const entry2 = meter.used('eng-2', { measure: 'tokens', window: 'day' }, { taskId: 'task-1', dayKey: DAY })
+    const entry1 = meter.used(
+      'eng-1',
+      { measure: 'tokens', window: 'day' },
+      { taskId: 'task-1', dayKey: DAY },
+    )
+    const entry2 = meter.used(
+      'eng-2',
+      { measure: 'tokens', window: 'day' },
+      { taskId: 'task-1', dayKey: DAY },
+    )
     expect(entry1).toEqual({ value: 9000, estimated: false })
     expect(entry2).toEqual({ value: 6000, estimated: false })
     const totals = sumTeamTotals(rows, { dayKey: DAY })
@@ -83,7 +95,11 @@ describe('teamMeter', () => {
       taskRow('eng-1', 'task-2', 1000, 500, { estimated: false }),
     ]
     const mixedMeter = meterWith(mixed).meter
-    const input = mixedMeter.used('eng-1', { measure: 'inputTokens', window: 'day' }, { taskId: 'task-2', dayKey: DAY })
+    const input = mixedMeter.used(
+      'eng-1',
+      { measure: 'inputTokens', window: 'day' },
+      { taskId: 'task-2', dayKey: DAY },
+    )
     expect(input.value).toBe(2000)
   })
 
@@ -97,9 +113,10 @@ describe('teamMeter', () => {
     const scope = { taskId: 'task-1', dayKey: DAY }
     expect(meter.used('eng-1', { measure: 'tokens', window: 'task' }, scope).value).toBe(1500)
     expect(meter.used('eng-1', { measure: 'tokens', window: 'day' }, scope).value).toBe(1500)
-    expect(meter.used('eng-1', { measure: 'tokens', window: 'lifetime' }, { ...scope, dayKey: otherDay }).value).toBe(
-      4000,
-    )
+    expect(
+      meter.used('eng-1', { measure: 'tokens', window: 'lifetime' }, { ...scope, dayKey: otherDay })
+        .value,
+    ).toBe(4000)
     expect(meter.used('eng-1', { measure: 'inputTokens', window: 'day' }, scope).value).toBe(1000)
     expect(meter.used('eng-1', { measure: 'outputTokens', window: 'day' }, scope).value).toBe(500)
     expect(meter.used('eng-1', { measure: 'tasks', window: 'day' }, scope).value).toBe(1)
@@ -122,7 +139,8 @@ describe('teamMeter', () => {
     ]
     const { meter } = meterWith(rows)
     expect(
-      meter.used('eng-1', { measure: 'tokens', window: 'lifetime' }, { taskId: 't', dayKey: DAY }).value,
+      meter.used('eng-1', { measure: 'tokens', window: 'lifetime' }, { taskId: 't', dayKey: DAY })
+        .value,
     ).toBe(1_500_000)
   })
 
@@ -154,11 +172,13 @@ describe('teamMeter', () => {
     const { meter } = meterWith(rows)
     // The lifetime window counts only rows after the reset…
     expect(
-      meter.used('eng-1', { measure: 'tokens', window: 'lifetime' }, { taskId: 'new', dayKey: DAY }).value,
+      meter.used('eng-1', { measure: 'tokens', window: 'lifetime' }, { taskId: 'new', dayKey: DAY })
+        .value,
     ).toBe(150)
     // …while the day window (a different window) is untouched by it.
     expect(
-      meter.used('eng-1', { measure: 'tokens', window: 'day' }, { taskId: 'new', dayKey: DAY }).value,
+      meter.used('eng-1', { measure: 'tokens', window: 'day' }, { taskId: 'new', dayKey: DAY })
+        .value,
     ).toBe(1650)
   })
 
@@ -184,7 +204,20 @@ describe('teamMeter', () => {
     expect(journal.calls).toEqual(['reserve'])
 
     // The open reservation counts, so a second request past the cap is refused and reserves nothing.
-    const metered = new TeamMeter({ rows: () => [], openReservations: () => [{ id: 'res-1', workspaceId: 'ws', entryId: 'eng-1', agentKey: 'opus', taskId: 'task-1', tokens: 9000, spendUsd: 0.5 }] })
+    const metered = new TeamMeter({
+      rows: () => [],
+      openReservations: () => [
+        {
+          id: 'res-1',
+          workspaceId: 'ws',
+          entryId: 'eng-1',
+          agentKey: 'opus',
+          taskId: 'task-1',
+          tokens: 9000,
+          spendUsd: 0.5,
+        },
+      ],
+    })
     const refused = await checkAndReserve(metered, journal, {
       workspaceId: 'ws',
       entryId: 'eng-1',
@@ -201,8 +234,12 @@ describe('teamMeter', () => {
     expect(journal.calls).toEqual(['reserve'])
 
     // Reported usage settles the reservation; a sent request with no usage keeps its liability.
-    if (!admitted.ok || admitted.reservation === undefined) throw new Error('unreachable')
-    await journal.settle(admitted.reservation.id, { kind: 'reported', tokens: 8500, spendUsd: 0.45 })
+    if (!admitted.ok) throw new Error('unreachable')
+    await journal.settle(admitted.reservation.id, {
+      kind: 'reported',
+      tokens: 8500,
+      spendUsd: 0.45,
+    })
     await journal.settle('res-1', { kind: 'unknown' })
     expect(journal.calls).toEqual(['reserve', 'settle:reported', 'settle:unknown'])
     const open = await journal.open()
@@ -213,7 +250,6 @@ describe('teamMeter', () => {
     const journal = new FakeTeamJournal()
     // Both windows read the same workspace scope: the second sees the first's reservation.
     const held: { id: string }[] = []
-    const scopeOf = (): TeamMeterRow[] => []
     const openOf = () =>
       held.map((r) => ({
         id: r.id,
@@ -224,17 +260,31 @@ describe('teamMeter', () => {
         tokens: 9000,
         spendUsd: 0.5,
       }))
-    const windowA = new TeamMeter({ rows: scopeOf, openReservations: openOf })
-    const windowB = new TeamMeter({ rows: scopeOf, openReservations: openOf })
+    const windowA = new TeamMeter({ rows: emptyScope, openReservations: openOf })
+    const windowB = new TeamMeter({ rows: emptyScope, openReservations: openOf })
     const caps = [{ measure: 'tokens' as const, window: 'day' as const, amount: 10_000 }]
     const first = await checkAndReserve(windowA, journal, {
-      workspaceId: 'ws', entryId: 'eng-1', agentKey: 'opus', taskId: 'a', caps, tokens: 9000, spendUsd: 0.5, dayKey: DAY,
+      workspaceId: 'ws',
+      entryId: 'eng-1',
+      agentKey: 'opus',
+      taskId: 'a',
+      caps,
+      tokens: 9000,
+      spendUsd: 0.5,
+      dayKey: DAY,
     })
     expect(first.ok).toBe(true)
     if (!first.ok) throw new Error('unreachable')
     held.push({ id: first.reservation.id })
     const second = await checkAndReserve(windowB, journal, {
-      workspaceId: 'ws', entryId: 'eng-1', agentKey: 'opus', taskId: 'b', caps, tokens: 9000, spendUsd: 0.5, dayKey: DAY,
+      workspaceId: 'ws',
+      entryId: 'eng-1',
+      agentKey: 'opus',
+      taskId: 'b',
+      caps,
+      tokens: 9000,
+      spendUsd: 0.5,
+      dayKey: DAY,
     })
     expect(second.ok).toBe(false)
     expect(journal.calls).toEqual(['reserve'])
@@ -243,7 +293,14 @@ describe('teamMeter', () => {
   it('team totals keep estimated, hook-added and paid-tool lines apart', () => {
     const rows = [
       taskRow('eng-1', 't1', 1000, 500, {
-        usage: usage({ inputTokens: 1000, outputTokens: 500, tasks: 1, hookTokens: 200, paidToolTokens: 50, costUsd: 0.01 }),
+        usage: usage({
+          inputTokens: 1000,
+          outputTokens: 500,
+          tasks: 1,
+          hookTokens: 200,
+          paidToolTokens: 50,
+          costUsd: 0.01,
+        }),
       }),
       taskRow('eng-2', 't2', 2000, 1000, {
         estimated: true,

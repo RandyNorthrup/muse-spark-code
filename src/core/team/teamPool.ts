@@ -85,12 +85,7 @@ export interface TeamOrchestratorSlot {
 
 /** Why selection moved: D75's `TeamAgentSwitch` reasons. */
 export type TeamSwitchReason =
-  | 'cap'
-  | 'concurrency'
-  | 'rateLimited'
-  | 'usageLimit'
-  | 'unavailable'
-  | 'reset'
+  'cap' | 'concurrency' | 'rateLimited' | 'usageLimit' | 'unavailable' | 'reset'
 
 /** One recorded switch: the transcript row's data and the hook's payload. */
 export interface TeamSwitch {
@@ -142,14 +137,17 @@ export function switchHookPayload(
 }
 
 /** The switch row's reason in the display language. */
-export function switchReasonText(change: Pick<TeamSwitch, 'reason' | 'measure' | 'window' | 'amount' | 'used'>): string {
+export function switchReasonText(
+  change: Pick<TeamSwitch, 'reason' | 'measure' | 'window' | 'amount' | 'used'>,
+): string {
   switch (change.reason) {
     case 'cap': {
+      const measure = change.measure ?? 'tokens'
       return fill(UI_TEXT.teamSwitchReasonCap, {
-        measure: change.measure ?? 'tokens',
+        measure,
         window: change.window ?? 'day',
-        used: change.used ?? 0,
-        amount: change.amount ?? 0,
+        used: formatTeamAmount(measure, change.used ?? 0),
+        amount: formatTeamAmount(measure, change.amount ?? 0),
       })
     }
     case 'concurrency': {
@@ -372,10 +370,7 @@ function firstRequestAmount(
 }
 
 function entryAgent(entry: TeamPoolEntry, snapshot: TeamSelectionSnapshot): TeamAgentProfile {
-  if (isDefaultEntry(entry.agent)) {
-    return snapshot.defaultAgent
-  }
-  return entry.agent
+  return isDefaultEntry(entry.agent) ? snapshot.defaultAgent : entry.agent
 }
 
 /**
@@ -490,9 +485,11 @@ export function recordTeamSwitch(
   }
 }
 
-function reasonFromRefusal(
-  refusal: TeamEntryExhaustion | undefined,
-): { readonly kind: TeamSwitchReason; readonly cap?: TeamCap; readonly used?: number } {
+function reasonFromRefusal(refusal: TeamEntryExhaustion | undefined): {
+  readonly kind: TeamSwitchReason
+  readonly cap?: TeamCap
+  readonly used?: number
+} {
   if (refusal === undefined) {
     return { kind: 'reset' }
   }
@@ -557,29 +554,29 @@ export function answerExhausted(
   return { decision: 'ask', choices: ['queue', 'self', 'raise', 'cancel'] }
 }
 
+/** Refusals the queue waits out: work ends or marks lapse, so it rechecks. */
+const recoverableExhaustionReasons: ReadonlySet<TeamExhaustionReason> = new Set([
+  'concurrent',
+  'rateLimited',
+  'usageLimit',
+  'agent',
+  'turn',
+  'global',
+  'process',
+])
+
 /** When a queued task may start: the earliest recoverable reason's time, if any. */
-function queueUntilMs(
-  reasons: readonly TeamEntryExhaustion[],
-  nowMs: number,
-): number | undefined {
+function queueUntilMs(reasons: readonly TeamEntryExhaustion[], nowMs: number): number | undefined {
   let earliest: number | undefined
   for (const refusal of reasons) {
     if (refusal.reason === 'cap' && refusal.cap !== undefined) {
       // Only a `day` cap recovers (at midnight); `task` and `lifetime` never do.
       if (refusal.cap.window === 'day') {
-        earliest = Math.min(earliest ?? Number.POSITIVE_INFINITY, nextLocalMidnightMs(nowMs))
+        earliest = Math.min(earliest ?? Infinity, nextLocalMidnightMs(nowMs))
       }
       continue
     }
-    if (
-      refusal.reason === 'concurrent' ||
-      refusal.reason === 'rateLimited' ||
-      refusal.reason === 'usageLimit' ||
-      refusal.reason === 'agent' ||
-      refusal.reason === 'turn' ||
-      refusal.reason === 'global' ||
-      refusal.reason === 'process'
-    ) {
+    if (recoverableExhaustionReasons.has(refusal.reason)) {
       // These recover when work ends or marks lapse; the queue rechecks
       // rather than sleeping to a time.
       return nowMs
@@ -591,7 +588,8 @@ function queueUntilMs(
 /** Midnight starting the next local day: when a spent `day` cap recovers. */
 export function nextLocalMidnightMs(nowMs: number): number {
   const day = new Date(nowMs)
-  day.setHours(24, 0, 0, 0)
+  day.setDate(day.getDate() + 1)
+  day.setHours(0, 0, 0, 0)
   return day.getTime()
 }
 
@@ -631,7 +629,7 @@ export class TeamTaskQueue {
   /** Takes a task out when it starts, is cancelled, or its wait expires. */
   public remove(taskId: string): boolean {
     const at = this.tasks.findIndex((task) => task.taskId === taskId)
-    if (at < 0) {
+    if (at === -1) {
       return false
     }
     this.tasks.splice(at, 1)
@@ -673,7 +671,9 @@ export function buildHandoffBrief(brief: {
     brief.changedFiles.length === 0
       ? 'none yet'
       : brief.changedFiles
-          .map((file) => `${file.path} (+${formatNumber(file.added)}/-${formatNumber(file.removed)})`)
+          .map(
+            (file) => `${file.path} (+${formatNumber(file.added)}/-${formatNumber(file.removed)})`,
+          )
           .join(', ')
   return [
     `Continuing a capped team task: ${brief.originalBrief}`,
@@ -690,9 +690,5 @@ export function notStaffedText(roleId: string): string {
 
 /** Formats a used/of amount for a measure: tokens plain, dollars with two decimals. */
 export function formatTeamAmount(measure: TeamMeasure, amount: number): string {
-  if (measure === 'spendUsd') {
-    return `$${amount.toFixed(2)}`
-  }
-  return formatNumber(amount)
+  return measure === 'spendUsd' ? `$${amount.toFixed(2)}` : formatNumber(amount)
 }
-

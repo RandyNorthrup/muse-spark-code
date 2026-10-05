@@ -95,18 +95,12 @@ export function teamWorkerPrice(
         ? UI_TEXT.subagentTariffUnknown
         : fill(UI_TEXT.paidTeamWorkerRates, {
             model: task.modelId,
-            input: formatUsd(
-              MODEL_API_PRICES_PER_MILLION[tier].input,
-              MODEL_API_PRICE_DECIMALS,
-            ),
+            input: formatUsd(MODEL_API_PRICES_PER_MILLION[tier].input, MODEL_API_PRICE_DECIMALS),
             cached: formatUsd(
               MODEL_API_PRICES_PER_MILLION[tier].cachedInput,
               MODEL_API_PRICE_DECIMALS,
             ),
-            output: formatUsd(
-              MODEL_API_PRICES_PER_MILLION[tier].output,
-              MODEL_API_PRICE_DECIMALS,
-            ),
+            output: formatUsd(MODEL_API_PRICES_PER_MILLION[tier].output, MODEL_API_PRICE_DECIMALS),
             tokens: formatNumber(task.taskCeilingTokens),
           })
     return fill(UI_TEXT.paidTeamWorkerLine, {

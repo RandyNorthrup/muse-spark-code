@@ -21,8 +21,20 @@ function limits(overrides: Partial<TeamAdmissionLimits> = {}): TeamAdmissionLimi
   }
 }
 
-const ENGINE_TASK = { entryId: 'eng-1', agentKey: 'opus', agentKind: 'engine', roleId: 'engineering', depth: 1 } as const
-const PROCESS_TASK = { entryId: 'rev-1', agentKey: 'codex', agentKind: 'museCode', roleId: 'code-review', depth: 1 } as const
+const ENGINE_TASK = {
+  entryId: 'eng-1',
+  agentKey: 'opus',
+  agentKind: 'engine',
+  roleId: 'engineering',
+  depth: 1,
+} as const
+const PROCESS_TASK = {
+  entryId: 'rev-1',
+  agentKey: 'codex',
+  agentKind: 'museCode',
+  roleId: 'code-review',
+  depth: 1,
+} as const
 
 describe('teamAdmission', () => {
   it('admits while every slot has room, and releases every counter', () => {
@@ -65,7 +77,9 @@ describe('teamAdmission', () => {
   })
 
   it('refuses global: twenty tasks made ready at once never pass teamMaxWorkers together', () => {
-    const admission = new TeamAdmission(limits({ globalLimit: 20, roleLimit: () => 20, agentLimit: () => 20 }))
+    const admission = new TeamAdmission(
+      limits({ globalLimit: 20, roleLimit: () => 20, agentLimit: () => 20 }),
+    )
     const held = []
     for (let n = 0; n < 20; n += 1) {
       const admitted = admission.admitTask({ ...ENGINE_TASK, entryId: `eng-${String(n)}` })

@@ -23,8 +23,9 @@ import {
   type TeamMeterUsage,
   ZERO_TEAM_METER_USAGE,
 } from '../../core/team/teamMeter'
-import type { TeamMeasure, TeamWindow } from '../../core/team/teamPool'
+import type { TeamWindow } from '../../core/team/teamPool'
 import {
+  MILLISECONDS_PER_DAY,
   TEAM_LEDGER_BRIEF_MAX_CHARS,
   TEAM_LEDGER_FILE_PREFIX,
   TEAM_LEDGER_FILE_SUFFIX,
@@ -97,11 +98,7 @@ export const teamLedgerRowSchema = z.object({
   provider: z.string(),
   billing: z.union([z.literal('key'), z.literal('subscription'), z.literal('local')]),
   settings: z.array(teamSettingSchema),
-  workspaceMode: z.union([
-    z.literal('read-only'),
-    z.literal('own-branch'),
-    z.literal('in-place'),
-  ]),
+  workspaceMode: z.union([z.literal('read-only'), z.literal('own-branch'), z.literal('in-place')]),
   branch: z.optional(z.string()),
   brief: z.string(),
   reasonCode: z.string(),
@@ -146,28 +143,47 @@ export interface TeamLedgerRead {
   readonly skippedLines: number
 }
 
+/** D75's active states: running, waiting for approval, queued, throttled. */
+const activeLedgerStatuses: ReadonlySet<TeamLedgerStatus> = new Set([
+  'queued',
+  'running',
+  'waitingApproval',
+  'throttled',
+])
+
 /** Whether a status is live (D75's active states). */
 export function isTeamLedgerActive(status: TeamLedgerStatus): boolean {
-  return (
-    status === 'queued' ||
-    status === 'running' ||
-    status === 'waitingApproval' ||
-    status === 'throttled'
-  )
+  return activeLedgerStatuses.has(status)
 }
 
 function fileFor(directory: string, dayKey: string): string {
   return path.join(directory, `${TEAM_LEDGER_FILE_PREFIX}${dayKey}${TEAM_LEDGER_FILE_SUFFIX}`)
 }
 
-function dayKeyOfFile(name: string): string | undefined {
-  if (!name.startsWith(TEAM_LEDGER_FILE_PREFIX) || !name.endsWith(TEAM_LEDGER_FILE_SUFFIX)) {
-    return undefined
+/** Day files read oldest first, so the latest row per task wins. */
+function compareFileNames(left: string, right: string): number {
+  if (left === right) {
+    return 0
   }
-  return name.slice(TEAM_LEDGER_FILE_PREFIX.length, -TEAM_LEDGER_FILE_SUFFIX.length)
+  return left < right ? -1 : 1
+}
+
+function dayKeyOfFile(name: string): string | undefined {
+  return name.startsWith(TEAM_LEDGER_FILE_PREFIX) && name.endsWith(TEAM_LEDGER_FILE_SUFFIX)
+    ? name.slice(TEAM_LEDGER_FILE_PREFIX.length, -TEAM_LEDGER_FILE_SUFFIX.length)
+    : undefined
 }
 
 export class TeamLedger {
+  /** The latest row per task id: state changes append, so last wins. */
+  public static latestByTask(rows: readonly TeamLedgerRow[]): Map<string, TeamLedgerRow> {
+    const latest = new Map<string, TeamLedgerRow>()
+    for (const row of rows) {
+      latest.set(row.taskId, row)
+    }
+    return latest
+  }
+
   private pending: string[] = []
   private readonly lastStatus = new Map<string, TeamLedgerStatus>()
   private timer: NodeJS.Timeout | undefined
@@ -175,6 +191,56 @@ export class TeamLedger {
   private flushing: Promise<void> = Promise.resolve()
 
   public constructor(private readonly deps: TeamLedgerDeps) {}
+
+  private async readOne(name: string): Promise<TeamLedgerRead> {
+    const rows: TeamLedgerRow[] = []
+    let skippedLines = 0
+    const text = await readFile(path.join(this.deps.directory, name), 'utf8')
+    for (const line of text.split('\n')) {
+      if (line === '') {
+        continue
+      }
+      const parsed = safeParseLine(line)
+      if (parsed === undefined) {
+        skippedLines += 1
+      } else {
+        rows.push(parsed)
+      }
+    }
+    return { rows, skippedLines }
+  }
+
+  private dayKeyOfLines(lines: readonly string[]): string | undefined {
+    const firstLine = lines[0]
+    if (firstLine === undefined) {
+      return undefined
+    }
+    try {
+      const first = JSON.parse(firstLine) as { dayKey?: unknown }
+      return typeof first.dayKey === 'string' ? first.dayKey : undefined
+    } catch {
+      return undefined
+    }
+  }
+
+  /** One append once every append queued before it has settled. */
+  private async queued(work: () => Promise<void>): Promise<void> {
+    const previous = this.flushing
+    const run = (async () => {
+      await previous
+      await work()
+    })()
+    this.flushing = settled(run)
+    await run
+  }
+
+  private async appendLines(dayKey: string, lines: readonly string[]): Promise<void> {
+    const text = lines.join('')
+    await this.queued(async () => {
+      await mkdir(this.deps.directory, { recursive: true })
+      await appendFile(fileFor(this.deps.directory, dayKey), text, 'utf8')
+    })
+  }
 
   /** Starts the flush timer: usage rows land at least every `flushMs`. */
   public start(): void {
@@ -184,7 +250,7 @@ export class TeamLedger {
     this.timer = setInterval(() => {
       void this.flush()
     }, this.deps.flushMs)
-    this.timer.unref?.()
+    this.timer.unref()
   }
 
   /** Stops the timer after flushing what is pending. */
@@ -225,16 +291,6 @@ export class TeamLedger {
     await this.appendLines(this.dayKeyOfLines(lines) ?? teamDayKey(this.deps.now()), lines)
   }
 
-  private async appendLines(dayKey: string, lines: readonly string[]): Promise<void> {
-    const text = lines.join('')
-    const next = this.flushing.then(async () => {
-      await mkdir(this.deps.directory, { recursive: true })
-      await appendFile(fileFor(this.deps.directory, dayKey), text, 'utf8')
-    })
-    this.flushing = next.catch(() => undefined)
-    await next
-  }
-
   /**
    * Every row of every day file, validated: malformed lines (a crashed
    * writer's partial tail) are skipped and counted, never fatal. Callers
@@ -249,7 +305,7 @@ export class TeamLedger {
     } catch {
       return { rows, skippedLines }
     }
-    for (const name of names.toSorted()) {
+    for (const name of names.toSorted(compareFileNames)) {
       if (dayKeyOfFile(name) === undefined) {
         continue
       }
@@ -265,26 +321,17 @@ export class TeamLedger {
         }
         // A crashed writer's partial tail never parses: skip it, never fail.
         const parsed = safeParseLine(line)
-        if (parsed !== undefined) {
+        if (parsed === undefined) {
+          skippedLines += 1
+        } else {
           rows.push(parsed)
           if (parsed.kind === 'task') {
             this.lastStatus.set(parsed.taskId, parsed.status)
           }
-        } else {
-          skippedLines += 1
         }
       }
     }
     return { rows, skippedLines }
-  }
-
-  /** The latest row per task id: state changes append, so last wins. */
-  public static latestByTask(rows: readonly TeamLedgerRow[]): Map<string, TeamLedgerRow> {
-    const latest = new Map<string, TeamLedgerRow>()
-    for (const row of rows) {
-      latest.set(row.taskId, row)
-    }
-    return latest
   }
 
   /**
@@ -296,8 +343,8 @@ export class TeamLedger {
   public async markInterrupted(
     latest: TeamLedgerRow,
     usage: TeamMeterUsage,
-    estimated: boolean,
-    maybeOpen: boolean,
+    isEstimated: boolean,
+    isMaybeOpen: boolean,
   ): Promise<boolean> {
     if (latest.kind !== 'task' || !isTeamLedgerActive(latest.status)) {
       return false
@@ -309,8 +356,8 @@ export class TeamLedger {
       status: 'interrupted',
       outcome: 'interrupted',
       usage,
-      estimated,
-      interruptedMaybeOpen: maybeOpen,
+      estimated: isEstimated,
+      interruptedMaybeOpen: isMaybeOpen,
       lease: { holder: this.deps.windowId, sinceMs: this.deps.now() },
     })
     return true
@@ -325,7 +372,7 @@ export class TeamLedger {
     if (this.deps.retentionDays <= 0) {
       return { rolled: 0, removed: 0 }
     }
-    const cutoff = teamDayKey(this.deps.now() - this.deps.retentionDays * 24 * 60 * 60 * 1000)
+    const cutoff = teamDayKey(this.deps.now() - this.deps.retentionDays * MILLISECONDS_PER_DAY)
     let names: string[]
     try {
       names = await readdir(this.deps.directory)
@@ -334,7 +381,7 @@ export class TeamLedger {
     }
     let rolled = 0
     let removed = 0
-    for (const name of names.toSorted()) {
+    for (const name of names.toSorted(compareFileNames)) {
       const dayKey = dayKeyOfFile(name)
       if (dayKey === undefined || dayKey >= cutoff) {
         continue
@@ -342,7 +389,7 @@ export class TeamLedger {
       const { rows } = await this.readOne(name)
       // Rollups keep their old day (day caps never reread them) but live in
       // today's file, so removing the old file loses nothing.
-      const lines = rollUp(rows).map((rollup) => toLedgerLine(rollup))
+      const lines = Array.from(rollUp(rows), (rollup) => toLedgerLine(rollup))
       if (lines.length > 0) {
         await this.appendLines(teamDayKey(this.deps.now()), lines)
         rolled += lines.length
@@ -353,36 +400,14 @@ export class TeamLedger {
     await this.flush()
     return { rolled, removed }
   }
+}
 
-  private async readOne(name: string): Promise<TeamLedgerRead> {
-    const rows: TeamLedgerRow[] = []
-    let skippedLines = 0
-    const text = await readFile(path.join(this.deps.directory, name), 'utf8')
-    for (const line of text.split('\n')) {
-      if (line === '') {
-        continue
-      }
-      const parsed = safeParseLine(line)
-      if (parsed !== undefined) {
-        rows.push(parsed)
-      } else {
-        skippedLines += 1
-      }
-    }
-    return { rows, skippedLines }
-  }
-
-  private dayKeyOfLines(lines: readonly string[]): string | undefined {
-    const firstLine = lines[0]
-    if (firstLine === undefined) {
-      return undefined
-    }
-    try {
-      const first = JSON.parse(firstLine) as { dayKey?: unknown }
-      return typeof first.dayKey === 'string' ? first.dayKey : undefined
-    } catch {
-      return undefined
-    }
+/** Settles when the promise does, never rejecting: its caller has the failure. */
+async function settled(promise: Promise<unknown>): Promise<void> {
+  try {
+    await promise
+  } catch {
+    // Reported to the one who awaited it.
   }
 }
 
@@ -453,11 +478,26 @@ function rollUp(rows: readonly TeamLedgerRow[]): TeamLedgerRecord[] {
       })
     } else {
       kept.usage = addUsage(kept.usage, usage)
-      kept.estimated = kept.estimated || row.estimated
+      kept.estimated ||= row.estimated
       kept.startMs = Math.min(kept.startMs, row.startMs)
     }
   }
-  return [...sums.values()].map((sum) => ({
+  return Array.from(sums.values(), (sum) => makeTotalsRow(sum))
+}
+
+function makeTotalsRow(sum: {
+  readonly entryId: string
+  readonly agentKey: string
+  readonly roleId: string
+  readonly modelId: string
+  readonly provider: string
+  readonly billing: TeamLedgerRow['billing']
+  readonly dayKey: string
+  readonly usage: TeamMeterUsage
+  readonly estimated: boolean
+  readonly startMs: number
+}): TeamLedgerRecord {
+  return {
     kind: 'totals' as const,
     taskId: `totals:${sum.entryId}:${sum.dayKey}`,
     workspaceId: '',
@@ -479,7 +519,7 @@ function rollUp(rows: readonly TeamLedgerRow[]): TeamLedgerRecord[] {
     estimated: sum.estimated,
     links: {},
     lease: { holder: '', sinceMs: sum.startMs },
-  }))
+  }
 }
 
 function addUsage(left: TeamMeterUsage, right: TeamMeterUsage): TeamMeterUsage {
@@ -546,5 +586,3 @@ export function resetLedgerRow(row: {
     ...(row.clearedEntryId !== undefined && { clearedEntryId: row.clearedEntryId }),
   }
 }
-
-export type { TeamMeasure, TeamWindow }

@@ -11,13 +11,7 @@ import type { TeamAgentKind } from './teamPool'
 
 /** Which slot refused: each limit refuses with its own reason. */
 export type TeamAdmissionReason =
-  | 'entry'
-  | 'agent'
-  | 'role'
-  | 'global'
-  | 'process'
-  | 'depth'
-  | 'shell'
+  'entry' | 'agent' | 'role' | 'global' | 'process' | 'depth' | 'shell'
 
 export type TeamAdmissionResult =
   | { readonly admitted: true; readonly release: () => void }
@@ -51,6 +45,19 @@ export function teamShellCommandSlots(cpuCount: number): number {
  * the atomic gate at start: one synchronous check-and-increment per task.
  */
 export class TeamAdmission {
+  private static take(counts: Map<string, number>, key: string): void {
+    counts.set(key, (counts.get(key) ?? 0) + 1)
+  }
+
+  private static give(counts: Map<string, number>, key: string): void {
+    const left = (counts.get(key) ?? 0) - 1
+    if (left <= 0) {
+      counts.delete(key)
+    } else {
+      counts.set(key, left)
+    }
+  }
+
   private readonly entryRunning = new Map<string, number>()
   private readonly agentRunning = new Map<string, number>()
   private readonly roleRunning = new Map<string, number>()
@@ -78,19 +85,6 @@ export class TeamAdmission {
     return this.processRunning
   }
 
-  private static take(counts: Map<string, number>, key: string): void {
-    counts.set(key, (counts.get(key) ?? 0) + 1)
-  }
-
-  private static give(counts: Map<string, number>, key: string): void {
-    const left = (counts.get(key) ?? 0) - 1
-    if (left <= 0) {
-      counts.delete(key)
-    } else {
-      counts.set(key, left)
-    }
-  }
-
   /**
    * Starts a task's slot, or refuses with the first slot that has no room.
    * Synchronous: nothing interleaves between the check and the increment.
@@ -102,7 +96,7 @@ export class TeamAdmission {
     readonly roleId: string
     /** 1 for the orchestrator's tasks, 2 for a delegating worker's. */
     readonly depth: number
-    }): TeamAdmissionResult {
+  }): TeamAdmissionResult {
     if (task.depth < 1 || task.depth > this.limits.maxDepth) {
       return { admitted: false, reason: 'depth' }
     }
@@ -112,19 +106,13 @@ export class TeamAdmission {
     if (task.agentKind !== 'engine' && this.processRunning >= this.limits.processLimit) {
       return { admitted: false, reason: 'process' }
     }
-    if (
-      (this.roleRunning.get(task.roleId) ?? 0) >= this.limits.roleLimit(task.roleId)
-    ) {
+    if ((this.roleRunning.get(task.roleId) ?? 0) >= this.limits.roleLimit(task.roleId)) {
       return { admitted: false, reason: 'role' }
     }
-    if (
-      (this.agentRunning.get(task.agentKey) ?? 0) >= this.limits.agentLimit(task.agentKey)
-    ) {
+    if ((this.agentRunning.get(task.agentKey) ?? 0) >= this.limits.agentLimit(task.agentKey)) {
       return { admitted: false, reason: 'agent' }
     }
-    if (
-      (this.entryRunning.get(task.entryId) ?? 0) >= this.limits.entryLimit(task.entryId)
-    ) {
+    if ((this.entryRunning.get(task.entryId) ?? 0) >= this.limits.entryLimit(task.entryId)) {
       return { admitted: false, reason: 'entry' }
     }
     TeamAdmission.take(this.entryRunning, task.entryId)
@@ -134,14 +122,14 @@ export class TeamAdmission {
     if (task.agentKind !== 'engine') {
       this.processRunning += 1
     }
-    let released = false
+    let isReleased = false
     return {
       admitted: true,
       release: () => {
-        if (released) {
+        if (isReleased) {
           return
         }
-        released = true
+        isReleased = true
         TeamAdmission.give(this.entryRunning, task.entryId)
         TeamAdmission.give(this.agentRunning, task.agentKey)
         TeamAdmission.give(this.roleRunning, task.roleId)
@@ -162,14 +150,14 @@ export class TeamAdmission {
       return { admitted: false, reason: 'shell' }
     }
     this.shellRunning += 1
-    let released = false
+    let isReleased = false
     return {
       admitted: true,
       release: () => {
-        if (released) {
+        if (isReleased) {
           return
         }
-        released = true
+        isReleased = true
         this.shellRunning -= 1
       },
     }

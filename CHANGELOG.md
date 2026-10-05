@@ -7,6 +7,10 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+### Added
+
+- **M96 agent roles, lane A (pools, accounting and the ledger)**: pool selection takes the first entry with headroom and moves down the line at a cap, a rate limit or a usage limit, with one switch row and one `TeamAgentSwitch` per move; `continue on next` hands the task off with a brief on the same branch; the exhausted policy answers `ask` (Queue it, Main agent does it, Raise a limit…, Cancel), `queue` (recoverable reasons only, then it asks) or `self`; meters sum ledger rows plus open reservations per measure and window, reported or estimated, charged to the sending entry; the ledger keeps one redacted row per delegation in a daily append-only file, with interrupted rows and retention rollups. New paid feature `teamWorkers` (`museSpark.modelApiTeamWorkers`, on with one price question before the first charge): each delegate call that starts key tasks asks once with each model's prices, each task's ceiling and the shared daily budget.
+
 ## [0.12.1] - 2026-10-04
 
 ### Changed

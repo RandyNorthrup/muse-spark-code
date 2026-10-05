@@ -24,7 +24,11 @@ describe('teamWorkers paid use (M96)', () => {
     usage.add('teamWorkers', 2)
     expect(usage.current.teamWorkerRequests).toBe(2)
     expect(usage.current.teamWorkerUnknownRequests).toBe(2)
-    usage.addTeamWorkerUsage(DEFAULT_MODEL_ID, { inputTokens: 3000, outputTokens: 1000, cachedTokens: 100 })
+    usage.addTeamWorkerUsage(DEFAULT_MODEL_ID, {
+      inputTokens: 3000,
+      outputTokens: 1000,
+      cachedTokens: 100,
+    })
     expect(usage.current.teamWorkerUnknownRequests).toBe(1)
     expect(usage.current.teamWorkerTokens).toBe(4000)
     expect(usage.current.teamWorkerCostUsd).toBeGreaterThan(0)
@@ -37,12 +41,20 @@ describe('teamWorkers paid use (M96)', () => {
   it('refuses usage it cannot price, and invalid counts', () => {
     const usage = new PaidUsage(new FakeLogOutputChannel())
     usage.add('teamWorkers', 1)
-    expect(() =>
-      usage.addTeamWorkerUsage('unpriced-model', { inputTokens: 1, outputTokens: 1, cachedTokens: 0 }),
-    ).toThrow(/unpriced/)
-    expect(() =>
-      usage.addTeamWorkerUsage(DEFAULT_MODEL_ID, { inputTokens: 1, outputTokens: 1, cachedTokens: 2 }),
-    ).toThrow(/nonnegative/)
+    expect(() => {
+      usage.addTeamWorkerUsage('unpriced-model', {
+        inputTokens: 1,
+        outputTokens: 1,
+        cachedTokens: 0,
+      })
+    }).toThrow(/unpriced/)
+    expect(() => {
+      usage.addTeamWorkerUsage(DEFAULT_MODEL_ID, {
+        inputTokens: 1,
+        outputTokens: 1,
+        cachedTokens: 2,
+      })
+    }).toThrow(/nonnegative/)
   })
 
   it('names the feature and lists it once used', () => {
