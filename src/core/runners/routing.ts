@@ -57,7 +57,9 @@ export async function routeChecks(
       const label = `os:${platform === 'darwin' ? 'macos' : platform}`
       return (
         runner.commandClasses.includes(admittedJob.commandClass) &&
-        admittedJob.labels.every((wanted) => runner.labels.includes(wanted) || wanted === label)
+        admittedJob.labels.every((wanted) => {
+          return wanted.startsWith('os:') ? wanted === label : runner.labels.includes(wanted)
+        })
       )
     })
     .toSorted((a, b) => rank(a) - rank(b))

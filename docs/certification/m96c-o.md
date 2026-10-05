@@ -350,7 +350,7 @@ Final verification ran directly on macmini, one heavy tool at a time:
 | bridgeChecks.test.ts                               | 5 passed                                                      |
 | sshRunner.test.ts                                  | 11 passed                                                     |
 
-Total: **35 passing tests; 104 deliberate red drills**, including the
+Total: **35 passing tests; 105 deliberate red drills**, including the
 compiler drill. Every source mutation was restored with SHA-256 checked.
 Vitest used at most three files and `--maxWorkers=3 --testTimeout=120000`;
 no test-name filters, skipped tests, gate weakening or new dependencies.
@@ -371,10 +371,16 @@ Final source SHA-256 values before hook formatting:
 
 - `src/core/runners/runnerConfig.ts`: `9a99a0a33b339716cf492bf6480851fa126dc5f257456fd9eefbba352b4155bc`
 - `src/core/runners/health.ts`: `0a653fa81bf72719cf472d853187a1ce8fcf974c6e3880fe3866b11965ba570b`
-- `src/core/runners/routing.ts`: `bc0b98a6d6521a4328adcc8cde3a36190b33d02c3f717e82bd10c27206d95f62`
+- `src/core/runners/routing.ts`: `3ccedc8ea745af68b0ed408132dcb5db032d67238bfdf2698e034f94084a0190`
 - `src/host/runners/sshRunner.ts`: `6bfd4f78cd2f72e469fa8dbf25e5335341873ae85bd7b16869314cf3ad951534`
 - `src/host/team/checkSlots.ts`: `c2583f0f8d42e18bd5bf17183ca8a748df4a8858c1cddf07f42ec1bc0511c156`
 - `src/host/team/mcpBridge.ts`: `e902daf152cf1de8cb8015527ecc82b5681c7fa33ae1f24252aa38a1c7cbb9ab`
 - `src/core/team/workers/engineWorker.ts`: `ce8cf358bfcfd21b10cb39575a66245ff12a8c8cb324fe6737293269cb89eeb4`
 - `native/runner/runner-helper.sh`: `44a47d0991845401ec10633417a3363087f2b5a665da68a564b9189ff1ad823a`
 - `native/runner/runner-helper.ps1`: `efb3620cedfc6bd83496774084dcc65d6105ab5cd1fa855c47093394d37783c7`
+
+Final OS-label hardening: a Darwin runner advertising `os:windows` first
+failed the Windows-routing case. Reserved `os:` labels now match the
+runner's declared OS only. Removing that branch failed the same named test
+and restored byte-exact SHA-256 `3ccedc8ea745af68b0ed408132dcb5db032d67238bfdf2698e034f94084a0190`.
+The whole routing file then passed all 10 tests; host typecheck was rerun.

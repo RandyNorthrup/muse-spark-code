@@ -139,8 +139,11 @@ describe('check routing after shell guards', () => {
   it('matches Windows-only labels and command classes instead of routing to a Mac', async () => {
     const d = deps()
     const windows: Runner = { ...runner, id: 'win', os: 'win32' }
-    await routeChecks({ ...job, labels: ['os:windows'] }, [runner, windows], d, (value) =>
-      Promise.resolve(value.command),
+    await routeChecks(
+      { ...job, labels: ['os:windows'] },
+      [{ ...runner, labels: ['os:windows'] }, windows],
+      d,
+      (value) => Promise.resolve(value.command),
     )
     expect(d.sample).toHaveBeenCalledExactlyOnceWith(windows)
     const build = deps()
