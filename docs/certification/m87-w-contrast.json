@@ -1,0 +1,583 @@
+{
+  "source": "VS Code 1.140.0 captures (test/harness/themes), lane W contrast-check, 2026-10-04",
+  "before": [
+    {
+      "theme": "dark",
+      "label": "tally removed",
+      "ratio": 3.87,
+      "floor": 4.5,
+      "passes": false,
+      "foreground": "rgb(199, 78, 57)",
+      "background": "rgb(24, 24, 24)"
+    },
+    {
+      "theme": "light",
+      "label": "tally removed",
+      "ratio": 7.04,
+      "floor": 4.5,
+      "passes": true,
+      "foreground": "rgb(173, 7, 7)",
+      "background": "rgb(248, 248, 248)"
+    },
+    {
+      "theme": "hc-dark",
+      "label": "tally removed",
+      "ratio": 4.58,
+      "floor": 4.5,
+      "passes": true,
+      "foreground": "rgb(199, 78, 57)",
+      "background": "rgb(0, 0, 0)"
+    },
+    {
+      "theme": "hc-light",
+      "label": "tally removed",
+      "ratio": 7.47,
+      "floor": 4.5,
+      "passes": true,
+      "foreground": "rgb(173, 7, 7)",
+      "background": "rgb(255, 255, 255)"
+    }
+  ],
+  "final": [
+    {
+      "theme": "dark",
+      "label": "meter number (42 %)",
+      "ratio": 10.26,
+      "floor": 4.5,
+      "passes": true,
+      "foreground": "rgb(204, 204, 204)",
+      "background": "rgb(31, 31, 31)"
+    },
+    {
+      "theme": "dark",
+      "label": "meter arc, normal (42 %)",
+      "ratio": 3.64,
+      "floor": 3,
+      "passes": true,
+      "foreground": "rgb(0, 120, 212)",
+      "background": "rgb(31, 31, 31)"
+    },
+    {
+      "theme": "dark",
+      "label": "meter arc, warning (70 %)",
+      "ratio": 7.14,
+      "floor": 3,
+      "passes": true,
+      "foreground": "rgb(204, 167, 0)",
+      "background": "rgb(31, 31, 31)"
+    },
+    {
+      "theme": "dark",
+      "label": "meter arc, high (104 %)",
+      "ratio": 4.92,
+      "floor": 3,
+      "passes": true,
+      "foreground": "rgb(248, 81, 73)",
+      "background": "rgb(31, 31, 31)"
+    },
+    {
+      "theme": "dark",
+      "label": "meter number, full (\"100\")",
+      "ratio": 10.26,
+      "floor": 4.5,
+      "passes": true,
+      "foreground": "rgb(204, 204, 204)",
+      "background": "rgb(31, 31, 31)"
+    },
+    {
+      "theme": "dark",
+      "label": "Stop icon on hover",
+      "ratio": 3.57,
+      "floor": 3,
+      "passes": true,
+      "foreground": "rgb(255, 255, 255)",
+      "background": "rgb(241, 76, 76)"
+    },
+    {
+      "theme": "dark",
+      "label": "Stop icon on focus",
+      "ratio": 3.57,
+      "floor": 3,
+      "passes": true,
+      "foreground": "rgb(255, 255, 255)",
+      "background": "rgb(241, 76, 76)"
+    },
+    {
+      "theme": "dark",
+      "label": "heartbeat trace",
+      "ratio": 3.92,
+      "floor": 3,
+      "passes": true,
+      "foreground": "rgb(0, 120, 212)",
+      "background": "rgb(24, 24, 24)"
+    },
+    {
+      "theme": "dark",
+      "label": "tally added",
+      "ratio": 7.75,
+      "floor": 4.5,
+      "passes": true,
+      "foreground": "rgb(129, 184, 139)",
+      "background": "rgb(24, 24, 24)"
+    },
+    {
+      "theme": "dark",
+      "label": "tally removed",
+      "ratio": 11.06,
+      "floor": 4.5,
+      "passes": true,
+      "foreground": "rgb(204, 204, 204)",
+      "background": "rgb(24, 24, 24)"
+    },
+    {
+      "theme": "dark",
+      "label": "tally files",
+      "ratio": 11.06,
+      "floor": 4.5,
+      "passes": true,
+      "foreground": "rgb(204, 204, 204)",
+      "background": "rgb(24, 24, 24)"
+    },
+    {
+      "theme": "dark",
+      "label": "menu bubble",
+      "ratio": 4.53,
+      "floor": 4.5,
+      "passes": true,
+      "foreground": "rgb(255, 255, 255)",
+      "background": "rgb(0, 120, 212)"
+    },
+    {
+      "theme": "dark",
+      "label": "menu bubble, focused",
+      "ratio": 5.25,
+      "floor": 4.5,
+      "passes": true,
+      "foreground": "rgb(255, 255, 255)",
+      "background": "rgb(2, 110, 193)"
+    },
+    {
+      "theme": "dark",
+      "label": "menu label",
+      "ratio": 4.53,
+      "floor": 4.5,
+      "passes": true,
+      "foreground": "rgb(255, 255, 255)",
+      "background": "rgb(0, 120, 212)"
+    },
+    {
+      "theme": "dark",
+      "label": "revealed time (focus)",
+      "ratio": 4.8,
+      "floor": 4.5,
+      "passes": true,
+      "foreground": "rgb(157, 157, 157)",
+      "background": "rgb(49, 49, 49)"
+    },
+    {
+      "theme": "light",
+      "label": "meter number (42 %)",
+      "ratio": 11.2,
+      "floor": 4.5,
+      "passes": true,
+      "foreground": "rgb(59, 59, 59)",
+      "background": "rgb(255, 255, 255)"
+    },
+    {
+      "theme": "light",
+      "label": "meter arc, normal (42 %)",
+      "ratio": 6.31,
+      "floor": 3,
+      "passes": true,
+      "foreground": "rgb(0, 95, 184)",
+      "background": "rgb(255, 255, 255)"
+    },
+    {
+      "theme": "light",
+      "label": "meter arc, warning (70 %)",
+      "ratio": 5.78,
+      "floor": 3,
+      "passes": true,
+      "foreground": "rgb(133, 95, 0)",
+      "background": "rgb(255, 255, 255)"
+    },
+    {
+      "theme": "light",
+      "label": "meter arc, high (104 %)",
+      "ratio": 3.35,
+      "floor": 3,
+      "passes": true,
+      "foreground": "rgb(248, 81, 73)",
+      "background": "rgb(255, 255, 255)"
+    },
+    {
+      "theme": "light",
+      "label": "meter number, full (\"100\")",
+      "ratio": 11.2,
+      "floor": 4.5,
+      "passes": true,
+      "foreground": "rgb(59, 59, 59)",
+      "background": "rgb(255, 255, 255)"
+    },
+    {
+      "theme": "light",
+      "label": "Stop icon on hover",
+      "ratio": 4.74,
+      "floor": 3,
+      "passes": true,
+      "foreground": "rgb(255, 255, 255)",
+      "background": "rgb(229, 20, 0)"
+    },
+    {
+      "theme": "light",
+      "label": "Stop icon on focus",
+      "ratio": 4.74,
+      "floor": 3,
+      "passes": true,
+      "foreground": "rgb(255, 255, 255)",
+      "background": "rgb(229, 20, 0)"
+    },
+    {
+      "theme": "light",
+      "label": "heartbeat trace",
+      "ratio": 5.94,
+      "floor": 3,
+      "passes": true,
+      "foreground": "rgb(0, 95, 184)",
+      "background": "rgb(248, 248, 248)"
+    },
+    {
+      "theme": "light",
+      "label": "tally added",
+      "ratio": 4.6,
+      "floor": 4.5,
+      "passes": true,
+      "foreground": "rgb(88, 124, 12)",
+      "background": "rgb(248, 248, 248)"
+    },
+    {
+      "theme": "light",
+      "label": "tally removed",
+      "ratio": 7.04,
+      "floor": 4.5,
+      "passes": true,
+      "foreground": "rgb(173, 7, 7)",
+      "background": "rgb(248, 248, 248)"
+    },
+    {
+      "theme": "light",
+      "label": "tally files",
+      "ratio": 10.55,
+      "floor": 4.5,
+      "passes": true,
+      "foreground": "rgb(59, 59, 59)",
+      "background": "rgb(248, 248, 248)"
+    },
+    {
+      "theme": "light",
+      "label": "menu bubble",
+      "ratio": 6.31,
+      "floor": 4.5,
+      "passes": true,
+      "foreground": "rgb(255, 255, 255)",
+      "background": "rgb(0, 95, 184)"
+    },
+    {
+      "theme": "light",
+      "label": "menu bubble, focused",
+      "ratio": 7.09,
+      "floor": 4.5,
+      "passes": true,
+      "foreground": "rgb(255, 255, 255)",
+      "background": "rgb(2, 88, 168)"
+    },
+    {
+      "theme": "light",
+      "label": "menu label",
+      "ratio": 6.31,
+      "floor": 4.5,
+      "passes": true,
+      "foreground": "rgb(255, 255, 255)",
+      "background": "rgb(0, 95, 184)"
+    },
+    {
+      "theme": "light",
+      "label": "revealed time (focus)",
+      "ratio": 11.2,
+      "floor": 4.5,
+      "passes": true,
+      "foreground": "rgb(59, 59, 59)",
+      "background": "rgb(255, 255, 255)"
+    },
+    {
+      "theme": "hc-dark",
+      "label": "meter number (42 %)",
+      "ratio": 21,
+      "floor": 4.5,
+      "passes": true,
+      "foreground": "rgb(255, 255, 255)",
+      "background": "rgb(0, 0, 0)"
+    },
+    {
+      "theme": "hc-dark",
+      "label": "meter arc, normal (42 %)",
+      "ratio": 10.55,
+      "floor": 3,
+      "passes": true,
+      "foreground": "rgb(111, 195, 223)",
+      "background": "rgb(0, 0, 0)"
+    },
+    {
+      "theme": "hc-dark",
+      "label": "meter arc, warning (70 %)",
+      "ratio": 10.55,
+      "floor": 3,
+      "passes": true,
+      "foreground": "rgb(111, 195, 223)",
+      "background": "rgb(0, 0, 0)"
+    },
+    {
+      "theme": "hc-dark",
+      "label": "meter arc, high (104 %)",
+      "ratio": 8.55,
+      "floor": 3,
+      "passes": true,
+      "foreground": "rgb(244, 135, 113)",
+      "background": "rgb(0, 0, 0)"
+    },
+    {
+      "theme": "hc-dark",
+      "label": "meter number, full (\"100\")",
+      "ratio": 21,
+      "floor": 4.5,
+      "passes": true,
+      "foreground": "rgb(255, 255, 255)",
+      "background": "rgb(0, 0, 0)"
+    },
+    {
+      "theme": "hc-dark",
+      "label": "Stop icon on hover",
+      "ratio": 8.55,
+      "floor": 3,
+      "passes": true,
+      "foreground": "rgb(244, 135, 113)",
+      "background": "rgb(0, 0, 0)"
+    },
+    {
+      "theme": "hc-dark",
+      "label": "Stop icon on focus",
+      "ratio": 8.55,
+      "floor": 3,
+      "passes": true,
+      "foreground": "rgb(244, 135, 113)",
+      "background": "rgb(0, 0, 0)"
+    },
+    {
+      "theme": "hc-dark",
+      "label": "heartbeat trace",
+      "ratio": 10.55,
+      "floor": 3,
+      "passes": true,
+      "foreground": "rgb(111, 195, 223)",
+      "background": "rgb(0, 0, 0)"
+    },
+    {
+      "theme": "hc-dark",
+      "label": "tally added",
+      "ratio": 14.11,
+      "floor": 4.5,
+      "passes": true,
+      "foreground": "rgb(161, 227, 173)",
+      "background": "rgb(0, 0, 0)"
+    },
+    {
+      "theme": "hc-dark",
+      "label": "tally removed",
+      "ratio": 4.58,
+      "floor": 4.5,
+      "passes": true,
+      "foreground": "rgb(199, 78, 57)",
+      "background": "rgb(0, 0, 0)"
+    },
+    {
+      "theme": "hc-dark",
+      "label": "tally files",
+      "ratio": 21,
+      "floor": 4.5,
+      "passes": true,
+      "foreground": "rgb(255, 255, 255)",
+      "background": "rgb(0, 0, 0)"
+    },
+    {
+      "theme": "hc-dark",
+      "label": "menu bubble",
+      "ratio": 21,
+      "floor": 4.5,
+      "passes": true,
+      "foreground": "rgb(255, 255, 255)",
+      "background": "rgb(0, 0, 0)"
+    },
+    {
+      "theme": "hc-dark",
+      "label": "menu bubble, focused",
+      "ratio": 21,
+      "floor": 4.5,
+      "passes": true,
+      "foreground": "rgb(255, 255, 255)",
+      "background": "rgb(0, 0, 0)"
+    },
+    {
+      "theme": "hc-dark",
+      "label": "menu label",
+      "ratio": 21,
+      "floor": 4.5,
+      "passes": true,
+      "foreground": "rgb(255, 255, 255)",
+      "background": "rgb(0, 0, 0)"
+    },
+    {
+      "theme": "hc-dark",
+      "label": "revealed time (focus)",
+      "ratio": 9.96,
+      "floor": 4.5,
+      "passes": true,
+      "foreground": "rgba(255, 255, 255, 0.7)",
+      "background": "rgb(0, 0, 0)"
+    },
+    {
+      "theme": "hc-light",
+      "label": "meter number (42 %)",
+      "ratio": 14.55,
+      "floor": 4.5,
+      "passes": true,
+      "foreground": "rgb(41, 41, 41)",
+      "background": "rgb(255, 255, 255)"
+    },
+    {
+      "theme": "hc-light",
+      "label": "meter arc, normal (42 %)",
+      "ratio": 8.98,
+      "floor": 3,
+      "passes": true,
+      "foreground": "rgb(15, 74, 133)",
+      "background": "rgb(255, 255, 255)"
+    },
+    {
+      "theme": "hc-light",
+      "label": "meter arc, warning (70 %)",
+      "ratio": 8.98,
+      "floor": 3,
+      "passes": true,
+      "foreground": "rgb(15, 74, 133)",
+      "background": "rgb(255, 255, 255)"
+    },
+    {
+      "theme": "hc-light",
+      "label": "meter arc, high (104 %)",
+      "ratio": 6.61,
+      "floor": 3,
+      "passes": true,
+      "foreground": "rgb(181, 32, 13)",
+      "background": "rgb(255, 255, 255)"
+    },
+    {
+      "theme": "hc-light",
+      "label": "meter number, full (\"100\")",
+      "ratio": 14.55,
+      "floor": 4.5,
+      "passes": true,
+      "foreground": "rgb(41, 41, 41)",
+      "background": "rgb(255, 255, 255)"
+    },
+    {
+      "theme": "hc-light",
+      "label": "Stop icon on hover",
+      "ratio": 6.61,
+      "floor": 3,
+      "passes": true,
+      "foreground": "rgb(181, 32, 13)",
+      "background": "rgb(255, 255, 255)"
+    },
+    {
+      "theme": "hc-light",
+      "label": "Stop icon on focus",
+      "ratio": 6.61,
+      "floor": 3,
+      "passes": true,
+      "foreground": "rgb(181, 32, 13)",
+      "background": "rgb(255, 255, 255)"
+    },
+    {
+      "theme": "hc-light",
+      "label": "heartbeat trace",
+      "ratio": 8.98,
+      "floor": 3,
+      "passes": true,
+      "foreground": "rgb(15, 74, 133)",
+      "background": "rgb(255, 255, 255)"
+    },
+    {
+      "theme": "hc-light",
+      "label": "tally added",
+      "ratio": 9.31,
+      "floor": 4.5,
+      "passes": true,
+      "foreground": "rgb(55, 78, 6)",
+      "background": "rgb(255, 255, 255)"
+    },
+    {
+      "theme": "hc-light",
+      "label": "tally removed",
+      "ratio": 7.47,
+      "floor": 4.5,
+      "passes": true,
+      "foreground": "rgb(173, 7, 7)",
+      "background": "rgb(255, 255, 255)"
+    },
+    {
+      "theme": "hc-light",
+      "label": "tally files",
+      "ratio": 14.55,
+      "floor": 4.5,
+      "passes": true,
+      "foreground": "rgb(41, 41, 41)",
+      "background": "rgb(255, 255, 255)"
+    },
+    {
+      "theme": "hc-light",
+      "label": "menu bubble",
+      "ratio": 8.98,
+      "floor": 4.5,
+      "passes": true,
+      "foreground": "rgb(255, 255, 255)",
+      "background": "rgb(15, 74, 133)"
+    },
+    {
+      "theme": "hc-light",
+      "label": "menu bubble, focused",
+      "ratio": 8.98,
+      "floor": 4.5,
+      "passes": true,
+      "foreground": "rgb(255, 255, 255)",
+      "background": "rgb(15, 74, 133)"
+    },
+    {
+      "theme": "hc-light",
+      "label": "menu label",
+      "ratio": 8.98,
+      "floor": 4.5,
+      "passes": true,
+      "foreground": "rgb(255, 255, 255)",
+      "background": "rgb(15, 74, 133)"
+    },
+    {
+      "theme": "hc-light",
+      "label": "revealed time (focus)",
+      "ratio": 5.47,
+      "floor": 4.5,
+      "passes": true,
+      "foreground": "rgba(41, 41, 41, 0.7)",
+      "background": "rgb(255, 255, 255)"
+    }
+  ]
+}

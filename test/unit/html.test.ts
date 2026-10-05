@@ -54,12 +54,22 @@ describe('buildWebviewHtml', () => {
   })
 
   it('references the bundled script and stylesheet with the nonce', () => {
-    expect(html).toContain(`<script nonce="NONCE123" src="${options.scriptUri}"></script>`)
+    expect(html).toContain(
+      `<script type="module" nonce="NONCE123" src="${options.scriptUri}"></script>`,
+    )
     expect(html).toContain(`<link rel="stylesheet" href="${options.styleUri}" nonce="NONCE123">`)
   })
 
   it('provides the React mount point', () => {
     expect(html).toContain('<div id="root"></div>')
+  })
+
+  it('marks only the read-only tasks document and keeps its CSP', () => {
+    const tasks = buildWebviewHtml({ ...options, surface: 'tasks' })
+    expect(tasks).toContain('<body data-surface="tasks">')
+    expect(html).toContain('<body>')
+    expect(tasks).toContain("script-src 'nonce-NONCE123'")
+    expect(tasks).not.toContain('unsafe-inline')
   })
 
   it('names the document language and embeds the table as data before the bundle (D33)', () => {

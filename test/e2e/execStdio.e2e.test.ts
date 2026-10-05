@@ -118,7 +118,15 @@ function packagingFixture() {
       devDependencies: { '@napi-rs/keyring': '2.1.0' },
     }),
   )
-  for (const bundle of ['acp', 'modelApi', 'reviewer', 'uiText', 'searchWorker', 'pageWorker']) {
+  for (const bundle of [
+    'acp',
+    'modelApi',
+    'reviewer',
+    'uiText',
+    'validation',
+    'searchWorker',
+    'pageWorker',
+  ]) {
     writeFileSync(path.join(dir, 'dist', `${bundle}.js`), '// test-owned inert bundle\n')
   }
   for (const file of ['MuseSparkJob.cs', 'MuseSparkMcpJob.cs']) {
@@ -158,6 +166,7 @@ describe('M80 D package guards', { timeout: TIMEOUT }, () => {
     }
     const manifest: unknown = JSON.parse(readFileSync(path.join(stage, 'package.json'), 'utf8'))
     expect(manifest).toMatchObject({ bin: { 'muse-spark-code-acp': 'dist/acp.js' } })
+    expect(existsSync(path.join(stage, 'dist', 'validation.js'))).toBe(true)
     expect(existsSync(path.join(stage, 'dist', 'exec-test-launcher.js'))).toBe(false)
   })
 

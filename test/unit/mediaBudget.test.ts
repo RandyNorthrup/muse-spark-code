@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { MediaBudget } from '../../src/core/backends/modelapi/mediaBudget'
 import type { InputItem } from '../../src/core/backends/modelapi/schemas'
-import { MODEL_TEXT } from '../../src/shared/constants'
+import { MODEL_API_MODEL_TEXT } from '../../src/shared/constants'
 import { pdfFixture } from './helpers/pdfFixture'
 
 describe('Model API replay media budget', () => {
@@ -31,7 +31,7 @@ describe('Model API replay media budget', () => {
       {
         type: 'message',
         role: 'user',
-        content: [{ type: 'input_text', text: MODEL_TEXT.imageLeftOut }],
+        content: [{ type: 'input_text', text: MODEL_API_MODEL_TEXT.imageLeftOut }],
       },
       input[1],
       input[2],
@@ -102,7 +102,7 @@ describe('Model API replay media budget', () => {
       {
         type: 'message',
         role: 'user',
-        content: [{ type: 'input_text', text: MODEL_TEXT.imageLeftOut }],
+        content: [{ type: 'input_text', text: MODEL_API_MODEL_TEXT.imageLeftOut }],
       },
       input[1],
     ])
@@ -170,7 +170,7 @@ describe('Model API replay media budget', () => {
         call_id: 'mcp-older',
         output: [
           { type: 'input_text', text: 'old result' },
-          { type: 'input_text', text: MODEL_TEXT.imageLeftOut },
+          { type: 'input_text', text: MODEL_API_MODEL_TEXT.imageLeftOut },
         ],
       },
       input[1],

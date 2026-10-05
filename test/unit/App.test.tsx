@@ -102,9 +102,20 @@ function holdPastedPdf() {
   }
 }
 
+function userMenuButtons(): HTMLButtonElement[] {
+  return [...document.querySelectorAll<HTMLButtonElement>('[data-role="user"] .row-actions-button')]
+}
+
+function rewindItem(name: string): HTMLElement {
+  if (screen.queryByRole('menuitem', { name }) === null) {
+    fireEvent.click(screen.getByRole('menuitem', { name: UI_TEXT.rowRewindGroup }))
+  }
+  return screen.getByRole('menuitem', { name })
+}
+
 function chooseConversationRewind(cardIndex: number) {
-  fireEvent.click(screen.getAllByLabelText('Fork or rewind')[cardIndex]!)
-  fireEvent.click(screen.getByRole('menuitem', { name: 'Rewind conversation to here' }))
+  fireEvent.click(userMenuButtons()[cardIndex]!)
+  fireEvent.click(rewindItem('Rewind conversation to here'))
 }
 
 function expectRewindRequest(
@@ -326,9 +337,9 @@ describe('App shell', () => {
           ],
           archivedIds: [],
         })
-        fireEvent.keyDown(screen.getByRole('combobox'), { key: 'Enter' })
+        fireEvent.keyDown(await screen.findByRole('combobox'), { key: 'Enter' })
       } else {
-        fireEvent.click(screen.getAllByLabelText('Fork or rewind')[1]!)
+        fireEvent.click(userMenuButtons()[1]!)
         fireEvent.click(screen.getByRole('menuitem', { name: 'Fork conversation from here' }))
       }
       expect(textarea()).toHaveValue('keep draft')
@@ -465,7 +476,7 @@ describe('App sign-in gate', () => {
     expect(screen.getByRole('button', { name: 'Open sign-in page' })).toBeInTheDocument()
   })
 
-  it('offers CLI install while a Model API key keeps the backend signed in', () => {
+  it('offers CLI install while a Model API key keeps the backend signed in', async () => {
     const postMessage = renderReady()
     deliver({
       type: 'authState',
@@ -474,7 +485,7 @@ describe('App sign-in gate', () => {
       hasCli: false,
       installCommand: 'irm https://dev.meta.ai/install.ps1 | iex',
     })
-    openUsageDialog()
+    await openUsageDialog()
     fireEvent.click(screen.getByRole('button', { name: 'Install Muse Code' }))
     expect(screen.getByText('irm https://dev.meta.ai/install.ps1 | iex')).toBeInTheDocument()
     expect(postMessage).not.toHaveBeenCalledWith({ type: 'installMuseCode' })
@@ -501,7 +512,7 @@ describe('App sign-in gate', () => {
     expect(postMessage).toHaveBeenCalledWith({ type: 'signIn', method: 'browser' })
   })
 
-  it('offers an extra Model API key while Muse Code remains signed in', () => {
+  it('offers an extra Model API key while Muse Code remains signed in', async () => {
     const postMessage = renderReady()
     deliver({
       type: 'authState',
@@ -510,7 +521,7 @@ describe('App sign-in gate', () => {
       hasCli: true,
       hasCliSession: true,
     })
-    openUsageDialog()
+    await openUsageDialog()
     fireEvent.click(screen.getByRole('button', { name: 'Add Model API key' }))
     expect(postMessage).toHaveBeenCalledWith({ type: 'signIn', method: 'apiKey' })
   })
@@ -569,7 +580,7 @@ describe('App conversation', () => {
     ).toBeInTheDocument()
   })
 
-  it('moves a running command to the background and stops it from its row (M46)', () => {
+  it('moves a running command to the background and stops it from its row (M46)', async () => {
     const postMessage = renderReady()
     deliver({ type: 'agentEvent', event: { type: 'turnStarted', turnId: 't1' } })
     const call = {
@@ -595,7 +606,7 @@ describe('App conversation', () => {
     expect(postMessage).toHaveBeenLastCalledWith({ type: 'stopTask', itemId: 'c1' })
     // The header pill counts it, and the map's Stop all reaches the host.
     fireEvent.click(screen.getByRole('button', { name: '1 background task' }))
-    fireEvent.click(screen.getByRole('button', { name: 'Stop all' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Stop all' }))
     expect(postMessage).toHaveBeenLastCalledWith({ type: 'stopAllTasks' })
   })
 
@@ -680,7 +691,8 @@ describe('App conversation', () => {
       // simple commands, and the reviewer (on by default, M90) may allow others once.
       'ManualMuse will ask before running commands; Muse Code edits workspace files without askingCurrent',
       'Edit automaticallyOn Muse Code, the same as Manual: Muse Code edits workspace files without asking and asks before running commands',
-      'PlanMuse will explore the code and present a plan before editing',
+      // Plan on Muse Code refuses commands, not file-tool edits (musecode-write-asks).
+      'PlanMuse plans first; Muse Code refuses commands, but its file tools can still edit files without asking',
       'AutoMuse Code runs the commands it judges simple without asking; a reviewer may allow some others once, and you are asked about the rest',
     ])
     fireEvent.click(screen.getByRole('menuitemradio', { name: /Edit automatically/ }))
@@ -1060,9 +1072,14 @@ describe('App transcript (M4)', () => {
         pressure: 'normal',
       },
     })
-    expect(screen.getByText('12% context')).toHaveAttribute(
+    // The meter (M87): the floored percent in the ring, the detail in its name and tooltip.
+    const meter = screen.getByRole('button', {
+      name: 'Context 12% used · 120K of 1M tokens · pressure normal',
+    })
+    expect(meter).toHaveTextContent(/^12$/)
+    expect(meter).toHaveAttribute(
       'title',
-      '120K of 1M tokens · pressure normal · Click to compact now',
+      'Context 12% used · 120K of 1M tokens · pressure normal · Click to compact now',
     )
     deliver({
       type: 'agentEvent',
@@ -1078,11 +1095,11 @@ function openPalette() {
 }
 
 /** Opens the account modal through the same palette action a user selects. */
-function openUsageDialog() {
+async function openUsageDialog() {
   const filter = openPalette()
   fireEvent.change(filter, { target: { value: '/usage' } })
   fireEvent.keyDown(filter, { key: 'Enter' })
-  return screen.getByRole('dialog', { name: 'Account & usage' })
+  return await screen.findByRole('dialog', { name: 'Account & usage' })
 }
 
 describe('App palette', () => {
@@ -1205,6 +1222,9 @@ describe('App palette', () => {
     expect(postMessage).toHaveBeenCalledWith({ type: 'hostAction', action: 'openKeybindings' })
     run('Output log')
     expect(postMessage).toHaveBeenCalledWith({ type: 'hostAction', action: 'openLog' })
+    // M99: the release notes of this version, in an editor tab.
+    run('What’s New')
+    expect(postMessage).toHaveBeenCalledWith({ type: 'hostAction', action: 'showWhatsNew' })
     run('Sign out')
     expect(postMessage).toHaveBeenCalledWith({ type: 'signOut' })
     run('/compact')
@@ -1525,7 +1545,7 @@ describe('App session history (M6)', () => {
     expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Resumed one')
     expect(screen.getByText('first')).toBeInTheDocument()
     expect(screen.getByText('reply')).toBeInTheDocument()
-    const menus = screen.getAllByLabelText('Fork or rewind')
+    const menus = userMenuButtons()
     expect(menus).toHaveLength(2)
     fireEvent.click(menus[1]!)
     fireEvent.click(screen.getByRole('menuitem', { name: 'Fork conversation from here' }))
@@ -1577,7 +1597,7 @@ describe('App session history (M6)', () => {
       type: 'agentEvent',
       event: { type: 'turnCompleted', turnId: 't1', terminal: 'completed' },
     })
-    fireEvent.click(screen.getAllByLabelText('Fork or rewind')[0]!)
+    fireEvent.click(userMenuButtons()[0]!)
     expect(screen.queryByRole('menuitem', { name: 'Rewind conversation to here' })).toBeNull()
 
     loadHistory([
@@ -1586,7 +1606,7 @@ describe('App session history (M6)', () => {
         attachments: [{ type: 'file', mediaType, name, sizeBytes: 9 }],
       },
     ])
-    fireEvent.click(screen.getAllByLabelText('Fork or rewind')[0]!)
+    fireEvent.click(userMenuButtons()[0]!)
     expect(screen.queryByRole('menuitem', { name: 'Rewind conversation to here' })).toBeNull()
     expect(postMessage).not.toHaveBeenLastCalledWith(
       expect.objectContaining({ type: 'rewindConversation' }),
@@ -1602,11 +1622,9 @@ describe('App session history (M6)', () => {
         attachments: [{ type: 'file', mediaType: 'text/plain', name: 'notes.txt', sizeBytes: 9 }],
       },
     ])
-    const menus = screen.getAllByLabelText('Fork or rewind')
+    const menus = userMenuButtons()
     fireEvent.click(menus[0]!)
-    expect(
-      screen.getByRole('menuitem', { name: 'Rewind conversation to here' }),
-    ).toBeInTheDocument()
+    expect(rewindItem('Rewind conversation to here')).toBeInTheDocument()
     fireEvent.keyDown(screen.getByRole('menu'), { key: 'Escape' })
     fireEvent.click(menus[1]!)
     expect(screen.queryByRole('menuitem', { name: 'Rewind conversation to here' })).toBeNull()
@@ -1658,7 +1676,7 @@ describe('App session history (M6)', () => {
   it('hides unsafe conversation rewind on a steered first turn (M53)', () => {
     renderReady()
     loadHistory([historyUser('u1', 't1', 'first'), historyUser('u2', 't1', 'steered')])
-    fireEvent.click(screen.getAllByLabelText('Fork or rewind')[1]!)
+    fireEvent.click(userMenuButtons()[1]!)
     expect(screen.queryByRole('menuitem', { name: 'Rewind conversation to here' })).toBeNull()
   })
 
@@ -1670,7 +1688,7 @@ describe('App session history (M6)', () => {
       historyUser('u3', 't2', 'steered with image'),
     ])
     deliver({ type: 'agentEvent', event: { type: 'turnStarted', turnId: 't2' } })
-    fireEvent.click(screen.getAllByLabelText('Fork or rewind')[2]!)
+    fireEvent.click(userMenuButtons()[2]!)
     expect(screen.queryByRole('menuitem', { name: 'Rewind conversation to here' })).toBeNull()
   })
 
@@ -1731,9 +1749,9 @@ describe('App session history (M6)', () => {
         historyEdit('e2', 't2', 'p2'),
       ],
     })
-    const menus = screen.getAllByLabelText('Fork or rewind')
+    const menus = userMenuButtons()
     fireEvent.click(menus[0]!)
-    fireEvent.click(screen.getByRole('menuitem', { name: 'Rewind code to here' }))
+    fireEvent.click(rewindItem('Rewind code to here'))
     expect(postMessage).toHaveBeenLastCalledWith({
       type: 'rewindCode',
       edits: [
@@ -1922,7 +1940,7 @@ describe('App session history (M6)', () => {
         pressure: 'normal',
       },
     })
-    fireEvent.click(screen.getByRole('button', { name: '12% context' }))
+    fireEvent.click(screen.getByRole('button', { name: /^Context 12% used/ }))
     expect(postMessage).toHaveBeenLastCalledWith({ type: 'compact' })
     deliver({ type: 'attachmentRejected', name: 'audio.node', reason: 'not an image' })
     expect(screen.getByText(/Unsupported file type: audio\.node/)).toBeInTheDocument()
@@ -1960,9 +1978,9 @@ describe('App account & usage, onboarding and announcements (M8)', () => {
     weekly: { usedPercent: 7, resetsAtMs: Date.now() + 86_400_000 },
   }
 
-  it('opens Account & usage from /usage, asks the host, renders the report, closes on Escape', () => {
+  it('opens Account & usage from /usage, asks the host, renders the report, closes on Escape', async () => {
     const postMessage = renderReady()
-    const dialog = openUsageDialog()
+    const dialog = await openUsageDialog()
     expect(postMessage).toHaveBeenLastCalledWith({ type: 'readUsage' })
     expect(dialog.parentElement).toHaveClass('modal-backdrop')
     expect(dialog).toHaveTextContent('Reading usage…')
@@ -1976,9 +1994,9 @@ describe('App account & usage, onboarding and announcements (M8)', () => {
     expect(document.activeElement).toBe(textarea())
   })
 
-  it('hides old account usage immediately on the boundary clear before auth replies', () => {
+  it('hides old account usage immediately on the boundary clear before auth replies', async () => {
     renderReady()
-    const dialog = openUsageDialog()
+    const dialog = await openUsageDialog()
     deliver({ type: 'usageReport', backend: 'museCode', subscription })
     expect(dialog).toHaveTextContent('muse-pro')
     deliver({ type: 'conversationCleared', accountBoundary: true })
@@ -2138,7 +2156,9 @@ describe('App chat references (M17)', () => {
   it('replies to an output from its actions menu and sends the reference with the message', () => {
     const postMessage = renderReady()
     reply('m1', 'Use pnpm.')
-    fireEvent.click(screen.getByRole('button', { name: 'Message actions' }))
+    fireEvent.click(
+      document.querySelector<HTMLButtonElement>('[data-role="assistant"] .row-actions-button')!,
+    )
     fireEvent.click(screen.getByRole('menuitem', { name: 'Reply to this output' }))
     expect(screen.getByText('Replying to: Use pnpm.')).toBeInTheDocument()
     fireEvent.change(textarea(), { target: { value: 'why?' } })
@@ -2181,19 +2201,62 @@ describe('App chat references (M17)', () => {
     expect(screen.queryByText('Commenting on: it is fast')).toBeNull()
   })
 
-  it('leaves the browser menu alone without a selection, and Escape closes ours', () => {
+  it('opens row actions without a selection, quotes with one, and Escape closes each', () => {
     renderReady()
     reply('m1', 'plain')
     const passage = screen.getByText('plain')
     const empty = vi
       .spyOn(window, 'getSelection')
       .mockReturnValue({ toString: () => '', anchorNode: passage } as unknown as Selection)
-    expect(fireEvent.contextMenu(passage)).toBe(true)
+    expect(fireEvent.contextMenu(passage)).toBe(false)
+    expect(screen.getByRole('menuitem', { name: UI_TEXT.copyResponse })).toBeInTheDocument()
+    fireEvent.keyDown(screen.getByRole('menu'), { key: 'Escape' })
     expect(screen.queryByRole('menu')).toBeNull()
     empty.mockReturnValue({ toString: () => 'plain', anchorNode: passage } as unknown as Selection)
     expect(fireEvent.contextMenu(passage)).toBe(false)
     fireEvent.keyDown(screen.getByRole('menu'), { key: 'Escape' })
     expect(screen.queryByRole('menu')).toBeNull()
+  })
+})
+
+// F2 review fixes (lane W): a selection in one row never opens its quote menu from another.
+describe('App: a right-click away from the selected text (the review of F2, P1)', () => {
+  afterEach(() => {
+    vi.restoreAllMocks()
+  })
+
+  it('opens the clicked row’s own menu, not the quote menu of the row holding the text', () => {
+    renderReady()
+    reply('m1', 'Use pnpm.')
+    reply('m2', 'Then run the tests.')
+    const passage = screen.getByText('Use pnpm.')
+    vi.spyOn(window, 'getSelection').mockReturnValue({
+      toString: () => 'pnpm',
+      anchorNode: passage,
+      focusNode: passage,
+      isCollapsed: false,
+    } as unknown as Selection)
+    expect(fireEvent.contextMenu(screen.getByText('Then run the tests.'))).toBe(false)
+    expect(screen.queryByRole('menu', { name: UI_TEXT.quoteMenuLabel })).toBeNull()
+    expect(screen.getByRole('menuitem', { name: UI_TEXT.copyResponse })).toBeInTheDocument()
+  })
+
+  it('opens no quote menu from a row with no actions of its own', () => {
+    renderReady()
+    reply('m1', 'Use pnpm.')
+    send('which one?')
+    const passage = screen.getByText('Use pnpm.')
+    vi.spyOn(window, 'getSelection').mockReturnValue({
+      toString: () => 'pnpm',
+      anchorNode: passage,
+      focusNode: passage,
+      isCollapsed: false,
+    } as unknown as Selection)
+    fireEvent.contextMenu(screen.getByText('which one?'))
+    expect(screen.queryByRole('menu')).toBeNull()
+    // On the row that holds the text, the quote menu still opens (M17).
+    fireEvent.contextMenu(passage)
+    expect(screen.getByRole('menu', { name: UI_TEXT.quoteMenuLabel })).toBeInTheDocument()
   })
 })
 
@@ -2241,9 +2304,9 @@ describe('App webview and UI state (M25)', () => {
     expect(screen.queryByRole('menu')).toBeNull()
   })
 
-  it('makes everything behind a modal inert', () => {
+  it('makes everything behind a modal inert', async () => {
     renderReady()
-    openUsageDialog()
+    await openUsageDialog()
     expect(screen.getByRole('main')).toHaveAttribute('inert')
     expect(document.querySelector('.composer-area')).toHaveAttribute('inert')
     expect(document.querySelector('.header-area')).toHaveAttribute('inert')
@@ -2747,13 +2810,18 @@ function checkpointed(turnIds: readonly string[], availability = 'on') {
 }
 
 function openMenu(cardIndex: number) {
-  fireEvent.click(screen.getAllByLabelText('Fork or rewind')[cardIndex]!)
+  for (let level = 0; level < 2; level++) {
+    const menu = screen.queryByRole('menu')
+    if (menu !== null) fireEvent.keyDown(menu, { key: 'Escape' })
+  }
+  fireEvent.click(userMenuButtons()[cardIndex]!)
+  fireEvent.click(screen.getByRole('menuitem', { name: UI_TEXT.rowRewindGroup }))
 }
 
 function rowNames() {
   return within(screen.getByRole('menu'))
     .getAllByRole('menuitem')
-    .map((row) => row.textContent)
+    .map((row) => row.getAttribute('aria-label'))
 }
 
 describe('App turn checkpoints (M72)', () => {
@@ -2763,7 +2831,6 @@ describe('App turn checkpoints (M72)', () => {
     checkpointed(['t2'])
     openMenu(1)
     expect(rowNames()).toEqual([
-      'Fork conversation from here',
       'Rewind conversation to here',
       'Restore files to here',
       'Rewind code to here',
@@ -2771,12 +2838,7 @@ describe('App turn checkpoints (M72)', () => {
     ])
     fireEvent.keyDown(screen.getByRole('menu'), { key: 'Escape' })
     openMenu(0)
-    expect(rowNames()).toEqual([
-      'Fork conversation from here',
-      'Rewind conversation to here',
-      'Rewind code to here',
-      'Fork conversation and rewind code',
-    ])
+    expect(rowNames()).toEqual(['Rewind conversation to here', 'Rewind code to here'])
   })
 
   it('asks the host to restore the files, or the files and the conversation', () => {
@@ -2784,14 +2846,14 @@ describe('App turn checkpoints (M72)', () => {
     loadHistory([historyUser('u1', 't1', 'first'), historyUser('u2', 't2', 'second')])
     checkpointed(['t2'])
     openMenu(1)
-    fireEvent.click(screen.getByRole('menuitem', { name: 'Restore files to here' }))
+    fireEvent.click(rewindItem('Restore files to here'))
     expect(postMessage).toHaveBeenLastCalledWith({
       type: 'restoreFiles',
       sourceSessionId: 'old',
       turnId: 't2',
     })
     openMenu(1)
-    fireEvent.click(screen.getByRole('menuitem', { name: 'Rewind conversation and restore files' }))
+    fireEvent.click(rewindItem('Rewind conversation and restore files'))
     expect(postMessage).toHaveBeenLastCalledWith({
       type: 'restoreFiles',
       sourceSessionId: 'old',
@@ -2817,7 +2879,7 @@ describe('App turn checkpoints (M72)', () => {
     expect(screen.queryByRole('menuitem', { name: 'Restore files to here' })).toBeNull()
     fireEvent.keyDown(screen.getByRole('menu'), { key: 'Escape' })
     openMenu(0)
-    expect(screen.getByRole('menuitem', { name: 'Restore files to here' })).toBeInTheDocument()
+    expect(rewindItem('Restore files to here')).toBeInTheDocument()
   })
 
   it('ignores the checkpoints of another conversation', () => {
@@ -2894,19 +2956,28 @@ describe('App turn checkpoints (M72)', () => {
       text: 'Restored 2 files to before this message.',
       redoRestoreId: 'r1',
     })
-    fireEvent.click(screen.getByRole('button', { name: UI_TEXT.redoLabel }))
+    fireEvent.click(document.querySelector<HTMLButtonElement>('.notice .row-actions-button')!)
+    fireEvent.click(screen.getByRole('menuitem', { name: UI_TEXT.redoAction }))
     // The Redo names the conversation it was offered in (M86).
     expect(postMessage).toHaveBeenLastCalledWith({
       type: 'redoRestore',
       restoreId: 'r1',
       sourceSessionId: 'old',
     })
-    expect(screen.getByRole('button', { name: UI_TEXT.redoLabel })).toBeDisabled()
+    fireEvent.click(document.querySelector<HTMLButtonElement>('.notice .row-actions-button')!)
+    expect(screen.getByRole('menuitem', { name: UI_TEXT.redoAction })).toHaveAttribute(
+      'aria-disabled',
+      'true',
+    )
     deliver({ type: 'restoreRedone', restoreId: 'r1', isSpent: false })
-    expect(screen.getByRole('button', { name: UI_TEXT.redoLabel })).toBeEnabled()
-    fireEvent.click(screen.getByRole('button', { name: UI_TEXT.redoLabel }))
+    expect(screen.getByRole('menuitem', { name: UI_TEXT.redoAction })).not.toHaveAttribute(
+      'aria-disabled',
+    )
+    fireEvent.keyDown(screen.getByRole('menu'), { key: 'Escape' })
+    fireEvent.click(document.querySelector<HTMLButtonElement>('.notice .row-actions-button')!)
+    fireEvent.click(screen.getByRole('menuitem', { name: UI_TEXT.redoAction }))
     deliver({ type: 'restoreRedone', restoreId: 'r1', isSpent: true })
-    expect(screen.queryByRole('button', { name: UI_TEXT.redoLabel })).toBeNull()
+    expect(screen.queryByRole('menuitem', { name: UI_TEXT.redoAction })).toBeNull()
     expect(screen.getByText('Restored 2 files to before this message.')).toBeInTheDocument()
   })
 
@@ -2925,7 +2996,7 @@ describe('App turn checkpoints (M72)', () => {
         sessionId: 'old',
         turnIds: ['t1'],
       })
-      expect(screen.queryByRole('button', { name: UI_TEXT.redoLabel })).toBeNull()
+      expect(screen.queryByRole('menuitem', { name: UI_TEXT.redoAction })).toBeNull()
       openMenu(0)
       expect(screen.queryByRole('menuitem', { name: UI_TEXT.restoreFilesToHere })).toBeNull()
       expect(screen.queryByRole('menuitem', { name: UI_TEXT.rewindAndRestore })).toBeNull()
@@ -2968,7 +3039,7 @@ describe('App: a refused best-of-N start (M77, the RV78 review)', () => {
     ['a declined paid-use popup', 'warning', () => UI_TEXT.bestOfNConsentDeclined],
     ['a missing budget journal', 'warning', () => UI_TEXT.bestOfNBudgetUnavailable],
     ['a host that failed to start', 'error', () => `${UI_TEXT.bestOfNTitle}: spawn failed`],
-  ] as const)('keeps the form and its prompt after %s', (_refusal, level, text) => {
+  ] as const)('keeps the form and its prompt after %s', async (_refusal, level, text) => {
     const postMessage = renderReady()
     deliver({
       type: 'paidState',
@@ -2980,8 +3051,8 @@ describe('App: a refused best-of-N start (M77, the RV78 review)', () => {
       },
     })
     fireEvent.click(screen.getByRole('button', { name: UI_TEXT.boardTitle }))
-    fireEvent.click(screen.getByRole('button', { name: UI_TEXT.boardStartBestOfN }))
-    const prompt = screen.getByLabelText(UI_TEXT.bestOfNPromptLabel)
+    fireEvent.click(await screen.findByRole('button', { name: UI_TEXT.boardStartBestOfN }))
+    const prompt = await screen.findByLabelText(UI_TEXT.bestOfNPromptLabel)
     fireEvent.change(prompt, { target: { value: 'leave a note' } })
     fireEvent.click(screen.getByRole('button', { name: UI_TEXT.bestOfNStart }))
     expect(postMessage).toHaveBeenLastCalledWith(
@@ -2994,5 +3065,295 @@ describe('App: a refused best-of-N start (M77, the RV78 review)', () => {
     expect(
       postMessage.mock.calls.filter(([message]) => message.type === 'startBestOfN'),
     ).toHaveLength(2)
+  })
+})
+
+/** A signed-in panel whose cards get ids in order, on the given backend. */
+function renderBackend(backend: 'modelApi' | 'museCode', now?: () => number) {
+  const postMessage = vi.fn<(message: WebviewToHostMessage) => void>()
+  let next = 0
+  render(
+    <App
+      postMessage={postMessage}
+      newLocalId={() => `local-${String(++next)}`}
+      {...(now !== undefined && { now })}
+    />,
+  )
+  deliver(init)
+  deliver({ type: 'authState', status: 'signedIn', backend })
+  deliver({ type: 'sessionInfo', modelId: 'muse-spark-1.3', sessionId: 's1' })
+  return postMessage
+}
+
+/** One message running as t1 and a second accepted with `disposition`. */
+function runningWithSecond(disposition: 'steered' | 'queued', turnId: string) {
+  send('first')
+  deliver({ type: 'turnAccepted', localId: 'local-1', turnId: 't1', disposition: 'started' })
+  send('second')
+  deliver({
+    type: 'turnAccepted',
+    localId: 'local-2',
+    turnId,
+    userMessageId: 'u2',
+    disposition,
+  })
+  const card = screen.getByText('second').closest<HTMLElement>('[data-role="user"]')
+  if (card === null) {
+    throw new Error('The second card did not render')
+  }
+  return card
+}
+
+function editItem(itemId: string, path: string, added: number, removed: number) {
+  deliver({
+    type: 'agentEvent',
+    event: {
+      type: 'itemCompleted',
+      item: {
+        itemId,
+        kind: 'toolCall',
+        status: 'completed',
+        tool: 'edit_file',
+        args: JSON.stringify({ path }),
+        patchSummary: { files: 1, added, removed },
+        patchRef: { id: `patch-${itemId}`, byteLen: 10 },
+      },
+    },
+  })
+}
+
+describe('App: the M87 wiring (PLAN.md D66)', () => {
+  afterEach(() => {
+    vi.restoreAllMocks()
+  })
+
+  it('adds up the edits in a row above the goal and task panes, Review opening M70’s pane', () => {
+    const postMessage = renderReady()
+    const goal = showGoal()
+    deliver({
+      type: 'agentEvent',
+      event: { type: 'todoChanged', items: [{ text: 'Write tests', status: 'pending' }] },
+    })
+    expect(screen.queryByRole('group', { name: UI_TEXT.diffTallyLabel })).toBeNull()
+    editItem('e1', 'src/a.ts', 3, 1)
+    editItem('e2', 'src/b.ts', 10, 2)
+    // The same file again: two files, every line counted.
+    editItem('e3', 'src/a.ts', 1, 0)
+    const tally = screen.getByRole('group', { name: UI_TEXT.diffTallyLabel })
+    expect(tally).toHaveTextContent('2 files changed')
+    expect(tally).toHaveTextContent('+14 −3')
+    const tasks = screen.getByRole('region', { name: 'Tasks' })
+    for (const below of [goal, tasks, textarea()]) {
+      expect(tally.compareDocumentPosition(below) & Node.DOCUMENT_POSITION_FOLLOWING).not.toBe(0)
+    }
+    // Review asks for the same edits the pane lists, in their order.
+    fireEvent.click(within(tally).getByRole('button', { name: UI_TEXT.diffTallyReview }))
+    expect(postMessage).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: 'readReviewChanges',
+        edits: [
+          { itemId: 'e1', outputRef: 'patch-e1' },
+          { itemId: 'e2', outputRef: 'patch-e2' },
+          { itemId: 'e3', outputRef: 'patch-e3' },
+        ],
+      }),
+    )
+  })
+
+  it('reverts a landed edit from its row’s menu (D66 item 17)', () => {
+    const postMessage = renderBackend('modelApi')
+    deliver({
+      type: 'agentEvent',
+      event: {
+        type: 'itemCompleted',
+        item: {
+          itemId: 'e1',
+          kind: 'toolCall',
+          status: 'completed',
+          tool: 'edit_file',
+          args: '{"path":"src/a.ts"}',
+          patchRef: { id: 'p1', byteLen: 10 },
+        },
+      },
+    })
+    const row = document.querySelector<HTMLElement>('[data-entry-id="e1"]')
+    if (row === null) {
+      throw new Error('The edit row did not render')
+    }
+    fireEvent.click(within(row).getByRole('button', { name: UI_TEXT.rowMoreActions }))
+    fireEvent.click(screen.getByRole('menuitem', { name: UI_TEXT.rowRevertEdit }))
+    expect(postMessage).toHaveBeenLastCalledWith({
+      type: 'revertEdit',
+      itemId: 'e1',
+      outputRef: 'p1',
+    })
+  })
+
+  it('opens the task list in a tab from the tasks pane', () => {
+    const postMessage = renderReady()
+    deliver({
+      type: 'agentEvent',
+      event: { type: 'todoChanged', items: [{ text: 'Write tests', status: 'pending' }] },
+    })
+    fireEvent.click(screen.getByRole('button', { name: UI_TEXT.todoOpenInTab }))
+    expect(postMessage).toHaveBeenLastCalledWith({ type: 'hostAction', action: 'openTasksTab' })
+  })
+
+  it('shows a sent card’s time from the moment it is sent, before the host accepts it', () => {
+    const sentAt = Date.UTC(2026, 9, 4, 14, 5)
+    renderBackend('modelApi', () => sentAt)
+    send('hello')
+    const time = screen.getByText('hello').closest('[data-role="user"]')?.querySelector('time')
+    expect(time).toHaveAttribute('dateTime', new Date(sentAt).toISOString())
+  })
+
+  it('takes a Model API steer back with the ids its card was given', () => {
+    const postMessage = renderBackend('modelApi')
+    const card = runningWithSecond('steered', 't1')
+    fireEvent.click(within(card).getByRole('button', { name: UI_TEXT.rowMoreActions }))
+    fireEvent.click(screen.getByRole('menuitem', { name: UI_TEXT.queuedEdit }))
+    expect(postMessage).toHaveBeenLastCalledWith({
+      type: 'withdrawQueued',
+      localId: 'local-2',
+      turnId: 't1',
+      userMessageId: 'u2',
+    })
+    deliver({ type: 'queuedWithdrawn', localId: 'local-2' })
+    expect(screen.queryByText('second', { selector: '.message-text' })).toBeNull()
+    expect(textarea()).toHaveValue('second')
+  })
+
+  // RV87C finding 4: a refused Edit leaves the card, and the focus on its "…".
+  it.each([
+    ['still queued', false],
+    ['too late, once a request read it', true],
+  ])('returns the focus to the card’s "…" when an Edit is refused (%s)', (_case, isAdmitted) => {
+    renderBackend('modelApi')
+    const card = runningWithSecond('steered', 't1')
+    fireEvent.click(within(card).getByRole('button', { name: UI_TEXT.rowMoreActions }))
+    fireEvent.click(screen.getByRole('menuitem', { name: UI_TEXT.queuedEdit }))
+    if (isAdmitted) {
+      deliver({ type: 'agentEvent', event: { type: 'messageAdmitted', userMessageId: 'u2' } })
+    }
+    deliver({ type: 'withdrawRefused', localId: 'local-2', reason: UI_TEXT.queuedTooLate })
+    expect(screen.queryByRole('menu')).toBeNull()
+    expect(screen.getByText('second')).toBeInTheDocument()
+    expect(document.activeElement).toBe(
+      within(card).getByRole('button', { name: UI_TEXT.rowMoreActions }),
+    )
+  })
+
+  it('says a Muse Code steer was delivered, and offers Edit on a message Muse Code queued', () => {
+    const postMessage = renderBackend('museCode')
+    const steer = runningWithSecond('steered', 't1')
+    fireEvent.click(within(steer).getByRole('button', { name: UI_TEXT.rowMoreActions }))
+    const note = screen.getByRole('menuitem', { name: UI_TEXT.queuedDelivered })
+    expect(note).toHaveAttribute('aria-disabled', 'true')
+    fireEvent.click(note)
+    expect(postMessage.mock.calls.some(([message]) => message.type === 'withdrawQueued')).toBe(
+      false,
+    )
+    fireEvent.keyDown(screen.getByRole('menu'), { key: 'Escape' })
+    send('third')
+    deliver({
+      type: 'turnAccepted',
+      localId: 'local-3',
+      turnId: 't2',
+      userMessageId: 'u3',
+      disposition: 'queued',
+    })
+    const queued = screen.getByText('third').closest<HTMLElement>('[data-role="user"]')
+    if (queued === null) {
+      throw new Error('The queued card did not render')
+    }
+    fireEvent.click(within(queued).getByRole('button', { name: UI_TEXT.rowMoreActions }))
+    fireEvent.click(screen.getByRole('menuitem', { name: UI_TEXT.queuedEdit }))
+    expect(postMessage).toHaveBeenLastCalledWith({
+      type: 'withdrawQueued',
+      localId: 'local-3',
+      turnId: 't2',
+      userMessageId: 'u3',
+    })
+  })
+})
+
+describe('App: explicit held prompt resend (RVM92E P2)', () => {
+  it.each(['newer draft', ''])(
+    'sends the held prompt and its attachments while preserving draft %j',
+    (newer) => {
+      const postMessage = renderReady()
+      const text = `deploy with sk-${'k'.repeat(24)} now`
+      addTestImage()
+      fireEvent.change(textarea(), { target: { value: text } })
+      fireEvent.keyDown(textarea(), { key: 'Enter' })
+      fireEvent.change(textarea(), { target: { value: newer } })
+      deliver({
+        type: 'secretPromptDetected',
+        localId: 'local-1',
+        redactedText: 'deploy with [redacted] now',
+      })
+      fireEvent.click(screen.getByRole('button', { name: UI_TEXT.secretPromptSendAnyway }))
+      const sent = postMessage.mock.calls.at(-1)?.[0]
+      expect(
+        sent?.type === 'sendMessage' && sent.text === text && sent.secretAccepted === true,
+      ).toBe(true)
+      expect(sent).toMatchObject({ attachmentIds: ['att-1'] })
+      expect(textarea().value).toBe(newer)
+    },
+  )
+  it('resends the held reference while preserving a newer composer reference', () => {
+    const store = createUiStore({
+      ...initialUiState,
+      phase: 'ready',
+      settings: testSettings,
+      auth: { ...initialUiState.auth, status: 'signedIn' },
+    })
+    const postMessage = vi.fn<(message: WebviewToHostMessage) => void>()
+    render(<App postMessage={postMessage} newLocalId={() => 'local-1'} store={store} />)
+    const original = {
+      intent: 'reply',
+      role: 'assistant',
+      entryId: 'a1',
+      text: 'original',
+    } as const
+    const newer = { ...original, entryId: 'a2', text: 'newer' }
+    act(() => {
+      store.dispatch({ type: 'referenceSet', reference: original })
+    })
+    fireEvent.change(textarea(), { target: { value: `use sk-${'k'.repeat(24)}` } })
+    fireEvent.keyDown(textarea(), { key: 'Enter' })
+    fireEvent.change(textarea(), { target: { value: 'newer draft' } })
+    act(() => {
+      store.dispatch({ type: 'referenceSet', reference: newer })
+    })
+    act(() => {
+      store.dispatch({
+        type: 'hostMessage',
+        message: {
+          type: 'secretPromptDetected',
+          localId: 'local-1',
+          redactedText: 'use [redacted]',
+        },
+        at: 1,
+      })
+    })
+    fireEvent.click(screen.getByRole('button', { name: UI_TEXT.secretPromptSendAnyway }))
+    expect(postMessage.mock.calls.at(-1)?.[0]).toMatchObject({
+      reference: original,
+      secretAccepted: true,
+    })
+    expect(store.getState().reference).toEqual(newer)
+  })
+
+  it('keeps authentication admission during a transient Model API sign-in', () => {
+    const postMessage = renderReady()
+    deliver({ type: 'authState', status: 'signedIn', backend: 'modelApi' })
+    fireEvent.change(textarea(), { target: { value: `use sk-${'k'.repeat(24)}` } })
+    fireEvent.keyDown(textarea(), { key: 'Enter' })
+    deliver({ type: 'secretPromptDetected', localId: 'local-1', redactedText: 'use [redacted]' })
+    deliver({ type: 'authState', status: 'signingIn', backend: 'modelApi' })
+    const before = postMessage.mock.calls.length
+    fireEvent.click(screen.getByRole('button', { name: UI_TEXT.secretPromptSendAnyway }))
+    expect(postMessage.mock.calls).toHaveLength(before)
   })
 })

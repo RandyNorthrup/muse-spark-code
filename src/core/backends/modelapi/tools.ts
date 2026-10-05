@@ -17,14 +17,16 @@ import {
   type VerifySummary,
 } from '../../../shared/agentEvents'
 import {
+  type CheckCommandSetting,
   CODE_INTEL_TOOLS,
+  FILE_REFUSAL_MODEL_TEXT,
   IMAGE_EXTENSIONS,
   LIST_FILES_DEFAULT_LIMIT,
   MAX_DOCUMENT_BYTES,
   MAX_IMAGE_BYTES,
+  MODEL_API_MODEL_TEXT,
   MODEL_API_SUBAGENT_TOOLS,
   MODEL_API_TOOLS,
-  MODEL_TEXT,
   PDF_EXTENSION,
   PDF_MEDIA_TYPE,
   READ_FILE_DEFAULT_LIMIT,
@@ -40,7 +42,6 @@ import {
   TOOL_OUTPUT_CLIP_MARKER,
   TOOL_OUTPUT_ELIDED_MARKER,
   TOOL_OUTPUT_MAX_CHARS,
-  type CheckCommandSetting,
   UI_TEXT,
   VERIFY_TOOLS,
 } from '../../../shared/constants'
@@ -55,6 +56,11 @@ import type { MemoryWrites } from '../../memory/memoryStore'
 import { isPdf, pdfPageCount } from '../../pdf'
 import { fingerprint } from '../../verify/fingerprint'
 import { WEB_FETCH_DESCRIPTION, WEB_FETCH_PARAMETERS } from '../../web/webFetchDefinition'
+import {
+  BROWSER_CHECK_DESCRIPTION,
+  BROWSER_CHECK_PARAMETERS,
+  BROWSER_CHECK_REQUIRED,
+} from '../../browser/browserTool'
 import { confineWorkspacePath } from '../../workspacePath'
 import { compileGlob, GLOB_LIMITS } from './globLimits'
 import type { GlobLimits } from './glob'
@@ -368,10 +374,16 @@ export interface EditFormatter {
 /** What a conditional write did (M68): wrote the file, or found it changed and left it. */
 export type ConditionalWrite = 'written' | 'changed'
 
-/** A PDF or an image `read_file` read whole for the model to see (M54, PLAN.md D47). */
+/**
+ * A PDF or an image for the model to see, in a user message after the
+ * round's outputs (M54, PLAN.md D47): one `read_file` read whole, or the
+ * browser check's screenshot (M81).
+ */
 export interface VisibleFile {
-  /** Workspace-relative, as the model named it. */
-  readonly path: string
+  /** The model's line before it: what it is and where it came from. */
+  readonly lead: string
+  /** The model's line in its place when the round ended before it was sent. */
+  readonly notDelivered: string
   readonly part: ImagePart | DocumentPart
 }
 
@@ -456,6 +468,9 @@ const TOOL_CLASSES: Readonly<Record<string, ToolClass>> = {
   [VERIFY_TOOLS.runChecks]: 'interactive',
   // M69 (PLAN.md D49): a network tool, asked per host.
   [MODEL_API_TOOLS.webFetch]: 'network',
+  // M81 (PLAN.md D49): it starts a browser that reaches the page's host, so
+  // it asks per host as web fetch does; Plan refuses it.
+  [MODEL_API_TOOLS.browserCheck]: 'network',
   // M67 (PLAN.md D49): the language services read, in every mode; a rename is an edit.
   [CODE_INTEL_TOOLS.findDefinition]: 'read',
   [CODE_INTEL_TOOLS.findReferences]: 'read',
@@ -537,6 +552,8 @@ export interface ToolDefinitionOptions {
   readonly checks?: readonly CheckCommandSetting[]
   /** Web fetch, trusted workspaces only, when the host has a fetch (M69, PLAN.md D49). */
   readonly hasWebFetch?: boolean
+  /** The browser check, trusted workspaces only, when the host can run one (M81, PLAN.md D49). */
+  readonly hasBrowserCheck?: boolean
   /** The code intelligence tools, while VS Code's language services are at hand (M67). */
   readonly hasCodeIntel?: boolean
 }
@@ -744,6 +761,16 @@ export function toolDefinitions(
     ...(options.hasWebFetch === true
       ? [define(MODEL_API_TOOLS.webFetch, WEB_FETCH_DESCRIPTION, WEB_FETCH_PARAMETERS, ['url'])]
       : []),
+    ...(options.hasBrowserCheck === true
+      ? [
+          define(
+            MODEL_API_TOOLS.browserCheck,
+            BROWSER_CHECK_DESCRIPTION,
+            BROWSER_CHECK_PARAMETERS,
+            BROWSER_CHECK_REQUIRED,
+          ),
+        ]
+      : []),
     ...(options.hasCodeIntel === true
       ? MODEL_API_CODE_INTEL_DEFINITIONS.map((tool) =>
           define(CODE_INTEL_TOOLS[tool.tool], tool.description, tool.properties, tool.required),
@@ -913,7 +940,7 @@ async function formatWritten(
 
 /** The model's result line, and the note when the formatter changed the file. */
 function editedLine(line: string, isFormatted: boolean): string {
-  return isFormatted ? `${line}. ${MODEL_TEXT.formattedAfterEdit}` : line
+  return isFormatted ? `${line}. ${MODEL_API_MODEL_TEXT.formattedAfterEdit}` : line
 }
 
 /**
@@ -957,21 +984,29 @@ function visualKindOf(relative: string): 'pdf' | 'image' | undefined {
   return Object.hasOwn(IMAGE_EXTENSIONS, extension) ? 'image' : undefined
 }
 
+/** The model's lines around a file `read_file` read (M54). */
+function readFileLines(relative: string): Pick<VisibleFile, 'lead' | 'notDelivered'> {
+  return {
+    lead: fill(MODEL_API_MODEL_TEXT.toolFileFollows, { path: relative }),
+    notDelivered: fill(MODEL_API_MODEL_TEXT.toolFileNotDelivered, { path: relative }),
+  }
+}
+
 /** The PDF, checked by its header, for the model to read whole (M54). */
 function pdfOutcome(relative: string, bytes: Uint8Array): ToolOutcome {
   if (!isPdf(bytes)) {
     return failure(
-      `${relative} ${MODEL_TEXT.notPdf}`,
+      `${relative} ${MODEL_API_MODEL_TEXT.notPdf}`,
       fill(UI_TEXT.toolReadPdfInvalid, { path: relative }),
     )
   }
   const pageCount = pdfPageCount(bytes)
-  const output = fill(MODEL_TEXT.readPdf, {
+  const output = fill(MODEL_API_MODEL_TEXT.readPdf, {
     path: relative,
     pages:
       pageCount === undefined
-        ? MODEL_TEXT.pagesUnknown
-        : fill(MODEL_TEXT.pagesKnown, { count: String(pageCount) }),
+        ? MODEL_API_MODEL_TEXT.pagesUnknown
+        : fill(MODEL_API_MODEL_TEXT.pagesKnown, { count: String(pageCount) }),
     bytes: String(bytes.byteLength),
   })
   const visiblePages =
@@ -987,7 +1022,7 @@ function pdfOutcome(relative: string, bytes: Uint8Array): ToolOutcome {
     output,
     visibleOutput,
     visibleFile: {
-      path: relative,
+      ...readFileLines(relative),
       part: {
         type: 'file',
         base64Data: Buffer.from(bytes).toString('base64'),
@@ -1005,11 +1040,11 @@ function imageOutcome(relative: string, bytes: Uint8Array): ToolOutcome {
   const info = readImageInfo(bytes)
   if (info === undefined) {
     return failure(
-      `${relative} ${MODEL_TEXT.notImage}`,
+      `${relative} ${MODEL_API_MODEL_TEXT.notImage}`,
       fill(UI_TEXT.toolReadImageInvalid, { path: relative }),
     )
   }
-  const output = fill(MODEL_TEXT.readImage, {
+  const output = fill(MODEL_API_MODEL_TEXT.readImage, {
     path: relative,
     mediaType: info.mediaType,
     width: String(info.width),
@@ -1027,7 +1062,7 @@ function imageOutcome(relative: string, bytes: Uint8Array): ToolOutcome {
     output,
     visibleOutput,
     visibleFile: {
-      path: relative,
+      ...readFileLines(relative),
       part: {
         type: 'image',
         base64Data: Buffer.from(bytes).toString('base64'),
@@ -1119,7 +1154,7 @@ async function readFile(
     return failure(resolved.reason)
   }
   if (isDenied(resolved, context)) {
-    return failure(`${resolved.relative} ${MODEL_TEXT.pathDeniedByPolicy}`)
+    return failure(`${resolved.relative} ${MODEL_API_MODEL_TEXT.pathDeniedByPolicy}`)
   }
   // Every outcome from here on, a failure included, comes from the file.
   const touched: TouchedFiles = {
@@ -1183,7 +1218,7 @@ async function located(
   if (isDenied(resolved, context)) {
     return {
       ok: false,
-      outcome: failure(`${resolved.relative} ${MODEL_TEXT.pathDeniedByPolicy}`),
+      outcome: failure(`${resolved.relative} ${MODEL_API_MODEL_TEXT.pathDeniedByPolicy}`),
     }
   }
   if (
@@ -1191,7 +1226,7 @@ async function located(
     (resolved.absolute !== context.approvedTarget.absolute ||
       resolved.checkedAbsolute !== context.approvedTarget.checkedAbsolute)
   ) {
-    return { ok: false, outcome: failure(MODEL_TEXT.pathChangedAfterApproval) }
+    return { ok: false, outcome: failure(FILE_REFUSAL_MODEL_TEXT.pathChangedAfterApproval) }
   }
   const before = await context.io.readFile(resolved.checkedAbsolute, resolved.checkedAbsolute)
   return {
@@ -1217,7 +1252,7 @@ function editRefusal(
   // Writing under an editor's unsaved changes makes VS Code ask which to keep.
   return context.io.hasUnsavedChanges(file.absolute) ||
     context.io.hasUnsavedChanges(file.checkedAbsolute)
-    ? failure(`${file.relative} ${MODEL_TEXT.fileHasUnsavedChanges}`)
+    ? failure(`${file.relative} ${FILE_REFUSAL_MODEL_TEXT.fileHasUnsavedChanges}`)
     : undefined
 }
 
@@ -1228,7 +1263,7 @@ function writeAdmission(target: FormatTarget, context: ToolContext): () => void 
       context.io.hasUnsavedChanges(target.absolute) ||
       context.io.hasUnsavedChanges(target.checkedAbsolute)
     )
-      throw new Error(`${target.relative} ${MODEL_TEXT.fileHasUnsavedChanges}`)
+      throw new Error(`${target.relative} ${FILE_REFUSAL_MODEL_TEXT.fileHasUnsavedChanges}`)
     context.assertCanWrite?.(target)
   }
 }
@@ -1281,7 +1316,7 @@ async function writeFile(
   }
   // Claude Code's rule: a file is replaced only as the model last saw it (D27).
   if (context.seen.get(absolute) !== fingerprint(before)) {
-    return failure(`${relative} ${MODEL_TEXT.fileChangedSinceRead}`)
+    return failure(`${relative} ${MODEL_API_MODEL_TEXT.fileChangedSinceRead}`)
   }
   // The file keeps its BOM, its line breaks and its final line break (D27).
   const shape = shapeOf(before)

@@ -16,7 +16,6 @@ import {
   MCP_TRANSPORTS,
   MILLISECONDS_PER_SECOND,
   MODEL_API_MODEL_TEXT,
-  MODEL_TEXT,
 } from '../../../../shared/constants'
 import type { CoreLogger } from '../../../logging'
 import { withDeadline } from '../../../timeouts'
@@ -438,7 +437,7 @@ export class McpServerPool implements McpToolSource {
       args = undefined
     }
     if (typeof args !== 'object' || args === null || Array.isArray(args)) {
-      throw new McpError(MODEL_TEXT.mcpArgumentsNotObject)
+      throw new McpError(MODEL_API_MODEL_TEXT.mcpArgumentsNotObject)
     }
     const result = await connection.callTool(
       found.offered.tool.name,

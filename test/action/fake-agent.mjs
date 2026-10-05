@@ -49,6 +49,9 @@ function hang() {
       if (!part.ignoreSignals) process.exit(SIGNAL_CODES[signal])
     })
   }
+  // Only now do the handlers above own SIGINT and SIGTERM: a test sends its
+  // first signal after this line, never on the earlier key-line report.
+  report({ ready: true })
   setInterval(() => {
     // Keeps the process alive until a signal or a kill.
   }, 1000)
