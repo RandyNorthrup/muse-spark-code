@@ -70,6 +70,7 @@ export class ChatGptSignInError extends Error {
       | 'missing-plan-scope'
       | 'origin-mismatch'
       | 'sign-in-required'
+      | 'store-unavailable'
       | 'request-failed',
   ) {
     super(`chatgpt.${code}`)

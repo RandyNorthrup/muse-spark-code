@@ -8,7 +8,7 @@ import {
   parseChatGptProviderAction,
   type ChatGptCommandText,
 } from '../../src/runtime/chatGptProviderCommands'
-import { keyringSecretStore } from '../../src/runtime/keyStore'
+import { keyringSecretStore, StoreUnavailableError } from '../../src/runtime/keyStore'
 
 const ACCOUNT = 'museSpark.provider.chatgpt'
 const HOST_ACCOUNT = `${ACCOUNT}.host-id`
@@ -154,6 +154,58 @@ function rig(initial?: ChatGptRecord) {
 }
 
 describe('ACP ChatGPT OS-store adapter and commands', () => {
+  it.each([
+    'Windows ERROR_NO_SUCH_LOGON_SESSION synthetic-private-detail',
+    'macOS errSecInteractionNotAllowed synthetic-private-detail',
+    'macOS errSecAuthFailed synthetic-private-detail',
+    'Linux org.freedesktop.DBus.Error.ServiceUnknown synthetic-private-detail',
+  ])(
+    'classifies native store unavailability through factory and grant lock: %s',
+    async (message) => {
+      const run = rig(record())
+      const unavailable = keyringSecretStore(() => {
+        throw new Error(message)
+      })
+      for (const operation of [
+        () => unavailable.get(HOST_ACCOUNT),
+        () => unavailable.store(ACCOUNT, 'synthetic'),
+        () => unavailable.delete(ACCOUNT),
+      ]) {
+        await expect(operation()).rejects.toThrow(StoreUnavailableError)
+        await expect(operation()).rejects.toThrow(/^store-unavailable$/u)
+      }
+      const createHost = () =>
+        createRuntimeChatGptHost({
+          secrets: unavailable,
+          fetch,
+          openBrowser: () => Promise.resolve(),
+          callbackText: () => '',
+        })
+      await expect(createHost()).rejects.toThrow(/^chatgpt.store-unavailable$/u)
+      expect(await runChatGptProviderCommand('status', { ...run.deps, createHost })).toBe(1)
+      expect(run.errors).toEqual(['Synthetic failure store-unavailable'])
+      const host = await run.createHost()
+      await expect(
+        host.withRefreshLock(async () => await unavailable.get(ACCOUNT)),
+      ).rejects.toThrow(/^chatgpt.store-unavailable$/u)
+      expect(run.requests).toEqual([])
+    },
+  )
+
+  it('classifies asynchronous native read, write and delete failures without retaining their text', async () => {
+    const unavailable = keyringSecretStore(() => ({
+      getPassword: fail,
+      setPassword: fail,
+      deletePassword: fail,
+    }))
+    for (const operation of [
+      () => unavailable.get(ACCOUNT),
+      () => unavailable.store(ACCOUNT, 'synthetic'),
+      () => unavailable.delete(ACCOUNT),
+    ])
+      await expect(operation()).rejects.toThrow(/^store-unavailable$/u)
+  })
+
   it('accepts only the three exact ChatGPT provider commands', () => {
     for (const action of ['add', 'remove', 'status']) {
       expect(parseChatGptProviderAction(['providers', action, 'chatgpt'])).toBe(action)

@@ -10,6 +10,7 @@ import {
   OAUTH_LOOPBACK_HOST,
 } from '../shared/constants'
 import { ChatGptSignInError } from '../core/providers/subscriptions/chatgpt'
+import { StoreUnavailableError } from './keyStore'
 
 export interface ChatGptLockOptions {
   readonly port?: number
@@ -59,6 +60,7 @@ export async function withChatGptRefreshLock<T>(
     }
   } catch (error) {
     if (error instanceof ChatGptSignInError) throw error
+    if (error instanceof StoreUnavailableError) throw new ChatGptSignInError('store-unavailable')
     throw new ChatGptSignInError('request-failed')
   }
 }

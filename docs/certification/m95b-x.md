@@ -1,5 +1,38 @@
 # M95b X — ACP runtime sign-in adapter
 
+## FIXM95BX review repair — RVM95BX (2026-10-05, win11)
+
+The follow-up worktree is `C:/lanes/FIXM95BX`, branch `m95b/xfix`, base
+`9e4be782`. The rig brief authorizes the previously missing runtime/ACP,
+provider configuration and translated-text integration. Its no-merge and
+direct-test rules override the older shared host/merge instructions; full
+quality remains the lead's gate. No live/paid call or native credential read.
+
+**Finding 2:** every synchronous entry-open and asynchronous read/write/delete
+failure at `keyringSecretStore` becomes `StoreUnavailableError` without raw
+message, cause or credential. The refresh lock maps it to
+`ChatGptSignInError('store-unavailable')`; host creation preserves that fixed
+category. This covers Windows logon-session errors, locked/denied macOS
+Keychains and absent Linux Secret Service without fragile native-text matching.
+Other dependency/network failures retain `request-failed`.
+
+Regression: `classifies native store unavailability through factory and grant
+lock` (four synthetic platform failures), and `classifies asynchronous native
+read, write and delete failures without retaining their text`.
+Whole-file validation: runtimeChatGpt, runtimeChatGptLock and acpRuntime,
+**65/65**, exit 0, `--maxWorkers=3 --testTimeout=120000`.
+
+| Drill | Deliberate break                                       | Named failure                                                           | Result                               |
+| ----- | ------------------------------------------------------ | ----------------------------------------------------------------------- | ------------------------------------ |
+| BX1   | Return generic private error from native store wrapper | Both classification regressions above                                   | exit 1, 5 failures; SHA-256 restored |
+| BX2   | Remove store category mapping in refresh lock          | `classifies native store unavailability through factory and grant lock` | exit 1, 4 failures; SHA-256 restored |
+| BX3   | Remove category preservation in host factory           | Same four platform cases                                                | exit 1, 4 failures; SHA-256 restored |
+
+Receipts: ignored `temp/fixm95bx-drills.json` and per-drill logs. Each mutation
+ran the whole runtimeChatGpt file and restored its original bytes in finally,
+with SHA-256 equality checked. Native persistence/rotation remains the
+previous environment certification limit below, not an outstanding review fix.
+
 Worktree `C:/lanes/M95BX`, branch `m95b/x`, base `180c85b2`, Windows 11
 rig, 2026-10-05. This certifies the offline runtime adapter and injected
 command front end, **not executable CLI dispatch or aggregate M95b support**.

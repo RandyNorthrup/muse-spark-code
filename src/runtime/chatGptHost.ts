@@ -77,7 +77,8 @@ export async function createRuntimeChatGptHost(
       },
       withRefreshLock: (work) => withChatGptRefreshLock(work, lock),
     }
-  } catch {
+  } catch (error) {
+    if (error instanceof ChatGptSignInError && error.code === 'store-unavailable') throw error
     throw new ChatGptSignInError('request-failed')
   }
 }

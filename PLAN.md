@@ -15100,6 +15100,18 @@ release acceptance are still pending.**
 
 ### M95b — Subscription sign-in: ChatGPT plan, Copilot models, plan keys (D74)
 
+**FIXM95BX review repair (2026-10-05).** Finish RVM95BX's two P2s:
+connect the exact ChatGPT provider grammar to runtime dispatch and expose the
+same terminal actions through ACP authentication; install translated command
+and callback text in all fourteen tables. Use the existing atomic providers
+file with a separately pinned ChatGPT subscription entry and the owner's
+captured account catalogue, without relaxing API-key or origin validation.
+Classify native OS-store failures with a fixed `store-unavailable` code that
+survives locking and host creation and directs the user to an interactive
+desktop session. Test production parser/dispatch, ACP exposure and sanitized
+failure paths, and record deliberate red drills in `m95b-x.md`. No live or
+paid calls, dependency, merge, rebase or push; the lead runs full quality.
+
 **Status 2026-10-04: planned with M95; research in
 `docs/certification/m95-research.md` §6. Starts when M95's seam (lanes P, T
 and I) has merged.**
