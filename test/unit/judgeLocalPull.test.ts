@@ -3,8 +3,29 @@ import {
   LOCAL_JUDGE_RECOMMENDATIONS,
   pullLocalJudgeModel,
 } from '../../src/core/judge/local/recommendations'
+import linuxCapture from './fixtures/localJudgeLinuxCapture.json'
+import { localSystemOneResult } from '../../src/core/judge/local/wire'
+import { judgeRequestSchema } from '../../src/core/judge/schema'
 
 describe('M98 J2 explicit consented model download boundary', () => {
+  it('uses the captured small decision model size and wire without enabling auto', () => {
+    const small = LOCAL_JUDGE_RECOMMENDATIONS.find(
+      (item) => item.model === linuxCapture.request.model,
+    )
+    expect(small?.downloadBytes).toBe(
+      linuxCapture.manifest.config.size +
+        linuxCapture.manifest.layers.reduce((sum, layer) => sum + layer.size, 0),
+    )
+    expect(small?.recommended).toBe(false)
+    expect(small?.requiresCalibrationForAuto).toBe(true)
+    const result = localSystemOneResult(
+      linuxCapture.response,
+      judgeRequestSchema.parse(linuxCapture.request),
+      linuxCapture.request.model,
+    )
+    expect(result.usage).toEqual(linuxCapture.response.usage)
+    expect(result.muse['risk']?.label).toBe('uncalibrated')
+  })
   it('publishes measured tev and qwen recommendations as data only', () => {
     expect(
       LOCAL_JUDGE_RECOMMENDATIONS.map((item) => [
@@ -14,6 +35,7 @@ describe('M98 J2 explicit consented model download boundary', () => {
       ]),
     ).toEqual([
       ['tev1:4b', true, false],
+      ['tev1:0.8b', false, true],
       ['qwen3:4b-instruct-2507-q4_K_M', false, true],
     ])
   })

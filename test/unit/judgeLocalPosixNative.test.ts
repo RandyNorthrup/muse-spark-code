@@ -49,8 +49,9 @@ describe.skipIf(process.platform !== 'linux' && process.platform !== 'darwin')(
         })
         try {
           await once(socket, 'connect')
-          await expect(
-            posixPeer(
+          let refusal: unknown
+          try {
+            await posixPeer(
               socket,
               {
                 platform: process.platform,
@@ -61,10 +62,22 @@ describe.skipIf(process.platform !== 'linux' && process.platform !== 'darwin')(
               },
               { acquireProcess, verifyLocalVolume: () => Promise.reject(new Error('unused')) },
               new AbortController().signal,
-            ),
-          ).rejects.toThrow('unverified-runtime')
-          expect(acquireProcess).toHaveBeenCalledTimes(1)
-          expect(close).toHaveBeenCalledTimes(1)
+            )
+          } catch (error: unknown) {
+            refusal = error
+          }
+          // A desktop rig can hide another same-UID task's descriptors. That
+          // is a real visibility refusal, not positive tuple certification.
+          // Isolated-UID IPv4/IPv6 positive receipts live in m98p2-j.md.
+          expect(refusal).toBeInstanceOf(Error)
+          if (refusal instanceof Error && refusal.message.startsWith('unverified-hidden-')) {
+            expect(acquireProcess).not.toHaveBeenCalled()
+            expect(close).not.toHaveBeenCalled()
+          } else {
+            expect(refusal).toMatchObject({ message: 'unverified-runtime' })
+            expect(acquireProcess).toHaveBeenCalledTimes(1)
+            expect(close).toHaveBeenCalledTimes(1)
+          }
           expect(bytes).toBe(0)
           expect(socket.bytesWritten).toBe(0)
         } finally {

@@ -16883,6 +16883,24 @@ No dependency, host contract, paid guard or bundle cap changes.
   and CPU-only latency receipts, with at most four free local inference
   attempts and no pull/removal. Record any uncertified item by name in the
   lane receipt and section 9; other platform sources remain with their lanes.
+- **Linux native lane delivered (2026-10-05, M98J3L).** A held pidfd lease
+  with exact UID/start-time/executable evidence, local mountinfo + statfs
+  allowlist, and canonical owner/permission installation anchors is implemented.
+  Real IPv4/IPv6, lifecycle and source refusal receipts are recorded on Kubuntu.
+  The rig brief authorizes an official private Ollama installation, one
+  model of approximately 1 GB or less, loopback only, and at most six free
+  local inference attempts; no cloud or paid calls. Windows/macOS helpers
+  and `local/wire.ts` belong to parallel lanes. Packaging/installed extension
+  assembly remains Z's responsibility. Four local inference calls returned,
+  with one pull, zero cloud/paid calls and 20 byte-exact red/restored drills.
+  The private installation uses ext4 OS scratch and an ordinary isolated UID:
+  the desktop UID correctly refuses hidden process descriptors. Linux receipts
+  and the immediate-restart inode visibility limitation are recorded in
+  `docs/certification/m98p2-j.md`.
+  The small decision model `tev1:0.8b` has a measured 811,856,202-byte
+  manifest and is explicit-only, uncalibrated and never recommended/auto;
+  D77's 0.750 smoke accuracy remains its limit. Its exact installed capture
+  supplies these bounded Linux receipts, not a production quality claim.
 
 - **Scope.** Adopt the spike's reviewed result, not a cached listener probe
   or this lane's guess. CPU-only is the product assumption; `tev1:4b` is
@@ -17253,6 +17271,16 @@ common retry rule: `WIN-PID-REPEATABILITY` in section 9 is an incomplete
 certification drill, not a waived native support gate. The opt-in test and
 positive/failed receipts remain for a reviewed repeatable fixture; no
 product/native guard or portable quality configuration is changed.
+**M98J3L Linux gate delegation and snapshot deferral (2026-10-05).** The
+rig brief requires direct, at-most-three-file tests, scoped lint/format,
+all typechecks, localization, dead-code, duplication, cycles, build and
+every existing cap, with hook-on local commits. It prohibits aggregate
+quality, merges/rebases and pushes. The existing J2 host-API snapshot is
+stale; Linux additionally introduces `node:readline` (25 built-ins total).
+The check ran and failed only the generated Node import rows: 271 VS Code
+APIs, 18 vscode importers and 59 theme variables are unchanged. Z retains
+the integrated `check:host-api -- --write` refresh and full quality/host
+certification. The gate is not weakened or claimed green.
 
 **M98-2j bounded spike delegation (2026-10-05).** The rig brief authorizes
 hook-on local commits after owning tests and deliberate failing drills,

@@ -184,15 +184,28 @@ describe('M98 J2 source policy and exact content sockets', () => {
     ])
   })
 
-  it('keeps the uncalibrated qwen recommendation out of automatic selection', async () => {
-    const f = await fixture()
-    Object.assign(f.config, { selection: 'auto', model: chat.chat.model })
-    expect(await f.source.judge(input, signal())).toEqual({
-      outcome: 'no-answer',
-      reason: 'profile-missing',
-    })
-    expect(f.routes).toEqual([])
-  })
+  it.each([chat.chat.model, 'tev1:0.8b'])(
+    'keeps uncalibrated %s out of automatic selection',
+    async (model) => {
+      const f = await fixture()
+      Object.assign(f.config, { selection: 'auto', model })
+      Object.assign(f.config.capability, {
+        model,
+        systemone: model === 'tev1:0.8b',
+        logprobs: model === 'tev1:0.8b' ? { kind: 'refused' } : { kind: 'topk', topK: 5 },
+      })
+      f.setResponse((route) => {
+        if (route === '/api/tags') return { models: [{ ...capture.tags.models[0], name: model }] }
+        if (route === '/api/ps') return { models: [{ ...capture.health.models[0], name: model }] }
+        return model === 'tev1:0.8b' ? { ...capture.response, model } : chat.chat
+      })
+      expect(await f.source.judge(input, signal())).toEqual({
+        outcome: 'no-answer',
+        reason: 'profile-missing',
+      })
+      expect(f.routes).toEqual([])
+    },
+  )
   it.each(['disabled', 'native', 'platform', 'receipt', 'model', 'capability', 'request-model'])(
     'refuses %s before dispatch',
     async (fault) => {
