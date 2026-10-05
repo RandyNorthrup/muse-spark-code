@@ -1764,5 +1764,103 @@
   "agentImportIgnoredToTracked": "這會將 Git 忽略的檔案複製到受追蹤的檔案中",
   "agentImportEditPrompt": "將轉換後的項目在 {path} 中作為未儲存的編輯開啟，以供檢查和儲存？請只儲存到該路徑，切勿儲存到其他檔案。",
   "agentImportEditAction": "編輯並開啟檔案",
-  "agentImportPreviewLegacyKey": "此檔案使用舊版 `mcp_servers` 索引鍵。新增這些項目時請將其重新命名為 `mcpServers`：兩者同時存在時 Muse Code 都不會載入。"
+  "agentImportPreviewLegacyKey": "此檔案使用舊版 `mcp_servers` 索引鍵。新增這些項目時請將其重新命名為 `mcpServers`：兩者同時存在時 Muse Code 都不會載入。",
+  "providerText": {
+    "wizard": {
+      "cancelled": "精靈已取消。",
+      "pick": "請先選擇提供者。",
+      "address": "請輸入伺服器位址。",
+      "credential": "請先輸入金鑰或連接帳戶。",
+      "keyShape": "金鑰格式與此提供者不符。",
+      "test": "請先測試連線。",
+      "models": "請至少選取一個模型。",
+      "validate": "請先驗證伺服器位址。",
+      "refused": "伺服器位址已被拒絕：{reason}",
+      "private": "請先確認存取此私人網路。",
+      "pickStep": "請在對應步驟選擇提供者。",
+      "keyStep": "請在對應步驟輸入金鑰。",
+      "badKey": "此金鑰不符合提供者的格式。",
+      "oauthStep": "請在對應步驟連接帳戶。",
+      "costStep": "請在對應步驟接受測試費用。",
+      "testStep": "請在對應步驟執行測試。",
+      "costConsent": "請先說明測試費用並徵求同意：費用尚未被接受。",
+      "modelsStep": "請在對應步驟選取模型。",
+      "privacyStep": "請在對應步驟選擇隱私設定。",
+      "passedTest": "選取模型前必須通過測試。",
+      "finish": "請確認以完成。",
+      "confirmStep": "請在摘要步驟確認。"
+    },
+    "summary": {
+      "provider": "提供者：{value}",
+      "destination": "程式碼傳送至：{value}",
+      "models": "模型：{value}",
+      "defaultSuggested": "預設模型：建議值",
+      "defaultModel": "預設模型：{value}"
+    },
+    "schema": {
+      "id": "提供者 ID，不能是 \"meta\"",
+      "modelRef": "模型參照",
+      "outputCap": "輸出上限超過上下文視窗",
+      "customLimits": "自訂模型需要上下文視窗和輸出上限"
+    },
+    "descriptions": {
+      "openai": "使用 GPT 模型的 OpenAI Responses API",
+      "azure": "在您自己的資源和部署上使用 Azure OpenAI v1 API",
+      "xai": "透過 xAI Responses API 使用 Grok 模型",
+      "anthropic": "透過 Anthropic Messages API 使用 Claude 模型",
+      "gemini": "透過 generateContent API 使用 Gemini 模型",
+      "openrouter": "用一個金鑰存取數百個模型並依隱私要求路由",
+      "groq": "在 Groq 硬體上快速推論，相容於 OpenAI",
+      "deepseek": "預設啟用思考的 DeepSeek 聊天模型",
+      "mistral": "支援提示快取的 Mistral 聊天模型",
+      "together": "Together 上依模型定價的開放模型",
+      "fireworks": "Fireworks 上的快速開放模型推論",
+      "huggingface": "適用於多個提供者的 Hugging Face 路由器",
+      "zai": "Z.ai 上隨用隨付的 GLM 模型",
+      "ollama": "透過 Ollama 使用這台電腦上的模型",
+      "lmstudio": "透過 LM Studio 使用這台電腦上的模型",
+      "vllm": "本機或網路上透過 HTTPS 存取的 vLLM 伺服器",
+      "llamacpp": "本機或網路上透過 HTTPS 存取的 llama.cpp 伺服器",
+      "custom": "任何 Chat Completions、Responses 或 Messages 伺服器"
+    },
+    "hints": {
+      "prefix": "以 {prefix}… 開頭的金鑰（{site}）",
+      "site": "來自 {site} 的金鑰",
+      "azure": "Azure 入口網站中的資源金鑰",
+      "router": "以 {prefix}… 開頭的金鑰（{site}），或連接 OpenRouter 帳戶",
+      "custom": "伺服器要求的金鑰"
+    },
+    "privacy": {
+      "zdr": "不保留資料：只有完全不儲存資料的端點可以回應。",
+      "no-training": "不用於訓練：只有不使用您的資料進行訓練的提供者可以回應。",
+      "any": "任何提供者：選擇最便宜或最快的回應，包括可能保留資料的提供者。"
+    },
+    "suggest": {
+      "recommended": "建議模型，也是具有足夠上下文供執行環境使用的最便宜工具呼叫模型（{ref}）。",
+      "cheapest": "具有足夠上下文供執行環境使用的最便宜工具呼叫模型（{ref}）。",
+      "last": "{reason} 這也是您上次使用的預設模型。",
+      "history": "近期工作階段的中位數：每個工作階段 {amount}。",
+      "reference": "尚無歷程記錄：依預設模型價格計算的參考工作階段（{amount}）。"
+    },
+    "scan": {
+      "empty": "首次掃描：未列出模型。",
+      "first": {
+        "other": "首次掃描：{count} 個模型。"
+      },
+      "new": {
+        "other": "{count} 個新模型"
+      },
+      "removed": {
+        "other": "{count} 個已移除模型"
+      },
+      "repriced": {
+        "other": "{count} 個價格已變更的模型"
+      },
+      "unchanged": "自上次掃描以來沒有變更。",
+      "since": "自上次掃描以來的變更：{changes}。"
+    },
+    "labels": {
+      "custom": "自訂伺服器"
+    }
+  }
 }

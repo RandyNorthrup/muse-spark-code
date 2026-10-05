@@ -1896,5 +1896,111 @@
   "agentImportIgnoredToTracked": "questo copierebbe un file ignorato da Git in un file tracciato",
   "agentImportEditPrompt": "Aprire le voci convertite in {path} come modifica non salvata da controllare e salvare? Salvarla solo in quel percorso, mai in un altro file.",
   "agentImportEditAction": "Modifica e apri il file",
-  "agentImportPreviewLegacyKey": "Il file usa la vecchia chiave `mcp_servers`. Rinominala in `mcpServers` quando aggiungi questi: Muse Code non carica nessuna delle due se sono presenti entrambe."
+  "agentImportPreviewLegacyKey": "Il file usa la vecchia chiave `mcp_servers`. Rinominala in `mcpServers` quando aggiungi questi: Muse Code non carica nessuna delle due se sono presenti entrambe.",
+  "providerText": {
+    "wizard": {
+      "cancelled": "La procedura guidata è stata annullata.",
+      "pick": "Scegli prima un fornitore.",
+      "address": "Inserisci l’indirizzo del server.",
+      "credential": "Inserisci prima la chiave o collega l’account.",
+      "keyShape": "La chiave non ha il formato di questo fornitore.",
+      "test": "Verifica prima la connessione.",
+      "models": "Seleziona almeno un modello.",
+      "validate": "Convalida prima l’indirizzo del server.",
+      "refused": "L’indirizzo del server è stato rifiutato: {reason}",
+      "private": "Conferma prima l’accesso a questa rete privata.",
+      "pickStep": "Scegli il fornitore nel passaggio previsto.",
+      "keyStep": "Inserisci la chiave nel passaggio previsto.",
+      "badKey": "Questa chiave non ha il formato del fornitore.",
+      "oauthStep": "Collega l’account nel passaggio previsto.",
+      "costStep": "Accetta il costo del test nel passaggio previsto.",
+      "testStep": "Esegui il test nel passaggio previsto.",
+      "costConsent": "Indica il costo del test e chiedi prima: non è stato accettato.",
+      "modelsStep": "Seleziona i modelli nel passaggio previsto.",
+      "privacyStep": "Scegli la privacy nel passaggio previsto.",
+      "passedTest": "Il test deve riuscire prima di scegliere i modelli.",
+      "finish": "Conferma per terminare.",
+      "confirmStep": "Conferma dal passaggio di riepilogo."
+    },
+    "summary": {
+      "provider": "Fornitore: {value}",
+      "destination": "Il codice viene inviato a: {value}",
+      "models": "Modelli: {value}",
+      "defaultSuggested": "Modello predefinito: suggerito",
+      "defaultModel": "Modello predefinito: {value}"
+    },
+    "schema": {
+      "id": "Un identificativo del fornitore, mai \"meta\"",
+      "modelRef": "Un riferimento al modello",
+      "outputCap": "Il limite di output supera la finestra di contesto",
+      "customLimits": "I modelli personalizzati richiedono finestre di contesto e limiti di output"
+    },
+    "descriptions": {
+      "openai": "API Responses di OpenAI con modelli GPT",
+      "azure": "API Azure OpenAI v1 sulla tua risorsa e distribuzione",
+      "xai": "Modelli Grok sull’API Responses di xAI",
+      "anthropic": "Modelli Claude sull’API Messages di Anthropic",
+      "gemini": "Modelli Gemini sull’API generateContent",
+      "openrouter": "Centinaia di modelli con una chiave e instradamento per la privacy",
+      "groq": "Inferenza veloce su hardware Groq, compatibile con OpenAI",
+      "deepseek": "Modelli di chat DeepSeek con ragionamento attivo per impostazione predefinita",
+      "mistral": "Modelli di chat Mistral con cache delle istruzioni",
+      "together": "Modelli aperti su Together, con prezzi per modello",
+      "fireworks": "Inferenza veloce di modelli aperti su Fireworks",
+      "huggingface": "Il router Hugging Face per molti fornitori",
+      "zai": "Modelli GLM su Z.ai con pagamento a consumo",
+      "ollama": "Modelli su questo computer tramite Ollama",
+      "lmstudio": "Modelli su questo computer tramite LM Studio",
+      "vllm": "Un server vLLM qui o sulla tua rete tramite HTTPS",
+      "llamacpp": "Un server llama.cpp qui o sulla tua rete tramite HTTPS",
+      "custom": "Qualsiasi server Chat Completions, Responses o Messages"
+    },
+    "hints": {
+      "prefix": "Chiave che inizia con {prefix}… ({site})",
+      "site": "La chiave di {site}",
+      "azure": "La chiave della risorsa dal portale Azure",
+      "router": "Chiave che inizia con {prefix}… ({site}) o collega l’account OpenRouter",
+      "custom": "La chiave prevista dal server"
+    },
+    "privacy": {
+      "zdr": "Nessuna conservazione: possono rispondere solo gli endpoint che non memorizzano alcun dato.",
+      "no-training": "Nessun addestramento: possono rispondere solo i fornitori che non addestrano sui tuoi dati.",
+      "any": "Qualsiasi fornitore: vince la risposta più economica o veloce, inclusi i fornitori che potrebbero conservare dati."
+    },
+    "suggest": {
+      "recommended": "Consigliato e il modello più economico con chiamate agli strumenti e spazio per l’ambiente di esecuzione ({ref}).",
+      "cheapest": "Il modello più economico con chiamate agli strumenti e spazio per l’ambiente di esecuzione ({ref}).",
+      "last": "{reason} È anche il tuo ultimo modello predefinito.",
+      "history": "Mediana delle sessioni recenti: {amount} a sessione.",
+      "reference": "Nessuna cronologia: una sessione di riferimento ai prezzi del modello predefinito ({amount})."
+    },
+    "scan": {
+      "empty": "Prima ricerca: nessun modello elencato.",
+      "first": {
+        "one": "Prima ricerca: {count} modello.",
+        "many": "Prima ricerca: {count} modelli.",
+        "other": "Prima ricerca: {count} modelli."
+      },
+      "new": {
+        "one": "{count} nuovo modello",
+        "many": "{count} nuovi modelli",
+        "other": "{count} nuovi modelli"
+      },
+      "removed": {
+        "one": "{count} modello rimosso",
+        "many": "{count} modelli rimossi",
+        "other": "{count} modelli rimossi"
+      },
+      "repriced": {
+        "one": "{count} modello con prezzo modificato",
+        "many": "{count} modelli con prezzo modificato",
+        "other": "{count} modelli con prezzo modificato"
+      },
+      "unchanged": "Nessuna modifica dall’ultima ricerca.",
+      "since": "{changes} dall’ultima ricerca."
+    },
+    "labels": {
+      "custom": "Server personalizzato"
+    }
+  }
 }

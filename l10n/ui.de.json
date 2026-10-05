@@ -1830,5 +1830,107 @@
   "agentImportIgnoredToTracked": "dadurch würde eine von Git ignorierte Datei in eine versionierte Datei kopiert",
   "agentImportEditPrompt": "Konvertierte Einträge in {path} als ungespeicherte Änderung zum Prüfen und Speichern öffnen? Speichern Sie sie nur unter diesem Pfad, nie in einer anderen Datei.",
   "agentImportEditAction": "Datei bearbeiten und öffnen",
-  "agentImportPreviewLegacyKey": "Die Datei verwendet den veralteten Schlüssel `mcp_servers`. Benennen Sie ihn in `mcpServers` um, wenn Sie diese hinzufügen: Muse Code lädt keinen von beiden, wenn beide vorhanden sind."
+  "agentImportPreviewLegacyKey": "Die Datei verwendet den veralteten Schlüssel `mcp_servers`. Benennen Sie ihn in `mcpServers` um, wenn Sie diese hinzufügen: Muse Code lädt keinen von beiden, wenn beide vorhanden sind.",
+  "providerText": {
+    "wizard": {
+      "cancelled": "Der Assistent wurde abgebrochen.",
+      "pick": "Wählen Sie zuerst einen Anbieter.",
+      "address": "Geben Sie die Serveradresse ein.",
+      "credential": "Geben Sie zuerst den Schlüssel ein oder verbinden Sie das Konto.",
+      "keyShape": "Der Schlüssel entspricht nicht dem Format dieses Anbieters.",
+      "test": "Testen Sie zuerst die Verbindung.",
+      "models": "Wählen Sie mindestens ein Modell.",
+      "validate": "Prüfen Sie zuerst die Serveradresse.",
+      "refused": "Die Serveradresse wurde abgelehnt: {reason}",
+      "private": "Bestätigen Sie zuerst den Zugriff auf dieses private Netzwerk.",
+      "pickStep": "Wählen Sie den Anbieter im entsprechenden Schritt.",
+      "keyStep": "Geben Sie den Schlüssel im entsprechenden Schritt ein.",
+      "badKey": "Dieser Schlüssel entspricht nicht dem Format des Anbieters.",
+      "oauthStep": "Verbinden Sie das Konto im entsprechenden Schritt.",
+      "costStep": "Akzeptieren Sie die Testkosten im entsprechenden Schritt.",
+      "testStep": "Führen Sie den Test im entsprechenden Schritt aus.",
+      "costConsent": "Nennen Sie zuerst die Testkosten und fragen Sie nach: Sie wurden nicht akzeptiert.",
+      "modelsStep": "Wählen Sie die Modelle im entsprechenden Schritt.",
+      "privacyStep": "Wählen Sie den Datenschutz im entsprechenden Schritt.",
+      "passedTest": "Vor der Modellauswahl muss der Test erfolgreich sein.",
+      "finish": "Bestätigen Sie zum Abschluss.",
+      "confirmStep": "Bestätigen Sie im Zusammenfassungsschritt."
+    },
+    "summary": {
+      "provider": "Anbieter: {value}",
+      "destination": "Code geht an: {value}",
+      "models": "Modelle: {value}",
+      "defaultSuggested": "Standardmodell: vorgeschlagen",
+      "defaultModel": "Standardmodell: {value}"
+    },
+    "schema": {
+      "id": "Eine Anbieter-ID, niemals \"meta\"",
+      "modelRef": "Eine Modellreferenz",
+      "outputCap": "Das Ausgabelimit überschreitet das Kontextfenster",
+      "customLimits": "Eigene Modelle benötigen Kontextfenster und Ausgabelimits"
+    },
+    "descriptions": {
+      "openai": "OpenAI Responses API mit GPT-Modellen",
+      "azure": "Azure OpenAI v1 API mit eigener Ressource und Bereitstellung",
+      "xai": "Grok-Modelle über die xAI Responses API",
+      "anthropic": "Claude-Modelle über die Anthropic Messages API",
+      "gemini": "Gemini-Modelle über die generateContent API",
+      "openrouter": "Hunderte Modelle mit einem Schlüssel und Datenschutz-Routing",
+      "groq": "Schnelle Inferenz auf Groq-Hardware, OpenAI-kompatibel",
+      "deepseek": "DeepSeek-Chatmodelle mit standardmäßig aktiviertem Denken",
+      "mistral": "Mistral-Chatmodelle mit Prompt-Caching",
+      "together": "Offene Modelle auf Together mit Preisen je Modell",
+      "fireworks": "Schnelle Inferenz offener Modelle auf Fireworks",
+      "huggingface": "Der Hugging Face Router für viele Anbieter",
+      "zai": "GLM-Modelle auf Z.ai mit nutzungsabhängiger Abrechnung",
+      "ollama": "Modelle auf diesem Computer über Ollama",
+      "lmstudio": "Modelle auf diesem Computer über LM Studio",
+      "vllm": "Ein vLLM-Server hier oder über HTTPS in Ihrem Netzwerk",
+      "llamacpp": "Ein llama.cpp-Server hier oder über HTTPS in Ihrem Netzwerk",
+      "custom": "Ein beliebiger Chat Completions-, Responses- oder Messages-Server"
+    },
+    "hints": {
+      "prefix": "Schlüssel mit dem Präfix {prefix}… ({site})",
+      "site": "Der Schlüssel von {site}",
+      "azure": "Der Ressourcenschlüssel aus dem Azure-Portal",
+      "router": "Schlüssel mit dem Präfix {prefix}… ({site}) oder OpenRouter-Konto verbinden",
+      "custom": "Der vom Server erwartete Schlüssel"
+    },
+    "privacy": {
+      "zdr": "Keine Datenspeicherung: Nur Endpunkte, die keinerlei Daten speichern, dürfen antworten.",
+      "no-training": "Kein Training: Nur Anbieter, die nicht mit Ihren Daten trainieren, dürfen antworten.",
+      "any": "Beliebiger Anbieter: Die günstigste oder schnellste Antwort gewinnt, auch von Anbietern, die Daten speichern könnten."
+    },
+    "suggest": {
+      "recommended": "Empfohlen und das günstigste Modell mit Werkzeugaufrufen und genügend Platz für die Laufzeitumgebung ({ref}).",
+      "cheapest": "Das günstigste Modell mit Werkzeugaufrufen und genügend Platz für die Laufzeitumgebung ({ref}).",
+      "last": "{reason} Es ist auch Ihr zuletzt verwendetes Standardmodell.",
+      "history": "Median Ihrer letzten Sitzungen: {amount} pro Sitzung.",
+      "reference": "Noch kein Verlauf: eine Referenzsitzung zu den Preisen des Standardmodells ({amount})."
+    },
+    "scan": {
+      "empty": "Erste Suche: keine Modelle gelistet.",
+      "first": {
+        "one": "Erste Suche: {count} Modell.",
+        "other": "Erste Suche: {count} Modelle."
+      },
+      "new": {
+        "one": "{count} neues Modell",
+        "other": "{count} neue Modelle"
+      },
+      "removed": {
+        "one": "{count} entferntes Modell",
+        "other": "{count} entfernte Modelle"
+      },
+      "repriced": {
+        "one": "{count} Modell mit geändertem Preis",
+        "other": "{count} Modelle mit geändertem Preis"
+      },
+      "unchanged": "Keine Änderungen seit der letzten Suche.",
+      "since": "{changes} seit der letzten Suche."
+    },
+    "labels": {
+      "custom": "Eigener Server"
+    }
+  }
 }

@@ -15326,6 +15326,13 @@ before a repaired one loads (2026-09-30).
 
 ## 9. Security assumptions and accepted residual risk
 
+- **FIXM95P (2026-10-05):** all thirteen assigned RVM95A findings
+  (1, 2, 4–8, 12–15, 18, 19) are repaired with regressions and deliberate
+  failure drills in `docs/certification/m95-p.md`; no assigned finding is
+  deferred. These isolated core checks do not certify combined provider
+  integration, installed-editor behavior, live service calls or the full
+  platform matrix, which remain the lead's work under the rig brief.
+
 - Code intelligence (M67) shows what VS Code's language services say. A
   result located outside the workspace is left out and a hover defined only
   there is held back, but a language service also infers: a workspace

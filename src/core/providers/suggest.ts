@@ -10,7 +10,7 @@ import {
   SUGGEST_REFERENCE_SESSION_INPUT_TOKENS,
   SUGGEST_REFERENCE_SESSION_OUTPUT_TOKENS,
 } from '../../shared/constants'
-import { formatUsd } from '../../shared/l10n/text'
+import { fill, formatUsd, UI_TEXT } from '../../shared/l10n/text'
 import { reserveRequestUsd, type PriceCard } from './priceCard'
 
 /** The suggestion kinds M95 implements (M96 adds role kinds beside them). */
@@ -40,7 +40,7 @@ export interface SuggestContext {
 export interface Suggestion<T> {
   readonly kind: SuggestKind
   readonly value: T
-  /** Why, in plain words (inline until lane 0 tables it). */
+  /** Why, in plain words (localized at use time). */
   readonly reason: string
 }
 
@@ -75,14 +75,16 @@ export function suggestDefaultModel(context: SuggestContext): Suggestion<string>
   const tied = cheapest.filter((model) => (model.inputUsd ?? 0) === lowest)
   const pick = tied.find((model) => model.recommended === true) ?? first
   const isKeptLast = context.lastDefaultRef !== undefined && context.lastDefaultRef === pick.ref
-  const reason =
+  const reason = fill(
     pick.recommended === true
-      ? `Recommended, and the cheapest tool-calling model with room for the harness (${pick.ref}).`
-      : `The cheapest tool-calling model with room for the harness (${pick.ref}).`
+      ? UI_TEXT.providerText.suggest.recommended
+      : UI_TEXT.providerText.suggest.cheapest,
+    { ref: pick.ref },
+  )
   return {
     kind: 'defaultModel',
     value: pick.ref,
-    reason: isKeptLast ? `${reason} It is also your last default.` : reason,
+    reason: isKeptLast ? fill(UI_TEXT.providerText.suggest.last, { reason }) : reason,
   }
 }
 
@@ -104,7 +106,9 @@ export function suggestSessionBudget(
     return {
       kind: 'sessionBudget',
       value: { usd: historyMedianUsd },
-      reason: `Your recent sessions' median: ${formatUsd(historyMedianUsd, 2)} a session.`,
+      reason: fill(UI_TEXT.providerText.suggest.history, {
+        amount: formatUsd(historyMedianUsd, 2),
+      }),
     }
   }
   if (defaultCard === undefined) {
@@ -117,7 +121,7 @@ export function suggestSessionBudget(
   return {
     kind: 'sessionBudget',
     value: { usd },
-    reason: `No history yet: a reference session at the default model's prices (${formatUsd(usd, 2)}).`,
+    reason: fill(UI_TEXT.providerText.suggest.reference, { amount: formatUsd(usd, 2) }),
   }
 }
 

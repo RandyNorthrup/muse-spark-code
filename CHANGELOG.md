@@ -19,6 +19,9 @@ happened, not what was planned; superseded entries are kept.
   and recommendations exclude non-callable models. The provider wizard requires
   endpoint validation and private-network consent before saving, and connection
   edits clear dependent credentials, tests and consent.
+- Provider descriptions, key hints, privacy explanations, wizard and validation
+  messages, suggestions and scan summaries follow the installed display language
+  in all fourteen translations, including localized counts and currency.
 
 ## [0.12.1] - 2026-10-04
 

@@ -10,6 +10,7 @@
 // capture is recorded (`wireCapture`, AGENTS.md rule 13); the captures are
 // in `docs/certification/m95-captures.md`. Pure data plus pure helpers.
 
+import { fill, UI_TEXT } from '../../shared/l10n/text'
 import type { ProviderFormat } from './providersFile'
 
 /** The panel's filter chips (D74): Cloud, On this computer, Aggregator. */
@@ -213,7 +214,9 @@ export function quirksOf(preset: ProviderPreset): FormatQuirks {
 const OPENAI_PRESET: ProviderPreset = {
   id: 'openai',
   label: 'OpenAI',
-  description: 'OpenAI Responses API with GPT models',
+  get description() {
+    return UI_TEXT.providerText.descriptions.openai
+  },
   category: 'cloud',
   format: 'responses',
   origin: { kind: 'fixed', origin: 'https://api.openai.com' },
@@ -222,7 +225,9 @@ const OPENAI_PRESET: ProviderPreset = {
   keyPage: 'https://platform.openai.com/api-keys',
   docsUrl: 'https://platform.openai.com/docs',
   keyShape: { kind: 'prefix', prefix: 'sk-', minLength: 20 },
-  keyHint: 'sk-… (platform.openai.com)',
+  get keyHint() {
+    return fill(UI_TEXT.providerText.hints.prefix, { prefix: 'sk-', site: 'platform.openai.com' })
+  },
   keyTest: { kind: 'models-list' },
   modelsList: { path: '/v1/models', priceSource: 'catalogue' },
   quirks: {},
@@ -232,14 +237,18 @@ const OPENAI_PRESET: ProviderPreset = {
 const AZURE_PRESET: ProviderPreset = {
   id: 'azure',
   label: 'Azure OpenAI',
-  description: 'Azure OpenAI v1 API on your own resource and deployment',
+  get description() {
+    return UI_TEXT.providerText.descriptions.azure
+  },
   category: 'cloud',
   format: 'responses',
   origin: { kind: 'azure-resource' },
   auth: 'apiKey',
   authHeader: 'api-key',
   keyShape: { kind: 'any', minLength: 16 },
-  keyHint: 'The resource key from the Azure portal',
+  get keyHint() {
+    return UI_TEXT.providerText.hints.azure
+  },
   keyTest: { kind: 'paid-token' },
   modelsList: { path: '/openai/v1/models', priceSource: 'catalogue' },
   quirks: {},
@@ -249,7 +258,9 @@ const AZURE_PRESET: ProviderPreset = {
 const XAI_PRESET: ProviderPreset = {
   id: 'xai',
   label: 'xAI',
-  description: 'Grok models on the xAI Responses API',
+  get description() {
+    return UI_TEXT.providerText.descriptions.xai
+  },
   category: 'cloud',
   format: 'responses',
   origin: { kind: 'fixed', origin: 'https://api.x.ai' },
@@ -257,7 +268,9 @@ const XAI_PRESET: ProviderPreset = {
   authHeader: 'bearer',
   keyPage: 'https://console.x.ai',
   keyShape: { kind: 'prefix', prefix: 'xai-', minLength: 20 },
-  keyHint: 'xai-… (console.x.ai)',
+  get keyHint() {
+    return fill(UI_TEXT.providerText.hints.prefix, { prefix: 'xai-', site: 'console.x.ai' })
+  },
   keyTest: { kind: 'models-list' },
   // Integer prices in 1e-10 USD per token, with the long-context threshold.
   modelsList: { path: '/v1/models', windowField: 'context_length', priceSource: 'list' },
@@ -271,7 +284,9 @@ const XAI_PRESET: ProviderPreset = {
 const ANTHROPIC_PRESET: ProviderPreset = {
   id: 'anthropic',
   label: 'Anthropic',
-  description: 'Claude models on the Anthropic Messages API',
+  get description() {
+    return UI_TEXT.providerText.descriptions.anthropic
+  },
   category: 'cloud',
   format: 'anthropic',
   origin: { kind: 'fixed', origin: 'https://api.anthropic.com' },
@@ -281,7 +296,12 @@ const ANTHROPIC_PRESET: ProviderPreset = {
   keyPage: 'https://console.anthropic.com/settings/keys',
   docsUrl: 'https://docs.anthropic.com',
   keyShape: { kind: 'prefix', prefix: 'sk-ant-', minLength: 20 },
-  keyHint: 'sk-ant-… (console.anthropic.com)',
+  get keyHint() {
+    return fill(UI_TEXT.providerText.hints.prefix, {
+      prefix: 'sk-ant-',
+      site: 'console.anthropic.com',
+    })
+  },
   keyTest: { kind: 'models-list' },
   modelsList: { path: '/v1/models', windowField: 'max_input_tokens', priceSource: 'catalogue' },
   quirks: {},
@@ -291,7 +311,9 @@ const ANTHROPIC_PRESET: ProviderPreset = {
 const GEMINI_PRESET: ProviderPreset = {
   id: 'gemini',
   label: 'Google Gemini',
-  description: 'Gemini models on the generateContent API',
+  get description() {
+    return UI_TEXT.providerText.descriptions.gemini
+  },
   category: 'cloud',
   format: 'gemini',
   origin: { kind: 'fixed', origin: 'https://generativelanguage.googleapis.com' },
@@ -300,7 +322,9 @@ const GEMINI_PRESET: ProviderPreset = {
   keyPage: 'https://aistudio.google.com/apikey',
   docsUrl: 'https://ai.google.dev/gemini-api/docs',
   keyShape: { kind: 'prefix', prefix: 'AIza', minLength: 30 },
-  keyHint: 'AIza… (AI Studio)',
+  get keyHint() {
+    return fill(UI_TEXT.providerText.hints.prefix, { prefix: 'AIza', site: 'AI Studio' })
+  },
   keyTest: { kind: 'models-list' },
   modelsList: { path: '/v1beta/models', windowField: 'inputTokenLimit', priceSource: 'catalogue' },
   quirks: {},
@@ -310,7 +334,9 @@ const GEMINI_PRESET: ProviderPreset = {
 const OPENROUTER_PRESET: ProviderPreset = {
   id: 'openrouter',
   label: 'OpenRouter',
-  description: 'Hundreds of models through one key, with privacy routing',
+  get description() {
+    return UI_TEXT.providerText.descriptions.openrouter
+  },
   category: 'aggregator',
   format: 'chat',
   origin: { kind: 'fixed', origin: 'https://openrouter.ai' },
@@ -319,7 +345,9 @@ const OPENROUTER_PRESET: ProviderPreset = {
   keyPage: 'https://openrouter.ai/keys',
   docsUrl: 'https://openrouter.ai/docs',
   keyShape: { kind: 'prefix', prefix: 'sk-or-', minLength: 20 },
-  keyHint: 'sk-or-… (openrouter.ai) or Connect OpenRouter account',
+  get keyHint() {
+    return fill(UI_TEXT.providerText.hints.router, { prefix: 'sk-or-', site: 'openrouter.ai' })
+  },
   // `/models` is public, so `/key` is the test: free and spends no credits.
   keyTest: { kind: 'provider-key', path: '/api/v1/key' },
   modelsList: { path: '/api/v1/models', windowField: 'context_length', priceSource: 'list' },
@@ -337,7 +365,9 @@ const OPENROUTER_PRESET: ProviderPreset = {
 const GROQ_PRESET: ProviderPreset = {
   id: 'groq',
   label: 'Groq',
-  description: 'Fast inference on Groq hardware, OpenAI-compatible',
+  get description() {
+    return UI_TEXT.providerText.descriptions.groq
+  },
   category: 'cloud',
   format: 'chat',
   origin: { kind: 'fixed', origin: 'https://api.groq.com' },
@@ -345,7 +375,9 @@ const GROQ_PRESET: ProviderPreset = {
   authHeader: 'bearer',
   keyPage: 'https://console.groq.com/keys',
   keyShape: { kind: 'prefix', prefix: 'gsk_', minLength: 20 },
-  keyHint: 'gsk_… (console.groq.com)',
+  get keyHint() {
+    return fill(UI_TEXT.providerText.hints.prefix, { prefix: 'gsk_', site: 'console.groq.com' })
+  },
   keyTest: { kind: 'models-list' },
   modelsList: { path: '/openai/v1/models', windowField: 'context_window', priceSource: 'list' },
   quirks: {
@@ -358,7 +390,9 @@ const GROQ_PRESET: ProviderPreset = {
 const DEEPSEEK_PRESET: ProviderPreset = {
   id: 'deepseek',
   label: 'DeepSeek',
-  description: 'DeepSeek chat models with thinking on by default',
+  get description() {
+    return UI_TEXT.providerText.descriptions.deepseek
+  },
   category: 'cloud',
   format: 'chat',
   origin: { kind: 'fixed', origin: 'https://api.deepseek.com' },
@@ -366,7 +400,9 @@ const DEEPSEEK_PRESET: ProviderPreset = {
   authHeader: 'bearer',
   keyPage: 'https://platform.deepseek.com/api_keys',
   keyShape: { kind: 'prefix', prefix: 'sk-', minLength: 20 },
-  keyHint: 'sk-… (platform.deepseek.com)',
+  get keyHint() {
+    return fill(UI_TEXT.providerText.hints.prefix, { prefix: 'sk-', site: 'platform.deepseek.com' })
+  },
   keyTest: { kind: 'models-list' },
   modelsList: { path: '/models', windowField: 'context_window', priceSource: 'catalogue' },
   quirks: {
@@ -379,7 +415,9 @@ const DEEPSEEK_PRESET: ProviderPreset = {
 const MISTRAL_PRESET: ProviderPreset = {
   id: 'mistral',
   label: 'Mistral',
-  description: 'Mistral chat models with prompt caching',
+  get description() {
+    return UI_TEXT.providerText.descriptions.mistral
+  },
   category: 'cloud',
   format: 'chat',
   origin: { kind: 'fixed', origin: 'https://api.mistral.ai' },
@@ -387,7 +425,9 @@ const MISTRAL_PRESET: ProviderPreset = {
   authHeader: 'bearer',
   keyPage: 'https://console.mistral.ai/api-keys',
   keyShape: { kind: 'any', minLength: 16 },
-  keyHint: 'The key from console.mistral.ai',
+  get keyHint() {
+    return fill(UI_TEXT.providerText.hints.site, { site: 'console.mistral.ai' })
+  },
   keyTest: { kind: 'models-list' },
   modelsList: { path: '/v1/models', windowField: 'max_context_length', priceSource: 'catalogue' },
   quirks: {
@@ -400,7 +440,9 @@ const MISTRAL_PRESET: ProviderPreset = {
 const TOGETHER_PRESET: ProviderPreset = {
   id: 'together',
   label: 'Together',
-  description: 'Open models on Together, priced per model',
+  get description() {
+    return UI_TEXT.providerText.descriptions.together
+  },
   category: 'cloud',
   format: 'chat',
   origin: { kind: 'fixed', origin: 'https://api.together.ai' },
@@ -408,7 +450,9 @@ const TOGETHER_PRESET: ProviderPreset = {
   authHeader: 'bearer',
   keyPage: 'https://api.together.ai/settings/api-keys',
   keyShape: { kind: 'any', minLength: 16 },
-  keyHint: 'The key from api.together.ai',
+  get keyHint() {
+    return fill(UI_TEXT.providerText.hints.site, { site: 'api.together.ai' })
+  },
   keyTest: { kind: 'models-list' },
   modelsList: { path: '/v1/models', windowField: 'context_length', priceSource: 'list' },
   quirks: {
@@ -422,14 +466,18 @@ const TOGETHER_PRESET: ProviderPreset = {
 const FIREWORKS_PRESET: ProviderPreset = {
   id: 'fireworks',
   label: 'Fireworks',
-  description: 'Fast open-model inference on Fireworks',
+  get description() {
+    return UI_TEXT.providerText.descriptions.fireworks
+  },
   category: 'cloud',
   format: 'chat',
   origin: { kind: 'fixed', origin: 'https://api.fireworks.ai' },
   auth: 'apiKey',
   authHeader: 'bearer',
   keyShape: { kind: 'prefix', prefix: 'fw_', minLength: 20 },
-  keyHint: 'fw_… (fireworks.ai)',
+  get keyHint() {
+    return fill(UI_TEXT.providerText.hints.prefix, { prefix: 'fw_', site: 'fireworks.ai' })
+  },
   keyTest: { kind: 'models-list' },
   modelsList: {
     path: '/inference/v1/models',
@@ -447,7 +495,9 @@ const FIREWORKS_PRESET: ProviderPreset = {
 const HUGGINGFACE_PRESET: ProviderPreset = {
   id: 'huggingface',
   label: 'Hugging Face',
-  description: 'The Hugging Face router across many providers',
+  get description() {
+    return UI_TEXT.providerText.descriptions.huggingface
+  },
   category: 'aggregator',
   format: 'chat',
   origin: { kind: 'fixed', origin: 'https://router.huggingface.co' },
@@ -455,7 +505,9 @@ const HUGGINGFACE_PRESET: ProviderPreset = {
   authHeader: 'bearer',
   keyPage: 'https://huggingface.co/settings/tokens',
   keyShape: { kind: 'prefix', prefix: 'hf_', minLength: 10 },
-  keyHint: 'hf_… (huggingface.co)',
+  get keyHint() {
+    return fill(UI_TEXT.providerText.hints.prefix, { prefix: 'hf_', site: 'huggingface.co' })
+  },
   // `whoami-v2` on huggingface.co proves the token; the router has no key test.
   keyTest: { kind: 'provider-key', path: '/api/whoami-v2', origin: 'https://huggingface.co' },
   // Prices and windows are per upstream; reservations take the highest.
@@ -469,7 +521,9 @@ const HUGGINGFACE_PRESET: ProviderPreset = {
 const ZAI_PRESET: ProviderPreset = {
   id: 'zai',
   label: 'Z.ai',
-  description: 'GLM models on Z.ai pay-as-you-go',
+  get description() {
+    return UI_TEXT.providerText.descriptions.zai
+  },
   category: 'cloud',
   format: 'chat',
   origin: { kind: 'fixed', origin: 'https://api.z.ai' },
@@ -477,7 +531,9 @@ const ZAI_PRESET: ProviderPreset = {
   authHeader: 'bearer',
   // Captured shape: `<32 hex>.<16>`.
   keyShape: { kind: 'pattern', source: String.raw`^[0-9a-f]{32}\.[A-Za-z0-9]{8,64}$` },
-  keyHint: 'The key from the Z.ai console',
+  get keyHint() {
+    return fill(UI_TEXT.providerText.hints.site, { site: 'Z.ai' })
+  },
   keyTest: { kind: 'models-list' },
   modelsList: { path: '/api/paas/v4/models', priceSource: 'catalogue' },
   quirks: {
@@ -490,7 +546,9 @@ const ZAI_PRESET: ProviderPreset = {
 const OLLAMA_PRESET: ProviderPreset = {
   id: 'ollama',
   label: 'Ollama',
-  description: 'Models on this computer through Ollama',
+  get description() {
+    return UI_TEXT.providerText.descriptions.ollama
+  },
   category: 'local',
   format: 'ollama',
   origin: { kind: 'loopback', defaultPort: 11_434 },
@@ -507,7 +565,9 @@ const OLLAMA_PRESET: ProviderPreset = {
 const LMSTUDIO_PRESET: ProviderPreset = {
   id: 'lmstudio',
   label: 'LM Studio',
-  description: 'Models on this computer through LM Studio',
+  get description() {
+    return UI_TEXT.providerText.descriptions.lmstudio
+  },
   category: 'local',
   format: 'chat',
   origin: { kind: 'loopback', defaultPort: 1234 },
@@ -529,7 +589,9 @@ const LMSTUDIO_PRESET: ProviderPreset = {
 const VLLM_PRESET: ProviderPreset = {
   id: 'vllm',
   label: 'vLLM',
-  description: 'A vLLM server, here or on your network over HTTPS',
+  get description() {
+    return UI_TEXT.providerText.descriptions.vllm
+  },
   category: 'local',
   format: 'chat',
   origin: { kind: 'loopback', defaultPort: 8000 },
@@ -551,7 +613,9 @@ const VLLM_PRESET: ProviderPreset = {
 const LLAMACPP_PRESET: ProviderPreset = {
   id: 'llamacpp',
   label: 'llama.cpp',
-  description: 'A llama.cpp server, here or on your network over HTTPS',
+  get description() {
+    return UI_TEXT.providerText.descriptions.llamacpp
+  },
   category: 'local',
   format: 'chat',
   origin: { kind: 'loopback', defaultPort: 8080 },
@@ -573,15 +637,21 @@ const LLAMACPP_PRESET: ProviderPreset = {
 
 const CUSTOM_PRESET: ProviderPreset = {
   id: 'custom',
-  label: 'Custom server',
-  description: 'Any Chat Completions, Responses or Messages server',
+  get label() {
+    return UI_TEXT.providerText.labels.custom
+  },
+  get description() {
+    return UI_TEXT.providerText.descriptions.custom
+  },
   category: 'custom',
   format: 'chat',
   origin: { kind: 'custom' },
   auth: 'apiKey',
   authHeader: 'bearer',
   keyShape: { kind: 'any', minLength: 1 },
-  keyHint: 'The key the server expects',
+  get keyHint() {
+    return UI_TEXT.providerText.hints.custom
+  },
   keyTest: { kind: 'models-list' },
   // The window is required for an unknown model (Zed's rule); prices are
   // the user's or the model stays unpriced, never assumed free.
@@ -686,18 +756,23 @@ export const OPENROUTER_PRIVACY_CHOICES: readonly OpenRouterPrivacyChoice[] = [
   {
     id: 'zdr',
     request: { provider: { zdr: true } },
-    blurb: 'No data retention: only endpoints that store no data at all may answer.',
+    get blurb() {
+      return UI_TEXT.providerText.privacy.zdr
+    },
   },
   {
     id: 'no-training',
     request: { provider: { data_collection: 'deny' } },
-    blurb: 'No training: only providers that do not train on your data may answer.',
+    get blurb() {
+      return UI_TEXT.providerText.privacy['no-training']
+    },
   },
   {
     id: 'any',
     request: {},
-    blurb:
-      'Any provider: the cheapest or fastest answer wins, including providers that may keep data.',
+    get blurb() {
+      return UI_TEXT.providerText.privacy.any
+    },
   },
 ]
 

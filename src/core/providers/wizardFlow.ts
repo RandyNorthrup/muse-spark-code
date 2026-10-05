@@ -7,6 +7,7 @@
 // A paid test states its cost and waits for `accept-test-cost` first.
 // Pure: no clock, no network, no storage.
 
+import { fill, UI_TEXT } from '../../shared/l10n/text'
 import { checkEndpointUrl, type EndpointVerdict } from './endpointPolicy'
 import type { OpenRouterPrivacy } from './presets'
 
@@ -74,7 +75,7 @@ export interface WizardState {
   readonly step: WizardStep
   readonly draft: WizardDraft
   readonly cancelled: boolean
-  /** The last rejection, in plain words (inline until lane 0 tables it). */
+  /** The last rejection, in plain words (localized at use time). */
   readonly error?: string | undefined
 }
 
@@ -215,34 +216,36 @@ function stepBefore(step: WizardStep, draft: WizardDraft): WizardStep {
  */
 export function wizardBlockers(state: WizardState): readonly string[] {
   if (state.cancelled || state.step === 'done') {
-    return state.step === 'done' ? [] : ['The wizard was cancelled.']
+    return state.step === 'done' ? [] : [UI_TEXT.providerText.wizard.cancelled]
   }
   const blockers: string[] = []
   const draft = state.draft
   if (draft.presetId === undefined) {
-    blockers.push('Pick a provider first.')
+    blockers.push(UI_TEXT.providerText.wizard.pick)
   }
   if (draft.address === undefined || draft.address.trim() === '') {
-    blockers.push('Enter the server address.')
+    blockers.push(UI_TEXT.providerText.wizard.address)
   }
   if (draft.endpoint === undefined || draft.endpoint.address !== draft.address) {
-    blockers.push('Validate the server address first.')
+    blockers.push(UI_TEXT.providerText.wizard.validate)
   } else if (draft.endpoint.verdict.kind === 'refused') {
-    blockers.push(`The server address was refused: ${draft.endpoint.verdict.reason}`)
+    blockers.push(
+      fill(UI_TEXT.providerText.wizard.refused, { reason: draft.endpoint.verdict.reason }),
+    )
   } else if (draft.endpoint.verdict.kind === 'confirm-private' && !draft.privateConfirmed) {
-    blockers.push('Confirm access to this private network first.')
+    blockers.push(UI_TEXT.providerText.wizard.private)
   }
   if (draft.auth !== 'none' && !draft.keyPresent && !draft.connected) {
-    blockers.push('Enter the key or connect the account first.')
+    blockers.push(UI_TEXT.providerText.wizard.credential)
   }
   if (draft.auth !== 'none' && draft.keyPresent && !draft.keyShapeOk && !draft.connected) {
-    blockers.push('The key is not shaped like this provider\u{2019}s keys.')
+    blockers.push(UI_TEXT.providerText.wizard.keyShape)
   }
   if (!draft.test?.ok) {
-    blockers.push('Test the connection first.')
+    blockers.push(UI_TEXT.providerText.wizard.test)
   }
   if (draft.models.length === 0) {
-    blockers.push('Tick at least one model.')
+    blockers.push(UI_TEXT.providerText.wizard.models)
   }
   return blockers
 }
@@ -258,7 +261,7 @@ export function applyWizardEvent(state: WizardState, event: WizardEvent): Wizard
     }
     case 'select-preset': {
       if (state.step !== 'pick-provider' && state.step !== 'configure') {
-        return failed(state, 'Pick a provider from its own step.')
+        return failed(state, UI_TEXT.providerText.wizard.pickStep)
       }
       return {
         ...state,
@@ -330,14 +333,14 @@ export function applyWizardEvent(state: WizardState, event: WizardEvent): Wizard
             error: undefined,
             draft: { ...state.draft, privateConfirmed: event.confirmed },
           }
-        : failed(state, 'Confirm access to this private network first.')
+        : failed(state, UI_TEXT.providerText.wizard.private)
     }
     case 'submit-key': {
       if (state.step !== 'credential') {
-        return failed(state, 'Enter the key at its own step.')
+        return failed(state, UI_TEXT.providerText.wizard.keyStep)
       }
       if (!event.shapeOk) {
-        return failed(state, 'That key is not shaped like this provider\u{2019}s keys.')
+        return failed(state, UI_TEXT.providerText.wizard.badKey)
       }
       return {
         ...state,
@@ -347,7 +350,7 @@ export function applyWizardEvent(state: WizardState, event: WizardEvent): Wizard
     }
     case 'connect-oauth': {
       if (state.step !== 'credential') {
-        return failed(state, 'Connect the account at its own step.')
+        return failed(state, UI_TEXT.providerText.wizard.oauthStep)
       }
       return {
         ...state,
@@ -364,28 +367,28 @@ export function applyWizardEvent(state: WizardState, event: WizardEvent): Wizard
     case 'accept-test-cost': {
       return state.step === 'test'
         ? { ...state, error: undefined, draft: { ...state.draft, costAccepted: true } }
-        : failed(state, 'Accept the test cost at its own step.')
+        : failed(state, UI_TEXT.providerText.wizard.costStep)
     }
     case 'test-complete': {
       if (state.step !== 'test') {
-        return failed(state, 'Run the test at its own step.')
+        return failed(state, UI_TEXT.providerText.wizard.testStep)
       }
       // Where no free check exists, the one-token request's cost is stated
       // and asked before it is sent: a test carrying a cost without that
       // consent is refused, never recorded.
       return event.result.costUsd !== undefined && !state.draft.costAccepted
-        ? failed(state, 'Say the test\u{2019}s cost and ask first: it was not accepted.')
+        ? failed(state, UI_TEXT.providerText.wizard.costConsent)
         : { ...state, error: undefined, draft: { ...state.draft, test: event.result } }
     }
     case 'set-models': {
       return state.step === 'models'
         ? { ...state, error: undefined, draft: { ...state.draft, models: [...event.models] } }
-        : failed(state, 'Tick models at their own step.')
+        : failed(state, UI_TEXT.providerText.wizard.modelsStep)
     }
     case 'set-privacy': {
       return state.step === 'privacy'
         ? { ...state, error: undefined, draft: { ...state.draft, privacy: event.privacy } }
-        : failed(state, 'Choose privacy at its own step.')
+        : failed(state, UI_TEXT.providerText.wizard.privacyStep)
     }
     case 'next': {
       if (
@@ -394,16 +397,16 @@ export function applyWizardEvent(state: WizardState, event: WizardEvent): Wizard
         !state.draft.keyPresent &&
         !state.draft.connected
       ) {
-        return failed(state, 'Enter the key or connect the account first.')
+        return failed(state, UI_TEXT.providerText.wizard.credential)
       }
       if (state.step === 'test' && !state.draft.test?.ok) {
-        return failed(state, 'A passed test comes before the models.')
+        return failed(state, UI_TEXT.providerText.wizard.passedTest)
       }
       if (state.step === 'models' && state.draft.models.length === 0) {
-        return failed(state, 'Tick at least one model.')
+        return failed(state, UI_TEXT.providerText.wizard.models)
       }
       return state.step === 'confirm'
-        ? failed(state, 'Confirm to finish.')
+        ? failed(state, UI_TEXT.providerText.wizard.finish)
         : { ...state, error: undefined, step: stepAfter(state.step, state.draft) }
     }
     case 'back': {
@@ -411,7 +414,7 @@ export function applyWizardEvent(state: WizardState, event: WizardEvent): Wizard
     }
     case 'confirm': {
       if (state.step !== 'confirm') {
-        return failed(state, 'Confirm from the summary step.')
+        return failed(state, UI_TEXT.providerText.wizard.confirmStep)
       }
       const blockers = wizardBlockers(state)
       const firstBlocker = blockers.at(0)
@@ -429,12 +432,14 @@ export function wizardSummary(state: WizardState): {
 } {
   const draft = state.draft
   const lines = [
-    `Provider: ${draft.presetId ?? '—'}`,
-    `Code goes to: ${draft.address ?? '—'}`,
-    `Models: ${draft.models.length === 0 ? '—' : draft.models.join(', ')}`,
+    fill(UI_TEXT.providerText.summary.provider, { value: draft.presetId ?? '—' }),
+    fill(UI_TEXT.providerText.summary.destination, { value: draft.address ?? '—' }),
+    fill(UI_TEXT.providerText.summary.models, {
+      value: draft.models.length === 0 ? '—' : draft.models.join(', '),
+    }),
     draft.defaultModel === undefined
-      ? 'Default model: suggested'
-      : `Default model: ${draft.defaultModel}`,
+      ? UI_TEXT.providerText.summary.defaultSuggested
+      : fill(UI_TEXT.providerText.summary.defaultModel, { value: draft.defaultModel }),
   ]
   return { origin: draft.address ?? '', lines }
 }

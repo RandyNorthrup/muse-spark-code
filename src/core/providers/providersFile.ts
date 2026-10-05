@@ -10,6 +10,7 @@ import { randomUUID } from 'node:crypto'
 import path from 'node:path'
 import * as z from 'zod/mini'
 import { PROVIDERS_FILE_VERSION } from '../../shared/constants'
+import { UI_TEXT } from '../../shared/l10n/text'
 import { isProviderId, parseModelRef } from './modelRef'
 import type { PriceCard } from './priceCard'
 
@@ -48,17 +49,16 @@ const modelLimitsSchema = z
     outputTokens: z.int().check(z.positive()),
   })
   .check(
-    z.refine(
-      (limits) => limits.outputTokens <= limits.contextTokens,
-      'Output cap exceeds context window',
-    ),
+    z.refine((limits) => limits.outputTokens <= limits.contextTokens, {
+      error: () => UI_TEXT.providerText.schema.outputCap,
+    }),
   )
 
 /** One configured provider. */
 export const providerEntrySchema = z
   .object({
     // `<providerId>`: `^[a-z][a-z0-9-]{0,31}$`, never `meta`.
-    id: z.string().check(z.refine(isProviderId, 'A provider id, never "meta"')),
+    id: z.string().check(z.refine(isProviderId, { error: () => UI_TEXT.providerText.schema.id })),
     // The preset it was added from (or `custom`).
     preset: z.string(),
     // The endpoint address the user gave or confirmed (a preset's fixed
@@ -87,7 +87,7 @@ export const providerEntrySchema = z
       (entry) =>
         entry.preset !== 'custom' ||
         entry.models.every((modelId) => entry.modelLimits?.[modelId] !== undefined),
-      'Custom models require context windows and output caps',
+      { error: () => UI_TEXT.providerText.schema.customLimits },
     ),
   )
 export type ProviderEntry = z.infer<typeof providerEntrySchema>
@@ -96,7 +96,11 @@ export const providersFileSchema = z.object({
   v: z.literal(PROVIDERS_FILE_VERSION),
   // The composer's model and M96's default (`<providerId>/<modelId>`).
   defaultModel: z.optional(
-    z.string().check(z.refine((ref) => parseModelRef(ref) !== undefined, 'A model reference')),
+    z.string().check(
+      z.refine((ref) => parseModelRef(ref) !== undefined, {
+        error: () => UI_TEXT.providerText.schema.modelRef,
+      }),
+    ),
   ),
   providers: z.array(providerEntrySchema),
 })

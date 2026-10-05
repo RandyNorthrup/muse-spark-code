@@ -5,6 +5,7 @@
 // K's; the pure diff and the staleness rule live here.
 
 import { PROVIDER_SCAN_STALE_MS } from '../../shared/constants'
+import { fill, plural, UI_TEXT } from '../../shared/l10n/text'
 
 /** One scanned model row (a scan joined with capabilities and prices). */
 export interface ScannedModel {
@@ -40,10 +41,6 @@ export interface ScanDiff {
   readonly summary: string
 }
 
-function pluralize(count: number, one: string, other: string): string {
-  return `${String(count)} ${count === 1 ? one : other}`
-}
-
 function describeDiff(
   isFirst: boolean,
   modelCount: number,
@@ -51,23 +48,23 @@ function describeDiff(
 ): string {
   if (isFirst) {
     return modelCount === 0
-      ? 'First scan: no models listed.'
-      : `First scan: ${pluralize(modelCount, 'model', 'models')}.`
+      ? UI_TEXT.providerText.scan.empty
+      : plural(UI_TEXT.providerText.scan.first, modelCount)
   }
   const parts: string[] = []
   if (diff.newIds.length > 0) {
-    parts.push(pluralize(diff.newIds.length, 'new model', 'new models'))
+    parts.push(plural(UI_TEXT.providerText.scan.new, diff.newIds.length))
   }
   if (diff.removedIds.length > 0) {
-    parts.push(pluralize(diff.removedIds.length, 'removed model', 'removed models'))
+    parts.push(plural(UI_TEXT.providerText.scan.removed, diff.removedIds.length))
   }
   if (diff.repriced.length > 0) {
     const count = new Set(diff.repriced.map((change) => change.id)).size
-    parts.push(pluralize(count, 'repriced model', 'repriced models'))
+    parts.push(plural(UI_TEXT.providerText.scan.repriced, count))
   }
   return parts.length === 0
-    ? 'No changes since the last scan.'
-    : `${parts.join(', ')} since the last scan.`
+    ? UI_TEXT.providerText.scan.unchanged
+    : fill(UI_TEXT.providerText.scan.since, { changes: parts.join(', ') })
 }
 
 /**

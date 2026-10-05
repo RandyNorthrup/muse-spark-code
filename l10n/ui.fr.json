@@ -1896,5 +1896,111 @@
   "agentImportIgnoredToTracked": "cela copierait un fichier ignoré par Git dans un fichier suivi",
   "agentImportEditPrompt": "Ouvrir les entrées converties dans {path} comme modification non enregistrée à vérifier et enregistrer ? Enregistrez-la uniquement à cet emplacement, jamais dans un autre fichier.",
   "agentImportEditAction": "Modifier et ouvrir le fichier",
-  "agentImportPreviewLegacyKey": "Le fichier utilise l’ancienne clé `mcp_servers`. Renommez-la en `mcpServers` en ajoutant ceux-ci : Muse Code ne charge ni l’une ni l’autre quand les deux sont présentes."
+  "agentImportPreviewLegacyKey": "Le fichier utilise l’ancienne clé `mcp_servers`. Renommez-la en `mcpServers` en ajoutant ceux-ci : Muse Code ne charge ni l’une ni l’autre quand les deux sont présentes.",
+  "providerText": {
+    "wizard": {
+      "cancelled": "L’assistant a été annulé.",
+      "pick": "Choisissez d’abord un fournisseur.",
+      "address": "Saisissez l’adresse du serveur.",
+      "credential": "Saisissez la clé ou connectez le compte d’abord.",
+      "keyShape": "La clé ne correspond pas au format de ce fournisseur.",
+      "test": "Testez d’abord la connexion.",
+      "models": "Cochez au moins un modèle.",
+      "validate": "Validez d’abord l’adresse du serveur.",
+      "refused": "L’adresse du serveur a été refusée : {reason}",
+      "private": "Confirmez d’abord l’accès à ce réseau privé.",
+      "pickStep": "Choisissez le fournisseur à l’étape prévue.",
+      "keyStep": "Saisissez la clé à l’étape prévue.",
+      "badKey": "Cette clé ne correspond pas au format du fournisseur.",
+      "oauthStep": "Connectez le compte à l’étape prévue.",
+      "costStep": "Acceptez le coût du test à l’étape prévue.",
+      "testStep": "Lancez le test à l’étape prévue.",
+      "costConsent": "Annoncez le coût du test et demandez d’abord : il n’a pas été accepté.",
+      "modelsStep": "Cochez les modèles à l’étape prévue.",
+      "privacyStep": "Choisissez la confidentialité à l’étape prévue.",
+      "passedTest": "Le test doit réussir avant de choisir les modèles.",
+      "finish": "Confirmez pour terminer.",
+      "confirmStep": "Confirmez depuis l’étape récapitulative."
+    },
+    "summary": {
+      "provider": "Fournisseur : {value}",
+      "destination": "Le code est envoyé à : {value}",
+      "models": "Modèles : {value}",
+      "defaultSuggested": "Modèle par défaut : suggéré",
+      "defaultModel": "Modèle par défaut : {value}"
+    },
+    "schema": {
+      "id": "Un identifiant de fournisseur, jamais \"meta\"",
+      "modelRef": "Une référence de modèle",
+      "outputCap": "La limite de sortie dépasse la fenêtre de contexte",
+      "customLimits": "Les modèles personnalisés exigent une fenêtre de contexte et une limite de sortie"
+    },
+    "descriptions": {
+      "openai": "API Responses d’OpenAI avec les modèles GPT",
+      "azure": "API Azure OpenAI v1 sur votre propre ressource et déploiement",
+      "xai": "Modèles Grok via l’API Responses de xAI",
+      "anthropic": "Modèles Claude via l’API Messages d’Anthropic",
+      "gemini": "Modèles Gemini via l’API generateContent",
+      "openrouter": "Des centaines de modèles avec une clé et un routage de confidentialité",
+      "groq": "Inférence rapide sur le matériel Groq, compatible OpenAI",
+      "deepseek": "Modèles de discussion DeepSeek avec réflexion activée par défaut",
+      "mistral": "Modèles de discussion Mistral avec mise en cache des instructions",
+      "together": "Modèles ouverts sur Together, facturés par modèle",
+      "fireworks": "Inférence rapide de modèles ouverts sur Fireworks",
+      "huggingface": "Le routeur Hugging Face pour de nombreux fournisseurs",
+      "zai": "Modèles GLM sur Z.ai facturés à l’usage",
+      "ollama": "Modèles sur cet ordinateur via Ollama",
+      "lmstudio": "Modèles sur cet ordinateur via LM Studio",
+      "vllm": "Un serveur vLLM ici ou sur votre réseau en HTTPS",
+      "llamacpp": "Un serveur llama.cpp ici ou sur votre réseau en HTTPS",
+      "custom": "Tout serveur Chat Completions, Responses ou Messages"
+    },
+    "hints": {
+      "prefix": "Clé commençant par {prefix}… ({site})",
+      "site": "La clé de {site}",
+      "azure": "La clé de ressource du portail Azure",
+      "router": "Clé commençant par {prefix}… ({site}) ou connecter le compte OpenRouter",
+      "custom": "La clé attendue par le serveur"
+    },
+    "privacy": {
+      "zdr": "Aucune conservation : seuls les points de terminaison ne stockant aucune donnée peuvent répondre.",
+      "no-training": "Aucun entraînement : seuls les fournisseurs qui n’entraînent pas leurs modèles sur vos données peuvent répondre.",
+      "any": "Tout fournisseur : la réponse la moins chère ou la plus rapide l’emporte, y compris les fournisseurs pouvant conserver des données."
+    },
+    "suggest": {
+      "recommended": "Recommandé et le modèle avec appels d’outils le moins cher disposant d’assez de contexte pour l’environnement d’exécution ({ref}).",
+      "cheapest": "Le modèle avec appels d’outils le moins cher disposant d’assez de contexte pour l’environnement d’exécution ({ref}).",
+      "last": "{reason} C’est aussi votre dernier modèle par défaut.",
+      "history": "Médiane de vos sessions récentes : {amount} par session.",
+      "reference": "Pas encore d’historique : une session de référence aux tarifs du modèle par défaut ({amount})."
+    },
+    "scan": {
+      "empty": "Première recherche : aucun modèle répertorié.",
+      "first": {
+        "one": "Première recherche : {count} modèle.",
+        "many": "Première recherche : {count} modèles.",
+        "other": "Première recherche : {count} modèles."
+      },
+      "new": {
+        "one": "{count} nouveau modèle",
+        "many": "{count} nouveaux modèles",
+        "other": "{count} nouveaux modèles"
+      },
+      "removed": {
+        "one": "{count} modèle supprimé",
+        "many": "{count} modèles supprimés",
+        "other": "{count} modèles supprimés"
+      },
+      "repriced": {
+        "one": "{count} modèle avec tarif modifié",
+        "many": "{count} modèles avec tarif modifié",
+        "other": "{count} modèles avec tarif modifié"
+      },
+      "unchanged": "Aucun changement depuis la dernière recherche.",
+      "since": "{changes} depuis la dernière recherche."
+    },
+    "labels": {
+      "custom": "Serveur personnalisé"
+    }
+  }
 }
