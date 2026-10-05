@@ -217,6 +217,16 @@ happened, not what was planned; superseded entries are kept.
   data. Retry claims survive uncertain starts and conversation reopening,
   unavailable endpoints refuse, interrupted startup and metadata saves clean
   up, and team arguments have explicit size limits (M96 lane T, RVM96D).
+- **Team worker race and lifecycle guards (M96, RVM96W3).** Admission keeps
+  an opaque native root identity through startup and subsequent mediated
+  operations. Prompt and ACP file operations check and use one open handle;
+  write-path policy cannot authorize a different target. Bare parent arguments,
+  directory-changing short options and Windows Git executable wrappers refuse
+  before approval. Final non-text ACP messages discard earlier draft reports,
+  model selection cannot reset the role mode, and cancellation has a deadline
+  even when the agent stops draining its input. No live/vendor certification
+  or OS sandbox claim is added.
+
 - **Team worker fence redesign (M96, round 3).** Muse Code, ACP and engine
   workers share native filesystem identity admission, including Windows UNC,
   device, short-name, junction and subst aliases. Every mediated path and

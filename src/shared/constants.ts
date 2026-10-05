@@ -4620,6 +4620,8 @@ export const WORKER_UNSTRUCTURED_SUMMARY_MAX_CHARS = 2000
 export const WORKER_MAX_DEPTH = 2
 /** Bounded grace for a flushed ACP cancellation before the child is killed. */
 export const WORKER_CANCEL_GRACE_MS = 100
+export const WORKER_FILE_PATH_TIMEOUT_MS = 5000
+export const WORKER_FILE_PATH_BUFFER_CHARS = 32_768
 /** Model-only task data labels; kept with the lazy worker code's tunables. */
 export const WORKER_MODEL_TEXT = {
   // M96 worker scaffolding stays out of shipped bundles until lane X wires it.

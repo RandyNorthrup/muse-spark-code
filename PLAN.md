@@ -17674,6 +17674,19 @@ live) and the controller filters its id as well.
 
 ### M96 — Agent roles and the team (D75)
 
+**M96INT round 3c (2026-10-05, macmini).** Merge W final fixes at
+`71baf294` and package diet at `be00b172` as merge commits. W remains the
+shared Git classifier owner; retain both lanes' admission regressions.
+Reconcile every failing request assertion with D78, recording each exact
+case and decision. Preserve D78's conditional packed recall and cache keys;
+update only expectations deliberately superseded by that decision. Separate
+team browser UI behind a lazy chunk with its own D6 budget and split guard,
+keeping all existing caps. Measure helperless and universal VSIX bytes,
+scan default and HEAD history with redaction, and run full quality once
+with three workers. Keep temporary archives outside the repository.
+Windows-native proof is owned by REDWINI96 and lands in round 3d; this
+Mac record cannot certify Windows. No live/paid calls or push are authorized.
+
 **Round 3b classifier reconciliation.** W's `workerFence.ts` owns the
 single argument classifier. I re-exports it and passes only the argv that
 will execute. W's wrapper tokenizer delegates to it; safe `worktree list`,
@@ -18424,6 +18437,17 @@ next`, the exhausted policy and the queue, the meters, reservations and
      keeps full `quality` with the lead. Canonical PLAN format is preserved;
      the skill's separate ledger migration is outside this scoped redesign.
      Live captures/native-server preset admission remain lead-owned gates.
+
+     **FIXM96W4 (RVM96W3, 2026-10-05):** bind admission to an opaque root
+     grant and compare its native identity at every later use, including
+     after host/configuration awaits. Mediated file operations open once,
+     derive the final name from that handle, check containment and write
+     policy on it, and read/write the same handle. Add all seven review
+     regressions and byte-exact drills: root replacement, write-target swap,
+     bare parent arguments, Windows Git suffixes/PATHEXT, non-text final
+     messages, mode reset after model selection, and bounded cancellation.
+     Real Windows junction/rename probes run here with maxWorkers=3. No
+     dependency, guard widening, live request or new editor surface.
 
   9. **Lane T:** the tools, the roster and rubric, the Model API
      declaration and the `team` server, with the `collect` wait set from
@@ -21635,6 +21659,13 @@ host API and production build pass on macmini snapshot `5f4f0f80`. No gate or
 budget changed; shared test setup fixes the duplication finding. See the
 Windows heading in `docs/certification/m96-i.md`. Full quality and editor
 integration remain the lead's gates under the lane brief.
+retains the historical stream-count deferral below. FIXM96W4's current
+`check:host-api` mismatch is instead two importer counts: child_process
+11 recorded / 12 actual and util 4 recorded / 5 actual, from the native
+handle-name helper. All other inventory rows agree. The generated inventory
+is outside the W repair lane's owned files; the lead regenerates and reviews
+it after integration. No gate, ignore or threshold is weakened. See
+`docs/certification/m96-w.md` and §9's named residual.
 
 **FIXM96I local repair proof (2026-10-05).** RVM96B findings 1–12 and 24
 are fixed in lane I with 165 passing owning cases and 26 SHA-256-exact
@@ -22369,16 +22400,23 @@ before a repaired one loads (2026-09-30).
   dispatch; no fallback creates duplicate work. Full integrated quality and
   the existing generated host-API record handoff stay with the lead/X.
   Evidence: `docs/certification/m96-t.md` and its review-drill record.
+- **M96 W-I-policy-integration (RVM96W3 integration residual, 2026-10-05):**
+  the unshipped W and I lanes still have separate command and environment
+  authorities. The review found different admissions for worktree list,
+  paginate/show, grep and cat-file filters. Safe while the worker modules
+  remain unreachable from shipped entry points; this is not a clean semantic
+  integration. Resolved by rounds 3b/3c: W owns the shared classifier and I calls it;
+  both complete regression suites run after the W final merge.
 
 - **M96 W-host-api-inventory (2026-10-05, gate residual):** the generated
-  host API inventory has a pre-existing `node:stream` count of 9 against
-  10 source importers, including the ACP process file already present at
-  `49340fe1`. This is documentation drift with no new host capability;
-  every other host API inventory row agrees. The file is outside the
-  repair lane's scope. Follow-up: the lead runs
-  `npm run check:host-api -- --write`, reviews the one-row change and
-  reruns the gate after integrating the lanes. Full quality remains the
-  lead's gate.
+  record's old stream mismatch was corrected in round 3. FIXM96W4 adds one
+  workerFence importer of each existing built-in node:child_process and
+  node:util: counts 11/4 recorded versus 12/5 actual. No new Node built-in
+  or VS Code capability is introduced. Safe while the worker modules are
+  unshipped; this documentation drift is not a passing gate. The generated
+  file is outside the repair lane's scope. Follow-up: the lead runs
+  `npm run check:host-api -- --write`, reviews both count changes and reruns
+  the gate after integrating lanes. Full quality remains the lead's gate.
 
 - **M96 W37-live-captures (RVM96A finding 37, 2026-10-05):** the worker
   repair lane has no authorization for live/paid calls. Its synthetic ACP

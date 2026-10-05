@@ -1,5 +1,7 @@
-import { fakeWorkerIdentity } from './helpers/workerIdentity'
+import { fileURLToPath } from 'node:url'
+import { fakeWorkerIdentity, fakeWorkerFiles } from './helpers/workerIdentity'
 import { TEAM_WORKER_PROMPT } from './helpers/teamWorkerPrompt'
+import type { WorkerRootGrant } from '../../src/core/team/workers/workerFence'
 // The ACP agent's process (M96 lane W): the PATH lookup, the scrubbed
 // spawn, the Install command, and the SDK adapter against the fake ACP
 // agent over real stdio.
@@ -8,10 +10,9 @@ import { spawn, type ChildProcess } from 'node:child_process'
 import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { mkdirSync } from 'node:fs'
 import path from 'node:path'
-import { PassThrough } from 'node:stream'
-import { fileURLToPath } from 'node:url'
+import { PassThrough, Writable } from 'node:stream'
 import { RequestError, type AuthMethod } from '@agentclientprotocol/sdk'
-import { afterAll, describe, expect, it } from 'vitest'
+import { afterAll, describe, expect, it, vi } from 'vitest'
 import {
   ACP_PRESET_INSTALLS,
   buildPresetInstallCommand,
@@ -311,13 +312,17 @@ function policyHandlers(
   files: { readTextFile: (absolutePath: string) => Promise<string | undefined> },
   onAskUser: () => Promise<'allowOnce' | 'rejectOnce'>,
 ): AcpClientHandlers {
-  const io = {
-    pathIdentity: fakeWorkerIdentity,
-    realPath: (absolutePath: string) => Promise.resolve(absolutePath),
-  }
+  const io = fakeWorkerFiles(
+    {
+      pathIdentity: fakeWorkerIdentity,
+      realPath: (absolutePath: string) => Promise.resolve(absolutePath),
+    },
+    files.readTextFile,
+  )
   const resolveOnce = async (
     toolCall: Parameters<AcpClientHandlers['onPermissionRequest']>[0],
     options: Parameters<AcpClientHandlers['onPermissionRequest']>[1],
+    grant: WorkerRootGrant,
   ): Promise<{ readonly optionId: string } | undefined> => {
     const verdict = await answerAcpPermission({
       role,
@@ -325,6 +330,7 @@ function policyHandlers(
       workspaceRoot: path.join(fixtureBase, 'acp-checkout'),
       platform: process.platform,
       io,
+      grant,
       dialect: 'bash',
       readOnlyCommands: new Set([
         'git diff',
@@ -344,8 +350,8 @@ function policyHandlers(
     return optionId === undefined ? undefined : { optionId }
   }
   return {
-    onPermissionRequest: (toolCall, options) => resolveOnce(toolCall, options),
-    onFsRead: (given) =>
+    onPermissionRequest: (toolCall, options, grant) => resolveOnce(toolCall, options, grant),
+    onFsRead: (given, grant) =>
       acpFsRead(
         {
           role,
@@ -353,12 +359,11 @@ function policyHandlers(
           workspaceRoot: path.join(fixtureBase, 'acp-checkout'),
           platform: process.platform,
           io,
-          ...files,
-          writeTextFile: () => Promise.resolve(),
+          grant,
         },
         given,
       ),
-    onFsWrite: (given, content) =>
+    onFsWrite: (given, content, grant) =>
       acpFsWrite(
         {
           role,
@@ -366,8 +371,7 @@ function policyHandlers(
           workspaceRoot: path.join(fixtureBase, 'acp-checkout'),
           platform: process.platform,
           io,
-          ...files,
-          writeTextFile: () => Promise.resolve(),
+          grant,
         },
         given,
         content,
@@ -390,7 +394,6 @@ function workerDeps(connection: AcpAgentConnection, task: WorkerTask, role: Work
     io: {
       pathIdentity: fakeWorkerIdentity,
       realPath: (absolutePath: string) => Promise.resolve(absolutePath),
-      readTextFile: () => Promise.resolve(undefined),
     },
     platform: process.platform,
     bridgeServers: [],
@@ -429,6 +432,196 @@ function emptyPolicyHandlers(
 }
 
 describe('the full stack against the fake agent', () => {
+  it('RVM96W3-F1 SDK filesystem callback retains the session admission after a disjoint root swap', async () => {
+    const folder = path.join(fixtureBase, 'acp-copy')
+    const replacement = path.join(fixtureBase, 'disjoint-replacement')
+    const state = { isReplaced: false }
+    const read = vi.fn(() => Promise.resolve('replacement sentinel'))
+    const io = fakeWorkerFiles(
+      {
+        pathIdentity: fakeWorkerIdentity,
+        realPath: (given) =>
+          Promise.resolve(
+            state.isReplaced && (given === folder || given.startsWith(`${folder}${path.sep}`))
+              ? replacement + given.slice(folder.length)
+              : given,
+          ),
+      },
+      read,
+    )
+    const handlers = emptyPolicyHandlers(folder)
+    const { connection } = startFake('fs', folder, {
+      ...handlers,
+      onFsRead: (given, grant) => {
+        state.isReplaced = true
+        return acpFsRead(
+          {
+            role: WRITER,
+            folder,
+            workspaceRoot: path.join(fixtureBase, 'acp-checkout'),
+            platform: process.platform,
+            io,
+            grant,
+          },
+          given,
+        )
+      },
+    })
+    await expect(
+      runAcpWorker({ ...workerDeps(connection, taskIn(folder, 'retained-grant'), WRITER), io }),
+    ).rejects.toThrow()
+    expect(read).not.toHaveBeenCalled()
+  })
+  it('RVM96W3-F7 adapter bounds cancel transmission itself', async () => {
+    const stdout = new PassThrough()
+    const state: { release?: () => void } = {}
+    const stdin = new Writable({
+      write(_chunk, _encoding, callback) {
+        state.release = callback
+      },
+    })
+    const disposeProcess = vi.fn()
+    const connection = connectAcpAgent({
+      stdin,
+      stdout,
+      handlers: emptyPolicyHandlers(fixtureBase),
+      log: new FakeLogOutputChannel(),
+      supportsTerminalAuth: true,
+      disposeProcess,
+    })
+    let timer: ReturnType<typeof setTimeout> | undefined
+    try {
+      const isBounded = await Promise.race([
+        (async () => {
+          await connection.cancel('held')
+          return true
+        })(),
+        new Promise<boolean>((resolve) => {
+          timer = setTimeout(() => {
+            resolve(false)
+          }, 1200)
+        }),
+      ])
+      expect(isBounded).toBe(true)
+    } finally {
+      if (timer !== undefined) clearTimeout(timer)
+      state.release?.()
+      connection.close()
+      stdin.destroy()
+      stdout.destroy()
+    }
+    expect(disposeProcess).toHaveBeenCalledOnce()
+  })
+  it('RVM96W3-F5 final image discards an earlier draft report', async () => {
+    const folder = path.join(fixtureBase, 'acp-copy')
+    const { connection } = startFake('draft-image', folder, emptyPolicyHandlers(folder))
+    const result = await runAcpWorker(workerDeps(connection, taskIn(folder, 'image'), WRITER))
+    expect(result.report).toMatchObject({ ok: false, status: 'unstructured' })
+  })
+  it('RVM96W3-F6 refuses a model response that resets the confirmed mode', async () => {
+    const folder = path.join(fixtureBase, 'acp-copy')
+    const { connection, records } = startFake(
+      'model-resets-mode',
+      folder,
+      emptyPolicyHandlers(folder),
+    )
+    await expect(
+      runAcpWorker(
+        workerDeps(connection, taskIn(folder, 'mode-reset'), {
+          ...WRITER,
+          roleId: 'code-review',
+          workspaceMode: 'read-only',
+          toolGroups: ['read', 'report'],
+        }),
+      ),
+    ).rejects.toThrow('did not confirm its mode')
+    expect(records).not.toContainEqual(expect.objectContaining({ method: 'session/prompt' }))
+  })
+  it('RVM96W3-F6 refuses a model response that drops the confirmed mode selector', async () => {
+    const folder = path.join(fixtureBase, 'acp-copy')
+    const { connection, records } = startFake(
+      'model-drops-mode',
+      folder,
+      emptyPolicyHandlers(folder),
+    )
+    await expect(
+      runAcpWorker(workerDeps(connection, taskIn(folder, 'mode-dropped'), WRITER)),
+    ).rejects.toThrow('did not confirm its mode')
+    expect(records).not.toContainEqual(expect.objectContaining({ method: 'session/prompt' }))
+  })
+  it('RVM96W3-F7 cancel pipe backpressure reaches its deadline and disposes the process', async () => {
+    const folder = path.join(fixtureBase, 'acp-copy')
+    const stdout = new PassThrough()
+    const controller = new AbortController()
+    const disposeProcess = vi.fn()
+    const state: { cancelCallback?: () => void; sawCancel: boolean } = { sawCancel: false }
+    const options = [
+      {
+        id: 'mode',
+        name: 'Mode',
+        category: 'mode',
+        type: 'select',
+        currentValue: 'default',
+        options: [{ value: 'default', name: 'Default' }],
+      },
+      {
+        id: 'model',
+        name: 'Model',
+        category: 'model',
+        type: 'select',
+        currentValue: 'explicit-selected-model',
+        options: [{ value: 'explicit-selected-model', name: 'Selected' }],
+      },
+    ]
+    const stdin = new Writable({
+      write(chunk: Buffer, _encoding, callback) {
+        const message: { id?: number; method: string } = JSON.parse(chunk.toString())
+        if (message.method === 'session/cancel') {
+          state.sawCancel = true
+          state.cancelCallback = callback
+          return
+        }
+        callback()
+        if (message.method === 'session/prompt') {
+          queueMicrotask(() => {
+            controller.abort()
+          })
+          return
+        }
+        const responses: Readonly<Record<string, unknown>> = {
+          initialize: { protocolVersion: 1, agentCapabilities: {}, authMethods: [] },
+          'session/new': { sessionId: 'blocked', configOptions: options },
+        }
+        const result = responses[message.method] ?? { configOptions: options }
+        stdout.write(`${JSON.stringify({ jsonrpc: '2.0', id: message.id, result })}\n`)
+      },
+    })
+    const connection = connectAcpAgent({
+      stdin,
+      stdout,
+      handlers: emptyPolicyHandlers(folder),
+      log: new FakeLogOutputChannel(),
+      supportsTerminalAuth: true,
+      disposeProcess,
+    })
+    const started = Date.now()
+    try {
+      await expect(
+        runAcpWorker({
+          ...workerDeps(connection, taskIn(folder, 'backpressure'), WRITER),
+          signal: controller.signal,
+        }),
+      ).rejects.toThrow()
+      expect(state.sawCancel).toBe(true)
+      expect(disposeProcess).toHaveBeenCalledOnce()
+      expect(Date.now() - started).toBeLessThan(1200)
+    } finally {
+      state.cancelCallback?.()
+      connection.close()
+      stdin.destroy()
+      stdout.destroy()
+    }
+  })
   it.each(['draft-failed', 'draft-final'])(
     'RVM96W2C-N5 uses only the final ACP message: %s',
     async (scenario) => {

@@ -17,7 +17,9 @@ import { isPrivateFileName } from '../../../shared/privateFiles'
 import {
   assertWorkerRoot,
   bindWorkerPathIo,
-  confineWorkerPath,
+  withWorkerFile,
+  recheckWorkerRoot,
+  type WorkerRootGrant,
   isWorkerCommandAllowed,
   type WorkerFenceIo,
 } from './workerFence'
@@ -67,10 +69,7 @@ export class WorkerUntrustedError extends Error {
 }
 
 /** What prompt assembly reads: canonical paths plus bounded text reads. */
-export interface WorkerFileIo extends WorkerFenceIo {
-  /** Bounded UTF-8 reads of files named by the task; undefined when unreadable. */
-  readonly readTextFile: (absolutePath: string, maxBytes: number) => Promise<string | undefined>
-}
+export type WorkerFileIo = WorkerFenceIo
 
 /**
  * Assembles the worker's prompt in D75's order: the charter, the body, the
@@ -85,49 +84,49 @@ export async function buildWorkerPrompt(
   platform: NodeJS.Platform,
   workspaceRoot: string,
   isInPlace?: boolean,
+  admitted?: WorkerRootGrant,
 ): Promise<string> {
   if (task.brief.length > WORKER_BRIEF_MAX_CHARS) {
     throw new WorkerBriefError(task.brief.length)
   }
   const inlined: string[] = []
   let bytes = 0
-  for (const file of task.files) {
-    const confined = await confineWorkerPath(
-      {
-        folder: task.folder,
-        platform,
-        io,
-        workspaceRoot,
-        ...(isInPlace !== undefined && { isInPlace }),
-      },
-      file,
-    )
-    if (
-      !confined.ok ||
-      isPrivateFileName(confined.relative) ||
-      isPrivateFileName(confined.canonical) ||
-      isProtectedPath(confined.relative) ||
-      isProtectedPath(confined.canonical)
-    ) {
-      continue
-    }
-    const remaining = WORKER_BRIEF_FILES_MAX_BYTES - bytes
-    if (remaining <= 0) {
-      break
-    }
-    const content = await io.readTextFile(confined.checkedAbsolute, remaining)
-    if (content === undefined) {
-      continue
-    }
-    // A reader must respect maxBytes; refuse an oversized result rather than
-    // trusting character counts or cutting a UTF-8 code point in half.
-    const contentBytes = Buffer.byteLength(content, 'utf8')
-    if (contentBytes > remaining) {
-      continue
-    }
-    bytes += contentBytes
-    inlined.push(`--- ${confined.canonical} (${WORKER_MODEL_TEXT.boundedExcerpt}) ---\n${content}`)
+  const input = {
+    folder: task.folder,
+    platform,
+    io,
+    workspaceRoot,
+    ...(isInPlace !== undefined && { isInPlace }),
   }
+  const grant = admitted ?? (await assertWorkerRoot(input))
+  for (const file of task.files) {
+    const remaining = WORKER_BRIEF_FILES_MAX_BYTES - bytes
+    if (remaining <= 0) break
+    try {
+      await withWorkerFile({ ...input, grant }, file, false, async (handle, confined) => {
+        if (
+          isPrivateFileName(file) ||
+          isProtectedPath(file) ||
+          isPrivateFileName(confined.relative) ||
+          isPrivateFileName(confined.canonical) ||
+          isProtectedPath(confined.relative) ||
+          isProtectedPath(confined.canonical)
+        )
+          return
+        const content = await handle.read(remaining)
+        if (content === undefined) return
+        const contentBytes = Buffer.byteLength(content, 'utf8')
+        if (contentBytes > remaining) return
+        bytes += contentBytes
+        inlined.push(
+          `--- ${confined.canonical} (${WORKER_MODEL_TEXT.boundedExcerpt}) ---\n${content}`,
+        )
+      })
+    } catch {
+      /* Missing, replaced and unreadable files stay named, never inlined. */
+    }
+  }
+  await recheckWorkerRoot(input, grant)
   return [
     parts.charter,
     parts.body,
@@ -173,12 +172,18 @@ export function createWorkerShellRunner(input: {
   readonly passthrough?: readonly string[]
   readonly spawn: WorkerShellSpawn
 }): (command: string, args: readonly string[]) => Promise<{ readonly exitCode: number }> {
+  let admitted: WorkerRootGrant | undefined
   return async (command, args) => {
-    const folder = await assertWorkerRoot({
-      ...input,
-      folder: input.root,
-      isInPlace: input.role.workspaceMode === 'in-place',
-    })
+    const grant =
+      admitted ??
+      (await assertWorkerRoot({
+        ...input,
+        folder: input.root,
+        isInPlace: input.role.workspaceMode === 'in-place',
+      }))
+    admitted = grant
+    await recheckWorkerRoot({ ...input, folder: input.root }, grant)
+    const folder = grant.absolute
     // Engine tools hand argv over directly, so quote it for the shared classifier.
     const text = [command, ...args]
       .map((word) => `'${word.replaceAll("'", String.raw`'\''`)}'`)
@@ -187,12 +192,14 @@ export function createWorkerShellRunner(input: {
       !(await isWorkerCommandAllowed({
         ...input,
         folder,
+        grant,
         isInPlace: input.role.workspaceMode === 'in-place',
         command: text,
         dialect: 'bash',
       }))
     )
       throw new Error('The worker command was refused')
+    await recheckWorkerRoot({ ...input, folder: input.root }, grant)
     const child = await input.spawn({
       command,
       args,
@@ -315,11 +322,12 @@ export async function runEngineWorker(deps: EngineWorkerDeps): Promise<EngineWor
   if (!deps.isTrusted) {
     throw new WorkerUntrustedError()
   }
-  const folder = await assertWorkerRoot({
+  const grant = await assertWorkerRoot({
     ...deps,
     folder: deps.task.folder,
     isInPlace: deps.role.workspaceMode === 'in-place',
   })
+  const folder = grant.absolute
   const prompt = await buildWorkerPrompt(
     deps.prompt,
     { ...deps.task, folder },
@@ -327,11 +335,17 @@ export async function runEngineWorker(deps: EngineWorkerDeps): Promise<EngineWor
     deps.platform,
     deps.workspaceRoot,
     deps.role.workspaceMode === 'in-place',
+    grant,
   )
   const host = new WorktreeConversationHost({
     worktreeRoot: folder,
     platform: deps.platform,
-    io: bindWorkerPathIo({ ...deps, folder, isInPlace: deps.role.workspaceMode === 'in-place' }),
+    io: bindWorkerPathIo({
+      ...deps,
+      folder: deps.task.folder,
+      grant,
+      isInPlace: deps.role.workspaceMode === 'in-place',
+    }),
     requestCeiling: deps.requestCeiling,
     session: deps.session,
     declineChoiceId: deps.declineChoiceId,
@@ -339,7 +353,9 @@ export async function runEngineWorker(deps: EngineWorkerDeps): Promise<EngineWor
   })
   let outcome: WorktreeAttemptOutcome
   try {
+    await recheckWorkerRoot({ ...deps, folder: deps.task.folder }, grant)
     outcome = await host.run(prompt, deps.isTrusted)
+    await recheckWorkerRoot({ ...deps, folder: deps.task.folder }, grant)
   } catch (error: unknown) {
     const limit = classifyLimitError(error)
     if (limit?.kind === 'rateLimited') {

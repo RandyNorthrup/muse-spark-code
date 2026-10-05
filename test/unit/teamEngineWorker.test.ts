@@ -1,4 +1,4 @@
-import { fakeWorkerIdentity } from './helpers/workerIdentity'
+import { fakeWorkerIdentity, fakeWorkerFiles } from './helpers/workerIdentity'
 // M77's attempt host for engine workers (M96 lane W): the prompt order
 // and caps, the shell's confinement, the `report` tool, the depth guard,
 // and limit errors handed to lane A's marks.
@@ -62,11 +62,10 @@ function readFilesFrom(files: Readonly<Record<string, string>>) {
 }
 
 function fileIo(files: Readonly<Record<string, string>> = {}): WorkerFileIo {
-  return {
-    pathIdentity: fakeWorkerIdentity,
-    realPath: resolveRealPath,
-    readTextFile: readFilesFrom(files),
-  }
+  return fakeWorkerFiles(
+    { pathIdentity: fakeWorkerIdentity, realPath: resolveRealPath },
+    readFilesFrom(files),
+  )
 }
 
 function resolvedVoid(): Promise<void> {
@@ -197,12 +196,14 @@ describe('buildWorkerPrompt', () => {
 
   it('RVM96A-3 refuses private and protected prompt reads including aliases', async () => {
     const readTextFile = vi.fn(() => Promise.resolve('synthetic-private-sentinel'))
-    const io: WorkerFileIo = {
-      pathIdentity: fakeWorkerIdentity,
-      realPath: (given) =>
-        Promise.resolve(given.endsWith('/alias.txt') ? `${TASK.folder}/.env` : given),
+    const io = fakeWorkerFiles(
+      {
+        pathIdentity: fakeWorkerIdentity,
+        realPath: (given) =>
+          Promise.resolve(given.endsWith('/alias.txt') ? `${TASK.folder}/.env` : given),
+      },
       readTextFile,
-    }
+    )
     const files = [
       '.env',
       '.env.production',
@@ -229,7 +230,10 @@ describe('buildWorkerPrompt', () => {
     const prompt = await buildWorkerPrompt(
       PARTS,
       { ...TASK, files },
-      { pathIdentity: fakeWorkerIdentity, realPath: resolveRealPath, readTextFile },
+      fakeWorkerFiles(
+        { pathIdentity: fakeWorkerIdentity, realPath: resolveRealPath },
+        readTextFile,
+      ),
       'linux',
       '/user/checkout',
     )
