@@ -1865,5 +1865,10 @@
   "legalFixable": "Javítható",
   "legalNotFixable": "Csak ajánlás",
   "legalEvidenceLabel": "Bizonyíték: {evidence}",
-  "legalConfidenceLabel": "Megbízhatóság: {confidence}"
+  "legalConfidenceLabel": "Megbízhatóság: {confidence}",
+  "legalScanItem": "/legal",
+  "legalScanItemDetail": "A munkaterület átvizsgálása licencelési, szerzőfeltüntetési és fejléc-megállapítások után",
+  "legalScanBusy": "A jogi ellenőrzés az aktuális kör befejeződése után indul.",
+  "legalScanUntrusted": "A jogi ellenőrzés a munkaterületet olvassa, amit a korlátozott mód nem engedélyez. A használatához jelölje megbízhatónak a munkaterületet.",
+  "legalScanPlanModeNotice": "Ez a jogi ellenőrzés Tervezés módban tartja a beszélgetést, amíg a munkaterületet olvassa, és a végén visszaáll a korábbi engedélyezési mód."
 }

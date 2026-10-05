@@ -1798,5 +1798,10 @@
   "legalFixable": "可修复",
   "legalNotFixable": "仅为建议",
   "legalEvidenceLabel": "证据：{evidence}",
-  "legalConfidenceLabel": "置信度：{confidence}"
+  "legalConfidenceLabel": "置信度：{confidence}",
+  "legalScanItem": "/legal",
+  "legalScanItemDetail": "扫描工作区中的许可、署名和标头问题",
+  "legalScanBusy": "当前回合结束后才会开始法律扫描。",
+  "legalScanUntrusted": "法律扫描需要读取工作区，但受限模式不允许。信任此工作区即可使用。",
+  "legalScanPlanModeNotice": "此次法律扫描在读取工作区期间会将对话保持在规划模式，结束后会恢复你原来的权限模式。"
 }

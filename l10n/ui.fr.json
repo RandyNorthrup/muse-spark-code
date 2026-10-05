@@ -1932,5 +1932,10 @@
   "legalFixable": "Corrigeable",
   "legalNotFixable": "Recommandation uniquement",
   "legalEvidenceLabel": "Preuve : {evidence}",
-  "legalConfidenceLabel": "Confiance : {confidence}"
+  "legalConfidenceLabel": "Confiance : {confidence}",
+  "legalScanItem": "/legal",
+  "legalScanItemDetail": "Analyser l’espace de travail à la recherche de constats de licence, d’attribution et d’en-tête",
+  "legalScanBusy": "L’analyse juridique démarrera une fois le tour en cours terminé.",
+  "legalScanUntrusted": "L’analyse juridique lit l’espace de travail, ce que le mode restreint ne permet pas. Faites confiance à l’espace de travail pour l’utiliser.",
+  "legalScanPlanModeNotice": "Cette analyse juridique maintient la conversation en mode Planification pendant qu’elle lit l’espace de travail, et votre mode d’autorisation précédent revient à la fin."
 }

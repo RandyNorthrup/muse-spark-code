@@ -1798,5 +1798,10 @@
   "legalFixable": "수정 가능",
   "legalNotFixable": "권장 사항만",
   "legalEvidenceLabel": "근거: {evidence}",
-  "legalConfidenceLabel": "신뢰도: {confidence}"
+  "legalConfidenceLabel": "신뢰도: {confidence}",
+  "legalScanItem": "/legal",
+  "legalScanItemDetail": "라이선스, 저작자 표시, 헤더 소견에 대해 작업 영역을 검사합니다",
+  "legalScanBusy": "현재 턴이 끝나면 법률 검사가 시작됩니다.",
+  "legalScanUntrusted": "법률 검사는 작업 영역을 읽지만, 제한 모드에서는 허용되지 않습니다. 사용하려면 작업 영역을 신뢰하세요.",
+  "legalScanPlanModeNotice": "이 법률 검사는 작업 영역을 읽는 동안 대화를 계획 모드로 유지하며, 끝나면 원래 권한 모드로 돌아갑니다."
 }

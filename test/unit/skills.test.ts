@@ -1,8 +1,12 @@
+import { readFileSync } from 'node:fs'
+import path from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
 import {
   bundledSkillSourcesRoot,
   bundledSkillsPackageRoot,
   bundledSkillsRoot,
+  extensionSkillsRoot,
   loadSkills,
   parseSkillFile,
   personalSkillsRoot,
@@ -89,6 +93,13 @@ describe('skill roots', () => {
       String.raw`C:\ext\vendor\high-quality-projects-skill`,
     )
     expect(bundledSkillsRoot('/ext/vendor/p', 'linux')).toBe('/ext/vendor/p/skills')
+    // The extension's own skills sit beside the vendored package (M97).
+    expect(extensionSkillsRoot('/ext/vendor/high-quality-projects-skill', 'linux')).toBe(
+      '/ext/skills',
+    )
+    expect(
+      extensionSkillsRoot(String.raw`C:\ext\vendor\high-quality-projects-skill`, 'win32'),
+    ).toBe(String.raw`C:\ext\skills`)
     expect(
       bundledSkillSourcesRoot({ platform: 'linux', homeDir: '/home/r', xdgConfigHome: undefined }),
     ).toBe('/home/r/.config/muse/skill-sources')
@@ -151,6 +162,63 @@ describe('loadSkills: the bundled source (M89)', () => {
     expect(load.warnings).toEqual([
       `bundled skill sneaky skipped: SKILL.md is refused: path ${PACKAGE}/skills/sneaky/SKILL.md leads outside the workspace through a link`,
     ])
+  })
+
+  // The extension's own skills are a second `bundled` root, after the
+  // vendored package, without touching it (M97).
+  it('loads them with the extension root as their package', async () => {
+    const extensionRoot = '/ext/skills'
+    const files = new Map([
+      [`${PACKAGE}/skills/project_setup/SKILL.md`, skillFile('project_setup', 'Bundled setup')],
+      [`${extensionRoot}/legal/SKILL.md`, skillFile('legal', 'Scan')],
+    ])
+    const load = await loadSkills({ io: memoryContextIo(files), platform: 'linux' }, [
+      ...roots,
+      {
+        directory: extensionRoot,
+        source: 'bundled' as const,
+        confineTo: '/ext',
+        packageRoot: '/ext',
+      },
+    ])
+    expect(load.skills.map((skill) => `${skill.source}:${skill.id}`)).toEqual([
+      'bundled:project_setup',
+      'bundled:legal',
+    ])
+    expect(load.skills.map((skill) => skill.packageRoot)).toEqual([PACKAGE, '/ext'])
+  })
+
+  it('a project skill named legal shadows the bundled text, never the host scan', async () => {
+    const files = new Map([
+      [`${ROOT}/.agents/skills/legal/SKILL.md`, skillFile('legal', 'Mine')],
+      [`/ext/skills/legal/SKILL.md`, skillFile('legal', 'Bundled')],
+    ])
+    const load = await loadSkills({ io: memoryContextIo(files), platform: 'linux' }, [
+      { directory: `${ROOT}/.agents/skills`, source: 'project' as const, confineTo: ROOT },
+      {
+        directory: '/ext/skills',
+        source: 'bundled' as const,
+        confineTo: '/ext',
+        packageRoot: '/ext',
+      },
+    ])
+    // The model reads the user's text; `/legal` still runs the host's scan
+    // (the command never consults skills).
+    expect(load.skills.map((skill) => `${skill.source}:${skill.id}:${skill.description}`)).toEqual([
+      'project:legal:Mine',
+    ])
+  })
+})
+
+describe('skills/legal/SKILL.md as shipped (M97)', () => {
+  it('parses with the legal name, a description, and user-invocable text', () => {
+    const root = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', '..')
+    const text = readFileSync(path.join(root, 'skills', 'legal', 'SKILL.md'), 'utf8')
+    const parsed = parseSkillFile(text)
+    expect(parsed).toMatchObject({ ok: true, skill: { name: 'legal' } })
+    const skill = parsed.ok ? parsed.skill : undefined
+    expect(skill?.description.length).toBeGreaterThan(0)
+    expect(skill?.isUserInvocable).toBe(true)
   })
 })
 

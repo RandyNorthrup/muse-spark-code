@@ -1932,5 +1932,10 @@
   "legalFixable": "Corregible",
   "legalNotFixable": "Solo recomendación",
   "legalEvidenceLabel": "Evidencia: {evidence}",
-  "legalConfidenceLabel": "Confianza: {confidence}"
+  "legalConfidenceLabel": "Confianza: {confidence}",
+  "legalScanItem": "/legal",
+  "legalScanItemDetail": "Analizar el área de trabajo en busca de hallazgos de licencias, atribuciones y encabezados",
+  "legalScanBusy": "El análisis legal empezará cuando termine el turno actual.",
+  "legalScanUntrusted": "El análisis legal lee el área de trabajo, lo que el modo restringido no permite. Confíe en el área de trabajo para usarlo.",
+  "legalScanPlanModeNotice": "Este análisis legal mantiene la conversación en el modo Planificar mientras lee el área de trabajo, y el modo de permisos que tenía vuelve cuando termina."
 }

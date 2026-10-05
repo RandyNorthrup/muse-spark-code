@@ -18,6 +18,27 @@ const MEMORY: readonly MemoryScopeSnapshot[] = [
   { scope: 'project', index: '- [A](a.md) | hook', notes: [], hasMoreNotes: false },
 ]
 
+/** A context with the bundled skills source, on while its setting is on. */
+function bundledContext(initial: Record<string, string>, isEnabled: () => boolean) {
+  const files = memoryTree(initial, ROOT)
+  const context = new WorkspaceContext({
+    io: memoryContextIo(files),
+    workspaceRoot: ROOT,
+    platform: 'linux',
+    personalSkillsRoot: USER_ROOT,
+    bundledSkills: {
+      packageRoot: `${ROOT}/.ext/vendor/high-quality-projects-skill`,
+      isEnabled,
+    },
+    personalAgentsRoot: USER_AGENTS_ROOT,
+    hasAgents: false,
+    isWorkspaceTrusted: () => true,
+    loadMemory: undefined,
+    warn: () => undefined,
+  })
+  return { context }
+}
+
 function setup(
   initial: Record<string, string>,
   isTrusted: boolean | (() => boolean) = true,
@@ -162,7 +183,8 @@ describe('WorkspaceContext', () => {
 
   it('lists the bundled skills while museSpark.bundledSkills is on, and drops them at the refresh after it goes off (M89)', async () => {
     const PACKAGE = `${ROOT}/.ext/vendor/high-quality-projects-skill`
-    const files = memoryTree(
+    let isOn = true
+    const { context } = bundledContext(
       {
         '.agents/skills/shout/SKILL.md': skillFile('shout', 'Caps'),
         // A personal skill with a bundled id shadows the bundled one.
@@ -179,21 +201,8 @@ describe('WorkspaceContext', () => {
           'Set up',
         ),
       },
-      ROOT,
+      () => isOn,
     )
-    let isOn = true
-    const context = new WorkspaceContext({
-      io: memoryContextIo(files),
-      workspaceRoot: ROOT,
-      platform: 'linux',
-      personalSkillsRoot: USER_ROOT,
-      bundledSkills: { packageRoot: PACKAGE, isEnabled: () => isOn },
-      personalAgentsRoot: USER_AGENTS_ROOT,
-      hasAgents: false,
-      isWorkspaceTrusted: () => true,
-      loadMemory: undefined,
-      warn: () => undefined,
-    })
     await context.load()
     expect(
       context.sections().skills.map((skill) => `${skill.source}:${skill.id}:${skill.description}`),
@@ -210,6 +219,33 @@ describe('WorkspaceContext', () => {
     isOn = true
     await expect(context.refreshSkills()).resolves.toBe(true)
     expect(context.skill('project_setup')?.source).toBe('bundled')
+  })
+
+  it('toggles the legal skill under the extension bundled root alongside the vendor package, dropping both when the setting goes off (M97-B)', async () => {
+    let isOn = false
+    const { context } = bundledContext(
+      {
+        '.ext/vendor/high-quality-projects-skill/skills/project_setup/SKILL.md': skillFile(
+          'project_setup',
+          'Set up',
+        ),
+        '.ext/skills/legal/SKILL.md': skillFile('legal', 'Scan'),
+      },
+      () => isOn,
+    )
+    await context.load()
+    expect(context.skill('legal')).toBeUndefined()
+    isOn = true
+    await expect(context.refreshSkills()).resolves.toBe(true)
+    expect(context.sections().skills.map((skill) => `${skill.source}:${skill.id}`)).toEqual([
+      'bundled:project_setup',
+      'bundled:legal',
+    ])
+    expect(context.skill('legal')?.packageRoot).toBe(`${ROOT}/.ext`)
+    isOn = false
+    await expect(context.refreshSkills()).resolves.toBe(true)
+    expect(context.skill('legal')).toBeUndefined()
+    expect(context.skill('project_setup')).toBeUndefined()
   })
 
   it('loads nothing in an untrusted workspace', async () => {

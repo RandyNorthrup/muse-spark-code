@@ -120,6 +120,7 @@ import {
   type SubagentUsage,
 } from '../../../shared/paid'
 import type { SubscriptionUsage } from '../../../shared/usage'
+import type { LegalScanRunner } from '../../../shared/legal'
 import {
   scheduleCadenceSchema,
   scheduleViewOf,
@@ -252,6 +253,7 @@ import {
 } from './sessionBudget'
 import { uiLocale } from '../../../shared/l10n/text'
 import { estimateCostUsd, formatUsd } from '../../usage/insights'
+import { runLegalScanCall } from './legalScanTool'
 import { toolHookInput, toolHookOutput } from './toolHookPayload'
 import { type ImagePlan, imageUseRequest, prepareImageCall, runImageCall } from './imageGeneration'
 import { promptCacheKey } from './promptCache'
@@ -482,6 +484,11 @@ export interface ModelApiHostDeps extends ModelApiPaidHooks {
    * tools; undefined leaves them out.
    */
   readonly codeIntel?: LanguageServiceHost | undefined
+  /**
+   * The deterministic legal scanner (M97, PLAN.md D76): lane S's scan
+   * through lane 0's contract; undefined leaves `legal_scan` out.
+   */
+  readonly legalScan?: LegalScanRunner | undefined
   /** `museSpark.modelApiRepoMap`, read per turn: the repo map in the system prompt (M67). */
   readonly isRepoMapInPrompt?: (() => boolean) | undefined
   /**
@@ -2679,6 +2686,9 @@ export class ModelApiSession implements AgentSession {
       // Trusted workspaces only, as the shell (M69).
       hasWebFetch: this.isWebFetchOffered(hasShell),
       hasCodeIntel: this.deps.codeIntel !== undefined,
+      // A scanner behind the tool, in a trusted workspace: trust lost
+      // after the offer refuses the call (M97).
+      hasLegalScan: this.deps.legalScan !== undefined && this.deps.isWorkspaceTrusted(),
     })
     const mcp = hasShell ? (this.deps.mcpServers?.definitions() ?? []) : []
     const offered = [...own, ...this.ideDefinitions(), ...mcp]
@@ -5671,6 +5681,9 @@ export class ModelApiSession implements AgentSession {
       case MODEL_API_TOOLS.recallOutput: {
         return { outcome: this.recallPacked(call) }
       }
+      case MODEL_API_TOOLS.legalScan: {
+        return { outcome: await this.runLegalScan(call, signal) }
+      }
       case MODEL_API_TOOLS.generateImage:
       case MODEL_API_TOOLS.editImage: {
         return {
@@ -6794,6 +6807,26 @@ export class ModelApiSession implements AgentSession {
       return webFetchRestricted()
     }
     return this.permissions.verdict(query) === 'deny' ? this.refusedByMode(call) : undefined
+  }
+
+  /**
+   * A `legal_scan` call (M97, PLAN.md D76): a read in every mode, stopped
+   * by Stop. The helper enforces the contract; this maps its outcome to the
+   * row, with a trust refusal in the user's language.
+   */
+  private async runLegalScan(call: FunctionCallItem, signal: AbortSignal): Promise<ToolOutcome> {
+    const outcome = await runLegalScanCall(
+      argumentsOf(call),
+      this.deps.legalScan,
+      this.deps.isWorkspaceTrusted(),
+      signal,
+    )
+    if (outcome.ok) {
+      return { output: outcome.json, visibleOutput: outcome.json }
+    }
+    return outcome.isRestricted
+      ? toolFailure(outcome.reason, UI_TEXT.legalScanUntrusted)
+      : toolFailure(outcome.reason)
   }
 
   /**

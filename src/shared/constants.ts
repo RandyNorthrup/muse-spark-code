@@ -859,6 +859,11 @@ export const FIND_FILES_GLOB = '**/*'
 // `/review …` in the prompt. The command and its keywords are commands, like
 // the slash names: they read the same in every language.
 export const REVIEW_SLASH_COMMAND = 'review'
+// `/legal …` in the prompt (M97, PLAN.md D76). Bare it scans the whole
+// workspace under the configured header policy; words after it name an
+// explicit file subset. A command, like the slash names: the same in every
+// language.
+export const LEGAL_SLASH_COMMAND = 'legal'
 export const REVIEW_KEYWORDS = { security: 'security', branch: 'branch', commit: 'commit' } as const
 /** The security preset: injection, secrets, authentication, unsafe APIs. */
 export const REVIEW_FOCUSES = ['general', 'security'] as const
@@ -1309,6 +1314,9 @@ export const MODEL_API_TOOLS = {
   recallOutput: 'recall_output',
   // M69 (PLAN.md D49, M44b): one public HTTPS page, read by the extension itself.
   webFetch: 'web_fetch',
+  // M97 (PLAN.md D76): the deterministic read-only legal scan. A read in
+  // every mode; never a write, a shell command or an install.
+  legalScan: 'legal_scan',
 } as const
 // --- Web fetch (M69, PLAN.md D49; the network-safety design of M44b) ---
 //
@@ -1577,6 +1585,14 @@ export const BUNDLED_SKILLS_SETTING = 'museSpark.bundledSkills'
 export const BUNDLED_SKILLS_PACKAGE_NAME = 'high-quality-projects-skill'
 export const BUNDLED_SKILLS_VENDOR_SEGMENTS = ['vendor', BUNDLED_SKILLS_PACKAGE_NAME] as const
 export const BUNDLED_SKILLS_DIR = 'skills'
+// The extension's own skills (M97, PLAN.md D76): `<extension>/skills`,
+// beside the vendored package, through D68's loading/install mechanism
+// without touching the pinned upstream package.
+export const EXTENSION_SKILLS_DIR = 'skills'
+// The bundled `/legal` skill (M97): guidance over the deterministic scan.
+// A user skill with the same id shadows its text; the host's scan and the
+// `/legal` command stay host-owned regardless.
+export const LEGAL_SKILL_ID = 'legal'
 export const BUNDLED_SKILLS_VENDOR_FILE = 'VENDOR.json'
 export const BUNDLED_SKILLS_SOURCES_DIR = 'skill-sources'
 // The file that makes a copy the extension's own: only a folder holding it
@@ -1876,6 +1892,11 @@ export const WEB_FETCH_BUNDLE_FILE = 'webFetch.js'
 // The Auto reviewer on Muse Code (M90, PLAN.md D69, D6): its side session and
 // queue, loaded on the first review.
 export const MUSE_CODE_REVIEWER_BUNDLE_FILE = 'museCodeReviewer.js'
+// The deterministic legal scanner (M97, PLAN.md D76, D6): lane S's scanner,
+// loaded on the first legal scan; the tool list and the `/legal` routing stay
+// in dist/extension.js. Lane R adds the build entry; until then the loader
+// reports the scanner unavailable.
+export const LEGAL_SCAN_BUNDLE_FILE = 'legalScan.js'
 // The empty folder under the extension's global storage the reviewer's side
 // session runs in: outside every workspace, so no History lists it, and
 // with no rules, skills or files of the user's to read.
@@ -2418,6 +2439,10 @@ export const IDE_MCP_PATH = '/mcp'
 export const IDE_MCP_LOOPBACK_HOST = '127.0.0.1'
 export const IDE_MCP_TOKEN_BYTES = 32
 export const IDE_MCP_TOOL_DIAGNOSTICS = 'getDiagnostics'
+// The read-only legal scan on the `ide` session server for Muse Code (M97,
+// PLAN.md D76): `mcp__ide__legalScan` in its items, the same deterministic
+// scan as the Model API backend's native `legal_scan`.
+export const IDE_LEGAL_SCAN_TOOL = 'legalScan'
 // MCP tool annotations (2025-06-18 schema): the `ide` server's web fetch
 // changes nothing but reaches the open internet, so Muse Code must not treat
 // it as a read-only tool (M69).
@@ -3719,6 +3744,12 @@ export const MODEL_API_MODEL_TEXT = {
   // backends, so they name "this tool", never a backend's own tool name.
   webFetchRestrictedMode:
     'web fetch is off while the workspace is in Restricted Mode; trust the workspace to enable it',
+  // M97 (PLAN.md D76): the Model API backend's trust refusal for the
+  // deterministic scan. It names "the legal scan", never the tool's own
+  // name; the `ide` tool answers the same refusal in its own words (each
+  // bundle carries only its own text, PLAN.md D6).
+  legalScanRestrictedMode:
+    'the legal scan is off while the workspace is in Restricted Mode; trust the workspace to enable it',
 } as const
 
 // The review's text for the model (M70, PLAN.md D49), English whatever the

@@ -2325,6 +2325,17 @@ export const EN = {
   legalNotFixable: 'Recommendation only',
   legalEvidenceLabel: 'Evidence: {evidence}',
   legalConfidenceLabel: 'Confidence: {confidence}',
+  // `/legal` in the prompt and its palette row (M97, lane B): the command
+  // reads the same in every language; the detail says what it does.
+  legalScanItem: '/legal',
+  legalScanItemDetail: 'Scan the workspace for licensing, attribution and header findings',
+  // Why a scan did not start, as a notice (lane B; lane W renders the report).
+  legalScanBusy: 'A legal scan starts once the current turn has ended.',
+  legalScanUntrusted:
+    'The legal scan reads the workspace, which Restricted Mode does not allow. Trust this workspace to use it.',
+  // A scan on Muse Code holds a live conversation in Plan mode (M70's hold, D76).
+  legalScanPlanModeNotice:
+    'This legal scan holds the conversation in Plan mode while it reads the workspace, and the permission mode you had comes back when it ends.',
 }
 
 /** The shape every table has: English's keys, with any language's plural forms. */

@@ -1798,5 +1798,10 @@
   "legalFixable": "修正可能",
   "legalNotFixable": "推奨のみ",
   "legalEvidenceLabel": "根拠: {evidence}",
-  "legalConfidenceLabel": "信頼度: {confidence}"
+  "legalConfidenceLabel": "信頼度: {confidence}",
+  "legalScanItem": "/legal",
+  "legalScanItemDetail": "ライセンス、帰属表示、ヘッダーの所見についてワークスペースをスキャンします",
+  "legalScanBusy": "ライセンススキャンは現在のターンが終了してから開始されます。",
+  "legalScanUntrusted": "ライセンススキャンはワークスペースを読み取りますが、制限モードでは許可されていません。使用するにはワークスペースを信頼してください。",
+  "legalScanPlanModeNotice": "このライセンススキャンは、ワークスペースの読み取り中は会話をプランモードに保持し、終了すると元の権限モードに戻ります。"
 }

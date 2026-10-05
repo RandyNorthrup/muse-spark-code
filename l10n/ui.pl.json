@@ -1999,5 +1999,10 @@
   "legalFixable": "Naprawialne",
   "legalNotFixable": "Tylko zalecenie",
   "legalEvidenceLabel": "Dowód: {evidence}",
-  "legalConfidenceLabel": "Pewność: {confidence}"
+  "legalConfidenceLabel": "Pewność: {confidence}",
+  "legalScanItem": "/legal",
+  "legalScanItemDetail": "Sprawdź obszar roboczy pod kątem ustaleń licencyjnych, dotyczących autorstwa i nagłówków",
+  "legalScanBusy": "Kontrola prawna rozpocznie się po zakończeniu bieżącej tury.",
+  "legalScanUntrusted": "Kontrola prawna odczytuje obszar roboczy, na co tryb ograniczony nie zezwala. Aby jej użyć, uznaj obszar roboczy za zaufany.",
+  "legalScanPlanModeNotice": "Ta kontrola prawna utrzymuje rozmowę w trybie planowania, dopóki odczytuje obszar roboczy, a po jej zakończeniu wróci Twój poprzedni tryb uprawnień."
 }
