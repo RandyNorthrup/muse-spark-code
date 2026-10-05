@@ -437,5 +437,282 @@
     "mutantSha256": "953cae0ed14710c23ba72bc75f3d1f27eb8a67dbc92aff243b0bba124118a413",
     "seconds": 1.7,
     "restoredSha256": "9bb8cd0177706c7bfe4eb8820704cc9a6c52da383fdc9b458634a7025fd87b4c"
+  },
+  {
+    "drill": "U31 immediate Model API allow cannot start Judge",
+    "file": "src/core/backends/modelapi/ModelApiHost.ts",
+    "testFile": "test/unit/judgeFences.test.ts",
+    "expectedTest": "does not start or charge a judge on an immediate Auto allow",
+    "exit": 1,
+    "failedTests": [
+      "Model API reviewer and card fences does not start or charge a judge on an immediate Auto allow"
+    ],
+    "beforeSha256": "6c9139f203f347cd4977f53553b310e60665724fa4b3a7415ced9d10a0d62ba0",
+    "mutantSha256": "7e47dcc0f2b716186896390a47e56afcc14bd9f75069898688fac69e3f7bdfb5",
+    "seconds": 4.53,
+    "restoredSha256": "6c9139f203f347cd4977f53553b310e60665724fa4b3a7415ced9d10a0d62ba0"
+  },
+  {
+    "drill": "U32 native immediate allow cannot start Judge",
+    "file": "src/host/conversation/conversationController.ts",
+    "testFile": "test/unit/conversationController.test.ts",
+    "expectedTest": "never starts Judge for an immediate native allow",
+    "exit": 1,
+    "failedTests": [
+      "ConversationController: Muse Judge card lifecycle (M98-U) never starts Judge for an immediate native allow in Edit automatically"
+    ],
+    "beforeSha256": "cafa92b56ecbd5aa46c921d3f1e8923671ad7c6e12a39cdfa0799abc054563e8",
+    "mutantSha256": "2cad377e651baf6c3504e033956efde92c610d920a40a5052c0869d0a9879e28",
+    "seconds": 25.01,
+    "restoredSha256": "cafa92b56ecbd5aa46c921d3f1e8923671ad7c6e12a39cdfa0799abc054563e8"
+  },
+  {
+    "drill": "U33 controller user answer discards fence",
+    "file": "src/host/conversation/conversationController.ts",
+    "testFile": "test/unit/conversationController.test.ts",
+    "expectedTest": "drops the advisory as soon as the user answers",
+    "exit": 1,
+    "failedTests": [
+      "ConversationController: Muse Judge card lifecycle (M98-U) drops the advisory as soon as the user answers"
+    ],
+    "beforeSha256": "cafa92b56ecbd5aa46c921d3f1e8923671ad7c6e12a39cdfa0799abc054563e8",
+    "mutantSha256": "bfa86989dbaaa02c81747a83261ab9ce8eb5301b740f3ac6532bad25e7b9cb64",
+    "seconds": 23.55,
+    "restoredSha256": "cafa92b56ecbd5aa46c921d3f1e8923671ad7c6e12a39cdfa0799abc054563e8"
+  },
+  {
+    "drill": "U34 changed reviewer action discards fence",
+    "file": "src/host/review/reviewedApprovals.ts",
+    "testFile": "test/unit/judgeFences.test.ts",
+    "expectedTest": "updated",
+    "exit": 1,
+    "failedTests": [
+      "Muse Code extension-owned reviewer fence discards a judge when an approval is updated while reviewer is pending"
+    ],
+    "beforeSha256": "0cd59b69864ea10734470996239efb512967218fbbfc113a4642401d96168346",
+    "mutantSha256": "1187ded10d69df06784cb11c531dc01bc7fbc8387393e6cfd8fb183ceb900408",
+    "seconds": 4.69,
+    "restoredSha256": "0cd59b69864ea10734470996239efb512967218fbbfc113a4642401d96168346"
+  },
+  {
+    "drill": "U35 release discards held Judge",
+    "file": "src/host/review/reviewedApprovals.ts",
+    "testFile": "test/unit/judgeFences.test.ts",
+    "expectedTest": "release",
+    "exit": 1,
+    "failedTests": [
+      "Muse Code extension-owned reviewer fence discards a judge when an approval is release while reviewer is pending"
+    ],
+    "beforeSha256": "0cd59b69864ea10734470996239efb512967218fbbfc113a4642401d96168346",
+    "mutantSha256": "70075a7c2e33f3b11fe642d6d4e312e9f14020b30d8f61bdf8812abdbdfc01b9",
+    "seconds": 4.21,
+    "restoredSha256": "0cd59b69864ea10734470996239efb512967218fbbfc113a4642401d96168346"
+  },
+  {
+    "drill": "U36 forget discards held Judge",
+    "file": "src/host/review/reviewedApprovals.ts",
+    "testFile": "test/unit/judgeFences.test.ts",
+    "expectedTest": "forget",
+    "exit": 1,
+    "failedTests": [
+      "Muse Code extension-owned reviewer fence discards a judge when an approval is forget while reviewer is pending"
+    ],
+    "beforeSha256": "0cd59b69864ea10734470996239efb512967218fbbfc113a4642401d96168346",
+    "mutantSha256": "54af01fc238172516523dad6457feb36f080c0648e44b3afbf56a49d684194b8",
+    "seconds": 3.78,
+    "restoredSha256": "0cd59b69864ea10734470996239efb512967218fbbfc113a4642401d96168346"
+  },
+  {
+    "drill": "U37 current policy at synchronous read",
+    "file": "src/core/judge/use.ts",
+    "testFile": "test/unit/judgeUse.test.ts",
+    "expectedTest": "drops a ready reviewer latch if policy changes",
+    "exit": 1,
+    "failedTests": [
+      "JudgeUse synchronous fences drops a ready reviewer latch if policy changes before its synchronous read"
+    ],
+    "beforeSha256": "18fdbc75223a2d39dd80e0a70837256693dc59464b4c21a4229bae760430dd22",
+    "mutantSha256": "6351f9cba9979e8273046699e96f15acfa184415fbd45668fe3a4ca691ffe11c",
+    "seconds": 2.58,
+    "restoredSha256": "18fdbc75223a2d39dd80e0a70837256693dc59464b4c21a4229bae760430dd22"
+  },
+  {
+    "drill": "U38 Manual Model API cards are eligible",
+    "file": "src/core/backends/modelapi/ModelApiHost.ts",
+    "testFile": "test/unit/judgeFences.test.ts",
+    "expectedTest": "adds a caution to a Manual card",
+    "exit": 1,
+    "failedTests": [
+      "Model API reviewer and card fences adds a caution to a Manual card without waiting or changing the choices"
+    ],
+    "beforeSha256": "6c9139f203f347cd4977f53553b310e60665724fa4b3a7415ced9d10a0d62ba0",
+    "mutantSha256": "3578313c274e847b8deed67738e924316c9f3713f4525a80c97b7fc1caec0e76",
+    "seconds": 4.58,
+    "restoredSha256": "6c9139f203f347cd4977f53553b310e60665724fa4b3a7415ced9d10a0d62ba0"
+  },
+  {
+    "drill": "U39 Manual Muse Code cards are eligible",
+    "file": "src/host/conversation/conversationController.ts",
+    "testFile": "test/unit/conversationController.test.ts",
+    "expectedTest": "observes a Manual card",
+    "exit": 1,
+    "failedTests": [
+      "ConversationController: Muse Judge card lifecycle (M98-U) observes a Manual card while leaving its ordinary choice to the user"
+    ],
+    "beforeSha256": "cafa92b56ecbd5aa46c921d3f1e8923671ad7c6e12a39cdfa0799abc054563e8",
+    "mutantSha256": "7c19251e1983383b558c6d54096c9964a4d4c5c2c3f0f9062273e99526a02b11",
+    "seconds": 22.51,
+    "restoredSha256": "cafa92b56ecbd5aa46c921d3f1e8923671ad7c6e12a39cdfa0799abc054563e8"
+  },
+  {
+    "drill": "U40 host boundary price validity",
+    "file": "src/host/paid/paidHost.ts",
+    "testFile": "test/unit/judgeConsent.test.ts",
+    "expectedTest": "denies invalid Judge tariffs and budgets at the host boundary",
+    "exit": 1,
+    "failedTests": [
+      "Judge first-charge consent hook denies invalid Judge tariffs and budgets at the host boundary without a popup"
+    ],
+    "beforeSha256": "cd9839d8fefdc9a17a9e88e73fe3ab67314259d7724b1e5dca54457280d2e7d8",
+    "mutantSha256": "7e29f3bb408d1c2e97375ed74e2041f77c219dde4db15347e0bedc83315ca5f7",
+    "seconds": 1.68,
+    "restoredSha256": "cd9839d8fefdc9a17a9e88e73fe3ab67314259d7724b1e5dca54457280d2e7d8"
+  },
+  {
+    "drill": "U41 own consent transition is allowed",
+    "file": "src/host/judge/judgeUse.ts",
+    "testFile": "test/unit/judgeUse.test.ts",
+    "expectedTest": "accepts its own price-consent transition",
+    "exit": 1,
+    "failedTests": [
+      "Judge source policy and first use accepts its own price-consent transition, but constructs a fresh bound runner after a model switch"
+    ],
+    "beforeSha256": "3630ee77e74d44c1a85b580ab6a334ac52122b1e66e25b4b448ac11f63cfaaab",
+    "mutantSha256": "c837ae35c9133efb7c2c1714cdde3efe5759dc778a05db704f235ccd38696493",
+    "seconds": 3.58,
+    "restoredSha256": "3630ee77e74d44c1a85b580ab6a334ac52122b1e66e25b4b448ac11f63cfaaab"
+  },
+  {
+    "drill": "U42 unpriced refused before remembered grant",
+    "file": "src/host/paid/paidHost.ts",
+    "testFile": "test/unit/judgeConsent.test.ts",
+    "expectedTest": "requires a stored key and a known tariff",
+    "exit": 1,
+    "failedTests": [
+      "Judge first-charge consent hook requires a stored key and a known tariff even after an always grant"
+    ],
+    "beforeSha256": "cd9839d8fefdc9a17a9e88e73fe3ab67314259d7724b1e5dca54457280d2e7d8",
+    "mutantSha256": "374f5b12324ea484125e86af7a1a2181b7c7f185bd084951bd8fe155c3f42ae7",
+    "seconds": 1.55,
+    "restoredSha256": "cd9839d8fefdc9a17a9e88e73fe3ab67314259d7724b1e5dca54457280d2e7d8"
+  },
+  {
+    "drill": "U43 safe card cannot get a caution",
+    "file": "src/core/judge/use.ts",
+    "testFile": "test/unit/judgeUse.test.ts",
+    "expectedTest": "attaches an already ready caution and leaves a safe card alone",
+    "exit": 1,
+    "failedTests": [
+      "JudgeUse synchronous fences attaches an already ready caution and leaves a safe card alone"
+    ],
+    "beforeSha256": "18fdbc75223a2d39dd80e0a70837256693dc59464b4c21a4229bae760430dd22",
+    "mutantSha256": "4b7645728d8d61be45a9a5d923a00af49b6341264f214d04e22cfaff775a7865",
+    "seconds": 2.54,
+    "restoredSha256": "18fdbc75223a2d39dd80e0a70837256693dc59464b4c21a4229bae760430dd22"
+  },
+  {
+    "drill": "U44 malformed captured arguments refused",
+    "file": "src/core/judge/use.ts",
+    "testFile": "test/unit/judgeUse.test.ts",
+    "expectedTest": "keys parsed Muse Code arguments canonically",
+    "exit": 1,
+    "failedTests": [
+      "JudgeUse synchronous fences keys parsed Muse Code arguments canonically and refuses malformed JSON"
+    ],
+    "beforeSha256": "18fdbc75223a2d39dd80e0a70837256693dc59464b4c21a4229bae760430dd22",
+    "mutantSha256": "79a05908099a61332574630838df7d1a8c240eaa16d9f316765f308a7d456065",
+    "seconds": 2.54,
+    "restoredSha256": "18fdbc75223a2d39dd80e0a70837256693dc59464b4c21a4229bae760430dd22"
+  },
+  {
+    "drill": "U45 mismatched backend refuses source",
+    "file": "src/host/judge/judgeUse.ts",
+    "testFile": "test/unit/judgeUse.test.ts",
+    "expectedTest": "refuses a backend mismatch",
+    "exit": 1,
+    "failedTests": [
+      "Judge source policy and first use refuses a backend mismatch without consent or a source"
+    ],
+    "beforeSha256": "3630ee77e74d44c1a85b580ab6a334ac52122b1e66e25b4b448ac11f63cfaaab",
+    "mutantSha256": "b7b43cd17a8a0f3686226a6b52581c82d8a73ecb5c39d6b14d2e7a996af52edd",
+    "seconds": 2.6,
+    "restoredSha256": "3630ee77e74d44c1a85b580ab6a334ac52122b1e66e25b4b448ac11f63cfaaab"
+  },
+  {
+    "drill": "U46 Judge contrast gate fires",
+    "file": "src/webview/styles.css",
+    "command": "node scripts/a11y.mjs judge (four themes)",
+    "exit": 1,
+    "failure": "color-contrast on .judge-status",
+    "beforeSha256": "647601669cd87549850417e3d9bf5b8b7b57a465e3d66468e9366b5c4a6fe52b",
+    "mutantSha256": "16c690c517d9a4f8d357a040ca14994f77507f415adc2755ab6b615280308e1e",
+    "output": "\nundecided: color-contrast (serious): Elements must meet minimum color contrast ratio thresholds\n  dark/judge: .judge-status\n    Fix any of the following:\n      Element has a 1:1 contrast ratio with the background\n  dark/judge: span[dir=\"auto\"]\n    Fix any of the following:\n      Element has a 1:1 contrast ratio with the background\n  hc-light/judge: .judge-status\n    Fix any of the following:\n      Element has a 1:1 contrast ratio with the background\n  hc-light/judge: span[dir=\"auto\"]\n    Fix any of the following:\n      Element has a 1:1 contrast ratio with the background\n  light/judge: .judge-status\n    Fix any of the following:\n      Element has a 1:1 contrast ratio with the background\n  light/judge: span[dir=\"auto\"]\n    Fix any of the following:\n      Element has a 1:1 contrast ratio with the background\n  hc-dark/judge: .judge-status\n    Fix any of the following:\n      Element has a 1:1 contrast ratio with the background\n  hc-dark/judge: span[dir=\"auto\"]\n    Fix any of the following:\n      Element has a 1:1 contrast ratio with the background\n\nNot measured, as axe cannot: the contrast of 0 elements it could not see (under a menu or dialog the user opened, or scrolled out of the view) and of 4 glyph-only elements (non-text contrast, WCAG 1.4.11, is not axe's).\n\na11y: 4 pages (1 scenarios × 4 themes), 0 rules violated on 0 elements, 1 rules undecided on 8 elements, 0 exempt, 0 pages without a result\n",
+    "restoredSha256": "647601669cd87549850417e3d9bf5b8b7b57a465e3d66468e9366b5c4a6fe52b"
+  },
+  {
+    "drill": "U47 discarded callback cannot cache",
+    "file": "src/core/judge/use.ts",
+    "testFile": "test/unit/judgeUse.test.ts",
+    "expectedTest": "never caches a result dropped by policy",
+    "exit": 1,
+    "failedTests": [
+      "JudgeUse synchronous fences never caches a result dropped by policy or by a synchronous card answer"
+    ],
+    "beforeSha256": "25992f56bc47d1fe4dc831e6258b85832d6c6e8374fc1b88e3d453ad4db1baed",
+    "mutantSha256": "116c4eae2e7b9644915e262e29fcd27f93a4c1a17b9f7ca588095b96402862a2",
+    "seconds": 3.01,
+    "restoredSha256": "25992f56bc47d1fe4dc831e6258b85832d6c6e8374fc1b88e3d453ad4db1baed"
+  },
+  {
+    "drill": "U48 factory receives live action binding",
+    "file": "src/core/judge/use.ts",
+    "testFile": "test/unit/judgeUse.test.ts",
+    "expectedTest": "accepts its own price-consent transition",
+    "exit": 1,
+    "failedTests": [
+      "Judge source policy and first use accepts its own price-consent transition, but constructs a fresh bound runner after a model switch"
+    ],
+    "beforeSha256": "e856ae03e3e3bb2cd98efb7898c1e706beb669ae27a6e3cbfa127edc52c193b3",
+    "mutantSha256": "8d80e218649b4682704643b263fcfee8a8ce240516792e079bed4bcaf0d5ec9b",
+    "seconds": 2.84,
+    "restoredSha256": "e856ae03e3e3bb2cd98efb7898c1e706beb669ae27a6e3cbfa127edc52c193b3"
+  },
+  {
+    "drill": "U49 source lifetime aborts on fence",
+    "file": "src/core/judge/use.ts",
+    "testFile": "test/unit/judgeUse.test.ts",
+    "expectedTest": "aborts the admitted source lifetime",
+    "exit": 1,
+    "failedTests": [
+      "JudgeUse synchronous fences aborts the admitted source lifetime when the reviewer fence passes"
+    ],
+    "beforeSha256": "ee1023d057eeb2f52dc529626e79574e97f23d106d449311fa8a114a9b26cb8c",
+    "mutantSha256": "5defa8e8887c27bf36129cce3add9dc25304ea411b3c2e3a296a58f433cdfd95",
+    "seconds": 2.71,
+    "restoredSha256": "ee1023d057eeb2f52dc529626e79574e97f23d106d449311fa8a114a9b26cb8c"
+  },
+  {
+    "drill": "U50 exact card requirement id",
+    "file": "src/webview/state/uiState.ts",
+    "testFile": "test/unit/judgeUi.test.tsx",
+    "expectedTest": "drops a caution after the user decides",
+    "exit": 1,
+    "failedTests": [
+      "Judge card note and status drops a caution after the user decides, after resolution, and for a replaced stage or conversation"
+    ],
+    "beforeSha256": "54cf059d506276f3cac882e9346388269e824ac678c6fd0c3f6e1b944ea7219c",
+    "mutantSha256": "400fcffee01c44634c5f1d208d526903f3ad2aa3cfc18e4233158a7eaf707d1c",
+    "seconds": 2.79,
+    "restoredSha256": "54cf059d506276f3cac882e9346388269e824ac678c6fd0c3f6e1b944ea7219c"
   }
 ]

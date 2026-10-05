@@ -4046,13 +4046,7 @@ export class ModelApiSession implements AgentSession {
   }
 
   private startJudge(call: FunctionCallItem): JudgeFence | undefined {
-    if (
-      this.permissions.currentMode !== 'onRequest' ||
-      this.isSubagent ||
-      this.isSideChat ||
-      this.active === undefined
-    )
-      return undefined
+    if (this.isSubagent || this.isSideChat || this.active === undefined) return undefined
     let args: unknown
     try {
       args = JSON.parse(call.arguments)

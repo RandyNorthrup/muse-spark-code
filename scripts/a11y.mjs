@@ -23,6 +23,7 @@ import { findChrome } from './lib/chrome.mjs'
 import { harnessArgs, langQuery, prepareLang } from './lib/harnessLang.mjs'
 import {
   HARNESS_PATH,
+  HARNESS_WIDE_VIEWPORT,
   LOOPBACK,
   PAGE_TIMEOUT_MS,
   SCENARIOS,
@@ -71,12 +72,20 @@ function decodeEntities(text) {
 async function scan(chrome, port, page, lang, profileDir) {
   const url = `http://${LOOPBACK}:${String(port)}/${HARNESS_PATH}?scenario=${page.scenario}&theme=${page.theme}&axe=1${langQuery(lang)}`
   try {
-    if (page.scenario === 'share-narrow') {
-      return await withNarrowPage(chrome, profileDir, url, async (tab) => {
-        const result = tab.locator('#axe-result')
-        await result.waitFor({ state: 'attached', timeout: PAGE_TIMEOUT_MS })
-        return JSON.parse(await result.textContent())
-      })
+    if (page.scenario === 'share-narrow' || page.scenario.startsWith('judge')) {
+      return await withNarrowPage(
+        chrome,
+        profileDir,
+        url,
+        async (tab) => {
+          const result = tab.locator('#axe-result')
+          await result.waitFor({ state: 'attached', timeout: PAGE_TIMEOUT_MS })
+          return JSON.parse(await result.textContent())
+        },
+        page.scenario === 'share-narrow' || page.scenario === 'judge-narrow'
+          ? undefined
+          : HARNESS_WIDE_VIEWPORT,
+      )
     }
     const { stdout } = await execFileAsync(
       chrome,

@@ -142,6 +142,7 @@ async function modelRig(
   outcome?: 'caution' | 'none' | 'failed',
   hasReviewer = true,
   command = 'npm test',
+  approvalMode: 'onRequest' | 'promptUnmatched' = 'onRequest',
 ) {
   const judge = judgeUseRig({ outcome })
   const api = fakeModelApi()
@@ -167,7 +168,7 @@ async function modelRig(
   const session = await host.startSession({
     workspaceRoot: '/ws',
     modelId: 'muse-spark-1.3',
-    approvalMode: 'onRequest',
+    approvalMode,
   })
   if (!(session instanceof ModelApiSession)) throw new Error('wrong session type')
   const watched = watchSessionTurns(session)
@@ -224,8 +225,17 @@ describe('Model API reviewer and card fences', () => {
     },
   )
 
-  it('renders a card before the delayed judge and adds only a caution note', async () => {
-    const rig = await modelRig(undefined, false)
+  it.each([
+    {
+      mode: 'onRequest',
+      name: 'renders a card before the delayed judge and adds only a caution note',
+    },
+    {
+      mode: 'promptUnmatched',
+      name: 'adds a caution to a Manual card without waiting or changing the choices',
+    },
+  ] as const)('$name', async ({ mode }) => {
+    const rig = await modelRig(undefined, false, 'npm test', mode)
     const card = await firstCard(rig.events)
     expect(card.judgeCaution).toBeUndefined()
     await vi.waitFor(() => {

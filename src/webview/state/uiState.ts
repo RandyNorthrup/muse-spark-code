@@ -1720,6 +1720,7 @@ function applyAgentEvent(state: UiState, event: AgentEvent, at: number): UiState
       const transcript = state.transcript.map((entry) => {
         return entry.kind !== 'tool' ||
           entry.approval?.approvalId !== event.approvalId ||
+          entry.approval.requirementId.approvalId !== event.requirementId.approvalId ||
           entry.approval.requirementId.sourceIndex !== event.requirementId.sourceIndex ||
           entry.approval.decidedSourceIndex !== undefined ||
           entry.approval.judgeCaution === true

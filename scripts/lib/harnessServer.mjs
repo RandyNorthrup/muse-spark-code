@@ -11,6 +11,8 @@ export const LOOPBACK = '127.0.0.1'
 export const HARNESS_PATH = 'test/harness/index.html'
 // Real time for one page; a hung browser fails rather than producing an empty result.
 export const PAGE_TIMEOUT_MS = 120_000
+export const HARNESS_WIDE_VIEWPORT = { width: 690, height: 760 }
+const NARROW_VIEWPORT = { width: 320, height: 760 }
 // Every `?scenario=` test/harness/index.html plays.
 export const SCENARIOS = [
   'empty',
@@ -165,11 +167,11 @@ export function serveRepo(repoRoot) {
   })
 }
 
-/** Chrome's CLI clamps windows to 500 px: the narrow share check needs a real 320 px viewport. */
-export async function withNarrowPage(chrome, profileDir, url, run) {
+/** Chrome's CLI clamps narrow windows and can stall; use real viewports for these cases. */
+export async function withNarrowPage(chrome, profileDir, url, run, viewport = NARROW_VIEWPORT) {
   const browser = await chromium.launchPersistentContext(profileDir, {
     ...(path.isAbsolute(chrome) ? { executablePath: chrome } : { channel: 'chrome' }),
-    viewport: { width: 320, height: 760 },
+    viewport,
     timeout: PAGE_TIMEOUT_MS,
   })
   try {

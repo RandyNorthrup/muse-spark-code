@@ -86,6 +86,9 @@ describe('Judge card note and status', () => {
 
   it('drops a caution after the user decides, after resolution, and for a replaced stage or conversation', () => {
     const pending = event(initialUiState, CARD)
+    expect(
+      event(pending, { ...CAUTION, requirementId: { approvalId: 'other', sourceIndex: 0 } }),
+    ).toBe(pending)
     const decided = uiReducer(pending, {
       type: 'approvalDecided',
       approvalId: 'a1',

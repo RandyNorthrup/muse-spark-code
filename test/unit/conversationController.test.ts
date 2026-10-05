@@ -13251,16 +13251,22 @@ async function judgeConversation(mode: ConversationDeps['initialPermissionMode']
   return { ...t, judge }
 }
 
-async function asking() {
-  const t = await judgeConversation('auto')
+async function asking(mode: ConversationDeps['initialPermissionMode'] = 'auto') {
+  const t = await judgeConversation(mode)
   t.server.notify('approval/requested', { ...raceRequested('s1'), turnId: 't1' })
   await settle()
   return t
 }
 
 describe('ConversationController: Muse Judge card lifecycle (M98-U)', () => {
-  it('renders the native card immediately, then adds only a caution', async () => {
-    const t = await asking()
+  it.each([
+    { mode: 'auto', name: 'renders the native card immediately, then adds only a caution' },
+    {
+      mode: 'manual',
+      name: 'observes a Manual card while leaving its ordinary choice to the user',
+    },
+  ] as const)('$name', async ({ mode }) => {
+    const t = await asking(mode)
     expect(agentEvents(t).filter((e) => e.type === 'approvalRequested')).toHaveLength(1)
     await vi.waitFor(() => {
       expect(t.judge.jobs).toHaveLength(1)

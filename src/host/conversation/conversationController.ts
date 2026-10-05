@@ -1648,12 +1648,7 @@ export class ConversationController {
   }
 
   private watchJudgeCard(event: Extract<AgentEvent, { type: 'approvalRequested' }>): void {
-    if (
-      this.sessionKind !== 'museCode' ||
-      this.permissionMode !== AUTO_MODE ||
-      this.session === undefined ||
-      event.isReplayed === true
-    )
+    if (this.sessionKind !== 'museCode' || this.session === undefined || event.isReplayed === true)
       return
     const fence = startApprovalJudge(
       this.deps.judge,

@@ -1,5 +1,5 @@
 import { vi, expect } from 'vitest'
-import type { JudgeEntryStore } from '../../../src/core/judge/entries'
+import type { JudgeEntryStore, JudgeEntryParts } from '../../../src/core/judge/entries'
 import { JudgeUse, type JudgeUseJob, type JudgeFence } from '../../../src/core/judge/use'
 
 export const JUDGE_ACTION = {
@@ -22,16 +22,18 @@ export function judgeUseRig(
     outcome?: 'caution' | 'none' | 'failed' | undefined
   } = {},
 ) {
-  const jobs: { job: JudgeUseJob; entries: JudgeEntryStore }[] = []
+  const jobs: { job: JudgeUseJob; entries: JudgeEntryStore; signal: AbortSignal }[] = []
   const onFence = vi.fn()
   const onError = vi.fn()
   const prepare = vi.fn(options.prepare ?? (() => Promise.resolve(true)))
-  const createRunner = vi.fn((entries: JudgeEntryStore) => ({
-    judge: (job: JudgeUseJob) => {
-      jobs.push({ job, entries })
-      if (options.outcome !== undefined) entries.settle(job.entryKey, options.outcome)
-    },
-  }))
+  const createRunner = vi.fn(
+    (entries: JudgeEntryStore, _action: JudgeEntryParts, signal: AbortSignal) => ({
+      judge: (job: JudgeUseJob) => {
+        jobs.push({ job, entries, signal })
+        if (options.outcome !== undefined) entries.settle(job.entryKey, options.outcome)
+      },
+    }),
+  )
   const judge = new JudgeUse({
     isOn: options.on ?? (() => true),
     prepare,

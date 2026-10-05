@@ -1,7 +1,7 @@
 import { memento } from './helpers/memento'
 import type * as vscode from 'vscode'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { createPaidFeatures } from '../../src/host/paid/paidHost'
+import { createPaidFeatures, askPaidUse } from '../../src/host/paid/paidHost'
 import { paidUseQuestion } from '../../src/core/paid/paidConsent'
 import { PaidUsage } from '../../src/core/paid/paidFeatures'
 import { GLOBAL_STATE_KEYS, UI_TEXT } from '../../src/shared/constants'
@@ -103,6 +103,16 @@ describe('Judge first-charge consent hook', () => {
     await expect(allowed).resolves.toBe(false)
     expect(rig.globals.get(GLOBAL_STATE_KEYS.paidConfirmations)).toBeUndefined()
     expect(rig.workspace.size).toBe(0)
+  })
+
+  it('denies invalid Judge tariffs and budgets at the host boundary without a popup', async () => {
+    await expect(
+      askPaidUse({ feature: 'judge', modelId: 'unknown', dailyBudgetUsd: 2 }, true),
+    ).resolves.toBe('deny')
+    await expect(
+      askPaidUse({ feature: 'judge', modelId: 'muse-spark-1.3', dailyBudgetUsd: -1 }, true),
+    ).resolves.toBe('deny')
+    expect(modal).not.toHaveBeenCalled()
   })
 
   it('cannot accept a Judge price while its engine is off', async () => {

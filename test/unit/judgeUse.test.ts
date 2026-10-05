@@ -1,3 +1,5 @@
+import { commitOutcome } from '../../src/core/judge/same/batches'
+import { JudgeResultCache } from '../../src/core/judge/same/resultCache'
 import { describe, expect, it, vi } from 'vitest'
 import { createJudgeUse } from '../../src/host/judge/judgeUse'
 import { JudgeReplayRecorder } from '../../src/core/eval/judgeReplay'
@@ -129,6 +131,59 @@ describe('JudgeUse synchronous fences', () => {
     expect(ready?.read()).toBeUndefined()
   })
 
+  it('drops a ready reviewer latch if policy changes before its synchronous read', async () => {
+    let isOn = true
+    const rig = judgeUseRig({ on: () => isOn, outcome: 'caution' })
+    const fence = rig.judge.start(JUDGE_ACTION, 'state')
+    await vi.waitFor(() => {
+      expect(rig.jobs).toHaveLength(1)
+    })
+    isOn = false
+    expect(fence?.read()).toBeUndefined()
+    expect(rig.onFence).toHaveBeenCalledWith({ backend: 'modelApi', ready: false, caution: false })
+  })
+
+  it('never caches a result dropped by policy or by a synchronous card answer', async () => {
+    for (const kind of ['policy', 'answer'] as const) {
+      let isOn = true
+      const rig = judgeUseRig({ on: () => isOn })
+      const fence = rig.judge.start(JUDGE_ACTION, 'state')
+      await vi.waitFor(() => {
+        expect(rig.jobs).toHaveLength(1)
+      })
+      if (kind === 'policy') isOn = false
+      else
+        fence?.card(() => {
+          fence.discard()
+        })
+      const job = rig.jobs[0]
+      if (job === undefined) throw new Error('No job')
+      const cache = new JudgeResultCache()
+      commitOutcome({
+        entries: job.entries,
+        cache,
+        entryKey: job.job.entryKey,
+        outcome: 'caution',
+        model: 'muse-spark-1.3',
+        answers: [],
+      })
+      expect(cache.size).toBe(0)
+      expect(fence?.read()).toBeUndefined()
+    }
+  })
+
+  it('aborts the admitted source lifetime when the reviewer fence passes', async () => {
+    const rig = judgeUseRig()
+    const fence = rig.judge.start(JUDGE_ACTION, 'state')
+    await vi.waitFor(() => {
+      expect(rig.jobs).toHaveLength(1)
+    })
+    const job = rig.jobs[0]
+    expect(job?.signal.aborted).toBe(false)
+    expect(fence?.read()).toBeUndefined()
+    expect(job?.signal.aborted).toBe(true)
+  })
+
   it('off creates no runner, question, consent or fence sample', () => {
     const rig = judgeUseRig({ on: () => false })
     expect(rig.judge.start(JUDGE_ACTION, 'state')).toBeUndefined()
@@ -198,6 +253,14 @@ function hostRig(backend: 'museCode' | 'modelApi') {
 }
 
 describe('Judge source policy and first use', () => {
+  it('refuses a backend mismatch without consent or a source', () => {
+    const rig = hostRig('modelApi')
+    expect(rig.judge.start({ ...JUDGE_ACTION, backend: 'museCode' }, 'state')).toBeUndefined()
+    expect(rig.createRunner).not.toHaveBeenCalled()
+    expect(rig.allowsPaidJudge).not.toHaveBeenCalled()
+    expect(rig.onStatus).not.toHaveBeenCalled()
+  })
+
   it('subscription-only Muse Code never asks a price and says the limits and isolation residual once', async () => {
     const rig = hostRig('museCode')
     rig.judge.start({ ...JUDGE_ACTION, backend: 'museCode' }, 'state')
@@ -233,6 +296,11 @@ describe('Judge source policy and first use', () => {
       expect(rig.runner.judge).toHaveBeenCalledTimes(2)
     })
     expect(rig.createRunner).toHaveBeenCalledTimes(2)
+    expect(rig.createRunner).toHaveBeenLastCalledWith(
+      expect.anything(),
+      { ...JUDGE_ACTION, turnId: 't2' },
+      expect.any(AbortSignal),
+    )
     expect(rig.allowsPaidJudge).toHaveBeenLastCalledWith('muse-spark-1.1')
   })
 

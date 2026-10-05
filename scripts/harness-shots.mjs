@@ -21,6 +21,7 @@ import { findChrome } from './lib/chrome.mjs'
 import { harnessArgs, langQuery, prepareLang } from './lib/harnessLang.mjs'
 import {
   HARNESS_PATH,
+  HARNESS_WIDE_VIEWPORT,
   LOOPBACK,
   SCENARIOS,
   serveRepo,
@@ -37,11 +38,21 @@ const repoRoot = process.cwd()
 async function shoot(chrome, port, scenario, lang, outDir, profileDir) {
   const file = path.join(outDir, `${scenario}.png`)
   const url = `http://${LOOPBACK}:${String(port)}/${HARNESS_PATH}?scenario=${scenario}${langQuery(lang)}`
-  if (scenario === 'share-narrow') {
-    await withNarrowPage(chrome, profileDir, url, async (page) => {
-      await page.getByRole('dialog').waitFor()
-      await page.screenshot({ path: file })
-    })
+  if (scenario === 'share-narrow' || scenario.startsWith('judge')) {
+    await withNarrowPage(
+      chrome,
+      profileDir,
+      url,
+      async (page) => {
+        if (scenario === 'share-narrow' || scenario === 'judge-usage')
+          await page.getByRole('dialog').waitFor()
+        else await page.locator('.judge-status').waitFor()
+        await page.screenshot({ path: file })
+      },
+      scenario === 'share-narrow' || scenario === 'judge-narrow'
+        ? undefined
+        : HARNESS_WIDE_VIEWPORT,
+    )
     return file
   }
   await execFileAsync(chrome, [

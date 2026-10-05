@@ -1,5 +1,6 @@
 // M98-U's policy and first-use wiring. D supplies S's lazily loaded runner,
 // with each paid transport dispatch admitted by A over the shared D78 ledger.
+import type { JudgeEntryParts } from '../../core/judge/entries'
 import { isJudgeEngineOn } from '../../core/judge/engine'
 import {
   resolveJudgeMode,
@@ -32,7 +33,8 @@ export function createJudgeUse(deps: JudgeUseHostDeps): JudgeUse {
     ...deps.context(),
     minReadyRate: JUDGE_MIN_READY_RATE,
   })
-  const isOn = () => {
+  const isOn = (action: JudgeEntryParts) => {
+    if (action.backend !== deps.backend) return false
     const current = context()
     // Unasked paid consent is acquired in the background, not a startup modal.
     const resolvable = {

@@ -30,7 +30,11 @@ export interface JudgeUseDeps {
   /** Reads the current mode/source policy. Off must not create a runner. */
   readonly isOn: (action: JudgeEntryParts) => boolean
   /** Lazily creates S's source, with its transport admitted by lane A. */
-  readonly createRunner: (entries: JudgeEntryStore) => { judge(job: JudgeUseJob): void }
+  readonly createRunner: (
+    entries: JudgeEntryStore,
+    action: JudgeEntryParts,
+    signal: AbortSignal,
+  ) => { judge(job: JudgeUseJob): void }
   /** First-charge consent, if paid; must re-bind after its waits (lane A). */
   readonly prepare: (action: JudgeEntryParts, signal: AbortSignal) => Promise<boolean>
   readonly question: () => JudgeQuestion
@@ -54,18 +58,17 @@ interface LiveFence {
 
 class ObservedEntries extends JudgeEntryStore {
   public constructor(
-    private readonly onReady: (
+    private readonly isReadyLive: (
       handle: JudgeEntryHandle,
       outcome: JudgeReadyOutcome | 'failed',
-    ) => void,
+    ) => boolean,
   ) {
     super()
   }
 
   public override settle(handle: JudgeEntryHandle, outcome: JudgeReadyOutcome | 'failed'): boolean {
     const isAccepted = super.settle(handle, outcome)
-    if (isAccepted) this.onReady(handle, outcome)
-    return isAccepted
+    return isAccepted && this.isReadyLive(handle, outcome)
   }
 }
 
@@ -74,13 +77,15 @@ export class JudgeUse implements JudgeAdvisory {
   private readonly live = new Map<JudgeEntryHandle, LiveFence>()
   private readonly entries = new ObservedEntries((handle, outcome) => {
     const live = this.live.get(handle)
-    if (live === undefined) return
+    if (live === undefined) return false
     if (!this.deps.isOn(live.action)) {
       this.discard(handle)
-      return
+      return false
     }
     live.outcome = outcome === 'failed' ? undefined : outcome
     if (outcome === 'caution') live.onCaution?.()
+    // A card callback may synchronously answer; S must not cache that discarded entry.
+    return this.live.get(handle) === live
   })
 
   public constructor(private readonly deps: JudgeUseDeps) {}
@@ -93,7 +98,7 @@ export class JudgeUse implements JudgeAdvisory {
     // A held modal is not permission to judge a replaced action or changed mode.
     if (live.stop.signal.aborted || this.live.get(handle) !== live || !this.deps.isOn(live.action))
       return
-    const runner = this.deps.createRunner(this.entries)
+    const runner = this.deps.createRunner(this.entries, live.action, live.stop.signal)
     runner.judge({ entryKey: handle, stateText, questions: [this.deps.question()] })
   }
 
