@@ -26,6 +26,7 @@ import {
   LOOPBACK,
   PAGE_TIMEOUT_MS,
   SCENARIOS,
+  TRAFFIC_SCENARIOS,
   serveRepo,
   withNarrowPage,
 } from './lib/harnessServer.mjs'
@@ -71,12 +72,22 @@ function decodeEntities(text) {
 async function scan(chrome, port, page, lang, profileDir) {
   const url = `http://${LOOPBACK}:${String(port)}/${HARNESS_PATH}?scenario=${page.scenario}&theme=${page.theme}&axe=1${langQuery(lang)}`
   try {
-    if (page.scenario === 'share-narrow') {
-      return await withNarrowPage(chrome, profileDir, url, async (tab) => {
-        const result = tab.locator('#axe-result')
-        await result.waitFor({ state: 'attached', timeout: PAGE_TIMEOUT_MS })
-        return JSON.parse(await result.textContent())
-      })
+    if (page.scenario === 'share-narrow' || TRAFFIC_SCENARIOS.includes(page.scenario)) {
+      const viewport = {
+        width: ['share-narrow', 'team-traffic-320'].includes(page.scenario) ? 320 : 690,
+        height: 760,
+      }
+      return await withNarrowPage(
+        chrome,
+        profileDir,
+        url,
+        async (tab) => {
+          const result = tab.locator('#axe-result')
+          await result.waitFor({ state: 'attached', timeout: PAGE_TIMEOUT_MS })
+          return JSON.parse(await result.textContent())
+        },
+        viewport,
+      )
     }
     const { stdout } = await execFileAsync(
       chrome,

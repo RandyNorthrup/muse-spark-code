@@ -81,7 +81,18 @@ final S board and shared test helper, including cancellation, journal
 acknowledgement, local dependency defaults, atomic edge refusal and frozen
 orchestrator/worker declarations.
 
-V merge, interface verification and final scoped gate receipts follow
+The T2 merge is `4692dd58`, with hooks and Gitleaks passing.
+`m96c/vfix` at `a9bf9060` also conflicts only in PLAN's M96c introduction.
+Keep all three introductory records and V's named §9 integration residuals.
+Every V source, test, translation and capture artifact merges unchanged;
+no table conflict or generated-file conflict occurs. The fourteen real
+translations and English keys are retained together.
+
+V's handler/view/metrics files pass 79/79, and its harness file passes 1/1.
+The same three-file run as the harness also passes 0c's schema/text tests,
+29/29. All runs use the rig's prescribed flags and complete files.
+
+Interface verification and final scoped gate receipts follow
 in the next checkpoint. Full `npm run quality`, native Windows/Linux
 containment, installed-editor/golden/live acceptance and final production
 team/runner bundle certification remain lead/X2 work under the rig brief.
