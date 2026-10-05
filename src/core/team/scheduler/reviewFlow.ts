@@ -38,18 +38,22 @@ export interface ExecutedCheck {
   exitCode: number | null
 }
 
+function latestChecks(executed: readonly ExecutedCheck[]): readonly ExecutedCheck[] {
+  const latest = new Map<string, ExecutedCheck>()
+  for (const check of executed) latest.set(check.command.trim(), check)
+  return Array.from(latest, ([, check]) => check)
+}
+
 export function checkClaims(
   claims: readonly CheckClaim[],
   executed: readonly ExecutedCheck[],
 ): readonly { claim: CheckClaim; verification: 'verified' | 'unverified' | 'contradicted' }[] {
+  const latest = latestChecks(executed)
   return claims.map((claim) => {
-    const matches = executed.filter(
-      (check) => check.command.trim() === claim.command.trim() && check.exitCode !== null,
-    )
-    const hasMatch = matches.some((check) => (check.exitCode === 0) === claim.passed)
+    const match = latest.find((check) => check.command.trim() === claim.command.trim())
     let verification: 'verified' | 'unverified' | 'contradicted' = 'unverified'
-    if (hasMatch) verification = 'verified'
-    else if (matches.length > 0) verification = 'contradicted'
+    if (match && match.exitCode !== null)
+      verification = (match.exitCode === 0) === claim.passed ? 'verified' : 'contradicted'
     return { claim, verification }
   })
 }
@@ -258,9 +262,9 @@ export class ReviewFlow {
         if (!prior || rank(item.finding) < rank(prior.finding)) findings.set(key, item)
       }
       const merged = Array.from(findings, ([, item]) => item)
-      const failedChecks = this.deps
-        .executed(task.id, task.currentAttempt)
-        .filter((check) => check.exitCode !== null && check.exitCode !== 0)
+      const failedChecks = latestChecks(this.deps.executed(task.id, task.currentAttempt)).filter(
+        (check) => check.exitCode !== null && check.exitCode !== 0,
+      )
       const hasFailures =
         failedChecks.length > 0 ||
         merged.some(

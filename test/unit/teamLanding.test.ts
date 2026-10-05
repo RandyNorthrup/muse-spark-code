@@ -16,6 +16,41 @@ describe('snapshot-bound landing and recovery', () => {
     await repo.dispose()
   })
 
+  it.each(['rebase-merge', 'rebase-apply', 'MERGE_HEAD', 'CHERRY_PICK_HEAD'])(
+    'defers an operation appearing during lock acquisition: %s',
+    async (operation) => {
+      const fixture = await teamLandingFixture(repo)
+      const replace = vi.fn(fixture.deps.replace)
+      const landing = new TeamLanding({
+        ...fixture.deps,
+        takeLock: async (root, id) => {
+          const lock = await fixture.deps.takeLock(root, id)
+          await repo.write(`.git/${operation}/marker`, 'operation')
+          return lock
+        },
+        replace,
+      })
+      expect(await landing.land(repo.root, fixture.admission)).toMatchObject({ status: 'branched' })
+      expect(replace).not.toHaveBeenCalled()
+      expect(await readFile(path.join(repo.root, 'a.txt'), 'utf8')).toBe('base-a\n')
+      await expect(readFile(path.join(fixture.gitDirectory, 'index.lock'))).rejects.toMatchObject({ code: 'ENOENT' })
+    },
+  )
+
+  it('stops landing writes when an operation appears after the first file', async () => {
+    const fixture = await teamLandingFixture(repo, { 'a.txt': 'new-a\n', 'b.txt': 'new-b\n' })
+    const landing = new TeamLanding({
+      ...fixture.deps,
+      replace: async (root, file, ...rest) => {
+        const result = await fixture.deps.replace(root, file, ...rest)
+        await repo.write('.git/rebase-merge/marker', 'operation')
+        return result
+      },
+    })
+    expect(await landing.land(repo.root, fixture.admission)).toMatchObject({ status: 'changed', paths: ['b.txt'] })
+    expect(await readFile(path.join(repo.root, 'b.txt'), 'utf8')).toBe('base-b\n')
+  })
+
   it('lands the tested blobs uncommitted, journals first and keeps the user index untouched', async () => {
     const fixture = await teamLandingFixture(repo)
     const index = await readFile(path.join(fixture.gitDirectory, 'index'))

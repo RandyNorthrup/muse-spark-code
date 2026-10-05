@@ -258,3 +258,22 @@ Every drill ran the whole focused file and restored the production file byte-exa
 | engine terminal branch proof                 | window-observed retirement requires the engine loop and every descendant, never a cancel acknowledgement                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                | `63cfc75ca0362e57294796c974c36b222078ca6281bbf0dd3caecd8eb873116c` |
 | claim verification branch proof              | whole-head integration reviews marks nonexistent claimed checks unverified and contradicts false claims with actual outcomes                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            | `1402cf9d823cb78237f135631ab029ff331ca71e7d7514378d4826489122c943` |
 | stagger follows actual launch completion     | window scheduler drain spaces process starts from observed launch completion even after a slow launch                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   | `a4f6bb57d4ce7c67eac733d8ed1c05f509e3b32f45c99ffc0e8f7f60710e6fc1` |
+
+## RVM96CSQ finding 3 — latest check results (2026-10-05, Kubuntu)
+
+Fixed: review rework and claim verification use only the last execution of
+each trimmed command within the current attempt. An unfinished latest run is
+unverified; a historical success cannot validate a newer failure.
+
+Regression tests in `teamSchedulerReview.test.ts`: “enqueues clean reviews
+after a failed check is rerun successfully” and “verifies claims only against
+the latest run, including unfinished reruns”. Both failed on the original
+implementation (12 existing tests passed), then all 14 passed after the fix.
+
+Red drill: changed last-result replacement to first-result retention; both
+named regressions failed (exit 1). Restored `reviewFlow.ts` byte-exact, SHA-256
+`0e118dbb300c956bf1cb63ef2c415da38cbe0522127553423a70acd68f6b2488`.
+
+No live or paid calls. Full quality remains the lead's gate, as the rig
+brief forbids full-suite runs. Public changelog/README integration remains X2's
+assigned ownership; no new public command, setting or script was added.

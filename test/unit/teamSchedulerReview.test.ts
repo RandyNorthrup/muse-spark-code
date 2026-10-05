@@ -66,6 +66,39 @@ function reviewFixture(
 }
 
 describe('whole-head integration reviews', () => {
+  it('enqueues clean reviews after a failed check is rerun successfully', async () => {
+    const f = reviewFixture()
+    f.deps.executed = () => [
+      { command: 'npm test', exitCode: 1 },
+      { command: ' npm test ', exitCode: 0 },
+    ]
+    expect(await f.review.afterRetirement(f.task, true)).toBe('reviewed')
+    expect(f.deps.rework).not.toHaveBeenCalled()
+    expect(f.deps.enqueue).toHaveBeenCalledWith('task', 'head-one', true)
+    expect(f.seen[0]?.claims[0]?.verification).toBe('verified')
+  })
+
+  it('verifies claims only against the latest run, including unfinished reruns', () => {
+    expect(
+      checkClaims(
+        [
+          { command: 'test', passed: true },
+          { command: 'test', passed: false },
+          { command: 'build', passed: true },
+          { command: 'pending', passed: true },
+        ],
+        [
+          { command: 'test', exitCode: 0 },
+          { command: 'build', exitCode: 1 },
+          { command: 'pending', exitCode: 0 },
+          { command: ' test ', exitCode: 1 },
+          { command: 'build', exitCode: 0 },
+          { command: 'pending', exitCode: null },
+        ],
+      ).map((item) => item.verification),
+    ).toEqual(['contradicted', 'verified', 'verified', 'unverified'])
+  })
+
   it('retries refused rework or failed enqueue without charging for another review', async () => {
     const rework = reviewFixture()
     rework.setFindings([{ file: 'a.ts', line: 1, severity: 'high', title: 'fix' }])
