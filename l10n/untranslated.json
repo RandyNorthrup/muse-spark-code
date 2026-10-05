@@ -48,7 +48,8 @@
       "execScanUsage",
       "wireFormats.responses",
       "wireFormats.chat",
-      "wireFormats.anthropic"
+      "wireFormats.anthropic",
+      "pickerMetaGroup"
     ],
     "cs": [
       "providerFilters.cloud",

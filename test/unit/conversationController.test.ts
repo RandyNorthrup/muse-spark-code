@@ -15,7 +15,11 @@ import path from 'node:path'
 import vm from 'node:vm'
 import { build } from 'esbuild'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
-import type { AgentHost, SessionMcpHttpServer } from '../../src/core/agent/agentBackend'
+import type {
+  AgentHost,
+  ModelSummary,
+  SessionMcpHttpServer,
+} from '../../src/core/agent/agentBackend'
 import { verifyGuidance } from '../../src/core/verify/checkCommands'
 import {
   ModelApiHost,
@@ -86,7 +90,7 @@ import {
   EVENT_LOG_TURN_REASON,
   eventLogFault,
 } from './helpers/cliRecoveryCapture'
-import { FakeLogOutputChannel, fakeSurface } from './helpers/fakes'
+import { FakeLogOutputChannel, type FakeSurface, fakeSurface } from './helpers/fakes'
 import {
   ledgerFault,
   RACE_APPROVAL_ID,
@@ -13235,5 +13239,159 @@ describe('ConversationController: the Auto reviewer on Muse Code (M90, PLAN.md D
     expect(
       JSON.stringify(t.surface.posted.findLast((message) => message.type === 'sessionList')),
     ).not.toContain(sideSession)
+  })
+})
+
+describe('ConversationController: BYO models (M95, PLAN.md D74)', () => {
+  const BYO_MODELS: readonly ModelSummary[] = [
+    {
+      modelId: 'muse-spark-1.3',
+      displayLabel: 'Muse Spark 1.3',
+      contextLimit: 1_007_997,
+      isDefault: false,
+      isActive: false,
+    },
+    {
+      modelId: 'openrouter/deepseek/deepseek-v3',
+      displayLabel: 'DeepSeek V3',
+      contextLimit: 64_000,
+      isDefault: true,
+      isActive: false,
+      providerId: 'openrouter',
+      providerLabel: 'OpenRouter',
+      pricing: 'priced',
+      inputUsdPerMTokens: 0.27,
+      outputUsdPerMTokens: 1.1,
+      isPinned: true,
+    },
+    {
+      modelId: 'ollama/qwen3:8b',
+      displayLabel: 'qwen3:8b',
+      contextLimit: 32_768,
+      isDefault: false,
+      isActive: false,
+      providerId: 'ollama',
+      providerLabel: 'Ollama',
+      pricing: 'local',
+    },
+    {
+      modelId: 'openrouter/any/model',
+      displayLabel: 'Any',
+      contextLimit: undefined,
+      isDefault: false,
+      isActive: false,
+      providerId: 'openrouter',
+      providerLabel: 'OpenRouter',
+      pricing: 'unpriced',
+      trainsOnContent: true,
+    },
+  ]
+
+  /** A panel whose host lists the BYO catalogue instead of the CLI's. */
+  function byoPanel(isConfidential: boolean) {
+    const t = setup({ isConfidentialWorkspace: isConfidential })
+    vi.spyOn(t.host, 'listModels').mockResolvedValue(BYO_MODELS)
+    return t
+  }
+
+  async function listedModels(
+    controller: ConversationController,
+    surface: FakeSurface,
+  ): Promise<HostToWebviewMessage> {
+    controller.surfaceReady()
+    await vi.waitFor(() => {
+      expect(surface.posted.some((message) => message.type === 'modelList')).toBe(true)
+    })
+    const found = surface.posted.find((message) => message.type === 'modelList')
+    if (found === undefined) {
+      throw new Error('the host never listed its models')
+    }
+    return found
+  }
+
+  it('passes provider fields through to the picker', async () => {
+    const t = byoPanel(false)
+    expect(await listedModels(t.controller, t.surface)).toEqual({
+      type: 'modelList',
+      models: [
+        {
+          modelId: 'muse-spark-1.3',
+          displayLabel: 'Muse Spark 1.3',
+          contextLimit: 1_007_997,
+          isDefault: false,
+        },
+        {
+          modelId: 'openrouter/deepseek/deepseek-v3',
+          displayLabel: 'DeepSeek V3',
+          contextLimit: 64_000,
+          isDefault: true,
+          providerId: 'openrouter',
+          providerLabel: 'OpenRouter',
+          pricing: 'priced',
+          inputUsdPerMTokens: 0.27,
+          outputUsdPerMTokens: 1.1,
+          isPinned: true,
+        },
+        {
+          modelId: 'ollama/qwen3:8b',
+          displayLabel: 'qwen3:8b',
+          contextLimit: 32_768,
+          isDefault: false,
+          providerId: 'ollama',
+          providerLabel: 'Ollama',
+          pricing: 'local',
+        },
+        {
+          modelId: 'openrouter/any/model',
+          displayLabel: 'Any',
+          isDefault: false,
+          providerId: 'openrouter',
+          providerLabel: 'OpenRouter',
+          pricing: 'unpriced',
+          trainsOnContent: true,
+        },
+      ],
+    })
+  })
+
+  it('hides a training model where the workspace is confidential', async () => {
+    const t = byoPanel(true)
+    const listed = await listedModels(t.controller, t.surface)
+    expect(listed).toMatchObject({ type: 'modelList' })
+    const ids = listed.type === 'modelList' ? listed.models.map((model) => model.modelId) : []
+    expect(ids).toEqual(['muse-spark-1.3', 'openrouter/deepseek/deepseek-v3', 'ollama/qwen3:8b'])
+  })
+
+  it('refuses a training model where confidential, and still switches it elsewhere', async () => {
+    const t = byoPanel(true)
+    await listedModels(t.controller, t.surface)
+    await t.controller.handle({ type: 'setModel', modelId: 'openrouter/any/model' })
+    const notice = t.surface.posted.findLast((message) => message.type === 'notice')
+    expect(notice).toMatchObject({ level: 'warning', text: UI_TEXT.trainingBlocked })
+    const info = t.surface.posted.findLast((message) => message.type === 'sessionInfo')
+    expect(info).toMatchObject({ modelId: 'muse-spark-1.3' })
+
+    const open = byoPanel(false)
+    await listedModels(open.controller, open.surface)
+    await open.controller.handle({ type: 'setModel', modelId: 'openrouter/any/model' })
+    expect(open.surface.posted.findLast((message) => message.type === 'sessionInfo')).toMatchObject(
+      { modelId: 'openrouter/any/model' },
+    )
+  })
+
+  it('allows a never-listed model where confidential, for the wizard’s first save', async () => {
+    const t = byoPanel(true)
+    await t.controller.handle({ type: 'setModel', modelId: 'openrouter/brand/new' })
+    expect(t.surface.posted.findLast((message) => message.type === 'sessionInfo')).toMatchObject({
+      modelId: 'openrouter/brand/new',
+    })
+    expect(t.surface.posted.some((message) => message.type === 'notice')).toBe(false)
+  })
+
+  it('runs startWithOwnModel for the byo sign-in, never the credential flows', async () => {
+    const t = setup()
+    await t.controller.handle({ type: 'signIn', method: 'byo' })
+    expect(t.hostActions).toEqual(['startWithOwnModel'])
+    expect(t.auth.calls).toEqual([])
   })
 })

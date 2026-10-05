@@ -174,6 +174,8 @@ describe('Palette (models view)', () => {
     expect(options.map((node) => node.textContent)).toEqual([
       'Muse Spark 1.31M contextCurrent',
       'Muse Spark 1.2',
+      'Add a model provider…',
+      'Manage models…',
     ])
     expect(screen.getByTitle('Current')).toBeInTheDocument()
     fireEvent.keyDown(filter, { key: 'ArrowDown' })
@@ -195,6 +197,80 @@ describe('Palette (models view)', () => {
     fireEvent.keyDown(list, { key: 'Escape' })
     expect(props.onBack).toHaveBeenCalledTimes(3)
     expect(props.onClose).not.toHaveBeenCalled()
+  })
+
+  it('groups by provider with pinned favourites first and the provider rows last', () => {
+    const { props } = renderPalette({
+      view: 'models',
+      currentModelId: 'openrouter/deepseek/deepseek-v3',
+      models: [
+        {
+          modelId: 'muse-spark-1.3',
+          displayLabel: 'Muse Spark 1.3',
+          contextLimit: 1_007_997,
+          isDefault: false,
+        },
+        {
+          modelId: 'openrouter/deepseek/deepseek-v3',
+          displayLabel: 'DeepSeek V3',
+          contextLimit: 64_000,
+          isDefault: true,
+          providerId: 'openrouter',
+          providerLabel: 'OpenRouter',
+          pricing: 'priced',
+          inputUsdPerMTokens: 0.27,
+          outputUsdPerMTokens: 1.1,
+          isPinned: true,
+        },
+        {
+          modelId: 'ollama/qwen3:8b',
+          displayLabel: 'qwen3:8b',
+          contextLimit: 32_768,
+          isDefault: false,
+          providerId: 'ollama',
+          providerLabel: 'Ollama',
+          pricing: 'local',
+        },
+      ],
+    })
+    const options = screen.getAllByRole('option')
+    expect(options.map((node) => node.textContent)).toEqual([
+      'DeepSeek V364K context · $0.2700 in · $1.10 out (per M tokens)Current',
+      'Muse Spark 1.31M context',
+      'qwen3:8b32.8K context · local',
+      'Add a model provider…',
+      'Manage models…',
+    ])
+    expect(screen.getByText('Pinned favourites')).toBeInTheDocument()
+    expect(screen.getByText('Muse Spark')).toBeInTheDocument()
+    expect(screen.getByText('Ollama')).toBeInTheDocument()
+    fireEvent.click(screen.getByText('Add a model provider…'))
+    expect(props.onAction).toHaveBeenCalledWith({ type: 'addModelProvider' })
+    fireEvent.click(screen.getByText('Manage models…'))
+    expect(props.onAction).toHaveBeenCalledWith({ type: 'manageModels' })
+  })
+
+  it('marks unpriced models and filters by provider', () => {
+    const { filter } = renderPalette({
+      view: 'models',
+      models: [
+        {
+          modelId: 'openrouter/mystery/model',
+          displayLabel: 'Mystery',
+          isDefault: false,
+          providerId: 'openrouter',
+          providerLabel: 'OpenRouter',
+          pricing: 'unpriced',
+        },
+      ],
+    })
+    expect(screen.getByRole('option', { name: /Mystery/ })).toHaveTextContent('unpriced')
+    fireEvent.change(filter, { target: { value: 'openrouter' } })
+    expect(screen.getAllByRole('option')).toHaveLength(1)
+    fireEvent.change(filter, { target: { value: 'manage' } })
+    expect(screen.getAllByRole('option').map((node) => node.textContent)).toEqual([
+      'Manage models…',
+    ])
   })
 })
 

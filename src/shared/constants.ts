@@ -162,6 +162,13 @@ export const PERMISSION_MODES = [
 export type PermissionMode = (typeof PERMISSION_MODES)[number]
 export const PREFERRED_LOCATIONS = ['sidebar', 'panel'] as const
 export type PreferredLocation = (typeof PREFERRED_LOCATIONS)[number]
+/**
+ * What a BYO model costs (M95, PLAN.md D74): priced, unpriced (tokens are
+ * counted, a dollar cap refuses it), free (a local server) or plan-paid
+ * (M95b). Shared by the picker option and the usage rows.
+ */
+export const MODEL_PRICINGS = ['priced', 'unpriced', 'local', 'plan'] as const
+export type ModelPricing = (typeof MODEL_PRICINGS)[number]
 
 export interface EnvironmentVariable {
   readonly name: string

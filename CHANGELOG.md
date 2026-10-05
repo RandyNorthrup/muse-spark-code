@@ -33,6 +33,7 @@ happened, not what was planned; superseded entries are kept.
   reject malformed deltas, preserve cache-write usage and TTL counts, apply
   rolling cache breakpoints, and translate local errors. Native request
   goldens and the codec bundle exclusion guard cover the review regressions.
+
 ### Added
 
 - **Bring-your-own-model keys and panel host (M95 lane K).** The `Start
@@ -45,6 +46,15 @@ happened, not what was planned; superseded entries are kept.
   probe, OpenRouter connect and key usage, cached model scans with
   diffs, removal with Undo, import/export without secrets, and the
   workspace preset suggestion.
+
+- **First-run and usage UI for bring-your-own providers (M95 lane U).**
+  The sign-in gate offers Start with your own model beside the other two
+  (ranked equally with no backend set up); a finished setup confirms once
+  with Manage providers. The model picker groups by provider with pinned
+  favourites first, priced/unpriced/local/plan details and provider rows;
+  the composer pill names the provider; Account & usage lists per-provider
+  tallies with OpenRouter key usage and unpriced/local costs. A confidential
+  workspace hides training models from the list and refuses them on switch.
 
 ## [0.12.1] - 2026-10-04
 
