@@ -243,7 +243,8 @@ happened, not what was planned; superseded entries are kept.
   an eligible approval. Model API main-body goldens and main-session MSP
   invariants remain unchanged. Paid transport admission, credential-wait
   rechecks and unknown-cost liability are integrated, but Model API Judge
-  stays unavailable until the real D78 daily-ledger adapter joins this tree.
+  uses D78’s shared durable daily ledger, reserving once before dispatch and
+  retaining uncertain liability. Subscription-only users see no Judge price popup.
   Local/separate Judge, CLI, live measurements and full certification remain
   planned.
 

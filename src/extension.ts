@@ -940,6 +940,7 @@ async function activateWindow(
     log,
   })
   const judge = judgeWindowPort({
+    ledger: dailyPaid.judgeLedger,
     bundlePath: vscode.Uri.joinPath(context.extensionUri, 'dist', JUDGE_BUNDLE_FILE).fsPath,
     engine: () => currentSettings()['judge.engine'],
     context: (action) => {

@@ -1,4 +1,9 @@
 import { existsSync } from 'node:fs'
+import { mkdtemp } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
+import path from 'node:path'
+import { createPaidDailyBudget } from '../../src/host/paid/paidDailyBudget'
+import { removeFolder } from './helpers/temporaryFolders'
 import { describe, expect, it, vi } from 'vitest'
 import { createWindowJudge } from '../../src/host/judge/judgeEntry'
 import { judgeWindowPort, type JudgeWindowDeps } from '../../src/host/judge/judgeBundle'
@@ -138,7 +143,16 @@ describe('M98 production window wiring', () => {
 
   it('dispatches subscription-only judging without a price prompt, redacts, accounts separately and removes its folder', async () => {
     const rig = setup()
-    const judge = createWindowJudge(rig.deps, UI_TEXT, 'en')
+    const directory = await mkdtemp(path.join(tmpdir(), 'muse-judge-subscription-'))
+    const daily = createPaidDailyBudget({
+      directory,
+      now: Date.now,
+      capUsd: () => 5,
+      sleep: () => Promise.resolve(),
+      isModelApi: () => false,
+    })
+    const reserve = vi.spyOn(daily.judgeLedger, 'reserve')
+    const judge = createWindowJudge({ ...rig.deps, ledger: daily.judgeLedger }, UI_TEXT, 'en')
     const fence = judge.start(rig.action, 'LLM_SYNTHETIC_WINDOW_KEY_1234567890')
     const session = await dispatched(rig)
     const options = vi.mocked(rig.deps.startSession).mock.calls[0]?.[0]
@@ -161,7 +175,9 @@ describe('M98 production window wiring', () => {
     expect(rig.emitted[1]).not.toHaveProperty('item.usage')
     expect(rig.emitted[0]).not.toHaveProperty('item.paid')
     expect(rig.deps.paid.usage.current.judgeCalls).toBeUndefined()
+    expect(reserve).not.toHaveBeenCalled()
     judge.dispose()
+    await removeFolder(directory)
   })
 
   it('retains the real cache across fresh bindings and clears it on a model change', async () => {

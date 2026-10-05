@@ -316,7 +316,8 @@ export function createPaidFeatures(deps: PaidFeaturesDeps): PaidFeatures {
     allowsJudgeUse: async (modelId) => {
       if (autoReviewPrice(modelId) === undefined) return false
       const budget = dailyBudgetSchema.safeParse(
-        vscode.workspace.getConfiguration(SETTINGS_SECTION).get('paidDailyBudgetUsd'),
+        deps.dailyBudgetUsd?.() ??
+          vscode.workspace.getConfiguration(SETTINGS_SECTION).get('paidDailyBudgetUsd'),
       )
       return await consent.allows({
         feature: 'judge',

@@ -6743,8 +6743,8 @@ cached: "0.15", currency: "USD" }`, `isDefault`, `isActive`, `releaseDate`.
 
 ### TRAIN14B — Complete the 0.14.0 release train (2026-10-05)
 
-- [~] Merge origin-main (#121), M91/M91b, M93, Knip constants, DEFLAKE4 and M98 phase 1 in the brief's order, retaining every source head and both split-check speed fixes. Skip unready m94/kw and ci/refresh-badges for the lead.
-- [ ] Connect metered Judge claim/settle/refund/lookupByClaimId/latestDay to D78's shared daily ledger and test shared reservation plus subscription-only consent behavior.
+- [x] Merge origin-main (#121), M91/M91b, M93, Knip constants, DEFLAKE4 and M98 phase 1 in the brief's order, retaining every source head and both split-check speed fixes. Skip unready m94/kw and ci/refresh-badges for the lead.
+- [x] Connect metered Judge claim/settle/refund/lookupByClaimId/latestDay to D78's shared daily ledger and test shared reservation plus subscription-only consent behavior.
 - [ ] Adapt ACTDIET prototype commits after the merges; activation at most 600,000 bytes, shared English under the original 125 KiB, webview startup under 921,600 bytes, all other caps unchanged.
 - [ ] Prepare 0.14.0 with one dated changelog section, at most five Highlights, byte-identical older releases, and matching full/Marketplace README sections and install versions.
 - [ ] Run full quality directly on Kubuntu and measure a CI-shaped VSIX with the checksum-verified universal helper from the authorized 0.13.0 archive. Record conflicts, sizes, drills, gate tail and PR description in the train certification. Local hook-on commits only, no push, rebase, paid/live call; 180-minute time box.

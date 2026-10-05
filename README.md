@@ -2004,14 +2004,13 @@ temporary folder removed afterward. Standing user-level allow rules or
 unreadable settings disable it. The tool-item guard reacts to notifications;
 this isolation does not prove that no native tool ran.
 
-**Model API Judge is unavailable on this tree:** the shared D78 daily ledger
-and its setting have not joined this branch. It makes no paid Judge request
-and asks no Judge price while that dependency is absent. The integrated
-transport requires the existing three-choice consent, a durable worst-case
-reservation before each dispatch, and known-usage settlement; missing
-receipts retain liability. These paths are tested with fakes, not certified
-against the missing daily ledger. The subscription never pays for a Model
-API call.
+On the Model API, Judge asks for paid-use consent with the model's rates and
+`museSpark.paidDailyBudgetUsd` before spending. Each dispatch reserves against
+the same durable daily budget as interactive extras across windows. A known
+non-send refunds; complete usage settles the claim; missing receipts retain
+liability. The subscription never pays for a Model API call. These paths are
+verified with the real local journal and fake transport; no paid/live Judge
+call or production calibration is claimed.
 
 `museSpark.judge.engine` is machine-scoped: `auto` (default) uses the same
 model, `same` keeps that selection explicit, and `off` disables Judge. Set

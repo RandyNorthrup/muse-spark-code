@@ -177,12 +177,11 @@ independent $1/day journal is excluded. ACP and headless policies are unchanged.
   The Model API source preserves the main request, copying its prefix only
   if redaction changes no byte and no hosted billable tool is present,
   otherwise using a standalone request with no tools. That
-  paid source is unavailable here until D78's daily ledger joins, with no
-  Judge price prompt or paid dispatch in the meantime. Judge never delays a
+  paid source asks for consent before dispatch and uses D78's shared daily
+  ledger, retaining liability for a missing receipt. Judge never delays a
   card, allows an action, or adds its result to a main request. Pattern
   redaction does not remove every private fact. Logs contain fixed failures
   and reason words, not judged content or probabilities. See [Judge](judge.md).
-- **Best-of-N (Model API, off by default).** After its paid-use popup names
 - **Best-of-N (Model API, available by default).** After its paid-use popup names
   N and the request ceiling, the same prompt runs in separate local Git
   worktrees. Each attempt sends its conversation and tool outputs to Meta

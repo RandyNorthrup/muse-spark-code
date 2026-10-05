@@ -2,8 +2,8 @@
 
 Muse Spark Code (Unofficial) uses the conversation's own model to advise on
 an action's risk. Judge cannot allow an action, write code, bypass a rule or
-answer the user. In this tree the Muse Code source runs; Model API dispatch
-remains disabled until the real D78 daily ledger joins. Local inference,
+answer the user. The Muse Code source uses the subscription; Model API dispatch uses D78’s
+shared durable daily budget and paid-use consent. Local inference,
 separate providers, calibration, cascade, CLI/MCP and other uses are phase 2.
 
 ## Settings and fences
@@ -41,7 +41,7 @@ also uses a standalone body with no tools; Judge never grants a hosted
 search charge. No main request is trimmed, reordered
 or given a Judge hint. The conventional 1,024-token cache floor is unmeasured
 on Meta; production prefix length is unknown and no saving is promised.
-Paid dispatch is currently blocked.
+Paid dispatch requires consent and a shared daily-budget reservation.
 
 Muse Code receives a redacted standalone prompt in a fresh hidden session
 per batch, never the main or M90 reviewer session. It uses Plan, thinking
@@ -68,14 +68,14 @@ notice once per window. A subscription-only user needs no Model API key and
 sees no Judge price prompt. Dispatch rows remain separate from main tokens,
 without paid markings. Missing receipt fields remain unknown.
 
-The metered path, exercised with fakes, asks through `PaidUseConsent` before
+The metered path, verified with the real local journal and fake transport, asks through `PaidUseConsent` before
 the first charge, naming the verified model price and shared
 `museSpark.paidDailyBudgetUsd`. Allow once stays once; Allow always uses the
-existing revocable trusted-workspace grant; Deny or closing refuses. The
-shared setting and `src/host/paid/paidDailyBudget.ts` are **absent from this
-checkout**, so production availability is false before a popup or dispatch.
-No competing ledger is shipped. The exact adapter and open entry criteria
-are listed in [the integration record](certification/m98.md).
+existing revocable trusted-workspace grant; Deny or closing refuses. The shared setting and `src/host/paid/paidDailyBudget.ts` supply the same
+account/day journal as other interactive extras. Read-only claim lookup and
+the current day’s retained liability survive reopening the adapter. The
+remaining D77 acceptance criteria are listed in
+[the integration record](certification/m98.md).
 
 With a real ledger, A reserves each call's full uncached input bound and
 whole output allowance before sending. Bindings are read after admission
