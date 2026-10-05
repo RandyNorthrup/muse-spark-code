@@ -3,7 +3,7 @@
 // `recall_output` paging the original back, the ledger in `tokenUsage`, and
 // nothing packed or offered by default.
 
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import * as z from 'zod/mini'
 import type { AgentEvent } from '../../src/shared/agentEvents'
 import {
@@ -26,7 +26,7 @@ import {
   type FakeModelApi,
   responseOutputsByCall,
 } from './helpers/fakeModelApi'
-import { memoryToolIo } from './helpers/fakeToolIo'
+import { heldShellToolIo, memoryToolIo } from './helpers/fakeToolIo'
 import { fakeModelApiHostDeps } from './helpers/modelApiHostDeps'
 import { recalledParts } from './helpers/recalledOutput'
 import { watchSessionTurns } from './helpers/sessionTurns'
@@ -51,10 +51,12 @@ interface Harness {
 async function setup(
   isPacking: boolean,
   clientChanges: Partial<ModelApiClientDeps> = {},
+  toolIo?: ReturnType<typeof memoryToolIo>,
+  approvalMode: 'onRequest' | 'allowAll' = 'onRequest',
 ): Promise<Harness> {
   const api = fakeModelApi()
   const log = new FakeLogOutputChannel()
-  const io = memoryToolIo({ 'big.txt': BIG, 'small.txt': SMALL }, ROOT)
+  const io = toolIo ?? memoryToolIo({ 'big.txt': BIG, 'small.txt': SMALL }, ROOT)
   const client = new ModelApiClient({
     ...fakeModelApiClientSettings(log),
     fetch: api.fetch,
@@ -67,7 +69,7 @@ async function setup(
   const session = await host.startSession({
     workspaceRoot: ROOT,
     modelId: 'muse-spark-1.3',
-    approvalMode: 'onRequest',
+    approvalMode,
   })
   if (!(session instanceof ModelApiSession)) {
     throw new TypeError('expected the Model API session')
@@ -473,5 +475,71 @@ describe('observation packing on the host', () => {
     const output = responseOutputsByCall(harness.api, 1).get('r1') ?? ''
     expect(output).toContain('unknown tool recall_output')
     await harness.host.close()
+  })
+})
+
+describe('FIXM101T shell recovery through the host', () => {
+  it('recalls the middle above the first-send cap without sending the original whole', async () => {
+    const original = 'a'.repeat(510_000) + 'MID_CANARY' + 'b'.repeat(510_000)
+    const io = memoryToolIo({}, ROOT, () => ({
+      stdout: original,
+      stderr: '',
+      exitCode: 0,
+      isTimedOut: false,
+      isCancelled: false,
+    }))
+    const h = await setup(true, {}, io, 'allowAll')
+    h.api.script(
+      { calls: [{ name: 'bash', arguments: '{"command":"big"}', callId: 'huge-shell' }] },
+      { text: 'done' },
+    )
+    await sendText(h, 'run')
+    expect(responseOutputsByCall(h.api, 1).get('huge-shell')).not.toContain('MID_CANARY')
+    expect(responseOutputsByCall(h.api, 1).get('huge-shell')?.length).toBeLessThan(8000)
+    scriptRecall(h.api, 'huge-shell', 510_000, 'recall-middle', 'recovered')
+    await sendText(h, 'recall middle')
+    expect(responseOutputsByCall(h.api, 3).get('recall-middle')).toContain('MID_CANARY')
+    await h.host.close()
+  })
+
+  it('packs real background completion notes and recalls their originals', async () => {
+    const io = heldShellToolIo({}, ROOT)
+    const h = await setup(true, {}, io, 'allowAll')
+    h.api.script(
+      { calls: [{ name: 'bash', arguments: '{"command":"big"}', callId: 'bg-shell' }] },
+      { text: 'working' },
+    )
+    await h.session.sendTurn([{ type: 'text', text: 'run' }])
+    await vi.waitFor(() => {
+      expect(io.runs).toHaveLength(1)
+    })
+    const started = h.events.find(
+      (event) => event.type === 'itemStarted' && event.item.tool === 'bash',
+    )
+    if (started?.type !== 'itemStarted') throw new Error('missing shell row')
+    await h.session.moveToBackground(started.item.itemId)
+    await h.turnDone()
+    io.runs[0]?.finish({ stdout: 'a'.repeat(100_000) + 'BG_CANARY', exitCode: 0 })
+    await vi.waitFor(() => {
+      expect(
+        h.events.some(
+          (event) => event.type === 'itemCompleted' && event.item.itemId === started.item.itemId,
+        ),
+      ).toBe(true)
+    })
+    for (let send = 0; send < 3; send += 1) {
+      h.api.script({ text: 'next' })
+      await sendText(h, 'continue')
+    }
+    const last = JSON.stringify(h.api.responseBodies().at(-1)?.['input'])
+    expect(last.length).toBeLessThan(10_000)
+    const id = /background-[a-f0-9]+/.exec(last)?.[0]
+    expect(id).toBeDefined()
+    if (id === undefined) throw new Error('missing background recall id')
+    scriptRecall(h.api, id, 100_000, 'recall-bg', 'recovered')
+    await sendText(h, 'recall background')
+    expect(JSON.stringify(h.api.responseBodies().at(-1)?.['input'])).toContain('BG_CANARY')
+    expect(ledgerOf(h.events).at(-1)).toBeGreaterThan(0)
+    await h.host.close()
   })
 })

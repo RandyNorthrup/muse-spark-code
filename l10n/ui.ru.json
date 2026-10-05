@@ -2409,5 +2409,13 @@
   "ollamaMalformedFrame": "Некорректный кадр потока Ollama.",
   "ollamaStreamLimit": "Ollama превысила предел размера потока или числа элементов.",
   "ollamaFinishReason": "Ollama завершилась с причиной «{reason}».",
-  "incompleteToolCallsNotRun": "Ответ модели был обрезан. Ни один вызов инструмента не выполнен; попробуйте снова."
+  "incompleteToolCallsNotRun": "Ответ модели был обрезан. Ни один вызов инструмента не выполнен; попробуйте снова.",
+  "toolEditInvalid": "Используйте непустую пару find/replace или непустой список edits, но не оба варианта.",
+  "toolEditNoChange": "Искомый и заменяющий тексты совпадают; ничего не изменится.",
+  "toolEditNotFound": "Искомый текст не найден в {path}.",
+  "toolEditAmbiguous": "Искомый текст встречается в {path} несколько раз; добавьте контекст.",
+  "toolEditOverlap": "Правки перекрываются; две записи не могут менять один и тот же текст.",
+  "toolReadPastEnd": "Смещение {offset} находится за концом {path}.",
+  "toolReadText": "Прочитан текстовый файл `{path}`.",
+  "toolReadRange": "Строки {start}–{end} из {total}; offset={offset}"
 }

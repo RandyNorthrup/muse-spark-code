@@ -2245,5 +2245,13 @@
   "ollamaMalformedFrame": "Bozuk Ollama akış çerçevesi.",
   "ollamaStreamLimit": "Ollama akış boyutu veya öğe sınırını aştı.",
   "ollamaFinishReason": "Ollama \"{reason}\" nedeniyle sona erdi.",
-  "incompleteToolCallsNotRun": "Model yanıtı kesildi. Hiçbir araç çağrısı çalıştırılmadı; yeniden deneyin."
+  "incompleteToolCallsNotRun": "Model yanıtı kesildi. Hiçbir araç çağrısı çalıştırılmadı; yeniden deneyin.",
+  "toolEditInvalid": "Boş olmayan bir find/replace çifti veya edits listesi kullanın; ikisini birlikte kullanmayın.",
+  "toolEditNoChange": "Aranan ve yerine yazılacak metin aynı; hiçbir şey değişmez.",
+  "toolEditNotFound": "Aranan metin {path} içinde bulunamadı.",
+  "toolEditAmbiguous": "Aranan metin {path} içinde birden fazla kez geçiyor; daha fazla bağlam ekleyin.",
+  "toolEditOverlap": "Düzenlemeler çakışıyor; iki öğe aynı metni değiştiremez.",
+  "toolReadPastEnd": "{offset} ofseti {path} dosyasının sonunu aşıyor.",
+  "toolReadText": "`{path}` metin dosyası okundu.",
+  "toolReadRange": "{total} satırdan {start}–{end}; offset={offset}"
 }

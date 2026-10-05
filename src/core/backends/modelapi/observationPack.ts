@@ -17,7 +17,7 @@
 // The host builds this store only while its `observationPacking` dep is on,
 // and never for a subagent. No `vscode` here.
 
-import { randomBytes } from 'node:crypto'
+import { createHash, randomBytes } from 'node:crypto'
 import * as z from 'zod/mini'
 import {
   MODEL_API_MODEL_TEXT,
@@ -31,6 +31,7 @@ import {
   OBS_PACK_TAIL_LINES,
   OBS_PACK_THRESHOLD_CHARS,
   OBS_PACK_WHOLE_SENDS,
+  SHELL_PACKED_MAX_CHARS,
   UI_TEXT,
 } from '../../../shared/constants'
 import { fill } from '../../../shared/l10n/text'
@@ -123,6 +124,7 @@ export class ObservationPack {
    */
   private readonly ids: string[] = []
   private readonly placeholders = new WeakMap<InputItem, PackedOutput>()
+  private readonly wholeNotes = new WeakMap<InputItem, PackedOutput>()
   /**
    * The requests already counted: an HTTP retry sends the same input again,
    * and is still one request, so an output is not packed a request early.
@@ -152,6 +154,10 @@ export class ObservationPack {
     let head = all.slice(0, OBS_PACK_HEAD_LINES)
     // Past the head, never overlapping it.
     let tail = all.slice(Math.max(head.length, all.length - OBS_PACK_TAIL_LINES))
+    if (tail.length === 0 && head.length > 1) {
+      tail = head.slice(-1)
+      head = head.slice(0, -1)
+    }
     let text = this.render(callId, entry, head, tail)
     // Trim the tail from its front, then the head from its back: the final
     // lines (a shell result's `[exit code N]`) stay while they fit (M101).
@@ -219,6 +225,41 @@ export class ObservationPack {
       }
     }
     return input.map((item) => {
+      // Background completions are host-authored user notes, not tool
+      // outputs. Keep the original note in replay and project only this
+      // known kind; ordinary user messages are never packed.
+      if (item.type === 'message' && item.role === 'user' && item.content.length === 1) {
+        const part = item.content[0]
+        if (
+          part?.type === 'input_text' &&
+          part.text.startsWith(MODEL_API_MODEL_TEXT.backgroundEndedLead) &&
+          part.text.length > OBS_PACK_THRESHOLD_CHARS
+        ) {
+          const id = `background-${createHash('sha256').update(part.text).digest('hex')}`
+          const entry = this.register(id, part.text, undefined)
+          if (entry.isPacked || entry.text.length > SHELL_PACKED_MAX_CHARS) {
+            const packed = this.placeholder(id, entry, {
+              type: 'function_call_output',
+              call_id: id,
+              output: part.text,
+            })
+            if (
+              packed.type === 'function_call_output' &&
+              typeof packed.output === 'string' &&
+              this.placeholders.has(packed)
+            ) {
+              const note: InputItem = {
+                ...item,
+                content: [{ type: 'input_text', text: packed.output }],
+              }
+              this.placeholders.set(note, entry)
+              return note
+            }
+          }
+          this.wholeNotes.set(item, entry)
+        }
+        return item
+      }
       if (item.type !== 'function_call_output' || typeof item.output !== 'string') {
         return item
       }
@@ -226,7 +267,9 @@ export class ObservationPack {
         return item
       }
       const entry = this.register(item.call_id, item.output, tools.get(item.call_id))
-      return entry.isPacked ? this.placeholder(item.call_id, entry, item) : item
+      return entry.isPacked || entry.text.length > SHELL_PACKED_MAX_CHARS
+        ? this.placeholder(item.call_id, entry, item)
+        : item
     })
   }
 
@@ -243,19 +286,21 @@ export class ObservationPack {
     }
     this.counted.add(input)
     for (const item of input) {
-      if (item.type !== 'function_call_output' || typeof item.output !== 'string') {
-        continue
-      }
       const packed = this.placeholders.get(item)
       if (packed !== undefined) {
-        this.tokensAvoided +=
-          estimatePackTokens(packed.text.length) - estimatePackTokens(item.output.length)
+        let length = 0
+        if (item.type === 'function_call_output' && typeof item.output === 'string') {
+          length = item.output.length
+        } else if (item.type === 'message' && item.content[0]?.type === 'input_text') {
+          length = item.content[0].text.length
+        }
+        this.tokensAvoided += estimatePackTokens(packed.text.length) - estimatePackTokens(length)
         continue
       }
-      const entry = this.outputs.get(item.call_id)
-      if (entry === undefined || entry.isPacked) {
-        continue
-      }
+      const entry =
+        this.wholeNotes.get(item) ??
+        (item.type === 'function_call_output' ? this.outputs.get(item.call_id) : undefined)
+      if (entry === undefined || entry.isPacked) continue
       entry.sends += 1
       if (entry.sends >= OBS_PACK_WHOLE_SENDS) {
         entry.isPacked = true

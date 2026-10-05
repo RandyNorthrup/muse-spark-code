@@ -2409,5 +2409,13 @@
   "ollamaMalformedFrame": "Nieprawidłowa ramka strumienia Ollama.",
   "ollamaStreamLimit": "Ollama przekroczyła limit rozmiaru strumienia lub liczby elementów.",
   "ollamaFinishReason": "Ollama zakończyła działanie z powodu „{reason}”.",
-  "incompleteToolCallsNotRun": "Odpowiedź modelu została ucięta. Żadne wywołanie narzędzia nie zostało wykonane; spróbuj ponownie."
+  "incompleteToolCallsNotRun": "Odpowiedź modelu została ucięta. Żadne wywołanie narzędzia nie zostało wykonane; spróbuj ponownie.",
+  "toolEditInvalid": "Użyj niepustej pary find/replace lub niepustej listy edits, nigdy obu naraz.",
+  "toolEditNoChange": "Tekst wyszukiwany i zastępujący są identyczne; nic się nie zmieni.",
+  "toolEditNotFound": "Nie znaleziono wyszukiwanego tekstu w {path}.",
+  "toolEditAmbiguous": "Wyszukiwany tekst występuje w {path} więcej niż raz; dodaj kontekst.",
+  "toolEditOverlap": "Edycje nakładają się; dwa wpisy nie mogą zmieniać tego samego tekstu.",
+  "toolReadPastEnd": "Przesunięcie {offset} znajduje się za końcem {path}.",
+  "toolReadText": "Odczytano plik tekstowy `{path}`.",
+  "toolReadRange": "Wiersze {start}–{end} z {total}; offset={offset}"
 }

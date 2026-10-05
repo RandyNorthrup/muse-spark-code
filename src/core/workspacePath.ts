@@ -95,17 +95,21 @@ export function normalizeModelPath(
   // `file://` by the URL's own rule, not the host's: the platform names the
   // path, so only an absolute path or a localhost one converts.
   if (path.startsWith('file://')) {
-    const withoutScheme = path.slice('file://'.length)
-    let absolute: string | undefined
-    if (withoutScheme.startsWith('/')) {
-      absolute = withoutScheme
-    } else if (withoutScheme.startsWith('localhost/')) {
-      absolute = withoutScheme.slice('localhost'.length)
-    }
-    if (!absolute?.startsWith('/')) {
+    try {
+      const url = new URL(path)
+      if (
+        url.protocol !== 'file:' ||
+        (url.hostname !== '' && url.hostname !== 'localhost') ||
+        url.search !== '' ||
+        url.hash !== '' ||
+        /%2f|%5c|%00/i.test(url.pathname)
+      ) {
+        return { ok: false, reason: `path ${given} is not a valid file URL` }
+      }
+      path = decodeURIComponent(url.pathname)
+    } catch {
       return { ok: false, reason: `path ${given} is not a valid file URL` }
     }
-    path = absolute
   }
   if (platform === 'win32') {
     const drive =

@@ -9,6 +9,12 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- M101 tool correctness: atomic multi-edit calls are schema-valid, fuzzy
+  matching preserves newlines and yields to Stop, read paging keeps its
+  next offset, file URLs decode before confinement, and ACP previews name
+  the same targets. Shell originals remain recallable above the first-send
+  budget, background completions pack, and new failures are translated.
+
 - M101 tool safety: cut-short replies refuse every tool call, including
   completed items, show failed tool rows and explain why the turn failed
   across all five provider codecs.

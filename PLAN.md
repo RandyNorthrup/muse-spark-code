@@ -15754,15 +15754,18 @@ the lead owns full quality. Item 21 requires the preset limits/capability
 seam and a cross-platform pixel decoder; assess that redesign explicitly
 and record a named residual if it cannot fit the no-dependency constraint.
 
-Lane T review repair (FIXM101T, 2026-10-05): findings 1/12 are fixed:
-all calls in an incomplete reply are paired with errors, shown as failed
-rows and never dispatched; the turn fails visibly. Capture-mutation tests
-cover all five codecs with red drills. Other tool/packing repairs are
-being re-certified. The original lane's drill, test-count and byte claims
-are withdrawn; `docs/certification/m101-t.md` is the authoritative record.
-Item 21 remains a named integration redesign until pixel resizing and the
-per-model limit/capability seam exist. Lane E must still run M75 multi-edit
-comparability; this lane makes no paid/live calls.
+Lane T review repair (FIXM101T, 2026-10-05): RVM101T findings 1–12,
+14 and 15 are fixed with named regression tests and byte-exact red drills.
+Every incomplete-envelope call is refused visibly; schema-valid atomic
+edits, cancellable linear fuzzy matching, complete-line read paging, decoded
+confined paths and ACP target parity, retained shell originals and packable
+background completions are verified. All new UI failures are translated.
+Items 4, 8, 9, 12, 13, 14, 15, 18 and 20 are re-verified against research
+acceptance; item 21/finding 13 remains the named FIXM101T-IMAGE21 redesign
+residual in §9. The inherited packing default/runtime gap and M75 live pair
+are named there too. Original fabricated evidence is withdrawn; the shared
+schema pin, actual bundle deltas, 18-file/1,230-test results and drills are
+in `docs/certification/m101-t.md`. No paid/live calls or dependencies added.
 
 ## 7. Gates
 
@@ -16391,6 +16394,38 @@ before a repaired one loads (2026-09-30).
 | `test/unit/providerCredentialRecords.test.ts` | `eslint-disable-next-line unicorn/prefer-https` on one origin-binding assertion     | The test proves a downgraded `http:` scheme is refused as a different origin; an `https:` URL cannot exercise that leg. One literal, test-only.                                                                                                             | 2026-10-05 |
 
 ## 9. Security assumptions and accepted residual risk
+
+- **FIXM101T-IMAGE21 (RVM101T finding 13, research item 21):** downscaling
+  remains unimplemented. This base has no pixel decoder/resizer, no preset
+  image limits and no host capability lookup. A portable implementation for
+  VS Code, ACP and headless needs a P2/provider seam plus an approved resize
+  implementation; platform-specific subprocesses or a PNG-only rewrite
+  would not provide equivalent functionality. No new dependency is allowed
+  in this lane. Existing image header/byte/attachment-count checks stay in
+  force, and backend errors are explicit; the existing size/cost behavior
+  is retained, not certified as meeting item 21. Follow-up: integrate BYO-15
+  and a shared one-time ingress resizer gated by vision and actual preset
+  limits; test PNG/JPEG/GIF/WebP, every host and each vision preset within
+  the bundle caps. M101 lane T acceptance remains open for this item.
+- **FIXM101T-PACK-DEFAULT (inherited integration gap):** this lane does not
+  own package/settings/README packing defaults. The actual manifest still
+  defaults packing off, despite D81.6. The integration lane must switch the
+  manifest and host/runtime defaults together, update README, and test the
+  default and explicit-off paths. Until then this record claims packing
+  fixes only for sessions whose packing setting is on. The current ACP and
+  headless backend factory does not supply the packing dependency; integration
+  must expose the same shared core via its runtime option and default policy,
+  with resume/fork/recall checks there too. It adds no paid call.
+- **FIXM101T-EVAL20:** lane E must run M75 multi-edit comparability and live
+  stop/overflow receipts. This repair changes shared tool-schema bytes,
+  not pricing or extra-call consent. No live/paid calls are allowed here.
+- **FIXM101T-RUNNER-BOUND:** packing/recall retain the shell output the
+  existing runner retained, up to 2,097,152 characters per stream before
+  its head/tail bound. Finding 10's extra 1m truncation is fixed, but recall
+  cannot recover bytes discarded by that earlier runner bound. No memory
+  guard is raised. Retaining larger raw streams needs a separate private
+  0600 spool and runtime cleanup/lifecycle design; test that design in all
+  hosts before claiming unbounded shell recall.
 
 - **FIXM95P (2026-10-05):** all thirteen assigned RVM95A findings
   (1, 2, 4–8, 12–15, 18, 19) are repaired with regressions and deliberate

@@ -37,7 +37,7 @@ async function* bytes(text: string) {
   yield new TextEncoder().encode(text)
 }
 
-async function cutShort(codec: string): Promise<StreamEvent[]> {
+async function cutShort(codec: string): Promise<readonly StreamEvent[]> {
   if (codec === 'ollama') {
     const receipt = z
       .object({ response: z.object({ body: z.string() }) })
@@ -59,7 +59,9 @@ async function cutShort(codec: string): Promise<StreamEvent[]> {
       ),
     )
   }
-  const provider = codec === 'responses' ? 'openai' : codec === 'chat' ? 'groq' : codec
+  let provider = codec
+  if (codec === 'responses') provider = 'openai'
+  else if (codec === 'chat') provider = 'groq'
   const file = codec === 'anthropic' ? '03-tool-call-stream' : '02-tool-call-stream'
   const frames = capture(provider, file)
   if (codec === 'anthropic') {

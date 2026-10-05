@@ -1,3 +1,7 @@
+import { readFileSync } from 'node:fs'
+import { loadUiTable } from '../../src/host/l10n'
+import { createLogger } from '../../src/host/logger'
+import { FakeLogOutputChannel } from './helpers/fakes'
 import { afterEach, describe, expect, it } from 'vitest'
 import {
   classifyTool,
@@ -25,9 +29,10 @@ import {
   SEARCH_MAX_CANDIDATES,
   SEARCH_MAX_FILE_BYTES,
   SEARCH_MAX_HITS,
-  TOOL_OUTPUT_CLIP_MARKER,
   TOOL_OUTPUT_ELIDED_MARKER,
   TOOL_OUTPUT_MAX_CHARS,
+  TOOL_OUTPUT_CLIP_MARKER,
+  UI_TEXT,
 } from '../../src/shared/constants'
 import { memoryToolIo } from './helpers/fakeToolIo'
 
@@ -562,7 +567,7 @@ describe('executeTool: write_file and edit_file', () => {
     const none = await run('edit_file', { path: 'notes.md', find: 'zzz', replace: 'x' })
     expect(none.failureReason).toContain('not found')
     const empty = await run('edit_file', { path: 'notes.md', find: '', replace: 'x' })
-    expect(empty.failureReason).toBe('find must not be empty')
+    expect(empty.output).toContain('find must not be empty')
     const ok = await run('edit_file', {
       path: 'notes.md',
       find: 'first line?',
@@ -1013,7 +1018,7 @@ describe('read_file: paging (M101 item 13)', () => {
     const { run } = context({ 'long.txt': 'one\ntwo\n' })
     const past = await run('read_file', { path: 'long.txt', offset: 3 })
     expect(past.output).toBe('Error: offset 3 is past the end of long.txt: it has 2 lines')
-    expect(past.failureReason).toBe('offset 3 is past the end of long.txt: it has 2 lines')
+    expect(past.failureReason).toBe('Offset 3 is beyond the end of long.txt.')
     const last = await run('read_file', { path: 'long.txt', offset: 2 })
     expect(last.failureReason).toBeUndefined()
     expect(last.output).toContain('2|two')
@@ -1084,7 +1089,7 @@ describe('clip: surrogate pairs (M101 item 18c)', () => {
     })
     const { run } = context({ 'big.txt': `${lines.join('\n')}\n` })
     const result = await run('read_file', { path: 'big.txt' })
-    expect(result.output).toContain(TOOL_OUTPUT_CLIP_MARKER)
+    expect(result.output).toMatch(/offset=\d+/)
     expect(result.output).not.toMatch(/[\uD800-\uDBFF](?![\uDC00-\uDFFF])/)
     expect(result.output).not.toMatch(/(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/)
   })
@@ -1099,5 +1104,191 @@ describe('thenRunOf: non-string values (M101 item 18b)', () => {
     expect(thenRunOf('{}')).toEqual({ kind: 'absent' })
     expect(thenRunOf('{"then_run": ""}')).toEqual({ kind: 'absent' })
     expect(thenRunOf('not json')).toEqual({ kind: 'absent' })
+  })
+})
+
+describe('FIXM101T tool regressions', () => {
+  it('refuses overlapping occurrences of exact find text', async () => {
+    const { run, io } = context({ 'a.txt': 'aaa' })
+    const result = await run('edit_file', { path: 'a.txt', find: 'aa', replace: 'changed' })
+    expect(result.failureReason).toBeDefined()
+    expect(result.output).toContain('more than once')
+    expect(io.files.get('/ws/a.txt')).toBe('aaa')
+  })
+
+  it('advertises schema-valid atomic edits without top-level find and replace', async () => {
+    const { run, io } = context({ 'a.txt': 'alpha\nbeta\n' })
+    const definition = toolDefinitions('linux').find((tool) => tool.name === 'edit_file')
+    expect(definition?.parameters['required']).toEqual(['path'])
+    await run('read_file', { path: 'a.txt' })
+    const result = await run('edit_file', {
+      path: 'a.txt',
+      edits: [{ find: 'alpha', replace: 'changed' }],
+    })
+    expect(result.failureReason).toBeUndefined()
+    expect(io.files.get('/ws/a.txt')).toBe('changed\nbeta\n')
+  })
+
+  it.each([false, true])(
+    'fuzzy replacement consumes its requested trailing newline (edits=%s)',
+    async (multi) => {
+      const { run, io } = context({ 'a.txt': 'alpha \nbeta\n' })
+      await run('read_file', { path: 'a.txt' })
+      const pair = { find: 'alpha\n', replace: 'changed\n' }
+      const result = await run('edit_file', {
+        path: 'a.txt',
+        ...(multi ? { edits: [pair] } : pair),
+      })
+      expect(result.failureReason).toBeUndefined()
+      expect(io.files.get('/ws/a.txt')).toBe('changed\nbeta\n')
+    },
+  )
+
+  it('searches repeated fuzzy lines without quadratic host blocking', async () => {
+    const { run } = context({ 'a.txt': 'a\n'.repeat(6000) })
+    await run('read_file', { path: 'a.txt' })
+    const start = performance.now()
+    const result = await run('edit_file', {
+      path: 'a.txt',
+      find: `${'a\n'.repeat(2999)}b`,
+      replace: 'changed',
+    })
+    expect(result.failureReason).toBeDefined()
+    expect(performance.now() - start).toBeLessThan(1000)
+  })
+
+  it('pages by the character budget with an intact next offset and no skipped line', async () => {
+    const { run } = context({
+      'a.txt': Array.from({ length: 200 }, (_, at) => `${String(at)} ${'x'.repeat(1000)}`).join(
+        '\n',
+      ),
+    })
+    const first = await run('read_file', { path: 'a.txt', limit: 200 })
+    expect(first.output.length).toBeLessThanOrEqual(TOOL_OUTPUT_MAX_CHARS)
+    const next = /offset=(\d+)/.exec(first.output)?.[1]
+    expect(next).toBeDefined()
+    const offset = Number(next)
+    expect(first.output).toContain(`${String(offset - 1)}|${String(offset - 2)} `)
+    expect(first.output).not.toContain(`${String(offset)}|`)
+    const page = await run('read_file', { path: 'a.txt', offset, limit: 1 })
+    expect(page.output).toContain(`${String(offset)}|${String(offset - 1)} `)
+  })
+
+  it('refuses a past-end offset even for an empty file', async () => {
+    const { run } = context({ 'empty.txt': '' })
+    const past = await run('read_file', { path: 'empty.txt', offset: 999 })
+    const first = await run('read_file', { path: 'empty.txt', offset: 1 })
+    expect(past.failureReason).toBeDefined()
+    expect(first.failureReason).toBeUndefined()
+  })
+
+  it('decodes file URLs once and checks and writes the decoded target', async () => {
+    const { run, io } = context({ 'a b.txt': 'space', 'a%20b.txt': 'percent' })
+    const uri = 'file:///ws/a%20b.txt'
+    const read = await run('read_file', { path: uri })
+    expect(read.output).toContain('space')
+    const result = await run('write_file', { path: uri, content: 'changed' })
+    expect(result.failureReason).toBeUndefined()
+    expect(io.files.get('/ws/a b.txt')).toBe('changed')
+    expect(io.files.get('/ws/a%20b.txt')).toBe('percent')
+    for (const given of [
+      'file:///ws/%2e%2e/out.txt',
+      'file:///ws/%2fout',
+      'file:///ws/%5cout',
+      'file:///ws/%00bad',
+      'file:///ws/%XX',
+      'file://evil/ws/a',
+      'file:///ws/a?x=1',
+      'file:///ws/a#fragment',
+    ]) {
+      expect(resolveWorkspacePath('/ws', given, 'linux').ok).toBe(false)
+    }
+    expect(resolveWorkspacePath('/ws', 'file:///ws/a%2520b.txt', 'linux')).toMatchObject({
+      absolute: '/ws/a%20b.txt',
+    })
+    expect(resolveWorkspacePath('C:/ws', 'file:///C:/ws/N%55L', 'win32').ok).toBe(false)
+    expect(resolveWorkspacePath('C:/ws', 'file:///C:/ws/a%3Ahidden', 'win32').ok).toBe(false)
+  })
+
+  it('admits normalized absolute file URLs only beneath approved extra roots', async () => {
+    const io = memoryToolIo({ 'a.txt': 'workspace' }, 'C:/ws')
+    io.files.set('C:/extra/b.txt', 'extra')
+    const ctx: ToolContext = {
+      workspaceRoot: 'C:/ws',
+      platform: 'win32',
+      io,
+      seen: new Map(),
+      files: { extraRoots: ['C:/extra'], isDenied: () => false, denyGlobs: [], isDenyAll: false },
+    }
+    const allowed = await executeTool('read_file', '{"path":"file:///C:/extra/b.txt"}', ctx)
+    expect(allowed.failureReason).toBeUndefined()
+    expect(allowed.output).toContain('extra')
+    const outside = await executeTool('read_file', '{"path":"file:///C:/outside/b.txt"}', ctx)
+    expect(outside.failureReason).toBeDefined()
+  })
+})
+
+describe('FIXM101T localized tool failures and cancellation', () => {
+  afterEach(() => {
+    setUiText(EN, BASE_LOCALE)
+  })
+  it('reads French edit and paging errors at invocation time while model errors stay English', async () => {
+    await loadUiTable({
+      language: 'fr',
+      readExtensionFile: () =>
+        Promise.resolve(readFileSync(new URL('../../l10n/ui.fr.json', import.meta.url), 'utf8')),
+      log: createLogger(new FakeLogOutputChannel()),
+    })
+    const { run } = context({ 'a.txt': 'alpha\nbeta\n' })
+    const empty = await run('edit_file', { path: 'a.txt', edits: [] })
+    expect(empty.failureReason).toBe(UI_TEXT.toolEditInvalid)
+    expect(empty.failureReason).toContain('Utilisez')
+    expect(empty.output).toContain('edits must hold at least one edit')
+    const noop = await run('edit_file', { path: 'a.txt', find: 'alpha', replace: 'alpha' })
+    expect(noop.failureReason).toBe(
+      'Les textes recherché et de remplacement sont identiques ; rien ne changerait.',
+    )
+    const overlap = await run('edit_file', {
+      path: 'a.txt',
+      edits: [
+        { find: 'alpha\nbeta', replace: 'x' },
+        { find: 'beta', replace: 'y' },
+      ],
+    })
+    expect(overlap.failureReason).toBe(UI_TEXT.toolEditOverlap)
+    const missing = await run('edit_file', { path: 'a.txt', find: 'missing', replace: 'x' })
+    expect(missing.failureReason).toBe('Le texte recherché est introuvable dans a.txt.')
+    const past = await run('read_file', { path: 'a.txt', offset: 999 })
+    expect(past.failureReason).toContain('Le décalage')
+    expect(past.output).toContain('past the end')
+    const page = await run('read_file', { path: 'a.txt', limit: 1 })
+    expect(page.visibleOutput).toContain('Lignes 1–1 sur 2')
+    expect(page.output).toContain('offset=2')
+  })
+
+  it('yields during fuzzy matching so Stop aborts before any write', async () => {
+    const { ctx, io } = context({ 'a.txt': 'a \n'.repeat(6000) })
+    const abort = new AbortController()
+    const pending = executeTool(
+      'edit_file',
+      JSON.stringify({ path: 'a.txt', find: 'a\n'.repeat(2999) + 'b', replace: 'x' }),
+      { ...ctx, signal: abort.signal },
+    )
+    setTimeout(() => {
+      abort.abort()
+    }, 0)
+    await expect(pending).rejects.toMatchObject({ name: 'AbortError' })
+    expect(io.files.get('/ws/a.txt')).toBe('a \n'.repeat(6000))
+  })
+
+  it('clips a tool output at a code point boundary', async () => {
+    const { ctx, io } = context()
+    const text = 'a'.repeat(TOOL_OUTPUT_MAX_CHARS - 1) + '\u{1F600}' + 'b'.repeat(1000)
+    const output = await executeTool('list_files', '{}', {
+      ...ctx,
+      io: { ...io, listFiles: () => Promise.resolve([text]) },
+    })
+    expect(output.output).toContain(TOOL_OUTPUT_CLIP_MARKER)
+    expect(output.output).not.toMatch(/[\uD800-\uDBFF](?![\uDC00-\uDFFF])/)
   })
 })

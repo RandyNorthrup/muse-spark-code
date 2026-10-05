@@ -2327,5 +2327,13 @@
   "ollamaMalformedFrame": "Trama del flujo de Ollama mal formada.",
   "ollamaStreamLimit": "Ollama superó el límite de tamaño del flujo o de elementos.",
   "ollamaFinishReason": "Ollama terminó con el motivo «{reason}».",
-  "incompleteToolCallsNotRun": "La respuesta del modelo se truncó. No se ejecutó ninguna llamada a herramientas; inténtalo de nuevo."
+  "incompleteToolCallsNotRun": "La respuesta del modelo se truncó. No se ejecutó ninguna llamada a herramientas; inténtalo de nuevo.",
+  "toolEditInvalid": "Usa un par find/replace no vacío o una lista edits no vacía, nunca ambos.",
+  "toolEditNoChange": "El texto buscado y el de reemplazo son idénticos; nada cambiaría.",
+  "toolEditNotFound": "No se encontró el texto buscado en {path}.",
+  "toolEditAmbiguous": "El texto buscado aparece varias veces en {path}; incluye más contexto.",
+  "toolEditOverlap": "Las ediciones se superponen; dos entradas no pueden cambiar el mismo texto.",
+  "toolReadPastEnd": "El desplazamiento {offset} está más allá del final de {path}.",
+  "toolReadText": "Se leyó el archivo de texto `{path}`.",
+  "toolReadRange": "Líneas {start}–{end} de {total}; offset={offset}"
 }

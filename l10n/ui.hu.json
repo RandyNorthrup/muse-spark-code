@@ -2245,5 +2245,13 @@
   "ollamaMalformedFrame": "Hibás Ollama-adatfolyamkeret.",
   "ollamaStreamLimit": "Az Ollama túllépte az adatfolyam méret- vagy elemszámkorlátját.",
   "ollamaFinishReason": "Az Ollama ezzel az indokkal fejeződött be: „{reason}”.",
-  "incompleteToolCallsNotRun": "A modell válasza megszakadt. Egyetlen eszközhívás sem futott le; próbálja újra."
+  "incompleteToolCallsNotRun": "A modell válasza megszakadt. Egyetlen eszközhívás sem futott le; próbálja újra.",
+  "toolEditInvalid": "Használjon nem üres find/replace párt vagy nem üres edits listát, de soha ne mindkettőt.",
+  "toolEditNoChange": "A keresett és a helyettesítő szöveg azonos; semmi sem változna.",
+  "toolEditNotFound": "A keresett szöveg nem található itt: {path}.",
+  "toolEditAmbiguous": "A keresett szöveg többször szerepel itt: {path}; adjon meg több környező szöveget.",
+  "toolEditOverlap": "A módosítások átfedik egymást; két bejegyzés nem módosíthatja ugyanazt a szöveget.",
+  "toolReadPastEnd": "A(z) {offset} eltolás a(z) {path} vége után van.",
+  "toolReadText": "A(z) `{path}` szövegfájl beolvasva.",
+  "toolReadRange": "{start}–{end}. sor, összesen {total}; offset={offset}"
 }

@@ -2245,5 +2245,13 @@
   "ollamaMalformedFrame": "Fehlerhaftes Ollama-Stream-Frame.",
   "ollamaStreamLimit": "Ollama hat das Limit für Streamgröße oder Elemente überschritten.",
   "ollamaFinishReason": "Ollama wurde mit dem Grund „{reason}“ beendet.",
-  "incompleteToolCallsNotRun": "Die Modellantwort wurde abgeschnitten. Kein Werkzeugaufruf wurde ausgeführt; bitte erneut versuchen."
+  "incompleteToolCallsNotRun": "Die Modellantwort wurde abgeschnitten. Kein Werkzeugaufruf wurde ausgeführt; bitte erneut versuchen.",
+  "toolEditInvalid": "Verwenden Sie ein nicht leeres find/replace-Paar oder eine nicht leere edits-Liste, niemals beides.",
+  "toolEditNoChange": "Such- und Ersatztext sind identisch; es würde sich nichts ändern.",
+  "toolEditNotFound": "Der Suchtext wurde in {path} nicht gefunden.",
+  "toolEditAmbiguous": "Der Suchtext kommt in {path} mehrmals vor; geben Sie mehr Kontext an.",
+  "toolEditOverlap": "Änderungen überlappen; zwei Einträge dürfen nicht denselben Text ändern.",
+  "toolReadPastEnd": "Offset {offset} liegt hinter dem Ende von {path}.",
+  "toolReadText": "Textdatei `{path}` gelesen.",
+  "toolReadRange": "Zeilen {start}–{end} von {total}; offset={offset}"
 }

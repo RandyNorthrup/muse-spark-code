@@ -651,3 +651,69 @@ describe('RECALL_TOOL_DEFINITION', () => {
     expect(parameters.success ? parameters.data.required : undefined).toEqual(['id'])
   })
 })
+
+describe('FIXM101T short output windows', () => {
+  it.each([3, 4])('keeps the final exit line when all %s lines start in the head', (count) => {
+    const pack = new ObservationPack()
+    const text = [
+      'a'.repeat(1000),
+      'b'.repeat(10_000),
+      ...(count === 4 ? ['extra'] : []),
+      '[exit code 7]',
+    ].join('\n')
+    const input: InputItem[] = [
+      { type: 'function_call_output', call_id: 'short-head', output: text },
+    ]
+    for (let send = 0; send < 3; send += 1) pack.noteSent(pack.project(input))
+    const output = pack.project(input)[0]
+    expect(output).toMatchObject({ output: expect.stringContaining('[exit code 7]') })
+    expect(output).not.toEqual(input[0])
+  })
+})
+
+describe('FIXM101T retained shell outputs', () => {
+  it('packs oversized shell results immediately and recalls the original middle', () => {
+    const pack = new ObservationPack()
+    const original = 'a'.repeat(510_000) + 'MIDDLE_CANARY' + 'b'.repeat(510_000) + '\n[exit code 0]'
+    const input: InputItem[] = [
+      { type: 'function_call_output', call_id: 'huge-shell', output: original },
+    ]
+    const projected = pack.project(input)
+    expect(projected[0]).not.toEqual(input[0])
+    expect(JSON.stringify(projected).length).toBeLessThan(8000)
+    expect(pack.recall('{"id":"huge-shell","offset":510000}').output).toContain('MIDDLE_CANARY')
+  })
+
+  it.each([100_000, 1_020_000])(
+    'packs background completion notes, counts savings and recalls their full output (%s)',
+    (size) => {
+      const pack = new ObservationPack()
+      const text = `${MODEL_API_MODEL_TEXT.backgroundEndedLead}\n$ echo big\n${'a'.repeat(size)}\n[exit code 0]`
+      const input: InputItem[] = [
+        { type: 'message', role: 'user', content: [{ type: 'input_text', text }] },
+      ]
+      if (size > 1_000_000) expect(JSON.stringify(pack.project(input)).length).toBeLessThan(8000)
+      for (let send = 0; send < 3; send += 1) pack.noteSent(pack.project(input))
+      const projected = pack.project(input)
+      pack.noteSent(projected)
+      const encoded = JSON.stringify(projected)
+      expect(encoded.length).toBeLessThan(8000)
+      const id = /background-[a-f0-9]+/.exec(encoded)?.[0]
+      expect(id).toBeDefined()
+      expect(pack.savings()).toBeGreaterThan(0)
+      expect(pack.recall(JSON.stringify({ id, offset: text.length - 13 })).output).toContain(
+        '[exit code 0]',
+      )
+      // Ordinary user messages remain whole.
+      expect(
+        pack.project([
+          {
+            type: 'message',
+            role: 'user',
+            content: [{ type: 'input_text', text: 'x'.repeat(100_000) }],
+          },
+        ])[0],
+      ).toMatchObject({ content: [{ text: 'x'.repeat(100_000) }] })
+    },
+  )
+})
