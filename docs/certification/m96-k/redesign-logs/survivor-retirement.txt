@@ -1,0 +1,45 @@
+npm notice run muse-spark-code@0.12.1 npx
+npm notice run 'vitest' run test/unit/teamProcessOwnership.test.ts --maxWorkers=3 --testTimeout=120000
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - ESM syntax in a file loaded as CommonJS (vitest.config.ts:1:1). Use a `.mjs` extension or set `"type": "module"` in the closest package.json
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+
+ RUN  v5.0.2 /home/randy/lanes/REDM96K
+
+ ❯ test/unit/teamProcessOwnership.test.ts (10 tests | 1 failed) 22ms
+   ❯ M96 K signal-time ownership (10)
+     × retirement signals only proved survivors after the group leader has exited 9ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  test/unit/teamProcessOwnership.test.ts > M96 K signal-time ownership > retirement signals only proved survivors after the group leader has exited
+AssertionError: expected { signalled: [], notOwned: [ 42 ] } to deeply equal { signalled: [ 43 ], notOwned: [ 42 ] }
+
+- Expected
++ Received
+
+  {
+    "notOwned": [
+      42,
+    ],
+-   "signalled": [
+-     43,
+-   ],
++   "signalled": [],
+  }
+
+ ❯ test/unit/teamProcessOwnership.test.ts:117:63
+    115|     const f = fixture()
+    116|     f.table.delete(leader.pid)
+    117|     expect(await f.ownership.signalLaunch(leader, 'SIGTERM')).toEqual({
+       |                                                               ^
+    118|       signalled: [member.pid],
+    119|       notOwned: [leader.pid],
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 9 passed (10)
+   Start at  12:44:57
+   Duration  634ms (transform 45%, setup 26%, import 23%, tests 4%, worker 1%)

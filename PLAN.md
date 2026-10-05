@@ -20277,7 +20277,9 @@ before a repaired one loads (2026-09-30).
   RVM96K's seven findings are fixed, with regressions and restored red drills
   in `docs/certification/m96-k.md`; none is deferred. A gone, changed or
   unreadable POSIX group leader (including changed Linux cgroup/scope), or
-  an unavailable Windows native control channel, denies automatic signaling.
+  an unavailable Windows native control channel, denies automatic group or
+  container signaling. REDM96K can still retire individually proved marked
+  survivors through its common authority.
   The uncertain launch remains journalled for user recovery. This can leave
   descendants running, but protects unrelated processes and never supplies
   descendant proof or permission to reuse the old copy. Follow-up: integration
