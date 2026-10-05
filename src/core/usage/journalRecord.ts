@@ -143,12 +143,11 @@ function settleCost(context: UsageRecordContext, tokens: UsageTokens): UsageCost
     return { certainty: 'uncertain', ...(usd !== undefined && { usd }) }
   }
   const reported = context.providerCostUsd
-  const usd =
-    reported !== undefined && Number.isFinite(reported) && reported >= 0
-      ? reported
-      : context.costInUsdTicks === undefined
-        ? undefined
-        : ticksToUsdPerToken(context.costInUsdTicks)
+  let usd =
+    reported !== undefined && Number.isFinite(reported) && reported >= 0 ? reported : undefined
+  if (usd === undefined && context.costInUsdTicks !== undefined) {
+    usd = ticksToUsdPerToken(context.costInUsdTicks)
+  }
   if (usd !== undefined) {
     return { certainty: 'reported', usd }
   }
@@ -161,13 +160,12 @@ function settleCost(context: UsageRecordContext, tokens: UsageTokens): UsageCost
         tokens.input === undefined && pricing?.kind === 'priced' ? 'uncertain' : 'unpriced',
     }
   }
-  const date =
-    context.priceDate ??
-    (tool === undefined
-      ? card === undefined
-        ? MODEL_API_PRICES_VERIFIED_ON
-        : card.fetchedAt?.split('T', 1)[0]
-      : PAID_PRICES_VERIFIED_ON)
+  let date = context.priceDate
+  if (date === undefined) {
+    if (tool !== undefined) date = PAID_PRICES_VERIFIED_ON
+    else if (card === undefined) date = MODEL_API_PRICES_VERIFIED_ON
+    else date = card.fetchedAt?.split('T', 1)[0]
+  }
   return {
     certainty: context.estimatedTokens === true ? 'estimated' : 'computed',
     usd: computed,

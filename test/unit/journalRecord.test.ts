@@ -9,6 +9,7 @@ import {
 } from '../../src/core/usage/journalRecord'
 import { isValidUsage, settleUsageUsd, type PriceCard } from '../../src/core/providers/priceCard'
 import { decodeAnthropicStream } from '../../src/core/backends/modelapi/codecs/anthropic'
+import { decodeChatStream } from '../../src/core/backends/modelapi/codecs/chat'
 import { decodeGeminiStream } from '../../src/core/backends/modelapi/codecs/gemini'
 import { decodeOllamaStream } from '../../src/core/backends/modelapi/codecs/ollama'
 import { createResponsesCodec } from '../../src/core/backends/modelapi/codecs/responses'
@@ -292,6 +293,32 @@ describe('journal records', () => {
       if (provider === 'xai') expect(record.cost.certainty).toBe('reported')
     },
   )
+  it('settles OpenRouter reported cost from its captured final chunk', () => {
+    const receipt = capture('openrouter', '05-tool-result-stream')
+    const decoded = decodeChatStream(
+      (receipt.events ?? []).map((event) => event.data),
+      'openai/gpt-oss-20b',
+      {
+        presetId: 'openrouter',
+        replayField: 'details',
+        toolResultName: false,
+        reasoningParam: 'effort-object',
+        outputCap: 'max_tokens',
+        includeUsage: true,
+        sendCacheKey: false,
+        toolStream: false,
+      },
+      { outputItems: 128, argumentBytes: 65_536, streamBytes: 1_048_576, frameBytes: 65_536 },
+    )
+    expect(decoded.providerCostUsd).toBeGreaterThan(0)
+    const record = createUsageRecord(decoded.response.usage ?? undefined, {
+      ...context,
+      provider: 'openrouter',
+      ...(decoded.providerCostUsd !== undefined && { providerCostUsd: decoded.providerCostUsd }),
+    })
+    expect(record.cost).toEqual({ certainty: 'reported', usd: decoded.providerCostUsd })
+    expect(record.tokens.input).toBe(decoded.response.usage?.input_tokens)
+  })
   it('replays captured Gemini thoughts and Ollama local usage', async () => {
     const receipt = capture('gemini', '03-tool-result-stream')
     const native = completed(
@@ -313,6 +340,7 @@ describe('journal records', () => {
         decodeOllamaStream(chunks(ollama.body ?? ''), {
           model: 'qwen3:4b-instruct-2507-q4_K_M',
           responseId: 'captured',
+          status: 200,
         }),
       ),
     )
