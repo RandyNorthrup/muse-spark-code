@@ -2081,6 +2081,24 @@
   "acpProvidersNone": "Nincs beállítva szolgáltató.",
   "acpProviderAdded": "{id} szolgáltató hozzáadva.",
   "acpProviderRemoved": "{id} szolgáltató eltávolítva.",
+  "acpChatGpt": {
+    "usage": "Használat: muse-spark-code-acp providers add|remove|status chatgpt",
+    "actions": {
+      "add": "Folytatás ChatGPT-vel",
+      "remove": "ChatGPT-bejelentkezés eltávolítása",
+      "status": "ChatGPT-bejelentkezés ellenőrzése"
+    },
+    "notice": "ChatGPT Plus vagy Pro szükséges. A kérések az előfizetés keretét használják; az OpenAI további krediteket is felhasználhat, ha engedélyezte őket a ChatGPT-ben. Jelentkezzen be a böngészőben.",
+    "alreadyAdded": "A ChatGPT már hozzá van adva. Új bejelentkezés előtt távolítsa el.",
+    "states": {
+      "signed-in": "A ChatGPT be van jelentkezve.",
+      "expired": "A ChatGPT-bejelentkezés lejárt; használatkor megújul, vagy távolítsa el, és jelentkezzen be újra.",
+      "signed-out": "A ChatGPT nincs bejelentkezve."
+    },
+    "callback": "A ChatGPT-bejelentkezés befejeződött. Térjen vissza a szerkesztőbe vagy a terminálba.",
+    "failure": "A ChatGPT-bejelentkezést nem sikerült befejezni. Próbálja újra, vagy távolítsa el, és jelentkezzen be ismét.",
+    "storeUnavailable": "A számítógép hitelesítőadat-tárolója nem érhető el. Jelentkezzen be interaktív asztali munkamenetből, feloldott tárolóval; Linuxon előbb indítsa el a Secret Service szolgáltatást."
+  },
   "execProviderNotConfigured": "{id} szolgáltató nincs beállítva.",
   "providerText": {
     "wizard": {

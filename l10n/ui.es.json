@@ -2158,6 +2158,24 @@
   "acpProvidersNone": "No hay proveedores configurados.",
   "acpProviderAdded": "Proveedor {id} añadido.",
   "acpProviderRemoved": "Proveedor {id} quitado.",
+  "acpChatGpt": {
+    "usage": "Uso: muse-spark-code-acp providers add|remove|status chatgpt",
+    "actions": {
+      "add": "Continuar con ChatGPT",
+      "remove": "Eliminar el inicio de sesión de ChatGPT",
+      "status": "Comprobar el inicio de sesión de ChatGPT"
+    },
+    "notice": "Se requiere ChatGPT Plus o Pro. Las solicitudes usan la cuota de su plan; OpenAI puede gastar créditos adicionales si los activó en ChatGPT. Inicie sesión en su navegador.",
+    "alreadyAdded": "ChatGPT ya está añadido. Elimínelo antes de volver a iniciar sesión.",
+    "states": {
+      "signed-in": "ChatGPT tiene una sesión iniciada.",
+      "expired": "La sesión de ChatGPT ha caducado; se renovará al usarla, o elimínela e inicie sesión de nuevo.",
+      "signed-out": "ChatGPT no tiene una sesión iniciada."
+    },
+    "callback": "El inicio de sesión de ChatGPT se ha completado. Vuelva al editor o al terminal.",
+    "failure": "No se pudo completar el inicio de sesión de ChatGPT. Inténtelo de nuevo o elimínelo y vuelva a iniciar sesión.",
+    "storeUnavailable": "El almacén de credenciales de este equipo no está disponible. Inicie sesión desde una sesión de escritorio interactiva con el almacén desbloqueado; en Linux, inicie primero Secret Service."
+  },
   "execProviderNotConfigured": "El proveedor {id} no está configurado.",
   "providerText": {
     "wizard": {

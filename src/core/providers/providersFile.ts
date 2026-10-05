@@ -91,6 +91,17 @@ export const providerEntrySchema = z
   )
 export type ProviderEntry = z.infer<typeof providerEntrySchema>
 
+// A separate, exact subscription variant leaves every existing API-key and
+// local-provider guard intact. No other origin, preset or format is accepted.
+const chatGptProviderEntrySchema = z.strictObject({
+  id: z.literal('chatgpt'),
+  preset: z.literal('chatgpt'),
+  address: z.literal('https://api.openai.com'),
+  format: z.literal('responses'),
+  auth: z.literal('subscription'),
+  models: z.array(z.string().check(z.minLength(1))).check(z.minLength(1)),
+})
+
 export const providersFileSchema = z.object({
   v: z.literal(PROVIDERS_FILE_VERSION),
   // The composer's model and M96's default (`<providerId>/<modelId>`).
@@ -101,7 +112,7 @@ export const providersFileSchema = z.object({
       }),
     ),
   ),
-  providers: z.array(providerEntrySchema),
+  providers: z.array(z.union([providerEntrySchema, chatGptProviderEntrySchema])),
 })
 export type ProvidersFile = z.infer<typeof providersFileSchema>
 

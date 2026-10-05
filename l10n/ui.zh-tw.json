@@ -2004,6 +2004,24 @@
   "acpProvidersNone": "未設定提供者。",
   "acpProviderAdded": "已新增提供者 {id}。",
   "acpProviderRemoved": "已移除提供者 {id}。",
+  "acpChatGpt": {
+    "usage": "用法: muse-spark-code-acp providers add|remove|status chatgpt",
+    "actions": {
+      "add": "使用 ChatGPT 繼續",
+      "remove": "移除 ChatGPT 登入",
+      "status": "檢查 ChatGPT 登入"
+    },
+    "notice": "需要 ChatGPT Plus 或 Pro。請求會使用您的方案額度；如果您在 ChatGPT 中啟用了額外點數，OpenAI 可能會消耗這些點數。請在瀏覽器中登入。",
+    "alreadyAdded": "已新增 ChatGPT。請先移除，再重新登入。",
+    "states": {
+      "signed-in": "已登入 ChatGPT。",
+      "expired": "ChatGPT 登入已過期；使用時會更新，您也可以移除後重新登入。",
+      "signed-out": "尚未登入 ChatGPT。"
+    },
+    "callback": "ChatGPT 登入完成。請返回編輯器或終端機。",
+    "failure": "無法完成 ChatGPT 登入。請重試，或移除後重新登入。",
+    "storeUnavailable": "此電腦的認證儲存區無法使用。請從互動式桌面工作階段登入，並解鎖認證儲存區；在 Linux 上，請先啟動 Secret Service。"
+  },
   "execProviderNotConfigured": "提供者 {id} 未設定。",
   "providerText": {
     "wizard": {

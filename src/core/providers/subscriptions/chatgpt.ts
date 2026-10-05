@@ -75,6 +75,7 @@ export class ChatGptSignInError extends Error {
       | 'origin-mismatch'
       | 'sign-in-required'
       | 'expired'
+      | 'store-unavailable'
       | 'request-failed',
   ) {
     super(`chatgpt.${code}`)

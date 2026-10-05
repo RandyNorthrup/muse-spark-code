@@ -2158,6 +2158,24 @@
   "acpProvidersNone": "Aucun fournisseur configuré.",
   "acpProviderAdded": "Fournisseur {id} ajouté.",
   "acpProviderRemoved": "Fournisseur {id} supprimé.",
+  "acpChatGpt": {
+    "usage": "Utilisation: muse-spark-code-acp providers add|remove|status chatgpt",
+    "actions": {
+      "add": "Continuer avec ChatGPT",
+      "remove": "Supprimer la connexion ChatGPT",
+      "status": "Vérifier la connexion ChatGPT"
+    },
+    "notice": "ChatGPT Plus ou Pro est requis. Les requêtes utilisent le quota de votre abonnement ; OpenAI peut dépenser des crédits supplémentaires si vous les avez activés dans ChatGPT. Connectez-vous dans votre navigateur.",
+    "alreadyAdded": "ChatGPT est déjà ajouté. Supprimez-le avant de vous reconnecter.",
+    "states": {
+      "signed-in": "ChatGPT est connecté.",
+      "expired": "La connexion ChatGPT a expiré ; elle sera renouvelée à la prochaine utilisation, ou supprimez-la et reconnectez-vous.",
+      "signed-out": "ChatGPT n’est pas connecté."
+    },
+    "callback": "La connexion ChatGPT est terminée. Retournez à votre éditeur ou terminal.",
+    "failure": "La connexion ChatGPT n’a pas pu être terminée. Réessayez ou supprimez-la et reconnectez-vous.",
+    "storeUnavailable": "Le magasin d’identifiants de cet ordinateur est indisponible. Connectez-vous depuis une session de bureau interactive avec le magasin déverrouillé ; sous Linux, démarrez d’abord Secret Service."
+  },
   "execProviderNotConfigured": "Le fournisseur {id} n’est pas configuré.",
   "providerText": {
     "wizard": {

@@ -22,16 +22,19 @@ import {
   EXEC_EXIT,
   EXEC_SCAN_TIMEOUT_MS,
   EXEC_FORCE_WRITE_MS,
+  PROVIDERS_CONFIG_DIR_NAME,
+  PROVIDERS_FILE_NAME,
   SETTING_DEFAULTS,
   UI_TEXT,
 } from '../shared/constants'
 import type { SecretStore } from '../host/auth/credentialStore'
-import { fill } from '../shared/l10n/text'
+import { fill, uiLocale } from '../shared/l10n/text'
 import { authClear, type AuthCommandDeps, authSet, authStatus, login } from './authCommands'
 import { createRuntimeBackend } from './backends'
 import { parseCommandLine, type ServeOptions } from './cliArgs'
 import { readSecretLine } from './hiddenInput'
-import { credentialStoreName, keyringSecretStore } from './keyStore'
+import { credentialStoreName, keyringSecretStore, StoreUnavailableError } from './keyStore'
+import type { ChatGptProviderAction } from './chatGptProviderCommands'
 import { takeCredentials } from './credentialVariables'
 import { displayLanguage } from './locale'
 import { envProxyWarning } from './proxyWarning'
@@ -96,7 +99,11 @@ async function loadSecrets(): Promise<SecretStore> {
         new AsyncEntry(service, account, { linux: { store: 'secret-service' } }),
     )
   })()
-  return await nativeStore.value
+  try {
+    return await nativeStore.value
+  } catch {
+    throw new StoreUnavailableError()
+  }
 }
 const secrets: SecretStore = {
   async get(name) {
@@ -154,6 +161,36 @@ function authDeps(): AuthCommandDeps {
   }
 }
 
+async function chatGptDeps() {
+  const bundle = await import('./chatGptProviderCommands')
+  const commands = bundle.runtimeChatGptCommandDeps({
+    uiText: UI_TEXT,
+    locale: uiLocale(),
+    secrets,
+    fetch: globalThis.fetch.bind(globalThis),
+    configFile: path.join(
+      process.env['XDG_CONFIG_HOME'] ?? path.join(homedir(), '.config'),
+      PROVIDERS_CONFIG_DIR_NAME,
+      PROVIDERS_FILE_NAME,
+    ),
+    callbackText: () => UI_TEXT.acpChatGpt.callback,
+    openBrowser: (url) => {
+      writeLine(process.stdout, url)
+      return Promise.resolve()
+    },
+    print: (line) => {
+      writeLine(process.stdout, line)
+    },
+    printError: (line) => {
+      writeLine(process.stderr, line)
+    },
+  })
+  return {
+    signIns: bundle.chatGptAuthenticationMethods(() => commands.createHost()),
+    run: (action: ChatGptProviderAction) => bundle.runChatGptProviderCommand(action, commands),
+  }
+}
+
 function signInMethod(options: ServeOptions): SignInMethod {
   if (options.backend === 'modelApi') {
     const { id, args } = ACP_AUTH_METHODS.modelApiKey
@@ -207,6 +244,7 @@ async function serve(options: ServeOptions, log: Logger): Promise<number> {
   }
   // "Allow always" lapses for a paid feature started without its flag (M58).
   await runtime.forgetUnflaggedGrants()
+  const providerCommands = await chatGptDeps()
   const agent = createAcpAgent({
     backend: runtime.backend,
     version: packageVersion(),
@@ -216,6 +254,7 @@ async function serve(options: ServeOptions, log: Logger): Promise<number> {
       initialMode: SETTING_DEFAULTS.initialPermissionMode,
     },
     signIn: signInMethod(options),
+    providerSignIns: providerCommands.signIns,
     defaultCwd: process.cwd(),
     paid: runtime.paid,
     log,
@@ -363,6 +402,10 @@ async function main(): Promise<number> {
     log,
   })
   switch (command.command) {
+    case 'chatGptProvider': {
+      const providers = await chatGptDeps()
+      return await providers.run(command.action)
+    }
     case 'serve': {
       return await serve(command.options, log)
     }
@@ -394,6 +437,7 @@ async function main(): Promise<number> {
     }
     case 'help': {
       writeLine(process.stdout, fill(UI_TEXT.acpUsage, { command: ACP_AGENT_NAME }))
+      writeLine(process.stdout, UI_TEXT.acpChatGpt.usage)
       return 0
     }
     case 'invalid': {

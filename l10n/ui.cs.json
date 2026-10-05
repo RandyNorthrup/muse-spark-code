@@ -2235,6 +2235,24 @@
   "acpProvidersNone": "Nejsou nastaveni žádní poskytovatelé.",
   "acpProviderAdded": "Poskytovatel {id} přidán.",
   "acpProviderRemoved": "Poskytovatel {id} odebrán.",
+  "acpChatGpt": {
+    "usage": "Použití: muse-spark-code-acp providers add|remove|status chatgpt",
+    "actions": {
+      "add": "Pokračovat s ChatGPT",
+      "remove": "Odebrat přihlášení ChatGPT",
+      "status": "Zkontrolovat přihlášení ChatGPT"
+    },
+    "notice": "Je vyžadován ChatGPT Plus nebo Pro. Požadavky využívají limit vašeho tarifu; OpenAI může čerpat další kredity, pokud jste je v ChatGPT povolili. Přihlaste se v prohlížeči.",
+    "alreadyAdded": "ChatGPT je již přidán. Před dalším přihlášením jej odeberte.",
+    "states": {
+      "signed-in": "ChatGPT je přihlášen.",
+      "expired": "Přihlášení ChatGPT vypršelo; při použití se obnoví, nebo jej odeberte a přihlaste se znovu.",
+      "signed-out": "ChatGPT není přihlášen."
+    },
+    "callback": "Přihlášení ChatGPT je dokončeno. Vraťte se do editoru nebo terminálu.",
+    "failure": "Přihlášení ChatGPT se nepodařilo dokončit. Zkuste to znovu nebo jej odeberte a znovu se přihlaste.",
+    "storeUnavailable": "Úložiště přihlašovacích údajů tohoto počítače není dostupné. Přihlaste se z interaktivní relace plochy s odemčeným úložištěm; v Linuxu nejprve spusťte Secret Service."
+  },
   "execProviderNotConfigured": "Poskytovatel {id} není nastaven.",
   "providerText": {
     "wizard": {

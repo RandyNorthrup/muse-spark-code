@@ -2004,6 +2004,24 @@
   "acpProvidersNone": "プロバイダーが設定されていません。",
   "acpProviderAdded": "プロバイダー {id} を追加しました。",
   "acpProviderRemoved": "プロバイダー {id} を削除しました。",
+  "acpChatGpt": {
+    "usage": "使い方: muse-spark-code-acp providers add|remove|status chatgpt",
+    "actions": {
+      "add": "ChatGPT で続行",
+      "remove": "ChatGPT のサインインを削除",
+      "status": "ChatGPT のサインインを確認"
+    },
+    "notice": "ChatGPT Plus または Pro が必要です。リクエストはプランの利用枠を使います。ChatGPT で追加クレジットを有効にしている場合、OpenAI がそれを消費することがあります。ブラウザーでサインインしてください。",
+    "alreadyAdded": "ChatGPT は既に追加されています。再度サインインする前に削除してください。",
+    "states": {
+      "signed-in": "ChatGPT にサインインしています。",
+      "expired": "ChatGPT のサインインの有効期限が切れました。使用時に更新されます。または削除して再度サインインしてください。",
+      "signed-out": "ChatGPT にサインインしていません。"
+    },
+    "callback": "ChatGPT のサインインが完了しました。エディターまたはターミナルに戻ってください。",
+    "failure": "ChatGPT のサインインを完了できませんでした。再試行するか、削除して再度サインインしてください。",
+    "storeUnavailable": "このコンピューターの資格情報ストアを利用できません。ストアのロックを解除した対話型デスクトップセッションからサインインしてください。Linux では、先に Secret Service を起動してください。"
+  },
   "execProviderNotConfigured": "プロバイダー {id} は設定されていません。",
   "providerText": {
     "wizard": {

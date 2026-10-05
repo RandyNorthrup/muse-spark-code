@@ -2235,6 +2235,24 @@
   "acpProvidersNone": "Nie skonfigurowano dostawców.",
   "acpProviderAdded": "Dodano dostawcę {id}.",
   "acpProviderRemoved": "Usunięto dostawcę {id}.",
+  "acpChatGpt": {
+    "usage": "Użycie: muse-spark-code-acp providers add|remove|status chatgpt",
+    "actions": {
+      "add": "Kontynuuj z ChatGPT",
+      "remove": "Usuń logowanie do ChatGPT",
+      "status": "Sprawdź logowanie do ChatGPT"
+    },
+    "notice": "Wymagany jest ChatGPT Plus lub Pro. Żądania zużywają limit planu; OpenAI może wykorzystać dodatkowe kredyty, jeśli włączono je w ChatGPT. Zaloguj się w przeglądarce.",
+    "alreadyAdded": "ChatGPT jest już dodany. Usuń go przed ponownym logowaniem.",
+    "states": {
+      "signed-in": "ChatGPT jest zalogowany.",
+      "expired": "Logowanie do ChatGPT wygasło; odnowi się przy użyciu lub usuń je i zaloguj się ponownie.",
+      "signed-out": "ChatGPT nie jest zalogowany."
+    },
+    "callback": "Logowanie do ChatGPT zostało zakończone. Wróć do edytora lub terminala.",
+    "failure": "Nie udało się zakończyć logowania do ChatGPT. Spróbuj ponownie lub usuń je i zaloguj się jeszcze raz.",
+    "storeUnavailable": "Magazyn poświadczeń tego komputera jest niedostępny. Zaloguj się z interaktywnej sesji pulpitu z odblokowanym magazynem; w systemie Linux najpierw uruchom Secret Service."
+  },
   "execProviderNotConfigured": "Dostawca {id} nie jest skonfigurowany.",
   "providerText": {
     "wizard": {

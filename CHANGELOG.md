@@ -9,6 +9,13 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- ChatGPT provider add, remove and status commands now reach the ACP executable
+  and appear as terminal or manual actions in every ACP editor. Sign-in saves
+  the account's eligible catalogue models atomically; translated notices and
+  callback text ship in all fourteen languages. Native credential-store failures
+  retain a sanitized recovery category and direct users to an interactive
+  desktop session, without exposing the store's error text.
+
 - M95 integration shares the Node validation runtime and the provider-setup
   schema, so Models host stays within its existing size budget. Account & usage
   loads on demand with a dismissible loading modal. Chat's unchanged startup
