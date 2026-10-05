@@ -1,11 +1,12 @@
 import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
-import { brotliCompressSync } from 'node:zlib'
+import { brotliCompressSync, constants as zlibConstants } from 'node:zlib'
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
 import { loadUiTable, readUiTableFile, type UiTableDeps } from '../../src/host/l10n'
 import type { Logger } from '../../src/host/logger'
-import { L10N_TABLE_MAX_BYTES } from '../../src/shared/constants'
+import { L10N_TABLE_MAX_BYTES, L10N_TABLE_ARCHIVE_FILE } from '../../src/shared/constants'
 import { removeFolder } from './helpers/temporaryFolders'
+import { TABLE_LOCALES } from '../../src/shared/l10n/locales'
 import { EN } from '../../src/shared/l10n/en'
 import { BASE_LOCALE, setUiText, UI_TEXT, uiLocale } from '../../src/shared/l10n/text'
 
@@ -156,4 +157,56 @@ describe('source and packaged translation bytes', () => {
     writeFileSync(path.join(fixture.root, 'l10n/ui.it.json'), JSON.stringify(EN))
     await expect(readUiTableFile(fixture.root, ['l10n', 'ui.it.json'])).rejects.toThrow()
   })
+  it.each(['valid', 'width', 'keys', 'locale', 'selected-size', 'archive-size'])(
+    'reads the combined archive fail-closed: %s',
+    async (kind) => {
+      const root = path.join(fixture.root, kind)
+      mkdirSync(path.join(root, 'l10n'), { recursive: true })
+      const keys = Object.keys(GERMAN)
+      const values: unknown[] = Object.values(GERMAN)
+      const archive = { version: 1, keys, locales: ['de'], values: [values] }
+      switch (kind) {
+        case 'width': {
+          values.pop()
+          break
+        }
+        case 'keys': {
+          keys[0] = keys[1] ?? ''
+          break
+        }
+        case 'locale': {
+          archive.locales.push('de')
+          archive.values.push([...values])
+          break
+        }
+        case 'selected-size': {
+          values[0] = 'x'.repeat(L10N_TABLE_MAX_BYTES + 1)
+          break
+        }
+        case 'archive-size': {
+          archive.locales = [...TABLE_LOCALES]
+          archive.values = TABLE_LOCALES.map((locale) =>
+            locale === 'de' ? values : ['x'.repeat(L10N_TABLE_MAX_BYTES * 2), ...values.slice(1)],
+          )
+          break
+        }
+      }
+      writeFileSync(
+        path.join(root, 'l10n', L10N_TABLE_ARCHIVE_FILE),
+        brotliCompressSync(JSON.stringify(archive), {
+          params: { [zlibConstants.BROTLI_PARAM_QUALITY]: 1 },
+        }),
+      )
+      const read = readUiTableFile(root, ['l10n', 'ui.de.json'])
+      if (kind === 'valid') {
+        await expect(read).resolves.toBe(JSON.stringify(GERMAN))
+        const installed = await loadUiTable({
+          language: 'de',
+          readExtensionFile: (segments) => readUiTableFile(root, segments),
+          log: fakeLog(),
+        })
+        expect(installed.table).toEqual(GERMAN)
+      } else await expect(read).rejects.toThrow()
+    },
+  )
 })

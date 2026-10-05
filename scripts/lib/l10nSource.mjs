@@ -9,7 +9,8 @@ import * as esbuild from 'esbuild'
 
 const L10N_DIR = 'src/shared/l10n'
 const ENTRY = [
-  "export { L10N_TABLE_MAX_BYTES, L10N_COMPRESSION_QUALITY } from '../constants'",
+  "export { L10N_TABLE_MAX_BYTES, L10N_COMPRESSION_QUALITY, L10N_TABLE_ARCHIVE_FILE } from '../constants'",
+  "export { readArchivedUiTable } from './tableArchive'",
   "export { EN } from './en'",
   "export { tableProblems } from './check'",
   "export { isPluralForms } from './forms'",

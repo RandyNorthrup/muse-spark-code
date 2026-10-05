@@ -4,6 +4,7 @@ import path from 'node:path'
 import { brotliDecompressSync } from 'node:zlib'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { stageVsix, packagedChangelog } from '../../scripts/package-vsix.mjs'
+import { readArchivedUiTable } from '../../src/shared/l10n/tableArchive'
 import { listFiles } from '@vscode/vsce/out/package.js'
 
 const ROOT = process.cwd()
@@ -84,7 +85,7 @@ describe('VSIX packaging', () => {
         'dist/validation.js',
         'dist/webview/chunks/UsageDialog-test.js',
         'native/darwin/muse-dictate',
-        'l10n/ui.de.json.br',
+        'l10n/ui.tables.json.br',
       ]),
     )
     expect(packaged).not.toContain('docs/marketplace-readme.md')
@@ -93,10 +94,11 @@ describe('VSIX packaging', () => {
     const source = path.join(fixture.root, 'l10n/ui.de.json')
     const before = readFileSync(path.join(ROOT, 'l10n/ui.de.json'))
     const shipped = brotliDecompressSync(
-      readFileSync(path.join(fixture.stage, 'l10n/ui.de.json.br')),
+      readFileSync(path.join(fixture.stage, 'l10n/ui.tables.json.br')),
     ).toString('utf8')
-    expect(JSON.parse(shipped)).toEqual(JSON.parse(before))
-    expect(shipped).toBe(JSON.stringify(JSON.parse(before)))
+    const table = readArchivedUiTable(shipped, 'de')
+    expect(JSON.parse(table)).toEqual(JSON.parse(before))
+    expect(table).toBe(JSON.stringify(JSON.parse(before)))
     expect(createHash('sha256').update(readFileSync(source)).digest('hex')).toBe(
       createHash('sha256').update(before).digest('hex'),
     )

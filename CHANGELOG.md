@@ -250,6 +250,9 @@ happened, not what was planned; superseded entries are kept.
 
 ### Changed
 
+- Package translated UI values in one bounded lossless archive; installed
+  values stay identical, while source and ACP tables keep their JSON format.
+
 - **M100's paired-device plan now states connectivity prerequisites.** Manual
   address entry bypasses discovery only; routing and explicitly authorized
   inbound access are still required. D80, acceptance B/K and the research

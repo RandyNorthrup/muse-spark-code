@@ -271,3 +271,27 @@ real adapter but asks no price and reserves nothing. Four regressions were
 red before the adapter; the final owning trio passes 33 tests. Two deliberate
 cap/day bypasses fail and restore source bytes exactly (SHA-256 recorded in
 m98.md). No second client reservation, copied ledger or paid/live call.
+
+### Actual-package repair before ACTDIET
+
+The checksum-verified universal-helper baseline is **2,436,399 bytes**, over
+the unchanged 2,252,800-byte cap. Its fourteen individual UI Brotli payloads
+occupy 605,236 ZIP bytes. A language-major matrix shares keys and measures
+434,140 Brotli bytes; all fourteen source tables have the same key order.
+The staged package stores that matrix once. Runtime and the package gate
+use the same zod-validated decoder, preserve the per-table 1-MiB bound, and
+bound the aggregate decode by the fourteen table limits. Source and ACP
+JSON and older individual compressed-table compatibility remain.
+
+VSIX staging and host localization: **32 passed** on Kubuntu. Deliberately
+bypassing matrix width, the selected-table byte bound and aggregate Brotli
+bound makes each owning suite exit 1, followed by exact restoration:
+
+| Drill                        | File                            | Before/restored SHA-256                                          |
+| ---------------------------- | ------------------------------- | ---------------------------------------------------------------- |
+| Matrix width; selected bytes | src/shared/l10n/tableArchive.ts | 416619fb20d703855fd9cff753ec885ba9c7327422ce828906d5a09d463fc39f |
+| Aggregate bytes              | src/host/l10n.ts                | f4fec626b8c2c3e60dbbb12f08ba2358a2bcf4b4ece9f99402df85f0e21a3521 |
+
+The ACTDIET handoff file is checked from 18:15 through 18:45 UTC and remains
+absent. Continue from preview/actdiet’s four commits and its committed
+certification, preserving this tree’s M71/M98 behavior and DEFLAKE4 fixtures.

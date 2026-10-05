@@ -1,6 +1,5 @@
 // Stage only VSCE's allowlisted files, compact JSON without changing its
 // values, and package short landing docs. Source docs and tables stay readable.
-import { Buffer } from 'node:buffer'
 import { execFileSync } from 'node:child_process'
 import { copyFileSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
@@ -24,7 +23,7 @@ export function packagedChangelog(text) {
 export async function stageVsix(root, stage) {
   // The stage is build output in this worktree, never a user-selected folder.
   if (stage !== path.join(root, 'dist', 'vsix-package')) throw new Error('Invalid VSIX stage')
-  const { L10N_COMPRESSION_QUALITY } = await loadL10n(
+  const { L10N_COMPRESSION_QUALITY, L10N_TABLE_ARCHIVE_FILE } = await loadL10n(
     path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..'),
   )
   const files = await listFiles({ cwd: root, dependencies: false })
@@ -37,24 +36,43 @@ export async function stageVsix(root, stage) {
     throw new Error('Shared validation runtime excluded from VSIX')
   rmSync(stage, { recursive: true, force: true })
   mkdirSync(stage, { recursive: true })
+  const tables = []
   for (const file of files) {
     const isUiTable = /^l10n\/ui\.[^/]+\.json$/.test(file)
-    const target = path.join(stage, isUiTable ? `${file}.br` : file)
+    if (isUiTable) {
+      tables.push([
+        path.basename(file).slice('ui.'.length, -'.json'.length),
+        JSON.parse(readFileSync(path.join(root, file), 'utf8')),
+      ])
+      continue
+    }
+    const target = path.join(stage, file)
     mkdirSync(path.dirname(target), { recursive: true })
     if (COMPACT_JSON.test(file)) {
-      const compact = JSON.stringify(JSON.parse(readFileSync(path.join(root, file), 'utf8')))
-      writeFileSync(
-        target,
-        isUiTable
-          ? brotliCompressSync(Buffer.from(compact), {
-              params: { [zlibConstants.BROTLI_PARAM_QUALITY]: L10N_COMPRESSION_QUALITY },
-            })
-          : compact,
-      )
+      writeFileSync(target, JSON.stringify(JSON.parse(readFileSync(path.join(root, file), 'utf8'))))
     } else {
       copyFileSync(path.join(root, file), target)
     }
   }
+  const keys = Object.keys(tables[0]?.[1] ?? {})
+  if (
+    keys.length === 0 ||
+    tables.some(([, table]) => JSON.stringify(Object.keys(table)) !== JSON.stringify(keys))
+  )
+    throw new Error('Translation tables have inconsistent key order')
+  const archive = {
+    version: 1,
+    keys,
+    locales: tables.map(([locale]) => locale),
+    values: tables.map(([, table]) => keys.map((key) => table[key])),
+  }
+  mkdirSync(path.join(stage, 'l10n'), { recursive: true })
+  writeFileSync(
+    path.join(stage, 'l10n', L10N_TABLE_ARCHIVE_FILE),
+    brotliCompressSync(JSON.stringify(archive), {
+      params: { [zlibConstants.BROTLI_PARAM_QUALITY]: L10N_COMPRESSION_QUALITY },
+    }),
+  )
   writeFileSync(
     path.join(stage, 'README.md'),
     readFileSync(path.join(root, 'docs/marketplace-readme.md')),

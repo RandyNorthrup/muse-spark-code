@@ -10,12 +10,18 @@ import { existsSync } from 'node:fs'
 import { readFile } from 'node:fs/promises'
 import path from 'node:path'
 import { brotliDecompressSync } from 'node:zlib'
-import { L10N_TABLE_MAX_BYTES } from '../shared/constants'
+import { L10N_TABLE_MAX_BYTES, L10N_TABLE_ARCHIVE_FILE } from '../shared/constants'
 import { tableProblems } from '../shared/l10n/check'
 import { EN, type UiText } from '../shared/l10n/en'
-import { TABLE_DIRECTORY, tableFileName, tableLocaleFor } from '../shared/l10n/locales'
+import {
+  TABLE_DIRECTORY,
+  TABLE_LOCALES,
+  tableFileName,
+  tableLocaleFor,
+} from '../shared/l10n/locales'
 import { BASE_LOCALE, setUiText } from '../shared/l10n/text'
 import type { Logger } from './logger'
+import { readArchivedUiTable } from '../shared/l10n/tableArchive'
 
 /** The installed table and its language, as the webviews receive them. */
 export interface UiTable {
@@ -86,6 +92,17 @@ export async function loadUiTable(deps: UiTableDeps): Promise<UiTable> {
 
 /** Source and ACP tables are JSON; staged VSIX tables are bounded Brotli. */
 export async function readUiTableFile(root: string, segments: readonly string[]): Promise<string> {
+  const archive = path.join(root, TABLE_DIRECTORY, L10N_TABLE_ARCHIVE_FILE)
+  const locale =
+    segments.length === 2 && segments[0] === TABLE_DIRECTORY
+      ? TABLE_LOCALES.find((name) => tableFileName(name) === segments[1])
+      : undefined
+  if (locale !== undefined && existsSync(archive)) {
+    const text = brotliDecompressSync(await readFile(archive), {
+      maxOutputLength: L10N_TABLE_MAX_BYTES * TABLE_LOCALES.length,
+    }).toString('utf8')
+    return readArchivedUiTable(text, locale)
+  }
   const file = path.join(root, ...segments)
   const compressed = `${file}.br`
   if (existsSync(compressed)) {
