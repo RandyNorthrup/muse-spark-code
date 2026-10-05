@@ -62,9 +62,21 @@
       "toolLabels.shell",
       "workflowChildUntitled",
       "agentImportKindHook",
-      "agentImportKindAgent"
+      "agentImportKindAgent",
+      "teamTemplates.solo",
+      "teamSwitchRow",
+      "teamCapabilityWarning"
     ],
-    "tr": ["groupModel", "usageModel", "modelPillLabel", "exportModelLine", "usagePlan"],
+    "tr": [
+      "groupModel",
+      "usageModel",
+      "modelPillLabel",
+      "exportModelLine",
+      "usagePlan",
+      "teamTemplates.solo",
+      "teamSwitchRow",
+      "teamCapabilityWarning"
+    ],
     "pl": [
       "groupModel",
       "usageModel",
@@ -80,7 +92,10 @@
       "imageBuyPrompt",
       "workflowChildUntitled",
       "agentImportKindHook",
-      "agentImportKindAgent"
+      "agentImportKindAgent",
+      "teamTemplates.solo",
+      "teamSwitchRow",
+      "teamCapabilityWarning"
     ],
     "de": [
       "groupSkills",
@@ -104,7 +119,14 @@
       "toolLabels.find_definition",
       "toolLabels.mcp__ide__findDefinition",
       "agentImportKindHook",
-      "agentImportKindAgent"
+      "agentImportKindAgent",
+      "teamOrchestratorSlot",
+      "teamIntensityLevels.minimal",
+      "teamIntensityLevels.max",
+      "teamTemplates.solo",
+      "teamSetupSteps.pools",
+      "teamSwitchRow",
+      "teamCapabilityWarning"
     ],
     "es": [
       "usagePlan",
@@ -113,7 +135,12 @@
       "toolLabels.shell",
       "goalTokens",
       "agentImportKindHook",
-      "verifyErrors.one"
+      "verifyErrors.one",
+      "teamRolesTitle",
+      "teamTemplates.solo",
+      "teamSetupSteps.pools",
+      "teamSwitchRow",
+      "teamCapabilityWarning"
     ],
     "pt-br": [
       "agentTokens",
@@ -121,7 +148,11 @@
       "toolLabels.shell",
       "goalTokens",
       "imageBuyPrompt",
-      "agentImportKindHook"
+      "agentImportKindHook",
+      "teamTemplates.solo",
+      "teamSetupSteps.pools",
+      "teamSwitchRow",
+      "teamCapabilityWarning"
     ],
     "fr": [
       "modesTitle",
@@ -140,18 +171,34 @@
       "toolLabels.mcp__ide__generateImage",
       "workflowChildUntitled",
       "agentImportKindHook",
-      "agentImportKindAgent"
+      "agentImportKindAgent",
+      "teamIntensityLevels.max",
+      "teamTemplates.solo",
+      "teamSetupSteps.pools"
     ],
     "it": [
       "usageAccount",
       "exportOutputLabel",
       "toolLabels.shell",
       "imageBuyPrompt",
-      "agentImportKindHook"
+      "agentImportKindHook",
+      "teamIntensityLevels.max",
+      "teamTemplates.solo",
+      "teamSwitchRow",
+      "teamCapabilityWarning"
     ],
     "zh-cn": ["toolLabels.shell"],
     "zh-tw": ["toolLabels.shell"],
-    "hu": ["toolLabels.shell", "imageBuyPrompt", "agentImportKindHook"]
+    "hu": [
+      "toolLabels.shell",
+      "imageBuyPrompt",
+      "agentImportKindHook",
+      "teamIntensityLevels.max",
+      "teamSwitchRow",
+      "teamCapabilityWarning"
+    ],
+    "ko": ["teamSwitchRow", "teamCapabilityWarning"],
+    "ru": ["teamSwitchRow", "teamCapabilityWarning"]
   },
   "manifest": {
     "*": ["viewsContainers.museSpark.title", "command.category", "config.title"],

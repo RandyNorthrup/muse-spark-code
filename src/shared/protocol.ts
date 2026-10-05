@@ -41,6 +41,7 @@ import { scheduleCadenceSchema } from './schedule'
 import { bestOfNRunSchema } from './bestOfN'
 import { boardRowSchema } from './sessionBoard'
 import { sessionRowSchema } from './sessions'
+import { teamTreeActionSchema, teamTreeUpdateSchema } from './team'
 import { accountFactsSchema, subscriptionUsageSchema, usageInsightsSchema } from './usage'
 
 // Settings the webview needs to render. Host-only settings (binary path,
@@ -571,6 +572,9 @@ const webviewToHostMessageSchema = z.discriminatedUnion('type', [
   // Account & usage's "Ask again" (M58): no paid feature stays allowed
   // always in this workspace.
   z.object({ type: z.literal('forgetPaidUse') }),
+  // The Agent map's team tree (M96, PLAN.md D75): one action per click on a
+  // task or entry node, drawn from the task, never from worker text.
+  teamTreeActionSchema,
 ])
 
 export type WebviewToHostMessage = z.infer<typeof webviewToHostMessageSchema>
@@ -862,6 +866,10 @@ const hostToWebviewMessageSchema = z.discriminatedUnion('type', [
     dataUri: z.optional(z.string()),
     error: z.optional(z.string()),
   }),
+  // The Agent map's team tree (M96, PLAN.md D75): the ledger's live view,
+  // pushed when it changes. In single-model mode the panel shows today's
+  // map instead, and this never arrives.
+  teamTreeUpdateSchema,
 ])
 
 export type HostToWebviewMessage = z.infer<typeof hostToWebviewMessageSchema>

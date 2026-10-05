@@ -2655,6 +2655,12 @@ function applyHostMessage(state: UiState, message: HostToWebviewMessage, at: num
         toolImages: { ...state.toolImages, [toolImageKey(message.itemId, message.path)]: image },
       }
     }
+    case 'teamTree': {
+      // M96 lane 0 seam: the tree arrives before the Agent map reads it
+      // (lane U2 owns this case from here). Until then it is ignored, like
+      // any message this state does not consume.
+      return state
+    }
   }
 }
 
