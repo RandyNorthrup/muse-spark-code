@@ -415,7 +415,7 @@ export class RequestTransport {
     }
   }
 
-  public backoffMs(attempt: number, suggestedMs: number | undefined): number {
+  public backoffMs(attempt: number, suggestedMs?: number): number {
     const exponential = Math.min(MODEL_API_RETRY_BASE_MS * 2 ** attempt, MODEL_API_RETRY_MAX_MS)
     const jitter = Math.floor(this.deps.random() * MODEL_API_RETRY_JITTER_MS)
     return Math.min((suggestedMs ?? exponential) + jitter, MODEL_API_RETRY_MAX_MS)

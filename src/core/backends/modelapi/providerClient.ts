@@ -107,6 +107,9 @@ export class CodecClient implements ProviderClient {
   private readonly transport: RequestTransport
   public readonly provider: ProviderIdentity
   public readonly capabilities: (modelId: string) => ModelCapabilities
+  public readonly currentKeyDigest: () => Promise<string>
+  public readonly retryDelayMs: (attempt: number) => number
+  public readonly waitBeforeRetry: (ms: number, signal: AbortSignal) => Promise<void>
   public constructor(private readonly deps: CodecClientDeps) {
     this.provider = deps.provider
     if (
@@ -131,15 +134,9 @@ export class CodecClient implements ProviderClient {
       parseError: (status, body, headers) => deps.codec.parseError(status, body, headers),
       isTerminalError: (failure) => isZai && (failure.code === '1113' || failure.code === '1308'),
     })
-  }
-  public async currentKeyDigest(): Promise<string> {
-    return await this.transport.currentKeyDigest()
-  }
-  public retryDelayMs(attempt: number): number {
-    return this.transport.backoffMs(attempt, undefined)
-  }
-  public async waitBeforeRetry(ms: number, signal: AbortSignal): Promise<void> {
-    await this.transport.pause(ms, signal)
+    this.currentKeyDigest = this.transport.currentKeyDigest.bind(this.transport)
+    this.retryDelayMs = this.transport.backoffMs.bind(this.transport)
+    this.waitBeforeRetry = this.transport.pause.bind(this.transport)
   }
   public async listModels(): Promise<readonly string[]> {
     const { response } = await this.transport.request(
@@ -184,13 +181,9 @@ export class CodecClient implements ProviderClient {
     return count
   }
   public async *streamResponse(
-    body: CreateResponseBody,
-    signal: AbortSignal,
-    onRetry?: (notice: RetryNotice) => void,
-    budget?: RetryBudget,
-    admitAttempt?: ResponseAttemptGuard,
-    confirmed?: ConfirmedModelRequest,
+    ...args: Parameters<ProviderClient['streamResponse']>
   ): AsyncGenerator<StreamEvent> {
+    const [body, signal, onRetry, budget, admitAttempt, confirmed] = args
     if (
       confirmed !== undefined &&
       (confirmed.modelId !== body.model ||

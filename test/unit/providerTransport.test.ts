@@ -255,6 +255,7 @@ describe('shared provider transport', () => {
       const stop = new AbortController()
       const fetch = vi.fn(() => Promise.resolve(new Response('{}')))
       const started = vi.fn()
+      const admitted = vi.fn()
       const transport = new RequestTransport(
         deps({
           fetch,
@@ -273,7 +274,7 @@ describe('shared provider transport', () => {
           stop.signal,
           undefined,
           undefined,
-          undefined,
+          admitted,
           {
             modelId: body.model,
             keyDigest: createHash('sha256').update(KEY).digest('hex'),
@@ -285,6 +286,7 @@ describe('shared provider transport', () => {
       ).rejects.toThrow()
       expect(fetch).not.toHaveBeenCalled()
       expect(started).not.toHaveBeenCalled()
+      expect(admitted).not.toHaveBeenCalled()
     }
   })
   it('redacts quoted opaque credentials from error envelopes, fields and retry notices', async () => {
