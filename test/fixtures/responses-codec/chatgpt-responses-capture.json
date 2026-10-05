@@ -1,0 +1,78 @@
+{
+  "provider": "chatgpt",
+  "runId": "577bc807-780d-4d99-9c09-e4d43a9d8538",
+  "seq": 5,
+  "step": "responses-namespace",
+  "at": "2026-10-05T19:52:23.180Z",
+  "endpoint": "https://api.openai.com/v1/responses",
+  "method": "POST",
+  "counted": true,
+  "model": true,
+  "billed": false,
+  "request": {
+    "method": "POST",
+    "url": "https://api.openai.com/v1/responses",
+    "headers": {
+      "Content-Type": "application/json",
+      "Accept": "text/event-stream"
+    },
+    "body": {
+      "model": "gpt-5.6-luna",
+      "input": [
+        {
+          "role": "user",
+          "content": "Call ping once. Write no explanation."
+        }
+      ],
+      "tools": [
+        {
+          "type": "namespace",
+          "name": "capture",
+          "description": "One harmless test function.",
+          "tools": [
+            {
+              "type": "function",
+              "name": "ping",
+              "description": "Return a short test acknowledgment.",
+              "parameters": {
+                "type": "object",
+                "properties": {},
+                "required": [],
+                "additionalProperties": false
+              },
+              "strict": true
+            }
+          ]
+        }
+      ],
+      "store": false,
+      "stream": true,
+      "reasoning": {
+        "effort": "low"
+      },
+      "include": ["reasoning.encrypted_content"],
+      "prompt_cache_key": "m95b-capture"
+    }
+  },
+  "response": {
+    "status": 200,
+    "headers": {
+      "access-control-expose-headers": "CF-Ray, CF-Ray",
+      "alt-svc": "h3=\":443\"; ma=86400",
+      "cf-cache-status": "DYNAMIC",
+      "cf-ray": "a45ef76baeda2ebd-LAX",
+      "connection": "keep-alive",
+      "date": "Mon, 05 Oct 2026 19:52:33 GMT",
+      "server": "cloudflare",
+      "strict-transport-security": "max-age=31536000; includeSubDomains; preload",
+      "transfer-encoding": "chunked",
+      "x-codex-turn-state": "<redacted>",
+      "x-content-type-options": "nosniff",
+      "x-models-etag": "W/\"<redacted>\"",
+      "x-oai-request-id": "<redacted>",
+      "x-openai-proxy-wasm": "v0.1"
+    },
+    "body": "event: response.created\ndata: {\"type\":\"response.created\",\"response\":{\"id\":\"<redacted>\",\"object\":\"response\",\"created_at\":1791229947,\"status\":\"in_progress\",\"access_programs\":{\"cyber\":\"daybreak_blue\"},\"background\":false,\"completed_at\":null,\"error\":null,\"frequency_penalty\":0.0,\"incomplete_details\":null,\"instructions\":null,\"max_output_tokens\":null,\"max_tool_calls\":null,\"model\":\"gpt-5.6-luna\",\"moderation\":null,\"output\":[],\"parallel_tool_calls\":true,\"presence_penalty\":0.0,\"previous_response_id\":null,\"prompt_cache_key\":\"e7985f1f-1db7-460a-b73f-c0044fc7d444\",\"prompt_cache_retention\":\"24h\",\"reasoning\":{\"context\":\"all_turns\",\"effort\":\"low\",\"mode\":\"standard\",\"summary\":null},\"safety_identifier\":\"<redacted>\",\"service_tier\":\"auto\",\"store\":false,\"temperature\":1.0,\"text\":{\"format\":{\"type\":\"text\"},\"verbosity\":\"medium\"},\"tool_choice\":\"auto\",\"tool_usage\":{\"image_gen\":{\"input_tokens\":0,\"input_tokens_details\":{\"image_tokens\":0,\"text_tokens\":0},\"output_tokens\":0,\"output_tokens_details\":{\"image_tokens\":0,\"text_tokens\":0},\"total_tokens\":0},\"web_search\":{\"num_requests\":0}},\"tools\":[{\"type\":\"namespace\",\"description\":\"One harmless test function.\",\"name\":\"capture\",\"tools\":[{\"type\":\"function\",\"description\":\"Return a short test acknowledgment.\",\"name\":\"ping\",\"output_schema\":null,\"parameters\":{\"type\":\"object\",\"properties\":{},\"required\":[],\"additionalProperties\":false},\"strict\":true}]}],\"top_logprobs\":0,\"top_p\":0.98,\"truncation\":\"disabled\",\"usage\":null,\"user\":null,\"metadata\":{}},\"sequence_number\":0}\n\nevent: response.in_progress\ndata: {\"type\":\"response.in_progress\",\"response\":{\"id\":\"<redacted>\",\"object\":\"response\",\"created_at\":1791229947,\"status\":\"in_progress\",\"access_programs\":{\"cyber\":\"daybreak_blue\"},\"background\":false,\"completed_at\":null,\"error\":null,\"frequency_penalty\":0.0,\"incomplete_details\":null,\"instructions\":null,\"max_output_tokens\":null,\"max_tool_calls\":null,\"model\":\"gpt-5.6-luna\",\"moderation\":null,\"output\":[],\"parallel_tool_calls\":true,\"presence_penalty\":0.0,\"previous_response_id\":null,\"prompt_cache_key\":\"e7985f1f-1db7-460a-b73f-c0044fc7d444\",\"prompt_cache_retention\":\"24h\",\"reasoning\":{\"context\":\"all_turns\",\"effort\":\"low\",\"mode\":\"standard\",\"summary\":null},\"safety_identifier\":\"<redacted>\",\"service_tier\":\"auto\",\"store\":false,\"temperature\":1.0,\"text\":{\"format\":{\"type\":\"text\"},\"verbosity\":\"medium\"},\"tool_choice\":\"auto\",\"tool_usage\":{\"image_gen\":{\"input_tokens\":0,\"input_tokens_details\":{\"image_tokens\":0,\"text_tokens\":0},\"output_tokens\":0,\"output_tokens_details\":{\"image_tokens\":0,\"text_tokens\":0},\"total_tokens\":0},\"web_search\":{\"num_requests\":0}},\"tools\":[{\"type\":\"namespace\",\"description\":\"One harmless test function.\",\"name\":\"capture\",\"tools\":[{\"type\":\"function\",\"description\":\"Return a short test acknowledgment.\",\"name\":\"ping\",\"output_schema\":null,\"parameters\":{\"type\":\"object\",\"properties\":{},\"required\":[],\"additionalProperties\":false},\"strict\":true}]}],\"top_logprobs\":0,\"top_p\":0.98,\"truncation\":\"disabled\",\"usage\":null,\"user\":null,\"metadata\":{}},\"sequence_number\":1}\n\nevent: error\ndata: {\"type\":\"error\",\"error\":{\"type\":\"invalid_request_error\",\"code\":\"<redacted>\",\"message\":\"The ChatGPT user has reached their Subscription Sharing usage limit. Ask the user to try again after their usage limit resets or use an API key instead.\",\"param\":null},\"sequence_number\":2}\n\nevent: response.failed\ndata: {\"type\":\"response.failed\",\"response\":{\"id\":\"<redacted>\",\"object\":\"response\",\"created_at\":1791229947,\"status\":\"failed\",\"access_programs\":{\"cyber\":\"daybreak_blue\"},\"background\":false,\"completed_at\":null,\"error\":{\"code\":\"<redacted>\",\"message\":\"The ChatGPT user has reached their Subscription Sharing usage limit. Ask the user to try again after their usage limit resets or use an API key instead.\"},\"frequency_penalty\":0.0,\"incomplete_details\":null,\"instructions\":null,\"max_output_tokens\":null,\"max_tool_calls\":null,\"model\":\"gpt-5.6-luna\",\"moderation\":null,\"output\":[],\"parallel_tool_calls\":true,\"presence_penalty\":0.0,\"previous_response_id\":null,\"prompt_cache_key\":\"e7985f1f-1db7-460a-b73f-c0044fc7d444\",\"prompt_cache_retention\":\"24h\",\"reasoning\":{\"context\":\"all_turns\",\"effort\":\"low\",\"mode\":\"standard\",\"summary\":null},\"safety_identifier\":\"<redacted>\",\"service_tier\":\"auto\",\"store\":false,\"temperature\":1.0,\"text\":{\"format\":{\"type\":\"text\"},\"verbosity\":\"medium\"},\"tool_choice\":\"auto\",\"tool_usage\":{\"image_gen\":{\"input_tokens\":0,\"input_tokens_details\":{\"image_tokens\":0,\"text_tokens\":0},\"output_tokens\":0,\"output_tokens_details\":{\"image_tokens\":0,\"text_tokens\":0},\"total_tokens\":0},\"web_search\":{\"num_requests\":0}},\"tools\":[{\"type\":\"namespace\",\"description\":\"One harmless test function.\",\"name\":\"capture\",\"tools\":[{\"type\":\"function\",\"description\":\"Return a short test acknowledgment.\",\"name\":\"ping\",\"output_schema\":null,\"parameters\":{\"type\":\"object\",\"properties\":{},\"required\":[],\"additionalProperties\":false},\"strict\":true}]}],\"top_logprobs\":0,\"top_p\":0.98,\"truncation\":\"disabled\",\"usage\":null,\"user\":null,\"metadata\":{}},\"sequence_number\":3}\n\n",
+    "error": "Responses stream content type invalid"
+  }
+}

@@ -2,6 +2,7 @@
 // request and nested SSE limit error. No sign-in or model calls run here.
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
+import * as z from 'zod/mini'
 import {
   createResponsesCodec,
   ResponsesDecodeError,
@@ -25,6 +26,38 @@ const limitError = {
   code: 'subscription_sharing_usage_limit_exceeded',
   message: limitMessage,
 }
+
+// Request fields from the supplied scrubbed responses-namespace frame;
+// loose objects retain additions so the comparison cannot silently omit them.
+const captureSchema = z.object({
+  request: z.object({
+    body: z.looseObject({
+      model: z.string(),
+      input: z.array(z.looseObject({ role: z.literal('user'), content: z.string() })),
+      tools: z.array(
+        z.looseObject({
+          type: z.literal('namespace'),
+          name: z.string(),
+          description: z.string(),
+          tools: z.array(
+            z.looseObject({
+              type: z.literal('function'),
+              name: z.string(),
+              description: z.string(),
+              parameters: z.record(z.string(), z.unknown()),
+              strict: z.boolean(),
+            }),
+          ),
+        }),
+      ),
+      store: z.literal(false),
+      stream: z.literal(true),
+      reasoning: z.looseObject({ effort: z.string() }),
+      include: z.array(z.literal('reasoning.encrypted_content')),
+      prompt_cache_key: z.string(),
+    }),
+  }),
+})
 
 function body(): CreateResponseBody {
   return {
@@ -95,6 +128,61 @@ describe('chatgpt Responses request profile', () => {
     expect(JSON.stringify(codec.encodeRequest(original))).toBe(JSON.stringify(golden))
     expect(JSON.stringify(original)).toBe(before)
     expect(JSON.stringify(codec.encodeRequest(original))).toBe(JSON.stringify(golden))
+  })
+
+  it('matches the scrubbed captured request with only documented harness adaptations', () => {
+    // Run 577bc807-780d-4d99-9c09-e4d43a9d8538, seq 5, 2026-10-05:
+    // one counted plan attempt in the owner's empty capture workspace.
+    const capture = captureSchema.parse(
+      JSON.parse(
+        readFileSync(
+          new URL('../fixtures/responses-codec/chatgpt-responses-capture.json', import.meta.url),
+          'utf8',
+        ),
+      ),
+    ).request.body
+    const namespace = capture.tools[0]
+    if (namespace === undefined) throw new Error('Missing captured namespace')
+    const input: CreateResponseBody['input'] = capture.input.map((message) => ({
+      type: 'message',
+      role: message.role,
+      content: [{ type: 'input_text', text: message.content }],
+    }))
+    const original = {
+      ...body(),
+      instructions: 'Use the ping tool.',
+      model: capture.model,
+      input,
+      tools: namespace.tools,
+      reasoning: { ...body().reasoning, effort: capture.reasoning.effort },
+      include: capture.include,
+      store: capture.store,
+      stream: capture.stream,
+      prompt_cache_key: capture.prompt_cache_key,
+    }
+    const capturedCodec = createResponsesCodec({
+      profile: 'chatgpt',
+      toolNamespace: namespace.name,
+      toolNamespaceDescription: namespace.description,
+    })
+    const before = JSON.stringify(original)
+    // Exhaustive intentional differences from the captured request:
+    // /input/0/type: the canonical replay names its message item explicitly.
+    // /input/0/content: the harness uses typed input_text parts, not shorthand.
+    // /instructions: the harness supplies its system/tool instructions.
+    // /tool_choice: explicit auto retains the harness's tool-loop contract.
+    // /reasoning/summary: auto supplies the harness's visible thought summaries.
+    // The canonical cap and retention are deliberately omitted as in the
+    // capture; namespace description and each tool's strictness are unchanged.
+    expect(capture.tools[0]?.tools[0]?.strict).toBe(true)
+    expect(capturedCodec.encodeRequest(original)).toEqual({
+      ...capture,
+      input,
+      instructions: original.instructions,
+      tool_choice: original.tool_choice,
+      reasoning: { ...capture.reasoning, summary: original.reasoning.summary },
+    })
+    expect(JSON.stringify(original)).toBe(before)
   })
 
   it('keeps full earlier history and tool schemas byte-exact as a conversation grows', () => {

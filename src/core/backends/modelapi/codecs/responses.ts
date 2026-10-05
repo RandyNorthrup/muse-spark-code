@@ -8,6 +8,7 @@ import {
   type CreateResponseBody,
   errorBodySchema,
   eventTypeSchema,
+  type FunctionToolDefinition,
   functionCallItemSchema,
   messageItemSchema,
   outputTextPartSchema,
@@ -18,6 +19,7 @@ import {
   type Usage,
   usageSchema,
   webSearchCallItemSchema,
+  type WebSearchToolDefinition,
 } from '../schemas'
 import { parseSse } from '../sse'
 
@@ -31,6 +33,8 @@ export type ResponsesCodecQuirks =
       readonly profile: 'chatgpt'
       /** Stable across turns; supplied by the host, never derived from a token. */
       readonly toolNamespace: string
+      /** The caller's namespace description, preserved as in the M95b capture. */
+      readonly toolNamespaceDescription?: string
     }
 
 /** Technical diagnostics contain no provider-controlled text or schema errors. */
@@ -89,9 +93,18 @@ export interface ResponsesDecodeSink {
   readonly outputCap?: ResponsesOutputCap
 }
 
+// Meta's canonical tools declare strict:false. This wire seam also accepts
+// strict:true declarations (the M95b capture) without changing those schemas.
+type ResponsesRequestBody = Omit<CreateResponseBody, 'tools'> & {
+  readonly tools: readonly (
+    | WebSearchToolDefinition
+    | (Omit<FunctionToolDefinition, 'strict'> & { readonly strict: boolean })
+  )[]
+}
+
 export interface ResponsesWireCodec {
   readonly format: 'responses'
-  encodeRequest(body: CreateResponseBody): Record<string, unknown>
+  encodeRequest(body: ResponsesRequestBody): Record<string, unknown>
   decodeStream(
     chunks: AsyncIterable<Uint8Array>,
     sink?: ResponsesDecodeSink,
@@ -214,7 +227,7 @@ function withinOutputCap(event: StreamEvent, cap: ResponsesOutputCap | undefined
 export function createResponsesCodec(quirks: ResponsesCodecQuirks): ResponsesWireCodec {
   return {
     format: 'responses',
-    encodeRequest(body: CreateResponseBody): Record<string, unknown> {
+    encodeRequest(body: ResponsesRequestBody): Record<string, unknown> {
       const isChatgpt = quirks.profile === 'chatgpt'
       if (isChatgpt && body.tools.some((tool) => tool.type !== 'function')) {
         throw new ResponsesDecodeError('unsupported ChatGPT hosted tool', 0)
@@ -224,7 +237,16 @@ export function createResponsesCodec(quirks: ResponsesCodecQuirks): ResponsesWir
         input: body.input,
         instructions: body.instructions,
         tools: isChatgpt
-          ? [{ type: 'namespace', name: quirks.toolNamespace, tools: body.tools }]
+          ? [
+              {
+                type: 'namespace',
+                name: quirks.toolNamespace,
+                ...(quirks.toolNamespaceDescription !== undefined && {
+                  description: quirks.toolNamespaceDescription,
+                }),
+                tools: body.tools,
+              },
+            ]
           : body.tools,
         tool_choice: body.tool_choice,
         reasoning: body.reasoning,

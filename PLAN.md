@@ -16389,6 +16389,20 @@ before a repaired one loads (2026-09-30).
 
 ## 9. Security assumptions and accepted residual risk
 
+- **FIXM95BC / RVM95BC (2026-10-05).** P2 reported usage lost at an
+  output-cap cut and P3 missing capture-request comparison are both repaired
+  in lane C; no assigned finding is deferred. The typed cap error carries
+  validated usage only, with excess output withheld. Tests drive its
+  canonical failure translation through the actual `ModelApiHost` and
+  compare the supplied scrubbed request with enumerated adaptations, with
+  deliberate failures recorded in `docs/certification/m95b-c.md`.
+  **BC-INTEGRATION** remains the pre-existing acceptance boundary: lane T/I/W
+  must wire that cap-error translation and the namespace description/counter
+  inputs, and the lead must certify successful live plan/tool turns and
+  combined quality. Safe while this codec-only branch has no subscription
+  dispatch; this is an integration prerequisite, not a supported-live-turn
+  claim. No paid or live model calls are authorized in this repair lane.
+
 - **FIXM95P (2026-10-05):** all thirteen assigned RVM95A findings
   (1, 2, 4–8, 12–15, 18, 19) are repaired with regressions and deliberate
   failure drills in `docs/certification/m95-p.md`; no assigned finding is

@@ -78,15 +78,16 @@ SSE without Content-Type, rewritten cache key, and nested error plus failed
 response. The limit code was redacted by the capture scrubber and is taken
 from PLAN.md D74 as the brief explicitly instructs.
 
-Raw scrubbed request/SSE files and the attempt ledger are absent from this
-worktree and `_ctx`; their path has been requested. The golden is a
-deterministic contract projection of the supplied capture findings, with
-canonical test values, **not a byte-for-byte copy of an available raw
-request**. In particular, the owner's probe used a strict function; this
-codec preserves the harness's existing `strict: false` schemas rather than
-changing optional arguments. A live plan tool-call event, its namespace
-field, encrypted reasoning and cached-token usage remain uncaptured in the
-owner's findings. No speculative parser for those fields is added.
+The initial lane had only the capture findings and used a deterministic
+contract projection with canonical test values. FIXM95BC now also checks
+the supplied scrubbed request/SSE frame, preserved in
+`test/fixtures/responses-codec/chatgpt-responses-capture.json` with only
+Prettier whitespace normalization. The original contract golden remains
+byte-identical. The captured request's strict function stays `strict: true`;
+the harness's existing declarations stay `strict: false`, preserving their
+optional arguments. A live plan tool-call event, its namespace field,
+encrypted reasoning and cached-token usage remain uncaptured in the owner's
+findings. No speculative parser for those fields is added.
 
 ## Verification
 
@@ -195,8 +196,9 @@ dependency change occurred.
 The lead's integration supplies the namespace, host counter/cancellation,
 auth/transport subscription record, UI mapping for typed errors, and lane
 W's PLAN/CHANGELOG/README/PRIVACY updates. Full quality remains the lead's
-gate. Raw capture byte comparison and the success/tool-call observations
-listed above remain open; this record does not certify a live plan turn.
+gate. The capture-backed request comparison is closed by FIXM95BC below;
+the success/tool-call observations listed above remain open. This record
+does not certify a live plan turn.
 The owner's automatic enhancements/paid-consent rulings do not change this
 pure codec; plan usage remains separate from API-key paid-use policy.
 
@@ -239,5 +241,89 @@ the failure to the host; this codec-only repair does not certify dispatch.
 - `npm run typecheck`: all five projects pass after correcting the new
   test's `memoryToolIo` argument list. Scoped ESLint exits **0**.
 
-The capture-comparison repair remains the next piece in this lane; neither
-review finding is intentionally deferred.
+### P3 — capture-backed request comparison
+
+The fixture is the complete scrubbed frame supplied at
+`/home/randy/lanes/_ctx/codex/M95B-CAPTURE-responses.md`, run
+`577bc807-780d-4d99-9c09-e4d43a9d8538`, seq **5**, step
+`responses-namespace`, at `2026-10-05T19:52:23.180Z`. It records the owner's
+one counted plan attempt from the empty capture scratchpad, not a model
+attempt by this lane. Its failure SSE does not establish a successful plan
+turn. Source SHA-256:
+`82657fc8b58ab3776410ff0c5633982fb095f14202ddda7653c918ff402483b1`;
+fixture SHA-256 after Prettier only folds the `include` array:
+`0f484bb6a8883227396061f1b7b95bcb4ed46c37a2ec70198b2cfb1c5071b807`.
+
+The encoder accepts the caller's optional `toolNamespaceDescription` and
+keeps it on the namespace. Its local request type permits a function's
+declared boolean strictness without changing Meta's canonical `strict:
+false` type or any tool schema. No runtime strictness is forced. The existing
+contract golden checks false; the captured request comparison checks true.
+
+`matches the scrubbed captured request with only documented harness adaptations`
+parses the fixture with zod, retains additional request fields, projects
+the captured functions into the encoder and compares every encoded field
+against the captured body plus exactly these documented adaptations:
+
+| Path                 | Intentional adaptation and reason                                    |
+| -------------------- | -------------------------------------------------------------------- |
+| `/input/0/type`      | Canonical replay explicitly names its message item.                  |
+| `/input/0/content`   | The harness uses typed `input_text` parts instead of shorthand text. |
+| `/instructions`      | The harness supplies its system/tool instructions.                   |
+| `/tool_choice`       | Explicit `auto` keeps the harness's tool-loop contract.              |
+| `/reasoning/summary` | `auto` requests the visible thought summaries the harness shows.     |
+
+There is no adaptation to the namespace description, strict flag,
+parameters, model, cache key, effort, include fields, store or stream. The
+canonical cap and retention are omitted just as in the capture. The test
+also checks that encoding leaves its input unchanged.
+
+- Pre-fix full request/error suite: **1 failed, 13 passed**, specifically
+  the missing namespace description in the captured comparison.
+- After the fix, all three codec suites: **81 passed**.
+- Red drill 1: replace the encoded namespace description with `undefined`.
+  The full request/error suite exits **1**, **1 failed, 13 passed**, at the
+  capture-comparison test.
+- Red drill 2: coerce every namespace function to `strict: false`.
+  The same full suite exits **1**, **1 failed, 13 passed**, at that test's
+  captured `strict: true` comparison. The original false golden still passes.
+- Each drill restores the original source buffer in `finally` and verifies
+  byte-exact SHA-256 before/after:
+  `32ca130ac4ce62c94e5f58d0fad93a0800af579faaf1e3e2e082c23444e2cd6f`.
+
+Both RVM95BC findings are fixed in the owned codec/test seam; none is
+deferred. Integration still supplies the canonical cap-error translation,
+namespace inputs, counter/cancellation and subscription transport. Shared
+core logic serves every editor and ACP/headless without an editor API.
+
+### Final repair verification
+
+All checks ran serially, directly in this worktree on Kubuntu, with no
+threshold, ignore, rule, dependency or guard relaxation:
+
+| Check                                                                                                                                                               | Result                                                                                              |
+| ------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------- |
+| `npm run typecheck`                                                                                                                                                 | Exit 0, all five projects.                                                                          |
+| `npx eslint --max-warnings=0` on the codec and both changed test files                                                                                              | Exit 0.                                                                                             |
+| `npx prettier --check` on all six changed files                                                                                                                     | Exit 0.                                                                                             |
+| `npx vitest run test/unit/chatgptResponsesCodec.test.ts test/unit/chatgptResponsesCap.test.ts test/unit/responsesCodec.test.ts --maxWorkers=3 --testTimeout=120000` | Exit 0, **81 passed**: 14 request/error, 22 cap, 45 existing Responses.                             |
+| `npm run deadcode`                                                                                                                                                  | Exit 0; only the existing `vendor/**` configuration hint.                                           |
+| `npx jscpd`                                                                                                                                                         | Exit 0, zero clones.                                                                                |
+| `npm run check:l10n`                                                                                                                                                | Exit 0, 14 tables, 127 manifest strings, 491 source files, zero problems.                           |
+| `npm run check:host-api`                                                                                                                                            | Exit 0, 283 APIs, 23 VS Code importing files, 23 Node built-ins, 57 theme variables, zero problems. |
+| `npm run build`                                                                                                                                                     | Exit 0: unchanged size/split/host-globals/notices gates; codecs exclusively in `providers.js`.      |
+| `git diff --check`                                                                                                                                                  | Exit 0.                                                                                             |
+
+Final production sizes: providers **97.4/125 KiB**, extension
+**553.1/600**, Model API **413.3/475**, Models panel **51.0/75**, Models
+webview **411.4/475**, checkpoint store **88.4/225**, chat startup
+**896.4/900**, ACP **798.8/850**. All existing caps pass.
+
+P2 commit `389481d0` ran the normal `.husky/_` wrapper, ESLint/Prettier
+lint-staged tasks and staged gitleaks successfully. The capture repair and
+this final record are committed with the same hooks and explicit paths.
+The existing contract golden is unchanged; the copied capture is structurally
+identical to its supplied source. Full quality and shared README/CHANGELOG
+updates remain the lead/lane W's responsibility under the rig brief and
+PLAN §7. BC-INTEGRATION is recorded in PLAN §9; no review finding remains
+unfixed. No successful live plan turn is claimed.
