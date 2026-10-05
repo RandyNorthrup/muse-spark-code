@@ -1,6 +1,7 @@
 // Build the real shipped Node entries once with the production plugins.
 // Each drill changes its own metafile copy, never shared dist/ files.
 import { createHash } from 'node:crypto'
+import { execFileSync } from 'node:child_process'
 import path from 'node:path'
 import { createRequire } from 'node:module'
 import vm from 'node:vm'
@@ -146,7 +147,10 @@ function loadSupportBundle(name: string): unknown {
     { filename: entry },
   )
   Reflect.apply(run, undefined, [
-    createRequire(entry),
+    (file: string): unknown =>
+      file === './validation.js' || file === './uiText.js'
+        ? loadSupportBundle(path.basename(file, '.js'))
+        : createRequire(entry)(file),
     module,
     module.exports,
     path.dirname(entry),
@@ -193,6 +197,15 @@ function inputs(name: string): string[] {
 
 describe('deferred cohort bundles', () => {
   it('decodes the complete production English fallback without changing any value', () => {
+    execFileSync(process.execPath, ['scripts/build.mjs', '--production'], {
+      stdio: 'pipe',
+      env: {
+        PATH: process.env['PATH'] ?? '',
+        SystemRoot: process.env['SystemRoot'] ?? '',
+        TEMP: process.env['TEMP'] ?? '',
+        TMP: process.env['TMP'] ?? '',
+      },
+    })
     const require = createRequire(path.resolve('dist/uiText.js'))
     const fallback: { readonly EN: typeof EN } = require(path.resolve('dist/uiText.js'))
     expect(fallback.EN).toEqual(EN)
@@ -239,7 +252,7 @@ describe('deferred cohort bundles', () => {
       (file: string): unknown => {
         loaded.push(file)
         if (file === 'vscode') return {}
-        return file === './validation.js' || file === './uiText.js'
+        return ['./validation.js', './uiText.js', './wire.js'].includes(file)
           ? loadSupportBundle(path.basename(file, '.js'))
           : nativeRequire(file)
       },
