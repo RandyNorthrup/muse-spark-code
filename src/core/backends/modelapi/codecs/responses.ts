@@ -6,6 +6,7 @@
 import * as z from 'zod/mini'
 import {
   type CreateResponseBody,
+  errorBodySchema,
   eventTypeSchema,
   functionCallItemSchema,
   messageItemSchema,
@@ -19,10 +20,17 @@ import {
 } from '../schemas'
 import { parseSse } from '../sse'
 
-export interface ResponsesCodecQuirks {
-  readonly sendPromptCacheRetention: boolean
-  readonly sendPromptCacheKey: boolean
-}
+export type ResponsesCodecQuirks =
+  | {
+      readonly profile?: 'api'
+      readonly sendPromptCacheRetention: boolean
+      readonly sendPromptCacheKey: boolean
+    }
+  | {
+      readonly profile: 'chatgpt'
+      /** Stable across turns; supplied by the host, never derived from a token. */
+      readonly toolNamespace: string
+    }
 
 /** Technical diagnostics contain no provider-controlled text or schema errors. */
 export class ResponsesDecodeError extends Error {
@@ -32,6 +40,18 @@ export class ResponsesDecodeError extends Error {
   ) {
     super(`ResponsesDecodeError: ${reason}`)
     this.name = 'ResponsesDecodeError'
+  }
+}
+
+const CHATGPT_PLAN_LIMIT_CODE = 'subscription_sharing_usage_limit_exceeded'
+
+/** The plan endpoint reports this in an HTTP 200 SSE stream (M95b capture). */
+export class ChatgptPlanLimitError extends Error {
+  public readonly code = CHATGPT_PLAN_LIMIT_CODE
+
+  public constructor(message: string) {
+    super(message)
+    this.name = 'ChatgptPlanLimitError'
   }
 }
 
@@ -134,6 +154,7 @@ const itemFrameSchema = z.object({ item: nativeItemSchema })
 const settledCostSchema = z.object({
   cost_in_usd_ticks: tokenCountSchema,
 })
+const nestedErrorEventSchema = z.object({ type: z.literal('error'), ...errorBodySchema.shape })
 
 function settledCostOf(usage: unknown): number | undefined {
   const parsed = settledCostSchema.safeParse(usage)
@@ -144,21 +165,30 @@ export function createResponsesCodec(quirks: ResponsesCodecQuirks): ResponsesWir
   return {
     format: 'responses',
     encodeRequest(body: CreateResponseBody): Record<string, unknown> {
+      const isChatgpt = quirks.profile === 'chatgpt'
+      if (isChatgpt && body.tools.some((tool) => tool.type !== 'function')) {
+        throw new ResponsesDecodeError('unsupported ChatGPT hosted tool', 0)
+      }
       return {
         model: body.model,
         input: body.input,
         instructions: body.instructions,
-        tools: body.tools,
+        tools: isChatgpt
+          ? [{ type: 'namespace', name: quirks.toolNamespace, tools: body.tools }]
+          : body.tools,
         tool_choice: body.tool_choice,
         reasoning: body.reasoning,
         stream: body.stream,
         store: body.store,
         include: body.include,
-        max_output_tokens: body.max_output_tokens,
-        ...(quirks.sendPromptCacheKey && { prompt_cache_key: body.prompt_cache_key }),
-        ...(quirks.sendPromptCacheRetention && {
-          prompt_cache_retention: body.prompt_cache_retention,
+        ...(!isChatgpt && { max_output_tokens: body.max_output_tokens }),
+        ...((isChatgpt || quirks.sendPromptCacheKey) && {
+          prompt_cache_key: body.prompt_cache_key,
         }),
+        ...(!isChatgpt &&
+          quirks.sendPromptCacheRetention && {
+            prompt_cache_retention: body.prompt_cache_retention,
+          }),
       }
     },
     async *decodeStream(
@@ -185,6 +215,14 @@ export function createResponsesCodec(quirks: ResponsesCodecQuirks): ResponsesWir
         if (!KNOWN_EVENT_TYPES.has(typed.data.type)) {
           continue
         }
+        if (quirks.profile === 'chatgpt' && typed.data.type === 'error') {
+          const nested = nestedErrorEventSchema.safeParse(json)
+          if (!nested.success) {
+            throw new ResponsesDecodeError('invalid nested error', frame.data.length)
+          }
+          const { code, message } = nested.data.error
+          json = { type: 'error', code, message }
+        }
         const known = streamEventSchema.safeParse(json)
         if (!known.success) {
           throw new ResponsesDecodeError('invalid event', frame.data.length)
@@ -193,6 +231,13 @@ export function createResponsesCodec(quirks: ResponsesCodecQuirks): ResponsesWir
           const parsed = responseFrameSchema.safeParse(json)
           if (!parsed.success) {
             throw new ResponsesDecodeError('invalid response', frame.data.length)
+          }
+          if (
+            quirks.profile === 'chatgpt' &&
+            known.data.type === 'response.failed' &&
+            parsed.data.response.error?.code === CHATGPT_PLAN_LIMIT_CODE
+          ) {
+            throw new ChatgptPlanLimitError(parsed.data.response.error.message)
           }
           if (!hasReportedCost && TERMINAL_WITH_USAGE.has(known.data.type)) {
             const costUsd = settledCostOf(parsed.data.response.usage)
@@ -209,6 +254,13 @@ export function createResponsesCodec(quirks: ResponsesCodecQuirks): ResponsesWir
           }
           yield { ...known.data, item: parsed.data.item }
         } else {
+          if (
+            quirks.profile === 'chatgpt' &&
+            known.data.type === 'error' &&
+            known.data.code === CHATGPT_PLAN_LIMIT_CODE
+          ) {
+            throw new ChatgptPlanLimitError(known.data.message)
+          }
           yield known.data
         }
       }
