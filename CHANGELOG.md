@@ -17,6 +17,12 @@ happened, not what was planned; superseded entries are kept.
   owner can start it, by hand, on the default branch; it has no other
   trigger. `test/action/la-check.mjs` judges the run and the step summary
   records the receipt. It has not run yet.
+- **The first live Action receipt (M80 LA) passed** on 2026-10-05, in
+  [run 37249121568](https://github.com/RandyNorthrup/muse-spark-code/actions/runs/37249121568).
+  The real Action, with the real key, reviewed pull request #114 on the
+  contributor model. It completed in 5 requests for $0.001668, and neither key
+  shape appeared in the log or the artifacts. The package was an unsigned
+  candidate; registry-path support still waits on LR after a release.
 
 ### Changed
 
