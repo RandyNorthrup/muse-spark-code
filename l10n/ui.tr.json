@@ -2247,5 +2247,8 @@
   "usagePageTitle": "Kullanım ve maliyet",
   "paletteUsagePage": "Tüm düzenleyicilerde maliyetleri, belirteçleri ve sınırları izleyin.",
   "openUsagePage": "Kullanım sayfasını aç",
-  "acpUsageDescription": "Tüm modellerin kullanımını ve maliyetini gösterin veya kullanım sayfasını açın."
+  "acpUsageDescription": "Tüm modellerin kullanımını ve maliyetini gösterin veya kullanım sayfasını açın.",
+  "paidProviderPrice": "Milyon token başına: girdi {input}, önbellek okuma {cached}, önbellek yazma {write}, bir saatlik yazma {write1h}, çıktı {output}. İstek başına {request}; görsel başına {image}.",
+  "paidProviderPriceTier": "{threshold} girdi tokenından itibaren: milyon başına girdi {input}, çıktı {output}.",
+  "modelToolCallingUnavailable": "Bu model için araç çağırma doğrulanmadı."
 }

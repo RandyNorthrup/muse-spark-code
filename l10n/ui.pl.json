@@ -2411,5 +2411,8 @@
   "usagePageTitle": "Użycie i koszty",
   "paletteUsagePage": "Śledź koszty, tokeny i limity we wszystkich edytorach.",
   "openUsagePage": "Otwórz stronę użycia",
-  "acpUsageDescription": "Pokaż użycie i koszty wszystkich modeli lub otwórz stronę użycia."
+  "acpUsageDescription": "Pokaż użycie i koszty wszystkich modeli lub otwórz stronę użycia.",
+  "paidProviderPrice": "Za milion tokenów: wejście {input}, odczyt pamięci podręcznej {cached}, zapis pamięci podręcznej {write}, zapis na godzinę {write1h}, wyjście {output}. Za żądanie {request}; za obraz {image}.",
+  "paidProviderPriceTier": "Od {threshold} tokenów wejściowych: wejście {input}, wyjście {output} za milion.",
+  "modelToolCallingUnavailable": "Wywoływanie narzędzi nie zostało zweryfikowane dla tego modelu."
 }

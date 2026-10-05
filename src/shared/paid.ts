@@ -5,6 +5,7 @@
 // Shared by host and webview: no `vscode`, Node, or DOM imports.
 
 import * as z from 'zod/mini'
+import type { ModelPricing } from '../core/providers/priceCard'
 import {
   BEST_OF_N_DEFAULT_ATTEMPTS,
   BEST_OF_N_DEFAULT_REQUESTS_PER_ATTEMPT,
@@ -14,12 +15,14 @@ import {
   MODEL_API_PRICED_MODELS,
   MODEL_API_PRICES_PER_MILLION,
   MODEL_API_PRICE_DECIMALS,
+  PROVIDER_PRICE_MAX_DECIMALS,
   PAID_FEATURES,
   PAID_PRICES_USD,
   type PaidFeature,
   SEARCHES_PER_PRICE_UNIT,
   SECONDS_PER_HOUR,
   SUBAGENT_TASK_MAX_REQUESTS,
+  TOKENS_PER_MILLION,
   UI_TEXT,
 } from './constants'
 import { fill, formatNumber, formatUsd } from './l10n/text'
@@ -68,6 +71,10 @@ export interface SubagentUsage {
   readonly inputTokens: number
   readonly outputTokens: number
   readonly cachedTokens: number
+  readonly cacheWriteTokens?: number | undefined
+  readonly cacheWriteTokens1h?: number | undefined
+  /** A resolved provider receipt; legacy Meta observers keep their existing fields. */
+  readonly costUsd?: number | undefined
 }
 
 /** Unknown model tariffs cannot authorize a paid child task. */
@@ -130,6 +137,7 @@ export type PaidUseRequest =
   | { readonly feature: 'subagents'; readonly task: SubagentTaskConfirmation }
   | {
       readonly feature: 'autoReviewer'
+      readonly pricing?: ModelPricing | undefined
       /** The conversation's model, which the review runs on (M78). */
       readonly modelId: string
       /** The tool the reviewed call is for, and its command line or arguments. */
@@ -259,7 +267,8 @@ export function scheduledRunPrice(modelId: string): string {
 }
 
 /** One Auto review's tariff on the conversation's model (M78); undefined without a verified price. */
-export function autoReviewPrice(modelId: string): string | undefined {
+export function autoReviewPrice(modelId: string, pricing?: ModelPricing): string | undefined {
+  if (pricing !== undefined) return providerPriceText(pricing)
   const tier = modelApiPaidTier(modelId)
   return tier === undefined ? undefined : tokenRatePrice(tier)
 }
@@ -339,4 +348,40 @@ export function paidFeaturePrice(feature: PaidFeature): string {
       ].join('\n')
     }
   }
+}
+
+/** Resolved provider rates, including cache-write premiums and long-context tiers. */
+function providerPriceText(pricing: ModelPricing): string | undefined {
+  if (pricing.kind === 'unpriced') return undefined
+  if (pricing.kind === 'local') return UI_TEXT.modelLocal
+  if (pricing.kind === 'plan') return UI_TEXT.modelPlan
+  const card = pricing.card
+  const basic = fill(UI_TEXT.paidProviderPrice, {
+    input: providerPriceRate(card.input),
+    cached: providerPriceRate(card.cachedInput ?? card.input),
+    write: providerPriceRate(card.cacheWrite ?? card.input),
+    write1h: providerPriceRate(card.cacheWrite1h ?? card.cacheWrite ?? card.input),
+    output: providerPriceRate(card.output),
+    request: providerPriceAmount(card.request ?? 0),
+    image: providerPriceAmount(card.image ?? 0),
+  })
+  const tier = card.longContextTier
+  return tier === undefined
+    ? basic
+    : [
+        basic,
+        fill(UI_TEXT.paidProviderPriceTier, {
+          threshold: formatNumber(tier.fromTokens),
+          input: providerPriceRate(tier.input),
+          output: providerPriceRate(tier.output),
+        }),
+      ].join('\n')
+}
+
+function providerPriceAmount(value: number): string {
+  return formatUsd(value, MODEL_API_PRICE_DECIMALS, PROVIDER_PRICE_MAX_DECIMALS)
+}
+
+function providerPriceRate(value: number): string {
+  return providerPriceAmount(value * TOKENS_PER_MILLION)
 }

@@ -1,3 +1,7 @@
+import { createUsageRecording, isUsageWriterBundle } from './core/usage/recording'
+import { MuseCodeHost } from './core/backends/musecode/MuseCodeHost'
+import { agentDataFolder } from './runtime/dataFolder'
+import { requireFile } from './host/lazyBundle'
 // Extension host entry point. Kept to registration and adapter wiring; the
 // behaviour lives in src/host (VS Code adapters) and src/core (pure logic).
 
@@ -521,6 +525,37 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   const activationStartedAt = performance.now()
   const channel = vscode.window.createOutputChannel(PRODUCT_NAME, { log: true })
   const log = createLogger(channel)
+  const usageRecording = createUsageRecording({
+    client: vscode.env.appName,
+    now: Date.now,
+    newId: () => crypto.randomUUID(),
+    isEnabled: () =>
+      vscode.workspace.getConfiguration(SETTINGS_SECTION).get<boolean>('usageHistory', true),
+    log,
+    writer: async (onWriteError) => {
+      const bundle = requireFile(path.join(context.extensionPath, 'dist', 'usageService.js'))
+      if (!isUsageWriterBundle(bundle)) throw new Error('Usage writer factory unavailable')
+      return await bundle.createUsageWriter({
+        dataFolder: agentDataFolder({
+          platform: process.platform,
+          env: process.env,
+          homeDir: homedir(),
+        }),
+        writerId: crypto.randomUUID(),
+        now: Date.now,
+        isEnabled: () =>
+          vscode.workspace.getConfiguration(SETTINGS_SECTION).get<boolean>('usageHistory', true),
+        onWriteError,
+      })
+    },
+  })
+  MuseCodeHost.usageRecording = usageRecording
+  ModelApiBackendManager.usageRecording = usageRecording
+  context.subscriptions.push({
+    dispose: () => {
+      void usageRecording.flush()
+    },
+  })
   const { version } = packageManifestSchema.parse(context.extension.packageJSON)
   log.info(
     `Activating ${PRODUCT_NAME} ${version} (VS Code ${vscode.version}, Node ${process.versions.node}, ${process.platform})`,
@@ -710,6 +745,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   // sign-in change, never from anywhere but the secret store.
   let isKeyStored = false
   const paid = createPaidFeatures({
+    usageRecording,
     globalState: context.globalState,
     workspaceState: context.workspaceState,
     isSettingOn: (feature) => currentSettings()[PAID_FEATURE_SETTINGS[feature]],
@@ -1977,6 +2013,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
       )
       tasksTabs.set(surface.id, tasksTab)
       controller = new ConversationController({
+        usageRecording,
         surface,
         tasksTab,
         auth,

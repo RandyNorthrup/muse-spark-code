@@ -30,6 +30,7 @@ import { memoryToolIo } from './helpers/fakeToolIo'
 import { fakeModelApiHostDeps } from './helpers/modelApiHostDeps'
 import { recalledParts } from './helpers/recalledOutput'
 import { watchSessionTurns } from './helpers/sessionTurns'
+import type { RecordedCall } from '../../src/core/usage/recording'
 
 const ROOT = '/ws'
 const BIG = Array.from(
@@ -46,6 +47,7 @@ interface Harness {
   readonly events: AgentEvent[]
   readonly turnDone: () => Promise<void>
   readonly session: ModelApiSession
+  readonly records: RecordedCall[]
 }
 
 async function setup(
@@ -53,6 +55,7 @@ async function setup(
   clientChanges: Partial<ModelApiClientDeps> = {},
 ): Promise<Harness> {
   const api = fakeModelApi()
+  const records: RecordedCall[] = []
   const log = new FakeLogOutputChannel()
   const io = memoryToolIo({ 'big.txt': BIG, 'small.txt': SMALL }, ROOT)
   const client = new ModelApiClient({
@@ -63,6 +66,14 @@ async function setup(
   const host = new ModelApiHost({
     ...fakeModelApiHostDeps({ client, workspaceRoot: ROOT, io, log }),
     ...(isPacking && { observationPacking: () => true }),
+    usageRecording: {
+      note: (_usage, context) => {
+        records.push(context)
+      },
+      limit: () => undefined,
+      today: () => Promise.resolve([]),
+      flush: () => Promise.resolve(),
+    },
   })
   const session = await host.startSession({
     workspaceRoot: ROOT,
@@ -72,7 +83,7 @@ async function setup(
   if (!(session instanceof ModelApiSession)) {
     throw new TypeError('expected the Model API session')
   }
-  return { api, host, session, ...watchSessionTurns(session) }
+  return { api, host, session, records, ...watchSessionTurns(session) }
 }
 
 async function sendText(harness: Harness, text: string): Promise<void> {
@@ -291,6 +302,12 @@ describe('observation packing on the host', () => {
     expect(ledgerOf(harness.events).at(-1)).toBe(
       estimatePackTokens(full.length) - estimatePackTokens(placeholder.length),
     )
+    harness.api.script({ text: 'continue' })
+    await sendText(harness, 'continue')
+    expect(harness.records.reduce((total, record) => total + (record.packedAvoided ?? 0), 0)).toBe(
+      ledgerOf(harness.events).at(-1),
+    )
+    expect(harness.records.at(-1)?.packedAvoided).toBe(harness.records.at(-2)?.packedAvoided)
     await harness.host.close()
   })
 

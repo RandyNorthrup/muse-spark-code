@@ -2165,5 +2165,8 @@
   "usagePageTitle": "使用量と費用",
   "paletteUsagePage": "各エディターの費用、トークン、上限を追跡します。",
   "openUsagePage": "使用量ページを開く",
-  "acpUsageDescription": "モデル全体の使用量と費用を表示するか、使用量ページを開きます。"
+  "acpUsageDescription": "モデル全体の使用量と費用を表示するか、使用量ページを開きます。",
+  "paidProviderPrice": "100万トークンあたり：入力 {input}、キャッシュ読み取り {cached}、キャッシュ書き込み {write}、1時間の書き込み {write1h}、出力 {output}。リクエストあたり {request}、画像あたり {image}。",
+  "paidProviderPriceTier": "入力が {threshold} トークン以上の場合：100万トークンあたり入力 {input}、出力 {output}。",
+  "modelToolCallingUnavailable": "このモデルではツール呼び出しが検証されていません。"
 }

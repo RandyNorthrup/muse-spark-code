@@ -2247,5 +2247,8 @@
   "usagePageTitle": "Nutzung und Kosten",
   "paletteUsagePage": "Kosten, Tokens und Limits in allen Editoren verfolgen.",
   "openUsagePage": "Nutzungsseite öffnen",
-  "acpUsageDescription": "Nutzung und Kosten aller Modelle anzeigen oder die Nutzungsseite öffnen."
+  "acpUsageDescription": "Nutzung und Kosten aller Modelle anzeigen oder die Nutzungsseite öffnen.",
+  "paidProviderPrice": "Pro Million Tokens: Eingabe {input}, Cache-Lesen {cached}, Cache-Schreiben {write}, einstündiges Schreiben {write1h}, Ausgabe {output}. Pro Anfrage {request}; pro Bild {image}.",
+  "paidProviderPriceTier": "Ab {threshold} Eingabe-Tokens: Eingabe {input}, Ausgabe {output} pro Million.",
+  "modelToolCallingUnavailable": "Werkzeugaufrufe wurden für dieses Modell nicht verifiziert."
 }

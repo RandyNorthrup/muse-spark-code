@@ -118,6 +118,14 @@ describe('summarizeInsights', () => {
 })
 
 describe('cost estimate', () => {
+  it('refuses unknown and BYO models instead of guessing Meta Standard prices', () => {
+    for (const model of ['unknown', 'other/expensive', 'other/model-contributor']) {
+      expect(() =>
+        estimateCostUsd({ inputTokens: 100, outputTokens: 1, cachedTokens: 0 }, model),
+      ).toThrow()
+    }
+  })
+
   it('prices fresh and cached input and output by the model’s tier', () => {
     const usage = { inputTokens: 1_000_000, outputTokens: 100_000, cachedTokens: 200_000 }
     expect(estimateCostUsd(usage, 'muse-spark-1.3')).toBeCloseTo(
@@ -128,7 +136,7 @@ describe('cost estimate', () => {
     )
     // Cached tokens never exceed the input they sit inside.
     expect(
-      estimateCostUsd({ inputTokens: 10, outputTokens: 0, cachedTokens: 50 }, 'x'),
+      estimateCostUsd({ inputTokens: 10, outputTokens: 0, cachedTokens: 50 }, 'muse-spark-1.3'),
     ).toBeCloseTo((10 * 0.15) / 1_000_000)
   })
 

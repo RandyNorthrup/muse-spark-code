@@ -39,6 +39,8 @@ export interface EnvironmentFacts {
 }
 
 export interface InstructionFacts {
+  readonly identity?: { readonly provider: string; readonly model: string }
+
   readonly workspaceRoot: string
   readonly platform: NodeJS.Platform
   readonly shellToolName: string
@@ -94,7 +96,9 @@ function baseText(facts: InstructionFacts): string[] {
       "There is no shell tool: the workspace is in VS Code's Restricted Mode, so commands cannot run until the user trusts it. Some actions need the user's approval; a refused action comes back as a tool error, so move on instead of retrying it."
   }
   return [
-    'You are Muse Spark, a coding agent working inside Visual Studio Code through the Muse Spark Code extension.',
+    facts.identity === undefined || facts.identity.provider === 'meta'
+      ? 'You are Muse Spark, a coding agent working inside Visual Studio Code through the Muse Spark Code extension.'
+      : fill(MODEL_API_MODEL_TEXT.providerIdentity, facts.identity),
     `The workspace root is ${facts.workspaceRoot} on ${facts.platform}. Every path you give a tool is relative to it (or absolute inside it); paths outside the workspace are refused.`,
     `Use the tools for everything that touches the workspace: read_file before editing a file, edit_file for changes inside a file (find must match exactly once), write_file to create or replace a file, search and list_files to look around${hasShellTool ? ', and the shell tool to run commands' : ''}.`,
     ...(facts.hasCodeIntel ? [MODEL_API_MODEL_TEXT.codeIntelInstructions] : []),

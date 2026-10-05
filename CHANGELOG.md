@@ -33,6 +33,14 @@ happened, not what was planned; superseded entries are kept.
   release notes. Compact staged translation and manifest JSON preserves every
   value, and the strict localization gate validates the exact packaged data.
   Source docs and tables remain complete; the VSIX size cap stays unchanged.
+- Bind replayed reasoning and Model API hook identity to the producing
+  provider and model; name BYO models in the system prompt.
+
+- Resolve host turns and Auto review through a lazy provider registry seam;
+  honor verified tool support, output limits, effort tiers and price cards.
+  Bind retries and held confirmations to the provider/model/credential,
+  retain unknown costs and separate Meta image credentials from BYO profiles.
+  Production transport composition remains pending M95 lane T/W integration.
 
 - M95 integration shares the Node validation runtime and the provider-setup
   schema, so Models host stays within its existing size budget. Account & usage

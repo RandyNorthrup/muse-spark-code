@@ -21,6 +21,7 @@ import {
 } from '../../shared/constants'
 import { fill, formatNumber, formatPercent, plural, templateParts } from '../../shared/l10n/text'
 import {
+  modelApiPaidTier,
   paidCostUsd,
   paidFeatureName,
   type PaidState,
@@ -647,7 +648,8 @@ export function UsageDialog({
     usage !== undefined &&
     cachedTokens !== undefined &&
     modelId !== undefined &&
-    report?.backend === 'modelApi'
+    report?.backend === 'modelApi' &&
+    modelApiPaidTier(modelId) !== undefined
       ? estimateCostUsd(
           { inputTokens: usage.inputTokens, outputTokens: usage.outputTokens, cachedTokens },
           modelId,

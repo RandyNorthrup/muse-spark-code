@@ -364,6 +364,7 @@ function setup(
     isRestorable?: boolean
     /** The usage modal's insights (M14). */
     usageInsights?: { day: UsageInsights; week: UsageInsights }
+    usageRecording?: ConversationDeps['usageRecording']
     /** Voice dictation (M9). */
     dictation?: DictationSetup
     /** Muse Voice when it is the microphone's engine (M35). */
@@ -661,6 +662,7 @@ function setup(
           : { signInMethod: 'apiKey' as const },
       ),
     usageInsights: () => Promise.resolve(options.usageInsights),
+    ...(options.usageRecording !== undefined && { usageRecording: options.usageRecording }),
     ensureHost: async () => {
       await options.beforeEnsureHost?.()
       const gate = options.hostGate?.current
@@ -3915,6 +3917,78 @@ describe('ConversationController: account & usage (M8)', () => {
     t.server.notify('usage/changed', usage)
     await settle()
     expect(t.surface.posted.filter((message) => message.type === 'usageReport')).toHaveLength(3)
+  })
+
+  it('aggregates today by provider while withholding an unknown dollar total', async () => {
+    const base = {
+      v: 1,
+      type: 'usage',
+      id: 'one',
+      at: 100,
+      day: '2026-10-05',
+      timezoneOffsetMins: 0,
+      client: 'Zed',
+      backend: 'modelApi',
+      provider: 'openai',
+      model: 'gpt-4.1-mini',
+      startedAt: 1,
+      kind: 'turn',
+      outcome: 'completed',
+    } as const
+    const usageRecording: NonNullable<ConversationDeps['usageRecording']> = {
+      note: vi.fn(),
+      limit: vi.fn(),
+      flush: () => Promise.resolve(),
+      today: () =>
+        Promise.resolve([
+          { ...base, tokens: { input: 10, output: 5 }, cost: { certainty: 'computed', usd: 0.1 } },
+          { ...base, id: 'two', tokens: { input: 20, output: 3 }, cost: { certainty: 'unpriced' } },
+          {
+            ...base,
+            id: 'local',
+            provider: 'ollama',
+            tokens: { input: 7, output: 2 },
+            cost: { certainty: 'local', usd: 0 },
+          },
+          {
+            ...base,
+            id: 'uncertain',
+            provider: 'openrouter',
+            tokens: {},
+            cost: { certainty: 'uncertain', usd: 0.2 },
+          },
+        ]),
+    }
+    const t = setup({ usageRecording })
+    expect(await firstUsageReport(t)).toMatchObject({
+      providers: [
+        {
+          providerId: 'openai',
+          providerLabel: 'openai',
+          pricing: 'unpriced',
+          inputTokens: 30,
+          outputTokens: 8,
+        },
+        {
+          providerId: 'ollama',
+          providerLabel: 'ollama',
+          pricing: 'local',
+          inputTokens: 7,
+          outputTokens: 2,
+          costUsd: 0,
+        },
+        {
+          providerId: 'openrouter',
+          providerLabel: 'openrouter',
+          pricing: 'priced',
+          inputTokens: 0,
+          outputTokens: 0,
+        },
+      ],
+    })
+    const report = t.surface.posted.findLast((message) => message.type === 'usageReport')
+    expect(report?.type === 'usageReport' && report.providers?.[0]?.costUsd).toBeUndefined()
+    expect(report?.type === 'usageReport' && report.providers?.[2]?.costUsd).toBeUndefined()
   })
 
   it('reports a host failure as a notice', async () => {

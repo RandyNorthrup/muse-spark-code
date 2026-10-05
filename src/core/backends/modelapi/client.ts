@@ -1,3 +1,8 @@
+import {
+  USAGE_HEADER_ALLOW_LIST,
+  usageHeadersSchema,
+  type UsageHeaders,
+} from '../../../shared/usageJournal'
 // A thin, schema-validated client for the four Model API endpoints the
 // backend uses (PLAN.md D2): `GET /models`, `POST /responses/input_tokens`,
 // the streamed `POST /responses` and `POST /images/generations` (M34).
@@ -160,6 +165,9 @@ export interface RetryBudget {
 
 /** In-memory identity of an explicitly confirmed scheduled Model API run. */
 export interface ConfirmedModelRequest {
+  readonly providerId?: string | undefined
+  readonly origin?: string | undefined
+
   readonly modelId: string
   readonly keyDigest: string
   /** The paid gate and session model must still match before every HTTP try. */
@@ -169,10 +177,29 @@ export interface ConfirmedModelRequest {
 }
 
 /** Owned synchronous admission and attempt observation; no fields cross the HTTP wire. */
+export interface ResponseObservation {
+  readonly headers?: UsageHeaders | undefined
+  readonly firstTokenMs?: number | undefined
+  readonly retries?: number | undefined
+  readonly rateLimited?: boolean | undefined
+  readonly retryDelayMs?: number | undefined
+}
+
+/** Drops all unlisted, oversized and non-ASCII values before observation. */
+export function rateLimitHeaders(headers: Headers): UsageHeaders {
+  const kept: UsageHeaders = {}
+  for (const key of USAGE_HEADER_ALLOW_LIST) {
+    const value = headers.get(key)
+    if (value !== null && usageHeadersSchema.safeParse({ [key]: value }).success) kept[key] = value
+  }
+  return kept
+}
+
 export interface ResponseAttemptGuard {
   (keyDigest: string | undefined): void
   /** After every final fence and request build, adjacent to the actual fetch call. */
   readonly onRequestStarted?: () => void
+  readonly observe?: (observation: ResponseObservation) => void
 }
 
 function isAborted(signal: AbortSignal | undefined): boolean {
@@ -199,10 +226,20 @@ function whenAborted(signal: AbortSignal): { readonly promise: Promise<never>; d
 }
 
 export class ModelApiClient {
+  private static hasLoggedObservationFailure = false
   /** Stream event types already logged as ignored (M39). */
   private readonly ignoredEventTypes = new Set<string>()
-
   public constructor(private readonly deps: ModelApiClientDeps) {}
+  private observe(guard: ResponseAttemptGuard | undefined, observation: ResponseObservation): void {
+    try {
+      guard?.observe?.(observation)
+    } catch {
+      if (!ModelApiClient.hasLoggedObservationFailure) {
+        ModelApiClient.hasLoggedObservationFailure = true
+        this.deps.log.warn('Usage observation failed')
+      }
+    }
+  }
 
   /** The retry delay, cut short by the turn's Stop. */
   private async pause(ms: number, signal: AbortSignal | undefined): Promise<void> {
@@ -273,6 +310,7 @@ export class ModelApiClient {
       if (budget !== undefined) {
         budget.retriesUsed = attempt + 1
       }
+      this.observe(admitAttempt, { retries: attempt + 1 })
       onRetry?.({
         attempt: attempt + 1,
         maxAttempts: MODEL_API_MAX_RETRIES + 1,
@@ -351,11 +389,16 @@ export class ModelApiClient {
         continue
       }
       if (response.ok) {
+        this.observe(admitAttempt, { headers: rateLimitHeaders(response.headers) })
         this.deps.log.trace(
           `Model API ${init.method} ${path} answered ${String(response.status)} in ${String(this.deps.now() - startedAt)} ms`,
         )
         return response
       }
+      this.observe(admitAttempt, {
+        headers: rateLimitHeaders(response.headers),
+        rateLimited: response.status === HTTP_TOO_MANY_REQUESTS,
+      })
       const failure = await describeFailure(response)
       const isRetryable = isRateLimitOnly
         ? response.status === HTTP_TOO_MANY_REQUESTS
@@ -489,6 +532,7 @@ export class ModelApiClient {
         throw error
       }
     }
+    const observationStartedAt = this.deps.now()
     const response = await within(
       this.request(
         '/responses',
@@ -503,6 +547,7 @@ export class ModelApiClient {
     if (response.body === null) {
       throw new ModelApiError('The response had no body', response.status, undefined, undefined)
     }
+    let hasFirstToken = false
     const frames = parseSse(response.body)[Symbol.asyncIterator]()
     try {
       for (;;) {
@@ -531,6 +576,19 @@ export class ModelApiClient {
         }
         const known = streamEventSchema.safeParse(json)
         if (known.success) {
+          if (
+            !hasFirstToken &&
+            [
+              'response.output_text.delta',
+              'response.reasoning_summary_text.delta',
+              'response.function_call_arguments.delta',
+            ].includes(known.data.type)
+          ) {
+            hasFirstToken = true
+            this.observe(admitAttempt, {
+              firstTokenMs: Math.max(0, this.deps.now() - observationStartedAt),
+            })
+          }
           yield known.data
           continue
         }

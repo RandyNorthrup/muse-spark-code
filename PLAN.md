@@ -5311,7 +5311,79 @@ img-src 'self' data:; connect-src 'self'; frame-ancestors 'none'`. The
 
 ---
 
+### D81 — Upstream sync with Pi and SoL-Pi, gated per model capability (M101, 2026-10-05)
+
+The owner, 2026-10-05: "check if there are any updates/optimizations to pi or
+sol pi that would be useful for us" and "also check the real pi repo". Later
+the same day: "although the harness is for meta muse it is also for other
+vendors and models so we need to make sure we're not omitting a feature that
+does not fit with a meta model when we have support for other models; we just
+need to make sure everything we add is used properly and on the proper and
+relevant models".
+
+The research compared SoL-Pi main (`e1a586af0a`, nothing merged after
+2026-10-01) and Pi (`earendil-works/pi` at `98d2e19`, v1.0.3; SoL-Pi still
+pins Pi 0.85.1) with our main (`8c894b60`) and the bring-your-own-provider
+integration branch (`m95/int`). The full report, with every upstream link and
+every line of ours it cites, is `docs/research/pi-solpi-2026-10-05.md`.
+
+**Decisions.**
+
+1. **Port what fits; record what does not.** The ranked items in the report's
+   sections 1–3 are ported (M101). Its "already handled" and "not applicable"
+   lists stay as they are, with the reason recorded there (no reducer exists;
+   no archive directory; linear sessions by D46; Pi's Meta sign-in conflicts
+   with the M7 billing ruling; Anthropic Pro/Max and Gemini CLI sign-ins are
+   prohibited by D74).
+2. **Every port names the capability it needs.** It reads that capability
+   from the M95 model and preset records (`capabilities`, `FormatQuirks`,
+   `ModelRow.contextTokens`, `PriceCard`) and is on exactly where the selected
+   model supports it: never "Meta only", never "everywhere". A port that
+   helps every provider (the cache-stable prefix, path normalisation,
+   compaction quality) is on for all of them. A Meta Muse user with one
+   model sees today's behaviour except where the change is a fix to that
+   behaviour (for example the goal-progress text no longer breaking the
+   cached prefix); each such change re-baselines its golden request on
+   purpose and records the byte diff in the certification record.
+3. **Q-M74 is resolved by D78.** The owner's 2026-10-04 ruling (paid extras on
+   by default; ask once before the first charge, showing the price and the
+   daily budget; a loud tally) is the consent contract Q-M74 waited for.
+   Automatic compaction, the memory flush and the todo follow-up use the one
+   shared D78 paid gate and ledger, run only inside the user's turn at a
+   settled tool-loop boundary (no autonomous work after the turn ends), and
+   honour Stop, the M82 account/key checks and the final-send checks. They
+   become available by default (D78) for Model API sessions once their M75
+   pair passes; one setting turns them off. Until that pair passes they stay
+   off and the record says so.
+4. **Automatic compaction prices itself per provider.** It follows SoL-Pi's
+   corrected cost model (report section 4): removable tokens measured from the
+   last request actually sent; the cache premium charged on the context
+   written after compaction; debt that accumulates across compactions; debt
+   cleared on failure; todo transitions counted only for registered items;
+   a two-request cooldown on the cost path; an occupancy floor. The write/read
+   ratio comes from the selected model's price card (a cache-write price
+   where one exists, otherwise input over cached input); pricing kind `local`
+   uses a re-prefill time cost plus the occupancy floor; `unpriced` and
+   `plan` use only the near-window protection. We improve on upstream by
+   estimating the summary's size from the previous real summary and by
+   pricing the summarizer call itself.
+5. **The SoL-Pi invariants hold** (D49): the cache-stable request prefix (this
+   milestone strengthens it), golden request bytes identical when a feature
+   is off, one shared paid gate, a guarded `then_run`, compaction that cannot
+   be blocked, and an M75 eval that stays comparable.
+6. **Observation packing is on by default.** `museSpark.modelApiObservationPacking`
+   has defaulted to on since D78; M73's record still said "off by default" and
+   is corrected. So the packing items (2, 4, 7, 18, 22) reach every Model API
+   user.
+
 ## 3. Open questions (need the owner)
+
+- **Q-M95-I transport prerequisite (2026-10-05):** which completed lane T
+  commit supplies ProviderClient/transport/authSource for this checkout?
+  Those modules are absent at `60bf96aa`; the local `rt-fixm95t` rig snapshot
+  is on a different base. The rig brief forbids main merges and network
+  fetches. The injected host/registry contract is tested offline; production
+  assembly awaits the lead's exact dependency and W's configured sources.
 
 - **Q-M95INT2 release prerequisite (2026-10-05):** the rig brief says
   `m95/scfix` contains `928a9200` (0.13.0), but its actual `e5a114b4` tip
@@ -5421,6 +5493,12 @@ rounded up to 25 KiB, which is 475 KiB. The board and paid-review splits stay,
 because those run only on their own actions.
 
 ### Q-M74 — Remaining automatic work (2026-09-29)
+
+**Resolved 2026-10-05 by D81.3.** The owner's D78 ruling (paid extras on by
+default, ask once before the first charge with the price and the daily
+budget, a loud tally) is the consent contract this question waited for.
+M101 lane C2 builds the items below under it, with SoL-Pi's corrected cost
+model (D81.4); the design notes below still bind it.
 
 The handoff repair does not complete automatic compaction, memory flush or
 the hidden todo follow-up. The lead must choose the billable-call/consent
@@ -11306,6 +11384,10 @@ evaluation is authorized by these repairs.
   happens once per output; the ledger matches the tokens left out.
 - **Tests.** The fake Model API with long outputs, and its M75 run.
 - **Size.** S.
+- **Default since D78 (2026-10-04): on.** `museSpark.modelApiObservationPacking`
+  is available by default; the status line below records the 2026-10-02
+  release, which shipped it off. M101 (D81.6) fixes the packing items for
+  every Model API user.
 - **Status 2026-10-02: shipped off by default after its M75 run passed.**
   Built 2026-10-01 on
   `feature/m73-packing`, from M75's merged head. What is in it:
@@ -14603,6 +14685,29 @@ live) and the controller filters its id as well.
 
 ### M95 — Bring-your-own model providers (D74)
 
+**Lane I host integration (2026-10-05, Mac mini; host seam implemented,
+production composition pending).** Resolve
+every host and Auto reviewer request through the configured model registry;
+persist reasoning producer identity, bind held confirmations and retries,
+read capabilities through `modelPolicy.ts`, and use the price-card public
+functions for admission and settlement. Preserve bare Meta request bytes,
+packing, `then_run` and consent behavior. Compaction body/tools and context
+pressure belong to M101 C1/O; price-card arithmetic belongs to P2; CAPREC
+replaces this lane's policy adapter after integration. The starting checkout
+lacks lane T's ProviderClient/transport. This lane supplies the registry
+factory and a lazy injected client-construction seam, without copying a rig
+snapshot. W must supply the production configured-model/auth factory and
+profile identity; N replaces the evidence adapter, P2 settles its propagated
+one-hour-write subset, and CAPPAR consumes resolved paid receipts/effort
+metadata. Until P2 lands, a priced receipt with a one-hour-write subset and
+a one-hour rate retains uncertain liability unless the provider reports the
+authoritative total; remove that temporary refusal and update its named test
+when P2's public settlement honours the subset. A legacy reviewer observer cannot discard the durable settlement:
+its counted paid use remains explicitly unknown on observer failure.
+No dependency merge or live/paid call is implied.
+Focused gates and byte-exact red drills are recorded in `m95-i.md`; the lead
+owns full quality and release certification.
+
 **M95INT round-two scope (2026-10-05, kubuntu).** The rig brief authorizes
 ordered `--no-ff` merges of `m95/kfix`, `m95/mufix`, `m95/hfix`, `m95/ofix`
 and `m95/scfix`; the last brings the 0.13.0 release at `928a9200`. Preserve
@@ -14878,7 +14983,7 @@ release acceptance are still pending.**
 | A Anthropic codec                | new `modelapi/codecs/anthropic.ts` (breakpoints, thinking replay and the edit rule); tests and goldens                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
 | G Gemini codec                   | new `modelapi/codecs/gemini.ts` (thought signatures, the schema subset); tests and goldens                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
 | O Ollama codec                   | new `modelapi/codecs/ollama.ts` (NDJSON, `num_ctx`, `think`); tests and goldens                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
-| I Integration                    | `ModelApiHost.ts` (client resolution at its nine call sites and the reviewer's, tool and hosted-tool gating, window, output cap, effort tiers, price lookup, compaction's tools, the identity line, hook fields), `reviewerEntry.ts`, `modelCallHooks.ts`, `instructions.ts`, `sessionStore.ts` (each replay entry's provider), `sessionBudget.ts`, `src/core/usage/insights.ts`, `src/shared/paid.ts`, `src/shared/effort.ts`, `src/core/import/agentImport.ts`, `src/core/backendSelection.ts`, `modelApiBackendManager.ts`, `modelApiEntry.ts`, `modelApiBundle.ts`, new `src/host/backend/providersEntry.ts` (→ `dist/providers.js`)                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
+| I Integration                    | `ModelApiHost.ts` (client resolution at its nine call sites and the reviewer's, tool and hosted-tool gating, output cap, effort tiers, price lookup, the identity line, hook fields; `modelPolicy.ts`, `src/core/providers/providerRegistry.ts`; compaction tools/window delegated to M101 C1/O), `reviewerEntry.ts`, `modelCallHooks.ts`, `instructions.ts`, `sessionStore.ts` (each replay entry's provider), `sessionBudget.ts`, `src/core/usage/insights.ts`, `src/shared/paid.ts`, `src/shared/effort.ts`, `src/core/import/agentImport.ts`, `src/core/backendSelection.ts`, `modelApiBackendManager.ts`, `modelApiEntry.ts`, `modelApiBundle.ts`, new `src/host/backend/providersEntry.ts` (→ `dist/providers.js`)                                                                                                                                                                                                                                                                                                                                                                        |
 | K Keys and panel host            | new `src/host/providers/**` (SecretStorage records, the password box with the preset's live shape check, the local-server probe, `oauthLoopback.ts` (a one-shot `127.0.0.1` callback server), OpenRouter's connect and key usage, the model scans' cache and diff, removal with undo, import and export, the workspace suggestion), new `src/host/models/modelsPanel.ts` (the `WebviewPanel`, its CSP, its zod-validated bridge) and the quick-pick fast path; entry → `dist/modelsPanel.js`; `src/host/auth/credentialStore.ts`, `src/host/auth/authService.ts` (a provider counts as a Model API credential), the command region of `src/extension.ts` (with `museSpark.startWithOwnModel`: the wizard opened at "Pick a provider"; its draft held in memory only; **Save** writes `providers.json` and the secret together, sets the default model and asks the conversation to set the composer's model; **Cancel** discards the draft, so nothing is written)                                                                                                                              |
 | M Models panel UI                | new `src/webview/models/**`: the entry (→ `dist/webview/models.js`, a second entry in `scripts/build.mjs`), the section registry, the Providers and Models sections, the shared components (below), the panel's reducer; new `src/shared/modelsPanel.ts` (the panel's message and state schemas); the harness scenarios and accessibility cases for every state                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
 | U Picker, first-run and usage UI | `src/shared/protocol.ts` (`modelOptionSchema` gains provider fields; `SIGN_IN_METHODS` gains `byo`), the `listModels`, `setModel` and `signIn` regions of `src/host/conversation/conversationController.ts` (`byo` runs `museSpark.startWithOwnModel`), `src/webview/components/SignIn.tsx` (the first-run screen's **Start with your own model**, ranked equally with the other two when no backend is set up), the "You're set up with `<provider>` · `<model>`" confirmation with **Manage providers**, `src/webview/components/Palette.tsx` (groups, pinned favourites first, **Add a model provider…** and **Manage models…**), the composer pill, `UsageDialog.tsx` (rows per provider, "unpriced", "local", OpenRouter's key usage; its setup rows offer the BYO choice too), `src/webview/state/uiState.ts`, the walkthrough region of `package.json` (`contributes.walkthroughs`: a step with a `command:museSpark.startWithOwnModel` link) and its `resources/` media, their harness scenarios and accessibility cases (the first-run screen with the new button, in both its states) |
@@ -16142,6 +16247,177 @@ recorded in `docs/certification/m95-int.md`. No gate is weakened.
 
 **M95INT round-one whole-chain receipt — historical 120-minute rig brief.**
 The browser and SAST failures below are historical and repaired in round two.
+
+### M101 — Upstream sync: Pi and SoL-Pi ports, automatic compaction (D81)
+
+**Status 2026-10-05: planned; lanes start from `m101/base` (the M95
+integration branch plus this plan).** The item numbers below are the
+research report's (`docs/research/pi-solpi-2026-10-05.md`): plain numbers are
+its sections 1–2 (harness), "BYO n" its section 3 (providers).
+
+- **Goal.** Take every upstream improvement that fits our design, on every
+  provider that can use it; finish M74's automatic compaction, memory flush
+  and todo follow-up under D78's consent contract and SoL-Pi's corrected
+  cost model.
+- **Depends on.** M95 (model/preset capability records, codecs, price cards)
+  for the provider gates; M73 (packing) and M74 (`/compact`, `/handoff`);
+  M75 (eval arms); D78's paid gate and ledger (wired in 0.14.0).
+- **Capability gates (D81.2).** Each lane names, per item, the capability it
+  reads and the providers where it is on; the certification record carries a
+  provider × item table (Meta Muse Responses, OpenAI, xAI, Azure, Anthropic,
+  Gemini, OpenRouter/chat, Ollama/local, custom), with "on / off: reason" in
+  every cell.
+
+**Lanes and file ownership** (so lanes merge without overlapping hunks):
+
+- **Lane A — cache-stable prefix** (items 1, 2 with 22, 7, 16, 17).
+  1. Goal progress (tokens, percentage, current/next work, reminder) leaves
+     `instructions` and the `prompt_cache_key` digest; it rides as a trailing
+     input item rebuilt per request and never saved into the replay. The
+     Anthropic codec puts its rolling breakpoint before that item. All
+     providers.
+  2. `recall_output` (with item 22's literal search inside a packed output)
+     is declared on every request of a packing session
+     (`this.packing !== undefined`), so the tool list changes once, not when
+     the first output packs. Reviewer turns stay unpacked. Tool-calling
+     models only.
+  3. `StoredSession.packedCallIds` (optional) persists across resume, fork
+     and rewind; `copyInto` keeps the ids that survive the cut, so a
+     restored session re-sends the same placeholders. Old session files load
+     as today.
+  4. The prompt's date is the local date, fixed once per session (goldens
+     inject `now`).
+  5. A cache-miss detector logs (log only) when
+     `min(previous, current) − cached > 1024` tokens; on where the format's
+     `cachedUsageFields` is non-empty.
+     Files: `goals.ts`, `instructions.ts`, `promptCache.ts`, the request builder
+     and session copy paths in `ModelApiHost.ts`, the recall paging and search
+     region of `observationPack.ts`, the `recall_output` declaration in
+     `tools.ts`, the session store schema, the Anthropic codec's breakpoint
+     placement.
+- **Lane C1 — compaction quality** (items 3, 5, 10, 11, 19; BYO 17). 3. `/compact` sends the last turn's exact body (instructions, tools, key,
+  packed input) with the compaction prompt appended, so it reads the
+  conversation's cache; a reply holding a function call is discarded and
+  today's tool-less request is the fallback. Honour
+  `FormatQuirks.keepToolsWithHistory`. 5. The exact open todos (host data, never the model's guess) are appended
+  to the compaction prompt and the summary entry, snapshotted at
+  compaction time. 10. Pi's structured summary (Goal / Constraints / Progress / Decisions /
+  Next steps / Critical context; exact paths and errors kept), its update
+  prompt when the replay already starts with a summary, and file lists
+  built from the replay's read/write/edit calls; the summary budget
+  scales with `contextTokens`. 11. Guards: a summary blank after trimming is refused and the replay kept;
+  NOOP when everything is already the previous compaction; the summary
+  call retries like a turn (backoff, budget re-reserved). 19. The recent tail (whole trailing turns up to about 20k tokens, scaled by
+  window) stays verbatim; reasoning items stay byte-exact where
+  `reasoningReplay` applies.
+  BYO 17. "Fork with summary", off by default (one extra call when chosen,
+  through the D78 gate).
+  Files: the compaction path in `ModelApiHost.ts` (`compactNow`,
+  `collectText`), the compaction prompt constants, the fork command.
+- **Lane C2 — automatic compaction, memory flush, todo follow-up** (Q-M74
+  items 1–4, D81.3–4), after C1 is reviewed. A pure cost model module
+  (`autoCompact.ts`: removable tokens, debt, break-even, cooldown, occupancy
+  floor, r from the price card per pricing kind), decided once at a settled
+  tool-loop boundary inside the user's turn; the memory flush through
+  MemoryStore and the permission engine (Manual asks, Plan and Restricted
+  Mode refuse, untrusted labels kept); the D78 gate and ledger for every
+  call; Stop honoured; one guarded automatic compact-and-retry on a
+  classified overflow (from lane O). The M75 arm is frozen before it runs.
+- **Lane O — context overflow** (item 6, item 13's budget scaling).
+  A pure `providers/overflow.ts` with Pi's per-format patterns (429 and rate
+  limits never count) and the two silent-overflow signals; the model's
+  `contextTokens` replaces the fixed window; until C2 lands the user sees
+  "Context window full: /compact or /handoff"; a pre-request check against
+  window minus reserve. `read_file`'s character budget scales with
+  `contextTokens`.
+- **Lane T — tool and packing correctness** (items 4, 8, 9, 12, 13, 14, 15,
+  18, 20, 21). 4. The packed placeholder trims the tail from its front and always keeps
+  the final line (the exit code) when it fits. 8. Tool calls in a cut-short reply are answered with an error, never run
+  (every codec's stop mapping). 9. One `normalizeModelPath(given, platform)` at every place a model-given
+  path is resolved (Unicode spaces, leading `@`, `file://`, `/c/…`,
+  `/mnt/c/…`, `/cygdrive/c/…` on win32; `~` refused); permission check and
+  write resolve the same path. 12. `edit_file` falls back to a normalised unique match (NFKC, trailing
+  whitespace, quotes, dashes, Unicode spaces) and copies untouched lines
+  from the original; `find` equal to `replace` is refused. 13. `read_file` truncation names the next offset; an offset past the end is
+  an error. 14. One search hit is capped at about 500 characters with a note. 15. Shell output elided in the middle stays recoverable through
+  `recall_output` when packing is on (or an owner-only temp file). 18. A single long line packs to about a 1k excerpt and packing is skipped
+  when it saves under half; a non-string `then_run` reports "not run";
+  `clip` and `clipOutput` never split a surrogate pair. 20. `edit_file` takes `edits[]`, all or nothing, overlaps refused (one tool
+  schema change, M75 re-run). 21. Images are downscaled once when they enter history, gated on
+  `capabilities.vision` and the preset's image limits, inside the bundle
+  caps.
+  Files: the placeholder region of `observationPack.ts`, `tools.ts` (edit,
+  read, shell), `workspacePath.ts`, `searchWorker.ts`, `verifyTools.ts`, the
+  incomplete-reply branch in `ModelApiHost.ts`.
+- **Lane P1 — provider codecs** (BYO 1, 2, 3, 4, 7, 8, 9, 11, 13).
+  Bad history items no longer break later requests; Responses replay ids per
+  model; tool-call ids per target format; Gemini thought signatures returned;
+  Gemini usage with omitted zeros; a tolerant Anthropic decoder; Anthropic
+  `thinking.display: "summarized"`; Gemini 3 images in tool results and full
+  schemas; lone surrogates removed. Files: `codecs/*`.
+- **Lane P2 — provider pricing, limits and retry** (BYO 5, 6, 10, 12, 14, 15,
+  16; item 24's per-model strict schemas and the llama.cpp grammar check).
+  Retry classification moves into `FormatQuirks`; price cards read long
+  context tiers (cache rates included) and 1-hour writes, and the loop stops
+  pricing every model at Meta's rates; per-model effort levels from the
+  catalogue's `reasoning_options`; the ChatGPT loopback fixes; compatibility
+  overrides for custom servers; per-model image limits into the media
+  budget; coalesced session saves and listing without full parses. Files:
+  `priceCard.ts`, `presets.ts`, the catalogue sync script, `oauthLoopback.ts`,
+  `fileSessionStore.ts`, the retry constants.
+- **Lane E — evaluation.** Live checks on the contributor model in an empty
+  workspace: one `/compact` and one budgeted goal round, reading
+  `cached_tokens` (about 4 model calls) to confirm items 1–3; Meta's overflow
+  text and cut-off function-call marking captured for lane O's table; the M75
+  pair for C2 (and item 20's schema change). Calls counted from the trace log
+  and reported.
+- **Not ported** (recorded in the research report): item 23 (cache warming;
+  extra billed calls for little gain) unless the eval shows a saving, and
+  everything in the report's "not applicable" list.
+
+- **Acceptance.** Every item above is implemented on the providers its
+  capability names and refused or absent elsewhere, with the provider × item
+  table complete; goldens are byte-identical where a feature is off and
+  re-baselined with recorded diffs where a fix changes bytes; compaction
+  keeps the exact todos and untrusted labels; automatic compaction passes
+  its M75 pair before it is available by default.
+- **Tests.** Unit tests per item with a red drill each; codec goldens per
+  provider; the fake Model API across a compaction, an overflow and a resume;
+  the M75 pair.
+- **Gates.** The full quality gate, check-l10n, host-API, every bundle cap
+  (no cap raise on a startup bundle, D6), VSIX size.
+- **Security.** Paths normalised once and shared by check and write; no
+  temp file readable by other users; no credential in a fixture; the D78 gate
+  for every extra call.
+- **Docs.** README (compaction and packing sections), CHANGELOG, this record,
+  `docs/certification/m101-<lane>.md` per lane and `m101.md` for the whole.
+- **Size.** L.
+- **Certification checklist.**
+  - [ ] Lane A, with drills and the golden diffs
+  - [ ] Lane C1, with drills
+  - [ ] Lane C2, with drills and its M75 pair
+  - [ ] Lane O, with drills and captured overflow texts
+  - [ ] Lane T, with drills
+  - [ ] Lanes P1 and P2, with drills and codec goldens
+  - [ ] Lane E's live counts and cached-token results
+  - [ ] Provider × item table complete; full gate green
+
+## 7. Gates
+
+**M95-I dependency and acceptance limits (2026-10-05).** The rig brief
+requires scoped gates, not full quality or a dependency merge. The lead owns
+full quality and integrated live acceptance. The five wire-format tests use
+real codecs, captured frames and real host tools through a test-only client;
+they do not certify lane T's missing production transport, credentials or
+redirect policy. W must assemble the registered production factory and panel
+seam; N supplies capability provenance/native effort metadata; P2 owns
+one-hour-write settlement; CAPPAR owns paid feature observers and picker
+consumers. No stub or guessed transport is shipped, and no support claim is
+made until those dependencies and integrated gates pass. Native hosted search
+on BYO needs its separately captured tool/price adapter; capability evidence
+alone cannot prove that route. No gate is weakened.
+
+**M95INT final whole-chain rerun — deferred under the 120-minute rig brief.**
 The final 548-page rerun still returns 1: `dark/models-pick` has one selected
 description at 4.41:1 contrast (4.5:1 required), and `hc-light/models-table`
 hits the harness readiness error. The other 1,068 initial violated elements

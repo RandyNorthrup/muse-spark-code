@@ -2165,5 +2165,8 @@
   "usagePageTitle": "用量与费用",
   "paletteUsagePage": "跟踪各编辑器中的费用、令牌和限额。",
   "openUsagePage": "打开用量页面",
-  "acpUsageDescription": "显示各模型的用量与费用，或打开用量页面。"
+  "acpUsageDescription": "显示各模型的用量与费用，或打开用量页面。",
+  "paidProviderPrice": "每百万词元：输入 {input}、缓存读取 {cached}、缓存写入 {write}、一小时写入 {write1h}、输出 {output}。每次请求 {request}；每张图片 {image}。",
+  "paidProviderPriceTier": "输入达到 {threshold} 个词元后：每百万词元输入 {input}、输出 {output}。",
+  "modelToolCallingUnavailable": "此模型的工具调用尚未验证。"
 }

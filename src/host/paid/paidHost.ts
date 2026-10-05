@@ -1,3 +1,4 @@
+import type { UsageRecording } from '../../core/usage/recording'
 // The host side of the paid Model API features (M33–M35, PLAN.md D30): the
 // gate over VS Code's settings, the extension's global state and a modal
 // confirmation naming the price, the popup before each paid use (M58,
@@ -45,6 +46,7 @@ interface MementoLike {
 }
 
 export interface PaidFeaturesDeps {
+  readonly usageRecording?: UsageRecording | undefined
   readonly globalState: MementoLike
   /** Where "Allow always in this workspace" is kept (M58). */
   readonly workspaceState: MementoLike
@@ -102,7 +104,8 @@ export async function askPaidUse(
   // No verified price, nothing to accept (M48, M78): refused before any popup.
   if (
     (request.feature === 'subagents' && modelApiPaidTier(request.task.modelId) === undefined) ||
-    (request.feature === 'autoReviewer' && autoReviewPrice(request.modelId) === undefined)
+    (request.feature === 'autoReviewer' &&
+      autoReviewPrice(request.modelId, request.pricing) === undefined)
   ) {
     return 'deny'
   }
@@ -204,7 +207,18 @@ export function createPaidFeatures(deps: PaidFeaturesDeps): PaidFeatures {
     ask: askPaidUse,
     log: deps.log,
   })
-  const usage = new PaidUsage(deps.log)
+  const usage = new PaidUsage(deps.log, deps.usageRecording)
+  const openedAt = Date.now()
+  if (deps.usageRecording !== undefined) {
+    void deps.usageRecording
+      .today()
+      .then((records) => {
+        usage.restore(records.filter((record) => record.at < openedAt))
+      })
+      .catch(() => {
+        deps.log.warn('Paid usage history could not be restored')
+      })
+  }
   return {
     gate,
     consent,

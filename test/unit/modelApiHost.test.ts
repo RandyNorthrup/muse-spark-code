@@ -2661,10 +2661,7 @@ describe('ModelApiSession: session budget (M82)', () => {
       type: 'itemUpdated',
       item: {
         usage: { inputTokens: 10, outputTokens: 5 },
-        costUsd: estimateCostUsd(
-          { inputTokens: 10, outputTokens: 5, cachedTokens: 0 },
-          'muse-spark-1.3-contributor',
-        ),
+        costUsd: undefined,
       },
     })
     const scope = await watched.session.ownedBudgetScope()

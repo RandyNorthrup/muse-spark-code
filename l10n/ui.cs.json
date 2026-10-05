@@ -2411,5 +2411,8 @@
   "usagePageTitle": "Využití a náklady",
   "paletteUsagePage": "Sledujte náklady, tokeny a limity ve všech editorech.",
   "openUsagePage": "Otevřít stránku využití",
-  "acpUsageDescription": "Zobrazit využití a náklady všech modelů nebo otevřít stránku využití."
+  "acpUsageDescription": "Zobrazit využití a náklady všech modelů nebo otevřít stránku využití.",
+  "paidProviderPrice": "Za milion tokenů: vstup {input}, čtení mezipaměti {cached}, zápis mezipaměti {write}, hodinový zápis {write1h}, výstup {output}. Za požadavek {request}; za obrázek {image}.",
+  "paidProviderPriceTier": "Od {threshold} vstupních tokenů: vstup {input}, výstup {output} za milion.",
+  "modelToolCallingUnavailable": "Volání nástrojů nebylo u tohoto modelu ověřeno."
 }

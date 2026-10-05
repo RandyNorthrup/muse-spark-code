@@ -1,3 +1,4 @@
+import type { UsageRecording } from '../../src/core/usage/recording'
 import {
   mkdtempSync,
   mkdirSync,
@@ -83,10 +84,11 @@ function useMuseOptions(deps: ExecDeps): void {
     maxRequests: undefined,
   }
 }
-async function imageHarness(file = 'image.png', reply = 'done') {
+async function imageHarness(file = 'image.png', reply = 'done', changes: Partial<ExecDeps> = {}) {
   return await harness(
     ['--permission-mode', 'acceptEdits', '--image-generation'],
     [{ calls: [image(file)] }, { text: reply }],
+    changes,
   )
 }
 
@@ -1010,7 +1012,8 @@ describe('M80 real runtime → ACP → manager → client → tools', () => {
     expect(h.api.imageBodies()).toHaveLength(0)
   })
   it('P2 flagged image has admission and returned tally through real engine', async () => {
-    const h = await imageHarness()
+    const recording = journalTap()
+    const h = await imageHarness('image.png', 'done', { usageRecording: recording })
     const r = await h.run()
     expect(r.code).toBe(0)
     expect(result(r).usage.paid).toMatchObject({
@@ -1022,6 +1025,18 @@ describe('M80 real runtime → ACP → manager → client → tools', () => {
     expect(r.events.filter((e) => e.type === 'paid_use').map((e) => e.phase)).toEqual([
       'admitted',
       'returned',
+    ])
+    expect(recording.note.mock.calls.filter(([, context]) => context.kind === 'image')).toEqual([
+      [
+        undefined,
+        expect.objectContaining({
+          model: 'muse-image-1.0',
+          units: { images: 1 },
+          providerCostUsd: 0.01,
+          uncertain: false,
+          outcome: 'completed',
+        }),
+      ],
     ])
   })
   it('P4 protected image destination denied without paid HTTP', async () => {
@@ -1062,7 +1077,8 @@ describe('M80 real runtime → ACP → manager → client → tools', () => {
   it.each([429, 500])(
     'P5/P6 image HTTP %s retains uncertainty with rate-limit-only retries',
     async (status) => {
-      const h = await imageHarness()
+      const recording = journalTap()
+      const h = await imageHarness('image.png', 'done', { usageRecording: recording })
       h.api.images.push({ httpError: { status, message: 'failed' } })
       if (status === 429) h.api.images.push({})
       const r = await h.run()
@@ -1073,6 +1089,41 @@ describe('M80 real runtime → ACP → manager → client → tools', () => {
         imagesUncertain: 1,
         uncertainUsd: 0.01,
       })
+      const images = recording.note.mock.calls.filter(([, context]) => context.kind === 'image')
+      expect(images).toHaveLength(status === 429 ? 2 : 1)
+      expect(images[0]).toEqual([
+        undefined,
+        expect.objectContaining({
+          uncertain: true,
+          retainedLiabilityUsd: 0.01,
+          providerCostUsd: undefined,
+        }),
+      ])
     },
   )
+})
+
+function journalTap() {
+  return {
+    note: vi.fn<UsageRecording['note']>(),
+    limit: vi.fn<UsageRecording['limit']>(),
+    today: () => Promise.resolve([]),
+    flush: vi.fn(() => Promise.resolve()),
+  }
+}
+
+it('records headless model attempts under the shared CLI writer and flushes at shutdown', async () => {
+  const recording = journalTap()
+  const h = await harness([], [{ text: 'done' }], { usageRecording: recording })
+  const result = await h.run()
+  expect(result.code).toBe(0)
+  expect(recording.note).toHaveBeenCalledExactlyOnceWith(
+    expect.objectContaining({ input_tokens: expect.any(Number) }),
+    expect.objectContaining({
+      kind: 'turn',
+      provider: 'meta',
+      model: 'muse-spark-1.3-contributor',
+    }),
+  )
+  expect(recording.flush).toHaveBeenCalledOnce()
 })

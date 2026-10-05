@@ -1,0 +1,681 @@
+{
+  "rig": "kubuntu",
+  "date": "2026-10-05",
+  "command": "npx vitest run <whole test file> --maxWorkers=3 --testTimeout=120000",
+  "drills": [
+    {
+      "guard": "history-off",
+      "file": "src/core/usage/recording.ts",
+      "test": "test/unit/usageRecording.test.ts",
+      "exit": 1,
+      "failures": [
+        "FAIL  test/unit/usageRecording.test.ts > recording taps > history off never loads or writes the journal",
+        "FAIL  test/unit/usageRecording.test.ts > recording taps > rechecks history after lazy loading and shares one diagnostic with the writer"
+      ],
+      "sha256": "868c7bb19c539c502f152baf045640c9dbc9bb061d7d474ec20cd1107c58edd7",
+      "seconds": 2.84
+    },
+    {
+      "guard": "off-during-load",
+      "file": "src/core/usage/recording.ts",
+      "test": "test/unit/usageRecording.test.ts",
+      "exit": 1,
+      "failures": [
+        "FAIL  test/unit/usageRecording.test.ts > recording taps > rechecks history after lazy loading and shares one diagnostic with the writer"
+      ],
+      "sha256": "868c7bb19c539c502f152baf045640c9dbc9bb061d7d474ec20cd1107c58edd7",
+      "seconds": 2.74
+    },
+    {
+      "guard": "write-warning-once",
+      "file": "src/core/usage/recording.ts",
+      "test": "test/unit/usageRecording.test.ts",
+      "exit": 1,
+      "failures": [
+        "FAIL  test/unit/usageRecording.test.ts > recording taps > fails a history read explicitly, logging its private error only as fixed words",
+        "FAIL  test/unit/usageRecording.test.ts > recording taps > never waits for a writer and logs failed writes once without their content",
+        "FAIL  test/unit/usageRecording.test.ts > recording taps > rechecks history after lazy loading and shares one diagnostic with the writer"
+      ],
+      "sha256": "868c7bb19c539c502f152baf045640c9dbc9bb061d7d474ec20cd1107c58edd7",
+      "seconds": 2.74
+    },
+    {
+      "guard": "today-filter",
+      "file": "src/core/usage/recording.ts",
+      "test": "test/unit/usageRecording.test.ts",
+      "exit": 1,
+      "failures": [
+        "FAIL  test/unit/usageRecording.test.ts > recording taps > reads today from the journal and keeps old days out of the modal"
+      ],
+      "sha256": "868c7bb19c539c502f152baf045640c9dbc9bb061d7d474ec20cd1107c58edd7",
+      "seconds": 2.82
+    },
+    {
+      "guard": "changed-headers-dedup",
+      "file": "src/core/usage/recording.ts",
+      "test": "test/unit/usageRecording.test.ts",
+      "exit": 1,
+      "failures": [
+        "FAIL  test/unit/usageRecording.test.ts > recording taps > records changed rate headers and every 429 even when headers are unchanged"
+      ],
+      "sha256": "868c7bb19c539c502f152baf045640c9dbc9bb061d7d474ec20cd1107c58edd7",
+      "seconds": 2.84
+    },
+    {
+      "guard": "every-429",
+      "file": "src/core/usage/recording.ts",
+      "test": "test/unit/usageRecording.test.ts",
+      "exit": 1,
+      "failures": [
+        "FAIL  test/unit/usageRecording.test.ts > recording taps > records changed rate headers and every 429 even when headers are unchanged"
+      ],
+      "sha256": "868c7bb19c539c502f152baf045640c9dbc9bb061d7d474ec20cd1107c58edd7",
+      "seconds": 2.82
+    },
+    {
+      "guard": "explicit-read-error",
+      "file": "src/core/usage/recording.ts",
+      "test": "test/unit/usageRecording.test.ts",
+      "exit": 1,
+      "failures": [
+        "FAIL  test/unit/usageRecording.test.ts > recording taps > fails a history read explicitly, logging its private error only as fixed words"
+      ],
+      "sha256": "868c7bb19c539c502f152baf045640c9dbc9bb061d7d474ec20cd1107c58edd7",
+      "seconds": 3.5
+    },
+    {
+      "guard": "factory-validation",
+      "file": "src/core/usage/recording.ts",
+      "test": "test/unit/usageRecording.test.ts",
+      "exit": 1,
+      "failures": [
+        "FAIL  test/unit/usageRecording.test.ts > recording taps > rejects a missing writer factory and accepts only a callable injected factory"
+      ],
+      "sha256": "868c7bb19c539c502f152baf045640c9dbc9bb061d7d474ec20cd1107c58edd7",
+      "seconds": 3.09
+    },
+    {
+      "guard": "client-identity",
+      "file": "src/core/usage/recording.ts",
+      "test": "test/unit/usageRecording.test.ts",
+      "exit": 1,
+      "failures": [
+        "FAIL  test/unit/usageRecording.test.ts > recording taps > never waits for a writer and logs failed writes once without their content"
+      ],
+      "sha256": "868c7bb19c539c502f152baf045640c9dbc9bb061d7d474ec20cd1107c58edd7",
+      "seconds": 2.93
+    },
+    {
+      "guard": "nonblocking-note",
+      "file": "src/core/usage/recording.ts",
+      "test": "test/unit/usageRecording.test.ts",
+      "exit": 1,
+      "failures": [
+        "FAIL  test/unit/usageRecording.test.ts > recording taps > never waits for a writer and logs failed writes once without their content"
+      ],
+      "sha256": "868c7bb19c539c502f152baf045640c9dbc9bb061d7d474ec20cd1107c58edd7",
+      "seconds": 2.95
+    },
+    {
+      "guard": "flush-failure-isolation",
+      "file": "src/core/usage/recording.ts",
+      "test": "test/unit/usageRecording.test.ts",
+      "exit": 1,
+      "failures": [
+        "FAIL  test/unit/usageRecording.test.ts > recording taps > never waits for a writer and logs failed writes once without their content"
+      ],
+      "sha256": "868c7bb19c539c502f152baf045640c9dbc9bb061d7d474ec20cd1107c58edd7",
+      "seconds": 3.34
+    },
+    {
+      "guard": "one-record-per-response",
+      "file": "src/core/backends/modelapi/ModelApiHost.ts",
+      "test": "test/unit/usageRecording.test.ts",
+      "exit": 1,
+      "failures": [
+        "FAIL  test/unit/usageRecording.test.ts > recording taps > records exactly one settled turn and keeps request bodies byte identical",
+        "FAIL  test/unit/usageRecording.test.ts > recording taps > attributes compaction, free token counting and side chat separately",
+        "FAIL  test/unit/usageRecording.test.ts > recording taps > records the shared host child as a subagent once, outside the parent tally"
+      ],
+      "sha256": "715448990325bb510e1caad7b4cc38006c3a6508764d9c98ff3d6fbbead904f6",
+      "seconds": 4.23
+    },
+    {
+      "guard": "uncertain-missing-usage",
+      "file": "src/core/backends/modelapi/ModelApiHost.ts",
+      "test": "test/unit/usageRecording.test.ts",
+      "exit": 1,
+      "failures": [
+        "FAIL  test/unit/usageRecording.test.ts > recording taps > keeps sent calls with missing usage uncertain and records failure once"
+      ],
+      "sha256": "715448990325bb510e1caad7b4cc38006c3a6508764d9c98ff3d6fbbead904f6",
+      "seconds": 3.1
+    },
+    {
+      "guard": "pre-stream-refusal",
+      "file": "src/core/backends/modelapi/ModelApiHost.ts",
+      "test": "test/unit/usageRecording.test.ts",
+      "exit": 1,
+      "failures": [
+        "FAIL  test/unit/usageRecording.test.ts > recording taps > records an uncapped pre-stream refusal without claiming uncertain billing"
+      ],
+      "sha256": "715448990325bb510e1caad7b4cc38006c3a6508764d9c98ff3d6fbbead904f6",
+      "seconds": 4.7
+    },
+    {
+      "guard": "subagent-attribution",
+      "file": "src/core/backends/modelapi/ModelApiHost.ts",
+      "test": "test/unit/usageRecording.test.ts",
+      "exit": 1,
+      "failures": [
+        "FAIL  test/unit/usageRecording.test.ts > recording taps > records the shared host child as a subagent once, outside the parent tally"
+      ],
+      "sha256": "715448990325bb510e1caad7b4cc38006c3a6508764d9c98ff3d6fbbead904f6",
+      "seconds": 4.02
+    },
+    {
+      "guard": "side-chat-attribution",
+      "file": "src/core/backends/modelapi/ModelApiHost.ts",
+      "test": "test/unit/usageRecording.test.ts",
+      "exit": 1,
+      "failures": [
+        "FAIL  test/unit/usageRecording.test.ts > recording taps > attributes compaction, free token counting and side chat separately"
+      ],
+      "sha256": "715448990325bb510e1caad7b4cc38006c3a6508764d9c98ff3d6fbbead904f6",
+      "seconds": 2.92
+    },
+    {
+      "guard": "compaction-attribution",
+      "file": "src/core/backends/modelapi/ModelApiHost.ts",
+      "test": "test/unit/usageRecording.test.ts",
+      "exit": 1,
+      "failures": [
+        "FAIL  test/unit/usageRecording.test.ts > recording taps > attributes compaction, free token counting and side chat separately"
+      ],
+      "sha256": "715448990325bb510e1caad7b4cc38006c3a6508764d9c98ff3d6fbbead904f6",
+      "seconds": 3.38
+    },
+    {
+      "guard": "free-count",
+      "file": "src/core/backends/modelapi/ModelApiHost.ts",
+      "test": "test/unit/usageRecording.test.ts",
+      "exit": 1,
+      "failures": [
+        "FAIL  test/unit/usageRecording.test.ts > recording taps > attributes compaction, free token counting and side chat separately"
+      ],
+      "sha256": "715448990325bb510e1caad7b4cc38006c3a6508764d9c98ff3d6fbbead904f6",
+      "seconds": 2.97
+    },
+    {
+      "guard": "served-model",
+      "file": "src/core/backends/modelapi/ModelApiHost.ts",
+      "test": "test/unit/usageRecording.test.ts",
+      "exit": 1,
+      "failures": [
+        "FAIL  test/unit/usageRecording.test.ts > recording taps > records exactly one settled turn and keeps request bodies byte identical"
+      ],
+      "sha256": "715448990325bb510e1caad7b4cc38006c3a6508764d9c98ff3d6fbbead904f6",
+      "seconds": 2.64
+    },
+    {
+      "guard": "empty-header-429",
+      "file": "src/core/backends/modelapi/ModelApiHost.ts",
+      "test": "test/unit/usageRecording.test.ts",
+      "exit": 1,
+      "failures": [
+        "FAIL  test/unit/usageRecording.test.ts > recording taps > records a 429 snapshot even without a reported limit header"
+      ],
+      "sha256": "715448990325bb510e1caad7b4cc38006c3a6508764d9c98ff3d6fbbead904f6",
+      "seconds": 2.63
+    },
+    {
+      "guard": "retained-rate-limit",
+      "file": "src/core/backends/modelapi/ModelApiHost.ts",
+      "test": "test/unit/usageRecording.test.ts",
+      "exit": 1,
+      "failures": [
+        "FAIL  test/unit/usageRecording.test.ts > recording taps > records a 429 snapshot even without a reported limit header"
+      ],
+      "sha256": "715448990325bb510e1caad7b4cc38006c3a6508764d9c98ff3d6fbbead904f6",
+      "seconds": 2.64
+    },
+    {
+      "guard": "packing-delta",
+      "file": "src/core/backends/modelapi/ModelApiHost.ts",
+      "test": "test/unit/modelApiPacking.test.ts",
+      "exit": 1,
+      "failures": [
+        "FAIL  test/unit/modelApiPacking.test.ts > observation packing on the host > counts the ledger in tokenUsage: the tokens the packed sends left out"
+      ],
+      "sha256": "715448990325bb510e1caad7b4cc38006c3a6508764d9c98ff3d6fbbead904f6",
+      "seconds": 2.73
+    },
+    {
+      "guard": "header-privacy",
+      "file": "src/core/backends/modelapi/client.ts",
+      "test": "test/unit/rateLimitHeaders.test.ts",
+      "exit": 1,
+      "failures": [
+        "FAIL  test/unit/rateLimitHeaders.test.ts > response header recording > keeps only the explicit allow list and never credentials or account headers",
+        "FAIL  test/unit/rateLimitHeaders.test.ts > response header recording > drops oversized and non-ASCII values without changing valid reported text"
+      ],
+      "sha256": "871a5ba367f31e6a7eee4291e53f1fad2367a7f991682a029940d5d05e1fae2d",
+      "seconds": 1.56
+    },
+    {
+      "guard": "header-bounds",
+      "file": "src/core/backends/modelapi/client.ts",
+      "test": "test/unit/rateLimitHeaders.test.ts",
+      "exit": 1,
+      "failures": [
+        "FAIL  test/unit/rateLimitHeaders.test.ts > response header recording > drops oversized and non-ASCII values without changing valid reported text"
+      ],
+      "sha256": "871a5ba367f31e6a7eee4291e53f1fad2367a7f991682a029940d5d05e1fae2d",
+      "seconds": 1.58
+    },
+    {
+      "guard": "first-token-once",
+      "file": "src/core/backends/modelapi/client.ts",
+      "test": "test/unit/rateLimitHeaders.test.ts",
+      "exit": 1,
+      "failures": [
+        "FAIL  test/unit/rateLimitHeaders.test.ts > transport observations > observes HTTP retries, rate limits and first token without changing the request"
+      ],
+      "sha256": "871a5ba367f31e6a7eee4291e53f1fad2367a7f991682a029940d5d05e1fae2d",
+      "seconds": 1.55
+    },
+    {
+      "guard": "retries-observed",
+      "file": "src/core/backends/modelapi/client.ts",
+      "test": "test/unit/rateLimitHeaders.test.ts",
+      "exit": 1,
+      "failures": [
+        "FAIL  test/unit/rateLimitHeaders.test.ts > transport observations > observes HTTP retries, rate limits and first token without changing the request"
+      ],
+      "sha256": "871a5ba367f31e6a7eee4291e53f1fad2367a7f991682a029940d5d05e1fae2d",
+      "seconds": 1.57
+    },
+    {
+      "guard": "observer-failure-isolation",
+      "file": "src/core/backends/modelapi/client.ts",
+      "test": "test/unit/rateLimitHeaders.test.ts",
+      "exit": 1,
+      "failures": [
+        "FAIL  test/unit/rateLimitHeaders.test.ts > transport observations > a failed observer cannot fail a model response"
+      ],
+      "sha256": "871a5ba367f31e6a7eee4291e53f1fad2367a7f991682a029940d5d05e1fae2d",
+      "seconds": 1.62
+    },
+    {
+      "guard": "observer-warning-once",
+      "file": "src/core/backends/modelapi/client.ts",
+      "test": "test/unit/rateLimitHeaders.test.ts",
+      "exit": 1,
+      "failures": [
+        "FAIL  test/unit/rateLimitHeaders.test.ts > transport observations > a failed observer cannot fail a model response"
+      ],
+      "sha256": "871a5ba367f31e6a7eee4291e53f1fad2367a7f991682a029940d5d05e1fae2d",
+      "seconds": 1.69
+    },
+    {
+      "guard": "resume-baseline",
+      "file": "src/core/backends/musecode/MuseCodeHost.ts",
+      "test": "test/unit/museUsageDeltas.test.ts",
+      "exit": 1,
+      "failures": [
+        "FAIL  test/unit/museUsageDeltas.test.ts > Muse Code journal deltas > takes the first resumed report as a baseline and never replays historical spend",
+        "FAIL  test/unit/museUsageDeltas.test.ts > Muse Code journal deltas > rebaselines counters that decrease rather than writing negative usage"
+      ],
+      "sha256": "9daf569aa149eb070267f236aeba233edc8dec769b5ece31137ca0c9c86bcee2",
+      "seconds": 1.7
+    },
+    {
+      "guard": "replay-baseline",
+      "file": "src/core/backends/musecode/MuseCodeHost.ts",
+      "test": "test/unit/museUsageDeltas.test.ts",
+      "exit": 1,
+      "failures": [
+        "FAIL  test/unit/museUsageDeltas.test.ts > Muse Code journal deltas > uses replayed cumulative reports only as a baseline"
+      ],
+      "sha256": "9daf569aa149eb070267f236aeba233edc8dec769b5ece31137ca0c9c86bcee2",
+      "seconds": 1.65
+    },
+    {
+      "guard": "decreased-counters",
+      "file": "src/core/backends/musecode/MuseCodeHost.ts",
+      "test": "test/unit/museUsageDeltas.test.ts",
+      "exit": 1,
+      "failures": [
+        "FAIL  test/unit/museUsageDeltas.test.ts > Muse Code journal deltas > rebaselines counters that decrease rather than writing negative usage"
+      ],
+      "sha256": "9daf569aa149eb070267f236aeba233edc8dec769b5ece31137ca0c9c86bcee2",
+      "seconds": 1.67
+    },
+    {
+      "guard": "zero-delta-duplicate",
+      "file": "src/core/backends/musecode/MuseCodeHost.ts",
+      "test": "test/unit/museUsageDeltas.test.ts",
+      "exit": 1,
+      "failures": [
+        "FAIL  test/unit/museUsageDeltas.test.ts > Muse Code journal deltas > aggregates cumulative reports into one delta per turn and ignores duplicates",
+        "FAIL  test/unit/museUsageDeltas.test.ts > Muse Code journal deltas > takes the first resumed report as a baseline and never replays historical spend",
+        "FAIL  test/unit/museUsageDeltas.test.ts > Muse Code journal deltas > rebaselines counters that decrease rather than writing negative usage"
+      ],
+      "sha256": "9daf569aa149eb070267f236aeba233edc8dec769b5ece31137ca0c9c86bcee2",
+      "seconds": 1.7
+    },
+    {
+      "guard": "snapshot-observation-dedup",
+      "file": "src/core/backends/musecode/MuseCodeHost.ts",
+      "test": "test/unit/museUsageDeltas.test.ts",
+      "exit": 1,
+      "failures": [
+        "FAIL  test/unit/museUsageDeltas.test.ts > Muse Code journal deltas > records usage snapshots once per observation and keeps reported window lengths"
+      ],
+      "sha256": "9daf569aa149eb070267f236aeba233edc8dec769b5ece31137ca0c9c86bcee2",
+      "seconds": 1.75
+    },
+    {
+      "guard": "cumulative-count-boundary",
+      "file": "src/core/backends/musecode/mapNotification.ts",
+      "test": "test/unit/mapNotification.test.ts",
+      "exit": 1,
+      "failures": [
+        "FAIL  test/unit/mapNotification.test.ts > mapNotification > rejects negative and fractional cumulative usage before delta accounting"
+      ],
+      "sha256": "f4f89f3808ccc95c04491a85e14428e3807e8959a9099262b61714a15ac3e1cf",
+      "seconds": 1.91
+    },
+    {
+      "guard": "paid-unit-tap",
+      "file": "src/core/paid/paidFeatures.ts",
+      "test": "test/unit/usageRecordingAux.test.ts",
+      "exit": 1,
+      "failures": [
+        "FAIL  test/unit/usageRecordingAux.test.ts > auxiliary recording > records searches, images and fractional voice seconds with separate units"
+      ],
+      "sha256": "8d31d724d85f0c6b08dce578e22b45a04f814f22c261425f6c69b224bdac38a1",
+      "seconds": 1.78
+    },
+    {
+      "guard": "restore-once",
+      "file": "src/core/paid/paidFeatures.ts",
+      "test": "test/unit/usageRecordingAux.test.ts",
+      "exit": 1,
+      "failures": [
+        "FAIL  test/unit/usageRecordingAux.test.ts > auxiliary recording > rebuilds today once, retains live additions and preserves uncertain liabilities"
+      ],
+      "sha256": "8d31d724d85f0c6b08dce578e22b45a04f814f22c261425f6c69b224bdac38a1",
+      "seconds": 1.87
+    },
+    {
+      "guard": "uncertain-restored-tally",
+      "file": "src/core/paid/paidFeatures.ts",
+      "test": "test/unit/usageRecordingAux.test.ts",
+      "exit": 1,
+      "failures": [
+        "FAIL  test/unit/usageRecordingAux.test.ts > auxiliary recording > rebuilds today once, retains live additions and preserves uncertain liabilities"
+      ],
+      "sha256": "8d31d724d85f0c6b08dce578e22b45a04f814f22c261425f6c69b224bdac38a1",
+      "seconds": 2.13
+    },
+    {
+      "guard": "best-of-n-distinct-attempt",
+      "file": "src/core/paid/paidFeatures.ts",
+      "test": "test/unit/usageRecordingAux.test.ts",
+      "exit": 1,
+      "failures": [
+        "FAIL  test/unit/usageRecordingAux.test.ts > auxiliary recording > rebuilds today once, retains live additions and preserves uncertain liabilities"
+      ],
+      "sha256": "8d31d724d85f0c6b08dce578e22b45a04f814f22c261425f6c69b224bdac38a1",
+      "seconds": 1.69
+    },
+    {
+      "guard": "acp-subscription-no-api-cost",
+      "file": "src/acp/translate.ts",
+      "test": "test/unit/usageRecordingAux.test.ts",
+      "exit": 1,
+      "failures": [
+        "FAIL  test/unit/usageRecordingAux.test.ts > auxiliary recording > adds priced ACP session cost with certainty and leaves unknown prices absent"
+      ],
+      "sha256": "4e29cbf35d682d974808f6ed636d85c073d2e43ca3fdbc06c67ad7e86013fc1d",
+      "seconds": 1.69
+    },
+    {
+      "guard": "acp-local-zero",
+      "file": "src/acp/translate.ts",
+      "test": "test/unit/usageRecordingAux.test.ts",
+      "exit": 1,
+      "failures": [
+        "FAIL  test/unit/usageRecordingAux.test.ts > auxiliary recording > uses injected BYO settlement for reported and local prices, withholding plan and uncertainty"
+      ],
+      "sha256": "4e29cbf35d682d974808f6ed636d85c073d2e43ca3fdbc06c67ad7e86013fc1d",
+      "seconds": 1.7
+    },
+    {
+      "guard": "acp-withhold-uncertainty",
+      "file": "src/acp/translate.ts",
+      "test": "test/unit/usageRecordingAux.test.ts",
+      "exit": 1,
+      "failures": [
+        "FAIL  test/unit/usageRecordingAux.test.ts > auxiliary recording > uses injected BYO settlement for reported and local prices, withholding plan and uncertainty"
+      ],
+      "sha256": "4e29cbf35d682d974808f6ed636d85c073d2e43ca3fdbc06c67ad7e86013fc1d",
+      "seconds": 1.87
+    },
+    {
+      "guard": "acp-withhold-unpriced",
+      "file": "src/acp/translate.ts",
+      "test": "test/unit/usageRecordingAux.test.ts",
+      "exit": 1,
+      "failures": [
+        "FAIL  test/unit/usageRecordingAux.test.ts > auxiliary recording > uses injected BYO settlement for reported and local prices, withholding plan and uncertainty"
+      ],
+      "sha256": "4e29cbf35d682d974808f6ed636d85c073d2e43ca3fdbc06c67ad7e86013fc1d",
+      "seconds": 1.77
+    },
+    {
+      "guard": "native-duration-validation",
+      "file": "src/core/backends/modelapi/codecs/ollama.ts",
+      "test": "test/unit/usageRecordingAux.test.ts",
+      "exit": 1,
+      "failures": [
+        "FAIL  test/unit/usageRecordingAux.test.ts > auxiliary recording > retains all four native Ollama durations from the counted capture"
+      ],
+      "sha256": "412a7cdc413061497bbd5c0fccf849a599ffe18df12a0321352dcc0229a6a51b",
+      "seconds": 1.67
+    },
+    {
+      "guard": "native-observer-isolation",
+      "file": "src/core/backends/modelapi/codecs/ollama.ts",
+      "test": "test/unit/usageRecordingAux.test.ts",
+      "exit": 1,
+      "failures": [
+        "FAIL  test/unit/usageRecordingAux.test.ts > auxiliary recording > retains all four native Ollama durations from the counted capture"
+      ],
+      "sha256": "412a7cdc413061497bbd5c0fccf849a599ffe18df12a0321352dcc0229a6a51b",
+      "seconds": 1.82
+    },
+    {
+      "guard": "reviewer-record",
+      "file": "src/core/backends/modelapi/reviewerEntry.ts",
+      "test": "test/unit/modelApiProviders.test.ts",
+      "exit": 1,
+      "failures": [
+        "FAIL  test/unit/modelApiProviders.test.ts > registry dispatch through the real host > reviews on the resolved provider with its quote and a distinct profile accounting identity",
+        "FAIL  test/unit/modelApiProviders.test.ts > registry dispatch through the real host > retains the reviewer reservation as uncertain when its counted one-hour writes cannot settle"
+      ],
+      "sha256": "2c00d8f278d42d6834bfaf1b281b8006a2cfb112a6ba48cd85b8922cde67eaae",
+      "seconds": 2.87
+    },
+    {
+      "guard": "best-of-n-record-kind",
+      "file": "src/host/backend/modelApiBackendManager.ts",
+      "test": "test/unit/modelApiBackendManager.test.ts",
+      "exit": 1,
+      "failures": [
+        "FAIL  test/unit/modelApiBackendManager.test.ts > records best-of-N requests once with the attempt kind and its own session"
+      ],
+      "sha256": "bf2697be5f169d71ef007e4c27092848ea8f46e53b2b91ba3cfeeb31b31ca4e6",
+      "seconds": 3.0
+    },
+    {
+      "guard": "reload-no-double-count",
+      "file": "src/host/paid/paidHost.ts",
+      "test": "test/unit/paidHost.test.ts",
+      "exit": 1,
+      "failures": [
+        "FAIL  test/unit/paidHost.test.ts > the paid-use popup (M58) > restores prior journal units once while keeping additions during the read"
+      ],
+      "sha256": "199572c3e83f59351fba298fe9e2db54a0779ba2368d157cd340e487a4730431",
+      "seconds": 2.57
+    },
+    {
+      "guard": "unknown-provider-cost",
+      "file": "src/host/conversation/conversationController.ts",
+      "test": "test/unit/conversationController.test.ts",
+      "exit": 1,
+      "failures": [
+        "FAIL  test/unit/conversationController.test.ts > ConversationController: account & usage (M8) > aggregates today by provider while withholding an unknown dollar total"
+      ],
+      "sha256": "6cbffa94807d8e1b74fe38456c7c2db04d21c79213a0f7f8c53a92bafa394ee5",
+      "seconds": 22.82
+    },
+    {
+      "guard": "cli-shared-recording",
+      "file": "src/runtime/exec/runExec.ts",
+      "test": "test/unit/execRun.test.ts",
+      "exit": 1,
+      "failures": [
+        "FAIL  test/unit/execRun.test.ts > records headless model attempts under the shared CLI writer and flushes at shutdown"
+      ],
+      "sha256": "42874d4938602de677a104efb15b2ec19c7d103c863da56922b34312d054edfb",
+      "seconds": 8.38
+    },
+    {
+      "guard": "cli-shutdown-flush",
+      "file": "src/runtime/exec/runExec.ts",
+      "test": "test/unit/execRun.test.ts",
+      "exit": 1,
+      "failures": [
+        "FAIL  test/unit/execRun.test.ts > records headless model attempts under the shared CLI writer and flushes at shutdown"
+      ],
+      "sha256": "42874d4938602de677a104efb15b2ec19c7d103c863da56922b34312d054edfb",
+      "seconds": 8.22
+    },
+    {
+      "guard": "cli-image-once",
+      "file": "src/runtime/exec/runExec.ts",
+      "test": "test/unit/execRun.test.ts",
+      "exit": 1,
+      "failures": [
+        "FAIL  test/unit/execRun.test.ts > M80 real runtime \u2192 ACP \u2192 manager \u2192 client \u2192 tools > P2 flagged image has admission and returned tally through real engine",
+        "FAIL  test/unit/execRun.test.ts > M80 real runtime \u2192 ACP \u2192 manager \u2192 client \u2192 tools > P5/P6 image HTTP 429 retains uncertainty with rate-limit-only retries",
+        "FAIL  test/unit/execRun.test.ts > M80 real runtime \u2192 ACP \u2192 manager \u2192 client \u2192 tools > P5/P6 image HTTP 500 retains uncertainty with rate-limit-only retries"
+      ],
+      "sha256": "42874d4938602de677a104efb15b2ec19c7d103c863da56922b34312d054edfb",
+      "seconds": 8.47
+    },
+    {
+      "guard": "cli-image-uncertainty",
+      "file": "src/runtime/exec/runExec.ts",
+      "test": "test/unit/execRun.test.ts",
+      "exit": 1,
+      "failures": [
+        "FAIL  test/unit/execRun.test.ts > M80 real runtime \u2192 ACP \u2192 manager \u2192 client \u2192 tools > P5/P6 image HTTP 429 retains uncertainty with rate-limit-only retries",
+        "FAIL  test/unit/execRun.test.ts > M80 real runtime \u2192 ACP \u2192 manager \u2192 client \u2192 tools > P5/P6 image HTTP 500 retains uncertainty with rate-limit-only retries"
+      ],
+      "sha256": "42874d4938602de677a104efb15b2ec19c7d103c863da56922b34312d054edfb",
+      "seconds": 8.67
+    },
+    {
+      "guard": "acp-authoritative-cost",
+      "file": "src/acp/translate.ts",
+      "test": "test/unit/usageRecordingAux.test.ts",
+      "exit": 1,
+      "failures": [
+        "FAIL  test/unit/usageRecordingAux.test.ts > auxiliary recording > uses injected BYO settlement for reported and local prices, withholding plan and uncertainty"
+      ],
+      "sha256": "4e29cbf35d682d974808f6ed636d85c073d2e43ca3fdbc06c67ad7e86013fc1d",
+      "seconds": 1.67
+    },
+    {
+      "guard": "provider-liability-not-price",
+      "file": "src/host/conversation/conversationController.ts",
+      "test": "test/unit/conversationController.test.ts",
+      "exit": 1,
+      "failures": [
+        "FAIL  test/unit/conversationController.test.ts > ConversationController: account & usage (M8) > aggregates today by provider while withholding an unknown dollar total"
+      ],
+      "sha256": "93e548bcb7a7f75831b5fadeff3df56f1bbbf2586ee8cc60886b3fde23e1c48d",
+      "seconds": 25.7
+    },
+    {
+      "guard": "cancelled-stream",
+      "file": "src/core/backends/modelapi/ModelApiHost.ts",
+      "test": "test/unit/usageRecording.test.ts",
+      "exit": 1,
+      "failures": [
+        "FAIL  test/unit/usageRecording.test.ts > recording taps > records Stop on a sent stream without terminal usage as cancelled and uncertain"
+      ],
+      "sha256": "715448990325bb510e1caad7b4cc38006c3a6508764d9c98ff3d6fbbead904f6",
+      "seconds": 3.35
+    },
+    {
+      "guard": "reviewer-incomplete",
+      "file": "src/core/backends/modelapi/reviewerEntry.ts",
+      "test": "test/unit/modelApiProviders.test.ts",
+      "exit": 1,
+      "failures": [
+        "FAIL  test/unit/modelApiProviders.test.ts > registry dispatch through the real host > reviews on the resolved provider with its quote and a distinct profile accounting identity: incomplete"
+      ],
+      "sha256": "2c00d8f278d42d6834bfaf1b281b8006a2cfb112a6ba48cd85b8922cde67eaae",
+      "seconds": 3.46
+    },
+    {
+      "guard": "reviewer-empty-429",
+      "file": "src/core/backends/modelapi/reviewerEntry.ts",
+      "test": "test/unit/modelApiProviders.test.ts",
+      "exit": 1,
+      "failures": [
+        "FAIL  test/unit/modelApiProviders.test.ts > registry dispatch through the real host > reviews on the resolved provider with its quote and a distinct profile accounting identity: refused"
+      ],
+      "sha256": "2c00d8f278d42d6834bfaf1b281b8006a2cfb112a6ba48cd85b8922cde67eaae",
+      "seconds": 3.37
+    },
+    {
+      "guard": "reviewer-served",
+      "file": "src/core/backends/modelapi/reviewerEntry.ts",
+      "test": "test/unit/modelApiProviders.test.ts",
+      "exit": 1,
+      "failures": [
+        "FAIL  test/unit/modelApiProviders.test.ts > registry dispatch through the real host > reviews on the resolved provider with its quote and a distinct profile accounting identity: completed",
+        "FAIL  test/unit/modelApiProviders.test.ts > registry dispatch through the real host > reviews on the resolved provider with its quote and a distinct profile accounting identity: incomplete"
+      ],
+      "sha256": "2c00d8f278d42d6834bfaf1b281b8006a2cfb112a6ba48cd85b8922cde67eaae",
+      "seconds": 3.58
+    },
+    {
+      "guard": "failed-counter-record",
+      "file": "src/core/backends/modelapi/ModelApiHost.ts",
+      "test": "test/unit/usageRecording.test.ts",
+      "exit": 1,
+      "failures": [
+        "FAIL  test/unit/usageRecording.test.ts > recording taps > records failed free token counting once without undoing successful compaction"
+      ],
+      "sha256": "024975ba2c0cb339168b0b011f4116a41ba3bb5ede7fc6d2e1365a47c7a91d0b",
+      "seconds": 3.91
+    },
+    {
+      "guard": "failed-counter-outcome",
+      "file": "src/core/backends/modelapi/ModelApiHost.ts",
+      "test": "test/unit/usageRecording.test.ts",
+      "exit": 1,
+      "failures": [
+        "FAIL  test/unit/usageRecording.test.ts > recording taps > records failed free token counting once without undoing successful compaction"
+      ],
+      "sha256": "024975ba2c0cb339168b0b011f4116a41ba3bb5ede7fc6d2e1365a47c7a91d0b",
+      "seconds": 3.95
+    }
+  ]
+}

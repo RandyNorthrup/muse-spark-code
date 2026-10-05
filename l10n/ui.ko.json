@@ -2165,5 +2165,8 @@
   "usagePageTitle": "사용량 및 비용",
   "paletteUsagePage": "여러 편집기의 비용, 토큰 및 한도를 추적합니다.",
   "openUsagePage": "사용량 페이지 열기",
-  "acpUsageDescription": "모델별 사용량과 비용을 표시하거나 사용량 페이지를 엽니다."
+  "acpUsageDescription": "모델별 사용량과 비용을 표시하거나 사용량 페이지를 엽니다.",
+  "paidProviderPrice": "100만 토큰당: 입력 {input}, 캐시 읽기 {cached}, 캐시 쓰기 {write}, 1시간 쓰기 {write1h}, 출력 {output}. 요청당 {request}, 이미지당 {image}.",
+  "paidProviderPriceTier": "입력 토큰 {threshold}개부터: 100만 토큰당 입력 {input}, 출력 {output}.",
+  "modelToolCallingUnavailable": "이 모델의 도구 호출은 검증되지 않았습니다."
 }

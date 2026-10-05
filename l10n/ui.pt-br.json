@@ -2329,5 +2329,8 @@
   "usagePageTitle": "Uso e custo",
   "paletteUsagePage": "Acompanhar custos, tokens e limites em todos os editores.",
   "openUsagePage": "Abrir página de uso",
-  "acpUsageDescription": "Mostrar o uso e o custo de todos os modelos ou abrir a página de uso."
+  "acpUsageDescription": "Mostrar o uso e o custo de todos os modelos ou abrir a página de uso.",
+  "paidProviderPrice": "Por milhão de tokens: entrada {input}, leitura de cache {cached}, gravação de cache {write}, gravação de uma hora {write1h}, saída {output}. Por solicitação {request}; por imagem {image}.",
+  "paidProviderPriceTier": "A partir de {threshold} tokens de entrada: entrada {input}, saída {output} por milhão.",
+  "modelToolCallingUnavailable": "A chamada de ferramentas não foi verificada para este modelo."
 }

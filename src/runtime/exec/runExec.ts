@@ -1,3 +1,13 @@
+import {
+  createUsageRecording,
+  isUsageWriterBundle,
+  type UsageRecording,
+} from '../../core/usage/recording'
+import { MuseCodeHost } from '../../core/backends/musecode/MuseCodeHost'
+import { ModelApiBackendManager } from '../../host/backend/modelApiBackendManager'
+import { requireFile } from '../../host/lazyBundle'
+import { agentDataFolder } from '../dataFolder'
+import { randomUUID } from 'node:crypto'
 import * as acp from '@agentclientprotocol/sdk'
 import { stat } from 'node:fs/promises'
 import path from 'node:path'
@@ -24,6 +34,7 @@ import {
   MODEL_API_MAX_OUTPUT_TOKENS,
   MODEL_API_PRICES_PER_MILLION,
   PAID_PRICES_USD,
+  MODEL_API_IMAGE_MODEL,
   SECRET_KEYS,
   UI_TEXT,
   type EnvironmentVariable,
@@ -52,6 +63,8 @@ import { observeBackend, type SessionTap } from './sessionTap'
 import { readUntrustedInputs } from './untrustedInput'
 
 export interface ExecDeps {
+  readonly usageRecording?: UsageRecording | undefined
+  readonly isUsageHistoryEnabled?: (() => boolean) | undefined
   options: ExecOptions
   version: string
   distDir: string
@@ -157,6 +170,30 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
       if (!isFinished) rawLog.error(message)
     },
   }
+  const usageRecording =
+    deps.usageRecording ??
+    createUsageRecording({
+      client: 'cli',
+      now: deps.now,
+      newId: () => randomUUID(),
+      isEnabled: () => deps.isUsageHistoryEnabled?.() ?? true,
+      log,
+      writer: async (onWriteError) => {
+        const bundle = requireFile(path.join(deps.distDir, 'usageService.js'))
+        if (!isUsageWriterBundle(bundle)) throw new Error('Usage writer factory unavailable')
+        return await bundle.createUsageWriter({
+          dataFolder: agentDataFolder(deps),
+          writerId: randomUUID(),
+          now: deps.now,
+          isEnabled: () => deps.isUsageHistoryEnabled?.() ?? true,
+          onWriteError,
+        })
+      },
+    })
+  const priorModelRecording = ModelApiBackendManager.usageRecording
+  const priorMuseRecording = MuseCodeHost.usageRecording
+  ModelApiBackendManager.usageRecording = usageRecording
+  MuseCodeHost.usageRecording = usageRecording
   const limits = {
     budgetUsd: options.budgetUsd ?? null,
     maxRequests: options.maxRequests ?? null,
@@ -197,6 +234,7 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
   let cancelSession: (() => void) | undefined
   let latestTokens: Partial<TokenTotals> | undefined
   const emitted = new Set<string>()
+  const imageStarts = new Map<number, number>()
   const sink = createExecSink({
     format: options.output,
     out: deps.stdout,
@@ -381,6 +419,29 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
           lifecycle,
           onLatch: latch,
           emit: (event) => {
+            if (event.type === 'paid_use' && event.n !== null) {
+              if (event.phase === 'admitted') imageStarts.set(event.n, deps.now())
+              else {
+                const startedAt = imageStarts.get(event.n)
+                if (startedAt !== undefined) {
+                  imageStarts.delete(event.n)
+                  usageRecording.note(undefined, {
+                    backend: 'modelApi',
+                    provider: 'meta',
+                    model: MODEL_API_IMAGE_MODEL,
+                    kind: 'image',
+                    startedAt,
+                    session: setup.sessionId ?? undefined,
+                    durationMs: Math.max(0, deps.now() - startedAt),
+                    units: { images: event.phase === 'refunded' ? 0 : event.units },
+                    outcome: event.phase === 'returned' ? 'completed' : 'failed',
+                    uncertain: event.phase === 'uncertain',
+                    providerCostUsd: event.phase === 'uncertain' ? undefined : event.usd,
+                    retainedLiabilityUsd: event.phase === 'uncertain' ? event.usd : undefined,
+                  })
+                }
+              }
+            }
             if (!isFinishing) sink.emit(event)
           },
           onResponseStart: (n) => {
@@ -794,6 +855,9 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
             )
       return code
     } finally {
+      await grace(usageRecording.flush())
+      ModelApiBackendManager.usageRecording = priorModelRecording
+      MuseCodeHost.usageRecording = priorMuseRecording
       isFinished = true
       memory?.clear()
       literals.length = 0

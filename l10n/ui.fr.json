@@ -2329,5 +2329,8 @@
   "usagePageTitle": "Utilisation et coût",
   "paletteUsagePage": "Suivre les coûts, les jetons et les limites dans tous les éditeurs.",
   "openUsagePage": "Ouvrir la page d’utilisation",
-  "acpUsageDescription": "Afficher l’utilisation et le coût de tous les modèles, ou ouvrir la page d’utilisation."
+  "acpUsageDescription": "Afficher l’utilisation et le coût de tous les modèles, ou ouvrir la page d’utilisation.",
+  "paidProviderPrice": "Par million de jetons : entrée {input}, lecture du cache {cached}, écriture du cache {write}, écriture pour une heure {write1h}, sortie {output}. Par requête {request} ; par image {image}.",
+  "paidProviderPriceTier": "À partir de {threshold} jetons en entrée : entrée {input}, sortie {output} par million.",
+  "modelToolCallingUnavailable": "L’appel d’outils n’a pas été vérifié pour ce modèle."
 }
