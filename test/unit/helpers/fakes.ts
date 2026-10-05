@@ -12,7 +12,7 @@ import { BASE_LOCALE } from '../../../src/shared/l10n/text'
 import type { HostToWebviewMessage, SettingsSnapshot } from '../../../src/shared/protocol'
 import type { ChatSurface } from '../../../src/host/views/chatSurface'
 import type { WebviewHostContext } from '../../../src/host/views/webviewSetup'
-import { EventEmitter, FakeUri, Uri } from '../mocks/vscode'
+import { EventEmitter, FakeUri, Position, Range, Uri } from '../mocks/vscode'
 
 function acceptMessage(_message: unknown): Thenable<boolean> {
   return Promise.resolve(true)
@@ -110,6 +110,112 @@ export class FakeLogOutputChannel implements vscode.LogOutputChannel {
 export function fakeSettingsSource(values: Readonly<Record<string, unknown>>): SettingsSource {
   return {
     get: (section) => values[section],
+  }
+}
+
+/** One text line Tab's tests read the cursor's line from (M94). */
+export class FakeTextLine implements vscode.TextLine {
+  public readonly range: vscode.Range
+  public readonly rangeIncludingLineBreak: vscode.Range
+  public readonly firstNonWhitespaceCharacterIndex: number
+  public readonly isEmptyOrWhitespace: boolean
+
+  public constructor(
+    public readonly lineNumber: number,
+    public readonly text: string,
+  ) {
+    this.range = new Range(new Position(lineNumber, 0), new Position(lineNumber, text.length))
+    this.rangeIncludingLineBreak = new Range(
+      new Position(lineNumber, 0),
+      new Position(lineNumber + 1, 0),
+    )
+    this.firstNonWhitespaceCharacterIndex = text.length - text.trimStart().length
+    this.isEmptyOrWhitespace = text.trim() === ''
+  }
+}
+
+/** A document Tab's tests suggest in (M94): text, language and URIs. */
+export class FakeTextDocument implements vscode.TextDocument {
+  public readonly fileName: string
+  public readonly isUntitled: boolean
+  public readonly version = 1
+  public readonly isDirty = false
+  public readonly isClosed = false
+  public readonly eol = 1 as vscode.EndOfLine
+
+  public constructor(
+    public readonly uri: vscode.Uri,
+    public readonly languageId: string,
+    private text: string,
+  ) {
+    this.fileName = uri.fsPath
+    this.isUntitled = uri.scheme !== 'file'
+  }
+
+  public get lineCount(): number {
+    return this.text.split('\n').length
+  }
+
+  public lineAt(lineOrPosition: number | vscode.Position): vscode.TextLine {
+    const line = typeof lineOrPosition === 'number' ? lineOrPosition : lineOrPosition.line
+    return new FakeTextLine(line, this.text.split('\n')[line] ?? '')
+  }
+
+  public offsetAt(position: vscode.Position): number {
+    const before = this.text.split('\n').slice(0, position.line)
+    return (
+      before.reduce((sum, text) => sum + text.length + 1, 0) + position.character
+    )
+  }
+
+  public positionAt(offset: number): vscode.Position {
+    const lines = this.text.split('\n')
+    let rest = offset
+    for (const [line, text] of lines.entries()) {
+      if (rest <= text.length) {
+        return new Position(line, rest)
+      }
+      rest -= text.length + 1
+    }
+    const last = lines.length - 1
+    return new Position(last, (lines[last] ?? '').length)
+  }
+
+  public getText(range?: vscode.Range): string {
+    return range === undefined
+      ? this.text
+      : this.text.slice(this.offsetAt(range.start), this.offsetAt(range.end))
+  }
+
+  public getWordRangeAtPosition(
+    _position: vscode.Position,
+    _regex?: RegExp,
+  ): vscode.Range | undefined {
+    return undefined
+  }
+
+  public validateRange(range: vscode.Range): vscode.Range {
+    return range
+  }
+
+  public validatePosition(position: vscode.Position): vscode.Position {
+    return position
+  }
+
+  public save(): Thenable<boolean> {
+    return Promise.resolve(true)
+  }
+}
+
+/** A cancellation token Tab's tests flip (M94). */
+export class FakeCancellationToken implements vscode.CancellationToken {
+  public readonly changed = new EventEmitter<void>()
+  public readonly onCancellationRequested = this.changed.event
+  public isCancellationRequested = false
+
+  public cancel(): void {
+    this.isCancellationRequested = true
+    this.changed.fire()
   }
 }
 
