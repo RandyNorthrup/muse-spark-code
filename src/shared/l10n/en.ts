@@ -425,6 +425,43 @@ export const EN = {
     'No MCP server is loaded: {servers} set both “required” and “mode”. Keep only “mode”.',
   mcpNoServersUnreadable:
     'No MCP server is loaded: Muse Code’s settings file could not be read ({reason}).',
+  // Shared resources (M96 lane B, D75): the registry, the leases and the bridge.
+  teamResourcesTitle: 'Tools and devices',
+  teamResourcesDetail: 'Which MCP servers and devices the team shares, and who may use them',
+  teamResourcesKindLabel: 'Kind',
+  teamResourcesKindExclusive: 'Exclusive',
+  teamResourcesKindExclusiveDetail:
+    'One at a time: a browser, a device or a fixed port. Calls wait for the lease.',
+  teamResourcesKindShared: 'Shared',
+  teamResourcesKindSharedDetail: 'Up to its limit at once. Further calls wait in its queue.',
+  teamResourcesKindFree: 'Free',
+  teamResourcesKindFreeDetail: 'No lease. Any worker calls it any time.',
+  teamResourcesRolesLabel: 'Roles that may use it',
+  // {count}: the shared resource's concurrency limit, a number.
+  teamResourcesLimitLabel: 'At most {count} at once',
+  // {role}: the holding role's name; {taskId}: the holding task's id.
+  teamResourceBusy: 'resource busy, held by {role} task {taskId}',
+  teamLeaseTakeBack: 'Take back',
+  teamLeaseTakeBackDetail:
+    'The lease moves to the orchestrator; the holder’s next call is told the resource is busy.',
+  teamLeaseRestartServer: 'Restart server',
+  teamLeaseRestartServerDetail:
+    'Ends the server the window started; the lease is released once its process has exited.',
+  teamLeaseReleaseAnyway: 'Release anyway',
+  teamLeaseReleaseAnywayDetail:
+    'Releases the lease as your decision. The earlier call may still be acting on the resource.',
+  // {server}: the exclusive server's name.
+  teamLeaseElsewhereTitle: 'Another window runs {server}',
+  // {window}: the other window's name; {server}: the exclusive server's name.
+  teamLeaseElsewhereDetail:
+    '{window} is using {server}. Starting it here too can take it from that window.',
+  teamLeaseStartAnyway: 'Start here anyway',
+  teamLeaseWait: 'Wait',
+  teamLeaseOpenWindow: 'Open that window',
+  teamMoveToBridge: 'Move to the shared bridge',
+  // {server}: the exclusive server's name.
+  teamMoveToBridgeDetail:
+    'Remove {server} from Muse Code’s settings file (the extension never writes it), and add it to the extension’s own MCP configuration, where the bridge serves it to every worker.',
   hooksTitle: 'Muse Code hooks',
   hooksTitleModelApi: 'Model API hooks',
   hooksWarning: 'Hooks run through your shell, outside Muse Code’s sandbox and approvals',
