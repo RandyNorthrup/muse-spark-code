@@ -4,7 +4,7 @@
 // DirectoryAdded fire at their operations only, and never with the gates
 // closed.
 
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import * as z from 'zod/mini'
 import {
   ExtensionHookRunner,
@@ -49,13 +49,14 @@ function setup(
   } = {},
 ) {
   const files = new Map<string, string | Uint8Array>(Object.entries(options.files ?? {}))
+  const io = memoryContextIo(files, options.links)
   const hookRuns: HookRun[] = []
   const notices: { readonly level: string; readonly text: string }[] = []
   const outputs: { readonly title: string; readonly text: string }[] = []
   const warnings: string[] = []
   let clock = 1_000_000
   const deps: ExtensionHookRunnerDeps = {
-    io: memoryContextIo(files, options.links),
+    io,
     runHook: (command, payload) => {
       const parsed = z.record(z.string(), z.unknown()).parse(JSON.parse(payload))
       hookRuns.push({ command, payload: parsed })
@@ -82,6 +83,7 @@ function setup(
   const runner = new ExtensionHookRunner(deps)
   return {
     runner,
+    io,
     files,
     hookRuns,
     notices,
@@ -408,6 +410,34 @@ describe('ExtensionHookRunner', () => {
 })
 
 describe('Tab raw dispatch on both backends', () => {
+  it('waits for the latest snapshot before selecting and dispatching Tab hooks', async () => {
+    const t = setup({ runHook: () => hookResult('{"permission":"allow"}') })
+    await t.runner.reload()
+    const { promise, resolve } = Promise.withResolvers<Uint8Array>()
+    const read = t.io.readFile
+    vi.spyOn(t.io, 'readFile').mockImplementation((file, maxBytes) =>
+      file === PROJECT_HOOKS ? promise : read(file, maxBytes),
+    )
+    const reload = t.runner.reload()
+    const selected = t.runner.hasTabHooks('beforeTabFileRead')
+    const dispatched = t.runner.runTab({
+      event: 'beforeTabFileRead',
+      matcherValue: 'TabRead',
+      maxTimeoutMs: 1500,
+      stdin: '{}',
+    })
+    expect(t.hookRuns).toHaveLength(0)
+    resolve(
+      Buffer.from(
+        sparkDoc({ beforeTabFileRead: [{ hooks: [{ type: 'command', command: 'fresh' }] }] }),
+      ),
+    )
+    await reload
+    expect(await selected).toBe(true)
+    expect(await dispatched).toEqual([hookResult('{"permission":"allow"}')])
+    expect(t.hookRuns.map((run) => run.command)).toEqual(['fresh'])
+  })
+
   it.each([
     { format: 'cline', sourceEvent: 'beforeTabFileRead' },
     { format: 'cursor', sourceEvent: 'afterTabFileEdit' },
@@ -422,7 +452,7 @@ describe('Tab raw dispatch on both backends', () => {
       },
     })
     await t.runner.reload()
-    expect(t.runner.hasTabHooks('beforeTabFileRead')).toBe(false)
+    expect(await t.runner.hasTabHooks('beforeTabFileRead')).toBe(false)
     expect(t.warnings.join('\n')).toContain('invalid group')
   })
 
@@ -443,7 +473,9 @@ describe('Tab raw dispatch on both backends', () => {
       maxTimeoutMs: 1500,
       stdin: '{}',
     })
-    expect(t.hookRuns).toHaveLength(1)
+    await vi.waitFor(() => {
+      expect(t.hookRuns).toHaveLength(1)
+    })
     await t.runner.reload()
     finish(hookResult('{"permission":"allow"}'))
     expect(await pending).toBeUndefined()
@@ -475,8 +507,8 @@ describe('Tab raw dispatch on both backends', () => {
       runHook: () => ({ ...hookResult('{"permission":"allow"}'), exitCode: 2 }),
     })
     await t.runner.reload()
-    expect(t.runner.hasTabHooks('beforeTabFileRead')).toBe(true)
-    expect(t.runner.hasTabHooks('afterTabFileEdit')).toBe(true)
+    expect(await t.runner.hasTabHooks('beforeTabFileRead')).toBe(true)
+    expect(await t.runner.hasTabHooks('afterTabFileEdit')).toBe(true)
     const result = await t.runner.runTab({
       event: 'beforeTabFileRead',
       matcherValue: 'TabRead',
@@ -530,7 +562,7 @@ describe('Tab raw dispatch on both backends', () => {
     ).toBeUndefined()
     await t.runner.reload()
     expect(t.runner.configurationVersion()).not.toBe(version)
-    expect(t.runner.hasTabHooks('beforeTabFileRead')).toBe(false)
+    expect(await t.runner.hasTabHooks('beforeTabFileRead')).toBe(false)
     expect(t.hookRuns).toEqual([])
   })
 })

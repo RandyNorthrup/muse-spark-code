@@ -11,6 +11,7 @@
 // constants; esbuild leaves out what only this entry reaches.
 
 export { dispatchExtensionHooks, loadSparkHookDefinitions } from './extensionHooks'
+export { acquireHookProcessSlot } from './hooks'
 export { runTypedHandler } from './hookHandlers'
 export {
   checkElicitationOutcome,

@@ -44,7 +44,7 @@ function result(overrides: Partial<ShellResult> = {}): ShellResult {
   }
 }
 
-function harness() {
+function harness(options: Partial<TabHooksDeps> = {}) {
   const run = vi.fn<TabHooksDeps['run']>().mockResolvedValue([result()])
   const log = vi.fn<(message: string) => void>()
   const configurationVersion = vi.fn(() => 'config-1')
@@ -56,6 +56,7 @@ function harness() {
     configurationVersion,
     isWorkspaceTrusted,
     isHooksEnabled,
+    ...options,
   })
   return { hooks, run, log, configurationVersion, isWorkspaceTrusted, isHooksEnabled }
 }
@@ -65,6 +66,20 @@ function payloadOf(request: TabHookRun | undefined): Record<string, unknown> {
 }
 
 describe('beforeTabFileRead', () => {
+  it.each(['dispose', 'trust revoked'])(
+    'refuses %s while loading an empty hook snapshot',
+    async (change) => {
+      const loading = Promise.withResolvers<boolean>()
+      const h = harness({ hasHooks: () => loading.promise })
+      const pending = h.hooks.beforeRead(EDIT.filePath, 'text', CONTEXT)
+      if (change === 'dispose') h.hooks.dispose()
+      else h.isWorkspaceTrusted.mockReturnValue(false)
+      loading.resolve(false)
+      expect(await pending).toBe(false)
+      expect(h.run).not.toHaveBeenCalled()
+    },
+  )
+
   it('sends full unredacted local text and the request envelope with TabRead and a timeout cap', async () => {
     const h = harness()
     const content = 'const account = "local text";\n// λ\n'

@@ -16,8 +16,10 @@ import {
 } from '../../src/shared/constants'
 import { cursorTabExample } from './helpers/cursorTabFixture'
 
+const WORKSPACE_ROOT = process.platform === 'win32' ? String.raw`C:\workspace` : '/workspace'
+const FILE_PATH = path.join(WORKSPACE_ROOT, 'a.ts')
 const CONTEXT = {
-  workspaceRoots: ['/workspace'],
+  workspaceRoots: [WORKSPACE_ROOT],
   model: 'muse-spark-1.3',
   generationId: 'tab-generation',
 }
@@ -40,7 +42,7 @@ describe('Cursor Tab contracts from M91 saved examples', () => {
   })
 
   it.each(['file_path', 'content'])('refuses a read missing %s', (field) => {
-    const payload: Record<string, unknown> = { file_path: '/workspace/a.ts', content: 'text' }
+    const payload: Record<string, unknown> = { file_path: FILE_PATH, content: 'text' }
     Reflect.deleteProperty(payload, field)
     expect(buildCursorStdin('beforeTabFileRead', payload).outcome).toBe('refused')
   })
@@ -51,7 +53,7 @@ describe('Cursor Tab contracts from M91 saved examples', () => {
       const example = cursorTabExample(event)
       const payload = {
         ...example,
-        file_path: '/workspace/a.ts',
+        file_path: FILE_PATH,
         hook_event_name: event,
         workspace_roots: CONTEXT.workspaceRoots,
         model: CONTEXT.model,
@@ -69,7 +71,7 @@ describe('Cursor Tab contracts from M91 saved examples', () => {
     const example = cursorTabExample('afterTabFileEdit')
     const edits = z.array(z.record(z.string(), z.unknown())).parse(example['edits'])
     const marked = {
-      file_path: '/workspace/a.ts',
+      file_path: FILE_PATH,
       edits: edits.map((edit) => ({ ...edit, inferred: true })),
     }
     const built = buildCursorStdin('afterTabFileEdit', marked)
@@ -125,7 +127,7 @@ describe('Cursor Tab contracts from M91 saved examples', () => {
     const built = buildCursorStdin('PreToolUse', {
       tool_name: 'read_file',
       tool_input: { path: 'a.ts' },
-      cwd: '/workspace',
+      cwd: WORKSPACE_ROOT,
       turn_id: 'agent-turn',
       generation_id: 'unrelated-tab-generation',
     })
@@ -141,7 +143,7 @@ describe('Cursor Tab contracts from M91 saved examples', () => {
       for (const value of [0, -1, 1.5, '1']) {
         expect(
           buildCursorStdin('afterTabFileEdit', {
-            file_path: '/workspace/a.ts',
+            file_path: FILE_PATH,
             edits: [{ ...edit, range: { ...range, [field]: value } }],
           }).outcome,
         ).toBe('refused')
@@ -155,7 +157,7 @@ describe('Cursor Tab contracts from M91 saved examples', () => {
       const edit = savedTabEdit()
       expect(
         buildCursorStdin('afterTabFileEdit', {
-          file_path: '/workspace/a.ts',
+          file_path: FILE_PATH,
           edits: [{ ...edit, [field]: 1 }],
         }).outcome,
       ).toBe('refused')

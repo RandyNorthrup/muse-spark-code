@@ -9,6 +9,10 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- Tab waits for an in-flight hook configuration reload before selecting or
+  dispatching its guards. Its dispatch bridge and shared hook process cap
+  load on first use, keeping the hook implementation out of activation.
+
 - The merged M91 elicitation runtime now receives `zod/mini.email` from the
   shared validation bundle, as required by the bundle-split gate.
 

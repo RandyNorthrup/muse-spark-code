@@ -394,7 +394,10 @@ export async function isTabFileEligible(
       // every hook failure fails closed.
       return false
     }
-    if (deps.hookContext === undefined || !(await deps.hooks.beforeRead(candidate.absolutePath, candidate.content, deps.hookContext))) {
+    if (
+      deps.hookContext === undefined ||
+      !(await deps.hooks.beforeRead(candidate.absolutePath, candidate.content, deps.hookContext))
+    ) {
       return false
     }
   }
@@ -940,7 +943,11 @@ export function createTabProvider(deps: TabProviderDeps): TabProviderHandle {
       model: at.model,
       workspaceRoots: at.hookContext.workspaceRoots,
       oldLine: at.lineText,
-      newLine: (at.lineText.slice(0, at.character) + newString + at.lineText.slice(at.character)).split('\n')[0] ?? '',
+      newLine:
+        (at.lineText.slice(0, at.character) + newString + at.lineText.slice(at.character)).split(
+          '\n',
+          1,
+        )[0] ?? '',
       range: {
         startLineNumber: startLine,
         startColumn,
@@ -996,8 +1003,15 @@ export function createTabProvider(deps: TabProviderDeps): TabProviderHandle {
     emitEdit(tracked, change.insertedText, true)
     // The rest now starts where the accepted text ended (RVM94HU 6).
     const next = positionAfter(tracked.line, tracked.character, change.insertedText)
-    const editedLines = (tracked.lineText.slice(0, tracked.character) + change.insertedText + tracked.lineText.slice(tracked.character)).split('\n')
-    tracked = rest === '' ? undefined : { ...tracked, ...next, rest, lineText: editedLines.at(-1) ?? '', isPartlyAccepted: true }
+    const editedLines = (
+      tracked.lineText.slice(0, tracked.character) +
+      change.insertedText +
+      tracked.lineText.slice(tracked.character)
+    ).split('\n')
+    tracked =
+      rest === ''
+        ? undefined
+        : { ...tracked, ...next, rest, lineText: editedLines.at(-1) ?? '', isPartlyAccepted: true }
   }
 
   const provider: vscode.InlineCompletionItemProvider = {

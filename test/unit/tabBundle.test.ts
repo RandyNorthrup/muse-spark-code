@@ -448,16 +448,13 @@ describe('createTabActivation', () => {
   it('hands hook dispatch to the lazy provider without running hooks at activation', async () => {
     const dispatch = {
       isHooksEnabled: vi.fn(() => true),
-      configurationVersion: vi.fn(() => 'config-1'),
-      hasHooks: vi.fn(() => Promise.resolve(false)),
-      run: vi.fn(() => Promise.resolve([])),
+      load: vi.fn(() => Promise.resolve(undefined)),
     }
     const harness = activationHarness({ hookDispatch: dispatch })
     harness.settingOn = true
     harness.activation.refresh()
     expect(harness.loadBundle).not.toHaveBeenCalled()
-    expect(dispatch.configurationVersion).not.toHaveBeenCalled()
-    expect(dispatch.run).not.toHaveBeenCalled()
+    expect(dispatch.load).not.toHaveBeenCalled()
     await harness.providers[0]?.provideInlineCompletionItems(
       new FakeTextDocument(Uri.file('/ws/file.ts'), 'typescript', 'const y = '),
       new Position(0, 10),
@@ -465,7 +462,7 @@ describe('createTabActivation', () => {
       new FakeCancellationToken(),
     )
     expect(harness.providerDeps()?.hookDispatch).toBe(dispatch)
-    expect(dispatch.run).not.toHaveBeenCalled()
+    expect(dispatch.load).not.toHaveBeenCalled()
     harness.activation.dispose()
   })
   it('registers the commands but loads nothing while the setting is off', () => {

@@ -1193,7 +1193,7 @@ describe('M94KW configured hooks through the lazy factory', () => {
     }[] = []
     const files = new Map<string, string | Uint8Array>([
       [
-        path.join(root, '.muse/spark-hooks.json'),
+        path.join(root, '.muse/spark-hooks.json').replaceAll('\\', '/'),
         JSON.stringify({
           hooks: {
             beforeTabFileRead: [
@@ -1252,9 +1252,7 @@ describe('M94KW configured hooks through the lazy factory', () => {
       workspaceRoots: () => [root],
       hookDispatch: {
         isHooksEnabled: () => true,
-        configurationVersion: () => runner.configurationVersion(),
-        hasHooks: (event) => Promise.resolve(runner.hasTabHooks(event)),
-        run: (request) => runner.runTab(request),
+        load: () => Promise.resolve(runner),
       },
     })
     try {

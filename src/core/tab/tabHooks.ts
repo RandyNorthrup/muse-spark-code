@@ -118,8 +118,12 @@ export function createTabHooks(deps: TabHooksDeps) {
     return next
   }
 
+  function isTrusted(): boolean {
+    return !isDisposed && deps.isWorkspaceTrusted()
+  }
+
   function isAllowed(): boolean {
-    return !isDisposed && deps.isWorkspaceTrusted() && deps.isHooksEnabled()
+    return isTrusted() && deps.isHooksEnabled()
   }
 
   async function canRead(
@@ -127,11 +131,11 @@ export function createTabHooks(deps: TabHooksDeps) {
     content: string,
     context: TabHookContext,
   ): Promise<boolean> {
-    if (isDisposed || !deps.isWorkspaceTrusted()) return false
+    if (!isTrusted()) return false
     if (!deps.isHooksEnabled()) return true
     if (deps.hasHooks !== undefined) {
       try {
-        if (!(await deps.hasHooks('beforeTabFileRead'))) return !isDisposed && deps.isWorkspaceTrusted()
+        if (!(await deps.hasHooks('beforeTabFileRead'))) return isTrusted()
       } catch {
         return false
       }

@@ -15412,6 +15412,18 @@ owning suites run at most three files per invocation, with red drills and
 byte-exact restoration. No paid/live calls or full quality run in this lane.
 The continuation in `docs/certification/m94-k.md` is the evidence record.
 
+**M94KW2 boundary (2026-10-05).** Complete the configured-hook wiring and
+its owning suites/drills. Keep Tab's bridge/cache in `dist/tab.js` and the
+shared production process cap in `dist/hookRuntime.js`, loaded on the first
+hook use. Snapshot reloads settle before Tab selects or dispatches a guard;
+old-configuration results still refuse. No new localization key or eager
+hook implementation is needed. Against the merged pre-wiring base
+`8a3d60fc5`, activation decreases by 324 bytes and the English fallback is
+byte-identical. The combined M91/main activation and fallback overages are
+the lead's release-batch work; this lane does not raise their caps or repair
+unrelated base code. Full quality, hosted checks and real-host/live Tab
+certification remain with the lead.
+
 **Status 2026-10-04: lanes 0/P/C/L/H/U integrated; lane W finishing wiring
 and verification on `feature/m94-tab`, merged with `main-sync`.** The plan
 is D73, Q-M94a–d and this section; the research is
@@ -16295,6 +16307,20 @@ joined with M57, M58 and PR #49's sign-in
         commit-writing path exists
 
 ## 7. Gates
+
+**M94KW2 scoped deferral (2026-10-05).** The configured Tab hook continuation
+is verified in `docs/certification/m94-k.md`: 1,731 tests on macmini, 144 on
+win11, eleven fresh failure drills, typecheck, deadcode and split checks pass.
+The combined base already exceeds the activation and English fallback caps;
+K reduces activation by 324 bytes and adds zero fallback bytes. The final
+size gate remains red at 626,167 / 614,400 and 132,161 / 128,000 bytes.
+Plain jscpd also remains red on 15 existing pairs, reproduced with the
+pre-wiring base's production sources and no new pair from K. The lane brief
+assigns the combined-base size repair to the lead's release batch and forbids
+unrelated refactors/full quality here. Keep caps and duplication threshold
+unchanged; the lead must clear these findings and run full quality plus
+hosted/real-host/live certification before release. This is a scoped handoff,
+not a passing aggregate quality claim.
 
 **M94W size boundary (2026-10-05).** The Windows production build passes
 activation at 578.0/600 KiB and Tab at 62.4/75 KiB. W adds 3,378 bytes

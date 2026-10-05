@@ -116,6 +116,7 @@ export class ExtensionHookRunner {
   private readonly hostSessionId: string
   private hooks: readonly ExtensionHookDefinition[] = []
   private version = 0
+  private pendingReload: Promise<readonly ExtensionHookDefinition[]> | undefined
 
   public constructor(private readonly deps: ExtensionHookRunnerDeps) {
     this.hostSessionId = `host:${deps.instanceId ?? randomUUID()}`
@@ -139,6 +140,10 @@ export class ExtensionHookRunner {
   /** The gates every firing checks: a trusted workspace and the opt-in. */
   private isArmed(): boolean {
     return this.deps.isWorkspaceTrusted() && this.deps.isHooksEnabled()
+  }
+
+  private async waitForReload(): Promise<void> {
+    while (this.pendingReload !== undefined) await this.pendingReload
   }
 
   /**
@@ -173,12 +178,18 @@ export class ExtensionHookRunner {
   public async reload(): Promise<void> {
     this.version += 1
     const version = this.version
-    const hooks =
+    const pending =
       this.deps.isWorkspaceTrusted() && this.deps.isHooksEnabled()
-        ? await loadSparkHookDefinitions(this.loadDeps)
-        : []
-    if (version === this.version && this.isArmed()) this.hooks = hooks
-    else if (!this.isArmed()) this.hooks = []
+        ? loadSparkHookDefinitions(this.loadDeps)
+        : Promise.resolve([])
+    this.pendingReload = pending
+    try {
+      const hooks = await pending
+      if (version === this.version && this.isArmed()) this.hooks = hooks
+      else if (!this.isArmed()) this.hooks = []
+    } finally {
+      if (this.pendingReload === pending) this.pendingReload = undefined
+    }
   }
 
   public snapshot(): readonly ExtensionHookDefinition[] {
@@ -189,7 +200,8 @@ export class ExtensionHookRunner {
     return String(this.version)
   }
 
-  public hasTabHooks(event: TabHookRun['event']): boolean {
+  public async hasTabHooks(event: TabHookRun['event']): Promise<boolean> {
+    await this.waitForReload()
     const matcher = event === 'beforeTabFileRead' ? 'TabRead' : 'TabWrite'
     return this.hooks.some(
       (hook) => hook.event === event && isExtensionMatch(hook.matcher, matcher, this.deps.warn),
@@ -198,6 +210,7 @@ export class ExtensionHookRunner {
 
   /** Raw endings: Tab decides before fail-open or onFailure handling can run. */
   public async runTab(request: TabHookRun): Promise<readonly ShellResult[] | undefined> {
+    await this.waitForReload()
     if (!this.isArmed()) return undefined
     const selected = this.hooks.filter(
       (hook) =>

@@ -72,6 +72,8 @@
     "test/unit/helpers/fakeMcpStartMarker.mjs",
     // The never-ending monitor the M92b bounded-run proof starts by path.
     "test/fixtures/never-ending-monitor.mjs",
+    // Tab's configured hook flow starts this real fake-hook process by path.
+    "test/fixtures/tabHooks/completion.mjs",
     "test/integration/**/*.test.ts",
     // The TypeScript fixture VS Code's language service reads in the code
     // intelligence integration test (M67); main.ts imports the rest.
