@@ -577,10 +577,22 @@ manifest and never invoke apply. Contributor $0.10 refuses below $0.108135
 before any billable call. W also requires startup/env/argv traps, trusted gate
 drills and exact digest/head/lease bare-repo apply tests on Linux/macOS/Windows.
 
+`.github/workflows/action-live.yml` is LA's workflow. Only the repository
+owner starts it, by hand (`workflow_dispatch`, on the default branch; no other
+trigger). It packs the product package from the dispatched commit, checks its
+digest, and runs `./action` on Ubuntu against one open same-repository pull
+request in review or text (fix) mode. The run uses the real
+`MUSE_MODEL_API_KEY`, `muse-spark-1.3-contributor`, a $0.25 cap, a 10-minute
+deadline, `contents: read` and `pull-requests: read`, and posts no comment. W's
+startup traps and token sentinel apply. `test/action/la-check.mjs` requires a
+completed result within the cap and no fired trap, sentinel or key-shaped
+string in the published outputs. The step summary records the commit, the
+`action/` tree, the package SHA-256, the outputs and the ledger.
+
 | Receipt                   | Needed before claim                                 | Scope / limitation                                                                                                                                |
 | ------------------------- | --------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
 | L, pending                | reviewed local text + PNG + one-page PDF            | actual runtime/auth/stream/media/replay/accounting and credential-free captures; not universal billing/Action isolation                           |
-| LA, pending               | reviewed candidate Action + real MUSE_MODEL_API_KEY | exact same-repo PR/dispatch, immutable Action/package digests, run/jobs/comment/artifact/usage links and masking evidence; unsigned, not registry |
+| LA, pending first run     | reviewed candidate Action + real MUSE_MODEL_API_KEY | exact same-repo PR/dispatch, immutable Action/package digests, run/jobs/comment/artifact/usage links and masking evidence; unsigned, not registry |
 | LR, pending after release | exact published package + npm verified chain        | bundle/lock/registry/subject/certificate hashes, release/action/run/result links; no claim for other/future versions                              |
 
 Capture exact tree/package SHA-256, fixture hashes, workspace, sanitized wire,
