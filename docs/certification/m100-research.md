@@ -168,9 +168,11 @@ firewall settings automatically. Failure/retry cannot release existing
 attempt ownership or spending uncertainty; reconnect reconciles first.
 
 Acceptance B/T transport and K/P/U installed setup cover standard-user/default-
-firewall (no allow rule or unavailable prompt), explicit-deny and missing-route
-cases separately from multicast-blocked success on an authorized routed
-private path. K records the actual listening application/TCP port and OS
+firewall, explicit-deny and missing-route cases separately from multicast-
+blocked success on an authorized routed private path. Record each rig's
+actual default-policy outcome; where inbound access is blocked (no allow
+rule or unavailable prompt), show Blocked or unreachable and admit no work.
+K records the actual listening application/TCP port and OS
 permission, policy and authorization requirements on Windows PC, Kubuntu VM,
 Mac mini and Windows 11 VM, on the floor and current host. These remain
 future implementation tests, not results of this documentation correction.
