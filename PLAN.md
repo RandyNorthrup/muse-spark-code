@@ -4001,6 +4001,35 @@ choices:
       goo. Forced colours: no filter, `ButtonFace` pills bordered in
       `ButtonText`. Record: `docs/certification/m87-f.md`, "Pills with
       labels".
+  - **A fan of crisp pills, one size (amended again 2026-10-04, the
+    owner: "the gooey menus just need the pills in the fan/arc shape not
+    with the faded smudge look", then "also they should be a uniform
+    size").** This replaces "The goo" and "Long labels" above; the fan's
+    rows, gaps, reach and bow stay.
+    - **No goo.** The SVG filter, its `defs` and the CSS that applied or
+      switched it off are gone: no blur, smudge or trail between pills, at
+      rest or while they burst. A pill is a flat button with clean edges;
+      the focus border is its only outline.
+    - **One size.** Every pill, in either burst, is 272 px wide and 40 px
+      high, set inline by the layout: the widest that keeps the whole fan
+      inside a 320 px panel (320 − 2 × 8 padding − 32 bow), the owner's
+      narrow-view rule. The icon sits at the start and the label after it;
+      a label longer than the pill (a long translation, the pseudo-locale)
+      ends in an ellipsis, never wraps or grows the pill, and keeps its
+      whole text as the accessible name and the tooltip. A panel narrower
+      than 320 px gives every pill its width less the padding.
+    - **The arc stays whole.** A fan that would leave the panel moves back
+      towards the origin, and over it if need be, all at once, so the arc
+      keeps its shape. Only a panel too narrow for the whole arc (under
+      320 px) gets a shallower one, down to a straight column; rows never
+      overlap.
+    - **Motion.** Each pill scales in from the menu's origin, 30 ms after
+      the one before it (`GOOEY_MENU.staggerMs`), drawn at scale 0 until its
+      turn. Under `prefers-reduced-motion` they appear in place at once.
+      The harness draws them at rest: headless Chrome's virtual clock does
+      not run CSS animations, so a capture could catch them mid-burst.
+    - Record: `docs/certification/m87-f.md`, "A fan of crisp pills, one
+      size".
 
 - **The chat column (the owner's requests of 2026-10-04).** His four
   requests, word for word, then what was built.
@@ -12614,6 +12643,25 @@ of the lanes.
 
 ### M87 — Panel polish (D66)
 
+**Status 2026-10-04, integration: joined on `m87/int` with main at
+`23f38dd6`; hosted CI on the milestone PR's head and native VS Code Tasks
+acceptance remain open.** The lead's integration lane merged `m87/pills`
+(one blue pill per menu item), `m87/c2` (the centred chat column, even
+approval buttons, the 20 px model pill, the one-row narrow toolbar),
+`m87/shots` (`readme:shots`) and main twice (0.12.0, 0.12.1, M70's review
+pane, M89, M90, the CI sharding, the activation diet, the release reuse),
+keeping the approved heartbeat. It ported FIXM87W's Revert guard onto M70's
+conditional Revert and lazy review bundle, made `/review` and Revert
+exclude each other, wired the tally's Review to M70's pane, gave M70's six
+review rows their tips, fixed a harness focus flake that main shares, and
+applied the owner's two evening rules for the menu: a fan of crisp pills
+with no goo, every pill one size (D66, "A fan of crisp pills, one size").
+On Kubuntu: the full unit suite with coverage (7,291 passed), 564
+accessibility pages at zero, the production build within every D6 cap,
+seventeen red drills restored byte-exact, and the README's 15 screenshots
+re-rendered. Evidence: `docs/certification/m87.md`, "Integration on
+`m87/int`".
+
 **Integration review fixes (FIXM87W, 2026-10-04).** Fence Revert's patch
 loading, preparation and actual I/O with the current session and idle-turn
 guard; hold turn admission until Revert I/O settles, and count unacknowledged
@@ -12622,9 +12670,9 @@ interleavings in the owning tests and red drills. Keep the native Tasks check
 below explicitly open and correct the README's command-inventory claim.
 Evidence: [m87-w-fixes.md](docs/certification/m87-w-fixes.md).
 The scoped fix's 461 owning tests and nine scoped gates pass on macmini;
-seven red/restored drills match their saved bytes. The retired candidate ref
-and the port to newer main's M70 Revert remain lead integration work, recorded
-in that receipt; native Tasks acceptance and full/hosted gates remain open.
+seven red/restored drills match their saved bytes. The port to newer main's
+M70 Revert is done on `m87/int` (the integration status above); native Tasks
+acceptance and hosted CI remain open.
 
 **Status 2026-10-04: built and joined on the integration branch `m87/l0`
 (`feature/m87-panel-polish`); native VS Code Tasks acceptance and hosted CI on the
@@ -12639,8 +12687,9 @@ corrected) and W (wiring and join). Lane W joined App, removed the retired
 strings and lane A's fixture, amended D66 (the conjunction list, item 17's
 reply Retry and edit Revert), fixed the review findings left to it (RV87C 3
 and 4, the independent review of F2), closed F2's label-placement drill,
-recaptured the themes and ran the full gate. Review stays off the tally
-until M70's review pane (PR #69) reaches main. The evidence is
+recaptured the themes and ran the full gate. Review joined the tally once
+M70's review pane (PR #69) reached main (the integration status above). The
+evidence is
 `docs/certification/m87.md`, which links every lane record.
 
 - **Goal.** The panel can be read at a glance: how full the context is,
@@ -13039,6 +13088,16 @@ been sent.
     KiB and extension +9 KiB, the measured deltas rounded up. D6's caps are
     unchanged and every bundle is inside them (webview 860.3 of 900,
     extension 586.3 of 600, uiText 102.8 of 125, modelApi 422.8 of 475).
+  - **Measured on `m87/int` (2026-10-04)**, production builds on Kubuntu
+    against main at `23f38dd6`: `dist/webview/main.js` 860.0 → 888.1 KiB
+    (+28.1), `dist/extension.js` 552.6 → 562.4 (+9.8), `dist/uiText.js`
+    105.0 → 110.2 (+5.2), `dist/modelApi.js` 426.3 → 428.0 (+1.7); the
+    stylesheet 43.0 → 50.7 (+7.7). uiText and modelApi are inside the
+    allowance; the webview is 0.1 KiB and the extension 0.8 KiB over it,
+    after the pills, the chat column, the tally's Review and the Revert
+    port. Every D6 cap holds (webview 888.1 of 900, extension 562.4 of
+    600). **Open for the lead:** amend the allowance to webview +29 and
+    extension +10, or trim.
 - **Other gates.** The host-API record (`check:host-api`) and the bundle
   split are unchanged except for lane D's command id. No dependency is
   added.

@@ -205,7 +205,8 @@ src/webview/**        React 19 app (browser project, own tsconfig);
                       stepSummary.ts names a folded run of steps;
                       components/GooeyMenu.tsx is the one radial menu (and
                       useRowMenu, each row's ⋯ opener) over gooeyLayout.ts's
-                      pure arc, edge and label geometry; diffTally.ts and
+                      pure geometry for its fanned column of labelled
+                      pills; diffTally.ts and
                       components/DiffTally.tsx add up the conversation's edits
 native/windows/**     dictate.ps1, the Windows dictation helper; capture.ps1,
                       Muse Voice's recorder; the job helpers' C#

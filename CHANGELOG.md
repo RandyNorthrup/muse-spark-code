@@ -33,7 +33,7 @@ happened, not what was planned; superseded entries are kept.
   - **A diff tally** above the goal and task panes, such as "8 files
     changed +313 −96": the conversation's edits added up, each file once.
     It is not `git diff`, so shell commands' and your own changes are not
-    counted.
+    counted. Its **Review** opens the review pane on the same edits.
   - **The tasks pane** collapses to two lines. **Open in a tab** (or **Open
     Tasks in a Tab**) mirrors the list in a read-only editor tab that
     rebuilds after its webview reloads and says when its conversation
@@ -42,22 +42,22 @@ happened, not what was planned; superseded entries are kept.
     moves it into a window of its own. Acceptance in native VS Code is
     still open.
   - **One radial menu for the chat.** Right-click a row, press Shift+F10 or
-    the Menu key, or use its one ⋯: each action is one blue pill, its icon
-    then its name (the owner's request of 2026-10-04), the pills stacked in
-    a fanned column beside the pointer or ⋯, apart and inside panels as
-    narrow as 320 px, merging in the goo only as they burst out. A message
+    the Menu key, or use its one ⋯: each action is one crisp blue pill, its
+    icon then its name, every pill the same size (the owner's requests of
+    2026-10-04), in a fan beside the pointer or ⋯ that stays whole inside
+    panels as narrow as 320 px; the pills scale in one after another. A message
     has fork and the Rewind group's second burst, queued Edit; a reply Copy
     response and Reply to this output; a restore Redo; a tool Open output;
     a landed edit Review and **Revert** (Revert asks first and is not
     offered while a turn runs; it rechecks the session and turn through
     patch loading, file preparation and every write or delete, a turn
     started meanwhile refuses it, and no send overlaps its file I/O). A
-    label too long for the panel ends in an
-    ellipsis with the whole label in its tooltip; an unavailable note is
+    label longer than its pill ends in an ellipsis, with the whole label
+    as its name and tooltip; an unavailable note is
     the same pill, opaque, with a dimmed icon. Selected text keeps its
     Copy, Ask about this and Comment on this menu, in the same pills. Arrow
     keys, Home/End, Enter/Space and Escape work as in any menu; reduced
-    motion drops the burst and the goo, and forced colours draws bordered
+    motion shows the pills in place, and forced colours draws bordered
     pills.
   - **Tips** on every row of the palette and the `/` list: a skill's own
     description, or "Run the _name_ skill." for one without.
