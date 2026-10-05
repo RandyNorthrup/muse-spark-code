@@ -149,6 +149,39 @@ describe('createModelsPanelFeatures', () => {
     expect(refused.suggestedPreset()).toBeUndefined()
   })
 
+  it('keeps a stored OAuth entry across a restart', async () => {
+    const values = new Map<string, unknown>([
+      [
+        'museSpark.providerPendingRemovals',
+        [
+          {
+            entry: {
+              id: 'openrouter',
+              presetId: 'openrouter',
+              address: 'https://openrouter.ai',
+              auth: 'oauth',
+              models: [],
+            },
+            removedAt: 1,
+          },
+        ],
+      ],
+    ])
+    const { host, secrets } = hostDeps({
+      globalState: {
+        get: (key: string) => values.get(key),
+        update: (key: string, value: unknown) => {
+          values.set(key, value)
+          return Promise.resolve()
+        },
+      },
+    })
+    await secrets.store('museSpark.provider.openrouter', '{"v":1}')
+    const features = createModelsPanelFeatures(host, seam().seam)
+    await features.completePendingRemovals()
+    expect(await secrets.get('museSpark.provider.openrouter')).toBeUndefined()
+  })
+
   it('finishes removals left behind at the next start', async () => {
     const values = new Map<string, unknown>([
       [
