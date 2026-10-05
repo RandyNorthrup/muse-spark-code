@@ -7,6 +7,7 @@
 
 import * as z from 'zod/mini'
 import { scheduleViewSchema } from './schedule'
+import { teamItemFields } from './teamView'
 import { CHECK_OUTCOMES, CHECK_SKIPS, PAID_FEATURES, PERMISSION_MODES } from './constants'
 
 /**
@@ -190,6 +191,12 @@ export const itemSnapshotFields = {
   verifySummary: z.optional(verifySummarySchema),
   /** `toolCall` of an edit with `then_run` (M68): the command's result beside the edit's. */
   thenRun: z.optional(thenRunResultSchema),
+  /**
+   * The team's cards (M96 lane U2): the delegation plan, a switch, the
+   * waiting card, the merge card, a report row, and the worker label on a
+   * worker's own card. Lanes T/A/W fill these; the webview only renders.
+   */
+  ...teamItemFields,
 } as const
 
 const itemSnapshotSchema = z.object(itemSnapshotFields)

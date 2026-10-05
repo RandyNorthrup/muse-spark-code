@@ -3396,6 +3396,11 @@ export const TOOL_STATUS_IN_PROGRESS = 'inProgress'
 // The approval dock (D26) moves focus to an arriving card unless the user is
 // typing: a field holding text, or a key pressed this recently.
 export const DOCK_TYPING_GRACE_MS = 1500
+// The team tree (M96 lane U2): keystrokes this far apart start a new
+// type-ahead search rather than extending it.
+export const TEAM_TREE_TYPEAHEAD_MS = 500
+// Merge cards show this many paths/findings per list before the overflow count.
+export const TEAM_MERGE_DETAILS_SHOWN = 10
 
 // What the model or Meta reads (PLAN.md D33): the context leads, the
 // compaction prompt, the steering and answer prefixes, the skill invocation

@@ -40,9 +40,10 @@
 // does, and its package ships that file (scripts/package-acp.mjs), so the
 // backend is built once for both.
 
-import { mkdirSync, readdirSync, statSync, writeFileSync } from 'node:fs'
+import { mkdirSync, readdirSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import * as esbuild from 'esbuild'
+import { sharedHighlightGrammar } from './lib/highlightGrammar.mjs'
 
 const args = new Set(process.argv.slice(2))
 const isProduction = args.has('--production')
@@ -313,10 +314,14 @@ const pageWorkerOptions = {
 /** @type {import('esbuild').BuildOptions} */
 const webviewOptions = {
   ...common,
+  plugins: [sharedHighlightGrammar],
+  charset: 'utf8',
   entryPoints: [WEBVIEW_ENTRY],
   outdir: WEBVIEW_OUTDIR,
   platform: 'browser',
-  format: 'iife',
+  format: 'esm',
+  splitting: true,
+  chunkNames: 'chunks/[name]-[hash]',
   target: BROWSER_TARGET,
   jsx: 'automatic',
 }
@@ -343,6 +348,9 @@ function reportSize(path) {
   const kib = (statSync(path).size / BYTES_PER_KIB).toFixed(1)
   console.log(`  ${path}  ${kib} KiB`)
 }
+
+// Hashed chunks from an earlier build must never ship as unused code.
+rmSync(path.join(WEBVIEW_OUTDIR, 'chunks'), { recursive: true, force: true })
 
 if (isWatch) {
   const contexts = await Promise.all([

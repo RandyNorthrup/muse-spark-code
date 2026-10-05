@@ -1002,8 +1002,8 @@
   </head>
   <body>
     <div id="root"></div>
-    <script src="../../dist/webview/main.js"></script>
-    <script>
+    <script type="module">
+      import '../../dist/webview/main.js'
       // Scripting errors and dropped host messages are written into the page
       // so a screenshot shows them instead of a silent empty state.
       // A scenario that throws fails the accessibility gate (a11y.mjs), which
@@ -1208,6 +1208,71 @@
           document.querySelectorAll('.tool-header')[1]?.click()
         })
       }
+      // M96 lane U2: the tree the `team-tree` scenarios send, with a ready
+      // entry, a capped one, and queued and unmerged tasks of their own.
+      const teamTreeFixture = () => ({
+        orchestrator: { model: 'muse-spark-1.3', backend: 'modelApi', slot: 'default' },
+        spentUsdToday: 1.2,
+        budgetUsdToday: 50,
+        roles: [
+          {
+            id: 'engineering',
+            name: 'engineering',
+            summary: 'Builds features',
+            mode: 'own-branch',
+            toolGroups: ['edit', 'shell'],
+            entries: [
+              {
+                id: 'e1',
+                provider: 'Meta',
+                model: 'muse-spark-1.3',
+                payKind: 'key',
+                caps: [{ label: 'day tokens', used: 10000, amount: 25000 }],
+                running: 1,
+                concurrentMax: 4,
+                headroom: 'room for 3 more',
+                state: 'ready',
+                warnings: [],
+                workers: [
+                  {
+                    taskId: 't1',
+                    brief: 'Add the retry',
+                    reason: 'parallel-work',
+                    branch: 'agents/engineering/t1',
+                    status: 'running',
+                    elapsedMs: 90000,
+                    inputTokens: 70000,
+                    outputTokens: 7600,
+                    costUsd: 0.12,
+                  },
+                ],
+              },
+              {
+                id: 'e2',
+                provider: 'Muse Code',
+                model: 'muse',
+                payKind: 'subscription',
+                caps: [{ label: 'day tasks', used: 3, amount: 10, estimated: true }],
+                running: 0,
+                state: 'capped',
+                stateDetail: 'day tasks spent',
+                warnings: ['cap resets at midnight'],
+                workers: [],
+              },
+            ],
+            queued: [{ taskId: 't2', brief: 'Docs pass', status: 'queued' }],
+            unmerged: [
+              {
+                taskId: 't3',
+                brief: 'Refactor auth',
+                status: 'done',
+                branch: 'agents/engineering/t3',
+              },
+            ],
+            interrupted: [],
+          },
+        ],
+      })
       const steps = {
         empty: () => {},
         // --- The pre-sign-in gate (M1/M7): what the panel shows before a
@@ -1833,6 +1898,111 @@
           whenFound('.palette-filter', (filter) => {
             setValue(filter, HTMLInputElement.prototype, '/agents')
             filter.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }))
+          })
+        },
+        // --- M96 lane U2: the Agent map's team tree, and the transcript's
+        // delegation, switch, waiting, merge and report cards ---
+        'team-tree': () => {
+          transcriptFixture()
+          send({ type: 'teamTree', tree: teamTreeFixture() })
+          later(300, () => document.querySelector('.agents-pill')?.click())
+        },
+        'team-tree-320': () => {
+          document.documentElement.style.width = '320px'
+          document.body.style.width = '320px'
+          steps['team-tree']()
+        },
+        'team-cards': () => {
+          transcriptFixture()
+          event({
+            type: 'itemStarted',
+            item: {
+              itemId: 'tp1',
+              kind: 'teamPlan',
+              status: 'completed',
+              teamPlan: {
+                dryRun: true,
+                items: [
+                  {
+                    disposition: 'delegated',
+                    role: 'engineering',
+                    brief: 'Add the retry',
+                    reason: 'parallel-work',
+                    entry: 'entry 1',
+                  },
+                  { disposition: 'kept', role: 'engineering', reason: 'small-task' },
+                ],
+              },
+            },
+          })
+          event({
+            type: 'itemStarted',
+            item: {
+              itemId: 'ts1',
+              kind: 'teamSwitch',
+              status: 'completed',
+              teamSwitch: {
+                roleId: 'engineering',
+                fromEntry: 'entry 1',
+                toEntry: 'entry 2',
+                reason: 'cap',
+              },
+            },
+          })
+          event({
+            type: 'itemStarted',
+            item: {
+              itemId: 'tw1',
+              kind: 'teamWaiting',
+              status: 'inProgress',
+              teamWaiting: {
+                waitingId: 'wait-1',
+                roleId: 'qa',
+                brief: 'Run the suite',
+                reasonText: 'every entry is capped',
+              },
+            },
+          })
+          event({
+            type: 'itemStarted',
+            item: {
+              itemId: 'tm1',
+              kind: 'teamMerge',
+              status: 'inProgress',
+              teamMerge: {
+                taskId: 't3',
+                roleId: 'engineering',
+                brief: 'Add the retry',
+                branch: 'agents/engineering/t3',
+                filesChanged: 4,
+                affectedFiles: [
+                  'src/retry.ts',
+                  'test/retry.test.ts',
+                  '.muse/team.json',
+                  'README.md',
+                ],
+                protectedPaths: ['.muse/team.json'],
+                conflictPaths: ['src/retry.ts'],
+                reviewVerdict: 'changes requested',
+                reviewerFindings: ['P2: preserve the user edit'],
+                review: 'same-model',
+                branchMoved: true,
+              },
+            },
+          })
+          event({
+            type: 'itemStarted',
+            item: {
+              itemId: 'tr1',
+              kind: 'teamReport',
+              status: 'completed',
+              teamReport: {
+                taskId: 't3',
+                roleId: 'engineering',
+                brief: 'Add the retry',
+                summary: 'Added retry with backoff; 4 files changed.',
+              },
+            },
           })
         },
         // --- M82: a Model API reply with its tokens and cost under it, and

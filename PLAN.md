@@ -16691,6 +16691,15 @@ contracts, regenerate host API/notices, run every owning suite and focused
 gates, and repeat the ordinary-graph and golden-byte proofs. A's next fixes,
 K, M96c, main releases and full quality remain outside this round.
 
+The U2 browser size regression fires on the combined tree: 905.7 KiB at the
+unchanged 900 KiB cap. The pinned highlight.js TypeScript grammar embeds an
+identical JavaScript grammar already bundled separately. Share that exact
+function during the browser build, verifying source equality before replacing
+it with an import; retain all TypeScript additions and prove compiled output
+against the original grammars. No grammar, feature, notice or cap is removed.
+Emit browser modules as UTF-8, matching the HTML and module transport, so
+English punctuation does not expand into repeated six-byte Unicode escapes.
+
 **Lane F review correction (FIXM96F, 2026-10-05).** Address all 15 P2
 findings in `RVM96F.report.md` within the seven lane-F core modules and
 their tests: D75 tool groups and cap vocabulary; numeric and daily-budget
@@ -17098,6 +17107,18 @@ next`, the exhausted policy and the queue, the meters, reservations and
   10. **Lane L:** the pipelines and the ledger's history queries.
   11. **Lanes U1 and U2:** the Roles section and the tree, the cards and
       the usage rows, in the harness and the accessibility gate.
+      U2's RVM96B correction pass (2026-10-05) fixes findings 13–23:
+      host-confirmed/terminal card decisions, one keyboard entry point with
+      reachable actions and focus recovery, explicit running states, polite
+      completion summaries, a validated `clearTeamTree` message, target sizes
+      in all four themes, a true 320 px harness, localized names/statuses,
+      bounded affected/protected/conflict paths and review details on merge
+      cards, and dynamically imported tree/cards. Browser ES module chunks
+      retain the aggregate 900 KiB budget; the bundle graph must prove the
+      UI modules absent from the initial static dependency closure. Shared
+      boundary schemas and the synchronous reducer remain available for
+      validation before any team UI loads. Tests and byte-exact red drills
+      are recorded in `docs/certification/m96-u2.md`; no paid/live calls.
   12. **Lane X:** the wiring, the bundles, the docs and the full gate.
   13. **The rubric's evaluation (end).** The orchestrator, on the
       contributor model, sees each fixture task with a **Full team**
@@ -20499,6 +20520,17 @@ before a repaired one loads (2026-09-30).
   present. Follow-up: the integration lane's process exclusion and future
   descriptor-relative filesystem primitives; never weaken containment.
   Full `npm run quality` remains the lead's gate as the rig brief requires.
+
+- **M96 U2, RVM96B corrections (2026-10-05).** Findings 13–23 are fixed;
+  no finding in this lane is deferred. Older merge rows without affected
+  files or protected-path details remain readable but cannot approve a
+  merge. Lanes T/A/W must fill the new internal UI fields and send
+  `clearTeamTree` when the team is removed. Shared Zod schemas and the
+  synchronous reducer stay in the initial browser graph to validate every
+  message; TeamTree and TeamCards do not. The aggregate 900 KiB cap and
+  nonce-only script policy remain enforced. This pass certifies UI and
+  internal protocol behavior with fakes, not model calls or host-side
+  merge enforcement (`docs/certification/m96-u2.md`).
 
 - Code intelligence (M67) shows what VS Code's language services say. A
   result located outside the workspace is left out and a hover defined only

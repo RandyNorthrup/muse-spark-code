@@ -3060,6 +3060,130 @@ body {
   padding-top: var(--ms-gap);
 }
 
+/* The team's tree and cards (M96 lane U2): an indented tree at every
+   width, the same items and actions at 320 px, and no animation of its
+   own for reduced motion to stop. */
+.team-tree-heading {
+  margin: var(--ms-gap) 0 4px;
+  font-size: 1em;
+}
+
+.team-tree {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.team-node {
+  border-radius: var(--ms-radius);
+}
+
+.team-node[data-level='2'] {
+  margin-left: 12px;
+}
+
+.team-node[data-level='3'] {
+  margin-left: 24px;
+}
+
+.team-node[data-level='4'] {
+  margin-left: 36px;
+}
+
+.team-node:focus-visible {
+  outline: 1px solid var(--vscode-focusBorder);
+  outline-offset: -1px;
+}
+
+.team-node-body {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 4px 0;
+}
+
+.team-node-title {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+  font-weight: 600;
+}
+
+.team-node-meta {
+  font-size: 0.85em;
+  color: var(--vscode-descriptionForeground);
+}
+
+.team-node-actions,
+.team-card-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.team-node-actions button,
+.team-card-actions button {
+  min-width: 24px;
+  min-height: 24px;
+  padding: 4px 6px;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+}
+
+.team-merge-details {
+  margin: 2px 0;
+  overflow-wrap: anywhere;
+}
+
+.team-merge-details ul {
+  margin: 2px 0;
+  padding-left: 16px;
+}
+
+.team-card-note {
+  margin: 2px 0;
+  font-size: 0.85em;
+  color: var(--vscode-descriptionForeground);
+}
+
+/* A worker's own card label: the panel's chrome, never worker text. */
+.team-worker-label {
+  font-size: 0.85em;
+  color: var(--vscode-descriptionForeground);
+}
+
+.team-plan-items {
+  margin: 2px 0;
+  padding-left: 16px;
+}
+
+.team-plan-item {
+  margin: 2px 0;
+}
+
+.team-plan-disposition {
+  font-weight: 600;
+}
+
+.team-estimated {
+  font-style: italic;
+  color: var(--vscode-descriptionForeground);
+}
+
+@media (width <= 480px) {
+  .team-node[data-level='2'] {
+    margin-left: 6px;
+  }
+
+  .team-node[data-level='3'] {
+    margin-left: 12px;
+  }
+
+  .team-node[data-level='4'] {
+    margin-left: 18px;
+  }
+}
+
 /* Reduced motion (M25): every animation and transition in the panel stops,
    not only the microphone's pulse. */
 @media (prefers-reduced-motion: reduce) {

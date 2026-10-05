@@ -124,7 +124,10 @@
       "teamTemplates.solo",
       "teamSetupSteps.pools",
       "teamCapabilityWarning",
-      "teamTemplateSolo"
+      "teamTemplateSolo",
+      "teamTreeLabel",
+      "teamOrchestrator",
+      "teamUsageTitle"
     ],
     "es": [
       "usagePlan",
@@ -137,7 +140,8 @@
       "teamRolesTitle",
       "teamTemplates.solo",
       "teamSetupSteps.pools",
-      "teamCapabilityWarning"
+      "teamCapabilityWarning",
+      "teamUsageTokens"
     ],
     "pt-br": [
       "agentTokens",
@@ -148,7 +152,8 @@
       "agentImportKindHook",
       "teamTemplates.solo",
       "teamSetupSteps.pools",
-      "teamCapabilityWarning"
+      "teamCapabilityWarning",
+      "teamUsageTokens"
     ],
     "fr": [
       "modesTitle",
@@ -182,7 +187,9 @@
       "agentImportKindHook",
       "teamIntensityLevels.max",
       "teamTemplates.solo",
-      "teamCapabilityWarning"
+      "teamCapabilityWarning",
+      "teamTreeLabel",
+      "teamUsageTitle"
     ],
     "zh-cn": ["toolLabels.shell"],
     "zh-tw": ["toolLabels.shell"],

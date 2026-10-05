@@ -77,6 +77,7 @@ export function ApprovalDock({ waiting, onDecide, isInert = false }: ApprovalDoc
         key={stageKey}
         approval={first.approval}
         toolName={first.toolName}
+        worker={first.teamWorker}
         onDecide={onDecide}
       />
     </section>

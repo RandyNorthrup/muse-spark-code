@@ -12,6 +12,7 @@ import {
   type SubagentEntry,
   type ToolEntry,
 } from '../../src/webview/components/AgentMap'
+import { agentMapProps } from './helpers/transcriptFixtures'
 
 const explorer: SubagentEntry = {
   kind: 'subagent',
@@ -64,26 +65,12 @@ const task: ToolEntry = {
 
 function renderMap(overrides: Partial<AgentMapProps> = {}) {
   const props: AgentMapProps = {
-    backend: 'museCode',
-    title: 'Chrome control update',
-    modelId: 'muse-spark-1.3',
+    ...agentMapProps(),
     contextUsedTokens: 705_900,
     agents: [explorer, reviewer],
     backgroundTasks: [task],
     delegationMode: 'auto',
     isDelegationEnabled: true,
-    childTranscripts: {},
-    selectedAgentId: undefined,
-    onSelectAgent: vi.fn(),
-    onReadChild: vi.fn(),
-    onControl: vi.fn(),
-    onMessage: vi.fn(),
-    onStopTask: vi.fn(),
-    onStopAllTasks: vi.fn(),
-    onOpenMuseSettings: vi.fn(),
-    onClose: vi.fn(),
-    workflows: [],
-    workflowTriggerMode: undefined,
     ...overrides,
   }
   render(<AgentMap {...props} />)

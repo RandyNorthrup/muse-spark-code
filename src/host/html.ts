@@ -72,7 +72,7 @@ export function buildWebviewHtml(options: WebviewHtmlOptions): string {
 <body>
 <div id="${WEBVIEW_ROOT_ELEMENT_ID}"></div>
 <script type="application/json" id="${WEBVIEW_L10N_ELEMENT_ID}">${scriptSafeJson({ locale, table })}</script>
-<script nonce="${options.nonce}" src="${options.scriptUri}"></script>
+<script type="module" nonce="${options.nonce}" src="${options.scriptUri}"></script>
 </body>
 </html>
 `

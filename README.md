@@ -2172,6 +2172,14 @@ an **N agents** pill in the header opens the **Agent map** (also `/agents`):
 this conversation, its agents with role, objective, status, duration and
 tokens, the background tasks, and each agent's own transcript.
 
+When a team is active, its tree has one Tab stop. Use arrows, Home, End,
+or type ahead to move between items; F2 focuses an item's actions, Left
+and Right choose an action, and Escape returns to the item. Finished
+workers produce one polite summary. Merge cards list affected files,
+protected paths, conflicts and the supplied review details, with an
+overflow count for long lists. A card without file details cannot approve
+a merge. Tree and card code loads on its first use.
+
 - Muse Code hides its subagent tools unless `run.subagent_delegation_mode` is
   `"auto"` in its settings file (`~/.config/muse/settings.json`, or under
   `$XDG_CONFIG_HOME`). The map says so and opens the file for you; the

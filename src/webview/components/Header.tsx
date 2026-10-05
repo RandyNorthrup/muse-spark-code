@@ -22,15 +22,22 @@ export interface HeaderProps {
   readonly runningAgentCount?: number
   /** Background tasks still running (M46): they show the pill too. */
   readonly runningTaskCount?: number
+  /**
+   * Team tasks in the Agent map's tree (M96 lane U2): they show the pill
+   * too. Zero (and absent) is today's pill: the single-model invariant.
+   */
+  readonly teamTaskCount?: number
+  readonly runningTeamTaskCount?: number
   readonly onOpenAgents?: (() => void) | undefined
   readonly onOpenSideChat?: (() => void) | undefined
 }
 
-/** The pill's words: the agents, the running background tasks, or both (M14, M46). */
-function pillLabel(agentCount: number, runningTaskCount: number): string {
+/** The pill's words: the agents, the running background tasks, the team tasks, or each (M14, M46, M96). */
+function pillLabel(agentCount: number, runningTaskCount: number, teamTaskCount: number): string {
   const parts = [
     agentCount > 0 ? plural(UI_TEXT.agentsCount, agentCount) : undefined,
     runningTaskCount > 0 ? plural(UI_TEXT.backgroundTasksCount, runningTaskCount) : undefined,
+    teamTaskCount > 0 ? plural(UI_TEXT.teamTasksCount, teamTaskCount) : undefined,
   ].filter((part) => part !== undefined)
   return parts.join(' · ')
 }
@@ -103,11 +110,20 @@ export function Header({
   agentCount = 0,
   runningAgentCount = 0,
   runningTaskCount = 0,
+  teamTaskCount = 0,
+  runningTeamTaskCount = 0,
   onOpenAgents,
   onOpenSideChat,
 }: HeaderProps) {
-  const isPillShown = agentCount > 0 || runningTaskCount > 0
-  const isAnyRunning = runningAgentCount > 0 || runningTaskCount > 0
+  const isPillShown = agentCount > 0 || runningTaskCount > 0 || teamTaskCount > 0
+  const isAnyRunning = runningAgentCount > 0 || runningTaskCount > 0 || runningTeamTaskCount > 0
+  // The map the pill opens: the agents', the background tasks', or the team's (M96 lane U2).
+  let pillTitle = UI_TEXT.agentMapTitle
+  if (agentCount > 0) {
+    pillTitle = UI_TEXT.agentsPillTitle
+  } else if (runningTaskCount > 0) {
+    pillTitle = UI_TEXT.backgroundTasksPillTitle
+  }
   return (
     <header className="header">
       {onRename === undefined ? (
@@ -126,17 +142,12 @@ export function Header({
           </button>
         )}
         {onOpenAgents !== undefined && isPillShown ? (
-          <button
-            type="button"
-            className="agents-pill"
-            title={agentCount > 0 ? UI_TEXT.agentsPillTitle : UI_TEXT.backgroundTasksPillTitle}
-            onClick={onOpenAgents}
-          >
+          <button type="button" className="agents-pill" title={pillTitle} onClick={onOpenAgents}>
             <span
               className={isAnyRunning ? 'agent-dot agent-dot-running' : 'agent-dot agent-dot-done'}
               aria-hidden="true"
             />
-            {pillLabel(agentCount, runningTaskCount)}
+            {pillLabel(agentCount, runningTaskCount, teamTaskCount)}
           </button>
         ) : null}
         <button

@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import type { AgentEvent, ItemSnapshot } from '../../src/shared/agentEvents'
 import { UI_TEXT } from '../../src/shared/constants'
 import type { HostToWebviewMessage } from '../../src/shared/protocol'
+import type { TeamTreeData } from '../../src/shared/teamView'
 import { restoredUiState, webviewStateOf } from '../../src/webview/state/snapshot'
 import type { ScheduleView } from '../../src/shared/schedule'
 import {
@@ -1300,6 +1301,104 @@ describe('uiReducer: account & usage and announcements (M8)', () => {
     expect(
       reduceAll([host({ type: 'notice', level: 'info', text: 'fyi' })], base).announcement,
     ).toBeUndefined()
+  })
+})
+
+describe('uiReducer: team tree, usage and cards (M96 lane U2)', () => {
+  const team: TeamTreeData = {
+    orchestrator: { model: 'muse-spark-1.3', backend: 'modelApi', slot: 'default' },
+    roles: [],
+  }
+
+  it('keeps the host’s team tree, across a cleared conversation but not an account change', () => {
+    const withTree = reduceAll([host(init), host({ type: 'teamTree', tree: team })])
+    expect(withTree.teamTree).toEqual(team)
+    // The team is the workspace's: a new conversation keeps it.
+    expect(uiReducer(withTree, { type: 'conversationCleared' }).teamTree).toEqual(team)
+    // The tree names the account's models: sign-out clears it with the usage.
+    const signedOut = uiReducer(withTree, host({ type: 'authState', status: 'signedOut' }))
+    expect(signedOut.teamTree).toBeUndefined()
+    expect(signedOut.usageReport).toBeUndefined()
+  })
+
+  it('starts with no team: the map, the pill and the dialog are today’s', () => {
+    expect(reduceAll([host(init)]).teamTree).toBeUndefined()
+  })
+
+  it('carries the usage Team section on the report', () => {
+    const figures = {
+      tasks: 1,
+      inputTokens: 100,
+      outputTokens: 50,
+      costUsd: 0.01,
+      estimated: false,
+    }
+    const state = reduceAll([
+      host(init),
+      host({
+        type: 'usageReport',
+        backend: 'modelApi',
+        team: { today: figures, window: figures, byRole: [], byEntry: [] },
+      }),
+    ])
+    expect(state.usageReport?.team?.today.tasks).toBe(1)
+  })
+
+  it('turns team items into cards, and a payload-less one into today’s row', () => {
+    const state = reduceAll([
+      host(init),
+      agent({
+        type: 'itemStarted',
+        item: {
+          itemId: 's1',
+          kind: 'teamSwitch',
+          status: 'completed',
+          teamSwitch: {
+            roleId: 'engineering',
+            fromEntry: 'entry 1',
+            toEntry: 'entry 2',
+            reason: 'cap',
+          },
+        },
+      }),
+      agent({
+        type: 'itemStarted',
+        item: { itemId: 'm1', kind: 'teamMerge', status: 'inProgress' },
+      }),
+    ])
+    expect(state.transcript[0]).toMatchObject({ kind: 'teamSwitch', reason: 'cap' })
+    expect(state.transcript[1]).toMatchObject({ kind: 'item', itemKind: 'teamMerge' })
+  })
+
+  it('labels a worker’s own approval from the task', () => {
+    const state = reduceAll([
+      host(init),
+      agent({
+        type: 'itemStarted',
+        item: {
+          itemId: 'c1',
+          kind: 'toolCall',
+          status: 'inProgress',
+          tool: 'edit',
+          teamWorker: { roleId: 'engineering', agentLabel: 'Codex', taskId: 't3' },
+        },
+      }),
+      agent({
+        type: 'approvalRequested',
+        approvalId: 'a1',
+        itemId: 'c1',
+        toolName: 'edit',
+        requirementId: { approvalId: 'a1', sourceIndex: 0 },
+        subject: { kind: 'tool', toolName: 'edit' },
+        rawArgs: '{}',
+        availableChoices: [],
+        isProtectedWrite: false,
+        isJudgeEscalated: false,
+      }),
+    ])
+    expect(waitingApprovals(state.transcript)[0]).toMatchObject({
+      teamWorker: { roleId: 'engineering', agentLabel: 'Codex', taskId: 't3' },
+    })
   })
 })
 

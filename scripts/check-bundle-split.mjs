@@ -480,6 +480,31 @@ for (const bundle of ON_FIRST_USE) {
   }
 }
 
+// M96 U2: a single-model chat fetches only the static ESM closure. Team
+// renderers must occur exclusively beyond dynamic-import edges.
+const webview = JSON.parse(readFileSync('dist/meta/webview.json', 'utf8'))
+const initialWebview = new Set()
+function visitWebview(output) {
+  if (initialWebview.has(output)) return
+  initialWebview.add(output)
+  const imports = webview.outputs[output].imports
+  for (const entry of imports) {
+    if (!entry.external && entry.kind === 'import-statement') visitWebview(entry.path)
+  }
+}
+visitWebview('dist/webview/main.js')
+const TEAM_UI_ONLY = ['src/webview/components/TeamTree.tsx', 'src/webview/components/TeamCards.tsx']
+for (const file of TEAM_UI_ONLY) {
+  const carrying = Object.entries(webview.outputs).filter(
+    ([, output]) => (output.inputs[file]?.bytesInOutput ?? 0) > 0,
+  )
+  if (carrying.length === 0) problems.push(`webview no longer carries ${file}`)
+  for (const [output] of carrying) {
+    if (initialWebview.has(output))
+      problems.push(`${output} carries ${file} in the initial webview graph`)
+  }
+}
+
 if (problems.length > 0) {
   console.error(`bundle split: ${String(problems.length)} problem(s); see PLAN.md D6 and M57`)
   for (const problem of problems) {
@@ -527,6 +552,9 @@ console.log(
   `ok   ${AGENT_IMPORT.output}: carries the import (scan, converters, file access, smol-toml); ${BUNDLES.activation.output} carries none of it`,
 )
 console.log(`ok   ${UI_TEXT.output}: Node bundles share the English fallback`)
+console.log(
+  'ok   webview: team tree/cards load only through dynamic imports; initial graph excludes both',
+)
 for (const bundle of DEFERRED) console.log(`ok   ${bundle.output}: loads only on its first action`)
 for (const bundle of ON_FIRST_USE) {
   console.log(`ok   ${bundle.output}: loads only on ${bundle.use}, never at activation`)
