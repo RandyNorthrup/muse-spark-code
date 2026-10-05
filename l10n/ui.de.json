@@ -374,6 +374,8 @@
   "hookAdapterUnreadable": "Ein Hook im {format}-Format hat eine Antwort gegeben, die dieses Fenster nicht lesen kann, daher zählt sie als Fehlschlag.",
   "hookAdapterFailClosed": "Ein Schutz-Hook im {format}-Format ist fehlgeschlagen, daher wurde der Aufruf blockiert, so wie {format} selbst ihn blockieren würde.",
   "hookOutputReplaced": "Ein Hook hat ersetzt, was das Modell von der Ausgabe dieses Werkzeugs sieht; die Zeile zeigt die echte Ausgabe.",
+  "pluginHooksNoJob": "Die Plugin-Hooks von Amp und OpenCode wurden nicht ausgeführt: Windows konnte den Job, der sie einschließt, nicht vorbereiten. Führen Sie „Plugin-Hooks erneut versuchen“ aus, um es noch einmal zu versuchen.",
+  "pluginHooksRetried": "Plugin-Hooks bereiten ihren Windows-Job beim nächsten Ausführen erneut vor.",
   "memoryItem": "Gedächtnis…",
   "memoryItemDetail": "Die Notizen, die Muse für spätere Sitzungen aufbewahrt",
   "memoryTitle": "Muse-Gedächtnis",

@@ -95,6 +95,8 @@ export interface ModelApiBackendManagerDeps extends ModelApiPaidHooks {
   readonly showReplyUsage: () => boolean
   readonly hookSettingsPath?: string
   readonly isHooksEnabled?: () => boolean
+  /** Amp and OpenCode plugin hooks' host side (M91b). */
+  readonly pluginHooks?: ModelApiHostDeps['pluginHooks']
   /**
    * The MCP servers for a host in this workspace (M50), one set per host,
    * made with the bundle's pool (M57).
@@ -295,6 +297,7 @@ export class ModelApiBackendManager {
         isPaidUseRemembered: variant.isPaidUseRemembered,
         noteSubagentUsage: this.deps.noteSubagentUsage,
         isHooksEnabled: variant.isHooksEnabled,
+        pluginHooks: this.deps.pluginHooks,
         memory: variant.memory,
         beforeTurnRuns: variant.beforeTurnRuns,
         afterTurnRuns: variant.afterTurnRuns,

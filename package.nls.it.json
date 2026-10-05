@@ -28,6 +28,7 @@
   "command.openShareFile.title": "Apri file condiviso",
   "command.mcpServers.title": "Server MCP",
   "command.hooks.title": "Hook",
+  "command.retryPluginHooks.title": "Riprova gli hook dei plugin",
   "command.memory.title": "Memoria",
   "command.newWorktree.title": "Nuovo albero di lavoro…",
   "command.removeWorktree.title": "Rimuovi albero di lavoro…",

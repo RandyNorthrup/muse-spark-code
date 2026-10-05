@@ -136,7 +136,14 @@ export interface AgentImportDeps extends Omit<ImportScanInput, 'sources'> {
 /** What the VS Code side supplies; the import's own file access and gate come with its bundle. */
 export type AgentImportHost = Omit<
   AgentImportDeps,
-  'io' | 'writer' | 'isPresent' | 'gate' | 'claudeConfigDir' | 'codexHome' | 'copilotHome'
+  | 'io'
+  | 'writer'
+  | 'isPresent'
+  | 'gate'
+  | 'claudeConfigDir'
+  | 'codexHome'
+  | 'copilotHome'
+  | 'xdgConfigHome'
 > & {
   /** The extension host's environment: the tools' own folder variables are read from it inside the bundle. */
   readonly environment: Readonly<Record<string, string | undefined>>
@@ -173,6 +180,12 @@ function sourceLabel(source: AgentImportSource): string {
     }
     case 'cline': {
       return UI_TEXT.agentImportSourceCline
+    }
+    case 'amp': {
+      return UI_TEXT.agentImportSourceAmp
+    }
+    case 'opencode': {
+      return UI_TEXT.agentImportSourceOpenCode
     }
   }
 }
@@ -784,6 +797,7 @@ async function runImport(deps: AgentImportDeps): Promise<void> {
     claudeConfigDir: deps.claudeConfigDir,
     codexHome: deps.codexHome,
     copilotHome: deps.copilotHome,
+    xdgConfigHome: deps.xdgConfigHome,
     workspaceRoot: deps.workspaceRoot,
     ...(deps.workspaceRoots !== undefined && { workspaceRoots: deps.workspaceRoots }),
     isWorkspaceTrusted: deps.isWorkspaceTrusted,

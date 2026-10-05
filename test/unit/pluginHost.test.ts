@@ -19,6 +19,7 @@ import {
   runPluginHook,
   sanitizePluginAnswer,
 } from '../../src/core/backends/modelapi/pluginHost'
+import { PLUGIN_CHILD_MAX_MEMORY_BYTES } from '../../src/shared/constants'
 
 interface FakeChild {
   readonly handle: PluginChildHandle
@@ -144,13 +145,35 @@ describe('resolvePluginRuntime refuses with a reason when absent', () => {
     if (!missing.ok) expect(missing.reason).toContain('node')
   })
 
-  it('opencode needs the installed bun', async () => {
+  it('opencode needs the installed bun, bounded by prlimit on Linux (P2 12)', async () => {
     await expect(
       resolvePluginRuntime(
         'opencode',
         runtimeDeps(() => Promise.resolve('1.3.14')),
       ),
-    ).resolves.toMatchObject({ ok: true, command: '/usr/bin/bun' })
+    ).resolves.toEqual({
+      ok: true,
+      command: '/usr/bin/prlimit',
+      args: [`--data=${String(PLUGIN_CHILD_MAX_MEMORY_BYTES)}`, '--', '/usr/bin/bun', '-e'],
+    })
+    await expect(
+      resolvePluginRuntime('opencode', {
+        ...runtimeDeps(() => Promise.resolve('1.3.14')),
+        platform: 'win32',
+        env: { PATH: String.raw`C:\bun` },
+      }),
+    ).resolves.toMatchObject({ ok: true, args: ['-e'] })
+    const unbounded = await resolvePluginRuntime('opencode', {
+      ...runtimeDeps(() => Promise.resolve('1.3.14')),
+      platform: 'darwin',
+    })
+    expect(unbounded).toMatchObject({ ok: false })
+    if (!unbounded.ok) expect(unbounded.reason).toContain('cannot be bounded')
+    const noPrlimit = await resolvePluginRuntime('opencode', {
+      ...runtimeDeps(() => Promise.resolve('1.3.14')),
+      fileExists: (file) => file.endsWith('bun'),
+    })
+    expect(noPrlimit).toMatchObject({ ok: false })
     const missing = await resolvePluginRuntime(
       'opencode',
       runtimeDeps(() => Promise.reject(new Error('ENOENT'))),
@@ -523,16 +546,20 @@ function realDeps(warnings: string[] = []): PluginRunDeps {
  * this node as an ES module: the test proves the child, not the machine.
  */
 const opencodeTree: PluginProcessTree = {
-  spawn: (command, args, options) =>
-    Promise.resolve(
+  // The runtime after prlimit's `--`, run as this node: the child, not the machine.
+  spawn: (_command, args, options) => {
+    const runtime = args.slice(args.indexOf('--') + 2)
+    return Promise.resolve(
       nodeChildHandle(
-        spawn(
-          command.endsWith('bun') ? process.execPath : command,
-          command.endsWith('bun') ? ['--input-type=module', ...args] : [...args],
-          { env: options.env, cwd: options.cwd, detached: true, stdio: ['pipe', 'pipe', 'pipe'] },
-        ),
+        spawn(process.execPath, ['--input-type=module', ...runtime], {
+          env: options.env,
+          cwd: options.cwd,
+          detached: true,
+          stdio: ['pipe', 'pipe', 'pipe'],
+        }),
       ),
-    ),
+    )
+  },
   killTree: (child) => {
     if (child.pid === undefined) return
     try {
@@ -546,6 +573,7 @@ const opencodeTree: PluginProcessTree = {
 function opencodeDeps(warnings: string[] = []): PluginRunDeps {
   return {
     ...realDeps(warnings),
+    platform: 'linux',
     fileExists: () => true,
     runVersion: (command) => Promise.resolve(command.endsWith('bun') ? '1.3.14' : process.version),
     processTree: opencodeTree,

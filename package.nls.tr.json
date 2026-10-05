@@ -28,6 +28,7 @@
   "command.openShareFile.title": "Paylaşılan dosyayı aç",
   "command.mcpServers.title": "MCP Sunucuları",
   "command.hooks.title": "Kancalar",
+  "command.retryPluginHooks.title": "Eklenti kancalarını yeniden dene",
   "command.memory.title": "Bellek",
   "command.newWorktree.title": "Yeni Çalışma Ağacı…",
   "command.removeWorktree.title": "Çalışma Ağacını Kaldır…",

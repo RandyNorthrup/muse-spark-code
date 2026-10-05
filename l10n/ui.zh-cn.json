@@ -362,6 +362,8 @@
   "hookAdapterUnreadable": "{format} 格式的钩子返回了此窗口无法读取的应答，因此计为失败。",
   "hookAdapterFailClosed": "{format} 格式的防护钩子失败，因此与 {format} 自身的做法一样，阻止了该调用。",
   "hookOutputReplaced": "钩子替换了模型看到的此工具输出；该行显示的是实际输出。",
+  "pluginHooksNoJob": "Amp 和 OpenCode 的插件钩子未运行：Windows 无法准备容纳它们的作业对象。运行“重试插件钩子”以重试。",
+  "pluginHooksRetried": "插件钩子将在下次运行时重新准备其 Windows 作业对象。",
   "memoryItem": "记忆…",
   "memoryItemDetail": "Muse 为后续会话保留的笔记",
   "memoryTitle": "Muse 记忆",

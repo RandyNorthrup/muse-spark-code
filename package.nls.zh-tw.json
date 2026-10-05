@@ -28,6 +28,7 @@
   "command.openShareFile.title": "開啟共用檔案",
   "command.mcpServers.title": "MCP 伺服器",
   "command.hooks.title": "鉤子",
+  "command.retryPluginHooks.title": "重試外掛程式鉤子",
   "command.memory.title": "記憶",
   "command.newWorktree.title": "新增工作樹…",
   "command.removeWorktree.title": "移除工作樹…",

@@ -233,6 +233,7 @@ quality`) and as a CI job.
 | `dist/sessionBoard.js`     | ≤ 75 KiB (M78b: first board/best-of-N action; measured 61.0 KiB plus 15%, rounded up to 25 KiB)                                                                                                                                                           |
 | `dist/reviewer.js`         | ≤ 75 KiB (M78b: paid Auto review after consent; measured 55.2 KiB plus 15%, rounded up to 25 KiB)                                                                                                                                                         |
 | `dist/foreignHooks.js`     | ≤ 75 KiB (M91 lane W: the adapters for hooks imported from other agents, lane P's contracts and engine, loaded the first time a session holding one runs a hook; measured 64.9 KiB plus 15%, rounded up to 25 KiB; 68.0 KiB with lane X's Cline contract) |
+| `dist/pluginHooks.js`      | ≤ 75 KiB (M91b: the Amp and OpenCode plugin host, loaded on the first plugin hook; measured 51.6 KiB plus 15%, rounded up to 25 KiB; foreignHooks.js is 69.5 KiB with its glue)                                                                           |
 | `dist/agentImport.js`      | ≤ 175 KiB (M83: import scan, converters, file access, native UI and smol-toml, loaded on first import; 2026-10-04, M91 lane I's readers for every agent's hooks: measured 147.7 KiB plus 15%, rounded up to 25 KiB)                                       |
 | `dist/bundledSkills.js`    | ≤ 50 KiB (M89: the bundled skills installer for Muse Code, loaded on first install, removal or offer; 22.6 KiB when split, plus 15%, rounded up to 25 KiB)                                                                                                |
 | `dist/codeIntel.js`        | ≤ 100 KiB (2026-10-03: code intelligence's `ide` answers, loaded on the first call; measured 80.3 KiB plus 15%, rounded up to 25 KiB)                                                                                                                     |
@@ -14021,6 +14022,33 @@ returns`void`, so every bus mapping is observation only; a throw fails
   - [ ] Live check and its call count.
   - [ ] Docs: README, PRIVACY, CHANGELOG, AGENTS.md, CONTRIBUTING, PLAN,
         m91.md.
+
+### M91b — Amp and OpenCode plugin dispatch (D70)
+
+**Status 2026-10-05: built on `m91/w-plugins`; its own pull request.** Split
+from M91 at the lead's 07:00 checkpoint, after the RVM91X fixes (`22e9e7ff`).
+The record is `docs/certification/m91-wp.md`.
+
+- **Scope, exactly this list:**
+  - dispatch in `foreignHooksEntry.ts`, with the session's `dispose` ending
+    plugin children;
+  - the plugin records in `spark-hooks.json` (`format` amp or opencode, a
+    `plugin` path, a `{ type: 'plugin' }` handler) and the `plugin`
+    ForeignPreparation, run under the host-wide cap and the same judge;
+  - the tool-name and argument maps, from the saved sources only;
+  - `src/core/import/pluginImport.ts` and its glue in the importer;
+  - the bundle move: the plugin host in `dist/pluginHooks.js`, required on
+    the first plugin hook (D6);
+  - RVM91X P2s 9, 10, 12 and 15.
+- **The lead's rulings (2026-10-05):**
+  - Amp's `tool.call` `error` matches Amp: the tool never runs and the turn
+    ends with the plugin's reason. The fail-open and fail-closed rules cover
+    transport failures only.
+  - Windows job preparation: a hook never runs without a tree. A failure is
+    retried once after a short delay, then stays, with a notice in the
+    user's language, until **Muse Spark: Retry Plugin Hooks**.
+  - P2 12: Windows bounds the job's memory; Linux bounds bun with `prlimit
+--data`; elsewhere bun is refused rather than run unbounded.
 
 ### M41 — Install Muse Code from the panel (folded into M55)
 

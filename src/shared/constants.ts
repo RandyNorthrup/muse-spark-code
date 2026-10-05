@@ -39,6 +39,8 @@ export const COMMAND_IDS = {
   openShareFile: 'museSpark.openShareFile',
   mcpServers: 'museSpark.mcpServers',
   hooks: 'museSpark.hooks',
+  // M91b: forget a failed Windows job preparation for plugin hooks.
+  retryPluginHooks: 'museSpark.retryPluginHooks',
   memory: 'museSpark.memory',
   newWorktree: 'museSpark.newWorktree',
   removeWorktree: 'museSpark.removeWorktree',
@@ -464,6 +466,14 @@ export const PLUGIN_CHILD_MAX_HEAP_MB = 256
 export const PLUGIN_RESPONSE_MAX_BYTES = 64 * 1024
 // How long `node --version` / `bun --version` may take before the runtime counts as absent.
 export const PLUGIN_RUNTIME_PROBE_TIMEOUT_MS = 15_000
+// RVM91X P2 12: a plugin child's whole memory, as a Windows job limit and,
+// for bun on Linux, as prlimit's data limit (node also keeps its heap cap).
+export const PLUGIN_CHILD_MAX_MEMORY_BYTES = 1024 * 1024 * 1024
+// After the Windows job launcher fails to prepare, the next plugin dispatch
+// past this delay tries once more; a second failure stays until Retry.
+export const PLUGIN_JOB_RETRY_BACKOFF_MS = 5000
+// The plugin files an import reads to find their events, per system.
+export const PLUGIN_IMPORT_MAX_BYTES = 256 * 1024
 export const HOOK_FORBIDDEN_ENV_NAMES: ReadonlySet<string> = new Set([
   'AWS_ACCESS_KEY_ID',
   'AWS_SECRET_ACCESS_KEY',
@@ -476,6 +486,13 @@ export const HOOK_FORBIDDEN_ENV_NAMES: ReadonlySet<string> = new Set([
 // v1 scripts among them (lane X's contract). A spark-hooks.json group names one
 // in its `format` tag; a group in any other format is skipped with a warning.
 export const HOOK_FORMATS = ['gemini', 'cursor', 'copilot', 'windsurf', 'kiro', 'cline'] as const
+// M91b: the plugin systems whose plugins run out of process (pluginHost.ts).
+// A spark-hooks.json group names one in `format`, with a `plugin` path and a
+// `plugin` handler; lane P's adapters (HOOK_FORMATS) never read them.
+export const PLUGIN_FORMATS = ['amp', 'opencode'] as const
+// The one plugin hook whose failure blocks: OpenCode's tool.execute.before,
+// where a throw blocks (oc_plugin_index.ts:266), so a crash counts as one.
+export const PLUGIN_FAIL_CLOSED_SOURCE = 'tool.execute.before'
 // Each format's source agent by its name in the import picker, for the Hooks
 // picker's rows and the adapters' notices; Cline's for lane X's plugin host.
 export const HOOK_FORMAT_NAME_KEYS = {
@@ -485,6 +502,8 @@ export const HOOK_FORMAT_NAME_KEYS = {
   windsurf: 'agentImportSourceWindsurf',
   kiro: 'agentImportSourceKiro',
   cline: 'agentImportSourceCline',
+  amp: 'agentImportSourceAmp',
+  opencode: 'agentImportSourceOpenCode',
 } as const
 // Cursor's stop and subagentStop follow-up limit for a script that sets no
 // `loop_limit` ("Default is 5 for Cursor hooks", cursor.com/docs/hooks).
@@ -1725,6 +1744,8 @@ export const AGENT_IMPORT_SOURCES = [
   'windsurf',
   'kiro',
   'cline',
+  'amp',
+  'opencode',
 ] as const
 export type AgentImportSource = (typeof AGENT_IMPORT_SOURCES)[number]
 export const AGENT_IMPORT_KINDS = ['mcpServer', 'hook', 'agent', 'command', 'rules'] as const
@@ -1819,6 +1840,30 @@ export const AGENT_IMPORT_PATHS = {
     projectHooksDir: 'hooks',
     userDir: 'Documents',
     userHooksSegments: ['Cline', 'Hooks'],
+  },
+  /**
+   * Amp's plugin files (amp_customize_plugins.md:49-52, 100-102): project
+   * `.amp/plugins/`; system `$XDG_CONFIG_HOME/amp/plugins/`, else
+   * `~/.config/amp/plugins/`. A single-file plugin is `.ts` or `.js`.
+   */
+  amp: {
+    projectSegments: ['.amp', 'plugins'],
+    configHomeVariable: 'XDG_CONFIG_HOME',
+    userConfigDir: '.config',
+    userSegments: ['amp', 'plugins'],
+    extensions: ['.ts', '.js'],
+  },
+  /**
+   * OpenCode's local plugins (oc_plugins.mdx:20-23, 69): `.opencode/plugins/`
+   * and `~/.config/opencode/plugins/`, JavaScript or TypeScript files; npm
+   * plugins are named in `opencode.json`'s `plugin` list (oc_plugins.mdx:31-36).
+   */
+  opencode: {
+    projectSegments: ['.opencode', 'plugins'],
+    userSegments: ['.config', 'opencode', 'plugins'],
+    extensions: ['.js', '.mjs', '.ts', '.mts'],
+    configFile: 'opencode.json',
+    userConfigSegments: ['.config', 'opencode', 'opencode.json'],
   },
 } as const
 export const AGENT_IMPORT_MARKDOWN_EXTENSION = '.md'
@@ -1951,6 +1996,8 @@ export const AGENT_IMPORT_FORMATS = {
   windsurf: 'windsurf',
   kiro: 'kiro',
   cline: 'cline',
+  amp: 'amp',
+  opencode: 'opencode',
 } as const
 /**
  * A source timeout's documented default, written on the converted entry so
@@ -4042,6 +4089,8 @@ export const AGENT_IMPORT_SOURCE_NAMES = {
   windsurf: 'Windsurf',
   kiro: 'Kiro',
   cline: 'Cline',
+  amp: 'Amp',
+  opencode: 'OpenCode',
 } as const satisfies Readonly<Record<AgentImportSource, string>>
 
 // Model API session text, used only by its lazy bundle. Kept separate so

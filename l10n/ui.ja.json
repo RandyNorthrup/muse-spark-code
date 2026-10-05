@@ -362,6 +362,8 @@
   "hookAdapterUnreadable": "{format} 形式のフックがこのウィンドウで読み取れない応答を返したため、失敗として扱います。",
   "hookAdapterFailClosed": "{format} 形式の保護フックが失敗したため、{format} 自体と同様に呼び出しをブロックしました。",
   "hookOutputReplaced": "フックが、このツールの出力のうちモデルが見る内容を置き換えました。行には実際の出力が表示されます。",
+  "pluginHooksNoJob": "Amp と OpenCode のプラグインのフックは実行されませんでした。Windows がそれらを収めるジョブを準備できませんでした。もう一度試すには「プラグインのフックを再試行」を実行してください。",
+  "pluginHooksRetried": "プラグインのフックは、次に実行されるときに Windows のジョブを再び準備します。",
   "memoryItem": "メモリ…",
   "memoryItemDetail": "Muse が後のセッションのために保存するノート",
   "memoryTitle": "Muse のメモリ",

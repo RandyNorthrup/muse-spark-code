@@ -28,6 +28,7 @@
   "command.openShareFile.title": "Открыть общий файл",
   "command.mcpServers.title": "Серверы MCP",
   "command.hooks.title": "Хуки",
+  "command.retryPluginHooks.title": "Повторить хуки плагинов",
   "command.memory.title": "Память",
   "command.newWorktree.title": "Новое рабочее дерево…",
   "command.removeWorktree.title": "Удалить рабочее дерево…",

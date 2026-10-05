@@ -398,6 +398,8 @@
   "hookAdapterUnreadable": "Hook w formacie {format} zwrócił odpowiedź, której to okno nie potrafi odczytać, więc liczy się to jako niepowodzenie.",
   "hookAdapterFailClosed": "Zabezpieczenie w formacie {format} nie powiodło się, więc wywołanie zostało zablokowane, tak jak zablokowałby je sam {format}.",
   "hookOutputReplaced": "Hook zastąpił to, co model widzi z wyniku tego narzędzia; wiersz pokazuje rzeczywisty wynik.",
+  "pluginHooksNoJob": "Hooki wtyczek Amp i OpenCode nie zostały uruchomione: system Windows nie mógł przygotować zadania, które je obejmuje. Uruchom „Ponów hooki wtyczek”, aby spróbować ponownie.",
+  "pluginHooksRetried": "Hooki wtyczek przygotują ponownie swoje zadanie systemu Windows przy następnym uruchomieniu.",
   "memoryItem": "Pamięć…",
   "memoryItemDetail": "Notatki, które Muse przechowuje na potrzeby kolejnych sesji",
   "memoryTitle": "Pamięć Muse",

@@ -586,6 +586,11 @@ export const EN = {
   // A hook in another agent's format replaced a tool's output for the model.
   hookOutputReplaced:
     'A hook replaced what the model sees of this tool’s output; the row shows the real output.',
+  // Amp and OpenCode plugin hooks on Windows without their job (M91b): the
+  // notice, and what Retry Plugin Hooks says once it forgot the failure.
+  pluginHooksNoJob:
+    'Amp and OpenCode plugin hooks did not run: Windows could not prepare the job that contains them. Run “Retry Plugin Hooks” to try again.',
+  pluginHooksRetried: 'Plugin hooks will prepare their Windows job again the next time one runs.',
   // Memory (M49, D41): the notes Muse Code keeps, on both backends.
   memoryItem: 'Memory…',
   memoryItemDetail: 'The notes Muse keeps for later sessions',

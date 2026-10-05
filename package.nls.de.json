@@ -28,6 +28,7 @@
   "command.openShareFile.title": "Freigabedatei öffnen",
   "command.mcpServers.title": "MCP-Server",
   "command.hooks.title": "Hooks",
+  "command.retryPluginHooks.title": "Plugin-Hooks erneut versuchen",
   "command.memory.title": "Gedächtnis",
   "command.newWorktree.title": "Neuer Worktree…",
   "command.removeWorktree.title": "Worktree entfernen…",

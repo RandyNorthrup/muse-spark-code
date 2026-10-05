@@ -14,6 +14,11 @@
 //   CH:707), and a guard that could not run fails as its source fails.
 //
 // No answer grants: lane P never produces an allow, and hooks.ts strips one.
+//
+// Amp and OpenCode plugins (M91b) are dispatched here too, out of process:
+// their host comes from its own bundle (dist/pluginHooks.js, D6), required
+// on the first plugin hook. One PluginSession per adapter (so per Model API
+// session) holds their children, and `dispose` ends them with the session.
 
 import { Buffer } from 'node:buffer'
 import path from 'node:path'
@@ -22,6 +27,9 @@ import {
   HOOK_FORMAT_NAME_KEYS,
   HOOK_FORMATS,
   HOOK_WINDOWS_COMMAND_MAX_CHARS,
+  MILLISECONDS_PER_SECOND,
+  PLUGIN_FAIL_CLOSED_SOURCE,
+  PLUGIN_FORMATS,
   UI_TEXT,
   WINDOWS_POWERSHELL_COMMAND_ARGS,
   WINDOWS_POWERSHELL_UTF8_PREAMBLE,
@@ -47,6 +55,26 @@ import {
   type HookDefinition,
   type HookEvent,
 } from './hooks'
+import type { PluginFormat } from './pluginFormats'
+import type { PluginContainment, PluginSession } from './pluginHost'
+import type * as PluginHooks from './pluginHooksEntry'
+
+/** What plugin children need from the host (M91b). */
+export interface PluginHostDeps {
+  /** M51's allowlisted hook environment (the host's `hookEnvironment`). */
+  readonly env: NodeJS.ProcessEnv
+  /**
+   * What children run in: a kill-on-close job on Windows, a process group
+   * elsewhere, or a notice in the user's language saying why neither, and
+   * the hook then fails by its fail-closed rule.
+   */
+  readonly containment: () => Promise<PluginContainment>
+  /** Fixed-text notes for the log (refused registrations). */
+  readonly warn: (message: string) => void
+  /** A process the running turn started (M86's checkpoint mark). */
+  readonly onProcess?: (() => void) | undefined
+  readonly now: () => number
+}
 
 export interface ForeignHookAdapterDeps {
   readonly workspaceRoot: string
@@ -54,6 +82,8 @@ export interface ForeignHookAdapterDeps {
   readonly io: RealPathIo
   /** The user's home: Cursor runs its user hooks from `~/.cursor`. */
   readonly homeDir: string | undefined
+  /** Plugin hooks' host side; without it they are refused. */
+  readonly plugins?: PluginHostDeps | undefined
 }
 
 const KIRO_FILE_TRIGGERS: Readonly<Record<string, ForeignDispatchContext['fileOperation']>> = {
@@ -69,9 +99,14 @@ const TRUNCATED = '[truncated]'
 const CURSOR_HOME = '.cursor'
 
 const FORMATS: ReadonlySet<string> = new Set(HOOK_FORMATS)
+const PLUGINS: ReadonlySet<string> = new Set(PLUGIN_FORMATS)
 
 function isHookFormat(value: string): value is HookFormat {
   return FORMATS.has(value)
+}
+
+function isPluginFormat(value: string): value is PluginFormat {
+  return PLUGINS.has(value)
 }
 
 function commandOf(payload: Readonly<Record<string, unknown>>): string | undefined {
@@ -150,6 +185,11 @@ function powerShellCommand(
 class ForeignHooks implements ForeignHookAdapter {
   /** Follow-ups each Cursor stop or subagentStop script asked for in this conversation. */
   private readonly loops = new Map<HookDefinition, number>()
+  /** This session's plugin children, made on the first plugin hook. */
+  private plugins: PluginSession | undefined
+  /** The plugin host's bundle, required on the first plugin hook. */
+  private pluginHooks: Promise<typeof PluginHooks> | undefined
+  private isDisposed = false
 
   public constructor(private readonly deps: ForeignHookAdapterDeps) {}
 
@@ -208,6 +248,66 @@ class ForeignHooks implements ForeignHookAdapter {
     return { cwd: typeof cwd === 'string' ? cwd : root }
   }
 
+  /** An Amp or OpenCode plugin: its call, run in a child of this session's. */
+  private async preparePlugin(
+    hook: HookDefinition,
+    spec: ForeignHookSpec,
+    format: PluginFormat,
+    event: HookEvent,
+    payload: Readonly<Record<string, unknown>>,
+  ): Promise<ForeignPreparation> {
+    const host = this.deps.plugins
+    const { plugin } = spec
+    if (host === undefined || plugin === undefined) {
+      return { outcome: 'refused', reason: `${format}: plugin hooks cannot run here` }
+    }
+    let hooks: typeof PluginHooks
+    try {
+      this.pluginHooks ??= import('./pluginHooksEntry.js')
+      hooks = await this.pluginHooks
+    } catch {
+      this.pluginHooks = undefined
+      return { outcome: 'refused', reason: `${format}: the plugin host could not be loaded` }
+    }
+    const { containedTree, PluginSession, pluginAnswer, pluginRequest } = hooks
+    const request = pluginRequest(format, spec.sourceEvent, event, payload, host.now())
+    if (request.outcome === 'refused') {
+      return request
+    }
+    return {
+      outcome: 'plugin',
+      run: async (signal) => {
+        const tree = containedTree(await host.containment())
+        if (typeof tree === 'string') {
+          return {
+            status: request.route.failClosed ? 'blocked' : 'failed',
+            reason: `${format}: plugin children cannot be contained here`,
+            systemMessage: tree,
+          }
+        }
+        if (this.isDisposed) {
+          return { status: 'failed', reason: `${format}: the session is closed` }
+        }
+        this.plugins ??= new PluginSession({
+          env: host.env,
+          platform: this.deps.platform,
+          processTree: tree,
+          warn: host.warn,
+        })
+        host.onProcess?.()
+        const answer = await this.plugins.run(
+          {
+            ...request.call,
+            pluginPath: plugin,
+            timeoutMs: hook.timeoutSeconds * MILLISECONDS_PER_SECOND,
+          },
+          signal,
+        )
+        return pluginAnswer(format, event, answer, payload)
+      },
+    }
+  }
+
   public async prepare(
     hook: HookDefinition,
     spec: ForeignHookSpec,
@@ -215,6 +315,9 @@ class ForeignHooks implements ForeignHookAdapter {
     payload: Readonly<Record<string, unknown>>,
     context: ForeignDispatchContext | undefined,
   ): Promise<ForeignPreparation> {
+    if (isPluginFormat(spec.format)) {
+      return await this.preparePlugin(hook, spec, spec.format, event, payload)
+    }
     if (spec.format === 'kiro' && Object.hasOwn(KIRO_FILE_TRIGGERS, spec.sourceEvent)) {
       const wanted = KIRO_FILE_TRIGGERS[spec.sourceEvent]
       if (wanted === undefined || (context?.fileOperation ?? 'save') !== wanted) {
@@ -259,6 +362,12 @@ class ForeignHooks implements ForeignHookAdapter {
     payload: Readonly<Record<string, unknown>>,
   ): HookAnswer {
     const { format } = spec
+    if (isPluginFormat(format)) {
+      // Reached only when the plugin never ran: its record or input was refused.
+      const isClosed = format === 'opencode' && spec.sourceEvent === PLUGIN_FAIL_CLOSED_SOURCE
+      const reason = result.kind === 'refused' ? result.reason : `${format}: the plugin did not run`
+      return { status: isClosed ? 'blocked' : 'failed', reason }
+    }
     if (!isHookFormat(format)) {
       return { status: 'failed', reason: `${format} has no adapter` }
     }
@@ -292,6 +401,12 @@ class ForeignHooks implements ForeignHookAdapter {
     return answer.status === 'blocked' && this.isLooped(spec, event)
       ? this.counted(hook, spec, answer)
       : answer
+  }
+
+  /** Ends this session's plugin children; later plugin calls are refused. */
+  public dispose(): void {
+    this.isDisposed = true
+    this.plugins?.dispose()
   }
 }
 

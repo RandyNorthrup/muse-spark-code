@@ -64,6 +64,10 @@ const REVIEWER_OUTFILE = 'dist/reviewer.js'
 // loaded the first time a session holding one runs a hook.
 const FOREIGN_HOOKS_ENTRY = 'src/core/backends/modelapi/foreignHooksEntry.ts'
 const FOREIGN_HOOKS_OUTFILE = 'dist/foreignHooks.js'
+// M91b: the Amp and OpenCode plugin host, which the adapters require the
+// first time a session dispatches a plugin hook.
+const PLUGIN_HOOKS_ENTRY = 'src/core/backends/modelapi/pluginHooksEntry.ts'
+const PLUGIN_HOOKS_OUTFILE = 'dist/pluginHooks.js'
 const PLAN_MARKDOWN_ENTRY = 'src/host/planMarkdownEntry.ts'
 const PLAN_MARKDOWN_OUTFILE = 'dist/planMarkdown.js'
 const REVIEW_ENTRY = 'src/host/review/reviewEntry.ts'
@@ -119,13 +123,17 @@ const DEFERRED_OUTFILES = new Map([
   [path.resolve(SESSION_BOARD_ENTRY), SESSION_BOARD_OUTFILE],
   [path.resolve(REVIEWER_ENTRY), REVIEWER_OUTFILE],
   [path.resolve(FOREIGN_HOOKS_ENTRY), FOREIGN_HOOKS_OUTFILE],
+  [path.resolve(PLUGIN_HOOKS_ENTRY), PLUGIN_HOOKS_OUTFILE],
 ])
 /** @type {import('esbuild').Plugin} */
 const deferredCohort = {
   name: 'deferred-cohort',
   setup(build) {
     build.onResolve(
-      { filter: /\/(?:sessionBoardEntry|reviewerEntry|foreignHooksEntry)(?:\.[jt]s)?$/ },
+      {
+        filter:
+          /\/(?:sessionBoardEntry|reviewerEntry|foreignHooksEntry|pluginHooksEntry)(?:\.[jt]s)?$/,
+      },
       (args) => {
         if (args.kind !== 'dynamic-import') return
         const source = path.resolve(args.resolveDir, `${args.path.replace(/\.[jt]s$/, '')}.ts`)
@@ -190,6 +198,13 @@ const foreignHooksOptions = {
   ...modelApiOptions,
   entryPoints: [FOREIGN_HOOKS_ENTRY],
   outfile: FOREIGN_HOOKS_OUTFILE,
+}
+
+/** @type {import('esbuild').BuildOptions} */
+const pluginHooksOptions = {
+  ...modelApiOptions,
+  entryPoints: [PLUGIN_HOOKS_ENTRY],
+  outfile: PLUGIN_HOOKS_OUTFILE,
 }
 
 /** @type {import('esbuild').BuildOptions} */
@@ -356,6 +371,7 @@ if (isWatch) {
     esbuild.context(sessionBoardOptions),
     esbuild.context(reviewerOptions),
     esbuild.context(foreignHooksOptions),
+    esbuild.context(pluginHooksOptions),
     esbuild.context(planMarkdownOptions),
     esbuild.context(checkpointStoreOptions),
     esbuild.context(agentImportOptions),
@@ -378,6 +394,7 @@ if (isWatch) {
     sessionBoard: esbuild.build(sessionBoardOptions),
     reviewer: esbuild.build(reviewerOptions),
     foreignHooks: esbuild.build(foreignHooksOptions),
+    pluginHooks: esbuild.build(pluginHooksOptions),
     planMarkdown: esbuild.build(planMarkdownOptions),
     checkpointStore: esbuild.build(checkpointStoreOptions),
     agentImport: esbuild.build(agentImportOptions),

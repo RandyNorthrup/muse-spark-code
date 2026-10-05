@@ -88,6 +88,7 @@ public static class MuseSparkMcpJob {
   const int PROC_THREAD_ATTRIBUTE_HANDLE_LIST = 0x00020002;
   const uint DUPLICATE_SAME_ACCESS = 0x2;
   const uint JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE = 0x2000;
+  const uint JOB_OBJECT_LIMIT_JOB_MEMORY = 0x200;
   const uint WAIT_OBJECT_0 = 0;
   const uint WAIT_TIMEOUT = 258;
   const uint SYNCHRONIZE = 0x00100000;
@@ -162,7 +163,8 @@ public static class MuseSparkMcpJob {
   }
 
   public static int Run(string executable, string[] arguments, string cwd, uint parentPid,
-    string[] childEnvironment, bool verbatimArguments, string controlPipe, string controlNonce) {
+    string[] childEnvironment, bool verbatimArguments, string controlPipe, string controlNonce,
+    ulong jobMemoryLimit) {
     IntPtr job = IntPtr.Zero, input = IntPtr.Zero, output = IntPtr.Zero, error = IntPtr.Zero;
     IntPtr parent = IntPtr.Zero;
     IntPtr attributeList = IntPtr.Zero, handleList = IntPtr.Zero;
@@ -180,6 +182,11 @@ public static class MuseSparkMcpJob {
       if (job == IntPtr.Zero) throw new Win32Exception(Marshal.GetLastWin32Error());
       var limits = new EXTENDED_LIMITS();
       limits.BasicLimitInformation.LimitFlags = JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE;
+      // A bound on everything in the job together (M91b, plugin children).
+      if (jobMemoryLimit > 0) {
+        limits.BasicLimitInformation.LimitFlags |= JOB_OBJECT_LIMIT_JOB_MEMORY;
+        limits.JobMemoryLimit = new UIntPtr(jobMemoryLimit);
+      }
       if (!SetInformationJobObject(job, 9, ref limits, Marshal.SizeOf(typeof(EXTENDED_LIMITS))))
         throw new Win32Exception(Marshal.GetLastWin32Error());
       input = InheritStandard(-10);

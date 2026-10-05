@@ -63,9 +63,11 @@ import {
   createToolIo,
   readPickedFile,
   toolImagePreviewIo,
+  hookEnvironment,
   terminalPlatform,
   withTerminalOverrides,
 } from './host/backend/toolIo'
+import { pluginContainment } from './host/backend/pluginContainment'
 import { EditorContextTracker } from './host/editor/editorContextTracker'
 import { createRevertIo } from './host/editor/revertIo'
 import { createVerifyEditor } from './host/editor/verifyEditor'
@@ -1153,6 +1155,25 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   const storageDir = context.globalStorageUri.fsPath
   const windowsJobAssembly = windowsJobHelper(shellJobAssembly, storageDir, readJobSource, log)
   const windowsMcpJob = windowsJobHelper(mcpJobExecutable, storageDir, readJobSource, log)
+  // Amp and OpenCode plugin children (M91b): on Windows, M50's kill-on-close
+  // job launcher, prepared afresh after a failure.
+  const pluginJobs = pluginContainment({
+    platform: process.platform,
+    newJobExecutable: () => windowsJobHelper(mcpJobExecutable, storageDir, readJobSource, log),
+    now: () => Date.now(),
+    log: (message) => {
+      log.warn(message)
+    },
+  })
+  const shellEnvironmentOf = (): NodeJS.ProcessEnv =>
+    withTerminalOverrides(
+      process.env,
+      vscode.workspace
+        .getConfiguration(TERMINAL_ENV_SECTION)
+        .get<Record<string, string | null>>(TERMINAL_ENV_KEYS[terminalPlatform()]) ?? {},
+      process.platform,
+      workspaceRoot,
+    )
   // The workspace's files and a shell (M7): the Model API backend's tools,
   // and the files the ide server's image tools read and write (M44).
   const toolIo = createToolIo({
@@ -1161,15 +1182,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     systemRoot: process.env['SystemRoot'],
     // The user's terminal environment settings apply to the shell tool as
     // they do to VS Code's terminal (PLAN.md D25).
-    env: () =>
-      withTerminalOverrides(
-        process.env,
-        vscode.workspace
-          .getConfiguration(TERMINAL_ENV_SECTION)
-          .get<Record<string, string | null>>(TERMINAL_ENV_KEYS[terminalPlatform()]) ?? {},
-        process.platform,
-        workspaceRoot,
-      ),
+    env: shellEnvironmentOf,
     searchWorkerPath: vscode.Uri.joinPath(context.extensionUri, 'dist', SEARCH_WORKER_FILE).fsPath,
     log: (message) => {
       log.warn(message)
@@ -1563,6 +1576,11 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     confirmContributorModel: isContributorModelAllowed,
     hookSettingsPath: museSettingsPath(museConfig()),
     isHooksEnabled: () => currentSettings().modelApiHooks,
+    // Plugin children get the hook environment (M51) and their tree (M91b).
+    pluginHooks: {
+      env: () => hookEnvironment(shellEnvironmentOf(), process.platform),
+      containment: pluginJobs.containment,
+    },
     // Sessions survive the window (PLAN.md D14) in the workspace storage
     // directory; no folder open, no storage, no persistence.
     store:
@@ -2572,6 +2590,10 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     ),
     registerLoggedCommand(log, COMMAND_IDS.setUpSandbox, async () => {
       await sandbox.runCommand()
+    }),
+    registerLoggedCommand(log, COMMAND_IDS.retryPluginHooks, () => {
+      pluginJobs.reset()
+      void vscode.window.showInformationMessage(UI_TEXT.pluginHooksRetried)
     }),
     // A fresh `muse serve` without a window reload (CLI recovery): a running
     // turn is stopped, and each conversation resumes with its next message.

@@ -24,6 +24,8 @@ export interface McpJobLaunch {
   /** Only the allowlisted and explicitly configured variables reach the server. */
   readonly env: NodeJS.ProcessEnv
   readonly log: (message: string) => void
+  /** The whole job's memory in bytes (M91b, plugin children); absent sets no limit. */
+  readonly jobMemoryLimit?: number | undefined
 }
 
 /** The raw pipes belong to this ChildProcess; no text relay touches MCP frames. */
@@ -82,6 +84,7 @@ export function spawnMcpJob(launch: McpJobLaunch): ChildProcessWithoutNullStream
       isVerbatim: launch.isVerbatim,
       controlPipe,
       controlNonce,
+      ...(launch.jobMemoryLimit !== undefined && { jobMemoryLimit: launch.jobMemoryLimit }),
     }),
     'utf8',
   ).toString('base64')

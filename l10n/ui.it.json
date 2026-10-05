@@ -386,6 +386,8 @@
   "hookAdapterUnreadable": "Un hook in formato {format} ha dato una risposta che questa finestra non riesce a leggere, quindi conta come errore.",
   "hookAdapterFailClosed": "Una protezione in formato {format} non è riuscita, quindi la chiamata è stata bloccata, come la bloccherebbe {format} stesso.",
   "hookOutputReplaced": "Un hook ha sostituito ciò che il modello vede dell’output di questo strumento; la riga mostra l’output reale.",
+  "pluginHooksNoJob": "Gli hook dei plugin di Amp e OpenCode non sono stati eseguiti: Windows non è riuscito a preparare il job che li contiene. Esegui «Riprova gli hook dei plugin» per riprovare.",
+  "pluginHooksRetried": "Gli hook dei plugin prepareranno di nuovo il loro job di Windows alla prossima esecuzione.",
   "memoryItem": "Memoria…",
   "memoryItemDetail": "Le note che Muse conserva per le sessioni successive",
   "memoryTitle": "Memoria di Muse",

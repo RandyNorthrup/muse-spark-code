@@ -17,7 +17,7 @@ differs from the source. Do not edit it by hand.
 | `capabilities.untrustedWorkspaces` | `limited`                                                                                                                    |
 | `enabledApiProposals`              | none                                                                                                                         |
 | `activationEvents`                 | `onWebviewPanel:museSpark.chatPanel`                                                                                         |
-| `contributes`                      | `commands` (30), `configuration` (2), `keybindings` (7), `menus` (2), `views` (1), `viewsContainers` (1), `walkthroughs` (1) |
+| `contributes`                      | `commands` (31), `configuration` (2), `keybindings` (7), `menus` (2), `views` (1), `viewsContainers` (1), `walkthroughs` (1) |
 
 ## Build targets
 
@@ -353,26 +353,26 @@ Functions, variables, classes, enums and members declared in `@types/vscode`; th
 
 | Module                 | Files |
 | ---------------------- | ----- |
-| `node:buffer`          | 27    |
-| `node:child_process`   | 9     |
+| `node:buffer`          | 29    |
+| `node:child_process`   | 10    |
 | `node:crypto`          | 32    |
 | `node:dns`             | 1     |
 | `node:dns/promises`    | 1     |
-| `node:fs`              | 24    |
-| `node:fs/promises`     | 34    |
+| `node:fs`              | 26    |
+| `node:fs/promises`     | 35    |
 | `node:http`            | 2     |
 | `node:https`           | 1     |
 | `node:module`          | 1     |
 | `node:net`             | 3     |
-| `node:os`              | 6     |
-| `node:path`            | 65    |
+| `node:os`              | 7     |
+| `node:path`            | 69    |
 | `node:process`         | 1     |
 | `node:stream`          | 9     |
 | `node:string_decoder`  | 1     |
 | `node:timers/promises` | 3     |
 | `node:tls`             | 1     |
 | `node:url`             | 3     |
-| `node:util`            | 4     |
+| `node:util`            | 5     |
 | `node:vm`              | 1     |
 | `node:worker_threads`  | 4     |
 | `node:zlib`            | 1     |

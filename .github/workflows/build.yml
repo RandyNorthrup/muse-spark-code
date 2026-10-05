@@ -181,6 +181,7 @@ jobs:
             extension/dist/review.js extension/dist/agentImport.js extension/dist/bundledSkills.js \
             extension/dist/uiText.js \
             extension/dist/sessionBoard.js extension/dist/reviewer.js \
+            extension/dist/foreignHooks.js extension/dist/pluginHooks.js \
             extension/dist/codeIntel.js extension/dist/voice.js extension/dist/museCodeReviewer.js \
             extension/dist/webview/main.js extension/dist/webview/main.css; do
             if ! grep -Fxq -- "$entry" <<< "$listing"; then

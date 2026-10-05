@@ -28,6 +28,7 @@
   "command.openShareFile.title": "Abrir arquivo compartilhado",
   "command.mcpServers.title": "Servidores MCP",
   "command.hooks.title": "Ganchos",
+  "command.retryPluginHooks.title": "Tentar novamente os ganchos de plugins",
   "command.memory.title": "Memória",
   "command.newWorktree.title": "Nova Árvore de Trabalho…",
   "command.removeWorktree.title": "Remover Árvore de Trabalho…",

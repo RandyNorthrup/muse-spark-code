@@ -28,6 +28,7 @@
   "command.openShareFile.title": "Otevřít sdílený soubor",
   "command.mcpServers.title": "Servery MCP",
   "command.hooks.title": "Hooky",
+  "command.retryPluginHooks.title": "Zkusit znovu hooky pluginů",
   "command.memory.title": "Paměť",
   "command.newWorktree.title": "Nový pracovní strom…",
   "command.removeWorktree.title": "Odebrat pracovní strom…",

@@ -17,6 +17,8 @@ const HOST_BUNDLES = [
   'dist/review.js',
   'dist/sessionBoard.js',
   'dist/reviewer.js',
+  'dist/foreignHooks.js',
+  'dist/pluginHooks.js',
   'dist/planMarkdown.js',
   'dist/checkpointStore.js',
   'dist/agentImport.js',

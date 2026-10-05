@@ -35,6 +35,8 @@ import {
   CODE_INTEL_TOOLS,
   MILLISECONDS_PER_SECOND,
   MODEL_API_TOOLS,
+  PLUGIN_FORMATS,
+  PLUGIN_HOOK_TIMEOUT_MS,
   PROJECT_HOOKS_SEGMENTS,
   SPARK_HOOKS_SEGMENTS,
 } from '../../../shared/constants'
@@ -105,6 +107,8 @@ export interface ForeignHookSpec {
   readonly cwd?: string | undefined
   /** Kiro's hook name. */
   readonly description?: string | undefined
+  /** Amp's and OpenCode's plugin file (M91b): absolute and normalized. */
+  readonly plugin?: string | undefined
 }
 
 /** A documented output replacement, applied before packing (D70 SoL-Pi rule 2). */
@@ -136,6 +140,14 @@ export type ForeignPreparation =
       /** The command line in place of the hook's own (a Windows PowerShell source). */
       readonly command?: string | undefined
     }
+  /**
+   * An Amp or OpenCode plugin (M91b): the adapter runs it in its own child
+   * and answers by the source's rules; hooks.ts gives it the host-wide cap.
+   */
+  | {
+      readonly outcome: 'plugin'
+      readonly run: (signal: AbortSignal | undefined) => Promise<HookAnswer>
+    }
   /** The source would not run it here, and that is not a failure. */
   | { readonly outcome: 'skip'; readonly reason: string }
   | { readonly outcome: 'refused'; readonly reason: string }
@@ -162,6 +174,8 @@ export interface ForeignHookAdapter {
     result: ForeignRunResult,
     payload: Readonly<Record<string, unknown>>,
   ): HookAnswer
+  /** Ends what the adapter still runs (plugin children) with the session. */
+  dispose?(): void
 }
 
 export type HookMatcher =
@@ -623,9 +637,12 @@ const FOREIGN_GROUP_FIELDS = new Set([
   'loop_limit',
   'description',
   'async',
+  'plugin',
 ])
 const FOREIGN_HANDLER_FIELDS = new Set(['type', 'command', 'commandWindows', 'timeout', 'cwd'])
-const FOREIGN_FORMATS: ReadonlySet<string> = new Set(HOOK_FORMATS)
+const FOREIGN_FORMATS: ReadonlySet<string> = new Set([...HOOK_FORMATS, ...PLUGIN_FORMATS])
+const PLUGIN_FORMAT_NAMES: ReadonlySet<string> = new Set(PLUGIN_FORMATS)
+const PLUGIN_HANDLER_FIELDS = new Set(['type', 'timeout'])
 const FOREIGN_FLAVORS: Readonly<Record<string, ReadonlySet<string>>> = {
   copilot: new Set(['copilot', 'vscode']),
   cursor: new Set(['generic', 'specialized']),
@@ -700,6 +717,10 @@ function foreignSpec(group: HookRecord, event: HookEvent): ForeignHookSpec | str
       group['description'] !== undefined && typeof group['description'] !== 'string',
       'description must be a string',
     ],
+    [
+      group['plugin'] !== undefined && !PLUGIN_FORMAT_NAMES.has(format),
+      'plugin is Amp’s and OpenCode’s only',
+    ],
   ]
   const failed = checks.find(([isFailed]) => isFailed)
   if (failed !== undefined) {
@@ -732,6 +753,77 @@ function foreignSpec(group: HookRecord, event: HookEvent): ForeignHookSpec | str
   }
 }
 
+/** A plugin path: absolute and already in its normalized form, or undefined. */
+function pluginPath(value: unknown, platform: NodeJS.Platform): string | undefined {
+  if (typeof value !== 'string' || value === '' || value.length > HOOK_MATCHER_VALUE_MAX_CHARS) {
+    return undefined
+  }
+  const p = platform === 'win32' ? path.win32 : path.posix
+  return p.isAbsolute(value) && p.normalize(value) === value ? value : undefined
+}
+
+/**
+ * An Amp or OpenCode plugin group (M91b): one `{ type: 'plugin' }` handler
+ * and the plugin's absolute path. Built here, not by `handler()`, which
+ * takes commands only; its timeout and matcher follow the native rules.
+ */
+function pluginGroup(
+  group: HookRecord,
+  spec: ForeignHookSpec,
+  event: HookEvent,
+  source: HookSource,
+  platform: NodeJS.Platform,
+): HookDefinition | string {
+  const plugin = pluginPath(group['plugin'], platform)
+  if (plugin === undefined) {
+    return 'plugin must be an absolute, normalized path'
+  }
+  const entries: unknown = group.hooks
+  const entry: unknown = Array.isArray(entries) && entries.length === 1 ? entries[0] : undefined
+  if (!isRecord(entry)) {
+    return 'an imported group holds exactly one handler'
+  }
+  const unknownField = Object.keys(entry).find((key) => !PLUGIN_HANDLER_FIELDS.has(key))
+  if (unknownField !== undefined) {
+    return `unsupported handler field ${unknownField}`
+  }
+  if (entry.type !== 'plugin') {
+    return 'handler type must be plugin'
+  }
+  const { timeout } = entry
+  if (
+    timeout !== undefined &&
+    (typeof timeout !== 'number' || !Number.isSafeInteger(timeout) || timeout < 0)
+  ) {
+    return 'handler timeout must be a non-negative integer'
+  }
+  if (typeof timeout === 'number' && timeout > HOOK_MAX_TIMEOUT_SECONDS) {
+    return `handler timeout exceeds ${String(HOOK_MAX_TIMEOUT_SECONDS)} seconds`
+  }
+  if (event === 'Interrupt' && group.async !== true) {
+    return 'Interrupt must be asynchronous'
+  }
+  if (event === 'SessionFork' && group.async === true) {
+    return 'SessionFork cannot be asynchronous'
+  }
+  const matcher = matcherFor(group.matcher, event)
+  if (typeof matcher === 'string') {
+    return matcher
+  }
+  return {
+    event,
+    source,
+    command: plugin,
+    timeoutSeconds: Math.max(
+      typeof timeout === 'number' ? timeout : PLUGIN_HOOK_TIMEOUT_MS / MILLISECONDS_PER_SECOND,
+      1,
+    ),
+    matcher,
+    isAsync: group.async === true,
+    foreign: { ...spec, plugin },
+  }
+}
+
 /** One foreign group as a definition, or why it is refused. */
 function foreignGroup(
   group: HookRecord,
@@ -749,6 +841,9 @@ function foreignGroup(
   const spec = foreignSpec(group, event)
   if (typeof spec === 'string') {
     return spec
+  }
+  if (PLUGIN_FORMAT_NAMES.has(spec.format)) {
+    return pluginGroup(group, spec, event, source, platform)
   }
   const entries: unknown = group.hooks
   const entry: unknown = Array.isArray(entries) && entries.length === 1 ? entries[0] : undefined
@@ -1063,6 +1158,37 @@ function withoutGrant(answer: HookAnswer): HookAnswer {
 }
 
 /**
+ * A plugin hook (M91b) under the same host-wide cap as every hook process;
+ * its answer goes through the same judge, so no grant survives and a
+ * failure never becomes feedback. A cancelled call answers nothing.
+ */
+async function runPluginHandler(
+  run: (signal: AbortSignal | undefined) => Promise<HookAnswer>,
+  signal: AbortSignal | undefined,
+  judgeAnswer: (answer: HookAnswer) => HookAnswer | undefined,
+  onUnstarted: () => void,
+): Promise<HookAnswer | undefined> {
+  let release: () => void
+  try {
+    release = await acquireCommand(signal)
+  } catch {
+    return undefined
+  }
+  try {
+    const answer = await run(signal)
+    return signal?.aborted === true ? undefined : judgeAnswer(answer)
+  } catch {
+    if (signal?.aborted === true) {
+      return undefined
+    }
+    onUnstarted()
+    return judgeAnswer({ status: 'failed', reason: 'the plugin could not start' })
+  } finally {
+    release()
+  }
+}
+
+/**
  * One imported hook (M91 lane W): its adapter builds the stdin its source
  * agent would send, the process runs under the same cap, environment and
  * kill as a native hook, and the adapter reads the ending by that source's
@@ -1082,8 +1208,8 @@ async function runForeignHandler(
   warn: (message: string) => void,
 ): Promise<HookAnswer | undefined> {
   const label = `${event}: ${spec.format}-format ${hook.source} hook`
-  const judge = (result: ForeignRunResult): HookAnswer | undefined => {
-    const answer = withoutGrant(adapter.answer(hook, spec, event, result, payload))
+  const judgeAnswer = (given: HookAnswer): HookAnswer | undefined => {
+    const answer = withoutGrant(given)
     if (answer.status !== 'failed') {
       return answer
     }
@@ -1092,6 +1218,8 @@ async function runForeignHandler(
       ? undefined
       : { status: 'completed', systemMessage: answer.systemMessage }
   }
+  const judge = (result: ForeignRunResult): HookAnswer | undefined =>
+    judgeAnswer(adapter.answer(hook, spec, event, result, payload))
   let prepared: ForeignPreparation
   try {
     prepared = await adapter.prepare(hook, spec, event, payload, context)
@@ -1104,6 +1232,11 @@ async function runForeignHandler(
   if (prepared.outcome === 'refused') {
     warn(`${label} was not started: ${prepared.reason}`)
     return judge({ kind: 'refused', reason: prepared.reason })
+  }
+  if (prepared.outcome === 'plugin') {
+    return await runPluginHandler(prepared.run, signal, judgeAnswer, () => {
+      warn(`${label} could not start`)
+    })
   }
   if (Buffer.byteLength(prepared.stdin) > HOOK_STDIN_MAX_BYTES) {
     warn(`${label} input exceeds limit; it was not started`)
@@ -1233,6 +1366,12 @@ export async function dispatchHooks(
     // Muse applies continue:false before any decision from that handler.
     if (answer.stopReason !== undefined) {
       stopReason ??= answer.stopReason
+      // Only an imported hook stops at PreToolUse (Muse's parser refuses
+      // continue there): Amp's tool.call `error` ends the thread, so the
+      // call it guarded never runs either (M91b).
+      if (event === 'PreToolUse' && answer.status === 'blocked') {
+        blockedReason ??= answer.reason ?? answer.stopReason
+      }
       continue
     }
     if (
