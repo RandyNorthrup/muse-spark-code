@@ -13,6 +13,89 @@ const unit = { kind: 'function', name: 'outer', start: 0, end: file.source.lengt
 const signal = () => new AbortController().signal
 
 describe('batched lint evaluation', () => {
+  it('keeps cached decisions bound to numeric rule IDs after reordering', async () => {
+    const evaluator = lintEvaluator()
+    const judgeAdmitted = vi.fn((request: JudgeRequest) => {
+      const pass = lintResponse(request)
+      const fail = lintResponse(request, 'B')
+      return Promise.resolve({
+        ...pass,
+        answers: { '1': pass.answers['1'], '2': fail.answers['2'] },
+      })
+    })
+    const active = { ...evaluator, judgeAdmitted }
+    const rules = [lintRule({ id: '1' }), lintRule({ id: '2' })]
+    const first = await evaluateLintUnit(file, unit, rules, active, 0, signal())
+    const second = await evaluateLintUnit(file, unit, rules.toReversed(), active, 0, signal())
+    const outcomes = (results: typeof first) =>
+      Object.fromEntries(results.map((result) => [result.rule.id, result.decision.outcome]))
+    expect(outcomes(first)).toEqual({ '1': 'pass', '2': 'fail' })
+    expect(outcomes(second)).toEqual(outcomes(first))
+    expect(judgeAdmitted).toHaveBeenCalledTimes(1)
+  })
+
+  it.each([0, 0.25])('rejects a choice below the maximum probability (%s)', async (probability) => {
+    const evaluator = lintEvaluator()
+    const judgeAdmitted = vi.fn((request: JudgeRequest) =>
+      Promise.resolve(lintResponse(request, 'A', probability)),
+    )
+    await expect(
+      evaluateLintUnit(file, unit, [lintRule()], { ...evaluator, judgeAdmitted }, 0, signal()),
+    ).rejects.toThrow('lint-answer-distribution')
+    expect(evaluator.cache.toJSON()).toEqual([])
+  })
+
+  it('accepts tied maximum choices without trusting vendor confidence', async () => {
+    const evaluator = lintEvaluator()
+    const judgeAdmitted = vi.fn((request: JudgeRequest) =>
+      Promise.resolve(lintResponse(request, 'B', 0.5)),
+    )
+    const results = await evaluateLintUnit(
+      file,
+      unit,
+      [lintRule({ minConfidence: 0 })],
+      { ...evaluator, judgeAdmitted },
+      0,
+      signal(),
+    )
+    expect(results[0]?.decision).toEqual({ outcome: 'fail', confidence: 0 })
+  })
+
+  it('splits large valid rule sets while preserving complete state and per-rule outcomes', async () => {
+    const evaluator = lintEvaluator()
+    const rules = Array.from({ length: 130 }, (_, index) => lintRule({ id: String(index) }))
+    const results = await evaluateLintUnit(file, unit, rules, evaluator, 2, signal())
+    expect(results).toHaveLength(rules.length)
+    expect(new Set(results.map((result) => result.rule.id)).size).toBe(rules.length)
+    expect(results.every((result) => result.decision.outcome === 'pass')).toBe(true)
+    expect(evaluator.judgeAdmitted).toHaveBeenCalledTimes(3)
+    for (const [request, budget] of vi.mocked(evaluator.judgeAdmitted).mock.calls) {
+      expect(Object.keys(request.questions).length).toBeLessThanOrEqual(64)
+      expect(request.state).toEqual({
+        language: file.language,
+        kind: unit.kind,
+        name: unit.name,
+        path: file.path,
+        source: file.source,
+      })
+      expect(budget).toBe(2)
+    }
+  })
+
+  it('splits question bytes without fragmenting state or bypassing the body bound', async () => {
+    const evaluator = lintEvaluator()
+    const rules = Array.from({ length: 50 }, (_, index) =>
+      lintRule({ id: String(index), description: 'criteria'.repeat(300) }),
+    )
+    const results = await evaluateLintUnit(file, unit, rules, evaluator, 0, signal())
+    expect(results).toHaveLength(rules.length)
+    expect(evaluator.judgeAdmitted).toHaveBeenCalledTimes(2)
+    for (const [request] of vi.mocked(evaluator.judgeAdmitted).mock.calls) {
+      expect(Buffer.byteLength(JSON.stringify(request))).toBeLessThanOrEqual(65_536)
+      expect(request.state).toMatchObject({ source: file.source })
+    }
+  })
+
   it('preserves localized source, complete parent context and parent callees', async () => {
     const evaluator = lintEvaluator()
     const instructions = vi.fn(

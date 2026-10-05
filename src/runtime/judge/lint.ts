@@ -115,16 +115,28 @@ export async function runJudgeLint(
   const findings: LintFinding[] = []
   const coverage: LintCoverage[] = []
   const checkedUnits = new Map<number, number>()
+  const identity = { ...deps.evaluator.identity }
+  const assertCurrent = () => {
+    signal.throwIfAborted()
+    if (
+      Object.entries(identity).some(
+        ([key, value]) => Reflect.get(deps.evaluator.identity, key) !== value,
+      )
+    ) {
+      throw new Error('lint-source-changed')
+    }
+  }
   let isIncomplete = false
   let error: string | undefined
   const parsed = optionsSchema.safeParse(rawOptions)
   const options = parsed.success ? parsed.data : {}
   try {
     if (!parsed.success) throw new Error('lint-options-invalid')
-    signal.throwIfAborted()
+    assertCurrent()
     const rules = await deps.rules()
+    assertCurrent()
     const files = await deps.files(options.changed ?? false)
-    signal.throwIfAborted()
+    assertCurrent()
     if (files.length === 0 || rules.length === 0) throw new Error('lint-no-input')
     let judgedUnits = 0
     for (const file of files) {
@@ -137,6 +149,7 @@ export async function runJudgeLint(
         [...new Set(fileRules.flatMap((rule) => rule.kinds))],
         deps.extractors,
       )
+      assertCurrent()
       const baseCoverage = coverage.length
       coverage.push(...extraction.coverage)
       for (const unit of extraction.units) {
@@ -151,6 +164,7 @@ export async function runJudgeLint(
           options.budgetUsd ?? 0,
           signal,
         )
+        assertCurrent()
         if (results.length === 0) continue
         judgedUnits += 1
         if (
@@ -169,11 +183,11 @@ export async function runJudgeLint(
             isIncomplete = true
           if (result.decision.outcome !== 'fail') continue
           const finding = await findingFor(file, result, deps, options.failOn !== undefined)
-          signal.throwIfAborted()
+          assertCurrent()
           findings.push(finding)
           if (result.rule.localize.length === 0) continue
           const rawRegions = await deps.localize(file, unit, deps.maxLocalizedRegions)
-          signal.throwIfAborted()
+          assertCurrent()
           if (rawRegions === undefined) {
             isIncomplete = true
             coverage.push({
@@ -229,6 +243,7 @@ export async function runJudgeLint(
               signal,
               unit,
             )
+            assertCurrent()
             if (
               localized.length > 0 &&
               localized.every(
@@ -240,9 +255,16 @@ export async function runJudgeLint(
               checkedUnits.set(localizedIndex, (checkedUnits.get(localizedIndex) ?? 0) + 1)
             }
             for (const detail of localized) {
-              if (detail.decision.outcome === 'fail')
-                findings.push(await findingFor(file, detail, deps, options.failOn !== undefined))
-              else if (
+              if (detail.decision.outcome === 'fail') {
+                const localizedFinding = await findingFor(
+                  file,
+                  detail,
+                  deps,
+                  options.failOn !== undefined,
+                )
+                assertCurrent()
+                findings.push(localizedFinding)
+              } else if (
                 detail.decision.outcome === 'inconclusive' ||
                 detail.decision.outcome === 'abstain'
               )
@@ -254,12 +276,16 @@ export async function runJudgeLint(
     }
     if (judgedUnits === 0) isIncomplete = true
     if (coverage.some((row) => row.status === 'not-checked')) isIncomplete = true
-    signal.throwIfAborted()
+    assertCurrent()
   } catch (error_: unknown) {
     isIncomplete = true
     // Never echo provider/tool exceptions, which can contain source or credentials.
     error =
       error_ instanceof Error && errorCodes.has(error_.message) ? error_.message : 'lint-run-failed'
+    if (error === 'lint-source-changed') {
+      findings.length = 0
+      checkedUnits.clear()
+    }
   }
   const actualCoverage: LintCoverage[] = coverage.map((row, index) => {
     if (row.status === 'not-checked') return row

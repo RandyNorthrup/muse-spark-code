@@ -1,4 +1,5 @@
 import * as z from 'zod/mini'
+import { JUDGE_QUESTION_MAX } from '../../../shared/constants'
 import { redactSecrets } from '../../redact'
 import { entropyConfidence } from '../math'
 import { judgeRequestSchema, judgeResultSchema, type JudgeRequest } from '../schema'
@@ -74,6 +75,13 @@ function decisionsFromResponse(
     const confidence = entropyConfidence(probabilities.map((probability) => probability ?? 0))
     const outcome = prepared.outcomes[answer.choice]
     if (outcome === undefined) throw new Error('lint-answer-alignment')
+    const chosenProbability = answer.probabilities[answer.choice]
+    if (
+      chosenProbability === undefined ||
+      probabilities.some((probability) => (probability ?? 0) > chosenProbability)
+    ) {
+      throw new Error('lint-answer-distribution')
+    }
     return {
       outcome: meta.partial || confidence < rule.minConfidence ? 'inconclusive' : outcome,
       confidence,
@@ -115,7 +123,10 @@ export async function evaluateLintUnit(
   const results: LintUnitResult[] = []
   for (const isNeedsCallees of [false, true]) {
     signal.throwIfAborted()
-    const group = rules.filter((rule) => rule.callees === isNeedsCallees)
+    // Cache decisions are positional, so identical serialized questions require a stable rule order.
+    const group = rules
+      .filter((rule) => rule.callees === isNeedsCallees)
+      .toSorted((left, right) => left.id.localeCompare(right.id))
     if (group.length === 0) continue
     const callees = isNeedsCallees
       ? z.array(calleeSchema).parse(await evaluator.callees(file, parent ?? unit))
@@ -129,59 +140,79 @@ export async function evaluateLintUnit(
     ) {
       throw new RangeError('lint-context-too-large')
     }
-    const questions = new Map(
-      group.map((rule) => [rule.id, lintQuestion(rule, evaluator.wording, parent !== undefined)]),
-    )
-    const rawRequest = {
-      model: identity.model,
-      state: {
-        language: file.language,
-        kind: parent === undefined ? unit.kind : 'region',
-        name: unit.name,
-        path: file.path,
-        source: file.source.slice(unit.start, unit.end),
-        ...(parent !== undefined && {
-          parentSource: file.source.slice(parent.start, parent.end),
-          regionKind: unit.kind,
-        }),
-        ...(callees.length > 0 && { callees }),
-      },
-      questions: Object.fromEntries(
-        [...questions].map(([id, prepared]) => [id, prepared.question]),
-      ),
+    const pending: LintRule[][] = []
+    for (let offset = 0; offset < group.length; offset += JUDGE_QUESTION_MAX) {
+      pending.push(group.slice(offset, offset + JUDGE_QUESTION_MAX))
     }
-    // Redact the entire request before hashing or dispatch; cache reuse never wins over privacy.
-    const request = judgeRequestSchema.parse(JSON.parse(redactSecrets(JSON.stringify(rawRequest))))
-    const cached = evaluator.cache.get(request, identity)
-    const decisions =
-      cached ??
-      decisionsFromResponse(
-        await evaluator.judgeAdmitted(request, budgetUsd, signal),
-        request,
-        group,
-        questions,
-        evaluator,
+    while (pending.length > 0) {
+      signal.throwIfAborted()
+      assertIdentity()
+      const batch = pending.shift()
+      if (batch === undefined) throw new Error('lint-answer-alignment')
+      const questions = new Map(
+        batch.map((rule) => [rule.id, lintQuestion(rule, evaluator.wording, parent !== undefined)]),
       )
-    signal.throwIfAborted()
-    assertIdentity()
-    if (
-      cached === undefined &&
-      decisions.every((decision) => decision.outcome !== 'inconclusive')
-    ) {
-      evaluator.cache.put(request, identity, decisions)
-    }
-    for (const [index, rule] of group.entries()) {
-      const decision = decisions[index]
-      if (decision === undefined) throw new Error('lint-answer-alignment')
-      results.push({
-        rule,
-        unit,
-        provenance: identity.provenance,
-        decision: {
-          ...decision,
-          outcome: decision.confidence < rule.minConfidence ? 'inconclusive' : decision.outcome,
+      const rawRequest = {
+        model: identity.model,
+        state: {
+          language: file.language,
+          kind: parent === undefined ? unit.kind : 'region',
+          name: unit.name,
+          path: file.path,
+          source: file.source.slice(unit.start, unit.end),
+          ...(parent !== undefined && {
+            parentSource: file.source.slice(parent.start, parent.end),
+            regionKind: unit.kind,
+          }),
+          ...(callees.length > 0 && { callees }),
         },
-      })
+        questions: Object.fromEntries(
+          [...questions].map(([id, prepared]) => [id, prepared.question]),
+        ),
+      }
+      // Redact the entire request before hashing or dispatch; cache reuse never wins over privacy.
+      const parsed = judgeRequestSchema.safeParse(
+        JSON.parse(redactSecrets(JSON.stringify(rawRequest))),
+      )
+      if (!parsed.success) {
+        if (batch.length === 1) throw parsed.error
+        // Only questions split. Every attempted batch retains the complete unit and context.
+        const middle = Math.ceil(batch.length / 2)
+        pending.unshift(batch.slice(0, middle), batch.slice(middle))
+        continue
+      }
+      const request = parsed.data
+      const cached = evaluator.cache.get(request, identity)
+      const decisions =
+        cached ??
+        decisionsFromResponse(
+          await evaluator.judgeAdmitted(request, budgetUsd, signal),
+          request,
+          batch,
+          questions,
+          evaluator,
+        )
+      signal.throwIfAborted()
+      assertIdentity()
+      if (
+        cached === undefined &&
+        decisions.every((decision) => decision.outcome !== 'inconclusive')
+      ) {
+        evaluator.cache.put(request, identity, decisions)
+      }
+      for (const [index, rule] of batch.entries()) {
+        const decision = decisions[index]
+        if (decision === undefined) throw new Error('lint-answer-alignment')
+        results.push({
+          rule,
+          unit,
+          provenance: identity.provenance,
+          decision: {
+            ...decision,
+            outcome: decision.confidence < rule.minConfidence ? 'inconclusive' : decision.outcome,
+          },
+        })
+      }
     }
   }
   return results

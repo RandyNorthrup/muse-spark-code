@@ -28,6 +28,66 @@ function failing(deps = lintRunDependencies()): JudgeLintDependencies {
 }
 
 describe('judge lint runtime entry', () => {
+  it.each([false, true])(
+    'discards stale findings when identity changes during corroboration (localized=%s)',
+    async (isLocalized) => {
+      const deps = failing()
+      const evaluator = {
+        ...deps.evaluator,
+        identity: { ...deps.evaluator.identity, provenance: 'experimental-systemone' as const },
+      }
+      let calls = 0
+      const corroborate = vi.fn(() => {
+        calls += 1
+        if (calls === (isLocalized ? 2 : 1))
+          evaluator.identity = { ...evaluator.identity, profile: 'changed-profile' }
+        return Promise.resolve(true)
+      })
+      const result = await runJudgeLint(
+        { failOn: 'error' },
+        {
+          ...deps,
+          evaluator,
+          corroborate,
+          rules: vi
+            .fn()
+            .mockResolvedValue([lintRule({ localize: isLocalized ? ['statement'] : [] })]),
+          localize: vi
+            .fn()
+            .mockResolvedValue([{ kind: 'statement', name: 'return', start: 15, end: 23 }]),
+        },
+        signal(),
+      )
+      expect(result.exitCode).toBe(2)
+      expect(result.report.error).toBe('lint-source-changed')
+      expect(result.report.incomplete).toBe(true)
+      expect(result.report.findings).toEqual([])
+      expect(result.report.coverage.every((row) => row.status === 'not-checked')).toBe(true)
+    },
+  )
+
+  it('rebinds identity after localization before dispatching a region', async () => {
+    const deps = failing()
+    const identity = { ...deps.evaluator.identity }
+    const result = await runJudgeLint(
+      {},
+      {
+        ...deps,
+        evaluator: { ...deps.evaluator, identity },
+        rules: vi.fn().mockResolvedValue([lintRule({ localize: ['statement'] })]),
+        localize: vi.fn(() => {
+          identity.endpoint = 'https://changed.invalid/systemone'
+          return Promise.resolve([{ kind: 'statement', name: 'return', start: 15, end: 23 }])
+        }),
+      },
+      signal(),
+    )
+    expect(result.report.error).toBe('lint-source-changed')
+    expect(result.exitCode).toBe(2)
+    expect(result.report.findings).toEqual([])
+    expect(deps.evaluator.judgeAdmitted).toHaveBeenCalledTimes(1)
+  })
+
   it('localizes only the explicitly selected upstream region categories', async () => {
     const deps = failing()
     const localize = vi.fn().mockResolvedValue([
