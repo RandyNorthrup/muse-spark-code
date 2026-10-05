@@ -8,12 +8,30 @@ import {
   extractReviewFindings,
   extractTeamReport,
   lastFencedBlock,
+  parseReportJson,
 } from '../../src/core/team/workers/report'
 import { WORKER_UNSTRUCTURED_SUMMARY_MAX_CHARS } from '../../src/shared/constants'
 
 function block(json: string): string {
   return ['All green.', '```muse-team-report', json, '```'].join('\n')
 }
+
+describe('RVM96W2C-N15 visible and Unicode-safe report text', () => {
+  it('refuses zero-width-only summaries and questions', () => {
+    expect(parseReportJson(JSON.stringify({ status: 'done', summary: '\u{200B}' }))).toBeUndefined()
+    expect(
+      parseReportJson(
+        JSON.stringify({ status: 'blocked', summary: 'Need help', questions: ['\u{200B}'] }),
+      ),
+    ).toBeUndefined()
+  })
+  it('clips complete Unicode code points without a lone surrogate', () => {
+    const text = 'x'.repeat(WORKER_UNSTRUCTURED_SUMMARY_MAX_CHARS - 1) + '😀more'
+    const clipped = clipReportSummary(text)
+    expect(clipped).toBe('x'.repeat(WORKER_UNSTRUCTURED_SUMMARY_MAX_CHARS - 1) + '😀…')
+    expect(clipped).not.toMatch(/[\uD800-\uDBFF](?![\uDC00-\uDFFF])/)
+  })
+})
 
 describe('extractTeamReport', () => {
   it('parses a valid block with every field', () => {

@@ -8,18 +8,18 @@
 // shown is refused, never guessed.
 
 import type { AuthMethod, McpServer } from '@agentclientprotocol/sdk'
-import { WORKER_ACP_MAX_PERMISSION_PATHS } from '../../../shared/constants'
-import { confineWorkspacePath, type RealPathIo } from '../../workspacePath'
 import type { ShellDialect } from '../../backends/modelapi/shellSyntax'
 import { buildWorkerPrompt, WorkerUntrustedError, type WorkerFileIo } from './engineWorker'
+import { awaitWorkerAction, WorkerCancelledError } from './museCodeWorker'
+import { reportForStop, type WorkerReportOutcome } from './report'
 import {
   assertWorkerRoot,
-  awaitWorkerAction,
-  WorkerCancelledError,
-  isWorkerCommandAllowed,
+  requireAcpNativeIsolation,
+  confineWorkerPath,
   isWorkerWriteAllowed,
-} from './museCodeWorker'
-import { extractTeamReport, type WorkerReportOutcome } from './report'
+  type WorkerFenceIo,
+} from './workerFence'
+export { AcpNativeServersError, answerAcpPermission, extractRequestPaths } from './workerFence'
 import type { WorkerPromptParts, WorkerRolePolicy, WorkerTask } from './workerTypes'
 
 /** An external agent preset (D75's list). */
@@ -169,61 +169,6 @@ export function pickOnceOption(
   return options.find((option) => option.kind === wanted)?.optionId
 }
 
-/**
- * Collects the paths a permission request names: `locations`, plus absolute
- * paths in `rawInput` down to two levels. Past the cap the request is
- * unresolvable, so it is rejected rather than half-checked.
- */
-export interface ExtractedRequestPaths {
-  readonly paths: readonly string[]
-  /** Past the cap the request is unresolvable, so the caller rejects it rather than half-checking. */
-  readonly isTruncated: boolean
-}
-
-const ACP_WRITE_KINDS: ReadonlySet<string> = new Set(['edit', 'delete', 'move'])
-
-export function extractRequestPaths(rawInput: unknown): ExtractedRequestPaths {
-  const paths: string[] = []
-  let isTruncated = false
-  const visit = (value: unknown, depth: number, isPath = false): void => {
-    if (isTruncated) {
-      return
-    }
-    if (paths.length >= WORKER_ACP_MAX_PERMISSION_PATHS) {
-      isTruncated = true
-      return
-    }
-    if (typeof value === 'string') {
-      if (
-        isPath ||
-        value.startsWith('/') ||
-        /^[a-zA-Z]:[\\/]/.test(value) ||
-        value.startsWith('\\\\')
-      ) {
-        paths.push(value)
-      }
-      return
-    }
-    if (value === null || typeof value !== 'object') return
-    if (depth <= 0) {
-      isTruncated = true
-      return
-    }
-    for (const [key, entry] of Object.entries(value)) {
-      visit(
-        entry,
-        depth - 1,
-        isPath ||
-          /^(?:path|paths|file|files|file_?path|source|destination|old_?path|new_?path)$/i.test(
-            key,
-          ),
-      )
-    }
-  }
-  visit(rawInput, 2)
-  return { paths, isTruncated }
-}
-
 export type AcpPermissionVerdict =
   | { readonly action: 'allowOnce' }
   | { readonly action: 'rejectOnce' }
@@ -233,8 +178,9 @@ export interface AcpPermissionInput {
   readonly role: WorkerRolePolicy
   /** The task's working copy or scratch copy: every path must resolve inside it. */
   readonly folder: string
+  readonly workspaceRoot: string
   readonly platform: NodeJS.Platform
-  readonly io: RealPathIo
+  readonly io: WorkerFenceIo
   readonly dialect: ShellDialect
   /** Lane 0's `TEAM_READ_ONLY_COMMANDS`, injected until it lands. */
   readonly readOnlyCommands: ReadonlySet<string>
@@ -242,98 +188,24 @@ export interface AcpPermissionInput {
   readonly toolCall: AcpPermissionToolCall
 }
 
-/**
- * Answers a `session/request_permission` by the role's policy. Rejected
- * without asking: paths outside the working copy (links followed), an edit
- * outside `write-paths`, an `execute` for a role without the shell, a git
- * command the ref guard refuses, a `fetch` for a role without the network,
- * and for a `read-only` role any edit and any command off the read-only
- * list. Everything else becomes the user's card.
- */
-export async function answerAcpPermission(
-  input: AcpPermissionInput,
-): Promise<AcpPermissionVerdict> {
-  const { role, toolCall } = input
-  const extracted = extractRequestPaths(toolCall.rawInput)
-  if (extracted.isTruncated) {
-    return { action: 'rejectOnce' }
-  }
-  const candidates = [
-    ...(toolCall.locations ?? []).map((location) => location.path),
-    ...extracted.paths,
-  ]
-  for (const candidate of candidates) {
-    const confined = await confineWorkspacePath(input.folder, candidate, input.platform, input.io)
-    if (!confined.ok) {
-      return { action: 'rejectOnce' }
-    }
-  }
-  const kind = toolCall.kind ?? 'other'
-  const isWrite = ACP_WRITE_KINDS.has(kind)
-  if (isWrite && (candidates.length === 0 || role.workspaceMode === 'read-only')) {
-    return { action: 'rejectOnce' }
-  }
-  if (isWrite && !(await isWithinWritePaths(input, candidates))) {
-    return { action: 'rejectOnce' }
-  }
-  if (kind === 'execute') {
-    return { action: isCommandAllowed(input) ? 'askUser' : 'rejectOnce' }
-  }
-  if (isWrite) return { action: 'askUser' }
-  if (kind === 'fetch')
-    return { action: role.toolGroups.includes('webFetch') ? 'askUser' : 'rejectOnce' }
-  return {
-    action:
-      (kind === 'read' || kind === 'search') &&
-      role.toolGroups.includes('read') &&
-      candidates.length > 0
-        ? 'askUser'
-        : 'rejectOnce',
-  }
-}
-
-async function isWithinWritePaths(
-  input: Pick<AcpPermissionInput, 'role' | 'folder' | 'platform' | 'io'>,
-  candidates: readonly string[],
-): Promise<boolean> {
-  for (const candidate of candidates) {
-    if (!(await isWorkerWriteAllowed(input, candidate))) return false
-  }
-  return candidates.length > 0
-}
-
-/** Whether the role may run the command in the request's raw input. */
-function isCommandAllowed(input: AcpPermissionInput): boolean {
-  const command = commandTextOf(input.toolCall.rawInput)
-  return command !== undefined && isWorkerCommandAllowed({ ...input, command })
-}
-
-/** The command a raw input carries, when it names one plainly. */
-function commandTextOf(rawInput: unknown): string | undefined {
-  if (typeof rawInput !== 'object' || rawInput === null) {
-    return undefined
-  }
-  return 'command' in rawInput && typeof rawInput.command === 'string'
-    ? rawInput.command
-    : undefined
-}
-
 /** Confines an `fs/*` path to the working copy, links followed. */
 export async function confineAcpFsPath(input: {
   readonly folder: string
+  readonly workspaceRoot: string
   readonly given: string
   readonly platform: NodeJS.Platform
-  readonly io: RealPathIo
+  readonly io: WorkerFenceIo
 }): Promise<{ readonly ok: true; readonly absolute: string } | { readonly ok: false }> {
-  const confined = await confineWorkspacePath(input.folder, input.given, input.platform, input.io)
+  const confined = await confineWorkerPath(input, input.given)
   return confined.ok ? { ok: true, absolute: confined.absolute } : { ok: false }
 }
 
 export interface AcpFsInput {
   readonly role: WorkerRolePolicy
   readonly folder: string
+  readonly workspaceRoot: string
   readonly platform: NodeJS.Platform
-  readonly io: RealPathIo
+  readonly io: WorkerFenceIo
   readonly readTextFile: (absolutePath: string) => Promise<string | undefined>
   readonly writeTextFile: (absolutePath: string, content: string) => Promise<void>
 }
@@ -365,11 +237,13 @@ export async function acpFsWrite(
   if (!confined.ok) {
     return { error: 'outside the working copy' }
   }
-  if (input.role.workspaceMode === 'read-only') {
-    return { error: 'the role is read-only' }
-  }
-  if (!(await isWithinWritePaths(input, [given]))) {
-    return { error: 'outside the write paths' }
+  if (!(await isWorkerWriteAllowed(input, given))) {
+    return {
+      error:
+        input.role.workspaceMode === 'read-only'
+          ? 'the role is read-only'
+          : 'outside the write paths',
+    }
   }
   await input.writeTextFile(confined.absolute, content)
   return { ok: true }
@@ -384,7 +258,11 @@ export interface AcpAgentConnection {
   readonly sessionNew: (params: {
     readonly cwd: string
     readonly mcpServers: readonly McpServer[]
-  }) => Promise<{ readonly sessionId: string; readonly advertisedModes: readonly string[] }>
+  }) => Promise<{
+    readonly sessionId: string
+    readonly advertisedModes: readonly string[]
+    readonly currentMode?: string
+  }>
   /** `session/set_config_option`, category `mode`; throws `AcpMethodNotFoundError` when absent. */
   readonly setConfigOption: (sessionId: string, value: string) => Promise<void>
   /** Deprecated `session/set_mode`, for agents that predate config options. */
@@ -397,14 +275,6 @@ export interface AcpAgentConnection {
   ) => Promise<{ readonly stopReason: string; readonly lastMessage: string | undefined }>
   readonly cancel: (sessionId: string) => Promise<void>
   readonly close: () => void
-}
-
-/** Native user-server exclusion is a required launcher admission condition. */
-export class AcpNativeServersError extends Error {
-  public constructor() {
-    super('An ACP worker requires captured native-server isolation')
-    this.name = 'AcpNativeServersError'
-  }
 }
 
 /** The agent's `authenticate` must not run for a terminal method (research §4.1). */
@@ -448,16 +318,16 @@ export async function runAcpWorker(deps: AcpWorkerDeps): Promise<{
   try {
     deps.signal.throwIfAborted()
     if (!deps.isTrusted) throw new WorkerUntrustedError()
-    await awaitWorkerAction(deps.signal, () =>
+    const folder = await awaitWorkerAction(deps.signal, () =>
       assertWorkerRoot({ ...deps, folder: deps.task.folder }),
     )
-    if (deps.role.workspaceMode === 'in-place' || !deps.nativeServersExcluded) {
-      throw new AcpNativeServersError()
-    }
-    await awaitWorkerAction(deps.signal, () => deps.connection.initialize())
+    requireAcpNativeIsolation(deps.nativeServersExcluded)
+    const initialized = await awaitWorkerAction(deps.signal, () => deps.connection.initialize())
+    if (initialized.protocolVersion !== 1)
+      throw new Error('The ACP worker requires protocol version 1')
     const opened = await awaitWorkerAction(deps.signal, async () => {
       const response = await deps.connection.sessionNew({
-        cwd: deps.task.folder,
+        cwd: folder,
         mcpServers: deps.bridgeServers,
       })
       if (deps.signal.aborted) {
@@ -469,6 +339,8 @@ export async function runAcpWorker(deps: AcpWorkerDeps): Promise<{
       return response
     })
     sessionId = opened.sessionId
+    if (opened.currentMode !== undefined && deps.preset.forbiddenModes.includes(opened.currentMode))
+      throw new AcpForbiddenModeError(opened.currentMode)
     const activeId = sessionId
     const mode = chooseAcpMode(deps.preset, roleShapeFor(deps.role), opened.advertisedModes)
     try {
@@ -483,17 +355,26 @@ export async function runAcpWorker(deps: AcpWorkerDeps): Promise<{
     if (selectedModel !== deps.modelId || selectedModel.trim() === '')
       throw new AcpModelSelectionError()
     const prompt = await awaitWorkerAction(deps.signal, () =>
-      buildWorkerPrompt(deps.prompt, deps.task, deps.io, deps.platform),
+      buildWorkerPrompt(
+        deps.prompt,
+        { ...deps.task, folder },
+        deps.io,
+        deps.platform,
+        deps.workspaceRoot,
+      ),
     )
-    const { lastMessage } = await awaitWorkerAction(deps.signal, () =>
+    const { lastMessage, stopReason } = await awaitWorkerAction(deps.signal, () =>
       deps.connection.prompt(activeId, prompt),
     )
-    return { sessionId: activeId, report: extractTeamReport(lastMessage ?? '') }
+    return { sessionId: activeId, report: reportForStop(lastMessage ?? '', stopReason) }
   } catch (error: unknown) {
-    if (sessionId !== undefined)
-      void deps.connection.cancel(sessionId).catch(() => {
-        /* Cleanup still follows when the peer is gone. */
-      })
+    if (sessionId !== undefined) {
+      try {
+        await deps.connection.cancel(sessionId)
+      } catch {
+        /* Finally closes an unreachable peer. */
+      }
+    }
     throw asAcpError(error)
   } finally {
     deps.connection.close()

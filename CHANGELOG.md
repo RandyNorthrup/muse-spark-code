@@ -9,6 +9,19 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- **Team worker fence redesign (M96, round 3).** Muse Code, ACP and engine
+  workers share native filesystem identity admission, including Windows UNC,
+  device, short-name, junction and subst aliases. Every mediated path and
+  command rechecks its copy; unresolved targets refuse. Wrapped Git ref
+  changes and unsafe command paths refuse before approval, and Git cannot
+  use clone-config askpass or credential helpers. ACP keeps final messages
+  separate, preserves non-success stop reasons, confirms legacy modes and
+  protocol version, and flushes cancellation before process cleanup.
+  Malformed engine reports retain the last message; bounded file excerpts
+  are labelled and summaries clip complete Unicode characters. Windows
+  regression evidence and remaining capture gates are recorded in
+  `docs/certification/m96-w.md`.
+
 - **Team worker confinement (M96, RVM96A).** Prompt assembly excludes
   private/protected file data, bounds UTF-8 bytes and preserves named paths.
   Child environments start empty with explicit runtime/profile allowlists

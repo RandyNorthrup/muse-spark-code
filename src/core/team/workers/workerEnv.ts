@@ -67,9 +67,11 @@ export function scrubWorkerEnv(input: ScrubWorkerEnvInput): NodeJS.ProcessEnv {
   env['GIT_CONFIG_NOSYSTEM'] = '1'
   env['GIT_CONFIG_GLOBAL'] = input.platform === 'win32' ? 'NUL' : '/dev/null'
   env['GIT_TERMINAL_PROMPT'] = '0'
-  env['GIT_CONFIG_COUNT'] = '1'
+  env['GIT_CONFIG_COUNT'] = '2'
   env['GIT_CONFIG_KEY_0'] = 'credential.helper'
   env['GIT_CONFIG_VALUE_0'] = ''
-  env['GIT_SSH_COMMAND'] = input.platform === 'win32' ? 'cmd /c exit 1' : 'false'
+  env['GIT_CONFIG_KEY_1'] = 'core.askPass'
+  env['GIT_CONFIG_VALUE_1'] = ''
+  env['GIT_SSH_COMMAND'] = 'false'
   return env
 }

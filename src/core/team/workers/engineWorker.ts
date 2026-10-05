@@ -15,6 +15,7 @@ import {
   WORKER_BRIEF_FILES_MAX_BYTES,
   WORKER_BRIEF_MAX_CHARS,
   WORKER_MAX_DEPTH,
+  WORKER_MODEL_TEXT,
 } from '../../../shared/constants'
 import { retryAfterMs } from '../../backends/modelapi/client'
 import {
@@ -22,9 +23,15 @@ import {
   type WorktreeAttemptOutcome,
   type WorktreeSession,
 } from '../../bestOfN/worktreeConversationHost'
-import { confineWorkspacePath, type RealPathIo } from '../../workspacePath'
 import { isProtectedPath } from '../../protectedPaths'
 import { isPrivateFileName } from '../../../shared/privateFiles'
+import {
+  assertWorkerRoot,
+  bindWorkerPathIo,
+  confineWorkerPath,
+  isWorkerCommandAllowed,
+  type WorkerFenceIo,
+} from './workerFence'
 import { scrubWorkerEnv } from './workerEnv'
 import { extractTeamReport, parseReportJson, type WorkerReportOutcome } from './report'
 import type { WorkerPromptParts, WorkerRolePolicy, WorkerTask } from './workerTypes'
@@ -54,7 +61,7 @@ export class WorkerUntrustedError extends Error {
 }
 
 /** What prompt assembly reads: canonical paths plus bounded text reads. */
-export interface WorkerFileIo extends RealPathIo {
+export interface WorkerFileIo extends WorkerFenceIo {
   /** Bounded UTF-8 reads of files named by the task; undefined when unreadable. */
   readonly readTextFile: (absolutePath: string, maxBytes: number) => Promise<string | undefined>
 }
@@ -70,6 +77,8 @@ export async function buildWorkerPrompt(
   task: WorkerTask,
   io: WorkerFileIo,
   platform: NodeJS.Platform,
+  workspaceRoot: string,
+  isInPlace?: boolean,
 ): Promise<string> {
   if (task.brief.length > WORKER_BRIEF_MAX_CHARS) {
     throw new WorkerBriefError(task.brief.length)
@@ -77,7 +86,16 @@ export async function buildWorkerPrompt(
   const inlined: string[] = []
   let bytes = 0
   for (const file of task.files) {
-    const confined = await confineWorkspacePath(task.folder, file, platform, io)
+    const confined = await confineWorkerPath(
+      {
+        folder: task.folder,
+        platform,
+        io,
+        workspaceRoot,
+        ...(isInPlace !== undefined && { isInPlace }),
+      },
+      file,
+    )
     if (
       !confined.ok ||
       isPrivateFileName(confined.relative) ||
@@ -102,7 +120,7 @@ export async function buildWorkerPrompt(
       continue
     }
     bytes += contentBytes
-    inlined.push(`--- ${confined.canonical} ---\n${content}`)
+    inlined.push(`--- ${confined.canonical} (${WORKER_MODEL_TEXT.boundedExcerpt}) ---\n${content}`)
   }
   return [
     parts.charter,
@@ -139,16 +157,40 @@ export type WorkerShellSpawn = (input: {
  */
 export function createWorkerShellRunner(input: {
   readonly root: string
+  readonly workspaceRoot: string
+  readonly role: WorkerRolePolicy
+  readonly io: WorkerFenceIo
+  readonly readOnlyCommands: ReadonlySet<string>
+  readonly testCommands?: ReadonlySet<string>
   readonly platform: NodeJS.Platform
   readonly baseEnv: NodeJS.ProcessEnv
   readonly passthrough?: readonly string[]
   readonly spawn: WorkerShellSpawn
 }): (command: string, args: readonly string[]) => Promise<{ readonly exitCode: number }> {
   return async (command, args) => {
+    const folder = await assertWorkerRoot({
+      ...input,
+      folder: input.root,
+      isInPlace: input.role.workspaceMode === 'in-place',
+    })
+    // Engine tools hand argv over directly, so quote it for the shared classifier.
+    const text = [command, ...args]
+      .map((word) => `'${word.replaceAll("'", String.raw`'\''`)}'`)
+      .join(' ')
+    if (
+      !(await isWorkerCommandAllowed({
+        ...input,
+        folder,
+        isInPlace: input.role.workspaceMode === 'in-place',
+        command: text,
+        dialect: 'bash',
+      }))
+    )
+      throw new Error('The worker command was refused')
     const child = await input.spawn({
       command,
       args,
-      cwd: input.root,
+      cwd: folder,
       env: scrubWorkerEnv({
         platform: input.platform,
         baseEnv: input.baseEnv,
@@ -232,6 +274,7 @@ export function classifyLimitError(
 
 export interface EngineWorkerDeps {
   readonly task: WorkerTask
+  readonly workspaceRoot: string
   readonly role: WorkerRolePolicy
   readonly prompt: WorkerPromptParts
   readonly isTrusted: boolean
@@ -266,11 +309,23 @@ export async function runEngineWorker(deps: EngineWorkerDeps): Promise<EngineWor
   if (!deps.isTrusted) {
     throw new WorkerUntrustedError()
   }
-  const prompt = await buildWorkerPrompt(deps.prompt, deps.task, deps.io, deps.platform)
+  const folder = await assertWorkerRoot({
+    ...deps,
+    folder: deps.task.folder,
+    isInPlace: deps.role.workspaceMode === 'in-place',
+  })
+  const prompt = await buildWorkerPrompt(
+    deps.prompt,
+    { ...deps.task, folder },
+    deps.io,
+    deps.platform,
+    deps.workspaceRoot,
+    deps.role.workspaceMode === 'in-place',
+  )
   const host = new WorktreeConversationHost({
-    worktreeRoot: deps.task.folder,
+    worktreeRoot: folder,
     platform: deps.platform,
-    io: deps.io,
+    io: bindWorkerPathIo({ ...deps, folder, isInPlace: deps.role.workspaceMode === 'in-place' }),
     requestCeiling: deps.requestCeiling,
     session: deps.session,
     declineChoiceId: deps.declineChoiceId,
@@ -289,7 +344,10 @@ export async function runEngineWorker(deps: EngineWorkerDeps): Promise<EngineWor
     throw error
   }
   const reportedText = deps.capture?.take()
-  const lastMessage = reportedText === undefined ? await deps.readTranscriptTail?.() : undefined
+  const lastMessage =
+    reportedText === undefined || parseReportJson(reportedText) === undefined
+      ? await deps.readTranscriptTail?.()
+      : undefined
   return {
     outcome,
     report: resolveWorkerReport({ reportedText, lastMessage }),

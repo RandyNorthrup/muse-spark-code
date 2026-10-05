@@ -3801,6 +3801,10 @@ export const WORKER_BRIEF_FILES_MAX_BYTES = 64 * 1024
 export const WORKER_UNSTRUCTURED_SUMMARY_MAX_CHARS = 2000
 /** Depth 1, or 2 through `delegates`, never more (D75's `TEAM_MAX_DEPTH`). */
 export const WORKER_MAX_DEPTH = 2
+/** Bounded grace for a flushed ACP cancellation before the child is killed. */
+export const WORKER_CANCEL_GRACE_MS = 100
+/** Model-only task data labels; kept with the lazy worker code's tunables. */
+export const WORKER_MODEL_TEXT = { boundedExcerpt: 'bounded excerpt; may be truncated' } as const
 
 // What the user reads, in the display language (PLAN.md D33).
 export { UI_TEXT } from './l10n/text'

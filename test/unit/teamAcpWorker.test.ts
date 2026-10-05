@@ -1,3 +1,4 @@
+import { fakeWorkerIdentity } from './helpers/workerIdentity'
 import { TEAM_WORKER_PROMPT } from './helpers/teamWorkerPrompt'
 // The ACP client worker (M96 lane W): the preset modes, the permission
 // answers, the confined `fs/*`, and the run over an injected connection.
@@ -52,7 +53,10 @@ const TASK: WorkerTask = {
   files: [],
 }
 
-const IO = { realPath: (absolutePath: string) => Promise.resolve(absolutePath) }
+const IO = {
+  pathIdentity: fakeWorkerIdentity,
+  realPath: (absolutePath: string) => Promise.resolve(absolutePath),
+}
 
 function permission(
   role: WorkerRolePolicy,
@@ -62,6 +66,7 @@ function permission(
   return answerAcpPermission({
     role: writePaths === undefined ? role : { ...role, writePaths },
     folder: FOLDER,
+    workspaceRoot: '/user/checkout',
     platform: 'linux',
     io: IO,
     dialect: 'bash',
@@ -179,6 +184,7 @@ describe('answerAcpPermission', () => {
     const input: AcpPermissionInput = {
       role: { ...WRITER, roleId: 'qa', toolGroups: ['testShell', 'report'] },
       folder: FOLDER,
+      workspaceRoot: '/user/checkout',
       platform: 'linux',
       io: IO,
       dialect: 'bash',
@@ -212,12 +218,14 @@ describe('answerAcpPermission', () => {
 
   it('rejects a link that leads outside, links followed', async () => {
     const linking = {
+      pathIdentity: fakeWorkerIdentity,
       realPath: (absolutePath: string) =>
         Promise.resolve(absolutePath === `${FOLDER}/link` ? '/etc/shadow' : absolutePath),
     }
     const verdict = await answerAcpPermission({
       role: WRITER,
       folder: FOLDER,
+      workspaceRoot: '/user/checkout',
       platform: 'linux',
       io: linking,
       dialect: 'bash',
@@ -304,10 +312,22 @@ describe('answerAcpPermission', () => {
 describe('confineAcpFsPath', () => {
   it('keeps fs paths inside the working copy', async () => {
     await expect(
-      confineAcpFsPath({ folder: FOLDER, given: 'a.ts', platform: 'linux', io: IO }),
+      confineAcpFsPath({
+        folder: FOLDER,
+        workspaceRoot: '/user/checkout',
+        given: 'a.ts',
+        platform: 'linux',
+        io: IO,
+      }),
     ).resolves.toEqual({ ok: true, absolute: `${FOLDER}/a.ts` })
     await expect(
-      confineAcpFsPath({ folder: FOLDER, given: '../out.ts', platform: 'linux', io: IO }),
+      confineAcpFsPath({
+        folder: FOLDER,
+        workspaceRoot: '/user/checkout',
+        given: '../out.ts',
+        platform: 'linux',
+        io: IO,
+      }),
     ).resolves.toEqual({ ok: false })
   })
 })
@@ -317,6 +337,7 @@ describe('acpFsRead', () => {
   const input = {
     role: READ_ONLY,
     folder: FOLDER,
+    workspaceRoot: '/user/checkout',
     platform: 'linux' as const,
     io: IO,
     readTextFile: (absolutePath: string) => Promise.resolve(files[absolutePath]),
@@ -336,6 +357,7 @@ describe('acpFsWrite', () => {
   const input = {
     role: { ...WRITER, writePaths: ['docs/**'] as const },
     folder: FOLDER,
+    workspaceRoot: '/user/checkout',
     platform: 'linux' as const,
     io: IO,
     readTextFile: () => Promise.resolve(undefined),
@@ -529,6 +551,7 @@ describe('runAcpWorker', () => {
           ...depsWith({ connection }),
           task: { ...TASK, folder },
           io: {
+            pathIdentity: fakeWorkerIdentity,
             realPath: (given) => Promise.resolve(given === '/alias' ? '/user/checkout' : given),
             readTextFile: () => Promise.resolve(undefined),
           },

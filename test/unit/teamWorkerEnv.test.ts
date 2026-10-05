@@ -2,7 +2,10 @@
 // the T5 fence): nothing credential-shaped survives the scrub except a
 // profile-declared passthrough, and git cannot prompt or ssh anywhere.
 
-import { describe, expect, it } from 'vitest'
+import { spawnSync } from 'node:child_process'
+import { access, mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
+import path from 'node:path'
+import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { scrubWorkerEnv } from '../../src/core/team/workers/workerEnv'
 
 const BASE: NodeJS.ProcessEnv = {
@@ -46,9 +49,11 @@ describe('scrubWorkerEnv', () => {
   it('pins git to no prompt, no helper and a refusing ssh', () => {
     const env = scrubWorkerEnv({ platform: 'linux', baseEnv: BASE })
     expect(env['GIT_TERMINAL_PROMPT']).toBe('0')
-    expect(env['GIT_CONFIG_COUNT']).toBe('1')
+    expect(env['GIT_CONFIG_COUNT']).toBe('2')
     expect(env['GIT_CONFIG_KEY_0']).toBe('credential.helper')
     expect(env['GIT_CONFIG_VALUE_0']).toBe('')
+    expect(env['GIT_CONFIG_KEY_1']).toBe('core.askPass')
+    expect(env['GIT_CONFIG_VALUE_1']).toBe('')
     expect(env['GIT_SSH_COMMAND']).toBe('false')
     expect(env['GIT_CONFIG_NOSYSTEM']).toBe('1')
     expect(env['GIT_CONFIG_GLOBAL']).toBe('/dev/null')
@@ -76,11 +81,11 @@ describe('scrubWorkerEnv', () => {
       })
       expect(env['GIT_CONFIG_PARAMETERS']).toBeUndefined()
       expect(env['GIT_CONFIG_SYSTEM']).toBeUndefined()
-      expect(env['GIT_CONFIG_COUNT']).toBe('1')
+      expect(env['GIT_CONFIG_COUNT']).toBe('2')
       expect(env['GIT_CONFIG_KEY_0']).toBe('credential.helper')
       expect(env['GIT_CONFIG_VALUE_0']).toBe('')
       expect(env['GIT_CONFIG_GLOBAL']).toBe(platform === 'win32' ? 'NUL' : '/dev/null')
-      expect(env['GIT_SSH_COMMAND']).toBe(platform === 'win32' ? 'cmd /c exit 1' : 'false')
+      expect(env['GIT_SSH_COMMAND']).toBe('false')
       expect(env['GIT_ASKPASS']).toBeUndefined()
       expect(env['SSH_ASKPASS']).toBeUndefined()
       expect(env['SSH_AUTH_SOCK']).toBeUndefined()
@@ -111,5 +116,49 @@ describe('scrubWorkerEnv', () => {
     })
     expect(env['Meta_Api_Key']).toBeUndefined()
     expect(env['Path']).toBe(String.raw`c:\bin`)
+  })
+})
+
+const slash = (given: string): string => given.replaceAll('\\', '/')
+
+describe('W-F3 real Git transport fences', () => {
+  let fixture: string
+  let marker: string
+  const git = (args: readonly string[], env = process.env, input?: string) =>
+    spawnSync('git', [...args], { cwd: fixture, env, input, encoding: 'utf8', windowsHide: true })
+  beforeAll(async () => {
+    const base = path.resolve('temp')
+    await mkdir(base, { recursive: true })
+    fixture = await mkdtemp(path.join(base, 'worker-git-'))
+    marker = path.join(fixture, 'helper-marker')
+    const askpass = path.join(fixture, 'askpass.sh')
+    await writeFile(askpass, `#!/bin/sh\necho invoked >> '${slash(marker)}'\necho synthetic\n`)
+    expect(git(['init', '--quiet']).status).toBe(0)
+    expect(git(['config', 'core.askPass', `sh '${slash(askpass)}'`]).status).toBe(0)
+    expect(git(['config', 'credential.helper', `!echo helper >> '${slash(marker)}'`]).status).toBe(
+      0,
+    )
+  })
+  afterAll(async () => {
+    await rm(fixture, { recursive: true, force: true })
+  })
+  it('RVM96W2C-N9 never runs clone-config core.askPass or credential.helper', async () => {
+    const env = scrubWorkerEnv({ platform: process.platform, baseEnv: process.env })
+    const result = git(['credential', 'fill'], env, 'protocol=https\nhost=example.invalid\n\n')
+    expect(result.status).toBe(128)
+    expect(result.stderr).toContain('terminal prompts disabled')
+    await expect(access(marker)).rejects.toThrow()
+    expect(git(['config', '--get', 'core.askPass'], env).stdout.trim()).toBe('')
+  })
+  it('RVM96W2C-N10 refuses SSH cleanly without starting interactive cmd.exe', () => {
+    const result = spawnSync('git', ['ls-remote', 'ssh://git@example.invalid/x.git'], {
+      env: scrubWorkerEnv({ platform: process.platform, baseEnv: process.env }),
+      encoding: 'utf8',
+      windowsHide: true,
+    })
+    expect(result.status).toBe(128)
+    expect(result.stderr).toContain('Could not read from remote repository')
+    expect(result.stdout).not.toContain('Microsoft Windows')
+    expect(result.stderr).not.toContain('bad line length character')
   })
 })

@@ -1,3 +1,5 @@
+import { fileURLToPath } from 'node:url'
+import { fakeWorkerIdentity } from './helpers/workerIdentity'
 import { TEAM_WORKER_PROMPT } from './helpers/teamWorkerPrompt'
 // The ACP agent's process (M96 lane W): the PATH lookup, the scrubbed
 // spawn, the Install command, and the SDK adapter against the fake ACP
@@ -5,7 +7,7 @@ import { TEAM_WORKER_PROMPT } from './helpers/teamWorkerPrompt'
 
 import { spawn, type ChildProcess } from 'node:child_process'
 import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
-import { tmpdir } from 'node:os'
+import { mkdirSync } from 'node:fs'
 import path from 'node:path'
 import { PassThrough } from 'node:stream'
 import { RequestError, type AuthMethod } from '@agentclientprotocol/sdk'
@@ -36,6 +38,9 @@ import {
 } from '../../src/core/team/workers/acpWorker'
 import type { WorkerRolePolicy, WorkerTask } from '../../src/core/team/workers/workerTypes'
 import { FakeLogOutputChannel } from './helpers/fakes'
+
+const fixtureBase = path.resolve('temp')
+mkdirSync(fixtureBase, { recursive: true })
 
 const FAKE_AGENT = new URL('helpers/fakeTeamAcpAgent.mjs', import.meta.url)
 
@@ -123,7 +128,7 @@ describe('spawnAcpAgent', () => {
       command: '/tools/bin/codex-acp',
       cwd: '/work/copy',
       workspaceRoot: '/user/checkout',
-      io: { realPath: (given) => Promise.resolve(given) },
+      io: { pathIdentity: fakeWorkerIdentity, realPath: (given) => Promise.resolve(given) },
       baseEnv: { PATH: '/bin', META_API_KEY: 'key-1', TEAM: 'x' },
       platform: 'linux',
       passthrough: [],
@@ -146,7 +151,7 @@ describe('spawnAcpAgent', () => {
         command: '/tools/bin/claude-agent-acp',
         cwd: '/work/copy',
         workspaceRoot: '/user/checkout',
-        io: { realPath: (given) => Promise.resolve(given) },
+        io: { pathIdentity: fakeWorkerIdentity, realPath: (given) => Promise.resolve(given) },
         baseEnv: {},
         platform: 'linux',
         launchId: 'launch-1',
@@ -164,7 +169,7 @@ describe('spawnAcpAgent', () => {
         command: '/fake/codex-acp',
         cwd: '/alias',
         workspaceRoot: '/repo',
-        io: { realPath: () => Promise.resolve('/repo') },
+        io: { pathIdentity: fakeWorkerIdentity, realPath: () => Promise.resolve('/repo') },
         baseEnv: {},
         platform: 'linux',
         launchId: 'l',
@@ -282,7 +287,7 @@ function startFake(
   cwd: string,
   handlers: AcpClientHandlers,
 ): { connection: AcpAgentConnection; records: unknown[]; child: ChildProcess } {
-  const child = spawn(process.execPath, [FAKE_AGENT.pathname, scenario, '--cwd', cwd], {
+  const child = spawn(process.execPath, [fileURLToPath(FAKE_AGENT), scenario, '--cwd', cwd], {
     stdio: ['pipe', 'pipe', 'pipe'],
   })
   children.push(child)
@@ -306,7 +311,10 @@ function policyHandlers(
   files: { readTextFile: (absolutePath: string) => Promise<string | undefined> },
   onAskUser: () => Promise<'allowOnce' | 'rejectOnce'>,
 ): AcpClientHandlers {
-  const io = { realPath: (absolutePath: string) => Promise.resolve(absolutePath) }
+  const io = {
+    pathIdentity: fakeWorkerIdentity,
+    realPath: (absolutePath: string) => Promise.resolve(absolutePath),
+  }
   const resolveOnce = async (
     toolCall: Parameters<AcpClientHandlers['onPermissionRequest']>[0],
     options: Parameters<AcpClientHandlers['onPermissionRequest']>[1],
@@ -314,7 +322,8 @@ function policyHandlers(
     const verdict = await answerAcpPermission({
       role,
       folder,
-      platform: 'linux',
+      workspaceRoot: path.join(fixtureBase, 'acp-checkout'),
+      platform: process.platform,
       io,
       dialect: 'bash',
       readOnlyCommands: new Set([
@@ -338,12 +347,28 @@ function policyHandlers(
     onPermissionRequest: (toolCall, options) => resolveOnce(toolCall, options),
     onFsRead: (given) =>
       acpFsRead(
-        { role, folder, platform: 'linux', io, ...files, writeTextFile: () => Promise.resolve() },
+        {
+          role,
+          folder,
+          workspaceRoot: path.join(fixtureBase, 'acp-checkout'),
+          platform: process.platform,
+          io,
+          ...files,
+          writeTextFile: () => Promise.resolve(),
+        },
         given,
       ),
     onFsWrite: (given, content) =>
       acpFsWrite(
-        { role, folder, platform: 'linux', io, ...files, writeTextFile: () => Promise.resolve() },
+        {
+          role,
+          folder,
+          workspaceRoot: path.join(fixtureBase, 'acp-checkout'),
+          platform: process.platform,
+          io,
+          ...files,
+          writeTextFile: () => Promise.resolve(),
+        },
         given,
         content,
       ),
@@ -359,14 +384,15 @@ function workerDeps(connection: AcpAgentConnection, task: WorkerTask, role: Work
     modelId: 'explicit-selected-model',
     signal: new AbortController().signal,
     prompt: TEAM_WORKER_PROMPT,
-    workspaceRoot: '/user/checkout',
+    workspaceRoot: path.join(fixtureBase, 'acp-checkout'),
     nativeServersExcluded: true,
     isTrusted: true,
     io: {
+      pathIdentity: fakeWorkerIdentity,
       realPath: (absolutePath: string) => Promise.resolve(absolutePath),
       readTextFile: () => Promise.resolve(undefined),
     },
-    platform: 'linux' as const,
+    platform: process.platform,
     bridgeServers: [],
     connection,
   }
@@ -403,11 +429,93 @@ function emptyPolicyHandlers(
 }
 
 describe('the full stack against the fake agent', () => {
+  it.each(['draft-failed', 'draft-final'])(
+    'RVM96W2C-N5 uses only the final ACP message: %s',
+    async (scenario) => {
+      const folder = path.join(fixtureBase, 'acp-copy')
+      const { connection } = startFake(scenario, folder, emptyPolicyHandlers(folder))
+      const result = await runAcpWorker(workerDeps(connection, taskIn(folder, 'messages'), WRITER))
+      if (scenario === 'draft-failed')
+        expect(result.report).toEqual({
+          ok: false,
+          status: 'unstructured',
+          summary: 'The tests failed after all; I could not finish.',
+        })
+      else
+        expect(result.report).toEqual({
+          ok: true,
+          report: { status: 'done', summary: 'Fake work.' },
+        })
+    },
+  )
+  it.each([
+    ['max_turn_requests', 'capped'],
+    ['max_tokens', 'capped'],
+    ['refusal', 'refused'],
+    ['cancelled', 'cancelled'],
+    ['future-stop', 'failed'],
+  ])('RVM96W2C-N6 maps ACP stop %s to non-success %s', async (reason, status) => {
+    const folder = path.join(fixtureBase, 'acp-copy')
+    const { connection } = startFake(`stop-${reason}`, folder, emptyPolicyHandlers(folder))
+    const result = await runAcpWorker(workerDeps(connection, taskIn(folder, 'stops'), WRITER))
+    expect(result.report).toMatchObject({ ok: false, status, stopReason: reason })
+  })
+  it.each(['mode-legacy-ignored', 'mode-legacy-forbidden', 'protocol-9'])(
+    'RVM96W2C-N12-N13 refuses unconfirmed legacy mode or protocol: %s',
+    async (scenario) => {
+      const folder = path.join(fixtureBase, 'acp-copy')
+      const { connection, records } = startFake(scenario, folder, emptyPolicyHandlers(folder))
+      await expect(
+        runAcpWorker(workerDeps(connection, taskIn(folder, 'legacy'), WRITER)),
+      ).rejects.toThrow()
+      expect(records).not.toContainEqual(expect.objectContaining({ method: 'session/prompt' }))
+    },
+  )
+  it('RVM96W2C-N12 accepts a legacy mode only after a standard current_mode_update', async () => {
+    const folder = path.join(fixtureBase, 'acp-copy')
+    const { connection } = startFake('mode-legacy-confirmed', folder, emptyPolicyHandlers(folder))
+    const result = await runAcpWorker(
+      workerDeps(connection, taskIn(folder, 'legacy-confirmed'), WRITER),
+    )
+    expect(result.report.ok).toBe(true)
+  })
+  it('RVM96W2C-N11 flushes runner-abort cancel to the agent before child disposal', async () => {
+    const folder = path.join(fixtureBase, 'acp-copy')
+    const { connection, records, child } = startFake('slow', folder, emptyPolicyHandlers(folder))
+    const controller = new AbortController()
+    const running = runAcpWorker({
+      ...workerDeps(connection, taskIn(folder, 'runner-abort'), WRITER),
+      signal: controller.signal,
+    })
+    const rejected = expect(running).rejects.toThrow()
+    await waitForRecord(
+      records,
+      (record) =>
+        typeof record === 'object' &&
+        record !== null &&
+        'method' in record &&
+        record.method === 'session/prompt',
+    )
+    controller.abort()
+    await rejected
+    expect(
+      await waitForRecord(
+        records,
+        (record) =>
+          typeof record === 'object' &&
+          record !== null &&
+          'method' in record &&
+          record.method === 'session/cancel',
+      ),
+    ).toMatchObject({ method: 'session/cancel' })
+    expect(child.killed).toBe(true)
+  })
+
   it('RVM96A-19 closes the owned ACP child through the launcher callback', async () => {
     const { connection, child } = startFake(
       'report',
-      '/work/copy',
-      emptyPolicyHandlers('/work/copy'),
+      path.join(fixtureBase, 'acp-copy'),
+      emptyPolicyHandlers(path.join(fixtureBase, 'acp-copy')),
     )
     try {
       await connection.initialize()
@@ -420,8 +528,8 @@ describe('the full stack against the fake agent', () => {
   it('RVM96A-17 advertises terminal auth separately from unimplemented terminal RPCs', async () => {
     const { connection, records } = startFake(
       'report',
-      '/work/copy',
-      emptyPolicyHandlers('/work/copy'),
+      path.join(fixtureBase, 'acp-copy'),
+      emptyPolicyHandlers(path.join(fixtureBase, 'acp-copy')),
     )
     try {
       await connection.initialize()
@@ -446,11 +554,13 @@ describe('the full stack against the fake agent', () => {
     async (scenario) => {
       const { connection, records } = startFake(
         scenario,
-        '/work/copy',
-        emptyPolicyHandlers('/work/copy'),
+        path.join(fixtureBase, 'acp-copy'),
+        emptyPolicyHandlers(path.join(fixtureBase, 'acp-copy')),
       )
       await expect(
-        runAcpWorker(workerDeps(connection, taskIn('/work/copy', 'model-task'), WRITER)),
+        runAcpWorker(
+          workerDeps(connection, taskIn(path.join(fixtureBase, 'acp-copy'), 'model-task'), WRITER),
+        ),
       ).rejects.toBeInstanceOf(AcpModelSelectionError)
       expect(records).not.toContainEqual(expect.objectContaining({ method: 'session/prompt' }))
     },
@@ -459,18 +569,20 @@ describe('the full stack against the fake agent', () => {
   it('RVM96A-18 refuses an ignored mode readback without legacy fallback', async () => {
     const { connection, records } = startFake(
       'mode-ignored',
-      '/work/copy',
-      emptyPolicyHandlers('/work/copy'),
+      path.join(fixtureBase, 'acp-copy'),
+      emptyPolicyHandlers(path.join(fixtureBase, 'acp-copy')),
     )
     await expect(
-      runAcpWorker(workerDeps(connection, taskIn('/work/copy', 'mode-task'), WRITER)),
+      runAcpWorker(
+        workerDeps(connection, taskIn(path.join(fixtureBase, 'acp-copy'), 'mode-task'), WRITER),
+      ),
     ).rejects.toThrow('did not confirm its mode')
     expect(records).not.toContainEqual(expect.objectContaining({ method: 'session/set_mode' }))
     expect(records).not.toContainEqual(expect.objectContaining({ method: 'session/prompt' }))
   })
 
   it('RVM96A-15 runs standard ACP chunks end to end and parses the report', async () => {
-    const folder = await mkdtemp(path.join(tmpdir(), 'acp-copy-'))
+    const folder = await mkdtemp(path.join(fixtureBase, 'acp-copy-'))
     try {
       const handlers = emptyPolicyHandlers(folder)
       const { connection, records } = startFake('report', folder, handlers)
@@ -500,7 +612,7 @@ describe('the full stack against the fake agent', () => {
   }, 30_000)
 
   it('answers an inside-edit with the once option, never allow_always', async () => {
-    const folder = await mkdtemp(path.join(tmpdir(), 'acp-copy-'))
+    const folder = await mkdtemp(path.join(fixtureBase, 'acp-copy-'))
     try {
       const handlers = emptyPolicyHandlers(folder, () => Promise.resolve('allowOnce'))
       const { connection, records } = startFake('permission-inside', folder, handlers)
@@ -517,7 +629,7 @@ describe('the full stack against the fake agent', () => {
   }, 30_000)
 
   it('rejects an outside path without asking', async () => {
-    const folder = await mkdtemp(path.join(tmpdir(), 'acp-copy-'))
+    const folder = await mkdtemp(path.join(fixtureBase, 'acp-copy-'))
     try {
       let wasAsked = false
       const handlers = emptyPolicyHandlers(folder, () => {
@@ -539,7 +651,7 @@ describe('the full stack against the fake agent', () => {
   }, 30_000)
 
   it('confines fs reads and writes to the copy', async () => {
-    const folder = await mkdtemp(path.join(tmpdir(), 'acp-copy-'))
+    const folder = await mkdtemp(path.join(fixtureBase, 'acp-copy-'))
     await writeFile(path.join(folder, 'a.ts'), 'real content')
     try {
       const readTextFile = async (absolutePath: string): Promise<string | undefined> => {
@@ -575,7 +687,7 @@ describe('the full stack against the fake agent', () => {
   }, 30_000)
 
   it('cancels a slow turn and settles its permissions', async () => {
-    const folder = await mkdtemp(path.join(tmpdir(), 'acp-copy-'))
+    const folder = await mkdtemp(path.join(fixtureBase, 'acp-copy-'))
     try {
       const handlers = emptyPolicyHandlers(folder)
       const { connection, records } = startFake('slow', folder, handlers)
@@ -583,7 +695,14 @@ describe('the full stack against the fake agent', () => {
         const task = taskIn(folder, 't-5')
         const deps = workerDeps(connection, task, WRITER)
         const pending = runAcpWorker(deps)
-        await new Promise((resolve) => setTimeout(resolve, 500))
+        await waitForRecord(
+          records,
+          (record) =>
+            typeof record === 'object' &&
+            record !== null &&
+            'method' in record &&
+            record.method === 'session/prompt',
+        )
         await connection.cancel('fake-s1')
         const cancellation = await waitForRecord(
           records,
@@ -605,7 +724,7 @@ describe('the full stack against the fake agent', () => {
   }, 30_000)
 
   it('hands auth_required to the sign-in flow and reads no credential', async () => {
-    const folder = await mkdtemp(path.join(tmpdir(), 'acp-copy-'))
+    const folder = await mkdtemp(path.join(fixtureBase, 'acp-copy-'))
     try {
       const handlers = emptyPolicyHandlers(folder)
       const { connection } = startFake('auth', folder, handlers)
