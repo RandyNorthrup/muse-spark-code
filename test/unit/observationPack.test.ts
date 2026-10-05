@@ -14,6 +14,7 @@ import {
   OBS_PACK_CHARS_PER_TOKEN,
   OBS_PACK_HEAD_LINES,
   OBS_PACK_PAGE_CHARS,
+  OBS_PACK_SINGLE_LINE_EXCERPT_CHARS,
   OBS_PACK_TAIL_LINES,
   OBS_PACK_THRESHOLD_CHARS,
   OBS_PACK_WHOLE_SENDS,
@@ -279,6 +280,43 @@ describe('the placeholder', () => {
       pack.noteSent(input)
     }
     expect(pack.savings()).toBe(0)
+  })
+
+  it('trims the tail from its front, keeping the exit-code line (M101 item 4)', () => {
+    // Head and tail over the threshold together, so the trim loop engages.
+    const lines = Array.from(
+      { length: 12 },
+      (_, index) => `L${String(index + 1).padStart(2, '0')}:${'x'.repeat(1396)}`,
+    )
+    lines[11] = 'L12:[exit code 0]'
+    const { last } = packedStore(OBS_PACK_WHOLE_SENDS + 1, lines.join('\n'))
+    const placeholder = outputOf(last[0] ?? whole())
+    expect(placeholder).toContain('[exit code 0]')
+    // The dropped lines are the tail's front, not its end.
+    expect(placeholder).not.toContain('L09:')
+    expect(placeholder).toContain('L11:')
+    expect(placeholder).toContain('L01:')
+  })
+})
+
+describe('single-line excerpts and marginal packs (M101 item 18a)', () => {
+  it('packs one long line to about a 1k excerpt', () => {
+    const line = `start-${'x'.repeat(20_000)}-end`
+    const { last } = packedStore(OBS_PACK_WHOLE_SENDS + 1, line)
+    const placeholder = outputOf(last[0] ?? whole())
+    expect(placeholder.length).toBeLessThan(OBS_PACK_SINGLE_LINE_EXCERPT_CHARS + 1024)
+    expect(placeholder.length).toBeLessThan(line.length / 2)
+    expect(placeholder).toContain('start-')
+  })
+
+  it('sends the output whole when packing would save under half', () => {
+    // Just over the threshold, with a placeholder nearly as large.
+    const lines = Array.from({ length: 10 }, (_, index) => `L${String(index)}:${'y'.repeat(825)}`)
+    const original = lines.join('\n')
+    expect(original.length).toBeGreaterThan(OBS_PACK_THRESHOLD_CHARS)
+    const { last } = packedStore(OBS_PACK_WHOLE_SENDS + 1, original)
+    // Returned whole: the placeholder would save under half.
+    expect(last[0]).toMatchObject({ type: 'function_call_output', output: original })
   })
 })
 

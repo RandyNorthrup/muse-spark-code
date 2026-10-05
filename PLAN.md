@@ -15746,6 +15746,18 @@ its sections 1–2 (harness), "BYO n" its section 3 (providers).
   - [ ] Lane E's live counts and cached-token results
   - [ ] Provider × item table complete; full gate green
 
+Lane T status (2026-10-05, record `docs/certification/m101-t.md`): items
+4, 8, 9, 12, 13, 14, 15, 18 and 20 are done, each with a unit test that
+fails without the item and a byte-exact red drill; item 21 is residual
+(no pixel resizer without a new dependency, preset image limits pending
+in lane P2, no host capability lookup on this base). The shared
+tool/packing paths serve every provider, so the provider × item table
+names a capability per item rather than a provider split; the only live
+request-bytes change is the additive `edits` array property on the
+`edit_file` definition (cache-stable prefix head untouched). Lane E
+should cover multi-edit tasks in its M75 re-run; lane C1 keeps the
+`then_run` guard.
+
 ## 7. Gates
 
 **M95INT final whole-chain rerun — deferred under the 120-minute rig brief.**

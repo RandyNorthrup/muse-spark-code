@@ -1357,10 +1357,10 @@ async function writeFile(
 function fuzzyLine(line: string): string {
   return line
     .normalize('NFKC')
-    .replace(/[\u00a0\u2000-\u200a\u202f\u205f\u3000]/g, ' ')
-    .replace(/[\u2018\u2019\u201a\u201b]/g, "'")
-    .replace(/[\u201c\u201d\u201e\u201f]/g, '"')
-    .replace(/[\u2013\u2014\u2212]/g, '-')
+    .replaceAll(/[\u{00A0}\u{2000}-\u{200A}\u{202F}\u{205F}\u{3000}]/gu, ' ')
+    .replaceAll(/[\u{2018}\u{2019}\u{201A}\u{201B}]/gu, "'")
+    .replaceAll(/[\u{201C}\u{201D}\u{201E}\u{201F}]/gu, '"')
+    .replaceAll(/[\u{2013}\u{2014}\u{2212}]/gu, '-')
     .trimEnd()
 }
 
@@ -1378,22 +1378,26 @@ function matchRange(
 ): { readonly start: number; readonly end: number } | { readonly refusal: string } {
   const prefix = label === '' ? '' : `${label}: `
   const first = current.indexOf(find)
-  if (first !== -1 && !current.includes(find, first + find.length)) {
-    return { start: first, end: first + find.length }
+  if (first !== -1) {
+    // Several exact matches stay refused: the model adds context. The
+    // normalised fallback is only for formatting the exact text missed.
+    return current.includes(find, first + find.length)
+      ? {
+          refusal: `${prefix}find text occurs more than once in ${relative}; include more context`,
+        }
+      : { start: first, end: first + find.length }
   }
   const lines = current.split('\n')
   const starts: number[] = []
-  for (const [index] of lines.entries()) {
-    starts.push(
-      index === 0 ? 0 : (starts[index - 1] ?? 0) + (lines[index - 1]?.length ?? 0) + 1,
-    )
+  for (const index of lines.keys()) {
+    starts.push(index === 0 ? 0 : (starts[index - 1] ?? 0) + (lines[index - 1]?.length ?? 0) + 1)
   }
-  const want = find.split('\n').map(fuzzyLine)
-  if (want.length > 0 && want[want.length - 1] === '') {
+  const want = find.split('\n').map((line) => fuzzyLine(line))
+  if (want.at(-1) === '') {
     want.pop()
   }
   const matches: number[] = []
-  if (want.length > 0 && want.some((line) => line !== '')) {
+  if (want.some((line) => line !== '')) {
     for (let at = 0; at + want.length <= lines.length; at += 1) {
       if (want.every((line, offset) => fuzzyLine(lines[at + offset] ?? '') === line)) {
         matches.push(at)
@@ -1434,11 +1438,11 @@ async function editFile(
   }
   // One call edits once (`find`/`replace`) or several times (`edits`),
   // never both; an empty `edits` edits nothing and is refused outright.
-  if (args.edits !== undefined && args.edits.length === 0) {
+  if (args.edits?.length === 0) {
     return failure('edits must hold at least one edit')
   }
-  const multi = args.edits !== undefined
-  if (multi && (args.find !== undefined || args.replace !== undefined)) {
+  const hasEdits = args.edits !== undefined
+  if (hasEdits && (args.find !== undefined || args.replace !== undefined)) {
     return failure('pass either find and replace, or edits, not both')
   }
   const singles =
@@ -1468,7 +1472,7 @@ async function editFile(
   const ranges: { readonly start: number; readonly end: number; readonly replace: string }[] = []
   for (const [index, entry] of singles.entries()) {
     const find = shape.isCrlf ? toLf(entry.find) : entry.find
-    const matched = matchRange(current, find, relative, multi ? `edits[${String(index)}]` : '')
+    const matched = matchRange(current, find, relative, hasEdits ? `edits[${String(index)}]` : '')
     if ('refusal' in matched) {
       return failure(matched.refusal)
     }
@@ -1478,7 +1482,7 @@ async function editFile(
       replace: shape.isCrlf ? toLf(entry.replace) : entry.replace,
     })
   }
-  const ordered = [...ranges].sort((a, b) => a.start - b.start)
+  const ordered = ranges.toSorted((a, b) => a.start - b.start)
   for (const [index, range] of ordered.entries()) {
     const previous = ordered[index - 1]
     if (previous !== undefined && range.start < previous.end) {
@@ -1499,9 +1503,9 @@ async function editFile(
       relative,
       current,
       final === after ? updated : modelText(final, shapeOf(final)),
-      multi ? `edited ${relative} (${String(singles.length)} edits)` : 'edited',
+      hasEdits ? `edited ${relative} (${String(singles.length)} edits)` : 'edited',
       editedLine(
-        multi ? `edited ${relative} (${String(singles.length)} edits)` : `edited ${relative}`,
+        hasEdits ? `edited ${relative} (${String(singles.length)} edits)` : `edited ${relative}`,
         final !== after,
       ),
     ),
@@ -1641,13 +1645,13 @@ async function shell(args: z.infer<typeof shellArgs>, context: ToolContext): Pro
 export function shellText(
   result: ShellResult,
   maxChars: number = TOOL_OUTPUT_MAX_CHARS,
-  keepWhole = false,
+  shouldKeepWhole = false,
 ): string {
   const parts = [result.stdout.trimEnd(), result.stderr.trimEnd()].filter((part) => part !== '')
   // Kept whole for observation packing (M101): the output rides whole while
   // new, then packs with its placeholder naming the recall id. Past the
   // bound it is elided as before, and only the kept ends are recallable.
-  if (keepWhole) {
+  if (shouldKeepWhole) {
     const whole = parts.join('\n')
     if (whole.length <= SHELL_PACKED_MAX_CHARS) {
       return whole
@@ -1667,7 +1671,7 @@ export function shellOutcome(
   result: ShellResult,
   timeoutMs: number,
   maxChars: number = TOOL_OUTPUT_MAX_CHARS,
-  keepWhole = false,
+  shouldKeepWhole = false,
 ): ToolOutcome {
   let exit = `exit code ${String(result.exitCode ?? 'unknown')}`
   if (result.isCancelled) {
@@ -1675,10 +1679,10 @@ export function shellOutcome(
   } else if (result.isTimedOut) {
     exit = `stopped after ${String(timeoutMs)} ms`
   }
-  const body = `${shellText(result, maxChars, keepWhole)}\n[${exit}]`.trim()
+  const body = `${shellText(result, maxChars, shouldKeepWhole)}\n[${exit}]`.trim()
   // The row keeps the elided text it always showed; only what the model
   // receives rides whole into the packed replay.
-  const shown = keepWhole ? `${shellText(result, maxChars)}\n[${exit}]`.trim() : body
+  const shown = shouldKeepWhole ? `${shellText(result, maxChars)}\n[${exit}]`.trim() : body
   return {
     output: body,
     visibleOutput: shown,

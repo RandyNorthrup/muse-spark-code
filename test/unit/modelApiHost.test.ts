@@ -16214,6 +16214,46 @@ describe('ModelApiHost: taking a message back before a request reads it (M87, PL
     await turnDone()
   })
 
+  describe('a cut-short reply never runs its uncompleted calls (M101 item 8)', () => {
+    it('answers an uncompleted call with an error while a completed one still runs', async () => {
+      const t = setup({ files: { 'a.txt': 'alpha\n' } })
+      const { session, events, turnDone } = await startSession(t)
+      t.api.script(
+        {
+          calls: [
+            {
+              name: 'read_file',
+              arguments: '{"path":"a.txt"}',
+              callId: 'call_cut',
+              status: 'incomplete',
+            },
+            { name: 'read_file', arguments: '{"path":"a.txt"}', callId: 'call_ok' },
+          ],
+          incomplete: { reason: 'max_output_tokens' },
+        },
+        { text: 'done' },
+      )
+      await session.sendTurn([{ type: 'text', text: 'read it' }])
+      await turnDone()
+      // The cut call never dispatched: exactly one tool row completed.
+      expect(
+        kinds(events).filter((kind) => kind.startsWith('itemCompleted:toolCall')),
+      ).toHaveLength(1)
+      t.api.script({ text: 'done' })
+      await session.sendTurn([{ type: 'text', text: 'and then' }])
+      await turnDone()
+      const bodies = t.api.responseBodies()
+      expect(bodies.length).toBeGreaterThanOrEqual(2)
+      // The cut call is answered with an error; the completed one ran.
+      expect(outputFor(bodies[1], 'call_cut')).toMatchObject({
+        output: `Error: ${MODEL_API_MODEL_TEXT.incompleteCallNotRun}`,
+      })
+      expect(outputFor(bodies[1], 'call_ok')).toMatchObject({
+        output: expect.stringContaining('alpha'),
+      })
+    })
+  })
+
   it('stamps each user message and reply with its time, kept in the session file and read back', async () => {
     const store = memorySessionStore()
     const t = setup({ store, files: { 'a.txt': 'alpha\n' } })

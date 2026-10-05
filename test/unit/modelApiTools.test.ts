@@ -3,11 +3,17 @@ import {
   classifyTool,
   executeTool,
   parseQuestions,
+  shellOutcome,
   shellToolFor,
   type ToolContext,
   toolDefinitions,
 } from '../../src/core/backends/modelapi/tools'
-import { confineWorkspacePath, resolveWorkspacePath } from '../../src/core/workspacePath'
+import {
+  confineWorkspacePath,
+  normalizeModelPath,
+  resolveWorkspacePath,
+} from '../../src/core/workspacePath'
+import { thenRunOf } from '../../src/core/backends/modelapi/verifyTools'
 import { parsePatchFiles } from '../../src/shared/patchDocument'
 import { EN } from '../../src/shared/l10n/en'
 import { BASE_LOCALE, setUiText } from '../../src/shared/l10n/text'
@@ -19,6 +25,7 @@ import {
   SEARCH_MAX_CANDIDATES,
   SEARCH_MAX_FILE_BYTES,
   SEARCH_MAX_HITS,
+  TOOL_OUTPUT_CLIP_MARKER,
   TOOL_OUTPUT_ELIDED_MARKER,
   TOOL_OUTPUT_MAX_CHARS,
 } from '../../src/shared/constants'
@@ -493,7 +500,7 @@ describe('executeTool: read_file', () => {
       `Read text file \`a.txt\`.\n1|one\n2|two\n3|three\n4|${'x'.repeat(2000)}…`,
     )
     const window = await run('read_file', { path: 'a.txt', offset: 2, limit: 1 })
-    expect(window.output).toBe('Read text file `a.txt`.\n2|two\n[2 more lines]')
+    expect(window.output).toBe('Read text file `a.txt`.\n2|two\n[lines 2-2 of 4; offset=3]')
     expect(window.failureReason).toBeUndefined()
   })
 
@@ -868,5 +875,229 @@ describe('executeTool: search limits (D27)', () => {
     expect(capped.output).toContain(
       `searched the first ${String(SEARCH_MAX_CANDIDATES)} of ${String(SEARCH_MAX_CANDIDATES + 1)} files`,
     )
+  })
+})
+
+describe('normalizeModelPath (M101 item 9)', () => {
+  it('normalises Unicode spaces, a leading @, file:// and win32 drive forms; refuses ~', () => {
+    expect(normalizeModelPath('a b', 'linux')).toEqual({ ok: true, path: 'a b' })
+    expect(normalizeModelPath('@a.ts', 'linux')).toEqual({ ok: true, path: 'a.ts' })
+    expect(normalizeModelPath('file:///x/y.ts', 'linux')).toEqual({ ok: true, path: '/x/y.ts' })
+    expect(normalizeModelPath('~/note.txt', 'linux')).toMatchObject({ ok: false })
+    expect(normalizeModelPath('~', 'linux')).toMatchObject({ ok: false })
+    expect(normalizeModelPath('file://foo', 'linux')).toMatchObject({ ok: false })
+    expect(normalizeModelPath('/c/ws/a.ts', 'win32')).toEqual({ ok: true, path: 'c:/ws/a.ts' })
+    expect(normalizeModelPath('/mnt/c/ws/a.ts', 'win32')).toEqual({ ok: true, path: 'c:/ws/a.ts' })
+    expect(normalizeModelPath('/cygdrive/c/ws/a.ts', 'win32')).toEqual({
+      ok: true,
+      path: 'c:/ws/a.ts',
+    })
+    expect(normalizeModelPath('src/a.ts', 'linux')).toEqual({ ok: true, path: 'src/a.ts' })
+  })
+
+  it('resolves every normalised form through the one shared path', () => {
+    expect(resolveWorkspacePath('/ws', '@a.ts', 'linux')).toMatchObject({
+      ok: true,
+      relative: 'a.ts',
+    })
+    expect(resolveWorkspacePath('/ws', 'a b', 'linux')).toMatchObject({
+      ok: true,
+      relative: 'a b',
+    })
+    // file:///x is absolute and outside: refused instead of creating `file:` folders.
+    expect(resolveWorkspacePath('/ws', 'file:///x', 'linux')).toMatchObject({ ok: false })
+    expect(resolveWorkspacePath('/ws', '~/x', 'linux')).toMatchObject({ ok: false })
+    expect(resolveWorkspacePath(String.raw`C:\ws`, '/c/ws/a.ts', 'win32')).toMatchObject({
+      ok: true,
+      relative: 'a.ts',
+    })
+  })
+})
+
+describe('edit_file: normalised unique fallback (M101 item 12)', () => {
+  it('matches past trailing whitespace, curly quotes, dashes and Unicode spaces', async () => {
+    const { io, run } = context({
+      'note.txt': 'line one \n\u{2018}quoted\u{2019} and a \u{2014} dash\nwide\u{A0}space\ntail\n',
+    })
+    const edited = await run('edit_file', {
+      path: 'note.txt',
+      find: "line one\n'quoted' and a - dash\nwide space",
+      replace: 'changed',
+    })
+    expect(edited.failureReason).toBeUndefined()
+    // Only the matched range changed; the untouched line is byte-identical.
+    expect(io.files.get('/ws/note.txt')).toBe('changed\ntail\n')
+  })
+
+  it('still refuses an ambiguous or missing match, and a no-op edit', async () => {
+    const { io, run } = context({ 'a.txt': 'foo \nfoo\n' })
+    const ambiguous = await run('edit_file', { path: 'a.txt', find: 'foo', replace: 'bar' })
+    expect(ambiguous.output).toContain('more than once')
+    const missing = await run('edit_file', { path: 'a.txt', find: 'absent', replace: 'bar' })
+    expect(missing.output).toContain('not found')
+    const noop = await run('edit_file', {
+      path: 'a.txt',
+      find: 'foo \nfoo\n',
+      replace: 'foo \nfoo\n',
+    })
+    expect(noop.output).toContain('identical')
+    expect(io.files.get('/ws/a.txt')).toBe('foo \nfoo\n')
+  })
+})
+
+describe('edit_file: several edits at once (M101 item 20)', () => {
+  it('applies every entry in one write', async () => {
+    const { io, run } = context({ 'a.txt': 'alpha one\nbeta two\ngamma three\n' })
+    const edited = await run('edit_file', {
+      path: 'a.txt',
+      edits: [
+        { find: 'alpha one', replace: 'alpha 1' },
+        { find: 'gamma three', replace: 'gamma 3' },
+      ],
+    })
+    expect(edited.failureReason).toBeUndefined()
+    expect(edited.output).toContain('2 edits')
+    expect(io.files.get('/ws/a.txt')).toBe('alpha 1\nbeta two\ngamma 3\n')
+  })
+
+  it('refuses overlaps and a bad entry with the file untouched', async () => {
+    const { io, run } = context({ 'a.txt': 'alpha one\nbeta two\n' })
+    const overlapping = await run('edit_file', {
+      path: 'a.txt',
+      edits: [
+        { find: 'alpha one\nbeta', replace: 'x' },
+        { find: 'beta two', replace: 'y' },
+      ],
+    })
+    expect(overlapping.output).toContain('overlap')
+    const partial = await run('edit_file', {
+      path: 'a.txt',
+      edits: [
+        { find: 'alpha one', replace: 'x' },
+        { find: 'absent', replace: 'y' },
+      ],
+    })
+    expect(partial.output).toContain('edits[1]')
+    expect(partial.output).toContain('not found')
+    expect(io.files.get('/ws/a.txt')).toBe('alpha one\nbeta two\n')
+  })
+
+  it('refuses edits beside find/replace, and an empty list', async () => {
+    const { io, run } = context({ 'a.txt': 'alpha\n' })
+    const both = await run('edit_file', {
+      path: 'a.txt',
+      find: 'alpha',
+      replace: 'beta',
+      edits: [{ find: 'alpha', replace: 'beta' }],
+    })
+    expect(both.output).toContain('either find and replace, or edits')
+    const empty = await run('edit_file', { path: 'a.txt', edits: [] })
+    expect(empty.output).toContain('at least one edit')
+    expect(io.files.get('/ws/a.txt')).toBe('alpha\n')
+  })
+})
+
+describe('read_file: paging (M101 item 13)', () => {
+  it('names the shown lines and the offset that reads on', async () => {
+    const lines = Array.from({ length: 10 }, (_, index) => `line ${String(index + 1)}`)
+    const { run } = context({ 'long.txt': `${lines.join('\n')}\n` })
+    const page = await run('read_file', { path: 'long.txt', offset: 3, limit: 4 })
+    expect(page.failureReason).toBeUndefined()
+    expect(page.output).toContain('3|line 3')
+    expect(page.output).toContain('6|line 6')
+    expect(page.output).not.toContain('7|line 7')
+    expect(page.output).toContain('[lines 3-6 of 10; offset=7]')
+  })
+
+  it('errors an offset past the end instead of reading empty', async () => {
+    const { run } = context({ 'long.txt': 'one\ntwo\n' })
+    const past = await run('read_file', { path: 'long.txt', offset: 3 })
+    expect(past.output).toBe('Error: offset 3 is past the end of long.txt: it has 2 lines')
+    expect(past.failureReason).toBe('offset 3 is past the end of long.txt: it has 2 lines')
+    const last = await run('read_file', { path: 'long.txt', offset: 2 })
+    expect(last.failureReason).toBeUndefined()
+    expect(last.output).toContain('2|two')
+    expect(last.output).not.toContain('offset=')
+  })
+})
+
+function bigResult(size: number) {
+  return {
+    stdout: `s${'x'.repeat(size)}e`,
+    stderr: '',
+    exitCode: 0 as const,
+    isTimedOut: false,
+    isCancelled: false,
+  }
+}
+
+describe('shell output kept whole for packing (M101 item 15)', () => {
+  it('elides the middle unless the session packs observations', () => {
+    const result = bigResult(100_000)
+    const clipped = shellOutcome(result, 120_000)
+    expect(clipped.output).toContain(TOOL_OUTPUT_ELIDED_MARKER)
+    expect(clipped.visibleOutput).toBe(clipped.output)
+    const whole = shellOutcome(result, 120_000, TOOL_OUTPUT_MAX_CHARS, true)
+    expect(whole.output).toContain('x'.repeat(1000))
+    expect(whole.output.endsWith('[exit code 0]')).toBe(true)
+    expect(whole.output).not.toContain(TOOL_OUTPUT_ELIDED_MARKER)
+    // The row keeps the elided text it always showed.
+    expect(whole.visibleOutput).toBe(clipped.output)
+  })
+
+  it('keeps the shell tool result whole through executeTool while packing', async () => {
+    const io = memoryToolIo({}, ROOT, () => bigResult(100_000))
+    const ctx: ToolContext = {
+      workspaceRoot: ROOT,
+      platform: 'linux',
+      io,
+      seen: new Map(),
+      wholeShellOutput: true,
+    }
+    const outcome = await executeTool(
+      'bash',
+      JSON.stringify({ command: 'big', description: 'd' }),
+      ctx,
+    )
+    expect(outcome.output).not.toContain(TOOL_OUTPUT_ELIDED_MARKER)
+    expect(outcome.output.endsWith('[exit code 0]')).toBe(true)
+    expect(outcome.visibleOutput).toContain(TOOL_OUTPUT_ELIDED_MARKER)
+  })
+})
+
+describe('clip: surrogate pairs (M101 item 18c)', () => {
+  it('never splits a character at the clip point', async () => {
+    // Every line is 2000 characters, so line 32 starts at a known offset;
+    // its emoji's high surrogate lands exactly on the clip point's last kept
+    // character, which the old clip left dangling.
+    const headerLen = 'Read text file `big.txt`.\n'.length
+    const lineStart = headerLen + 31 * 2001
+    const pairAt = TOOL_OUTPUT_MAX_CHARS - 1 - lineStart - '32|'.length
+    expect(pairAt).toBeGreaterThan(0)
+    // Raw lines: read_file prepends its own `N|`, so every displayed line is
+    // 2000 characters and line 32 starts at the computed offset.
+    const lines = Array.from({ length: 40 }, (_, index) => {
+      const headLen = `${String(index + 1)}|`.length
+      return index === 31
+        ? `${'a'.repeat(pairAt)}\u{1F600}${'a'.repeat(2000 - headLen - pairAt - 2)}`
+        : 'a'.repeat(2000 - headLen)
+    })
+    const { run } = context({ 'big.txt': `${lines.join('\n')}\n` })
+    const result = await run('read_file', { path: 'big.txt' })
+    expect(result.output).toContain(TOOL_OUTPUT_CLIP_MARKER)
+    expect(result.output).not.toMatch(/[\uD800-\uDBFF](?![\uDC00-\uDFFF])/)
+    expect(result.output).not.toMatch(/(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/)
+  })
+})
+
+describe('thenRunOf: non-string values (M101 item 18b)', () => {
+  it('reports a present non-string value instead of dropping it', () => {
+    expect(thenRunOf('{"then_run": 42}')).toEqual({ kind: 'invalid' })
+    expect(thenRunOf('{"then_run": null}')).toEqual({ kind: 'invalid' })
+    expect(thenRunOf('{"then_run": ["npm", "test"]}')).toEqual({ kind: 'invalid' })
+    expect(thenRunOf('{"then_run": " npm test "}')).toEqual({ kind: 'run', command: 'npm test' })
+    expect(thenRunOf('{}')).toEqual({ kind: 'absent' })
+    expect(thenRunOf('{"then_run": ""}')).toEqual({ kind: 'absent' })
+    expect(thenRunOf('not json')).toEqual({ kind: 'absent' })
   })
 })

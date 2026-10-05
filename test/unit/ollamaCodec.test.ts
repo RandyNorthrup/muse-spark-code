@@ -466,6 +466,14 @@ describe('decodeOllamaStream native captures', () => {
       })),
     )
   })
+  it('maps a length done_reason to the canonical incomplete response (M101 item 8)', async () => {
+    const answer = await response(
+      stream(
+        `${JSON.stringify({ model, message: { role: 'assistant', content: 'half' } })}\n${JSON.stringify({ model, done: true, done_reason: 'length' })}\n`,
+      ),
+    )
+    expect(answer.status).toBe('incomplete')
+  })
   it('keeps two native indices distinct across lines and byte splits', async () => {
     const raw = capture('09-two-tool-chunks').response.body
     const answer = await response(

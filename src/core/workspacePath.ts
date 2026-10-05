@@ -6,7 +6,6 @@
 // the Model API's tool harness so the activation bundle can confine a path
 // without carrying the backend that loads on first use (M57, PLAN.md D6).
 
-import { fileURLToPath } from 'node:url'
 import { pathModule } from './workspaceRoot'
 
 export type PathResolution =
@@ -83,7 +82,7 @@ export function normalizeModelPath(
   given: string,
   platform: NodeJS.Platform,
 ): { readonly ok: true; readonly path: string } | { readonly ok: false; readonly reason: string } {
-  let path = given.replace(/[\u00a0\u2000-\u200a\u202f\u205f\u3000]/g, ' ')
+  let path = given.replaceAll(/[\u{00A0}\u{2000}-\u{200A}\u{202F}\u{205F}\u{3000}]/gu, ' ')
   if (path.startsWith('@')) {
     path = path.slice(1)
   }
@@ -93,16 +92,27 @@ export function normalizeModelPath(
       reason: `path ${given} starts at the home directory, which is outside the workspace`,
     }
   }
+  // `file://` by the URL's own rule, not the host's: the platform names the
+  // path, so only an absolute path or a localhost one converts.
   if (path.startsWith('file://')) {
-    try {
-      path = fileURLToPath(path)
-    } catch {
+    const withoutScheme = path.slice('file://'.length)
+    let absolute: string | undefined
+    if (withoutScheme.startsWith('/')) {
+      absolute = withoutScheme
+    } else if (withoutScheme.startsWith('localhost/')) {
+      absolute = withoutScheme.slice('localhost'.length)
+    }
+    if (!absolute?.startsWith('/')) {
       return { ok: false, reason: `path ${given} is not a valid file URL` }
     }
-  } else if (platform === 'win32') {
-    const drive = /^\/(?:mnt\/|cygdrive\/)?([a-zA-Z])\//.exec(path)
-    if (drive !== undefined) {
-      path = `${drive[1]}:/${path.slice(drive[0].length)}`
+    path = absolute
+  }
+  if (platform === 'win32') {
+    const drive =
+      /^\/(?:mnt\/|cygdrive\/)?([a-zA-Z])\//.exec(path) ?? /^\/([a-zA-Z])[:|]\//.exec(path)
+    const letter = drive?.[1]
+    if (drive !== null && letter !== undefined) {
+      path = `${letter}:/${path.slice(drive[0].length)}`
     }
   }
   return { ok: true, path }

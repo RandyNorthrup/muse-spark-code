@@ -156,10 +156,7 @@ export class ObservationPack {
     // Trim the tail from its front, then the head from its back: the final
     // lines (a shell result's `[exit code N]`) stay while they fit (M101).
     // The final line is never trimmed here; the fallback below keeps it.
-    while (
-      text.length > OBS_PACK_THRESHOLD_CHARS &&
-      (head.length > 1 || tail.length > 1)
-    ) {
+    while (text.length > OBS_PACK_THRESHOLD_CHARS && (head.length > 1 || tail.length > 1)) {
       if (tail.length > 1) {
         tail = tail.slice(1)
       } else {
@@ -171,8 +168,8 @@ export class ObservationPack {
       // Still too long (one long line, or a long final one): an excerpt of
       // about OBS_PACK_SINGLE_LINE_EXCERPT_CHARS, keeping the final line
       // beside the first when they differ and it fits (M101).
-      const last = all[all.length - 1] ?? ''
-      const tailKept = all.length > 1 && last !== '' ? [last] : []
+      const last = all.at(-1) ?? ''
+      const tailKept = last !== '' && all.length > 1 ? [last] : []
       const metadata = this.render(callId, entry, ['…'], tailKept)
       const available = Math.max(0, OBS_PACK_SINGLE_LINE_EXCERPT_CHARS - metadata.length)
       const first = head[0] ?? ''

@@ -37,6 +37,9 @@ function isBinary(text: string): boolean {
   return text.includes('\0')
 }
 
+/** The first code point past the Basic Multilingual Plane. */
+const ASTRAL_PLANE_START = 0x1_00_00
+
 /**
  * One hit within `max` characters (M101, Pi's truncate): a minified line
  * cannot fill the whole search budget. Cut on a code point boundary, saying
@@ -46,7 +49,9 @@ function clipHit(line: string, max: number): string {
   if (line.length <= max) {
     return line
   }
-  const end = (line.codePointAt(max - 1) ?? 0) > 0xff_ff ? max - 1 : max
+  // At or past the astral start the character at max - 1 is a lead
+  // surrogate, so the cut moves one back to keep the pair whole.
+  const end = (line.codePointAt(max - 1) ?? 0) >= ASTRAL_PLANE_START ? max - 1 : max
   return `${line.slice(0, Math.max(end, 0))}… [line cut to ${String(max)} characters]`
 }
 

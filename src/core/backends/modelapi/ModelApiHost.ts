@@ -7252,7 +7252,6 @@ export class ModelApiSession implements AgentSession {
         isRejected: false,
       }
     }
-    const command = thenRunRequest.command
     if (!isEdited) {
       return {
         outcome: {
@@ -7266,7 +7265,7 @@ export class ModelApiSession implements AgentSession {
       ...(await this.thenRun(
         itemId,
         target,
-        command,
+        thenRunRequest.command,
         performed.outcome,
         signal,
         shouldForceApproval,
