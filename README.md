@@ -3168,7 +3168,8 @@ The ACP package (`muse-spark-code-acp`) gains one-turn `exec`, a counts-only
 same-repository GitHub review and fix Action, with an `action/apply`
 sub-action. Their fake-only tests pass on Linux, macOS and Windows, and the
 fake-only Action check passes on hosted runners (`action-check.yml`);
-acceptance with a real key (the live receipts) is still pending, so this is
+the first live receipt with a real key (LA, on a candidate package) passed on
+2026-10-05, but L, and LR after a release, are still pending, so this is
 **not certified yet**. The Action installs the agent from npm and checks its
 provenance (0.12.0 is the first npm release with `exec`), or a candidate
 tarball you pin (`agent-package` with `agent-package-sha256`).
@@ -3245,6 +3246,10 @@ test variant (`muse-spark-code-acp-test-<version>.tgz`, whose bin is
 `dist/exec-test-launcher.js`). The test variant is never released.
 `.github/workflows/action-check.yml` runs the Action against it with a
 scripted fake Meta API: no key and no spend.
+`.github/workflows/action-live.yml` is the one live check (receipt LA): the
+repository owner starts it by hand to run the real Action, on the product
+package from the same commit, against one pull request, with the real key,
+the contributor model and a hard $0.25 budget.
 
 See the [ACP guide](docs/acp.md), the [CI guide](docs/ci.md) and the
 [M80 record](docs/certification/m80.md) for tests, deliberate breaks, platform

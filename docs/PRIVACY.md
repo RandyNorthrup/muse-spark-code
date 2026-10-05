@@ -621,6 +621,7 @@ manifest. A binary/image change or detected secret withholds the entire patch;
 private staging is not uploaded. Model-generated images are still paid provider
 requests; tally records returned/uncertain liability under explicit flag/cap.
 
-B/C integration and actual L/LA/LR remain open. Read
+Lanes A to D are integrated and the live receipt LA passed on 2026-10-05; L and
+LR remain open. Read
 [CI guide](ci.md) and [M80 receipts](certification/m80.md) for exact flow,
 retention/cleanup bounds, platform limits and support claims.

@@ -445,8 +445,8 @@ More detail: `docs/PRIVACY.md` and PLAN.md §9.
 
 The frozen M80 contract adds memory-only stdin authentication to exec and a
 second trusted installed scanner child. Lanes A to D are implemented and the
-hosted fake-only Action check passes; the live L/LA/LR acceptance is pending,
-and this policy defines its required boundary.
+hosted fake-only Action check passes; the live receipt LA passed on 2026-10-05,
+L and LR acceptance is pending, and this policy defines its required boundary.
 The Action step directly execs its trusted absolute launcher. Only that initial
 run-step environment holds the Model API key; launcher deletes variable before
 children and holds it in memory until cleanup. It sends key only by private

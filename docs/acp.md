@@ -363,8 +363,8 @@ not trust.
 ## Headless execution and scanner (M80, not yet certified)
 
 The headless commands are integrated and their fake-only tests pass on Linux,
-macOS and Windows. They are not a supported-run claim until the hosted matrix
-and the live receipts L and LA pass:
+macOS and Windows. They are not a supported-run claim until the live receipt L passes too (the
+hosted matrix passes, and LA passed on 2026-10-05):
 
 ```text
 muse-spark-code-acp exec [options] <prompt>
