@@ -13959,9 +13959,28 @@ joined with M57, M58 and PR #49's sign-in
   - [x] Owner request, D76 design, lanes and source-grounded research recorded.
   - [ ] Acceptance 1–10, each with its failing drill and passing receipt.
   - [x] Optional registry shapes captured; SPDX data provenance/terms pinned.
+  - [x] Windows final-head legal accessibility receipt: 96 Chromium/keyboard/
+        device-metric zoom checks and 24 English/pseudo WCAG pages on Windows
+        11 25H2, build 26200.9457; exit 0 on `2fd060c3`. Receipt and screen-reader
+        scope are recorded in `docs/certification/m97.md` (M97WIN).
   - [ ] Muse Code explanation read-only confinement proved, or explicitly refused.
   - [ ] Final-tree rig/full-quality, a11y, package/bundle and installed-host gates.
   - [ ] Delivered commands, costs, limits and privacy documented from real runs.
+
+- **Windows packaging repair (2026-10-05, M97WIN; before implementation).**
+  The unchanged `vsixCompression` archive-preservation test fails because
+  Windows' `python3` Store alias exits 9009, while the installed `python` and
+  `py` both work. Probe each existing interpreter candidate with `--version`
+  before dispatch; skip unavailable candidates, but retain the selected
+  compressor's real exit code without retrying failed compression. Add no
+  dependency, configuration option, gate exception or machine-setting change.
+  Prove the existing complete test file red/green, deliberately remove the new
+  availability guard once, restore byte-exact with SHA-256, and record receipts.
+  With compression now reached, the same test exposes a separate fixture
+  failure: printing the full Czech table through Python's Windows cp1252
+  stdout raises UnicodeEncodeError. Print that JSON transport with ASCII
+  escapes; retain every real UTF-8 archive byte/value and metadata assertion,
+  and the parsed table must still equal the complete original translation.
 
 ## 7. Gates
 
@@ -14694,9 +14713,14 @@ Unresolved items remain delivery/security gaps, not accepted legal conclusions:
 - I-R5 — **open; owner: paid/backend lane and lead.** Bounded optional
   explanation, paid-use and read-only confinement receipts are absent. This
   lane made no paid/live calls. Ordinary coding-turn billing remains ordinary.
-- I-R6 — **open; owner: lead/platform rigs.** Windows installed-host and
-  reparse/path checks, native browser zoom/screen readers and hosted
-  platform receipts remain outstanding. Actual local VSIX installs on Mac in
+- I-R6 — **Windows headless accessibility receipt closed; remaining host
+  receipts open; owner: M97WIN/lead/platform rigs.** The final-head command on
+  Windows 11 25H2 (26200.9457) passes 96 real Chromium accessibility-tree,
+  keyboard and device-metric zoom checks plus 24 English/pseudo WCAG pages,
+  exit 0; the platform-mismatch drill exits 1. The Windows workspace suite
+  passes all 11 tests, including junction/reparse and path admission checks.
+  Windows installed-host, actual browser zoom/OS screen-reader sessions and
+  hosted platform receipts remain outstanding. Actual local VSIX installs on Mac in
   both selected backend profiles now pass 3/3 tests apiece; fake transports
   compare the shipped native/MCP scanner without a signed-in model.
 - I-R7 — **command contract closed; owner: M97FIN.** Reserved

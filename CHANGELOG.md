@@ -7,6 +7,9 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+- Skip unavailable Python launchers when compressing the VSIX on Windows,
+  so a Microsoft Store alias cannot hide an installed interpreter. Preserve
+  real compression failures and the existing archive-content checks.
 - Record the complete M97 quality pass on `c8c3cfd8` on macmini, closing the
   local aggregate receipt with every gate unchanged.
 - Fix the duplicate paid marker on legal-explanation toggles; align quality

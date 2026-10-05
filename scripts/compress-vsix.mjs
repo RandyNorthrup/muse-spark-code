@@ -21,6 +21,7 @@ process.on('exit', () => {
   rmSync(layoutDirectory, { recursive: true, force: true })
 })
 for (const python of ['python3', 'python', 'py']) {
+  if (spawnSync(python, ['--version'], { stdio: 'ignore' }).status !== 0) continue
   const result = spawnSync(python, [script, path.resolve(source), layoutFile], { stdio: 'inherit' })
   if (result.error?.code === 'ENOENT') continue
   if (result.error !== undefined) throw result.error

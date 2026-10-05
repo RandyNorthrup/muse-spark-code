@@ -3360,7 +3360,8 @@ are recorded in [the M78 certification](docs/certification/m78.md).
 
 The VSIX package step uses Python's standard-library `zipfile` to apply maximum
 DEFLATE compression after `vsce` creates the archive. Python 3 (`python3`,
-`python` or `py`) is required, as for the semgrep toolchain. The step preserves
+`python` or `py`) is required, as for the semgrep toolchain. Unavailable launchers
+are skipped, including Windows' Microsoft Store aliases. The step preserves
 entry paths, metadata, every UI JSON value and all other uncompressed bytes.
 Only packaged translation JSON whitespace is compacted; source tables stay
 unchanged and malformed JSON refuses publication. The 2200 KiB budget stays fixed.

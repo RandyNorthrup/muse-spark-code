@@ -68,7 +68,7 @@ with ZipFile(sys.argv[1]) as z:
     assert z.getinfo('extension/tool').external_attr == 0o100755 << 16
     assert z.getinfo('extension/tool').date_time == (2026, 10, 4, 12, 0, 0)
     assert z.testzip() is None
-    print(json.dumps(packed, ensure_ascii=False))
+    print(json.dumps(packed, ensure_ascii=True))
 `,
         archive,
         translatedFile,
