@@ -15446,6 +15446,19 @@ before a repaired one loads (2026-09-30).
   guard that cannot start fails as its source fails. Follow-up: one Win11
   VM run of a Copilot and a Cline guard, and the live check in M91's plan.
 
+- **M91-W-knip-constants (dead-code gate).** knip 6.38.0 records no export
+  of `src/shared/constants.ts` at all. `--trace-export` finds none of them,
+  `WINDOWS_POWERSHELL_COMMAND_ARGS` included, while it traces
+  `ModelApiHost.ts` (461 KB) and `paid.ts`. oxc-parser reads the file with
+  0 errors and 1,099 static exports. No namespace import, `export *`,
+  dynamic import, entry or ignore names the file, and moving the three
+  `vi.mock` tests aside changes nothing. Drill W22: an unused export there
+  leaves knip at exit 0; the same export in `paid.ts` exits 1.
+
+  Safe for now: a dead constant costs bytes, not behaviour, and each lane
+  checks its constants by search, as lane 0 did. Follow-up: a separate lane
+  finds the cause and re-runs W22 until knip exits 1.
+
 - **M91 lane P source qualifications (RVM91P3).** The adapters remain unwired
   in this lane. `blockOperation: true` on an unsupported blocking stdin is an
   execution refusal, never a disposable hook failure; lane W must enforce it
