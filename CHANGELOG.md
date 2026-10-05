@@ -60,6 +60,10 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- Team workers and read-only Git calls share one classifier, including wrapper
+  inspection, clustered short-option refusals, exact argv and safe listings.
+  The workspace team reader preserves validated scheduler shared-file rules.
+
 - Team checks validate and quote scoped files for the destination operating
   system and guard the final command before dispatch. Persistent check slots
   own their Git objects and release cancelled snapshots only when every

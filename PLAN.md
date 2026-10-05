@@ -17674,6 +17674,14 @@ live) and the controller filters its id as well.
 
 ### M96 — Agent roles and the team (D75)
 
+**Round 3b classifier reconciliation.** W's `workerFence.ts` owns the
+single argument classifier. I re-exports it and passes only the argv that
+will execute. W's wrapper tokenizer delegates to it; safe `worktree list`,
+`branch --show-current` and optional-lock suppression remain available.
+I's clustered option, order-file, global pager, unknown-command and doubled
+Git refusals apply to both clients. Six integration regressions are deliberately
+broken and restored byte-exact (classifier, shared-files reader, label union).
+
 **M96INT round 3b (2026-10-05, macmini).** Integrate the reviewed R/B/K
 redesigns, W redesign, I final fixes and M96c in the brief's order with
 `--no-ff`. Preserve all lane intents and translations; splice S's scheduler,

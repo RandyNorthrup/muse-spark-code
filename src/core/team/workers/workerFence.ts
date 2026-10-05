@@ -1,3 +1,4 @@
+import type { RefFenceVerdict } from '../refFence'
 import type { MuseWorkerApprovalRequest, MuseWorkerApprovalAnswer } from './museCodeWorker'
 import type { AcpPermissionInput, AcpPermissionVerdict, AcpPreset, AcpPresetId } from './acpWorker'
 // One admission authority for every team worker (PLAN.md M96 W-F1-W-F3).
@@ -222,115 +223,255 @@ export function extractRequestPaths(rawInput: unknown): ExtractedRequestPaths {
   return { paths, isTruncated }
 }
 
-/** A git command that would commit, merge, push, fetch, switch or move any ref (D75's fence). */
-const REF_MOVING_SUBCOMMANDS: ReadonlySet<string> = new Set([
+function gitRefused(
+  command: string,
+  reason: string,
+): Extract<RefFenceVerdict, { readonly allowed: false }> {
+  return { allowed: false, command, reason }
+}
+
+/** Global git options a worker may pass before the subcommand. */
+const ALLOWED_GIT_GLOBALS = new Set([
+  '--no-pager',
+  '--no-optional-locks',
+  '--no-replace-objects',
+  '--literal-pathspecs',
+  '--glob-pathspecs',
+  '--noglob-pathspecs',
+  '--icase-pathspecs',
+])
+
+/** A global option that smuggles repository configuration into the call. */
+const CONFIG_OPTIONS = new Set(['-c', '--config', '--config-env'])
+/** A global option that points git at another repository. */
+const REPO_DIR_OPTIONS = ['--git-dir', '--work-tree', '--super-prefix']
+/** Help and version output: no repository needed, nothing moved. */
+const HELP_OPTIONS = new Set(['--help', '--version', 'help'])
+
+/** Subcommands that never move a ref, reach another repository or write. */
+const ALLOWED_GIT_COMMANDS = new Set([
+  'status',
+  'log',
+  'show',
+  'diff',
+  'grep',
+  'blame',
+  'ls-files',
+  'ls-tree',
+  'rev-parse',
+  'rev-list',
+  'cat-file',
+  'show-ref',
+  'for-each-ref',
+  'count-objects',
+  'fsck',
+  'verify-pack',
+  'verify-commit',
+  'verify-tag',
+  'hash-object',
+  'check-ref-format',
+  'check-ignore',
+  'check-attr',
+  'check-mailmap',
+  'name-rev',
+  'describe',
+  'merge-base',
+  'shortlog',
+  'var',
+  'version',
+])
+
+const REFUSED_COMMIT_COMMANDS = new Set([
   'commit',
   'merge',
   'rebase',
   'reset',
+  'revert',
+  'cherry-pick',
+  'cherry',
   'checkout',
   'switch',
+  'restore',
+  'am',
+  'apply', // `apply` writes the worktree from a patch; workers edit with tools.
+])
+const REFUSED_REF_COMMANDS = new Set([
+  'branch',
+  'tag',
   'update-ref',
   'symbolic-ref',
-  'stash',
-  'push',
-  'pull',
+  'notes',
+  'replace',
+])
+const REFUSED_REMOTE_COMMANDS = new Set([
   'fetch',
+  'pull',
+  'push',
   'remote',
   'clone',
+  'ls-remote',
+  'submodule',
+  'archive', // `archive --remote=` reaches another repository.
+  'bundle',
 ])
+const REFUSED_STATE_COMMANDS = new Set(['stash', 'worktree', 'bisect', 'config'])
 
-/**
- * Whether the words are a git command the ref guard refuses. Leading `git`
- * flags are skipped; `--git-dir` and `--work-tree` reach another
- * repository and refuse; `branch` and `tag` refuse except their read-only
- * listings.
- */
-export function isRefMovingGitCommand(words: readonly string[]): boolean {
-  let index = words.findIndex((word) => /(?:^|[/\\])git(?:\.(?:exe|cmd))?$/i.test(word))
-  if (index < 0) {
-    return false
-  }
-  index += 1
-  while (index < words.length) {
-    const word: string | undefined = words[index]
-    if (
-      word === undefined ||
-      word === '-C' ||
-      word === '-c' ||
-      word === '--config-env' ||
-      word === '--exec-path' ||
-      word === '--git-dir' ||
-      word === '--work-tree' ||
-      word.startsWith('-C') ||
-      word.startsWith('-c') ||
-      word.startsWith('--config-env=') ||
-      word.startsWith('--exec-path=') ||
-      word.startsWith('--git-dir=') ||
-      word.startsWith('--work-tree=')
-    ) {
-      return true
-    }
-    if (!word.startsWith('-')) {
-      break
-    }
-    if (!GIT_SAFE_GLOBAL_FLAGS.has(word)) {
-      return true
-    }
-    index += 1
-  }
-  const subcommand: string | undefined = words[index]
-  if (subcommand === undefined || REF_MOVING_SUBCOMMANDS.has(subcommand)) {
-    return true
-  }
-  if (subcommand === 'branch' || subcommand === 'tag') {
-    const rest = words.slice(index + 1)
-    const readOnly = subcommand === 'branch' ? GIT_BRANCH_LIST_FLAGS : GIT_TAG_LIST_FLAGS
-    return rest.some((word) => !readOnly.has(word))
-  }
-  if (subcommand === 'worktree') {
-    return words[index + 1] !== 'list'
-  }
-  // Unknown aliases/subcommands may execute arbitrary code or move refs.
-  return !GIT_READ_SUBCOMMANDS.has(subcommand)
-}
-
-const GIT_SAFE_GLOBAL_FLAGS: ReadonlySet<string> = new Set([
-  '--no-pager',
-  '--paginate',
-  '--no-optional-locks',
-  '--literal-pathspecs',
-])
-const GIT_READ_SUBCOMMANDS: ReadonlySet<string> = new Set([
-  'status',
-  'diff',
-  'log',
-  'show',
-  'blame',
-  'rev-parse',
-  'ls-files',
-  'ls-tree',
-  'for-each-ref',
-  'cat-file',
-  'check-ignore',
-  'describe',
-  'help',
-  'version',
-])
-
-const GIT_BRANCH_LIST_FLAGS: ReadonlySet<string> = new Set([
+/** `branch`/`tag` list flags: anything else (a name, `-f`, `-d`) moves refs. */
+const LIST_ONLY_FLAGS = new Set([
   '--list',
   '--show-current',
-  '-a',
   '--all',
+  '--remotes',
+  '--verbose',
+  '--color',
+  '--no-color',
+  '--column',
+  '--no-column',
+  '--sort',
+  '--format',
   '--contains',
+  '--no-contains',
   '--merged',
   '--no-merged',
-  '-v',
-  '-vv',
+  '--points-at',
+])
+const LIST_ONLY_SHORT = new Set(['-l', '-a', '-r', '-v', '-n'])
+
+/**
+ * A worker's `git` argument list, refused at call admission. Every git
+ * command that commits, merges, rebases, resets, checks out or switches,
+ * moves or deletes a branch or tag, edits a ref, adds or removes a
+ * worktree, stashes, reaches another repository, or smuggles configuration
+ * (`-c credential.helper=…`, `--git-dir`, `-C <elsewhere>`) is refused.
+ * Unknown subcommands are refused too: the guard is fail-closed.
+ */
+export function classifyWorkerGitCommand(args: readonly string[]): RefFenceVerdict {
+  const words = [...args]
+  const command = words.join(' ')
+  let index = 0
+  // Global options before the subcommand.
+  while (index < words.length) {
+    const token = words[index] ?? ''
+    if (CONFIG_OPTIONS.has(token)) {
+      return gitRefused(command, 'gitConfig')
+    }
+    if (token === '-C' || REPO_DIR_OPTIONS.some((option) => token.startsWith(option))) {
+      return gitRefused(command, 'outsideRepo')
+    }
+    if (token === '--' || token === '-' || !token.startsWith('-')) {
+      break
+    }
+    if (token.startsWith('--')) {
+      const name = token.split('=', 1)[0] ?? token
+      if (!ALLOWED_GIT_GLOBALS.has(name)) {
+        return gitRefused(command, 'gitOption')
+      }
+      index += 1
+      continue
+    }
+    // All short globals, including `-p` (--paginate), are refused.
+    return gitRefused(command, 'gitOption')
+  }
+  const subcommand = words[index] ?? ''
+  if (subcommand === '' || HELP_OPTIONS.has(subcommand)) {
+    return { allowed: true }
+  }
+  if (subcommand === '--') {
+    return gitRefused(command, 'unknownGitCommand')
+  }
+  if (REFUSED_COMMIT_COMMANDS.has(subcommand)) {
+    return gitRefused(command, 'gitCommit')
+  }
+  if (REFUSED_REF_COMMANDS.has(subcommand)) {
+    const isListable = subcommand === 'branch' || subcommand === 'tag'
+    return isListable && isListOnly(words.slice(index + 1))
+      ? checkGitOptions(words.slice(index + 1), command)
+      : gitRefused(command, 'gitRefMove')
+  }
+  if (REFUSED_REMOTE_COMMANDS.has(subcommand)) {
+    return gitRefused(command, 'gitRemote')
+  }
+  if (subcommand === 'worktree' && words[index + 1] === 'list') {
+    const rest = words.slice(index + 2)
+    return rest.every((word) => ['--porcelain', '-z', '-v', '--verbose'].includes(word))
+      ? checkGitOptions(rest, command)
+      : gitRefused(command, 'gitState')
+  }
+  if (REFUSED_STATE_COMMANDS.has(subcommand)) {
+    return gitRefused(command, 'gitState')
+  }
+  return ALLOWED_GIT_COMMANDS.has(subcommand)
+    ? checkGitOptions(words.slice(index + 1), command)
+    : gitRefused(command, 'unknownGitCommand')
+}
+
+/** `branch`/`tag` with only list flags and no ref names. */
+function isListOnly(rest: readonly string[]): boolean {
+  for (const token of rest) {
+    if (token === '--' || token === '-' || !token.startsWith('-')) {
+      return false
+    }
+    if (token.startsWith('--')) {
+      const name = token.split('=', 1)[0] ?? token
+      if (name !== '--list' && !LIST_ONLY_FLAGS.has(name)) {
+        return false
+      }
+      continue
+    }
+    for (const flag of token.slice(1)) {
+      if (!LIST_ONLY_SHORT.has(`-${flag}`)) {
+        return false
+      }
+    }
+  }
+  return true
+}
+
+/** An option that writes a file (`git diff --output=…`) is refused. */
+const WRITE_OPTIONS = new Set([
+  '--output',
+  '-o',
+  '-w',
+  '-O',
+  '--lost-found',
+  '--ext-diff',
+  '--textconv',
+  '--filters',
+  '--open-files-in-pager',
+  '--exec-path',
 ])
 
-const GIT_TAG_LIST_FLAGS: ReadonlySet<string> = new Set(['-l', '--list', '-n'])
+function checkGitOptions(rest: readonly string[], command: string): RefFenceVerdict {
+  const end = rest.indexOf('--')
+  const options = rest.slice(0, end === -1 ? undefined : end)
+  for (const token of options) {
+    if (token === '-' || !token.startsWith('-')) {
+      continue
+    }
+    const name = token.split('=', 1)[0] ?? token
+    if (
+      WRITE_OPTIONS.has(name) ||
+      (name.startsWith('--') && [...WRITE_OPTIONS].some((option) => option.startsWith(name)))
+    ) {
+      return gitRefused(command, 'refusedOption')
+    }
+    if (!token.startsWith('--')) {
+      for (const flag of token.slice(1)) {
+        if (WRITE_OPTIONS.has(`-${flag}`)) {
+          return gitRefused(command, 'refusedOption')
+        }
+      }
+    }
+  }
+  return { allowed: true }
+}
+
+/** The tokenizer supplies only argv after the executable. Unknown Git
+ * commands and program-running options refuse through this one classifier. */
+export function isRefMovingGitCommand(words: readonly string[]): boolean {
+  const index = words.findIndex((word) => /(?:^|[/\\])git(?:\.(?:exe|cmd))?$/i.test(word))
+  return index !== -1 && !classifyWorkerGitCommand(words.slice(index + 1)).allowed
+}
 
 export async function isWorkerWriteAllowed(
   input: {
