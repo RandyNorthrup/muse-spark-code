@@ -3785,6 +3785,18 @@ export const EVAL_REPORT_VERSION = 2
 // ten-thousandths of a dollar on the contributor tier.
 export const EVAL_COST_DECIMALS = 4
 
+// --- M96 lane W: team workers (PLAN.md D75) ---
+// Lane 0 owns the `TEAM_*` region; these `WORKER_*` names carry the plan's
+// values until lane 0 relocates them, so no second source ever sets them.
+/** A worker's brief cap (D75's `TEAM_BRIEF_MAX_CHARS`). */
+export const WORKER_BRIEF_MAX_CHARS = 8000
+/** Inlined task files' cap (D75's `TEAM_BRIEF_FILES_MAX_BYTES`). */
+export const WORKER_BRIEF_FILES_MAX_BYTES = 64 * 1024
+/** An `unstructured` report's summary clip (acceptance 18). */
+export const WORKER_UNSTRUCTURED_SUMMARY_MAX_CHARS = 2000
+/** Depth 1, or 2 through `delegates`, never more (D75's `TEAM_MAX_DEPTH`). */
+export const WORKER_MAX_DEPTH = 2
+
 // What the user reads, in the display language (PLAN.md D33).
 export { UI_TEXT } from './l10n/text'
 // The JSON script element the host writes into each webview's HTML with
