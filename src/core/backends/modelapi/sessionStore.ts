@@ -105,6 +105,8 @@ export interface StoredSession {
   readonly agent?: AgentRuntime
   readonly name?: string
   readonly createdAt: string
+  /** Local calendar date frozen at session start (M101); absent on older files. */
+  readonly promptDate?: string
   readonly lastActivityAt: string
   readonly turnIds: readonly string[]
   /** Last completed turn covered by the accepted compaction summary (M53). */
@@ -254,6 +256,7 @@ const storedSessionFields = {
   ),
   name: z.optional(z.string()),
   createdAt: z.string(),
+  promptDate: z.optional(z.string().check(z.regex(/^\d{4}-\d{2}-\d{2}$/))),
   lastActivityAt: z.string(),
   turnIds: z.array(z.string()),
   compactedThroughTurnId: z.optional(z.string()),
@@ -379,6 +382,7 @@ export function parseStoredSession(raw: unknown): StoredSessionParse {
     budgetIsFreshFork,
     agent,
     packedTokensAvoided,
+    promptDate,
     ...rest
   } = result.data
   const replay = rest.replay.map(({ backgroundTaskId, userMessageId, ...entry }) => ({
@@ -440,6 +444,7 @@ export function parseStoredSession(raw: unknown): StoredSessionParse {
       ...(spawnCommands !== undefined && { spawnCommands }),
       ...(agent !== undefined && { agent }),
       ...(packedTokensAvoided !== undefined && { packedTokensAvoided }),
+      ...(promptDate !== undefined && { promptDate }),
     },
   }
 }

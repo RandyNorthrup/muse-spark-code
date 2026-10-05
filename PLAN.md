@@ -15612,6 +15612,16 @@ its sections 1–2 (harness), "BYO n" its section 3 (providers).
   Gemini, OpenRouter/chat, Ollama/local, custom), with "on / off: reason" in
   every cell.
 
+**Lane A status (2026-10-05, Kubuntu):** Items 1 and 16 implemented: goal
+progress is a request-only suffix, Anthropic caches before it, and the local
+session date survives resume/fork. Focused tests and five byte-exact red drills
+are in `docs/certification/m101-a.md`; recall/search, sticky ids, capability
+injection, cache-miss diagnostics and final affected gates are in progress.
+The base host still uses `ModelApiClient` without M95's provider registry seam;
+Lane A will expose the selected-model facts in its owned request-builder
+interface, leaving provider-host wiring to its owner. The base manifest also
+still defaults packing off; integration must reconcile this with D81.6.
+
 **Lanes and file ownership** (so lanes merge without overlapping hunks):
 
 - **Lane A — cache-stable prefix** (items 1, 2 with 22, 7, 16, 17).
@@ -15747,6 +15757,12 @@ its sections 1–2 (harness), "BYO n" its section 3 (providers).
   - [ ] Provider × item table complete; full gate green
 
 ## 7. Gates
+
+**M101-A gate boundary (2026-10-05).** The rig brief requires owning and
+importing suites in batches of at most three, all static gates and production
+caps directly on Kubuntu. It prohibits a full `npm run quality` and integration
+merges here. The integrator owns full quality on the combined tree; no gate,
+threshold, exemption or ignore is changed. Receipts: `docs/certification/m101-a.md`.
 
 **M95INT final whole-chain rerun — deferred under the 120-minute rig brief.**
 The final 548-page rerun still returns 1: `dark/models-pick` has one selected

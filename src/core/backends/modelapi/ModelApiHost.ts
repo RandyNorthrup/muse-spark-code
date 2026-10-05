@@ -44,7 +44,6 @@ import {
   HTTP_TOO_MANY_REQUESTS,
   HTTP_UNAUTHORIZED,
   IDE_MCP_SERVER_NAME,
-  ISO_DATE_LENGTH,
   MAX_ENCODED_MEDIA_CHARS,
   MAX_MODEL_API_TEXT_ATTACHMENT_BYTES,
   MEMORY_INDEX_FILE,
@@ -223,6 +222,7 @@ import {
   applyGoalCommand,
   type GoalContext,
   goalInstructions,
+  goalProgress,
   goalObjectiveProblem,
   isGoalActive,
   runGoalTool,
@@ -230,7 +230,7 @@ import {
   withTokensUsed,
 } from './goals'
 import type { GoalRecord } from './goalRecord'
-import { type EnvironmentFacts, instructionsFor } from './instructions'
+import { type EnvironmentFacts, instructionsFor, localPromptDate } from './instructions'
 import {
   dispatchHooks,
   matchingHooks,
@@ -1806,6 +1806,8 @@ export class ModelApiSession implements AgentSession {
   private goalCommandRevision = 0
   /** Model calls since the goal last moved: the step probe's count (D38). */
   private goalSteps = 0
+  /** Local date frozen with the session, across resume and fork (M101). */
+  private promptDate: string
   private scheduleTimer: ReturnType<typeof setInterval> | undefined
   private usage = { inputTokens: 0, outputTokens: 0, cachedTokens: 0, reasoningTokens: 0 }
   /**
@@ -1912,7 +1914,9 @@ export class ModelApiSession implements AgentSession {
         deps.log.warn(`Workspace context: ${message}`)
       },
     })
-    this.createdAt = new Date(deps.now()).toISOString()
+    const startedAt = deps.now()
+    this.promptDate = localPromptDate(startedAt)
+    this.createdAt = new Date(startedAt).toISOString()
     this.lastActivityAt = this.createdAt
     if (deps.store !== undefined && deps.scheduleStore !== undefined) {
       this.schedules = {
@@ -2533,7 +2537,7 @@ export class ModelApiSession implements AgentSession {
     const shell = shellToolFor(this.deps.platform)
     const flags = this.toolFlags()
     const { hasShell, hasMemory } = flags
-    const goalSection = goalInstructions(this.goal, this.goalSteps)
+    const goalSection = goalInstructions(this.goal)
     const repoMap = this.promptRepoMap()
     const role = this.agentRole()
     return {
@@ -2576,16 +2580,23 @@ export class ModelApiSession implements AgentSession {
     // Packing projects per request only: the replay keeps the originals, so
     // a later request (or a restore) packs from the full outputs again.
     // Reviewer tools cannot recall packed output: retain the full observations.
-    const input = this.isReviewing() ? fitted : (this.packing?.project(fitted) ?? fitted)
+    const input = [...(this.isReviewing() ? fitted : (this.packing?.project(fitted) ?? fitted))]
     if (this.budget.omitted && !this.mediaNoticeSent) {
       this.emit({ type: 'backendNotice', level: 'warning', text: UI_TEXT.olderMediaOmitted })
       this.mediaNoticeSent = true
     }
-    const today = new Date(this.deps.now()).toISOString().slice(0, ISO_DATE_LENGTH)
+    const progress = this.isReviewing() ? undefined : goalProgress(this.goal, this.goalSteps)
+    if (progress !== undefined) {
+      input.push({
+        type: 'message',
+        role: 'developer',
+        content: [{ type: 'input_text', text: progress }],
+      })
+    }
     return this.keyed({
       model: this.modelId,
       input,
-      ...this.promptAndTools(today),
+      ...this.promptAndTools(this.promptDate),
       tool_choice: 'auto',
       reasoning: {
         effort: this.effort === THINKING_OFF_EFFORT ? MODEL_API_EFFORT_OFF : this.effort,
@@ -3602,7 +3613,7 @@ export class ModelApiSession implements AgentSession {
         )
       }
       this.markReadFileMediaDelivered(turnId, body.input)
-      wasFitted = this.commitFittedReplay(requestReplay, body.input)
+      wasFitted = this.commitFittedReplay(requestReplay, body.input.slice(0, requestReplay.length))
       this.markOutputMediaDelivered(requestReplay, body.input)
       calls = this.adoptOutput(turnId, final, open, chargedGoalId)
     } catch (error: unknown) {
@@ -9827,6 +9838,7 @@ export class ModelApiSession implements AgentSession {
       }),
       ...(this.name !== undefined && { name: this.name }),
       createdAt: this.createdAt,
+      promptDate: this.promptDate,
       lastActivityAt: this.lastActivityAt,
       turnIds: [...this.turnIds],
       ...(this.compactedThroughTurnId !== undefined && {
@@ -9899,6 +9911,7 @@ export class ModelApiSession implements AgentSession {
     this.forkedFrom = stored.forkedFrom
     this.imported = stored.imported === true
     this.createdAt = stored.createdAt
+    this.promptDate = stored.promptDate ?? localPromptDate(Date.parse(stored.createdAt))
     this.lastActivityAt = stored.lastActivityAt
     this.turnCount = stored.turnIds.length
     this.usage = { ...stored.usage }
@@ -10031,6 +10044,7 @@ export class ModelApiSession implements AgentSession {
     // to cut, so a fork from an earlier turn gets today's goal too.
     target.goal = target.isSideChat ? undefined : this.goal
     // The prompt's repo map goes with the fork (M67), so it is not made again.
+    target.promptDate = this.promptDate
     target.repoMapText = this.repoMapText
     target.repoMapTries = this.repoMapTries
     for (const child of this.children.values()) {

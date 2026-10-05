@@ -9,6 +9,10 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- M101 keeps goal progress outside the cached instruction prefix, places
+  Anthropic’s rolling breakpoint before the transient progress message, and
+  fixes the local prompt date once per session across resume and fork.
+
 - M95 integration shares the Node validation runtime and the provider-setup
   schema, so Models host stays within its existing size budget. Account & usage
   loads on demand with a dismissible loading modal. Chat's unchanged startup
