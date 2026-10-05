@@ -13,7 +13,11 @@ happened, not what was planned; superseded entries are kept.
   read-only project markers select relevant bundled maker skills, while
   ordinary workspaces keep the existing catalogue and request text. Optional
   Raspberry Pi facts use the OS model file and bounded, credential-free
-  `vcgencmd` probes. Host integration follows in M103's wiring lane.
+  `vcgencmd` probes. A validated, localized `presetsOffered` event suggests
+  finite build, syntax, analysis and simulation checks without running them
+  or changing settings. Wokwi suggestions require explicit cloud opt-in and
+  an expected result; Arduino and Zephyr require a chosen board target.
+  Host integration follows in M103's wiring lane.
 
 ### Fixed
 

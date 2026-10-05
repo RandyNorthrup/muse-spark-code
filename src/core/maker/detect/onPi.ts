@@ -58,6 +58,7 @@ const nodePiIo: PiDetectIo = {
           env: {},
           encoding: 'utf8',
           timeout: MAKER_PI_COMMAND_TIMEOUT_MS,
+          killSignal: 'SIGKILL',
           maxBuffer: MAKER_DETECT_MAX_BYTES,
         },
         (error, stdout) => {

@@ -1,4 +1,13 @@
 {
+  "makerDetectBuild": "{target} をビルド",
+  "makerDetectCheck": "{target} をチェック",
+  "makerDetectSimulate": "{target} をシミュレーション",
+  "makerDetectPython": "Python の構文をチェック",
+  "makerDetectPresetsTitle": "このプロジェクトに推奨されるチェック",
+  "makerDetectCloud": "Wokwi はファームウェアをクラウドにアップロードします。ご自身のトークンが必要です。",
+  "makerDetectCircuitPy": "このワークスペースは CIRCUITPY ドライブ上にあります。コードを保存するとボードが再起動することがあります。",
+  "makerDetectMachineConfig": "機器の設定が検出されました。変更を適用する前に、加熱と移動範囲の制限を確認してください。",
+  "makerDetectBoardRequired": "Arduino または Zephyr のビルドチェックを追加する前に、対象のボードを選択してください。",
   "untitledConversation": "無題",
   "crashTitle": "パネルでエラーが発生しました",
   "crashDetail": "再読み込みするとパネルが再構築されます。会話はホストに保持されています。",

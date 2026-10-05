@@ -192,6 +192,10 @@ export const MAKER_DETECT_MAX_DEPTH = 4
 export const MAKER_PI_MODEL_PATH = '/proc/device-tree/model'
 export const MAKER_PI_COMMAND_PATHS = ['/usr/bin/vcgencmd', '/opt/vc/bin/vcgencmd'] as const
 export const MAKER_PI_COMMAND_TIMEOUT_MS = 2000
+export const MAKER_PRESET_TIMEOUT_SECONDS = 120
+export const MAKER_PRESETS_MAX = 32
+export const MAKER_SIMULATION_TIMEOUT_MS = 60_000
+export const MAKER_GAZEBO_ITERATIONS = 1000
 export const MAKER_PROJECT_KINDS = [
   'platformio',
   'esp-idf',

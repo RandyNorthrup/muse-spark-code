@@ -57,6 +57,11 @@ const SKILLS: Readonly<Record<MakerProjectKind, readonly string[]>> = {
   'raspberry-pi': ['maker_raspberry_pi'],
 }
 
+/** Includes the OS-detected Pi kind when the host combines local facts with workspace markers. */
+export function makerSkillIdsForKinds(kinds: readonly MakerProjectKind[]): readonly string[] {
+  return [...new Set(kinds.flatMap((kind) => SKILLS[kind]))]
+}
+
 function namedKinds(name: string): readonly MakerProjectKind[] {
   const base = path.posix.basename(name).toLowerCase()
   if (base === 'platformio.ini') return ['platformio']
@@ -149,6 +154,7 @@ export async function detectProjectKinds(
       )
         continue
       for (const kind of namedKinds(name)) add(kind, name)
+      if (isCircuitPyRoot && name.endsWith('.py')) add('circuitpython', name)
       if (!requiresSniff(name) || /(?:^|\/)(?:secrets\.ya?ml|settings\.toml)$/i.test(name)) continue
       const bytes = await io.read(root, name, MAKER_DETECT_MAX_BYTES)
       if (bytes === undefined || bytes.length > MAKER_DETECT_MAX_BYTES) continue
@@ -163,7 +169,7 @@ export async function detectProjectKinds(
   return {
     kinds,
     markers,
-    skillIds: [...new Set(kinds.flatMap((kind) => SKILLS[kind]))],
+    skillIds: makerSkillIdsForKinds(kinds),
     isCircuitPyRoot,
     hasMachineConfig: found.has('klipper') || found.has('marlin'),
   }

@@ -52,6 +52,7 @@ describe('optional bounded Pi facts', () => {
         env: {},
         encoding: 'utf8',
         timeout: MAKER_PI_COMMAND_TIMEOUT_MS,
+        killSignal: 'SIGKILL',
         maxBuffer: MAKER_DETECT_MAX_BYTES,
       },
       expect.any(Function),
@@ -119,6 +120,27 @@ describe('optional bounded Pi facts', () => {
     expect(
       await detectOnPi('linux', { ...io, readModel: () => Promise.resolve(Buffer.from([0xff])) }),
     ).toBeUndefined()
+    expect(
+      await detectOnPi('linux', {
+        ...io,
+        readModel: () =>
+          Promise.resolve(Buffer.concat([Buffer.from('Raspberry Pi '), Buffer.from([0xff])])),
+      }),
+    ).toBeUndefined()
     expect(io.run).not.toHaveBeenCalled()
+  })
+
+  it('rejects overflowing numbers and oversized otherwise-valid diagnostics', async () => {
+    const io = piIo()
+    for (const output of [
+      'throttled=0xffffffffffffffff',
+      `temp=${'9'.repeat(400)}'C`,
+      `throttled=0x1${' '.repeat(MAKER_DETECT_MAX_BYTES)}`,
+      `temp=42.5'C${' '.repeat(MAKER_DETECT_MAX_BYTES)}`,
+    ]) {
+      expect(await detectOnPi('linux', { ...io, run: () => Promise.resolve(output) })).toEqual({
+        model: 'Raspberry Pi 5 Model B Rev 1.0',
+      })
+    }
   })
 })

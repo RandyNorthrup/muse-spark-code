@@ -16,6 +16,18 @@
 import { forms } from './forms'
 
 export const EN = {
+  // M103 lane D: maker-detect (separate from lane G's guard and lane I's approval strings).
+  makerDetectBuild: 'Build {target}',
+  makerDetectCheck: 'Check {target}',
+  makerDetectSimulate: 'Simulate {target}',
+  makerDetectPython: 'Check Python syntax',
+  makerDetectPresetsTitle: 'Suggested checks for this maker project',
+  makerDetectCloud: 'Wokwi uploads firmware to its cloud and requires your own token.',
+  makerDetectCircuitPy:
+    'This workspace is on a CIRCUITPY drive. Saving code can restart the board.',
+  makerDetectMachineConfig:
+    'Machine configuration detected. Review heater and travel limits before deploying changes.',
+  makerDetectBoardRequired: 'Choose a board target before adding an Arduino or Zephyr build check.',
   paidDailyBudgetLine:
     'Shared daily budget for interactive paid extras: {budget}. Tab has its own separate budget.',
   paidDailyLedgerUnavailable:

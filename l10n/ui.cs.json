@@ -1,4 +1,13 @@
 {
+  "makerDetectBuild": "Sestavit {target}",
+  "makerDetectCheck": "Zkontrolovat {target}",
+  "makerDetectSimulate": "Simulovat {target}",
+  "makerDetectPython": "Zkontrolovat syntaxi Pythonu",
+  "makerDetectPresetsTitle": "Doporučené kontroly tohoto projektu",
+  "makerDetectCloud": "Wokwi nahrává firmware do svého cloudu a vyžaduje váš vlastní token.",
+  "makerDetectCircuitPy": "Tento pracovní prostor je na disku CIRCUITPY. Uložení kódu může restartovat desku.",
+  "makerDetectMachineConfig": "Byla zjištěna konfigurace stroje. Před nasazením změn zkontrolujte limity topení a pohybu.",
+  "makerDetectBoardRequired": "Před přidáním kontroly sestavení Arduino nebo Zephyr vyberte cílovou desku.",
   "untitledConversation": "Bez názvu",
   "crashTitle": "V panelu došlo k chybě",
   "crashDetail": "Opětovné načtení panel znovu sestaví; konverzaci uchovává hostitel.",

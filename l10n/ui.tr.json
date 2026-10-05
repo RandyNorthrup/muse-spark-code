@@ -1,4 +1,13 @@
 {
+  "makerDetectBuild": "{target} derle",
+  "makerDetectCheck": "{target} denetle",
+  "makerDetectSimulate": "{target} simüle et",
+  "makerDetectPython": "Python sözdizimini denetle",
+  "makerDetectPresetsTitle": "Bu proje için önerilen denetimler",
+  "makerDetectCloud": "Wokwi, ürün yazılımını bulutuna yükler ve kendi belirtecinizi gerektirir.",
+  "makerDetectCircuitPy": "Bu çalışma alanı bir CIRCUITPY sürücüsünde. Kodu kaydetmek kartı yeniden başlatabilir.",
+  "makerDetectMachineConfig": "Makine yapılandırması algılandı. Değişiklikleri uygulamadan önce ısıtma ve hareket sınırlarını gözden geçirin.",
+  "makerDetectBoardRequired": "Arduino veya Zephyr derleme denetimi eklemeden önce hedef kartı seçin.",
   "untitledConversation": "Adsız",
   "crashTitle": "Panelde bir hata oluştu",
   "crashDetail": "Yeniden yükleme paneli yeniden oluşturur; konuşma konakta korunur.",

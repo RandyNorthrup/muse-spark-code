@@ -1,4 +1,13 @@
 {
+  "makerDetectBuild": "Compiler {target}",
+  "makerDetectCheck": "Vérifier {target}",
+  "makerDetectSimulate": "Simuler {target}",
+  "makerDetectPython": "Vérifier la syntaxe Python",
+  "makerDetectPresetsTitle": "Vérifications suggérées pour ce projet",
+  "makerDetectCloud": "Wokwi envoie le micrologiciel dans son cloud et nécessite votre propre jeton.",
+  "makerDetectCircuitPy": "Cet espace de travail se trouve sur un lecteur CIRCUITPY. Enregistrer du code peut redémarrer la carte.",
+  "makerDetectMachineConfig": "Configuration de machine détectée. Vérifiez les limites de chauffe et de déplacement avant de déployer les modifications.",
+  "makerDetectBoardRequired": "Choisissez une carte cible avant d’ajouter une vérification de compilation Arduino ou Zephyr.",
   "untitledConversation": "Sans titre",
   "crashTitle": "Le panneau a rencontré une erreur",
   "crashDetail": "Recharger reconstruit le panneau ; l’hôte conserve la conversation.",
