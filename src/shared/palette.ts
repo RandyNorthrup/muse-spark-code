@@ -515,7 +515,7 @@ export function buildPalette(context: PaletteContext): readonly PaletteGroup[] {
         {
           id: 'importFromAgents',
           label: UI_TEXT.agentImportItem,
-          detail: UI_TEXT.agentImportDetail,
+          detail: UI_TEXT.agentImportDetailEvery,
           action: { type: 'importFromAgents' },
         },
         // Muse Code's memory (M49): the same notes on both backends.

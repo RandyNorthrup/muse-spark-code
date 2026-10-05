@@ -1929,6 +1929,7 @@
   "agentImportSkippedNeedsMatcher": "a FileChanged eseményhez illesztő (matcher) kell, amely megnevezi a figyelendő fájlokat",
   "agentImportSkippedUnknownFormat": "a fájlja olyan formátumú, amelyet ez a verzió nem olvas",
   "agentImportKeptWaiting": "megtartva; a beágyazott kódkiegészítésekre vár, amelyek ebben a bővítményben még nincsenek",
+  "agentImportKiroTaskNote": "A Kiro spec-feladatindítói itt a todo-elemeken futnak",
   "agentImportPersonalToProject": "ez személyes fájlt másolna a projektbe",
   "agentImportIgnoredToTracked": "ez Git által figyelmen kívül hagyott fájlt másolna egy követett fájlba",
   "agentImportEditPrompt": "Megnyitja az átalakított bejegyzéseket itt: {path}, nem mentett módosításként, ellenőrzésre és mentésre? Csak erre az útvonalra mentse, soha ne másik fájlba.",

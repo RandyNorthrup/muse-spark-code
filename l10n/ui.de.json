@@ -1929,6 +1929,7 @@
   "agentImportSkippedNeedsMatcher": "FileChanged benötigt einen Matcher, der die zu überwachenden Dateien nennt",
   "agentImportSkippedUnknownFormat": "seine Datei hat ein Format, das diese Version nicht liest",
   "agentImportKeptWaiting": "behalten; wartet auf Inline-Vervollständigungen, die diese Erweiterung noch nicht hat",
+  "agentImportKiroTaskNote": "Kiro-Spec-Task-Trigger werden hier auf Todo-Einträgen ausgeführt",
   "agentImportPersonalToProject": "dadurch würde eine persönliche Datei ins Projekt kopiert",
   "agentImportIgnoredToTracked": "dadurch würde eine von Git ignorierte Datei in eine versionierte Datei kopiert",
   "agentImportEditPrompt": "Konvertierte Einträge in {path} als ungespeicherte Änderung zum Prüfen und Speichern öffnen? Speichern Sie sie nur unter diesem Pfad, nie in einer anderen Datei.",

@@ -694,3 +694,258 @@ describe('refusals', () => {
     expect(setup.io.files.get(`${WS}/AGENTS.md`)).toBe(nearlyFull)
   })
 })
+
+// Every agent's hooks (M91, PLAN.md D70): Codex into Muse Code's files, the
+// extended Claude Code set and every other format into `spark-hooks.json`
+// with a format tag, every refusal with its reason.
+const HOOK_FIXTURES: Record<string, string> = {
+  // Claude Code extension events, user and project.
+  [`${HOME}/.claude/settings.json`]: JSON.stringify({
+    hooks: {
+      TaskCreated: [{ hooks: [{ type: 'command', command: 'todo' }] }],
+      WorktreeCreate: [{ hooks: [{ type: 'command', command: 'wt' }] }],
+      FileChanged: [{ hooks: [{ type: 'command', command: 'watch' }] }],
+    },
+  }),
+  [`${WS}/.claude/settings.json`]: JSON.stringify({
+    hooks: {
+      FileChanged: [{ matcher: '*.ts', hooks: [{ type: 'command', command: 'watch' }] }],
+      Setup: [{ hooks: [{ type: 'command', command: 'init' }] }],
+    },
+  }),
+  // Codex: hooks.json, the config's servers, notify program and [hooks] table.
+  [`${HOME}/.codex/hooks.json`]: JSON.stringify({
+    hooks: { Stop: [{ hooks: [{ type: 'command', command: 'halt' }] }] },
+  }),
+  [`${HOME}/.codex/config.toml`]: [
+    'notify = "ping"',
+    '[mcp_servers.docs]',
+    'command = "docs-mcp"',
+    '[[hooks.PreToolUse]]',
+    'matcher = "apply_patch"',
+    '[[hooks.PreToolUse.hooks]]',
+    'type = "command"',
+    'command = "guard"',
+    '',
+  ].join('\n'),
+  [`${WS}/.codex/hooks.json`]: JSON.stringify({
+    hooks: {
+      Interrupt: [{ hooks: [{ type: 'command', command: 'note', async: true }] }],
+      PostToolUseFailure: [{ hooks: [{ type: 'command', command: 'x' }] }],
+    },
+  }),
+  // Cursor: a guard, a weaker watch, and a Tab hook that waits.
+  [`${HOME}/.cursor/hooks.json`]: JSON.stringify({
+    version: 1,
+    hooks: {
+      preToolUse: [{ command: 'guard', matcher: 'Shell' }],
+      subagentStart: [{ command: 'watch' }],
+      beforeTabFileRead: [{ command: 'tab' }],
+    },
+  }),
+  // Gemini: a tool guard and a tool chooser.
+  [`${HOME}/.gemini/settings.json`]: JSON.stringify({
+    hooks: {
+      BeforeTool: [
+        {
+          matcher: 'run_shell_command',
+          hooks: [{ type: 'command', command: 'guard', timeout: 5000 }],
+        },
+      ],
+      BeforeToolSelection: [{ hooks: [{ type: 'command', command: 'pick' }] }],
+    },
+  }),
+  // Copilot: a project file, a user file, and inline settings with an env.
+  [`${WS}/.github/hooks/audit.json`]: JSON.stringify({
+    version: 1,
+    hooks: { preToolUse: [{ bash: './audit.sh' }] },
+  }),
+  [`${HOME}/.copilot/hooks/session.json`]: JSON.stringify({
+    hooks: { SessionStart: [{ bash: 'hello' }] },
+  }),
+  [`${HOME}/.copilot/settings.json`]: JSON.stringify({
+    hooks: { preToolUse: [{ bash: 'guard', env: { TOKEN: 'secret' } }] },
+  }),
+  // Windsurf: a write guard and a transcript answer.
+  [`${WS}/.windsurf/hooks.json`]: JSON.stringify({
+    hooks: {
+      pre_write_code: [{ command: 'guard' }],
+      post_cascade_response_with_transcript: [{ command: 'x' }],
+    },
+  }),
+  // Kiro v1: a file trigger, a spec-task trigger, a Manual trigger, and a newer format.
+  [`${WS}/.kiro/hooks/lint.json`]: JSON.stringify({
+    version: 'v1',
+    hooks: [
+      {
+        name: 'lint',
+        trigger: 'PostFileSave',
+        matcher: String.raw`\.ts$`,
+        action: { type: 'command', command: 'lint' },
+      },
+      { name: 'spec', trigger: 'PreTaskExec', action: { type: 'command', command: 'check' } },
+      { name: 'hand', trigger: 'Manual', action: { type: 'command', command: 'run' } },
+    ],
+  }),
+  [`${HOME}/.kiro/hooks/new.json`]: JSON.stringify({ version: 'v2', hooks: [] }),
+  // Cline v1: a per-event script and a newer-format file.
+  [`${WS}/.clinerules/hooks/PreToolUse`]: '#!/bin/sh\nguard\n',
+  [`${WS}/.clinerules/hooks/hooks.json`]: JSON.stringify({ version: 1 }),
+}
+
+const HOOK_SOURCES: readonly AgentImportSource[] = [
+  'claudeCode',
+  'codex',
+  'cursor',
+  'gemini',
+  'copilot',
+  'windsurf',
+  'kiro',
+  'cline',
+]
+
+function hookInput(tree: MemoryImportTree, overrides: Partial<ImportScanInput> = {}) {
+  return input({ files: HOOK_FIXTURES, ...tree }, { ...overrides, sources: HOOK_SOURCES })
+}
+
+describe('scanAgentImports: every agent’s hooks', () => {
+  it('converts Codex into Muse files and everything else into spark files, refusals listed', async () => {
+    const scan = await scanAgentImports(hookInput({}))
+    expect(summary(scan.candidates)).toEqual([
+      'hook claudeCode user TaskCreated -> hook:sparkUser',
+      'hook claudeCode user WorktreeCreate -> none:weaker',
+      'hook claudeCode user FileChanged -> none:needsMatcher',
+      'hook claudeCode project FileChanged -> hook:sparkProject',
+      'hook claudeCode project Setup -> none:unmapped',
+      'mcpServer codex user docs -> server',
+      'hook codex user notify -> none:notify',
+      'hook codex user PreToolUse -> hook:settings',
+      'hook codex user Stop -> hook:settings',
+      'hook codex project Interrupt -> hook:hooks',
+      'hook codex project PostToolUseFailure -> none:unmapped',
+      'hook cursor user preToolUse -> hook:sparkUser',
+      'hook cursor user subagentStart -> none:weaker',
+      'hook cursor user beforeTabFileRead -> none:keptWaiting',
+      'hook gemini user BeforeTool -> hook:sparkUser',
+      'hook gemini user BeforeToolSelection -> none:chooses',
+      'hook copilot user SessionStart -> hook:sparkUser',
+      'hook copilot user preToolUse -> none:field',
+      'hook copilot project preToolUse -> hook:sparkProject',
+      'hook windsurf project pre_write_code -> hook:sparkProject',
+      'hook windsurf project post_cascade_response_with_transcript -> none:unmapped',
+      'hook kiro user new.json -> none:unknownFormat',
+      'hook kiro project lint -> hook:sparkProject',
+      'hook kiro project spec -> hook:sparkProject',
+      'hook kiro project hand -> none:unsupported',
+      'hook cline project hooks.json -> none:unknownFormat',
+      'hook cline project PreToolUse -> hook:sparkProject',
+    ])
+    expect(scan.warnings).toEqual([])
+  })
+
+  it('plans Muse copies without tags and spark copies with format tags', async () => {
+    const setup = hookInput({})
+    const scan = await scanAgentImports(setup)
+    const plan = await planImportApply(scan.candidates, DESTINATIONS, planState(setup.io))
+    expect(plan.copies.map((copy) => copy.file)).toEqual([
+      'settings',
+      'hooks',
+      'sparkUser',
+      'sparkProject',
+    ])
+    const textOf = (file: string): unknown =>
+      JSON.parse(plan.copies.find((copy) => copy.file === file)?.text ?? 'missing')
+    // Muse Code's own files carry no format tag.
+    expect(JSON.stringify(textOf('settings'))).not.toContain('"format"')
+    expect(JSON.stringify(textOf('hooks'))).not.toContain('"format"')
+    expect(textOf('settings')).toMatchObject({
+      mcpServers: { docs: { command: 'docs-mcp' } },
+      hooks: { PreToolUse: [{ matcher: 'Edit|Write' }], Stop: [{}] },
+    })
+    expect(textOf('hooks')).toMatchObject({ hooks: { Interrupt: [{}] } })
+    // Spark files carry every source's format tag and Kiro's path pattern.
+    const userSpark = JSON.stringify(textOf('sparkUser'))
+    const projectSpark = JSON.stringify(textOf('sparkProject'))
+    for (const format of ['Gemini', 'Cursor', 'Copilot', 'Kiro', 'Cline']) {
+      expect(userSpark + projectSpark).toContain(`"format":"${format}"`)
+    }
+    expect(projectSpark).toContain(String.raw`"pathPattern":"\\.ts$"`)
+    expect(textOf('sparkUser')).toMatchObject({
+      hooks: {
+        TaskCreated: [{}],
+        PreToolUse: [
+          { matcher: 'Bash', format: 'Cursor' },
+          { matcher: 'Bash', format: 'Gemini' },
+        ],
+      },
+    })
+    // The refusing field travels with its skip, naming env.
+    expect(plan.skipped).toContainEqual(expect.objectContaining({ reason: 'field', field: 'env' }))
+  })
+
+  it('notes the Kiro task meaning in plain words on its candidates', async () => {
+    const scan = await scanAgentImports(hookInput({}))
+    const spec = scan.candidates.find((candidate) => candidate.label === 'spec')
+    expect(spec?.previewNote).toBe('Kiro spec-task triggers run on todo items here')
+    const lint = scan.candidates.find((candidate) => candidate.label === 'lint')
+    expect(lint?.previewNote).toBeUndefined()
+  })
+
+  it('shows metadata only: no command text reaches labels, notes, dropped fields or reasons', async () => {
+    const scan = await scanAgentImports(hookInput({}))
+    const commands = ['guard', 'halt', 'audit', 'lint', 'check', 'hello', './audit.sh', 'ping']
+    for (const candidate of scan.candidates) {
+      for (const text of [candidate.label, candidate.previewNote ?? '', ...candidate.dropped]) {
+        for (const command of commands) {
+          expect(text.includes(command) && text !== command).toBe(false)
+        }
+      }
+    }
+    expect(scan.candidates.map((candidate) => candidate.label)).toEqual([
+      'TaskCreated',
+      'WorktreeCreate',
+      'FileChanged',
+      'FileChanged',
+      'Setup',
+      'docs',
+      'notify',
+      'PreToolUse',
+      'Stop',
+      'Interrupt',
+      'PostToolUseFailure',
+      'preToolUse',
+      'subagentStart',
+      'beforeTabFileRead',
+      'BeforeTool',
+      'BeforeToolSelection',
+      'SessionStart',
+      'preToolUse',
+      'preToolUse',
+      'pre_write_code',
+      'post_cascade_response_with_transcript',
+      'new.json',
+      'lint',
+      'spec',
+      'hand',
+      'hooks.json',
+      'PreToolUse',
+    ])
+  })
+
+  it('reads no project hook without live trust (the scope drill)', async () => {
+    const setup = hookInput({}, { isWorkspaceTrusted: () => false })
+    const scan = await scanAgentImports(setup)
+    expect(scan.candidates.length).toBeGreaterThan(0)
+    expect(scan.candidates.every((candidate) => candidate.origin === 'user')).toBe(true)
+    expect(setup.io.reads.filter((path) => path.startsWith(`${WS}/`))).toEqual([])
+  })
+
+  it('lists a broken Kiro file in fixed words, never with its content', async () => {
+    const scan = await scanAgentImports(
+      hookInput({ files: { ...HOOK_FIXTURES, [`${WS}/.kiro/hooks/bad.json`]: '{ broken' } }),
+    )
+    expect(scan.candidates.some((candidate) => candidate.label === 'bad.json')).toBe(false)
+    expect(scan.warnings).toContain('is not a readable Kiro hooks file, skipped')
+    expect(scan.warnings.join('\n')).not.toContain('broken')
+  })
+})

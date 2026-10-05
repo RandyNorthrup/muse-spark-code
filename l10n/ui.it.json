@@ -2000,6 +2000,7 @@
   "agentImportSkippedNeedsMatcher": "FileChanged richiede un campo matcher che indichi i file da monitorare",
   "agentImportSkippedUnknownFormat": "il suo file è in un formato che questa versione non legge",
   "agentImportKeptWaiting": "conservato, in attesa dei completamenti inline, che questa estensione non ha ancora",
+  "agentImportKiroTaskNote": "I trigger delle attività spec di Kiro vengono eseguiti qui sulle todo",
   "agentImportPersonalToProject": "questo copierebbe un file personale nel progetto",
   "agentImportIgnoredToTracked": "questo copierebbe un file ignorato da Git in un file tracciato",
   "agentImportEditPrompt": "Aprire le voci convertite in {path} come modifica non salvata da controllare e salvare? Salvarla solo in quel percorso, mai in un altro file.",

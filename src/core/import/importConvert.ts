@@ -27,8 +27,24 @@
 import { parse as parseToml } from 'smol-toml'
 import * as z from 'zod/mini'
 import {
+  AGENT_IMPORT_CLAUDE_SPARK_EVENTS,
+  AGENT_IMPORT_CLINE_EVENTS,
+  AGENT_IMPORT_CODEX_EVENTS,
+  AGENT_IMPORT_COPILOT_EVENTS,
+  AGENT_IMPORT_CURSOR_EVENTS,
+  AGENT_IMPORT_CURSOR_TOOLS,
+  AGENT_IMPORT_FORMATS,
+  AGENT_IMPORT_GEMINI_EVENTS,
+  AGENT_IMPORT_GEMINI_TOOLS,
   AGENT_IMPORT_HOOK_EVENTS,
   AGENT_IMPORT_HOOK_EVENTS_WITHOUT_MATCHER,
+  AGENT_IMPORT_JSON_EXTENSION,
+  AGENT_IMPORT_KIRO_EVENTS,
+  AGENT_IMPORT_KIRO_FILE_MATCHER,
+  AGENT_IMPORT_KIRO_FILE_TRIGGERS,
+  AGENT_IMPORT_KIRO_TASK_EVENTS,
+  AGENT_IMPORT_KIRO_TOOLS,
+  AGENT_IMPORT_WINDSURF_EVENTS,
   HOOK_MAX_TIMEOUT_SECONDS,
   MCP_TRANSPORTS,
   MODEL_TEXT,
@@ -36,12 +52,40 @@ import {
 } from '../../shared/constants'
 import { fill } from '../../shared/l10n/text'
 
-/** Why an entry that was found is not converted. */
-export type ConversionRefusal = 'disabled' | 'unsupported' | 'unmapped'
+/**
+ * Why an entry that was found is not converted. The lane-0 preview keys name
+ * the reason in the user's language: `weaker` is `agentImportSkippedWeaker`,
+ * `chooses` is `agentImportSkippedChooses`, `needsMatcher` is
+ * `agentImportSkippedNeedsMatcher`, `unknownFormat` is
+ * `agentImportSkippedUnknownFormat`, `keptWaiting` is `agentImportKeptWaiting`,
+ * `notify` is `agentImportSkippedNotify`, and `field` is
+ * `agentImportSkippedField` with the refusing field in `Conversion.field`.
+ */
+export type ConversionRefusal =
+  | 'disabled'
+  | 'unsupported'
+  | 'unmapped'
+  | 'weaker'
+  | 'chooses'
+  | 'needsMatcher'
+  | 'unknownFormat'
+  | 'keptWaiting'
+  | 'notify'
+  | 'field'
 
 export type Conversion<T> =
   | { readonly ok: true; readonly value: T; readonly dropped: readonly string[] }
-  | { readonly ok: false; readonly reason: ConversionRefusal }
+  | {
+      readonly ok: false
+      readonly reason: ConversionRefusal
+      /** Set only with `field`: the source's field with no equivalent here. */
+      readonly field?: string | undefined
+    }
+
+/** A whole entry refused for one field it sets; the preview names the field. */
+function fieldRefusal(field: string): Conversion<never> {
+  return { ok: false, reason: 'field', field }
+}
 
 /** A Muse Code `mcpServers` entry, its active values unchanged. */
 export type MuseMcpEntry = Readonly<Record<string, unknown>>
@@ -358,15 +402,16 @@ export interface MuseHook {
   readonly group: Readonly<Record<string, unknown>>
 }
 
-/** Every handler of a Claude Code settings file's `hooks` block; undefined when the file is not one. */
+/** Every handler of a Claude-shaped `hooks` block; undefined when the file is not one. */
 export function readClaudeHooks(text: string): readonly FoundHook[] | undefined {
   const parsed = settingsHooksSchema.safeParse(parseJson(text))
-  if (!parsed.success) {
-    return undefined
-  }
+  return parsed.success ? foundHooksOf(parsed.data.hooks ?? {}) : undefined
+}
+
+/** The handlers of an already-parsed `{event: groups[]}` hooks table. */
+function foundHooksOf(table: Readonly<Record<string, readonly unknown[]>>): readonly FoundHook[] {
   const found: FoundHook[] = []
-  const events = Object.entries(parsed.data.hooks ?? {})
-  for (const [event, groups] of events) {
+  for (const [event, groups] of Object.entries(table)) {
     for (const rawGroup of groups) {
       const group = hookGroupSchema.safeParse(rawGroup)
       if (!group.success) {
@@ -381,40 +426,83 @@ export function readClaudeHooks(text: string): readonly FoundHook[] | undefined 
   return found
 }
 
-/**
- * One Claude Code hook handler as Muse Code's; refused when it would widen
- * or cannot run. Values stay unchanged in the allowed target.
- */
-export function convertHook(hook: FoundHook): Conversion<MuseHook> {
-  if (!AGENT_IMPORT_HOOK_EVENTS.includes(hook.event)) {
-    return { ok: false, reason: 'unmapped' }
+function isTimeoutSeconds(timeout: unknown): timeout is number {
+  return (
+    typeof timeout === 'number' &&
+    Number.isSafeInteger(timeout) &&
+    timeout >= 0 &&
+    timeout <= HOOK_MAX_TIMEOUT_SECONDS
+  )
+}
+
+/** A foreign timeout in seconds, bounded by what hooks may take; undefined when absent. */
+function boundedTimeoutSeconds(timeout: unknown): number | undefined {
+  if (timeout === undefined) {
+    return undefined
   }
+  return typeof timeout !== 'number' || !(timeout >= 0) || Number.isNaN(timeout)
+    ? undefined
+    : Math.min(Math.ceil(timeout), HOOK_MAX_TIMEOUT_SECONDS)
+}
+
+function hasOnlyFields(raw: unknown, fields: ReadonlySet<string>): boolean {
+  return typeof raw === 'object' && raw !== null && Object.keys(raw).every((key) => fields.has(key))
+}
+
+const REGEXP_SPECIAL = /[.*+?^${}()|[\]\\]/g
+
+function escapeRegExp(text: string): string {
+  return text.replaceAll(REGEXP_SPECIAL, String.raw`\$&`)
+}
+
+/**
+ * A matcher with the source's tool names rewritten to ours. Tokens the map
+ * does not name pass through: like Muse Code, an unknown tool name simply
+ * never matches. The `mcp_` rule renames Gemini's `mcp_<server>_<tool>` to
+ * Muse Code's `mcp__<server>__<tool>`.
+ */
+function translateMatcher(
+  matcher: string,
+  tools: Readonly<Record<string, string>>,
+  shouldRenameMcpTools: boolean,
+): string {
+  let out = matcher
+  for (const [from, to] of Object.entries(tools)) {
+    const pattern = new RegExp(`(?<![A-Za-z0-9_])${escapeRegExp(from)}(?![A-Za-z0-9_])`, 'g')
+    out = out.replaceAll(pattern, () => to)
+  }
+  return shouldRenameMcpTools
+    ? out.replaceAll(/(?<![A-Za-z0-9_])mcp_([A-Za-z0-9_]+)/g, (_, name: string) => {
+        return `mcp__${name.replaceAll('_', '__')}`
+      })
+    : out
+}
+
+/**
+ * One command handler as a Muse Code group under this event; refused when it
+ * would widen or cannot run. Values stay unchanged in the allowed target.
+ */
+function convertCommandGroup(hook: FoundHook, event: string): Conversion<MuseHook> {
   const handler = hookHandlerSchema.safeParse(hook.raw)
-  const raw: unknown = hook.raw
-  const hasOnlyKnownFields =
-    typeof raw === 'object' &&
-    raw !== null &&
-    Object.keys(raw).every((key) => HANDLER_FIELDS.has(key))
-  if (!hasOnlyKnownFields || !handler.success) {
+  if (!hasOnlyFields(hook.raw, HANDLER_FIELDS) || !handler.success) {
     return { ok: false, reason: 'unsupported' }
   }
   const { type, command, timeout, statusMessage } = handler.data
   if (
     type !== COMMAND_HANDLER ||
     !hasCommand(command) ||
-    (timeout !== undefined &&
-      (!Number.isSafeInteger(timeout) || timeout < 0 || timeout > HOOK_MAX_TIMEOUT_SECONDS))
+    (timeout !== undefined && !isTimeoutSeconds(timeout))
   ) {
     return { ok: false, reason: 'unsupported' }
   }
   const isMatcherKept =
     hook.matcher !== undefined &&
     !MATCH_EVERYTHING.has(hook.matcher) &&
-    !AGENT_IMPORT_HOOK_EVENTS_WITHOUT_MATCHER.includes(hook.event)
+    !AGENT_IMPORT_HOOK_EVENTS_WITHOUT_MATCHER.includes(event)
   return {
     ok: true,
     value: {
-      event: hook.event,
+      event,
       group: {
         ...(isMatcherKept && { matcher: hook.matcher }),
         hooks: [
@@ -430,6 +518,778 @@ export function convertHook(hook: FoundHook): Conversion<MuseHook> {
     },
     dropped: [],
   }
+}
+
+/**
+ * One Claude Code hook handler as Muse Code's; refused when it would widen
+ * or cannot run. Values stay unchanged in the allowed target.
+ */
+export function convertHook(hook: FoundHook): Conversion<MuseHook> {
+  return AGENT_IMPORT_HOOK_EVENTS.includes(hook.event)
+    ? convertCommandGroup(hook, hook.event)
+    : { ok: false, reason: 'unmapped' }
+}
+
+/**
+ * One Claude Code handler for an extension event as the `spark-hooks.json`
+ * entry: the same native shape, no format tag. `WorktreeCreate` and
+ * `ConfigChange` can block where they come from but only observe here, so
+ * they stay refused; `FileChanged` without a matcher watches nothing.
+ */
+export function convertClaudeSparkHook(hook: FoundHook): Conversion<MuseHook> {
+  if (!AGENT_IMPORT_CLAUDE_SPARK_EVENTS.includes(hook.event)) {
+    return { ok: false, reason: 'unmapped' }
+  }
+  if (hook.event === 'WorktreeCreate' || hook.event === 'ConfigChange') {
+    return { ok: false, reason: 'weaker' }
+  }
+  return hook.event === 'FileChanged' &&
+    (hook.matcher === undefined || MATCH_EVERYTHING.has(hook.matcher))
+    ? { ok: false, reason: 'needsMatcher' }
+    : convertCommandGroup(hook, hook.event)
+}
+
+// --- Codex hooks (M91, PLAN.md D70) ---
+
+const codexHandlerSchema = z.looseObject({
+  type: z.optional(z.string()),
+  command: z.optional(z.string()),
+  commandWindows: z.optional(z.string()),
+  timeout: z.optional(z.number()),
+  async: z.optional(z.boolean()),
+  statusMessage: z.optional(z.string()),
+  additionalContextLimit: z.optional(z.unknown()),
+})
+const CODEX_HANDLER_FIELDS: ReadonlySet<string> = new Set([
+  'type',
+  'command',
+  'commandWindows',
+  'timeout',
+  'async',
+  'statusMessage',
+  'additionalContextLimit',
+])
+const CODEX_TOML_HOOKS_KEY = 'hooks'
+const CODEX_NOTIFY_KEY = 'notify'
+
+/**
+ * The `hooks` table of a Codex `config.toml`; an empty list when it names
+ * none, undefined when the text is not a readable hooks table.
+ */
+export function readCodexHooksToml(text: string): readonly FoundHook[] | undefined {
+  let document: unknown
+  try {
+    document = parseToml(text)
+  } catch {
+    return undefined
+  }
+  if (typeof document !== 'object' || document === null) {
+    return undefined
+  }
+  const table = (document as Readonly<Record<string, unknown>>)[CODEX_TOML_HOOKS_KEY]
+  if (table === undefined) {
+    return []
+  }
+  const parsed = settingsHooksSchema.safeParse({ hooks: table })
+  return parsed.success ? foundHooksOf(parsed.data.hooks ?? {}) : undefined
+}
+
+/** Whether a Codex `config.toml` names a legacy `notify` program: listed, never converted. */
+export function hasCodexNotify(text: string): boolean {
+  let document: unknown
+  try {
+    document = parseToml(text)
+  } catch {
+    return false
+  }
+  return (
+    typeof document === 'object' &&
+    document !== null &&
+    (document as Readonly<Record<string, unknown>>)[CODEX_NOTIFY_KEY] !== undefined
+  )
+}
+
+/**
+ * One Codex hook handler as Muse Code's file entry: the same shape Muse
+ * Code runs, so it runs on both backends. `apply_patch` matchers name
+ * `Edit|Write` here; `commandWindows` is kept; `Interrupt` converts only
+ * with `async:true`. Prompt, agent and MCP handlers and
+ * `additionalContextLimit` are refused; `notify` is listed, not converted.
+ */
+export function convertCodexHook(hook: FoundHook): Conversion<MuseHook> {
+  if (!AGENT_IMPORT_CODEX_EVENTS.includes(hook.event)) {
+    return { ok: false, reason: 'unmapped' }
+  }
+  if (!hasOnlyFields(hook.raw, CODEX_HANDLER_FIELDS)) {
+    return { ok: false, reason: 'unsupported' }
+  }
+  const handler = codexHandlerSchema.safeParse(hook.raw)
+  if (!handler.success) {
+    return { ok: false, reason: 'unsupported' }
+  }
+  if (handler.data.additionalContextLimit !== undefined) {
+    return fieldRefusal('additionalContextLimit')
+  }
+  const { type, command, commandWindows, timeout, statusMessage } = handler.data
+  if (
+    type !== COMMAND_HANDLER ||
+    !hasCommand(command) ||
+    (commandWindows !== undefined && !hasCommand(commandWindows)) ||
+    (timeout !== undefined && !isTimeoutSeconds(timeout))
+  ) {
+    return { ok: false, reason: 'unsupported' }
+  }
+  if (hook.event === 'Interrupt' && handler.data.async !== true) {
+    return { ok: false, reason: 'unsupported' }
+  }
+  const matcher =
+    hook.matcher === undefined
+      ? undefined
+      : translateMatcher(hook.matcher, { apply_patch: 'Edit|Write' }, false)
+  const isMatcherKept =
+    matcher !== undefined &&
+    !MATCH_EVERYTHING.has(matcher) &&
+    !AGENT_IMPORT_HOOK_EVENTS_WITHOUT_MATCHER.includes(hook.event)
+  return {
+    ok: true,
+    value: {
+      event: hook.event,
+      group: {
+        ...(isMatcherKept && { matcher }),
+        hooks: [
+          {
+            type: COMMAND_HANDLER,
+            command,
+            ...(commandWindows !== undefined && { commandWindows }),
+            ...(timeout !== undefined && { timeout }),
+            ...(handler.data.async !== undefined && { async: handler.data.async }),
+            ...(statusMessage !== undefined && { statusMessage }),
+          },
+        ],
+      },
+    },
+    dropped: [],
+  }
+}
+
+// --- Foreign hooks into spark-hooks.json (M91, PLAN.md D70) ---
+//
+// Every other agent's format converts into `spark-hooks.json` with a `format`
+// tag naming its source. The Model API runtime's adapters (lane P) translate
+// the entry's stdin and stdout; the Muse Code backend never runs them.
+// Renaming the event alone would fail open: a foreign guard's output does not
+// validate against Muse Code's strict schema, so the tag keeps the entry on
+// the adapter path. A group carrying `format` is never run natively.
+
+/** A versioned foreign hooks file: parsed, in a newer format, or unreadable. */
+export type ForeignHooksRead =
+  | { readonly status: 'ok'; readonly hooks: readonly FoundHook[] }
+  | { readonly status: 'unknownFormat' }
+  | { readonly status: 'unreadable' }
+
+/** The entries of a versioned `{"hooks":{…}}` file, or why it is not one. */
+function readVersionedHooks(
+  text: string,
+  version: unknown,
+):
+  | { readonly status: 'ok'; readonly table: Readonly<Record<string, readonly unknown[]>> }
+  | { readonly status: 'unknownFormat' }
+  | { readonly status: 'unreadable' } {
+  if (version !== undefined && version !== 1) {
+    return { status: 'unknownFormat' }
+  }
+  const parsed = settingsHooksSchema.safeParse(parseJson(text))
+  return !parsed.success || parsed.data.hooks === undefined
+    ? { status: 'unreadable' }
+    : { status: 'ok', table: parsed.data.hooks }
+}
+
+function foreignEntries(table: Readonly<Record<string, readonly unknown[]>>): readonly FoundHook[] {
+  const found: FoundHook[] = []
+  for (const [event, entries] of Object.entries(table)) {
+    if (!Array.isArray(entries)) {
+      continue
+    }
+    for (const raw of entries) {
+      found.push({ event, matcher: undefined, raw })
+    }
+  }
+  return found
+}
+
+/** A converted foreign hook: the mapped event and the adapter-run group. */
+function sparkHook(
+  event: string,
+  format: string,
+  matcher: string | undefined,
+  hooks: readonly Readonly<Record<string, unknown>>[],
+  extra?: Readonly<Record<string, unknown>>,
+  isAsync?: boolean,
+): Conversion<MuseHook> {
+  return {
+    ok: true,
+    value: {
+      event,
+      group: {
+        ...(matcher !== undefined && { matcher }),
+        format,
+        hooks,
+        ...(isAsync === true && { async: isAsync }),
+        ...extra,
+      },
+    },
+    dropped: [],
+  }
+}
+
+// --- Gemini CLI ---
+
+const geminiEntrySchema = z.looseObject({
+  name: z.optional(z.string()),
+  type: z.optional(z.string()),
+  command: z.optional(z.string()),
+  timeout: z.optional(z.number()),
+})
+const GEMINI_ENTRY_FIELDS: ReadonlySet<string> = new Set(['name', 'type', 'command', 'timeout'])
+const GEMINI_MS_PER_SECOND = 1000
+
+/**
+ * One Gemini CLI hook entry as the `spark-hooks.json` entry: the mapped
+ * event with a `Gemini` format tag. `BeforeModel` and `AfterModel` map to
+ * one call each here (Gemini fires them per chunk); fields that modify the
+ * request or response have no equivalent at import and stay refused by the
+ * adapter, while block and observation are kept. `BeforeToolSelection`
+ * chooses a tool, which no hook may do here. Milliseconds round up to whole
+ * seconds, at most 600.
+ */
+export function convertGeminiHook(hook: FoundHook): Conversion<MuseHook> {
+  const event = AGENT_IMPORT_GEMINI_EVENTS[hook.event]
+  if (event === undefined) {
+    return { ok: false, reason: hook.event === 'BeforeToolSelection' ? 'chooses' : 'unmapped' }
+  }
+  if (!hasOnlyFields(hook.raw, GEMINI_ENTRY_FIELDS)) {
+    return { ok: false, reason: 'unsupported' }
+  }
+  const entry = geminiEntrySchema.safeParse(hook.raw)
+  if (!entry.success) {
+    return { ok: false, reason: 'unsupported' }
+  }
+  const { type, command } = entry.data
+  if ((type !== undefined && type !== COMMAND_HANDLER) || !hasCommand(command)) {
+    return { ok: false, reason: 'unsupported' }
+  }
+  const seconds =
+    entry.data.timeout === undefined
+      ? undefined
+      : boundedTimeoutSeconds(entry.data.timeout / GEMINI_MS_PER_SECOND)
+  if (seconds === undefined && entry.data.timeout !== undefined) {
+    return { ok: false, reason: 'unsupported' }
+  }
+  const translated =
+    hook.matcher === undefined
+      ? undefined
+      : translateMatcher(hook.matcher, AGENT_IMPORT_GEMINI_TOOLS, true)
+  // Matchers choose tools, never models: model-call events carry none.
+  const isMatcherKept =
+    translated !== undefined &&
+    !MATCH_EVERYTHING.has(translated) &&
+    !AGENT_IMPORT_HOOK_EVENTS_WITHOUT_MATCHER.includes(event) &&
+    event !== 'PreLLMCall' &&
+    event !== 'PostLLMCall'
+  const converted = sparkHook(
+    event,
+    AGENT_IMPORT_FORMATS.gemini,
+    isMatcherKept ? translated : undefined,
+    [
+      {
+        type: COMMAND_HANDLER,
+        command,
+        ...(seconds !== undefined && { timeout: seconds }),
+      },
+    ],
+    undefined,
+    event === 'PreCompact',
+  )
+  if (!converted.ok) {
+    return converted
+  }
+  return {
+    ...converted,
+    dropped: entry.data.name === undefined ? [] : ['name'],
+  }
+}
+
+// --- Cursor ---
+
+const cursorEntrySchema = z.looseObject({
+  command: z.optional(z.string()),
+  matcher: z.optional(z.unknown()),
+  permission: z.optional(z.string()),
+  failClosed: z.optional(z.boolean()),
+  followup_message: z.optional(z.string()),
+  timeout: z.optional(z.number()),
+})
+const CURSOR_ENTRY_FIELDS: ReadonlySet<string> = new Set([
+  'command',
+  'matcher',
+  'permission',
+  'failClosed',
+  'followup_message',
+  'timeout',
+])
+/** Cursor's kind events by our event and their fixed matcher. */
+const CURSOR_KIND_MATCHERS: Readonly<
+  Record<string, { readonly event: string; readonly matcher: string }>
+> = {
+  beforeShellExecution: { event: 'PreToolUse', matcher: 'Bash' },
+  afterShellExecution: { event: 'PostToolUse', matcher: 'Bash' },
+  beforeMCPExecution: { event: 'PreToolUse', matcher: 'mcp__.*' },
+  afterMCPExecution: { event: 'PostToolUse', matcher: 'mcp__.*' },
+  beforeReadFile: { event: 'PreToolUse', matcher: 'Read' },
+  afterFileEdit: { event: 'PostToolUse', matcher: 'Edit|Write' },
+}
+const cursorToolMatcherSchema = z.looseObject({ tool: z.string() })
+
+/** A Cursor entry matcher naming its tool, either spelling. */
+function cursorMatcherName(raw: unknown): string | undefined {
+  if (typeof raw === 'string') {
+    return raw
+  }
+  const parsed = cursorToolMatcherSchema.safeParse(raw)
+  return parsed.success ? parsed.data.tool : undefined
+}
+
+/** A Cursor `{"version":1,"hooks":{…}}` file; a wrong version is a newer format. */
+export function readCursorHooks(text: string): ForeignHooksRead {
+  const document = parseJson(text)
+  const version =
+    typeof document === 'object' && document !== null
+      ? (document as Readonly<Record<string, unknown>>)['version']
+      : undefined
+  const read = readVersionedHooks(text, version)
+  return read.status === 'ok' ? { status: 'ok', hooks: foreignEntries(read.table) } : read
+}
+
+/**
+ * One Cursor hook entry as the `spark-hooks.json` entry with a `Cursor`
+ * format tag. `permission` maps to the decision, `ask` forces a card, and
+ * `failClosed` rules are kept for the adapter; `followup_message` becomes a
+ * `Stop` block there. `subagentStart` can block where it comes from but only
+ * observes here, so it stays refused; the Tab hooks wait for inline
+ * completions this extension does not have yet.
+ */
+export function convertCursorHook(hook: FoundHook): Conversion<MuseHook> {
+  const mapped = AGENT_IMPORT_CURSOR_EVENTS[hook.event]
+  if (mapped === undefined) {
+    if (hook.event === 'subagentStart') {
+      return { ok: false, reason: 'weaker' }
+    }
+    return {
+      ok: false,
+      reason:
+        hook.event === 'beforeTabFileRead' || hook.event === 'afterTabFileEdit'
+          ? 'keptWaiting'
+          : 'unmapped',
+    }
+  }
+  if (!hasOnlyFields(hook.raw, CURSOR_ENTRY_FIELDS)) {
+    return { ok: false, reason: 'unsupported' }
+  }
+  const entry = cursorEntrySchema.safeParse(hook.raw)
+  if (!entry.success || !hasCommand(entry.data.command)) {
+    return { ok: false, reason: 'unsupported' }
+  }
+  let matcher: string | undefined
+  const kind = CURSOR_KIND_MATCHERS[hook.event]
+  if (entry.data.matcher !== undefined) {
+    const named = cursorMatcherName(entry.data.matcher)
+    if (named === undefined) {
+      return { ok: false, reason: 'unsupported' }
+    }
+    matcher = translateMatcher(named, AGENT_IMPORT_CURSOR_TOOLS, false)
+  } else if (kind !== undefined) {
+    matcher = kind.matcher
+  } else if (hook.matcher !== undefined) {
+    matcher = translateMatcher(hook.matcher, AGENT_IMPORT_CURSOR_TOOLS, false)
+  }
+  const isMatcherKept =
+    matcher !== undefined &&
+    !MATCH_EVERYTHING.has(matcher) &&
+    !AGENT_IMPORT_HOOK_EVENTS_WITHOUT_MATCHER.includes(mapped) &&
+    mapped !== 'PostLLMCall'
+  const seconds = boundedTimeoutSeconds(entry.data.timeout)
+  if (seconds === undefined && entry.data.timeout !== undefined) {
+    return { ok: false, reason: 'unsupported' }
+  }
+  return sparkHook(
+    mapped,
+    AGENT_IMPORT_FORMATS.cursor,
+    isMatcherKept ? matcher : undefined,
+    [
+      {
+        type: COMMAND_HANDLER,
+        command: entry.data.command,
+        ...(seconds !== undefined && { timeout: seconds }),
+      },
+    ],
+    {
+      ...(entry.data.permission !== undefined && { permission: entry.data.permission }),
+      ...(entry.data.failClosed !== undefined && { failClosed: entry.data.failClosed }),
+      ...(entry.data.followup_message !== undefined && {
+        followup_message: entry.data.followup_message,
+      }),
+    },
+    mapped === 'PostLLMCall',
+  )
+}
+
+// --- Copilot and VS Code ---
+
+const copilotEntrySchema = z.looseObject({
+  type: z.optional(z.string()),
+  bash: z.optional(z.string()),
+  powershell: z.optional(z.string()),
+  cwd: z.optional(z.string()),
+  env: z.optional(z.unknown()),
+  timeoutSec: z.optional(z.number()),
+  matcher: z.optional(z.string()),
+})
+const COPILOT_ENTRY_FIELDS: ReadonlySet<string> = new Set([
+  'type',
+  'bash',
+  'powershell',
+  'cwd',
+  'env',
+  'timeoutSec',
+  'matcher',
+])
+
+/** A Copilot `{"version":1,"hooks":{…}}` file or inline `hooks` block. */
+export function readCopilotHooks(text: string): ForeignHooksRead {
+  const document = parseJson(text)
+  const version =
+    typeof document === 'object' && document !== null
+      ? (document as Readonly<Record<string, unknown>>)['version']
+      : undefined
+  const read = readVersionedHooks(text, version)
+  return read.status === 'ok' ? { status: 'ok', hooks: foreignEntries(read.table) } : read
+}
+
+/**
+ * One Copilot hook entry as the `spark-hooks.json` entry with a `Copilot`
+ * format tag, either spelling of the event name. `bash` and `powershell`
+ * become the command and its Windows spelling; `cwd` stays for the adapter,
+ * which runs it only when relative and confined to the workspace. `env`
+ * stays refused for its secret risk. `preToolUse` errors fail closed at the
+ * adapter. `userPromptTransformed` rewrites the prompt, which no hook may do
+ * here.
+ */
+export function convertCopilotHook(hook: FoundHook): Conversion<MuseHook> {
+  const lowered = hook.event.toLowerCase()
+  if (lowered === 'userprompttransformed') {
+    return { ok: false, reason: 'unsupported' }
+  }
+  const event = AGENT_IMPORT_COPILOT_EVENTS[lowered]
+  if (event === undefined) {
+    return { ok: false, reason: 'unmapped' }
+  }
+  if (!hasOnlyFields(hook.raw, COPILOT_ENTRY_FIELDS)) {
+    return { ok: false, reason: 'unsupported' }
+  }
+  const entry = copilotEntrySchema.safeParse(hook.raw)
+  if (!entry.success) {
+    return { ok: false, reason: 'unsupported' }
+  }
+  if (entry.data.env !== undefined) {
+    return fieldRefusal('env')
+  }
+  const { type, bash, powershell, cwd, matcher } = entry.data
+  if (type !== undefined && type !== COMMAND_HANDLER) {
+    return { ok: false, reason: 'unsupported' }
+  }
+  const command = hasCommand(bash) ? bash : undefined
+  const commandWindows = hasCommand(powershell) ? powershell : undefined
+  // A blank spelling is refused only when nothing runnable remains; a blank
+  // beside a runnable spelling is ignored.
+  if (command === undefined && commandWindows === undefined) {
+    return { ok: false, reason: 'unsupported' }
+  }
+  if (cwd !== undefined && typeof cwd !== 'string') {
+    return { ok: false, reason: 'unsupported' }
+  }
+  const seconds = boundedTimeoutSeconds(entry.data.timeoutSec)
+  if (seconds === undefined && entry.data.timeoutSec !== undefined) {
+    return { ok: false, reason: 'unsupported' }
+  }
+  const isMatcherKept =
+    matcher !== undefined &&
+    !MATCH_EVERYTHING.has(matcher) &&
+    !AGENT_IMPORT_HOOK_EVENTS_WITHOUT_MATCHER.includes(event)
+  return sparkHook(event, AGENT_IMPORT_FORMATS.copilot, isMatcherKept ? matcher : undefined, [
+    {
+      type: COMMAND_HANDLER,
+      ...(command !== undefined && { command }),
+      ...(commandWindows !== undefined && { commandWindows }),
+      ...(seconds !== undefined && { timeout: seconds }),
+      ...(cwd !== undefined && { cwd }),
+    },
+  ])
+}
+
+// --- Windsurf ---
+
+const windsurfEntrySchema = z.looseObject({
+  command: z.optional(z.string()),
+  powershell: z.optional(z.string()),
+  show_output: z.optional(z.boolean()),
+})
+const WINDSURF_ENTRY_FIELDS: ReadonlySet<string> = new Set(['command', 'powershell', 'show_output'])
+
+/** A Windsurf `{"hooks":{…}}` file. */
+export function readWindsurfHooks(text: string): readonly FoundHook[] | undefined {
+  const parsed = settingsHooksSchema.safeParse(parseJson(text))
+  return !parsed.success || parsed.data.hooks === undefined
+    ? undefined
+    : foreignEntries(parsed.data.hooks)
+}
+
+/**
+ * One Windsurf hook entry as the `spark-hooks.json` entry with a `Windsurf`
+ * format tag and the matcher for its kind. Exit codes only: pre hooks stay
+ * synchronous so a block still blocks. The transcript answer has no
+ * equivalent here and stays refused.
+ */
+export function convertWindsurfHook(hook: FoundHook): Conversion<MuseHook> {
+  const mapped = AGENT_IMPORT_WINDSURF_EVENTS[hook.event]
+  if (mapped === undefined) {
+    return { ok: false, reason: 'unmapped' }
+  }
+  if (!hasOnlyFields(hook.raw, WINDSURF_ENTRY_FIELDS)) {
+    return { ok: false, reason: 'unsupported' }
+  }
+  const entry = windsurfEntrySchema.safeParse(hook.raw)
+  if (!entry.success) {
+    return { ok: false, reason: 'unsupported' }
+  }
+  const command = hasCommand(entry.data.command) ? entry.data.command : undefined
+  const commandWindows = hasCommand(entry.data.powershell) ? entry.data.powershell : undefined
+  if (command === undefined && commandWindows === undefined) {
+    return { ok: false, reason: 'unsupported' }
+  }
+  const converted = sparkHook(
+    mapped.event,
+    AGENT_IMPORT_FORMATS.windsurf,
+    mapped.matcher,
+    [
+      {
+        type: COMMAND_HANDLER,
+        ...(command !== undefined && { command }),
+        ...(commandWindows !== undefined && { commandWindows }),
+      },
+    ],
+    undefined,
+    mapped.async,
+  )
+  if (!converted.ok) {
+    return converted
+  }
+  return {
+    ...converted,
+    dropped: entry.data.show_output === undefined ? [] : ['show_output'],
+  }
+}
+
+// --- Kiro v1 ---
+
+/** One Kiro v1 hooks-array entry with its trigger and action. */
+export interface KiroHook {
+  readonly name: string | undefined
+  readonly trigger: string
+  readonly matcher: string | undefined
+  readonly action: unknown
+}
+
+export type KiroHooksRead =
+  | { readonly status: 'ok'; readonly hooks: readonly KiroHook[] }
+  | { readonly status: 'unknownFormat' }
+  | { readonly status: 'unreadable' }
+
+const kiroFileSchema = z.looseObject({
+  version: z.optional(z.unknown()),
+  hooks: z.optional(z.array(z.unknown())),
+})
+const kiroEntrySchema = z.looseObject({
+  name: z.optional(z.string()),
+  trigger: z.optional(z.string()),
+  matcher: z.optional(z.string()),
+  action: z.optional(z.unknown()),
+})
+const kiroCommandActionSchema = z.looseObject({
+  type: z.optional(z.string()),
+  command: z.optional(z.string()),
+  timeout: z.optional(z.number()),
+})
+const KIRO_COMMAND_ACTION_FIELDS: ReadonlySet<string> = new Set(['type', 'command', 'timeout'])
+const kiroAgentActionSchema = z.looseObject({
+  type: z.optional(z.string()),
+  prompt: z.optional(z.string()),
+})
+const KIRO_AGENT_ACTION_FIELDS: ReadonlySet<string> = new Set(['type', 'prompt'])
+
+/** A Kiro `.kiro/hooks/*.json` v1 file; any other version is a newer format. */
+export function readKiroHooks(text: string): KiroHooksRead {
+  const parsed = kiroFileSchema.safeParse(parseJson(text))
+  if (!parsed.success || parsed.data.hooks === undefined) {
+    return { status: 'unreadable' }
+  }
+  if (parsed.data.version !== 'v1') {
+    return { status: 'unknownFormat' }
+  }
+  return {
+    status: 'ok',
+    hooks: parsed.data.hooks.map((raw): KiroHook => {
+      const entry = kiroEntrySchema.safeParse(raw)
+      if (!entry.success || entry.data.trigger === undefined || entry.data.action === undefined) {
+        return { name: undefined, trigger: '', matcher: undefined, action: undefined }
+      }
+      return {
+        name: entry.data.name,
+        trigger: entry.data.trigger,
+        matcher: entry.data.matcher,
+        action: entry.data.action,
+      }
+    }),
+  }
+}
+
+/**
+ * One Kiro v1 entry as the `spark-hooks.json` entry with a `Kiro` format
+ * tag. File triggers map to `PostToolUse` on file tools; the Kiro adapter
+ * (lane P) applies Kiro's path regex itself, so its scope stays the same.
+ * Spec-task triggers map to the todo-item events. Agent actions become
+ * `prompt` handlers under lane H's paid-feature gates.
+ */
+export function convertKiroHook(hook: KiroHook): Conversion<MuseHook> {
+  if (hook.trigger === '' || hook.action === undefined) {
+    return { ok: false, reason: 'unsupported' }
+  }
+  if (hook.trigger === 'Manual') {
+    return { ok: false, reason: 'unsupported' }
+  }
+  const task = AGENT_IMPORT_KIRO_TASK_EVENTS[hook.trigger]
+  const isFile = AGENT_IMPORT_KIRO_FILE_TRIGGERS.includes(hook.trigger)
+  const direct = AGENT_IMPORT_KIRO_EVENTS[hook.trigger]
+  const event = task ?? direct ?? (isFile ? 'PostToolUse' : undefined)
+  if (event === undefined) {
+    return { ok: false, reason: 'unmapped' }
+  }
+  if (task !== undefined && hook.matcher !== undefined) {
+    return { ok: false, reason: 'unsupported' }
+  }
+  const action: unknown = hook.action
+  if (
+    !hasOnlyFields(action, KIRO_COMMAND_ACTION_FIELDS) &&
+    !hasOnlyFields(action, KIRO_AGENT_ACTION_FIELDS)
+  ) {
+    return { ok: false, reason: 'unsupported' }
+  }
+  if (typeof action !== 'object' || action === null) {
+    return { ok: false, reason: 'unsupported' }
+  }
+  const kind = (action as Readonly<Record<string, unknown>>)['type']
+  if (kind === 'command') {
+    const parsed = kiroCommandActionSchema.safeParse(action)
+    if (!parsed.success || !hasCommand(parsed.data.command)) {
+      return { ok: false, reason: 'unsupported' }
+    }
+    const seconds = boundedTimeoutSeconds(parsed.data.timeout)
+    if (seconds === undefined && parsed.data.timeout !== undefined) {
+      return { ok: false, reason: 'unsupported' }
+    }
+    if (isFile) {
+      return sparkHook(
+        event,
+        AGENT_IMPORT_FORMATS.kiro,
+        AGENT_IMPORT_KIRO_FILE_MATCHER,
+        [
+          {
+            type: COMMAND_HANDLER,
+            command: parsed.data.command,
+            ...(seconds !== undefined && { timeout: seconds }),
+          },
+        ],
+        {
+          ...(hook.matcher !== undefined && { pathPattern: hook.matcher }),
+        },
+      )
+    }
+    const translated =
+      hook.matcher === undefined
+        ? undefined
+        : translateMatcher(hook.matcher, AGENT_IMPORT_KIRO_TOOLS, false)
+    const isMatcherKept =
+      translated !== undefined &&
+      !MATCH_EVERYTHING.has(translated) &&
+      !AGENT_IMPORT_HOOK_EVENTS_WITHOUT_MATCHER.includes(event)
+    return sparkHook(event, AGENT_IMPORT_FORMATS.kiro, isMatcherKept ? translated : undefined, [
+      {
+        type: COMMAND_HANDLER,
+        command: parsed.data.command,
+        ...(seconds !== undefined && { timeout: seconds }),
+      },
+    ])
+  }
+  if (kind === 'agent') {
+    const parsed = kiroAgentActionSchema.safeParse(action)
+    if (!parsed.success || parsed.data.prompt === undefined || parsed.data.prompt.trim() === '') {
+      return { ok: false, reason: 'unsupported' }
+    }
+    return sparkHook(event, AGENT_IMPORT_FORMATS.kiro, undefined, [
+      { type: 'prompt', prompt: parsed.data.prompt },
+    ])
+  }
+  return { ok: false, reason: 'unsupported' }
+}
+
+// --- Cline v1 ---
+
+export type ClineFileKind =
+  | { readonly kind: 'event'; readonly event: string }
+  | { readonly kind: 'unknownFormat' }
+  | { readonly kind: 'ignore' }
+
+/**
+ * A `.clinerules/hooks/` entry: a per-event script, a newer SDK/CLI JSON
+ * format, or a file that is not a hook. The stem names the event; a JSON
+ * spelling of one is the newer format, refused with a reason.
+ */
+export function clineEventForFile(fileName: string): ClineFileKind {
+  const dot = fileName.lastIndexOf('.')
+  const stem = dot <= 0 ? fileName : fileName.slice(0, dot)
+  const event = AGENT_IMPORT_CLINE_EVENTS[stem]
+  if (event !== undefined) {
+    return fileName.toLowerCase().endsWith(AGENT_IMPORT_JSON_EXTENSION)
+      ? { kind: 'unknownFormat' }
+      : { kind: 'event', event }
+  }
+  return {
+    kind: fileName.toLowerCase().endsWith(AGENT_IMPORT_JSON_EXTENSION) ? 'unknownFormat' : 'ignore',
+  }
+}
+
+/**
+ * One Cline v1 per-event script as the `spark-hooks.json` entry with a
+ * `Cline` format tag. The script stays where it is; the entry runs it by its
+ * absolute path, so the preview lists the event only, never command text.
+ */
+export function convertClineHook(sourceEvent: string, command: string): Conversion<MuseHook> {
+  const event = AGENT_IMPORT_CLINE_EVENTS[sourceEvent]
+  if (event === undefined || command === '') {
+    return { ok: false, reason: 'unmapped' }
+  }
+  return sparkHook(event, AGENT_IMPORT_FORMATS.cline, undefined, [
+    { type: COMMAND_HANDLER, command },
+  ])
 }
 
 // --- Markdown: commands, agents, rules ---

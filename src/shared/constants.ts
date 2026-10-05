@@ -1675,7 +1675,16 @@ export const EXPLORE_AGENT_TOOLS: readonly string[] = [
 // (PLAN.md D13). Config entries open as unsaved target editor edits
 // (D17, D30, D64), with values unchanged. An entry
 // whose target would be more exposed is refused (D64).
-export const AGENT_IMPORT_SOURCES = ['claudeCode', 'codex', 'cursor'] as const
+export const AGENT_IMPORT_SOURCES = [
+  'claudeCode',
+  'codex',
+  'cursor',
+  'gemini',
+  'copilot',
+  'windsurf',
+  'kiro',
+  'cline',
+] as const
 export type AgentImportSource = (typeof AGENT_IMPORT_SOURCES)[number]
 export const AGENT_IMPORT_KINDS = ['mcpServer', 'hook', 'agent', 'command', 'rules'] as const
 export type AgentImportKind = (typeof AGENT_IMPORT_KINDS)[number]
@@ -1701,6 +1710,8 @@ export const AGENT_IMPORT_PATHS = {
     homeVariable: 'CODEX_HOME',
     dir: '.codex',
     configFile: 'config.toml',
+    /** Claude-shaped hooks: the home folder's and the repository's own. */
+    hooksFile: 'hooks.json',
     /** Custom prompts: the home folder's own, top level only (no project prompts). */
     promptsDir: 'prompts',
     rulesFile: 'AGENTS.md',
@@ -1708,14 +1719,62 @@ export const AGENT_IMPORT_PATHS = {
   cursor: {
     dir: '.cursor',
     mcpFile: 'mcp.json',
+    /** `{"version":1,"hooks":{…}}`: the home folder's and the repository's own. */
+    hooksFile: 'hooks.json',
     agentsDir: 'agents',
     commandsDir: 'commands',
     rulesDir: 'rules',
     legacyRulesFile: '.cursorrules',
   },
+  /** Gemini CLI: the `.gemini/settings.json` hooks block, home and repository. */
+  gemini: {
+    dir: '.gemini',
+    settingsFile: 'settings.json',
+  },
+  /**
+   * Copilot and VS Code: `.github/hooks/*.json` in the repository,
+   * `~/.copilot/hooks/*.json` and the inline `hooks` block of
+   * `~/.copilot/settings.json` for the user.
+   */
+  copilot: {
+    userDir: '.copilot',
+    userHooksDir: 'hooks',
+    userSettingsFile: 'settings.json',
+    projectDir: '.github',
+    projectHooksDir: 'hooks',
+  },
+  /**
+   * Windsurf: `.windsurf/hooks.json` in the repository,
+   * `~/.codeium/windsurf/hooks.json` for the user.
+   */
+  windsurf: {
+    dir: '.windsurf',
+    hooksFile: 'hooks.json',
+    userDir: '.codeium',
+    userHooksSegments: ['windsurf', 'hooks.json'],
+  },
+  /** Kiro v1: `.kiro/hooks/*.json` (`"version":"v1"`, a `hooks` array). */
+  kiro: {
+    dir: '.kiro',
+    userDir: '.kiro',
+    hooksDir: 'hooks',
+    version: 'v1',
+  },
+  /**
+   * Cline v1 per-event scripts: executables named for their event in
+   * `.clinerules/hooks/`, `~/Documents/Cline/Hooks/` for the user.
+   */
+  cline: {
+    projectDir: '.clinerules',
+    projectHooksDir: 'hooks',
+    userDir: 'Documents',
+    userHooksSegments: ['Cline', 'Hooks'],
+  },
 } as const
 export const AGENT_IMPORT_MARKDOWN_EXTENSION = '.md'
 export const AGENT_IMPORT_CURSOR_RULE_EXTENSION = '.mdc'
+/** Copilot, Kiro and Cline hook files; Cline scripts under any other spelling are executables. */
+export const AGENT_IMPORT_JSON_EXTENSION = '.json'
 /** A foreign command, agent, settings, MCP or rules file over this is skipped unread. */
 export const AGENT_IMPORT_FILE_MAX_BYTES = 64 * 1024
 /** Git reports a non-repository with this exit code; other failures refuse classification. */
@@ -1759,6 +1818,184 @@ export const AGENT_IMPORT_HOOK_EVENTS_WITHOUT_MATCHER: readonly string[] = [
   'PostToolBatch',
   'Stop',
 ]
+/**
+ * Codex's 12 hook events (learn.chatgpt.com/docs/hooks; rust-v0.160.0),
+ * by the same names Muse Code uses; anything else in a Codex file is shown,
+ * never converted. `Interrupt` converts only with `async:true`.
+ */
+export const AGENT_IMPORT_CODEX_EVENTS: readonly string[] = [
+  'SessionStart',
+  'SessionEnd',
+  'UserPromptSubmit',
+  'PreToolUse',
+  'PermissionRequest',
+  'PostToolUse',
+  'PreCompact',
+  'PostCompact',
+  'SubagentStart',
+  'SubagentStop',
+  'Stop',
+  'Interrupt',
+]
+/**
+ * Claude Code's extension events (its hooks reference) that the import
+ * carries into `spark-hooks.json`; the rest of Claude's 33 stay in Muse
+ * Code's own files or are refused. `WorktreeCreate` and `ConfigChange` can
+ * block where they come from but only observe here, so they stay refused;
+ * `FileChanged` without a matcher watches nothing, so it stays refused too.
+ */
+export const AGENT_IMPORT_CLAUDE_SPARK_EVENTS: readonly string[] = [
+  'InstructionsLoaded',
+  'UserPromptExpansion',
+  'PermissionDenied',
+  'PreModelSwitch',
+  'PostModelSwitch',
+  'TaskCreated',
+  'TaskCompleted',
+  'FileChanged',
+  'ConfigChange',
+  'WorktreeCreate',
+  'WorktreeRemove',
+]
+/** The format tag a converted foreign hook carries for lane P's adapters. */
+export const AGENT_IMPORT_FORMATS = {
+  gemini: 'Gemini',
+  cursor: 'Cursor',
+  copilot: 'Copilot',
+  windsurf: 'Windsurf',
+  kiro: 'Kiro',
+  cline: 'Cline',
+} as const
+
+/** Gemini CLI's hook events (geminicli.com/docs/hooks) by our names. */
+export const AGENT_IMPORT_GEMINI_EVENTS: Readonly<Record<string, string>> = {
+  BeforeTool: 'PreToolUse',
+  AfterTool: 'PostToolUse',
+  BeforeAgent: 'UserPromptSubmit',
+  AfterAgent: 'Stop',
+  SessionStart: 'SessionStart',
+  SessionEnd: 'SessionEnd',
+  PreCompress: 'PreCompact',
+  Notification: 'Notification',
+  BeforeModel: 'PreLLMCall',
+  AfterModel: 'PostLLMCall',
+}
+/** Gemini CLI's tool names by ours; `mcp_<server>_<tool>` is renamed by rule. */
+export const AGENT_IMPORT_GEMINI_TOOLS: Readonly<Record<string, string>> = {
+  run_shell_command: 'Bash',
+  read_file: 'Read',
+  write_file: 'Write',
+  replace: 'Edit',
+}
+/** Cursor's hook events (cursor.com/docs/hooks) by our names. */
+export const AGENT_IMPORT_CURSOR_EVENTS: Readonly<Record<string, string>> = {
+  sessionStart: 'SessionStart',
+  sessionEnd: 'SessionEnd',
+  preToolUse: 'PreToolUse',
+  postToolUse: 'PostToolUse',
+  postToolUseFailure: 'PostToolUseFailure',
+  subagentStop: 'SubagentStop',
+  beforeShellExecution: 'PreToolUse',
+  afterShellExecution: 'PostToolUse',
+  beforeMCPExecution: 'PreToolUse',
+  afterMCPExecution: 'PostToolUse',
+  beforeReadFile: 'PreToolUse',
+  afterFileEdit: 'PostToolUse',
+  beforeSubmitPrompt: 'UserPromptSubmit',
+  preCompact: 'PreCompact',
+  stop: 'Stop',
+  afterAgentResponse: 'PostLLMCall',
+}
+/** Cursor's tool names by ours, for matchers that name tools. */
+export const AGENT_IMPORT_CURSOR_TOOLS: Readonly<Record<string, string>> = {
+  Shell: 'Bash',
+  Read: 'Read',
+  Write: 'Write',
+  Edit: 'Edit',
+}
+/**
+ * Copilot's hook events (docs.github.com hooks-configuration) by our names,
+ * keyed lower-cased: camelCase and PascalCase spellings both occur.
+ */
+export const AGENT_IMPORT_COPILOT_EVENTS: Readonly<Record<string, string>> = {
+  sessionstart: 'SessionStart',
+  sessionend: 'SessionEnd',
+  userpromptsubmitted: 'UserPromptSubmit',
+  pretooluse: 'PreToolUse',
+  permissionrequest: 'PermissionRequest',
+  posttooluse: 'PostToolUse',
+  posttoolusefailure: 'PostToolUseFailure',
+  precompact: 'PreCompact',
+  agentstop: 'Stop',
+  subagentstart: 'SubagentStart',
+  subagentstop: 'SubagentStop',
+  erroroccurred: 'StopFailure',
+  notification: 'Notification',
+}
+/**
+ * Windsurf's hook events (docs.devin.ai/desktop/cascade/hooks) by our event
+ * and the matcher for their kind. Exit codes only: pre hooks stay
+ * synchronous so a block still blocks; `post_cascade_response` observes a
+ * finished turn asynchronously.
+ */
+export const AGENT_IMPORT_WINDSURF_EVENTS: Readonly<
+  Record<string, { readonly event: string; readonly matcher?: string; readonly async?: true }>
+> = {
+  pre_read_code: { event: 'PreToolUse', matcher: 'Read' },
+  post_read_code: { event: 'PostToolUse', matcher: 'Read' },
+  pre_write_code: { event: 'PreToolUse', matcher: 'Edit|Write' },
+  post_write_code: { event: 'PostToolUse', matcher: 'Edit|Write' },
+  pre_run_command: { event: 'PreToolUse', matcher: 'Bash' },
+  post_run_command: { event: 'PostToolUse', matcher: 'Bash' },
+  pre_mcp_tool_use: { event: 'PreToolUse', matcher: 'mcp__.*' },
+  post_mcp_tool_use: { event: 'PostToolUse', matcher: 'mcp__.*' },
+  pre_user_prompt: { event: 'UserPromptSubmit' },
+  post_cascade_response: { event: 'Stop', async: true },
+  post_setup_worktree: { event: 'WorktreeCreate' },
+}
+/** Kiro's command triggers (kiro.dev/docs/hooks) that map one to one. */
+export const AGENT_IMPORT_KIRO_EVENTS: Readonly<Record<string, string>> = {
+  SessionStart: 'SessionStart',
+  SessionEnd: 'SessionEnd',
+  UserPromptSubmit: 'UserPromptSubmit',
+  PreToolUse: 'PreToolUse',
+  PostToolUse: 'PostToolUse',
+  Stop: 'Stop',
+}
+/** Kiro's spec-task triggers by our todo-item events. */
+export const AGENT_IMPORT_KIRO_TASK_EVENTS: Readonly<Record<string, string>> = {
+  PreTaskExec: 'TaskCreated',
+  PostTaskExec: 'TaskCompleted',
+}
+/** Kiro's file triggers, each run on file tools with this matcher. */
+export const AGENT_IMPORT_KIRO_FILE_TRIGGERS: readonly string[] = [
+  'PostFileCreate',
+  'PostFileSave',
+  'PostFileDelete',
+]
+/** Kiro's file-trigger matcher on our file tools; its path regex stays with the entry. */
+export const AGENT_IMPORT_KIRO_FILE_MATCHER = 'Edit|Write'
+/** Kiro's tool names by ours, for matchers that name tools. */
+export const AGENT_IMPORT_KIRO_TOOLS: Readonly<Record<string, string>> = {
+  fs_read: 'Read',
+  fs_write: 'Write|Edit',
+  execute_bash: 'Bash',
+}
+/**
+ * Cline v1 per-event scripts (cline/cline 901d1b5c97) by our events. A task
+ * is a session here, not a todo item, so its start and end map to the
+ * session's own events.
+ */
+export const AGENT_IMPORT_CLINE_EVENTS: Readonly<Record<string, string>> = {
+  TaskStart: 'SessionStart',
+  TaskResume: 'SessionStart',
+  TaskCancel: 'SessionEnd',
+  TaskComplete: 'SessionEnd',
+  PreToolUse: 'PreToolUse',
+  PostToolUse: 'PostToolUse',
+  UserPromptSubmit: 'UserPromptSubmit',
+  PreCompact: 'PreCompact',
+}
 /** Muse Code's `mcpServers` entry never blocks startup when it fails (the migrate skill's rule). */
 export const MUSE_MCP_OPTIONAL_MODE = 'optional'
 /** How many broken links in a row M83's confinement follows before it refuses (Linux's MAXSYMLINKS). */
@@ -3590,7 +3827,12 @@ export const AGENT_IMPORT_SOURCE_NAMES = {
   claudeCode: 'Claude Code',
   codex: 'Codex',
   cursor: 'Cursor',
-} as const
+  gemini: 'Gemini CLI',
+  copilot: 'Copilot and VS Code',
+  windsurf: 'Windsurf',
+  kiro: 'Kiro',
+  cline: 'Cline',
+} as const satisfies Readonly<Record<AgentImportSource, string>>
 
 // Model API session text, used only by its lazy bundle. Kept separate so
 // activation and ACP loaders can discard it without changing any words.

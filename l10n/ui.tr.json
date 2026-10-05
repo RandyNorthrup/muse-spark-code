@@ -1929,6 +1929,7 @@
   "agentImportSkippedNeedsMatcher": "FileChanged, izlenecek dosyaları belirten bir eşleştirici (matcher) gerektirir",
   "agentImportSkippedUnknownFormat": "dosyası bu sürümün okumadığı bir biçimde",
   "agentImportKeptWaiting": "korundu; bu uzantıda henüz olmayan satır içi tamamlamaları bekliyor",
+  "agentImportKiroTaskNote": "Kiro spec-görev tetikleyicileri burada todo öğelerinde çalışır",
   "agentImportPersonalToProject": "bu, kişisel bir dosyayı projeye kopyalar",
   "agentImportIgnoredToTracked": "bu, Git tarafından yok sayılan bir dosyayı izlenen bir dosyaya kopyalar",
   "agentImportEditPrompt": "Dönüştürülen girdiler {path} içinde inceleyip kaydetmeniz için kaydedilmemiş bir düzenleme olarak açılsın mı? Yalnızca bu yola kaydedin, asla başka bir dosyaya kaydetmeyin.",

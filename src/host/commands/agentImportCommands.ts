@@ -159,6 +159,21 @@ function sourceLabel(source: AgentImportSource): string {
     case 'cursor': {
       return UI_TEXT.agentImportSourceCursor
     }
+    case 'gemini': {
+      return UI_TEXT.agentImportSourceGemini
+    }
+    case 'copilot': {
+      return UI_TEXT.agentImportSourceCopilot
+    }
+    case 'windsurf': {
+      return UI_TEXT.agentImportSourceWindsurf
+    }
+    case 'kiro': {
+      return UI_TEXT.agentImportSourceKiro
+    }
+    case 'cline': {
+      return UI_TEXT.agentImportSourceCline
+    }
   }
 }
 
@@ -226,11 +241,40 @@ function reasonLabel(reason: ImportSkipReason): string {
     case 'ignoredToTracked': {
       return UI_TEXT.agentImportIgnoredToTracked
     }
+    case 'weaker': {
+      return UI_TEXT.agentImportSkippedWeaker
+    }
+    case 'chooses': {
+      return UI_TEXT.agentImportSkippedChooses
+    }
+    case 'field': {
+      // The field arrives separately: `skipReasonText` fills it in.
+      return UI_TEXT.agentImportSkippedField
+    }
+    case 'needsMatcher': {
+      return UI_TEXT.agentImportSkippedNeedsMatcher
+    }
+    case 'unknownFormat': {
+      return UI_TEXT.agentImportSkippedUnknownFormat
+    }
+    case 'keptWaiting': {
+      return UI_TEXT.agentImportKeptWaiting
+    }
+    case 'notify': {
+      return UI_TEXT.agentImportSkippedNotify
+    }
   }
 }
 
+/** A refusal in the user's language; `field` names the refusing field when there is one. */
+function skipReasonText(reason: ImportSkipReason, field?: string): string {
+  return reason === 'field'
+    ? fill(UI_TEXT.agentImportSkippedField, { field: field ?? '' })
+    : reasonLabel(reason)
+}
+
 function skipLabel(skip: ImportSkip): string {
-  return reasonLabel(skip.reason)
+  return skipReasonText(skip.reason, skip.field)
 }
 
 /** Undefined for a source outside home and workspace (or unclassified): its refusal says why. */
@@ -256,7 +300,7 @@ function pickItemOf(candidate: ImportCandidate): AgentImportPickItem {
   const { target } = candidate
   let why: string | undefined
   if (target.kind === 'none') {
-    why = reasonLabel(target.reason)
+    why = skipReasonText(target.reason, target.field)
   }
   return {
     id: candidate.id,
@@ -288,6 +332,7 @@ function previewMarkdown(
       const candidate = byId.get(id)
       if (candidate === undefined) continue
       blocks.push(`- ${candidate.label} (${describeCandidate(candidate)})`)
+      if (candidate.previewNote !== undefined) blocks.push(candidate.previewNote)
       if (candidate.dropped.length > 0)
         blocks.push(
           fill(UI_TEXT.agentImportPreviewDropped, {
@@ -301,7 +346,7 @@ function previewMarkdown(
     const candidate = byId.get(skipped.candidateId)
     if (candidate !== undefined)
       blocks.push(
-        `- ${candidate.label} (${describeCandidate(candidate)}): ${reasonLabel(skipped.reason)}`,
+        `- ${candidate.label} (${describeCandidate(candidate)}): ${skipReasonText(skipped.reason, skipped.field)}`,
       )
   }
   return `${blocks.join('\n\n')}\n`
@@ -755,7 +800,7 @@ async function runImport(deps: AgentImportDeps): Promise<void> {
     deps.showInformation(
       [
         fill(UI_TEXT.agentImportNothing, {
-          source: choice === 'all' ? UI_TEXT.agentImportSourceAll : sourceLabel(choice),
+          source: choice === 'all' ? UI_TEXT.agentImportSourceEvery : sourceLabel(choice),
         }),
         ...(hasSkippedFiles ? [UI_TEXT.agentImportSkippedFiles] : []),
       ].join(SENTENCE_SEPARATOR),

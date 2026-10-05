@@ -1858,6 +1858,7 @@
   "agentImportSkippedNeedsMatcher": "FileChanged에는 감시할 파일을 지정하는 매처가 필요합니다",
   "agentImportSkippedUnknownFormat": "파일 형식을 이 버전에서 읽을 수 없습니다",
   "agentImportKeptWaiting": "유지됨. 이 확장에 아직 없는 인라인 완성 기능을 기다리는 중입니다",
+  "agentImportKiroTaskNote": "Kiro spec 작업 트리거는 여기에서 todo 항목에 대해 실행됩니다",
   "agentImportPersonalToProject": "개인 파일을 프로젝트로 복사하게 됩니다",
   "agentImportIgnoredToTracked": "Git에서 무시하는 파일을 추적하는 파일로 복사하게 됩니다",
   "agentImportEditPrompt": "변환한 항목을 {path}에서 저장하지 않은 편집으로 열어 검토하고 저장하시겠습니까? 그 경로에만 저장하고 다른 파일에는 저장하지 마십시오.",

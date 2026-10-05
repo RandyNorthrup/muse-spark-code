@@ -36,6 +36,7 @@ import {
   AGENT_IMPORT_DIR_MAX_ENTRIES,
   AGENT_IMPORT_FILE_MAX_BYTES,
   AGENT_IMPORT_ID_MAX_CHARS,
+  AGENT_IMPORT_JSON_EXTENSION,
   AGENT_IMPORT_MARKDOWN_EXTENSION,
   AGENT_IMPORT_PATHS,
   AGENT_IMPORT_ROOT_CHANGED_CODE,
@@ -56,6 +57,8 @@ import {
   SKILL_FILE_MAX_BYTES,
   SKILL_FILE_NAME,
   SKILL_ID_PATTERN,
+  SPARK_HOOKS_SEGMENTS,
+  UI_TEXT,
 } from '../../shared/constants'
 import { readMcpServerEntries } from '../backends/musecode/museConfigView'
 import { decodeContextText } from '../context/contextFiles'
@@ -64,19 +67,37 @@ import type { EditedFile } from '../verify/diagnosticsReport'
 import { pathModule } from '../workspaceRoot'
 import {
   appendSeparator,
+  clineEventForFile,
   commandToSkill,
   type Conversion,
   type ConversionRefusal,
+  convertClaudeSparkHook,
+  convertClineHook,
+  convertCodexHook,
   convertCodexServer,
+  convertCopilotHook,
+  convertCursorHook,
+  convertGeminiHook,
   convertHook,
   convertJsonServer,
+  convertKiroHook,
+  convertWindsurfHook,
+  type ForeignHooksRead,
+  type FoundHook,
   type FoundServer,
+  type KiroHooksRead,
   type MuseHook,
   type MuseMcpEntry,
+  hasCodexNotify,
   readClaudeHooks,
   readClaudeState,
   readCodexConfig,
+  readCodexHooksToml,
+  readCopilotHooks,
+  readCursorHooks,
+  readKiroHooks,
   readMcpFile,
+  readWindsurfHooks,
   rulesHeading,
   rulesSection,
   splitFrontMatter,
@@ -162,7 +183,12 @@ export type ImportTarget =
     }
   | { readonly kind: 'server'; readonly name: string; readonly entry: MuseMcpEntry }
   | { readonly kind: 'hook'; readonly file: ImportCopyFile; readonly hook: MuseHook }
-  | { readonly kind: 'none'; readonly reason: ImportSkipReason }
+  | {
+      readonly kind: 'none'
+      readonly reason: ImportSkipReason
+      /** Set only with `field`: the source's field with no equivalent here. */
+      readonly field?: string | undefined
+    }
 
 export interface ImportCandidate {
   readonly id: string
@@ -176,6 +202,8 @@ export interface ImportCandidate {
   readonly target: ImportTarget
   /** The source entry's fields that are not carried over. */
   readonly dropped: readonly string[]
+  /** A plain-words line the preview shows under this entry, if any. */
+  readonly previewNote?: string | undefined
 }
 
 export interface ImportScan {
@@ -184,8 +212,13 @@ export interface ImportScan {
   readonly warnings: readonly string[]
 }
 
-/** Where the copied entries go: Muse Code's settings file, or the project's hooks file. */
-export type ImportCopyFile = 'settings' | 'hooks'
+/**
+ * Where the copied entries go: Muse Code's settings file, the project's
+ * hooks file, or the extension's own `spark-hooks.json` (M91, PLAN.md D70)
+ * beside the settings file and in the project. Foreign formats convert only
+ * into the spark files, with a `format` tag for lane P's adapters.
+ */
+export type ImportCopyFile = 'settings' | 'hooks' | 'sparkUser' | 'sparkProject'
 
 interface Scan {
   readonly input: ImportScanInput
@@ -205,6 +238,7 @@ interface Found {
   readonly originPath: string
   readonly target: ImportTarget
   readonly dropped?: readonly string[]
+  readonly previewNote?: string | undefined
 }
 
 const USER_RULES_REFUSAL: ImportTarget = { kind: 'none', reason: 'userRules' }
@@ -287,12 +321,22 @@ function add(scan: Scan, found: Found): void {
     scan.nextSuffix.set(base, index)
   }
   taken.add(id)
-  scan.candidates.push({ ...found, id, sourceExposure: undefined, dropped: found.dropped ?? [] })
+  scan.candidates.push({
+    ...found,
+    id,
+    sourceExposure: undefined,
+    dropped: found.dropped ?? [],
+    ...(found.previewNote !== undefined && { previewNote: found.previewNote }),
+  })
 }
 
-/** A converter's refusal as the entry's target. */
+/** A converter's refusal as the entry's target, naming its field when it names one. */
 function refusalOf(refusal: Exclude<Conversion<unknown>, { readonly ok: true }>): ImportTarget {
-  return { kind: 'none', reason: refusal.reason }
+  return {
+    kind: 'none',
+    reason: refusal.reason,
+    ...(refusal.field !== undefined && { field: refusal.field }),
+  }
 }
 
 export type ImportExposure = 'personal' | 'project-local' | 'project-tracked'
@@ -519,25 +563,6 @@ async function collectMcpFile(
   addServers(scan, { source, origin, originPath: file, servers, convert: convertJsonServer })
 }
 
-async function collectCodexConfig(scan: Scan, origin: ImportOrigin, file: string): Promise<void> {
-  const text = await readText(scan, file, origin)
-  if (text === undefined) {
-    return
-  }
-  const servers = readCodexConfig(text)
-  if (servers === undefined) {
-    scan.warnings.push(`is not a readable Codex configuration, skipped`)
-    return
-  }
-  addServers(scan, {
-    source: 'codex',
-    origin,
-    originPath: file,
-    servers,
-    convert: convertCodexServer,
-  })
-}
-
 async function collectClaudeState(scan: Scan, file: string): Promise<void> {
   const text = await readText(scan, file, 'user', AGENT_IMPORT_CLAUDE_STATE_MAX_BYTES)
   if (text === undefined) {
@@ -559,6 +584,31 @@ async function collectClaudeState(scan: Scan, file: string): Promise<void> {
 }
 
 // --- Hooks ---
+//
+// Codex hooks convert into Muse Code's own files and run on both backends.
+// Claude Code's extension events and every other agent's format convert into
+// `spark-hooks.json` with a `format` tag for lane P's adapters. Labels are
+// event and hook names only: the preview never shows command text.
+
+/** The spark file an origin converts into: beside the settings, or in the project. */
+function sparkFileOf(origin: ImportOrigin): 'sparkUser' | 'sparkProject' {
+  return origin === 'user' ? 'sparkUser' : 'sparkProject'
+}
+
+function addHook(
+  scan: Scan,
+  found: Omit<Found, 'kind' | 'target' | 'dropped'> & { readonly previewNote?: string | undefined },
+  converted: Conversion<MuseHook>,
+  file: ImportCopyFile,
+): void {
+  add(scan, {
+    ...found,
+    kind: 'hook',
+    target: converted.ok ? { kind: 'hook', file, hook: converted.value } : refusalOf(converted),
+    dropped: converted.ok ? converted.dropped : [],
+    ...(found.previewNote !== undefined && { previewNote: found.previewNote }),
+  })
+}
 
 async function collectHooks(scan: Scan, origin: ImportOrigin, file: string): Promise<void> {
   const text = await readText(scan, file, origin)
@@ -571,17 +621,307 @@ async function collectHooks(scan: Scan, origin: ImportOrigin, file: string): Pro
     return
   }
   for (const hook of hooks) {
-    const converted = convertHook(hook)
-    add(scan, {
+    const base = {
       source: 'claudeCode',
       origin,
-      kind: 'hook',
       label: hook.event,
       originPath: file,
-      target: converted.ok
-        ? { kind: 'hook', file: origin === 'user' ? 'settings' : 'hooks', hook: converted.value }
-        : refusalOf(converted),
+    } as const
+    const converted = convertHook(hook)
+    if (converted.ok || converted.reason !== 'unmapped') {
+      addHook(scan, base, converted, origin === 'user' ? 'settings' : 'hooks')
+      continue
+    }
+    addHook(scan, base, convertClaudeSparkHook(hook), sparkFileOf(origin))
+  }
+}
+
+async function collectCodexHooks(scan: Scan, origin: ImportOrigin, file: string): Promise<void> {
+  const text = await readText(scan, file, origin)
+  if (text === undefined) {
+    return
+  }
+  const hooks = readClaudeHooks(text)
+  if (hooks === undefined) {
+    scan.warnings.push(`is not a readable Codex hooks file, skipped`)
+    return
+  }
+  for (const hook of hooks) {
+    addHook(
+      scan,
+      { source: 'codex', origin, label: hook.event, originPath: file },
+      convertCodexHook(hook),
+      origin === 'user' ? 'settings' : 'hooks',
+    )
+  }
+}
+
+/**
+ * One read of a Codex `config.toml` for its servers, its `notify` program
+ * and its inline `hooks` table: a file that is not TOML warns once, whatever
+ * was wanted from it.
+ */
+async function collectCodexConfigFile(
+  scan: Scan,
+  origin: ImportOrigin,
+  file: string,
+): Promise<void> {
+  const text = await readText(scan, file, origin)
+  if (text === undefined) {
+    return
+  }
+  const servers = readCodexConfig(text)
+  if (servers === undefined) {
+    scan.warnings.push(`is not a readable Codex configuration, skipped`)
+    return
+  }
+  addServers(scan, {
+    source: 'codex',
+    origin,
+    originPath: file,
+    servers,
+    convert: convertCodexServer,
+  })
+  if (hasCodexNotify(text)) {
+    add(scan, {
+      source: 'codex',
+      origin,
+      kind: 'hook',
+      label: 'notify',
+      originPath: file,
+      target: { kind: 'none', reason: 'notify' },
     })
+  }
+  const hooks = readCodexHooksToml(text)
+  if (hooks === undefined) {
+    scan.warnings.push(`is not a readable Codex hooks table, skipped`)
+    return
+  }
+  for (const hook of hooks) {
+    addHook(
+      scan,
+      { source: 'codex', origin, label: hook.event, originPath: file },
+      convertCodexHook(hook),
+      origin === 'user' ? 'settings' : 'hooks',
+    )
+  }
+}
+
+/** One foreign hooks file's entries as spark candidates, all with a format tag. */
+function collectForeignHooks(
+  scan: Scan,
+  options: {
+    readonly source: AgentImportSource
+    readonly origin: ImportOrigin
+    readonly originPath: string
+    readonly found: readonly FoundHook[]
+    readonly convert: (hook: FoundHook) => Conversion<MuseHook>
+  },
+): void {
+  for (const hook of options.found) {
+    addHook(
+      scan,
+      {
+        source: options.source,
+        origin: options.origin,
+        label: hook.event,
+        originPath: options.originPath,
+      },
+      options.convert(hook),
+      sparkFileOf(options.origin),
+    )
+  }
+}
+
+/** A versioned foreign hooks file read (`ok`, a newer format, or unreadable). */
+function collectVersionedHooks(
+  scan: Scan,
+  options: {
+    readonly source: AgentImportSource
+    readonly origin: ImportOrigin
+    readonly originPath: string
+    readonly read: ForeignHooksRead
+    readonly convert: (hook: FoundHook) => Conversion<MuseHook>
+  },
+): void {
+  switch (options.read.status) {
+    case 'ok': {
+      collectForeignHooks(scan, { ...options, found: options.read.hooks })
+      return
+    }
+    case 'unknownFormat': {
+      add(scan, {
+        source: options.source,
+        origin: options.origin,
+        kind: 'hook',
+        label: scan.p.basename(options.originPath),
+        originPath: options.originPath,
+        target: { kind: 'none', reason: 'unknownFormat' },
+      })
+      return
+    }
+    case 'unreadable': {
+      scan.warnings.push(`is not a readable hooks file, skipped`)
+    }
+  }
+}
+
+async function collectGeminiHooks(scan: Scan, origin: ImportOrigin, file: string): Promise<void> {
+  const text = await readText(scan, file, origin)
+  if (text === undefined) {
+    return
+  }
+  const hooks = readClaudeHooks(text)
+  if (hooks === undefined) {
+    scan.warnings.push(`is not a readable Gemini settings file, skipped`)
+    return
+  }
+  collectForeignHooks(scan, {
+    source: 'gemini',
+    origin,
+    originPath: file,
+    found: hooks,
+    convert: convertGeminiHook,
+  })
+}
+
+async function collectCursorHooks(scan: Scan, origin: ImportOrigin, file: string): Promise<void> {
+  const text = await readText(scan, file, origin)
+  if (text === undefined) {
+    return
+  }
+  collectVersionedHooks(scan, {
+    source: 'cursor',
+    origin,
+    originPath: file,
+    read: readCursorHooks(text),
+    convert: convertCursorHook,
+  })
+}
+
+async function collectCopilotHooks(scan: Scan, origin: ImportOrigin, file: string): Promise<void> {
+  const text = await readText(scan, file, origin)
+  if (text === undefined) {
+    return
+  }
+  collectVersionedHooks(scan, {
+    source: 'copilot',
+    origin,
+    originPath: file,
+    read: readCopilotHooks(text),
+    convert: convertCopilotHook,
+  })
+}
+
+/** Every `*.json` hooks file in a hooks folder. */
+async function collectHooksFolder(
+  scan: Scan,
+  origin: ImportOrigin,
+  directory: string,
+  collect: (scan: Scan, origin: ImportOrigin, file: string) => Promise<void>,
+): Promise<void> {
+  const entries = await listEntries(scan, directory, origin)
+  for (const entry of entries) {
+    if (!entry.isDirectory && hasExtension(entry.name, AGENT_IMPORT_JSON_EXTENSION)) {
+      await collect(scan, origin, scan.p.join(directory, entry.name))
+    }
+  }
+}
+
+async function collectWindsurfHooks(scan: Scan, origin: ImportOrigin, file: string): Promise<void> {
+  const text = await readText(scan, file, origin)
+  if (text === undefined) {
+    return
+  }
+  const hooks = readWindsurfHooks(text)
+  if (hooks === undefined) {
+    scan.warnings.push(`is not a readable Windsurf hooks file, skipped`)
+    return
+  }
+  collectForeignHooks(scan, {
+    source: 'windsurf',
+    origin,
+    originPath: file,
+    found: hooks,
+    convert: convertWindsurfHook,
+  })
+}
+
+async function collectKiroHooks(scan: Scan, origin: ImportOrigin, file: string): Promise<void> {
+  const text = await readText(scan, file, origin)
+  if (text === undefined) {
+    return
+  }
+  const read: KiroHooksRead = readKiroHooks(text)
+  switch (read.status) {
+    case 'ok': {
+      for (const hook of read.hooks) {
+        addHook(
+          scan,
+          {
+            source: 'kiro',
+            origin,
+            label: hook.name ?? hook.trigger,
+            originPath: file,
+            ...((hook.trigger === 'PreTaskExec' || hook.trigger === 'PostTaskExec') && {
+              previewNote: UI_TEXT.agentImportKiroTaskNote,
+            }),
+          },
+          convertKiroHook(hook),
+          sparkFileOf(origin),
+        )
+      }
+      return
+    }
+    case 'unknownFormat': {
+      add(scan, {
+        source: 'kiro',
+        origin,
+        kind: 'hook',
+        label: scan.p.basename(file),
+        originPath: file,
+        target: { kind: 'none', reason: 'unknownFormat' },
+      })
+      return
+    }
+    case 'unreadable': {
+      scan.warnings.push(`is not a readable Kiro hooks file, skipped`)
+    }
+  }
+}
+
+async function collectClineHooks(
+  scan: Scan,
+  origin: ImportOrigin,
+  directory: string,
+): Promise<void> {
+  const entries = await listEntries(scan, directory, origin)
+  for (const entry of entries) {
+    if (entry.isDirectory) {
+      continue
+    }
+    const classified = clineEventForFile(entry.name)
+    if (classified.kind === 'ignore') {
+      continue
+    }
+    const file = scan.p.join(directory, entry.name)
+    if (classified.kind === 'unknownFormat') {
+      add(scan, {
+        source: 'cline',
+        origin,
+        kind: 'hook',
+        label: entry.name,
+        originPath: file,
+        target: { kind: 'none', reason: 'unknownFormat' },
+      })
+      continue
+    }
+    addHook(
+      scan,
+      { source: 'cline', origin, label: entry.name, originPath: file },
+      convertClineHook(classified.event, file),
+      sparkFileOf(origin),
+    )
   }
 }
 
@@ -943,7 +1283,8 @@ async function scanCodex(scan: Scan, isProjectRead: boolean): Promise<void> {
     p.join(input.homeDir, names.dir),
   )
   if (home !== undefined) {
-    await collectCodexConfig(scan, 'user', p.join(home, names.configFile))
+    await collectCodexConfigFile(scan, 'user', p.join(home, names.configFile))
+    await collectCodexHooks(scan, 'user', p.join(home, names.hooksFile))
     await collectMarkdown(scan, {
       source: 'codex',
       origin: 'user',
@@ -955,9 +1296,12 @@ async function scanCodex(scan: Scan, isProjectRead: boolean): Promise<void> {
   }
   // A repository's root AGENTS.md is Muse Code's own rules file already.
   const root = input.workspaceRoot
-  if (root !== undefined && isProjectRead) {
-    await collectCodexConfig(scan, 'project', p.join(root, names.dir, names.configFile))
+  if (root === undefined || !isProjectRead) {
+    return
   }
+  const projectDir = p.join(root, names.dir)
+  await collectCodexConfigFile(scan, 'project', p.join(projectDir, names.configFile))
+  await collectCodexHooks(scan, 'project', p.join(projectDir, names.hooksFile))
 }
 
 async function scanCursor(scan: Scan, isProjectRead: boolean): Promise<void> {
@@ -965,6 +1309,7 @@ async function scanCursor(scan: Scan, isProjectRead: boolean): Promise<void> {
   const names = AGENT_IMPORT_PATHS.cursor
   const userDir = p.join(input.homeDir, names.dir)
   await collectMcpFile(scan, 'cursor', 'user', p.join(userDir, names.mcpFile))
+  await collectCursorHooks(scan, 'user', p.join(userDir, names.hooksFile))
   const folders = [
     { kind: 'agent', directory: names.agentsDir },
     { kind: 'command', directory: names.commandsDir },
@@ -984,6 +1329,7 @@ async function scanCursor(scan: Scan, isProjectRead: boolean): Promise<void> {
   }
   const projectDir = p.join(root, names.dir)
   await collectMcpFile(scan, 'cursor', 'project', p.join(projectDir, names.mcpFile))
+  await collectCursorHooks(scan, 'project', p.join(projectDir, names.hooksFile))
   for (const folder of folders) {
     await collectMarkdown(scan, {
       source: 'cursor',
@@ -995,6 +1341,77 @@ async function scanCursor(scan: Scan, isProjectRead: boolean): Promise<void> {
   }
   await collectCursorRules(scan, p.join(projectDir, names.rulesDir))
   await collectProjectRules(scan, 'cursor', p.join(root, names.legacyRulesFile), false)
+}
+
+async function scanGemini(scan: Scan, isProjectRead: boolean): Promise<void> {
+  const { p, input } = scan
+  const names = AGENT_IMPORT_PATHS.gemini
+  await collectGeminiHooks(scan, 'user', p.join(input.homeDir, names.dir, names.settingsFile))
+  const root = input.workspaceRoot
+  if (root !== undefined && isProjectRead) {
+    await collectGeminiHooks(scan, 'project', p.join(root, names.dir, names.settingsFile))
+  }
+}
+
+async function scanCopilot(scan: Scan, isProjectRead: boolean): Promise<void> {
+  const { p, input } = scan
+  const names = AGENT_IMPORT_PATHS.copilot
+  const userDir = p.join(input.homeDir, names.userDir)
+  await collectHooksFolder(scan, 'user', p.join(userDir, names.userHooksDir), collectCopilotHooks)
+  await collectCopilotHooks(scan, 'user', p.join(userDir, names.userSettingsFile))
+  const root = input.workspaceRoot
+  if (root !== undefined && isProjectRead) {
+    await collectHooksFolder(
+      scan,
+      'project',
+      p.join(root, names.projectDir, names.projectHooksDir),
+      collectCopilotHooks,
+    )
+  }
+}
+
+async function scanWindsurf(scan: Scan, isProjectRead: boolean): Promise<void> {
+  const { p, input } = scan
+  const names = AGENT_IMPORT_PATHS.windsurf
+  await collectWindsurfHooks(
+    scan,
+    'user',
+    p.join(input.homeDir, names.userDir, ...names.userHooksSegments),
+  )
+  const root = input.workspaceRoot
+  if (root !== undefined && isProjectRead) {
+    await collectWindsurfHooks(scan, 'project', p.join(root, names.dir, names.hooksFile))
+  }
+}
+
+async function scanKiro(scan: Scan, isProjectRead: boolean): Promise<void> {
+  const { p, input } = scan
+  const names = AGENT_IMPORT_PATHS.kiro
+  const userDir = p.join(input.homeDir, names.userDir, names.hooksDir)
+  await collectHooksFolder(scan, 'user', userDir, collectKiroHooks)
+  const root = input.workspaceRoot
+  if (root !== undefined && isProjectRead) {
+    await collectHooksFolder(
+      scan,
+      'project',
+      p.join(root, names.dir, names.hooksDir),
+      collectKiroHooks,
+    )
+  }
+}
+
+async function scanCline(scan: Scan, isProjectRead: boolean): Promise<void> {
+  const { p, input } = scan
+  const names = AGENT_IMPORT_PATHS.cline
+  await collectClineHooks(
+    scan,
+    'user',
+    p.join(input.homeDir, names.userDir, ...names.userHooksSegments),
+  )
+  const root = input.workspaceRoot
+  if (root !== undefined && isProjectRead) {
+    await collectClineHooks(scan, 'project', p.join(root, names.projectDir, names.projectHooksDir))
+  }
 }
 
 /**
@@ -1036,6 +1453,11 @@ export async function scanAgentImports(input: ImportScanInput): Promise<ImportSc
     claudeCode: scanClaudeCode,
     codex: scanCodex,
     cursor: scanCursor,
+    gemini: scanGemini,
+    copilot: scanCopilot,
+    windsurf: scanWindsurf,
+    kiro: scanKiro,
+    cline: scanCline,
   }
   for (const source of input.sources) {
     await scanners[source](scan, isProjectRead)
@@ -1158,6 +1580,8 @@ export interface ImportCopy {
 export interface ImportSkip {
   readonly candidateId: string
   readonly reason: ImportSkipReason
+  /** Set only with `field`: the source's field with no equivalent here. */
+  readonly field?: string | undefined
 }
 
 export interface ImportPlan {
@@ -1205,7 +1629,7 @@ export function copyForCurrentFile(copy: ImportCopy, isNewFile: boolean): Import
   if (copy.isNewFile === isNewFile) {
     return copy
   }
-  if (copy.file === 'hooks') {
+  if (copy.file !== 'settings') {
     return { ...copy, isNewFile }
   }
   const members = z.record(z.string(), z.unknown()).parse(JSON.parse(copy.text))
@@ -1242,6 +1666,28 @@ function fileRefusal(file: ImportPlanFile): 'outside' | 'unreadable' | undefined
   return file.status === 'outside' || file.status === 'unreadable' ? file.status : undefined
 }
 
+/**
+ * Why a hook copy's file refuses it; spark files carry no pre-read state,
+ * so their standing is checked live when the copy is offered.
+ */
+function hookCopyRefusal(
+  state: ImportPlanState,
+  file: ImportCopyFile,
+): 'outside' | 'unreadable' | undefined {
+  switch (file) {
+    case 'settings': {
+      return fileRefusal(state.museSettings)
+    }
+    case 'hooks': {
+      return hooksFileRefusal(state.hooksFile)
+    }
+    case 'sparkUser':
+    case 'sparkProject': {
+      return undefined
+    }
+  }
+}
+
 interface PlanBuilder {
   readonly destinations: ImportDestinations
   readonly state: ImportPlanState
@@ -1257,8 +1703,17 @@ interface PlanBuilder {
   readonly targetExposures: Map<string, ImportExposure>
 }
 
-function skip(builder: PlanBuilder, candidate: ImportCandidate, reason: ImportSkipReason): void {
-  builder.skipped.push({ candidateId: candidate.id, reason })
+function skip(
+  builder: PlanBuilder,
+  candidate: ImportCandidate,
+  reason: ImportSkipReason,
+  field?: string,
+): void {
+  builder.skipped.push({
+    candidateId: candidate.id,
+    reason,
+    ...(field !== undefined && { field }),
+  })
 }
 
 async function planFile(
@@ -1383,10 +1838,34 @@ async function planCandidate(builder: PlanBuilder, candidate: ImportCandidate): 
         break
       }
       case 'hook': {
-        file =
-          target.file === 'settings'
-            ? destinations.museSettingsFile
-            : p.join(destinations.workspaceRoot ?? '', ...PROJECT_HOOKS_SEGMENTS)
+        switch (target.file) {
+          case 'settings': {
+            file = destinations.museSettingsFile
+
+            break
+          }
+          case 'hooks': {
+            file = p.join(destinations.workspaceRoot ?? '', ...PROJECT_HOOKS_SEGMENTS)
+
+            break
+          }
+          case 'sparkUser': {
+            file = p.join(destinations.personalRoot, SPARK_HOOKS_SEGMENTS.user[1])
+
+            break
+          }
+          default: {
+            const projectSpark =
+              destinations.workspaceRoot === undefined
+                ? undefined
+                : p.join(destinations.workspaceRoot, ...SPARK_HOOKS_SEGMENTS.project)
+            if (projectSpark === undefined) {
+              skip(builder, candidate, 'outside')
+              return
+            }
+            file = projectSpark
+          }
+        }
         break
       }
     }
@@ -1408,7 +1887,7 @@ async function planCandidate(builder: PlanBuilder, candidate: ImportCandidate): 
   }
   switch (target.kind) {
     case 'none': {
-      skip(builder, candidate, target.reason)
+      skip(builder, candidate, target.reason, target.field)
       return
     }
     case 'file': {
@@ -1424,10 +1903,9 @@ async function planCandidate(builder: PlanBuilder, candidate: ImportCandidate): 
       return
     }
     case 'hook': {
-      const refusal =
-        target.file === 'settings'
-          ? fileRefusal(builder.state.museSettings)
-          : hooksFileRefusal(builder.state.hooksFile)
+      // Spark files carry no pre-read state: their standing is checked live
+      // when the copy is offered, like every other copy target.
+      const refusal = hookCopyRefusal(builder.state, target.file)
       if (refusal !== undefined) {
         skip(builder, candidate, refusal)
         return
@@ -1444,6 +1922,20 @@ function sourceExposureOf(builder: PlanBuilder, ids: readonly string[]): ImportE
   const classes = new Set(ids.map((id) => builder.exposures.get(id)))
   if (classes.has('personal') || classes.has(undefined)) return 'personal'
   return classes.has('project-local') ? 'project-local' : 'project-tracked'
+}
+
+/** A spark copy's file: the user's beside the settings, the project's under the workspace. */
+function sparkCopyFile(
+  destinations: ImportDestinations,
+  file: 'sparkUser' | 'sparkProject',
+): string | undefined {
+  const p = pathModule(destinations.platform)
+  if (file === 'sparkUser') {
+    return p.join(destinations.personalRoot, SPARK_HOOKS_SEGMENTS.user[1])
+  }
+  return destinations.workspaceRoot === undefined
+    ? undefined
+    : p.join(destinations.workspaceRoot, ...SPARK_HOOKS_SEGMENTS.project)
 }
 
 function copiesOf(builder: PlanBuilder): readonly ImportCopy[] {
@@ -1489,6 +1981,27 @@ function copiesOf(builder: PlanBuilder): readonly ImportCopy[] {
       candidateIds: copyIds.hooks,
     })
   }
+  for (const spark of ['sparkUser', 'sparkProject'] as const) {
+    const absolutePath = sparkCopyFile(destinations, spark)
+    // Whether the file exists is read live when the copy is offered; the
+    // plan marks it new and the offer reconciles it without changing members.
+    if (absolutePath !== undefined && copyIds[spark].length > 0) {
+      copies.push({
+        file: spark,
+        isProject: spark === 'sparkProject',
+        sourceExposure: sourceExposureOf(builder, copyIds[spark]),
+        homeDir: destinations.homeDir,
+        workspaceRoot: destinations.workspaceRoot,
+        ...(destinations.workspaceRoots !== undefined && {
+          workspaceRoots: destinations.workspaceRoots,
+        }),
+        absolutePath,
+        text: copyJson({ hooks: hooks[spark] }, {}),
+        isNewFile: true,
+        candidateIds: copyIds[spark],
+      })
+    }
+  }
   return copies
 }
 
@@ -1520,8 +2033,8 @@ export async function planImportApply(
       museSettings.status === 'read' ? museSettings.entries.map((entry) => entry.view.name) : [],
     ),
     servers: new Map(),
-    hooks: { settings: {}, hooks: {} },
-    copyIds: { settings: [], hooks: [] },
+    hooks: { settings: {}, hooks: {}, sparkUser: {}, sparkProject: {} },
+    copyIds: { settings: [], hooks: [], sparkUser: [], sparkProject: [] },
     exposures: new Map(),
     targetExposures: new Map(),
   }
