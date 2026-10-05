@@ -7,7 +7,8 @@ import { lstat, mkdir, readFile, rename, symlink, writeFile } from 'node:fs/prom
 import path from 'node:path'
 import { execFile } from 'node:child_process'
 import type * as ChildProcess from 'node:child_process'
-import { describe, expect, it, vi } from 'vitest'
+import { beforeAll, describe, expect, it, vi } from 'vitest'
+import { cpSync } from 'node:fs'
 import { workerEnvironment } from '../../src/core/team/refFence'
 import {
   commitTaskBranch,
@@ -26,6 +27,8 @@ import {
 } from '../../src/core/team/teamWorkspaces'
 import {
   cleanupTeamRoots,
+  fixtureBlobs,
+  teamFixtureCommit,
   teamFixtureRepo,
   teamGitEnv,
   teamGitRunner,
@@ -77,6 +80,48 @@ async function taskWorkspace(
     { repositoryRoot: root, role, taskId, mode, baseCommit: head },
   )
   return { root, head, workspace }
+}
+
+// Tests of creation below still call taskWorkspace. Other tests need only
+// an independent, already-created copy; prepare each mode once, outside tests.
+const templates: { own?: TaskWorkspace; readOnly?: TaskWorkspace } = {}
+beforeAll(async () => {
+  templates.own = await taskWorkspace('fixture')
+})
+beforeAll(async () => {
+  templates.readOnly = await taskWorkspace('fixture', 'read-only', 'code-review')
+})
+
+async function copiedTaskWorkspace(
+  taskId: string,
+  mode: 'own-branch' | 'read-only' = 'own-branch',
+  role = 'engineering',
+  fixture?: WorkspaceFixture,
+): Promise<TaskWorkspace> {
+  const { root, head } = fixture ?? (await teamFixtureRepo(runGit))
+  const template = mode === 'own-branch' ? templates.own! : templates.readOnly!
+  expect(head).toBe(template.head)
+  const folder = teamCloneFolder(
+    path.join(root, '..', 'storage'),
+    role,
+    taskId,
+    mode,
+    process.platform,
+  )
+  await mkdir(path.dirname(folder), { recursive: true })
+  cpSync(template.workspace.folder, folder, { recursive: true })
+  await writeFile(
+    path.join(folder, '.git', 'objects', 'info', 'alternates'),
+    `${path.join(root, '.git', 'objects')}\n`,
+  )
+  if (mode === 'read-only') {
+    return { root, head, workspace: { folder } }
+  }
+  const branch = `agents/${role}/${taskId}`
+  const agentsRef = `refs/heads/${branch}`
+  await runGit(['branch', '-m', branch], folder)
+  await runGit(['update-ref', agentsRef, head, '0'.repeat(head.length)], root)
+  return { root, head, workspace: { folder, branch, agentsRef } }
 }
 
 /** Commit a worker's edit on its task branch. */
@@ -220,8 +265,8 @@ describe('startTeamWorkspace', () => {
 
 describe('two writers', () => {
   it('never touch each other’s trees; both branches land from the same base', async () => {
-    const first = await taskWorkspace('t1')
-    const second = await taskWorkspace('t2', 'own-branch', 'engineering', first)
+    const first = await copiedTaskWorkspace('t1')
+    const second = await copiedTaskWorkspace('t2', 'own-branch', 'engineering', first)
     const { root, head } = first
     expect(first.workspace.folder).not.toBe(second.workspace.folder)
     await writeWorkerFile(first.workspace.folder, 'shared.txt', 'one\nFIRST\nthree\n')
@@ -265,7 +310,7 @@ describe('commitTaskBranch', () => {
   })
 
   it('commits the working copy without committing the user branch', async () => {
-    const { root, head, workspace } = await taskWorkspace('t1')
+    const { root, head, workspace } = await copiedTaskWorkspace('t1')
     await writeWorkerFile(workspace.folder, 'shared.txt', 'one\nCHANGED\nthree\n')
     const { committed, head: taskHead } = await commitWorkerEdit(
       workspace.folder,
@@ -281,7 +326,7 @@ describe('commitTaskBranch', () => {
   })
 
   it('skips the commit when nothing changed', async () => {
-    const { head, workspace } = await taskWorkspace('t1')
+    const { head, workspace } = await copiedTaskWorkspace('t1')
     const result = await commitWorkerEdit(workspace.folder, 'engineering', 't1', 'entry-a')
     expect(result).toEqual({ committed: false, head })
   })
@@ -289,7 +334,7 @@ describe('commitTaskBranch', () => {
 
 describe('publishTaskRef', () => {
   it('refuses a ref the extension did not write last, without overwriting it', async () => {
-    const { root, head, workspace } = await taskWorkspace('t1')
+    const { root, head, workspace } = await copiedTaskWorkspace('t1')
     await writeWorkerFile(workspace.folder, 'shared.txt', 'one\nCHANGED\nthree\n')
     const { head: taskHead } = await commitWorkerEdit(
       workspace.folder,
@@ -331,7 +376,7 @@ describe('publishTaskRef', () => {
 
 describe('repair regressions: publication CAS', () => {
   it('reports a held ref lock as Git failure rather than fictitious movement', async () => {
-    const { root, head, workspace } = await taskWorkspace('locked')
+    const { root, head, workspace } = await copiedTaskWorkspace('locked')
     const ref = 'refs/heads/agents/engineering/locked'
     const lock = path.join(root, '.git', `${ref}.lock`)
     await writeFile(lock, 'synthetic lock\n')
@@ -342,7 +387,7 @@ describe('repair regressions: publication CAS', () => {
   })
 
   it('refuses an intervening ref movement at the object import boundary', async () => {
-    const { root, head, workspace } = await taskWorkspace('cas')
+    const { root, head, workspace } = await copiedTaskWorkspace('cas')
     await writeWorkerFile(workspace.folder, 'shared.txt', 'changed\n')
     const { head: taskHead } = await commitWorkerEdit(
       workspace.folder,
@@ -367,19 +412,19 @@ describe('repair regressions: publication CAS', () => {
 
 describe('scratchBreach', () => {
   it('detects ignored writes in a read-only scratch copy', async () => {
-    const { workspace } = await taskWorkspace('ignored', 'read-only', 'code-review')
+    const { workspace } = await copiedTaskWorkspace('ignored', 'read-only', 'code-review')
     await writeFile(path.join(workspace.folder, '.git', 'info', 'exclude'), 'ignored-canary\n')
     await writeFile(path.join(workspace.folder, 'ignored-canary'), 'write\n')
     expect(await scratchBreach(runGit, workspace.folder)).toContain('ignored-canary')
   })
 
   it('is clean on an untouched scratch copy', async () => {
-    const { workspace } = await taskWorkspace('t1', 'read-only', 'code-review')
+    const { workspace } = await copiedTaskWorkspace('t1', 'read-only', 'code-review')
     await expect(scratchBreach(runGit, workspace.folder)).resolves.toEqual([])
   })
 
   it('lists a read-only worker’s write', async () => {
-    const { workspace } = await taskWorkspace('t1', 'read-only', 'code-review')
+    const { workspace } = await copiedTaskWorkspace('t1', 'read-only', 'code-review')
     await writeWorkerFile(workspace.folder, 'shared.txt', 'one\nFIXED\nthree\n')
     await writeWorkerFile(workspace.folder, 'new-file.txt', 'created\n')
     await expect(scratchBreach(runGit, workspace.folder)).resolves.toEqual(
@@ -390,7 +435,7 @@ describe('scratchBreach', () => {
 
 describe('round 2: extension-owned Git isolation', () => {
   it('disables hooks, fsmonitor, filters and configured programs on every worker-copy command', async () => {
-    const { workspace } = await taskWorkspace('programs')
+    const { workspace } = await copiedTaskWorkspace('programs')
     const folder = workspace.folder
     const canary = path.join(folder, 'program-fired')
     const program = `touch "${canary}"; cat`
@@ -449,7 +494,7 @@ describe('round 2: extension-owned Git isolation', () => {
 
 describe('removeTeamWorkspace', () => {
   it('removes the copy and its branch at merge or discard', async () => {
-    const { root, head, workspace } = await taskWorkspace('t1')
+    const { root, head, workspace } = await copiedTaskWorkspace('t1')
     await removeTeamWorkspace(
       runGit,
       root,
@@ -464,13 +509,13 @@ describe('removeTeamWorkspace', () => {
 
   it('refuses a replaced storage ancestor without deleting the outside sentinel', async () => {
     await expectLinkedStorageRefused(
-      await taskWorkspace('linked'),
+      await copiedTaskWorkspace('linked'),
       process.platform === 'win32' ? 'junction' : 'dir',
     )
   })
 
   it('unlinks a replaced copy instead of following it', async () => {
-    const { root, workspace } = await taskWorkspace('leaf-link')
+    const { root, workspace } = await copiedTaskWorkspace('leaf-link')
     const storage = path.join(root, '..', 'storage')
     const outside = path.join(root, '..', 'outside')
     await mkdir(outside)
@@ -486,11 +531,11 @@ describe('removeTeamWorkspace', () => {
     if (process.platform !== 'win32') {
       return
     }
-    await expectLinkedStorageRefused(await taskWorkspace('junction'), 'junction')
+    await expectLinkedStorageRefused(await copiedTaskWorkspace('junction'), 'junction')
   })
 
   it('keeps an unmerged task until this runs', async () => {
-    const { root, head, workspace } = await taskWorkspace('t1')
+    const { root, head, workspace } = await copiedTaskWorkspace('t1')
     // Still there: nothing removed it.
     expect(await revOf(root, 'refs/heads/agents/engineering/t1')).toBe(head)
     await teamRealPath(workspace.folder)
@@ -584,7 +629,7 @@ describe('Windows storage paths', () => {
     if (process.platform !== 'win32') {
       return
     }
-    const { root, workspace } = await taskWorkspace('short-name')
+    const { root, workspace } = await copiedTaskWorkspace('short-name')
     const shortRoot = await teamShortRoot(root)
     if (shortRoot === undefined) {
       return // The volume did not report an 8.3 name.
@@ -618,5 +663,40 @@ describe('canonical team path spellings', () => {
 
   it('keeps POSIX path casing distinct', () => {
     expect(isSameTeamPath('/repo/Docs', '/repo/docs', 'linux')).toBe(false)
+  })
+})
+
+describe('fixture batch and ownership', () => {
+  it.each(['oid blob nope\n', 'oid blob 3\nabcx', 'no header newline'])(
+    'refuses a malformed object batch %s',
+    (output) => {
+      expect(() => fixtureBlobs(Buffer.from(output))).toThrow('Invalid fixture object batch')
+    },
+  )
+
+  it('imports a real parent and reads UTF-8 and NUL bytes from a captured Git batch', async () => {
+    const { root, head: base } = await teamFixtureRepo(runGit)
+    const content = 'binary\0\nλ\n'
+    const head = await teamFixtureCommit(runGit, root, base, { 'fixture.bin': content })
+    expect(await revOf(root, `${head}^`)).toBe(base)
+    const blob = await revOf(root, `${head}:fixture.bin`)
+    const captured = await runGit(['cat-file', '--batch-all-objects', '--batch'], root)
+    expect(fixtureBlobs(captured).get(blob)).toEqual(new Uint8Array(Buffer.from(content)))
+  })
+
+  it('keeps copied workspace bytes, refs and object sources independent', async () => {
+    const { root, head, workspace } = await copiedTaskWorkspace('independent')
+    const alternates = await readFile(
+      path.join(workspace.folder, '.git', 'objects', 'info', 'alternates'),
+      'utf8',
+    )
+    expect(path.resolve(alternates.trim())).toBe(path.join(root, '.git', 'objects'))
+    expect(await revOf(root, 'agents/engineering/independent')).toBe(head)
+    expect(await revOf(workspace.folder, 'HEAD')).toBe(head)
+    await writeWorkerFile(workspace.folder, 'shared.txt', 'only this copy\n')
+    expect(await readFile(path.join(templates.own!.workspace.folder, 'shared.txt'), 'utf8')).toBe(
+      'one\ntwo\nthree\n',
+    )
+    expect(await readFile(path.join(root, 'shared.txt'), 'utf8')).toBe('one\ntwo\nthree\n')
   })
 })

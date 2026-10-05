@@ -21575,8 +21575,21 @@ before a repaired one loads (2026-09-30).
   two-attempt stop rule, no further fixture redesign or Windows merge rerun
   is attempted here. This is a validation blocker, not approval to merge
   or a claim that Windows is green. Follow-up: lead assigns a fixture
-  redesign and obtains a complete default-timeout Windows pass. Older
-  I-Windows records used 120-second overrides and do not close this gate.
+  redesign and obtains a complete default-timeout Windows pass.
+  WINI96 (2026-10-05) reduces cost without changing deadlines: base and
+  worker copies prepared once, fixture commits through fast-import, and
+  immutable blobs read in one real Git batch per repository. Original 209
+  cases: Windows improves from 179 passed / 30 timeouts to 206 passed / 3
+  timeouts; merge wall time 215.28 → 106.98 s, workspaces 144.51 → 67.99 s.
+  P2-5 remains open: the filter canary, two-writer and publication-race cases
+  still time out. The canary survives two different cost fixes, triggering
+  common.md's stop rule. Three native green runs and the normal-worker run
+  are unverified. All 214 cases, including five new fixture checks, pass on
+  macmini at default deadlines; static/build gates and three fixture red
+  drills pass. The final native workspace profile passes 47/49 with the same
+  two timing failures. Earlier I-Windows records used 120-second overrides
+  and do not close this gate. Detailed timings and remaining actions are in
+  `docs/certification/m96-i.md`, WINI96.
   The integrator must unify lane I's tokenizer and lane W's shared Git
   classifier in round 3b, and honour TeamGit's explicit isolated environment
   argument. Proof and remaining checks are in `docs/certification/m96-i.md`.

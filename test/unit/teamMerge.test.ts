@@ -4,6 +4,7 @@
 // repositories; no model calls.
 
 import {
+  appendFile,
   chmod,
   mkdir,
   readFile,
@@ -16,6 +17,7 @@ import {
 } from 'node:fs/promises'
 import type * as FsPromises from 'node:fs/promises'
 import path from 'node:path'
+import { cpSync } from 'node:fs'
 import { describe, expect, it, vi } from 'vitest'
 import {
   applyTeamMerge,
@@ -30,6 +32,7 @@ import {
 import {
   cleanupTeamRoots,
   teamFixtureRepo,
+  teamFixtureCommit,
   teamGitRunner,
   teamRealPath,
   teamShortRoot,
@@ -87,28 +90,14 @@ async function taskBranch(
   base: string,
   files: Readonly<Record<string, string | undefined>>,
 ): Promise<string> {
-  await runGit(['checkout', '-qb', 'agents/engineering/t1', base], root)
-  for (const [name, content] of Object.entries(files)) {
-    const absolute = path.join(root, name)
-    if (content === undefined) {
-      await runGit(['rm', '-q', name], root)
-      continue
-    }
-    await mkdir(path.dirname(absolute), { recursive: true })
-    await writeFile(absolute, content)
-  }
-  await runGit(['add', '--all'], root)
-  await runGit(['commit', '-qm', 'task change'], root)
-  const head = await revOf(root, 'agents/engineering/t1')
+  const head = await teamFixtureCommit(runGit, root, base, files)
   await makeTaskCopy(root, head)
-  await runGit(['checkout', '-q', 'main'], root)
   return head
 }
 
 async function makeTaskCopy(root: string, head: string): Promise<void> {
-  const { cp } = await import('node:fs/promises')
   const folder = path.join(root, '..', 'task-copy')
-  await cp(root, folder, { recursive: true })
+  cpSync(root, folder, { recursive: true })
   // Most callers already have the task checked out. Binary fixtures call
   // after returning to main, so update just their copy when needed.
   const headText = await readFile(path.join(folder, '.git', 'HEAD'), 'utf8')
@@ -626,34 +615,37 @@ describe('binary files', () => {
 
 describe('no repository program', () => {
   it('runs no filter, textconv or merge driver', async () => {
-    const { root } = await teamFixtureRepo(runGit)
+    const { root, head: base } = await teamFixtureRepo(runGit)
     const canary = path.join(root, 'canary-fired')
-    await runGit(['config', 'filter.canary.clean', `touch "${canary}" && cat`], root)
-    await runGit(['config', 'filter.canary.smudge', `touch "${canary}" && cat`], root)
-    await runGit(['config', 'merge.canary.name', 'canary merge driver'], root)
-    await runGit(
-      ['config', 'merge.canary.driver', `touch "${canary}" && cat "%A" > "%A" && exit 0`],
+    const filter = `touch "${canary}" && cat`
+    await appendFile(
+      path.join(root, '.git', 'config'),
+      [
+        '[filter "canary"]',
+        `  clean = ${JSON.stringify(filter)}`,
+        `  smudge = ${JSON.stringify(filter)}`,
+        '[merge "canary"]',
+        '  name = canary merge driver',
+        `  driver = ${JSON.stringify(`touch "${canary}" && cat "%A" > "%A" && exit 0`)}`,
+        '[diff "canary"]',
+        `  textconv = ${JSON.stringify(`touch "${canary}"`)}`,
+        '',
+      ].join('\n'),
+    )
+    const withAttributes = await teamFixtureCommit(
+      runGit,
       root,
+      base,
+      {
+        '.gitattributes': '*.txt filter=canary merge=canary diff=canary\n',
+      },
+      'refs/heads/main',
     )
-    await runGit(['config', 'diff.canary.textconv', `touch "${canary}"`], root)
-    await writeFile(
-      path.join(root, '.gitattributes'),
-      '*.txt filter=canary merge=canary diff=canary\n',
-    )
-    await runGit(['add', '--', '.gitattributes'], root)
-    await runGit(['commit', '-qm', 'attributes'], root)
-    const withAttributes = await revOf(root, 'main')
-    // The setup's own checkouts and adds fire the filter, and `add --all`
-    // would sweep the canary file into the branch: commit only the file the
-    // task changes, and clear the canary after the setup.
-    await runGit(['checkout', '-qb', 'agents/engineering/t1', withAttributes], root)
-    const { rm } = await import('node:fs/promises')
-    await rm(canary, { force: true })
-    await writeFile(path.join(root, 'shared.txt'), 'one\nTWO\nthree\n')
-    await runGit(['add', '--', 'shared.txt'], root)
-    await runGit(['commit', '-qm', 'task change'], root)
-    const head = await revOf(root, 'agents/engineering/t1')
-    await runGit(['checkout', '-q', 'main'], root)
+    await runGit(['read-tree', '--reset', '-u', 'main'], root)
+    const head = await taskBranch(root, withAttributes, { 'shared.txt': 'one\nTWO\nthree\n' })
+    // The task copy's real checkout fires the smudge filter. Its canary is
+    // outside the imported tree; clear it before testing extension-owned Git.
+    await expect(stat(canary)).resolves.toBeDefined()
     await rm(canary, { force: true })
     await applyTeamMerge(io(), spec(root, withAttributes, head))
     await expect(stat(canary)).rejects.toThrow()

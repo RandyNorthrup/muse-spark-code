@@ -20,6 +20,14 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- **Lower Windows team fixture cost (WINI96).** Tests reuse prepared,
+  independent repository and workspace copies, batch fixture commits with
+  Git fast-import, and read immutable blobs through one Git batch per
+  repository. Every original assertion and default deadline remains.
+  Windows merge and workspace suite times fall roughly by half; three
+  default-timeout cases still block complete native verification, recorded
+  in M96 lane I's certification.
+
 - **Team merge transactions (RVM96I2C lane I).** Landing compares each
   target's current bytes and permissions with its planned base, prepares
   replacement bytes before touching the target, and rolls back landed files
