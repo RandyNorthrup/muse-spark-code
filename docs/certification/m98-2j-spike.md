@@ -44,6 +44,8 @@ returned `Valid`, signer `Ollama Inc.`; its SHA-256 was
 This captured fingerprint is the test's trust anchor, not a fingerprint
 learned from whichever socket happens to answer. An update changes it and
 therefore fails verification until the new installation is vetted.
+The model root resolves to `%USERPROFILE%/.ollama/models` on `C:`, which
+`System.IO.DriveInfo` reports as a fixed NTFS drive on this rig.
 
 The [reviewed test-only C# helper](../../test/unit/helpers/localJudgePeer.cs)
 uses the same local compilation pattern as the Windows job helpers: the
@@ -84,6 +86,14 @@ For a client socket `(clientAddress, clientPort, serverAddress, serverPort)`:
    Assert `socket.bytesWritten === 0` before dispatch. Then construct
    `http.request` using **that socket** through `createConnection`, without
    an agent. Destroy the socket on completion or refusal. Never reconnect.
+
+The helper's ABI is reviewed against Microsoft's
+[TCP table API](https://learn.microsoft.com/en-us/windows/win32/api/iphlpapi/nf-iphlpapi-getextendedtcptable),
+[IPv4 row](https://learn.microsoft.com/en-us/windows/win32/api/tcpmib/ns-tcpmib-mib_tcprow_owner_pid)
+and [IPv6 row](https://learn.microsoft.com/en-us/windows/win32/api/tcpmib/ns-tcpmib-mib_tcp6row_owner_pid).
+Manifest hashing follows the
+[Ollama 0.35.1 source](https://github.com/ollama/ollama/blob/v0.35.1/manifest/manifest.go);
+the actual bytes and served digest were independently captured here.
 
 The served model was `qwen3:4b-instruct-2507-q4_K_M`:
 
@@ -301,6 +311,9 @@ execution receipt.
   hold all blobs immutable through inference. Concurrent model replacement
   after a snapshot is a remaining race. Production needs an explicit model
   installation/mutation threat model; ambiguity stays unverified.
+  Production also needs to establish root/volume locality and reject network
+  shares or redirected model roots; this spike vets the recorded fixed-drive
+  configuration rather than providing a general mount verifier.
 - Locality means the machine running Node. It does not establish that a
   remote extension host is the editor user's machine. Production must refuse
   that ambiguity before automatic/confidential use.
@@ -354,6 +367,43 @@ the opt-in inference suite or sends a request outside loopback.
 
 The owning suites passed **47 tests across three files**, with no skips or
 unhandled errors. The opt-in final Ollama suite passed its one eight-call
-test. All five projects in `npm.cmd run typecheck` exited 0, and scoped
-ESLint exited 0. The remaining dead-code, duplication, localization, host
-API and production-build receipt is added after the prototype commit.
+test. All checks below ran directly in this worktree on win11:
+
+| Check                                    | Receipt                                                                       |
+| ---------------------------------------- | ----------------------------------------------------------------------------- |
+| `npm.cmd run typecheck`                  | All five projects exit 0                                                      |
+| Scoped `npx.cmd eslint --max-warnings=0` | Exit 0; hook repeats it on staged TypeScript/JS                               |
+| Scoped `npx.cmd prettier --check`        | Exit 0                                                                        |
+| `npm.cmd run deadcode`                   | Plain knip exits 0; existing vendor ignore hint only                          |
+| `npx.cmd jscpd`                          | Exit 0, zero clones across 857 files                                          |
+| `npm.cmd run check:l10n`                 | Exit 0, fourteen tables, zero problems                                        |
+| `npm.cmd run check:host-api`             | Initial stale snapshot fails; generated refresh reviewed; final check exits 0 |
+| `npm.cmd run build`                      | Exit 0; sizes, splits, host globals and notices pass                          |
+| Hook-on prototype commit `9389017`       | lint-staged and gitleaks pass; no leaks                                       |
+
+Build sizes: extension **553.2 KiB / 600**, Model API **426.4 KiB / 475**,
+checkpoint store **109.1 KiB / 225**. All other existing bundle caps pass.
+No prototype path or distinctive guard string appears in the shipped JS
+bundles. No new dependency, l10n key, escape hatch or ignored file was added.
+The knip entry is the actual child fixture launched by path, not an ignore.
+
+The generated host API snapshot includes the prototypes because its scanner
+reads all core source, even test-only modules. Its Node module count rises
+23 → 24 (`node:events`), and import-file counts follow the new modules. The
+same refresh resolves the base branch's already documented FIXM98J
+deferral: paidHost's twelfth API use and judge's earlier crypto import. The
+271 VS Code APIs, eighteen adapter files and 59 theme variables remain the
+same; host policy is unchanged.
+
+The first commit attempt failed before hook tasks because this rig's MinGit
+has GNU Bash under the name `sh.exe`, while npm's `npx` script requests
+`bash`. A copy of that existing executable under the worktree's ignored
+`temp/m98-2j/bin/bash.exe`, plus a process-local PATH, ran the unmodified
+hooks successfully. No global installation, hook bypass or machine setting
+was used. No merge, rebase or push was performed, as the rig brief requires.
+
+The lead still owns full quality, coverage, accessibility, packaging and
+installed-host certification on the integrated tree. Linux/macOS native
+implementation, authenticated SSH forwarding and extension-host execution
+are intentionally left as unverified build-entry conditions, not passing
+receipts for this rig.

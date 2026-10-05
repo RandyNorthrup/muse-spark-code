@@ -14589,6 +14589,15 @@ joined with M57, M58 and PR #49's sign-in
     reconnect, replacement, PID-reuse, address-family and forwarding cases.
     Linux and macOS designs remain unverified on this Windows rig. No model
     pulls, credential reads or paid calls; at most 59 free inference attempts.
+    **Spike result:** outcome (a) is feasible on the recorded native Windows
+    installation: each content socket's exact peer, binary fingerprint and
+    local manifest/blob bytes were verified before HTTP. 27 free inference
+    attempts completed (26 with the complete transport proof); at most 56
+    Ollama HTTP requests including metadata. The runtime install and model
+    mutation assumptions are explicit in the certification. The authenticated
+    self-SSH fixture could not run without existing authentication; Linux,
+    macOS and installed-extension execution remain unverified. This is a
+    test-only design result, not a shipped local engine or automatic selection.
 - **Gates.**
   - The lead runs the full `npm run quality` and the required CI checks on
     the final integrated tree. Lane tests and builds run on the rigs; local
@@ -14635,6 +14644,16 @@ scoped lint/format and typecheck, with the final dead-code, duplication,
 localization, host API and production-build receipt. It prohibits a full
 quality or full test run here; the lead runs full quality on the integrated
 tree. No gate, threshold or ignore changes for this test-only spike.
+
+**M98-2j lane receipt.** The owning 47 tests, free probe, 17 failing/restored
+drills, all five typechecks, scoped ESLint/Prettier, plain knip, duplication,
+localization, host API and production build pass on win11. The host API
+snapshot is refreshed for the prototypes' Node imports (including
+`node:events`); it also resolves the pre-existing FIXM98J snapshot deferral
+below, recording paidHost's twelfth API call and judge's crypto import.
+This is a generated source record, not a new VS Code API or host policy.
+Full integrated quality/coverage/a11y and installed-host checks remain the
+lead's delegated gates. See `docs/certification/m98-2j-spike.md`.
 
 **FIXM98J bounded-lane gate delegation (2026-10-04).** The rig brief and
 shared lane rules prohibit a full `npm run quality` or full test suite in
