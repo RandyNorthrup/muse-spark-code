@@ -3941,7 +3941,7 @@ export const LEGAL_EXIT = {
 // The scanner bundle beside dist/extension.js and dist/acp.js (D76): lane S's
 // scanner, loaded lazily by the host and the headless command, never part of
 // activation. The bundle-split gate refuses it in dist/extension.js.
-export const LEGAL_SCAN_BUNDLE_FILE = 'legalScan.js'
+
 // The headless scan's own deadline: a workspace walk of up to
 // LEGAL_FILES_SCANNED_MAX files plus the bounded registry reads below. The
 // headless lifecycle still owns the process deadline.
@@ -3969,6 +3969,48 @@ export const LEGAL_REGISTRY_TIMEOUT_MS = 10_000
 // A rendered report past this is refused instead of written: 500 findings
 // with full excerpts stay far below it, so past it means a broken renderer.
 export const LEGAL_REPORT_MAX_BYTES = 4_194_304
+// --- Selected-fix handoff (M97 lane W, PLAN.md D76) ---
+
+// Why a fix request stops before any write (D76): nothing selected (even in
+// Bypass, which never pre-authorizes), Plan mode (read-only), an untrusted
+// workspace (Restricted Mode), a workspace that changed under the preview,
+// evidence that changed under the preview, an expired or disposed preview,
+// or a build whose fix applier is not wired yet (lane B's router).
+export const LEGAL_FIX_REFUSALS = [
+  'nothingSelected',
+  'planRefusesWrites',
+  'workspaceUntrusted',
+  'workspaceChanged',
+  'staleEvidence',
+  'previewExpired',
+  'fixUnavailable',
+] as const
+export type LegalFixRefusal = (typeof LEGAL_FIX_REFUSALS)[number]
+// Why a selected finding stays out of a preview: the scanner marked no safe
+// fix, a project-license change needs its own separate confirmation, the id
+// is not part of this scan (or its path escapes it), or its file is past
+// the guarded read bound.
+export const LEGAL_FIX_EXCLUSIONS = [
+  'notFixable',
+  'projectLicenseSeparate',
+  'unknownFinding',
+  'fileTooLarge',
+] as const
+export type LegalFixExclusion = (typeof LEGAL_FIX_EXCLUSIONS)[number]
+// A confirmed fix batch ends applied, partially applied (listed, never
+// reported as complete success), or refused with a LEGAL_FIX_REFUSALS word.
+export const LEGAL_FIX_OUTCOMES = ['applied', 'partial', 'refused'] as const
+export type LegalFixOutcome = (typeof LEGAL_FIX_OUTCOMES)[number]
+// Stored fix previews per host: past this the oldest goes, and its confirm
+// refuses with `previewExpired` instead of authorizing from stale state.
+export const LEGAL_FIX_PREVIEWS_MAX = 20
+// Evidence and file digests (short hex fingerprints, never file content):
+// long enough for the stale check, bounded like every other wire string.
+export const LEGAL_FIX_DIGEST_MAX_CHARS = 128
+// File bytes read to hash for the stale check: a fix touches source and
+// manifest files, never dumps; past this a file is refused as too large to
+// guard rather than hashed truncated (a suffix change must still refuse).
+export const LEGAL_FIX_FILE_READ_MAX_BYTES = 1_048_576
 
 // What the user reads, in the display language (PLAN.md D33).
 export { UI_TEXT } from './l10n/text'

@@ -13473,3 +13473,61 @@ describe('ConversationController: legal scan (M97)', () => {
     expect(legalNotices(t)).toHaveLength(0)
   })
 })
+
+describe('the legal selected-fix handoff (M97 lane W)', () => {
+  const header: {
+    id: string
+    severity: 'advice'
+    category: 'codeQualityHeader'
+    file: string
+    line: number
+    evidenceSource: string
+    confidence: number
+    explanation: string
+    recommendation: string
+    fixable: boolean
+  } = {
+    id: 'header/1/1',
+    severity: 'advice',
+    category: 'codeQualityHeader',
+    file: 'src/a.ts',
+    line: 1,
+    evidenceSource: 'header reader',
+    confidence: 1,
+    explanation: 'The file has no copyright header.',
+    recommendation: 'Add the project copyright header.',
+    fixable: true,
+  }
+  const scan = { ruleVersion: '1', dataVersion: '2026-10-04', scope: '' }
+
+  it('routes a fix preview and refuses the guarded confirm without an applier', async () => {
+    const t = setup()
+    await t.controller.handle({
+      type: 'requestLegalFix',
+      scan,
+      findings: [header],
+      includeProjectLicense: false,
+    })
+    const preview = t.surface.posted.findLast((message) => message.type === 'legalFixPreview')
+    expect(preview).toMatchObject({
+      eligible: ['header/1/1'],
+      excluded: [],
+      paths: ['src/a.ts'],
+    })
+    if (preview?.type !== 'legalFixPreview' || preview.snapshot === undefined) {
+      throw new Error('expected a stored legal fix preview')
+    }
+    await t.controller.handle({ type: 'confirmLegalFix', previewId: preview.previewId })
+    expect(t.surface.posted.findLast((message) => message.type === 'legalFixResult')).toMatchObject(
+      { outcome: 'refused', refusal: 'fixUnavailable' },
+    )
+  })
+
+  it('refuses a confirm for an unknown preview', async () => {
+    const t = setup()
+    await t.controller.handle({ type: 'confirmLegalFix', previewId: 'nope' })
+    expect(t.surface.posted.findLast((message) => message.type === 'legalFixResult')).toMatchObject(
+      { outcome: 'refused', refusal: 'previewExpired' },
+    )
+  })
+})

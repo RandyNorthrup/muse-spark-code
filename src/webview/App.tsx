@@ -33,6 +33,7 @@ import {
 import { parseLegalPrompt } from '../shared/legalCommand'
 import type { LegalScanRequestMessage } from '../shared/legal'
 import { editorContextLabel } from '../shared/editorContext'
+import type { LegalFinding } from '../shared/legal'
 import { effortAt, effortIndex, effortLabel, effortLevelsFor } from '../shared/effort'
 import { parseGoalPrompt, requiresObjective } from '../shared/goalCommand'
 import { parseHandoffPrompt } from '../shared/handoff'
@@ -64,6 +65,7 @@ import { GoalPanel } from './components/GoalPanel'
 import { SchedulePanel } from './components/SchedulePanel'
 import { Header } from './components/Header'
 import { HistoryDialog } from './components/HistoryDialog'
+import { LegalReport } from './components/LegalReport'
 import { ReviewPane } from './components/ReviewPane'
 import { SessionBoardDialog } from './components/SessionBoardDialog'
 import { BestOfNDialog } from './components/BestOfNDialog'
@@ -849,6 +851,40 @@ export function App({
     },
     [postMessage],
   )
+  // The legal report's selected-fix handoff (M97 lane W): preview fixes for
+  // exactly the selected findings, then confirm exactly the shown preview.
+  // The host rechecks mode, trust, workspace and hashes before any write.
+  const onRequestLegalFix = useCallback(
+    (findings: readonly LegalFinding[], isProjectLicenseIncluded: boolean) => {
+      const report = store.getState().legalReport
+      if (report === undefined) {
+        return
+      }
+      postMessage({
+        type: 'requestLegalFix',
+        scan: {
+          ruleVersion: report.result.ruleVersion,
+          dataVersion: report.result.dataVersion,
+          scope: report.result.scope,
+        },
+        findings: [...findings],
+        includeProjectLicense: isProjectLicenseIncluded,
+      })
+    },
+    [postMessage, store],
+  )
+  const onConfirmLegalFix = useCallback(
+    (previewId: string) => {
+      postMessage({ type: 'confirmLegalFix', previewId })
+    },
+    [postMessage],
+  )
+  const onRescanLegal = useCallback(() => {
+    postMessage({ type: 'requestLegalScan' })
+  }, [postMessage])
+  const onCloseLegalReport = useCallback(() => {
+    dispatch({ type: 'legalReportClosed' })
+  }, [dispatch])
   const onRefuseLink = useCallback(() => {
     dispatch({ type: 'noticeRaised', level: 'warning', text: UI_TEXT.linkOutsideWorkspace })
   }, [dispatch])
@@ -2006,6 +2042,24 @@ export function App({
     reviewPane !== null ||
     isInstallConfirmOpen ||
     state.share !== undefined
+  // The legal report opens over the transcript when its scan answers, like
+  // the handoff brief: it waits while another modal owns the panel (M74),
+  // and closes with Escape, the × button or the backdrop (M97 lane W).
+  const legalReport =
+    isOtherModalOpen || state.legalReport === undefined ? null : (
+      <LegalReport
+        key={state.legalReport.requestId}
+        result={state.legalReport.result}
+        preview={state.legalFixPreview}
+        fixResult={state.legalFixResult}
+        permissionMode={state.permissionMode}
+        onRequestFix={onRequestLegalFix}
+        onConfirm={onConfirmLegalFix}
+        onRescan={onRescanLegal}
+        onOpenFile={onOpenFile}
+        onClose={onCloseLegalReport}
+      />
+    )
   const handoffDialog =
     isOtherModalOpen || state.handoff === undefined ? null : (
       <HandoffDialog
@@ -2020,7 +2074,7 @@ export function App({
     )
   // Behind a modal nothing takes focus or clicks (M25): the modal traps Tab,
   // the rest of the panel is inert.
-  const isModalOpen = isOtherModalOpen || state.handoff !== undefined
+  const isModalOpen = isOtherModalOpen || state.handoff !== undefined || legalReport !== null
 
   return (
     <div className="app">
@@ -2052,6 +2106,7 @@ export function App({
       {handoffDialog}
       {agentMap}
       {reviewPane}
+      {legalReport}
       {state.share === undefined ? null : (
         <ShareView
           title={state.share.title}
