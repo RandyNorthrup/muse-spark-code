@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { McpTool } from '../../src/core/mcp'
 import { IdeMcpServer } from '../../src/host/ide/ideMcpServer'
+import * as loopback from '../../src/host/mcpLoopback'
 import { FakeLogOutputChannel } from './helpers/fakes'
 import { postLoopback, postLoopbackJson } from './helpers/loopbackHttp'
 
@@ -72,6 +73,31 @@ function holdingTool() {
 }
 
 describe('IdeMcpServer', () => {
+  it('RVM96RB2-8: close during start leaves no endpoint or listener and permits a later start', async () => {
+    const server = new IdeMcpServer(() => [tool], new FakeLogOutputChannel())
+    servers.push(server)
+    const opened = Promise.withResolvers<loopback.LoopbackListener>()
+    const listen = loopback.listenLoopback
+    const spy = vi.spyOn(loopback, 'listenLoopback').mockImplementationOnce(async (...args) => {
+      const listener = await listen(...args)
+      opened.resolve(listener)
+      return listener
+    })
+    try {
+      const pending = server.start()
+      expect(server.start()).toBe(pending)
+      server.close()
+      await expect(pending).rejects.toThrow('closed during start')
+      expect(server.current).toBeUndefined()
+      const listener = await opened.promise
+      expect(listener.server.listening).toBe(false)
+      await expect(server.start()).resolves.toHaveProperty('url')
+    } finally {
+      const listener = await opened.promise
+      listener.server.close()
+      spy.mockRestore()
+    }
+  })
   it('listens on loopback with a bearer token and answers the MCP handshake', async () => {
     const { server, log } = await start()
     const endpoint = server.current

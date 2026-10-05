@@ -6,6 +6,8 @@
 
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { McpConnection } from '../../src/core/backends/modelapi/mcp/connection'
+import { McpServerPool } from '../../src/core/backends/modelapi/mcp/pool'
+import { readMcpServerEntries } from '../../src/core/backends/musecode/museConfigView'
 import { type CallToolResult, McpError } from '../../src/core/backends/modelapi/mcp/protocol'
 import type {
   BridgeOfferedTool,
@@ -16,13 +18,24 @@ import { ResourceRegistry } from '../../src/core/team/resources'
 import { type TeamBridgePool, TeamMcpBridge } from '../../src/host/team/mcpBridge'
 import * as loopback from '../../src/host/mcpLoopback'
 import { FakeLogOutputChannel } from './helpers/fakes'
+import { startFakeMcpHttp } from './helpers/fakeMcpHttpServer'
 import { postLoopback, postLoopbackJson } from './helpers/loopbackHttp'
 import { createManualClock } from './helpers/manualClock'
 import { ENGINEER, ORCHESTRATOR, RESEARCHER } from './helpers/teamHolders'
 
+async function acquiredLease(leases: ResourceRegistry, holder: typeof RESEARCHER) {
+  const outcome = await leases.acquire('chrome', holder)
+  if (outcome.status !== 'held') throw new Error(outcome.status)
+  return outcome.lease
+}
+
 const NAVIGATE = 'mcp__chrome__navigate'
 const SCREENSHOT = 'mcp__chrome__screenshot'
 const READ_NOTE = 'mcp__notes__read'
+
+function serverClientRequest(name: string): string {
+  return JSON.stringify({ jsonrpc: '2.0', id: 7, method: 'tools/call', params: { name } })
+}
 
 function offered(
   functionName: string,
@@ -172,7 +185,7 @@ function textOf(result: unknown): string {
 }
 
 describe('endpoints and tokens', () => {
-  it('serves the orchestrator and a worker through their own endpoints, on the one pool', async () => {
+  it('RVM96A-26: serves both endpoints on one pool after exact lease release', async () => {
     const fake = fakePool()
     const { bridge, leases } = await started(fake.pool)
     const main = bridge.registerCaller({ id: 'main', holder: ORCHESTRATOR, readOnly: false })
@@ -186,7 +199,7 @@ describe('endpoints and tokens', () => {
       method: 'tools/call',
       params: { name: NAVIGATE, arguments: {} },
     })
-    leases.release('chrome', ORCHESTRATOR)
+    leases.release(await acquiredLease(leases, ORCHESTRATOR))
     const second = await postLoopbackJson(worker, {
       jsonrpc: '2.0',
       id: 1,
@@ -199,7 +212,7 @@ describe('endpoints and tokens', () => {
     expect(fake.calls.map((call) => call.functionName)).toEqual([NAVIGATE, NAVIGATE])
   })
 
-  it('refuses a wrong token, an unknown caller and a GET', async () => {
+  it('RVM96A-26: refuses a wrong token, an unknown caller and a GET', async () => {
     const fake = fakePool()
     const { bridge } = await started(fake.pool)
     const main = bridge.registerCaller({ id: 'main', holder: ORCHESTRATOR, readOnly: false })
@@ -330,7 +343,7 @@ describe('worker configuration isolation', () => {
     leases.declare({ name: 'chrome', kind: 'exclusive', assignedRoles: ['research'] })
     gate.resolve({ content: [{ type: 'text', text: 'shot' }] })
     await pendingFirst
-    leases.release('chrome', RESEARCHER)
+    leases.release(await acquiredLease(leases, RESEARCHER))
     const result = await pendingSecond
     expect(result.isError).toBe(true)
     expect(fake.calls).toHaveLength(1)
@@ -386,7 +399,7 @@ describe('worker configuration isolation', () => {
 })
 
 describe('lease admission per call', () => {
-  it('retains the lease after M50 times out without a terminal server answer', async () => {
+  it('RVM96A-10: retains the lease after M50 times out without a terminal server answer', async () => {
     const fake = fakePool()
     const connection = new McpConnection(
       {
@@ -481,13 +494,13 @@ describe('lease admission per call', () => {
     })
     // The first task's lease is still its own: the second waits for it.
     expect(fake.calls).toHaveLength(1)
-    leases.release('chrome', RESEARCHER)
+    leases.release(await acquiredLease(leases, RESEARCHER))
     await expect(pendingSecond).resolves.toEqual({
       content: [{ type: 'text', text: 'shot' }],
     })
   })
 
-  it('answers busy past the wait, and refuses a retired attempt’s late call', async () => {
+  it('RVM96A-26: answers busy past wait and refuses a retired attempt with exact text', async () => {
     const { bridge, gate, leases, advance, pendingFirst, pendingSecond } =
       await queuedChromeCalls(50)
     advance(50)
@@ -558,49 +571,53 @@ describe('cancellation and disposal', () => {
     }
   })
 
-  it.each(['unregister', 'close'])('cancels every in-process call on %s', async (action) => {
-    const fake = fakePool()
-    const gate = fake.hold()
-    const { bridge } = await started(fake.pool)
-    bridge.registerCaller({ id: 'task-a', holder: RESEARCHER, readOnly: false })
-    const pending = [
-      bridge.callAs('task-a', READ_NOTE, '{}', new AbortController().signal),
-      bridge.callAs('task-a', READ_NOTE, '{}', new AbortController().signal),
-    ]
-    await vi.waitFor(() => {
-      expect(fake.calls).toHaveLength(2)
-    })
-    if (action === 'unregister') {
-      bridge.unregisterCaller('task-a')
-    } else {
-      bridge.close()
-    }
-    const aborted = fake.calls.map((call) => call.signal.aborted)
-    gate.resolve({ content: [{ type: 'text', text: 'done' }] })
-    await Promise.all(pending)
-    expect(aborted).toEqual([true, true])
-  })
+  it.each(['unregister', 'close'])(
+    'RVM96A-23: cancels every in-process call on %s',
+    async (action) => {
+      const fake = fakePool()
+      const gate = fake.hold()
+      const { bridge } = await started(fake.pool)
+      bridge.registerCaller({ id: 'task-a', holder: RESEARCHER, readOnly: false })
+      const pending = [
+        bridge.callAs('task-a', READ_NOTE, '{}', new AbortController().signal),
+        bridge.callAs('task-a', READ_NOTE, '{}', new AbortController().signal),
+      ]
+      await vi.waitFor(() => {
+        expect(fake.calls).toHaveLength(2)
+      })
+      if (action === 'unregister') {
+        bridge.unregisterCaller('task-a')
+      } else {
+        bridge.close()
+      }
+      const aborted = fake.calls.map((call) => call.signal.aborted)
+      gate.resolve({ content: [{ type: 'text', text: 'done' }] })
+      await Promise.all(pending)
+      expect(aborted).toEqual([true, true])
+    },
+  )
 
   it.each(['queued', 'granted'])(
-    'cancels %s admission without dispatch or lease liability',
+    'RVM96A-24: cancels %s admission without dispatch or lease liability',
     async (stage) => {
       const fake = fakePool()
       const { bridge, leases, advance } = await started(fake.pool)
       leases.ensureServer('chrome', { command: 'chrome-control-mcp' })
-      await leases.acquire('chrome', RESEARCHER)
+      const original = await acquiredLease(leases, RESEARCHER)
       bridge.registerCaller({ id: 'task-b', holder: ENGINEER, readOnly: false })
       const stop = new AbortController()
       const pending = bridge.callAs('task-b', SCREENSHOT, '{}', stop.signal)
       expect(leases.snapshot()[0]?.waiters).toEqual([ENGINEER])
       if (stage === 'granted') {
-        leases.release('chrome', RESEARCHER)
+        leases.release(original)
       }
-      stop.abort()
+      stop.abort(new Error('admission cancelled'))
       const waitersAfterAbort = leases.snapshot()[0]?.waiters
-      leases.release('chrome', RESEARCHER)
+      leases.release(original)
       const result = await pending
       expect(waitersAfterAbort).toEqual([])
       expect(result.isError).toBe(true)
+      expect(textOf({ result })).toBe('admission cancelled')
       expect(fake.calls).toEqual([])
       advance(1_000_000)
       expect(leases.snapshot()[0]?.holders).toEqual([])
@@ -619,7 +636,7 @@ describe('cancellation and disposal', () => {
     expect(leases.snapshot().flatMap((resource) => resource.holders)).toEqual([])
   })
 
-  it('cannot reopen or register after close overtakes startup', async () => {
+  it('RVM96A-25: cannot reopen or register after close overtakes startup', async () => {
     const fake = fakePool()
     const { bridge } = configured(fake.pool)
     const listener = Promise.withResolvers<loopback.LoopbackListener>()
@@ -651,14 +668,14 @@ describe('cancellation and disposal', () => {
 })
 
 describe('entries and origins', () => {
-  it('points every allowed server at the caller’s own endpoint and token', async () => {
+  it('RVM96RB2-5: points each configured server at its own client namespace and caller token', async () => {
     const fake = fakePool()
     const { bridge } = await started(fake.pool)
     const main = bridge.registerCaller({ id: 'main', holder: ORCHESTRATOR, readOnly: false })
     const entries = bridge.serverEntriesFor('main')
     expect(Object.keys(entries)).toEqual(['chrome', 'notes'])
-    expect(entries['chrome']).toMatchObject({ url: main.url, headers: main.headers })
-    expect(entries['notes']).toMatchObject({ url: main.url, headers: main.headers })
+    expect(entries['chrome']).toMatchObject({ url: `${main.url}/chrome`, headers: main.headers })
+    expect(entries['notes']).toMatchObject({ url: `${main.url}/notes`, headers: main.headers })
     expect(() => bridge.serverEntriesFor('elsewhere')).toThrow()
   })
 
@@ -668,5 +685,249 @@ describe('entries and origins', () => {
     expect(bridge.serverOrigin('chrome')).toBe('local')
     expect(bridge.serverOrigin('notes')).toBe('remote')
     expect(bridge.serverOrigin('missing')).toBe('unknown')
+  })
+})
+
+describe('Round-3 redesign interleavings', () => {
+  it('RVM96RB2-3: cancellation during re-entry leaves existing ownership and idle period intact', async () => {
+    const fake = fakePool()
+    const gate = fake.hold()
+    const { bridge, leases, advance } = await started(fake.pool, 300_000)
+    bridge.registerCaller({ id: 'task-a', holder: RESEARCHER, readOnly: false })
+    bridge.registerCaller({ id: 'task-b', holder: ENGINEER, readOnly: false })
+    try {
+      const first = bridge.callAs('task-a', SCREENSHOT, '{}', new AbortController().signal)
+      await vi.waitFor(() => {
+        expect(fake.calls).toHaveLength(1)
+      })
+      const stop = new AbortController()
+      const reentry = bridge.callAs('task-a', SCREENSHOT, '{}', stop.signal)
+      const other = bridge.callAs('task-b', SCREENSHOT, '{}', new AbortController().signal)
+      stop.abort()
+      await reentry
+      gate.resolve({ content: [{ type: 'text', text: 'first' }] })
+      await first
+      expect(fake.calls).toHaveLength(1)
+      expect(leases.snapshot()[0]?.holders).toEqual([RESEARCHER])
+      advance(119_999)
+      expect(fake.calls).toHaveLength(1)
+      advance(1)
+      await other
+      expect(fake.calls).toHaveLength(2)
+    } finally {
+      gate.resolve({ content: [{ type: 'text', text: 'cleanup' }] })
+    }
+  })
+
+  it('RVM96RB2-4: old completion after Release anyway cannot settle a replacement call', async () => {
+    const fake = fakePool()
+    const old = Promise.withResolvers<CallToolResult>()
+    const replacement = Promise.withResolvers<CallToolResult>()
+    let count = 0
+    const { bridge, leases, advance } = await started({
+      ...fake.pool,
+      callRaw: () => {
+        count += 1
+        return count === 1 ? old.promise : replacement.promise
+      },
+    })
+    bridge.registerCaller({ id: 'task-a', holder: RESEARCHER, readOnly: false })
+    try {
+      const first = bridge.callAs('task-a', SCREENSHOT, '{}', new AbortController().signal)
+      await vi.waitFor(() => {
+        expect(count).toBe(1)
+      })
+      leases.releaseAnyway('chrome')
+      const fresh = bridge.callAs('task-a', SCREENSHOT, '{}', new AbortController().signal)
+      await vi.waitFor(() => {
+        expect(count).toBe(2)
+      })
+      old.resolve({ content: [{ type: 'text', text: 'old terminal' }] })
+      await first
+      advance(120_000)
+      expect(leases.snapshot()[0]?.holders).toEqual([RESEARCHER])
+      replacement.resolve({ content: [{ type: 'text', text: 'fresh terminal' }] })
+      await fresh
+      advance(120_000)
+      expect(leases.snapshot()[0]?.holders).toEqual([])
+    } finally {
+      old.resolve({ content: [{ type: 'text', text: 'cleanup' }] })
+      replacement.resolve({ content: [{ type: 'text', text: 'cleanup' }] })
+    }
+  })
+
+  it('RVM96RB2-5: two configured-server clients with the same request id cancel independently', async () => {
+    const fake = fakePool()
+    const gate = fake.hold()
+    const { bridge } = await started(fake.pool)
+    bridge.registerCaller({ id: 'task-a', holder: RESEARCHER, readOnly: false })
+    const entries = bridge.serverEntriesFor('task-a')
+    const chrome = entries['chrome']
+    const notes = entries['notes']
+    if (chrome === undefined || notes === undefined || !('url' in chrome) || !('url' in notes)) {
+      throw new Error('missing HTTP entries')
+    }
+    const a = { url: chrome.url, headers: chrome.headers }
+    const b = { url: notes.url, headers: notes.headers }
+    try {
+      const first = postLoopback(a, serverClientRequest(NAVIGATE))
+      const second = postLoopback(b, serverClientRequest(READ_NOTE))
+      await vi.waitFor(() => {
+        expect(fake.calls).toHaveLength(2)
+      })
+      await postLoopback(
+        a,
+        JSON.stringify({
+          jsonrpc: '2.0',
+          method: 'notifications/cancelled',
+          params: { requestId: 7 },
+        }),
+      )
+      expect(fake.calls.find((call) => call.functionName === NAVIGATE)?.signal.aborted).toBe(true)
+      expect(fake.calls.find((call) => call.functionName === READ_NOTE)?.signal.aborted).toBe(false)
+      gate.resolve({ content: [{ type: 'text', text: 'notes' }] })
+      const responses = await Promise.all([first, second])
+      expect(textOf(await responses[0].json())).toBe('aborted')
+      expect(textOf(await responses[1].json())).toBe('notes')
+      const wrongServer = await postLoopbackJson(a, {
+        jsonrpc: '2.0',
+        id: 8,
+        method: 'tools/call',
+        params: { name: READ_NOTE },
+      })
+      expect(wrongServer).toMatchObject({ result: { isError: true } })
+    } finally {
+      gate.resolve({ content: [{ type: 'text', text: 'cleanup' }] })
+    }
+  })
+
+  it('RVM96RB2-6: locally invalid engine and HTTP arguments never create call liability on the real pool', async () => {
+    const remote = await startFakeMcpHttp()
+    const pool = new McpServerPool({
+      readSettings: () =>
+        readMcpServerEntries(JSON.stringify({ mcpServers: { chrome: { url: remote.url } } })),
+      lookupEnv: () => undefined,
+      isWorkspaceTrusted: () => true,
+      workspaceRoot: process.cwd(),
+      platform: process.platform,
+      spawn: () => {
+        throw new Error('HTTP fixture never spawns')
+      },
+      fetch: globalThis.fetch.bind(globalThis),
+      clientVersion: '0.0.0-test',
+      log: new FakeLogOutputChannel(),
+    })
+    try {
+      await pool.start()
+      const { bridge, leases, advance } = await started(pool)
+      const endpoint = bridge.registerCaller({ id: 'task-a', holder: RESEARCHER, readOnly: false })
+      const name = 'mcp__chrome__echo'
+      expect(pool.find(name)).toBeDefined()
+      const before = remote.requests.length
+      for (const args of ['[]', 'null', 'true', '"text"', '{invalid']) {
+        const invalid = await bridge.callAs('task-a', name, args, new AbortController().signal)
+        expect(invalid.isError).toBe(true)
+        const http = await postLoopbackJson(endpoint, {
+          jsonrpc: '2.0',
+          id: 1,
+          method: 'tools/call',
+          params: { name, arguments: args },
+        })
+        expect(http).toMatchObject({ result: { isError: true } })
+      }
+      leases.retireAttempt(RESEARCHER.taskId, RESEARCHER.attempt)
+      advance(1_000_000)
+      expect(remote.requests).toHaveLength(before)
+      expect(leases.snapshot()[0]?.holders).toEqual([])
+    } finally {
+      await pool.close()
+      await remote.close()
+    }
+  })
+
+  it('RVM96RB2-7: four same-holder shared calls dispatch only two at once', async () => {
+    const fake = fakePool()
+    const gates = Array.from({ length: 4 }, () => Promise.withResolvers<CallToolResult>())
+    const signals: AbortSignal[] = []
+    const { bridge } = await started({
+      ...fake.pool,
+      callRaw: (_name, _args, signal) => {
+        const gate = gates[signals.length]
+        signals.push(signal)
+        if (gate === undefined) throw new Error('unexpected call')
+        return gate.promise
+      },
+    })
+    bridge.registerCaller({ id: 'task-a', holder: RESEARCHER, readOnly: false })
+    const pending = gates.map(() =>
+      bridge.callAs('task-a', READ_NOTE, '{}', new AbortController().signal),
+    )
+    try {
+      await vi.waitFor(() => {
+        expect(signals).toHaveLength(2)
+      })
+      gates[0]?.resolve({ content: [{ type: 'text', text: 'one' }] })
+      await pending[0]
+      await vi.waitFor(() => {
+        expect(signals).toHaveLength(3)
+      })
+      gates[1]?.resolve({ content: [{ type: 'text', text: 'two' }] })
+      await pending[1]
+      await vi.waitFor(() => {
+        expect(signals).toHaveLength(4)
+      })
+      gates[2]?.resolve({ content: [{ type: 'text', text: 'three' }] })
+      gates[3]?.resolve({ content: [{ type: 'text', text: 'four' }] })
+      await Promise.all(pending)
+    } finally {
+      for (const gate of gates) gate.resolve({ content: [{ type: 'text', text: 'cleanup' }] })
+      await Promise.all(pending)
+    }
+  })
+
+  it('refuses duplicate live ids without overwriting the original cancellation record', async () => {
+    const fake = fakePool()
+    const gate = fake.hold()
+    const { bridge } = await started(fake.pool)
+    const endpoint = bridge.registerCaller({ id: 'task-a', holder: RESEARCHER, readOnly: false })
+    const request = JSON.stringify({
+      jsonrpc: '2.0',
+      id: 7,
+      method: 'tools/call',
+      params: { name: READ_NOTE },
+    })
+    try {
+      const first = postLoopback(endpoint, request)
+      await vi.waitFor(() => {
+        expect(fake.calls).toHaveLength(1)
+      })
+      let isDuplicateFinished = false
+      const duplicateRequest = (async () => {
+        const response = await postLoopback(endpoint, request)
+        isDuplicateFinished = true
+        return response
+      })()
+      await vi.waitFor(() => {
+        expect(isDuplicateFinished).toBe(true)
+      })
+      const duplicate = await duplicateRequest
+      expect(await duplicate.json()).toMatchObject({
+        result: { isError: true, content: [{ text: 'Invalid tools/call params' }] },
+      })
+      await postLoopback(
+        endpoint,
+        JSON.stringify({
+          jsonrpc: '2.0',
+          method: 'notifications/cancelled',
+          params: { requestId: 7 },
+        }),
+      )
+      expect(fake.calls[0]?.signal.aborted).toBe(true)
+      gate.resolve({ content: [{ type: 'text', text: 'done' }] })
+      await first
+      expect(fake.calls).toHaveLength(1)
+    } finally {
+      gate.resolve({ content: [{ type: 'text', text: 'cleanup' }] })
+    }
   })
 })

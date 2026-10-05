@@ -16656,6 +16656,41 @@ live) and the controller filters its id as well.
 
 ### M96 — Agent roles and the team (D75)
 
+#### Round-3 redesign: leases (REDM96B, 2026-10-05)
+
+The owner's third-round rule replaces lane B's holder counters with explicit
+identities and transitions. `ResourceRegistry` remains the sole transition
+owner; the bridge delegates admission, cancellation and settlement to it.
+
+- A lease is `requested → granted → releasing → released`, identified by
+  a unique id and generation bound to window, task, attempt and server.
+  Release requires that exact token and no pending/dispatched call. Server
+  exit or the user's **Release anyway** explicitly abandons old calls before
+  releasing their generation; late replies cannot touch a replacement.
+- Each validated call has its own id and `pending → dispatched →
+answered/failed/abandoned` state. Unproved transport failure or cancellation
+  after dispatch remains dispatched liability. A pending cancellation abandons
+  only that admission; re-entry never releases existing ownership.
+- Shared capacity counts admitted pending/dispatched calls across all holders,
+  including re-entry. Queueing pins the relevant lease; terminal settlement
+  frees call capacity, while exclusive ownership retains its idle policy.
+- Each registered client incarnation and configured server has a separate
+  endpoint namespace. Duplicate live request ids in that namespace refuse;
+  unregister, close and response disposal cancel exact records only.
+- Local tool/argument validation precedes call creation. The existing IDE
+  server also rejects startup overtaken by close, preserving failed-start retry.
+
+Acceptance: named regressions for RVM96A 9–11 and 23–26, RVM96RB2 3–8;
+identity, release, pending cancellation, uncertain dispatch, concurrent shared
+capacity, namespace and startup interleavings each get a deliberate red drill
+in `docs/certification/m96-b.md`. No new wire shape, dependency or paid call.
+Reuse: existing registry, M50 pool, loopback transport and three owned suites.
+Readiness reviewed against both reports and D75 acceptances 44–46. The lane
+brief's focused rig gates supersede the full-quality instruction for this lane;
+full integration quality remains the lead's gate. The feature-delivery JSON
+validator is deferred: the canonical historical plan is prose, and introducing
+a competing ledger is outside this redesign's scope.
+
 **Status 2026-10-04: planned on `feature/m96-agent-roles` from main
 `1e93c67c`.** The plan is D75 (with its decisions on the open questions),
 M96b, M96c and this section. The research is

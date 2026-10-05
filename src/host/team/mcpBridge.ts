@@ -5,8 +5,9 @@
 // Each caller (the orchestrator's session, each task) gets a loopback
 // endpoint of its own with a token of its own, on the `ide` server's
 // transport (streamable HTTP on 127.0.0.1, an ephemeral port). A call is
-// keyed by its caller and its request id, so two workers' identical ids
-// never cross, and each caller gets only its own results and cancellations.
+// keyed by caller registration, configured server client and request id.
+// Two workers' or server clients' identical ids never cross. The registry
+// owns every lease/call transition, including exact cancellation records.
 // Exclusive servers pass calls through the lease (and shared ones through
 // their concurrency limit) on every call; a read-only role is served only
 // tools that declare `readOnlyHint: true`; every worker starts with only its
@@ -48,6 +49,7 @@ import {
   IDE_MCP_TOKEN_BYTES,
   JSON_RPC_ERRORS,
   MCP_PROTOCOL_VERSION,
+  MODEL_TEXT,
 } from '../../shared/constants'
 import type { Logger } from '../logger'
 import { isSameLoopbackSecret, listenLoopback, readLoopbackBody } from '../mcpLoopback'
@@ -106,6 +108,8 @@ const bridgeCallSchema = z.object({
   arguments: z.optional(z.unknown()),
 })
 
+const bridgeArgumentsSchema = z.record(z.string(), z.unknown())
+
 const bridgeInitializeSchema = z.object({
   protocolVersion: z.optional(z.string()),
 })
@@ -131,6 +135,7 @@ interface LiveCaller {
   readonly caller: BridgeCaller
   readonly token: string
   readonly endpoint: BridgeEndpoint
+  readonly clients: Set<string>
 }
 
 /** What the bridge answers a request with: a tool result, a handshake, a list, or an error. */
@@ -147,8 +152,6 @@ type BridgeAnswer =
 
 export class TeamMcpBridge {
   private readonly callers = new Map<string, LiveCaller>()
-  /** The calls being answered, by caller and request id, so a cancellation stops only its own. */
-  private readonly inFlight = new Map<string, AbortController>()
   private server: Server | undefined
   private port: number | undefined
   private starting: Promise<void> | undefined
@@ -157,8 +160,12 @@ export class TeamMcpBridge {
 
   public constructor(private readonly deps: TeamBridgeDeps) {}
 
-  private flightKey(callerId: string, key: McpRequestKey): string {
-    return `${callerId}\n${key}`
+  private clientId(caller: LiveCaller, serverName?: string): string {
+    // The token identifies this registration, including after an id is reused.
+    // Kept in memory only, never returned in call identities or logs.
+    const id = `${caller.token}\n${serverName ?? ''}`
+    caller.clients.add(id)
+    return id
   }
 
   private liveCaller(callerId: string): LiveCaller {
@@ -204,72 +211,84 @@ export class TeamMcpBridge {
   }
 
   private async invoke(
-    caller: BridgeCaller,
+    live: LiveCaller,
     functionName: string,
     argsJson: string,
     signal: AbortSignal,
+    requestId: string,
+    serverName?: string,
   ): Promise<CallToolResult> {
+    const caller = live.caller
     const ref = this.deps.pool.find(functionName)
-    if (ref === undefined || !this.allowedServers(caller).includes(ref.server)) {
+    if (
+      ref === undefined ||
+      !this.allowedServers(caller).includes(ref.server) ||
+      (serverName !== undefined && serverName !== ref.server)
+    ) {
       return this.refused(`Unknown tool: ${functionName}`)
     }
     if (caller.readOnly && !ref.isReadOnly) {
       return this.refused(`Not offered to a read-only role: ${functionName}`)
     }
-    const holder = caller.holder
-    const admission = this.deps.leases.checkCall(ref.server, holder)
-    if (admission.status === 'taken-back') {
-      return this.refused(busyText(admission.holder))
+    // Validate before any pending record exists; M50 accepts JSON objects only.
+    let args: unknown
+    try {
+      args = argsJson.trim() === '' ? {} : JSON.parse(argsJson)
+    } catch {
+      return this.refused(MODEL_TEXT.mcpArgumentsNotObject)
     }
-    if (admission.status === 'stale-attempt') {
-      return this.refused(`The task's attempt ${String(holder.attempt)} ended; the call is refused`)
+    if (!bridgeArgumentsSchema.safeParse(args).success) {
+      return this.refused(MODEL_TEXT.mcpArgumentsNotObject)
     }
-    const identity = this.deps.serverIdentities?.[ref.server]
-    this.deps.leases.ensureServer(ref.server, identity)
-    const outcome = await this.deps.leases.acquire(ref.server, holder, signal)
-    if (outcome.status === 'busy') {
-      return this.refused(busyText(outcome.holder))
-    }
-    if (outcome.status === 'stale') {
-      return this.refused(`The task's attempt ${String(holder.attempt)} ended; the call is refused`)
-    }
-    if (outcome.status === 'closed') {
+    if (this.closed || this.callers.get(caller.id) !== live) {
       return this.refused('The team bridge is closed')
     }
-    if (outcome.status === 'cancelled' || signal.aborted) {
-      if (outcome.status === 'held') {
-        // Cancellation after a queued grant but before dispatch creates no call liability.
-        this.deps.leases.release(ref.server, holder)
-      }
-      return this.refused(describe(signal.reason))
-    }
-    if (!this.allowedServers(caller).includes(ref.server)) {
-      this.deps.leases.release(ref.server, holder)
-      return this.refused(`Unknown tool: ${functionName}`)
-    }
-    // Retirement or Take back can happen while acquire is settling.
-    const current = this.deps.leases.checkCall(ref.server, holder)
-    if (current.status === 'stale-attempt') {
-      return this.refused(`The task's attempt ${String(holder.attempt)} ended; the call is refused`)
-    }
-    if (current.status !== 'ok') {
+    this.deps.leases.ensureServer(ref.server, this.deps.serverIdentities?.[ref.server])
+    const outcome = await this.deps.leases.acquireCall(
+      ref.server,
+      caller.holder,
+      this.clientId(live, serverName),
+      requestId,
+      signal,
+    )
+    if (outcome.status === 'busy') return this.refused(busyText(outcome.holder))
+    if (outcome.status === 'stale') {
       return this.refused(
-        current.holder === undefined ? 'The team bridge is closed' : busyText(current.holder),
+        `The task's attempt ${String(caller.holder.attempt)} ended; the call is refused`,
       )
     }
-    this.deps.leases.callStarted(ref.server, holder)
-    let isTerminal = false
+    if (outcome.status === 'closed') return this.refused('The team bridge is closed')
+    if (outcome.status === 'cancelled') return this.refused(describe(outcome.reason))
+    if (outcome.status === 'duplicate') return this.refused('Invalid tools/call params')
+    if (!this.allowedServers(caller).includes(ref.server)) {
+      this.deps.leases.cancelCall(outcome.call)
+      return this.refused(`Unknown tool: ${functionName}`)
+    }
+    const admittedSignal = this.deps.leases.dispatch(outcome.call)
+    if (admittedSignal === undefined) {
+      const current = this.deps.leases.checkCall(ref.server, caller.holder)
+      if (current.status === 'stale-attempt') {
+        return this.refused(
+          `The task's attempt ${String(caller.holder.attempt)} ended; the call is refused`,
+        )
+      }
+      return this.refused(
+        current.status === 'taken-back'
+          ? busyText(current.holder)
+          : describe(outcome.signal.reason),
+      )
+    }
     try {
-      const result = await this.deps.pool.callRaw(functionName, argsJson, signal)
-      isTerminal = true
+      const result = await this.deps.pool.callRaw(functionName, argsJson, admittedSignal)
+      this.deps.leases.settle(outcome.call, 'answered')
       return result
     } catch (error: unknown) {
-      // Only a server's JSON-RPC error is a terminal rejection. A local
-      // timeout, transport loss or cancellation does not prove the call ended.
-      isTerminal = error instanceof McpError && error.code !== undefined
+      // Only a server JSON-RPC error proves dispatch ended; timeout/transport
+      // loss/cancel stays dispatched until exit or the explicit user override.
+      if (error instanceof McpError && error.code !== undefined) {
+        this.deps.leases.settle(outcome.call, 'failed')
+      }
       return this.refused(describe(error))
-    } finally {
-      this.deps.leases.callEnded(ref.server, holder, isTerminal)
     }
   }
 
@@ -290,22 +309,13 @@ export class TeamMcpBridge {
     return JSON.stringify({ jsonrpc: '2.0', id, result })
   }
 
-  private cancel(callerId: string, key: McpRequestKey): void {
-    const flight = this.flightKey(callerId, key)
-    const controller = this.inFlight.get(flight)
-    if (controller === undefined) {
-      return
-    }
-
-    controller.abort()
-    this.inFlight.delete(flight)
-  }
-
   private async answer(
     caller: LiveCaller,
     method: string | undefined,
     params: Readonly<Record<string, unknown>> | undefined,
     signal: AbortSignal,
+    requestId: string,
+    serverName?: string,
   ): Promise<BridgeAnswer> {
     switch (method) {
       case 'initialize': {
@@ -321,7 +331,12 @@ export class TeamMcpBridge {
         return {}
       }
       case 'tools/list': {
-        return { tools: this.listed(caller.caller) }
+        return {
+          tools: this.listed(caller.caller).filter(
+            (tool) =>
+              serverName === undefined || this.deps.pool.find(tool.name)?.server === serverName,
+          ),
+        }
       }
       case 'tools/call': {
         const call = bridgeCallSchema.safeParse(params ?? {})
@@ -337,7 +352,7 @@ export class TeamMcpBridge {
         } else if (rawArgs !== undefined && rawArgs !== null) {
           argsJson = JSON.stringify(rawArgs)
         }
-        return await this.invoke(caller.caller, call.data.name, argsJson, signal)
+        return await this.invoke(caller, call.data.name, argsJson, signal, requestId, serverName)
       }
       default: {
         return {
@@ -359,9 +374,25 @@ export class TeamMcpBridge {
       response.writeHead(HTTP_STATUS.notFound).end()
       return
     }
-    const callerId = decodeURIComponent(request.url.slice(BRIDGE_ROUTE_PREFIX.length))
+    let callerId: string
+    let serverName: string | undefined
+    try {
+      const parts = request.url.slice(BRIDGE_ROUTE_PREFIX.length).split('/')
+      if (parts.length > 2) {
+        response.writeHead(HTTP_STATUS.notFound).end()
+        return
+      }
+      callerId = decodeURIComponent(parts[0] ?? '')
+      serverName = parts[1] === undefined ? undefined : decodeURIComponent(parts[1])
+    } catch {
+      response.writeHead(HTTP_STATUS.notFound).end()
+      return
+    }
     const caller = this.callers.get(callerId)
-    if (caller === undefined) {
+    if (
+      caller === undefined ||
+      (serverName !== undefined && !this.allowedServers(caller.caller).includes(serverName))
+    ) {
       response.writeHead(HTTP_STATUS.notFound).end()
       return
     }
@@ -397,7 +428,11 @@ export class TeamMcpBridge {
     }
     const cancelled = bridgeCancelledSchema.safeParse(parsed)
     if (cancelled.success) {
-      this.cancel(callerId, keyOfId(cancelled.data.params.requestId))
+      this.deps.leases.cancelClient(
+        this.clientId(caller, serverName),
+        serverName,
+        keyOfId(cancelled.data.params.requestId),
+      )
     }
     if (message.data.id === undefined || message.data.id === null) {
       response.writeHead(HTTP_STATUS.accepted).end()
@@ -405,23 +440,22 @@ export class TeamMcpBridge {
     }
     const id = message.data.id
     const controller = new AbortController()
-    const flight = this.flightKey(callerId, keyOfId(id))
     const onClose = () => {
       if (response.writableFinished) {
         return
       }
 
       controller.abort()
-      this.inFlight.delete(flight)
     }
     response.once('close', onClose)
-    this.inFlight.set(flight, controller)
     try {
       const result = await this.answer(
         caller,
         message.data.method,
         message.data.params,
         controller.signal,
+        keyOfId(id),
+        serverName,
       )
       if (response.destroyed) {
         return
@@ -437,7 +471,6 @@ export class TeamMcpBridge {
         .end(this.resultBody(id, result))
     } finally {
       response.off('close', onClose)
-      this.inFlight.delete(flight)
     }
   }
 
@@ -496,21 +529,15 @@ export class TeamMcpBridge {
     argsJson: string,
     signal: AbortSignal,
   ): Promise<CallToolResult> {
-    const caller = this.liveCaller(callerId).caller
-    const controller = new AbortController()
+    const caller = this.liveCaller(callerId)
     this.nextEngineId += 1
-    const flight = `${callerId}\nengine:${String(this.nextEngineId)}`
-    this.inFlight.set(flight, controller)
-    try {
-      return await this.invoke(
-        caller,
-        functionName,
-        argsJson,
-        AbortSignal.any([signal, controller.signal]),
-      )
-    } finally {
-      this.inFlight.delete(flight)
-    }
+    return await this.invoke(
+      caller,
+      functionName,
+      argsJson,
+      signal,
+      `engine:${String(this.nextEngineId)}`,
+    )
   }
 
   /**
@@ -524,7 +551,7 @@ export class TeamMcpBridge {
     return Object.fromEntries(
       this.allowedServers(live.caller).map((name) => [
         name,
-        { url: live.endpoint.url, headers: live.endpoint.headers },
+        { url: `${live.endpoint.url}/${encodeURIComponent(name)}`, headers: live.endpoint.headers },
       ]),
     )
   }
@@ -550,21 +577,16 @@ export class TeamMcpBridge {
       url: `http://${IDE_MCP_LOOPBACK_HOST}:${String(this.port)}${BRIDGE_ROUTE_PREFIX}${encodeURIComponent(caller.id)}`,
       headers: { Authorization: `${BEARER_PREFIX}${token}` },
     }
-    this.callers.set(caller.id, { caller, token, endpoint })
+    this.callers.set(caller.id, { caller, token, endpoint, clients: new Set() })
     return endpoint
   }
 
   /** Unregisters a caller: its endpoint stops answering, and its calls are stopped. */
   public unregisterCaller(callerId: string): void {
+    const live = this.callers.get(callerId)
+    if (live === undefined) return
     this.callers.delete(callerId)
-    for (const [key, controller] of this.inFlight) {
-      if (!key.startsWith(`${callerId}\n`)) {
-        continue
-      }
-
-      controller.abort()
-      this.inFlight.delete(key)
-    }
+    for (const client of live.clients) this.deps.leases.cancelClient(client)
   }
 
   /** Listens on an ephemeral loopback port; idempotent while started. */
@@ -582,11 +604,7 @@ export class TeamMcpBridge {
   /** The window going away: every call stops, every endpoint with it. */
   public close(): void {
     this.closed = true
-    for (const controller of this.inFlight.values()) {
-      controller.abort()
-    }
-    this.inFlight.clear()
-    this.callers.clear()
+    for (const callerId of this.callers.keys()) this.unregisterCaller(callerId)
     this.server?.close()
     this.server = undefined
     this.port = undefined

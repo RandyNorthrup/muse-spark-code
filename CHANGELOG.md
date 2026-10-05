@@ -9,6 +9,14 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- **Team lease and call identities.** The shared-resource foundation now
+  gives each lease a window/task/attempt/server-bound id and generation,
+  and each call an independent state. Cancelled re-entry and old completions
+  cannot release replacement ownership. Shared limits count concurrent calls;
+  invalid local arguments create no call liability. Configured MCP clients
+  have separate server endpoints and cancellation namespaces.
+- **IDE MCP startup ordering.** Closing during startup closes the pending
+  listener and leaves no endpoint; a later start still works.
 - **Team resource ownership.** Take back and retirement retain exclusive
   resources until every earlier call is terminal, the server exits, or the
   user chooses Release anyway. Unassigned servers reach no worker role.
