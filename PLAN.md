@@ -16644,6 +16644,22 @@ live) and the controller filters its id as well.
 
 ### M96 — Agent roles and the team (D75)
 
+**FIXM96I repair plan (2026-10-05, RVM96B findings 1–12 and 24).**
+Keep lane I's source/test boundary and add no dependency. Replace shell-list
+admission with parsed exact argv and the host's trusted absolute Git executable;
+start workers from an explicit environment allowlist, with Git credential/config
+injection and SSH agents blocked even in passthrough. Confine cleanup and Undo
+through every canonical ancestor; re-read live refs at writes and publish with
+`update-ref`'s expected old object after importing objects without a destination
+ref. Capture untracked source in the base without changing the user's index,
+include ignored scratch writes, use the existing bounded glob matcher, handle
+all merge-file conflict counts, retain mode metadata for Undo, and retain the
+completed review's model provenance. Under the lead's finding-24 ruling,
+`rework` keeps conflict markers in the task copy and never in the user's tree;
+derive all files before landing any. Each finding receives a failing regression
+and SHA-256-verified guard drill in `docs/certification/m96-i.md`. Local focused
+gates run on macmini; full quality and integration remain the lead's gate.
+
 **Status 2026-10-04: planned on `feature/m96-agent-roles` from main
 `1e93c67c`.** The plan is D75 (with its decisions on the open questions),
 M96b, M96c and this section. The research is

@@ -10,7 +10,10 @@
 // in `refFence.ts`. The host runs git and owns storage; workers never touch
 // these functions. No `vscode` here.
 
-import { mkdir, rm } from 'node:fs/promises'
+import { lstat, mkdir, mkdtemp, realpath, rm, unlink, writeFile } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
+import path from 'node:path'
+import { isBelow } from '../workspacePath'
 import {
   GIT_PATH_MAX_DARWIN,
   GIT_PATH_MAX_DEFAULT,
@@ -148,7 +151,7 @@ async function revParse(runGit: TeamGit, repo: string, rev: string): Promise<str
 /**
  * The base commit: the orchestrator's `HEAD` when the working tree is
  * clean, else a commit made from the current tree with `HEAD` as its
- * parent (`git stash create`, which writes objects but no ref), so the
+ * parent (`git commit-tree` through a private index, which writes no user ref), so the
  * worker sees the uncommitted work. Nothing is committed to the user's
  * branch either way.
  */
@@ -160,12 +163,47 @@ export async function resolveBaseCommit(runGit: TeamGit, repositoryRoot: string)
   if (status.length === 0) {
     return await revParse(runGit, repositoryRoot, 'HEAD')
   }
-  const created = decodeText(
-    await runGit(['stash', 'create', 'team base with uncommitted work'], repositoryRoot),
-  ).trim()
-  return created === ''
-    ? await revParse(runGit, repositoryRoot, 'HEAD')
-    : objectId(new TextEncoder().encode(created), 'base')
+  const head = await revParse(runGit, repositoryRoot, 'HEAD')
+  // A private repository/index captures tracked and untracked work without
+  // touching the user's index, refs, hooks or repository filter configuration.
+  const scratch = await mkdtemp(path.join(tmpdir(), 'muse-team-base-'))
+  try {
+    await runGit(['init', '--bare', scratch], repositoryRoot)
+    const objects = decodeText(
+      await runGit(
+        ['rev-parse', '--path-format=absolute', '--git-path', 'objects'],
+        repositoryRoot,
+      ),
+    ).trim()
+    await writeFile(path.join(scratch, 'objects', 'info', 'alternates'), `${objects}\n`)
+    const prefix = [`--git-dir=${scratch}`, `--work-tree=${repositoryRoot}`]
+    await runGit([...prefix, 'read-tree', head], repositoryRoot)
+    await runGit([...prefix, 'add', '--all', '--'], repositoryRoot)
+    const tree = objectId(await runGit([...prefix, 'write-tree'], repositoryRoot), 'tree')
+    const created = objectId(
+      await runGit(
+        [
+          ...prefix,
+          '-c',
+          `user.name=${COMMIT_AUTHOR_NAME}`,
+          '-c',
+          `user.email=${COMMIT_AUTHOR_EMAIL}`,
+          'commit-tree',
+          tree,
+          '-p',
+          head,
+          '-m',
+          'team base with uncommitted work',
+        ],
+        repositoryRoot,
+      ),
+      'base',
+    )
+    await runGit(['fetch', '--no-write-fetch-head', '--no-tags', scratch, created], repositoryRoot)
+    return created
+  } finally {
+    await rm(scratch, { recursive: true, force: true })
+  }
 }
 
 async function removeRemote(runGit: TeamGit, folder: string): Promise<void> {
@@ -193,7 +231,10 @@ export async function startTeamWorkspace(
   }
   const folder = teamCloneFolder(storageRoot, spec.role, spec.taskId, spec.mode, platform)
   const p = pathModule(platform)
+  await mkdir(storageRoot, { recursive: true })
+  await validateTeamFolder(storageRoot, folder)
   await mkdir(p.dirname(folder), { recursive: true })
+  await validateTeamFolder(storageRoot, folder)
   await runGit(
     ['clone', '--shared', '--no-checkout', spec.repositoryRoot, folder],
     p.dirname(folder),
@@ -203,13 +244,16 @@ export async function startTeamWorkspace(
     if (spec.mode === 'own-branch') {
       await runGit(['checkout', '-b', branch, spec.baseCommit], folder)
       const agentsRef = teamAgentsRef(branch)
-      await runGit(['update-ref', agentsRef, spec.baseCommit], spec.repositoryRoot)
+      await runGit(
+        ['update-ref', agentsRef, spec.baseCommit, '0'.repeat(spec.baseCommit.length)],
+        spec.repositoryRoot,
+      )
       return { folder, branch, agentsRef }
     }
     await runGit(['checkout', '--detach', spec.baseCommit], folder)
     return { folder }
   } catch (error: unknown) {
-    await rm(folder, { recursive: true, force: true })
+    await removeTeamWorkspace(runGit, spec.repositoryRoot, storageRoot, folder)
     throw error
   }
 }
@@ -263,15 +307,7 @@ async function readAgentsRef(
   }
 }
 
-/**
- * Fetch the finished branch into the user's `agents/` ref: the end-of-task
- * commit's objects live only in the clone, so the extension fetches (never
- * pushes) them over. With `expected`, the fetch is compare-and-swap: the
- * current value is read first, and a move the extension did not write (the
- * fence's breach, including a local push) fails here instead of silently
- * winning. The fetched commit keeps the user repo's objects; the user's
- * branch is untouched.
- */
+/** Import objects without updating a ref, then publish with Git's atomic CAS. */
 export async function publishTaskRef(
   runGit: TeamGit,
   repositoryRoot: string,
@@ -280,21 +316,66 @@ export async function publishTaskRef(
   agentsRef: string,
   expected?: string,
 ): Promise<void> {
+  if (agentsRef !== teamAgentsRef(branch)) {
+    throw new TeamWorkspaceError('badName', 'The task branch and ref do not match')
+  }
   const actual = await readAgentsRef(runGit, repositoryRoot, agentsRef)
-  if (expected !== undefined && actual !== expected) {
+  if (actual !== expected) {
     throw new TeamWorkspaceError(
       'refMoved',
-      `The team ref ${agentsRef} moved from ${expected} to ${actual ?? '(absent)'}`,
+      `The team ref ${agentsRef} moved from ${expected ?? '(absent)'} to ${actual ?? '(absent)'}`,
     )
   }
+  const head = await revParse(runGit, cloneFolder, branch)
+  await runGit(['fetch', '--no-write-fetch-head', '--no-tags', cloneFolder, head], repositoryRoot)
   try {
-    await runGit(['fetch', cloneFolder, `${branch}:${agentsRef}`], repositoryRoot)
-  } catch {
+    await runGit(
+      ['update-ref', agentsRef, head, expected ?? '0'.repeat(head.length)],
+      repositoryRoot,
+    )
+  } catch (error: unknown) {
+    if (!isTeamGitError(error)) {
+      throw error
+    }
     const moved = await readAgentsRef(runGit, repositoryRoot, agentsRef)
     throw new TeamWorkspaceError(
       'refMoved',
       `The team ref ${agentsRef} moved from ${expected ?? '(absent)'} to ${moved ?? '(absent)'}`,
     )
+  }
+}
+
+/** Every existing ancestor must be canonical and remain inside trusted storage. */
+async function validateTeamFolder(storageRoot: string, folder: string): Promise<void> {
+  const root = path.resolve(storageRoot)
+  const target = path.resolve(folder)
+  if (!isBelow(path.relative(root, target), path) || (await realpath(root)) !== root) {
+    throw new TeamWorkspaceError('workspaceFailed', 'The team copy is outside canonical storage')
+  }
+  let current = path.dirname(target)
+  for (;;) {
+    try {
+      const stat = await lstat(current)
+      if (stat.isSymbolicLink() || (await realpath(current)) !== current) {
+        throw new TeamWorkspaceError(
+          'workspaceFailed',
+          'The team copy has a linked storage ancestor',
+        )
+      }
+    } catch (error: unknown) {
+      if (!(
+        typeof error === 'object' &&
+        error !== null &&
+        'code' in error &&
+        error.code === 'ENOENT'
+      )) {
+        throw error
+      }
+    }
+    if (current === root) {
+      return
+    }
+    current = path.dirname(current)
   }
 }
 
@@ -307,10 +388,34 @@ export async function publishTaskRef(
 export async function removeTeamWorkspace(
   runGit: TeamGit,
   repositoryRoot: string,
+  storageRoot: string,
   folder: string,
   agentsRef?: string,
 ): Promise<void> {
-  await rm(folder, { recursive: true, force: true })
+  await validateTeamFolder(storageRoot, folder)
+  try {
+    const stat = await lstat(folder)
+    if (stat.isSymbolicLink()) {
+      await unlink(folder)
+    } else {
+      if ((await realpath(folder)) !== path.resolve(folder)) {
+        throw new TeamWorkspaceError(
+          'workspaceFailed',
+          'The team copy is outside canonical storage',
+        )
+      }
+      await rm(folder, { recursive: true, force: true })
+    }
+  } catch (error: unknown) {
+    if (!(
+      typeof error === 'object' &&
+      error !== null &&
+      'code' in error &&
+      error.code === 'ENOENT'
+    )) {
+      throw error
+    }
+  }
   if (agentsRef !== undefined) {
     try {
       await runGit(['update-ref', '-d', agentsRef], repositoryRoot)
@@ -356,6 +461,9 @@ export function parseScratchStatus(porcelain: Uint8Array): readonly string[] {
  * any change or new file there is a breach of its role.
  */
 export async function scratchBreach(runGit: TeamGit, folder: string): Promise<readonly string[]> {
-  const status = await runGit(['status', '--porcelain=v1', '-z', '--untracked-files=all'], folder)
+  const status = await runGit(
+    ['status', '--porcelain=v1', '-z', '--untracked-files=all', '--ignored=matching'],
+    folder,
+  )
   return parseScratchStatus(status)
 }

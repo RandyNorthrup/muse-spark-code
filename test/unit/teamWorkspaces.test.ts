@@ -3,7 +3,7 @@
 // refs, scratch copies for read-only workers, the end-of-task commit and
 // fetch, and cleanup. Real temporary repositories; no model calls.
 
-import { readFile, writeFile } from 'node:fs/promises'
+import { lstat, mkdir, readFile, rename, symlink, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { workerEnvironment } from '../../src/core/team/refFence'
@@ -102,6 +102,25 @@ describe('resolveBaseCommit', () => {
     expect(TEXT.decode(await runGit(['show', `${base}:shared.txt`], root))).toBe(
       'one\nWORK\nthree\n',
     )
+  })
+})
+
+describe('repair regressions: base snapshot', () => {
+  it('captures untracked source and staged edits without altering the user index or refs', async () => {
+    const { root, head } = await teamFixtureRepo(runGit)
+    await writeFile(path.join(root, 'tracked.txt'), 'staged\n')
+    await runGit(['add', 'tracked.txt'], root)
+    await writeFile(path.join(root, 'tracked.txt'), 'unstaged\n')
+    await writeFile(path.join(root, 'new-source.ts'), 'export const value = 1\n')
+    const index = await readFile(path.join(root, '.git', 'index'))
+    const base = await resolveBaseCommit(runGit, root)
+    expect(TEXT.decode(await runGit(['show', `${base}:new-source.ts`], root))).toContain(
+      'export const value',
+    )
+    expect(TEXT.decode(await runGit(['show', `${base}:tracked.txt`], root))).toBe('unstaged\n')
+    expect(await readFile(path.join(root, '.git', 'index'))).toEqual(index)
+    expect(await revOf(root, `${base}^`)).toBe(head)
+    expect(await revOf(root, 'main')).toBe(head)
   })
 })
 
@@ -257,7 +276,39 @@ describe('publishTaskRef', () => {
   })
 })
 
+describe('repair regressions: publication CAS', () => {
+  it('refuses an intervening ref movement at the object import boundary', async () => {
+    const { root, head, workspace } = await taskWorkspace('cas')
+    await writeWorkerFile(workspace.folder, 'shared.txt', 'changed\n')
+    const { head: taskHead } = await commitWorkerEdit(
+      workspace.folder,
+      'engineering',
+      'cas',
+      'entry',
+    )
+    const ref = 'refs/heads/agents/engineering/cas'
+    const racingGit: typeof runGit = async (args, cwd, input) => {
+      const result = await runGit(args, cwd, input)
+      if (args[0] === 'fetch') {
+        await runGit(['update-ref', ref, taskHead, head], root)
+      }
+      return result
+    }
+    await expect(
+      publishTaskRef(racingGit, root, workspace.folder, 'agents/engineering/cas', ref, head),
+    ).rejects.toMatchObject({ code: 'refMoved' })
+    expect(await revOf(root, ref)).toBe(taskHead)
+  })
+})
+
 describe('scratchBreach', () => {
+  it('detects ignored writes in a read-only scratch copy', async () => {
+    const { workspace } = await taskWorkspace('ignored', 'read-only', 'code-review')
+    await writeFile(path.join(workspace.folder, '.git', 'info', 'exclude'), 'ignored-canary\n')
+    await writeFile(path.join(workspace.folder, 'ignored-canary'), 'write\n')
+    expect(await scratchBreach(runGit, workspace.folder)).toContain('ignored-canary')
+  })
+
   it('is clean on an untouched scratch copy', async () => {
     const { workspace } = await taskWorkspace('t1', 'read-only', 'code-review')
     await expect(scratchBreach(runGit, workspace.folder)).resolves.toEqual([])
@@ -276,10 +327,66 @@ describe('scratchBreach', () => {
 describe('removeTeamWorkspace', () => {
   it('removes the copy and its branch at merge or discard', async () => {
     const { root, head, workspace } = await taskWorkspace('t1')
-    await removeTeamWorkspace(runGit, root, workspace.folder, workspace.agentsRef)
+    await removeTeamWorkspace(
+      runGit,
+      root,
+      path.join(root, '..', 'storage'),
+      workspace.folder,
+      workspace.agentsRef,
+    )
     await expect(teamRealPath(workspace.folder)).rejects.toThrow()
     await expect(revOf(root, 'refs/heads/agents/engineering/t1')).rejects.toThrow()
     expect(await revOf(root, 'main')).toBe(head)
+  })
+
+  it('refuses a replaced storage ancestor without deleting the outside sentinel', async () => {
+    const { root, workspace } = await taskWorkspace('linked')
+    const storage = path.join(root, '..', 'storage')
+    const outside = path.join(root, '..', 'outside')
+    await mkdir(path.join(outside, path.basename(workspace.folder)), { recursive: true })
+    const sentinel = path.join(outside, path.basename(workspace.folder), 'sentinel')
+    await writeFile(sentinel, 'safe')
+    await rename(path.join(storage, 'agents'), path.join(storage, 'original-agents'))
+    await symlink(
+      outside,
+      path.join(storage, 'agents'),
+      process.platform === 'win32' ? 'junction' : 'dir',
+    )
+    await expect(
+      removeTeamWorkspace(runGit, root, storage, workspace.folder),
+    ).rejects.toMatchObject({ code: 'workspaceFailed' })
+    expect(await readFile(sentinel, 'utf8')).toBe('safe')
+  })
+
+  it('unlinks a replaced copy instead of following it', async () => {
+    const { root, workspace } = await taskWorkspace('leaf-link')
+    const storage = path.join(root, '..', 'storage')
+    const outside = path.join(root, '..', 'outside')
+    await mkdir(outside)
+    await writeFile(path.join(outside, 'sentinel'), 'safe')
+    await rename(workspace.folder, `${workspace.folder}-original`)
+    await symlink(outside, workspace.folder, process.platform === 'win32' ? 'junction' : 'dir')
+    await removeTeamWorkspace(runGit, root, storage, workspace.folder)
+    await expect(lstat(workspace.folder)).rejects.toThrow()
+    expect(await readFile(path.join(outside, 'sentinel'), 'utf8')).toBe('safe')
+  })
+
+  it('refuses a Windows junction storage ancestor', async () => {
+    if (process.platform !== 'win32') {
+      return
+    }
+    const { root, workspace } = await taskWorkspace('junction')
+    const storage = path.join(root, '..', 'storage')
+    const outside = path.join(root, '..', 'junction-target')
+    await mkdir(path.join(outside, path.basename(workspace.folder)), { recursive: true })
+    const sentinel = path.join(outside, path.basename(workspace.folder), 'sentinel')
+    await writeFile(sentinel, 'safe')
+    await rename(path.join(storage, 'agents'), path.join(storage, 'original-agents'))
+    await symlink(outside, path.join(storage, 'agents'), 'junction')
+    await expect(
+      removeTeamWorkspace(runGit, root, storage, workspace.folder),
+    ).rejects.toMatchObject({ code: 'workspaceFailed' })
+    expect(await readFile(sentinel, 'utf8')).toBe('safe')
   })
 
   it('keeps an unmerged task until this runs', async () => {
@@ -291,6 +398,24 @@ describe('removeTeamWorkspace', () => {
 })
 
 describe('credential-free workers', () => {
+  it('Git cannot recover a synthetic helper from config parameters or passthrough', async () => {
+    const { root } = await teamFixtureRepo(runGit)
+    const workerGit = teamGitRunner(
+      workerEnvironment(
+        {
+          ...teamGitEnv,
+          GIT_CONFIG_PARAMETERS: "'credential.helper=!printf canary'",
+          SSH_AUTH_SOCK: '/synthetic/socket',
+        },
+        process.platform,
+        ['GIT_CONFIG_PARAMETERS', 'SSH_AUTH_SOCK'],
+      ),
+    )
+    expect(
+      TEXT.decode(await workerGit(['config', '--get-all', 'credential.helper'], root)).trim(),
+    ).toBe('')
+  })
+
   it('a worker’s remote reach fails on our refusing ssh, not on the network', async () => {
     const { root } = await teamFixtureRepo(runGit)
     const workerGit = teamGitRunner(workerEnvironment(teamGitEnv, process.platform))

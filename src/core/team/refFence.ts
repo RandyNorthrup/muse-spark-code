@@ -9,6 +9,9 @@
 // itself is lane 0's `TEAM_READ_ONLY_COMMANDS`, which callers pass in
 // through `ReadOnlyCommandEntry` (the temporary seam until lane 0 lands).
 
+import { commandShape } from '../backends/modelapi/shellSyntax'
+import { pathModule } from '../workspaceRoot'
+
 /** A refusal at call admission: what was refused, and the stable reason. */
 export interface TeamRefusal {
   /** The exact command or argument list that was refused. */
@@ -308,7 +311,17 @@ function isListOnly(rest: readonly string[]): boolean {
 }
 
 /** An option that writes a file (`git diff --output=…`) is refused. */
-const WRITE_OPTIONS = new Set(['--output'])
+const WRITE_OPTIONS = new Set([
+  '--output',
+  '-o',
+  '-w',
+  '--lost-found',
+  '--ext-diff',
+  '--textconv',
+  '--filters',
+  '--open-files-in-pager',
+  '--exec-path',
+])
 
 function checkGitOptions(rest: readonly string[], command: string): RefFenceVerdict {
   const end = rest.indexOf('--')
@@ -337,238 +350,87 @@ function checkGitOptions(rest: readonly string[], command: string): RefFenceVerd
 export interface ReadOnlyCommandEntry {
   readonly command: string
   readonly subcommand?: string | undefined
+  /** Exact arguments after the executable, supplied by the trusted host. */
+  readonly argv: readonly string[]
   readonly refusedOptions?: readonly string[] | undefined
 }
 
 export interface ReadOnlyShellOptions {
   readonly platform: NodeJS.Platform
-  /** Lane 0's read-only list, injected until it lands. */
   readonly readOnly: readonly ReadOnlyCommandEntry[]
+  /** Absolute Git path already resolved and trusted by the host. */
+  readonly trustedGitPath: string
 }
 
-/** PowerShell cmdlets that write, whatever their arguments. */
-const WRITE_CMDLETS = new Set([
-  'set-content',
-  'add-content',
-  'clear-content',
-  'out-file',
-  'new-item',
-  'copy-item',
-  'move-item',
-  'remove-item',
-  'rename-item',
-  'set-item',
-  'tee-object',
-  'set-clipboard',
-])
-
-/** Characters that separate shell segments (doubled `&&`/`||` count once). */
-const SEPARATOR_CHARS = new Set([';', '&', '|'])
-const QUOTE_CHARS = new Set(['"', "'"])
-const BLANK_CHARS = new Set([' ', '\t'])
-
-/** Split a command line on unquoted `;`, `&&`, `||`, `|` and `&`. */
-function splitSegments(command: string): readonly string[][] {
-  const segments: string[][] = [[]]
-  let current = ''
-  let quote: string | undefined
-  const push = (): void => {
-    if (current === '') {
-      return
-    }
-
-    segments.at(-1)?.push(current)
-    current = ''
-  }
-  let index = 0
-  while (index < command.length) {
-    const char = command[index] ?? ''
-    if (quote !== undefined) {
-      current += char
-      if (char === quote) {
-        quote = undefined
-      }
-      index += 1
-      continue
-    }
-    if (char === '"' || char === "'") {
-      quote = char
-      current += char
-      index += 1
-      continue
-    }
-    if (SEPARATOR_CHARS.has(char)) {
-      push()
-      // `&&` and `||` are one separator, not two.
-      if (
-        index + 1 < command.length &&
-        command[index + 1] === char &&
-        (char === '&' || char === '|')
-      ) {
-        index += 1
-      }
-      segments.push([])
-      index += 1
-      continue
-    }
-    current += char
-    index += 1
-  }
-  push()
-  return segments.map((tokens) => tokens.flatMap((token) => splitTokens(token)))
-}
-
-/** Whitespace split that keeps quoted spans whole (quotes retained). */
-function splitTokens(segment: string): readonly string[] {
-  const tokens: string[] = []
-  let current = ''
-  let quote: string | undefined
-  const push = (): void => {
-    if (current === '') {
-      return
-    }
-
-    tokens.push(current)
-    current = ''
-  }
-  for (const char of segment) {
-    if (quote !== undefined) {
-      current += char
-      if (char === quote) {
-        quote = undefined
-      }
-      continue
-    }
-    if (QUOTE_CHARS.has(char)) {
-      quote = char
-      current += char
-      continue
-    }
-    if (BLANK_CHARS.has(char)) {
-      push()
-      continue
-    }
-    current += char
-  }
-  push()
-  return tokens
-}
-
-/** A token quoted on both ends (the quotes are still attached). */
-function isQuoted(token: string): boolean {
-  return (
-    token.length >= 2 &&
-    ((token.startsWith('"') && token.endsWith('"')) ||
-      (token.startsWith("'") && token.endsWith("'")))
-  )
-}
-
-/** `2>&1` duplicates a descriptor; anything else with `>` writes a file. */
-const REDIRECT_DUPLICATE = /^\d*>&\d+$/
-
-function isRedirect(token: string): boolean {
-  return (
-    !isQuoted(token) &&
-    !REDIRECT_DUPLICATE.test(token) &&
-    (token.startsWith('>') ||
-      token === '>|' ||
-      token === '<>' ||
-      token === '&>' ||
-      /^\d+>/.test(token) ||
-      token.startsWith('&>'))
-  )
-}
-
-function executableBase(word: string, platform: NodeJS.Platform): string {
-  const bare = word.replaceAll(/["']/g, '').split('/').at(-1)?.split('\\').at(-1) ?? ''
-  const noExtension = bare.replace(/\.(?:exe|cmd|bat|ps1|com)$/i, '')
-  return platform === 'win32' ? noExtension.toLowerCase() : noExtension
-}
-
-function isSameCommand(entry: string, actual: string, platform: NodeJS.Platform): boolean {
-  return platform === 'win32' ? entry.toLowerCase() === actual.toLowerCase() : entry === actual
-}
-
-/**
- * A shell command for a `read-only` role. Every `;`/`&&`/`||`/`|` segment
- * must be on the read-only list: a redirect (`echo x > f`), a write cmdlet
- * (`Set-Content`), a refused option (`git diff --output=…`), a git command
- * the ref guard refuses, or anything off the list is refused, never asked.
- */
+/** Admission returns the invocation to execFile, never a shell string. */
 export function classifyReadOnlyShellCommand(
   command: string,
   options: ReadOnlyShellOptions,
-): RefFenceVerdict {
-  const segments = splitSegments(command).filter((tokens) => tokens.length > 0)
-  if (segments.length === 0) {
+):
+  | RefFenceVerdict
+  | { readonly allowed: true; readonly executable: string; readonly args: readonly string[] } {
+  const shape = commandShape(command, options.platform === 'win32' ? 'powershell' : 'bash')
+  if (!shape.isPlain) {
+    return refused(command, shape.reason === 'redirection' ? 'shellRedirect' : 'notReadOnly')
+  }
+  if (shape.commands.length !== 1) {
     return refused(command, 'notReadOnly')
   }
-  for (const tokens of segments) {
-    const verdict = classifySegment(tokens.join(' '), tokens, options)
-    if (!verdict.allowed) {
-      return verdict
-    }
-  }
-  return { allowed: true }
-}
-
-function classifySegment(
-  command: string,
-  tokens: readonly string[],
-  options: ReadOnlyShellOptions,
-): RefFenceVerdict {
-  for (const token of tokens) {
-    if (isRedirect(token)) {
-      return refused(command, 'shellRedirect')
-    }
-  }
-  const executable = executableBase(tokens[0] ?? '', options.platform)
-  if (executable === '') {
+  const tokens = shape.commands[0] ?? []
+  const executable = tokens[0] ?? ''
+  const p = pathModule(options.platform)
+  if (
+    !p.isAbsolute(options.trustedGitPath) ||
+    (executable !== 'git' && executable !== options.trustedGitPath)
+  ) {
     return refused(command, 'notReadOnly')
   }
-  if (WRITE_CMDLETS.has(executable.toLowerCase())) {
-    return refused(command, 'writeCommand')
-  }
-  if (isSameCommand('git', executable, options.platform)) {
-    const guard = classifyWorkerGitCommand(tokens)
-    if (!guard.allowed) {
-      return guard
-    }
+  const args = tokens.slice(1)
+  const guard = classifyWorkerGitCommand(args)
+  if (!guard.allowed) {
+    return guard
   }
   const entry = options.readOnly.find(
     (candidate) =>
-      isSameCommand(candidate.command, executable, options.platform) &&
-      (candidate.subcommand === undefined || tokens[1] === candidate.subcommand),
+      candidate.command === 'git' &&
+      candidate.argv.length === args.length &&
+      candidate.argv.every((arg, index) => arg === args[index]),
   )
-  // A bare `git` match without the subcommand still needs its subcommand
-  // named: `git` alone on the list does not admit `git push`.
   if (entry === undefined) {
     return refused(command, 'notReadOnly')
   }
-  if (entry.subcommand === undefined && isSameCommand('git', executable, options.platform)) {
-    return refused(command, 'notReadOnly')
+  const refusedOptions = new Set([...WRITE_OPTIONS, ...(entry.refusedOptions ?? [])])
+  const end = args.indexOf('--')
+  if (
+    args
+      .slice(0, end === -1 ? undefined : end)
+      .some((arg) => refusedOptions.has(arg.split('=', 1)[0] ?? arg))
+  ) {
+    return refused(command, 'refusedOption')
   }
-  const refusedOptions = new Set<string>(['--output', ...(entry.refusedOptions ?? [])])
-  const rest = tokens.slice(1)
-  const end = rest.indexOf('--')
-  const flags = rest.slice(0, end === -1 ? undefined : end)
-  for (const token of flags) {
-    if (token === '-' || isQuoted(token) || !token.startsWith('-')) {
-      continue
-    }
-    const name = token.split('=', 1)[0] ?? token
-    if (refusedOptions.has(name)) {
-      return refused(command, 'refusedOption')
-    }
-  }
-  return { allowed: true }
+  return { allowed: true, executable: options.trustedGitPath, args: ['--no-pager', ...args] }
 }
 
 // ---------------------------------------------------------------------------
 // The credential-free worker environment.
 // ---------------------------------------------------------------------------
 
-const CREDENTIAL_NAME = /api[_-]?key|token|secret|password|credentials?/i
+const WORKER_ENV_ALLOWLIST = new Set([
+  'PATH',
+  'HOME',
+  'USERPROFILE',
+  'SYSTEMROOT',
+  'WINDIR',
+  'COMSPEC',
+  'PATHEXT',
+  'TEMP',
+  'TMP',
+  'TMPDIR',
+  'LANG',
+  'LC_ALL',
+  'LC_CTYPE',
+])
+const WORKER_ENV_BLOCKED = /^(?:GIT_|SSH_|LD_|DYLD_|NODE_|BASH_ENV$|ENV$)/i
 
 /**
  * The environment a worker process starts with: no git credentials (no
@@ -583,35 +445,26 @@ export function workerEnvironment(
   passthrough: readonly string[] = [],
 ): NodeJS.ProcessEnv {
   const nullDevice = platform === 'win32' ? 'NUL' : '/dev/null'
-  const kept = new Set(passthrough)
+  const kept = new Set(passthrough.map((name) => name.toUpperCase()))
   const out: NodeJS.ProcessEnv = {}
   for (const [name, value] of Object.entries(env)) {
-    if (value === undefined) {
-      continue
-    }
-    if (kept.has(name)) {
-      out[name] = value
-      continue
-    }
+    const upper = name.toUpperCase()
     if (
-      name === 'SSH_AUTH_SOCK' ||
-      name === 'GIT_ASKPASS' ||
-      name === 'SSH_ASKPASS' ||
-      CREDENTIAL_NAME.test(name)
+      value !== undefined &&
+      !WORKER_ENV_BLOCKED.test(upper) &&
+      (WORKER_ENV_ALLOWLIST.has(upper) || kept.has(upper))
     ) {
-      continue
+      out[name] = value
     }
-    out[name] = value
   }
   out['GIT_TERMINAL_PROMPT'] = '0'
-  out['GIT_ASKPASS'] = ''
-  out['SSH_ASKPASS'] = ''
   out['GIT_SSH_COMMAND'] = 'muse-spark-refuses-ssh'
   out['GIT_CONFIG_COUNT'] = '2'
   out['GIT_CONFIG_KEY_0'] = 'credential.helper'
   out['GIT_CONFIG_VALUE_0'] = ''
   out['GIT_CONFIG_KEY_1'] = 'core.askpass'
   out['GIT_CONFIG_VALUE_1'] = ''
+  out['GIT_CONFIG_NOSYSTEM'] = '1'
   out['GIT_CONFIG_GLOBAL'] = nullDevice
   out['GIT_CONFIG_SYSTEM'] = nullDevice
   return out

@@ -18,6 +18,14 @@ happened, not what was planned; superseded entries are kept.
   markers, protected paths, `write-paths`, Undo merge), and review-before-merge
   with the reviewer pick that differs from every author.
 
+### Fixed
+
+- **Team workspace security (RVM96B lane I).** Read-only commands require
+  exact arguments and trusted Git execution; worker environments cannot
+  restore Git helpers or SSH agents. Cleanup refuses linked storage parents,
+  task publication uses atomic ref compare-and-swap, untracked source enters
+  the worker base, and ignored scratch writes count as breaches.
+
 ## [0.12.1] - 2026-10-04
 
 ### Changed

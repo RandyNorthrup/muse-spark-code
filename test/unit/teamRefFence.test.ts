@@ -17,18 +17,19 @@ import {
   type ReadOnlyCommandEntry,
 } from '../../src/core/team/refFence'
 
+const TRUSTED_GIT = process.platform === 'win32' ? String.raw`C:\trusted\git.exe` : '/usr/bin/git'
 const READ_ONLY: readonly ReadOnlyCommandEntry[] = [
-  { command: 'git', subcommand: 'diff' },
-  { command: 'git', subcommand: 'log' },
-  { command: 'git', subcommand: 'status' },
-  { command: 'git', subcommand: 'show' },
-  { command: 'ls' },
+  { command: 'git', argv: ['diff'] },
+  { command: 'git', argv: ['log', '--oneline'] },
+  { command: 'git', argv: ['log', '--grep=a > b'] },
+  { command: 'git', argv: ['status'] },
 ]
 
-function shell(command: string) {
+function shell(command: string, readOnly = READ_ONLY) {
   return classifyReadOnlyShellCommand(command, {
     platform: process.platform,
-    readOnly: READ_ONLY,
+    readOnly,
+    trustedGitPath: TRUSTED_GIT,
   })
 }
 
@@ -153,62 +154,72 @@ describe('classifyWorkerGitCommand', () => {
 })
 
 describe('classifyReadOnlyShellCommand', () => {
-  it('allows listed commands', () => {
-    expect(shell('git log --oneline')).toEqual({ allowed: true })
-    expect(shell('ls')).toEqual({ allowed: true })
+  it('returns only the trusted Git executable and exact argv for direct execution', () => {
+    expect(shell('git log --oneline')).toEqual({
+      allowed: true,
+      executable: TRUSTED_GIT,
+      args: ['--no-pager', 'log', '--oneline'],
+    })
+    expect(shell('git log --stat').allowed).toBe(false)
+    expect(shell('ls').allowed).toBe(false)
   })
 
-  it('refuses commands off the list, not asked', () => {
-    expect(shell('rm -rf out')).toMatchObject({ reason: 'notReadOnly' })
-    expect(shell('npm test')).toMatchObject({ reason: 'notReadOnly' })
+  it.each([
+    'git log --grep="$(git push)"',
+    'ls "$(touch canary)"',
+    'git log --grep="`touch canary`"',
+    'git log && git status',
+    'git log; git status',
+    'git log | git status',
+    'git log\ngit status',
+    '/tmp/untrusted/git log --oneline',
+    '/tmp/untrusted/ls',
+    'git log --grep=$HOME',
+    'git log "unterminated',
+  ])('refuses shell evaluation or an untrusted executable: %s', (command) => {
+    expect(shell(command).allowed).toBe(false)
   })
 
-  it('refuses a write redirect', () => {
-    expect(shell('echo x > f')).toMatchObject({ reason: 'shellRedirect' })
-    expect(shell('echo x >> f')).toMatchObject({ reason: 'shellRedirect' })
+  it.each([
+    '--output=canary',
+    '"--output=canary"',
+    "'--output=canary'",
+    '--output canary',
+    '--ext-diff',
+    '--textconv',
+    '-o canary',
+  ])('refuses decoded write/program option %s', (flag) => {
+    expect(shell(`git diff ${flag}`).allowed).toBe(false)
   })
 
-  it('refuses write cmdlets', () => {
-    expect(shell('Set-Content f "x"')).toMatchObject({ reason: 'writeCommand' })
-    expect(shell('Out-File -FilePath f')).toMatchObject({ reason: 'writeCommand' })
-  })
-
-  it('refuses a read-only command with a refused option', () => {
-    expect(shell('git diff --output=src/a.ts')).toMatchObject({ reason: 'refusedOption' })
-    expect(shell('git diff --output src/a.ts')).toMatchObject({ reason: 'refusedOption' })
-  })
-
-  it('runs the ref guard under the list', () => {
-    expect(shell('git push')).toMatchObject({ reason: 'gitRemote' })
-    const withPush: readonly ReadOnlyCommandEntry[] = [
-      ...READ_ONLY,
-      { command: 'git', subcommand: 'push' },
-    ]
+  it('refuses unsafe options even when the trusted list names the exact argv', () => {
     expect(
-      classifyReadOnlyShellCommand('git push', {
-        platform: process.platform,
-        readOnly: withPush,
-      }),
-    ).toMatchObject({ reason: 'gitRemote' })
-  })
-
-  it('refuses a write hiding in a chain', () => {
-    expect(shell('git log && echo x > f')).toMatchObject({ reason: 'shellRedirect' })
-    expect(shell('git log; Set-Content f x')).toMatchObject({ reason: 'writeCommand' })
-  })
-
-  it('ignores a quoted redirect', () => {
-    expect(shell('git log --grep="a > b"')).toEqual({ allowed: true })
-  })
-
-  it('honours an entry’s own refused options', () => {
-    const list: readonly ReadOnlyCommandEntry[] = [{ command: 'ls', refusedOptions: ['-R'] }]
-    expect(
-      classifyReadOnlyShellCommand('ls -R', { platform: process.platform, readOnly: list }),
+      shell('git diff "--output=canary"', [{ command: 'git', argv: ['diff', '--output=canary'] }]),
     ).toMatchObject({ reason: 'refusedOption' })
     expect(
-      classifyReadOnlyShellCommand('ls -l', { platform: process.platform, readOnly: list }),
-    ).toEqual({ allowed: true })
+      shell('git hash-object -w tracked.txt', [
+        { command: 'git', argv: ['hash-object', '-w', 'tracked.txt'] },
+      ]),
+    ).toMatchObject({ reason: 'refusedOption' })
+  })
+
+  it('runs the ref guard under an exact list entry', () => {
+    expect(shell('git push', [{ command: 'git', argv: ['push'] }])).toMatchObject({
+      reason: 'gitRemote',
+    })
+  })
+
+  it('allows inert quoted data after decoding quotes', () => {
+    expect(shell('git log --grep="a > b"').allowed).toBe(true)
+  })
+
+  it('refuses redirects and entry-specific refused options', () => {
+    expect(shell('git log > f')).toMatchObject({ reason: 'shellRedirect' })
+    expect(
+      shell('git log --oneline', [
+        { command: 'git', argv: ['log', '--oneline'], refusedOptions: ['--oneline'] },
+      ]),
+    ).toMatchObject({ reason: 'refusedOption' })
   })
 })
 
@@ -237,13 +248,41 @@ describe('workerEnvironment', () => {
   it('disarms git credentials', () => {
     const out = workerEnvironment(base, process.platform)
     expect(out['GIT_TERMINAL_PROMPT']).toBe('0')
-    expect(out['GIT_ASKPASS']).toBe('')
+    expect(out['GIT_ASKPASS']).toBeUndefined()
     expect(out['GIT_SSH_COMMAND']).toBe('muse-spark-refuses-ssh')
     expect(out['GIT_CONFIG_COUNT']).toBe('2')
     expect(out['GIT_CONFIG_KEY_0']).toBe('credential.helper')
     expect(out['GIT_CONFIG_VALUE_0']).toBe('')
     expect(out['GIT_CONFIG_GLOBAL']).toBe(process.platform === 'win32' ? 'NUL' : '/dev/null')
     expect(out['GIT_CONFIG_SYSTEM']).toBe(process.platform === 'win32' ? 'NUL' : '/dev/null')
+  })
+
+  it('starts empty and cannot restore config, loaders or agents through passthrough', () => {
+    const injected = {
+      GIT_CONFIG_PARAMETERS: "'credential.helper=!printf canary'",
+      GIT_CONFIG_COUNT: '1',
+      GIT_CONFIG_KEY_0: 'credential.helper',
+      GIT_CONFIG_VALUE_0: '!printf canary',
+      SSH_AUTH_SOCK: '/synthetic/socket',
+      SSH_ASKPASS: '/synthetic/ask',
+      GIT_ASKPASS: '/synthetic/ask',
+      NODE_OPTIONS: '--require=/synthetic/loader',
+      LD_PRELOAD: '/synthetic/loader',
+      UNLISTED: 'value',
+      git_config_parameters: 'canary',
+      ssh_auth_sock: 'canary',
+    }
+    const out = workerEnvironment(injected, process.platform, Object.keys(injected))
+    expect(out['GIT_CONFIG_PARAMETERS']).toBeUndefined()
+    expect(out['SSH_AUTH_SOCK']).toBeUndefined()
+    expect(out['SSH_ASKPASS']).toBeUndefined()
+    expect(out['GIT_ASKPASS']).toBeUndefined()
+    expect(out['git_config_parameters']).toBeUndefined()
+    expect(out['ssh_auth_sock']).toBeUndefined()
+    expect(out['NODE_OPTIONS']).toBeUndefined()
+    expect(out['LD_PRELOAD']).toBeUndefined()
+    expect(out['GIT_CONFIG_NOSYSTEM']).toBe('1')
+    expect(workerEnvironment({ UNLISTED: 'value' }, process.platform)['UNLISTED']).toBeUndefined()
   })
 
   it('keeps the names the profile passes through', () => {
