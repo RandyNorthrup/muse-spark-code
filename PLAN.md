@@ -16055,6 +16055,22 @@ joined with M57, M58 and PR #49's sign-in
 
 ---
 
+### M102 J review repair — FIXM102J (2026-10-05)
+
+Repair all four RVM102J findings inside J's store, Node adapter and recorder.
+Readers take the maintenance lock and verify its generation before returning;
+a lost generation permits one fresh snapshot attempt, then an explicit failure.
+Rollups are read through one open handle without a prior path-size bound, and
+published with a private temporary file, fsync and atomic replacement (including
+Windows rename retries). Lock claims use immutable numbered generations and
+owner-token release markers: a predecessor never unlinks a successor's claim.
+Incomplete usage with a known price keeps `uncertain`, with the reported part
+priced while missing counters stay absent. Each finding gets a deterministic
+regression and a byte-exact guard-break drill in `docs/certification/m102-j.md`.
+No new dependency or editor-specific behavior; all shared journal consumers
+receive these fixes. Full quality and combined editor wiring remain lead/W work
+as required by the rig brief; do not run full quality or merge in this lane.
+
 ## 7. Gates
 
 **M95INT round-two whole-chain receipt (2026-10-05) — still deferred.**

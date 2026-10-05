@@ -160,6 +160,44 @@ describe('journal records', () => {
       expect(record.cost.usd).toBe(original)
     }
   })
+  it('keeps known prices and prices the known part of incomplete usage', () => {
+    const priced = {
+      ...context,
+      outcome: 'incomplete',
+      pricing: { kind: 'priced', card },
+    } satisfies UsageRecordContext
+    for (const [partial, expected] of [
+      [{ input_tokens: 100 }, 100.5],
+      [{ output_tokens: 20 }, 80.5],
+      [{ input_tokens: 100, input_tokens_details: usage.input_tokens_details }, 98.5],
+      [{ input_tokens_details: { cached_tokens: 30 } }, 3.5],
+    ] satisfies [Partial<Usage>, number][]) {
+      const record = createUsageRecord(partial, priced)
+      expect(record.cost).toEqual({
+        certainty: 'uncertain',
+        usd: expected,
+        source: 'list',
+        date: '2026-10-04',
+      })
+      expect(record.tokens.input).toBe(partial.input_tokens)
+      expect(record.tokens.output).toBe(partial.output_tokens)
+    }
+    expect(createUsageRecord(undefined, priced).cost).toEqual({ certainty: 'uncertain' })
+    expect(createUsageRecord({ input_tokens: 100 }, context).cost).toEqual({
+      certainty: 'unpriced',
+    })
+    const meta = { ...context, provider: 'meta', model: 'muse-spark-1.3' }
+    expect(createUsageRecord({ input_tokens: 100 }, meta).cost).toEqual({
+      certainty: 'uncertain',
+      usd: 0.000125,
+      source: 'meta-published',
+      date: '2026-09-26',
+    })
+    expect(createUsageRecord({ output_tokens: 20 }, meta).cost.usd).toBe(0.000085)
+    expect(
+      createUsageRecord({ input_tokens: 100 }, { ...priced, providerCostUsd: 2 }).cost,
+    ).toEqual({ certainty: 'reported', usd: 2 })
+  })
   it('prices only exact published Meta ids and keeps plan equivalents separate', () => {
     const meta = { ...context, provider: 'meta', model: 'muse-spark-1.3' }
     expect(createUsageRecord({ input_tokens: 100, output_tokens: 20 }, meta).cost).toEqual({

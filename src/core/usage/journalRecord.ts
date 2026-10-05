@@ -86,30 +86,42 @@ export function normaliseUsage(
   return tokens
 }
 
-function pricedUsage(tokens: UsageTokens): PricedUsage | undefined {
-  return tokens.input === undefined || tokens.output === undefined
-    ? undefined
-    : {
-        inputTokens: tokens.input,
-        outputTokens: tokens.output,
-        cachedTokens: tokens.cached,
-        cacheWriteTokens: tokens.cacheWrite,
-        cacheWriteTokens1h: tokens.cacheWrite1h,
-      }
+function pricedUsage(tokens: UsageTokens, canPricePartial = false): PricedUsage | undefined {
+  if (!canPricePartial && (tokens.input === undefined || tokens.output === undefined))
+    return undefined
+  if (
+    tokens.input === undefined &&
+    tokens.output === undefined &&
+    tokens.cached === undefined &&
+    tokens.cacheWrite === undefined
+  )
+    return undefined
+  // Only the known portion is settled; absent counters stay absent in the record.
+  return {
+    inputTokens: tokens.input ?? (tokens.cached ?? 0) + (tokens.cacheWrite ?? 0),
+    outputTokens: tokens.output ?? 0,
+    cachedTokens: tokens.cached,
+    cacheWriteTokens: tokens.cacheWrite,
+    cacheWriteTokens1h: tokens.cacheWrite1h,
+  }
 }
 
 function cardCost(card: PriceCard, tokens: UsageTokens): number | undefined {
-  const billable = pricedUsage(tokens)
+  const billable = pricedUsage(tokens, true)
   return billable === undefined ? undefined : settleUsageUsd(card, billable)
 }
 
-function metaCost(context: UsageRecordContext, tokens: UsageTokens): number | undefined {
+function hasMetaPrice(context: UsageRecordContext): boolean {
   if (context.provider !== 'meta' && context.backend !== 'museCode') {
-    return undefined
+    return false
   }
   const models: readonly string[] = Object.values(MODEL_API_PRICED_MODELS).flat()
-  const billable = pricedUsage(tokens)
-  return billable !== undefined && models.includes(context.model)
+  return models.includes(context.model)
+}
+
+function metaCost(context: UsageRecordContext, tokens: UsageTokens): number | undefined {
+  const billable = pricedUsage(tokens, true)
+  return billable !== undefined && hasMetaPrice(context)
     ? estimateCostUsd({ ...billable, cachedTokens: billable.cachedTokens ?? 0 }, context.model)
     : undefined
 }
@@ -156,8 +168,7 @@ function settleCost(context: UsageRecordContext, tokens: UsageTokens): UsageCost
   const computed = tool ?? (card === undefined ? metaCost(context, tokens) : cardCost(card, tokens))
   if (computed === undefined) {
     return {
-      certainty:
-        tokens.input === undefined && pricing?.kind === 'priced' ? 'uncertain' : 'unpriced',
+      certainty: card !== undefined || hasMetaPrice(context) ? 'uncertain' : 'unpriced',
     }
   }
   let date = context.priceDate
@@ -166,8 +177,12 @@ function settleCost(context: UsageRecordContext, tokens: UsageTokens): UsageCost
     else if (card === undefined) date = MODEL_API_PRICES_VERIFIED_ON
     else date = card.fetchedAt?.split('T', 1)[0]
   }
+  let certainty: UsageCost['certainty'] = 'computed'
+  if (tool === undefined && (tokens.input === undefined || tokens.output === undefined))
+    certainty = 'uncertain'
+  else if (context.estimatedTokens === true) certainty = 'estimated'
   return {
-    certainty: context.estimatedTokens === true ? 'estimated' : 'computed',
+    certainty,
     usd: computed,
     source: tool !== undefined || card === undefined ? 'meta-published' : card.source,
     ...(date !== undefined && { date }),
