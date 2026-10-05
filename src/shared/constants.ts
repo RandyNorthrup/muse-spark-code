@@ -1241,9 +1241,17 @@ export const TOKENS_PER_MILLION = 1_000_000
 // dev.meta.ai/docs/models: every Muse Spark model has this window; the
 // output cap is well under the documented 131,072 maximum.
 export const MODEL_API_CONTEXT_WINDOW = 1_048_576
+/** Verified legacy ids only; an installed registry resolver always owns its rows. */
+export const MODEL_API_LEGACY_CONTEXT_MODELS: readonly string[] = [
+  'muse-spark-1.1',
+  'muse-spark-1.2',
+  'muse-spark-1.3',
+  'muse-spark-1.2-contributor',
+  'muse-spark-1.3-contributor',
+]
 export const MODEL_API_MAX_OUTPUT_TOKENS = 32_768
-// M101: leave output space even on small loaded windows; silent empty replies near full are overflow.
-export const MODEL_API_CONTEXT_RESERVE_FRACTION = 1 / 4
+// M101 admission uses the lane's lower byte estimate, never the dollar-budget upper estimate.
+export const MODEL_API_CONTEXT_BYTES_PER_TOKEN = 4
 export const MODEL_API_SILENT_OVERFLOW_FRACTION = 99 / 100
 // A read uses at most half a window in characters (about one eighth in ordinary text tokens).
 export const READ_FILE_CONTEXT_CHAR_FRACTION = 1 / 2

@@ -50,9 +50,11 @@ import {
   MEMORY_INDEX_FILE,
   type MemoryScope,
   MODEL_API_CLOSE_SETTLE_MS,
+  MODEL_API_CONTEXT_BYTES_PER_TOKEN,
   MODEL_API_CONTEXT_WINDOW,
   MODEL_API_EFFORT_OFF,
   MODEL_API_HOOK_PROVIDER,
+  MODEL_API_LEGACY_CONTEXT_MODELS,
   MODEL_API_MAX_OUTPUT_TOKENS,
   MODEL_API_MAX_RETRIES,
   MODEL_API_MAX_TOOL_ROUNDS,
@@ -264,7 +266,7 @@ import {
   reviewerToolRefusal,
 } from './reviewer'
 import { MediaBudget } from './mediaBudget'
-import { classifyContextOverflow, contextInputLimit } from '../../context/overflow'
+import { classifyContextOverflow } from '../../context/overflow'
 import type {
   ContextModel,
   ContextOverflowEvent,
@@ -1061,6 +1063,7 @@ class ContextOverflowError extends Error {
   public constructor(
     public readonly kind: ContextOverflowKind,
     public readonly modelId: string,
+    public readonly contextTokens: number | undefined,
   ) {
     super(UI_TEXT.contextWindowFull)
     this.name = 'ContextOverflowError'
@@ -1069,11 +1072,10 @@ class ContextOverflowError extends Error {
 
 /** No Meta fallback for a BYO model with an unknown or invalid window. */
 function contextModelFor(deps: ModelApiHostDeps, modelId: string): ContextModel | undefined {
-  const row =
-    deps.contextModel?.(modelId) ??
-    (!modelId.includes('/') && modelId.startsWith(MODEL_API_MODEL_PREFIX)
-      ? { format: 'responses', contextTokens: MODEL_API_CONTEXT_WINDOW }
-      : undefined)
+  let row = deps.contextModel?.(modelId)
+  if (deps.contextModel === undefined && MODEL_API_LEGACY_CONTEXT_MODELS.includes(modelId)) {
+    row = { format: 'responses', contextTokens: MODEL_API_CONTEXT_WINDOW }
+  }
   if (row === undefined) return undefined
   const window = row.contextTokens
   return {
@@ -1870,6 +1872,7 @@ export class ModelApiSession implements AgentSession {
    * at that model's rates, whatever the session switched to meanwhile.
    */
   private sendingModelId: string | undefined
+  private sendingContextModel: ContextModel | undefined
   /** Turns and compactions still running, by id: a closing window waits for them to save (M82). */
   private readonly unsettled = new Map<number, Promise<void>>()
   private workCount = 0
@@ -2453,6 +2456,7 @@ export class ModelApiSession implements AgentSession {
     const reservation = this.openReservation
     this.openReservation = undefined
     this.sendingModelId = undefined
+    this.sendingContextModel = undefined
     if (reservation === undefined) {
       await this.budgetWrites
       return
@@ -2871,7 +2875,10 @@ export class ModelApiSession implements AgentSession {
     const reservation = directBudget === undefined ? this.openReservation : undefined
     const guard: ResponseAttemptGuard = (keyDigest) => {
       // Compaction must remain reachable even when ordinary turns no longer fit (D49).
-      if (this.compacting === undefined) this.assertContextFits(body)
+      this.sendingContextModel =
+        this.compacting === undefined
+          ? this.assertContextFits(body)
+          : contextModelFor(this.deps, body.model)
       if (this.isHostClosing() || this.isDisposed) {
         this.active?.abort.abort()
         this.compacting?.abort()
@@ -3259,10 +3266,10 @@ export class ModelApiSession implements AgentSession {
   }
 
   private noteContext(usedTokens: number): void {
-    const windowTokens = contextModelFor(
-      this.deps,
-      this.sendingModelId ?? this.modelId,
-    )?.contextTokens
+    const windowTokens =
+      this.sendingModelId === undefined
+        ? contextModelFor(this.deps, this.modelId)?.contextTokens
+        : this.sendingContextModel?.contextTokens
     if (windowTokens === undefined) return
     this.emit({
       type: 'contextUsage',
@@ -3272,15 +3279,21 @@ export class ModelApiSession implements AgentSession {
     })
   }
 
-  /** Conservative UTF-8 admission includes instructions, tools and the projected replay. */
-  private assertContextFits(body: CreateResponseBody): void {
-    const window = contextModelFor(this.deps, body.model)?.contextTokens
+  /** Only the lower byte estimate exceeding the full window permits an early refusal. */
+  private assertContextFits(body: CreateResponseBody): ContextModel | undefined {
+    const model = contextModelFor(this.deps, body.model)
+    const window = model?.contextTokens
+    const inputBytes = requestParts(body).reduce(
+      (total, part) => total + Buffer.byteLength(part),
+      0,
+    )
     if (
       window !== undefined &&
-      estimateInput(requestParts(body), undefined).inputTokens > contextInputLimit(window)
+      Math.floor(inputBytes / MODEL_API_CONTEXT_BYTES_PER_TOKEN) > window
     ) {
-      throw new ContextOverflowError('preflight', body.model)
+      throw new ContextOverflowError('preflight', body.model, window)
     }
+    return model
   }
 
   /** The streamed item's tracking entry, created on first sight. */
@@ -3656,7 +3669,7 @@ export class ModelApiSession implements AgentSession {
           undefined,
         )
       }
-      const model = contextModelFor(this.deps, body.model)
+      const model = this.sendingContextModel
       const usage = final.usage
       const overflow =
         usage !== undefined && usage !== null && isCountedUsage(usage)
@@ -3672,7 +3685,7 @@ export class ModelApiSession implements AgentSession {
           : undefined
       if (overflow !== undefined) {
         this.noteUsage(usage, chargedGoalId)
-        throw new ContextOverflowError(overflow, body.model)
+        throw new ContextOverflowError(overflow, body.model, model?.contextTokens)
       }
       this.markReadFileMediaDelivered(turnId, body.input)
       wasFitted = this.commitFittedReplay(requestReplay, body.input)
@@ -3680,7 +3693,7 @@ export class ModelApiSession implements AgentSession {
       calls = this.adoptOutput(turnId, final, open, chargedGoalId)
     } catch (error: unknown) {
       this.noteRequestRefusal(reservation, error)
-      const model = contextModelFor(this.deps, body.model)
+      const model = this.sendingContextModel
       if (
         !signal.aborted &&
         error instanceof ModelApiError &&
@@ -3690,7 +3703,7 @@ export class ModelApiSession implements AgentSession {
           error,
         }) !== undefined
       ) {
-        throw new ContextOverflowError('error', body.model)
+        throw new ContextOverflowError('error', body.model, model?.contextTokens)
       }
       throw error
     } finally {
@@ -8623,7 +8636,7 @@ export class ModelApiSession implements AgentSession {
             turnId: turn.turnId,
             modelId: error.modelId,
             kind: error.kind,
-            contextTokens: contextModelFor(this.deps, error.modelId)?.contextTokens,
+            contextTokens: error.contextTokens,
           })
         } else {
           errorKind = isAuthFailure(error) ? AUTH_REQUIRED_ERROR_KIND : MODEL_API_ERROR_KIND

@@ -15669,20 +15669,25 @@ its sections 1–2 (harness), "BYO n" its section 3 (providers).
   classified overflow (from lane O). The M75 arm is frozen before it runs.
 - **Lane O — context overflow** (item 6, item 13's budget scaling).
   A pure `providers/overflow.ts` with Pi's per-format patterns (429 and rate
-  limits never count) and the two silent-overflow signals; the model's
+  limits and quota/billing failures never count) and the two silent-overflow signals; the model's
   `contextTokens` replaces the fixed window; until C2 lands the user sees
-  "Context window full: /compact or /handoff"; a pre-request check against
-  window minus reserve. `read_file`'s character budget scales with
+  "Context window full: /compact or /handoff"; a pre-request lower-bound check
+  against the full window. `read_file`'s character budget scales with
   `contextTokens`.
 
   **Lane O status (2026-10-05, win11):** implement the pure per-format
   classifier and classified engine event, reject 429/rate-limit errors,
   detect the two completed-reply usage signals, and protect ordinary sends
-  with conservative UTF-8 admission against the selected window minus a
-  scaled output reserve. Read pressure, model-list limits, compaction's
+  with lower-bound admission against the selected full window, never the
+  dollar-budget upper estimate. Read pressure, model-list limits, compaction's
   pressure and the read-file budget from the injected model row; leave
-  compaction exempt from the ordinary-send fence. A bare Muse model retains
-  its documented window and its request bytes. The base lacks the M95
+  compaction exempt from the ordinary-send fence. Only the named verified
+  legacy Muse ids retain their documented window when no resolver is installed;
+  an authoritative missing row stays unknown. Keep the final check after key
+  retrieval, then retain that attempt's window/format for pressure, completion,
+  error classification and the recovery event. RVM101O's four findings are the
+  scope of FIXM101O, with individual failing regressions and byte-exact drills.
+  The base lacks the M95
   registry/client integration: the new `contextModel` dependency is its
   owned integration seam, not proof of reachable BYO dispatch. Keep the
   classifier implementation in core context, used by the lazy engine, with the requested
@@ -16397,6 +16402,24 @@ before a repaired one loads (2026-09-30).
 | `test/unit/providerCredentialRecords.test.ts` | `eslint-disable-next-line unicorn/prefer-https` on one origin-binding assertion     | The test proves a downgraded `http:` scheme is refused as a different origin; an `https:` URL cannot exercise that leg. One literal, test-only.                                                                                                             | 2026-10-05 |
 
 ## 9. Security assumptions and accepted residual risk
+
+- **FIXM101O / RVM101O (2026-10-05, win11).** All four assigned findings
+  are fixed: lower input admission against the full window, quota/billing/
+  credit vetoes across formats, attempt-owned admitted metadata, and the
+  exact legacy Muse fallback only without a resolver. No assigned P1/P2/P3
+  remains. Regressions and byte-exact drills: `docs/certification/m101-o.md`.
+  Existing integration prerequisites remain named: **FIXM101O-REGISTRY**
+  (BYO registry/client dispatch remains unwired; safe while no BYO session
+  dispatches, follow-up: supply authoritative rows and certify dispatch),
+  **FIXM101O-CAPTURES** (fake 8k proof and canonical errors certify local
+  logic, not native overflow receipts; safe without a new native parser,
+  follow-up: lane E's counted captures), **FIXM101O-RECOVERY** (manual recovery
+  stays explicit; safe without an automatic billed retry, follow-up: C2's
+  guarded recovery), and **FIXM101O-COMPOSED-READ** (the real tool regression
+  proves clipping but the additional composed transcript assertion is still
+  open; safe with existing helper/tool tests, follow-up: integration fixture
+  repair under §7). Full quality and the platform matrix remain the lead's
+  gates under the rig brief; the shared engine changes also serve ACP/headless.
 
 - **FIXM95P (2026-10-05):** all thirteen assigned RVM95A findings
   (1, 2, 4–8, 12–15, 18, 19) are repaired with regressions and deliberate

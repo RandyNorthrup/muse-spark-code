@@ -1,11 +1,6 @@
 // Context protection (M101, D81), inspired by Pi's overflow classifier.
 // These are already validated canonical errors/usage, never native wire parsers.
-import {
-  HTTP_TOO_MANY_REQUESTS,
-  MODEL_API_CONTEXT_RESERVE_FRACTION,
-  MODEL_API_MAX_OUTPUT_TOKENS,
-  MODEL_API_SILENT_OVERFLOW_FRACTION,
-} from '../../shared/constants'
+import { HTTP_TOO_MANY_REQUESTS, MODEL_API_SILENT_OVERFLOW_FRACTION } from '../../shared/constants'
 import type { ModelRow } from '../providers/modelFilters'
 import type { ProviderFormat } from '../providers/providersFile'
 
@@ -59,15 +54,7 @@ const PATTERNS: Record<ProviderFormat, readonly RegExp[]> = {
 }
 const RATE_LIMIT =
   /(?:rate[\s_-]*limit|rate exceeded|too many requests|tokens per (?:minute|day)|\b(?:429|tpm|rpm)\b)/i
-
-/** Reserved space scales down for small windows, retaining the Muse output reserve. */
-export function contextInputLimit(contextTokens: number): number {
-  const reserve = Math.min(
-    MODEL_API_MAX_OUTPUT_TOKENS,
-    Math.ceil(contextTokens * MODEL_API_CONTEXT_RESERVE_FRACTION),
-  )
-  return Math.max(0, contextTokens - reserve)
-}
+const QUOTA_OR_BILLING = /(?:quota|billing|credit)/i
 
 /** Unknown windows disable usage heuristics; unknown formats disable error-text matching. */
 export function classifyContextOverflow(input: {
@@ -89,7 +76,8 @@ export function classifyContextOverflow(input: {
   if (error !== undefined) {
     if (
       error.status === HTTP_TOO_MANY_REQUESTS ||
-      RATE_LIMIT.test(`${error.code ?? ''} ${error.kind ?? ''} ${error.message}`)
+      RATE_LIMIT.test(`${error.code ?? ''} ${error.kind ?? ''} ${error.message}`) ||
+      QUOTA_OR_BILLING.test(`${error.code ?? ''} ${error.kind ?? ''} ${error.message}`)
     )
       return undefined
     return format !== undefined &&

@@ -2,7 +2,6 @@
 // serves bare Muse without loading the optional providers bundle (D6).
 export {
   classifyContextOverflow,
-  contextInputLimit,
   type ContextModel,
   type ContextOverflowEvent,
   type ContextOverflowKind,

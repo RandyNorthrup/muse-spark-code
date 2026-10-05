@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { classifyContextOverflow, contextInputLimit } from '../../src/core/providers/overflow'
+import { classifyContextOverflow } from '../../src/core/providers/overflow'
 import type { ProviderFormat } from '../../src/core/providers/providersFile'
 
 // Synthetic classifier inputs, not newly captured native error envelopes.
@@ -46,6 +46,38 @@ describe('provider context overflow (M101 item 6)', () => {
           },
         }),
       ).toBeUndefined()
+    }
+  })
+
+  it.each(FORMATS)('quota, billing and credit evidence vetoes overflow on %s', (format) => {
+    const overflow =
+      'prompt is too long; input token count exceeds the maximum; input length exceeds context length'
+    for (const veto of [
+      'insufficient_quota',
+      'quota_exceeded',
+      'Quota exhausted: too many tokens',
+      'Requested tokens exceed the quota limit',
+      'Token limit exceeded for your current quota',
+      'billing_hard_limit_reached',
+      'billing limit exceeded',
+      'credit balance is too low',
+      'out of credits',
+      'insufficient credits',
+      'insufficient_credits',
+    ]) {
+      for (const field of ['code', 'kind', 'message']) {
+        expect(
+          classifyContextOverflow({
+            format,
+            error: {
+              status: 403,
+              message: overflow,
+              [field]: field === 'message' ? `${veto}; ${overflow}` : veto,
+            },
+          }),
+          `${format}: ${field}: ${veto}`,
+        ).toBeUndefined()
+      }
     }
   })
 
@@ -157,11 +189,5 @@ describe('provider context overflow (M101 item 6)', () => {
         response: { completed: false, inputTokens: 8193, outputTokens: 0 },
       }),
     ).toBeUndefined()
-  })
-
-  it('reserves a quarter of small windows and the Muse output allowance on large windows', () => {
-    expect(contextInputLimit(8192)).toBe(6144)
-    expect(contextInputLimit(65_536)).toBe(49_152)
-    expect(contextInputLimit(1_048_576)).toBe(1_015_808)
   })
 })

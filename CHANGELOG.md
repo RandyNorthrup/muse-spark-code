@@ -11,9 +11,13 @@ happened, not what was planned; superseded entries are kept.
 
 - Model API turns recognize context overflow and show “Context window full:
   /compact or /handoff”. Context pressure, request admission and text-file
-  read budgets follow the selected model's supplied window. Ordinary sends
-  leave output space; manual compaction remains available. Rate limits keep
-  their existing retry path. BYO registry wiring and automatic recovery remain
+  read budgets follow the selected model's supplied window. Admission checks
+  the lower input estimate against the full window, so an 8k Ollama session
+  can start with the real prompt and tools. Each attempt keeps its admitted
+  window and format through completion and failure. Quota and billing failures
+  keep their actual errors; only verified legacy Muse ids inherit the Muse
+  window when no registry resolver is installed. Manual compaction remains
+  available and rate limits keep their existing retry path. BYO registry wiring and automatic recovery remain
   integration work.
 
 - M95 integration shares the Node validation runtime and the provider-setup
