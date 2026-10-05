@@ -37,6 +37,7 @@ export interface ServeOptions {
 
 export type RuntimeCommand =
   | JudgeCliCommand
+  | { readonly command: 'setup'; readonly options: ServeOptions; readonly maintenance: boolean }
   | { readonly command: 'exec'; readonly options: ExecOptions }
   | { readonly command: 'scan-secrets'; readonly file: string; readonly keyFromStdin: boolean }
   | { readonly command: 'serve'; readonly options: ServeOptions }
@@ -118,6 +119,12 @@ export function parseCommandLine(argv: readonly string[]): RuntimeCommand {
     isVerbose: values.verbose === true,
   }
   const [first, second, ...rest] = positionals
+  if (first === 'setup' && second === undefined) {
+    return options.trustWorkspace
+      ? { command: 'setup', options, maintenance: values.maintenance === true }
+      : { command: 'invalid', reason: UI_TEXT.hooksNotRunnable }
+  }
+  if (values.maintenance === true) return invalid('--maintenance')
   if (first === undefined) {
     return { command: 'serve', options }
   }
@@ -197,6 +204,7 @@ function parseCommandLineStrictly(argv: readonly string[]) {
     options: {
       backend: { type: 'string' },
       'trust-workspace': { type: 'boolean' },
+      maintenance: { type: 'boolean' },
       'muse-binary': { type: 'string' },
       'shell-sandbox': { type: 'string' },
       'allow-dangerously-skip-permissions': { type: 'boolean' },

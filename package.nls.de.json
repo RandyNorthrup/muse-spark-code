@@ -136,5 +136,11 @@
   "config.judge.engine.enumDescriptions.off": "Kein Beurteiler: Genehmigungen verhalten sich genau wie ohne ihn.",
   "config.judge.engine.enumDescriptions.separate": "Nur den eingerichteten separaten Beurteiler verwenden, wenn seine Quelle verfügbar und zulässig ist. Diese Auswahl allein aktiviert keine Quelle.",
   "config.judge.engine.enumDescriptions.both": "Den separaten Beurteiler und das eigene Chatmodell über die gemessene Kaskade verwenden. Erfordert eine verifizierte Quelle und passende Kalibrierungsprofile.",
-  "config.judge.separate.description": "Kennung der Quelle/des Modells des separaten Beurteilers. Leer behält die aktuelle Einrichtung mit einem Modell bei. Quellen erfordern eigene Verifizierung und Zustimmung; kostenpflichtige Aufrufe fragen einmal vor der ersten Belastung und zeigen Preis und gemeinsamen museSpark.paidDailyBudgetUsd."
+  "config.judge.separate.description": "Kennung der Quelle/des Modells des separaten Beurteilers. Leer behält die aktuelle Einrichtung mit einem Modell bei. Quellen erfordern eigene Verifizierung und Zustimmung; kostenpflichtige Aufrufe fragen einmal vor der ersten Belastung und zeigen Preis und gemeinsamen museSpark.paidDailyBudgetUsd.",
+  "command.runSetupHooks.title": "Setup-Hooks ausführen",
+  "command.runHook.title": "Hook ausführen…",
+  "command.retryPluginHooks.title": "Plugin-Hooks erneut versuchen",
+  "config.modelApiShellKeepsDirectory.description": "Das Arbeitsverzeichnis der Model-API-Shell zwischen Aufrufen behalten. Standardmäßig ein: Ein cd in einem Shell-Befehl gilt für den nächsten Aufruf derselben Unterhaltung, und ein Verzeichnis außerhalb des Arbeitsbereichs wird auf dessen Stammverzeichnis zurückgesetzt. Prüfbefehle und then_run laufen weiterhin im Stammverzeichnis.",
+  "config.modelApiHookModels.description": "Kostenpflichtig, standardmäßig ein. Im Model-API-Backend fragt jeder prompt- und agent-Hook das Modell, bevor er antwortet. Jede Ausführung fragt einmal mit ihrem Preis, in jedem Genehmigungsmodus einschließlich Bypass, außer Sie lassen Modell-Hooks in diesem Arbeitsbereich immer zu. Die Antwort eines Hooks kann nur ablehnen, einschränken oder Kontext hinzufügen. Niemals über das Abonnement abgerechnet.",
+  "config.hookHttpAllowedHosts.description": "Hosts, die ein http-Hook aufrufen darf: exakte Namen oder *.example.com nur für Subdomains. Standardmäßig leer, sodass kein http-Hook läuft. Nur HTTPS, keine Weiterleitungen, und nur solange die Netzwerkeinstellung des Fensters das Netzwerk erlaubt. Ein Repository kann dies nicht setzen."
 }

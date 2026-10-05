@@ -136,5 +136,11 @@
   "config.judge.engine.enumDescriptions.off": "Değerlendirici yok: onaylar tam olarak değerlendiricisiz olduğu gibi davranır.",
   "config.judge.engine.enumDescriptions.separate": "Kaynağı kullanılabilir ve izinli olduğunda yalnızca yapılandırılmış ayrı değerlendiriciyi kullanın. Bu seçim tek başına bir kaynağı etkinleştirmez.",
   "config.judge.engine.enumDescriptions.both": "Ölçülmüş kaskad üzerinden ayrı değerlendiriciyi ve kendi sohbet modelinizi kullanın. Doğrulanmış kaynak ve uygun kalibrasyon profilleri gerektirir.",
-  "config.judge.separate.description": "Ayrı değerlendiricinin kaynak/model tanımlayıcısı. Boş bırakmak mevcut tek modelli düzeninizi korur. Kaynaklar kendi doğrulama ve onaylarını gerektirir; ücretli çağrılar ilk ücretlendirmeden önce bir kez sorar, fiyatı ve ortak museSpark.paidDailyBudgetUsd değerini gösterir."
+  "config.judge.separate.description": "Ayrı değerlendiricinin kaynak/model tanımlayıcısı. Boş bırakmak mevcut tek modelli düzeninizi korur. Kaynaklar kendi doğrulama ve onaylarını gerektirir; ücretli çağrılar ilk ücretlendirmeden önce bir kez sorar, fiyatı ve ortak museSpark.paidDailyBudgetUsd değerini gösterir.",
+  "command.runSetupHooks.title": "Kurulum kancalarını çalıştır",
+  "command.runHook.title": "Kanca çalıştır…",
+  "command.retryPluginHooks.title": "Eklenti kancalarını yeniden dene",
+  "config.modelApiShellKeepsDirectory.description": "Model API arka uç kabuğunun çalışma dizinini çağrılar arasında korur. Varsayılan olarak açıktır: bir kabuk komutundaki cd, aynı konuşmanın sonraki çağrısında da geçerlidir ve çalışma alanının dışındaki bir dizin, çalışma alanının köküne sıfırlanır. Denetim komutları ve then_run yine kökte çalışır.",
+  "config.modelApiHookModels.description": "Ücretli, varsayılan olarak açık. Model API arka ucunda prompt ve agent kancaları yanıt vermeden önce modele sorar. Bu çalışma alanında model kancalarına her zaman izin vermedikçe, Bypass dahil her izin modunda her çalıştırma fiyatıyla birlikte bir kez sorar. Bir kancanın yanıtı yalnızca reddedebilir, daraltabilir ya da bağlam ekleyebilir. Asla aboneliğe yansıtılmaz.",
+  "config.hookHttpAllowedHosts.description": "Bir http kancasının çağırabileceği ana bilgisayarlar: tam adlar veya yalnızca alt alan adları için *.example.com. Varsayılan olarak boştur, bu yüzden hiçbir http kancası çalışmaz. Yalnızca HTTPS, yönlendirme yok ve yalnızca pencerenin ağ ayarı ağa izin verdiği sürece. Bunu bir depo ayarlayamaz."
 }

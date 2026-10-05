@@ -136,5 +136,11 @@
   "config.judge.engine.enumDescriptions.off": "ジャッジなし。承認はジャッジがない場合とまったく同じ動作です。",
   "config.judge.engine.enumDescriptions.separate": "設定済みの別の評価モデルのソースが利用可能かつ許可されている場合に、その評価モデルだけを使用します。この選択だけではソースは有効になりません。",
   "config.judge.engine.enumDescriptions.both": "測定済みのカスケードを通じて、別の評価モデルと自分のチャットモデルを使用します。検証済みのソースと適切な較正プロファイルが必要です。",
-  "config.judge.separate.description": "別の評価モデルのソース／モデル識別子。空欄の場合は現在の単一モデル設定を維持します。各ソースには独自の検証と同意が必要です。有料の呼び出しは初回の課金前に一度確認し、価格と共有のmuseSpark.paidDailyBudgetUsdを表示します。"
+  "config.judge.separate.description": "別の評価モデルのソース／モデル識別子。空欄の場合は現在の単一モデル設定を維持します。各ソースには独自の検証と同意が必要です。有料の呼び出しは初回の課金前に一度確認し、価格と共有のmuseSpark.paidDailyBudgetUsdを表示します。",
+  "command.runSetupHooks.title": "セットアップフックの実行",
+  "command.runHook.title": "フックの実行…",
+  "command.retryPluginHooks.title": "プラグインのフックを再試行",
+  "config.modelApiShellKeepsDirectory.description": "Model APIバックエンドのシェルの作業ディレクトリを呼び出し間で保持します。既定でオン: あるシェルコマンドでのcdは同じ会話の次の呼び出しにも引き継がれ、ワークスペース外のディレクトリはルートに戻ります。チェックコマンドとthen_runは引き続きルートで実行されます。",
+  "config.modelApiHookModels.description": "有料で、既定でオンです。Model API バックエンドでは、prompt フックと agent フックが応答前にそれぞれモデルに問い合わせます。このワークスペースでモデルフックを常に許可しない限り、Bypass を含むすべての許可モードで、各実行は価格とともに一度確認します。フックの回答は拒否・絞り込み・コンテキスト追加のみ可能です。サブスクリプションへの請求はありません。",
+  "config.hookHttpAllowedHosts.description": "http フックが呼び出せるホスト: 完全一致の名前、またはサブドメイン専用の *.example.com。既定では空のため、http フックは実行されません。HTTPS のみ、リダイレクトなし、ウィンドウのネットワーク設定がネットワークを許可している場合のみ。リポジトリでは設定できません。"
 }

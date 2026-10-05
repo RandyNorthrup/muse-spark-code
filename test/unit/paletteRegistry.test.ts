@@ -298,6 +298,7 @@ describe('buildPalette', () => {
     })
     const slash = groups.find((group) => group.id === 'slash')
     expect(slash?.items.map((item) => item.label)).toEqual([
+      '/hook run',
       '/agents',
       '/compact',
       '/handoff',
@@ -375,7 +376,7 @@ describe('buildPalette', () => {
         id: 'importFromAgents',
         tip: EN.paletteTips.importFromAgents,
         label: EN.agentImportItem,
-        detail: EN.agentImportDetail,
+        detail: EN.agentImportDetailEvery,
         action: { type: 'importFromAgents' },
       })
     }
@@ -504,6 +505,7 @@ describe('slashCommandsOf', () => {
       'config',
       'fix-bug',
       'acme:deploy',
+      'hook run',
       'agents',
       'compact',
       'handoff',

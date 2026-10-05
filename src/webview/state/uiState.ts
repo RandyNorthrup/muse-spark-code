@@ -68,6 +68,7 @@ import {
   type NoticeLevel,
   type OutputRef,
   type PendingApproval,
+  type PendingElicitation,
   type PendingQuestion,
   QUEUED_DISPOSITION,
   recordedAtMs,
@@ -81,6 +82,7 @@ export type {
   ChildTranscript,
   ContextSummary,
   PendingApproval,
+  PendingElicitation,
   PendingQuestion,
   TranscriptEntry,
   UsageSummary,
@@ -445,6 +447,8 @@ export type UiAction =
     }
   /** The user answered or cancelled a question card; lock it until the host settles it (M25). */
   | { readonly type: 'questionSubmitted'; readonly userInputId: string }
+  /** The user answered, declined or cancelled an elicitation form; lock it until the host settles it. */
+  | { readonly type: 'elicitationSubmitted'; readonly elicitationId: string }
   /** A row's Move to background or Stop (M46): its button waits for the host. */
   | { readonly type: 'taskRequested'; readonly itemId: string; readonly request: TaskRequest }
   /** A line for the transcript the webview itself has to say (M25). */
@@ -976,6 +980,7 @@ function toolEntry(item: ItemSnapshot): TranscriptEntry {
     approval: undefined,
     approvalOutcome: undefined,
     question: undefined,
+    elicitation: undefined,
     questionOutcome: undefined,
     taskRequest: undefined,
   }
@@ -1042,6 +1047,7 @@ function entryFor(item: ItemSnapshot, at: number, seq: number): TranscriptEntry 
         kind: 'assistant',
         id: item.itemId,
         text: item.text ?? '',
+        displayText: item.displayText,
         isStreaming: item.status === IN_PROGRESS,
         citations: item.citations,
         usage: item.usage,
@@ -1091,6 +1097,7 @@ function mergeItem(entry: TranscriptEntry, item: ItemSnapshot, at: number): Tran
       return {
         ...entry,
         text: item.text ?? entry.text,
+        displayText: item.displayText ?? entry.displayText,
         isStreaming: item.status === IN_PROGRESS,
         citations: item.citations ?? entry.citations,
         usage: item.usage ?? entry.usage,
@@ -1203,7 +1210,12 @@ function settleEntry(entry: TranscriptEntry, at: number): TranscriptEntry {
     }
     case 'tool': {
       const isCutOff = entry.status === IN_PROGRESS && !entry.isBackground
-      if (!isCutOff && entry.approval === undefined && entry.question === undefined) {
+      if (
+        !isCutOff &&
+        entry.approval === undefined &&
+        entry.question === undefined &&
+        entry.elicitation === undefined
+      ) {
         return entry
       }
       return {
@@ -1211,6 +1223,7 @@ function settleEntry(entry: TranscriptEntry, at: number): TranscriptEntry {
         status: isCutOff ? TOOL_STATUS_INTERRUPTED : entry.status,
         approval: undefined,
         question: undefined,
+        elicitation: undefined,
         // A Move to background the turn's end overtook asks nothing any more (M46).
         taskRequest: isCutOff ? undefined : entry.taskRequest,
       }
@@ -1234,12 +1247,23 @@ function withTaskRequest(
   )
 }
 
-/** Question cards locked on a submission the host refused, open again (M25). */
+/** Answer cards locked on a submission the host refused, open again (M25). */
 function unlockQuestions(entries: readonly TranscriptEntry[]): readonly TranscriptEntry[] {
-  return entries.some((entry) => entry.kind === 'tool' && entry.question?.isSubmitted === true)
+  const isLocked = (entry: TranscriptEntry): boolean =>
+    entry.kind === 'tool' &&
+    (entry.question?.isSubmitted === true || entry.elicitation?.isSubmitted === true)
+  return entries.some((entry) => isLocked(entry))
     ? entries.map((entry) =>
-        entry.kind === 'tool' && entry.question?.isSubmitted === true
-          ? { ...entry, question: { ...entry.question, isSubmitted: false } }
+        entry.kind === 'tool'
+          ? {
+              ...entry,
+              ...(entry.question?.isSubmitted === true && {
+                question: { ...entry.question, isSubmitted: false },
+              }),
+              ...(entry.elicitation?.isSubmitted === true && {
+                elicitation: { ...entry.elicitation, isSubmitted: false },
+              }),
+            }
           : entry,
       )
     : entries
@@ -1791,6 +1815,7 @@ function applyAgentEvent(state: UiState, event: AgentEvent, at: number): UiState
           ...(event.packedTokensAvoided !== undefined && {
             packedTokensAvoided: event.packedTokensAvoided,
           }),
+          ...(event.hookTokensAdded !== undefined && { hookTokensAdded: event.hookTokensAdded }),
         },
       }
     }
@@ -1949,6 +1974,42 @@ function applyAgentEvent(state: UiState, event: AgentEvent, at: number): UiState
                   }),
                 },
               }
+            : entry,
+        ),
+      }
+    }
+    case 'elicitationRequested': {
+      const form: PendingElicitation = {
+        elicitationId: event.elicitationId,
+        server: event.server,
+        message: event.message,
+        fields: [...event.fields],
+      }
+      const rowId = event.itemId ?? `elicitation:${event.elicitationId}`
+      return announce(
+        withToolEntry(
+          state,
+          rowId,
+          () =>
+            toolEntry({
+              itemId: rowId,
+              kind: 'toolCall',
+              status: IN_PROGRESS,
+              tool: event.server,
+            }),
+          (entry) => (entry.kind === 'tool' ? { ...entry, elicitation: form } : entry),
+        ),
+        fill(UI_TEXT.elicitationTitle, { server: event.server }),
+      )
+    }
+    case 'elicitationSettled': {
+      // The settlement carries the action only: values never reach the
+      // transcript, so settling clears the form with nothing kept.
+      return {
+        ...state,
+        transcript: state.transcript.map((entry) =>
+          entry.kind === 'tool' && entry.elicitation?.elicitationId === event.elicitationId
+            ? { ...entry, elicitation: undefined }
             : entry,
         ),
       }
@@ -3142,6 +3203,16 @@ export function uiReducer(state: UiState, action: UiAction): UiState {
         ),
       }
     }
+    case 'elicitationSubmitted': {
+      return {
+        ...state,
+        transcript: state.transcript.map((entry) =>
+          entry.kind === 'tool' && entry.elicitation?.elicitationId === action.elicitationId
+            ? { ...entry, elicitation: { ...entry.elicitation, isSubmitted: true } }
+            : entry,
+        ),
+      }
+    }
     case 'taskRequested': {
       return {
         ...state,
@@ -3380,6 +3451,9 @@ export function waitingApprovals(
 export function hasPendingRequest(state: UiState): boolean {
   return state.transcript.some(
     (entry) =>
-      entry.kind === 'tool' && (entry.approval !== undefined || entry.question !== undefined),
+      entry.kind === 'tool' &&
+      (entry.approval !== undefined ||
+        entry.question !== undefined ||
+        entry.elicitation !== undefined),
   )
 }

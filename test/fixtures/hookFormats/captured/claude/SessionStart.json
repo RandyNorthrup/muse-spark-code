@@ -1,0 +1,7 @@
+{
+  "session_id": "session-0001",
+  "transcript_path": "C:\\Users\\user\\.claude\\projects\\C--workspace\\session-0001.jsonl",
+  "cwd": "C:\\workspace",
+  "hook_event_name": "SessionStart",
+  "source": "startup"
+}

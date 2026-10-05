@@ -1,0 +1,619 @@
+{
+  "session_id": "session-0002",
+  "transcript_path": "/home/user/.gemini/tmp/workspace/chats/session-0002.jsonl",
+  "cwd": "/workspace",
+  "hook_event_name": "AfterTool",
+  "timestamp": "2026-10-05T02:43:37.756Z",
+  "tool_name": "grep_search",
+  "tool_input": {
+    "pattern": ".*"
+  },
+  "tool_response": {
+    "llmContent": "Found 100 matches for pattern \".*\" in path \".\" (results limited to 100 matches for performance):\n---\nFile: captures/BeforeToolSelection-002.json\nL1: {\"session_id\":\"session-0002\",\"transcript_path\":\"/ho…[truncated]",
+    "returnDisplay": {
+      "summary": "Found 100 matches (limited)",
+      "matches": [
+        {
+          "filePath": "captures/BeforeToolSelection-002.json",
+          "absolutePath": "/workspace/captures/BeforeToolSelection-002.json",
+          "lineNumber": 1,
+          "line": "{\"session_id\":\"session-0002\",\"transcript_path\":\"/home/user/.gemini/tmp/workspace/chats/session-0002.jsonl\",\"cwd\":\"/workspace\",\"hook_event_name\":\"BeforeToolSelection\",\"timestamp\":\"2026-10-05T02:43:23.7…[truncated]"
+        },
+        {
+          "filePath": "captures/BeforeModel-003.envnames",
+          "absolutePath": "/workspace/captures/BeforeModel-003.envnames",
+          "lineNumber": 1,
+          "line": "CLAUDE_PROJECT_DIR"
+        },
+        {
+          "filePath": "captures/BeforeModel-003.envnames",
+          "absolutePath": "/workspace/captures/BeforeModel-003.envnames",
+          "lineNumber": 2,
+          "line": "DBUS_SESSION_BUS_ADDRESS"
+        },
+        {
+          "filePath": "captures/BeforeModel-003.envnames",
+          "absolutePath": "/workspace/captures/BeforeModel-003.envnames",
+          "lineNumber": 3,
+          "line": "GEMINI_API_KEY"
+        },
+        {
+          "filePath": "captures/BeforeModel-003.envnames",
+          "absolutePath": "/workspace/captures/BeforeModel-003.envnames",
+          "lineNumber": 4,
+          "line": "GEMINI_CLI_NO_RELAUNCH"
+        },
+        {
+          "filePath": "captures/BeforeModel-003.envnames",
+          "absolutePath": "/workspace/captures/BeforeModel-003.envnames",
+          "lineNumber": 5,
+          "line": "GEMINI_CLI_TRUST_WORKSPACE"
+        },
+        {
+          "filePath": "captures/BeforeModel-003.envnames",
+          "absolutePath": "/workspace/captures/BeforeModel-003.envnames",
+          "lineNumber": 6,
+          "line": "GEMINI_CWD"
+        },
+        {
+          "filePath": "captures/BeforeModel-003.envnames",
+          "absolutePath": "/workspace/captures/BeforeModel-003.envnames",
+          "lineNumber": 7,
+          "line": "GEMINI_PLANS_DIR"
+        },
+        {
+          "filePath": "captures/BeforeModel-003.envnames",
+          "absolutePath": "/workspace/captures/BeforeModel-003.envnames",
+          "lineNumber": 8,
+          "line": "GEMINI_PROJECT_DIR"
+        },
+        {
+          "filePath": "captures/BeforeModel-003.envnames",
+          "absolutePath": "/workspace/captures/BeforeModel-003.envnames",
+          "lineNumber": 9,
+          "line": "GEMINI_SESSION_ID"
+        },
+        {
+          "filePath": "captures/BeforeModel-003.envnames",
+          "absolutePath": "/workspace/captures/BeforeModel-003.envnames",
+          "lineNumber": 10,
+          "line": "HOME"
+        },
+        {
+          "filePath": "captures/BeforeModel-003.envnames",
+          "absolutePath": "/workspace/captures/BeforeModel-003.envnames",
+          "lineNumber": 11,
+          "line": "LANG"
+        },
+        {
+          "filePath": "captures/BeforeModel-003.envnames",
+          "absolutePath": "/workspace/captures/BeforeModel-003.envnames",
+          "lineNumber": 12,
+          "line": "LC_ADDRESS"
+        },
+        {
+          "filePath": "captures/BeforeModel-003.envnames",
+          "absolutePath": "/workspace/captures/BeforeModel-003.envnames",
+          "lineNumber": 13,
+          "line": "LC_IDENTIFICATION"
+        },
+        {
+          "filePath": "captures/BeforeModel-003.envnames",
+          "absolutePath": "/workspace/captures/BeforeModel-003.envnames",
+          "lineNumber": 14,
+          "line": "LC_MEASUREMENT"
+        },
+        {
+          "filePath": "captures/BeforeModel-003.envnames",
+          "absolutePath": "/workspace/captures/BeforeModel-003.envnames",
+          "lineNumber": 15,
+          "line": "LC_MONETARY"
+        },
+        {
+          "filePath": "captures/BeforeModel-003.envnames",
+          "absolutePath": "/workspace/captures/BeforeModel-003.envnames",
+          "lineNumber": 16,
+          "line": "LC_NAME"
+        },
+        {
+          "filePath": "captures/BeforeModel-003.envnames",
+          "absolutePath": "/workspace/captures/BeforeModel-003.envnames",
+          "lineNumber": 17,
+          "line": "LC_NUMERIC"
+        },
+        {
+          "filePath": "captures/BeforeModel-003.envnames",
+          "absolutePath": "/workspace/captures/BeforeModel-003.envnames",
+          "lineNumber": 18,
+          "line": "LC_PAPER"
+        },
+        {
+          "filePath": "captures/BeforeModel-003.envnames",
+          "absolutePath": "/workspace/captures/BeforeModel-003.envnames",
+          "lineNumber": 19,
+          "line": "LC_TELEPHONE"
+        },
+        {
+          "filePath": "captures/BeforeModel-003.envnames",
+          "absolutePath": "/workspace/captures/BeforeModel-003.envnames",
+          "lineNumber": 20,
+          "line": "LC_TIME"
+        },
+        {
+          "filePath": "captures/BeforeModel-003.envnames",
+          "absolutePath": "/workspace/captures/BeforeModel-003.envnames",
+          "lineNumber": 21,
+          "line": "LOGNAME"
+        },
+        {
+          "filePath": "captures/BeforeModel-003.envnames",
+          "absolutePath": "/workspace/captures/BeforeModel-003.envnames",
+          "lineNumber": 22,
+          "line": "OLDPWD"
+        },
+        {
+          "filePath": "captures/BeforeModel-003.envnames",
+          "absolutePath": "/workspace/captures/BeforeModel-003.envnames",
+          "lineNumber": 23,
+          "line": "PATH"
+        },
+        {
+          "filePath": "captures/BeforeModel-003.envnames",
+          "absolutePath": "/workspace/captures/BeforeModel-003.envnames",
+          "lineNumber": 24,
+          "line": "PWD"
+        },
+        {
+          "filePath": "captures/BeforeModel-003.envnames",
+          "absolutePath": "/workspace/captures/BeforeModel-003.envnames",
+          "lineNumber": 25,
+          "line": "SHELL"
+        },
+        {
+          "filePath": "captures/BeforeModel-003.envnames",
+          "absolutePath": "/workspace/captures/BeforeModel-003.envnames",
+          "lineNumber": 26,
+          "line": "SHLVL"
+        },
+        {
+          "filePath": "captures/BeforeModel-003.envnames",
+          "absolutePath": "/workspace/captures/BeforeModel-003.envnames",
+          "lineNumber": 27,
+          "line": "SSH_CLIENT"
+        },
+        {
+          "filePath": "captures/BeforeModel-003.envnames",
+          "absolutePath": "/workspace/captures/BeforeModel-003.envnames",
+          "lineNumber": 28,
+          "line": "SSH_CONNECTION"
+        },
+        {
+          "filePath": "captures/BeforeModel-003.envnames",
+          "absolutePath": "/workspace/captures/BeforeModel-003.envnames",
+          "lineNumber": 29,
+          "line": "USER"
+        },
+        {
+          "filePath": "captures/BeforeModel-003.envnames",
+          "absolutePath": "/workspace/captures/BeforeModel-003.envnames",
+          "lineNumber": 30,
+          "line": "XDG_RUNTIME_DIR"
+        },
+        {
+          "filePath": "captures/BeforeModel-003.envnames",
+          "absolutePath": "/workspace/captures/BeforeModel-003.envnames",
+          "lineNumber": 31,
+          "line": "XDG_SESSION_CLASS"
+        },
+        {
+          "filePath": "captures/BeforeModel-003.envnames",
+          "absolutePath": "/workspace/captures/BeforeModel-003.envnames",
+          "lineNumber": 32,
+          "line": "XDG_SESSION_ID"
+        },
+        {
+          "filePath": "captures/BeforeModel-003.envnames",
+          "absolutePath": "/workspace/captures/BeforeModel-003.envnames",
+          "lineNumber": 33,
+          "line": "XDG_SESSION_TYPE"
+        },
+        {
+          "filePath": "captures/BeforeModel-003.envnames",
+          "absolutePath": "/workspace/captures/BeforeModel-003.envnames",
+          "lineNumber": 34,
+          "line": "_"
+        },
+        {
+          "filePath": "captures/PreCompress-009.json",
+          "absolutePath": "/workspace/captures/PreCompress-009.json",
+          "lineNumber": 1,
+          "line": "{\"session_id\":\"session-0002\",\"transcript_path\":\"/home/user/.gemini/tmp/workspace/chats/session-0002.jsonl\",\"cwd\":\"/workspace\",\"hook_event_name\":\"PreCompress\",\"timestamp\":\"2026-10-05T02:43:35.768Z\",\"trigger\":\"auto\"}"
+        },
+        {
+          "filePath": "captures/BeforeTool-006.envnames",
+          "absolutePath": "/workspace/captures/BeforeTool-006.envnames",
+          "lineNumber": 1,
+          "line": "CLAUDE_PROJECT_DIR"
+        },
+        {
+          "filePath": "captures/BeforeTool-006.envnames",
+          "absolutePath": "/workspace/captures/BeforeTool-006.envnames",
+          "lineNumber": 2,
+          "line": "DBUS_SESSION_BUS_ADDRESS"
+        },
+        {
+          "filePath": "captures/BeforeTool-006.envnames",
+          "absolutePath": "/workspace/captures/BeforeTool-006.envnames",
+          "lineNumber": 3,
+          "line": "GEMINI_API_KEY"
+        },
+        {
+          "filePath": "captures/BeforeTool-006.envnames",
+          "absolutePath": "/workspace/captures/BeforeTool-006.envnames",
+          "lineNumber": 4,
+          "line": "GEMINI_CLI_NO_RELAUNCH"
+        },
+        {
+          "filePath": "captures/BeforeTool-006.envnames",
+          "absolutePath": "/workspace/captures/BeforeTool-006.envnames",
+          "lineNumber": 5,
+          "line": "GEMINI_CLI_TRUST_WORKSPACE"
+        },
+        {
+          "filePath": "captures/BeforeTool-006.envnames",
+          "absolutePath": "/workspace/captures/BeforeTool-006.envnames",
+          "lineNumber": 6,
+          "line": "GEMINI_CWD"
+        },
+        {
+          "filePath": "captures/BeforeTool-006.envnames",
+          "absolutePath": "/workspace/captures/BeforeTool-006.envnames",
+          "lineNumber": 7,
+          "line": "GEMINI_PLANS_DIR"
+        },
+        {
+          "filePath": "captures/BeforeTool-006.envnames",
+          "absolutePath": "/workspace/captures/BeforeTool-006.envnames",
+          "lineNumber": 8,
+          "line": "GEMINI_PROJECT_DIR"
+        },
+        {
+          "filePath": "captures/BeforeTool-006.envnames",
+          "absolutePath": "/workspace/captures/BeforeTool-006.envnames",
+          "lineNumber": 9,
+          "line": "GEMINI_SESSION_ID"
+        },
+        {
+          "filePath": "captures/BeforeTool-006.envnames",
+          "absolutePath": "/workspace/captures/BeforeTool-006.envnames",
+          "lineNumber": 10,
+          "line": "HOME"
+        },
+        {
+          "filePath": "captures/BeforeTool-006.envnames",
+          "absolutePath": "/workspace/captures/BeforeTool-006.envnames",
+          "lineNumber": 11,
+          "line": "LANG"
+        },
+        {
+          "filePath": "captures/BeforeTool-006.envnames",
+          "absolutePath": "/workspace/captures/BeforeTool-006.envnames",
+          "lineNumber": 12,
+          "line": "LC_ADDRESS"
+        },
+        {
+          "filePath": "captures/BeforeTool-006.envnames",
+          "absolutePath": "/workspace/captures/BeforeTool-006.envnames",
+          "lineNumber": 13,
+          "line": "LC_IDENTIFICATION"
+        },
+        {
+          "filePath": "captures/BeforeTool-006.envnames",
+          "absolutePath": "/workspace/captures/BeforeTool-006.envnames",
+          "lineNumber": 14,
+          "line": "LC_MEASUREMENT"
+        },
+        {
+          "filePath": "captures/BeforeTool-006.envnames",
+          "absolutePath": "/workspace/captures/BeforeTool-006.envnames",
+          "lineNumber": 15,
+          "line": "LC_MONETARY"
+        },
+        {
+          "filePath": "captures/BeforeTool-006.envnames",
+          "absolutePath": "/workspace/captures/BeforeTool-006.envnames",
+          "lineNumber": 16,
+          "line": "LC_NAME"
+        },
+        {
+          "filePath": "captures/BeforeTool-006.envnames",
+          "absolutePath": "/workspace/captures/BeforeTool-006.envnames",
+          "lineNumber": 17,
+          "line": "LC_NUMERIC"
+        },
+        {
+          "filePath": "captures/BeforeTool-006.envnames",
+          "absolutePath": "/workspace/captures/BeforeTool-006.envnames",
+          "lineNumber": 18,
+          "line": "LC_PAPER"
+        },
+        {
+          "filePath": "captures/BeforeTool-006.envnames",
+          "absolutePath": "/workspace/captures/BeforeTool-006.envnames",
+          "lineNumber": 19,
+          "line": "LC_TELEPHONE"
+        },
+        {
+          "filePath": "captures/BeforeTool-006.envnames",
+          "absolutePath": "/workspace/captures/BeforeTool-006.envnames",
+          "lineNumber": 20,
+          "line": "LC_TIME"
+        },
+        {
+          "filePath": "captures/BeforeTool-006.envnames",
+          "absolutePath": "/workspace/captures/BeforeTool-006.envnames",
+          "lineNumber": 21,
+          "line": "LOGNAME"
+        },
+        {
+          "filePath": "captures/BeforeTool-006.envnames",
+          "absolutePath": "/workspace/captures/BeforeTool-006.envnames",
+          "lineNumber": 22,
+          "line": "OLDPWD"
+        },
+        {
+          "filePath": "captures/BeforeTool-006.envnames",
+          "absolutePath": "/workspace/captures/BeforeTool-006.envnames",
+          "lineNumber": 23,
+          "line": "PATH"
+        },
+        {
+          "filePath": "captures/BeforeTool-006.envnames",
+          "absolutePath": "/workspace/captures/BeforeTool-006.envnames",
+          "lineNumber": 24,
+          "line": "PWD"
+        },
+        {
+          "filePath": "captures/BeforeTool-006.envnames",
+          "absolutePath": "/workspace/captures/BeforeTool-006.envnames",
+          "lineNumber": 25,
+          "line": "SHELL"
+        },
+        {
+          "filePath": "captures/BeforeTool-006.envnames",
+          "absolutePath": "/workspace/captures/BeforeTool-006.envnames",
+          "lineNumber": 26,
+          "line": "SHLVL"
+        },
+        {
+          "filePath": "captures/BeforeTool-006.envnames",
+          "absolutePath": "/workspace/captures/BeforeTool-006.envnames",
+          "lineNumber": 27,
+          "line": "SSH_CLIENT"
+        },
+        {
+          "filePath": "captures/BeforeTool-006.envnames",
+          "absolutePath": "/workspace/captures/BeforeTool-006.envnames",
+          "lineNumber": 28,
+          "line": "SSH_CONNECTION"
+        },
+        {
+          "filePath": "captures/BeforeTool-006.envnames",
+          "absolutePath": "/workspace/captures/BeforeTool-006.envnames",
+          "lineNumber": 29,
+          "line": "USER"
+        },
+        {
+          "filePath": "captures/BeforeTool-006.envnames",
+          "absolutePath": "/workspace/captures/BeforeTool-006.envnames",
+          "lineNumber": 30,
+          "line": "XDG_RUNTIME_DIR"
+        },
+        {
+          "filePath": "captures/BeforeTool-006.envnames",
+          "absolutePath": "/workspace/captures/BeforeTool-006.envnames",
+          "lineNumber": 31,
+          "line": "XDG_SESSION_CLASS"
+        },
+        {
+          "filePath": "captures/BeforeTool-006.envnames",
+          "absolutePath": "/workspace/captures/BeforeTool-006.envnames",
+          "lineNumber": 32,
+          "line": "XDG_SESSION_ID"
+        },
+        {
+          "filePath": "captures/BeforeTool-006.envnames",
+          "absolutePath": "/workspace/captures/BeforeTool-006.envnames",
+          "lineNumber": 33,
+          "line": "XDG_SESSION_TYPE"
+        },
+        {
+          "filePath": "captures/BeforeTool-006.envnames",
+          "absolutePath": "/workspace/captures/BeforeTool-006.envnames",
+          "lineNumber": 34,
+          "line": "_"
+        },
+        {
+          "filePath": "captures/BeforeTool-012.json",
+          "absolutePath": "/workspace/captures/BeforeTool-012.json",
+          "lineNumber": 1,
+          "line": "{\"session_id\":\"session-0002\",\"transcript_path\":\"/home/user/.gemini/tmp/workspace/chats/session-0002.jsonl\",\"cwd\":\"/workspace\",\"hook_event_name\":\"BeforeTool\",\"timestamp\":\"2026-10-05T02:43:36.921Z\",\"tool_name\":\"grep_search\",\"tool_input\":{\"pattern\":\".*\"}}"
+        },
+        {
+          "filePath": "probe.js",
+          "absolutePath": "/workspace/probe.js",
+          "lineNumber": 1,
+          "line": "#!/usr/bin/env node"
+        },
+        {
+          "filePath": "probe.js",
+          "absolutePath": "/workspace/probe.js",
+          "lineNumber": 2,
+          "line": "'use strict';"
+        },
+        {
+          "filePath": "probe.js",
+          "absolutePath": "/workspace/probe.js",
+          "lineNumber": 3,
+          "line": "// Output-contract probe. Drains stdin, then behaves per argv[2]:"
+        },
+        {
+          "filePath": "probe.js",
+          "absolutePath": "/workspace/probe.js",
+          "lineNumber": 4,
+          "line": "//   deny-json  stdout {\"decision\":\"deny\",\"reason\":\"capture-deny\"}, exit 0"
+        },
+        {
+          "filePath": "probe.js",
+          "absolutePath": "/workspace/probe.js",
+          "lineNumber": 5,
+          "line": "//   exit2      stderr \"capture-exit2\", exit 2"
+        },
+        {
+          "filePath": "probe.js",
+          "absolutePath": "/workspace/probe.js",
+          "lineNumber": 6,
+          "line": "//   exit3      stderr \"capture-exit3\", nothing on stdout, exit 3"
+        },
+        {
+          "filePath": "probe.js",
+          "absolutePath": "/workspace/probe.js",
+          "lineNumber": 7,
+          "line": "//   text0      stdout plain \"capture-text\" (not JSON), exit 0"
+        },
+        {
+          "filePath": "probe.js",
+          "absolutePath": "/workspace/probe.js",
+          "lineNumber": 8,
+          "line": "const mode = process.argv[2] || '';"
+        },
+        {
+          "filePath": "probe.js",
+          "absolutePath": "/workspace/probe.js",
+          "lineNumber": 9,
+          "line": "process.stdin.on('data', () => {});"
+        },
+        {
+          "filePath": "probe.js",
+          "absolutePath": "/workspace/probe.js",
+          "lineNumber": 10,
+          "line": "const act = () => {"
+        },
+        {
+          "filePath": "probe.js",
+          "absolutePath": "/workspace/probe.js",
+          "lineNumber": 11,
+          "line": "  switch (mode) {"
+        },
+        {
+          "filePath": "probe.js",
+          "absolutePath": "/workspace/probe.js",
+          "lineNumber": 12,
+          "line": "    case 'deny-json':"
+        },
+        {
+          "filePath": "probe.js",
+          "absolutePath": "/workspace/probe.js",
+          "lineNumber": 13,
+          "line": "      process.stdout.write('{\"decision\":\"deny\",\"reason\":\"capture-deny\"}');"
+        },
+        {
+          "filePath": "probe.js",
+          "absolutePath": "/workspace/probe.js",
+          "lineNumber": 14,
+          "line": "      process.exitCode = 0;"
+        },
+        {
+          "filePath": "probe.js",
+          "absolutePath": "/workspace/probe.js",
+          "lineNumber": 15,
+          "line": "      break;"
+        },
+        {
+          "filePath": "probe.js",
+          "absolutePath": "/workspace/probe.js",
+          "lineNumber": 16,
+          "line": "    case 'exit2':"
+        },
+        {
+          "filePath": "probe.js",
+          "absolutePath": "/workspace/probe.js",
+          "lineNumber": 17,
+          "line": "      process.stderr.write('capture-exit2');"
+        },
+        {
+          "filePath": "probe.js",
+          "absolutePath": "/workspace/probe.js",
+          "lineNumber": 18,
+          "line": "      process.exitCode = 2;"
+        },
+        {
+          "filePath": "probe.js",
+          "absolutePath": "/workspace/probe.js",
+          "lineNumber": 19,
+          "line": "      break;"
+        },
+        {
+          "filePath": "probe.js",
+          "absolutePath": "/workspace/probe.js",
+          "lineNumber": 20,
+          "line": "    case 'exit3':"
+        },
+        {
+          "filePath": "probe.js",
+          "absolutePath": "/workspace/probe.js",
+          "lineNumber": 21,
+          "line": "      process.stderr.write('capture-exit3');"
+        },
+        {
+          "filePath": "probe.js",
+          "absolutePath": "/workspace/probe.js",
+          "lineNumber": 22,
+          "line": "      process.exitCode = 3;"
+        },
+        {
+          "filePath": "probe.js",
+          "absolutePath": "/workspace/probe.js",
+          "lineNumber": 23,
+          "line": "      break;"
+        },
+        {
+          "filePath": "probe.js",
+          "absolutePath": "/workspace/probe.js",
+          "lineNumber": 24,
+          "line": "    case 'text0':"
+        },
+        {
+          "filePath": "probe.js",
+          "absolutePath": "/workspace/probe.js",
+          "lineNumber": 25,
+          "line": "      process.stdout.write('capture-text');"
+        },
+        {
+          "filePath": "probe.js",
+          "absolutePath": "/workspace/probe.js",
+          "lineNumber": 26,
+          "line": "      process.exitCode = 0;"
+        },
+        {
+          "filePath": "probe.js",
+          "absolutePath": "/workspace/probe.js",
+          "lineNumber": 27,
+          "line": "      break;"
+        },
+        {
+          "filePath": "probe.js",
+          "absolutePath": "/workspace/probe.js",
+          "lineNumber": 28,
+          "line": "    default:"
+        },
+        {
+          "filePath": "probe.js",
+          "absolutePath": "/workspace/probe.js",
+          "lineNumber": 29,
+          "line": "      process.exitCode = 0;"
+        }
+      ]
+    }
+  }
+}

@@ -10,7 +10,19 @@ import {
   type ExecStatus,
   validateResult,
 } from '../../src/runtime/exec/execProtocol'
-import * as constants from '../../src/shared/constants'
+import {
+  EXEC_COMMAND,
+  EXEC_MIN_OUTPUT_TOKENS,
+  EXEC_MODEL_TEXT,
+  EXEC_PROHIBITED_UPDATE_PATTERN,
+  EXEC_PROTOCOL_VERSION,
+  EXEC_RAW_TOOL_FIELDS,
+  EXEC_SCAN_COMMAND,
+  EXEC_SCAN_EXIT_FOUND,
+  EXEC_USD_DECIMALS,
+  EXEC_USD_UNITS,
+  EXEC_WRITE_RETRY_MS,
+} from '../../src/shared/constants'
 import { resultRecord } from './helpers/execContract'
 
 type JsonSchema = Readonly<Record<string, unknown>>
@@ -403,11 +415,22 @@ describe('M80 schemas (A15/A16/F1)', () => {
     expect(execEventSchema.safeParse(paid).success).toBe(false)
     expect(execEventSchema.safeParse({ ...paid, usd: 0.01 }).success).toBe(true)
   })
-  it('exercises the lane-owned constant contract, including F1 units', () => {
-    const owned = Object.fromEntries(
-      Object.entries(constants).filter(([name]) => name.startsWith('EXEC_')),
-    )
-    expect(owned).toMatchObject({
+  it('exercises the lane-owned constant contract, including F1 units', async () => {
+    // Named imports, not the module's entries: an enumeration would count every
+    // export of constants.ts as used, and knip could see no dead constant (M91).
+    const owned = {
+      EXEC_COMMAND,
+      EXEC_SCAN_COMMAND,
+      EXEC_PROTOCOL_VERSION,
+      EXEC_USD_UNITS,
+      EXEC_USD_DECIMALS,
+      EXEC_MIN_OUTPUT_TOKENS,
+      EXEC_SCAN_EXIT_FOUND,
+      EXEC_PROHIBITED_UPDATE_PATTERN,
+      EXEC_RAW_TOOL_FIELDS,
+      EXEC_WRITE_RETRY_MS,
+    }
+    expect(owned).toEqual({
       EXEC_COMMAND: 'exec',
       EXEC_SCAN_COMMAND: 'scan-secrets',
       EXEC_PROTOCOL_VERSION: 1,
@@ -421,8 +444,9 @@ describe('M80 schemas (A15/A16/F1)', () => {
     })
     // 43 constants and EXEC_MODEL_TEXT, the run's model text, which only
     // the ACP agent reads (PLAN.md D6, 2026-10-04).
-    expect(Object.keys(owned)).toHaveLength(44)
-    expect(constants.EXEC_MODEL_TEXT).toMatchObject({
+    const source = await readFile(new URL('../../src/shared/constants.ts', import.meta.url), 'utf8')
+    expect(source.match(/^export const EXEC_\w+/gmu)).toHaveLength(44)
+    expect(EXEC_MODEL_TEXT).toMatchObject({
       execUntrustedOpen: '<<<untrusted {marker}>>>',
       execUntrustedClose: '<<<end untrusted {marker}>>>',
     })

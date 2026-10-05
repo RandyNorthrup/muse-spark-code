@@ -136,5 +136,11 @@
   "config.judge.engine.enumDescriptions.off": "Értékelő nélkül: a jóváhagyások pontosan úgy viselkednek, mint nélküle.",
   "config.judge.engine.enumDescriptions.separate": "Csak a beállított külön értékelő használata, ha a forrása elérhető és engedélyezett. Ez a választás önmagában nem kapcsol be forrást.",
   "config.judge.engine.enumDescriptions.both": "A külön értékelő és a saját csevegőmodell használata a mért kaszkádon keresztül. Ellenőrzött forrást és megfelelő kalibrációs profilokat igényel.",
-  "config.judge.separate.description": "A külön értékelő forrásának/modelljének azonosítója. Üresen megőrzi a jelenlegi egymodelles beállítást. A forrásokhoz külön ellenőrzés és hozzájárulás kell; a fizetős hívások az első terhelés előtt egyszer kérdeznek, megmutatva az árat és a közös museSpark.paidDailyBudgetUsd értékét."
+  "config.judge.separate.description": "A külön értékelő forrásának/modelljének azonosítója. Üresen megőrzi a jelenlegi egymodelles beállítást. A forrásokhoz külön ellenőrzés és hozzájárulás kell; a fizetős hívások az első terhelés előtt egyszer kérdeznek, megmutatva az árat és a közös museSpark.paidDailyBudgetUsd értékét.",
+  "command.runSetupHooks.title": "Setup hookok futtatása",
+  "command.runHook.title": "Hook futtatása…",
+  "command.retryPluginHooks.title": "Bővítményhookok újrapróbálása",
+  "config.modelApiShellKeepsDirectory.description": "Megtartja a Model API-háttér parancshéjának munkakönyvtárát a hívások között. Alapértelmezés szerint bekapcsolva: az egyik parancshéj-parancsban kiadott cd a beszélgetés következő hívására is érvényes, és a munkaterületen kívüli könyvtár visszaáll a munkaterület gyökerére. Az ellenőrző parancsok és a then_run továbbra is a gyökérben futnak.",
+  "config.modelApiHookModels.description": "Fizetős, alapértelmezés szerint be van kapcsolva. A Model API háttérrendszeren minden prompt és agent hook válaszadás előtt megkérdezi a modellt. Minden futtatás egyszer kérdez az árával együtt, minden engedélyezési módban, a Bypasszal együtt, kivéve ha ebben a munkaterületben mindig engedélyezi a modellhookokat. A hook válasza csak elutasíthat, szűkíthet vagy kontextust adhat hozzá. Soha nem az előfizetésre számlázzák.",
+  "config.hookHttpAllowedHosts.description": "Állomások, amelyeket a http hook hívhat: pontos nevek, vagy *.example.com csak altartományokra. Alapértelmezés szerint üres, így nem fut http hook. Csak HTTPS, átirányítás nélkül, és csak akkor, ha az ablak hálózati beállítása engedélyezi a hálózatot. Ezt adattár nem állíthatja be."
 }

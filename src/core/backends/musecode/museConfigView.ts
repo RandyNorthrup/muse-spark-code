@@ -204,3 +204,50 @@ export function readHookSources(text: string | undefined): HookSourcesView {
     managedHooksPath: managed === undefined || managed === '' ? undefined : managed,
   }
 }
+
+/** One hooks file as the Hooks picker lists it (M91, PLAN.md D70). */
+export interface HookFileView {
+  /** Handlers across every event's groups. */
+  readonly count: number
+  /** The source formats of the hooks imported from other agents, sorted. */
+  readonly formats: readonly string[]
+  /** Every event the file names. */
+  readonly events: readonly string[]
+  /** The events with a group that carries no `format` tag. */
+  readonly nativeEvents: readonly string[]
+}
+
+/** A `.muse/hooks.json` or `spark-hooks.json`; undefined when it is missing or unreadable. */
+export function readHookFile(text: string | undefined): HookFileView | undefined {
+  const document = text === undefined ? undefined : parsed(text)
+  const table =
+    document === undefined || typeof document === 'string' ? undefined : document[HOOKS_KEY]
+  if (!isObject(table)) {
+    return undefined
+  }
+  let count = 0
+  const formats = new Set<string>()
+  const nativeEvents: string[] = []
+  for (const [event, groups] of Object.entries(table)) {
+    const list: readonly unknown[] = Array.isArray(groups) ? groups : []
+    for (const group of list) {
+      if (!isObject(group)) {
+        continue
+      }
+      const format = group['format']
+      if (typeof format === 'string') {
+        formats.add(format)
+      } else if (!nativeEvents.includes(event)) {
+        nativeEvents.push(event)
+      }
+      const handlers = group[HOOKS_KEY]
+      count += Array.isArray(handlers) ? handlers.length : 0
+    }
+  }
+  return {
+    count,
+    formats: [...formats].toSorted((first, second) => first.localeCompare(second)),
+    events: Object.keys(table),
+    nativeEvents,
+  }
+}

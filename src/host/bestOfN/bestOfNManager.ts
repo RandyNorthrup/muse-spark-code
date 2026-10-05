@@ -36,6 +36,10 @@ import {
   requirementRefSchema,
   type RequirementRef,
 } from '../../shared/agentEvents'
+import type {
+  ExtensionHookDispatch,
+  ExtensionHookEvent,
+} from '../../core/backends/modelapi/extensionHooks'
 import type { BestOfNRun } from '../../shared/bestOfN'
 import type { SubagentUsage } from '../../shared/paid'
 import type { Logger } from '../logger'
@@ -72,6 +76,17 @@ export interface BestOfNManagerDeps extends Pick<
   readonly modelId: () => string
   /** The originating conversation's wire approval mode. */
   readonly wireApprovalMode: () => string
+  /**
+   * Fire one extension event from the originating session's snapshot (M91
+   * lane E): Best-of-N worktrees and idling teammates fire from the parent,
+   * because attempts run with hooks off. Absent until the host wires it;
+   * without it the run behaves as before.
+   */
+  readonly fireExtensionHook?: (
+    event: ExtensionHookEvent,
+    fields: Readonly<Record<string, unknown>>,
+    matcherValue?: string,
+  ) => Promise<ExtensionHookDispatch>
   readonly isTrusted: () => boolean
   /** The file system's canonical read, for the worktree confinement. */
   readonly realPath: (absolutePath: string) => Promise<string>
@@ -191,6 +206,8 @@ class AttemptDriver implements BestOfNAttemptDriver {
   private isDisposed = false
   private startedSessionId: string | undefined
   private closing: Promise<void> | undefined
+  /** A turn ended since the last one started: only then can a keep continue it. */
+  private turnOver = false
 
   public constructor(
     private readonly attempt: BestOfNAttemptStart,
@@ -220,10 +237,20 @@ class AttemptDriver implements BestOfNAttemptDriver {
     })
   }
 
-  private async runConversation(): Promise<void> {
+  /**
+   * One turn on the attempt's session: the first runs the run's prompt, a
+   * kept turn the hook's reason, each billed to the run's ceiling like any
+   * attempt request. The turn runs floating and its completion (or failure)
+   * is reported as the attempt's next event, which the runner is already
+   * waiting for. The session stays open between turns — the runner settles
+   * the attempt, and only settling closes it — so a kept attempt keeps its
+   * transcript.
+   */
+  private startTurn(prompt: string): void {
     const session = this.session
     if (session === undefined) {
-      throw new Error('A best-of-N attempt has no session to run')
+      this.attempt.onEvent({ type: 'failed', reason: 'A best-of-N attempt has no session to run' })
+      return
     }
     const conversation = new WorktreeConversationHost({
       worktreeRoot: this.attempt.worktreePath,
@@ -235,7 +262,8 @@ class AttemptDriver implements BestOfNAttemptDriver {
         ceilingReached: this.ceilingReached,
       }),
       session: new AttemptSession(session, () => {
-        this.shutdown()
+        this.turnOver = true
+        if (this.deps.fireExtensionHook === undefined) this.shutdown()
       }),
       declineChoiceId: ABORT_CHOICE_ID,
       onProgress: (progress) => {
@@ -250,20 +278,44 @@ class AttemptDriver implements BestOfNAttemptDriver {
       },
       log: this.deps.log,
     })
-    try {
-      const outcome = await conversation.run(this.attempt.prompt, this.deps.isTrusted())
-      await this.closing
-      this.attempt.onEvent({
-        type: 'completed',
-        requestsMade: outcome.requestsMade,
-        ceilingReached: outcome.ceilingReached,
-        approvalsDenied: outcome.approvalsDenied,
-        terminal: outcome.terminal,
-        ...(outcome.reason !== undefined && { reason: outcome.reason }),
+    void conversation
+      .run(prompt, this.deps.isTrusted())
+      .then(async (outcome) => {
+        await this.closing
+        this.attempt.onEvent({
+          type: 'completed',
+          requestsMade: outcome.requestsMade,
+          ceilingReached: outcome.ceilingReached,
+          approvalsDenied: outcome.approvalsDenied,
+          terminal: outcome.terminal,
+          ...(outcome.reason !== undefined && { reason: outcome.reason }),
+        })
       })
-    } catch (error: unknown) {
-      this.attempt.onEvent({ type: 'failed', reason: describe(error) })
+      .catch((error: unknown) => {
+        this.deps.log.warn(`A best-of-N attempt never ran: ${describe(error)}`)
+        this.attempt.onEvent({ type: 'failed', reason: describe(error) })
+      })
+  }
+
+  private runConversation(): void {
+    this.startTurn(this.attempt.prompt)
+  }
+
+  /**
+   * A TeammateIdle hook kept the attempt working (M91 lane E): one more
+   * turn carrying the hook's reason, on the same session. The turn is
+   * dispatched and this resolves; its completion arrives as the attempt's
+   * next event, which the runner already waits for. A gone session fails
+   * loudly, so the attempt completes instead of hanging.
+   */
+  public continueAttempt(reason: string): Promise<void> {
+    if (this.session === undefined || this.isDisposed || !this.turnOver) {
+      throw new Error('A best-of-N attempt has no turn to continue')
     }
+    this.attempt.signal.throwIfAborted()
+    this.turnOver = false
+    this.startTurn(reason)
+    return Promise.resolve()
   }
 
   public get sessionId(): string | undefined {
@@ -320,11 +372,7 @@ class AttemptDriver implements BestOfNAttemptDriver {
       this.shutdown()
       throw error
     }
-    void this.runConversation().catch((error: unknown) => {
-      this.deps.log.warn(`A best-of-N attempt never ran: ${describe(error)}`)
-      this.shutdown()
-      this.attempt.onEvent({ type: 'failed', reason: describe(error) })
-    })
+    this.runConversation()
   }
 
   public async cancel(): Promise<void> {
@@ -347,9 +395,38 @@ export class BestOfNManager {
   private backendKind: 'museCode' | 'modelApi' = 'modelApi'
 
   public constructor(private readonly deps: BestOfNManagerDeps) {
+    // The parent's snapshot fires the run's extension hooks (M91 lane E):
+    // attempts run with hooks off, so the coordinator's side fires. The
+    // payloads match `extensionHooks.ts` field for field (`path` for a
+    // worktree, `name` with `siblings_running` for an idling teammate), but
+    // are built inline: that module stays out of this lazy bundle.
+    const fireExtensionHook = deps.fireExtensionHook
     const runnerDeps: BestOfNRunnerDeps = {
       newRunId: deps.newRunId ?? (() => `bon-${randomUUID()}`),
       coordinator: deps.coordinator,
+      ...(fireExtensionHook !== undefined && {
+        extensionHooks: {
+          fireWorktreeHook: async (event, relativePath) => {
+            const dispatch = await fireExtensionHook(event, { path: relativePath }, relativePath)
+            return dispatch.attemptFailed === undefined
+              ? {}
+              : { failedReason: dispatch.attemptFailed }
+          },
+          fireTeammateIdle: async (attemptId, siblingsRunning) => {
+            const dispatch = await fireExtensionHook(
+              'TeammateIdle',
+              { name: attemptId, siblings_running: siblingsRunning },
+              attemptId,
+            )
+            return dispatch.keepWorking
+              ? {
+                  keepWorking: true,
+                  ...(dispatch.keepReason !== undefined && { reason: dispatch.keepReason }),
+                }
+              : { keepWorking: false }
+          },
+        },
+      }),
       openAttempt: async (attemptId, runId) => {
         await this.open(attemptId, runId)
       },

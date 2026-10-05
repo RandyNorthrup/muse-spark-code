@@ -1911,6 +1911,67 @@
             ],
           })
         },
+        elicitation: () => {
+          transcriptFixture()
+          event({
+            type: 'itemStarted',
+            item: {
+              itemId: 'elicitation-tool',
+              kind: 'toolCall',
+              status: 'inProgress',
+              tool: 'mcp__profile__ask',
+              args: '{}',
+            },
+          })
+          event({
+            type: 'elicitationRequested',
+            elicitationId: 'form1',
+            itemId: 'elicitation-tool',
+            server: 'Profile server',
+            message: 'Choose a display profile to send to this server.',
+            fields: [
+              {
+                name: 'email',
+                title: 'Email address',
+                type: 'string',
+                format: 'email',
+                required: true,
+                description: 'Use a public contact address.',
+              },
+              {
+                name: 'colour',
+                title: 'Preferred colour',
+                type: 'string',
+                enum: ['red', 'blue'],
+                enumNames: ['Red', 'Blue'],
+                required: true,
+              },
+              {
+                name: 'count',
+                title: 'Number of items',
+                type: 'integer',
+                minimum: 1,
+                maximum: 2,
+                required: false,
+              },
+              { name: 'updates', title: 'Receive updates', type: 'boolean', required: true },
+            ],
+          })
+          later(300, () => {
+            setValue(
+              document.querySelector('.elicitation-input'),
+              HTMLInputElement.prototype,
+              'invalid-address',
+            )
+          })
+        },
+        'elicitation-narrow': () => {
+          if (window.innerWidth !== 320)
+            throw new Error('elicitation-narrow requires a 320 px viewport')
+          document.documentElement.style.width = '100%'
+          document.body.style.width = '100%'
+          steps.elicitation()
+        },
         todo: () => {
           transcriptFixture()
           event({

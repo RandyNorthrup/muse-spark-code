@@ -28,7 +28,7 @@
   "command.importSession.title": "Importar sesión",
   "command.openShareFile.title": "Abrir archivo compartido",
   "command.mcpServers.title": "Servidores MCP",
-  "command.hooks.title": "Ganchos",
+  "command.hooks.title": "Hooks",
   "command.memory.title": "Memoria",
   "command.newWorktree.title": "Nuevo árbol de trabajo…",
   "command.removeWorktree.title": "Quitar árbol de trabajo…",
@@ -136,5 +136,11 @@
   "config.judge.engine.enumDescriptions.off": "Sin evaluador: las aprobaciones se comportan exactamente igual que sin él.",
   "config.judge.engine.enumDescriptions.separate": "Usar solo el evaluador separado configurado cuando su fuente esté disponible y permitida. Esta selección por sí sola no activa una fuente.",
   "config.judge.engine.enumDescriptions.both": "Usar el evaluador separado y tu propio modelo de chat mediante la cascada medida. Requiere una fuente verificada y perfiles de calibración adecuados.",
-  "config.judge.separate.description": "Identificador de la fuente/modelo del evaluador separado. Vacío mantiene tu configuración actual de un solo modelo. Las fuentes requieren su propia verificación y consentimiento; las llamadas de pago preguntan una vez antes del primer cargo y muestran el precio y el museSpark.paidDailyBudgetUsd compartido."
+  "config.judge.separate.description": "Identificador de la fuente/modelo del evaluador separado. Vacío mantiene tu configuración actual de un solo modelo. Las fuentes requieren su propia verificación y consentimiento; las llamadas de pago preguntan una vez antes del primer cargo y muestran el precio y el museSpark.paidDailyBudgetUsd compartido.",
+  "command.runSetupHooks.title": "Ejecutar hooks de configuración",
+  "command.runHook.title": "Ejecutar un hook…",
+  "command.retryPluginHooks.title": "Reintentar ganchos de plugins",
+  "config.modelApiShellKeepsDirectory.description": "Mantener el directorio de trabajo del shell del backend de Model API entre llamadas. Activado por defecto: un cd en un comando del shell se aplica a la siguiente llamada de la misma conversación, y un directorio fuera del área de trabajo vuelve a su raíz. Los comandos de comprobación y then_run siguen ejecutándose en la raíz.",
+  "config.modelApiHookModels.description": "De pago, activado de forma predeterminada. En el backend de Model API, los hooks prompt y agent consultan cada uno al modelo antes de responder. Cada ejecución pregunta una vez con su precio, en cada modo de permiso incluido Bypass, a menos que permita siempre los hooks de modelo en esta área de trabajo. La respuesta de un hook solo puede rechazar, restringir o agregar contexto. Nunca se factura a la suscripción.",
+  "config.hookHttpAllowedHosts.description": "Hosts a los que puede llamar un hook http: nombres exactos, o *.example.com solo para subdominios. Vacío de forma predeterminada, por lo que ningún hook http se ejecuta. Solo HTTPS, sin redirecciones, y solo mientras el ajuste de red de la ventana permita la red. Un repositorio no puede establecer esto."
 }

@@ -136,5 +136,11 @@
   "config.judge.engine.enumDescriptions.off": "No judge: approvals behave exactly as without one.",
   "config.judge.engine.enumDescriptions.separate": "Use only the configured separate judge after its source is available and permitted. This selection alone does not enable a source.",
   "config.judge.engine.enumDescriptions.both": "Use the separate judge and your own chat model through the measured cascade. Requires a verified source and suitable calibration profiles.",
-  "config.judge.separate.description": "Separate judge source/model identifier. Empty keeps your current single-model setup. Sources require their own verification and consent; paid calls ask once before the first charge, showing the price and shared museSpark.paidDailyBudgetUsd."
+  "config.judge.separate.description": "Separate judge source/model identifier. Empty keeps your current single-model setup. Sources require their own verification and consent; paid calls ask once before the first charge, showing the price and shared museSpark.paidDailyBudgetUsd.",
+  "command.runSetupHooks.title": "Run Setup Hooks",
+  "command.runHook.title": "Run Hook…",
+  "command.retryPluginHooks.title": "Retry Plugin Hooks",
+  "config.modelApiShellKeepsDirectory.description": "Keep the Model API backend shell's working directory between calls. On by default: a cd in one shell command carries into the next call of the same conversation, and a directory outside the workspace resets to the workspace root. Check commands and then_run still run at the workspace root.",
+  "config.modelApiHookModels.description": "Paid, on by default. On the Model API backend, prompt and agent hooks each ask the model before they answer. Each run asks once with its price, in every permission mode including Bypass, unless you allow model hooks always in this workspace. A hook's answer can only refuse, narrow or add context. Never billed to the subscription.",
+  "config.hookHttpAllowedHosts.description": "Hosts an http hook may call: exact names, or *.example.com for subdomains only. Empty by default, so no http hook runs. HTTPS only, no redirects, and only while the window's network setting allows the network. A repository cannot set this."
 }

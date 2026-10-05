@@ -1,0 +1,41 @@
+{
+  "modelAttemptLines": 6,
+  "admissions": 3,
+  "byProviderModelPhaseOutcome": {
+    "echo/echo/admission/accepted": 3,
+    "echo/echo/terminal/completed": 2,
+    "echo/echo/terminal/cancelled": 1
+  },
+  "nonEchoAdmissions": 0,
+  "credentialStatus": [],
+  "hookTraceLines": [
+    "event=\"hook.admission\" outcome=\"ready\" handlers=19 runnable=19 inactive=0 diagnostics=0 advisories=0 duration_ms=0",
+    "event=\"hook.execution.terminal\" hook_event=\"session_start\" display_order=0 status=\"completed\" duration_ms=44 stdout_bytes=0 stderr_bytes=0 error_bytes=0",
+    "event=\"hook.execution.terminal\" hook_event=\"user_prompt_submit\" display_order=1 status=\"completed\" duration_ms=50 stdout_bytes=0 stderr_bytes=0 error_bytes=0",
+    "event=\"hook.execution.terminal\" hook_event=\"subagent_start\" display_order=9 status=\"completed\" duration_ms=38 stdout_bytes=0 stderr_bytes=0 error_bytes=0",
+    "event=\"hook.execution.terminal\" hook_event=\"pre_llm_call\" display_order=5 status=\"completed\" duration_ms=48 stdout_bytes=0 stderr_bytes=0 error_bytes=0",
+    "event=\"hook.execution.terminal\" hook_event=\"pre_llm_call\" display_order=5 status=\"completed\" duration_ms=48 stdout_bytes=0 stderr_bytes=0 error_bytes=0",
+    "event=\"hook.execution.terminal\" hook_event=\"post_llm_call\" display_order=6 status=\"completed\" duration_ms=49 stdout_bytes=0 stderr_bytes=0 error_bytes=0",
+    "event=\"hook.execution.terminal\" hook_event=\"post_llm_call\" display_order=6 status=\"completed\" duration_ms=50 stdout_bytes=0 stderr_bytes=0 error_bytes=0",
+    "event=\"hook.execution.terminal\" hook_event=\"stop\" display_order=11 status=\"completed\" duration_ms=56 stdout_bytes=0 stderr_bytes=0 error_bytes=0",
+    "event=\"hook.execution.terminal\" hook_event=\"subagent_stop\" display_order=10 status=\"completed\" duration_ms=48 stdout_bytes=0 stderr_bytes=0 error_bytes=0",
+    "event=\"hook.execution.terminal\" hook_event=\"subagent_start\" display_order=9 status=\"completed\" duration_ms=39 stdout_bytes=0 stderr_bytes=0 error_bytes=0",
+    "event=\"hook.execution.terminal\" hook_event=\"pre_llm_call\" display_order=5 status=\"cancelled\" duration_ms=42 stdout_bytes=0 stderr_bytes=0 error_bytes=0",
+    "event=\"hook.execution.terminal\" hook_event=\"post_llm_call\" display_order=6 status=\"cancelled\" duration_ms=0 stdout_bytes=0 stderr_bytes=0 error_bytes=0",
+    "event=\"hook.admission\" outcome=\"ready\" handlers=19 runnable=19 inactive=0 diagnostics=0 advisories=0 duration_ms=0",
+    "event=\"hook.admission\" outcome=\"ready\" handlers=19 runnable=19 inactive=0 diagnostics=0 advisories=0 duration_ms=0",
+    "event=\"hook.admission\" outcome=\"ready\" handlers=19 runnable=19 inactive=0 diagnostics=0 advisories=0 duration_ms=0",
+    "event=\"hook.admission\" outcome=\"ready\" handlers=19 runnable=19 inactive=0 diagnostics=0 advisories=0 duration_ms=0",
+    "event=\"hook.admission\" outcome=\"ready\" handlers=19 runnable=19 inactive=0 diagnostics=0 advisories=0 duration_ms=0",
+    "event=\"hook.admission\" outcome=\"ready\" handlers=19 runnable=19 inactive=0 diagnostics=0 advisories=0 duration_ms=0",
+    "event=\"hook.admission\" outcome=\"ready\" handlers=19 runnable=19 inactive=0 diagnostics=0 advisories=0 duration_ms=0",
+    "event=\"hook.execution.terminal\" hook_event=\"session_end\" display_order=12 status=\"completed\" duration_ms=50 stdout_bytes=0 stderr_bytes=0 error_bytes=0",
+    "event=\"hook.execution.terminal\" hook_event=\"session_end\" display_order=12 status=\"completed\" duration_ms=44 stdout_bytes=0 stderr_bytes=0 error_bytes=0",
+    "event=\"hook.execution.terminal\" hook_event=\"session_end\" display_order=12 status=\"completed\" duration_ms=41 stdout_bytes=0 stderr_bytes=0 error_bytes=0",
+    "event=\"hook.execution.terminal\" hook_event=\"session_end\" display_order=12 status=\"completed\" duration_ms=46 stdout_bytes=0 stderr_bytes=0 error_bytes=0",
+    "event=\"hook.execution.terminal\" hook_event=\"session_end\" display_order=12 status=\"completed\" duration_ms=42 stdout_bytes=0 stderr_bytes=0 error_bytes=0",
+    "event=\"hook.execution.terminal\" hook_event=\"session_end\" display_order=12 status=\"completed\" duration_ms=48 stdout_bytes=0 stderr_bytes=0 error_bytes=0",
+    "event=\"hook.execution.terminal\" hook_event=\"session_end\" display_order=12 status=\"completed\" duration_ms=46 stdout_bytes=0 stderr_bytes=0 error_bytes=0",
+    "event=\"hook.execution.terminal\" hook_event=\"session_end\" display_order=12 status=\"completed\" duration_ms=40 stdout_bytes=0 stderr_bytes=0 error_bytes=0"
+  ]
+}

@@ -1,0 +1,215 @@
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node <scratch>/hook.cjs <scratch>/out SessionStart",
+            "timeout": 30
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node <scratch>/hook.cjs <scratch>/out UserPromptSubmit",
+            "timeout": 30
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node <scratch>/hook.cjs <scratch>/out PreToolUse",
+            "timeout": 30
+          }
+        ]
+      }
+    ],
+    "PermissionRequest": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node <scratch>/hook.cjs <scratch>/out PermissionRequest",
+            "timeout": 30
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node <scratch>/hook.cjs <scratch>/out PostToolUse",
+            "timeout": 30
+          }
+        ]
+      }
+    ],
+    "PostToolUseFailure": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node <scratch>/hook.cjs <scratch>/out PostToolUseFailure",
+            "timeout": 30
+          }
+        ]
+      }
+    ],
+    "PostToolBatch": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node <scratch>/hook.cjs <scratch>/out PostToolBatch",
+            "timeout": 30
+          }
+        ]
+      }
+    ],
+    "PreLLMCall": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node <scratch>/hook.cjs <scratch>/out PreLLMCall",
+            "timeout": 30
+          }
+        ]
+      }
+    ],
+    "PostLLMCall": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node <scratch>/hook.cjs <scratch>/out PostLLMCall",
+            "timeout": 30
+          }
+        ]
+      }
+    ],
+    "PreCompact": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node <scratch>/hook.cjs <scratch>/out PreCompact",
+            "timeout": 30
+          }
+        ]
+      }
+    ],
+    "PostCompact": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node <scratch>/hook.cjs <scratch>/out PostCompact",
+            "timeout": 30
+          }
+        ]
+      }
+    ],
+    "SubagentStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node <scratch>/hook.cjs <scratch>/out SubagentStart",
+            "timeout": 30
+          }
+        ]
+      }
+    ],
+    "SubagentStop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node <scratch>/hook.cjs <scratch>/out SubagentStop",
+            "timeout": 30
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node <scratch>/hook.cjs <scratch>/out Stop",
+            "timeout": 30
+          }
+        ]
+      }
+    ],
+    "StopFailure": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node <scratch>/hook.cjs <scratch>/out StopFailure",
+            "timeout": 30
+          }
+        ]
+      }
+    ],
+    "SessionEnd": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node <scratch>/hook.cjs <scratch>/out SessionEnd",
+            "timeout": 30
+          }
+        ]
+      }
+    ],
+    "Notification": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node <scratch>/hook.cjs <scratch>/out Notification",
+            "timeout": 30
+          }
+        ]
+      }
+    ],
+    "Interrupt": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node <scratch>/hook.cjs <scratch>/out Interrupt",
+            "timeout": 30,
+            "async": true
+          }
+        ]
+      }
+    ],
+    "SessionFork": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node <scratch>/hook.cjs <scratch>/out SessionFork",
+            "timeout": 2,
+            "async": false
+          }
+        ]
+      }
+    ]
+  }
+}

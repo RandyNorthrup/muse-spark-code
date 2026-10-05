@@ -82,6 +82,7 @@ function confirmationDetail(feature: PaidFeature): string {
     autoReviewer: UI_TEXT.paidConfirmAutoReviewer,
     bestOfN: UI_TEXT.paidConfirmBestOfN,
     judge: UI_TEXT.paidConfirmJudge,
+    hookModels: UI_TEXT.paidConfirmHookModel,
   }
   if (feature === 'judge') {
     const budget = dailyBudgetSchema.safeParse(
@@ -129,6 +130,10 @@ export async function askPaidUse(
   if (request.feature === 'bestOfN' && modelApiPaidTier(request.modelId) === undefined) {
     return 'deny'
   }
+  // No verified price, nothing to accept (M48, M78): refused before any popup.
+  if (request.feature === 'hookModels' && modelApiPaidTier(request.modelId) === undefined) {
+    return 'deny'
+  }
   const { title, detail } = paidUseQuestion(request)
   const once: vscode.MessageItem = { title: UI_TEXT.allowOnce }
   const always: vscode.MessageItem = { title: UI_TEXT.paidAllowAlways }
@@ -140,7 +145,7 @@ export async function askPaidUse(
       detail:
         dailyBudgetUsd === undefined
           ? detail
-          : `${detail}\n\n${fill(UI_TEXT.paidDailyBudgetLine, { budget: formatUsd(dailyBudgetUsd) })}`,
+          : `${detail}\n\n${fill(UI_TEXT.paidDailyBudgetLine, { budget: formatUsd(dailyBudgetUsd, 2) })}`,
     },
     ...(canRemember ? [once, always, deny] : [once, deny]),
   )

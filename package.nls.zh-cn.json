@@ -136,5 +136,11 @@
   "config.judge.engine.enumDescriptions.off": "无评判器：审批与没有评判器时完全一致。",
   "config.judge.engine.enumDescriptions.separate": "仅在已配置的单独评判模型的来源可用且获准时使用该模型。此选择本身不会启用来源。",
   "config.judge.engine.enumDescriptions.both": "通过经测量的级联使用单独的评判模型和您自己的聊天模型。需要经验证的来源和合适的校准配置。",
-  "config.judge.separate.description": "单独评判模型的来源／模型标识符。留空会保留当前的单模型设置。每个来源都需要各自的验证和同意；付费调用在首次收费前询问一次，显示价格和共享的museSpark.paidDailyBudgetUsd。"
+  "config.judge.separate.description": "单独评判模型的来源／模型标识符。留空会保留当前的单模型设置。每个来源都需要各自的验证和同意；付费调用在首次收费前询问一次，显示价格和共享的museSpark.paidDailyBudgetUsd。",
+  "command.runSetupHooks.title": "运行设置钩子",
+  "command.runHook.title": "运行钩子…",
+  "command.retryPluginHooks.title": "重试插件钩子",
+  "config.modelApiShellKeepsDirectory.description": "在调用之间保留 Model API 后端 shell 的工作目录。默认开启：一次 shell 命令中的 cd 会延续到同一会话的下一次调用，工作区之外的目录会重置回工作区根目录。检查命令和 then_run 仍在根目录运行。",
+  "config.modelApiHookModels.description": "付费，默认开启。在 Model API 后端，prompt 和 agent 钩子在回答前各自询问模型。除非您允许在此工作区始终允许模型钩子，否则每次运行都会连同价格询问一次，适用于包括 Bypass 在内的每种许可模式。钩子的回答只能拒绝、收窄或添加上下文。绝不会记入订阅账单。",
+  "config.hookHttpAllowedHosts.description": "http 钩子可以调用的主机：精确名称，或仅用于子域的 *.example.com。默认为空，因此不运行任何 http 钩子。仅 HTTPS，无重定向，且仅在窗口网络设置允许网络时运行。存储库无法设置此项。"
 }

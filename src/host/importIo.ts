@@ -104,6 +104,8 @@ const LINK_REFUSED = 'ELOOP'
 const CHANGED = 'ESTALE'
 const TOO_LARGE = 'EFBIG'
 const EXCLUSIVE_CREATE = 'wx'
+/** Owner, group or other may execute (`chmod +x`). */
+const EXECUTE_BITS = 0o111
 
 function refused(code: string): Error {
   return Object.assign(new Error('Import path cannot be used safely'), { code })
@@ -284,6 +286,12 @@ export const fileImportIo: ImportIo = {
   },
   realPath: importRealPath,
   isIgnored: isImportIgnored,
+  // Cline v1 on macOS and Linux runs a hook only while it is executable
+  // (its Hooks tab toggles the bit), so a script without one is off there.
+  async isExecutable(absolutePath) {
+    const info = await stat(absolutePath)
+    return info.isFile() && (info.mode & EXECUTE_BITS) !== 0
+  },
 }
 
 /** Whether anything is at the path: a file, a folder, or a link, even a broken one. */
