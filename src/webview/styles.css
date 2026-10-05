@@ -2430,6 +2430,7 @@ export row. Long lines wrap so the dialog holds a 320 px panel. */
   display: flex;
   align-items: center;
   gap: 6px;
+  min-height: 24px;
 }
 
 .report-items {

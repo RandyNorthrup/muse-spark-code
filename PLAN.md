@@ -14253,7 +14253,10 @@ joined with M57, M58 and PR #49's sign-in
   Windows 11, including UNC/extended paths, drive-letter case, journal storage
   with spaces and Unicode, links/junctions, open-file append/prune, CRLF export
   identity and the four-theme 320 px dialog. Correct Windows path scrubbing
-  when these probes fail; keep POSIX path handling unchanged. Record failing
+  when these probes fail; keep POSIX path handling unchanged. Windows native
+  checkboxes expose 22 px safe spacing in the report dialog: give its section
+  rows the same 24 px minimum as the existing native option rows, preserving
+  checkbox behavior and testing the real harness geometry. Record failing
   probes, byte-exact red drills and restored receipts in `m93.md`.
 - **Certification checklist.**
   - [x] Owner-approved decision and milestone planned; source research recorded.

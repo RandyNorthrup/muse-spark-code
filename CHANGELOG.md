@@ -38,7 +38,8 @@ happened, not what was planned; superseded entries are kept.
     including quoted paths with spaces. Workspace/home replacements accept
     equivalent Windows case and separators; extended paths retain verified
     package stack frames. Windows link, open-file pruning and CRLF export
-    checks are recorded in `docs/certification/m93.md`.
+    checks are recorded in `docs/certification/m93.md`. The dialog's section
+    switches now have enough room for Windows native checkbox targets.
 - **A live receipt workflow for the GitHub Action (M80 LA).**
   `.github/workflows/action-live.yml` runs the real Action, on the agent
   package packed from the same commit, against one open same-repository pull

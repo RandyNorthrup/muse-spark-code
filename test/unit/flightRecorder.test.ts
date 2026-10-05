@@ -566,6 +566,9 @@ describe('ReportJournal recording', () => {
     const initial = await recorder.readMerged()
     expect(initial.entries).toHaveLength(1)
     clock.now += REPORT_JOURNAL_MAX_AGE_MS + 1
+    const expired = await recorder.readMerged()
+    expect(expired.entries).toEqual([])
+    await expect(readFile(file, 'utf8')).rejects.toMatchObject({ code: 'ENOENT' })
     await recorder.record(event({ code: 'ENOENT' }))
     const pruned = await recorder.readMerged()
     expect(pruned.entries.map((record) => record.code)).toEqual(['ENOENT'])

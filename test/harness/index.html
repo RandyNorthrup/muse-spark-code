@@ -3975,10 +3975,23 @@
             canUseVscodeReporter: true,
             recordingUnavailable: false,
           })
+          later(400, () => {
+            const boxes = [...document.querySelectorAll('.report-check input')].map((input) =>
+              input.getBoundingClientRect(),
+            )
+            if (boxes.length !== 2) throw new Error('Report section checkboxes are missing')
+            const centers = boxes.map((box) => box.top + box.height / 2)
+            if (centers[1] - centers[0] < 24) {
+              throw new Error('Report section checkboxes need 24 px between their centers')
+            }
+          })
         },
         // The runners open this one in a real 320 px viewport (the dialog's
         // backdrop is fixed to the viewport, so a narrow body would not test it).
         'report-narrow': () => {
+          if (window.innerWidth !== 320) {
+            throw new Error('report-narrow requires a 320 px viewport')
+          }
           steps['report']()
           // A refused clipboard, stated on the dialog: the preview stays, so
           // its text can still be copied by hand.
