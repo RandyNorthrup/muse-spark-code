@@ -17,6 +17,7 @@ import {
   todoItemSchema,
 } from '../../../shared/agentEvents'
 import { UI_TEXT } from '../../../shared/constants'
+import { isProtectedFileAccess } from '../../protectedPaths'
 import { toSessionGoal, toSnapshot, wireGoalSchema, wireItemSchema } from './sessionRecords'
 
 export type MappedNotification =
@@ -29,6 +30,29 @@ export const MALFORMED_PARAMS = 'malformed'
 export type MapOutcome = MappedNotification | typeof UNKNOWN_METHOD | typeof MALFORMED_PARAMS
 
 const ALREADY_TERMINAL = 'alreadyTerminal'
+const ONCE_SCOPE = 'once'
+// MSP's approving decisions: `approved`, `approvedPolicyAmendment`, …
+const APPROVING_DECISION_PREFIX = 'approved'
+
+type WireChoice = z.infer<typeof approvalChoiceSchema>
+
+/**
+ * A file write the extension's list protects (D24, 2026-10-04) offers no
+ * approval that outlasts it: "Always allow" would be a rule Muse Code
+ * answers later writes by, without a card. Allow once and every refusal
+ * stay, as Muse Code offers for its own protected writes.
+ */
+function choicesFor(
+  subject: z.infer<typeof approvalSubjectSchema>,
+  choices: WireChoice[],
+): WireChoice[] {
+  return isProtectedFileAccess(subject)
+    ? choices.filter(
+        (choice) =>
+          choice.scope === ONCE_SCOPE || !choice.decision.startsWith(APPROVING_DECISION_PREFIX),
+      )
+    : choices
+}
 
 export interface WireNotification {
   readonly method: string
@@ -300,9 +324,11 @@ function rawNotification(notification: WireNotification): MapOutcome {
           rawArgs: p.rawArgs,
           requirementId: p.currentRequirementId,
           subject: p.subject,
-          availableChoices: p.availableChoices,
+          availableChoices: choicesFor(p.subject, p.availableChoices),
           isJudgeEscalated: p.judgeEscalated,
-          isProtectedWrite: p.protectedWrite,
+          // Muse Code's own flag, or the extension's list (a Muse Code file
+          // write it does not flag).
+          isProtectedWrite: p.protectedWrite || isProtectedFileAccess(p.subject),
           ...(p.turnId !== undefined && { turnId: p.turnId }),
         },
       }
@@ -320,7 +346,7 @@ function rawNotification(notification: WireNotification): MapOutcome {
           approvalId: p.approvalId,
           requirementId: p.currentRequirementId,
           subject: p.subject,
-          availableChoices: p.availableChoices,
+          availableChoices: choicesFor(p.subject, p.availableChoices),
         },
       }
     }

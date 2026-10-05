@@ -14253,6 +14253,41 @@ before a repaired one loads (2026-09-30).
   confirmed once in a remote window. Residual risk: a file swapped for a link
   between the check and the write (a local attacker already inside the
   workspace); the check runs immediately before each operation.
+- Other coding agents' folders and files (2026-10-04,
+  `docs/certification/protect-agent-folders.md`): `.claude`, `.codex`,
+  `.cursor`, `.gemini`, `.github/hooks`, `.github/copilot`, `.devin`,
+  `.windsurf`, `.kiro`, `.clinerules`, `.amp`, `.opencode`, `.continue` and
+  `.roo` hold hooks, MCP servers, plugins and settings that those agents
+  run outside our approvals, and `.mcp.json`, `opencode.json` and
+  `opencode.jsonc` name MCP servers they start, so all are protected writes
+  (D24) like `.muse`. The instruction files (`AGENTS.md`, `CLAUDE.md`,
+  `GEMINI.md`, `.cursorrules`, `.windsurfrules`, `.roomodes`,
+  `.clinerules`, `.github/copilot-instructions.md`) run nothing, but they
+  are protected too: they steer the next agent that reads them, so an
+  instruction a prompt injection plants there persists after the
+  conversation (prompt-injection persistence). Roo Code's and Continue's
+  paths are from their documentation (Roo: `.roomodes` at the root,
+  `.roo/rules*`, `.roo/mcp.json`; Continue: `.continue/rules`,
+  `.continue/mcpServers`; both start stdio MCP servers as local commands).
+  Residual risks: (1) a shell command, an MCP tool or a Best-of-N attempt in
+  its own worktree can still write there; the extension does not parse
+  commands for paths, so the command's own card (every mode but Bypass,
+  unless a rule or the Auto reviewer allows it) is the control; (2) on Muse
+  Code the CLI decides which writes ask. The extension judges every Muse
+  Code `fileAccess` write it is asked about by the same list, on the
+  absolute path Muse Code names (captured 2026-10-04: `\\?\C:\…\.muse\hooks.json`),
+  so one outside the workspace counts too: it is shown as protected, Edit
+  automatically and the M90 reviewer never answer it, and its card drops
+  Muse Code's standing "Always allow" choices. A workspace inside a
+  protected folder makes every such write ask, which only asks more. What
+  Muse Code writes without asking never reaches the extension: the same
+  capture, with the sandbox off (the extension's posture for a workspace
+  under the user's profile) and in Manual, wrote `.claude/settings.json`
+  and a file outside the workspace with no approval. That is Muse Code's
+  policy, to be raised upstream; (3)
+  names matched by pattern rather than exactly are not protected: Roo's
+  `.roorules-<mode>` fallback and Copilot's
+  `.github/instructions/*.instructions.md`.
 - Programs are started by absolute path (D24): git, bash and PowerShell from
   absolute `PATH` entries, the CLI from its install layout or an absolute
   `museBinaryPath`; git never runs in Restricted Mode.

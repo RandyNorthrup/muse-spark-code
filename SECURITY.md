@@ -179,13 +179,31 @@ Releases and npm.
   instructions only in a trusted workspace.
 - **Protected writes (Model API backend).** A file tool's write to `.git/**`, `.husky/**`,
   `.vscode/**`, `.idea/**`, `.devcontainer/**`, `.github/workflows/**`,
-  `.agents/**`, `.muse/**`, `AGENTS.md`, `CLAUDE.md`, `.envrc` or
-  `.gitmodules`, at any depth and in any letter case, shows an approval card
+  `.agents/**`, `.muse/**`, another coding agent's folder (`.claude/**`,
+  `.codex/**`, `.cursor/**`, `.gemini/**`, `.github/hooks/**`,
+  `.github/copilot/**`, `.devin/**`, `.windsurf/**`, `.kiro/**`,
+  `.clinerules/**`, `.amp/**`, `.opencode/**`, `.continue/**`, `.roo/**`:
+  hooks, MCP servers, plugins and settings that agent runs outside these
+  approvals), an agent's MCP or instruction file (`.mcp.json`,
+  `opencode.json`, `opencode.jsonc`, `AGENTS.md`, `CLAUDE.md`, `GEMINI.md`,
+  `.cursorrules`, `.windsurfrules`, `.roomodes`, `.clinerules`,
+  `.github/copilot-instructions.md`: an instruction steers the next agent
+  that reads it), `.envrc` or `.gitmodules`, at any depth and in any letter
+  case, and judged by where links and junctions lead, shows an approval card
   in every mode but Bypass (Plan refuses it), and no "always allow" rule
   covers it. The one exception is a Markdown note written by the memory
-  tools inside a memory folder, which is an ordinary edit. Muse Code flags
-  its own protected writes, and "Edit automatically" never answers those
-  for you.
+  tools inside a memory folder, which is an ordinary edit.
+- **Protected writes (Muse Code backend).** Muse Code flags its own
+  protected writes. The extension also judges each Muse Code file-write
+  approval (`fileAccess`, any access but a read) by the list above. Muse
+  Code names the file by its absolute path, so both separators split it and
+  a file outside the workspace (`~/.claude/settings.json`) counts. Such a
+  write is shown as protected, "Edit automatically" and the Auto reviewer
+  never answer it, and its card offers no "Always allow" rule Muse Code
+  could answer later writes by. A write Muse Code makes without asking is
+  outside the extension's reach: in a live check (Muse Code 1.4.2, sandbox
+  off, Manual) it wrote `.claude/settings.json` and a file outside the
+  workspace without asking.
 - **Saved plans (both backends).** **Save plan** is the extension's own
   write to `.agents/plans/`, and it asks in a modal first, as a protected
   write does. It creates a new file by a hard link from a hidden stage, so
