@@ -7,6 +7,16 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+### Fixed
+
+- M91's unwired Gemini hook adapters translate established native arguments
+  and explicitly refuse unsupported blocking calls. Tool-selection whitelists
+  survive `ANY` without forcing a call. Captured nested arguments and saved
+  vendor scripts now have data-dependent checks; certification claims are
+  limited to the evidence actually checked. Model packets validate their
+  captured shapes, tool patches preserve full original arguments, ignored
+  lifecycle controls retain observations, and Notification retains details.
+
 ### Added
 
 - **Hooks from every popular agent (M91, PLAN.md D70), in progress.**

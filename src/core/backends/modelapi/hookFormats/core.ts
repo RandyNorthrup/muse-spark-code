@@ -10,10 +10,11 @@ export type ForeignStdinResult =
   /** The hook does not run, and that is not a failure (Kiro's path filter). */
   | { readonly outcome: 'skip'; readonly reason: string }
   /**
-   * The event + payload cannot be translated faithfully. The caller records
-   * a hook failure; it never runs the command with a guessed shape.
+   * The event + payload cannot be translated faithfully. For a blocking row,
+   * blockOperation requires refusing the guarded operation before execution;
+   * recording a discarded hook failure would lose the imported guard.
    */
-  | { readonly outcome: 'refused'; readonly reason: string }
+  | { readonly outcome: 'refused'; readonly reason: string; readonly blockOperation?: true }
 
 export function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value)

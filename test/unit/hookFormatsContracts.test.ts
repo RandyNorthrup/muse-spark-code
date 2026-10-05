@@ -52,6 +52,14 @@ function toolFor(row: Row): string {
 /** A payload carrying every source any row reads, shaped for this row's tool. */
 function fullPayload(row: Row, root = ROOT): Record<string, unknown> {
   const tool = toolFor(row)
+  let toolInput: Record<string, unknown> = {
+    command: 'echo hi',
+    path: 'src/a.ts',
+    find: 'a',
+    replace: 'b',
+  }
+  if (tool === TOOL_BY_CLASS.mcp) toolInput = { query: 'x', database: 'production' }
+  else if (tool === TOOL_BY_CLASS.shell) toolInput = { command: 'echo hi' }
   return {
     session_id: 'session-1',
     turn_id: 'turn-1',
@@ -59,17 +67,14 @@ function fullPayload(row: Row, root = ROOT): Record<string, unknown> {
     timestamp: '2026-10-04T00:00:00.000Z',
     model: 'model-1',
     tool_name: tool,
-    tool_input:
-      tool === TOOL_BY_CLASS.mcp
-        ? { query: 'x', database: 'production' }
-        : { command: 'echo hi', path: 'src/a.ts', find: 'a', replace: 'b' },
+    tool_input: toolInput,
     tool_response: 'preview',
     content: 'file text',
     prompt: 'hello',
     text: 'thinking',
     last_assistant_message: 'done',
     worktree_path: `${root}/wt`,
-    llm_request: { model: 'm', contents: [] },
+    llm_request: { model: 'm', messages: [], config: {} },
     llm_response: { candidates: [] },
     status: 'completed',
     source: 'startup',

@@ -114,6 +114,14 @@ const TOOL_BY_EVENT: Readonly<Record<string, string>> = {
 
 function payloadFor(event: string): Record<string, unknown> {
   const tool = TOOL_BY_EVENT[event] ?? 'bash'
+  let toolInput: Record<string, unknown> = {
+    command: 'echo hi',
+    path: 'a.py',
+    find: 'a',
+    replace: 'b',
+  }
+  if (tool === 'mcp__srv__tool') toolInput = { owner: 'o' }
+  else if (tool === 'bash') toolInput = { command: 'echo hi' }
   return {
     session_id: 'session-1',
     turn_id: 'turn-1',
@@ -121,10 +129,7 @@ function payloadFor(event: string): Record<string, unknown> {
     timestamp: '2026-10-04T00:00:00.000Z',
     model: 'model-1',
     tool_name: tool,
-    tool_input:
-      tool === 'mcp__srv__tool'
-        ? { owner: 'o' }
-        : { command: 'echo hi', path: 'a.py', find: 'a', replace: 'b' },
+    tool_input: toolInput,
     tool_response: 'preview',
     content: 'text',
     prompt: 'hello',
@@ -370,23 +375,45 @@ describe('captured stdin (real CLIs, scrubbed)', () => {
     for (const { event } of captured) expect(rowOf('gemini', undefined, event), event).toBeDefined()
   })
 
-  // One representative per event; tool rows use the shell capture.
-  const representatives = captured.filter(
-    ({ name }) =>
-      !name.includes('.') || /^[A-Za-z]+\.json$/.test(name) || name.includes('run_shell_command'),
-  )
-  it.each(representatives)(
-    'Gemini $name: our keys are the captured keys, same types',
+  it.each(captured)(
+    'Gemini $name: captured nested arguments match or the operation is refused',
     ({ value, event }) => {
       const row = rowOf('gemini', undefined, event)
       if (row === undefined) throw new Error(`no row for ${event}`)
-      const payload = {
+      const payload: Record<string, unknown> = {
         ...payloadFor(event),
         llm_request: value['llm_request'],
         llm_response: value['llm_response'],
         prompt_response: value['prompt_response'],
       }
+      const toolInput = value['tool_input']
+      const tool = value['tool_name']
+      if (isObject(toolInput)) {
+        if (tool === 'read_file') {
+          payload['tool_name'] = 'read_file'
+          const start = toolInput['start_line']
+          const end = toolInput['end_line']
+          payload['tool_input'] = {
+            path: toolInput['file_path'],
+            ...(start !== undefined && { offset: start }),
+            ...(typeof start === 'number' && typeof end === 'number' && { limit: end - start + 1 }),
+          }
+        } else {
+          if (tool === 'run_shell_command') payload['tool_name'] = 'bash'
+          else if (tool === 'grep_search') payload['tool_name'] = 'search'
+          else payload['tool_name'] = 'list_files'
+          payload['tool_input'] = toolInput
+        }
+        const response = value['tool_response']
+        if (isObject(response)) payload['tool_response'] = String(response['llmContent'])
+      }
       const result = buildForeignStdin('gemini', row.muse, payload, optionsFor(row))
+      if (tool === 'list_directory' || tool === 'glob') {
+        // These captured tools have no faithful equivalent to Muse's recursive
+        // glob operation. Refusal must stop the guarded call, never discard it.
+        expect(result).toMatchObject({ outcome: 'refused', blockOperation: true })
+        return
+      }
       if (result.outcome !== 'run') throw new Error(`${result.outcome}: ${result.reason}`)
       const stdin: unknown = JSON.parse(result.stdin)
       if (!isObject(stdin)) throw new Error('stdin is not an object')
@@ -395,8 +422,10 @@ describe('captured stdin (real CLIs, scrubbed)', () => {
         expect(kind(item), key).toBe(kind(value[key]))
       }
       expect(stdin['hook_event_name']).toBe(value['hook_event_name'])
+      if (isObject(toolInput)) expect(stdin['tool_input']).toEqual(toolInput)
       const response = value['tool_response']
-      if (isObject(response)) expect(Object.keys(response)).toContain('llmContent')
+      if (isObject(response))
+        expect(stdin['tool_response']).toEqual({ llmContent: response['llmContent'] })
     },
   )
 

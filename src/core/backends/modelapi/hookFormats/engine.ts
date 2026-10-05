@@ -121,11 +121,16 @@ function fieldResult(
   options: AdapterOptions | undefined,
 ): TransformResult {
   const candidate = sourceValue(spec, row, payload)
-  return applyTransform(spec.transform ?? 'copy', candidate, {
+  const result = applyTransform(spec.transform ?? 'copy', candidate, {
     payload,
     options,
     toolNames: row.toolNames,
   })
+  return result.kind === 'value' &&
+    spec.schema !== undefined &&
+    !spec.schema.safeParse(result.value).success
+    ? { kind: 'refused', reason: 'invalid source shape' }
+    : result
 }
 
 export function buildStdin(
@@ -142,14 +147,24 @@ export function buildStdin(
   const gated = contract.gate?.(payload, options)
   if (gated !== undefined) return gated
   const { row } = selection
+  const isBlocking =
+    row.result.blockCodes.length > 0 ||
+    row.result.blockFrom !== undefined ||
+    row.result.invalid === 'block' ||
+    row.result.otherExit === 'block' ||
+    row.result.rules.some((rule) => rule.kind === 'veto')
+  const refuse = (reason: string): ForeignStdinResult => ({
+    outcome: 'refused',
+    reason,
+    ...(isBlocking && { blockOperation: true }),
+  })
   const stdin: Record<string, unknown> = {}
   for (const spec of [...contract.common, ...row.fields]) {
     const result = fieldResult(spec, row, payload, options)
     const where = `${contract.vendor} ${row.vendor}: ${spec.to}`
-    if (result.kind === 'refused')
-      return { outcome: 'refused', reason: `${where}: ${result.reason}` }
+    if (result.kind === 'refused') return refuse(`${where}: ${result.reason}`)
     if (result.kind === 'absent') {
-      if (spec.required === true) return { outcome: 'refused', reason: `${where} is required` }
+      if (spec.required === true) return refuse(`${where} is required`)
     } else setPath(stdin, spec.to, result.value)
   }
   return { outcome: 'run', stdin: JSON.stringify(stdin) }
@@ -249,7 +264,7 @@ function collect(
       if (typeof replaced === 'string' || isRecord(replaced))
         answer = { ...answer, replacement: { target: rule.target, value: replaced } }
     } else if (rule.kind === 'custom') {
-      const result = rule.apply(output)
+      const result = rule.apply(output, options)
       if (!result.ok) return { status: 'failed', reason: `${spec.label}: ${result.reason}` }
       answer = { ...answer, ...result.answer }
     }

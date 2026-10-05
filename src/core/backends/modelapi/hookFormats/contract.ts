@@ -35,6 +35,8 @@ export type TransformName =
   | 'wrapArray'
   /** Cursor prompt/read attachments: each file_path must be absolute. */
   | 'absoluteAttachments'
+  /** Captured/documented Gemini arguments; unsupported native calls refuse. */
+  | 'geminiToolInput'
 
 export interface FieldSpec {
   /** Output key; a dot nests (`tool_info.command_line`). */
@@ -44,6 +46,8 @@ export interface FieldSpec {
   /** A constant instead of a payload value. */
   readonly value?: unknown
   readonly transform?: TransformName
+  /** Source-shaped structured fields validate before the hook can run. */
+  readonly schema?: z.ZodMiniType
   /** A missing or untranslatable value refuses the build (never guessed). */
   readonly required?: boolean
 }
@@ -92,7 +96,10 @@ export type ResultRule =
   | {
       readonly kind: 'custom'
       readonly name: string
-      readonly apply: (output: Readonly<Record<string, unknown>>) => CustomResult
+      readonly apply: (
+        output: Readonly<Record<string, unknown>>,
+        options: AdapterOptions | undefined,
+      ) => CustomResult
     }
 
 export type CustomResult =
@@ -202,6 +209,6 @@ export interface AdapterOptions {
   readonly platform?: NodeJS.Platform | undefined
   /** Kiro file triggers: the path regex applied before the hook runs. */
   readonly pathPattern?: string | undefined
-  /** Parse only: the Muse payload this answer belongs to (status, tool_name). */
+  /** Parse only: the original execution payload, with full unclipped tool_input. */
   readonly input?: Readonly<Record<string, unknown>> | undefined
 }
