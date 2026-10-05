@@ -190,13 +190,14 @@ deprecated). Webview controls are hand-built on VS Code CSS theme variables.
   VS Code's authentication (M71); the local dev server (M81); and
   `api.typesafe.ai` (M85), experimental and off by default, and off while
   `museSpark.confidentialWorkspace` is on. Amended 2026-10-04 (D77, D78):
-  the Muse Judge engine (M98), which is a loopback local runtime, a decision
-  API (TypeSafe, OpenRouter's SystemOne route, Cloudflare), or one of the
-  user's providers (D74). The default `auto` uses a local decision model
-  already on the machine with no question. Otherwise it uses the chosen
-  provider, but only after a one-time paid consent; no remote judge request
-  is made before that answer. Only the verified-loopback local engine may
-  stay on while `museSpark.confidentialWorkspace` is on.
+  the Muse Judge (M98). It asks the user's own chat model, through the same
+  backend and endpoint the conversation already uses, and optionally a
+  separate judge: a loopback local runtime, a decision API (TypeSafe,
+  OpenRouter's SystemOne route, Cloudflare) or another of the user's
+  providers (D74). A paid source asks once before its first charge (D78), and
+  no paid judge request is made before that answer. While
+  `museSpark.confidentialWorkspace` is on, only same-model calls the chat
+  model itself may make, and the verified-loopback local judge, may run.
 - Contributor-tier models are opt-in behind a dialog quoting Meta's training
   wording; off by default; blocked when the workspace setting
   `museSpark.confidentialWorkspace` is true.
@@ -3254,11 +3255,16 @@ What changes:
 - **Names.** The setting is `museSpark.judge.*`, not
   `museSpark.experimental.typesafeAssist`. The paid feature is `judge`, priced
   per engine, and the TypeSafe key keeps this decision's exception to rule 12.
-- **Default.** "Experimental and opt in, off by default" above is superseded
-  by the owner's defaults ruling of 2026-10-04 (D78). The judge's default is
-  `auto` (D77): a free local engine already present turns on by itself, and a
-  paid engine asks once before its first charge. The advisory-only ruling is
-  unchanged.
+- **Default.** The owner's defaults ruling of 2026-10-04 (D78) supersedes
+  "Experimental and opt in, off by default" above.
+  - The judge's default is `auto` (D77): the user's own chat model judges
+    out of the box.
+  - A separate judge (TypeSafe, Jev, Clef, a local decision model) joins it
+    in a cascade once one is configured or available.
+  - A paid source asks once before its first charge.
+
+  The advisory-only ruling is unchanged.
+
 - **Confidential workspaces.** Every remote engine, TypeSafe included, is
   still off while `museSpark.confidentialWorkspace` is on. A verified-loopback
   local engine may stay on (D77).
@@ -4299,8 +4305,9 @@ writes documentation only.** D70–D76 and M91–M97 belong to other drafts; the
 absence here does not release those numbers. Research, with the probe table
 and sources: `docs/certification/m98-research.md`.
 
-**What the probe found** (2026-10-04; 30 live model-call attempts, 20
-completed, ≈ $0.0010; plus a free local run on the Kubuntu rig):
+**What the probe found** (2026-10-04). Two rounds: 41 live model-call
+attempts, 29 completed, ≈ $0.015. Free local runs on the Kubuntu CPU and the
+Win11 GPU:
 
 - **The Jev wire is now a standard, and Jev is reachable without a sales
   call.** OpenRouter serves `typesafe/jev-1.13` at
@@ -4340,6 +4347,17 @@ completed, ≈ $0.0010; plus a free local run on the Kubuntu rig):
 - **Confidence and scores do not transfer between engines.** Jev's
   confidence formula differs from Ollama's `1 − H/ln N`. Jev and `tev1:4b`
   scored the same command 3.09 and 2.16.
+- **Models without logprobs can still judge, and well** (round 2, 40
+  judgments batched per call):
+  - Stated confidence from the user's own model scored Brier 0.0025 on Muse
+    Spark, 0.0075 on Haiku 4.5 and 0.0074 on DeepSeek, close to DeepSeek's
+    own logprobs on the same items (0.000).
+  - A side request that shares the main thread's cached prefix read all
+    4,357 cached tokens on Haiku 4.5, at about a tenth of the uncached cost.
+  - On top-1 models, binary-from-top-1 matched top-5 exactly.
+  - Muse Spark refuses logprobs while reasoning, and its `none` effort is
+    refused: upstream request
+    [meta-models/meta-model-cookbook#57](https://github.com/meta-models/meta-model-cookbook/issues/57).
 
 **The ruling of D50 carries over unchanged.** A judge only assists:
 
@@ -4364,7 +4382,9 @@ Decisions:
   question within 32k tokens; a 64 KiB body. A question id is never sent to a
   model (as Jev). Our additions ride in a sibling `muse` object, so `answers`
   stays byte-compatible with any SystemOne client:
-  - the engine and model that answered;
+  - the source (`same`, `separate` or `both`), the technique (`logprob`,
+    `top1`, `stated`, `contrastive`, `sampling`, `systemone`, `embedding`),
+    and the model that answered;
   - `calibrated` and the calibration profile id;
   - our `confidence`, always `1 − H(p)/ln N`, computed by us;
   - the backend's own value as `vendorConfidence`, never mixed with ours;
@@ -4374,202 +4394,317 @@ Decisions:
   Code lives in pure `src/core/judge/**`, with no `vscode` import, so the
   extension, the ACP runtime and the CLI share it.
 
-- **Engines.** The setting decides which engine runs. It is either an
-  explicit engine, or `auto` (the default), which resolves in the fixed order
-  below. Nothing switches engines silently mid-use or after a failure. A
-  preset's capability record comes from a capture (rule 13).
-  - **(a) SystemOne.** For any `/v1/systemone` service: OpenRouter's Jev
-    (tested), TypeSafe direct (untested, per the owner's ruling), Cloudflare
-    Clef (no key yet; the owner's to mint), and a loopback server. One
-    request carries every question over one state, as the service ingests
-    the state once. This is the preferred remote engine, because these
-    models are trained for the task.
-  - **(b) Logprob.** On a provider whose capture shows a top-k for a
-    one-token answer:
-    - the answer token is `yes`/`no`, an option letter `A`–`T`, or a level
-      digit `0`–`9`;
-    - p is the renormalized mass of the answer tokens among the top-k;
-    - the residual mass and how many options were unseen are recorded;
-    - a choice with more options than the provider's top-k (at most 20), or
-      a top-1-only provider (OpenAI today), is `partial`, and only its noul
-      p(chosen) is usable;
-    - the capture records the switch that frees the first token from
-      reasoning (OpenAI and Fireworks effort `none`, DeepSeek
-      `thinking.disabled`);
-    - a response without the field (xAI, Z.ai) is an engine failure. It is
-      never read as certainty.
-  - **(c) Sampling.** For providers with no logprobs (Anthropic, Muse
-    Spark, Gemini, Mistral, Groq, xAI, Z.ai):
-    - k parallel samples, default 5 and at most 9;
-    - the provider's highest allowed temperature, or its minimal effort on a
-      reasoning model;
-    - frequencies with add-½ smoothing, always marked uncalibrated and
-      coarse;
-    - off unless `museSpark.judge.allowSampling` is on, because it costs k
-      calls. Muse Spark contributor: 8.8 s and $0.000037 per sample; about
-      $0.0007 at Standard;
-    - **never chosen by `auto`**, whatever the provider. Only an explicit
-      `provider` engine with `allowSampling` on uses it.
-  - **(d) Local.** A loopback Ollama, llama.cpp server or LM Studio:
-    - through (a) when a decision model is installed (Ollama's capability
-      `decision`);
-    - otherwise through (b) on a general model's top-k (Ollama `/api/chat`
-      with `think: false`; the OpenAI-shaped `logprobs` of llama.cpp and LM
-      Studio, captured before they are listed);
-    - free, private, and a first-class choice, not a fallback.
+- **Two first-class judge sources.** The owner, on 2026-10-04: "i meant with
+  just the model not with a different one", then "i thought it was
+  understood that also a seperate judge model can be the case i want both if
+  we can". Both sources are configured, shown in the UI and supported
+  equally.
+  - **Same model.** The user's own chat model and provider answer, with the
+    best same-model technique that model offers (below). It works with zero
+    setup on every backend, because the user already chose that model. It
+    never switches to another model.
+  - **Separate judge.** A model chosen for judging:
+    - a local decision model over loopback (`tev1:4b` recommended);
+    - a SystemOne service: Jev through OpenRouter (tested), TypeSafe direct
+      (untested, per the owner's ruling), or Cloudflare Clef (no key yet; the
+      owner's to mint);
+    - any other configured provider model (D74), judged with the same-model
+      techniques on that model;
+    - a local general model of at least 3B, through logprobs.
+- **Same-model techniques**, best first. Each is chosen per model from that
+  model's captured capability record (rule 13), never per provider.
+  1. **Logprobs, top-k.**
+     - The answer token is `yes`/`no`, an option letter `A`–`T`, or a level
+       digit `0`–`9`.
+     - p is the renormalized mass of the answer tokens among the top-k; the
+       residual mass and how many options were unseen are recorded.
+     - A choice with more options than the model's top-k (at most 20) is
+       `partial`.
+     - The capture records the switch that frees the first token from
+       reasoning: OpenAI and Fireworks effort `none`, DeepSeek
+       `thinking.disabled`.
+     - A response without the field (xAI, Z.ai) is an engine failure, never
+       read as certainty.
+  2. **Binary from top-1.** For a noul, p(yes) comes from the chosen token
+     alone: "yes" with p gives p, and "no" with p gives 1 − p, with the yes/no
+     variants normalized. On `qwen3:4b-instruct-2507` the top-1 value equalled
+     the top-5 renormalized value on all 40 items. So a top-1 model (OpenAI's
+     `gpt-5.6-luna`) is fully usable for nouls; a choice or score still needs
+     top-k or stated confidence. Capability is per model: `gpt-4o-mini`
+     returned top-5 in round 2, `gpt-5.6-luna` top-1.
+  3. **Calibrated stated confidence.** One structured call (a JSON schema, a
+     forced tool, or JSON mode):
+     - `{answer, confidence 0–100}` for a noul;
+     - a 100-point distribution for a choice or score;
+     - then Platt or isotonic scaling per model and question family.
+
+     The result is labelled "calibrated (stated)". Without a profile it is
+     uncalibrated, and is used only where uncalibrated output is allowed.
+     It works on every model, including Anthropic, Gemini, Mistral, Groq, xAI,
+     Z.ai and Muse Spark. Measured with 40 judgments in one call:
+
+     | Model         | Brier  | Accuracy |
+     | ------------- | ------ | -------- |
+     | Muse Spark    | 0.0025 | 1.0      |
+     | DeepSeek      | 0.0074 | 1.0      |
+     | Haiku 4.5     | 0.0075 | 1.0      |
+     | Llama-3.3-70B | 0.018  | 0.975    |
+
+     DeepSeek's own logprobs on the same items gave Brier 0.000, so stated
+     confidence came close. A 4B local model's stated confidence was
+     degenerate (only 0 or 100), so small models use logprobs.
+
+  4. **Contrastive framing** for high-stakes binary questions. The question
+     and its inverse ("is it destructive?", "is it safe?") go in one batched
+     call, combined as the mean of p and 1 − p′. On DeepSeek's stated
+     confidence it took Brier from 0.0074 to 0.0039. It is adopted for
+     high-stakes families only once M75 confirms it.
+  5. **Self-consistency sampling.** k parallel samples, `max_tokens` 1 or the
+     provider's minimum, over a cached shared prefix, combined by answer
+     agreement.
+     - **Latency.** About one call once the prefix is warm. The first request
+       writes the cache; parallel requests sent before it lands all miss.
+     - **Cost.** About one cache write plus k × (the prefix at the read rate +
+       the uncached tail). Anthropic reads cost 0.1× input, and only above the
+       model's minimum cacheable prefix.
+     - **When it is used.** Only where it is cheap (cache-capable,
+       non-reasoning, and a measured cost per question under
+       `JUDGE_SAMPLING_MAX_USD_PER_QUESTION`, Haiku for example), or for a
+       question marked high-stakes.
+     - **Never** on a model that forces reasoning: Muse Spark took 8.8 s per
+       sample.
 
   **Not taken:**
-  - verbalized probabilities ("say a number from 0 to 1"), which are poorly
-    calibrated and still cost a turn;
-  - conditioning one question on another's answer.
+  - verbalized probabilities without calibration;
+  - parallel calls conditioned on one another. A batched call is one
+    generation, a trade-off M75 measures.
 
-- **The settings: on out of the box, `auto` by default.** This follows the
-  owner's defaults ruling of 2026-10-04 (D78, drafted on the defaults lane's
-  branch): "our enhancements [should] be featured and active out of the box
-  with whatever setup a user has chosen". Under it, free local engines turn
-  on by themselves when already present, paid extras ask once before the
-  first charge, and downloads still need consent. It supersedes this
-  decision's first draft, which had `off` as the default and a separate
-  opt-in for Local.
-  - `museSpark.judge.engine`: `auto` (default), `off`, `local`,
-    `decisionApi` or `provider`. Machine-scoped. `decisionApi` replaces the
-    earlier example value `typesafe`, because TypeSafe is now one of three
-    such services.
-  - **How `auto` resolves**, in this order. Resolution is a pure function
-    (`src/core/judge/resolve.ts`) of the setting, the confidential flag, the
-    local detection result, the active provider's judge capability, the
-    stored paid consent and the daily budget. Its result and reason are
-    logged as one line, with no content.
-    1. **Local, free and private.** A verified-loopback runtime already has a
-       recommended decision model installed. The list holds only models with
-       a calibration receipt: `tev1:4b` today, measured on CPU and GPU.
-       `nimble` and `clef-flash` join once measured. A general model such as
-       `qwen3:4b-instruct-2507` joins only when its calibrated profile
-       matches `tev1:4b`'s Brier. `tev1:0.8b` never joins (accuracy 0.75).
-       Branch 1 uses the local engine with no question. A one-time notice
-       (once per machine) says which model is judging, that it is free and
-       stays on this machine, and links to the settings.
-    2. **The chosen provider, paid.** If branch 1 does not apply, and the
-       active provider has a usable engine, `auto` uses it. Usable means a
-       SystemOne route on the same key (OpenRouter's Jev, a stored TypeSafe
-       key), or a captured top-5 logprob model named by its preset (for
-       example Together, Fireworks, DeepSeek). A top-1-only provider
-       (OpenAI today) is not usable for `auto`.
-       - The first charge asks once, through the existing paid modal in D78's
-         ask-once form. It shows the engine, the price per decision and the
-         shared daily budget, `museSpark.paidDailyBudgetUsd` (default $5,
-         D78).
-       - **No request reaches the provider before the user answers.**
-         Declining leaves `auto` at "no assist" until the user changes the
-         setting or the consent. It never moves on to another paid engine.
-       - Judge spend counts against the shared daily budget. Once the budget
-         is reached, there is no assist for the rest of the day.
-       - This branch needs M95. Until M95 lands, the Meta Model API (Muse
-         Spark, no logprobs) and the Muse Code subscription offer no usable
-         engine, so `auto` goes to branch 3.
-    3. **No assist.** Sampling is never chosen automatically, because it
-       costs k calls per question. A one-time suggestion (once per machine,
-       with "Set up" and "Don't show again") offers to set up a local model.
-       The download happens only on a click, after the size is shown.
-  - **Explicit choices are respected.** `off` means off. An explicit
-    `local`, `decisionApi` or `provider` uses only that engine. While
-    `museSpark.confidentialWorkspace` is on, `auto` considers branch 1 only.
-  - **When `auto` resolves.** Never at activation (the activation diet holds).
-    It resolves at the first decision point that would use a judge, and the
-    result is cached per window. It re-resolves when a setting, the provider,
-    the consent or the confidential flag changes, and after a failure, at
-    most once per named interval. Detection under `auto` is one bounded GET
-    pair to Ollama's default loopback port (`/api/version`, `/api/tags`) and
-    to a user-configured local endpoint, if any. It never loads a model, and
-    never scans other ports. llama.cpp and LM Studio are found by the
-    setup flow the user starts, or by an explicit endpoint.
-  - **Headless and hooks.** The `judge` CLI defaults to `--engine auto` too,
-    with no modal to ask. Branch 2 needs `--budget-usd` above 0, which
-    defaults to 0. So another agent's hook gets the free local judge when it
-    is present, and no opinion otherwise.
-  - `museSpark.judge.model`: a model reference (D74):
-    - `ollama/tev1:4b`;
-    - `openrouter/typesafe/jev-1.13`;
-    - `typesafe/jev-latest`;
-    - `together/meta-llama/Llama-3.3-70B-Instruct-Turbo`.
-  - `museSpark.judge.fallback`: an ordered list, empty by default. An entry
-    that can cost money needs its own consent when it is added.
-  - `museSpark.judge.allowSampling`: default `false`.
+- **The engine per provider and model.** From the captures. A model that is
+  not captured gets stated confidence until it is.
 
-  Choosing **Local** explicitly, or `auto` finding it, shows the same
-  one-time notice: free, private, runs on your machine. Choosing a paid
-  engine explicitly goes through the same ask-once paid modal (D48 as D78
-  amends it).
+  | Provider / model                          | Logprobs                     | Same-model technique                                        | Also as a separate judge               |
+  | ----------------------------------------- | ---------------------------- | ----------------------------------------------------------- | -------------------------------------- |
+  | Meta Muse Spark (Model API)               | refused (reasoning)          | stated, batched, in the background; never blocks            | —                                      |
+  | Muse Code (subscription)                  | none over MSP                | stated, through a hidden side session (as M90)              | —                                      |
+  | OpenAI `gpt-5.6-luna`                     | top-1                        | binary from top-1 for nouls; stated for choice and score    | yes                                    |
+  | OpenAI `gpt-4o-mini` (through OpenRouter) | top-5                        | logprobs                                                    | yes                                    |
+  | Anthropic Haiku 4.5, Sonnet, Opus         | none                         | stated; sampling under the cheap rule (Haiku)               | yes                                    |
+  | Gemini 3.x                                | refused                      | stated                                                      | yes                                    |
+  | xAI, Z.ai                                 | silently dropped             | stated                                                      | yes                                    |
+  | Mistral, Groq                             | refused                      | stated                                                      | yes                                    |
+  | OpenRouter models with `top_logprobs`     | top-5 (`require_parameters`) | logprobs                                                    | yes; Jev through SystemOne             |
+  | Together Llama-3.3-70B, Tev1-4B           | top-5                        | logprobs                                                    | yes (Tev1 answers with option letters) |
+  | Fireworks `deepseek-v4p1-flash`           | top-5 (effort `none`)        | logprobs                                                    | yes                                    |
+  | DeepSeek `deepseek-flash`                 | top-5 (thinking off)         | logprobs (stated measured close)                            | yes                                    |
+  | Hugging Face router                       | per upstream                 | logprobs when the upstream returns top-k, else top-1/stated | yes                                    |
+  | Ollama decision model (`tev1:4b`)         | n/a (SystemOne)              | —                                                           | yes: the recommended separate judge    |
+  | Ollama general model, at least 3B         | top-5                        | logprobs                                                    | yes                                    |
 
+- **Embedding fast path (optional).** For recurring families (skill fit,
+  command risk, context relevance), a logistic head on text embeddings
+  answers in milliseconds with a calibrated p. It falls back to the full judge
+  when its confidence is under `JUDGE_EMBED_FALLBACK_CONFIDENCE`.
+  - **Embeddings** come from the same provider's embeddings endpoint, when it
+    has one, or from a local embedding model once the user has opted into a
+    local separate judge. Local embeddings are never the default.
+  - **Training** is local and opt-in, from labels plus judge answers
+    (distillation). Weights live in global storage, never in the VSIX. It is
+    plain math in a lazy bundle, with no ML runtime.
+  - **Measured** with only 40 labels (leave-one-out): `mxbai-embed-large`
+    0.825, `nomic-embed-text` 0.625, about 40 ms per embedding on the GPU and
+    under 2 ms per prediction. The six confident answers were all right, so
+    the fallback carries the rest.
+  - A family's head turns on only after its own M75 measurement with
+    hundreds of labels.
+- **Modes.** `museSpark.judge.engine`: `auto` (default), `same`, `separate`,
+  `both` or `off`. Machine-scoped.
+  - **`same`:** only the user's chat model, the one in effect for the
+    conversation. It never switches models.
+  - **`separate`:** only the configured separate judge. `museSpark.judge.separate`
+    takes a model reference: `ollama/tev1:4b`, `openrouter/typesafe/jev-1.13`,
+    `typesafe/jev-latest`, or `together/…`.
+  - **`both`, a cascade.**
+    - The separate judge answers first.
+    - When its calibrated confidence is under `JUDGE_CASCADE_CONFIDENCE`, or
+      the question is marked high-stakes, the same model is asked too.
+    - The two combine by calibrated weighting: the mean of calibrated logits,
+      weighted from each source's profile.
+    - A disagreement escalates caution and never relaxes it. For a risk
+      family, the more cautious answer wins.
+  - **`auto`**, under the owner's defaults ruling (D78):
+    - `both` when a separate judge is configured or already available: a
+      recommended local decision model installed on a verified-loopback
+      runtime, or a SystemOne-capable key the user already stored;
+    - otherwise `same`.
+
+    So the judge is on out of the box with zero setup through the same model,
+    and gets better by itself once a separate judge exists. Explicit `off`
+    and explicit modes are honoured. This supersedes this decision's earlier
+    `auto` order (local, then a paid provider, then nothing).
+
+  - **Other settings.** `museSpark.judge.allowSampling`: default `true`,
+    within the cheap rule above; `false` blocks sampling entirely.
+    `museSpark.judge.highStakesFamilies`: default `risk.destructive`.
+  - **Measured on the 40-item set**, with `tev1:4b` as the separate judge and
+    a cascade threshold of 0.8:
+    - the cascade asked the same model on 17 of 40 items. With a frontier
+      same model (Muse Spark, Haiku 4.5, DeepSeek, `gpt-4o-mini`), it fixed
+      the separate judge's one miss: accuracy 0.975 → 1.0;
+    - Brier went from 0.031 to between 0.001 and 0.013, depending on the same
+      model. With Llama-3.3-70B it carried that model's one false positive;
+    - the frontier same models alone already scored 1.0 on this set. So it
+      shows the cascade beating the separate judge alone, at under half the
+      same-model calls, but cannot show it beating a strong same model.
+      M75's harder families set the default threshold.
+  - **When `auto` resolves.** Never at activation. It resolves at the first
+    decision point, and the result is cached per window. It re-resolves when
+    a setting, the provider, a key, the consent or the confidential flag
+    changes, and after a failure, at most once per named interval.
+    - Detecting a local judge is one bounded GET pair (`/api/version`,
+      `/api/tags`) to Ollama's default loopback port and to a configured
+      endpoint, if any.
+    - It never loads a model, and never scans other ports.
+  - **Headless and hooks.** There is no conversation, so `same` means the
+    model named by `--model`, or the ACP agent's configured model. `auto` uses
+    the separate judge when one is available, and that model otherwise. A
+    paid source needs `--budget-usd` above 0 (default 0). So another agent's
+    hook gets the free local judge when it is present, and no opinion
+    otherwise.
+- **Billing follows the source.**
+  - **Same model on the Meta Model API.** Billed to the user's key as the
+    `judge` paid feature, asked once per D78, with the price and
+    `museSpark.paidDailyBudgetUsd`. Muse Spark contributor answered 40
+    judgments in one call for about $0.00025: 958 output tokens, 668 of them
+    reasoning.
+  - **Same model on Muse Code.** A hidden side session in the same
+    `muse serve`, as M90's reviewer runs (D69), one short turn per batch. It
+    is covered by the user's Muse subscription and counts against its limits;
+    the first use says so. MSP exposes no logprobs and no prompt-cache
+    control, so it uses stated confidence, batched, in the background.
+  - **Same model on a BYO provider** (M95). Billed as D74 bills that
+    provider, asked once per D78.
+  - **Separate judge.** Local is free: no question, a one-time notice. A
+    paid separate judge (Jev, Clef, a provider model) asks once per D78. A
+    move from a free source to a paid one always asks again.
+- **Same-model speed.**
+  - **A side request sharing the cached prefix.** When the question concerns
+    the current conversation, a separate side request repeats the main
+    thread's cached prefix byte for byte, and appends the question only at
+    the tail, so the provider's cache serves the prefix.
+    - Measured on Haiku 4.5: the main request wrote 4,357 cached tokens. The
+      side request read all 4,357 and added 35 tokens, at 1.35 s, for about
+      $0.00048 instead of $0.0044 uncached.
+    - The main request is never modified, and its cache is never
+      invalidated (SoL-Pi).
+    - Where the prefix is not cacheable (below the model's minimum) or the
+      question does not concern the conversation, a minimal standalone prompt
+      is used instead.
+  - **Batching.** All pending questions over one state go in one structured
+    call, with per-question stated confidence or per-answer logprobs.
+    - Measured, 40 judgments per call: 2.0 s on DeepSeek, 3.4 s on
+      `gpt-4o-mini`, 4.6 s on Haiku 4.5, 14.2 s on Muse Spark.
+    - One generation conditions later answers on earlier ones; M75 measures
+      that against parallel single calls.
+  - **Background.** Advisory calls run asynchronously (a risk score while the
+    approval card renders) and never block. A result that arrives after its
+    decision point is dropped as stale, never applied late.
+  - **A result cache** keyed by a hash of the model, the question family and
+    text, and the state. It is per window and bounded, with no content on
+    disk.
+  - **Muse Spark** forces reasoning: about 8.8 s per call and 14 s per batch
+    of 40. It is used with minimal effort, batching and the background only;
+    nothing ever waits on it. Upstream:
+    [meta-models/meta-model-cookbook#57](https://github.com/meta-models/meta-model-cookbook/issues/57)
+    asks for logprobs on the answer tokens with minimal reasoning, or a
+    non-reasoning mode (it cross-links #56).
+  - **SystemOne and local.** One request per state, with the questions in
+    parallel inside it, under a concurrency cap and a per-decision deadline
+    (named constants).
 - **Local setup** (the owner's addition), reusing M95's wizard state machine
   and picker components where M95 has landed, and a minimal quick pick
   before it:
   1. **Detect** Ollama (`11434`), llama.cpp server (`8080`) and LM Studio
-     (`1234`). Only a loopback address is allowed:
+     (`1234`) when the user starts the setup. Only a loopback address is
+     allowed:
      - `127.0.0.0/8`, `::1`, or `localhost` when every answer resolves to
        loopback;
      - a user-entered URL passes the same check, through the classifier
        beside `src/core/web/publicAddress.ts` that M95's `endpointPolicy.ts`
        wraps;
-     - requests use `node:http` directly, no proxy (D74).
+     - requests use `node:http` directly, with no proxy (D74).
   2. **List** the installed models and mark the decision-capable ones.
      - Recommend `tev1:4b`: 4.5 GB; accuracy 0.975 and Brier 0.030 on the
        probe set; about 3 s per state on CPU and 0.3 s on a GPU.
-     - Offer `qwen3:4b-instruct-2507` (2.5 GB, logprob route, 0.10 s on a
-       GPU) as the measured second choice: accuracy 0.925 with confident
-       errors. It joins `auto`'s list only once its calibrated Brier on the
-       M75 set reaches `tev1:4b`'s.
+     - Offer `qwen3:4b-instruct-2507` (2.5 GB, the logprob route, 0.10 s on a
+       GPU) as the measured second choice: accuracy 0.925, with confident
+       errors. It joins the recommended list only once its calibrated Brier
+       on the M75 set reaches `tev1:4b`'s.
      - Offer `tev1:0.8b` (0.8 GB, 0.67 s) only with its measured warning
        (accuracy 0.75).
      - Do not recommend a general model under about 3B. `qwen3:1.7b` and
        `llama3.2:1b` answered "no" to nearly everything.
   3. **Pull** only on an explicit click, after showing the model's download
      size and licence. Never auto-install, never bundle weights in the VSIX,
-     never start or install a runtime.
+     and never start or install a runtime.
   4. **Health check** on first use and on failure: `/api/version`, the
      model's presence and capability, and the loaded context window.
      Ollama's decision endpoint defaults to 2,048 tokens and refuses longer
      input, so the engine splits by state, and setup tells the user how to
      raise `OLLAMA_CONTEXT_LENGTH`.
 
-  An unreachable runtime means no assist for that decision, with the reason
-  logged. **Never a silent fallback to a paid engine.** A fallback entry
-  needs its own opt-in. Under `auto`, a local runtime that disappears sends
-  resolution back through the order above. A move from the free branch 1 to
-  the paid branch 2 always asks through the modal, even when a consent is
-  stored, because the user was not paying before. No paid call happens
-  without an answered modal.
+  When the local judge is unreachable, the reason is logged:
+  - under `auto` or `both`, the same model answers alone, under its own
+    billing and consent;
+  - under `separate`, there is no assist.
 
-- **Confidential workspaces.** While `museSpark.confidentialWorkspace` is on:
-  - the Local engine may stay on, because the content never leaves the
-    machine and every request re-verifies that the endpoint is loopback;
-  - every remote engine (a, b, c, or a non-loopback SystemOne URL) is off,
-    whatever the setting;
-  - a test proves both.
+  Nothing ever moves silently to a paid separate judge.
 
-  This amends D50's "off while confidential" for the local case only.
+- **Setup UI.** A **Judge** section in M95's shared Models & Agents panel,
+  with a quick pick before M95 lands:
+  - it shows the mode, which source answers and why (for example "auto:
+    both, because `tev1:4b` is installed"), and each source's calibration
+    status, cost and last latency;
+  - it offers a separate judge in one click: a detected local runtime with a
+    recommended model, or a key the user already has;
+  - the usage rows say which source answered.
+- **Confidential workspaces**, kept consistent with the chat model's own
+  rules (today, contributor-tier models are blocked; D4). While
+  `museSpark.confidentialWorkspace` is on:
+  - same-model calls are allowed exactly when the chat model itself is: the
+    same endpoint and model, and no contributor tier. A blocked chat model
+    gives no same-model judge;
+  - the local separate judge may stay on, because every request re-verifies
+    that the endpoint is loopback;
+  - every other separate judge (Jev, Clef, TypeSafe, or a provider model
+    other than the chat model) is off;
+  - tests prove each case.
 
-- **Prompt shape and parallelism.** State first, question last:
-  - the system line and the state form a stable prefix, so several questions
-    over one state hit the provider's prompt cache (`prompt_cache_key` from
-    the state hash where the preset supports it);
-  - questions run in parallel and are never conditioned on another answer;
-  - on SystemOne, one request carries them all;
-  - a concurrency cap and a per-decision deadline (short; named constants)
-    bound everything.
-- **Calibration.** Profiles are kept per engine, model and question family
-  (for example `risk.destructive`, `skill.fit`):
+  This amends D50's "off while confidential" for these two cases only.
+
+- **Calibration.** Profiles are kept per source, model, technique and
+  question family (for example
+  `same · muse-spark-1.3 · stated · risk.destructive`). They improve over
+  time:
   - **Methods.** Temperature scaling on the logit for the logprob engine;
     Platt scaling for binary families; isotonic regression from 200 labels
     up.
-  - **Labels.** From M75's harness cases. Also from an opt-in, local-only
-    decision log that holds the question family, model, p, timing and the
-    later outcome (the user's approval choice, the reviewer's verdict, the
-    test result), never content. Nothing leaves the machine.
+  - **Labels.** From M75's harness cases, and from an opt-in, local-only
+    decision log of outcome signals. The log holds the question family,
+    model, technique, p, timing and the later outcome, and never content.
+    Nothing leaves the machine. The outcomes are:
+    - the user approved or denied;
+    - the reviewer's verdict;
+    - the tests passed or failed;
+    - a suggestion was accepted or ignored.
   - **Measures.** ECE (equal-mass bins) and Brier. A report command shows
     per-model reliability.
-  - **Uncalibrated.** An engine without a profile says so in the UI and the
-    JSON, and the uses apply their conservative defaults.
+  - **Labels on results.** Each result says "calibrated (logprob)",
+    "calibrated (stated)" or "uncalibrated" in the UI and the JSON. An
+    uncalibrated result is used only where uncalibrated output is allowed,
+    and the uses apply their conservative defaults.
+  - **Combining.** The cascade's weighting comes from each source's profile.
+    A source without a profile gets the minimum weight, and never relaxes
+    the other source's caution.
   - **Local.** Each local model keeps its own profile (owner request), as a
     `tev1:4b` threshold means nothing for `nimble`.
 - **Uses inside the extension** (D50's list, advisory only):
@@ -4585,8 +4720,9 @@ Decisions:
   - **`muse-spark-code-acp judge`**, reserved before prompt parsing as M97's
     `exec legal-scan` is. It starts no backend, makes no ACP frame on
     stdout, and reads no credential beyond the chosen engine's.
-    - **`judge ask`:** JSON in on stdin, JSON out. Flags: `--engine`,
-      `--model`, `--budget-usd`, `--timeout-ms`. Exit 0 = answered, 2 =
+    - **`judge ask`:** JSON in on stdin, JSON out. Flags: `--engine
+auto|same|separate|both`, `--model` (the same model), `--separate` (a
+      separate judge reference), `--budget-usd`, `--timeout-ms`. Exit 0 = answered, 2 =
       input or configuration error, 4 = no answer (unreachable, timeout,
       refused budget).
     - **`judge hook --agent claude|codex|cursor|gemini|copilot --check <id>`**
@@ -4611,8 +4747,9 @@ Decisions:
 
   Headless runs with a paid engine need `--budget-usd`, default 0. A hook
   can therefore never spend money that nobody set. `--engine auto` (the
-  default) gives the free local judge when it is present, and no opinion
-  otherwise.
+  default) gives the free local judge when it is present, the `--model`
+  model within the budget otherwise, and no opinion when neither is
+  available.
 
 - **Judge lint, jevlint-compatible.** It checks code units against
   plain-language rules: one choice question per unit with the options pass,
@@ -4672,9 +4809,9 @@ Decisions:
   - pre-screening a lane's diff against the rule pack, to cut review rounds;
   - choosing which review class to run first.
 - **Cost, consent and privacy.**
-  - **Paid engines.** Under D48 as D78 amends it: a `judge` paid feature
-    replaces `typesafeAssist` in the `PaidFeature` union. It is priced per
-    engine, with the badge, a paid row and `PaidUsage`. It asks once before
+  - **Paid sources.** Under D48 as D78 amends it, and per "Billing follows
+    the source" above: a `judge` paid feature replaces `typesafeAssist` in
+    the `PaidFeature` union. It is priced per source and technique, with the badge, a paid row and `PaidUsage`. It asks once before
     the first charge, showing the price and the shared daily budget
     (`museSpark.paidDailyBudgetUsd`, default $5), and judge spend counts
     against that budget.
@@ -4685,18 +4822,16 @@ Decisions:
   - **Logs.** Only question ids, engine, model, timing and cost; never state
     or answers' content.
   - **PRIVACY** names each engine's recipient.
-- **The single-model invariant.** It holds for every setting.
+- **The single-model invariant.** It holds in every mode: `off`, `same`,
+  `separate`, `both` and `auto`.
   - With `museSpark.judge.engine` `off`, nothing changes: no request, no
     file, no log line, no bundle load (the judge bundle is lazy).
-  - With `auto` resolving to "no assist" (the default on a machine without a
-    local decision model or a usable provider), the main request is
-    byte-identical too. The only differences are:
-    - the bounded loopback detection GETs;
-    - one resolution log line;
-    - the lazy judge bundle's load at the first decision point;
-    - the one-time suggestion.
-
-    No remote request and no hint line are made.
+  - In every other mode, the main request stays byte-identical. Judge
+    questions go in separate side requests or separate calls, never into
+    the main request.
+  - A side request repeats the main request's cached prefix byte for byte,
+    and appends only at the tail. It never reorders, trims or edits that
+    prefix, so the main thread's cache entry is read and never invalidated.
 
   - The judge never edits the main request.
   - A hint line enters only the newest user turn's tail, never the system
@@ -4704,17 +4839,28 @@ Decisions:
     (then_run, ObservationPack, the reducer, todo compaction, M75's eval,
     the cache-stable prefix).
   - A golden test asserts that the main request is byte-identical with the
-    judge absent, `off`, or `auto` resolving to "no assist". With the judge
-    on and a hint given, every byte before the newest user turn's tail is
-    identical.
+    judge absent and in every mode. It also asserts that a side request's
+    prefix equals the main request's cached prefix byte for byte, and that
+    the question appears only after it. With a hint given, every byte before
+    the newest user turn's tail is identical.
 - **Order against M95.** M98 ships in two parts, so nothing is built twice:
-  - **M98 core** needs no M95: the contract and math, calibration, the
-    SystemOne client, the Local engine (loopback, no credentials), the CLI,
-    hook helper, server, MCP tool, lint, and the golden test. Its SystemOne
-    client takes an `AuthSource`-shaped callback, so M95's credential records
-    plug in later without changing it.
-  - **The `provider` and `decisionApi` engines** wait for M95's
-    `ProviderClient`, presets and keys. TypeSafe, OpenRouter's SystemOne route
+  - **M98 core** needs no M95:
+    - the contract and math, and calibration;
+    - the same-model source on the two backends that exist today: the Meta
+      Model API (stated confidence, batched, in the background, with side
+      requests sharing the cached prefix) and Muse Code (a hidden side
+      session, as M90);
+    - the separate judge through the SystemOne client and the local engine
+      (loopback, no credentials);
+    - the cascade, the modes and `auto`;
+    - the CLI, hook helper, server, MCP tool and lint;
+    - the golden tests. Its SystemOne
+      client takes an `AuthSource`-shaped callback, so M95's credential records
+      plug in later without changing it.
+  - **BYO providers, as the same model or as a separate judge**, and the
+    SystemOne keys wait for M95's `ProviderClient`, presets and keys. That
+    covers logprobs, binary from top-1, stated confidence and sampling on
+    those providers. TypeSafe, OpenRouter's SystemOne route
     and Cloudflare become presets of a `systemone` format with captured
     capability data. M98 builds no second key store or transport.
 - **M85 is folded in.** M85 becomes M98's SystemOne-adapter lane (D50
@@ -14216,210 +14362,252 @@ joined with M57, M58 and PR #49's sign-in
 ### M98 — Muse Judge: a calibrated judge for any agent (D77, planned)
 
 - **Goal.** Small, calibrated decisions, on out of the box with whatever
-  setup the user has (`auto`, per the owner's 2026-10-04 defaults ruling,
-  D78):
-  - a local decision model already on the machine, free and private, with
-    no question;
-  - otherwise the chosen provider's SystemOne route or top-5 logprobs, after
-    one paid consent with the price and the daily budget;
-  - otherwise no assist, and a one-time suggestion to set up a local model.
+  setup the user has (the owner's defaults ruling, D78), from two
+  first-class sources:
+  - **the same model:** the user's own chat model, through the best technique
+    it offers (logprobs, binary from top-1, calibrated stated confidence,
+    contrastive framing, or cheap sampling), batched, in the background, and
+    in side requests that share the main thread's cached prefix;
+  - **a separate judge:** a local decision model, Jev through OpenRouter or
+    TypeSafe, Cloudflare Clef, or another configured provider model.
 
-  An engine the user picks explicitly is honoured:
-  - a local model;
-  - a decision API (Jev through OpenRouter or TypeSafe, Cloudflare Clef);
-  - one of the user's providers (logprobs, or sampling when allowed).
+  `auto` uses both, in a cascade, when a separate judge exists, and the same
+  model otherwise. The answers are offered to the extension, to other agents'
+  hooks, to any SystemOne client and to code review, and they stay advisory
+  everywhere. The Muse model, or a deterministic rule, still decides.
 
-  They are offered to the extension, to other agents' hooks, to any
-  SystemOne client and to code review, and they stay advisory everywhere. The
-  Muse model, or a deterministic rule, still decides.
+- **Scope.**
+  - D77's contract and math, and the two sources with their techniques;
+  - the modes and `auto`; the cascade and its combination;
+  - same-model speed: side requests, batching, background, the result cache;
+  - local setup and health; calibration with outcome signals and its report;
+  - the optional embedding fast path;
+  - the extension's advisory uses, and the Judge section in the panel;
+  - the `judge` CLI (`ask`, `hook`, `serve`, `lint`, `calibrate`, `report`,
+    `mcp`) and the MCP tool;
+  - the jevlint-compatible lint and its first-party pack;
+  - the three measured testing uses;
+  - consent, cost and privacy, and the golden tests.
 
-- **Scope.** D77's contract and math, the four engines, local setup and
-  health, calibration and its report, the extension's advisory uses, the
-  `judge` CLI (`ask`, `hook`, `serve`, `lint`, `calibrate`, `report`, `mcp`),
-  the MCP tool, the jevlint-compatible lint and its first-party pack, the
-  three measured testing uses, consent, cost, privacy and the
-  single-model golden test. M85's TypeSafe client is lane T.
+  M85's TypeSafe client is lane T.
+
 - **Depends on.**
-  - **None for the core:** lanes 0, J, L, T, X, K and G below.
-  - **M95 (D74)** for the `provider` and `decisionApi` engines:
-    `ProviderClient`, presets, credential records, `endpointPolicy.ts`, and
-    the wizard and picker components the local setup reuses. Until M95
-    merges, setup is a quick pick and SystemOne keys are not offered.
+  - **None for the core:** lanes 0, J, S, T, L, C, E, X, K, G, D and most of
+    U. The same model on the Meta Model API and on Muse Code, the local and
+    SystemOne separate judges, and the cascade all ship before M95.
+  - **M95 (D74)** for BYO providers as the same model or as a separate judge
+    (lane P), for SystemOne keys, and for the Judge section of the shared
+    Models & Agents panel. Until M95 merges, the panel part is a quick pick.
   - **M91 (D70)** for the hook helper's per-agent payload and output schemas
     (Claude Code, Codex, Cursor, Gemini, Copilot). Lane H waits for M91's
     merge and adds no parser of its own.
   - **M96 (D75)** for the orchestrator hints. Lane U's M96 part waits for its
     scheduler and consumes `judge()` as advisory input only. M96's decisions
     are unchanged.
-  - **Existing:** M75 (labels and paired runs), M78 and M90 (the Auto
-    advisory and the reviewer signal), M89/D68 (the bundled-skill path for
-    lint), M69 (`publicAddress.ts`), M80 and M97 (reserved headless
-    subcommands), D48 (paid use), and D6 (lazy bundles).
+  - **Existing:**
+    - M75 (labels and paired runs);
+    - M78 and M90 (the Auto advisory and the reviewer signal, and M90's
+      hidden side session on Muse Code);
+    - M89/D68 (the bundled-skill path for lint);
+    - M69 (`publicAddress.ts`);
+    - M80 and M97 (reserved headless subcommands);
+    - D48 and D78 (paid use);
+    - D6 (lazy bundles).
 - **Lanes and file ownership.** Muse codes each lane. Codex independently
   reviews each lane's finished diff and gate-fire evidence. The lead
   serializes shared files, integration and the aggregate gates; no lane
-  rewrites another's region. Phase 1 is lanes 0, J, L, T, X, K, G, C and D.
-  Phase 2 (after M95) is lanes P, H and U.
+  rewrites another's region.
+  - Phase 1: lanes 0, J, S, T, L, C, E, X, K, G and D, plus lane U's core
+    uses.
+  - Phase 2: lane P and U's panel section after M95, lane H after M91, and
+    U's hints after M96.
 
-| Lane                      | Muse implementation ownership                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        | Codex review / acceptance focus                                                                                                                                                                                                                                                                             |
-| ------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 0 Contract / strings      | `src/core/judge/schema.ts` (the zod request/answer/`muse` schemas and bounds), named limits in `constants.ts`, the `judge` paid feature in `PAID_FEATURES`, the settings in `package.json` and `package.nls*.json`, English and the 14 `l10n/ui.*.json`                                                                                                                                                                                                                                                                                                                                              | Byte-compatible `answers`; bounds at the intersection of services; no content in log fields; complete real translations                                                                                                                                                                                     |
-| J Judge core              | `src/core/judge/{judge,math,engines,prompt,partial,resolve}.ts`: the engine interface, the confidence (`1 − H/ln N`), renormalization and residual mass, `partial`, smoothing for sampling, the state-first prompt builder, parallel fan-out with a concurrency cap and deadline; `resolve.ts`, the pure `auto` resolver (setting, confidential flag, local detection, provider capability, paid consent, daily budget → engine and reason); `test/unit/judge*.test.ts`                                                                                                                              | The math against hand-computed fixtures (including the probe's distributions), no question conditioned on another, deadlines and cancellation, a missing field read as failure, not certainty; every `auto` branch and its order, sampling never returned by `auto`, confidential limits `auto` to branch 1 |
-| T SystemOne adapter (M85) | `src/core/judge/systemone.ts`: the client for any `/v1/systemone` with an `AuthSource`-shaped callback; the fake SystemOne server in `test/**` built from the 2026-10-04 captures and Ollama's documented limits; route records for OpenRouter (tested), TypeSafe (untested label), Cloudflare (pending key)                                                                                                                                                                                                                                                                                         | Shapes from captures only (rule 13); the untested label on the TypeSafe route in UI, docs and JSON; vendor confidence kept apart; 400/404/413/429/529 mapped; no key in any record                                                                                                                          |
-| L Local engine            | `src/core/judge/local/**`: runtime detection (under `auto`, only Ollama's default loopback port and a configured endpoint, a bounded GET pair, never at activation and never loading a model; in the setup flow, Ollama, llama.cpp and LM Studio), the recommended-model list with calibration receipts, loopback verification per request through a classifier beside `src/core/web/publicAddress.ts`, `node:http` without a proxy, model listing and decision capability, health and context-window checks, splitting by state; the consented pull flow's core; `test/**` with a fake local server | Loopback refusal (LAN, public, DNS rebinding, redirects); no silent paid fallback; confidential-mode allow; pull only after consent with the size shown; no weights or runtime shipped                                                                                                                      |
-| C Calibration             | `src/core/judge/calibration/**`: temperature, Platt and isotonic fits, ECE (equal-mass) and Brier, profiles per engine, model and question family in global storage, the opt-in local decision log (ids, p, timing, outcome; no content), the report model                                                                                                                                                                                                                                                                                                                                           | Fits and metrics against known datasets; an uncalibrated engine marked; the log holds no content and never leaves the machine; profiles per local model                                                                                                                                                     |
-| X Runtime / CLI           | `src/runtime/judge/**` and the reserved `judge` subcommand in `cliArgs.ts`: `ask`, `serve` (loopback, per-start token, Host check, `Origin` refused, 64 KiB cap), `calibrate`, `report`, `mcp` (stdio); exit codes; `--engine`, `--model`, `--budget-usd`, `--timeout-ms`                                                                                                                                                                                                                                                                                                                            | No backend, sign-in or ACP stdout mixing; budget default 0 for paid engines; `serve` unreachable off loopback and from a browser origin; jevlint pointed at `serve` passes its own eval                                                                                                                     |
-| K Lint                    | `src/core/judge/lint/**` (the `jevlint.json`, pack and eval readers; unit batching; the result cache; outcomes; SARIF), the lazy `dist/judgeLint.js` with `web-tree-sitter` and the lazy grammar files for the npm ACP package, the document-symbol unit source for VS Code; the first-party pack under `resources/judge-packs/hq/**` with fixtures and evals; the D68 bundled-skill hook-up                                                                                                                                                                                                         | jevlint compatibility on its own shipped rules and evals; the pack's evals pass on a calibrated engine; no grammar in the VSIX; measured caps; no source in the cache                                                                                                                                       |
-| P Provider engines        | (after M95) `src/core/judge/engines/{logprob,sampling}.ts` over `ProviderClient`; a `judge` capability block per preset in `presets.ts` (top-k, the reasoning switch, silent-drop flag), with the `systemone` format presets for TypeSafe, OpenRouter's route and Cloudflare                                                                                                                                                                                                                                                                                                                         | Capability data only from captures; top-1 and silent-drop handled as in D77; `auto` branch 2 only for SystemOne or captured top-5 presets; sampling off by default, never auto-selected, and its cost shown before consent                                                                                  |
-| H Hook helper             | (after M91) `src/runtime/judge/hook.ts`: `judge hook --agent … --check …` over M91's schemas; the built-in checks (destructive command, secret-shaped write, out-of-workspace path)                                                                                                                                                                                                                                                                                                                                                                                                                  | Output can only add caution in every agent's format; no answer means no opinion; real payload captures from M91 for each agent                                                                                                                                                                              |
-| U Uses / UI               | Extension integration: skill and agent suggestion, the Auto risk advisory (M78/M90), the gated relevance and grading paths, the M90 reviewer signal, the M96 hints (after M96); the local setup quick pick or M95 wizard pages, the one-time "local judge in use" notice, the one-time "set up a local model" suggestion, the ask-once paid modal hook-up (D78, with the price and `museSpark.paidDailyBudgetUsd`), status and Account & usage rows; the MCP `judge` tool on the `ide` server; owned harness and accessibility cases                                                                 | Advisory only (no allow, no skipped question, no skipped rule); the hint line only in the newest user turn's tail; each notice shown once per machine; no paid request before the modal's answer; themes, narrow panel, keyboard and screen reader                                                          |
-| G Golden / invariants     | `test/unit/judgeInvariant.test.ts`: the main request byte-identical with the judge absent, `off`, or `auto` resolving to "no assist"; the prefix identical with a hint; no file, log or bundle load while `off`; no remote request under "no assist"; the SoL-Pi regression files rerun                                                                                                                                                                                                                                                                                                              | The golden is red when a hint enters the prefix, when the judge changes anything while `off`, or when "no assist" changes a byte of the main request                                                                                                                                                        |
-| D Docs / integration      | README, `docs/judge.md` (CLI, hooks for each agent, MCP, `serve` with jevlint, lint, calibration), `docs/acp.md`, `docs/PRIVACY.md`, SECURITY, CHANGELOG, PLAN, `docs/certification/m98.md`, bundle and package scripts, knip and dpdm entries                                                                                                                                                                                                                                                                                                                                                       | Documented commands only after a real run; costs and limits from receipts; the untested route labelled                                                                                                                                                                                                      |
+| Lane                      | Muse implementation ownership                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            | Codex review / acceptance focus                                                                                                                                                                                                      |
+| ------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| 0 Contract / strings      | `src/core/judge/schema.ts` (the zod request/answer/`muse` schemas and bounds, including source and technique), named limits in `constants.ts` (`JUDGE_CASCADE_CONFIDENCE`, `JUDGE_SAMPLING_MAX_USD_PER_QUESTION`, `JUDGE_EMBED_FALLBACK_CONFIDENCE`, deadlines, caps), the `judge` paid feature in `PAID_FEATURES`, the settings (`engine`, `separate`, `allowSampling`, `highStakesFamilies`) in `package.json` and `package.nls*.json`, English and the 14 `l10n/ui.*.json`                                                                                                                            | Byte-compatible `answers`; bounds at the intersection of services; no content in log fields; complete real translations                                                                                                              |
+| J Judge core              | `src/core/judge/{judge,math,techniques,prompt,partial,resolve,cascade}.ts`: the source and technique interfaces; the confidence (`1 − H/ln N`); renormalization, residual mass and `partial`; binary from top-1; the stated-confidence parser; contrastive combination; sampling agreement with smoothing; the state-first prompt builder; batching; `resolve.ts` (the pure mode and `auto` resolver); `cascade.ts` (threshold, calibrated weighting, caution on disagreement); `test/unit/judge*.test.ts`                                                                                               | The math against hand-computed fixtures (including the probe's distributions); top-1 math; `auto` → `same` or `both`; the cascade threshold; disagreement only ever adds caution; a missing field read as failure, not certainty     |
+| S Same-model source       | `src/core/judge/same/**` and its host adapters: on the Model API, batched stated confidence, the side request that copies the main request's cached prefix byte for byte (built from the host's own request builder, never edited), background scheduling with staleness, the result cache; on Muse Code, the hidden side session as M90's reviewer runs, batched and in the background                                                                                                                                                                                                                  | No model switch inside `same`; the main request byte-identical; the side prefix equal to the main prefix; a stale result dropped; Muse Spark never awaited on a user path; the Muse Code first-use note on the subscription          |
+| T SystemOne adapter (M85) | `src/core/judge/systemone.ts`: the client for any `/v1/systemone` with an `AuthSource`-shaped callback; the fake SystemOne server in `test/**` built from the 2026-10-04 captures and Ollama's documented limits; route records for OpenRouter (tested), TypeSafe (untested label), Cloudflare (pending key)                                                                                                                                                                                                                                                                                             | Shapes from captures only (rule 13); the untested label on the TypeSafe route in UI, docs and JSON; vendor confidence kept apart; 400/404/413/429/529 mapped; no key in any record                                                   |
+| L Local judge             | `src/core/judge/local/**`: availability detection for `auto` (Ollama's default loopback port and a configured endpoint, a bounded GET pair, never at activation and never loading a model) and full detection in setup (Ollama, llama.cpp, LM Studio); the recommended-model list with calibration receipts; loopback verification per request through a classifier beside `src/core/web/publicAddress.ts`; `node:http` without a proxy; model listing and decision capability; health and context-window checks; splitting by state; the consented pull flow's core; `test/**` with a fake local server | Loopback refusal (LAN, public, DNS rebinding, redirects); unreachable → `same` under `auto`/`both`, no assist under `separate`; never a silent paid move; pull only after consent with the size shown; no weights or runtime shipped |
+| C Calibration             | `src/core/judge/calibration/**`: temperature, Platt and isotonic fits; ECE (equal-mass) and Brier; profiles per source, model, technique and family in global storage; the opt-in local outcome log (approve/deny, reviewer verdict, tests, suggestion accepted; ids, p, timing, outcome, no content); the result labels; the report model, including same against separate and cascade against each                                                                                                                                                                                                     | Fits and metrics against known datasets; labels "calibrated (logprob)", "calibrated (stated)" or "uncalibrated"; the log holds no content and never leaves the machine; profiles per local model                                     |
+| E Embedding fast path     | `src/core/judge/embed/**`: a logistic head per family (plain math, lazy bundle), training from labels and judge answers, the low-confidence fallback to the full judge, the same provider's embeddings endpoint or a local embedding model under an opted-in local judge; weights in global storage                                                                                                                                                                                                                                                                                                      | Off until a family's M75 measurement passes; fallback below the threshold; no ML runtime; no weights in the VSIX; local embeddings never the default                                                                                 |
+| X Runtime / CLI           | `src/runtime/judge/**` and the reserved `judge` subcommand in `cliArgs.ts`: `ask`, `serve` (loopback, per-start token, Host check, `Origin` refused, 64 KiB cap), `calibrate`, `report`, `mcp` (stdio); exit codes; `--engine auto\|same\|separate\|both`, `--model`, `--separate`, `--budget-usd`, `--timeout-ms`                                                                                                                                                                                                                                                                                       | No backend, sign-in or ACP stdout mixing; budget default 0 for paid sources; `serve` unreachable off loopback and from a browser origin; jevlint pointed at `serve` passes its own eval                                              |
+| K Lint                    | `src/core/judge/lint/**` (the `jevlint.json`, pack and eval readers; unit batching; the result cache; outcomes; SARIF), the lazy `dist/judgeLint.js` with `web-tree-sitter` and the lazy grammar files for the npm ACP package, the document-symbol unit source for VS Code; the first-party pack under `resources/judge-packs/hq/**` with fixtures and evals; the D68 bundled-skill hook-up                                                                                                                                                                                                             | jevlint compatibility on its own shipped rules and evals; the pack's evals pass on a calibrated source; no grammar in the VSIX; measured caps; no source in the cache                                                                |
+| P Provider sources        | (after M95) the techniques over `ProviderClient` for BYO providers as the same model or a separate judge; a `judge` capability block per model in `presets.ts` (top-k, top-1, the reasoning switch, silent drop, structured-output form, cache minimum and prices for the sampling gate); the `systemone` format presets for TypeSafe, OpenRouter's route and Cloudflare                                                                                                                                                                                                                                 | Capability per model, only from captures; top-1 used for nouls only; sampling only under the cost gate or high-stakes, never on a reasoning-forced model                                                                             |
+| H Hook helper             | (after M91) `src/runtime/judge/hook.ts`: `judge hook --agent … --check …` over M91's schemas; the built-in checks (destructive command, secret-shaped write, out-of-workspace path)                                                                                                                                                                                                                                                                                                                                                                                                                      | Output can only add caution in every agent's format; no answer means no opinion; real payload captures from M91 for each agent                                                                                                       |
+| U Uses / UI               | Extension integration: skill and agent suggestion, the Auto risk advisory computed in the background while the card renders (M78/M90), the gated relevance and grading paths, the M90 reviewer signal, the M96 hints (after M96); the **Judge** section in M95's Models & Agents panel (quick pick before it): mode, the answering source and why, calibration status, cost, last latency, one-click separate judge; the one-time notices; the ask-once paid modal hook-up (D78); usage rows naming the source; owned harness and accessibility cases                                                    | Advisory only (no allow, no skipped question, no skipped rule); the hint line only in the newest user turn's tail; never blocks the user; the Judge section's states; themes, narrow panel, keyboard and screen reader               |
+| G Golden / invariants     | `test/unit/judgeInvariant.test.ts`: the main request byte-identical with the judge absent and in each of `off`, `same`, `separate`, `both` and `auto`; a side request's prefix equal to the main request's cached prefix, with the question only after it; no file, log or bundle load while `off`; the SoL-Pi regression files rerun                                                                                                                                                                                                                                                                    | The golden goes red when a hint enters the prefix, when any mode changes a byte of the main request, or when a side prefix diverges                                                                                                  |
+| D Docs / integration      | README, `docs/judge.md` (sources and modes, CLI, hooks for each agent, MCP, `serve` with jevlint, lint, calibration), `docs/acp.md`, `docs/PRIVACY.md`, SECURITY, CHANGELOG, PLAN, `docs/certification/m98.md`, bundle and package scripts, knip and dpdm entries                                                                                                                                                                                                                                                                                                                                        | Documented commands only after a real run; costs and limits from receipts; the untested route labelled                                                                                                                               |
 
 - **Acceptance.**
-  1. **Off means off, and "no assist" changes nothing.**
-     - With `museSpark.judge.engine` `off`: no request, no file, no log line,
-       no judge bundle loaded.
-     - With `auto` resolving to "no assist": no remote request and no hint
-       line. Only the bounded loopback detection, one resolution log line and
-       the one-time suggestion happen.
-     - In both cases the golden test shows the main request byte-identical
-       to a build without M98.
-  2. **The contract.** `judge()` returns the Jev shapes for noul, choice and
-     score on every engine. `answers` validates against the captured
-     OpenRouter frames. `muse` carries the engine, `calibrated`, our
-     confidence, `vendorConfidence`, `partial` and the cost. The bounds
-     refuse 65 questions, 27 options, 11 levels and an oversized body with
-     clear errors.
-  3. **Engines.**
-     - SystemOne answers through the fake and through the captured
-       OpenRouter shapes.
-     - Logprob handles top-5, top-1 (`partial`) and a silently dropped field
-       (engine failure, no answer).
-     - Sampling runs only with `allowSampling` on and shows its k-call cost
-       first.
-     - Local works through `/v1/systemone` with a decision model and through
-       logprobs with a general model.
-  4. **Local engine** (owner addition).
-     - **Notice.** Whether `auto` finds it or the user picks it, a one-time
-       notice (once per machine) says it is free, private and on this
-       machine, and links to the settings.
-     - **Detection.** Under `auto`, only Ollama's default loopback port and
-       a configured endpoint are probed: never at activation, never
-       loading a model. The setup flow also finds llama.cpp and LM Studio
-       on loopback.
-     - **Loopback.** A LAN, public, rebinding or redirecting endpoint is
-       refused.
-     - **Models.** Installed models listed with decision capability, and
-       `tev1:4b` recommended.
-     - **Pull.** Only after a click that showed the size. Nothing installed
+  1. **Off means off; every other mode leaves the main request alone.**
+     - With `off`: no request, no file, no log line, no judge bundle loaded.
+     - In `same`, `separate`, `both` and `auto`, the golden test shows the
+       main request byte-identical to a build without M98.
+     - A side request's prefix equals the main request's cached prefix byte
+       for byte, and the question appears only after it.
+  2. **The contract.**
+     - `judge()` returns the Jev shapes for noul, choice and score from
+       every source.
+     - `answers` validates against the captured OpenRouter frames.
+     - `muse` carries the source, the technique, the model, `calibrated`, our
+       confidence, `vendorConfidence`, `partial` and the cost.
+     - The bounds refuse 65 questions, 27 options, 11 levels and an
+       oversized body, with clear errors.
+  3. **Same-model techniques.**
+     - **Logprobs:** top-5, and a silently dropped field (engine failure,
+       no answer).
+     - **Binary from top-1:** "no" at 0.9 gives p(yes) 0.1; yes/no variants
+       normalize; a choice on a top-1 model goes to stated confidence.
+     - **Stated confidence:** parsed from a JSON schema, a forced tool or
+       JSON mode, batched; labelled "calibrated (stated)" only with a
+       profile.
+     - **Contrastive:** both framings in one call, combined as the mean of p
+       and 1 − p′, only for high-stakes families.
+     - **Sampling:** runs only under the cost gate (cache-capable,
+       non-reasoning, measured cost per question under
+       `JUDGE_SAMPLING_MAX_USD_PER_QUESTION`) or for a high-stakes question;
+       never on a reasoning-forced model (a fake Muse Spark).
+     - **No model switch:** `same` never calls a model other than the
+       conversation's own.
+  4. **Speed.**
+     - All pending questions over one state go in one call.
+     - Advisory calls run in the background and never block a user path. A
+       result after its decision point is dropped.
+     - The result cache hits on an identical (model, question, state) and
+       misses on any change.
+     - Muse Code uses the hidden side session, batched.
+  5. **Separate judge and local** (owner additions).
+     - **SystemOne:** answers through the fake and the captured OpenRouter
+       shapes.
+     - **Local:** a one-time notice; availability detection never at
+       activation and never loading a model; setup finds Ollama, llama.cpp
+       and LM Studio on loopback; a LAN, public, rebinding or redirecting
+       endpoint is refused; installed models are listed with decision
+       capability, and `tev1:4b` is recommended.
+     - **Pull:** only after a click that showed the size. Nothing installed
        or bundled.
-     - **Failure.** An unreachable runtime gives no assist, logs the reason,
-       and **never** calls a paid engine unless a fallback entry was opted
-       into.
-     - **Context.** An over-window state is split, or refused with
+     - **Unreachable:** `same` alone under `auto`/`both`, no assist under
+       `separate`, the reason logged, never a silent paid move.
+     - **Context:** an over-window state is split, or refused with
        `OLLAMA_CONTEXT_LENGTH` advice.
-  5. **Confidential workspace.** With `museSpark.confidentialWorkspace` on,
-     Local answers and every remote engine is refused, each by a test.
-     `auto` then considers branch 1 only.
-  6. **Advisory only.** No path lets an answer allow an action, skip a
+  6. **Modes and `auto`** (the owner's rulings of 2026-10-04, D78).
+     - `auto` → `same` when no separate judge exists.
+     - `auto` → `both` when a recommended local decision model is installed
+       or a SystemOne-capable key is stored.
+     - **`both`:** the separate judge first. The same model is asked only
+       under `JUDGE_CASCADE_CONFIDENCE` or for a high-stakes question.
+       Calibrated weighting combines them, and a disagreement escalates
+       caution and never relaxes it.
+     - Explicit `off`, `same`, `separate` and `both` are honoured.
+     - **Paid sources:** the fake records zero requests until the ask-once
+       modal is answered. A decline gives no assist from that source. A move
+       from a free to a paid source asks again.
+  7. **Confidential workspace,** consistent with the chat model's rules.
+     - Same-model calls run only when the chat model itself may (a
+       contributor-tier model is blocked).
+     - The verified-loopback local judge may run.
+     - Every other separate judge is refused.
+     - Each case has a test.
+  8. **Advisory only.** No path lets an answer allow an action, skip a
      question or rule, or answer the user. A "safe" Auto score leaves the
      verdict unchanged (D50's test, kept). A risky one can only ask or flag.
-  7. **Calibration.**
-     - Profiles are fitted per engine, model and question family from M75
-       cases and the opt-in local log.
+  9. **Calibration.**
+     - Profiles are fitted per source, model, technique and family, from M75
+       cases and the opt-in outcome log, which holds no content.
      - ECE and Brier are reported per model.
-     - An uncalibrated engine is labelled in UI and JSON.
+     - Each result is labelled.
      - Each local model has its own profile.
-  8. **Any agent.**
-     - **`judge ask`:** exit codes 0, 2 and 4 as specified.
-     - **`judge hook`:** each of the five agents' formats from M91's
-       captures; only caution comes out.
-     - **`judge serve`:** answers jevlint (`TYPESAFE_ENDPOINT`) on a local
-       model, and refuses a non-loopback bind, a missing token, a foreign
-       Host and an `Origin`.
-     - **MCP:** the `judge` tool works on the `ide` server and over stdio.
-     - **Budget:** headless paid use without `--budget-usd` is refused.
-  9. **Lint.**
-     - jevlint's own `jevlint.json` and evals parse and run.
-     - The first-party pack's evals pass on at least one calibrated engine.
-     - `--fail-on` gates CI only when asked.
-     - The cache holds no source.
-     - Units come from document symbols in VS Code and from tree-sitter
-       headless.
-     - The VSIX carries no grammar, and the new caps are measured.
-  10. **Measured testing uses.** The flake classifier, the lane-diff
+     - The report compares same against separate, and the cascade against
+       each.
+  10. **Embedding fast path.** Off until a family's measurement passes. Under
+      `JUDGE_EMBED_FALLBACK_CONFIDENCE` the full judge answers. Embeddings
+      come from the same provider's endpoint, or a local model under an
+      opted-in local judge. No weights ship in the VSIX.
+  11. **Any agent.**
+      - **`judge ask`:** exit codes 0, 2 and 4 as specified.
+      - **`judge hook`:** each of the five agents' formats from M91's
+        captures; only caution comes out.
+      - **`judge serve`:** answers jevlint (`TYPESAFE_ENDPOINT`) on a local
+        model, and refuses a non-loopback bind, a missing token, a foreign
+        Host and an `Origin`.
+      - **MCP:** the `judge` tool works on the `ide` server and over stdio.
+      - **Budget:** headless paid use without `--budget-usd` is refused.
+  12. **Lint.**
+      - jevlint's own `jevlint.json` and evals parse and run.
+      - The first-party pack's evals pass on at least one calibrated source.
+      - `--fail-on` gates CI only when asked.
+      - The cache holds no source.
+      - Units come from document symbols in VS Code and from tree-sitter
+        headless.
+      - The VSIX carries no grammar, and the new caps are measured.
+  13. **Measured testing uses.** The flake classifier, the lane-diff
       pre-screen and the review-class triage each report precision and
-      recall on a labelled set before any is switched on, and none retries,
+      recall on a labelled set before any is switched on. None retries,
       merges or skips a review.
-  11. **Cost and privacy.**
-      - A paid use goes through D48, in D78's ask-once form, with the
-        `judge` feature. It shows the price and the shared daily budget
-        (`museSpark.paidDailyBudgetUsd`, default $5), and judge spend counts
-        against that budget. Once it is reached, there is no assist.
+  14. **Cost and privacy.**
+      - Billing follows the source. On the Model API, a paid use goes
+        through D48 in D78's ask-once form, with the price and the shared
+        daily budget (`museSpark.paidDailyBudgetUsd`, default $5).
+      - On Muse Code, the subscription note shows on first use.
       - Local is free and tallied as local.
       - Redaction runs before every remote call.
-      - Logs carry only ids, engine, model, timing and cost.
+      - Logs carry only ids, source, technique, model, timing and cost.
       - PRIVACY names every recipient.
-  12. **`auto` resolves as the 2026-10-04 defaults ruling says (D78).**
-      `auto` is the default.
-      - **Branch 1.** With a verified-loopback runtime that has a recommended
-        decision model (`tev1:4b`), `auto` uses Local with no question, and
-        the notice appears once.
-      - **Branch 2.** Without one, and with a provider that has a SystemOne
-        route or a captured top-5 preset, `auto` uses that provider.
-        - The fake provider records **zero requests until the ask-once modal
-          is answered**.
-        - Allow: the decision is made, and later decisions do not ask again.
-        - Decline: no assist, still zero requests, and no other paid engine
-          is tried.
-        - A move from branch 1 to branch 2 (the runtime gone) asks again,
-          even with a consent stored.
-      - **Branch 3.** Otherwise, no assist and a one-time suggestion to set
-        up a local model. The download happens only after a click that
-        showed its size.
-      - **Never sampling.** A provider with no logprobs (a fake of Muse
-        Spark, Anthropic or Gemini) never resolves to sampling under `auto`,
-        even with `allowSampling` on. A top-1 provider (a fake of OpenAI's
-        shape) resolves to branch 3.
-      - **Explicit settings win.** Explicit `off` and explicit engines are
-        honoured. In a confidential workspace, `auto` takes branch 1 or no
-        assist.
-      - **Headless.** `judge ask` and `judge hook` with `--engine auto` take
-        branch 2 only with `--budget-usd` above 0.
-- **Tests and red drills.** Fakes only under `test/**`: a fake SystemOne
-  server (from the captures), a fake local runtime (Ollama `/api/tags`,
-  `/api/show`, `/api/chat` logprobs, `/v1/systemone`), and a fake provider
-  with top-5, top-1 and silent-drop modes. Each new assertion and guard is
-  broken once on purpose, observed failing, restored byte-exact (SHA-256), and
-  its whole test file rerun. The mutation, failure, restoration, machine and
-  exit code go in `docs/certification/m98.md`. The required drills:
-  - the loopback refusal (make the classifier accept a LAN address);
-  - no silent paid fallback (route an unreachable local engine to a fake paid
-    one);
-  - the confidential-mode allow and refuse;
-  - a "safe" score that would allow;
-  - a hint written into the prefix (the golden goes red);
-  - the judge doing anything while off;
-  - `auto` with "no assist" adding a byte to the main request;
-  - `auto` reordered so that branch 2 wins over an installed local model;
-  - a paid request sent before the modal's answer (the fake's request count
-    goes red);
-  - a declined modal followed by another paid engine;
-  - `auto` returning sampling for a no-logprob provider, or using a top-1
-    provider;
-  - `auto` taking branch 2 in a confidential workspace;
-  - detection at activation, or a model load during detection;
-  - a branch 1 to branch 2 move without a fresh ask;
-  - top-1 read as a distribution;
-  - a dropped field read as certainty;
-  - `serve` without the token or with an `Origin`;
-  - a hook output that says "allow";
-  - lint reporting below `minConfidence`;
-  - a cache entry holding source.
+- **Tests and red drills.** Fakes only under `test/**`:
+  - a fake SystemOne server, built from the captures;
+  - a fake local runtime (Ollama `/api/tags`, `/api/show`, `/api/chat`
+    logprobs, `/v1/systemone`, `/api/embed`);
+  - a fake provider with top-5, top-1, silent-drop, stated-JSON,
+    reasoning-forced and cache modes;
+  - a fake Muse Code side session.
+
+  Each new assertion and guard is broken once on purpose, observed failing,
+  restored byte-exact (SHA-256), and its whole test file rerun. The mutation,
+  failure, restoration, machine and exit code go in
+  `docs/certification/m98.md`. The required drills:
+  - **Main request and prefix:** any mode adding a byte to the main request;
+    a side request whose prefix diverges from the main request's cached
+    prefix; a hint written into the prefix.
+  - **Sources and modes:** `same` calling another model; `auto` choosing
+    `both` with no separate judge, or `same` with one installed; the cascade
+    asking the same model above the threshold, or skipping it below; a
+    disagreement that relaxes caution.
+  - **Techniques:** binary-from-top-1 math inverted for "no"; top-1 read as a
+    distribution for a choice; a dropped field read as certainty; sampling
+    on a reasoning-forced model, or above the cost gate; stated confidence
+    labelled calibrated without a profile.
+  - **Speed:** a stale background result applied after its decision point;
+    a user path awaiting Muse Spark; a result-cache hit on a changed state.
+  - **Embedding:** the fast path answering under its fallback threshold.
+  - **Paid and confidential:** a paid request before the modal's answer; a
+    declined modal followed by another paid source; the confidential-mode
+    allow and refuse for each source; detection at activation, or a model
+    load during detection.
+  - **Separate judge:** the loopback refusal (make the classifier accept a
+    LAN address); an unreachable local judge moving silently to a paid one.
+  - **Carried over:** a "safe" score that would allow; the judge doing
+    anything while off; `serve` without the token or with an `Origin`; a
+    hook output that says "allow"; lint reporting below `minConfidence`; a
+    cache entry holding source.
 
   Never drill against a user's repository.
 
+- **Measurement plan** (recorded in `docs/certification/m98.md`, run on the
+  rigs and on M75's labelled families; a cloud run states its expected call
+  count and cost first):
+  - **Labelled families:** command risk, skill fit, context relevance and
+    grading, harder than the probe's 40 items, on which every frontier same
+    model already scored 1.0.
+  - **For each family:** same-model stated confidence against logprob truth
+    on the same model; same against separate; the cascade (thresholds 0.6,
+    0.8 and 0.9) and the ensemble against each source alone; contrastive
+    against single framing; batched against single calls; the embedding head
+    against the full judge.
+  - **Report:** accuracy, Brier, ECE, how often the cascade asks, latency
+    and cost.
+  - **Adoption:** a technique, threshold or cascade default is adopted only
+    if it beats the alternative without a capability loss (M75's floors).
 - **Gates.** The lead runs the full `npm run quality` and the required CI
   checks on the final integrated tree. Lane tests and builds run on the rigs;
   local work is limited to changed-file formatting and lint. Coverage,
@@ -14459,23 +14647,38 @@ joined with M57, M58 and PR #49's sign-in
   - [x] Owner requests (judge for any agent, the local opt-in, jevlint and
         the SystemOne endpoint), D77, lanes and research with the probe table
         recorded.
-  - [x] The 2026-10-04 defaults ruling (D78) applied: `auto` by default,
-        with its three branches, the ask-once paid modal and the daily
-        budget.
+  - [x] The owner's rulings of 2026-10-04 applied: `auto` by default
+        (D78); the same model and a separate judge as two first-class
+        sources; the modes `auto|same|separate|both|off`, with `auto` →
+        `both` when a separate judge exists and `same` otherwise; the
+        ask-once paid modal and the daily budget.
   - [x] Logprob capability of the 12 providers and Muse Spark probed live
         (30 attempts, ≈ $0.0010); Jev through OpenRouter tested; local CPU
         baseline on Kubuntu.
+  - [x] Same-model techniques measured (round 2: 11 attempts, ≈ $0.014).
+        Batched stated confidence on Muse Spark, Haiku 4.5, DeepSeek and
+        Llama-3.3-70B; DeepSeek's logprobs against its stated confidence;
+        contrastive framing; `gpt-4o-mini` top-5; a side request reading
+        the main prefix's cache on Haiku. Locally: binary from top-1 against
+        top-5, embedding heads, and the cascade computed on the 40-item set.
   - [x] Local latency and calibration on the GPU rig (Win11 VM, GTX 1080 Ti):
         `tev1:4b` 0.975 and Brier 0.031 at 0.30 s per state; four models
         measured, `tev1:4b` kept as the recommended default.
-  - [ ] Acceptance 1–12, each with its failing drill and passing receipt.
+  - [ ] Acceptance 1–14, each with its failing drill and passing receipt.
+  - [ ] The measurement plan run on M75's families. The cascade default,
+        the contrastive rule, the sampling gate and any embedding head
+        adopted only on its results.
   - [ ] Captures for llama.cpp, LM Studio and each preset's judge capability;
         Cloudflare when a key exists.
   - [ ] Final-tree full quality, a11y, package and bundle caps, installed
         host and ACP receipts.
   - [ ] Delivered commands, costs, limits and privacy documented from real
         runs; the TypeSafe direct route still labelled untested.
-- **Size.** XL in all: phase 1 L, phase 2 M.
+- **Size.** XL in all: phase 1 XL (the same-model source, the cascade,
+  local and SystemOne judges, CLI, lint), phase 2 M. The bundle impact is
+  measured before merge: the judge core and the embedding head are plain
+  TypeScript in lazy bundles, and tree-sitter ships only in the npm ACP
+  package.
 
 ## 7. Gates
 

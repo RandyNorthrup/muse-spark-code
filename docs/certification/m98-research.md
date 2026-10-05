@@ -51,20 +51,23 @@ and Cloudflare now serve, and jevlint, a rule linter built on it.
   43 probe files for the key and for every 10-character slice of it. It found
   **0 hits for every key**. The raw frames stay in the session scratchpad
   (`m98-probe/raw/`) and are not committed; the facts are recorded here.
-- **Budget.** At most 30 live model calls, later raised to 34 for the
-  Jev-through-OpenRouter checks. 22 were expected before the run (written to
-  the results file first), with 8 held back for retries.
+- **Budget.** Round 1: at most 30 live model calls, later raised to 34 for
+  the Jev-through-OpenRouter checks. 22 were expected before the run
+  (written to the results file first), with 8 held back for retries. Round 2
+  (the same-model techniques): up to 12 more, with 10 expected and written
+  first. The round-2 frames were scrubbed and audited the same way: 67
+  files, 0 hits for all five keys used.
 
 ## Totals
 
-| Item                        |     Count | Notes                                                                                                                                                                                       |
-| --------------------------- | --------: | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Live model-call attempts    |        30 | Of the 34 allowed. Every POST to an inference endpoint counts, including refusals                                                                                                           |
-| Completed (billed)          |        20 |                                                                                                                                                                                             |
-| Refused before inference    |        10 | Anthropic 1, Gemini 3, Groq 1, Mistral 2, Together 1, Z.ai 1, Meta 1                                                                                                                        |
-| Free requests (model lists) |        12 | Used to pick a cheap non-reasoning model per provider                                                                                                                                       |
-| Local requests (Ollama)     |      ~320 | Free; capability checks and the 40-item calibration set: three models on the Kubuntu CPU, four on the Win11 GPU                                                                             |
-| Cost                        | ≈ $0.0010 | From each response's usage at published prices, or the provider's own reported cost (xAI `cost_in_usd_ticks`, OpenRouter `cost`). xAI's two calls are 40 % of it ($0.000197 each, reported) |
+| Item                        |    Count | Notes                                                                                                                                                                                                                                             |
+| --------------------------- | -------: | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Live model-call attempts    |       41 | Round 1: 30 of the 34 allowed. Round 2: 11 of 12. Every POST to an inference endpoint counts, including refusals                                                                                                                                  |
+| Completed (billed)          |       29 | Round 1: 20. Round 2: 9 (Together returned 503 "Service unavailable" twice, not billed)                                                                                                                                                           |
+| Refused before inference    |       10 | Anthropic 1, Gemini 3, Groq 1, Mistral 2, Together 1, Z.ai 1, Meta 1                                                                                                                                                                              |
+| Free requests (model lists) |       12 | Used to pick a cheap non-reasoning model per provider                                                                                                                                                                                             |
+| Local requests (Ollama)     |     ~320 | Free; capability checks and the 40-item calibration set: three models on the Kubuntu CPU, four on the Win11 GPU                                                                                                                                   |
+| Cost                        | ≈ $0.015 | Round 1 ≈ $0.0010, round 2 ≈ $0.014 (Haiku's two 4.4k-token cache calls and its 40-item stated call are most of it). From each response's usage at published prices, or the provider's reported cost (xAI `cost_in_usd_ticks`, OpenRouter `cost`) |
 
 ## The probe table
 
@@ -191,6 +194,77 @@ Other local facts:
   over a large tree. A GPU makes it 0.3 s. It also turns a calibration batch
   run (hundreds of labelled items per model and question family) from about
   an hour into minutes. The decisions stay the same.
+
+## Round 2: judging with the user's own model
+
+The owner asked how to judge with models that expose no logprobs, and then
+ruled that the judge must work with the user's own chat model, and with a
+separate judge model too. Round 2 measured the same-model techniques on the
+same 40 labelled items. Every cloud call was **batched**: the 40 commands
+form one state, and one call answers all 40.
+
+| Model (provider)                     | Technique                                                 | Accuracy |  Brier | ECE (5) | Latency for 40 | Cost (USD)          | Notes                                                                                              |
+| ------------------------------------ | --------------------------------------------------------- | -------: | -----: | ------: | -------------- | ------------------- | -------------------------------------------------------------------------------------------------- |
+| `gpt-4o-mini` (OpenRouter → OpenAI)  | logprobs, one line per id, top-5                          |     1.00 | 0.0000 |  0.0005 | 3.4 s          | 0.000206 (reported) | **Top-5 per answer**: OpenAI's top-1 earlier was the reasoning model's, so capability is per model |
+| `deepseek-flash`, thinking off       | logprobs, batched, top-5                                  |     1.00 | 0.0000 |  0.0000 | 2.2 s          | ≈ 0.0004            | The logprob "truth" for the same-model comparison                                                  |
+| `deepseek-flash`, thinking off       | stated confidence, JSON mode                              |     1.00 | 0.0074 |  0.0490 | 2.0 s          | ≈ 0.0004            | 12 distinct values. Platt (leave-one-out): Brier 0.0001                                            |
+| `deepseek-flash`, thinking off       | stated, inverse framing ("is it safe?"), inverted         |     1.00 | 0.0029 |  0.0278 | 2.4 s          | ≈ 0.0003            | 384 of 643 prompt tokens came from the cache                                                       |
+| `deepseek-flash`                     | contrastive: the mean of both framings                    |     1.00 | 0.0039 |  0.0384 | (one call)     | —                   | The single framing gave 0.0074; the gain is small on an easy set                                   |
+| Llama-3.3-70B (Together)             | stated confidence, JSON mode                              |    0.975 | 0.0183 |  0.0275 | 9.9 s          | 0.00099             | One false positive (`npm run build` 0.80). Its logprob call returned 503 twice                     |
+| Claude Haiku 4.5 (Anthropic)         | stated confidence, forced tool with a 40-field schema     |     1.00 | 0.0075 |  0.0575 | 4.6 s          | 0.0056              | 21 distinct values                                                                                 |
+| Muse Spark 1.3 contributor (Meta)    | stated confidence, `json_schema` strict, effort `minimal` |     1.00 | 0.0025 |  0.0297 | 14.2 s         | 0.00025             | 958 output tokens, 668 of them reasoning. `response_format` json_schema accepted                   |
+| `qwen3:4b-instruct-2507` (Win11 GPU) | stated confidence, Ollama `format` schema, per item       |    0.925 | 0.0750 |  0.0750 | 0.51 s each    | free                | **Degenerate:** only 0 or 100. Small models need logprobs                                          |
+| `qwen3:4b-instruct-2507` (Win11 GPU) | binary from top-1 against top-5                           |    0.925 | 0.0710 |  0.0915 | 0.14 s each    | free                | **Identical** on all 40 items (largest difference 0.0000)                                          |
+
+**The side request sharing the cached prefix** (Haiku 4.5): a "main" request
+with a 4,357-token system prefix marked `cache_control` wrote 4,357 cached
+tokens. A side request with the same prefix and a judge question at the tail
+read all 4,357 from the cache and added 35 new tokens. Both took 1.35 s. At
+Haiku's prices the side request cost about $0.00048, against about $0.0044
+uncached and $0.0055 for the write. The prefix must exceed the model's
+minimum cacheable length; below it, nothing is cached, silently (M95
+research).
+
+**Sampling.** It was not run as a separate experiment; the cache behaviour
+above is its cost basis. Parallel samples sent before the first write lands
+all miss the cache, so a cold state costs one write plus k cached reads,
+with two sequential round-trips. A warm state costs k reads in one
+round-trip.
+
+**Embedding heads** (Win11 GPU, logistic regression, leave-one-out over only
+40 labels):
+
+| Embedding model     | Dims | Embed latency (single, p50) | Accuracy | Brier | Notes                                                                             |
+| ------------------- | ---: | --------------------------- | -------: | ----: | --------------------------------------------------------------------------------- |
+| `mxbai-embed-large` | 1024 | 44 ms                       |    0.825 | 0.172 | 6 confident answers (p ≤ 0.2 or ≥ 0.8), all right; 34 fall back to the full judge |
+| `nomic-embed-text`  |  768 | 33 ms                       |    0.625 | 0.214 | No confident answers at all                                                       |
+
+The heads predict in under 2 ms. Distilling from `tev1:4b`'s answers instead
+of the human labels did not help at 40 items (0.725 and 0.675). A head needs
+hundreds of labels per family. It is an optional fast path with a fallback,
+not a default.
+
+**Same model and separate judge combined** (computed offline from the
+per-item answers above; `tev1:4b` is the separate judge):
+
+| Same model joined with `tev1:4b` | Cascade at 0.8: items that asked the same model | Cascade accuracy | Cascade Brier | Ensemble Brier |
+| -------------------------------- | ----------------------------------------------: | ---------------: | ------------: | -------------: |
+| Muse Spark, stated               |                                              17 |             1.00 |        0.0078 |         0.0070 |
+| Haiku 4.5, stated                |                                              17 |             1.00 |        0.0134 |         0.0130 |
+| DeepSeek, logprobs               |                                              17 |             1.00 |        0.0011 |         0.0000 |
+| DeepSeek, contrastive            |                                              17 |             1.00 |        0.0086 |         0.0079 |
+| Llama-3.3-70B, stated            |                                              17 |            0.975 |        0.0091 |         0.0081 |
+| `qwen3:4b-instruct`, stated      |                                              17 |            0.925 |        0.0758 |         0.0747 |
+
+- **Against the separate judge alone** (accuracy 0.975, Brier 0.031), every
+  frontier same model in the cascade fixed its one miss (`git stash clear`),
+  and asked the same model on fewer than half the items.
+- **With "caution" combining** (the more cautious answer wins), every
+  cascade kept 20 of 20 destructive commands flagged, with no new false
+  positive beyond Llama's.
+- **Against the frontier same models alone:** they already scored 1.0
+  here. This set is too easy to show whether the cascade beats a strong
+  same model; M75's harder families must decide.
 
 ## The `/v1/systemone` ecosystem
 
