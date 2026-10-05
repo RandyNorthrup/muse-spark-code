@@ -231,6 +231,21 @@
         "command": "museSpark.removeBundledSkills",
         "title": "%command.removeBundledSkills.title%",
         "category": "%command.category%"
+      },
+      {
+        "command": "museSpark.startWithOwnModel",
+        "title": "%command.startWithOwnModel.title%",
+        "category": "%command.category%"
+      },
+      {
+        "command": "museSpark.modelsAndAgents",
+        "title": "%command.modelsAndAgents.title%",
+        "category": "%command.category%"
+      },
+      {
+        "command": "museSpark.addModelProvider",
+        "title": "%command.addModelProvider.title%",
+        "category": "%command.category%"
       }
     ],
     "keybindings": [
@@ -409,6 +424,11 @@
           "default": "auto",
           "description": "%config.backend.description%",
           "scope": "machine"
+        },
+        "museSpark.suggestedProvider": {
+          "type": "string",
+          "default": "",
+          "description": "%config.suggestedProvider.description%"
         },
         "museSpark.shellSandbox": {
           "type": "string",
@@ -909,6 +929,17 @@
             },
             "completionEvents": [
               "onCommand:museSpark.createRulesFile"
+            ]
+          },
+          {
+            "id": "ownModel",
+            "title": "%walkthrough.gettingStarted.step.ownModel.title%",
+            "description": "%walkthrough.gettingStarted.step.ownModel.description%",
+            "media": {
+              "markdown": "resources/walkthrough/own-model.md"
+            },
+            "completionEvents": [
+              "onCommand:museSpark.startWithOwnModel"
             ]
           }
         ]

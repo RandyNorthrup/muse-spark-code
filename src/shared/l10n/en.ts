@@ -2282,6 +2282,164 @@ export const EN = {
   exportThenRunLabel: 'Then ran:',
   // {command}: the then_run command; {outcome}: why it did not run.
   exportThenRunSkipped: 'then_run `{command}`: {outcome}',
+  // M95 (PLAN.md D74): bring-your-own model providers. The first-run
+  // screen's third choice, beside the Muse sign-in and the Meta key.
+  startWithOwnModel: 'Start with your own model',
+  startWithOwnModelDetail: 'Add a model provider with an API key and pick a model.',
+  // {provider}: the preset's name; {model}: the qualified model reference.
+  setupComplete: 'You’re set up with {provider} · {model}',
+  manageProviders: 'Manage providers',
+  // The Models & Agents panel's framework: its sections, filters and wizard.
+  modelsPanelTitle: 'Models & Agents',
+  // Shown when the panel's bundle cannot load: an explicit error, never an
+  // empty panel.
+  modelsPanelUnavailable: 'Models & Agents is not available in this build.',
+  providersSectionTitle: 'Providers',
+  modelsSectionTitle: 'Models',
+  providerSearchPlaceholder: 'Search providers…',
+  modelsSearchPlaceholder: 'Search models…',
+  // The provider dropdown's filter chips.
+  providerFilters: {
+    cloud: 'Cloud',
+    local: 'On this computer',
+    subscription: 'Subscription sign-in',
+    aggregator: 'Aggregator',
+  },
+  scanComputer: 'Scan this computer',
+  providersScanning: 'Scanning…',
+  providerUntested: 'Not tested',
+  // A stored credential names only the origin it was entered for, never the key.
+  keyBoundState: 'stored, bound to {origin}',
+  // {count}: the models the free check listed.
+  providerKeyWorks: forms({
+    one: 'Key works · {count} model',
+    other: 'Key works · {count} models',
+  }),
+  // Before a check that bills a token: its cost is stated and asked first.
+  providerTestPaid: 'This check sends one token and costs about {cost}.',
+  // {detail}: what the provider answered, in its words.
+  providerTestFailed: 'Test failed: {detail}',
+  scanFailed: 'Scan failed: {detail}',
+  // The wizard's first step; the quick pick runs the same flow.
+  wizardPickProvider: 'Pick a provider',
+  providerFields: {
+    provider: 'Provider',
+    address: 'Address',
+    models: 'Models',
+    privacy: 'Privacy',
+  },
+  // The wire format a custom server speaks.
+  wireFormats: {
+    responses: 'OpenAI Responses',
+    chat: 'Chat Completions',
+    anthropic: 'Anthropic Messages',
+  },
+  getKey: 'Get a key',
+  enterKey: 'Enter key…',
+  // {provider}: the preset's name.
+  providerConnect: 'Connect {provider} account',
+  providerConnectWaiting: 'Waiting for {provider} in the browser…',
+  providerKeyPrompt: '{provider} API key',
+  // {origin}: the address the credential is sent to, and no other.
+  keyStoredNote: 'Stored in your system keychain; sent only to {origin}.',
+  changeKey: 'Change key',
+  reconnectAccount: 'Reconnect',
+  providerEdit: 'Edit',
+  providerRemove: 'Remove',
+  testConnection: 'Test',
+  saveProvider: 'Save',
+  saveAndUseNow: 'Save and use now',
+  wizardBack: 'Back',
+  wizardCancel: 'Cancel',
+  wizardContinue: 'Continue',
+  suggestionAccept: 'Accept',
+  suggestionChange: 'Change',
+  // {id}: the provider id, as written.
+  providerRemoved: 'Removed provider {id}.',
+  undoAction: 'Undo',
+  providerExport: 'Export',
+  providerImport: 'Import',
+  providerImportPreviewTitle: 'Import preview',
+  importNeedsKey: 'needs a key',
+  refreshModels: 'Refresh models',
+  scanNewModels: forms({
+    one: '{count} new model since the last scan',
+    other: '{count} new models since the last scan',
+  }),
+  scanRemovedModels: forms({
+    one: '{count} model removed since the last scan',
+    other: '{count} models removed since the last scan',
+  }),
+  scanRepricedModels: forms({
+    one: '{count} model with a new price since the last scan',
+    other: '{count} models with a new price since the last scan',
+  }),
+  // The Models table's badges, each shown by its rule (M95 acceptance 17).
+  modelBadges: {
+    recommended: 'Recommended',
+    cheapestCapable: 'Cheapest capable',
+    largestContext: 'Largest context',
+    newBadge: 'New',
+  },
+  // How a model without a dollar price is marked.
+  modelUnpriced: 'unpriced',
+  modelLocal: 'local',
+  modelPlan: 'plan',
+  modelFree: 'free',
+  modelColumns: {
+    name: 'Model',
+    context: 'Context',
+    inputPrice: 'Input',
+    outputPrice: 'Output',
+    price: 'Price',
+  },
+  // OpenRouter's privacy routing, private by default; each in one sentence.
+  privacyNoRetention: 'No data retention',
+  privacyNoRetentionDetail: 'Only providers that retain no data are used.',
+  privacyNoTraining: 'No training',
+  privacyNoTrainingDetail: 'Providers may retain data, but must not train on it.',
+  privacyAnyProvider: 'Any provider',
+  privacyAnyDetail: 'Any provider may be used, including ones that train on data.',
+  spendLimitLink: 'Set this key’s own spend limit',
+  // The suggestion engine's values (M95) and why each is proposed.
+  suggestDefaultModel: 'Default model',
+  suggestSessionBudget: 'Session budget',
+  suggestReasonCheapest:
+    'The cheapest model that calls tools and fits the context the harness needs.',
+  suggestReasonRecommended: 'The provider’s recommended model.',
+  // {cost}: the median of the user's own recent sessions.
+  suggestReasonBudgetMedian: 'From your recent sessions (median {cost}).',
+  // {detail}: why the address is refused, in technical words.
+  providerAddressInvalid: 'This address cannot be used: {detail}',
+  // {address}: a private-network address, saved only after confirmation.
+  providerPrivateNetwork: '{address} is on a private network. Use it only if you trust it.',
+  providerPrivateConfirm: 'Use it anyway',
+  // {expected}: the origin the credential was entered for; {actual}: where
+  // the file points now. The request is refused until it is entered again.
+  originBindingMismatch:
+    'This provider now points at {actual}, but the stored credential was entered for {expected}. Enter it again.',
+  providerRedirectRefused: 'The provider redirected the request, so it was not sent.',
+  // The composer's model picker (groups, pinned favourites first).
+  addModelProviderRow: 'Add a model provider…',
+  manageModelsRow: 'Manage models…',
+  // {window}: the model's context window; {price}: its price, `unpriced`,
+  // `local` or `plan`.
+  pickerModelDetail: '{window} context · {price}',
+  // Account & usage's rows per provider.
+  usageKeyUsage: 'API key usage',
+  usageLimit: 'Limit',
+  usageRemaining: 'Remaining',
+  usageToday: 'Today',
+  usageThisMonth: 'This month',
+  usageUnpricedDetail: 'This model has no price card, so only its tokens are counted.',
+  // Sign-out keeps provider keys unless this is ticked (M95 acceptance 15).
+  signOutRemoveProviders: 'Also remove model providers and subscriptions',
+  // The ACP agent's provider commands print through these.
+  acpProvidersNone: 'No providers are configured.',
+  // {id}: the provider id, as written.
+  acpProviderAdded: 'Added provider {id}.',
+  acpProviderRemoved: 'Removed provider {id}.',
+  execProviderNotConfigured: 'Provider {id} is not configured.',
 }
 
 /** The shape every table has: English's keys, with any language's plural forms. */

@@ -51,6 +51,11 @@ export const COMMAND_IDS = {
   // M89 (PLAN.md D68): the bundled skills into, and out of, Muse Code's own folders.
   installBundledSkills: 'museSpark.installBundledSkills',
   removeBundledSkills: 'museSpark.removeBundledSkills',
+  // M95 (PLAN.md D74): bring-your-own model providers. Lane K registers the
+  // handlers; lane 0 wires the ids so the manifest and its tests stay whole.
+  startWithOwnModel: 'museSpark.startWithOwnModel',
+  modelsAndAgents: 'museSpark.modelsAndAgents',
+  addModelProvider: 'museSpark.addModelProvider',
 } as const
 
 // Extension-private `globalState` keys (never machine-wide configuration).
@@ -358,6 +363,11 @@ export const SETTING_DEFAULTS = {
   // hidden side session before the user. On until turned off; machine scoped,
   // since a repository must not choose what is approved or spent.
   museCodeAutoReviewer: true,
+  // Bring-your-own model providers (M95, PLAN.md D74): one preset id a
+  // workspace may suggest (`museSpark.suggestedProvider`), empty for none.
+  // Display only (the panel offers the preset); a workspace may set it, so
+  // it is not machine scoped. Lane W owns the setting's wiring.
+  suggestedProvider: '',
 } as const
 export const ARCHIVE_DAY_CHOICES = [1, 2, 7, 14, 0] as const
 // Settings a repository's `.vscode/settings.json` must never set (PLAN.md
