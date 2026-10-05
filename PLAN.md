@@ -19930,6 +19930,39 @@ joined with M57, M58 and PR #49's sign-in
 
 ## 7. Gates
 
+**M96INT round 2 integrated-source proof (2026-10-05, Windows 11 rig).**
+T/W/I/U2/L review heads merge with `--no-ff` in order. The canonical worker
+environment, durable claims through the lazy factory, final chat-tree schema,
+`done` ledger outcome and verified shared browser grammar are integrated.
+All owning/adjacent units pass: 2,208 tests in 75 files, with eight complete-file
+failure drills and byte-exact SHA-256 restorations. Native Windows junction
+bodies and the case-variant storage refusal execute here. Ordinary activation,
+Model API and ACP metafiles contain no team runtime inputs; seven original
+golden blobs and all 63 raw single-model scenario/configuration assertions
+remain identical under the established generated-id normalization.
+
+Five compiler projects, full lint/format, knip, zero-clone duplication,
+localization (0 problems), cycles, regenerated host API/notices and the
+production build pass. All 18 build caps pass; the actual win32-x64 VSIX
+passes its 2200 KiB cap at 2,243,169 bytes. Evidence is in
+`docs/certification/m96-int.md` and `m96-int-round2-results.json`.
+A's second fixes, K, M96c, main 0.13.0/0.14.0 and full quality remain outside
+the round 2 brief. The earlier record below remains round 1's history.
+
+**M96INT-R2-ACTIVATION-GROWTH (acceptance 31, still open).** The final
+activation is 611,874 bytes (hard 600 KiB cap passes), versus the independent
+pre-M96 measurement of 604,810: +7,064. The separate 4,096-byte growth
+target remains unsatisfied by 2,968 bytes. Combined transport/schema and
+review additions consume that growth; keep the target unchanged for the
+lead's follow-up before M96 certification. No gate is lowered or waived.
+
+**M96INT-R2-UNIVERSAL-VSIX (packaging proof, still open).** This rig has no
+compiled `native/darwin/muse-dictate`; only the real Windows-targeted package
+is built and cap-checked. A universal package including the macOS helper
+requires the lead's packaging rig. The browser has only 264 bytes of cap
+headroom and the Windows VSIX 9,631; the measured Windows artifact does not
+certify universal size.
+
 **M96INT integrated-source proof (2026-10-05, Windows 11 rig).** R/0, A,
 B, F and T are merged in order, preserving round 4. The repaired lazy
 boundary excludes team runtime modules from activation, Model API and ACP.

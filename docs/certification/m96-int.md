@@ -1,5 +1,8 @@
 # M96 integration — Windows 11 rig
 
+Round 1 is retained below. The round 2 record follows it, with machine-readable
+evidence in [m96-int-round2-results.json](m96-int-round2-results.json).
+
 Worktree `C:/lanes/M96INT`, branch `m96/int`, base `e23ec61c`,
 2026-10-05. The rig brief authorizes integration of R/0, A, B, F and T
 and their focused gates; W/I/U2/L/K and full quality remain with the lead.
@@ -175,3 +178,154 @@ and the unit compiler after the aggregate checks.
 `npm run quality` was not run, as the rig brief explicitly prohibits it.
 The D78 production adapter, late-terminal observation residual and remaining
 lanes retain their existing owners; no integration claim marks M96 shipped.
+
+## Round 2 — T/W/I/U2/L review branches
+
+2026-10-05, `C:/lanes/M96INT`, branch `m96/int`, starting at `0e6686f3`.
+Validated source commit: `149f6bac`. This supersedes round 1's deferral of
+W/I/U2/L. A's second fixes, K, M96c, main 0.13.0/0.14.0 and full quality
+remain outside the rig brief. Live model attempts, paid calls, credential
+reads and pushes remain **0**.
+
+| Lane | Branch head | Merge commit | Resolution                                                                                                                                                             |
+| ---- | ----------- | ------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| T    | `bc03485b`  | `3424bfa8`   | Union PLAN/CHANGELOG; keep deferred runtime while retaining durable pending claims, cancellation and structured team tool data.                                        |
+| W    | `a0b38c0d`  | `f061093f`   | Union docs; use native file URLs and Windows path rules in ACP process fixtures.                                                                                       |
+| I    | `56fa6af4`  | `07108533`   | Union docs; regenerate host API; normalize Git's alternates paths in the test and retain conservative PowerShell argument parsing.                                     |
+| U2   | `c0a3adf3`  | `1a33c8b6`   | Union English and all 14 real translation tables, both switch-reason vocabularies and localization exceptions; keep the final view contract and aggregate browser cap. |
+| L    | `00c601c8`  | `257fc3d6`   | Union CHANGELOG; retain `done` in both validated ledger contracts for successful tasks needing no merge.                                                               |
+
+All are two-parent `--no-ff` merges in the required order. Correction
+`fd86cc9c` aligns installed chat-tree validation with U2's `slot` view;
+the separate workspace-role `teamAgentsUpdate` contract remains intact.
+The unreleased changelog retains every distinct lane entry and one Added/
+Fixed heading; its released tail remains identical to the starting record
+after Git's line-ending normalization.
+
+### Integration repairs and Windows proof
+
+W's worker environment now delegates to I's canonical fence, with W's
+safe runtime names retained. Profile passthrough cannot restore loaders,
+Git configuration or SSH/askpass transports. Both Git config stores are
+disabled, and credential/helper/askpass pins remain enforced. The strengthened
+environment regression first failed on the separate implementation and
+passes on the shared implementation.
+
+The combined browser initially measured **905.7 KiB**, failing the unchanged
+900 KiB gate. The build now shares the pinned TypeScript grammar's exact
+embedded JavaScript function with its standalone grammar, verifying both
+declaration cardinality and byte equality before substitution. It preserves
+every TypeScript addition and emits UTF-8 modules. Six representative
+samples across seven language aliases produce the same highlighted HTML
+as the original grammars. Missing, duplicate and differing declarations
+refuse. No dependency, grammar, feature, notice or cap was removed.
+
+Full owning suites cover the final tree. I's four files pass **166 cases**:
+ref fence 89, workspaces 26, merge 35 and review gate 16. Both expressly
+Windows-only junction bodies execute here, and common link tests select
+native junctions. The additional case test resolves an uppercase storage
+spelling to the same native directory, then proves cleanup rejects that
+noncanonical spelling while retaining the task. Charter write-path case
+restrictions still apply on Windows. The ACP worker fixtures also pass
+using `fileURLToPath` and native path modules.
+
+### Units and single-model invariant
+
+**2,208 tests pass across 75 files; 0 failed or pending.** The inventory
+contains every merged lane's owning tests and round 1's adjacent coverage.
+Runs use no more than three files and three workers, with the unchanged
+120-second timeout. Initial batches are superseded by complete reruns for
+the final vendor-shape and Windows cases; the result JSON records those
+counts and all post-drill runs.
+
+The restored graph/golden/declaration group passes **91 tests**; the
+protocol/environment/highlighter group passes **15**. Seven original
+fixture blobs are identical to `6cfb19e4`. Their raw request bodies pass
+under all nine single-model configurations (**63 assertions**, with six
+additional controls), using only the established generated-item-id
+normalization. Key order, escaping and whitespace stay intact. Round 1's
+independent pre-M96 source build remains the baseline proof.
+
+Final production activation, Model API and ACP metafiles contain **0**
+`src/core/team/**`, `src/host/team/**` or `src/shared/team.ts` inputs.
+Shared bootstrap constants/conversation decisions and the webview transport
+schemas remain ordinary inputs; the team tools, registry and roster load
+from `dist/team.js`. The browser owning suite retains its theme/320px,
+nonce, real dynamic-import, packaged-chunk and aggregate-byte checks.
+
+### Eight source failure drills
+
+Each runs a complete owning test file and exits 1. Every source restores
+with identical before/after SHA-256; hashes and named failures are in the JSON.
+
+| Deliberate regression                                               | Failing cases |
+| ------------------------------------------------------------------- | ------------: |
+| Load the team runtime in every ordinary turn                        |            63 |
+| Eagerly import and use a team runtime tool predicate                |             1 |
+| Remove the durable-claim callback from the lazy registry factory    |             2 |
+| Install the old draft tree schema instead of U2's final view schema |             1 |
+| Allow profile passthrough to restore worker loader variables        |             1 |
+| Skip vendor grammar declaration cardinality checks                  |             3 |
+| Skip vendor grammar source equality                                 |             1 |
+| Normalize the Windows storage alias before checking canonicality    |             1 |
+
+The restored Windows workspace file passes all **26** cases. The new
+grammar group passes **15** across its three files. The original merged
+static checks also fired: full lint found a nested ternary and scratch
+scripts; knip found unused pipeline exports; duplication found eight test
+clones. Argument tables and shared test setup remove the repetition, unused
+exports are deleted, and scratch scripts move to this task's OS temp folder.
+No rule, ignore, timeout or threshold changed.
+
+### Final gates and artifact bytes
+
+All required static gates exit **0**: five compiler projects, full
+JavaScript/CSS/PowerShell lint, full prettier, plain knip, jscpd with zero
+clones, localization (14 tables, 121 manifest strings, 468 source files,
+zero problems), dpdm, regenerated host API plus check, regenerated notices,
+production build, split and host-global checks. After the native case test,
+the unit compiler, changed-file lint/format and zero-clone gate pass again.
+ACP notices regenerate with seven packages; extension notices cover 83.
+
+Commits run the unchanged lint-staged and gitleaks hooks. Portable Git has
+no bash, so a process-local temporary `npx` wrapper invokes the installed
+`npx-cli.js`; PATH is restored afterward. Full PowerShell lint uses the
+rig's existing pinned analyzer through the child's `PSModulePath` only.
+No machine/user settings or installations change.
+
+| Production artifact    |     Bytes | Cap bytes |
+| ---------------------- | --------: | --------: |
+| extension.js           |   611,874 |   614,400 |
+| modelApi.js            |   452,044 |   486,400 |
+| review.js              |    45,158 |    51,200 |
+| sessionBoard.js        |    66,968 |    76,800 |
+| reviewer.js            |    57,027 |    76,800 |
+| team.js                |    48,760 |    76,800 |
+| planMarkdown.js        |   142,363 |   153,600 |
+| checkpointStore.js     |   139,905 |   230,400 |
+| agentImport.js         |   119,399 |   128,000 |
+| bundledSkills.js       |    24,388 |    51,200 |
+| codeIntel.js           |    79,483 |   102,400 |
+| voice.js               |    36,485 |    51,200 |
+| museCodeReviewer.js    |    44,712 |    76,800 |
+| uiText.js              |   123,611 |   128,000 |
+| searchWorker.js        |    18,571 |    51,200 |
+| pageWorker.js          |   208,040 |   307,200 |
+| webview, all JS chunks |   921,336 |   921,600 |
+| acp.js                 |   824,068 |   870,400 |
+| win32-x64 VSIX         | 2,243,169 | 2,252,800 |
+
+The actual Windows VSIX is created by
+`npm.cmd run package -- --target win32-x64 --out temp/m96int-round2-win32-x64.vsix`
+and passes `node scripts/check-vsix-size.mjs temp/m96int-round2-win32-x64.vsix`.
+All 18 build caps and this package cap pass. The browser has **264 bytes**
+of remaining room; the Windows package has **9,631 bytes**.
+
+Two broader M96 acceptance items remain explicit in PLAN §7. Activation
+is **+7,064 bytes** against round 1's independently measured pre-M96 base
+of 604,810, exceeding the separate **4,096-byte growth target** by 2,968
+while staying within its hard cap. That target is unchanged and cannot
+be certified by this record. This rig also lacks the compiled macOS helper,
+so the **universal** VSIX is unverified; the Windows package proof does
+not include it. Neither residual marks M96 shipped. Full quality remains
+the lead's gate, as explicitly required by this rig brief.
