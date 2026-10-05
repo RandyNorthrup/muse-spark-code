@@ -115,8 +115,9 @@ independent $1/day journal is excluded. ACP and headless policies are unchanged.
 - **Muse Judge phase-2 library.** Offline calibration processes the labelled
   predictions supplied by its caller without network access or a new store.
   The separately packaged sampling/contrastive and loopback boundary functions
-  select no recipient and remain unavailable through product commands in
-  this integration. A later admitted source must redact content before remote
+  select no recipient. Explicit judge CLI/MCP dispatch loads the library;
+  missing source and offline/surface adapters refuse, and MCP initialization
+  and tool listing require no inference. A later admitted source must redact content before remote
   sends and disclose its recipient; this slice adds no remote recipient.
 - **Auto reviewer (Model API, available by default).** With
   `museSpark.modelApiAutoReviewer` enabled and its paid-use popup accepted,

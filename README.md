@@ -3467,9 +3467,12 @@ Press **F5** to launch the Extension Development Host with a fresh build.
 
 **Muse Judge phase-2 assembly (M98).** Offline calibration, sampling and
 one-call contrastive techniques, and the authenticated loopback boundary
-are packaged in the separate `dist/judge.js` bundle. They remain absent
-from activation and need an explicitly supplied source and admitted runtime
-before inference. This integration does not register a judge CLI command.
+join the bounded CLI/MCP implementation in the separate `dist/judge.js`
+bundle. An explicit judge command loads it through the shared lazy loader;
+ordinary ACP commands and extension activation load no judge schema.
+Source selection, paid admission and offline/surface adapters remain required
+before those commands can succeed. The production MCP initialization and
+tool-list smoke runs without inference; available-source support is pending.
 See [the integration contract and outstanding evidence](docs/judge.md).
 
 **Bundled workflow package (M89).** `vendor/high-quality-projects-skill/`

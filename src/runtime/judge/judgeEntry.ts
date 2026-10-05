@@ -1,4 +1,4 @@
-// B/D/CS assembly (M98 phase 2): built as dist/judge.js, required only by
+// B/D/CS/G assembly (M98 phase 2): built as dist/judge.js, required only by
 // an explicit judge surface. Source selection and per-attempt admission are
 // supplied by the caller; importing this factory starts no backend or server.
 import { applyCalibration } from '../../core/judge/calibration/apply'
@@ -13,6 +13,8 @@ import { sampleJudge } from '../../core/judge/sampling'
 import type { UiText } from '../../shared/l10n/en'
 import { setUiText } from '../../shared/l10n/text'
 import { startJudgeServer } from './serve'
+import { runJudgeCommand } from './commands'
+import { runJudgeMcp } from './mcp'
 
 const features = {
   applyCalibration,
@@ -23,6 +25,8 @@ const features = {
   contrastiveJudge,
   sampleJudge,
   startJudgeServer,
+  runJudgeCommand,
+  runJudgeMcp,
 }
 
 /** Install the caller's checked table before any boundary error is rendered. */

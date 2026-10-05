@@ -86,6 +86,8 @@ const JUDGE_ONLY = [
   'src/core/judge/contrastive.ts',
   'src/runtime/judge/serve.ts',
   'src/runtime/judge/tokenFile.ts',
+  'src/runtime/judge/commands.ts',
+  'src/runtime/judge/mcp.ts',
 ]
 const DEFERRED_ONLY = ['reviewerEntry.ts']
 const DEFERRED = [
@@ -983,7 +985,7 @@ console.log(
   `ok   model text: ${TEXT_BLOCKS.map(({ block }) => block).join(', ')} each in its readers and in no other of the ${String(SHIPPED.length)} shipped bundles; ${FILE_REFUSAL.block} pinned to ${String(FILE_REFUSAL.keys.length)} keys; ${String(modelTextKeys.length)} MODEL_TEXT keys, each read at activation`,
 )
 console.log(`ok   ${UI_TEXT.output}: Node bundles share the English fallback`)
-console.log(`ok   ${JUDGE.output}: B/D/CS load only on an explicit judge action`)
+console.log(`ok   ${JUDGE.output}: B/D/CS/G load only on an explicit judge action`)
 for (const bundle of DEFERRED) console.log(`ok   ${bundle.output}: loads only on its first action`)
 for (const bundle of ON_FIRST_USE) {
   console.log(`ok   ${bundle.output}: loads only on ${bundle.use}, never at activation`)

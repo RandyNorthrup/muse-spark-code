@@ -17,7 +17,7 @@ export function isJudgeBundle(value: unknown): value is JudgeBundle {
   )
 }
 
-/** G and later host surfaces call this loader only at their explicit decision point. */
+/** CLI and later host surfaces call this loader only at their explicit decision point. */
 export function judgeFeaturesLoader(deps: {
   readonly bundlePath: string
   readonly log: Logger

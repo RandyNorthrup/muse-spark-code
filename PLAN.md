@@ -16197,6 +16197,18 @@ API is introduced by these repairs; this stale documentation gate is
 explicitly deferred, not claimed green. Follow-up: run
 `npm run check:host-api -- --write`, review these rows, rerun the check.
 
+**Closed by M98P2INT round 2 (2026-10-05).** The generated record now
+includes both G's delegated rows and B/CS/D's imports. Compared with G's
+snapshot: paidHost 11 → 12 and its WorkspaceConfiguration.get reader;
+Node buffer 30 → 32, crypto 36 → 39, fs 28 → 29, fs/promises 38 → 39,
+http 4 → 5, path 70 → 71, stream 12 → 13 and util 4 → 5. The merged
+release's 296 VS Code APIs, 24 adapters, 25 built-ins and 61 theme variables
+are unchanged by CLI factory wiring. Regeneration and the final check both
+exit 0; `docs/certification/m98-p2int-round2.md` holds the bounded receipts.
+The first duplication run caught copied display-language loading in the
+runtime entry; one local function shares the existing operation among its
+judge, exec/scanner and ACP callers, without changing its inputs or policy.
+
 **M98P2PLAN documentation-only lane (2026-10-05).** The explicit rig brief
 limits changes to PLAN and the phase-2 planning receipt and requires only
 changed-file Prettier and whitespace checks, with hooks enabled. No source,
@@ -16835,6 +16847,8 @@ before a repaired one loads (2026-09-30).
   Z owns regenerating/reviewing the record and rerunning it on the final
   integrated tree. No RVM98G2 P1/P2/P3 finding remains unresolved. Evidence:
   `docs/certification/m98-g2.md`.
+  **Closed on this integration tree:** M98P2INT round 2 regenerated/reviewed
+  the record and the check exits 0. The original failure remains historical.
 
 - **M92e-COMMIT-STAGED (architectural skip, 2026-10-04):** the extension
   has no dedicated commit-writing path. A model's `git commit` goes through

@@ -512,8 +512,9 @@ Releases and npm.
 
 More detail: `docs/PRIVACY.md` and PLAN.md §9.
 
-The packaged Muse Judge phase-2 factory starts no service at activation and
-exposes no new product command in this integration. Its loopback boundary
+The packaged Muse Judge phase-2 factory starts no service at activation.
+Explicit CLI/MCP dispatch loads it without a chat backend; unavailable source
+and offline/surface adapters refuse before inference. Its loopback boundary
 requires exact Host, rejects every Origin, authenticates every request with
 a fresh private bearer and bounds streamed input before calling an injected
 runtime. macOS extended ACLs refuse startup. Installed Windows ACL and

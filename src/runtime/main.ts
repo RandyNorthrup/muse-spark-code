@@ -43,6 +43,7 @@ import { createFdWriter } from './exec/fdWriter'
 import { createExecLogger, redactWhole } from './exec/execOutput'
 import { runExec } from './exec/runExec'
 import { runSecretScan } from './exec/scanSecrets'
+import { judgeFeaturesLoader } from './judge/judgeBundle'
 
 const EXIT_FAILED = 1
 // Credential variables leave the agent's own environment before anything
@@ -51,6 +52,14 @@ const museCodeCredentials = takeCredentials(process.env)
 // The package root holds `package.json` and `l10n/`; this file runs from `dist/`.
 const distDir = __dirname
 const packageRoot = path.dirname(distDir)
+
+function loadDisplayLanguage(log: Logger) {
+  return loadUiTable({
+    language: displayLanguage(process.env, new Intl.DateTimeFormat().resolvedOptions().locale),
+    readExtensionFile: (segments) => readFile(path.join(packageRoot, ...segments), 'utf8'),
+    log,
+  })
+}
 
 /** Standalone headless commands own their process, including wedged late setup. */
 function exitHeadless(code: number, shouldForce = false): never {
@@ -239,35 +248,34 @@ function logLevel(command: ReturnType<typeof parseCommandLine>): LogLevel {
 async function main(): Promise<number> {
   const command = parseCommandLine(process.argv.slice(2))
   if (command.command === 'judge') {
-    const { runJudgeCommand } = await import('./judge/commands')
     const controller = new AbortController()
     const stop = () => {
       controller.abort()
     }
     const stdout = createFdWriter(process.stdout.fd, stop)
     const stderr = createFdWriter(process.stderr.fd, stop)
+    const log = stderrLogger((line) => {
+      stderr.write(`${redactWhole(line, [])}\n`)
+    }, 'warn')
+    const loadJudge = judgeFeaturesLoader({
+      bundlePath: path.join(distDir, 'judge.js'),
+      log,
+    })
     process.on('SIGINT', stop)
     process.on('SIGTERM', stop)
     try {
-      // Z supplies real available source/B/CS/H adapters here at integration.
-      // Missing dependencies refuse explicitly; no chat backend or ACP connection.
-      const code = await runJudgeCommand(
+      // Available source/offline/surface adapters are required before those
+      // commands can succeed; missing dependencies retain explicit refusals.
+      const code = await loadJudge().runJudgeCommand(
         command,
         { stdin: process.stdin, stdout, stderr },
         {
           initialize: async (signal) => {
-            await loadUiTable({
-              language: displayLanguage(
-                process.env,
-                new Intl.DateTimeFormat().resolvedOptions().locale,
-              ),
-              readExtensionFile: (segments) =>
-                readFile(path.join(packageRoot, ...segments), 'utf8'),
-              log: stderrLogger((line) => {
-                stderr.write(`${redactWhole(line, [])}\n`)
-              }, 'warn'),
-            })
+            await loadDisplayLanguage(log)
             signal.throwIfAborted()
+            // Node bundles have separate language state; install the table
+            // read above before the lazy command renders its first response.
+            loadJudge()
           },
         },
         controller.signal,
@@ -322,16 +330,7 @@ async function main(): Promise<number> {
     let headlessCode: number = EXEC_EXIT.internal
     try {
       try {
-        await lifecycle.race(
-          loadUiTable({
-            language: displayLanguage(
-              process.env,
-              new Intl.DateTimeFormat().resolvedOptions().locale,
-            ),
-            readExtensionFile: (segments) => readFile(path.join(packageRoot, ...segments), 'utf8'),
-            log,
-          }),
-        )
+        await lifecycle.race(loadDisplayLanguage(log))
       } catch {
         /* The bundled English table is already installed; stop still owns the deadline. */
       }
@@ -397,11 +396,7 @@ async function main(): Promise<number> {
     writeLine(process.stderr, line)
   }, logLevel(command))
   // The language's table goes in before anything reads the text (D33).
-  await loadUiTable({
-    language: displayLanguage(process.env, new Intl.DateTimeFormat().resolvedOptions().locale),
-    readExtensionFile: (segments) => readFile(path.join(packageRoot, ...segments), 'utf8'),
-    log,
-  })
+  await loadDisplayLanguage(log)
   switch (command.command) {
     case 'serve': {
       return await serve(command.options, log)

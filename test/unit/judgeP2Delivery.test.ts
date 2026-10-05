@@ -16,6 +16,8 @@ const judgeFiles = [
   'src/core/judge/contrastive.ts',
   'src/runtime/judge/serve.ts',
   'src/runtime/judge/tokenFile.ts',
+  'src/runtime/judge/commands.ts',
+  'src/runtime/judge/mcp.ts',
 ]
 const metaSchema = z.looseObject({
   outputs: z.record(
@@ -172,6 +174,7 @@ describe('phase-2 judge production delivery', () => {
       'FAIL dist/judge.js',
     )
     const hidden = `${file}.missing-control`
+    const originalHash = digest(file)
     renameSync(file, hidden)
     try {
       const red = gate('check-bundle-size')
@@ -183,6 +186,7 @@ describe('phase-2 judge production delivery', () => {
     } finally {
       renameSync(hidden, file)
     }
+    expect(digest(file)).toBe(originalHash)
     expect(gate('check-bundle-size').status).toBe(0)
   })
 

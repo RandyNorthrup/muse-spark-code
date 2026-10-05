@@ -1,14 +1,18 @@
 # Muse Judge phase-2 integration
 
 Muse Judge is advisory: an answer never grants an action, skips a question
-or replaces a deterministic check. This first integration packages B's
+or replaces a deterministic check. This integration packages B's
 offline calibration, D's sampling/contrastive techniques and CS's loopback
-boundary. It does not register CLI commands or enable a real source. G,
-GH, H and J join later through the lead's integration. TypeSafe/Jev remains
+boundary, plus G's reviewed bounded CLI/MCP implementation. An explicit
+judge command loads the shared factory without starting an ACP connection
+or chat backend. Source, admission and offline/surface command adapters
+remain required; MCP initialization and tool listing work without inference.
+GH, H, J and FU join later, then C/E/A/I/FP after M95. TypeSafe/Jev remains
 experimental, untested and opt-in; historical research is not product
 certification.
 
-`dist/judge.js` is a CommonJS bundle beside the shared `dist/uiText.js`,
+`dist/judge.js` is a CommonJS bundle beside shared `dist/uiText.js` and
+`dist/validation.js`,
 included in both the VSIX and the ACP npm package. The type-only
 `judgeFeaturesLoader` in `src/runtime/judge/judgeBundle.ts` loads it on the
 first explicit call, retries missing/corrupt files, and installs the caller's
@@ -32,10 +36,17 @@ current language before every use. Its factory exposes:
   Input/output validation and streamed size limits precede inference.
   Shutdown cancels calls, closes sockets and removes the token. A hard kill
   can leave a private stale token, which never authenticates a restart.
+- `runJudgeCommand` and `runJudgeMcp`, preserving G's validated argument,
+  request, result and cancellation boundaries, deadlines and bounded stdio.
+  Paid dispatch requires the injected durable admission adapter and a positive
+  run cap; no fake source or ledger is installed. The CLI refreshes the lazy
+  factory's language after its initialization reads the caller's table.
 
 The factory selects no model, creates no backend, reads no API key, starts
-no listener and makes no inference call. Existing extension, Model API,
-ACP and browser bundles are unchanged in this slice. The new bundle has a
+no listener and makes no inference call. Compared with the merged 0.13.0
+release baseline, extension, Model API and browser startup bytes remain
+unchanged. ACP dispatch changes as G moves out of its bundle; the shared
+validation bundle adds calibration's existing `lt` check. The judge retains its
 75 KiB cap; the build rejects phase-2 implementations in any other bundle,
 missing implementations and duplicated English fallback. Both package
 inventories require the new member, and its dependencies enter notices and
@@ -55,5 +66,5 @@ the integrated CLI/VS Code/npm receipts remain open with their owners.
 macOS Node/socket/ACL tests and Linux's prior receipts do not certify Windows.
 Full quality, coverage and hosted checks run on the lead's final integrated
 tree. This slice made zero live, paid or local model calls; the
-[integration receipt](certification/m98-p2int.md) records its exact checks,
+[round-2 integration receipt](certification/m98-p2int-round2.md) records its exact checks,
 drills and artifact hashes.

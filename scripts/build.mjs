@@ -326,7 +326,7 @@ const checkpointStoreOptions = {
   target: HOST_NODE_TARGET,
 }
 
-// M98 B/D/CS: shared by the extension and ACP package, absent at activation.
+// M98 B/D/CS/G: shared by the extension and ACP package, absent at activation.
 /** @type {import('esbuild').BuildOptions} */
 const judgeOptions = {
   ...planMarkdownOptions,

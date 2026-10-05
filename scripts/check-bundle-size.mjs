@@ -77,7 +77,7 @@ const BUDGETS = [
   // Shared English fallback; existing host budgets stay unchanged. Measured
   // 104.9 KiB (2026-10-04); plus 15%, rounded up to 25 KiB.
   { path: 'dist/uiText.js', budgetKiB: 125 },
-  // M98 B/D/CS: offline calibration, injected techniques and authenticated
+  // M98 B/D/CS/G: offline calibration, bounded CLI/MCP and authenticated
   // boundary, required on an explicit judge action. 59.6 KiB + 15%, rounded
   // up to 25 KiB; no pre-existing cap changes (PLAN.md D6).
   { path: 'dist/judge.js', budgetKiB: 75 },

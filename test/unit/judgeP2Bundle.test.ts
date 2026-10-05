@@ -12,6 +12,7 @@ import { FakeLogOutputChannel } from './helpers/fakes'
 import { builtForTests, lazyLoaderCases } from './helpers/lazyBundles'
 import { removeFolder } from './helpers/temporaryFolders'
 import { samplingRequest, techniqueFixture } from './judgeSamplingFixtures'
+import { answered, command, io, REQUEST, source } from './judgeCliFixtures'
 
 const built = builtForTests('src/runtime/judge/judgeEntry.ts', 'judge.js')
 const temporary = mkdtempSync(path.join(tmpdir(), 'muse-judge-assembly-'))
@@ -40,7 +41,7 @@ afterEach(() => {
 })
 afterAll(() => removeFolder(temporary))
 
-describe('the B/D/CS lazy factory', () => {
+describe('the B/D/CS/G lazy factory', () => {
   lazyLoaderCases(judgeFeaturesLoader, built, unavailable)
 
   it('does not accept a module without its callable factory', () => {
@@ -163,5 +164,57 @@ describe('the B/D/CS lazy factory', () => {
       status: 'uncalibrated',
       reason: 'invalid-dataset',
     })
+  })
+
+  it('keeps missing CLI sources explicit through the built factory', async () => {
+    const streams = io()
+    expect(await loader()().runJudgeCommand(command(), streams, {})).toBe(4)
+    expect(JSON.parse(streams.output())).toEqual({
+      outcome: 'no-answer',
+      reason: 'source-unavailable',
+    })
+    expect(streams.error()).toBe('')
+  })
+
+  it('requires the paid admission adapter through the built CLI factory', async () => {
+    const fake = source('paid', 1)
+    const features = loader()()
+    const refused = io()
+    const options = command('ask', ['--model', 'chosen', '--budget-usd', '1'])
+    const resolveSource = () => Promise.resolve(fake.value)
+    expect(await features.runJudgeCommand(options, refused, { resolveSource })).toBe(4)
+    expect(refused.output()).toContain('consent-needed')
+    const admitted = io()
+    const admitPaid = vi.fn(() => Promise.resolve(answered()))
+    expect(await features.runJudgeCommand(options, admitted, { resolveSource, admitPaid })).toBe(0)
+    expect(admitPaid).toHaveBeenCalledExactlyOnceWith(
+      fake.value,
+      REQUEST,
+      1,
+      expect.any(AbortSignal),
+    )
+    expect(fake.judge).not.toHaveBeenCalled()
+  })
+
+  it('installs changed caller language for MCP tool refusals through the built factory', async () => {
+    const features = loader()
+    const judge = vi.fn(() =>
+      Promise.resolve({ outcome: 'no-answer', reason: 'source-unavailable' } as const),
+    )
+    for (const label of ['First MCP: {reason}', 'Second MCP: {reason}']) {
+      setUiText({ ...EN, judgeNoAnswer: label }, 'fr')
+      const streams = io(
+        `${JSON.stringify({
+          jsonrpc: '2.0',
+          id: 1,
+          method: 'tools/call',
+          params: { name: 'judge', arguments: samplingRequest },
+        })}\n`,
+      )
+      expect(await features().runJudgeMcp(streams, judge, new AbortController().signal)).toBe(4)
+      expect(streams.output()).toContain(label.replace('{reason}', 'source-unavailable'))
+      expect(streams.error()).toBe('')
+    }
+    expect(judge).toHaveBeenCalledTimes(2)
   })
 })

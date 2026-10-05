@@ -50,7 +50,7 @@
     "src/host/web/pageWorker.ts",
     "src/webview/main.tsx",
     "src/runtime/main.ts",
-    // M98 B/D/CS factory and its type-only loader, called by explicit judge surfaces.
+    // M98 B/D/CS/G factory and its type-only loader, called by explicit judge surfaces.
     "src/runtime/judge/judgeEntry.ts",
     "src/runtime/judge/judgeBundle.ts",
     "test/unit/**/*.test.{ts,tsx,mjs}",

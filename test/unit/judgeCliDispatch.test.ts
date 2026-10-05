@@ -1,10 +1,12 @@
 import { spawn } from 'node:child_process'
-import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
+import { copyFileSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import process from 'node:process'
-import { build } from 'esbuild'
+import { build, type BuildOptions } from 'esbuild'
+import * as z from 'zod/mini'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { JUDGE_REQUEST_TIMEOUT_MS } from '../../src/shared/constants'
+import { fill } from '../../src/shared/l10n/text'
 import { removeFolder } from './helpers/temporaryFolders'
 import { REQUEST } from './judgeCliFixtures'
 
@@ -12,9 +14,7 @@ const folder = mkdtempSync(path.join(process.cwd(), '.m98g-cli-'))
 const entry = path.join(folder, 'dist', 'acp.js')
 beforeAll(async () => {
   mkdirSync(path.dirname(entry))
-  await build({
-    entryPoints: ['src/runtime/main.ts'],
-    outfile: entry,
+  const options: BuildOptions = {
     bundle: true,
     platform: 'node',
     format: 'cjs',
@@ -42,21 +42,35 @@ beforeAll(async () => {
         },
       },
     ],
+  }
+  await build({ ...options, entryPoints: ['src/runtime/main.ts'], outfile: entry })
+  await build({
+    ...options,
+    entryPoints: ['src/runtime/judge/judgeEntry.ts'],
+    outfile: path.join(path.dirname(entry), 'judge.js'),
   })
   writeFileSync(path.join(folder, 'package.json'), '{"version":"test"}')
+  mkdirSync(path.join(folder, 'l10n'))
+  copyFileSync('l10n/ui.fr.json', path.join(folder, 'l10n', 'ui.fr.json'))
 })
 afterAll(async () => {
   await removeFolder(folder)
 })
 
-function run(args: readonly string[], stdin: string, shouldEnd = true, shouldTripSchema = false) {
+function run(
+  args: readonly string[],
+  stdin: string,
+  shouldEnd = true,
+  shouldTripSchema = false,
+  language = 'en_US.UTF-8',
+) {
   return new Promise<{ code: number | null; stdout: string; stderr: string }>((resolve, reject) => {
     const child = spawn(process.execPath, [entry, ...args], {
       cwd: folder,
       env: {
         PATH: process.env['PATH'],
         SystemRoot: process.env['SystemRoot'],
-        LANG: 'en_US.UTF-8',
+        LANG: language,
         M98_JUDGE_SCHEMA_TRIPWIRE: shouldTripSchema ? '1' : '0',
       },
       stdio: 'pipe',
@@ -129,5 +143,25 @@ describe('judge process dispatch', () => {
     expect(result.code).toBe(0)
     expect(result.stdout).toContain('"name":"judge"')
     expect(result.stdout + result.stderr).not.toMatch(/BACKEND_STARTED|ACP_STARTED|session\//)
+  })
+  it('installs the CLI display language in the separately loaded MCP bundle', async () => {
+    const french = z
+      .object({ judgeNoAnswer: z.string() })
+      .parse(JSON.parse(readFileSync('l10n/ui.fr.json', 'utf8')))
+    const result = await run(
+      ['judge', 'mcp'],
+      `${JSON.stringify({
+        jsonrpc: '2.0',
+        id: 1,
+        method: 'tools/call',
+        params: { name: 'judge', arguments: REQUEST },
+      })}\n`,
+      true,
+      false,
+      'fr_FR.UTF-8',
+    )
+    expect(result.code).toBe(4)
+    expect(result.stdout).toContain(fill(french.judgeNoAnswer, { reason: 'source-unavailable' }))
+    expect(result.stderr).toBe('')
   })
 })

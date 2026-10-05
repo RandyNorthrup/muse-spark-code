@@ -15,6 +15,11 @@ happened, not what was planned; superseded entries are kept.
   the VSIX and ACP package. Existing activation and conversation bundles stay
   byte-identical. Inference still requires captured sources, durable admission
   and independent adoption evidence; CLI registration joins in a later lane.
+- **Muse Judge CLI/MCP lazy delivery.** Explicit judge commands load the
+  reviewed dispatcher and advisory MCP tool from the existing judge factory;
+  ordinary ACP startup loads no judge schema. The caller's current language
+  reaches the separate bundle before its first response. Real-source,
+  admission and offline/surface command adapters remain pending.
 - Passive judge settings accept `separate` and `both`, with a machine-scoped
   separate-source identifier. Defaults remain `auto` with no separate source;
   configuration alone cannot enable an unverified or unmeasured source.
