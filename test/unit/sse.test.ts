@@ -20,6 +20,44 @@ function text(...parts: readonly string[]): ReadableStream<Uint8Array> {
 }
 
 describe('parseSse', () => {
+  it.each([
+    ['frame_limit', 'data: ééééé\n\n', { frameBytes: 10 }],
+    ['frame_limit', 'data: one\ndata: two\n\n', { frameBytes: 15 }],
+    ['stream_limit', ':keepalive\n\n:keepalive\n\n', { totalBytes: 10 }],
+    ['frame_count_limit', 'data: a\n\ndata: b\n\n', { frames: 1 }],
+    ['frame_limit', 'data: unterminated', { frameBytes: 10 }],
+  ])('rejects %s before unbounded buffering', async (reason, bytes, limits) => {
+    await expect(Array.fromAsync(parseSse(text(bytes), limits))).rejects.toThrow(reason)
+  })
+
+  it('does not carry an event name across a data-free block', async () => {
+    expect(await Array.fromAsync(parseSse(text('event: old\n\ndata: new\n\n')))).toEqual([
+      { event: undefined, data: 'new' },
+    ])
+  })
+
+  it('cancels its byte source on a limit failure or an early consumer end', async () => {
+    for (const isLimited of [true, false]) {
+      let isCancelled = false
+      const source = new ReadableStream<Uint8Array>({
+        start(controller) {
+          controller.enqueue(encoder.encode('data: first\n\n'))
+        },
+        cancel() {
+          isCancelled = true
+        },
+      })
+      const frames = parseSse(source, isLimited ? { frameBytes: 1 } : {})
+      if (isLimited) {
+        await expect(frames.next()).rejects.toThrow('frame_limit')
+      } else {
+        await frames.next()
+        await frames.return(undefined)
+      }
+      expect(isCancelled).toBe(true)
+      expect(source.locked).toBe(false)
+    }
+  })
   it('yields one event per blank-line block, with the event name and joined data', async () => {
     const events = await Array.fromAsync(
       parseSse(
