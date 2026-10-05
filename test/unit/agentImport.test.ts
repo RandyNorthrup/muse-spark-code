@@ -14,7 +14,11 @@ import {
   planImportApply,
   scanAgentImports,
 } from '../../src/core/import/agentImport'
-import { type AgentImportSource, RULES_FILE_MAX_BYTES } from '../../src/shared/constants'
+import {
+  AGENT_IMPORT_FILE_MAX_BYTES,
+  type AgentImportSource,
+  RULES_FILE_MAX_BYTES,
+} from '../../src/shared/constants'
 import {
   type MemoryImportIo,
   memoryImportIo,
@@ -749,7 +753,7 @@ const HOOK_FIXTURES: Record<string, string> = {
     hooks: {
       BeforeTool: [
         {
-          matcher: 'run_shell_command',
+          matcher: '^run_shell_command$',
           hooks: [{ type: 'command', command: 'guard', timeout: 5000 }],
         },
       ],
@@ -845,7 +849,7 @@ describe('scanAgentImports: every agent’s hooks', () => {
       'hook kiro user new.json -> none:unknownFormat',
       'hook kiro project lint -> hook:sparkProject',
       'hook kiro project spec -> hook:sparkProject',
-      'hook kiro project hand -> hook:sparkProject',
+      'hook kiro project hand -> none:unmapped',
       'hook cline project hooks.json -> none:unknownFormat',
       'hook cline project PreToolUse -> hook:sparkProject',
     ])
@@ -878,7 +882,7 @@ describe('scanAgentImports: every agent’s hooks', () => {
       expect(spark).toContain(`"format": "${format}"`)
     }
     expect(sparkGroups(textOf('sparkUser'), 'PreToolUse')).toMatchObject([
-      { format: 'cursor', sourceEvent: 'preToolUse', flavor: 'generic' },
+      { format: 'cursor', sourceEvent: 'preToolUse' },
       { format: 'gemini', sourceEvent: 'BeforeTool' },
     ])
     expect(sparkGroups(textOf('sparkProject'), 'PostToolUse')).toMatchObject([
@@ -913,9 +917,9 @@ describe('scanAgentImports: every agent’s hooks', () => {
   it('reads no project hook without live trust (the scope drill)', async () => {
     const setup = hookInput({}, { isWorkspaceTrusted: () => false })
     const scan = await scanAgentImports(setup)
-    expect(scan.candidates.length).toBeGreaterThan(0)
-    expect(scan.candidates.every((candidate) => candidate.origin === 'user')).toBe(true)
-    expect(setup.io.reads.filter((path) => path.startsWith(`${WS}/`))).toEqual([])
+    expect(scan.candidates).not.toHaveLength(0)
+    for (const candidate of scan.candidates) expect(candidate.origin).toBe('user')
+    expect(setup.io.reads.some((file) => file.startsWith(`${WS}/`))).toBe(false)
   })
 
   it('lists a broken Kiro file in fixed words, never with its content', async () => {
@@ -1080,4 +1084,242 @@ describe('scanAgentImports: RVM91I scanner regressions', () => {
     )
     expect(summary(scan.candidates)).toEqual(['hook copilot project preToolUse -> none:disabled'])
   })
+})
+
+describe('scanAgentImports: RVM91I2 regressions', () => {
+  const native = { hooks: { PreToolUse: [{ hooks: [{ type: 'command', command: 'guard' }] }] } }
+  const gemini = { hooks: { BeforeTool: [{ hooks: [{ type: 'command', command: 'guard' }] }] } }
+  const copilot = { version: 1, hooks: { preToolUse: [{ bash: 'guard' }] } }
+
+  it.each(['claudeCode', 'gemini', 'copilot'] as const)(
+    'R2-1 refuses %s hooks when a source switch file is oversized or unreadable',
+    async (source) => {
+      const dir = { claudeCode: '.claude', gemini: '.gemini', copilot: '.github/copilot' }[source]
+      const user =
+        source === 'copilot' ? `${HOME}/.copilot/hooks/guard.json` : `${HOME}/${dir}/settings.json`
+      const project = `${WS}/${dir}/settings.json`
+      for (const failure of ['oversized', 'EACCES', 'malformed']) {
+        const setup = only(
+          {
+            [user]: JSON.stringify({ claudeCode: native, gemini, copilot }[source]),
+            [project]:
+              failure === 'malformed'
+                ? '{'
+                : JSON.stringify({
+                    disableAllHooks: true,
+                    hooksConfig: { enabled: false },
+                    detail: 'x'.repeat(AGENT_IMPORT_FILE_MAX_BYTES),
+                  }),
+          },
+          [source],
+          failure === 'EACCES' ? { failing: { [project]: 'EACCES' } } : {},
+        )
+        const scan = await scanAgentImports(setup)
+        expect(scan.candidates).toHaveLength(1)
+        expect(scan.candidates[0]?.target).toEqual({ kind: 'none', reason: 'unreadable' })
+        const plan = await planImportApply(scan.candidates, DESTINATIONS, planState(setup.io))
+        expect(plan.copies).toEqual([])
+        expect(plan.skipped[0]?.reason).toBe('unreadable')
+      }
+    },
+  )
+
+  it('R2-1 allows personal hooks when optional source switch files are absent', async () => {
+    const setup = only({ [`${HOME}/.copilot/hooks/guard.json`]: JSON.stringify(copilot) }, [
+      'copilot',
+    ])
+    const scan = await scanAgentImports(setup)
+    expect(scan.candidates[0]?.target.kind).toBe('hook')
+  })
+
+  it('R2-2 rechecks a Cline link retargeted during the executable await and trust loss', async () => {
+    const dir = `${HOME}/Documents/Cline/Hooks`
+    const script = `${dir}/PreToolUse`
+    let isTrusted = true
+    const setup = input(
+      {
+        files: {
+          [`${dir}/README.txt`]: 'notes',
+          [`${HOME}/guard`]: 'script',
+          [`${WS}/guard`]: 'project',
+        },
+        links: { [script]: `${HOME}/guard` },
+        executables: [`${HOME}/guard`],
+      },
+      { sources: ['cline'], isWorkspaceTrusted: () => isTrusted },
+    )
+    setup.io.isExecutable = () => {
+      setup.io.links.set(script, `${WS}/guard`)
+      isTrusted = false
+      return Promise.resolve(true)
+    }
+    const scan = await scanAgentImports(setup)
+    expect(scan.candidates.every((candidate) => candidate.target.kind === 'none')).toBe(true)
+    const plan = await planImportApply(scan.candidates, DESTINATIONS, planState(setup.io))
+    expect(plan.copies).toEqual([])
+  })
+
+  it('R2-2 refuses a personal Cline executable retargeted after preview during planning', async () => {
+    const dir = `${HOME}/Documents/Cline/Hooks`
+    const script = `${dir}/PreToolUse`
+    const setup = only(
+      { [`${dir}/README.txt`]: 'notes', [`${HOME}/guard`]: 'script', [`${WS}/guard`]: 'project' },
+      ['cline'],
+      { links: { [script]: `${HOME}/guard` }, executables: [`${HOME}/guard`] },
+    )
+    const scan = await scanAgentImports(setup)
+    expect(scan.candidates[0]?.target.kind).toBe('hook')
+    setup.io.links.set(script, `${WS}/guard`)
+    const plan = await planImportApply(scan.candidates, DESTINATIONS, planState(setup.io))
+    expect(plan.copies).toEqual([])
+    expect(plan.skipped).toEqual([{ candidateId: scan.candidates[0]?.id, reason: 'outside' }])
+  })
+
+  // gh/copilot_reference_hooks-configuration.md:73-75: strict inline, independent files.
+  it('R2-4 refuses valid Copilot inline siblings beside a malformed item', async () => {
+    const block = { hooks: { preToolUse: [{ bash: 'send-report' }, { bash: 123 }] } }
+    const setup = only(
+      {
+        [`${WS}/.github/copilot/settings.json`]: JSON.stringify(block),
+        [`${WS}/.github/hooks/independent.json`]: JSON.stringify(copilot),
+      },
+      ['copilot'],
+    )
+    const scan = await scanAgentImports(setup)
+    const inline = scan.candidates.filter((candidate) =>
+      candidate.originPath.endsWith('settings.json'),
+    )
+    expect(inline).toHaveLength(2)
+    expect(inline.every((candidate) => candidate.target.kind === 'none')).toBe(true)
+    expect(inline[0]?.target).toEqual({ kind: 'none', reason: 'field', field: 'hooks' })
+    expect(
+      scan.candidates.find((candidate) => candidate.originPath.endsWith('independent.json'))?.target
+        .kind,
+    ).toBe('hook')
+  })
+
+  // raw-codex-gemini.md:77: merged matching plans inherit sequential:true.
+  it('R2-9 refuses Gemini sequential event siblings across user and project files', async () => {
+    const setup = only(
+      {
+        [`${HOME}/.gemini/settings.json`]: JSON.stringify(gemini),
+        [`${WS}/.gemini/settings.json`]: JSON.stringify({
+          hooks: {
+            BeforeTool: [{ sequential: true, hooks: [{ type: 'command', command: 'produce' }] }],
+            AfterTool: [{ hooks: [{ type: 'command', command: 'observe' }] }],
+          },
+        }),
+      },
+      ['gemini'],
+    )
+    const scan = await scanAgentImports(setup)
+    const before = scan.candidates.filter((candidate) => candidate.label === 'BeforeTool')
+    expect(before).toHaveLength(2)
+    expect(before.map((candidate) => candidate.target)).toEqual([
+      { kind: 'none', reason: 'field', field: 'sequential' },
+      { kind: 'none', reason: 'field', field: 'sequential' },
+    ])
+    expect(scan.candidates.find((candidate) => candidate.label === 'AfterTool')?.target.kind).toBe(
+      'hook',
+    )
+  })
+
+  it('R2-11 refuses a discovered Cursor file with no required version', async () => {
+    const setup = only(
+      {
+        [`${HOME}/.cursor/hooks.json`]: JSON.stringify({
+          hooks: { preToolUse: [{ command: 'guard' }] },
+        }),
+      },
+      ['cursor'],
+    )
+    const scan = await scanAgentImports(setup)
+    expect(summary(scan.candidates)).toEqual(['hook cursor user hooks.json -> none:unknownFormat'])
+  })
+})
+
+describe('RVM91I2 Cline await boundaries', () => {
+  it('R2-2 checks project script confinement again after its executable await', async () => {
+    const script = `${WS}/.clinerules/hooks/PreToolUse`
+    const setup = only({ [script]: 'project', [`${HOME}/outside`]: 'outside' }, ['cline'], {
+      executables: [script],
+    })
+    setup.io.isExecutable = () => {
+      setup.io.links.set(script, `${HOME}/outside`)
+      return Promise.resolve(true)
+    }
+    const scan = await scanAgentImports(setup)
+    expect(scan.candidates).toEqual([])
+    expect(scan.warnings).toContain('leads outside the workspace, skipped')
+  })
+
+  it('R2-2 refuses a personal link retargeted at final exposure classification', async () => {
+    const dir = `${HOME}/Documents/Cline/Hooks`
+    const script = `${dir}/PreToolUse`
+    const setup = only(
+      { [`${dir}/README.txt`]: 'notes', [`${HOME}/guard`]: 'user', [`${WS}/guard`]: 'project' },
+      ['cline'],
+      { links: { [script]: `${HOME}/guard` }, executables: [`${HOME}/guard`] },
+    )
+    const realPath = setup.io.realPath
+    let reads = 0
+    setup.io.realPath = (path) => {
+      if (path === script) {
+        reads += 1
+        if (reads === 3) setup.io.links.set(script, `${WS}/guard`)
+      }
+      return realPath(path)
+    }
+    const scan = await scanAgentImports(setup)
+    expect(scan.candidates[0]?.sourceExposure).toBe('project-tracked')
+    expect(scan.candidates[0]?.target).toEqual({ kind: 'none', reason: 'outside' })
+  })
+})
+
+describe('RVM91I2 Cline source workspace identity', () => {
+  it('R2-2 confines a project executable to its original workspace again during planning', async () => {
+    const script = `${WS}/.clinerules/hooks/PreToolUse`
+    const setup = only({ [script]: 'project', '/other/guard': 'other project' }, ['cline'], {
+      executables: [script],
+    })
+    const scan = await scanAgentImports(setup)
+    expect(scan.candidates[0]?.target.kind).toBe('hook')
+    setup.io.links.set(script, '/other/guard')
+    const plan = await planImportApply(
+      scan.candidates,
+      { ...DESTINATIONS, workspaceRoots: () => [WS, '/other'] },
+      planState(setup.io),
+    )
+    expect(plan.copies).toEqual([])
+    expect(plan.skipped[0]?.reason).toBe('outside')
+  })
+
+  it('R2-2 rechecks project trust after exposure classification awaits', async () => {
+    const script = `${WS}/.clinerules/hooks/PreToolUse`
+    let isTrusted = true
+    const setup = input(
+      { files: { [script]: 'project' }, executables: [script] },
+      { sources: ['cline'], isWorkspaceTrusted: () => isTrusted },
+    )
+    setup.io.isIgnored = () => {
+      isTrusted = false
+      return Promise.resolve(false)
+    }
+    const scan = await scanAgentImports(setup)
+    expect(scan.candidates).toEqual([])
+  })
+})
+
+it('R2-gates never treats an unsupported Codex event as a Claude extension hook', async () => {
+  const setup = only(
+    {
+      [`${HOME}/.codex/hooks.json`]: JSON.stringify({
+        hooks: { InstructionsLoaded: [{ hooks: [{ type: 'command', command: 'observe' }] }] },
+      }),
+    },
+    ['codex'],
+  )
+  const scan = await scanAgentImports(setup)
+  expect(scan.candidates[0]?.source).toBe('codex')
+  expect(scan.candidates[0]?.target).toEqual({ kind: 'none', reason: 'unmapped' })
 })

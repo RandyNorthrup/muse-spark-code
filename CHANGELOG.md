@@ -96,6 +96,18 @@ happened, not what was planned; superseded entries are kept.
     backend runs each, and the panel marks a reply a MessageDisplay hook
     rewrote, with the original one click away.
 
+### Fixed
+
+- **M91 import review, round 3:** unreadable source switches refuse hooks;
+  Copilot inline settings refuse siblings together; Cline script references
+  are checked again after awaits and during planning, quoted as literal paths
+  for Unix and PowerShell, and retain their 30-second bound. Nonexact tool
+  matchers and Gemini lifecycle filters refuse visibly, Gemini sequential
+  policy spans user and project settings, Cursor requires version 1 and
+  uses the adapter's source-event contract, and universal Copilot regexes
+  remain supported. Truncated or normalized MCP identities are refused.
+  Kiro Manual is refused until its adapter has a row.
+
 ## [0.12.1] - 2026-10-04
 
 ### Changed

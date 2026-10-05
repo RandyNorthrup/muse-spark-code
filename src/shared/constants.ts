@@ -1950,17 +1950,21 @@ export const AGENT_IMPORT_FORMATS = {
   kiro: 'kiro',
   cline: 'cline',
 } as const
+// Pinned MCP identity contract: mcp/functions.ts server cap at d8e609aa.
+export const AGENT_IMPORT_MCP_SERVER_MAX_CHARS = 20
+
 /**
  * A source timeout's documented default, written on the converted entry so
  * the source's execution bound survives: Kiro `hooks[].timeout` (60 s),
  * Copilot `timeoutSec` and VS Code Local `timeout` (30 s), Gemini `timeout`
- * (60 000 ms).
+ * (60 000 ms), Cline v1 scripts (30 s).
  */
 export const AGENT_IMPORT_DEFAULT_TIMEOUT_SECONDS = {
   kiro: 60,
   copilot: 30,
   vscode: 30,
   gemini: 60,
+  cline: 30,
 } as const
 
 /** Gemini CLI's hook events (geminicli.com/docs/hooks) by our names. */
@@ -1987,11 +1991,8 @@ export const AGENT_IMPORT_GEMINI_TOOLS: Readonly<Record<string, readonly string[
   read_file: ['Read'],
   write_file: ['Write'],
   replace: ['Edit'],
-  grep: ['Grep'],
-  search_file_content: ['Grep'],
   grep_search: ['Grep'],
   list_directory: ['list_files'],
-  ls: ['list_files'],
   web_fetch: ['web_fetch'],
   write_todos: ['todo_write'],
   save_memory: ['add_memory'],
