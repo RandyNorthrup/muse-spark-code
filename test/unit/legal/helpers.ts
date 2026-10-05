@@ -2,11 +2,11 @@
 // in-memory file map behind the `LegalFileSnapshot` interface, so every
 // reader test runs offline with no file-system writes.
 
-import type { LegalFileSnapshot } from '../../src/core/legal/files'
+import type { LegalFileSnapshot } from '../../../src/core/legal/files'
 
 /** A snapshot over caller-owned text: sorted paths, exact reads. */
 export function snapshotFrom(files: Record<string, string>): LegalFileSnapshot {
-  const paths = Object.keys(files).toSorted()
+  const paths = Object.keys(files).toSorted((a, b) => a.localeCompare(b, 'en'))
   const table = new Map(Object.entries(files))
   return {
     files: paths,
@@ -18,17 +18,21 @@ export function snapshotFrom(files: Record<string, string>): LegalFileSnapshot {
 export function countingSnapshot(files: Record<string, string>): {
   readonly snapshot: LegalFileSnapshot
   readonly reads: () => number
+  readonly readPaths: () => readonly string[]
 } {
   const inner = snapshotFrom(files)
   let count = 0
+  const paths: string[] = []
   return {
     snapshot: {
       files: inner.files,
       readFile: (path: string) => {
         count += 1
+        paths.push(path)
         return inner.readFile(path)
       },
     },
     reads: () => count,
+    readPaths: () => paths,
   }
 }
