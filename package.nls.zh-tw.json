@@ -119,5 +119,11 @@
   "config.modelApiPermissionProfile.markdownDescription": "Model API 後端：生效的權限設定檔，依其在 `museSpark.modelApiPermissionProfiles` 中的名稱指定；留空表示無。設定檔開啟期間，在「手動」、「自動編輯」和「自動」模式下，每個 shell 命令和 MCP 工具呼叫都會詢問（規劃模式會拒絕 shell 命令以及唯讀工具以外的所有 MCP 工具；「略過權限」會直接執行它們），因為 shell 和 MCP 伺服器在設定檔的檔案規則之外執行。僅限使用者和電腦設定。",
   "config.modelApiRepositoryRules.markdownDescription": "Model API 後端：存放庫可以在其 `.vscode/settings.json` 中新增的規則：詢問或禁止的 `commandRules`，以及 `denyRead` glob。它們只能收緊您自己的規則，因此這裡的允許規則不會套用。",
   "config.modelApiAutoReviewer.description": "付費，預設為關閉。在 Model API 後端的自動模式下，一次單獨的模型呼叫會評判每個會詢問、且沒有規則或權限設定檔決定的簡單 shell 命令或 MCP 工具呼叫，看起來安全時不詢問直接執行；它拒絕或失敗時由您決定。它絕不會允許被禁止的命令、您的規則要求詢問的命令、受保護的寫入或付費呼叫。每次審查依對話模型的權杖費率計入您的 Model API 金鑰，除非您在此工作區中一律允許審查，否則會先詢問。",
-  "config.museCodeAutoReviewer.description": "預設開啟。在 Muse Code 的自動模式下，只有目前回合中沒有規則作出決定的核准請求才符合審查條件：在隱藏的規劃工作階段中使用您的訂閱進行一次簡短的 Muse Code 回合。受保護的寫入、付費呼叫、子工作、提問、重播或升級的請求、未知對象、沒有僅允許一次選項的請求，以及多個面板共用的工作階段都不會被審查。成功的審查可以允許一次；拒絕、失敗、工作階段忙碌、逾時或斷路器觸發時會顯示核准卡片。主程序結束後會重新建立輔助工作階段。"
+  "config.museCodeAutoReviewer.description": "預設開啟。在 Muse Code 的自動模式下，只有目前回合中沒有規則作出決定的核准請求才符合審查條件：在隱藏的規劃工作階段中使用您的訂閱進行一次簡短的 Muse Code 回合。受保護的寫入、付費呼叫、子工作、提問、重播或升級的請求、未知對象、沒有僅允許一次選項的請求，以及多個面板共用的工作階段都不會被審查。成功的審查可以允許一次；拒絕、失敗、工作階段忙碌、逾時或斷路器觸發時會顯示核准卡片。主程序結束後會重新建立輔助工作階段。",
+  "command.downloadBrowserCheckRuntime.title": "下載瀏覽器檢查執行階段",
+  "config.browserCheckExtraHosts.description": "瀏覽器檢查可以開啟和連線的本電腦以外主機，以不含連接埠、路徑或萬用字元的一般主機名稱或 IP 位址表示；列出回送名稱還會允許本機頁面使用 https 和 WebSocket。空白表示僅限一般 http 的本機頁面，除非你在卡片或確認中針對該次檢查允許某個主機。傳往清單中主機的 https 和 WebSocket 流量經過加密且不受檢查，該網站可能會以此電腦的帳戶代你登入（尤其是在 Windows 上）。只有你可以擴大此範圍，模型不能，存放庫的設定也不能。",
+  "config.browserCheckRuntime.description": "瀏覽器檢查取得瀏覽器的方式：Google 的 Chrome for Testing headless shell，固定為此延伸模組版本，從 storage.googleapis.com 下載到延伸模組的儲存空間（每個固定版本約 100 到 120 MB）。只有你可以變更此項，存放庫的設定不能。",
+  "config.browserCheckRuntime.enumDescriptions.ask": "下載前詢問。",
+  "config.browserCheckRuntime.enumDescriptions.download": "檢查需要時直接下載而不詢問，現在以及之後每個固定的版本都是如此。",
+  "config.browserCheckRuntime.enumDescriptions.off": "不使用瀏覽器檢查：不提供該工具，也不下載任何內容。"
 }

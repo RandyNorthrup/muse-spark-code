@@ -35,7 +35,7 @@ key to the CLI.
 [Permission modes](#permission-modes) ·
 [Rules, skills and memory](#rules-skills-and-memory) ·
 [Muse Code's own tools](#muse-codes-own-tools) · [Web fetch](#web-fetch) ·
-[The panel](#the-panel) ·
+[Browser check](#browser-check) · [The panel](#the-panel) ·
 [Voice dictation](#voice-dictation) · [Paid features](#paid-features) ·
 [Languages](#languages) ·
 [Limits](#limits) ·
@@ -1832,6 +1832,118 @@ Meta's paid web search.
   refusal, and a network where only the proxy can look names up cannot use
   web fetch.
 
+## Browser check
+
+After changing a web page, the model can open it from your local dev server
+in a headless browser and see it working: `browser_check` on the Model API
+backend, `mcp__ide__browserCheck` on Muse Code. It costs nothing.
+
+- **What comes back.** The console errors (and uncaught exceptions) and the
+  failed requests (a network error, or an HTTP status of 400 or more), up to
+  20 of each; on the Model API backend also a screenshot, which the model
+  sees as it sees an image `read_file` read. Muse Code gets text only until
+  a capture shows that an `ide` tool's image reaches its model. Before the
+  page is read, the model may run up to eight click or type steps, each
+  naming a CSS selector. A check ends after 60 seconds; a page still loading
+  after 15 is read as it stands.
+- **The browser.** Google's Chrome for Testing headless shell, one exact
+  version pinned by each extension release (now 154.0.8037.92), on Windows
+  x64, Linux x64 and macOS (Intel and Apple silicon; the Apple silicon build
+  has not yet been run by this project's own checks). The first check asks
+  before downloading it, about 100 to 120 MB from Google's
+  `storage.googleapis.com`, into the extension's own storage; with
+  `museSpark.browserCheckRuntime` (machine-scoped) set to `download` it
+  downloads without asking, now and for every version a later release
+  pins, and `off` turns the check off and downloads nothing. The download,
+  and each file of it, is checked against the pinned length and SHA-256
+  before anything runs, and the browser's own file again before each check.
+  Getting it ready has its own 15 minutes; the check's 60 seconds start
+  after. A pinned version serves for 45 days after Google published it;
+  after that the check refuses until an extension update pins a newer one.
+  Each version stays in that storage until you remove it. The browser runs
+  headless, talks to the extension over its debugging pipe and never opens
+  a network port (the page sees `navigator.webdriver` set), uses a fresh
+  private profile under the extension's storage that is deleted afterwards,
+  never yours, and ends with the check, when you press Stop, when trust or a
+  setting withdraws the check, and when the window closes.
+- **Where a page may go.** Everything the browser sends goes to the
+  extension's own proxy, started for that check on 127.0.0.1: the browser's
+  proxy with its usual loopback exception removed, and the same proxy on
+  the page's private browser context. The proxy passes only plain `http` to
+  this computer (`localhost`, `127.x.x.x` and `[::1]`) and to hosts you
+  widened, with sign-in challenges and credentials taken out both ways, so
+  a page cannot sign in as you over plain `http`; anything else gets a fixed
+  refusal. The browser looks up no host names itself; the proxy looks up
+  only a name you widened, once. `https` and WebSockets reach only a host you
+  widened, this computer included (a page on `https://localhost` needs
+  `localhost` in the setting). That traffic is encrypted, so the proxy passes
+  it unread, and a site there may sign in as you with this computer's
+  account (on Windows in particular). Before, between and after the page the
+  check runs its own tests in the same browser (requests that must arrive
+  refused at the proxy, a sign-in challenge that must be taken out, WebRTC
+  and WebTransport that must stay inside the proxy); one that fails stops
+  the check and nothing from the page comes back, and so does a restart of
+  the browser's network service during the check. Every frame and worker
+  the page starts is watched from its first line: a WebSocket beyond the
+  allowed hosts, or an answer that did not come back through the proxy,
+  stops the check too. To let checks reach other hosts, name them in
+  `museSpark.browserCheckExtraHosts` (machine-scoped: plain host names or IP
+  addresses, no ports, paths or wildcards). The model can never widen it.
+- **The download.** What comes from Google is one archive per platform,
+  the version this release pins (154.0.8037.92), checked before use against
+  the length and SHA-256 recorded in the extension
+  (`src/host/browser/runtime/browserRuntime.json`):
+
+  | Platform    | Archive bytes | Archive SHA-256                                                    |
+  | ----------- | ------------- | ------------------------------------------------------------------ |
+  | Linux x64   | 120,477,194   | `636aa5c79f2693632e9921b8bbb050038ba11672e02346c06c20f991aed096f9` |
+  | macOS arm64 | 99,221,129    | `77da14e75d7f2568e6f7898d3df7cdc6faac74b15e903b2c9d486ebb6ca9b929` |
+  | macOS x64   | 104,748,425   | `a54292aaacbb77f76f6ef47558e7c51ab884044e0adacca315567f83c060bcc4` |
+  | Windows x64 | 120,822,223   | `3ac2561f02d9d87aadc0399d00b9002d718a4c365624fa67db9e7bfaf6b1a568` |
+
+  Unpacked it takes about 205 to 285 MB. The consent dialog names the
+  version, the size, `storage.googleapis.com` and the folder; Download
+  fetches it, Not now (or closing the dialog) downloads nothing and the
+  check does not run. **Muse Spark: Download Browser Check Runtime** asks
+  the same question and prepares it ahead of a check, with progress you can
+  cancel. It is kept in VS Code's global storage for this extension
+  (`globalStorage/randynorthrup.muse-spark-code/` under VS Code's user data
+  folder: `%APPDATA%\Code\User` on Windows,
+  `~/Library/Application Support/Code/User` on macOS, `~/.config/Code/User`
+  on Linux; another VS Code edition has its own), in
+  `browser-runtime/<version>/<platform>/`, with each check's temporary
+  folder under `bc/` beside it. To remove it, set
+  `museSpark.browserCheckRuntime` to `off` and delete that
+  `browser-runtime` folder; nothing else is installed or registered on the
+  machine. With the setting back on `ask`, the next check asks again.
+
+- **What the check cannot promise.** `https` and WebSocket traffic to a
+  host you widened goes through the proxy as an opaque tunnel: the proxy
+  sees only the host and port, cannot strip a sign-in challenge from it,
+  and a site there may sign in as you with this computer's account (on
+  Windows in particular). That the browser looks up no host names itself
+  was traced on Linux only; on Windows and macOS it rests on the same
+  resolver rule, which the check holds the browser's command line to, not
+  on a trace. The check's own tests need an IPv4 address of this computer
+  that is not loopback (a network adapter with an address): on a computer
+  with none they cannot run, and every check ends with "the browser check
+  could not run one of its own confinement tests"
+  (`unverifiable`). This is the browser's construction checked at runtime,
+  not an operating-system sandbox.
+- **Asking.** On the Model API backend the check is judged per host like web
+  fetch: Manual and Auto ask on a card naming the URL, "Always allow in
+  this session" covers that host, Bypass runs it, Plan refuses it and
+  Restricted Mode turns it off. A host beyond this computer and the setting
+  always gets a card, Bypass included; allowing it lets that check (or,
+  with "Always allow", that host for the session) be reached. On Muse Code
+  the extension asks in its own dialog before every check, naming a host
+  beyond this computer, and offers the tool only in a trusted workspace
+  whose `museSpark.sandboxNetwork` is not `restricted`.
+- **Untrusted content.** What the page produced (where it ended up, its
+  console, its requests) reaches the model between markers the page cannot
+  know, as untrusted data. The row shows the counts and the entries in your
+  language; on Muse Code the row shows the tool's English text.
+
 ## The panel
 
 **Composer.**
@@ -2816,40 +2928,41 @@ What stays in English:
 
 ## Commands and keybindings
 
-| Command                                             | Default keybinding                                                                               | What it does                                                                                                                                                                                      |
-| --------------------------------------------------- | ------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Muse Spark: Open in Sidebar                         | —                                                                                                | Focus the chat view in the activity bar                                                                                                                                                           |
-| Muse Spark: New Conversation                        | `Ctrl+N` (`Cmd+N`) when `enableNewConversationShortcut` is on, Muse focused                      | Clear the active panel to a new conversation, or open one where `preferredLocation` says                                                                                                          |
-| Muse Spark: Sign Out                                | —                                                                                                | Forget the stored Model API key and sign the CLI out when it is signed in (its `account/logout`, else `muse logout`)                                                                              |
-| Muse Spark: Open in Terminal                        | —                                                                                                | Run the Muse Code CLI's own interactive interface in a VS Code terminal at the workspace root                                                                                                     |
-| Muse Spark: Create AGENTS.md                        | —                                                                                                | Write the rules file with `muse init` (or the same template without the CLI) and open it; an existing file is opened                                                                              |
-| Muse Spark: Open Walkthrough                        | —                                                                                                | Open the four-step Get Started walkthrough                                                                                                                                                        |
-| Muse Spark: Open in New Tab                         | `Ctrl+Shift+Alt+Esc` on Windows, `Cmd+Shift+Esc` on macOS, `Ctrl+Shift+Esc` on Linux             | Open an independent conversation as an editor tab (also the `+` in the view title); the panel header's own button starts a new conversation in place                                              |
-| Muse Spark: Toggle Focus                            | `Ctrl+Alt+Esc` on Windows, `Cmd+Esc` on macOS, `Ctrl+Esc` on Linux                               | Move keyboard focus between the editor and the composer                                                                                                                                           |
-| Muse Spark: Insert @-Mention for Selection          | `Alt+K`, editor focused                                                                          | Insert `@path#start-end` for the active editor selection into the composer                                                                                                                        |
-| Muse Spark: Toggle Focus View                       | `Ctrl+Alt+F`, Muse focused                                                                       | Flip the `museSpark.focusView` setting (hides tool calls and reasoning)                                                                                                                           |
-| Muse Spark: Toggle Thinking                         | `Ctrl+Alt+T` (macOS `Option+T`, Linux `Ctrl+Alt+O`), composer only                               | Turn reasoning on or off for this conversation. Claude Code uses `Alt+T`; on Windows that opens the Terminal menu, on GNOME `Ctrl+Alt+T` opens a terminal                                         |
-| Muse Spark: Set Up Shell Sandbox                    | —                                                                                                | Windows: run Muse Code's one-time `muse sandbox windows setup` through a UAC prompt and report the result; elsewhere reports that no setup is needed                                              |
-| Muse Spark: Show Logs                               | —                                                                                                | Open the "Muse Spark" log channel (keys redacted)                                                                                                                                                 |
-| Muse Spark: Diagnostics                             | —                                                                                                | Write the versions, the backend and CLI facts, credential facts, never a value, the dictation state, the network posture and `muse config status` to the log and open it: what a bug report needs |
-| Muse Spark: Manage Skills                           | —                                                                                                | Turn Muse Code's skills on or off (`muse skills enable`/`disable`), then offer to restart it so the change takes effect                                                                           |
-| Muse Spark: Import Skills from Claude Code or Codex | —                                                                                                | Preview what `muse skills import` would copy, import it once you confirm, report what was imported, skipped or failed                                                                             |
-| Muse Spark: Import from Other Agents                | —                                                                                                | Preview MCP servers, hooks, agents, commands and rules from Claude Code, Codex or Cursor, import the files once you confirm, offer unsaved target edits, preserve source exposure                 |
-| Muse Spark: Install Bundled Skills for Muse Code    | —                                                                                                | Copy the [bundled skills](#bundled-skills)' package into Muse Code's config folder and link each skill into its skills folder (or update that copy); a skill of yours with the same name is kept  |
-| Muse Spark: Remove Bundled Skills from Muse Code    | —                                                                                                | Remove the links into the extension's marked copy, then the copy; nothing else is touched                                                                                                         |
-| Muse Spark: Export Conversation                     | —                                                                                                | Save the conversation in front of you as Markdown where you choose, and open it                                                                                                                   |
-| Muse Spark: Import Session                          | —                                                                                                | Resume a session-export JSON file as a new conversation on the Model API backend, on your model, starting in Manual (or Plan) every time it is opened                                             |
-| Muse Spark: Open Share File                         | —                                                                                                | Read a session-export JSON file read-only in the panel: Copy and links only                                                                                                                       |
-| Muse Spark: MCP Servers                             | —                                                                                                | Show the MCP servers Muse Code will load (on the Model API backend, how each is running), sign in to or out of a remote one, open the settings file                                               |
-| Muse Spark: Hooks                                   | —                                                                                                | Show where Muse Code's hooks come from (project, yours, managed) and open each file; on the Model API backend also whether `modelApiHooks` is on, with a link to it                               |
-| Muse Spark: Memory                                  | —                                                                                                | List Muse Code's memory notes for this workspace, open one to edit, create one, or delete one to the trash, keeping each `MEMORY.md` index in step                                                |
-| Muse Spark: New Worktree…                           | —                                                                                                | Ask for a new branch and its base, create it in its own folder beside the repository, then offer to open it in a new window                                                                       |
-| Muse Spark: Remove Worktree…                        | —                                                                                                | Delete another worktree's folder (its branch stays), asking again before discarding uncommitted changes                                                                                           |
-| Muse Spark: Move Running Commands to Background     | `Ctrl+B` (also on macOS), while a Muse panel has focus and its conversation runs a shell command | Let the running shell commands go on in the background while the agent carries on; VS Code keeps `Ctrl+B` otherwise                                                                               |
-| Muse Spark: Stop Background Tasks                   | —                                                                                                | Stop every background task of the conversation in view                                                                                                                                            |
-| Muse Spark: Restart Muse Code                       | —                                                                                                | Stop `muse serve` and start a fresh one without reloading the window; a running turn is stopped, and each conversation continues with its next message                                            |
-| (composer) Record voice                             | `Ctrl+D` (`Cmd+D`), composer only                                                                | Tap to start or stop voice dictation, hold to record while held                                                                                                                                   |
-| (composer) Run a shell command                      | Start the message with `!`                                                                       | Run it in the workspace as you, outside any turn; the agent sees it with your next message                                                                                                        |
+| Command                                             | Default keybinding                                                                               | What it does                                                                                                                                                                                               |
+| --------------------------------------------------- | ------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Muse Spark: Open in Sidebar                         | —                                                                                                | Focus the chat view in the activity bar                                                                                                                                                                    |
+| Muse Spark: New Conversation                        | `Ctrl+N` (`Cmd+N`) when `enableNewConversationShortcut` is on, Muse focused                      | Clear the active panel to a new conversation, or open one where `preferredLocation` says                                                                                                                   |
+| Muse Spark: Sign Out                                | —                                                                                                | Forget the stored Model API key and sign the CLI out when it is signed in (its `account/logout`, else `muse logout`)                                                                                       |
+| Muse Spark: Open in Terminal                        | —                                                                                                | Run the Muse Code CLI's own interactive interface in a VS Code terminal at the workspace root                                                                                                              |
+| Muse Spark: Create AGENTS.md                        | —                                                                                                | Write the rules file with `muse init` (or the same template without the CLI) and open it; an existing file is opened                                                                                       |
+| Muse Spark: Open Walkthrough                        | —                                                                                                | Open the four-step Get Started walkthrough                                                                                                                                                                 |
+| Muse Spark: Open in New Tab                         | `Ctrl+Shift+Alt+Esc` on Windows, `Cmd+Shift+Esc` on macOS, `Ctrl+Shift+Esc` on Linux             | Open an independent conversation as an editor tab (also the `+` in the view title); the panel header's own button starts a new conversation in place                                                       |
+| Muse Spark: Toggle Focus                            | `Ctrl+Alt+Esc` on Windows, `Cmd+Esc` on macOS, `Ctrl+Esc` on Linux                               | Move keyboard focus between the editor and the composer                                                                                                                                                    |
+| Muse Spark: Insert @-Mention for Selection          | `Alt+K`, editor focused                                                                          | Insert `@path#start-end` for the active editor selection into the composer                                                                                                                                 |
+| Muse Spark: Toggle Focus View                       | `Ctrl+Alt+F`, Muse focused                                                                       | Flip the `museSpark.focusView` setting (hides tool calls and reasoning)                                                                                                                                    |
+| Muse Spark: Toggle Thinking                         | `Ctrl+Alt+T` (macOS `Option+T`, Linux `Ctrl+Alt+O`), composer only                               | Turn reasoning on or off for this conversation. Claude Code uses `Alt+T`; on Windows that opens the Terminal menu, on GNOME `Ctrl+Alt+T` opens a terminal                                                  |
+| Muse Spark: Set Up Shell Sandbox                    | —                                                                                                | Windows: run Muse Code's one-time `muse sandbox windows setup` through a UAC prompt and report the result; elsewhere reports that no setup is needed                                                       |
+| Muse Spark: Show Logs                               | —                                                                                                | Open the "Muse Spark" log channel (keys redacted)                                                                                                                                                          |
+| Muse Spark: Diagnostics                             | —                                                                                                | Write the versions, the backend and CLI facts, credential facts, never a value, the dictation state, the network posture and `muse config status` to the log and open it: what a bug report needs          |
+| Muse Spark: Manage Skills                           | —                                                                                                | Turn Muse Code's skills on or off (`muse skills enable`/`disable`), then offer to restart it so the change takes effect                                                                                    |
+| Muse Spark: Import Skills from Claude Code or Codex | —                                                                                                | Preview what `muse skills import` would copy, import it once you confirm, report what was imported, skipped or failed                                                                                      |
+| Muse Spark: Import from Other Agents                | —                                                                                                | Preview MCP servers, hooks, agents, commands and rules from Claude Code, Codex or Cursor, import the files once you confirm, offer unsaved target edits, preserve source exposure                          |
+| Muse Spark: Install Bundled Skills for Muse Code    | —                                                                                                | Copy the [bundled skills](#bundled-skills)' package into Muse Code's config folder and link each skill into its skills folder (or update that copy); a skill of yours with the same name is kept           |
+| Muse Spark: Remove Bundled Skills from Muse Code    | —                                                                                                | Remove the links into the extension's marked copy, then the copy; nothing else is touched                                                                                                                  |
+| Muse Spark: Export Conversation                     | —                                                                                                | Save the conversation in front of you as Markdown where you choose, and open it                                                                                                                            |
+| Muse Spark: Import Session                          | —                                                                                                | Resume a session-export JSON file as a new conversation on the Model API backend, on your model, starting in Manual (or Plan) every time it is opened                                                      |
+| Muse Spark: Open Share File                         | —                                                                                                | Read a session-export JSON file read-only in the panel: Copy and links only                                                                                                                                |
+| Muse Spark: MCP Servers                             | —                                                                                                | Show the MCP servers Muse Code will load (on the Model API backend, how each is running), sign in to or out of a remote one, open the settings file                                                        |
+| Muse Spark: Hooks                                   | —                                                                                                | Show where Muse Code's hooks come from (project, yours, managed) and open each file; on the Model API backend also whether `modelApiHooks` is on, with a link to it                                        |
+| Muse Spark: Memory                                  | —                                                                                                | List Muse Code's memory notes for this workspace, open one to edit, create one, or delete one to the trash, keeping each `MEMORY.md` index in step                                                         |
+| Muse Spark: New Worktree…                           | —                                                                                                | Ask for a new branch and its base, create it in its own folder beside the repository, then offer to open it in a new window                                                                                |
+| Muse Spark: Remove Worktree…                        | —                                                                                                | Delete another worktree's folder (its branch stays), asking again before discarding uncommitted changes                                                                                                    |
+| Muse Spark: Move Running Commands to Background     | `Ctrl+B` (also on macOS), while a Muse panel has focus and its conversation runs a shell command | Let the running shell commands go on in the background while the agent carries on; VS Code keeps `Ctrl+B` otherwise                                                                                        |
+| Muse Spark: Stop Background Tasks                   | —                                                                                                | Stop every background task of the conversation in view                                                                                                                                                     |
+| Muse Spark: Restart Muse Code                       | —                                                                                                | Stop `muse serve` and start a fresh one without reloading the window; a running turn is stopped, and each conversation continues with its next message                                                     |
+| (composer) Record voice                             | `Ctrl+D` (`Cmd+D`), composer only                                                                | Tap to start or stop voice dictation, hold to record while held                                                                                                                                            |
+| (composer) Run a shell command                      | Start the message with `!`                                                                       | Run it in the workspace as you, outside any turn; the agent sees it with your next message                                                                                                                 |
+| Muse Spark: Download Browser Check Runtime          | —                                                                                                | Get the [browser check](#browser-check)'s pinned browser ready ahead of a check: the same consent, download and verification a check would do, with cancellable progress; says when it is ready or why not |
 
 Windows keeps `Ctrl+Esc` for Start and `Ctrl+Shift+Esc` for Task Manager,
 which is why its two shortcuts add `Alt`. Eleven commands appear in the
@@ -2868,7 +2981,8 @@ when a conversation starts). The settings that choose what runs and what is bill
 (`initialPermissionMode`, `backend`, `shellSandbox`, `sandboxNetwork`,
 `allowDangerouslySkipPermissions`, `museBinaryPath`, `environmentVariables`,
 `modelApiHooks`, `modelApiRepoMap`, `modelApiObservationPacking`,
-`modelApiPromptCacheRetention`, `turnCheckpoints`, `bundledSkills`,
+`modelApiPromptCacheRetention`, `turnCheckpoints`, `bundledSkills`, `browserCheckExtraHosts`,
+`browserCheckRuntime`,
 the verify loop's `checkCommands`, `formatOnEdit` and `diagnosticsAfterEdits`,
 `modelApiSessionBudgetUsd`, `modelApiCommandRules`,
 `modelApiPermissionProfiles`, `modelApiPermissionProfile`,
@@ -2927,6 +3041,8 @@ Bypass at once.
 | `notifyOnBackgroundTurn`          | `true`      | A VS Code notification when a turn of a minute or more ends, or a turn waits for your approval or answer, while the VS Code window is unfocused; never while it is focused                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
 | `modelApiReplyUsage`              | `false`     | Show the input and output tokens and the dollar estimate under each Model API reply, counting every request since the previous line in that turn                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
 | `modelApiSessionBudgetUsd`        | `0`         | Spend cap in dollars for each Model API conversation (`0`: no cap). Shared durable reservations cover the conversation's own token requests and image fees; working storage is required. Paid subagent requests keep their own consent and request ceiling: their reported cost is counted, but it is not reserved against this cap and can take the conversation past it. Unknown sent usage retains its full liability and cannot retry an ambiguous failure under the same allowance. Capped web search is unavailable until its billed query bound is verified, and paid Muse Voice is unavailable while a cap is set. Input estimates and published prices may differ from actual billing. Machine-scoped |
+| `browserCheckExtraHosts`          | `[]`        | [Browser check](#browser-check): hosts beyond this computer a checked page may open and reach, as plain host names or IP addresses (no ports, paths or wildcards; one that is not refuses the list); listing a loopback name also lets a local page use `https` and WebSockets. Empty means plain `http` to this computer only, unless you allow a host on a card or in the dialog for one check. `https` and WebSocket traffic to a listed host is encrypted and not inspected, and a site there may sign in as you with this computer's account (on Windows in particular). Only you widen it, never the model. Machine-scoped                                                                               |
+| `browserCheckRuntime`             | `'ask'`     | [Browser check](#browser-check): how the check gets its browser, Google's Chrome for Testing headless shell pinned to this extension version (about 100 to 120 MB per version, from `storage.googleapis.com` into the extension's storage): `ask` asks before downloading it, `download` downloads it when a check needs it without asking (for every later pinned version too), `off` offers no browser check and downloads nothing. Machine-scoped                                                                                                                                                                                                                                                           |
 
 The Model API backend's shell tool applies `terminal.integrated.env.*` the
 way VS Code's terminal does. A restart of Muse Code, for a setting, trust
@@ -3089,6 +3205,17 @@ stopped and the next message resumes the same session.
   writes can carry what the conversation holds; the approval names it whole.
   Only public `https://` addresses are fetched, the address checked is the
   address used, and the log names the host only.
+- The [browser check](#browser-check) runs your page in Google's Chrome
+  for Testing headless shell, downloaded from `storage.googleapis.com` after
+  you agree (or by `museSpark.browserCheckRuntime`) and checked against the
+  version this release pins, with a fresh private profile, never yours, over
+  the browser's debugging pipe, never a network port. What the page shows,
+  logs and requests goes to the model as tool output; on the Model API
+  backend that includes a screenshot of the page, sent to Meta with the next
+  request. All its traffic goes through the extension's own proxy, which
+  passes plain `http` to this computer only, unless you widen a host; `https`
+  and WebSockets to a widened host pass encrypted and unread, and a site
+  there may sign in as you with this computer's account.
 - Workspace rules, skill files and the memory snapshot are read only in a
   trusted workspace; on the Model API backend their text is part of what
   goes to Meta with each request, on the CLI backend Muse Code sends them

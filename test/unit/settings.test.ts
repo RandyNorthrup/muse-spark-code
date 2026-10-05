@@ -166,6 +166,46 @@ describe('readSettings', () => {
     expect(String(log.warn.mock.calls[0]?.[0])).toContain('each check needs a name of its own')
   })
 
+  // M81 (PLAN.md D49): only plain hosts widen the browser check.
+  it('reads the hosts the browser check may reach, and refuses a list with one that is not a plain host', () => {
+    const valid = readSettings(
+      fakeSettingsSource({ browserCheckExtraHosts: ['dev.example.com', '192.168.1.20', '::1'] }),
+      new FakeLogOutputChannel(),
+    )
+    expect(valid.browserCheckExtraHosts).toEqual(['dev.example.com', '192.168.1.20', '::1'])
+    for (const bad of [['dev.example.com', '*.example.com'], ['a;b'], ['example.com:8080'], ['']]) {
+      const log = new FakeLogOutputChannel()
+      const invalid = readSettings(fakeSettingsSource({ browserCheckExtraHosts: bad }), log)
+      expect(invalid.browserCheckExtraHosts, JSON.stringify(bad)).toEqual([])
+      expect(String(log.warn.mock.calls[0]?.[0])).toContain('museSpark.browserCheckExtraHosts')
+    }
+    const tooMany = Array.from({ length: 33 }, (_, index) => `h${String(index)}.example`)
+    expect(
+      readSettings(
+        fakeSettingsSource({ browserCheckExtraHosts: tooMany }),
+        new FakeLogOutputChannel(),
+      ).browserCheckExtraHosts,
+    ).toEqual([])
+  })
+
+  // M81 A1: ask before the runtime is downloaded unless the user chose otherwise.
+  it('reads how the browser check gets its runtime: ask by default, download or off, nothing else', () => {
+    expect(
+      readSettings(fakeSettingsSource({}), new FakeLogOutputChannel()).browserCheckRuntime,
+    ).toBe('ask')
+    for (const mode of ['ask', 'download', 'off'] as const) {
+      expect(
+        readSettings(fakeSettingsSource({ browserCheckRuntime: mode }), new FakeLogOutputChannel())
+          .browserCheckRuntime,
+      ).toBe(mode)
+    }
+    const log = new FakeLogOutputChannel()
+    expect(
+      readSettings(fakeSettingsSource({ browserCheckRuntime: 'always' }), log).browserCheckRuntime,
+    ).toBe('ask')
+    expect(String(log.warn.mock.calls[0]?.[0])).toContain('museSpark.browserCheckRuntime')
+  })
+
   // M39: the settings are read about seven times a message.
   it('warns about an invalid value once, and again when it changes', () => {
     const log = new FakeLogOutputChannel()

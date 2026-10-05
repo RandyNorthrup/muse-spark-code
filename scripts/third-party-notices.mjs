@@ -58,7 +58,8 @@ Muse Spark Code (Unofficial)
 The extension's bundles (dist/extension.js, dist/modelApi.js,
 dist/sessionBoard.js, dist/reviewer.js, dist/planMarkdown.js, dist/checkpointStore.js,
 dist/review.js, dist/agentImport.js, dist/codeIntel.js, dist/voice.js, dist/webFetch.js,
-dist/museCodeReviewer.js, dist/uiText.js, dist/searchWorker.js, dist/pageWorker.js,
+dist/museCodeReviewer.js, dist/browserCheck.js, dist/browserRuntime.js, dist/bundledSkills.js,
+dist/uiText.js, dist/searchWorker.js, dist/pageWorker.js,
 dist/webview/main.js and
 dist/webview/main.css)
 include code from the packages below, each under its own licence,

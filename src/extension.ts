@@ -92,6 +92,12 @@ import { ideWebFetchTools, isIdeWebFetchOffered, oneQuestionPerUrl } from './hos
 import { isWebFetchAllowed } from './host/web/webFetchConfirm'
 import { pageConverter } from './host/web/pageConverter'
 import { lazyPageUrlCheck, lazyWebFetcher, webFetchLoader } from './host/web/webFetchBundle'
+import { BrowserChecks } from './host/browser/browserChecks'
+import { isBrowserCheckAllowed } from './host/browser/browserCheckConfirm'
+import { downloadBrowserRuntime } from './host/browser/runtimeCommand'
+import { runtimeConsent } from './host/browser/runtimeConsent'
+import { ideBrowserCheckTools } from './host/ide/browserCheckTool'
+import { type BrowserCheckHost, browserScopeKey } from './core/browser/browserTool'
 import { ideCodeIntelTools } from './host/ide/codeIntelTools'
 import { codeIntelLoader } from './host/ide/codeIntelBundle'
 import { vscodeLanguageServices } from './host/codeIntel/languageServices'
@@ -176,6 +182,8 @@ import {
   BUNDLED_SKILLS_BUNDLE_FILE,
   BUNDLED_SKILLS_SETTING,
   CHECKPOINT_STORE_BUNDLE_FILE,
+  BROWSER_CHECK_BUNDLE_FILE,
+  BROWSER_RUNTIME_BUNDLE_FILE,
   CODE_INTEL_BUNDLE_FILE,
   WEB_FETCH_BUNDLE_FILE,
   VOICE_BUNDLE_FILE,
@@ -1252,6 +1260,53 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     pageConverter(vscode.Uri.joinPath(context.extensionUri, 'dist', PAGE_WORKER_FILE).fsPath, log),
   )
   const askWebFetch = oneQuestionPerUrl(isWebFetchAllowed)
+  // The browser check (M81 A1, PLAN.md D49): the Model API backend's
+  // `browser_check` and Muse Code's `mcp__ide__browserCheck`, on the pinned
+  // headless shell the runtime bundle downloads after the user's consent
+  // and verifies, run in the check's own bundle; both bundles load on first
+  // use, and every check under way ends with the window. The widened hosts
+  // and the runtime setting are the user's machine-scoped settings, read at
+  // each use; a change to either, or to trust, is read by checks under way.
+  const browserStorage = context.globalStorageUri.fsPath
+  const browserChecks = new BrowserChecks({
+    checkBundlePath: vscode.Uri.joinPath(context.extensionUri, 'dist', BROWSER_CHECK_BUNDLE_FILE)
+      .fsPath,
+    runtimeBundlePath: vscode.Uri.joinPath(
+      context.extensionUri,
+      'dist',
+      BROWSER_RUNTIME_BUNDLE_FILE,
+    ).fsPath,
+    storageDir: browserStorage,
+    log,
+    runtimeMode: () => currentSettings().browserCheckRuntime,
+    askConsent: runtimeConsent(browserStorage),
+    onAdmissionChange: (listener) => {
+      const subscriptions = [
+        vscode.workspace.onDidChangeConfiguration(listener),
+        vscode.workspace.onDidGrantWorkspaceTrust(listener),
+      ]
+      return () => {
+        for (const subscription of subscriptions) {
+          subscription.dispose()
+        }
+      }
+    },
+  })
+  context.subscriptions.push(browserChecks)
+  const browserCheck: BrowserCheckHost = {
+    check: browserChecks.check,
+    extraHosts: () => currentSettings().browserCheckExtraHosts,
+    isOffered: () => browserChecks.isOffered(),
+  }
+  const isIdeBrowserCheckOffered = (): boolean =>
+    browserChecks.isOffered() &&
+    isIdeWebFetchOffered(vscode.workspace.isTrusted, currentSettings().sandboxNetwork)
+  context.subscriptions.push(
+    vscode.commands.registerCommand(COMMAND_IDS.downloadBrowserCheckRuntime, async () => {
+      await downloadBrowserRuntime(browserChecks, isIdeBrowserCheckOffered)
+    }),
+  )
+  const askBrowserCheck = oneQuestionPerUrl(isBrowserCheckAllowed, browserScopeKey)
   // Code intelligence over VS Code's language services (M67, PLAN.md D49):
   // native tools on the Model API backend, `ide` tools for Muse Code. Only
   // with a folder open, since every path is the workspace's.
@@ -1284,6 +1339,15 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
         checkUrl: lazyPageUrlCheck(webFetchBundle),
         fetchPage: webFetch,
         confirm: askWebFetch,
+        log,
+      }),
+      // The same rule for the browser check, text only for Muse Code (M81),
+      // and none while its runtime setting is off.
+      ...ideBrowserCheckTools({
+        isOffered: isIdeBrowserCheckOffered,
+        extraHosts: browserCheck.extraHosts,
+        confirm: askBrowserCheck,
+        check: browserCheck.check,
         log,
       }),
       ...ideImageTools({
@@ -1677,6 +1741,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
       ),
     ideTools,
     webFetch,
+    browserCheck,
     codeIntel: languageServices,
     isRepoMapInPrompt: () => currentSettings().modelApiRepoMap,
     isObservationPackingOn: () => currentSettings().modelApiObservationPacking,

@@ -109,6 +109,7 @@ type HoldPoint =
   | 'mcp'
   | 'ide'
   | 'fetch'
+  | 'browser'
   | 'shell'
   | 'question'
   | 'childReply'
@@ -439,6 +440,12 @@ const CASES: readonly FenceCase[] = [
     leak: null,
   },
   {
+    tool: 'browser_check',
+    args: { url: 'http://localhost:3000/' },
+    hold: { at: 'browser' },
+    change: { kind: 'deny', path: 'private.txt' },
+  },
+  {
     tool: 'web_fetch',
     args: { url: 'https://docs.example.com/guide' },
     hold: { at: 'fetch' },
@@ -722,6 +729,24 @@ function fixture(c: FenceCase) {
     mcpServers: mcp,
     ideTools: [ide],
     webFetch,
+    browserCheck: {
+      check: async () => {
+        count()
+        if (point === 'browser') await held.hold()
+        return {
+          ok: true,
+          report: {
+            finalUrl: 'http://localhost:3000/',
+            consoleErrors: { shown: [MARKER], more: 0 },
+            failedRequests: { shown: [], more: 0 },
+            blockedRequests: { shown: [], more: 0 },
+            screenshot: undefined,
+          },
+        }
+      },
+      extraHosts: () => [],
+      isOffered: () => true,
+    },
     codeIntel: heldService(service, point === 'service', held, count),
     // Packing (M73) offers recall_output: only its row packs.
     observationPacking: () => c.tool === 'recall_output',
@@ -917,6 +942,7 @@ const ALL_TOOLS: ToolDefinitionOptions = {
   hasPackedRecall: true,
   checks: [CHECK],
   hasWebFetch: true,
+  hasBrowserCheck: true,
   hasCodeIntel: true,
 }
 

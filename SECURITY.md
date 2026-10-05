@@ -388,6 +388,43 @@ Releases and npm.
   public address looks like the internet, the URL itself can carry
   conversation text to the host the user approved, and the proxy decides
   for the address, not the name (PLAN.md §9).
+- **Browser check (both backends, M81).** The page runs in Google's Chrome
+  for Testing headless shell, one version pinned per extension release,
+  downloaded only after the user's consent (or `browserCheckRuntime` set
+  to `download`, machine-scoped, never a repository's) through VS Code's own
+  network stack, with at most three redirects that stay on the pinned
+  storage origin and path. The archive's length (1% slack while it streams)
+  and SHA-256 are checked before any byte of it is read; the ZIP reader takes
+  only what the pinned archives use (one disk, no ZIP64, no data
+  descriptors, stored or deflate, regular files, safe and unique names,
+  every write inside its folder, every entry's length and CRC, output
+  bounded while inflating), files are created private (0600, the pinned
+  executables 0700), the executable's length and SHA-256 are checked, and a
+  receipt and one rename publish it; another window's winner is used only
+  after it verifies. Before each check the executable's metadata is read
+  again (hashed again when it changed), and a pin 45 days past Google's
+  publication refuses. The browser starts with a fixed command line (CDP
+  over a pipe, never a port; a fresh private profile; a projected
+  environment), and its own report of that command line is held to it: each
+  switch exactly once, none of the forbidden ones (another proxy or
+  resolver, a debugging port, extensions, the sandbox off, features, policy).
+  Its network goes to the check's own proxy on 127.0.0.1 (Chrome's implicit
+  loopback bypass removed, the same proxy on the private context): plain
+  HTTP only to loopback or a host the user widened, parsed strictly, heads
+  bounded (16 KiB, a request head within 3 s, 64 connections), sign-in
+  challenges and credentials removed both ways, CONNECT only to a widened
+  host. The browser's resolver rule fails every name but the loopback
+  addresses; integrated sign-in is allowed only for a reserved name that
+  cannot exist, and a CDP sign-in request is cancelled. The check's own
+  canaries (default, page and audit phases, fresh nonces, exceptions bound
+  to one frame and phase) must show the route, the sign-in stripping, WebRTC
+  and WebTransport held, or the check refuses; a network-service restart
+  refuses too. Residual risk: `https` and WebSocket tunnels to a widened host
+  are opaque, and a site there may use this computer's account (on Windows
+  especially); the network service runs with Chrome's own sandbox settings,
+  not an OS sandbox of the extension's; and the confinement is the
+  browser's construction checked at runtime, not a kernel boundary
+  (`docs/certification/m81.md`).
 - **Webview.** `default-src 'none'`, a per-load script nonce, no remote
   origins, no inline styles; every message between the host and the
   webview is validated against a schema.

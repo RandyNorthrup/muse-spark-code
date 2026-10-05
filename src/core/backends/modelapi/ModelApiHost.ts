@@ -22,6 +22,8 @@ import {
   AUTO_REVIEWER_RECENT_CALLS,
   BACKGROUND_INITIATOR_USER,
   BASE64_DATA_URL_OVERHEAD_CHARS,
+  BROWSER_CHECK_SUBJECT_KIND,
+  BROWSER_CHECK_WIDEN_SUBJECT_KIND,
   CHECK_FIX_MAX_ROUNDS,
   type CheckCommandSetting,
   type CheckSkip,
@@ -190,6 +192,15 @@ import { WorkspaceEdits, type WorkspaceEditRecorder } from '../../verify/workspa
 import { fingerprint } from '../../verify/fingerprint'
 import type { McpTool } from '../../mcp'
 import type { WebFetcher, WebFetchResult } from '../../web/webFetch'
+import {
+  type BrowserCheckHost,
+  browserCheckScope,
+  browserScopeKey,
+  extraHostSet,
+  placeBrowserCall,
+} from '../../browser/browserTool'
+import type { CheckAdmission } from '../../browser/browserRun'
+import { browserCheckOutcome, browserCheckRefused, browserCheckRestricted } from './browserCalls'
 import type { WebFetchFailure } from '../../web/fetchFailure'
 import { approvalHost } from '../../web/hostName'
 import { checkPageUrl } from '../../web/pageUrl'
@@ -481,6 +492,12 @@ export interface ModelApiHostDeps extends ModelApiPaidHooks {
    */
   readonly webFetch?: WebFetcher | undefined
   /**
+   * The window's browser check (M81, PLAN.md D49): the run in the browser's
+   * own bundle and the user's widened hosts; undefined leaves
+   * `browser_check` out.
+   */
+  readonly browserCheck?: BrowserCheckHost | undefined
+  /**
    * VS Code's language services (M67, PLAN.md D49): the code intelligence
    * tools; undefined leaves them out.
    */
@@ -534,7 +551,8 @@ interface ReplayItem {
 
 /** A tool-read file until a completed model request has actually carried its media part. */
 interface PendingReadFile {
-  readonly path: string
+  /** The model's line in its place if a stop drops it first. */
+  readonly notDelivered: string
   readonly lead: InputContentPart
   readonly media: InputContentPart
   readonly encodedChars: number
@@ -1104,6 +1122,11 @@ function webFetchRestricted(): CallResult {
     },
     isRejected: true,
   }
+}
+
+/** A browser check refused in Restricted Mode (M81): the model's reason, the row's in the user's language. */
+function browserCheckRestrictedCall(): CallResult {
+  return { outcome: browserCheckRestricted(), isRejected: true }
 }
 
 /** What the model and the row receive for a web fetch (M69). */
@@ -2696,6 +2719,12 @@ export class ModelApiSession implements AgentSession {
       checks: this.checkCommands(),
       // Trusted workspaces only, as the shell (M69).
       hasWebFetch: this.isWebFetchOffered(hasShell),
+      // The same for the browser check (M81); a side chat's Plan mode refuses it.
+      hasBrowserCheck:
+        hasShell &&
+        this.deps.browserCheck !== undefined &&
+        this.deps.browserCheck.isOffered() &&
+        !this.isSideChat,
       hasCodeIntel: this.deps.codeIntel !== undefined,
     })
     const mcp = hasShell ? (this.deps.mcpServers?.definitions() ?? []) : []
@@ -3895,7 +3924,8 @@ export class ModelApiSession implements AgentSession {
     if (
       isStillPermitted &&
       isOffered &&
-      fresh.hasSessionChoice &&
+      (fresh.hasSessionChoice ||
+        (requiresUserApproval && question.card.kind === BROWSER_CHECK_WIDEN_SUBJECT_KIND)) &&
       decision.choiceId === APPROVAL_CHOICE_IDS.allowSession
     ) {
       this.permissions.allowForSession(query.toolName, query.command)
@@ -4183,23 +4213,15 @@ export class ModelApiSession implements AgentSession {
     const pending: PendingReadFile[] = []
     const content = files.flatMap((file): InputContentPart[] => {
       if (!isRoundComplete) {
-        return [
-          {
-            type: 'input_text',
-            text: fill(MODEL_API_MODEL_TEXT.toolFileNotDelivered, { path: file.path }),
-          },
-        ]
+        return [{ type: 'input_text', text: file.notDelivered }]
       }
       const [sent] = this.contentParts([file.part])
       if (sent === undefined) {
         return []
       }
-      const lead: InputContentPart = {
-        type: 'input_text',
-        text: fill(MODEL_API_MODEL_TEXT.toolFileFollows, { path: file.path }),
-      }
+      const lead: InputContentPart = { type: 'input_text', text: file.lead }
       pending.push({
-        path: file.path,
+        notDelivered: file.notDelivered,
         lead,
         media: sent,
         encodedChars: turnMediaEncodedChars(file.part),
@@ -4272,17 +4294,12 @@ export class ModelApiSession implements AgentSession {
       if (pending === undefined) {
         continue
       }
-      const leads = new Map(pending.map((file) => [file.lead, file.path]))
+      const leads = new Map(pending.map((file) => [file.lead, file.notDelivered]))
       const media = new Set(pending.map((file) => file.media))
       const content = replay.item.content.flatMap((part): InputContentPart[] => {
-        const filePath = leads.get(part)
-        if (filePath !== undefined) {
-          return [
-            {
-              type: 'input_text',
-              text: fill(MODEL_API_MODEL_TEXT.toolFileNotDelivered, { path: filePath }),
-            },
-          ]
+        const notDelivered = leads.get(part)
+        if (notDelivered !== undefined) {
+          return [{ type: 'input_text', text: notDelivered }]
         }
         return media.has(part) ? [] : [part]
       })
@@ -6793,7 +6810,7 @@ export class ModelApiSession implements AgentSession {
     }
     // The card or a hook was awaited: the turn may have stopped, the
     // workspace lost its trust, or the mode turned to one that refuses.
-    const withdrawn = this.webFetchWithdrawn(call, query, signal)
+    const withdrawn = this.networkCallWithdrawn(call, query, signal, webFetchRestricted)
     if (withdrawn !== undefined) {
       return withdrawn
     }
@@ -6802,7 +6819,7 @@ export class ModelApiSession implements AgentSession {
     // Asked again once the page is in: it reaches the model only while web
     // fetch is still allowed.
     return (
-      this.webFetchWithdrawn(call, query, signal) ?? {
+      this.networkCallWithdrawn(call, query, signal, webFetchRestricted) ?? {
         outcome: webFetchOutcome(result),
         isRejected: false,
       }
@@ -6814,19 +6831,116 @@ export class ModelApiSession implements AgentSession {
     return this.deps.isWorkspaceTrusted() && this.permissions.verdict(query) !== 'deny'
   }
 
-  /** The refusal for a web fetch no longer allowed after an await; throws when the turn stopped. */
-  private webFetchWithdrawn(
+  /**
+   * The refusal for a network call (a web fetch, a browser check) no longer
+   * allowed after an await; throws when the turn stopped.
+   */
+  private networkCallWithdrawn(
     call: FunctionCallItem,
     query: PermissionQuery,
     signal: AbortSignal,
+    restricted: () => CallResult,
   ): CallResult | undefined {
     if (signal.aborted) {
       throw new AbortedError()
     }
     if (!this.deps.isWorkspaceTrusted()) {
-      return webFetchRestricted()
+      return restricted()
     }
     return this.permissions.verdict(query) === 'deny' ? this.refusedByMode(call) : undefined
+  }
+
+  /**
+   * A browser check (M81, PLAN.md D49): refused in Restricted Mode, and for
+   * a call it would refuse anyway, before any card; then judged as a network
+   * tool per host, its card naming the URL. A host beyond loopback and the
+   * user's setting is reached only once the user allowed it on a card (this
+   * call's, or an "always" they chose on one in this session): Bypass alone
+   * never widens the check, so the card is asked there too. The setting is
+   * read again after the card, and the page reaches the model only while the
+   * check is still allowed.
+   */
+  private async decideAndRunBrowserCheck(
+    itemId: string,
+    call: FunctionCallItem,
+    signal: AbortSignal,
+    shouldForceApproval: boolean,
+    slot: AdmissionSlot,
+  ): Promise<CallResult> {
+    const browser = this.deps.browserCheck
+    if (browser === undefined) {
+      return { outcome: toolFailure(`unknown tool ${call.name}`), isRejected: false }
+    }
+    if (!this.deps.isWorkspaceTrusted()) {
+      return browserCheckRestrictedCall()
+    }
+    const placed = placeBrowserCall(argumentsOf(call), extraHostSet(browser.extraHosts()))
+    if (!placed.ok) {
+      return { outcome: browserCheckRefused(placed), isRejected: false }
+    }
+    const { placement, actions } = placed
+    const query: PermissionQuery = {
+      toolName: call.name,
+      toolClass: 'network',
+      command: placement.approvalHost,
+    }
+    const isWidening = placement.kind === 'needsWidening'
+    const refusal = await this.judge(
+      itemId,
+      call,
+      signal,
+      query,
+      {
+        kind: isWidening ? BROWSER_CHECK_WIDEN_SUBJECT_KIND : BROWSER_CHECK_SUBJECT_KIND,
+        target: placement.url,
+        toolName: call.name,
+      },
+      shouldForceApproval || (isWidening && !this.permissions.isAllowedForSession(query)),
+    )
+    if (refusal !== undefined) {
+      return refusal
+    }
+    const withdrawn = this.networkCallWithdrawn(call, query, signal, browserCheckRestrictedCall)
+    if (withdrawn !== undefined) {
+      return withdrawn
+    }
+    slot.admission = this.admitted(query, this.permissions.judge(query, this.policy()))
+    // The scope the card covered, frozen now; trust, the mode, the runtime
+    // setting and that scope are read again while the check is prepared and
+    // runs (M81 A1).
+    const scope = browserCheckScope(placement, browser.extraHosts())
+    const approvalKey = browserScopeKey(placement.url, scope)
+    const admission: CheckAdmission = () => {
+      if (
+        !this.deps.isWorkspaceTrusted() ||
+        !browser.isOffered() ||
+        this.permissions.verdict(query) === 'deny'
+      ) {
+        return 'notOffered'
+      }
+      const now = browserCheckScope(placement, browser.extraHosts())
+      return browserScopeKey(placement.url, now) === approvalKey ? 'ok' : 'scopeChanged'
+    }
+    // A browser runs, and a page it drives can make a local server change
+    // files: a restore says so, as for commands (M86, spec 8).
+    this.noteProcessRan()
+    const result = await browser.check(
+      {
+        url: placement.url,
+        actions,
+        allowedHosts: scope.allowedHosts,
+        approvalKey,
+        includeScreenshot: true,
+        signal,
+      },
+      admission,
+    )
+    return (
+      this.networkCallWithdrawn(call, query, signal, browserCheckRestrictedCall) ?? {
+        outcome: browserCheckOutcome(placement.url, result),
+        isRejected: false,
+      }
+    )
   }
 
   /**
@@ -7019,6 +7133,9 @@ export class ModelApiSession implements AgentSession {
         isAllowed,
         slot,
       )
+    }
+    if (call.name === MODEL_API_TOOLS.browserCheck) {
+      return await this.decideAndRunBrowserCheck(itemId, call, signal, shouldForceApproval, slot)
     }
     if (toolClass === 'network') {
       return await this.decideAndRunWebFetch(itemId, call, signal, shouldForceApproval, slot)

@@ -119,5 +119,11 @@
   "config.modelApiPermissionProfile.markdownDescription": "Model API 后端：生效的权限配置文件，按其在 `museSpark.modelApiPermissionProfiles` 中的名称指定；留空表示无。配置文件开启期间，在“手动”、“自动编辑”和“自动”模式下，每条 shell 命令和 MCP 工具调用都会询问（规划模式会拒绝 shell 命令以及只读工具以外的所有 MCP 工具；“绕过权限”会直接运行它们），因为 shell 和 MCP 服务器在配置文件的文件规则之外运行。仅限用户和计算机设置。",
   "config.modelApiRepositoryRules.markdownDescription": "Model API 后端：存储库可以在其 `.vscode/settings.json` 中添加的规则：询问或禁止的 `commandRules`，以及 `denyRead` glob。它们只能收紧您自己的规则，因此此处的允许规则不会应用。",
   "config.modelApiAutoReviewer.description": "付费，默认关闭。在 Model API 后端的自动模式下，一次单独的模型调用会评判每个会询问、且没有规则或权限配置文件决定的简单 shell 命令或 MCP 工具调用，看起来安全时不询问直接运行；它拒绝或失败时由您决定。它绝不会允许被禁止的命令、您的规则要求询问的命令、受保护的写入或付费调用。每次审查按对话模型的令牌费率计入您的 Model API 密钥，除非您在此工作区中始终允许审查，否则会先询问。",
-  "config.museCodeAutoReviewer.description": "默认开启。在 Muse Code 的自动模式下，只有当前轮次中没有规则作出决定的批准请求才符合审查条件：在隐藏的规划会话中使用您的订阅进行一次简短的 Muse Code 轮次。受保护的写入、付费调用、子任务、提问、重放或升级的请求、未知对象、没有仅允许一次选项的请求以及多个面板共享的会话都不会被审查。成功的审查可以允许一次；拒绝、失败、会话繁忙、超时或熔断器触发时会显示批准卡片。宿主进程退出后会重新创建辅助会话。"
+  "config.museCodeAutoReviewer.description": "默认开启。在 Muse Code 的自动模式下，只有当前轮次中没有规则作出决定的批准请求才符合审查条件：在隐藏的规划会话中使用您的订阅进行一次简短的 Muse Code 轮次。受保护的写入、付费调用、子任务、提问、重放或升级的请求、未知对象、没有仅允许一次选项的请求以及多个面板共享的会话都不会被审查。成功的审查可以允许一次；拒绝、失败、会话繁忙、超时或熔断器触发时会显示批准卡片。宿主进程退出后会重新创建辅助会话。",
+  "command.downloadBrowserCheckRuntime.title": "下载浏览器检查运行时",
+  "config.browserCheckExtraHosts.description": "浏览器检查可以打开和访问的本计算机以外的主机，以不含端口、路径或通配符的普通主机名或 IP 地址表示；列出回环名称还会允许本地页面使用 https 和 WebSocket。为空表示仅限普通 http 的本地页面，除非你在卡片或确认中针对该次检查允许某个主机。发往列表中主机的 https 和 WebSocket 流量经过加密且不受检查，该站点可能会以此计算机的帐户替你登录（尤其是在 Windows 上）。只有你可以扩大此范围，模型不能，存储库的设置也不能。",
+  "config.browserCheckRuntime.description": "浏览器检查获取浏览器的方式：Google 的 Chrome for Testing headless shell，固定为此扩展版本，从 storage.googleapis.com 下载到扩展的存储中（每个固定版本约 100 到 120 MB）。只有你可以更改此项，存储库的设置不能。",
+  "config.browserCheckRuntime.enumDescriptions.ask": "下载前询问。",
+  "config.browserCheckRuntime.enumDescriptions.download": "检查需要时直接下载而不询问，现在以及之后每个固定的版本都是如此。",
+  "config.browserCheckRuntime.enumDescriptions.off": "不使用浏览器检查：不提供该工具，也不下载任何内容。"
 }

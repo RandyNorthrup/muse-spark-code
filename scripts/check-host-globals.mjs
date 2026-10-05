@@ -19,6 +19,8 @@ const HOST_BUNDLES = [
   'dist/reviewer.js',
   'dist/planMarkdown.js',
   'dist/checkpointStore.js',
+  'dist/browserCheck.js',
+  'dist/browserRuntime.js',
   'dist/agentImport.js',
   'dist/bundledSkills.js',
   'dist/codeIntel.js',
