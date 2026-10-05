@@ -6478,7 +6478,9 @@ images and logs statuses. Every failure warns only, with no credential required.
 The final job requires the summary's successful, all-published outcome.
 Fake-fetch tests and red drills cover parsing, version ordering, retries,
 polling bounds and warning-only failures; hosted public-service proof remains
-the lead's next release check. Evidence: [BADGES](docs/certification/badges.md).
+the lead's next release check. Implemented: 40 focused tests and 14 red drills
+passed, with typecheck and required focused gates green on the worktree merged
+with `8c894b60a`. Evidence: [BADGES](docs/certification/badges.md).
 
 ### M27 — The tree kill's orphans (D25)
 

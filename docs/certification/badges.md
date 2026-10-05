@@ -70,5 +70,25 @@ npm 11.19.0: `npm run typecheck` (all five projects), `npm run deadcode`,
 `npm run build` (all size, split, globals and notices checks passed).
 Sizes: extension 582.1/600 KiB, Model API 429.3/475 KiB, checkpoint store
 89.0/225 KiB, webview 877.3/900 KiB, ACP 804.2/850 KiB.
-Local changed-file ESLint and actionlint passed. Final documentation formatting
-and upstream integration are the remaining lane steps.
+Local changed-file ESLint, Prettier and actionlint passed.
+
+## Upstream integration and final scope
+
+Integrated `origin/main` at `8c894b60a` (the brief's release candidate). Keep
+both Unreleased entries in the changelog: BADGES Changed and the upstream
+README Fixed entry. The final merged-worktree snapshot `ed692c1e` passed the
+same 40 tests, all five typechecks, deadcode, duplication (934 files, zero
+clones), localization, host API and production build. All listed bundle sizes
+remain unchanged. Script/workflow fingerprints still match the drill record.
+The only subsequent changes are this evidence record and the plan's receipt.
+
+The worktree lacked Husky's generated `.husky/_` launcher, so initial commit
+`284c39346` did not invoke hooks. Scoped ESLint/Prettier had passed; a separate
+redacted `gitleaks git --log-opts=284c39346^..284c39346` scan of that commit
+also passed (one commit, no leaks). Restored the launcher using the installed
+Husky, without changing dependencies. The final merge commit uses the normal
+serial lint-staged and staged gitleaks hook.
+
+Lane acceptance is implemented and verified with fake HTTP. Live cache/API
+proof, full aggregate quality and the established-plan structural-validator
+deferral remain explicitly open for the lead; no publishing or push performed.
