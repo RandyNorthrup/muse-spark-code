@@ -168,6 +168,13 @@ for (const name of [...ACTIVATION_ALLOWED.keys(), ...lazy, ...DEFERRED_ONLY]) {
 const activation = inputsOf(BUNDLES.activation)
 const modelApi = inputsOf(BUNDLES.modelApi)
 const acp = inputsOf(BUNDLES.acp)
+// M96 acceptance 47: the team factory installs these validators on activation.
+// A single-model user must never pay their eager loading cost in any backend.
+for (const bundle of [BUNDLES.activation, BUNDLES.modelApi, BUNDLES.acp]) {
+  if (inputsOf(bundle).has('src/shared/team.ts')) {
+    problems.push(`${bundle.output} carries src/shared/team.ts, which loads only with the team`)
+  }
+}
 // The session's model text is its own object (M70 budget repair). esbuild
 // keeps property names: these belong only to MODEL_API_MODEL_TEXT, which
 // the activation and ACP loaders must discard with the unused export.

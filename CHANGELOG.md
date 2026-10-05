@@ -7,6 +7,36 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+### Added
+
+- **Team strings, constants and schemas (M96 lane 0, unreleased
+  internals).** Shared pool, task, usage, ledger and Agent map contracts,
+  charter templates and recovery/landing text with all 14 translations.
+  Pool entries retain model settings, and ledger task rows retain their
+  required task identity. Team validators install when the team activates,
+  keeping single-model activation, Model API and ACP bundles free of them.
+
+- **Agent roles, charters and tool sets (M96 lane R, unreleased
+  internals).** The new `src/core/team/` holds the seven built-in roles
+  and their generated `AGENT.md` files, the role keys on M76's parser with
+  shadow-only narrowing and the new-id ceiling, the seven-part charter
+  generator, the one tool-set definition behind allowlists, the charter's
+  "You may" line and the panel checklist, the model-into-role capability
+  check, same-model identity, and the workspace team with the
+  `.muse/team.json` lowering merge — with tests, translations and the red
+  drills in `docs/certification/m96-r.md`. Nothing team-related loads or
+  changes requests for a single model.
+
+### Fixed
+
+- **Project-role restrictions (M96 lane R).** Every project role, including
+  a new id with a hash allowance, refuses in-place work, model selection
+  and skills. Missing permission modes resolve to the strictest ceiling.
+  Write-path narrowing accepts literal paths and confined subtrees; partial
+  tool meets generate charters naming only the available capabilities.
+- **The M96 round-4 plan remains the plan of record.** Lane 0 and R keep
+  the approved descendant-retirement, recovery and separate team-host rules.
+
 ## [0.12.1] - 2026-10-04
 
 ### Changed

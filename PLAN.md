@@ -4451,6 +4451,10 @@ every fact, is `docs/certification/m96-research.md`.
   - The body is the role's own guidance: how to do the job well. It comes
     after the charter and can add method, never power.
   - A project role (in `.agents/agents/`):
+    - These restrictions apply to every project id, including a new id,
+      before any hash allowance; an allowance never grants `in-place`, a
+      model or skills. An omitted permission mode resolves to
+      `denyUnmatched`, the most restrictive ceiling.
     - loads only in a trusted workspace;
     - can only narrow (M76);
     - can name no agent, provider or command;
@@ -16676,6 +16680,14 @@ Round 4 (2026-10-04) answers Codex's third review (`RVM96C3`):
   repository, and detects writers that ignore git's lock;
 - Muse Code workers run on a team host of their own.
 
+Review repair FIXM96R0 (2026-10-05), against `RVM96A`: findings 1, 2,
+12–14, 34–36 and 38. Keep this round-4 plan, apply unconditional project
+restrictions and the strict missing ceiling, prove literal/subtree path
+narrowing, generate charters from the tools actually met, defer team
+protocol validators until team activation, retain entry settings and task
+identity, and record regression/red-drill evidence in `m96-r.md` and
+`m96-0.md`. No new dependency or paid/live call.
+
 - **Goal.** A user builds a team in the Models & Agents panel within two
   minutes, from a template with prefills and suggestions.
   - **Roles.** Each role has a charter generated from its settings, a
@@ -20150,6 +20162,10 @@ Every lint or scanner suppression (`eslint-disable`, `@ts-expect-error`, `nosemg
 | ---------------------------------------- | ---------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
 | `scripts/exec-schema.mjs`, `conditional` | `eslint-disable-next-line unicorn/no-thenable` | JSON Schema requires the literal `then` keyword for conditional validation. This object is serialized as data, never consumed as a Promise. Computed keys and `Object.fromEntries` also trigger the rule; the exception is limited to this property. | 2026-10-02 |
 
+| M96 lane 0 location                                        | Escape hatch                                               | Reason                                                                                                                                                                                     | Date       |
+| ---------------------------------------------------------- | ---------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ---------- |
+| `src/shared/constants.ts`, `TEAM_CONTINUE_ON_NEXT_DEFAULT` | `eslint-disable-next-line unicorn/consistent-boolean-name` | The Team region names every setting default `TEAM_<SETTING>_DEFAULT` (D75); a boolean prefix would break the scheme lane X reads when it declares `museSpark.team*`. Limited to this line. | 2026-10-05 |
+
 | M80 lane B location                                          | Escape hatch                                         | Reason                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 | Date       |
 | ------------------------------------------------------------ | ---------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
 | `src/runtime/main.ts`, `exitHeadless`                        | `eslint-disable-next-line unicorn/no-process-exit`   | A standalone headless command owns its process. It must end within the deadline/grace/force bounds even if a pipe or late backend setup never closes, including usage errors. Writes remain async and bounded before exit.                                                                                                                                                                                                                                                                                                                                             | 2026-10-02 |
@@ -20221,6 +20237,15 @@ before a repaired one loads (2026-09-30).
 | `test/harness/index.html` (`isActiveDescendantList`), printed by `scripts/a11y.mjs` | The accessibility gate exempts axe's `scrollable-region-focusable` | The composer's `/` and `@` lists follow WAI-ARIA's combobox pattern: the box keeps the focus and moves `aria-activedescendant` through the listbox's options, and `Composer.tsx` scrolls the active option into view, so the list is keyboard operable (WCAG 2.1.1) without being a Tab stop. axe cannot see activedescendant-driven scrolling. The exemption holds only for a region that contains a listbox whose id is in the `aria-controls` of a focused or focusable element whose active descendant is one of that listbox's options; drills show a plain scrollable region and a listbox no control drives are still reported, and removing the exemption reports the composer's list again. Every exempt element is printed under its own "Exempt:" heading and counted. No `tabindex` was added to the list. | 2026-10-04 |
 
 ## 9. Security assumptions and accepted residual risk
+
+- **M96 R34-general-glob-inclusion (FIXM96R0).** Literal paths and
+  patterns rooted inside a literal `directory/**` ceiling are proved
+  narrower; identical patterns remain allowed. Inclusion between other
+  different wildcard patterns (for example `docs/*.md` under `**/*.md`)
+  is conservatively refused. This is safe because it cannot widen writes.
+  A follow-up may add a bounded glob-language inclusion proof with its own
+  tests; arbitrary wildcard inclusion would redesign the matcher and is
+  outside this repair. The reviewed `docs/release.md` narrowing is fixed.
 
 - Code intelligence (M67) shows what VS Code's language services say. A
   result located outside the workspace is left out and a hover defined only

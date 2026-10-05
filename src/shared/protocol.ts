@@ -41,6 +41,7 @@ import { scheduleCadenceSchema } from './schedule'
 import { bestOfNRunSchema } from './bestOfN'
 import { boardRowSchema } from './sessionBoard'
 import { sessionRowSchema } from './sessions'
+import type { TeamTreeAction, TeamTreeUpdate } from './team'
 import { accountFactsSchema, subscriptionUsageSchema, usageInsightsSchema } from './usage'
 
 // Settings the webview needs to render. Host-only settings (binary path,
@@ -573,7 +574,7 @@ const webviewToHostMessageSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('forgetPaidUse') }),
 ])
 
-export type WebviewToHostMessage = z.infer<typeof webviewToHostMessageSchema>
+export type WebviewToHostMessage = z.infer<typeof webviewToHostMessageSchema> | TeamTreeAction
 
 const hostToWebviewMessageSchema = z.discriminatedUnion('type', [
   // Reply to `ready`: everything the shell needs to render its first frame.
@@ -864,7 +865,29 @@ const hostToWebviewMessageSchema = z.discriminatedUnion('type', [
   }),
 ])
 
-export type HostToWebviewMessage = z.infer<typeof hostToWebviewMessageSchema>
+export type HostToWebviewMessage = z.infer<typeof hostToWebviewMessageSchema> | TeamTreeUpdate
+
+const teamSchemas: {
+  action: z.ZodMiniType<TeamTreeAction> | undefined
+  update: z.ZodMiniType<TeamTreeUpdate> | undefined
+} = { action: undefined, update: undefined }
+
+/**
+ * The team activation factory installs its lazy validators into each
+ * receiving bundle through this port. Until then team messages refuse;
+ * single-model activation carries only their types, never team.ts.
+ */
+export function installTeamProtocolSchemas(schemas: {
+  readonly action: z.ZodMiniType<TeamTreeAction>
+  readonly update: z.ZodMiniType<TeamTreeUpdate>
+}): void {
+  teamSchemas.action = schemas.action
+  teamSchemas.update = schemas.update
+}
+
+function hasMessageType(input: unknown, type: string): boolean {
+  return typeof input === 'object' && input !== null && 'type' in input && input.type === type
+}
 
 export type ParseResult<T> =
   { readonly ok: true; readonly message: T } | { readonly ok: false; readonly error: string }
@@ -877,9 +900,19 @@ function parseWith<T>(schema: z.ZodMiniType<T>, input: unknown): ParseResult<T> 
 }
 
 export function parseWebviewToHostMessage(input: unknown): ParseResult<WebviewToHostMessage> {
-  return parseWith(webviewToHostMessageSchema, input)
+  return parseWith<WebviewToHostMessage>(
+    teamSchemas.action !== undefined && hasMessageType(input, 'teamTreeAction')
+      ? teamSchemas.action
+      : webviewToHostMessageSchema,
+    input,
+  )
 }
 
 export function parseHostToWebviewMessage(input: unknown): ParseResult<HostToWebviewMessage> {
-  return parseWith(hostToWebviewMessageSchema, input)
+  return parseWith<HostToWebviewMessage>(
+    teamSchemas.update !== undefined && hasMessageType(input, 'teamTree')
+      ? teamSchemas.update
+      : hostToWebviewMessageSchema,
+    input,
+  )
 }
