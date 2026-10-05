@@ -1204,7 +1204,7 @@
   "acpQuestionAsked": "O Muse tem uma pergunta; este editor não consegue mostrá-la como formulário, então responda na sua próxima mensagem:",
   "acpUnknownArgument": "Argumento desconhecido: {argument}",
   "acpPaidNeedsModelApi": "{argument} requer --backend modelApi: os recursos pagos são cobrados de uma chave da Model API.",
-  "acpUsage": "Uso:\n  {command} [opções]              Servir o Agent Client Protocol em stdin e stdout\n  {command} [opções] login        Entrar no Muse Code neste terminal\n  {command} auth set|status|clear  Guardar, verificar ou remover a chave da Meta Model API\n  {command} exec [options] <prompt>  Executar um turno sem interface\n  {command} scan-secrets <file> [--key-stdin]  Contar possíveis segredos em um arquivo (mostra só o número)\nOpções:\n  --backend museCode|modelApi      Quem paga: o Muse Code (padrão) ou a chave da Model API\n  --trust-workspace                Carregar as regras, as skills e a memória da pasta\n  --muse-binary <caminho>             A CLI do Muse Code a executar\n  --shell-sandbox auto|muse|off    A sandbox do shell do Muse Code\n  --allow-dangerously-skip-permissions  Oferecer o modo “Ignorar permissões”\n  --allow-contributor-models       Listar os modelos de nível colaborador (a Meta pode treinar com o conteúdo deles)\n  --web-search                     Oferecer a pesquisa na web paga (back-end da Model API; o preço é perguntado antes)\n  --image-generation               Oferecer a geração de imagens paga (back-end da Model API; o preço é perguntado antes)\n  --verbose                        Registrar cada detalhe em stderr\n  --help, --version",
+  "acpUsage": "Uso:\n  {command} [opções]              Servir o Agent Client Protocol em stdin e stdout\n  {command} [opções] login        Entrar no Muse Code neste terminal\n  {command} auth set|status|clear  Guardar, verificar ou remover a chave da Meta Model API\n  {command} exec [options] <prompt>  Executar um turno sem interface\n  {command} scan-secrets <file> [--key-stdin]  Contar possíveis segredos em um arquivo (mostra só o número)\n\n  {command} legal [options]  Executar a verificação jurídica somente leitura (sem backend nem login)\nOpções:\n  --backend museCode|modelApi      Quem paga: o Muse Code (padrão) ou a chave da Model API\n  --trust-workspace                Carregar as regras, as skills e a memória da pasta\n  --muse-binary <caminho>             A CLI do Muse Code a executar\n  --shell-sandbox auto|muse|off    A sandbox do shell do Muse Code\n  --allow-dangerously-skip-permissions  Oferecer o modo “Ignorar permissões”\n  --allow-contributor-models       Listar os modelos de nível colaborador (a Meta pode treinar com o conteúdo deles)\n  --web-search                     Oferecer a pesquisa na web paga (back-end da Model API; o preço é perguntado antes)\n  --image-generation               Oferecer a geração de imagens paga (back-end da Model API; o preço é perguntado antes)\n  --verbose                        Registrar cada detalhe em stderr\n  --help, --version",
   "exportSessionLine": "Sessão: `{id}`",
   "exportBackendLine": "Back-end: {backend}",
   "exportModelLine": "Modelo: {model}",
@@ -1937,5 +1937,13 @@
   "legalScanItemDetail": "Verificar o workspace quanto a achados de licenciamento, atribuição e cabeçalhos",
   "legalScanBusy": "A verificação legal começa quando o turno atual terminar.",
   "legalScanUntrusted": "A verificação legal lê o workspace, o que o modo restrito não permite. Confie no workspace para usá-la.",
-  "legalScanPlanModeNotice": "Esta verificação legal mantém a conversa no modo Planejar enquanto lê o workspace, e o modo de permissão que você usava volta quando ela terminar."
+  "legalScanPlanModeNotice": "Esta verificação legal mantém a conversa no modo Planejar enquanto lê o workspace, e o modo de permissão que você usava volta quando ela terminar.",
+  "legalDistributionLine": "Distribuição: {distribution}",
+  "legalRegistryLine": "Registro ({hosts}): {queried} consultados, {found} encontrados, {skipped} ignorados, {bytes} recebidos.",
+  "legalRegistryOff": "Enriquecimento do registro desativado. Execute novamente com --registry para completar as licenças ausentes.",
+  "legalWroteFile": "Relatório da verificação jurídica gravado em {path}.",
+  "legalFormatInvalid": "O formato deve ser text ou json.",
+  "legalUsage": "legal [--format text|json] [--out <file>] [--registry]",
+  "legalExclusionsLine": "Excluído: {exclusions}",
+  "legalScanNoDistribution": "A verificação não foi concluída, portanto nenhuma distribuição foi presumida."
 }

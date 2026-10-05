@@ -1204,7 +1204,7 @@
   "acpQuestionAsked": "Muse tiene una pregunta; este editor no puede mostrarla como formulario, así que responda en su próximo mensaje:",
   "acpUnknownArgument": "Argumento desconocido: {argument}",
   "acpPaidNeedsModelApi": "{argument} requiere --backend modelApi: las funciones de pago se facturan a una clave de Model API.",
-  "acpUsage": "Uso:\n  {command} [opciones]              Servir el Agent Client Protocol por stdin y stdout\n  {command} [opciones] login        Iniciar sesión en Muse Code en este terminal\n  {command} auth set|status|clear  Guardar, comprobar o quitar la clave de Meta Model API\n  {command} exec [options] <prompt>  Ejecutar un turno sin interfaz\n  {command} scan-secrets <file> [--key-stdin]  Contar posibles secretos en un archivo (solo muestra el número)\nOpciones:\n  --backend museCode|modelApi      Quién paga: Muse Code (predeterminado) o la clave de Model API\n  --trust-workspace                Cargar las reglas, las habilidades y la memoria de la carpeta\n  --muse-binary <ruta>             La CLI de Muse Code que se ejecuta\n  --shell-sandbox auto|muse|off    El espacio aislado del shell de Muse Code\n  --allow-dangerously-skip-permissions  Ofrecer el modo «Omitir permisos»\n  --allow-contributor-models       Mostrar los modelos de nivel colaborador (Meta puede entrenar con su contenido)\n  --web-search                     Ofrecer la búsqueda web de pago (back-end de Model API; primero se pregunta su precio)\n  --image-generation               Ofrecer la generación de imágenes de pago (back-end de Model API; primero se pregunta su precio)\n  --verbose                        Registrar cada detalle en stderr\n  --help, --version",
+  "acpUsage": "Uso:\n  {command} [opciones]              Servir el Agent Client Protocol por stdin y stdout\n  {command} [opciones] login        Iniciar sesión en Muse Code en este terminal\n  {command} auth set|status|clear  Guardar, comprobar o quitar la clave de Meta Model API\n  {command} exec [options] <prompt>  Ejecutar un turno sin interfaz\n  {command} scan-secrets <file> [--key-stdin]  Contar posibles secretos en un archivo (solo muestra el número)\n\n  {command} legal [options]  Ejecutar el análisis legal de solo lectura (sin backend ni inicio de sesión)\nOpciones:\n  --backend museCode|modelApi      Quién paga: Muse Code (predeterminado) o la clave de Model API\n  --trust-workspace                Cargar las reglas, las habilidades y la memoria de la carpeta\n  --muse-binary <ruta>             La CLI de Muse Code que se ejecuta\n  --shell-sandbox auto|muse|off    El espacio aislado del shell de Muse Code\n  --allow-dangerously-skip-permissions  Ofrecer el modo «Omitir permisos»\n  --allow-contributor-models       Mostrar los modelos de nivel colaborador (Meta puede entrenar con su contenido)\n  --web-search                     Ofrecer la búsqueda web de pago (back-end de Model API; primero se pregunta su precio)\n  --image-generation               Ofrecer la generación de imágenes de pago (back-end de Model API; primero se pregunta su precio)\n  --verbose                        Registrar cada detalle en stderr\n  --help, --version",
   "exportSessionLine": "Sesión: `{id}`",
   "exportBackendLine": "Back-end: {backend}",
   "exportModelLine": "Modelo: {model}",
@@ -1937,5 +1937,13 @@
   "legalScanItemDetail": "Analizar el área de trabajo en busca de hallazgos de licencias, atribuciones y encabezados",
   "legalScanBusy": "El análisis legal empezará cuando termine el turno actual.",
   "legalScanUntrusted": "El análisis legal lee el área de trabajo, lo que el modo restringido no permite. Confíe en el área de trabajo para usarlo.",
-  "legalScanPlanModeNotice": "Este análisis legal mantiene la conversación en el modo Planificar mientras lee el área de trabajo, y el modo de permisos que tenía vuelve cuando termina."
+  "legalScanPlanModeNotice": "Este análisis legal mantiene la conversación en el modo Planificar mientras lee el área de trabajo, y el modo de permisos que tenía vuelve cuando termina.",
+  "legalDistributionLine": "Distribución: {distribution}",
+  "legalRegistryLine": "Registro ({hosts}): {queried} consultados, {found} encontrados, {skipped} omitidos, {bytes} recibidos.",
+  "legalRegistryOff": "Enriquecimiento desde el registro desactivado. Repita con --registry para completar las licencias faltantes.",
+  "legalWroteFile": "Informe del análisis legal escrito en {path}.",
+  "legalFormatInvalid": "El formato debe ser text o json.",
+  "legalUsage": "legal [--format text|json] [--out <file>] [--registry]",
+  "legalExclusionsLine": "Excluido: {exclusions}",
+  "legalScanNoDistribution": "El análisis no se completó, por lo que no se asumió ninguna distribución."
 }

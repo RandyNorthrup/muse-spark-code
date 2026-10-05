@@ -1235,7 +1235,7 @@
   "acpQuestionAsked": "У Muse есть вопрос; этот редактор не может показать его в виде формы, поэтому ответьте в следующем сообщении:",
   "acpUnknownArgument": "Неизвестный аргумент: {argument}",
   "acpPaidNeedsModelApi": "{argument} требует --backend modelApi: платные функции оплачиваются с ключа Model API.",
-  "acpUsage": "Использование:\n  {command} [параметры]              Обслуживать Agent Client Protocol через stdin и stdout\n  {command} [параметры] login        Войти в Muse Code в этом терминале\n  {command} auth set|status|clear  Сохранить, проверить или удалить ключ Meta Model API\n  {command} exec [options] <prompt>  Выполнить один ход без интерфейса\n  {command} scan-secrets <file> [--key-stdin]  Подсчитать вероятные секреты в одном файле (выводит только число)\nПараметры:\n  --backend museCode|modelApi      Кто платит: Muse Code (по умолчанию) или ключ Model API\n  --trust-workspace                Загрузить правила, навыки и память папки\n  --muse-binary <путь>             Запускаемый CLI Muse Code\n  --shell-sandbox auto|muse|off    Песочница оболочки Muse Code\n  --allow-dangerously-skip-permissions  Предлагать режим «Обход разрешений»\n  --allow-contributor-models       Показывать модели уровня contributor (Meta может обучаться на их содержимом)\n  --web-search                     Предлагать платный веб-поиск (бэкенд Model API; сначала запрашивается согласие с ценой)\n  --image-generation               Предлагать платное создание изображений (бэкенд Model API; сначала запрашивается согласие с ценой)\n  --verbose                        Записывать все подробности в stderr\n  --help, --version",
+  "acpUsage": "Использование:\n  {command} [параметры]              Обслуживать Agent Client Protocol через stdin и stdout\n  {command} [параметры] login        Войти в Muse Code в этом терминале\n  {command} auth set|status|clear  Сохранить, проверить или удалить ключ Meta Model API\n  {command} exec [options] <prompt>  Выполнить один ход без интерфейса\n  {command} scan-secrets <file> [--key-stdin]  Подсчитать вероятные секреты в одном файле (выводит только число)\n\n  {command} legal [options]  Запустить сканирование лицензий только для чтения (без бэкенда и входа)\nПараметры:\n  --backend museCode|modelApi      Кто платит: Muse Code (по умолчанию) или ключ Model API\n  --trust-workspace                Загрузить правила, навыки и память папки\n  --muse-binary <путь>             Запускаемый CLI Muse Code\n  --shell-sandbox auto|muse|off    Песочница оболочки Muse Code\n  --allow-dangerously-skip-permissions  Предлагать режим «Обход разрешений»\n  --allow-contributor-models       Показывать модели уровня contributor (Meta может обучаться на их содержимом)\n  --web-search                     Предлагать платный веб-поиск (бэкенд Model API; сначала запрашивается согласие с ценой)\n  --image-generation               Предлагать платное создание изображений (бэкенд Model API; сначала запрашивается согласие с ценой)\n  --verbose                        Записывать все подробности в stderr\n  --help, --version",
   "exportSessionLine": "Сеанс: `{id}`",
   "exportBackendLine": "Бэкенд: {backend}",
   "exportModelLine": "Модель: {model}",
@@ -2004,5 +2004,13 @@
   "legalScanItemDetail": "Проверить рабочую область на предмет лицензий, указания авторства и заголовков",
   "legalScanBusy": "Юридическая проверка начнется после завершения текущего хода.",
   "legalScanUntrusted": "Юридическая проверка читает рабочую область, что запрещено в ограниченном режиме. Доверьтесь рабочей области, чтобы пользоваться ею.",
-  "legalScanPlanModeNotice": "Эта юридическая проверка удерживает разговор в режиме планирования, пока читает рабочую область, а прежний режим разрешений вернется после ее завершения."
+  "legalScanPlanModeNotice": "Эта юридическая проверка удерживает разговор в режиме планирования, пока читает рабочую область, а прежний режим разрешений вернется после ее завершения.",
+  "legalDistributionLine": "Распространение: {distribution}",
+  "legalRegistryLine": "Реестр ({hosts}): запрошено {queried}, найдено {found}, пропущено {skipped}, получено {bytes}.",
+  "legalRegistryOff": "Обогащение из реестра выключено. Повторите с --registry, чтобы дополнить недостающие лицензии.",
+  "legalWroteFile": "Отчёт сканирования лицензий записан в {path}.",
+  "legalFormatInvalid": "Формат должен быть text или json.",
+  "legalUsage": "legal [--format text|json] [--out <file>] [--registry]",
+  "legalExclusionsLine": "Исключено: {exclusions}",
+  "legalScanNoDistribution": "Сканирование не завершено, поэтому распространение не предполагалось."
 }
