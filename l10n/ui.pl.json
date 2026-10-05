@@ -1900,7 +1900,7 @@
     "other": "{count} oceny"
   },
   "paidJudgeName": "Oceniający",
-  "paidConfirmJudge": "Twój własny model rozmowy ocenia każdą ryzykowną akcję Auto, której nie rozstrzyga żadna reguła, i może jedynie dodać ostrożności: gotowe ostrzeżenie zamienia zezwolenie w pytanie albo w notatkę na karcie zatwierdzenia. Każdy osąd jest rozliczany przez Twój klucz Model API według stawek za tokeny modelu rozmowy:\n{price}\nKażdy osąd najpierw pyta, chyba że zawsze zezwolisz na osądy w tym obszarze roboczym. Na Muse Code te same wywołania korzystają z Twojej subskrypcji.",
+  "paidConfirmJudge": "Twój własny model rozmowy ocenia każdą ryzykowną akcję Auto, której nie rozstrzyga żadna reguła, i może jedynie dodać ostrożności: gotowe ostrzeżenie zamienia zezwolenie w pytanie albo w notatkę na karcie zatwierdzenia. Każdy osąd jest rozliczany przez Twój klucz Model API według stawek za tokeny modelu rozmowy:\n{price}\nOceniający pyta o zgodę raz przed pierwszą opłatą, pokazując te stawki i wspólny budżet dzienny: {budget}. Przejście ze źródła bezpłatnego na płatne wymaga ponownej zgody. W Muse Code te same wywołania korzystają z Twojej subskrypcji.",
   "usagePaidJudgeCalls": {
     "one": "{count} osąd",
     "few": "{count} osądy",

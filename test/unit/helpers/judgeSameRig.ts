@@ -5,12 +5,12 @@
 import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
-import { JudgeEntryStore } from '../../../src/core/judge/entries'
+import { JudgeEntryStore, type JudgeEntryHandle } from '../../../src/core/judge/entries'
 import type { JudgeQuestion } from '../../../src/core/judge/judge'
 
 export class SpyJudgeStore extends JudgeEntryStore {
-  public readonly settled: { key: string; outcome: string }[] = []
-  public override settle(key: string, outcome: 'caution' | 'none' | 'failed'): boolean {
+  public readonly settled: { key: JudgeEntryHandle; outcome: string }[] = []
+  public override settle(key: JudgeEntryHandle, outcome: 'caution' | 'none' | 'failed'): boolean {
     const wasApplied = super.settle(key, outcome)
     if (wasApplied) {
       this.settled.push({ key, outcome })
@@ -27,7 +27,7 @@ export function startJudgeEntry(
     tool: string
     args: Record<string, unknown>
   },
-): string {
+): JudgeEntryHandle {
   return entries.start({
     backend: parts.backend,
     sessionId: 's1',
@@ -37,7 +37,10 @@ export function startJudgeEntry(
   })
 }
 
-export async function untilJudgeSettled(entries: SpyJudgeStore, key: string): Promise<string> {
+export async function untilJudgeSettled(
+  entries: SpyJudgeStore,
+  key: JudgeEntryHandle,
+): Promise<string> {
   const deadline = Date.now() + 8000
   for (;;) {
     const found = entries.settled.find((entry) => entry.key === key)
@@ -52,14 +55,14 @@ export async function untilJudgeSettled(entries: SpyJudgeStore, key: string): Pr
 }
 
 export interface JudgeCall {
-  readonly entryKey: string
+  readonly entryKey: JudgeEntryHandle
   readonly stateText: string
   readonly questions: readonly JudgeQuestion[]
 }
 
 /** One held action to judge: its latch entry plus the judged state. */
 export function judgeJob(
-  entryKey: string,
+  entryKey: JudgeEntryHandle,
   stateText: string,
   questions: readonly JudgeQuestion[],
 ): JudgeCall {

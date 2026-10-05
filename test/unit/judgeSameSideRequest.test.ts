@@ -114,9 +114,11 @@ describe('planSideRequest', () => {
   })
 
   it('refuses a non-list input and a non-JSON body loudly', () => {
+    const malformed = { ...MAIN }
+    Reflect.set(malformed, 'input', 'nope')
     expect(() =>
       planSideRequest({
-        mainBody: { ...MAIN, input: 'nope' },
+        mainBody: malformed,
         tail: TAIL,
         redact: unchanged,
         prefixTokens: 5000,

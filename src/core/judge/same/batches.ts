@@ -11,7 +11,7 @@ import {
   JUDGE_MAX_STATE_TOKENS,
   JUDGE_REQUEST_TIMEOUT_MS,
 } from '../../../shared/constants'
-import { type JudgeEntryStore } from '../entries'
+import { type JudgeEntryHandle, type JudgeEntryStore } from '../entries'
 import { type JudgeQuestion } from '../judge'
 import { planJudgeBatches } from '../prompt'
 import { runJudgeInBackground } from './scheduler'
@@ -141,7 +141,7 @@ export function launchJudgeBatch(
 export interface CommitSettledInputs {
   readonly entries: JudgeEntryStore
   readonly cache: JudgeResultCache
-  readonly entryKey: string
+  readonly entryKey: JudgeEntryHandle
   readonly model: string
   readonly settled: BatchSettleResult
   /** Settles `failed` (and usually logs once) when the reply did not parse. */
@@ -169,7 +169,7 @@ export function commitSettledAnswers(inputs: CommitSettledInputs): void {
 
 export interface JudgeHeldActionInputs {
   readonly runner: SameJudgeRunnerDeps
-  readonly entryKey: string
+  readonly entryKey: JudgeEntryHandle
   readonly stateText: string
   readonly questions: readonly JudgeQuestion[]
   /** Runs one batch to its settle; launched in the background per batch. */
@@ -210,7 +210,7 @@ export function judgeHeldAction(inputs: JudgeHeldActionInputs): void {
 export interface BeginJudgeBatchesInputs {
   readonly entries: JudgeEntryStore
   readonly cache: JudgeResultCache
-  readonly entryKey: string
+  readonly entryKey: JudgeEntryHandle
   /** Plans each kind's batch; throws on a refusal (settles `failed`). */
   readonly plan: () => PlannedJudgeBatch[]
   /** Sends one batch in the background and returns at once. */
@@ -224,7 +224,7 @@ export interface BeginJudgeBatchesInputs {
  * never waits on the caller.
  */
 export function beginJudgeBatches(inputs: BeginJudgeBatchesInputs): void {
-  const cached = inputs.cache.get(inputs.entryKey)
+  const cached = inputs.cache.get(inputs.entryKey.key)
   if (cached !== undefined) {
     // A consumed or discarded key settles false: the late result is dropped.
     inputs.entries.settle(inputs.entryKey, cached.outcome)
@@ -246,7 +246,7 @@ export function beginJudgeBatches(inputs: BeginJudgeBatchesInputs): void {
 export interface CommitOutcomeInputs {
   readonly entries: JudgeEntryStore
   readonly cache: JudgeResultCache
-  readonly entryKey: string
+  readonly entryKey: JudgeEntryHandle
   readonly outcome: CachedJudgeOutcome['outcome']
   readonly model: string
   readonly answers: CachedJudgeOutcome['answers']
@@ -260,7 +260,7 @@ export interface CommitOutcomeInputs {
 export function commitOutcome(inputs: CommitOutcomeInputs): void {
   const wasApplied = inputs.entries.settle(inputs.entryKey, inputs.outcome)
   if (wasApplied) {
-    inputs.cache.set(inputs.entryKey, {
+    inputs.cache.set(inputs.entryKey.key, {
       outcome: inputs.outcome,
       model: inputs.model,
       answers: inputs.answers,

@@ -1834,7 +1834,7 @@
     "other": "{count} revisões"
   },
   "paidJudgeName": "Avaliador",
-  "paidConfirmJudge": "Seu próprio modelo de conversa avalia cada ação arriscada do Auto que nenhuma regra resolve e só pode acrescentar cautela: uma cautela pronta transforma uma permissão em pergunta, ou em nota no cartão de aprovação. Cada julgamento é cobrado na sua chave Model API pelas tarifas por token do modelo da conversa:\n{price}\nCada julgamento pede confirmação primeiro, a menos que você sempre permita julgamentos neste espaço de trabalho. No Muse Code, as mesmas chamadas usam sua assinatura.",
+  "paidConfirmJudge": "Seu próprio modelo de conversa avalia cada ação arriscada do Auto que nenhuma regra resolve e só pode acrescentar cautela: uma cautela pronta transforma uma permissão em pergunta, ou em nota no cartão de aprovação. Cada julgamento é cobrado na sua chave Model API pelas tarifas por token do modelo da conversa:\n{price}\nO juiz pede permissão uma vez antes da primeira cobrança, com estes preços e o orçamento diário compartilhado: {budget}. Ao mudar de uma fonte gratuita para uma paga, pede permissão novamente. No Muse Code, as mesmas chamadas usam sua assinatura.",
   "usagePaidJudgeCalls": {
     "one": "{count} julgamento",
     "many": "{count} julgamentos",

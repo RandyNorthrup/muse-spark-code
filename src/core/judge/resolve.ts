@@ -61,8 +61,8 @@ export interface JudgeModeContext {
 /**
  * Resolve the phase-1 mode. Fail-closed order: an unknown setting, a
  * declined or not-yet-asked paid consent, an unavailable source, and a
- * measured ready rate under the floor each force `off` with its reason.
- * `auto` is `same` in phase 1.
+ * measured ready rate under the floor forces `auto` off with its reason.
+ * Explicit `same` bypasses only that automatic default.
  */
 export function resolveJudgeMode(context: JudgeModeContext): JudgeModeResolution {
   const parsed = engineSchema.safeParse(context.engine)
@@ -82,6 +82,7 @@ export function resolveJudgeMode(context: JudgeModeContext): JudgeModeResolution
     return { mode: 'off', reason: 'source-unavailable' }
   }
   if (
+    parsed.data === 'auto' &&
     context.readyRate !== undefined &&
     Number.isFinite(context.readyRate) &&
     context.readyRate < context.minReadyRate

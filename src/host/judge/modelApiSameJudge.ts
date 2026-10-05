@@ -9,6 +9,7 @@
 // the side body keeps the conversation's model. No `vscode` import.
 
 import type { CreateResponseBody, InputItem } from '../../core/backends/modelapi/schemas'
+import type { JudgeEntryHandle } from '../../core/judge/entries'
 import { type JudgeQuestion } from '../../core/judge/judge'
 import { selectTechnique, type ModelJudgeCapability } from '../../core/judge/techniques'
 import { JUDGE_MIN_CACHED_PREFIX_TOKENS } from '../../shared/constants'
@@ -70,7 +71,7 @@ export interface ModelApiJudgeDeps extends SameJudgeRunnerDeps {
 /** One held action to judge: its latch entry plus the judged state. */
 export interface ModelApiJudgeJob {
   /** Lane J's exact-action entry key (lane U created the entry). */
-  readonly entryKey: string
+  readonly entryKey: JudgeEntryHandle
   readonly stateText: string
   readonly questions: readonly JudgeQuestion[]
   readonly reservedCostUsd?: number | undefined

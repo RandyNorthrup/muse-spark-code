@@ -98,9 +98,10 @@ function measuredTokens(measure: (text: string) => number, text: string): number
 
 /**
  * Plan the requests for one state and its pending questions. Every batch
- * carries the full state; only questions split. A state that plus the
- * longest question exceeds the model's context is refused with an explicit
- * no-answer (`over-context`) instead of being trimmed or split.
+ * carries the full state; only questions split. Admission measures every
+ * complete system/user request, including labels and separators. If even
+ * one question cannot fit with the state and overhead, refuse the whole
+ * plan (`over-context`) instead of trimming or splitting the state.
  */
 export function planJudgeBatches(inputs: PlanJudgeBatchesInputs): JudgeBatchPlan {
   if (inputs.questions.length === 0) {
@@ -109,30 +110,45 @@ export function planJudgeBatches(inputs: PlanJudgeBatchesInputs): JudgeBatchPlan
   if (!Number.isSafeInteger(inputs.maxQuestionsPerBatch) || inputs.maxQuestionsPerBatch < 1) {
     throw new RangeError('judge batches hold at least one question')
   }
-  const stateTokens = measuredTokens(inputs.measureTokens, inputs.stateText)
-  let longestQuestionTokens = 0
-  const rendered = inputs.questions.map((question) => {
-    const text = renderQuestionText(question, inputs.wording)
-    longestQuestionTokens = Math.max(
-      longestQuestionTokens,
-      measuredTokens(inputs.measureTokens, text),
-    )
-    return { id: question.id, text }
-  })
-  if (stateTokens + longestQuestionTokens > inputs.contextTokenLimit) {
-    return { refused: 'over-context' }
+  if (!Number.isFinite(inputs.contextTokenLimit) || inputs.contextTokenLimit < 0) {
+    throw new RangeError('judge context limit must be finite and non-negative')
   }
-  const batches: JudgePromptBatch[] = []
-  for (let start = 0; start < rendered.length; start += inputs.maxQuestionsPerBatch) {
-    const slice = rendered.slice(start, start + inputs.maxQuestionsPerBatch)
-    const body = slice
+  const systemTokens = measuredTokens(inputs.measureTokens, inputs.wording.systemInstruction)
+  const rendered = inputs.questions.map((question) => ({
+    id: question.id,
+    text: renderQuestionText(question, inputs.wording),
+  }))
+  const renderBatch = (questions: typeof rendered): JudgePromptBatch => ({
+    system: inputs.wording.systemInstruction,
+    user: `${inputs.wording.stateLabel}${inputs.stateText}\n${questions
       .map((question) => `${inputs.wording.questionLabel}${question.text}`)
-      .join('\n')
-    batches.push({
-      system: inputs.wording.systemInstruction,
-      user: `${inputs.wording.stateLabel}${inputs.stateText}\n${body}`,
-      questionIds: slice.map((question) => question.id),
-    })
+      .join('\n')}`,
+    questionIds: questions.map((question) => question.id),
+  })
+  const canFit = (batch: JudgePromptBatch): boolean =>
+    systemTokens + measuredTokens(inputs.measureTokens, batch.user) <= inputs.contextTokenLimit
+  const batches: JudgePromptBatch[] = []
+  let pending: typeof rendered = []
+  let current: JudgePromptBatch | undefined
+  for (const question of rendered) {
+    const next = [...pending, question]
+    const candidate = renderBatch(next)
+    if (next.length <= inputs.maxQuestionsPerBatch && canFit(candidate)) {
+      pending = next
+      current = candidate
+      continue
+    }
+    if (current !== undefined) {
+      batches.push(current)
+    }
+    pending = [question]
+    current = renderBatch(pending)
+    if (!canFit(current)) {
+      return { refused: 'over-context' }
+    }
+  }
+  if (current !== undefined) {
+    batches.push(current)
   }
   return { batches }
 }

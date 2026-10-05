@@ -4,8 +4,8 @@
 // log summaries carry no content.
 
 import { describe, expect, it } from 'vitest'
+import { isJudgeEngineOn } from '../../src/core/judge/engine'
 import {
-  isJudgeEngineOn,
   jevAnswerSchema,
   judgeLogSummary,
   judgeOptionIndex,

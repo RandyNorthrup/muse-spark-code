@@ -1834,7 +1834,7 @@
     "other": "{count} revisioni"
   },
   "paidJudgeName": "Valutatore",
-  "paidConfirmJudge": "Il tuo modello di conversazione valuta ogni azione Auto rischiosa che nessuna regola decide e può solo aggiungere cautela: una cautela pronta trasforma un’autorizzazione in una domanda, o in una nota sulla scheda di approvazione. Ogni giudizio viene addebitato alla tua chiave Model API alle tariffe per token del modello della conversazione:\n{price}\nOgni giudizio chiede prima conferma, a meno che tu non consenta sempre i giudizi in questa area di lavoro. Su Muse Code le stesse chiamate usano il tuo abbonamento.",
+  "paidConfirmJudge": "Il tuo modello di conversazione valuta ogni azione Auto rischiosa che nessuna regola decide e può solo aggiungere cautela: una cautela pronta trasforma un’autorizzazione in una domanda, o in una nota sulla scheda di approvazione. Ogni giudizio viene addebitato alla tua chiave Model API alle tariffe per token del modello della conversazione:\n{price}\nIl giudice chiede il consenso una volta prima del primo addebito, mostrando queste tariffe e il budget giornaliero condiviso: {budget}. Passando da una fonte gratuita a una a pagamento, chiede nuovamente il consenso. Su Muse Code le stesse chiamate usano il tuo abbonamento.",
   "usagePaidJudgeCalls": {
     "one": "{count} giudizio",
     "many": "{count} giudizi",

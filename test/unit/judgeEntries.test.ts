@@ -33,6 +33,16 @@ describe('entryKey', () => {
     expect(() => entryKey(parts({ args: { run: () => undefined } }))).toThrow(TypeError)
     expect(() => entryKey(parts({ args: NaN }))).toThrow(TypeError)
   })
+
+  it('accepts true and false in nested JSON without colliding with numbers', () => {
+    const args = { command: 'ls', dryRun: true, flags: [false, { enabled: true }] }
+    const key = entryKey(parts({ args }))
+    expect(entryKey(parts({ args: { flags: args.flags, dryRun: true, command: 'ls' } }))).toBe(key)
+    expect(entryKey(parts({ args: { ...args, dryRun: false } }))).not.toBe(key)
+    expect(entryKey(parts({ args: true }))).not.toBe(entryKey(parts({ args: 1 })))
+    expect(entryKey(parts({ args: false }))).not.toBe(entryKey(parts({ args: 0 })))
+    expect(() => entryKey(parts({ args: { ...args, value: Infinity } }))).toThrow(TypeError)
+  })
 })
 
 describe('JudgeEntryStore', () => {
@@ -79,8 +89,44 @@ describe('JudgeEntryStore', () => {
 
   it('never settles an unknown key', () => {
     const store = new JudgeEntryStore()
-    expect(store.settle('missing', 'caution')).toBe(false)
-    expect(store.readLatch('missing')).toBeUndefined()
+    const unknown = { key: 'missing' }
+    expect(store.settle(unknown, 'caution')).toBe(false)
+    expect(store.readLatch(unknown)).toBeUndefined()
+  })
+
+  it.each(['discard', 'fence', 'turn', 'session'] as const)(
+    'drops stale callbacks after %s even when the identical action restarts',
+    (reason) => {
+      for (const outcome of ['caution', 'none', 'failed'] as const) {
+        const store = new JudgeEntryStore()
+        const old = store.start(parts())
+        const removals = {
+          discard: () => store.discard(old),
+          fence: () => store.readLatch(old),
+          turn: () => store.discardTurn('session-1', 'turn-1'),
+          session: () => store.discardSession('session-1'),
+        }
+        removals[reason]()
+        const replacement = store.start(parts())
+        expect(replacement.key).toBe(old.key)
+        expect(store.settle(old, outcome)).toBe(false)
+        expect(store.readLatch(old)).toBeUndefined()
+        expect(store.discard(old)).toBe(false)
+        expect(store.settle(replacement, 'caution')).toBe(true)
+        expect(store.readLatch(replacement)).toBe('caution')
+      }
+    },
+  )
+
+  it('rejects a forged handle even with a live key', () => {
+    const store = new JudgeEntryStore()
+    const live = store.start(parts())
+    const forged = { key: live.key }
+    expect(store.settle(forged, 'caution')).toBe(false)
+    expect(store.readLatch(forged)).toBeUndefined()
+    expect(store.discard(forged)).toBe(false)
+    expect(store.settle(live, 'none')).toBe(true)
+    expect(store.readLatch(live)).toBe('none')
   })
 
   it('discards a cancelled action, a replaced turn and a replaced session', () => {

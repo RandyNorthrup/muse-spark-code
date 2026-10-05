@@ -1768,7 +1768,7 @@
     "other": "{count} ellenőrzés"
   },
   "paidJudgeName": "Értékelő",
-  "paidConfirmJudge": "Saját csevegőmodellje értékel minden kockázatos Auto műveletet, amelyről egyetlen szabály sem dönt, és csak óvatosságot adhat hozzá: az elkészült figyelmeztetés az engedélyt kérdéssé alakítja, vagy megjegyzést fűz a jóváhagyási kártyához. Minden értékelés díja a Model API-kulcsára terhelődik a beszélgetés modelljének tokenáraival:\n{price}\nMinden értékelés előbb engedélyt kér, hacsak nem engedélyezi mindig az értékeléseket ezen a munkaterületen. Muse Code rendszerben ugyanezek a hívások ehelyett az előfizetésére futnak.",
+  "paidConfirmJudge": "Saját csevegőmodellje értékel minden kockázatos Auto műveletet, amelyről egyetlen szabály sem dönt, és csak óvatosságot adhat hozzá: az elkészült figyelmeztetés az engedélyt kérdéssé alakítja, vagy megjegyzést fűz a jóváhagyási kártyához. Minden értékelés díja a Model API-kulcsára terhelődik a beszélgetés modelljének tokenáraival:\n{price}\nAz értékelő egyszer kér engedélyt az első díj felszámítása előtt, feltüntetve ezeket az árakat és a közös napi keretet: {budget}. Ingyenes forrásról fizetősre váltáskor újra engedélyt kér. A Muse Code rendszerben ugyanezek a hívások az előfizetését használják.",
   "usagePaidJudgeCalls": {
     "one": "{count} értékelés",
     "other": "{count} értékelés"

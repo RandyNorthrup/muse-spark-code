@@ -11,6 +11,7 @@
 // The judge runs in the background and is never awaited. No `vscode` import.
 
 import type { AgentSession, StartSessionOptions, TurnPart } from '../../core/agent/agentBackend'
+import type { JudgeEntryHandle } from '../../core/judge/entries'
 import { type JudgeQuestion } from '../../core/judge/judge'
 import type { AgentEvent } from '../../shared/agentEvents'
 import { THINKING_OFF_EFFORT } from '../../shared/constants'
@@ -45,7 +46,7 @@ export interface MuseCodeJudgeDeps extends SameJudgeRunnerDeps {
 /** One held action to judge: its latch entry plus the judged state. */
 export interface MuseCodeJudgeJob {
   /** Lane J's exact-action entry key (lane U created the entry). */
-  readonly entryKey: string
+  readonly entryKey: JudgeEntryHandle
   readonly stateText: string
   readonly questions: readonly JudgeQuestion[]
 }

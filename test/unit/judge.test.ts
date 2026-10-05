@@ -5,6 +5,8 @@ import {
   type AnswerMaterial,
   type JudgeQuestion,
 } from '../../src/core/judge/judge'
+import { judgeMuseSchema } from '../../src/core/judge/schema'
+import { materialForLogprobs } from '../../src/core/judge/techniques'
 
 const noul: JudgeQuestion = { id: 'q1', kind: 'noul', text: 'may this run?' }
 const choice: JudgeQuestion = {
@@ -34,12 +36,32 @@ function material(overrides: Partial<AnswerMaterial> = {}): AnswerMaterial {
 describe('labelForTechnique', () => {
   it('labels phase-1 results uncalibrated or approximate (top-1)', () => {
     expect(labelForTechnique('stated')).toBe('uncalibrated')
-    expect(labelForTechnique('logprobs')).toBe('uncalibrated')
+    expect(labelForTechnique('logprob')).toBe('uncalibrated')
     expect(labelForTechnique('top1')).toBe('approximate (top-1)')
   })
 })
 
 describe('assembleAnswer', () => {
+  it('emits logprob metadata accepted by the shared lane-0 contract', () => {
+    const result = materialForLogprobs({
+      kind: 'noul',
+      optionCount: 0,
+      candidates: [
+        { token: 'yes', logprob: Math.log(0.9) },
+        { token: 'no', logprob: Math.log(0.1) },
+      ],
+    })
+    if (result.outcome !== 'answer') {
+      throw new Error('expected an answer')
+    }
+    const answer = assembleAnswer({
+      question: noul,
+      material: result.material,
+      model: 'muse-spark',
+    })
+    expect(answer.muse.technique).toBe('logprob')
+    expect(judgeMuseSchema.safeParse(answer.muse).success).toBe(true)
+  })
   it('assembles a noul with p(yes) and our entropy confidence', () => {
     const answer = assembleAnswer({ question: noul, material: material(), model: 'muse-spark' })
     expect(answer.kind).toBe('noul')
@@ -99,7 +121,7 @@ describe('assembleAnswer', () => {
   it('carries partial and the settled costs from admission', () => {
     const answer = assembleAnswer({
       question: noul,
-      material: material({ partial: true, technique: 'logprobs' }),
+      material: material({ partial: true, technique: 'logprob' }),
       model: 'm',
       reservedCostUsd: 0.004,
       settledCostUsd: 0.001,

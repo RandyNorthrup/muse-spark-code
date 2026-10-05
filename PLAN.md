@@ -14435,6 +14435,17 @@ joined with M57, M58 and PR #49's sign-in
 | D Docs / integration  | alongside; closes last        | README, `docs/judge.md` (phase 1), `docs/PRIVACY.md`, SECURITY, CHANGELOG, PLAN, `docs/certification/m98.md`, the bundle and package scripts, knip and dpdm entries                                                                                                                                                                                                                                                                                                                                            | Documented behaviour only after real runs; costs from receipts; Muse Code's narrowed claim stated                                                                                              |
 
 - **Phase 1 acceptance.**
+  - **FIXM98J review repairs (RVM98J, 2026-10-04).** Findings 1–10
+    corrected within lanes J/0: finite JSON booleans; generation-bound entry handles;
+    complete-request context admission and splitting; single-character
+    answer tokens; no judge in the legacy activation paid review; explicit
+    `same` below the automatic ready-rate floor; singular `logprob` metadata;
+    ask-once wording with the shared daily budget in every language; a
+    schema-free engine predicate; and honest top-1 `partial` metadata.
+    Each fix has a regression and a byte-exact red drill in
+    `docs/certification/m98-j.md` (16 drills, full hashes beside it).
+    Lane U retains first-charge consent;
+    no judge call runs in this repair lane.
   1. **Invariance, per backend.**
      - When `off`: no request, no file, no log line, no bundle load.
      - Model API with no hint: the main body is byte-identical (the M91-G
@@ -14595,6 +14606,8 @@ joined with M57, M58 and PR #49's sign-in
   - [x] RVM98 (12 findings) answered in `96d7b669`; RVM98C (C1–C6) answered
         by this redesign. C1 and C2 move with the local judge to the 2j
         spike; C3–C6 are fixed for phase 1.
+  - [x] RVM98J findings 1–10 repaired in FIXM98J with owning regressions
+        and byte-exact red drills; no finding remains as an accepted residual.
   - [ ] Phase 1 acceptance 1–11, each with its failing drill and passing
         receipt.
   - [ ] M91-G's harness merged, and lane G certified on it.
@@ -14605,6 +14618,25 @@ joined with M57, M58 and PR #49's sign-in
 - **Size.** Phase 1: M, in seven lanes. Phase 2: about XL across 2a–2j.
 
 ## 7. Gates
+
+**FIXM98J bounded-lane gate delegation (2026-10-04).** The rig brief and
+shared lane rules prohibit a full `npm run quality` or full test suite in
+this worktree. Hook-on repair commits require the owning regression files,
+red drills, scoped lint/format and typecheck here; the final lane receipt
+also runs dead-code, duplication, localization, host API and production
+build. The lead retains full quality, coverage, accessibility and installed
+host certification on the integrated tree. No threshold or rule is changed.
+
+**FIXM98J host-API snapshot deferral.** `npm run check:host-api` ran and
+exited 1: `docs/ide-compatibility/host-api.md` needs the generated record of
+`paidHost.ts`'s shared-budget read (11 → 12 calls, adding that file to
+`WorkspaceConfiguration.get`) and lane J's `node:crypto` import (32 → 33).
+The rig brief limits edits to the findings' files plus tests/certification/
+localization, so this generated document is left for the lead's integrated
+refresh: run `npm run check:host-api -- --write`, review those three rows,
+then rerun the check. API policy is unchanged; the snapshot gate is neither
+weakened nor claimed green. This is a documentation gate deferral, not an
+unfixed RVM98J finding.
 
 **RELFAST3 bounded-lane result (2026-10-04).** Fresh Windows compilers,
 dead-code, duplication, localization, host API, production build, actionlint

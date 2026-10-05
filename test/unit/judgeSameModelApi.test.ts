@@ -21,6 +21,7 @@ import {
   type ModelApiJudgeTransport,
   type ModelApiSideResponse,
 } from '../../src/host/judge/modelApiSameJudge'
+import type { JudgeEntryHandle } from '../../src/core/judge/entries'
 import { JudgeResultCache } from '../../src/core/judge/same/resultCache'
 import { redactSecrets } from '../../src/core/redact'
 
@@ -105,7 +106,7 @@ function setup(options: {
   return { entries, cache, errors, sent, judge: new ModelApiSameJudge(deps) }
 }
 
-function startKey(entries: SpyJudgeStore): string {
+function startKey(entries: SpyJudgeStore): JudgeEntryHandle {
   return startJudgeEntry(entries, {
     backend: 'model-api',
     turnId: 't1',
@@ -135,7 +136,7 @@ describe('ModelApiSameJudge', () => {
     const { input: _dropped, ...rest } = sent
     const { input: _mainDropped, ...mainRest } = before
     expect(rest).toEqual(mainRest)
-    expect(rig.cache.get(key)?.outcome).toBe('caution')
+    expect(rig.cache.get(key.key)?.outcome).toBe('caution')
     expect(rig.errors).toEqual([])
   })
 
@@ -174,7 +175,7 @@ describe('ModelApiSameJudge', () => {
     const key = startKey(rig.entries)
     expect(await judgeOnce(rig.judge, rig.entries, judgeJob(key, 'x', [NOUL]))).toBe('failed')
     expect(rig.sent).toHaveLength(0)
-    expect(rig.cache.get(key)).toBeUndefined()
+    expect(rig.cache.get(key.key)).toBeUndefined()
   })
 
   it('drops a result that arrives after its fence', async () => {
@@ -190,7 +191,7 @@ describe('ModelApiSameJudge', () => {
     release({ text: '{"answer":"yes","confidence":95}', inputTokens: 1, outputTokens: 1 })
     await new Promise((resolve) => setTimeout(resolve, 50))
     expect(rig.entries.settled).toEqual([])
-    expect(rig.cache.get(key)).toBeUndefined()
+    expect(rig.cache.get(key.key)).toBeUndefined()
   })
 
   it('settles a repeated action from the cache without sending', async () => {
@@ -209,7 +210,7 @@ describe('ModelApiSameJudge', () => {
     const rig = setup({ reply: 'maybe, ask me again' })
     const key = startKey(rig.entries)
     expect(await judgeOnce(rig.judge, rig.entries, judgeJob(key, 'x', [NOUL]))).toBe('failed')
-    expect(rig.cache.get(key)).toBeUndefined()
+    expect(rig.cache.get(key.key)).toBeUndefined()
   })
 
   it('settles failed when the transport throws', async () => {

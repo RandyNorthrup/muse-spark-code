@@ -20,6 +20,7 @@ import {
   untilJudgeSettled,
 } from './helpers/judgeSameRig'
 import { MuseCodeSameJudge, type MuseCodeJudgeDeps } from '../../src/host/judge/museCodeSameJudge'
+import type { JudgeEntryHandle } from '../../src/core/judge/entries'
 import { JudgeResultCache } from '../../src/core/judge/same/resultCache'
 import type { AgentEvent } from '../../src/shared/agentEvents'
 import { FakeAgentHost, FakeAgentSession } from './helpers/fakeAgent'
@@ -42,7 +43,7 @@ afterAll(async () => {
   await Promise.all(folders.map((folder) => removeFolder(folder)))
 })
 
-function startKey(entries: SpyJudgeStore): string {
+function startKey(entries: SpyJudgeStore): JudgeEntryHandle {
   return startJudgeEntry(entries, {
     backend: 'muse-code',
     turnId: 't1',
@@ -228,7 +229,7 @@ describe('MuseCodeSameJudge on fakes', () => {
     expect(session.setReasoningEffort).toHaveBeenCalledWith('none')
     expect(session.dispose).toHaveBeenCalled()
     expect(rig.removed).toEqual([options?.workspaceRoot])
-    expect(rig.cache.get(key)?.outcome).toBe('caution')
+    expect(rig.cache.get(key.key)?.outcome).toBe('caution')
     expect(rig.errors).toEqual([])
   })
 
@@ -295,7 +296,7 @@ describe('MuseCodeSameJudge on fakes', () => {
     expect(session.cancel).toHaveBeenCalled()
     expect(session.dispose).toHaveBeenCalled()
     expect(rig.removed).toHaveLength(1)
-    expect(rig.cache.get(key)).toBeUndefined()
+    expect(rig.cache.get(key.key)).toBeUndefined()
   })
 
   it('drops a result that arrives after its fence', async () => {
@@ -318,7 +319,7 @@ describe('MuseCodeSameJudge on fakes', () => {
       expect(session.dispose).toHaveBeenCalled()
     })
     expect(rig.entries.settled).toEqual([])
-    expect(rig.cache.get(key)).toBeUndefined()
+    expect(rig.cache.get(key.key)).toBeUndefined()
     expect(rig.removed).toHaveLength(1)
   })
 
@@ -425,7 +426,7 @@ describe('MuseCodeSameJudge over MSP frames', () => {
     // Its turn carries only the standalone prompt, using no tools.
     const turns = handle.server.requestsFor('turn/start')
     expect(turns).toHaveLength(1)
-    const seen: unknown = turns.at(0)?.params['input']
+    const seen: unknown = turns.at(0)?.params?.['input']
     const parts = Array.isArray(seen) ? seen : []
     const said = parts
       .filter(
@@ -440,7 +441,7 @@ describe('MuseCodeSameJudge over MSP frames', () => {
     expect(
       handle.server
         .requestsFor('turn/start')
-        .filter((request) => request.params['sessionId'] === main.sessionId),
+        .filter((request) => request.params?.['sessionId'] === main.sessionId),
     ).toEqual([])
     expect(sideIds).toHaveLength(1)
     expect(sideIds[0]).not.toBe(main.sessionId)

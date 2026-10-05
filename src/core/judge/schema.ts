@@ -20,7 +20,6 @@ import {
   JUDGE_QUESTION_MIN,
   JUDGE_SCORE_LEVEL_MAX,
   JUDGE_SCORE_LEVEL_MIN,
-  type JudgeEngine,
 } from '../../shared/constants'
 
 /** Where a verdict came from. Phase 1 emits only `same` (lane J's resolver). */
@@ -216,16 +215,6 @@ export const judgeResultSchema = z
     }),
   )
 export type JudgeResult = z.infer<typeof judgeResultSchema>
-
-/**
- * Whether the paid gate reads the judge's engine as on: everything but
- * `off`. The engine defaults to `auto`, so the enhancement is on out of the
- * box and the paid side asks once before the first charge (PLAN.md D77, the
- * owner's 2026-10-04 rulings).
- */
-export function isJudgeEngineOn(engine: JudgeEngine): boolean {
-  return engine !== 'off'
-}
 
 /**
  * The choice alphabet: one letter per option, A–Z, so

@@ -9,9 +9,9 @@ import {
 
 describe('selectTechnique', () => {
   it('uses logprobs wherever a top-k comes back', () => {
-    expect(selectTechnique({ logprobs: 'topk' }, 'noul')).toBe('logprobs')
-    expect(selectTechnique({ logprobs: 'topk' }, 'choice')).toBe('logprobs')
-    expect(selectTechnique({ logprobs: 'topk' }, 'score')).toBe('logprobs')
+    expect(selectTechnique({ logprobs: 'topk' }, 'noul')).toBe('logprob')
+    expect(selectTechnique({ logprobs: 'topk' }, 'choice')).toBe('logprob')
+    expect(selectTechnique({ logprobs: 'topk' }, 'score')).toBe('logprob')
   })
 
   it('uses top-1 only for a noul, stated otherwise', () => {
@@ -65,7 +65,7 @@ describe('materialForLogprobs', () => {
     expect(material.material.probabilities).toHaveLength(4)
     expect(material.material.probabilities[2]).toBe(0)
     expect(material.material.probabilities[3]).toBe(0)
-    expect(material.material.technique).toBe('logprobs')
+    expect(material.material.technique).toBe('logprob')
   })
 
   it('answers fully when every alternative was seen', () => {
@@ -131,6 +131,39 @@ describe('materialForLogprobs', () => {
     ).toEqual({ outcome: 'engine-failure' })
   })
 
+  it('rejects empty and multi-character choice and score answer tokens', () => {
+    for (const token of ['AB', '', ' ab', 'BC']) {
+      expect(
+        materialForLogprobs({
+          kind: 'choice',
+          optionCount: 3,
+          candidates: [{ token, logprob: Math.log(0.9) }],
+        }),
+      ).toEqual({ outcome: 'engine-failure' })
+    }
+    for (const token of ['12', '', ' 01', '123']) {
+      expect(
+        materialForLogprobs({
+          kind: 'score',
+          optionCount: 5,
+          candidates: [{ token, logprob: Math.log(0.9) }],
+        }),
+      ).toEqual({ outcome: 'engine-failure' })
+    }
+    const valid = materialForLogprobs({
+      kind: 'choice',
+      optionCount: 2,
+      candidates: [
+        { token: ' A', logprob: Math.log(0.1) },
+        { token: 'AB', logprob: Math.log(0.9) },
+      ],
+    })
+    expect(valid).toMatchObject({
+      outcome: 'answer',
+      material: { probabilities: [1, 0], partial: true, residualMass: 0.9 },
+    })
+  })
+
   it('refuses unanswerable shapes instead of guessing', () => {
     expect(() => materialForLogprobs({ kind: 'choice', optionCount: 1, candidates: [] })).toThrow(
       RangeError,
@@ -161,7 +194,7 @@ describe('materialForTop1', () => {
     }
     expect(yes.material.probabilities[0]).toBe(0.95)
     expect(yes.material.probabilities[1]).toBeCloseTo(0.05, 9)
-    expect(yes.material.partial).toBe(false)
+    expect(yes.material.partial).toBe(true)
     expect(yes.material.technique).toBe('top1')
     expect(yes.material.residualMass).toBeCloseTo(0.05, 9)
 
@@ -170,6 +203,7 @@ describe('materialForTop1', () => {
       throw new Error('expected an answer')
     }
     expect(no.material.probabilities[0]).toBeCloseTo(0.1, 9)
+    expect(no.material.partial).toBe(true)
   })
 
   it('answers exactly at the floor', () => {

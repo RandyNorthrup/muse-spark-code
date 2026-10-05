@@ -10,6 +10,7 @@ import {
 } from '../../src/shared/constants'
 import { fill } from '../../src/shared/l10n/text'
 import { FakeLogOutputChannel } from './helpers/fakes'
+import { mockJudgePaidConfiguration } from './helpers/judgePaidConfiguration'
 import { confirmModal } from './helpers/vscodeViews'
 import { window } from './mocks/vscode'
 
@@ -336,4 +337,37 @@ describe('M77 best-of-N feature acceptance', () => {
     const { paid } = paidWithSettings(data, [])
     expect(paid.gate.isOn('bestOfN')).toBe(false)
   })
+})
+
+async function judgeDetail(budget: unknown) {
+  const { get } = mockJudgePaidConfiguration(budget)
+  // Drive the existing formatter directly through the host gate's fixture;
+  // activation excludes judge from this legacy review (judgeActivation.test).
+  const { paid } = paidWithSettings(new Map<string, unknown>(), ['judge'])
+  answerWith(UI_TEXT.paidConfirmAccept)
+  await paid.gate.review()
+  const detail = vi.mocked(confirmModal).mock.calls[0]?.[1]?.detail ?? ''
+  return { detail, get }
+}
+
+describe('M98 judge first-charge detail', () => {
+  it('asks once before the first charge and fills the shared daily budget', async () => {
+    const { detail, get } = await judgeDetail(12.5)
+    expect(detail).toContain('asks once before the first charge')
+    expect(detail).not.toContain('Every judgment asks first')
+    expect(detail).toContain('$12.50')
+    expect(detail).not.toContain('{budget}')
+    expect(detail).not.toContain('{price}')
+    expect(detail).toContain('$1.250/1M input')
+    expect(get).toHaveBeenCalledWith('paidDailyBudgetUsd')
+  })
+
+  it.each([undefined, '12.5', NaN, Infinity, -1])(
+    'shows zero rather than an invalid shared daily budget (%s)',
+    async (budget) => {
+      const { detail } = await judgeDetail(budget)
+      expect(detail).toContain('shared daily budget: $0.00')
+      expect(detail).not.toContain('{budget}')
+    },
+  )
 })
