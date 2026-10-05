@@ -172,6 +172,33 @@ describe('parseTeamImport', () => {
     }
   })
 
+  it('imports whole safe counts and allows fractional dollar caps', () => {
+    const document = buildTeamExport('full', STORED)
+    const importCap = (measure: string, amount: number) =>
+      parseTeamImport(
+        {
+          ...document,
+          roles: [
+            {
+              ...document.roles[0],
+              pool: [{ modelRef: 'm', caps: [{ measure, window: 'task', amount }] }],
+            },
+          ],
+        },
+        [],
+      )
+    for (const measure of ['tokens', 'inputTokens', 'outputTokens', 'tasks']) {
+      for (const amount of [1.5, Number.MAX_SAFE_INTEGER + 1]) {
+        expect(
+          isTeamImportRefusal(importCap(measure, amount)),
+          `${measure}: ${String(amount)}`,
+        ).toBe(true)
+      }
+      expect(isTeamImportRefusal(importCap(measure, 5000))).toBe(false)
+    }
+    expect(isTeamImportRefusal(importCap('spendUsd', 0.25))).toBe(false)
+  })
+
   it('round-trips an export into a draft with no missing entries', () => {
     const parsed = parseTeamImport(buildTeamExport('full', STORED), ['muse-spark-1.3', 'codex-cli'])
     if (isTeamImportRefusal(parsed)) {

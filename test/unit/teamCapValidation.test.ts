@@ -134,9 +134,11 @@ describe('validateEntryCaps', () => {
         ).map((issue) => issue.code),
       ).toContain('invalidAmount')
     }
-    expect(
-      validateEntryCaps([tokens('task', 5000.5)], PRICED, BUDGETS, 1).map((issue) => issue.code),
-    ).toContain('invalidAmount')
+    for (const amount of [5000.5, Number.MAX_SAFE_INTEGER + 1]) {
+      expect(
+        validateEntryCaps([tokens('task', amount)], PRICED, BUDGETS, 1).map((issue) => issue.code),
+      ).toContain('invalidAmount')
+    }
     for (const concurrent of [-1, 0, 1.5, NaN, Infinity]) {
       expect(
         validateEntryCaps([], PRICED, BUDGETS, concurrent).map((issue) => issue.code),

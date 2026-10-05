@@ -61,6 +61,8 @@ export const TEAM_SAMPLE_PLANS: Readonly<Record<TeamPreviewSample, readonly Team
 /** A price card reduced to what the estimates need (M95's data). */
 export interface TeamPreviewPrice {
   readonly modelRef: string
+  /** Only key-billed work uses dollar rates; subscriptions/local use tokens. */
+  readonly billable: boolean
   /** US dollars per million tokens; absent when M95 never priced it. */
   readonly usdPerMTokInput: number | undefined
   readonly usdPerMTokOutput: number | undefined
@@ -70,7 +72,7 @@ export interface TeamPreviewPrice {
 /**
  * Lane A's selection over the draft: the pool index that would take the
  * role's next step given what each entry already spent, or -1 when no
- * entry has headroom. Usage is in input tokens.
+ * entry has headroom. Usage is in total tokens.
  */
 export type TeamPreviewSelect = (
   role: string,
@@ -94,9 +96,10 @@ export interface TeamPreview {
   readonly steps: readonly TeamPreviewStep[]
   readonly switchCount: number
   readonly tokens: number
-  /** Undefined when no priced entry takes part: tokens only. */
+  /** Undefined for tokens-only work or when any billed price is unknown. */
   readonly usdLow: number | undefined
   readonly usdHigh: number | undefined
+  readonly hasUnknownPrice: boolean
   readonly unstaffedRoles: readonly string[]
 }
 
@@ -111,14 +114,16 @@ export interface TeamPreviewInput {
   readonly sample: TeamPreviewSample
   readonly prices: readonly TeamPreviewPrice[]
   readonly select: TeamPreviewSelect
+  /** Supplied only for an active team; resolves the live orchestrator slot. */
+  readonly resolveDefault?: (role: string) => string | undefined
 }
 
 /**
  * Runs the sample's fixed plan over the draft. Token figures come from
  * each role's typical use; the low end prices input at the cached rate
  * (cached input is never priced at the full rate) and the high end at
- * the full rate. Roles with no pool, and steps no entry can take, are
- * listed as unstaffed rather than guessed.
+ * the full rate. An active team's missing custom pool uses live Default
+ * through the resolver; steps no entry can take are listed as unstaffed.
  */
 export function previewDraft(input: TeamPreviewInput): TeamPreview {
   const steps: TeamPreviewStep[] = []
@@ -129,19 +134,25 @@ export function previewDraft(input: TeamPreviewInput): TeamPreview {
   const plan = TEAM_SAMPLE_PLANS[input.sample]
   for (const step of plan) {
     const role = input.draft.roles.find((entry) => entry.role === step.role)
-    if (role === undefined || role.pool.length === 0) {
-      unstaffed.push(step.role)
-      continue
+    let modelRefs = role?.pool.map((entry) => entry.modelRef) ?? []
+    if (modelRefs.length === 0) {
+      const defaultRef = input.resolveDefault?.(step.role)
+      if (defaultRef === undefined) {
+        unstaffed.push(step.role)
+        continue
+      }
+      modelRefs = [defaultRef]
     }
     const tokens = Math.round(typicalTokensFor(step.role) * step.share)
-    const spentForRole = spent.get(step.role) ?? Array.from({ length: role.pool.length }, () => 0)
-    const entryIndex = input.select(step.role, role.pool.length, spentForRole)
-    if (entryIndex < 0 || entryIndex >= role.pool.length) {
+    const spentForRole = spent.get(step.role) ?? Array.from({ length: modelRefs.length }, () => 0)
+    const entryIndex = input.select(step.role, modelRefs.length, spentForRole)
+    if (entryIndex < 0 || entryIndex >= modelRefs.length) {
       unstaffed.push(step.role)
       continue
     }
-    const entry = role.pool[entryIndex]
-    if (entry === undefined) {
+    const selectedRef = modelRefs[entryIndex]
+    const modelRef = selectedRef === 'default' ? input.resolveDefault?.(step.role) : selectedRef
+    if (modelRef === undefined) {
       unstaffed.push(step.role)
       continue
     }
@@ -154,37 +165,43 @@ export function previewDraft(input: TeamPreviewInput): TeamPreview {
     steps.push({
       role: step.role,
       entryIndex,
-      modelRef: entry.modelRef,
+      modelRef,
       switched: isSwitched,
       tokens,
     })
   }
 
-  const pricedSteps: { step: TeamPreviewStep; price: TeamPreviewPrice }[] = []
+  const pricedSteps: {
+    step: TeamPreviewStep
+    inputRate: number
+    outputRate: number
+    cachedInputRate: number
+  }[] = []
+  let hasUnknownPrice = false
   for (const step of steps) {
     const price = input.prices.find((entry) => entry.modelRef === step.modelRef)
-    if (price?.usdPerMTokInput !== undefined) {
-      pricedSteps.push({ step, price })
+    if (price?.billable === false) {
+      continue
     }
-  }
-  if (pricedSteps.length === 0) {
-    return {
-      sample: input.sample,
-      steps,
-      switchCount,
-      tokens: totalTokens(steps),
-      usdLow: undefined,
-      usdHigh: undefined,
-      unstaffedRoles: unstaffed,
+    if (price?.usdPerMTokInput === undefined || price.usdPerMTokOutput === undefined) {
+      hasUnknownPrice = true
+      continue
     }
+    pricedSteps.push({
+      step,
+      inputRate: price.usdPerMTokInput,
+      outputRate: price.usdPerMTokOutput,
+      cachedInputRate: price.usdPerMTokCachedInput ?? price.usdPerMTokInput,
+    })
   }
   return {
     sample: input.sample,
     steps,
     switchCount,
     tokens: totalTokens(steps),
-    usdLow: costOf(pricedSteps, (price) => price.usdPerMTokCachedInput),
-    usdHigh: costOf(pricedSteps, (price) => price.usdPerMTokInput),
+    hasUnknownPrice,
+    usdLow: hasUnknownPrice || pricedSteps.length === 0 ? undefined : costOf(pricedSteps, true),
+    usdHigh: hasUnknownPrice || pricedSteps.length === 0 ? undefined : costOf(pricedSteps, false),
     unstaffedRoles: unstaffed,
   }
 }
@@ -198,22 +215,30 @@ function totalTokens(steps: readonly TeamPreviewStep[]): number {
 }
 
 function costOf(
-  pricedSteps: readonly { step: TeamPreviewStep; price: TeamPreviewPrice }[],
-  inputRateOf: (price: TeamPreviewPrice) => number | undefined,
+  pricedSteps: readonly {
+    step: TeamPreviewStep
+    inputRate: number
+    outputRate: number
+    cachedInputRate: number
+  }[],
+  isCached: boolean,
 ): number {
   let total = 0
-  for (const { step, price } of pricedSteps) {
+  for (const { step, inputRate, outputRate, cachedInputRate } of pricedSteps) {
     const output = step.tokens * PREVIEW_OUTPUT_SHARE
     const inputTokens = step.tokens - output
-    const inputRate = inputRateOf(price) ?? price.usdPerMTokInput ?? 0
-    const outputRate = price.usdPerMTokOutput ?? 0
-    total += (inputTokens * inputRate + output * outputRate) / TOKENS_PER_MTOK
+    total +=
+      (inputTokens * (isCached ? cachedInputRate : inputRate) + output * outputRate) /
+      TOKENS_PER_MTOK
   }
   return total
 }
 
 /** The preview's cost line: the range with its token figure. */
 export function previewCostLabel(preview: TeamPreview): string {
+  if (preview.hasUnknownPrice) {
+    return fill(UI_TEXT.teamPreviewCostUnknown, { tokens: preview.tokens })
+  }
   if (preview.usdLow === undefined || preview.usdHigh === undefined) {
     return fill(UI_TEXT.teamPreviewCostTokens, { tokens: preview.tokens })
   }

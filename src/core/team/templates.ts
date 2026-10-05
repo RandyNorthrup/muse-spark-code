@@ -20,16 +20,6 @@ import { fill } from '../../shared/l10n/text'
 export type TeamRoleKey =
   'research' | 'design' | 'marketing' | 'engineering' | 'qa' | 'code-review' | 'docs'
 
-export const BUILT_IN_ROLE_KEYS: readonly TeamRoleKey[] = [
-  'research',
-  'design',
-  'engineering',
-  'qa',
-  'code-review',
-  'docs',
-  'marketing',
-]
-
 /** Where a role's workers run (D75's workspace modes). */
 export type TeamWorkspaceMode = 'read-only' | 'own-branch' | 'in-place'
 

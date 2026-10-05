@@ -12,6 +12,7 @@ import {
   TEAM_EFFORT_LADDER,
   TEAM_MODEL_SETTINGS,
   type TeamModelSettingsSource,
+  type ResolvedEntrySettings,
 } from '../../src/core/team/modelSettings'
 
 const META_TIERS = ['minimal', 'low', 'medium', 'high', 'xhigh']
@@ -21,18 +22,20 @@ function source(overrides: Partial<TeamModelSettingsSource> = {}): TeamModelSett
     modelRef: 'muse-spark-1.3',
     effortTiers: [...META_TIERS],
     supportsThinking: true,
+    supportsThinkingBudget: true,
     supportsServiceTier: true,
     supportsSampling: true,
     supportsVerbosity: false,
     supportsParallelToolCalls: true,
     supportsContextCap: true,
+    supportsMaxOutputTokens: true,
     maxOutputTokensMinimum: 16,
     ...overrides,
   }
 }
 
 describe('supportedSettings', () => {
-  it('shows every supported setting, with output cap always', () => {
+  it('shows every supported setting, including the output cap when supported', () => {
     expect(supportedSettings(source({ modelRef: 'other-model', supportsVerbosity: true }))).toEqual(
       [...TEAM_MODEL_SETTINGS],
     )
@@ -53,12 +56,37 @@ describe('supportedSettings', () => {
       source({
         effortTiers: [],
         supportsThinking: false,
+        supportsThinkingBudget: false,
         supportsServiceTier: false,
+        supportsSampling: false,
+        supportsVerbosity: false,
         supportsParallelToolCalls: false,
         supportsContextCap: false,
+        supportsMaxOutputTokens: false,
       }),
     )
-    expect(settings).toEqual(['maxOutputTokens'])
+    expect(settings).toEqual([])
+  })
+
+  it('exposes a thinking budget only when supported and carries it in task settings', () => {
+    expect(supportedSettings(source())).toContain('thinkingBudget')
+    expect(supportedSettings(source({ supportsThinkingBudget: false }))).not.toContain(
+      'thinkingBudget',
+    )
+    expect(supportedSettings(source({ supportsThinking: false }))).not.toContain('thinkingBudget')
+    const settings: ResolvedEntrySettings = {
+      effort: 'high',
+      thinking: true,
+      thinkingBudgetTokens: 4096,
+      serviceTier: undefined,
+      maxOutputTokens: undefined,
+      temperature: undefined,
+      topP: undefined,
+      verbosity: undefined,
+      parallelToolCalls: undefined,
+      contextCapTokens: undefined,
+    }
+    expect(settings.thinkingBudgetTokens).toBe(4096)
   })
 })
 
@@ -99,8 +127,12 @@ describe('shiftEffort', () => {
     expect(shiftEffort('low', 0, ['medium', 'high'])).toBe('medium')
   })
 
-  it('keeps an unknown base the picker understands', () => {
-    expect(shiftEffort('turbo', 1, ['turbo', 'turbo-max'])).toBe('turbo')
+  it('walks the provider tier order including non-Meta tiers', () => {
+    expect(shiftEffort('high', 1, ['low', 'medium', 'high', 'max'])).toBe('max')
+    expect(shiftEffort('normal', 1, ['low', 'normal', 'high'])).toBe('high')
+    expect(shiftEffort('normal', -1, ['low', 'normal', 'high'])).toBe('low')
+    expect(shiftEffort('turbo', 1, ['turbo', 'turbo-max'])).toBe('turbo-max')
+    expect(shiftEffort('turbo-max', 2, ['turbo', 'turbo-max'])).toBe('turbo-max')
   })
 
   it('falls back to the first tier for an unknown want or tier', () => {

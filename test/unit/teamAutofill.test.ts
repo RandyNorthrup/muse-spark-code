@@ -63,6 +63,18 @@ function context(
   }
 }
 
+function fullContext(
+  models: readonly TeamSuggestionModel[],
+  isCapable: (modelRef: string) => boolean = () => true,
+): TeamAutofillContext {
+  return {
+    ...context(models, store(), isCapable),
+    draft: buildTemplateDraft('full', [
+      { modelRef: 'muse-spark-1.3', vendor: 'meta', payKind: 'key' },
+    ]),
+  }
+}
+
 describe('review on another vendor', () => {
   it('suggests the other-vendor model for code-review with its reason', () => {
     const suggestions = buildTeamSuggestions(context([META, LOCAL], store()))
@@ -105,13 +117,7 @@ describe('review on another vendor', () => {
 
 describe('cheapest capable and fallback', () => {
   it('names the free local model for research and docs', () => {
-    const ctx = context([META, CODEX, LOCAL], store())
-    const suggestions = buildTeamSuggestions({
-      ...ctx,
-      draft: buildTemplateDraft('full', [
-        { modelRef: 'muse-spark-1.3', vendor: 'meta', payKind: 'key' },
-      ]),
-    })
+    const suggestions = buildTeamSuggestions(fullContext([META, CODEX, LOCAL]))
     const research = suggestions.find(
       (suggestion) => suggestion.kind === 'roleModel' && suggestion.role === 'research',
     )
@@ -126,13 +132,7 @@ describe('cheapest capable and fallback', () => {
   })
 
   it('falls back to the cheapest priced model when nothing is free', () => {
-    const ctx = context([META, CODEX], store())
-    const suggestions = buildTeamSuggestions({
-      ...ctx,
-      draft: buildTemplateDraft('full', [
-        { modelRef: 'muse-spark-1.3', vendor: 'meta', payKind: 'key' },
-      ]),
-    })
+    const suggestions = buildTeamSuggestions(fullContext([META, CODEX]))
     const research = suggestions.find(
       (suggestion) => suggestion.kind === 'roleModel' && suggestion.role === 'research',
     )
@@ -140,13 +140,7 @@ describe('cheapest capable and fallback', () => {
   })
 
   it('suggests no model when nothing passes the capability check', () => {
-    const ctx = context([META, LOCAL], store(), () => false)
-    const suggestions = buildTeamSuggestions({
-      ...ctx,
-      draft: buildTemplateDraft('full', [
-        { modelRef: 'muse-spark-1.3', vendor: 'meta', payKind: 'key' },
-      ]),
-    })
+    const suggestions = buildTeamSuggestions(fullContext([META, LOCAL], () => false))
     expect(suggestions.some((suggestion) => suggestion.kind === 'roleModel')).toBe(false)
   })
 
@@ -157,13 +151,7 @@ describe('cheapest capable and fallback', () => {
       usdPerMTokInput: undefined,
       free: false,
     }
-    const ctx = context([unpriced, META], store())
-    const suggestions = buildTeamSuggestions({
-      ...ctx,
-      draft: buildTemplateDraft('full', [
-        { modelRef: 'muse-spark-1.3', vendor: 'meta', payKind: 'key' },
-      ]),
-    })
+    const suggestions = buildTeamSuggestions(fullContext([unpriced, META]))
     const research = suggestions.find(
       (suggestion) => suggestion.kind === 'roleModel' && suggestion.role === 'research',
     )
@@ -183,6 +171,30 @@ describe('cheapest capable and fallback', () => {
 })
 
 describe('budget caps and learning', () => {
+  it('changes actual budget suggestions using five-task local medians', () => {
+    const ctx = context([META, CODEX], store())
+    const budgets = (records: TeamAutofillContext['records']) =>
+      buildTeamSuggestions({ ...ctx, records }).filter(
+        (suggestion) => suggestion.kind === 'roleBudget',
+      )
+    const before = budgets([])
+    const records = [
+      { role: 'engineering', taskTokens: [10_000, 10_000, 10_000, 10_000, 10_000] },
+      { role: 'code-review', taskTokens: [1_000_000, 1_000_000, 1_000_000, 1_000_000, 1_000_000] },
+    ]
+    const learned = budgets(records)
+    expect(learned).not.toEqual(before)
+    expect(learned.find((suggestion) => suggestion.role === 'engineering')?.amount).toBe(0.49)
+    expect(learned.find((suggestion) => suggestion.role === 'code-review')?.amount).toBe(49.5)
+    expect(
+      learned.reduce((sum, suggestion) => sum + (suggestion.amount ?? 0), 0),
+    ).toBeLessThanOrEqual(50)
+    expect(
+      budgets(records.map((record) => ({ ...record, taskTokens: record.taskTokens.slice(1) }))),
+    ).toEqual(before)
+    expect(records[0]?.taskTokens).toHaveLength(5)
+  })
+
   it('suggests day caps from the remaining budget, split by typical use', () => {
     const suggestions = buildTeamSuggestions(context([META, CODEX], store()))
     const budgets = suggestions.filter((suggestion) => suggestion.kind === 'roleBudget')

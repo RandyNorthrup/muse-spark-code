@@ -15,13 +15,6 @@ import { TEAM_ROLE_TYPICAL_TASK_TOKENS, type TeamDraft } from './templates'
 /** M96's suggestion kinds for M95's engine (D75). */
 export type TeamSuggestionKind = 'roleModel' | 'roleBudget' | 'reviewVendor' | 'poolFallback'
 
-export const TEAM_SUGGESTION_KINDS: readonly TeamSuggestionKind[] = [
-  'roleModel',
-  'roleBudget',
-  'reviewVendor',
-  'poolFallback',
-]
-
 /** One suggestion with its reason in the display language. */
 export interface TeamSuggestion {
   readonly kind: TeamSuggestionKind
@@ -244,6 +237,7 @@ function suggestBudgetCaps(context: TeamAutofillContext): readonly TeamSuggestio
     const share = budgetShareFor(
       role.role,
       context.draft.roles.map((entry) => entry.role),
+      context.records,
     )
     const amount = Math.floor(context.remainingDailyBudgetUsd * share * 100) / 100
     suggestions.push({
@@ -264,9 +258,13 @@ function suggestBudgetCaps(context: TeamAutofillContext): readonly TeamSuggestio
  * Each role's share of the daily budget, weighted by its typical use
  * among the draft's roles.
  */
-export function budgetShareFor(role: string, roles: readonly string[]): number {
-  const total = roles.reduce((sum, name) => sum + typicalTokensFor(name), 0)
-  return total === 0 ? 0 : typicalTokensFor(role) / total
+export function budgetShareFor(
+  role: string,
+  roles: readonly string[],
+  records: readonly TeamRoleRecord[] = [],
+): number {
+  const total = roles.reduce((sum, name) => sum + typicalUseFor(name, records).tokens, 0)
+  return total === 0 ? 0 : typicalUseFor(role, records).tokens / total
 }
 
 function vendorOf(models: readonly TeamSuggestionModel[], modelRef: string): string {

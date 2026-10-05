@@ -18,11 +18,18 @@ import { buildTemplateDraft } from '../../src/core/team/templates'
 const PRICES: readonly TeamPreviewPrice[] = [
   {
     modelRef: 'muse-spark-1.3',
+    billable: true,
     usdPerMTokInput: 3,
     usdPerMTokOutput: 15,
     usdPerMTokCachedInput: 0.3,
   },
-  { modelRef: 'codex-cli', usdPerMTokInput: 5, usdPerMTokOutput: 20, usdPerMTokCachedInput: 1 },
+  {
+    modelRef: 'codex-cli',
+    billable: true,
+    usdPerMTokInput: 5,
+    usdPerMTokOutput: 20,
+    usdPerMTokCachedInput: 1,
+  },
 ]
 
 /** Lane A's selection reduced to first entry with headroom (a test fake). */
@@ -40,7 +47,7 @@ function firstWithHeadroom(dayCaps: Readonly<Record<string, number>>): TeamPrevi
 function pairDraft() {
   return buildTemplateDraft('pair', [
     { modelRef: 'muse-spark-1.3', vendor: 'meta', payKind: 'key' },
-    { modelRef: 'codex-cli', vendor: 'openai', payKind: 'subscription' },
+    { modelRef: 'codex-cli', vendor: 'openai', payKind: 'key' },
   ])
 }
 
@@ -62,6 +69,59 @@ describe('samples', () => {
 })
 
 describe('previewDraft', () => {
+  it('selects live Default for a role without custom entries in an active team', () => {
+    const selected: string[] = []
+    const draft = buildTemplateDraft('pair', [
+      { modelRef: 'muse-spark-1.3', vendor: 'meta', payKind: 'key' },
+    ])
+    let currentDefault = 'codex-cli'
+    const input = {
+      draft,
+      sample: 'feature-tests' as const,
+      prices: PRICES,
+      resolveDefault: () => currentDefault,
+      select: (role: string, poolSize: number) => {
+        selected.push(role)
+        expect(poolSize).toBe(1)
+        return 0
+      },
+    }
+    const preview = previewDraft(input)
+    expect(preview.unstaffedRoles).toEqual([])
+    expect(preview.steps.map((step) => step.modelRef)).toEqual(['muse-spark-1.3', 'codex-cli'])
+    expect(selected).toEqual(['engineering', 'code-review'])
+    currentDefault = 'muse-spark-1.3'
+    expect(previewDraft(input).steps[1]?.modelRef).toBe('muse-spark-1.3')
+    expect(preview.steps[1]?.modelRef).toBe('codex-cli')
+    expect(previewDraft({ ...input, sample: 'research-library' }).steps[0]?.modelRef).toBe(
+      'muse-spark-1.3',
+    )
+    expect(previewDraft({ ...input, select: () => -1 }).unstaffedRoles).toEqual([
+      'engineering',
+      'code-review',
+    ])
+  })
+
+  it('resolves an explicit Default fallback after selection', () => {
+    const base = pairDraft()
+    const draft = {
+      ...base,
+      roles: base.roles.map((role) => ({
+        ...role,
+        pool: [...role.pool, { modelRef: 'default', caps: [] }],
+      })),
+    }
+    const preview = previewDraft({
+      draft,
+      sample: 'feature-tests',
+      prices: PRICES,
+      select: () => 1,
+      resolveDefault: () => 'muse-spark-1.3',
+    })
+    expect(preview.steps.map((step) => step.modelRef)).toEqual(['muse-spark-1.3', 'muse-spark-1.3'])
+    expect(preview.switchCount).toBe(2)
+  })
+
   it('estimates the cost range by hand from the fake prices', () => {
     const preview = previewDraft({
       draft: pairDraft(),
@@ -143,7 +203,7 @@ describe('previewDraft', () => {
     expect(preview.steps).toEqual([])
   })
 
-  it('falls back to the full rate with no cached or output price', () => {
+  it('marks an unknown output price instead of treating output as free', () => {
     const preview = previewDraft({
       draft: {
         template: 'custom',
@@ -160,6 +220,7 @@ describe('previewDraft', () => {
       prices: [
         {
           modelRef: 'm',
+          billable: true,
           usdPerMTokInput: 10,
           usdPerMTokOutput: undefined,
           usdPerMTokCachedInput: undefined,
@@ -167,12 +228,13 @@ describe('previewDraft', () => {
       ],
       select: () => 0,
     })
-    // 150,000 tokens (105,000 in, 45,000 out): input at the full rate, output free.
-    expect(preview.usdLow).toBeCloseTo((105_000 * 10) / 1_000_000, 10)
-    expect(preview.usdHigh).toBeCloseTo((105_000 * 10) / 1_000_000, 10)
+    expect(preview.hasUnknownPrice).toBe(true)
+    expect(preview.usdLow).toBeUndefined()
+    expect(preview.usdHigh).toBeUndefined()
+    expect(previewCostLabel(preview)).toContain('price unknown')
   })
 
-  it('shows tokens only when no priced entry takes part', () => {
+  it('marks an entirely unpriced preview as unknown', () => {
     const preview = previewDraft({
       draft: pairDraft(),
       sample: 'review-branch',
@@ -180,7 +242,53 @@ describe('previewDraft', () => {
       select: firstWithHeadroom({}),
     })
     expect(preview.usdLow).toBeUndefined()
+    expect(preview.hasUnknownPrice).toBe(true)
     expect(previewCostLabel(preview)).toContain('120,000')
+    expect(previewCostLabel(preview)).toContain('price unknown')
+  })
+
+  it('marks a mixed known and unknown total as unknown', () => {
+    const preview = previewDraft({
+      draft: pairDraft(),
+      sample: 'feature-tests',
+      prices: PRICES.filter((price) => price.modelRef === 'muse-spark-1.3'),
+      select: () => 0,
+    })
+    expect(preview.tokens).toBe(520_000)
+    expect(preview.steps).toHaveLength(2)
+    expect(preview.hasUnknownPrice).toBe(true)
+    expect(preview.usdHigh).toBeUndefined()
+    expect(previewCostLabel(preview)).toContain('price unknown')
+  })
+
+  it('uses tokens only for subscription and local work even with key-model prices', () => {
+    const preview = previewDraft({
+      draft: pairDraft(),
+      sample: 'feature-tests',
+      prices: PRICES.map((price) => ({ ...price, billable: false })),
+      select: () => 0,
+    })
+    expect(preview.hasUnknownPrice).toBe(false)
+    expect(preview.usdHigh).toBeUndefined()
+    expect(previewCostLabel(preview)).not.toContain('$')
+    const mixed = previewDraft({
+      draft: pairDraft(),
+      sample: 'feature-tests',
+      prices: PRICES.map((price) => ({ ...price, billable: price.modelRef === 'muse-spark-1.3' })),
+      select: () => 0,
+    })
+    expect(mixed.usdHigh).toBeCloseTo((280_000 * 3 + 120_000 * 15) / 1_000_000, 10)
+  })
+
+  it('uses the known full input rate when a cached rate is absent', () => {
+    const preview = previewDraft({
+      draft: pairDraft(),
+      sample: 'feature-tests',
+      prices: PRICES.map((price) => ({ ...price, usdPerMTokCachedInput: undefined })),
+      select: () => 0,
+    })
+    expect(preview.hasUnknownPrice).toBe(false)
+    expect(preview.usdLow).toBe(preview.usdHigh)
   })
 
   it('states the dry-run cost first', () => {

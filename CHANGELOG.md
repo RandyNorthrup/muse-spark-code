@@ -23,6 +23,13 @@ happened, not what was planned; superseded entries are kept.
   use D75's enforced tool groups, all planned cap measures are accepted,
   numeric limits and daily token budgets are validated, and exports keep
   role policies and entry concurrency while stripping extra nested fields.
+- **Team intensity, suggestions and estimates (M96 lane F).** Re-apply
+  uses the current level, zero ceilings keep workers stopped, budget
+  suggestions learn from local records, and effort follows provider tier
+  order. Unsupported settings stay hidden and thinking budgets are carried
+  in task settings. Preview resolves live Default, unknown billed prices
+  are shown as unknown, and subscription/local tokens incur no key-model
+  estimate.
 
 ## [0.12.1] - 2026-10-04
 

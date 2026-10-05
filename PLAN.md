@@ -19789,6 +19789,13 @@ joined with M57, M58 and PR #49's sign-in
 
 ## 7. Gates
 
+**FIXM96F (2026-10-05).** The rig brief requires focused Windows checks
+and forbids full quality or merging. The fifteen lane-F review findings
+are corrected with regression tests and 29 distinct SHA-256-verified red
+drills (`docs/certification/m96-f.md`). Knip and duplication failures in
+the owned modules/tests were fixed without changing gate configuration.
+Full quality remains the lead's aggregate gate before integration.
+
 **MG69 merged-source proof (2026-10-02).** Kubuntu passes 49 owning/merged
 files (2,056 tests; two existing Windows-only cases platform-skipped), all
 five compiler projects and every required static gate. Both review and import
@@ -20232,6 +20239,15 @@ before a repaired one loads (2026-09-30).
 | `test/harness/index.html` (`isActiveDescendantList`), printed by `scripts/a11y.mjs` | The accessibility gate exempts axe's `scrollable-region-focusable` | The composer's `/` and `@` lists follow WAI-ARIA's combobox pattern: the box keeps the focus and moves `aria-activedescendant` through the listbox's options, and `Composer.tsx` scrolls the active option into view, so the list is keyboard operable (WCAG 2.1.1) without being a Tab stop. axe cannot see activedescendant-driven scrolling. The exemption holds only for a region that contains a listbox whose id is in the `aria-controls` of a focused or focusable element whose active descendant is one of that listbox's options; drills show a plain scrollable region and a listbox no control drives are still reported, and removing the exemption reports the composer's list again. Every exempt element is printed under its own "Exempt:" heading and counted. No `tabindex` was added to the list. | 2026-10-04 |
 
 ## 9. Security assumptions and accepted residual risk
+
+- **FIXM96F integration verification (2026-10-05).** No RVM96F P2 finding
+  remains. Lane-R commit `3b628e0a` and its worktree are absent on this rig;
+  template groups are verified against D75's exact table. The lead must
+  compare the role source during integration. This is safe for the lane's
+  pure draft helpers, which do not enter shipped request graphs. Integrated
+  consent, dispatch setting filtering/task snapshots, team bundle/VSIX
+  budgets and the single-model/golden-request/UI checks remain the owning
+  lanes' follow-up, and are not certified by the lane-F unit suites.
 
 - Code intelligence (M67) shows what VS Code's language services say. A
   result located outside the workspace is left out and a hover defined only

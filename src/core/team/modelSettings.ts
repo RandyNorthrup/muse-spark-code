@@ -15,6 +15,7 @@ import { UI_TEXT } from '../../shared/constants'
 export type TeamModelSetting =
   | 'effort'
   | 'thinking'
+  | 'thinkingBudget'
   | 'serviceTier'
   | 'maxOutputTokens'
   | 'sampling'
@@ -25,6 +26,7 @@ export type TeamModelSetting =
 export const TEAM_MODEL_SETTINGS: readonly TeamModelSetting[] = [
   'effort',
   'thinking',
+  'thinkingBudget',
   'serviceTier',
   'maxOutputTokens',
   'sampling',
@@ -43,11 +45,13 @@ export interface TeamModelSettingsSource {
   /** The provider's own effort levels, in order (Meta: minimal to xhigh). */
   readonly effortTiers: readonly string[]
   readonly supportsThinking: boolean
+  readonly supportsThinkingBudget: boolean
   readonly supportsServiceTier: boolean
   readonly supportsSampling: boolean
   readonly supportsVerbosity: boolean
   readonly supportsParallelToolCalls: boolean
   readonly supportsContextCap: boolean
+  readonly supportsMaxOutputTokens: boolean
   readonly maxOutputTokensMinimum: number
 }
 
@@ -55,6 +59,7 @@ export interface TeamModelSettingsSource {
 export interface ResolvedEntrySettings {
   readonly effort: string | undefined
   readonly thinking: boolean | undefined
+  readonly thinkingBudgetTokens: number | undefined
   readonly serviceTier: string | undefined
   readonly maxOutputTokens: number | undefined
   readonly temperature: number | undefined
@@ -77,11 +82,16 @@ export function supportedSettings(source: TeamModelSettingsSource): readonly Tea
   }
   if (source.supportsThinking) {
     settings.push('thinking')
+    if (source.supportsThinkingBudget) {
+      settings.push('thinkingBudget')
+    }
   }
   if (source.supportsServiceTier) {
     settings.push('serviceTier')
   }
-  settings.push('maxOutputTokens')
+  if (source.supportsMaxOutputTokens) {
+    settings.push('maxOutputTokens')
+  }
   if (source.supportsSampling && !isMuseSparkModel(source.modelRef)) {
     settings.push('sampling')
   }
@@ -108,6 +118,9 @@ export function settingCostNote(setting: TeamModelSetting): string {
       return UI_TEXT.teamSettingCostEffort
     }
     case 'thinking': {
+      return UI_TEXT.teamSettingCostThinking
+    }
+    case 'thinkingBudget': {
       return UI_TEXT.teamSettingCostThinking
     }
     case 'serviceTier': {
@@ -156,9 +169,10 @@ export function roleBaseEffort(role: string): TeamEffortBase {
 }
 
 /**
- * The effort ladder the intensity steps walk, from the role's base.
- * Clamped to the tiers the model serves: Meta never gets `none`, and
- * `max` only on Standard 1.3 (D75).
+ * Known effort names used to map a base missing from the supplied tiers.
+ * Intensity steps walk the provider's own ordered tiers. M95 supplies
+ * only supported tiers: Meta never gets `none`, and `max` only on Standard
+ * 1.3 (D75).
  */
 export const TEAM_EFFORT_LADDER: readonly string[] = [
   'minimal',
@@ -173,14 +187,9 @@ export function shiftEffort(base: string, steps: number, tiers: readonly string[
   if (tiers.length === 0) {
     return base
   }
-  const ladderIndex = TEAM_EFFORT_LADDER.indexOf(base)
-  const shifted =
-    ladderIndex === -1
-      ? base
-      : (TEAM_EFFORT_LADDER[
-          Math.min(TEAM_EFFORT_LADDER.length - 1, Math.max(0, ladderIndex + steps))
-        ] ?? base)
-  return tiers.includes(shifted) ? shifted : nearestTier(shifted, tiers)
+  const supportedBase = tiers.includes(base) ? base : nearestTier(base, tiers)
+  const tierIndex = tiers.indexOf(supportedBase)
+  return tiers[Math.min(tiers.length - 1, Math.max(0, tierIndex + steps))] ?? supportedBase
 }
 
 /** The tier the model serves closest to the shifted effort. */

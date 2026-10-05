@@ -94,8 +94,8 @@ export interface TeamRunningCeilings {
 export function runningForLevel(level: TeamIntensityLevel, ceilings: TeamRunningCeilings): number {
   const spec = TEAM_INTENSITY_SPECS[level]
   return spec.runningPerRole === 'ceiling'
-    ? Math.max(1, Math.min(ceilings.provider, ceilings.hard, ceilings.machine))
-    : Math.min(spec.runningPerRole, ceilings.provider, ceilings.hard, ceilings.machine)
+    ? Math.max(0, Math.min(ceilings.provider, ceilings.hard, ceilings.machine))
+    : Math.max(0, Math.min(spec.runningPerRole, ceilings.provider, ceilings.hard, ceilings.machine))
 }
 
 /** A level's name in the display language. */
@@ -141,13 +141,15 @@ export function applyIntensityLevel(
 /** Re-apply level resets one custom role to the level (D75). */
 export function reapplyIntensityLevel(
   role: TeamRoleIntensity,
+  level: TeamIntensityLevel,
   ceilings: TeamRunningCeilings,
 ): TeamRoleIntensity {
-  const spec = TEAM_INTENSITY_SPECS[role.level]
+  const spec = TEAM_INTENSITY_SPECS[level]
   return {
     ...role,
+    level,
     custom: false,
-    runningCap: runningForLevel(role.level, ceilings),
+    runningCap: runningForLevel(level, ceilings),
     tokensPerTask: spec.tokensPerTask,
   }
 }
@@ -173,7 +175,7 @@ export interface TeamThrottleState {
 export function throttleBackoff(state: TeamThrottleState, nowMs: number): TeamThrottleState {
   return {
     configuredCap: state.configuredCap,
-    runningCap: Math.max(1, Math.floor(state.runningCap / 2)),
+    runningCap: Math.min(state.configuredCap, Math.max(1, Math.floor(state.runningCap / 2))),
     throttledAtMs: nowMs,
   }
 }
@@ -209,13 +211,14 @@ export function recoverThrottleStep(
  * The cost of a level, shown first (D75): the estimated cost per hour of
  * team work and its tokens per hour, from the level's counts, the price
  * cards of the entries it would use, and the worker throughput estimate.
- * Subscription and local entries show tokens only.
+ * Subscription and local entries show tokens only. Supply one selected
+ * entry's price per role, including non-billable roles.
  */
 export interface TeamLevelPrice {
   /** US dollars per million tokens, input and output averaged. */
-  readonly usdPerMTok: number
+  readonly usdPerMTok: number | undefined
   /** The same at the cached-input rate, for the range's low end. */
-  readonly cachedUsdPerMTok: number
+  readonly cachedUsdPerMTok: number | undefined
   readonly billable: boolean
 }
 
@@ -224,9 +227,10 @@ export const TEAM_WORKER_TPM_ESTIMATE = 250_000
 
 export interface TeamLevelCost {
   readonly tokensPerHour: number
-  /** Undefined for subscription and local entries: tokens only. */
+  /** Undefined for tokens-only teams or when any billed price is unknown. */
   readonly usdPerHourLow: number | undefined
   readonly usdPerHourHigh: number | undefined
+  readonly hasUnknownPrice: boolean
 }
 
 const MINUTES_PER_HOUR = 60
@@ -250,20 +254,44 @@ export function levelCostPerHour(
   const running = runningForLevel(level, ceilings)
   const tokensPerHour = running * roleCount * workerTpm * MINUTES_PER_HOUR
   const billable = prices.filter((price) => price.billable)
-  if (billable.length === 0) {
-    return { tokensPerHour, usdPerHourLow: undefined, usdPerHourHigh: undefined }
+  const priced = billable.flatMap((price) =>
+    price.usdPerMTok === undefined
+      ? []
+      : [{ high: price.usdPerMTok, low: price.cachedUsdPerMTok ?? price.usdPerMTok }],
+  )
+  const hasUnknownPrice = prices.length !== roleCount || priced.length !== billable.length
+  if (hasUnknownPrice) {
+    return {
+      tokensPerHour,
+      usdPerHourLow: undefined,
+      usdPerHourHigh: undefined,
+      hasUnknownPrice: true,
+    }
   }
+  if (billable.length === 0) {
+    return {
+      tokensPerHour,
+      usdPerHourLow: undefined,
+      usdPerHourHigh: undefined,
+      hasUnknownPrice: false,
+    }
+  }
+  const billableTokensPerHour = running * billable.length * workerTpm * MINUTES_PER_HOUR
   return {
     tokensPerHour,
+    hasUnknownPrice: false,
     usdPerHourLow:
-      (tokensPerHour / TOKENS_PER_MTOK) * average(billable.map((price) => price.cachedUsdPerMTok)),
+      (billableTokensPerHour / TOKENS_PER_MTOK) * average(priced.map((price) => price.low)),
     usdPerHourHigh:
-      (tokensPerHour / TOKENS_PER_MTOK) * average(billable.map((price) => price.usdPerMTok)),
+      (billableTokensPerHour / TOKENS_PER_MTOK) * average(priced.map((price) => price.high)),
   }
 }
 
 /** The level's cost line, shown before the user picks it. */
 export function levelCostLabel(cost: TeamLevelCost): string {
+  if (cost.hasUnknownPrice) {
+    return fill(UI_TEXT.teamLevelCostUnknown, { tokens: cost.tokensPerHour })
+  }
   if (cost.usdPerHourLow === undefined || cost.usdPerHourHigh === undefined) {
     return fill(UI_TEXT.teamLevelCostTokens, { tokens: cost.tokensPerHour })
   }

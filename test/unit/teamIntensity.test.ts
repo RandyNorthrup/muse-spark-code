@@ -71,7 +71,21 @@ describe('level table', () => {
     expect(runningForLevel('heavy', TIGHT)).toBe(3)
     expect(runningForLevel('max', CEILINGS)).toBe(12)
     expect(runningForLevel('max', TIGHT)).toBe(3)
-    expect(runningForLevel('max', { provider: 0, hard: 0, machine: 0 })).toBe(1)
+    expect(runningForLevel('max', { provider: 0, hard: 0, machine: 0 })).toBe(0)
+  })
+
+  it('never starts a worker above any zero limiting ceiling', () => {
+    for (const level of TEAM_INTENSITY_LEVELS) {
+      for (const ceiling of ['provider', 'hard', 'machine']) {
+        expect(runningForLevel(level, { ...CEILINGS, [ceiling]: 0 }), `${level}: ${ceiling}`).toBe(
+          0,
+        )
+      }
+    }
+    expect(
+      throttleBackoff({ configuredCap: 0, runningCap: 0, throttledAtMs: undefined }, 1000)
+        .runningCap,
+    ).toBe(0)
   })
 })
 
@@ -81,12 +95,32 @@ describe('custom roles', () => {
     const applied = applyIntensityLevel([mine, role('qa')], 'heavy', CEILINGS)
     expect(applied[0]).toEqual(mine)
     expect(applied[1]).toMatchObject({ level: 'heavy', runningCap: 8, tokensPerTask: 800_000 })
-    expect(reapplyIntensityLevel(mine, CEILINGS)).toMatchObject({
+    expect(reapplyIntensityLevel(mine, 'balanced', CEILINGS)).toMatchObject({
       custom: false,
       runningCap: 4,
       tokensPerTask: 400_000,
     })
     expect(markRoleCustom(role('qa')).custom).toBe(true)
+  })
+
+  it('re-applies the current team level after preserving a custom role', () => {
+    const mine = { ...role('engineering', true), runningCap: 2, tokensPerTask: 100_000 }
+    const [kept] = applyIntensityLevel([mine], 'heavy', CEILINGS)
+    if (kept === undefined) {
+      throw new Error('missing custom role')
+    }
+    expect(kept).toEqual(mine)
+    expect(reapplyIntensityLevel(kept, 'heavy', CEILINGS)).toMatchObject({
+      level: 'heavy',
+      custom: false,
+      runningCap: 8,
+      tokensPerTask: 800_000,
+    })
+    expect(reapplyIntensityLevel(kept, 'minimal', TIGHT)).toMatchObject({
+      level: 'minimal',
+      runningCap: 1,
+      tokensPerTask: 100_000,
+    })
   })
 
   it('builds stored rows for a draft', () => {
@@ -142,6 +176,28 @@ describe('cost per hour', () => {
     expect(cost.tokensPerHour).toBe(15_000_000)
     expect(cost.usdPerHourLow).toBeUndefined()
     expect(levelCostLabel(cost)).not.toContain('$')
+  })
+
+  it('prices only the key role tokens in a mixed team', () => {
+    const cost = levelCostPerHour('minimal', CEILINGS, 3, [
+      { usdPerMTok: 10, cachedUsdPerMTok: 4, billable: true },
+      { usdPerMTok: 99, cachedUsdPerMTok: 99, billable: false },
+      { usdPerMTok: 99, cachedUsdPerMTok: 99, billable: false },
+    ])
+    expect(cost.tokensPerHour).toBe(45_000_000)
+    expect(cost.usdPerHourHigh).toBe(150)
+    expect(cost.usdPerHourLow).toBe(60)
+  })
+
+  it('marks an unknown hourly key price instead of omitting it', () => {
+    const cost = levelCostPerHour('minimal', CEILINGS, 2, [
+      { usdPerMTok: 10, cachedUsdPerMTok: 4, billable: true },
+      { usdPerMTok: undefined, cachedUsdPerMTok: undefined, billable: true },
+    ])
+    expect(cost.hasUnknownPrice).toBe(true)
+    expect(cost.usdPerHourHigh).toBeUndefined()
+    expect(levelCostLabel(cost)).toContain('price unknown')
+    expect(levelCostPerHour('minimal', CEILINGS, 2, []).hasUnknownPrice).toBe(true)
   })
 
   it('names each level', () => {
