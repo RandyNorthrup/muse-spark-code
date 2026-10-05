@@ -1377,10 +1377,11 @@ export const TAB_DEBOUNCE_MS = 350
 // p99 reasoning at `minimal` 485 tokens, plus 3 lines at 32 tokens each,
 // rounded up to 32. The planned 128 would have cut most replies short.
 export const TAB_FAST_MAX_OUTPUT_TOKENS = 608
-// Multi-line mode's output cap (*). The probe (2026-10-04): p99 reasoning
-// 2,045 tokens, a reply that hit the probe's 2,048 cap before any text, plus
-// 16 lines at 32 tokens each, rounded up to 32.
-export const TAB_MULTILINE_MAX_OUTPUT_TOKENS = 2560
+// Multi-line mode's output cap (*). The probe (2026-10-04) put p99 reasoning
+// at 2,045 tokens, but that p99 was one runaway reply that reasoned past the
+// probe's cap and showed no text. Lead decision: 1,536 ends runaways sooner
+// and spends less, at the cost of about one multi-line reply in ten.
+export const TAB_MULTILINE_MAX_OUTPUT_TOKENS = 1536
 // Provider-side backstop only, never UX: a stale answer is dropped by the
 // token. Twice the probe's p99 total time (33.0 s, 2026-10-04), rounded up
 // to a second, so it never cuts a request that would still report usage.
