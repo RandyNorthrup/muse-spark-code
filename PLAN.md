@@ -14434,6 +14434,39 @@ live) and the controller filters its id as well.
 
 ### M95 — Bring-your-own model providers (D74)
 
+#### Capability record v2 (lead decision 2026-10-05)
+
+Lane N (CAPREC) resolves one record per configured provider/native model.
+`Known<T>` distinguishes yes (value and source), no (source), and unknown.
+Evidence precedence is user override > capture > models-list > catalogue >
+preset; every known field retains its source, including scalar policies and
+limits. Identity binds provider, native model, wire format and served version.
+Families: tools/choice/streaming/history; reasoning modes/efforts/budget/replay;
+cache keys/retention/TTLs; output formats/caps; context/input/loaded limits;
+image/PDF/audio; logprobs; sampling/candidates; completion; hosted search.
+Pricing remains in PriceCard, joined by identity. Existing four booleans are
+derived from the resolved record. Unknown never proves tools or media.
+
+Reuse the canonical provider schemas, captured lists, codecs, attachment store
+and media budget. No live recapture, key access, price work or host dispatch.
+Acceptance: provenance/precedence and all field families; validated persistent
+custom overrides; native metadata retained; Haiku manual thinking (never
+adaptive/effort), Sonnet/Opus adaptive, Gemini model-specific level/budget;
+record-driven image/PDF admission; exact Meta defaults and request goldens.
+Owning tests and four required mutations precede targeted static/build gates.
+Evidence and readiness review: `docs/certification/m95-n.md`.
+
+| Finding                                                                                                                                                                                                                                                                                                                                                                   | Owner                                                             |
+| ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------- |
+| Record shape, resolver, parsers keeping native records, custom overrides (F12); reasoning modes per model incl. Haiku 4.5 manual thinking in the Anthropic encoder and Gemini level/budget mapping (F3); effort levels from the catalogue's `reasoning_options` (research BYO 10); image/PDF limits into the record and the media budget (F4 media part; research BYO 15) | **M95 lane N (CAPREC)**                                           |
+| Client resolution at every call site, dispatch (F8); replay producer identity (F1); side-call/held-confirmation binding (F2 host part); output cap, effort tiers, price lookup and estimator → price card (F4 output part, F6); hook provider identity (F7); reviewer and agent-import tariff gates (F10 part); identity line                                             | **M95 lane I**                                                    |
+| 1-hour cache-write settlement in `priceCard.ts` (F5) and long-context tiers                                                                                                                                                                                                                                                                                               | **M101 lane P2** (module), lane I wires the consumers             |
+| Compaction keeps tools where history requires them (F9)                                                                                                                                                                                                                                                                                                                   | **M101 lane C1**                                                  |
+| Context window from the model (F4 window part)                                                                                                                                                                                                                                                                                                                            | **M101 lane O**                                                   |
+| Best-of-N, paid features, M91 hook handlers, M94 Tab picker, scheduled prompts, M96 worker factories reading the record instead of Muse tariffs (F10 rest, F2 rest)                                                                                                                                                                                                       | **CAPPAR lane** after M95 + M96 + 0.14.0 integrate (0.15.0 batch) |
+| Judge logprob/top-1/structured-output adapters (F11), structured output modes                                                                                                                                                                                                                                                                                             | **M98 phase 2 lane E (2e)**                                       |
+| Hosted search per provider, native n>1, FIM routes                                                                                                                                                                                                                                                                                                                        | planned M95 follow-up; recorded, not in 0.15.0 unless captured    |
+
 **M95INT round-two scope (2026-10-05, kubuntu).** The rig brief authorizes
 ordered `--no-ff` merges of `m95/kfix`, `m95/mufix`, `m95/hfix`, `m95/ofix`
 and `m95/scfix`; the last brings the 0.13.0 release at `928a9200`. Preserve
@@ -15747,6 +15780,16 @@ its sections 1–2 (harness), "BYO n" its section 3 (providers).
   - [ ] Provider × item table complete; full gate green
 
 ## 7. Gates
+
+**M95 N package gate remains open (2026-10-05).** CAPREC's eight targeted
+static/build gates and final owning suites pass; all seven red drills fail
+as intended and restore hash-exact. The real universal-helper VSIX is
+2,454,970 bytes against the unchanged 2,252,800-byte cap. This is a recorded
+release deferral, not a waiver or a release-ready claim. The lead owns the
+combined package diet/release integration; this lane does not raise the cap.
+The prescribed `integrate/m72-on-24ff` ref is absent locally and its replacement
+is pending. Receipts, base comparison and remaining work are in
+`docs/certification/m95-n.md`.
 
 **M95INT final whole-chain rerun — deferred under the 120-minute rig brief.**
 The final 548-page rerun still returns 1: `dark/models-pick` has one selected

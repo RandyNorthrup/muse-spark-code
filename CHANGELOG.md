@@ -9,6 +9,15 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- M95 model capabilities now retain evidence sources and distinguish unknown
+  from unsupported. Native model lists retain reasoning, limits, modalities,
+  structured-output and sampling metadata; custom model overrides are validated
+  and stored as user evidence. Haiku 4.5 uses manual budgeted thinking, while
+  captured Sonnet/Opus and Gemini models use their supported reasoning mode.
+  Composer effort tiers and image/PDF admission accept the resolved model
+  policy. Meta request bytes and existing media limits remain unchanged.
+  Final host dispatch and pricing composition remain assigned to lane I.
+
 - M95 integration shares the Node validation runtime and the provider-setup
   schema, so Models host stays within its existing size budget. Account & usage
   loads on demand with a dismissible loading modal. Chat's unchanged startup

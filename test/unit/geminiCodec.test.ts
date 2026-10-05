@@ -928,11 +928,12 @@ describe('parseGeminiModelsList', () => {
     const summary: unknown = capture('01-models-list.json').response.bodySummary
     const entries: unknown =
       isRecord(summary) && 'sample' in summary ? summary['sample'] : undefined
-    expect(parseGeminiModelsList({ models: entries })).toEqual([
+    expect(parseGeminiModelsList({ models: entries })).toMatchObject([
       { id: 'gemini-2.5-flash', inputTokenLimit: 1_048_576, outputTokenLimit: 65_536 },
       { id: 'gemini-2.5-pro', inputTokenLimit: 1_048_576, outputTokenLimit: 65_536 },
       { id: 'gemini-3.5-flash-lite', inputTokenLimit: 1_048_576, outputTokenLimit: 65_536 },
     ])
+    expect(parseGeminiModelsList({ models: entries }).map((model) => model.native)).toEqual(entries)
   })
 
   it('throws when the list has no models', () => {

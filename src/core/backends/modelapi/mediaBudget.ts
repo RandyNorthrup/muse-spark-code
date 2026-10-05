@@ -22,6 +22,7 @@ import {
 } from '../../../shared/constants'
 import { fill } from '../../../shared/l10n/text'
 import { pdfPageCount } from '../../pdf'
+import type { ModelCapabilityRecord } from '../../providers/capabilityRecord'
 import type {
   FunctionOutputPart,
   InputContentPart,
@@ -110,8 +111,9 @@ export class MediaBudget {
    * A changed item keeps retained content-part identities so the caller can
    * tell which pending tool-read media actually reached that request.
    */
-  public fit(input: readonly InputItem[]): readonly InputItem[] {
+  public fit(input: readonly InputItem[], record?: ModelCapabilityRecord): readonly InputItem[] {
     let left = MODEL_API_MEDIA_PER_REQUEST
+    let imageCount = 0
     let encodedLeft = this.maxEncodedMediaChars
     const canRetain = (part: InputContentPart): boolean => {
       const weight = this.weightOf(part)
@@ -119,6 +121,44 @@ export class MediaBudget {
         return true
       }
       const encodedChars = this.encodedChars(part)
+      if (record !== undefined && record.identity.provider !== 'meta') {
+        const isImage = part.type === 'input_image'
+        const policy = isImage ? record.modalities.image : record.modalities.pdf
+        if (policy.state !== 'yes') return false
+        let dataUrl = ''
+        if (part.type === 'input_image') dataUrl = part.image_url
+        else if (part.type === 'input_file') dataUrl = part.file_data
+        const comma = dataUrl.indexOf(DATA_URL_SEPARATOR)
+        const bytes = comma === -1 ? undefined : Buffer.from(dataUrl.slice(comma + 1), 'base64')
+        if (
+          policy.value.maxBytes !== undefined &&
+          (bytes === undefined || bytes.byteLength > policy.value.maxBytes)
+        )
+          return false
+        if (isImage) {
+          const image = record.modalities.image
+          if (
+            image.state !== 'yes' ||
+            image.value.mimes.every((mime) => !dataUrl.startsWith(`data:${mime};base64,`))
+          )
+            return false
+          if (image.value.maxCount !== undefined && imageCount + 1 > image.value.maxCount)
+            return false
+        } else {
+          const pdf = record.modalities.pdf
+          const pages = bytes === undefined ? undefined : pdfPageCount(bytes)
+          if (
+            pdf.state !== 'yes' ||
+            (pdf.value.maxPages !== undefined &&
+              (pages === undefined || pages > pdf.value.maxPages))
+          )
+            return false
+        }
+        if (encodedChars > encodedLeft) return false
+        if (isImage) imageCount++
+        encodedLeft -= encodedChars
+        return true
+      }
       if (weight > left || encodedChars > encodedLeft) {
         return false
       }

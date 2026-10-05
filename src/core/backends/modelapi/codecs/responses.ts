@@ -4,6 +4,7 @@
 // ResponsesWireCodec is the explicit seam for its transport adapter.
 
 import * as z from 'zod/mini'
+export { parseNativeModelsList as parseResponsesModelsList } from '../../../providers/modelMetadata'
 import {
   type CreateResponseBody,
   eventTypeSchema,

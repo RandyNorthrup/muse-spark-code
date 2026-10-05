@@ -13,6 +13,14 @@
 // presets (lane P) own the origin, the model reference and the price card.
 
 import * as z from 'zod/mini'
+import {
+  nativeModelMetadataSchema,
+  type NativeModelMetadata,
+} from '../../../providers/modelMetadata'
+import { capturedCapabilities } from '../../../providers/capturedCapabilities'
+import type { ModelCapabilityRecord } from '../../../providers/capabilityRecord'
+import { PROVIDER_MANUAL_THINKING_BUDGET } from '../../../../shared/constants'
+import { UI_TEXT } from '../../../../shared/l10n/text'
 
 import { ModelApiError } from '../client'
 import type {
@@ -118,7 +126,7 @@ const geminiErrorSchema = z.object({
 
 const geminiModelsListSchema = z.object({
   models: z.array(
-    z.object({
+    z.looseObject({
       name: z.string(),
       inputTokenLimit: z.optional(z.number()),
       outputTokenLimit: z.optional(z.number()),
@@ -435,6 +443,8 @@ function toContents(input: readonly InputItem[]): GeminiContent[] {
 export function encodeGeminiRequest(
   body: CreateResponseBody,
   nativeModelId: string,
+  capabilityRecord?: ModelCapabilityRecord,
+  thinkingBudget?: number,
 ): GeminiNativeRequest {
   const declarations = body.tools
     .filter((tool): tool is FunctionToolDefinition => tool.type === 'function')
@@ -444,6 +454,36 @@ export function encodeGeminiRequest(
       parameters: toGeminiSchemaSubset(tool.parameters),
     }))
   const thinkingLevel = geminiThinkingLevelForEffort(body.reasoning.effort)
+  const record = capabilityRecord ?? capturedCapabilities('gemini', nativeModelId)
+  if (body.reasoning.effort !== 'none' && record.reasoning.supported.state === 'no')
+    throw new Error(`${UI_TEXT.providerCapabilityUnsupported} (gemini_reasoning_unsupported)`)
+  if (
+    body.reasoning.effort === 'none' &&
+    (record.reasoning.forced.state === 'yes' || record.reasoning.canDisable.state === 'no')
+  )
+    throw new Error(`${UI_TEXT.providerCapabilityUnsupported} (gemini_thinking_cannot_disable)`)
+  const modes = record.reasoning.modes.state === 'yes' ? record.reasoning.modes.value : []
+  const isBudgetUsed = modes.includes('budget')
+  const budget =
+    body.reasoning.effort === 'none'
+      ? 0
+      : (thinkingBudget ?? record.reasoning.budget?.min ?? PROVIDER_MANUAL_THINKING_BUDGET)
+  if (
+    isBudgetUsed &&
+    (!Number.isSafeInteger(budget) ||
+      budget < (record.reasoning.budget?.min ?? 0) ||
+      budget > (record.reasoning.budget?.max ?? Infinity) ||
+      budget >= body.max_output_tokens)
+  )
+    throw new Error(`${UI_TEXT.providerCapabilityUnsupported} (gemini_invalid_thinking_budget)`)
+  if (thinkingLevel !== undefined && !isBudgetUsed && !modes.includes('level'))
+    throw new Error(`${UI_TEXT.providerCapabilityUnsupported} (gemini_unknown_thinking_mode)`)
+  if (
+    thinkingLevel !== undefined &&
+    record.reasoning.effortLevels.state === 'yes' &&
+    !record.reasoning.effortLevels.value.includes(thinkingLevel)
+  )
+    throw new Error(`${UI_TEXT.providerCapabilityUnsupported} (gemini_unsupported_thinking_level)`)
   const request: Record<string, unknown> = {
     ...(body.instructions !== '' && {
       systemInstruction: { parts: [{ text: body.instructions }] },
@@ -456,9 +496,11 @@ export function encodeGeminiRequest(
   }
   request['generationConfig'] = {
     maxOutputTokens: body.max_output_tokens,
-    ...(thinkingLevel !== undefined && {
-      thinkingConfig: { thinkingLevel, includeThoughts: true },
-    }),
+    ...(isBudgetUsed
+      ? { thinkingConfig: { thinkingBudget: budget, includeThoughts: true } }
+      : thinkingLevel !== undefined && {
+          thinkingConfig: { thinkingLevel, includeThoughts: true },
+        }),
   }
   return { path: geminiStreamPath(nativeModelId), body: request }
 }
@@ -782,6 +824,7 @@ export function parseGeminiError(status: number, body: unknown): ModelApiError {
 
 /** One `models.list` entry the preset keeps: the id with its window, when listed. */
 export interface GeminiListedModel {
+  readonly native?: NativeModelMetadata
   readonly id: string
   readonly inputTokenLimit: number | undefined
   readonly outputTokenLimit: number | undefined
@@ -807,6 +850,12 @@ export function parseGeminiModelsList(body: unknown): readonly GeminiListedModel
       id: entry.name.startsWith('models/') ? entry.name.slice('models/'.length) : entry.name,
       inputTokenLimit: entry.inputTokenLimit,
       outputTokenLimit: entry.outputTokenLimit,
+      ...(Object.keys(entry).some(
+        (key) =>
+          !['name', 'inputTokenLimit', 'outputTokenLimit', 'supportedGenerationMethods'].includes(
+            key,
+          ),
+      ) && { native: nativeModelMetadataSchema.parse(entry) }),
     })
   }
   return models

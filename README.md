@@ -2712,6 +2712,44 @@ What stays in English:
 
 ## Limits
 
+The table below describes Meta Muse. M95's provider core resolves capabilities
+per configured provider and native model, with user overrides taking precedence
+over captures, model lists, the catalogue and presets. Unknown support does not
+permit tools or media. Images and PDFs have separate support and limits.
+Final provider dispatch remains an integration milestone; this core change is
+not a claim that every listed vendor is supported in the installed extension.
+
+Custom models can declare `modelCapabilities` in their user-level
+`providers.json` entry, keyed by native model id. For example:
+
+```json
+{
+  "modelCapabilities": {
+    "my-model": {
+      "tools": { "calling": { "state": "yes", "value": true } },
+      "reasoning": {
+        "modes": { "state": "yes", "value": ["manual"] },
+        "effortLevels": { "state": "no" }
+      },
+      "modalities": {
+        "image": {
+          "state": "yes",
+          "value": { "mimes": ["image/png"], "maxBytes": 1048576, "maxCount": 2 }
+        },
+        "pdf": { "state": "no" }
+      }
+    }
+  }
+}
+```
+
+This is a fragment of a provider entry; its existing custom-model limits are
+still required. Other record families cover cache, output formats and limits,
+context limits, sampling, logprobs, completion and hosted services. Yes carries
+a value, no explicitly refuses support, and unknown supplies no evidence.
+User-file parsing stamps known overrides with `source.kind: "user"`; a supplied
+source cannot elevate their priority. See [M95 N's record contract](docs/certification/m95-n.md).
+
 | What                             | Limit                                                                                                                                                                                                                                                           |
 | -------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Images and PDFs                  | 20 attachments per message together; images 10 MiB each (PDFs: next row)                                                                                                                                                                                        |

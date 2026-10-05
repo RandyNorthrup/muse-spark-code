@@ -9,6 +9,7 @@ import {
   UI_TEXT,
 } from '../../src/shared/constants'
 import { pdfFixture } from './helpers/pdfFixture'
+import { resolveModelCapabilities } from '../../src/core/providers/capabilities'
 
 const dimension = (value: number) => [
   (value >>> 24) & 0xff,
@@ -38,6 +39,41 @@ function store(maxEncodedMediaChars?: number) {
 }
 
 describe('AttachmentStore', () => {
+  it('admits images only within the selected record MIME, bytes and count policy', () => {
+    const source = { kind: 'user' as const }
+    const identity = { provider: 'custom', nativeModel: 'model', format: 'chat' as const }
+    const image = png(2, 2)
+    const record = resolveModelCapabilities(identity, [
+      {
+        source,
+        fields: {
+          modalities: {
+            image: {
+              state: 'yes',
+              value: { mimes: ['image/png'], maxBytes: image.byteLength, maxCount: 1 },
+            },
+          },
+        },
+      },
+    ])
+    const attachments = store()
+    expect(attachments.add('one.png', image, true, false, record).ok).toBe(true)
+    expect(attachments.add('two.png', image, true, false, record).ok).toBe(false)
+    expect(store().add('large.png', png(2, 2, 1), true, false, record).ok).toBe(false)
+    const jpegOnly = resolveModelCapabilities(identity, [
+      {
+        source,
+        fields: { modalities: { image: { state: 'yes', value: { mimes: ['image/jpeg'] } } } },
+      },
+    ])
+    expect(store().add('png.png', image, true, false, jpegOnly).ok).toBe(false)
+    expect(
+      store().add('unknown.png', image, true, false, resolveModelCapabilities(identity)).ok,
+    ).toBe(false)
+    expect(
+      store().add('unknown.pdf', pdfFixture(1), true, false, resolveModelCapabilities(identity)).ok,
+    ).toBe(false)
+  })
   it('accepts a supported image and reports its size', () => {
     const attachments = store()
     const result = attachments.add('shot.png', png(686, 695))

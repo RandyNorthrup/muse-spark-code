@@ -14,6 +14,7 @@ import { UI_TEXT } from '../../shared/l10n/text'
 import { openRouterRoutingSchema } from '../../shared/providerRouting'
 import { isProviderId, parseModelRef } from './modelRef'
 import type { PriceCard } from './priceCard'
+import { capabilityOverridesSchema, userCapabilityOverrides } from './capabilityRecord'
 
 /** The wire formats a provider speaks (one codec each, lanes R/H/A/G/O). */
 export const providerFormatSchema = z.enum(['responses', 'chat', 'anthropic', 'gemini', 'ollama'])
@@ -68,6 +69,10 @@ export const providerEntrySchema = z
     models: z.array(z.string()),
     // Required for every chosen custom model; retained across save/reload.
     modelLimits: z.optional(z.record(z.string(), modelLimitsSchema)),
+    // Explicit per-model evidence; resolver stamps source.kind = user.
+    modelCapabilities: z.optional(
+      z.record(z.string(), z.pipe(capabilityOverridesSchema, z.transform(userCapabilityOverrides))),
+    ),
     // Pinned favourites, first in the composer's picker.
     pinned: z.optional(z.array(z.string())),
     // User-entered prices by model id (`source: 'user'` when read).

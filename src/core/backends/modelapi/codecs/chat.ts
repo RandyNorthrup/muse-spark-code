@@ -21,6 +21,7 @@
 // decoder's opaque reasoning payloads in the session's replay entries.
 
 import * as z from 'zod/mini'
+export { parseNativeModelsList as parseChatModelsList } from '../../../providers/modelMetadata'
 import { UI_TEXT } from '../../../../shared/constants'
 import type {
   CreateResponseBody,
