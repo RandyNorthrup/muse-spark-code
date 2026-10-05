@@ -47,6 +47,11 @@ export const paidTallySchema = z.object({
   bestOfNUnknownRequests: z.optional(z.int().check(z.nonnegative())),
   bestOfNTokens: z.optional(z.int().check(z.nonnegative())),
   bestOfNCostUsd: z.optional(z.number().check(z.nonnegative())),
+  // Team tasks started this window (M96 lane A, PLAN.md D75); absent means none.
+  teamWorkerRequests: z.optional(z.int().check(z.nonnegative())),
+  teamWorkerUnknownRequests: z.optional(z.int().check(z.nonnegative())),
+  teamWorkerTokens: z.optional(z.int().check(z.nonnegative())),
+  teamWorkerCostUsd: z.optional(z.number().check(z.nonnegative())),
 })
 export type PaidTally = z.infer<typeof paidTallySchema>
 
@@ -68,6 +73,52 @@ export interface SubagentUsage {
   readonly inputTokens: number
   readonly outputTokens: number
   readonly cachedTokens: number
+}
+
+/** One key-billed team task the popup names (M96 lane A, PLAN.md D75). */
+export interface TeamWorkerConfirmation {
+  readonly role: string
+  readonly modelId: string
+  /** The task's token ceiling, from the entry's `task` caps or the level. */
+  readonly taskCeilingTokens: number
+}
+
+/** What a `delegate` call's popup quotes for its key tasks (M96, acceptance 23). */
+export function teamWorkerPrice(
+  tasks: readonly TeamWorkerConfirmation[],
+  dailyBudgetUsd: number | undefined,
+): string {
+  const lines = tasks.map((task) => {
+    const tier = modelApiPaidTier(task.modelId)
+    const rates =
+      tier === undefined
+        ? UI_TEXT.subagentTariffUnknown
+        : fill(UI_TEXT.paidTeamWorkerRates, {
+            model: task.modelId,
+            input: formatUsd(
+              MODEL_API_PRICES_PER_MILLION[tier].input,
+              MODEL_API_PRICE_DECIMALS,
+            ),
+            cached: formatUsd(
+              MODEL_API_PRICES_PER_MILLION[tier].cachedInput,
+              MODEL_API_PRICE_DECIMALS,
+            ),
+            output: formatUsd(
+              MODEL_API_PRICES_PER_MILLION[tier].output,
+              MODEL_API_PRICE_DECIMALS,
+            ),
+            tokens: formatNumber(task.taskCeilingTokens),
+          })
+    return fill(UI_TEXT.paidTeamWorkerLine, {
+      role: task.role,
+      model: task.modelId,
+      rates,
+    })
+  })
+  if (dailyBudgetUsd !== undefined) {
+    lines.push(fill(UI_TEXT.paidTeamWorkerBudget, { budget: formatUsd(dailyBudgetUsd, 2) }))
+  }
+  return lines.join('\n')
 }
 
 /** Unknown model tariffs cannot authorize a paid child task. */
@@ -143,6 +194,13 @@ export type PaidUseRequest =
       readonly attempts: number
       readonly requestCeilingPerAttempt: number
     }
+  | {
+      readonly feature: 'teamWorkers'
+      /** The key tasks one `delegate` call starts: each model's prices and each task's ceiling. */
+      readonly tasks: readonly TeamWorkerConfirmation[]
+      /** The shared daily team budget the popup names; undefined while lanes 0/X land the setting. */
+      readonly dailyBudgetUsd: number | undefined
+    }
 
 /**
  * The paid features a window can use (M44, PLAN.md D37): every one on the
@@ -188,6 +246,11 @@ export function paidCostUsd(feature: PaidFeature, tally: PaidTally): number {
       // estimate. Count only reported costs here, not unknown HTTP tries.
       return tally.bestOfNCostUsd ?? 0
     }
+    case 'teamWorkers': {
+      // A worker's tokens already count in the conversation's estimate
+      // through the ledger; the row prices the reported part apart.
+      return tally.teamWorkerCostUsd ?? 0
+    }
   }
 }
 
@@ -207,7 +270,8 @@ export function listedPaidFeatures(
       (feature === 'scheduledPrompts' && tally.scheduledRuns > 0) ||
       (feature === 'subagents' && (tally.subagentRequests ?? 0) > 0) ||
       (feature === 'autoReviewer' && (tally.autoReviews ?? 0) > 0) ||
-      (feature === 'bestOfN' && (tally.bestOfNAttempts ?? 0) > 0),
+      (feature === 'bestOfN' && (tally.bestOfNAttempts ?? 0) > 0) ||
+      (feature === 'teamWorkers' && (tally.teamWorkerRequests ?? 0) > 0),
   )
 }
 
@@ -216,7 +280,7 @@ export function paidTotalUsd(tally: PaidTally): number {
   // Child token cost is already part of the conversation's token estimate.
   let total = 0
   for (const feature of PAID_FEATURES) {
-    if (feature !== 'subagents') {
+    if (feature !== 'subagents' && feature !== 'teamWorkers') {
       total += paidCostUsd(feature, tally)
     }
   }
@@ -236,6 +300,7 @@ export function paidFeatureName(feature: PaidFeature): string {
     subagents: UI_TEXT.paidSubagentsName,
     autoReviewer: UI_TEXT.paidAutoReviewerName,
     bestOfN: UI_TEXT.paidBestOfNName,
+    teamWorkers: UI_TEXT.paidTeamWorkersName,
   }
   return names[feature]
 }
@@ -337,6 +402,11 @@ export function paidFeaturePrice(feature: PaidFeature): string {
           BEST_OF_N_DEFAULT_REQUESTS_PER_ATTEMPT,
         ),
       ].join('\n')
+    }
+    case 'teamWorkers': {
+      // The popup quotes each started task's own model and ceiling
+      // (teamWorkerPrice); the setting names the tiers it may bill.
+      return tokenRatesByTier()
     }
   }
 }

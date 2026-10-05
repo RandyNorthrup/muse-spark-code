@@ -570,6 +570,12 @@
           "description": "%config.modelApiBestOfN.description%",
           "scope": "machine"
         },
+        "museSpark.modelApiTeamWorkers": {
+          "type": "boolean",
+          "default": true,
+          "description": "%config.modelApiTeamWorkers.description%",
+          "scope": "machine"
+        },
         "museSpark.modelApiHooks": {
           "type": "boolean",
           "default": false,

@@ -45,7 +45,8 @@
       "agentImportSourceCursor",
       "exportThenRunSkipped",
       "execUsage",
-      "execScanUsage"
+      "execScanUsage",
+      "teamSwitchRow"
     ],
     "cs": [
       "groupModel",

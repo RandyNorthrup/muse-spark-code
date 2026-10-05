@@ -24,6 +24,7 @@ import {
   type PaidUseRequest,
   scheduledRunPrice,
   subagentTaskPrice,
+  teamWorkerPrice,
 } from '../../shared/paid'
 import type { CoreLogger } from '../logging'
 
@@ -101,6 +102,16 @@ export function paidUseQuestion(request: PaidUseRequest): {
         detail: fill(UI_TEXT.paidBestOfNDetail, {
           prompt: request.prompt,
           price: bestOfNPrice(request.modelId, request.attempts, request.requestCeilingPerAttempt),
+        }),
+      }
+    }
+    case 'teamWorkers': {
+      // One popup for the whole `delegate` call: each model's prices, each
+      // task's ceiling and the shared daily budget (M96, acceptance 23).
+      return {
+        title: UI_TEXT.paidTeamWorkersTitle,
+        detail: fill(UI_TEXT.paidTeamWorkersDetail, {
+          tasks: teamWorkerPrice(request.tasks, request.dailyBudgetUsd),
         }),
       }
     }

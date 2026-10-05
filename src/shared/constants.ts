@@ -307,6 +307,11 @@ export const SETTING_DEFAULTS = {
   // Best-of-N parallel attempts (M77, PLAN.md D49): N worktree-rooted
   // conversations per run, each billed to the key.
   modelApiBestOfN: false,
+  // M96 lane A (PLAN.md D75): team tasks billed to a key. The owner's rule
+  // (2026-10-04) turns paid extras on, with one price question before the
+  // first charge: the setting starts on, and the gate still needs the price
+  // accepted, so activation asks once before anything is billed.
+  modelApiTeamWorkers: true,
   // Hook commands are user code outside the agent sandbox (M51). A machine
   // setting must explicitly enable them on the Model API backend.
   modelApiHooks: false,
@@ -380,6 +385,7 @@ export const MACHINE_SCOPED_SETTINGS = [
   'modelApiScheduledPrompts',
   'modelApiSubagents',
   'modelApiBestOfN',
+  'modelApiTeamWorkers',
   'modelApiHooks',
   // M78: the user's rules and profiles, which loosen as well as tighten.
   // `modelApiRepositoryRules` is not among them: a repository sets it, and
@@ -468,6 +474,8 @@ export const PAID_FEATURES = [
   // M78 (PLAN.md D49): the Auto reviewer's calls.
   'autoReviewer',
   'bestOfN',
+  // M96 lane A (PLAN.md D75): team tasks billed to a key.
+  'teamWorkers',
 ] as const
 // The paid features the Muse Code backend can use too, billed to a stored
 // Model API key (M44, PLAN.md D37): images through the `ide` server and
@@ -484,6 +492,7 @@ export const PAID_FEATURE_SETTINGS = {
   subagents: 'modelApiSubagents',
   autoReviewer: 'modelApiAutoReviewer',
   bestOfN: 'modelApiBestOfN',
+  teamWorkers: 'modelApiTeamWorkers',
 } as const satisfies Readonly<Record<PaidFeature, keyof typeof SETTING_DEFAULTS>>
 // Meta's published prices (dev.meta.ai/docs/pricing-rate-limits, read
 // 2026-09-24), on top of the tokens a turn uses: a web search, an image, and
@@ -3796,3 +3805,65 @@ export const WEBVIEW_L10N_ELEMENT_ID = 'muse-l10n'
 export const WINDOWS_POWERSHELL_TERMINAL_PATH = String.raw`\System32\WindowsPowerShell\v1.0\powershell.exe`
 // The login / TUI terminal's shell off Windows (PLAN.md D25): POSIX syntax, always there.
 export const POSIX_TERMINAL_SHELL = '/bin/sh'
+
+// --- Team pools, accounting and the ledger (M96 lane A, PLAN.md D75) ---
+//
+// Lane 0 owns the Team region's roles/charters/panel pieces; this region is
+// lane A's: pool selection, admission, ceilings, meters and the ledger. Every
+// value below is the figure D75 states, not a guess.
+
+// Usage rows flush at state changes and at least this often, so partial
+// usage survives a crash (D75: "on usage at most every TEAM_LEDGER_FLUSH_MS
+// (2 seconds)").
+export const TEAM_LEDGER_FLUSH_MS = 2000
+// A throttled entry's running cap grows back one step per this interval
+// without another 429, up to its configured cap (D75: 60 seconds).
+export const TEAM_THROTTLE_RECOVER_MS = 60_000
+// A `queue`-policy task waits for recoverable headroom at most this long
+// (D75: 60 minutes), then asks; a spent `lifetime` cap never recovers.
+export const TEAM_QUEUE_MAX_WAIT_MS = 60 * 60 * 1000
+// How many tasks one role's queue holds (D75: 16).
+export const TEAM_QUEUE_MAX = 16
+// Delegation depth: 1, or 2 through `delegates`, never more.
+export const TEAM_MAX_DEPTH = 2
+// A usage-limit refusal with no provider reset time marks the agent until
+// this long passes (D75: 30 minutes).
+export const TEAM_USAGE_LIMIT_COOLDOWN_MS = 30 * 60 * 1000
+// A worker's own rate, used while the local record has none: requests per
+// minute and tokens per minute (D75).
+export const TEAM_WORKER_RPM_ESTIMATE = 6
+export const TEAM_WORKER_TPM_ESTIMATE = 250_000
+// Our hard ceilings per agent kind: no level and no edit passes them (D75:
+// 20 on the Model API and M95's engines, 4 per host for Muse Code, 4 per
+// external agent).
+export const TEAM_HARD_CEILING_ENGINE = 20
+export const TEAM_HARD_CEILING_MUSE_CODE = 4
+export const TEAM_HARD_CEILING_EXTERNAL = 4
+// The provider side of the computed ceiling (D75, research §4.7):
+// Muse Code's sessions per `muse serve`, and external agents until their
+// own limits show in refusals.
+export const TEAM_MUSE_CODE_SESSION_CEILING = 4
+export const TEAM_EXTERNAL_AGENT_CEILING = 2
+// Concurrency follows from this share of each documented limit; the rest is
+// the orchestrator's (D75: 80%).
+export const TEAM_PROVIDER_LIMIT_SHARE = 0.8
+// Meta's documented per-team limits (research §4.7): requests and tokens
+// per minute on Standard and Contributor.
+export const TEAM_META_STANDARD_RPM = 3000
+export const TEAM_META_STANDARD_TPM = 4_000_000
+export const TEAM_META_CONTRIBUTOR_RPM = 100
+export const TEAM_META_CONTRIBUTOR_TPM = 3_000_000
+// A remaining-requests or remaining-tokens header under this fraction of the
+// limit halves the entry's running cap, as a 429 does (D75: 10%).
+export const TEAM_THROTTLE_REMAINING_FRACTION = 0.1
+// Per-role defaults (D75): tasks per orchestrator turn, and minutes per
+// task before a task past its minutes is stopped.
+export const TEAM_ROLE_TASKS_PER_TURN_DEFAULT = 6
+export const TEAM_TASK_MINUTES_DEFAULT = 30
+// A ledger row keeps the brief through `redactSecrets`, cut to this many
+// characters; no other prompt text or code is stored (D75).
+export const TEAM_LEDGER_BRIEF_MAX_CHARS = 500
+// Ledger file bounds: one JSON object per line, one file per local day.
+export const TEAM_LEDGER_LINE_MAX_BYTES = 1_000_000
+export const TEAM_LEDGER_FILE_PREFIX = 'team-'
+export const TEAM_LEDGER_FILE_SUFFIX = '.jsonl'

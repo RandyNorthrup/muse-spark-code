@@ -224,6 +224,14 @@ export class PaidUsage {
         this.tally = { ...tally, bestOfNAttempts: (tally.bestOfNAttempts ?? 0) + units }
         break
       }
+      case 'teamWorkers': {
+        this.tally = {
+          ...tally,
+          teamWorkerRequests: (tally.teamWorkerRequests ?? 0) + units,
+          teamWorkerUnknownRequests: (tally.teamWorkerUnknownRequests ?? 0) + units,
+        }
+        break
+      }
     }
     this.log.info(`Paid use: ${feature} +${String(units)}`)
     for (const listener of this.listeners) {
@@ -276,6 +284,28 @@ export class PaidUsage {
       ...this.tally,
       bestOfNRequests: (this.tally.bestOfNRequests ?? 0) + 1,
       bestOfNUnknownRequests: (this.tally.bestOfNUnknownRequests ?? 0) + 1,
+    }
+    for (const listener of this.listeners) listener()
+  }
+
+  /** One team task's reported usage; never replayed from storage (M96 lane A). */
+  public addTeamWorkerUsage(modelId: string, usage: SubagentUsage): void {
+    if (modelApiPaidTier(modelId) === undefined) {
+      throw new Error('Cannot estimate team worker use for an unpriced model')
+    }
+    if (
+      Object.values(usage).some((value) => !Number.isSafeInteger(value) || value < 0) ||
+      usage.cachedTokens > usage.inputTokens
+    ) {
+      throw new Error('Team worker usage must be valid nonnegative token counts')
+    }
+    const unknown = this.tally.teamWorkerUnknownRequests ?? 0
+    if (unknown === 0) return
+    this.tally = {
+      ...this.tally,
+      teamWorkerUnknownRequests: unknown - 1,
+      teamWorkerTokens: (this.tally.teamWorkerTokens ?? 0) + usage.inputTokens + usage.outputTokens,
+      teamWorkerCostUsd: (this.tally.teamWorkerCostUsd ?? 0) + estimateCostUsd(usage, modelId),
     }
     for (const listener of this.listeners) listener()
   }

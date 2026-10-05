@@ -47,6 +47,8 @@ export interface ExtensionSettings extends SettingsSnapshot {
   readonly modelApiSubagents: boolean
   /** Best-of-N parallel attempts (M77, PLAN.md D49): on only with the price accepted too. */
   readonly modelApiBestOfN: boolean
+  /** Team tasks billed to a key (M96 lane A, PLAN.md D75): on only with the price accepted too. */
+  readonly modelApiTeamWorkers: boolean
   /** Explicit machine opt-in for external hook commands (M51). */
   readonly modelApiHooks: boolean
   /**
@@ -109,6 +111,7 @@ const settingSchemas = {
   modelApiScheduledPrompts: z.boolean(),
   modelApiSubagents: z.boolean(),
   modelApiBestOfN: z.boolean(),
+  modelApiTeamWorkers: z.boolean(),
   modelApiHooks: z.boolean(),
   modelApiCommandRules: z.array(z.unknown()),
   modelApiPermissionProfiles: z.record(z.string(), z.unknown()),
@@ -193,6 +196,7 @@ export function readSettings(config: SettingsSource, log: Logger): ExtensionSett
     modelApiScheduledPrompts: readSetting(config, 'modelApiScheduledPrompts', log),
     modelApiSubagents: readSetting(config, 'modelApiSubagents', log),
     modelApiBestOfN: readSetting(config, 'modelApiBestOfN', log),
+    modelApiTeamWorkers: readSetting(config, 'modelApiTeamWorkers', log),
     modelApiHooks: readSetting(config, 'modelApiHooks', log),
     diagnosticsAfterEdits: readSetting(config, 'diagnosticsAfterEdits', log),
     checkCommands: readSetting(config, 'checkCommands', log),
