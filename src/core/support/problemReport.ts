@@ -235,9 +235,9 @@ const POSIX_USER_PATH = /\/(?:home|Users)\/[^\s]+/g
 // Unknown Windows paths can contain spaces; stop at a line or enclosing quote.
 const WINDOWS_USER_PATH = /(?:\\\\\?\\)?[a-z]:[\\/]users[\\/][^\r\n"'<>`]+|\\\\[^\r\n"'<>`]+/gi
 const WINDOWS_ROOT = /^(?:[a-z]:[\\/]|\\\\)/i
-const EXTENDED_UNC_PREFIX = /^\\\\\?\\UNC\\/i
-const EXTENDED_DRIVE_PREFIX = /^\\\\\?\\/
-const REGEXP_SPECIAL = /[.*+?^${}()|[\]\\]/g
+const UNC_PREFIX = '\\\\'
+const EXTENDED_DRIVE_PREFIX = '\\\\?\\'
+const EXTENDED_UNC_PREFIX = '\\\\?\\UNC\\'
 const EMAIL_PATTERN = /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b/g
 const IPV4_PATTERN = /\b(?:\d{1,3}\.){3}\d{1,3}\b/g
 const IPV6_PATTERN =
@@ -248,19 +248,67 @@ function isIpv6Like(match: string): boolean {
   return match.includes('::') || /[a-fA-F]/.test(match)
 }
 
-/** Windows roots have equivalent case, separators and extended spellings. */
+/**
+ * A Windows path compared as Windows compares it: letters in lower case
+ * (where that keeps the length, so every index still points into the
+ * original) and `/` for `\`.
+ */
+function foldWindowsPath(text: string): string {
+  return Array.from(text, (character) => {
+    const lower = character.toLowerCase()
+    return lower.length === character.length ? lower : character
+  })
+    .join('')
+    .replaceAll('\\', '/')
+}
+
+/** Whether `text` holds `prefix` (in any letter case) just before `at`. */
+function hasPrefixAt(text: string, at: number, prefix: string): boolean {
+  return (
+    at >= prefix.length && text.slice(at - prefix.length, at).toLowerCase() === prefix.toLowerCase()
+  )
+}
+
+/** Where a root found at `at` starts, with its prefix; undefined when it has none it needs. */
+function rootMatchStart(text: string, at: number, isUnc: boolean): number | undefined {
+  if (!isUnc) {
+    return hasPrefixAt(text, at, EXTENDED_DRIVE_PREFIX) ? at - EXTENDED_DRIVE_PREFIX.length : at
+  }
+  if (hasPrefixAt(text, at, EXTENDED_UNC_PREFIX)) return at - EXTENDED_UNC_PREFIX.length
+  return hasPrefixAt(text, at, UNC_PREFIX) ? at - UNC_PREFIX.length : undefined
+}
+
+/**
+ * Windows roots have equivalent case, separators and extended spellings
+ * (`\\?\C:\…`, `\\?\UNC\server\…`). Matched as literals, never as a pattern
+ * built from the root.
+ */
 function replaceReportRoot(text: string, root: string, mark: string): string {
   if (!WINDOWS_ROOT.test(root)) return text.replaceAll(root, () => mark)
-  const plain = root
-    .replace(EXTENDED_UNC_PREFIX, () => '\\\\')
-    .replace(EXTENDED_DRIVE_PREFIX, () => '')
-  const isUnc = plain.startsWith('\\\\')
-  const escaped = (isUnc ? plain.slice(2) : plain)
-    .split(/[\\/]/)
-    .map((part) => part.replaceAll(REGEXP_SPECIAL, (character) => `\\${character}`))
-    .join(String.raw`[\\/]`)
-  const prefix = isUnc ? String.raw`\\\\(?:\?\\UNC\\)?` : String.raw`(?:\\\\\?\\)?`
-  return text.replaceAll(new RegExp(`${prefix}${escaped}`, 'gi'), () => mark)
+  let plain = root
+  if (hasPrefixAt(root, EXTENDED_UNC_PREFIX.length, EXTENDED_UNC_PREFIX)) {
+    plain = UNC_PREFIX + root.slice(EXTENDED_UNC_PREFIX.length)
+  } else if (root.startsWith(EXTENDED_DRIVE_PREFIX)) {
+    plain = root.slice(EXTENDED_DRIVE_PREFIX.length)
+  }
+  const isUnc = plain.startsWith(UNC_PREFIX)
+  const key = foldWindowsPath(isUnc ? plain.slice(UNC_PREFIX.length) : plain)
+  if (key === '') return text
+  const folded = foldWindowsPath(text)
+  let result = ''
+  let copied = 0
+  let at = folded.indexOf(key)
+  while (at !== -1) {
+    const start = rootMatchStart(text, at, isUnc)
+    if (start !== undefined && start >= copied) {
+      result += text.slice(copied, start) + mark
+      copied = at + key.length
+      at = folded.indexOf(key, copied)
+    } else {
+      at = folded.indexOf(key, at + 1)
+    }
+  }
+  return result + text.slice(copied)
 }
 
 /**

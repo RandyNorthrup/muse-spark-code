@@ -257,6 +257,23 @@ describe('second scrub over the final draft', () => {
     ).toBe(String.raw`~\notes.txt`)
   })
 
+  it('matches a Windows root as a literal, with the prefix it needs', () => {
+    const context = {
+      workspaceRoots: [String.raw`\\?\UNC\server\share\a.b`],
+      homeDir: '',
+      extraLiterals: [],
+    }
+    // An extended root also matches its plain spelling; `.` is no wildcard.
+    expect(
+      scrubFinalDraft(String.raw`at \\server\share\a.b\x and a\\Server\Share\A.B`, context),
+    ).toBe(String.raw`at <workspace>\x and a<workspace>`)
+    expect(scrubFinalDraft(String.raw`\\server\share\aXb\x`, context)).toBe(REDACTED_MARK)
+    // A UNC root needs its leading `\\`: a bare `server\share\a.b` is not it.
+    expect(scrubFinalDraft(String.raw`see server\share\a.b`, context)).toBe(
+      String.raw`see server\share\a.b`,
+    )
+  })
+
   it.each([
     String.raw`C:\Users\Other Person\private 雪.txt`,
     String.raw`\\server\share\Other Person\private 雪.txt`,
