@@ -14752,6 +14752,17 @@ ledger, scheduler, provider registry, hook format or golden baseline.
 
 ##### 2c — SystemOne adapters and `judge serve` (M85)
 
+**FIXM98CS review repair (2026-10-05, macmini).** RVM98CS findings 1–3
+are in this bounded lane: macOS extended-ACL refusal before and after the
+bearer write (real `chmod +a` controls), exit cleanup registered before
+that write, and shutdown promise publication before synchronous abort
+callbacks. Owning regressions and byte-exact red drills are recorded in
+`docs/certification/m98-cs.md`. The existing translated `judgeNoAnswer`
+template carries the technical `EJUDGE_TOKEN_ACL` refusal code; no shared
+text key, dependency or dispatcher change is needed. Linux and Windows
+receipts remain individually labelled; this Mac receipt cannot certify
+another OS.
+
 - **Scope.** C consumes M95's SystemOne presets/keys for OpenRouter Jev,
   direct TypeSafe and later Clef; CS exposes the existing captured Jev
   contract at `/v1/systemone`. There is no second client/key store. Native
@@ -15047,6 +15058,13 @@ do not wait for all ten surfaces to ship a certified one.
 
 ## 7. Gates
 
+**FIXM98CS bounded repair delegation (2026-10-05).** The rig brief
+prohibits aggregate quality/full-suite runs, merges, rebases and pushes.
+Run owning files directly on macmini, at most three per invocation, plus
+scoped lint/format, typechecks and the named lane gates; commit locally
+with hooks on. The lead retains aggregate quality and generated/shared
+document refreshes. No gate, threshold, ignore or timeout is weakened.
+
 **M98P2PLAN documentation-only lane (2026-10-05).** The explicit rig brief
 limits changes to PLAN and the phase-2 planning receipt and requires only
 changed-file Prettier and whitespace checks, with hooks enabled. No source,
@@ -15055,6 +15073,15 @@ live/paid call, merge, rebase or push is authorized here. Full product
 certification remains with the future surface lanes and the lead above;
 this is a bounded planning receipt, not aggregate-green evidence. README
 and CHANGELOG delivery is assigned to Z because this lane ships no feature.
+
+**FIXM98CS inherited host-inventory deferral.** `npm run check:host-api`
+again exits 1 for the same existing generated-document mismatch recorded
+in the original CS receipt: paidHost configuration reads 11 → 12, its
+`WorkspaceConfiguration.get` importer, and Node importer totals buffer
+29, crypto 35, fs 25, fs/promises 35, http 3, path 66. This repair adds no
+Node/VS Code importer. Z owns `docs/ide-compatibility/host-api.md`; refresh
+it with `npm run check:host-api -- --write`, review and rerun on the
+integrated tree. No inventory gate is weakened or claimed green.
 
 **FIXM98J bounded-lane gate delegation (2026-10-04).** The rig brief and
 shared lane rules prohibit a full `npm run quality` or full test suite in
@@ -15574,6 +15601,19 @@ before a repaired one loads (2026-09-30).
 | `test/harness/index.html` (`isActiveDescendantList`), printed by `scripts/a11y.mjs` | The accessibility gate exempts axe's `scrollable-region-focusable` | The composer's `/` and `@` lists follow WAI-ARIA's combobox pattern: the box keeps the focus and moves `aria-activedescendant` through the listbox's options, and `Composer.tsx` scrolls the active option into view, so the list is keyboard operable (WCAG 2.1.1) without being a Tab stop. axe cannot see activedescendant-driven scrolling. The exemption holds only for a region that contains a listbox whose id is in the `aria-controls` of a focused or focusable element whose active descendant is one of that listbox's options; drills show a plain scrollable region and a listbox no control drives are still reported, and removing the exemption reports the composer's list again. Every exempt element is printed under its own "Exempt:" heading and counted. No `tabindex` was added to the list. | 2026-10-04 |
 
 ## 9. Security assumptions and accepted residual risk
+
+- **FIXM98CS / RVM98CS (2026-10-05).** All three review findings are
+  repaired: macOS inherited/late ACL grants refuse startup, fatal/ordinary
+  exit cleanup is armed before the bearer is written, and close publishes
+  one promise before synchronous abort reentry. No reviewed P1/P2/P3 is
+  accepted as a residual. **CS-OS-INTEGRATION receipt gap:** this repair
+  adds installed macOS/Node receipts only; Linux's earlier UID/mode receipt
+  and synthetic Windows DACL controls are labelled in
+  `docs/certification/m98-cs.md`. Windows installed ACL and per-platform
+  integrated CLI/VS Code/source receipts remain with G/Z before release.
+  Safe for this bounded delivery because the boundary remains unwired and
+  unavailable as a supported command; follow up with the installed OS
+  matrix, generated host inventory, shared CHANGELOG and aggregate gates.
 
 - Code intelligence (M67) shows what VS Code's language services say. A
   result located outside the workspace is left out and a hover defined only

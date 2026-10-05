@@ -140,12 +140,11 @@ export async function startJudgeServer(options: JudgeServeOptions) {
     }
   }
   let closing: Promise<void> | undefined
-  const exit = () => {
-    credential.removeSync()
-  }
   function close(): Promise<void> {
-    closing ??= (async () => {
-      for (const controller of calls) controller.abort()
+    if (closing !== undefined) return closing
+    // Yield before shutdown callbacks; publish the promise before aborting.
+    closing = (async () => {
+      await Promise.resolve()
       const stopped = new Promise<void>((resolve) => {
         server.close(() => {
           resolve()
@@ -154,11 +153,11 @@ export async function startJudgeServer(options: JudgeServeOptions) {
       server.closeAllConnections()
       await stopped
       await credential.remove()
-      process.off('exit', exit)
       process.off('SIGINT', onSignal)
       process.off('SIGTERM', onSignal)
       options.signal?.removeEventListener('abort', onSignal)
     })()
+    for (const controller of calls) controller.abort()
     return closing
   }
   function onSignal() {
@@ -178,7 +177,6 @@ export async function startJudgeServer(options: JudgeServeOptions) {
     if (address === null || typeof address === 'string') throw new Error('EJUDGE_BIND')
     authority = `${host === '::1' ? '[::1]' : host}:${String(address.port)}`
     options.signal?.throwIfAborted()
-    process.once('exit', exit)
     process.once('SIGINT', onSignal)
     process.once('SIGTERM', onSignal)
     options.signal?.addEventListener('abort', onSignal, { once: true })

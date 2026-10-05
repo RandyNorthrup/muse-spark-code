@@ -7,6 +7,7 @@ import { withoutCredentials, withoutKeyringRoutes } from '../credentialVariables
 import { runProgram, windowsPowerShell } from '../../host/processTree'
 import * as z from 'zod/mini'
 import { IDE_MCP_TOKEN_BYTES } from '../../shared/constants'
+import { fill, UI_TEXT } from '../../shared/l10n/text'
 
 const FILE_MODE = constants.S_IRUSR | constants.S_IWUSR
 const DIRECTORY_MODE = FILE_MODE | constants.S_IXUSR
@@ -42,6 +43,7 @@ export interface JudgeTokenAclReceipt {
   readonly platform: NodeJS.Platform
   readonly ownerOnly: true
   readonly mode?: number
+  readonly extendedAcl?: false
   readonly windows?: z.infer<typeof windowsReceiptSchema>
 }
 
@@ -124,40 +126,82 @@ async function secure(
   const uid = process.getuid === undefined ? undefined : process.getuid()
   if (uid === undefined || verified.uid !== uid || (verified.mode & MODE_MASK) !== mode)
     throw new Error('EJUDGE_TOKEN_ACL')
+  if (process.platform === 'darwin') {
+    // chmod does not remove macOS allow ACEs. Accept only a single mode
+    // receipt with no '+' marker or ACL entries; even owner/deny ACLs refuse.
+    // The fixed system binary receives a path and a credential-free env only.
+    const output = await runProgram('/bin/ls', ['-ledn', file], {
+      ...withoutKeyringRoutes(withoutCredentials(process.env)),
+      LC_ALL: 'C',
+    })
+    const lines = output.trimEnd().split('\n')
+    const expected = isDirectory ? 'drwx------' : '-rw-------'
+    const modeReceipt = /^([d-][rwx-]{9})@?[ \t]/.exec(lines[0] ?? '')
+    if (lines.length !== 1 || modeReceipt?.[1] !== expected) throw new Error('EJUDGE_TOKEN_ACL')
+    return { platform: 'darwin', ownerOnly: true, mode, extendedAcl: false }
+  }
   return { platform: process.platform, ownerOnly: true, mode }
+}
+
+function refuseUnlessMissing(error: unknown): void {
+  if (error instanceof Error && 'code' in error && error.code === 'ENOENT') return
+  throw error
 }
 
 /** One private directory and one exclusive write per start; no reusable token. */
 export async function createJudgeTokenFile(parent: string, acl?: JudgeWindowsAcl) {
   const directory = await mkdtemp(path.join(await realpath(parent), 'muse-judge-'))
   const file = path.join(directory, 'bearer')
+  let isRemoved = false
+  async function remove() {
+    if (isRemoved) return
+    await rm(file, { force: true })
+    // A synchronous exit may have removed the directory during the await.
+    try {
+      await rmdir(directory)
+    } catch (error) {
+      refuseUnlessMissing(error)
+    }
+    isRemoved = true
+    process.off('exit', removeSync)
+  }
+  function removeSync() {
+    if (isRemoved) return
+    rmSync(file, { force: true })
+    try {
+      rmdirSync(directory)
+    } catch (error) {
+      refuseUnlessMissing(error)
+    }
+    isRemoved = true
+    process.off('exit', removeSync)
+  }
+  // The bearer must never exist before fatal/ordinary exit cleanup is armed.
+  process.once('exit', removeSync)
   try {
     await secure(directory, true, acl)
     const handle = await open(file, 'wx', FILE_MODE)
     try {
-      const aclReceipt = await secure(file, false, acl)
+      let aclReceipt = await secure(file, false, acl)
       const token = randomBytes(IDE_MCP_TOKEN_BYTES).toString('hex')
       await handle.writeFile(token, 'utf8')
       await handle.sync()
+      if (acl === undefined && process.platform === 'darwin') {
+        await secure(directory, true)
+        aclReceipt = await secure(file, false)
+      }
       return {
         token,
         path: file,
         aclReceipt,
-        async remove() {
-          await rm(file, { force: true })
-          await rmdir(directory)
-        },
-        removeSync() {
-          rmSync(file, { force: true })
-          rmdirSync(directory)
-        },
+        remove,
+        removeSync,
       }
     } finally {
       await handle.close()
     }
   } catch {
-    await rm(file, { force: true })
-    await rmdir(directory)
-    throw new Error('EJUDGE_TOKEN_ACL')
+    await remove()
+    throw new Error(fill(UI_TEXT.judgeNoAnswer, { reason: 'EJUDGE_TOKEN_ACL' }))
   }
 }

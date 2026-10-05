@@ -8,7 +8,11 @@ import { afterEach, describe, expect, it } from 'vitest'
 import * as z from 'zod/mini'
 import { withoutCredentials, withoutKeyringRoutes } from '../../src/runtime/credentialVariables'
 
-const readySchema = z.strictObject({ url: z.string(), tokenPath: z.string() })
+const readySchema = z.strictObject({
+  url: z.string(),
+  tokenPath: z.string(),
+  phase: z.enum(['ready', 'sync', 'close']),
+})
 const children: {
   child: ChildProcess
   ended: Promise<{ code: number | null; signal: NodeJS.Signals | null }>
@@ -26,10 +30,13 @@ afterEach(async () => {
 // process, sockets and signal handling run in the rig's installed Node.
 const CHILD_SOURCE = `
 import * as z from 'zod/mini'
+import fs from 'node:fs/promises'
+import { syncBuiltinESMExports } from 'node:module'
+import path from 'node:path'
 import { startJudgeServer } from './src/runtime/judge/serve'
 const parent = z.string().parse(process.argv[2])
 const port = Number(process.argv[3])
-const service = await startJudgeServer({ tokenDirectory: parent, port, runtime: { judge: () => Promise.resolve({ outcome: 'no-answer', reason: 'source-unavailable' }) } })
+const phase = z.enum(['ready', 'sync', 'close']).parse(process.argv[4])
 const disconnect = () => { if (process.connected) process.disconnect() }
 process.once('SIGINT', disconnect)
 process.once('SIGTERM', disconnect)
@@ -38,9 +45,24 @@ process.on('message', (value) => {
   disconnect()
   if (command === 'fatal') throw new Error('synthetic fatal exit')
 })
-process.send?.({ url: service.url, tokenPath: service.tokenPath })
+if (phase !== 'ready') {
+  const open = fs.open
+  fs.open = async (...args) => {
+    const handle = await open(...args)
+    if (path.basename(String(args[0])) === 'bearer') {
+      handle[phase] = async () => {
+        process.send?.({ url: '', tokenPath: String(args[0]), phase })
+        await new Promise(() => {})
+      }
+    }
+    return handle
+  }
+  syncBuiltinESMExports()
+}
+const service = await startJudgeServer({ tokenDirectory: parent, port, runtime: { judge: () => Promise.resolve({ outcome: 'no-answer', reason: 'source-unavailable' }) } })
+process.send?.({ url: service.url, tokenPath: service.tokenPath, phase })
 `
-async function launch(port = 0) {
+async function launch(port = 0, phase: 'ready' | 'sync' | 'close' = 'ready') {
   const folder = await mkdtemp(path.join(process.cwd(), '.judge-lifecycle-test-'))
   folders.push(folder)
   const bundle = path.join(folder, 'fake-source.mjs')
@@ -53,7 +75,7 @@ async function launch(port = 0) {
     outfile: bundle,
     logLevel: 'silent',
   })
-  const child = fork(bundle, [folder, String(port)], {
+  const child = fork(bundle, [folder, String(port), phase], {
     stdio: ['ignore', 'ignore', 'ignore', 'ipc'],
     env: withoutKeyringRoutes(withoutCredentials(process.env)),
   })
@@ -130,6 +152,19 @@ describe('judge serve installed Node lifecycle', () => {
     expect(await endedWithin(service)).toEqual({ code: 1, signal: null })
     await expect(stat(service.tokenPath)).rejects.toMatchObject({ code: 'ENOENT' })
   })
+  it.each(['sync', 'close'] as const)(
+    'removes a written startup bearer on fatal exit while %s is pending',
+    async (phase) => {
+      const service = await launch(0, phase)
+      expect(service.phase).toBe(phase)
+      const written = await stat(service.tokenPath)
+      expect(written.size).toBeGreaterThan(0)
+      service.child.send('fatal')
+      expect(await endedWithin(service)).toEqual({ code: 1, signal: null })
+      await expect(stat(service.tokenPath)).rejects.toMatchObject({ code: 'ENOENT' })
+      await expect(stat(path.dirname(service.tokenPath))).rejects.toMatchObject({ code: 'ENOENT' })
+    },
+  )
   it('never authenticates a crash token when the same port restarts', async () => {
     const crashed = await launch()
     const old = await readFile(crashed.tokenPath, 'utf8')

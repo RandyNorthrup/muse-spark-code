@@ -437,6 +437,45 @@ describe('judge serve security over real sockets', () => {
     ).rejects.toMatchObject({ code: 'EADDRINUSE' })
     expect(await readdir(tokenDirectory)).toEqual([])
   })
+  it('publishes one close promise before synchronous owner cancellation reentry', async () => {
+    const tokenDirectory = await folder()
+    const owner = new AbortController()
+    const called = Promise.withResolvers<undefined>()
+    let reentered: Promise<void> | undefined
+    const runtime: JudgeRuntime = {
+      judge: (_request, signal) =>
+        new Promise((resolve) => {
+          signal.addEventListener(
+            'abort',
+            () => {
+              owner.abort()
+              reentered = service.close()
+              resolve({ outcome: 'no-answer', reason: 'cancelled' })
+            },
+            { once: true },
+          )
+          called.resolve(undefined)
+        }),
+    }
+    const service = await startJudgeServer({ runtime, tokenDirectory, signal: owner.signal })
+    closers.push(() => service.close())
+    const token = await readFile(service.tokenPath, 'utf8')
+    const response = (async () => {
+      try {
+        return await send(service.url, token)
+      } catch {
+        return undefined
+      }
+    })()
+    await called.promise
+    const stopping = service.close()
+    const outcomes = await Promise.allSettled([stopping, reentered])
+    await response
+    expect(reentered).toBe(stopping)
+    expect(outcomes.every((outcome) => outcome.status === 'fulfilled')).toBe(true)
+    expect(service.close()).toBe(stopping)
+    expect(await readdir(tokenDirectory)).toEqual([])
+  })
   it('aborts active inference and closes incomplete sockets on shutdown', async () => {
     const { promise: called, resolve: started } = Promise.withResolvers<undefined>()
     let signal: AbortSignal | undefined
@@ -465,6 +504,10 @@ describe('judge serve security over real sockets', () => {
     })()
     await called
     const idle = connect({ host: '127.0.0.1', port: Number(new URL(service.url).port) })
+    let socketError: Error | undefined
+    idle.on('error', (error) => {
+      socketError = error
+    })
     await new Promise<void>((resolve) => idle.once('connect', resolve))
     const closed = new Promise<void>((resolve) =>
       idle.once('close', () => {
@@ -487,6 +530,7 @@ describe('judge serve security over real sockets', () => {
     }
     await response
     await closed
+    if (socketError !== undefined) expect(socketError).toMatchObject({ code: 'ECONNRESET' })
     expect(signal?.aborted).toBe(true)
     await expect(stat(service.tokenPath)).rejects.toMatchObject({ code: 'ENOENT' })
   })

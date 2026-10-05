@@ -241,3 +241,88 @@ Full `npm run quality`, coverage/a11y, hosted matrix, installed Windows/macOS
 ACL/Node/VS Code and real admitted-source/CLI/package receipts stay the
 lead/Z's explicit integrated gates. This brief forbids the aggregate run,
 merge, rebase and push; none was done. No live/paid/local inference occurred.
+
+## FIXM98CS — RVM98CS repairs (2026-10-05, macmini)
+
+Worktree `/Users/randy/lanes/FIXM98CS`, branch `m98/csfix`, base `d5c05578`.
+Read the full rig/shared brief and RVM98CS report, repository rules and
+PLAN D77/M98 phase 2. The rig override prohibits aggregate quality/full-suite
+runs, merge/rebase/push and external/live/paid calls; all verification here
+runs directly on macmini, with at most three owning files per Vitest run.
+No dependency, wire shape, dispatcher, paid guard, cap, ignore or threshold
+changes. No suppression or cast is added.
+
+| Review finding                                          | Disposition                                                                                                                                     | Regression                                                                                                                                                                          | Red control                                                                                                      |
+| ------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
+| RVM98CS 3 / P1: macOS extended ACLs survive mode repair | Fixed: reject all extended ACLs on the directory/file before writing and reverify both after writing; failed/malformed inspection refuses.      | Real inherited and file `chmod +a` grants; real post-write file/directory grants; inspection failures and malformed receipts.                                                       | 45–50: ACL guard, extra entry, mode/marker, both post-write checks and the pre-write file check.                 |
+| RVM98CS 1 / P2: startup bearer has no exit handler      | Fixed: token factory registers its synchronous exit cleanup before permission work or writing; successful/failure cleanup removes that handler. | Unit checks invoke the newly installed exit handler while sync/close is pending; installed Node fatal-exit cases delete the already-written file and its directory in both windows. | 52: remove early exit registration; both pending-operation unit cases and three installed fatal-exit cases fail. |
+| RVM98CS 2 / P2: synchronous owner abort reenters close  | Fixed: publish the shutdown promise before synchronous abort callbacks; all reentries return that exact promise and share cleanup.              | `publishes one close promise before synchronous owner cancellation reentry`, with real HTTP inference and owner abort.                                                              | 53: move abort back ahead of promise publication; the named regression fails.                                    |
+
+The new regressions were run against the old guards before repair: ACL
+acceptance/translation/receipt cases failed (7 failures in the initial
+30-test file); the startup cleanup cases and reentrant-close case failed
+(3 failing tests, including the original ENOENT reentrant cleanup failure).
+The completed 12 deliberate red controls are appended as **45–56** in
+[m98-cs-drills.json](m98-cs-drills.json): every red exits 1 with named failures,
+every source restore is byte-exact by SHA-256, and every whole owning-file
+rerun exits 0. Controls 51 and 54–56 additionally prove runtime localization,
+propagation of cleanup errors other than ENOENT, no async repeat after
+synchronous removal, and exclusive 0600 creation (`wx` =
+`O_WRONLY | O_CREAT | O_EXCL`). No test-name filter or skipped case is used.
+The installed macOS ACL cases are registered only on Darwin, so another OS
+cannot count them as its own receipt.
+
+**macOS ACL receipt:** macOS **15.7.4 (24G517)**, Darwin, UID **502**, Node
+**v24.21.0**. An empty synthetic probe received `everyone allow` read/search
+and inheritable grants via `/bin/chmod +a`. `/bin/ls -ledn` showed
+`drwx------+` and `-rw-------+` with an allow ACE for Everyone
+(`ABCDEFAB-CDEF-ABCD-EFAB-CDEF0000000C`); those ACEs survived chmod to
+0700/0600. The actual tests repeat inheritance, direct file and late
+file/directory grants and see refusal plus artifact deletion. Ordinary
+creation returns `{ platform: 'darwin', ownerOnly: true, mode: 384,
+extendedAcl: false }`; actual directory/file mode and UID checks pass.
+The bounded fixed `/bin/ls` command receives only a path and a filtered
+environment, with `LC_ALL=C`; no bearer is passed to it. The parser accepts
+one expected mode line, optional `@` attribute marker, no `+` marker and no
+ACL lines. Conservatively, owner-only or deny-only extended ACLs also refuse.
+The translated error reads the installed `judgeNoAnswer` template at failure
+and includes the technical code `EJUDGE_TOKEN_ACL`; no shared text key changes.
+
+**Linux ACL receipt:** the earlier Kubuntu/Node v24.18.0, UID 1000 receipt
+above verifies 0700/0600, owner UID, exclusive creation and one link; this
+repair does not claim a new installed Linux run. **Windows ACL receipt:**
+synthetic owner/protected-DACL cases rerun here, but installed Windows ACL
+verification remains outstanding. No macOS result certifies either OS.
+The `SIGKILL` crash-token regression remains green: hard kill cannot run
+cleanup and leaves a private stale artifact, whose token fails on restart.
+
+The existing raw-socket shutdown test now captures macOS ECONNRESET and
+asserts that exact code if a reset arrives, as well as socket closure,
+inference cancellation and token deletion. This fixes the previously
+unhandled platform error without relaxing the shutdown assertions.
+
+**Final source SHA-256:**
+
+- serve: `fe97944a090595cf9596e8bfd288c1a50a0c8c036debd9f0466925f805c7ad39`
+- tokenFile: `0a775136de1b5772da4f05f8cfd7481e8a47b6fcf257e64739a34402d3433f10`
+
+**Residuals and shared handoff:** no RVM98CS P1/P2/P3 is left unfixed.
+`CS-OS-INTEGRATION` remains a named receipt gap in PLAN §9: G/Z must collect
+installed Windows and integrated CLI/VS Code/source receipts, refresh the
+generated host inventory, and run the aggregate quality/package gates before
+shipping. The modules remain unwired on this base, so this repair adds no
+supported command or source. Z owns shared README/CHANGELOG and text files.
+Prepared Unreleased note for its serialized integration: “The local judge
+boundary refuses macOS extended ACLs and cleans up startup credentials on
+fatal exit; shutdown stays idempotent when cancellation callbacks reenter.”
+All model attempt counts remain **0 live, 0 paid, 0 local**.
+
+Repair-commit checks on macmini: the three owning files pass **82/82**
+(37 socket, 39 token/ACL, 6 installed process cases); all five typecheck
+projects, scoped ESLint, changed-file Prettier and whitespace checks pass.
+Localization passes **14 tables, 127 manifest strings, 431 source files,
+0 problems**. Host API again exits 1 for the unchanged inherited inventory
+mismatch detailed above (271 VS Code APIs, 18 importers; Node totals and
+paidHost rows are unchanged by this repair). PLAN §7 records the explicit
+Z refresh deferral. Aggregate quality remains with the lead under the rig
+brief; it is not claimed green here.

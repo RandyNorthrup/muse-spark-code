@@ -684,5 +684,206 @@
     "greenExit": 0,
     "greenTests": "36 passed (36)",
     "sourceVersion": "strict UTF-8 follow-up"
+  },
+  {
+    "id": 45,
+    "guard": "macOS ACL refusal",
+    "source": "src/runtime/judge/tokenFile.ts",
+    "testFiles": ["test/unit/judgeServeTokenFile.test.ts"],
+    "redExit": 1,
+    "failedTests": [
+      "test/unit/judgeServeTokenFile.test.ts > judge serve token file > refuses real inherited macOS ACL grants that survive 0700 chmod",
+      "test/unit/judgeServeTokenFile.test.ts > judge serve token file > refuses real macOS file ACL grants before writing a bearer",
+      "test/unit/judgeServeTokenFile.test.ts > judge serve token file > refuses a real macOS file ACL grant added during the bearer write",
+      "test/unit/judgeServeTokenFile.test.ts > judge serve token file > refuses a real macOS directory ACL grant added during the bearer write",
+      "test/unit/judgeServeTokenFile.test.ts > judge serve token file > refuses empty macOS ACL inspection output",
+      "test/unit/judgeServeTokenFile.test.ts > judge serve token file > refuses malformed macOS ACL inspection output",
+      "test/unit/judgeServeTokenFile.test.ts > judge serve token file > refuses ACL marker macOS ACL inspection output",
+      "test/unit/judgeServeTokenFile.test.ts > judge serve token file > refuses ACL entry macOS ACL inspection output",
+      "test/unit/judgeServeTokenFile.test.ts > judge serve token file > refuses wrong mode macOS ACL inspection output"
+    ],
+    "beforeSha256": "0a775136de1b5772da4f05f8cfd7481e8a47b6fcf257e64739a34402d3433f10",
+    "afterSha256": "0a775136de1b5772da4f05f8cfd7481e8a47b6fcf257e64739a34402d3433f10",
+    "greenExit": 0,
+    "greenTests": "39 passed (39)",
+    "sourceVersion": "FIXM98CS RVM98CS repair (macmini, 2026-10-05)"
+  },
+  {
+    "id": 46,
+    "guard": "macOS ACL entry lines",
+    "source": "src/runtime/judge/tokenFile.ts",
+    "testFiles": ["test/unit/judgeServeTokenFile.test.ts"],
+    "redExit": 1,
+    "failedTests": [
+      "test/unit/judgeServeTokenFile.test.ts > judge serve token file > refuses ACL entry macOS ACL inspection output"
+    ],
+    "beforeSha256": "0a775136de1b5772da4f05f8cfd7481e8a47b6fcf257e64739a34402d3433f10",
+    "afterSha256": "0a775136de1b5772da4f05f8cfd7481e8a47b6fcf257e64739a34402d3433f10",
+    "greenExit": 0,
+    "greenTests": "39 passed (39)",
+    "sourceVersion": "FIXM98CS RVM98CS repair (macmini, 2026-10-05)"
+  },
+  {
+    "id": 47,
+    "guard": "macOS mode/marker receipt",
+    "source": "src/runtime/judge/tokenFile.ts",
+    "testFiles": ["test/unit/judgeServeTokenFile.test.ts"],
+    "redExit": 1,
+    "failedTests": [
+      "test/unit/judgeServeTokenFile.test.ts > judge serve token file > refuses empty macOS ACL inspection output",
+      "test/unit/judgeServeTokenFile.test.ts > judge serve token file > refuses malformed macOS ACL inspection output",
+      "test/unit/judgeServeTokenFile.test.ts > judge serve token file > refuses ACL marker macOS ACL inspection output",
+      "test/unit/judgeServeTokenFile.test.ts > judge serve token file > refuses wrong mode macOS ACL inspection output"
+    ],
+    "beforeSha256": "0a775136de1b5772da4f05f8cfd7481e8a47b6fcf257e64739a34402d3433f10",
+    "afterSha256": "0a775136de1b5772da4f05f8cfd7481e8a47b6fcf257e64739a34402d3433f10",
+    "greenExit": 0,
+    "greenTests": "39 passed (39)",
+    "sourceVersion": "FIXM98CS RVM98CS repair (macmini, 2026-10-05)"
+  },
+  {
+    "id": 48,
+    "guard": "macOS post-write directory verification",
+    "source": "src/runtime/judge/tokenFile.ts",
+    "testFiles": ["test/unit/judgeServeTokenFile.test.ts"],
+    "redExit": 1,
+    "failedTests": [
+      "test/unit/judgeServeTokenFile.test.ts > judge serve token file > refuses a real macOS directory ACL grant added during the bearer write"
+    ],
+    "beforeSha256": "0a775136de1b5772da4f05f8cfd7481e8a47b6fcf257e64739a34402d3433f10",
+    "afterSha256": "0a775136de1b5772da4f05f8cfd7481e8a47b6fcf257e64739a34402d3433f10",
+    "greenExit": 0,
+    "greenTests": "39 passed (39)",
+    "sourceVersion": "FIXM98CS RVM98CS repair (macmini, 2026-10-05)"
+  },
+  {
+    "id": 49,
+    "guard": "macOS post-write file verification",
+    "source": "src/runtime/judge/tokenFile.ts",
+    "testFiles": ["test/unit/judgeServeTokenFile.test.ts"],
+    "redExit": 1,
+    "failedTests": [
+      "test/unit/judgeServeTokenFile.test.ts > judge serve token file > refuses a real macOS file ACL grant added during the bearer write"
+    ],
+    "beforeSha256": "0a775136de1b5772da4f05f8cfd7481e8a47b6fcf257e64739a34402d3433f10",
+    "afterSha256": "0a775136de1b5772da4f05f8cfd7481e8a47b6fcf257e64739a34402d3433f10",
+    "greenExit": 0,
+    "greenTests": "39 passed (39)",
+    "sourceVersion": "FIXM98CS RVM98CS repair (macmini, 2026-10-05)"
+  },
+  {
+    "id": 50,
+    "guard": "macOS pre-write file verification",
+    "source": "src/runtime/judge/tokenFile.ts",
+    "testFiles": ["test/unit/judgeServeTokenFile.test.ts"],
+    "redExit": 1,
+    "failedTests": [
+      "test/unit/judgeServeTokenFile.test.ts > judge serve token file > uses an exclusive private file and verifies permissions before its single write",
+      "test/unit/judgeServeTokenFile.test.ts > judge serve token file > refuses real macOS file ACL grants before writing a bearer",
+      "test/unit/judgeServeTokenFile.test.ts > judge serve token file > refuses a file ACL failure after a valid directory receipt without writing the token",
+      "test/unit/judgeServeTokenFile.test.ts > judge serve token file > uses the bounded Windows launcher with encoded paths and no bearer in arguments or environment",
+      "test/unit/judgeServeTokenFile.test.ts > judge serve token file > refuses a symlink token path before its write",
+      "test/unit/judgeServeTokenFile.test.ts > judge serve token file > refuses a hard-linked token path before its write"
+    ],
+    "beforeSha256": "0a775136de1b5772da4f05f8cfd7481e8a47b6fcf257e64739a34402d3433f10",
+    "afterSha256": "0a775136de1b5772da4f05f8cfd7481e8a47b6fcf257e64739a34402d3433f10",
+    "greenExit": 0,
+    "greenTests": "39 passed (39)",
+    "sourceVersion": "FIXM98CS RVM98CS repair (macmini, 2026-10-05)"
+  },
+  {
+    "id": 51,
+    "guard": "installed-language refusal",
+    "source": "src/runtime/judge/tokenFile.ts",
+    "testFiles": ["test/unit/judgeServeTokenFile.test.ts"],
+    "redExit": 1,
+    "failedTests": [
+      "test/unit/judgeServeTokenFile.test.ts > judge serve token file > reads the installed translation when token protection refuses startup"
+    ],
+    "beforeSha256": "0a775136de1b5772da4f05f8cfd7481e8a47b6fcf257e64739a34402d3433f10",
+    "afterSha256": "0a775136de1b5772da4f05f8cfd7481e8a47b6fcf257e64739a34402d3433f10",
+    "greenExit": 0,
+    "greenTests": "39 passed (39)",
+    "sourceVersion": "FIXM98CS RVM98CS repair (macmini, 2026-10-05)"
+  },
+  {
+    "id": 52,
+    "guard": "exit cleanup before bearer write",
+    "source": "src/runtime/judge/tokenFile.ts",
+    "testFiles": ["test/unit/judgeServeTokenFile.test.ts", "test/unit/judgeServeLifecycle.test.ts"],
+    "redExit": 1,
+    "failedTests": [
+      "test/unit/judgeServeLifecycle.test.ts > judge serve installed Node lifecycle > runs synchronous bearer cleanup on a fatal Node exit",
+      "test/unit/judgeServeLifecycle.test.ts > judge serve installed Node lifecycle > removes a written startup bearer on fatal exit while sync is pending",
+      "test/unit/judgeServeLifecycle.test.ts > judge serve installed Node lifecycle > removes a written startup bearer on fatal exit while close is pending",
+      "test/unit/judgeServeTokenFile.test.ts > judge serve token file > registers synchronous exit cleanup before the written bearer waits for sync",
+      "test/unit/judgeServeTokenFile.test.ts > judge serve token file > registers synchronous exit cleanup before the written bearer waits for close"
+    ],
+    "beforeSha256": "0a775136de1b5772da4f05f8cfd7481e8a47b6fcf257e64739a34402d3433f10",
+    "afterSha256": "0a775136de1b5772da4f05f8cfd7481e8a47b6fcf257e64739a34402d3433f10",
+    "greenExit": 0,
+    "greenTests": "45 passed (45)",
+    "sourceVersion": "FIXM98CS RVM98CS repair (macmini, 2026-10-05)"
+  },
+  {
+    "id": 53,
+    "guard": "close promise before synchronous reentry",
+    "source": "src/runtime/judge/serve.ts",
+    "testFiles": ["test/unit/judgeServe.test.ts"],
+    "redExit": 1,
+    "failedTests": [
+      "test/unit/judgeServe.test.ts > judge serve security over real sockets > publishes one close promise before synchronous owner cancellation reentry"
+    ],
+    "beforeSha256": "fe97944a090595cf9596e8bfd288c1a50a0c8c036debd9f0466925f805c7ad39",
+    "afterSha256": "fe97944a090595cf9596e8bfd288c1a50a0c8c036debd9f0466925f805c7ad39",
+    "greenExit": 0,
+    "greenTests": "37 passed (37)",
+    "sourceVersion": "FIXM98CS RVM98CS repair (macmini, 2026-10-05)"
+  },
+  {
+    "id": 54,
+    "guard": "cleanup ignores only missing directories",
+    "source": "src/runtime/judge/tokenFile.ts",
+    "testFiles": ["test/unit/judgeServeTokenFile.test.ts"],
+    "redExit": 1,
+    "failedTests": [
+      "test/unit/judgeServeTokenFile.test.ts > judge serve token file > propagates directory cleanup errors other than ENOENT"
+    ],
+    "beforeSha256": "0a775136de1b5772da4f05f8cfd7481e8a47b6fcf257e64739a34402d3433f10",
+    "afterSha256": "0a775136de1b5772da4f05f8cfd7481e8a47b6fcf257e64739a34402d3433f10",
+    "greenExit": 0,
+    "greenTests": "39 passed (39)",
+    "sourceVersion": "FIXM98CS RVM98CS repair (macmini, 2026-10-05)"
+  },
+  {
+    "id": 55,
+    "guard": "async cleanup after synchronous removal",
+    "source": "src/runtime/judge/tokenFile.ts",
+    "testFiles": ["test/unit/judgeServeTokenFile.test.ts"],
+    "redExit": 1,
+    "failedTests": [
+      "test/unit/judgeServeTokenFile.test.ts > judge serve token file > remains idempotent after synchronous cleanup and async removal"
+    ],
+    "beforeSha256": "0a775136de1b5772da4f05f8cfd7481e8a47b6fcf257e64739a34402d3433f10",
+    "afterSha256": "0a775136de1b5772da4f05f8cfd7481e8a47b6fcf257e64739a34402d3433f10",
+    "greenExit": 0,
+    "greenTests": "39 passed (39)",
+    "sourceVersion": "FIXM98CS RVM98CS repair (macmini, 2026-10-05)"
+  },
+  {
+    "id": 56,
+    "guard": "exclusive 0600 creation",
+    "source": "src/runtime/judge/tokenFile.ts",
+    "testFiles": ["test/unit/judgeServeTokenFile.test.ts"],
+    "redExit": 1,
+    "failedTests": [
+      "test/unit/judgeServeTokenFile.test.ts > judge serve token file > uses an exclusive private file and verifies permissions before its single write",
+      "test/unit/judgeServeTokenFile.test.ts > judge serve token file > never overwrites a preexisting token path"
+    ],
+    "beforeSha256": "0a775136de1b5772da4f05f8cfd7481e8a47b6fcf257e64739a34402d3433f10",
+    "afterSha256": "0a775136de1b5772da4f05f8cfd7481e8a47b6fcf257e64739a34402d3433f10",
+    "greenExit": 0,
+    "greenTests": "39 passed (39)",
+    "sourceVersion": "FIXM98CS RVM98CS repair (macmini, 2026-10-05)"
   }
 ]
