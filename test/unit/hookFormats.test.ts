@@ -1,568 +1,360 @@
-// Source-shaped fixtures: saved hooks-parity/ pages named beside each group.
-// FIXM91P/RVM91P numbers identify the reviewed regressions. No live model calls.
+// M91 lane P regressions, round 3. Each test names the review finding it
+// guards (RVM91P2 #n, RVM91P #n) or the round-3 contract correction (R3-n),
+// with the saved source line it follows (paths relative to hooks-parity/).
+// Fake-only: no vendor CLI and no model call.
 import { execFileSync } from 'node:child_process'
-import { mkdtempSync, unlinkSync, rmdirSync } from 'node:fs'
+import { mkdtempSync, rmdirSync, unlinkSync } from 'node:fs'
 import path from 'node:path'
 import { buildSync } from 'esbuild'
 import { describe, expect, it } from 'vitest'
 import {
   type AdapterEvent,
-  type HookFormat,
-  type CopilotAdapterOptions,
-  type CursorAdapterOptions,
-  type KiroAdapterOptions,
-  type GeminiHookAnswer,
   type ForeignStdinResult,
   buildCopilotStdin,
   buildCursorStdin,
+  buildForeignStdin,
   buildGeminiStdin,
   buildKiroStdin,
   buildWindsurfStdin,
+  confineHookCwd,
   geminiTimeoutMsToSeconds,
-  HOOK_FORMATS,
   parseCopilotResult,
   parseCursorResult,
+  parseForeignResult,
   parseGeminiResult,
   parseKiroResult,
   parseWindsurfResult,
 } from '../../src/core/backends/modelapi/hookFormats'
 
-function stdinOf(result: ForeignStdinResult): unknown {
+// Fixtures use POSIX paths; Windows semantics are tested with platform: 'win32'.
+const cursorIn: typeof buildCursorStdin = (e, p, o) =>
+  buildCursorStdin(e, p, { platform: 'linux', ...o })
+const copilotIn: typeof buildCopilotStdin = (e, p, o) =>
+  buildCopilotStdin(e, p, { platform: 'linux', ...o })
+const windsurfIn: typeof buildWindsurfStdin = (e, p, o) =>
+  buildWindsurfStdin(e, p, { platform: 'linux', ...o })
+const geminiIn: typeof buildGeminiStdin = (e, p, o) =>
+  buildGeminiStdin(e, p, { platform: 'linux', ...o })
+const kiroIn: typeof buildKiroStdin = (e, p, o) => buildKiroStdin(e, p, { platform: 'linux', ...o })
+
+function isObject(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
+}
+function stdinOf(result: ForeignStdinResult): Record<string, unknown> {
   if (result.outcome !== 'run') throw new Error(`${result.outcome}: ${result.reason}`)
   const value: unknown = JSON.parse(result.stdin)
+  if (!isObject(value)) throw new Error('stdin is not an object')
   return value
 }
+/** The guard from RVM91P2 #1: deny database === "production". */
+function isProductionCall(args: unknown): boolean {
+  return isObject(args) && args['database'] === 'production'
+}
+function objectAt(value: Record<string, unknown>, key: string): Record<string, unknown> {
+  const found = value[key]
+  if (!isObject(found)) throw new Error(`${key} is not an object`)
+  return found
+}
+
+const ROOT = '/project'
+const preview = 'line 1\n{"ok":true}\n'
 const shell = {
   session_id: 'session-123',
-  cwd: '/project',
+  turn_id: 'turn-1',
+  cwd: ROOT,
   tool_name: 'bash',
   tool_input: { command: 'npm install' },
 }
-const preview = 'All tests passed\n[truncated]'
 const post = { ...shell, tool_response: preview }
+// RVM91P2 #1 scenario: a legitimate argument named `arguments` beside others.
+const mcpCall = {
+  session_id: 'session-123',
+  cwd: ROOT,
+  tool_name: 'mcp__db__query',
+  tool_input: { arguments: { sql: 'SELECT 1' }, database: 'production' },
+}
+const readCall = {
+  session_id: 'session-123',
+  cwd: ROOT,
+  tool_name: 'read_file',
+  tool_input: { path: 'private/keys.txt' },
+  content: 'secret',
+}
 
-it('keeps the five lane P formats', () => {
-  const formats: readonly HookFormat[] = HOOK_FORMATS
-  expect(formats).toEqual(['gemini', 'cursor', 'copilot', 'windsurf', 'kiro'])
-})
+describe('RVM91P2 findings', () => {
+  it('#1 MCP arguments pass as-is to Cursor and Windsurf (CH:1078, W:283-288)', () => {
+    const cursor = stdinOf(cursorIn('PreToolUse', mcpCall, { sourceEvent: 'beforeMCPExecution' }))
+    const params: unknown = JSON.parse(String(cursor['tool_input']))
+    expect(params).toEqual(mcpCall.tool_input)
+    const windsurf = stdinOf(windsurfIn('PreToolUse', mcpCall))
+    expect(windsurf['tool_info']).toMatchObject({ mcp_tool_arguments: mcpCall.tool_input })
+    expect(isProductionCall(params)).toBe(true)
+    expect(isProductionCall(objectAt(windsurf, 'tool_info')['mcp_tool_arguments'])).toBe(true)
+    expect(stdinOf(cursorIn('PreToolUse', mcpCall))['tool_input']).toEqual(mcpCall.tool_input)
+  })
 
-// cursor_com_docs_hooks_md.out:194-197, 853-880, 1046-1177, 1239-1265.
-describe('Cursor source contract', () => {
-  it('F7 preserves generic preToolUse and Shell', () => {
-    expect(
-      stdinOf(buildCursorStdin('PreToolUse', shell, { sourceEvent: 'preToolUse' })),
-    ).toMatchObject({
-      hook_event_name: 'preToolUse',
-      tool_name: 'Shell',
-      tool_input: { command: 'npm install' },
-    })
-  })
-  it('F7 builds specialized shell fields', () => {
-    expect(
-      stdinOf(buildCursorStdin('PreToolUse', shell, { sourceEvent: 'beforeShellExecution' })),
-    ).toMatchObject({
-      hook_event_name: 'beforeShellExecution',
-      command: 'npm install',
-      cwd: '/project',
-    })
-  })
-  it('F7 exposes file_path at top level', () => {
-    expect(
-      stdinOf(
-        buildCursorStdin(
-          'PreToolUse',
-          {
-            tool_name: 'read_file',
-            tool_input: { path: '/project/file.py' },
-            content: 'print(1)',
-            attachments: [],
-          },
-          { sourceEvent: 'beforeReadFile' },
-        ),
-      ),
-    ).toMatchObject({
-      hook_event_name: 'beforeReadFile',
-      file_path: '/project/file.py',
-      content: 'print(1)',
-      attachments: [],
-    })
-  })
-  it('F7 exposes MCP server and JSON params', () => {
-    expect(
-      stdinOf(
-        buildCursorStdin(
-          'PreToolUse',
-          {
-            tool_name: 'mcp__linear__create_issue',
-            tool_input: { title: 'Bug' },
-          },
-          { sourceEvent: 'beforeMCPExecution' },
-        ),
-      ),
-    ).toMatchObject({
-      hook_event_name: 'beforeMCPExecution',
-      tool_name: 'create_issue',
-      mcp_server_name: 'linear',
-      tool_input: '{"title":"Bug"}',
-    })
-  })
-  it.each([
-    ['PreToolUse', 'stop'],
-    ['PreToolUse', 'beforeReadFile'],
-    ['PostToolUse', 'beforeShellExecution'],
-  ] as const)('refuses source-event/tool mismatches %s/%s', (event, sourceEvent) => {
-    expect(buildCursorStdin(event, shell, { sourceEvent }).outcome).toBe('refused')
-  })
-  it('refuses a read contract without content rather than fabricate it', () => {
-    expect(
-      buildCursorStdin(
-        'PreToolUse',
-        { tool_name: 'read_file', tool_input: { path: 'a' } },
-        { sourceEvent: 'beforeReadFile' },
-      ).outcome,
-    ).toBe('refused')
-  })
-  it('F1 keeps documented deny messages', () => {
-    expect(
-      parseCursorResult(
-        'PreToolUse',
-        0,
-        '{"permission":"deny","user_message":"policy","agent_message":"do not run","continue":true}',
-        '',
-      ),
-    ).toMatchObject({
-      status: 'blocked',
-      reason: 'do not run',
-      systemMessage: 'policy',
-    })
-  })
-  it.each([
-    '{',
-    'null',
-    '[]',
-    '{"permission":42}',
-    '{"permission":"maybe"}',
-    '{"permission":"allow","alien":true}',
-  ])('F1 invalid permission response blocks without failClosed: %s', (answer) => {
-    expect(parseCursorResult('PreToolUse', 0, answer, '').status).toBe('blocked')
-  })
-  it.each([null, 1, 2])('keeps failClosed on exit %s', (exitCode) => {
-    expect(
-      parseCursorResult('PreToolUse', exitCode, '', 'policy', { failClosed: true }).status,
-    ).toBe('blocked')
-  })
-  it('missing permission JSON is invalid even without failClosed', () => {
-    expect(parseCursorResult('PreToolUse', 0, '', '').status).toBe('blocked')
-  })
-  it('crashes fail open without failClosed', () => {
-    expect(parseCursorResult('PreToolUse', null, '', '').status).toBe('failed')
-  })
-  it('ask requests a card and allow grants nothing', () => {
-    expect(parseCursorResult('PreToolUse', 0, '{"permission":"ask"}', '').permissionDecision).toBe(
-      'ask',
+  it('#2 Cursor beforeReadFile file_path is absolute (CH:1171)', () => {
+    const stdin = stdinOf(cursorIn('PreToolUse', readCall, { sourceEvent: 'beforeReadFile' }))
+    expect(stdin['file_path']).toBe('/project/private/keys.txt')
+    expect(String(stdin['file_path']).startsWith('/project/private/')).toBe(true)
+    const noRoot = { ...readCall, cwd: undefined }
+    expect(cursorIn('PreToolUse', noRoot, { sourceEvent: 'beforeReadFile' }).outcome).toBe(
+      'refused',
     )
+    const win = { ...readCall, cwd: String.raw`C:\ws`, tool_input: { path: String.raw`src\a.ts` } }
     expect(
-      parseCursorResult('PreToolUse', 0, '{"permission":"allow"}', '').approvalDecision,
-    ).toBeUndefined()
-    expect(
-      parseCursorResult('PreToolUse', 0, '{"permission":"allow"}', '').permissionDecision,
-    ).toBeUndefined()
+      stdinOf(cursorIn('PreToolUse', win, { sourceEvent: 'beforeReadFile', platform: 'win32' }))[
+        'file_path'
+      ],
+    ).toBe(String.raw`C:\ws\src\a.ts`)
+    for (const bad of ['D:x', String.raw`\\server\share\x`, String.raw`\\?\C:\x`, String.raw`\x`])
+      expect(
+        buildCursorStdin(
+          'PreToolUse',
+          { ...win, tool_input: { path: bad } },
+          { sourceEvent: 'beforeReadFile', platform: 'win32' },
+        ).outcome,
+      ).toBe('refused')
   })
-  it('F8 beforeSubmitPrompt continue:false blocks', () => {
+
+  it('#3 Copilot camelCase hooks get native tool names (C:832-843)', () => {
+    const expected = { edit_file: 'edit', write_file: 'create', read_file: 'view', bash: 'bash' }
+    for (const [muse, native] of Object.entries(expected)) {
+      const stdin = stdinOf(copilotIn('PreToolUse', { ...shell, tool_name: muse }))
+      expect(stdin['toolName']).toBe(native)
+      expect(['edit', 'create', 'view', 'bash'].includes(String(stdin['toolName']))).toBe(true)
+    }
+    const pascal = { sourceEvent: 'PreToolUse' }
     expect(
-      parseCursorResult('UserPromptSubmit', 0, '{"continue":false,"user_message":"policy"}', ''),
-    ).toMatchObject({
-      status: 'blocked',
-      reason: 'policy',
-    })
-  })
-  it('prompt stdin preserves attachments', () => {
+      stdinOf(copilotIn('PreToolUse', { ...shell, tool_name: 'edit_file' }, pascal))['tool_name'],
+    ).toBe('Edit')
     expect(
-      stdinOf(buildCursorStdin('UserPromptSubmit', { prompt: 'hello', attachments: [] })),
-    ).toMatchObject({
-      hook_event_name: 'beforeSubmitPrompt',
-      prompt: 'hello',
-      attachments: [],
-    })
+      stdinOf(copilotIn('PreToolUse', { ...shell, tool_name: 'read_file' }, pascal))['tool_name'],
+    ).toBe('Read')
+    expect(
+      stdinOf(copilotIn('PreToolUse', { ...shell, tool_name: 'read_file' }, { flavor: 'vscode' }))[
+        'tool_name'
+      ],
+    ).toBe('read_file')
   })
-  // cursor_com_docs_hooks_md.out:996-1038, 1267-1276, 1300-1320.
-  it.each(['Stop', 'SubagentStop'] as const)('followup blocks %s completion', (event) => {
-    expect(parseCursorResult(event, 0, '{"followup_message":"run checks"}', '').status).toBe(
+
+  it.each([null, 1, 3])(
+    '#4 beforeSubmitPrompt honours failClosed on exit %s (CH:707)',
+    (exitCode) => {
+      expect(
+        parseCursorResult('UserPromptSubmit', exitCode, '', 'boom', { failClosed: true }).status,
+      ).toBe('blocked')
+      expect(parseCursorResult('UserPromptSubmit', exitCode, '', 'boom').status).toBe('failed')
+    },
+  )
+
+  it('#4 beforeSubmitPrompt failClosed covers no output and invalid output', () => {
+    expect(parseCursorResult('UserPromptSubmit', 0, '', '', { failClosed: true }).status).toBe(
       'blocked',
     )
+    expect(parseCursorResult('UserPromptSubmit', 0, '', '').status).toBe('completed')
+    expect(parseCursorResult('UserPromptSubmit', 0, '{', '', { failClosed: true }).status).toBe(
+      'blocked',
+    )
+    expect(parseCursorResult('UserPromptSubmit', 0, '{', '').status).toBe('failed')
   })
-  it('maps assistant response to text', () => {
-    expect(stdinOf(buildCursorStdin('PostLLMCall', { response: 'done' }))).toMatchObject({
-      hook_event_name: 'afterAgentResponse',
-      text: 'done',
-    })
-  })
-  // cursor_com_docs_hooks_md.out:889-915, 1086-1141.
-  it('F14 generic post-tool carries preview as JSON tool_output', () => {
-    expect(stdinOf(buildCursorStdin('PostToolUse', post))).toMatchObject({
-      tool_output: JSON.stringify(preview),
-    })
-  })
-  it('F14 shell post-tool carries preview verbatim', () => {
-    expect(
-      stdinOf(buildCursorStdin('PostToolUse', post, { sourceEvent: 'afterShellExecution' })),
-    ).toMatchObject({ output: preview })
-  })
-  it('F14 MCP post-tool carries preview as result_json', () => {
-    expect(
-      stdinOf(
-        buildCursorStdin(
-          'PostToolUse',
-          { ...post, tool_name: 'mcp__fs__read' },
-          { sourceEvent: 'afterMCPExecution' },
-        ),
-      ),
-    ).toMatchObject({ result_json: JSON.stringify(preview) })
-  })
-  it('F14 afterFileEdit refuses result previews it cannot represent', () => {
-    expect(
-      buildCursorStdin(
-        'PostToolUse',
-        { ...post, tool_name: 'edit_file', tool_input: { path: 'a' } },
-        { sourceEvent: 'afterFileEdit' },
-      ).outcome,
-    ).toBe('refused')
-  })
-  it('denial wins over unsupported rewrite fields', () => {
-    expect(
-      parseCursorResult('PreToolUse', 0, '{"permission":"deny","updated_mcp_tool_output":{}}', '')
-        .status,
-    ).toBe('blocked')
-  })
-})
 
-// docs_devin_ai_desktop_cascade_hooks_md.out:135-350, 420-445.
-describe('Windsurf source contract', () => {
-  it('F2 wraps shell in agent_action_name/tool_info', () => {
-    expect(stdinOf(buildWindsurfStdin('PreToolUse', shell))).toMatchObject({
-      agent_action_name: 'pre_run_command',
-      tool_info: { command_line: 'npm install', cwd: '/project' },
+  it('#5 Cursor MCP output replacement keeps its context (CH:905-920)', () => {
+    const output = '{"updated_mcp_tool_output":{"redacted":true},"additional_context":"redacted"}'
+    expect(parseCursorResult('PostToolUse', 0, output, '', { input: mcpCall })).toEqual({
+      status: 'completed',
+      context: 'redacted',
+      replacement: { target: 'toolResult', value: { redacted: true } },
+    })
+    // "For MCP tools only": a shell result is not replaced; context survives.
+    expect(parseCursorResult('PostToolUse', 0, output, '', { input: post })).toEqual({
+      status: 'completed',
+      context: 'redacted',
     })
   })
-  it('F2 wraps read and edit events', () => {
-    expect(
-      stdinOf(
-        buildWindsurfStdin('PreToolUse', {
-          tool_name: 'read_file',
-          tool_input: { path: '/project/file.py' },
-        }),
-      ),
-    ).toMatchObject({
-      agent_action_name: 'pre_read_code',
-      tool_info: { file_path: '/project/file.py' },
+
+  it('#5 Copilot modifiedResult and modifiedResponse are adapter results (C:713-735, C:702-706)', () => {
+    const output =
+      '{"modifiedResult":{"resultType":"success","textResultForLlm":"[redacted]"},"additionalContext":"note"}'
+    expect(parseCopilotResult('PostToolUse', 0, output, '')).toEqual({
+      status: 'completed',
+      context: 'note',
+      replacement: { target: 'toolResult', value: '[redacted]' },
     })
-    expect(
-      stdinOf(
-        buildWindsurfStdin('PreToolUse', {
-          tool_name: 'edit_file',
-          tool_input: {
-            path: '/project/file.py',
-            old_string: 'import os',
-            new_string: 'import os\nimport sys',
-          },
-        }),
-      ),
-    ).toMatchObject({
-      agent_action_name: 'pre_write_code',
-      tool_info: {
-        file_path: '/project/file.py',
-        edits: [{ old_string: 'import os', new_string: 'import os\nimport sys' }],
+    expect(parseCopilotResult('SubagentStop', 0, '{"modifiedResponse":"short"}', '')).toMatchObject(
+      {
+        replacement: { target: 'subagentResponse', value: 'short' },
       },
+    )
+    const both = '{"decision":"block","reason":"verify","modifiedResponse":"short"}'
+    expect(parseCopilotResult('SubagentStop', 0, both, '')).toEqual({
+      status: 'blocked',
+      reason: 'verify',
     })
+    const failure = '{"modifiedResult":{"resultType":"failure","textResultForLlm":"x"}}'
+    expect(parseCopilotResult('PostToolUse', 0, failure, '').status).toBe('failed')
   })
-  it('F2 wraps MCP arguments and name', () => {
+
+  it('#6 Gemini model events refuse the runtime summaries (no llm_request)', () => {
+    // The keys preModelCallFields/postModelCallFields emit (modelCallHooks.ts:100-160).
+    const summary = {
+      session_id: 's',
+      cwd: ROOT,
+      provider: 'meta',
+      request_id: 'r',
+      attempt: 1,
+      step: 1,
+      messages: [],
+      message_count: 0,
+      tools: [],
+      tool_count: 0,
+    }
+    for (const event of ['PreLLMCall', 'PostLLMCall', 'BeforeToolSelection'] as const)
+      expect(buildGeminiStdin(event, summary)).toMatchObject({ outcome: 'refused' })
+    const request = { model: 'gemini-2.5-flash', contents: [] }
     expect(
-      stdinOf(
-        buildWindsurfStdin('PreToolUse', {
-          tool_name: 'mcp__github__create_issue',
-          tool_input: { owner: 'code-owner', repo: 'my-cool-repo' },
-        }),
-      ),
-    ).toMatchObject({
-      agent_action_name: 'pre_mcp_tool_use',
-      tool_info: {
-        mcp_server_name: 'github',
-        mcp_tool_name: 'create_issue',
-        mcp_tool_arguments: { owner: 'code-owner', repo: 'my-cool-repo' },
-      },
+      stdinOf(geminiIn('PreLLMCall', { ...summary, llm_request: request }))['llm_request'],
+    ).toEqual(request)
+    expect(geminiIn('PostLLMCall', { ...summary, llm_request: request }).outcome).toBe('refused')
+  })
+
+  it('#7 a veto keeps its user warning and context (V:84-98, R:69-71)', () => {
+    const gemini =
+      '{"decision":"deny","reason":"policy","systemMessage":"warn","hookSpecificOutput":{"additionalContext":"ctx"}}'
+    expect(parseGeminiResult('PreLLMCall', 0, gemini, '')).toEqual({
+      status: 'blocked',
+      reason: 'policy',
+      systemMessage: 'warn',
+      context: 'ctx',
+    })
+    // vsc/hooks-reference.md:87-91, verbatim.
+    const local =
+      '{"continue":false,"stopReason":"Security policy violation","systemMessage":"Review the hook result."}'
+    expect(parseCopilotResult('UserPromptSubmit', 0, local, '', { flavor: 'vscode' })).toEqual({
+      status: 'blocked',
+      reason: 'Security policy violation',
+      stopReason: 'Security policy violation',
+      systemMessage: 'Review the hook result.',
     })
   })
-  it('F2 wraps prompt, response and worktree events', () => {
-    expect(stdinOf(buildWindsurfStdin('UserPromptSubmit', { prompt: 'hello' }))).toMatchObject({
-      agent_action_name: 'pre_user_prompt',
-      tool_info: { user_prompt: 'hello' },
-    })
-    expect(stdinOf(buildWindsurfStdin('Stop', { response: 'done' }))).toMatchObject({
-      agent_action_name: 'post_cascade_response',
-      tool_info: { response: 'done' },
-    })
-    expect(
-      stdinOf(
-        buildWindsurfStdin('WorktreeCreate', { worktree_path: '/tmp/work', cwd: '/project' }),
-      ),
-    ).toMatchObject({
-      agent_action_name: 'post_setup_worktree',
-      tool_info: { worktree_path: '/tmp/work', root_workspace_path: '/project' },
-    })
-  })
-  it('F14 MCP post-tool carries runtime preview', () => {
-    expect(
-      stdinOf(
-        buildWindsurfStdin('PostToolUse', { ...post, tool_name: 'mcp__github__list_commits' }),
-      ),
-    ).toMatchObject({ agent_action_name: 'post_mcp_tool_use', tool_info: { mcp_result: preview } })
-  })
-  it.each(['bash', 'read_file', 'edit_file'])(
-    'F14 refuses undocumented post result field for %s',
-    (tool_name) => {
-      expect(buildWindsurfStdin('PostToolUse', { ...post, tool_name }).outcome).toBe('refused')
+
+  it.each(['error', 'aborted'])(
+    '#8 subagentStop ignores followup when status is %s (CH:1038)',
+    (status) => {
+      const output = '{"followup_message":"Run the next task"}'
+      expect(parseCursorResult('SubagentStop', 0, output, '', { input: { status } }).status).toBe(
+        'completed',
+      )
+      expect(
+        parseCursorResult('SubagentStop', 0, output, '', { input: { status: 'completed' } }),
+      ).toEqual({
+        status: 'blocked',
+        reason: 'Run the next task',
+      })
+      // No originating status: the follow-up is not consumed.
+      expect(parseCursorResult('SubagentStop', 0, output, '').status).toBe('completed')
+      // stop has no status condition (CH:1319).
+      expect(parseCursorResult('Stop', 0, output, '', { input: { status } }).status).toBe('blocked')
     },
   )
-  it.each(['PreToolUse', 'UserPromptSubmit', 'WorktreeCreate'] as const)(
-    'exit 2 blocks %s',
-    (event) => {
-      expect(parseWindsurfResult(event, 2, '{"permission":"allow"}', 'policy').status).toBe(
+})
+
+describe('RVM91P findings stay fixed', () => {
+  it('#1 Cursor permission answers: deny keeps messages, invalid blocks (CH:194, 1046)', () => {
+    expect(
+      parseCursorResult('PreToolUse', 0, '{"permission":"deny","user_message":"policy"}', ''),
+    ).toEqual({
+      status: 'blocked',
+      reason: 'policy',
+      systemMessage: 'policy',
+    })
+    for (const output of ['{"permission":42}', '{', '', '{"permission":"maybe"}'])
+      expect(parseCursorResult('PreToolUse', 0, output, '').status).toBe('blocked')
+    expect(parseCursorResult('PreToolUse', 2, '', 'nope').status).toBe('blocked')
+    for (const exitCode of [null, 1]) {
+      expect(parseCursorResult('PreToolUse', exitCode, '', '', { failClosed: true }).status).toBe(
         'blocked',
       )
-    },
-  )
-  it('ignores stdout and fails open on other exits/post errors', () => {
-    expect(parseWindsurfResult('PreToolUse', 0, '{"permission":"deny"}', '').status).toBe(
-      'completed',
-    )
-    expect(parseWindsurfResult('PreToolUse', 1, '', '').status).toBe('failed')
-    expect(parseWindsurfResult('PostToolUse', 2, '', '').status).toBe('failed')
-  })
-})
-
-// gh/copilot_reference_hooks-configuration.md:293-432, 453-485, 696-711, 763-771.
-// vsc/hooks-reference.md:66-168, 185-223, 308-329, 389-410.
-describe('Copilot and VS Code contracts', () => {
-  it('CLI camelCase remains its own contract', () => {
+      expect(parseCursorResult('PreToolUse', exitCode, '', '').status).toBe('failed')
+    }
+    const ask = parseCursorResult('PreToolUse', 0, '{"permission":"ask"}', '')
+    expect(ask).toMatchObject({ status: 'completed', permissionDecision: 'ask' })
     expect(
-      stdinOf(buildCopilotStdin('PreToolUse', shell, { workspaceRoot: '/project' })),
-    ).toMatchObject({
-      sessionId: 'session-123',
-      toolName: 'bash',
-      toolArgs: { command: 'npm install' },
-      cwd: '.',
-    })
-  })
-  it('F3 VS Code uses snake_case', () => {
-    expect(
-      stdinOf(
-        buildCopilotStdin('PreToolUse', shell, { flavor: 'vscode', workspaceRoot: '/project' }),
-      ),
-    ).toMatchObject({
-      hook_event_name: 'PreToolUse',
-      session_id: 'session-123',
-      tool_name: 'bash',
-      tool_input: { command: 'npm install' },
-    })
-  })
-  it('F3 Copilot PascalCase keeps snake_case and Claude tool name', () => {
-    expect(
-      stdinOf(
-        buildCopilotStdin('PreToolUse', shell, {
-          sourceEvent: 'PreToolUse',
-          workspaceRoot: '/project',
-        }),
-      ),
-    ).toMatchObject({
-      hook_event_name: 'PreToolUse',
-      tool_name: 'Bash',
-      tool_input: { command: 'npm install' },
-    })
-  })
-  it('F3 VS Code nested permission denial blocks', () => {
-    expect(
-      parseCopilotResult(
-        'PreToolUse',
-        0,
-        JSON.stringify({
-          hookSpecificOutput: {
-            hookEventName: 'PreToolUse',
-            permissionDecision: 'deny',
-            permissionDecisionReason: 'Destructive command blocked by policy.',
-            additionalContext: 'Production files are read-only.',
-          },
-        }),
-        '',
-        { flavor: 'vscode' },
-      ),
-    ).toMatchObject({ status: 'blocked', reason: 'Destructive command blocked by policy.' })
-  })
-  it('VS Code nested allow never grants and updatedInput remains a suggestion', () => {
-    const answer = parseCopilotResult(
-      'PreToolUse',
-      0,
-      '{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"allow","updatedInput":{"command":"npm ci"}}}',
-      '',
-      { flavor: 'vscode' },
-    )
-    expect(answer).toMatchObject({ status: 'completed', updatedInput: { command: 'npm ci' } })
-    expect(answer.approvalDecision).toBeUndefined()
-    expect(answer.permissionDecision).toBeUndefined()
-  })
-  it('VS Code common continue:false wins over permission allow', () => {
-    expect(
-      parseCopilotResult(
-        'PreToolUse',
-        0,
-        '{"continue":false,"stopReason":"policy","hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"allow"}}',
-        '',
-        { flavor: 'vscode' },
-      ),
-    ).toMatchObject({ status: 'blocked', stopReason: 'policy' })
-  })
-  it('VS Code validates event-specific envelope', () => {
-    expect(
-      parseCopilotResult(
-        'PreToolUse',
-        0,
-        '{"hookSpecificOutput":{"hookEventName":"Stop","permissionDecision":"deny"}}',
-        '',
-        { flavor: 'vscode' },
-      ).status,
-    ).toBe('failed')
-  })
-  it.each(['Stop', 'SubagentStop'] as const)(
-    'F9 CLI decision:block preserves %s continuation',
-    (event) => {
-      expect(
-        parseCopilotResult(event, 0, '{"decision":"block","reason":"run checks"}', ''),
-      ).toMatchObject({ status: 'blocked', reason: 'run checks' })
-    },
-  )
-  it('VS Code nested Stop decision blocks', () => {
-    expect(
-      parseCopilotResult(
-        'Stop',
-        0,
-        '{"hookSpecificOutput":{"hookEventName":"Stop","decision":"block","reason":"Run the test suite before finishing."}}',
-        '',
-        { flavor: 'vscode' },
-      ).status,
+      parseCursorResult('PreToolUse', 0, '{"permission":"ask"}', '', {
+        sourceEvent: 'beforeReadFile',
+      }).status,
     ).toBe('blocked')
   })
-  it('F4 permissionRequest behavior/message/interrupt denies and stops', () => {
+
+  it('#2 Windsurf envelope; the saved dangerous-command guard fires (W:242-249, 619-626)', () => {
+    const stdin = stdinOf(
+      windsurfIn('PreToolUse', { ...shell, tool_input: { command: 'rm -rf x' } }),
+    )
+    expect(stdin).toMatchObject({
+      agent_action_name: 'pre_run_command',
+      trajectory_id: 'session-123',
+      execution_id: 'turn-1',
+      tool_info: { command_line: 'rm -rf x', cwd: ROOT },
+    })
+    // The doc's Python example: exit 2 when pre_run_command carries rm -rf.
+    const info = objectAt(stdin, 'tool_info')
+    const exit =
+      stdin['agent_action_name'] === 'pre_run_command' &&
+      String(info['command_line']).includes('rm -rf')
+        ? 2
+        : 0
+    expect(parseWindsurfResult('PreToolUse', exit, '', 'blocked rm').status).toBe('blocked')
+  })
+
+  it('#3 VS Code snake_case input and nested deny; PascalCase is its own CLI contract', () => {
+    const local = stdinOf(copilotIn('PreToolUse', shell, { flavor: 'vscode' }))
+    expect(local).toMatchObject({
+      hook_event_name: 'PreToolUse',
+      tool_name: 'bash',
+      tool_input: shell.tool_input,
+    })
+    const deny =
+      '{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"deny","permissionDecisionReason":"no"}}'
+    expect(parseCopilotResult('PreToolUse', 0, deny, '', { flavor: 'vscode' })).toMatchObject({
+      status: 'blocked',
+      reason: 'no',
+    })
+    const pascal = stdinOf(copilotIn('PreToolUse', shell, { sourceEvent: 'PreToolUse' }))
+    expect(pascal).toMatchObject({
+      hook_event_name: 'PreToolUse',
+      tool_name: 'Bash',
+      tool_input: shell.tool_input,
+    })
+  })
+
+  it('#4 permissionRequest behavior/message/interrupt (C:763-771)', () => {
+    expect(
+      parseCopilotResult('PermissionRequest', 0, '{"behavior":"deny","message":"policy"}', ''),
+    ).toEqual({
+      status: 'blocked',
+      reason: 'policy',
+      approvalDecision: 'deny',
+    })
     expect(
       parseCopilotResult(
         'PermissionRequest',
-        0,
-        '{"behavior":"deny","message":"policy","interrupt":true}',
-        '',
+        2,
+        '{"behavior":"allow","message":"policy","interrupt":true}',
+        'ignored',
       ),
-    ).toMatchObject({
+    ).toEqual({
       status: 'blocked',
-      approvalDecision: 'deny',
       reason: 'policy',
       stopReason: 'policy',
+      approvalDecision: 'deny',
+    })
+    expect(parseCopilotResult('PermissionRequest', 2, '', 'ignored')).toMatchObject({
+      status: 'blocked',
+      reason: 'copilot hook denied the call',
+      approvalDecision: 'deny',
     })
   })
-  it('permission allow never grants', () => {
-    expect(
-      parseCopilotResult('PermissionRequest', 0, '{"behavior":"allow"}', '').approvalDecision,
-    ).toBeUndefined()
-  })
-  it.each([null, 1, 2])('CLI preToolUse errors deny %s', (exitCode) => {
-    expect(
-      parseCopilotResult('PreToolUse', exitCode, '{"permissionDecision":"allow"}', '').status,
-    ).toBe('blocked')
-  })
-  it.each(['{', '{"permissionDecision":42}', '{"permissionDecision":"unknown"}'])(
-    'invalid CLI permission denies %s',
-    (output) => {
-      expect(parseCopilotResult('PreToolUse', 0, output, '').status).toBe('blocked')
-    },
-  )
-  it('CLI ask forces approval', () => {
-    expect(
-      parseCopilotResult('PreToolUse', 0, '{"permissionDecision":"ask"}', '').permissionDecision,
-    ).toBe('ask')
-  })
-  it('VS Code non-2 errors stay nonblocking', () => {
-    expect(parseCopilotResult('PreToolUse', 1, '', '', { flavor: 'vscode' }).status).toBe('failed')
-  })
-  it.each([
-    'D:x',
-    'D:outside',
-    String.raw`\\server\share`,
-    String.raw`\\?\C:\ws`,
-    String.raw`\\?\UNC\server\share`,
-    String.raw`\\.\C:\ws`,
-  ])('F12 rejects drive-relative and UNC/device cwd %s', (cwd) => {
-    for (const workspaceRoot of [undefined, String.raw`C:\ws`, cwd]) {
-      expect(
-        buildCopilotStdin('PreToolUse', { ...shell, cwd }, { platform: 'win32', workspaceRoot })
-          .outcome,
-      ).toBe('refused')
-    }
-  })
-  it.each([
-    ['/repo/', 'src', 'linux', 'src'],
-    ['C:\\', String.raw`C:\src`, 'win32', 'src'],
-    [String.raw`C:\WS`, String.raw`c:\ws\src`, 'win32', 'src'],
-  ] as const)(
-    'F13 accepts contained cwd with platform semantics %s/%s',
-    (workspaceRoot, cwd, platform, expected) => {
-      expect(
-        stdinOf(buildCopilotStdin('PreToolUse', { ...shell, cwd }, { workspaceRoot, platform })),
-      ).toMatchObject({ cwd: expected })
-    },
-  )
-  it.each(['../outside', '/repo-other', '/outside'])('rejects lexical escape %s', (cwd) => {
-    expect(
-      buildCopilotStdin('PreToolUse', { ...shell, cwd }, { workspaceRoot: '/repo' }).outcome,
-    ).toBe('refused')
-  })
-  it.each(['env', 'environment'])('refuses credential-bearing %s', (field) => {
-    expect(
-      buildCopilotStdin('PreToolUse', {
-        tool_name: 'bash',
-        tool_input: { command: 'echo' },
-        [field]: {},
-      }).outcome,
-    ).toBe('refused')
-  })
-  it('F14 CLI post-tool carries runtime string in toolResult', () => {
-    expect(
-      stdinOf(buildCopilotStdin('PostToolUse', post, { workspaceRoot: '/project' })),
-    ).toMatchObject({
-      toolResult: { resultType: 'success', textResultForLlm: preview },
-    })
-  })
-  it('F14 PascalCase CLI post-tool uses tool_result', () => {
-    expect(
-      stdinOf(
-        buildCopilotStdin('PostToolUse', post, {
-          sourceEvent: 'PostToolUse',
-          workspaceRoot: '/project',
-        }),
-      ),
-    ).toMatchObject({ tool_result: { result_type: 'success', text_result_for_llm: preview } })
-  })
-  it('F14 VS Code post-tool uses tool_response', () => {
-    expect(
-      stdinOf(
-        buildCopilotStdin('PostToolUse', post, { flavor: 'vscode', workspaceRoot: '/project' }),
-      ),
-    ).toMatchObject({ tool_response: preview })
-  })
-})
 
-// raw-codex-gemini.md:52-73, vendor docs + types.ts summarized in saved research.
-describe('Gemini source contract', () => {
-  it.each(['bash', 'powershell'])('F15 maps both shells to run_shell_command: %s', (tool_name) => {
-    expect(stdinOf(buildGeminiStdin('PreToolUse', { ...shell, tool_name }))).toMatchObject({
-      tool_name: 'run_shell_command',
-    })
-  })
   it.each([
     'UserPromptSubmit',
     'Stop',
@@ -570,150 +362,23 @@ describe('Gemini source contract', () => {
     'PostLLMCall',
     'PreToolUse',
     'PostToolUse',
-  ] as const)('F5/F10 exit 2 blocks %s', (event) => {
-    expect(parseGeminiResult(event, 2, '', 'policy')).toMatchObject({
+  ] as const)('#5 Gemini %s keeps exit-2 and JSON vetoes (R:60-66)', (event) => {
+    expect(parseGeminiResult(event, 2, '', 'policy')).toEqual({
       status: 'blocked',
       reason: 'policy',
     })
-  })
-  it.each(['UserPromptSubmit', 'Stop', 'PreLLMCall', 'PostLLMCall'] as const)(
-    'F5/F10 JSON deny/block survives on %s',
-    (event) => {
-      for (const decision of ['deny', 'block']) {
-        expect(
-          parseGeminiResult(event, 0, JSON.stringify({ decision, reason: 'policy' }), '').status,
-        ).toBe('blocked')
-      }
-    },
-  )
-  it('F10 maps model events and tool selection', () => {
-    for (const [event, name] of [
-      ['PreLLMCall', 'BeforeModel'],
-      ['PostLLMCall', 'AfterModel'],
-      ['BeforeToolSelection', 'BeforeToolSelection'],
-    ] as const) {
-      expect(stdinOf(buildGeminiStdin(event, { session_id: 's' }))).toMatchObject({
-        hook_event_name: name,
-      })
-    }
-  })
-  it('F11 keeps nested context and systemMessage observation', () => {
-    expect(
-      parseGeminiResult(
-        'SessionStart',
-        0,
-        '{"hookSpecificOutput":{"hookEventName":"SessionStart","additionalContext":"project guidance"},"systemMessage":"review"}',
-        '',
-      ),
-    ).toMatchObject({ status: 'completed', context: 'project guidance', systemMessage: 'review' })
-    expect(
-      parseGeminiResult('Notification', 0, '{"systemMessage":"review"}', '').systemMessage,
-    ).toBe('review')
-  })
-  it.each(['llm_request', 'llm_response'])(
-    'F10 refuses modifying model field %s but preserves deny',
-    (field) => {
+    for (const decision of ['deny', 'block'])
       expect(
-        parseGeminiResult(
-          'PreLLMCall',
-          0,
-          JSON.stringify({ hookSpecificOutput: { [field]: {} } }),
-          '',
-        ).status,
-      ).toBe('failed')
-      expect(
-        parseGeminiResult(
-          'PreLLMCall',
-          0,
-          JSON.stringify({ decision: 'deny', hookSpecificOutput: { [field]: {} } }),
-          '',
-        ).status,
+        parseGeminiResult(event, 0, `{"decision":"${decision}","reason":"policy"}`, '').status,
       ).toBe('blocked')
-    },
-  )
-  it('continue:false preserves stop reason', () => {
-    expect(
-      parseGeminiResult('PostLLMCall', 0, '{"continue":false,"stopReason":"policy"}', ''),
-    ).toMatchObject({ status: 'blocked', stopReason: 'policy' })
   })
-  it('BeforeToolSelection returns an admission restriction only', () => {
-    expect(
-      parseGeminiResult(
-        'BeforeToolSelection',
-        0,
-        '{"hookSpecificOutput":{"toolConfig":{"allowedFunctionNames":["read_file"]}}}',
-        '',
-      ),
-    ).toMatchObject({ status: 'completed', allowedToolNames: ['read_file'] })
-    expect(
-      parseGeminiResult(
-        'BeforeToolSelection',
-        0,
-        '{"hookSpecificOutput":{"toolConfig":{"mode":"NONE"}}}',
-        '',
-      ),
-    ).toMatchObject({ status: 'completed', allowedToolNames: [] })
-  })
-  it('allow never grants permission', () => {
-    const answer = parseGeminiResult('PreToolUse', 0, '{"decision":"allow"}', '')
-    expect(answer.approvalDecision).toBeUndefined()
-    expect(answer.permissionDecision).toBeUndefined()
-  })
-  it('F14 preserves post-tool result preview', () => {
-    expect(stdinOf(buildGeminiStdin('PostToolUse', post))).toMatchObject({ tool_response: preview })
-  })
-  it.each([
-    [1, 1],
-    [1001, 2],
-    [60_001, 61],
-    [900_000, 600],
-  ] as const)('timeout %s ms becomes %s s', (value, expected) => {
-    expect(geminiTimeoutMsToSeconds(value)).toBe(expected)
-  })
-  it.each([-1, Infinity, NaN, '1000'])('rejects invalid timeout %s', (value) => {
-    expect(geminiTimeoutMsToSeconds(value)).toBeUndefined()
-  })
-})
 
-// raw/kiro_hooks_types.md (Pre/Post Tool Use), raw-kiro-amp-opencode-continue.md:9-18.
-describe('Kiro source contract', () => {
-  it('F14 carries runtime string preview', () => {
-    expect(stdinOf(buildKiroStdin('PostToolUse', post))).toMatchObject({
-      tool_name: 'execute_bash',
-      tool_response: preview,
-    })
-  })
-  it('file regex matches or skips before hook dispatch', () => {
-    const payload = {
-      tool_name: 'edit_file',
-      tool_input: { path: 'src/file.ts' },
-      tool_response: preview,
-    }
-    expect(
-      buildKiroStdin('PostToolUse', payload, {
-        trigger: 'PostFileSave',
-        pathPattern: String.raw`\.ts$`,
-      }).outcome,
-    ).toBe('run')
-    expect(
-      buildKiroStdin('PostToolUse', payload, {
-        trigger: 'PostFileSave',
-        pathPattern: String.raw`\.py$`,
-      }).outcome,
-    ).toBe('skip')
-    expect(
-      buildKiroStdin('PostToolUse', {}, { trigger: 'PostFileSave', pathPattern: '.' }).outcome,
-    ).toBe('skip')
-    expect(
-      buildKiroStdin('PostToolUse', payload, { trigger: 'PostFileSave', pathPattern: '[' }).outcome,
-    ).toBe('refused')
-  })
-  it('F6 pathological regex returns within child deadline', () => {
+  it('#6 Kiro pathological regex returns within the child deadline', () => {
     const entry = `import {buildKiroStdin} from './src/core/backends/modelapi/hookFormats';
       process.stdout.write(JSON.stringify(buildKiroStdin('PostToolUse',
         {tool_name:'edit_file',tool_input:{path:'a'.repeat(64)+'!'},tool_response:'preview'}, {trigger:'PostFileSave',pathPattern:'^(a+)+$'})));`
-    // Write the child bundle inside the rig worktree: Windows command-line
-    // limits cannot carry the bundled adapter through node -e.
+    // The child bundle is written inside the rig worktree: Windows command
+    // lines cannot carry the bundled adapter through node -e.
     const directory = mkdtempSync(path.join(process.cwd(), 'm91p-regex-'))
     const probe = path.join(directory, 'probe.cjs')
     let output: string
@@ -729,338 +394,400 @@ describe('Kiro source contract', () => {
       unlinkSync(probe)
       rmdirSync(directory)
     }
-    const value: unknown = JSON.parse(output)
-    expect(value).toMatchObject({
+    expect(JSON.parse(output)).toMatchObject({
       outcome: 'refused',
       reason: 'hook regular-expression matcher timed out or failed',
     })
   })
-  it.each([null, 1, 3])('only exit 2 blocks, other exit %s fails', (exitCode) => {
-    expect(parseKiroResult('PreToolUse', exitCode, '', '').status).toBe('failed')
-  })
-  it('exit 2 blocks and success context remains bounded', () => {
-    expect(parseKiroResult('PreToolUse', 2, '', 'policy').status).toBe('blocked')
-    expect(parseKiroResult('SessionStart', 0, 'project guidance', '')).toMatchObject({
-      status: 'completed',
-      context: 'project guidance',
-    })
-  })
-})
 
-it('unknown events stay refused for every builder', () => {
-  const event: AdapterEvent = 'MessageDisplay'
-  for (const build of [
-    buildCursorStdin,
-    buildCopilotStdin,
-    buildGeminiStdin,
-    buildKiroStdin,
-    buildWindsurfStdin,
-  ]) {
-    expect(build(event, {}).outcome).toBe('refused')
-  }
-})
-
-// Additional source-event boundaries from the same saved references above.
-describe('source-event boundaries', () => {
-  it('Cursor read permission schema blocks unsupported ask', () => {
-    const options: CursorAdapterOptions = { sourceEvent: 'beforeReadFile' }
-    expect(parseCursorResult('PreToolUse', 0, '{"permission":"ask"}', '', options).status).toBe(
-      'blocked',
-    )
-  })
-  it('Cursor preCompact user_message stays an observation', () => {
-    expect(parseCursorResult('PreCompact', 0, '{"user_message":"compacting"}', '')).toMatchObject({
-      status: 'completed',
-      systemMessage: 'compacting',
+  it('#7 Cursor keeps the imported source event and its fields (CH:846-881, 1049-1082)', () => {
+    expect(stdinOf(cursorIn('PreToolUse', shell))).toMatchObject({
+      hook_event_name: 'preToolUse',
+      tool_name: 'Shell',
+      tool_input: shell.tool_input,
+      conversation_id: 'session-123',
+      generation_id: 'turn-1',
     })
-  })
-  it('VS Code denial survives unsupported rewrite fields', () => {
     expect(
-      parseCopilotResult(
-        'PreToolUse',
+      stdinOf(cursorIn('PreToolUse', shell, { sourceEvent: 'beforeShellExecution' })),
+    ).toMatchObject({
+      hook_event_name: 'beforeShellExecution',
+      command: 'npm install',
+      cwd: ROOT,
+    })
+    expect(
+      stdinOf(cursorIn('PreToolUse', mcpCall, { sourceEvent: 'beforeMCPExecution' })),
+    ).toMatchObject({
+      tool_name: 'query',
+      mcp_server_name: 'db',
+    })
+    expect(cursorIn('PreToolUse', shell, { sourceEvent: 'beforeReadFile' }).outcome).toBe('refused')
+    expect(
+      cursorIn('PreToolUse', { ...readCall, content: undefined }, { sourceEvent: 'beforeReadFile' })
+        .outcome,
+    ).toBe('refused')
+  })
+
+  it('#8 Cursor beforeSubmitPrompt continue:false blocks with its message (CH:1255-1265)', () => {
+    expect(
+      parseCursorResult(
+        'UserPromptSubmit',
         0,
-        '{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"deny","updatedMCPToolOutput":{}}}',
+        '{"continue":false,"user_message":"no secrets"}',
         '',
-        { flavor: 'vscode' },
-      ).status,
-    ).toBe('blocked')
-  })
-  it('CLI permission exit 2 merges message and interrupt and ignores stderr', () => {
-    expect(
-      parseCopilotResult(
-        'PermissionRequest',
-        2,
-        '{"behavior":"allow","message":"policy","interrupt":true}',
-        'ignored',
       ),
-    ).toMatchObject({
+    ).toEqual({
       status: 'blocked',
-      reason: 'policy',
-      stopReason: 'policy',
-      approvalDecision: 'deny',
+      reason: 'no secrets',
+      systemMessage: 'no secrets',
     })
   })
-  it.each(['copilot', 'vscode'] as const)('timestamp format follows %s flavor', (flavor) => {
-    const options: CopilotAdapterOptions = { flavor, workspaceRoot: '/project' }
-    expect(
-      stdinOf(
-        buildCopilotStdin(
-          'PreToolUse',
-          { ...shell, timestamp: '2026-10-04T00:00:00.000Z' },
-          options,
-        ),
-      ),
-    ).toMatchObject({
-      timestamp:
-        flavor === 'copilot' ? Date.parse('2026-10-04T00:00:00.000Z') : '2026-10-04T00:00:00.000Z',
-    })
-  })
-  it.each([Infinity, 1e100, 'bad', null, true])(
-    'invalid timestamp is refused without throwing %s',
-    (timestamp) => {
+
+  it.each(['Stop', 'SubagentStop'] as const)(
+    '#9 Copilot %s decision:block continues (C:696-711)',
+    (event) => {
       expect(
-        buildCopilotStdin(
-          'PreToolUse',
-          { ...shell, timestamp },
-          { flavor: 'vscode', workspaceRoot: '/project' },
-        ).outcome,
-      ).toBe('refused')
+        parseCopilotResult(event, 0, '{"decision":"block","reason":"run checks"}', ''),
+      ).toEqual({
+        status: 'blocked',
+        reason: 'run checks',
+      })
     },
   )
-  it('Gemini rejects wrong event envelopes and misplaced tool rewrites', () => {
+
+  it('#10 Gemini model events: modifiers refused, a simultaneous veto survives (R:62-63)', () => {
+    expect(
+      parseGeminiResult('PreLLMCall', 0, '{"hookSpecificOutput":{"llm_request":{}}}', '').status,
+    ).toBe('failed')
+    expect(
+      parseGeminiResult(
+        'PreLLMCall',
+        0,
+        '{"decision":"deny","hookSpecificOutput":{"llm_request":{}}}',
+        '',
+      ).status,
+    ).toBe('blocked')
+    expect(
+      parseGeminiResult('PostLLMCall', 0, '{"hookSpecificOutput":{"llm_response":{}}}', '').status,
+    ).toBe('failed')
+  })
+
+  it('#11 Gemini nested context and systemMessage observations (R:69-71)', () => {
     expect(
       parseGeminiResult(
         'SessionStart',
         0,
-        '{"hookSpecificOutput":{"hookEventName":"BeforeTool","additionalContext":"x"}}',
+        '{"hookSpecificOutput":{"hookEventName":"SessionStart","additionalContext":"guide"}}',
         '',
-      ).status,
-    ).toBe('failed')
-    expect(
-      parseGeminiResult('PostToolUse', 0, '{"hookSpecificOutput":{"tool_input":{}}}', '').status,
-    ).toBe('failed')
-    expect(
-      parseGeminiResult(
-        'PreToolUse',
-        0,
-        '{"hookSpecificOutput":{"toolConfig":{"mode":"NONE"}}}',
-        '',
-      ).status,
-    ).toBe('failed')
-  })
-  it('Gemini selection refuses forced calls and nonselection control fields', () => {
-    expect(
-      parseGeminiResult(
-        'BeforeToolSelection',
-        0,
-        '{"hookSpecificOutput":{"toolConfig":{"mode":"ANY"}}}',
-        '',
-      ).status,
-    ).toBe('failed')
-    expect(parseGeminiResult('BeforeToolSelection', 0, '{"systemMessage":"x"}', '').status).toBe(
-      'failed',
-    )
-    const answer: GeminiHookAnswer = parseGeminiResult(
-      'BeforeToolSelection',
-      0,
-      '{"hookSpecificOutput":{"toolConfig":{"allowedFunctionNames":["run_shell_command"]}}}',
-      '',
-    )
-    expect(answer.allowedToolNames).toEqual(['run_shell_command'])
-  })
-  it('Kiro task/file triggers cannot be relabeled to another event', () => {
-    const options: KiroAdapterOptions = { trigger: 'PostFileSave' }
-    expect(buildKiroStdin('PreToolUse', shell, options).outcome).toBe('refused')
-  })
-  it('Kiro matcher pattern and value bounds precede evaluation', () => {
-    expect(
-      buildKiroStdin(
-        'PostToolUse',
-        { ...post, tool_input: { path: 'a'.repeat(257) } },
-        { trigger: 'PostFileSave', pathPattern: '.' },
-      ).outcome,
-    ).toBe('refused')
-    expect(
-      buildKiroStdin(
-        'PostToolUse',
-        { ...post, tool_input: { path: 'a' } },
-        { trigger: 'PostFileSave', pathPattern: 'a'.repeat(257) },
-      ).outcome,
-    ).toBe('refused')
-  })
-  // raw/kiro_hooks_types.md:72-81, 281-291.
-  it('Kiro Stop JSON continuation and MCP tool names keep their contracts', () => {
-    expect(
-      parseKiroResult('Stop', 0, '{"decision":"block","reason":"run checks"}', ''),
-    ).toMatchObject({ status: 'blocked', reason: 'run checks' })
-    expect(
-      stdinOf(
-        buildKiroStdin('PreToolUse', {
-          tool_name: 'mcp__postgres__query',
-          tool_input: { sql: 'SELECT 1' },
-        }),
       ),
-    ).toMatchObject({ tool_name: '@postgres/query', tool_input: { sql: 'SELECT 1' } })
+    ).toEqual({ status: 'completed', context: 'guide' })
+    expect(parseGeminiResult('Notification', 0, '{"systemMessage":"heads up"}', '')).toEqual({
+      status: 'completed',
+      systemMessage: 'heads up',
+    })
+    expect(
+      parseGeminiResult('SessionStart', 0, '{"additionalContext":"old shape"}', '').status,
+    ).toBe('failed')
   })
-  it.each([null, 1, 3])('Windsurf worktree failure refuses attempt for exit %s', (exitCode) => {
-    expect(parseWindsurfResult('WorktreeCreate', exitCode, '', 'policy').status).toBe('blocked')
-  })
-  it.each([
-    buildCursorStdin,
-    buildCopilotStdin,
-    buildGeminiStdin,
-    buildKiroStdin,
-    buildWindsurfStdin,
-  ])('missing tool input is explicitly refused by %s', (build) => {
-    expect(build('PreToolUse', {}).outcome).toBe('refused')
-  })
-  it.each([buildCursorStdin, buildCopilotStdin, buildGeminiStdin, buildKiroStdin])(
-    'post-tool missing preview is explicitly refused by %s',
-    (build) => {
+
+  it.each(['D:outside', 'C:outside', 'C:', String.raw`\\server\share`, String.raw`\\?\C:\x`])(
+    '#12 drive-relative and UNC/device cwd refused: %s',
+    (cwd) => {
+      expect(confineHookCwd(cwd, String.raw`C:\ws`, 'win32')).toBeUndefined()
+      expect(confineHookCwd(cwd, undefined, 'win32')).toBeUndefined()
       expect(
-        build('PostToolUse', { tool_name: 'bash', tool_input: { command: 'echo' } }).outcome,
+        copilotIn(
+          'PreToolUse',
+          { ...shell, cwd },
+          { workspaceRoot: String.raw`C:\ws`, platform: 'win32' },
+        ).outcome,
       ).toBe('refused')
     },
   )
-})
 
-it('runtime edit arguments become Windsurf documented edits', () => {
-  expect(
-    stdinOf(
-      buildWindsurfStdin('PreToolUse', {
-        tool_name: 'edit_file',
-        tool_input: { path: 'file.py', find: 'import os', replace: 'import os\nimport sys' },
-      }),
-    ),
-  ).toMatchObject({
-    tool_info: { edits: [{ old_string: 'import os', new_string: 'import os\nimport sys' }] },
-  })
-})
-it('CLI preToolUse allow is no approval grant', () => {
-  const answer = parseCopilotResult('PreToolUse', 0, '{"permissionDecision":"allow"}', '')
-  expect(answer.status).toBe('completed')
-  expect(answer.permissionDecision).toBeUndefined()
-  expect(answer.approvalDecision).toBeUndefined()
-})
-it('Gemini top-level context and malformed output stay refused', () => {
-  for (const output of ['{', '{"additionalContext":"old incompatible shape"}']) {
-    expect(parseGeminiResult('SessionStart', 0, output, '').status).toBe('failed')
-  }
-})
-it('nonblocking vendor errors remain nonblocking', () => {
-  expect(parseGeminiResult('PreToolUse', 1, '', '').status).toBe('failed')
-  expect(parseCursorResult('PostToolUse', 2, '', '').status).toBe('failed')
-  expect(parseCopilotResult('Stop', 1, '', '').status).toBe('failed')
-})
-// Boundary refusals exercise the required fields of each documented envelope.
-it.each([
-  ['PreToolUse', { tool_name: 'read_file', tool_input: {} }],
-  ['PreToolUse', { tool_name: 'edit_file', tool_input: { path: 'a' } }],
-  ['PreToolUse', { tool_name: 'bash', tool_input: { command: 'echo' } }],
-  ['UserPromptSubmit', {}],
-  ['Stop', {}],
-  ['WorktreeCreate', { worktree_path: '/tmp/work' }],
-  ['PostToolUse', { tool_name: 'mcp__fs__read', tool_input: {} }],
-] satisfies readonly (readonly [AdapterEvent, Record<string, unknown>])[])(
-  'Windsurf required event fields refuse %s/%j',
-  (event, payload) => {
-    expect(buildWindsurfStdin(event, payload).outcome).toBe('refused')
-  },
-)
-it.each(['beforeShellExecution', 'beforeMCPExecution'] as const)(
-  'Cursor required specialized fields refuse %s',
-  (sourceEvent) => {
+  it('#13 cwd follows platform path semantics', () => {
+    expect(confineHookCwd('src', '/repo/', 'linux')).toBe('src')
+    expect(confineHookCwd(String.raw`C:\src`, 'C:\\', 'win32')).toBe('src')
+    expect(confineHookCwd(String.raw`c:\ws\src`, String.raw`C:\WS`, 'win32')).toBe('src')
+    expect(confineHookCwd('../outside', '/repo', 'linux')).toBeUndefined()
+    expect(confineHookCwd('/outside', undefined, 'linux')).toBeUndefined()
+    const options = { workspaceRoot: '/repo/', platform: 'linux' as const }
+    expect(stdinOf(copilotIn('PreToolUse', { ...shell, cwd: '/repo/src' }, options))['cwd']).toBe(
+      '/repo/src',
+    )
+    expect(copilotIn('PreToolUse', { ...shell, cwd: '/repo-other' }, options).outcome).toBe(
+      'refused',
+    )
+    const win = { workspaceRoot: String.raw`C:\WS`, platform: 'win32' as const }
     expect(
-      buildCursorStdin('PreToolUse', { tool_name: 'read_file', tool_input: {} }, { sourceEvent })
-        .outcome,
-    ).toBe('refused')
-  },
-)
-it('Cursor response and followup fields must be representable', () => {
-  expect(buildCursorStdin('PostLLMCall', {}).outcome).toBe('refused')
-  expect(parseCursorResult('Stop', 0, '{"followup_message":42}', '').status).toBe('failed')
-})
-it('Copilot rejects unsupported Local events and foreign output envelopes', () => {
-  expect(
-    buildCopilotStdin('PermissionRequest', shell, { flavor: 'vscode', workspaceRoot: '/project' })
-      .outcome,
-  ).toBe('refused')
-  expect(parseCopilotResult('PermissionRequest', 0, '{}', '', { flavor: 'vscode' }).status).toBe(
-    'failed',
-  )
-  expect(
-    parseCopilotResult('PreToolUse', 0, '{"permissionDecision":"allow"}', '', { flavor: 'vscode' })
-      .status,
-  ).toBe('failed')
-  expect(
-    parseCopilotResult(
-      'SessionStart',
-      0,
-      '{"hookSpecificOutput":{"hookEventName":"SessionStart","permissionDecision":"deny"}}',
-      '',
-      { flavor: 'vscode' },
-    ).status,
-  ).toBe('failed')
-  expect(
-    parseCopilotResult('UserPromptSubmit', 0, '{"decision":"block"}', '', { flavor: 'vscode' })
-      .status,
-  ).toBe('failed')
-  expect(parseCopilotResult('PermissionRequest', 0, '{"behavior":"ask"}', '').status).toBe(
-    'blocked',
-  )
-})
-it('Copilot cwd without a root still rejects escapes and absolute paths', () => {
-  for (const cwd of ['../outside', '/outside'])
-    expect(buildCopilotStdin('PreToolUse', { ...shell, cwd }).outcome).toBe('refused')
-  expect(
-    buildCopilotStdin('PreToolUse', { ...shell, cwd: 'src' }, { workspaceRoot: 'relative' })
-      .outcome,
-  ).toBe('refused')
-})
-it('Gemini tool rewrites stay input suggestions without permissions', () => {
-  expect(
-    parseGeminiResult(
-      'PreToolUse',
-      0,
-      '{"hookSpecificOutput":{"tool_input":{"command":"npm ci"}}}',
-      '',
-    ),
-  ).toMatchObject({ status: 'completed', updatedInput: { command: 'npm ci' } })
-  expect(parseGeminiResult('SessionStart', 0, '{"decision":"deny"}', '').status).toBe('failed')
-})
-it('Kiro unknown triggers are refused and context is capped', () => {
-  expect(buildKiroStdin('PostToolUse', post, { trigger: 'Manual' }).outcome).toBe('refused')
-  const answer = parseKiroResult('SessionStart', 0, 'x'.repeat(10_000), '')
-  expect(answer.context?.length).toBe(1024)
+      stdinOf(copilotIn('PreToolUse', { ...shell, cwd: String.raw`c:\ws\src` }, win))['cwd'],
+    ).toBe(String.raw`c:\ws\src`)
+  })
+
+  it('#14 every post-tool contract carries the bounded preview or refuses', () => {
+    expect(stdinOf(cursorIn('PostToolUse', post))['tool_output']).toBe(JSON.stringify(preview))
+    expect(
+      stdinOf(cursorIn('PostToolUse', post, { sourceEvent: 'afterShellExecution' }))['output'],
+    ).toBe(preview)
+    expect(stdinOf(copilotIn('PostToolUse', post))['toolResult']).toEqual({
+      resultType: 'success',
+      textResultForLlm: preview,
+    })
+    expect(
+      stdinOf(copilotIn('PostToolUse', post, { sourceEvent: 'PostToolUse' }))['tool_result'],
+    ).toEqual({
+      result_type: 'success',
+      text_result_for_llm: preview,
+    })
+    expect(stdinOf(copilotIn('PostToolUse', post, { flavor: 'vscode' }))['tool_response']).toBe(
+      preview,
+    )
+    expect(stdinOf(geminiIn('PostToolUse', post))['tool_response']).toEqual({ llmContent: preview })
+    expect(stdinOf(kiroIn('PostToolUse', post))['tool_response']).toEqual({
+      success: true,
+      result: [preview],
+    })
+    expect(
+      stdinOf(windsurfIn('PostToolUse', { ...mcpCall, tool_response: preview }))['tool_info'],
+    ).toMatchObject({
+      mcp_result: preview,
+    })
+    for (const build of [buildCursorStdin, buildCopilotStdin, buildGeminiStdin, buildKiroStdin])
+      expect(build('PostToolUse', shell).outcome).toBe('refused')
+  })
+
+  it.each(['bash', 'powershell'])('#15 Gemini maps %s to run_shell_command (R:65)', (tool) => {
+    expect(stdinOf(geminiIn('PreToolUse', { ...shell, tool_name: tool }))['tool_name']).toBe(
+      'run_shell_command',
+    )
+  })
 })
 
-it('Cursor exit 2 denies without failClosed', () => {
-  expect(parseCursorResult('PreToolUse', 2, '', 'policy')).toMatchObject({
-    status: 'blocked',
-    reason: 'policy',
+describe('round-3 contract corrections', () => {
+  it('R3-1 Copilot camelCase toolArgs is a JSON string (CT:322-324, use-hooks.md:185)', () => {
+    const stdin = stdinOf(copilotIn('PreToolUse', shell))
+    expect(stdin['toolArgs']).toBe('{"command":"npm install"}')
+    expect(
+      typeof stdinOf(copilotIn('PreToolUse', shell, { sourceEvent: 'PreToolUse' }))['tool_input'],
+    ).toBe('object')
   })
-  expect(parseCursorResult('UserPromptSubmit', 2, '', 'policy').status).toBe('blocked')
-})
-it('Kiro bounds and unknown-trigger diagnostics identify the refusing guard', () => {
-  expect(
-    buildKiroStdin(
-      'PostToolUse',
-      { ...post, tool_input: { path: 'a'.repeat(257) } },
-      { pathPattern: '.' },
-    ),
-  ).toMatchObject({ outcome: 'refused', reason: 'kiro: file path is too long to match' })
-  expect(buildKiroStdin('PostToolUse', post, { trigger: 'Manual' })).toMatchObject({
-    outcome: 'refused',
-    reason: 'kiro: unknown trigger',
+
+  it('R3-2 Copilot stdin cwd is the absolute agent directory (use-hooks.md:185 "cwd":"/tmp")', () => {
+    expect(stdinOf(copilotIn('PreToolUse', shell))['cwd']).toBe(ROOT)
+    expect(stdinOf(copilotIn('PreToolUse', shell, { flavor: 'vscode' }))['cwd']).toBe(ROOT)
   })
-})
-it('Gemini selection accepts its documented event envelope', () => {
-  expect(
-    parseGeminiResult(
-      'BeforeToolSelection',
-      0,
-      '{"hookSpecificOutput":{"hookEventName":"BeforeToolSelection","toolConfig":{"allowedFunctionNames":["read_file"]}}}',
-      '',
-    ),
-  ).toMatchObject({ status: 'completed', allowedToolNames: ['read_file'] })
+
+  it('R3-3 Copilot unparseable stdout is no output; progress lines are display-only (C:154-159)', () => {
+    expect(parseCopilotResult('PreToolUse', 0, 'not json', '').status).toBe('completed')
+    const progress =
+      '{"type":"progress","message":"Thinking..."}\n{"permissionDecision":"deny","permissionDecisionReason":"no"}'
+    expect(parseCopilotResult('PreToolUse', 0, progress, '')).toEqual({
+      status: 'blocked',
+      reason: 'no',
+    })
+    // A parseable answer with a wrong type is a hook error on the fail-closed event.
+    expect(parseCopilotResult('PreToolUse', 0, '{"permissionDecision":42}', '').status).toBe(
+      'blocked',
+    )
+    expect(parseCopilotResult('PreToolUse', 2, '{"permissionDecision":"allow"}', '')).toMatchObject(
+      { status: 'blocked' },
+    )
+    for (const exitCode of [null, 1])
+      expect(parseCopilotResult('PreToolUse', exitCode, '', '').status).toBe('blocked')
+  })
+
+  it('R3-4 Copilot permissionRequest failures other than 2 fail open (C:853)', () => {
+    expect(parseCopilotResult('PermissionRequest', 1, '', 'x').status).toBe('failed')
+    expect(parseCopilotResult('PermissionRequest', 0, '{"behavior":"ask"}', '').status).toBe(
+      'failed',
+    )
+    expect(parseCopilotResult('PostToolUseFailure', 2, 'try --maxWorkers=2', '')).toEqual({
+      status: 'completed',
+      context: 'try --maxWorkers=2',
+    })
+  })
+
+  it('R3-5 Kiro stdin: camelCase event names, alias tool names, response envelope (TH:143, T:107-111)', () => {
+    expect(stdinOf(kiroIn('PreToolUse', { ...shell, tool_name: 'read_file' }))).toMatchObject({
+      hook_event_name: 'preToolUse',
+      tool_name: 'read',
+    })
+    expect(stdinOf(kiroIn('PreToolUse', mcpCall))['tool_name']).toBe('@db/query')
+    expect(stdinOf(kiroIn('SessionStart', shell))['hook_event_name']).toBe('agentSpawn')
+    expect(
+      stdinOf(kiroIn('Stop', { session_id: 's', last_assistant_message: 'done' })),
+    ).toMatchObject({
+      hook_event_name: 'stop',
+      assistant_response: 'done',
+    })
+  })
+
+  it('R3-6 Kiro exit codes and stdout follow A:32-34', () => {
+    expect(parseKiroResult('PreToolUse', 2, '', 'policy')).toEqual({
+      status: 'blocked',
+      reason: 'policy',
+    })
+    expect(parseKiroResult('TaskCreated', 2, '', 'policy').status).toBe('blocked')
+    for (const event of ['PostToolUse', 'Stop', 'SessionStart'] as const)
+      expect(parseKiroResult(event, 2, '', 'x').status).toBe('failed')
+    for (const exitCode of [null, 1, 3])
+      expect(parseKiroResult('PreToolUse', exitCode, '', '').status).toBe('failed')
+    expect(parseKiroResult('PreToolUse', 0, 'ignored text', '')).toEqual({ status: 'completed' })
+    expect(parseKiroResult('SessionStart', 0, 'project guidance', '')).toEqual({
+      status: 'completed',
+      context: 'project guidance',
+    })
+    expect(
+      parseKiroResult(
+        'Stop',
+        0,
+        '{"decision": "block", "reason": "You haven\'t run the tests yet."}',
+        '',
+      ),
+    ).toEqual({
+      status: 'blocked',
+      reason: "You haven't run the tests yet.",
+    })
+    expect(parseKiroResult('Stop', 0, 'plain text', '').status).toBe('completed')
+  })
+
+  it('R3-7 Kiro file triggers keep the bounded path scope', () => {
+    const payload = {
+      tool_name: 'edit_file',
+      tool_input: { path: 'src/file.ts' },
+      tool_response: preview,
+    }
+    expect(
+      kiroIn('PostToolUse', payload, { trigger: 'PostFileSave', pathPattern: String.raw`\.ts$` })
+        .outcome,
+    ).toBe('run')
+    expect(
+      kiroIn('PostToolUse', payload, { trigger: 'PostFileSave', pathPattern: String.raw`\.py$` })
+        .outcome,
+    ).toBe('skip')
+    expect(
+      kiroIn('PostToolUse', payload, { trigger: 'PostFileSave', pathPattern: '[' }).outcome,
+    ).toBe('refused')
+    expect(kiroIn('PostToolUse', payload, { trigger: 'Bogus' }).outcome).toBe('refused')
+    expect(kiroIn('PreToolUse', payload, { trigger: 'PostFileSave' }).outcome).toBe('refused')
+  })
+
+  it('R3-8 documented post events without results are translated (CH:1086-1141, W:169-268)', () => {
+    const edit = {
+      ...shell,
+      tool_name: 'edit_file',
+      tool_input: { path: 'a.py', find: 'x', replace: 'y' },
+      tool_response: preview,
+    }
+    expect(stdinOf(cursorIn('PostToolUse', edit, { sourceEvent: 'afterFileEdit' }))).toMatchObject({
+      file_path: '/project/a.py',
+      edits: [{ old_string: 'x', new_string: 'y' }],
+    })
+    expect(stdinOf(windsurfIn('PostToolUse', post))).toMatchObject({
+      agent_action_name: 'post_run_command',
+      tool_info: { command_line: 'npm install', cwd: ROOT },
+    })
+    expect(parseWindsurfResult('PostToolUse', 2, '', 'x').status).toBe('failed')
+  })
+
+  it('R3-9 refused outputs: Cursor env and pluginPaths, Gemini forced selection', () => {
+    expect(parseCursorResult('SessionStart', 0, '{"env":{"TOKEN":"x"}}', '').status).toBe('failed')
+    expect(parseCursorResult('DirectoryAdded', 0, '{"pluginPaths":["/x"]}', '').status).toBe(
+      'failed',
+    )
+    const any = '{"hookSpecificOutput":{"toolConfig":{"mode":"ANY"}}}'
+    expect(parseGeminiResult('BeforeToolSelection', 0, any, '').status).toBe('failed')
+    const none = '{"hookSpecificOutput":{"toolConfig":{"mode":"NONE"}}}'
+    expect(parseGeminiResult('BeforeToolSelection', 0, none, '')).toEqual({
+      status: 'completed',
+      allowedToolNames: [],
+    })
+    const some = '{"hookSpecificOutput":{"toolConfig":{"allowedFunctionNames":["read_file"]}}}'
+    expect(parseGeminiResult('BeforeToolSelection', 0, some, '')).toEqual({
+      status: 'completed',
+      allowedToolNames: ['read_file'],
+    })
+  })
+
+  it('R3-11 Gemini exit codes and plain stdout as captured (manifest outputContract)', () => {
+    // Captured: exit 3 with stderr blocked BeforeTool; reason = stdout || stderr.
+    expect(parseGeminiResult('PreToolUse', 3, '', 'capture-exit3')).toEqual({
+      status: 'blocked',
+      reason: 'capture-exit3',
+    })
+    expect(parseGeminiResult('PreToolUse', 2, '', 'capture-exit2')).toEqual({
+      status: 'blocked',
+      reason: 'capture-exit2',
+    })
+    expect(parseGeminiResult('PreToolUse', 2, '{"decision":"deny","reason":"why"}', 'x')).toEqual({
+      status: 'blocked',
+      reason: 'why',
+    })
+    // Captured: exit 0 plain text ran the tool and showed a system message.
+    expect(parseGeminiResult('PreToolUse', 0, 'capture-text', '')).toEqual({
+      status: 'completed',
+      systemMessage: 'capture-text',
+    })
+    expect(parseGeminiResult('PreToolUse', 1, '', 'warn').status).toBe('failed')
+    for (const event of ['SessionStart', 'SessionEnd', 'PreCompact', 'Notification'] as const)
+      expect(parseGeminiResult(event, 2, '', 'x').status).toBe('failed')
+  })
+
+  it('R3-12 Gemini tool names follow the captured runtime names', () => {
+    expect(stdinOf(geminiIn('PreToolUse', { ...shell, tool_name: 'search' }))['tool_name']).toBe(
+      'grep_search',
+    )
+    expect(
+      stdinOf(geminiIn('PreToolUse', { ...shell, tool_name: 'list_files' }))['tool_name'],
+    ).toBe('list_directory')
+    expect(stdinOf(geminiIn('PreToolUse', { ...shell, tool_name: 'read_file' }))['tool_name']).toBe(
+      'read_file',
+    )
+  })
+
+  it('R3-13 tool-specific rows refuse a call without a tool name', () => {
+    // Windsurf has no generic tool event: no tool name, no pre_read_code guess.
+    expect(windsurfIn('PreToolUse', { cwd: ROOT, tool_input: { path: 'a.py' } })).toMatchObject({
+      outcome: 'refused',
+    })
+    expect(cursorIn('PreToolUse', { cwd: ROOT, tool_input: {} }).outcome).toBe('refused')
+  })
+
+  it('R3-10 the generic entry accepts the import record shape', () => {
+    const viaRecord = buildForeignStdin('cursor', 'PreToolUse', shell, {
+      sourceEvent: 'beforeShellExecution',
+    })
+    expect(viaRecord).toEqual(
+      cursorIn('PreToolUse', shell, { sourceEvent: 'beforeShellExecution' }),
+    )
+    expect(parseForeignResult('copilot', 'PreToolUse', 0, '{}', '', { flavor: 'vscode' })).toEqual({
+      status: 'completed',
+    })
+  })
+
+  it('unknown events and env payloads are refused', () => {
+    const event: AdapterEvent = 'MessageDisplay'
+    for (const build of [
+      buildCursorStdin,
+      buildCopilotStdin,
+      buildGeminiStdin,
+      buildKiroStdin,
+      buildWindsurfStdin,
+    ])
+      expect(build(event, {}).outcome).toBe('refused')
+    for (const key of ['env', 'environment'])
+      expect(copilotIn('PreToolUse', { ...shell, [key]: { A: 'b' } }).outcome).toBe('refused')
+  })
+
+  it.each([
+    [1000, 1],
+    [1, 1],
+    [601_000, 600],
+  ])('Gemini timeout %s ms -> %s s', (ms, seconds) => {
+    expect(geminiTimeoutMsToSeconds(ms)).toBe(seconds)
+  })
+
+  it.each([-1, Infinity, NaN, '1000'])('Gemini rejects invalid timeout %s', (value) => {
+    expect(geminiTimeoutMsToSeconds(value)).toBeUndefined()
+  })
 })
