@@ -4095,13 +4095,13 @@ export const POSIX_TERMINAL_SHELL = '/bin/sh'
 
 // Muse Host Protocol v1 (D84, M104 lane 0). This block is shared by the
 // in-process adapter and the stdio hosts; no credential is a protocol value.
+export const MHP_ZERO_VERSION_COMPONENT = 0n
 export const MHP = {
   version: 'mhp/1.0.0',
   minimumVersion: 'mhp/1.0.0',
   maximumVersionExclusive: 'mhp/2.0.0',
   jsonRpcVersion: '2.0',
   maximumInteger: Number.MAX_SAFE_INTEGER,
-  zero: 0n,
   maximumSelectionChars: 16_384,
   featureCount: 56,
 } as const

@@ -1,5 +1,5 @@
 import * as z from 'zod/mini'
-import { MHP } from '../constants'
+import { MHP, MHP_ZERO_VERSION_COMPONENT } from '../constants'
 
 // A capability promises every method in its group, including notifications.
 // Hosts with a partial implementation omit that group and use its fallback.
@@ -82,15 +82,15 @@ function versionParts(version: string): bigint[] {
 function compareVersions(left: string, right: string): bigint {
   const rightParts = versionParts(right)
   for (const [index, part] of versionParts(left).entries()) {
-    const difference = part - (rightParts[index] ?? MHP.zero)
-    if (difference !== MHP.zero) return difference
+    const difference = part - (rightParts[index] ?? MHP_ZERO_VERSION_COMPONENT)
+    if (difference !== MHP_ZERO_VERSION_COMPONENT) return difference
   }
-  return MHP.zero
+  return MHP_ZERO_VERSION_COMPONENT
 }
 export function isMhpVersionSupported(range: z.infer<typeof versionRangeSchema>): boolean {
   return (
     versionRangeSchema.safeParse(range).success &&
-    compareVersions(range.minimum, MHP.version) <= MHP.zero &&
-    compareVersions(MHP.version, range.maximumExclusive) < MHP.zero
+    compareVersions(range.minimum, MHP.version) <= MHP_ZERO_VERSION_COMPONENT &&
+    compareVersions(MHP.version, range.maximumExclusive) < MHP_ZERO_VERSION_COMPONENT
   )
 }

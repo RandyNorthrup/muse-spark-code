@@ -296,6 +296,9 @@ describe('MHP v1 boundary and export', () => {
     expectTypeOf<HostServices['request']>().toBeFunction()
     expectTypeOf<MhpParams<'documents/applyEdits'>>().toEqualTypeOf<typeof edits>()
     expectTypeOf<MhpResult<'documents/list'>>().toEqualTypeOf<(typeof document)[]>()
+    expectTypeOf(
+      parseMhpResult('documents/list', { jsonrpc: '2.0', id: 1, result: [document] }).result,
+    ).toEqualTypeOf<MhpResult<'documents/list'>>()
   })
 
   it('exports current JSON Schemas for the native plugins', async () => {
