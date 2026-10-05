@@ -213,6 +213,33 @@ happened, not what was planned; superseded entries are kept.
   advertises only implemented capabilities, and requires selected-model
   readback before prompting. Abort signals interrupt startup and pending
   turns; failure and completion dispose sessions and owned ACP children.
+- **Lower Windows team fixture cost (WINI96).** Tests reuse prepared,
+  independent repository and workspace copies, batch fixture commits with
+  Git fast-import, and read immutable blobs through one Git batch per
+  repository. Every original assertion and default deadline remains.
+  Windows merge and workspace suite times fall roughly by half; three
+  default-timeout cases still block complete native verification, recorded
+  in M96 lane I's certification.
+
+- **Team merge transactions (RVM96I2C lane I).** Landing compares each
+  target's current bytes and permissions with its planned base, prepares
+  replacement bytes before touching the target, and rolls back landed files
+  on a later refusal. Errors carry the Undo record and rollback outcomes;
+  Undo verifies its restored bytes. Worker bases honour local and global Git
+  excludes, extension-owned worker-copy Git disables configured programs,
+  clustered unsafe options and doubled `git` commands refuse, and read-only
+  patch output remains available. Ref-lock failures retain their real error,
+  symlink blobs refuse, executable flips preserve private permissions, binary
+  rework keeps the worker's bytes, and 8.3 fixture listings stay bounded.
+  Windows default-timeout verification remains blocked; see M96 lane I's
+  certification record.
+
+- **Windows team paths (M96 lane I).** Canonical containment accepts drive
+  letter and directory casing differences and extended namespace spellings.
+  Junction ancestors remain refused for merge, deletion, cleanup and Undo;
+  cleanup unlinks a replaced copy without following it. Ambiguous 8.3 aliases
+  remain refused. Real-Git fixtures handle Windows path separators and quote
+  inert arguments consistently across shells.
 
 - **Team workspace security (RVM96B lane I).** Read-only commands require
   exact arguments and trusted Git execution; worker environments cannot

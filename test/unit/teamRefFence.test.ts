@@ -80,6 +80,39 @@ describe('teamBranchName', () => {
 })
 
 describe('classifyWorkerGitCommand', () => {
+  it.each(['-nOcat', '-inOcat', '-nwofile'])(
+    'refuses a dangerous clustered short option %s',
+    (cluster) => {
+      expect(classifyWorkerGitCommand(['grep', cluster, 'x'])).toMatchObject({
+        allowed: false,
+        reason: 'refusedOption',
+      })
+      expect(
+        shell(`git grep ${cluster} x`, [{ command: 'git', argv: ['grep', cluster, 'x'] }]),
+      ).toMatchObject({ allowed: false })
+    },
+  )
+
+  it('judges exactly the argv executed, refusing a doubled git', () => {
+    expect(classifyWorkerGitCommand(['git', 'log'])).toMatchObject({
+      allowed: false,
+      reason: 'unknownGitCommand',
+    })
+    expect(shell('git git log', [{ command: 'git', argv: ['git', 'log'] }])).toMatchObject({
+      allowed: false,
+    })
+  })
+
+  it.each(['log', 'show'])(
+    'allows read-only patch output in %s but refuses global pagination',
+    (command) => {
+      expect(classifyWorkerGitCommand([command, '-p'])).toEqual({ allowed: true })
+      expect(shell(`git ${command} -p`, [{ command: 'git', argv: [command, '-p'] }]).allowed).toBe(
+        true,
+      )
+      expect(classifyWorkerGitCommand(['-p', command]).allowed).toBe(false)
+    },
+  )
   it.each([
     ['commit'],
     ['merge'],
@@ -230,7 +263,11 @@ describe('classifyReadOnlyShellCommand', () => {
   })
 
   it('allows inert quoted data after decoding quotes', () => {
-    expect(shell('git log "--grep=a > b"').allowed).toBe(true)
+    expect(shell('git log "--grep=a > b"')).toEqual({
+      allowed: true,
+      executable: TRUSTED_GIT,
+      args: ['--no-pager', 'log', '--grep=a > b'],
+    })
   })
 
   it('refuses redirects and entry-specific refused options', () => {

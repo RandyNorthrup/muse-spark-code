@@ -17762,6 +17762,15 @@ Each correction has a regression and a byte-exact restored red drill in
 `docs/certification/m96-t.md`. No live calls, dependencies or wider guards.
 
 **FIXM96I repair plan (2026-10-05, RVM96B findings 1–12 and 24).**
+Windows follow-up WINM96I runs the complete owning files on the local Windows
+host (at most three files and three workers), including junction deletion,
+cleanup and Undo, case and drive-letter aliases, namespace/UNC spellings and
+8.3 aliases when present. Fix only lane I files; keep no-follow checks and
+case-sensitive charter matching. Record failing regressions, byte-exact
+restored drills and final platform/static receipts under the Windows heading
+in `docs/certification/m96-i.md`. Use the previously recorded 120-second
+real-Git invocation; full quality remains the lead's gate.
+
 Keep lane I's source/test boundary and add no dependency. Replace shell-list
 admission with parsed exact argv and the host's trusted absolute Git executable;
 start workers from an explicit environment allowlist, with Git credential/config
@@ -21487,6 +21496,17 @@ import in `src/host/team/acpProcess.ts` exists at lane base `49340fe1`.
 The inventory is outside FIXM96W's owned files; the lead regenerates it
 after integration. No source import, gate, ignore or threshold is hidden
 or weakened. See `docs/certification/m96-w.md` and §9's named residual.
+**WINM96I Windows follow-up (2026-10-05).** Complete owning files pass on
+Windows: teamWorkspaces 39, teamRefFence 89, teamMerge 45 and reviewGate /
+reviewerPick 16 (189 total; four existing POSIX-only bodies return). Junction
+cleanup, unlink, add/overwrite/delete and Undo cases execute, alongside case,
+drive, namespace and real reported 8.3 aliases. Six deliberate guard/argv
+drills fail as intended and restore byte-exact with SHA-256. All five compiler
+projects, changed-file ESLint, deadcode, zero-clone duplication, localization,
+host API and production build pass on macmini snapshot `5f4f0f80`. No gate or
+budget changed; shared test setup fixes the duplication finding. See the
+Windows heading in `docs/certification/m96-i.md`. Full quality and editor
+integration remain the lead's gates under the lane brief.
 
 **FIXM96I local repair proof (2026-10-05).** RVM96B findings 1–12 and 24
 are fixed in lane I with 165 passing owning cases and 26 SHA-256-exact
@@ -21494,9 +21514,9 @@ restored guard drills. Five compiler projects, changed-file ESLint/Prettier,
 deadcode, duplication (zero clones), localization, host API and production
 build pass on macmini. The duplication gate caught repeated test setup and
 was fixed with test-local shared fixtures; the host API record's two Node
-import counts were regenerated. No gate or budget changed. Full quality and
-the guarded Windows junction cases remain the lead's certification work under
-the rig brief. See `docs/certification/m96-i.md`; §9 names the remaining
+import counts were regenerated. No gate or budget changed. Full quality remains the lead's certification work under
+the rig brief; WINM96I above completes the previously pending Windows
+junction execution. See `docs/certification/m96-i.md`; §9 names the remaining
 platform validation and existing filesystem atomicity assumptions.
 
 **FIXM96A/FIXM96A2 focused rig certification (2026-10-05).** The rig brief explicitly
@@ -22176,12 +22196,39 @@ before a repaired one loads (2026-09-30).
   Follow-up: the lead runs M96 step 1 in a throwaway workspace and records
   the capture name, workspace and counted attempts in
   `docs/certification/m96-w.md` before enabling those presets.
+- **FIXM96I2 / RVM96I2C (2026-10-05):** final lane-I round covers six P2
+  and seven P3 findings. Named validation residual **I-default-timeout**:
+  shared real-Git seed/copy fixtures and cached immutable Git object reads
+  did not close P2-5 on this Windows host. First run: 164 passed, 27 timeout
+  failures across three files. Second merge run: 24 passed, 28 timeouts and
+  one faulty I/O injection, subsequently corrected. Under common.md's
+  two-attempt stop rule, no further fixture redesign or Windows merge rerun
+  is attempted here. This is a validation blocker, not approval to merge
+  or a claim that Windows is green. Follow-up: lead assigns a fixture
+  redesign and obtains a complete default-timeout Windows pass.
+  WINI96 (2026-10-05) reduces cost without changing deadlines: base and
+  worker copies prepared once, fixture commits through fast-import, and
+  immutable blobs read in one real Git batch per repository. Original 209
+  cases: Windows improves from 179 passed / 30 timeouts to 206 passed / 3
+  timeouts; merge wall time 215.28 → 106.98 s, workspaces 144.51 → 67.99 s.
+  P2-5 remains open: the filter canary, two-writer and publication-race cases
+  still time out. The canary survives two different cost fixes, triggering
+  common.md's stop rule. Three native green runs and the normal-worker run
+  are unverified. All 214 cases, including five new fixture checks, pass on
+  macmini at default deadlines; static/build gates and three fixture red
+  drills pass. The final native workspace profile passes 47/49 with the same
+  two timing failures. Earlier I-Windows records used 120-second overrides
+  and do not close this gate. Detailed timings and remaining actions are in
+  `docs/certification/m96-i.md`, WINI96.
+  The integrator must unify lane I's tokenizer and lane W's shared Git
+  classifier in round 3b, and honour TeamGit's explicit isolated environment
+  argument. Proof and remaining checks are in `docs/certification/m96-i.md`.
 
 - **FIXM96I / RVM96B (2026-10-05):** findings 1–12 and 24 are repaired,
-  with no scoped finding deferred. Named validation residual **I-Windows**:
-  junction regressions are platform guarded and cannot execute on macmini;
-  the same no-follow ancestor logic is exercised with POSIX links here,
-  and the lead must run the owning files on Windows before certification.
+  with no scoped finding deferred. Named validation residual **I-Windows**
+  was historically closed by WINM96I's owning Windows runs and six restored guard drills
+  (`docs/certification/m96-i.md`, Windows heading). UNC spelling coverage is
+  lexical; no live SMB share certification is claimed.
   Named platform residual **I-path-race**: canonical checks run at every
   ancestor immediately before writes/deletes, but portable Node path APIs
   cannot atomically pin the whole ancestor chain against a hostile local

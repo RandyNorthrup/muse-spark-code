@@ -3,9 +3,22 @@
 // `write-paths` check, the breach check, and Undo merge. Real temporary
 // repositories; no model calls.
 
-import { chmod, mkdir, readFile, rename, stat, symlink, writeFile } from 'node:fs/promises'
+import {
+  appendFile,
+  chmod,
+  mkdir,
+  readFile,
+  rename,
+  rm,
+  stat,
+  symlink,
+  unlink,
+  writeFile,
+} from 'node:fs/promises'
+import type * as FsPromises from 'node:fs/promises'
 import path from 'node:path'
-import { describe, expect, it } from 'vitest'
+import { cpSync } from 'node:fs'
+import { describe, expect, it, vi } from 'vitest'
 import {
   applyTeamMerge,
   isTeamMergeError,
@@ -13,19 +26,58 @@ import {
   undoTeamMerge,
   type TeamMergeIo,
   type TeamMergeSpec,
+  type TeamMergeUndo,
+  type TeamMergeResult,
 } from '../../src/core/team/teamMerge'
-import { cleanupTeamRoots, teamFixtureRepo, teamGitRunner, teamRealPath } from './helpers/teamGit'
+import {
+  cleanupTeamRoots,
+  teamFixtureRepo,
+  teamFixtureCommit,
+  teamGitRunner,
+  teamRealPath,
+  teamShortRoot,
+  teamWindowsPath,
+} from './helpers/teamGit'
 
 const runGit = teamGitRunner()
 cleanupTeamRoots()
 const TEXT = new TextDecoder()
 
+vi.mock('node:fs/promises', async (importOriginal) => {
+  const actual = await importOriginal<typeof FsPromises>()
+  return { ...actual, rename: vi.fn(actual.rename), rm: vi.fn(actual.rm) }
+})
+
 function io(): TeamMergeIo {
   return { runGit, realPath: teamRealPath }
 }
 
+function atLiveRef(ref: string, beforeRead: () => Promise<void>): typeof runGit {
+  return async (args, cwd, input, env) => {
+    if (args[0] === 'rev-parse' && args[2] === ref) {
+      await beforeRead()
+    }
+    return await runGit(args, cwd, input, env)
+  }
+}
+
+async function expectRefusedUndo(
+  root: string,
+  undo: TeamMergeUndo,
+  content: string,
+): Promise<void> {
+  expect(await undoTeamMerge(root, undo)).toEqual({ restored: [], refused: ['tracked.txt'] })
+  expect(await readFile(path.join(root, 'tracked.txt'), 'utf8')).toBe(content)
+}
+
 async function revOf(repo: string, rev: string): Promise<string> {
   return TEXT.decode(await runGit(['rev-parse', rev], repo)).trim()
+}
+
+async function expectNoLandedFiles(root: string): Promise<void> {
+  for (const file of ['a.txt', 'b.txt']) {
+    await expect(readFile(path.join(root, file))).rejects.toMatchObject({ code: 'ENOENT' })
+  }
 }
 
 async function refsOf(repo: string): Promise<string> {
@@ -38,28 +90,21 @@ async function taskBranch(
   base: string,
   files: Readonly<Record<string, string | undefined>>,
 ): Promise<string> {
-  await runGit(['checkout', '-qb', 'agents/engineering/t1', base], root)
-  for (const [name, content] of Object.entries(files)) {
-    const absolute = path.join(root, name)
-    if (content === undefined) {
-      await runGit(['rm', '-q', name], root)
-      continue
-    }
-    await mkdir(path.dirname(absolute), { recursive: true })
-    await writeFile(absolute, content)
-  }
-  await runGit(['add', '--all'], root)
-  await runGit(['commit', '-qm', 'task change'], root)
-  const head = await revOf(root, 'agents/engineering/t1')
-  await runGit(['checkout', '-q', 'main'], root)
+  const head = await teamFixtureCommit(runGit, root, base, files)
   await makeTaskCopy(root, head)
   return head
 }
 
 async function makeTaskCopy(root: string, head: string): Promise<void> {
   const folder = path.join(root, '..', 'task-copy')
-  await runGit(['clone', '--shared', '--no-checkout', root, folder], path.dirname(root))
-  await runGit(['checkout', '-b', 'agents/engineering/t1', head], folder)
+  cpSync(root, folder, { recursive: true })
+  // Most callers already have the task checked out. Binary fixtures call
+  // after returning to main, so update just their copy when needed.
+  const headText = await readFile(path.join(folder, '.git', 'HEAD'), 'utf8')
+  const current = headText.trim()
+  if (current !== 'ref: refs/heads/agents/engineering/t1') {
+    await runGit(['checkout', '-b', 'agents/engineering/t1-copy', head], folder)
+  }
 }
 
 function spec(root: string, base: string, head: string, extra = {}): TeamMergeSpec {
@@ -80,15 +125,25 @@ async function expectLiveRefBreach(
   ref: string,
   mergeIo: TeamMergeIo,
 ): Promise<void> {
-  await expect(
-    applyTeamMerge(
-      mergeIo,
-      spec(root, base, head, {
-        agentRefs: [{ ref, expected: head, actual: head }],
-      }),
-    ),
-  ).rejects.toMatchObject({ code: 'refBreach' })
+  await expect(mergeWithLiveRef(root, base, head, ref, mergeIo)).rejects.toMatchObject({
+    code: 'refBreach',
+  })
   expect(await readFile(path.join(root, 'shared.txt'), 'utf8')).toBe('one\ntwo\nthree\n')
+}
+
+async function mergeWithLiveRef(
+  root: string,
+  base: string,
+  head: string,
+  ref: string,
+  mergeIo: TeamMergeIo,
+): Promise<TeamMergeResult> {
+  return await applyTeamMerge(
+    mergeIo,
+    spec(root, base, head, {
+      agentRefs: [{ ref, expected: head, actual: head }],
+    }),
+  )
 }
 
 async function replaceDocsParent(root: string, linkType: 'dir' | 'junction'): Promise<string> {
@@ -98,6 +153,14 @@ async function replaceDocsParent(root: string, linkType: 'dir' | 'junction'): Pr
   await rename(path.join(root, 'docs'), path.join(root, 'original-docs'))
   await symlink(outside, path.join(root, 'docs'), linkType)
   return outside
+}
+
+async function commitDocsBase(root: string): Promise<string> {
+  await mkdir(path.join(root, 'docs'), { recursive: true })
+  await writeFile(path.join(root, 'docs', 'ok.md'), 'before\n')
+  await runGit(['add', '--all'], root)
+  await runGit(['commit', '-qm', 'docs base'], root)
+  return await revOf(root, 'HEAD')
 }
 
 describe('applyTeamMerge', () => {
@@ -210,6 +273,154 @@ describe('applyTeamMerge', () => {
     await writeFile(path.join(root, 'shared.txt'), 'one\nTWO\nthree\n')
     const result = await applyTeamMerge(io(), spec(root, base, head))
     expect(result).toMatchObject({ written: [], conflicts: [] })
+  })
+})
+
+describe('round 2: transactional landing', () => {
+  it.each(['ref', 'io'])(
+    'rolls back every landed file after a later %s refusal and carries Undo',
+    async (failure) => {
+      const { root, head: base } = await teamFixtureRepo(runGit)
+      const head = await taskBranch(root, base, { 'a.txt': 'A\n', 'b.txt': 'B\n' })
+      const ref = 'refs/heads/agents/engineering/t1'
+      let wasInjected = false
+      const racingGit = atLiveRef(ref, async () => {
+        if (wasInjected) {
+          return
+        }
+        try {
+          await readFile(path.join(root, 'a.txt'))
+        } catch {
+          return
+        }
+        wasInjected = true
+        if (failure === 'io') {
+          throw new Error('Synthetic later I/O failure')
+        }
+        await runGit(['update-ref', ref, base, head], root)
+      })
+      await expect(
+        mergeWithLiveRef(root, base, head, ref, { runGit: racingGit, realPath: teamRealPath }),
+      ).rejects.toMatchObject({
+        code: failure === 'ref' ? 'refBreach' : 'mergeFailed',
+        undo: { files: [{ path: 'a.txt', before: undefined }] },
+        rollback: { restored: ['a.txt'], refused: [] },
+      })
+      expect(wasInjected).toBe(true)
+      await expectNoLandedFiles(root)
+    },
+  )
+
+  it('rolls back landed files when scratch cleanup fails and carries Undo', async () => {
+    const { root, head: base } = await teamFixtureRepo(runGit)
+    const head = await taskBranch(root, base, { 'a.txt': 'A\n', 'b.txt': 'B\n' })
+    const actual = await vi.importActual<typeof FsPromises>('node:fs/promises')
+    const scratchToRemove: string[] = []
+    vi.mocked(rm).mockImplementation(async (target, options) => {
+      if (path.basename(String(target)).startsWith('muse-team-merge-')) {
+        scratchToRemove.push(String(target))
+        throw new Error('Synthetic scratch cleanup failure')
+      }
+      await actual.rm(target, options)
+    })
+    try {
+      await expect(applyTeamMerge(io(), spec(root, base, head))).rejects.toMatchObject({
+        code: 'mergeFailed',
+        undo: { files: [{ path: 'a.txt' }, { path: 'b.txt' }] },
+        rollback: { restored: ['a.txt', 'b.txt'], refused: [] },
+      })
+      await expectNoLandedFiles(root)
+    } finally {
+      vi.mocked(rm).mockImplementation(actual.rm)
+      for (const target of scratchToRemove) {
+        await actual.rm(target, { recursive: true, force: true })
+      }
+    }
+  })
+
+  it.each(['modified', 'deleted', 'added'])(
+    'preserves a user edit after derivation of a %s file',
+    async (change) => {
+      const { root, head: base } = await teamFixtureRepo(runGit)
+      const file = change === 'added' ? 'new.txt' : 'shared.txt'
+      const head = await taskBranch(root, base, {
+        [file]: change === 'deleted' ? undefined : 'branch\n',
+      })
+      const ref = 'refs/heads/agents/engineering/t1'
+      let wasInjected = false
+      const racingGit = atLiveRef(ref, async () => {
+        if (wasInjected) {
+          return
+        }
+        wasInjected = true
+        await writeFile(path.join(root, file), 'late user edit\n')
+      })
+      await expect(
+        mergeWithLiveRef(root, base, head, ref, { runGit: racingGit, realPath: teamRealPath }),
+      ).rejects.toMatchObject({ code: 'treeChanged', files: [file], undo: { files: [] } })
+      expect(await readFile(path.join(root, file), 'utf8')).toBe('late user edit\n')
+    },
+  )
+
+  it('reports an Undo read-back mismatch honestly', async () => {
+    const { root, head: base } = await teamFixtureRepo(runGit)
+    const head = await taskBranch(root, base, { 'tracked.txt': 'merged\n' })
+    const result = await applyTeamMerge(io(), spec(root, base, head))
+    const actual = await vi.importActual<typeof FsPromises>('node:fs/promises')
+    vi.mocked(rename).mockImplementationOnce(async (source, destination) => {
+      await actual.rename(source, destination)
+      await writeFile(path.join(root, 'tracked.txt'), 'concurrent writer\n')
+    })
+    await expectRefusedUndo(root, result.undo, 'concurrent writer\n')
+  })
+
+  it('refuses a symlink blob instead of silently changing its file type', async () => {
+    const { root, head: base } = await teamFixtureRepo(runGit)
+    const blob = TEXT.decode(
+      await runGit(['hash-object', '-w', '--stdin'], root, 'tracked.txt'),
+    ).trim()
+    await runGit(['checkout', '-qb', 'agents/engineering/t1', base], root)
+    await runGit(['update-index', '--add', '--cacheinfo', `120000,${blob},link`], root)
+    await runGit(['commit', '-qm', 'symlink fixture'], root)
+    const head = await revOf(root, 'HEAD')
+    await runGit(['checkout', '-q', 'main'], root)
+    await expect(applyTeamMerge(io(), spec(root, base, head))).rejects.toMatchObject({
+      code: 'unsafePath',
+      files: ['link'],
+    })
+    await expect(readFile(path.join(root, 'link'))).rejects.toMatchObject({ code: 'ENOENT' })
+  })
+
+  it('preserves private permission bits when adding executable mode', async () => {
+    if (process.platform === 'win32') {
+      return
+    }
+    const { root, head: base } = await teamFixtureRepo(runGit)
+    await runGit(['checkout', '-qb', 'agents/engineering/t1', base], root)
+    await chmod(path.join(root, 'tracked.txt'), 0o755)
+    await writeFile(path.join(root, 'private.txt'), 'private\n')
+    await runGit(['add', '--', 'private.txt'], root)
+    await runGit(['update-index', '--chmod=+x', 'tracked.txt'], root)
+    await runGit(['commit', '-qm', 'executable fixture'], root)
+    const head = await revOf(root, 'HEAD')
+    await runGit(['checkout', '-q', 'main'], root)
+    await chmod(path.join(root, 'tracked.txt'), 0o600)
+    const originalUmask = process.umask(0o077)
+    try {
+      const result = await applyTeamMerge(io(), spec(root, base, head))
+      const mergedStat = await stat(path.join(root, 'tracked.txt'))
+      expect(mergedStat.mode & 0o777).toBe(0o700)
+      const privateStat = await stat(path.join(root, 'private.txt'))
+      expect(privateStat.mode & 0o777).toBe(0o600)
+      expect(await undoTeamMerge(root, result.undo)).toEqual({
+        restored: ['private.txt', 'tracked.txt'],
+        refused: [],
+      })
+      const restoredStat = await stat(path.join(root, 'tracked.txt'))
+      expect(restoredStat.mode & 0o777).toBe(0o600)
+    } finally {
+      process.umask(originalUmask)
+    }
   })
 })
 
@@ -382,6 +593,9 @@ describe('binary files', () => {
     const result = await applyTeamMerge(io(), spec(root, base, head))
     expect(result.conflicts).toEqual([{ path: 'blob.bin', isBinary: true }])
     expect(await readFile(path.join(root, 'blob.bin'))).toEqual(Buffer.from([0x00, 0x09, 0x09]))
+    expect(await readFile(path.join(root, '..', 'task-copy', 'blob.bin'))).toEqual(
+      Buffer.from([0x00, 0x01, 0x02]),
+    )
   })
 
   it('takes theirs when only the branch changed one', async () => {
@@ -401,34 +615,37 @@ describe('binary files', () => {
 
 describe('no repository program', () => {
   it('runs no filter, textconv or merge driver', async () => {
-    const { root } = await teamFixtureRepo(runGit)
+    const { root, head: base } = await teamFixtureRepo(runGit)
     const canary = path.join(root, 'canary-fired')
-    await runGit(['config', 'filter.canary.clean', `touch "${canary}" && cat`], root)
-    await runGit(['config', 'filter.canary.smudge', `touch "${canary}" && cat`], root)
-    await runGit(['config', 'merge.canary.name', 'canary merge driver'], root)
-    await runGit(
-      ['config', 'merge.canary.driver', `touch "${canary}" && cat "%A" > "%A" && exit 0`],
+    const filter = `touch "${canary}" && cat`
+    await appendFile(
+      path.join(root, '.git', 'config'),
+      [
+        '[filter "canary"]',
+        `  clean = ${JSON.stringify(filter)}`,
+        `  smudge = ${JSON.stringify(filter)}`,
+        '[merge "canary"]',
+        '  name = canary merge driver',
+        `  driver = ${JSON.stringify(`touch "${canary}" && cat "%A" > "%A" && exit 0`)}`,
+        '[diff "canary"]',
+        `  textconv = ${JSON.stringify(`touch "${canary}"`)}`,
+        '',
+      ].join('\n'),
+    )
+    const withAttributes = await teamFixtureCommit(
+      runGit,
       root,
+      base,
+      {
+        '.gitattributes': '*.txt filter=canary merge=canary diff=canary\n',
+      },
+      'refs/heads/main',
     )
-    await runGit(['config', 'diff.canary.textconv', `touch "${canary}"`], root)
-    await writeFile(
-      path.join(root, '.gitattributes'),
-      '*.txt filter=canary merge=canary diff=canary\n',
-    )
-    await runGit(['add', '--', '.gitattributes'], root)
-    await runGit(['commit', '-qm', 'attributes'], root)
-    const withAttributes = await revOf(root, 'main')
-    // The setup's own checkouts and adds fire the filter, and `add --all`
-    // would sweep the canary file into the branch: commit only the file the
-    // task changes, and clear the canary after the setup.
-    await runGit(['checkout', '-qb', 'agents/engineering/t1', withAttributes], root)
-    const { rm } = await import('node:fs/promises')
-    await rm(canary, { force: true })
-    await writeFile(path.join(root, 'shared.txt'), 'one\nTWO\nthree\n')
-    await runGit(['add', '--', 'shared.txt'], root)
-    await runGit(['commit', '-qm', 'task change'], root)
-    const head = await revOf(root, 'agents/engineering/t1')
-    await runGit(['checkout', '-q', 'main'], root)
+    await runGit(['read-tree', '--reset', '-u', 'main'], root)
+    const head = await taskBranch(root, withAttributes, { 'shared.txt': 'one\nTWO\nthree\n' })
+    // The task copy's real checkout fires the smudge filter. Its canary is
+    // outside the imported tree; clear it before testing extension-owned Git.
+    await expect(stat(canary)).resolves.toBeDefined()
     await rm(canary, { force: true })
     await applyTeamMerge(io(), spec(root, withAttributes, head))
     await expect(stat(canary)).rejects.toThrow()
@@ -529,14 +746,7 @@ describe('undoTeamMerge', () => {
     'refuses a replaced parent for %s without touching outside bytes',
     async (change) => {
       const { root, head: initial } = await teamFixtureRepo(runGit)
-      let base = initial
-      if (change === 'modified') {
-        await mkdir(path.join(root, 'docs'))
-        await writeFile(path.join(root, 'docs', 'ok.md'), 'before\n')
-        await runGit(['add', '--all'], root)
-        await runGit(['commit', '-qm', 'docs base'], root)
-        base = await revOf(root, 'HEAD')
-      }
+      const base = change === 'modified' ? await commitDocsBase(root) : initial
       const head = await taskBranch(root, base, { 'docs/ok.md': 'merged\n' })
       const result = await applyTeamMerge(io(), spec(root, base, head))
       const outside = await replaceDocsParent(
@@ -559,11 +769,7 @@ describe('undoTeamMerge', () => {
     const head = await taskBranch(root, base, { 'tracked.txt': 'changed\n' })
     const result = await applyTeamMerge(io(), spec(root, base, head))
     await chmod(path.join(root, 'tracked.txt'), 0o755)
-    expect(await undoTeamMerge(root, result.undo)).toEqual({
-      restored: [],
-      refused: ['tracked.txt'],
-    })
-    expect(await readFile(path.join(root, 'tracked.txt'), 'utf8')).toBe('changed\n')
+    await expectRefusedUndo(root, result.undo, 'changed\n')
   })
 
   it('refuses a Windows junction ancestor on Undo', async () => {
@@ -592,4 +798,102 @@ describe('undoTeamMerge', () => {
     expect(undone.refused).toEqual(['shared.txt'])
     expect(await readFile(path.join(root, 'shared.txt'), 'utf8')).toBe('one\nUSER\nthree\n')
   })
+})
+
+describe('Windows merge paths', () => {
+  it.each(['case', 'drive', 'namespace'])(
+    'merges and undoes through a %s root alias',
+    async (form) => {
+      if (process.platform !== 'win32') {
+        return
+      }
+      const { root, head: base } = await teamFixtureRepo(runGit)
+      const head = await taskBranch(root, base, {
+        'tracked.txt': 'changed\n',
+        'docs/ok.md': 'nested\n',
+      })
+      const alias = teamWindowsPath(root, form)
+      const result = await applyTeamMerge(io(), spec(alias, base, head))
+      expect(await readFile(path.join(root, 'tracked.txt'), 'utf8')).toBe('changed\n')
+      expect(await undoTeamMerge(alias, result.undo)).toEqual({
+        restored: ['docs/ok.md', 'tracked.txt'],
+        refused: [],
+      })
+      expect(await readFile(path.join(root, 'tracked.txt'), 'utf8')).toBe('before\n')
+    },
+  )
+
+  it.each(['added', 'modified', 'deleted'])(
+    'refuses a junction parent before %s',
+    async (change) => {
+      if (process.platform !== 'win32') {
+        return
+      }
+      const { root, head: initial } = await teamFixtureRepo(runGit)
+      await mkdir(path.join(root, 'docs'))
+      const base = change === 'added' ? initial : await commitDocsBase(root)
+      const head = await taskBranch(root, base, {
+        'docs/ok.md': change === 'deleted' ? undefined : 'changed\n',
+      })
+      await mkdir(path.join(root, 'docs'), { recursive: true })
+      const outside = await replaceDocsParent(root, 'junction')
+      if (change === 'added') {
+        await unlink(path.join(outside, 'ok.md'))
+      } else {
+        await writeFile(path.join(outside, 'ok.md'), 'before\n')
+      }
+      await writeFile(path.join(outside, 'sentinel'), 'safe\n')
+      await expect(applyTeamMerge(io(), spec(root, base, head))).rejects.toMatchObject({
+        code: 'linkEscape',
+      })
+      if (change === 'added') {
+        await expect(readFile(path.join(outside, 'ok.md'))).rejects.toMatchObject({
+          code: 'ENOENT',
+        })
+      } else {
+        expect(await readFile(path.join(outside, 'ok.md'), 'utf8')).toBe('before\n')
+      }
+      expect(await readFile(path.join(outside, 'sentinel'), 'utf8')).toBe('safe\n')
+      expect(await revOf(root, 'main')).toBe(base)
+    },
+  )
+
+  it('refuses an 8.3 root alias without overwriting the file', async () => {
+    if (process.platform !== 'win32') {
+      return
+    }
+    const { root, head: base } = await teamFixtureRepo(runGit)
+    const head = await taskBranch(root, base, { 'tracked.txt': 'changed\n' })
+    const shortRoot = await teamShortRoot(root)
+    if (shortRoot === undefined) {
+      return // The volume did not report an 8.3 name.
+    }
+    await expect(applyTeamMerge(io(), spec(shortRoot, base, head))).rejects.toMatchObject({
+      code: 'linkEscape',
+    })
+    expect(await readFile(path.join(root, 'tracked.txt'), 'utf8')).toBe('before\n')
+  })
+
+  it.each(['same', 'inside', 'around'])(
+    'refuses a %s rework root across namespace spellings',
+    async (position) => {
+      if (process.platform !== 'win32') {
+        return
+      }
+      const { root, head: base } = await teamFixtureRepo(runGit)
+      const head = await taskBranch(root, base, { 'shared.txt': 'one\nTHEIRS\nthree\n' })
+      const ours = 'one\nOURS\nthree\n'
+      await writeFile(path.join(root, 'shared.txt'), ours)
+      let taskFolder = root
+      if (position === 'inside') {
+        taskFolder = path.join(root, 'docs')
+      } else if (position === 'around') {
+        taskFolder = path.dirname(root)
+      }
+      await expect(
+        applyTeamMerge(io(), spec(path.toNamespacedPath(root), base, head, { taskFolder })),
+      ).rejects.toMatchObject({ code: 'mergeFailed' })
+      expect(await readFile(path.join(root, 'shared.txt'), 'utf8')).toBe(ours)
+    },
+  )
 })
