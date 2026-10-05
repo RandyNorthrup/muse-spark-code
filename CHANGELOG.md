@@ -22,6 +22,13 @@ happened, not what was planned; superseded entries are kept.
 - Provider descriptions, key hints, privacy explanations, wizard and validation
   messages, suggestions and scan summaries follow the installed display language
   in all fourteen translations, including localized counts and currency.
+- Gemini codec: count billed thinking in output usage, require a successful
+  terminal reason, and retain live item identities. Regression checks include
+  the unit TypeScript project and the real host's live message/thinking rows.
+- Gemini tool-result images now fail with an explicit named error pending a
+  supported captured replay shape. Checked-in exact request bytes cover first
+  turns, signed tool loops, user images, packed output and compaction; session
+  growth preserves every earlier content entry and stable request field.
 
 ## [0.12.1] - 2026-10-04
 
