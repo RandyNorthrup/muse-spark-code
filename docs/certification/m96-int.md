@@ -570,3 +570,85 @@ cluster scanning (3 failing cases), wrapper client (9), doubled Git (1),
 global pagination (1), shared-files reader (1), exact state-label union (1).
 Receipt: `m96-int-round3b-drills.json`. Both original lane regression suites
 remain intact; no guard, assertion, timeout or platform gate was weakened.
+
+### Round 3b X2 package and final preflight
+
+X2 adds callable `loadScheduler` and `loadRunners` factories behind the
+existing team factory. They install the caller's table before use and load
+`teamScheduler.js` (57.8/75 KiB) and `teamRunners.js` (44.6/75 KiB) only on
+demand. Both packages contain their bundles and both native runner helpers.
+The scheduler's JSON tool declarations are generated from its existing zod
+boundaries, checked before every build, and unchanged in the owning tool
+suite. The missing M95 Models & Agents shell and concrete window-owned
+scheduler/accounting/launch/landing adapters block Traffic registration and
+real team dispatch; no replacement runtime or working command is fabricated.
+
+Lossless English encoding compares the compiled Node and browser tables,
+including key order, plural forms, raw literals and joined text, with the
+actual English export. uiText falls from 142.5 to 59.5/125 KiB; the initial
+browser closure is 840,377 B (820.7/900 KiB). The independent 201-source
+pre-M96 overlay again measures 604,810 B. Current activation is 596,609 B:
+growth -8,201 B against the 4,096 B limit. All three ordinary metafiles carry
+zero team/runner modules. The production resolver is shared with both startup
+proofs and has an esbuild Plugin declaration rather than a type suppression.
+
+The original seven fixtures are byte-identical to the starting branch.
+However, 64 raw golden assertions fail: B inherits the main release's D78
+change that offers recall_output only with packed observations and changes
+cache keys. Preserve D78 pending the lead's decision; the old fixtures are
+not rewritten. The single-model request proof is therefore red even though
+the startup boundaries and growth proof pass.
+
+The complete owning sweep runs 104 files in 35 batches of at most three:
+2,079 pass, one fails, and two existing Windows-only runner cases skip.
+The browser size drill is reconciled with the release's separate deferred
+budget; its byte-restoration and green-build assertion remain intact. It
+now fails at that final assertion because deferred JS is 56,885 B against
+51,200 B. All other production caps pass. No existing cap, threshold,
+assertion, timeout or platform guard is weakened.
+
+The zero-clone gate found A/K settlement and two fake-journal overlaps.
+One core settlement algorithm retains A's localized refusal and K's technical
+failure codes; both original restart/acknowledgement suites remain. Test-only
+day/refund helpers are shared. A repeat K test caught an end-write fault armed
+after the real child could exit; arming the targeted fault before launch fixes
+the race without changing production timing. The three settlement/lifetime
+files pass 43; compiled package/startup/graph proofs pass seven. All five
+compiler projects, scoped lint, deadcode, cycles, localization, host API,
+zero-clone duplication, host globals, split inventory and notices pass.
+PowerShell and Windows-native certification remain platform-gated for 3c.
+
+Nine additional deliberate drills fail and restore identical SHA-256:
+English decoder and expression guard, scheduler factory, generated-schema
+freshness, scheduler split inventory, shared validation exports, unknown
+liability, end-record retry and the single Traffic loader. With the six
+reconciliation/classifier drills, there are 15. The retry mutation also produces four deliberately unhandled
+errors; it is reverted byte-exact. Receipts are
+`m96-int-round3b-x2-drills.json` and `m96-int-round3b-drills.json`.
+
+The private helperless VSIX is 2,317,922 B, over the unchanged 2,252,800 B
+cap by 65,122 B. It is not universal: the requested published 0.13.0 helper
+is absent locally, and the shared network prohibition/artifact clarification
+remains unresolved. Universal bytes are unmeasured. The private ACP archive
+is 1,295,223 B; archive listings prove both new bundles and both runner helpers
+are included. Neither archive is published. Machine-readable preflight:
+`m96-int-round3b-results.json`. The mandatory full-quality invocation follows
+the final local commit; its actual exit and tail are supplied in the final
+report. This preflight does not claim full-quality certification.
+
+The full accessibility matrix first returned no result for 17 pages: the
+merged HTML loaded both the ordinary App and the Traffic root and lacked a
+Traffic readiness predicate. The harness now loads one ESM entry per scenario
+and waits for that surface's own marker. Five browser route regressions fail
+before the fix and pass after it; deliberately restoring the competing App
+loader fails all five again, then restores the HTML SHA-256 byte-exact. The
+complete harness file passes 21 with only the unchanged deferred-cap failure.
+The focused 20-page Traffic/runner accessibility matrix passes with zero
+violations, undecided rules, exemptions or pages without a result; the full
+596-page matrix is rerun after this commit.
+
+The complete-history secret scan exits 1 with seven findings in inherited
+commits across two certification records and historical auth-source tests.
+Only rule/file/line/commit metadata is retained. Matched text is never copied;
+no scanner ignore or historical rewrite is introduced. This remains a
+lead-owned release blocker, distinct from staged hook scanning.

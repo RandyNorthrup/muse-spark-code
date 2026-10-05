@@ -47,15 +47,20 @@
 // does, and its package ships that file (scripts/package-acp.mjs), so the
 // backend is built once for both.
 
+import { execFileSync } from 'node:child_process'
 import { mkdirSync, readdirSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import * as esbuild from 'esbuild'
+import { sharedValidation } from './lib/sharedValidation.mjs'
+import { compressedEnglish } from './lib/compressedEnglish.mjs'
 import { sharedHighlightGrammar } from './lib/highlightGrammar.mjs'
 import { deferredTeamView, deferredCohort } from './lib/deferredTeamView.mjs'
 import {
   CONTENT_FILE as WHATS_NEW_CONTENT_OUTFILE,
   writeWhatsNewContent,
 } from './lib/whatsNewContent.mjs'
+
+execFileSync(process.execPath, ['scripts/team-tool-schemas.mjs'], { stdio: 'inherit' })
 
 const args = new Set(process.argv.slice(2))
 const isProduction = args.has('--production')
@@ -75,6 +80,10 @@ const SESSION_BOARD_ENTRY = 'src/host/sessionBoardEntry.ts'
 const SESSION_BOARD_OUTFILE = 'dist/sessionBoard.js'
 const TEAM_ENTRY = 'src/core/team/teamEntry.ts'
 const TEAM_OUTFILE = 'dist/team.js'
+const TEAM_SCHEDULER_ENTRY = 'src/core/team/teamSchedulerEntry.ts'
+const TEAM_SCHEDULER_OUTFILE = 'dist/teamScheduler.js'
+const TEAM_RUNNERS_ENTRY = 'src/host/runners/teamRunnersEntry.ts'
+const TEAM_RUNNERS_OUTFILE = 'dist/teamRunners.js'
 const REVIEWER_ENTRY = 'src/core/backends/modelapi/reviewerEntry.ts'
 const REVIEWER_OUTFILE = 'dist/reviewer.js'
 const PLAN_MARKDOWN_ENTRY = 'src/host/planMarkdownEntry.ts'
@@ -141,17 +150,6 @@ const sharedUiText = {
 
 // Share the used mini-parser API across Node bundles; browsers and integration
 // test bundles still inline it. The split gate checks every runtime member.
-/** @type {import('esbuild').Plugin} */
-const sharedValidation = {
-  name: 'shared-validation',
-  setup(build) {
-    build.onResolve({ filter: /^zod\/mini$/ }, () => ({
-      path: './validation.js',
-      external: true,
-    }))
-  },
-}
-
 /** @type {import('esbuild').BuildOptions} */
 const common = {
   bundle: true,
@@ -198,6 +196,20 @@ const teamOptions = {
   plugins: [sharedUiText, sharedValidation, deferredCohort],
   entryPoints: [TEAM_ENTRY],
   outfile: TEAM_OUTFILE,
+}
+
+/** @type {import('esbuild').BuildOptions} */
+const teamSchedulerOptions = {
+  ...teamOptions,
+  entryPoints: [TEAM_SCHEDULER_ENTRY],
+  outfile: TEAM_SCHEDULER_OUTFILE,
+}
+
+/** @type {import('esbuild').BuildOptions} */
+const teamRunnersOptions = {
+  ...teamOptions,
+  entryPoints: [TEAM_RUNNERS_ENTRY],
+  outfile: TEAM_RUNNERS_OUTFILE,
 }
 
 /** @type {import('esbuild').BuildOptions} */
@@ -356,6 +368,7 @@ const acpOptions = {
 /** @type {import('esbuild').BuildOptions} */
 const uiTextOptions = {
   ...common,
+  plugins: [compressedEnglish('node')],
   entryPoints: [UI_TEXT_ENTRY],
   outfile: UI_TEXT_OUTFILE,
   platform: 'node',
@@ -383,7 +396,7 @@ const pageWorkerOptions = {
 /** @type {import('esbuild').BuildOptions} */
 const webviewOptions = {
   ...common,
-  plugins: [sharedHighlightGrammar],
+  plugins: [sharedHighlightGrammar, compressedEnglish('browser')],
   charset: 'utf8',
   entryPoints: [WEBVIEW_ENTRY],
   outdir: WEBVIEW_OUTDIR,
@@ -443,6 +456,8 @@ if (isWatch) {
     esbuild.context(sessionBoardOptions),
     esbuild.context(reviewerOptions),
     esbuild.context(teamOptions),
+    esbuild.context(teamRunnersOptions),
+    esbuild.context(teamSchedulerOptions),
     esbuild.context(planMarkdownOptions),
     esbuild.context(checkpointStoreOptions),
     esbuild.context(agentImportOptions),
@@ -471,6 +486,8 @@ if (isWatch) {
     sessionBoard: esbuild.build(sessionBoardOptions),
     reviewer: esbuild.build(reviewerOptions),
     team: esbuild.build(teamOptions),
+    teamRunners: esbuild.build(teamRunnersOptions),
+    teamScheduler: esbuild.build(teamSchedulerOptions),
     planMarkdown: esbuild.build(planMarkdownOptions),
     checkpointStore: esbuild.build(checkpointStoreOptions),
     agentImport: esbuild.build(agentImportOptions),
@@ -512,6 +529,8 @@ if (isWatch) {
   reportSize(SESSION_BOARD_OUTFILE)
   reportSize(REVIEWER_OUTFILE)
   reportSize(TEAM_OUTFILE)
+  reportSize(TEAM_RUNNERS_OUTFILE)
+  reportSize(TEAM_SCHEDULER_OUTFILE)
   reportSize(PLAN_MARKDOWN_OUTFILE)
   reportSize(CHECKPOINT_STORE_OUTFILE)
   reportSize(AGENT_IMPORT_OUTFILE)

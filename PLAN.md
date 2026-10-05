@@ -17682,6 +17682,20 @@ I's clustered option, order-file, global pager, unknown-command and doubled
 Git refusals apply to both clients. Six integration regressions are deliberately
 broken and restored byte-exact (classifier, shared-files reader, label union).
 
+**Round 3b X2 package scope.** The merged build exposes English fallback
+142.5/125 KiB, browser startup 902.8/900 KiB and deferred UI 55.5/50 KiB.
+Keep all caps. Encode the unchanged English data at build time with deflate;
+Node decodes synchronously, browser modules decode before evaluation using
+Chrome 128's DecompressionStream. A strict TypeScript AST reader accepts
+only the table's literal data, String.raw, literal-array join and identity `forms` calls; never eval
+source. Compare both compiled forms deeply with the actual EN export, reject
+unsupported expressions, and deliberately break the codec/reader guards.
+The team factory loads `teamScheduler.js` (57.8 KiB, 75 KiB cap) and `teamRunners.js` (44.6 KiB, 75 KiB cap) only on demand; these new caps follow D6, with all existing caps unchanged. Tool JSON schemas are generated from the production zod boundaries and checked before every build;
+load SSH/check-slot/Traffic host capabilities only from `teamRunners.js`.
+Include native runner helpers in both packages. The typed startup proof uses the production resolvers with their esbuild Plugin declaration (no untyped import suppression). The split inventory now includes both team browser surfaces and the runtime-used NEVER/nonoptional/_default mini API. The undeclared-tool model text is read by modelApi only, so no unread copy is demanded from the team bundles. Missing M95 panel registration,
+concrete window/accounting/launch/landing bindings and live isolation captures
+remain explicit runtime blockers; no unavailable command is advertised as working.
+
 **M96INT round 3b (2026-10-05, macmini).** Integrate the reviewed R/B/K
 redesigns, W redesign, I final fixes and M96c in the brief's order with
 `--no-ff`. Preserve all lane intents and translations; splice S's scheduler,
@@ -21456,6 +21470,40 @@ joined with M57, M58 and PR #49's sign-in
         commit-writing path exists
 
 ## 7. Gates
+
+**M96INT round 3b preflight and explicit deferrals (2026-10-05, macmini).**
+The six ordered merge commits and the single W-owned Git classifier are
+integrated. X2's callable scheduler/runner factories, helper packaging and
+build-derived tool schemas are integrated; the M95 Models & Agents shell and
+window-owned scheduler/accounting/launch/landing bindings are absent from all
+six named heads, so Traffic/Runners registration and real team dispatch remain
+blocked rather than replaced by invented adapters. Live isolation capture and
+Windows-native certification remain with round 3c.
+
+Production activation is 596,609 B against the independently rebuilt pre-M96
+604,810 B (growth -8,201 B; limit 4,096 B). All three ordinary metafiles exclude
+team/runner modules. All seven original golden fixtures are unchanged, but
+64 golden assertions fail because the main release inherited through B includes
+D78's deferred `recall_output` declaration and changed cache keys. This conflicts
+with the brief's pre-M96 byte baseline; preserve the release decision pending
+lead resolution, never update the fixtures to conceal it.
+
+Keep every existing cap: lossless English encoding reduces uiText to 59.5/125
+KiB and browser startup to 820.7/900 KiB. Deferred browser JS remains 55.6/50
+KiB, so `npm run build` exits 1. New scheduler (57.8 KiB) and runner (44.6 KiB)
+bundles each have a 75 KiB cap under D6's measured ×1.15 rounded to 25 KiB rule.
+No existing cap or guard is relaxed. The zero-clone gate exposed A/K settlement and two fake-journal overlaps: use one core settlement algorithm with caller-specific errors and share the test-only day/refund helpers; preserve both restart/acknowledgement suites. The full accessibility matrix exposed the merged harness loading the ordinary App and Traffic into the same root, plus a missing Traffic readiness predicate: load exactly one ESM entry per scenario and wait for its own marker; prove every Traffic/runner route in Chrome. A repeat K test exposed an end-write fault injection installed after the real child could already exit; arm it before launch and target only the end record, without changing production timing or timeouts. The requested published 0.13.0 macOS helper
+is absent locally; shared lane rules prohibit downloading it, and the artifact
+location/download clarification is pending. A helperless archive is not a
+universal certification. Full quality is required once on the final code head;
+its actual exit and tail must be reported, including any unvisited downstream
+gates, without treating preflight passes as full certification.
+
+The complete-history secret scan also exits 1 with seven inherited findings
+across `star-line.md`, `m95-x.md` and historical `authSource.test.ts` revisions.
+Only file/line/commit metadata is retained in the certification receipt; no
+matched text is copied. History is not rewritten and scanner ignores are not
+expanded. Investigation and resolution remain a lead-owned release blocker.
 
 **M96INT round 2 integrated-source proof (2026-10-05, Windows 11 rig).**
 T/W/I/U2/L review heads merge with `--no-ff` in order. The canonical worker

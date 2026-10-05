@@ -78,6 +78,26 @@ const BUNDLES = {
 const DEFERRED_ONLY = ['reviewerEntry.ts']
 const DEFERRED = [
   {
+    output: 'dist/teamScheduler.js',
+    metafile: 'dist/meta/teamScheduler.json',
+    files: [
+      'src/core/team/teamSchedulerEntry.ts',
+      'src/core/team/scheduler/board.ts',
+      'src/core/team/scheduler/slots.ts',
+      'src/core/team/teamPool.ts',
+    ],
+  },
+  {
+    output: 'dist/teamRunners.js',
+    metafile: 'dist/meta/teamRunners.json',
+    files: [
+      'src/host/runners/teamRunnersEntry.ts',
+      'src/host/runners/sshRunner.ts',
+      'src/host/team/checkSlots.ts',
+      'src/host/modelsPanelTraffic.ts',
+    ],
+  },
+  {
     output: 'dist/team.js',
     metafile: 'dist/meta/team.json',
     files: ['src/core/team/teamEntry.ts', 'src/core/team/teamTools.ts', 'src/core/team/roster.ts'],
@@ -212,7 +232,7 @@ for (const bundle of [BUNDLES.activation, BUNDLES.modelApi, BUNDLES.acp]) {
 // A single-model user must never pay their eager loading cost in any backend.
 for (const bundle of [BUNDLES.activation, BUNDLES.modelApi, BUNDLES.acp]) {
   for (const file of inputsOf(bundle).keys()) {
-    if (/^src\/(core|host)\/team\//.test(file)) {
+    if (/^src\/(core|host)\/(?:team|runners)\//.test(file)) {
       problems.push(bundle.output + ' carries ' + file + ', which loads only with the team')
     }
   }
@@ -698,11 +718,15 @@ function shipped(output) {
   return bundle ?? { output, metafile: '' }
 }
 const TEXT_BLOCKS = [
-  { block: 'TEAM_MODEL_TEXT', sentinels: ['toolTheRoleToRunEG'], readers: ['dist/team.js'] },
+  {
+    block: 'TEAM_MODEL_TEXT',
+    sentinels: ['toolTheRoleToRunEG'],
+    readers: ['dist/team.js', 'dist/teamScheduler.js'],
+  },
   {
     block: 'TEAM_BOOTSTRAP_MODEL_TEXT',
     sentinels: ['undeclaredTool'],
-    readers: ['dist/team.js', BUNDLES.modelApi.output],
+    readers: [BUNDLES.modelApi.output],
   },
   // M96 workers are not wired into a shipped bundle yet: forbid their text everywhere.
   { block: 'WORKER_MODEL_TEXT', sentinels: ['boundedExcerpt'], readers: [] },

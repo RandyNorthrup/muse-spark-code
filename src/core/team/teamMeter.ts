@@ -172,17 +172,34 @@ export interface TeamReservationJournal {
   latestDay(candidate: string): Promise<string>
 }
 
+/** Structural D78 settlement port shared by meter and host recovery. */
+export interface TeamSettlementClaims {
+  lookupByClaimId(id: string): Promise<
+    | {
+        readonly reservation: TeamClaimUsage & { readonly id: string; readonly dayKey: string }
+        readonly outcome?: TeamClaimOutcome
+      }
+    | undefined
+  >
+  settle(
+    id: string,
+    outcome: Exclude<TeamClaimOutcome, { readonly kind: 'refunded' }>,
+  ): Promise<void>
+  refund(id: string): Promise<void>
+}
+
 /** Restart-safe settlement: no new reservation, double charge, or lost refund. */
-export async function settleTeamReservation(
-  journal: TeamReservationJournal,
+export async function settleTeamClaim(
+  journal: TeamSettlementClaims,
   id: string,
   outcome:
     | (TeamClaimUsage & { readonly kind: 'reported' })
     | { readonly kind: 'unknown' }
     | { readonly kind: 'nonsent' },
+  failure: (reason: 'unavailable' | 'conflict') => Error,
 ): Promise<void> {
   const claim = await journal.lookupByClaimId(id)
-  if (claim?.reservation.id !== id) throw new Error(UI_TEXT.sessionBudgetStoreUnavailable)
+  if (claim?.reservation.id !== id) throw failure('unavailable')
   let next: TeamClaimOutcome
   if (outcome.kind === 'nonsent')
     next = { kind: 'refunded', tokens: 0, inputTokens: 0, outputTokens: 0, spendUsd: 0 }
@@ -203,12 +220,26 @@ export async function settleTeamReservation(
       claim.outcome.outputTokens !== next.outputTokens ||
       claim.outcome.spendUsd !== next.spendUsd
     ) {
-      throw new Error(UI_TEXT.sessionBudgetStoreUnavailable)
+      throw failure('conflict')
     }
     return
   }
   if (next.kind === 'refunded') await journal.refund(id)
   else await journal.settle(id, next)
+}
+
+/** Meter callers retain their localized storage refusal. */
+export async function settleTeamReservation(
+  journal: TeamReservationJournal,
+  id: string,
+  outcome: Parameters<typeof settleTeamClaim>[2],
+): Promise<void> {
+  await settleTeamClaim(
+    journal,
+    id,
+    outcome,
+    () => new Error(UI_TEXT.sessionBudgetStoreUnavailable),
+  )
 }
 
 /** What the meter reads: ledger rows in the window, and open reservations. */

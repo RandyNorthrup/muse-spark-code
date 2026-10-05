@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { advanceFakeTeamDay, refundedTeamOutcome } from './helpers/teamFakes'
 import { settleTeamJournalClaim, type TeamSettlementClaims } from '../../src/host/team/teamJournal'
 
 // Test-only model of lane A's five-operation D78 contract at 8901ea1b.
@@ -67,8 +68,7 @@ class MemoryClaims implements TeamSettlementClaims {
       : Promise.resolve()
   }
   public latestDay(candidate: string): Promise<string> {
-    this.state.latest = candidate > this.state.latest ? candidate : this.state.latest
-    return Promise.resolve(this.state.latest)
+    return advanceFakeTeamDay(this.state, candidate)
   }
   public claim(request: typeof REQUEST) {
     const reservation = Object.freeze({ ...request, id: `claim-${String(this.state.next++)}` })
@@ -153,13 +153,7 @@ class MemoryClaims implements TeamSettlementClaims {
   }
   public refund(id: string) {
     this.calls.push('refund')
-    return this.finish(id, {
-      kind: 'refunded',
-      tokens: 0,
-      inputTokens: 0,
-      outputTokens: 0,
-      spendUsd: 0,
-    })
+    return this.finish(id, refundedTeamOutcome())
   }
   public lookupByClaimId(id: string): Promise<Record | undefined> {
     this.calls.push('lookup')

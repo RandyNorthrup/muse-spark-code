@@ -30,6 +30,10 @@ const BUDGETS = [
   // M96INT: tools and roster, loaded only for a team conversation. 44.6 KiB
   // measured; plus 15%, rounded up to 25 KiB (the approved D6 rule).
   { path: 'dist/team.js', budgetKiB: 75 },
+  // M96c X2: runner adapters 44.6 KiB; D6's 15%, rounded to 25 KiB.
+  { path: 'dist/teamRunners.js', budgetKiB: 75 },
+  // M96c X2: board/scheduler/tools 57.8 KiB; D6's 15%, rounded to 25 KiB.
+  { path: 'dist/teamScheduler.js', budgetKiB: 75 },
   // The plan reader, the panel's Markdown parser, loaded on the first plan
   // action (M79): 114.7 KiB when split out, 139.0 KiB with the brief's writer.
   { path: 'dist/planMarkdown.js', budgetKiB: 150 },

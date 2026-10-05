@@ -225,8 +225,7 @@ export class FakeTeamJournal implements TeamReservationJournal {
   }
 
   public latestDay(candidate: string): Promise<string> {
-    this.state.latest = candidate > this.state.latest ? candidate : this.state.latest
-    return Promise.resolve(this.state.latest)
+    return advanceFakeTeamDay(this.state, candidate)
   }
 
   public claim(reservation: Omit<TeamReservation, 'id'>): Promise<TeamBudgetClaim> {
@@ -246,13 +245,7 @@ export class FakeTeamJournal implements TeamReservationJournal {
 
   public refund(id: string): Promise<void> {
     this.calls.push('refund')
-    return this.finish(id, {
-      kind: 'refunded',
-      tokens: 0,
-      inputTokens: 0,
-      outputTokens: 0,
-      spendUsd: 0,
-    })
+    return this.finish(id, refundedTeamOutcome())
   }
 
   public lookupByClaimId(id: string): Promise<TeamClaimRecord | undefined> {
@@ -274,4 +267,13 @@ function sumClaims(
   measure: 'tokens' | 'inputTokens' | 'outputTokens' | 'spendUsd',
 ): number {
   return claims.reduce((total, claim) => total + (claim.outcome ?? claim.reservation)[measure], 0)
+}
+
+/** Both lane journals use the same monotonic day and zero refund value. */
+export function advanceFakeTeamDay(state: { latest: string }, candidate: string): Promise<string> {
+  state.latest = candidate > state.latest ? candidate : state.latest
+  return Promise.resolve(state.latest)
+}
+export function refundedTeamOutcome(): Extract<TeamClaimOutcome, { readonly kind: 'refunded' }> {
+  return { kind: 'refunded', tokens: 0, inputTokens: 0, outputTokens: 0, spendUsd: 0 }
 }

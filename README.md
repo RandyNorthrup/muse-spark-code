@@ -2388,6 +2388,15 @@ protected paths, conflicts and the supplied review details, with an
 overflow count for long lists. A card without file details cannot approve
 a merge. Tree and card code loads on its first use.
 
+The unreleased scheduler and runner adapters ship in separate bundles for
+team use. Their tool schemas come from the same validators used by the
+board. Maintainers regenerate them with `node scripts/team-tool-schemas.mjs
+--write`; the production build checks them for drift. The Traffic and
+Runners views remain internal while the Models & Agents panel and the
+window-owned team runtime are integrated. They are not available as
+commands in this release. ACP and other editors need those same runtime
+bindings; packaging these adapters does not enable team dispatch.
+
 - Muse Code hides its subagent tools unless `run.subagent_delegation_mode` is
   `"auto"` in its settings file (`~/.config/muse/settings.json`, or under
   `$XDG_CONFIG_HOME`). The map says so and opens the file for you; the

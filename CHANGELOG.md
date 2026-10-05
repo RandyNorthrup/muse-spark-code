@@ -9,6 +9,22 @@ happened, not what was planned; superseded entries are kept.
 
 ### Added
 
+- **Traffic browser harness integration.** Load one ESM surface per scenario
+  and wait for the Traffic readiness marker before accessibility scanning.
+  Browser regressions cover all five Traffic and runner scenarios.
+
+- **Team settlement integration (unreleased internals).** A and K share
+  one durable settlement algorithm while keeping their own error messages.
+  End-write recovery tests arm their injected failure before a child can exit.
+
+- **M96c X2 package adapters (unreleased internals).** The team factory loads
+  board/scheduler tools and runner/Traffic host capabilities on demand; VSIX
+  and ACP packages include their bundles and runner helpers. Tool schemas
+  are generated from the production validators. The missing Models & Agents
+  panel and team runtime bindings remain an integration prerequisite.
+  The English fallback uses a lossless build-time encoding; strings and
+  installed-language behavior are unchanged.
+
 - **Team strings, constants and schemas (M96 lane 0, unreleased
   internals).** Shared pool, task, usage, ledger and Agent map contracts,
   charter templates and recovery/landing text with all 14 translations.

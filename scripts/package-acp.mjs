@@ -33,6 +33,8 @@ const BUNDLES = [
   'modelApi.js',
   'reviewer.js',
   'team.js',
+  'teamRunners.js',
+  'teamScheduler.js',
   'uiText.js',
   'validation.js',
   'searchWorker.js',
@@ -98,6 +100,7 @@ for (const source of JOB_SOURCES) {
   mkdirSync(path.join(STAGE, path.dirname(source)), { recursive: true })
   copyFileSync(source, path.join(STAGE, source))
 }
+cpSync('native/runner', path.join(STAGE, 'native/runner'), { recursive: true })
 cpSync('l10n', path.join(STAGE, 'l10n'), {
   recursive: true,
   filter: (source) => !source.endsWith('untranslated.json'),

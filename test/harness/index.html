@@ -1035,7 +1035,6 @@
         document.body.style.width = '100%'
       }
     </script>
-    <script type="module" src="../../dist/webview/main.js"></script>
     <!-- M96c lane V's test-only surface is a separate lazy bundle. -->
     <script>
       const trafficScenarios = [
@@ -1057,7 +1056,7 @@
           mountTrafficHarness(document, scenarioName)
         })
       } else {
-        document.write('<script src="../../dist/webview/main.js"></scr' + 'ipt>')
+        import('../../dist/webview/main.js')
       }
     </script>
     <script>
@@ -4513,6 +4512,9 @@
         'agents-result': () => document.querySelector('.agent-details') !== null,
         'agents-closed': () => document.querySelector('.agent-details') !== null,
         'history-archived': () => document.querySelector('.history-toggle input:checked') !== null,
+        ...Object.fromEntries(
+          trafficScenarios.map((name) => [name, () => document.body.dataset.trafficReady === name]),
+        ),
       }
       const nextFrame = () =>
         new Promise((resolve) => {

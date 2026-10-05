@@ -1,18 +1,19 @@
-import { mkdtempSync, writeFileSync } from 'node:fs'
+import { mkdtempSync, realpathSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { createRequire } from 'node:module'
 import { build } from 'esbuild'
 import { afterAll, describe, expect, it } from 'vitest'
+import { sharedValidation } from '../../scripts/lib/sharedValidation.mjs'
 import { deferredTeamView, deferredCohort } from '../../scripts/lib/deferredTeamView.mjs'
 import { sharedUiText } from './helpers/modelApiBundle'
 import { removeFolder } from './helpers/temporaryFolders'
 import { EN } from '../../src/shared/l10n/en'
 
 const require = createRequire(import.meta.url)
-const folder = mkdtempSync(path.join(tmpdir(), 'm96-startup-'))
+const folder = realpathSync(mkdtempSync(path.join(tmpdir(), 'm96-startup-')))
 afterAll(async () => {
-  expect(path.dirname(path.resolve(folder))).toBe(path.resolve(tmpdir()))
+  expect(path.dirname(path.resolve(folder))).toBe(realpathSync(tmpdir()))
   await removeFolder(folder)
 })
 const nodeBuild = {
@@ -33,13 +34,13 @@ describe('M96 production startup boundary', () => {
       write: false,
       metafile: true,
       external: ['vscode', '@napi-rs/keyring', './sessionBoardEntry.js', './reviewerEntry.js'],
-      plugins: [sharedUiText, deferredCohort, deferredTeamView],
+      plugins: [sharedUiText, sharedValidation, deferredCohort, deferredTeamView],
       define: { 'process.env.NODE_ENV': '"production"' },
     })
     const inputs = Object.keys(result.metafile.inputs)
     expect(inputs).not.toContain('src/shared/teamView.ts')
     expect(inputs).not.toContain('src/core/team/teamPaid.ts')
-    expect(inputs.filter((file) => /^src\/(core|host)\/team\//.test(file))).toEqual([])
+    expect(inputs.filter((file) => /^src\/(core|host)\/(?:team|runners)\//.test(file))).toEqual([])
     expect(inputs).not.toContain('src/shared/team.ts')
     const activation = result.outputFiles.find(
       (file) => path.basename(file.path) === 'extension.js',
@@ -66,13 +67,18 @@ describe('M96 production startup boundary', () => {
   it('keeps ordinary parsing independent of team.js and validates every deferred payload', async () => {
     await build({
       ...nodeBuild,
+      entryPoints: ['src/shared/validationEntry.ts'],
+      outfile: path.join(folder, 'validation.js'),
+    })
+    await build({
+      ...nodeBuild,
       stdin: {
         contents:
           'export * from "./src/shared/protocol"; export { itemSnapshotSchema } from "./src/shared/agentEvents"',
         resolveDir: process.cwd(),
       },
       outfile: path.join(folder, 'protocol.js'),
-      plugins: [deferredTeamView],
+      plugins: [deferredTeamView, sharedValidation],
     })
     const protocol = require(path.join(folder, 'protocol.js'))
     const item = { itemId: 'ordinary', kind: 'agentMessage', status: 'completed', text: 'hello' }
@@ -152,7 +158,7 @@ describe('M96 production startup boundary', () => {
         ...nodeBuild,
         entryPoints: ['src/shared/protocol.ts'],
         outfile: file,
-        plugins: [deferredTeamView],
+        plugins: [deferredTeamView, sharedValidation],
       })
       const teamFile = path.join(folder, 'team.js')
       Reflect.deleteProperty(require.cache, require.resolve(teamFile))

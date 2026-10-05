@@ -23,6 +23,14 @@ export function createTeamViewSchemas() {
 export function createTeamRuntime(table: UiText, locale: string) {
   setUiText(table, locale)
   return {
+    async loadScheduler() {
+      const { createTeamSchedulerRuntime } = await import('./teamSchedulerEntry')
+      return createTeamSchedulerRuntime(table, locale)
+    },
+    async loadRunners() {
+      const { createTeamRunnersRuntime } = await import('../../host/runners/teamRunnersEntry')
+      return createTeamRunnersRuntime(table, locale)
+    },
     TEAM_TOOL_DEFINITIONS,
     TeamCommandRegistry,
     parseTeamArgs,

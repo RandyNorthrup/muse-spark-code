@@ -40,6 +40,7 @@ import { schedulerToolAnswer, type SchedulerRosterSource } from './roster'
 // team edits. Descriptions never name a role, so they never change.
 
 import * as z from 'zod/mini'
+import teamToolSchemas from '../../shared/teamToolSchemas.json'
 
 /** The five tool names, in declaration order. */
 export { TEAM_TOOL_NAMES } from '../../shared/constants'
@@ -614,7 +615,7 @@ function delegateInput(args: Readonly<Record<string, unknown>>): Readonly<Record
 function delegateDefinition(base: McpTool): McpTool['inputSchema'] {
   const parsed = delegateDefinitionSchema.parse(base.inputSchema)
   const tasks = parsed.properties.tasks
-  const fields = z.toJSONSchema(teamSchedulerFieldsSchema, { io: 'input' })
+  const fields = teamToolSchemas.teamSchedulerFieldsSchema
   return {
     ...base.inputSchema,
     properties: {
@@ -660,7 +661,7 @@ export function createSchedulerTeamTools(
       description: base.merge.description,
       ...(base.merge.annotations !== undefined && { annotations: base.merge.annotations }),
     }),
-    inputSchema: z.toJSONSchema(teamMergeOptionsSchema, { io: 'input' }),
+    inputSchema: structuredClone(teamToolSchemas.teamMergeOptionsSchema),
     call: async (args, signal) => {
       const options = teamMergeOptionsSchema.parse(args)
       const result = enqueueResultSchema.parse(await queue.enqueue(options, signal))
@@ -671,7 +672,7 @@ export function createSchedulerTeamTools(
   const reschedule: McpTool = {
     name: 'reschedule',
     description: TEAM_MODEL_TEXT.reschedule,
-    inputSchema: z.toJSONSchema(teamRescheduleSchema, { io: 'input' }),
+    inputSchema: structuredClone(teamToolSchemas.teamRescheduleSchema),
     annotations: { readOnlyHint: false, openWorldHint: false, destructiveHint: false },
     call: async (args, signal) => {
       signal.throwIfAborted()

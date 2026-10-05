@@ -7,7 +7,7 @@ import { readFileSync, writeFileSync } from 'node:fs'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { chromium } from 'playwright-core'
 import { findChrome } from '../../scripts/lib/chrome.mjs'
-import { serveRepo } from '../../scripts/lib/harnessServer.mjs'
+import { serveRepo, TRAFFIC_SCENARIOS } from '../../scripts/lib/harnessServer.mjs'
 import { testSettings } from './helpers/fakes'
 import { buildWebviewHtml } from '../../src/host/html'
 import { EN } from '../../src/shared/l10n/en'
@@ -64,6 +64,31 @@ describe('RVM96B browser regressions', () => {
     })
   })
 
+  it.each(TRAFFIC_SCENARIOS)(
+    'keeps the Traffic harness separate from the ordinary App: %s',
+    async (scenario) => {
+      const page = await rig.browser.newPage({
+        viewport: { width: scenario === 'team-traffic-320' ? 320 : 690, height: 760 },
+      })
+      const loaded = []
+      page.on('request', (request) => {
+        loaded.push(new URL(request.url()).pathname)
+      })
+      try {
+        await page.goto(`${rig.origin}/test/harness/index.html?scenario=${scenario}&theme=light`)
+        expect(loaded).not.toContain('/dist/webview/main.js')
+        await page.waitForFunction(
+          (name) => globalThis.document.body.dataset.trafficReady === name,
+          scenario,
+        )
+        expect(await page.locator('.traffic-view').count()).toBe(1)
+        expect(await page.locator('.composer').count()).toBe(0)
+      } finally {
+        await page.close()
+      }
+    },
+  )
+
   it('20 keeps viewport and document at 320 px with the complete team shell', async () => {
     await harness('team-tree-320', 'light', undefined, async (page) => {
       const size = await page.evaluate(() => ({
@@ -104,7 +129,7 @@ describe('RVM96B browser regressions', () => {
     }
   })
 
-  it('23 counts lazy bytes in the aggregate size gate and restores its chunk byte-exact', () => {
+  it('23 counts lazy bytes in the deferred size gate and restores its chunk byte-exact', () => {
     const meta = JSON.parse(readFileSync('dist/meta/webview.json', 'utf8'))
     const chunk = Object.keys(meta.outputs).find((file) => file.includes('/TeamTree-'))
     expect(chunk).toBeDefined()
@@ -116,7 +141,7 @@ describe('RVM96B browser regressions', () => {
         encoding: 'utf8',
       })
       expect(red.status).toBe(1)
-      expect(red.stdout).toContain('OVER dist/webview/main.js')
+      expect(red.stdout).toContain('OVER dist/webview deferred JS')
     } finally {
       writeFileSync(chunk, original)
     }

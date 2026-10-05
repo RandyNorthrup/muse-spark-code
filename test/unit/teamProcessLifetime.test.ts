@@ -483,6 +483,15 @@ describe('M96 K launcher contract', () => {
   it('retries a failed end-record write after storage recovers', async () => {
     const f = await fixture()
     const real = driver('uncertain', 'linuxScope')
+    const write = f.journal.write.bind(f.journal)
+    let shouldFailEnd = true
+    vi.spyOn(f.journal, 'write').mockImplementation(async (name, value, schema) => {
+      if (shouldFailEnd && typeof value === 'object' && value !== null && 'end' in value) {
+        shouldFailEnd = false
+        throw new Error('transient-end-write')
+      }
+      await write(name, value, schema)
+    })
     const lifetime = createTeamProcessLifetime({
       journal: f.journal,
       driver: {
@@ -496,7 +505,6 @@ describe('M96 K launcher contract', () => {
       isHostBusy: () => false,
     })
     const child = await lifetime.launch(request)
-    vi.spyOn(f.journal, 'write').mockRejectedValueOnce(new Error('transient-end-write'))
     await expect(child.ended).rejects.toThrow('transient-end-write')
     expect(await child.retire()).toEqual({ childExited: true, descendants: 'proved' })
     expect(await lifetime.recoveryRecords(f.journal)).toEqual([])

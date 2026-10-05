@@ -4,6 +4,8 @@
 !dist/sessionBoard.js
 !dist/reviewer.js
 !dist/team.js
+!dist/teamRunners.js
+!dist/teamScheduler.js
 !dist/planMarkdown.js
 !dist/checkpointStore.js
 !dist/browserCheck.js
@@ -29,6 +31,7 @@
 !media/icon.svg
 !media/icon.png
 !resources/walkthrough/**
+!native/runner/**
 !native/windows/dictate.ps1
 !native/windows/capture.ps1
 !native/windows/MuseSparkMcpJob.cs

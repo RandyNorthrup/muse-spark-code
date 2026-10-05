@@ -415,3 +415,11 @@ and `schemas/exec-event-v1.schema.json`; canonical
 and [receipts](https://github.com/RandyNorthrup/muse-spark-code/blob/main/docs/certification/m80.md)
 use absolute links because npm does not resolve relative links. Registry Action
 support still requires post-release LR, beyond unsigned candidate acceptance.
+
+The unreleased M96c adapters are packaged behind the team factory: the board
+and scheduler load from `dist/teamScheduler.js`, runner and Traffic host
+capabilities from `dist/teamRunners.js`. Both native runner helpers ship with
+the ACP package. These factories need the editor/window runtime to supply
+journalled launch, ownership, permissions and landing; team dispatch and the
+Traffic/Runners panel remain unavailable until those bindings are integrated.
+Packaging them does not enable remote execution or spend.

@@ -1,5 +1,6 @@
 import { build } from 'esbuild'
 import { expect, it } from 'vitest'
+import { deferredCohort, deferredTeamView } from '../../scripts/lib/deferredTeamView.mjs'
 
 it('ordinary activation, backend and ACP graphs have no team runtime modules', async () => {
   const result = await build({
@@ -10,19 +11,12 @@ it('ordinary activation, backend and ACP graphs have no team runtime modules', a
     write: false,
     metafile: true,
     external: ['vscode', '@napi-rs/keyring'],
-    plugins: [
-      {
-        name: 'deferred-team',
-        setup(bundle) {
-          bundle.onResolve({ filter: /\/teamEntry(?:\.[jt]s)?$/ }, (args) =>
-            args.kind === 'dynamic-import' ? { path: './team.js', external: true } : undefined,
-          )
-        },
-      },
-    ],
+    plugins: [deferredCohort, deferredTeamView],
     logLevel: 'silent',
   })
   expect(
-    Object.keys(result.metafile.inputs).filter((name) => /^src\/(core|host)\/team\//.test(name)),
+    Object.keys(result.metafile.inputs).filter((name) =>
+      /^src\/(core|host)\/(?:team|runners)\//.test(name),
+    ),
   ).toEqual([])
 })

@@ -19,6 +19,8 @@ const HOST_BUNDLES = [
   'dist/sessionBoard.js',
   'dist/reviewer.js',
   'dist/team.js',
+  'dist/teamRunners.js',
+  'dist/teamScheduler.js',
   'dist/planMarkdown.js',
   'dist/checkpointStore.js',
   'dist/browserCheck.js',
