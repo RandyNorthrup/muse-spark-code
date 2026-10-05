@@ -169,7 +169,13 @@ happened, not what was planned; superseded entries are kept.
   separately from `merged`. CSV export prefixes formula-opening cells
   (`= + - @`, tab, carriage return) with a single quote.
 
-- **M96 integration on Windows:** ACP process fixtures use native file URLs and path rules; all workers share the mandatory environment fence. Successful tasks without a merge retain `done` through both ledger schemas. Browser builds share the verified-identical JavaScript grammar inside TypeScript and emit UTF-8, preserving every language inside the unchanged aggregate cap.
+- **M96 integration on Windows:** ACP process fixtures use native file URLs and
+  path rules; all workers share the mandatory environment fence. Cleanup tests
+  prove junction and noncanonical case spelling refusals on Windows. Successful
+  tasks without a merge retain `done` through both ledger schemas. Browser builds
+  share the verified-identical JavaScript grammar inside TypeScript and emit
+  UTF-8, preserving every language inside the unchanged aggregate cap. Missing,
+  duplicate or changed vendor grammar declarations stop the build.
 
 ## [0.12.1] - 2026-10-04
 

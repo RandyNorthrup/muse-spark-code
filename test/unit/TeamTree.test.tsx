@@ -7,7 +7,7 @@ import { fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { EN } from '../../src/shared/l10n/en'
 import { BASE_LOCALE, setUiText } from '../../src/shared/l10n/text'
-import type { TeamTreeData } from '../../src/shared/teamView'
+import type { TeamTreeData, TeamWorker } from '../../src/shared/teamView'
 import { TeamTree, type TeamTreeActions } from '../../src/webview/components/TeamTree'
 import { teamTaskCount, teamRunningTaskCount } from '../../src/webview/state/teamEntries'
 import { Header } from '../../src/webview/components/Header'
@@ -95,6 +95,18 @@ function actions(): TeamTreeActions {
     onEditRole: vi.fn(),
     onResetEntry: vi.fn(),
     onStopAll: vi.fn(),
+  }
+}
+
+function withWorkers(
+  change: (workers: readonly TeamWorker[]) => readonly TeamWorker[],
+): TeamTreeData {
+  return {
+    ...tree,
+    roles: tree.roles.map((role) => ({
+      ...role,
+      entries: role.entries.map((entry) => ({ ...entry, workers: change(entry.workers) })),
+    })),
   }
 }
 
@@ -295,16 +307,9 @@ describe('RVM96B tree regressions', () => {
     expect(screen.queryByRole('button', { name: 'Stop' })).toBeNull()
     expect(document.querySelector('.agent-dot-running')).toBeNull()
     expect(teamRunningTaskCount(tree)).toBe(1)
-    const unknown: TeamTreeData = {
-      ...tree,
-      roles: tree.roles.map((role) => ({
-        ...role,
-        entries: role.entries.map((entry) => ({
-          ...entry,
-          workers: entry.workers.map((worker) => ({ ...worker, status: 'future-state' })),
-        })),
-      })),
-    }
+    const unknown = withWorkers((workers) =>
+      workers.map((worker) => ({ ...worker, status: 'future-state' })),
+    )
     expect(teamRunningTaskCount(unknown)).toBe(0)
     rerender(<TeamTree tree={unknown} actions={actions()} />)
     fireEvent.keyDown(screen.getByRole('treeitem', { name: /^engineering, Entry 1,/ }), {
@@ -312,16 +317,11 @@ describe('RVM96B tree regressions', () => {
     })
     expect(screen.queryByRole('button', { name: 'Stop' })).toBeNull()
     expect(
-      teamRunningTaskCount({
-        ...tree,
-        roles: tree.roles.map((role) => ({
-          ...role,
-          entries: role.entries.map((entry) => ({
-            ...entry,
-            workers: [{ taskId: 'approval', brief: 'Approval', status: 'waitingForApproval' }],
-          })),
-        })),
-      }),
+      teamRunningTaskCount(
+        withWorkers(() => [
+          { taskId: 'approval', brief: 'Approval', status: 'waitingForApproval' },
+        ]),
+      ),
     ).toBe(2)
   })
 

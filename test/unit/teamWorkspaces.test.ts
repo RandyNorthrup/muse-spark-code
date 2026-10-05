@@ -389,6 +389,22 @@ describe('removeTeamWorkspace', () => {
     await expectLinkedStorageRefused(await taskWorkspace('junction'), 'junction')
   })
 
+  it('refuses a noncanonical Windows case spelling without deleting the task', async () => {
+    if (process.platform !== 'win32') {
+      return
+    }
+    const { root, head, workspace } = await taskWorkspace('case')
+    const storage = path.join(root, '..', 'storage')
+    const alias = storage.toUpperCase()
+    expect(alias).not.toBe(storage)
+    expect(await teamRealPath(alias)).toBe(storage)
+    await expect(
+      removeTeamWorkspace(runGit, root, alias, workspace.folder, workspace.agentsRef),
+    ).rejects.toMatchObject({ name: 'TeamWorkspaceError', code: 'workspaceFailed' })
+    expect(await revOf(workspace.folder, 'HEAD')).toBe(head)
+    expect(await teamRealPath(workspace.folder)).toBe(workspace.folder)
+  })
+
   it('keeps an unmerged task until this runs', async () => {
     const { root, head, workspace } = await taskWorkspace('t1')
     // Still there: nothing removed it.

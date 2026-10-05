@@ -36,17 +36,39 @@ it('compiled shared grammars preserve the original HTML and aliases', async () =
   }
 })
 
-it('refuses a vendor grammar whose embedded JavaScript differs', async () => {
+it.each([
+  {
+    name: 'different embedded JavaScript',
+    typescript: 'function javascript(x) { return x; }',
+    javascript: 'function javascript(x) { return null; }',
+    failure: 'grammar implementations differ',
+  },
+  {
+    name: 'missing embedded JavaScript',
+    typescript: 'function changed(x) { return x; }',
+    javascript: 'function javascript(x) { return x; }',
+    failure: 'expected one JavaScript grammar',
+  },
+  {
+    name: 'duplicate embedded JavaScript',
+    typescript: 'function javascript(x) { return x; }\nfunction javascript(x) { return x; }',
+    javascript: 'function javascript(x) { return x; }',
+    failure: 'expected one JavaScript grammar',
+  },
+  {
+    name: 'missing standalone JavaScript',
+    typescript: 'function javascript(x) { return x; }',
+    javascript: 'function changed(x) { return x; }',
+    failure: 'expected one JavaScript grammar',
+  },
+])('refuses a vendor grammar with $name', async ({ typescript, javascript, failure }) => {
   const root = await mkdtemp(path.join(tmpdir(), 'm96-highlight-'))
   const folder = path.join(root, 'highlight.js', 'es', 'languages')
   try {
     await mkdir(folder, { recursive: true })
     const entry = path.join(folder, 'typescript.js')
-    await writeFile(entry, 'function javascript(x) { return x; }\nexport default javascript;')
-    await writeFile(
-      path.join(folder, 'javascript.js'),
-      'function javascript(x) { return null; }\nexport default javascript;',
-    )
+    await writeFile(entry, `${typescript}\nexport default javascript;`)
+    await writeFile(path.join(folder, 'javascript.js'), `${javascript}\nexport default javascript;`)
     await expect(
       build({
         entryPoints: [entry],
@@ -55,7 +77,7 @@ it('refuses a vendor grammar whose embedded JavaScript differs', async () => {
         plugins: [sharedHighlightGrammar],
         logLevel: 'silent',
       }),
-    ).rejects.toThrow('grammar implementations differ')
+    ).rejects.toThrow(failure)
   } finally {
     await rm(root, { recursive: true, force: true })
   }

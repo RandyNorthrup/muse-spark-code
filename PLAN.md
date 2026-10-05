@@ -16711,6 +16711,11 @@ separate `teamAgentsUpdate` draft keeps its existing workspace-role contract.
 Remove the obsolete reducer ignore case and verify the installed parser accepts
 the final view shape, without an old `isDefault`/new `slot` type union.
 
+The Windows proof also resolves a storage root spelled with different letter
+case to the same native directory, then proves cleanup refuses that noncanonical
+spelling and retains the task. Junction bodies run on this rig; case-sensitive
+charter write-path restrictions retain their existing policy.
+
 **Lane F review correction (FIXM96F, 2026-10-05).** Address all 15 P2
 findings in `RVM96F.report.md` within the seven lane-F core modules and
 their tests: D75 tool groups and cap vocabulary; numeric and daily-budget

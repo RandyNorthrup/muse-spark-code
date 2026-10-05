@@ -25,10 +25,6 @@ export const PIPELINE_DEFAULT_SEVERITY: ReviewSeverity = 'high'
 export const PIPELINE_STEP_KINDS = ['work', 'review', 'check'] as const
 export type PipelineStepKind = (typeof PIPELINE_STEP_KINDS)[number]
 
-/** The two flows D75 builds in. */
-export const BUILT_IN_PIPELINE_IDS = ['change', 'spec'] as const
-export type BuiltInPipelineId = (typeof BUILT_IN_PIPELINE_IDS)[number]
-
 const stepSchema = z.object({
   id: z.string(),
   role: z.string(),

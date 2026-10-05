@@ -87,6 +87,28 @@ function memoryFs(files: Readonly<Record<string, string>>): PipelineFileSystem {
   }
 }
 
+function loadFiles(files: Readonly<Record<string, string>>, isTrusted = true) {
+  return loadPipelines({
+    personalDir: 'personal',
+    projectDir: 'project',
+    trusted: isTrusted,
+    fs: memoryFs(files),
+  })
+}
+
+function pipelineIds(pipelines: readonly PipelineDefinition[]) {
+  return pipelines.map((def) => def.id).toSorted((a, b) => a.localeCompare(b))
+}
+
+function researchPipeline(id: string, maxRounds: number): PipelineDefinition {
+  return {
+    id,
+    steps: [{ id: 'only', role: 'research', kind: 'work' }],
+    maxRounds,
+    reviewSeverity: 'high',
+  }
+}
+
 describe('built-in pipelines', () => {
   it('change runs engineering, code-review and qa, then hands off without merging', () => {
     const def = changePipeline()
@@ -385,62 +407,43 @@ describe('approval', () => {
 
 describe('loading', () => {
   it('a personal pipeline loads beside the built-ins', () => {
-    const fs = memoryFs({
-      'personal/docs.json': JSON.stringify({
-        id: 'docs-flow',
-        steps: [
-          { id: 'draft', role: 'docs', kind: 'work' },
-          { id: 'edit', role: 'code-review', kind: 'review' },
-        ],
-        maxRounds: 2,
-        reviewSeverity: 'medium',
-      }),
-      'project/anything.json': JSON.stringify({ id: 'change', maxRounds: 1 }),
-    })
-    const { pipelines, refused } = loadPipelines({
-      personalDir: 'personal',
-      projectDir: 'project',
-      trusted: false,
-      fs,
-    })
-    expect(pipelines.map((def) => def.id).toSorted((a, b) => a.localeCompare(b))).toEqual([
-      'change',
-      'docs-flow',
-      'spec',
-    ])
+    const { pipelines, refused } = loadFiles(
+      {
+        'personal/docs.json': JSON.stringify({
+          id: 'docs-flow',
+          steps: [
+            { id: 'draft', role: 'docs', kind: 'work' },
+            { id: 'edit', role: 'code-review', kind: 'review' },
+          ],
+          maxRounds: 2,
+          reviewSeverity: 'medium',
+        }),
+        'project/anything.json': JSON.stringify({ id: 'change', maxRounds: 1 }),
+      },
+      false,
+    )
+    expect(pipelineIds(pipelines)).toEqual(['change', 'docs-flow', 'spec'])
     expect(refused).toEqual([])
   })
 
   it('an untrusted workspace never reads the project folder', () => {
-    const fs = memoryFs({
-      'project/narrow.json': JSON.stringify({ id: 'change', maxRounds: 1 }),
-    })
-    const { pipelines, refused } = loadPipelines({
-      personalDir: 'personal',
-      projectDir: 'project',
-      trusted: false,
-      fs,
-    })
-    expect(pipelines.map((def) => def.id).toSorted((a, b) => a.localeCompare(b))).toEqual([
-      'change',
-      'spec',
-    ])
+    const { pipelines, refused } = loadFiles(
+      {
+        'project/narrow.json': JSON.stringify({ id: 'change', maxRounds: 1 }),
+      },
+      false,
+    )
+    expect(pipelineIds(pipelines)).toEqual(['change', 'spec'])
     expect(refused).toEqual([])
   })
 
   it('a project file may lower the rounds or remove steps', () => {
-    const fs = memoryFs({
+    const { pipelines, refused } = loadFiles({
       'project/narrow.json': JSON.stringify({
         id: 'change',
         maxRounds: 2,
         removeSteps: ['verify'],
       }),
-    })
-    const { pipelines, refused } = loadPipelines({
-      personalDir: 'personal',
-      projectDir: 'project',
-      trusted: true,
-      fs,
     })
     expect(refused).toEqual([])
     const narrowed = pipelines.find((def) => def.id === 'change')
@@ -449,12 +452,8 @@ describe('loading', () => {
   })
 
   it('a project file for an unknown pipeline is refused whole', () => {
-    const fs = memoryFs({ 'project/new.json': JSON.stringify({ id: 'nope', maxRounds: 1 }) })
-    const { refused } = loadPipelines({
-      personalDir: 'personal',
-      projectDir: 'project',
-      trusted: true,
-      fs,
+    const { refused } = loadFiles({
+      'project/new.json': JSON.stringify({ id: 'nope', maxRounds: 1 }),
     })
     expect(refused).toEqual([
       { file: 'project/new.json', reason: 'unknownPipeline', detail: 'nope' },
@@ -462,87 +461,44 @@ describe('loading', () => {
   })
 
   it('a project file that raises the rounds is refused whole', () => {
-    const fs = memoryFs({
-      'personal/quick.json': JSON.stringify({
-        id: 'quick',
-        steps: [{ id: 'only', role: 'research', kind: 'work' }],
-        maxRounds: 1,
-        reviewSeverity: 'high',
-      }),
+    const { refused } = loadFiles({
+      'personal/quick.json': JSON.stringify(researchPipeline('quick', 1)),
       'project/raise.json': JSON.stringify({ id: 'quick', maxRounds: 2 }),
-    })
-    const { refused } = loadPipelines({
-      personalDir: 'personal',
-      projectDir: 'project',
-      trusted: true,
-      fs,
     })
     expect(refused).toHaveLength(1)
     expect(refused[0]?.reason).toBe('widensRounds')
   })
 
   it('a project file that removes an unknown step is refused whole', () => {
-    const fs = memoryFs({
+    const { refused } = loadFiles({
       'project/remove.json': JSON.stringify({ id: 'change', removeSteps: ['deploy'] }),
-    })
-    const { refused } = loadPipelines({
-      personalDir: 'personal',
-      projectDir: 'project',
-      trusted: true,
-      fs,
     })
     expect(refused).toHaveLength(1)
     expect(refused[0]?.reason).toBe('widensSteps')
   })
 
   it('an unknown key refuses the file whole', () => {
-    const fs = memoryFs({
+    const { pipelines, refused } = loadFiles({
       'personal/bad.json': JSON.stringify({
-        id: 'bad',
-        steps: [{ id: 'only', role: 'research', kind: 'work' }],
-        maxRounds: 2,
-        reviewSeverity: 'high',
+        ...researchPipeline('bad', 2),
         merge: true,
       }),
     })
-    const { pipelines, refused } = loadPipelines({
-      personalDir: 'personal',
-      projectDir: 'project',
-      trusted: true,
-      fs,
-    })
-    expect(pipelines.map((def) => def.id).toSorted((a, b) => a.localeCompare(b))).toEqual([
-      'change',
-      'spec',
-    ])
+    expect(pipelineIds(pipelines)).toEqual(['change', 'spec'])
     expect(refused).toEqual([{ file: 'personal/bad.json', reason: 'unknownKey', detail: 'merge' }])
   })
 
   it('a fourth round cannot be configured: rounds above three are refused', () => {
-    const fs = memoryFs({
-      'personal/wide.json': JSON.stringify({
-        id: 'wide',
-        steps: [{ id: 'only', role: 'research', kind: 'work' }],
-        maxRounds: 4,
-        reviewSeverity: 'high',
-      }),
+    const { pipelines, refused } = loadFiles({
+      'personal/wide.json': JSON.stringify(researchPipeline('wide', 4)),
     })
-    const { pipelines, refused } = loadPipelines({
-      personalDir: 'personal',
-      projectDir: 'project',
-      trusted: true,
-      fs,
-    })
-    expect(pipelines.map((def) => def.id).toSorted((a, b) => a.localeCompare(b))).toEqual([
-      'change',
-      'spec',
-    ])
+    expect(pipelineIds(pipelines)).toEqual(['change', 'spec'])
     expect(refused).toHaveLength(1)
     expect(refused[0]?.reason).toBe('invalid')
   })
 
   it('a review before any work step is refused', () => {
-    const fs = memoryFs({
+    const { refused } = loadFiles({
       'personal/dangling.json': JSON.stringify({
         id: 'dangling',
         steps: [
@@ -552,12 +508,6 @@ describe('loading', () => {
         maxRounds: 2,
         reviewSeverity: 'high',
       }),
-    })
-    const { refused } = loadPipelines({
-      personalDir: 'personal',
-      projectDir: 'project',
-      trusted: true,
-      fs,
     })
     expect(refused).toHaveLength(1)
     expect(refused[0]?.reason).toBe('danglingReview')
@@ -575,38 +525,18 @@ describe('loading', () => {
   })
 
   it('a fractional round limit is refused: rounds are positive integers', () => {
-    const fs = memoryFs({
-      'personal/fraction.json': JSON.stringify({
-        id: 'fraction',
-        steps: [{ id: 'only', role: 'research', kind: 'work' }],
-        maxRounds: 1.5,
-        reviewSeverity: 'high',
-      }),
+    const { pipelines, refused } = loadFiles({
+      'personal/fraction.json': JSON.stringify(researchPipeline('fraction', 1.5)),
     })
-    const { pipelines, refused } = loadPipelines({
-      personalDir: 'personal',
-      projectDir: 'project',
-      trusted: true,
-      fs,
-    })
-    expect(pipelines.map((def) => def.id).toSorted((a, b) => a.localeCompare(b))).toEqual([
-      'change',
-      'spec',
-    ])
+    expect(pipelineIds(pipelines)).toEqual(['change', 'spec'])
     expect(refused).toEqual([
       { file: 'personal/fraction.json', reason: 'invalid', detail: 'schema mismatch' },
     ])
   })
 
   it('a project file that lowers the rounds to a fraction is refused whole', () => {
-    const fs = memoryFs({
+    const { refused } = loadFiles({
       'project/fraction.json': JSON.stringify({ id: 'change', maxRounds: 2.5 }),
-    })
-    const { refused } = loadPipelines({
-      personalDir: 'personal',
-      projectDir: 'project',
-      trusted: true,
-      fs,
     })
     expect(refused).toEqual([
       { file: 'project/fraction.json', reason: 'invalid', detail: 'change' },
@@ -614,21 +544,10 @@ describe('loading', () => {
   })
 
   it('unparseable files are refused, and other files still load', () => {
-    const fs = memoryFs({
+    const { pipelines, refused } = loadFiles({
       'personal/broken.json': '{ not json',
       'personal/notes.txt': 'ignored',
-      'personal/ok.json': JSON.stringify({
-        id: 'ok',
-        steps: [{ id: 'only', role: 'research', kind: 'work' }],
-        maxRounds: 1,
-        reviewSeverity: 'high',
-      }),
-    })
-    const { pipelines, refused } = loadPipelines({
-      personalDir: 'personal',
-      projectDir: 'project',
-      trusted: true,
-      fs,
+      'personal/ok.json': JSON.stringify(researchPipeline('ok', 1)),
     })
     expect(pipelines.some((def) => def.id === 'ok')).toBe(true)
     expect(refused).toEqual([

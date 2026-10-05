@@ -1077,14 +1077,14 @@ describe("the dispatcher's live policy fence over every tool (M78)", () => {
   it.each(['bash', 'run_checks', 'edit_file'] as const)(
     'rechecks the in-place writer after awaited %s process entry',
     async (tool) => {
+      const argsByTool = {
+        bash: { command: 'touch forbidden', description: 'write' },
+        edit_file: { path: 'notes.txt', find: 'before', replace: 'after', then_run: 'npm test' },
+        run_checks: {},
+      }
       const { f } = await runCase({
         tool,
-        args:
-          tool === 'bash'
-            ? { command: 'touch forbidden', description: 'write' }
-            : tool === 'edit_file'
-              ? { path: 'notes.txt', find: 'before', replace: 'after', then_run: 'npm test' }
-              : {},
+        args: argsByTool[tool],
         hold: { at: 'shellEntry' },
         change: { kind: 'inPlace' },
       })
