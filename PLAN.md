@@ -18454,6 +18454,12 @@ and unchanged caps directly on macmini. Update the lane-A-owned
 wiring, public docs and packaging follow the M96 integration; native Windows
 runner tests remain platform-gated for the lead's Windows rig. No full
 quality, main merge, rebase, push or live/paid model call runs here.
+The merged C predictions carry `otherAttempt`, which the shared strict event
+schema currently rejects. Preserve that optional attempt identity in the
+extension-owned `predictedConflict` event and prove real C predictions pass
+through S's event boundary and T2's roster/state notes; integration-state
+predictions still have no second attempt. Add no provider wire shape or X2
+runtime binding.
 
 **M96CINT partial integration (2026-10-05).** Merge reviewed S/Q, T2 and V
 in that order, keeping their contracts and fixes. Run their complete owned

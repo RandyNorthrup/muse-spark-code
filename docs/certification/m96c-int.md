@@ -1,6 +1,10 @@
-# M96CINT — partial scheduler and Traffic integration
+# M96CINT — scheduler, collisions, runners and Traffic integration
 
 Worktree `/Users/randy/lanes/M96CINT`, branch `m96c/int`, macmini.
+
+The partial-integration receipts below are round-1 history. The current
+round-2 C/O integration, reconciliation note and receipts are recorded at
+the end of this document.
 Base `dfbedc5c`. Read the rig brief, shared `codex/common.md`, repository
 rules, PLAN D75 and M96c in full (including T20–T29), and every available
 0c/S/C/Q/O/T2/V certification record before integration.
@@ -234,3 +238,109 @@ certification remain X2 work after integration with M96.
 Full `npm run quality`, C/O, native Windows/Linux containment,
 installed-editor/golden/live acceptance, final runtime wiring, public docs,
 manifest commands and packaging remain lead/X2 work under the rig brief.
+
+## Round 2 — complete reviewed-lane integration
+
+The round-2 rig brief authorizes reviewed C and then O, integration-only
+repairs, generated host-API/notices reconciliation and the scoped gates.
+It supersedes round 1's C/O deferral and host-API regeneration exclusion.
+No main merge, rebase, push, dependency, credential access, network, live
+model call or paid call is part of this lane. X2 wiring, public docs and
+packaging remain for the M96 integration.
+
+| Merge      | Reviewed second parent  | Resolution                                                                                                                                            |
+| ---------- | ----------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `8603fb41` | `m96c/cfix`, `52d04b69` | Three PLAN conflicts: retain S/Q/T2/V integration evidence and C's repair/scope/residual records together; add the round-2 scope before source edits. |
+| `11f692a8` | `m96c/ofix`, `19bb0703` | Three PLAN conflicts: retain every existing record and O's repair/native-Windows/cache-supervisor residuals together.                                 |
+
+Both commits have two parents and ran the normal hooks and staged Gitleaks.
+No source, test or generated-file conflict occurred. O's English key and
+all fourteen real translations merged cleanly beside V's keys;
+`node scripts/check-l10n.mjs` reports 0 problems. Every C and O production
+source and native helper remains byte-identical to its reviewed tip.
+
+### Interface repair: both conflict attempts survive
+
+C's reviewed `PredictedConflict` includes `otherAttempt` on task-pair
+predictions. The shared strict `predictedConflict` event omitted that field,
+so spreading a real C prediction into a scheduler event threw at S's
+`TaskBoard.applyEvent`; omitting the field would lose C's reviewed symmetric
+attempt identity. `src/shared/team.ts` now carries optional `otherAttempt`
+with the existing positive-integer attempt schema. Integration-state
+predictions continue to omit it. No provider wire shape or runtime binding
+is added.
+
+The new regression in `teamSchedulerRoster.test.ts` polls the real C
+predictor, admits its events through the real S board, serializes T2's
+roster answer and drains T2's state note. It verifies both task attempts,
+a second prediction after B is reassigned to attempt 2, integration events
+with no second attempt, and refusal of zero/negative/fractional attempts.
+It failed naturally before the repair (1 failed, 4 passed, exit 1:
+`unrecognized_keys: otherAttempt`), then the full schema/roster/predictor
+trio passed 24/24. The source fix is one schema field; S/C/T2 retain their
+reviewed implementations.
+
+Two deliberate drills run the complete roster file: remove the field, and
+accept unconstrained numeric attempts. Each fails the new named regression,
+exit 1, then restores byte-exact with a SHA-256 comparison. The restored
+file passes 5/5, exit 0. Permanent receipt:
+`docs/certification/m96c-int-round2-drills.json`. Round 1's cumulative-batch
+fixture and drill receipt remain intact. No guard, timeout or test was
+weakened.
+
+### Current lane-A-owned teamPool.ts reconciliation note
+
+`teamPool.ts` is still exactly S's original 261-line scheduler region,
+SHA-256 `a4f6bb57d4ce7c67eac733d8ed1c05f509e3b32f45c99ffc0e8f7f60710e6fc1`.
+Neither C nor O creates or changes this file on its reviewed branch; neither
+merge changes its imports, exports, callbacks or behavior. The detailed
+round-1 region inventory above still applies. The M96 merge must splice
+this marked scheduler region beside lane A's pool/accounting region and
+reconcile imports, retaining both; never replace A's whole file with this
+S-only version.
+
+C now supplies the concrete `WriteSetLeases`/`SharedFiles` logic behind
+S's required synchronous lease port. Bind acquisition to the next attempt,
+retain the lease on uncertainty, and release only with the board's recorded
+retirement or the existing host-owned decision. Supply one consistent
+volume case policy, canonical repository scope, inherited family and
+combined wait graph. O's check slots/runners do not change S's worker-slot
+accounting: K still supplies journalled, credential-free launches and actual
+retirement proof, and uncertain check ownership stays retained.
+
+O's `engineWorker.ts` and `mcpBridge.ts` are also marked region-only files.
+M96's W/B owners must splice their routing/`run_checks` regions into the
+full worker/bridge implementations, retaining authentication, tool policy,
+all final-command guards, cancellation/trust rechecks and M73 packing.
+C's `teamConfig.ts` is only the shared-files schema shape, to compose into
+M96's strict configuration reader. Those runtime bindings remain X2 work.
+
+### Other verified seams and retained limits
+
+- S board/task/attempt and C lease snapshots use 0c's shared types; T2's
+  board capability and live schema retain them without changing base tool
+  declarations or dispatching work.
+- Q's injected structured-merge ports compose with C's strict JSON and
+  changelog results; prediction and landing share Q's dispatch. Q's staging
+  formatter port and C's post-format two-intent check remain explicit
+  adapters; final formatted blobs must be captured before check admission.
+- O configuration, routing and V's runner view share the same `Runner`
+  schema, including O's translated native-length refusal. No manifest,
+  build entry point or lazy-loading change is made here.
+- V still requires X2's nonreused identity/generation projection and final
+  dispatch admission after each asynchronous wait. Its rank and queue-reason
+  projections, runner-save authorization, paid first-charge consent and
+  single-model golden/zero-traffic checks remain as recorded in PLAN §9.
+- O's two real PowerShell/parser/kernel tests remain unchanged and
+  platform-gated in `runnerHelperNative.test.ts`; both skip on this Mac.
+  The lead's Windows rig must run that whole file at the M96 merge.
+  Source/fake-transport tests are not native Windows certification.
+- O's independently killed cache supervisor can retain an exclusion lease;
+  expiry is not retirement proof. The named conservative residual remains.
+
+Initial merged-lane checks: C 52/52 across all five complete files; O 49/49
+across its four portable files plus two existing native tests platform-skipped.
+All use `--maxWorkers=3 --testTimeout=120000`, at most three files per run,
+directly on macmini. Complete branch gate and bundle receipts follow in the
+final round-2 checkpoint. X2's suggested Unreleased integration note is:
+“Preserve both task attempt identities in scheduler conflict events.”

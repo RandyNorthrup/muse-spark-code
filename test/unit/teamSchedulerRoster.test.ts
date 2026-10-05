@@ -1,15 +1,63 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import * as z from 'zod/mini'
 import { SchedulerStateNote, schedulerToolAnswer } from '../../src/core/team/roster'
+import { ConflictPredictor } from '../../src/core/team/conflictPredict'
 import { TEAM_SCHED_HISTORY_MAX } from '../../src/shared/constants'
-import { type TeamSchedulerEvent } from '../../src/shared/team'
-import { attempt, makeBoard, submission } from './helpers/teamScheduler'
+import { teamSchedulerEventSchema, type TeamSchedulerEvent } from '../../src/shared/team'
+import { attempt, makeBoard, retireBoardAttempt, submission } from './helpers/teamScheduler'
 
 function event(kind: 'started' | 'ready' | 'diverging' | 'landed' = 'started'): TeamSchedulerEvent {
   return { kind, workspaceId: 'workspace', taskId: 'a', attempt: 1, at: 10 }
 }
 
 describe('M96c live roster and state-change notes', () => {
+  it('preserves both C prediction attempts through S admission and T2 answers and notes', async () => {
+    const { board } = makeBoard()
+    board.submit([submission('a'), submission('b')], 0)
+    board.begin('a', attempt())
+    board.begin('b', attempt())
+    const events: TeamSchedulerEvent[] = []
+    const note = new SchedulerStateNote('workspace')
+    const charge = vi.fn()
+    const predictor = new ConflictPredictor({
+      readTasks: () =>
+        Promise.resolve([
+          { taskId: 'a', attempt: 1, files: ['src/a.ts'] },
+          { taskId: 'b', attempt: board.task('b').currentAttempt, files: ['src/a.ts'] },
+        ]),
+      integrationFiles: () => Promise.resolve(['src/a.ts']),
+      merge: () => Promise.resolve({ kind: 'conflict' }),
+      onConflict: (conflict) => {
+        const input = { ...event(), ...conflict, kind: 'predictedConflict' }
+        expect(board.applyEvent(input, charge)).toBe(true)
+        const checked = teamSchedulerEventSchema.parse(input)
+        events.push(checked)
+        note.record(checked)
+      },
+      onError: (error) => {
+        throw error
+      },
+    })
+    await predictor.poll()
+    expect(events).toHaveLength(3)
+    expect(events[0]).toMatchObject({ otherTaskId: 'b', otherAttempt: 1 })
+    expect(events.slice(1).every((item) => !('otherAttempt' in item))).toBe(true)
+    retireBoardAttempt(board, 'b')
+    board.prepareNext('b', 1, 2, 'conflict')
+    board.begin('b', attempt(2))
+    await predictor.poll()
+    expect(events).toHaveLength(5)
+    expect(events[3]).toMatchObject({ otherTaskId: 'b', otherAttempt: 2 })
+    expect(charge).not.toHaveBeenCalled()
+    const source = { read: () => ({ board: board.snapshot(), leases: [], mergeQueue: [], events }) }
+    expect(JSON.parse(schedulerToolAnswer('base result', source))).toMatchObject({
+      scheduler: { events },
+    })
+    expect(JSON.parse(note.take()!)).toEqual({ kind: 'data', events })
+    for (const otherAttempt of [0, -1, 1.5])
+      expect(teamSchedulerEventSchema.safeParse({ ...events[0], otherAttempt }).success).toBe(false)
+  })
+
   it('carries the live board, leases, merge positions and events as data', () => {
     const { board } = makeBoard()
     const source = {

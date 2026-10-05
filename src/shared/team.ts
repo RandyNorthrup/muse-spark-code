@@ -206,7 +206,13 @@ export const teamSchedulerEventSchema = z.discriminatedUnion('kind', [
     reason: teamStallReasonSchema,
   }),
   z.strictObject({ ...eventBase, kind: z.enum(['blocked', 'candidateReturned']), reason: text }),
-  z.strictObject({ ...eventBase, kind: z.literal('predictedConflict'), otherTaskId: id, paths }),
+  z.strictObject({
+    ...eventBase,
+    kind: z.literal('predictedConflict'),
+    otherTaskId: id,
+    otherAttempt: z.optional(attemptNumber),
+    paths,
+  }),
   z.strictObject({ ...eventBase, kind: z.literal('usage'), usage: teamUsageSchema }),
 ])
 export type TeamSchedulerEvent = z.infer<typeof teamSchedulerEventSchema>
