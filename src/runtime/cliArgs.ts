@@ -17,6 +17,7 @@ import {
 } from '../shared/constants'
 import { fill } from '../shared/l10n/text'
 import { parseExec, type ExecOptions } from './exec/execArgs'
+import { parseJudgeArgs, type JudgeCliCommand } from './judge/args'
 
 export interface ServeOptions {
   /** Which account pays; chosen here, never guessed (D62). */
@@ -35,6 +36,7 @@ export interface ServeOptions {
 }
 
 export type RuntimeCommand =
+  | JudgeCliCommand
   | { readonly command: 'exec'; readonly options: ExecOptions }
   | { readonly command: 'scan-secrets'; readonly file: string; readonly keyFromStdin: boolean }
   | { readonly command: 'serve'; readonly options: ServeOptions }
@@ -74,6 +76,7 @@ function paidFeaturesOf(values: Readonly<Record<string, unknown>>): AcpPaidFeatu
 }
 
 export function parseCommandLine(argv: readonly string[]): RuntimeCommand {
+  if (argv[0] === 'judge') return parseJudgeArgs(argv)
   if (argv[0] === 'exec' || argv[0] === 'scan-secrets') return parseHeadless(argv)
   let parsed: ReturnType<typeof parseCommandLineStrictly>
   try {
