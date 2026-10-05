@@ -14579,6 +14579,16 @@ joined with M57, M58 and PR #49's sign-in
     that is never confidential and never auto-selected. The build follows
     the spike's verdict, starting from D77's carried design: the pinned
     `node:net` transport, provenance, consented pulls and `tev1:4b`.
+    **Windows spike lane (2026-10-05).** `docs/certification/m98-2j-spike.md`
+    records the verdict and free-call ledger. Prototype modules in
+    `src/core/judge/local/` are reachable only through owning tests, with the
+    reviewed Windows TCP-table helper in `test/unit/helpers/`. They ship no
+    runtime entry, settings or automatic selection. Test the connection's
+    reversed four-tuple before writing HTTP, process creation identity,
+    installed executable and on-disk manifest/blob digests, then the named
+    reconnect, replacement, PID-reuse, address-family and forwarding cases.
+    Linux and macOS designs remain unverified on this Windows rig. No model
+    pulls, credential reads or paid calls; at most 59 free inference attempts.
 - **Gates.**
   - The lead runs the full `npm run quality` and the required CI checks on
     the final integrated tree. Lane tests and builds run on the rigs; local
@@ -14618,6 +14628,13 @@ joined with M57, M58 and PR #49's sign-in
 - **Size.** Phase 1: M, in seven lanes. Phase 2: about XL across 2a–2j.
 
 ## 7. Gates
+
+**M98-2j bounded spike delegation (2026-10-05).** The rig brief authorizes
+hook-on local commits after owning tests and deliberate failing drills,
+scoped lint/format and typecheck, with the final dead-code, duplication,
+localization, host API and production-build receipt. It prohibits a full
+quality or full test run here; the lead runs full quality on the integrated
+tree. No gate, threshold or ignore changes for this test-only spike.
 
 **FIXM98J bounded-lane gate delegation (2026-10-04).** The rig brief and
 shared lane rules prohibit a full `npm run quality` or full test suite in

@@ -9,6 +9,12 @@ happened, not what was planned; superseded entries are kept.
 
 ### Added
 
+- **Local judge design spike (M98-2j).** A test-only pinned loopback
+  transport, Windows per-connection process verification and manifest/blob
+  hashing, with adversarial fixtures and free Ollama latency receipts.
+  Nothing selects or runs a local judge in the product; the certification
+  records the verification scope and remaining platform work.
+
 - **Muse Judge contract and strings (M98 lane 0, PLAN.md D77).** New
   `src/core/judge/schema.ts` (zod request/answer/`muse` schemas, bounds,
   labels, option letters, log summary); the named judge limits in
