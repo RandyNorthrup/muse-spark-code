@@ -9,9 +9,13 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
-- **M96 second-review ledger repairs:** retention drains concurrent usage
-  before rolling it up, takeover refuses a stale durable snapshot, and
+- **M96 second-review ledger repairs:** retention preserves concurrent and
+  later usage settlements, takeover refuses a stale durable snapshot, and
   persistence strips unapproved fields, including nested private content.
+  Team price questions identify provider/tariff, quote Meta rates only for
+  verified Meta tariffs, and use unknown-price token ceilings otherwise;
+  provider-key billing text has translations in all 14 languages. The
+  integration adapter must refresh entry caps immediately before dispatch.
 
 - **M96 review repairs:** computed worker ceilings preserve zero and partial
   provider limits; cooldowns only lengthen, and spend caps use the UI locale.

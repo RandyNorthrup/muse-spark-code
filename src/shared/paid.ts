@@ -77,7 +77,7 @@ export interface SubagentUsage {
 
 /** One key-billed team task the popup names (M96 lane A, PLAN.md D75). */
 export interface TeamWorkerConfirmation {
-  /** Meta until the provider adapter supplies a different key-billed provider. */
+  /** Missing means Meta; other key-billed providers use the unknown-price path. */
   readonly provider?: string
   /** The adapter's tariff identity; changing it asks again even for the same model. */
   readonly priceTier?: string
@@ -94,7 +94,10 @@ export function teamWorkerPrice(
   dailyBudgetTokens?: number,
 ): string {
   const lines = tasks.map((task) => {
-    const tier = modelApiPaidTier(task.modelId)
+    const tier = teamWorkerPaidTier(task)
+    const scope = [task.provider ?? 'meta', task.priceTier ?? tier]
+      .filter((part) => part !== undefined)
+      .join(', ')
     const rates =
       tier === undefined
         ? fill(UI_TEXT.paidTeamWorkerUnpriced, { tokens: formatNumber(task.taskCeilingTokens) })
@@ -110,7 +113,7 @@ export function teamWorkerPrice(
           })
     return fill(UI_TEXT.paidTeamWorkerLine, {
       role: task.role,
-      model: task.modelId,
+      model: `${task.modelId} (${scope})`,
       rates,
     })
   })
@@ -133,6 +136,17 @@ export function modelApiPaidTier(
   }
   const contributor: readonly string[] = MODEL_API_PRICED_MODELS.contributor
   return contributor.includes(modelId) ? 'contributor' : undefined
+}
+
+/** Meta's published rates apply only to its verified model and tariff together. */
+export function teamWorkerPaidTier(
+  task: TeamWorkerConfirmation,
+): keyof typeof MODEL_API_PRICES_PER_MILLION | undefined {
+  const tier = modelApiPaidTier(task.modelId)
+  return (task.provider === undefined || task.provider === 'meta') &&
+    (task.priceTier === undefined || task.priceTier === tier)
+    ? tier
+    : undefined
 }
 
 /** Exact published rates and the task's HTTP attempt cap, in the installed locale. */

@@ -1353,7 +1353,7 @@
   "paidTeamWorkerLine": "{role} sur {model} : {rates}",
   "paidTeamWorkerBudget": "Budget quotidien partagé de l’équipe : {budget}.",
   "paidTeamWorkersTitle": "Approuver les tâches d’équipe payantes ?",
-  "paidTeamWorkersDetail": "{tasks}\n\nFacturé sur votre clé Model API. Le coût réel dépend des jetons utilisés. « Autoriser une fois » ne couvre que ces tâches.",
+  "paidTeamWorkersDetail": "{tasks}\n\nFacturé sur votre clé API du fournisseur de chaque tâche. Le coût réel dépend des jetons utilisés. Autoriser une fois couvre uniquement ces tâches.",
   "paidConfirmTeamWorkers": "Les tâches d’équipe s’exécutent sur des modèles facturés sur votre clé Model API. {price} Le premier appel de délégation qui démarre des tâches facturées demande une approbation dans tous les modes d’autorisation, y compris Bypass, sauf si vous autorisez toujours les agents d’équipe dans cet espace de travail. Les tâches d’abonnement et locales ne sont pas des utilisations payantes. Le coût réel dépend des jetons utilisés ; les autres outils payants coûtent plus cher.",
   "usagePaidTeamTasks": {
     "one": "{count} tâche d’équipe",

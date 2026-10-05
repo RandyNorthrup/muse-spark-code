@@ -1353,7 +1353,7 @@
   "paidTeamWorkerLine": "{role} su {model}: {rates}",
   "paidTeamWorkerBudget": "Budget giornaliero condiviso del team: {budget}.",
   "paidTeamWorkersTitle": "Approvare le attività a pagamento del team?",
-  "paidTeamWorkersDetail": "{tasks}\n\nAddebitato alla tua chiave Model API. Il costo effettivo dipende dai token utilizzati. “Consenti una volta” vale solo per queste attività.",
+  "paidTeamWorkersDetail": "{tasks}\n\nAddebitato alla tua chiave API del fornitore di ciascuna attività. Il costo effettivo dipende dai token utilizzati. Consenti una volta copre solo queste attività.",
   "paidConfirmTeamWorkers": "Le attività del team vengono eseguite su modelli addebitati alla tua chiave Model API. {price} La prima chiamata di delega che avvia attività a pagamento richiede l’approvazione in tutte le modalità di autorizzazione, inclusa Bypass, a meno che tu non consenta sempre gli agenti del team in quest’area di lavoro. Le attività in abbonamento e locali non sono utilizzi a pagamento. Il costo effettivo dipende dai token utilizzati; gli altri strumenti a pagamento costano di più.",
   "usagePaidTeamTasks": {
     "one": "{count} attività del team",

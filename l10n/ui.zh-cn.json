@@ -1277,7 +1277,7 @@
   "paidTeamWorkerLine": "{model}上的{role}：{rates}",
   "paidTeamWorkerBudget": "共享团队每日预算：{budget}。",
   "paidTeamWorkersTitle": "批准团队的付费任务？",
-  "paidTeamWorkersDetail": "{tasks}\n\n费用记入您的 Model API 密钥。实际费用取决于使用的令牌数。“允许一次”仅适用于这些任务。",
+  "paidTeamWorkersDetail": "{tasks}\n\n费用通过每项任务提供商的 API 密钥结算。实际费用取决于使用的令牌数。允许一次仅适用于这些任务。",
   "paidConfirmTeamWorkers": "团队任务在记入您 Model API 密钥的模型上运行。{price} 除非您在此工作区中始终允许团队代理，否则发起密钥计费任务的首次 delegate 调用在所有权限模式下都需批准，包括绕过权限。订阅任务和本地任务不是付费使用。实际费用取决于令牌用量；其他付费工具另行收费。",
   "usagePaidTeamTasks": {
     "other": "{count}个团队任务"

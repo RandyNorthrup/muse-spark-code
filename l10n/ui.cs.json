@@ -1391,7 +1391,7 @@
   "paidTeamWorkerLine": "{role} na {model}: {rates}",
   "paidTeamWorkerBudget": "Sdílený denní rozpočet týmu: {budget}.",
   "paidTeamWorkersTitle": "Schválit placené úkoly týmu?",
-  "paidTeamWorkersDetail": "{tasks}\n\nÚčtuje se na váš klíč Model API. Skutečná cena závisí na počtu použitých tokenů. „Povolit jednou“ platí jen pro tyto úkoly.",
+  "paidTeamWorkersDetail": "{tasks}\n\nÚčtováno na váš klíč API u poskytovatele každého úkolu. Skutečná cena závisí na použitých tokenech. Povolit jednou platí pouze pro tyto úkoly.",
   "paidConfirmTeamWorkers": "Týmové úkoly běží na modelech účtovaných na váš klíč Model API. {price} První volání delegování, které spustí klíčové úkoly, vyžaduje schválení ve všech režimech oprávnění, včetně režimu Bypass, ledaže týmové agenty vždy povolíte v tomto pracovním prostoru. Úkoly předplatného a místní úkoly nejsou placeným použitím. Skutečná cena závisí na použitých tokenech; ostatní placené nástroje stojí navíc.",
   "usagePaidTeamTasks": {
     "one": "{count} týmový úkol",

@@ -1277,7 +1277,7 @@
   "paidTeamWorkerLine": "{model}の{role}：{rates}",
   "paidTeamWorkerBudget": "共有チーム日次予算：{budget}。",
   "paidTeamWorkersTitle": "チームの有料タスクを承認しますか？",
-  "paidTeamWorkersDetail": "{tasks}\n\nModel APIキーに請求されます。実際の費用は使用トークン数で変わります。「今回のみ許可」はこれらのタスクにのみ有効です。",
+  "paidTeamWorkersDetail": "{tasks}\n\n各タスクのプロバイダーの API キーに請求されます。実際の費用は使用したトークン数によって異なります。1 回だけ許可は、これらのタスクだけに適用されます。",
   "paidConfirmTeamWorkers": "チームタスクはModel APIキーに請求されるモデルで実行されます。{price} このワークスペースでチームワーカーを常に許可しない限り、キー課金のタスクを開始する最初のdelegate呼び出しは、権限バイパスを含むすべての権限モードで承認を求めます。サブスクリプションとローカルのタスクは有料利用ではありません。実際の費用は使用トークン数で変わり、他の有料ツールは別料金です。",
   "usagePaidTeamTasks": {
     "other": "チームタスク{count}件"

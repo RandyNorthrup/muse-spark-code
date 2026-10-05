@@ -30,7 +30,7 @@ import {
   scheduledRunPrice,
   subagentTaskPrice,
   teamWorkerPrice,
-  modelApiPaidTier,
+  teamWorkerPaidTier,
 } from '../../shared/paid'
 import type { CoreLogger } from '../logging'
 
@@ -218,7 +218,7 @@ export class PaidUseConsent {
     const teamScopes =
       request.feature === 'teamWorkers'
         ? request.tasks.map((task) => {
-            const tier = modelApiPaidTier(task.modelId)
+            const tier = teamWorkerPaidTier(task)
             return JSON.stringify([
               task.provider ?? 'meta',
               task.modelId,

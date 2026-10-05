@@ -602,7 +602,11 @@ export function ledgerMeterRows(rows: readonly TeamLedgerRow[]): TeamMeterRow[] 
   for (const row of rows) {
     const key = `${row.workspaceId}\n${row.entryId}\n${row.dayKey}\n${row.sourceTaskId ?? row.taskId}`
     const kept = latest.get(key)
-    if (kept?.recoveryDecision?.ownerId !== row.lease.holder) latest.set(key, row)
+    // A recreated source task has settled since its same-owner retention rollup.
+    const isSupersededRollup =
+      kept?.kind === 'task' && row.kind === 'totals' && kept.lease.holder === row.lease.holder
+    if (!isSupersededRollup && kept?.recoveryDecision?.ownerId !== row.lease.holder)
+      latest.set(key, row)
   }
   return Array.from(latest, ([, row]) => row).map((row) => ({
     kind: row.kind,

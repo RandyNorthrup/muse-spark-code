@@ -138,6 +138,36 @@ describe('teamLedger', () => {
     }
   })
 
+  it.each([
+    { before: 100, after: 300, estimated: false },
+    { before: 300, after: 100, estimated: true },
+  ])('A2-F01 a post-retention settlement supersedes its old rollup (%j)', async (usage) => {
+    const directory = await ledgerDir()
+    const nowMs = new Date(2026, 9, 5).getTime()
+    const record = taskRecord('late-settlement', {
+      startMs: nowMs - 40 * 86_400_000,
+      status: 'finished',
+      estimated: usage.estimated,
+      usage: { ...ZERO_TEAM_METER_USAGE, inputTokens: usage.before },
+    })
+    const ledger = openLedger(directory, 'window-a', nowMs)
+    await ledger.record(record)
+    await ledger.prune()
+    await ledger.record({
+      ...record,
+      estimated: false,
+      usage: { ...record.usage, inputTokens: usage.after },
+    })
+    await ledger.flush()
+    const reader = openLedger(directory, 'window-a', nowMs)
+    expect(await lifetimeInput(reader, record.taskId, nowMs)).toBe(usage.after)
+    const { rows } = await reader.read()
+    expect(sumTeamTotals(ledgerMeterRows(rows), { dayKey: undefined }).tokens).toBe(usage.after)
+    expect(ledgerMeterRows(rows).every((row) => !row.estimated)).toBe(true)
+    await reader.prune()
+    expect(await lifetimeInput(reader, record.taskId, nowMs)).toBe(usage.after)
+  })
+
   it.each(['finished', 'running'] as const)(
     'A2-F02 refuses a stale takeover snapshot after a durable %s update',
     async (status) => {
@@ -487,6 +517,9 @@ describe('teamLedger', () => {
     if (taken === undefined) throw new Error('missing takeover')
     expect(TeamLedger.latestByTask([taken, latest]).get('live')?.status).toBe('interrupted')
     expect(ledgerMeterRows([taken, latest])[0]?.usage).toEqual(taken.usage)
+    const takeoverRollup = { ...taken, kind: 'totals' as const, sourceTaskId: taken.taskId }
+    expect(ledgerMeterRows([latest, takeoverRollup])[0]?.usage).toEqual(taken.usage)
+    expect(ledgerMeterRows([takeoverRollup, latest])[0]?.usage).toEqual(taken.usage)
   })
 
   it('refuses foreign-owner writes, another workspace and path traversal before publication', async () => {

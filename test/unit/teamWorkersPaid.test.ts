@@ -160,7 +160,7 @@ describe('teamWorkers paid use (M96)', () => {
       dailyBudgetUsd: 50,
     })
     expect(question.title).toBe('Approve paid team tasks?')
-    expect(question.detail).toContain('Billed to your Model API key')
+    expect(question.detail).toContain('Billed to your API key for each task’s provider')
     expect(question.detail).toContain('Allow once covers these tasks only')
   })
 
@@ -190,6 +190,74 @@ describe('teamWorkers paid use (M96)', () => {
 })
 
 describe('F01 scoped team Always consent', () => {
+  it('A2-F04 questions identify provider and tariff without quoting unrelated Meta rates', async () => {
+    let scopes: ReadonlySet<string> = new Set()
+    const questions: ReturnType<typeof paidUseQuestion>[] = []
+    const consent = new PaidUseConsent({
+      isOn: () => true,
+      canRemember: () => true,
+      readGrants: () => new Set(),
+      writeGrants: () => Promise.resolve(),
+      readTeamGrants: () => scopes,
+      writeTeamGrants: (next) => {
+        scopes = next
+        return Promise.resolve()
+      },
+      ask: (request) => {
+        questions.push(paidUseQuestion(request))
+        return Promise.resolve('always')
+      },
+      log: new FakeLogOutputChannel(),
+    })
+    const task = {
+      role: 'engineering',
+      modelId: DEFAULT_MODEL_ID,
+      provider: 'meta',
+      priceTier: 'standard',
+      taskCeilingTokens: 200_000,
+    }
+    const request = {
+      feature: 'teamWorkers' as const,
+      tasks: [task],
+      dailyBudgetUsd: 50,
+      dailyBudgetTokens: 25_000_000,
+    }
+    expect(await consent.allows(request)).toBe(true)
+    expect(questions[0]?.detail).toContain('meta, standard')
+    expect(questions[0]?.detail).toContain('$1.250')
+    const other = {
+      ...request,
+      tasks: [{ ...task, provider: 'other-provider', priceTier: 'priority' }],
+    }
+    expect(await consent.allows(other)).toBe(true)
+    expect(questions[1]).not.toEqual(questions[0])
+    expect(questions[1]?.detail).toContain('other-provider, priority')
+    expect(questions[1]?.detail).toContain('price is unknown')
+    expect(questions[1]?.detail).toContain('200,000')
+    expect(questions[1]?.detail).toContain('25,000,000')
+    expect(questions[1]?.detail).not.toContain('$1.250')
+    expect(questions[1]?.detail).not.toContain('your Model API key')
+    const priority = { ...request, tasks: [{ ...task, priceTier: 'priority' }] }
+    expect(await consent.allows(priority)).toBe(true)
+    expect(questions[2]?.detail).toContain('meta, priority')
+    expect(questions[2]?.detail).toContain('price is unknown')
+    expect(questions[2]?.detail).not.toContain('$1.250')
+    expect(scopes.has(JSON.stringify(['other-provider', DEFAULT_MODEL_ID, 'priority', null]))).toBe(
+      true,
+    )
+    expect(scopes.has(JSON.stringify(['meta', DEFAULT_MODEL_ID, 'priority', null]))).toBe(true)
+    const sameTierOther = { ...request, tasks: [{ ...task, provider: 'other-provider' }] }
+    expect(await consent.allows(sameTierOther)).toBe(true)
+    expect(questions[3]?.detail).toContain('other-provider, standard')
+    expect(questions[3]?.detail).toContain('price is unknown')
+    expect(questions[3]?.detail).not.toContain('$1.250')
+    expect(scopes.has(JSON.stringify(['other-provider', DEFAULT_MODEL_ID, 'standard', null]))).toBe(
+      true,
+    )
+    expect(await consent.allows(other)).toBe(true)
+    expect(questions).toHaveLength(4)
+  })
+
   it('asks again for a different model, provider or tariff, and forgets every scope', async () => {
     let scopes: ReadonlySet<string> = new Set()
     const ask = vi.fn((_request: PaidUseRequest, _canRemember: boolean) =>

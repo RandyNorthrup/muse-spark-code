@@ -1353,7 +1353,7 @@
   "paidTeamWorkerLine": "{role} en {model}: {rates}",
   "paidTeamWorkerBudget": "Presupuesto diario compartido del equipo: {budget}.",
   "paidTeamWorkersTitle": "¿Aprobar las tareas de pago del equipo?",
-  "paidTeamWorkersDetail": "{tasks}\n\nSe factura a su clave de Model API. El coste real depende de los tokens utilizados. “Permitir una vez” solo cubre estas tareas.",
+  "paidTeamWorkersDetail": "{tasks}\n\nSe factura a tu clave de API del proveedor de cada tarea. El coste real depende de los tokens utilizados. Permitir una vez cubre solo estas tareas.",
   "paidConfirmTeamWorkers": "Las tareas del equipo se ejecutan en modelos facturados a su clave de Model API. {price} La primera llamada de delegación que inicie tareas de clave pide aprobación en todos los modos de permisos, incluido Bypass, salvo que permita siempre los agentes del equipo en este espacio de trabajo. Las tareas de suscripción y locales no son usos de pago. El coste real depende de los tokens utilizados; otras herramientas de pago cuestan más.",
   "usagePaidTeamTasks": {
     "one": "{count} tarea del equipo",

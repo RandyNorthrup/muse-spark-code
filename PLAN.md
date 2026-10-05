@@ -16660,7 +16660,8 @@ live) and the controller filters its id as well.
 
 **FIXM96A2 second-review repairs (2026-10-05).** Repair RVM96A2
 A2-F01–F04 in lane A: drain pending usage inside retention's publication
-queue; revalidate the current durable snapshot before takeover; persist only
+queue and let later source settlements supersede their old same-owner
+rollups; revalidate the current durable snapshot before takeover; persist only
 schema-approved fields; and identify provider/tariff in price questions,
 quoting Meta rates only for a matching verified Meta tariff. Other tariffs
 use the existing unknown-price, token-ceiling path and provider-key billing
@@ -19813,7 +19814,7 @@ joined with M57, M58 and PR #49's sign-in
 
 ## 7. Gates
 
-**FIXM96A focused rig certification (2026-10-05).** The rig brief explicitly
+**FIXM96A/FIXM96A2 focused rig certification (2026-10-05).** The rig brief explicitly
 forbids full quality and integration merges in this repair lane. Its complete
 owned/adjacent test files, typechecks, changed-file lint/format, localization,
 host API, dead-code, duplication and production build run directly on macmini.
@@ -20264,6 +20265,23 @@ before a repaired one loads (2026-09-30).
 | `test/harness/index.html` (`isActiveDescendantList`), printed by `scripts/a11y.mjs` | The accessibility gate exempts axe's `scrollable-region-focusable` | The composer's `/` and `@` lists follow WAI-ARIA's combobox pattern: the box keeps the focus and moves `aria-activedescendant` through the listbox's options, and `Composer.tsx` scrolls the active option into view, so the list is keyboard operable (WCAG 2.1.1) without being a Tab stop. axe cannot see activedescendant-driven scrolling. The exemption holds only for a region that contains a listbox whose id is in the `aria-controls` of a focused or focusable element whose active descendant is one of that listbox's options; drills show a plain scrollable region and a listbox no control drives are still reported, and removing the exemption reports the composer's list again. Every exempt element is printed under its own "Exempt:" heading and counted. No `tabindex` was added to the list. | 2026-10-04 |
 
 ## 9. Security assumptions and accepted residual risk
+
+- **FIXM96A2 A2-U01 — live entry-cap integration prerequisite.**
+  `checkAndReserve` captures `request.caps`; only budgets refresh directly.
+  Before enabling team dispatch, the production D78 adapter's
+  `TeamReservationJournal.claim` must return a `TeamBudgetClaim.check` that
+  reads current caps by workspace/sending-entry id on every invocation and
+  checks both original and current caps, refusing removed/disabled entries.
+  Lane W's `engineWorker.ts` calls the returned `check()` immediately before
+  send with no await between; nonsent refusals/errors refund the claim.
+  Certify immutable replacement from 10,000 to 8,000 during a 9,000-token
+  claim and before final dispatch, with zero sends and durable refunds.
+  Safe for now: no production team dispatcher/adapter is present and team
+  dispatch is unavailable. Follow-up and exact call sites are under
+  **Integration requirements** in `docs/certification/m96-a.md`.
+  Lane K must also exclude further foreign-owner publication before recovery;
+  the ledger recheck serializes its own window and cannot lock another process.
+  A2-F01–F04 themselves are repaired; none is deferred.
 
 - **FIXM96A integration prerequisite — scoped team consent persistence.**
   RVM96C F01–F11 are repaired in lane A; none is deferred. Lane T must supply
