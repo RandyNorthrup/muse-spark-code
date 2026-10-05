@@ -133,7 +133,7 @@ import { removeFolder } from './helpers/temporaryFolders'
 import { buildModelApiBundle } from './helpers/modelApiBundle'
 import { fakeManagerDeps } from './helpers/modelApiManager'
 import { ModelApiBackendManager } from '../../src/host/backend/modelApiBackendManager'
-import { EditReview } from '../../src/host/editor/editReview'
+import { EditReview, type ReviewNotice } from '../../src/host/editor/editReview'
 import {
   admissionPort,
   admitted,
@@ -179,6 +179,26 @@ const NO_FOLDER_CHECKPOINT: Extract<HostToWebviewMessage, { type: 'checkpointSta
 }
 
 const REVERT_EDIT = { type: 'revertEdit', itemId: 'c1', outputRef: 'tool_patch-1' } as const
+
+/**
+ * An edit review whose Revert, once `entered`, waits for `held` and then
+ * ends as `finish` says (M87): the window in which its file I/O runs.
+ */
+function heldRevertReview(finish: (check: (() => void) | undefined) => readonly ReviewNotice[]) {
+  const held = Promise.withResolvers<undefined>()
+  const entered = Promise.withResolvers<undefined>()
+  const editReview: ConversationDeps['editReview'] = {
+    openDiff: () => Promise.resolve([]),
+    revert: async (_itemId, _patch, check) => {
+      entered.resolve(undefined)
+      await held.promise
+      return finish(check)
+    },
+    describe: () => Promise.resolve([]),
+    revertHunk: () => Promise.resolve({ isReverted: false, notices: [] }),
+  }
+  return { held, entered, editReview }
+}
 
 interface FakeAuth {
   readonly service: AuthPort
@@ -3307,21 +3327,11 @@ describe('ConversationController: editor integration (M5)', () => {
   })
 
   it('holds send admission until Revert I/O settles and releases it after failure (M87)', async () => {
-    const held = Promise.withResolvers<undefined>()
-    const entered = Promise.withResolvers<undefined>()
-    const t = setup({
-      editReview: {
-        openDiff: () => Promise.resolve([]),
-        revert: async (_itemId, _patch, check) => {
-          entered.resolve(undefined)
-          await held.promise
-          check?.()
-          throw new Error('file write refused')
-        },
-        describe: () => Promise.resolve([]),
-        revertHunk: () => Promise.resolve({ isReverted: false, notices: [] }),
-      },
+    const { held, entered, editReview } = heldRevertReview((check) => {
+      check?.()
+      throw new Error('file write refused')
     })
+    const t = setup({ editReview })
     await t.send('l1', 'edit it')
     t.finishTurn()
     await settle()
@@ -10165,20 +10175,8 @@ describe('ConversationController: review (M70)', () => {
   })
 
   it('starts no review during Revert I/O, and no Revert while a review turn awaits its acknowledgement (M87)', async () => {
-    const held = Promise.withResolvers<undefined>()
-    const entered = Promise.withResolvers<undefined>()
-    const t = reviewSetup({
-      editReview: {
-        openDiff: () => Promise.resolve([]),
-        revert: async () => {
-          entered.resolve(undefined)
-          await held.promise
-          return []
-        },
-        describe: () => Promise.resolve([]),
-        revertHunk: () => Promise.resolve({ isReverted: false, notices: [] }),
-      },
-    })
+    const { held, entered, editReview } = heldRevertReview(() => [])
+    const t = reviewSetup({ editReview })
     await t.send('l1', 'edit it')
     t.finishTurn()
     await settle()
@@ -10204,20 +10202,7 @@ describe('ConversationController: review (M70)', () => {
     await t.controller.handle(REVERT_EDIT)
     expect(t.fileConfirmations).toEqual([])
     expect(t.surface.posted.at(-1)).toMatchObject({ text: UI_TEXT.restoreTurnRunning })
-    const request = t.server.requestsFor('turn/start')[1]!
-    t.server.incoming.push(
-      `${JSON.stringify({
-        jsonrpc: '2.0',
-        id: request.id,
-        result: {
-          turnId: 't2',
-          status: 'accepted',
-          disposition: 'started',
-          startedNewTurn: true,
-          commandId: request.params?.['commandId'],
-        },
-      })}\n`,
-    )
+    acceptTurnStart(t, 1, 't2')
     await reviewing
     expect(t.surface.posted).toContainEqual(
       expect.objectContaining({ type: 'turnAccepted', localId: 'r2', turnId: 't2' }),

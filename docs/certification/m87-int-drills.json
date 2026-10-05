@@ -87,36 +87,6 @@
     "restored_byte_exact": true
   },
   {
-    "id": "review-during-revert-io",
-    "file": "src/host/conversation/conversationController.ts",
-    "defect": "a review starts while Revert's file I/O is in flight",
-    "expected": "the review's turn/start goes out",
-    "red_exit": 1,
-    "red_failed": [
-      "test/unit/conversationController.test.ts > ConversationController: review (M70) > starts no review during Revert I/O, and no Revert while a review turn awaits its acknowledgement (M87)"
-    ],
-    "red_totals": "1 failed | 517 passed (518)",
-    "red_snapshot": "e76ade9c",
-    "sha256_before": "d2706e2f722118eb666d91d311094e5a44a2434cbc27056a86385682a31ed5da",
-    "sha256_restored": "d2706e2f722118eb666d91d311094e5a44a2434cbc27056a86385682a31ed5da",
-    "restored_byte_exact": true
-  },
-  {
-    "id": "revert-during-review-start",
-    "file": "src/host/conversation/conversationController.ts",
-    "defect": "Revert ignores a starting review",
-    "expected": "Revert asks for confirmation during the review's start",
-    "red_exit": 1,
-    "red_failed": [
-      "test/unit/conversationController.test.ts > ConversationController: review (M70) > starts no review during Revert I/O, and no Revert while a review turn awaits its acknowledgement (M87)"
-    ],
-    "red_totals": "1 failed | 517 passed (518)",
-    "red_snapshot": "ca5dc99a",
-    "sha256_before": "d2706e2f722118eb666d91d311094e5a44a2434cbc27056a86385682a31ed5da",
-    "sha256_restored": "d2706e2f722118eb666d91d311094e5a44a2434cbc27056a86385682a31ed5da",
-    "restored_byte_exact": true
-  },
-  {
     "id": "send-counted-before-review-barrier",
     "file": "src/host/conversation/conversationController.ts",
     "defect": "a send counts as pending while it waits behind a starting review",
@@ -284,6 +254,36 @@
     "red_snapshot": "e00fe690",
     "sha256_before": "5973d9e66894d7bada7e42e8808a5cd2ef4e13c77d08537b50951590824dae16",
     "sha256_restored": "5973d9e66894d7bada7e42e8808a5cd2ef4e13c77d08537b50951590824dae16",
+    "restored_byte_exact": true
+  },
+  {
+    "id": "review-during-revert-io",
+    "file": "src/host/conversation/conversationController.ts",
+    "defect": "a review starts while Revert's file I/O is in flight",
+    "expected": "the review's turn/start goes out",
+    "red_exit": 1,
+    "red_failed": [
+      "test/unit/conversationController.test.ts > ConversationController: review (M70) > starts no review during Revert I/O, and no Revert while a review turn awaits its acknowledgement (M87)"
+    ],
+    "red_totals": "1 failed | 517 passed (518)",
+    "red_snapshot": "59a84395",
+    "sha256_before": "d2706e2f722118eb666d91d311094e5a44a2434cbc27056a86385682a31ed5da",
+    "sha256_restored": "d2706e2f722118eb666d91d311094e5a44a2434cbc27056a86385682a31ed5da",
+    "restored_byte_exact": true
+  },
+  {
+    "id": "revert-during-review-start",
+    "file": "src/host/conversation/conversationController.ts",
+    "defect": "Revert ignores a starting review",
+    "expected": "Revert asks for confirmation during the review's start",
+    "red_exit": 1,
+    "red_failed": [
+      "test/unit/conversationController.test.ts > ConversationController: review (M70) > starts no review during Revert I/O, and no Revert while a review turn awaits its acknowledgement (M87)"
+    ],
+    "red_totals": "1 failed | 517 passed (518)",
+    "red_snapshot": "7d8d7762",
+    "sha256_before": "d2706e2f722118eb666d91d311094e5a44a2434cbc27056a86385682a31ed5da",
+    "sha256_restored": "d2706e2f722118eb666d91d311094e5a44a2434cbc27056a86385682a31ed5da",
     "restored_byte_exact": true
   }
 ]
