@@ -18,7 +18,10 @@ export interface TrafficLedgerTask {
   writing: boolean
   mergedAt?: number
   attempts: readonly TeamAttempt[]
-  reviewRounds: number
+  /** Review charges stay separate when their reported/estimated lane differs.
+   * The adapter deduplicates them and attributes each to its owning attempt.
+   */
+  reviews?: readonly { attempt: number; usage: TeamAttempt['usage'] }[]
 }
 
 /** Piecewise-constant slot observations from the scheduler's durable events.
@@ -103,7 +106,7 @@ export function trafficMetrics(
   source: TrafficMetricSource,
   scope: MetricScope,
   now: number,
-): TeamTrafficMetrics {
+): TeamTrafficMetrics & { taskCount: number } {
   const start = periodStart(scope.period, now)
   const isMatchingAttempt = (attempt: TeamAttempt) =>
     (scope.entryId === undefined || attempt.entryId === scope.entryId) &&
@@ -116,8 +119,13 @@ export function trafficMetrics(
         task.attempts.some((attempt) => isMatchingAttempt(attempt))),
   )
   const byId = new Map(tasks.map((task) => [task.id, task]))
+  const isMatchingEvent = (event: TrafficMetricSource['events'][number]) => {
+    if (scope.entryId === undefined && scope.agentProfileId === undefined) return true
+    const attempt = byId.get(event.taskId)?.attempts.find((row) => row.number === event.attempt)
+    return attempt !== undefined && isMatchingAttempt(attempt)
+  }
   const events = source.events
-    .filter((event) => event.at <= now && byId.has(event.taskId))
+    .filter((event) => event.at <= now && byId.has(event.taskId) && isMatchingEvent(event))
     .toSorted((a, b) => a.at - b.at)
   const isInPeriod = (at: number) => at >= start && at <= now
   const periodEvents = events.filter((event) => isInPeriod(event.at))
@@ -194,9 +202,16 @@ export function trafficMetrics(
   const merged = tasks.filter((task) => task.mergedAt !== undefined && isInPeriod(task.mergedAt))
   const costs = { reportedCostUsd: 0, estimatedCostUsd: 0, reportedTokens: 0, estimatedTokens: 0 }
   for (const task of merged) {
-    for (const attempt of task.attempts) {
-      if (!isMatchingAttempt(attempt)) continue
-      const usage = attempt.usage
+    const charges = task.attempts
+      .filter((attempt) => isMatchingAttempt(attempt))
+      .map((attempt) => attempt.usage)
+    const reviews = task.reviews ?? []
+    for (const review of reviews) {
+      const owner = task.attempts.find((attempt) => attempt.number === review.attempt)
+      if (!owner) throw new Error('Review charge has no owning attempt')
+      if (isMatchingAttempt(owner)) charges.push(review.usage)
+    }
+    for (const usage of charges) {
       // Cached input is a subset of input; reasoning is a subset of output.
       const tokens = usage.inputTokens + usage.outputTokens
       if (usage.accuracy === 'reported') {
@@ -216,7 +231,7 @@ export function trafficMetrics(
       (scope.agentProfileId === undefined || row.agentProfileId === scope.agentProfileId),
   )
   const sortedWaits = waits.toSorted((a, b) => a - b)
-  return teamTrafficMetricsSchema.parse({
+  const metrics = teamTrafficMetricsSchema.parse({
     ...scope,
     ...slotTime(slots, start, now),
     queueDepth: queueDepth.slice(-TEAM_SCHED_HISTORY_MAX),
@@ -235,4 +250,5 @@ export function trafficMetrics(
     ...costs,
     timeToMergeMedianMs: median(merged.map((task) => (task.mergedAt ?? now) - task.createdAt)),
   })
+  return { ...metrics, taskCount: active.length }
 }

@@ -28,7 +28,7 @@ function attempt(entryId: string, accuracy: 'reported' | 'estimated', cost: numb
   }
 }
 function seed(): TrafficMetricSource {
-  const base = { roleId: 'engineering', writing: true, reviewRounds: 2 }
+  const base = { roleId: 'engineering', writing: true }
   return {
     tasks: [
       {
@@ -122,6 +122,7 @@ describe('Traffic ledger metrics', () => {
     expect(result.waitMedianMs).toBe(minute * 10)
     expect(result.waitP90Ms).toBe(minute * 15)
     expect(result.writingTasks).toBe(3)
+    expect(result.taskCount).toBe(3)
     expect(result.predictedConflicts).toBe(1)
     expect(result.mergeConflicts).toBe(1)
     expect(result.reworkRounds).toBe(1)
@@ -148,6 +149,9 @@ describe('Traffic ledger metrics', () => {
     expect(result.mergedChanges).toBe(1)
     expect(result.waitMedianMs).toBeNull()
     expect(result.availableSlotMs).toBe(0)
+    expect(result.predictedConflicts).toBe(0)
+    expect(result.reworkRounds).toBe(0)
+    expect(result.queueDepth).toEqual([{ at: 0, ready: 0, blocked: 0 }])
   })
   it('uses local calendar periods, clips slot intervals and carries earlier queue state across midnight', () => {
     const source = seed()
@@ -171,6 +175,111 @@ describe('Traffic ledger metrics', () => {
     expect(result.writingTasks).toBe(0)
     expect(result.reportedCostUsd).toBe(2)
     expect(trafficMetrics(source, { period: 'week' }, now).writingTasks).toBe(3)
+  })
+  it('counts read-only tasks in rework denominators while keeping writing conflict denominators separate', () => {
+    const source = seed()
+    const result = trafficMetrics(
+      {
+        ...source,
+        tasks: [
+          ...source.tasks,
+          { id: 'read-only', roleId: 'engineering', createdAt: day, writing: false, attempts: [] },
+        ],
+      },
+      { period: 'today' },
+      now,
+    )
+    expect(result.taskCount).toBe(4)
+    expect(result.writingTasks).toBe(3)
+  })
+  it('ignores future and foreign-role observations in a scoped local period', () => {
+    const source = seed()
+    const result = trafficMetrics(
+      {
+        tasks: [
+          ...source.tasks,
+          {
+            id: 'docs',
+            roleId: 'docs',
+            createdAt: day,
+            mergedAt: day + minute,
+            writing: true,
+            attempts: [attempt('one', 'reported', 100)],
+          },
+          {
+            id: 'future',
+            roleId: 'engineering',
+            createdAt: now + minute,
+            writing: true,
+            attempts: [],
+          },
+        ],
+        events: [
+          ...source.events,
+          { kind: 'mergeConflict', taskId: 'b', attempt: 1, at: now + minute },
+          { kind: 'mergeConflict', taskId: 'docs', attempt: 1, at: day + minute },
+        ],
+        slots: [
+          ...source.slots,
+          { groupId: 'foreign', roleId: 'docs', at: day, busy: 1, slots: 1 },
+          { groupId: 'future', roleId: 'engineering', at: now + minute, busy: 2, slots: 1 },
+        ],
+      },
+      { period: 'today', roleId: 'engineering' },
+      now,
+    )
+    expect(result.taskCount).toBe(3)
+    expect(result.writingTasks).toBe(3)
+    expect(result.mergeConflicts).toBe(1)
+    expect(result.reportedCostUsd).toBe(6)
+    expect(result.busySlotMs).toBe(minute * 30)
+    expect(result.availableSlotMs).toBe(minute * 60 * 12 * 2)
+  })
+  it('includes separate review charges with their own accuracy and attributes them to the owning attempt', () => {
+    const source = seed()
+    const first = source.tasks[0]
+    if (!first) throw new Error('fixture task missing')
+    const withReviews = {
+      ...source,
+      tasks: [
+        {
+          ...first,
+          reviews: [
+            { attempt: 1, usage: attempt('one', 'estimated', 0.5).usage },
+            { attempt: 2, usage: attempt('two', 'reported', 2.5).usage },
+          ],
+        },
+        ...source.tasks.slice(1),
+      ],
+    }
+    const total = trafficMetrics(withReviews, { period: 'today' }, now)
+    expect(total.reportedCostUsd).toBe(8.5)
+    expect(total.estimatedCostUsd).toBe(1.5)
+    expect(total.reportedTokens).toBe(360)
+    expect(total.estimatedTokens).toBe(240)
+    const second = trafficMetrics(withReviews, { period: 'today', entryId: 'two' }, now)
+    expect(second.reportedCostUsd).toBe(2.5)
+    expect(second.estimatedCostUsd).toBe(1)
+    expect(second.reportedTokens).toBe(120)
+    expect(second.estimatedTokens).toBe(120)
+    expect(() =>
+      trafficMetrics(
+        {
+          ...source,
+          tasks: [
+            { ...first, reviews: [{ attempt: 99, usage: attempt('one', 'reported', 1).usage }] },
+          ],
+        },
+        { period: 'today' },
+        now,
+      ),
+    ).toThrow('Review charge has no owning attempt')
+  })
+  it('starts the current calendar week on Monday when today is Wednesday', () => {
+    const wednesday = new Date(2026, 9, 7, 12).getTime()
+    expect(trafficMetrics(seed(), { period: 'today' }, wednesday).taskCount).toBe(0)
+    expect(trafficMetrics(seed(), { period: 'week' }, wednesday).taskCount).toBe(3)
+    expect(trafficMetrics(seed(), { period: 'week' }, wednesday).reportedCostUsd).toBe(6)
   })
   it('keeps missing samples null and refuses impossible capacity', () => {
     const empty = trafficMetrics({ tasks: [], events: [], slots: [] }, { period: 'allTime' }, now)

@@ -23,6 +23,7 @@ import {
   HARNESS_PATH,
   LOOPBACK,
   SCENARIOS,
+  TRAFFIC_SCENARIOS,
   serveRepo,
   withNarrowPage,
 } from './lib/harnessServer.mjs'
@@ -37,11 +38,22 @@ const repoRoot = process.cwd()
 async function shoot(chrome, port, scenario, lang, outDir, profileDir) {
   const file = path.join(outDir, `${scenario}.png`)
   const url = `http://${LOOPBACK}:${String(port)}/${HARNESS_PATH}?scenario=${scenario}${langQuery(lang)}`
-  if (scenario === 'share-narrow') {
-    await withNarrowPage(chrome, profileDir, url, async (page) => {
-      await page.getByRole('dialog').waitFor()
-      await page.screenshot({ path: file })
-    })
+  if (scenario === 'share-narrow' || TRAFFIC_SCENARIOS.includes(scenario)) {
+    const viewport = {
+      width: ['share-narrow', 'team-traffic-320'].includes(scenario) ? 320 : 690,
+      height: 760,
+    }
+    await withNarrowPage(
+      chrome,
+      profileDir,
+      url,
+      async (page) => {
+        if (scenario === 'share-narrow') await page.getByRole('dialog').waitFor()
+        else await page.locator('body[data-traffic-ready]').waitFor()
+        await page.screenshot({ path: file })
+      },
+      viewport,
+    )
     return file
   }
   await execFileAsync(chrome, [

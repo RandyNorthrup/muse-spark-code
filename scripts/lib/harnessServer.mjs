@@ -6,12 +6,20 @@ import { readFile } from 'node:fs/promises'
 import { createServer } from 'node:http'
 import path from 'node:path'
 import { chromium } from 'playwright-core'
+import { buildTrafficHarness } from '../../test/harness/buildTraffic.mjs'
 
 export const LOOPBACK = '127.0.0.1'
 export const HARNESS_PATH = 'test/harness/index.html'
 // Real time for one page; a hung browser fails rather than producing an empty result.
 export const PAGE_TIMEOUT_MS = 120_000
 // Every `?scenario=` test/harness/index.html plays.
+export const TRAFFIC_SCENARIOS = [
+  'team-traffic',
+  'team-traffic-320',
+  'team-traffic-hints',
+  'team-traffic-recovery',
+  'runners',
+]
 export const SCENARIOS = [
   'empty',
   'signin',
@@ -57,6 +65,7 @@ export const SCENARIOS = [
   'checkpoint-read-only',
   'checkpoint-read-only-narrow',
   'checkpoint-legacy',
+  ...TRAFFIC_SCENARIOS,
   'agents',
   'agents-off',
   'usage-api',
@@ -136,7 +145,8 @@ const CONTENT_TYPES = {
 }
 
 /** Serves `repoRoot` on an unused loopback port: `{ server, port }`. */
-export function serveRepo(repoRoot) {
+export async function serveRepo(repoRoot) {
+  await buildTrafficHarness()
   const server = createServer(async (request, response) => {
     const url = new URL(request.url ?? '/', `http://${LOOPBACK}`)
     const target = path.resolve(repoRoot, `.${decodeURIComponent(url.pathname)}`)
@@ -154,18 +164,20 @@ export function serveRepo(repoRoot) {
       response.writeHead(404).end()
     }
   })
-  return new Promise((resolve) => {
+  return await new Promise((resolve) => {
     server.listen(0, LOOPBACK, () => {
       resolve({ server, port: server.address().port })
     })
   })
 }
 
+const NARROW_VIEWPORT = { width: 320, height: 760 }
+
 /** Chrome's CLI clamps windows to 500 px: the narrow share check needs a real 320 px viewport. */
-export async function withNarrowPage(chrome, profileDir, url, run) {
+export async function withNarrowPage(chrome, profileDir, url, run, viewport = NARROW_VIEWPORT) {
   const browser = await chromium.launchPersistentContext(profileDir, {
     ...(path.isAbsolute(chrome) ? { executablePath: chrome } : { channel: 'chrome' }),
-    viewport: { width: 320, height: 760 },
+    viewport,
     timeout: PAGE_TIMEOUT_MS,
   })
   try {
