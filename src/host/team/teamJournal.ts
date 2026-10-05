@@ -1,0 +1,155 @@
+import { randomUUID } from 'node:crypto'
+import { open, readFile, readdir, rename } from 'node:fs/promises'
+import path from 'node:path'
+import { setTimeout as delay } from 'node:timers/promises'
+import * as z from 'zod/mini'
+import { canonicalPath } from '../canonicalPath'
+import { writeFileAtomically } from '../fsAtomic'
+import { storeErrorCode } from '../backend/storeErrors'
+import type { WindowAuthority, WindowIdentity } from './windowIdentity'
+
+const envelopeSchema = z.strictObject({
+  version: z.literal(1),
+  owner: z.strictObject({
+    instanceId: z.uuid(),
+    startedAt: z.number().check(z.int(), z.nonnegative()),
+  }),
+  value: z.unknown(),
+})
+const recordNameSchema = z.string().check(z.regex(/^[A-Za-z0-9_-]+$/))
+
+export type JournalRead<T> =
+  | { readonly kind: 'missing' }
+  | { readonly kind: 'record'; readonly value: T }
+  | { readonly kind: 'broken'; readonly file: string; readonly wasMovedAside: boolean }
+
+export interface TeamJournal {
+  readonly owner: WindowIdentity
+  write<T>(name: string, value: T, schema: z.core.$ZodType<T>): Promise<void>
+  read<T>(name: string, schema: z.core.$ZodType<T>): Promise<JournalRead<T>>
+  names(): Promise<readonly string[]>
+}
+
+/** A foreign journal is read-only until Take over, regardless of hint freshness. */
+export function createTeamJournal(options: {
+  readonly storageDirectory: string
+  readonly authority: WindowAuthority
+  readonly owner: WindowIdentity
+  readonly maxRecordBytes: number
+  readonly platform: NodeJS.Platform
+}): TeamJournal {
+  const directory = path.join(
+    options.storageDirectory,
+    'team',
+    'journal',
+    z.uuid().parse(options.owner.instanceId),
+  )
+  const targetFor = (name: string) => path.join(directory, `${recordNameSchema.parse(name)}.json`)
+  let tail = Promise.resolve()
+  const serialize = <T>(operation: () => Promise<T>): Promise<T> => {
+    const previous = tail
+    const result = (async () => {
+      await previous
+      return await operation()
+    })()
+    // A rejected caller receives its error; subsequent journal operations may retry.
+    tail = (async () => {
+      await Promise.allSettled([result])
+    })()
+    return result
+  }
+  const assertPath = async (target: string) => {
+    if ((await canonicalPath(target)) !== path.resolve(target)) {
+      throw new Error('TEAM_JOURNAL_PATH_CHANGED')
+    }
+  }
+  const flush = async (target: string) => {
+    const file = await open(target, 'r')
+    try {
+      await file.sync()
+    } finally {
+      await file.close()
+    }
+    if (options.platform === 'win32') return
+    const folder = await open(directory, 'r')
+    try {
+      await folder.sync()
+    } finally {
+      await folder.close()
+    }
+  }
+  return {
+    owner: options.owner,
+    async write(name, value, schema) {
+      await serialize(async () => {
+        options.authority.assertCanWrite(options.owner)
+        const target = targetFor(name)
+        await assertPath(target)
+        const content = JSON.stringify({
+          version: 1,
+          owner: options.owner,
+          value: z.parse(schema, value),
+        })
+        if (Buffer.byteLength(content) > options.maxRecordBytes) {
+          throw new Error('TEAM_JOURNAL_RECORD_TOO_LARGE')
+        }
+        await writeFileAtomically(target, content, {
+          sleep: delay,
+          expectedCanonicalPath: target,
+          assertCanWrite: () => {
+            options.authority.assertCanWrite(options.owner)
+          },
+        })
+        await flush(target)
+      })
+    },
+    async read(name, schema) {
+      return await serialize(async () => {
+        const target = targetFor(name)
+        await assertPath(target)
+        let content: string
+        try {
+          content = await readFile(target, 'utf8')
+        } catch (error: unknown) {
+          if (storeErrorCode(error) === 'ENOENT') return { kind: 'missing' }
+          throw error
+        }
+        try {
+          if (Buffer.byteLength(content) > options.maxRecordBytes) {
+            throw new Error('TEAM_JOURNAL_RECORD_TOO_LARGE')
+          }
+          const envelope = envelopeSchema.parse(JSON.parse(content))
+          if (
+            envelope.owner.instanceId !== options.owner.instanceId ||
+            envelope.owner.startedAt !== options.owner.startedAt
+          ) {
+            throw new Error('TEAM_JOURNAL_OWNER_CHANGED')
+          }
+          return { kind: 'record', value: z.parse(schema, envelope.value) }
+        } catch {
+          // Preserve unreadable evidence. Never rename a possibly live window's file.
+          const wasMovedAside = options.authority.canWrite(options.owner)
+          const broken = `${target}.${randomUUID()}.broken`
+          if (wasMovedAside) {
+            await assertPath(target)
+            options.authority.assertCanWrite(options.owner)
+            await rename(target, broken)
+          }
+          return { kind: 'broken', file: wasMovedAside ? broken : target, wasMovedAside }
+        }
+      })
+    },
+    async names() {
+      await assertPath(directory)
+      try {
+        const names = await readdir(directory)
+        return names
+          .filter((name) => name.endsWith('.json'))
+          .map((name) => name.slice(0, -'.json'.length))
+      } catch (error: unknown) {
+        if (storeErrorCode(error) === 'ENOENT') return []
+        throw error
+      }
+    },
+  }
+}
