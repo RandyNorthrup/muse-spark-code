@@ -31,7 +31,9 @@ happened, not what was planned; superseded entries are kept.
 
 - **Final role ceilings (M96 lane R).** An empty final delegate intersection
   withdraws every delegation tool, so admission and the charter agree that
-  the worker cannot delegate.
+  the worker cannot delegate. Offered configured MCP tools survive personal
+  allowlists and session inheritance, while runtime and project ceilings
+  still narrow them.
 
 - **Role resolution redesigned (M96 lane R, round 3).** All role files,
   catalogues, permission modes and runtime ceilings are captured before

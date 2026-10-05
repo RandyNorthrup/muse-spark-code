@@ -81,6 +81,52 @@ function assertNarrowed(result: RoleDefinition, ceiling: RoleCeiling): void {
 }
 
 describe('Round-3 role resolution invariants', () => {
+  it('RVM96R3 P2-2: preserves offered MCP allowlists and inheritance through every ceiling', async () => {
+    const lookup = 'mcp__docs__lookup'
+    const other = 'mcp__docs__search'
+    for (const extra of [`tools: ${lookup}\n`, '']) {
+      for (const tools of [undefined, [lookup], [other], []]) {
+        for (const isProject of [false, true]) {
+          const loaded = await loadRoles(
+            loaderDeps({
+              '.home/.config/muse/agents/engineering/AGENT.md': file(extra),
+              ...(isProject && { '.agents/agents/engineering/AGENT.md': file(extra) }),
+            }),
+            ROOTS,
+            {
+              trustedWorkspace: true,
+              inputs: {
+                kind: 'known',
+                value: {
+                  ...ENVIRONMENT,
+                  session: {
+                    ...ENVIRONMENT.session,
+                    offered: [lookup, other, 'merge', 'ask_user', 'generate_image'],
+                    imagesAllowed: false,
+                  },
+                  ceilings: tools === undefined ? [] : [{ approvalMode: 'allowAll', tools }],
+                },
+              },
+            },
+          )
+          expect(loaded.snapshot.kind).toBe('known')
+          expect(loaded.warnings).toEqual([])
+          const found = resolveRole(loaded, 'engineering')
+          if (found.kind !== 'found') throw new Error('role refused')
+          const requested = extra === '' ? [lookup, other] : [lookup]
+          const expected = requested.filter((tool) => tools === undefined || tools.includes(tool))
+          expect(found.role.tools).toEqual(expected)
+          const charter = buildTeamCharter(
+            { ...found.role, workspace: 'read-only', delegates: [], report: 'summary' },
+            { tools: found.role.tools ?? [], groups: [] },
+          )
+          for (const tool of expected) expect(charter.generated).toContain(tool)
+          if (tools?.length === 0) expect(charter.generated).not.toContain(lookup)
+        }
+      }
+    }
+  })
+
   it('RVM96R3 P2-1: withdraws delegation tools when final ceilings permit no delegate', async () => {
     const cases: Pick<RoleEnvironment, 'ceilings' | 'session'>[] = [
       { session: { ...ENVIRONMENT.session, delegates: [] }, ceilings: [] },

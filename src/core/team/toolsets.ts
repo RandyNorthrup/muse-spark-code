@@ -7,6 +7,7 @@
 // offers and the paid gates allow (M76's narrowing).
 
 import {
+  MCP_FUNCTION_PREFIX,
   TEAM_DELEGATE_TOOLS,
   TEAM_DIAGNOSTICS_TOOL,
   TEAM_MODEL_TEXT,
@@ -31,7 +32,7 @@ const TEAM_TOOL_ALIASES: Readonly<Record<string, readonly string[]>> = {
 /** What the role asks for: its groups, and the write globs bound to them. */
 export interface TeamToolsetSpec {
   readonly groups: readonly TeamToolGroup[]
-  /** An explicit allowlist narrows groups before their words are generated. */
+  /** Narrows groups and requests offered configured MCP tools outside them. */
   readonly tools?: readonly string[] | undefined
   /** The role's `write-paths`; undefined writes nowhere or the whole branch. */
   readonly writePaths?: readonly string[] | undefined
@@ -47,7 +48,7 @@ export interface TeamToolsetSession {
 
 /** A role's tools met with the session: the exact set call admission holds. */
 export interface ResolvedTeamToolset {
-  /** Canonical tool names, in `TEAM_TOOL_GROUPS` order, each once. */
+  /** Session tool names, each once: groups, configured MCP, then delegation. */
   readonly tools: readonly string[]
   /** The groups that kept at least one offered tool, in table order. */
   readonly groups: readonly TeamToolGroup[]
@@ -221,6 +222,13 @@ export function resolveTeamToolset(
       }
     }
   }
+  // User-configured MCP tools have no static group. Only an explicit
+  // allowlist can request them; known aliases still obey their group/gate.
+  tools.push(
+    ...meetTeamToolNames(spec.tools ?? [], session.offered).filter(
+      (tool) => tool.startsWith(MCP_FUNCTION_PREFIX) && groupsForTools([tool]).length === 0,
+    ),
+  )
   const narrowed = meetTeamToolNames(spec.tools, tools)
   if (session.delegates.length > 0) {
     for (const tool of TEAM_DELEGATE_TOOLS) {

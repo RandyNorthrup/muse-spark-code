@@ -636,7 +636,7 @@ function resolveSnapshotRole(snapshot: RoleSnapshot, id: string): RoleDefinition
   const available = resolveTeamToolset(
     {
       groups: groupsForTools(requested.tools ?? snapshot.environment.session.offered),
-      tools: requested.tools,
+      tools: requested.tools ?? snapshot.environment.session.offered,
       writePaths: requested.writePaths,
     },
     { ...snapshot.environment.session, delegates: requested.delegates ?? [] },

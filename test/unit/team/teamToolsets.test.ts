@@ -38,6 +38,28 @@ function roleSession(
 }
 
 describe('resolveTeamToolset', () => {
+  it('RVM96R3 P2-2: admits configured MCP names only when explicitly requested and offered', () => {
+    const lookup = 'mcp__docs__lookup'
+    const other = 'mcp__docs__search'
+    const session = { ...FULL_SESSION, offered: ['read_file', lookup, other] }
+    const resolved = resolveTeamToolset({ groups: ['read'], tools: ['read_file', lookup] }, session)
+    expect(resolved.tools).toEqual(['read_file', lookup])
+    expect(resolved.groups).toEqual(['read'])
+    expect(resolved.youMay).toContain(lookup)
+    expect(isTeamToolAdmitted(resolved, lookup)).toBe(true)
+    expect(isTeamToolAdmitted(resolved, other)).toBe(false)
+    expect(resolveTeamToolset({ groups: ['read'] }, session).tools).toEqual(['read_file'])
+    expect(resolveTeamToolset({ groups: ['read'], tools: [lookup] }, FULL_SESSION).tools).toEqual(
+      [],
+    )
+    expect(
+      resolveTeamToolset(
+        { groups: ['read'], tools: ['mcp__ide__getDiagnostics'] },
+        { ...session, offered: ['mcp__ide__getDiagnostics'] },
+      ).tools,
+    ).toEqual([])
+  })
+
   it('describes only offered capabilities after a partial tool meet', () => {
     for (const offered of [
       ['edit_file'],
