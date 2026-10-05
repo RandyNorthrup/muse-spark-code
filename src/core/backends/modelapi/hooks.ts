@@ -1153,6 +1153,7 @@ export async function dispatchHooks(
   warn: (message: string) => void,
   adapter?: ForeignHookAdapter,
   context?: ForeignDispatchContext,
+  trackAsync?: (execution: Promise<unknown>) => void,
 ): Promise<HookDispatch> {
   const selected = matchingHooks(hooks, event, matcherValue, warn)
   const serialized = JSON.stringify(payload)
@@ -1215,6 +1216,7 @@ export async function dispatchHooks(
   for (const [index, execution] of executions.entries()) {
     const hook = selected[index]
     if (hook?.isAsync === true) {
+      trackAsync?.(execution)
       void execution.catch(() => {
         warn(`${event}: asynchronous hook failed`)
       })
