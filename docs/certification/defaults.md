@@ -108,7 +108,44 @@ test command then exited 0. Logs remain under this worktree's ignored
 Restored counts: default 43; consent, daily-refusal, fail-closed and final
 admission 11 each; explicit-false 12; tariff 19. Full hashes were compared,
 not only the prefixes above. No mutant remains. Docs/manifest/translation
-Prettier check exited 0 on the coding host. Final merge binding follows.
+Prettier check exited 0 on the coding host.
+
+## Final integration binding
+
+Feature commit `e748d7512a6f73335e1a1cb2575f8cc1a7cf54e3`, merged with
+`origin/main` at `30de7c89` into `7c4f9551548eb651a447e9941ca9075d212640d1`.
+The named integrate/m72 branch is absent locally; current main retains its
+M72 integration. Git merged CHANGELOG, PLAN and README cleanly by meaning;
+no feature or translation conflict was dropped. origin/main is an ancestor
+of the merged tree. No public push was made.
+
+Kubuntu snapshot `72e60738` of that merged tree passed scoped ESLint, all
+five typecheck projects, deadcode, jscpd (0 clones), localization (0
+problems), host API (0 problems), and the complete production build's size,
+split, host-global and notice checks. Sizes remain extension 558.0 KiB,
+Model API 428.0, webview 860.8, checkpoint store 109.1; ACP is now 786.8
+after main's CI merge. All caps remain unchanged.
+
+Kubuntu snapshot `f94fb145` passed 928 tests in sixteen whole owning files,
+including the two headless/Action runtime suites after main's merge. No
+tests were skipped or filtered. The lane's fifty-five changed files passed
+Prettier check on Windows. Gitleaks scanned committed changes from
+`23f38dd6..HEAD`: four non-merge patches, 315,699 bytes, exit 0, no leaks.
+Drilled source hashes remain unchanged by the merge and formatting checks.
+
+**Hook setup finding.** The feature and merge commits used normal Git, but
+this new worktree lacked the ignored `.husky/_/pre-commit` dispatcher, so
+their hooks did not run. No bypass flag or HUSKY skip was used. `npm run
+prepare` installed the dispatcher in this worktree; core.hooksPath remains
+the existing relative `.husky/_`. The same source lint/format checks and a
+committed-change secret scan passed explicitly. History was not rewritten;
+the final evidence commit uses the installed hooks. This setup miss is
+reported rather than claimed as an earlier passing hook.
+
+Next owner/lead actions: review the source and receipts, run the prohibited
+aggregate/platform/hosted gates on the final reviewed tree, integrate M91's
+actual goldens and M94's separate ledger, and obtain verified search/voice
+billing bounds before offering either transport under a finite daily cap.
 
 ## Remaining external gates and deliberate limits
 
