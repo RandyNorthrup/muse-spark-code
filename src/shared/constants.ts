@@ -455,6 +455,13 @@ export const HOOK_MANAGED_ENV_MAX_NAMES = 64
 export const HOOK_MANAGED_ENV_NAME_MAX_CHARS = 128
 export const HOOK_NOTIFICATION_DELAY_MS = 6000
 export const HOOK_SESSION_END_TIMEOUT_MS = 10_000
+// Cline v1 contextModification cap (M91 lane X; hooks-parity/raw-copilot-cline.md:25).
+export const CLINE_CONTEXT_MODIFICATION_MAX_CHARS = 50_000
+// M91 lane X: the plugin child runs one plugin per hook call under these bounds.
+export const PLUGIN_HOOK_TIMEOUT_MS = 30_000
+export const PLUGIN_NODE_MINIMUM = '22.18.0'
+export const PLUGIN_CHILD_MAX_HEAP_MB = 256
+export const PLUGIN_RESPONSE_MAX_BYTES = 64 * 1024
 export const HOOK_FORBIDDEN_ENV_NAMES: ReadonlySet<string> = new Set([
   'AWS_ACCESS_KEY_ID',
   'AWS_SECRET_ACCESS_KEY',
@@ -463,10 +470,10 @@ export const HOOK_FORBIDDEN_ENV_NAMES: ReadonlySet<string> = new Set([
   'ANTHROPIC_KEY',
   'META_KEY',
 ])
-// M91 lane W (PLAN.md D70): the formats lane P's adapters translate. A
-// spark-hooks.json group names one in its `format` tag; a group in any other
-// format (Cline's, which lane X's plugin host runs) is skipped with a warning.
-export const HOOK_FORMATS = ['gemini', 'cursor', 'copilot', 'windsurf', 'kiro'] as const
+// M91 lane W (PLAN.md D70): the formats lane P's adapters translate, Cline's
+// v1 scripts among them (lane X's contract). A spark-hooks.json group names one
+// in its `format` tag; a group in any other format is skipped with a warning.
+export const HOOK_FORMATS = ['gemini', 'cursor', 'copilot', 'windsurf', 'kiro', 'cline'] as const
 // Each format's source agent by its name in the import picker, for the Hooks
 // picker's rows and the adapters' notices; Cline's for lane X's plugin host.
 export const HOOK_FORMAT_NAME_KEYS = {

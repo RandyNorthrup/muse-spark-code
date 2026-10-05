@@ -58,6 +58,7 @@ const FOREIGN_HOOKS_ONLY = [
   'hookFormats/core.ts',
   'hookFormats/engine.ts',
   'hookFormats/transforms.ts',
+  'hookFormats/contracts/cline.ts',
   'hookFormats/contracts/copilot.ts',
   'hookFormats/contracts/cursor.ts',
   'hookFormats/contracts/gemini.ts',
@@ -68,6 +69,10 @@ const FOREIGN_HOOKS_ONLY = [
 // Files of type declarations only, which no bundle carries: lane P's contract
 // shapes, read by the adapters' compiler and never at run time.
 const TYPES_ONLY = new Set(['hookFormats/contract.ts'])
+// M91 lane X's plugin host for Amp and OpenCode (its child's source runs with
+// `-e`, never from a bundle) and its Cline discovery, which no bundle carries
+// until their dispatcher wiring lands (PLAN.md M91, lane X; the lead's call).
+const UNBUNDLED = new Set(['pluginHost.ts', 'pluginChild.ts', 'hookFormats/clineDiscover.ts'])
 const DEFERRED = [
   {
     output: 'dist/sessionBoard.js',
@@ -178,7 +183,8 @@ for (const name of onDisk) {
     Number(lazy.has(name)) +
     Number(DEFERRED_ONLY.includes(name)) +
     Number(FOREIGN_HOOKS_ONLY.includes(name)) +
-    Number(TYPES_ONLY.has(name))
+    Number(TYPES_ONLY.has(name)) +
+    Number(UNBUNDLED.has(name))
   if (lists !== 1) {
     problems.push(
       `${MODEL_API_DIR}/${name} is on ${lists === 0 ? 'neither list' : 'both lists'} in scripts/check-bundle-split.mjs`,
@@ -191,6 +197,7 @@ for (const name of [
   ...DEFERRED_ONLY,
   ...FOREIGN_HOOKS_ONLY,
   ...TYPES_ONLY,
+  ...UNBUNDLED,
 ]) {
   if (!onDisk.has(name)) {
     problems.push(`${MODEL_API_DIR}/${name} is listed but does not exist`)

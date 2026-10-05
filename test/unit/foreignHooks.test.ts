@@ -193,7 +193,7 @@ describe('the import record in spark-hooks.json', () => {
 
   it('refuses what the record cannot carry, by name', () => {
     const cases: readonly [Record<string, unknown>, string][] = [
-      [{ format: 'cline' }, 'format cline has no adapter in this version'],
+      [{ format: 'amp' }, 'format amp has no adapter in this version'],
       [{ format: 'cursor', sourceEvent: 'preToolUse', extra: 1 }, 'unsupported group field extra'],
       [
         { format: 'gemini', sourceEvent: 'BeforeTool', commandPattern: 'x' },
