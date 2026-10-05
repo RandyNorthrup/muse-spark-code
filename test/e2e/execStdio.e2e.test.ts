@@ -100,7 +100,7 @@ function packedText(archive: string, member: string): string {
 function packagingFixture() {
   const dir = mkdtempSync(path.join(WORK, 'package space-'))
   for (const folder of [
-    'scripts',
+    'scripts/lib',
     'dist',
     'native/windows',
     'l10n',
@@ -112,6 +112,10 @@ function packagingFixture() {
   for (const script of ['package-acp.mjs', 'package-acp-test.mjs']) {
     cpSync(path.join(ROOT, 'scripts', script), path.join(dir, 'scripts', script))
   }
+  cpSync(
+    path.join(ROOT, 'scripts/lib/packedL10n.mjs'),
+    path.join(dir, 'scripts/lib/packedL10n.mjs'),
+  )
   writeFileSync(
     path.join(dir, 'scripts', 'third-party-notices.mjs'),
     'import {writeFileSync} from "node:fs"; writeFileSync(process.argv.at(-1), "test fixture notices");',
@@ -141,7 +145,17 @@ function packagingFixture() {
   for (const file of ['MuseSparkJob.cs', 'MuseSparkMcpJob.cs']) {
     writeFileSync(path.join(dir, 'native', 'windows', file), '// test-owned native fixture\n')
   }
-  writeFileSync(path.join(dir, 'l10n', 'ui.de.json'), '{}\n')
+  writeFileSync(
+    path.join(dir, 'dist/uiText.js'),
+    'exports.EN={fixture:"Example",count:{one:"{count} item",other:"{count} items"}};\n',
+  )
+  writeFileSync(
+    path.join(dir, 'l10n', 'ui.de.json'),
+    JSON.stringify({
+      fixture: 'Beispiel',
+      count: { one: '{count} Eintrag', other: '{count} Einträge' },
+    }),
+  )
   writeFileSync(path.join(dir, 'LICENSE'), 'test-owned licence\n')
   writeFileSync(path.join(dir, 'docs', 'acp.md'), '# Test-owned guide\n')
   writeFileSync(path.join(dir, 'docs', 'npm-readme.md'), '# Test-owned npm page\n')
@@ -171,6 +185,10 @@ describe('M80 D package guards', { timeout: TIMEOUT }, () => {
         readFileSync(path.join(ROOT, 'docs', 'schemas', schema), 'utf8'),
       )
     }
+    expect(JSON.parse(packedText(packed, 'l10n/ui.de.json'))).toEqual({
+      format: 1,
+      values: [{ one: '{count} Eintrag', other: '{count} Einträge' }, 'Beispiel'],
+    })
     const manifest: unknown = JSON.parse(readFileSync(path.join(stage, 'package.json'), 'utf8'))
     expect(manifest).toMatchObject({ bin: { 'muse-spark-code-acp': 'dist/acp.js' } })
     expect(existsSync(path.join(stage, 'dist', 'exec-test-launcher.js'))).toBe(false)

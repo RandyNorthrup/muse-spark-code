@@ -7,6 +7,8 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+- Keep ACP package guard fixtures aligned with lossless localization packaging and assert plural values in the emitted tarball.
+
 - Add opt-in, priced legal explanations through the shared D78 daily reservation/settlement ledger, with bounded technical input, no tools/retries and retained unknown liability.
 - Route ACP `/legal` and `/legal --offline` to the shared scanner on both backends without a model turn; disclose default registry queries through editor permission prompts.
 - Add a platform-gated headless legal accessibility check to local quality and hosted checks, covering keyboard, accessibility tree, four themes, narrow layouts and browser-metric zoom.
