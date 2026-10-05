@@ -19803,6 +19803,21 @@ joined with M57, M58 and PR #49's sign-in
 
 ## 7. Gates
 
+**M96CINT partial merged-source proof (2026-10-05).** Macmini passes all
+239 S/Q/T2/V tests plus 29 shared schema/text tests, in 21 complete files
+and invocations of at most three files. All five compiler projects, the
+harness compiler, full lint/Prettier, deadcode, duplication (0 clones),
+localization (0 problems), production and merged-team cycle checks, build,
+and all 17 unchanged bundle caps pass. A cumulative-admission mutation fails
+three real-repository cases, including interaction; SHA-256-exact restoration
+passes all four. The Mac fixture correction retains every assertion.
+See `docs/certification/m96c-int.md` and `m96c-int-drills.json`.
+The extra host API check fails on the X2-owned generated inventory's five
+Node import counts and Traffic stylesheet source; its regeneration remains
+with X2 under the brief's explicit docs/wiring exclusion. Full quality,
+native/editor/live acceptance, C/O and X2 remain with the lead. These scoped
+receipts certify this partial integration, not production team wiring.
+
 **FIXM96CT2 scoped proof (2026-10-05).** Both `RVM96CT2` findings are
 fixed within T2. Kubuntu passes all five compiler projects, 21 focused tests,
 changed-file ESLint/Prettier, localization, host API, deadcode, duplication
@@ -20271,10 +20286,12 @@ before a repaired one loads (2026-09-30).
   regressions and byte-exact restored drills recorded
   in `docs/certification/m96c-v.md`.
 - **M96c-V/X2 stylesheet record (RVM96CV, 2026-10-05).** The host API gate
-  still fails solely because its generated theme-source list omits the
-  existing Traffic stylesheet. API/theme totals are unchanged; X2 owns
-  regeneration and the full gate before integration. Lane V preserves that
-  ownership and records the failing check without weakening it.
+  fails because its generated theme-source list omits the existing Traffic
+  stylesheet. After S/Q integration it also has five stale Node import
+  counts, recorded in `docs/certification/m96c-int.md`. API/theme totals are
+  unchanged; X2 owns regeneration and the full gate before integration.
+  The partial integration preserves that ownership and records the failing
+  check without weakening it.
 
 - Code intelligence (M67) shows what VS Code's language services say. A
   result located outside the workspace is left out and a hover defined only
