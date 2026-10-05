@@ -150,12 +150,22 @@ export class PaidUseConsent {
   private readonly listeners = new Set<() => void>()
   /** Window-once grants this instance gave: memory only, never stored. */
   private readonly windowOnce = new Set<PaidFeature>()
+  /**
+   * A window-once feature's first question while it is open: ordinary uses
+   * that arrive meanwhile share it and its answer instead of asking again.
+   */
+  private readonly pendingWindowOnce = new Map<PaidFeature, Promise<boolean>>()
 
   public constructor(private readonly deps: PaidUseConsentDeps) {}
 
+  /** Whether the feature's "Allow once" covers the window (Tab, M94 Q-M94a). */
+  private isWindowOnceFeature(feature: PaidFeature): boolean {
+    return this.deps.windowOnceFeatures?.has(feature) ?? false
+  }
+
   /** Whether an "Allow once" for the feature covers this window. */
   private isWindowOnce(feature: PaidFeature): boolean {
-    return (this.deps.windowOnceFeatures?.has(feature) ?? false) && this.windowOnce.has(feature)
+    return this.isWindowOnceFeature(feature) && this.windowOnce.has(feature)
   }
 
   private notify(): void {
@@ -181,6 +191,36 @@ export class PaidUseConsent {
     }
   }
 
+  /** Asks in the popup now and keeps what the answer grants. */
+  private async decide(request: PaidUseRequest): Promise<boolean> {
+    const { feature } = request
+    const canRemember = this.deps.canRemember()
+    const answer = await this.deps.ask(request, canRemember)
+    if (answer === 'deny') {
+      this.deps.log.info(`Paid use of ${feature}: denied`)
+      return false
+    }
+    if (!this.deps.isOn(feature)) {
+      this.deps.log.info(`Paid use of ${feature}: turned off while the popup was open`)
+      return false
+    }
+    if (
+      answer === 'always' &&
+      canRemember &&
+      this.deps.canRemember() &&
+      (await this.remember(feature))
+    ) {
+      this.deps.log.info(`Paid use of ${feature}: allowed always in this workspace`)
+      this.notify()
+    } else if (answer === 'once' && this.isWindowOnceFeature(feature)) {
+      this.windowOnce.add(feature)
+      this.deps.log.info(`Paid use of ${feature}: allowed once in this window`)
+    } else {
+      this.deps.log.info(`Paid use of ${feature}: allowed once`)
+    }
+    return true
+  }
+
   public onDidChange(listener: () => void): () => void {
     this.listeners.add(listener)
     return () => {
@@ -202,7 +242,9 @@ export class PaidUseConsent {
    * Whether this use may be billed: allowed always here, or allowed in the
    * popup now. `requiresAsking` (a hook that demands a question) asks even when the
    * use is allowed always. A feature turned off while the popup was open is
-   * refused whatever the answer.
+   * refused whatever the answer. A window-once feature asks once per window:
+   * ordinary uses that arrive while its question is open wait for that
+   * answer; a use that requires asking still gets its own question.
    */
   public async allows(request: PaidUseRequest, requiresAsking = false): Promise<boolean> {
     const { feature } = request
@@ -217,31 +259,21 @@ export class PaidUseConsent {
       this.deps.log.info(`Paid use of ${feature}: allowed once in this window`)
       return true
     }
-    const canRemember = this.deps.canRemember()
-    const answer = await this.deps.ask(request, canRemember)
-    if (answer === 'deny') {
-      this.deps.log.info(`Paid use of ${feature}: denied`)
-      return false
+    if (requiresAsking || !this.isWindowOnceFeature(feature)) {
+      return await this.decide(request)
     }
-    if (!this.deps.isOn(feature)) {
-      this.deps.log.info(`Paid use of ${feature}: turned off while the popup was open`)
-      return false
+    const pending = this.pendingWindowOnce.get(feature)
+    if (pending !== undefined) {
+      this.deps.log.info(`Paid use of ${feature}: waits for the question open in this window`)
+      return await pending
     }
-    if (
-      answer === 'always' &&
-      canRemember &&
-      this.deps.canRemember() &&
-      (await this.remember(feature))
-    ) {
-      this.deps.log.info(`Paid use of ${feature}: allowed always in this workspace`)
-      this.notify()
-    } else if (answer === 'once' && (this.deps.windowOnceFeatures?.has(feature) ?? false)) {
-      this.windowOnce.add(feature)
-      this.deps.log.info(`Paid use of ${feature}: allowed once in this window`)
-    } else {
-      this.deps.log.info(`Paid use of ${feature}: allowed once`)
+    const decision = this.decide(request)
+    this.pendingWindowOnce.set(feature, decision)
+    try {
+      return await decision
+    } finally {
+      this.pendingWindowOnce.delete(feature)
     }
-    return true
   }
 
   /**
@@ -256,10 +288,10 @@ export class PaidUseConsent {
 
   /** Account & usage's "Ask again": every feature asks again here. */
   public async forget(): Promise<void> {
-    const hadWindowOnce = this.windowOnce.size > 0
+    const hasWindowOnce = this.windowOnce.size > 0
     this.windowOnce.clear()
     if (this.deps.readGrants().size === 0) {
-      if (hadWindowOnce) {
+      if (hasWindowOnce) {
         this.deps.log.info('Paid uses ask again in this window')
         this.notify()
       }

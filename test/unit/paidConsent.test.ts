@@ -146,7 +146,7 @@ function tabConsentWith(
   } = {},
 ) {
   const on = new Set<PaidFeature>(options.on ?? ['tab'])
-  let grants = new Set<PaidFeature>(options.grants ?? [])
+  let grants = new Set<PaidFeature>(options.grants)
   const answers = [...(options.answers ?? [])]
   const asked: PaidUseRequest[] = []
   const consent = new PaidUseConsent({
@@ -253,6 +253,49 @@ describe('window-scoped Allow once (M94 Q-M94a)', () => {
     expect(tab.changes).toHaveBeenCalled()
     await expect(tab.consent.allows(TAB_REQUEST)).resolves.toBe(true)
     expect(tab.asked).toHaveLength(2)
+  })
+
+  it('shares one first question between concurrent uses (RVM94LC finding 6)', async () => {
+    for (const [answer, expected] of [
+      ['once', true],
+      ['deny', false],
+    ] as const) {
+      // A popup that stays open until the test answers it.
+      const answers: ((value: PaidUseAnswer) => void)[] = []
+      const ask = vi.fn(
+        () =>
+          new Promise<PaidUseAnswer>((resolve) => {
+            answers.push(resolve)
+          }),
+      )
+      const consent = new PaidUseConsent({
+        isOn: () => true,
+        windowOnceFeatures: new Set<PaidFeature>(['tab']),
+        canRemember: () => false,
+        readGrants: () => new Set(),
+        writeGrants: () => Promise.resolve(),
+        ask,
+        log: new FakeLogOutputChannel(),
+      })
+      // Two first Tab uses before either popup is answered: one question.
+      const first = consent.allows(TAB_REQUEST)
+      const second = consent.allows(TAB_REQUEST)
+      expect(ask).toHaveBeenCalledTimes(1)
+      // A use that requires asking keeps its own question.
+      const demanded = consent.allows(TAB_REQUEST, true)
+      expect(ask).toHaveBeenCalledTimes(2)
+      answers[0]?.(answer)
+      await expect(Promise.all([first, second])).resolves.toEqual([expected, expected])
+      answers[1]?.('deny')
+      await expect(demanded).resolves.toBe(false)
+      expect(ask).toHaveBeenCalledTimes(2)
+      // The question is closed: after Allow once the window is covered,
+      // after Deny the next use asks anew.
+      const later = consent.allows(TAB_REQUEST)
+      expect(ask).toHaveBeenCalledTimes(expected ? 2 : 3)
+      answers[2]?.('deny')
+      await expect(later).resolves.toBe(expected)
+    }
   })
 
   it('keeps "Allow always" workspace-scoped for a window-once feature', async () => {
