@@ -1200,6 +1200,8 @@ export const EN = {
     exclusiveWriter: 'Exclusive writer',
   },
   teamTrafficDetails: {
+    changedSinceOpened:
+      'This work changed since you opened it. Review the current state and try again.',
     freeSlots: 'Free slots',
     processWorkers: 'Process workers',
     heavyCommands: 'Heavy commands',

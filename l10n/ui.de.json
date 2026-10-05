@@ -2002,6 +2002,7 @@
   "agentImportEditAction": "Datei bearbeiten und öffnen",
   "agentImportPreviewLegacyKey": "Die Datei verwendet den veralteten Schlüssel `mcp_servers`. Benennen Sie ihn in `mcpServers` um, wenn Sie diese hinzufügen: Muse Code lädt keinen von beiden, wenn beide vorhanden sind.",
   "teamTrafficDetails": {
+    "changedSinceOpened": "Diese Arbeit hat sich seit dem Öffnen geändert. Prüfen Sie den aktuellen Stand und versuchen Sie es erneut.",
     "freeSlots": "Freie Plätze",
     "processWorkers": "Worker-Prozesse",
     "heavyCommands": "Aufwendige Befehle",

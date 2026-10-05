@@ -2138,6 +2138,7 @@
   "agentImportEditAction": "Изменить и открыть файл",
   "agentImportPreviewLegacyKey": "Файл использует устаревший ключ `mcp_servers`. При добавлении этих записей переименуйте его в `mcpServers`: если есть оба, Muse Code не загружает ни один.",
   "teamTrafficDetails": {
+    "changedSinceOpened": "Эта работа изменилась с момента открытия. Проверьте текущее состояние и повторите попытку.",
     "freeSlots": "Свободные места",
     "processWorkers": "Рабочие процессы",
     "heavyCommands": "Ресурсоёмкие команды",

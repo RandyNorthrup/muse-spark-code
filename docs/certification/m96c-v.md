@@ -8,18 +8,19 @@ hooks only; no merges, rebases, pushes, live calls or paid calls. It also
 assigns the full quality gate to the lead and limits each owned vitest run
 to three files and three workers.
 
-Both P2 findings are fixed. Queue aggregation replays task transitions
+All three numbered findings are fixed; none is deferred. Queue aggregation replays task transitions
 before entry/agent scoping, clears the prior queue and ready-wait state on
 reassignment, and attributes subsequent ready/start events to the new attempt.
 Usage and event counters retain their original participant attribution.
 Runner setup commands use a textarea and are saved without trimming, so
 existing newlines and surrounding whitespace survive untouched saves.
 
-| Finding                  | Regression test                                                                           | Deliberate red drill                                     |
-| ------------------------ | ----------------------------------------------------------------------------------------- | -------------------------------------------------------- |
-| P2 phantom old queue     | `drains the old assignment and follows reassigned attempts across entry and agent scopes` | Keep the old queue on reassignment                       |
-| P2 replay before scoping | `replays another entry’s attempt transitions before scoping the queue`                    | Filter transitions before replay                         |
-| P2 multiline setup loss  | `preserves an existing multiline setup command when saving untouched fields`              | Replace the textarea with an input; trim the saved setup |
+| Finding                  | Regression test                                                                                                                                                              | Deliberate red drill                                                                               |
+| ------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------- |
+| P1 replacement target    | `binds releaseAnyway confirmation to the displayed target and refuses its replacement` (22 destructive action variants), destination-entry and identical-reacquisition cases | Remove post-card identity binding; ignore destination replacement; remove initial identity binding |
+| P2 phantom old queue     | `drains the old assignment and follows reassigned attempts across entry and agent scopes`                                                                                    | Keep the old queue on reassignment                                                                 |
+| P2 replay before scoping | `replays another entry’s attempt transitions before scoping the queue`                                                                                                       | Filter transitions before replay                                                                   |
+| P2 multiline setup loss  | `preserves an existing multiline setup command when saving untouched fields`                                                                                                 | Replace the textarea with an input; trim the saved setup                                           |
 
 The original metrics and form each failed their regression before the fix.
 Every drill ran the whole owned test file, produced the named failure, and
@@ -30,6 +31,99 @@ Prettier passed. Final combined counts and checks are recorded below after
 the P1 repair. X2's suggested Unreleased repair bullet: “Traffic actions
 refuse changed targets; reassignment clears old queue metrics; runner edits
 preserve multiline setup commands.” No new command, setting or script.
+
+Traffic messages now carry the exact schema-validated `expected` row shown
+by the view. Task actions include the board task and its availability;
+reassignment also includes the chosen destination entry. Resource rows bind
+the holder, recovery rows bind the attempt/launch/process evidence, and
+merge rows bind the landing branch. Every mutable row and destination entry
+has a required generation, so removing and replacing an identical-looking
+target does not reuse consent. The host compares the selected projection
+before opening the card and after it returns, then refuses a changed row
+through `notify` with `UI_TEXT.teamTrafficDetails.changedSinceOpened`, read
+at refusal time. The new key is translated in all 14 tables. The existing
+workspace, attempt, role, availability, live-owner, lock and cleanup guards
+still apply. All 22 destructive action variants ask; read-only open/show
+controls retain their existing behavior.
+
+**Integration contract change for X2/S/C/Q/O/K:** supply non-reused,
+monotonically advancing generations on task availability, resources,
+recovery records, candidates, conflicts, copies and entries. Advance them
+when the selected identity or mutable target changes, including replacement
+under the same name, resource reacquisition, candidate revisions, process
+launches and entry configuration changes; retain that property across
+reloads. Present the `expected` target on the confirmation card. `notify`
+must show the translated refusal to the user. Dispatch must compare the
+same `expected` identity/generation and repeat core admission after every
+further asynchronous wait, before mutation. The message alone grants no
+paid consent. These are extension-owned projections, not inferred wire
+fields.
+
+21 repair drills ran whole owned files: four metrics/form drills and 17
+identity/schema/confirmation/view-message drills. Removing the post-card
+identity check failed 24 named cases; removing the initial check failed 22.
+The other drills exercised destination replacement, confirmation for each
+new destructive action group, required identity/generation fields, and the
+exact expected projection sent by every mutable Traffic component. Each
+receipt records its mutation, command, named failures and equal
+before/restored SHA-256 hashes. No drill remained in production.
+
+**Named residuals (integration only):** `M96c-V/X2 runner authorization`
+still requires O/X2 to prove host-selected runner creation/destination edits
+and Restricted Mode authorization. `M96c-V/X2 production wiring` still
+requires the live S/C/Q/O/K adapter, final admission/identity checks, both
+Agent maps, lazy loading, paid consent/daily budget and the single-model
+golden/zero-traffic checks. This branch has no production callers, so these
+boundaries are safe to retain while unreachable; they must be proven before
+wiring/support. They are also named in PLAN §9. The unchanged host API
+stylesheet record remains X2-owned. No RVM96CV P1/P2/P3 finding is left as a
+residual.
+
+Final FIXM96CV validation, all directly on macmini:
+
+- `npx vitest run test/unit/trafficHandlers.test.ts test/unit/trafficView.test.tsx test/unit/trafficMetrics.test.ts --maxWorkers=3 --testTimeout=120000`:
+  79 passed (56 handler, 13 view/form, 10 metrics).
+- `npx vitest run test/unit/trafficHarness.test.tsx --maxWorkers=3 --testTimeout=120000`:
+  1 passed; total 80. No tests were skipped or filtered within the owned files.
+- `npm run typecheck`: all five projects passed. Unit-project typecheck was
+  repeated after the final test assertion helper changed and passed;
+  `npx tsc -p test/harness/tsconfig.json --noEmit` also passed.
+- Changed-file ESLint, Traffic CSS Stylelint, Prettier and `git diff --check`
+  passed. `npm run deadcode` passed with the existing vendor-ignore hint.
+  `npx jscpd` passed with zero clones; a repeated assertion block was shared
+  through a test helper rather than ignored. `node scripts/check-l10n.mjs`
+  passed: 14 tables, 120 manifest strings, 435 source files, zero problems.
+- `npm run build` passed all 17 size, split, host-global and notices checks.
+  Extension 590.7/600 KiB; Model API 430.2/475; webview 867.2/900; shared
+  English 111.5/125; checkpoint store 135.7/225; ACP 801.0/850. The Traffic
+  adapter/surface still has no production caller; these sizes certify the
+  current production build, not X2's future wiring.
+- `npm run check:host-api` **failed**, exactly as before this repair: its
+  theme-source list omits `src/webview/components/traffic/traffic.css`.
+  The totals remain 271 VS Code APIs, 18 vscode-importing files, 23 Node
+  built-ins and 59 theme variables. X2 owns regeneration; no gate was weakened.
+- `npm run test:a11y -- team-traffic team-traffic-320 team-traffic-hints team-traffic-recovery runners`
+  and the same command with `--lang=pseudo`: 40 pages across five scenarios
+  and four themes, zero violations/undecided/exempt/missing results and zero
+  unmeasured contrast elements. The runner scenario opens its real edit form.
+- Eight additional real-browser form checks at a true 320 × 760 viewport,
+  English/pseudo and all four themes: zero axe violations or horizontal
+  overflow; the actual textarea/save/postMessage path preserved a multiline
+  setup with surrounding whitespace. The harness's default 690 px document
+  width was overridden before axe ran. Receipt and source hashes:
+  `m96c-v-review-browser.json`. Untouched existing multiline configuration is
+  additionally proved by the view unit regression.
+- All 21 drill receipts have named failures, nonzero exits and equal
+  before/restored SHA-256 values. Every one of their nine production sources
+  matches its latest restored hash.
+
+Full quality, VS Code integration, live receipts, production wiring and
+final packaging remain lead/X2-owned under the brief. No new dependency,
+unsafe cast, disable, credential read, live/model/paid call, merge, rebase or
+push occurred. README/CHANGELOG remain X2-owned; the repair bullet above is
+ready for that integration.
+
+The remainder is the original M96CV certification, retained as history.
 
 Worktree `/Users/randy/lanes/M96CV`, branch `m96c/v`, macmini rig.
 Plan of record: PLAN.md D75 and M96c, research `m96-research.md` §8,

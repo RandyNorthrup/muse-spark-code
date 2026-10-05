@@ -59,6 +59,7 @@ export function TrafficRecovery({ state, postMessage }: TrafficProps) {
                   type: 'traffic/recovery',
                   ...trafficScope(state),
                   recoveryId: row.id,
+                  expected: row,
                   action,
                   ...(action === 'newTask' && { includeEdits }),
                 })

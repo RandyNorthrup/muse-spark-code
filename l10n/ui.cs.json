@@ -2138,6 +2138,7 @@
   "agentImportEditAction": "Upravit a otevřít soubor",
   "agentImportPreviewLegacyKey": "Soubor používá starý klíč `mcp_servers`. Při přidávání těchto položek jej přejmenujte na `mcpServers`: když jsou přítomny oba, Muse Code nenačte ani jeden.",
   "teamTrafficDetails": {
+    "changedSinceOpened": "Tato práce se od otevření změnila. Zkontrolujte aktuální stav a zkuste to znovu.",
     "freeSlots": "Volné sloty",
     "processWorkers": "Pracovní procesy",
     "heavyCommands": "Náročné příkazy",

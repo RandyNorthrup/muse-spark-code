@@ -2070,6 +2070,7 @@
   "agentImportEditAction": "Editar e abrir o arquivo",
   "agentImportPreviewLegacyKey": "O arquivo usa a chave antiga `mcp_servers`. Renomeie-a para `mcpServers` ao adicionar estes: o Muse Code não carrega nenhuma quando as duas estão presentes.",
   "teamTrafficDetails": {
+    "changedSinceOpened": "Este trabalho mudou desde que você o abriu. Confira o estado atual e tente novamente.",
     "freeSlots": "Vagas livres",
     "processWorkers": "Processos de trabalho",
     "heavyCommands": "Comandos pesados",

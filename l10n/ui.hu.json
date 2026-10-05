@@ -2002,6 +2002,7 @@
   "agentImportEditAction": "Fájl szerkesztése és megnyitása",
   "agentImportPreviewLegacyKey": "A fájl az elavult `mcp_servers` kulcsot használja. Ezek hozzáadásakor nevezze át `mcpServers` névre: ha mindkettő jelen van, a Muse Code egyiket sem tölti be.",
   "teamTrafficDetails": {
+    "changedSinceOpened": "Ez a munka megváltozott a megnyitása óta. Ellenőrizze az aktuális állapotot, és próbálja újra.",
     "freeSlots": "Szabad helyek",
     "processWorkers": "Dolgozó folyamatok",
     "heavyCommands": "Erőforrás-igényes parancsok",

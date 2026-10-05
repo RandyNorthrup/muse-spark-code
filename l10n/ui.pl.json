@@ -2138,6 +2138,7 @@
   "agentImportEditAction": "Edytuj i otwórz plik",
   "agentImportPreviewLegacyKey": "Plik używa starego klucza `mcp_servers`. Zmień jego nazwę na `mcpServers`, dodając te wpisy: Muse Code nie wczytuje żadnego, gdy oba są obecne.",
   "teamTrafficDetails": {
+    "changedSinceOpened": "Ta praca zmieniła się od jej otwarcia. Sprawdź bieżący stan i spróbuj ponownie.",
     "freeSlots": "Wolne miejsca",
     "processWorkers": "Procesy robocze",
     "heavyCommands": "Obciążające polecenia",

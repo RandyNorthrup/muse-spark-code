@@ -61,20 +61,27 @@ export function trafficFixture(): TrafficSlice {
       { taskId: 'ready-one', priority: 2, criticalPath: 1, fit: 0.5, score: 1 },
     ],
     entries: [
-      { id: 'entry', roleId: 'engineering', label: 'model · agent' },
-      { id: 'other-entry', roleId: 'engineering', label: 'other model' },
-      { id: 'docs-entry', roleId: 'docs', label: 'docs model' },
+      { id: 'entry', generation: 1, roleId: 'engineering', label: 'model · agent' },
+      { id: 'other-entry', generation: 1, roleId: 'engineering', label: 'other model' },
+      { id: 'docs-entry', generation: 1, roleId: 'docs', label: 'docs model' },
     ],
     taskActions: [
       {
         taskId: 'ready-one',
         attempt: 0,
+        generation: 1,
         actions: ['runNext', 'hold', 'priority', 'reassign', 'cancel'],
       },
-      { taskId: 'ready-two', attempt: 0, actions: ['runNext', 'hold', 'release', 'cancel'] },
+      {
+        taskId: 'ready-two',
+        attempt: 0,
+        generation: 1,
+        actions: ['runNext', 'hold', 'release', 'cancel'],
+      },
       {
         taskId: 'blocked',
         attempt: 1,
+        generation: 1,
         actions: ['continueAnyway', 'restartTeamHost', 'raiseLimit'],
         reason: 'process cap = 1; browser held',
       },
@@ -95,6 +102,7 @@ export function trafficFixture(): TrafficSlice {
     resources: [
       {
         id: 'browser',
+        generation: 1,
         holder: 'blocked',
         waiters: ['ready-one'],
         actions: ['takeBack', 'restartServer', 'releaseAnyway'],
@@ -140,6 +148,7 @@ export function trafficFixture(): TrafficSlice {
     recovery: [
       {
         id: 'interrupted',
+        generation: 1,
         kind: 'interrupted',
         taskId: 'blocked',
         attempt: 1,
@@ -151,6 +160,7 @@ export function trafficFixture(): TrafficSlice {
       },
       {
         id: 'landing',
+        generation: 1,
         kind: 'landing',
         ownerMayBeLive: false,
         lockPath: '.git/index.lock',
@@ -160,6 +170,7 @@ export function trafficFixture(): TrafficSlice {
       },
       {
         id: 'orphan',
+        generation: 1,
         kind: 'orphan',
         ownerMayBeLive: false,
         pid: 123,
@@ -174,6 +185,7 @@ export function trafficFixture(): TrafficSlice {
     conflicts: [
       {
         id: 'conflict',
+        generation: 1,
         taskIds: ['ready-one', 'blocked'],
         paths: ['src/a.ts'],
         actions: ['serialize', 'letBothRun'],
@@ -183,6 +195,7 @@ export function trafficFixture(): TrafficSlice {
       {
         taskId: 'ready-one',
         position: 1,
+        generation: 1,
         reason: 'dependency → priority → conflicts → blast radius → finish',
         state: 'serial',
         checkLocation: 'macmini',
@@ -201,10 +214,10 @@ export function trafficFixture(): TrafficSlice {
     ],
     mergePaused: false,
     copies: [
-      { taskId: 'landed', state: 'merged', bytes: 10_000 },
-      { taskId: 'discarded', state: 'discarded', bytes: 5000 },
-      { taskId: 'unmerged', state: 'unmerged', bytes: 1000 },
-      { taskId: 'quarantined', state: 'quarantined', bytes: 1000 },
+      { taskId: 'landed', generation: 1, state: 'merged', bytes: 10_000 },
+      { taskId: 'discarded', generation: 1, state: 'discarded', bytes: 5000 },
+      { taskId: 'unmerged', generation: 1, state: 'unmerged', bytes: 1000 },
+      { taskId: 'quarantined', generation: 1, state: 'quarantined', bytes: 1000 },
     ],
     metrics: ['today', 'week', 'allTime'].map((period) => ({
       period,

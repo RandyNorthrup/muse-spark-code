@@ -20231,17 +20231,24 @@ before a repaired one loads (2026-09-30).
 
 ## 9. Security assumptions and accepted residual risk
 
-- **M96c-V/X2 integration (RVM96CV, 2026-10-05).** This lane has no production
+- **M96c-V/X2 runner authorization (RVM96CV, 2026-10-05).** This lane has no production
   Traffic/runner caller. Runner save authorization, including host-selected
   new IDs and destination replacement, remains unconfirmed. It is safe to
   retain this boundary code while it is unreachable in production; X2/O
   must prove user authorization and Restricted Mode behavior before wiring
-  it. X2/S/C/Q/O/K must also prove real dispatch, identity/generation binding
+  it.
+- **M96c-V/X2 production wiring (RVM96CV, 2026-10-05).** X2/S/C/Q/O/K must prove real dispatch, identity/generation binding
   through asynchronous admission, paid first-charge consent and daily budget,
   both Agent maps, lazy loading and the single-model golden/zero-traffic
   checks. These are named integration residuals, not fixture certification
-  or claims of product support. The three RVM96CV findings are being repaired
+  or claims of product support. The three RVM96CV findings are fixed, with
+  regressions and byte-exact restored drills recorded
   in `docs/certification/m96c-v.md`.
+- **M96c-V/X2 stylesheet record (RVM96CV, 2026-10-05).** The host API gate
+  still fails solely because its generated theme-source list omits the
+  existing Traffic stylesheet. API/theme totals are unchanged; X2 owns
+  regeneration and the full gate before integration. Lane V preserves that
+  ownership and records the failing check without weakening it.
 
 - Code intelligence (M67) shows what VS Code's language services say. A
   result located outside the workspace is left out and a hover defined only

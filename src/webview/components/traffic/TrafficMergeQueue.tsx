@@ -41,6 +41,7 @@ export function TrafficMergeQueue({ state, postMessage }: TrafficProps) {
                   type: 'traffic/merge',
                   ...trafficScope(state),
                   taskId: candidate.taskId,
+                  expected: candidate,
                   action,
                 })
               }}
@@ -61,6 +62,7 @@ export function TrafficMergeQueue({ state, postMessage }: TrafficProps) {
                     type: 'traffic/cleanup',
                     ...trafficScope(state),
                     taskId: copy.taskId,
+                    expected: copy,
                   })
                 }}
               >

@@ -62,5 +62,330 @@
     "beforeSha256": "4bf33e7c30eeff69bd73a2f70e142e0e004781e333540e42b11d83e7ec0ec40e",
     "restoredSha256": "4bf33e7c30eeff69bd73a2f70e142e0e004781e333540e42b11d83e7ec0ec40e",
     "rig": "macmini"
+  },
+  {
+    "drill": "Accept a stale displayed target",
+    "source": "src/host/modelsPanelTraffic.ts",
+    "command": "npx vitest run test/unit/trafficHandlers.test.ts --maxWorkers=3 --testTimeout=120000",
+    "mutation": {
+      "before": "if (!isCurrentTarget(message, state)) {",
+      "after": "if (false) {"
+    },
+    "exitCode": 1,
+    "failedTests": [
+      "test/unit/trafficHandlers.test.ts > Traffic action boundary > rejects an old takeBack generation before opening confirmation, including identical replacement rows",
+      "test/unit/trafficHandlers.test.ts > Traffic action boundary > rejects an old restartServer generation before opening confirmation, including identical replacement rows",
+      "test/unit/trafficHandlers.test.ts > Traffic action boundary > rejects an old releaseAnyway generation before opening confirmation, including identical replacement rows",
+      "test/unit/trafficHandlers.test.ts > Traffic action boundary > rejects an old handOffAnyway generation before opening confirmation, including identical replacement rows",
+      "test/unit/trafficHandlers.test.ts > Traffic action boundary > rejects an old resume generation before opening confirmation, including identical replacement rows",
+      "test/unit/trafficHandlers.test.ts > Traffic action boundary > rejects an old discard generation before opening confirmation, including identical replacement rows",
+      "test/unit/trafficHandlers.test.ts > Traffic action boundary > rejects an old recover generation before opening confirmation, including identical replacement rows",
+      "test/unit/trafficHandlers.test.ts > Traffic action boundary > rejects an old continueAnyway generation before opening confirmation, including identical replacement rows",
+      "test/unit/trafficHandlers.test.ts > Traffic action boundary > rejects an old restartTeamHost generation before opening confirmation, including identical replacement rows",
+      "test/unit/trafficHandlers.test.ts > Traffic action boundary > rejects an old cancel generation before opening confirmation, including identical replacement rows",
+      "test/unit/trafficHandlers.test.ts > Traffic action boundary > rejects an old reassign generation before opening confirmation, including identical replacement rows",
+      "test/unit/trafficHandlers.test.ts > Traffic action boundary > rejects an old takeOver generation before opening confirmation, including identical replacement rows",
+      "test/unit/trafficHandlers.test.ts > Traffic action boundary > rejects an old stop generation before opening confirmation, including identical replacement rows",
+      "test/unit/trafficHandlers.test.ts > Traffic action boundary > rejects an old retry generation before opening confirmation, including identical replacement rows",
+      "test/unit/trafficHandlers.test.ts > Traffic action boundary > rejects an old remove generation before opening confirmation, including identical replacement rows",
+      "test/unit/trafficHandlers.test.ts > Traffic action boundary > rejects an old landNow generation before opening confirmation, including identical replacement rows",
+      "test/unit/trafficHandlers.test.ts > Traffic action boundary > rejects an old landWithoutChecks generation before opening confirmation, including identical replacement rows",
+      "test/unit/trafficHandlers.test.ts > Traffic action boundary > rejects an old apply generation before opening confirmation, including identical replacement rows",
+      "test/unit/trafficHandlers.test.ts > Traffic action boundary > rejects an old undoBatch generation before opening confirmation, including identical replacement rows",
+      "test/unit/trafficHandlers.test.ts > Traffic action boundary > rejects an old serialize generation before opening confirmation, including identical replacement rows",
+      "test/unit/trafficHandlers.test.ts > Traffic action boundary > rejects an old letBothRun generation before opening confirmation, including identical replacement rows",
+      "test/unit/trafficHandlers.test.ts > Traffic action boundary > rejects an old cleanup generation before opening confirmation, including identical replacement rows"
+    ],
+    "beforeSha256": "5d18d22552c0dd39537d97fc317e75ecc5eec55bbd372e3905b2f1212de565e7",
+    "restoredSha256": "5d18d22552c0dd39537d97fc317e75ecc5eec55bbd372e3905b2f1212de565e7",
+    "rig": "macmini"
+  },
+  {
+    "drill": "Skip post-card identity binding",
+    "source": "src/host/modelsPanelTraffic.ts",
+    "command": "npx vitest run test/unit/trafficHandlers.test.ts --maxWorkers=3 --testTimeout=120000",
+    "mutation": {
+      "before": "!isCurrentTarget(message, current) || !isAvailable(message, current)",
+      "after": "!isAvailable(message, current)"
+    },
+    "exitCode": 1,
+    "failedTests": [
+      "test/unit/trafficHandlers.test.ts > Traffic action boundary > refuses reassignment to a replacement destination entry while confirmation is open",
+      "test/unit/trafficHandlers.test.ts > Traffic action boundary > requires target generations and refuses identical reacquisition during confirmation",
+      "test/unit/trafficHandlers.test.ts > Traffic action boundary > binds takeBack confirmation to the displayed target and refuses its replacement",
+      "test/unit/trafficHandlers.test.ts > Traffic action boundary > binds restartServer confirmation to the displayed target and refuses its replacement",
+      "test/unit/trafficHandlers.test.ts > Traffic action boundary > binds releaseAnyway confirmation to the displayed target and refuses its replacement",
+      "test/unit/trafficHandlers.test.ts > Traffic action boundary > binds handOffAnyway confirmation to the displayed target and refuses its replacement",
+      "test/unit/trafficHandlers.test.ts > Traffic action boundary > binds continueAnyway confirmation to the displayed target and refuses its replacement",
+      "test/unit/trafficHandlers.test.ts > Traffic action boundary > binds restartTeamHost confirmation to the displayed target and refuses its replacement",
+      "test/unit/trafficHandlers.test.ts > Traffic action boundary > binds cancel confirmation to the displayed target and refuses its replacement",
+      "test/unit/trafficHandlers.test.ts > Traffic action boundary > binds reassign confirmation to the displayed target and refuses its replacement",
+      "test/unit/trafficHandlers.test.ts > Traffic action boundary > binds resume confirmation to the displayed target and refuses its replacement",
+      "test/unit/trafficHandlers.test.ts > Traffic action boundary > binds discard confirmation to the displayed target and refuses its replacement",
+      "test/unit/trafficHandlers.test.ts > Traffic action boundary > binds recover confirmation to the displayed target and refuses its replacement",
+      "test/unit/trafficHandlers.test.ts > Traffic action boundary > binds takeOver confirmation to the displayed target and refuses its replacement",
+      "test/unit/trafficHandlers.test.ts > Traffic action boundary > binds stop confirmation to the displayed target and refuses its replacement",
+      "test/unit/trafficHandlers.test.ts > Traffic action boundary > binds retry confirmation to the displayed target and refuses its replacement",
+      "test/unit/trafficHandlers.test.ts > Traffic action boundary > binds remove confirmation to the displayed target and refuses its replacement",
+      "test/unit/trafficHandlers.test.ts > Traffic action boundary > binds landNow confirmation to the displayed target and refuses its replacement",
+      "test/unit/trafficHandlers.test.ts > Traffic action boundary > binds landWithoutChecks confirmation to the displayed target and refuses its replacement",
+      "test/unit/trafficHandlers.test.ts > Traffic action boundary > binds apply confirmation to the displayed target and refuses its replacement",
+      "test/unit/trafficHandlers.test.ts > Traffic action boundary > binds undoBatch confirmation to the displayed target and refuses its replacement",
+      "test/unit/trafficHandlers.test.ts > Traffic action boundary > binds serialize confirmation to the displayed target and refuses its replacement",
+      "test/unit/trafficHandlers.test.ts > Traffic action boundary > binds letBothRun confirmation to the displayed target and refuses its replacement",
+      "test/unit/trafficHandlers.test.ts > Traffic action boundary > binds cleanup confirmation to the displayed target and refuses its replacement"
+    ],
+    "beforeSha256": "5d18d22552c0dd39537d97fc317e75ecc5eec55bbd372e3905b2f1212de565e7",
+    "restoredSha256": "5d18d22552c0dd39537d97fc317e75ecc5eec55bbd372e3905b2f1212de565e7",
+    "rig": "macmini"
+  },
+  {
+    "drill": "Ignore reassignment destination replacement",
+    "source": "src/host/modelsPanelTraffic.ts",
+    "command": "npx vitest run test/unit/trafficHandlers.test.ts --maxWorkers=3 --testTimeout=120000",
+    "mutation": {
+      "before": "? state.entries.find((row) => row.id === message.entryId)",
+      "after": "? message.expected.destination"
+    },
+    "exitCode": 1,
+    "failedTests": [
+      "test/unit/trafficHandlers.test.ts > Traffic action boundary > refuses reassignment to a replacement destination entry while confirmation is open"
+    ],
+    "beforeSha256": "5d18d22552c0dd39537d97fc317e75ecc5eec55bbd372e3905b2f1212de565e7",
+    "restoredSha256": "5d18d22552c0dd39537d97fc317e75ecc5eec55bbd372e3905b2f1212de565e7",
+    "rig": "macmini"
+  },
+  {
+    "drill": "Skip cancel and reassign confirmation",
+    "source": "src/host/modelsPanelTraffic.ts",
+    "command": "npx vitest run test/unit/trafficHandlers.test.ts --maxWorkers=3 --testTimeout=120000",
+    "mutation": {
+      "before": "'restartTeamHost', 'cancel', 'reassign'",
+      "after": "'restartTeamHost'"
+    },
+    "exitCode": 1,
+    "failedTests": [
+      "test/unit/trafficHandlers.test.ts > Traffic action boundary > refuses reassignment to a replacement destination entry while confirmation is open",
+      "test/unit/trafficHandlers.test.ts > Traffic action boundary > binds cancel confirmation to the displayed target and refuses its replacement",
+      "test/unit/trafficHandlers.test.ts > Traffic action boundary > binds reassign confirmation to the displayed target and refuses its replacement"
+    ],
+    "beforeSha256": "5d18d22552c0dd39537d97fc317e75ecc5eec55bbd372e3905b2f1212de565e7",
+    "restoredSha256": "5d18d22552c0dd39537d97fc317e75ecc5eec55bbd372e3905b2f1212de565e7",
+    "rig": "macmini"
+  },
+  {
+    "drill": "Skip resource restart and take-back confirmation",
+    "source": "src/host/modelsPanelTraffic.ts",
+    "command": "npx vitest run test/unit/trafficHandlers.test.ts --maxWorkers=3 --testTimeout=120000",
+    "mutation": {
+      "before": "if (['traffic/resource', 'traffic/conflict', 'traffic/cleanup'].includes(message.type))\n    return true",
+      "after": "if (['traffic/conflict', 'traffic/cleanup'].includes(message.type)) return true\n  if (message.type === 'traffic/resource') return message.action === 'releaseAnyway'"
+    },
+    "exitCode": 1,
+    "failedTests": [
+      "test/unit/trafficHandlers.test.ts > Traffic action boundary > binds takeBack confirmation to the displayed target and refuses its replacement",
+      "test/unit/trafficHandlers.test.ts > Traffic action boundary > binds restartServer confirmation to the displayed target and refuses its replacement"
+    ],
+    "beforeSha256": "5d18d22552c0dd39537d97fc317e75ecc5eec55bbd372e3905b2f1212de565e7",
+    "restoredSha256": "5d18d22552c0dd39537d97fc317e75ecc5eec55bbd372e3905b2f1212de565e7",
+    "rig": "macmini"
+  },
+  {
+    "drill": "Skip resume and recover confirmation",
+    "source": "src/host/modelsPanelTraffic.ts",
+    "command": "npx vitest run test/unit/trafficHandlers.test.ts --maxWorkers=3 --testTimeout=120000",
+    "mutation": {
+      "before": "['stop', 'takeOver', 'discard', 'resume', 'recover']",
+      "after": "['stop', 'takeOver', 'discard']"
+    },
+    "exitCode": 1,
+    "failedTests": [
+      "test/unit/trafficHandlers.test.ts > Traffic action boundary > binds resume confirmation to the displayed target and refuses its replacement",
+      "test/unit/trafficHandlers.test.ts > Traffic action boundary > binds recover confirmation to the displayed target and refuses its replacement"
+    ],
+    "beforeSha256": "5d18d22552c0dd39537d97fc317e75ecc5eec55bbd372e3905b2f1212de565e7",
+    "restoredSha256": "5d18d22552c0dd39537d97fc317e75ecc5eec55bbd372e3905b2f1212de565e7",
+    "rig": "macmini"
+  },
+  {
+    "drill": "Skip other merge mutation confirmation",
+    "source": "src/host/modelsPanelTraffic.ts",
+    "command": "npx vitest run test/unit/trafficHandlers.test.ts --maxWorkers=3 --testTimeout=120000",
+    "mutation": {
+      "before": "message.type === 'traffic/merge' && message.action !== 'openTerminal'",
+      "after": "message.type === 'traffic/merge' && ['landNow', 'landWithoutChecks', 'apply'].includes(message.action)"
+    },
+    "exitCode": 1,
+    "failedTests": [
+      "test/unit/trafficHandlers.test.ts > Traffic action boundary > binds retry confirmation to the displayed target and refuses its replacement",
+      "test/unit/trafficHandlers.test.ts > Traffic action boundary > binds remove confirmation to the displayed target and refuses its replacement",
+      "test/unit/trafficHandlers.test.ts > Traffic action boundary > binds undoBatch confirmation to the displayed target and refuses its replacement"
+    ],
+    "beforeSha256": "5d18d22552c0dd39537d97fc317e75ecc5eec55bbd372e3905b2f1212de565e7",
+    "restoredSha256": "5d18d22552c0dd39537d97fc317e75ecc5eec55bbd372e3905b2f1212de565e7",
+    "rig": "macmini"
+  },
+  {
+    "drill": "Skip conflict confirmation",
+    "source": "src/host/modelsPanelTraffic.ts",
+    "command": "npx vitest run test/unit/trafficHandlers.test.ts --maxWorkers=3 --testTimeout=120000",
+    "mutation": {
+      "before": "['traffic/resource', 'traffic/conflict', 'traffic/cleanup']",
+      "after": "['traffic/resource', 'traffic/cleanup']"
+    },
+    "exitCode": 1,
+    "failedTests": [
+      "test/unit/trafficHandlers.test.ts > Traffic action boundary > binds serialize confirmation to the displayed target and refuses its replacement",
+      "test/unit/trafficHandlers.test.ts > Traffic action boundary > binds letBothRun confirmation to the displayed target and refuses its replacement"
+    ],
+    "beforeSha256": "5d18d22552c0dd39537d97fc317e75ecc5eec55bbd372e3905b2f1212de565e7",
+    "restoredSha256": "5d18d22552c0dd39537d97fc317e75ecc5eec55bbd372e3905b2f1212de565e7",
+    "rig": "macmini"
+  },
+  {
+    "drill": "Skip cleanup confirmation",
+    "source": "src/host/modelsPanelTraffic.ts",
+    "command": "npx vitest run test/unit/trafficHandlers.test.ts --maxWorkers=3 --testTimeout=120000",
+    "mutation": {
+      "before": "['traffic/resource', 'traffic/conflict', 'traffic/cleanup']",
+      "after": "['traffic/resource', 'traffic/conflict']"
+    },
+    "exitCode": 1,
+    "failedTests": [
+      "test/unit/trafficHandlers.test.ts > Traffic action boundary > binds cleanup confirmation to the displayed target and refuses its replacement"
+    ],
+    "beforeSha256": "5d18d22552c0dd39537d97fc317e75ecc5eec55bbd372e3905b2f1212de565e7",
+    "restoredSha256": "5d18d22552c0dd39537d97fc317e75ecc5eec55bbd372e3905b2f1212de565e7",
+    "rig": "macmini"
+  },
+  {
+    "drill": "Make resource identity optional",
+    "source": "src/shared/modelsPanel.ts",
+    "command": "npx vitest run test/unit/trafficHandlers.test.ts --maxWorkers=3 --testTimeout=120000",
+    "mutation": {
+      "before": "expected: trafficSliceSchema.shape.resources.def.element,",
+      "after": "expected: z.optional(trafficSliceSchema.shape.resources.def.element),"
+    },
+    "exitCode": 1,
+    "failedTests": [
+      "test/unit/trafficHandlers.test.ts > Traffic action boundary > binds takeBack confirmation to the displayed target and refuses its replacement",
+      "test/unit/trafficHandlers.test.ts > Traffic action boundary > binds restartServer confirmation to the displayed target and refuses its replacement",
+      "test/unit/trafficHandlers.test.ts > Traffic action boundary > binds releaseAnyway confirmation to the displayed target and refuses its replacement"
+    ],
+    "beforeSha256": "896fb2dcb4962e7e0e26bdfd77b6f2c81832e2f3811957d5f5bdb5d1a4d4994e",
+    "restoredSha256": "896fb2dcb4962e7e0e26bdfd77b6f2c81832e2f3811957d5f5bdb5d1a4d4994e",
+    "rig": "macmini"
+  },
+  {
+    "drill": "Make resource generation optional",
+    "source": "src/shared/modelsPanel.ts",
+    "command": "npx vitest run test/unit/trafficHandlers.test.ts --maxWorkers=3 --testTimeout=120000",
+    "mutation": {
+      "before": "  resources: list(\n    z.strictObject({\n      id,\n      generation: count,\n      holder: text,\n      waiters: list(id),\n      actions: list(resourceAction),\n    }),\n  ),\n",
+      "after": "  resources: list(\n    z.strictObject({\n      id,\n      generation: z.optional(count),\n      holder: text,\n      waiters: list(id),\n      actions: list(resourceAction),\n    }),\n  ),\n"
+    },
+    "exitCode": 1,
+    "failedTests": [
+      "test/unit/trafficHandlers.test.ts > Traffic action boundary > requires target generations and refuses identical reacquisition during confirmation"
+    ],
+    "beforeSha256": "896fb2dcb4962e7e0e26bdfd77b6f2c81832e2f3811957d5f5bdb5d1a4d4994e",
+    "restoredSha256": "896fb2dcb4962e7e0e26bdfd77b6f2c81832e2f3811957d5f5bdb5d1a4d4994e",
+    "rig": "macmini"
+  },
+  {
+    "drill": "Send a different resource projection",
+    "source": "src/webview/components/traffic/TrafficLeases.tsx",
+    "command": "npx vitest run test/unit/trafficView.test.tsx --maxWorkers=3 --testTimeout=120000",
+    "mutation": {
+      "before": "expected: resource,",
+      "after": "expected: { ...resource, generation: resource.generation + 1 },"
+    },
+    "exitCode": 1,
+    "failedTests": [
+      "test/unit/trafficView.test.tsx > Traffic accessibility and controls > shows lanes, leases, conflicts, serial merge reasons, flaky checks and safe disk cleanup"
+    ],
+    "beforeSha256": "6b63662c3d1080f31a164d2f715c28b31aba0e7f763fa67d049e1dc4d129e394",
+    "restoredSha256": "6b63662c3d1080f31a164d2f715c28b31aba0e7f763fa67d049e1dc4d129e394",
+    "rig": "macmini"
+  },
+  {
+    "drill": "Send a different recovery projection",
+    "source": "src/webview/components/traffic/TrafficRecovery.tsx",
+    "command": "npx vitest run test/unit/trafficView.test.tsx --maxWorkers=3 --testTimeout=120000",
+    "mutation": {
+      "before": "expected: row,",
+      "after": "expected: { ...row, generation: row.generation + 1 },"
+    },
+    "exitCode": 1,
+    "failedTests": [
+      "test/unit/trafficView.test.tsx > Traffic accessibility and controls > keeps recovery read-only for possibly live owners and offers no lock removal or locked recovery"
+    ],
+    "beforeSha256": "1403478c8607e61caa26ffb5514967ea715144659280e0db5a91a0eec70efe79",
+    "restoredSha256": "1403478c8607e61caa26ffb5514967ea715144659280e0db5a91a0eec70efe79",
+    "rig": "macmini"
+  },
+  {
+    "drill": "Send a different landing projection",
+    "source": "src/webview/components/traffic/TrafficMergeQueue.tsx",
+    "command": "npx vitest run test/unit/trafficView.test.tsx --maxWorkers=3 --testTimeout=120000",
+    "mutation": {
+      "before": "expected: candidate,",
+      "after": "expected: { ...candidate, generation: candidate.generation + 1 },"
+    },
+    "exitCode": 1,
+    "failedTests": [
+      "test/unit/trafficView.test.tsx > Traffic accessibility and controls > shows lanes, leases, conflicts, serial merge reasons, flaky checks and safe disk cleanup"
+    ],
+    "beforeSha256": "bb5d6561ae72e36ecdea0fdfee2031ae50f8635df83b7fc9add93b24df4ca808",
+    "restoredSha256": "bb5d6561ae72e36ecdea0fdfee2031ae50f8635df83b7fc9add93b24df4ca808",
+    "rig": "macmini"
+  },
+  {
+    "drill": "Send a different cleanup projection",
+    "source": "src/webview/components/traffic/TrafficMergeQueue.tsx",
+    "command": "npx vitest run test/unit/trafficView.test.tsx --maxWorkers=3 --testTimeout=120000",
+    "mutation": {
+      "before": "expected: copy,",
+      "after": "expected: { ...copy, generation: copy.generation + 1 },"
+    },
+    "exitCode": 1,
+    "failedTests": [
+      "test/unit/trafficView.test.tsx > Traffic accessibility and controls > shows lanes, leases, conflicts, serial merge reasons, flaky checks and safe disk cleanup"
+    ],
+    "beforeSha256": "bb5d6561ae72e36ecdea0fdfee2031ae50f8635df83b7fc9add93b24df4ca808",
+    "restoredSha256": "bb5d6561ae72e36ecdea0fdfee2031ae50f8635df83b7fc9add93b24df4ca808",
+    "rig": "macmini"
+  },
+  {
+    "drill": "Send a different conflict projection",
+    "source": "src/webview/components/traffic/TrafficConflicts.tsx",
+    "command": "npx vitest run test/unit/trafficView.test.tsx --maxWorkers=3 --testTimeout=120000",
+    "mutation": {
+      "before": "expected: conflict,",
+      "after": "expected: { ...conflict, generation: conflict.generation + 1 },"
+    },
+    "exitCode": 1,
+    "failedTests": [
+      "test/unit/trafficView.test.tsx > Traffic accessibility and controls > shows lanes, leases, conflicts, serial merge reasons, flaky checks and safe disk cleanup"
+    ],
+    "beforeSha256": "bfdde03978c2d855b33f2aaf2f32d40d135cc540b4bfefb4e4e054a2af409250",
+    "restoredSha256": "bfdde03978c2d855b33f2aaf2f32d40d135cc540b4bfefb4e4e054a2af409250",
+    "rig": "macmini"
+  },
+  {
+    "drill": "Send a different board projection",
+    "source": "src/webview/components/traffic/TrafficBoard.tsx",
+    "command": "npx vitest run test/unit/trafficView.test.tsx --maxWorkers=3 --testTimeout=120000",
+    "mutation": {
+      "before": "                availability,",
+      "after": "                availability: { ...availability, generation: availability.generation + 1 },"
+    },
+    "exitCode": 1,
+    "failedTests": [
+      "test/unit/trafficView.test.tsx > Traffic accessibility and controls > ranks ready tasks by scheduler order, explains scores and sends current attempts with every board action"
+    ],
+    "beforeSha256": "eb6b7ae81115f60e40d89f8e1bc5727392f366446057eb1b2cd22dbfbc54c144",
+    "restoredSha256": "eb6b7ae81115f60e40d89f8e1bc5727392f366446057eb1b2cd22dbfbc54c144",
+    "rig": "macmini"
   }
 ]

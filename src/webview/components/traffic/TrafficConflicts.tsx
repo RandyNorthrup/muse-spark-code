@@ -22,6 +22,7 @@ export function TrafficConflicts({ state, postMessage }: TrafficProps) {
                   type: 'traffic/conflict',
                   ...trafficScope(state),
                   conflictId: conflict.id,
+                  expected: conflict,
                   action,
                 })
               }}

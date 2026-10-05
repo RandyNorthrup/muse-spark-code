@@ -7,6 +7,7 @@ import {
   runnersSchema,
   teamAttemptRefSchema,
   teamBoardSchema,
+  teamBoardTaskSchema,
   teamPrioritySchema,
   teamTrafficMetricsSchema,
   teamWriteSetLeaseSchema,
@@ -64,11 +65,12 @@ export const trafficSliceSchema = z.strictObject({
       score: z.number().check(z.nonnegative()),
     }),
   ),
-  entries: list(z.strictObject({ id, roleId: id, label: text })),
+  entries: list(z.strictObject({ id, generation: count, roleId: id, label: text })),
   taskActions: list(
     z.strictObject({
       taskId: id,
       attempt: count,
+      generation: count,
       actions: list(taskAction),
       reason: z.optional(text),
     }),
@@ -93,7 +95,13 @@ export const trafficSliceSchema = z.strictObject({
   hostBusy: z.boolean(),
   writeLeases: list(teamWriteSetLeaseSchema),
   resources: list(
-    z.strictObject({ id, holder: text, waiters: list(id), actions: list(resourceAction) }),
+    z.strictObject({
+      id,
+      generation: count,
+      holder: text,
+      waiters: list(id),
+      actions: list(resourceAction),
+    }),
   ),
   windows: list(
     z.strictObject({
@@ -114,6 +122,7 @@ export const trafficSliceSchema = z.strictObject({
     z.strictObject({
       id,
       kind: z.enum(['interrupted', 'landing', 'orphan']),
+      generation: count,
       taskId: z.optional(id),
       attempt: z.optional(count),
       ownerMayBeLive: z.boolean(),
@@ -128,11 +137,20 @@ export const trafficSliceSchema = z.strictObject({
       actions: list(recoveryAction),
     }),
   ),
-  conflicts: list(z.strictObject({ id, taskIds: list(id), paths, actions: list(conflictAction) })),
+  conflicts: list(
+    z.strictObject({
+      id,
+      generation: count,
+      taskIds: list(id),
+      paths,
+      actions: list(conflictAction),
+    }),
+  ),
   mergeQueue: list(
     z.strictObject({
       taskId: id,
       position: count.check(z.gte(1)),
+      generation: count,
       reason: text,
       state: z.enum(['waiting', 'checking', 'serial', 'returned', 'admitted']),
       checkLocation: z.optional(text),
@@ -146,6 +164,7 @@ export const trafficSliceSchema = z.strictObject({
     z.strictObject({
       taskId: id,
       bytes: count,
+      generation: count,
       state: z.enum(['merged', 'discarded', 'unmerged', 'quarantined']),
     }),
   ),
@@ -184,6 +203,11 @@ export const trafficMessageSchema = z.discriminatedUnion('type', [
     ...windowScope,
     taskId: id,
     attempt: count,
+    expected: z.strictObject({
+      task: teamBoardTaskSchema,
+      availability: trafficSliceSchema.shape.taskActions.def.element,
+      destination: z.optional(trafficSliceSchema.shape.entries.def.element),
+    }),
     action: taskAction,
     priority: z.optional(teamPrioritySchema),
     entryId: z.optional(id),
@@ -203,12 +227,14 @@ export const trafficMessageSchema = z.discriminatedUnion('type', [
     type: z.literal('traffic/resource'),
     ...windowScope,
     resourceId: id,
+    expected: trafficSliceSchema.shape.resources.def.element,
     action: resourceAction,
   }),
   z.strictObject({
     type: z.literal('traffic/recovery'),
     ...windowScope,
     recoveryId: id,
+    expected: trafficSliceSchema.shape.recovery.def.element,
     action: recoveryAction,
     includeEdits: z.optional(z.boolean()),
   }),
@@ -216,6 +242,7 @@ export const trafficMessageSchema = z.discriminatedUnion('type', [
     type: z.literal('traffic/conflict'),
     ...windowScope,
     conflictId: id,
+    expected: trafficSliceSchema.shape.conflicts.def.element,
     action: conflictAction,
   }),
   z.strictObject({
@@ -223,8 +250,14 @@ export const trafficMessageSchema = z.discriminatedUnion('type', [
     ...windowScope,
     taskId: id,
     action: mergeAction,
+    expected: trafficSliceSchema.shape.mergeQueue.def.element,
   }),
-  z.strictObject({ type: z.literal('traffic/cleanup'), ...windowScope, taskId: id }),
+  z.strictObject({
+    type: z.literal('traffic/cleanup'),
+    ...windowScope,
+    taskId: id,
+    expected: trafficSliceSchema.shape.copies.def.element,
+  }),
 ])
 export type TrafficMessage = z.infer<typeof trafficMessageSchema>
 export const runnersMessageSchema = z.discriminatedUnion('type', [

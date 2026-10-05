@@ -2002,6 +2002,7 @@
   "agentImportEditAction": "Dosyayı düzenle ve aç",
   "agentImportPreviewLegacyKey": "Dosya eski `mcp_servers` anahtarını kullanıyor. Bunları eklerken adını `mcpServers` olarak değiştirin: ikisi birden olduğunda Muse Code hiçbirini yüklemez.",
   "teamTrafficDetails": {
+    "changedSinceOpened": "Bu çalışma açtığınızdan beri değişti. Mevcut durumu kontrol edip yeniden deneyin.",
     "freeSlots": "Boş yuvalar",
     "processWorkers": "Çalışan süreçler",
     "heavyCommands": "Ağır komutlar",

@@ -1934,6 +1934,7 @@
   "agentImportEditAction": "編輯並開啟檔案",
   "agentImportPreviewLegacyKey": "此檔案使用舊版 `mcp_servers` 索引鍵。新增這些項目時請將其重新命名為 `mcpServers`：兩者同時存在時 Muse Code 都不會載入。",
   "teamTrafficDetails": {
+    "changedSinceOpened": "此工作自開啟後已發生變更。請檢查目前狀態並重試。",
     "freeSlots": "空閒槽位",
     "processWorkers": "工作行程",
     "heavyCommands": "高負載命令",

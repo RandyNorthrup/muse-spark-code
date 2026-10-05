@@ -41,7 +41,7 @@ describe('Traffic accessibility and controls', () => {
     expect(screen.queryByRole('status')).not.toBeInTheDocument()
   })
   it('ranks ready tasks by scheduler order, explains scores and sends current attempts with every board action', async () => {
-    const { postMessage } = await view()
+    const { postMessage, state } = await view()
     const panel = screen.getByRole('tabpanel')
     const tasks = within(panel).getAllByRole('listitem')
     expect(tasks[0]).toHaveAccessibleName('engineering, ready-two, Ready')
@@ -57,6 +57,7 @@ describe('Traffic accessibility and controls', () => {
       windowInstanceId: 'window',
       taskId: 'ready-two',
       attempt: 0,
+      expected: { task: state.board.tasks[1], availability: state.taskActions[1] },
       action: 'runNext',
     })
     const first = tasks[1] ?? panel
@@ -70,7 +71,15 @@ describe('Traffic accessibility and controls', () => {
       target: { value: 'other-entry' },
     })
     expect(postMessage).toHaveBeenLastCalledWith(
-      expect.objectContaining({ action: 'reassign', entryId: 'other-entry' }),
+      expect.objectContaining({
+        action: 'reassign',
+        entryId: 'other-entry',
+        expected: {
+          task: state.board.tasks[0],
+          availability: state.taskActions[0],
+          destination: state.entries[1],
+        },
+      }),
     )
     expect(screen.queryByRole('option', { name: 'docs model' })).not.toBeInTheDocument()
     expect(
@@ -222,7 +231,7 @@ describe('Traffic accessibility and controls', () => {
     )
   })
   it('keeps recovery read-only for possibly live owners and offers no lock removal or locked recovery', async () => {
-    const { postMessage } = await view()
+    const { postMessage, state } = await view()
     select(UI_TEXT.teamTraffic.recovery)
     const panel = screen.getByRole('tabpanel')
     expect(
@@ -238,27 +247,43 @@ describe('Traffic accessibility and controls', () => {
     fireEvent.click(screen.getByLabelText(UI_TEXT.teamTraffic.includeEdits))
     fireEvent.click(within(panel).getByRole('button', { name: UI_TEXT.teamTraffic.newTask }))
     expect(postMessage).toHaveBeenLastCalledWith(
-      expect.objectContaining({ action: 'newTask', includeEdits: true }),
+      expect.objectContaining({
+        action: 'newTask',
+        includeEdits: true,
+        expected: state.recovery[0],
+      }),
     )
     fireEvent.click(within(panel).getByRole('button', { name: UI_TEXT.teamTraffic.stop }))
     expect(postMessage).toHaveBeenLastCalledWith(
-      expect.objectContaining({ recoveryId: 'orphan', action: 'stop' }),
+      expect.objectContaining({
+        recoveryId: 'orphan',
+        action: 'stop',
+        expected: state.recovery[2],
+      }),
     )
   })
   it('shows lanes, leases, conflicts, serial merge reasons, flaky checks and safe disk cleanup', async () => {
-    const { postMessage } = await view()
+    const { postMessage, state } = await view()
     select(UI_TEXT.teamTraffic.lanes)
     expect(screen.getAllByRole('meter')).toHaveLength(2)
     select(UI_TEXT.teamTraffic.leases)
     expect(screen.getByText(UI_TEXT.teamTraffic.exclusiveWriter)).toBeVisible()
     fireEvent.click(screen.getByRole('button', { name: UI_TEXT.teamTraffic.takeBack }))
     expect(postMessage).toHaveBeenLastCalledWith(
-      expect.objectContaining({ type: 'traffic/resource', action: 'takeBack' }),
+      expect.objectContaining({
+        type: 'traffic/resource',
+        action: 'takeBack',
+        expected: state.resources[0],
+      }),
     )
     select(UI_TEXT.teamTraffic.conflicts)
     fireEvent.click(screen.getByRole('button', { name: UI_TEXT.teamTraffic.serialize }))
     expect(postMessage).toHaveBeenLastCalledWith(
-      expect.objectContaining({ type: 'traffic/conflict', action: 'serialize' }),
+      expect.objectContaining({
+        type: 'traffic/conflict',
+        action: 'serialize',
+        expected: state.conflicts[0],
+      }),
     )
     select(UI_TEXT.teamTraffic.mergeQueue)
     expect(screen.getByText(UI_TEXT.teamTrafficDetails.serial)).toBeVisible()
@@ -266,9 +291,20 @@ describe('Traffic accessibility and controls', () => {
     expect(screen.getByText(/Queue position 1: dependency/)).toBeVisible()
     fireEvent.click(screen.getByRole('button', { name: UI_TEXT.teamTraffic.landWithoutChecks }))
     expect(postMessage).toHaveBeenLastCalledWith(
-      expect.objectContaining({ type: 'traffic/merge', action: 'landWithoutChecks' }),
+      expect.objectContaining({
+        type: 'traffic/merge',
+        action: 'landWithoutChecks',
+        expected: state.mergeQueue[0],
+      }),
     )
     expect(screen.getAllByRole('button', { name: UI_TEXT.teamTraffic.cleanup })).toHaveLength(2)
+    fireEvent.click(
+      screen.getAllByRole('button', { name: UI_TEXT.teamTraffic.cleanup })[0] ??
+        screen.getByRole('tabpanel'),
+    )
+    expect(postMessage).toHaveBeenLastCalledWith(
+      expect.objectContaining({ type: 'traffic/cleanup', expected: state.copies[0] }),
+    )
   })
   it('reads the installed table at render time and shows reported and estimated metrics separately', async () => {
     setUiText({ ...EN, teamTraffic: { ...EN.teamTraffic, title: 'Verkehr' } }, 'de')

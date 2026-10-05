@@ -47,6 +47,7 @@ export function TrafficLeases({ state, postMessage }: TrafficProps) {
                   type: 'traffic/resource',
                   ...trafficScope(state),
                   resourceId: resource.id,
+                  expected: resource,
                   action,
                 })
               }}

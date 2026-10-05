@@ -23,12 +23,24 @@ export function TrafficBoard({ state, postMessage }: TrafficProps) {
             (row) => row.taskId === task.id && row.attempt === task.currentAttempt,
           )
           const attempt = task.attempts.at(-1)
-          const send = (action: NonNullable<typeof actions>['actions'][number], extra = {}) => {
+          const send = (
+            availability: NonNullable<typeof actions>,
+            action: NonNullable<typeof actions>['actions'][number],
+            extra = {},
+          ) => {
             postMessage({
               type: 'traffic/task',
               ...trafficScope(state),
               taskId: task.id,
               attempt: task.currentAttempt,
+              expected: {
+                task,
+                availability,
+                destination:
+                  'entryId' in extra
+                    ? state.entries.find((entry) => entry.id === extra.entryId)
+                    : undefined,
+              },
               action,
               ...extra,
             })
@@ -75,7 +87,7 @@ export function TrafficBoard({ state, postMessage }: TrafficProps) {
                         : UI_TEXT.teamTraffic[action]
                     }
                     onAction={(action) => {
-                      send(action)
+                      send(actions, action)
                     }}
                   />
                   {actions.actions.includes('priority') && (
@@ -86,7 +98,8 @@ export function TrafficBoard({ state, postMessage }: TrafficProps) {
                         value={task.priority}
                         onChange={(event) => {
                           const priority = teamPrioritySchema.safeParse(event.target.value)
-                          if (priority.success) send('priority', { priority: priority.data })
+                          if (priority.success)
+                            send(actions, 'priority', { priority: priority.data })
                         }}
                       >
                         {teamPrioritySchema.options.map((priority) => (
@@ -104,7 +117,8 @@ export function TrafficBoard({ state, postMessage }: TrafficProps) {
                         id={`${id}-${task.id}-entry`}
                         value=""
                         onChange={(event) => {
-                          if (event.target.value) send('reassign', { entryId: event.target.value })
+                          if (event.target.value)
+                            send(actions, 'reassign', { entryId: event.target.value })
                         }}
                       >
                         <option value="" disabled>
