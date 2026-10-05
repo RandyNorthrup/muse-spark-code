@@ -1732,23 +1732,32 @@ export const AGENT_IMPORT_PATHS = {
     settingsFile: 'settings.json',
   },
   /**
-   * Copilot and VS Code: `.github/hooks/*.json` in the repository,
-   * `~/.copilot/hooks/*.json` and the inline `hooks` block of
-   * `~/.copilot/settings.json` for the user.
+   * Copilot and VS Code (the Copilot hooks reference, "Hooks locations"):
+   * `.github/hooks/*.json` and the inline `hooks` block of
+   * `.github/copilot/settings.json` and `settings.local.json` in the
+   * repository; `~/.copilot/hooks/*.json` and the inline block of
+   * `~/.copilot/settings.json` for the user, `COPILOT_HOME` replacing
+   * `~/.copilot` when it is set.
    */
   copilot: {
+    homeVariable: 'COPILOT_HOME',
     userDir: '.copilot',
     userHooksDir: 'hooks',
     userSettingsFile: 'settings.json',
     projectDir: '.github',
     projectHooksDir: 'hooks',
+    projectSettingsDir: 'copilot',
+    projectSettingsFiles: ['settings.json', 'settings.local.json'],
   },
   /**
-   * Windsurf: `.windsurf/hooks.json` in the repository,
+   * Windsurf (Devin Desktop's Cascade hooks, "Workspace-Level"):
+   * `.devin/hooks.json` in the repository, the legacy `.windsurf/hooks.json`
+   * only when that is absent or defines no hooks;
    * `~/.codeium/windsurf/hooks.json` for the user.
    */
   windsurf: {
-    dir: '.windsurf',
+    dir: '.devin',
+    legacyDir: '.windsurf',
     hooksFile: 'hooks.json',
     userDir: '.codeium',
     userHooksSegments: ['windsurf', 'hooks.json'],
@@ -1843,6 +1852,8 @@ export const AGENT_IMPORT_CODEX_EVENTS: readonly string[] = [
  * Code's own files or are refused. `WorktreeCreate` and `ConfigChange` can
  * block where they come from but only observe here, so they stay refused;
  * `FileChanged` without a matcher watches nothing, so it stays refused too.
+ * The seven M91 adopts with their operations (PLAN.md D70) are no longer
+ * refused.
  */
 export const AGENT_IMPORT_CLAUDE_SPARK_EVENTS: readonly string[] = [
   'InstructionsLoaded',
@@ -1856,15 +1867,61 @@ export const AGENT_IMPORT_CLAUDE_SPARK_EVENTS: readonly string[] = [
   'ConfigChange',
   'WorktreeCreate',
   'WorktreeRemove',
+  'Setup',
+  'DirectoryAdded',
+  'CwdChanged',
+  'Elicitation',
+  'ElicitationResult',
+  'TeammateIdle',
+  'MessageDisplay',
 ]
-/** The format tag a converted foreign hook carries for lane P's adapters. */
+/**
+ * Extension events whose `spark-hooks.json` matcher selects paths (any
+ * glob or name list), and those whose matcher selects names (a name list
+ * only); every other extension event takes no matcher, and `Setup` takes
+ * `init` or `maintenance`. Lane E's parser holds the same grammar, so an
+ * import never writes a matcher that file would refuse at load.
+ */
+export const AGENT_IMPORT_SPARK_PATH_MATCHED: readonly string[] = [
+  'InstructionsLoaded',
+  'FileChanged',
+  'ConfigChange',
+  'WorktreeCreate',
+  'WorktreeRemove',
+  'DirectoryAdded',
+]
+export const AGENT_IMPORT_SPARK_NAME_MATCHED: readonly string[] = [
+  'UserPromptExpansion',
+  'PermissionDenied',
+  'TaskCreated',
+  'TaskCompleted',
+  'Elicitation',
+  'TeammateIdle',
+]
+export const AGENT_IMPORT_SETUP_TRIGGERS: readonly string[] = ['init', 'maintenance']
+/**
+ * The format a converted foreign hook names, as lane P's adapters name them
+ * (`HOOK_FORMATS`), plus Cline's for lane X.
+ */
 export const AGENT_IMPORT_FORMATS = {
-  gemini: 'Gemini',
-  cursor: 'Cursor',
-  copilot: 'Copilot',
-  windsurf: 'Windsurf',
-  kiro: 'Kiro',
-  cline: 'Cline',
+  gemini: 'gemini',
+  cursor: 'cursor',
+  copilot: 'copilot',
+  windsurf: 'windsurf',
+  kiro: 'kiro',
+  cline: 'cline',
+} as const
+/**
+ * A source timeout's documented default, written on the converted entry so
+ * the source's execution bound survives: Kiro `hooks[].timeout` (60 s),
+ * Copilot `timeoutSec` and VS Code Local `timeout` (30 s), Gemini `timeout`
+ * (60 000 ms).
+ */
+export const AGENT_IMPORT_DEFAULT_TIMEOUT_SECONDS = {
+  kiro: 60,
+  copilot: 30,
+  vscode: 30,
+  gemini: 60,
 } as const
 
 /** Gemini CLI's hook events (geminicli.com/docs/hooks) by our names. */
@@ -1879,13 +1936,29 @@ export const AGENT_IMPORT_GEMINI_EVENTS: Readonly<Record<string, string>> = {
   Notification: 'Notification',
   BeforeModel: 'PreLLMCall',
   AfterModel: 'PostLLMCall',
+  // Narrow only, at call admission (PLAN.md D70).
+  BeforeToolSelection: 'BeforeToolSelection',
 }
-/** Gemini CLI's tool names by ours; `mcp_<server>_<tool>` is renamed by rule. */
-export const AGENT_IMPORT_GEMINI_TOOLS: Readonly<Record<string, string>> = {
-  run_shell_command: 'Bash',
-  read_file: 'Read',
-  write_file: 'Write',
-  replace: 'Edit',
+/**
+ * Gemini CLI's built-in tool names (its tools reference) by the names our
+ * matchers take; an empty list is a tool this extension does not have.
+ */
+export const AGENT_IMPORT_GEMINI_TOOLS: Readonly<Record<string, readonly string[]>> = {
+  run_shell_command: ['Bash'],
+  read_file: ['Read'],
+  write_file: ['Write'],
+  replace: ['Edit'],
+  grep: ['Grep'],
+  search_file_content: ['Grep'],
+  grep_search: ['Grep'],
+  list_directory: ['list_files'],
+  ls: ['list_files'],
+  web_fetch: ['web_fetch'],
+  write_todos: ['todo_write'],
+  save_memory: ['add_memory'],
+  glob: [],
+  read_many_files: [],
+  google_web_search: [],
 }
 /** Cursor's hook events (cursor.com/docs/hooks) by our names. */
 export const AGENT_IMPORT_CURSOR_EVENTS: Readonly<Record<string, string>> = {
@@ -1905,32 +1978,114 @@ export const AGENT_IMPORT_CURSOR_EVENTS: Readonly<Record<string, string>> = {
   preCompact: 'PreCompact',
   stop: 'Stop',
   afterAgentResponse: 'PostLLMCall',
-}
-/** Cursor's tool names by ours, for matchers that name tools. */
-export const AGENT_IMPORT_CURSOR_TOOLS: Readonly<Record<string, string>> = {
-  Shell: 'Bash',
-  Read: 'Read',
-  Write: 'Write',
-  Edit: 'Edit',
+  // Adopted with their operations (PLAN.md D70).
+  afterAgentThought: 'AfterAgentThought',
+  workspaceOpen: 'DirectoryAdded',
 }
 /**
- * Copilot's hook events (docs.github.com hooks-configuration) by our names,
- * keyed lower-cased: camelCase and PascalCase spellings both occur.
+ * Cursor's tool types for `preToolUse` matchers by the names our matchers
+ * take; `MCP:<tool>` is translated by rule. `Write` is Cursor's name for
+ * every file edit.
  */
+export const AGENT_IMPORT_CURSOR_TOOLS: Readonly<Record<string, readonly string[]>> = {
+  Shell: ['Bash'],
+  Read: ['Read'],
+  Write: ['Write', 'Edit'],
+  Grep: ['Grep'],
+  Delete: [],
+  Task: [],
+}
+/**
+ * The fixed value Cursor tests a matcher against on these events (its
+ * "Available matchers by hook"): the hook runs when the matcher matches it.
+ */
+export const AGENT_IMPORT_CURSOR_MATCHER_SUBJECTS: Readonly<Record<string, string>> = {
+  beforeReadFile: 'Read',
+  afterFileEdit: 'Write',
+  beforeSubmitPrompt: 'UserPromptSubmit',
+  stop: 'Stop',
+  afterAgentResponse: 'AgentResponse',
+  afterAgentThought: 'AgentThought',
+}
+/** Copilot CLI's camelCase events (docs.github.com hooks-configuration) by our names. */
 export const AGENT_IMPORT_COPILOT_EVENTS: Readonly<Record<string, string>> = {
-  sessionstart: 'SessionStart',
-  sessionend: 'SessionEnd',
-  userpromptsubmitted: 'UserPromptSubmit',
-  pretooluse: 'PreToolUse',
-  permissionrequest: 'PermissionRequest',
-  posttooluse: 'PostToolUse',
-  posttoolusefailure: 'PostToolUseFailure',
-  precompact: 'PreCompact',
-  agentstop: 'Stop',
-  subagentstart: 'SubagentStart',
-  subagentstop: 'SubagentStop',
-  erroroccurred: 'StopFailure',
+  sessionStart: 'SessionStart',
+  sessionEnd: 'SessionEnd',
+  userPromptSubmitted: 'UserPromptSubmit',
+  preToolUse: 'PreToolUse',
+  permissionRequest: 'PermissionRequest',
+  postToolUse: 'PostToolUse',
+  postToolUseFailure: 'PostToolUseFailure',
+  preCompact: 'PreCompact',
+  agentStop: 'Stop',
+  subagentStart: 'SubagentStart',
+  subagentStop: 'SubagentStop',
+  errorOccurred: 'StopFailure',
   notification: 'Notification',
+}
+/**
+ * Copilot CLI's PascalCase aliases (its "VS Code compatible format", one
+ * heading per pair in the reference) by our names: snake_case input.
+ */
+export const AGENT_IMPORT_COPILOT_PASCAL_EVENTS: Readonly<Record<string, string>> = {
+  SessionStart: 'SessionStart',
+  SessionEnd: 'SessionEnd',
+  UserPromptSubmit: 'UserPromptSubmit',
+  PreToolUse: 'PreToolUse',
+  PermissionRequest: 'PermissionRequest',
+  PostToolUse: 'PostToolUse',
+  PostToolUseFailure: 'PostToolUseFailure',
+  PreCompact: 'PreCompact',
+  Stop: 'Stop',
+  SubagentStop: 'SubagentStop',
+  ErrorOccurred: 'StopFailure',
+}
+/** The VS Code Local harness's events (code.visualstudio.com hooks reference), by the same names. */
+export const AGENT_IMPORT_VSCODE_EVENTS: readonly string[] = [
+  'SessionStart',
+  'UserPromptSubmit',
+  'PreToolUse',
+  'PostToolUse',
+  'PreCompact',
+  'SubagentStart',
+  'SubagentStop',
+  'Stop',
+]
+/** Copilot CLI's runtime tool names (its "Tool names for hook matching") by ours. */
+export const AGENT_IMPORT_COPILOT_TOOLS: Readonly<Record<string, readonly string[]>> = {
+  bash: ['bash'],
+  powershell: ['powershell'],
+  view: ['Read'],
+  create: ['Write'],
+  edit: ['Edit'],
+  str_replace_editor: ['Edit'],
+  apply_patch: ['Edit'],
+  grep: ['Grep'],
+  rg: ['Grep'],
+  web_fetch: ['web_fetch'],
+  ask_user: ['ask_user'],
+  update_todo: ['todo_write'],
+  glob: [],
+  web_search: [],
+  task: [],
+}
+/**
+ * The Claude tool names a Copilot PascalCase `PreToolUse` or
+ * `PermissionRequest` matcher may also use (its Claude-format matchers).
+ */
+export const AGENT_IMPORT_COPILOT_CLAUDE_TOOLS: Readonly<Record<string, readonly string[]>> = {
+  Bash: ['Bash'],
+  Read: ['Read'],
+  Write: ['Write'],
+  Edit: ['Edit'],
+  Grep: ['Grep'],
+  WebFetch: ['web_fetch'],
+  AskUserQuestion: ['ask_user'],
+  TodoWrite: ['todo_write'],
+  Glob: [],
+  WebSearch: [],
+  Agent: [],
+  Task: [],
 }
 /**
  * Windsurf's hook events (docs.devin.ai/desktop/cascade/hooks) by our event
@@ -1961,6 +2116,8 @@ export const AGENT_IMPORT_KIRO_EVENTS: Readonly<Record<string, string>> = {
   PreToolUse: 'PreToolUse',
   PostToolUse: 'PostToolUse',
   Stop: 'Stop',
+  // Run only when the user starts it (PLAN.md D70).
+  Manual: 'Manual',
 }
 /** Kiro's spec-task triggers by our todo-item events. */
 export const AGENT_IMPORT_KIRO_TASK_EVENTS: Readonly<Record<string, string>> = {
@@ -1975,16 +2132,26 @@ export const AGENT_IMPORT_KIRO_FILE_TRIGGERS: readonly string[] = [
 ]
 /** Kiro's file-trigger matcher on our file tools; its path regex stays with the entry. */
 export const AGENT_IMPORT_KIRO_FILE_MATCHER = 'Edit|Write'
-/** Kiro's tool names by ours, for matchers that name tools. */
-export const AGENT_IMPORT_KIRO_TOOLS: Readonly<Record<string, string>> = {
-  fs_read: 'Read',
-  fs_write: 'Write|Edit',
-  execute_bash: 'Bash',
+/**
+ * Kiro's tool names, aliases and built-in categories (its "Tool name
+ * aliases") by the names our matchers take; `@` forms are translated by rule.
+ */
+export const AGENT_IMPORT_KIRO_TOOLS: Readonly<Record<string, readonly string[]>> = {
+  fs_read: ['Read'],
+  read: ['Read'],
+  fs_write: ['Write', 'Edit'],
+  write: ['Write', 'Edit'],
+  execute_bash: ['Bash'],
+  shell: ['Bash'],
+  web: ['web_fetch'],
+  use_aws: [],
+  aws: [],
+  spec: [],
 }
 /**
  * Cline v1 per-event scripts (cline/cline 901d1b5c97) by our events. A task
  * is a session here, not a todo item, so its start and end map to the
- * session's own events.
+ * session's own events; the record keeps which script it was.
  */
 export const AGENT_IMPORT_CLINE_EVENTS: Readonly<Record<string, string>> = {
   TaskStart: 'SessionStart',
@@ -1996,6 +2163,8 @@ export const AGENT_IMPORT_CLINE_EVENTS: Readonly<Record<string, string>> = {
   UserPromptSubmit: 'UserPromptSubmit',
   PreCompact: 'PreCompact',
 }
+/** Cline v1 on Windows runs only `<HookName>.ps1`; elsewhere only an extensionless executable. */
+export const AGENT_IMPORT_CLINE_WINDOWS_EXTENSION = '.ps1'
 /** Muse Code's `mcpServers` entry never blocks startup when it fails (the migrate skill's rule). */
 export const MUSE_MCP_OPTIONAL_MODE = 'optional'
 /** How many broken links in a row M83's confinement follows before it refuses (Linux's MAXSYMLINKS). */
