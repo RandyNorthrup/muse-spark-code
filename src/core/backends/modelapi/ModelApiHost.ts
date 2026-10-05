@@ -147,6 +147,7 @@ import {
   type ModelSummary,
   type OutputPage,
   type OutputPageRequest,
+  type QueuedMessageRef,
   type SentImage,
   type SessionEventListener,
   type SessionHistoryOutcome,
@@ -159,6 +160,7 @@ import {
   SteerRefusedError,
   type TurnPart,
   type TurnSubmission,
+  type WithdrawOutcome,
 } from '../../agent/agentBackend'
 import type { ContextIo } from '../../context/contextFiles'
 import {
@@ -551,6 +553,18 @@ function turnMediaSlots(part: ImagePart | DocumentPart): number {
     : Math.min(part.pageCount ?? MODEL_API_PDF_PAGE_IMAGES, MODEL_API_PDF_PAGE_IMAGES)
 }
 
+// A message steered into the running turn (M87): the one kind taken back without an event.
+const STEERED_DISPOSITION = 'steered'
+
+function isImagePart(part: TurnPart): part is ImagePart {
+  return part.type === 'image'
+}
+
+/** A withdrawn message's picture, as the composer takes it back (M87, as M53's rewind). */
+function sentImageOf(part: ImagePart): SentImage {
+  return { mediaType: part.mediaType, base64Data: part.base64Data }
+}
+
 interface PendingNote {
   readonly text: string
   readonly backgroundTaskId?: string
@@ -876,6 +890,8 @@ interface OpenItem {
   isCompleted: boolean
   /** The sources the completed reply cited, as the transcript has them (M33). */
   citations: readonly Citation[]
+  /** When the item completed (M87, PLAN.md D66): a reply's recorded time, kept with it. */
+  recordedAt?: string
 }
 
 /** What a search row shows: the query (or page) as its arguments, the results as its output. */
@@ -2937,6 +2953,15 @@ export class ModelApiSession implements AgentSession {
     this.transcript.push({ turnId, item })
   }
 
+  /**
+   * Now as a recorded time (M87, PLAN.md D66): RFC 3339, as Muse Code's
+   * `recordedAt`. The host stamps each user message and reply with it, and
+   * the session file keeps it, so a reload shows the times again.
+   */
+  private recordedNow(): string {
+    return new Date(this.deps.now()).toISOString()
+  }
+
   /** Replaces a recorded item's snapshot (a reply whose sources arrived with the response). */
   private rerecordTranscript(item: ItemSnapshot): void {
     const index = this.transcript.findLastIndex((entry) => entry.item.itemId === item.itemId)
@@ -2968,6 +2993,7 @@ export class ModelApiSession implements AgentSession {
       turnId,
       text,
       ...(attachments.length > 0 && { attachments }),
+      recordedAt: this.recordedNow(),
     })
   }
 
@@ -3289,6 +3315,7 @@ export class ModelApiSession implements AgentSession {
           turnId,
           text: entry.text,
           ...(entry.citations.length > 0 && { citations: [...entry.citations] }),
+          ...(entry.recordedAt !== undefined && { recordedAt: entry.recordedAt }),
         }
       : {
           itemId: entry.ourId,
@@ -3300,6 +3327,10 @@ export class ModelApiSession implements AgentSession {
   }
 
   private completeItem(entry: OpenItem, turnId: string): void {
+    // A reply's time is the moment it completed, as Muse Code records one (M87).
+    if (entry.kind === 'agentMessage') {
+      entry.recordedAt ??= this.recordedNow()
+    }
     const item = this.completedSnapshot(entry, turnId)
     entry.isCompleted = true
     this.emit({ type: 'itemCompleted', item })
@@ -7814,7 +7845,12 @@ export class ModelApiSession implements AgentSession {
         turnId: turn.turnId,
         text,
         ...(attachments.length > 0 && { attachments }),
+        recordedAt: this.recordedNow(),
       })
+      // It is in the request now (M87): an Edit can no longer take it back.
+      if (!this.isSubagent) {
+        this.emit({ type: 'messageAdmitted', userMessageId: itemId })
+      }
     }
   }
 
@@ -7825,6 +7861,41 @@ export class ModelApiSession implements AgentSession {
       this.emit({ type: 'userMessageTurnChanged', userMessageId, turnId })
       return { turnId, parts, displayText: undefined, userMessageId, isGoalWake: false }
     })
+  }
+
+  /** The queued turn `ref` names, out of the queue and withdrawn; undefined once it started. */
+  private takeQueued(ref: QueuedMessageRef): readonly TurnPart[] | undefined {
+    const index = this.queuedTurns.findIndex(
+      (queued) =>
+        queued.turnId === ref.turnId &&
+        !queued.isGoalWake &&
+        queued.userMessageId === ref.userMessageId,
+    )
+    const [queued] = index === -1 ? [] : this.queuedTurns.splice(index, 1)
+    if (queued === undefined) {
+      return undefined
+    }
+    this.emit({ type: 'turnWithdrawn', turnId: queued.turnId, reason: UI_TEXT.turnUnqueued })
+    return queued.parts
+  }
+
+  /**
+   * The steer `ref` names, out of the running turn's steered input; undefined
+   * once a request took it. Never a `turnWithdrawn`: that names the running
+   * turn, which would end it for the panel (lane P's warning).
+   */
+  private takeSteer(ref: QueuedMessageRef): readonly TurnPart[] | undefined {
+    const turn = this.active
+    if (turn?.turnId !== ref.turnId) {
+      return undefined
+    }
+    const index = turn.steered.findIndex((steer) => steer.userMessageId === ref.userMessageId)
+    const [steer] = index === -1 ? [] : turn.steered.splice(index, 1)
+    if (steer === undefined) {
+      return undefined
+    }
+    turn.acceptedTextAttachmentBytes -= textAttachmentBytes(steer.parts)
+    return steer.parts
   }
 
   /** A busy goal command was not in the request already in flight. */
@@ -9184,6 +9255,27 @@ export class ModelApiSession implements AgentSession {
     this.active.acceptedTextAttachmentBytes += addedTextBytes
     this.active.steered.push({ parts, userMessageId })
     return Promise.resolve({ turnId: expectedTurnId, disposition: 'steered', userMessageId })
+  }
+
+  /**
+   * Take a message back before a request reads it (M87, PLAN.md D66). A
+   * queued turn leaves the queue and ends withdrawn, as Muse Code's
+   * `turn/unqueued` does; a steer leaves the running turn's steered input
+   * with no event, as the running turn goes on. Both happen synchronously,
+   * so a message the queue already started or `drainSteered` already put in
+   * a request is too late. The images come back from the message's parts.
+   */
+  public withdrawQueued(ref: QueuedMessageRef): Promise<WithdrawOutcome> {
+    const parts =
+      ref.disposition === STEERED_DISPOSITION ? this.takeSteer(ref) : this.takeQueued(ref)
+    return Promise.resolve(
+      parts === undefined
+        ? { status: 'tooLate' }
+        : {
+            status: 'withdrawn',
+            images: parts.filter(isImagePart).map((part) => sentImageOf(part)),
+          },
+    )
   }
 
   /**

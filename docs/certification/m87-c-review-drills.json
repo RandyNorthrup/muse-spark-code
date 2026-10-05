@@ -1,0 +1,88 @@
+{
+  "date": "2026-10-04",
+  "review": "RV87C findings 1, 2 and 5",
+  "machine": "Windows host (vitest 5.0.1, Node 24.20.0)",
+  "beforeFix": {
+    "method": "the regression tests run against 1d88ba24's four source files, then the fixed bytes written back (SHA-256 equal)",
+    "results": [
+      {
+        "status": "failed",
+        "title": "takes a Muse Code message back when turn/unqueued came but the ack failed (the review of lane C)"
+      },
+      {
+        "status": "failed",
+        "title": "offers no Edit for a steer a request read before its ack came (the review of lane C)"
+      },
+      {
+        "status": "failed",
+        "title": "reports the withdrawal done once turn/unqueued came, though the ack timed out or failed (the review of lane C)"
+      },
+      {
+        "status": "failed",
+        "title": "marks a steer sent when a request read it before its acceptance came (the review of lane C)"
+      },
+      {
+        "status": "failed",
+        "title": "gives two equal messages of one turn each its own recorded time (the review of lane C)"
+      }
+    ]
+  },
+  "drills": [
+    {
+      "id": "rv1-ack-loss",
+      "what": "a failed or timed-out ack reported as failure although turn/unqueued came",
+      "file": "src/core/backends/musecode/MuseCodeHost.ts",
+      "exit": 1,
+      "failing": [
+        "takes a Muse Code message back when turn/unqueued came but the ack failed (the review of lane C)",
+        "reports the withdrawal done once turn/unqueued came, though the ack timed out or failed (the review of lane C)"
+      ],
+      "restored": true,
+      "sha256": "6fdfa87fed4525c7f1044981ec38e6b61da8cb11b7497bcfdc0848bf841b4164"
+    },
+    {
+      "id": "rv2-reducer-early-admission",
+      "what": "an admission before the acceptance forgotten by the panel",
+      "file": "src/webview/state/uiState.ts",
+      "exit": 1,
+      "failing": [
+        "marks a steer sent when a request read it before its acceptance came (the review of lane C)"
+      ],
+      "restored": true,
+      "sha256": "5be87765850c2ce90c6eec8c03543dc2937ac34c39425cff94116c0bd4e85d68"
+    },
+    {
+      "id": "rv2-controller-early-admission",
+      "what": "an admission before the ack forgotten by the controller",
+      "file": "src/host/conversation/conversationController.ts",
+      "exit": 1,
+      "failing": [
+        "offers no Edit for a steer a request read before its ack came (the review of lane C)"
+      ],
+      "restored": true,
+      "sha256": "1d86ee66c5a0427657316a3c9a00c5cb3c520d64ad53fba7ff5f02d0f01a4cc8"
+    },
+    {
+      "id": "rv5-item-stamps-many",
+      "what": "one user item stamping a card another item already named",
+      "file": "src/webview/state/uiState.ts",
+      "exit": 1,
+      "failing": [
+        "gives two equal messages of one turn each its own recorded time (the review of lane C)"
+      ],
+      "restored": true,
+      "sha256": "5be87765850c2ce90c6eec8c03543dc2937ac34c39425cff94116c0bd4e85d68"
+    },
+    {
+      "id": "rv5-exact-id-ignored",
+      "what": "the turn-and-text fallback stamping a card that has its own exact id",
+      "file": "src/webview/state/uiState.ts",
+      "exit": 1,
+      "failing": [
+        "gives two equal messages of one turn each its own recorded time (the review of lane C)"
+      ],
+      "restored": true,
+      "sha256": "5be87765850c2ce90c6eec8c03543dc2937ac34c39425cff94116c0bd4e85d68"
+    }
+  ]
+}

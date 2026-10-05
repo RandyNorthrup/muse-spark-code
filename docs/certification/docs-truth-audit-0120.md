@@ -270,3 +270,122 @@ Full output remains in `temp/fixaudit-last-green.log`,
 `temp/fixaudit-last-gates.log` and `temp/fixaudit-stack-red.log`. The commit
 uses the existing lint-staged and gitleaks pre-commit hooks; its observed
 outcome is reported in the completion handoff.
+
+## PR #116 integration with M87 (MRG116, 2026-10-04)
+
+Merged `main-sync` at `244d5905` into the hardening branch at `856536a8`
+with `git merge --no-ff --no-commit main-sync`, on Kubuntu in
+`/home/randy/lanes/MRG116`. No push, rebase, live model call, paid call or
+credential read was performed. The lane's shared rules assign the full
+quality/coverage, accessibility and hosted platform gates to the lead.
+
+### Conflict resolutions and generated material
+
+- `README.md`: kept imported conversations' Copy-only code blocks and the
+  backend-specific approval choices, together with M87's reply menus,
+  highlighted-text pills, step summaries and diff tally. The commands table
+  keeps the truth audit's accessibility exceptions and two-turn live-test
+  description, and M87's screenshot script and shared-English bundle facts.
+- `conversationController.ts`: kept M87's in-flight revert admission checks
+  and both final confidentiality checks. The edit-review failure retains
+  M87's running-turn refusal and the hardening's original error argument,
+  so MSP failures still log by kind/code.
+- `conversationController.test.ts`: retained both sets of imports, M87's
+  regressions and the hardening coverage. Four older sandbox-warning
+  expectations on main are superseded by the existing hardening tests,
+  which warn even when the user chose off and claim the warning once per
+  window. Three new regressions cover M87's queued-edit refusal boundary,
+  failed queued edit and failed Tasks tab. No wire parser or schema was added.
+- The fifteen conflicting `media/readme/*.png` files were regenerated,
+  together with all four walkthrough images, from the merged dev build.
+  `npm run readme:shots` and `npm run harness:shots -- empty tools
+slash-palette signin` succeeded with a lane-local Playwright adapter via
+  `CHROME_PATH`: the Chrome CLI stalled before its first image both with
+  its normal arguments and with extensions/background networking disabled.
+  The adapter uses each script's declared scenario, viewport, language,
+  theme and six-second virtual time, and emulates focus. It is an ignored
+  local capture aid, not a shipped script or gate change. Modes and turn
+  screenshots were visually checked.
+- `CHANGELOG.md` merged cleanly: one Unreleased section, in Added, Changed,
+  Fixed, Security order; every byte from the first released heading onward
+  matches `main-sync`. The diagnostic bullet now names M87's two paths.
+- `SECURITY.md` and `docs/PRIVACY.md` had no incoming changes from
+  `main-sync`; both keep the complete hardening versions.
+- Regenerated `docs/ide-compatibility/host-api.md` with its own `--write`
+  script and the ignored pseudo-locale with `npm run harness:pseudo`.
+  `node scripts/exec-schema.mjs --check` confirms the exec schemas match.
+
+### Boundary fix and drills
+
+The first complete controller run failed exactly the new raw queued-edit
+refusal regression: **1 failed, 543 passed**. M87's `withdrawRefused`
+message now passes its `reason` through the same `redactSecrets` function
+in the existing host-to-webview `post` boundary. Task-tab notices already
+pass its notice branch. Ordinary message/tool content remains intact.
+
+With `redactSecrets` deliberately changed to identity, the complete
+controller suite failed **9 tests, 535 passed**, including all three new
+regressions. The source was restored byte-for-byte: before and after
+SHA-256 `6d53f7aa5ba926db99c1cbce8a502c6800f66967ebcb1595ae06d2dd63b6d692`;
+mutated `38b451da9e0a7e50e76dc11edb6eba6ced3b7db68e280cdc8c0b16ffd6fa2f4c`.
+The restored controller, redactor and App batch passed all **785** tests.
+Logs and the hash receipt are under the ignored `temp/mrg116/` directory.
+
+The continuation also drilled the final switch-based panel boundary directly:
+replaced only `redactSecrets(message.reason)` with `message.reason` in
+`withdrawRefused`. The complete controller file failed **1 test, 543 passed**,
+the queued-edit boundary regression. Restoration matched SHA-256
+`7921009c305816c4cd6157f3a682eeb28f1f09242718d6748f890deed5b42549`;
+mutated `0f41b2ca8c2d34372ede764841ef460d0bbb4ecb99fabbc7fd35102f273ec6a1`.
+The restored controller/redactor/App batch again passed all **785** tests.
+Receipt: `temp/mrg116/resumed-boundary-drill.json`.
+
+### Owning tests on Kubuntu
+
+Every run used complete files, `--maxWorkers=3 --testTimeout=120000`, with
+at most three files per invocation. The continuation reran the original
+17 owning files and three tasks/protocol files against the final source:
+all **1,936 tests in 20 files** passed, with no skipped tests:
+
+| Files                                               | Tests | Result |
+| --------------------------------------------------- | ----: | ------ |
+| conversationController, redact, App                 |   785 | pass   |
+| permissions, museCodeProtectedWrites, approvalRules |   164 | pass   |
+| permissionModes, permissionPolicy, sandbox          |    48 | pass   |
+| sandboxSetup, mapNotification, museConfigCommands   |    68 | pass   |
+| changelogVersion, manifest, MuseCodeHost            |   129 | pass   |
+| modelApiHost, readmeShots                           |   594 | pass   |
+| TasksApp, tasksPanel, protocol                      |   148 | pass   |
+
+### Final static/build receipts on Kubuntu
+
+| Check                                  | Observed result                                                               |
+| -------------------------------------- | ----------------------------------------------------------------------------- |
+| `npm run typecheck`                    | all five projects pass                                                        |
+| `npm run lint`                         | JS and CSS pass; existing Windows-only PowerShell gate skips                  |
+| Prettier on all 164 changed text files | all matched files pass; inherited CHANGELOG ignore stays intact               |
+| `npm run deadcode`                     | pass; existing `vendor/**` configuration hint only                            |
+| `npx jscpd`                            | 0 clones; unchanged threshold                                                 |
+| `npm run cycles`                       | 415 files, no circular dependencies                                           |
+| `npm run check:l10n`                   | 14 tables, 121 manifest strings, 434 source files; 0 problems                 |
+| `npm run check:host-api`               | 279 APIs, 19 VS Code files, 23 Node built-ins, 57 theme variables; 0 problems |
+| `node scripts/exec-schema.mjs --check` | committed schemas match                                                       |
+| `npm run build`                        | all size, split, host-global and notice checks pass                           |
+| Changelog release-byte comparison      | released sections byte-identical to `main-sync`                               |
+| `git diff --check`, unresolved index   | no whitespace errors, merge markers or unmerged entries                       |
+
+The interrupted lint run's switch-style finding was fixed without a
+suppression; three style findings in the ignored capture adapter were fixed
+too. The complete resumed lint run exits 0. Final bundle sizes include
+extension **566.3 KiB / 600**, Model API **428.6 KiB / 475**, checkpoint
+store **109.3 KiB / 225**, shared English **111.5 KiB / 125** and webview
+**889.6 KiB / 900**. No cap changed.
+
+Fresh logs and command/exit-code receipts are in `temp/mrg116/resumed-*.log`,
+`resumed-static.json` and `resumed-tests.json`. The pre-commit lint-staged
+and gitleaks checks remain enabled. Only lint-staged's automatic backup is
+disabled with its `--no-stash` option for the commit invocation, to comply
+with the brief's prohibition on stashing; the hook's original bytes are
+restored afterward. The observed commit/hook outcome is reported in the
+completion handoff. Full quality/coverage, accessibility and platform
+acceptance remain the lead's checks under the lane rules (PLAN.md §7).

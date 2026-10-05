@@ -140,6 +140,7 @@ import { createWorkspaceFileLister, findRootFiles } from './host/mention/workspa
 import { permissionSettingsOf, readSettings, toSettingsSnapshot } from './host/settings'
 import { ChatViewProvider, SIDEBAR_SURFACE_ID } from './host/views/ChatViewProvider'
 import { openChatPanel, restoreChatPanel } from './host/views/chatPanel'
+import { TasksPanel } from './host/views/tasksPanel'
 import { SurfaceRegistry } from './host/views/surfaceRegistry'
 import type { ChatSurface } from './host/views/chatSurface'
 import type { WebviewHostContext } from './host/views/webviewSetup'
@@ -541,6 +542,15 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   // controller so the session board marks them window-wide (M77).
   const boardPrompts = new PendingPrompts()
   const bestOfNCoordinator = new BestOfNCoordinator()
+  // A chat's tasks tab; it leaves once both the chat and the tab are closed.
+  const tasksTabs = new Map<string, TasksPanel>()
+  context.subscriptions.push({
+    dispose: () => {
+      for (const tab of tasksTabs.values()) {
+        tab.dispose()
+      }
+    },
+  })
   let isInputFocused = false
   // Ctrl+B belongs to the panel only while the conversation in view runs a
   // command it can move to the background (M46); VS Code's sidebar toggle
@@ -1925,8 +1935,23 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   const controllerFor = (surface: ChatSurface): ConversationController => {
     let controller = controllers.get(surface.id)
     if (controller === undefined) {
+      const tasksTab = new TasksPanel(
+        hostContext,
+        () => {
+          if (registry.has(surface)) {
+            surface.reveal()
+          }
+        },
+        (released) => {
+          if (tasksTabs.get(surface.id) === released) {
+            tasksTabs.delete(surface.id)
+          }
+        },
+      )
+      tasksTabs.set(surface.id, tasksTab)
       controller = new ConversationController({
         surface,
+        tasksTab,
         auth,
         ensureHost: ensureSelectedHost,
         workspaceRoot,
@@ -2239,6 +2264,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   registry.onRemoved((surface) => {
     controllers.get(surface.id)?.dispose()
     controllers.delete(surface.id)
+    tasksTabs.get(surface.id)?.release()
   })
   registry.onActiveChanged(refreshTaskContext)
   /** A command for the conversation in view, when there is one. */
@@ -2407,6 +2433,13 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     registerLoggedCommand(log, COMMAND_IDS.openInNewTab, () => {
       openChatPanel(hostContext, registry)
     }),
+    registerLoggedCommand(
+      log,
+      COMMAND_IDS.openTasks,
+      forActiveConversation(async (controller) => {
+        await controller.handle({ type: 'hostAction', action: 'openTasksTab' })
+      }),
+    ),
     registerLoggedCommand(log, COMMAND_IDS.newConversation, async () => {
       const surface = registry.active
       if (surface === undefined) {

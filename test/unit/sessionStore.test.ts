@@ -273,3 +273,44 @@ describe('recordOf', () => {
     expect(recordOf(headerOf(bare))).not.toHaveProperty('title')
   })
 })
+
+describe('parseStoredSession: message times (M87, PLAN.md D66)', () => {
+  it('keeps each user message and reply’s recorded time, and reads a file without them unchanged', () => {
+    const timed: StoredSession = {
+      ...full,
+      transcript: [
+        {
+          turnId: 't1',
+          item: {
+            itemId: 'i1',
+            kind: 'userMessage',
+            status: 'completed',
+            turnId: 't1',
+            text: 'fix the parser',
+            recordedAt: '2026-10-04T04:28:22.709Z',
+          },
+        },
+        {
+          turnId: 't1',
+          item: {
+            itemId: 'i3',
+            kind: 'agentMessage',
+            status: 'completed',
+            turnId: 't1',
+            text: 'done',
+            recordedAt: '2026-10-04T04:28:27.922Z',
+          },
+        },
+      ],
+    }
+    expect(parseStoredSession(structuredClone(timed))).toEqual({ ok: true, session: timed })
+    // A file stored before M87 has none, and reads as it was.
+    expect(parseStoredSession(structuredClone(full))).toEqual({ ok: true, session: full })
+    expect(
+      parseStoredSession({
+        ...timed,
+        transcript: [{ turnId: 't1', item: { ...timed.transcript[0]?.item, recordedAt: 5 } }],
+      }),
+    ).toMatchObject({ ok: false })
+  })
+})

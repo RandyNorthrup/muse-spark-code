@@ -89,6 +89,32 @@ Use this order for a candidate branch:
 - Update `CHANGELOG.md` (Keep a Changelog, under `Unreleased`), the README
   where behaviour changed, and `docs/PRIVACY.md` when anything new leaves
   the machine.
+- A visible change gets a harness scenario (`test/harness/index.html`, its
+  name listed in `scripts/lib/harnessServer.mjs` beside the related one),
+  rendered with `npm run harness:shots -- <names>` (`--theme=dark`, `light`,
+  `hc-dark` or `hc-light`; `--lang=pseudo` for clipping) and checked with
+  `node scripts/a11y.mjs <names>` in the four themes. The M87 scenarios:
+  `context-meter`, `context-meter-warning`, `context-meter-full`,
+  `palette-tips`, `slash-tips`, `stop-running`, `tool-io`,
+  `tool-io-expanded`, `status-heartbeat`, `status-heartbeat-narrow`,
+  `steps-summary`, `steps-summary-open`, `todo-collapsed`, `tasks-tab`,
+  `tasks-tab-ended`, `tasks-tab-plain`, `message-time`, `queued-menu`,
+  `queued-menu-edit`, `diff-tally`, `chat-menu`, `chat-menu-narrow`,
+  `chat-tool-menu` and `chat-tool-menu-narrow`. A scenario named `-narrow`
+  that needs a true 320 px viewport says so and is opened at that width by
+  both scripts. Scenarios drive the real App through the fake host's
+  messages; none mounts a component on its own.
+- Motion respects `prefers-reduced-motion`: `test/unit/reducedMotion.test.ts`
+  reads `src/webview/styles.css` and fails when any selector with an
+  `animation` or `transition` is not set to none in the closing
+  reduced-motion block. A new animation adds its selector there.
+- Refresh the README's screenshots with `npm run readme:shots`, which
+  renders each image in `scripts/readme-shots.json` from its harness
+  scenario at its declared theme, size and language. `readme:shots --list`
+  prints the mapping with any gap (a README image with no entry, or an
+  entry the README never shows); `--only <name,...>` retakes some images
+  and `--out <dir>` writes them elsewhere, so preview in `temp/` before
+  overwriting the committed `media/readme/`.
 - No new dependency without a reason in the pull request and a
   compatibility check; no suppressed lint rule or `any` without an inline
   reason and a row in PLAN.md §8.
