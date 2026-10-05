@@ -13,6 +13,7 @@ import {
   approvalSubjectSchema,
   answerSchema,
   citationSchema,
+  elicitationFieldSchema,
   outputRefSchema,
   patchSummarySchema,
   questionSchema,
@@ -57,6 +58,22 @@ const pendingQuestionSchema = z.object({
   isSubmitted: z.optional(z.boolean()),
 })
 export type PendingQuestion = z.infer<typeof pendingQuestionSchema>
+
+/**
+ * An MCP elicitation form waiting on the user (M91 lane M): the server's
+ * message and the schema to fill. Values live only in the card's draft
+ * while it is open: settling clears the form, so nothing typed survives in
+ * the saved transcript.
+ */
+const pendingElicitationSchema = z.object({
+  elicitationId: z.string(),
+  server: z.string(),
+  message: z.string(),
+  fields: z.readonly(z.array(elicitationFieldSchema)),
+  /** Answered, declined or cancelled from the form: locked until the host settles it. */
+  isSubmitted: z.optional(z.boolean()),
+})
+export type PendingElicitation = z.infer<typeof pendingElicitationSchema>
 
 export type OutputRef = z.infer<typeof outputRefSchema>
 export type PatchSummary = z.infer<typeof patchSummarySchema>
@@ -223,6 +240,7 @@ const toolEntrySchema = z.object({
     }),
   ),
   question: z.optional(pendingQuestionSchema),
+  elicitation: z.optional(pendingElicitationSchema),
   questionOutcome: z.optional(
     z.object({
       outcome: z.string(),

@@ -156,6 +156,8 @@ const LAZY_ONLY = [
   'verifyLoop.ts',
   'verifyTools.ts',
   'mcp/connection.ts',
+  // M91-M: MCP forms load with the backend; the browser reuses value validation.
+  'mcp/elicitation.ts',
   'mcp/functions.ts',
   'mcp/http.ts',
   'mcp/pool.ts',

@@ -586,6 +586,10 @@ export const EXTENSION_HOOK_EVENTS = [
 export const HOOK_FILE_CHANGED_DEBOUNCE_MS = 500
 // At most this many FileChanged runs a minute per session; the rest are dropped and counted in the log, so a watcher loop cannot spawn processes without bound.
 export const HOOK_FILE_CHANGED_MAX_PER_MINUTE = 30
+// How long an MCP elicitation form waits for its answer (M91 lane M): a
+// timeout or a stopped turn settles it as a cancel, never as an accept. It
+// runs inside the tool call's own deadline, which still bounds the call.
+export const MCP_ELICITATION_TIMEOUT_MS = 300_000
 
 // --- Paid features on the Model API backend (M33–M35, PLAN.md D30) ---
 

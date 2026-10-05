@@ -283,6 +283,35 @@ export const answerSchema = z.object({
 })
 export type QuestionAnswer = z.infer<typeof answerSchema>
 
+/** One field of an MCP elicitation form (M91 lane M): the schema, never values. */
+export const elicitationFieldSchema = z.object({
+  name: z.string(),
+  title: z.optional(z.string()),
+  description: z.optional(z.string()),
+  type: z.enum(['string', 'number', 'integer', 'boolean']),
+  required: z.boolean(),
+  enum: z.optional(z.array(z.string())),
+  enumNames: z.optional(z.array(z.string())),
+  format: z.optional(z.enum(['email', 'uri', 'date', 'date-time'])),
+  default: z.optional(z.union([z.string(), z.number(), z.boolean()])),
+  minLength: z.optional(z.number()),
+  maxLength: z.optional(z.number()),
+  minimum: z.optional(z.number()),
+  maximum: z.optional(z.number()),
+})
+export type ElicitationField = z.infer<typeof elicitationFieldSchema>
+
+/** How an elicitation form settles (M91 lane M): accept, decline or cancel. */
+export const elicitationReplySchema = z.union([
+  z.object({
+    kind: z.literal('accepted'),
+    values: z.record(z.string(), z.unknown()),
+  }),
+  z.object({ kind: z.literal('declined') }),
+  z.object({ kind: z.literal('cancelled') }),
+])
+export type ElicitationReply = z.infer<typeof elicitationReplySchema>
+
 export const todoItemSchema = z.object({
   text: z.string(),
   status: z.string(),
@@ -435,6 +464,26 @@ const agentEventSchema = z.discriminatedUnion('type', [
     answers: z.array(answerSchema),
     /** The explanation given instead of an answer (`clarified`, M46). */
     clarification: z.optional(z.string()),
+  }),
+  // An MCP server asked the user for structured input (`elicitation/create`,
+  // M91 lane M): the panel shows a form, the ACP agent its form path. The
+  // request carries the schema, never values; the settlement carries the
+  // action only, so values reach no transcript or export.
+  z.object({
+    type: z.literal('elicitationRequested'),
+    elicitationId: z.string(),
+    server: z.string(),
+    message: z.string(),
+    fields: z.array(elicitationFieldSchema),
+    /** The tool row the form belongs under; absent, it stands on its own. */
+    itemId: z.optional(z.string()),
+  }),
+  z.object({
+    type: z.literal('elicitationSettled'),
+    elicitationId: z.string(),
+    action: z.enum(['accept', 'decline', 'cancel']),
+    /** Why a hook declined or cancelled it. */
+    reason: z.optional(z.string()),
   }),
   // The full todo list, replaced wholesale.
   z.object({ type: z.literal('todoChanged'), items: z.array(todoItemSchema) }),

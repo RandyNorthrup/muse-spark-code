@@ -875,6 +875,28 @@ export function App({
     },
     [dispatch, postMessage],
   )
+  // All three lock the form until the host settles it (M91 lane M).
+  const onAcceptElicitation = useCallback(
+    (elicitationId: string, values: Record<string, unknown>) => {
+      dispatch({ type: 'elicitationSubmitted', elicitationId })
+      postMessage({ type: 'elicitationAnswer', elicitationId, action: 'accept', values })
+    },
+    [dispatch, postMessage],
+  )
+  const onDeclineElicitation = useCallback(
+    (elicitationId: string) => {
+      dispatch({ type: 'elicitationSubmitted', elicitationId })
+      postMessage({ type: 'elicitationAnswer', elicitationId, action: 'decline' })
+    },
+    [dispatch, postMessage],
+  )
+  const onCancelElicitation = useCallback(
+    (elicitationId: string) => {
+      dispatch({ type: 'elicitationSubmitted', elicitationId })
+      postMessage({ type: 'elicitationAnswer', elicitationId, action: 'cancel' })
+    },
+    [dispatch, postMessage],
+  )
   // A row's Move to background and Stop wait for the host's word (M46).
   const onMoveToBackground = useCallback(
     (itemId: string) => {
@@ -1751,6 +1773,9 @@ export function App({
           onAnswer={onAnswer}
           onCancelQuestion={onCancelQuestion}
           onClarifyQuestion={onClarifyQuestion}
+          onAcceptElicitation={onAcceptElicitation}
+          onDeclineElicitation={onDeclineElicitation}
+          onCancelElicitation={onCancelElicitation}
           onMoveToBackground={onMoveToBackground}
           onStopTask={onStopTask}
           canStopUserShell={state.auth.backend === 'modelApi'}

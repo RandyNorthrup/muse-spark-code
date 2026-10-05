@@ -53,6 +53,8 @@ export const SCENARIOS = [
   'approval-narrow',
   'approval-moved',
   'question',
+  'elicitation',
+  'elicitation-narrow',
   'todo',
   'todo-collapsed',
   'tasks-tab',
@@ -199,6 +201,8 @@ export function serveRepo(repoRoot) {
  */
 export const SIZED_SCENARIOS = {
   'share-narrow': { width: 320, ready: '[role="dialog"]' },
+  // M91 lane M: the MCP elicitation form at the panel's narrowest width.
+  'elicitation-narrow': { width: 320, ready: 'form' },
   'chat-menu-narrow': { width: 320, ready: '[role="menu"]' },
   'chat-tool-menu-narrow': { width: 320, ready: '[role="menu"]' },
   'column-narrow': { width: 320, ready: '[data-column-checked], .harness-report' },

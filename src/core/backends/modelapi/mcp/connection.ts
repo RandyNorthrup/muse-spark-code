@@ -2,21 +2,32 @@
 // (`initialize`, then `notifications/initialized`), the tool list page by
 // page, and tool calls, each request with a deadline and a Stop that tells
 // the server it was cancelled (`notifications/cancelled`). What the server
-// asks of the client is answered: `ping` with an empty result, anything else
-// as a method this client does not offer (it declares no capabilities). Its
-// log lines go to the extension's log, and a changed tool list is announced.
-// A transport that closes rejects every request still waiting. Pure over the
-// transport (stdio.ts, http.ts).
+// asks of the client is answered: `ping` with an empty result,
+// `elicitation/create` with the form's answer when the host offers one
+// (M91, form mode only), anything else as a method this client does not
+// offer. Its log lines go to the extension's log, and a changed tool list
+// is announced. A transport that closes rejects every request still waiting
+// and stops every waiting elicitation. Pure over the transport (stdio.ts,
+// http.ts).
 
 import {
   JSON_RPC_ERRORS,
   MCP_CLIENT_NAME,
   MCP_PROTOCOL_VERSION,
+  MCP_ELICITATION_TIMEOUT_MS,
   MCP_SUPPORTED_PROTOCOL_VERSIONS,
   MCP_TOOLS_LIST_MAX_PAGES,
   MILLISECONDS_PER_SECOND,
 } from '../../../../shared/constants'
 import { clipForLog, type CoreLogger } from '../../../logging'
+import {
+  checkElicitationOutcome,
+  type ElicitationOutcome,
+  type McpElicitationHandler,
+  parseElicitationParams,
+  validateElicitationSchema,
+  validateElicitationValues,
+} from './elicitation'
 import {
   type CallToolResult,
   callToolResultSchema,
@@ -62,6 +73,12 @@ export interface McpConnectionOptions {
   readonly name: string
   readonly clientVersion: string
   readonly log: CoreLogger
+  /**
+   * Answers a server's `elicitation/create` (M91, form mode only). When set,
+   * the handshake declares the `elicitation` capability; when absent, such a
+   * request is refused as an unoffered method, as before.
+   */
+  readonly elicitation?: McpElicitationHandler
 }
 
 export interface RequestOptions {
@@ -76,6 +93,7 @@ interface Waiting {
 
 const METHOD_INITIALIZE = 'initialize'
 const METHOD_PING = 'ping'
+const METHOD_ELICITATION = 'elicitation/create'
 const NOTIFICATION_INITIALIZED = 'notifications/initialized'
 const NOTIFICATION_CANCELLED = 'notifications/cancelled'
 const NOTIFICATION_TOOLS_CHANGED = 'notifications/tools/list_changed'
@@ -113,6 +131,10 @@ export class McpConnection {
   private nextId = 0
   private closedReason: string | undefined
   private hasTools = false
+  /** The tool calls still waiting: stopping one stops its elicitation too. */
+  private readonly liveSignals = new Set<AbortSignal>()
+  /** What stops a waiting elicitation when the connection closes. */
+  private readonly elicitationClosers = new Set<() => void>()
   /** The handshake's parameters, kept for a new session after an expired one. */
   private handshakeTimeoutMs = 0
 
@@ -137,6 +159,10 @@ export class McpConnection {
       waiting.reject(new McpError(`the connection closed: ${reason}`))
     }
     this.waiting.clear()
+    for (const closer of this.elicitationClosers) {
+      closer()
+    }
+    this.elicitationClosers.clear()
     for (const listener of this.closeListeners) {
       listener(reason)
     }
@@ -167,17 +193,134 @@ export class McpConnection {
       this.notice(method, message.params)
       return
     }
-    // A request of the server's own: `ping` is answered; the client offers
-    // nothing else (no sampling, roots or elicitation).
-    const answer: OutgoingMessage =
-      method === METHOD_PING
-        ? { jsonrpc: JSON_RPC_VERSION, id, result: {} }
-        : {
-            jsonrpc: JSON_RPC_VERSION,
-            id,
-            error: { code: JSON_RPC_ERRORS.methodNotFound, message: `Method not found: ${method}` },
-          }
-    void this.sendQuietly(answer)
+    // A request of the server's own: `ping` is answered, and
+    // `elicitation/create` goes to the form when one is offered; the client
+    // offers nothing else (no sampling or roots).
+    if (method === METHOD_PING) {
+      void this.sendQuietly({ jsonrpc: JSON_RPC_VERSION, id, result: {} })
+      return
+    }
+    if (method === METHOD_ELICITATION && this.options.elicitation !== undefined) {
+      void this.answerElicitation(id, this.options.elicitation, message.params)
+      return
+    }
+    void this.sendQuietly({
+      jsonrpc: JSON_RPC_VERSION,
+      id,
+      error: { code: JSON_RPC_ERRORS.methodNotFound, message: `Method not found: ${method}` },
+    })
+  }
+
+  /**
+   * A signal for one elicitation: it ends when the connection closes, or
+   * when a tool call still waiting stops (a Stop ends the form as a cancel).
+   */
+  private elicitationSignal(): {
+    readonly signal: AbortSignal
+    readonly cancel: () => void
+    readonly release: () => void
+  } {
+    const controller = new AbortController()
+    if (this.closedReason !== undefined) {
+      controller.abort()
+      return {
+        signal: controller.signal,
+        cancel: () => {
+          controller.abort()
+        },
+        release: () => {
+          controller.abort()
+        },
+      }
+    }
+    const stop = () => {
+      controller.abort()
+    }
+    this.elicitationClosers.add(stop)
+    const releases: (() => void)[] = [
+      () => {
+        this.elicitationClosers.delete(stop)
+      },
+    ]
+    for (const live of this.liveSignals) {
+      if (live.aborted) {
+        stop()
+        break
+      }
+      live.addEventListener('abort', stop, { once: true })
+      releases.push(() => {
+        live.removeEventListener('abort', stop)
+      })
+    }
+    return {
+      signal: controller.signal,
+      cancel: stop,
+      release: () => {
+        controller.abort()
+        for (const release of releases) {
+          release()
+        }
+      },
+    }
+  }
+
+  /** The form's answer back to the server; a refusal carries its reason. */
+  private async answerElicitation(
+    id: RequestId,
+    elicit: McpElicitationHandler,
+    params: unknown,
+  ): Promise<void> {
+    const { signal, cancel, release } = this.elicitationSignal()
+    const stopped = new Promise<ElicitationOutcome>((resolve) => {
+      const onStop = () => {
+        resolve({ action: 'cancel' })
+      }
+      signal.addEventListener('abort', onStop, { once: true })
+      if (signal.aborted) onStop()
+    })
+    const timer = setTimeout(cancel, MCP_ELICITATION_TIMEOUT_MS)
+    let refusal = 'the elicitation handler failed'
+    try {
+      // The params crossed the wire parsed (rule 7); the answer is checked
+      // into shape before it goes back the same way.
+      let parsed
+      try {
+        parsed = parseElicitationParams(params)
+      } catch (error: unknown) {
+        // The parser's fixed diagnostic never contains request values.
+        refusal = error instanceof McpError ? error.message : 'invalid elicitation parameters'
+        throw error
+      }
+      const schema = validateElicitationSchema(parsed.requestedSchema)
+      if (!schema.ok) {
+        this.options.log.warn(
+          `MCP server ${this.options.name} elicitation declined: ${schema.reason}`,
+        )
+        await this.sendQuietly({ jsonrpc: JSON_RPC_VERSION, id, result: { action: 'decline' } })
+        return
+      }
+      const outcome = checkElicitationOutcome(
+        await Promise.race([elicit({ params, signal }), stopped]),
+      )
+      if (outcome.action === 'accept') {
+        const checked = validateElicitationValues(schema.fields, outcome.content ?? {})
+        if (!checked.ok) {
+          refusal = 'the elicitation answer does not fit the requested schema'
+          throw new McpError(refusal)
+        }
+      }
+      await this.sendQuietly({ jsonrpc: JSON_RPC_VERSION, id, result: outcome })
+    } catch {
+      this.options.log.warn(`MCP server ${this.options.name} elicitation was refused: ${refusal}`)
+      await this.sendQuietly({
+        jsonrpc: JSON_RPC_VERSION,
+        id,
+        error: { code: JSON_RPC_ERRORS.invalidParams, message: refusal },
+      })
+    } finally {
+      clearTimeout(timer)
+      release()
+    }
   }
 
   private settle(message: IncomingMessage): void {
@@ -259,6 +402,7 @@ export class McpConnection {
       this.waiting.set(id, { resolve, reject })
     })
     const controller = new AbortController()
+    this.liveSignals.add(controller.signal)
     const aborted = new Promise<never>((_resolve, reject) => {
       controller.signal.addEventListener(
         'abort',
@@ -302,6 +446,8 @@ export class McpConnection {
       clearTimeout(timer)
       options.signal?.removeEventListener('abort', onStop)
       this.waiting.delete(id)
+      this.liveSignals.delete(controller.signal)
+      controller.abort(new RequestAbort(CANCELLED_BY_USER))
     }
   }
 
@@ -310,7 +456,10 @@ export class McpConnection {
       METHOD_INITIALIZE,
       {
         protocolVersion: MCP_PROTOCOL_VERSION,
-        capabilities: {},
+        // The form capability is declared for the whole session when the
+        // host answers elicitations, so a server's tool list stays stable
+        // within the session (M91 lane M).
+        capabilities: this.options.elicitation === undefined ? {} : { elicitation: {} },
         clientInfo: { name: MCP_CLIENT_NAME, version: this.options.clientVersion },
       },
       { timeoutMs },
