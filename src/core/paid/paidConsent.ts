@@ -241,27 +241,29 @@ export class PaidUseConsent {
     }
   }
 
+  private isEnabled(feature: PaidFeature): boolean {
+    return feature === 'judge'
+      ? (this.deps.isJudgeEnabled?.() ?? this.deps.isOn(feature))
+      : this.deps.isOn(feature)
+  }
+
   /** Asks in the popup now and keeps what the answer grants. */
   private async decide(request: PaidUseRequest): Promise<boolean> {
     const { feature } = request
-    const isEnabled = () =>
-      feature === 'judge'
-        ? (this.deps.isJudgeEnabled?.() ?? this.deps.isOn(feature))
-        : this.deps.isOn(feature)
     const canRemember = this.deps.canRemember()
     const answer = await this.deps.ask(request, canRemember)
     if (answer === 'deny') {
       this.deps.log.info(`Paid use of ${feature}: denied`)
       return false
     }
-    if (!isEnabled()) {
+    if (!this.isEnabled(feature)) {
       this.deps.log.info(`Paid use of ${feature}: turned off while the popup was open`)
       return false
     }
     if (
       feature === 'judge' &&
       this.deps.acceptJudgePrice !== undefined &&
-      (!(await this.deps.acceptJudgePrice()) || !isEnabled())
+      (!(await this.deps.acceptJudgePrice()) || !this.isEnabled(feature))
     )
       return false
     if (
@@ -308,11 +310,7 @@ export class PaidUseConsent {
    */
   public async allows(request: PaidUseRequest, requiresAsking = false): Promise<boolean> {
     const { feature } = request
-    const isEnabled = () =>
-      feature === 'judge'
-        ? (this.deps.isJudgeEnabled?.() ?? this.deps.isOn(feature))
-        : this.deps.isOn(feature)
-    if (!isEnabled()) {
+    if (!this.isEnabled(feature)) {
       return false
     }
     if (!requiresAsking && this.isRemembered(feature)) {
