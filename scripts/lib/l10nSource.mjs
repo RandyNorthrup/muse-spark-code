@@ -12,6 +12,7 @@ const ENTRY = [
   "export { L10N_TABLE_MAX_BYTES, L10N_COMPRESSION_QUALITY, L10N_TABLE_ARCHIVE_FILE } from '../constants'",
   "export { compactEnglishSource } from './compactEnglish'",
   "export { readArchivedUiTable } from './tableArchive'",
+  "export { encodeWhatsNewContent } from '../../core/whatsNew/whatsNewContent'",
   "export { EN } from './en'",
   "export { tableProblems } from './check'",
   "export { isPluralForms } from './forms'",

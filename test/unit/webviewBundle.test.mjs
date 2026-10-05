@@ -1,6 +1,7 @@
 import { execFileSync, spawnSync } from 'node:child_process'
 import { Buffer } from 'node:buffer'
 import {
+  cpSync,
   mkdirSync,
   mkdtempSync,
   readFileSync,
@@ -10,6 +11,7 @@ import {
   writeFileSync,
 } from 'node:fs'
 import path from 'node:path'
+import { listFiles } from '@vscode/vsce/out/package.js'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 const ENTRY = 'dist/webview/main.js'
@@ -31,6 +33,11 @@ beforeAll(() => {
   }
   writeFileSync(path.join(built.fixture, 'dist/whatsNew.json'), '{}')
   writeFileSync(path.join(built.fixture, 'dist/webview/whatsNew.js'), '')
+  // Exercise the real allowlist over all real emitted browser files in an
+  // owned tree, without traversing other tests’ concurrently growing temp trees.
+  cpSync('dist/webview', path.join(built.fixture, 'dist/webview'), { recursive: true })
+  cpSync('.vscodeignore', path.join(built.fixture, '.vscodeignore'))
+  cpSync('package.json', path.join(built.fixture, 'package.json'))
 })
 
 afterAll(() => {
@@ -108,13 +115,9 @@ describe('the production webview chunks (FIX78W)', () => {
     expect(initialOutputs().has(owners[0][0])).toBe(true)
   })
 
-  it('packages every emitted browser script, with no stale browser chunks', () => {
-    const listed = execFileSync(
-      process.execPath,
-      ['node_modules/@vscode/vsce/vsce', 'ls', '--no-dependencies'],
-      { encoding: 'utf8' },
-    )
-      .split(/\r?\n/u)
+  it('packages every emitted browser script, with no stale browser chunks', async () => {
+    const files = await listFiles({ cwd: built.fixture, dependencies: false })
+    const listed = files
       .filter((file) => file.startsWith('dist/webview/') && file.endsWith('.js'))
       .toSorted((a, b) => a.localeCompare(b, 'en'))
     expect(listed).toEqual(

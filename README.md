@@ -29,7 +29,7 @@ key to the CLI.
 > Unofficial. Not affiliated with or endorsed by Meta. "Muse Spark" and "Muse
 > Code" are Meta trademarks. You bring your own credentials.
 
-**Contents:** [What's new](#whats-new-in-0130) ·
+**Contents:** [What's new](#whats-new-in-0140) ·
 [Highlights](#highlights) · [Screenshots](#screenshots) ·
 [Get started](#get-started) · [Backends](#backends) ·
 [Permission modes](#permission-modes) ·
@@ -44,34 +44,23 @@ key to the CLI.
 [Troubleshooting](#troubleshooting) ·
 [Reporting a problem](#reporting-a-problem) · [Development](#development)
 
-## What's new in 0.13.0
+## What's new in 0.14.0
 
-- **Browser checks on local web changes** (see [Browser check](#browser-check)).
-  The model can open your dev server, click or type, and read console errors
-  and failed requests through a verified, isolated headless browser that you
-  download once with **Muse Spark: Download Browser Check Runtime**. On the
-  Model API it also receives the page's screenshot.
-- **What's New after an update** (see
-  [What's New after an update](#whats-new-after-an-update)). After the
-  extension updates, the release's highlights and full notes open in an
-  editor tab once you are idle; a fixes-only patch shows a quiet notification
-  instead. Turn it off with `museSpark.showWhatsNewOnUpdate`.
-- **Enhancements available by default** (see
-  [What's on out of the box](#whats-on-out-of-the-box) and
-  [Paid features](#paid-features)). Model API extras are on out of the box for
-  the setup you chose. A paid extra asks before its first charge, showing the
-  price and the shared daily budget (`museSpark.paidDailyBudgetUsd`, $5 a day
-  by default). A setting you have turned off stays off.
-- **Muse Gadgets guidance and secret checks** (see
-  [Muse Gadgets](#muse-gadgets)). The bundled SDK skill covers ESP32 build,
-  flash and bounded serial monitoring. Detected tokens are redacted, a prompt
-  that contains a secret pauses for your decision, and a shell approval that
-  would expose one offers only one-time consent.
-- **Safer diagnostics and steadier Windows helpers** (see
-  [Privacy and security](#privacy-and-security)). Diagnostic notices redact
-  known secret shapes, confidential workspaces recheck contributor dispatch,
-  protected file approvals stay protected, and the Windows job helpers
-  compile directly with the .NET compiler.
+- **Tab completions** (see [Tab completions](#tab-completions)). Alt+\ invokes
+  ghost text. First-use consent names the model price and the separate
+  $1.00/day default hard budget; your stored Model API key pays on either backend.
+- **Git and pull requests** (see [Git and pull requests](#git-and-pull-requests)).
+  Draft a commit or PR in the conversation, commit and push with confirmation,
+  and open a foreign PR in a held worktree until you confirm its trust card.
+- **Hooks and plugins** (see [Hooks](#hooks)). Import popular agent hook formats,
+  run Setup and Manual hooks on both backends, and use bounded Amp and OpenCode
+  plugins on the Model API backend. Hooks keep their permission and paid-use limits.
+- **Report a problem** (see [Reporting a problem](#reporting-a-problem)). Preview
+  the exact scrubbed report, remove items, then copy, save or open an issue.
+  The report is built locally and the extension sends nothing.
+- **Muse Judge phase 1** (see [Muse Judge](#muse-judge)). The conversation model
+  can add uncalibrated caution to an approval; it cannot grant permission.
+  Model API Judge asks for paid-use consent and shares the durable daily budget.
 
 Earlier releases are in the
 [changelog](https://github.com/RandyNorthrup/muse-spark-code/blob/main/CHANGELOG.md).
@@ -217,7 +206,7 @@ Muse Code's subscription and its existing explicit key-paid opt-ins are unchange
    [GitHub Release](https://github.com/RandyNorthrup/muse-spark-code/releases):
 
    ```bash
-   code --install-extension muse-spark-code-0.13.0.vsix
+   code --install-extension muse-spark-code-0.14.0.vsix
    ```
 
 2. Open the **Muse Spark** view from the activity bar (or press
@@ -401,7 +390,7 @@ Get it from the
 | Editor                                                   | How                                                                                                                                                                                                                                                |
 | -------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **VS Code**                                              | Search **Muse Spark Code** in the Extensions view, or run `code --install-extension RandyNorthrup.muse-spark-code`                                                                                                                                 |
-| **Cursor**                                               | Search **Muse Spark Code** in the Extensions view (Open VSX), or download the `.vsix` from the [latest release](https://github.com/RandyNorthrup/muse-spark-code/releases/latest) and run `cursor --install-extension muse-spark-code-0.13.0.vsix` |
+| **Cursor**                                               | Search **Muse Spark Code** in the Extensions view (Open VSX), or download the `.vsix` from the [latest release](https://github.com/RandyNorthrup/muse-spark-code/releases/latest) and run `cursor --install-extension muse-spark-code-0.14.0.vsix` |
 | **Windsurf (Devin Desktop), VSCodium, Kiro, Positron**   | Search **Muse Spark Code** in the Extensions view (Open VSX); in VSCodium also `codium --install-extension RandyNorthrup.muse-spark-code`. Any of them: **Extensions: Install from VSIX…** with the release's `.vsix`                              |
 | **JetBrains IDEs** (IntelliJ IDEA, PyCharm, WebStorm, …) | Install the ACP agent (below), then add it to AI Assistant (below). Not yet tested here                                                                                                                                                            |
 | **Zed**                                                  | Install the ACP agent (below), then add it to Zed's settings (below)                                                                                                                                                                               |
@@ -410,7 +399,7 @@ Get it from the
 **The ACP agent** needs Node.js 22 or later. Install it from the release:
 
 ```bash
-npm install -g https://github.com/RandyNorthrup/muse-spark-code/releases/download/v0.13.0/muse-spark-code-acp-0.13.0.tgz
+npm install -g https://github.com/RandyNorthrup/muse-spark-code/releases/download/v0.14.0/muse-spark-code-acp-0.14.0.tgz
 muse-spark-code-acp --version
 ```
 
@@ -1175,7 +1164,7 @@ hooks from `.muse/hooks.json`. `MCP servers…` and `Hooks…` show configuratio
     never as form answers in logs or saved transcripts. The server’s own
     tool output may repeat submitted values. ACP clients use their form UI;
     clients without forms receive a description and the request cancels.
-    Elicitation hook dispatch awaits M91 lane E's integration.
+    Elicitation and ElicitationResult hooks run through the host seam.
     Resources, prompts and sampling
     are not supported.
 - **Hooks…** lists the project's, yours and your administrator's hooks, and
@@ -1190,7 +1179,9 @@ hooks from `.muse/hooks.json`. `MCP servers…` and `Hooks…` show configuratio
   - Each row says which backend runs the file, and a `spark-hooks.json`
     row names the formats of the hooks imported into it.
 
-**Extension hooks (M91, in progress).** `.muse/spark-hooks.json` and the user
+### Hooks
+
+**Extension hooks (M91).** `.muse/spark-hooks.json` and the user
 `spark-hooks.json` beside Muse Code's `settings.json` hold extension events;
 Muse Code never reads these files. The same trust and `museSpark.modelApiHooks`
 opt-in apply. **Muse Spark: Run Setup Hooks** runs `Setup` with matcher `init`;
@@ -1204,9 +1195,9 @@ File changes require a matcher and an indexed workspace path; protected,
 ignored and escaped paths are excluded. Changes are debounced and capped.
 Settings notifications send an empty path and reason `settings`, because
 VS Code's settings event does not identify a file. Hook token additions appear
-separately from packing savings. Full 21-event support, including CwdChanged,
-elicitation, the MessageDisplay marker and automatic-compaction integration,
-still needs the owning lanes; see [lane E evidence](docs/certification/m91-e.md).
+separately from packing savings. The integrated runtime also routes CwdChanged,
+elicitation and MessageDisplay. Event and platform qualifications are recorded
+in [M91 certification](docs/certification/m91.md).
 
 On the **Model API backend**, `museSpark.modelApiHooks` is a machine-scoped
 setting, on by default and inert without a hooks file. A new session in a trusted workspace
@@ -1247,9 +1238,9 @@ price, unless remembered for this workspace, and appears separately in
 Account & usage. `agent` can use only read, search, list and read-only code
 intelligence. Hidden model turns fire no hooks. Typed answers can refuse,
 narrow or add context; they cannot approve another operation.
-The existing session budget covers every request. Shared daily-budget
-integration and Muse Code dispatch are pending the other M91 lanes; see
-`docs/certification/m91-h.md` for their exact integration requirements.
+The existing session budget covers every request. Model API handlers also
+reserve against the shared daily budget. Muse Code handler qualifications
+remain in [handler certification](docs/certification/m91-h.md).
 The fake-only guard drill script, `python3 docs/certification/m91-h-drills.py`,
 runs on the Kubuntu test rig and refuses Windows.
 

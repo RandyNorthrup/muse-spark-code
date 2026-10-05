@@ -356,3 +356,138 @@ actual byte map. An initial scratch attempt removed only a source inventory
 row, which leaves emitted code intact; another named a nonexistent source.
 Those attempts are not counted as gate-fire receipts. All originals were
 restored; the corrected emitted-code mutations give the recorded refusals.
+
+### Release artifact follow-ups
+
+The package-parity recorder test first fails for twelve missing exact bundle
+paths. Registering those newly merged and split files retains their package-only
+stack frames; no user path or glob is admitted. Recorder/report/deferred:
+100 tests pass. Unit typecheck also catches the missing `sharedWire` declaration
+in the tool module’s `.d.mts`; adding its actual Plugin export restores types.
+
+The generated 0.14.0 plus 0.13.0 full notes initially occupy 60,873 bytes,
+over the unchanged 40-KiB artifact cap. Small plain files remain compatible;
+larger generated trees use a zod-validated lossless Brotli envelope. The file
+stays under 40 KiB before ZIP compression, with a new 75-KiB decoded bound
+(measured size plus 15%, rounded to 25 KiB). Both complete release trees
+round-trip exactly; no release notes or older changelog bytes are dropped.
+The final encoded artifact is 21,667 bytes. Three new cases cover the actual
+release round-trip, malformed/oversized input and expansion refusal.
+Initial regressions fail; restored release/content/README trio: 20 pass.
+
+Both deliberate bound bypasses make the owning suite exit 1 and restore
+`src/core/whatsNew/whatsNewContent.ts` byte-identically at SHA-256
+`41d384f451d7714e5e2c92b6af21c7a6bd38e9732aa851e3294a17679b5a5c3a`.
+Knip exits 0; duplication reports zero clones. Actual universal VSIX:
+**2,246,885 / 2,252,800 bytes**; full artifact membership, binary checksum and
+executable-mode checks pass. Full quality continues below.
+
+The first full attempt linted ignored scratch probes/round-one snapshots.
+Those non-product files are retained as `.snapshot.txt`; no gate ignore,
+rule, threshold, test or source exclusion changes. The second attempt reaches
+unit typecheck and finds the missing declaration above. Both attempt logs
+remain in `temp/train14b/`; the next run is the full unchanged command.
+
+### Final gate integration regressions
+
+The third aggregate attempt detects stale host API counts after bounded
+What’s New decoding; regenerate and review only the buffer/zlib count rows.
+The fourth reaches all unit suites: 486 files and 10,805 tests pass, but
+seven files fail. ACP packaging fixtures lack the newly required real split
+modules; update both fixture layouts and preserve every package-refusal test.
+The fake launcher builds real adjacent modules; its first adaptation wrongly
+externalizes English entry points, and excluding entry-point resolutions fixes
+that fixture. ACP package guards: 36 pass; launcher/trust wiring: 13 pass.
+
+The lazy Report dialog now needs its actual asynchronous opening awaited:
+handoff assertions remain unchanged and pass. VSCE’s actual listFiles API
+replaces CLI startup for the same complete archive-membership assertion.
+The build-only English codec counts/replaces fragments without split-array
+allocation and reuses its TextEncoder; output remains lossless, all 16
+English/browser-package tests pass. No timeout, coverage threshold or guard
+is relaxed.
+
+The trust-wiring regression also catches M91’s new extension-hook callbacks
+using raw VS Code trust. Both load admission and the runner now use M71’s
+existing held-project predicate. The new exact assertions fail before the
+source repair, then the complete wiring suite passes.
+
+Judge activation’s legacy fixture evaluates too many newly added callback
+fields and omits D78’s default-setting callback. Narrowing its extracted field
+removes the undefined-variable error; adding backend availability alone leaves
+three subscription-default assertions failing. Per common.md’s two-fix stop
+rule, that path is paused pending explicit permission for one default-callback
+fixture correction. No production default or consent rule is changed.
+
+### Final source and artifact receipts
+
+The complete fifth full `VITEST_MAX_WORKERS=3 npm run quality` exits 1 at
+unit tests after every static gate passes. Its unfiltered V8 run reports:
+
+```text
+Test Files  2 failed | 491 passed | 7 skipped (500)
+Tests       4 failed | 10837 passed | 71 skipped (10912)
+Duration    317.12s
+ERROR: "test:unit" exited with 1.
+ERROR: "quality:gates" exited with 1.
+```
+
+Three failures are the paused Judge fixture above. The fourth is VSCE
+traversing other suites’ growing temporary trees for 11.4 seconds. The final
+fixture copies every real emitted browser file plus the actual manifest and
+`.vscodeignore` into its owned tree and runs VSCE there, preserving exact
+membership assertions and timeouts. Restored trust/English/browser trio:
+23 pass; changed-source ESLint exits zero. The full gate has **not** exited
+zero on the final tree and this train is **not ready for merge or release**.
+The one-line proposed Judge fixture patch is reviewable at
+`temp/train14b/judge-fixture-correction.patch.txt`; it is not applied without
+the requested override of common.md’s two-fix stop rule.
+
+Both deliberate extension-hook trust bypasses exit 1 in the complete wiring
+suite and restore `src/extension.ts` exactly at SHA-256
+`33b6152e6c84609d059856dfe0712d9ecb47d97a9a1e91b99909fc396c36271f`.
+
+Final production sizes, superseding intermediate diet measurements:
+
+| Artifact            | Before startup repair | Final bytes |
+| ------------------- | --------------------: | ----------: |
+| extension.js        |               644,937 |     447,145 |
+| modelApi.js         |               487,729 |     457,264 |
+| uiText.js           |                50,593 |      49,133 |
+| acp.js              |               884,025 |     836,424 |
+| Browser startup     |               953,851 |     914,592 |
+| Deferred browser JS |                50,263 |      50,846 |
+
+Conversation is 197,746 bytes, shared wire 41,396 and the lossless full-notes
+artifact 21,731. `npm run package` and `npm run package:acp` exit zero; all
+production size, split, host-global, notices, packaged-locale and schema
+checks pass. The shared-English cap is the original 125 KiB, activation is
+also below the brief’s 600,000-byte target, and every existing cap is retained.
+
+Actual CI-shaped universal VSIX: **2,246,965 / 2,252,800 bytes**, 5,835 bytes
+headroom; SHA-256
+`d2d91ab9ee81622c1ef09ab556d2ec3f3c129957928ca8ff18abab86d31c9120`.
+Both manifest versions are 0.14.0, all emitted browser scripts and new Node
+modules are present and byte-identical to the final build. The universal
+helper is executable, x86_64 plus arm64, 289,568 bytes, SHA-256
+`f42e757a0d78a6bc6a6af22c3bcf34fc7d082eb9e8130d9336024a55c19f0f36`;
+it contributes 81,327 ZIP bytes. It comes only from the authorized published
+0.13.0 VSIX, verified against SHA256SUMS; no substitute or estimate is used.
+
+ACP production tarball: 1,294,661 bytes, SHA-256
+`2551eac59306c91772829d024e3e9dd7eb17024451669f998d1841e04f9f917e`.
+The separate unsigned/private fake-only tarball is 1,367,196 bytes, SHA-256
+`1764361ef76616b901c61a0dcddbc8698384d74d148eae03a764caeb1360668b`.
+Both contain exact recorder/wire/English-region modules; only the latter
+contains and names the test launcher. Nothing is published.
+
+The source release structure and all ten ready-head ancestry checks pass.
+Older released sections remain exactly 231,798 bytes at SHA-256
+`173a34f5738cc4ac49fb3774496161a795a97ada37f9b8f6a15ea7ca7883f0e9`.
+The full dependency audit exits zero with the existing braces exception and
+one low advisory. Gitleaks scans 1,519 commits / 370.89 MB and finds no leaks.
+Accessibility and SAST receipts follow when their unchanged gates finish.
+The complete PR description is `docs/certification/train-0.14.0-pr.md`.
+
+SAST exits zero: 529 rules on 1,148 tracked targets, approximately 99.9%
+parsed lines, zero findings; only the existing script/config exclusions apply.

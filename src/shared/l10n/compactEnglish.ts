@@ -8,7 +8,18 @@ interface EnglishTree {
   readonly [key: string]: string | EnglishTree
 }
 
-const bytes = (value: string): number => new TextEncoder().encode(value).byteLength
+const encoder = new TextEncoder()
+const bytes = (value: string): number => encoder.encode(value).byteLength
+
+function occurrences(value: string, term: string): number {
+  let count = 0
+  let position = value.indexOf(term)
+  while (position !== -1) {
+    count += 1
+    position = value.indexOf(term, position + term.length)
+  }
+  return count
+}
 
 /** Build-only lossless encoding; the complete browser fallback stays inline. */
 export function compactEnglishSource(english: EnglishTree): string {
@@ -52,11 +63,13 @@ export function compactEnglishSource(english: EnglishTree): string {
     .toSorted((a, b) => b.score - a.score)
   const dictionary: string[] = []
   for (const { term } of candidates) {
-    const count = strings.reduce((sum, entry) => sum + entry.value.split(term).length - 1, 0)
+    const count = strings.reduce((sum, entry) => sum + occurrences(entry.value, term), 0)
     if (saving(term, count) <= 0) continue
     const token = String.fromCodePoint(L10N_COMPACT_TOKEN_FIRST + dictionary.length)
     dictionary.push(term)
-    for (const entry of strings) entry.value = entry.value.split(term).join(token)
+    for (const entry of strings) {
+      if (entry.value.includes(term)) entry.value = entry.value.replaceAll(term, () => token)
+    }
     if (dictionary.length === L10N_COMPACT_TOKEN_LAST - L10N_COMPACT_TOKEN_FIRST + 1) break
   }
   const encodedStrings = new Map(strings.map(({ original, value }) => [original, value]))

@@ -71,6 +71,10 @@ describe('activation wires git and pull requests to the window’s guards (M71)'
     expect(source).toMatch(
       /const runBestOfNGit[^\n]*\n(?:[^\n]*\n){0,8}\s*if \(!isProjectTrusted\(\)\) \{/,
     )
+    expect(source).toMatch(/isWorkspaceTrusted:\s*isProjectTrusted,\s*isHooksEnabled:/)
+    expect(source).toMatch(
+      /const areHooksArmed[^=]*= \(\): boolean =>\s*workspaceRoot !== undefined && isProjectTrusted\(\) && currentSettings\(\).modelApiHooks/,
+    )
     // The rest: the hold's own input, the paid-use memory, the controller's
     // trust beside the hold (it asks both before git), the support report,
     // web-fetch availability, which never runs git.
@@ -81,6 +85,7 @@ describe('activation wires git and pull requests to the window’s guards (M71)'
       'windowHold.allowsProjectConfiguration(vscode.workspace.isTrusted)',
       'vscode.workspace.isTrusted && (vscode.workspace.workspaceFolders?.length ?? 0) > 0,',
       'isIdeWebFetchOffered(vscode.workspace.isTrusted, currentSettings().sandboxNetwork)',
+      'isIdeWebFetchOffered(vscode.workspace.isTrusted, currentSettings().sandboxNetwork),',
       'isWorkspaceTrusted: () => vscode.workspace.isTrusted,',
       'isWorkspaceTrusted: vscode.workspace.isTrusted,',
     ])

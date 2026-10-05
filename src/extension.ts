@@ -2714,7 +2714,7 @@ async function activateWindow(
         platform: process.platform,
         workspaceRoot: workspaceRoot ?? '',
         settingsPath: museSettingsPath(museConfig()),
-        isWorkspaceTrusted: () => vscode.workspace.isTrusted,
+        isWorkspaceTrusted: isProjectTrusted,
         isHooksEnabled: () => currentSettings().modelApiHooks,
         now: () => Date.now(),
         isIndexed: (relativePath) => mentions.contains(relativePath),
@@ -2751,7 +2751,7 @@ async function activateWindow(
   }
   /** The gates before the bundle even loads: untrusted or opted out, nothing fires. */
   const areHooksArmed = (): boolean =>
-    workspaceRoot !== undefined && vscode.workspace.isTrusted && currentSettings().modelApiHooks
+    workspaceRoot !== undefined && isProjectTrusted() && currentSettings().modelApiHooks
   /** Run with the window's hook runner; failures stay in the log unless announced. */
   const withHookRunner = async (
     run: (runner: ExtensionHookRunner) => Promise<void>,

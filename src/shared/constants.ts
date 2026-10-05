@@ -892,6 +892,8 @@ export const WHATS_NEW_IDLE_POLL_MS = 2 * 1000
 // An output channel's document (the extension's own log among them) changes
 // without the user typing, so its changes do not count as edits.
 export const OUTPUT_CHANNEL_SCHEME = 'output'
+export const WHATS_NEW_CONTENT_MAX_BYTES = 40 * 1024
+export const WHATS_NEW_CONTENT_DECODE_MAX_BYTES = 75 * 1024
 export const WHATS_NEW_CHANGELOG_URL =
   'https://github.com/RandyNorthrup/muse-spark-code/blob/main/CHANGELOG.md'
 export const WHATS_NEW_README_URL = 'https://github.com/RandyNorthrup/muse-spark-code#readme'
@@ -4352,6 +4354,18 @@ export const REPORT_PACKAGE_FRAME_PATHS: ReadonlySet<string> = new Set([
   'dist/validation.js',
   'dist/whatsNew.js',
   'dist/webview/whatsNew.js',
+  'dist/conversation.js',
+  'dist/tab.js',
+  'dist/foreignHooks.js',
+  'dist/hookRuntime.js',
+  'dist/extensionHooks.js',
+  'dist/pluginHooks.js',
+  'dist/conversationGit.js',
+  'dist/judge.js',
+  'dist/uiTextRuntime.js',
+  'dist/uiTextHooks.js',
+  'dist/uiTextSurfaces.js',
+  'dist/wire.js',
 ])
 // One window journals at most this many failures in REPORT_RECORD_WINDOW_MS
 // (M93): a render or reconnect loop cannot turn every frame into a disk

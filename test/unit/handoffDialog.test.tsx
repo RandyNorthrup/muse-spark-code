@@ -245,7 +245,7 @@ describe('/handoff (M74)', () => {
     },
   )
 
-  it('keeps a brief that arrives while the report dialog is open waiting, one modal at a time (M93)', () => {
+  it('keeps a brief that arrives while the report dialog is open waiting, one modal at a time (M93)', async () => {
     renderPanel()
     submitCommand('/handoff')
     admit()
@@ -263,7 +263,7 @@ describe('/handoff (M74)', () => {
       canUseVscodeReporter: false,
       recordingUnavailable: false,
     })
-    const report = screen.getByRole('dialog', { name: UI_TEXT.reportTitle })
+    const report = await screen.findByRole('dialog', { name: UI_TEXT.reportTitle })
     deliver(READY)
     // The report keeps the screen and the focus; the brief waits.
     expect(modalRoots()).toEqual([report])

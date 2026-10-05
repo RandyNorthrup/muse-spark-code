@@ -29,7 +29,7 @@ function isActivationSettingOn(feature: PaidFeature, settings: ExtensionSettings
   const source = readFileSync(new URL('../../src/extension.ts', import.meta.url), 'utf8')
   const paidAt = source.indexOf('const paid = createPaidFeatures(')
   const start = source.indexOf('isSettingOn:', paidAt)
-  const end = source.indexOf('isKeyStored:', start)
+  const end = source.indexOf('isJudgeOn:', start)
   if (paidAt === -1 || start < paidAt || end <= start) {
     throw new Error('activation paid callback not found')
   }
@@ -58,6 +58,9 @@ function paidAtActivation(settings: ExtensionSettings, isKeyStored = false) {
     globalState: state,
     workspaceState: state,
     isSettingOn: (feature) => isActivationSettingOn(feature, settings),
+    // D78 defaults are available on the Model API backend; this fixture
+    // models a subscription without a key or an interactive keyed backend.
+    isAvailable: (feature) => feature === 'tab' || isKeyStored,
     isKeyStored: () => isKeyStored,
     canRememberPaidUse: () => true,
     log: new FakeLogOutputChannel(),
@@ -89,7 +92,21 @@ describe('judge activation routing', () => {
   it('declining an unrelated Model API price leaves the judge selection alone', async () => {
     const { update } = mockJudgePaidConfiguration()
     vi.mocked(confirmModal).mockResolvedValue(undefined)
-    const paid = paidAtActivation({ ...SETTING_DEFAULTS, modelApiImageGeneration: true }, true)
+    const paid = paidAtActivation(
+      {
+        ...SETTING_DEFAULTS,
+        modelApiImageGeneration: true,
+        modelApiWebSearch: false,
+        modelApiVoice: false,
+        modelApiSubagents: false,
+        modelApiHookModels: false,
+        modelApiScheduledPrompts: false,
+        modelApiAutoReviewer: false,
+        modelApiBestOfN: false,
+        modelApiTab: false,
+      },
+      true,
+    )
     await paid.gate.review()
     expect(confirmModal).toHaveBeenCalledTimes(1)
     expect(update).toHaveBeenCalledExactlyOnceWith('modelApiImageGeneration', false, 1)

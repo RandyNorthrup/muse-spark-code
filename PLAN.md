@@ -287,7 +287,7 @@ properties, and retain all existing caps. No new artifact or dependency.
 | `dist/browserCheck.js`     | ≤ 75 KiB (M81: the browser check's pipe, run, proxy, canaries and processes, loaded on the first check; 50.5 KiB after A1's first review round plus 15%, rounded up to 25 KiB)                                                                                                                                                                                                                         |
 | `dist/browserRuntime.js`   | ≤ 50 KiB (M81 A1: the browser check runtime's pin, download, ZIP reader and store, loaded only to prepare it; 37.2 KiB plus 15%, rounded up to 25 KiB)                                                                                                                                                                                                                                                 |
 | `dist/whatsNew.js`         | ≤ 50 KiB (M99, D79: What's New's renderer, content schema and tab, loaded on the first page or notice; measured 34.8 KiB plus 15%, rounded up to 25 KiB)                                                                                                                                                                                                                                               |
-| `dist/whatsNew.json`       | ≤ 40 KiB raw (M99, D79: newest two releases' full notes and the newest earlier Highlights when needed; hard content cap independent of VSIX compression)                                                                                                                                                                                                                                               |
+| `dist/whatsNew.json`       | ≤ 40 KiB on-disk JSON, independent of ZIP compression; bounded lossless envelope with 75 KiB decoded maximum (M99, D79: newest two releases' full notes and the newest earlier Highlights when needed; hard content cap independent of VSIX compression)                                                                                                                                               |
 | `dist/webview/whatsNew.js` | ≤ 25 KiB (M99: What's New's page script, which only passes clicks back; 0.7 KiB when made, plus 15%, rounded up to 25 KiB)                                                                                                                                                                                                                                                                             |
 | `dist/tab.js`              | ≤ 75 KiB (M94: provider, completion engine and daily ledger, loaded on first request or menu; status item stays in activation)                                                                                                                                                                                                                                                                         |
 
@@ -297,7 +297,9 @@ the existing rule). Browser/integration parsers stay inline. All Node
 consumers, including ACP and workers, ship it beside their bundles; the
 split and host-global gates enforce separation and API completeness.
 The optional chat surfaces use ESM chunks under dist/webview/chunks; ACTDIET
-adds report and share dialogs to the original six.
+adds the report dialog; this train keeps Share and Session Board eager to
+fit both unchanged aggregate caps. Browser English remains fully inline through
+a lossless synchronous fragment dictionary.
 The unchanged 900 KiB startup cap includes every transitively eager chunk;
 optional JavaScript has a new 50 KiB total cap (38.6 KiB measured plus
 15%, rounded by D6). Chunk reachability, lazy placement and packaging are
@@ -6773,11 +6775,14 @@ cached: "0.15", currency: "USD" }`, `isDefault`, `isActive`, `releaseDate`.
 
 - [x] Merge origin-main (#121), M91/M91b, M93, Knip constants, DEFLAKE4 and M98 phase 1 in the brief's order, retaining every source head and both split-check speed fixes. Skip unready m94/kw and ci/refresh-badges for the lead.
 - [x] Connect metered Judge claim/settle/refund/lookupByClaimId/latestDay to D78's shared daily ledger and test shared reservation plus subscription-only consent behavior.
-- [ ] Adapt ACTDIET prototype commits after the merges; activation at most 600,000 bytes, shared English under the original 125 KiB, webview startup under 921,600 bytes, all other caps unchanged.
-- [ ] If the actual universal package still exceeds its unchanged cap, use measured shared Node wire schemas and one bounded lossless translation archive, preserving exact locale values, source tables, browser parsing and ACP JSON compatibility. Before startup repair the real universal VSIX is 2,436,399 bytes; fourteen individual Brotli tables occupy 605,236 ZIP bytes. A language-major values matrix measures 434,140 Brotli bytes, and shared existing protocol/agent-event schemas save about 20.6 KiB compressed across five measured Node consumers before conversation/ACP. No dependency or existing cap changes.
-- [ ] Preserve the browser’s synchronous inline English fallback with a build-only dictionary over repeated text and label-key fragments; decode all keys, values and plural forms exactly before localization state is created. Rebalance Share and the small Session Board into eager imports so the unchanged 50-KiB deferred cap and 900-KiB startup cap both hold. The lossless key/value probe saves 38,451 bytes; no user copy, functionality, dependency or cap is removed.
-- [ ] Prepare 0.14.0 with one dated changelog section, at most five Highlights, byte-identical older releases, and matching full/Marketplace README sections and install versions.
+- [x] Adapt ACTDIET prototype commits after the merges; activation at most 600,000 bytes, shared English under the original 125 KiB, webview startup under 921,600 bytes, all other caps unchanged.
+- [x] If the actual universal package still exceeds its unchanged cap, use measured shared Node wire schemas and one bounded lossless translation archive, preserving exact locale values, source tables, browser parsing and ACP JSON compatibility. Before startup repair the real universal VSIX is 2,436,399 bytes; fourteen individual Brotli tables occupy 605,236 ZIP bytes. A language-major values matrix measures 434,140 Brotli bytes, and shared existing protocol/agent-event schemas save about 20.6 KiB compressed across five measured Node consumers before conversation/ACP. No dependency or existing cap changes.
+- [x] Preserve the browser’s synchronous inline English fallback with a build-only dictionary over repeated text and label-key fragments; decode all keys, values and plural forms exactly before localization state is created. Register every new exact bundle path in M93’s frame vocabulary, preserving package-only stack privacy. Rebalance Share and the small Session Board into eager imports so the unchanged 50-KiB deferred cap and 900-KiB startup cap both hold. The lossless key/value probe saves 38,451 bytes; no user copy, functionality, dependency or cap is removed.
+- [x] Preserve both full What’s New releases through a lossless Node-only Brotli envelope when the plain tree exceeds its unchanged 40-KiB on-disk cap. The measured 60,873-byte tree needs a new 75-KiB decoded bound (measured plus 15%, rounded to 25 KiB); validate the envelope and decoded tree, retain small/plain compatibility, and prove round-trip and expansion limits. This follows the existing packed Node fallback and keeps all release content.
+- [x] Prepare 0.14.0 with one dated changelog section, at most five Highlights, byte-identical older releases, and matching full/Marketplace README sections and install versions.
 - [ ] Run full quality directly on Kubuntu and measure a CI-shaped VSIX with the checksum-verified universal helper from the authorized 0.13.0 archive. Record conflicts, sizes, drills, gate tail and PR description in the train certification. Local hook-on commits only, no push, rebase, paid/live call; 180-minute time box.
+
+Train 0.14.0 final gate repair: update ACP fixtures for required split bundles, await the lazy report, and use VSCE’s actual listFiles API without CLI startup. Optimize the build-only lossless English codec without changing output or timeouts. M91 extension hooks must use M71’s held-project trust both before loading and before running, including manual hooks; certify the activation wiring regression.
 
 ### TRAIN14A — Start the 0.14.0 release batch (2026-10-05)
 
@@ -18109,6 +18114,18 @@ joined with M57, M58 and PR #49's sign-in
         commit-writing path exists
 
 ## 7. Gates
+
+**TRAIN14B Judge activation fixture stop (2026-10-05).** Full quality is
+explicitly authorized by this rig brief. Its aggregate unit run exposes a
+legacy Judge activation fixture that omits D78’s default callback. The field
+extraction fix resolves the undefined-variable error; a backend-availability
+fixture fix still leaves three subscription-default assertions failing.
+Common.md requires stopping after two different fixes to the same test, so
+this path is paused pending the requested explicit override for one targeted
+`isDefaultOn` fixture correction. No gate, test, timeout or paid policy is
+weakened. Until the unchanged full gate exits zero, this train is not ready
+for merge/release; all other authorized checks continue and their exact
+receipts are in `docs/certification/train-0.14.0.md`.
 
 **ACTDIET preview integration deferral (2026-10-05).** Full quality is prohibited
 by the explicit lane brief; focused tests, static gates and production builds
