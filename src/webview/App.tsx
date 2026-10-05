@@ -1,5 +1,7 @@
 import {
   type ReactNode,
+  lazy,
+  Suspense,
   useCallback,
   useEffect,
   useLayoutEffect,
@@ -60,7 +62,6 @@ import { Composer, type ImageData, type SlashPaletteSlot } from './components/Co
 import { DiffTally } from './components/DiffTally'
 import { EffortSlider } from './components/EffortSlider'
 import { EmptyState } from './components/EmptyState'
-import { GitPanel } from './components/GitPanel'
 import { GoalPanel } from './components/GoalPanel'
 import { SchedulePanel } from './components/SchedulePanel'
 import { Header } from './components/Header'
@@ -68,11 +69,11 @@ import { HistoryDialog } from './components/HistoryDialog'
 import { ReviewPane } from './components/ReviewPane'
 import { SessionBoardDialog } from './components/SessionBoardDialog'
 import { BestOfNDialog } from './components/BestOfNDialog'
-import { UsageDialog } from './components/UsageDialog'
 import { HandoffDialog } from './components/HandoffDialog'
 import { ShareView } from './components/ShareView'
 import { AddContextIcon, ExpandChevron, UploadIcon } from './components/icons'
 import { modeIcon } from './components/modeIcons'
+import { Modal } from './components/Modal'
 import { Palette, type PaletteKeys, type PaletteView } from './components/Palette'
 import { type MenuEntry, PopoverMenu } from './components/PopoverMenu'
 import { SignIn } from './components/SignIn'
@@ -163,6 +164,17 @@ function restoreNoteOf(state: UiState): string | undefined {
   }
   return notes[state.checkpoints.availability]
 }
+
+// These panels share this runtime's React and installed language; importing
+// them waits for state to show (Git) or the user's Account & usage action.
+const GitPanel = lazy(async () => {
+  const { GitPanel } = await import('./components/GitPanel')
+  return { default: GitPanel }
+})
+const UsageDialog = lazy(async () => {
+  const { UsageDialog } = await import('./components/UsageDialog')
+  return { default: UsageDialog }
+})
 
 /** What floats above the composer: a palette view, a menu, the History dialog or a modal. */
 type Overlay =
@@ -2039,27 +2051,35 @@ export function App({
     ) : null
   const usageDialog =
     overlay === 'usage' ? (
-      <UsageDialog
-        auth={state.auth}
-        onInstallMuseCode={() => {
-          postMessage({ type: 'installMuseCode' })
-        }}
-        onSetupSignIn={(method) => {
-          closeOverlay()
-          onSignIn(method)
-        }}
-        onForgetPaidUse={() => {
-          postMessage({ type: 'forgetPaidUse' })
-        }}
-        report={state.usageReport}
-        usage={state.usage}
-        context={state.context}
-        modelId={state.model?.modelId}
-        paid={state.paid}
-        now={now}
-        onOpenExternal={onOpenExternal}
-        onClose={closeOverlay}
-      />
+      <Suspense
+        fallback={
+          <Modal title={UI_TEXT.usageLabel} titleId="usage-title" onClose={closeOverlay}>
+            <p role="status">{UI_TEXT.connecting}</p>
+          </Modal>
+        }
+      >
+        <UsageDialog
+          auth={state.auth}
+          onInstallMuseCode={() => {
+            postMessage({ type: 'installMuseCode' })
+          }}
+          onSetupSignIn={(method) => {
+            closeOverlay()
+            onSignIn(method)
+          }}
+          onForgetPaidUse={() => {
+            postMessage({ type: 'forgetPaidUse' })
+          }}
+          report={state.usageReport}
+          usage={state.usage}
+          context={state.context}
+          modelId={state.model?.modelId}
+          paid={state.paid}
+          now={now}
+          onOpenExternal={onOpenExternal}
+          onClose={closeOverlay}
+        />
+      </Suspense>
     ) : null
   // One modal at a time (M74): a brief that arrives while Usage, the Agent
   // map, review pane, a share file or the install confirmation is open waits for it to close, then
@@ -2152,18 +2172,25 @@ export function App({
       </main>
       {/* Review opens M70's pane on the same edits (D66 item 10). */}
       <DiffTally counts={tally} onReview={openReviewPane} />
-      <GitPanel
-        git={state.git}
-        isInert={isModalOpen}
-        canGenerate={state.auth.status === 'signedIn' && state.activeTurnId === undefined}
-        onAction={onGitAction}
-        onEdit={onGitEdit}
-        onClose={onGitClose}
-        onCommit={onGitCommit}
-        onCreatePullRequest={onGitCreatePullRequest}
-        onGenerate={onGitGenerate}
-        onOpenLink={onOpenExternal}
-      />
+      {state.git.form === undefined &&
+      state.git.state.worktree === undefined &&
+      state.git.state.pullRequest === undefined &&
+      state.git.state.hold === undefined ? null : (
+        <Suspense fallback={null}>
+          <GitPanel
+            git={state.git}
+            isInert={isModalOpen}
+            canGenerate={state.auth.status === 'signedIn' && state.activeTurnId === undefined}
+            onAction={onGitAction}
+            onEdit={onGitEdit}
+            onClose={onGitClose}
+            onCommit={onGitCommit}
+            onCreatePullRequest={onGitCreatePullRequest}
+            onGenerate={onGitGenerate}
+            onOpenLink={onOpenExternal}
+          />
+        </Suspense>
+      )}
       <GoalPanel
         key={state.sessionId}
         goal={state.goal}

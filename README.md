@@ -3578,8 +3578,14 @@ Model API backend's own bundle, 225 KiB for the checkpoint store, 100 KiB for
 the conversation's Git adapter, 125 KiB for the importer, 100 KiB for
 the shared English fallback (`dist/uiText.js`, also in the ACP package), 50 KiB for
 the search worker, 300 KiB for
-web fetch's page converter worker, 900 KiB for the webview, and 850 KiB for
+web fetch's page converter worker, 900 KiB for the webview's entry and all
+static JavaScript imports, and 850 KiB for
 the ACP agent (`dist/acp.js`).
+
+The webview's Git panel loads when it has state to show; Account & usage
+loads when opened. Both share React and the installed display language
+with the main panel. Every generated browser chunk ships in the extension
+and loads under its existing nonce-only script policy.
 
 After a production build and an offline install of the ACP tarball,
 `node scripts/check-ui-text.mjs <installed-package-root>` checks runtime

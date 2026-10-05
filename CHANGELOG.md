@@ -183,6 +183,11 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- The M71 webview now fits the unchanged 900 KiB startup budget. Git loads
+  when it has state to show and Account & usage when opened, sharing React
+  and the installed language. The size gate counts all static imports, and
+  the package includes every browser chunk under the existing nonce-only CSP.
+
 - Import from other agents loads its UI adapter and configuration schema
   only on the first import, keeping activation within its existing bundle
   budget after the milestone merge.

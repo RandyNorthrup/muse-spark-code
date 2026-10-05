@@ -41,7 +41,7 @@
 // does, and its package ships that file (scripts/package-acp.mjs), so the
 // backend is built once for both.
 
-import { mkdirSync, readdirSync, statSync, writeFileSync } from 'node:fs'
+import { mkdirSync, readdirSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import * as esbuild from 'esbuild'
 
@@ -99,6 +99,8 @@ const AGENT_NODE_TARGET = 'node22'
 const BROWSER_TARGET = 'chrome128'
 const BYTES_PER_KIB = 1024
 const METAFILE_DIR = 'dist/meta'
+// Hashed browser chunks from an earlier build must not enter the package.
+rmSync(path.join(WEBVIEW_OUTDIR, 'chunks'), { recursive: true, force: true })
 
 /** @type {import('esbuild').Plugin} */
 const sharedUiText = {
@@ -327,7 +329,9 @@ const webviewOptions = {
   entryPoints: [WEBVIEW_ENTRY],
   outdir: WEBVIEW_OUTDIR,
   platform: 'browser',
-  format: 'iife',
+  format: 'esm',
+  splitting: true,
+  chunkNames: 'chunks/[name]-[hash]',
   target: BROWSER_TARGET,
   jsx: 'automatic',
 }

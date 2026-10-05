@@ -224,7 +224,7 @@ quality`) and as a CI job.
 | `dist/review.js`           | ≤ 50 KiB (M70: git's material, the review turn's text, the Plan-mode hold and edit review; 40.8 KiB when split)                                                                                                   |
 | `dist/searchWorker.js`     | ≤ 50 KiB                                                                                                                                                                                                          |
 | `dist/pageWorker.js`       | ≤ 300 KiB (M69: web fetch's page converter, parse5 and its parts, on a worker started for each page; 212.3 KiB when split)                                                                                        |
-| `dist/webview/main.js`     | ≤ 900 KiB including React, the markdown renderer and highlight.js (one bundle)                                                                                                                                    |
+| `dist/webview/main.js`     | ≤ 900 KiB for the entry and all static JavaScript imports, including React, the markdown renderer and highlight.js (Git and Account & usage load on demand)                                                       |
 | `.vsix`                    | ≤ 2200 KiB compressed (2026-10-03, M77/M78/M82 cohort: 1,938,910 bytes with its four lazy bundles; +15%, rounded up to 25 KiB; was 1850 KiB from REL's 1,633,017 bytes; `check-vsix-size.mjs` in the package job) |
 | `dist/acp.js`              | ≤ 850 KiB (the ACP agent, installed once, never loaded by VS Code; 713.2 KiB when set, see below)                                                                                                                 |
 | `dist/planMarkdown.js`     | ≤ 150 KiB (M79: the plan reader, the panel's Markdown parser, loaded on the first plan action; 139.0 KiB with the brief writer)                                                                                   |
@@ -9487,6 +9487,26 @@ timeoutSeconds? }`, at most 8, names unique, 300 s unless set, 600 s at
 
 ### M71 — Git and pull requests (D49)
 
+**FIX78W browser budget repair (2026-10-04, bounded rig proof complete;
+lead gates open).** Compare production metafiles for `main-sync` and this
+branch on Kubuntu. Defer the Git panel until it has state to show and
+Account & usage until the user opens it;
+the Git panel alone cannot recover the 13 KiB overflow. Use React's lazy
+components and esbuild's browser ESM splitting, preserving the installed
+language and all form state in the shared runtime. Keep the nonce-only CSP,
+ship every generated chunk, and enforce the existing 900 KiB cap on the
+entire static import graph, not just the smaller entry file. Prove loading,
+form behavior, packaging and the guards with owning tests and byte-exact
+negative controls. Run serial scoped checks and M71/M83/UI owners directly
+on this rig; full quality and publication remain lead-owned under the
+lane's shared rules. Evidence: `docs/certification/fix78w.md`.
+The repaired startup graph is 898.4/900 KiB (entry 699.3 KiB), down from
+913.0 KiB on this rig; both deferred chunks together are 19.6 KiB. Owning
+tests pass 1,666 cases in 46 files, with one existing Windows-only skip.
+Eleven byte-exact negative controls fire, production Chrome verifies the
+nonce-only CSP in English and German, and axe passes 52 pages. The
+loading Account dialog stays keyboard-dismissable. No cap is raised.
+
 **MRG78 rig main join (2026-10-04, bounded proof complete; size gate open).** Merge
 `main-sync` `244d5905` into `cb00e78f`, preserving M71 and FIX78B trust
 guards alongside main's activation diet, tiered CI, release reuse, M80
@@ -14559,7 +14579,7 @@ PowerShell files are unchanged by this merge; no global install, network
 fetch, version downgrade or skip is permitted under the shared rig rules.
 The lead retains the pinned PowerShell check on a provisioned machine.
 
-**MRG78 browser size blocker (2026-10-04).** The merged production
+**MRG78 browser size blocker (2026-10-04; resolved by FIX78W).** The merged production
 build emits `dist/webview/main.js` at 935,470 bytes (913.5 KiB), over its
 unchanged 900 KiB cap. A build of `main-sync` `244d5905` using the same
 browser options emits 910,023 bytes (888.7 KiB). Every Node bundle fits;
@@ -14568,7 +14588,11 @@ positive/negative controls pass. The rig brief permits merge repairs only;
 an unrelated browser refactor or a new loading architecture is deferred
 to the lead. No cap, threshold, hook or feature has been weakened. This
 merge is not aggregate-green or ready to release while that gate fails.
-Bounded receipts: `docs/certification/mrg78.md`.
+Bounded receipts: `docs/certification/mrg78.md`. FIX78W closes the size
+blocker with the unchanged 900 KiB cap applied to the entry and all static
+imports (898.4 KiB); its production build and bundle checks pass on Kubuntu.
+Full quality and native/hosted certification remain lead-owned. See
+`docs/certification/fix78w.md`.
 
 **MRG78 native identity integration.** Main's R1 lint gate rejects M71's
 direct `dev`/`ino` reads in `gitExtension.ts`. Reuse the existing

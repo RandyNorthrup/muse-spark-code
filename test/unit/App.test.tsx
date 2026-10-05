@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { act, fireEvent, render, screen, within } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { SHARE_VIEW_PAGE_ITEMS, UI_TEXT } from '../../src/shared/constants'
 import { EMPTY_PAID_TALLY } from '../../src/shared/paid'
@@ -476,7 +476,7 @@ describe('App sign-in gate', () => {
     expect(screen.getByRole('button', { name: 'Open sign-in page' })).toBeInTheDocument()
   })
 
-  it('offers CLI install while a Model API key keeps the backend signed in', () => {
+  it('offers CLI install while a Model API key keeps the backend signed in', async () => {
     const postMessage = renderReady()
     deliver({
       type: 'authState',
@@ -485,7 +485,7 @@ describe('App sign-in gate', () => {
       hasCli: false,
       installCommand: 'irm https://dev.meta.ai/install.ps1 | iex',
     })
-    openUsageDialog()
+    await openUsageDialog()
     fireEvent.click(screen.getByRole('button', { name: 'Install Muse Code' }))
     expect(screen.getByText('irm https://dev.meta.ai/install.ps1 | iex')).toBeInTheDocument()
     expect(postMessage).not.toHaveBeenCalledWith({ type: 'installMuseCode' })
@@ -512,7 +512,7 @@ describe('App sign-in gate', () => {
     expect(postMessage).toHaveBeenCalledWith({ type: 'signIn', method: 'browser' })
   })
 
-  it('offers an extra Model API key while Muse Code remains signed in', () => {
+  it('offers an extra Model API key while Muse Code remains signed in', async () => {
     const postMessage = renderReady()
     deliver({
       type: 'authState',
@@ -521,7 +521,7 @@ describe('App sign-in gate', () => {
       hasCli: true,
       hasCliSession: true,
     })
-    openUsageDialog()
+    await openUsageDialog()
     fireEvent.click(screen.getByRole('button', { name: 'Add Model API key' }))
     expect(postMessage).toHaveBeenCalledWith({ type: 'signIn', method: 'apiKey' })
   })
@@ -1094,10 +1094,15 @@ function openPalette() {
 }
 
 /** Opens the account modal through the same palette action a user selects. */
-function openUsageDialog() {
+async function openUsageDialog() {
   const filter = openPalette()
   fireEvent.change(filter, { target: { value: '/usage' } })
   fireEvent.keyDown(filter, { key: 'Enter' })
+  await waitFor(() => {
+    expect(screen.getByRole('dialog', { name: 'Account & usage' })).not.toHaveTextContent(
+      UI_TEXT.connecting,
+    )
+  })
   return screen.getByRole('dialog', { name: 'Account & usage' })
 }
 
@@ -1979,9 +1984,9 @@ describe('App account & usage, onboarding and announcements (M8)', () => {
     weekly: { usedPercent: 7, resetsAtMs: Date.now() + 86_400_000 },
   }
 
-  it('opens Account & usage from /usage, asks the host, renders the report, closes on Escape', () => {
+  it('opens Account & usage from /usage, asks the host, renders the report, closes on Escape', async () => {
     const postMessage = renderReady()
-    const dialog = openUsageDialog()
+    const dialog = await openUsageDialog()
     expect(postMessage).toHaveBeenLastCalledWith({ type: 'readUsage' })
     expect(dialog.parentElement).toHaveClass('modal-backdrop')
     expect(dialog).toHaveTextContent('Reading usage…')
@@ -1995,9 +2000,9 @@ describe('App account & usage, onboarding and announcements (M8)', () => {
     expect(document.activeElement).toBe(textarea())
   })
 
-  it('hides old account usage immediately on the boundary clear before auth replies', () => {
+  it('hides old account usage immediately on the boundary clear before auth replies', async () => {
     renderReady()
-    const dialog = openUsageDialog()
+    const dialog = await openUsageDialog()
     deliver({ type: 'usageReport', backend: 'museCode', subscription })
     expect(dialog).toHaveTextContent('muse-pro')
     deliver({ type: 'conversationCleared', accountBoundary: true })
@@ -2006,17 +2011,17 @@ describe('App account & usage, onboarding and announcements (M8)', () => {
     expect(screen.getByRole('status')).toHaveTextContent('Connecting to the extension host')
   })
 
-  it('opens the dialog from the Account & usage row and from /cost', () => {
+  it('opens the dialog from the Account & usage row and from /cost', async () => {
     const postMessage = renderReady()
     let filter = openPalette()
     fireEvent.change(filter, { target: { value: 'Account & usage' } })
     fireEvent.keyDown(filter, { key: 'Enter' })
-    expect(screen.getByRole('dialog', { name: 'Account & usage' })).toBeInTheDocument()
+    expect(await screen.findByRole('dialog', { name: 'Account & usage' })).toBeInTheDocument()
     fireEvent.click(screen.getByLabelText('Close'))
     filter = openPalette()
     fireEvent.change(filter, { target: { value: '/cost' } })
     fireEvent.keyDown(filter, { key: 'Enter' })
-    expect(screen.getByRole('dialog', { name: 'Account & usage' })).toBeInTheDocument()
+    expect(await screen.findByRole('dialog', { name: 'Account & usage' })).toBeInTheDocument()
     expect(postMessage.mock.calls.filter(([m]) => m.type === 'readUsage')).toHaveLength(2)
   })
 
@@ -2305,9 +2310,9 @@ describe('App webview and UI state (M25)', () => {
     expect(screen.queryByRole('menu')).toBeNull()
   })
 
-  it('makes everything behind a modal inert', () => {
+  it('makes everything behind a modal inert', async () => {
     renderReady()
-    openUsageDialog()
+    await openUsageDialog()
     expect(screen.getByRole('main')).toHaveAttribute('inert')
     expect(document.querySelector('.composer-area')).toHaveAttribute('inert')
     expect(document.querySelector('.header-area')).toHaveAttribute('inert')
@@ -3110,10 +3115,10 @@ describe('App: git and pull requests (M71)', () => {
     })
   })
 
-  it('cancels the host operation when the busy commit form is closed', () => {
+  it('cancels the host operation when the busy commit form is closed', async () => {
     const postMessage = renderReady()
     deliver(commitForm)
-    const form = screen.getByRole('form', { name: 'Commit' })
+    const form = await screen.findByRole('form', { name: 'Commit' })
     expect(form).toHaveTextContent(
       'Git may run repository hooks, signing programs or credential helpers.',
     )
@@ -3125,10 +3130,10 @@ describe('App: git and pull requests (M71)', () => {
     expect(screen.queryByRole('form', { name: 'Commit' })).toBeNull()
   })
 
-  it('passes the edited PR base when requesting a generated description', () => {
+  it('passes the edited PR base when requesting a generated description', async () => {
     const postMessage = renderReady()
     deliver(pullRequestForm)
-    const form = screen.getByRole('form', { name: 'Pull request' })
+    const form = await screen.findByRole('form', { name: 'Pull request' })
     fireEvent.change(within(form).getByLabelText('Into'), { target: { value: 'release' } })
     fireEvent.click(within(form).getByRole('button', { name: 'Write with Muse' }))
     expect(postMessage).toHaveBeenLastCalledWith({
@@ -3147,10 +3152,10 @@ describe('App: git and pull requests (M71)', () => {
     expect(within(form).getByLabelText('Title')).not.toHaveAttribute('readonly')
   })
 
-  it('commits what the form shows, and asks the model only when the user presses Write', () => {
+  it('commits what the form shows, and asks the model only when the user presses Write', async () => {
     const postMessage = renderReady()
     deliver(commitForm)
-    const form = screen.getByRole('form', { name: 'Commit' })
+    const form = await screen.findByRole('form', { name: 'Commit' })
     expect(within(form).getByRole('button', { name: 'Commit' })).toBeDisabled()
     // Something is staged: the unstaged box starts off.
     expect(within(form).getByRole('checkbox')).not.toBeChecked()
@@ -3182,10 +3187,10 @@ describe('App: git and pull requests (M71)', () => {
     expect(screen.queryByRole('form', { name: 'Commit' })).toBeNull()
   })
 
-  it('shows every part of a pull request before it goes, and sends what was edited', () => {
+  it('shows every part of a pull request before it goes, and sends what was edited', async () => {
     const postMessage = renderReady()
     deliver(pullRequestForm)
-    const form = screen.getByRole('form', { name: 'Pull request' })
+    const form = await screen.findByRole('form', { name: 'Pull request' })
     expect(form).toHaveTextContent(
       'origin https://[redacted]@github.com/RandyNorthrup/muse-spark-code.git',
     )
@@ -3213,7 +3218,7 @@ describe('App: git and pull requests (M71)', () => {
     expect(within(form).getByLabelText('Description')).toHaveValue('[redacted]')
   })
 
-  it('shows the held card and the status of a pull request, and routes their buttons', () => {
+  it('shows the held card and the status of a pull request, and routes their buttons', async () => {
     const postMessage = renderReady()
     deliver({
       type: 'gitState',
@@ -3249,12 +3254,12 @@ describe('App: git and pull requests (M71)', () => {
         },
       },
     })
-    const card = screen.getByRole('region', { name: 'Held pull request worktree' })
+    const card = await screen.findByRole('region', { name: 'Held pull request worktree' })
     expect(card).toHaveTextContent('Pull request #51 by Piangpi1997: held until you trust it')
     expect(card).toHaveTextContent('Other extensions follow VS Code’s own workspace trust')
     fireEvent.click(within(card).getByRole('button', { name: 'Trust this worktree…' }))
     expect(postMessage).toHaveBeenLastCalledWith({ type: 'gitAction', action: 'trustWorktree' })
-    const strip = screen.getByRole('region', { name: 'This conversation’s pull request' })
+    const strip = await screen.findByRole('region', { name: 'This conversation’s pull request' })
     expect(strip).toHaveTextContent('Draft')
     expect(strip).toHaveTextContent('Checks: 1 failed · 5 passed')
     fireEvent.click(within(strip).getByRole('button', { name: 'Refresh' }))
@@ -3272,7 +3277,7 @@ describe('App: git and pull requests (M71)', () => {
   it.each([
     ['a state it does not count', ['e2e: timed_out'], 0],
     ['checks it did not read', [], 3],
-  ])('never shows the passed dot beside %s', (_label, other, notRead) => {
+  ])('never shows the passed dot beside %s', async (_label, other, notRead) => {
     renderReady()
     const checks = {
       passed: 5,
@@ -3295,7 +3300,7 @@ describe('App: git and pull requests (M71)', () => {
       checks,
     }
     deliver({ type: 'gitState', state: { pullRequest } })
-    const strip = screen.getByRole('region', { name: 'This conversation’s pull request' })
+    const strip = await screen.findByRole('region', { name: 'This conversation’s pull request' })
     expect(strip.querySelector('.tool-dot')).not.toBeNull()
     expect(strip.querySelector('.tool-dot-ok')).toBeNull()
     deliver({

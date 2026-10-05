@@ -555,6 +555,37 @@ function shippedBundles() {
   )
 }
 const SHIPPED = shippedBundles()
+// ESM splitting moves shared constants to one common browser chunk. Identify
+// that chunk by its source, so hashes may change without loosening the text gate.
+const webviewConstants = SHIPPED.filter(
+  (bundle) =>
+    bundle.output.startsWith('dist/webview/') && inputsOf(bundle).has('src/shared/constants.ts'),
+)
+if (webviewConstants.length !== 1) {
+  problems.push('the webview must carry shared constants in exactly one JavaScript output')
+}
+const webviewOutputs = JSON.parse(readFileSync('dist/meta/webview.json', 'utf8')).outputs
+const eagerWebview = new Set()
+function visitWebview(output) {
+  if (eagerWebview.has(output)) return
+  eagerWebview.add(output)
+  const imports = webviewOutputs[output].imports
+  for (const entry of imports) {
+    if (!entry.external && entry.kind !== 'dynamic-import') visitWebview(entry.path)
+  }
+}
+visitWebview('dist/webview/main.js')
+for (const source of [
+  'src/webview/components/GitPanel.tsx',
+  'src/webview/components/UsageDialog.tsx',
+]) {
+  const ownOutputs = Object.entries(webviewOutputs).filter(([, output]) =>
+    Object.hasOwn(output.inputs, source),
+  )
+  if (ownOutputs.length !== 1 || ownOutputs.some(([output]) => eagerWebview.has(output))) {
+    problems.push(`${source} must load only in its deferred webview chunk`)
+  }
+}
 /** The shipped bundle that `output` names; a missing one is a problem. */
 function shipped(output) {
   const bundle = SHIPPED.find((entry) => entry.output === output)
@@ -594,7 +625,11 @@ const TEXT_BLOCKS = [
   {
     block: 'REVIEW_MODEL_TEXT',
     sentinels: ['reviewerRole', 'reviewMuseCodeRole'],
-    readers: [REVIEW.output, BUNDLES.modelApi.output, 'dist/webview/main.js'],
+    readers: [
+      REVIEW.output,
+      BUNDLES.modelApi.output,
+      ...webviewConstants.map(({ output }) => output),
+    ],
   },
   // Web fetch's own words (M69): the window's fetch, the Model API
   // backend's URL checks and the ACP agent's fetch.
@@ -765,6 +800,7 @@ console.log(
   `ok   model text: ${TEXT_BLOCKS.map(({ block }) => block).join(', ')} each in its readers and in no other of the ${String(SHIPPED.length)} shipped bundles; ${FILE_REFUSAL.block} pinned to ${String(FILE_REFUSAL.keys.length)} keys; ${String(modelTextKeys.length)} MODEL_TEXT keys, each read at activation`,
 )
 console.log(`ok   ${UI_TEXT.output}: Node bundles share the English fallback`)
+console.log('ok   webview: Git and Account & usage each load only in their deferred chunk')
 console.log(
   `ok   ${CONVERSATION_GIT.output}: carries the Git adapter and the window's ${String(GIT_ONLY.length - 2)} git and pull request files; activation keeps its checked loader`,
 )

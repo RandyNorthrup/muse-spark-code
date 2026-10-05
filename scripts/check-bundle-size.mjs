@@ -3,9 +3,31 @@
 // mirrors them) and change only with a CHANGELOG entry. Exits 1 when any production artifact exceeds
 // its budget or is missing.
 
-import { existsSync, statSync } from 'node:fs'
+import { existsSync, readFileSync, statSync } from 'node:fs'
 
 const BYTES_PER_KIB = 1024
+const WEBVIEW_ENTRY = 'dist/webview/main.js'
+const WEBVIEW_METAFILE = 'dist/meta/webview.json'
+
+/** Count each eagerly imported chunk once; deferred panels do not run at startup. */
+function initialWebviewBytes() {
+  const { outputs } = JSON.parse(readFileSync(WEBVIEW_METAFILE, 'utf8'))
+  const visited = new Set()
+  function bytesOf(output) {
+    if (visited.has(output)) return 0
+    visited.add(output)
+    if (outputs[output] === undefined || !existsSync(output)) {
+      throw new Error(`initial webview chunk missing: ${output}`)
+    }
+    return (
+      statSync(output).size +
+      outputs[output].imports
+        .filter((entry) => !entry.external && entry.kind !== 'dynamic-import')
+        .reduce((sum, entry) => sum + bytesOf(entry.path), 0)
+    )
+  }
+  return bytesOf(WEBVIEW_ENTRY)
+}
 
 /**
  * @type {ReadonlyArray<{ path: string; budgetKiB: number }>}
@@ -64,7 +86,8 @@ const BUDGETS = [
   // Web fetch's page converter (M69), on a worker started for each page:
   // 201.2 KiB when split out (parse5 122.7 of it), plus room.
   { path: 'dist/pageWorker.js', budgetKiB: 300 },
-  { path: 'dist/webview/main.js', budgetKiB: 900 },
+  // The same cap covers the entry and every static JavaScript import (FIX78W).
+  { path: WEBVIEW_ENTRY, budgetKiB: 900 },
   // The ACP agent (M63, PLAN.md D62), a process of its own installed once,
   // never loaded by VS Code: the engine without the webview or the Model API
   // backend (dist/modelApi.js, M57), plus the ACP SDK and the classic zod it
@@ -80,12 +103,14 @@ for (const { path, budgetKiB } of BUDGETS) {
     console.log(`MISS ${path}: not built (budget ${budgetKiB} KiB)`)
     continue
   }
-  const sizeKiB = statSync(path).size / BYTES_PER_KIB
+  const sizeKiB =
+    (path === WEBVIEW_ENTRY ? initialWebviewBytes() : statSync(path).size) / BYTES_PER_KIB
   const status = sizeKiB <= budgetKiB ? 'ok  ' : 'OVER'
   if (sizeKiB > budgetKiB) {
     hasFailure = true
   }
-  console.log(`${status} ${path}: ${sizeKiB.toFixed(1)} KiB (budget ${budgetKiB} KiB)`)
+  const label = path === WEBVIEW_ENTRY ? `${path} + static imports` : path
+  console.log(`${status} ${label}: ${sizeKiB.toFixed(1)} KiB (budget ${budgetKiB} KiB)`)
 }
 
 if (hasFailure) {

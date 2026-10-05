@@ -6,7 +6,7 @@ dist/sessionBoard.js, dist/reviewer.js, dist/planMarkdown.js, dist/checkpointSto
 dist/review.js, dist/agentImport.js, dist/conversationGit.js, dist/bundledSkills.js,
 dist/codeIntel.js, dist/voice.js, dist/webFetch.js, dist/museCodeReviewer.js,
 dist/uiText.js, dist/searchWorker.js, dist/pageWorker.js,
-dist/webview/main.js and
+dist/webview/main.js, its generated chunks and
 dist/webview/main.css)
 include code from the packages below, each under its own licence,
 reproduced here as the package ships it. The vendored
