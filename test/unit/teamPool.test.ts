@@ -449,6 +449,23 @@ describe('teamPool: Default and headroom', () => {
     expect(budget.reasons[0]?.reason).toBe('budget')
   })
 
+  it('requires room for the first request in both daily budget measures', () => {
+    const { pool } = twoEntryPool()
+    for (const teamBudget of [
+      { spendUsedUsd: 49.995, spendCapUsd: 50, tokensUsed: 0, tokensCap: 25_000_000 },
+      { spendUsedUsd: 0, spendCapUsd: 50, tokensUsed: 24_999_500, tokensCap: 25_000_000 },
+    ]) {
+      const pick = selectTeamEntry(
+        pool,
+        { ...selectionSnapshot(), teamBudget },
+        TEAM_ROLE_TASKS_PER_TURN_DEFAULT,
+      )
+      expect(pick.kind).toBe('exhausted')
+      if (pick.kind !== 'exhausted') throw new Error('unreachable')
+      expect(pick.reasons.every((reason) => reason.reason === 'budget')).toBe(true)
+    }
+  })
+
   it('an unavailable agent is skipped, and a hook refusal is recorded as exhausted', () => {
     const { pool } = twoEntryPool()
     const pick = selectTeamEntry(

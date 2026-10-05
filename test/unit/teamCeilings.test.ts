@@ -173,4 +173,33 @@ describe('teamCeilings', () => {
     tracker.clear('eng-1')
     expect(tracker.cap('eng-1')).toBe(8)
   })
+
+  it('never exceeds a lowered configured ceiling, even during throttle recovery', () => {
+    let configured = 8
+    let nowMs = 1_000_000
+    const tracker = new TeamThrottleTracker(
+      () => configured,
+      TEAM_THROTTLE_RECOVER_MS,
+      () => nowMs,
+    )
+    tracker.noteThrottle('eng-1')
+    configured = 2
+    expect(tracker.cap('eng-1')).toBe(2)
+    configured = 8
+    nowMs += TEAM_THROTTLE_RECOVER_MS
+    expect(tracker.cap('eng-1')).toBe(3)
+  })
+
+  it('a fresh throttle halves the recovered cap rather than a stale stored cap', () => {
+    let nowMs = 1_000_000
+    const tracker = new TeamThrottleTracker(
+      () => 8,
+      TEAM_THROTTLE_RECOVER_MS,
+      () => nowMs,
+    )
+    tracker.noteThrottle('eng-1')
+    nowMs += TEAM_THROTTLE_RECOVER_MS * 2
+    tracker.noteThrottle('eng-1')
+    expect(tracker.cap('eng-1')).toBe(3)
+  })
 })

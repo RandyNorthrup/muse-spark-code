@@ -437,7 +437,10 @@ function refuseEntry(
   }
   if (snapshot.teamBudget !== undefined && agent.billing === 'key') {
     const budget = snapshot.teamBudget
-    if (budget.spendUsedUsd >= budget.spendCapUsd || budget.tokensUsed >= budget.tokensCap) {
+    if (
+      budget.spendUsedUsd + snapshot.firstRequest.spendUsd > budget.spendCapUsd ||
+      budget.tokensUsed + snapshot.firstRequest.tokens > budget.tokensCap
+    ) {
       return { entryId: entry.id, reason: 'budget' }
     }
   }

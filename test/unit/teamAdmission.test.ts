@@ -45,8 +45,8 @@ describe('teamAdmission', () => {
     expect(admission.runningByEntry('eng-1')).toBe(1)
     expect(admission.runningByAgent('opus')).toBe(1)
     expect(admission.runningGlobal()).toBe(1)
-    first.release()
-    first.release()
+    first.release('descendantsProvedGone')
+    first.release('descendantsProvedGone')
     expect(admission.runningByEntry('eng-1')).toBe(0)
     expect(admission.runningGlobal()).toBe(0)
   })
@@ -90,7 +90,7 @@ describe('teamAdmission', () => {
       admitted: false,
       reason: 'global',
     })
-    for (const task of held) task.release()
+    for (const task of held) task.release('terminal')
   })
 
   it('refuses process workers past teamMaxProcessWorkers, but not engine workers', () => {
@@ -122,7 +122,7 @@ describe('teamAdmission', () => {
     expect(first.admitted).toBe(true)
     expect(admission.acquireShell()).toMatchObject({ admitted: false, reason: 'shell' })
     if (!first.admitted) throw new Error('unreachable')
-    first.release()
+    first.release('descendantsProvedGone')
     expect(admission.acquireShell().admitted).toBe(true)
   })
 
@@ -130,5 +130,56 @@ describe('teamAdmission', () => {
     expect(teamShellCommandSlots(1)).toBe(1)
     expect(teamShellCommandSlots(8)).toBe(4)
     expect(teamShellCommandSlots(7)).toBe(3)
+  })
+
+  it('keeps every slot until descendants retire, so an uncertain handoff needs spare capacity', () => {
+    const admission = new TeamAdmission(limits({ processLimit: 1 }))
+    const old = admission.admitTask(PROCESS_TASK)
+    if (!old.admitted) throw new Error('unreachable')
+    expect(old.release('directChildExited')).toBe(false)
+    expect(old.release('processGroupEnded')).toBe(false)
+    expect(admission.runningProcess()).toBe(1)
+    expect(admission.runningByEntry('rev-1')).toBe(1)
+    expect(admission.admitTask({ ...PROCESS_TASK, entryId: 'replacement' })).toEqual({
+      admitted: false,
+      reason: 'process',
+    })
+    expect(old.release('descendantsProvedGone')).toBe(true)
+    expect(admission.admitTask({ ...PROCESS_TASK, entryId: 'replacement' }).admitted).toBe(true)
+  })
+
+  it('records Continue anyway as a user decision; a spare slot permits a quarantined replacement', () => {
+    const admission = new TeamAdmission(limits({ processLimit: 2 }))
+    const old = admission.admitTask(PROCESS_TASK)
+    if (!old.admitted) throw new Error('unreachable')
+    old.release('directChildExited')
+    expect(admission.admitTask({ ...PROCESS_TASK, entryId: 'replacement' }).admitted).toBe(true)
+    expect(admission.runningProcess()).toBe(2)
+    expect(old.release('userContinued')).toBe(true)
+    expect(old.release('userContinued')).toBe(false)
+    expect(admission.runningProcess()).toBe(1)
+  })
+
+  it('an engine shell slot also survives a direct exit and a process group shutdown', () => {
+    const admission = new TeamAdmission(limits({ shellLimit: 1 }))
+    const command = admission.acquireShell()
+    if (!command.admitted) throw new Error('unreachable')
+    command.release('directChildExited')
+    command.release('processGroupEnded')
+    expect(admission.acquireShell()).toEqual({ admitted: false, reason: 'shell' })
+    command.release('descendantsProvedGone')
+    expect(admission.acquireShell().admitted).toBe(true)
+  })
+
+  it('cannot raise delegation depth beyond the hard ceiling or admit fractional depths', () => {
+    const admission = new TeamAdmission(limits({ maxDepth: 100 }))
+    expect(admission.admitTask({ ...ENGINE_TASK, depth: 3 })).toEqual({
+      admitted: false,
+      reason: 'depth',
+    })
+    expect(admission.admitTask({ ...ENGINE_TASK, depth: 1.5 })).toEqual({
+      admitted: false,
+      reason: 'depth',
+    })
   })
 })

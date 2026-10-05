@@ -134,7 +134,10 @@ export class TeamThrottleTracker {
   ) {}
 
   private current(entryId: string): number {
-    return this.state.get(entryId)?.current ?? this.configuredCap(entryId)
+    return Math.min(
+      this.state.get(entryId)?.current ?? this.configuredCap(entryId),
+      this.configuredCap(entryId),
+    )
   }
 
   private recover(entryId: string, nowMs: number): void {
@@ -143,16 +146,13 @@ export class TeamThrottleTracker {
       return
     }
     const configured = this.configuredCap(entryId)
-    let { current, changedMs } = kept
+    let { changedMs } = kept
+    let current = Math.min(kept.current, configured)
     while (current < configured && nowMs - changedMs >= this.recoverMs) {
       current += 1
       changedMs += this.recoverMs
     }
-    if (current >= configured) {
-      this.state.delete(entryId)
-      return
-    }
-    if (changedMs !== kept.changedMs) {
+    if (changedMs !== kept.changedMs || current !== kept.current) {
       this.state.set(entryId, { current, changedMs })
     }
   }
@@ -171,7 +171,7 @@ export class TeamThrottleTracker {
   /** A 429 or a low remaining header on the entry: halve, down to 1. */
   public noteThrottle(entryId: string): void {
     const at = this.now()
-    const current = this.current(entryId)
+    const current = this.cap(entryId)
     this.state.set(entryId, { current: Math.max(1, Math.floor(current / 2)), changedMs: at })
   }
 
