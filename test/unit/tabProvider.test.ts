@@ -517,6 +517,8 @@ describe('createTabProvider', () => {
     expect(snapshot?.prefix).not.toContain(secret)
     expect(snapshot?.prefix).toContain(REDACTED_MARK)
     expect(snapshot?.relativePath).toBe('file.ts')
+    // The reply is placed against the cursor's own line (RVM94LC finding 2).
+    expect(snapshot?.cursorLineBefore).toBe('const y = ')
   })
 
   it('stays quiet wherever D73 says quiet, without a request', async () => {
