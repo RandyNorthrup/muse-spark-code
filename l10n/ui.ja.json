@@ -1280,7 +1280,7 @@
   "usagePaidTeamTasks": {
     "other": "チームタスク{count}件"
   },
-  "teamSwitchRow": "{role}: {from} → {to}, {reason}",
+  "teamSwitchRow": "{role}: {from} → {to}、{reason}",
   "teamSwitchReasonCap": "{measure}/{window}の上限に到達（{amount}中{used}使用）",
   "teamSwitchReasonConcurrency": "空き実行枠なし",
   "teamSwitchReasonRateLimited": "プロバイダーによりレート制限",
@@ -1889,7 +1889,6 @@
   "teamTakeBack": "取り戻す",
   "teamMoveToBridge": "共有ブリッジに移動",
   "teamResetRecord": "記録をリセット",
-  "teamSwitchRow": "{role}: {from} → {to}、{reason}",
   "teamSwitchReasons": {
     "cap": "上限到達",
     "concurrency": "空き枠なし",
@@ -1951,5 +1950,29 @@
   },
   "teamCheckModelsOnOpen": "このウィンドウを開いたときにチームのモデルを確認",
   "teamCheckModelsOnOpenDetail": "オンで、ロールに異なるカスタムモデルがある場合、パネルはウィンドウを開いたときにチームのモデルを1回確認します。2件目のモデルを設定することがこの通信を許可します。",
-  "teamDuplicateJournal": "他のウィンドウのジャーナル({task})は、まだ開いているウィンドウのものかもしれません。ここでの操作は、そのコピー、ブランチ、ジャーナル行に書き込みません。"
+  "teamDuplicateJournal": "他のウィンドウのジャーナル({task})は、まだ開いているウィンドウのものかもしれません。ここでの操作は、そのコピー、ブランチ、ジャーナル行に書き込みません。",
+  "teamResourcesTitle": "ツールとデバイス",
+  "teamResourcesDetail": "チームが共有するMCPサーバーとデバイス、および利用者",
+  "teamResourcesKindLabel": "種類",
+  "teamResourcesKindExclusive": "排他",
+  "teamResourcesKindExclusiveDetail": "一度に1つのみ:ブラウザー、デバイス、固定ポート。呼び出しはロックを待ちます。",
+  "teamResourcesKindShared": "共有",
+  "teamResourcesKindSharedDetail": "上限まで同時利用可能。以降の呼び出しはキューで待ちます。",
+  "teamResourcesKindFree": "フリー",
+  "teamResourcesKindFreeDetail": "ロックなし。どのワーカーもいつでも呼び出せます。",
+  "teamResourcesRolesLabel": "利用できるロール",
+  "teamResourcesLimitLabel": "同時に最大{count}まで",
+  "teamResourceBusy": "リソースは使用中、{role}タスク{taskId}が保持しています",
+  "teamLeaseTakeBack": "取り戻す",
+  "teamLeaseTakeBackDetail": "ロックはオーケストレーターに移動します。保持者の次回呼び出しには使用中と応答します。",
+  "teamLeaseRestartServer": "サーバーを再起動",
+  "teamLeaseRestartServerDetail": "ウィンドウが起動したサーバーを終了します。プロセス終了後にロックが解放されます。",
+  "teamLeaseReleaseAnyway": "強制的に解放",
+  "teamLeaseReleaseAnywayDetail": "お客様の判断でロックを解放します。以前の呼び出しがリソースに作用中の可能性があります。",
+  "teamLeaseElsewhereTitle": "別のウィンドウが{server}を実行中",
+  "teamLeaseElsewhereDetail": "{window}が{server}を使用中です。ここでも起動すると、そのウィンドウから奪う可能性があります。",
+  "teamLeaseStartAnyway": "ここでも起動する",
+  "teamLeaseWait": "待つ",
+  "teamLeaseOpenWindow": "そのウィンドウを開く",
+  "teamMoveToBridgeDetail": "Muse Codeの設定ファイルから{server}を削除し(拡張機能は書き込みません)、拡張機能独自のMCP設定に追加してください。ブリッジが各ワーカーに提供します。"
 }

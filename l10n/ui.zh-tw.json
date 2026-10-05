@@ -1280,7 +1280,7 @@
   "usagePaidTeamTasks": {
     "other": "{count}個團隊工作"
   },
-  "teamSwitchRow": "{role}: {from} → {to}, {reason}",
+  "teamSwitchRow": "{role}：{from} → {to}，{reason}",
   "teamSwitchReasonCap": "已達到{measure}/{window}上限，已用{amount}中的{used}",
   "teamSwitchReasonConcurrency": "無可用執行槽",
   "teamSwitchReasonRateLimited": "被提供方限速",
@@ -1889,7 +1889,6 @@
   "teamTakeBack": "收回",
   "teamMoveToBridge": "移至共用橋",
   "teamResetRecord": "重設記錄",
-  "teamSwitchRow": "{role}：{from} → {to}，{reason}",
   "teamSwitchReasons": {
     "cap": "達到上限",
     "concurrency": "無閒置位",
@@ -1951,5 +1950,29 @@
   },
   "teamCheckModelsOnOpen": "開啟此視窗時檢查團隊模型",
   "teamCheckModelsOnOpenDetail": "開啟後，若某角色有不同的自訂模型，面板將在開啟視窗時探測一次團隊模型。設定第二個模型即是對此流量的授權。",
-  "teamDuplicateJournal": "另一視窗的日誌（{task}）可能屬於仍處於開啟狀態的視窗。此處不會寫入其複本、分支或日誌列。"
+  "teamDuplicateJournal": "另一視窗的日誌（{task}）可能屬於仍處於開啟狀態的視窗。此處不會寫入其複本、分支或日誌列。",
+  "teamResourcesTitle": "工具與裝置",
+  "teamResourcesDetail": "團隊共用哪些 MCP 伺服器和裝置，以及誰可以使用它們",
+  "teamResourcesKindLabel": "類型",
+  "teamResourcesKindExclusive": "獨佔",
+  "teamResourcesKindExclusiveDetail": "一次一個：瀏覽器、裝置或固定連接埠。呼叫需等候鎖定釋放。",
+  "teamResourcesKindShared": "共用",
+  "teamResourcesKindSharedDetail": "可同時使用至上限。其餘呼叫在佇列中等待。",
+  "teamResourcesKindFree": "閒置",
+  "teamResourcesKindFreeDetail": "無鎖定。任何工作器可隨時呼叫。",
+  "teamResourcesRolesLabel": "可使用它的角色",
+  "teamResourcesLimitLabel": "每次最多 {count} 個",
+  "teamResourceBusy": "資源忙碌中，由{role}工作 {taskId} 持有",
+  "teamLeaseTakeBack": "收回",
+  "teamLeaseTakeBackDetail": "鎖定轉移給協調器；持有者的下一次呼叫將被告知資源忙碌中。",
+  "teamLeaseRestartServer": "重新啟動伺服器",
+  "teamLeaseRestartServerDetail": "結束本視窗啟動的伺服器；其處理程序結束後釋放鎖定。",
+  "teamLeaseReleaseAnyway": "仍要釋放",
+  "teamLeaseReleaseAnywayDetail": "依您的決定釋放鎖定。先前的呼叫可能仍在作用於該資源。",
+  "teamLeaseElsewhereTitle": "另一視窗正在執行 {server}",
+  "teamLeaseElsewhereDetail": "{window} 正在使用 {server}。在此處也啟動可能會從該視窗奪走它。",
+  "teamLeaseStartAnyway": "仍在此處啟動",
+  "teamLeaseWait": "等候",
+  "teamLeaseOpenWindow": "開啟該視窗",
+  "teamMoveToBridgeDetail": "從 Muse Code 設定檔中移除 {server}（擴充功能從不寫入該檔案），並將其加入擴充功能自身的 MCP 設定，橋接器會將其提供給每個工作器。"
 }

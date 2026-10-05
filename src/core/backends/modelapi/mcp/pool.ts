@@ -30,7 +30,7 @@ import {
   mcpFunctionName,
 } from './functions'
 import { McpHttpTransport } from './http'
-import { McpError, type McpToolInfo } from './protocol'
+import { type CallToolResult, McpError, type McpToolInfo } from './protocol'
 import {
   type McpLaunch,
   type McpServerPlan,
@@ -71,6 +71,18 @@ export interface McpPoolSnapshot {
 export interface McpToolRef {
   readonly server: string
   readonly tool: string
+  readonly isReadOnly: boolean
+}
+
+/**
+ * One offered function with its server's raw MCP tool (M96 lane B): the team
+ * bridge's `tools/list` serves the server's own description, not the Model
+ * API's fitted definition.
+ */
+export interface BridgeOfferedTool {
+  readonly functionName: string
+  readonly server: string
+  readonly tool: McpToolInfo
   readonly isReadOnly: boolean
 }
 
@@ -380,6 +392,19 @@ export class McpServerPool implements McpToolSource {
     }
   }
 
+  private parseCallArgs(argsJson: string): Record<string, unknown> {
+    let args: unknown
+    try {
+      args = argsJson.trim() === '' ? {} : JSON.parse(argsJson)
+    } catch {
+      args = undefined
+    }
+    if (typeof args !== 'object' || args === null || Array.isArray(args)) {
+      throw new McpError(MODEL_TEXT.mcpArgumentsNotObject)
+    }
+    return Object.fromEntries(Object.entries(args))
+  }
+
   public start(): Promise<void> {
     if (this.isClosed) {
       return Promise.resolve()
@@ -426,26 +451,41 @@ export class McpServerPool implements McpToolSource {
     argsJson: string,
     signal: AbortSignal,
   ): Promise<McpCallOutcome> {
+    return mcpCallOutcome(await this.callRaw(functionName, argsJson, signal))
+  }
+
+  /**
+   * The raw `tools/call` result (M96 lane B): the team bridge proxies it to
+   * MCP clients, which need the server's own content blocks rather than the
+   * model's outcome. Throws the same `McpError` as `call`.
+   */
+  public async callRaw(
+    functionName: string,
+    argsJson: string,
+    signal: AbortSignal,
+  ): Promise<CallToolResult> {
     const found = this.byFunction.get(functionName)
     const connection = found?.server.connection
     if (found === undefined || connection === undefined) {
       throw new McpError(`${functionName} ${MODEL_API_MODEL_TEXT.mcpToolUnavailable}`)
     }
-    let args: unknown
-    try {
-      args = argsJson.trim() === '' ? {} : JSON.parse(argsJson)
-    } catch {
-      args = undefined
-    }
-    if (typeof args !== 'object' || args === null || Array.isArray(args)) {
-      throw new McpError(MODEL_TEXT.mcpArgumentsNotObject)
-    }
-    const result = await connection.callTool(
-      found.offered.tool.name,
-      Object.fromEntries(Object.entries(args)),
-      { timeoutMs: found.server.spec.toolTimeoutMs, signal },
-    )
-    return mcpCallOutcome(result)
+    return await connection.callTool(found.offered.tool.name, this.parseCallArgs(argsJson), {
+      timeoutMs: found.server.spec.toolTimeoutMs,
+      signal,
+    })
+  }
+
+  /**
+   * Every offered function with its raw tool (M96 lane B): the team bridge's
+   * `tools/list`, filtered per caller there.
+   */
+  public bridgeTools(): readonly BridgeOfferedTool[] {
+    return Array.from(this.byFunction, ([functionName, { server, offered }]) => ({
+      functionName,
+      server: server.spec.name,
+      tool: offered.tool,
+      isReadOnly: offered.isReadOnly,
+    }))
   }
 
   /** Every server stopped (a stdio one's process tree killed); nothing is offered afterwards. */

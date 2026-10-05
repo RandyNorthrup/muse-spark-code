@@ -4263,6 +4263,8 @@ export const TEAM_LEDGER_FLUSH_MS = 2000
 // has exited, never on idleness.
 export const TEAM_LEASE_WAIT_MS = 300_000
 export const TEAM_LEASE_IDLE_MS = 120_000
+// Unknown servers are shared, with a per-role limit the user sets (D75).
+export const TEAM_SHARED_RESOURCE_DEFAULT_LIMIT = 2
 // Engine workers' shell commands that run at once, per window (D75): half
 // the logical CPUs, at least this. Lane K applies the formula; this floor
 // is the constant part.

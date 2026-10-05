@@ -54,6 +54,16 @@ happened, not what was planned; superseded entries are kept.
   declare a runnable team before workers are available; the first paid use
   keeps the three-choice popup.
 
+- **Team resource ownership.** Take back and retirement retain exclusive
+  resources until every earlier call is terminal, the server exits, or the
+  user chooses Release anyway. Unassigned servers reach no worker role.
+- **Team MCP bridge lifecycle.** Local timeouts retain ownership; worker
+  server lists require user assignment. Caller removal and disposal cancel
+  engine calls and queued admission, and a pending start cannot reopen a
+  disposed bridge. Loopback auth-negative tests now send no credentials,
+  and endpoint tests release their exclusive lease before switching holders.
+
+
 ## [0.12.1] - 2026-10-04
 
 ### Changed

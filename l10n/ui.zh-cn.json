@@ -1280,7 +1280,7 @@
   "usagePaidTeamTasks": {
     "other": "{count}个团队任务"
   },
-  "teamSwitchRow": "{role}: {from} → {to}, {reason}",
+  "teamSwitchRow": "{role}：{from} → {to}，{reason}",
   "teamSwitchReasonCap": "已达到{measure}/{window}上限，已用{amount}中的{used}",
   "teamSwitchReasonConcurrency": "无空闲运行槽",
   "teamSwitchReasonRateLimited": "被提供方限速",
@@ -1889,7 +1889,6 @@
   "teamTakeBack": "收回",
   "teamMoveToBridge": "移至共享桥",
   "teamResetRecord": "重置记录",
-  "teamSwitchRow": "{role}：{from} → {to}，{reason}",
   "teamSwitchReasons": {
     "cap": "达到上限",
     "concurrency": "无空闲位",
@@ -1951,5 +1950,29 @@
   },
   "teamCheckModelsOnOpen": "打开本窗口时检查团队模型",
   "teamCheckModelsOnOpenDetail": "开启后，若某角色有不同的自定义模型，面板将在打开窗口时探测一次团队模型。配置第二个模型即是对此流量的授权。",
-  "teamDuplicateJournal": "另一窗口的日志（{task}）可能属于仍处于打开状态的窗口。此处不会写入其副本、分支或日志行。"
+  "teamDuplicateJournal": "另一窗口的日志（{task}）可能属于仍处于打开状态的窗口。此处不会写入其副本、分支或日志行。",
+  "teamResourcesTitle": "工具与设备",
+  "teamResourcesDetail": "团队共享哪些 MCP 服务器和设备，以及谁可以使用它们",
+  "teamResourcesKindLabel": "类型",
+  "teamResourcesKindExclusive": "独占",
+  "teamResourcesKindExclusiveDetail": "一次一个：浏览器、设备或固定端口。调用需等待锁释放。",
+  "teamResourcesKindShared": "共享",
+  "teamResourcesKindSharedDetail": "可同时使用至上限。其余调用在队列中等待。",
+  "teamResourcesKindFree": "空闲",
+  "teamResourcesKindFreeDetail": "无锁。任何工作器可随时调用。",
+  "teamResourcesRolesLabel": "可使用它的角色",
+  "teamResourcesLimitLabel": "每次最多 {count} 个",
+  "teamResourceBusy": "资源正忙，由{role}任务 {taskId} 持有",
+  "teamLeaseTakeBack": "收回",
+  "teamLeaseTakeBackDetail": "锁转移给编排器；持有者的下一次调用将被告知资源正忙。",
+  "teamLeaseRestartServer": "重启服务器",
+  "teamLeaseRestartServerDetail": "结束本窗口启动的服务器；其进程退出后释放锁。",
+  "teamLeaseReleaseAnyway": "仍要释放",
+  "teamLeaseReleaseAnywayDetail": "按您的决定释放锁。之前的调用可能仍在作用于该资源。",
+  "teamLeaseElsewhereTitle": "另一窗口正在运行 {server}",
+  "teamLeaseElsewhereDetail": "{window} 正在使用 {server}。在此处也启动可能会从该窗口夺走它。",
+  "teamLeaseStartAnyway": "仍在此处启动",
+  "teamLeaseWait": "等待",
+  "teamLeaseOpenWindow": "打开该窗口",
+  "teamMoveToBridgeDetail": "从 Muse Code 设置文件中移除 {server}（扩展从不写入该文件），并将其添加到扩展自身的 MCP 配置中，网桥会将其提供给每个工作器。"
 }
