@@ -4,10 +4,17 @@ import { describe, expect, it, vi } from 'vitest'
 import {
   createResponsesCodec,
   ResponsesDecodeError,
+  ResponsesOutputCapError,
   type ResponsesDecodeSink,
   type ResponsesOutputCap,
 } from '../../src/core/backends/modelapi/codecs/responses'
 import type { StreamEvent } from '../../src/core/backends/modelapi/schemas'
+import { ModelApiHost, ModelApiSession } from '../../src/core/backends/modelapi/ModelApiHost'
+import { fakeModelApi, fakeModelApiClient } from './helpers/fakeModelApi'
+import { fakeModelApiHostDeps } from './helpers/modelApiHostDeps'
+import { memoryToolIo } from './helpers/fakeToolIo'
+import { FakeLogOutputChannel } from './helpers/fakes'
+import { watchSessionTurns } from './helpers/sessionTurns'
 
 const codec = createResponsesCodec({ profile: 'chatgpt', toolNamespace: 'functions' })
 const encoder = new TextEncoder()
@@ -109,6 +116,120 @@ describe('chatgpt Responses client-side output cap', () => {
     ).rejects.toMatchObject({ name: 'ResponsesOutputCapError', outputTokens: 3 })
     expect(control.abort).toHaveBeenCalledTimes(1)
   })
+
+  it.each(['response.completed', 'response.incomplete', 'response.failed'])(
+    'settles reported usage from an over-cap %s through ModelApiHost without excess replay',
+    async (type) => {
+      const control = cap()
+      const closed = vi.fn()
+      const log = new FakeLogOutputChannel()
+      const client = fakeModelApiClient(fakeModelApi(), log)
+      const usage = {
+        input_tokens: 5,
+        input_tokens_details: { cached_tokens: 2 },
+        output_tokens: 3,
+        output_tokens_details: { reasoning_tokens: 1 },
+      }
+      const capErrors: ResponsesOutputCapError[] = []
+      // The transport/host adapter settles a typed cap error as an ordinary
+      // canonical failure. Its output is empty: no rejected item is replayed.
+      vi.spyOn(client, 'streamResponse').mockImplementation(async function* () {
+        try {
+          yield* codec.decodeStream(
+            chunks(
+              [
+                delta('ab'),
+                {
+                  type,
+                  response: {
+                    id: 'resp_1',
+                    status: type.slice('response.'.length),
+                    output: [
+                      {
+                        type: 'message',
+                        role: 'assistant',
+                        content: [{ type: 'output_text', text: 'excess output' }],
+                      },
+                      {
+                        type: 'function_call',
+                        call_id: 'call_excess',
+                        name: 'write_file',
+                        arguments: '{"path":"excess.txt","content":"excess output"}',
+                      },
+                    ],
+                    usage,
+                  },
+                },
+              ],
+              closed,
+            ),
+            control,
+          )
+        } catch (error: unknown) {
+          if (!(error instanceof ResponsesOutputCapError) || error.usage === undefined) {
+            throw error
+          }
+          capErrors.push(error)
+          yield {
+            type: 'response.failed',
+            response: {
+              id: 'resp_1',
+              status: 'failed',
+              output: [],
+              usage: error.usage,
+              error: { code: error.name, message: error.message },
+            },
+          }
+        }
+      })
+      const io = memoryToolIo({}, '/ws')
+      const noteResponseUsage = vi.fn()
+      const host = new ModelApiHost({
+        ...fakeModelApiHostDeps({ client, workspaceRoot: '/ws', io, log }),
+        noteResponseUsage,
+      })
+      try {
+        const session = await host.startSession({
+          workspaceRoot: '/ws',
+          modelId: 'muse-spark-1.3',
+          approvalMode: 'promptUnmatched',
+        })
+        if (!(session instanceof ModelApiSession)) throw new Error('Missing ModelApiSession')
+        const { events, turnDone } = watchSessionTurns(session)
+        const done = turnDone()
+        await session.sendTurn([{ type: 'text', text: 'Reply briefly.' }])
+        await done
+        expect(events.filter((event) => event.type === 'tokenUsage')).toEqual([
+          expect.objectContaining({
+            inputTokens: 5,
+            cachedTokens: 2,
+            outputTokens: 3,
+            reasoningTokens: 1,
+          }),
+        ])
+        expect(noteResponseUsage).toHaveBeenCalledExactlyOnceWith(session.modelId, {
+          inputTokens: 5,
+          cachedTokens: 2,
+          outputTokens: 3,
+        })
+        expect(capErrors).toHaveLength(1)
+        expect(capErrors[0]?.usage).toEqual(usage)
+        expect(session.snapshot().replay).toHaveLength(1)
+        expect(session.snapshot().replay[0]?.item).toMatchObject({ role: 'user' })
+        expect(events.filter((event) => event.type === 'textDelta')).toEqual([
+          expect.objectContaining({ delta: 'ab' }),
+        ])
+        expect(events).toContainEqual(
+          expect.objectContaining({ type: 'turnCompleted', terminal: 'failed' }),
+        )
+        expect(io.files.has('/ws/excess.txt')).toBe(false)
+        expect(control.abort).toHaveBeenCalledTimes(1)
+        expect(closed).toHaveBeenCalledTimes(1)
+      } finally {
+        await host.close()
+      }
+    },
+  )
 
   it('checks a final item without deltas through the host counter', async () => {
     const control = cap()

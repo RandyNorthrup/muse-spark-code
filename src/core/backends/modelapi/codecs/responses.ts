@@ -15,6 +15,7 @@ import {
   responseSchema,
   type StreamEvent,
   streamEventSchema,
+  type Usage,
   usageSchema,
   webSearchCallItemSchema,
 } from '../schemas'
@@ -60,6 +61,8 @@ export class ResponsesOutputCapError extends Error {
   public constructor(
     public readonly maxOutputTokens: number,
     public readonly outputTokens: number,
+    /** Validated report for canonical failure settlement; never rejected output. */
+    public readonly usage?: Usage,
   ) {
     super('ResponsesOutputCapError: client output cap exceeded')
     this.name = 'ResponsesOutputCapError'
@@ -199,7 +202,11 @@ function withinOutputCap(event: StreamEvent, cap: ResponsesOutputCap | undefined
   const outputTokens = Math.max(counted, reported)
   if (outputTokens > cap.maxOutputTokens) {
     cap.abort()
-    throw new ResponsesOutputCapError(cap.maxOutputTokens, outputTokens)
+    throw new ResponsesOutputCapError(
+      cap.maxOutputTokens,
+      outputTokens,
+      'response' in event ? (event.response.usage ?? undefined) : undefined,
+    )
   }
   return event
 }

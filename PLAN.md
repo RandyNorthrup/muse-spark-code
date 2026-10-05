@@ -15100,6 +15100,19 @@ release acceptance are still pending.**
 
 ### M95b — Subscription sign-in: ChatGPT plan, Copilot models, plan keys (D74)
 
+**FIXM95BC review repair (2026-10-05, RVM95BC).** Within lane C's codec,
+tests, request fixtures and certification, preserve validated reported usage
+in the output-cap error for the canonical adapter's ordinary failure
+settlement; prove the actual `ModelApiHost` emits all four token tallies
+without replaying excess output. Add the supplied scrubbed namespace-request
+comparison, preserve its description and declared strictness, and enumerate
+every intentional harness adaptation beside the test. Keep the existing
+contract golden, API-key profiles, guards and dependencies unchanged. Each
+finding gets an owning-file red drill with byte-exact restoration, recorded
+in `docs/certification/m95b-c.md`. The rig brief delegates full quality and
+shared README/CHANGELOG integration to the lead/lane W and forbids
+merge/rebase/push; focused checks run directly on Kubuntu.
+
 **Status 2026-10-04: planned with M95; research in
 `docs/certification/m95-research.md` §6. Starts when M95's seam (lanes P, T
 and I) has merged.**
@@ -15747,6 +15760,13 @@ its sections 1–2 (harness), "BYO n" its section 3 (providers).
   - [ ] Provider × item table complete; full gate green
 
 ## 7. Gates
+
+**FIXM95BC gate boundary (2026-10-05).** The rig/common brief prohibits
+aggregate `npm run quality` and full-test runs in this lane; the lead owns
+that gate on the integrated tree. Run the owned codec suites and required
+static/build checks directly on Kubuntu with every existing gate unchanged.
+Shared README/CHANGELOG updates remain lane W's work. Results and deliberate
+failure drills are recorded in `docs/certification/m95b-c.md`.
 
 **M95INT final whole-chain rerun — deferred under the 120-minute rig brief.**
 The final 548-page rerun still returns 1: `dark/models-pick` has one selected

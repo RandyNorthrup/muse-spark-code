@@ -199,3 +199,45 @@ gate. Raw capture byte comparison and the success/tool-call observations
 listed above remain open; this record does not certify a live plan turn.
 The owner's automatic enhancements/paid-consent rulings do not change this
 pure codec; plan usage remains separate from API-key paid-use policy.
+
+## FIXM95BC — RVM95BC review repairs (2026-10-05)
+
+Repair worktree `/home/randy/lanes/FIXM95BC`, branch `m95b/cfix`, base
+`b1fecc7c`; all commands run directly on **Kubuntu**. The rig brief overrides
+the common rules' old merge instruction and delegates full quality to the
+lead. No merge, rebase, push, new dependency, gate change, credential read,
+network request or model call is made.
+
+### P2 — cap-crossing usage settlement
+
+`ResponsesOutputCapError.usage` now carries the validated report separately
+from output. The codec still aborts once and throws before yielding the
+excess event. A delta-only cut has no usage report; no usage is invented.
+The normal count callback retains its counting-only contract.
+
+The regression drives the actual codec and `ModelApiHost` with a test-only
+client adapter that translates this error into an empty-output canonical
+`response.failed`. The host's existing `noteUsage` path emits exactly one
+`tokenUsage` with input **5**, cached **2**, output **3** and reasoning **1**,
+and calls the normal response-usage observer once. Completed, incomplete
+and failed terminal frames all settle this way. The turn fails, only the
+admitted `ab` delta is shown, the replay contains only its user message,
+and the excess `write_file` call never executes. The production adapter
+belongs to lane T/I/W and must perform this same translation before exposing
+the failure to the host; this codec-only repair does not certify dispatch.
+
+- Correctly configured pre-fix owning suite: **3 failed, 19 passed** at the
+  missing `tokenUsage` assertion. Two earlier setup-only runs refused the
+  test's invalid approval-mode values; they are not regression evidence.
+- After the fix, the three codec suites: **80 passed**.
+- Red drill: replace the error's usage argument with `undefined`; the full
+  cap suite exits **1**, **3 failed, 19 passed**, at
+  `settles reported usage from an over-cap response.completed through ModelApiHost without excess replay`
+  and its incomplete/failed cases. Restore the source buffer in `finally`
+  and verify identical before/after SHA-256:
+  `8833b3c3948308da5f8590b452d513a6ecdf664f379686de852f38c1c02474fc`.
+- `npm run typecheck`: all five projects pass after correcting the new
+  test's `memoryToolIo` argument list. Scoped ESLint exits **0**.
+
+The capture-comparison repair remains the next piece in this lane; neither
+review finding is intentionally deferred.
