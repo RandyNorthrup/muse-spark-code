@@ -1,4 +1,5 @@
 import { createHash } from 'node:crypto'
+import { execFileSync } from 'node:child_process'
 import { cpSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import { brotliCompressSync, brotliDecompressSync } from 'node:zlib'
@@ -183,6 +184,30 @@ describe('VSIX packaging', () => {
       readFileSync(path.join(fixture.root, 'dist/extension.js')),
     )
   })
+  it('retains direct CommonJS named exports through native import and require', () => {
+    execFileSync(
+      process.execPath,
+      [
+        '--input-type=module',
+        '--eval',
+        `
+      import assert from 'node:assert/strict';
+      import { createRequire } from 'node:module';
+      import { pathToFileURL } from 'node:url';
+      const baselineFile=${JSON.stringify(path.join(fixture.root, 'dist/tab.js'))};
+      const packagedFile=${JSON.stringify(path.join(fixture.stage, 'dist/tab.js'))};
+      const baseline=await import(pathToFileURL(baselineFile).href);
+      const packaged=await import(pathToFileURL(packagedFile).href);
+      assert.deepEqual(Object.keys(packaged),Object.keys(baseline));
+      assert.equal(packaged.relative,baseline.relative);
+      assert.throws(packaged.fail,/original stack/);
+      const require=createRequire(packagedFile);
+      assert.deepEqual(Object.keys(require(packagedFile)),Object.keys(require(baselineFile)));
+    `,
+      ],
+      { env: {} },
+    )
+  })
   it('keeps the eager fallback smaller and enumerates keys without loading regions', () => {
     const file = path.join(fixture.stage, 'dist/uiText.js')
     const require = createRequire(file)
@@ -232,15 +257,17 @@ describe('VSIX packaging', () => {
     const stage = path.join(fixture.root, 'repair')
     cpSync(fixture.stage, stage, { recursive: true })
     const file = path.join(stage, 'dist/uiText.js')
-    const core = createRequire(file)(file)
+    const require = createRequire(file)
+    require(file)
+    const { readPackedRuntime } = require.cache[file]
     const archiveFile = path.join(stage, 'dist/runtime.bundles.json.br')
     const archive = JSON.parse(brotliDecompressSync(readFileSync(archiveFile)))
-    core.readPackedRuntime('bundles', 'tab.js', hash(archive.bundles['tab.js']))
+    readPackedRuntime('bundles', 'tab.js', hash(archive.bundles['tab.js']))
     const repaired = 'exports.later=true;'
-    expect(() => core.readPackedRuntime('bundles', 'later.js', hash(repaired))).toThrow()
+    expect(() => readPackedRuntime('bundles', 'later.js', hash(repaired))).toThrow()
     archive.bundles['later.js'] = repaired
     writeFileSync(archiveFile, brotliCompressSync(JSON.stringify(archive)))
-    expect(core.readPackedRuntime('bundles', 'later.js', hash(repaired))).toBe(repaired)
+    expect(readPackedRuntime('bundles', 'later.js', hash(repaired))).toBe(repaired)
   })
   it.each([
     'missing',
@@ -303,7 +330,7 @@ describe('VSIX packaging', () => {
     expect(require(coreFile).EN).toEqual(EN)
     if (fault === 'oversized') {
       expect(() =>
-        require(coreFile).readPackedRuntime(
+        require.cache[coreFile].readPackedRuntime(
           isCode ? 'bundles' : 'english',
           isCode ? 'tab.js' : 'runtime',
           oversizedDigest,

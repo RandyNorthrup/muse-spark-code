@@ -8,6 +8,7 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { runInNewContext } from 'node:vm'
 import { brotliCompressSync, constants as zlibConstants } from 'node:zlib'
+import ts from 'typescript'
 import { loadL10n } from './l10nSource.mjs'
 import { UI_TEXT_REGIONS } from './uiTextRegions.mjs'
 
@@ -44,10 +45,23 @@ export async function packRuntimeArchive(root, stage, files, tables) {
     )
       continue
     const source = readFileSync(path.join(root, file), 'utf8')
+    // Native import discovers CommonJS names before _compile runs. Retain the
+    // build's inert export annotation, plus direct exports in plain CJS inputs.
+    // Parse statements so text inside strings/comments cannot declare exports.
+    const tree = ts.createSourceFile(file, source, ts.ScriptTarget.Latest, true, ts.ScriptKind.JS)
+    const declarations = tree.statements
+      .flatMap((statement) => {
+        if (!ts.isExpressionStatement(statement)) return []
+        const text = statement.getText(tree)
+        if (/^0\s*&&\s*\(module\.exports\s*=\s*\{/.test(text)) return [text]
+        const name = /^exports\.([\w$]+)\s*=/.exec(text)?.[1]
+        return name === undefined ? [] : [`0&&(exports.${name}=0);`]
+      })
+      .join('\n')
     codeArchive.bundles[path.basename(file)] = source
     writeFileSync(
       path.join(stage, file),
-      `module._compile(require('./uiText.js').readPackedRuntime('bundles',${JSON.stringify(path.basename(file))},'${digest(source)}'),__filename);\n`,
+      `${declarations}\nmodule._compile((require('./uiText.js'),require.cache[require.resolve('./uiText.js')].readPackedRuntime('bundles',${JSON.stringify(path.basename(file))},'${digest(source)}')),__filename);\n`,
     )
   }
   for (const region of UI_TEXT_REGIONS) {
@@ -65,7 +79,7 @@ export async function packRuntimeArchive(root, stage, files, tables) {
     archive.english[region.name] = english
     writeFileSync(
       path.join(stage, region.output),
-      `try{exports.EN=JSON.parse(require('./uiText.js').readPackedRuntime('english','${region.name}','${digest(english)}'));}catch{\n${source}\n}\n`,
+      `try{exports.EN=JSON.parse((require('./uiText.js'),require.cache[require.resolve('./uiText.js')].readPackedRuntime('english','${region.name}','${digest(english)}')));}catch{\n${source}\n}\n`,
     )
   }
   const maxOutputLength = L10N_TABLE_MAX_BYTES * TABLE_LOCALES.length
@@ -88,7 +102,7 @@ export async function packRuntimeArchive(root, stage, files, tables) {
   writeFileSync(
     core,
     `${coreSource}
-exports.readPackedRuntime=(()=>{
+module.readPackedRuntime=(()=>{
   const archives={};
   return (kind,name,digest)=>{
     let archive=archives[kind];

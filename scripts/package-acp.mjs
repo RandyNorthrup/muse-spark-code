@@ -173,4 +173,9 @@ const packed = execFileSync('npm', ['pack', '--pack-destination', '..'], {
   .trim()
   .split('\n')
   .at(-1)
+execFileSync(
+  process.execPath,
+  ['test/packaging/moduleExports.test.mjs', 'acp', path.join('dist', String(packed))],
+  { stdio: 'inherit' },
+)
 console.log(`dist/${String(packed)}: ${PACKAGE_NAME} ${String(manifest.version)}`)

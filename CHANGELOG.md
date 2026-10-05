@@ -9,6 +9,10 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- Archived Node bundles retain their named exports under native `import()` and
+  `require()`, restoring lazy hooks, MCP forms, Auto review and deferred panels.
+  Both package jobs now compare every Node module's exports and selected
+  function calls with the unpacked build.
 - The VSIX packaging unit suite now builds its own English fixtures from source,
   so a fresh checkout can run it before a production build.
 

@@ -245,7 +245,11 @@ translation damage never disables a backend. Node's built-in
 decoder retains the existing 14-MiB archive bound; only requested locale
 tables, English regions and modules are installed/compiled. SHA-256 guards
 every executable/English member; CommonJS compilation retains its original
-filename and relative imports. English regions keep independent inline
+filename and relative imports. Inert static export declarations preserve
+native `import()` discovery; the reader stays on the private cached Module,
+so public `import()`/`require()` exports remain exact. Both packaging jobs
+check every Node module against the unpacked build; ACP checks the actual
+tarball. English regions keep independent inline
 fallbacks, so missing/corrupt translation archives preserve today's English
 behavior. Activation, recorder, shared parsers and ACP entry remain ordinary
 CommonJS; compressed regional key lists offset the eager reader's bytes.
@@ -6812,17 +6816,21 @@ cached: "0.15", currency: "USD" }`, `isDefault`, `isActive`, `releaseDate`.
 
 **FIXVSIX2 review repair (2026-10-05, RVMVSIX2).** Fix P1 by retaining
 Node's static named-export declarations in each archived CommonJS wrapper,
-while compiling the exact digest-checked original source. Compare native
+while compiling the exact digest-checked original source. Keep the archive
+reader on the private cached CommonJS Module, preserving uiText's public
+export surface too. Compare native
 `import()` and `require()` exports for every packaged Node module with the
 unpacked build in both VSIX and ACP, and exercise hooks, reviewer, session
 board, report and plugin functions without model calls. Fix P2 by building
 the packaging suite's English fixtures in memory from source, so unit CI needs
-no `dist/`. Prove each repair red, restore byte-exact, remeasure universal
+no `dist/`. Register the packaging child test as a Knip entry (not an ignore),
+so the dead-code gate analyses this runtime entrypoint. Prove each repair red,
+restore byte-exact, remeasure universal
 headroom (at least 150,000 bytes) and byte-identical activation. No dependency,
 guard widening, paid/live call, merge, push or rebase; 90-minute repair box.
 
 - [x] Repair P2, run the complete suite without checkout build output, drill.
-- [ ] Repair P1, compare every packaged module and callable regression, drill.
+- [x] Repair P1, compare every packaged module and callable regression, drill.
 - [ ] Run scoped static/build/package gates and record sizes and receipts.
 
 - [x] Reproduce the 0.14.0 universal VSIX with the checksum-verified published

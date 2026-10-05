@@ -8,7 +8,8 @@ because the lane brief/shared rules explicitly reserve that gate for the lead.
 
 ## Universal baseline and result
 
-Baseline **2,248,984 / 2,252,800 bytes**, 3,816 bytes spare. Final measurement
+Original diet measurements, superseded by the FIXVSIX2 repair below.
+Baseline **2,248,984 / 2,252,800 bytes**, 3,816 bytes spare. Reviewed measurement
 **2,031,277 bytes**, **221,523 bytes headroom**
 (**217,707 bytes saved**). The 150,000-byte target is met.
 VSIX SHA-256: `2fc850aac2a663d07e9206be9bae111845e5ee421f15c162e9e91e8be530b6da`.
@@ -333,3 +334,60 @@ complete owning suite while `dist/` is absent. Suite exits 1 with named
 Restore byte-exact and compare SHA-256.
 
 Before/restored `db36173039e4eddc7c36ca9630e11b8acf3aa7cf33c526d8bf97c8a564aa51df`; mutated `da0647d4281ed6e71885e6ca5a9b578c8d05b9613b133cb8c84af9bd72081750`.
+
+**P1 fixed:** archive wrappers retain the build's inert static export
+annotation (and direct plain-CJS export names), then compile the unchanged
+digest-checked bytes. Parsing top-level statements excludes declarations
+inside comments/strings. The reader lives on the private cached CommonJS
+Module; `uiText.js` keeps precisely its original public exports.
+
+`test/packaging/moduleExports.test.mjs` runs automatically in both packaging
+jobs, after production build: every top-level Node module in the VSIX tree
+and extracted actual ACP tarball is imported with native Node `import()`
+before `require()`, and both export-name sets equal the unpacked build.
+Native functions are exercised in hookRuntime, foreignHooks, reviewer,
+session board, report and plugin bundles where shipped, through both loaders.
+Workers isolate CLI/host state with fake services and a credential-free
+environment; no network/model call. Browser ESM assets stay ordinary files.
+The separate package suite does not add a prerequisite to unit CI.
+
+Baseline regressions: 25/34 VSIX and 6/15 ACP module tests fail, including
+`parseElicitationParams` through native import. After repair, 34 VSIX and
+15 ACP tests pass; all 78 owning tests in three complete unit files pass.
+
+P1 declarations drill: suppress generated static declarations in
+`packageArchive.mjs`. The complete 46-test VSIX unit file exits 1: only
+`retains direct CommonJS named exports through native import and require`
+fails. The automatic package-time suite exits 1 with 24/34 failures, including
+`vsix hookRuntime.js: native import and require retain baseline exports and calls`.
+Restore source byte-exact, then production packaging passes again.
+
+Source before/restored `6a737a6bddcbf8a9399d5a69ddf5023d92ff4b5adb896151f6d6b52633c4fc04`; mutated `108aef27c832653e5cb5573a02b9c07faeb2741c9f2c2c192c7acd9d372f2083`.
+
+P1 reader drill: additionally publish the private reader in the actual
+staged `uiText.js`, leaving runtime compilation functional. Exactly
+`vsix uiText.js: native import and require retain baseline exports and calls`
+fails (1/34); restore the generated file byte-exact, then all 34 pass.
+
+Staged core before/restored `0a25ef2527c6cbb57bbc7e279be846ee08ee7f4e5886aa6515c985374649a68d`; mutated `6ead808d5d77d1402a635ed02b4d5ade2137ccaa4bfd9fd7b983b8fc818f739b`.
+
+Design measurement with the same staged members and VSCE ZIP settings:
+keeping the seven actual native-import targets ordinary measures
+**2,079,020 bytes / 173,780 headroom**.
+Static declarations with all lazy code still archived measure
+**2,033,170 bytes / 219,630 headroom**,
+**45,850 bytes smaller**; this design retains the most headroom.
+Both exceed the unchanged 150,000-byte target and 2,252,800-byte cap.
+The alternate package is an unpublished scratch artifact, not product.
+
+Activation remains **447,145 bytes**, SHA-256
+`cd0cce336f8b36999a22e68cf3e23f354c0191f26c6ef431c6ae60a9934a640c`,
+byte-identical to the unpacked build before repair. The published universal
+helper is verified against `_ctx/vsix-0.13.0/SHA256SUMS` and retains the
+original 289,568 bytes and digest recorded above. No dependency or cap change.
+Both RVMVSIX2 findings are fixed; no P2/P3 review residual is left.
+
+The restored 46-test VSIX unit file passes (27.10 s). Changed-file ESLint
+and formatting pass. Knip first correctly reported the new child test as
+unregistered; adding its exact path as an explicit entry restores analysis
+without an ignore or rule change.

@@ -77,6 +77,10 @@ async function main() {
     cwd: root,
     stdio: 'inherit',
   })
+  execFileSync(process.execPath, ['test/packaging/moduleExports.test.mjs', 'vsix', stage], {
+    cwd: root,
+    stdio: 'inherit',
+  })
   const manifest = JSON.parse(readFileSync(path.join(stage, 'package.json'), 'utf8'))
   const archive = path.join(root, `${manifest.name}-${manifest.version}.vsix`)
   await pack({ cwd: stage, dependencies: false, packagePath: archive })
