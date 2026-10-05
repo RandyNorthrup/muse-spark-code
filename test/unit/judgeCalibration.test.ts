@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest'
 import { applyCalibration } from '../../src/core/judge/calibration/apply'
 import { calibrationProbability, fitCalibration } from '../../src/core/judge/calibration/fit'
 import { reportCalibration } from '../../src/core/judge/calibration/report'
+import { judgeProfileIdentitySchema } from '../../src/core/judge/schema'
 import {
   parseCalibrationDataset,
   parseCalibrationProfile,
@@ -327,6 +328,59 @@ describe('binary fitting', () => {
 })
 
 describe('evaluation-only reports and runtime profiles', () => {
+  it('fits and reports the shared exact provider-bound profile identity', () => {
+    const input = dataset()
+    input.identity = judgeProfileIdentitySchema.parse({
+      ...input.identity,
+      providerId: 'provider-A',
+    })
+    const profile = fitted(input)
+    expect(profile.identity).toEqual(input.identity)
+    expect(judgeProfileIdentitySchema.parse(profile.identity)).toEqual(input.identity)
+    const reported = reportCalibration(profile, input, 5, limits)
+    if (reported.status !== 'reported') throw new Error(reported.reason)
+    expect(judgeProfileIdentitySchema.parse(reported.profile.identity)).toEqual(input.identity)
+  })
+
+  it('refuses an independently evaluated profile for another provider at the same endpoint', () => {
+    const input = dataset()
+    input.identity = judgeProfileIdentitySchema.parse({
+      ...input.identity,
+      providerId: 'provider-A',
+    })
+    // This simulates trusted evidence under test only; it is no real receipt.
+    input.evidence = 'independent'
+    const reported = reportCalibration(fitted(input), input, 5, limits)
+    if (reported.status !== 'reported') throw new Error(reported.reason)
+    expect(applyCalibration(reported.profile, input.identity, 0.1, false, limits)).toMatchObject({
+      status: 'calibrated',
+    })
+    const anotherProvider = judgeProfileIdentitySchema.parse({
+      ...input.identity,
+      providerId: 'provider-B',
+    })
+    expect(applyCalibration(reported.profile, anotherProvider, 0.1, false, limits)).toEqual({
+      status: 'uncalibrated',
+      reason: 'profile-mismatch',
+    })
+    expect(
+      reportCalibration(reported.profile, { ...input, identity: anotherProvider }, 5, limits),
+    ).toEqual({ status: 'uncalibrated', reason: 'profile-mismatch' })
+  })
+
+  it('requires a bounded nonblank provider identity in datasets and persisted profiles', () => {
+    const input = dataset()
+    const profile = fitted(input)
+    for (const providerId of [undefined, '', ' ', 'x'.repeat(257), 1]) {
+      const identity = { ...input.identity, providerId }
+      expect(fitCalibration({ ...input, identity }, 'platt', limits)).toEqual({
+        status: 'uncalibrated',
+        reason: 'invalid-dataset',
+      })
+      expect(parseCalibrationProfile({ ...profile, identity }, limits)).toBeUndefined()
+    }
+  })
+
   it('reports ECE/Brier from evaluation only, with counts and the uncalibrated arm', () => {
     const profile = { ...fitted(), fit: { method: 'platt', slope: 0, intercept: 0 } }
     const result = reportCalibration(profile, dataset(), 5, limits)
@@ -411,6 +465,7 @@ describe('evaluation-only reports and runtime profiles', () => {
   })
 
   it.each([
+    'providerId',
     'model',
     'modelVersion',
     'endpoint',
@@ -592,6 +647,7 @@ describe('evaluation-only reports and runtime profiles', () => {
       endpoint: input.identity.endpoint,
       modelVersion: input.identity.modelVersion,
       model: input.identity.model,
+      providerId: input.identity.providerId,
     }
     input.identity = reordered
     input.samples.reverse()

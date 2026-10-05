@@ -57,6 +57,7 @@ export function calibrationFailure(reason: CalibrationReason): CalibrationFailur
 }
 
 const identitySchema = z.strictObject({
+  providerId: z.string(),
   model: z.string(),
   modelVersion: z.string(),
   endpoint: z.string(),

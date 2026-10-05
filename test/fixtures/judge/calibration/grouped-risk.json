@@ -1,5 +1,6 @@
 {
   "identity": {
+    "providerId": "synthetic-provider",
     "model": "synthetic-binary",
     "modelVersion": "fixture-v1",
     "endpoint": "fixture://offline",
