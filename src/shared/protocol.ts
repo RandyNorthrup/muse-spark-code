@@ -29,6 +29,11 @@ import {
   PAID_FEATURES,
   PERMISSION_MODES,
   PREFERRED_LOCATIONS,
+  REPORT_ERROR_CODE_MAX_CHARS,
+  REPORT_EVENT_KINDS,
+  REPORT_FRAME_PATH_MAX_CHARS,
+  REPORT_STACK_MAX_FRAMES,
+  REPORT_WEBVIEW_ERROR_KINDS,
   SUBAGENT_ACTIONS,
   WEBVIEW_ERROR_MESSAGE_MAX_CHARS,
   WEBVIEW_ERROR_SOURCES,
@@ -261,6 +266,39 @@ const planReplyFields = {
   sourceSessionId: z.string().check(z.minLength(1)),
   itemId: z.string().check(z.minLength(1)),
 } as const
+
+// Report a problem (M93, PLAN.md D72): the report workflow's wire shapes,
+// exported for lane W's messages and handler. No free-text event payload
+// crosses here: fixed event kinds, counts and bounded identifiers only. Raw
+// messages, stacks, paths, prompts and session ids stay out; every object is
+// strict, so a forged extra field fails instead of riding along.
+export const reportEventRefSchema = z.strictObject({
+  /** Which recorded event this handoff names. */
+  kind: z.enum(REPORT_EVENT_KINDS),
+  /** The event's place in the journal the report reads. */
+  entryIndex: z.int().check(z.gte(0)),
+})
+export type ReportEventRef = z.infer<typeof reportEventRefSchema>
+
+const reportFrameSchema = z.strictObject({
+  /** A package-relative path the recorder already verified. */
+  path: z.string().check(z.minLength(1), z.maxLength(REPORT_FRAME_PATH_MAX_CHARS)),
+  line: z.int().check(z.gte(1)),
+  column: z.int().check(z.gte(0)),
+})
+
+/**
+ * What the webview posts for window.onerror, unhandledrejection and React
+ * boundary failures: the scrubbed shape only. `code` is a known short code
+ * or REPORT_UNKNOWN_ERROR_CODE; `frames` are bounded verified frames.
+ */
+export const reportWebviewErrorSchema = z.strictObject({
+  kind: z.enum(REPORT_WEBVIEW_ERROR_KINDS),
+  source: z.enum(WEBVIEW_ERROR_SOURCES),
+  code: z.string().check(z.minLength(1), z.maxLength(REPORT_ERROR_CODE_MAX_CHARS)),
+  frames: z.array(reportFrameSchema).check(z.maxLength(REPORT_STACK_MAX_FRAMES)),
+})
+export type ReportWebviewError = z.infer<typeof reportWebviewErrorSchema>
 
 const webviewToHostMessageSchema = z.discriminatedUnion('type', [
   // Sent once when the React app has mounted and is listening for messages.

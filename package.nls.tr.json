@@ -15,6 +15,7 @@
   "command.setUpSandbox.title": "Kabuk Korumalı Alanını Kur",
   "command.showLogs.title": "Günlükleri Göster",
   "command.diagnostics.title": "Tanılama",
+  "command.reportProblem.title": "Sorunu bildir",
   "command.newConversation.title": "Yeni Konuşma",
   "command.signOut.title": "Oturumu Kapat",
   "command.openInTerminal.title": "Terminalde Aç",

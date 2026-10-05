@@ -15,6 +15,7 @@
   "command.setUpSandbox.title": "シェル サンドボックスのセットアップ",
   "command.showLogs.title": "ログの表示",
   "command.diagnostics.title": "診断",
+  "command.reportProblem.title": "問題を報告",
   "command.newConversation.title": "新しい会話",
   "command.signOut.title": "サインアウト",
   "command.openInTerminal.title": "ターミナルで開く",

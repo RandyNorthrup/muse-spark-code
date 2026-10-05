@@ -15,6 +15,7 @@
   "command.setUpSandbox.title": "Configurar el espacio aislado del shell",
   "command.showLogs.title": "Mostrar registros",
   "command.diagnostics.title": "Diagnóstico",
+  "command.reportProblem.title": "Informar de un problema",
   "command.newConversation.title": "Nueva conversación",
   "command.signOut.title": "Cerrar sesión",
   "command.openInTerminal.title": "Abrir en el terminal",

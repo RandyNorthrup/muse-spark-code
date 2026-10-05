@@ -15,6 +15,7 @@
   "command.setUpSandbox.title": "Configurer le bac à sable du shell",
   "command.showLogs.title": "Afficher les journaux",
   "command.diagnostics.title": "Diagnostic",
+  "command.reportProblem.title": "Signaler un problème",
   "command.newConversation.title": "Nouvelle conversation",
   "command.signOut.title": "Se déconnecter",
   "command.openInTerminal.title": "Ouvrir dans le terminal",

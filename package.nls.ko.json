@@ -15,6 +15,7 @@
   "command.setUpSandbox.title": "셸 샌드박스 설정",
   "command.showLogs.title": "로그 표시",
   "command.diagnostics.title": "진단",
+  "command.reportProblem.title": "문제 보고",
   "command.newConversation.title": "새 대화",
   "command.signOut.title": "로그아웃",
   "command.openInTerminal.title": "터미널에서 열기",

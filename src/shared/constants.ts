@@ -3094,6 +3094,45 @@ export const WEBVIEW_ERROR_MESSAGE_MAX_CHARS = 1000
 export const WEBVIEW_ERROR_STACK_MAX_CHARS = 4000
 export const WEBVIEW_ERROR_LOG_LIMIT = 10
 export const WEBVIEW_ERROR_WINDOW_MS = 60_000
+// --- Report a problem (M93, PLAN.md D72) ---
+//
+// The crash-safe support workflow's bounds: a versioned, bounded journal,
+// never the conversation. Lane R records into them, lane P builds the
+// exported draft from them; they are tunables, not settings.
+// The journal's version; a record of any other version is discarded.
+export const REPORT_JOURNAL_VERSION = 1
+// A record older than this is pruned at startup, append and report read.
+export const REPORT_JOURNAL_MAX_AGE_MS = 7 * MILLISECONDS_PER_DAY
+// The journal file past this (UTF-8 bytes) drops its oldest entries first.
+export const REPORT_JOURNAL_MAX_BYTES = 256 * 1024
+// One entry past this is refused: an event is fixed fields plus bounded frames.
+export const REPORT_JOURNAL_ENTRY_MAX_BYTES = 4 * 1024
+// The report carries at most this many of the last valid entries by default.
+export const REPORT_RECENT_EVENT_COUNT = 50
+// The encoded new-issue URL past this falls back to copy plus a paste note.
+export const REPORT_ISSUE_URL_MAX_CHARS = 2000
+// The journal's fixed event kinds: host failures and webview failures alike.
+export const REPORT_EVENT_KINDS = [
+  'activationFailed',
+  'backendExit',
+  'toolCallFailed',
+  'windowError',
+  'unhandledRejection',
+  'reactBoundary',
+  'errorNotice',
+] as const
+export type ReportEventKind = (typeof REPORT_EVENT_KINDS)[number]
+// What the webview may post to the host: its own failures only, never host kinds.
+export const REPORT_WEBVIEW_ERROR_KINDS = ['windowError', 'unhandledRejection', 'reactBoundary'] as const
+export type ReportWebviewErrorKind = (typeof REPORT_WEBVIEW_ERROR_KINDS)[number]
+// A short known code, or this fixed word when the code is not known.
+export const REPORT_UNKNOWN_ERROR_CODE = 'unknown'
+// An error code is a short token (an errno, an exit word), never a sentence.
+export const REPORT_ERROR_CODE_MAX_CHARS = 64
+// A verified package-relative frame path; absolute roots never enter the file.
+export const REPORT_FRAME_PATH_MAX_CHARS = 260
+// A scrubbed stack past this many frames adds noise, not diagnosis.
+export const REPORT_STACK_MAX_FRAMES = 16
 // The panel keeps its conversation in VS Code's webview state so the crash
 // screen's Reload, or a panel moved to another window, comes back with it:
 // saved at most this often while it changes, and at once before a reload.

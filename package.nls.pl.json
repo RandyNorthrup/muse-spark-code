@@ -15,6 +15,7 @@
   "command.setUpSandbox.title": "Skonfiguruj piaskownicę powłoki",
   "command.showLogs.title": "Pokaż dzienniki",
   "command.diagnostics.title": "Diagnostyka",
+  "command.reportProblem.title": "Zgłoś problem",
   "command.newConversation.title": "Nowa rozmowa",
   "command.signOut.title": "Wyloguj się",
   "command.openInTerminal.title": "Otwórz w terminalu",

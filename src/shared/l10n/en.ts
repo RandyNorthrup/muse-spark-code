@@ -520,6 +520,34 @@ export const EN = {
   logoutItem: '/logout',
   openLog: 'Open output log',
   reportIssue: 'Report an issue…',
+  // Report a problem (M93, PLAN.md D72): the crash offer, the report
+  // dialog's labels and actions, and the export outcomes. The preview shows
+  // exactly what Copy, Save and the issue page carry.
+  reportCrashOffer: 'Muse Spark Code stopped unexpectedly last time — report it?',
+  reportCrashAction: 'Report a problem',
+  reportCrashDismiss: 'Not now',
+  reportThisAction: 'Report this',
+  reportTitle: 'Report a problem',
+  reportDescriptionLabel: 'What were you doing when it happened?',
+  reportIncludeFacts: 'Include support facts',
+  reportIncludeEvents: 'Include recent events',
+  reportPreviewLabel: 'Preview',
+  reportCopyAction: 'Copy report',
+  reportOpenIssueAction: 'Open issue page',
+  reportSaveAction: 'Save to a file',
+  reportVscodeReporterAction: 'Use the VS Code issue reporter',
+  reportCancelAction: 'Cancel',
+  reportCopied: 'The report was copied to the clipboard.',
+  reportCopyFailed: 'The report could not be copied. Copy it from the preview instead.',
+  reportSaved: 'The report was saved.',
+  reportSaveFailed: 'The report could not be saved.',
+  reportUrlTooLong:
+    'The report is too long to open in a browser address. Copy it instead, then paste it into the new-issue form.',
+  reportRecordingUnavailable: 'Event recording was unavailable, so this report has no recent events.',
+  reportDescriptionWarning:
+    'Anything you write above is sent exactly as written. Do not include passwords, keys or other confidential information.',
+  reportVscodeReporterNote:
+    'The VS Code issue reporter adds its own data, may search GitHub for similar issues, and controls sign-in and submission.',
   openDocs: 'Muse Code documentation',
   modelListLabel: 'Models',
   thinkingOff: 'No thinking',
