@@ -571,3 +571,156 @@ describe('UsageDialog: paid features (M33, PLAN.md D30)', () => {
     expect(dialog).toHaveTextContent('Estimated paid total$0.0400')
   })
 })
+
+describe('UsageDialog: Tab completions row (M94 lane U, PLAN.md D73)', () => {
+  const tabReport = {
+    backend: 'modelApi' as const,
+    subscription: undefined,
+    account: { signInMethod: 'apiKey' as const },
+    insights: undefined,
+  }
+
+  it('shows requests, tokens, today and window costs, and the budget while Tab is on', () => {
+    renderDialog({
+      report: tabReport,
+      paid: {
+        features: ['tab'],
+        tally: {
+          webSearches: 0,
+          images: 0,
+          voiceSeconds: 0,
+          scheduledRuns: 0,
+          tabRequests: 12,
+          tabUnknownRequests: 0,
+          tabTokens: 45_000,
+          tabCachedTokens: 3000,
+          tabCostUsd: 0.12,
+        },
+        isKeyStored: true,
+        alwaysAllowed: [],
+      },
+    })
+    const dialog = screen.getByRole('dialog')
+    expect(dialog).toHaveTextContent('Tab completions (on)')
+    expect(dialog).toHaveTextContent('12 Tab requests')
+    expect(dialog).toHaveTextContent('45,000 tokens (3,000 cached)')
+    expect(dialog).toHaveTextContent('Reported token estimate: $0.1200')
+    expect(dialog).toHaveTextContent('Today: $0.1200')
+    expect(dialog).toHaveTextContent('This window: $0.1200')
+    expect(dialog).toHaveTextContent('Daily budget: $1.00')
+    expect(dialog).toHaveTextContent('Estimated extra-feature total$0.1200')
+  })
+
+  it('counts one request in the singular', () => {
+    renderDialog({
+      report: tabReport,
+      paid: {
+        features: ['tab'],
+        tally: {
+          webSearches: 0,
+          images: 0,
+          voiceSeconds: 0,
+          scheduledRuns: 0,
+          tabRequests: 1,
+          tabTokens: 1200,
+          tabCachedTokens: 400,
+          tabCostUsd: 0.004,
+        },
+        isKeyStored: true,
+        alwaysAllowed: [],
+      },
+    })
+    const dialog = screen.getByRole('dialog')
+    expect(dialog).toHaveTextContent('1 Tab request')
+    expect(dialog).not.toHaveTextContent('1 Tab requests')
+  })
+
+  it('names requests with no reported cost yet instead of claiming they were free', () => {
+    renderDialog({
+      report: tabReport,
+      paid: {
+        features: ['tab'],
+        tally: {
+          webSearches: 0,
+          images: 0,
+          voiceSeconds: 0,
+          scheduledRuns: 0,
+          tabRequests: 3,
+          tabUnknownRequests: 2,
+          tabTokens: 900,
+          tabCachedTokens: 0,
+          tabCostUsd: 0.001,
+        },
+        isKeyStored: true,
+        alwaysAllowed: [],
+      },
+    })
+    expect(screen.getByRole('dialog')).toHaveTextContent('2 requests have no reported cost yet')
+  })
+
+  it('says off with the budget, not zeros as if it ran, while Tab never ran here', () => {
+    renderDialog({
+      report: tabReport,
+      paid: {
+        features: [],
+        tally: { webSearches: 0, images: 0, voiceSeconds: 0, scheduledRuns: 0 },
+        isKeyStored: true,
+        alwaysAllowed: [],
+      },
+    })
+    const label = screen.getByText('Tab completions (off)')
+    expect(label.nextElementSibling).toHaveTextContent('Daily budget: $1.00')
+    expect(label.nextElementSibling).not.toHaveTextContent('Tab request')
+    expect(label.nextElementSibling).not.toHaveTextContent('$0.00')
+  })
+
+  it('keeps real history visible after Tab is turned off', () => {
+    renderDialog({
+      report: tabReport,
+      paid: {
+        features: [],
+        tally: {
+          webSearches: 0,
+          images: 0,
+          voiceSeconds: 0,
+          scheduledRuns: 0,
+          tabRequests: 3,
+          tabTokens: 9000,
+          tabCachedTokens: 1000,
+          tabCostUsd: 0.02,
+        },
+        isKeyStored: true,
+        alwaysAllowed: [],
+      },
+    })
+    const dialog = screen.getByRole('dialog')
+    expect(dialog).toHaveTextContent('Tab completions (off)')
+    expect(dialog).toHaveTextContent('3 Tab requests')
+    expect(dialog).toHaveTextContent('Today: $0.0200')
+    expect(dialog).toHaveTextContent('Daily budget: $1.00')
+  })
+
+  it('marks Tab allowed always in this workspace like every paid feature (M58)', () => {
+    renderDialog({
+      report: tabReport,
+      paid: {
+        features: ['tab'],
+        tally: {
+          webSearches: 0,
+          images: 0,
+          voiceSeconds: 0,
+          scheduledRuns: 0,
+          tabRequests: 2,
+          tabTokens: 2000,
+          tabCachedTokens: 500,
+          tabCostUsd: 0.005,
+        },
+        isKeyStored: true,
+        alwaysAllowed: ['tab'],
+      },
+    })
+    expect(screen.getByRole('dialog')).toHaveTextContent(
+      'Tab completions (on, allowed always in this workspace)',
+    )
+  })
+})
