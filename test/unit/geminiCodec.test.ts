@@ -8,7 +8,7 @@
 import { readFileSync } from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 
 import {
   decodeGeminiStream,
@@ -23,6 +23,12 @@ import {
   toGeminiSchemaSubset,
 } from '../../src/core/backends/modelapi/codecs/gemini'
 import { ModelApiError } from '../../src/core/backends/modelapi/client'
+import { ModelApiHost } from '../../src/core/backends/modelapi/ModelApiHost'
+import { fakeModelApi, fakeModelApiClient } from './helpers/fakeModelApi'
+import { FakeLogOutputChannel } from './helpers/fakes'
+import { memoryContextIo } from './helpers/fakeContextIo'
+import { memoryToolIo } from './helpers/fakeToolIo'
+import { watchSessionTurns } from './helpers/sessionTurns'
 import {
   isFunctionCallItem,
   isMessageItem,
@@ -451,7 +457,12 @@ describe('decodeGeminiStream from the captures', () => {
     expect(last.response.id).toBe('k9bCavvEFLbqqtsP-oGv8Aw')
     expect(last.response.model).toBe('gemini/gemini-3.5-flash-lite')
     const [reasoning, call] = last.response.output
-    if (!isReasoningItem(reasoning) || !isFunctionCallItem(call)) {
+    if (
+      reasoning === undefined ||
+      call === undefined ||
+      !isReasoningItem(reasoning) ||
+      !isFunctionCallItem(call)
+    ) {
       throw new Error('expected a reasoning item and a function call')
     }
     expect(reasoning.encrypted_content).toBe(
@@ -488,7 +499,7 @@ describe('decodeGeminiStream from the captures', () => {
       throw new Error('expected the stream to end completed')
     }
     const [message] = last.response.output
-    if (!isMessageItem(message)) {
+    if (message === undefined || !isMessageItem(message)) {
       throw new Error('expected a message')
     }
     expect(messageTextOf(message)).toBe(
@@ -575,6 +586,158 @@ function recordedParts(recordedContents: unknown[]): unknown[] {
 }
 
 describe('decodeGeminiStream turns', () => {
+  it.each([
+    ['04-cache-call-1.json', 146, 145, 5660],
+    ['05-cache-call-2.json', 150, 148, 5664],
+  ])(
+    'counts billed thinking in canonical output for capture %s',
+    async (file, output, reasoning, total) => {
+      const events = await collect(sseOf(payloadsOf(file)))
+      const last = events.at(-1)
+      if (last?.type !== 'response.completed') {
+        throw new Error('expected completed captured response')
+      }
+      expect(last.response.usage).toEqual({
+        input_tokens: 5514,
+        output_tokens: output,
+        total_tokens: total,
+        output_tokens_details: { reasoning_tokens: reasoning },
+      })
+    },
+  )
+
+  it.each([undefined, 'MAX_TOKENS', 'SAFETY'])(
+    'requires STOP to complete even when calls arrived (%s)',
+    async (reason) => {
+      const events = await collect(
+        sseOf([chunk([{ functionCall: { name: 'get_time', args: {}, id: 'call_1' } }], reason)]),
+      )
+      const last = events.at(-1)
+      expect(last?.type).toBe(reason === 'SAFETY' ? 'response.failed' : 'response.incomplete')
+      if (last?.type !== 'response.incomplete') {
+        return
+      }
+      expect(last.response.status).toBe('incomplete')
+      expect(last.response.incomplete_details?.reason).toBe(
+        reason === 'MAX_TOKENS' ? 'max_output_tokens' : 'stream_ended_without_finish_reason',
+      )
+    },
+  )
+
+  it('marks EOF after text without a finish reason incomplete', async () => {
+    const events = await collect(sseOf([chunk([{ text: 'half' }])]))
+    const last = events.at(-1)
+    expect(last?.type).toBe('response.incomplete')
+  })
+
+  it('retains one item id across added, delta, done and terminal output', async () => {
+    const events = await collect(
+      sseOf([
+        chunk([{ text: 'thinking', thought: true }, { text: 'Hello' }]),
+        chunk(
+          [
+            { text: ' more', thought: true },
+            { text: ' world' },
+            { functionCall: { name: 'get_time', args: {}, id: 'call_1' }, thoughtSignature: 'sig' },
+          ],
+          'STOP',
+        ),
+      ]),
+    )
+    const added = events.filter((event) => event.type === 'response.output_item.added')
+    const done = events.filter((event) => event.type === 'response.output_item.done')
+    expect(added.map((event) => event.item.id)).toEqual(['rs_1', 'msg_1', 'call_1'])
+    expect(done.map((event) => event.item.id)).toEqual(['msg_1', 'rs_1', 'call_1'])
+    for (const event of events) {
+      if ('item_id' in event) {
+        expect(added.some((opening) => opening.item.id === event.item_id)).toBe(true)
+      }
+    }
+    const last = events.at(-1)
+    if (last?.type !== 'response.completed') {
+      throw new Error('expected completed response')
+    }
+    expect(last.response.output.map((item) => item.id)).toEqual([
+      'rs_1',
+      'msg_1',
+      'rs_call_1',
+      'call_1',
+    ])
+  })
+
+  it('ModelApiHost completes exactly one live message and reasoning row per Gemini item', async () => {
+    const log = new FakeLogOutputChannel()
+    const client = fakeModelApiClient(fakeModelApi(), log)
+    vi.spyOn(client, 'streamResponse').mockImplementation(() =>
+      decodeGeminiStream(
+        sseOf([
+          chunk([{ text: 'thinking', thought: true }, { text: 'Hello' }]),
+          chunk([{ text: ' more', thought: true }, { text: ' world' }], 'STOP'),
+        ]),
+        'gemini/gemini-3.5-flash-lite',
+      ),
+    )
+    let ids = 0
+    const host = new ModelApiHost({
+      client,
+      workspaceRoot: '/ws',
+      platform: 'linux',
+      io: memoryToolIo({}, '/ws'),
+      contextIo: memoryContextIo(new Map()),
+      newId: () => `id${String((ids += 1))}`,
+      now: () => 0,
+      log,
+      personalSkillsRoot: undefined,
+      personalAgentsRoot: undefined,
+      isWorkspaceTrusted: () => true,
+      isConfidentialWorkspace: () => false,
+      confirmContributorModel: () => Promise.resolve(false),
+      describeEnvironment: () => Promise.resolve({ git: undefined }),
+      isPaidFeatureOn: () => false,
+      notePaidUse: () => undefined,
+      allowsPaidUse: () => Promise.resolve(false),
+      isPaidUseRemembered: () => false,
+      promptCacheRetention: () => 'in_memory',
+      sessionBudgetUsd: () => 0,
+      showReplyUsage: () => false,
+      getAccountId: () => Promise.resolve('fake-account'),
+      memory: undefined,
+      noteSubagentUsage: () => undefined,
+      noteReviewerUsage: () => undefined,
+    })
+    const session = await host.startSession({
+      workspaceRoot: '/ws',
+      modelId: 'muse-spark-1.3',
+      approvalMode: 'promptUnmatched',
+    })
+    try {
+      const { events, turnDone } = watchSessionTurns(session)
+      const completed = turnDone()
+      await session.sendTurn([{ type: 'text', text: 'hello' }])
+      await completed
+      expect(events.find((event) => event.type === 'turnCompleted')).toMatchObject({
+        terminal: 'completed',
+      })
+      for (const kind of ['agentMessage', 'reasoning']) {
+        const started = events.filter(
+          (event) => event.type === 'itemStarted' && event.item.kind === kind,
+        )
+        const done = events.filter(
+          (event) => event.type === 'itemCompleted' && event.item.kind === kind,
+        )
+        expect(started).toHaveLength(1)
+        expect(done).toHaveLength(1)
+        expect(done[0]).toMatchObject({
+          item: { itemId: started[0]?.type === 'itemStarted' ? started[0].item.itemId : undefined },
+        })
+      }
+    } finally {
+      session.dispose()
+      vi.restoreAllMocks()
+      await host.close()
+    }
+  })
+
   it('marks pre-call text commentary and surfaces thought parts as reasoning', async () => {
     const events = await collect(
       sseOf([
@@ -597,6 +760,10 @@ describe('decodeGeminiStream turns', () => {
     }
     const [summary, message, signed, call] = last.response.output
     if (
+      summary === undefined ||
+      message === undefined ||
+      signed === undefined ||
+      call === undefined ||
       !isReasoningItem(summary) ||
       !isMessageItem(message) ||
       !isReasoningItem(signed) ||

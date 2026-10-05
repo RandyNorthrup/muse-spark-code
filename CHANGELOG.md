@@ -7,6 +7,12 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+### Fixed
+
+- Gemini codec: count billed thinking in output usage, require a successful
+  terminal reason, and retain live item identities. Regression checks include
+  the unit TypeScript project and the real host's live message/thinking rows.
+
 ## [0.12.1] - 2026-10-04
 
 ### Changed

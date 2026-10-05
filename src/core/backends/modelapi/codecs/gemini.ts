@@ -498,7 +498,8 @@ function toUsage(usage: z.infer<typeof geminiUsageSchema>): Usage | undefined {
   }
   return {
     input_tokens: promptTokenCount,
-    output_tokens: candidatesTokenCount,
+    // Thinking is billed as output (research §1.6; captures 04 and 05).
+    output_tokens: candidatesTokenCount + (thoughtsTokenCount ?? 0),
     ...(usage.totalTokenCount !== undefined && { total_tokens: usage.totalTokenCount }),
     ...(cachedContentTokenCount !== undefined && {
       input_tokens_details: { cached_tokens: cachedContentTokenCount },
@@ -510,11 +511,13 @@ function toUsage(usage: z.infer<typeof geminiUsageSchema>): Usage | undefined {
 }
 
 const GEMINI_MAX_TOKENS = 'MAX_TOKENS'
+const GEMINI_MESSAGE_ID = 'msg_1'
+const GEMINI_REASONING_ID = 'rs_1'
 
 /**
- * The terminal event for a finished turn. A turn with calls is complete: a
- * function call ends with `finishReason: "STOP"`, so calls are detected by
- * their parts, not the reason (captures § Gemini, item 11).
+ * Only `STOP` completes a turn (including calls, capture 02). A missing
+ * terminal reason is an interrupted stream; calls never override a cut or
+ * failed finish reason.
  */
 function terminalEvent(
   responseId: string,
@@ -527,11 +530,16 @@ function terminalEvent(
 ): StreamEvent {
   const output: ResponseObject['output'] = []
   if (thoughtText !== '') {
-    output.push({ type: 'reasoning', summary: [{ type: 'summary_text', text: thoughtText }] })
+    output.push({
+      type: 'reasoning',
+      id: GEMINI_REASONING_ID,
+      summary: [{ type: 'summary_text', text: thoughtText }],
+    })
   }
   if (text !== '' || calls.length === 0) {
     output.push({
       type: 'message',
+      id: GEMINI_MESSAGE_ID,
       role: 'assistant',
       ...(calls.length > 0 && text !== '' && { phase: 'commentary' }),
       content: [{ type: 'output_text', text }],
@@ -539,10 +547,11 @@ function terminalEvent(
   }
   for (const call of calls) {
     if (call.signature !== undefined) {
-      output.push({ type: 'reasoning', encrypted_content: call.signature })
+      output.push({ type: 'reasoning', id: `rs_${call.id}`, encrypted_content: call.signature })
     }
     output.push({
       type: 'function_call',
+      id: call.id,
       call_id: call.id,
       name: call.name,
       arguments: call.args,
@@ -555,17 +564,22 @@ function terminalEvent(
     output,
     ...(usage !== undefined && { usage }),
   }
-  if (finishReason === 'STOP' || finishReason === undefined || calls.length > 0) {
+  if (finishReason === 'STOP') {
     return { type: 'response.completed', response }
   }
   // Text before a `MAX_TOKENS` cut stays readable; the reason says it was cut.
-  if (finishReason === GEMINI_MAX_TOKENS) {
+  if (finishReason === GEMINI_MAX_TOKENS || finishReason === undefined) {
     return {
       type: 'response.incomplete',
       response: {
         ...response,
         status: 'incomplete',
-        incomplete_details: { reason: 'max_output_tokens' },
+        incomplete_details: {
+          reason:
+            finishReason === GEMINI_MAX_TOKENS
+              ? 'max_output_tokens'
+              : 'stream_ended_without_finish_reason',
+        },
       },
     }
   }
@@ -647,11 +661,15 @@ export async function* decodeGeminiStream(
         if (part.thought === true && part.text !== undefined && part.text !== '') {
           if (!isReasoningOpen) {
             isReasoningOpen = true
+            yield {
+              type: 'response.output_item.added',
+              item: { type: 'reasoning', id: GEMINI_REASONING_ID, summary: [] },
+            }
           }
           thoughtText += part.text
           yield {
             type: 'response.reasoning_summary_text.delta',
-            item_id: 'rs_1',
+            item_id: GEMINI_REASONING_ID,
             delta: part.text,
           }
         } else if (part.functionCall !== undefined) {
@@ -667,6 +685,7 @@ export async function* decodeGeminiStream(
             type: 'response.output_item.added',
             item: {
               type: 'function_call',
+              id: call.id,
               call_id: call.id,
               name: call.name,
               arguments: call.args,
@@ -682,11 +701,11 @@ export async function* decodeGeminiStream(
             isMessageOpen = true
             yield {
               type: 'response.output_item.added',
-              item: { type: 'message', role: 'assistant', content: [] },
+              item: { type: 'message', id: GEMINI_MESSAGE_ID, role: 'assistant', content: [] },
             }
           }
           text += part.text
-          yield { type: 'response.output_text.delta', item_id: 'msg_1', delta: part.text }
+          yield { type: 'response.output_text.delta', item_id: GEMINI_MESSAGE_ID, delta: part.text }
         }
       }
     }
@@ -697,7 +716,12 @@ export async function* decodeGeminiStream(
   if (isMessageOpen) {
     yield {
       type: 'response.output_item.done',
-      item: { type: 'message', role: 'assistant', content: [{ type: 'output_text', text }] },
+      item: {
+        type: 'message',
+        id: GEMINI_MESSAGE_ID,
+        role: 'assistant',
+        content: [{ type: 'output_text', text }],
+      },
     }
   }
   if (isReasoningOpen) {
@@ -705,6 +729,7 @@ export async function* decodeGeminiStream(
       type: 'response.output_item.done',
       item: {
         type: 'reasoning',
+        id: GEMINI_REASONING_ID,
         summary: [{ type: 'summary_text', text: thoughtText }],
       },
     }
@@ -714,6 +739,7 @@ export async function* decodeGeminiStream(
       type: 'response.output_item.done',
       item: {
         type: 'function_call',
+        id: call.id,
         call_id: call.id,
         name: call.name,
         arguments: call.args,

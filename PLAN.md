@@ -13879,6 +13879,18 @@ live) and the controller filters its id as well.
 
 ### M95 — Bring-your-own model providers (D74)
 
+**Lane G review corrections (FIXM95G, 2026-10-05).** Fix RVM95A findings
+3, 9, 10, 11, 16 and 17 within the Gemini codec, its tests and request
+goldens. Canonical output includes billed thinking with a separate reasoning
+breakdown; completion requires `STOP`; all live item events retain one id.
+Tool-result media without a captured supported representation is explicitly
+refused. Check exact serialized request bytes for first turn, signed tool
+loop, image, packed output and compaction, and the complete stable prefix.
+Prove each regression by a red drill and SHA-256-exact restoration in
+`docs/certification/m95-g.md`, including the unit TypeScript check. The rig
+brief forbids full quality, merging and pushing; focused gates run here,
+and the lead owns final integration and full quality.
+
 **Status 2026-10-04: planned on `feature/m95-byo-providers` from main
 `1e93c67c`; research in `docs/certification/m95-research.md`. Step 13's
 wire captures were recorded 2026-10-04 for the twelve cloud presets the
