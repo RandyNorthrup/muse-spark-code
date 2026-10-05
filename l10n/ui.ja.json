@@ -1840,5 +1840,10 @@
   "legalScanAgain": "再スキャン",
   "legalFixOwnership": "これらのファイルがプロジェクトの所有物であり、プレビューのライセンスと著作権が適用されることを確認してください: {paths}",
   "legalFixDenied": "編集は承認されませんでした。",
-  "legalExportMarkdown": "Markdown をエクスポート…"
+  "legalExportMarkdown": "Markdown をエクスポート…",
+  "legalRegistryNotice": "初回の照会前の通知：{hosts}。HTTPSで送信するのはパッケージ名とバージョンのみです。ソース、パス、ロックファイルの内容はアップロードしません。オフラインでスキャンするにはレジストリ照会を無効にしてください。",
+  "legalRegistryOfflineUnknown": "オフライン：レジストリ照会が無効または拒否されたため、依存関係の不明なライセンスは不明のままです。",
+  "legalRegistryFact": "{name}@{version}：レジストリの申告は{license}です。",
+  "legalRegistryRecommendation": "原文の条件と配布義務を確認してください。レジストリのメタデータは権利の証明にはなりません。",
+  "legalRegistryMetadataOnly": "レジストリのメタデータは補足情報です。原文の条件と不完全なローカル検出結果は引き続き確認が必要です。"
 }

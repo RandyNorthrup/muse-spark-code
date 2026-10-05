@@ -123,5 +123,6 @@
   "config.legalHeaderPolicy.enumDescriptions.required": "Každý vlastní zdrojový soubor potřebuje odpovídající hlavičku autorských práv a SPDX.",
   "config.legalHeaderPolicy.enumDescriptions.optional": "Nálezem je pouze hlavička odporující zjištěnému stylu projektu nebo jeho deklaracím REUSE. Výchozí hodnota.",
   "config.legalHeaderPolicy.enumDescriptions.off": "Kontroly hlaviček se přeskakují; zpráva to uvádí.",
-  "command.legalScan.title": "Právní kontrola"
+  "command.legalScan.title": "Právní kontrola",
+  "config.legalRegistryLookups.description": "Povolit dotazy do veřejných registrů po jednorázovém oznámení registrů a odesílaných názvů a verzí balíčků. Vypnutím použijete jen místní metadata."
 }

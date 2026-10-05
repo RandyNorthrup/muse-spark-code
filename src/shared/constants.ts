@@ -366,6 +366,7 @@ export const SETTING_DEFAULTS = {
   // the report chooses no license or owner. A repository may set it: it
   // describes the project's own source style, not what runs or is billed.
   legalHeaderPolicy: 'optional' as LegalHeaderPolicy,
+  legalRegistryLookups: true,
 } as const
 export const ARCHIVE_DAY_CHOICES = [1, 2, 7, 14, 0] as const
 // Settings a repository's `.vscode/settings.json` must never set (PLAN.md
@@ -3951,6 +3952,7 @@ export const LEGAL_EXIT = {
 // The headless scan's own deadline: a workspace walk of up to
 // LEGAL_FILES_SCANNED_MAX files plus the bounded registry reads below. The
 // headless lifecycle still owns the process deadline.
+export const LEGAL_REGISTRY_NOTICE_KEY = 'legalRegistryNoticed'
 export const LEGAL_SCAN_TIMEOUT_MS = 120_000
 // Registry enrichment (D76: disclosed, bounded, OFF unless `--registry`): the
 // only hosts ever queried, over HTTPS, with no credentials. npm answers one

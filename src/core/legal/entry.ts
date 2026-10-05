@@ -58,3 +58,5 @@ export function prepareLegalFixes(
 
 export { renderLegalMarkdown } from './markdown'
 export { setUiText as setLanguage } from '../../shared/l10n/text'
+
+export { enrichInteractiveLegalScan } from '../../runtime/legal/legalRegistry'

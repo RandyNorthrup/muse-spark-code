@@ -1908,5 +1908,10 @@
   "legalScanAgain": "Új vizsgálat",
   "legalFixOwnership": "Erősítse meg, hogy ezek a fájlok a projekt tulajdonában vannak, és az előnézet licence és szerzői joga vonatkozik rájuk: {paths}",
   "legalFixDenied": "A módosításokat nem hagyták jóvá.",
-  "legalExportMarkdown": "Markdown exportálása…"
+  "legalExportMarkdown": "Markdown exportálása…",
+  "legalRegistryNotice": "Az első lekérdezés előtt: {hosts}. HTTPS-en csak a csomagnevek és verziók kerülnek elküldésre; forráskód, útvonalak és zárolási fájlok tartalma nem. Az offline vizsgálathoz kapcsolja ki a regiszterlekérdezéseket.",
+  "legalRegistryOfflineUnknown": "Offline: a hiányzó függőségi licencek ismeretlenek maradnak, mert a regiszterlekérdezések ki vannak kapcsolva vagy elutasításra kerültek.",
+  "legalRegistryFact": "{name}@{version}: a regiszter {license} licencet jelöl.",
+  "legalRegistryRecommendation": "Ellenőrizze az eredeti feltételeket és a terjesztési kötelezettségeket; a regiszter metaadatai nem bizonyítanak jogokat.",
+  "legalRegistryMetadataOnly": "A regiszter metaadatai kiegészítő információk; az eredeti feltételeket és a hiányos helyi eredményeket továbbra is ellenőrizni kell."
 }

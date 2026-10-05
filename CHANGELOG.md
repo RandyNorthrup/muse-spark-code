@@ -7,6 +7,8 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+- Editor legal scans offer disclosed public npm/PyPI metadata lookups, with an offline setting, HTTPS redirect refusal and supplemental licence evidence.
+
 - Legal scanning now bounds UTF-8 bytes, total reads, each rule’s findings and elapsed time independently, and reports incomplete work at every limit.
 
 - Integrated all 20 M97 scanner/report review repairs and removed dynamic

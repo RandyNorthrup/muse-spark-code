@@ -2044,5 +2044,10 @@
   "legalScanAgain": "Skenovat znovu",
   "legalFixOwnership": "Potvrďte, že tyto soubory patří projektu a že se na ně vztahuje licence a autorská práva z náhledu: {paths}",
   "legalFixDenied": "Úpravy nebyly schváleny.",
-  "legalExportMarkdown": "Exportovat Markdown…"
+  "legalExportMarkdown": "Exportovat Markdown…",
+  "legalRegistryNotice": "Před prvním dotazem: {hosts}. Přes HTTPS se odesílají pouze názvy a verze balíčků; žádný zdrojový kód, cesty ani obsah zámkových souborů. Pro kontrolu offline vypněte dotazy do registrů.",
+  "legalRegistryOfflineUnknown": "Offline: chybějící licence závislostí zůstávají neznámé, protože dotazy do registrů jsou vypnuté nebo odmítnuté.",
+  "legalRegistryFact": "{name}@{version}: registr uvádí {license}.",
+  "legalRegistryRecommendation": "Ověřte původní podmínky a povinnosti při distribuci; metadata registru neprokazují práva.",
+  "legalRegistryMetadataOnly": "Metadata registru jsou doplňková; původní podmínky a neúplné místní výsledky stále vyžadují kontrolu."
 }

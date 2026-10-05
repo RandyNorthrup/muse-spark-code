@@ -123,5 +123,6 @@
   "config.legalHeaderPolicy.enumDescriptions.required": "Chaque fichier source du projet doit avoir un en-tête de copyright et SPDX correspondant.",
   "config.legalHeaderPolicy.enumDescriptions.optional": "Seul un en-tête qui contredit le style détecté du projet ou ses déclarations REUSE est un constat. La valeur par défaut.",
   "config.legalHeaderPolicy.enumDescriptions.off": "Les vérifications d’en-têtes sont ignorées ; le rapport le signale.",
-  "command.legalScan.title": "Analyse juridique"
+  "command.legalScan.title": "Analyse juridique",
+  "config.legalRegistryLookups.description": "Autoriser les recherches dans les registres publics après un avis unique indiquant les registres ainsi que les noms et versions des paquets envoyés. Désactiver pour utiliser uniquement les métadonnées locales."
 }

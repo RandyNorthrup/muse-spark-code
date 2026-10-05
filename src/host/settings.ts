@@ -81,6 +81,7 @@ export interface ExtensionSettings extends SettingsSnapshot {
   /** Session budget cap in USD for Model API requests; 0 is no cap (M82). */
   readonly modelApiSessionBudgetUsd: number
   /** Copyright/SPDX header hygiene for the read-only legal scan (M97). */
+  readonly legalRegistryLookups: boolean
   readonly legalHeaderPolicy: LegalHeaderPolicy
 }
 
@@ -130,6 +131,7 @@ const settingSchemas = {
   notifyOnBackgroundTurn: z.boolean(),
   modelApiReplyUsage: z.boolean(),
   modelApiSessionBudgetUsd: z.number().check(z.nonnegative()),
+  legalRegistryLookups: z.boolean(),
   legalHeaderPolicy: z.enum(LEGAL_HEADER_POLICIES),
 } as const
 
@@ -215,6 +217,7 @@ export function readSettings(config: SettingsSource, log: Logger): ExtensionSett
     modelApiRepositoryRules: readSetting(config, 'modelApiRepositoryRules', log),
     modelApiAutoReviewer: readSetting(config, 'modelApiAutoReviewer', log),
     museCodeAutoReviewer: readSetting(config, 'museCodeAutoReviewer', log),
+    legalRegistryLookups: readSetting(config, 'legalRegistryLookups', log),
     legalHeaderPolicy: readSetting(config, 'legalHeaderPolicy', log),
   }
 }

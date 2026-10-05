@@ -123,5 +123,6 @@
   "config.legalHeaderPolicy.enumDescriptions.required": "Ogni file sorgente del progetto deve avere un’intestazione di copyright e SPDX corrispondente.",
   "config.legalHeaderPolicy.enumDescriptions.optional": "Solo un’intestazione che contraddice lo stile rilevato del progetto o le sue dichiarazioni REUSE è un rilievo. Il valore predefinito.",
   "config.legalHeaderPolicy.enumDescriptions.off": "I controlli delle intestazioni vengono ignorati; il rapporto lo segnala.",
-  "command.legalScan.title": "Analisi legale"
+  "command.legalScan.title": "Analisi legale",
+  "config.legalRegistryLookups.description": "Consentire ricerche nei registri pubblici dopo un avviso unico che indica i registri e i nomi e le versioni inviati. Disattivare per usare solo metadati locali."
 }

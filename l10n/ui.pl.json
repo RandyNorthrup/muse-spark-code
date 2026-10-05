@@ -2044,5 +2044,10 @@
   "legalScanAgain": "Skanuj ponownie",
   "legalFixOwnership": "Potwierdź, że te pliki należą do projektu i że dotyczą ich licencja i prawa autorskie z podglądu: {paths}",
   "legalFixDenied": "Zmiany nie zostały zatwierdzone.",
-  "legalExportMarkdown": "Eksportuj Markdown…"
+  "legalExportMarkdown": "Eksportuj Markdown…",
+  "legalRegistryNotice": "Przed pierwszym zapytaniem: {hosts}. Przez HTTPS wysyłane są tylko nazwy i wersje pakietów; bez kodu źródłowego, ścieżek i zawartości plików blokady. Wyłącz zapytania do rejestrów, aby skanować offline.",
+  "legalRegistryOfflineUnknown": "Offline: brakujące licencje zależności pozostają nieznane, ponieważ zapytania są wyłączone lub odrzucone.",
+  "legalRegistryFact": "{name}@{version}: rejestr deklaruje {license}.",
+  "legalRegistryRecommendation": "Sprawdź oryginalne warunki i obowiązki dystrybucji; metadane rejestru nie dowodzą praw.",
+  "legalRegistryMetadataOnly": "Metadane rejestru są uzupełnieniem; oryginalne warunki i niepełne wyniki lokalne nadal wymagają przeglądu."
 }

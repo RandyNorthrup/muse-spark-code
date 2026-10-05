@@ -123,5 +123,6 @@
   "config.legalHeaderPolicy.enumDescriptions.required": "每个项目自有源文件都需要匹配的版权与 SPDX 头。",
   "config.legalHeaderPolicy.enumDescriptions.optional": "仅与检测到的项目风格或其 REUSE 声明相矛盾的头才算作发现。默认值。",
   "config.legalHeaderPolicy.enumDescriptions.off": "跳过头检查；报告中会说明。",
-  "command.legalScan.title": "法律扫描"
+  "command.legalScan.title": "法律扫描",
+  "config.legalRegistryLookups.description": "首次通知列出注册表及发送的软件包名称和版本后，允许查询公共注册表。关闭后仅使用本地元数据。"
 }

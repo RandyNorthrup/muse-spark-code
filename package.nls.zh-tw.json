@@ -123,5 +123,6 @@
   "config.legalHeaderPolicy.enumDescriptions.required": "每個專案自有原始檔都需要相符的版權與 SPDX 標頭。",
   "config.legalHeaderPolicy.enumDescriptions.optional": "僅與偵測到的專案風格或其 REUSE 聲明相矛盾的標頭才算發現。預設值。",
   "config.legalHeaderPolicy.enumDescriptions.off": "略過標頭檢查；報告中會說明。",
-  "command.legalScan.title": "法律掃描"
+  "command.legalScan.title": "法律掃描",
+  "config.legalRegistryLookups.description": "首次通知列出登錄庫及傳送的套件名稱與版本後，允許查詢公開登錄庫。關閉後僅使用本機中繼資料。"
 }

@@ -97,7 +97,7 @@ describe('M97 registry targets (lane R)', () => {
 describe('M97 registry reads (lane R)', () => {
   it('refuses every redirect and discloses exactly the attempted requests', async () => {
     const fetch = vi.fn((_url: string | URL | Request, init?: RequestInit) => {
-      if (init?.redirect !== 'manual')
+      if (init?.redirect !== 'error')
         throw new Error('redirect policy would allow an undisclosed request')
       return Promise.resolve(
         new Response('', {

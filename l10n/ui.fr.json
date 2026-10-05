@@ -1976,5 +1976,10 @@
   "legalScanAgain": "Analyser à nouveau",
   "legalFixOwnership": "Confirmez que ces fichiers appartiennent au projet et que la licence et les droits d’auteur de l’aperçu s’y appliquent : {paths}",
   "legalFixDenied": "Les modifications n’ont pas été approuvées.",
-  "legalExportMarkdown": "Exporter en Markdown…"
+  "legalExportMarkdown": "Exporter en Markdown…",
+  "legalRegistryNotice": "Avant la première recherche : {hosts}. Seuls les noms et versions des paquets sont envoyés via HTTPS ; aucun code source, chemin ni contenu de fichier de verrouillage n’est transmis. Désactivez les recherches de registres pour une analyse hors ligne.",
+  "legalRegistryOfflineUnknown": "Hors ligne : les licences des dépendances manquantes restent inconnues, car les recherches de registres sont désactivées ou refusées.",
+  "legalRegistryFact": "{name}@{version} : le registre déclare {license}.",
+  "legalRegistryRecommendation": "Vérifiez les conditions originales et les obligations de distribution ; les métadonnées du registre ne prouvent aucun droit.",
+  "legalRegistryMetadataOnly": "Les métadonnées du registre sont complémentaires ; les conditions originales et les résultats locaux incomplets exigent toujours une vérification."
 }

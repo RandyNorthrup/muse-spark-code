@@ -1840,5 +1840,10 @@
   "legalScanAgain": "重新扫描",
   "legalFixOwnership": "请确认这些文件属于项目，且预览中的许可证和版权适用于这些文件：{paths}",
   "legalFixDenied": "编辑未获批准。",
-  "legalExportMarkdown": "导出 Markdown…"
+  "legalExportMarkdown": "导出 Markdown…",
+  "legalRegistryNotice": "首次查询前通知：{hosts}。仅通过 HTTPS 发送软件包名称和版本；不会上传源代码、路径或锁文件内容。关闭注册表查询可离线扫描。",
+  "legalRegistryOfflineUnknown": "离线：注册表查询已关闭或被拒绝，缺失的依赖项许可证仍然未知。",
+  "legalRegistryFact": "{name}@{version}：注册表声明为 {license}。",
+  "legalRegistryRecommendation": "请核实原始条款和分发义务；注册表元数据并不能证明权利。",
+  "legalRegistryMetadataOnly": "注册表元数据仅为补充信息；原始条款和不完整的本地结果仍需审核。"
 }

@@ -123,5 +123,6 @@
   "config.legalHeaderPolicy.enumDescriptions.required": "Каждый исходный файл проекта должен иметь подходящий заголовок авторских прав и SPDX.",
   "config.legalHeaderPolicy.enumDescriptions.optional": "Замечанием является только заголовок, противоречащий выявленному стилю проекта или его декларациям REUSE. Значение по умолчанию.",
   "config.legalHeaderPolicy.enumDescriptions.off": "Проверки заголовков пропускаются; отчёт сообщает об этом.",
-  "command.legalScan.title": "Юридическая проверка"
+  "command.legalScan.title": "Юридическая проверка",
+  "config.legalRegistryLookups.description": "Разрешить запросы к публичным реестрам после однократного уведомления с указанием реестров и отправляемых имён и версий пакетов. Отключите для использования только локальных метаданных."
 }

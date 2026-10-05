@@ -20,8 +20,14 @@
 // contract's identifier bound is refused instead of quoted.
 
 import * as z from 'zod/mini'
+import { fill } from '../../shared/l10n/text'
+import { legalScanResultSchema, type LegalScanResult } from '../../shared/legal'
+import type { LegalScanHandle } from '../../shared/legalScanEntry'
 import {
   HTTP_STATUS,
+  UI_TEXT,
+  LEGAL_FINDINGS_MAX,
+  LEGAL_INCOMPLETE_MAX,
   LEGAL_FINDING_ID_MAX_CHARS,
   LEGAL_REGISTRY_HOSTS,
   LEGAL_REGISTRY_MAX_QUERIES,
@@ -210,7 +216,7 @@ async function queryOne(
 ): Promise<LegalRegistryLicense> {
   // No headers, no credentials: the registries' public documents need none.
   // The deadline arrives with the signal: each attempt owns one (see above).
-  const response = await input.fetch(url, { signal: input.signal, redirect: 'manual' })
+  const response = await input.fetch(url, { signal: input.signal, redirect: 'error' })
   const { status } = response
   if (status === HTTP_STATUS.notFound) {
     await discardBody(response)
@@ -298,4 +304,72 @@ export async function enrichFromRegistries(input: {
     }
   }
   return { enabled: true, hosts: disclosed, queried, licenses, skipped, isTruncated, bytesReceived }
+}
+
+/** Interactive registry enrichment: disclosure precedes the first request. */
+export async function enrichInteractiveLegalScan(
+  handle: LegalScanHandle,
+  deps: {
+    readonly isOn: () => boolean
+    readonly isNoticed: (host: string) => boolean
+    readonly notice: (hosts: readonly string[]) => Promise<boolean>
+    readonly markNoticed: (hosts: readonly string[]) => Promise<void>
+    readonly fetch: typeof fetch
+    readonly signal?: AbortSignal
+  },
+): Promise<LegalScanResult> {
+  const targets = handle.registryTargets.filter(isRegistryTarget)
+  if (targets.length === 0) return handle.result
+  const offline = () =>
+    legalScanResultSchema.parse({
+      ...handle.result,
+      incompleteChecks: [
+        UI_TEXT.legalRegistryOfflineUnknown,
+        ...handle.result.incompleteChecks,
+      ].slice(0, LEGAL_INCOMPLETE_MAX),
+    })
+  if (!deps.isOn()) return offline()
+  const hosts = [...new Set(targets.map((target) => LEGAL_REGISTRY_HOSTS[target.ecosystem]))]
+  const unseen = hosts.filter((host) => !deps.isNoticed(host))
+  if (unseen.length > 0) {
+    if (!(await deps.notice(unseen))) return offline()
+    deps.signal?.throwIfAborted()
+    if (!deps.isOn()) return offline()
+    await deps.markNoticed(unseen)
+  }
+  deps.signal?.throwIfAborted()
+  if (!deps.isOn()) return offline()
+  const report = await enrichFromRegistries({ targets, fetch: deps.fetch, signal: deps.signal })
+  deps.signal?.throwIfAborted()
+  const facts = report.licenses.flatMap((entry, index) =>
+    entry.license === undefined
+      ? []
+      : [
+          {
+            id: `registry/1/${String(index + 1)}`,
+            category: 'dependencyLicense',
+            severity: 'advice',
+            packageName: entry.target.name,
+            packageVersion: entry.target.version,
+            licenseExpression: entry.license,
+            evidenceSource: LEGAL_REGISTRY_HOSTS[entry.target.ecosystem],
+            confidence: 1,
+            explanation: fill(UI_TEXT.legalRegistryFact, {
+              name: entry.target.name,
+              version: entry.target.version,
+              license: entry.license,
+            }),
+            recommendation: UI_TEXT.legalRegistryRecommendation,
+            fixable: false,
+          },
+        ],
+  )
+  return legalScanResultSchema.parse({
+    ...handle.result,
+    findings: [...handle.result.findings, ...facts].slice(0, LEGAL_FINDINGS_MAX),
+    incompleteChecks: [UI_TEXT.legalRegistryMetadataOnly, ...handle.result.incompleteChecks].slice(
+      0,
+      LEGAL_INCOMPLETE_MAX,
+    ),
+  })
 }

@@ -123,5 +123,6 @@
   "config.legalHeaderPolicy.enumDescriptions.required": "プロジェクト所有の各ソースファイルに対応する著作権・SPDX ヘッダーが必要です。",
   "config.legalHeaderPolicy.enumDescriptions.optional": "検出したプロジェクト様式や REUSE 宣言に反するヘッダーのみが検出事項です。既定値です。",
   "config.legalHeaderPolicy.enumDescriptions.off": "ヘッダーチェックを省略します。レポートにその旨を記載します。",
-  "command.legalScan.title": "ライセンススキャン"
+  "command.legalScan.title": "ライセンススキャン",
+  "config.legalRegistryLookups.description": "レジストリと送信するパッケージ名・バージョンを初回通知した後、公開レジストリへの照会を許可します。無効にするとローカルのメタデータのみを使用します。"
 }

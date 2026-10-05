@@ -1908,5 +1908,10 @@
   "legalScanAgain": "Yeniden tara",
   "legalFixOwnership": "Bu dosyaların projeye ait olduğunu ve önizlemedeki lisans ve telif hakkının onlar için geçerli olduğunu onaylayın: {paths}",
   "legalFixDenied": "Düzenlemeler onaylanmadı.",
-  "legalExportMarkdown": "Markdown dışa aktar…"
+  "legalExportMarkdown": "Markdown dışa aktar…",
+  "legalRegistryNotice": "İlk sorgudan önce: {hosts}. HTTPS üzerinden yalnızca paket adları ve sürümleri gönderilir; kaynak kodu, yollar veya kilit dosyası içeriği yüklenmez. Çevrimdışı tarama için kayıt deposu sorgularını kapatın.",
+  "legalRegistryOfflineUnknown": "Çevrimdışı: kayıt deposu sorguları kapatıldığı veya reddedildiği için eksik bağımlılık lisansları bilinmiyor.",
+  "legalRegistryFact": "{name}@{version}: kayıt deposu {license} beyan ediyor.",
+  "legalRegistryRecommendation": "Özgün koşulları ve dağıtım yükümlülüklerini doğrulayın; kayıt deposu meta verileri hakları kanıtlamaz.",
+  "legalRegistryMetadataOnly": "Kayıt deposu meta verileri ek bilgidir; özgün koşullar ve eksik yerel bulgular hâlâ incelenmelidir."
 }

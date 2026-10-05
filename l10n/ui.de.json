@@ -1908,5 +1908,10 @@
   "legalScanAgain": "Erneut scannen",
   "legalFixOwnership": "Bestätigen Sie, dass diese Dateien dem Projekt gehören und die Lizenz und das Copyright in der Vorschau für sie gelten: {paths}",
   "legalFixDenied": "Die Änderungen wurden nicht genehmigt.",
-  "legalExportMarkdown": "Markdown exportieren…"
+  "legalExportMarkdown": "Markdown exportieren…",
+  "legalRegistryNotice": "Vor der ersten Abfrage: {hosts}. Nur Paketnamen und Versionen werden über HTTPS gesendet; kein Quellcode, keine Pfade und keine Sperrdateiinhalte werden hochgeladen. Deaktivieren Sie die Registrierungsabfragen für Offline-Scans.",
+  "legalRegistryOfflineUnknown": "Offline: Fehlende Abhängigkeitslizenzen bleiben unbekannt, weil Registrierungsabfragen deaktiviert oder abgelehnt wurden.",
+  "legalRegistryFact": "{name}@{version}: Die Registrierung gibt {license} an.",
+  "legalRegistryRecommendation": "Prüfen Sie die Originalbedingungen und Weitergabepflichten; Registrierungsmetadaten belegen keine Rechte.",
+  "legalRegistryMetadataOnly": "Registrierungsmetadaten ergänzen die Belege; Originalbedingungen und unvollständige lokale Ergebnisse müssen weiter geprüft werden."
 }

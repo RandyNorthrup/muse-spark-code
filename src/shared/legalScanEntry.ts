@@ -1,3 +1,4 @@
+import type { enrichInteractiveLegalScan } from '../runtime/legal/legalRegistry'
 import type { UiText } from './l10n/en'
 // One lazy scanner contract for the extension and ACP package (M97, D76).
 // Function signatures are trusted within the same build; callers validate results.
@@ -30,6 +31,8 @@ export interface LegalPreparedPatch {
 }
 
 export interface LegalScanBundle {
+  readonly enrichInteractiveLegalScan?: typeof enrichInteractiveLegalScan
+
   readonly renderLegalMarkdown?: (result: LegalScanResult) => string
   readonly setLanguage?: (table: UiText, locale: string) => void
   readonly prepareLegalFixes?: (

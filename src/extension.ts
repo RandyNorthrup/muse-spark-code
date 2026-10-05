@@ -97,6 +97,8 @@ import { lazyPageUrlCheck, lazyWebFetcher, webFetchLoader } from './host/web/web
 import { ideCodeIntelTools } from './host/ide/codeIntelTools'
 import { codeIntelLoader } from './host/ide/codeIntelBundle'
 import { ideLegalScanTools, isIdeLegalScanOffered } from './host/ide/legalScanTool'
+import { LEGAL_REGISTRY_NOTICE_KEY } from './shared/constants'
+import { fill as fillLegalNotice } from './shared/l10n/text'
 import { legalScanLoader } from './host/ide/legalScanBundle'
 import { vscodeLanguageServices } from './host/codeIntel/languageServices'
 import { usablePaidFeatures } from './shared/paid'
@@ -1273,7 +1275,30 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
       input: { ...input, headerPolicy: input.headerPolicy ?? currentSettings().legalHeaderPolicy },
       signal,
     })
-    return legalScanResultSchema.parse(handle.result)
+    const enrich = legalScanBundle().enrichInteractiveLegalScan
+    if (enrich === undefined) throw new Error(UI_TEXT.legalScanUnavailable)
+    return legalScanResultSchema.parse(
+      await enrich(handle, {
+        isOn: () => currentSettings().legalRegistryLookups && vscode.workspace.isTrusted,
+        isNoticed: (host) =>
+          context.workspaceState.get<boolean>(`${LEGAL_REGISTRY_NOTICE_KEY}:${host}`) === true,
+        notice: async (hosts) => {
+          const accept = UI_TEXT.allowOnce
+          const answer = await vscode.window.showInformationMessage(
+            fillLegalNotice(UI_TEXT.legalRegistryNotice, { hosts: hosts.join(', ') }),
+            { modal: true },
+            accept,
+          )
+          return answer === accept
+        },
+        markNoticed: async (hosts) => {
+          for (const host of hosts)
+            await context.workspaceState.update(`${LEGAL_REGISTRY_NOTICE_KEY}:${host}`, true)
+        },
+        fetch: liveFetch,
+        signal,
+      }),
+    )
   }
   const ideServer = new IdeMcpServer(
     () => [

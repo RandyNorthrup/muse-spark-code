@@ -123,5 +123,6 @@
   "config.legalHeaderPolicy.enumDescriptions.required": "Cada archivo fuente propio necesita un encabezado de copyright y SPDX correspondiente.",
   "config.legalHeaderPolicy.enumDescriptions.optional": "Solo un encabezado que contradiga el estilo detectado del proyecto o sus declaraciones REUSE es un hallazgo. El valor predeterminado.",
   "config.legalHeaderPolicy.enumDescriptions.off": "Las comprobaciones de encabezados se omiten; el informe lo indica.",
-  "command.legalScan.title": "Análisis legal"
+  "command.legalScan.title": "Análisis legal",
+  "config.legalRegistryLookups.description": "Permitir consultas a registros públicos tras un aviso único que identifica los registros y los nombres y versiones enviados. Desactivar para usar solo metadatos locales."
 }

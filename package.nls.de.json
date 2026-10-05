@@ -123,5 +123,6 @@
   "config.legalHeaderPolicy.enumDescriptions.required": "Jede projekteigene Quelldatei braucht einen passenden Copyright- und SPDX-Header.",
   "config.legalHeaderPolicy.enumDescriptions.optional": "Nur ein Header, der dem erkannten Projektstil oder seinen REUSE-Angaben widerspricht, ist ein Befund. Die Standardeinstellung.",
   "config.legalHeaderPolicy.enumDescriptions.off": "Headerprüfungen werden übersprungen; der Bericht weist darauf hin.",
-  "command.legalScan.title": "Legal-Scan"
+  "command.legalScan.title": "Legal-Scan",
+  "config.legalRegistryLookups.description": "Öffentliche Registrierungsabfragen nach einem einmaligen Hinweis auf die Registrierungen und die gesendeten Paketnamen und Versionen erlauben. Deaktivieren für ausschließlich lokale Metadaten."
 }

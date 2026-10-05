@@ -123,5 +123,6 @@
   "config.legalHeaderPolicy.enumDescriptions.required": "Every project-owned source file needs a matching copyright and SPDX header.",
   "config.legalHeaderPolicy.enumDescriptions.optional": "Only a header that contradicts the detected project style or its REUSE declarations is a finding. The default.",
   "config.legalHeaderPolicy.enumDescriptions.off": "Header checks are skipped; the report says so.",
-  "command.legalScan.title": "Legal scan"
+  "command.legalScan.title": "Legal scan",
+  "config.legalRegistryLookups.description": "Allow public registry lookups after a one-time notice naming the registries and the package names and versions sent. Turn off to scan local metadata only."
 }

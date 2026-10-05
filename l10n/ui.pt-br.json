@@ -1976,5 +1976,10 @@
   "legalScanAgain": "Verificar novamente",
   "legalFixOwnership": "Confirme que estes arquivos pertencem ao projeto e que a licença e os direitos autorais da prévia se aplicam a eles: {paths}",
   "legalFixDenied": "As edições não foram aprovadas.",
-  "legalExportMarkdown": "Exportar Markdown…"
+  "legalExportMarkdown": "Exportar Markdown…",
+  "legalRegistryNotice": "Antes da primeira consulta: {hosts}. Apenas nomes e versões de pacotes são enviados por HTTPS; nenhum código-fonte, caminho ou conteúdo de arquivo de bloqueio é enviado. Desative as consultas para análises offline.",
+  "legalRegistryOfflineUnknown": "Offline: as licenças ausentes de dependências permanecem desconhecidas porque as consultas foram desativadas ou recusadas.",
+  "legalRegistryFact": "{name}@{version}: o registro declara {license}.",
+  "legalRegistryRecommendation": "Verifique os termos originais e as obrigações de distribuição; os metadados do registro não comprovam direitos.",
+  "legalRegistryMetadataOnly": "Os metadados do registro são complementares; os termos originais e os resultados locais incompletos ainda exigem revisão."
 }

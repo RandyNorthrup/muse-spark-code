@@ -883,6 +883,12 @@
           ],
           "default": "optional",
           "description": "%config.legalHeaderPolicy.description%"
+        },
+        "museSpark.legalRegistryLookups": {
+          "type": "boolean",
+          "default": true,
+          "scope": "window",
+          "description": "%config.legalRegistryLookups.description%"
         }
       }
     },

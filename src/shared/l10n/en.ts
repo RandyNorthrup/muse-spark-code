@@ -2291,6 +2291,15 @@ export const EN = {
   // markers, the disclaimer every surface shows, and why a scan is missing
   // or partial. {count} is a number; {checks} lists the incomplete checks;
   // {reason} and {evidence} are the scanner's own words.
+  legalRegistryNotice:
+    'Before the first lookup: {hosts}. Only package names and versions are sent over HTTPS; no source, paths or lockfile contents are uploaded. Turn off Legal Registry Lookups for offline scans.',
+  legalRegistryOfflineUnknown:
+    'Offline: missing dependency license findings remain unknown because registry lookups are disabled or declined.',
+  legalRegistryFact: '{name}@{version}: the registry declares {license}.',
+  legalRegistryRecommendation:
+    'Verify the original terms and distribution obligations; registry metadata does not prove rights.',
+  legalRegistryMetadataOnly:
+    'Registry metadata is supplemental; original license terms and local incomplete findings still require review.',
   legalScanTitle: 'Legal scan',
   legalScanDisclaimer: 'Not legal advice; for distribution decisions consult a lawyer.',
   legalScanEmpty: 'The scan completed with no findings.',

@@ -1840,5 +1840,10 @@
   "legalScanAgain": "重新掃描",
   "legalFixOwnership": "請確認這些檔案屬於專案，且預覽中的授權條款和著作權適用於這些檔案：{paths}",
   "legalFixDenied": "編輯未獲核准。",
-  "legalExportMarkdown": "匯出 Markdown…"
+  "legalExportMarkdown": "匯出 Markdown…",
+  "legalRegistryNotice": "首次查詢前通知：{hosts}。僅透過 HTTPS 傳送套件名稱和版本；不會上傳原始碼、路徑或鎖定檔內容。關閉登錄庫查詢即可離線掃描。",
+  "legalRegistryOfflineUnknown": "離線：登錄庫查詢已關閉或遭拒絕，缺少的相依套件授權仍然未知。",
+  "legalRegistryFact": "{name}@{version}：登錄庫宣告為 {license}。",
+  "legalRegistryRecommendation": "請確認原始條款及散布義務；登錄庫中繼資料無法證明權利。",
+  "legalRegistryMetadataOnly": "登錄庫中繼資料僅為補充資訊；原始條款及不完整的本機結果仍須審查。"
 }

@@ -3528,3 +3528,9 @@ Legal scanner limits: 20,000 files/directory entries, 1,000,000 UTF-8 bytes per
 file, 10,000,000 bytes per scan, 100 findings per rule (500 total), and 120
 seconds. Reaching a limit is reported as incomplete. License title and clause
 matching remains heuristic; review the original terms before distribution.
+
+Editor legal scans offer public npm/PyPI metadata lookup by default, after a
+one-time notice naming each registry and explaining that only package names
+and versions leave over HTTPS. Disable `museSpark.legalRegistryLookups` for
+local-only scans; missing dependency licences remain unknown. Private registry
+configuration is never contacted. CLI lookup still requires `--registry`.
