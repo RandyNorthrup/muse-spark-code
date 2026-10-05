@@ -3793,6 +3793,8 @@ export const EVAL_COST_DECIMALS = 4
 // values until lane 0 relocates them, so no second source ever sets them.
 /** A worker's brief cap (D75's `TEAM_BRIEF_MAX_CHARS`). */
 export const WORKER_BRIEF_MAX_CHARS = 8000
+/** Permission requests past this many paths are unresolvable and rejected. */
+export const WORKER_ACP_MAX_PERMISSION_PATHS = 50
 /** Inlined task files' cap (D75's `TEAM_BRIEF_FILES_MAX_BYTES`). */
 export const WORKER_BRIEF_FILES_MAX_BYTES = 64 * 1024
 /** An `unstructured` report's summary clip (acceptance 18). */
