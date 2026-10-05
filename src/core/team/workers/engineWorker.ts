@@ -1,15 +1,4 @@
-// M77's attempt host for every engine worker (M96 lane W, PLAN.md D75):
-// confined to the worker's working copy or scratch copy, with M48's child
-// loop shape, M27's job-object shell contract, the credential-free
-// environment, the `report` tool, and limit errors handed to lane A's marks.
-//
-// Seams (lanes R/A/T/K, M95): the role policy and charter come from lane R,
-// the ceiling and the marks from lane A, the prompt's task assembly from
-// lane T's `delegate`, the `WorktreeSession` from M95's clients, and the
-// shell's containment from lane K's launcher. Nothing here guesses their
-// wire shapes; each is an explicit interface plus an injected dependency.
-
-import type { CoreLogger } from '../../logging'
+import { type CoreLogger } from '../../logging'
 import {
   HTTP_TOO_MANY_REQUESTS,
   WORKER_BRIEF_FILES_MAX_BYTES,
@@ -34,7 +23,24 @@ import {
 } from './workerFence'
 import { scrubWorkerEnv } from './workerEnv'
 import { extractTeamReport, parseReportJson, type WorkerReportOutcome } from './report'
-import type { WorkerPromptParts, WorkerRolePolicy, WorkerTask } from './workerTypes'
+import { type WorkerPromptParts, type WorkerRolePolicy, type WorkerTask } from './workerTypes'
+import {
+  routeChecks,
+  type CheckJob,
+  type CheckResult,
+  type CheckRoutingDeps,
+} from '../../runners/routing'
+import { type Runner } from '../../../shared/team'
+// M77's attempt host for every engine worker (M96 lane W, PLAN.md D75):
+// confined to the worker's working copy or scratch copy, with M48's child
+// loop shape, M27's job-object shell contract, the credential-free
+// environment, the `report` tool, and limit errors handed to lane A's marks.
+//
+// Seams (lanes R/A/T/K, M95): the role policy and charter come from lane R,
+// the ceiling and the marks from lane A, the prompt's task assembly from
+// lane T's `delegate`, the `WorktreeSession` from M95's clients, and the
+// shell's containment from lane K's launcher. Nothing here guesses their
+// wire shapes; each is an explicit interface plus an injected dependency.
 
 /** The task's brief passes the plan's cap. */
 export class WorkerBriefError extends Error {
@@ -360,3 +366,26 @@ export function checkWorkerDepth(depth: number, role: WorkerRolePolicy): void {
     throw new WorkerDepthError()
   }
 }
+
+// --- M96c lane O: test-command routing region. ---
+
+export interface WorkerCheckRouting {
+  readonly runners: () => readonly Runner[]
+  readonly routing: CheckRoutingDeps
+  /** Every ordinary shell guard, including hooks, ref/path fences and permissions. */
+  readonly guard: (job: CheckJob) => Promise<string>
+}
+
+/** testShell, detected test scripts, run_checks and then_run use this after classification. */
+export async function routeWorkerCheck(
+  job: CheckJob,
+  deps: WorkerCheckRouting,
+): Promise<CheckResult> {
+  return await routeChecks(
+    job,
+    deps.runners(),
+    deps.routing,
+    async (value) => await deps.guard(value),
+  )
+}
+// --- End M96c lane O region. Engine lifetime and ordinary tools are M96 lane W. ---

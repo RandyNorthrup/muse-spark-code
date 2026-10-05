@@ -1,3 +1,16 @@
+import { copyFile, lstat, mkdir, mkdtemp, realpath, rm, unlink, writeFile } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
+import { isBelow } from '../workspacePath'
+import {
+  GIT_PATH_MAX_DARWIN,
+  GIT_PATH_MAX_DEFAULT,
+  GIT_PATH_MAX_WINDOWS,
+  GIT_FILTER_NAME_MAX_CHARS,
+  GIT_FILTER_NAMES_MAX,
+  UI_TEXT,
+} from '../../shared/constants'
+import { pathModule } from '../workspaceRoot'
+import { teamAgentsRef, teamBranchName, workerEnvironment } from './refFence'
 // Team workspaces (M96 lane I, PLAN.md D75): the base commit, shared clones
 // under the extension's storage with no remote, the `agents/<role>/<task-id>`
 // branches and the extension's own `agents/` refs in the user's repository,
@@ -10,19 +23,7 @@
 // in `refFence.ts`. The host runs git and owns storage; workers never touch
 // these functions. No `vscode` here.
 
-import { copyFile, lstat, mkdir, mkdtemp, realpath, rm, unlink, writeFile } from 'node:fs/promises'
-import { tmpdir } from 'node:os'
 import path from 'node:path'
-import { isBelow } from '../workspacePath'
-import {
-  GIT_PATH_MAX_DARWIN,
-  GIT_PATH_MAX_DEFAULT,
-  GIT_PATH_MAX_WINDOWS,
-  GIT_FILTER_NAME_MAX_CHARS,
-  GIT_FILTER_NAMES_MAX,
-} from '../../shared/constants'
-import { pathModule } from '../workspaceRoot'
-import { teamAgentsRef, teamBranchName, workerEnvironment } from './refFence'
 
 /** git ended non-zero: the code and what it said. */
 export class TeamGitError extends Error {
@@ -601,3 +602,27 @@ export async function scratchBreach(runGit: TeamGit, folder: string): Promise<re
   )
   return parseScratchStatus(status)
 }
+
+// --- M96c lane Q: checkout guard. M96 lane I owns the workspace lifecycle. ---
+export interface TeamCheckoutGuard {
+  readonly canonicalPath: (target: string) => Promise<string>
+  readonly platform: NodeJS.Platform
+}
+
+/** Called at worker start and before every command, including after a cwd change. */
+export async function assertTeamCheckout(
+  repositoryRoot: string,
+  directory: string,
+  mode: 'read-only' | 'own-branch' | 'in-place',
+  deps: TeamCheckoutGuard,
+): Promise<void> {
+  const root = await deps.canonicalPath(repositoryRoot)
+  const cwd = await deps.canonicalPath(directory)
+  const paths = deps.platform === 'win32' ? path.win32 : path.posix
+  const relative = paths.relative(root, cwd)
+  const isInCheckout =
+    relative === '' ||
+    (!relative.startsWith(`..${paths.sep}`) && relative !== '..' && !paths.isAbsolute(relative))
+  if (isInCheckout && mode !== 'in-place') throw new Error(UI_TEXT.checkpointFailed)
+}
+// --- End lane Q region. ---

@@ -116,6 +116,24 @@ const BASE: TeamLoweringBase = {
 }
 
 describe('parseTeamJson', () => {
+  it('composes scheduler shared-file declarations without widening role restrictions', () => {
+    const sharedFiles = [{ pattern: 'l10n/*.json', kind: 'json-table' }]
+    expect(parseTeamJson(JSON.stringify({ sharedFiles }))).toEqual({
+      ok: true,
+      file: { roles: {}, sharedFiles },
+    })
+    for (const invalid of [
+      null,
+      [{ pattern: 'x', kind: 'unknown' }],
+      [{ pattern: 'x', kind: 'text', extra: true }],
+    ]) {
+      expect(parseTeamJson(JSON.stringify({ sharedFiles: invalid })).ok).toBe(false)
+    }
+    expect(parseTeamJson(JSON.stringify({ sharedFiles, roles: { qa: { entries: [] } } })).ok).toBe(
+      false,
+    )
+  })
+
   it('reads a lowering file', () => {
     expect(
       parseTeamJson(

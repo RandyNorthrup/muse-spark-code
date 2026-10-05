@@ -19880,6 +19880,72 @@ serve`."
 
 ### M96c — Scheduler and traffic (D75)
 
+**M96CINT round 2 integration (2026-10-05).** Finish the existing partial
+integration by merging reviewed C (`52d04b69`) and then O (`19bb0703`) with
+`--no-ff`, preserving every lane's intent. Resolve only integration seams
+between S/C/Q/O/T2/V, retain all translated strings, and regenerate the host
+API inventory and notices through their scripts. Run every merged lane's
+complete owned unit files (at most three per invocation) and typecheck,
+lint, Prettier, deadcode, duplication, localization, cycles, host API, build
+and unchanged caps directly on macmini. Update the lane-A-owned
+`teamPool.ts` reconciliation note and certification receipts. X2 runtime
+wiring, public docs and packaging follow the M96 integration; native Windows
+runner tests remain platform-gated for the lead's Windows rig. No full
+quality, main merge, rebase, push or live/paid model call runs here.
+The merged C predictions carry `otherAttempt`, which the shared strict event
+schema currently rejects. Preserve that optional attempt identity in the
+extension-owned `predictedConflict` event and prove real C predictions pass
+through S's event boundary and T2's roster/state notes; integration-state
+predictions still have no second attempt. Add no provider wire shape or X2
+runtime binding.
+
+**M96CINT round-1 partial integration (historical, 2026-10-05).** Merge reviewed S/Q, T2 and V
+in that order, keeping their contracts and fixes. Run their complete owned
+test files and the scoped rig gates. Make Q's cumulative-batch fixture use
+candidate paths distinct from its base paths even on case-insensitive
+volumes; keep its interaction, ownership and exact-tree assertions. Record
+the merges, interface checks and S's `teamPool.ts` region in
+`docs/certification/m96c-int.md`. C, O and final X2 wiring/docs/package work
+remain with the lead; this branch runs no full quality or live/model call.
+
+**T2 review corrections (2026-10-05, `RVM96CT2` findings 1 and 2).**
+Within T2's tool regions, check reschedule cancellation before board mutation
+and after each await, and deep-clone roster/collect annotations for the fixed
+session declaration. Add focused regressions and byte-exact restoration drills
+in `docs/certification/m96c-t2.md`. No runtime wiring or dependency changes;
+full quality remains the lead's gate under the rig lane rules.
+
+**Lane V review fixes (2026-10-05, FIXM96CV).** RVM96CV's P1 binds every
+mutable Traffic target to the projected identity and generation selected by
+the user, re-reads it after confirmation, and reports a translated refusal
+when it changes. Its two P2 fixes replay reassigned queue transitions before
+entry/agent scoping and preserve existing multiline runner setup commands.
+Each fix gets a failing regression and a byte-exact restored red drill in
+`docs/certification/m96c-v.md`. Production adapter wiring and the full gate
+remain X2/lead work; this rig lane runs owned checks and never merges or pushes.
+
+**Lane C review repairs (FIXM96CC, 2026-10-05).** RVM96CC's seven P2
+findings and P3 fixture deadline are in scope: preserve user merge authority
+and strict built-ins against overlapping repository rules; canonicalize
+paths before declarations, permissions, leases, growth and hint matching;
+recognize contained merge-kind globs; retain hint answers until the actual
+hint drops their collision; identify both prediction attempts; isolate
+pending prediction generations; refuse unrecognized release headings;
+build one real-Git template with plumbing and copy it for each case.
+Each repair requires a failing regression and a byte-exact restored red
+drill in `docs/certification/m96c-c.md`. The rig brief forbids merges,
+rebases, pushes and full quality runs; focused gates run directly on macmini.
+
+**Lane O review repair (FIXM96CO, 2026-10-05).** Address RVM96CO findings
+1–7: destination-OS scoped validation/quoting with final-command guards;
+self-contained persistent clones; per-child snapshot retirement accounting;
+owner-checked cache lock cleanup after retirement with a recorded expiry;
+raw-byte output prefix checks and incremental UTF-8 decoding; translated
+Windows command-line refusal before dispatch (including native launch lines);
+and the PowerShell job statement separator plus a native parser/run test.
+Regressions and byte-exact red drills are recorded in `docs/certification/m96c-o.md`.
+No dependency, paid call, remote connection, or guard widening is authorized.
+
 **Status 2026-10-04: planned, round 3 (redesign), amended in round 4 for
 Codex's third review (`RVM96C3`: three P1, five P2, one P3).** This milestone
 builds
@@ -21641,6 +21707,70 @@ rules prohibit aggregate quality/full unit runs and merging in this worktree.
 Use focused owning tests and the required static gates/build, with hooks on;
 full quality, coverage, cross-platform and hosted checks remain the lead's
 integration gate. No gate configuration changes.
+**M96CINT round-2 merged-source proof (2026-10-05).** Reviewed C
+(`52d04b69`) and O (`19bb0703`) are merged, in order, with normal hooked
+`--no-ff` commits. Real C predictions now retain both attempt identities
+through the shared strict event schema, S's event boundary and T2's live
+answers/notes. The pre-fix regression and two guard mutations fail, then
+restore SHA-256-exactly and pass. Macmini passes 384 tests in 32 complete
+files; only O's two unchanged native PowerShell/Windows guards skip. All
+five compiler projects, harness typecheck, full lint/Prettier, plain knip,
+duplication (0 clones), localization (0 problems), production and merged-team
+cycles, regenerated host API, build, all 17 unchanged caps and regenerated
+notices pass. The prior inventory mismatch is resolved. S's 261-line
+`teamPool.ts` remains byte-identical; the lane-A reconciliation note records
+C/O's concrete ports and unchanged scheduler region. See
+`docs/certification/m96c-int.md`, `m96c-int-round2-drills.json` and
+`m96c-int-round2-gates.json`. Full quality, native Windows/editor/live checks
+and X2 runtime wiring/public docs/package remain assigned to the M96
+integration under the rig brief; no source/gate is weakened.
+
+**M96CINT round-1 partial merged-source proof (historical, 2026-10-05).** Macmini passes all
+239 S/Q/T2/V tests plus 29 shared schema/text tests, in 21 complete files
+and invocations of at most three files. All five compiler projects, the
+harness compiler, full lint/Prettier, deadcode, duplication (0 clones),
+localization (0 problems), production and merged-team cycle checks, build,
+and all 17 unchanged bundle caps pass. A cumulative-admission mutation fails
+three real-repository cases, including interaction; SHA-256-exact restoration
+passes all four. The Mac fixture correction retains every assertion.
+See `docs/certification/m96c-int.md` and `m96c-int-drills.json`.
+The extra host API check fails on the X2-owned generated inventory's five
+Node import counts and Traffic stylesheet source; its regeneration remains
+with X2 under the brief's explicit docs/wiring exclusion. Full quality,
+native/editor/live acceptance, C/O and X2 remain with the lead. These scoped
+receipts certify this partial integration, not production team wiring.
+
+**FIXM96CT2 scoped proof (2026-10-05).** Both `RVM96CT2` findings are
+fixed within T2. Kubuntu passes all five compiler projects, 21 focused tests,
+changed-file ESLint/Prettier, localization, host API, deadcode, duplication
+(0 clones), and production build with unchanged budgets. Four guard mutations
+fail their named regressions and restore SHA-256-exact source bytes; see
+`docs/certification/m96c-t2.md`. The rig/shared rules prohibit this lane from
+running full quality, merging, rebasing or pushing. Full quality and the
+existing runtime/integration/live handoff remain the lead's work; no gate was
+weakened and neither reviewed finding remains as a residual.
+
+**FIXM96CC lane gate scope (2026-10-05).** The owner's rig brief explicitly
+forbids a full `npm run quality`, merges, rebases and pushes in this lane.
+Focused Vitest, all compiler projects, changed-file lint/format, dead-code,
+duplication, localization, host API and production-build checks run directly
+on macmini. Hooked local commits are checkpoints for the lead; full quality
+and assembled S/K/Q/T2/X2 certification remain the lead's required gates.
+Review-repair receipts are in `docs/certification/m96c-c.md`. Final focused
+checks pass on macmini: 52/52 owned cases (including real Git under the
+unchanged default deadline), all listed static/build gates, and 25 distinct
+byte-exact restored guard drills. No RVM96CC finding is deferred.
+
+**FIXM96CO rig validation (2026-10-05).** The lane brief forbids full
+`quality` and full test suites on the shared rig; the lead runs those after
+integration. Owned files are checked directly on macmini in batches of at
+most three Vitest files, plus typecheck, lint, formatting, knip, duplication,
+localization and build gates. The host API record still fails only on the
+six base Node import-count changes already assigned to X2 (buffer 27→28,
+crypto 32→34, fs 24→25, fs/promises 34→36, path 65→68, zlib 1→2).
+Its gate is unchanged; X2 must regenerate and review its owned record before
+full quality. Native Windows parser/runtime certification is explicitly
+pending in §9 and `docs/certification/m96c-o.md`.
 
 **MG69 merged-source proof (2026-10-02).** Kubuntu passes 49 owning/merged
 files (2,056 tests; two existing Windows-only cases platform-skipped), all
@@ -22336,6 +22466,56 @@ before a repaired one loads (2026-09-30).
   pidfd lane does; unavailable native access/runtime fails closed. Native
   packaging can replace that transport with M98 J's compiled helper without
   weakening the identity or environment-source requirements.
+- **M96c-V/X2 runner authorization (RVM96CV, 2026-10-05).** This lane has no production
+  Traffic/runner caller. Runner save authorization, including host-selected
+  new IDs and destination replacement, remains unconfirmed. It is safe to
+  retain this boundary code while it is unreachable in production; X2/O
+  must prove user authorization and Restricted Mode behavior before wiring
+  it.
+- **M96c-V/X2 production wiring (RVM96CV, 2026-10-05).** X2/S/C/Q/O/K must prove real dispatch, identity/generation binding
+  through asynchronous admission, paid first-charge consent and daily budget,
+  both Agent maps, lazy loading and the single-model golden/zero-traffic
+  checks. These are named integration residuals, not fixture certification
+  or claims of product support. The three RVM96CV findings are fixed, with
+  regressions and byte-exact restored drills recorded
+  in `docs/certification/m96c-v.md`.
+- **M96c generated inventory resolved (M96CINT round 2, 2026-10-05).**
+  The partial integration's stale Node import counts and omitted Traffic
+  stylesheet source are regenerated through `check-host-api --write` and
+  reviewed in `docs/certification/m96c-int.md`. The gate reports 0 problems;
+  its totals remain 271 VS Code APIs, 18 importing files, 23 Node built-in
+  kinds and 59 theme variables. X2 still owns inventory changes from its
+  later runtime wiring and the full gate at the M96 merge.
+
+**FIXM96CC / RVM96CC (2026-10-05).** The seven P2 findings and the P3
+real-Git fixture deadline are repaired, with no review finding deferred.
+The existing lane C integration seams remain: S supplies consistent volume
+case policy to `SharedFiles` and `expandWriteSet` (Windows/macOS conservatively
+fold by default; the host may explicitly select a sensitive volume or an
+insensitive Linux mount); K supplies complete fresh canonical-repository hint
+snapshots; Q uses the landing routine and final tested blobs. Lexical path
+identity is not filesystem permission or symlink authority. Standalone
+collision tests do not certify these host-owned seams or the assembled team.
+
+- **FIXM96CO / RVM96CO native Windows certification pending.** Findings
+  1–7 have regression fixes; macmini has no PowerShell parser or Windows
+  kernel. The real-parser test
+  `parses the helper and keeps Initialize-RunnerJob separate from argument assignment`
+  runs only when PowerShell is installed, and
+  `runs setup and checks through the native job branch and publishes the exit marker`
+  is Windows-guarded. Source/fake-transport checks cannot certify native
+  Windows execution. Safe for integration review because no Windows
+  support claim is made; the lead must run `runnerHelperNative.test.ts` on
+  Windows before runner certification. Details are in `docs/certification/m96c-o.md`.
+- **FIXM96CO cache-creator supervisor loss.** Creation leases record the
+  run owner and expiry; timeout cleanup runs in the surviving supervisor
+  after process-group/job retirement and only clears its own lease. A
+  supervisor killed independently can leave a lease, even past its expiry.
+  Expiry alone cannot prove descendants stopped, so later work stays busy
+  instead of stealing it. Follow-up: native retirement-backed recovery
+  before any automatic reclamation; use a fresh user-selected runner root
+  after manually retiring a lost supervisor. This retains exclusion and
+  never silently permits concurrent setup.
 
 - Code intelligence (M67) shows what VS Code's language services say. A
   result located outside the workspace is left out and a hover defined only

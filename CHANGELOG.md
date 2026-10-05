@@ -60,6 +60,16 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- Team checks validate and quote scoped files for the destination operating
+  system and guard the final command before dispatch. Persistent check slots
+  own their Git objects and release cancelled snapshots only when every
+  launched child has proved retirement.
+- Runner supervisors release their own setup-cache lease after timeout
+  retirement. Output polling checks original bytes before streaming UTF-8,
+  Windows launches refuse commands over the process limit with a translated
+  reason, and the native Windows job separates initialization from argument
+  assignment.
+
 - M96 team launcher foundations now prove process ownership at each signal,
   use stable Linux pidfds, cancel held launches during disposal, retry failed
   retirement, and use monotonic deadlines. Advisory hints validate the opened
@@ -664,7 +674,6 @@ happened, not what was planned; superseded entries are kept.
   (it wrote `.claude/settings.json` that way in a live check with its
   sandbox off); the extension cannot stop a write it is never asked
   about.
-
 ## [0.12.1] - 2026-10-04
 
 ### Changed

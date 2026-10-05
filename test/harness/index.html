@@ -1036,6 +1036,30 @@
       }
     </script>
     <script type="module" src="../../dist/webview/main.js"></script>
+    <!-- M96c lane V's test-only surface is a separate lazy bundle. -->
+    <script>
+      const trafficScenarios = [
+        'team-traffic',
+        'team-traffic-320',
+        'team-traffic-hints',
+        'team-traffic-recovery',
+        'runners',
+      ]
+      if (trafficScenarios.includes(scenarioName)) {
+        const styles = document.createElement('link')
+        styles.rel = 'stylesheet'
+        styles.href = '../../dist/traffic-harness/main.css'
+        document.head.append(styles)
+        document.addEventListener('traffic-outgoing', (event) => {
+          outbox.push(event.detail)
+        })
+        import('../../dist/traffic-harness/main.js').then(({ mountTrafficHarness }) => {
+          mountTrafficHarness(document, scenarioName)
+        })
+      } else {
+        document.write('<script src="../../dist/webview/main.js"></scr' + 'ipt>')
+      }
+    </script>
     <script>
       // Scripting errors and dropped host messages are written into the page
       // so a screenshot shows them instead of a silent empty state.
@@ -4442,6 +4466,12 @@
               ]
         })
       const runAxe = async () => {
+        if (
+          trafficScenarios.includes(scenarioName) &&
+          document.body.dataset.trafficReady !== scenarioName
+        ) {
+          throw new Error('Traffic scenario did not finish rendering')
+        }
         await loadAxe()
         // "incomplete" is what axe could not decide on its own: a size it
         // could not measure, a background it could not see. It is returned

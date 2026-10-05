@@ -384,32 +384,32 @@ Functions, variables, classes, enums and members declared in `@types/vscode`; th
 
 | Module                 | Files |
 | ---------------------- | ----- |
-| `node:buffer`          | 31    |
+| `node:buffer`          | 33    |
 | `node:child_process`   | 12    |
-| `node:crypto`          | 44    |
+| `node:crypto`          | 48    |
 | `node:dgram`           | 1     |
 | `node:dns`             | 1     |
 | `node:dns/promises`    | 2     |
 | `node:events`          | 1     |
-| `node:fs`              | 30    |
-| `node:fs/promises`     | 45    |
+| `node:fs`              | 31    |
+| `node:fs/promises`     | 52    |
 | `node:http`            | 7     |
 | `node:https`           | 1     |
 | `node:module`          | 2     |
 | `node:net`             | 7     |
-| `node:os`              | 11    |
-| `node:path`            | 76    |
+| `node:os`              | 12    |
+| `node:path`            | 83    |
 | `node:process`         | 3     |
 | `node:stream`          | 13    |
 | `node:stream/promises` | 2     |
 | `node:string_decoder`  | 1     |
-| `node:timers/promises` | 6     |
+| `node:timers/promises` | 8     |
 | `node:tls`             | 1     |
 | `node:url`             | 3     |
 | `node:util`            | 4     |
 | `node:vm`              | 1     |
 | `node:worker_threads`  | 4     |
-| `node:zlib`            | 2     |
+| `node:zlib`            | 3     |
 
 ## The webview's host
 
@@ -417,6 +417,6 @@ Functions, variables, classes, enums and members declared in `@types/vscode`; th
 | ------------------ | ----------------------------------------------------------------------------------- |
 | `acquireVsCodeApi` | `src/webview/hostBridge.ts`, `src/webview/main.tsx`, `src/webview/whatsNew/main.ts` |
 
-Theme variables the styles read (61), from `src/webview/components/HeartbeatTrace.tsx`, `src/webview/styles.css`, `src/webview/whatsNew/whatsNew.css`:
+Theme variables the styles read (61), from `src/webview/components/HeartbeatTrace.tsx`, `src/webview/components/traffic/traffic.css`, `src/webview/styles.css`, `src/webview/whatsNew/whatsNew.css`:
 
 `--vscode-badge-background`, `--vscode-badge-foreground`, `--vscode-button-background`, `--vscode-button-border`, `--vscode-button-foreground`, `--vscode-button-hoverBackground`, `--vscode-button-secondaryBackground`, `--vscode-button-secondaryForeground`, `--vscode-button-secondaryHoverBackground`, `--vscode-charts-red`, `--vscode-checkbox-border`, `--vscode-contrastBorder`, `--vscode-debugTokenExpression-number`, `--vscode-debugTokenExpression-string`, `--vscode-descriptionForeground`, `--vscode-diffEditor-insertedLineBackground`, `--vscode-diffEditor-removedLineBackground`, `--vscode-disabledForeground`, `--vscode-editor-background`, `--vscode-editor-font-family`, `--vscode-editor-font-size`, `--vscode-editorCursor-foreground`, `--vscode-editorWarning-foreground`, `--vscode-editorWidget-background`, `--vscode-editorWidget-border`, `--vscode-editorWidget-foreground`, `--vscode-errorForeground`, `--vscode-focusBorder`, `--vscode-font-family`, `--vscode-font-size`, `--vscode-foreground`, `--vscode-gitDecoration-addedResourceForeground`, `--vscode-gitDecoration-deletedResourceForeground`, `--vscode-input-background`, `--vscode-input-border`, `--vscode-input-foreground`, `--vscode-input-placeholderForeground`, `--vscode-inputValidation-errorBackground`, `--vscode-inputValidation-errorBorder`, `--vscode-inputValidation-errorForeground`, `--vscode-inputValidation-warningBackground`, `--vscode-inputValidation-warningForeground`, `--vscode-list-activeSelectionBackground`, `--vscode-list-activeSelectionForeground`, `--vscode-list-hoverBackground`, `--vscode-list-warningForeground`, `--vscode-panel-border`, `--vscode-progressBar-background`, `--vscode-sideBar-background`, `--vscode-symbolIcon-functionForeground`, `--vscode-symbolIcon-keywordForeground`, `--vscode-testing-iconFailed`, `--vscode-testing-iconPassed`, `--vscode-textBlockQuote-border`, `--vscode-textCodeBlock-background`, `--vscode-textLink-activeForeground`, `--vscode-textLink-foreground`, `--vscode-textPreformat-foreground`, `--vscode-toolbar-hoverBackground`, `--vscode-widget-border`, `--vscode-widget-shadow`

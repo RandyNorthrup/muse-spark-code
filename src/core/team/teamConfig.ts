@@ -1,3 +1,12 @@
+import {
+  AGENT_ID_PATTERN,
+  TEAM_BUILTIN_ROLE_IDS,
+  TEAM_JSON_SEGMENTS,
+  type TeamBuiltinRoleId,
+  TEAM_WRITE_SET_MAX,
+} from '../../shared/constants'
+import { type TeamAgentRef, type TeamModelSettings, teamSharedFileSchema } from '../../shared/team'
+import { distinctTeamModels, type TeamModelRef } from './sameModel'
 // Lane R (M96, PLAN.md D75): the workspace team.
 //
 // The user's agents (pool entries), the workspace team (roles with ordered
@@ -6,15 +15,6 @@
 // measure: lane A gives the measures meaning; the lowering only ever moves
 // a number down. The host reads the file and the workspace state; this
 // module merges them without IO.
-
-import {
-  AGENT_ID_PATTERN,
-  TEAM_BUILTIN_ROLE_IDS,
-  TEAM_JSON_SEGMENTS,
-  type TeamBuiltinRoleId,
-} from '../../shared/constants'
-import type { TeamAgentRef, TeamModelSettings } from '../../shared/team'
-import { distinctTeamModels, type TeamModelRef } from './sameModel'
 
 /** One pool entry's agent: Default, or a configured model on its backend. */
 export type TeamPoolEntry =
@@ -156,6 +156,8 @@ export interface TeamJsonRole {
 
 /** The repository's lowering file: caps and budgets down, roles off, never more. */
 export interface TeamJsonFile {
+  readonly sharedFiles?: readonly z.infer<typeof teamSharedFileSchema>[]
+
   readonly roles?: Readonly<Record<string, TeamJsonRole>> | undefined
   readonly budgets?: Readonly<Record<string, number>> | undefined
 }
@@ -164,7 +166,7 @@ export type TeamJsonParse =
   | { readonly ok: true; readonly file: TeamJsonFile }
   | { readonly ok: false; readonly reason: string }
 
-const TEAM_JSON_TOP_KEYS: ReadonlySet<string> = new Set(['roles', 'budgets'])
+const TEAM_JSON_TOP_KEYS: ReadonlySet<string> = new Set(['roles', 'budgets', 'sharedFiles'])
 const TEAM_JSON_ROLE_KEYS: ReadonlySet<string> = new Set(['off', 'reviewer', 'caps'])
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -263,7 +265,16 @@ export function parseTeamJson(text: string): TeamJsonParse {
       ),
     )
   }
-  return { ok: true, file: { roles, ...(budgets !== undefined && { budgets }) } }
+  const sharedFiles = teamSharedFilesConfigShape.sharedFiles.safeParse(parsed['sharedFiles'])
+  if (!sharedFiles.success) return { ok: false, reason: sharedFiles.error.message }
+  return {
+    ok: true,
+    file: {
+      roles,
+      ...(budgets !== undefined && { budgets }),
+      ...(sharedFiles.data !== undefined && { sharedFiles: sharedFiles.data }),
+    },
+  }
 }
 
 /** The numbers a lowering is checked against: the workspace team's own. */
@@ -329,4 +340,12 @@ export function lowerTeamWithJson(base: TeamLoweringBase, file: TeamJsonFile): T
     budgets[name] = budget
   }
   return { ok: true, lowered: { offRoles, reviewers, caps, budgets } }
+}
+
+import * as z from 'zod/mini'
+
+// Lane C owns only this team.json key. The M96 config reader composes this
+// shape into its strict boundary schema; no parallel whole-config loader.
+export const teamSharedFilesConfigShape = {
+  sharedFiles: z.optional(z.array(teamSharedFileSchema).check(z.maxLength(TEAM_WRITE_SET_MAX))),
 }

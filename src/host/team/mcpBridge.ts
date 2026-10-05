@@ -1,3 +1,46 @@
+import { randomBytes } from 'node:crypto'
+import { type IncomingMessage, type Server, type ServerResponse } from 'node:http'
+import { type SessionMcpServer } from '../../core/agent/agentBackend'
+import { type CallToolResult, McpError } from '../../core/backends/modelapi/mcp/protocol'
+import {
+  type BridgeOfferedTool,
+  type BridgeToolRef,
+  type McpPoolSnapshot,
+} from '../../core/backends/modelapi/mcp/pool'
+import { messageSchema, type McpRequestKey } from '../../core/mcp'
+import {
+  busyText,
+  type LeaseHolder,
+  type ResourceRegistry,
+  type ServerIdentity,
+} from '../../core/team/resources'
+import {
+  CLI_OUTPUT_MAX_BYTES,
+  HTTP_STATUS,
+  IDE_MCP_LOOPBACK_HOST,
+  IDE_MCP_TOKEN_BYTES,
+  JSON_RPC_ERRORS,
+  MCP_PROTOCOL_VERSION,
+  MODEL_API_MODEL_TEXT,
+  CHECK_COMMANDS_MAX,
+  CHECK_NAME_MAX_CHARS,
+  GIT_PATH_MAX_DEFAULT,
+  TEAM_WRITE_SET_MAX,
+  CHECK_DEFAULT_TIMEOUT_SECONDS,
+  UI_TEXT,
+  type CheckCommandSetting,
+} from '../../shared/constants'
+import { type Logger } from '../logger'
+import { isSameLoopbackSecret, listenLoopback, readLoopbackBody } from '../mcpLoopback'
+import { fill } from '../../shared/l10n/text'
+import {
+  checkCommandLine,
+  checkCommandsSchema,
+  checkTimeoutMs,
+} from '../../core/verify/checkCommands'
+import { runChecksDefinition } from '../../core/backends/modelapi/verifyTools'
+import { routeWorkerCheck, type WorkerCheckRouting } from '../../core/team/workers/engineWorker'
+import { type CheckJob, type CheckResult } from '../../core/runners/routing'
 // The team's MCP bridge (M96 lane B, PLAN.md D75): one instance of each MCP
 // server on M50's pool, served to the orchestrator and every worker of the
 // window.
@@ -25,34 +68,7 @@
 // incoming message is parsed with a zod schema before use. Wire failures
 // answer 500 instead of leaving an unhandled rejection (D25).
 
-import { randomBytes } from 'node:crypto'
-import type { IncomingMessage, Server, ServerResponse } from 'node:http'
 import * as z from 'zod/mini'
-import type { SessionMcpServer } from '../../core/agent/agentBackend'
-import { type CallToolResult, McpError } from '../../core/backends/modelapi/mcp/protocol'
-import type {
-  BridgeOfferedTool,
-  BridgeToolRef,
-  McpPoolSnapshot,
-} from '../../core/backends/modelapi/mcp/pool'
-import { messageSchema, type McpRequestKey } from '../../core/mcp'
-import {
-  busyText,
-  type LeaseHolder,
-  type ResourceRegistry,
-  type ServerIdentity,
-} from '../../core/team/resources'
-import {
-  CLI_OUTPUT_MAX_BYTES,
-  HTTP_STATUS,
-  IDE_MCP_LOOPBACK_HOST,
-  IDE_MCP_TOKEN_BYTES,
-  JSON_RPC_ERRORS,
-  MCP_PROTOCOL_VERSION,
-  MODEL_API_MODEL_TEXT,
-} from '../../shared/constants'
-import type { Logger } from '../logger'
-import { isSameLoopbackSecret, listenLoopback, readLoopbackBody } from '../mcpLoopback'
 
 /** What M50's pool gives the bridge: the single instance of every server. */
 export interface TeamBridgePool {
@@ -618,3 +634,107 @@ export interface BridgeToolListing {
   readonly description?: string | undefined
   readonly inputSchema: Readonly<Record<string, unknown>>
 }
+
+// --- M96c lane O: bridge run_checks region. ---
+
+const argsSchema = z.strictObject({
+  names: z.optional(
+    z
+      .array(z.string().check(z.minLength(1), z.maxLength(CHECK_NAME_MAX_CHARS)))
+      .check(z.maxLength(CHECK_COMMANDS_MAX)),
+  ),
+  paths: z.optional(
+    z
+      .array(z.string().check(z.minLength(1), z.maxLength(GIT_PATH_MAX_DEFAULT)))
+      .check(z.maxLength(TEAM_WRITE_SET_MAX)),
+  ),
+})
+export interface BridgeChecksDeps extends WorkerCheckRouting {
+  readonly checks: () => readonly CheckCommandSetting[]
+  readonly platform: NodeJS.Platform
+  /** The authenticated endpoint's current task/attempt and checks tool policy. */
+  readonly isCurrentAndAllowed: () => boolean
+  readonly makeJob: (command: string, timeoutMs: number) => CheckJob
+  /** Resolve existing files inside this caller's copy; omitted paths are its edited files. */
+  readonly pathsFor: (paths: readonly string[] | undefined) => Promise<readonly string[]>
+  /** M73 packing after the caller's hooks; no output is silently clipped. */
+  readonly pack: (results: readonly CheckResult[]) => Promise<unknown>
+}
+
+export function bridgeRunChecks(deps: BridgeChecksDeps): {
+  readonly definition: ReturnType<typeof runChecksDefinition>
+  readonly call: (input: unknown) => Promise<unknown>
+} {
+  const checks = checkCommandsSchema.parse(deps.checks()).map((check) => ({
+    name: check.name,
+    command: check.command,
+    changedFiles: check.changedFiles ?? false,
+    timeoutSeconds: check.timeoutSeconds ?? CHECK_DEFAULT_TIMEOUT_SECONDS,
+  }))
+  return {
+    definition: runChecksDefinition(checks),
+    call: async (input) => {
+      const args = argsSchema.parse(input)
+      const admit = () => {
+        if (!deps.isCurrentAndAllowed()) throw new Error(MODEL_API_MODEL_TEXT.agentToolNotOffered)
+      }
+      admit()
+      if (checks.length === 0) throw new Error(MODEL_API_MODEL_TEXT.runChecksNone)
+      const names = args.names ?? checks.map((check) => check.name)
+      const paths = await deps.pathsFor(args.paths)
+      admit()
+      const chosen = names.map((name) => {
+        const check = checks.find((candidate) => candidate.name === name)
+        if (check === undefined)
+          throw new Error(
+            fill(MODEL_API_MODEL_TEXT.runChecksUnknown, {
+              name,
+              names: checks.map((candidate) => candidate.name).join(', '),
+            }),
+          )
+        const line = checkCommandLine(check, paths, 'linux')
+        if (!line.ok) throw new Error(line.reason)
+        return check
+      })
+      if (chosen.length === 0) throw new Error(MODEL_API_MODEL_TEXT.runChecksNone)
+      const results: CheckResult[] = []
+      for (const check of chosen) {
+        admit()
+        const scopedJob = async (job: CheckJob, platform: NodeJS.Platform) => {
+          admit()
+          const scoped = checkCommandLine({ ...check, command: job.command }, paths, platform)
+          if (!scoped.ok) throw new Error(scoped.reason)
+          const command = await deps.guard({ ...job, command: scoped.line })
+          admit()
+          job.signal.throwIfAborted()
+          if (!deps.routing.isTrusted()) throw new Error(UI_TEXT.teamRunners.trustNotice)
+          if (command.trim() === '') throw new Error(UI_TEXT.hookInputNoCommand)
+          return { ...job, command }
+        }
+        results.push(
+          await routeWorkerCheck(deps.makeJob(check.command, checkTimeoutMs(check)), {
+            runners: deps.runners,
+            routing: {
+              ...deps.routing,
+              isTrusted: () => deps.routing.isTrusted() && deps.isCurrentAndAllowed(),
+              remote: async (runner, job) =>
+                await deps.routing.remote(runner, await scopedJob(job, runner.os)),
+              local: async (job) => await deps.routing.local(await scopedJob(job, deps.platform)),
+            },
+            guard: async (job) => {
+              admit()
+              const line = await deps.guard(job)
+              admit()
+              return line
+            },
+          }),
+        )
+      }
+      admit()
+      const packed = await deps.pack(results)
+      admit()
+      return packed
+    },
+  }
+}
+// --- End M96c lane O region. Tokens, transports, leases and MCP ownership are lane B. ---

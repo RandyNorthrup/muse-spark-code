@@ -1,25 +1,9 @@
-// The `team` MCP server Muse Code orchestrators reach from each session
-// (PLAN.md M96 lane T, D75 "Muse Code as the orchestrator"): MCP over
-// streamable HTTP on a loopback port, with a Bearer [REDACTED] minted per
-// conversation (never logged, never written to disk), so every call knows
-// its orchestrator session: its budget, its approvals and its results.
-//
-// One token reaches only its own conversation's tasks: a token minted for
-// another conversation is unknown here and refused, as is no token, and a
-// revoked conversation's token stops working. The tool list is the five
-// static team tools, byte-identical across sessions and team edits (their
-// descriptions never name a role). The JSON-RPC handling itself is pure
-// (src/core/mcp.ts).
-//
-// A conversation keeps its token across `session/resume`: resume reuses the
-// endpoint, so the set is kept unchanged.
-
 import { randomBytes, timingSafeEqual } from 'node:crypto'
 import { once } from 'node:events'
 import { Buffer } from 'node:buffer'
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http'
 import { handleMcpMessage, type McpOutcome, mcpRequestKeys, type McpTool } from '../../core/mcp'
-import type { SessionMcpHttpServer } from '../../core/agent/agentBackend'
+import { type SessionMcpHttpServer } from '../../core/agent/agentBackend'
 import {
   teamMcpToolList,
   isTeamTool,
@@ -37,7 +21,22 @@ import {
   IDE_MCP_PATH,
   CLI_OUTPUT_MAX_BYTES,
 } from '../../shared/constants'
-import type { Logger } from '../logger'
+import { type Logger } from '../logger'
+// The `team` MCP server Muse Code orchestrators reach from each session
+// (PLAN.md M96 lane T, D75 "Muse Code as the orchestrator"): MCP over
+// streamable HTTP on a loopback port, with a Bearer [REDACTED] minted per
+// conversation (never logged, never written to disk), so every call knows
+// its orchestrator session: its budget, its approvals and its results.
+//
+// One token reaches only its own conversation's tasks: a token minted for
+// another conversation is unknown here and refused, as is no token, and a
+// revoked conversation's token stops working. The tool list is the five
+// static team tools, byte-identical across sessions and team edits (their
+// descriptions never name a role). The JSON-RPC handling itself is pure
+// (src/core/mcp.ts).
+//
+// A conversation keeps its token across `session/resume`: resume reuses the
+// endpoint, so the set is kept unchanged.
 
 /** What `session/start` is told: where the server is and how to authenticate. */
 export type TeamMcpEndpoint = SessionMcpHttpServer
@@ -352,4 +351,29 @@ export class TeamMcpServer {
     this.bindings.clear()
     this.endpoints.clear()
   }
+}
+
+// T2 owns the fixed tool list; M96/X2 owns loopback transport, per-session
+// bearer tokens and registration. Build this list once, never on tools/list.
+
+/** Workers may collect their own children through M96's scoped runtime, but
+ * only the orchestrator may enqueue landings or reschedule the board. */
+export function teamServerToolList(
+  tools: readonly McpTool[],
+  caller: 'orchestrator' | 'worker',
+): readonly McpTool[] {
+  return tools
+    .filter(
+      (tool) =>
+        caller === 'orchestrator' ||
+        ['roster', 'delegate', 'collect', 'cancel'].includes(tool.name),
+    )
+    .map((tool) => ({
+      ...tool,
+      inputSchema: structuredClone(tool.inputSchema),
+      annotations:
+        tool.name === 'roster' || tool.name === 'collect'
+          ? { ...structuredClone(tool.annotations ?? {}), readOnlyHint: true }
+          : structuredClone(tool.annotations ?? {}),
+    }))
 }

@@ -817,7 +817,27 @@ describe('team strings', () => {
   })
 
   it('covers the tree states and the waiting-for-you choices', () => {
-    expect(Object.keys(EN.teamTaskStates)).toHaveLength(11)
+    expect(
+      Object.keys(EN.teamTaskStates).toSorted((left, right) => left.localeCompare(right)),
+    ).toEqual([
+      'blocked',
+      'cancelled',
+      'capped',
+      'discarded',
+      'done',
+      'failed',
+      'interrupted',
+      'merge',
+      'merged',
+      'notStaffed',
+      'queued',
+      'ready',
+      'redesign',
+      'review',
+      'running',
+      'waitingApproval',
+      'waitingForYou',
+    ])
     expect(EN.teamWaitingForYou).toBe('Waiting for you')
     expect(EN.teamChoiceQueue).toBe('Queue it')
     expect(EN.teamChoiceSelf).toBe('Main agent does it')
