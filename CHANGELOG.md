@@ -260,6 +260,8 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- What’s New has a localized tip in the palette and slash-command list, alongside the panel’s other actions.
+
 - Secret prompts are redacted on their first transcript card, history replay, saved draft recovery and Markdown export (including filenames). Delayed warnings survive a later send; Send anyway resends the held text, attachments and reference while preserving newer typing.
 
 - **Diagnostic failures redact known key/token shapes before display.**

@@ -145,6 +145,7 @@
     "usageCommand": "A fiókhasználat megjelenítése.",
     "costCommand": "A beszélgetés tokenösszesítőinek megjelenítése.",
     "log": "Kimeneti napló megnyitása.",
+    "whatsNew": "A verzió fő újdonságainak és teljes kiadási megjegyzéseinek megnyitása.",
     "issue": "Hiba bejelentése.",
     "docs": "A Muse Code dokumentációjának megnyitása.",
     "mcpServers": "Amihez a Muse Code csatlakozik; bejelentkezés egy kiszolgálóra.",

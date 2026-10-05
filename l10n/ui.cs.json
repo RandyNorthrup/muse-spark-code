@@ -145,6 +145,7 @@
     "usageCommand": "Zobrazit využití účtu.",
     "costCommand": "Zobrazit celkové počty tokenů této konverzace.",
     "log": "Otevřít protokol výstupu.",
+    "whatsNew": "Otevřít hlavní novinky a úplné poznámky k této verzi.",
     "issue": "Nahlásit problém.",
     "docs": "Otevřít dokumentaci Muse Code.",
     "mcpServers": "K čemu se Muse Code připojuje; přihlášení k serveru.",

@@ -145,6 +145,7 @@
     "usageCommand": "顯示帳戶使用量。",
     "costCommand": "顯示此對話的 token 總計。",
     "log": "開啟輸出記錄。",
+    "whatsNew": "開啟此版本的主要更新和完整版本資訊。",
     "issue": "回報問題。",
     "docs": "開啟 Muse Code 說明文件。",
     "mcpServers": "Muse Code 連線的對象；登入伺服器。",

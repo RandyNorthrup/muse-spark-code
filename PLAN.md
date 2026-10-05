@@ -14751,7 +14751,7 @@ the host API inventory and exec schemas. Verify the shared M92 detection table
 still feeds #116's host-to-webview diagnostics and confidential admission,
 then run full `npm run quality` once and the unchanged 2200 KiB VSIX gate.
 A size-budget failure stops this lane and is reported without changing a cap.
-Hooks stay on; no push, rebase, live model or paid call. Current evidence and
+The first combined gate exposed the missing M99 palette tip and stale eager-recall/request-order assertions after D78. Add the tip in every language; bind the concurrency test to parent/child identity and assert recall is absent until packing. Match the monitor probe to the existing MCP Linux zombie check and retain proof that it recognizes a live process. Hooks stay on; no push, rebase, live model or paid call. Current evidence and
 any outstanding gate are in `docs/certification/train-0.13.0.md`.
 
 **MRG116 bounded merge lane (2026-10-04).** The rig brief requires merging

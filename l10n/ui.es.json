@@ -145,6 +145,7 @@
     "usageCommand": "Mostrar el uso de la cuenta.",
     "costCommand": "Mostrar los totales de tokens de esta conversación.",
     "log": "Abrir el registro de salida.",
+    "whatsNew": "Abrir las novedades destacadas y las notas completas de esta versión.",
     "issue": "Notificar un problema.",
     "docs": "Abre la documentación de Muse Code.",
     "mcpServers": "A qué se conecta Muse Code; iniciar sesión en un servidor.",

@@ -145,6 +145,7 @@
     "usageCommand": "Hesap kullanımını göster.",
     "costCommand": "Bu konuşmanın belirteç toplamlarını göster.",
     "log": "Çıkış günlüğünü aç.",
+    "whatsNew": "Bu sürümün öne çıkan yeniliklerini ve tüm sürüm notlarını açın.",
     "issue": "Sorun bildir.",
     "docs": "Muse Code belgelerini açın.",
     "mcpServers": "Muse Code'un bağlandığı sunucular; bir sunucuda oturum açın.",

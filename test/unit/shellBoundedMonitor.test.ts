@@ -1,11 +1,11 @@
 // M92b: a never-ending monitor through the shell tool's real execution path
 // (`createToolIo().runShell`, the same call the Model API shell tool makes).
 // The command runs with a small `timeout_ms`; the proof is the output
-// captured so far with `isTimedOut`, and both the script's and its child's
-// PIDs gone once the call returns, on every OS. On Windows the command joins
+// captured so far with `isTimedOut`, and neither the script nor its child
+// running once the call returns, on every OS. On Windows the command joins
 // the job object when the helper compiles, as in production (M27).
 
-import { mkdtempSync } from 'node:fs'
+import { mkdtempSync, readFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterAll, expect, it } from 'vitest'
@@ -39,17 +39,22 @@ afterAll(async () => {
   }
 })
 
-/** Whether pid still names a live process: signal 0 throws once it is gone. */
+/** Whether pid still runs: Linux zombies have exited even before init reaps them. */
 function isAlive(pid: number): boolean {
   try {
     process.kill(pid, 0)
-    return true
+    return (
+      process.platform !== 'linux' ||
+      !/^State:\s+Z\b/m.test(readFileSync(`/proc/${String(pid)}/status`, 'utf8'))
+    )
   } catch {
+    // The process may be reaped between the signal and the Linux state read.
     return false
   }
 }
 
 it('returns a never-ending monitor’s output on timeout with neither process left behind (M92b)', async () => {
+  expect(isAlive(process.pid)).toBe(true)
   const io = createToolIo({
     env: () => process.env,
     listFiles: () => Promise.resolve([]),

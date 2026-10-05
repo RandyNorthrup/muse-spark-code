@@ -209,6 +209,7 @@ export const EN = {
     usageCommand: 'Show account usage.',
     costCommand: 'Show this conversation’s token totals.',
     log: 'Open output log.',
+    whatsNew: 'Open this version’s release highlights and full notes.',
     issue: 'Report an issue.',
     docs: 'Open the Muse Code documentation.',
     mcpServers: 'What Muse Code connects to; sign in to a server.',
