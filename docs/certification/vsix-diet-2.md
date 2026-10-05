@@ -312,3 +312,24 @@ byte-exact before positive checks:
 | `extension/vendor/high-quality-projects-skill/scripts/delivery/__init__.py`                       |                72 |               72 |         80 |        80 |
 | `extension/dist/webview/chunks/chunk-5OYIARPN.js`                                                 |                 2 |                2 |          0 |         0 |
 | `extension/dist/runtime.bundles.json.br`                                                          |                 0 |          423,468 |          0 |   423,338 |
+
+## FIXVSIX2 — RVMVSIX2 repair (2026-10-05)
+
+Worktree `/home/randy/lanes/FIXVSIX2`, branch `perf/vsix-diet-2-fix`,
+base `b5bbb5ff`. The repair brief overrides common.md's merge/full-quality
+steps: hooks on, no merge/push/rebase or live/paid calls.
+
+**P2 fixed:** the VSIX packaging unit setup builds regional English in memory
+with esbuild and writes only its owned temporary fixture. Baseline/size/fallback
+comparisons use those generated files, never checkout `dist/`. The complete
+45-test suite passes on Kubuntu with no checkout `dist/` (41.97 s); all tests
+run, no skip or timeout changes. An initial attempt compressed the test-only
+fixtures too and exceeded the unchanged ten-second setup limit; the fixture
+now writes exact generated values without that unnecessary compression.
+
+P2 red drill: reintroduce the four checkout-dist copies in setup, then run the
+complete owning suite while `dist/` is absent. Suite exits 1 with named
+`VSIX packaging` setup `ENOENT .../dist/uiText.js`; the 45 tests cannot start.
+Restore byte-exact and compare SHA-256.
+
+Before/restored `db36173039e4eddc7c36ca9630e11b8acf3aa7cf33c526d8bf97c8a564aa51df`; mutated `da0647d4281ed6e71885e6ca5a9b578c8d05b9613b133cb8c84af9bd72081750`.

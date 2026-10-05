@@ -3,6 +3,13 @@ import { cpSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } f
 import path from 'node:path'
 import { brotliCompressSync, brotliDecompressSync } from 'node:zlib'
 import { createRequire } from 'node:module'
+import { runInNewContext } from 'node:vm'
+import { build } from 'esbuild'
+import {
+  UI_TEXT_REGIONS,
+  regionalUiText,
+  uiTextProperties,
+} from '../../scripts/lib/uiTextRegions.mjs'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import { stageVsix, packagedChangelog } from '../../scripts/package-vsix.mjs'
 import { packRuntimeArchive } from '../../scripts/lib/packageArchive.mjs'
@@ -69,8 +76,44 @@ beforeAll(async () => {
     writeFileSync(path.join(fixture.root, file), 'runtime')
   }
   cpSync(path.join(ROOT, 'l10n'), path.join(fixture.root, 'l10n'), { recursive: true })
-  for (const name of ['uiText', 'uiTextRuntime', 'uiTextHooks', 'uiTextSurfaces']) {
-    cpSync(path.join(ROOT, 'dist', `${name}.js`), path.join(fixture.root, 'dist', `${name}.js`))
+  // Unit CI runs before the production build; generate these artifacts from source.
+  const properties = uiTextProperties()
+  const regions = [{ name: undefined, output: 'dist/uiText.js' }, ...UI_TEXT_REGIONS]
+  const sources = await Promise.all(
+    regions.map((region) =>
+      build({
+        entryPoints: ['src/shared/l10n/en.ts'],
+        bundle: true,
+        write: false,
+        minify: true,
+        platform: 'node',
+        format: 'cjs',
+        target: 'node20.18',
+        plugins: [regionalUiText(region.name)],
+      }),
+    ),
+  )
+  for (const [index, region] of regions.entries()) {
+    const module = { exports: {} }
+    runInNewContext(sources[index].outputFiles[0].text, { module, exports: module.exports })
+    const data = Object.fromEntries(
+      Object.entries(Object.getOwnPropertyDescriptors(module.exports.EN))
+        .filter(([, property]) => Object.hasOwn(property, 'value'))
+        .map(([key, property]) => [key, property.value]),
+    )
+    const getters =
+      region.name === undefined
+        ? UI_TEXT_REGIONS.map((part) => {
+            const keys = properties
+              .filter((property) => property.region === part.name)
+              .map((property) => property.key)
+            return `for(const key of ${JSON.stringify(keys)})Object.defineProperty(exports.EN,key,{enumerable:true,configurable:true,get(){return require('./${path.basename(part.output)}').EN[key]}});`
+          }).join('\n')
+        : ''
+    writeFileSync(
+      path.join(fixture.root, region.output),
+      `exports.EN=${JSON.stringify(data)};\n${getters}\n`,
+    )
   }
   writeFileSync(
     path.join(fixture.root, 'dist/tab.js'),
@@ -150,7 +193,7 @@ describe('VSIX packaging', () => {
       expect(require.cache[path.join(fixture.stage, 'dist', `${name}.js`)]).toBeUndefined()
     }
     expect(readFileSync(file).byteLength).toBeLessThan(
-      readFileSync(path.join(ROOT, 'dist/uiText.js')).byteLength,
+      readFileSync(path.join(fixture.root, 'dist/uiText.js')).byteLength,
     )
   })
   it('refuses packaging a runtime archive over the existing decoded bound', async () => {
@@ -253,8 +296,8 @@ describe('VSIX packaging', () => {
     }
     const coreFile = path.join(stage, 'dist/uiText.js')
     const require = createRequire(coreFile)
-    const original = createRequire(path.join(ROOT, 'dist/uiText.js'))(
-      path.join(ROOT, 'dist/uiText.js'),
+    const original = createRequire(path.join(fixture.root, 'dist/uiText.js'))(
+      path.join(fixture.root, 'dist/uiText.js'),
     ).EN
     expect(JSON.stringify(require(coreFile).EN)).toBe(JSON.stringify(original))
     expect(require(coreFile).EN).toEqual(EN)

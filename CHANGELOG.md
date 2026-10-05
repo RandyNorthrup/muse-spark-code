@@ -7,6 +7,11 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+### Fixed
+
+- The VSIX packaging unit suite now builds its own English fixtures from source,
+  so a fresh checkout can run it before a production build.
+
 ### Changed
 
 - Smaller universal VSIX and ACP packages: runtime translations, lazy English

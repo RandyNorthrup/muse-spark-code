@@ -6810,6 +6810,21 @@ cached: "0.15", currency: "USD" }`, `isDefault`, `isActive`, `releaseDate`.
 
 ### VSIXDIET2 — Universal package headroom for 0.15.0 (2026-10-05)
 
+**FIXVSIX2 review repair (2026-10-05, RVMVSIX2).** Fix P1 by retaining
+Node's static named-export declarations in each archived CommonJS wrapper,
+while compiling the exact digest-checked original source. Compare native
+`import()` and `require()` exports for every packaged Node module with the
+unpacked build in both VSIX and ACP, and exercise hooks, reviewer, session
+board, report and plugin functions without model calls. Fix P2 by building
+the packaging suite's English fixtures in memory from source, so unit CI needs
+no `dist/`. Prove each repair red, restore byte-exact, remeasure universal
+headroom (at least 150,000 bytes) and byte-identical activation. No dependency,
+guard widening, paid/live call, merge, push or rebase; 90-minute repair box.
+
+- [x] Repair P2, run the complete suite without checkout build output, drill.
+- [ ] Repair P1, compare every packaged module and callable regression, drill.
+- [ ] Run scoped static/build/package gates and record sizes and receipts.
+
 - [x] Reproduce the 0.14.0 universal VSIX with the checksum-verified published
       helper and rank every member by compressed bytes. Keep the 2,252,800-byte cap.
 - [x] Pack runtime translations and generated lazy English regions together at
