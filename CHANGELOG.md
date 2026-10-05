@@ -30,6 +30,11 @@ happened, not what was planned; superseded entries are kept.
 
 - **Muse Judge CLI/MCP (M98, RVM98G2).** Reject inconsistent answer distributions, scores and legends before success; keep explicit provider/model configuration errors at exit 2; validate cancellation notifications before aborting work. Real command/source integration remains pending.
 
+- **The README's "What's new" section matches the release again.** 0.12.1 and
+  0.13.0 shipped with the README still headed "What's new in 0.12.0". It now
+  describes 0.13.0, the Marketplace README carries the same section, and a
+  test fails any release whose README section does not name its version.
+
 ## [0.13.0] - 2026-10-05
 
 ### Highlights

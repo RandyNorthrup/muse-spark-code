@@ -29,7 +29,7 @@ key to the CLI.
 > Unofficial. Not affiliated with or endorsed by Meta. "Muse Spark" and "Muse
 > Code" are Meta trademarks. You bring your own credentials.
 
-**Contents:** [What's new](#whats-new-in-0120) ·
+**Contents:** [What's new](#whats-new-in-0130) ·
 [Highlights](#highlights) · [Screenshots](#screenshots) ·
 [Get started](#get-started) · [Backends](#backends) ·
 [Permission modes](#permission-modes) ·
@@ -43,212 +43,37 @@ key to the CLI.
 [Requirements](#requirements) · [Privacy](#privacy-and-security) ·
 [Troubleshooting](#troubleshooting) · [Development](#development)
 
-## What's new in 0.12.0
+## What's new in 0.13.0
 
-- **Review** (both backends; see [Review](#review)). `/review` reviews the
-  uncommitted changes, `/review branch [base]` the branch against its base,
-  `/review commit [revision]` one commit, and `/review <what to look at>`
-  anything you describe. Put `security` first
-  (`/review security branch main`) to look for injection, secrets,
-  authentication and unsafe APIs; `/security-review` does that for the
-  uncommitted changes. On the Model API the built-in **Reviewer** runs it as
-  your own turn (billed like any message, with no paid popup) with tools
-  that only read. On Muse Code the review turn runs in Plan mode, where Muse
-  Code's own allow rules still apply, and your mode comes back after.
-  Findings end the reply with severity, file and line, and each location
-  opens its file there.
-- **The review pane** (`/changes`, both backends): the edits this
-  conversation's tools made (up to 200 edits and 20,000 diff lines), change
-  by change, with **Accept** (marks it
-  kept), **Revert** (takes that one change out of the file as it is now;
-  refused if its lines changed since or the file has unsaved edits) and
-  **Comment on a line**, which sends your comment with the diff lines around
-  it into the running turn or as your next message.
-- **A reviewer for Auto on Muse Code** (on by default; see
-  [The Auto reviewer on Muse Code](#the-auto-reviewer-on-muse-code)). In
-  Auto, an approval for the running turn that no rule settles goes first to
-  a reviewer: one short turn of a hidden Plan-mode Muse Code session in an
-  empty folder, on your Muse subscription (the live check counted four model
-  attempts per review). If it allows, the approval is answered _Allow once_
-  and the tool row says "Decided: approved (Auto reviewer)" with its reason.
-  If it declines, fails, is busy, has paused after repeated declines or has
-  no answer within 45 seconds of starting, the card asks you as before. It
-  never reviews a protected write, a paid call, a child task, a question, a
-  conversation open in two panels, or anything in another mode. Turn it off
-  with `museSpark.museCodeAutoReviewer`. The Modes menu no longer says Auto
-  on Muse Code runs a safety check.
-- **Bundled skills** (see [Bundled skills](#bundled-skills)):
-  `project_setup`, `feature_delivery` and `quality_retrofit` from the
-  high-quality-projects package ship with the extension. On the Model API
-  backend they come after the project's skills and your own (a project or
-  personal skill with the same name wins). For Muse Code, **Muse Spark:
-  Install Bundled Skills for Muse Code** links them into Muse Code's
-  personal skills folder, a Muse Code conversation offers it (Not now is
-  remembered), and **Muse Spark: Remove Bundled Skills from Muse Code**
-  takes them out. On by default (`museSpark.bundledSkills`): off stops the
-  offer and the Model API's bundled source, but an installed copy stays
-  until you remove it (the Model API backend reads that folder too). The
-  delivery helpers need Python 3.12 or newer.
-- **Headless runs and a GitHub Action** (see
-  [Headless and CI](#headless-and-ci-m80)): `muse-spark-code-acp exec` runs
-  one turn on a workspace without an editor, in Plan or Accept edits, and
-  denies every approval it is asked. On Muse Code (the default) it uses your
-  existing sign-in, with no dollar or request cap, only its timeout. On the
-  Model API it needs `--max-budget-usd` (up to $20) and reserves each
-  request's worst-case cost before sending it, so a run needs at least
-  $1.41 on the standard model. The `action/` GitHub Action reviews, or
-  proposes a fix for, a same-repository pull request on the Model API with
-  your key, under a required `max-budget-usd`. Its fake-only check passes on
-  hosted runners; acceptance with a real key is still pending. The Action installs the agent from
-  npm with its provenance checked (0.12.0 is the first npm release with
-  `exec`), or a candidate tarball you pin.
-- **Session board and best-of-N** (see
-  [Session board and best-of-N](#session-board-and-best-of-n)): the
-  header's board button lists the window's open conversations on either
-  backend and this backend's saved ones, with state, branch, changed files
-  in its worktree and waiting approvals. Best-of-N (Model API, paid, available by default)
-  (`museSpark.modelApiBestOfN`; a trusted folder) runs one prompt in
-  2 to 5 worktrees, asks once per run with the prices unless you allow it
-  always in the workspace, and applies and stages the attempt you take onto
-  your unchanged checkout, without committing.
-- **Spending and notices.** `museSpark.modelApiSessionBudgetUsd` (no cap by
-  default) caps what each Model API conversation may spend: a request that
-  cannot fit what is left is not sent. Child tasks can still go past it,
-  and web search and paid Muse Voice are off while a cap is set.
-  `museSpark.modelApiReplyUsage` (on by default) prints each Model API
-  reply's tokens and estimated cost, and Account & usage shows what the
-  prompt cache saved. While the window is unfocused, a notification says
-  when a turn of a minute or more ends or a turn waits for you, on either
-  backend (on by default: `museSpark.notifyOnBackgroundTurn`).
-- **Auto rules and permission profiles** (Model API backend; see
-  [Auto rules and permission profiles](#auto-rules-and-permission-profiles-model-api)):
-  command rules that allow, ask or forbid, checked against your examples;
-  repository rules that can only tighten them; permission profiles that hide
-  files from the file tools (while one is on, commands and MCP calls ask,
-  outside Bypass); and an paid Auto reviewer (available by default:
-  `museSpark.modelApiAutoReviewer`) that never allows a forbidden command,
-  an ask rule, a protected write or a paid call. After a change to them,
-  what a call already running brings back is judged again before it reaches
-  the model.
-- **Fixes you'll notice:**
-  - Edit rows no longer hold up approvals during long Muse Code turns: on
-    either backend, a row's full diff loads when the turn ends, or at once
-    if you collapse and reopen the row.
-  - Two windows starting turn checkpoints (Model API) in one conversation
-    no longer fail when one briefly holds the other's lock.
-  - Windows commands the extension runs itself (on the Model API backend
-    and in exec) retry the job helper after a failed build or self-test,
-    instead of using the fallback for the rest of the session.
-  - **Rewind code to here** (and the pane's **Revert**) refuses a file with
-    unsaved editor changes, or one saved during the revert, instead of
-    writing over it.
-  - The `/` and `@` lists keep the highlighted row in view.
+- **Browser checks on local web changes** (see [Browser check](#browser-check)).
+  The model can open your dev server, click or type, and read console errors
+  and failed requests through a verified, isolated headless browser that you
+  download once with **Muse Spark: Download Browser Check Runtime**. On the
+  Model API it also receives the page's screenshot.
+- **What's New after an update** (see
+  [What's New after an update](#whats-new-after-an-update)). After the
+  extension updates, the release's highlights and full notes open in an
+  editor tab once you are idle; a fixes-only patch shows a quiet notification
+  instead. Turn it off with `museSpark.showWhatsNewOnUpdate`.
+- **Enhancements available by default** (see
+  [What's on out of the box](#whats-on-out-of-the-box) and
+  [Paid features](#paid-features)). Model API extras are on out of the box for
+  the setup you chose. A paid extra asks before its first charge, showing the
+  price and the shared daily budget (`museSpark.paidDailyBudgetUsd`, $5 a day
+  by default). A setting you have turned off stays off.
+- **Muse Gadgets guidance and secret checks** (see
+  [Muse Gadgets](#muse-gadgets)). The bundled SDK skill covers ESP32 build,
+  flash and bounded serial monitoring. Detected tokens are redacted, a prompt
+  that contains a secret pauses for your decision, and a shell approval that
+  would expose one offers only one-time consent.
+- **Safer diagnostics and steadier Windows helpers** (see
+  [Privacy and security](#privacy-and-security)). Diagnostic notices redact
+  known secret shapes, confidential workspaces recheck contributor dispatch,
+  protected file approvals stay protected, and the Windows job helpers
+  compile directly with the .NET compiler.
 
-### Earlier in 0.11.0
-
-- **Recovers when Muse Code stops answering.** If Muse Code goes silent,
-  the panel says so once and stops waiting out each action's deadline.
-  With no turn running in the window it restarts Muse Code by itself;
-  during a turn, the notice offers **Restart now**. **Muse Spark: Restart
-  Muse Code** does the same at any time. When Muse Code does not confirm
-  that a message reached the running turn, the panel no longer sends it
-  again by itself: the send fails, keeps your text and says it may still
-  arrive. A conversation whose Muse Code log is damaged (a Muse Code 1.4.2
-  bug) is marked and offers a new conversation.
-- **Approvals you can't miss.** The oldest waiting approval docks above
-  the message box, with a count of all that wait. Each approval step takes one
-  decision, and its buttons stay locked until Muse Code has applied it.
-- **Calmer notices.** A notice said again in a row shows once, with a
-  count, and error notices are readable in light and dark themes.
-- **Turn checkpoints are on by default** (Model API turns in a trusted
-  workspace with Git). Restore and Redo are rebuilt on the model's own file
-  writes, journaled per turn; commands and other tools active in a turn are
-  noted, never undone.
-- **Custom agents** (Model API backend): agents with their own prompt,
-  tools, model and permissions. Two are built in (`explore` and
-  `second-opinion`); yours live in `.agents/agents/` in the workspace or
-  `~/.config/muse/agents/` for every workspace. An agent can only narrow
-  what the session may do.
-- **Handoff** (Model API backend): `/handoff` asks the model for a brief
-  that you review and edit before it starts a fresh conversation with the
-  open todo items.
-- **Import from Claude Code, Codex and Cursor:** commands (as skills),
-  compatible agents, project rules (appended to `AGENTS.md`) and MCP
-  servers, plus Claude Code hooks. MCP servers and hooks open as
-  unsaved edits for you to review.
-- **Session export, import and share** as a file. A shared file opens
-  read-only in the panel; an imported conversation resumes on the Model API
-  backend in Manual (or Plan).
-- **Observation packing** (on by default, Model API backend): a long tool
-  output goes to the model whole twice, then as a short placeholder it can
-  recall; the transcript always keeps all of it.
-- **Muse Code 1.4.2** support, and checksums, SBOMs and build attestations
-  on the release assets.
-
-### Earlier in 0.10.1
-
-- **A slow Muse Code start is waited for.** On a busy machine Muse Code
-  gets up to two minutes to start while its process runs, and a failed
-  start shows one message instead of one per waiting action.
-- **The ACP agent and npm.** The release workflow's npm step no longer
-  fails on 0.10.0's path bug. 0.10.1's and 0.11.0's npm steps still failed
-  on the token (npm asked for a one-time password); 0.11.0 reached npm on
-  2026-10-04, and from 0.12.0 the agent publishes by npm trusted
-  publishing, with no token.
-- **Faster Windows hooks and a sturdier log.** Hooks and commands on
-  Windows no longer wait on PowerShell's module scan, and a crafted long
-  line no longer stalls the log.
-
-### Earlier in 0.10.0
-
-- **More editors.** Install the extension in compatible VS Code editors,
-  or use the ACP agent in editors that speak that protocol. Support levels
-  and verified versions are listed under [Other editors](#other-editors);
-  Preview support does not imply every VS Code feature is available.
-- **Code intelligence and web fetch.** Both backends can use the editor's
-  language services and read public web pages with workspace permission
-  checks ([Code intelligence](#code-intelligence), [Web fetch](#web-fetch)).
-- **Checks after edits.** The Model API verify loop can format edited files
-  and run the configured checks, with permission, trust and Stop checked
-  before work starts. Formatting and check commands remain opt in.
-- **Plans and turn checkpoints.** Save plans as files and implement them in
-  a fresh conversation. Turn checkpoints (Preview, off by default:
-  `museSpark.turnCheckpoints`) capture files on both backends;
-  stored file restore and Redo require an attached Model API session and
-  confirmed process safety ([The panel](#the-panel)).
-
-### Earlier in 0.9.0
-
-- **Install and sign in from the panel.** Without Muse Code, **Install
-  Muse Code** shows Meta's install command for your system and runs it in a
-  terminal you can watch, then offers sign-in. **Sign in with your Meta
-  account** now shows its approval code right in the panel.
-- **PDFs and text files.** Attach, paste or drop PDFs (up to 32 MB) on the
-  Model API backend, and pick UTF-8 text files from the workspace on either
-  backend. The Model API agent also reads workspace PDFs and images itself.
-- **The Model API backend catches up with Muse Code:**
-  - the MCP servers from Muse Code's settings and the same memory notes;
-  - session goals, `!` shell commands and background work;
-  - opt-in hooks and subagents.
-- **Paid extras, opt in and loud.** Web search, image generation and edits,
-  Muse Voice, subagents and scheduled `/loop` prompts on your Model API key.
-  Each is available by default on Model API; spending requires paid-use consent, every use is
-  marked paid, and Account & usage tallies them.
-- **Rewind the conversation, or take a side chat.** Any sent message can
-  branch the conversation before itself; **Side chat** opens a Plan-mode
-  branch without stopping the main one.
-- **More of Muse Code in the panel.** A row for every tool Muse Code runs,
-  workflows as live cards, goals, and background tasks you can stop.
-- **Behind a corporate network.** Muse Code gets VS Code's proxy,
-  `museSpark.sandboxNetwork` sets its sandbox network, a request that never
-  reached Meta says why, and **Muse Spark: Diagnostics** reports the network
-  posture.
-
-0.8.0 brought the panel in fourteen languages; 0.7.0 brought `/` as in
-Claude Code, skills, MCP servers and hooks in the panel, worktrees, export
-and the accessibility gate.
-
-Every change is in the [CHANGELOG](CHANGELOG.md).
+Earlier releases are in the
+[changelog](https://github.com/RandyNorthrup/muse-spark-code/blob/main/CHANGELOG.md).
 
 ## Highlights
 
@@ -1729,9 +1554,11 @@ open their owned worktree instead: they have no saved conversation to resume.
 
 Best-of-N runs the same prompt in 2 to 5 worktrees at once on the Model API
 backend, then you take one. It needs a trusted workspace with a folder open
-(worktrees run git, which Restricted Mode forbids). Turn on
-`museSpark.modelApiBestOfN` ([Paid](#paid-features)) and accept the token
-rates first. Each run asks once in the paid-use popup, naming the prompt, the
+(worktrees run git, which Restricted Mode forbids).
+Best-of-N (Model API, paid, available by default) is controlled by
+`museSpark.modelApiBestOfN` ([Paid](#paid-features)); set it to false to hide
+it. Each run asks once in the
+paid-use popup, naming the prompt, the
 published rates, the attempt count and the per-attempt request ceiling, in
 every permission mode, Bypass included, unless you allow best-of-N always in
 this workspace; the subscription never pays.
