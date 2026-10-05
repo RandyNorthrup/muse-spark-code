@@ -47,9 +47,10 @@ for pinging the phone after a turn lands with the hooks milestone (M91).
 
 The per-user SDK token starts with `mgst_`. The user types it themselves, in
 their own terminal: into `idf.py menuconfig` (the `CONFIG_GADGET_SDK_TOKEN`
-setting, which lands in `sdkconfig` and is compiled into the firmware) or
-into the Linux installer. Never ask for it in chat, never paste it into a
-command, and never commit `sdkconfig` or `sdkconfig.defaults` containing it:
-both files are build output with the token inside. The extension redacts
-`mgst_` tokens from logs and transcripts, but a committed secret is already
-leaked.
+setting, which lands in the generated `sdkconfig` — `build/sdkconfig` per
+the SDK README — and is compiled into the firmware) or into the Linux
+installer. `sdkconfig.defaults` is tracked configuration input, token-free
+in the SDK: never put the token there. Never ask for the token in chat,
+never paste it into a command, and never commit any file that contains it.
+The extension redacts `mgst_` tokens from logs and transcripts, but a
+committed secret is already leaked.
