@@ -3628,6 +3628,12 @@ results and what is still open.
 
 ## Development
 
+After every complete four-channel release, the workflow runs
+`scripts/refresh-badges.mjs` to refresh these README badges and purge GitHub's
+image-proxy copies. It needs no secret; stale caches or network failures warn
+without failing publication. See [release CI](docs/ci.md#release-publication-and-readme-badges)
+for propagation bounds and verification limits.
+
 ```bash
 git clone https://github.com/RandyNorthrup/muse-spark-code.git
 cd muse-spark-code
