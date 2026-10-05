@@ -4098,7 +4098,10 @@ export const WORKER_MAX_DEPTH = 2
 /** Bounded grace for a flushed ACP cancellation before the child is killed. */
 export const WORKER_CANCEL_GRACE_MS = 100
 /** Model-only task data labels; kept with the lazy worker code's tunables. */
-export const WORKER_MODEL_TEXT = { boundedExcerpt: 'bounded excerpt; may be truncated' } as const
+export const WORKER_MODEL_TEXT = {
+  // M96 worker scaffolding stays out of shipped bundles until lane X wires it.
+  boundedExcerpt: 'bounded excerpt; may be truncated',
+} as const
 
 // What the user reads, in the display language (PLAN.md D33).
 export { UI_TEXT } from './l10n/text'

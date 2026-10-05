@@ -642,6 +642,8 @@ function shipped(output) {
   return bundle ?? { output, metafile: '' }
 }
 const TEXT_BLOCKS = [
+  // M96 workers are not wired into a shipped bundle yet: forbid their text everywhere.
+  { block: 'WORKER_MODEL_TEXT', sentinels: ['boundedExcerpt'], readers: [] },
   {
     block: 'MODEL_API_MODEL_TEXT',
     sentinels: ['compactionPrompt', 'goalUnfinishedExists', 'verifyUncheckedCodeLoading'],
