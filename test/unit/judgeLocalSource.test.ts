@@ -9,6 +9,7 @@ import {
 import { judgeCapabilitySchema, judgeRequestSchema } from '../../src/core/judge/schema'
 import capture from './fixtures/localJudgeSystemOneCapture.json'
 import chat from './fixtures/localJudgeCapture.json'
+import darwin from './fixtures/localJudgeDarwinCapture.json'
 import { CURRENT_SHAPE_KEYS } from './helpers/modelApiKeys'
 import { REDACTED_MARK } from '../../src/shared/constants'
 
@@ -106,6 +107,31 @@ async function fixture(trust: 'verified' | 'unverified' = 'verified') {
 const input = judgeRequestSchema.parse(capture.request)
 const signal = () => new AbortController().signal
 describe('M98 J2 source policy and exact content sockets', () => {
+  it('accepts the captured macOS small decision model only by explicit selection', async () => {
+    const f = await fixture()
+    Object.assign(f.config, {
+      model: darwin.request.model,
+      capability: { ...f.config.capability, model: darwin.request.model },
+    })
+    const responses = new Map<string, unknown>([
+      ['/api/tags', darwin.tags],
+      ['/api/ps', darwin.health],
+    ])
+    f.setResponse((route) => responses.get(route) ?? darwin.response)
+    f.verifyModel.mockResolvedValue({
+      digest: darwin.disk.digest,
+      weightBytes: darwin.disk.weightBytes,
+    })
+    const request = judgeRequestSchema.parse(darwin.request)
+    const explicit = await f.source.judge(request, signal())
+    expect(explicit.outcome).toBe('answered')
+    Object.assign(f.config, { selection: 'auto' })
+    expect(await f.source.judge(request, signal())).toEqual({
+      outcome: 'no-answer',
+      reason: 'profile-missing',
+    })
+    expect(f.bodies).toHaveLength(1)
+  })
   it('proves metadata and each content socket again after disk hashing', async () => {
     const f = await fixture()
     f.verifyPeer.mockImplementation((...args: unknown[]) => {

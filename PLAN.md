@@ -14963,6 +14963,22 @@ ledger, scheduler, provider registry, hook format or golden baseline.
 
 ##### 2j — Local judge after the parallel spike
 
+**macOS native lane (2026-10-05, M98J3M).** Implemented a universal,
+ad-hoc-signed libproc/kqueue helper following M28's build approach: exact
+effective/real UID, seconds/microseconds start identity and a kernel-held
+exit/exec watch; local APFS/HFS `statfs` evidence only; canonical, owned,
+non-group/world-writable app/model anchors and Apple's signed Ollama team
+requirement. Certified real IPv4/IPv6 tuple/refusal and installed source
+receipts on the Intel macmini: six free inference attempts/responses, a real
+PID reuse capture, and no paid/cloud calls. Authenticated self-SSH timed out;
+arm64 execution and installed-extension/packaging remain uncertified. The rig
+brief authorizes one <=1 GB decision model, at most six
+free inference attempts and no cloud calls. A small decision model used
+for this native smoke proof is explicit-only pending calibration, never
+a recommendation or an automatic choice. Windows, Linux and wire.ts stay
+with their owning lanes. Assembly/packaging and installed-extension proof
+remain Z's gates. See `docs/certification/m98p2-j.md`.
+
 - **Scope.** Adopt the spike's reviewed result, not a cached listener probe
   or this lane's guess. CPU-only is the product assumption; `tev1:4b` is
   recommended, or a captured local general model of at least 3B with
@@ -15110,6 +15126,17 @@ refresh: run `npm run check:host-api -- --write`, review those three rows,
 then rerun the check. API policy is unchanged; the snapshot gate is neither
 weakened nor claimed green. This is a documentation gate deferral, not an
 unfixed RVM98J finding.
+
+**M98J3M macOS gate record (2026-10-05).** Scoped suites, five-project
+typecheck, lint/format, localization, deadcode, duplication, cycles and the
+production build/caps pass on macmini. The shared host-API snapshot still
+fails: Darwin adds `node:readline` (25 distinct Node built-ins), with the
+271 VS Code APIs, 18 VS Code importers and 59 theme variables unchanged.
+J2 already assigned this generated snapshot to Z's integrated refresh;
+this lane records the failure without changing an ignore, policy or cap.
+Full quality and installed-host/package certification stay with the lead,
+as the rig brief prohibits aggregate quality in this bounded worktree.
+See `docs/certification/m98p2-j.md#macos-native`.
 
 **RELFAST3 bounded-lane result (2026-10-04).** Fresh Windows compilers,
 dead-code, duplication, localization, host API, production build, actionlint

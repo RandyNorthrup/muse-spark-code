@@ -3305,6 +3305,13 @@ in [`docs/certification/`](docs/certification/), one file per milestone.
 The [M98-2j local judge spike](docs/certification/m98-2j-spike.md) contains
 test-only transport/provenance prototypes and free-loopback measurements.
 It adds no local judge setting or runtime selection to the product.
+The [macOS native receipt](docs/certification/m98p2-j.md#macos-native)
+adds libproc/kqueue process binding, APFS/HFS volume checks and signed Ollama
+installation anchors. On a Mac, `bash native/darwin/build-local-judge.sh`
+builds and checks the universal helper; assembly must include that artifact
+before enabling this source in a shipped package. Its captured 812 MB
+`tev1:0.8b-q8_0` smoke model requires explicit selection and calibration
+before automatic use. `tev1:4b` remains the recommendation.
 Accessibility is a gate too: every screen the harness shows passes axe-core's
 WCAG 2.2 AA rules in Light Modern, Dark Modern and both High Contrast themes
 (PLAN.md D32); CI's full tier runs it once, on Linux. So is localization

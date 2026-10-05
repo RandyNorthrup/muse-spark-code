@@ -9,6 +9,8 @@ happened, not what was planned; superseded entries are kept.
 
 ### Added
 
+- **macOS local judge native proof (M98 J).** Libproc/kqueue lifetime binding, local APFS/HFS and signed Ollama installation checks, with six counted free small-model calls and native transport/refusal receipts; product assembly remains pending.
+
 - **Local judge design spike (M98-2j).** A test-only pinned loopback
   transport, Windows per-connection process verification and manifest/blob
   hashing, with adversarial fixtures and free Ollama latency receipts.
