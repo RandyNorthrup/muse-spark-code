@@ -18442,6 +18442,15 @@ serve`."
 
 ### M96c — Scheduler and traffic (D75)
 
+**Lane V review fixes (2026-10-05, FIXM96CV).** RVM96CV's P1 binds every
+mutable Traffic target to the projected identity and generation selected by
+the user, re-reads it after confirmation, and reports a translated refusal
+when it changes. Its two P2 fixes replay reassigned queue transitions before
+entry/agent scoping and preserve existing multiline runner setup commands.
+Each fix gets a failing regression and a byte-exact restored red drill in
+`docs/certification/m96c-v.md`. Production adapter wiring and the full gate
+remain X2/lead work; this rig lane runs owned checks and never merges or pushes.
+
 **Status 2026-10-04: planned, round 3 (redesign), amended in round 4 for
 Codex's third review (`RVM96C3`: three P1, five P2, one P3).** This milestone
 builds
@@ -20221,6 +20230,18 @@ before a repaired one loads (2026-09-30).
 | `test/harness/index.html` (`isActiveDescendantList`), printed by `scripts/a11y.mjs` | The accessibility gate exempts axe's `scrollable-region-focusable` | The composer's `/` and `@` lists follow WAI-ARIA's combobox pattern: the box keeps the focus and moves `aria-activedescendant` through the listbox's options, and `Composer.tsx` scrolls the active option into view, so the list is keyboard operable (WCAG 2.1.1) without being a Tab stop. axe cannot see activedescendant-driven scrolling. The exemption holds only for a region that contains a listbox whose id is in the `aria-controls` of a focused or focusable element whose active descendant is one of that listbox's options; drills show a plain scrollable region and a listbox no control drives are still reported, and removing the exemption reports the composer's list again. Every exempt element is printed under its own "Exempt:" heading and counted. No `tabindex` was added to the list. | 2026-10-04 |
 
 ## 9. Security assumptions and accepted residual risk
+
+- **M96c-V/X2 integration (RVM96CV, 2026-10-05).** This lane has no production
+  Traffic/runner caller. Runner save authorization, including host-selected
+  new IDs and destination replacement, remains unconfirmed. It is safe to
+  retain this boundary code while it is unreachable in production; X2/O
+  must prove user authorization and Restricted Mode behavior before wiring
+  it. X2/S/C/Q/O/K must also prove real dispatch, identity/generation binding
+  through asynchronous admission, paid first-charge consent and daily budget,
+  both Agent maps, lazy loading and the single-model golden/zero-traffic
+  checks. These are named integration residuals, not fixture certification
+  or claims of product support. The three RVM96CV findings are being repaired
+  in `docs/certification/m96c-v.md`.
 
 - Code intelligence (M67) shows what VS Code's language services say. A
   result located outside the workspace is left out and a hover defined only

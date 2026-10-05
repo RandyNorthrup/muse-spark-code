@@ -1,5 +1,36 @@
 # M96c lane V — Traffic and runners
 
+## RVM96CV repair lane (2026-10-05)
+
+Worktree `/Users/randy/lanes/FIXM96CV`, branch `m96c/vfix`, macmini.
+The rig brief overrides the shared merge instruction: local commits with
+hooks only; no merges, rebases, pushes, live calls or paid calls. It also
+assigns the full quality gate to the lead and limits each owned vitest run
+to three files and three workers.
+
+Both P2 findings are fixed. Queue aggregation replays task transitions
+before entry/agent scoping, clears the prior queue and ready-wait state on
+reassignment, and attributes subsequent ready/start events to the new attempt.
+Usage and event counters retain their original participant attribution.
+Runner setup commands use a textarea and are saved without trimming, so
+existing newlines and surrounding whitespace survive untouched saves.
+
+| Finding                  | Regression test                                                                           | Deliberate red drill                                     |
+| ------------------------ | ----------------------------------------------------------------------------------------- | -------------------------------------------------------- |
+| P2 phantom old queue     | `drains the old assignment and follows reassigned attempts across entry and agent scopes` | Keep the old queue on reassignment                       |
+| P2 replay before scoping | `replays another entry’s attempt transitions before scoping the queue`                    | Filter transitions before replay                         |
+| P2 multiline setup loss  | `preserves an existing multiline setup command when saving untouched fields`              | Replace the textarea with an input; trim the saved setup |
+
+The original metrics and form each failed their regression before the fix.
+Every drill ran the whole owned test file, produced the named failure, and
+restored production bytes with equal before/restored SHA-256 values.
+Receipt: `m96c-v-review-drills.json`. Initial P2 validation: owned unit tests,
+unit-project typecheck, changed-file ESLint, Traffic CSS Stylelint and
+Prettier passed. Final combined counts and checks are recorded below after
+the P1 repair. X2's suggested Unreleased repair bullet: “Traffic actions
+refuse changed targets; reassignment clears old queue metrics; runner edits
+preserve multiline setup commands.” No new command, setting or script.
+
 Worktree `/Users/randy/lanes/M96CV`, branch `m96c/v`, macmini rig.
 Plan of record: PLAN.md D75 and M96c, research `m96-research.md` §8,
 lane 0c contracts and `m96c-0c.md`. Owner defaults-on ruling applies.

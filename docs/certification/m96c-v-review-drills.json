@@ -1,0 +1,66 @@
+[
+  {
+    "drill": "Keep old queue on reassignment",
+    "source": "src/core/team/trafficMetrics.ts",
+    "command": "npx vitest run test/unit/trafficMetrics.test.ts --maxWorkers=3 --testTimeout=120000",
+    "mutation": {
+      "before": "case 'reassigned': {\n        states.delete(event.taskId)",
+      "after": "case 'reassigned': {"
+    },
+    "exitCode": 1,
+    "failedTests": [
+      "test/unit/trafficMetrics.test.ts > Traffic ledger metrics > drains the old assignment and follows reassigned attempts across entry and agent scopes"
+    ],
+    "beforeSha256": "66b06c252706b78b9f054f676f209a77877ea5c2ba76cba7eedf19556ab2a5d1",
+    "restoredSha256": "66b06c252706b78b9f054f676f209a77877ea5c2ba76cba7eedf19556ab2a5d1",
+    "rig": "macmini"
+  },
+  {
+    "drill": "Filter queue transitions before replay",
+    "source": "src/core/team/trafficMetrics.ts",
+    "command": "npx vitest run test/unit/trafficMetrics.test.ts --maxWorkers=3 --testTimeout=120000",
+    "mutation": {
+      "before": ".filter((event) => event.at <= now && byId.has(event.taskId))",
+      "after": ".filter((event) => event.at <= now && byId.has(event.taskId) && isMatchingEvent(event))"
+    },
+    "exitCode": 1,
+    "failedTests": [
+      "test/unit/trafficMetrics.test.ts > Traffic ledger metrics > replays another entry’s attempt transitions before scoping the queue"
+    ],
+    "beforeSha256": "66b06c252706b78b9f054f676f209a77877ea5c2ba76cba7eedf19556ab2a5d1",
+    "restoredSha256": "66b06c252706b78b9f054f676f209a77877ea5c2ba76cba7eedf19556ab2a5d1",
+    "rig": "macmini"
+  },
+  {
+    "drill": "Render multiline setup in an input",
+    "source": "src/webview/models/sections/runners/RunnerForm.tsx",
+    "command": "npx vitest run test/unit/trafficView.test.tsx --maxWorkers=3 --testTimeout=120000",
+    "mutation": {
+      "before": "<textarea",
+      "after": "<input"
+    },
+    "exitCode": 1,
+    "failedTests": [
+      "test/unit/trafficView.test.tsx > Runners section > preserves an existing multiline setup command when saving untouched fields"
+    ],
+    "beforeSha256": "4bf33e7c30eeff69bd73a2f70e142e0e004781e333540e42b11d83e7ec0ec40e",
+    "restoredSha256": "4bf33e7c30eeff69bd73a2f70e142e0e004781e333540e42b11d83e7ec0ec40e",
+    "rig": "macmini"
+  },
+  {
+    "drill": "Trim saved setup command",
+    "source": "src/webview/models/sections/runners/RunnerForm.tsx",
+    "command": "npx vitest run test/unit/trafficView.test.tsx --maxWorkers=3 --testTimeout=120000",
+    "mutation": {
+      "before": "setupCommand: typeof setupCommand === 'string' ? setupCommand : ''",
+      "after": "setupCommand: field('setupCommand')"
+    },
+    "exitCode": 1,
+    "failedTests": [
+      "test/unit/trafficView.test.tsx > Runners section > preserves an existing multiline setup command when saving untouched fields"
+    ],
+    "beforeSha256": "4bf33e7c30eeff69bd73a2f70e142e0e004781e333540e42b11d83e7ec0ec40e",
+    "restoredSha256": "4bf33e7c30eeff69bd73a2f70e142e0e004781e333540e42b11d83e7ec0ec40e",
+    "rig": "macmini"
+  }
+]

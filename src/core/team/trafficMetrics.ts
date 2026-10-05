@@ -125,10 +125,10 @@ export function trafficMetrics(
     return attempt !== undefined && isMatchingAttempt(attempt)
   }
   const events = source.events
-    .filter((event) => event.at <= now && byId.has(event.taskId) && isMatchingEvent(event))
+    .filter((event) => event.at <= now && byId.has(event.taskId))
     .toSorted((a, b) => a.at - b.at)
   const isInPeriod = (at: number) => at >= start && at <= now
-  const periodEvents = events.filter((event) => isInPeriod(event.at))
+  const periodEvents = events.filter((event) => isInPeriod(event.at) && isMatchingEvent(event))
   const waits: number[] = []
   const ready = new Map<string, number>()
   const states = new Map<string, 'ready' | 'blocked'>()
@@ -151,11 +151,13 @@ export function trafficMetrics(
     switch (event.kind) {
       case 'ready': {
         if (!ready.has(key)) ready.set(key, event.at)
-        states.set(event.taskId, 'ready')
+        if (isMatchingEvent(event)) states.set(event.taskId, 'ready')
+        else states.delete(event.taskId)
         break
       }
       case 'blocked': {
-        states.set(event.taskId, 'blocked')
+        if (isMatchingEvent(event)) states.set(event.taskId, 'blocked')
+        else states.delete(event.taskId)
         ready.delete(key)
         break
       }
@@ -180,6 +182,11 @@ export function trafficMetrics(
         states.delete(event.taskId)
         break
       }
+      case 'reassigned': {
+        states.delete(event.taskId)
+        ready.delete(key)
+        break
+      }
       default: {
         break
       }
@@ -188,12 +195,20 @@ export function trafficMetrics(
   // Seed the period with earlier states; report depths at each state transition.
   for (const event of events) {
     if (event.at >= start && queueDepth.length === 0) sampleQueue(start)
+    const wasQueued = states.has(event.taskId)
     applyEvent(event)
     if (
       isInPeriod(event.at) &&
-      ['ready', 'started', 'blocked', 'landed', 'candidateReturned', 'finished'].includes(
-        event.kind,
-      )
+      (wasQueued || isMatchingEvent(event)) &&
+      [
+        'ready',
+        'started',
+        'blocked',
+        'landed',
+        'candidateReturned',
+        'finished',
+        'reassigned',
+      ].includes(event.kind)
     ) {
       sampleQueue(event.at)
     }

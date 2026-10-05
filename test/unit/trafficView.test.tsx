@@ -292,6 +292,26 @@ describe('Traffic accessibility and controls', () => {
 })
 
 describe('Runners section', () => {
+  it('preserves an existing multiline setup command when saving untouched fields', () => {
+    const state = runnersFixture()
+    const runner = state.runners[0]
+    if (!runner) throw new Error('runner fixture missing')
+    const setupCommand = "  echo first\necho 'second line'  "
+    const postMessage = vi.fn()
+    render(
+      <RunnersSection
+        state={{ ...state, runners: [{ ...runner, setupCommand }] }}
+        postMessage={postMessage}
+      />,
+    )
+    fireEvent.click(screen.getByRole('button', { name: UI_TEXT.goalEdit }))
+    expect(screen.getByLabelText(UI_TEXT.teamRunners.setupCommand)).toHaveValue(setupCommand)
+    fireEvent.submit(screen.getByRole('form'))
+    expect(postMessage).toHaveBeenLastCalledWith({
+      type: 'runners/save',
+      runner: { ...runner, setupCommand },
+    })
+  })
   it('shows health/fingerprint and input-hang instructions, disables remote tests when untrusted', () => {
     const state = runnersFixture()
     const postMessage = vi.fn()

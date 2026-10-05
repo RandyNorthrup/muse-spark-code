@@ -12,7 +12,8 @@
 
 .traffic-view button,
 .traffic-view select,
-.traffic-view input {
+.traffic-view input,
+.traffic-view textarea {
   max-width: 100%;
   min-height: 28px;
   color: var(--vscode-input-foreground);

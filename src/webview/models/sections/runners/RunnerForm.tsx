@@ -17,6 +17,7 @@ export function RunnerForm({
   function submit(event: SubmitEvent<HTMLFormElement>) {
     event.preventDefault()
     const data = new FormData(event.currentTarget)
+    const setupCommand = data.get('setupCommand')
     const field = (name: string) => {
       const value = data.get(name)
       return typeof value === 'string' ? value.trim() : ''
@@ -36,7 +37,7 @@ export function RunnerForm({
       maxJobs: Number(field('maxJobs')),
       labels: names('labels'),
       commandClasses: data.getAll('commandClasses'),
-      setupCommand: field('setupCommand'),
+      setupCommand: typeof setupCommand === 'string' ? setupCommand : '',
       cacheKey: field('cacheKey'),
       environmentNames: names('environmentNames'),
     })
@@ -51,7 +52,6 @@ export function RunnerForm({
     { name: 'id', label: UI_TEXT.teamTrafficDetails.runnerId, value: runner?.id },
     { name: 'destination', label: UI_TEXT.teamRunners.destination, value: runner?.destination },
     { name: 'workFolder', label: UI_TEXT.teamRunners.workFolder, value: runner?.workFolder },
-    { name: 'setupCommand', label: UI_TEXT.teamRunners.setupCommand, value: runner?.setupCommand },
     { name: 'cacheKey', label: UI_TEXT.teamRunners.cacheKey, value: runner?.cacheKey },
   ]
   return (
@@ -68,6 +68,15 @@ export function RunnerForm({
           />
         </label>
       ))}
+      <label htmlFor={`${id}-setupCommand`}>
+        {UI_TEXT.teamRunners.setupCommand}
+        <textarea
+          id={`${id}-setupCommand`}
+          name="setupCommand"
+          defaultValue={runner?.setupCommand ?? ''}
+          required
+        />
+      </label>
       <label htmlFor={`${id}-port`}>
         {UI_TEXT.teamRunners.port}
         <input

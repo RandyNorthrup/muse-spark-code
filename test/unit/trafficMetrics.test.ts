@@ -115,6 +115,92 @@ function seed(): TrafficMetricSource {
   }
 }
 describe('Traffic ledger metrics', () => {
+  it('replays another entry’s attempt transitions before scoping the queue', () => {
+    const source = seed()
+    const task = source.tasks[0]
+    if (!task) throw new Error('fixture task missing')
+    const result = trafficMetrics(
+      {
+        tasks: [task],
+        slots: [],
+        events: [
+          {
+            workspaceId: 'ws',
+            kind: 'blocked',
+            taskId: 'a',
+            attempt: 1,
+            at: day + minute,
+            reason: 'capacity',
+          },
+          { workspaceId: 'ws', kind: 'started', taskId: 'a', attempt: 2, at: day + minute * 2 },
+          { workspaceId: 'ws', kind: 'landed', taskId: 'a', attempt: 2, at: day + minute * 3 },
+        ],
+      },
+      { period: 'today', entryId: 'one' },
+      now,
+    )
+    expect(result.queueDepth.at(-1)).toEqual({ at: day + minute * 2, ready: 0, blocked: 0 })
+    expect(result.waitMedianMs).toBeNull()
+    expect(result.reportedCostUsd).toBe(2)
+    expect(result.estimatedCostUsd).toBe(0)
+  })
+  it('drains the old assignment and follows reassigned attempts across entry and agent scopes', () => {
+    const source: TrafficMetricSource = {
+      tasks: [
+        {
+          id: 'moved',
+          roleId: 'engineering',
+          writing: true,
+          createdAt: day,
+          mergedAt: day + minute * 5,
+          attempts: [
+            attempt('one', 'reported', 2),
+            { ...attempt('two', 'reported', 3), number: 2 },
+          ],
+        },
+      ],
+      events: [
+        {
+          workspaceId: 'ws',
+          kind: 'blocked',
+          taskId: 'moved',
+          attempt: 1,
+          at: day + minute,
+          reason: 'capacity',
+        },
+        {
+          workspaceId: 'ws',
+          kind: 'reassigned',
+          taskId: 'moved',
+          attempt: 1,
+          at: day + minute * 2,
+          fromEntryId: 'one',
+          toEntryId: 'two',
+          reason: 'noProgress',
+        },
+        { workspaceId: 'ws', kind: 'ready', taskId: 'moved', attempt: 2, at: day + minute * 3 },
+        { workspaceId: 'ws', kind: 'started', taskId: 'moved', attempt: 2, at: day + minute * 4 },
+        { workspaceId: 'ws', kind: 'landed', taskId: 'moved', attempt: 2, at: day + minute * 5 },
+      ],
+      slots: [],
+    }
+    for (const scope of [{ entryId: 'one' }, { agentProfileId: 'one' }]) {
+      const old = trafficMetrics(source, { period: 'today', ...scope }, day + minute * 2)
+      expect(old.queueDepth.at(-1)).toEqual({ at: day + minute * 2, ready: 0, blocked: 0 })
+      expect(old.reassignments).toBe(1)
+      const landed = trafficMetrics(source, { period: 'today', ...scope }, now)
+      expect(landed.queueDepth.at(-1)?.blocked).toBe(0)
+      expect(landed.mergedChanges).toBe(1)
+      expect(landed.reportedCostUsd).toBe(2)
+    }
+    for (const scope of [{ entryId: 'two' }, { agentProfileId: 'two' }, {}]) {
+      const moved = trafficMetrics(source, { period: 'today', ...scope }, day + minute * 3)
+      expect(moved.queueDepth.at(-1)).toEqual({ at: day + minute * 3, ready: 1, blocked: 0 })
+      const landed = trafficMetrics(source, { period: 'today', ...scope }, now)
+      expect(landed.queueDepth.at(-1)).toEqual({ at: day + minute * 5, ready: 0, blocked: 0 })
+      expect(landed.waitMedianMs).toBe(minute)
+    }
+  })
   it('matches hand-computed utilisation, ready wait, queues, conflicts, rework and merged costs', () => {
     const result = trafficMetrics(seed(), { period: 'today' }, now)
     expect(result.busySlotMs).toBe(minute * 30)
