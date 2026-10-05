@@ -12,6 +12,9 @@ happened, not what was planned; superseded entries are kept.
 - ACP help and argument errors now use one complete localized usage table,
   including the Setup hooks command, so the installed package passes the
   release job's strict English fallback check.
+- Windows shell directory tracking now uses the native long workspace path
+  when starting or resetting a command, so 8.3 aliases keep the correct cwd
+  and workspace-relative directory tail.
 - Production bundle regression tests now build their own compressed English and
   shared wire fixtures, so macOS CI's test job works without a prior build.
 - Windows CI hook fixtures now use the platform their captured paths describe;
