@@ -78,6 +78,11 @@ happened, not what was planned; superseded entries are kept.
   budget with six real copies, then checks the exact read bound and reuse of
   the same directory cursor. It avoids hundreds of unnecessary disk operations
   and no longer accepts repeated traversal restarts as eventual success.
+- **The README's "What's new" section matches the release again.** 0.12.1 and
+  0.13.0 shipped with the README still headed "What's new in 0.12.0". It now
+  describes 0.13.0, the Marketplace README carries the same section, and a
+  test fails any release whose README section does not name its version.
+
 ### Security
 
 - Tab uses held-project trust for completions and rechecks it at the native Git entry for ignore lookups, so a held pull-request worktree runs no automatic Tab Git command.
