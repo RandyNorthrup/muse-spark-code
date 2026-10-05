@@ -57,6 +57,15 @@ describe('activation wires git and pull requests to the window’s guards (M71)'
     expect(source).toMatch(/!isProjectTrusted\(\)\s*\|\|\s*!isSamePath\(cwd,\s*workspaceRoot,/)
   })
 
+  it('uses held-project trust for Tab admission and at its ignore-check native Git entry', () => {
+    expect(source).toMatch(
+      /isKeyStored:\s*\(\)\s*=>\s*isKeyStored,\s*isTrusted:\s*isProjectTrusted,/,
+    )
+    expect(source).toMatch(
+      /runGit:\s*\(args,\s*cwd\)\s*=>\s*runGit\(\s*args,\s*cwd,\s*undefined,\s*undefined,\s*\(\)\s*=>\s*\{\s*if\s*\(!isProjectTrusted\(\)\)\s*\{\s*throw\s+new\s+Error/,
+    )
+  })
+
   it('admits Best-of-N’s git at its native entry by project trust, and reads VS Code’s alone nowhere git follows', () => {
     // The RVMG78 review: a held window VS Code trusts could `git worktree add`.
     expect(source).toMatch(
@@ -64,14 +73,13 @@ describe('activation wires git and pull requests to the window’s guards (M71)'
     )
     // The rest: the hold's own input, the paid-use memory, the controller's
     // trust beside the hold (it asks both before git), the support report,
-    // Tab admission and web-fetch availability; those last two never run git.
+    // web-fetch availability, which never runs git.
     const raw = Array.from(source.matchAll(/^.*vscode\.workspace\.isTrusted.*$/gm), ([line]) =>
       line.trim(),
     )
     expect(raw).toEqual([
       'windowHold.allowsProjectConfiguration(vscode.workspace.isTrusted)',
       'vscode.workspace.isTrusted && (vscode.workspace.workspaceFolders?.length ?? 0) > 0,',
-      'isTrusted: () => vscode.workspace.isTrusted,',
       'isIdeWebFetchOffered(vscode.workspace.isTrusted, currentSettings().sandboxNetwork)',
       'isWorkspaceTrusted: () => vscode.workspace.isTrusted,',
       'isWorkspaceTrusted: vscode.workspace.isTrusted,',

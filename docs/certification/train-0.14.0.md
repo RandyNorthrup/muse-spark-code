@@ -118,8 +118,11 @@ regenerated host API (328 APIs), Knip, jscpd and production package pass.
 No duplicate keys occur in the 29 translated tables. Released changelog bytes
 remain equal to the base. Source branches' live/paid probes are not rerun.
 
-The inherited trust wiring test first failed on Tab/web-fetch's two legitimate
-non-git trust inputs; keep its exact allowlist and held-project checks. The
+The inherited trust wiring test first failed on the added Tab/web-fetch trust
+inputs. The initial allowlist kept both; final review found that Tab runs git
+and corrects its binding below. Web-fetch availability remains a non-git input;
+its request path separately uses project trust. Retain the exact allowlist and
+held-project checks. The
 inherited webview fixture first failed on missing What's New assets, an optional
 950 KiB fixture exceeding the prior train's 50 KiB cap, and the old missing-file
 wording. Include the real extra page inventory, use a 49 KiB optional fixture
@@ -171,5 +174,72 @@ receipts are preserved as its own evidence, not claimed as runs in this lane.
 | -------------- | -----------: | ----------: | ------: | ----------: | ------------------: | --------------------------: |
 | Fourth merge   |      612,879 |     442,609 | 918,663 |      49,761 |           2,116,480 |                   2,235,986 |
 
-The Tab/held-PR trust overlap found during final review is being corrected in
-a separate train fix; the earlier M71 wiring allowlist was too broad.
+The Tab/held-PR trust overlap found during final review is corrected below;
+the earlier M71 wiring allowlist was too broad.
+
+## Final held-project integration fix and handoff
+
+Tab's `git check-ignore` and language-service context must use M71's project
+trust, including the held-PR state, even if VS Code trusts the folder. Pass
+`isProjectTrusted` to the Tab factory and recheck it through the existing Git
+runner's `beforeRun` at native entry. The new whole-file wiring test first fails
+against the merged implementation (two failed / five passed), then passes with
+the correction. Wiring/provider/Git-runner suites pass **89 tests**, no skips.
+The four final faults below fail the complete owning files, restore SHA-256
+exactly, and then pass (89 trust-path tests plus six copy tests).
+
+| Fault                  | Result while broken | File         | Before and restored SHA-256                |
+| ---------------------- | ------------------- | ------------ | ------------------------------------------ |
+| tab-held-admission     | 2 failed            | 5 passed (7) | `src/extension.ts`                         | `1ffe966ecaea4d95254feb2b41096ef92b018681e5e4a40e0b700b8421553fa0` |
+| tab-native-refusal     | 1 failed            | 6 passed (7) | `src/extension.ts`                         | `1ffe966ecaea4d95254feb2b41096ef92b018681e5e4a40e0b700b8421553fa0` |
+| checkpoint-copy-bound  | 1 failed            | 5 passed (6) | `src/host/checkpoints/checkpointCopies.ts` | `b472a9493c2f296738a004fe397b391f1bc746c8f6c9e1524e824375ff6c9859` |
+| checkpoint-copy-cursor | 1 failed            | 5 passed (6) | `src/host/checkpoints/checkpointCopies.ts` | `b472a9493c2f296738a004fe397b391f1bc746c8f6c9e1524e824375ff6c9859` |
+
+All five typecheck projects, scoped ESLint/format, Knip, jscpd, localization,
+host API, production size/split/global/notices checks and staged exact-value
+localization pass on the corrected tree. Remove only sixteen identical escape
+hatch rows produced by the PLAN union; every distinct entry stays. Decision IDs
+are preserved without renumbering; the five duplicate milestone headings were
+already present in the base. Released CHANGELOG bytes still equal `7820bd30`.
+
+The four source heads are retained by ordered two-parent merges:
+
+| Item     | Merge commit | Parents                |
+| -------- | ------------ | ---------------------- |
+| M94      | `fa4800b3`   | `7820bd30`, `c70facee` |
+| M71      | `601ab7a1`   | `25617048`, `d992534f` |
+| M100     | `be86029d`   | `601ab7a1`, `0331ce14` |
+| DEFLAKE3 | `6929223a`   | `be86029d`, `424b6bff` |
+
+`25617048` supplies M94's common size repair before M71. The final train fix
+supplies Tab's held-project admission and native-entry check. Every commit
+runs normal hooks. No dependency, threshold, ignore, timeout, production copy
+budget, explicit paid preference or released changelog section is changed.
+
+Exact production bytes at each stage (the archive column omits the absent
+helper; the final column adds its prior measured ZIP contribution):
+
+| Stage                 | extension.js | modelApi.js | Startup | Deferred JS | VSIX without helper | Estimated CI-shaped VSIX |
+| --------------------- | -----------: | ----------: | ------: | ----------: | ------------------: | -----------------------: |
+| Initial M94 merge     |      612,308 |     440,150 | 901,805 |      40,575 |           2,135,855 |         2,255,361 (over) |
+| M94 repair before M71 |      603,473 |     440,260 | 901,818 |      40,575 |           2,071,485 |                2,190,991 |
+| M71                   |      612,879 |     442,609 | 918,663 |      49,761 |           2,116,109 |                2,235,615 |
+| M100                  |      612,879 |     442,609 | 918,663 |      49,761 |           2,116,351 |                2,235,857 |
+| DEFLAKE3              |      612,879 |     442,609 | 918,663 |      49,761 |           2,116,480 |                2,235,986 |
+| Final trust fix       |      612,921 |     442,609 | 918,663 |      49,761 |           2,116,560 |                2,236,066 |
+
+Final shared English: 46,653 / 128,000 bytes. Estimated VSIX headroom: 16,734 bytes.
+
+**Open:** the actual universal macOS helper is absent. No authorized artifact
+location was supplied, and the shared rules prohibit network retrieval and
+reads from another lane. Package checks pass on the helperless archives;
+these estimates are not actual CI-shaped archive certificates. Q-TRAIN14 in
+PLAN records this limitation. No fake helper is used. Full quality, coverage,
+accessibility and installed/hosted-platform certification remain the later
+completed train's gates, explicitly outside this scoped brief. No push, main
+merge, rebase, credential read, live/paid call or network call was made.
+
+Kubuntu logs and byte-exact drill receipts remain in ignored `temp/train14/`.
+The lane runs sixteen deliberate mutations in total, all red then restored;
+imported branch receipts are labeled separately. The final local work completes
+inside the 100-minute time box.

@@ -955,7 +955,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     },
     isPaidOn: () => paid.gate.isOn('tab'),
     isKeyStored: () => isKeyStored,
-    isTrusted: () => vscode.workspace.isTrusted,
+    isTrusted: isProjectTrusted,
     ensureKeyPresence,
     updateSetting: async (key, value) => {
       await updateSetting(key, value)
@@ -986,7 +986,12 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
         return false
       }
     },
-    runGit: (args, cwd) => runGit(args, cwd),
+    runGit: (args, cwd) =>
+      runGit(args, cwd, undefined, undefined, () => {
+        if (!isProjectTrusted()) {
+          throw new Error(UI_TEXT.tabStatusUntrusted)
+        }
+      }),
     onIgnoreFilesChanged: (clear) => {
       tabIgnoreListeners.add(clear)
       return {

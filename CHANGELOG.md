@@ -80,6 +80,8 @@ happened, not what was planned; superseded entries are kept.
   and no longer accepts repeated traversal restarts as eventual success.
 ### Security
 
+- Tab uses held-project trust for completions and rechecks it at the native Git entry for ignore lookups, so a held pull-request worktree runs no automatic Tab Git command.
+
 ## [0.13.0] - 2026-10-05
 
 ### Highlights
