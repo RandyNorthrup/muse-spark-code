@@ -68,6 +68,20 @@ export interface ModelsPanel {
   readonly onDidDispose: (run: () => void) => vscode.Disposable
   readonly dispose: () => void
 }
+function modelPriceNote(model: ProviderModelRow): ModelRow['priceNote'] {
+  switch (true) {
+    case model.isLocal: {
+      return 'local'
+    }
+    case model.isFree: {
+      return 'free'
+    }
+    default: {
+      return model.inputPerMillion === undefined ? 'unpriced' : 'priced'
+    }
+  }
+}
+
 function newDraft(preset?: PresetInfo): PanelDraft {
   return {
     step: preset === undefined ? 'pick-provider' : 'configure',
@@ -249,9 +263,6 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
       const saved = state.providers.find((entry) => entry.id === providerId)
       const draft = state.drafts.wizard?.presetId === providerId ? state.drafts.wizard : undefined
       for (const model of models) {
-        const knownPrice: ModelRow['priceNote'] =
-          model.inputPerMillion === undefined ? 'unpriced' : 'priced'
-        const priceNote = model.isLocal ? 'local' : model.isFree ? 'free' : knownPrice
         if (model.family !== undefined) {
           families.set(`${providerId}/${model.id}`, model.family)
         }
@@ -273,7 +284,7 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
           freeOrLocal: model.isFree || model.isLocal,
           ticked: (saved?.models ?? draft?.models ?? []).includes(model.id),
           pinned: saved?.pinned.includes(model.id) ?? false,
-          priceNote,
+          priceNote: modelPriceNote(model),
           badges: {
             recommended: false,
             cheapestCapable: false,
