@@ -217,26 +217,27 @@ quality`) and as a CI job.
 
 ### D6 — Bundle budgets (Phase 6)
 
-| Artifact                   | Budget (minified, uncompressed)                                                                                                                                                                                   |
-| -------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `dist/extension.js`        | ≤ 600 KiB (the M7 Model API client fit without raising it; the activation bundle since M57)                                                                                                                       |
-| `dist/modelApi.js`         | ≤ 475 KiB (M57: the Model API backend, loaded when it first starts; revisited after M77/M78/M82 at 402.8 KiB, see Q-M78b)                                                                                         |
-| `dist/review.js`           | ≤ 50 KiB (M70: git's material, the review turn's text, the Plan-mode hold and edit review; 40.8 KiB when split)                                                                                                   |
-| `dist/searchWorker.js`     | ≤ 50 KiB                                                                                                                                                                                                          |
-| `dist/pageWorker.js`       | ≤ 300 KiB (M69: web fetch's page converter, parse5 and its parts, on a worker started for each page; 212.3 KiB when split)                                                                                        |
-| `dist/webview/main.js`     | ≤ 900 KiB including React, the markdown renderer and highlight.js (one bundle)                                                                                                                                    |
-| `.vsix`                    | ≤ 2200 KiB compressed (2026-10-03, M77/M78/M82 cohort: 1,938,910 bytes with its four lazy bundles; +15%, rounded up to 25 KiB; was 1850 KiB from REL's 1,633,017 bytes; `check-vsix-size.mjs` in the package job) |
-| `dist/acp.js`              | ≤ 850 KiB (the ACP agent, installed once, never loaded by VS Code; 713.2 KiB when set, see below)                                                                                                                 |
-| `dist/planMarkdown.js`     | ≤ 150 KiB (M79: the plan reader, the panel's Markdown parser, loaded on the first plan action; 139.0 KiB with the brief writer)                                                                                   |
-| `dist/checkpointStore.js`  | ≤ 225 KiB (M72: synchronous checkpoint factory and legacy reader; measured 187.0 KiB plus 15%, rounded up to 25 KiB)                                                                                              |
-| `dist/uiText.js`           | ≤ 125 KiB (shared English fallback for Node bundles; 2026-10-04: measured 104.9 KiB plus 15%, rounded up to 25 KiB; was 100 KiB from 72.7 KiB on the build-only baseline; lazy, so activation is unchanged)       |
-| `dist/sessionBoard.js`     | ≤ 75 KiB (M78b: first board/best-of-N action; measured 61.0 KiB plus 15%, rounded up to 25 KiB)                                                                                                                   |
-| `dist/reviewer.js`         | ≤ 75 KiB (M78b: paid Auto review after consent; measured 55.2 KiB plus 15%, rounded up to 25 KiB)                                                                                                                 |
-| `dist/agentImport.js`      | ≤ 125 KiB (M83: import scan, converters, file access, native UI and smol-toml, loaded on first import)                                                                                                            |
-| `dist/bundledSkills.js`    | ≤ 50 KiB (M89: the bundled skills installer for Muse Code, loaded on first install, removal or offer; 22.6 KiB when split, plus 15%, rounded up to 25 KiB)                                                        |
-| `dist/codeIntel.js`        | ≤ 100 KiB (2026-10-03: code intelligence's `ide` answers, loaded on the first call; measured 80.3 KiB plus 15%, rounded up to 25 KiB)                                                                             |
-| `dist/voice.js`            | ≤ 50 KiB (2026-10-03: both voice engines' drivers, loaded on the first recording; measured 34.5 KiB plus 15%, rounded up to 25 KiB)                                                                               |
-| `dist/museCodeReviewer.js` | ≤ 75 KiB (M90: the Auto reviewer on Muse Code, its side session and approvals with M78's reviewer core, loaded on the first review; measured 45.4 KiB plus 15%, rounded up to 25 KiB)                             |
+| Artifact                   | Budget (minified, uncompressed)                                                                                                                                                                                                                           |
+| -------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `dist/extension.js`        | ≤ 600 KiB (the M7 Model API client fit without raising it; the activation bundle since M57)                                                                                                                                                               |
+| `dist/modelApi.js`         | ≤ 475 KiB (M57: the Model API backend, loaded when it first starts; revisited after M77/M78/M82 at 402.8 KiB, see Q-M78b)                                                                                                                                 |
+| `dist/review.js`           | ≤ 50 KiB (M70: git's material, the review turn's text, the Plan-mode hold and edit review; 40.8 KiB when split)                                                                                                                                           |
+| `dist/searchWorker.js`     | ≤ 50 KiB                                                                                                                                                                                                                                                  |
+| `dist/pageWorker.js`       | ≤ 300 KiB (M69: web fetch's page converter, parse5 and its parts, on a worker started for each page; 212.3 KiB when split)                                                                                                                                |
+| `dist/webview/main.js`     | ≤ 900 KiB including React, the markdown renderer and highlight.js (one bundle)                                                                                                                                                                            |
+| `.vsix`                    | ≤ 2200 KiB compressed (2026-10-03, M77/M78/M82 cohort: 1,938,910 bytes with its four lazy bundles; +15%, rounded up to 25 KiB; was 1850 KiB from REL's 1,633,017 bytes; `check-vsix-size.mjs` in the package job)                                         |
+| `dist/acp.js`              | ≤ 850 KiB (the ACP agent, installed once, never loaded by VS Code; 713.2 KiB when set, see below)                                                                                                                                                         |
+| `dist/planMarkdown.js`     | ≤ 150 KiB (M79: the plan reader, the panel's Markdown parser, loaded on the first plan action; 139.0 KiB with the brief writer)                                                                                                                           |
+| `dist/checkpointStore.js`  | ≤ 225 KiB (M72: synchronous checkpoint factory and legacy reader; measured 187.0 KiB plus 15%, rounded up to 25 KiB)                                                                                                                                      |
+| `dist/uiText.js`           | ≤ 125 KiB (shared English fallback for Node bundles; 2026-10-04: measured 104.9 KiB plus 15%, rounded up to 25 KiB; was 100 KiB from 72.7 KiB on the build-only baseline; lazy, so activation is unchanged)                                               |
+| `dist/sessionBoard.js`     | ≤ 75 KiB (M78b: first board/best-of-N action; measured 61.0 KiB plus 15%, rounded up to 25 KiB)                                                                                                                                                           |
+| `dist/reviewer.js`         | ≤ 75 KiB (M78b: paid Auto review after consent; measured 55.2 KiB plus 15%, rounded up to 25 KiB)                                                                                                                                                         |
+| `dist/foreignHooks.js`     | ≤ 75 KiB (M91 lane W: the adapters for hooks imported from other agents, lane P's contracts and engine, loaded the first time a session holding one runs a hook; measured 64.9 KiB plus 15%, rounded up to 25 KiB; 68.0 KiB with lane X's Cline contract) |
+| `dist/agentImport.js`      | ≤ 175 KiB (M83: import scan, converters, file access, native UI and smol-toml, loaded on first import; 2026-10-04, M91 lane I's readers for every agent's hooks: measured 147.7 KiB plus 15%, rounded up to 25 KiB)                                       |
+| `dist/bundledSkills.js`    | ≤ 50 KiB (M89: the bundled skills installer for Muse Code, loaded on first install, removal or offer; 22.6 KiB when split, plus 15%, rounded up to 25 KiB)                                                                                                |
+| `dist/codeIntel.js`        | ≤ 100 KiB (2026-10-03: code intelligence's `ide` answers, loaded on the first call; measured 80.3 KiB plus 15%, rounded up to 25 KiB)                                                                                                                     |
+| `dist/voice.js`            | ≤ 50 KiB (2026-10-03: both voice engines' drivers, loaded on the first recording; measured 34.5 KiB plus 15%, rounded up to 25 KiB)                                                                                                                       |
+| `dist/museCodeReviewer.js` | ≤ 75 KiB (M90: the Auto reviewer on Muse Code, its side session and approvals with M78's reviewer core, loaded on the first review; measured 45.4 KiB plus 15%, rounded up to 25 KiB)                                                                     |
 
 `npm run build` prints bundle sizes; `scripts/check-bundle-size.mjs` holds their
 numbers and fails over budget or when a bundle is missing. The compressed VSIX
@@ -4370,9 +4371,10 @@ The step 1 captures are in `docs/certification/m91.md`.
   use Claude's names, matcher grammar and JSON, and the 12th is Muse Code's
   `Interrupt`. Its hooks convert into Muse Code's files. This corrects M83.
 - **Cursor's Tab hooks** (`beforeTabFileRead`, `afterTabFileEdit`). They are
-  imported, kept, and listed as waiting for inline completions, which this
-  extension does not have. **OWNER DECISION PENDING** (§3): a Tab-completions
-  milestone, or this.
+  imported, kept, and listed as waiting for inline completions. **Resolved
+  2026-10-04 (owner): a Tab-completions milestone.** M94 builds inline
+  completions (`feature/m94-tab`), and its lane K gives these two hooks
+  their operation. Until it lands they run nothing.
 - **The SoL-Pi rules.** The owner (2026-10-04): nothing in M91 may break the
   optimisations taken from NVIDIA's SoL-Pi (D49, M68, M73, M74, M75).
   1. **A cache-stable prefix.**
@@ -4482,11 +4484,7 @@ The step 1 captures are in `docs/certification/m91.md`.
 - **M88 one-shot confirmation on the Model API (D67, item 15).** **Resolved 2026-10-03 (owner): confirm when scheduling.** The D48 popup is shown once at scheduling, for that run only, bound to its prompt, model, session and key digest. At its time all of these are checked again; any change sends it back to Run, and nothing is billed without a match.
 - **M88 unattended timed sends on Muse Code (D67, items 15 and 16).** **Resolved 2026-10-03 (owner): yes, on both backends.** A Muse Code timed send or resume goes at its time without Send now. It runs in the conversation's current mode, so Manual still stops at each approval. The Model API follows the scheduling-time confirmation above.
 - **M88 Muse Code usage-limit capture (D67, item 16).** **Resolved 2026-10-03 (lead, under the owner's live-spend authorisation of 2026-09-25 and 2026-10-02): capture it.** The next time the owner's window is full, run one short contributor-model turn in an empty workspace and record the error.
-- **M91 Cursor's Tab hooks (D70). OWNER DECISION PENDING.** `beforeTabFileRead` and `afterTabFileEdit` fire around Cursor's inline completions, which this extension does not have. The choices:
-  - (a) a Tab-completions milestone that gives them an operation;
-  - (b) import them now into spark-hooks.json, kept and listed as "waiting for inline completions", where they run nothing.
-
-  Default until answered: (b).
+- **M91 Cursor's Tab hooks (D70).** **Resolved 2026-10-04 (owner): (a), a Tab-completions milestone.** M94 builds inline completions on `feature/m94-tab`, and its lane K wires `beforeTabFileRead` and `afterTabFileEdit` to them. Until then M91 imports them as "waiting for inline completions", where they run nothing.
 
 | #   | Question                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     | Default until answered                                                                  |
 | --- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------- |
@@ -13548,7 +13546,13 @@ live) and the controller filters its id as well.
   `docs/certification/m91-captures/`).
 - Lane 0 is built: 88 strings in all 14 tables, and the hook region's four
   constants.
-- Lanes R, E, I, P, S, M, H and X are next.
+- Lanes G, R, P, I, S and X are merged on the branch, and lane W's wiring
+  is built (`docs/certification/m91.md`, "Lane W"): imported hooks run
+  through lane P's adapters, the Hooks picker lists both files per scope,
+  and the panel marks a MessageDisplay rewrite.
+- Lanes E, M and H, and the fix rounds of R, P and I, are next. Amp and
+  OpenCode plugin dispatch is being wired, time-boxed to 06:00 on
+  2026-10-05; if it is not green by then it moves to M91b.
 
 The early protected-paths fix is its own pull request,
 `fix/protect-agent-folders`.
@@ -13910,7 +13914,8 @@ returns`void`, so every bus mapping is observation only; a throw fails
       - g. With hooks off, the request bytes and tool list equal the
         pre-M91 fixture.
   15. **Cursor's Tab hooks.** They import and are listed as waiting for
-      inline completions. **OWNER DECISION PENDING** (§3).
+      inline completions, until M94's lane K gives them their operation
+      (§3, resolved 2026-10-04).
 - **Tests.** Every one must be able to fail, with a red drill recorded in
   `m91.md`.
   - Interrupt fires on cancel, on a UserPromptSubmit block and on a close
@@ -14011,7 +14016,8 @@ returns`void`, so every bus mapping is observation only; a throw fails
         `check-l10n` 0 problems).
   - [ ] Acceptance 1–14, each with its test and drill; 14e waits on Q-M74.
   - [ ] SessionFork's veto: waits on meta-models/muse-code-sdk#84 (Meta-blocked).
-  - [ ] Acceptance 15: the owner's answer.
+  - [x] Acceptance 15: the owner's answer (2026-10-04: M94 builds Tab
+        completions; the hooks wait for its lane K).
   - [ ] Live check and its call count.
   - [ ] Docs: README, PRIVACY, CHANGELOG, AGENTS.md, CONTRIBUTING, PLAN,
         m91.md.

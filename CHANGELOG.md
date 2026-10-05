@@ -44,6 +44,47 @@ happened, not what was planned; superseded entries are kept.
     extension set. Every refusal carries its reason
     (`agentImportSkipped*`); the preview shows metadata only, never
     command text. The golden hooks-off requests are unchanged.
+  - **Lane R, Muse Code parity.** On the Model API backend, `Interrupt`
+    (async only) fires when a running turn or compaction is cancelled, and
+    never when an idle session closes, as the captures show Muse Code firing
+    it. `SessionFork` is accepted only as sync and runs nothing until
+    meta-models/muse-code-sdk#84 is answered. A `PostToolUseFailure` hook's
+    `updatedInput` re-runs the same tool once per step through the full
+    path, up to `HOOK_ON_FAILURE_MAX_DEPTH`.
+  - **Lane P, format adapters.** Each of Gemini CLI, Cursor, Copilot (CLI
+    and VS Code Local), Windsurf and Kiro has a declarative contract table,
+    every row citing its saved source, and one engine reads them all. Each
+    source keeps its fail-closed rules and none of its grants.
+  - **Lane S, the shell keeps its directory.** A `cd` in one Model API
+    shell call carries into the next, confined to the workspace. A
+    directory outside it, or one reached through a link out of it, resets to
+    the root with a note. `then_run` and `run_checks` still run at the
+    root. `museSpark.modelApiShellKeepsDirectory` (machine-scoped, on by
+    default) turns it off.
+  - **Lane X, plugins and Cline.** A contract table for Cline v1's
+    per-event scripts, and an out-of-process child that runs Amp and
+    OpenCode plugins under the user's own node or bun, with no shell,
+    client or model access. The plugin child is not yet dispatched.
+  - **Lane W, the wiring.** Hooks imported from other agents now run on
+    the Model API backend through those adapters, from `spark-hooks.json`,
+    under the same trust gate, opt-in and limits as Muse Code's hooks:
+    - they never run as native hooks, and no answer grants;
+    - a timeout is told apart from a crash by each source's rule (Copilot
+      lets a timed-out guard through; Cursor's `failClosed` blocks on
+      both);
+    - Cursor's shell-command patterns and loop limits, and Kiro's file
+      triggers, decide whether a hook runs, as they do there;
+    - a hook's working directory is confined after links resolve, and a
+      Cursor user hook runs from `~/.cursor`;
+    - on Windows, Copilot, Windsurf and Cline hooks run in PowerShell, as
+      their sources run them;
+    - a documented output replacement reaches the model before the next
+      request, with a notice, and the row keeps the real output.
+
+    The adapters load from their own bundle the first time a session runs
+    one. The Hooks picker lists both hook files for each scope and which
+    backend runs each, and the panel marks a reply a MessageDisplay hook
+    rewrote, with the original one click away.
 
 ## [0.12.1] - 2026-10-04
 

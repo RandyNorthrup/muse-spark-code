@@ -166,6 +166,9 @@ src/host/**           VS Code adapters (views, conversation, backend managers,
                       diagnostics, format on edit and turn checkpoints' shadow repository)
 src/core/**           backend-agnostic logic; must not import `vscode`
                       (MSP host, Model API client and tools, the MCP client,
+                      the hook dispatcher and, in dist/foreignHooks.js loaded
+                      on first use, the adapters for hooks imported from
+                      other agents (M91),
                       context (rules, skills, custom agents), Muse Code's
                       memory, export, worktrees, usage,
                       dictation, Muse Voice, the paid gate, network failures,

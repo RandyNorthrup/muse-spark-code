@@ -1133,6 +1133,13 @@ hooks from `.muse/hooks.json`. `MCP servers…` and `Hooks…` show configuratio
   opens the file behind each. A hook runs through your shell outside Muse
   Code's sandbox and approvals, so read a repository's hooks before you
   trust its folder.
+  - Beside Muse Code's `.muse/hooks.json` and your settings' `hooks`, it
+    lists the extension's own `spark-hooks.json`: the project's in
+    `.muse/spark-hooks.json`, and yours beside Muse Code's `settings.json`.
+    Muse Code never reads that file. It holds the events only this
+    extension runs, and the hooks imported from other agents.
+  - Each row says which backend runs the file, and a `spark-hooks.json`
+    row names the formats of the hooks imported into it.
 
 On the **Model API backend**, `museSpark.modelApiHooks` is a machine-scoped
 setting, off by default. When enabled, a new session in a trusted workspace
@@ -1164,6 +1171,24 @@ Tool hooks receive bounded previews of arguments and output, with media data
 URLs and credential-named fields omitted. MCP tools and the model still use
 the original arguments and results. A required MCP server failure ends the
 turn even if a post-tool hook asks to stop it.
+
+**Hooks from other agents.** **Import from other agents…** copies hooks
+written for Gemini CLI, Cursor, Copilot and VS Code, Windsurf, Kiro and Cline
+into `spark-hooks.json`, each tagged with its format. On the Model API
+backend each one runs in its own agent's shape:
+
+- It gets the input its agent would send, and its answer is read by that
+  agent's rules. A guard that blocks, fails or crashes there does the same
+  here. No answer approves a call: a foreign "allow" still shows the card.
+- Cursor's shell-command patterns and loop limits, and Kiro's file triggers,
+  decide whether a hook runs, as they do in those tools. On Windows,
+  Copilot, Windsurf and Cline hooks run in PowerShell, as their agents run
+  them.
+- A hook may replace what the model sees of a tool's output where its agent
+  documents that. The row keeps the real output, and a notice says so.
+
+Imported hooks never run on the Muse Code backend, and run under the same
+trust gate, opt-in and limits as every other hook.
 
 **Worktrees.** **New worktree…** asks for a new branch and its base (the
 current commit or any local branch), creates it in a folder of its own, and

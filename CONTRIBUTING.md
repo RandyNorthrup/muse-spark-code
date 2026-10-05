@@ -180,6 +180,27 @@ the extension-side Node process exits, and `fakeMcpPrebindParent.mjs` checks dea
 helper binds that process. The withheld-GO test's marker must never start.
 The test-owned fixture PIDs must be gone after the suite.
 
+## Hooks from other agents (M91)
+
+A hook imported in another agent's format runs only through lane P's
+adapters (`src/core/backends/modelapi/hookFormats/`, PLAN.md D70), never as a
+native hook:
+
+- Each vendor's contract is a table under `hookFormats/contracts/`, and
+  every row cites its saved source.
+- `hookFormatsContracts.test.ts` proves the engine's invariants over every
+  row; a new row is covered there the moment it exists. Above all, no row
+  produces an allow.
+- The dispatcher's side lives in `hooks.ts` (the import record's checks,
+  `ForeignHookAdapter`) and `foreignHooksEntry.ts` (the source's rules
+  around the run: patterns, triggers, directory, shell, timeouts, loop
+  limits). It is tested in `foreignHooks.test.ts` and, in a running
+  session, in `modelApiForeignHooks.test.ts`.
+- The adapters ship in `dist/foreignHooks.js`. `check-bundle-split.mjs`
+  fails if `dist/modelApi.js` starts carrying them.
+- `modelApiGoldenRequests.test.ts` must stay byte-identical: with hooks
+  off, no change may move a request's bytes.
+
 ## Reporting bugs and proposing features
 
 Use the issue templates. For a bug, run **Muse Spark: Diagnostics** from
