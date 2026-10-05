@@ -305,6 +305,7 @@ describe('M96 K advisory hints', () => {
         case 'fifo': {
           await rm(file)
           await runProgram('/usr/bin/mkfifo', [file], {})
+          await chmod(file, 0o600)
           // A FIFO has one link; only the regular-file guard rejects it.
           const information = await stat(file)
           expect(information.nlink).toBe(1)
