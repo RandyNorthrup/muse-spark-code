@@ -70,7 +70,7 @@ async function send(
   token: string,
   options: {
     headers?: Record<string, string | string[]>
-    body?: string
+    body?: string | Buffer
     method?: string
     route?: string
     omitAuthorization?: boolean
@@ -329,6 +329,13 @@ describe('judge serve security over real sockets', () => {
     expect(await getStatus(service.url, token, { chunks: [multibyte], unfinished: true })).toBe(400)
     const exact = JSON.stringify(input).padEnd(JUDGE_MAX_BODY_BYTES, ' ')
     expect(await getStatus(service.url, token, { body: exact })).toBe(200)
+  })
+  it('refuses malformed UTF-8 instead of charging for replacement characters', async () => {
+    const { service, token, runtime } = await start()
+    const body = Buffer.from(JSON.stringify(input))
+    body[body.indexOf('synthetic')] = 0xff
+    expect(await getStatus(service.url, token, { body })).toBe(400)
+    expect(runtime.judge).not.toHaveBeenCalled()
   })
   it('creates distinct per-request claims before dispatch for concurrent clients and retries', async () => {
     const claims = new Set<number>()

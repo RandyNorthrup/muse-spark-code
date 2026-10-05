@@ -76,7 +76,7 @@ fake socket suite failed before the implementation existed. The initial
 finished boundary has 56 passing tests: 32 socket and 24 token/ACL cases.
 All five `npm run typecheck` projects pass. Final scoped lint, formatting,
 lane gates and lifecycle receipts are recorded below as completed. The
-final three owning files pass **63/63** (35 socket, 24 token/ACL, 4 process).
+final three owning files pass **64/64** (36 socket, 24 token/ACL, 4 process).
 
 Full SHA-256 restoration and the named failing assertions for each deliberate
 mutation are in [m98-cs-drills.json](m98-cs-drills.json). Each counted drill
@@ -94,8 +94,7 @@ cap gives a named assertion failure rather than a hung drill. The first cancella
 been injected into startup; it was connected to the real seam and rerun
 red/green. Changing the stream iterator destroy option produced no
 different verdict on this Node and is excluded, not claimed as a guard.
-No gate,
-coverage level, test timeout, rule, ignore or production limit is weakened.
+No gate, coverage level, test timeout, rule, ignore or production limit is weakened.
 
 ## Delivery conditions still owned by integration
 
@@ -119,12 +118,15 @@ ACLs/providers are the only service activity.
 
 ## Completed red drills and installed Node receipt
 
-All **43** controls below have named red exits, full SHA-256 restoration
+The first **43** controls below, on implementation commit `f8058ad3`, have named red exits, full SHA-256 restoration
 and whole-file green reruns. `serve.ts` restores to
 `d2405d89b6654e295b582d2bcbe8367c556576d4a617edbd06b2680d5617a19a`;
 `tokenFile.ts` restores to
 `7efd0eafb1b3b4a3ea45bc2d1598c8539abf3c099ce68b497ab7f0aa022376ad`.
-The JSON record retains every full hash and failure name.
+The JSON record retains every full hash, source version and failure name.
+A subsequent strict UTF-8 fix adds control **44**, on the final source
+`7336db6a5b081a038e6f7e063d1603a4835a246e87822c1628eb4ecae2068f65`.
+Only decoding changes after the first 43 controls; their guards are unchanged.
 
 | #   | Guard deliberately broken                  | Named failing assertion                                                                                                                                                                                                                                                                                                                                                                          | Restored whole file       |
 | --- | ------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------- |
@@ -171,6 +173,7 @@ The JSON record retains every full hash and failure name.
 | 41  | process exit handler registration          | runs synchronous bearer cleanup on a fatal Node exit                                                                                                                                                                                                                                                                                                                                             | 4 passed (4); SHA equal   |
 | 42  | SIGINT handler registration                | deletes its bearer and closes the listener on SIGINT                                                                                                                                                                                                                                                                                                                                             | 4 passed (4); SHA equal   |
 | 43  | SIGTERM handler registration               | deletes its bearer and closes the listener on SIGTERM; never authenticates a crash token when the same port restarts                                                                                                                                                                                                                                                                             | 4 passed (4); SHA equal   |
+| 44  | strict UTF-8 request decoding              | refuses malformed UTF-8 instead of charging for replacement characters                                                                                                                                                                                                                                                                                                                           | 36 passed (36); SHA equal |
 
 Installed rig runtime: **Node v24.18.0, Linux, UID 1000**. The process
 suite bundles the actual boundary with esbuild and runs it under that
@@ -179,3 +182,62 @@ the file/close the port; a fatal exception exits 1 and runs synchronous
 cleanup; SIGKILL leaves a private stale file, whose token fails against a
 new process on the exact old port. Its four tests pass and three separate
 registration mutations fire. No VS Code or packaged CLI receipt is implied.
+
+## Final lane checks and integration request
+
+Implementation commit `f8058ad3` passed enabled Husky scoped ESLint/Prettier
+and staged gitleaks (no leaks). All first 43 source restoration hashes
+still matched after those hooks. An isolated directory left by the excluded
+interrupted cap control was removed without reading its bearer. No test
+artifact or credential is staged; only the eight named lane files are owned.
+
+The final review found a real malformed-input issue: Buffer's UTF-8 reader
+substituted an invalid byte and called the engine (the new regression
+observed HTTP 200). A fatal TextDecoder now refuses it at HTTP 400 before
+admission. The regression passes, its forgiving-decoder mutation fails
+and the final decoder source restores byte-exact in control 44. The final
+three owning files pass **64/64**; the socket control reruns **36/36**.
+
+All commands run directly on Kubuntu, one heavy gate at a time:
+
+- `npm run typecheck`: all five projects pass again after the UTF-8 fix;
+  the final unit project also passed before the implementation commit.
+- Scoped `eslint --max-warnings=0`, changed-file `prettier --check` and
+  `git diff --check`: pass. No cast or suppression was introduced.
+- `node scripts/check-l10n.mjs`: 14 UI tables, 127 manifest strings,
+  431 source files, **0 problems** after the final source changes.
+- `npm run deadcode` (plain knip): pass; only the existing `vendor/**`
+  configuration hint remains.
+- `npm run cycles` (dpdm): no cycle over 403 entry-reachable files.
+- `npx jscpd`: **0 clones**, 856 files. It first caught one six-line
+  duplicate in the Windows command-failure fixtures; the same three cases
+  now share a parameterized fixture. No assertion, case or ignore was removed.
+- `npm run build`: pass again after the UTF-8 fix: production, all 18
+  caps, split/model-text readers, host globals and third-party notices.
+  The production activation metafile contains **no judge input**. These
+  unwired boundary modules add no shipped bundle on this base; G/Z must
+  repeat the build/package budgets after wiring them.
+
+| Bundle           | Size / unchanged cap |
+| ---------------- | -------------------- |
+| extension        | 553.3 / 600 KiB      |
+| Model API        | 426.4 / 475 KiB      |
+| ACP              | 786.7 / 850 KiB      |
+| webview JS       | 861.2 / 900 KiB      |
+| English fallback | 105.9 / 125 KiB      |
+| checkpoint store | 109.1 / 225 KiB      |
+
+`npm run check:host-api` **exits 1**, a generated inventory mismatch. The
+pre-existing paidHost/configuration rows from PLAN §7 remain; the new
+boundary adds two buffer/crypto importers and one fs/fs-promises/http/path
+importer. The exact current Node importer totals are buffer **29**, crypto
+**35**, fs **25**, fs/promises **35**, http **3**, path **66**. VS Code
+API totals are unchanged at 271 APIs and 18 importing files. Z owns this
+generated document and must run `npm run check:host-api -- --write`, review
+these rows and rerun. CS does not edit another lane's file or claim this
+gate is green. No shared-file exception or gate weakening is made.
+
+Full `npm run quality`, coverage/a11y, hosted matrix, installed Windows/macOS
+ACL/Node/VS Code and real admitted-source/CLI/package receipts stay the
+lead/Z's explicit integrated gates. This brief forbids the aggregate run,
+merge, rebase and push; none was done. No live/paid/local inference occurred.

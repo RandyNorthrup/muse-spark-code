@@ -181,23 +181,26 @@ describe('judge serve token file', () => {
       expect(Object.keys(env).some((name) => name.toUpperCase().endsWith('_API_KEY'))).toBe(false)
     }
   })
-  it.each(['malformed-json', JSON.stringify({ ...receipt, protected: false })])(
-    'refuses invalid actual Windows helper output (%s)',
-    async (stdout) => {
-      vi.spyOn(programs, 'runProgram').mockResolvedValue(stdout)
+  it.each([
+    { failure: 'malformed JSON', output: () => Promise.resolve('malformed-json') },
+    {
+      failure: 'unprotected DACL',
+      output: () => Promise.resolve(JSON.stringify({ ...receipt, protected: false })),
+    },
+    {
+      failure: 'failed command',
+      output: () => Promise.reject(new Error('synthetic private OS output')),
+    },
+  ])(
+    'refuses actual Windows ACL helper $failure without exposing its output',
+    async ({ output }) => {
+      vi.spyOn(programs, 'runProgram').mockImplementation(output)
       vi.stubGlobal('process', { ...process, platform: 'win32' })
       const parent = await folder()
       await expect(createJudgeTokenFile(parent)).rejects.toThrow('EJUDGE_TOKEN_ACL')
       expect(await fs.readdir(parent)).toEqual([])
     },
   )
-  it('refuses a failed Windows ACL command without exposing its output', async () => {
-    vi.spyOn(programs, 'runProgram').mockRejectedValue(new Error('synthetic private OS output'))
-    vi.stubGlobal('process', { ...process, platform: 'win32' })
-    const parent = await folder()
-    await expect(createJudgeTokenFile(parent)).rejects.toThrow('EJUDGE_TOKEN_ACL')
-    expect(await fs.readdir(parent)).toEqual([])
-  })
   it('removes the private directory through synchronous exit cleanup', async () => {
     const parent = await folder()
     const token = await createJudgeTokenFile(parent)

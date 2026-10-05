@@ -48,7 +48,9 @@ async function readRequest(request: IncomingMessage): Promise<JudgeRequest | und
     chunks.push(chunk)
   }
   try {
-    const body: unknown = JSON.parse(Buffer.concat(chunks).toString('utf8'))
+    const body: unknown = JSON.parse(
+      new TextDecoder('utf-8', { fatal: true }).decode(Buffer.concat(chunks)),
+    )
     const parsed = judgeRequestSchema.safeParse(body)
     return parsed.success ? parsed.data : undefined
   } catch {

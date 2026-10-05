@@ -16,7 +16,8 @@
     "beforeSha256": "d2405d89b6654e295b582d2bcbe8367c556576d4a617edbd06b2680d5617a19a",
     "afterSha256": "d2405d89b6654e295b582d2bcbe8367c556576d4a617edbd06b2680d5617a19a",
     "greenExit": 0,
-    "greenTests": "32 passed (32)"
+    "greenTests": "32 passed (32)",
+    "sourceVersion": "f8058ad3"
   },
   {
     "id": 2,
@@ -30,7 +31,8 @@
     "beforeSha256": "d2405d89b6654e295b582d2bcbe8367c556576d4a617edbd06b2680d5617a19a",
     "afterSha256": "d2405d89b6654e295b582d2bcbe8367c556576d4a617edbd06b2680d5617a19a",
     "greenExit": 0,
-    "greenTests": "32 passed (32)"
+    "greenTests": "32 passed (32)",
+    "sourceVersion": "f8058ad3"
   },
   {
     "id": 3,
@@ -46,7 +48,8 @@
     "beforeSha256": "d2405d89b6654e295b582d2bcbe8367c556576d4a617edbd06b2680d5617a19a",
     "afterSha256": "d2405d89b6654e295b582d2bcbe8367c556576d4a617edbd06b2680d5617a19a",
     "greenExit": 0,
-    "greenTests": "32 passed (32)"
+    "greenTests": "32 passed (32)",
+    "sourceVersion": "f8058ad3"
   },
   {
     "id": 4,
@@ -62,7 +65,8 @@
     "beforeSha256": "d2405d89b6654e295b582d2bcbe8367c556576d4a617edbd06b2680d5617a19a",
     "afterSha256": "d2405d89b6654e295b582d2bcbe8367c556576d4a617edbd06b2680d5617a19a",
     "greenExit": 0,
-    "greenTests": "32 passed (32)"
+    "greenTests": "32 passed (32)",
+    "sourceVersion": "f8058ad3"
   },
   {
     "id": 5,
@@ -80,7 +84,8 @@
     "beforeSha256": "d2405d89b6654e295b582d2bcbe8367c556576d4a617edbd06b2680d5617a19a",
     "afterSha256": "d2405d89b6654e295b582d2bcbe8367c556576d4a617edbd06b2680d5617a19a",
     "greenExit": 0,
-    "greenTests": "32 passed (32)"
+    "greenTests": "32 passed (32)",
+    "sourceVersion": "f8058ad3"
   },
   {
     "id": 6,
@@ -96,7 +101,8 @@
     "beforeSha256": "d2405d89b6654e295b582d2bcbe8367c556576d4a617edbd06b2680d5617a19a",
     "afterSha256": "d2405d89b6654e295b582d2bcbe8367c556576d4a617edbd06b2680d5617a19a",
     "greenExit": 0,
-    "greenTests": "32 passed (32)"
+    "greenTests": "32 passed (32)",
+    "sourceVersion": "f8058ad3"
   },
   {
     "id": 7,
@@ -111,7 +117,8 @@
     "beforeSha256": "d2405d89b6654e295b582d2bcbe8367c556576d4a617edbd06b2680d5617a19a",
     "afterSha256": "d2405d89b6654e295b582d2bcbe8367c556576d4a617edbd06b2680d5617a19a",
     "greenExit": 0,
-    "greenTests": "32 passed (32)"
+    "greenTests": "32 passed (32)",
+    "sourceVersion": "f8058ad3"
   },
   {
     "id": 8,
@@ -125,7 +132,8 @@
     "beforeSha256": "d2405d89b6654e295b582d2bcbe8367c556576d4a617edbd06b2680d5617a19a",
     "afterSha256": "d2405d89b6654e295b582d2bcbe8367c556576d4a617edbd06b2680d5617a19a",
     "greenExit": 0,
-    "greenTests": "32 passed (32)"
+    "greenTests": "32 passed (32)",
+    "sourceVersion": "f8058ad3"
   },
   {
     "id": 9,
@@ -139,7 +147,8 @@
     "beforeSha256": "d2405d89b6654e295b582d2bcbe8367c556576d4a617edbd06b2680d5617a19a",
     "afterSha256": "d2405d89b6654e295b582d2bcbe8367c556576d4a617edbd06b2680d5617a19a",
     "greenExit": 0,
-    "greenTests": "32 passed (32)"
+    "greenTests": "32 passed (32)",
+    "sourceVersion": "f8058ad3"
   },
   {
     "id": 10,
@@ -153,7 +162,8 @@
     "beforeSha256": "d2405d89b6654e295b582d2bcbe8367c556576d4a617edbd06b2680d5617a19a",
     "afterSha256": "d2405d89b6654e295b582d2bcbe8367c556576d4a617edbd06b2680d5617a19a",
     "greenExit": 0,
-    "greenTests": "32 passed (32)"
+    "greenTests": "32 passed (32)",
+    "sourceVersion": "f8058ad3"
   },
   {
     "id": 11,
@@ -167,7 +177,8 @@
     "beforeSha256": "d2405d89b6654e295b582d2bcbe8367c556576d4a617edbd06b2680d5617a19a",
     "afterSha256": "d2405d89b6654e295b582d2bcbe8367c556576d4a617edbd06b2680d5617a19a",
     "greenExit": 0,
-    "greenTests": "32 passed (32)"
+    "greenTests": "32 passed (32)",
+    "sourceVersion": "f8058ad3"
   },
   {
     "id": 12,
@@ -181,7 +192,8 @@
     "beforeSha256": "d2405d89b6654e295b582d2bcbe8367c556576d4a617edbd06b2680d5617a19a",
     "afterSha256": "d2405d89b6654e295b582d2bcbe8367c556576d4a617edbd06b2680d5617a19a",
     "greenExit": 0,
-    "greenTests": "32 passed (32)"
+    "greenTests": "32 passed (32)",
+    "sourceVersion": "f8058ad3"
   },
   {
     "id": 13,
@@ -195,7 +207,8 @@
     "beforeSha256": "d2405d89b6654e295b582d2bcbe8367c556576d4a617edbd06b2680d5617a19a",
     "afterSha256": "d2405d89b6654e295b582d2bcbe8367c556576d4a617edbd06b2680d5617a19a",
     "greenExit": 0,
-    "greenTests": "32 passed (32)"
+    "greenTests": "32 passed (32)",
+    "sourceVersion": "f8058ad3"
   },
   {
     "id": 14,
@@ -209,7 +222,8 @@
     "beforeSha256": "d2405d89b6654e295b582d2bcbe8367c556576d4a617edbd06b2680d5617a19a",
     "afterSha256": "d2405d89b6654e295b582d2bcbe8367c556576d4a617edbd06b2680d5617a19a",
     "greenExit": 0,
-    "greenTests": "32 passed (32)"
+    "greenTests": "32 passed (32)",
+    "sourceVersion": "f8058ad3"
   },
   {
     "id": 15,
@@ -224,7 +238,8 @@
     "beforeSha256": "d2405d89b6654e295b582d2bcbe8367c556576d4a617edbd06b2680d5617a19a",
     "afterSha256": "d2405d89b6654e295b582d2bcbe8367c556576d4a617edbd06b2680d5617a19a",
     "greenExit": 0,
-    "greenTests": "32 passed (32)"
+    "greenTests": "32 passed (32)",
+    "sourceVersion": "f8058ad3"
   },
   {
     "id": 16,
@@ -239,7 +254,8 @@
     "beforeSha256": "d2405d89b6654e295b582d2bcbe8367c556576d4a617edbd06b2680d5617a19a",
     "afterSha256": "d2405d89b6654e295b582d2bcbe8367c556576d4a617edbd06b2680d5617a19a",
     "greenExit": 0,
-    "greenTests": "32 passed (32)"
+    "greenTests": "32 passed (32)",
+    "sourceVersion": "f8058ad3"
   },
   {
     "id": 17,
@@ -253,7 +269,8 @@
     "beforeSha256": "d2405d89b6654e295b582d2bcbe8367c556576d4a617edbd06b2680d5617a19a",
     "afterSha256": "d2405d89b6654e295b582d2bcbe8367c556576d4a617edbd06b2680d5617a19a",
     "greenExit": 0,
-    "greenTests": "32 passed (32)"
+    "greenTests": "32 passed (32)",
+    "sourceVersion": "f8058ad3"
   },
   {
     "id": 18,
@@ -268,7 +285,8 @@
     "beforeSha256": "d2405d89b6654e295b582d2bcbe8367c556576d4a617edbd06b2680d5617a19a",
     "afterSha256": "d2405d89b6654e295b582d2bcbe8367c556576d4a617edbd06b2680d5617a19a",
     "greenExit": 0,
-    "greenTests": "32 passed (32)"
+    "greenTests": "32 passed (32)",
+    "sourceVersion": "f8058ad3"
   },
   {
     "id": 19,
@@ -282,7 +300,8 @@
     "beforeSha256": "d2405d89b6654e295b582d2bcbe8367c556576d4a617edbd06b2680d5617a19a",
     "afterSha256": "d2405d89b6654e295b582d2bcbe8367c556576d4a617edbd06b2680d5617a19a",
     "greenExit": 0,
-    "greenTests": "33 passed (33)"
+    "greenTests": "33 passed (33)",
+    "sourceVersion": "f8058ad3"
   },
   {
     "id": 20,
@@ -296,7 +315,8 @@
     "beforeSha256": "7efd0eafb1b3b4a3ea45bc2d1598c8539abf3c099ce68b497ab7f0aa022376ad",
     "afterSha256": "7efd0eafb1b3b4a3ea45bc2d1598c8539abf3c099ce68b497ab7f0aa022376ad",
     "greenExit": 0,
-    "greenTests": "33 passed (33)"
+    "greenTests": "33 passed (33)",
+    "sourceVersion": "f8058ad3"
   },
   {
     "id": 21,
@@ -310,7 +330,8 @@
     "beforeSha256": "7efd0eafb1b3b4a3ea45bc2d1598c8539abf3c099ce68b497ab7f0aa022376ad",
     "afterSha256": "7efd0eafb1b3b4a3ea45bc2d1598c8539abf3c099ce68b497ab7f0aa022376ad",
     "greenExit": 0,
-    "greenTests": "24 passed (24)"
+    "greenTests": "24 passed (24)",
+    "sourceVersion": "f8058ad3"
   },
   {
     "id": 22,
@@ -324,7 +345,8 @@
     "beforeSha256": "7efd0eafb1b3b4a3ea45bc2d1598c8539abf3c099ce68b497ab7f0aa022376ad",
     "afterSha256": "7efd0eafb1b3b4a3ea45bc2d1598c8539abf3c099ce68b497ab7f0aa022376ad",
     "greenExit": 0,
-    "greenTests": "24 passed (24)"
+    "greenTests": "24 passed (24)",
+    "sourceVersion": "f8058ad3"
   },
   {
     "id": 23,
@@ -340,7 +362,8 @@
     "beforeSha256": "7efd0eafb1b3b4a3ea45bc2d1598c8539abf3c099ce68b497ab7f0aa022376ad",
     "afterSha256": "7efd0eafb1b3b4a3ea45bc2d1598c8539abf3c099ce68b497ab7f0aa022376ad",
     "greenExit": 0,
-    "greenTests": "24 passed (24)"
+    "greenTests": "24 passed (24)",
+    "sourceVersion": "f8058ad3"
   },
   {
     "id": 24,
@@ -354,7 +377,8 @@
     "beforeSha256": "7efd0eafb1b3b4a3ea45bc2d1598c8539abf3c099ce68b497ab7f0aa022376ad",
     "afterSha256": "7efd0eafb1b3b4a3ea45bc2d1598c8539abf3c099ce68b497ab7f0aa022376ad",
     "greenExit": 0,
-    "greenTests": "24 passed (24)"
+    "greenTests": "24 passed (24)",
+    "sourceVersion": "f8058ad3"
   },
   {
     "id": 25,
@@ -368,7 +392,8 @@
     "beforeSha256": "7efd0eafb1b3b4a3ea45bc2d1598c8539abf3c099ce68b497ab7f0aa022376ad",
     "afterSha256": "7efd0eafb1b3b4a3ea45bc2d1598c8539abf3c099ce68b497ab7f0aa022376ad",
     "greenExit": 0,
-    "greenTests": "24 passed (24)"
+    "greenTests": "24 passed (24)",
+    "sourceVersion": "f8058ad3"
   },
   {
     "id": 26,
@@ -382,7 +407,8 @@
     "beforeSha256": "7efd0eafb1b3b4a3ea45bc2d1598c8539abf3c099ce68b497ab7f0aa022376ad",
     "afterSha256": "7efd0eafb1b3b4a3ea45bc2d1598c8539abf3c099ce68b497ab7f0aa022376ad",
     "greenExit": 0,
-    "greenTests": "24 passed (24)"
+    "greenTests": "24 passed (24)",
+    "sourceVersion": "f8058ad3"
   },
   {
     "id": 27,
@@ -396,7 +422,8 @@
     "beforeSha256": "7efd0eafb1b3b4a3ea45bc2d1598c8539abf3c099ce68b497ab7f0aa022376ad",
     "afterSha256": "7efd0eafb1b3b4a3ea45bc2d1598c8539abf3c099ce68b497ab7f0aa022376ad",
     "greenExit": 0,
-    "greenTests": "24 passed (24)"
+    "greenTests": "24 passed (24)",
+    "sourceVersion": "f8058ad3"
   },
   {
     "id": 28,
@@ -410,7 +437,8 @@
     "beforeSha256": "7efd0eafb1b3b4a3ea45bc2d1598c8539abf3c099ce68b497ab7f0aa022376ad",
     "afterSha256": "7efd0eafb1b3b4a3ea45bc2d1598c8539abf3c099ce68b497ab7f0aa022376ad",
     "greenExit": 0,
-    "greenTests": "24 passed (24)"
+    "greenTests": "24 passed (24)",
+    "sourceVersion": "f8058ad3"
   },
   {
     "id": 29,
@@ -424,7 +452,8 @@
     "beforeSha256": "7efd0eafb1b3b4a3ea45bc2d1598c8539abf3c099ce68b497ab7f0aa022376ad",
     "afterSha256": "7efd0eafb1b3b4a3ea45bc2d1598c8539abf3c099ce68b497ab7f0aa022376ad",
     "greenExit": 0,
-    "greenTests": "24 passed (24)"
+    "greenTests": "24 passed (24)",
+    "sourceVersion": "f8058ad3"
   },
   {
     "id": 30,
@@ -439,7 +468,8 @@
     "beforeSha256": "7efd0eafb1b3b4a3ea45bc2d1598c8539abf3c099ce68b497ab7f0aa022376ad",
     "afterSha256": "7efd0eafb1b3b4a3ea45bc2d1598c8539abf3c099ce68b497ab7f0aa022376ad",
     "greenExit": 0,
-    "greenTests": "24 passed (24)"
+    "greenTests": "24 passed (24)",
+    "sourceVersion": "f8058ad3"
   },
   {
     "id": 31,
@@ -455,7 +485,8 @@
     "beforeSha256": "7efd0eafb1b3b4a3ea45bc2d1598c8539abf3c099ce68b497ab7f0aa022376ad",
     "afterSha256": "7efd0eafb1b3b4a3ea45bc2d1598c8539abf3c099ce68b497ab7f0aa022376ad",
     "greenExit": 0,
-    "greenTests": "24 passed (24)"
+    "greenTests": "24 passed (24)",
+    "sourceVersion": "f8058ad3"
   },
   {
     "id": 32,
@@ -469,7 +500,8 @@
     "beforeSha256": "7efd0eafb1b3b4a3ea45bc2d1598c8539abf3c099ce68b497ab7f0aa022376ad",
     "afterSha256": "7efd0eafb1b3b4a3ea45bc2d1598c8539abf3c099ce68b497ab7f0aa022376ad",
     "greenExit": 0,
-    "greenTests": "24 passed (24)"
+    "greenTests": "24 passed (24)",
+    "sourceVersion": "f8058ad3"
   },
   {
     "id": 33,
@@ -483,7 +515,8 @@
     "beforeSha256": "7efd0eafb1b3b4a3ea45bc2d1598c8539abf3c099ce68b497ab7f0aa022376ad",
     "afterSha256": "7efd0eafb1b3b4a3ea45bc2d1598c8539abf3c099ce68b497ab7f0aa022376ad",
     "greenExit": 0,
-    "greenTests": "24 passed (24)"
+    "greenTests": "24 passed (24)",
+    "sourceVersion": "f8058ad3"
   },
   {
     "id": 34,
@@ -497,7 +530,8 @@
     "beforeSha256": "7efd0eafb1b3b4a3ea45bc2d1598c8539abf3c099ce68b497ab7f0aa022376ad",
     "afterSha256": "7efd0eafb1b3b4a3ea45bc2d1598c8539abf3c099ce68b497ab7f0aa022376ad",
     "greenExit": 0,
-    "greenTests": "24 passed (24)"
+    "greenTests": "24 passed (24)",
+    "sourceVersion": "f8058ad3"
   },
   {
     "id": 35,
@@ -511,7 +545,8 @@
     "beforeSha256": "7efd0eafb1b3b4a3ea45bc2d1598c8539abf3c099ce68b497ab7f0aa022376ad",
     "afterSha256": "7efd0eafb1b3b4a3ea45bc2d1598c8539abf3c099ce68b497ab7f0aa022376ad",
     "greenExit": 0,
-    "greenTests": "24 passed (24)"
+    "greenTests": "24 passed (24)",
+    "sourceVersion": "f8058ad3"
   },
   {
     "id": 36,
@@ -525,7 +560,8 @@
     "beforeSha256": "7efd0eafb1b3b4a3ea45bc2d1598c8539abf3c099ce68b497ab7f0aa022376ad",
     "afterSha256": "7efd0eafb1b3b4a3ea45bc2d1598c8539abf3c099ce68b497ab7f0aa022376ad",
     "greenExit": 0,
-    "greenTests": "24 passed (24)"
+    "greenTests": "24 passed (24)",
+    "sourceVersion": "f8058ad3"
   },
   {
     "id": 37,
@@ -540,7 +576,8 @@
     "beforeSha256": "7efd0eafb1b3b4a3ea45bc2d1598c8539abf3c099ce68b497ab7f0aa022376ad",
     "afterSha256": "7efd0eafb1b3b4a3ea45bc2d1598c8539abf3c099ce68b497ab7f0aa022376ad",
     "greenExit": 0,
-    "greenTests": "33 passed (33)"
+    "greenTests": "33 passed (33)",
+    "sourceVersion": "f8058ad3"
   },
   {
     "id": 38,
@@ -554,7 +591,8 @@
     "beforeSha256": "d2405d89b6654e295b582d2bcbe8367c556576d4a617edbd06b2680d5617a19a",
     "afterSha256": "d2405d89b6654e295b582d2bcbe8367c556576d4a617edbd06b2680d5617a19a",
     "greenExit": 0,
-    "greenTests": "33 passed (33)"
+    "greenTests": "33 passed (33)",
+    "sourceVersion": "f8058ad3"
   },
   {
     "id": 39,
@@ -568,7 +606,8 @@
     "beforeSha256": "d2405d89b6654e295b582d2bcbe8367c556576d4a617edbd06b2680d5617a19a",
     "afterSha256": "d2405d89b6654e295b582d2bcbe8367c556576d4a617edbd06b2680d5617a19a",
     "greenExit": 0,
-    "greenTests": "35 passed (35)"
+    "greenTests": "35 passed (35)",
+    "sourceVersion": "f8058ad3"
   },
   {
     "id": 40,
@@ -582,7 +621,8 @@
     "beforeSha256": "d2405d89b6654e295b582d2bcbe8367c556576d4a617edbd06b2680d5617a19a",
     "afterSha256": "d2405d89b6654e295b582d2bcbe8367c556576d4a617edbd06b2680d5617a19a",
     "greenExit": 0,
-    "greenTests": "35 passed (35)"
+    "greenTests": "35 passed (35)",
+    "sourceVersion": "f8058ad3"
   },
   {
     "id": 41,
@@ -596,7 +636,8 @@
     "beforeSha256": "d2405d89b6654e295b582d2bcbe8367c556576d4a617edbd06b2680d5617a19a",
     "afterSha256": "d2405d89b6654e295b582d2bcbe8367c556576d4a617edbd06b2680d5617a19a",
     "greenExit": 0,
-    "greenTests": "4 passed (4)"
+    "greenTests": "4 passed (4)",
+    "sourceVersion": "f8058ad3"
   },
   {
     "id": 42,
@@ -610,7 +651,8 @@
     "beforeSha256": "d2405d89b6654e295b582d2bcbe8367c556576d4a617edbd06b2680d5617a19a",
     "afterSha256": "d2405d89b6654e295b582d2bcbe8367c556576d4a617edbd06b2680d5617a19a",
     "greenExit": 0,
-    "greenTests": "4 passed (4)"
+    "greenTests": "4 passed (4)",
+    "sourceVersion": "f8058ad3"
   },
   {
     "id": 43,
@@ -625,6 +667,22 @@
     "beforeSha256": "d2405d89b6654e295b582d2bcbe8367c556576d4a617edbd06b2680d5617a19a",
     "afterSha256": "d2405d89b6654e295b582d2bcbe8367c556576d4a617edbd06b2680d5617a19a",
     "greenExit": 0,
-    "greenTests": "4 passed (4)"
+    "greenTests": "4 passed (4)",
+    "sourceVersion": "f8058ad3"
+  },
+  {
+    "id": 44,
+    "guard": "strict UTF-8 request decoding",
+    "source": "src/runtime/judge/serve.ts",
+    "test": "test/unit/judgeServe.test.ts",
+    "redExit": 1,
+    "failedTests": [
+      "test/unit/judgeServe.test.ts > judge serve security over real sockets > refuses malformed UTF-8 instead of charging for replacement characters"
+    ],
+    "beforeSha256": "7336db6a5b081a038e6f7e063d1603a4835a246e87822c1628eb4ecae2068f65",
+    "afterSha256": "7336db6a5b081a038e6f7e063d1603a4835a246e87822c1628eb4ecae2068f65",
+    "greenExit": 0,
+    "greenTests": "36 passed (36)",
+    "sourceVersion": "strict UTF-8 follow-up"
   }
 ]
