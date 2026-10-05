@@ -28,13 +28,13 @@ function canonicalJson(value: unknown): string {
     return 'null'
   }
   switch (typeof value) {
-    case 'boolean':
     case 'number': {
       if (!Number.isFinite(value)) {
         throw new TypeError('judge entry args must be finite JSON values')
       }
       return JSON.stringify(value)
     }
+    case 'boolean':
     case 'string': {
       return JSON.stringify(value)
     }
@@ -78,7 +78,13 @@ export function entryKey(parts: JudgeEntryParts): string {
 /** What a settled entry said. */
 export type JudgeReadyOutcome = 'caution' | 'none'
 
+/** One live generation of an exact-action key; retain it for callbacks and fences. */
+export interface JudgeEntryHandle {
+  readonly key: string
+}
+
 interface JudgeEntry {
+  readonly handle: JudgeEntryHandle
   readonly sessionId: string
   readonly turnId: string
   /** undefined while pending or failed; an outcome once ready. */
@@ -89,8 +95,9 @@ interface JudgeEntry {
 /**
  * Memory-only store of judged actions. Starting the same exact action
  * twice keeps the first entry; settling or reading an unknown, consumed or
- * discarded key does nothing and reports false/undefined, so a late result
- * can never be applied after its fence.
+ * discarded handle does nothing and reports false/undefined. A restarted
+ * exact action has a fresh handle, so old callbacks and fences cannot
+ * affect its replacement even though the action key is unchanged.
  */
 export class JudgeEntryStore {
   private readonly entries = new Map<string, JudgeEntry>()
@@ -99,27 +106,31 @@ export class JudgeEntryStore {
     return this.entries.size
   }
 
-  /** Track one action as pending; returns its key. Idempotent. */
-  start(parts: JudgeEntryParts): string {
+  /** Track one action as pending; returns its generation handle. Idempotent while live. */
+  start(parts: JudgeEntryParts): JudgeEntryHandle {
     const key = entryKey(parts)
-    if (!this.entries.has(key)) {
-      this.entries.set(key, {
-        sessionId: parts.sessionId,
-        turnId: parts.turnId,
-        outcome: undefined,
-        settled: false,
-      })
+    const existing = this.entries.get(key)
+    if (existing !== undefined) {
+      return existing.handle
     }
-    return key
+    const handle = Object.freeze({ key })
+    this.entries.set(key, {
+      handle,
+      sessionId: parts.sessionId,
+      turnId: parts.turnId,
+      outcome: undefined,
+      settled: false,
+    })
+    return handle
   }
 
   /**
    * Settle a pending entry. Returns false — and changes nothing — for an
-   * unknown, consumed or discarded key: a late result is dropped.
+   * unknown, consumed, discarded or superseded handle: a late result is dropped.
    */
-  settle(key: string, outcome: JudgeReadyOutcome | 'failed'): boolean {
-    const entry = this.entries.get(key)
-    if (entry === undefined || entry.settled) {
+  settle(handle: JudgeEntryHandle, outcome: JudgeReadyOutcome | 'failed'): boolean {
+    const entry = this.entries.get(handle.key)
+    if (entry?.handle !== handle || entry.settled) {
       return false
     }
     entry.settled = true
@@ -133,18 +144,19 @@ export class JudgeEntryStore {
    * reads exactly once; a second read — or any later settle — finds
    * nothing.
    */
-  readLatch(key: string): JudgeReadyOutcome | undefined {
-    const entry = this.entries.get(key)
-    if (entry === undefined) {
+  readLatch(handle: JudgeEntryHandle): JudgeReadyOutcome | undefined {
+    const entry = this.entries.get(handle.key)
+    if (entry?.handle !== handle) {
       return undefined
     }
-    this.entries.delete(key)
+    this.entries.delete(handle.key)
     return entry.outcome
   }
 
   /** Discard one entry: a cancelled action or a changed argument. */
-  discard(key: string): boolean {
-    return this.entries.delete(key)
+  discard(handle: JudgeEntryHandle): boolean {
+    const entry = this.entries.get(handle.key)
+    return entry?.handle === handle && this.entries.delete(handle.key)
   }
 
   /** Discard a replaced or finished turn's entries; returns the count. */

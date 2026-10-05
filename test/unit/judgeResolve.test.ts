@@ -87,6 +87,21 @@ describe('resolveJudgeMode', () => {
     expect(resolveJudgeMode(context({ readyRate: undefined })).mode).toBe('same')
   })
 
+  it('honours explicit same below the automatic ready-rate floor', () => {
+    const selected = context({ engine: 'same', paidConsent: 'granted', readyRate: 0.1 })
+    expect(resolveJudgeMode(selected)).toEqual({ mode: 'same', reason: 'explicit-same' })
+    expect(resolveJudgeMode({ ...selected, engine: 'auto' })).toEqual({
+      mode: 'off',
+      reason: 'ready-rate-low',
+    })
+    expect(resolveJudgeMode({ ...selected, paidConsent: 'declined' }).reason).toBe(
+      'consent-declined',
+    )
+    expect(resolveJudgeMode({ ...selected, sourceAvailable: false }).reason).toBe(
+      'source-unavailable',
+    )
+  })
+
   it('checks consent before availability before the ready rate', () => {
     expect(
       resolveJudgeMode(context({ paidConsent: 'declined', sourceAvailable: false })).reason,

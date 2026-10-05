@@ -129,6 +129,57 @@ describe('planJudgeBatches', () => {
     expect(user).toContain('2. high')
   })
 
+  it('splits by the complete request size, including labels and system text', () => {
+    const state = 's'.repeat(60)
+    const plan = planJudgeBatches({
+      stateText: state,
+      questions: ['q1', 'q2', 'q3'].map((id) => noul(id, 'q'.repeat(30))),
+      wording,
+      maxQuestionsPerBatch: 64,
+      contextTokenLimit: 170,
+      measureTokens: (text) => text.length,
+    })
+    expect(plan.refused).toBeUndefined()
+    if (plan.batches === undefined) {
+      throw new Error('expected batches')
+    }
+    expect(plan.batches.map((batch) => batch.questionIds)).toEqual([['q1'], ['q2'], ['q3']])
+    for (const batch of plan.batches) {
+      expect(batch.system.length + batch.user.length).toBeLessThanOrEqual(170)
+      expect(batch.user).toContain(state)
+    }
+  })
+
+  it('refuses a single complete request whose overhead exceeds the context', () => {
+    expect(
+      planJudgeBatches({
+        stateText: 's'.repeat(60),
+        questions: [noul('q1', 'q'.repeat(30))],
+        wording,
+        maxQuestionsPerBatch: 64,
+        contextTokenLimit: 100,
+        measureTokens: (text) => text.length,
+      }),
+    ).toEqual({ refused: 'over-context' })
+  })
+
+  it('admits the exact context boundary and refuses one token below it', () => {
+    const inputs = {
+      stateText: 'state',
+      questions: [noul('q1', 'risky?')],
+      wording,
+      maxQuestionsPerBatch: 64,
+      measureTokens: (text: string) => text.length,
+    }
+    const size =
+      wording.systemInstruction.length +
+      `${wording.stateLabel}state\n${wording.questionLabel}risky?`.length
+    expect(planJudgeBatches({ ...inputs, contextTokenLimit: size }).batches).toHaveLength(1)
+    expect(planJudgeBatches({ ...inputs, contextTokenLimit: size - 1 })).toEqual({
+      refused: 'over-context',
+    })
+  })
+
   it('rejects malformed questions and limits instead of guessing', () => {
     const base = {
       stateText: 'state',
@@ -141,6 +192,11 @@ describe('planJudgeBatches', () => {
     expect(() =>
       planJudgeBatches({ ...base, questions: [noul('q')], maxQuestionsPerBatch: 0 }),
     ).toThrow(RangeError)
+    for (const contextTokenLimit of [NaN, Infinity, -1]) {
+      expect(() =>
+        planJudgeBatches({ ...base, questions: [noul('q')], contextTokenLimit }),
+      ).toThrow(RangeError)
+    }
     expect(() =>
       planJudgeBatches({
         ...base,

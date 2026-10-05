@@ -21,7 +21,7 @@ export interface JudgeQuestion {
 }
 
 /** How one answer was produced. Per-model capability records choose (D77). */
-export type JudgeTechnique = 'logprobs' | 'top1' | 'stated'
+export type JudgeTechnique = 'logprob' | 'top1' | 'stated'
 
 /**
  * The plan-named result labels. Phase 1 emits only "uncalibrated" and

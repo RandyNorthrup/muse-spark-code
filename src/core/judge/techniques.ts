@@ -29,7 +29,7 @@ export function selectTechnique(
 ): JudgeTechnique {
   switch (capability.logprobs) {
     case 'topk': {
-      return 'logprobs'
+      return 'logprob'
     }
     case 'top1': {
       return kind === 'noul' ? 'top1' : 'stated'
@@ -86,6 +86,9 @@ function indexKeyOf(
       }
       return canonical === 'no' ? '1' : undefined
     }
+    if (canonical.length !== 1) {
+      return undefined
+    }
     if (kind === 'choice') {
       const index = OPTION_LETTERS.indexOf(canonical)
       return index !== -1 && index < optionCount ? String(index) : undefined
@@ -131,7 +134,7 @@ export function materialForLogprobs(inputs: LogprobInputs): LogprobMaterial {
       vendorConfidence: undefined,
       partial: renormalized.seenKeys.length < alternatives,
       residualMass: renormalized.residualMass,
-      technique: 'logprobs',
+      technique: 'logprob',
     },
   }
 }
@@ -183,7 +186,7 @@ export function materialForTop1(
     material: {
       probabilities: [pYes, 1 - pYes],
       vendorConfidence: undefined,
-      partial: false,
+      partial: true,
       residualMass: 1 - probability,
       technique: 'top1',
     },

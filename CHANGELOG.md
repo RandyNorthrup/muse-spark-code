@@ -56,6 +56,13 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- **Muse Judge core (M98, RVM98J).** Boolean action arguments hash correctly;
+  retried actions reject stale callbacks and fences; complete prompt batches
+  fit the measured context; choice and score tokens must be one character.
+  Explicit `same` honors the user's selection below the automatic readiness
+  floor, logprob metadata matches the shared contract, and top-1 estimates
+  correctly report partial evidence. No judge runs yet.
+
 - A blocked M80 `v0` tag update now reports that an administrator must move it,
   while preserving the four release channels' outcomes. Updates require a
   fast-forward; the release guide documents the administrator's recovery command.

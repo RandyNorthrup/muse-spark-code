@@ -1,0 +1,106 @@
+[
+  {
+    "finding": 1,
+    "file": "src/core/judge/entries.ts",
+    "sha256": "9187dd145b147ace94bcbac78b79fe50aa74c92e316420556e4ad4150af64913",
+    "exit": 1,
+    "failed": ["\u00d7 accepts true and false in nested JSON without colliding with numbers 5ms"],
+    "restore": "byte-exact"
+  },
+  {
+    "finding": 2,
+    "file": "src/core/judge/entries.ts",
+    "sha256": "9187dd145b147ace94bcbac78b79fe50aa74c92e316420556e4ad4150af64913",
+    "exit": 1,
+    "failed": [
+      "\u00d7 drops stale callbacks after discard even when the identical action restarts 8ms",
+      "\u00d7 drops stale callbacks after fence even when the identical action restarts 1ms",
+      "\u00d7 drops stale callbacks after turn even when the identical action restarts 1ms",
+      "\u00d7 drops stale callbacks after session even when the identical action restarts 1ms",
+      "\u00d7 rejects a forged handle even with a live key 1ms"
+    ],
+    "restore": "byte-exact"
+  },
+  {
+    "finding": 3,
+    "file": "src/core/judge/prompt.ts",
+    "sha256": "2ac6d56f796efd9f9dc5f8fbf91652200b4964849fc16d2934e074af8e691497",
+    "exit": 1,
+    "failed": [
+      "\u00d7 refuses an over-context state instead of trimming or splitting it 10ms",
+      "\u00d7 still refuses when only the longest question overflows with the state 2ms",
+      "\u00d7 splits by the complete request size, including labels and system text 2ms",
+      "\u00d7 refuses a single complete request whose overhead exceeds the context 1ms",
+      "\u00d7 admits the exact context boundary and refuses one token below it 1ms"
+    ],
+    "restore": "byte-exact"
+  },
+  {
+    "finding": 4,
+    "file": "src/core/judge/techniques.ts",
+    "sha256": "0703127864ee7e0c00d0df6304b862f120407b6fe282fd883bcf28fd45ca4312",
+    "exit": 1,
+    "failed": ["\u00d7 rejects empty and multi-character choice and score answer tokens 11ms"],
+    "restore": "byte-exact"
+  },
+  {
+    "finding": 6,
+    "file": "src/core/judge/resolve.ts",
+    "sha256": "16ca796120e4ef22768ccc849a8807b4fad4002a61a980b0db6c5f9bd3b66f00",
+    "exit": 1,
+    "failed": ["\u00d7 honours explicit same below the automatic ready-rate floor 10ms"],
+    "restore": "byte-exact"
+  },
+  {
+    "finding": 7,
+    "file": "src/core/judge/judge.ts",
+    "sha256": "4d658f13e3663cb4f2ce9c261a9925a000c3e3e02c3f8a359b23c06d90ac60cc",
+    "exit": 1,
+    "failed": ["\u00d7 emits logprob metadata accepted by the shared lane-0 contract 8ms"],
+    "restore": "byte-exact"
+  },
+  {
+    "finding": 10,
+    "file": "src/core/judge/techniques.ts",
+    "sha256": "0703127864ee7e0c00d0df6304b862f120407b6fe282fd883bcf28fd45ca4312",
+    "exit": 1,
+    "failed": ["\u00d7 answers p for yes and 1 \u2212 p for no above the floor 8ms"],
+    "restore": "byte-exact"
+  },
+  {
+    "finding": "2-read",
+    "file": "src/core/judge/entries.ts",
+    "sha256": "9187dd145b147ace94bcbac78b79fe50aa74c92e316420556e4ad4150af64913",
+    "exit": 1,
+    "failed": [
+      "\u00d7 drops stale callbacks after discard even when the identical action restarts 8ms",
+      "\u00d7 drops stale callbacks after fence even when the identical action restarts 1ms",
+      "\u00d7 drops stale callbacks after turn even when the identical action restarts 1ms",
+      "\u00d7 drops stale callbacks after session even when the identical action restarts 1ms",
+      "\u00d7 rejects a forged handle even with a live key 1ms"
+    ],
+    "restore": "byte-exact"
+  },
+  {
+    "finding": "2-discard",
+    "file": "src/core/judge/entries.ts",
+    "sha256": "9187dd145b147ace94bcbac78b79fe50aa74c92e316420556e4ad4150af64913",
+    "exit": 1,
+    "failed": [
+      "\u00d7 drops stale callbacks after discard even when the identical action restarts 8ms",
+      "\u00d7 drops stale callbacks after fence even when the identical action restarts 1ms",
+      "\u00d7 drops stale callbacks after turn even when the identical action restarts 1ms",
+      "\u00d7 drops stale callbacks after session even when the identical action restarts 1ms",
+      "\u00d7 rejects a forged handle even with a live key 1ms"
+    ],
+    "restore": "byte-exact"
+  },
+  {
+    "finding": "3-limit",
+    "file": "src/core/judge/prompt.ts",
+    "sha256": "2ac6d56f796efd9f9dc5f8fbf91652200b4964849fc16d2934e074af8e691497",
+    "exit": 1,
+    "failed": ["\u00d7 rejects malformed questions and limits instead of guessing 5ms"],
+    "restore": "byte-exact"
+  }
+]
