@@ -13,6 +13,7 @@ import {
   TEAM_JSON_SEGMENTS,
   type TeamBuiltinRoleId,
 } from '../../shared/constants'
+import type { TeamAgentRef, TeamModelSettings } from '../../shared/team'
 import { distinctTeamModels, type TeamModelRef } from './sameModel'
 
 /** One pool entry's agent: Default, or a configured model on its backend. */
@@ -20,7 +21,8 @@ export type TeamPoolEntry =
   | { readonly kind: 'default' }
   | {
       readonly kind: 'agent'
-      readonly agent: TeamModelRef
+      readonly agent: TeamModelRef | TeamAgentRef
+      readonly settings?: TeamModelSettings | undefined
       /**
        * The entry's own limits by measure (lane A), e.g. concurrent, task
        * and day token caps. Numbers only; lane A types the measures.
@@ -40,8 +42,11 @@ export function isDefaultEntry(entry: TeamPoolEntry): boolean {
  * now. Live, not a snapshot: a picker change applies to the next
  * delegation, and a running task keeps what it started on (lane A).
  */
-export function resolveDefaultEntry(slot: TeamModelRef): TeamPoolEntry {
-  return { kind: 'agent', agent: slot }
+export function resolveDefaultEntry(
+  slot: TeamModelRef | TeamAgentRef,
+  settings?: TeamModelSettings,
+): TeamPoolEntry {
+  return { ...(settings !== undefined && { settings }), kind: 'agent', agent: slot }
 }
 
 /** One role's ordered pool: new work goes to the first entry with headroom. */
@@ -55,7 +60,8 @@ export interface TeamRolePool {
  * restores it (lane T).
  */
 export interface TeamOrchestratorSlot {
-  readonly agent?: TeamModelRef | undefined
+  readonly agent?: TeamModelRef | TeamAgentRef | undefined
+  readonly settings?: TeamModelSettings | undefined
 }
 
 /** A workspace's team: its pools, and its orchestrator slot. */

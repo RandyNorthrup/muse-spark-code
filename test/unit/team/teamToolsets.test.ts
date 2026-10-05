@@ -117,6 +117,20 @@ describe('resolveTeamToolset', () => {
     expect(roleSession('design').tools).toContain('generate_image')
   })
 
+  it('keeps delegate tools alongside a narrowed ordinary tool allowlist', () => {
+    const resolved = resolveTeamToolset(
+      { groups: ['read'], tools: ['read_file'] },
+      {
+        ...FULL_SESSION,
+        offered: [...FULL_SESSION.offered, ...TEAM_DELEGATE_TOOLS],
+        delegates: ['qa'],
+      },
+    )
+    expect(resolved.tools).toEqual(['read_file', ...TEAM_DELEGATE_TOOLS])
+    expect(resolved.tools).not.toContain('merge')
+    expect(resolved.tools).not.toContain('list_files')
+  })
+
   it('gives a delegating worker the team tools but never merge', () => {
     // Lane T declares the team tools in a team conversation; the worker's
     // set meets them like any offered tool.

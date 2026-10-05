@@ -63,6 +63,29 @@ describe('resolveWorkspaceTeam', () => {
     expect(resolveWorkspaceTeam({}).orchestrator).toEqual({})
   })
 
+  it('RVM96RB2 R10: keeps the complete orchestrator slot and settings through workspace resolution', () => {
+    const agent = {
+      kind: 'engine' as const,
+      agentId: 'meta-model-api',
+      pays: 'key' as const,
+      provider: 'meta',
+      model: 'muse-spark-1.3',
+    }
+    const orchestrator = {
+      agent,
+      settings: { effort: 'xhigh', outputCap: 100, parallelToolCalls: false },
+    }
+    const team = resolveWorkspaceTeam({ workspace: { orchestrator } })
+    expect(team.orchestrator).toEqual(orchestrator)
+    expect(resolveDefaultEntry(agent, orchestrator.settings)).toEqual({
+      kind: 'agent',
+      agent,
+      settings: orchestrator.settings,
+    })
+    expect(staffWithDefault(team, teamRoleIds()).orchestrator).toEqual(orchestrator)
+    expect(resolveWorkspaceTeam({ user: { orchestrator } }).orchestrator).toEqual(orchestrator)
+  })
+
   it('lists the distinct models Default aside', () => {
     const team = resolveWorkspaceTeam({
       workspace: {

@@ -29,6 +29,15 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- **Role resolution redesigned (M96 lane R, round 3).** All role files,
+  catalogues, permission modes and runtime ceilings are captured before
+  resolution. Any missing, unreadable, malformed or ambiguous input refuses
+  the whole catalogue with a translated reason. One pure permission meet
+  narrows every applicable ceiling, conservatively proves write-glob
+  inclusion, and supplies the exact tool set for charters. Orchestrator
+  snapshots retain full agent identity and model settings, including Default
+  entries; conflicting model identities refuse.
+
 - **Project-role restrictions (M96 lane R).** Every project role, including
   a new id with a hash allowance, refuses in-place work, model selection
   and skills. Missing permission modes resolve to the strictest ceiling.

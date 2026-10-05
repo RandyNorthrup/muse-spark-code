@@ -16688,6 +16688,43 @@ protocol validators until team activation, retain entry settings and task
 identity, and record regression/red-drill evidence in `m96-r.md` and
 `m96-0.md`. No new dependency or paid/live call.
 
+#### Round-3 redesign: role resolution
+
+REDM96R (2026-10-05), after `RVM96A` R1/R2/R34/R35 and
+`RVM96RB2` R1/R2/R10. Capture built-in, personal and project definitions,
+root listings, session tool/delegate catalogues, paid availability, permission
+mode, explicit ceilings and hash allowances into one deeply immutable snapshot
+before resolution. An explicitly empty catalogue is known absence; a missing
+listed file, failed listing/read, malformed value, duplicate selector or
+untrusted project input is a typed Unknown. Any Unknown blocks the **whole**
+catalogue and every resolution with a translated refusal; precedence cannot
+hide it and there is no fallback to a lower definition.
+
+One pure permission meet computes tools, write paths, delegates, workspace and
+approval mode against every applicable ceiling. Personal definitions remain
+user-authoritative replacements for built-ins (D75); a project's ceiling is
+its personal definition when present, otherwise its built-in definition, or
+the new-id read/codeIntel ceiling until the exact hash allowance. Session
+availability, paid gates, parent permission and explicit runtime ceilings
+always apply. Read-only modes and empty write-path sets remove file-write tools;
+delegation authorizes its team tools separately from ordinary allowlists.
+Project widening and unconditional in-place/model/skills asks
+refuse before the meet; omitted file permission modes mean denyUnmatched.
+Write-glob inclusion has one conservative proof: identical normalized globs,
+literal paths checked by the existing bounded matcher, and subtrees below a
+literal directory/** ceiling. Unprovable inclusion refuses; no heuristic
+broadens it. Charters consume the exact final tool names. The orchestrator
+snapshot/slot retains full agent identity and model settings (RB2 R10).
+
+Property-style tests enumerate permission combinations and Unknown sources;
+named tests cover every assigned review finding. Red drills deliberately
+remove each invariant and restore byte-exact, recorded in
+`docs/certification/m96-r.md`. Direct Kubuntu targeted suites and typecheck,
+lint, format, localization, deadcode, duplication, host-API and production
+build/caps certify this lane. Team modules remain outside ordinary activation.
+The rig brief forbids a main merge, push and full quality run; those integrated
+gates remain with the lead. No dependency, new wire shape or paid/live call.
+
 - **Goal.** A user builds a team in the Models & Agents panel within two
   minutes, from a template with prefills and suggestions.
   - **Roles.** Each role has a charter generated from its settings, a
@@ -20240,7 +20277,9 @@ before a repaired one loads (2026-09-30).
 
 - **M96 R34-general-glob-inclusion (FIXM96R0).** Literal paths and
   patterns rooted inside a literal `directory/**` ceiling are proved
-  narrower; identical patterns remain allowed. Inclusion between other
+  narrower; identical confined patterns remain allowed. REDM96R also refuses
+  brace alternatives, whose apparent prefix can conceal a path escape.
+  Inclusion between other
   different wildcard patterns (for example `docs/*.md` under `**/*.md`)
   is conservatively refused. This is safe because it cannot widen writes.
   A follow-up may add a bounded glob-language inclusion proof with its own

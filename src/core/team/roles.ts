@@ -8,11 +8,15 @@
 
 import { createHash } from 'node:crypto'
 import path from 'node:path'
+import * as z from 'zod/mini'
 import {
   AGENT_FILE_MAX_BYTES,
   AGENT_ID_PATTERN,
   AGENT_MAX_FILES,
+  AGENT_TOOL_NAME_PATTERN,
+  UI_TEXT,
   TEAM_NEW_ROLE_CEILING_GROUPS,
+  TEAM_DELEGATE_TOOLS,
   TEAM_REPORT_SHAPES,
   TEAM_ROLE_DELEGATES_MAX,
   TEAM_ROLE_DONE_MAX_CHARS,
@@ -30,7 +34,8 @@ import {
   type TeamReportShape,
   type TeamWorkspaceMode,
 } from '../../shared/constants'
-import type { ApprovalMode } from '../../shared/permissionModes'
+import { APPROVAL_MODES, type ApprovalMode } from '../../shared/permissionModes'
+import { fill } from '../../shared/l10n/text'
 import {
   type AgentHole,
   type AgentRoot,
@@ -38,9 +43,15 @@ import {
   narrowApprovalMode,
   parseAgentFileForRole,
 } from '../context/customAgents'
-import { type CatalogKind, loadCatalogFiles } from '../context/catalogFiles'
+import { readContextText } from '../context/contextFiles'
 import { builtinRoles } from './builtInRoles'
-import { isGlobMatch } from '../backends/modelapi/globLimits'
+import { compileGlob, isGlobMatch } from '../backends/modelapi/globLimits'
+import {
+  groupsForTools,
+  meetTeamToolNames,
+  resolveTeamToolset,
+  type TeamToolsetSession,
+} from './toolsets'
 
 /** The role keys, one line each in the front matter (PLAN.md D75). */
 export const TEAM_ROLE_FRONT_MATTER_KEYS: readonly string[] = [
@@ -246,7 +257,26 @@ function isSubsetOf(
     : shadow === undefined || project.every((item) => shadow.includes(item))
 }
 
-/** Proves literal paths and subtrees; other glob languages must stay identical. */
+/** A confined glob in the supported proof language; alternatives require a separate proof. */
+function isConfinedWriteGlob(pattern: string): boolean {
+  if (
+    !isBoundedText(pattern, TEAM_ROLE_WRITE_PATH_MAX_CHARS) ||
+    pattern.includes('\\') ||
+    pattern.includes(':') ||
+    /[{}]/u.test(pattern) ||
+    pattern.split('/').some((part) => ['', '.', '..'].includes(part))
+  ) {
+    return false
+  }
+  try {
+    compileGlob(pattern)
+    return true
+  } catch {
+    return false
+  }
+}
+
+/** One inclusion proof, shared by project validation and the permission meet. */
 function isWritePathSubsetOf(
   project: readonly string[] | undefined,
   shadow: readonly string[] | undefined,
@@ -254,26 +284,64 @@ function isWritePathSubsetOf(
   if (project === undefined || shadow === undefined) {
     return project !== undefined || shadow === undefined
   }
-  return project.every((candidate) =>
-    shadow.some((allowed) => {
-      if (candidate === allowed) {
-        return true
-      }
-      // Only normalized workspace-relative paths can prove inclusion.
-      if (
-        candidate.includes('\\') ||
-        candidate.includes(':') ||
-        candidate.split('/').some((part) => ['', '.', '..'].includes(part))
-      ) {
-        return false
-      }
-      if (!/[*?[\]{}]/u.test(candidate)) {
-        return isGlobMatch(candidate, allowed)
-      }
-      const root = allowed.endsWith('/**') ? allowed.slice(0, -'**'.length) : undefined
-      return root !== undefined && !/[*?[\]{}]/u.test(root) && candidate.startsWith(root)
-    }),
+  return project.every(
+    (candidate) =>
+      isConfinedWriteGlob(candidate) &&
+      shadow.some((allowed) => {
+        if (!isConfinedWriteGlob(allowed)) return false
+        if (candidate === allowed) return true
+        if (!/[*?[\]]/u.test(candidate)) return isGlobMatch(candidate, allowed)
+        const root = allowed.endsWith('/**') ? allowed.slice(0, -'**'.length) : undefined
+        return root !== undefined && !/[*?[\]]/u.test(root) && candidate.startsWith(root)
+      }),
   )
+}
+
+/** Every authority can only reduce these permissions. Undefined lists mean unrestricted. */
+export type RoleCeiling = Partial<
+  Pick<RoleDefinition, 'workspace' | 'tools' | 'writePaths' | 'delegates' | 'approvalMode'>
+>
+
+/** The only permission computation: intersection, with no IO or precedence decisions. */
+export function meetRolePermissions(
+  role: RoleDefinition,
+  ceilings: readonly RoleCeiling[],
+):
+  | { readonly ok: true; readonly role: RoleDefinition }
+  | { readonly ok: false; readonly reason: string } {
+  if (
+    [role, ...ceilings].some(
+      (input) => input.writePaths?.some((pattern) => !isConfinedWriteGlob(pattern)) === true,
+    )
+  ) {
+    return { ok: false, reason: 'write-path-inclusion-unproven' }
+  }
+  let workspace = resolveRoleWorkspace(role)
+  let tools = role.tools
+  let writePaths = role.writePaths
+  let delegates = role.delegates ?? []
+  let approvalMode = role.approvalMode ?? 'denyUnmatched'
+  for (const ceiling of ceilings) {
+    const limit = resolveRoleWorkspace({ workspace: ceiling.workspace, tools: ceiling.tools })
+    if (TEAM_WORKSPACE_ORDER[limit] < TEAM_WORKSPACE_ORDER[workspace]) workspace = limit
+    tools = tools === undefined ? ceiling.tools : meetTeamToolNames(ceiling.tools, tools)
+    if (!isWritePathSubsetOf(writePaths, ceiling.writePaths)) {
+      if (isWritePathSubsetOf(ceiling.writePaths, writePaths)) {
+        writePaths = ceiling.writePaths
+      } else {
+        return { ok: false, reason: 'write-path-inclusion-unproven' }
+      }
+    }
+    delegates = delegates.filter((id) => (ceiling.delegates ?? []).includes(id))
+    approvalMode = narrowApprovalMode(approvalMode, ceiling.approvalMode ?? 'denyUnmatched')
+  }
+  if (workspace === 'read-only' || writePaths?.length === 0) {
+    tools = tools?.filter((tool) => !hasRoleWriteTool([tool]))
+  }
+  return {
+    ok: true,
+    role: freezeRole({ ...role, workspace, tools, writePaths, delegates, approvalMode }),
+  }
 }
 
 /** Unconditional restrictions, including new ids before their hash allowance. */
@@ -328,7 +396,7 @@ export function narrowProjectRole(
     narrowApprovalMode(shadow.approvalMode ?? 'denyUnmatched', approvalMode) !== approvalMode
   return hasWiderCeiling
     ? { ok: false, reason: 'a project role never widens the approval ceiling' }
-    : { ok: true, role: { ...project, approvalMode } }
+    : meetRolePermissions({ ...project, approvalMode }, [shadow])
 }
 
 /** The file's SHA-256: the per-workspace allowance is kept with it. */
@@ -394,213 +462,412 @@ export function applyNewRoleCeiling(
   if (refusal !== undefined) {
     throw new Error(refusal)
   }
-  const resolved = { ...role, approvalMode: role.approvalMode ?? 'denyUnmatched' }
-  if (role.sha256 !== undefined && isAllowanceForFile(allowance, role.sha256)) {
-    return resolved
-  }
-  const ceiling = new Set(newRoleCeilingTools())
+  const isAllowed = role.sha256 !== undefined && isAllowanceForFile(allowance, role.sha256)
+  const met = meetRolePermissions(role, isAllowed ? [] : [newIdCeiling()])
+  if (!met.ok) throw new Error(UI_TEXT.teamRoleGlobUnproven)
+  return met.role
+}
+
+/** New-id project powers before an explicit allowance. Empty write paths writes nowhere. */
+function newIdCeiling(): RoleCeiling {
   return {
-    ...resolved,
     workspace: 'read-only',
-    tools: role.tools === undefined ? [...ceiling] : role.tools.filter((tool) => ceiling.has(tool)),
-    writePaths: undefined,
+    tools: newRoleCeilingTools(),
+    writePaths: [],
     delegates: [],
+    approvalMode: 'allowAll',
   }
 }
 
-const ROLE_CATALOG: CatalogKind = {
-  kind: 'role',
-  fileName: 'AGENT.md',
-  // Roles are M76 agent definitions: the same file, caps and layout.
-  maxBytes: AGENT_FILE_MAX_BYTES,
-  idPattern: AGENT_ID_PATTERN,
-  maxEntries: AGENT_MAX_FILES,
+/** A failed input is data, never permission to consult a lower source. */
+export interface RoleUnknown {
+  readonly kind: 'unknown'
+  readonly input: 'catalogue' | 'role' | 'environment'
+  readonly issue: 'missing' | 'unreadable' | 'malformed' | 'ambiguous' | 'untrusted' | 'widening'
+  readonly source: AgentHole['source']
+  readonly id: string | undefined
+  readonly path: string
+}
+
+export type RoleInput<T> = RoleUnknown | { readonly kind: 'known'; readonly value: T }
+
+const ceilingSchema = z.strictObject({
+  workspace: z.optional(z.enum(TEAM_WORKSPACE_MODES)),
+  tools: z.optional(z.array(z.string().check(z.regex(AGENT_TOOL_NAME_PATTERN)))),
+  writePaths: z.optional(z.array(z.string().check(z.minLength(1)))),
+  delegates: z.optional(z.array(z.string().check(z.regex(AGENT_ID_PATTERN)))),
+  approvalMode: z.enum(APPROVAL_MODES),
+})
+
+const environmentSchema = z.strictObject({
+  session: z.strictObject({
+    offered: z.array(z.string().check(z.regex(AGENT_TOOL_NAME_PATTERN))),
+    delegates: z.array(z.string().check(z.regex(AGENT_ID_PATTERN))),
+    webSearchAllowed: z.boolean(),
+    imagesAllowed: z.boolean(),
+  }),
+  approvalMode: z.enum(APPROVAL_MODES),
+  ceilings: z.array(ceilingSchema),
+  allowances: z.record(
+    z.string().check(z.regex(AGENT_ID_PATTERN)),
+    z.strictObject({ sha256: z.string().check(z.regex(/^[a-f0-9]{64}$/u)) }),
+  ),
+})
+export interface RoleEnvironment {
+  readonly session: TeamToolsetSession
+  readonly approvalMode: ApprovalMode
+  readonly ceilings: readonly RoleCeiling[]
+  readonly allowances: Readonly<Record<string, TeamRoleAllowance>>
+}
+
+/** All file and runtime inputs, detached from the caller before any resolution. */
+interface RoleSnapshot {
+  readonly definitions: readonly RoleDefinition[]
+  readonly environment: RoleEnvironment
 }
 
 export interface RolesLoad {
-  /** Built-ins first, then the files in root order; each id once. */
+  readonly snapshot: RoleInput<RoleSnapshot>
+  /** Resolved roles only; an Unknown snapshot offers none. */
   readonly roles: readonly RoleDefinition[]
   readonly holes: readonly AgentHole[]
   readonly warnings: readonly string[]
 }
 
-/** What a name resolves to: a role, nothing, or a hole of higher precedence than any match. */
 export type RoleResolution =
   | { readonly kind: 'found'; readonly role: RoleDefinition }
-  | { readonly kind: 'unknown' }
-  | { readonly kind: 'unloaded'; readonly hole: AgentHole }
+  | { readonly kind: 'unknown'; readonly reason: string }
+  | {
+      readonly kind: 'unloaded'
+      readonly hole: AgentHole
+      readonly unknown: RoleUnknown
+      readonly reason: string
+    }
 
 const ROLE_PRECEDENCE: readonly AgentSource[] = ['project', 'user', 'builtin']
 
+function freezeList<T>(items: readonly T[] | undefined): readonly T[] | undefined {
+  return items === undefined ? undefined : Object.freeze([...items])
+}
+
+function freezeRole(role: RoleDefinition): RoleDefinition {
+  return Object.freeze({
+    ...role,
+    tools: freezeList(role.tools),
+    writePaths: freezeList(role.writePaths),
+    skills: freezeList(role.skills),
+    delegates: freezeList(role.delegates),
+  })
+}
+
 /** A built-in as a role: its filed values are its resolved ones. */
 function builtinToRole(role: ReturnType<typeof builtinRoles>[number]): RoleDefinition {
-  return {
-    id: role.id,
-    source: role.source,
-    name: role.name,
-    description: role.description,
-    whenToUse: role.whenToUse,
-    done: role.done,
-    body: role.body,
-    workspace: role.workspace,
-    tools: role.tools,
-    writePaths: role.writePaths,
+  return freezeRole({
+    ...role,
     skills: undefined,
-    report: role.report,
-    delegates: role.delegates,
     model: undefined,
     effort: undefined,
     approvalMode: undefined,
     sha256: undefined,
-  }
-}
-
-/** A loaded file with its SHA-256: the allowance of a new-id project role is kept with it. */
-interface LoadedRoleFile {
-  readonly role: Omit<RoleDefinition, 'id' | 'source' | 'sha256'>
-  readonly sha256: string
-}
-
-type RoleFileEntry =
-  | { readonly ok: true; readonly name: string; readonly entry: LoadedRoleFile }
-  | { readonly ok: false; readonly reason: string }
-
-/** Parses one AGENT.md as a role, stashing its SHA-256 for the allowance. */
-function parseRoleEntry(text: string): RoleFileEntry {
-  const parsed = parseRoleFile(text)
-  return parsed.ok
-    ? {
-        ok: true,
-        name: parsed.role.name,
-        entry: { role: parsed.role, sha256: roleFileSha256(text) },
-      }
-    : parsed
-}
-
-/**
- * Every valid role: the built-ins first, then the personal files, then the
- * project files with the same id rules as M76. Personal roots load in any
- * workspace; a project root loads only in a trusted workspace, and
- * elsewhere it is a hole, so its names refuse instead of falling back to a
- * lower role. A project file that shadows a built-in or personal role may
- * only narrow it; a project file with a new id keeps its asks and runs
- * under the ceiling until the workspace allows them.
- */
-export async function loadRoles(
-  deps: AgentsLoaderDeps,
-  roots: readonly AgentRoot[],
-  opts: { readonly trustedWorkspace: boolean },
-): Promise<RolesLoad> {
-  const warnings: string[] = []
-  const holes: AgentHole[] = []
-  const personal = new Map<string, RoleDefinition>()
-  const project = new Map<string, RoleDefinition>()
-  const pathModule = deps.platform === 'win32' ? path.win32 : path.posix
-  const takeProjectEntry = (
-    root: AgentRoot,
-    id: string,
-    filed: Omit<RoleDefinition, 'id' | 'source' | 'sha256'>,
-    sha256: string,
-  ): void => {
-    const role: RoleDefinition = { ...filed, id, source: 'project', sha256 }
-    const builtin = builtinRoles().find((candidate) => candidate.id === id)
-    const shadowed =
-      personal.get(id) ?? (builtin === undefined ? undefined : builtinToRole(builtin))
-    // A new id meets its own requests; the unconditional restrictions still run.
-    const narrowed = narrowProjectRole(shadowed ?? role, role)
-    if (!narrowed.ok) {
-      warnings.push(`project role ${id} skipped: ${narrowed.reason}`)
-      holes.push({
-        source: 'project',
-        id,
-        path: pathModule.join(root.directory, id, ROLE_CATALOG.fileName),
-      })
-      return
-    }
-    project.set(id, narrowed.role)
-  }
-  // Personal roots first, so a project file meets the role it shadows.
-  const userRoots = roots.filter((root) => root.source === 'user')
-  const projectRoots = roots.filter((root) => root.source === 'project')
-  for (const root of userRoots) {
-    const load = await loadCatalogFiles(deps, [root], ROLE_CATALOG, parseRoleEntry)
-    warnings.push(...load.warnings)
-    for (const rootLoad of load.roots) {
-      for (const refused of rootLoad.refused) {
-        holes.push({ source: 'user', id: refused.id, path: refused.file })
-      }
-    }
-    for (const entry of load.entries) {
-      personal.set(entry.id, {
-        ...entry.entry.role,
-        id: entry.id,
-        source: 'user',
-        sha256: undefined,
-      })
-    }
-  }
-  for (const root of projectRoots) {
-    if (!opts.trustedWorkspace) {
-      warnings.push('loading the project roles failed: the workspace is not trusted')
-      holes.push({ source: 'project', id: undefined, path: root.directory })
-      continue
-    }
-    const load = await loadCatalogFiles(deps, [root], ROLE_CATALOG, parseRoleEntry)
-    warnings.push(...load.warnings)
-    for (const rootLoad of load.roots) {
-      for (const refused of rootLoad.refused) {
-        holes.push({ source: 'project', id: refused.id, path: refused.file })
-      }
-    }
-    const entries = load.entries
-    for (const entry of entries) {
-      takeProjectEntry(root, entry.id, entry.entry.role, entry.entry.sha256)
-    }
-  }
-  const roles: RoleDefinition[] = []
-  for (const builtin of builtinRoles()) {
-    if (!personal.has(builtin.id) && !project.has(builtin.id)) {
-      roles.push(builtinToRole(builtin))
-    } else {
-      const higher = project.has(builtin.id) ? 'project' : 'personal'
-      warnings.push(
-        `builtin role ${builtin.id} skipped: the ${higher} role with the same id takes precedence`,
-      )
-    }
-  }
-  for (const role of personal.values()) {
-    if (!project.has(role.id)) {
-      roles.push(role)
-    }
-  }
-  for (const role of project.values()) {
-    roles.push(role)
-  }
-  return { roles, holes, warnings }
-}
-
-/** The roles the orchestrator is offered: those whose name resolves to them. */
-export function offeredRoles(catalogue: RolesLoad): readonly RoleDefinition[] {
-  return catalogue.roles.filter((role) => {
-    const resolved = resolveRole(catalogue, role.id)
-    return resolved.kind === 'found' && resolved.role === role
   })
 }
 
-/** What a name resolves to: a role, nothing, or a hole of higher precedence than any match. */
-export function resolveRole(roles: RolesLoad, id: string): RoleResolution {
-  for (const source of ROLE_PRECEDENCE) {
-    const hole = roles.holes.find(
-      (candidate) =>
-        candidate.source === source && (candidate.id === undefined || candidate.id === id),
+function freezeEnvironment(environment: RoleEnvironment): RoleEnvironment {
+  return Object.freeze({
+    ...environment,
+    session: Object.freeze({
+      ...environment.session,
+      offered: Object.freeze([...environment.session.offered]),
+      delegates: Object.freeze([...environment.session.delegates]),
+    }),
+    ceilings: Object.freeze(
+      environment.ceilings.map((ceiling) =>
+        Object.freeze({
+          ...ceiling,
+          tools: freezeList(ceiling.tools),
+          writePaths: freezeList(ceiling.writePaths),
+          delegates: freezeList(ceiling.delegates),
+        }),
+      ),
+    ),
+    allowances: Object.freeze(
+      Object.fromEntries(
+        Object.entries(environment.allowances).map(([id, allowance]) => [
+          id,
+          Object.freeze({ ...allowance }),
+        ]),
+      ),
+    ),
+  })
+}
+
+/** Resolve one complete known snapshot. Precedence chooses prose; ceilings choose powers. */
+function resolveSnapshotRole(snapshot: RoleSnapshot, id: string): RoleDefinition | undefined {
+  const definitions = snapshot.definitions.filter((role) => role.id === id)
+  const requested = ROLE_PRECEDENCE.flatMap((source) =>
+    definitions.filter((role) => role.source === source),
+  )[0]
+  if (requested === undefined) return undefined
+  const ceilings: RoleCeiling[] = [...snapshot.environment.ceilings]
+  if (requested.source === 'project') {
+    const shadow =
+      definitions.find((role) => role.source === 'user') ??
+      definitions.find((role) => role.source === 'builtin')
+    if (shadow !== undefined)
+      ceilings.push({
+        ...shadow,
+        // Delegation names authorize these tools separately from the ordinary allowlist (D75).
+        tools:
+          shadow.tools === undefined
+            ? undefined
+            : [
+                ...shadow.tools,
+                ...(shadow.delegates?.length === undefined || shadow.delegates.length === 0
+                  ? []
+                  : TEAM_DELEGATE_TOOLS),
+              ],
+      })
+    else if (!isAllowanceForFile(snapshot.environment.allowances[id], requested.sha256 ?? ''))
+      ceilings.push(newIdCeiling())
+  }
+  const available = resolveTeamToolset(
+    {
+      groups: groupsForTools(requested.tools ?? snapshot.environment.session.offered),
+      tools: requested.tools,
+      writePaths: requested.writePaths,
+    },
+    { ...snapshot.environment.session, delegates: requested.delegates ?? [] },
+  )
+  ceilings.push({
+    workspace: 'in-place',
+    tools: available.tools,
+    writePaths: undefined,
+    delegates: snapshot.environment.session.delegates,
+    approvalMode: snapshot.environment.approvalMode,
+  })
+  const met = meetRolePermissions({ ...requested, tools: available.tools }, ceilings)
+  if (!met.ok) throw new Error(UI_TEXT.teamRoleGlobUnproven)
+  return met.role
+}
+
+/** Capture every input first. Any failure invalidates the whole catalogue. */
+export async function loadRoles(
+  deps: AgentsLoaderDeps,
+  roots: readonly AgentRoot[],
+  opts: { readonly trustedWorkspace: boolean; readonly inputs?: RoleInput<unknown> },
+): Promise<RolesLoad> {
+  const definitions = builtinRoles().map((role) => builtinToRole(role))
+  const unknowns: RoleUnknown[] = []
+  const files = new Map<string, string>()
+  const warnings: string[] = []
+  const pathModule = deps.platform === 'win32' ? path.win32 : path.posix
+  const refuse = (input: RoleUnknown): void => {
+    unknowns.push(Object.freeze({ ...input }))
+  }
+  // Clone runtime inputs before asynchronous reads can give the caller a chance to change them.
+  const parsedEnvironment =
+    opts.inputs?.kind === 'known' ? environmentSchema.safeParse(opts.inputs.value) : undefined
+  const environment =
+    parsedEnvironment?.success === true ? freezeEnvironment(parsedEnvironment.data) : undefined
+  if (environment === undefined) {
+    refuse(
+      opts.inputs?.kind === 'unknown'
+        ? opts.inputs
+        : {
+            kind: 'unknown',
+            input: 'environment',
+            issue: opts.inputs === undefined ? 'missing' : 'malformed',
+            source: 'user',
+            id: undefined,
+            path: '',
+          },
     )
-    if (hole !== undefined) {
-      return { kind: 'unloaded', hole }
+  }
+  const isTrustedWorkspace = opts.trustedWorkspace
+  const capturedRoots = roots.map((root) => ({ ...root }))
+  for (const root of capturedRoots) {
+    const rootUnknown = {
+      kind: 'unknown',
+      input: 'catalogue',
+      source: root.source,
+      id: undefined,
+      path: root.directory,
+    } as const
+    if (
+      !pathModule.isAbsolute(root.directory) ||
+      (root.source === 'project' &&
+        (root.confineTo === undefined || !pathModule.isAbsolute(root.confineTo)))
+    ) {
+      refuse({ ...rootUnknown, issue: 'malformed' })
+      continue
     }
-    const role = roles.roles.find((candidate) => candidate.source === source && candidate.id === id)
-    if (role !== undefined) {
-      return { kind: 'found', role }
+    if (!isTrustedWorkspace && root.source === 'project') {
+      refuse({ ...rootUnknown, issue: 'untrusted' })
+      continue
+    }
+    let ids: readonly string[]
+    try {
+      await deps.io.realPath(root.directory)
+      ids = await deps.io.listDirectory(root.directory)
+    } catch {
+      refuse({ ...rootUnknown, issue: 'unreadable' })
+      continue
+    }
+    const seen = new Set<string>()
+    const orderedIds = ids.toSorted((a, b) => a.localeCompare(b, 'en'))
+    for (const id of orderedIds) {
+      const file = pathModule.join(root.directory, id, 'AGENT.md')
+      const input = { kind: 'unknown', input: 'role', source: root.source, id, path: file } as const
+      if (
+        !AGENT_ID_PATTERN.test(id) ||
+        seen.has(id) ||
+        definitions.some((role) => role.source === root.source && role.id === id)
+      ) {
+        refuse({
+          ...input,
+          issue:
+            seen.has(id) ||
+            definitions.some((role) => role.source === root.source && role.id === id)
+              ? 'ambiguous'
+              : 'malformed',
+        })
+        continue
+      }
+      seen.add(id)
+      if (definitions.filter((role) => role.source !== 'builtin').length >= AGENT_MAX_FILES) {
+        refuse({ ...input, issue: 'malformed' })
+        continue
+      }
+      try {
+        const read = await readContextText(deps, file, root.confineTo, AGENT_FILE_MAX_BYTES)
+        if (read === undefined) {
+          refuse({ ...input, issue: 'missing' })
+          continue
+        }
+        if (!read.ok) {
+          refuse({ ...input, issue: 'malformed' })
+          continue
+        }
+        const parsed = parseRoleFile(read.text)
+        if (
+          !parsed.ok ||
+          parsed.role.writePaths?.some((pattern) => !isConfinedWriteGlob(pattern)) === true
+        ) {
+          refuse({ ...input, issue: 'malformed' })
+          continue
+        }
+        files.set(`${root.source}:${id}`, file)
+        definitions.push(
+          freezeRole({
+            ...parsed.role,
+            id,
+            source: root.source,
+            sha256: root.source === 'project' ? roleFileSha256(read.text) : undefined,
+          }),
+        )
+      } catch {
+        refuse({ ...input, issue: 'unreadable' })
+      }
     }
   }
-  return { kind: 'unknown' }
+  // Validate shadowing only after every input is known.
+  if (unknowns.length === 0) {
+    for (const role of definitions) {
+      if (role.source !== 'project') continue
+      const shadow =
+        definitions.find((candidate) => candidate.source === 'user' && candidate.id === role.id) ??
+        definitions.find((candidate) => candidate.source === 'builtin' && candidate.id === role.id)
+      const narrowed = narrowProjectRole(shadow ?? role, role)
+      if (!narrowed.ok)
+        refuse({
+          kind: 'unknown',
+          input: 'role',
+          issue: 'widening',
+          source: 'project',
+          id: role.id,
+          path: files.get(`project:${role.id}`) ?? '',
+        })
+    }
+  }
+  if (
+    environment?.ceilings.some(
+      (ceiling) => ceiling.writePaths?.some((pattern) => !isConfinedWriteGlob(pattern)) === true,
+    ) === true
+  ) {
+    refuse({
+      kind: 'unknown',
+      input: 'environment',
+      issue: 'malformed',
+      source: 'user',
+      id: undefined,
+      path: '',
+    })
+  }
+  const known =
+    environment === undefined
+      ? undefined
+      : Object.freeze({ definitions: Object.freeze(definitions), environment })
+  const roles: RoleDefinition[] = []
+  if (known !== undefined && unknowns.length === 0) {
+    const roleIds = new Set(definitions.map((role) => role.id))
+    for (const id of roleIds) {
+      try {
+        const resolved = resolveSnapshotRole(known, id)
+        if (resolved !== undefined) roles.push(resolved)
+      } catch {
+        refuse({
+          kind: 'unknown',
+          input: 'role',
+          issue: 'widening',
+          source: 'project',
+          id,
+          path: '',
+        })
+      }
+    }
+  }
+  const unknown = unknowns[0]
+  if (unknown !== undefined) warnings.push(UI_TEXT.teamRoleResolutionUnknown)
+  const snapshot: RoleInput<RoleSnapshot> =
+    unknown ??
+    (known === undefined
+      ? {
+          kind: 'unknown',
+          input: 'environment',
+          issue: 'missing',
+          source: 'user',
+          id: undefined,
+          path: '',
+        }
+      : { kind: 'known', value: known })
+  return Object.freeze({
+    snapshot: Object.freeze(snapshot),
+    roles: Object.freeze(unknown === undefined ? roles : []),
+    holes: Object.freeze(
+      unknowns.map(({ source, id, path: file }) => Object.freeze({ source, id, path: file })),
+    ),
+    warnings: Object.freeze(warnings),
+  })
+}
+
+/** No role is offered from an incomplete snapshot. */
+export function offeredRoles(catalogue: RolesLoad): readonly RoleDefinition[] {
+  return catalogue.snapshot.kind === 'known' ? catalogue.roles : []
+}
+
+/** An Unknown anywhere blocks every name, independent of source precedence. */
+export function resolveRole(catalogue: RolesLoad, id: string): RoleResolution {
+  if (catalogue.snapshot.kind === 'unknown') {
+    const unknown = catalogue.snapshot
+    return {
+      kind: 'unloaded',
+      unknown,
+      hole: { source: unknown.source, id: unknown.id, path: unknown.path },
+      reason: UI_TEXT.teamRoleResolutionUnknown,
+    }
+  }
+  const role = catalogue.roles.find((candidate) => candidate.id === id)
+  return role === undefined
+    ? { kind: 'unknown', reason: fill(UI_TEXT.teamRoleNotFound, { role: id }) }
+    : { kind: 'found', role }
 }
