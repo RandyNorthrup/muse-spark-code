@@ -660,6 +660,8 @@ interface ActiveTurn {
   checkpoint?: TurnCheckpoint | undefined
   /** It started a process, or one of the conversation's ran in the background (M86, spec 8). */
   ranProcesses: boolean
+  /** The terminal is selected; checkpoint cleanup cannot cancel this turn. */
+  isFinalizing?: boolean
 }
 
 interface HookToolResult {
@@ -1763,6 +1765,9 @@ export class ModelApiSession implements AgentSession {
     this.deps.notePaidUse('subagents', 1)
   }
   private active: ActiveTurn | undefined
+  private readonly interruptedWork = new WeakSet<AbortController>()
+  /** Interrupt survives the turn's abort, but never the session's lifetime. */
+  private readonly interruptLifetime = new AbortController()
   /** Each file as the model last read or wrote it, for `write_file`'s check (D27). */
   private readonly seenFiles = new Map<string, string>()
   /** Each edited file's diagnostics at its last check, to say what changed (M68). */
@@ -2031,6 +2036,11 @@ export class ModelApiSession implements AgentSession {
       (warning) => {
         this.deps.log.warn(`Model API hooks: ${warning}`)
       },
+      event === 'Interrupt'
+        ? (execution) => {
+            this.track(execution, false)
+          }
+        : undefined,
     )
     if (shouldShowMessages) {
       for (const message of result.messages) {
@@ -2046,15 +2056,33 @@ export class ModelApiSession implements AgentSession {
   /**
    * Muse Code's Interrupt (1.4.0, captured in docs/certification/m91.md): an
    * async-only observation fired when a running turn or compaction is
-   * cancelled, never on an idle close. Fire-and-forget with no abort signal,
-   * so a turn unwind does not suppress it; async answers apply nothing.
+   * cancelled, never on an idle close or after its terminal is selected.
+   * Session-owned async work survives the turn abort; answers apply nothing.
    */
   private fireInterrupt(): void {
+    const work = this.active?.abort ?? this.compacting
     const turnId = this.active?.turnId ?? this.turnIds.at(-1)
-    if (turnId === undefined) {
+    if (
+      work === undefined ||
+      turnId === undefined ||
+      this.active?.isFinalizing === true ||
+      this.interruptedWork.has(work)
+    ) {
       return
     }
-    void this.runHooks('Interrupt', turnId, {}, undefined, undefined, false, false)
+    this.interruptedWork.add(work)
+    this.track(
+      this.runHooks(
+        'Interrupt',
+        turnId,
+        {},
+        undefined,
+        this.interruptLifetime.signal,
+        false,
+        false,
+      ),
+      false,
+    )
   }
 
   /** Pre-call veto and context use the same boundary for turns and compaction. */
@@ -5912,6 +5940,7 @@ export class ModelApiSession implements AgentSession {
     signal: AbortSignal,
     effects: HookEffects,
     isAllowed: () => boolean,
+    correctionsUsed = 0,
   ): Promise<CommandOutcome> {
     if (!this.deps.isWorkspaceTrusted()) {
       return { kind: 'skipped', skip: 'restricted' }
@@ -6018,6 +6047,47 @@ export class ModelApiSession implements AgentSession {
       effects.stopReason ??= post.stopReason
     } else if (post.blockedReason !== undefined) {
       effects.messages.push(post.blockedReason)
+    }
+    if (
+      ran.failureReason !== undefined &&
+      post.updatedInput !== undefined &&
+      post.stopReason === undefined &&
+      isCurrent()
+    ) {
+      const correction = await this.correctionFor(
+        {
+          type: 'function_call',
+          call_id: toolUseId,
+          name: shell.name,
+          arguments: JSON.stringify(input),
+        },
+        post.updatedInput,
+        correctionsUsed,
+        signal,
+      )
+      if (correction.ok) {
+        const args = argumentsOf(correction.call)
+        const command = pick(args, 'command')
+        if (command === undefined || command.trim() === '') {
+          effects.messages.push(refusedCorrection(UI_TEXT.hookInputNoCommand).reason)
+        } else {
+          return await this.runVerifyCommand(
+            itemId,
+            {
+              ...request,
+              line: command,
+              ruleCommand: command,
+              description: pick(args, 'description') ?? request.description,
+            },
+            signal,
+            effects,
+            isAllowed,
+            correctionsUsed + 1,
+          )
+        }
+      } else {
+        effects.messages.push(correction.reason)
+      }
     }
     return {
       kind: 'ran',
@@ -7497,13 +7567,13 @@ export class ModelApiSession implements AgentSession {
 
   /**
    * A corrected call supersedes its failed attempt: the row stays in History,
-   * but the attempt's output leaves the replay so one call_id answers once,
-   * with nothing the model never saw queued behind it.
+   * but its output and trailing hook context leave replay so one call_id
+   * answers once, before any replacement context the model will read.
    */
   private supersedeReplayOutput(replay: ReplayItem, outcome: ToolOutcome): void {
     const index = this.replay.indexOf(replay)
     if (index !== -1) {
-      this.replay.splice(index, 1)
+      this.replay.splice(index)
     }
     this.pendingOutputMedia.delete(replay)
     if (outcome.visibleFile === undefined) {
@@ -8617,6 +8687,7 @@ export class ModelApiSession implements AgentSession {
         }
       }
     }
+    turn.isFinalizing = true
     if (terminal !== COMPLETED) {
       this.dropUndeliveredMedia(turn.turnId)
     }
@@ -9327,7 +9398,9 @@ export class ModelApiSession implements AgentSession {
         reason: UI_TEXT.queuedTurnDropped,
       })
     }
-    const hasRunning = this.active !== undefined || this.compacting !== undefined
+    const hasRunning =
+      (this.active !== undefined && this.active.isFinalizing !== true) ||
+      this.compacting !== undefined
     if (hasRunning) {
       // Pause the goal Stop targeted now. A replacement accepted while an
       // aborted turn unwinds must remain active and get its own wake.
@@ -9403,9 +9476,11 @@ export class ModelApiSession implements AgentSession {
     return await compacting
   }
 
-  /** Resolves once this session's running turns and compactions, and its children's, have ended. */
+  /** Resolves after turns, compactions, Interrupt work and children's work end. */
   public async settled(): Promise<void> {
-    await Promise.all(this.unsettled.values())
+    while (this.unsettled.size > 0) {
+      await Promise.all(this.unsettled.values())
+    }
     await Promise.all(
       Array.from(this.children.values(), async (child) => {
         await child.session.settled()
@@ -9777,6 +9852,11 @@ export class ModelApiSession implements AgentSession {
       this.scheduleTimer = undefined
     }
     void this.cancel()
+    // Let this close's Interrupt enter before aborting its owned queue and
+    // processes. The handlers are tracked, so host close waits for cleanup.
+    queueMicrotask(() => {
+      this.interruptLifetime.abort()
+    })
     // Nothing is left running unwatched (M46): the background commands and
     // the user's own go with the session.
     for (const stop of [...this.backgroundShells.values(), ...this.userShells.values()]) {
