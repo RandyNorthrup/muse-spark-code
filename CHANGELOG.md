@@ -74,6 +74,10 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- **CI reliability:** the checkpoint-copy count test crosses a small test-only
+  budget with six real copies, then checks the exact read bound and reuse of
+  the same directory cursor. It avoids hundreds of unnecessary disk operations
+  and no longer accepts repeated traversal restarts as eventual success.
 ### Security
 
 ## [0.13.0] - 2026-10-05

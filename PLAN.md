@@ -5398,6 +5398,16 @@ remains a separate prerequisite only for a future machine-wide guarantee.
   implementation, bounded protocol constants and durable journal retention
   before implementation; uncertain records have no time-based deletion.
 
+- **DEFLAKE3 hosted failure receipt (2026-10-05):** what exact assertion,
+  timeout and stack did PR #116's Windows checkpoint-copy count/cursor test
+  report? The lane brief names the failure without its output; 100 normal
+  and 100 CPU-loaded original-file runs did not reproduce it. The old test
+  accepts a deliberately broken cursor restart, and its large real-file
+  fixture adds a latency dependency to CI's five-second test deadline.
+  Default: retain production behavior, reduce only the test fixture and prove
+  exact bounds/cursor identity; leave the original hosted trigger unconfirmed
+  until its receipt is available. Evidence: `docs/certification/deflake3.md`.
+
 - **M80 accepted rulings (2026-10-02):** memory/stdin CI key, explicit paid
   flag/hard cap, required real Action receipt, and hosted-search refusal are
   settled. F1 uses micro-USD and upward rounding; F2 preserves observed stream
@@ -14083,6 +14093,18 @@ remain the lead's.
 
 ### M86 — Restore by the tools' own writes (D63)
 
+- **DEFLAKE3 Windows follow-up (2026-10-04), verification in progress.**
+  The original checkpoint-copy file passed 100 normal and 100 CPU-loaded
+  invocations; the brief supplies no exact CI error, so the hosted trigger
+  remains unconfirmed. Remove the count fixture's unnecessary hundreds of
+  disk operations with a four-entry test-only budget, retaining real files,
+  and prove exact traversal counts and second-pass cursor identity. Both
+  deliberate bound/cursor breaks fail the named test and are restored
+  byte-exact; the original test passes the broken cursor control. Require
+  300 consecutive final-file passes, a full unit inventory run in batches of
+  at most three files and shared static/build checks. Product remains
+  unchanged; no timeout increases, retries or new skips. Receipts belong in
+  [deflake3.md](docs/certification/deflake3.md); no pushes, merges or rebases.
 - **Round-3 redesign (RD86, 2026-10-03), in progress.** R1: one core
   filesystem module owns exact BigInt identity samples and comparisons for
   the recorder, tool reservations, atomic/exclusive publication, plan cleanup,
@@ -16351,6 +16373,16 @@ local merge of the already-fetched `origin/main`, keeping both sides and
 renumbering nothing. Only changed-document formatting/Markdown checks and
 normal commit hooks run here; full quality remains the lead's joined-tree
 gate. The research record separates these receipts from runtime certification.
+
+**DEFLAKE3 test-only lane scope (2026-10-04).** The rig brief requires a
+complete Windows unit inventory in batches of at most three files and
+300 consecutive checkpoint-copy file passes. It explicitly requires full
+`npm run quality` only for a product change; this lane changes tests and
+documentation only. Shared static/build checks still apply. Aggregate
+coverage/full quality and hosted confirmation remain the lead's gates; no
+rule, timeout or coverage threshold is weakened. The exact original hosted
+failure is not supplied and has not reproduced in 200 original-file runs.
+Evidence: `docs/certification/deflake3.md`.
 
 **DEFLAKE2 bounded-lane result (2026-10-04).** Direct Win11 owning tests
 and the required static/build gates passed; two deliberate regressions

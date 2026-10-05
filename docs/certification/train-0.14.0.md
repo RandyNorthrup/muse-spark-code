@@ -13,7 +13,7 @@ main merge, credential reads or paid/live calls. Existing caps stay unchanged.
 | `feature/m94-tab`             | `c70facee`  | 38 files: union PLAN decisions/milestones, constants, Knip roots, commands/settings, 14 UI tables and 15 manifest tables; retain D78's current descriptions and availability policy with Tab available on either backend. Combine D78 default availability and M94 first-use consent in the gate/host/tests. Retain the prior deferred UsageDialog. Regenerate the host API record. Start fresh Unreleased notes for Tab; released bytes stay identical to base. |
 | `feature/m71-git-prs`         | `d992534f`  | 31 files: preserve the paid policy, Tab commands, current manifest descriptions and 15 translated manifest tables; union PLAN, README, workflow inventory and budgets. Retain all seven deferred surfaces and shared validation. Keep central redaction plus M71 PEM/Slack handling, secret approvals and git draft routing. Regenerate host API and notices. Update stale trust and bundle fixtures without changing guards.                                    |
 | `feature/m100-multi-device`   | `0331ce14`  | 2 files: retain both sides of all three PLAN regions, adding D80, M100 acceptance and its lane receipts without renumbering. Add only the new docs-only connectivity note to Unreleased; released sections remain unchanged.                                                                                                                                                                                                                                     |
-| `fix/checkpoint-copies-flake` | `424b6bff`  | Pending.                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
+| `fix/checkpoint-copies-flake` | `424b6bff`  | 2 files: union PLAN open questions/scope, keep the deterministic real-filesystem test unchanged, and insert only its new Fixed note into Unreleased. Preserve the branch receipt and released bytes.                                                                                                                                                                                                                                                             |
 
 ## Production measurements
 
@@ -158,3 +158,18 @@ D80's runtime, gate-fire and device/firewall acceptance remain future work.
 | After M100      | extension.js | modelApi.js | Startup | Deferred JS | VSIX without helper | Estimated with prior helper |
 | --------------- | -----------: | ----------: | ------: | ----------: | ------------------: | --------------------------: |
 | Before DEFLAKE3 |      612,879 |     442,609 | 918,663 |      49,761 |           2,116,351 |                   2,235,857 |
+
+## DEFLAKE3 integration
+
+The complete checkpointCopies/checkpointRetention/checkpointHost suites pass
+**60 tests**, no skips. All five typecheck projects, scoped ESLint, document/test
+formatting, localization, host API and production package pass. Product code and
+budgets do not change. The imported branch's 300 Windows passes and mutation
+receipts are preserved as its own evidence, not claimed as runs in this lane.
+
+| After DEFLAKE3 | extension.js | modelApi.js | Startup | Deferred JS | VSIX without helper | Estimated with prior helper |
+| -------------- | -----------: | ----------: | ------: | ----------: | ------------------: | --------------------------: |
+| Fourth merge   |      612,879 |     442,609 | 918,663 |      49,761 |           2,116,480 |                   2,235,986 |
+
+The Tab/held-PR trust overlap found during final review is being corrected in
+a separate train fix; the earlier M71 wiring allowlist was too broad.
