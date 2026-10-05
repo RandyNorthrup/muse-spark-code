@@ -1,5 +1,6 @@
 import {
   type ReactNode,
+  lazy,
   useCallback,
   useEffect,
   useLayoutEffect,
@@ -52,7 +53,6 @@ import type {
   WebviewToHostMessage,
 } from '../shared/protocol'
 import type { ApprovalDecisionInput } from './components/ApprovalCard'
-import { AgentMap } from './components/AgentMap'
 import { ApprovalDock } from './components/ApprovalDock'
 import { Composer, type ImageData, type SlashPaletteSlot } from './components/Composer'
 import { DiffTally } from './components/DiffTally'
@@ -61,11 +61,6 @@ import { EmptyState } from './components/EmptyState'
 import { GoalPanel } from './components/GoalPanel'
 import { SchedulePanel } from './components/SchedulePanel'
 import { Header } from './components/Header'
-import { HistoryDialog } from './components/HistoryDialog'
-import { ReviewPane } from './components/ReviewPane'
-import { SessionBoardDialog } from './components/SessionBoardDialog'
-import { BestOfNDialog } from './components/BestOfNDialog'
-import { UsageDialog } from './components/UsageDialog'
 import { HandoffDialog } from './components/HandoffDialog'
 import { SecretPromptDialog } from './components/SecretPromptDialog'
 import { ShareView } from './components/ShareView'
@@ -100,6 +95,32 @@ import {
 } from './state/uiState'
 import { isChildRunning } from './workflowDetails'
 import type { QuoteIntent } from './components/QuoteMenu'
+import { DeferredSurface } from './components/DeferredSurface'
+
+const HistoryDialog = lazy(async () => {
+  const module = await import('./components/HistoryDialog')
+  return { default: module.HistoryDialog }
+})
+const SessionBoardDialog = lazy(async () => {
+  const module = await import('./components/SessionBoardDialog')
+  return { default: module.SessionBoardDialog }
+})
+const AgentMap = lazy(async () => {
+  const module = await import('./components/AgentMap')
+  return { default: module.AgentMap }
+})
+const UsageDialog = lazy(async () => {
+  const module = await import('./components/UsageDialog')
+  return { default: module.UsageDialog }
+})
+const BestOfNDialog = lazy(async () => {
+  const module = await import('./components/BestOfNDialog')
+  return { default: module.BestOfNDialog }
+})
+const ReviewPane = lazy(async () => {
+  const module = await import('./components/ReviewPane')
+  return { default: module.ReviewPane }
+})
 
 export interface AppProps {
   readonly postMessage: (message: WebviewToHostMessage) => void
@@ -2030,6 +2051,7 @@ export function App({
   const isOtherModalOpen =
     overlay === 'usage' ||
     overlay === 'agents' ||
+    overlay === 'bestOfN' ||
     reviewPane !== null ||
     isInstallConfirmOpen ||
     state.share !== undefined
@@ -2082,15 +2104,19 @@ export function App({
           onOpenAgents={onOpenAgents}
           onOpenSideChat={canOpenSideChat ? onOpenSideChat : undefined}
         />
-        {history}
-        {board}
-        {bestOfN}
+        <DeferredSurface onClose={closeOverlay} isModal={false}>
+          {history}
+          {board}
+        </DeferredSurface>
       </div>
-      {usageDialog}
+      <DeferredSurface onClose={closeOverlay}>
+        {usageDialog}
+        {agentMap}
+        {reviewPane}
+        {bestOfN}
+      </DeferredSurface>
       {handoffDialog}
       {secretPromptDialog}
-      {agentMap}
-      {reviewPane}
       {state.share === undefined ? null : (
         <ShareView
           title={state.share.title}

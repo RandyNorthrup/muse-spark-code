@@ -1035,7 +1035,7 @@
         document.body.style.width = '100%'
       }
     </script>
-    <script src="../../dist/webview/main.js"></script>
+    <script type="module" src="../../dist/webview/main.js"></script>
     <script>
       // Scripting errors and dropped host messages are written into the page
       // so a screenshot shows them instead of a silent empty state.
@@ -2274,13 +2274,15 @@
         },
         'agents-details': () => {
           steps.agents()
-          later(600, () => document.querySelector('.agent-node-clickable').click())
+          whenFound('.agent-node-clickable', (node) => node.click())
         },
         'agents-result': () => {
           window.harnessBackend = 'modelApi'
           send({ type: 'authState', status: 'signedIn', backend: 'modelApi' })
           steps.agents()
-          later(600, () => document.querySelectorAll('.agent-node-clickable')[1].click())
+          whenFound('.agent-node-clickable', () =>
+            document.querySelectorAll('.agent-node-clickable')[1].click(),
+          )
         },
         'agents-closed': () => {
           window.harnessBackend = 'modelApi'
@@ -2299,7 +2301,9 @@
               },
             }),
           )
-          later(600, () => document.querySelectorAll('.agent-node-clickable')[1].click())
+          whenFound('.agent-node-clickable', () =>
+            document.querySelectorAll('.agent-node-clickable')[1].click(),
+          )
         },
         'agents-off': () => {
           send({
@@ -2980,8 +2984,7 @@
         // --- M25: the keyboard stays in the search box through Show archived ---
         'history-archived': () => {
           click('Session history')
-          later(300, () => {
-            const toggle = document.querySelector('.history-toggle input')
+          whenFound('.history-toggle input', (toggle) => {
             toggle.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, cancelable: true }))
             toggle.click()
             later(100, () => {
@@ -4306,6 +4309,10 @@
         // The "/" list for "/co", rendered with its options (M87's tips too).
         'slash-commands': () => document.querySelector('.slash-menu [role="option"]') !== null,
         'slash-tips': () => document.querySelector('.slash-menu [role="option"]') !== null,
+        'agents-details': () => document.querySelector('.agent-details') !== null,
+        'agents-result': () => document.querySelector('.agent-details') !== null,
+        'agents-closed': () => document.querySelector('.agent-details') !== null,
+        'history-archived': () => document.querySelector('.history-toggle input:checked') !== null,
       }
       const nextFrame = () =>
         new Promise((resolve) => {
@@ -4331,7 +4338,9 @@
               later(Math.max(0, deadline - performance.now()), resolve)
             }),
           ])
-        const isReady = SCENARIO_READY[name] ?? (() => true)
+        const scenarioReady = SCENARIO_READY[name] ?? (() => true)
+        const isReady = () =>
+          document.querySelector('[data-deferred-loading]') === null && scenarioReady()
         for (;;) {
           if (isReady()) {
             await byDeadline(document.fonts.ready)

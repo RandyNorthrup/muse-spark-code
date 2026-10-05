@@ -3,7 +3,8 @@
 // mirrors them) and change only with a CHANGELOG entry. Exits 1 when any production artifact exceeds
 // its budget or is missing.
 
-import { existsSync, statSync } from 'node:fs'
+import { existsSync, readFileSync, statSync } from 'node:fs'
+import { webviewStartupOutputs } from './lib/webviewBundles.mjs'
 
 const BYTES_PER_KIB = 1024
 // M99: bound the generated notes independently of their ZIP compression.
@@ -76,6 +77,8 @@ const BUDGETS = [
   // Shared English fallback; existing host budgets stay unchanged. Measured
   // 104.9 KiB (2026-10-04); plus 15%, rounded up to 25 KiB.
   { path: 'dist/uiText.js', budgetKiB: 125 },
+  // TRAIN13B: used Node mini-parser API, 39.5 KiB + 15%, rounded to 25 KiB.
+  { path: 'dist/validation.js', budgetKiB: 50 },
   { path: 'dist/searchWorker.js', budgetKiB: 50 },
   // Web fetch's page converter (M69), on a worker started for each page:
   // 201.2 KiB when split out (parse5 122.7 of it), plus room.
@@ -99,13 +102,30 @@ for (const { path, budgetKiB } of BUDGETS) {
     console.log(`MISS ${path}: not built (budget ${budgetKiB} KiB)`)
     continue
   }
-  const sizeKiB = statSync(path).size / BYTES_PER_KIB
+  const files =
+    path === 'dist/webview/main.js'
+      ? webviewStartupOutputs(JSON.parse(readFileSync('dist/meta/webview.json', 'utf8')))
+      : [path]
+  const sizeKiB = files.reduce((sum, file) => sum + statSync(file).size, 0) / BYTES_PER_KIB
   const status = sizeKiB <= budgetKiB ? 'ok  ' : 'OVER'
   if (sizeKiB > budgetKiB) {
     hasFailure = true
   }
   console.log(`${status} ${path}: ${sizeKiB.toFixed(1)} KiB (budget ${budgetKiB} KiB)`)
 }
+
+// TRAIN13B: optional UI chunks, 38.6 KiB + 15%, rounded to 25 KiB.
+const WEBVIEW_DEFERRED_BUDGET_KIB = 50
+const webview = JSON.parse(readFileSync('dist/meta/webview.json', 'utf8'))
+const eager = new Set(webviewStartupOutputs(webview))
+const deferredKiB =
+  Object.keys(webview.outputs)
+    .filter((file) => file.endsWith('.js') && !eager.has(file))
+    .reduce((sum, file) => sum + statSync(file).size, 0) / BYTES_PER_KIB
+if (deferredKiB > WEBVIEW_DEFERRED_BUDGET_KIB) hasFailure = true
+console.log(
+  `${deferredKiB <= WEBVIEW_DEFERRED_BUDGET_KIB ? 'ok  ' : 'OVER'} dist/webview deferred JS: ${deferredKiB.toFixed(1)} KiB (budget ${WEBVIEW_DEFERRED_BUDGET_KIB} KiB)`,
+)
 
 if (hasFailure) {
   console.error('bundle size budget exceeded or a bundle is missing; see PLAN.md section 2 (D6)')

@@ -203,6 +203,10 @@ happened, not what was planned; superseded entries are kept.
 
 ### Changed
 
+- Load Account & usage, Agent map, best-of-N, history, the session board and the review pane when opened, keeping the initial chat smaller and the same controls available.
+- Package compact JSON and a concise marketplace guide; retain Unreleased and the newest two releases in the bundled changelog with links to the complete documentation and history. Source translations and release history stay unchanged.
+- Share the Node bundles’ validation runtime to reduce installed size without changing boundary validation.
+
 - **A smaller package, so the browser check fits the 2200 KiB VSIX budget
   (M81, PLAN.md D6).** The macOS dictation helper is now built for size
   (`-Osize`), dead-stripped at link time and stripped of local symbols

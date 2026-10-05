@@ -17,9 +17,11 @@
 !dist/whatsNew.js
 !dist/whatsNew.json
 !dist/uiText.js
+!dist/validation.js
 !dist/searchWorker.js
 !dist/pageWorker.js
 !dist/webview/main.js
+!dist/webview/chunks/*.js
 !dist/webview/main.css
 !dist/webview/whatsNew.js
 !dist/webview/whatsNew.css

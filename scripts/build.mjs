@@ -47,7 +47,7 @@
 // does, and its package ships that file (scripts/package-acp.mjs), so the
 // backend is built once for both.
 
-import { mkdirSync, readdirSync, statSync, writeFileSync } from 'node:fs'
+import { mkdirSync, readdirSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import * as esbuild from 'esbuild'
 import {
@@ -65,6 +65,8 @@ const HOST_OUTFILE = 'dist/extension.js'
 // mutable installed-language state. The browser keeps its fallback bundled.
 const UI_TEXT_ENTRY = 'src/shared/l10n/en.ts'
 const UI_TEXT_OUTFILE = 'dist/uiText.js'
+const VALIDATION_ENTRY = 'src/shared/validationEntry.ts'
+const VALIDATION_OUTFILE = 'dist/validation.js'
 const MODEL_API_ENTRY = 'src/host/backend/modelApiEntry.ts'
 const MODEL_API_OUTFILE = 'dist/modelApi.js'
 const SESSION_BOARD_ENTRY = 'src/host/sessionBoardEntry.ts'
@@ -133,6 +135,19 @@ const sharedUiText = {
   },
 }
 
+// Share the used mini-parser API across Node bundles; browsers and integration
+// test bundles still inline it. The split gate checks every runtime member.
+/** @type {import('esbuild').Plugin} */
+const sharedValidation = {
+  name: 'shared-validation',
+  setup(build) {
+    build.onResolve({ filter: /^zod\/mini$/ }, () => ({
+      path: './validation.js',
+      external: true,
+    }))
+  },
+}
+
 // Keep dynamic imports dynamic: these entries run only on their first action.
 /** @type {import('esbuild').Plugin} */
 const deferredCohort = {
@@ -164,7 +179,7 @@ const common = {
 /** @type {import('esbuild').BuildOptions} */
 const hostOptions = {
   ...common,
-  plugins: [sharedUiText, deferredCohort],
+  plugins: [sharedUiText, sharedValidation, deferredCohort],
   entryPoints: [HOST_ENTRY],
   outfile: HOST_OUTFILE,
   platform: 'node',
@@ -176,7 +191,7 @@ const hostOptions = {
 /** @type {import('esbuild').BuildOptions} */
 const modelApiOptions = {
   ...common,
-  plugins: [sharedUiText, deferredCohort],
+  plugins: [sharedUiText, sharedValidation, deferredCohort],
   entryPoints: [MODEL_API_ENTRY],
   outfile: MODEL_API_OUTFILE,
   platform: 'node',
@@ -201,7 +216,7 @@ const reviewerOptions = {
 /** @type {import('esbuild').BuildOptions} */
 const reviewOptions = {
   ...common,
-  plugins: [sharedUiText],
+  plugins: [sharedUiText, sharedValidation],
   entryPoints: [REVIEW_ENTRY],
   outfile: REVIEW_OUTFILE,
   platform: 'node',
@@ -212,7 +227,7 @@ const reviewOptions = {
 /** @type {import('esbuild').BuildOptions} */
 const planMarkdownOptions = {
   ...common,
-  plugins: [sharedUiText],
+  plugins: [sharedUiText, sharedValidation],
   entryPoints: [PLAN_MARKDOWN_ENTRY],
   outfile: PLAN_MARKDOWN_OUTFILE,
   platform: 'node',
@@ -255,7 +270,7 @@ const museCodeReviewerOptions = {
 /** @type {import('esbuild').BuildOptions} */
 const whatsNewOptions = {
   ...common,
-  plugins: [sharedUiText],
+  plugins: [sharedUiText, sharedValidation],
   entryPoints: [WHATS_NEW_ENTRY],
   outfile: WHATS_NEW_OUTFILE,
   platform: 'node',
@@ -267,7 +282,7 @@ const whatsNewOptions = {
 /** @type {import('esbuild').BuildOptions} */
 const agentImportOptions = {
   ...common,
-  plugins: [sharedUiText],
+  plugins: [sharedUiText, sharedValidation],
   entryPoints: [AGENT_IMPORT_ENTRY],
   outfile: AGENT_IMPORT_OUTFILE,
   platform: 'node',
@@ -279,7 +294,7 @@ const agentImportOptions = {
 /** @type {import('esbuild').BuildOptions} */
 const bundledSkillsOptions = {
   ...common,
-  plugins: [sharedUiText],
+  plugins: [sharedUiText, sharedValidation],
   entryPoints: [BUNDLED_SKILLS_ENTRY],
   outfile: BUNDLED_SKILLS_OUTFILE,
   platform: 'node',
@@ -290,6 +305,7 @@ const bundledSkillsOptions = {
 /** @type {import('esbuild').BuildOptions} */
 const searchWorkerOptions = {
   ...common,
+  plugins: [sharedValidation],
   entryPoints: [SEARCH_WORKER_ENTRY],
   outfile: SEARCH_WORKER_OUTFILE,
   platform: 'node',
@@ -300,7 +316,7 @@ const searchWorkerOptions = {
 /** @type {import('esbuild').BuildOptions} */
 const checkpointStoreOptions = {
   ...common,
-  plugins: [sharedUiText],
+  plugins: [sharedUiText, sharedValidation],
   entryPoints: [CHECKPOINT_STORE_ENTRY],
   outfile: CHECKPOINT_STORE_OUTFILE,
   platform: 'node',
@@ -311,7 +327,7 @@ const checkpointStoreOptions = {
 /** @type {import('esbuild').BuildOptions} */
 const browserCheckOptions = {
   ...common,
-  plugins: [sharedUiText],
+  plugins: [sharedUiText, sharedValidation],
   entryPoints: [BROWSER_CHECK_ENTRY],
   outfile: BROWSER_CHECK_OUTFILE,
   platform: 'node',
@@ -322,7 +338,7 @@ const browserCheckOptions = {
 /** @type {import('esbuild').BuildOptions} */
 const browserRuntimeOptions = {
   ...common,
-  plugins: [sharedUiText],
+  plugins: [sharedUiText, sharedValidation],
   entryPoints: [BROWSER_RUNTIME_ENTRY],
   outfile: BROWSER_RUNTIME_OUTFILE,
   platform: 'node',
@@ -333,7 +349,7 @@ const browserRuntimeOptions = {
 /** @type {import('esbuild').BuildOptions} */
 const acpOptions = {
   ...common,
-  plugins: [sharedUiText],
+  plugins: [sharedUiText, sharedValidation],
   entryPoints: [ACP_ENTRY],
   outfile: ACP_OUTFILE,
   platform: 'node',
@@ -353,9 +369,16 @@ const uiTextOptions = {
   target: HOST_NODE_TARGET,
 }
 
+const validationOptions = {
+  ...uiTextOptions,
+  entryPoints: [VALIDATION_ENTRY],
+  outfile: VALIDATION_OUTFILE,
+}
+
 /** @type {import('esbuild').BuildOptions} */
 const pageWorkerOptions = {
   ...common,
+  plugins: [sharedValidation],
   entryPoints: [PAGE_WORKER_ENTRY],
   outfile: PAGE_WORKER_OUTFILE,
   platform: 'node',
@@ -369,7 +392,9 @@ const webviewOptions = {
   entryPoints: [WEBVIEW_ENTRY],
   outdir: WEBVIEW_OUTDIR,
   platform: 'browser',
-  format: 'iife',
+  format: 'esm',
+  splitting: true,
+  chunkNames: 'chunks/[name]-[hash]',
   target: BROWSER_TARGET,
   jsx: 'automatic',
 }
@@ -379,6 +404,8 @@ const webviewOptions = {
 /** @type {import('esbuild').BuildOptions} */
 const whatsNewPageOptions = {
   ...webviewOptions,
+  format: 'iife',
+  splitting: false,
   entryPoints: { [WHATS_NEW_PAGE_NAME]: WHATS_NEW_PAGE_ENTRY },
 }
 
@@ -405,6 +432,8 @@ function reportSize(path) {
   console.log(`  ${path}  ${kib} KiB`)
 }
 
+// Content-hashed chunks from an earlier build must never enter a package.
+rmSync(path.join(WEBVIEW_OUTDIR, 'chunks'), { recursive: true, force: true })
 const whatsNewContent = writeWhatsNewContent()
 console.log(
   `What's New: ${String(whatsNewContent.releases)} releases from CHANGELOG.md into ${WHATS_NEW_CONTENT_OUTFILE}`,
@@ -427,6 +456,7 @@ if (isWatch) {
     esbuild.context(museCodeReviewerOptions),
     esbuild.context(whatsNewOptions),
     esbuild.context(uiTextOptions),
+    esbuild.context(validationOptions),
     esbuild.context(browserCheckOptions),
     esbuild.context(browserRuntimeOptions),
     esbuild.context(searchWorkerOptions),
@@ -453,6 +483,7 @@ if (isWatch) {
     museCodeReviewer: esbuild.build(museCodeReviewerOptions),
     whatsNew: esbuild.build(whatsNewOptions),
     uiText: esbuild.build(uiTextOptions),
+    validation: esbuild.build(validationOptions),
     browserCheck: esbuild.build(browserCheckOptions),
     browserRuntime: esbuild.build(browserRuntimeOptions),
     searchWorker: esbuild.build(searchWorkerOptions),
@@ -493,6 +524,7 @@ if (isWatch) {
   reportSize(WHATS_NEW_OUTFILE)
   reportSize(WHATS_NEW_CONTENT_OUTFILE)
   reportSize(UI_TEXT_OUTFILE)
+  reportSize(VALIDATION_OUTFILE)
   reportSize(BROWSER_CHECK_OUTFILE)
   reportSize(BROWSER_RUNTIME_OUTFILE)
   reportSize(SEARCH_WORKER_OUTFILE)

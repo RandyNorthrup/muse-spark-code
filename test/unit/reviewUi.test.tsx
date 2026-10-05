@@ -120,7 +120,7 @@ describe('/review in the composer (M70)', () => {
   })
 })
 
-function openPane() {
+async function openPane() {
   const postMessage = renderReady()
   deliver({ type: 'sessionInfo', modelId: 'muse-spark-1.3', sessionId: 's1' })
   submit('change it')
@@ -133,6 +133,7 @@ function openPane() {
   if (request?.type !== 'readReviewChanges') {
     throw new Error('expected the pane to ask for the changes')
   }
+  await screen.findByRole('dialog', { name: UI_TEXT.reviewPaneTitle })
   return { postMessage, request }
 }
 
@@ -165,8 +166,8 @@ function deliverChanges(requestId: string) {
 }
 
 describe('the review pane (M70)', () => {
-  it('asks for the conversation’s edits in the order they landed, and reads while they come', () => {
-    const { request } = openPane()
+  it('asks for the conversation’s edits in the order they landed, and reads while they come', async () => {
+    const { request } = await openPane()
     expect(request.edits).toEqual([
       { itemId: 'ed1', outputRef: 'tool_patch-ed1' },
       { itemId: 'ed2', outputRef: 'tool_patch-ed2' },
@@ -175,8 +176,8 @@ describe('the review pane (M70)', () => {
     expect(within(dialog).getByRole('status').textContent).toBe(UI_TEXT.reviewPaneLoading)
   })
 
-  it('lists files and changes; Accept marks one, Revert asks the host and shows its word', () => {
-    const { postMessage, request } = openPane()
+  it('lists files and changes; Accept marks one, Revert asks the host and shows its word', async () => {
+    const { postMessage, request } = await openPane()
     deliverChanges(request.requestId)
     const dialog = screen.getByRole('dialog', { name: UI_TEXT.reviewPaneTitle })
     expect(within(dialog).getByText('2 files · 3 changes · 0 accepted · 0 reverted')).toBeDefined()
@@ -218,8 +219,8 @@ describe('the review pane (M70)', () => {
     expect(within(dialog).getByText(/1 edit is not listed here/)).toBeDefined()
   })
 
-  it('sends a comment on a line with the lines around it, as the next message', () => {
-    const { postMessage, request } = openPane()
+  it('sends a comment on a line with the lines around it, as the next message', async () => {
+    const { postMessage, request } = await openPane()
     deliverChanges(request.requestId)
     deliver({
       type: 'agentEvent',
@@ -251,16 +252,16 @@ describe('the review pane (M70)', () => {
     expect(within(dialog).queryByLabelText(UI_TEXT.reviewCommentLabel)).toBeNull()
   })
 
-  it('shows omitted edits without falsely claiming that no files changed', () => {
-    const { request } = openPane()
+  it('shows omitted edits without falsely claiming that no files changed', async () => {
+    const { request } = await openPane()
     deliver({ type: 'reviewChanges', requestId: request.requestId, files: [], omittedEdits: 2 })
     const dialog = screen.getByRole('dialog', { name: UI_TEXT.reviewPaneTitle })
     expect(within(dialog).queryByText(UI_TEXT.reviewPaneEmpty)).toBeNull()
     expect(within(dialog).getByText(/2 edits are not listed here/)).toBeDefined()
   })
 
-  it('offers the comment as a steer while a turn runs, and names a removed line by the line it was', () => {
-    const { postMessage, request } = openPane()
+  it('offers the comment as a steer while a turn runs, and names a removed line by the line it was', async () => {
+    const { postMessage, request } = await openPane()
     deliverChanges(request.requestId)
     const dialog = screen.getByRole('dialog', { name: UI_TEXT.reviewPaneTitle })
     fireEvent.click(
@@ -287,8 +288,8 @@ describe('the review pane (M70)', () => {
     })
   })
 
-  it('drops an answer to an older request, and closes with the conversation', () => {
-    const { request } = openPane()
+  it('drops an answer to an older request, and closes with the conversation', async () => {
+    const { request } = await openPane()
     deliverChanges('older')
     expect(screen.getByText(UI_TEXT.reviewPaneLoading)).toBeDefined()
     deliverChanges(request.requestId)

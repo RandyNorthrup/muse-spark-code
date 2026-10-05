@@ -236,7 +236,7 @@ quality`) and as a CI job.
 | `dist/review.js`           | ≤ 50 KiB (M70: git's material, the review turn's text, the Plan-mode hold and edit review; 40.8 KiB when split)                                                                                                   |
 | `dist/searchWorker.js`     | ≤ 50 KiB                                                                                                                                                                                                          |
 | `dist/pageWorker.js`       | ≤ 300 KiB (M69: web fetch's page converter, parse5 and its parts, on a worker started for each page; 212.3 KiB when split)                                                                                        |
-| `dist/webview/main.js`     | ≤ 900 KiB including React, the markdown renderer and highlight.js (one bundle)                                                                                                                                    |
+| `dist/webview/main.js`     | ≤ 900 KiB including React, Markdown and highlighting; all transitively eager ESM chunks count                                                                                                                     |
 | `.vsix`                    | ≤ 2200 KiB compressed (2026-10-03, M77/M78/M82 cohort: 1,938,910 bytes with its four lazy bundles; +15%, rounded up to 25 KiB; was 1850 KiB from REL's 1,633,017 bytes; `check-vsix-size.mjs` in the package job) |
 | `dist/acp.js`              | ≤ 850 KiB (the ACP agent, installed once, never loaded by VS Code; 713.2 KiB when set, see below)                                                                                                                 |
 | `dist/planMarkdown.js`     | ≤ 150 KiB (M79: the plan reader, the panel's Markdown parser, loaded on the first plan action; 139.0 KiB with the brief writer)                                                                                   |
@@ -254,6 +254,17 @@ quality`) and as a CI job.
 | `dist/whatsNew.js`         | ≤ 50 KiB (M99, D79: What's New's renderer, content schema and tab, loaded on the first page or notice; measured 34.8 KiB plus 15%, rounded up to 25 KiB)                                                          |
 | `dist/whatsNew.json`       | ≤ 40 KiB raw (M99, D79: newest two releases' full notes and the newest earlier Highlights when needed; hard content cap independent of VSIX compression)                                                          |
 | `dist/webview/whatsNew.js` | ≤ 25 KiB (M99: What's New's page script, which only passes clicks back; 0.7 KiB when made, plus 15%, rounded up to 25 KiB)                                                                                        |
+
+**TRAIN13B (2026-10-05):** `dist/validation.js` shares only the used
+Node zod/mini runtime exports (40,416 bytes measured; new 50 KiB cap by
+the existing rule). Browser/integration parsers stay inline. All Node
+consumers, including ACP and workers, ship it beside their bundles; the
+split and host-global gates enforce separation and API completeness.
+The six deferred chat surfaces use ESM chunks under dist/webview/chunks.
+The unchanged 900 KiB startup cap includes every transitively eager chunk;
+optional JavaScript has a new 50 KiB total cap (38.6 KiB measured plus
+15%, rounded by D6). Chunk reachability, lazy placement and packaging are
+guarded; stale chunks are cleared before a build. Existing caps are unchanged.
 
 `npm run build` prints bundle sizes; `scripts/check-bundle-size.mjs` holds their
 numbers and fails over budget or when a bundle is missing. The compressed VSIX
@@ -5193,6 +5204,14 @@ cached: "0.15", currency: "USD" }`, `isDefault`, `isActive`, `releaseDate`.
   extension must track the child PID and kill the tree on dispose.
 
 ## 6. Milestones
+
+### TRAIN13B — Release-train size recovery and complete Kubuntu gate (2026-10-05)
+
+- [x] Confirm both checkpoint test files pass in the cleared normal temporary directory.
+- [x] Defer Account & usage, Agent map, best-of-N, board, history and review UI until opened, with accessible loading/cancellation, ESM chunks and startup-transitive size/split/packaging guards. Keep the 900 KiB startup cap and at least 20 KiB headroom.
+- [x] Share the Node bundles’ used zod/mini exports in one guarded runtime beside uiText; browser and integration builds retain their inline parser. Ship that runtime in the VSIX and both ACP packages. Keep every existing cap; give only the new measured artifact its D6 measured-plus-15%-rounded-to-25-KiB cap.
+- [x] Stage the VSIX in the worktree, minify its JSON without changing source tables, check shipped localization bytes, and use a concise marketplace README linking the complete repository guide. Ship Unreleased and the newest two released changelog sections with a full-history link; retain the complete source changelog. Preserve privacy, skills, helpers and every runtime feature. Test exclusions against actual package collection.
+- [x] Measure with the real universal helper extracted from the 0.12.1 release asset (119,342 compressed bytes), then run full quality and the unchanged VSIX gate. Drill new guards, restore byte-exact, update train certification/result and the reviewable PR description. Local hook-on commits only; no merge, push, paid or live model call. The specific brief authorizes full quality and read-only release-asset retrieval despite common.md’s ordinary lane limits.
 
 ### DEFAULTS — Available enhancements and interactive daily paid admission (D78)
 
@@ -14740,6 +14759,12 @@ joined with M57, M58 and PR #49's sign-in
         commit-writing path exists
 
 ## 7. Gates
+
+**TRAIN13B (2026-10-05).** The owner authorizes recovering the two size
+failures and running the complete quality gate directly on Kubuntu within
+120 minutes. No cap, threshold, skip or user-facing feature may be weakened.
+The earlier TRAIN13 budget stop is historical; current receipts go in the
+same train certification record.
 
 **TRAIN13 release train (2026-10-04, Kubuntu).** Merge the six reviewed
 branches in the owner's order with two-parent commits, preserving all PR
