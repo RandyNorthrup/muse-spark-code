@@ -4,8 +4,11 @@ Date: 2026-10-04 (America/Los_Angeles). Product: Muse Spark Code
 (Unofficial). Status: **plan only**; D80 and M100 in `PLAN.md` are the
 decisions. No listener, pairing protocol, device fleet or runtime security
 claim is certified here. No live/paid model calls, credential access,
-dependency installation, other-worktree edits, push, merge or rebase belong
-to this lane. Only `PLAN.md` and this record are changed.
+dependency installation, other-worktree edits, push, merge or rebase belonged
+to the original planning lane, which changed only `PLAN.md` and this record.
+The 2026-10-05 FIXM100 follow-up permits the review correction, an Unreleased
+changelog entry and a local merge of the supplied `origin/main`; no fetch,
+push or runtime implementation is authorized by that follow-up.
 
 ## 1. Request, inputs and number reservation
 
@@ -141,6 +144,37 @@ WSL or standalone receiver must establish execution/key placement without
 copying a pair or provider private key to another device. [SecretStorage API](https://code.visualstudio.com/api/references/vscode-api#SecretStorage),
 [Remote-extension secret placement](https://code.visualstudio.com/api/advanced-topics/remote-extensions#persisting-secrets)
 
+### Routing and OS inbound permission (RVM100 correction)
+
+RVM100 checked the platform documentation and confirmed a plan mismatch,
+not a runtime defect: manual address entry bypasses discovery only. A route
+to the receiver's chosen private address and explicitly authorized inbound
+TCP access to its listening application/port are separate prerequisites.
+Windows Defender Firewall can block inbound traffic by default; policy and
+standard-user prompt restrictions can require administrator authorization.
+A macOS application firewall can deny connections pending application
+approval. Linux host firewall rules also require the intended inbound path
+to be allowed. Setup cannot promise prompt-free or administrator-free access.
+[Windows Firewall rules and standard-user prompts](https://learn.microsoft.com/en-us/windows/security/operating-system-security/network-security/windows-firewall/rules),
+[macOS application firewall approval](https://support.apple.com/en-in/guide/mac-help/mh34041/mac).
+
+Setup shows **Blocked or unreachable** when connection fails, with the actual
+listening application, interface, address and TCP port. A timeout alone does
+not diagnose a firewall denial. Recovery checks the selected route and
+address/port, enabled receiver offer and OS permission/policy; the user
+approves only the intended listener or asks an administrator for narrowly
+scoped access, then retries the same paired identity. M100 never changes
+firewall settings automatically. Failure/retry cannot release existing
+attempt ownership or spending uncertainty; reconnect reconciles first.
+
+Acceptance B/T transport and K/P/U installed setup cover standard-user/default-
+firewall (no allow rule or unavailable prompt), explicit-deny and missing-route
+cases separately from multicast-blocked success on an authorized routed
+private path. K records the actual listening application/TCP port and OS
+permission, policy and authorization requirements on Windows PC, Kubuntu VM,
+Mac mini and Windows 11 VM, on the floor and current host. These remain
+future implementation tests, not results of this documentation correction.
+
 ## 3. RVM96C2 lessons applied to distributed work
 
 These are plan counterexamples, not M100 runtime bugs or executed drills.
@@ -190,6 +224,9 @@ usage, then explicit Resume permits new work under current local consent.
 Permanent loss can leave an attempt unresolved indefinitely. Unlink can
 prevent future local contact immediately, but cannot remotely stop a sleeping
 or malicious peer. These limits appear in setup/recovery, not just here.
+An initial failed connect admits no work. A failed reconnect or setup retry
+retains any already unresolved attempts, occupied slots and uncertain spend;
+manual entry or later OS approval never proves retirement.
 
 ## 5. Threats, privacy and costs
 
@@ -219,7 +256,9 @@ working-copy/result cleanup follows M96's explicit retained-branch rules.
 M100's lane/ownership, acceptance A–K, security review and certification
 checklist are in PLAN. Check-only validates transport/admission first; role
 lanes follow through M96, not a new engine. Optional mDNS and QR stay lazy;
-manual address/text always work. Numeric PAKE, unattended services, remote
+copyable invitation text stays available without QR, and manual addresses
+bypass discovery subject to routing and explicit inbound authorization.
+Numeric PAKE, unattended services, remote
 extension hosts, VPN/public routes, machine-wide coordination and approval
 forwarding remain Q-M100. All implementation tunables belong in shared
 constants; no arbitrary timeout is an authority to release work.
@@ -241,6 +280,26 @@ no README command, runtime setting, string key, dependency or executable gate.
 The full §6.0/§7 certification, including quality, coverage, installed-host
 four-machine/floor checks and every acceptance red/restored proof, remains
 open for implementation. Planned tests are not represented as passed.
+
+### Independent review and FIXM100 scope
+
+`RVM100.report.md` reviewed `5b7565c3df0fa304bfe875cb035495e8b498d274`
+in three passes and passed with no P1. Its one P2, the unconditional manual-
+address connectivity promise, is corrected in D80 and acceptance B/K as
+specified above. The review has no remaining blocker; this correction does
+not certify pairing, transport or remote execution.
+
+Devices and mDNS off by default is a deliberate security exception to the
+owner's enhancements-on ruling. Listening on the network and sending
+repository context require an explicit local choice. This is visible in
+M100's Status, not an implicit default change or a paid-use exception.
+
+Lane 0 still settles certificate generation, trust-anchor/pin validation,
+selection of multiple per-pair identities, protocol caps and durable
+retention/replay before P/T/E. Accepted M95/M96/M96c contracts, exact joined-
+tree aggregate gates and installed four-device/floor evidence remain
+implementation prerequisites. Real-model/paid drills need their separate
+authorization. No new executable test, dependency or runtime guard is added.
 
 ### Documentation-lane validation
 
@@ -293,3 +352,32 @@ then exited 0: one commit, approximately 55.63 KB scanned, no leaks. The
 follow-up receipt commit uses the restored launcher and the repository's
 unchanged `.husky/pre-commit`; its Git/hook output is the completion receipt.
 History is preserved rather than amended. No push, merge or rebase occurred.
+
+### FIXM100 correction checks (2026-10-05, Windows PC)
+
+The follow-up changes only PLAN, this research record and CHANGELOG. The
+existing quality gate's Markdown formatting check is Prettier; no separate
+Markdown linter is configured. The installed Prettier CLI `--check` on the
+three explicit paths exited 0, and `git diff --check` on those paths exited 0. CHANGELOG is excluded by the existing `.prettierignore`; its entry follows
+the surrounding style and the whitespace check covers it. No ignore, gate,
+threshold or source code changed.
+
+**Fresh formatting red/restored drill:** insert two trailing spaces in this
+record's first heading. The installed Prettier CLI `--check` exited **1**.
+Restore the saved bytes in `finally`; before/restored SHA-256 matched:
+`fccf5f4ef8a43432671dbe75f5809c2bdd177d0afdecedefd408aca22f6a68e2`.
+The restored check exited **0**. This proves formatting only, not runtime
+connectivity or a new executable guard.
+
+This worktree also lacked the generated `.husky/_/pre-commit` launcher.
+Restore the standard ignored launcher and `h` from the installed Husky
+package with its ignored-directory marker, leaving tracked hooks and
+`core.hooksPath=.husky/_` unchanged. Normal commits must visibly run serial
+lint-staged and staged redacted gitleaks; no hook bypass is authorized.
+
+The earlier Kubuntu build sizes and checks above belong to the original
+planning snapshot. No build, typecheck, Vitest, full quality or live/paid
+model run is made for this docs-only correction. The supplied local
+`origin/main` is `a95f24cfa56fa75c85c8e09f04940f73edfa5a27`; the authorized
+merge and final document checks follow the correction commit. No fetch or
+push is performed.

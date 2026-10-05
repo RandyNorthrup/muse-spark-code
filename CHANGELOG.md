@@ -26,6 +26,13 @@ happened, not what was planned; superseded entries are kept.
 
 ### Changed
 
+- **M100's paired-device plan now states connectivity prerequisites.** Manual
+  address entry bypasses discovery only; routing and explicitly authorized
+  inbound access are still required. D80, acceptance B/K and the research
+  record specify blocked/unreachable setup recovery, standard-user/default-
+  firewall and explicit-deny cases, and per-rig listener/permission evidence.
+  Devices and mDNS stay off by default as an explicit security exception to
+  enhancements-on. Documentation only; no pairing or remote execution ships.
 - **Tiered CI, ready for a merge queue.** The full gate now runs as parallel
   jobs:
   - the static gates on all three platforms;
