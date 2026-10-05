@@ -82,7 +82,7 @@
   "walkthrough.gettingStarted.title": "Начало работы с Muse Spark",
   "walkthrough.gettingStarted.description": "Muse Spark от Meta как агент для программирования в VS Code: откройте панель, войдите и обсуждайте свой код.",
   "walkthrough.gettingStarted.step.welcome.title": "Ваш агент для программирования",
-  "walkthrough.gettingStarted.step.welcome.description": "Muse Spark читает ваши файлы, изменяет их и выполняет команды в выбранном вами режиме разрешений, а когда рабочая область становится доверенной, следует правилам AGENTS.md и навыкам рабочей области.",
+  "walkthrough.gettingStarted.step.welcome.description": "Muse Spark читает ваши файлы, изменяет их и выполняет команды в выбранном вами режиме разрешений, а когда рабочая область становится доверенной, следует правилам AGENTS.md и навыкам рабочей области.\n\n[Нравится Muse Spark Code? Звезда на GitHub поможет другим людям его найти.](https://github.com/RandyNorthrup/muse-spark-code)",
   "walkthrough.gettingStarted.step.open.title": "Откройте панель",
   "walkthrough.gettingStarted.step.open.description": "Щелкните значок Muse Spark на панели действий или нажмите Ctrl+Shift+Alt+Escape в Windows, Cmd+Shift+Escape в macOS или Ctrl+Shift+Escape в Linux, чтобы открыть беседу во вкладке редактора.\n[Открыть Muse Spark](command:museSpark.openInSidebar)",
   "walkthrough.gettingStarted.step.signIn.title": "Войдите",

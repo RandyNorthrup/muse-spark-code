@@ -116,6 +116,11 @@ describe('VSIX packaging', () => {
     expect(packagedChangelog('## [0.1.0] - 2026-01-01\n\nNotes')).toContain('Notes')
     expect(() => packagedChangelog('No releases')).toThrow('No released')
   })
+  it('keeps the quiet GitHub star link in the README Marketplace and Open VSX render', () => {
+    expect(readFileSync(path.join(fixture.stage, 'README.md'), 'utf8')).toContain(
+      '[Enjoying Muse Spark Code? A star on GitHub helps other people find it.](https://github.com/RandyNorthrup/muse-spark-code)',
+    )
+  })
   it('refuses a stage outside its owned build directory', async () => {
     await expect(stageVsix(fixture.root, path.join(fixture.root, 'other'))).rejects.toThrow(
       'Invalid VSIX stage',

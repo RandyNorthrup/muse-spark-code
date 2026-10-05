@@ -1393,6 +1393,7 @@
   "whatsNewNoNotes": "バージョン {version} にはリリースノートが含まれていません。",
   "whatsNewFullChangelog": "GitHub の完全な変更履歴",
   "whatsNewReadme": "GitHub の README",
+  "whatsNewStarGithub": "Muse Spark Code は気に入りましたか？GitHub でスターを付けると、ほかの人にも見つけてもらいやすくなります。",
   "whatsNewHideOnUpdate": "更新時に表示しない",
   "whatsNewUpdatedNotice": "Muse Spark Code が {version} に更新されました。",
   "whatsNewOpen": "新機能",

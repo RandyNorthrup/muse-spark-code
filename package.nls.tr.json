@@ -82,7 +82,7 @@
   "walkthrough.gettingStarted.title": "Muse Spark ile başlayın",
   "walkthrough.gettingStarted.description": "Meta'nın Muse Spark'ı, VS Code'da bir kodlama aracısı olarak: paneli açın, oturum açın, kodunuz hakkında sohbet edin.",
   "walkthrough.gettingStarted.step.welcome.title": "Kodlama aracınız",
-  "walkthrough.gettingStarted.step.welcome.description": "Muse Spark dosyalarınızı okur, seçtiğiniz izin modu altında düzenler ve komut çalıştırır; çalışma alanına güvenildiğinde de çalışma alanının AGENTS.md kurallarına ve becerilerine uyar.",
+  "walkthrough.gettingStarted.step.welcome.description": "Muse Spark dosyalarınızı okur, seçtiğiniz izin modu altında düzenler ve komut çalıştırır; çalışma alanına güvenildiğinde de çalışma alanının AGENTS.md kurallarına ve becerilerine uyar.\n\n[Muse Spark Code hoşunuza gidiyor mu? GitHub’da bir yıldız vermeniz, başkalarının da onu keşfetmesine yardımcı olur.](https://github.com/RandyNorthrup/muse-spark-code)",
   "walkthrough.gettingStarted.step.open.title": "Paneli açın",
   "walkthrough.gettingStarted.step.open.description": "Etkinlik çubuğundaki Muse Spark simgesine tıklayın veya bir düzenleyici sekmesinde konuşma açmak için Windows'ta Ctrl+Shift+Alt+Escape, macOS'ta Cmd+Shift+Escape ya da Linux'ta Ctrl+Shift+Escape tuşlarına basın.\n[Muse Spark'ı Aç](command:museSpark.openInSidebar)",
   "walkthrough.gettingStarted.step.signIn.title": "Oturum açın",

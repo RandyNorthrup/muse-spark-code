@@ -82,7 +82,7 @@
   "walkthrough.gettingStarted.title": "開始使用 Muse Spark",
   "walkthrough.gettingStarted.description": "將 Meta 的 Muse Spark 作為 VS Code 中的程式設計代理程式：開啟面板、登入，然後就您的程式碼進行對話。",
   "walkthrough.gettingStarted.step.welcome.title": "您的程式設計代理程式",
-  "walkthrough.gettingStarted.step.welcome.description": "Muse Spark 會讀取您的檔案、依您選擇的權限模式編輯檔案及執行命令，並在工作區受信任後遵循工作區的 AGENTS.md 規則和技能。",
+  "walkthrough.gettingStarted.step.welcome.description": "Muse Spark 會讀取您的檔案、依您選擇的權限模式編輯檔案及執行命令，並在工作區受信任後遵循工作區的 AGENTS.md 規則和技能。\n\n[喜歡 Muse Spark Code 嗎？在 GitHub 上加個星號，能幫助更多人發現它。](https://github.com/RandyNorthrup/muse-spark-code)",
   "walkthrough.gettingStarted.step.open.title": "開啟面板",
   "walkthrough.gettingStarted.step.open.description": "按一下活動列中的 Muse Spark 圖示；或按 Ctrl+Shift+Alt+Escape（Windows）、Cmd+Shift+Escape（macOS）或 Ctrl+Shift+Escape（Linux），在編輯器索引標籤中開啟對話。\n[開啟 Muse Spark](command:museSpark.openInSidebar)",
   "walkthrough.gettingStarted.step.signIn.title": "登入",

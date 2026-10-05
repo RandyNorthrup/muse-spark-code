@@ -82,7 +82,7 @@
   "walkthrough.gettingStarted.title": "Začínáme s Muse Spark",
   "walkthrough.gettingStarted.description": "Muse Spark od Meta jako agent pro psaní kódu ve VS Code: otevřete panel, přihlaste se a konverzujte o svém kódu.",
   "walkthrough.gettingStarted.step.welcome.title": "Váš agent pro psaní kódu",
-  "walkthrough.gettingStarted.step.welcome.description": "Muse Spark čte vaše soubory, upravuje je a spouští příkazy v režimu oprávnění, který zvolíte, a řídí se pravidly AGENTS.md a dovednostmi pracovního prostoru, jakmile je označen jako důvěryhodný.",
+  "walkthrough.gettingStarted.step.welcome.description": "Muse Spark čte vaše soubory, upravuje je a spouští příkazy v režimu oprávnění, který zvolíte, a řídí se pravidly AGENTS.md a dovednostmi pracovního prostoru, jakmile je označen jako důvěryhodný.\n\n[Používáte Muse Spark Code rádi? Hvězdička na GitHubu ho pomůže objevit i ostatním.](https://github.com/RandyNorthrup/muse-spark-code)",
   "walkthrough.gettingStarted.step.open.title": "Otevřete panel",
   "walkthrough.gettingStarted.step.open.description": "Klikněte na ikonu Muse Spark na panelu aktivit nebo pro konverzaci na kartě editoru stiskněte Ctrl+Shift+Alt+Escape ve Windows, Cmd+Shift+Escape v macOS nebo Ctrl+Shift+Escape v Linuxu.\n[Otevřít Muse Spark](command:museSpark.openInSidebar)",
   "walkthrough.gettingStarted.step.signIn.title": "Přihlaste se",

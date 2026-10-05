@@ -19,6 +19,10 @@ happened, not what was planned; superseded entries are kept.
 
 ### Added
 
+- A quiet GitHub star link in the GitHub and Marketplace/Open VSX READMEs,
+  What's New footer and Getting Started welcome step, with the footer and
+  step description translated in all 14 languages.
+
 - **Tab completions (M94, PLAN.md D73).** On by default, with its status
   item visible at startup and its completion engine loaded on first use.
   Alt+\ invokes ghost text; the five Tab commands turn it on/off, snooze it,

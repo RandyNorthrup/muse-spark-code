@@ -82,7 +82,7 @@
   "walkthrough.gettingStarted.title": "Muse Spark 시작하기",
   "walkthrough.gettingStarted.description": "VS Code의 코딩 에이전트로 사용하는 Meta의 Muse Spark: 패널을 열고, 로그인하고, 코드에 대해 채팅하세요.",
   "walkthrough.gettingStarted.step.welcome.title": "나만의 코딩 에이전트",
-  "walkthrough.gettingStarted.step.welcome.description": "Muse Spark는 파일을 읽고, 선택한 권한 모드에 따라 파일을 편집하고 명령을 실행하며, 작업 영역을 신뢰하면 작업 영역의 AGENTS.md 규칙과 스킬을 따릅니다.",
+  "walkthrough.gettingStarted.step.welcome.description": "Muse Spark는 파일을 읽고, 선택한 권한 모드에 따라 파일을 편집하고 명령을 실행하며, 작업 영역을 신뢰하면 작업 영역의 AGENTS.md 규칙과 스킬을 따릅니다.\n\n[Muse Spark Code가 마음에 드시나요? GitHub에서 별을 눌러 주시면 다른 사람들도 더 쉽게 찾을 수 있어요.](https://github.com/RandyNorthrup/muse-spark-code)",
   "walkthrough.gettingStarted.step.open.title": "패널 열기",
   "walkthrough.gettingStarted.step.open.description": "작업 막대에서 Muse Spark 아이콘을 클릭하세요. 편집기 탭에서 대화를 열려면 Windows에서는 Ctrl+Shift+Alt+Escape, macOS에서는 Cmd+Shift+Escape, Linux에서는 Ctrl+Shift+Escape를 누르세요.\n[Muse Spark 열기](command:museSpark.openInSidebar)",
   "walkthrough.gettingStarted.step.signIn.title": "로그인",
