@@ -6,6 +6,7 @@
 
 import type {
   AgentEvent,
+  ElicitationReply,
   ItemSnapshot,
   QuestionAnswer,
   RequirementRef,
@@ -453,6 +454,12 @@ export interface AgentSession {
   answerQuestions(userInputId: string, answers: readonly QuestionAnswer[]): Promise<void>
   /** Decline the prompt: the tool call resolves with a cancelled result the model sees (M16). */
   cancelQuestions(userInputId: string): Promise<void>
+  /**
+   * Settle an MCP elicitation form (M91 lane M): accept with validated
+   * values, or decline or cancel. Absent where the backend never asks
+   * (Muse Code answers its own elicitations itself).
+   */
+  settleElicitation?: (elicitationId: string, reply: ElicitationReply) => Promise<void>
   /**
    * Answer with an explanation instead of the options (MSP `userInput/clarify`,
    * M46): the model reads it and decides again.

@@ -35,6 +35,7 @@ import {
 } from '../toolPresentation'
 import { ExpandChevron } from './icons'
 import { QuestionCard, type QuestionCardProps } from './QuestionCard'
+import { ElicitationCard, type ElicitationCardProps } from './ElicitationCard'
 import { Clipped, DiffTable } from './ToolBlocks'
 import {
   GoalBody,
@@ -65,6 +66,9 @@ export interface ToolRowProps {
   readonly onAnswer: QuestionCardProps['onAnswer']
   readonly onCancelQuestion: QuestionCardProps['onCancel']
   readonly onClarifyQuestion: QuestionCardProps['onClarify']
+  readonly onAcceptElicitation: ElicitationCardProps['onAccept']
+  readonly onDeclineElicitation: ElicitationCardProps['onDecline']
+  readonly onCancelElicitation: ElicitationCardProps['onCancel']
   /** Edit review (M5): the stored patch of a completed edit-family item in the diff editor. */
   readonly onOpenEditDiff: (itemId: string, outputRef: string) => void
   /** The row's path: the file at its change (M16). */
@@ -352,6 +356,9 @@ function ToolRowView({
   onAnswer,
   onCancelQuestion,
   onClarifyQuestion,
+  onAcceptElicitation,
+  onDeclineElicitation,
+  onCancelElicitation,
   onOpenEditDiff,
   onOpenFile,
   onOpenLink,
@@ -590,6 +597,15 @@ function ToolRowView({
           onAnswer={onAnswer}
           onCancel={onCancelQuestion}
           onClarify={onClarifyQuestion}
+        />
+      )}
+      {entry.elicitation === undefined ? null : (
+        <ElicitationCard
+          key={entry.elicitation.elicitationId}
+          form={entry.elicitation}
+          onAccept={onAcceptElicitation}
+          onDecline={onDeclineElicitation}
+          onCancel={onCancelElicitation}
         />
       )}
       {entry.questionOutcome === undefined ? null : (

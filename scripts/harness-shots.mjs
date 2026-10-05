@@ -37,11 +37,17 @@ const repoRoot = process.cwd()
 async function shoot(chrome, port, scenario, lang, outDir, profileDir) {
   const file = path.join(outDir, `${scenario}.png`)
   const url = `http://${LOOPBACK}:${String(port)}/${HARNESS_PATH}?scenario=${scenario}${langQuery(lang)}`
-  if (scenario === 'share-narrow') {
-    await withNarrowPage(chrome, profileDir, url, async (page) => {
-      await page.getByRole('dialog').waitFor()
-      await page.screenshot({ path: file })
-    })
+  if (['share-narrow', 'elicitation', 'elicitation-narrow'].includes(scenario)) {
+    await withNarrowPage(
+      chrome,
+      profileDir,
+      url,
+      async (page) => {
+        await page.getByRole(scenario.startsWith('elicitation') ? 'form' : 'dialog').waitFor()
+        await page.screenshot({ path: file })
+      },
+      scenario === 'elicitation' ? 690 : 320,
+    )
     return file
   }
   await execFileAsync(chrome, [

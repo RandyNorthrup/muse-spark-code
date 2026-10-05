@@ -36,6 +36,18 @@ happened, not what was planned; superseded entries are kept.
     for a plain turn, a tool call, an `edit_file` with `then_run`, a packed
     long output, a manual compaction, a subagent child turn, and a turn with
     skills and rules loaded. Later lanes must not move these bytes.
+  - **Lane M:** MCP elicitation in form mode on the Model API backend. The
+    MCP client declares the `elicitation` capability (`form` only) and
+    answers a server's `elicitation/create` with a form in the panel — or
+    through the ACP client's own form — as accept (validated against the
+    server's schema), decline or cancel. A request outside the spec's
+    restricted subset, and URL-mode flows, are declined with a reason and
+    never rendered. A timeout, a stopped turn or a closed panel cancels;
+    nothing auto-accepts, in Bypass either. Values are never logged and
+    reach no transcript or export beyond the server's own result. The
+    Elicitation hook may decline or cancel (a user hook may answer) and
+    ElicitationResult observes with field names and the action only, through
+    a narrow seam until lane E wires the dispatch.
 
 ## [0.12.1] - 2026-10-04
 

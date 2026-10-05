@@ -42,6 +42,8 @@ export const SCENARIOS = [
   'approval-narrow',
   'approval-moved',
   'question',
+  'elicitation',
+  'elicitation-narrow',
   'todo',
   'focus',
   'long',
@@ -162,10 +164,10 @@ export function serveRepo(repoRoot) {
 }
 
 /** Chrome's CLI clamps windows to 500 px: the narrow share check needs a real 320 px viewport. */
-export async function withNarrowPage(chrome, profileDir, url, run) {
+export async function withNarrowPage(chrome, profileDir, url, run, viewportWidth = 320) {
   const browser = await chromium.launchPersistentContext(profileDir, {
     ...(path.isAbsolute(chrome) ? { executablePath: chrome } : { channel: 'chrome' }),
-    viewport: { width: 320, height: 760 },
+    viewport: { width: viewportWidth, height: 760 },
     timeout: PAGE_TIMEOUT_MS,
   })
   try {

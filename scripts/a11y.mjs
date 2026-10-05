@@ -71,12 +71,18 @@ function decodeEntities(text) {
 async function scan(chrome, port, page, lang, profileDir) {
   const url = `http://${LOOPBACK}:${String(port)}/${HARNESS_PATH}?scenario=${page.scenario}&theme=${page.theme}&axe=1${langQuery(lang)}`
   try {
-    if (page.scenario === 'share-narrow') {
-      return await withNarrowPage(chrome, profileDir, url, async (tab) => {
-        const result = tab.locator('#axe-result')
-        await result.waitFor({ state: 'attached', timeout: PAGE_TIMEOUT_MS })
-        return JSON.parse(await result.textContent())
-      })
+    if (['share-narrow', 'elicitation', 'elicitation-narrow'].includes(page.scenario)) {
+      return await withNarrowPage(
+        chrome,
+        profileDir,
+        url,
+        async (tab) => {
+          const result = tab.locator('#axe-result')
+          await result.waitFor({ state: 'attached', timeout: PAGE_TIMEOUT_MS })
+          return JSON.parse(await result.textContent())
+        },
+        page.scenario === 'elicitation' ? 690 : 320,
+      )
     }
     const { stdout } = await execFileAsync(
       chrome,

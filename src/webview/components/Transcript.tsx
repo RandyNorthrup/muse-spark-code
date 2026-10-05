@@ -60,6 +60,10 @@ export interface TranscriptProps {
   /** The question card's Cancel (M16), and its Explain instead (M46). */
   readonly onCancelQuestion: (userInputId: string) => void
   readonly onClarifyQuestion: ToolRowProps['onClarifyQuestion']
+  /** An elicitation form's Send, Decline and Cancel (M91 lane M). */
+  readonly onAcceptElicitation: ToolRowProps['onAcceptElicitation']
+  readonly onDeclineElicitation: ToolRowProps['onDeclineElicitation']
+  readonly onCancelElicitation: ToolRowProps['onCancelElicitation']
   /** A running command to the background, a task's Stop (M46). */
   readonly onMoveToBackground: ToolRowProps['onMoveToBackground']
   readonly onStopTask: ToolRowProps['onStopTask']
@@ -809,6 +813,9 @@ function TranscriptList(props: TranscriptProps) {
     onAnswer,
     onCancelQuestion,
     onClarifyQuestion,
+    onAcceptElicitation,
+    onDeclineElicitation,
+    onCancelElicitation,
     onMoveToBackground,
     onStopTask,
     canStopUserShell,
@@ -865,6 +872,9 @@ function TranscriptList(props: TranscriptProps) {
         onAnswer={onAnswer}
         onCancelQuestion={onCancelQuestion}
         onClarifyQuestion={onClarifyQuestion}
+        onAcceptElicitation={onAcceptElicitation}
+        onDeclineElicitation={onDeclineElicitation}
+        onCancelElicitation={onCancelElicitation}
         onOpenEditDiff={onOpenEditDiff}
         onOpenFile={onOpenFile}
         onOpenLink={onOpenLink}

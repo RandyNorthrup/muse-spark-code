@@ -10,6 +10,8 @@ import { createHash } from 'node:crypto'
 import type {
   AgentEvent,
   ApprovalSubject,
+  ElicitationField,
+  ElicitationReply,
   ItemSnapshot,
   QuestionAnswer,
   TodoItem,
@@ -41,6 +43,7 @@ import {
   HOOK_NOTIFICATION_DELAY_MS,
   HOOK_SESSION_END_TIMEOUT_MS,
   IDE_MCP_SERVER_NAME,
+  MCP_ELICITATION_TIMEOUT_MS,
   MODEL_API_CLOSE_SETTLE_MS,
   MODEL_API_CONTEXT_WINDOW,
   MODEL_API_EFFORT_OFF,
@@ -260,7 +263,23 @@ import {
 } from './reviewer'
 import { MediaBudget } from './mediaBudget'
 import { mcpFunctionDefinition, mcpFunctionName } from './mcp/functions'
-import type { McpPoolSnapshot, McpToolRef, McpToolSource } from './mcp/pool'
+import {
+  ALLOW_ELICITATION_SEAM,
+  describeElicitationForLog,
+  type ElicitationHookSeam,
+  elicitationFieldNames,
+  type ElicitationOutcome,
+  parseElicitationParams,
+  validateElicitationSchema,
+  validateElicitationValues,
+} from './mcp/elicitation'
+import type {
+  McpElicitationHandler,
+  McpElicitationRequest,
+  McpPoolSnapshot,
+  McpToolRef,
+  McpToolSource,
+} from './mcp/pool'
 import { isMemoryTool, placeMemoryCall, runMemoryCall, type PlacedMemoryCall } from './memoryTools'
 
 import {
@@ -448,8 +467,16 @@ export interface ModelApiHostDeps extends ModelApiPaidHooks {
   readonly isHooksEnabled?: (() => boolean) | undefined
   /** Tests can shorten the six-second Notification delay without waiting. */
   readonly hookNotificationDelayMs?: number | undefined
+  /** Tests can shorten the elicitation form's wait without waiting. */
+  readonly elicitationTimeoutMs?: number | undefined
   /** The MCP servers of Muse Code's settings (M50, PLAN.md D42), closed with the host. */
   readonly mcpServers?: McpToolSource | undefined
+  /**
+   * The Elicitation and ElicitationResult hook runs (M91, PLAN.md D70).
+   * Lane E owns the dispatch; until it lands, the default proceeds every
+   * request to the form. Tests inject a fake here.
+   */
+  readonly elicitationHooks?: ElicitationHookSeam | undefined
   /**
    * The extension's own IDE tools (`getDiagnostics`), offered in process as
    * `mcp__ide__<tool>`, the names Muse Code sessions see them by (M50).
@@ -726,6 +753,12 @@ type QuestionReply =
   | { readonly kind: 'cancelled' }
   | { readonly kind: 'clarified'; readonly text: string }
 
+/** How an elicitation form settled (M91 lane M): accept, decline or cancel. */
+type ElicitationContent =
+  | { readonly kind: 'accepted'; readonly content: Readonly<Record<string, unknown>> }
+  | { readonly kind: 'declined' }
+  | { readonly kind: 'cancelled' }
+
 /**
  * A tool's result. A shell call the user moved to the background (M46)
  * answers the model at once and carries the command's own end.
@@ -941,6 +974,8 @@ const FORWARDED_CHILD_EVENTS: ReadonlySet<AgentEvent['type']> = new Set([
   'approvalRequested',
   'approvalUpdated',
   'approvalResolved',
+  'elicitationRequested',
+  'elicitationSettled',
 ])
 const IDLE = 'idle'
 const RUNNING = 'running'
@@ -1693,6 +1728,19 @@ export class ModelApiSession implements AgentSession {
     Extract<AgentEvent, { type: 'approvalRequested' }>
   >()
   private readonly pendingQuestions = new Map<string, Pending<QuestionReply>>()
+  /**
+   * Elicitation forms waiting on the user (M91 lane M): the fields the
+   * answer is validated against, and the server that asked, so a refusal
+   * can name the field without ever holding a value.
+   */
+  private readonly pendingElicitations = new Map<
+    string,
+    {
+      readonly pending: Pending<ElicitationContent>
+      readonly fields: readonly ElicitationField[]
+      readonly server: string
+    }
+  >()
   /**
    * Shell calls running in the foreground, by row: what moves each to the
    * background (M46, PLAN.md D39).
@@ -4101,6 +4149,173 @@ export class ModelApiSession implements AgentSession {
     return Promise.resolve()
   }
 
+  /**
+   * One MCP server's `elicitation/create` during this session's tool call
+   * (M91 lane M, form mode only): the Elicitation hooks run first, then the
+   * form asks the user. Never auto-accepts, in any approval mode: without
+   * an answer there is no accept. A timeout, a stopped turn or a closed
+   * session settles it as a cancel. Values are validated against the
+   * server's schema and reach only the server's own result: they are never
+   * logged, and no event carries them.
+   */
+  private async runElicitation(
+    itemId: string,
+    request: McpElicitationRequest,
+  ): Promise<ElicitationOutcome> {
+    const { server, params, signal } = request
+    // Already parsed at the connection's boundary (rule 7); parsed again
+    // for use here. A refusal throws to the connection's error answer.
+    const parsed = parseElicitationParams(params)
+    const seam =
+      this.deps.isHooksEnabled?.() === false
+        ? ALLOW_ELICITATION_SEAM
+        : (this.deps.elicitationHooks ?? ALLOW_ELICITATION_SEAM)
+    const checked = validateElicitationSchema(parsed.requestedSchema)
+    if (!checked.ok) {
+      this.deps.log.warn(`MCP server ${server} elicitation declined: ${checked.reason}`)
+      return await this.finishElicitation(server, [], 'decline')
+    }
+    const fields = checked.fields
+    const fieldNames = elicitationFieldNames(fields)
+    const isStopped = () => signal.aborted
+    if (isStopped() || this.pendingElicitations.size > 0) {
+      return await this.finishElicitation(server, fieldNames, 'cancel')
+    }
+    const verdict = await seam.fireElicitation({
+      server,
+      message: parsed.message,
+      fieldNames: [...fieldNames],
+      requiredNames: fields.filter((field) => field.required).map((field) => field.name),
+    })
+    if (isStopped() || this.pendingElicitations.size > 0) {
+      return await this.finishElicitation(server, fieldNames, 'cancel')
+    }
+    if (verdict.decision === 'decline' || verdict.decision === 'cancel') {
+      if (verdict.decision === 'decline' && verdict.reason !== undefined) {
+        this.emit({
+          type: 'backendNotice',
+          level: 'info',
+          text: fill(UI_TEXT.elicitationDeclinedByHook, { server, reason: verdict.reason }),
+        })
+      }
+      return await this.finishElicitation(server, fieldNames, verdict.decision)
+    }
+    if (verdict.decision === 'answer') {
+      if (verdict.source !== 'user') {
+        this.deps.log.warn(`MCP server ${server} elicitation: a project hook's answer is refused`)
+        return await this.finishElicitation(server, fieldNames, 'decline')
+      }
+      const values = verdict.values ?? {}
+      const answered = validateElicitationValues(fields, values)
+      if (!answered.ok) {
+        this.deps.log.warn(
+          `MCP server ${server} elicitation: a hook's answer does not fit the schema and is refused`,
+        )
+        return await this.finishElicitation(server, fieldNames, 'decline')
+      }
+      this.emit({
+        type: 'backendNotice',
+        level: 'info',
+        text: fill(UI_TEXT.elicitationAnsweredByHook, { server }),
+      })
+      return await this.finishElicitation(server, fieldNames, 'accept', answered.content)
+    }
+    const elicitationId = this.deps.newId()
+    const reply = await this.waitForElicitation(
+      elicitationId,
+      server,
+      itemId,
+      parsed.message,
+      fields,
+      signal,
+    )
+    this.pendingElicitations.delete(elicitationId)
+    const refusalAction = reply.kind === 'declined' ? 'decline' : 'cancel'
+    const action = reply.kind === 'accepted' ? 'accept' : refusalAction
+    this.emit({ type: 'elicitationSettled', elicitationId, action })
+    return reply.kind === 'accepted'
+      ? await this.finishElicitation(server, fieldNames, 'accept', reply.content)
+      : await this.finishElicitation(server, fieldNames, action)
+  }
+
+  /**
+   * The form's wait: shown in the panel until it is answered, and in the
+   * ACP agent through its form path. Invalid answers are refused with the
+   * field named, and the wait goes on; the timeout and any stop cancel it.
+   */
+  private async waitForElicitation(
+    elicitationId: string,
+    server: string,
+    itemId: string,
+    message: string,
+    fields: readonly ElicitationField[],
+    signal: AbortSignal,
+  ): Promise<ElicitationContent> {
+    const timer = setTimeout(() => {
+      this.pendingElicitations.get(elicitationId)?.pending.resolve({ kind: 'cancelled' })
+    }, this.deps.elicitationTimeoutMs ?? MCP_ELICITATION_TIMEOUT_MS)
+    try {
+      // Pending before it is shown, as an approval card is: an answer given
+      // as the form arrives must find it (the live sweep, 2026-09-27).
+      return await waitFor<ElicitationContent>(signal, (pending) => {
+        this.pendingElicitations.set(elicitationId, { pending, fields, server })
+        this.emit({
+          type: 'elicitationRequested',
+          elicitationId,
+          server,
+          message,
+          fields: fields.map((field) => ({ ...field })),
+          itemId,
+        })
+      })
+    } catch {
+      return { kind: 'cancelled' }
+    } finally {
+      clearTimeout(timer)
+    }
+  }
+
+  /**
+   * The ElicitationResult hook run (observation) and the server's answer. A
+   * project hook sees the field names and the action only, never values.
+   */
+  private async finishElicitation(
+    server: string,
+    fieldNames: readonly string[],
+    action: ElicitationOutcome['action'],
+    content?: Readonly<Record<string, unknown>>,
+  ): Promise<ElicitationOutcome> {
+    const seam =
+      this.deps.isHooksEnabled?.() === false
+        ? ALLOW_ELICITATION_SEAM
+        : (this.deps.elicitationHooks ?? ALLOW_ELICITATION_SEAM)
+    await seam.fireElicitationResult({ server, fieldNames: [...fieldNames], action })
+    this.deps.log.info(describeElicitationForLog(server, fieldNames, action))
+    return action === 'accept' ? { action, content: { ...content } } : { action }
+  }
+
+  /** Settles a waiting elicitation form with `reply`. */
+  private settleElicitationForm(elicitationId: string, reply: ElicitationReply): Promise<void> {
+    const found = this.pendingElicitations.get(elicitationId)
+    if (found === undefined) {
+      return Promise.reject(new Error(UI_TEXT.elicitationExpired))
+    }
+    if (reply.kind !== 'accepted') {
+      found.pending.resolve(reply)
+      return Promise.resolve()
+    }
+    const checked = validateElicitationValues(found.fields, reply.values)
+    if (!checked.ok) {
+      return Promise.reject(
+        new Error(
+          fill(UI_TEXT.elicitationInvalid, { field: checked.refusal.field, server: found.server }),
+        ),
+      )
+    }
+    found.pending.resolve({ kind: 'accepted', content: checked.content })
+    return Promise.resolve()
+  }
+
   private writeTodos(call: FunctionCallItem): ToolOutcome {
     let raw: unknown
     try {
@@ -4649,6 +4864,7 @@ export class ModelApiSession implements AgentSession {
 
   /** The IDE tool in process, or the MCP server's tool over its connection (M50). */
   private async performExternal(
+    itemId: string,
     external: ExternalTool,
     call: FunctionCallItem,
     signal: AbortSignal,
@@ -4662,7 +4878,11 @@ export class ModelApiSession implements AgentSession {
       return toolFailure(`${call.name} ${MODEL_API_MODEL_TEXT.mcpToolUnavailable}`)
     }
     this.noteProcessRan()
-    const outcome = await servers.call(call.name, call.arguments, signal)
+    // This call's elicitations are answered in this session (M91 lane M),
+    // with the form under this tool's row. Never auto-accepted: the route
+    // only asks, in every approval mode.
+    const route: McpElicitationHandler = (request) => this.runElicitation(itemId, request)
+    const outcome = await servers.call(call.name, call.arguments, signal, route)
     return {
       output: outcome.output,
       visibleOutput: outcome.visibleOutput,
@@ -5645,7 +5865,7 @@ export class ModelApiSession implements AgentSession {
   ): Promise<Performed> {
     const external = this.externalTool(call.name)
     if (external !== undefined) {
-      return { outcome: await this.performExternal(external, call, signal) }
+      return { outcome: await this.performExternal(itemId, external, call, signal) }
     }
     if (isSubagentTool(call.name)) {
       return { outcome: await this.runSubagentTool(call, signal, childGrant) }
@@ -9297,6 +9517,22 @@ export class ModelApiSession implements AgentSession {
     return this.settleQuestion(userInputId, { kind: 'cancelled' })
   }
 
+  /**
+   * Settles an elicitation form (M91 lane M): accept with validated values,
+   * or decline or cancel. An answer outside the requested schema is refused,
+   * and the form stays open; answering a settled form reports it as gone.
+   */
+  public settleElicitation(elicitationId: string, reply: ElicitationReply): Promise<void> {
+    if (!this.pendingElicitations.has(elicitationId)) {
+      for (const child of this.children.values()) {
+        if (child.session.pendingElicitations.has(elicitationId)) {
+          return child.session.settleElicitation(elicitationId, reply)
+        }
+      }
+    }
+    return this.settleElicitationForm(elicitationId, reply)
+  }
+
   /** Explain instead of choosing (M46): the tool returns the text, as Muse Code's clarify does. */
   public clarifyQuestions(userInputId: string, text: string): Promise<void> {
     const trimmed = text.trim()
@@ -10025,6 +10261,10 @@ export class ModelApiHost implements AgentHost {
 
   public constructor(private readonly deps: ModelApiHostDeps) {
     this.workspaceEdits = deps.workspaceEdits ?? new WorkspaceEdits()
+    // Elicitations outside any tool call have no session to ask: they are
+    // declined, and the pool declares the capability while this stands
+    // (M91 lane M). Each call carries its own session's route instead.
+    deps.mcpServers?.setElicitationHandler?.(() => Promise.resolve({ action: 'decline' as const }))
   }
 
   private async requireAccountId(): Promise<string> {
