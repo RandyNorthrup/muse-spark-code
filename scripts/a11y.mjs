@@ -218,12 +218,6 @@ async function main() {
   ) {
     throw new Error(`${MODELS_BUNDLE_PATH} is missing; run \`npm run build\` first`)
   }
-  if (
-    (requested.length === 0 || requested.some((name) => bundleFor(name) === 'models')) &&
-    !existsSync(path.join(repoRoot, MODELS_BUNDLE_PATH))
-  ) {
-    throw new Error(`${MODELS_BUNDLE_PATH} is missing; run npm run build:dev first`)
-  }
   const unknown = requested.filter((name) => !SCENARIOS.includes(name))
   if (unknown.length > 0) {
     throw new Error(`Unknown scenario(s): ${unknown.join(', ')}`)

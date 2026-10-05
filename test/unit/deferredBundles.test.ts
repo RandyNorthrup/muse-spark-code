@@ -97,7 +97,7 @@ describe('deferred cohort bundles', () => {
   })
 
   it('carries every captured codec only in the providers bundle', () => {
-    for (const codec of ['anthropic', 'gemini', 'responses']) {
+    for (const codec of ['anthropic', 'chat', 'gemini', 'ollama', 'responses']) {
       const source = `src/core/backends/modelapi/codecs/${codec}.ts`
       expect(inputs('providers')).toContain(source)
       for (const bundle of ['extension', 'modelApi', 'modelsPanel']) {
@@ -129,6 +129,8 @@ describe('deferred cohort bundles', () => {
     ['providers', 'src/core/backends/modelapi/codecs/anthropic.ts', 'missing'],
     ['providers', 'src/core/backends/modelapi/codecs/gemini.ts', 'missing'],
     ['providers', 'src/core/backends/modelapi/codecs/responses.ts', 'missing'],
+    ['providers', 'src/core/backends/modelapi/codecs/chat.ts', 'missing'],
+    ['providers', 'src/core/backends/modelapi/codecs/ollama.ts', 'missing'],
     // M90: the Auto reviewer on Muse Code, required on the first review.
     ['extension', 'src/host/review/museCodeReviewer.ts', 'on the first review'],
   ])(

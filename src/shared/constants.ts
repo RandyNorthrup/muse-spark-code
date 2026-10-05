@@ -3933,6 +3933,8 @@ export const EVAL_COST_DECIMALS = 4
 // folder: `<config home>/muse-spark-code/providers.json`. It holds ids,
 // presets, addresses, chosen models, user-entered prices, OpenRouter's
 // routing choices and the default model; never a credential.
+// Captured Z.ai key shape: a hexadecimal account prefix and alphanumeric secret.
+export const ZAI_KEY_PATTERN = /^[0-9a-f]{32}\.[A-Za-z0-9]{8,64}$/
 export const PROVIDERS_CONFIG_DIR_NAME = 'muse-spark-code'
 export const PROVIDERS_FILE_NAME = 'providers.json'
 export const PROVIDERS_FILE_VERSION = 1

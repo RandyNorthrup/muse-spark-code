@@ -245,6 +245,7 @@ export function providerRows(onAction: (action: PaletteAction) => void): readonl
     {
       id: 'addModelProvider',
       label: UI_TEXT.addModelProviderRow,
+      tip: undefined,
       detail: undefined,
       widget: undefined,
       isCurrent: false,
@@ -256,6 +257,7 @@ export function providerRows(onAction: (action: PaletteAction) => void): readonl
     {
       id: 'manageModels',
       label: UI_TEXT.manageModelsRow,
+      tip: undefined,
       detail: undefined,
       widget: undefined,
       isCurrent: false,

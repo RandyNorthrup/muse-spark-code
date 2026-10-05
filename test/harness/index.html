@@ -1897,6 +1897,7 @@
             break
           }
         }
+      }
       // M87 (the owner's requests of 2026-10-04): the chat column. A reply,
       // a queued steer, the working line, the docked approval card and the
       // composer with an open file. The column scenarios play it and then
@@ -4923,9 +4924,7 @@
         // The Models & Agents panel (`?bundle=models`, M95) draws neither a
         // composer nor a gate: its nav marks the surface instead.
         later(100, () =>
-          whenFound('textarea, .gate, [role="alert"], .models-panel', () => steps[scenario]()),
-        later(100, () =>
-          whenFound('textarea, .gate, .todo-surface, [role="alert"]', () => steps[scenario]()),
+          whenFound('textarea, .gate, .todo-surface, [role="alert"], .models-panel', () => steps[scenario]()),
         )
       }
 

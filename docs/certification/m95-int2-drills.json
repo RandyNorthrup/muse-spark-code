@@ -1,0 +1,101 @@
+[
+  {
+    "name": "oauth-html-red",
+    "exit": 1,
+    "restored": [
+      {
+        "file": "src/host/providers/oauthLoopback.ts",
+        "sha256Parts": [
+          "04607d8c53892741",
+          "1a37dee8ad0791f6",
+          "313fa49737dcf678",
+          "49846ce68383667a"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "zai-validation-red",
+    "exit": 1,
+    "restored": [
+      {
+        "file": "src/core/providers/presets.ts",
+        "sha256Parts": [
+          "d603ca3a1f47dfd9",
+          "f4ba200514538a38",
+          "0473d3e0919df721",
+          "9c780ede6051393b"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "chat-membership-red",
+    "exit": 1,
+    "restored": [
+      {
+        "file": "src/host/backend/providersEntry.ts",
+        "sha256Parts": [
+          "dc615b5227ea28eb",
+          "98a784186b8d0b4f",
+          "a1926e009251602d",
+          "fe67f0af5a5e2715"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "sast-original-red",
+    "exit": 1,
+    "restored": [
+      {
+        "file": "src/core/providers/presets.ts",
+        "sha256Parts": [
+          "d603ca3a1f47dfd9",
+          "f4ba200514538a38",
+          "0473d3e0919df721",
+          "9c780ede6051393b"
+        ]
+      },
+      {
+        "file": "src/host/providers/oauthLoopback.ts",
+        "sha256Parts": [
+          "04607d8c53892741",
+          "1a37dee8ad0791f6",
+          "313fa49737dcf678",
+          "49846ce68383667a"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "selected-contrast-red",
+    "exit": 1,
+    "restored": [
+      {
+        "file": "src/webview/models/models.css",
+        "sha256Parts": [
+          "46175257861e9f14",
+          "06e97931df6ca37d",
+          "a4faee49d01ccc11",
+          "df032571f9e43157"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "harness-readiness-red",
+    "exit": 1,
+    "restored": [
+      {
+        "file": "test/harness/index.html",
+        "sha256Parts": [
+          "acc0df111272673b",
+          "f278d2b02fbfa546",
+          "eee108b0e6d79cc8",
+          "c3149c2a1046a69c"
+        ]
+      }
+    ]
+  }
+]

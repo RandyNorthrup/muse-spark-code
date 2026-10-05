@@ -10,6 +10,7 @@
 // capture is recorded (`wireCapture`, AGENTS.md rule 13); the captures are
 // in `docs/certification/m95-captures.md`. Pure data plus pure helpers.
 
+import { ZAI_KEY_PATTERN } from '../../shared/constants'
 import { fill, UI_TEXT } from '../../shared/l10n/text'
 import type { ProviderFormat } from './providersFile'
 
@@ -29,7 +30,7 @@ export type AuthHeader = 'bearer' | 'x-api-key' | 'x-goog-api-key' | 'api-key'
 /** What a pasted key looks like, checked as it is typed. */
 export type KeyShape =
   | { readonly kind: 'prefix'; readonly prefix: string; readonly minLength: number }
-  | { readonly kind: 'pattern'; readonly source: string; readonly flags?: string }
+  | { readonly kind: 'zai' }
   | { readonly kind: 'any'; readonly minLength: number }
 
 /**
@@ -49,8 +50,8 @@ export function isKeyShape(shape: KeyShape, key: string): boolean {
     case 'any': {
       return trimmed.length >= shape.minLength
     }
-    case 'pattern': {
-      return new RegExp(shape.source, shape.flags).test(trimmed)
+    case 'zai': {
+      return ZAI_KEY_PATTERN.test(trimmed)
     }
   }
 }
@@ -530,7 +531,7 @@ const ZAI_PRESET: ProviderPreset = {
   auth: 'apiKey',
   authHeader: 'bearer',
   // Captured shape: `<32 hex>.<16>`.
-  keyShape: { kind: 'pattern', source: String.raw`^[0-9a-f]{32}\.[A-Za-z0-9]{8,64}$` },
+  keyShape: { kind: 'zai' },
   get keyHint() {
     return fill(UI_TEXT.providerText.hints.site, { site: 'Z.ai' })
   },

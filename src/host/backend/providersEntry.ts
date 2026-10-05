@@ -1,6 +1,8 @@
 // M95's captured codecs and provider core have their own Node bundle (D74).
 // No entry imports these values at activation or on a Meta-only turn. Lane I
 // composes the registry and panel seam after the shared transport lands.
+export * as chat from '../../core/backends/modelapi/codecs/chat'
+export * as ollama from '../../core/backends/modelapi/codecs/ollama'
 export * as anthropic from '../../core/backends/modelapi/codecs/anthropic'
 export * as gemini from '../../core/backends/modelapi/codecs/gemini'
 export * as responses from '../../core/backends/modelapi/codecs/responses'

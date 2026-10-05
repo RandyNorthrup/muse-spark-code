@@ -1,5 +1,62 @@
 # M95INT — completed-lane integration on Kubuntu (2026-10-05)
 
+## Round two — integration and gate repairs (2026-10-05)
+
+The second rig brief authorizes five ordered fix-branch merges and a final
+full quality run, with a 150-minute budget. All work runs in this worktree on
+Kubuntu, with hooks on, explicit staging and no push/rebase/live model call.
+The historical round-one receipts below remain historical, not final results.
+
+| Lane         | Head       | Merge commit | Resolution                                                                                                                                    |
+| ------------ | ---------- | ------------ | --------------------------------------------------------------------------------------------------------------------------------------------- |
+| K fixes      | `e12b86cc` | `89197f6f`   | Keep repaired host/tests and union prior PLAN/CHANGELOG records; retain early OAuth rejection assertions.                                     |
+| M/U fixes    | `b64ef06f` | `12e08a23`   | One strict shared panel contract; remove host-local edit schemas; keep new translations and shared page reset; deduplicate checkbox styles.   |
+| Chat fixes   | `ea6d2e9a` | `69bd715b`   | Union the codec repair and integration records.                                                                                               |
+| Ollama fixes | `70e11526` | `085558ae`   | Preserve release deferrals/text guards, M95 routes and scenarios, all UI/controller tests, translated append blocks and one capture deadline. |
+| S/C fixes    | `e5a114b4` | `75b42ec0`   | Preserve catalogue shipping, all panel bundles and both repair records.                                                                       |
+
+The local S/C branch contains `a95f24cf`, **not** the brief's `928a9200`.
+The latter exists locally but is not an ancestor of any named fix branch.
+The explicit rig prohibition on a separate main merge requires clarification
+before adding that release. The universal macOS helper is also absent; an
+approved local path or permission to extract it from a released VSIX is
+requested. Neither elapsed time nor an unanswered question is approval.
+
+Integration corrections:
+
+- The host parses only `shared/modelsPanel.ts`, including M's strict edit,
+  scoped prefill and cancellation variants. No duplicate temporary schemas.
+- Captured Chat and Ollama codecs join the separate providers entry. The
+  existing required/excluded membership guard covers all five codecs.
+- The new release tooltip field is supplied on both BYO picker footer rows.
+  All five TypeScript projects pass after this merge correction.
+- The Z.ai preset selects a fixed literal pattern; no configurable RegExp
+  source is compiled. OAuth callbacks return localized **text/plain**, so
+  callback text is never interpreted as markup and needs no HTML escaping.
+  The two repaired files have zero SAST findings/errors with the full auto
+  rules. Reinstating the old sources reproduces all four blocking findings.
+- M/U's selected-description rule inherits the active selection foreground,
+  resolving the exact dark-theme 4.41:1 contrast. Persistent browser workers
+  and focus emulation preserve the release driver; M95 bundle routing and
+  one 120-second capture budget remain. Harness conflict repair closes the
+  Models fake-host handler and retains one readiness dispatch for chat,
+  task and Models surfaces. Every inline script passes Node syntax checking.
+  Both failing scenarios pass: eight pages, zero violations/undecided/missing.
+
+Six deliberate drills returned 1, restored bytes in `finally` and compared
+SHA-256; exact hashes are in `m95-int2-drills.json`. The contrast drill
+reproduces the exact 4.41:1 failure. The readiness drill produces four named
+missing-nav failures. The existing membership tests themselves inject/remove
+metafile membership and compare restored hashes. Focused merged tests also
+pass: K host 23, M schema/components/app 33, panel/Palette 41, Chat 74,
+Ollama/App/controller 707, and threats/catalogue/redactor 278. These are
+scoped receipts; final complete quality and package results follow later.
+
+The preliminary build honestly fails unchanged caps: Models host 94.7/75 KiB
+and chat 905.0/900 KiB. Activation is 570.2/600 KiB, English 121.0/125 KiB.
+The missing 0.13.0 release contains shared Node validation and chat deferrals
+needed by the requested baseline; no cap is raised here.
+
 This branch starts at `1ca53611` and integrates only the eight lanes named
 in `/home/randy/lanes/_ctx/M95INT.rig.md`, following that brief and
 `codex/common.md`. The rig brief explicitly authorizes these merges and the

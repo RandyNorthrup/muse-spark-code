@@ -5,6 +5,7 @@
 import { describe, expect, it } from 'vitest'
 import { startOAuthLoopback } from '../../src/host/providers/oauthLoopback'
 import { EN } from '../../src/shared/l10n/en'
+import { setUiText } from '../../src/shared/l10n/text'
 
 const STATE = 'test-state-value'
 
@@ -16,6 +17,22 @@ async function callback(
 }
 
 describe('the OAuth loopback server', () => {
+  it('serves localized callback text as plain text, including HTML metacharacters', async () => {
+    const text = '<script>alert("synthetic")</script> & "done"'
+    setUiText({ ...EN, oauthCallbackDone: text }, 'en')
+    const loopback = await startOAuthLoopback(STATE, 1000)
+    try {
+      const waited = loopback.waitForCode()
+      const response = await callback(loopback, `?code=auth-code&state=${STATE}`)
+      expect(response.headers.get('content-type')).toBe('text/plain; charset=utf-8')
+      expect(await response.text()).toBe(text)
+      await expect(waited).resolves.toBe('auth-code')
+    } finally {
+      loopback.close()
+      setUiText(EN, 'en')
+    }
+  })
+
   it('listens on 127.0.0.1 with a random port', async () => {
     const loopback = await startOAuthLoopback(STATE, 1000)
     try {

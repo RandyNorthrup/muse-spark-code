@@ -27,22 +27,8 @@ export interface OAuthLoopback {
   close(): void
 }
 
-/** Minimal HTML escaping for the callback page's single sentence. */
-function escapeHtml(text: string): string {
-  return text.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;')
-}
-
-function callbackPage(): string {
-  return `<!DOCTYPE html>
-<html lang="en">
-<head><meta charset="UTF-8"><title>OK</title></head>
-<body><p>${escapeHtml(UI_TEXT.oauthCallbackDone)}</p></body>
-</html>
-`
-}
-
 function answer(response: ServerResponse, status: number, body: string): void {
-  response.writeHead(status, { 'content-type': 'text/html; charset=utf-8' })
+  response.writeHead(status, { 'content-type': 'text/plain; charset=utf-8' })
   response.end(body)
 }
 
@@ -82,7 +68,7 @@ export async function startOAuthLoopback(
 
   server.on('request', (request: IncomingMessage, response: ServerResponse) => {
     if (isSettled) {
-      answer(response, HTTP_STATUS.badRequest, callbackPage())
+      answer(response, HTTP_STATUS.badRequest, UI_TEXT.oauthCallbackDone)
       return
     }
     if (request.method !== 'GET') {
@@ -100,22 +86,22 @@ export async function startOAuthLoopback(
     if (refused !== null) {
       const detail = url.searchParams.get('error_description') ?? refused
       finish({ error: new Error(`The provider refused the connection: ${detail}`) })
-      answer(response, HTTP_STATUS.badRequest, callbackPage())
+      answer(response, HTTP_STATUS.badRequest, UI_TEXT.oauthCallbackDone)
       return
     }
     if (url.searchParams.get('state') !== state) {
       finish({ error: new Error('The callback carried the wrong state') })
-      answer(response, HTTP_STATUS.badRequest, callbackPage())
+      answer(response, HTTP_STATUS.badRequest, UI_TEXT.oauthCallbackDone)
       return
     }
     const code = url.searchParams.get('code')
     if (code === null || code === '') {
       finish({ error: new Error('The callback carried no code') })
-      answer(response, HTTP_STATUS.badRequest, callbackPage())
+      answer(response, HTTP_STATUS.badRequest, UI_TEXT.oauthCallbackDone)
       return
     }
     finish({ code })
-    answer(response, HTTP_STATUS.ok, callbackPage())
+    answer(response, HTTP_STATUS.ok, UI_TEXT.oauthCallbackDone)
   })
 
   await new Promise<void>((resolve, reject) => {
